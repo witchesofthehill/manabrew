@@ -46,7 +46,12 @@ export type Deck = {
   editor?: DeckEditorMetadata;
   coverCardName?: string;
   coverCardFace?: number;
-  playmat?: string;
+  /**
+   * The hub fills this from `playmat_asset_id` and ignores whatever a write
+   * supplies.
+   */
+  playmatUrl?: string;
+  playmatAssetId?: string;
   playmatSettings?: PlaymatSettings;
   stackPositions?: Record<string, { x: number; y: number }>;
   tokens?: Array<DeckCard>;
@@ -148,6 +153,7 @@ export type DeckFormat =
   | "legacy"
   | "vintage"
   | "pauper"
+  | "premodern"
   | "commander"
   | "brawl"
   | "oathbreaker"

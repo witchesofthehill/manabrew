@@ -47,6 +47,7 @@ import type {
   DisconnectedPayload,
 } from "@/types/server";
 import type { Deck } from "@/protocol/deck";
+import { resendLocalGame, setRelayFeatures } from "@/lib/localGamePresence";
 
 export const DEFAULT_STARTING_LIFE = 20;
 
@@ -450,6 +451,7 @@ export const useServerStore = create<ServerState>()(
 
         unsubscribers.push(
           platform.events.on<AuthResultPayload>("server:auth_result", (payload) => {
+            setRelayFeatures(payload.features);
             if (payload.success) {
               duplicateRejectionSince = null;
               set({
@@ -462,6 +464,7 @@ export const useServerStore = create<ServerState>()(
               });
               get().listRooms();
               get().listPlayers();
+              resendLocalGame();
               const username = get().username;
               if (username) {
                 attachDraftPeer(username);

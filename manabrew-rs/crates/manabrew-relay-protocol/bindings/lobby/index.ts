@@ -21,7 +21,7 @@ export type PlayerDeckInfo = {
   deck: Deck;
   published_deck_id?: string;
   commander_name?: string;
-  avatar?: string;
+  avatar_url?: string;
 };
 
 export type ResumeRoomRequest = {

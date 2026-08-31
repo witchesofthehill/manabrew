@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.32.1](https://github.com/witchesofthehill/manabrew/compare/v3.32.0...v3.32.1) (2026-08-31)
+
+### Fixes
+
+* forge hangs on prompt1 the first time the worker loads ([#804](https://github.com/witchesofthehill/manabrew/issues/804)) ([8d577c4](https://github.com/witchesofthehill/manabrew/commit/8d577c43714014bead932359eb3725d110074071))
+
 ## [3.32.0](https://github.com/witchesofthehill/manabrew/compare/v3.31.1...v3.32.0) (2026-08-31)
 
 ### Features

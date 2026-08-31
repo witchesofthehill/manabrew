@@ -82,7 +82,7 @@ export function ChooseAction({
   const promptActionColors = usePromptActionColors();
   const passActionStyle = getPromptActionButtonStyle(promptActionColors.passAction);
   const minimal = useIsMobileGame();
-  const { counting, hold } = useAutopass();
+  const { counting } = useAutopass();
   const stackEmpty = useGameStore((s) => (s.gameView?.stack?.length ?? 0) === 0);
   const keyOverrides = useKeybindingsStore((s) => s.overrides);
 
@@ -98,8 +98,8 @@ export function ChooseAction({
   const endTurnHeld = useComboModifiersHeld(endTurnCombo);
   const morphed = endTurnHeld;
   const label = morphed ? endTurnLabel : counting ? "PASSING" : "PASS";
-  const onClick = morphed ? onPassEndTurn : counting ? hold : onPassPriority;
-  const title = morphed ? endTurnTitle : counting ? "Click to hold priority" : undefined;
+  const onClick = morphed ? onPassEndTurn : onPassPriority;
+  const title = morphed ? endTurnTitle : undefined;
   const chip = morphed ? endTurnCombo : passCombo;
 
   if (minimal) {

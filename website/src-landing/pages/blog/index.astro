@@ -13,6 +13,7 @@ const dateFmt = new Intl.DateTimeFormat("en-US", {
 });
 
 const audienceLabel = { players: "For players", developers: "For developers" };
+const kindLabel = { announcement: "Announcement", essay: "Essay" };
 
 const DESCRIPTION =
   "Updates and technical writeups from Manabrew, an open-source Magic: The Gathering client and Rust rules engine that runs in the browser.";
@@ -32,7 +33,10 @@ const DESCRIPTION =
       posts.map((post) => (
         <li>
           <a href={`/blog/${post.id}/`}>
-            <span class="tag">{audienceLabel[post.data.audience]}</span>
+            <span class="tags">
+              <span class="tag">{kindLabel[post.data.kind]}</span>
+              <span class="tag muted">{audienceLabel[post.data.audience]}</span>
+            </span>
             <h2>{post.data.title}</h2>
             <p class="desc">{post.data.description}</p>
             <time datetime={post.data.pubDate.toISOString()}>
@@ -103,6 +107,11 @@ const DESCRIPTION =
     border-color: var(--ring);
   }
 
+  .tags {
+    display: flex;
+    gap: 0.7rem;
+  }
+
   .tag {
     display: inline-block;
     font-size: 0.72rem;
@@ -110,6 +119,10 @@ const DESCRIPTION =
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--primary);
+  }
+
+  .tag.muted {
+    color: var(--muted-foreground);
   }
 
   .posts h2 {

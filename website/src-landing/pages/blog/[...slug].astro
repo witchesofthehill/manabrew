@@ -26,6 +26,7 @@ const dateFmt = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
 });
 const audienceLabel = { players: "For players", developers: "For developers" };
+const kindLabel = { announcement: "Announcement", essay: "Essay" };
 const ogImage = hero ? new URL(hero.src, Astro.site).toString() : undefined;
 ---
 
@@ -40,7 +41,8 @@ const ogImage = hero ? new URL(hero.src, Astro.site).toString() : undefined;
   <article>
     <header class="post-head">
       <p class="meta">
-        <span class="tag">{audienceLabel[post.data.audience]}</span>
+        <span class="tag">{kindLabel[post.data.kind]}</span>
+        <span class="tag muted">{audienceLabel[post.data.audience]}</span>
         <time datetime={post.data.pubDate.toISOString()}>
           {dateFmt.format(post.data.pubDate)}
         </time>
@@ -92,6 +94,10 @@ const ogImage = hero ? new URL(hero.src, Astro.site).toString() : undefined;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--primary);
+  }
+
+  .tag.muted {
+    color: var(--muted-foreground);
   }
 
   .meta time {

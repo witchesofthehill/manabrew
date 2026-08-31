@@ -21,6 +21,7 @@ async fn bind() -> (
     NetEndpoint::bind(NetConfig {
         secret_key: None,
         relay_mode: Some(iroh::RelayMode::Disabled),
+        relay_only: false,
     })
     .await
     .expect("bind endpoint")

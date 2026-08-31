@@ -6,7 +6,8 @@
 # web deploy (`cargo xtask deploy` pulls these images with a retry loop). chef masks
 # workspace-member versions, so the per-merge release bumps don't invalidate
 # the cooked layer; only a real dependency change does.
-FROM rust:1.88-bookworm AS chef
+# iroh-relay is edition 2024 and declares rust-version 1.91.
+FROM rust:1.94-bookworm AS chef
 RUN cargo install cargo-chef --locked
 WORKDIR /build
 

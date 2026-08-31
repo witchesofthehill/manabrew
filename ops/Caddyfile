@@ -47,11 +47,19 @@ staging.manabrew.app {
 }
 
 relay-staging.manabrew.app {
-    reverse_proxy manabrew-server-staging:9443 {
-        health_uri /health
-        health_port 9444
-        health_interval 15s
-        health_timeout 3s
+    # The iroh relay manabrew-server hosts in-process. iroh dials
+    # wss://<relay-url>/relay, so it shares this hostname and its certificate
+    # rather than needing DNS and a cert of its own.
+    handle /relay* {
+        reverse_proxy manabrew-server-staging:9445
+    }
+    handle {
+        reverse_proxy manabrew-server-staging:9443 {
+            health_uri /health
+            health_port 9444
+            health_interval 15s
+            health_timeout 3s
+        }
     }
 }
 

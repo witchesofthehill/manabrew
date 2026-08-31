@@ -44,9 +44,11 @@ room mints a 32-byte `topic_secret` and keeps a `transports` map of `player_id -
 participant, and the roster the relay broadcasts (`RoomTransport`, room members only) carries the
 relay's **own** record of each session's username. That is what makes an endpoint id attributable
 to a player: clients treat a `username -> endpoint_id` pair as authoritative because the relay
-said it, never because a peer claimed it over gossip. `MANABREW_IROH_RELAY_URL` names the iroh
-relay this deployment runs; unset means peers stay direct-only, and there is deliberately no
-public default.
+said it, never because a peer claimed it over gossip. `MANABREW_IROH_RELAY_PORT` makes this process host the deployment's own
+iroh relay alongside the game socket, and `MANABREW_IROH_RELAY_URL` is the address it advertises
+to room members. Unset means peers stay direct-only, and there is deliberately no public default.
+Both native and browser iroh clients reach a relay over plain WebSocket at `/relay`, so the edge
+routes `handle /relay*` on the existing relay hostname; it needs no certificate or DNS of its own.
 
 ## Observability
 

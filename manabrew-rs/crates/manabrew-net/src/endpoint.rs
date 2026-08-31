@@ -34,6 +34,10 @@ pub struct NetConfig {
     /// Manabrew runs its own `iroh-relay`; endpoint ids and connection metadata
     /// must not transit third-party infrastructure.
     pub relay_mode: Option<RelayMode>,
+    /// Drop the IP transports, leaving only the relay. This is the shape a
+    /// browser endpoint has whether it asks for it or not, so setting it on a
+    /// native endpoint is how the relay path gets tested without a browser.
+    pub relay_only: bool,
 }
 
 impl NetConfig {
@@ -45,6 +49,7 @@ impl NetConfig {
         Ok(Self {
             secret_key: None,
             relay_mode: Some(RelayMode::Custom(RelayMap::from_iter([url]))),
+            relay_only: false,
         })
     }
 }
@@ -79,6 +84,9 @@ impl NetEndpoint {
         let mut builder = Endpoint::builder(iroh::endpoint::presets::Minimal)
             .relay_mode(config.relay_mode.unwrap_or(RelayMode::Disabled))
             .address_lookup(known_addrs.clone());
+        if config.relay_only {
+            builder = builder.clear_ip_transports();
+        }
         if let Some(secret) = config.secret_key {
             builder = builder.secret_key(secret);
         }

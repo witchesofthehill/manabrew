@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { PlaytestPlayersDialog } from "@/components/lobby/PlaytestPlayersDialog";
-import { getDefaultAiEngine } from "@/game/hostedAiPlay";
+import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import { pickRandomDistinct } from "@/lib/utils";
 import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { useGameStore } from "@/stores/useGameStore";
@@ -15,7 +15,7 @@ export function useQuickPlaytest(): {
 } {
   const navigate = useNavigate();
   const startGame = useGameStore((s) => s.startGame);
-  const aiEngine = getDefaultAiEngine();
+  const aiEngine = resolveOfflineEngine();
   const presetDecks = usePresetDecks(aiEngine);
   const [pendingDeck, setPendingDeck] = useState<Deck | null>(null);
 

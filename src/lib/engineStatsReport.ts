@@ -14,7 +14,7 @@ import { recordEngineStats } from "@/api/hub";
 import { HubRequestError } from "@/api/hub";
 import { getPlatform } from "@/platform";
 import { getSelectedGameRuntimeKind } from "@/game/runtimeRegistry";
-import { isForgeWasmSelected } from "@/lib/forgeWasm";
+import { isForgeWasmActive } from "@/lib/forgeWasm";
 import { APP_VERSION, STORAGE_KEYS } from "@/lib/constants";
 import type { EngineKind } from "@/types/server";
 import type { EngineGameStats } from "@/lib/engineTelemetry";
@@ -40,7 +40,7 @@ interface PendingReport {
  */
 export function localEngineLabel(): string {
   const kind = getSelectedGameRuntimeKind();
-  if (kind === "manabrew" && isForgeWasmSelected()) return "forge-wasm";
+  if (kind === "manabrew" && isForgeWasmActive()) return "forge-wasm";
   return kind;
 }
 

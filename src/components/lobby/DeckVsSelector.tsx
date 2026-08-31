@@ -2,12 +2,6 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { EngineMark } from "@/components/lobby/EngineMark";
 import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
@@ -18,10 +12,7 @@ import { resolveAiOpponent } from "@/lib/aiOpponent";
 import { getDeckFingerprint } from "@/lib/decks";
 import { reportPublishedDeckPlay } from "@/lib/deckPlayEvidence";
 import { GAME_FORMATS, getFormat, validateDeckSections } from "@/lib/formats";
-import { getPlatform } from "@/platform";
-import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
-import { isForgeWasmSelected } from "@/lib/forgeWasm";
 import { hubEntryEngines, supportsEngine } from "@/lib/engines";
 import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { useAccountDecks } from "@/hooks/useAccountDecks";
@@ -29,7 +20,7 @@ import { useOwnedDecks } from "@/hooks/useOwnedDecks";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { Deck } from "@/protocol/deck";
-import { Check, ChevronDown, Loader2, Search, Shuffle, Swords, User, Bot, X } from "lucide-react";
+import { Check, Loader2, Search, Shuffle, Swords, User, Bot, X } from "lucide-react";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
 import { useHubStore } from "@/stores/useHubStore";
@@ -94,8 +85,6 @@ export function DeckVsSelector({
       : null;
   const lastOfflineFormatId = usePreferencesStore((state) => state.lastOfflineFormatId);
   const lastAiOpponent = usePreferencesStore((state) => state.lastAiOpponent);
-  const lastOfflineEngine = usePreferencesStore((state) => state.lastOfflineEngine);
-  const setLastOfflineEngine = usePreferencesStore((state) => state.setLastOfflineEngine);
   const rememberedFormatId =
     !preSelectedDeckEntry && lastOfflineFormatId && getFormat(lastOfflineFormatId)
       ? lastOfflineFormatId
@@ -115,10 +104,7 @@ export function DeckVsSelector({
   const selectedFormatRef = useRef(selectedFormat);
   selectedFormatRef.current = selectedFormat;
   const opponentTouchedRef = useRef(false);
-  const isWeb = getPlatform().type === "web";
-  const hostedAvailable = isHostedEngineAvailable();
-  const offlineEngine = resolveOfflineEngine(lastOfflineEngine);
-  const forgeWasm = isForgeWasmSelected();
+  const offlineEngine = resolveOfflineEngine();
   const { details: accountDeckDetails } = useAccountDecks();
   const forkedPresetKeys = new Set(
     Object.values(accountDeckDetails)
@@ -752,44 +738,10 @@ export function DeckVsSelector({
           />
         </div>
         <div className="grid grid-flow-col auto-cols-fr gap-2 sm:flex sm:flex-shrink-0 sm:items-center">
-          {isWeb && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="outline" className="w-full gap-1.5 sm:w-auto">
-                  <EngineMark engine={offlineEngine} className="h-3.5 w-3.5" />
-                  {offlineEngine}
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onSelect={() => setLastOfflineEngine("Forge")}
-                  disabled={!hostedAvailable && !forgeWasm}
-                  className="gap-1.5 text-xs"
-                >
-                  <EngineMark engine="Forge" className="h-3.5 w-3.5" />
-                  Forge
-                  {forgeWasm ? (
-                    <span className="text-[9px] text-muted-foreground">in browser</span>
-                  ) : (
-                    hostedAvailable && (
-                      <span className="text-[9px] text-muted-foreground">recommended</span>
-                    )
-                  )}
-                  {offlineEngine === "Forge" && <Check className="ml-auto h-3 w-3" />}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => setLastOfflineEngine("Manabrew")}
-                  disabled={forgeWasm}
-                  className="gap-1.5 text-xs"
-                >
-                  <EngineMark engine="Manabrew" className="h-3.5 w-3.5" />
-                  Manabrew
-                  {offlineEngine === "Manabrew" && <Check className="ml-auto h-3 w-3" />}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          <div className="flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm sm:w-auto">
+            <EngineMark engine="Forge" className="h-3.5 w-3.5" />
+            Forge
+          </div>
           <Button
             size="sm"
             onClick={handleFight}

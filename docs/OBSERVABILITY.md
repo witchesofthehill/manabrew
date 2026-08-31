@@ -112,6 +112,12 @@ Turnaround is measured on the client: the answer leaving to the next prompt land
 
 The last two panels are the ones to read before believing any of the others. A report that is never sent, or that arrives after the seat is gone, leaves no row anywhere: the engine panels above simply undercount, silently and without a gap in the series.
 
+### Offline games
+
+An offline game never touches the relay, so it has no `game_id` and cannot be counted from relay traffic. The client reports it to the hub instead (`POST /api/stats/game`, table `offline_play_games`), and `scripts/ingest-events.py` expands it into `games`, `game_players`, `decks` and `deck_cards` alongside relay games. `games.source` separates the two (`relay` or `offline`) and `games.reported_at` is the ingest watermark; rows predating the column are relay games.
+
+This restores what the hosted nodes recorded for Play vs AI before the engine moved into the browser, so those games count again in duration, completion, format mix, winrate and card popularity. Two caveats. It names players, unlike `engine_play_stats` next to it, which is why `Storage::delete_account` scrubs erased handles out of the offline tables. And a game reports once, at game over or teardown, from a queue that survives a reload: a player who never reopens the app is a game that never arrives.
+
 ### Analytics Explorer (`product.json`)
 
 Broad all-in-one inventory retained for ad hoc analysis and schema inspection. The curated dashboards above should be the normal operational entry points. Datasource: SQLite (`events-sqlite`, `frser-sqlite-datasource`) over the analytics DB built by `scripts/ingest-events.py`.

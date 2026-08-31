@@ -4,6 +4,7 @@ description: "How we compiled Forge's Java rules engine to WebAssembly with Graa
 pubDate: 2026-08-30
 author: "The Manabrew team"
 audience: developers
+kind: announcement
 ---
 
 Forge now runs in the browser. We compiled the Java engine to WebAssembly and put it behind the same

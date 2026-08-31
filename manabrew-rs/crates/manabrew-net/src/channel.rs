@@ -5,8 +5,8 @@
 //! swap implementations, and it lets the existing relay WebSocket loop qualify
 //! as a transport without being rewritten as a `dyn` implementation.
 
+use n0_future::time::Duration;
 use std::sync::Arc;
-use std::time::Duration;
 
 use tokio::sync::{mpsc, watch};
 
@@ -85,10 +85,10 @@ impl TransportStatus {
 /// Aborts a transport's pump tasks when the channel is dropped, which is what
 /// closes the underlying connection.
 #[derive(Debug, Default)]
-pub struct ChannelGuard(Vec<tokio::task::JoinHandle<()>>);
+pub struct ChannelGuard(Vec<n0_future::task::JoinHandle<()>>);
 
 impl ChannelGuard {
-    pub fn new(tasks: Vec<tokio::task::JoinHandle<()>>) -> Self {
+    pub fn new(tasks: Vec<n0_future::task::JoinHandle<()>>) -> Self {
         Self(tasks)
     }
 }
@@ -210,7 +210,7 @@ impl GameChannel {
     }
 
     pub async fn recv_timeout(&mut self, timeout: Duration) -> Option<SessionFrame> {
-        tokio::time::timeout(timeout, self.inbound.recv())
+        n0_future::time::timeout(timeout, self.inbound.recv())
             .await
             .ok()
             .flatten()

@@ -1,0 +1,21 @@
+[package]
+name = "manabrew-net-wasm"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+description = "Browser bindings for the manabrew direct data plane"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+manabrew-net = { path = "../manabrew-net", version = "0.1.0" }
+manabrew-relay-protocol = { path = "../manabrew-relay-protocol", version = "5.8.1" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+serde-wasm-bindgen = "0.6"
+getrandom = { version = "0.3", features = ["wasm_js"] }
+tracing = "0.1"

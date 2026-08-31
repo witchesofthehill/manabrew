@@ -191,9 +191,21 @@ Two build constraints found while checking this, both real:
   build of iroh needs an LLVM clang on the path, locally and in CI. This is the reason the wasm
   half is not in phase 1.
 
-None of this changes room semantics. A browser host is a `TransportEndpoint` like any other,
-and until the wasm build lands its transport candidate list is simply "relay only", which the
-negotiation already handles.
+**The browser build works.** `manabrew-net` compiles for `wasm32-unknown-unknown`, and
+`manabrew-net-wasm` wraps it for JavaScript. It is a **separate module**, not part of the main
+wasm bundle: iroh costs 3.0MB raw and 1.19MB gzipped, and a player who never joins a room that
+offers a direct transport should not download it, so `src/game/directSeat.ts` imports it only
+when `RoomTransport` arrives carrying a relay url. The image build needs `clang` and `llvm`
+(`CC_wasm32_unknown_unknown=clang`); a machine without a wasm-capable clang skips the module and
+builds everything else, which keeps the plain `yarn build:wasm` working on stock macOS.
+
+A browser seat sends only its own answers over the channel (`response` and `directive`); a
+browser *hosting* a room still serves its seats over the relay. Hosting from the browser is the
+next phase, and nothing in the design prevents it: the host role is the same `SeatTable` the node
+runs.
+
+None of this changes room semantics. A browser host is a `TransportEndpoint` like any other, and
+its transport candidate list is simply "relay only", which the negotiation already handles.
 
 ## Code map
 
@@ -292,5 +304,9 @@ itself:
 - **Phase 3 (done).** The deployment's own iroh relay, hosted by `manabrew-server`, and
   replay-cache re-priming on fallback. What is left here is live migration at a resync boundary,
   which is optional: transport is chosen before `GameStarted` and never changes mid-game.
-- **Phase 4.** The wasm build (LLVM clang in CI, bundle budget) and, only if justified, an
-  embedded relay.
+- **Phase 4 (partly done).** The browser seat: `manabrew-net-wasm`, the lazily-imported module,
+  and the client wiring. What is **not** verified is a real browser game over it, because that
+  needs a browser; the Rust and TypeScript both build and lint, and the relay-only path is
+  covered natively by `manabrew-net/tests/relayed.rs`, which uses an endpoint with its IP
+  transports cleared. Still open: browser-*hosted* rooms, and a desktop-embedded relay, which is
+  still not worth it.

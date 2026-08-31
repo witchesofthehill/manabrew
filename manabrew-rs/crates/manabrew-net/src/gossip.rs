@@ -12,10 +12,10 @@
 //! announcer's iroh secret key, verified against the endpoint id it claims, and
 //! then checked against the relay-attested roster.
 
+use n0_future::time::{Duration, SystemTime};
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use iroh::{EndpointId, SecretKey, Signature};
 use iroh_gossip::api::{Event, GossipSender};
@@ -94,7 +94,7 @@ impl RoomGossip {
 
         let task_roster = roster.clone();
         let task_peers = peers.clone();
-        let task = tokio::spawn(async move {
+        let task = n0_future::task::spawn(async move {
             while let Some(Ok(event)) = receiver.next().await {
                 let out = match event {
                     Event::NeighborUp(id) => Some(RoomGossipEvent::PeerUp(id)),
@@ -265,7 +265,7 @@ fn hex(bytes: &[u8]) -> String {
 
 fn now_ms() -> u64 {
     SystemTime::now()
-        .duration_since(UNIX_EPOCH)
+        .duration_since(SystemTime::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0)
 }

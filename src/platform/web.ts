@@ -52,6 +52,7 @@ import { getClientPlatform } from "./clientPlatform";
 import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 import { applyStateDelta, diffStateDelta } from "@/lib/stateDelta";
+import { DirectSeat } from "@/game/directSeat";
 import { isForgeWasmHostingEnabled, setForgeWasmActive } from "@/lib/forgeWasm";
 import { buildForgeAssetBundle } from "@/lib/forgeAssets";
 import type { Deck } from "@/protocol/deck";
@@ -752,6 +753,7 @@ class WebServerApi implements IServerApi {
   private resumeToken: string | null = null;
   private pendingRelayPrompts = new Map<string, Record<string, unknown>>();
   private enginePlayerNames: string[] = [];
+  private directSeat: DirectSeat | null = null;
 
   constructor(eventBus: WebEventBus) {
     this.eventBus = eventBus;
@@ -1139,6 +1141,7 @@ class WebServerApi implements IServerApi {
   }
 
   async broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void> {
+    if (this.directSeat?.trySend(state)) return;
     this.send({ type: "BroadcastState", state, target_player: targetPlayer });
   }
 
@@ -1272,6 +1275,29 @@ class WebServerApi implements IServerApi {
     return this.wasmReady;
   }
 
+  /// The relay names the room's data plane. Nothing here invents an address:
+  /// without an `iroh_relay_url` from the control plane this seat stays on the
+  /// relay, which is also what an older relay produces.
+  private async onRoomTransport(msg: Record<string, unknown>): Promise<void> {
+    const relayUrl = msg.iroh_relay_url;
+    if (typeof relayUrl !== "string" || !this.authedUsername) return;
+    if (!this.directSeat) {
+      this.directSeat = new DirectSeat(
+        this.authedUsername,
+        relayUrl,
+        (state: StateEnvelope, fromPlayer: string) =>
+          this.handleServerMessage({ type: "StateUpdate", from_player: fromPlayer, state }),
+      );
+      const endpoint = await this.directSeat.announce();
+      if (endpoint) this.send({ type: "AnnounceTransport", endpoint });
+    }
+    await this.directSeat.onRoster(
+      String(msg.room_id ?? ""),
+      String(msg.topic_secret ?? ""),
+      msg.members,
+    );
+  }
+
   private send(msg: Record<string, unknown>): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       console.error("[WebServerApi] Not connected");
@@ -1326,6 +1352,15 @@ class WebServerApi implements IServerApi {
       });
       return;
     }
+
+    if (type === "RoomTransport") {
+      void this.onRoomTransport(msg);
+      return;
+    }
+    // Both ends freeze on the same relay message, so a stream never changes
+    // transport once a game is running.
+    if (type === "GameStarted") this.directSeat?.freeze();
+    if (type === "GameAborted") this.directSeat?.clear();
 
     if (type === "StateUpdate" && msg.state) {
       const envelope = msg.state as StateEnvelope;

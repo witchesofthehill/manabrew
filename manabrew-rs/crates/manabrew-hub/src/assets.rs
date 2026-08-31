@@ -12,6 +12,8 @@ use crate::rate_limit::RateLimiter;
 
 pub const CONTENT_TYPE: &str = "image/webp";
 
+const CACHE_CONTROL: &str = "public, max-age=31536000, immutable";
+
 const PRESIGN_TTL: Duration = Duration::from_secs(15 * 60);
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -89,6 +91,7 @@ impl ObjectStore {
             .bucket(&self.bucket)
             .key(object_key)
             .content_type(CONTENT_TYPE)
+            .cache_control(CACHE_CONTROL)
             .content_length(byte_size as i64)
             .presigned(PresigningConfig::expires_in(PRESIGN_TTL)?)
             .await?;

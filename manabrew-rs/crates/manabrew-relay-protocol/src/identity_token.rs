@@ -33,6 +33,8 @@ pub struct IdentityTokenClaims {
     pub handle: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub qualification: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
     pub iss: String,
     pub aud: String,
     pub iat: i64,
@@ -89,6 +91,7 @@ pub fn mint_unsigned(subject: &str, handle: &str, iat: i64, ttl_s: i64) -> Strin
         sub: subject.to_string(),
         handle: handle.to_string(),
         qualification: None,
+        avatar_url: None,
         iss: SELF_ISSUER.to_string(),
         aud: RELAY_AUDIENCE.to_string(),
         iat,

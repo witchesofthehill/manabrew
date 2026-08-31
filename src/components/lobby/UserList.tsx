@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -163,6 +163,7 @@ export function UserList({
       <div key={player.player_id} className="flex items-center gap-2.5 px-2 py-1.5 rounded-md">
         <div className="relative shrink-0">
           <Avatar className="h-7 w-7">
+            {player.avatar_url && <AvatarImage src={player.avatar_url} alt="" />}
             <AvatarFallback className="text-xs">
               {stripUsernameTag(player.username).slice(0, 1).toUpperCase()}
             </AvatarFallback>
@@ -250,6 +251,7 @@ export function UserList({
             <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-md bg-muted/40">
               <div className="relative shrink-0">
                 <Avatar className="h-7 w-7">
+                  {myEntry?.avatar_url && <AvatarImage src={myEntry.avatar_url} alt="" />}
                   <AvatarFallback className="text-xs">
                     {myUsername.slice(0, 1).toUpperCase()}
                   </AvatarFallback>

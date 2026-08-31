@@ -1319,6 +1319,7 @@ mod tests {
             &account_id,
             handle,
             None,
+            None,
             auth::AUDIENCE_HUB,
         );
         (access.access_token, token)

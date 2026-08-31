@@ -60,6 +60,7 @@ export interface PlayerInfo {
   connected: boolean;
   verified?: boolean;
   qualification?: string;
+  avatar_url?: string;
   room_id?: string;
 }
 

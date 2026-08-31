@@ -156,6 +156,7 @@ fn player_list(state: &Arc<ServerState>) -> Vec<crate::protocol::PlayerInfo> {
             connected: entry.value().connected,
             verified: entry.value().verified(),
             qualification: entry.value().qualification.clone(),
+            avatar_url: entry.value().avatar_url.clone(),
             room_id: entry.value().room_id.clone(),
         })
         .collect()
@@ -587,6 +588,7 @@ async fn authenticate(
             let identities = resolved.identities;
             let name_verified = resolved.name_verified;
             let qualification = resolved.qualification;
+            let avatar_url = resolved.avatar_url;
             let username = resolved.name.unwrap_or(username);
 
             if username.trim().is_empty() {
@@ -647,6 +649,7 @@ async fn authenticate(
                     identities,
                     name_verified,
                     qualification,
+                    avatar_url,
                     client.clone(),
                 );
                 return Ok((session.player_id, username, true, new_gen, client, service));
@@ -670,6 +673,7 @@ async fn authenticate(
                     identity: identities,
                     name_verified,
                     qualification,
+                    avatar_url,
                     client: client.clone(),
                 },
             );
@@ -718,6 +722,7 @@ fn reclaim_session(
     identities: Vec<SessionIdentity>,
     name_verified: bool,
     qualification: Option<String>,
+    avatar_url: Option<String>,
     client: ClientBuild,
 ) -> u64 {
     let new_gen = old_gen + 1;
@@ -736,6 +741,7 @@ fn reclaim_session(
         player.disconnected_at = None;
         player.name_verified = name_verified;
         player.qualification = qualification;
+        player.avatar_url = avatar_url;
         player.client = client;
         if !identities.is_empty() {
             player.identity = identities;

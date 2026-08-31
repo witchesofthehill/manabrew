@@ -414,6 +414,8 @@ pub struct PlayerInfo {
     pub verified: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub qualification: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub room_id: Option<String>,
 }

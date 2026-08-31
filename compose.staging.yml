@@ -197,7 +197,7 @@ services:
       SELF_HOSTED_NODE_IROH: "${SELF_HOSTED_NODE_IROH:-1}"
       SELF_HOSTED_NODE_IROH_RELAY_URL: "${SELF_HOSTED_NODE_IROH_RELAY_URL:-}"
       SELF_HOSTED_NODE_METRICS_PUSH_URL: "${SELF_HOSTED_NODE_METRICS_PUSH_URL:-}"
-      RUST_LOG: "self_hosted_node=info"
+      RUST_LOG: "self_hosted_node=info,manabot=info,manabrew_net=info"
     # The native image takes 55% of the cgroup limit as its max heap (#729), so
     # this is the heap knob. Measured on the box: 447m idle with the database
     # resident, +212m per game, so four games need this rather than 1g (#684).

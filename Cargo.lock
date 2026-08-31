@@ -4264,7 +4264,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "loadgen"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "futures-util",
  "manabot",
@@ -4365,7 +4365,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew"
-version = "3.25.0"
+version = "3.26.2"
 dependencies = [
  "forge-carddb",
  "forge-cardset-archive",
@@ -4438,7 +4438,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-hub"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "aws-lc-rs",
  "aws-sdk-s3",
@@ -6998,7 +6998,7 @@ dependencies = [
 
 [[package]]
 name = "self-hosted-node"
-version = "0.25.0"
+version = "0.25.1"
 dependencies = [
  "forge-carddb",
  "forge-foundation",

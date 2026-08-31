@@ -16,8 +16,9 @@ import {
   HOVER_DELAY_MIN,
   HOVER_DELAY_STEP,
 } from "@/components/game/game.constants";
+import { HAND_ORDER_OPTIONS } from "@/lib/handOrder";
 import { PlaymatEditorModal } from "@/components/editor/PlaymatEditorModal";
-import { useAssetStore, useAssetsAvailable } from "@/stores/useAssetStore";
+import { useAssetStore, useAssetsAvailable, useAssetUrl } from "@/stores/useAssetStore";
 import { THEME_PRESETS, type ThemeColors } from "@/themes";
 import { useServerStore } from "@/stores/useServerStore";
 import { useGameStore } from "@/stores/useGameStore";
@@ -379,7 +380,7 @@ export default function Settings() {
 
   const zoneOrder = prefs.zonePanelOrder;
   const [playmatEditorOpen, setPlaymatEditorOpen] = useState(false);
-  const defaultPlaymat = prefs.defaultPlaymatUrl;
+  const defaultPlaymat = useAssetUrl(prefs.defaultPlaymatAssetId);
   const hasDefaultPlaymat = !!defaultPlaymat || !!prefs.defaultPlaymatSettings?.color;
 
   function setZoneSlot(index: number, value: ZonePanelItem) {
@@ -811,7 +812,7 @@ export default function Settings() {
                     title="Remove playmat"
                     onClick={() => {
                       void useAssetStore.getState().remove(prefs.defaultPlaymatAssetId);
-                      prefs.setDefaultPlaymat(undefined, undefined);
+                      prefs.setDefaultPlaymatAssetId(undefined);
                       prefs.setDefaultPlaymatSettings(undefined);
                     }}
                     className="absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm motion-safe:transition-opacity opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto hover:border-destructive hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring before:absolute before:-inset-2.5 before:content-['']"
@@ -901,6 +902,23 @@ export default function Settings() {
                     )}
                   />
                 </div>
+              </div>
+            </PreferenceCard>
+            <PreferenceCard
+              title="Hand Ordering"
+              description="Drag cards sideways for a custom order, or keep every hand sorted automatically by color or mana value."
+            >
+              <div className="flex flex-wrap gap-2">
+                {HAND_ORDER_OPTIONS.map((option) => (
+                  <Button
+                    key={option.value}
+                    variant={prefs.handOrderMode === option.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => prefs.setHandOrderMode(option.value)}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
               </div>
             </PreferenceCard>
 
@@ -1157,7 +1175,7 @@ export default function Settings() {
               playmat={defaultPlaymat}
               storedSettings={prefs.defaultPlaymatSettings}
               playmatAssetId={prefs.defaultPlaymatAssetId}
-              setPlaymat={prefs.setDefaultPlaymat}
+              setPlaymat={(_url, assetId) => prefs.setDefaultPlaymatAssetId(assetId)}
               setPlaymatSettings={prefs.setDefaultPlaymatSettings}
             />
           )}

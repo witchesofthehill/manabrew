@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.26.2](https://github.com/witchesofthehill/manabrew/compare/v3.26.1...v3.26.2) (2026-08-31)
+
+### Fixes
+
+* remove leftover asset localstorage caches ([#792](https://github.com/witchesofthehill/manabrew/issues/792)) ([91a4d33](https://github.com/witchesofthehill/manabrew/commit/91a4d33a098648df41229c3213596069960b8483))
+
+## [3.26.1](https://github.com/witchesofthehill/manabrew/compare/v3.26.0...v3.26.1) (2026-08-31)
+
+### Fixes
+
+* phyrexian revoker ([#791](https://github.com/witchesofthehill/manabrew/issues/791)) ([beb48bb](https://github.com/witchesofthehill/manabrew/commit/beb48bb7080db545f7c5a5de16851150a0622ce3))
+
+## [3.26.0](https://github.com/witchesofthehill/manabrew/compare/v3.25.0...v3.26.0) (2026-08-31)
+
+### Features
+
+* **ui:** add hand ordering ([#764](https://github.com/witchesofthehill/manabrew/issues/764)) ([bcaab40](https://github.com/witchesofthehill/manabrew/commit/bcaab40015ddbfbd4a25829d598d483830cb02c1))
+
 ## [3.25.0](https://github.com/witchesofthehill/manabrew/compare/v3.24.4...v3.25.0) (2026-08-30)
 
 ### Features

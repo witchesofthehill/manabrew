@@ -23,7 +23,7 @@ import {
   clampBorderColor,
   clampPlaymatColor,
 } from "@/pixi/board/PlaymatLayer";
-import { useAssetStore } from "@/stores/useAssetStore";
+import { useAssetStore, useAssetsAvailable } from "@/stores/useAssetStore";
 import { usePlaymatPreview } from "./usePlaymatPreview";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -71,6 +71,7 @@ export function PlaymatEditorModal({
   const replaceAsset = useAssetStore((s) => s.replace);
   const removeAsset = useAssetStore((s) => s.remove);
   const uploading = useAssetStore((s) => s.busy);
+  const uploadAvailable = useAssetsAvailable();
   const [settings, setSettings] = useState<Required<PlaymatSettings>>({
     ...DEFAULT_PLAYMAT_SETTINGS,
     ...(storedSettings ?? {}),
@@ -215,47 +216,49 @@ export function PlaymatEditorModal({
             </label>
           </div>
 
-          <section className="space-y-2.5">
-            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Background image
-            </Label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={onPick}
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <ImagePlus className="h-4 w-4" />
-              {playmat ? "Replace image" : "Upload image"}
-            </Button>
-            {PLAYMAT_PRESETS.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {PLAYMAT_PRESETS.map((p) => (
-                  <button
-                    key={p.url}
-                    type="button"
-                    onClick={() => void applyPreset(p.url)}
-                    title={p.name}
-                    className="h-12 w-[5.5rem] shrink-0 overflow-hidden rounded-md border transition-[transform,border-color] hover:scale-[1.04] hover:border-primary"
-                  >
-                    <img
-                      src={p.url}
-                      alt={p.name}
-                      draggable={false}
-                      className="size-full object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
-          </section>
+          {uploadAvailable && (
+            <section className="space-y-2.5">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Background image
+              </Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={onPick}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <ImagePlus className="h-4 w-4" />
+                {playmat ? "Replace image" : "Upload image"}
+              </Button>
+              {PLAYMAT_PRESETS.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {PLAYMAT_PRESETS.map((p) => (
+                    <button
+                      key={p.url}
+                      type="button"
+                      onClick={() => void applyPreset(p.url)}
+                      title={p.name}
+                      className="h-12 w-[5.5rem] shrink-0 overflow-hidden rounded-md border transition-[transform,border-color] hover:scale-[1.04] hover:border-primary"
+                    >
+                      <img
+                        src={p.url}
+                        alt={p.name}
+                        draggable={false}
+                        className="size-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
           {playmat && (
             <section className="space-y-2.5">

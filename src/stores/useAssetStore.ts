@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import {
   assetQuotaFromError,
@@ -17,7 +18,6 @@ import {
 } from "@/lib/imageEncode";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useHubStore } from "@/stores/useHubStore";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 export interface AssetRef {
   assetId: string;
@@ -42,9 +42,6 @@ interface AssetState {
     replaces: string | undefined,
   ) => Promise<AssetRef | undefined>;
   remove: (assetId: string | undefined) => Promise<void>;
-  /** The account avatar has a server-side link as well as a local one, so the
-   *  whole swap — upload, link, store, discard the old — lives here rather than
-   *  in the picker. */
   uploadAvatar: (source: Blob) => Promise<void>;
   clearAvatar: () => Promise<void>;
 }
@@ -91,18 +88,18 @@ export const useAssetStore = create<AssetState>()(
       },
 
       uploadAvatar: async (source) => {
-        const previous = usePreferencesStore.getState().customAvatarAssetId;
+        const previous = useAuthStore.getState().account?.avatarAssetId;
         const uploaded = await get().replace("avatar", source, previous);
         if (!uploaded) return;
         await setAccountAvatar(uploaded.assetId);
-        usePreferencesStore.getState().setCustomAvatar(uploaded.url, uploaded.assetId);
         await get().refresh();
+        await useAuthStore.getState().refresh();
       },
 
       clearAvatar: async () => {
-        const previous = usePreferencesStore.getState().customAvatarAssetId;
+        const previous = useAuthStore.getState().account?.avatarAssetId;
         await setAccountAvatar(undefined);
-        usePreferencesStore.getState().setCustomAvatar(undefined, undefined);
+        await useAuthStore.getState().refresh();
         await get().remove(previous);
       },
 
@@ -125,6 +122,30 @@ export function useAssetsAvailable(): boolean {
   const configured = useHubStore((s) => !!s.capabilities?.assets);
   const signedIn = useAuthStore((s) => s.status === "signedIn");
   return configured && signedIn;
+}
+
+export function useAssetUrl(assetId: string | undefined): string | undefined {
+  const signedIn = useAuthStore((s) => s.status === "signedIn");
+  const url = useAssetStore((s) => s.assets.find((a) => a.id === assetId)?.url);
+  const loaded = useAssetStore((s) => s.loaded);
+  useEffect(() => {
+    if (!assetId || !signedIn || loaded) return;
+    useAssetStore
+      .getState()
+      .refresh()
+      .catch(() => {});
+  }, [assetId, signedIn, loaded]);
+  return signedIn ? url : undefined;
+}
+
+export async function assetUrlById(assetId: string | undefined): Promise<string | undefined> {
+  if (!assetId || useAuthStore.getState().status !== "signedIn") return undefined;
+  const hit = useAssetStore.getState().assets.find((a) => a.id === assetId)?.url;
+  if (hit) return hit;
+  const state = useAssetStore.getState();
+  if (state.loaded) return undefined;
+  await state.refresh().catch(() => {});
+  return useAssetStore.getState().assets.find((a) => a.id === assetId)?.url;
 }
 
 async function discard(assetId: string | undefined): Promise<void> {

@@ -10,6 +10,18 @@ use serde::Serialize;
 #[cfg(feature = "forge-room")]
 pub const SERVICE_TYPE: &str = "_manabrew._tcp.local.";
 
+/// The relay key a LAN host runs with.
+///
+/// Not a secret, and not pretending to be one. The public relay already ships
+/// its key to every browser in `config.js`, and `Authenticate` runs the real
+/// handshake straight after the key check: an identity proof, which works
+/// offline because unsigned self-minted tokens are accepted with no hub
+/// configured. A random key here would gate nothing that the identity proof and
+/// a room password do not already gate, and would cost a code somebody has to
+/// type.
+#[cfg(feature = "forge-room")]
+pub const LAN_RELAY_KEY: &str = "manabrew-lan";
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LanRoom {
@@ -17,6 +29,9 @@ pub struct LanRoom {
     pub name: String,
     pub host: String,
     pub port: u16,
+    /// Carried so the client never duplicates the constant, and never has to
+    /// ask anyone for it.
+    pub key: String,
 }
 
 #[cfg(feature = "forge-room")]
@@ -104,6 +119,7 @@ pub async fn discover_lan_rooms(timeout_ms: Option<u64>) -> Result<Vec<LanRoom>,
                             .to_string(),
                         host,
                         port,
+                        key: LAN_RELAY_KEY.to_string(),
                     });
                 }
                 Ok(_) => {}

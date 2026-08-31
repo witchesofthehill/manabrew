@@ -297,6 +297,13 @@ that a LAN should never need.
 `getPlatform().type`. Nothing above it knows which it got, which is the same reason the inbound
 envelope is handed to `handleServerMessage` as a `StateUpdate`.
 
+Nobody types a key. A shared room runs on a well-known one, handed back with the room by
+discovery, because that key was never access control: `Authenticate` checks it and then runs the
+real handshake, an identity proof that works offline since unsigned self-minted tokens are
+accepted with no hub configured. The public relay already ships its own key to every browser in
+`config.js`. Privacy for a particular room is `CreateRoom.password`, which already exists and
+already has UI.
+
 Card art is the one thing still missing offline; there is no image cache today (#811).
 
 ## Manual test, two machines on one LAN

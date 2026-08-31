@@ -55,6 +55,15 @@ import { applyStateDelta, diffStateDelta } from "@/lib/stateDelta";
 import { isForgeWasmHostingEnabled, setForgeWasmActive } from "@/lib/forgeWasm";
 import { buildForgeAssetBundle } from "@/lib/forgeAssets";
 import type { Deck } from "@/protocol/deck";
+// The seat protocol lives with @manabrew/forge-wasm, which drives the same
+// worker, so there is one implementation rather than one per consumer.
+import {
+  createSeat,
+  deliverSeatDirective,
+  pollSeat,
+  writeSeatMessage,
+  type ForgeSeat,
+} from "@forge-wasm/seat.js";
 
 const DEBUG_TRANSPORT = false;
 
@@ -108,23 +117,19 @@ interface WorkerEvent {
 
 type WorkerMessage = WorkerResponse | WorkerEvent;
 
-interface RemoteSeat {
-  buffer: SharedArrayBuffer;
-  signal: Int32Array;
-  data: Uint8Array;
-  /** terminate() flips this so an already-queued rAF poll short-circuits. */
-  cancelled: boolean;
-  /** A prompt was read off this SAB and no message was written back yet. */
-  awaitingResponse: boolean;
-  /** Directive awaiting delivery: the SAB holds a single slot, so it can only
-   *  be written while the engine is blocked waiting on this seat's prompt. */
-  pendingDirective: DirectiveInput | null;
-}
+// A kind-tagged engine message read off a seat's SAB.
+type EngineMessage = {
+  kind?: string;
+  state?: unknown;
+  event?: unknown;
+  prompt?: unknown;
+  error?: unknown;
+};
 
-// A kind-tagged engine message read off a seat's SAB, awaiting relay.
+// One such message awaiting relay to the seat that owes an answer.
 type RelayMessage = {
   forPlayer: string;
-  msg: { kind: string; state?: unknown; event?: unknown; prompt?: unknown; error?: unknown };
+  msg: EngineMessage & { kind: string };
 };
 
 /**
@@ -153,45 +158,52 @@ class WorkerBridge {
   private eventBus: WebEventBus;
   private initPromise: Promise<void> | null = null;
 
-  gameBuffer: SharedArrayBuffer | null = null;
   workerIsForgeWasm = false;
   private fallbackWorker: Worker | null = null;
-  private gameSignal: Int32Array | null = null;
-  private gameData: Uint8Array | null = null;
-  private localAwaitingResponse = false;
-  private localPendingDirective: DirectiveInput | null = null;
+  private localSeat: ForgeSeat | null = null;
 
-  private remoteSeats = new Map<string, RemoteSeat>();
+  private remoteSeats = new Map<string, ForgeSeat>();
   private remotePlayerSlots = new Map<string, string>();
+
+  get gameBuffer(): SharedArrayBuffer | null {
+    return this.localSeat?.buffer ?? null;
+  }
 
   constructor(eventBus: WebEventBus) {
     this.eventBus = eventBus;
 
     eventBus.on<{ buffer: SharedArrayBuffer }>("game:sab", (payload) => {
-      this.gameBuffer = payload.buffer;
-      this.gameSignal = new Int32Array(this.gameBuffer, 0, 2);
-      this.gameData = new Uint8Array(this.gameBuffer, 8);
+      const seat = createSeat(payload.buffer);
+      if (this.localSeat) this.localSeat.cancelled = true;
+      this.localSeat = seat;
       if (DEBUG_TRANSPORT) console.log("[WorkerBridge] Received local SAB, starting prompt poll");
-      this.pollForPrompts();
+      pollSeat<EngineMessage>(
+        seat,
+        (msg) => this.dispatchEngineMessage(msg),
+        (error) => console.error("[WorkerBridge] Failed to read SAB message:", error),
+      );
     });
 
     // One SAB per non-host seat, tagged with its player slot; one poll
     // loop each, plus the shared response listener installed below.
     eventBus.on<{ buffer: SharedArrayBuffer; playerSlot: string }>("game:remote_sab", (payload) => {
-      const seat: RemoteSeat = {
-        buffer: payload.buffer,
-        signal: new Int32Array(payload.buffer, 0, 2),
-        data: new Uint8Array(payload.buffer, 8),
-        cancelled: false,
-        awaitingResponse: false,
-        pendingDirective: null,
-      };
-      this.remoteSeats.set(payload.playerSlot, seat);
+      const { playerSlot } = payload;
+      const seat = createSeat(payload.buffer);
+      const previous = this.remoteSeats.get(playerSlot);
+      if (previous) previous.cancelled = true;
+      this.remoteSeats.set(playerSlot, seat);
       if (DEBUG_TRANSPORT)
-        console.log(
-          `[WorkerBridge] Received remote SAB for ${payload.playerSlot}, starting relay poll`,
-        );
-      this.pollForRemotePromptsSeat(payload.playerSlot, seat);
+        console.log(`[WorkerBridge] Received remote SAB for ${playerSlot}, starting relay poll`);
+      pollSeat<RelayMessage["msg"]>(
+        seat,
+        (msg, json) => {
+          if (DEBUG_TRANSPORT)
+            console.log(`[transport←sab/seat ${playerSlot}] engine emitted:`, json);
+          this.eventBus.emit("game:relay_message", { forPlayer: playerSlot, msg });
+        },
+        (error) =>
+          console.error(`[WorkerBridge] Failed to read SAB message for ${playerSlot}:`, error),
+      );
     });
 
     // Eager so a response can't arrive before the listener exists; it
@@ -199,51 +211,7 @@ class WorkerBridge {
     this.installRemoteResponseListener();
   }
 
-  /**
-   * Poll the SAB for prompts from the game engine (runs on main thread).
-   * When the engine writes a prompt (signal=1), read it and emit as event.
-   */
-  private pollForPrompts(): void {
-    if (!this.gameSignal || !this.gameData) return;
-
-    // Signal protocol:
-    // 0 = IDLE, 1 = PROMPT_READY, 2 = RESPONSE_READY, 3 = PROMPT_ACKNOWLEDGED
-    const poll = () => {
-      if (!this.gameSignal || !this.gameData || !this.gameBuffer) return;
-
-      const current = Atomics.load(this.gameSignal, 0);
-      if (current === 1) {
-        // SIGNAL_PROMPT_READY
-        const len = Atomics.load(this.gameSignal, 1);
-        const jsonBytes = this.gameData.slice(0, len);
-        const jsonStr = new TextDecoder().decode(jsonBytes);
-
-        // Acknowledge the prompt so we don't re-read it
-        Atomics.store(this.gameSignal, 0, 3); // PROMPT_ACKNOWLEDGED
-        Atomics.notify(this.gameSignal, 0);
-
-        try {
-          this.dispatchEngineMessage(JSON.parse(jsonStr));
-        } catch (e) {
-          console.error("[WorkerBridge] Failed to parse SAB message:", e);
-        }
-      }
-
-      if (this.gameBuffer) {
-        requestAnimationFrame(poll);
-      }
-    };
-
-    requestAnimationFrame(poll);
-  }
-
-  private dispatchEngineMessage(msg: {
-    kind?: string;
-    state?: unknown;
-    event?: unknown;
-    prompt?: unknown;
-    error?: unknown;
-  }): void {
+  private dispatchEngineMessage(msg: EngineMessage): void {
     logComms("engine", msg);
     if (this.workerIsForgeWasm) {
       const w = window as unknown as { __forgeFrames?: string[] };
@@ -275,58 +243,11 @@ class WorkerBridge {
           });
           w.__respondedAt = undefined;
         }
-        this.localAwaitingResponse = true;
-        if (this.localPendingDirective) {
-          this.writeLocalMessage({
-            kind: "directive",
-            directive: this.localPendingDirective,
-          });
-          this.localPendingDirective = null;
-        }
+        // The seat already noted the prompt and flushed any held directive.
         this.eventBus.emit("game:prompt", msg.prompt);
         break;
       }
     }
-  }
-
-  /** One rAF poll loop per remote seat's SAB; relays messages via the bus. */
-  private pollForRemotePromptsSeat(playerSlot: string, seat: RemoteSeat): void {
-    const poll = () => {
-      if (seat.cancelled || !this.remoteSeats.has(playerSlot)) return;
-
-      const current = Atomics.load(seat.signal, 0);
-      if (current === 1) {
-        const len = Atomics.load(seat.signal, 1);
-        const jsonBytes = seat.data.slice(0, len);
-        const jsonStr = new TextDecoder().decode(jsonBytes);
-
-        Atomics.store(seat.signal, 0, 3); // ACKNOWLEDGED
-        Atomics.notify(seat.signal, 0);
-
-        if (DEBUG_TRANSPORT)
-          console.log(`[transport←sab/seat ${playerSlot}] engine emitted:`, jsonStr);
-        try {
-          const msg = JSON.parse(jsonStr);
-          if (msg?.kind === "prompt") {
-            seat.awaitingResponse = true;
-            if (seat.pendingDirective) {
-              this.writeSeatMessage(seat, {
-                kind: "directive",
-                directive: seat.pendingDirective,
-              });
-              seat.pendingDirective = null;
-            }
-          }
-          this.eventBus.emit("game:relay_message", { forPlayer: playerSlot, msg });
-        } catch (e) {
-          console.error(`[WorkerBridge] Failed to parse SAB message for ${playerSlot}:`, e);
-        }
-      }
-
-      requestAnimationFrame(poll);
-    };
-
-    requestAnimationFrame(poll);
   }
 
   setEnginePlayerNames(playerNames: string[]): void {
@@ -356,33 +277,14 @@ class WorkerBridge {
         );
       if (!seat) return;
       if (kind === "directive") {
-        this.deliverSeatDirective(seat, payload.state.directive as DirectiveInput);
+        deliverSeatDirective(seat, payload.state.directive as DirectiveInput);
         return;
       }
       const action = payload.state.action as PromptOutput | undefined;
       if (!action) return;
       const promptId = Number(payload.state.promptId ?? 0);
-      this.writeSeatMessage(seat, { kind: "response", promptId, action });
+      writeSeatMessage(seat, { kind: "response", promptId, action });
     });
-  }
-
-  /** Deliver a directive to a remote seat: now if the engine is blocked on
-   *  that seat's prompt, otherwise at its next prompt. */
-  private deliverSeatDirective(seat: RemoteSeat, directive: DirectiveInput): void {
-    if (seat.awaitingResponse) {
-      this.writeSeatMessage(seat, { kind: "directive", directive });
-    } else {
-      seat.pendingDirective = directive;
-    }
-  }
-
-  private writeSeatMessage(seat: RemoteSeat, message: ClientToServerMessage): void {
-    seat.awaitingResponse = false;
-    const json = new TextEncoder().encode(JSON.stringify(message));
-    Atomics.store(seat.signal, 1, json.length);
-    seat.data.set(json, 0);
-    Atomics.store(seat.signal, 0, 2); // RESPONSE_READY
-    Atomics.notify(seat.signal, 0);
   }
 
   /**
@@ -396,17 +298,17 @@ class WorkerBridge {
   /** Deliver a directive to the local seat: now if the engine is blocked on
    *  the local prompt, otherwise at its next prompt. */
   deliverLocalDirective(directive: DirectiveInput): void {
-    if (this.localAwaitingResponse) {
-      this.writeLocalMessage({ kind: "directive", directive });
-    } else {
-      this.localPendingDirective = directive;
+    if (!this.localSeat) {
+      console.error("[WorkerBridge] No SharedArrayBuffer available for directive");
+      return;
     }
+    deliverSeatDirective(this.localSeat, directive);
   }
 
   /** Deliver a directive to a remote seat by slot; drops unknown slots. */
   deliverRemoteDirective(playerSlot: string, directive: DirectiveInput): void {
     const seat = this.remoteSeats.get(playerSlot);
-    if (seat) this.deliverSeatDirective(seat, directive);
+    if (seat) deliverSeatDirective(seat, directive);
   }
 
   hasRemoteSeat(playerSlot: string): boolean {
@@ -414,16 +316,11 @@ class WorkerBridge {
   }
 
   private writeLocalMessage(message: ClientToServerMessage): void {
-    if (!this.gameSignal || !this.gameData) {
+    if (!this.localSeat) {
       console.error("[WorkerBridge] No SharedArrayBuffer available for response");
       return;
     }
-    this.localAwaitingResponse = false;
-    const json = new TextEncoder().encode(JSON.stringify(message));
-    Atomics.store(this.gameSignal, 1, json.length);
-    this.gameData.set(json, 0);
-    Atomics.store(this.gameSignal, 0, 2); // SIGNAL_RESPONSE_READY
-    Atomics.notify(this.gameSignal, 0);
+    writeSeatMessage(this.localSeat, message);
   }
 
   /**
@@ -622,11 +519,8 @@ class WorkerBridge {
       this.worker.terminate();
       this.worker = null;
     }
-    this.gameBuffer = null;
-    this.gameSignal = null;
-    this.gameData = null;
-    this.localAwaitingResponse = false;
-    this.localPendingDirective = null;
+    if (this.localSeat) this.localSeat.cancelled = true;
+    this.localSeat = null;
     for (const seat of this.remoteSeats.values()) seat.cancelled = true;
     this.remoteSeats.clear();
     this.remotePlayerSlots.clear();

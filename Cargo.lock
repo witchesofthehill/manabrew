@@ -2686,6 +2686,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "forge-wasm-assets"
+version = "0.1.0"
+dependencies = [
+ "forge-cardset-archive",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "form_urlencoded"
 version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

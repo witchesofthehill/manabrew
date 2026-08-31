@@ -13,7 +13,8 @@
  * public/forge/.
  */
 const SAB_SIZE = 256 * 1024;
-const ENGINE_BASE = "/forge";
+let launcherUrl = "/forge/forgeharness.js";
+let wasmUrl = "/forge/forgeharness.js.wasm";
 
 let booting = null;
 let gameRunning = false;
@@ -42,8 +43,9 @@ function boot() {
     // the wasm URL from this worker's own filename.
     self.scriptArgs = ["--serve"];
     self.__forgeBootResolve = resolve;
+    self.__forgeWasmUrl = wasmUrl;
     try {
-      importScripts(`${ENGINE_BASE}/forgeharness.js`);
+      importScripts(launcherUrl);
     } catch (e) {
       self.__forgeBootResolve = null;
       reject(e);
@@ -105,6 +107,8 @@ function commanderNames(deck, fallback) {
 async function startGame(requestId, args) {
   if (gameRunning) return postError(requestId, "Game already active.");
 
+  launcherUrl = (args && args.forgeLauncherUrl) || launcherUrl;
+  wasmUrl = (args && args.forgeWasmUrl) || wasmUrl;
   const humanDeck = args && args.deck;
   const requested = args && args.opponentDecks;
   const aiDecks = requested && requested.length ? requested : humanDeck ? [humanDeck] : [];
@@ -185,6 +189,8 @@ async function startGame(requestId, args) {
 async function startMultiplayerGame(requestId, args) {
   if (gameRunning) return postError(requestId, "Game already active.");
 
+  launcherUrl = (args && args.forgeLauncherUrl) || launcherUrl;
+  wasmUrl = (args && args.forgeWasmUrl) || wasmUrl;
   const decks = (args && args.decks) || [];
   const playerNames = (args && args.playerNames) || [];
   const commanders = (args && args.commanderNames) || [];

@@ -30,6 +30,7 @@ jobs:
       run_rust: ${{ steps.scope.outputs.run_rust }}
       run_native: ${{ steps.scope.outputs.run_native }}
       run_forge_room: ${{ steps.scope.outputs.run_forge_room }}
+      run_forge_wasm_package: ${{ steps.scope.outputs.run_forge_wasm_package }}
       run_node_image: ${{ steps.scope.outputs.run_node_image }}
       run_website: ${{ steps.scope.outputs.run_website }}
     steps:
@@ -57,6 +58,19 @@ jobs:
               'src-tauri/',
               'manabrew-rs/crates/self-hosted-node/',
               'scripts/harness.mjs',
+              '.github/workflows/build-checks.yml',
+            ];
+
+            // The packaging, not the engine: the GraalVM outputs are stubbed
+            // in this job, so a change to the engine build does not belong here.
+            const FORGE_WASM_PACKAGE_PATHS = [
+              'packages/forge-wasm/',
+              'scripts/build-forge-wasm-package.mjs',
+              'scripts/verify-forge-wasm-package.mjs',
+              'public/forge/forge-engine.worker.js',
+              'manabrew-rs/crates/forge-wasm-assets/',
+              'manabrew-rs/crates/forge-cardset-archive/',
+              'forge',
               '.github/workflows/build-checks.yml',
             ];
 
@@ -125,6 +139,7 @@ jobs:
                 'run_rust',
                 'run_native',
                 'run_forge_room',
+                'run_forge_wasm_package',
                 'run_node_image',
                 'run_website',
               ]) {
@@ -144,8 +159,60 @@ jobs:
             core.setOutput('run_rust', matches(files, RUST_PATHS) ? 'true' : 'false');
             core.setOutput('run_native', matches(files, NATIVE_PATHS) ? 'true' : 'false');
             core.setOutput('run_forge_room', matches(files, FORGE_ROOM_PATHS) ? 'true' : 'false');
+            core.setOutput('run_forge_wasm_package', matches(files, FORGE_WASM_PACKAGE_PATHS) ? 'true' : 'false');
             core.setOutput('run_node_image', matches(files, NODE_IMAGE_PATHS) ? 'true' : 'false');
             core.setOutput('run_website', matches(files, WEBSITE_PATHS) ? 'true' : 'false');
+
+  # ── @manabrew/forge-wasm packaging ─────────────────────────────────
+  # The package only builds on a `forge-wasm-v*` tag, so between releases its
+  # packaging rots unnoticed: a moved export, a file missing from `files`, a URL
+  # a bundler stops emitting. `--stub-engine` fakes the two GraalVM outputs so
+  # this can run without a Web Image toolchain; everything else is real,
+  # including `npm pack` and a throwaway consumer that builds the tarball.
+  forge-wasm-package:
+    name: Forge WASM package
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.run_forge_wasm_package == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The cardset archive is built from the submodule's card data.
+          submodules: recursive
+          clean: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Set up mold linker
+        uses: rui314/setup-mold@v1
+
+      # Restores the warm web-wasm cache, which already holds
+      # forge-cardset-archive. Never saves, so it cannot shrink the cache the
+      # typescript job depends on.
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: web-wasm
+          save-if: false
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.13.1
+
+      - name: Build the package
+        run: node scripts/build-forge-wasm-package.mjs --stub-engine
+
+      - name: Verify the package
+        run: node scripts/verify-forge-wasm-package.mjs
 
   # ── Website: landing page + docs site ──────────────────────────────
   # Deliberately NOT gated on `run_checks`. A website-only PR sets that to

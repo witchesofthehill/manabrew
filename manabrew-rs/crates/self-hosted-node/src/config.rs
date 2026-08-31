@@ -31,6 +31,11 @@ pub struct Config {
     pub bot_username: String,
     pub forge_ai: bool,
     pub reconnect_timeout_s: Option<u32>,
+    /// Offer seats a direct iroh channel instead of routing their envelopes
+    /// through the relay. Off by default; the relay path is unchanged for every
+    /// seat that does not take it.
+    pub iroh_enabled: bool,
+    pub iroh_relay_url: Option<String>,
     pub host_deck: DeckSelection,
     pub bot_deck: DeckSelection,
 }
@@ -102,6 +107,9 @@ impl Config {
                 "FORGE_ROOM_STATE_DELTA",
                 true,
             ),
+            iroh_enabled: env_bool("SELF_HOSTED_NODE_IROH", "FORGE_ROOM_IROH", false),
+            iroh_relay_url: env_first("SELF_HOSTED_NODE_IROH_RELAY_URL", "MANABREW_IROH_RELAY_URL")
+                .filter(|url| !url.is_empty()),
             max_games: env_first("SELF_HOSTED_NODE_MAX_GAMES", "FORGE_ROOM_MAX_GAMES")
                 .and_then(|value| value.parse().ok())
                 .filter(|games| *games >= 1)
@@ -167,6 +175,8 @@ impl Config {
             max_players,
             max_games: 1,
             state_delta: false,
+            iroh_enabled: false,
+            iroh_relay_url: None,
             format,
             auto_start: false,
             engine_enabled: true,

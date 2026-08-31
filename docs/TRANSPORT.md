@@ -10,12 +10,12 @@ runs over the relay. See "Staging" at the end.
 
 ## Where a game is authoritative today
 
-| Host | Engine | Process | Relay client |
-| --- | --- | --- | --- |
-| Hosted Forge worker | Forge (GraalVM native) | `self-hosted-node` | Rust, native |
-| Desktop room | Forge via bundled `self-hosted-node` | Tauri sidecar | Rust, native |
-| Browser or desktop tab | Manabrew wasm, or Forge-wasm | web worker | JavaScript `WebSocket` |
-| Offline | same as above | web worker | none |
+| Host                   | Engine                               | Process            | Relay client           |
+| ---------------------- | ------------------------------------ | ------------------ | ---------------------- |
+| Hosted Forge worker    | Forge (GraalVM native)               | `self-hosted-node` | Rust, native           |
+| Desktop room           | Forge via bundled `self-hosted-node` | Tauri sidecar      | Rust, native           |
+| Browser or desktop tab | Manabrew wasm, or Forge-wasm         | web worker         | JavaScript `WebSocket` |
+| Offline                | same as above                        | web worker         | none                   |
 
 Every one of these speaks the same envelopes. The host emits `state`, `display`, `prompt`,
 `error`, `log`, `snapshot`, `fatal`; seats reply with `Response` and `Directive`. They travel
@@ -83,7 +83,7 @@ Two independent facts compose, and neither is a new identity system.
 
 1. **The relay says who owns an endpoint id.** A session is already authenticated
    (`docs/agents/RELAY.md`). `AnnounceTransport` is accepted only from an authenticated session
-   that is in the room, and the relay tags the announcement with *its* view of that session's
+   that is in the room, and the relay tags the announcement with _its_ view of that session's
    username. Clients learn the roster only from `ServerMessage::RoomTransport`, over the
    authenticated WebSocket. A client never trusts an endpoint id learned from gossip alone.
 2. **iroh proves you are talking to that endpoint id.** iroh QUIC has no server certificate
@@ -108,15 +108,15 @@ ids, which the lobby already publishes to everyone.
 
 Answers to the questions this raises:
 
-- *How does a client know an endpoint belongs to the player it claims?* The relay said so, over
+- _How does a client know an endpoint belongs to the player it claims?_ The relay said so, over
   an authenticated channel, and QUIC proved the key.
-- *How is the authoritative host identified?* `RoomTransport.host`, derived from
+- _How is the authoritative host identified?_ `RoomTransport.host`, derived from
   `Room::host_player_id`, which the relay already owns and already reassigns.
-- *Can a random peer join the topic or dial the host?* They can dial if they learn the endpoint
+- _Can a random peer join the topic or dial the host?_ They can dial if they learn the endpoint
   id, and the host will reject them at `Hello`. They cannot derive the topic id without the
   room secret.
-- *What is room-scoped?* The topic secret. Nothing else new.
-- *Host replacement or reconnect?* The relay updates `host_player_id` and rebroadcasts
+- _What is room-scoped?_ The topic secret. Nothing else new.
+- _Host replacement or reconnect?_ The relay updates `host_player_id` and rebroadcasts
   `RoomTransport`. Peers re-dial. A returning browser host proves the same relay identity it
   had before, announces a new endpoint id, and the roster updates. The endpoint key is
   ephemeral by design, so nothing is lost when a tab closes.
@@ -139,16 +139,16 @@ replace resync with a cheap barrier handshake.
 
 Hazards and how they are handled:
 
-- *Duplicate delivery.* One transport is authoritative per seat at a time. The host stops
+- _Duplicate delivery._ One transport is authoritative per seat at a time. The host stops
   writing a seat's envelopes to the relay the moment it accepts that seat's direct stream.
-- *Ordering.* Guaranteed within one QUIC stream. Switching transports is only allowed at a
+- _Ordering._ Guaranteed within one QUIC stream. Switching transports is only allowed at a
   resync boundary.
-- *Stale peers.* Presence announcements carry a monotonic `seq` and a timestamp; a lower `seq`
+- _Stale peers._ Presence announcements carry a monotonic `seq` and a timestamp; a lower `seq`
   for a known endpoint is ignored, and peers are expired after `PRESENCE_TTL`.
-- *Split brain.* There is exactly one authoritative host and the relay names it. A peer that
+- _Split brain._ There is exactly one authoritative host and the relay names it. A peer that
   believes in a different host has an outdated roster and will be rejected at `Hello`.
-- *Malicious endpoint advertisement.* Covered above: gossip is never a source of authority.
-- *Players joining or leaving mid-game.* Unchanged; the relay drives it and rebroadcasts
+- _Malicious endpoint advertisement._ Covered above: gossip is never a source of authority.
+- _Players joining or leaving mid-game._ Unchanged; the relay drives it and rebroadcasts
   `RoomTransport`.
 
 ## The browser
@@ -169,13 +169,13 @@ Consequences for us:
   `manabrew-server` but it is not a latency win and it is not LAN.
 - Browser to desktop is also relayed, for the same reason.
 - The relay a browser uses is ours. `iroh-relay` ships a server binary (`cargo install
-  iroh-relay --features server`, TOML config, `cert_mode = "LetsEncrypt"` or `"Manual"` against
+iroh-relay --features server`, TOML config, `cert_mode = "LetsEncrypt"` or `"Manual"` against
   the certificates already on the box). Run it on the prod host as `relay.manabrew.app` and set
   `MANABREW_IROH_RELAY_URL`. Give it its own listener rather than a path on the existing Caddy
   site: native clients upgrade the HTTP connection to a bespoke TCP protocol, which a generic
   reverse proxy is not guaranteed to pass through, and touching the prod Caddyfile means an
   edge reload, which kills live games.
-- A *desktop*-hosted iroh relay is a different question and the answer is no, for now.
+- A _desktop_-hosted iroh relay is a different question and the answer is no, for now.
   `iroh-relay` can serve without TLS, so a desktop could run one on the LAN for native peers.
   Browsers cannot use it: a page served from `https://play.manabrew.app` may not open
   `ws://192.168.x.x`, and mixed content blocking has no workaround short of a real certificate
@@ -197,13 +197,13 @@ negotiation already handles.
 
 ## Code map
 
-| Path | Role |
-| --- | --- |
-| `manabrew-rs/crates/manabrew-net/` | endpoint lifecycle, session frames, direct channel, room gossip |
-| `manabrew-rs/crates/manabrew-relay-protocol/src/lib.rs` | `TransportEndpoint`, `AnnounceTransport`, `RoomTransport` |
-| `manabrew-rs/crates/manabrew-server/src/room.rs` | per-room transport roster and topic secret |
-| `manabrew-rs/crates/manabrew-server/src/connection.rs` | announcement authorization and roster broadcast |
-| `manabrew-rs/crates/manabrew-server/src/config.rs` | `MANABREW_IROH_RELAY_URL` |
+| Path                                                    | Role                                                            |
+| ------------------------------------------------------- | --------------------------------------------------------------- |
+| `manabrew-rs/crates/manabrew-net/`                      | endpoint lifecycle, session frames, direct channel, room gossip |
+| `manabrew-rs/crates/manabrew-relay-protocol/src/lib.rs` | `TransportEndpoint`, `AnnounceTransport`, `RoomTransport`       |
+| `manabrew-rs/crates/manabrew-server/src/room.rs`        | per-room transport roster and topic secret                      |
+| `manabrew-rs/crates/manabrew-server/src/connection.rs`  | announcement authorization and roster broadcast                 |
+| `manabrew-rs/crates/manabrew-server/src/config.rs`      | `MANABREW_IROH_RELAY_URL`                                       |
 
 `AnnounceTransport` is gated behind `FEATURE_ROOM_TRANSPORT` in `AuthResult.features`: an older
 relay answers an unknown client message with an error, and the client turns relay errors into
@@ -256,9 +256,13 @@ itself:
 - **Phase 1 (this change).** Transport abstraction, iroh endpoint lifecycle, room-scoped
   endpoint metadata on the relay, gossip topic and signed presence, authenticated bootstrap,
   status reporting. No production game traffic moves.
-- **Phase 2.** One vertical slice: seat to hosted-Forge-node traffic over iroh, chosen before
-  `GameStarted`. `self-hosted-node` binds an endpoint, announces it, and accepts seat streams.
-- **Phase 3.** Fallback and reconnect hardening, transport health, metrics, live migration at a
-  resync boundary.
+- **Phase 2 (done).** Seat to hosted-Forge-node traffic over iroh. `self-hosted-node` binds an
+  endpoint per room, announces it, installs the roster, joins the gossip topic, and accepts seat
+  streams; per-seat envelopes for a connected seat leave over QUIC instead of `BroadcastState`.
+  Gated on `SELF_HOSTED_NODE_IROH=1`. The seat set is frozen at `GameStarted` and any failure
+  falls back to the relay. See `docs/agents/SELF_HOSTED_NODE.md`.
+- **Phase 3.** Re-prime the relay's replay cache when a seat falls back (a resync is currently
+  one envelope stale for a seat that was direct), reconnect hardening, and live migration at a
+  resync boundary. Then the client half, so a real player seat can take the direct plane.
 - **Phase 4.** The wasm build (LLVM clang in CI, bundle budget) and, only if justified, an
   embedded relay.

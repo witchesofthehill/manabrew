@@ -181,6 +181,17 @@ console.log("\nBuild complete!");
 console.log(`WASM output: ${outputDir}`);
 console.log(`Card data:   ${cardsetDir}`);
 
+/** Apple's clang is on every mac and cannot target wasm32, so its presence
+ *  says nothing. Ask it to compile for the target instead. */
+function clangTargetsWasm() {
+  const probe = spawnSync(
+    "clang",
+    ["--target=wasm32-unknown-unknown", "-x", "c", "-c", "-o", isWindows ? "NUL" : "/dev/null", "-"],
+    { input: "", shell: isWindows },
+  );
+  return probe.status === 0;
+}
+
 function buildNetWasm() {
   const outDir = join(projectRoot, "src", "wasm-net");
   const env = {
@@ -189,7 +200,7 @@ function buildNetWasm() {
       .filter(Boolean)
       .join(" "),
   };
-  if (!env.CC_wasm32_unknown_unknown && !commandExists("clang")) {
+  if (!env.CC_wasm32_unknown_unknown && !clangTargetsWasm()) {
     console.warn(
       "[build-wasm] no clang that targets wasm32; skipping the direct data plane module.\n" +
         "            macOS: brew install llvm, then " +

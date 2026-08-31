@@ -5082,6 +5082,7 @@ dependencies = [
  "js-sys",
  "manabrew-agent-interface",
  "manabrew-engine",
+ "manabrew-net",
  "manabrew-protocol",
  "serde",
  "serde_json",

@@ -10,6 +10,7 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 use tracing::{info, warn};
 
+use crate::direct::DirectSeat;
 use crate::state::{BotConfig, BotState};
 
 type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
@@ -63,6 +64,12 @@ async fn run_bot_session(
         .map_err(|error| format!("Failed to connect bot to {relay_url}: {error}"))?;
     let (mut sink, mut stream) = socket.split();
 
+    let mut direct = if config.iroh {
+        DirectSeat::start(&config.username, config.iroh_relay_url.as_deref()).await
+    } else {
+        None
+    };
+
     let mut state = BotState::new(config);
     for outbound in state.on_open() {
         send(&mut sink, &outbound).await?;
@@ -75,6 +82,23 @@ async fn run_bot_session(
                 return Ok(SessionEnd::Shutdown);
             }
             frame = stream.next() => frame,
+            Some(payload) = direct_recv(&mut direct) => {
+                // The host sent this straight to us. It is the same envelope
+                // the relay would have wrapped in a StateUpdate, so the bot's
+                // state machine cannot tell the two apart.
+                let message = ServerMessage::StateUpdate {
+                    from_player: String::new(),
+                    state: payload,
+                };
+                for msg in state.on_server_message(&message) {
+                    send_seat_message(&mut sink, &mut direct, &msg).await?;
+                }
+                if let Some(reason) = state.failure() {
+                    close(&mut sink, &mut stream).await;
+                    return Err(reason.to_string());
+                }
+                continue;
+            }
         };
         let Some(frame) = frame else { break };
         let frame = frame.map_err(|error| error.to_string())?;
@@ -91,6 +115,11 @@ async fn run_bot_session(
         };
         let message: ServerMessage =
             serde_json::from_str(&text).map_err(|error| error.to_string())?;
+        if let Some(seat) = &mut direct {
+            if let Some(announce) = on_transport_message(seat, &message).await {
+                send(&mut sink, &announce).await?;
+            }
+        }
         let outbound = state.on_server_message(&message);
         for msg in outbound {
             if let (Some(delay), ClientMessage::BroadcastState { .. }) =
@@ -104,7 +133,7 @@ async fn run_bot_session(
                     _ = tokio::time::sleep(delay) => {}
                 }
             }
-            send(&mut sink, &msg).await?;
+            send_seat_message(&mut sink, &mut direct, &msg).await?;
         }
         if let Some(reason) = state.failure() {
             close(&mut sink, &mut stream).await;
@@ -113,6 +142,63 @@ async fn run_bot_session(
     }
 
     Ok(SessionEnd::Disconnected)
+}
+
+/// Pends forever when there is no direct channel, so it can sit in a `select!`
+/// without spinning.
+async fn direct_recv(seat: &mut Option<DirectSeat>) -> Option<serde_json::Value> {
+    match seat {
+        Some(seat) => seat.recv().await,
+        None => std::future::pending().await,
+    }
+}
+
+/// Keeps the seat's view of the room's data plane in step with the relay's, and
+/// returns the announcement to send when the relay first names this room.
+async fn on_transport_message(
+    seat: &mut DirectSeat,
+    message: &ServerMessage,
+) -> Option<ClientMessage> {
+    match message {
+        ServerMessage::RoomTransport {
+            room_id,
+            topic_secret,
+            host,
+            members,
+            ..
+        } => {
+            seat.on_roster(room_id, topic_secret, host.as_ref(), members)
+                .await;
+            (!seat.announced()).then_some(())?;
+            Some(ClientMessage::AnnounceTransport {
+                endpoint: Some(seat.announce().await),
+            })
+        }
+        // Both ends freeze on the same relay message, which is what lets them
+        // agree on the transport for this game without negotiating.
+        ServerMessage::GameStarted { .. } => {
+            seat.freeze();
+            None
+        }
+        ServerMessage::GameAborted { .. } => {
+            seat.clear();
+            None
+        }
+        _ => None,
+    }
+}
+
+async fn send_seat_message(
+    sink: &mut WsSink,
+    direct: &mut Option<DirectSeat>,
+    message: &ClientMessage,
+) -> Result<(), String> {
+    if let (Some(seat), ClientMessage::BroadcastState { state, .. }) = (direct.as_mut(), message) {
+        if seat.try_send(state) {
+            return Ok(());
+        }
+    }
+    send(sink, message).await
 }
 
 async fn close(sink: &mut WsSink, stream: &mut WsRead) {

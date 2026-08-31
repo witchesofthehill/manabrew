@@ -95,6 +95,8 @@ pub struct Sim {
     pub room_id: String,
     _relay: Option<Proc>,
     node: Option<Proc>,
+    direct: bool,
+    log_path: Option<std::path::PathBuf>,
 }
 
 impl Sim {
@@ -108,17 +110,54 @@ impl Sim {
         Sim::spawn_node_sim(port, Some(manifest)).await
     }
 
+    /// Relay + hosted node with the direct data plane on, and the node's log
+    /// captured so a test can read which transport a game actually used.
+    pub async fn spawn_direct(port: u16) -> Sim {
+        let mut sim = Sim::spawn_node_sim_with(port, None, true).await;
+        sim.direct = true;
+        sim
+    }
+
+    /// Everything the node has logged so far. Empty unless spawned by
+    /// [`Sim::spawn_direct`].
+    pub fn node_log(&self) -> String {
+        self.log_path
+            .as_ref()
+            .and_then(|path| std::fs::read_to_string(path).ok())
+            .unwrap_or_default()
+    }
+
+    pub async fn wait_node_log(&self, deadline: Duration, needle: &str) -> bool {
+        let started = tokio::time::Instant::now();
+        while started.elapsed() < deadline {
+            if self.node_log().contains(needle) {
+                return true;
+            }
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
+        false
+    }
+
     async fn spawn_node_sim(port: u16, manifest: Option<&str>) -> Sim {
+        Sim::spawn_node_sim_with(port, manifest, false).await
+    }
+
+    async fn spawn_node_sim_with(port: u16, manifest: Option<&str>, direct: bool) -> Sim {
         let relay_url = format!("ws://127.0.0.1:{port}");
         let relay = spawn_relay(port);
         wait_for_port(port).await;
-        let node = spawn_node(&relay_url, manifest);
+        let log_path = direct.then(|| {
+            std::env::temp_dir().join(format!("manabrew-node-{port}-{}.log", std::process::id()))
+        });
+        let node = spawn_node(&relay_url, manifest, direct, log_path.as_deref());
         let mut sim = Sim {
             port,
             relay_url,
             room_id: String::new(),
             _relay: Some(relay),
             node: Some(node),
+            direct,
+            log_path,
         };
         sim.room_id = tokio::time::timeout(Duration::from_secs(60), sim.discover_room())
             .await
@@ -138,6 +177,8 @@ impl Sim {
             room_id: String::new(),
             _relay: Some(relay),
             node: None,
+            direct: false,
+            log_path: None,
         }
     }
 
@@ -696,6 +737,8 @@ pub fn spawn_guest_bot(
 ) -> tokio::task::JoinHandle<()> {
     if as_bot {
         let config = manabot::BotConfig {
+            iroh: false,
+            iroh_relay_url: None,
             username,
             password: "forge".to_string(),
             room_id,
@@ -777,7 +820,12 @@ fn spawn_relay(port: u16) -> Proc {
     )
 }
 
-fn spawn_node(relay_url: &str, manifest: Option<&str>) -> Proc {
+fn spawn_node(
+    relay_url: &str,
+    manifest: Option<&str>,
+    direct: bool,
+    log_path: Option<&std::path::Path>,
+) -> Proc {
     let mut command = Command::new(bin("self-hosted-node", "REGRESSION_NODE_BIN"));
     command
         .env("SELF_HOSTED_NODE_RELAY_URL", relay_url)
@@ -789,9 +837,23 @@ fn spawn_node(relay_url: &str, manifest: Option<&str>) -> Proc {
         .env(
             "CARDSET_ARCHIVE",
             workspace_root().join("src-tauri/resources/cardset.rkyv"),
-        )
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        );
+    match log_path {
+        // `tracing_subscriber::fmt::layer()` writes to stdout, so both streams
+        // go to the file or the node's own log is invisible to a test.
+        Some(path) => {
+            let log = std::fs::File::create(path).expect("create node log");
+            let err = log.try_clone().expect("clone node log handle");
+            command
+                .env("SELF_HOSTED_NODE_IROH", if direct { "1" } else { "0" })
+                .env("RUST_LOG", "info")
+                .stdout(Stdio::from(log))
+                .stderr(Stdio::from(err));
+        }
+        None => {
+            command.stdout(Stdio::null()).stderr(Stdio::null());
+        }
+    }
     if let Some(manifest) = manifest {
         command
             .env("SELF_HOSTED_NODE_SHUTDOWN_ON_STALE", "1")

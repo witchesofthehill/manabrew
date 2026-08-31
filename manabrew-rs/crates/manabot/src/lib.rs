@@ -15,6 +15,8 @@ pub use agent::{AgentKind, BotAgent, BotResponder, SimpleAi};
 pub use state::{BotConfig, BotState};
 
 #[cfg(feature = "native")]
+pub mod direct;
+#[cfg(feature = "native")]
 mod native;
 #[cfg(feature = "native")]
 pub use native::run_bot;

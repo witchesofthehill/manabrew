@@ -15,7 +15,7 @@ const CURRENT_CLIENT_VERSION: &str = "3.17.0";
 use libtest_mimic::Arguments;
 use manabrew_agent_interface::protocol::{identity_token, IdentityProof};
 use support::{
-    case, execute, list, scenario, spawn_guest_bot, summary, Case, Client, Manifest, Sim,
+    case, execute, list, scenario, spawn_guest_bot, step, summary, Case, Client, Manifest, Sim,
     GRACE_DEADLINE,
 };
 
@@ -549,6 +549,40 @@ async fn publishing_a_release_never_ends_a_live_game() {
     sim.wait_node_exit(Duration::from_secs(60)).await;
 }
 
+async fn direct_plane_carries_a_hosted_game() {
+    scenario(
+        "a hosted node with the direct data plane enabled, and its own bot seat.",
+        "a human joins, a bot is spawned, and a game runs to a few decisions.",
+        "the bot reaches the host over iroh and the game's envelopes leave the relay.",
+    );
+    let sim = Sim::spawn_direct(9660).await;
+    let mut alice = Client::connect(&sim.relay_url, "alice").await.unwrap();
+    alice.join(&sim.room_id, false).await.unwrap();
+    alice.spawn_node_bot(&sim.room_id).await.unwrap();
+
+    assert!(
+        sim.wait_node_log(Duration::from_secs(30), "seat reached the host directly")
+            .await,
+        "the bot never established a direct channel:\n{}",
+        sim.node_log()
+    );
+
+    alice.select_deck_and_ready().await.unwrap();
+    alice.start_game(2).await.unwrap();
+    alice.answer_prompts(3).await.unwrap();
+
+    assert!(
+        sim.wait_node_log(
+            Duration::from_secs(10),
+            "seats playing this game on the direct plane"
+        )
+        .await,
+        "the host did not freeze the bot onto the direct plane:\n{}",
+        sim.node_log()
+    );
+    step("the bot seat played over iroh while the relay kept the control plane");
+}
+
 fn main() {
     let args = Arguments::from_args();
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -575,6 +609,10 @@ fn main() {
             abandoned_room_serves_a_fresh_game,
         ),
         case("concede_watch_then_leave", concede_watch_then_leave),
+        case(
+            "direct_plane_carries_a_hosted_game",
+            direct_plane_carries_a_hosted_game,
+        ),
         case(
             "relay_restart_resumes_the_game",
             relay_restart_resumes_the_game,

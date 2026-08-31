@@ -1318,6 +1318,35 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::ReportTransport { game_id, seats } => {
+            let Some(room_id) = state.players.get(player_id).and_then(|p| p.room_id.clone()) else {
+                return;
+            };
+            let off_relay: Vec<_> = seats
+                .into_iter()
+                .filter(|seat| seat.transport != crate::protocol::TRANSPORT_RELAY)
+                .collect();
+            if off_relay.is_empty() {
+                return;
+            }
+            let event = AnalyticsEvent::TransportUsed {
+                ts: analytics::now_ts(),
+                room_id,
+                game_id: game_id.clone(),
+                host: username.to_string(),
+                seats: off_relay,
+            };
+            // Into the capture too, not just the event stream: a capture file
+            // has to be able to state its own incompleteness, or whoever reads
+            // it later measures a game they cannot see all of.
+            if let Ok(envelope) = serde_json::to_value(&event) {
+                state
+                    .analytics
+                    .capture_envelope(&game_id, username, &envelope, None);
+            }
+            state.analytics.emit(event);
+        }
+
         ClientMessage::ReportEngineStats { game_id, stats } => {
             if !stats.is_plausible() {
                 metrics::record_engine_report(metrics::ENGINE_REPORT_IMPLAUSIBLE);
@@ -1650,5 +1679,6 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::BroadcastState { .. } => "BroadcastState",
         ClientMessage::TurnChange { .. } => "TurnChange",
         ClientMessage::AnnounceTransport { .. } => "AnnounceTransport",
+        ClientMessage::ReportTransport { .. } => "ReportTransport",
     }
 }

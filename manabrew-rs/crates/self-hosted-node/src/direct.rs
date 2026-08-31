@@ -15,7 +15,7 @@ use std::sync::{Arc, Mutex};
 use manabrew_net::{
     GameReceiver, GameSender, NetConfig, NetEndpoint, Roster, SeatConnection, SessionFrame,
 };
-use manabrew_relay_protocol::{TransportEndpoint, TransportMember};
+use manabrew_relay_protocol::{SeatTransportReport, TransportEndpoint, TransportMember};
 use serde_json::Value;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
@@ -163,6 +163,10 @@ impl DirectPlane {
         self.seats.clear_game();
     }
 
+    pub fn transport_report(&self, seats: &[String]) -> Vec<SeatTransportReport> {
+        self.seats.transport_report(seats)
+    }
+
     /// Delivers one engine envelope to a seat. `false` means the caller must
     /// send it over the relay, which is also what happens for every seat that
     /// never took the direct plane.
@@ -234,6 +238,21 @@ impl SeatTable {
         if let Ok(mut state) = self.0.lock() {
             state.active.clear();
         }
+    }
+
+    pub fn transport_report(&self, seats: &[String]) -> Vec<SeatTransportReport> {
+        let Ok(state) = self.0.lock() else {
+            return Vec::new();
+        };
+        seats
+            .iter()
+            .filter_map(|username| {
+                state.live.get(username).map(|sender| SeatTransportReport {
+                    username: username.clone(),
+                    transport: sender.status().kind.as_str().to_string(),
+                })
+            })
+            .collect()
     }
 
     pub fn try_send(&self, target: &str, envelope: &Value) -> bool {
@@ -395,6 +414,22 @@ mod tests {
             !seat.table.try_send("bob", &envelope()),
             "and the seat stays on the relay afterwards"
         );
+    }
+
+    #[tokio::test]
+    async fn the_report_names_only_seats_that_actually_went_direct() {
+        let seat = seat("bob");
+        seat.table.freeze_for_game(&["bob".into()]);
+
+        let report = seat.table.transport_report(&["bob".into(), "carol".into()]);
+
+        assert_eq!(
+            report.len(),
+            1,
+            "carol never connected, so she is not in it"
+        );
+        assert_eq!(report[0].username, "bob");
+        assert_eq!(report[0].transport, "relay", "a relay-backed test channel");
     }
 
     #[tokio::test]

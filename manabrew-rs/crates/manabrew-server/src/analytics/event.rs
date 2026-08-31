@@ -1,7 +1,7 @@
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::protocol::{EngineKind, GameFormat};
+use crate::protocol::{EngineKind, GameFormat, SeatTransportReport};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -81,6 +81,15 @@ pub enum AnalyticsEvent {
         winner: Option<String>,
         conceded: Vec<String>,
         fatal_message: Option<String>,
+    },
+    /// Which seats left the relay's data plane for this game. Emitted from the
+    /// host's own report: the relay cannot observe traffic it does not carry.
+    TransportUsed {
+        ts: String,
+        room_id: String,
+        game_id: String,
+        host: String,
+        seats: Vec<SeatTransportReport>,
     },
     EngineStats {
         ts: String,

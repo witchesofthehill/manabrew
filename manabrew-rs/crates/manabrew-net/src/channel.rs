@@ -29,9 +29,9 @@ pub enum TransportKind {
 impl TransportKind {
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Relay => "relay",
-            Self::IrohDirect => "iroh-direct",
-            Self::IrohRelayed => "iroh-relayed",
+            Self::Relay => manabrew_relay_protocol::TRANSPORT_RELAY,
+            Self::IrohDirect => manabrew_relay_protocol::TRANSPORT_IROH_DIRECT,
+            Self::IrohRelayed => manabrew_relay_protocol::TRANSPORT_IROH_RELAYED,
         }
     }
 }

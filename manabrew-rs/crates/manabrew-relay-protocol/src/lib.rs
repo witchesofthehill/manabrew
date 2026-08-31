@@ -86,6 +86,22 @@ pub struct TransportEndpoint {
     pub direct_addrs: Vec<String>,
 }
 
+/// How one seat's game traffic travelled, reported by the room's engine host.
+/// The relay's capture and replay cache only ever see what still goes through
+/// the relay, so without this a capture file is silently incomplete.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SeatTransportReport {
+    pub username: String,
+    /// One of [`TRANSPORT_RELAY`], [`TRANSPORT_IROH_DIRECT`] or
+    /// [`TRANSPORT_IROH_RELAYED`].
+    pub transport: String,
+}
+
+/// The relay carried it, which is the only case it can observe for itself.
+pub const TRANSPORT_RELAY: &str = "relay";
+pub const TRANSPORT_IROH_DIRECT: &str = "iroh-direct";
+pub const TRANSPORT_IROH_RELAYED: &str = "iroh-relayed";
+
 /// One room member's endpoint, as attested by the relay. `username` is the
 /// relay's own view of the announcing session, never a client-supplied field.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -226,6 +242,14 @@ pub enum ClientMessage {
     AnnounceTransport {
         #[serde(default)]
         endpoint: Option<TransportEndpoint>,
+    },
+
+    /// Tells the relay which transport each seat's traffic will take for this
+    /// game, so its capture records what it is about to miss. Analytics only,
+    /// like [`ClientMessage::ReportEngineStats`].
+    ReportTransport {
+        game_id: String,
+        seats: Vec<SeatTransportReport>,
     },
 }
 

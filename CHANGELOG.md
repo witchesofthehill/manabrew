@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.32.3](https://github.com/witchesofthehill/manabrew/compare/v3.32.2...v3.32.3) (2026-08-31)
+
+### Fixes
+
+* more CORS and bot loop on propaganda ([#810](https://github.com/witchesofthehill/manabrew/issues/810)) ([6341d51](https://github.com/witchesofthehill/manabrew/commit/6341d5155532ae179ef790347c8ac73523ca1fef))
+
 ## [3.32.2](https://github.com/witchesofthehill/manabrew/compare/v3.32.1...v3.32.2) (2026-08-31)
 
 ### Fixes

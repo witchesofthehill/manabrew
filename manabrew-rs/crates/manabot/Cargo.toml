@@ -1,6 +1,6 @@
 [package]
 name = "manabot"
-version = "0.11.7"
+version = "0.11.8"
 edition = "2021"
 license.workspace = true
 description = "AI bot player for the manabrew engine"

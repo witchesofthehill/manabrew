@@ -70,4 +70,13 @@ jobs:
       - name: Publish
         if: startsWith(github.ref, 'refs/tags/forge-wasm-v')
         working-directory: target/npm/forge-wasm
-        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          V="${GITHUB_REF_NAME#forge-wasm-v}"
+          if npm view "@manabrew/forge-wasm@$V" version >/dev/null 2>&1; then
+            echo "@manabrew/forge-wasm $V already on npm - skip"
+          else
+            npm publish --access public --provenance
+          fi

@@ -4,14 +4,15 @@ Releases are built from the Manabrew repository by `.github/workflows/publish-fo
 
 ## npm setup
 
-Configure an npm trusted publisher for `@manabrew/forge-wasm` with:
+Publication uses the repository's `NPM_TOKEN` secret, the same one that publishes
+`@manabrew/protocol`. `@manabrew` is a user scope, so only its owner can create a
+package in it; a collaborator's own token is rejected with a 404 on the first
+publish.
 
-- organisation or user: `witchesofthehill`
-- repository: `manabrew`
-- workflow: `publish-forge-wasm.yml`
-- environment: none
-
-The first publication may require a maintainer to create the package manually before the trusted publisher can be attached.
+Once the package exists, an npm trusted publisher can replace the token:
+organisation `witchesofthehill`, repository `manabrew`, workflow
+`publish-forge-wasm.yml`, no environment. Drop `NODE_AUTH_TOKEN` from the publish
+step when that is configured.
 
 ## Release
 
@@ -33,4 +34,4 @@ The first publication may require a maintainer to create the package manually be
    git push origin forge-wasm-v0.1.0
    ```
 
-The workflow rejects a tag whose version differs from the package manifest. npm publication uses GitHub OIDC and provenance; no long-lived npm token is required.
+The workflow rejects a tag whose version differs from the package manifest, and skips a version already on npm. Publication is signed with GitHub OIDC provenance.

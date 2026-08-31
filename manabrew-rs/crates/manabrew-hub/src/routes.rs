@@ -14,9 +14,10 @@ use manabrew_hub::dto::{
     AccountAsset, AccountAssetList, AccountDeckList, AdminTopDeckSnapshotRequest,
     AssetCapabilities, AssetQuota, AssetUpload, Capability, CardCollection, CardCollectionEntry,
     CreateAccountDeckRequest, CreateAssetUploadRequest, DeckHubEntryList, DeckPlayReportRequest,
-    EnginePlayStats, HubCapabilities, MissingCapabilityError, PublishDeckHubEntryRequest,
-    SaveDeckVersionRequest, SetAccountAvatarRequest, UpdateDeckHubEntryRequest,
-    VerifyCardPrintingsRequest, VerifyCardPrintingsResponse, MAX_AVATAR_BYTES, MAX_PLAYMAT_BYTES,
+    EnginePlayStats, HubCapabilities, MissingCapabilityError, OfflinePlayGame,
+    PublishDeckHubEntryRequest, SaveDeckVersionRequest, SetAccountAvatarRequest,
+    UpdateDeckHubEntryRequest, VerifyCardPrintingsRequest, VerifyCardPrintingsResponse,
+    MAX_AVATAR_BYTES, MAX_PLAYMAT_BYTES,
 };
 use rand::RngCore;
 use serde::Deserialize;
@@ -159,6 +160,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/api/deckhub/top/:bucket", get(top_deck_snapshot_handler))
         .route("/api/deckhub/plays", post(record_deck_play_handler))
         .route("/api/stats/engine", post(record_engine_stats_handler))
+        .route("/api/stats/game", post(record_offline_game_handler))
         .route(
             "/internal/deckhub/relay-games",
             post(relay_deck_game_handler),
@@ -938,6 +940,32 @@ async fn record_engine_stats_handler(
         .lock()
         .unwrap()
         .record_engine_play_stats(&request, &now_string())
+    {
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+/// Unauthenticated and rate-limited like the engine-stats endpoint next door,
+/// but unlike that one this record names players: it is the client standing in
+/// for the hosted node that used to record these same games.
+async fn record_offline_game_handler(
+    State(state): State<Arc<AppState>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(request): Json<OfflinePlayGame>,
+) -> Response {
+    if !request.is_plausible() {
+        return StatusCode::UNPROCESSABLE_ENTITY.into_response();
+    }
+    if !state.play_limiter.allow(&client_ip(&headers, addr)) {
+        return StatusCode::TOO_MANY_REQUESTS.into_response();
+    }
+    match state
+        .storage
+        .lock()
+        .unwrap()
+        .record_offline_play_game(&request, &now_string())
     {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(error) => internal_error(error),

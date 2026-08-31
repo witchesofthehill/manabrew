@@ -5,6 +5,7 @@ import {
   reportEngineStats,
   roomEngineLabel,
 } from "@/lib/engineStatsReport";
+import { abandonOfflineGame, beginOfflineGame } from "@/lib/offlinePlayRecord";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { toast } from "sonner";
@@ -247,19 +248,32 @@ async function initializeGame({
     debugInfo: "Starting engine...",
   });
 
-  beginGame(engine === "Forge" ? "forge-wasm" : localEngineLabel());
-  const result = await runtime.api.startGame({
-    deck,
+  const engineLabel = engine === "Forge" ? "forge-wasm" : localEngineLabel();
+  beginGame(engineLabel);
+  void beginOfflineGame({
+    engine: engineLabel,
+    format: selectedFormatId ?? null,
     startingLife,
-    commanderName: commanderName ?? null,
-    opponentDecks: opponentDecks ?? null,
-    engine,
+    decks: gameDecks,
   });
-  if (!isLaunchCurrent()) {
-    await runtime.api.endGame();
-    throw new GameLaunchCancelledError();
+  try {
+    const result = await runtime.api.startGame({
+      deck,
+      startingLife,
+      commanderName: commanderName ?? null,
+      opponentDecks: opponentDecks ?? null,
+      engine,
+    });
+    if (!isLaunchCurrent()) {
+      await runtime.api.endGame();
+      throw new GameLaunchCancelledError();
+    }
+    set({ debugInfo: `Game started: ${result}.` });
+  } catch (error) {
+    // A launch that never became a game must not be reported as the next one.
+    abandonOfflineGame();
+    throw error;
   }
-  set({ debugInfo: `Game started: ${result}.` });
 }
 
 export const useGameStore = create<GameState>()(

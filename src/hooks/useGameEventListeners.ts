@@ -8,6 +8,8 @@ import {
 } from "@/game";
 import { teardownForgeAiSession } from "@/game/hostedAiPlay";
 import { reportEngineStats } from "@/lib/engineStatsReport";
+import { reportOfflineGame, type OfflineSeatOutcome } from "@/lib/offlinePlayRecord";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { useGameStore } from "@/stores/useGameStore";
 import type { GameState } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
@@ -139,14 +141,40 @@ function isOver(state: Pick<GameState, "gameView" | "currentPrompt">): boolean {
   return (state.gameView?.gameOver ?? false) || isGameOverPrompt(state.currentPrompt);
 }
 
+/**
+ * The human's name comes from the account when there is one, so an offline game
+ * joins the same player's relay games rather than a second identity.
+ */
+function offlineSeats(state: GameState): OfflineSeatOutcome[] {
+  const handle = useAuthStore.getState().account?.handle;
+  return (state.gameView?.players ?? []).map((player) => ({
+    seatId: player.id,
+    username: player.isHuman ? (handle ?? player.name) : player.name,
+    isBot: !player.isHuman,
+    conceded: player.status === "conceded",
+  }));
+}
+
 /** Close the book on the current game. Safe to call more than once. */
 function reportEngineGame(): void {
   const state = useGameStore.getState();
+  if (!state.isMultiplayer) {
+    const players = state.gameView?.players ?? [];
+    const winnerId = state.gameView?.winnerId ?? null;
+    reportOfflineGame({
+      gameOver: isOver(state),
+      winner: players.find((player) => player.id === winnerId)?.name ?? null,
+      seats: offlineSeats(state),
+    });
+  }
   reportEngineStats({
     multiplayer: state.isMultiplayer,
     seats: Object.keys(state.gameDecks).length || 2,
     format: state.gameConfig?.formatId ?? null,
-    endReason: state.gameView?.gameOver ? "gameOver" : "left",
+    // Must be the same test that decides a game is over: on the hosted path the
+    // engine sends a gameOver prompt and `gameView` never gets the flag, so
+    // reading the flag alone filed finished games as quits.
+    endReason: isOver(state) ? "gameOver" : "left",
     gameId: useServerStore.getState().gameId ?? null,
     send: state.isMultiplayer
       ? async (stats, gameId) => {

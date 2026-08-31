@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.32.0](https://github.com/witchesofthehill/manabrew/compare/v3.31.1...v3.32.0) (2026-08-31)
+
+### Features
+
+* **telemetry:** split engine think by whose turn ran in it ([#802](https://github.com/witchesofthehill/manabrew/issues/802)) ([18fed7c](https://github.com/witchesofthehill/manabrew/commit/18fed7c8d7f23f938b5a72e0017329285d37ec9a))
+
 ## [3.31.1](https://github.com/witchesofthehill/manabrew/compare/v3.31.0...v3.31.1) (2026-08-31)
 
 ### Fixes

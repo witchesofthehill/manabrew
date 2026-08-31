@@ -85,7 +85,8 @@ impl GameLoop {
                 let current_phase = game.turn.phase;
                 let active = game.active_player();
                 let has_declared_attackers = self.combat.has_attackers();
-                let is_active_combat = has_declared_attackers
+                let is_active_combat = !target.through_combat
+                    && has_declared_attackers
                     && matches!(
                         current_phase,
                         forge_foundation::PhaseType::CombatDeclareAttackers

@@ -81,6 +81,7 @@ impl BotAgent for SimpleAi {
                         until: Some(PassUntil {
                             player_id: prompt.deciding_player_id.clone(),
                             phase: manabrew_protocol::game::StepKind::Main1,
+                            through_combat: false,
                         }),
                         exhaust_stack: true,
                     },

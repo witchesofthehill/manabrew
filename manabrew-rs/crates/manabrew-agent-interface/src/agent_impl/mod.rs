@@ -692,6 +692,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     Some(manabrew_engine::agent::PassUntilTarget {
                         player: crate::ids_codec::parse_player_id(&u.player_id)?,
                         phase: crate::game_view_dto::step_to_phase(u.phase),
+                        through_combat: u.through_combat,
                     })
                 });
                 EnginePlayerAction::PassPriority

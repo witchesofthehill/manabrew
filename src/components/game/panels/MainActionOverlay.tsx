@@ -223,7 +223,10 @@ export function MainActionOverlay({
     currentPhaseIndex >= 0
       ? (PHASES[(currentPhaseIndex + 1) % PHASES.length]?.short ?? "NEXT")
       : "NEXT";
-  const glow = themeColors.activeAction.priority;
+  const awaitingTarget = promptType === "chooseAttackers" && pendingAttackers.length > 0;
+  const glow = awaitingTarget
+    ? themeColors.promptAction.attackAction
+    : themeColors.activeAction.priority;
 
   return (
     <div

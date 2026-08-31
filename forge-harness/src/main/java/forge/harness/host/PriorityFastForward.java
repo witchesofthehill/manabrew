@@ -93,12 +93,12 @@ final class PriorityFastForward {
     }
 
     /** Auto-pass (skip the prompt) only with an empty stack outside active combat. */
-    static boolean canSkip(final Game game) {
+    static boolean canSkip(final Game game, final boolean throughCombat) {
         final PhaseType current = game.getPhaseHandler().getPhase();
         if (current == null) {
             return false;
         }
-        if (isActiveCombat(game, current)) {
+        if (!throughCombat && isActiveCombat(game, current)) {
             return false;
         }
         return game.getStack().isEmpty();

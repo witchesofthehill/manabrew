@@ -59,8 +59,7 @@ export function PromptPreferencesPanel() {
             <Label htmlFor="prompt-full-control">Full control</Label>
             <p className="text-xs text-muted-foreground">
               Stop at every priority window, even when you have no possible response. When off,
-              windows where you can only tap for mana pass automatically after a short delay — click
-              the sweeping Pass button to hold priority.
+              windows where you can only tap for mana pass automatically after a short delay.
             </p>
           </div>
         </div>

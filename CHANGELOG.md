@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.27.1](https://github.com/witchesofthehill/manabrew/compare/v3.27.0...v3.27.1) (2026-08-31)
+
+### Performance
+
+* **forge-wasm:** send state patches from browser-hosted tables ([#795](https://github.com/witchesofthehill/manabrew/issues/795)) ([d56a6d0](https://github.com/witchesofthehill/manabrew/commit/d56a6d0677d1c98f6b490ef6099f5b55559ac716))
+
 ## [3.27.0](https://github.com/witchesofthehill/manabrew/compare/v3.26.3...v3.27.0) (2026-08-31)
 
 ### Features

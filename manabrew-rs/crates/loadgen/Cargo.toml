@@ -1,6 +1,6 @@
 [package]
 name = "loadgen"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 license.workspace = true
 description = "Throwaway prod load generator for hosted rooms"
@@ -11,8 +11,8 @@ name = "loadgen"
 path = "src/main.rs"
 
 [dependencies]
-manabrew-agent-interface = { path = "../manabrew-agent-interface", version = "0.10.4" }
-manabot = { path = "../manabot/", version = "0.11.1" }
+manabrew-agent-interface = { path = "../manabrew-agent-interface", version = "0.10.5" }
+manabot = { path = "../manabot/", version = "0.11.2" }
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 futures-util = "0.3"

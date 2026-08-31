@@ -94,6 +94,10 @@ for (const file of [
   "package.json",
   "forge.js",
   "forge.d.ts",
+  "engine.js",
+  "node.js",
+  "node-worker.cjs",
+  "stamp.js",
   "deckCards.js",
   "deckCards.d.ts",
   "seat.js",
@@ -149,18 +153,18 @@ if (!cardsetArchiveVersion) throw new Error("forge-cardset-archive has no versio
 const head = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" });
 const buildCommit = head.status === 0 ? head.stdout.trim() : "unknown";
 
-const entryPath = join(output, "forge.js");
-let entry = readFileSync(entryPath, "utf8");
+const stampPath = join(output, "stamp.js");
+let stamps = readFileSync(stampPath, "utf8");
 for (const [name, value] of [
   ["VERSION", manifest.version],
   ["CARDSET_ARCHIVE_VERSION", cardsetArchiveVersion],
   ["BUILD_COMMIT", buildCommit],
 ]) {
   const declaration = new RegExp(`^export const ${name} = ".*";$`, "m");
-  if (!declaration.test(entry)) throw new Error(`forge.js has no ${name} export to stamp.`);
-  entry = entry.replace(declaration, `export const ${name} = ${JSON.stringify(value)};`);
+  if (!declaration.test(stamps)) throw new Error(`stamp.js has no ${name} export to stamp.`);
+  stamps = stamps.replace(declaration, `export const ${name} = ${JSON.stringify(value)};`);
 }
-writeFileSync(entryPath, entry);
+writeFileSync(stampPath, stamps);
 
 console.log(
   `Built ${manifest.name}@${manifest.version} in ${output}` +

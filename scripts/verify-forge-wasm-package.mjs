@@ -30,6 +30,10 @@ function run(command, args, cwd = root) {
 const required = [
   "forge.js",
   "forge.d.ts",
+  "engine.js",
+  "node.js",
+  "node-worker.cjs",
+  "stamp.js",
   "deckCards.js",
   "deckCards.d.ts",
   "seat.js",
@@ -66,13 +70,13 @@ if (statSync(join(packageDir, "cardset.rkyv")).size < 30_000_000) {
 
 // A mismatch means the stamp did not run, and consumers would read stale
 // numbers.
-const entry = readFileSync(join(packageDir, "forge.js"), "utf8");
-const stampOf = (name) => entry.match(new RegExp(`^export const ${name} = "(.*)";$`, "m"))?.[1];
+const stamps = readFileSync(join(packageDir, "stamp.js"), "utf8");
+const stampOf = (name) => stamps.match(new RegExp(`^export const ${name} = "(.*)";$`, "m"))?.[1];
 
 const manifestVersion = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8")).version;
 if (stampOf("VERSION") !== manifestVersion) {
   throw new Error(
-    `forge.js exports VERSION ${stampOf("VERSION")}, manifest says ${manifestVersion}.`,
+    `stamp.js exports VERSION ${stampOf("VERSION")}, manifest says ${manifestVersion}.`,
   );
 }
 
@@ -82,11 +86,11 @@ const cardsetArchiveVersion = readFileSync(
 ).match(/^version\s*=\s*"(.+)"$/m)?.[1];
 if (stampOf("CARDSET_ARCHIVE_VERSION") !== cardsetArchiveVersion) {
   throw new Error(
-    `forge.js exports CARDSET_ARCHIVE_VERSION ${stampOf("CARDSET_ARCHIVE_VERSION")}, the crate is ${cardsetArchiveVersion}.`,
+    `stamp.js exports CARDSET_ARCHIVE_VERSION ${stampOf("CARDSET_ARCHIVE_VERSION")}, the crate is ${cardsetArchiveVersion}.`,
   );
 }
 if (!/^[0-9a-f]{40}$/.test(stampOf("BUILD_COMMIT") ?? "")) {
-  throw new Error(`forge.js exports BUILD_COMMIT ${stampOf("BUILD_COMMIT")}, expected a commit.`);
+  throw new Error(`stamp.js exports BUILD_COMMIT ${stampOf("BUILD_COMMIT")}, expected a commit.`);
 }
 
 const packed = JSON.parse(
@@ -191,6 +195,84 @@ for (const expected of ["forge-engine.worker", "forgeharness", "cardset", "forge
     throw new Error(`Vite did not emit the ${expected} package asset: ${assets.join(", ")}`);
   }
 }
+
+// The browser entry is bundler-only: its `?url` imports do not resolve outside
+// one. The `node` condition has to keep pointing at an entry Node can load, and
+// with a real engine it has to actually play a game.
+writeFileSync(
+  join(consumer, "node-usage.mjs"),
+  [
+    'import { createForgeEngine, ForgeEngine, VERSION } from "@manabrew/forge-wasm";',
+    'if (typeof ForgeEngine !== "function") throw new Error("the node entry exports no ForgeEngine.");',
+    'if (!VERSION) throw new Error("the node entry exports no VERSION.");',
+    'if (process.argv.includes("--import-only")) {',
+    "  console.log(`Node entry loads: @manabrew/forge-wasm ${VERSION}`);",
+    "  process.exit(0);",
+    "}",
+    "",
+    "const copies = (name, count) => Array.from({ length: count }, () => ({ name }));",
+    'const deck = { format: "constructed", cards: [...copies("Mountain", 24), ...copies("Raging Goblin", 36)] };',
+    "",
+    // Pass on everything. The AI wins in a couple of seconds, and what is under
+    // test is the packaging, not the rules.
+    "const REPLIES = {",
+    "  mulligan: () => ({ keep: true }),",
+    "  mulliganPutBack: () => ({ cardIds: [] }),",
+    "  diceRolled: () => ({}),",
+    "  revealCards: () => ({}),",
+    '  chooseAction: () => ({ type: "pass" }),',
+    "  chooseBoolean: () => ({ value: false }),",
+    "  chooseCards: () => ({ chosenCardIds: [] }),",
+    "  chooseAttackers: () => ({ assignments: [] }),",
+    "  chooseBlockers: () => ({ assignments: [] }),",
+    "};",
+    "",
+    "// The worker forwards its whole console, which is where a boot failure",
+    "// explains itself. Keep the tail of it to print if one happens.",
+    "const logs = [];",
+    "const die = (message) => {",
+    '  console.error([...logs.slice(-20), message].join("\\n"));',
+    "  process.exit(1);",
+    "};",
+    "let prompts = 0;",
+    "let states = 0;",
+    'const timer = setTimeout(() => die("Forge did not finish a game in 300s."), 300_000);',
+    "",
+    "const engine = await createForgeEngine({",
+    "  onState: () => { states += 1; },",
+    "  onPrompt: (prompt) => {",
+    "    prompts += 1;",
+    "    const type = prompt.input?.type;",
+    "    const reply = REPLIES[type];",
+    "    if (reply) engine.respond(prompt.promptId, { type, output: reply(prompt) });",
+    '    else engine.directive({ type: "concede" });',
+    "  },",
+    "  onError: (error) => die(`Forge reported an error: ${JSON.stringify(error)}`),",
+    "  onEvent: (event, payload) => {",
+    '    if (event === "forge:log") logs.push(payload.text);',
+    '    if (event === "game:forced_end") die(`Forge ended the game early: ${JSON.stringify(payload)}`);',
+    '    if (event !== "game:over") return;',
+    "    clearTimeout(timer);",
+    "    if (!prompts || !states) die(`Forge ended after ${prompts} prompts and ${states} states.`);",
+    "    console.log(`Node entry played a game: ${prompts} prompts, ${states} states.`);",
+    "    engine.dispose();",
+    "    process.exit(0);",
+    "  },",
+    "});",
+    "",
+    "await engine.startGame({ deck, opponentDecks: [deck] });",
+    "",
+  ].join("\n"),
+);
+process.stdout.write(
+  run(
+    process.execPath,
+    stubEngine
+      ? [join(consumer, "node-usage.mjs"), "--import-only"]
+      : [join(consumer, "node-usage.mjs")],
+    consumer,
+  ),
+);
 
 console.log(
   `Verified ${basename(tarball)}: ${(packed.size / 1024 / 1024).toFixed(1)} MiB tarball, ${packed.files.length} files.` +

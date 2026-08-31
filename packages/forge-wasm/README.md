@@ -1,8 +1,8 @@
 # @manabrew/forge-wasm
 
-Forge compiled to WebAssembly with GraalVM Web Image. The package runs Forge in a classic Web Worker and exposes its state, display and prompt messages on the main thread.
+Forge compiled to WebAssembly with GraalVM Web Image. The package runs Forge on a worker and exposes its state, display and prompt messages on the main thread.
 
-The package is browser-only. It includes the Forge launcher, the WebAssembly engine and a static `cardset.rkyv` archive. Card scripts for the decks in play are selected from the archive before Forge boots, so the Java boundary only receives the files needed by that game.
+It runs in a browser and on Node. The entry point differs, the API does not. It includes the Forge launcher, the WebAssembly engine and a static `cardset.rkyv` archive. Card scripts for the decks in play are selected from the archive before Forge boots, so the Java boundary only receives the files needed by that game.
 
 ## Install
 
@@ -12,9 +12,9 @@ Pin an exact version while the API is pre-1.0:
 npm install --save-exact @manabrew/forge-wasm@0.1.0
 ```
 
-## Server headers
+## Browser: server headers
 
-Forge uses `SharedArrayBuffer` and requires a cross-origin isolated page. Serve the application with these response headers:
+In a browser, Forge uses `SharedArrayBuffer` and requires a cross-origin isolated page. Serve the application with these response headers:
 
 ```http
 Cross-Origin-Opener-Policy: same-origin
@@ -23,7 +23,7 @@ Cross-Origin-Embedder-Policy: require-corp
 
 `createForgeEngine()` rejects if `crossOriginIsolated` is false.
 
-## Vite setup
+## Browser: Vite setup
 
 The package's Vite plugin keeps the large engine and cardset out of dependency pre-bundling and emits them as static assets:
 
@@ -35,6 +35,19 @@ export default {
   plugins: [forgeWasm()],
 };
 ```
+
+## Node
+
+`import` resolves to a Node entry through the package's `node` condition, with the same API. There is no bundler and no cross-origin isolation to arrange: Node has `SharedArrayBuffer` unconditionally, and the engine runs on a `worker_threads` worker that reads its files from disk.
+
+```js
+import { createForgeEngine } from "@manabrew/forge-wasm";
+
+const engine = await createForgeEngine({ onState, onPrompt });
+await engine.startGame({ deck, opponentDecks: [deck] });
+```
+
+Node 20 or later. Call `dispose()` when the game ends, or the worker thread keeps the process alive.
 
 ## Usage
 
@@ -122,7 +135,7 @@ await createForgeEngine({
 });
 ```
 
-The launcher, worker, engine WASM, asset-selector WASM and cardset URLs can all be overridden. Their defaults are module-relative URLs that Vite and other modern bundlers emit as static assets.
+The launcher, worker, engine WASM, asset-selector WASM and cardset URLs can all be overridden. Their defaults are module-relative URLs that Vite and other modern bundlers emit as static assets. On Node they default to the installed files, and an override may be a path or a `file:` URL.
 
 ## Which build is this
 

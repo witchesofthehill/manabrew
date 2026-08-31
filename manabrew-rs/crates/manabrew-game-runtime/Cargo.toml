@@ -1,15 +1,15 @@
 [package]
 name = "manabrew_game_runtime"
-version = "0.3.32"
+version = "0.3.34"
 edition = "2021"
 license.workspace = true
 description = "Hosts N-player manabrew game sessions over a caller-supplied transport"
 
 [dependencies]
-manabrew-agent-interface = { path = "../manabrew-agent-interface", version = "0.10.3" }
-manabrew-protocol = { path = "../manabrew-protocol", version = "5.4.0" }
+manabrew-agent-interface = { path = "../manabrew-agent-interface", version = "0.10.5" }
+manabrew-protocol = { path = "../manabrew-protocol", version = "5.4.1" }
 forge-carddb = { path = "../forge-carddb", version = "0.3.0" }
-manabrew-engine = { path = "../manabrew-engine", version = "0.8.0" }
+manabrew-engine = { path = "../manabrew-engine", version = "0.8.1" }
 forge-foundation = { path = "../forge-foundation", version = "0.3.3" }
 rand = "0.8"
 tracing = "0.1"

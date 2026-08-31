@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { Bot, Crown, Plus, User, X } from "lucide-react";
+import { usePlayerAvatar } from "@/hooks/usePlayerAvatar";
 import { stripUsernameTag } from "@/lib/username";
 import { cn } from "@/lib/utils";
 import type { RoomPlayerInfo } from "@/types/server";
@@ -39,6 +40,7 @@ export function TableSeatChip({
   style,
   className,
 }: TableSeatChipProps) {
+  const avatarUrl = usePlayerAvatar(player?.username);
   if (!player) {
     if (!joinable) {
       return (
@@ -111,6 +113,13 @@ export function TableSeatChip({
           <Bot
             aria-hidden="true"
             className={cn("relative h-3.5 w-3.5", size === "room" && "h-5 w-5 sm:h-6 sm:w-6")}
+          />
+        ) : avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full rounded-full object-cover"
           />
         ) : (
           <span className="relative">{seatInitials(player.username)}</span>

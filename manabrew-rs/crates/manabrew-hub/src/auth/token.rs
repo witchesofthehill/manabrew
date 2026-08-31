@@ -37,6 +37,8 @@ pub struct AccessClaims {
     pub handle: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub qualification: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
     pub iss: String,
     pub aud: String,
     pub iat: i64,
@@ -129,6 +131,7 @@ pub fn mint_access_token(
     account_id: &str,
     handle: &str,
     qualification: Option<&str>,
+    avatar_url: Option<&str>,
     audience: &str,
 ) -> AccessTokenResponse {
     let now = Utc::now().timestamp();
@@ -136,6 +139,7 @@ pub fn mint_access_token(
         sub: account_id.to_string(),
         handle: handle.to_string(),
         qualification: qualification.map(str::to_string),
+        avatar_url: avatar_url.map(str::to_string),
         iss: ISSUER.into(),
         aud: audience.into(),
         iat: now,
@@ -177,6 +181,7 @@ pub async fn token_handler(
         &account.id,
         &account.handle,
         account.qualification.as_deref(),
+        account.avatar_url.as_deref(),
         audience,
     ))
     .into_response()
@@ -216,6 +221,7 @@ pub async fn guest_token_handler(
         &state.identity,
         &subject,
         name,
+        None,
         None,
         AUDIENCE_RELAY,
     ))
@@ -260,7 +266,7 @@ pub mod tests {
     }
 
     fn issue(keys: &IdentityKeys, audience: &str) -> String {
-        mint_access_token(keys, "acct-1", "brewer", None, audience).access_token
+        mint_access_token(keys, "acct-1", "brewer", None, None, audience).access_token
     }
 
     #[test]
@@ -300,6 +306,7 @@ pub mod tests {
                 sub: "acct-2".into(),
                 handle: "brewer".into(),
                 qualification: None,
+                avatar_url: None,
                 iss: ISSUER.into(),
                 aud: AUDIENCE_HUB.into(),
                 iat: Utc::now().timestamp(),
@@ -325,6 +332,7 @@ pub mod tests {
             sub: "acct-1".into(),
             handle: "brewer".into(),
             qualification: None,
+            avatar_url: None,
             iss: ISSUER.into(),
             aud: AUDIENCE_HUB.into(),
             iat: now - 7200,

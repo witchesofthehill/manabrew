@@ -27,6 +27,7 @@ pub struct ConnectedPlayer {
     pub identity: Vec<SessionIdentity>,
     pub name_verified: bool,
     pub qualification: Option<String>,
+    pub avatar_url: Option<String>,
     /// What the client reported at authentication. Read when deciding which
     /// wire features this seat can be sent.
     pub client: ClientBuild,

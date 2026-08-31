@@ -72,6 +72,7 @@ COPY tree-sitter-forge-card-script/ ./tree-sitter-forge-card-script/
 COPY xtask/ ./xtask/
 COPY scripts/ ./scripts/
 COPY src/ ./src/
+COPY packages/ ./packages/
 COPY public/ ./public/
 # ops/manifest.json is read by vite.config.ts to stamp the app version.
 COPY index.html tsconfig*.json vite.config.ts ./

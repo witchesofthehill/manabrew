@@ -1,0 +1,119 @@
+# @manabrew/forge-wasm
+
+Forge compiled to WebAssembly with GraalVM Web Image. The package runs Forge in a classic Web Worker and exposes its state, display and prompt messages on the main thread.
+
+The package is browser-only. It includes the Forge launcher, the WebAssembly engine and a static `cardset.rkyv` archive. Card scripts for the decks in play are selected from the archive before Forge boots, so the Java boundary only receives the files needed by that game.
+
+## Install
+
+Pin an exact version while the API is pre-1.0:
+
+```sh
+npm install --save-exact @manabrew/forge-wasm@0.1.0
+```
+
+## Server headers
+
+Forge uses `SharedArrayBuffer` and requires a cross-origin isolated page. Serve the application with these response headers:
+
+```http
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+```
+
+`createForgeEngine()` rejects if `crossOriginIsolated` is false.
+
+## Vite setup
+
+The package's Vite plugin keeps the large engine and cardset out of dependency pre-bundling and emits them as static assets:
+
+```js
+// vite.config.js
+import { forgeWasm } from "@manabrew/forge-wasm/vite";
+
+export default {
+  plugins: [forgeWasm()],
+};
+```
+
+## Usage
+
+```js
+import { createForgeEngine } from "@manabrew/forge-wasm";
+
+const engine = await createForgeEngine({
+  onState(state) {
+    render(state);
+  },
+  onPrompt(prompt) {
+    showPrompt(prompt, (action) => engine.respond(prompt.id, action));
+  },
+  onDisplay(event) {
+    showEvent(event);
+  },
+  onError(error) {
+    console.error(error);
+  },
+});
+
+await engine.startGame({
+  deck: humanDeck,
+  opponentDecks: [computerDeck],
+});
+```
+
+A deck has `cards` and optional `commanders`. Each entry can carry its printing under `identity` and is repeated according to `count`:
+
+```js
+const deck = {
+  format: "commander",
+  commanders: [{ identity: { name: "Najeela, the Blade-Blossom" }, count: 1 }],
+  cards: [{ identity: { name: "Lightning Bolt", setCode: "M11", cardNumber: "149" }, count: 1 }],
+};
+```
+
+Call `dispose()` to terminate the worker. A running Forge game is synchronous inside the worker, so terminating the worker is the only immediate cancellation mechanism.
+
+## Multiplayer seats
+
+`startMultiplayerGame()` creates one SharedArrayBuffer-backed seat per player. Messages for the browser's local seat have no `playerSlot`; remote messages carry `player-0`, `player-1` and so on. Pass that slot back to `respond()` after relaying a remote player's answer.
+
+```js
+const engine = await createForgeEngine({
+  onMessage(message, playerSlot) {
+    if (playerSlot) relayToPlayer(playerSlot, message);
+  },
+});
+
+await engine.startMultiplayerGame({
+  decks,
+  playerNames,
+  enginePlayerIndex: 0,
+});
+
+engine.respond(promptId, action, "player-1");
+```
+
+## Cardset and asset overrides
+
+The default cardset is exported as `@manabrew/forge-wasm/cardset.rkyv`. To serve the same immutable archive from a CDN or another static-file pipeline, pass its URL:
+
+```js
+await createForgeEngine({
+  cardsetUrl: "https://static.example/cardset.rkyv",
+});
+```
+
+A host which already has the Manabrew cardset pipeline can avoid loading the packaged archive by supplying a framed asset string. The framing is `path\0body\0…` and paths are relative to Forge's resource root.
+
+```js
+await createForgeEngine({
+  assets: async (decks) => buildExistingForgeAssetBundle(decks),
+});
+```
+
+The launcher, worker, engine WASM, asset-selector WASM and cardset URLs can all be overridden. Their defaults are module-relative URLs that Vite and other modern bundlers emit as static assets.
+
+## Licence
+
+`@manabrew/forge-wasm` is distributed under the GNU Affero General Public License version 3 or later. Forge itself is GPL-3.0 licensed. Corresponding source is available in the Manabrew repository and its pinned `forge` submodule.

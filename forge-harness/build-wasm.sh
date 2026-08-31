@@ -87,9 +87,9 @@ needle = "const config = new GraalVM.Config();"
 if "wasm_path" in src.split(needle)[-1][:200]:
     print("    already pinned")
 else:
-    pin = (needle + '\nconfig.wasm_path = new URL("forgeharness.js.wasm", '
-           'typeof document !== "undefined" && document.currentScript '
-           '? document.currentScript.src : self.location.href).href;')
+    pin = (needle + '\nconfig.wasm_path = globalThis.__forgeWasmUrl || '
+           'new URL("forgeharness.js.wasm", typeof document !== "undefined" '
+           '&& document.currentScript ? document.currentScript.src : self.location.href).href;')
     assert needle in src, "launcher bootstrap not found"
     open(path, "w").write(src.replace(needle, pin, 1))
     print("    pinned")

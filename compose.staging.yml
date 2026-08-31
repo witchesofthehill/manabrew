@@ -61,13 +61,20 @@ services:
       # counters. Small cap — this disk is production's too.
       MANABREW_GAME_CAPTURE_DIR: "/var/manabrew/captures"
       MANABREW_GAME_CAPTURE_MAX_GB: "${MANABREW_GAME_CAPTURE_MAX_GB:-2}"
-      RUST_LOG: "manabrew_server=info"
+      # This process also hosts the deployment's own iroh relay, under /relay on
+      # the same hostname. Clients are told about it through RoomTransport, so
+      # none of them carries a relay address of its own and nothing falls back
+      # to public infrastructure.
+      MANABREW_IROH_RELAY_PORT: "${MANABREW_IROH_RELAY_PORT:-9445}"
+      MANABREW_IROH_RELAY_URL: "${MANABREW_IROH_RELAY_URL:-https://relay-staging.manabrew.app}"
+      RUST_LOG: "manabrew_server=info,iroh_relay=warn"
     volumes:
       - ./ops/events:/var/manabrew/events
       - ./ops/observability/data/captures:/var/manabrew/captures
     expose:
       - "9443"
       - "9444"
+      - "9445"
     restart: unless-stopped
     mem_limit: 512m
     cpus: 1.0
@@ -195,7 +202,9 @@ services:
       # relay's game capture only sees what still goes through it, so a captured
       # hosted game is missing any seat that went direct.
       SELF_HOSTED_NODE_IROH: "${SELF_HOSTED_NODE_IROH:-1}"
-      SELF_HOSTED_NODE_IROH_RELAY_URL: "${SELF_HOSTED_NODE_IROH_RELAY_URL:-}"
+      # The relay the node advertises in its EndpointAddr, so it has to be the
+      # address a peer outside this network can reach, not the compose name.
+      SELF_HOSTED_NODE_IROH_RELAY_URL: "${SELF_HOSTED_NODE_IROH_RELAY_URL:-https://relay-staging.manabrew.app}"
       SELF_HOSTED_NODE_METRICS_PUSH_URL: "${SELF_HOSTED_NODE_METRICS_PUSH_URL:-}"
       RUST_LOG: "self_hosted_node=info,manabot=info,manabrew_net=info"
     # The native image takes 55% of the cgroup limit as its max heap (#729), so

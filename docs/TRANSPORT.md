@@ -239,8 +239,11 @@ the relay, the relay writes it into that game's capture as a line and emits
 the same seam `ReportEngineStats` uses, and the same principle offline play already runs on: the
 party that did the work reports it, and the relay is a route rather than the source of truth.
 
-The replay cache is still stale for a direct seat until the next relayed envelope. That one is
-phase 3.
+The replay cache is repaired rather than left stale: the moment a seat leaves the direct plane
+the host re-sends that seat's last full state and pending prompt over the relay. Those are the
+values stored before `patch_against_last` runs, which is what lets them rebuild a cache that
+missed everything in between. Without it a later `stateDelta` patch would be folded onto a base
+the relay never held.
 
 `TransportStatus` reports, per seat: attempted, connected or failed; `TransportKind` of
 `Relay`, `IrohDirect` or `IrohRelayed`; whether the selected path's remote address is
@@ -286,8 +289,8 @@ itself:
   frozen at `GameStarted` and any failure falls back to the relay. `manabot` is the first seat
   that dials, which is what puts real games on the direct plane on the preview.
   See `docs/agents/SELF_HOSTED_NODE.md`.
-- **Phase 3.** Re-prime the relay's replay cache when a seat falls back (a resync is currently
-  one envelope stale for a seat that was direct), reconnect hardening, and live migration at a
-  resync boundary. Then the client half, so a real player seat can take the direct plane.
+- **Phase 3 (done).** The deployment's own iroh relay, hosted by `manabrew-server`, and
+  replay-cache re-priming on fallback. What is left here is live migration at a resync boundary,
+  which is optional: transport is chosen before `GameStarted` and never changes mid-game.
 - **Phase 4.** The wasm build (LLVM clang in CI, bundle budget) and, only if justified, an
   embedded relay.

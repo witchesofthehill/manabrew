@@ -36,8 +36,16 @@ struct TableState {
 /// Which seats are on the direct plane and which are still on the relay. This
 /// is the whole transport-selection policy, kept apart from the endpoint so the
 /// rules can be tested without a network.
+type FallbackHook = Box<dyn Fn(&str) + Send + 'static>;
+
 #[derive(Clone, Default)]
-pub struct SeatTable(Arc<Mutex<TableState>>);
+pub struct SeatTable {
+    state: Arc<Mutex<TableState>>,
+    /// Called with a seat's username the moment it leaves the direct plane. The
+    /// relay's replay cache stopped seeing that seat when it went direct, so
+    /// something has to put the current board back before a resync asks for it.
+    on_fallback: Arc<Mutex<Option<FallbackHook>>>,
+}
 
 pub struct DirectPlane {
     endpoint: NetEndpoint,
@@ -163,6 +171,10 @@ impl DirectPlane {
         self.seats.clear_game();
     }
 
+    pub fn set_on_fallback(&self, reprime: impl Fn(&str) + Send + 'static) {
+        self.seats.set_on_fallback(reprime);
+    }
+
     pub fn transport_report(&self, seats: &[String]) -> Vec<SeatTransportReport> {
         self.seats.transport_report(seats)
     }
@@ -198,7 +210,7 @@ impl SeatTable {
         crate::metrics::record_direct_seat(status.kind);
 
         let (sender, receiver) = channel.split();
-        if let Ok(mut state) = self.0.lock() {
+        if let Ok(mut state) = self.state.lock() {
             state.live.insert(username.clone(), sender);
         }
 
@@ -213,14 +225,31 @@ impl SeatTable {
     }
 
     pub fn drop_seat(&self, username: &str) {
-        if let Ok(mut state) = self.0.lock() {
-            state.live.remove(username);
-            state.active.remove(username);
+        let was_direct = match self.state.lock() {
+            Ok(mut state) => {
+                state.live.remove(username);
+                state.active.remove(username)
+            }
+            Err(_) => false,
+        };
+        if !was_direct {
+            return;
+        }
+        if let Ok(guard) = self.on_fallback.lock() {
+            if let Some(reprime) = guard.as_ref() {
+                reprime(username);
+            }
+        }
+    }
+
+    pub fn set_on_fallback(&self, reprime: impl Fn(&str) + Send + 'static) {
+        if let Ok(mut guard) = self.on_fallback.lock() {
+            *guard = Some(Box::new(reprime));
         }
     }
 
     pub fn freeze_for_game(&self, seats: &[String]) -> Vec<String> {
-        let Ok(mut state) = self.0.lock() else {
+        let Ok(mut state) = self.state.lock() else {
             return Vec::new();
         };
         state.active = seats
@@ -235,13 +264,13 @@ impl SeatTable {
     }
 
     pub fn clear_game(&self) {
-        if let Ok(mut state) = self.0.lock() {
+        if let Ok(mut state) = self.state.lock() {
             state.active.clear();
         }
     }
 
     pub fn transport_report(&self, seats: &[String]) -> Vec<SeatTransportReport> {
-        let Ok(state) = self.0.lock() else {
+        let Ok(state) = self.state.lock() else {
             return Vec::new();
         };
         seats
@@ -257,7 +286,7 @@ impl SeatTable {
 
     pub fn try_send(&self, target: &str, envelope: &Value) -> bool {
         let (sender, seq) = {
-            let Ok(mut state) = self.0.lock() else {
+            let Ok(mut state) = self.state.lock() else {
                 return false;
             };
             if !state.active.contains(target) {
@@ -430,6 +459,40 @@ mod tests {
         );
         assert_eq!(report[0].username, "bob");
         assert_eq!(report[0].transport, "relay", "a relay-backed test channel");
+    }
+
+    #[tokio::test]
+    async fn falling_back_asks_for_the_relay_cache_to_be_re_primed() {
+        let mut seat = seat("bob");
+        let fell_back: Arc<Mutex<Vec<String>>> = Arc::default();
+        let sink = fell_back.clone();
+        seat.table
+            .set_on_fallback(move |username| sink.lock().unwrap().push(username.to_string()));
+
+        seat.table.freeze_for_game(&["bob".into()]);
+        assert!(seat.table.try_send("bob", &envelope()));
+
+        seat.outbound.close();
+        while seat.outbound.try_recv().is_ok() {}
+        assert!(!seat.table.try_send("bob", &envelope()));
+
+        assert_eq!(
+            fell_back.lock().unwrap().as_slice(),
+            ["bob"],
+            "the relay stopped seeing this seat, so its cache has to be rebuilt"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_seat_that_was_never_direct_does_not_ask_for_a_re_prime() {
+        let table = SeatTable::default();
+        let fell_back: Arc<Mutex<Vec<String>>> = Arc::default();
+        let sink = fell_back.clone();
+        table.set_on_fallback(move |username| sink.lock().unwrap().push(username.to_string()));
+
+        table.drop_seat("carol");
+
+        assert!(fell_back.lock().unwrap().is_empty());
     }
 
     #[tokio::test]

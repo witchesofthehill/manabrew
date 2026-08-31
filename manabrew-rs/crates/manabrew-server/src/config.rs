@@ -16,6 +16,8 @@ pub struct ServerConfig {
     pub hub_deck_plays_token: Option<String>,
     pub hub_jwks_url: Option<String>,
     pub iroh_relay_url: Option<String>,
+    /// Port for the iroh relay this process hosts. Unset means it hosts none.
+    pub iroh_relay_port: Option<u16>,
 }
 
 impl ServerConfig {
@@ -66,6 +68,9 @@ impl ServerConfig {
             iroh_relay_url: std::env::var("MANABREW_IROH_RELAY_URL")
                 .ok()
                 .filter(|url| !url.is_empty()),
+            iroh_relay_port: std::env::var("MANABREW_IROH_RELAY_PORT")
+                .ok()
+                .and_then(|port| port.parse().ok()),
         }
     }
 

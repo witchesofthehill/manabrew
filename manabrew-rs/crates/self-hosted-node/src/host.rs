@@ -497,6 +497,11 @@ async fn host_one_room(
                     });
                 }
             });
+            let reprime_snapshot = snapshot.clone();
+            let reprime_tx = outbound_tx.clone();
+            plane.set_on_fallback(move |username| {
+                reprime_relay_cache(&reprime_snapshot, &reprime_tx, username);
+            });
             announce_transport(&plane, &outbound_tx).await;
             Some(plane)
         }
@@ -587,6 +592,42 @@ async fn host_one_room(
         }
         info!(username = %config.username, room_id, "relay connection re-established");
     }
+}
+
+/// Puts a seat's current board back into the relay's replay cache the moment it
+/// leaves the direct plane. While it was direct the relay saw none of its
+/// envelopes, so without this a resync would answer with whatever board the
+/// relay last carried, and a `stateDelta` patch would be folded onto a base the
+/// relay never had.
+fn reprime_relay_cache(
+    snapshot: &SharedHostSnapshot,
+    outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
+    username: &str,
+) {
+    let Some(index) = seat_index_of(snapshot, username) else {
+        return;
+    };
+    let slot = player_slot(index);
+    let Ok(snap) = snapshot.lock() else {
+        return;
+    };
+    let state = snap.last_state_by_slot.get(&slot).cloned();
+    let prompt = snap.pending_prompts.get(&slot).cloned();
+    drop(snap);
+
+    // Full states, not patches: these are stored before `patch_against_last`
+    // runs, which is exactly why they can rebuild a cache that missed the
+    // envelopes in between.
+    for state in [state, prompt].into_iter().flatten() {
+        let _ = outbound_tx.send(ClientMessage::BroadcastState {
+            state,
+            target_player: Some(username.to_string()),
+        });
+    }
+    info!(
+        username,
+        "re-primed the relay cache for a seat that fell back"
+    );
 }
 
 async fn announce_transport(

@@ -157,9 +157,7 @@ impl Sim {
                     stack.push(path);
                 } else if let Ok(file) = std::fs::File::open(&path) {
                     if let Ok(text) = zstd::decode_all(file) {
-                        lines.extend(
-                            String::from_utf8_lossy(&text).lines().map(str::to_string),
-                        );
+                        lines.extend(String::from_utf8_lossy(&text).lines().map(str::to_string));
                     }
                 }
             }

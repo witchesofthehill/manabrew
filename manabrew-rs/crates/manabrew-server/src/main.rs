@@ -35,9 +35,36 @@ async fn main() {
         .with_iroh_relay_url(config.iroh_relay_url.clone()),
     );
 
+    let iroh_relay = spawn_iroh_relay(config.iroh_relay_port).await;
+
     if !state.identity.hub_configured() {
         tracing::info!("[auth] no hub jwks url -- account identity disabled, device proofs only");
     }
 
     server::run_server(state, addr, health_addr, metrics_handle).await;
+
+    if let Some(relay) = iroh_relay {
+        let _ = relay.shutdown().await;
+    }
+}
+
+/// Hosts the deployment's own iroh relay in this process, so the data plane has
+/// somewhere to fall back to that is ours. TLS is left off: the edge already
+/// terminates it, and the relay speaks plain WebSocket under `/relay`, which a
+/// reverse proxy carries unchanged.
+async fn spawn_iroh_relay(port: Option<u16>) -> Option<iroh_relay::server::Server> {
+    let port = port?;
+    let bind = SocketAddr::from(([0, 0, 0, 0], port));
+    let mut config = iroh_relay::server::ServerConfig::default();
+    config.relay = Some(iroh_relay::server::RelayConfig::new(bind));
+    match iroh_relay::server::Server::spawn(config).await {
+        Ok(server) => {
+            tracing::info!(%bind, "[iroh] hosting the relay for this deployment");
+            Some(server)
+        }
+        Err(error) => {
+            tracing::error!(%error, %bind, "[iroh] could not host the relay");
+            None
+        }
+    }
 }

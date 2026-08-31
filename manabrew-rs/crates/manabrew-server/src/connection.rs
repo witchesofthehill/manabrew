@@ -156,7 +156,14 @@ fn player_list(state: &Arc<ServerState>) -> Vec<crate::protocol::PlayerInfo> {
             connected: entry.value().connected,
             verified: entry.value().verified(),
             qualification: entry.value().qualification.clone(),
+            avatar_url: entry.value().avatar_url.clone(),
             room_id: entry.value().room_id.clone(),
+            // A dropped socket stops asserting anything.
+            local_game: entry
+                .value()
+                .connected
+                .then(|| entry.value().local_game)
+                .flatten(),
         })
         .collect()
 }
@@ -565,6 +572,10 @@ async fn authenticate(
                     player_id: None,
                     reconnected: None,
                     error: Some("Invalid server key".into()),
+                    features: crate::protocol::FEATURES
+                        .iter()
+                        .map(|f| f.to_string())
+                        .collect(),
                 };
                 send_msg(sender, &reply);
                 return Err(ServerError::AuthFailed("Invalid server key".into()));
@@ -580,6 +591,10 @@ async fn authenticate(
                     player_id: None,
                     reconnected: None,
                     error: Some("identity token expired".into()),
+                    features: crate::protocol::FEATURES
+                        .iter()
+                        .map(|f| f.to_string())
+                        .collect(),
                 };
                 send_msg(sender, &reply);
                 return Err(ServerError::AuthFailed("identity token expired".into()));
@@ -587,6 +602,7 @@ async fn authenticate(
             let identities = resolved.identities;
             let name_verified = resolved.name_verified;
             let qualification = resolved.qualification;
+            let avatar_url = resolved.avatar_url;
             let username = resolved.name.unwrap_or(username);
 
             if username.trim().is_empty() {
@@ -595,6 +611,10 @@ async fn authenticate(
                     player_id: None,
                     reconnected: None,
                     error: Some("Username cannot be empty".into()),
+                    features: crate::protocol::FEATURES
+                        .iter()
+                        .map(|f| f.to_string())
+                        .collect(),
                 };
                 send_msg(sender, &reply);
                 return Err(ServerError::AuthFailed("Empty username".into()));
@@ -612,6 +632,10 @@ async fn authenticate(
                         player_id: None,
                         reconnected: None,
                         error: Some(format!("Username '{username}' is already taken")),
+                        features: crate::protocol::FEATURES
+                            .iter()
+                            .map(|f| f.to_string())
+                            .collect(),
                     };
                     send_msg(sender, &reply);
                     return Err(ServerError::DuplicateUsername(username));
@@ -647,6 +671,7 @@ async fn authenticate(
                     identities,
                     name_verified,
                     qualification,
+                    avatar_url,
                     client.clone(),
                 );
                 return Ok((session.player_id, username, true, new_gen, client, service));
@@ -670,7 +695,9 @@ async fn authenticate(
                     identity: identities,
                     name_verified,
                     qualification,
+                    avatar_url,
                     client: client.clone(),
+                    local_game: None,
                 },
             );
 
@@ -679,6 +706,10 @@ async fn authenticate(
                 player_id: Some(player_id.clone()),
                 reconnected: Some(false),
                 error: None,
+                features: crate::protocol::FEATURES
+                    .iter()
+                    .map(|f| f.to_string())
+                    .collect(),
             };
             send_msg(sender, &reply);
             broadcast_player_list(state);
@@ -691,6 +722,10 @@ async fn authenticate(
                 player_id: None,
                 reconnected: None,
                 error: Some("First message must be Authenticate".into()),
+                features: crate::protocol::FEATURES
+                    .iter()
+                    .map(|f| f.to_string())
+                    .collect(),
             };
             send_msg(sender, &reply);
             Err(ServerError::AuthFailed(
@@ -718,6 +753,7 @@ fn reclaim_session(
     identities: Vec<SessionIdentity>,
     name_verified: bool,
     qualification: Option<String>,
+    avatar_url: Option<String>,
     client: ClientBuild,
 ) -> u64 {
     let new_gen = old_gen + 1;
@@ -736,6 +772,7 @@ fn reclaim_session(
         player.disconnected_at = None;
         player.name_verified = name_verified;
         player.qualification = qualification;
+        player.avatar_url = avatar_url;
         player.client = client;
         if !identities.is_empty() {
             player.identity = identities;
@@ -747,6 +784,10 @@ fn reclaim_session(
         player_id: Some(existing_pid.to_string()),
         reconnected: Some(true),
         error: None,
+        features: crate::protocol::FEATURES
+            .iter()
+            .map(|f| f.to_string())
+            .collect(),
     };
     send_msg(sender, &reply);
 
@@ -837,6 +878,18 @@ fn handle_client_message(
                 .collect();
             debug!("[emit] -> '{}': RoomList ({} rooms)", username, rooms.len());
             send_msg(sender, &ServerMessage::RoomList { rooms });
+        }
+
+        ClientMessage::SetLocalGame { kind } => {
+            if let Some(mut player) = state.players.get_mut(player_id) {
+                if player.local_game == kind {
+                    return;
+                }
+                player.local_game = kind;
+            } else {
+                return;
+            }
+            broadcast_player_list(state);
         }
 
         ClientMessage::ListPlayers => {
@@ -1532,6 +1585,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::Ping => "Ping",
         ClientMessage::ListRooms => "ListRooms",
         ClientMessage::ListPlayers => "ListPlayers",
+        ClientMessage::SetLocalGame { .. } => "SetLocalGame",
         ClientMessage::CreateRoom { .. } => "CreateRoom",
         ClientMessage::JoinRoom { .. } => "JoinRoom",
         ClientMessage::ResumeRoom { .. } => "ResumeRoom",

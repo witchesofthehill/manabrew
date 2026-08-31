@@ -7,7 +7,6 @@ import {
   type ZonePanelItem,
 } from "@/stores/usePreferencesStore";
 import { isFeatureEnabled } from "@/featureFlags";
-import { getPlatform } from "@/platform";
 import { IRONSMITH_WASM_AVAILABLE } from "@/game/ironsmithWasmAvailable";
 import { relayUsername } from "@/lib/relayUsername";
 import { BattlefieldStylePreview } from "@/components/game/BattlefieldStylePreview";
@@ -1052,8 +1051,8 @@ export default function Settings() {
 
             {isFeatureEnabled("forgeWasm") && (
               <PreferenceCard
-                title="Forge engine in the browser (experimental)"
-                description="Runs Forge itself, compiled to WebAssembly, as the offline engine instead of the Rust one — no hosted node, so no round trip. Experimental and off by default."
+                title="Host Forge multiplayer in the browser (experimental)"
+                description="Allows this browser to host Forge multiplayer tables. Offline play always uses Forge regardless of this setting."
               >
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -1067,30 +1066,6 @@ export default function Settings() {
                     variant={!prefs.forgeWasmEnabled ? "default" : "outline"}
                     size="sm"
                     onClick={() => prefs.setForgeWasmEnabled(false)}
-                  >
-                    Off
-                  </Button>
-                </div>
-              </PreferenceCard>
-            )}
-
-            {getPlatform().type === "web" && (
-              <PreferenceCard
-                title="Ask which engine before AI games"
-                description="Games vs AI normally pick the best available engine automatically. Turn this on to choose between the hosted Forge engine and the in-browser Manabrew engine on every launch."
-              >
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant={prefs.askEngineOnAiPlay ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => prefs.setAskEngineOnAiPlay(true)}
-                  >
-                    On
-                  </Button>
-                  <Button
-                    variant={!prefs.askEngineOnAiPlay ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => prefs.setAskEngineOnAiPlay(false)}
                   >
                     Off
                   </Button>

@@ -58,7 +58,7 @@ Datasources: Prometheus (`prometheus`), Loki (`loki`). Engine and decision laten
 | Panel                                     | Type       | Query                                                                                                                                |
 | ----------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Humans connected                          | stat       | `sum(manabrew_relay_connections{kind="human"})`                                                                                      |
-| Games in progress                         | stat       | `sum(manabrew_relay_rooms{status="in_game"})`                                                                                        |
+| Games in progress                         | stat       | relay rooms in game plus `manabrew_relay_local_games`                                                                                |
 | Hosted rooms (node)                       | stat       | `sum(manabrew_node_rooms_hosted)`                                                                                                    |
 | Node push age (s)                         | stat       | `time() - max(push_time_seconds{job="self-hosted-node"})`                                                                            |
 | Analytics events dropped                  | stat       | `sum(manabrew_relay_analytics_dropped_total)`                                                                                        |
@@ -75,7 +75,8 @@ Datasources: Prometheus (`prometheus`), Loki (`loki`). Engine and decision laten
 | Deck-play events dropped                  | stat       | `sum(manabrew_relay_deck_play_events_dropped_total)`                                                                                 |
 | Hub analytics age                         | stat       | Seconds since the latest successful sanitized Hub export in `events.db`                                                              |
 | Lobby players record                      | stat       | 30-day maximum of connected human player seats in lobby rooms                                                                        |
-| Concurrent games record                   | stat       | 30-day maximum of `manabrew_relay_rooms{status="in_game"}`                                                                           |
+| Concurrent games record                   | stat       | 30-day maximum of the same sum                                                                                                       |
+| Solo games in progress                    | timeseries | `sum by (kind) (manabrew_relay_local_games)`                                                                                         |
 | Connected humans record                   | stat       | 30-day maximum of `manabrew_relay_connections{kind="human"}`                                                                         |
 | Open rooms record                         | stat       | 30-day maximum of all lobby and in-game relay rooms                                                                                  |
 
@@ -111,6 +112,16 @@ Turnaround is measured on the client: the answer leaving to the next prompt land
 `engine` names what ran, not what the room asked for: `forge-hosted` (a self-hosted node), `forge-desktop` (the desktop build hosting its own room), `forge-wasm` (the browser build), `manabrew`, `ironsmith`. The label is fixed when the game starts, because a hosted game is driven through the Manabrew runtime like any other and cannot be recognised afterwards.
 
 The last two panels are the ones to read before believing any of the others. A report that is never sent, or that arrives after the seat is gone, leaves no row anywhere: the engine panels above simply undercount, silently and without a gap in the series.
+
+### Offline games
+
+An offline game never touches the relay, so it has no `game_id` and cannot be counted from relay traffic. The client reports it to the hub instead (`POST /api/stats/game`, table `offline_play_games`), and `scripts/ingest-events.py` expands it into `games`, `game_players`, `decks` and `deck_cards` alongside relay games. `games.source` separates the two (`relay` or `offline`) and `games.reported_at` is the ingest watermark; rows predating the column are relay games.
+
+This restores what the hosted nodes recorded for Play vs AI before the engine moved into the browser, so those games count again in duration, completion, format mix, winrate and card popularity. Two caveats. It names players, unlike `engine_play_stats` next to it, which is why `Storage::delete_account` scrubs erased handles out of the offline tables. And a game reports once, at game over or teardown, from a queue that survives a reload: a player who never reopens the app is a game that never arrives.
+
+That covers a game after it ends. While one is running the relay has nothing to go on either, so the client says so directly: `ClientMessage::SetLocalGame` carries a `LocalGameKind` (today only `Singleplayer`), the relay holds it on the session, and it surfaces in two places. `manabrew_relay_local_games{kind}` counts it, and the lobby's player list shows the player under Playing instead of Available.
+
+Three things follow from where that number comes from. It counts only clients connected to the relay, and a solo game needs no relay, so read it as a floor rather than a count. It is session state, so a dropped socket clears it and the client re-asserts after a reconnect. And it is a claim by the client, not something the relay observed, which is the opposite of every other series on these dashboards: `manabrew_relay_rooms` stays purely relay-side, and the two are summed in the panel rather than merged in the exporter so the distinction survives.
 
 ### Analytics Explorer (`product.json`)
 

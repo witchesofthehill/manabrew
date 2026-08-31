@@ -45,7 +45,7 @@ export function usePromptEffects({
       store.getOpponentStops,
     );
 
-    pass(nextStop);
+    pass(nextStop ? { ...nextStop, throughCombat: false } : null);
   }, [currentPrompt, gameView, isWaitingForResponse, pass, myPlayerId]);
 
   const unifiedPassEndTurn = useCallback(() => {
@@ -64,7 +64,7 @@ export function usePromptEffects({
       store.getOpponentStops,
     );
 
-    pass(target);
+    pass(target ? { ...target, throughCombat: true } : null);
   }, [currentPrompt, gameView, isWaitingForResponse, pass, myPlayerId]);
 
   const [spellStackModalOpen, setSpellStackModalOpen] = useState(false);

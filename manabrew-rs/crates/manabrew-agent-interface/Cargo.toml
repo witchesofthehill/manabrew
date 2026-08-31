@@ -1,14 +1,14 @@
 [package]
 name = "manabrew-agent-interface"
-version = "0.10.3"
+version = "0.10.8"
 edition = "2021"
 license.workspace = true
 description = "Prompt protocol between the manabrew engine and agents (UI, AI, network)"
 
 [dependencies]
-manabrew-protocol = { path = "../manabrew-protocol", version = "5.4.0" }
-manabrew-relay-protocol = { path = "../manabrew-relay-protocol", version = "5.6.0" }
-manabrew-engine = { path = "../manabrew-engine", version = "0.8.0" }
+manabrew-protocol = { path = "../manabrew-protocol", version = "5.5.0" }
+manabrew-relay-protocol = { path = "../manabrew-relay-protocol", version = "5.8.0" }
+manabrew-engine = { path = "../manabrew-engine", version = "0.8.1" }
 forge-foundation = { path = "../forge-foundation", version = "0.3.3" }
 serde = { workspace = true }
 serde_json = { workspace = true }

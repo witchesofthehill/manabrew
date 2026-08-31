@@ -147,6 +147,7 @@ fn create_session(state: &AppState, account: &AccountRow) -> rusqlite::Result<Au
         &account.id,
         &account.handle,
         account.qualification.as_deref(),
+        account.avatar_url.as_deref(),
         AUDIENCE_HUB,
     );
     Ok(AuthSessionResponse {

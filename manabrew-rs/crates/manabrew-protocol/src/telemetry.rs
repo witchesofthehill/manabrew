@@ -5,10 +5,15 @@
 //! build made that gap matter: the whole point of it is latency, and the only
 //! numbers we had came from a laptop under a test harness.
 //!
-//! One report per game, aggregates only. No deck, no cards, no opponent,
-//! nothing that identifies a player. It travels two ways — over the relay for
-//! a game the relay already knows about, and to the hub for offline play,
-//! where no server is in the loop at all.
+//! [`EnginePlayStats`] is one report per game, aggregates only: no deck, no
+//! cards, no opponent, nothing that identifies a player. It travels two ways —
+//! over the relay for a game the relay already knows about, and to the hub for
+//! offline play, where no server is in the loop at all.
+//!
+//! [`OfflinePlayGame`] is the other half, and it is not anonymous: it names
+//! players, because the hosted node recorded exactly these fields for exactly
+//! these games until Play vs AI moved into the browser. Account erasure has to
+//! reach it, which `Storage::delete_account` does by handle.
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -79,6 +84,125 @@ impl EnginePlayStats {
             && self.by_type.len() <= 32
             && self.turnaround.n > 0
     }
+}
+
+/// The relay's `game_started` + `game_ended` + `deck_selected` collapsed into
+/// one record: offline play has no connection to stream them over.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "telemetry.ts")]
+pub struct OfflinePlayGame {
+    /// Client-generated, so a retry cannot double-count the game. Stands in for
+    /// the relay's `game_id` downstream.
+    pub report_id: String,
+    pub started_at: String,
+    pub ended_at: String,
+    pub duration_s: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub format: Option<String>,
+    pub engine: String,
+    pub starting_life: i32,
+    /// The relay's vocabulary, not the client's: `game_over`, `abandoned`.
+    pub end_reason: String,
+    pub game_over: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub winner: Option<String>,
+    #[serde(default)]
+    pub conceded: Vec<String>,
+    pub client_version: String,
+    pub platform: String,
+    pub players: Vec<OfflinePlaySeat>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "telemetry.ts")]
+pub struct OfflinePlaySeat {
+    /// The account handle when there is one, the local display name otherwise.
+    pub username: String,
+    pub is_bot: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub deck_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub commander: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub published_deck_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub deck_fingerprint: Option<String>,
+    #[serde(default)]
+    pub sideboard_count: u32,
+    #[serde(default)]
+    pub cards: Vec<OfflinePlayCard>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "telemetry.ts")]
+pub struct OfflinePlayCard {
+    pub name: String,
+    pub set_code: String,
+    pub count: u32,
+}
+
+const MAX_CARDS_PER_SEAT: usize = 400;
+
+impl OfflinePlayGame {
+    /// Whether this is worth storing. Same job as
+    /// [`EnginePlayStats::is_plausible`], over a wider record.
+    pub fn is_plausible(&self) -> bool {
+        let text = |value: &str, max: usize| !value.is_empty() && value.len() <= max;
+        uuid_shaped(&self.report_id)
+            && text(&self.started_at, 40)
+            && text(&self.ended_at, 40)
+            && text(&self.engine, 40)
+            && text(&self.client_version, 40)
+            && text(&self.platform, 20)
+            && text(&self.end_reason, 30)
+            && self.format.as_ref().is_none_or(|f| f.len() <= 40)
+            && self.winner.as_ref().is_none_or(|w| w.len() <= 80)
+            && self.conceded.len() <= 8
+            && self.conceded.iter().all(|name| text(name, 80))
+            && (1..=8).contains(&self.players.len())
+            && self.players.iter().all(OfflinePlaySeat::is_plausible)
+    }
+}
+
+impl OfflinePlaySeat {
+    fn is_plausible(&self) -> bool {
+        let opt =
+            |value: &Option<String>, max: usize| value.as_ref().is_none_or(|v| v.len() <= max);
+        !self.username.is_empty()
+            && self.username.len() <= 80
+            && opt(&self.deck_name, 120)
+            && opt(&self.commander, 120)
+            && opt(&self.published_deck_id, 200)
+            // The same 64 lowercase hex the deck-play endpoint takes.
+            && self
+                .deck_fingerprint
+                .as_ref()
+                .is_none_or(|value| value.len() == 64 && value.bytes().all(is_lower_hex))
+            && self.cards.len() <= MAX_CARDS_PER_SEAT
+            && self.cards.iter().all(OfflinePlayCard::is_plausible)
+    }
+}
+
+impl OfflinePlayCard {
+    fn is_plausible(&self) -> bool {
+        !self.name.is_empty()
+            && self.name.len() <= 200
+            && self.set_code.len() <= 20
+            && (1..=1000).contains(&self.count)
+    }
+}
+
+fn is_lower_hex(byte: u8) -> bool {
+    byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)
 }
 
 fn uuid_shaped(value: &str) -> bool {

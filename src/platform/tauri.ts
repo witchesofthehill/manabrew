@@ -24,7 +24,7 @@ import type {
   SetMaxPlayersParams,
   SpawnAiBotParams,
 } from "./types";
-import type { RoomRelayEnvelope } from "@/types/server";
+import type { LocalGameKind, RoomRelayEnvelope } from "@/types/server";
 
 // Tauri Server API — delegates to the web relay client, except Forge hosting
 
@@ -75,6 +75,10 @@ class TauriServerApi implements IServerApi {
   }
   listPlayers(): Promise<void> {
     return this.inner.listPlayers();
+  }
+
+  setLocalGame(kind: LocalGameKind | null): Promise<void> {
+    return this.inner.setLocalGame(kind);
   }
   joinRoom(params: JoinRoomParams): Promise<void> {
     return this.inner.joinRoom(params);

@@ -1,5 +1,41 @@
 # Changelog
 
+## [3.30.0](https://github.com/witchesofthehill/manabrew/compare/v3.29.0...v3.30.0) (2026-08-31)
+
+### Features
+
+* **relay:** count solo games in the lobby and the live gauges ([#800](https://github.com/witchesofthehill/manabrew/issues/800)) ([f420d66](https://github.com/witchesofthehill/manabrew/commit/f420d66b593d467e54a7f4c90f949408dc9c9b28))
+
+## [3.29.0](https://github.com/witchesofthehill/manabrew/compare/v3.28.0...v3.29.0) (2026-08-31)
+
+### Features
+
+* **telemetry:** record offline games the way the nodes did ([#799](https://github.com/witchesofthehill/manabrew/issues/799)) ([20e7472](https://github.com/witchesofthehill/manabrew/commit/20e7472e277dddb6f88f760c0824ba2c5b3e5e00))
+
+## [3.28.0](https://github.com/witchesofthehill/manabrew/compare/v3.27.1...v3.28.0) (2026-08-31)
+
+### Features
+
+* avatars in lobby ([#798](https://github.com/witchesofthehill/manabrew/issues/798)) ([1a104c7](https://github.com/witchesofthehill/manabrew/commit/1a104c754b2f6ea0e1dcff71dd5df72a3059a6d8))
+
+## [3.27.1](https://github.com/witchesofthehill/manabrew/compare/v3.27.0...v3.27.1) (2026-08-31)
+
+### Performance
+
+* **forge-wasm:** send state patches from browser-hosted tables ([#795](https://github.com/witchesofthehill/manabrew/issues/795)) ([d56a6d0](https://github.com/witchesofthehill/manabrew/commit/d56a6d0677d1c98f6b490ef6099f5b55559ac716))
+
+## [3.27.0](https://github.com/witchesofthehill/manabrew/compare/v3.26.3...v3.27.0) (2026-08-31)
+
+### Features
+
+* **engine:** always run forge offline and vs ai ([#797](https://github.com/witchesofthehill/manabrew/issues/797)) ([eaf692a](https://github.com/witchesofthehill/manabrew/commit/eaf692ae58103621e2184b3c58133938270f2ef1))
+
+## [3.26.3](https://github.com/witchesofthehill/manabrew/compare/v3.26.2...v3.26.3) (2026-08-31)
+
+### Fixes
+
+* attack pass, attack cells ([#790](https://github.com/witchesofthehill/manabrew/issues/790)) ([b6b526a](https://github.com/witchesofthehill/manabrew/commit/b6b526a5e29fc512b71fd03bba498b9d5e0a6b26))
+
 ## [3.26.2](https://github.com/witchesofthehill/manabrew/compare/v3.26.1...v3.26.2) (2026-08-31)
 
 ### Fixes

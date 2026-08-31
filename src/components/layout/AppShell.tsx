@@ -22,6 +22,7 @@ import { useLocalDeckAccountSync } from "@/hooks/useLocalDeckAccountSync";
 import { ROUTES } from "@/lib/constants";
 import { flushPublishedDeckPlayReports } from "@/lib/deckPlayEvidence";
 import { flushEngineStatsReports } from "@/lib/engineStatsReport";
+import { flushOfflinePlayRecords } from "@/lib/offlinePlayRecord";
 
 // Drives previous/next page shortcuts.
 const NAV_ROUTES = [
@@ -86,7 +87,10 @@ export function AppShell() {
   }, [deckHubEnabled]);
 
   useEffect(() => {
-    const flush = () => void flushEngineStatsReports();
+    const flush = () => {
+      void flushEngineStatsReports();
+      void flushOfflinePlayRecords();
+    };
     flush();
     window.addEventListener("online", flush);
     return () => window.removeEventListener("online", flush);

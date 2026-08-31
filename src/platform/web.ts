@@ -567,7 +567,6 @@ class WebGameApi implements IGameApi {
     this.myPlayerSlot = `player-${params.enginePlayerIndex}`;
 
     if (params.localIsHost) {
-      this.bridge.setEnginePlayerNames(params.playerNames);
       this.serverApi?.setEnginePlayerNames(params.playerNames);
       // Host runs the engine; the worker posts back one SAB per remote
       // seat (see the game:remote_sab handler in WorkerBridge).
@@ -579,6 +578,7 @@ class WebGameApi implements IGameApi {
         startingLife: params.startingLife,
         engine: params.engine,
       });
+      this.bridge.setEnginePlayerNames(params.playerNames);
     }
     // Non-host: prompts arrive via game:remote_prompt WebSocket events.
     // Responses are sent via BroadcastState WebSocket relay.

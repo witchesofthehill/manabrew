@@ -36,6 +36,18 @@ Hub guest tokens are signed like account tokens (`sub` prefixed `guest:`, `ident
 
 A session with no proof at all keeps the pre-identity behaviour — the old duplicate-username rejection and the stale/disconnected reclaim paths. With no JWKS url configured (the self-hosted case), signed tokens do not resolve; unsigned names and device proofs carry the whole feature.
 
+## Data plane and transport candidates
+
+The relay is also the rendezvous point for the direct data plane (`docs/TRANSPORT.md`). Each
+room mints a 32-byte `topic_secret` and keeps a `transports` map of `player_id -> TransportEndpoint`.
+`AnnounceTransport` is accepted only from an authenticated session that is already a room
+participant, and the roster the relay broadcasts (`RoomTransport`, room members only) carries the
+relay's **own** record of each session's username. That is what makes an endpoint id attributable
+to a player: clients treat a `username -> endpoint_id` pair as authoritative because the relay
+said it, never because a peer claimed it over gossip. `MANABREW_IROH_RELAY_URL` names the iroh
+relay this deployment runs; unset means peers stay direct-only, and there is deliberately no
+public default.
+
 ## Observability
 
 `/metrics` (Prometheus) on the health port (incl. `manabrew_relay_session_takeovers_total`); env-gated analytics JSONL + per-game zstd stream capture (`MANABREW_EVENTS_DIR`, `MANABREW_GAME_CAPTURE_DIR`).

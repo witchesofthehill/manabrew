@@ -187,6 +187,24 @@ pub fn broadcast_player_list(state: &Arc<ServerState>) {
     }
 }
 
+/// Pushes the room's data-plane roster to its members. Members only: the roster
+/// is what clients treat as authoritative for "this endpoint id is that player",
+/// so it must never reach a session the relay has not placed in the room.
+pub fn broadcast_room_transport(state: &Arc<ServerState>, room_id: &str) {
+    let Some(room) = state.rooms.get(room_id) else {
+        return;
+    };
+    let msg = ServerMessage::RoomTransport {
+        room_id: room_id.to_string(),
+        topic_secret: room.topic_secret.clone(),
+        iroh_relay_url: state.iroh_relay_url.clone(),
+        host: room.transport_host(),
+        members: room.transport_members(),
+    };
+    drop(room);
+    broadcast_to_room(state, room_id, &msg);
+}
+
 pub fn broadcast_to_room_except(
     state: &Arc<ServerState>,
     sender_player_id: &str,
@@ -1015,6 +1033,7 @@ fn handle_client_message(
                         }
                     }
                     broadcast_to_room(state, &room_id, &ServerMessage::RoomUpdate { room: info });
+                    broadcast_room_transport(state, &room_id);
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' join room failed: {}", username, e);
@@ -1084,13 +1103,12 @@ fn handle_client_message(
                             },
                         );
                         if let Some(room) = state.rooms.get(&rid) {
-                            broadcast_to_room(
-                                state,
-                                &rid,
-                                &ServerMessage::RoomUpdate {
-                                    room: room.to_room_info(),
-                                },
-                            );
+                            let update = ServerMessage::RoomUpdate {
+                                room: room.to_room_info(),
+                            };
+                            drop(room);
+                            broadcast_to_room(state, &rid, &update);
+                            broadcast_room_transport(state, &rid);
                         }
                     }
                 }
@@ -1516,6 +1534,29 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::AnnounceTransport { endpoint } => {
+            let Some(room_id) = state.players.get(player_id).and_then(|p| p.room_id.clone()) else {
+                send_error(sender, &ServerError::NotInRoom);
+                return;
+            };
+            let withdrawn = endpoint.is_none();
+            let accepted = match state.rooms.get_mut(&room_id) {
+                Some(mut room) => room.set_transport(player_id, endpoint),
+                None => false,
+            };
+            if !accepted {
+                send_error(sender, &ServerError::NotInRoom);
+                return;
+            }
+            metrics::record_transport_announcement(withdrawn);
+            debug!(
+                "[transport] '{}' announced in room {}",
+                username,
+                &room_id[..8]
+            );
+            broadcast_room_transport(state, &room_id);
+        }
+
         ClientMessage::TurnChange {
             new_active_player,
             turn_number,
@@ -1583,6 +1624,7 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
         ServerMessage::GameAborted { .. } => "GameAborted",
         ServerMessage::Error { .. } => "Error",
         ServerMessage::ServerShuttingDown { .. } => "ServerShuttingDown",
+        ServerMessage::RoomTransport { .. } => "RoomTransport",
     }
 }
 
@@ -1607,5 +1649,6 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::RequestResync => "RequestResync",
         ClientMessage::BroadcastState { .. } => "BroadcastState",
         ClientMessage::TurnChange { .. } => "TurnChange",
+        ClientMessage::AnnounceTransport { .. } => "AnnounceTransport",
     }
 }

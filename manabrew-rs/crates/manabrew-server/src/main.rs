@@ -23,14 +23,17 @@ async fn main() {
 
     let analytics = analytics::AnalyticsHandle::from_config(&config);
     let deck_play_events = deck_play_events::DeckPlayEventHandle::from_config(&config);
-    let state = Arc::new(state::ServerState::new(
-        config.server_key.clone(),
-        config.max_rooms,
-        config.official_key.clone(),
-        analytics,
-        deck_play_events,
-        config.hub_jwks_url.clone(),
-    ));
+    let state = Arc::new(
+        state::ServerState::new(
+            config.server_key.clone(),
+            config.max_rooms,
+            config.official_key.clone(),
+            analytics,
+            deck_play_events,
+            config.hub_jwks_url.clone(),
+        )
+        .with_iroh_relay_url(config.iroh_relay_url.clone()),
+    );
 
     if !state.identity.hub_configured() {
         tracing::info!("[auth] no hub jwks url -- account identity disabled, device proofs only");

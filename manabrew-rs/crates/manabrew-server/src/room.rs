@@ -1,11 +1,18 @@
+use std::collections::HashMap;
 use std::time::Instant;
 
 use crate::protocol::{
     DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomPlayerInfo, RoomStatus,
-    SealedConfig,
+    SealedConfig, TransportEndpoint, TransportMember,
 };
 use crate::replay::GameReplayCache;
 use manabrew_protocol::deck_dto::Deck;
+
+fn random_topic_secret() -> String {
+    let mut bytes = [0u8; 32];
+    aws_lc_rs::rand::fill(&mut bytes).expect("system rng");
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
 
 #[derive(Debug, Clone)]
 pub struct RoomSlot {
@@ -49,6 +56,12 @@ pub struct Room {
     pub replay: Option<GameReplayCache>,
     pub resume_token: String,
     pub humanless_since: Option<Instant>,
+    /// Data-plane endpoints announced by members, keyed by player id. The relay
+    /// is the only thing that binds one of these to a username.
+    pub transports: HashMap<String, TransportEndpoint>,
+    /// Room-scoped secret the members derive their gossip topic id from. Minted
+    /// once per room; membership, not this secret, is what authorizes a peer.
+    pub topic_secret: String,
 }
 
 impl Room {
@@ -116,6 +129,8 @@ impl Room {
             replay: None,
             resume_token: String::new(),
             humanless_since: None,
+            transports: HashMap::new(),
+            topic_secret: random_topic_secret(),
         }
     }
 
@@ -219,6 +234,7 @@ impl Room {
     }
 
     pub fn remove_participant(&mut self, player_id: &str) -> bool {
+        self.transports.remove(player_id);
         self.remove_player(player_id).is_some() || self.remove_observer(player_id).is_some()
     }
 
@@ -369,6 +385,56 @@ impl Room {
             .collect()
     }
 
+    fn participant_username(&self, player_id: &str) -> Option<String> {
+        if let Some(slot) = self.players.iter().find(|p| p.player_id == player_id) {
+            return Some(slot.username.clone());
+        }
+        if self.host_player_id == player_id {
+            return Some(self.host_username.clone());
+        }
+        None
+    }
+
+    pub fn is_participant(&self, player_id: &str) -> bool {
+        self.players.iter().any(|p| p.player_id == player_id)
+            || self.observers.iter().any(|p| p.player_id == player_id)
+    }
+
+    pub fn set_transport(&mut self, player_id: &str, endpoint: Option<TransportEndpoint>) -> bool {
+        if !self.is_participant(player_id) {
+            return false;
+        }
+        match endpoint {
+            Some(endpoint) => self.transports.insert(player_id.to_string(), endpoint),
+            None => self.transports.remove(player_id),
+        };
+        true
+    }
+
+    /// The roster clients are allowed to believe. The username on every entry is
+    /// the relay's own record for that session, never a client-supplied field,
+    /// which is what makes an endpoint id attributable to a player.
+    pub fn transport_members(&self) -> Vec<TransportMember> {
+        let mut members: Vec<TransportMember> = self
+            .transports
+            .iter()
+            .filter_map(|(player_id, endpoint)| {
+                self.participant_username(player_id)
+                    .map(|username| TransportMember {
+                        username,
+                        endpoint: endpoint.clone(),
+                        host: player_id == &self.host_player_id,
+                    })
+            })
+            .collect();
+        members.sort_by(|a, b| a.username.cmp(&b.username));
+        members
+    }
+
+    pub fn transport_host(&self) -> Option<TransportMember> {
+        self.transport_members().into_iter().find(|m| m.host)
+    }
+
     pub fn to_room_info(&self) -> RoomInfo {
         RoomInfo {
             room_id: self.room_id.clone(),
@@ -432,5 +498,69 @@ mod tests {
         assert!(r.is_controller("human"));
         r.add_player("bot".into(), "bot".into(), true).unwrap();
         assert!(!r.is_controller("bot"));
+    }
+
+    fn endpoint(id: &str) -> TransportEndpoint {
+        TransportEndpoint {
+            endpoint_id: id.into(),
+            relay_url: None,
+            direct_addrs: vec![],
+        }
+    }
+
+    #[test]
+    fn only_room_participants_may_announce_an_endpoint() {
+        let mut r = room(false);
+        r.add_player("human".into(), "human".into(), false).unwrap();
+
+        assert!(r.set_transport("human", Some(endpoint("ep-human"))));
+        assert!(r.set_transport("host", Some(endpoint("ep-host"))));
+        assert!(!r.set_transport("stranger", Some(endpoint("ep-stranger"))));
+        assert!(!r.transports.contains_key("stranger"));
+    }
+
+    #[test]
+    fn roster_names_endpoints_from_the_relays_own_records() {
+        let mut r = room(false);
+        r.add_player("human".into(), "human".into(), false).unwrap();
+        r.set_transport("human", Some(endpoint("ep-human")));
+        r.set_transport("host", Some(endpoint("ep-host")));
+
+        let members = r.transport_members();
+        assert_eq!(members.len(), 2);
+        let host = r.transport_host().unwrap();
+        assert_eq!(host.username, "host");
+        assert_eq!(host.endpoint.endpoint_id, "ep-host");
+        let seat = members.iter().find(|m| m.username == "human").unwrap();
+        assert!(!seat.host);
+    }
+
+    #[test]
+    fn leaving_withdraws_the_endpoint() {
+        let mut r = room(false);
+        r.add_player("human".into(), "human".into(), false).unwrap();
+        r.set_transport("human", Some(endpoint("ep-human")));
+
+        r.remove_participant("human");
+        assert!(r.transports.is_empty());
+        assert!(r.transport_members().is_empty());
+    }
+
+    #[test]
+    fn withdrawing_an_endpoint_removes_it_from_the_roster() {
+        let mut r = room(false);
+        r.add_player("human".into(), "human".into(), false).unwrap();
+        r.set_transport("human", Some(endpoint("ep-human")));
+
+        assert!(r.set_transport("human", None));
+        assert!(r.transport_members().is_empty());
+    }
+
+    #[test]
+    fn every_room_gets_its_own_topic_secret() {
+        let a = room(false);
+        let b = room(false);
+        assert_eq!(a.topic_secret.len(), 64);
+        assert_ne!(a.topic_secret, b.topic_secret);
     }
 }

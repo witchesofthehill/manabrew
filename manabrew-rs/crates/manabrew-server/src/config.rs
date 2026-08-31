@@ -15,6 +15,7 @@ pub struct ServerConfig {
     pub hub_deck_plays_url: Option<String>,
     pub hub_deck_plays_token: Option<String>,
     pub hub_jwks_url: Option<String>,
+    pub iroh_relay_url: Option<String>,
 }
 
 impl ServerConfig {
@@ -60,6 +61,9 @@ impl ServerConfig {
                 .ok()
                 .filter(|token| !token.is_empty()),
             hub_jwks_url: std::env::var("MANABREW_HUB_JWKS_URL")
+                .ok()
+                .filter(|url| !url.is_empty()),
+            iroh_relay_url: std::env::var("MANABREW_IROH_RELAY_URL")
                 .ok()
                 .filter(|url| !url.is_empty()),
         }

@@ -79,6 +79,10 @@ pub struct ServerState {
     pub analytics: AnalyticsHandle,
     pub deck_play_events: DeckPlayEventHandle,
     pub identity: IdentityVerifier,
+    /// The iroh relay this deployment runs, handed to room members in
+    /// `RoomTransport`. `None` keeps peers direct-only; there is deliberately
+    /// no public default.
+    pub iroh_relay_url: Option<String>,
 }
 
 impl ServerState {
@@ -99,7 +103,13 @@ impl ServerState {
             analytics,
             deck_play_events,
             identity: IdentityVerifier::new(hub_jwks_url),
+            iroh_relay_url: None,
         }
+    }
+
+    pub fn with_iroh_relay_url(mut self, url: Option<String>) -> Self {
+        self.iroh_relay_url = url;
+        self
     }
 
     pub fn session_by_username(&self, username: &str) -> Option<UsernameSession> {

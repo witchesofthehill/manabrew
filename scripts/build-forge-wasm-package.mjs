@@ -11,6 +11,16 @@ const source = join(root, "packages", "forge-wasm");
 const output = join(root, "target", "npm", "forge-wasm");
 const generated = join(root, "target", "forge-wasm-assets");
 const skipEngine = process.argv.includes("--skip-engine");
+// The GraalVM engine takes a Web Image toolchain and the better part of an
+// hour, and it is opaque to everything the packaging does with it. `--stub-
+// engine` stands placeholders in for the two GraalVM outputs so a PR check can
+// exercise the parts that actually change: the asset selector, the cardset,
+// the worker facade, `npm pack`, and a real consumer's Vite build. It marks
+// the output so verification skips the checks that need the real engine, and
+// the marker is outside the package's `files` so it can never be published.
+const stubEngine = process.argv.includes("--stub-engine");
+const GRAALVM_OUTPUTS = ["forgeharness.js", "forgeharness.js.wasm"];
+const STUB_MARKER = ".stub-engine";
 const executable = platform() === "win32" ? ".exe" : "";
 
 function run(command, args) {
@@ -27,9 +37,14 @@ function findWasmPack() {
   return existsSync(cargoBinary) ? cargoBinary : null;
 }
 
-if (!skipEngine) run("bash", ["scripts/build-forge-wasm.sh"]);
+if (!skipEngine && !stubEngine) run("bash", ["scripts/build-forge-wasm.sh"]);
 
-for (const file of ["forgeharness.js", "forgeharness.js.wasm", "forge-engine.worker.js"]) {
+// forge-engine.worker.js is committed, so it is required even when stubbing:
+// it is the file a change to the worker facade lands in.
+const staged = stubEngine
+  ? ["forge-engine.worker.js"]
+  : [...GRAALVM_OUTPUTS, "forge-engine.worker.js"];
+for (const file of staged) {
   if (!existsSync(join(root, "public", "forge", file))) {
     throw new Error(`Missing public/forge/${file}; build the Forge WebAssembly engine first.`);
   }
@@ -81,6 +96,10 @@ for (const file of [
   "package.json",
   "forge.js",
   "forge.d.ts",
+  "deckCards.js",
+  "deckCards.d.ts",
+  "seat.js",
+  "seat.d.ts",
   "vite.js",
   "vite.d.ts",
   "README.md",
@@ -88,8 +107,27 @@ for (const file of [
 ]) {
   cpSync(join(source, file), join(output, file));
 }
-for (const file of ["forgeharness.js", "forgeharness.js.wasm", "forge-engine.worker.js"]) {
-  cpSync(join(root, "public", "forge", file), join(output, file));
+cpSync(
+  join(root, "public", "forge", "forge-engine.worker.js"),
+  join(output, "forge-engine.worker.js"),
+);
+if (stubEngine) {
+  // Big enough to clear a bundler's inline-asset threshold, or Vite turns the
+  // stub into a data URI and verification can no longer tell whether the
+  // engine would have been emitted as a fetchable asset.
+  const padding = 64 * 1024;
+  writeFileSync(join(output, STUB_MARKER), "");
+  writeFileSync(
+    join(output, "forgeharness.js"),
+    `// stub: no Web Image engine in this build\n${"//\n".repeat(padding / 3)}`,
+  );
+  const stubWasm = new Uint8Array(padding);
+  stubWasm.set([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]);
+  writeFileSync(join(output, "forgeharness.js.wasm"), stubWasm);
+} else {
+  for (const file of GRAALVM_OUTPUTS) {
+    cpSync(join(root, "public", "forge", file), join(output, file));
+  }
 }
 cpSync(join(generated, "forge-assets.js"), join(output, "forge-assets.js"));
 cpSync(join(generated, "forge-assets_bg.wasm"), join(output, "forge-assets_bg.wasm"));
@@ -102,4 +140,19 @@ if (expectedVersion && manifest.version !== expectedVersion) {
 }
 writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
-console.log(`Built ${manifest.name}@${manifest.version} in ${output}`);
+// package.json is the only place the version is written by hand. Stamp the
+// runtime export from it here rather than asking a release to keep three
+// files in step, which is how @manabrew/protocol shipped a stale one.
+const entryPath = join(output, "forge.js");
+const entry = readFileSync(entryPath, "utf8");
+const versionExport = /^export const VERSION = ".*";$/m;
+if (!versionExport.test(entry)) throw new Error("forge.js has no VERSION export to stamp.");
+writeFileSync(
+  entryPath,
+  entry.replace(versionExport, `export const VERSION = ${JSON.stringify(manifest.version)};`),
+);
+
+console.log(
+  `Built ${manifest.name}@${manifest.version} in ${output}` +
+    (stubEngine ? " (engine stubbed — not publishable)" : ""),
+);

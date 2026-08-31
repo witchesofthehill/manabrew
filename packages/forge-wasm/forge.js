@@ -4,30 +4,17 @@ import launcherUrl from "./forgeharness.js?url";
 import wasmUrl from "./forgeharness.js.wasm?url";
 import cardsetUrl from "./cardset.rkyv?url";
 import assetWasmUrl from "./forge-assets_bg.wasm?url";
+import { deckCardNames } from "./deckCards.js";
+import { createSeat, deliverSeatDirective, pollSeat, writeSeatMessage } from "./seat.js";
 
-const SAB_SIZE = 256 * 1024;
+/** The main thread's own name for the seat this browser plays. */
+const LOCAL_SEAT = "local";
+
 let assetBuilderPromise;
 
 function asUrl(value, fallback) {
   if (value instanceof URL) return value;
   return new URL(value || fallback, globalThis.location?.href || import.meta.url);
-}
-
-function deckCardNames(decks) {
-  const names = new Set();
-  for (const deck of decks) {
-    const cards = [...(deck?.cards || []), ...(deck?.commanders || [])];
-    for (const card of cards) {
-      const name = String((card.identity || card).name || "").split(" // ")[0];
-      if (name) names.add(name);
-    }
-  }
-  return [...names];
-}
-
-function schedule(callback) {
-  if (typeof requestAnimationFrame === "function") return requestAnimationFrame(callback);
-  return setTimeout(callback, 0);
 }
 
 export class ForgeEngine {
@@ -69,7 +56,7 @@ export class ForgeEngine {
         }
         if (message?.type !== "event") return;
         if (message.event === "worker:init" && message.payload?.stage === "ready") resolve();
-        if (message.event === "game:sab") this.attachSeat("local", message.payload.buffer);
+        if (message.event === "game:sab") this.attachSeat(LOCAL_SEAT, message.payload.buffer);
         if (message.event === "game:remote_sab") {
           this.attachSeat(message.payload.playerSlot, message.payload.buffer);
         }
@@ -126,43 +113,19 @@ export class ForgeEngine {
   }
 
   attachSeat(playerSlot, buffer) {
-    if (!(buffer instanceof SharedArrayBuffer) || buffer.byteLength !== SAB_SIZE) {
-      throw new Error("Forge returned an invalid SharedArrayBuffer.");
-    }
-    const old = this.seats.get(playerSlot);
-    if (old) old.active = false;
-    const seat = {
-      active: true,
-      awaitingResponse: false,
-      signal: new Int32Array(buffer, 0, 2),
-      data: new Uint8Array(buffer, 8),
-    };
+    const seat = createSeat(buffer);
+    const previous = this.seats.get(playerSlot);
+    if (previous) previous.cancelled = true;
     this.seats.set(playerSlot, seat);
-    this.pollSeat(playerSlot, seat);
+    pollSeat(
+      seat,
+      (message) => this.dispatchMessage(message, playerSlot),
+      (error) => this.options.onError?.(error),
+    );
   }
 
-  pollSeat(playerSlot, seat) {
-    const poll = () => {
-      if (!seat.active || this.seats.get(playerSlot) !== seat) return;
-      if (Atomics.load(seat.signal, 0) === 1) {
-        const length = Atomics.load(seat.signal, 1);
-        const json = new TextDecoder().decode(seat.data.slice(0, length));
-        Atomics.store(seat.signal, 0, 3);
-        Atomics.notify(seat.signal, 0);
-        try {
-          const message = JSON.parse(json);
-          seat.awaitingResponse = message?.kind === "prompt";
-          this.dispatchMessage(message, playerSlot === "local" ? undefined : playerSlot);
-        } catch (error) {
-          this.options.onError?.(error);
-        }
-      }
-      schedule(poll);
-    };
-    schedule(poll);
-  }
-
-  dispatchMessage(message, playerSlot) {
+  dispatchMessage(message, seatSlot) {
+    const playerSlot = seatSlot === LOCAL_SEAT ? undefined : seatSlot;
     this.options.onMessage?.(message, playerSlot);
     if (message?.kind === "state") this.options.onState?.(message.state, playerSlot);
     if (message?.kind === "prompt") this.options.onPrompt?.(message.prompt, playerSlot);
@@ -170,30 +133,29 @@ export class ForgeEngine {
     if (message?.kind === "error") this.options.onError?.(message.error, playerSlot);
   }
 
-  respond(promptId, action, playerSlot = "local") {
-    this.write(playerSlot, { kind: "response", promptId, action });
+  respond(promptId, action, playerSlot = LOCAL_SEAT) {
+    const seat = this.seat(playerSlot);
+    if (!seat.awaitingResponse) throw new Error(`Forge seat ${playerSlot} is not awaiting input.`);
+    writeSeatMessage(seat, { kind: "response", promptId, action });
   }
 
-  directive(directive, playerSlot = "local") {
-    this.write(playerSlot, { kind: "directive", directive });
+  /**
+   * Queue a directive for the seat. It reaches the engine at once when the
+   * engine is already blocked there, and otherwise at that seat's next prompt,
+   * so a concession raised between prompts is not dropped.
+   */
+  directive(directive, playerSlot = LOCAL_SEAT) {
+    deliverSeatDirective(this.seat(playerSlot), directive);
   }
 
-  write(playerSlot, message) {
+  seat(playerSlot) {
     const seat = this.seats.get(playerSlot);
     if (!seat) throw new Error(`Forge seat ${playerSlot} is not available.`);
-    if (!seat.awaitingResponse) throw new Error(`Forge seat ${playerSlot} is not awaiting input.`);
-    const bytes = new TextEncoder().encode(JSON.stringify(message));
-    if (bytes.length > seat.data.length)
-      throw new Error("Forge response exceeds the SAB capacity.");
-    seat.awaitingResponse = false;
-    Atomics.store(seat.signal, 1, bytes.length);
-    seat.data.set(bytes);
-    Atomics.store(seat.signal, 0, 2);
-    Atomics.notify(seat.signal, 0);
+    return seat;
   }
 
   dispose() {
-    for (const seat of this.seats.values()) seat.active = false;
+    for (const seat of this.seats.values()) seat.cancelled = true;
     this.seats.clear();
     this.worker?.terminate();
     this.worker = null;
@@ -209,4 +171,6 @@ export async function createForgeEngine(options = {}) {
   return engine;
 }
 
-export const VERSION = "0.1.0";
+/** The published version, written in from package.json when the package is
+ *  built. A checkout that has not been through that build reads as dev. */
+export const VERSION = "0.0.0-dev";

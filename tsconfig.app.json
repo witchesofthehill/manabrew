@@ -25,7 +25,8 @@
     "noUncheckedSideEffectImports": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@forge-wasm/*": ["./packages/forge-wasm/*"]
     }
   },
   "include": ["src"]

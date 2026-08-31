@@ -15,7 +15,9 @@ The first publication may require a maintainer to create the package manually be
 
 ## Release
 
-1. Update the version in `package.json`, `forge.js` and `forge.d.ts`.
+1. Update the version in `package.json`. It is the only place the version is
+   written by hand; the build stamps `VERSION` in `forge.js` from it and
+   verification fails if the two disagree.
 2. Build and verify locally with the Oracle GraalVM Web Image and Binaryen toolchains available:
 
    ```sh

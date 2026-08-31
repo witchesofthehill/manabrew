@@ -62,7 +62,7 @@ await engine.startGame({
 });
 ```
 
-A deck has `cards` and optional `commanders`. Each entry can carry its printing under `identity` and is repeated according to `count`:
+A deck has `cards` plus optional `commanders`, `sideboard`, `attractions`, `contraptions`, `schemes`, `planes` and `companion`. Each entry can carry its printing under `identity` and is repeated according to `count`:
 
 ```js
 const deck = {
@@ -72,7 +72,11 @@ const deck = {
 };
 ```
 
+Pass whole decks, not just the maindeck. Every zone above is read when the card scripts are chosen, and a card left out arrives at the table as an unsupported placeholder rather than an error: the game plays on around it.
+
 Call `dispose()` to terminate the worker. A running Forge game is synchronous inside the worker, so terminating the worker is the only immediate cancellation mechanism.
+
+`directive()` sends an out-of-band instruction such as a concession. The engine can only read it while blocked on that seat, so a directive raised between prompts is held and delivered at the seat's next prompt.
 
 ## Multiplayer seats
 
@@ -113,6 +117,13 @@ await createForgeEngine({
 ```
 
 The launcher, worker, engine WASM, asset-selector WASM and cardset URLs can all be overridden. Their defaults are module-relative URLs that Vite and other modern bundlers emit as static assets.
+
+## Subpath exports
+
+Two internals are exported because a host that overrides `assets` still needs them, and because Manabrew's own client imports them rather than keeping a second copy:
+
+- `@manabrew/forge-wasm/deckCards` — `deckCardNames(decks)`, the names to ask the archive selector for.
+- `@manabrew/forge-wasm/seat` — the SharedArrayBuffer seat protocol: `createSeat`, `pollSeat`, `writeSeatMessage`, `deliverSeatDirective` and the signal constants.
 
 ## Licence
 

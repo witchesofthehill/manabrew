@@ -22,6 +22,14 @@
       "types": "./vite.d.ts",
       "default": "./vite.js"
     },
+    "./deckCards": {
+      "types": "./deckCards.d.ts",
+      "default": "./deckCards.js"
+    },
+    "./seat": {
+      "types": "./seat.d.ts",
+      "default": "./seat.js"
+    },
     "./cardset.rkyv": "./cardset.rkyv",
     "./forge-engine.worker.js": "./forge-engine.worker.js",
     "./forgeharness.js": "./forgeharness.js",
@@ -30,6 +38,10 @@
   "files": [
     "forge.js",
     "forge.d.ts",
+    "deckCards.js",
+    "deckCards.d.ts",
+    "seat.js",
+    "seat.d.ts",
     "vite.js",
     "vite.d.ts",
     "forge-assets.js",

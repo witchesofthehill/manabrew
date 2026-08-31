@@ -12,11 +12,22 @@ export interface ForgeDeckCard {
   count?: number;
 }
 
+/**
+ * Every zone here is read when the card scripts for a game are selected. A
+ * card left out of a deck object reaches the table as an unsupported
+ * placeholder, so pass the whole deck, not just the maindeck.
+ */
 export interface ForgeDeck {
   name?: string;
   format?: string;
   cards: ForgeDeckCard[];
   commanders?: ForgeDeckCard[];
+  sideboard?: ForgeDeckCard[];
+  attractions?: ForgeDeckCard[];
+  contraptions?: ForgeDeckCard[];
+  schemes?: ForgeDeckCard[];
+  planes?: ForgeDeckCard[];
+  companion?: ForgeDeckCard;
 }
 
 export interface ForgeStartGameOptions {
@@ -70,4 +81,4 @@ export declare class ForgeEngine {
 }
 
 export declare function createForgeEngine(options?: ForgeEngineOptions): Promise<ForgeEngine>;
-export declare const VERSION: "0.1.0";
+export declare const VERSION: string;

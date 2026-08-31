@@ -1,7 +1,14 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,6 +30,10 @@ function run(command, args, cwd = root) {
 const required = [
   "forge.js",
   "forge.d.ts",
+  "deckCards.js",
+  "deckCards.d.ts",
+  "seat.js",
+  "seat.d.ts",
   "vite.js",
   "vite.d.ts",
   "forge-assets.js",
@@ -35,14 +46,33 @@ const required = [
   "LICENSE",
 ];
 for (const file of required) statSync(join(packageDir, file));
-if (statSync(join(packageDir, "forgeharness.js.wasm")).size < 30_000_000) {
-  throw new Error("Forge engine WASM is unexpectedly small.");
+
+// `--stub-engine` builds carry placeholders where the two GraalVM outputs go,
+// so the checks that read them are skipped and said out loud. Everything after
+// this point runs either way.
+const stubEngine = existsSync(join(packageDir, ".stub-engine"));
+if (stubEngine) {
+  console.log("Engine stubbed: skipping the engine size and launcher-pin checks.");
+} else {
+  if (statSync(join(packageDir, "forgeharness.js.wasm")).size < 30_000_000) {
+    throw new Error("Forge engine WASM is unexpectedly small.");
+  }
+  if (!readFileSync(join(packageDir, "forgeharness.js"), "utf8").includes("__forgeWasmUrl")) {
+    throw new Error("Forge launcher does not honour the package WASM URL.");
+  }
 }
 if (statSync(join(packageDir, "cardset.rkyv")).size < 30_000_000) {
   throw new Error("Forge cardset is unexpectedly small.");
 }
-if (!readFileSync(join(packageDir, "forgeharness.js"), "utf8").includes("__forgeWasmUrl")) {
-  throw new Error("Forge launcher does not honour the package WASM URL.");
+
+// The runtime VERSION is stamped from package.json at build time; a mismatch
+// means the stamp did not run and consumers would read a stale number.
+const manifestVersion = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8")).version;
+const stamped = readFileSync(join(packageDir, "forge.js"), "utf8").match(
+  /^export const VERSION = "(.*)";$/m,
+)?.[1];
+if (stamped !== manifestVersion) {
+  throw new Error(`forge.js exports VERSION ${stamped}, manifest says ${manifestVersion}.`);
 }
 
 const packed = JSON.parse(
@@ -54,6 +84,9 @@ for (const file of required) {
 }
 if ([...packedNames].some((file) => file.endsWith(".wat"))) {
   throw new Error("npm package contains a WebAssembly text dump.");
+}
+if (packedNames.has(".stub-engine")) {
+  throw new Error("npm package carries the stub-engine marker.");
 }
 
 const consumer = join(temporary, "consumer");
@@ -80,7 +113,22 @@ writeFileSync(
 );
 writeFileSync(
   join(consumer, "usage.ts"),
-  'import { ForgeEngine } from "@manabrew/forge-wasm"; const engine = new ForgeEngine({ assets: "" }); void engine.startGame({ deck: { cards: [] } });\n',
+  [
+    // The subpath exports carry their own types, and a deck object with every
+    // zone filled has to satisfy ForgeDeck — the zones are what the selector
+    // reads, so dropping one from the type would silently narrow a bundle.
+    'import { ForgeEngine } from "@manabrew/forge-wasm";',
+    'import { deckCardNames } from "@manabrew/forge-wasm/deckCards";',
+    'import { createSeat, SAB_SIZE } from "@manabrew/forge-wasm/seat";',
+    'const deck = { cards: [{ identity: { name: "Lightning Bolt" } }], sideboard: [], attractions: [],',
+    "  contraptions: [], schemes: [], planes: [], commanders: [], companion: undefined };",
+    'const engine = new ForgeEngine({ assets: "" });',
+    "void engine.startGame({ deck });",
+    'engine.directive({ kind: "concede" });',
+    "void deckCardNames([deck]);",
+    "void createSeat(new SharedArrayBuffer(SAB_SIZE));",
+    "",
+  ].join("\n"),
 );
 writeFileSync(
   join(consumer, "tsconfig.json"),
@@ -116,5 +164,6 @@ for (const expected of ["forge-engine.worker", "forgeharness", "cardset", "forge
 }
 
 console.log(
-  `Verified ${basename(tarball)}: ${(packed.size / 1024 / 1024).toFixed(1)} MiB tarball, ${packed.files.length} files.`,
+  `Verified ${basename(tarball)}: ${(packed.size / 1024 / 1024).toFixed(1)} MiB tarball, ${packed.files.length} files.` +
+    (stubEngine ? " Engine stubbed — do not publish this build." : ""),
 );

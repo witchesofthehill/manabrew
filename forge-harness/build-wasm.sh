@@ -78,21 +78,38 @@ cd "$OUT"
 # (`runtime.getCurrentFile() + ".wasm"`), which in a worker is the worker's own
 # name, not this module's. Pin it instead, so the host is free to name its
 # worker anything and no duplicate copy of the module is needed.
+#
+# `__forgeWasmUrl` is how a host that serves the engine from somewhere else —
+# @manabrew/forge-wasm hands it a bundler-hashed asset URL — overrides that
+# pin. The idempotence check below looks for that name and not merely for
+# `wasm_path`, or a launcher built before the override existed keeps its old
+# pin for ever and quietly fetches the module from the wrong origin.
 echo "==> pinning wasm_path in the launcher"
 python3 - "$OUT/forgeharness.js" <<'PIN'
 import sys
 path = sys.argv[1]
 src = open(path).read()
 needle = "const config = new GraalVM.Config();"
-if "wasm_path" in src.split(needle)[-1][:200]:
+pin = (needle + '\nconfig.wasm_path = globalThis.__forgeWasmUrl || '
+       'new URL("forgeharness.js.wasm", typeof document !== "undefined" '
+       '&& document.currentScript ? document.currentScript.src : self.location.href).href;')
+tail = src.split(needle)[-1][:200]
+if "__forgeWasmUrl" in tail:
     print("    already pinned")
 else:
-    pin = (needle + '\nconfig.wasm_path = globalThis.__forgeWasmUrl || '
-           'new URL("forgeharness.js.wasm", typeof document !== "undefined" '
-           '&& document.currentScript ? document.currentScript.src : self.location.href).href;')
     assert needle in src, "launcher bootstrap not found"
-    open(path, "w").write(src.replace(needle, pin, 1))
-    print("    pinned")
+    if "wasm_path" in tail:
+        # An older pin, from a build before the override existed. Drop the
+        # whole assignment and write the current one in its place.
+        head, _, rest = src.partition(needle)
+        line, _, rest = rest.lstrip("\n").partition("\n")
+        assert "wasm_path" in line, f"unexpected launcher bootstrap: {line!r}"
+        src = head + pin + "\n" + rest
+        print("    repinned")
+    else:
+        src = src.replace(needle, pin, 1)
+        print("    pinned")
+    open(path, "w").write(src)
 PIN
 
 echo "==> built:"

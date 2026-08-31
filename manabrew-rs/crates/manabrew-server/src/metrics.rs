@@ -20,6 +20,7 @@ const ANALYTICS_DROPPED: &str = "manabrew_relay_analytics_dropped_total";
 const DECK_PLAY_EVENTS_DROPPED: &str = "manabrew_relay_deck_play_events_dropped_total";
 const STATE_PATCH_DOWNGRADES: &str = "manabrew_relay_state_patch_downgrades_total";
 const ENGINE_REPORTS: &str = "manabrew_relay_engine_reports_total";
+const TRANSPORT_ANNOUNCEMENTS: &str = "manabrew_relay_transport_announcements_total";
 const CLIENT_RTT: &str = "manabrew_relay_client_rtt_ms";
 const STATE_HANDLING: &str = "manabrew_relay_state_handling_seconds";
 const SOCKET_WRITE: &str = "manabrew_relay_socket_write_seconds";
@@ -151,6 +152,11 @@ pub fn record_engine_report(outcome: &'static str) {
 /// own clock and needs nothing from the client.
 pub fn record_client_rtt(ms: f64) {
     histogram!(CLIENT_RTT).record(ms);
+}
+
+pub fn record_transport_announcement(withdrawn: bool) {
+    let kind = if withdrawn { "withdraw" } else { "announce" };
+    counter!(TRANSPORT_ANNOUNCEMENTS, LABEL_KIND => kind).increment(1);
 }
 
 pub fn record_resync() {

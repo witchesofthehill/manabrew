@@ -32,6 +32,12 @@ fn bot_log(msg: &str) {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BotConfig {
+    /// Try for a direct channel to the room's engine host. The bot stays on the
+    /// relay for the whole control plane either way.
+    #[serde(default)]
+    pub iroh: bool,
+    #[serde(default)]
+    pub iroh_relay_url: Option<String>,
     pub username: String,
     pub password: String,
     pub room_id: String,

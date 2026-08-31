@@ -935,6 +935,8 @@ fn spawn_bots(config: &Config, decks: &[DeckSelection], room_id: &str, bot_state
         };
         let relay_url = config.relay_url.clone();
         let bot_config = BotConfig {
+            iroh: config.iroh_enabled,
+            iroh_relay_url: config.iroh_relay_url.clone(),
             username,
             password: config.password.clone(),
             room_id: room_id.to_string(),

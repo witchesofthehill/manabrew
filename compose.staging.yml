@@ -190,6 +190,12 @@ services:
       # them, and the staging web bundle is built from the same ref as the node
       # while installed desktop clients are not.
       SELF_HOSTED_NODE_STATE_DELTA: "${SELF_HOSTED_NODE_STATE_DELTA:-1}"
+      # On here and off in production, like STATE_DELTA above. Seats that can
+      # reach this node over iroh take their envelopes off the relay. Note the
+      # relay's game capture only sees what still goes through it, so a captured
+      # hosted game is missing any seat that went direct.
+      SELF_HOSTED_NODE_IROH: "${SELF_HOSTED_NODE_IROH:-1}"
+      SELF_HOSTED_NODE_IROH_RELAY_URL: "${SELF_HOSTED_NODE_IROH_RELAY_URL:-}"
       SELF_HOSTED_NODE_METRICS_PUSH_URL: "${SELF_HOSTED_NODE_METRICS_PUSH_URL:-}"
       RUST_LOG: "self_hosted_node=info"
     # The native image takes 55% of the cgroup limit as its max heap (#729), so

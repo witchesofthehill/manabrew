@@ -15,7 +15,9 @@ ARG GRAALVM_IMAGE=container-registry.oracle.com/graalvm/native-image:24
 # links against glibc 2.38 symbols (__isoc23_*) that bookworm's 2.36 does not
 # have. That breaks the link here and would break dlopen in the runtime stage
 # too, so both move together. Keep them on the same glibc as the native builder.
-FROM rust:1.88-trixie AS chef
+# iroh 1.1 (manabrew-net) is edition 2024 and declares rust-version 1.91, so
+# 1.88 fails during `cargo chef cook` resolution before anything compiles.
+FROM rust:1.94-trixie AS chef
 RUN cargo install cargo-chef --locked
 WORKDIR /build
 

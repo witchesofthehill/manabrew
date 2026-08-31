@@ -1,6 +1,6 @@
 [package]
 name = "manabrew-relay-protocol"
-version = "5.7.0"
+version = "5.7.1"
 edition = "2021"
 license.workspace = true
 repository.workspace = true
@@ -14,7 +14,7 @@ path = "src/bin/gen_protocol.rs"
 
 [dependencies]
 base64 = "0.22"
-manabrew-protocol = { path = "../manabrew-protocol", version = "5.4.1" }
+manabrew-protocol = { path = "../manabrew-protocol", version = "5.5.0" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 ts-rs = { workspace = true }

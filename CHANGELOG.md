@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.29.0](https://github.com/witchesofthehill/manabrew/compare/v3.28.0...v3.29.0) (2026-08-31)
+
+### Features
+
+* **telemetry:** record offline games the way the nodes did ([#799](https://github.com/witchesofthehill/manabrew/issues/799)) ([20e7472](https://github.com/witchesofthehill/manabrew/commit/20e7472e277dddb6f88f760c0824ba2c5b3e5e00))
+
 ## [3.28.0](https://github.com/witchesofthehill/manabrew/compare/v3.27.1...v3.28.0) (2026-08-31)
 
 ### Features

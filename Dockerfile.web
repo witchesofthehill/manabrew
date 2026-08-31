@@ -72,6 +72,10 @@ COPY tree-sitter-forge-card-script/ ./tree-sitter-forge-card-script/
 COPY xtask/ ./xtask/
 COPY scripts/ ./scripts/
 COPY src/ ./src/
+# The client imports the Forge seat and card-selection modules from the
+# published package (the `@forge-wasm` alias in tsconfig/vite). Without
+# them `tsc -b` fails with TS2307 on every `@forge-wasm/*` import.
+COPY packages/forge-wasm/ ./packages/forge-wasm/
 COPY public/ ./public/
 # ops/manifest.json is read by vite.config.ts to stamp the app version.
 COPY index.html tsconfig*.json vite.config.ts ./

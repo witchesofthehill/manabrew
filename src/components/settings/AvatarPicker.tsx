@@ -34,7 +34,12 @@ export function AvatarPicker() {
         className="relative flex size-20 shrink-0 items-center justify-center rounded-full border bg-muted motion-safe:transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {avatarSrc ? (
-          <img src={avatarSrc} alt="Your avatar" className="size-full rounded-full object-cover" />
+          <img
+            src={avatarSrc}
+            crossOrigin="anonymous"
+            alt="Your avatar"
+            className="size-full rounded-full object-cover"
+          />
         ) : (
           <CircleUserRound className="h-8 w-8 text-muted-foreground" />
         )}

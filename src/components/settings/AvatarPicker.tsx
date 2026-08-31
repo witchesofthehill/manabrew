@@ -1,7 +1,8 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Camera, CircleUserRound, X } from "lucide-react";
 import { useAssetsAvailable, useAssetStore } from "@/stores/useAssetStore";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { AvatarCropDialog } from "@/components/settings/AvatarCropDialog";
 
 export function AvatarPicker() {
   const avatarSrc = useAuthStore((s) => s.account?.avatarUrl);
@@ -10,11 +11,17 @@ export function AvatarPicker() {
   const busy = useAssetStore((s) => s.busy);
   const available = useAssetsAvailable();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [pendingFile, setPendingFile] = useState<Blob | null>(null);
 
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (file) void uploadAvatar(file);
+    if (file) setPendingFile(file);
+  }
+
+  async function onCropConfirm(cropped: Blob) {
+    await uploadAvatar(cropped);
+    setPendingFile(null);
   }
 
   return (
@@ -47,6 +54,11 @@ export function AvatarPicker() {
         </button>
       )}
       <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={onPick} />
+      <AvatarCropDialog
+        file={pendingFile}
+        onCancel={() => setPendingFile(null)}
+        onConfirm={onCropConfirm}
+      />
     </div>
   );
 }

@@ -124,9 +124,13 @@ export function UserList({
     if (!room) return "available";
     return room.status === "InGame" ? "playing" : "atTable";
   };
-  const playing = filteredOthers.filter((p) => bucketOf(p) === "playing");
-  const atTable = filteredOthers.filter((p) => bucketOf(p) === "atTable");
-  const available = filteredOthers.filter((p) => bucketOf(p) === "available");
+  const byName = (a: PlayerInfo, b: PlayerInfo) =>
+    stripUsernameTag(a.username)
+      .toLowerCase()
+      .localeCompare(stripUsernameTag(b.username).toLowerCase());
+  const playing = filteredOthers.filter((p) => bucketOf(p) === "playing").sort(byName);
+  const atTable = filteredOthers.filter((p) => bucketOf(p) === "atTable").sort(byName);
+  const available = filteredOthers.filter((p) => bucketOf(p) === "available").sort(byName);
 
   async function handleJoinRoom(roomId: string, password?: string) {
     if (joiningRoomId) return;
@@ -165,6 +169,7 @@ export function UserList({
         className={cn(
           "flex items-center gap-2.5 px-2 py-1.5 rounded-md",
           isCurrentPlayer && "bg-muted/40",
+          player.qualification === "maintainer" && "maintainer-row",
         )}
       >
         <div className="relative shrink-0">
@@ -187,8 +192,8 @@ export function UserList({
         </div>
         <div className="flex-1 min-w-0">
           <span className="flex items-center gap-1 text-sm font-medium leading-none">
-            <QualificationBadge qualification={player.qualification} />
             <span className="truncate">{stripUsernameTag(player.username)}</span>
+            <QualificationBadge qualification={player.qualification} />
           </span>
           {isCurrentPlayer ? (
             <span className={cn("flex items-center gap-1 text-[10px]", status.text)}>
@@ -229,7 +234,7 @@ export function UserList({
           </span>
           <span className="text-[10px] text-muted-foreground/70">{count}</span>
         </div>
-        {rows.map(renderPlayer)}
+        {rows.map((player) => renderPlayer(player))}
       </div>
     );
   }

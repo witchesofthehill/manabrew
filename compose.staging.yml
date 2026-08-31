@@ -66,7 +66,12 @@ services:
       # none of them carries a relay address of its own and nothing falls back
       # to public infrastructure.
       MANABREW_IROH_RELAY_PORT: "${MANABREW_IROH_RELAY_PORT:-9445}"
-      MANABREW_IROH_RELAY_URL: "${MANABREW_IROH_RELAY_URL:-https://relay-staging.manabrew.app}"
+      # Left unset until the ingress carries `handle /relay*` to port 9445.
+      # Advertising a url that does not answer is worse than advertising none:
+      # every peer waits out its home-relay timeout and then falls back anyway.
+      # The staging deploy does not touch the ingress, which serves production
+      # too, so applying that route is a deliberate edge change.
+      MANABREW_IROH_RELAY_URL: "${MANABREW_IROH_RELAY_URL:-}"
       RUST_LOG: "manabrew_server=info,iroh_relay=warn"
     volumes:
       - ./ops/events:/var/manabrew/events
@@ -204,7 +209,7 @@ services:
       SELF_HOSTED_NODE_IROH: "${SELF_HOSTED_NODE_IROH:-1}"
       # The relay the node advertises in its EndpointAddr, so it has to be the
       # address a peer outside this network can reach, not the compose name.
-      SELF_HOSTED_NODE_IROH_RELAY_URL: "${SELF_HOSTED_NODE_IROH_RELAY_URL:-https://relay-staging.manabrew.app}"
+      SELF_HOSTED_NODE_IROH_RELAY_URL: "${SELF_HOSTED_NODE_IROH_RELAY_URL:-}"
       SELF_HOSTED_NODE_METRICS_PUSH_URL: "${SELF_HOSTED_NODE_METRICS_PUSH_URL:-}"
       RUST_LOG: "self_hosted_node=info,manabot=info,manabrew_net=info"
     # The native image takes 55% of the cgroup limit as its max heap (#729), so

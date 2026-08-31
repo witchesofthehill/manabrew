@@ -580,7 +580,24 @@ async fn direct_plane_carries_a_hosted_game() {
         "the host did not freeze the bot onto the direct plane:\n{}",
         sim.node_log()
     );
-    step("the bot seat played over iroh while the relay kept the control plane");
+    // The capture's zstd stream is only finished when the game closes, so the
+    // file says nothing until then.
+    alice.leave().await.unwrap();
+    let marker = sim
+        .wait_capture(Duration::from_secs(20), "transport_used")
+        .await
+        .unwrap_or_else(|| {
+            panic!(
+                "the capture never recorded which seats left the relay; it would be silently \
+                 incomplete:\n{}",
+                sim.capture_lines().join("\n")
+            )
+        });
+    assert!(
+        marker.contains("iroh-direct"),
+        "the marker must name the transport: {marker}"
+    );
+    step("the capture records the seat it could not see, so it is not silently incomplete");
 }
 
 fn main() {

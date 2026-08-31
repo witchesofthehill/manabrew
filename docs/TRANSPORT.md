@@ -219,12 +219,28 @@ is the other, and it needs no rewrite to qualify.
 
 ## Observability
 
-**The relay only records what it carries.** A seat on the direct plane is missing from the
-relay's game capture and from its replay cache, so a captured hosted game covers the seats that
-stayed on the relay and no others, and a resync for a direct seat returns the last board the
-relay saw until the next relayed envelope corrects it. Anyone reading capture files for latency
-work (`docs/agents/LATENCY_ANALYSIS.md`) needs to know which seats were direct. This is why the
-flag is off in production.
+**The relay only records what it carries, so the host says what it took away.** Most telemetry
+is unaffected, and it is worth being precise about which:
+
+| Signal | Source | Affected |
+| --- | --- | --- |
+| `games`, `game_players`, `GameStarted`/`GameEnded`, deck play reports | control-plane messages | no |
+| `manabrew_node_forge_decision_seconds`, engine GC/heap/stall | the node, per decision | no |
+| `AnalyticsEvent::EngineStats` | the seat, over `ReportEngineStats` on the control socket | no |
+| relay game capture (`MANABREW_GAME_CAPTURE_DIR`) | the envelope stream | **yes** |
+| relay replay cache | the envelope stream | **yes** |
+
+Only the two that read the stream lose anything, and the danger there is not the missing bytes
+but the silence: a capture file that quietly omits a seat produces wrong latency conclusions,
+while one that says which seat left is still usable. So the host reports it. At `GameStarted`
+the engine host sends `ClientMessage::ReportTransport` naming every seat that is about to leave
+the relay, the relay writes it into that game's capture as a line and emits
+`AnalyticsEvent::TransportUsed`, and a reader can see exactly what the file cannot show. This is
+the same seam `ReportEngineStats` uses, and the same principle offline play already runs on: the
+party that did the work reports it, and the relay is a route rather than the source of truth.
+
+The replay cache is still stale for a direct seat until the next relayed envelope. That one is
+phase 3.
 
 `TransportStatus` reports, per seat: attempted, connected or failed; `TransportKind` of
 `Relay`, `IrohDirect` or `IrohRelayed`; whether the selected path's remote address is

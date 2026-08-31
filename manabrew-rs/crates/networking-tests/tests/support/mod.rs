@@ -97,6 +97,7 @@ pub struct Sim {
     node: Option<Proc>,
     direct: bool,
     log_path: Option<std::path::PathBuf>,
+    capture_dir: Option<std::path::PathBuf>,
 }
 
 impl Sim {
@@ -138,13 +139,61 @@ impl Sim {
         false
     }
 
+    /// Every captured line for every game the relay recorded. Empty unless
+    /// spawned by [`Sim::spawn_direct`].
+    pub fn capture_lines(&self) -> Vec<String> {
+        let Some(dir) = &self.capture_dir else {
+            return Vec::new();
+        };
+        let mut lines = Vec::new();
+        let mut stack = vec![dir.clone()];
+        while let Some(path) = stack.pop() {
+            let Ok(entries) = std::fs::read_dir(&path) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    stack.push(path);
+                } else if let Ok(file) = std::fs::File::open(&path) {
+                    if let Ok(text) = zstd::decode_all(file) {
+                        lines.extend(
+                            String::from_utf8_lossy(&text).lines().map(str::to_string),
+                        );
+                    }
+                }
+            }
+        }
+        lines
+    }
+
+    pub async fn wait_capture(&self, deadline: Duration, needle: &str) -> Option<String> {
+        let started = tokio::time::Instant::now();
+        while started.elapsed() < deadline {
+            if let Some(line) = self
+                .capture_lines()
+                .into_iter()
+                .find(|line| line.contains(needle))
+            {
+                return Some(line);
+            }
+            tokio::time::sleep(Duration::from_millis(400)).await;
+        }
+        None
+    }
+
     async fn spawn_node_sim(port: u16, manifest: Option<&str>) -> Sim {
         Sim::spawn_node_sim_with(port, manifest, false).await
     }
 
     async fn spawn_node_sim_with(port: u16, manifest: Option<&str>, direct: bool) -> Sim {
         let relay_url = format!("ws://127.0.0.1:{port}");
-        let relay = spawn_relay(port);
+        let capture_dir = direct.then(|| {
+            let dir = std::env::temp_dir().join(format!("manabrew-capture-{port}"));
+            let _ = std::fs::remove_dir_all(&dir);
+            dir
+        });
+        let relay = spawn_relay_with(port, capture_dir.as_deref());
         wait_for_port(port).await;
         let log_path = direct.then(|| {
             std::env::temp_dir().join(format!("manabrew-node-{port}-{}.log", std::process::id()))
@@ -158,6 +207,7 @@ impl Sim {
             node: Some(node),
             direct,
             log_path,
+            capture_dir,
         };
         sim.room_id = tokio::time::timeout(Duration::from_secs(60), sim.discover_room())
             .await
@@ -179,6 +229,7 @@ impl Sim {
             node: None,
             direct: false,
             log_path: None,
+            capture_dir: None,
         }
     }
 
@@ -809,8 +860,16 @@ fn bin(name: &str, env_override: &str) -> PathBuf {
 }
 
 fn spawn_relay(port: u16) -> Proc {
+    spawn_relay_with(port, None)
+}
+
+fn spawn_relay_with(port: u16, capture_dir: Option<&std::path::Path>) -> Proc {
+    let mut command = Command::new(bin("manabrew-server", "REGRESSION_RELAY_BIN"));
+    if let Some(dir) = capture_dir {
+        command.env("MANABREW_GAME_CAPTURE_DIR", dir);
+    }
     Proc(
-        Command::new(bin("manabrew-server", "REGRESSION_RELAY_BIN"))
+        command
             .env("FORGE_PORT", port.to_string())
             .env("FORGE_HEALTH_PORT", (port + 1).to_string())
             .stdout(Stdio::null())

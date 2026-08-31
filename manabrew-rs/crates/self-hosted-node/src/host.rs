@@ -1225,6 +1225,12 @@ async fn handle_server_message(
                         ?seats,
                         "seats playing this game on the direct plane"
                     );
+                    // The relay is about to stop seeing these seats. Telling it
+                    // so is the only way its capture can record what it missed.
+                    let _ = outbound_tx.send(ClientMessage::ReportTransport {
+                        game_id: game_id.clone(),
+                        seats: plane.transport_report(&seats),
+                    });
                 }
             }
             maybe_start_hosted_engine(

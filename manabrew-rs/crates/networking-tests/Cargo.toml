@@ -17,6 +17,7 @@ futures-util = "0.3"
 serde_json = { workspace = true }
 uuid = { version = "1", features = ["v4"] }
 libtest-mimic = "0.8"
+zstd = "0.13"
 
 [[test]]
 name = "networking_regression"

@@ -16,6 +16,7 @@
   "exports": {
     ".": {
       "types": "./forge.d.ts",
+      "node": "./node.js",
       "default": "./forge.js"
     },
     "./vite": {
@@ -38,6 +39,10 @@
   "files": [
     "forge.js",
     "forge.d.ts",
+    "engine.js",
+    "node.js",
+    "node-worker.cjs",
+    "stamp.js",
     "deckCards.js",
     "deckCards.d.ts",
     "seat.js",

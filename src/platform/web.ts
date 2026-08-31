@@ -864,30 +864,21 @@ class WebServerApi implements IServerApi {
         const json = JSON.stringify(state);
         const previous = this.lastRelayStates.get(forPlayer);
         if (json === previous?.json) return;
+        // Every later patch is against what this seat was last *sent*, so the
+        // base only moves once the send is going out: recording an unsent state
+        // would leave the seat patching from a board it never received.
+        const targetPlayer = this.enginePlayerName(forPlayer);
+        if (!targetPlayer) return;
         const patch = previous ? diffStateDelta(previous.state, state) : undefined;
         if (previous && patch === undefined) return;
         const fingerprint = `browser-${++this.relayStateSequence}`;
         this.lastRelayStates.set(forPlayer, { state, json, fingerprint });
-        const targetPlayer = this.enginePlayerName(forPlayer);
-        if (targetPlayer) {
-          if (previous) {
-            void this.broadcastState(
-              {
-                kind: "stateDelta",
-                forPlayer,
-                base: previous.fingerprint,
-                fingerprint,
-                patch,
-              },
-              targetPlayer,
-            );
-          } else {
-            void this.broadcastState(
-              { kind: "state", forPlayer, state, fingerprint },
-              targetPlayer,
-            );
-          }
-        }
+        void this.broadcastState(
+          previous
+            ? { kind: "stateDelta", forPlayer, base: previous.fingerprint, fingerprint, patch }
+            : { kind: "state", forPlayer, state, fingerprint },
+          targetPlayer,
+        );
       } else if (msg.kind === "display") {
         const json = JSON.stringify(msg.event);
         if (json === this.lastRelayDisplay) return;

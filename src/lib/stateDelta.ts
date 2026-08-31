@@ -74,8 +74,8 @@ export function diffStateDelta(previous: Json, next: Json): Json | undefined {
   if (isObject(previous) && isObject(next)) {
     const patch: JsonObject = {};
     for (const [key, value] of Object.entries(next)) {
-      patch[key] = hasOwn(previous, key) ? diffStateDelta(previous[key], value) : literal(value);
-      if (patch[key] === undefined) delete patch[key];
+      const inner = hasOwn(previous, key) ? diffStateDelta(previous[key], value) : literal(value);
+      if (inner !== undefined) patch[key] = inner;
     }
     const removed = Object.keys(previous).filter((key) => !hasOwn(next, key));
     if (removed.length > 0) patch[REMOVED] = removed;
@@ -99,6 +99,9 @@ export function diffStateDelta(previous: Json, next: Json): Json | undefined {
     if (Object.keys(changed).length > 0) patch[KEYED] = changed;
     if (removed.length > 0) patch[REMOVED] = removed;
     if (!jsonEquals(beforeOrder, afterOrder)) patch[ORDER] = afterOrder;
+    // An array patch must never be a bare object: the applier would read one as
+    // a merge onto an object and hand back the wrong shape.
+    if (Object.keys(patch).length === 0) patch[KEYED] = {};
     return patch;
   }
 

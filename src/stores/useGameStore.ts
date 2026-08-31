@@ -6,6 +6,7 @@ import {
   roomEngineLabel,
 } from "@/lib/engineStatsReport";
 import { abandonOfflineGame, beginOfflineGame } from "@/lib/offlinePlayRecord";
+import { announceLocalGame, clearLocalGame } from "@/lib/localGamePresence";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { toast } from "sonner";
@@ -250,6 +251,7 @@ async function initializeGame({
 
   const engineLabel = engine === "Forge" ? "forge-wasm" : localEngineLabel();
   beginGame(engineLabel);
+  announceLocalGame("Singleplayer");
   void beginOfflineGame({
     engine: engineLabel,
     format: selectedFormatId ?? null,
@@ -272,6 +274,7 @@ async function initializeGame({
   } catch (error) {
     // A launch that never became a game must not be reported as the next one.
     abandonOfflineGame();
+    clearLocalGame();
     throw error;
   }
 }

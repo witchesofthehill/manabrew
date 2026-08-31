@@ -9,6 +9,7 @@ import {
 import { teardownForgeAiSession } from "@/game/hostedAiPlay";
 import { reportEngineStats } from "@/lib/engineStatsReport";
 import { reportOfflineGame, type OfflineSeatOutcome } from "@/lib/offlinePlayRecord";
+import { clearLocalGame } from "@/lib/localGamePresence";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useGameStore } from "@/stores/useGameStore";
 import type { GameState } from "@/stores/useGameStore";
@@ -159,6 +160,7 @@ function offlineSeats(state: GameState): OfflineSeatOutcome[] {
 function reportEngineGame(): void {
   const state = useGameStore.getState();
   if (!state.isMultiplayer) {
+    clearLocalGame();
     const players = state.gameView?.players ?? [];
     const winnerId = state.gameView?.winnerId ?? null;
     reportOfflineGame({

@@ -12,11 +12,8 @@ export interface ForgeDeckCard {
   count?: number;
 }
 
-/**
- * Every zone here is read when the card scripts for a game are selected. A
- * card left out of a deck object reaches the table as an unsupported
- * placeholder, so pass the whole deck, not just the maindeck.
- */
+/** Every zone is read when card scripts are selected, so pass the whole deck:
+ *  a card left out arrives at the table as an unsupported placeholder. */
 export interface ForgeDeck {
   name?: string;
   format?: string;

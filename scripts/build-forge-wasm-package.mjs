@@ -12,12 +12,10 @@ const output = join(root, "target", "npm", "forge-wasm");
 const generated = join(root, "target", "forge-wasm-assets");
 const skipEngine = process.argv.includes("--skip-engine");
 // The GraalVM engine takes a Web Image toolchain and the better part of an
-// hour, and it is opaque to everything the packaging does with it. `--stub-
-// engine` stands placeholders in for the two GraalVM outputs so a PR check can
-// exercise the parts that actually change: the asset selector, the cardset,
-// the worker facade, `npm pack`, and a real consumer's Vite build. It marks
-// the output so verification skips the checks that need the real engine, and
-// the marker is outside the package's `files` so it can never be published.
+// hour, and the packaging never looks inside it. `--stub-engine` fakes the two
+// GraalVM outputs so a PR check can exercise everything else, and marks the
+// output so verification skips the checks that need the real engine. The
+// marker is outside `files`, so it can never be published.
 const stubEngine = process.argv.includes("--stub-engine");
 const GRAALVM_OUTPUTS = ["forgeharness.js", "forgeharness.js.wasm"];
 const STUB_MARKER = ".stub-engine";
@@ -39,8 +37,8 @@ function findWasmPack() {
 
 if (!skipEngine && !stubEngine) run("bash", ["scripts/build-forge-wasm.sh"]);
 
-// forge-engine.worker.js is committed, so it is required even when stubbing:
-// it is the file a change to the worker facade lands in.
+// Committed, and the file a worker-facade change lands in, so it is required
+// even when stubbing.
 const staged = stubEngine
   ? ["forge-engine.worker.js"]
   : [...GRAALVM_OUTPUTS, "forge-engine.worker.js"];
@@ -112,9 +110,8 @@ cpSync(
   join(output, "forge-engine.worker.js"),
 );
 if (stubEngine) {
-  // Big enough to clear a bundler's inline-asset threshold, or Vite turns the
-  // stub into a data URI and verification can no longer tell whether the
-  // engine would have been emitted as a fetchable asset.
+  // Past a bundler's inline threshold, or Vite emits the stub as a data URI
+  // and the "was it emitted as an asset?" check stops meaning anything.
   const padding = 64 * 1024;
   writeFileSync(join(output, STUB_MARKER), "");
   writeFileSync(
@@ -140,15 +137,9 @@ if (expectedVersion && manifest.version !== expectedVersion) {
 }
 writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
-// package.json is the only place the version is written by hand. Stamp the
-// runtime exports from it and the tree here, rather than asking a release to
-// keep several files in step, which is how @manabrew/protocol shipped a stale
-// one.
-//
-// The selector compiled into this package comes from forge-cardset-archive,
-// which releases on its own cadence, so a bug report needs to say which one it
-// got. The crate version names a release a Rust consumer can install; the
-// commit names the tree, which is the only exact answer between releases.
+// package.json is the only version written by hand; the rest are stamped from
+// it and the tree, rather than asking a release to keep several files in step
+// (which is how @manabrew/protocol shipped a stale one).
 const cardsetArchiveVersion = readFileSync(
   join(root, "manabrew-rs", "crates", "forge-cardset-archive", "Cargo.toml"),
   "utf8",

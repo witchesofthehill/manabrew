@@ -7,7 +7,6 @@ import assetWasmUrl from "./forge-assets_bg.wasm?url";
 import { deckCardNames } from "./deckCards.js";
 import { createSeat, deliverSeatDirective, pollSeat, writeSeatMessage } from "./seat.js";
 
-/** The main thread's own name for the seat this browser plays. */
 const LOCAL_SEAT = "local";
 
 let assetBuilderPromise;
@@ -139,11 +138,8 @@ export class ForgeEngine {
     writeSeatMessage(seat, { kind: "response", promptId, action });
   }
 
-  /**
-   * Queue a directive for the seat. It reaches the engine at once when the
-   * engine is already blocked there, and otherwise at that seat's next prompt,
-   * so a concession raised between prompts is not dropped.
-   */
+  /** Delivered at once if the engine is blocked there, otherwise at that
+   *  seat's next prompt. A concession between prompts is not dropped. */
   directive(directive, playerSlot = LOCAL_SEAT) {
     deliverSeatDirective(this.seat(playerSlot), directive);
   }
@@ -171,20 +167,15 @@ export async function createForgeEngine(options = {}) {
   return engine;
 }
 
-/** The published version, written in from package.json when the package is
- *  built. A checkout that has not been through that build reads as dev. */
+// Stamped at build time. A checkout that has not been through that build
+// reads as dev.
 export const VERSION = "0.0.0-dev";
 
 /**
- * The `forge-cardset-archive` release whose card-script selector is compiled
- * into this package. `cargo add forge-cardset-archive@<this>` gets the same
- * selection rules on the Rust side.
- *
- * It is the last *released* version, so a package built between releases
- * carries source the crate has not shipped yet. BUILD_COMMIT is what names
- * the exact tree, and is what a bug report should quote.
+ * The `forge-cardset-archive` release carrying the same selector, installable
+ * with `cargo add`. It is the last *released* version, so a package built
+ * between crate releases holds source the crate has not shipped: BUILD_COMMIT
+ * is the exact answer.
  */
 export const CARDSET_ARCHIVE_VERSION = "0.0.0-dev";
-
-/** The manabrew commit this package was built from. */
 export const BUILD_COMMIT = "unknown";

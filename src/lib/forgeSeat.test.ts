@@ -20,7 +20,7 @@ function seat(): ForgeSeat {
   return created;
 }
 
-/** Stand in for the engine inside the worker: write a message and block. */
+/** The other side of the exchange: the engine writes and blocks. */
 function engineWrites(target: ForgeSeat, message: unknown): void {
   const bytes = new TextEncoder().encode(JSON.stringify(message));
   target.data.set(bytes, 0);
@@ -28,7 +28,6 @@ function engineWrites(target: ForgeSeat, message: unknown): void {
   Atomics.store(target.signal, 0, SIGNAL_PROMPT_READY);
 }
 
-/** What the engine would read back off the seat. */
 function engineReads(target: ForgeSeat): unknown {
   const length = Atomics.load(target.signal, 1);
   return JSON.parse(new TextDecoder().decode(target.data.slice(0, length)));

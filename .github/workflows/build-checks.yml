@@ -60,11 +60,8 @@ jobs:
               '.github/workflows/build-checks.yml',
             ];
 
-            // @manabrew/forge-wasm is built from this repo but published on its
-            // own `forge-wasm-v*` tag, so nothing else builds it between
-            // releases and packaging breaks land silently. This list is the
-            // packaging, not the engine: the GraalVM outputs are stubbed, so a
-            // change to the engine build itself does not belong here.
+            // The packaging, not the engine: the GraalVM outputs are stubbed
+            // in this job, so a change to the engine build does not belong here.
             const FORGE_WASM_PACKAGE_PATHS = [
               'packages/forge-wasm/',
               'scripts/build-forge-wasm-package.mjs',
@@ -156,15 +153,11 @@ jobs:
             core.setOutput('run_website', matches(files, WEBSITE_PATHS) ? 'true' : 'false');
 
   # ── @manabrew/forge-wasm packaging ─────────────────────────────────
-  # The package only ever builds on a `forge-wasm-v*` tag, so between releases
-  # its packaging can rot unnoticed — a moved export, a file missing from
-  # `files`, a URL a bundler stops emitting. This runs the same build and
-  # verification with `--stub-engine`, which stands placeholders in for the two
-  # GraalVM outputs. Everything that actually changes is still real: the
-  # asset-selector wasm, the 34 MiB cardset, the worker facade, `npm pack`, and
-  # a throwaway consumer that installs the tarball, type-checks against it and
-  # builds it with Vite. The engine leg needs a Web Image toolchain and the
-  # better part of an hour; the tag workflow is where it belongs.
+  # The package only builds on a `forge-wasm-v*` tag, so between releases its
+  # packaging rots unnoticed: a moved export, a file missing from `files`, a URL
+  # a bundler stops emitting. `--stub-engine` fakes the two GraalVM outputs so
+  # this can run without a Web Image toolchain; everything else is real,
+  # including `npm pack` and a throwaway consumer that builds the tarball.
   forge-wasm-package:
     name: Forge WASM package
     runs-on: ubuntu-latest
@@ -191,7 +184,7 @@ jobs:
         uses: rui314/setup-mold@v1
 
       # Restores the warm web-wasm cache, which already holds
-      # forge-cardset-archive; never saves, so it cannot shrink the cache the
+      # forge-cardset-archive. Never saves, so it cannot shrink the cache the
       # typescript job depends on.
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2

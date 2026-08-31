@@ -10,9 +10,9 @@ export interface ForgeSeat {
   readonly data: Uint8Array;
   /** Set to stop the poll loop; an already-queued frame short-circuits. */
   cancelled: boolean;
-  /** A prompt was read off this seat and no message was written back yet. */
+  /** A prompt was read off this seat and nothing was written back yet. */
   awaitingResponse: boolean;
-  /** Directive held until the engine blocks on this seat. */
+  /** Held until the engine blocks on this seat. */
   pendingDirective: unknown;
 }
 

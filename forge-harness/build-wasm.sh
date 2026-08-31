@@ -79,11 +79,10 @@ cd "$OUT"
 # name, not this module's. Pin it instead, so the host is free to name its
 # worker anything and no duplicate copy of the module is needed.
 #
-# `__forgeWasmUrl` is how a host that serves the engine from somewhere else —
-# @manabrew/forge-wasm hands it a bundler-hashed asset URL — overrides that
-# pin. The idempotence check below looks for that name and not merely for
-# `wasm_path`, or a launcher built before the override existed keeps its old
-# pin for ever and quietly fetches the module from the wrong origin.
+# `__forgeWasmUrl` lets a host serving the engine from elsewhere override that
+# pin. The check below looks for that name rather than for `wasm_path`, or a
+# launcher built before the override existed keeps its old pin for ever and
+# quietly fetches the module from the wrong origin.
 echo "==> pinning wasm_path in the launcher"
 python3 - "$OUT/forgeharness.js" <<'PIN'
 import sys
@@ -99,8 +98,7 @@ if "__forgeWasmUrl" in tail:
 else:
     assert needle in src, "launcher bootstrap not found"
     if "wasm_path" in tail:
-        # An older pin, from a build before the override existed. Drop the
-        # whole assignment and write the current one in its place.
+        # An older pin: drop the whole assignment, write the current one.
         head, _, rest = src.partition(needle)
         line, _, rest = rest.lstrip("\n").partition("\n")
         assert "wasm_path" in line, f"unexpected launcher bootstrap: {line!r}"

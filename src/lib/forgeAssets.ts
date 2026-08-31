@@ -12,8 +12,6 @@ const CARD_ARCHIVE_MANIFEST = "/wasm/cardset.manifest.json";
  * a hardcoded `/src/wasm/wasm.js` works against the dev server and 404s to
  * index.html in a build.
  *
- * Which names go in is `deckCardNames`, shared with the published
- * `@manabrew/forge-wasm` package so the two selectors cannot drift.
  */
 export async function buildForgeAssetBundle(decks: Array<Deck | undefined>): Promise<string> {
   const names = deckCardNames(decks);

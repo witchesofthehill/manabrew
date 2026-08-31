@@ -54,9 +54,8 @@ import { applyStateDelta } from "@/lib/stateDelta";
 import { isForgeWasmSelected } from "@/lib/forgeWasm";
 import { buildForgeAssetBundle } from "@/lib/forgeAssets";
 import type { Deck } from "@/protocol/deck";
-// The SharedArrayBuffer seat protocol lives with the published
-// @manabrew/forge-wasm package, which drives the same worker. One
-// implementation, so the client and the package cannot drift apart.
+// The seat protocol lives with @manabrew/forge-wasm, which drives the same
+// worker, so there is one implementation rather than one per consumer.
 import {
   createSeat,
   deliverSeatDirective,
@@ -165,7 +164,6 @@ class WorkerBridge {
   private remoteSeats = new Map<string, ForgeSeat>();
   private remotePlayerSlots = new Map<string, string>();
 
-  /** The seat this browser plays, while a local game is running. */
   get gameBuffer(): SharedArrayBuffer | null {
     return this.localSeat?.buffer ?? null;
   }
@@ -244,8 +242,7 @@ class WorkerBridge {
           });
           w.__respondedAt = undefined;
         }
-        // The seat itself already noted the prompt and flushed a directive
-        // that was waiting for the engine to block.
+        // The seat already noted the prompt and flushed any held directive.
         this.eventBus.emit("game:prompt", msg.prompt);
         break;
       }

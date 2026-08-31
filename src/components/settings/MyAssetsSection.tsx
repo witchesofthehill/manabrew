@@ -213,6 +213,7 @@ function AssetTile({
         <img
           src={asset.url}
           alt={`${KIND_LABELS[asset.kind]} image`}
+          crossOrigin="anonymous"
           loading="lazy"
           className="size-full object-cover"
         />

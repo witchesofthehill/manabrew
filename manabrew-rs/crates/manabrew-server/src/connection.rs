@@ -1340,6 +1340,13 @@ fn handle_client_message(
                 engine_p50: stats.engine_think.as_ref().map(|t| t.p50),
                 engine_p90: stats.engine_think.as_ref().map(|t| t.p90),
                 engine_max: stats.engine_think.as_ref().map(|t| t.max),
+                engine_same_p50: stats.engine_think_same_turn.as_ref().map(|t| t.p50),
+                engine_same_p90: stats.engine_think_same_turn.as_ref().map(|t| t.p90),
+                engine_same_max: stats.engine_think_same_turn.as_ref().map(|t| t.max),
+                engine_cross_p50: stats.engine_think_cross_turn.as_ref().map(|t| t.p50),
+                engine_cross_p90: stats.engine_think_cross_turn.as_ref().map(|t| t.p90),
+                engine_cross_max: stats.engine_think_cross_turn.as_ref().map(|t| t.max),
+                think_hidden: stats.think_samples_hidden,
             });
         }
 

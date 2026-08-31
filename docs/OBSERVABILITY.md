@@ -101,6 +101,7 @@ Everything about how fast an engine answers, in one place. The hosted half was t
 | Last report age                            | stat       | seconds since the newest `engine_stats.ts`                                                                        |
 | Turnaround p50 / p90 by engine             | timeseries | daily median across games of each game's own percentile                                                           |
 | Engines compared                           | table      | games, decisions, median p50/p90 and worst decision per engine and platform                                       |
+| Engine think, split                        | table      | `engine_same_*` against `engine_cross_*` per engine and seat count, with windows dropped as hidden                |
 | Games reported per day by engine           | timeseries | `engine_stats` count by day and engine, which is also browser-engine adoption                                     |
 | forge-wasm think time against turnaround   | timeseries | `engine_p50` against `turnaround_p50`; only the browser build reports its own think time                          |
 | Client versions reporting                  | table      | `client_version`, `platform`, `engine`, games, average duration                                                   |
@@ -108,6 +109,8 @@ Everything about how fast an engine answers, in one place. The hosted half was t
 | Engine reports at the relay, by outcome    | timeseries | `sum by (outcome) (increase(manabrew_relay_engine_reports_total[1h]))`                                            |
 
 Turnaround is measured on the client: the answer leaving to the next prompt landing. It includes the network for a hosted engine and nothing but the engine for a local one, which is what makes the engines comparable at all. Per-game percentiles are aggregated as medians across games, never as an average of averages. A game reports once, when it ends, and only if it had at least five decisions in it.
+
+**`engine_*` is not per-decision time, and the unsplit number is dominated by seat count.** A think sample is the window from the player's answer landing to the next prompt being ready, so in a game against the AI it contains the opponents' whole turns. On 2026-08-31, two-seat forge-wasm games averaged a 77ms median against 997ms for four-seat ones: 13x for 3x the opponents. The node side already accounts for this, which is why `manabrew_node_forge_decision_stage_seconds` is split by seat count. **Cut by `seats` before comparing anything**, and prefer the split columns: `engine_same_*` is the engine resolving what the player just did, `engine_cross_*` is the opponents playing. `think_hidden` counts windows dropped for being measured across a backgrounded tab, where the wall clock keeps running and the worker does not.
 
 `engine` names what ran, not what the room asked for: `forge-hosted` (a self-hosted node), `forge-desktop` (the desktop build hosting its own room), `forge-wasm` (the browser build), `manabrew`, `ironsmith`. The label is fixed when the game starts, because a hosted game is driven through the Manabrew runtime like any other and cannot be recognised afterwards.
 

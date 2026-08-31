@@ -357,16 +357,16 @@ class WorkerBridge {
           const w = window as unknown as { __forgeLog?: string[] };
           w.__forgeLog = w.__forgeLog ?? [];
           const dec = window as unknown as {
-            __engineDecisions?: Array<{ ms: number; type: string }>;
+            __engineDecisions?: Array<{ ms: number; type: string; turns?: number }>;
           };
           dec.__engineDecisions = dec.__engineDecisions ?? [];
-          this.eventBus.on<{ ms: number; type: string }>("forge:decision", (p) => {
+          this.eventBus.on<{ ms: number; type: string; turns?: number }>("forge:decision", (p) => {
             if (!p) return;
             dec.__engineDecisions?.push(p);
             // The engine's own measure of itself, which no other engine
             // reports: the interval from the answer landing to the next
             // prompt being ready, with no client polling in it.
-            noteEngineThinkTime(p.ms);
+            noteEngineThinkTime(p.ms, p.turns ?? 0);
           });
           // Forge prints Java stack traces a line at a time, which is hundreds
           // of console entries for one message. Every line is kept for the

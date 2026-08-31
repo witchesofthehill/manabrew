@@ -108,6 +108,19 @@ pub enum AnalyticsEvent {
         engine_p90: Option<u32>,
         #[serde(skip_serializing_if = "Option::is_none")]
         engine_max: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_same_p50: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_same_p90: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_same_max: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_cross_p50: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_cross_p90: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_cross_max: Option<u32>,
+        think_hidden: u32,
     },
 
     DeckSelected {

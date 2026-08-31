@@ -94,6 +94,8 @@ public final class SabTransport implements InteractiveBridge {
     private final java.util.function.IntFunction<String> snapshots;
     private long checkpoint;
     private long lastRecvAt;
+    private int turnNow;
+    private int turnAtLastPrompt = -1;
     /** Kept clear of the in-game sequence, which the session owns. */
     private long finalPromptId = 1_000_000;
 
@@ -119,16 +121,24 @@ public final class SabTransport implements InteractiveBridge {
     @Override
     public String exchange(final int playerIndex, final String promptJson) {
         final int seat = playerIndex < 0 ? 0 : playerIndex;
+        // Broadcast before the telemetry post so `turnNow` is the turn this
+        // prompt belongs to.
+        broadcastState();
         // Engine think time: from the client's answer landing to the next
         // prompt being ready. This is the analogue of the hosted node-side
         // figure, and unlike a client-side measurement it is not quantised by
         // the reader's requestAnimationFrame loop.
+        //
+        // `turns` is how many turns passed inside that window. Anything above
+        // zero means the opponents took their turns in it, which is most of
+        // what a large reading is: this is not one decision being slow.
         if (lastRecvAt > 0) {
+            final int turns = turnAtLastPrompt < 0 ? 0 : Math.max(0, turnNow - turnAtLastPrompt);
             post("forge:decision", "{\"ms\":" + (System.currentTimeMillis() - lastRecvAt)
+                    + ",\"turns\":" + turns
                     + ",\"type\":\"" + inputType(promptJson) + "\"}");
         }
-
-        broadcastState();
+        turnAtLastPrompt = turnNow;
         if ("diceRolled".equals(inputType(promptJson))) {
             return exchangeWithAllSeats(promptJson);
         }
@@ -171,12 +181,36 @@ public final class SabTransport implements InteractiveBridge {
         return message.toString();
     }
 
+    /**
+     * The turn out of a game view, without parsing the whole thing: this runs
+     * once per prompt and the view is the largest string the engine produces.
+     */
+    private static int turnOf(final String view) {
+        final int at = view.indexOf("\"turn\":");
+        if (at < 0) {
+            return -1;
+        }
+        int cursor = at + 7;
+        int turn = 0;
+        boolean any = false;
+        while (cursor < view.length() && view.charAt(cursor) >= '0' && view.charAt(cursor) <= '9') {
+            turn = turn * 10 + (view.charAt(cursor) - '0');
+            any = true;
+            cursor++;
+        }
+        return any ? turn : -1;
+    }
+
     private void broadcastState() {
         final int seats = Math.max(1, seatCount());
         for (int viewer = 0; viewer < seats; viewer++) {
             final String view = snapshots == null ? null : snapshots.apply(viewer);
             if (view == null || view.isEmpty()) {
                 continue;
+            }
+            final int turn = turnOf(view);
+            if (turn >= 0) {
+                turnNow = turn;
             }
             // The client reads state.gameView, matching GameSnapshotEventDto on
             // the Rust side; a bare game view leaves the board unmounted.

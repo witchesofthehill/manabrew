@@ -31,6 +31,15 @@ export interface EngineGameStats {
   turnaround: Turnaround;
   /** The engine's own think time, when it reports one (Forge in the browser). */
   engineThink: Turnaround | null;
+  /**
+   * `engineThink` split by whether an opponent turn happened inside the window.
+   * The window is answer-received to next-prompt-ready, so the cross-turn half
+   * carries whole opponent turns and is not a measure of one decision.
+   */
+  engineThinkSameTurn: Turnaround | null;
+  engineThinkCrossTurn: Turnaround | null;
+  /** Windows dropped for being measured across a backgrounded tab. */
+  thinkSamplesHidden: number;
   /** Turnaround per prompt type, biggest first, capped so a report stays small. */
   byType: Array<{ type: string; n: number; p50: number; max: number }>;
 }
@@ -47,9 +56,26 @@ const MAX_TYPES = 12;
 
 let samples: Sample[] = [];
 let engineThink: number[] = [];
+/** Think samples whose window stayed inside the player's own turn. */
+let engineThinkSameTurn: number[] = [];
+/** Think samples whose window contained at least one opponent turn. */
+let engineThinkCrossTurn: number[] = [];
+/** Samples thrown away because the tab was backgrounded for part of the window. */
+let engineThinkHidden = 0;
+let hiddenSinceLastSample = false;
 let answeredAt: number | null = null;
 let startedAtMs: number | null = null;
 let engineLabel = "unknown";
+
+// The engine measures its own work in wall clock, and a backgrounded tab is
+// descheduled without the clock stopping, so a hidden window is not a
+// measurement of anything. Counted and dropped rather than left to inflate the
+// maximum, which is what it was doing.
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") hiddenSinceLastSample = true;
+  });
+}
 
 /** Percentiles over a copy, so the caller's array keeps its order. */
 export function summarise(values: number[]): Turnaround {
@@ -94,6 +120,10 @@ export function byPromptType(
 export function beginGame(engine: string): void {
   samples = [];
   engineThink = [];
+  engineThinkSameTurn = [];
+  engineThinkCrossTurn = [];
+  engineThinkHidden = 0;
+  hiddenSinceLastSample = false;
   answeredAt = null;
   startedAtMs = Date.now();
   engineLabel = engine;
@@ -112,8 +142,22 @@ export function notePromptArrived(promptType: string): void {
   if (samples.length < MAX_SAMPLES) samples.push({ ms, type: promptType });
 }
 
-export function noteEngineThinkTime(ms: number): void {
-  if (engineThink.length < MAX_SAMPLES) engineThink.push(ms);
+/**
+ * @param turns how many turns passed inside the window. Above zero means the
+ *   opponents played inside it, which is most of what a large reading is.
+ */
+export function noteEngineThinkTime(ms: number, turns = 0): void {
+  const wasHidden =
+    hiddenSinceLastSample ||
+    (typeof document !== "undefined" && document.visibilityState === "hidden");
+  hiddenSinceLastSample = false;
+  if (wasHidden) {
+    engineThinkHidden += 1;
+    return;
+  }
+  if (engineThink.length >= MAX_SAMPLES) return;
+  engineThink.push(ms);
+  (turns > 0 ? engineThinkCrossTurn : engineThinkSameTurn).push(ms);
 }
 
 export function summariseGame(meta: {
@@ -139,6 +183,9 @@ export function summariseGame(meta: {
     endReason: meta.endReason,
     turnaround: summarise(samples.map((s) => s.ms)),
     engineThink: engineThink.length ? summarise(engineThink) : null,
+    engineThinkSameTurn: engineThinkSameTurn.length ? summarise(engineThinkSameTurn) : null,
+    engineThinkCrossTurn: engineThinkCrossTurn.length ? summarise(engineThinkCrossTurn) : null,
+    thinkSamplesHidden: engineThinkHidden,
     byType: byPromptType(samples),
   };
   startedAtMs = null;

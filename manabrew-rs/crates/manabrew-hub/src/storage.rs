@@ -465,8 +465,11 @@ impl Storage {
             "INSERT OR IGNORE INTO engine_play_stats
                 (id, reported_at, engine, client_version, platform, format, seats,
                  multiplayer, duration_s, end_reason, decisions, turnaround_p50,
-                 turnaround_p90, turnaround_max, engine_p50, engine_p90, engine_max, by_type)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
+                 turnaround_p90, turnaround_max, engine_p50, engine_p90, engine_max, by_type,
+                 engine_same_p50, engine_same_p90, engine_same_max,
+                 engine_cross_p50, engine_cross_p90, engine_cross_max, think_hidden)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
+                     ?19, ?20, ?21, ?22, ?23, ?24, ?25)",
             params![
                 report.report_id,
                 reported_at,
@@ -486,6 +489,13 @@ impl Storage {
                 report.engine_think.as_ref().map(|t| t.p90),
                 report.engine_think.as_ref().map(|t| t.max),
                 by_type,
+                report.engine_think_same_turn.as_ref().map(|t| t.p50),
+                report.engine_think_same_turn.as_ref().map(|t| t.p90),
+                report.engine_think_same_turn.as_ref().map(|t| t.max),
+                report.engine_think_cross_turn.as_ref().map(|t| t.p50),
+                report.engine_think_cross_turn.as_ref().map(|t| t.p90),
+                report.engine_think_cross_turn.as_ref().map(|t| t.max),
+                report.think_samples_hidden,
             ],
         )?;
         Ok(inserted > 0)
@@ -3910,6 +3920,9 @@ mod tests {
                 p90: 18,
                 max: 96,
             }),
+            engine_think_same_turn: None,
+            engine_think_cross_turn: None,
+            think_samples_hidden: 0,
             by_type: vec![manabrew_protocol::telemetry::EngineTypeTurnaround {
                 prompt_type: "chooseAction".to_string(),
                 n: 120,

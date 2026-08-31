@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.31.1](https://github.com/witchesofthehill/manabrew/compare/v3.31.0...v3.31.1) (2026-08-31)
+
+### Fixes
+
+* ingame avatar ([#801](https://github.com/witchesofthehill/manabrew/issues/801)) ([8648bc0](https://github.com/witchesofthehill/manabrew/commit/8648bc05b902f27263a0b7df1696962e32e35e99))
+
 ## [3.31.0](https://github.com/witchesofthehill/manabrew/compare/v3.30.0...v3.31.0) (2026-08-31)
 
 ### Features

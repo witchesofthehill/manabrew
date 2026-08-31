@@ -65,13 +65,13 @@ export function MyAssetsSection() {
     setEditing(null);
     if (!file || !target) return;
     const prefs = usePreferencesStore.getState();
-    if (target.kind === "avatar" && target.id === prefs.customAvatarAssetId) {
+    if (target.kind === "avatar" && target.id === useAuthStore.getState().account?.avatarAssetId) {
       await useAssetStore.getState().uploadAvatar(file);
       return;
     }
     const uploaded = await useAssetStore.getState().replace(target.kind, file, target.id);
     if (uploaded && target.id === prefs.defaultPlaymatAssetId) {
-      prefs.setDefaultPlaymat(uploaded.url, uploaded.assetId);
+      prefs.setDefaultPlaymatAssetId(uploaded.assetId);
     }
   }
 
@@ -80,12 +80,12 @@ export function MyAssetsSection() {
     setDeleting(null);
     if (!target) return;
     const prefs = usePreferencesStore.getState();
-    if (target.kind === "avatar" && target.id === prefs.customAvatarAssetId) {
+    if (target.kind === "avatar" && target.id === useAuthStore.getState().account?.avatarAssetId) {
       await useAssetStore.getState().clearAvatar();
       return;
     }
     if (target.id === prefs.defaultPlaymatAssetId) {
-      prefs.setDefaultPlaymat(undefined, undefined);
+      prefs.setDefaultPlaymatAssetId(undefined);
       prefs.setDefaultPlaymatSettings(undefined);
     }
     await useAssetStore.getState().remove(target.id);

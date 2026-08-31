@@ -46,14 +46,9 @@ interface PreferencesState {
   addSavedServer: (server: KnownRelay) => void;
   removeSavedServer: (name: string) => void;
 
-  customAvatarUrl?: string;
-  customAvatarAssetId?: string;
-  setCustomAvatar: (url: string | undefined, assetId: string | undefined) => void;
-
-  defaultPlaymatUrl?: string;
   defaultPlaymatAssetId?: string;
   defaultPlaymatSettings?: PlaymatSettings;
-  setDefaultPlaymat: (url: string | undefined, assetId: string | undefined) => void;
+  setDefaultPlaymatAssetId: (assetId: string | undefined) => void;
   setDefaultPlaymatSettings: (settings: PlaymatSettings | undefined) => void;
 
   zonePanelOrder: ZonePanelItem[];
@@ -146,9 +141,6 @@ const PERSISTED_PREFERENCE_KEYS = [
   "serverUsername",
   "serverPassword",
   "savedServers",
-  "customAvatarUrl",
-  "customAvatarAssetId",
-  "defaultPlaymatUrl",
   "defaultPlaymatAssetId",
   "defaultPlaymatSettings",
   "zonePanelOrder",
@@ -235,16 +227,9 @@ export const usePreferencesStore = create<PreferencesState>()(
               savedServers: state.savedServers.filter((s) => s.name !== name),
             })),
 
-          customAvatarUrl: undefined,
-          customAvatarAssetId: undefined,
-          setCustomAvatar: (customAvatarUrl, customAvatarAssetId) =>
-            set({ customAvatarUrl, customAvatarAssetId }),
-
-          defaultPlaymatUrl: undefined,
           defaultPlaymatAssetId: undefined,
           defaultPlaymatSettings: undefined,
-          setDefaultPlaymat: (defaultPlaymatUrl, defaultPlaymatAssetId) =>
-            set({ defaultPlaymatUrl, defaultPlaymatAssetId }),
+          setDefaultPlaymatAssetId: (defaultPlaymatAssetId) => set({ defaultPlaymatAssetId }),
           setDefaultPlaymatSettings: (defaultPlaymatSettings) => set({ defaultPlaymatSettings }),
 
           zonePanelOrder: ["library", "graveyard", "exile"],

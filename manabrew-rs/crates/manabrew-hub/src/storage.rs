@@ -3407,7 +3407,7 @@ fn map_account(row: &Row, asset_base_url: Option<&str>) -> SqlResult<AccountRow>
         handle_set: row.get::<_, i64>(2)? != 0,
         created_at: row.get(3)?,
         avatar_asset_id,
-        qualification: row.get(4)?,
+        qualification: row.get(5)?,
     })
 }
 

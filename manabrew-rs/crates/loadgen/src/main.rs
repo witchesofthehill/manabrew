@@ -390,7 +390,7 @@ async fn play(
                 deck: serde_json::from_value(deck.clone()).expect("deck dto"),
                 published_deck_id: None,
                 commander_name: None,
-                avatar: None,
+                avatar_url: None,
             },
         )
         .await;

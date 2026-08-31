@@ -28,7 +28,7 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
   const account = useAuthStore((s) => s.account);
   const status = useAuthStore((s) => s.status);
   const showSignIn = useSignInDialog((s) => s.show);
-  const customAvatar = usePreferencesStore((s) => s.customAvatarUrl);
+  const customAvatar = useAuthStore((s) => s.account?.avatarUrl);
   const serverUsername = usePreferencesStore((s) => s.serverUsername);
   const signedInAccount = status === "signedIn" ? account : null;
   const accountsEnabled = isFeatureEnabled("accounts");

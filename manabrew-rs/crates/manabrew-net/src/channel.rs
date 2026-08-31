@@ -5,6 +5,7 @@
 //! swap implementations, and it lets the existing relay WebSocket loop qualify
 //! as a transport without being rewritten as a `dyn` implementation.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::sync::{mpsc, watch};
@@ -105,7 +106,50 @@ pub struct GameChannel {
     outbound: mpsc::Sender<SessionFrame>,
     inbound: mpsc::Receiver<SessionFrame>,
     status: watch::Receiver<TransportStatus>,
-    guard: Option<ChannelGuard>,
+    guard: Option<Arc<ChannelGuard>>,
+}
+
+/// The send half of a [`GameChannel`]. Splitting is what lets one task write
+/// while another reads; both halves keep the transport's tasks alive.
+#[derive(Debug, Clone)]
+pub struct GameSender {
+    outbound: mpsc::Sender<SessionFrame>,
+    status: watch::Receiver<TransportStatus>,
+    _guard: Option<Arc<ChannelGuard>>,
+}
+
+#[derive(Debug)]
+pub struct GameReceiver {
+    inbound: mpsc::Receiver<SessionFrame>,
+    status: watch::Receiver<TransportStatus>,
+    _guard: Option<Arc<ChannelGuard>>,
+}
+
+impl GameSender {
+    pub async fn send(&self, frame: SessionFrame) -> Result<()> {
+        self.outbound
+            .send(frame)
+            .await
+            .map_err(|_| NetError::Closed)
+    }
+
+    pub fn try_send(&self, frame: SessionFrame) -> Result<()> {
+        self.outbound.try_send(frame).map_err(|_| NetError::Closed)
+    }
+
+    pub fn status(&self) -> TransportStatus {
+        self.status.borrow().clone()
+    }
+}
+
+impl GameReceiver {
+    pub async fn recv(&mut self) -> Option<SessionFrame> {
+        self.inbound.recv().await
+    }
+
+    pub fn status(&self) -> TransportStatus {
+        self.status.borrow().clone()
+    }
 }
 
 impl GameChannel {
@@ -123,8 +167,23 @@ impl GameChannel {
     }
 
     pub fn with_guard(mut self, guard: ChannelGuard) -> Self {
-        self.guard = Some(guard);
+        self.guard = Some(Arc::new(guard));
         self
+    }
+
+    pub fn split(self) -> (GameSender, GameReceiver) {
+        (
+            GameSender {
+                outbound: self.outbound,
+                status: self.status.clone(),
+                _guard: self.guard.clone(),
+            },
+            GameReceiver {
+                inbound: self.inbound,
+                status: self.status,
+                _guard: self.guard,
+            },
+        )
     }
 
     /// Wraps an already-running relay path as a transport. The relay loop keeps

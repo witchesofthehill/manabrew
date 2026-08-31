@@ -14,7 +14,7 @@ pub mod frames;
 pub mod gossip;
 pub mod roster;
 
-pub use channel::{GameChannel, TransportKind, TransportStatus};
+pub use channel::{GameChannel, GameReceiver, GameSender, TransportKind, TransportStatus};
 pub use endpoint::{NetConfig, NetEndpoint, SeatConnection, GAME_ALPN};
 pub use frames::SessionFrame;
 pub use gossip::{Presence, RoomGossip, RoomGossipEvent, PRESENCE_TTL};

@@ -1,4 +1,5 @@
 pub mod config;
+pub mod direct;
 pub mod engine_backend;
 pub mod host;
 pub mod logs;

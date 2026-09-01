@@ -297,6 +297,20 @@ is direct or nothing, and a peer further away simply stays on the relay.
 A room hosted by a webview has no native endpoint and stays on the relay entirely. That is the
 next phase, not a limitation of the model.
 
+**A browser seat gains nothing from being on the same network, and cannot.** Under `wasm_browser`
+iroh has no IP transports, so a browser has no socket with which to take the LAN path however
+close the host is. Its only route is an iroh relay, and reaching one on the local network is
+blocked for a different reason: a page served from `https://play.manabrew.app` may not open
+`ws://192.168.x.x`, and no header fixes mixed content. So a browser on the same switch as the
+host still plays through a relay over the WAN, and `directSeat.ts` does not even fetch the module
+for it when no relay url is configured, because a megabyte would buy nothing.
+
+The way out is not configuration. Either the player installs the desktop app, which binds
+natively and does take the LAN path, or a LAN relay is made reachable over `wss` — which needs a
+publicly trusted certificate for a private address, the trick Plex runs with `*.plex.direct`. That
+is DNS and certificate infrastructure we would have to operate, and it is worth doing only if
+browser players on a LAN ever become a case worth serving.
+
 ## A LAN with no internet
 
 One desktop hosts the whole session. `start_local_relay(shareOnLan)` binds the embedded relay to

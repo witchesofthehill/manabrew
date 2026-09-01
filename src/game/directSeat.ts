@@ -207,6 +207,11 @@ export class DirectSeat {
   async announce(): Promise<unknown | null> {
     if (this.announced) return null;
     this.announced = true;
+    // A browser endpoint has no IP transports at all, so without a relay it has
+    // no way to reach anything and the module is a megabyte fetched for
+    // nothing. A desktop binds natively and is fine direct-only, which is what
+    // a local network looks like.
+    if (getPlatform().type !== "tauri" && !this.relayUrl) return null;
     // Indistinguishable from the caller's side. The desktop reaches a host
     // directly; the browser reaches it through a relay; both end up carrying
     // the same envelopes.

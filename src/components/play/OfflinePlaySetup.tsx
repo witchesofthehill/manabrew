@@ -6,7 +6,7 @@ interface OfflinePlaySetupProps {
   preSelectedHubDeckId?: string;
   onStart: (
     playerDeck: Deck,
-    opponentDeck: Deck,
+    opponentDecks: Deck[],
     formatId?: string,
     commanderName?: string,
   ) => Promise<boolean>;

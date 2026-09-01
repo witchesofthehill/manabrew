@@ -37,6 +37,9 @@ rand = "0.8"
 mdns-sd = { version = "0.21", optional = true }
 manabrew-net = { path = "../manabrew-rs/crates/manabrew-net", version = "0.1.0", optional = true }
 tiny_http = "0.12"
+# Free space before a multi-gigabyte download. There is no std API for it and
+# the alternative is libc plus a Windows crate plus the code between them.
+fs4 = "0.13"
 tokio = { version = "1", features = ["rt", "sync", "macros", "time", "net"] }
 manabrew-agent-interface = { path = "../manabrew-rs/crates/manabrew-agent-interface" }
 manabrew-protocol = { path = "../manabrew-rs/crates/manabrew-protocol" }

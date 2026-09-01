@@ -198,6 +198,22 @@ impl ImageCache {
         result
     }
 
+    /// Refuses a download the disk cannot hold. The estimate comes from the
+    /// caller because the per-variant sizes are measured in the UI and nothing
+    /// is served by having a second copy of them here that can disagree.
+    pub fn check_room_for(&self, estimate_bytes: u64) -> Result<(), String> {
+        std::fs::create_dir_all(&self.root).map_err(|e| e.to_string())?;
+        let available = fs4::available_space(&self.root).map_err(|e| e.to_string())?;
+        if available >= estimate_bytes {
+            return Ok(());
+        }
+        Err(format!(
+            "not enough room: this needs about {} and the disk has {} free",
+            human_bytes(estimate_bytes),
+            human_bytes(available)
+        ))
+    }
+
     pub fn stats(&self) -> CacheStats {
         let mut stats = CacheStats {
             files: 0,
@@ -313,6 +329,21 @@ struct Entry {
     size: u64,
     modified: SystemTime,
     pinned: bool,
+}
+
+fn human_bytes(bytes: u64) -> String {
+    const UNITS: [&str; 6] = ["B", "KB", "MB", "GB", "TB", "PB"];
+    let mut value = bytes as f64;
+    let mut unit = 0;
+    while value >= 1024.0 && unit < UNITS.len() - 1 {
+        value /= 1024.0;
+        unit += 1;
+    }
+    if unit == 0 {
+        format!("{bytes} B")
+    } else {
+        format!("{value:.1} {}", UNITS[unit])
+    }
 }
 
 fn load_pinned(path: &Path) -> HashSet<String> {
@@ -458,9 +489,11 @@ pub async fn preseed_card_art(urls: Vec<String>) -> Result<PreseedResult, String
 pub async fn download_all_card_art(
     app: tauri::AppHandle,
     variants: Vec<String>,
+    estimate_bytes: u64,
 ) -> Result<PreseedResult, String> {
     use tauri::Emitter;
     let cache = cache().ok_or_else(|| "no cache directory".to_string())?;
+    cache.check_room_for(estimate_bytes)?;
     CANCEL_BULK.store(false, Ordering::Relaxed);
 
     let urls = cache.bulk_urls(&variants).await?;
@@ -582,6 +615,23 @@ mod tests {
         }
         let reopened = ImageCache::new(dir.path().to_path_buf());
         assert!(reopened.is_pinned("normal/keep.jpg"));
+    }
+
+    /// Nothing checked free space, so "download every card" would fill a disk
+    /// to zero and only stop when writes started failing one image at a time.
+    #[test]
+    fn a_download_bigger_than_the_disk_is_refused_before_it_starts() {
+        let (cache, _dir) = cache();
+        assert!(cache.check_room_for(1024).is_ok());
+
+        let error = cache.check_room_for(u64::MAX).expect_err("must refuse");
+        assert!(
+            error.contains("not enough room"),
+            "the message has to say it is a space problem: {error}"
+        );
+        // Both numbers, so the message says what to free up.
+        assert!(error.contains("PB"), "wants the estimate: {error}");
+        assert!(error.contains(" free"), "wants what the disk has: {error}");
     }
 
     #[test]

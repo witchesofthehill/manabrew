@@ -86,8 +86,13 @@ export function preseedCardArt(urls: string[]): Promise<PreseedResult> {
   return getPlatform().invoke<PreseedResult>("preseed_card_art", { urls });
 }
 
+/** The estimate travels with the request so the shell can refuse a download
+ *  the disk cannot hold, without a second copy of the per-variant sizes. */
 export function downloadAllCardArt(variants: ArtVariant[]): Promise<PreseedResult> {
-  return getPlatform().invoke<PreseedResult>("download_all_card_art", { variants });
+  return getPlatform().invoke<PreseedResult>("download_all_card_art", {
+    variants,
+    estimateBytes: estimateBytes(variants, ALL_CARDS_ESTIMATE),
+  });
 }
 
 export function cancelCardArtDownload(): Promise<void> {

@@ -302,8 +302,10 @@ iroh has no IP transports, so a browser has no socket with which to take the LAN
 close the host is. Its only route is an iroh relay, and reaching one on the local network is
 blocked for a different reason: a page served from `https://play.manabrew.app` may not open
 `ws://192.168.x.x`, and no header fixes mixed content. So a browser on the same switch as the
-host still plays through a relay over the WAN, and `directSeat.ts` does not even fetch the module
-for it when no relay url is configured, because a megabyte would buy nothing.
+host still plays through a relay over the WAN, and no seat binds an endpoint, or fetches a
+module, until the roster names a host offering a direct plane. The host announces before any seat
+does, so waiting for it costs nothing and saves a megabyte in every room that was always going to
+stay on the relay.
 
 The way out is not configuration. Either the player installs the desktop app, which binds
 natively and does take the LAN path, or a LAN relay is made reachable over `wss` — which needs a
@@ -371,7 +373,11 @@ itself:
   that dials, which is what puts real games on the direct plane on the preview.
   See `docs/agents/SELF_HOSTED_NODE.md`.
 - **Phase 3 (done).** The deployment's own iroh relay, hosted by `manabrew-server`, and
-  replay-cache re-priming on fallback. What is left here is live migration at a resync boundary,
+  replay-cache re-priming on fallback. Production runs the relay from the next deploy
+  (`MANABREW_IROH_RELAY_PORT`, `handle /relay*` on `relay.manabrew.app`, which the deploy's own
+  ingress reload applies). **Running it is not the same as moving traffic onto it:** the fleet
+  keeps `SELF_HOSTED_NODE_IROH` off, so what it serves is the fallback for hosts that do offer a
+  direct plane, which today means a room hosted from somebody's desktop. What is left here is live migration at a resync boundary,
   which is optional: transport is chosen before `GameStarted` and never changes mid-game.
 - **Phase 4 (partly done).** The browser seat: `manabrew-net-wasm`, the lazily-imported module,
   and the client wiring. What is **not** verified is a real browser game over it, because that

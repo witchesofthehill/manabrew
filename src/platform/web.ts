@@ -1284,6 +1284,11 @@ class WebServerApi implements IServerApi {
     // plane at all; an older relay sends neither and nothing happens.
     const relayUrl = typeof msg.iroh_relay_url === "string" ? msg.iroh_relay_url : null;
     if (typeof msg.topic_secret !== "string" || !this.authedUsername) return;
+    // Nothing to dial until the room has an engine host offering one, and the
+    // host announces before any seat does. Waiting for it means a seat never
+    // binds an endpoint, or fetches a module, for a room that was always going
+    // to stay on the relay.
+    if (!msg.host) return;
     if (!this.directSeat) {
       this.directSeat = new DirectSeat(
         this.authedUsername,

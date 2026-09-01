@@ -5,7 +5,10 @@ edition = "2021"
 publish = false
 
 [features]
-forge-room = ["dep:self-hosted-node", "dep:manabrew-server"]
+forge-room = ["dep:self-hosted-node", "dep:manabrew-server", "direct-seat"]
+# A native iroh endpoint for this machine's seat. Desktop only: mobile builds
+# take the default features and have no reason to compile it.
+direct-seat = ["dep:manabrew-net"]
 
 [lib]
 name = "manabrew_lib"
@@ -27,6 +30,7 @@ manabrew-engine = { path = "../manabrew-rs/crates/manabrew-engine" }
 forge-foundation = { path = "../manabrew-rs/crates/forge-foundation" }
 forge-carddb = { path = "../manabrew-rs/crates/forge-carddb" }
 forge-cardset-archive = { path = "../manabrew-rs/crates/forge-cardset-archive" }
+manabrew-net = { path = "../manabrew-rs/crates/manabrew-net", version = "0.1.0", optional = true }
 memmap2 = "0.9"
 rand = "0.8"
 tiny_http = "0.12"
@@ -37,7 +41,11 @@ forge-limited = { path = "../manabrew-rs/crates/forge-limited" }
 tauri-plugin-http = "2.5.9"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+# `iroh` is not optional here: a desktop-hosted room turns the direct plane on,
+# and without the feature it gets the stub, never announces an endpoint, and
+# every seat on the network falls back to the relay.
 self-hosted-node = { path = "../manabrew-rs/crates/self-hosted-node", default-features = false, features = [
     "graal-forge",
+    "iroh",
 ], optional = true }
 manabrew-server = { path = "../manabrew-rs/crates/manabrew-server", optional = true }

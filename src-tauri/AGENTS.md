@@ -29,3 +29,11 @@ Read first: `/AGENTS.md`.
 - **Tauri command surface.** Every UI-facing command is registered in `lib.rs::run()` via `tauri::generate_handler![…]`. Adding a command means: implement, add to the handler list, expose from the appropriate module.
 - **Long-running work runs off the command thread.** Tauri commands are async; spawn into the runtime, don't block.
 - **Mobile safe-area insets are injected natively.** Android's WebView doesn't surface window insets to CSS `env(safe-area-inset-*)`, so `gen/android/app/src/main/java/com/manabrew/app/MainActivity.kt` is a hand-edited override (not the auto-generated `TauriActivity.kt`): it runs `enableEdgeToEdge()`, reads `WindowInsets` in `onWebViewCreate`, and exposes them through the `__ANDROID_SAFE_AREA__` JS bridge that `src/platform/androidSafeArea.ts` mirrors onto the `--safe-area-inset-*` CSS vars. If `tauri android init` ever regenerates `MainActivity.kt`, re-apply this. iOS/iPad get insets from `env()` directly (`viewport-fit=cover` + `black-translucent` status bar in `index.html`).
+
+## The direct seat
+
+`direct_seat.rs` binds this machine's iroh endpoint and exposes it to the webview as
+`direct_seat_*` commands plus a `direct-seat:envelope` event. Behind the `direct-seat` feature,
+which `forge-room` turns on. `DesktopSeat` holds the logic and takes no Tauri types, because
+WKWebView cannot be driven headlessly and the tests have to reach it some other way. See
+`docs/TRANSPORT.md`.

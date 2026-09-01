@@ -75,6 +75,20 @@ The relay cannot observe traffic it does not carry, so the host tells it: `Repor
 the seats that left, and the relay writes that into the game's capture. Without it a capture file
 is silently incomplete and whoever reads it later measures a game they cannot see all of.
 
+## The desktop seat
+
+A desktop binds its own endpoint natively, in the Tauri shell, and the webview drives it through
+commands and receives the host's envelopes as events. That is the whole reason it can be direct:
+the same seat compiled into the webview would have no IP transports. It is for the seat that is
+not on the host's network; one that is already has a single local hop through the LAN relay.
+
+Only the seat's own `Response` and `Directive` envelopes move. Everything else, the entire control
+plane included, stays on the relay socket the client already has.
+
+macOS has no WebDriver for WKWebView, so no window can be driven to exercise this. The logic
+therefore lives in `DesktopSeat`, with no Tauri in it, and is tested against a real host over a
+real connection.
+
 ## Opting in
 
 `MANABREW_DIRECT_TRANSPORT` is off by default. Off, the relay does not advertise the

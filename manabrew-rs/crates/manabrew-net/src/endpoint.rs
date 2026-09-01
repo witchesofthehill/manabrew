@@ -46,6 +46,14 @@ impl NetConfig {
     }
 }
 
+/// The host may not have applied the same roster yet, so one retry covers that
+/// ordering; a later roster retries anyway.
+pub const DIAL_ATTEMPTS: usize = 2;
+pub const DIAL_RETRY_DELAY: Duration = Duration::from_millis(300);
+/// Dialling happens inline in a message loop or a command the UI awaits, so it
+/// must not hold either for long.
+pub const DIAL_TIMEOUT: Duration = Duration::from_secs(2);
+
 /// A seat that dialled us and passed the roster check.
 #[derive(Debug)]
 pub struct SeatConnection {

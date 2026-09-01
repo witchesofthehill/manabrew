@@ -52,6 +52,7 @@ import { getClientPlatform } from "./clientPlatform";
 import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 import { applyStateDelta, diffStateDelta } from "@/lib/stateDelta";
+import { DirectSeat } from "@/game/directSeat";
 import { isForgeWasmHostingEnabled, setForgeWasmActive } from "@/lib/forgeWasm";
 import { buildForgeAssetBundle } from "@/lib/forgeAssets";
 import type { Deck } from "@/protocol/deck";
@@ -752,6 +753,7 @@ class WebServerApi implements IServerApi {
   private resumeToken: string | null = null;
   private pendingRelayPrompts = new Map<string, Record<string, unknown>>();
   private enginePlayerNames: string[] = [];
+  private directSeat: DirectSeat | null = null;
 
   constructor(eventBus: WebEventBus) {
     this.eventBus = eventBus;
@@ -1139,6 +1141,9 @@ class WebServerApi implements IServerApi {
   }
 
   async broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void> {
+    // Awaited, not raced: the send crosses into the desktop shell, and an
+    // envelope it failed to send has to come back here rather than vanish.
+    if (this.directSeat && (await this.directSeat.trySend(state))) return;
     this.send({ type: "BroadcastState", state, target_player: targetPlayer });
   }
 
@@ -1272,6 +1277,27 @@ class WebServerApi implements IServerApi {
     return this.wasmReady;
   }
 
+  /// The relay names the room's data plane. Nothing here invents an address,
+  /// and an older relay sends no roster at all, in which case nothing happens.
+  private async onRoomTransport(msg: Record<string, unknown>): Promise<void> {
+    if (!this.authedUsername) return;
+    // Nothing to dial until the room has an engine host offering one, and the
+    // host announces before any seat does. Waiting for it means a seat never
+    // binds an endpoint for a room that was always going to stay on the relay.
+    if (!msg.host) return;
+    const relayUrl = typeof msg.iroh_relay_url === "string" ? msg.iroh_relay_url : null;
+    if (!this.directSeat) {
+      this.directSeat = new DirectSeat(this.authedUsername, relayUrl, (envelope, fromPlayer) =>
+        this.handleServerMessage({ type: "StateUpdate", from_player: fromPlayer, state: envelope }),
+      );
+      const endpoint = await this.directSeat.announce();
+      if (endpoint) this.send({ type: "AnnounceTransport", endpoint });
+    } else if (relayUrl) {
+      await this.directSeat.adoptRelay(relayUrl);
+    }
+    await this.directSeat.onRoster(String(msg.room_id ?? ""), msg.members);
+  }
+
   private send(msg: Record<string, unknown>): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       console.error("[WebServerApi] Not connected");
@@ -1326,6 +1352,15 @@ class WebServerApi implements IServerApi {
       });
       return;
     }
+
+    if (type === "RoomTransport") {
+      void this.onRoomTransport(msg);
+      return;
+    }
+    // Both ends freeze on the same relay message, so a stream never changes
+    // transport once a game is running.
+    if (type === "GameStarted") this.directSeat?.freeze();
+    if (type === "GameAborted") this.directSeat?.clear();
 
     if (type === "StateUpdate" && msg.state) {
       const envelope = msg.state as StateEnvelope;

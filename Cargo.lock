@@ -5028,6 +5028,7 @@ dependencies = [
  "forge-limited",
  "manabrew-agent-interface",
  "manabrew-engine",
+ "manabrew-net",
  "manabrew-protocol",
  "manabrew-server",
  "memmap2",

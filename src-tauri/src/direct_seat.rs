@@ -74,6 +74,20 @@ impl DesktopSeat {
         self.endpoint.local()
     }
 
+    /// Replaces the relay config, which is how the room token is renewed. This
+    /// seat outlives the token it bound with, and a relay reconnect past the
+    /// TTL is refused.
+    pub async fn adopt_relay(
+        &self,
+        relay_url: &str,
+        relay_token: Option<&str>,
+    ) -> Result<(), String> {
+        self.endpoint
+            .adopt_relay(relay_url, relay_token)
+            .await
+            .map_err(|e| e.to_string())
+    }
+
     /// Installs the roster and dials the host it names, handing every envelope
     /// the host sends to `on_envelope`.
     pub async fn connect(
@@ -226,6 +240,27 @@ pub async fn direct_seat_roster(
 }
 
 /// Sends one engine envelope. False means the caller must use the relay.
+#[tauri::command]
+pub async fn direct_seat_adopt_relay(
+    host: State<'_, DirectSeatHost>,
+    relay_url: String,
+    relay_token: Option<String>,
+) -> Result<(), String> {
+    #[cfg(not(feature = "direct-seat"))]
+    {
+        let _ = (host, relay_url, relay_token);
+        Ok(())
+    }
+    #[cfg(feature = "direct-seat")]
+    {
+        let guard = host.seat.lock().await;
+        match guard.as_ref() {
+            Some(seat) => seat.adopt_relay(&relay_url, relay_token.as_deref()).await,
+            None => Ok(()),
+        }
+    }
+}
+
 #[tauri::command]
 pub async fn direct_seat_send(
     host: State<'_, DirectSeatHost>,

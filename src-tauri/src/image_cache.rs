@@ -71,7 +71,7 @@ impl ImageCache {
                 pinned_bytes: 0,
             }),
             client: reqwest::Client::builder()
-                .user_agent("manabrew-desktop")
+                .user_agent(concat!("manabrew-desktop/", env!("CARGO_PKG_VERSION")))
                 .build()
                 .unwrap_or_default(),
         }
@@ -475,6 +475,16 @@ pub struct BulkProgress {
 }
 
 impl ImageCache {
+    /// `api.scryfall.com` requires a `User-Agent` and an `Accept` on every
+    /// request and asks that the agent name a version. The image CDN is neither
+    /// rate limited nor covered by that, so only the two calls to the API go
+    /// through here.
+    fn api_request(&self, url: &str) -> reqwest::RequestBuilder {
+        self.client
+            .get(url)
+            .header(reqwest::header::ACCEPT, "application/json;q=0.9,*/*;q=0.8")
+    }
+
     /// Every distinct card Scryfall knows, at the variants asked for. One
     /// printing each (`oracle_cards`), which is the set a name-keyed engine
     /// draws from.
@@ -484,8 +494,7 @@ impl ImageCache {
             jsonl_download_uri: String,
         }
         let index: Index = self
-            .client
-            .get(BULK_INDEX_URL)
+            .api_request(BULK_INDEX_URL)
             .send()
             .await
             .map_err(|e| e.to_string())?
@@ -494,8 +503,7 @@ impl ImageCache {
             .map_err(|e| e.to_string())?;
 
         let body = self
-            .client
-            .get(&index.jsonl_download_uri)
+            .api_request(&index.jsonl_download_uri)
             .send()
             .await
             .map_err(|e| e.to_string())?
@@ -753,6 +761,49 @@ mod tests {
             (walked.files, walked.bytes, walked.pinned_bytes),
             (stats.files, stats.bytes, stats.pinned_bytes),
             "the running totals must agree with a fresh walk of the same tree"
+        );
+    }
+
+    /// Scryfall requires both headers on every `api.scryfall.com` request and
+    /// asks that the agent carry a version. The client sent `manabrew-desktop`
+    /// with neither a version nor an `Accept`.
+    #[tokio::test]
+    async fn api_requests_identify_this_build_and_say_what_they_accept() {
+        let server = tiny_http::Server::http("127.0.0.1:0").expect("bind");
+        let port = server.server_addr().to_ip().unwrap().port();
+        let seen = Arc::new(Mutex::new(Vec::<(String, String)>::new()));
+        let record = seen.clone();
+        std::thread::spawn(move || {
+            if let Ok(request) = server.recv() {
+                let headers = request
+                    .headers()
+                    .iter()
+                    .map(|h| (h.field.as_str().as_str().to_string(), h.value.to_string()))
+                    .collect::<Vec<_>>();
+                record.lock().unwrap().extend(headers);
+                let _ = request.respond(tiny_http::Response::empty(204));
+            }
+        });
+
+        let (cache, _dir) = cache();
+        let _ = cache
+            .api_request(&format!("http://127.0.0.1:{port}/bulk"))
+            .send()
+            .await;
+
+        let headers = seen.lock().unwrap().clone();
+        let value = |name: &str| {
+            headers
+                .iter()
+                .find(|(field, _)| field.eq_ignore_ascii_case(name))
+                .map(|(_, v)| v.clone())
+                .unwrap_or_default()
+        };
+        assert_eq!(value("Accept"), "application/json;q=0.9,*/*;q=0.8");
+        assert_eq!(
+            value("User-Agent"),
+            concat!("manabrew-desktop/", env!("CARGO_PKG_VERSION")),
+            "Scryfall asks the agent to name the application and its version"
         );
     }
 

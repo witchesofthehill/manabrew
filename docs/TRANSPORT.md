@@ -196,7 +196,7 @@ Two build constraints found while checking this, both real:
 wasm bundle: iroh costs 3.0MB raw and 1.19MB gzipped, and a player who never joins a room that
 offers a direct transport should not download it, so `src/game/directSeat.ts` imports it only
 when `RoomTransport` arrives carrying a relay url. The module is genuinely optional, in both directions. `ring` compiles C for wasm32, so building
-it needs a clang that can *target* wasm32 — and Apple's clang, which is on every mac, cannot, so
+it needs a clang that can _target_ wasm32 — and Apple's clang, which is on every mac, cannot, so
 `scripts/build-wasm.mjs` asks a candidate clang to compile for the target rather than trusting
 that one exists. When none does it skips the module, and `vite.config.ts` then resolves
 `@/wasm-net/net` to a stub that reports itself; `DirectSeat` catches the throw and the seat stays
@@ -204,7 +204,7 @@ on the relay. `src/types/wasmNet.d.ts` declares the module so `tsc` never needs 
 files. That alias must sit **before** the `@` alias or the broader one claims the specifier.
 
 A browser seat sends only its own answers over the channel (`response` and `directive`); a
-browser *hosting* a room still serves its seats over the relay. Hosting from the browser is the
+browser _hosting_ a room still serves its seats over the relay. Hosting from the browser is the
 next phase, and nothing in the design prevents it: the host role is the same `SeatTable` the node
 runs.
 
@@ -238,13 +238,13 @@ is the other, and it needs no rewrite to qualify.
 **The relay only records what it carries, so the host says what it took away.** Most telemetry
 is unaffected, and it is worth being precise about which:
 
-| Signal | Source | Affected |
-| --- | --- | --- |
-| `games`, `game_players`, `GameStarted`/`GameEnded`, deck play reports | control-plane messages | no |
-| `manabrew_node_forge_decision_seconds`, engine GC/heap/stall | the node, per decision | no |
-| `AnalyticsEvent::EngineStats` | the seat, over `ReportEngineStats` on the control socket | no |
-| relay game capture (`MANABREW_GAME_CAPTURE_DIR`) | the envelope stream | **yes** |
-| relay replay cache | the envelope stream | **yes** |
+| Signal                                                                | Source                                                   | Affected |
+| --------------------------------------------------------------------- | -------------------------------------------------------- | -------- |
+| `games`, `game_players`, `GameStarted`/`GameEnded`, deck play reports | control-plane messages                                   | no       |
+| `manabrew_node_forge_decision_seconds`, engine GC/heap/stall          | the node, per decision                                   | no       |
+| `AnalyticsEvent::EngineStats`                                         | the seat, over `ReportEngineStats` on the control socket | no       |
+| relay game capture (`MANABREW_GAME_CAPTURE_DIR`)                      | the envelope stream                                      | **yes**  |
+| relay replay cache                                                    | the envelope stream                                      | **yes**  |
 
 Only the two that read the stream lose anything, and the danger there is not the missing bytes
 but the silence: a capture file that quietly omits a seat produces wrong latency conclusions,
@@ -306,11 +306,15 @@ itself:
   that dials, which is what puts real games on the direct plane on the preview.
   See `docs/agents/SELF_HOSTED_NODE.md`.
 - **Phase 3 (done).** The deployment's own iroh relay, hosted by `manabrew-server`, and
-  replay-cache re-priming on fallback. What is left here is live migration at a resync boundary,
+  replay-cache re-priming on fallback. Production runs the relay from the next deploy
+  (`MANABREW_IROH_RELAY_PORT`, `handle /relay*` on `relay.manabrew.app`, which the deploy's own
+  ingress reload applies). **Running it is not the same as moving traffic onto it:** the fleet
+  keeps `SELF_HOSTED_NODE_IROH` off, so what it serves is the fallback for hosts that do offer a
+  direct plane. What is left here is live migration at a resync boundary,
   which is optional: transport is chosen before `GameStarted` and never changes mid-game.
 - **Phase 4 (partly done).** The browser seat: `manabrew-net-wasm`, the lazily-imported module,
   and the client wiring. What is **not** verified is a real browser game over it, because that
   needs a browser; the Rust and TypeScript both build and lint, and the relay-only path is
   covered natively by `manabrew-net/tests/relayed.rs`, which uses an endpoint with its IP
-  transports cleared. Still open: browser-*hosted* rooms, and a desktop-embedded relay, which is
+  transports cleared. Still open: browser-_hosted_ rooms, and a desktop-embedded relay, which is
   still not worth it.

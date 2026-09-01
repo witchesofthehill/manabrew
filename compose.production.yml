@@ -82,12 +82,20 @@ services:
       MANABREW_EVENTS_DIR: "/var/manabrew/events"
       MANABREW_GAME_CAPTURE_DIR: "/var/manabrew/captures"
       MANABREW_GAME_CAPTURE_MAX_GB: "${MANABREW_GAME_CAPTURE_MAX_GB:-20}"
+      # This process also hosts the iroh relay, under /relay on the same
+      # hostname. Running it is not the same as moving traffic onto it: the node
+      # fleet keeps SELF_HOSTED_NODE_IROH off, so what this serves is the
+      # fallback for hosts that do offer a direct plane, which today means a
+      # room hosted from somebody's desktop.
+      MANABREW_IROH_RELAY_PORT: "${MANABREW_IROH_RELAY_PORT:-9445}"
+      MANABREW_IROH_RELAY_URL: "${MANABREW_IROH_RELAY_URL:-https://relay.manabrew.app}"
     volumes:
       - ./ops/observability/data/events:/var/manabrew/events
       - ./ops/observability/data/captures:/var/manabrew/captures
     expose:
       - "9443"
       - "9444"
+      - "9445"
     restart: unless-stopped
     mem_limit: 1g
     cpus: 1.5

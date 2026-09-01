@@ -123,12 +123,16 @@ impl ImageCache {
         // never served: the LAN listener has no way to tell one from a whole.
         let temp = path.with_extension("part");
         let replaced = std::fs::metadata(&path).ok().map(|m| m.len());
+        let was_pinned = self.is_pinned(key);
         std::fs::write(&temp, bytes).map_err(|e| e.to_string())?;
         std::fs::rename(&temp, &path).map_err(|e| e.to_string())?;
+        // Content first, then the pin: `note_stored` only touches the pinned
+        // half for a key that was already in it, so `pin` is free to claim a
+        // new one without either of them counting it twice.
+        self.note_stored(bytes.len() as u64, replaced, was_pinned);
         if pin {
             self.pin(key);
         }
-        self.note_stored(bytes.len() as u64, pin || self.is_pinned(key), replaced);
         let written = self
             .written_since_sweep
             .fetch_add(bytes.len() as u64, Ordering::Relaxed)
@@ -141,12 +145,32 @@ impl ImageCache {
     }
 
     fn pin(&self, key: &str) {
-        let mut pinned = match self.pinned.lock() {
-            Ok(pinned) => pinned,
+        let newly = match self.pinned.lock() {
+            Ok(mut pinned) => {
+                let newly = pinned.insert(key.to_string());
+                if newly {
+                    save_pinned(&self.root.join(PINNED_FILE), &pinned);
+                }
+                newly
+            }
             Err(_) => return,
         };
-        if pinned.insert(key.to_string()) {
-            save_pinned(&self.root.join(PINNED_FILE), &pinned);
+        if !newly {
+            return;
+        }
+        // The totals count files, not keys, so a pin only moves them when there
+        // is something on disk. `preseed`'s common path is this call on its own:
+        // art already picked up by browsing, pinned by a deliberate download.
+        let Some(size) = self
+            .path_for(key)
+            .and_then(|path| std::fs::metadata(path).ok())
+            .map(|meta| meta.len())
+        else {
+            return;
+        };
+        if let Ok(mut totals) = self.totals.lock() {
+            totals.pinned_files += 1;
+            totals.pinned_bytes += size;
         }
     }
 
@@ -268,7 +292,10 @@ impl ImageCache {
         }
     }
 
-    fn note_stored(&self, size: u64, pinned: bool, replaced: Option<u64>) {
+    /// Content only. `was_pinned` is the state *before* the write, so this never
+    /// double-counts a key `pin` is about to claim, and never subtracts bytes
+    /// from the pinned half that were never in it.
+    fn note_stored(&self, size: u64, replaced: Option<u64>, was_pinned: bool) {
         let Ok(mut totals) = self.totals.lock() else {
             return;
         };
@@ -279,11 +306,15 @@ impl ImageCache {
                 totals.bytes += size;
             }
         }
-        if pinned {
-            if replaced.is_none() {
+        if !was_pinned {
+            return;
+        }
+        match replaced {
+            Some(old) => totals.pinned_bytes = totals.pinned_bytes.saturating_sub(old) + size,
+            None => {
                 totals.pinned_files += 1;
+                totals.pinned_bytes += size;
             }
-            totals.pinned_bytes = totals.pinned_bytes.saturating_sub(replaced.unwrap_or(0)) + size;
         }
     }
 
@@ -839,6 +870,65 @@ mod tests {
             Some("front/a.jpg")
         );
         assert_eq!(key_from_request_path("/scryfall-img/?v=2"), None);
+    }
+
+    /// `preseed`'s common path for anyone who has looked at a deck before
+    /// downloading it: the art is already there from browsing, so the branch is
+    /// `contains` then `pin` and no store at all. `pin` touched only the
+    /// HashSet, so that art was exempt from eviction while still reported as
+    /// unpinned, and the pinned figure is what the clear dialog's "keep
+    /// downloaded art" is deciding about.
+    #[tokio::test]
+    async fn pinning_art_that_was_already_cached_moves_it_into_the_pinned_half() {
+        let (cache, _dir) = cache();
+        cache.store("browsed.jpg", b"12345678", false).unwrap();
+        assert_eq!(cache.stats().pinned_files, 0);
+
+        cache.preseed(&["browsed.jpg".to_string()]).await;
+
+        let stats = cache.stats();
+        assert_eq!(stats.files, 1, "nothing was fetched, so nothing was added");
+        assert_eq!(stats.pinned_files, 1, "but it is a deliberate keep now");
+        assert_eq!(stats.pinned_bytes, 8);
+    }
+
+    /// Re-storing a key that is already pinned changes its size, not its class.
+    /// The old accounting skipped the file count on any replace and subtracted
+    /// the old bytes from the pinned half whether or not they were ever in it.
+    #[test]
+    fn re_storing_a_pinned_key_adjusts_its_bytes_and_nothing_else() {
+        let (cache, _dir) = cache();
+        cache.store("a.jpg", b"1234", true).unwrap();
+        cache.store("a.jpg", b"123456", true).unwrap();
+
+        let stats = cache.stats();
+        assert_eq!((stats.files, stats.bytes), (1, 6));
+        assert_eq!((stats.pinned_files, stats.pinned_bytes), (1, 6));
+    }
+
+    /// Pinning a key whose file was already there under a different class used
+    /// to lose the file from `pinned_files` and over-subtract its bytes.
+    #[test]
+    fn storing_over_an_unpinned_file_and_pinning_it_counts_once() {
+        let (cache, _dir) = cache();
+        cache.store("a.jpg", b"1234", false).unwrap();
+        cache.store("a.jpg", b"123456", true).unwrap();
+
+        let stats = cache.stats();
+        assert_eq!((stats.files, stats.bytes), (1, 6));
+        assert_eq!(
+            (stats.pinned_files, stats.pinned_bytes),
+            (1, 6),
+            "one file, its current size, counted once"
+        );
+
+        cache.reconcile();
+        let walked = cache.stats();
+        assert_eq!(
+            (walked.pinned_files, walked.pinned_bytes),
+            (stats.pinned_files, stats.pinned_bytes),
+            "the running totals must agree with a walk of the same tree"
+        );
     }
 
     #[test]

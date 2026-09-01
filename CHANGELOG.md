@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.33.3](https://github.com/witchesofthehill/manabrew/compare/v3.33.2...v3.33.3) (2026-09-01)
+
+### Fixes
+
+* bump forge to new lazy fix ([#833](https://github.com/witchesofthehill/manabrew/issues/833)) ([a876ce1](https://github.com/witchesofthehill/manabrew/commit/a876ce162e897046978a34895ba8480716308cff))
+
 ## [3.33.2](https://github.com/witchesofthehill/manabrew/compare/v3.33.1...v3.33.2) (2026-09-01)
 
 ### Performance

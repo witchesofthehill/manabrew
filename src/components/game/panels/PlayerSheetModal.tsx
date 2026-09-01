@@ -23,10 +23,19 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
       <Modal.Header onClose={onClose}>
         <div className="flex items-center gap-3">
           <span
-            className="flex h-10 w-10 items-center justify-center rounded-full font-bold text-white"
+            className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full font-bold text-white"
             style={{ backgroundColor: spec.color }}
           >
-            {spec.name.slice(0, 1).toUpperCase()}
+            {spec.avatarUrl ? (
+              <img
+                src={spec.avatarUrl}
+                crossOrigin="anonymous"
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : (
+              spec.name.slice(0, 1).toUpperCase()
+            )}
           </span>
           <div className="min-w-0">
             <div className="truncate text-lg font-semibold">{spec.isSelf ? "You" : spec.name}</div>

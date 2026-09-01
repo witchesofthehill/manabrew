@@ -1,6 +1,6 @@
 [package]
 name = "manabrew-hub"
-version = "0.10.1"
+version = "0.15.1"
 edition = "2021"
 license.workspace = true
 description = "Accounts, decks, and Community API for manabrew"
@@ -24,6 +24,7 @@ server = [
     "dep:aws-lc-rs",
     "dep:base64",
     "dep:flate2",
+    "dep:aws-sdk-s3",
 ]
 
 [[bin]]
@@ -32,7 +33,7 @@ path = "src/main.rs"
 required-features = ["server"]
 
 [dependencies]
-manabrew-protocol = { path = "../manabrew-protocol", version = "5.2.0" }
+manabrew-protocol = { path = "../manabrew-protocol", version = "5.6.1" }
 serde = { workspace = true }
 ts-rs = { workspace = true }
 axum = { version = "0.7", optional = true }
@@ -51,6 +52,7 @@ maud = { version = "0.26", features = ["axum"], optional = true }
 aws-lc-rs = { version = "1", optional = true }
 base64 = { version = "0.22", optional = true }
 flate2 = { version = "1", optional = true }
+aws-sdk-s3 = { version = "1", default-features = false, features = ["default-https-client", "rt-tokio", "rustls", "behavior-version-latest"], optional = true }
 
 [dev-dependencies]
 tower = { version = "0.4", features = ["util"] }

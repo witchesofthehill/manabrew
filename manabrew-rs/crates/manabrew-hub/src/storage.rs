@@ -4,9 +4,10 @@ use std::time::Duration;
 use manabrew_hub::dto::{
     AccountDeckDetail, AccountDeckSummary, AccountExport, AccountExportDeck, AccountExportFavorite,
     AccountExportIdentity, AccountExportProfile, AccountExportPublication, AccountExportSession,
-    AdminTopDeckSnapshotEntry, AuthAccount, AuthIdentity, DeckHubEntryDetail, DeckHubEntrySummary,
-    DeckHubFacet, DeckHubFacets, DeckHubTag, DeckVersionDetail, DeckVersionSummary,
-    FavoriteResponse, TopDeckBucket, TopDeckSnapshot, TopDeckSnapshotEntry,
+    AdminTopDeckSnapshotEntry, AssetKind, AssetQuota, AssetState, AuthAccount, AuthIdentity,
+    DeckHubEntryDetail, DeckHubEntrySummary, DeckHubFacet, DeckHubFacets, DeckHubTag,
+    DeckVersionDetail, DeckVersionSummary, FavoriteResponse, TopDeckBucket, TopDeckSnapshot,
+    TopDeckSnapshotEntry,
 };
 
 use manabrew_protocol::deck_dto::{deck_fingerprint, Deck, DeckCard, DeckFormat};
@@ -52,6 +53,41 @@ pub enum DeckHubColorMatch {
 pub enum DeckHubTagMatch {
     Any,
     All,
+}
+
+pub struct AssetRow {
+    pub id: String,
+    pub kind: AssetKind,
+    pub byte_size: u64,
+    pub state: AssetState,
+    pub created_at: String,
+}
+
+pub enum CreateDeckOutcome {
+    Created(Box<AccountDeckDetail>),
+    UnknownPlaymatAsset,
+}
+
+pub struct AssetReservation<'a> {
+    pub account_id: &'a str,
+    pub asset_id: &'a str,
+    pub kind: AssetKind,
+    pub byte_size: u64,
+    pub default_quota_bytes: u64,
+    pub expires_at: &'a str,
+    pub now: &'a str,
+}
+
+pub struct PendingAsset {
+    pub id: String,
+    pub account_id: String,
+    pub kind: AssetKind,
+    pub expires_at: String,
+}
+
+pub enum ReserveAssetOutcome {
+    Reserved,
+    QuotaExceeded { used_bytes: u64, quota_bytes: u64 },
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -113,6 +149,7 @@ pub enum AnalyticsImportOutcome {
 
 #[derive(Debug)]
 pub enum SaveVersionOutcome {
+    UnknownPlaymatAsset,
     Saved(AccountDeckDetail),
     Unchanged(AccountDeckDetail),
     Conflict,
@@ -154,6 +191,8 @@ pub struct AccountRow {
     pub handle: String,
     pub handle_set: bool,
     pub created_at: String,
+    pub avatar_asset_id: Option<String>,
+    pub avatar_url: Option<String>,
     pub qualification: Option<String>,
 }
 
@@ -198,8 +237,11 @@ pub enum LoginCodeOutcome {
 
 include!(concat!(env!("OUT_DIR"), "/migrations.rs"));
 
+const ERASED_USERNAME: &str = "(erased)";
+
 pub struct Storage {
     conn: Connection,
+    asset_base_url: Option<String>,
 }
 
 impl Storage {
@@ -275,11 +317,14 @@ impl Storage {
         Ok(Some(version))
     }
 
-    pub fn open(path: &str) -> SqlResult<Self> {
+    pub fn open(path: &str, asset_base_url: Option<String>) -> SqlResult<Self> {
         let conn = Connection::open(path)?;
         conn.query_row("PRAGMA journal_mode=WAL", [], |_| Ok(()))?;
         conn.execute_batch("PRAGMA foreign_keys=ON")?;
-        let storage = Self { conn };
+        let storage = Self {
+            conn,
+            asset_base_url,
+        };
         storage.migrate()?;
         Ok(storage)
     }
@@ -288,7 +333,10 @@ impl Storage {
     pub fn open_memory() -> SqlResult<Self> {
         let conn = Connection::open_in_memory()?;
         conn.execute_batch("PRAGMA foreign_keys=ON")?;
-        let storage = Self { conn };
+        let storage = Self {
+            conn,
+            asset_base_url: Some("https://assets.example".into()),
+        };
         storage.migrate()?;
         Ok(storage)
     }
@@ -402,6 +450,118 @@ impl Storage {
         } else {
             RecordDeckPlayOutcome::Recorded
         })
+    }
+
+    /// One game's engine timings. Returns false when the report id is already
+    /// on file, which is a retry rather than a second game.
+    #[allow(clippy::too_many_arguments)]
+    pub fn record_engine_play_stats(
+        &self,
+        report: &manabrew_protocol::telemetry::EnginePlayStats,
+        reported_at: &str,
+    ) -> SqlResult<bool> {
+        let by_type = serde_json::to_string(&report.by_type).unwrap_or_else(|_| "[]".to_string());
+        let inserted = self.conn.execute(
+            "INSERT OR IGNORE INTO engine_play_stats
+                (id, reported_at, engine, client_version, platform, format, seats,
+                 multiplayer, duration_s, end_reason, decisions, turnaround_p50,
+                 turnaround_p90, turnaround_max, engine_p50, engine_p90, engine_max, by_type,
+                 engine_same_p50, engine_same_p90, engine_same_max,
+                 engine_cross_p50, engine_cross_p90, engine_cross_max, think_hidden,
+                 game_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
+                     ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)",
+            params![
+                report.report_id,
+                reported_at,
+                report.engine,
+                report.client_version,
+                report.platform,
+                report.format,
+                report.seats,
+                report.multiplayer,
+                report.duration_s,
+                report.end_reason,
+                report.turnaround.n,
+                report.turnaround.p50,
+                report.turnaround.p90,
+                report.turnaround.max,
+                report.engine_think.as_ref().map(|t| t.p50),
+                report.engine_think.as_ref().map(|t| t.p90),
+                report.engine_think.as_ref().map(|t| t.max),
+                by_type,
+                report.engine_think_same_turn.as_ref().map(|t| t.p50),
+                report.engine_think_same_turn.as_ref().map(|t| t.p90),
+                report.engine_think_same_turn.as_ref().map(|t| t.max),
+                report.engine_think_cross_turn.as_ref().map(|t| t.p50),
+                report.engine_think_cross_turn.as_ref().map(|t| t.p90),
+                report.engine_think_cross_turn.as_ref().map(|t| t.max),
+                report.think_samples_hidden,
+                report.linked_game_id(),
+            ],
+        )?;
+        Ok(inserted > 0)
+    }
+
+    /// Returns false when the report id is already on file, which is a retry
+    /// rather than a second game.
+    pub fn record_offline_play_game(
+        &self,
+        game: &manabrew_protocol::telemetry::OfflinePlayGame,
+        reported_at: &str,
+    ) -> SqlResult<bool> {
+        let tx = self.conn.unchecked_transaction()?;
+        let conceded = serde_json::to_string(&game.conceded).unwrap_or_else(|_| "[]".to_string());
+        let inserted = tx.execute(
+            "INSERT OR IGNORE INTO offline_play_games
+                (id, reported_at, started_at, ended_at, duration_s, format, engine,
+                 starting_life, end_reason, game_over, winner, conceded,
+                 client_version, platform, seats)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+            params![
+                game.report_id,
+                reported_at,
+                game.started_at,
+                game.ended_at,
+                game.duration_s,
+                game.format,
+                game.engine,
+                game.starting_life,
+                game.end_reason,
+                game.game_over,
+                game.winner,
+                conceded,
+                game.client_version,
+                game.platform,
+                game.players.len() as i64,
+            ],
+        )?;
+        if inserted == 0 {
+            return Ok(false);
+        }
+        for (index, seat) in game.players.iter().enumerate() {
+            let cards = serde_json::to_string(&seat.cards).unwrap_or_else(|_| "[]".to_string());
+            tx.execute(
+                "INSERT INTO offline_play_seats
+                    (game_id, seat_index, username, is_bot, deck_name, commander,
+                     published_deck_id, deck_fingerprint, sideboard_count, cards)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                params![
+                    game.report_id,
+                    index as i64,
+                    seat.username,
+                    seat.is_bot,
+                    seat.deck_name,
+                    seat.commander,
+                    seat.published_deck_id,
+                    seat.deck_fingerprint,
+                    seat.sideboard_count,
+                    cards,
+                ],
+            )?;
+        }
+        tx.commit()?;
+        Ok(true)
     }
 
     pub fn record_relay_game_started(
@@ -729,25 +889,34 @@ impl Storage {
     pub fn create_account_deck(
         &self,
         account_id: &str,
-        deck: &Deck,
+        mut deck: Deck,
         notes: Option<&str>,
         now: &str,
-    ) -> SqlResult<AccountDeckDetail> {
+    ) -> SqlResult<CreateDeckOutcome> {
         let deck_id = uuid::Uuid::new_v4().to_string();
         let version_id = uuid::Uuid::new_v4().to_string();
+        let playmat_asset_id = deck.playmat_asset_id.take();
+        let deck = &deck;
         let snapshot_json = serde_json::to_string(deck)
             .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
         let tx = self.conn.unchecked_transaction()?;
+        if let Some(asset_id) = playmat_asset_id.as_deref() {
+            if !activate_asset(&tx, account_id, asset_id, AssetKind::Playmat)? {
+                return Ok(CreateDeckOutcome::UnknownPlaymatAsset);
+            }
+        }
         tx.execute(
             "INSERT INTO decks
-                (id, account_id, name, format, description, visibility, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, 'private', ?6, ?6)",
+                (id, account_id, name, format, description, playmat_asset_id,
+                 visibility, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'private', ?7, ?7)",
             params![
                 deck_id,
                 account_id,
                 deck.name,
                 format_to_str(deck.format),
                 deck.description,
+                playmat_asset_id,
                 now,
             ],
         )?;
@@ -772,6 +941,7 @@ impl Storage {
         insert_deck_cards(&tx, &version_id, deck)?;
         tx.commit()?;
         self.get_account_deck(account_id, &deck_id)?
+            .map(|detail| CreateDeckOutcome::Created(Box::new(detail)))
             .ok_or(rusqlite::Error::QueryReturnedNoRows)
     }
 
@@ -1041,7 +1211,8 @@ impl Storage {
                         v.id, v.version_no,
                         (SELECT count(*) FROM deckhub_entries e
                          WHERE e.deck_id = d.id AND e.status != 'archived'),
-                        source.preset_key, d.created_at, d.updated_at, v.snapshot_json
+                        source.preset_key, d.created_at, d.updated_at, v.snapshot_json,
+                        d.playmat_asset_id
                  FROM decks d
                  LEFT JOIN decks source ON source.id = d.derived_from_deck_id
                  JOIN deck_versions v ON v.deck_id = d.id
@@ -1054,13 +1225,20 @@ impl Storage {
                 |row| {
                     let summary = map_account_deck_summary(row)?;
                     let snapshot_json: String = row.get(11)?;
-                    let deck = serde_json::from_str(&snapshot_json).map_err(|error| {
+                    let mut deck: Deck = serde_json::from_str(&snapshot_json).map_err(|error| {
                         rusqlite::Error::FromSqlConversionFailure(
                             11,
                             rusqlite::types::Type::Text,
                             Box::new(error),
                         )
                     })?;
+                    deck.playmat_asset_id = row.get(12)?;
+                    deck.playmat_url = public_asset_url(
+                        self.asset_base_url.as_deref(),
+                        account_id,
+                        AssetKind::Playmat,
+                        deck.playmat_asset_id.clone(),
+                    );
                     Ok(AccountDeckDetail { summary, deck })
                 },
             )
@@ -1072,10 +1250,12 @@ impl Storage {
         account_id: &str,
         deck_id: &str,
         expected_version_no: u32,
-        deck: &Deck,
+        mut deck: Deck,
         notes: Option<&str>,
         now: &str,
     ) -> SqlResult<SaveVersionOutcome> {
+        let playmat_asset_id = deck.playmat_asset_id.take();
+        let deck = &deck;
         let tx = self.conn.unchecked_transaction()?;
         let current = tx
             .query_row(
@@ -1107,6 +1287,15 @@ impl Storage {
         if current_version_no != expected_version_no {
             return Ok(SaveVersionOutcome::Conflict);
         }
+        if let Some(asset_id) = playmat_asset_id.as_deref() {
+            if !activate_asset(&tx, account_id, asset_id, AssetKind::Playmat)? {
+                return Ok(SaveVersionOutcome::UnknownPlaymatAsset);
+            }
+        }
+        tx.execute(
+            "UPDATE decks SET playmat_asset_id = ?2 WHERE id = ?1",
+            params![deck_id, playmat_asset_id],
+        )?;
         let snapshot_json = serde_json::to_string(deck)
             .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
         let content_hash = sha256_hex(snapshot_json.as_bytes());
@@ -1980,9 +2169,10 @@ impl Storage {
     pub fn get_account(&self, id: &str) -> SqlResult<Option<AccountRow>> {
         self.conn
             .query_row(
-                "SELECT id, handle, handle_set, created_at, qualification FROM accounts WHERE id = ?1",
+                "SELECT id, handle, handle_set, created_at, avatar_asset_id, qualification
+                 FROM accounts WHERE id = ?1",
                 params![id],
-                map_account,
+                |row| map_account(row, self.asset_base_url.as_deref()),
             )
             .optional()
     }
@@ -2166,14 +2356,185 @@ impl Storage {
             "DELETE FROM decks WHERE account_id = ?1",
             params![account_id],
         )?;
+        // Offline play keys seats by handle, not account id, so erasure reaches
+        // them by name. The rows stay: deleting an account must not rewrite
+        // games/day.
+        let handle: Option<String> = tx
+            .query_row(
+                "SELECT handle FROM accounts WHERE id = ?1",
+                params![account_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if let Some(handle) = handle {
+            tx.execute(
+                "UPDATE offline_play_seats SET username = ?1 WHERE username = ?2",
+                params![ERASED_USERNAME, handle],
+            )?;
+            tx.execute(
+                "UPDATE offline_play_games SET winner = ?1 WHERE winner = ?2",
+                params![ERASED_USERNAME, handle],
+            )?;
+            tx.execute(
+                "UPDATE offline_play_games
+                 SET conceded = (
+                     SELECT json_group_array(
+                         CASE WHEN value = ?2 THEN ?1 ELSE value END
+                     )
+                     FROM json_each(offline_play_games.conceded)
+                 )
+                 WHERE EXISTS (
+                     SELECT 1 FROM json_each(offline_play_games.conceded)
+                     WHERE value = ?2
+                 )",
+                params![ERASED_USERNAME, handle],
+            )?;
+        }
         tx.execute("DELETE FROM accounts WHERE id = ?1", params![account_id])?;
         tx.commit()
+    }
+
+    pub fn reserve_asset(&self, reservation: AssetReservation) -> SqlResult<ReserveAssetOutcome> {
+        let tx = self.conn.unchecked_transaction()?;
+        let (used_bytes, quota_bytes) =
+            asset_usage(&tx, reservation.account_id, reservation.default_quota_bytes)?;
+        if used_bytes.saturating_add(reservation.byte_size) > quota_bytes {
+            return Ok(ReserveAssetOutcome::QuotaExceeded {
+                used_bytes,
+                quota_bytes,
+            });
+        }
+        tx.execute(
+            "INSERT INTO account_assets
+                (id, account_id, kind, byte_size, state, expires_at, created_at)
+             VALUES (?1, ?2, ?3, ?4, 'pending', ?5, ?6)",
+            params![
+                reservation.asset_id,
+                reservation.account_id,
+                reservation.kind.as_str(),
+                reservation.byte_size,
+                reservation.expires_at,
+                reservation.now,
+            ],
+        )?;
+        tx.commit()?;
+        Ok(ReserveAssetOutcome::Reserved)
+    }
+
+    pub fn account_assets(
+        &self,
+        account_id: &str,
+        default_quota_bytes: u64,
+    ) -> SqlResult<(Vec<AssetRow>, AssetQuota)> {
+        let assets = self
+            .conn
+            .prepare(
+                "SELECT id, kind, byte_size, state, created_at
+                 FROM account_assets WHERE account_id = ?1 ORDER BY created_at DESC",
+            )?
+            .query_map(params![account_id], map_asset_row)?
+            .collect::<SqlResult<Vec<_>>>()?;
+        let (used_bytes, quota_bytes) = asset_usage(&self.conn, account_id, default_quota_bytes)?;
+        Ok((
+            assets,
+            AssetQuota {
+                used_bytes,
+                quota_bytes,
+            },
+        ))
+    }
+
+    pub fn account_asset_kinds(&self, account_id: &str) -> SqlResult<Vec<(String, AssetKind)>> {
+        self.conn
+            .prepare("SELECT id, kind FROM account_assets WHERE account_id = ?1")?
+            .query_map(params![account_id], map_asset_ref)?
+            .collect()
+    }
+
+    pub fn delete_account_asset(&self, account_id: &str, asset_id: &str) -> SqlResult<bool> {
+        let deleted = self.conn.execute(
+            "DELETE FROM account_assets WHERE id = ?1 AND account_id = ?2",
+            params![asset_id, account_id],
+        )?;
+        Ok(deleted > 0)
+    }
+
+    pub fn pending_assets(&self, limit: u32) -> SqlResult<Vec<PendingAsset>> {
+        self.conn
+            .prepare(
+                "SELECT id, account_id, kind, expires_at FROM account_assets
+                 WHERE state = 'pending'
+                 ORDER BY expires_at ASC LIMIT ?1",
+            )?
+            .query_map(params![limit], |row| {
+                let kind: String = row.get(2)?;
+                Ok(PendingAsset {
+                    id: row.get(0)?,
+                    account_id: row.get(1)?,
+                    kind: AssetKind::parse(&kind).ok_or_else(|| column_domain_error(2, &kind))?,
+                    expires_at: row.get(3)?,
+                })
+            })?
+            .collect()
+    }
+
+    pub fn confirm_pending_asset(&self, asset_id: &str, byte_size: u64) -> SqlResult<()> {
+        self.conn.execute(
+            "UPDATE account_assets SET state = 'active', expires_at = NULL, byte_size = ?2
+             WHERE id = ?1 AND state = 'pending'",
+            params![asset_id, byte_size],
+        )?;
+        Ok(())
+    }
+
+    pub fn discard_pending_asset(&self, asset_id: &str) -> SqlResult<()> {
+        self.conn.execute(
+            "DELETE FROM account_assets WHERE id = ?1 AND state = 'pending'",
+            params![asset_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn set_account_avatar_asset(
+        &self,
+        account_id: &str,
+        asset_id: Option<&str>,
+    ) -> SqlResult<bool> {
+        let tx = self.conn.unchecked_transaction()?;
+        if let Some(asset_id) = asset_id {
+            if !activate_asset(&tx, account_id, asset_id, AssetKind::Avatar)? {
+                return Ok(false);
+            }
+        }
+        tx.execute(
+            "UPDATE accounts SET avatar_asset_id = ?2 WHERE id = ?1",
+            params![account_id, asset_id],
+        )?;
+        tx.commit()?;
+        Ok(true)
+    }
+
+    pub fn owned_asset_kind(
+        &self,
+        account_id: &str,
+        asset_id: &str,
+    ) -> SqlResult<Option<AssetKind>> {
+        self.conn
+            .query_row(
+                "SELECT kind FROM account_assets WHERE id = ?1 AND account_id = ?2",
+                params![asset_id, account_id],
+                |row| {
+                    let kind: String = row.get(0)?;
+                    AssetKind::parse(&kind).ok_or_else(|| column_domain_error(0, &kind))
+                },
+            )
+            .optional()
     }
 
     pub fn export_account(&self, account_id: &str, now: &str) -> SqlResult<AccountExport> {
         let account = self.conn.query_row(
             "SELECT id, handle, handle_set, username, display_name, email, avatar_url,
-                    created_at, updated_at
+                    created_at, updated_at, avatar_asset_id
              FROM accounts WHERE id = ?1",
             params![account_id],
             |row| {
@@ -2183,11 +2544,13 @@ impl Storage {
                         handle: row.get(1)?,
                         handle_pending: row.get::<_, i64>(2)? == 0,
                         created_at: row.get(7)?,
+                        avatar_asset_id: row.get(9)?,
+                        avatar_url: None,
                     },
                     username: row.get(3)?,
                     display_name: row.get(4)?,
                     email: row.get(5)?,
-                    avatar_url: row.get(6)?,
+                    provider_avatar_url: row.get(6)?,
                     updated_at: row.get(8)?,
                 })
             },
@@ -2373,11 +2736,11 @@ impl Storage {
     pub fn session_account(&self, token_hash: &str, now: &str) -> SqlResult<Option<AccountRow>> {
         self.conn
             .query_row(
-                "SELECT a.id, a.handle, a.handle_set, a.created_at, a.qualification
+                "SELECT a.id, a.handle, a.handle_set, a.created_at, a.avatar_asset_id, a.qualification
                  FROM sessions s JOIN accounts a ON a.id = s.account_id
                  WHERE s.token_hash = ?1 AND s.expires_at > ?2",
                 params![token_hash, now],
-                map_account,
+                |row| map_account(row, self.asset_base_url.as_deref()),
             )
             .optional()
     }
@@ -2845,10 +3208,62 @@ fn public_deck(mut deck: Deck) -> Deck {
     deck.custom_tags = None;
     deck.card_tags = None;
     deck.editor = None;
-    deck.playmat = None;
+    deck.playmat_url = None;
     deck.playmat_settings = None;
     deck.stack_positions = None;
     deck
+}
+
+fn asset_usage(
+    conn: &Connection,
+    account_id: &str,
+    default_quota_bytes: u64,
+) -> SqlResult<(u64, u64)> {
+    let used_bytes = conn.query_row(
+        "SELECT coalesce(sum(byte_size), 0) FROM account_assets WHERE account_id = ?1",
+        params![account_id],
+        |row| row.get(0),
+    )?;
+    let quota_bytes = conn.query_row(
+        "SELECT coalesce(asset_quota_bytes, ?2) FROM accounts WHERE id = ?1",
+        params![account_id, default_quota_bytes],
+        |row| row.get(0),
+    )?;
+    Ok((used_bytes, quota_bytes))
+}
+
+fn activate_asset(
+    tx: &Transaction,
+    account_id: &str,
+    asset_id: &str,
+    kind: AssetKind,
+) -> SqlResult<bool> {
+    let updated = tx.execute(
+        "UPDATE account_assets SET state = 'active', expires_at = NULL
+         WHERE id = ?1 AND account_id = ?2 AND kind = ?3",
+        params![asset_id, account_id, kind.as_str()],
+    )?;
+    Ok(updated > 0)
+}
+
+fn map_asset_row(row: &Row) -> SqlResult<AssetRow> {
+    let kind: String = row.get(1)?;
+    let state: String = row.get(3)?;
+    Ok(AssetRow {
+        id: row.get(0)?,
+        kind: AssetKind::parse(&kind).ok_or_else(|| column_domain_error(1, &kind))?,
+        byte_size: row.get(2)?,
+        state: AssetState::parse(&state).ok_or_else(|| column_domain_error(3, &state))?,
+        created_at: row.get(4)?,
+    })
+}
+
+fn column_domain_error(index: usize, value: &str) -> rusqlite::Error {
+    rusqlite::Error::FromSqlConversionFailure(
+        index,
+        rusqlite::types::Type::Text,
+        format!("unexpected column value: {value}").into(),
+    )
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
@@ -3086,14 +3501,44 @@ fn cover_image(deck: &Deck, cover_card_name: Option<&str>) -> Option<String> {
     .cloned()
 }
 
-fn map_account(row: &Row) -> SqlResult<AccountRow> {
+fn map_account(row: &Row, asset_base_url: Option<&str>) -> SqlResult<AccountRow> {
+    let id: String = row.get(0)?;
+    let avatar_asset_id: Option<String> = row.get(4)?;
     Ok(AccountRow {
-        id: row.get(0)?,
+        avatar_url: public_asset_url(
+            asset_base_url,
+            &id,
+            AssetKind::Avatar,
+            avatar_asset_id.clone(),
+        ),
+        id,
         handle: row.get(1)?,
         handle_set: row.get::<_, i64>(2)? != 0,
         created_at: row.get(3)?,
-        qualification: row.get(4)?,
+        avatar_asset_id,
+        qualification: row.get(5)?,
     })
+}
+
+fn public_asset_url(
+    base_url: Option<&str>,
+    account_id: &str,
+    kind: AssetKind,
+    asset_id: Option<String>,
+) -> Option<String> {
+    Some(format!(
+        "{}/{}",
+        base_url?,
+        crate::assets::object_key(account_id, kind, &asset_id?)
+    ))
+}
+
+fn map_asset_ref(row: &Row) -> SqlResult<(String, AssetKind)> {
+    let kind: String = row.get(1)?;
+    Ok((
+        row.get(0)?,
+        AssetKind::parse(&kind).ok_or_else(|| column_domain_error(1, &kind))?,
+    ))
 }
 
 fn map_account_deck_summary(row: &Row) -> SqlResult<AccountDeckSummary> {
@@ -3145,6 +3590,245 @@ fn format_from_str(s: &str) -> Option<DeckFormat> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const QUOTA: u64 = 1024;
+    const LATER: &str = "2026-08-02T00:00:00Z";
+    const NOW: &str = "2026-08-01T00:00:00Z";
+
+    fn avatar_asset_id(storage: &Storage) -> Option<String> {
+        storage
+            .conn
+            .query_row(
+                "SELECT avatar_asset_id FROM accounts WHERE id = 'acct-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap()
+    }
+
+    fn accounts() -> Storage {
+        let storage = Storage::open_memory().unwrap();
+        storage
+            .conn
+            .execute_batch(
+                "INSERT INTO accounts (id, handle, handle_set, created_at) VALUES
+                 ('acct-1', 'first', 1, '2026-08-01T00:00:00Z'),
+                 ('acct-2', 'second', 1, '2026-08-01T00:00:00Z');",
+            )
+            .unwrap();
+        storage
+    }
+
+    fn reserve_kind(
+        storage: &Storage,
+        account_id: &str,
+        kind: AssetKind,
+        byte_size: u64,
+    ) -> (ReserveAssetOutcome, String) {
+        let asset_id = uuid::Uuid::new_v4().to_string();
+        let outcome = storage
+            .reserve_asset(AssetReservation {
+                account_id,
+                asset_id: &asset_id,
+                kind,
+                byte_size,
+                default_quota_bytes: QUOTA,
+                expires_at: LATER,
+                now: NOW,
+            })
+            .unwrap();
+        (outcome, asset_id)
+    }
+
+    fn reserve(storage: &Storage, account_id: &str, byte_size: u64) -> ReserveAssetOutcome {
+        reserve_kind(storage, account_id, AssetKind::Playmat, byte_size).0
+    }
+
+    #[test]
+    fn reservations_count_against_the_quota_before_anything_is_uploaded() {
+        let storage = accounts();
+        assert!(matches!(
+            reserve(&storage, "acct-1", QUOTA),
+            ReserveAssetOutcome::Reserved
+        ));
+        assert!(matches!(
+            reserve(&storage, "acct-1", 1),
+            ReserveAssetOutcome::QuotaExceeded {
+                used_bytes: QUOTA,
+                quota_bytes: QUOTA,
+            }
+        ));
+        assert!(matches!(
+            reserve(&storage, "acct-2", QUOTA),
+            ReserveAssetOutcome::Reserved
+        ));
+    }
+
+    #[test]
+    fn deleting_an_asset_releases_its_bytes() {
+        let storage = accounts();
+        let (outcome, asset_id) = reserve_kind(&storage, "acct-1", AssetKind::Playmat, QUOTA);
+        assert!(matches!(outcome, ReserveAssetOutcome::Reserved));
+        assert!(storage.delete_account_asset("acct-1", &asset_id).unwrap());
+        assert_eq!(
+            storage
+                .account_assets("acct-1", QUOTA)
+                .unwrap()
+                .1
+                .used_bytes,
+            0
+        );
+        assert!(matches!(
+            reserve(&storage, "acct-1", QUOTA),
+            ReserveAssetOutcome::Reserved
+        ));
+    }
+
+    #[test]
+    fn an_account_cannot_delete_or_claim_another_accounts_asset() {
+        let storage = accounts();
+        let (_, asset_id) = reserve_kind(&storage, "acct-1", AssetKind::Playmat, 10);
+        assert!(!storage.delete_account_asset("acct-2", &asset_id).unwrap());
+        assert!(storage
+            .owned_asset_kind("acct-2", &asset_id)
+            .unwrap()
+            .is_none());
+        assert!(!storage
+            .set_account_avatar_asset("acct-2", Some(&asset_id))
+            .unwrap());
+    }
+
+    #[test]
+    fn a_deck_cannot_claim_another_accounts_playmat() {
+        let storage = accounts();
+        let (_, asset_id) = reserve_kind(&storage, "acct-1", AssetKind::Playmat, 10);
+        let deck = Deck {
+            name: "Borrowed".into(),
+            playmat_asset_id: Some(asset_id.clone()),
+            ..Deck::default()
+        };
+        assert!(matches!(
+            storage
+                .create_account_deck("acct-2", deck, None, NOW)
+                .unwrap(),
+            CreateDeckOutcome::UnknownPlaymatAsset
+        ));
+
+        let owned = Deck {
+            name: "Owned".into(),
+            playmat_asset_id: Some(asset_id),
+            ..Deck::default()
+        };
+        assert!(matches!(
+            storage
+                .create_account_deck("acct-1", owned, None, NOW)
+                .unwrap(),
+            CreateDeckOutcome::Created(_)
+        ));
+    }
+
+    #[test]
+    fn an_avatar_asset_cannot_be_used_as_a_playmat() {
+        let storage = accounts();
+        let (_, asset_id) = reserve_kind(&storage, "acct-1", AssetKind::Avatar, 10);
+        let deck = Deck {
+            name: "Wrong kind".into(),
+            playmat_asset_id: Some(asset_id),
+            ..Deck::default()
+        };
+        assert!(matches!(
+            storage
+                .create_account_deck("acct-1", deck, None, NOW)
+                .unwrap(),
+            CreateDeckOutcome::UnknownPlaymatAsset
+        ));
+    }
+
+    #[test]
+    fn a_renamed_account_still_resolves_its_avatar() {
+        let storage = accounts();
+        let (_, asset_id) = reserve_kind(&storage, "acct-1", AssetKind::Avatar, 10);
+        assert!(storage
+            .set_account_avatar_asset("acct-1", Some(&asset_id))
+            .unwrap());
+        let before = storage.get_account("acct-1").unwrap().unwrap().avatar_url;
+        assert!(before.is_some_and(|url| url.contains("/acct-1/avatar/")));
+        assert!(matches!(
+            storage.update_handle("acct-1", "renamed").unwrap(),
+            HandleOutcome::Updated
+        ));
+        let after = storage.get_account("acct-1").unwrap().unwrap().avatar_url;
+        assert!(after.is_some_and(|url| url.contains("/acct-1/avatar/")));
+    }
+
+    #[test]
+    fn a_per_account_quota_overrides_the_default() {
+        let storage = accounts();
+        storage
+            .conn
+            .execute_batch("UPDATE accounts SET asset_quota_bytes = 4096 WHERE id = 'acct-1'")
+            .unwrap();
+        assert!(matches!(
+            reserve(&storage, "acct-1", 4096),
+            ReserveAssetOutcome::Reserved
+        ));
+        assert!(matches!(
+            reserve(&storage, "acct-2", 4096),
+            ReserveAssetOutcome::QuotaExceeded { .. }
+        ));
+    }
+
+    #[test]
+    fn sweeping_a_landed_upload_corrects_its_size_and_keeps_it() {
+        let storage = accounts();
+        let (_, asset_id) = reserve_kind(&storage, "acct-1", AssetKind::Playmat, 500);
+        assert_eq!(
+            storage
+                .pending_assets(10)
+                .unwrap()
+                .into_iter()
+                .map(|it| it.id)
+                .collect::<Vec<_>>(),
+            vec![asset_id.clone()]
+        );
+        storage.confirm_pending_asset(&asset_id, 400).unwrap();
+        assert!(storage.pending_assets(10).unwrap().is_empty());
+        assert_eq!(
+            storage
+                .account_assets("acct-1", QUOTA)
+                .unwrap()
+                .1
+                .used_bytes,
+            400
+        );
+    }
+
+    #[test]
+    fn sweeping_an_upload_that_never_landed_releases_the_reservation() {
+        let storage = accounts();
+        let (_, asset_id) = reserve_kind(&storage, "acct-1", AssetKind::Playmat, 500);
+        storage.discard_pending_asset(&asset_id).unwrap();
+        assert_eq!(
+            storage
+                .account_assets("acct-1", QUOTA)
+                .unwrap()
+                .1
+                .used_bytes,
+            0
+        );
+    }
+
+    #[test]
+    fn deleting_an_avatar_asset_clears_the_account_reference() {
+        let storage = accounts();
+        let (_, asset_id) = reserve_kind(&storage, "acct-1", AssetKind::Avatar, 10);
+        assert!(storage
+            .set_account_avatar_asset("acct-1", Some(&asset_id))
+            .unwrap());
+        assert_eq!(avatar_asset_id(&storage), Some(asset_id.clone()));
+        assert!(storage.delete_account_asset("acct-1", &asset_id).unwrap());
+        assert_eq!(avatar_asset_id(&storage), None);
+    }
 
     #[test]
     fn card_collections_are_isolated_by_account_and_cascade_on_delete() {
@@ -3213,6 +3897,125 @@ mod tests {
             storage.card_collection("acct-1").unwrap(),
             (1, vec![("lightning bolt".to_string(), 4)])
         );
+    }
+
+    fn engine_report(id: &str) -> manabrew_protocol::telemetry::EnginePlayStats {
+        manabrew_protocol::telemetry::EnginePlayStats {
+            report_id: id.to_string(),
+            game_id: Some("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".to_string()),
+            engine: "forge-wasm".to_string(),
+            client_version: "3.18.5".to_string(),
+            platform: "web".to_string(),
+            format: Some("standard".to_string()),
+            seats: 2,
+            multiplayer: false,
+            duration_s: 421,
+            end_reason: "gameOver".to_string(),
+            turnaround: manabrew_protocol::telemetry::EngineTurnaround {
+                n: 180,
+                p50: 46,
+                p90: 78,
+                max: 320,
+            },
+            engine_think: Some(manabrew_protocol::telemetry::EngineTurnaround {
+                n: 180,
+                p50: 8,
+                p90: 18,
+                max: 96,
+            }),
+            engine_think_same_turn: None,
+            engine_think_cross_turn: None,
+            think_samples_hidden: 0,
+            by_type: vec![manabrew_protocol::telemetry::EngineTypeTurnaround {
+                prompt_type: "chooseAction".to_string(),
+                n: 120,
+                p50: 44,
+                max: 300,
+            }],
+        }
+    }
+
+    #[test]
+    fn engine_play_stats_are_recorded_once_per_report() {
+        let storage = Storage::open_memory().unwrap();
+        let report = engine_report("11111111-2222-3333-4444-555555555555");
+
+        assert!(storage
+            .record_engine_play_stats(&report, "2026-08-26T00:00:00Z")
+            .unwrap());
+        // A retry carries the same client-generated id, and a game counted
+        // twice would quietly skew every percentile drawn from this table.
+        assert!(!storage
+            .record_engine_play_stats(&report, "2026-08-26T00:00:05Z")
+            .unwrap());
+
+        let (engine, p50, think, by_type): (String, i64, Option<i64>, String) = storage
+            .conn
+            .query_row(
+                "SELECT engine, turnaround_p50, engine_p50, by_type FROM engine_play_stats",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(engine, "forge-wasm");
+        assert_eq!(p50, 46);
+        assert_eq!(think, Some(8));
+        assert!(by_type.contains("chooseAction"));
+    }
+
+    /// The whole point of the column: a report the hub receives has to name the
+    /// game it came from, or the timings sit in a table that cannot be joined
+    /// to what was played. A malformed id is stored as no id at all rather than
+    /// as a key that matches nothing.
+    #[test]
+    fn engine_play_stats_record_the_game_they_came_from() {
+        let storage = Storage::open_memory().unwrap();
+        let report = engine_report("11111111-2222-3333-4444-555555555555");
+        storage
+            .record_engine_play_stats(&report, "2026-08-26T00:00:00Z")
+            .unwrap();
+
+        let mut unkeyed = engine_report("22222222-3333-4444-5555-666666666666");
+        unkeyed.game_id = Some("not-a-uuid".to_string());
+        storage
+            .record_engine_play_stats(&unkeyed, "2026-08-26T00:00:01Z")
+            .unwrap();
+
+        let mut ids: Vec<Option<String>> = storage
+            .conn
+            .prepare("SELECT game_id FROM engine_play_stats ORDER BY reported_at")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        ids.sort();
+        assert_eq!(
+            ids,
+            vec![
+                None,
+                Some("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".to_string())
+            ]
+        );
+    }
+
+    #[test]
+    fn engine_play_stats_keep_an_engine_that_reports_no_think_time() {
+        let storage = Storage::open_memory().unwrap();
+        let mut report = engine_report("22222222-3333-4444-5555-666666666666");
+        report.engine = "manabrew".to_string();
+        report.engine_think = None;
+
+        assert!(storage
+            .record_engine_play_stats(&report, "2026-08-26T00:00:00Z")
+            .unwrap());
+        let think: Option<i64> = storage
+            .conn
+            .query_row("SELECT engine_p50 FROM engine_play_stats", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(think, None);
     }
 
     #[test]
@@ -3288,7 +4091,10 @@ mod tests {
             ],
         )
         .unwrap();
-        let storage = Storage { conn };
+        let storage = Storage {
+            conn,
+            asset_base_url: None,
+        };
         storage.migrate().unwrap();
 
         let version: u32 = storage
@@ -3323,7 +4129,8 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(version, 16);
+        let latest = MIGRATIONS.last().map(|(version, _, _)| *version).unwrap();
+        assert_eq!(version as u32, latest);
         assert_eq!(cards, 1);
         assert_eq!(mismatch, 0);
         assert!(!obsolete_table_exists);

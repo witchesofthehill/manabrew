@@ -8,6 +8,7 @@ use crate::client_build::ClientBuild;
 use crate::deck_play_events::DeckPlayEventHandle;
 use crate::identity::{IdentityVerifier, SessionIdentity};
 use crate::protocol::identity_token::GUEST_SUBJECT_PREFIX;
+use crate::protocol::LocalGameKind;
 use crate::room::Room;
 
 pub struct ConnectedPlayer {
@@ -27,9 +28,13 @@ pub struct ConnectedPlayer {
     pub identity: Vec<SessionIdentity>,
     pub name_verified: bool,
     pub qualification: Option<String>,
+    pub avatar_url: Option<String>,
     /// What the client reported at authentication. Read when deciding which
     /// wire features this seat can be sent.
     pub client: ClientBuild,
+    /// Playing on their own machine, reported by the client. Only meaningful
+    /// while `connected`: a dropped socket stops asserting anything.
+    pub local_game: Option<LocalGameKind>,
 }
 
 impl ConnectedPlayer {

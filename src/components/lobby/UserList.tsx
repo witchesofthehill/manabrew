@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,7 +8,7 @@ import { JoinPasswordDialog } from "@/components/lobby/JoinPasswordDialog";
 import { Wifi, WifiOff, Loader2, Search } from "lucide-react";
 import { GameIcon, type GameIconKey } from "@/components/companion/GameIcon";
 import { USER_FACING_ERROR_MESSAGES } from "@/types/server";
-import type { PlayerInfo, RoomInfo, ServerErrorCode } from "@/types/server";
+import type { LocalGameKind, PlayerInfo, RoomInfo, ServerErrorCode } from "@/types/server";
 import { cn } from "@/lib/utils";
 import { stripUsernameTag } from "@/lib/username";
 import { toast } from "sonner";
@@ -67,8 +67,12 @@ function QualificationBadge({ qualification }: { qualification: string | undefin
   return <IconBadge icon={badge.icon} label={badge.label} color={badge.color} />;
 }
 
-function playerStatus(room: RoomInfo | undefined): string {
-  if (!room) return "Available";
+const LOCAL_GAME_LABEL: Record<LocalGameKind, string> = {
+  Singleplayer: "Playing solo",
+};
+
+function playerStatus(room: RoomInfo | undefined, localGame?: LocalGameKind): string {
+  if (!room) return localGame ? LOCAL_GAME_LABEL[localGame] : "Available";
   return room.status === "InGame" ? "In game" : "At a table";
 }
 
@@ -121,12 +125,18 @@ export function UserList({
 
   const bucketOf = (p: PlayerInfo): "playing" | "atTable" | "available" => {
     const room = rooms.find((r) => r.room_id === p.room_id);
-    if (!room) return "available";
+    // A game on the player's own machine has no room behind it, so the relay
+    // only knows about it because the client said so.
+    if (!room) return p.local_game ? "playing" : "available";
     return room.status === "InGame" ? "playing" : "atTable";
   };
-  const playing = filteredOthers.filter((p) => bucketOf(p) === "playing");
-  const atTable = filteredOthers.filter((p) => bucketOf(p) === "atTable");
-  const available = filteredOthers.filter((p) => bucketOf(p) === "available");
+  const byName = (a: PlayerInfo, b: PlayerInfo) =>
+    stripUsernameTag(a.username)
+      .toLowerCase()
+      .localeCompare(stripUsernameTag(b.username).toLowerCase());
+  const playing = filteredOthers.filter((p) => bucketOf(p) === "playing").sort(byName);
+  const atTable = filteredOthers.filter((p) => bucketOf(p) === "atTable").sort(byName);
+  const available = filteredOthers.filter((p) => bucketOf(p) === "available").sort(byName);
 
   async function handleJoinRoom(roomId: string, password?: string) {
     if (joiningRoomId) return;
@@ -151,18 +161,28 @@ export function UserList({
     }
   }
 
-  function renderPlayer(player: PlayerInfo) {
+  function renderPlayer(player: PlayerInfo, isCurrentPlayer = false) {
     const room = rooms.find((r) => r.room_id === player.room_id);
     const joinable =
+      !isCurrentPlayer &&
       room != null &&
       room.status === "Lobby" &&
       currentRoom == null &&
       room.players.length < room.max_players;
-
     return (
-      <div key={player.player_id} className="flex items-center gap-2.5 px-2 py-1.5 rounded-md">
+      <div
+        key={player.player_id}
+        className={cn(
+          "flex items-center gap-2.5 px-2 py-1.5 rounded-md",
+          isCurrentPlayer && "bg-muted/40",
+          player.qualification === "maintainer" && "maintainer-row",
+        )}
+      >
         <div className="relative shrink-0">
           <Avatar className="h-7 w-7">
+            {player.avatar_url && (
+              <AvatarImage src={player.avatar_url} alt="" crossOrigin="anonymous" />
+            )}
             <AvatarFallback className="text-xs">
               {stripUsernameTag(player.username).slice(0, 1).toUpperCase()}
             </AvatarFallback>
@@ -170,18 +190,31 @@ export function UserList({
           <span
             className={cn(
               "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-background",
-              player.connected ? "bg-success" : "bg-muted-foreground/40",
+              isCurrentPlayer
+                ? status.dot
+                : player.connected
+                  ? "bg-success"
+                  : "bg-muted-foreground/40",
             )}
           />
         </div>
         <div className="flex-1 min-w-0">
           <span className="flex items-center gap-1 text-sm font-medium leading-none">
-            <QualificationBadge qualification={player.qualification} />
             <span className="truncate">{stripUsernameTag(player.username)}</span>
+            <QualificationBadge qualification={player.qualification} />
           </span>
-          <span className="text-[10px] text-muted-foreground" title={room?.room_name}>
-            {playerStatus(room)}
-          </span>
+          {isCurrentPlayer ? (
+            <span className={cn("flex items-center gap-1 text-[10px]", status.text)}>
+              <status.Icon
+                className={cn("h-2.5 w-3.5", connectionState === "connecting" && "animate-spin")}
+              />
+              {status.label}
+            </span>
+          ) : (
+            <span className="text-[10px] text-muted-foreground" title={room?.room_name}>
+              {playerStatus(room, player.local_game)}
+            </span>
+          )}
         </div>
         {joinable && (
           <Button
@@ -209,7 +242,7 @@ export function UserList({
           </span>
           <span className="text-[10px] text-muted-foreground/70">{count}</span>
         </div>
-        {rows.map(renderPlayer)}
+        {rows.map((player) => renderPlayer(player))}
       </div>
     );
   }
@@ -246,38 +279,15 @@ export function UserList({
       </div>
       <ScrollArea className="flex-1">
         <div className="p-3 pt-1 space-y-1">
-          {myUsername && (
-            <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-md bg-muted/40">
-              <div className="relative shrink-0">
-                <Avatar className="h-7 w-7">
-                  <AvatarFallback className="text-xs">
-                    {myUsername.slice(0, 1).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <span
-                  className={cn(
-                    "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-background",
-                    status.dot,
-                  )}
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="flex items-center gap-1 text-sm font-medium leading-none">
-                  <QualificationBadge qualification={myEntry?.qualification} />
-                  <span className="truncate">{stripUsernameTag(myUsername)}</span>
-                </span>
-                <span className={cn("flex items-center gap-1 text-[10px]", status.text)}>
-                  <status.Icon
-                    className={cn(
-                      "h-2.5 w-3.5",
-                      connectionState === "connecting" && "animate-spin",
-                    )}
-                  />
-                  {status.label}
-                </span>
-              </div>
-            </div>
-          )}
+          {myUsername &&
+            renderPlayer(
+              myEntry ?? {
+                username: myUsername,
+                player_id: "current-player",
+                connected: connectionState === "connected",
+              },
+              true,
+            )}
 
           {renderSection("Playing", playing.length, playing)}
           {renderSection("At a table", atTable.length, atTable)}

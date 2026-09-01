@@ -3,6 +3,7 @@
  *
  */
 
+import type { EngineGameStats } from "@/lib/engineTelemetry";
 import { invoke } from "@tauri-apps/api/core";
 import { WebPlatform } from "./web";
 
@@ -23,7 +24,7 @@ import type {
   SetMaxPlayersParams,
   SpawnAiBotParams,
 } from "./types";
-import type { RoomRelayEnvelope } from "@/types/server";
+import type { LocalGameKind, RoomRelayEnvelope } from "@/types/server";
 
 // Tauri Server API — delegates to the web relay client, except Forge hosting
 
@@ -75,6 +76,10 @@ class TauriServerApi implements IServerApi {
   listPlayers(): Promise<void> {
     return this.inner.listPlayers();
   }
+
+  setLocalGame(kind: LocalGameKind | null): Promise<void> {
+    return this.inner.setLocalGame(kind);
+  }
   joinRoom(params: JoinRoomParams): Promise<void> {
     return this.inner.joinRoom(params);
   }
@@ -96,6 +101,10 @@ class TauriServerApi implements IServerApi {
   startGame(params?: StartServerGameParams): Promise<void> {
     return this.inner.startGame(params);
   }
+  reportEngineStats(stats: EngineGameStats, gameId?: string | null): Promise<void> {
+    return this.inner.reportEngineStats(stats, gameId);
+  }
+
   endGame(gameId: string): Promise<void> {
     return this.inner.endGame(gameId);
   }

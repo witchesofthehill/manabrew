@@ -7,7 +7,16 @@ import {
   SELF_HOSTED_NODE_RELAY_PROTOCOL,
 } from "@/game";
 import { teardownForgeAiSession } from "@/game/hostedAiPlay";
+import { reportEngineStats } from "@/lib/engineStatsReport";
+import {
+  currentOfflineGameId,
+  reportOfflineGame,
+  type OfflineSeatOutcome,
+} from "@/lib/offlinePlayRecord";
+import { clearLocalGame } from "@/lib/localGamePresence";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { useGameStore } from "@/stores/useGameStore";
+import type { GameState } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { SELF_RECONNECT_WINDOW_S } from "@/hooks/useMultiplayerInterruption";
 import { clearActiveGameSession, peekActiveGameSession } from "@/lib/activeGameSession";
@@ -133,6 +142,57 @@ function toastOpponentPublicAction(entry: GameLogEntry) {
   }
 }
 
+function isOver(state: Pick<GameState, "gameView" | "currentPrompt">): boolean {
+  return (state.gameView?.gameOver ?? false) || isGameOverPrompt(state.currentPrompt);
+}
+
+/**
+ * The human's name comes from the account when there is one, so an offline game
+ * joins the same player's relay games rather than a second identity.
+ */
+function offlineSeats(state: GameState): OfflineSeatOutcome[] {
+  const handle = useAuthStore.getState().account?.handle;
+  return (state.gameView?.players ?? []).map((player) => ({
+    seatId: player.id,
+    username: player.isHuman ? (handle ?? player.name) : player.name,
+    isBot: !player.isHuman,
+    conceded: player.status === "conceded",
+  }));
+}
+
+/** Close the book on the current game. Safe to call more than once. */
+function reportEngineGame(): void {
+  const state = useGameStore.getState();
+  // Read before the offline record is closed: reporting the game clears it, and
+  // the engine report below needs the same id to file itself against.
+  const offlineGameId = currentOfflineGameId();
+  if (!state.isMultiplayer) {
+    clearLocalGame();
+    const players = state.gameView?.players ?? [];
+    const winnerId = state.gameView?.winnerId ?? null;
+    reportOfflineGame({
+      gameOver: isOver(state),
+      winner: players.find((player) => player.id === winnerId)?.name ?? null,
+      seats: offlineSeats(state),
+    });
+  }
+  reportEngineStats({
+    multiplayer: state.isMultiplayer,
+    seats: Object.keys(state.gameDecks).length || 2,
+    format: state.gameConfig?.formatId ?? null,
+    // Must be the same test that decides a game is over: on the hosted path the
+    // engine sends a gameOver prompt and `gameView` never gets the flag, so
+    // reading the flag alone filed finished games as quits.
+    endReason: isOver(state) ? "gameOver" : "left",
+    gameId: useServerStore.getState().gameId ?? offlineGameId,
+    send: state.isMultiplayer
+      ? async (stats, gameId) => {
+          await getPlatform().server?.reportEngineStats(stats, gameId);
+        }
+      : undefined,
+  });
+}
+
 /**
  * Sets up platform event listeners for the four engine→UI message families:
  * `state` (game view), `display` (animations), `prompt` (decisions) and
@@ -141,6 +201,22 @@ function toastOpponentPublicAction(entry: GameLogEntry) {
  * a prompt or error only becomes actionable when it is addressed to this player.
  */
 export function useGameEventListeners() {
+  useEffect(() => {
+    window.addEventListener("pagehide", reportEngineGame);
+    // A finished game is reported the moment it finishes, not at teardown:
+    // teardown is three seconds later, and by then the tab may be gone, the
+    // socket closed or a pooled hosted room recycled out from under the seat.
+    // Reporting twice is free — the summary is drained by the first caller.
+    const unsubscribe = useGameStore.subscribe((state, previous) => {
+      if (isOver(state) && !isOver(previous)) reportEngineGame();
+    });
+    return () => {
+      window.removeEventListener("pagehide", reportEngineGame);
+      unsubscribe();
+      reportEngineGame();
+    };
+  }, []);
+
   useEffect(() => {
     const platform = getPlatform();
     const runtime = getSelectedGameRuntime();

@@ -1,7 +1,21 @@
 import { useState } from "react";
+import { Loader2, Search } from "lucide-react";
+
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { BattlefieldChoiceDevControls } from "./BattlefieldChoiceDevControls";
+import { useScryfallStore } from "@/stores/useScryfallStore";
+import { DevCardSearch } from "./DevCardSearch";
+
+import {
+  DEV_CONTROL_ACTIVE,
+  DEV_CONTROL_BUTTON,
+  DEV_CONTROL_INACTIVE,
+  DEV_SECTION,
+  DEV_SECTION_HEADING,
+} from "./devPanel.styles";
 
 const DEV_BATTLEFIELD_KEYWORDS: string[] = [
   "Flying",
@@ -60,172 +74,162 @@ export function BattlefieldKeywordDevControls() {
   const clear = useGameDevStore((s) => s.clearDebugBattlefieldKeywords);
   const debugCardEnabled = useGameDevStore((s) => s.debugCardEnabled);
   const debugCardName = useGameDevStore((s) => s.debugCardName);
+  const debugCardDefinition = useGameDevStore((s) => s.debugCardDefinition);
   const setDebugCardEnabled = useGameDevStore((s) => s.setDebugCardEnabled);
-  const setDebugCardName = useGameDevStore((s) => s.setDebugCardName);
-  const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
-  const setShowHoverAreas = useGameDevStore((s) => s.setShowHoverAreas);
-  const showGridSkeleton = useGameDevStore((s) => s.showGridSkeleton);
-  const setShowGridSkeleton = useGameDevStore((s) => s.setShowGridSkeleton);
-  const showAttackRows = useGameDevStore((s) => s.showAttackRows);
-  const setShowAttackRows = useGameDevStore((s) => s.setShowAttackRows);
+  const setDebugCard = useGameDevStore((s) => s.setDebugCard);
+  const [keywordQuery, setKeywordQuery] = useState("");
+  const [loadingCard, setLoadingCard] = useState(false);
+  const [cardError, setCardError] = useState<string | null>(null);
 
-  const [draftName, setDraftName] = useState(debugCardName);
+  const normalizedQuery = keywordQuery.trim().toLocaleLowerCase();
+  const visibleKeywords = normalizedQuery
+    ? DEV_BATTLEFIELD_KEYWORDS.filter((keyword) =>
+        keyword.toLocaleLowerCase().includes(normalizedQuery),
+      )
+    : DEV_BATTLEFIELD_KEYWORDS;
+  const toggleDebugCard = async () => {
+    if (debugCardEnabled) {
+      setDebugCardEnabled(false);
+      return;
+    }
+    if (debugCardDefinition) {
+      setDebugCardEnabled(true);
+      return;
+    }
 
-  const commitName = () => {
-    const next = draftName.trim();
-    if (next && next !== debugCardName) setDebugCardName(next);
-    else setDraftName(debugCardName);
+    const requestedName = debugCardName;
+    setLoadingCard(true);
+    setCardError(null);
+    try {
+      const card = await useScryfallStore.getState().getCard({ name: requestedName });
+      const current = useGameDevStore.getState();
+      if (current.debugCardName !== requestedName || current.debugCardDefinition) return;
+      setDebugCard(scryfallToDeckCard(card.info));
+      setDebugCardEnabled(true);
+    } catch {
+      setCardError(`Could not load ${requestedName} from Scryfall.`);
+    } finally {
+      setLoadingCard(false);
+    }
   };
 
-  const dirty = selected.length > 0;
-
   return (
-    <div className="flex flex-col gap-2 mt-2 rounded-md border border-border/70 p-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Debug card (self)
-        </span>
-        {dirty && (
-          <button
-            className="text-[10px] uppercase text-muted-foreground hover:text-destructive"
-            onClick={clear}
-          >
-            Clear keywords ({selected.length})
-          </button>
-        )}
-      </div>
-
-      <label className="flex items-center justify-between gap-2 cursor-pointer">
-        <span className="text-xs">Show debug card on battlefield</span>
+    <section className={DEV_SECTION}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className={DEV_SECTION_HEADING}>Card under test</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Resolve a real print, then layer debug-only visuals over it.
+          </p>
+        </div>
         <button
           type="button"
           role="switch"
           aria-checked={debugCardEnabled}
-          className={cn(
-            "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors",
-            debugCardEnabled ? "border-primary bg-primary" : "border-border/70 bg-muted",
-          )}
-          onClick={() => setDebugCardEnabled(!debugCardEnabled)}
+          className="flex shrink-0 items-center gap-2 rounded-md text-[10px] font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          disabled={loadingCard}
+          onClick={() => void toggleDebugCard()}
         >
+          {loadingCard ? "Loading" : debugCardEnabled ? "On board" : "Hidden"}
+          {loadingCard ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
           <span
             className={cn(
-              "block h-4 w-4 rounded-full bg-background shadow-sm transition-transform",
-              debugCardEnabled ? "translate-x-4" : "translate-x-0.5",
+              "relative h-6 w-11 rounded-full border transition-colors",
+              debugCardEnabled ? "border-primary bg-primary" : "border-border/70 bg-muted",
             )}
-          />
+          >
+            <span
+              className={cn(
+                "absolute top-0.5 block h-4.5 w-4.5 rounded-full bg-background shadow-sm transition-transform",
+                debugCardEnabled ? "translate-x-[1.25rem]" : "translate-x-0.5",
+              )}
+            />
+          </span>
         </button>
-      </label>
+      </div>
+      {cardError ? <p className="mt-2 text-xs text-destructive">{cardError}</p> : null}
 
-      <label className="flex items-center justify-between gap-2 cursor-pointer">
-        <span className="text-xs">Show hover areas (hand, battlefield, preview)</span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={showHoverAreas}
-          className={cn(
-            "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors",
-            showHoverAreas ? "border-primary bg-primary" : "border-border/70 bg-muted",
-          )}
-          onClick={() => setShowHoverAreas(!showHoverAreas)}
-        >
-          <span
-            className={cn(
-              "block h-4 w-4 rounded-full bg-background shadow-sm transition-transform",
-              showHoverAreas ? "translate-x-4" : "translate-x-0.5",
-            )}
-          />
-        </button>
-      </label>
-
-      <label className="flex items-center justify-between gap-2 cursor-pointer">
-        <span className="text-xs">Show grid rows &amp; card skeletons (all players)</span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={showGridSkeleton}
-          className={cn(
-            "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors",
-            showGridSkeleton ? "border-primary bg-primary" : "border-border/70 bg-muted",
-          )}
-          onClick={() => setShowGridSkeleton(!showGridSkeleton)}
-        >
-          <span
-            className={cn(
-              "block h-4 w-4 rounded-full bg-background shadow-sm transition-transform",
-              showGridSkeleton ? "translate-x-4" : "translate-x-0.5",
-            )}
-          />
-        </button>
-      </label>
-
-      <label className="flex items-center justify-between gap-2 cursor-pointer">
-        <span className="text-xs">Show attack areas (all players)</span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={showAttackRows}
-          className={cn(
-            "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors",
-            showAttackRows ? "border-primary bg-primary" : "border-border/70 bg-muted",
-          )}
-          onClick={() => setShowAttackRows(!showAttackRows)}
-        >
-          <span
-            className={cn(
-              "block h-4 w-4 rounded-full bg-background shadow-sm transition-transform",
-              showAttackRows ? "translate-x-4" : "translate-x-0.5",
-            )}
-          />
-        </button>
-      </label>
-
-      <div className="flex items-center gap-1">
-        <input
-          type="text"
-          value={draftName}
-          onChange={(e) => setDraftName(e.target.value)}
-          onBlur={commitName}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.currentTarget.blur();
-            } else if (e.key === "Escape") {
-              setDraftName(debugCardName);
-              e.currentTarget.blur();
-            }
-          }}
-          placeholder="Scryfall card name"
-          className="flex-1 px-2 py-1 rounded text-xs border border-border/70 bg-background text-foreground"
-          spellCheck={false}
+      <div className="mt-3">
+        <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          Scryfall card name
+        </span>
+        <DevCardSearch
+          key={debugCardName}
+          value={debugCardName}
+          onSelect={(card) => setDebugCard(scryfallToDeckCard(card))}
         />
       </div>
-      <p className="text-[10px] text-muted-foreground leading-snug">
-        Image, type line, and hover preview resolve via Scryfall fuzzy name lookup. Keyword chips +
-        card-state overrides below render on top.
-      </p>
 
       <BattlefieldChoiceDevControls />
 
-      <div className="grid grid-cols-2 gap-1">
-        {DEV_BATTLEFIELD_KEYWORDS.map((kw) => {
-          const active = selected.includes(kw);
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <div>
+          <p className={DEV_SECTION_HEADING}>Keyword chips</p>
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            {selected.length === 0 ? "No forced keywords" : `${selected.length} forced`}
+          </p>
+        </div>
+        {selected.length > 0 ? (
+          <button
+            type="button"
+            className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground hover:text-destructive"
+            onClick={clear}
+          >
+            Clear all
+          </button>
+        ) : null}
+      </div>
+
+      {selected.length > 0 ? (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {selected.map((keyword) => (
+            <button
+              key={keyword}
+              type="button"
+              className={cn(DEV_CONTROL_BUTTON, DEV_CONTROL_ACTIVE, "px-2 py-1 text-[10px]")}
+              onClick={() => toggle(keyword)}
+            >
+              {keyword}
+              <span aria-hidden="true">×</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="relative mt-3">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          type="search"
+          value={keywordQuery}
+          onChange={(event) => setKeywordQuery(event.target.value)}
+          placeholder="Filter keywords"
+          className="pl-9"
+        />
+      </div>
+
+      <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+        {visibleKeywords.map((keyword) => {
+          const active = selected.includes(keyword);
           return (
             <button
-              key={kw}
+              key={keyword}
               type="button"
               className={cn(
-                "px-1.5 py-1 rounded text-[10px] font-medium border truncate",
-                active
-                  ? "border-primary text-primary bg-primary/10"
-                  : "border-border/70 text-muted-foreground hover:text-foreground hover:bg-accent/50",
+                DEV_CONTROL_BUTTON,
+                "truncate px-2 py-1.5 text-[10px]",
+                active ? DEV_CONTROL_ACTIVE : DEV_CONTROL_INACTIVE,
               )}
-              onClick={() => toggle(kw)}
-              title={kw}
+              onClick={() => toggle(keyword)}
+              title={keyword}
             >
-              {kw}
+              {keyword}
             </button>
           );
         })}
       </div>
-    </div>
+      {visibleKeywords.length === 0 ? (
+        <p className="mt-3 text-center text-xs text-muted-foreground">No keyword matches.</p>
+      ) : null}
+    </section>
   );
 }

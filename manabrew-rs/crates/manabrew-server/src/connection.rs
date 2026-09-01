@@ -108,7 +108,11 @@ fn authorize_game_message(
 /// Background task: drains channel and writes to the WebSocket sink.
 async fn write_loop(mut rx: mpsc::UnboundedReceiver<Message>, mut sink: WsSender) {
     while let Some(msg) = rx.recv().await {
-        if sink.send(msg).await.is_err() {
+        let backlog = rx.len();
+        let started = Instant::now();
+        let sent = sink.send(msg).await;
+        metrics::record_socket_write(backlog, started.elapsed());
+        if sent.is_err() {
             break;
         }
     }
@@ -152,7 +156,14 @@ fn player_list(state: &Arc<ServerState>) -> Vec<crate::protocol::PlayerInfo> {
             connected: entry.value().connected,
             verified: entry.value().verified(),
             qualification: entry.value().qualification.clone(),
+            avatar_url: entry.value().avatar_url.clone(),
             room_id: entry.value().room_id.clone(),
+            // A dropped socket stops asserting anything.
+            local_game: entry
+                .value()
+                .connected
+                .then(|| entry.value().local_game)
+                .flatten(),
         })
         .collect()
 }
@@ -221,16 +232,21 @@ fn room_player_id(
     room_id: &str,
     target_username: &str,
 ) -> Option<String> {
-    state.rooms.get(room_id).and_then(|room| {
-        if room.host_username == target_username && room.host_connected() {
-            Some(room.host_player_id.clone())
-        } else {
-            room.players
-                .iter()
-                .find(|p| p.connected && p.username == target_username)
-                .map(|p| p.player_id.clone())
-        }
-    })
+    state
+        .rooms
+        .get(room_id)
+        .and_then(|room| room_player_id_in(&room, target_username))
+}
+
+fn room_player_id_in(room: &Room, target_username: &str) -> Option<String> {
+    if room.host_username == target_username && room.host_connected() {
+        Some(room.host_player_id.clone())
+    } else {
+        room.players
+            .iter()
+            .find(|p| p.connected && p.username == target_username)
+            .map(|p| p.player_id.clone())
+    }
 }
 
 /// Whether every client that would receive this envelope ships the `stateDelta`
@@ -238,7 +254,7 @@ fn room_player_id(
 /// dropped patch leaves that player's board frozen for the rest of the game.
 fn state_patch_audience_ready(
     state: &Arc<ServerState>,
-    room_id: &str,
+    room: &Room,
     sender_player_id: &str,
     target_username: Option<&str>,
 ) -> bool {
@@ -250,13 +266,12 @@ fn state_patch_audience_ready(
     };
     match target_username {
         // An unresolvable target means the send is about to be dropped anyway.
-        Some(target) => room_player_id(state, room_id, target).is_none_or(|pid| applies(&pid)),
-        None => state.rooms.get(room_id).is_some_and(|room| {
-            room.connected_player_ids()
-                .iter()
-                .filter(|pid| pid.as_str() != sender_player_id)
-                .all(|pid| applies(pid))
-        }),
+        Some(target) => room_player_id_in(room, target).is_none_or(|pid| applies(&pid)),
+        None => room
+            .connected_player_ids()
+            .iter()
+            .filter(|pid| pid.as_str() != sender_player_id)
+            .all(|pid| applies(pid)),
     }
 }
 
@@ -557,6 +572,10 @@ async fn authenticate(
                     player_id: None,
                     reconnected: None,
                     error: Some("Invalid server key".into()),
+                    features: crate::protocol::FEATURES
+                        .iter()
+                        .map(|f| f.to_string())
+                        .collect(),
                 };
                 send_msg(sender, &reply);
                 return Err(ServerError::AuthFailed("Invalid server key".into()));
@@ -566,9 +585,24 @@ async fn authenticate(
                 Some(proof) => state.identity.resolve(proof).await,
                 None => identity::ResolvedIdentity::default(),
             };
+            if resolved.stale_token {
+                let reply = ServerMessage::AuthResult {
+                    success: false,
+                    player_id: None,
+                    reconnected: None,
+                    error: Some("identity token expired".into()),
+                    features: crate::protocol::FEATURES
+                        .iter()
+                        .map(|f| f.to_string())
+                        .collect(),
+                };
+                send_msg(sender, &reply);
+                return Err(ServerError::AuthFailed("identity token expired".into()));
+            }
             let identities = resolved.identities;
             let name_verified = resolved.name_verified;
             let qualification = resolved.qualification;
+            let avatar_url = resolved.avatar_url;
             let username = resolved.name.unwrap_or(username);
 
             if username.trim().is_empty() {
@@ -577,6 +611,10 @@ async fn authenticate(
                     player_id: None,
                     reconnected: None,
                     error: Some("Username cannot be empty".into()),
+                    features: crate::protocol::FEATURES
+                        .iter()
+                        .map(|f| f.to_string())
+                        .collect(),
                 };
                 send_msg(sender, &reply);
                 return Err(ServerError::AuthFailed("Empty username".into()));
@@ -594,6 +632,10 @@ async fn authenticate(
                         player_id: None,
                         reconnected: None,
                         error: Some(format!("Username '{username}' is already taken")),
+                        features: crate::protocol::FEATURES
+                            .iter()
+                            .map(|f| f.to_string())
+                            .collect(),
                     };
                     send_msg(sender, &reply);
                     return Err(ServerError::DuplicateUsername(username));
@@ -629,6 +671,7 @@ async fn authenticate(
                     identities,
                     name_verified,
                     qualification,
+                    avatar_url,
                     client.clone(),
                 );
                 return Ok((session.player_id, username, true, new_gen, client, service));
@@ -652,7 +695,9 @@ async fn authenticate(
                     identity: identities,
                     name_verified,
                     qualification,
+                    avatar_url,
                     client: client.clone(),
+                    local_game: None,
                 },
             );
 
@@ -661,6 +706,10 @@ async fn authenticate(
                 player_id: Some(player_id.clone()),
                 reconnected: Some(false),
                 error: None,
+                features: crate::protocol::FEATURES
+                    .iter()
+                    .map(|f| f.to_string())
+                    .collect(),
             };
             send_msg(sender, &reply);
             broadcast_player_list(state);
@@ -673,6 +722,10 @@ async fn authenticate(
                 player_id: None,
                 reconnected: None,
                 error: Some("First message must be Authenticate".into()),
+                features: crate::protocol::FEATURES
+                    .iter()
+                    .map(|f| f.to_string())
+                    .collect(),
             };
             send_msg(sender, &reply);
             Err(ServerError::AuthFailed(
@@ -700,6 +753,7 @@ fn reclaim_session(
     identities: Vec<SessionIdentity>,
     name_verified: bool,
     qualification: Option<String>,
+    avatar_url: Option<String>,
     client: ClientBuild,
 ) -> u64 {
     let new_gen = old_gen + 1;
@@ -718,6 +772,7 @@ fn reclaim_session(
         player.disconnected_at = None;
         player.name_verified = name_verified;
         player.qualification = qualification;
+        player.avatar_url = avatar_url;
         player.client = client;
         if !identities.is_empty() {
             player.identity = identities;
@@ -729,6 +784,10 @@ fn reclaim_session(
         player_id: Some(existing_pid.to_string()),
         reconnected: Some(true),
         error: None,
+        features: crate::protocol::FEATURES
+            .iter()
+            .map(|f| f.to_string())
+            .collect(),
     };
     send_msg(sender, &reply);
 
@@ -819,6 +878,18 @@ fn handle_client_message(
                 .collect();
             debug!("[emit] -> '{}': RoomList ({} rooms)", username, rooms.len());
             send_msg(sender, &ServerMessage::RoomList { rooms });
+        }
+
+        ClientMessage::SetLocalGame { kind } => {
+            if let Some(mut player) = state.players.get_mut(player_id) {
+                if player.local_game == kind {
+                    return;
+                }
+                player.local_game = kind;
+            } else {
+                return;
+            }
+            broadcast_player_list(state);
         }
 
         ClientMessage::ListPlayers => {
@@ -1067,7 +1138,7 @@ fn handle_client_message(
             deck,
             published_deck_id,
             commander_name,
-            avatar,
+            avatar_url,
         } => {
             info!(
                 "[lobby] '{}' selected deck '{}' ({} cards)",
@@ -1086,7 +1157,7 @@ fn handle_client_message(
                 deck,
                 published_deck_id,
                 commander_name.clone(),
-                avatar,
+                avatar_url,
             ) {
                 Ok(room_id) => {
                     if let Some((cards, sideboard_count)) = deck_summary {
@@ -1229,6 +1300,61 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::ReportEngineStats { game_id, stats } => {
+            if !stats.is_plausible() {
+                metrics::record_engine_report(metrics::ENGINE_REPORT_IMPLAUSIBLE);
+                debug!(
+                    "[analytics] '{}' sent an implausible engine report",
+                    username
+                );
+                return;
+            }
+            // The relay path carries the game on the envelope; the hub path has
+            // only the report, so newer clients put it there too.
+            let game_id = game_id.or_else(|| stats.linked_game_id().map(str::to_string));
+            // A report is written at game over, and by then the seat is often
+            // out of the room already: the client has left for the lobby, the
+            // room has been recycled, or the zombie sweep has reset a hosted
+            // one. The room was never more than a label on the event, and
+            // nothing downstream stores it, so requiring one threw away two
+            // reports for every one it kept.
+            let room_id = state.players.get(player_id).and_then(|p| p.room_id.clone());
+            metrics::record_engine_report(if room_id.is_some() {
+                metrics::ENGINE_REPORT_ACCEPTED
+            } else {
+                metrics::ENGINE_REPORT_ROOMLESS
+            });
+            state.analytics.emit(AnalyticsEvent::EngineStats {
+                ts: analytics::now_ts(),
+                room_id,
+                username: username.to_string(),
+                report_id: stats.report_id,
+                game_id,
+                engine: stats.engine,
+                client_version: stats.client_version,
+                platform: stats.platform,
+                format: stats.format,
+                seats: stats.seats,
+                multiplayer: stats.multiplayer,
+                duration_s: stats.duration_s,
+                end_reason: stats.end_reason,
+                decisions: stats.turnaround.n,
+                turnaround_p50: stats.turnaround.p50,
+                turnaround_p90: stats.turnaround.p90,
+                turnaround_max: stats.turnaround.max,
+                engine_p50: stats.engine_think.as_ref().map(|t| t.p50),
+                engine_p90: stats.engine_think.as_ref().map(|t| t.p90),
+                engine_max: stats.engine_think.as_ref().map(|t| t.max),
+                engine_same_p50: stats.engine_think_same_turn.as_ref().map(|t| t.p50),
+                engine_same_p90: stats.engine_think_same_turn.as_ref().map(|t| t.p90),
+                engine_same_max: stats.engine_think_same_turn.as_ref().map(|t| t.max),
+                engine_cross_p50: stats.engine_think_cross_turn.as_ref().map(|t| t.p50),
+                engine_cross_p90: stats.engine_think_cross_turn.as_ref().map(|t| t.p90),
+                engine_cross_max: stats.engine_think_cross_turn.as_ref().map(|t| t.max),
+                think_hidden: stats.think_samples_hidden,
+            });
+        }
+
         ClientMessage::RequestResync => {
             let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
             let replayed = room_id.and_then(|rid| {
@@ -1283,6 +1409,7 @@ fn handle_client_message(
             state: game_state,
             target_player,
         } => {
+            let handling_started = Instant::now();
             let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
             if let Some(rid) = room_id {
                 let Some(mut room) = state.rooms.get_mut(&rid) else {
@@ -1317,16 +1444,20 @@ fn handle_client_message(
                         .capture_enabled()
                         .then(|| replay.game_id.clone())
                 });
-                // `observe` has already folded this patch into the cached
-                // board, so an older seat can be handed the state the patch
-                // would have produced rather than an envelope it drops.
-                let folded_state = is_state_patch(&game_state)
-                    .then(|| {
-                        room.replay
-                            .as_ref()
-                            .and_then(|replay| replay.state_after(&game_state).cloned())
-                    })
-                    .flatten();
+                let seats = room.players.len();
+                let folded_state = (is_state_patch(&game_state)
+                    && !state_patch_audience_ready(
+                        state,
+                        &room,
+                        player_id,
+                        canonical_target.as_deref(),
+                    ))
+                .then(|| {
+                    room.replay
+                        .as_ref()
+                        .and_then(|replay| replay.state_after(&game_state).cloned())
+                })
+                .flatten();
                 drop(room);
                 if let Some(game_id) = capture_game_id {
                     // Only a player's own envelope carries a link that is theirs.
@@ -1347,17 +1478,15 @@ fn handle_client_message(
                     );
                 }
                 if !should_deliver {
+                    metrics::record_state_handling(seats, handling_started.elapsed());
                     return;
                 }
-                let ready = || {
-                    state_patch_audience_ready(state, &rid, player_id, canonical_target.as_deref())
-                };
                 let game_state = match folded_state {
-                    Some(full) if !ready() => {
+                    Some(full) => {
                         metrics::record_state_patch_downgrade();
                         full
                     }
-                    _ => game_state,
+                    None => game_state,
                 };
                 let msg = ServerMessage::StateUpdate {
                     from_player: username.to_string(),
@@ -1382,6 +1511,7 @@ fn handle_client_message(
                         broadcast_to_room_except(state, player_id, &rid, &msg);
                     }
                 }
+                metrics::record_state_handling(seats, handling_started.elapsed());
             } else {
                 warn!(
                     "[game] '{}' tried to broadcast state but not in a room",
@@ -1467,6 +1597,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::Ping => "Ping",
         ClientMessage::ListRooms => "ListRooms",
         ClientMessage::ListPlayers => "ListPlayers",
+        ClientMessage::SetLocalGame { .. } => "SetLocalGame",
         ClientMessage::CreateRoom { .. } => "CreateRoom",
         ClientMessage::JoinRoom { .. } => "JoinRoom",
         ClientMessage::ResumeRoom { .. } => "ResumeRoom",
@@ -1477,6 +1608,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::SetMaxPlayers { .. } => "SetMaxPlayers",
         ClientMessage::StartGame { .. } => "StartGame",
         ClientMessage::EndGame { .. } => "EndGame",
+        ClientMessage::ReportEngineStats { .. } => "ReportEngineStats",
         ClientMessage::RequestResync => "RequestResync",
         ClientMessage::BroadcastState { .. } => "BroadcastState",
         ClientMessage::TurnChange { .. } => "TurnChange",

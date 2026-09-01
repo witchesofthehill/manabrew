@@ -82,6 +82,51 @@ pub enum AnalyticsEvent {
         conceded: Vec<String>,
         fatal_message: Option<String>,
     },
+    EngineStats {
+        ts: String,
+        /// The room the seat was in when the report landed, which at game over
+        /// is often none: the report outlives the seat's membership. Nothing
+        /// downstream reads it, so it stays a breadcrumb rather than a key.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        room_id: Option<String>,
+        username: String,
+        report_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        game_id: Option<String>,
+        engine: String,
+        client_version: String,
+        platform: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        format: Option<String>,
+        seats: u32,
+        multiplayer: bool,
+        duration_s: u32,
+        end_reason: String,
+        decisions: u32,
+        turnaround_p50: u32,
+        turnaround_p90: u32,
+        turnaround_max: u32,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_p50: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_p90: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_max: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_same_p50: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_same_p90: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_same_max: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_cross_p50: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_cross_p90: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_cross_max: Option<u32>,
+        think_hidden: u32,
+    },
+
     DeckSelected {
         ts: String,
         room_id: String,

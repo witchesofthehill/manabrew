@@ -4,6 +4,10 @@ export { CARD_RADIUS } from "@/components/game/game.constants";
 
 export const GAP = CARD_GAP;
 export const ATTACH_OFFSET_Y = 16;
+export const ATTACH_PEEK_Y = 6;
+export const ATTACH_PEEK_MAX = 1;
+export const ATTACH_FAN_STEP_Y = 32;
+export const Z_ATTACH_FAN = 300;
 // Cards in a stack that fan out in the staircase before the rest collapse onto
 // one another; caps the visual height of huge token piles (the ×N badge carries
 // the count).
@@ -60,6 +64,7 @@ export const PIXI_MAX_FPS = 60;
 
 export const BATTLEFIELD_LERP = 0.15;
 export const HAND_LERP = 0.18;
+export const HAND_REORDER_LERP = 0.34;
 export const HOVER_SCALE_LERP = 0.2;
 export const ROTATION_LERP = 0.22;
 export const OVERLAY_FADE_LERP = 0.2;

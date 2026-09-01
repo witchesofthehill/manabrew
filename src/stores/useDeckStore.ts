@@ -152,7 +152,8 @@ function mergeLocalEditorState(deck: EditorDeck, localDeck: EditorDeck | undefin
     customTags: deck.customTags ?? localDeck.customTags,
     cardTags: deck.cardTags ?? localDeck.cardTags,
     editor: deck.editor ?? localDeck.editor,
-    playmat: deck.playmat ?? localDeck.playmat,
+    playmatUrl: deck.playmatUrl ?? localDeck.playmatUrl,
+    playmatAssetId: deck.playmatAssetId ?? localDeck.playmatAssetId,
     playmatSettings: deck.playmatSettings ?? localDeck.playmatSettings,
     stackPositions: deck.stackPositions ?? localDeck.stackPositions,
   };
@@ -258,6 +259,15 @@ export interface SavedDeck {
   accountVersionNo?: number;
 }
 
+// Playmats used to be an inline `data:` blob under `playmat`. That field is gone,
+// but a spread would still carry a stored blob back onto the wire, so persisted
+// decks are stripped of it on the way in — which is also what reclaims the
+// localStorage the blobs were occupying.
+function dropInlinePlaymat<T extends object>(deck: T): T {
+  const { playmat: _playmat, ...rest } = deck as T & { playmat?: string };
+  return rest as T;
+}
+
 // False until hydration succeeds, so a failed migration can't persist over the
 // stored decks — writes are dropped and the on-disk data survives untouched.
 let deckPersistReady = false;
@@ -340,7 +350,7 @@ interface DeckState {
   removeDeckLabel: (label: string) => void;
   updateDeckLabelColor: (label: string, color?: string) => void;
   setCoverCard: (name: string | undefined, face?: 0 | 1) => void;
-  setPlaymat: (dataUrl: string | undefined) => void;
+  setPlaymat: (url: string | undefined, assetId: string | undefined) => void;
   setPlaymatSettings: (settings: PlaymatSettings | undefined) => void;
   setStackPositions: (positions: Record<string, { x: number; y: number }>) => void;
   setEditorMetadata: (metadata: DeckEditorMetadata) => void;
@@ -1129,9 +1139,9 @@ export const useDeckStore = create<DeckState>()(
               coverCardFace: name !== undefined ? (face ?? 0) : undefined,
             },
           })),
-        setPlaymat: (dataUrl) =>
+        setPlaymat: (url, assetId) =>
           set((state) => ({
-            currentDeck: { ...state.currentDeck, playmat: dataUrl },
+            currentDeck: { ...state.currentDeck, playmatUrl: url, playmatAssetId: assetId },
           })),
         setPlaymatSettings: (settings) =>
           set((state) => ({
@@ -1155,7 +1165,7 @@ export const useDeckStore = create<DeckState>()(
         }),
         // Bump on any persisted-deck shape change so `migrate` runs over existing
         // users' decks — a shape change without a bump never migrates.
-        version: 6,
+        version: 7,
         migrate: (persistedState: unknown) => {
           if (!persistedState || typeof persistedState !== "object")
             return persistedState as DeckState;
@@ -1166,7 +1176,10 @@ export const useDeckStore = create<DeckState>()(
           return {
             ...state,
             currentDeckId: state.currentDeckId ?? null,
-            savedDecks: (state.savedDecks ?? []).map((s) => ({ ...s, deck: migrateDeck(s.deck) })),
+            savedDecks: (state.savedDecks ?? []).map((s) => ({
+              ...s,
+              deck: dropInlinePlaymat(migrateDeck(s.deck)),
+            })),
           };
         },
         merge: (persisted, current) => {
@@ -1175,7 +1188,7 @@ export const useDeckStore = create<DeckState>()(
           merged.isReadOnly = false;
           merged.readOnlySource = null;
           if (p.currentDeck && hasPendingEditorPublication()) {
-            merged.currentDeck = normalizeDeck(migrateDeck(p.currentDeck));
+            merged.currentDeck = normalizeDeck(dropInlinePlaymat(migrateDeck(p.currentDeck)));
             merged.currentDeckId = p.currentDeckId ?? null;
           } else {
             merged.currentDeck = { ...initialDeck };

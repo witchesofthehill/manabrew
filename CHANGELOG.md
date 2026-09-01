@@ -1,5 +1,180 @@
 # Changelog
 
+## [3.33.0](https://github.com/witchesofthehill/manabrew/compare/v3.32.5...v3.33.0) (2026-09-01)
+
+### Features
+
+* **play:** add four-player offline commander ([ba2676b](https://github.com/witchesofthehill/manabrew/commit/ba2676b9996ee129ba8856fc5516082382e5cae5))
+
+## [3.32.5](https://github.com/witchesofthehill/manabrew/compare/v3.32.4...v3.32.5) (2026-09-01)
+
+### Fixes
+
+* **telemetry:** keep every engine report, and name the game it came from ([#816](https://github.com/witchesofthehill/manabrew/issues/816)) ([e6f3786](https://github.com/witchesofthehill/manabrew/commit/e6f37861d5aa791691b7bbf5e2b1fc3a17430d04))
+
+## [3.32.4](https://github.com/witchesofthehill/manabrew/compare/v3.32.3...v3.32.4) (2026-08-31)
+
+### Fixes
+
+* **editor:** strip draft flag before saving a deck to the account ([4f63f8d](https://github.com/witchesofthehill/manabrew/commit/4f63f8dfce6e4819cbc0145dac2316b6451d6715))
+
+## [3.32.3](https://github.com/witchesofthehill/manabrew/compare/v3.32.2...v3.32.3) (2026-08-31)
+
+### Fixes
+
+* more CORS and bot loop on propaganda ([#810](https://github.com/witchesofthehill/manabrew/issues/810)) ([6341d51](https://github.com/witchesofthehill/manabrew/commit/6341d5155532ae179ef790347c8ac73523ca1fef))
+
+## [3.32.2](https://github.com/witchesofthehill/manabrew/compare/v3.32.1...v3.32.2) (2026-08-31)
+
+### Fixes
+
+* autopass click ([#809](https://github.com/witchesofthehill/manabrew/issues/809)) ([3542c3b](https://github.com/witchesofthehill/manabrew/commit/3542c3bcb2c683ff9e5ada41cd70450c277d28b1))
+
+## [3.32.1](https://github.com/witchesofthehill/manabrew/compare/v3.32.0...v3.32.1) (2026-08-31)
+
+### Fixes
+
+* forge hangs on prompt1 the first time the worker loads ([#804](https://github.com/witchesofthehill/manabrew/issues/804)) ([8d577c4](https://github.com/witchesofthehill/manabrew/commit/8d577c43714014bead932359eb3725d110074071))
+
+## [3.32.0](https://github.com/witchesofthehill/manabrew/compare/v3.31.1...v3.32.0) (2026-08-31)
+
+### Features
+
+* **telemetry:** split engine think by whose turn ran in it ([#802](https://github.com/witchesofthehill/manabrew/issues/802)) ([18fed7c](https://github.com/witchesofthehill/manabrew/commit/18fed7c8d7f23f938b5a72e0017329285d37ec9a))
+
+## [3.31.1](https://github.com/witchesofthehill/manabrew/compare/v3.31.0...v3.31.1) (2026-08-31)
+
+### Fixes
+
+* ingame avatar ([#801](https://github.com/witchesofthehill/manabrew/issues/801)) ([8648bc0](https://github.com/witchesofthehill/manabrew/commit/8648bc05b902f27263a0b7df1696962e32e35e99))
+
+## [3.31.0](https://github.com/witchesofthehill/manabrew/compare/v3.30.0...v3.31.0) (2026-08-31)
+
+### Features
+
+* **forge-wasm:** publish the browser engine as an npm package ([#796](https://github.com/witchesofthehill/manabrew/issues/796)) ([ab8c0ba](https://github.com/witchesofthehill/manabrew/commit/ab8c0bafc0ee87bca9cfd7271744046abe6ea434))
+
+## [3.30.0](https://github.com/witchesofthehill/manabrew/compare/v3.29.0...v3.30.0) (2026-08-31)
+
+### Features
+
+* **relay:** count solo games in the lobby and the live gauges ([#800](https://github.com/witchesofthehill/manabrew/issues/800)) ([f420d66](https://github.com/witchesofthehill/manabrew/commit/f420d66b593d467e54a7f4c90f949408dc9c9b28))
+
+## [3.29.0](https://github.com/witchesofthehill/manabrew/compare/v3.28.0...v3.29.0) (2026-08-31)
+
+### Features
+
+* **telemetry:** record offline games the way the nodes did ([#799](https://github.com/witchesofthehill/manabrew/issues/799)) ([20e7472](https://github.com/witchesofthehill/manabrew/commit/20e7472e277dddb6f88f760c0824ba2c5b3e5e00))
+
+## [3.28.0](https://github.com/witchesofthehill/manabrew/compare/v3.27.1...v3.28.0) (2026-08-31)
+
+### Features
+
+* avatars in lobby ([#798](https://github.com/witchesofthehill/manabrew/issues/798)) ([1a104c7](https://github.com/witchesofthehill/manabrew/commit/1a104c754b2f6ea0e1dcff71dd5df72a3059a6d8))
+
+## [3.27.1](https://github.com/witchesofthehill/manabrew/compare/v3.27.0...v3.27.1) (2026-08-31)
+
+### Performance
+
+* **forge-wasm:** send state patches from browser-hosted tables ([#795](https://github.com/witchesofthehill/manabrew/issues/795)) ([d56a6d0](https://github.com/witchesofthehill/manabrew/commit/d56a6d0677d1c98f6b490ef6099f5b55559ac716))
+
+## [3.27.0](https://github.com/witchesofthehill/manabrew/compare/v3.26.3...v3.27.0) (2026-08-31)
+
+### Features
+
+* **engine:** always run forge offline and vs ai ([#797](https://github.com/witchesofthehill/manabrew/issues/797)) ([eaf692a](https://github.com/witchesofthehill/manabrew/commit/eaf692ae58103621e2184b3c58133938270f2ef1))
+
+## [3.26.3](https://github.com/witchesofthehill/manabrew/compare/v3.26.2...v3.26.3) (2026-08-31)
+
+### Fixes
+
+* attack pass, attack cells ([#790](https://github.com/witchesofthehill/manabrew/issues/790)) ([b6b526a](https://github.com/witchesofthehill/manabrew/commit/b6b526a5e29fc512b71fd03bba498b9d5e0a6b26))
+
+## [3.26.2](https://github.com/witchesofthehill/manabrew/compare/v3.26.1...v3.26.2) (2026-08-31)
+
+### Fixes
+
+* remove leftover asset localstorage caches ([#792](https://github.com/witchesofthehill/manabrew/issues/792)) ([91a4d33](https://github.com/witchesofthehill/manabrew/commit/91a4d33a098648df41229c3213596069960b8483))
+
+## [3.26.1](https://github.com/witchesofthehill/manabrew/compare/v3.26.0...v3.26.1) (2026-08-31)
+
+### Fixes
+
+* phyrexian revoker ([#791](https://github.com/witchesofthehill/manabrew/issues/791)) ([beb48bb](https://github.com/witchesofthehill/manabrew/commit/beb48bb7080db545f7c5a5de16851150a0622ce3))
+
+## [3.26.0](https://github.com/witchesofthehill/manabrew/compare/v3.25.0...v3.26.0) (2026-08-31)
+
+### Features
+
+* **ui:** add hand ordering ([#764](https://github.com/witchesofthehill/manabrew/issues/764)) ([bcaab40](https://github.com/witchesofthehill/manabrew/commit/bcaab40015ddbfbd4a25829d598d483830cb02c1))
+
+## [3.25.0](https://github.com/witchesofthehill/manabrew/compare/v3.24.4...v3.25.0) (2026-08-30)
+
+### Features
+
+* s3 compatible astorage module ([#783](https://github.com/witchesofthehill/manabrew/issues/783)) ([4cd9450](https://github.com/witchesofthehill/manabrew/commit/4cd94502674e455e6284e4bf3f02c2592baac8e7))
+
+## [3.24.4](https://github.com/witchesofthehill/manabrew/compare/v3.24.3...v3.24.4) (2026-08-30)
+
+### Fixes
+
+* shitty targeting cache ([#787](https://github.com/witchesofthehill/manabrew/issues/787)) ([3c18458](https://github.com/witchesofthehill/manabrew/commit/3c184580d678ee507281463665195796e4269742))
+
+## [3.24.3](https://github.com/witchesofthehill/manabrew/compare/v3.24.2...v3.24.3) (2026-08-30)
+
+### Fixes
+
+* multiple attachments ([#786](https://github.com/witchesofthehill/manabrew/issues/786)) ([99c0755](https://github.com/witchesofthehill/manabrew/commit/99c075549a0dfb56fe911d9cf9f7446d795c78ab))
+* q630 ([#788](https://github.com/witchesofthehill/manabrew/issues/788)) ([e172fbd](https://github.com/witchesofthehill/manabrew/commit/e172fbdd9cedcbe33e95906e68ec0c21460c7e12))
+
+## [3.24.2](https://github.com/witchesofthehill/manabrew/compare/v3.24.1...v3.24.2) (2026-08-30)
+
+### Fixes
+
+* **telemetry:** label the engine that ran, and stop losing reports ([#789](https://github.com/witchesofthehill/manabrew/issues/789)) ([4382b36](https://github.com/witchesofthehill/manabrew/commit/4382b36c5d0748722ec92bb85df0abf72ba6efc1))
+
+## [3.24.1](https://github.com/witchesofthehill/manabrew/compare/v3.24.0...v3.24.1) (2026-08-30)
+
+## [3.24.0](https://github.com/witchesofthehill/manabrew/compare/v3.23.1...v3.24.0) (2026-08-30)
+
+### Features
+
+* **observability:** make engine telemetry flow, and chart it ([#785](https://github.com/witchesofthehill/manabrew/issues/785)) ([aedab52](https://github.com/witchesofthehill/manabrew/commit/aedab52dd16fdcb588eb95a724c122f1f754a5c7))
+
+## [3.23.1](https://github.com/witchesofthehill/manabrew/compare/v3.23.0...v3.23.1) (2026-08-30)
+
+### Fixes
+
+* app re-mints and downgrades token ([#751](https://github.com/witchesofthehill/manabrew/issues/751)) ([6ff0950](https://github.com/witchesofthehill/manabrew/commit/6ff0950510b43af7977fb76d988e3aad0d365649))
+
+## [3.23.0](https://github.com/witchesofthehill/manabrew/compare/v3.22.0...v3.23.0) (2026-08-29)
+
+### Features
+
+* **forge:** run Forge in the browser via GraalVM Web Image ([#759](https://github.com/witchesofthehill/manabrew/issues/759)) ([3c61382](https://github.com/witchesofthehill/manabrew/commit/3c613822870f30f5378f3b8cf03376c758b913f7))
+
+## [3.22.0](https://github.com/witchesofthehill/manabrew/compare/v3.21.10...v3.22.0) (2026-08-28)
+
+### Features
+
+* **ui:** expand battlefield dev lab ([#775](https://github.com/witchesofthehill/manabrew/issues/775)) ([0f8a9b4](https://github.com/witchesofthehill/manabrew/commit/0f8a9b407aad22663a776f1263e108126c52342e))
+
+## [3.21.10](https://github.com/witchesofthehill/manabrew/compare/v3.21.9...v3.21.10) (2026-08-25)
+
+## [3.21.9](https://github.com/witchesofthehill/manabrew/compare/v3.21.8...v3.21.9) (2026-08-25)
+
+## [3.21.8](https://github.com/witchesofthehill/manabrew/compare/v3.21.7...v3.21.8) (2026-08-25)
+
+## [3.21.7](https://github.com/witchesofthehill/manabrew/compare/v3.21.6...v3.21.7) (2026-08-25)
+
+## [3.21.6](https://github.com/witchesofthehill/manabrew/compare/v3.21.5...v3.21.6) (2026-08-25)
+
+## [3.21.5](https://github.com/witchesofthehill/manabrew/compare/v3.21.4...v3.21.5) (2026-08-25)
+
+## [3.21.4](https://github.com/witchesofthehill/manabrew/compare/v3.21.3...v3.21.4) (2026-08-25)
+
+## [3.21.3](https://github.com/witchesofthehill/manabrew/compare/v3.21.2...v3.21.3) (2026-08-25)
+
 ## [3.21.2](https://github.com/witchesofthehill/manabrew/compare/v3.21.1...v3.21.2) (2026-08-24)
 
 ### Fixes

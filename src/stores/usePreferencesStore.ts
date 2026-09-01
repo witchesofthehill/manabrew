@@ -6,7 +6,8 @@ import { ensureUsernameTag, hasUsernameTag } from "@/lib/username";
 import type { AiOpponentRef } from "@/lib/aiOpponent";
 import type { KnownRelay } from "@/config/knownRelays";
 import type { PlaymatSettings } from "@/protocol/game";
-import type { EngineKind, GameFormat } from "@/types/server";
+import type { GameFormat } from "@/types/server";
+import type { HandOrderMode } from "@/lib/handOrder";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
 export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
@@ -16,7 +17,6 @@ export interface LastRoomSetup {
   kind: "match" | "limited";
   limitedKind: "draft" | "sealed" | "winston" | "cube";
   format: GameFormat;
-  engine: EngineKind;
   players: number | null;
 }
 
@@ -46,12 +46,9 @@ interface PreferencesState {
   addSavedServer: (server: KnownRelay) => void;
   removeSavedServer: (name: string) => void;
 
-  customAvatar?: string;
-  setCustomAvatar: (dataUrl: string | undefined) => void;
-
-  defaultPlaymat?: string;
+  defaultPlaymatAssetId?: string;
   defaultPlaymatSettings?: PlaymatSettings;
-  setDefaultPlaymat: (dataUrl: string | undefined) => void;
+  setDefaultPlaymatAssetId: (assetId: string | undefined) => void;
   setDefaultPlaymatSettings: (settings: PlaymatSettings | undefined) => void;
 
   zonePanelOrder: ZonePanelItem[];
@@ -59,6 +56,8 @@ interface PreferencesState {
 
   battlefieldAutoSort: boolean;
   setBattlefieldAutoSort: (value: boolean) => void;
+  handOrderMode: HandOrderMode;
+  setHandOrderMode: (mode: HandOrderMode) => void;
 
   // One knob for card size: battlefield cards on ALL fields plus the hand
   // fan. 1 = the classic 3-row board; 1.5 = the 2-row fill that is the
@@ -93,10 +92,9 @@ interface PreferencesState {
   // the compile flag + `IRONSMITH_WASM_AVAILABLE`, so this only surfaces it
   // where the real wasm is bundled.
   ironsmithRuntimeEnabled: boolean;
+  forgeWasmEnabled: boolean;
   setIronsmithRuntimeEnabled: (value: boolean) => void;
-
-  askEngineOnAiPlay: boolean;
-  setAskEngineOnAiPlay: (value: boolean) => void;
+  setForgeWasmEnabled: (value: boolean) => void;
 
   hideAccountSaveNudge: boolean;
   setHideAccountSaveNudge: (value: boolean) => void;
@@ -119,9 +117,6 @@ interface PreferencesState {
   lastPlayedAtByDeck: Record<string, number>;
   setLastPlayedDeckId: (id: string | null) => void;
 
-  lastOfflineEngine: EngineKind | null;
-  setLastOfflineEngine: (engine: EngineKind) => void;
-
   lastOfflineFormatId: string | null;
   setLastOfflineFormatId: (formatId: string) => void;
 
@@ -140,18 +135,18 @@ const PERSISTED_PREFERENCE_KEYS = [
   "serverUsername",
   "serverPassword",
   "savedServers",
-  "customAvatar",
-  "defaultPlaymat",
+  "defaultPlaymatAssetId",
   "defaultPlaymatSettings",
   "zonePanelOrder",
   "battlefieldAutoSort",
+  "handOrderMode",
   "cardSizeMultiplier",
   "lockZoneTiles",
   "battlefieldCardStyle",
   "inGameAnimations",
   "chooseOrderOnMultipleTriggers",
   "ironsmithRuntimeEnabled",
-  "askEngineOnAiPlay",
+  "forgeWasmEnabled",
   "hideAccountSaveNudge",
   "cardPreviewMode",
   "cardHoverDelayMs",
@@ -159,7 +154,6 @@ const PERSISTED_PREFERENCE_KEYS = [
   "gameThemeColorOverrides",
   "lastPlayedDeckId",
   "lastPlayedAtByDeck",
-  "lastOfflineEngine",
   "lastOfflineFormatId",
   "lastAiOpponent",
   "lastRoomSetup",
@@ -225,12 +219,9 @@ export const usePreferencesStore = create<PreferencesState>()(
               savedServers: state.savedServers.filter((s) => s.name !== name),
             })),
 
-          customAvatar: undefined,
-          setCustomAvatar: (customAvatar) => set({ customAvatar }),
-
-          defaultPlaymat: undefined,
+          defaultPlaymatAssetId: undefined,
           defaultPlaymatSettings: undefined,
-          setDefaultPlaymat: (defaultPlaymat) => set({ defaultPlaymat }),
+          setDefaultPlaymatAssetId: (defaultPlaymatAssetId) => set({ defaultPlaymatAssetId }),
           setDefaultPlaymatSettings: (defaultPlaymatSettings) => set({ defaultPlaymatSettings }),
 
           zonePanelOrder: ["library", "graveyard", "exile"],
@@ -238,6 +229,8 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           battlefieldAutoSort: false,
           setBattlefieldAutoSort: (battlefieldAutoSort) => set({ battlefieldAutoSort }),
+          handOrderMode: "manual",
+          setHandOrderMode: (handOrderMode) => set({ handOrderMode }),
 
           cardSizeMultiplier: 1,
           setCardSizeMultiplier: (cardSizeMultiplier) =>
@@ -263,9 +256,8 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           ironsmithRuntimeEnabled: false,
           setIronsmithRuntimeEnabled: (ironsmithRuntimeEnabled) => set({ ironsmithRuntimeEnabled }),
-
-          askEngineOnAiPlay: false,
-          setAskEngineOnAiPlay: (askEngineOnAiPlay) => set({ askEngineOnAiPlay }),
+          forgeWasmEnabled: false,
+          setForgeWasmEnabled: (forgeWasmEnabled) => set({ forgeWasmEnabled }),
 
           hideAccountSaveNudge: false,
           setHideAccountSaveNudge: (hideAccountSaveNudge) => set({ hideAccountSaveNudge }),
@@ -302,9 +294,6 @@ export const usePreferencesStore = create<PreferencesState>()(
                 ? { ...state.lastPlayedAtByDeck, [lastPlayedDeckId]: Date.now() }
                 : state.lastPlayedAtByDeck,
             })),
-
-          lastOfflineEngine: null,
-          setLastOfflineEngine: (lastOfflineEngine) => set({ lastOfflineEngine }),
 
           lastOfflineFormatId: null,
           setLastOfflineFormatId: (lastOfflineFormatId) => set({ lastOfflineFormatId }),

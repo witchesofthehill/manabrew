@@ -22,6 +22,7 @@ export const featureFlags = {
   accounts: true,
   // Email sign-in inside the accounts dialog. Code entry, so desktop-safe.
   emailSignIn: true,
+  forgeWasm: false,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;
@@ -33,7 +34,9 @@ export function isFeatureEnabled(flag: FeatureFlag): boolean {
     import.meta.env.MODE !== "test" &&
     typeof window !== "undefined" &&
     !("__TAURI_INTERNALS__" in window);
-  if (browserDevelopment && (flag === "accounts" || flag === "deckHub")) return true;
+  if (browserDevelopment && (flag === "accounts" || flag === "deckHub" || flag === "forgeWasm")) {
+    return true;
+  }
   return (
     typeof window !== "undefined" && window.__MANABREW_RUNTIME__?.featureFlags?.[flag] === true
   );

@@ -1021,6 +1021,9 @@ export class BoardScene {
   updateHand(state: HandState): void {
     this.hand?.updateHand(state);
   }
+  getHandBounds(): BlockingRect | null {
+    return this.hand?.getBlockerRect() ?? null;
+  }
 
   holdHandHover(): void {
     this.hand?.holdHover();
@@ -1752,7 +1755,9 @@ export class BoardScene {
       return;
     }
 
-    const dragging = this.dragHandler.draggingCardIds.size > 0 || hand.isDraggingFromHand();
+    const draggingFromHand = hand.isDraggingFromHand();
+    if (draggingFromHand) hand.updateReorderAt(pos.x, pos.y);
+    const dragging = this.dragHandler.draggingCardIds.size > 0 || draggingFromHand;
     if (!dragging) {
       hand.updateHoverAt(pos.x, pos.y);
     } else if (hand.hasActiveHover()) {
@@ -1840,6 +1845,15 @@ export class BoardScene {
       this.setBlockDragId(null);
       return;
     }
+    if (e && this.hand?.isDraggingFromHand()) {
+      const pos = this.root.toLocal(e.global);
+      this.hand.updateReorderAt(pos.x, pos.y);
+    }
+    const handReorder = this.hand?.finishReorder();
+    if (handReorder) {
+      this.callbacks.onReorderHand?.(handReorder.cardId, handReorder.toIndex);
+      return;
+    }
     const local = this.localRegion();
     const selection = this.selection;
     if (!local || !selection) return;
@@ -1898,11 +1912,8 @@ export class BoardScene {
     for (const rec of this.regions.values()) rec.region.animate();
     this.hand?.animate();
     this.phaseStrip.tick();
-    this.phaseStrip.container.alpha = lerp(
-      this.phaseStrip.container.alpha,
-      this.phaseStripAlphaTarget,
-      0.2,
-      0.01,
+    this.phaseStrip.setDimAlpha(
+      lerp(this.phaseStrip.getDimAlpha(), this.phaseStripAlphaTarget, 0.2, 0.01),
     );
     this.animateFloaters(frameRatio);
     this.captureStackSeeds();

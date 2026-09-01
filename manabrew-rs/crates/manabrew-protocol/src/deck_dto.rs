@@ -153,7 +153,7 @@ struct DeckCardWire {
     #[serde(flatten)]
     rules: CardRulesSummary,
     #[serde(default)]
-    uris: CardImageUris,
+    uris: Option<CardImageUris>,
     #[serde(default)]
     all_parts: Option<Vec<CardPart>>,
 }
@@ -171,7 +171,7 @@ impl<'de> Deserialize<'de> for DeckCard {
         Ok(DeckCard {
             identity,
             rules: wire.rules,
-            uris: wire.uris,
+            uris: wire.uris.unwrap_or_default(),
             all_parts: wire.all_parts,
         })
     }
@@ -464,9 +464,14 @@ pub struct Deck {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub cover_card_face: Option<u8>,
+    /// The hub fills this from `playmat_asset_id` and ignores whatever a write
+    /// supplies.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub playmat: Option<String>,
+    pub playmat_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub playmat_asset_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub playmat_settings: Option<PlaymatSettings>,

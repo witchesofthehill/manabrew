@@ -1,0 +1,17 @@
+[package]
+name = "forge-wasm-assets"
+version = "0.2.0"
+edition = "2021"
+publish = false
+license = "AGPL-3.0-or-later"
+description = "Browser bindings for selecting Forge assets from a Manabrew cardset archive"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+forge-cardset-archive = { path = "../forge-cardset-archive" }
+wasm-bindgen = "0.2"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

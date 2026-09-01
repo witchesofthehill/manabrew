@@ -1,9 +1,11 @@
+import type { EngineGameStats } from "@/lib/engineTelemetry";
 import type {
   DraftConfig,
   EngineKind,
   GameFormat,
   RoomRelayEnvelope,
   SealedConfig,
+  LocalGameKind,
 } from "@/types/server";
 import type { Deck } from "@/protocol/deck";
 import type { DirectiveInput, Prompt, PromptOutput, ResumeRoomRequest } from "@/protocol";
@@ -13,6 +15,7 @@ export interface StartGameParams {
   startingLife: number;
   commanderName: string | null;
   opponentDecks: Deck[] | null;
+  engine?: EngineKind;
 }
 
 export interface StartMultiplayerGameParams {
@@ -22,6 +25,7 @@ export interface StartMultiplayerGameParams {
   enginePlayerIndex: number;
   localIsHost: boolean;
   startingLife: number;
+  engine?: EngineKind;
   format?: GameFormat | null;
   hostPlayerSlot?: string | null;
   botPlayerSlots?: string[];
@@ -79,7 +83,7 @@ export interface SetDeckSelectionParams {
   deck: Deck;
   publishedDeckId?: string;
   commanderName: string | null;
-  avatar?: string;
+  avatarUrl?: string;
 }
 
 export interface StartServerGameParams {
@@ -126,6 +130,7 @@ export interface IServerApi {
   disconnect(): Promise<void>;
   listRooms(): Promise<void>;
   listPlayers(): Promise<void>;
+  setLocalGame(kind: LocalGameKind | null): Promise<void>;
   createRoom(params: CreateRoomParams): Promise<string | null>;
   stopRoom(): Promise<void>;
   joinRoom(params: JoinRoomParams): Promise<void>;
@@ -138,6 +143,7 @@ export interface IServerApi {
   setMaxPlayers(params: SetMaxPlayersParams): Promise<void>;
   startGame(params?: StartServerGameParams): Promise<void>;
   endGame(gameId: string): Promise<void>;
+  reportEngineStats(stats: EngineGameStats, gameId?: string | null): Promise<void>;
   requestResync(): Promise<void>;
   broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void>;
   sendRoomMessage(message: RoomRelayEnvelope): Promise<void>;

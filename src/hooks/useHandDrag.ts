@@ -13,15 +13,23 @@ export interface HandDragStart {
 interface UseHandDragOptions {
   battlefieldContainerRef: React.RefObject<HTMLDivElement | null>;
   handDropExclusionPx?: number;
+  getHandBounds?: () => { y: number; height: number } | null;
+  onClickCard: (card: CardDto, position: { clientX: number; clientY: number }) => void;
   onCastSpell: (cardId: string) => void;
   onBattlefieldDrop?: (card: CardDto, position: { clientX: number; clientY: number }) => void;
   dismissHover: () => void;
   onLongPress?: (card: CardDto, pos: { x: number; y: number }) => void;
 }
 
+interface HandDragIntent {
+  canCast: boolean;
+}
+
 export function useHandDrag({
   battlefieldContainerRef,
   handDropExclusionPx = 0,
+  getHandBounds,
+  onClickCard,
   onCastSpell,
   onBattlefieldDrop,
   dismissHover,
@@ -30,18 +38,14 @@ export function useHandDrag({
   const [draggingHandCard, setDraggingHandCard] = useState<CardDto | null>(null);
   const [ghostPos, setGhostPos] = useState({ x: 0, y: 0 });
   const [isOverBattlefield, setIsOverBattlefield] = useState(false);
-  const isOverBattlefieldRef = useRef(false);
+  const [isOverHand, setIsOverHand] = useState(false);
   const teardownRef = useRef<(() => void) | null>(null);
 
   useEffect(() => () => teardownRef.current?.(), []);
 
-  function startHandCardDrag(card: CardDto, start: HandDragStart) {
+  function startHandCardDrag(card: CardDto, start: HandDragStart, intent: HandDragIntent) {
     dismissHover();
     teardownRef.current?.();
-    // Don't enter drag state yet — the card should stay in the hand until
-    // the user has actually dragged past the dead-zone. Otherwise a simple
-    // click to cast briefly hides the hand sprite + pops a floating ghost,
-    // which reads as "the card is leaving the hand before I've released".
 
     const isTouch = start.pointerType === "touch";
     const deadZoneSq = isTouch ? LONG_PRESS_CANCEL_DIST_SQ : 25;
@@ -51,7 +55,7 @@ export function useHandDrag({
     const reset = () => {
       setDraggingHandCard(null);
       setIsOverBattlefield(false);
-      isOverBattlefieldRef.current = false;
+      setIsOverHand(false);
     };
 
     const teardown = () => {
@@ -62,63 +66,72 @@ export function useHandDrag({
       longPress.cancel();
       teardownRef.current = null;
     };
+    const classifyPosition = (clientX: number, clientY: number) => {
+      const rect = battlefieldContainerRef.current?.getBoundingClientRect();
+      const inside =
+        rect != null &&
+        clientX >= rect.left &&
+        clientX <= rect.right &&
+        clientY >= rect.top &&
+        clientY <= rect.bottom;
+      const handBounds = getHandBounds?.();
+      const overHand =
+        inside &&
+        (handBounds
+          ? clientY >= rect.top + handBounds.y &&
+            clientY <= rect.top + handBounds.y + handBounds.height
+          : handDropExclusionPx > 0 && clientY >= rect.bottom - handDropExclusionPx);
+      return {
+        overHand,
+        overBattlefield: inside && !overHand && intent.canCast,
+      };
+    };
 
-    // A second finger means a pinch, not a cast — abort without releasing the
-    // spell over the battlefield.
-    const handleSecondPointerDown = (pe: PointerEvent) => {
-      if (pe.pointerId === start.pointerId) return;
+    const handleSecondPointerDown = (event: PointerEvent) => {
+      if (event.pointerId === start.pointerId) return;
       teardown();
       reset();
     };
 
-    const handlePointerMove = (pe: PointerEvent) => {
-      if (pe.pointerId !== start.pointerId) return;
-      longPress.move(pe.clientX, pe.clientY);
+    const handlePointerMove = (event: PointerEvent) => {
+      if (event.pointerId !== start.pointerId) return;
+      longPress.move(event.clientX, event.clientY);
       if (!moved) {
-        const dx = pe.clientX - start.clientX;
-        const dy = pe.clientY - start.clientY;
+        const dx = event.clientX - start.clientX;
+        const dy = event.clientY - start.clientY;
         if (dx * dx + dy * dy < deadZoneSq) return;
         moved = true;
         longPress.cancel();
         setDraggingHandCard(card);
       }
-      // Hard-disable hover preview during drag; hover timers can be re-armed by
-      // underlying mouseenter events while the cursor crosses cards.
+
       dismissHover();
-      setGhostPos({ x: pe.clientX, y: pe.clientY });
-
-      if (battlefieldContainerRef.current) {
-        const rect = battlefieldContainerRef.current.getBoundingClientRect();
-        let over =
-          pe.clientX >= rect.left &&
-          pe.clientX <= rect.right &&
-          pe.clientY >= rect.top &&
-          pe.clientY <= rect.bottom;
-
-        if (over && handDropExclusionPx > 0) {
-          const overHandStrip = pe.clientY >= rect.bottom - handDropExclusionPx;
-          if (overHandStrip) over = false;
-        }
-
-        isOverBattlefieldRef.current = over;
-        setIsOverBattlefield(over);
-      }
+      const { overHand, overBattlefield } = classifyPosition(event.clientX, event.clientY);
+      setGhostPos({
+        x: event.clientX,
+        y: overHand ? start.clientY : event.clientY,
+      });
+      setIsOverBattlefield(overBattlefield);
+      setIsOverHand(overHand);
     };
 
-    const handlePointerUp = (pe: PointerEvent) => {
-      if (pe.pointerId !== start.pointerId) return;
+    const handlePointerUp = (event: PointerEvent) => {
+      if (event.pointerId !== start.pointerId) return;
       teardown();
-      if (!moved || isOverBattlefieldRef.current) {
-        if (moved && isOverBattlefieldRef.current) {
-          onBattlefieldDrop?.(card, { clientX: pe.clientX, clientY: pe.clientY });
+      if (!moved) {
+        onClickCard(card, { clientX: event.clientX, clientY: event.clientY });
+      } else {
+        const { overBattlefield } = classifyPosition(event.clientX, event.clientY);
+        if (overBattlefield) {
+          onBattlefieldDrop?.(card, { clientX: event.clientX, clientY: event.clientY });
+          onCastSpell(card.id);
         }
-        onCastSpell(card.id);
       }
       reset();
     };
 
-    const handlePointerCancel = (pe: PointerEvent) => {
-      if (pe.pointerId !== start.pointerId) return;
+    const handlePointerCancel = (event: PointerEvent) => {
+      if (event.pointerId !== start.pointerId) return;
       teardown();
       reset();
     };
@@ -141,5 +154,11 @@ export function useHandDrag({
     };
   }
 
-  return { draggingHandCard, ghostPos, isOverBattlefield, startHandCardDrag };
+  return {
+    draggingHandCard,
+    ghostPos,
+    isOverBattlefield,
+    isOverHand,
+    startHandCardDrag,
+  };
 }

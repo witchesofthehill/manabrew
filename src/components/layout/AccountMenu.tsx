@@ -28,7 +28,7 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
   const account = useAuthStore((s) => s.account);
   const status = useAuthStore((s) => s.status);
   const showSignIn = useSignInDialog((s) => s.show);
-  const customAvatar = usePreferencesStore((s) => s.customAvatar);
+  const customAvatar = useAuthStore((s) => s.account?.avatarUrl);
   const serverUsername = usePreferencesStore((s) => s.serverUsername);
   const signedInAccount = status === "signedIn" ? account : null;
   const accountsEnabled = isFeatureEnabled("accounts");
@@ -44,7 +44,14 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
 
   function renderAvatar(sizeClass: string, initialClass: string) {
     if (customAvatar) {
-      return <img src={customAvatar} alt="" className={cn("size-full object-cover", sizeClass)} />;
+      return (
+        <img
+          src={customAvatar}
+          crossOrigin="anonymous"
+          alt=""
+          className={cn("size-full object-cover", sizeClass)}
+        />
+      );
     }
     if (initial) {
       return (

@@ -6,6 +6,8 @@ import { attachDraftPeer, detachDraftPeer } from "@/game/draftPeer";
 import { teardownHost as teardownDraftHost } from "@/game/draftHost";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { assetUrlById } from "@/stores/useAssetStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import {
   isActiveGameSessionAbandonmentPending,
   peekActiveGameSession,
@@ -45,6 +47,7 @@ import type {
   DisconnectedPayload,
 } from "@/types/server";
 import type { Deck } from "@/protocol/deck";
+import { resendLocalGame, setRelayFeatures } from "@/lib/localGamePresence";
 
 export const DEFAULT_STARTING_LIFE = 20;
 
@@ -394,19 +397,23 @@ export const useServerStore = create<ServerState>()(
         const platform = getPlatform();
         if (!platform.server) return;
         const prefs = usePreferencesStore.getState();
-        const deckHasPlaymat = !!deck.playmat || !!deck.playmatSettings?.color;
+        const deckHasPlaymat = !!deck.playmatUrl || !!deck.playmatSettings?.color;
+        const defaultPlaymatUrl = deckHasPlaymat
+          ? undefined
+          : await assetUrlById(prefs.defaultPlaymatAssetId);
         await platform.server.setDeckSelection({
           deckName,
           deck: deckHasPlaymat
             ? deck
             : {
                 ...deck,
-                playmat: prefs.defaultPlaymat,
+                playmatUrl: defaultPlaymatUrl,
+                playmatAssetId: defaultPlaymatUrl ? prefs.defaultPlaymatAssetId : undefined,
                 playmatSettings: prefs.defaultPlaymatSettings,
               },
           publishedDeckId,
           commanderName: commanderName ?? null,
-          avatar: prefs.customAvatar,
+          avatarUrl: useAuthStore.getState().account?.avatarUrl,
         });
       },
 
@@ -444,6 +451,7 @@ export const useServerStore = create<ServerState>()(
 
         unsubscribers.push(
           platform.events.on<AuthResultPayload>("server:auth_result", (payload) => {
+            setRelayFeatures(payload.features);
             if (payload.success) {
               duplicateRejectionSince = null;
               set({
@@ -456,6 +464,7 @@ export const useServerStore = create<ServerState>()(
               });
               get().listRooms();
               get().listPlayers();
+              resendLocalGame();
               const username = get().username;
               if (username) {
                 attachDraftPeer(username);

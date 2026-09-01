@@ -7,6 +7,9 @@ const SELF_ISSUER = "manabrew-client";
 const RELAY_AUDIENCE = "manabrew-relay";
 const UNSIGNED_TTL_S = 24 * 60 * 60;
 
+export const HUB_ISSUER = "manabrew-hub";
+export const GUEST_SUBJECT_PREFIX = "guest:";
+
 function base64UrlEncode(value: string): string {
   return btoa(unescape(encodeURIComponent(value)))
     .replace(/\+/g, "-")
@@ -46,6 +49,32 @@ export function tokenHandle(token: string): string | null {
   try {
     const parsed = JSON.parse(claims) as { handle?: unknown };
     return typeof parsed.handle === "string" && parsed.handle.trim() ? parsed.handle : null;
+  } catch {
+    return null;
+  }
+}
+
+export interface RelayTokenClaims {
+  sub: string;
+  iss: string;
+  exp: number;
+}
+
+export function tokenClaims(token: string): RelayTokenClaims | null {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const claims = base64UrlDecode(parts[1]);
+  if (!claims) return null;
+  try {
+    const parsed = JSON.parse(claims) as Record<string, unknown>;
+    if (
+      typeof parsed.sub !== "string" ||
+      typeof parsed.iss !== "string" ||
+      typeof parsed.exp !== "number"
+    ) {
+      return null;
+    }
+    return { sub: parsed.sub, iss: parsed.iss, exp: parsed.exp };
   } catch {
     return null;
   }

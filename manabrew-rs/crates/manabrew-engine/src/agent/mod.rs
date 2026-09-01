@@ -24,6 +24,7 @@ pub use types::*;
 pub struct PassUntilTarget {
     pub player: PlayerId,
     pub phase: forge_foundation::PhaseType,
+    pub through_combat: bool,
 }
 
 /// Trait for player decision-making. Decouples the engine from UI/AI.

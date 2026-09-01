@@ -70,7 +70,7 @@ export function DeckCheckpointsDialog({
       deckKey,
       name: name.trim() || `Checkpoint ${deckCheckpoints.length + 1}`,
       createdAt: Date.now(),
-      deck: { ...structuredClone(deck), playmat: undefined },
+      deck: { ...structuredClone(deck), playmatUrl: undefined, playmatAssetId: undefined },
     };
     const next = [checkpoint, ...checkpoints];
     const persisted = writeCheckpoints(next);
@@ -134,7 +134,11 @@ export function DeckCheckpointsDialog({
                 className="h-7 text-xs"
                 onClick={() =>
                   onRestore(
-                    { ...structuredClone(checkpoint.deck), playmat: deck.playmat },
+                    {
+                      ...structuredClone(checkpoint.deck),
+                      playmatUrl: deck.playmatUrl,
+                      playmatAssetId: deck.playmatAssetId,
+                    },
                     checkpoint.name,
                   )
                 }

@@ -55,6 +55,7 @@ public final class ManaBrewInteractiveSession {
     private long promptSeq;
     private volatile boolean closed;
     private volatile Thread gameThread;
+    private static volatile InteractiveBridge bridge;
     private volatile SpellAbility castingAbility;
 
     ManaBrewInteractiveSession(final String sessionId) {
@@ -70,6 +71,10 @@ public final class ManaBrewInteractiveSession {
         return sessionId;
     }
 
+    public static void setBridge(final InteractiveBridge value) {
+        bridge = value;
+    }
+
     public Game getGame() {
         requireAttached();
         return game;
@@ -78,6 +83,16 @@ public final class ManaBrewInteractiveSession {
     public void start(final Random rng) {
         requireAttached();
         Objects.requireNonNull(rng, "rng");
+        if (bridge != null) {
+            forge.util.MyRandom.setRandom(rng);
+            try {
+                match.startGame(game);
+            } catch (RuntimeException error) {
+                System.err.println("[mana-brew] interactive game error: " + error.getMessage());
+                error.printStackTrace(System.err);
+            }
+            return;
+        }
         gameThread = new Thread(() -> {
             forge.util.MyRandom.setRandom(rng);
             try {
@@ -154,6 +169,7 @@ public final class ManaBrewInteractiveSession {
         private final SpellAbility action;
         private final String untilPlayer;
         private final String untilPhase;
+        private final boolean throughCombat;
         private final boolean exhaustStack;
         private final Card untapCard;
         private final String color;
@@ -163,7 +179,7 @@ public final class ManaBrewInteractiveSession {
                 final SpellAbility action,
                 final String untilPlayer,
                 final String untilPhase) {
-            this(kind, action, untilPlayer, untilPhase, false, null, null);
+            this(kind, action, untilPlayer, untilPhase, false, false, null, null);
         }
 
         private PriorityChoice(
@@ -171,6 +187,7 @@ public final class ManaBrewInteractiveSession {
                 final SpellAbility action,
                 final String untilPlayer,
                 final String untilPhase,
+                final boolean throughCombat,
                 final boolean exhaustStack,
                 final Card untapCard,
                 final String color) {
@@ -178,6 +195,7 @@ public final class ManaBrewInteractiveSession {
             this.action = action;
             this.untilPlayer = untilPlayer;
             this.untilPhase = untilPhase;
+            this.throughCombat = throughCombat;
             this.exhaustStack = exhaustStack;
             this.untapCard = untapCard;
             this.color = color;
@@ -197,6 +215,10 @@ public final class ManaBrewInteractiveSession {
 
         String untilPhase() {
             return untilPhase;
+        }
+
+        boolean throughCombat() {
+            return throughCombat;
         }
 
         boolean exhaustStack() {
@@ -259,13 +281,15 @@ public final class ManaBrewInteractiveSession {
                         && !until.get("playerId").isJsonNull() ? until.get("playerId").getAsString() : null;
                 final String untilPhase = until != null && until.has("phase")
                         && !until.get("phase").isJsonNull() ? until.get("phase").getAsString() : null;
+                final boolean throughCombat = until != null && until.has("throughCombat")
+                        && !until.get("throughCombat").isJsonNull() && until.get("throughCombat").getAsBoolean();
                 final boolean exhaustStack = action.has("exhaustStack")
                         && !action.get("exhaustStack").isJsonNull() && action.get("exhaustStack").getAsBoolean();
-                return new PriorityChoice(PriorityActionKind.PASS, null, untilPlayer, untilPhase, exhaustStack, null, null);
+                return new PriorityChoice(PriorityActionKind.PASS, null, untilPlayer, untilPhase, throughCombat, exhaustStack, null, null);
             }
             if ("untap_land".equals(kind)) {
                 final Card untapCard = resolveUntapCard(action, untappableCards);
-                return new PriorityChoice(PriorityActionKind.UNDO, null, null, null, false, untapCard, null);
+                return new PriorityChoice(PriorityActionKind.UNDO, null, null, null, false, false, untapCard, null);
             }
             if ("choose_action".equals(kind)) {
                 final int index = action.get("index").getAsInt();
@@ -285,7 +309,7 @@ public final class ManaBrewInteractiveSession {
                 final String color = action.has("color") && !action.get("color").isJsonNull()
                         ? action.get("color").getAsString()
                         : null;
-                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index), null, null, false, null, color);
+                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index), null, null, false, false, null, color);
             }
             throw new UnsupportedOperationException("unsupported action kind: " + kind);
         }
@@ -1785,6 +1809,9 @@ public final class ManaBrewInteractiveSession {
 
     private JsonObject takeAction() throws InterruptedException {
         while (true) {
+            if (bridge != null && actions.isEmpty() && !closed && !game.isGameOver()) {
+                submitAction(bridge.exchange(promptedPlayerIndex, latestPromptJson));
+            }
             final JsonObject action = actions.poll(1, java.util.concurrent.TimeUnit.SECONDS);
             if (action == null) {
                 if (closed || game.isGameOver()) {
@@ -1823,6 +1850,7 @@ public final class ManaBrewInteractiveSession {
             return;
         }
         player.concede();
+        game.getAction().checkGameOverCondition();
     }
 
     private boolean gameDecided() {

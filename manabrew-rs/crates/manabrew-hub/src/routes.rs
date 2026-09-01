@@ -2,33 +2,38 @@ use std::collections::BTreeSet;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
-use axum::extract::{ConnectInfo, DefaultBodyLimit, Path, Query, State};
+use axum::extract::{ConnectInfo, DefaultBodyLimit, Path, Query, Request, State};
 use axum::http::header::{AUTHORIZATION, CONTENT_TYPE};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
+use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post, put};
 use axum::{Json, Router};
 use chrono::{SecondsFormat, Utc};
 use manabrew_hub::dto::{
-    AccountDeckList, AdminTopDeckSnapshotRequest, CardCollection, CardCollectionEntry,
-    CreateAccountDeckRequest, DeckHubEntryList, DeckPlayReportRequest, HubCapabilities,
-    PublishDeckHubEntryRequest, SaveDeckVersionRequest, UpdateDeckHubEntryRequest,
-    VerifyCardPrintingsRequest, VerifyCardPrintingsResponse,
+    AccountAsset, AccountAssetList, AccountDeckList, AdminTopDeckSnapshotRequest,
+    AssetCapabilities, AssetQuota, AssetUpload, Capability, CardCollection, CardCollectionEntry,
+    CreateAccountDeckRequest, CreateAssetUploadRequest, DeckHubEntryList, DeckPlayReportRequest,
+    EnginePlayStats, HubCapabilities, MissingCapabilityError, OfflinePlayGame,
+    PublishDeckHubEntryRequest, SaveDeckVersionRequest, SetAccountAvatarRequest,
+    UpdateDeckHubEntryRequest, VerifyCardPrintingsRequest, VerifyCardPrintingsResponse,
+    MAX_AVATAR_BYTES, MAX_PLAYMAT_BYTES,
 };
 use rand::RngCore;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
+use crate::assets::AssetService;
 use crate::auth;
 use crate::config::AuthConfig;
 use crate::rate_limit::RateLimiter;
 use crate::scryfall_api::ScryfallApi;
 use crate::scryfall_bulk::ScryfallBulkIndex;
 use crate::storage::{
-    DeckHubColorMatch, DeckHubEntryUpdate, DeckHubListParams, DeckHubSortOrder, DeckHubTagMatch,
-    DeleteOutcome, NewDeckHubEntry, RecordDeckPlayOutcome, RelayDeckPlay, ReplaceSnapshotOutcome,
-    SaveVersionOutcome, Storage,
+    AssetReservation, CreateDeckOutcome, DeckHubColorMatch, DeckHubEntryUpdate, DeckHubListParams,
+    DeckHubSortOrder, DeckHubTagMatch, DeleteOutcome, NewDeckHubEntry, RecordDeckPlayOutcome,
+    RelayDeckPlay, ReplaceSnapshotOutcome, ReserveAssetOutcome, SaveVersionOutcome, Storage,
 };
 use crate::validate;
 
@@ -57,6 +62,7 @@ pub struct AppState {
     pub scryfall_bulk: Arc<ScryfallBulkIndex>,
     pub scryfall_api: ScryfallApi,
     pub identity: auth::IdentityKeys,
+    pub assets: Option<AssetService>,
 }
 
 // The Tauri shells load from fixed webview origins; the web app origin comes
@@ -90,6 +96,16 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             Method::PATCH,
         ])
         .allow_headers([CONTENT_TYPE, AUTHORIZATION]);
+    let asset_routes = Router::new()
+        .route(
+            "/",
+            get(account_assets_handler).post(create_asset_upload_handler),
+        )
+        .route("/:id", delete(delete_asset_handler))
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            require_assets_capability,
+        ));
     Router::new()
         .route("/health", get(health_handler))
         .route("/api/hub/capabilities", get(capabilities_handler))
@@ -122,6 +138,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             "/api/decks/:id/versions/:version_no",
             get(deck_version_handler),
         )
+        .nest("/api/assets", asset_routes)
         .route("/api/presets/:preset_key/fork", post(fork_preset_handler))
         .route(
             "/api/deckhub/entries",
@@ -142,6 +159,8 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/api/deckhub/top/buckets", get(top_deck_buckets_handler))
         .route("/api/deckhub/top/:bucket", get(top_deck_snapshot_handler))
         .route("/api/deckhub/plays", post(record_deck_play_handler))
+        .route("/api/stats/engine", post(record_engine_stats_handler))
+        .route("/api/stats/game", post(record_offline_game_handler))
         .route(
             "/internal/deckhub/relay-games",
             post(relay_deck_game_handler),
@@ -168,6 +187,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
                 .patch(auth::update_handle_handler)
                 .delete(auth::delete_account_handler),
         )
+        .route("/api/auth/me/avatar", put(set_account_avatar_handler))
         .route("/api/auth/export", get(auth::export_account_handler))
         .route("/api/auth/logout", post(auth::logout_handler))
         .route("/api/auth/token", post(auth::token_handler))
@@ -180,6 +200,26 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
         .layer(cors)
         .with_state(state)
+}
+
+async fn require_assets_capability(
+    State(state): State<Arc<AppState>>,
+    request: Request,
+    next: Next,
+) -> Response {
+    if state.assets.is_some() {
+        next.run(request).await
+    } else {
+        missing_capability(Capability::Assets)
+    }
+}
+
+fn missing_capability(capability: Capability) -> Response {
+    (
+        StatusCode::NOT_IMPLEMENTED,
+        Json(MissingCapabilityError { capability }),
+    )
+        .into_response()
 }
 
 async fn verify_card_printings_handler(
@@ -273,13 +313,186 @@ async fn health_handler() -> &'static str {
     "ok"
 }
 
-async fn capabilities_handler() -> Json<HubCapabilities> {
+async fn capabilities_handler(State(state): State<Arc<AppState>>) -> Json<HubCapabilities> {
     Json(HubCapabilities {
         account_decks: true,
         tags: true,
         favorites: true,
         top_deck_snapshots: true,
+        assets: state.assets.as_ref().map(|_| AssetCapabilities {
+            max_avatar_bytes: MAX_AVATAR_BYTES,
+            max_playmat_bytes: MAX_PLAYMAT_BYTES,
+        }),
     })
+}
+
+async fn create_asset_upload_handler(
+    State(state): State<Arc<AppState>>,
+    auth::SessionAccount(account): auth::SessionAccount,
+    Json(request): Json<CreateAssetUploadRequest>,
+) -> Response {
+    let Some(assets) = state.assets.as_ref() else {
+        return missing_capability(Capability::Assets);
+    };
+    if request.byte_size == 0 || request.byte_size > request.kind.max_bytes() {
+        return StatusCode::PAYLOAD_TOO_LARGE.into_response();
+    }
+    if !assets.limiter.allow(&account.id) {
+        return StatusCode::TOO_MANY_REQUESTS.into_response();
+    }
+    let now = Utc::now();
+    let expires_at = (now + chrono::Duration::seconds(assets.reservation_ttl_seconds))
+        .to_rfc3339_opts(SecondsFormat::Secs, true);
+    let asset_id = uuid::Uuid::new_v4().to_string();
+    let object_key = crate::assets::object_key(&account.id, request.kind, &asset_id);
+    let reserved = state
+        .storage
+        .lock()
+        .unwrap()
+        .reserve_asset(AssetReservation {
+            account_id: &account.id,
+            asset_id: &asset_id,
+            kind: request.kind,
+            byte_size: request.byte_size,
+            default_quota_bytes: assets.quota_bytes,
+            expires_at: &expires_at,
+            now: &now_string(),
+        });
+    match reserved {
+        Ok(ReserveAssetOutcome::Reserved) => {}
+        Ok(ReserveAssetOutcome::QuotaExceeded {
+            used_bytes,
+            quota_bytes,
+        }) => {
+            return (
+                StatusCode::INSUFFICIENT_STORAGE,
+                Json(AssetQuota {
+                    used_bytes,
+                    quota_bytes,
+                }),
+            )
+                .into_response()
+        }
+        Err(error) => return internal_error(error),
+    }
+    match assets
+        .store
+        .presign_put(&object_key, request.byte_size)
+        .await
+    {
+        Ok(upload) => (
+            StatusCode::CREATED,
+            Json(AssetUpload {
+                asset_id,
+                upload_url: upload.url,
+                public_url: upload.public_url,
+                headers: upload.headers,
+            }),
+        )
+            .into_response(),
+        Err(error) => {
+            let released = state
+                .storage
+                .lock()
+                .unwrap()
+                .discard_pending_asset(&asset_id);
+            if let Err(error) = released {
+                tracing::error!(%error, asset_id, "could not release the reservation");
+            }
+            internal_error(error)
+        }
+    }
+}
+
+async fn account_assets_handler(
+    State(state): State<Arc<AppState>>,
+    auth::SessionAccount(account): auth::SessionAccount,
+) -> Response {
+    let Some(assets) = state.assets.as_ref() else {
+        return missing_capability(Capability::Assets);
+    };
+    match state
+        .storage
+        .lock()
+        .unwrap()
+        .account_assets(&account.id, assets.quota_bytes)
+    {
+        Ok((rows, quota)) => Json(AccountAssetList {
+            assets: rows
+                .into_iter()
+                .map(|row| AccountAsset {
+                    url: assets.store.public_url(&crate::assets::object_key(
+                        &account.id,
+                        row.kind,
+                        &row.id,
+                    )),
+                    id: row.id,
+                    kind: row.kind,
+                    byte_size: row.byte_size,
+                    state: row.state,
+                    created_at: row.created_at,
+                })
+                .collect(),
+            quota,
+        })
+        .into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+// The object goes first: a failed row delete leaves the asset owned and billed,
+// which the account can retry, while a failed object delete after the row is
+// gone would leak bytes nothing references.
+async fn delete_asset_handler(
+    State(state): State<Arc<AppState>>,
+    Path(asset_id): Path<String>,
+    auth::SessionAccount(account): auth::SessionAccount,
+) -> Response {
+    let Some(assets) = state.assets.as_ref() else {
+        return missing_capability(Capability::Assets);
+    };
+    let kind = state
+        .storage
+        .lock()
+        .unwrap()
+        .owned_asset_kind(&account.id, &asset_id);
+    let object_key = match kind {
+        Ok(Some(kind)) => crate::assets::object_key(&account.id, kind, &asset_id),
+        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+        Err(error) => return internal_error(error),
+    };
+    if let Err(error) = assets.store.delete(&object_key).await {
+        return internal_error(error);
+    }
+    match state
+        .storage
+        .lock()
+        .unwrap()
+        .delete_account_asset(&account.id, &asset_id)
+    {
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+async fn set_account_avatar_handler(
+    State(state): State<Arc<AppState>>,
+    auth::SessionAccount(account): auth::SessionAccount,
+    Json(request): Json<SetAccountAvatarRequest>,
+) -> Response {
+    if state.assets.is_none() {
+        return missing_capability(Capability::Assets);
+    }
+    match state
+        .storage
+        .lock()
+        .unwrap()
+        .set_account_avatar_asset(&account.id, request.asset_id.as_deref())
+    {
+        Ok(true) => StatusCode::NO_CONTENT.into_response(),
+        Ok(false) => StatusCode::UNPROCESSABLE_ENTITY.into_response(),
+        Err(error) => internal_error(error),
+    }
 }
 
 async fn account_decks_handler(
@@ -303,7 +516,7 @@ async fn fork_preset_handler(
         .unwrap()
         .fork_preset_deck(&account.id, &preset_key, &now_string())
     {
-        Ok(Some(deck)) => Json(deck).into_response(),
+        Ok(Some(detail)) => Json(detail).into_response(),
         Ok(None) => StatusCode::NOT_FOUND.into_response(),
         Err(error) => internal_error(error),
     }
@@ -321,11 +534,16 @@ async fn create_account_deck_handler(
     validate::sanitize(&mut deck);
     match state.storage.lock().unwrap().create_account_deck(
         &account.id,
-        &deck,
+        deck,
         request.notes.as_deref(),
         &now_string(),
     ) {
-        Ok(detail) => (StatusCode::CREATED, Json(detail)).into_response(),
+        Ok(CreateDeckOutcome::Created(detail)) => {
+            (StatusCode::CREATED, Json(*detail)).into_response()
+        }
+        Ok(CreateDeckOutcome::UnknownPlaymatAsset) => {
+            (StatusCode::UNPROCESSABLE_ENTITY, "unknown playmat asset").into_response()
+        }
         Err(error) => internal_error(error),
     }
 }
@@ -362,12 +580,15 @@ async fn save_account_deck_handler(
         &account.id,
         &id,
         request.expected_version_no,
-        &deck,
+        deck,
         request.notes.as_deref(),
         &now_string(),
     ) {
         Ok(SaveVersionOutcome::Saved(detail) | SaveVersionOutcome::Unchanged(detail)) => {
             Json(detail).into_response()
+        }
+        Ok(SaveVersionOutcome::UnknownPlaymatAsset) => {
+            (StatusCode::UNPROCESSABLE_ENTITY, "unknown playmat asset").into_response()
         }
         Ok(SaveVersionOutcome::Conflict) => StatusCode::CONFLICT.into_response(),
         Ok(SaveVersionOutcome::Forbidden) => StatusCode::FORBIDDEN.into_response(),
@@ -691,6 +912,62 @@ async fn deckhub_facets_handler(State(state): State<Arc<AppState>>) -> Response 
 async fn top_deck_buckets_handler(State(state): State<Arc<AppState>>) -> Response {
     match state.storage.lock().unwrap().list_top_deck_buckets() {
         Ok(buckets) => Json(buckets).into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+/// Engine timings for one finished game, from the client that ran it.
+///
+/// Unauthenticated on purpose: the interesting case is offline play, which has
+/// no session and no server in the loop at all. Nothing here identifies a
+/// player, the report id is the client's own so a retry cannot double-count,
+/// and the same per-IP limiter as the deck-play endpoint keeps a loop from
+/// filling the table.
+async fn record_engine_stats_handler(
+    State(state): State<Arc<AppState>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(request): Json<EnginePlayStats>,
+) -> Response {
+    if !request.is_plausible() {
+        return StatusCode::UNPROCESSABLE_ENTITY.into_response();
+    }
+    if !state.play_limiter.allow(&client_ip(&headers, addr)) {
+        return StatusCode::TOO_MANY_REQUESTS.into_response();
+    }
+    match state
+        .storage
+        .lock()
+        .unwrap()
+        .record_engine_play_stats(&request, &now_string())
+    {
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+/// Unauthenticated and rate-limited like the engine-stats endpoint next door,
+/// but unlike that one this record names players: it is the client standing in
+/// for the hosted node that used to record these same games.
+async fn record_offline_game_handler(
+    State(state): State<Arc<AppState>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(request): Json<OfflinePlayGame>,
+) -> Response {
+    if !request.is_plausible() {
+        return StatusCode::UNPROCESSABLE_ENTITY.into_response();
+    }
+    if !state.play_limiter.allow(&client_ip(&headers, addr)) {
+        return StatusCode::TOO_MANY_REQUESTS.into_response();
+    }
+    match state
+        .storage
+        .lock()
+        .unwrap()
+        .record_offline_play_game(&request, &now_string())
+    {
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(error) => internal_error(error),
     }
 }
@@ -1027,6 +1304,7 @@ mod tests {
             ])),
             scryfall_api: ScryfallApi::new(),
             identity: auth::token_tests::ephemeral(),
+            assets: None,
         })
     }
 
@@ -1040,6 +1318,8 @@ mod tests {
                 handle: handle.into(),
                 handle_set: false,
                 created_at: "2026-07-01T00:00:00Z".into(),
+                avatar_asset_id: None,
+                avatar_url: None,
                 qualification: None,
             })
             .unwrap();
@@ -1066,6 +1346,7 @@ mod tests {
             &state.identity,
             &account_id,
             handle,
+            None,
             None,
             auth::AUDIENCE_HUB,
         );
@@ -1502,6 +1783,8 @@ mod tests {
                     handle: "tester".into(),
                     handle_set: true,
                     created_at: "2026-07-01T00:00:00Z".into(),
+                    avatar_asset_id: None,
+                    avatar_url: None,
                     qualification: None,
                 })
                 .unwrap();

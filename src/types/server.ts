@@ -54,13 +54,18 @@ export interface RoomPlayerInfo {
   selected_deck_name?: string;
 }
 
+/** A game on the player's own machine, which the relay never sees. */
+export type LocalGameKind = "Singleplayer";
+
 export interface PlayerInfo {
   username: string;
   player_id: string;
   connected: boolean;
   verified?: boolean;
   qualification?: string;
+  avatar_url?: string;
   room_id?: string;
+  local_game?: LocalGameKind;
 }
 
 export interface AuthResultPayload {
@@ -69,6 +74,8 @@ export interface AuthResultPayload {
   reconnected: boolean | null;
   error: string | null;
   username: string | null;
+  /** Wire features the relay understands. Absent from relays predating the list. */
+  features?: string[];
 }
 
 export interface RoomListPayload {
@@ -202,9 +209,8 @@ export const SERVER_ERROR_CODE = {
 
 export type ServerErrorCode = (typeof SERVER_ERROR_CODE)[keyof typeof SERVER_ERROR_CODE];
 
-// Fragment of manabrew-server's duplicate-username AuthResult error text; the
-// AuthResult carries no code, so clients match on the message.
 export const DUPLICATE_USERNAME_ERROR_FRAGMENT = "already taken";
+export const TOKEN_EXPIRED_ERROR_FRAGMENT = "token expired";
 
 export const START_GAME_FAILURE_CODES: ReadonlySet<ServerErrorCode> = new Set([
   SERVER_ERROR_CODE.FormatNotChosen,

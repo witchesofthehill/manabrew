@@ -1,6 +1,6 @@
 [package]
 name = "forge-cardset-archive"
-version = "0.2.2"
+version = "0.4.0"
 edition = "2021"
 license.workspace = true
 description = "rkyv archive format for manabrew's pre-compiled cardset"

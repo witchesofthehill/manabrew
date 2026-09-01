@@ -166,7 +166,7 @@ pub(crate) fn render_ast_graph(ui: &mut egui::Ui, parsed: &ParsedCardScript<'_>)
             ui.painter().vline(
                 rect.left() + 12.0 + node.depth as f32 * 18.0,
                 rect.y_range(),
-                egui::Stroke::new(1.0, theme::BORDER_STRONG),
+                egui::Stroke::new(1.0_f32, theme::BORDER_STRONG),
             );
         }
     }
@@ -177,7 +177,7 @@ pub(crate) fn render_ast_node(ui: &mut egui::Ui, node: &AstNodeModel) {
         ui.add_space(node.depth as f32 * 18.0);
         theme::panel_frame()
             .fill(node.fill)
-            .stroke(egui::Stroke::new(1.0, node.stroke))
+            .stroke(egui::Stroke::new(1.0_f32, node.stroke))
             .inner_margin(egui::Margin {
                 left: 10.0,
                 right: 10.0,
@@ -385,7 +385,7 @@ pub(crate) fn render_ast_param_pill(
 ) {
     egui::Frame::none()
         .fill(theme::BG_0)
-        .stroke(egui::Stroke::new(1.0, color))
+        .stroke(egui::Stroke::new(1.0_f32, color))
         .inner_margin(egui::Margin {
             left: 5.0,
             right: 5.0,

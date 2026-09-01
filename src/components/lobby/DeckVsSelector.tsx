@@ -2,24 +2,17 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { EngineMark } from "@/components/lobby/EngineMark";
+import { PlaytestPlayersDialog } from "@/components/lobby/PlaytestPlayersDialog";
 import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
-import { cn, pickRandom } from "@/lib/utils";
+import { cn, pickRandom, pickRandomDistinct } from "@/lib/utils";
 import { toast } from "sonner";
 import { ROUTES } from "@/lib/constants";
 import { resolveAiOpponent } from "@/lib/aiOpponent";
 import { getDeckFingerprint } from "@/lib/decks";
 import { reportPublishedDeckPlay } from "@/lib/deckPlayEvidence";
 import { GAME_FORMATS, getFormat, validateDeckSections } from "@/lib/formats";
-import { getPlatform } from "@/platform";
-import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import { hubEntryEngines, supportsEngine } from "@/lib/engines";
 import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
@@ -28,7 +21,7 @@ import { useOwnedDecks } from "@/hooks/useOwnedDecks";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { Deck } from "@/protocol/deck";
-import { Check, ChevronDown, Loader2, Search, Shuffle, Swords, User, Bot, X } from "lucide-react";
+import { Check, Loader2, Search, Shuffle, Swords, User, Bot, X } from "lucide-react";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
 import { useHubStore } from "@/stores/useHubStore";
@@ -52,7 +45,7 @@ interface DeckVsSelectorProps {
   preSelectedHubDeckId?: string;
   onStart: (
     playerDeck: Deck,
-    opponentDeck: Deck,
+    opponentDecks: Deck[],
     formatId?: string,
     commanderName?: string,
   ) => Promise<boolean>;
@@ -93,8 +86,6 @@ export function DeckVsSelector({
       : null;
   const lastOfflineFormatId = usePreferencesStore((state) => state.lastOfflineFormatId);
   const lastAiOpponent = usePreferencesStore((state) => state.lastAiOpponent);
-  const lastOfflineEngine = usePreferencesStore((state) => state.lastOfflineEngine);
-  const setLastOfflineEngine = usePreferencesStore((state) => state.setLastOfflineEngine);
   const rememberedFormatId =
     !preSelectedDeckEntry && lastOfflineFormatId && getFormat(lastOfflineFormatId)
       ? lastOfflineFormatId
@@ -110,13 +101,12 @@ export function DeckVsSelector({
   const [opponentConfirmed, setOpponentConfirmed] = useState(false);
   const [deckSearch, setDeckSearch] = useState("");
   const [starting, setStarting] = useState(false);
+  const [playersDialogOpen, setPlayersDialogOpen] = useState(false);
   const [loadingHubDeckId, setLoadingHubDeckId] = useState<string | null>(null);
   const selectedFormatRef = useRef(selectedFormat);
   selectedFormatRef.current = selectedFormat;
   const opponentTouchedRef = useRef(false);
-  const isWeb = getPlatform().type === "web";
-  const hostedAvailable = isHostedEngineAvailable();
-  const offlineEngine = resolveOfflineEngine(lastOfflineEngine);
+  const offlineEngine = resolveOfflineEngine();
   const { details: accountDeckDetails } = useAccountDecks();
   const forkedPresetKeys = new Set(
     Object.values(accountDeckDetails)
@@ -387,7 +377,16 @@ export function DeckVsSelector({
     setPickingSide(playerDeck ? null : "player");
   }
 
-  async function handleFight() {
+  function handleFight() {
+    if (!playerDeck || !opponentDeck || starting) return;
+    if (playerDeck.formatId === "commander") {
+      setPlayersDialogOpen(true);
+      return;
+    }
+    void startFight(1);
+  }
+
+  async function startFight(opponentCount: number) {
     if (!playerDeck || !opponentDeck || starting) return;
     const empty = [playerDeck, opponentDeck].find(
       (d) => d.sourceDeck.cards.length === 0 && (d.sourceDeck.commanders?.length ?? 0) === 0,
@@ -409,10 +408,28 @@ export function DeckVsSelector({
         return;
       }
     }
+
+    const excluded = new Set([
+      getDeckFingerprint(playerDeck.sourceDeck),
+      getDeckFingerprint(opponentDeck.sourceDeck),
+    ]);
+    const additionalOpponents = pickRandomDistinct(
+      formatFilteredPresets.filter(
+        (preset) =>
+          preset.cards.length + (preset.commanders?.length ?? 0) > 0 &&
+          !excluded.has(getDeckFingerprint(preset)),
+      ),
+      opponentCount - 1,
+    );
+    if (additionalOpponents.length !== opponentCount - 1) {
+      toast.error("Not enough distinct Commander decks are available for a 4-player game.");
+      return;
+    }
+
     setStarting(true);
     const started = await onStart(
       playerDeck.sourceDeck,
-      opponentDeck.sourceDeck,
+      [opponentDeck.sourceDeck, ...additionalOpponents],
       playerDeck.formatId,
       playerDeck.commanderName,
     );
@@ -750,39 +767,10 @@ export function DeckVsSelector({
           />
         </div>
         <div className="grid grid-flow-col auto-cols-fr gap-2 sm:flex sm:flex-shrink-0 sm:items-center">
-          {isWeb && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="outline" className="w-full gap-1.5 sm:w-auto">
-                  <EngineMark engine={offlineEngine} className="h-3.5 w-3.5" />
-                  {offlineEngine}
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onSelect={() => setLastOfflineEngine("Forge")}
-                  disabled={!hostedAvailable}
-                  className="gap-1.5 text-xs"
-                >
-                  <EngineMark engine="Forge" className="h-3.5 w-3.5" />
-                  Forge
-                  {hostedAvailable && (
-                    <span className="text-[9px] text-muted-foreground">recommended</span>
-                  )}
-                  {offlineEngine === "Forge" && <Check className="ml-auto h-3 w-3" />}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => setLastOfflineEngine("Manabrew")}
-                  className="gap-1.5 text-xs"
-                >
-                  <EngineMark engine="Manabrew" className="h-3.5 w-3.5" />
-                  Manabrew
-                  {offlineEngine === "Manabrew" && <Check className="ml-auto h-3 w-3" />}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          <div className="flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm sm:w-auto">
+            <EngineMark engine="Forge" className="h-3.5 w-3.5" />
+            Forge
+          </div>
           <Button
             size="sm"
             onClick={handleFight}
@@ -799,6 +787,14 @@ export function DeckVsSelector({
           </Button>
         </div>
       </div>
+      <PlaytestPlayersDialog
+        open={playersDialogOpen}
+        onChoose={(opponentCount) => {
+          setPlayersDialogOpen(false);
+          void startFight(opponentCount);
+        }}
+        onCancel={() => setPlayersDialogOpen(false)}
+      />
     </div>
   );
 }

@@ -248,10 +248,19 @@
       "allParts": []
     },
     {
-      "name": "Thrum of the Vestige",
+      "name": "Lightning Bolt",
       "count": 1,
       "set": "fca",
       "cardNumber": "40",
+      "manaCost": "{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "types": ["Instant"],
+      "subtypes": [],
+      "supertypes": [],
+      "text": "Lightning Bolt deals 3 damage to any target.",
+      "layout": "normal",
       "uris": {
         "small": "https://cards.scryfall.io/small/front/e/8/e89794ab-6070-4916-936f-2b42fe41d31b.jpg?1759413293",
         "normal": "https://cards.scryfall.io/normal/front/e/8/e89794ab-6070-4916-936f-2b42fe41d31b.jpg?1759413293",

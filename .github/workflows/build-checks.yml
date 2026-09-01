@@ -30,6 +30,9 @@ jobs:
       run_rust: ${{ steps.scope.outputs.run_rust }}
       run_native: ${{ steps.scope.outputs.run_native }}
       run_forge_room: ${{ steps.scope.outputs.run_forge_room }}
+      run_forge_wasm_package: ${{ steps.scope.outputs.run_forge_wasm_package }}
+      run_node_image: ${{ steps.scope.outputs.run_node_image }}
+      run_website: ${{ steps.scope.outputs.run_website }}
     steps:
       - name: Classify changed files
         id: scope
@@ -58,6 +61,27 @@ jobs:
               '.github/workflows/build-checks.yml',
             ];
 
+            // The packaging, not the engine: the GraalVM outputs are stubbed
+            // in this job, so a change to the engine build does not belong here.
+            const FORGE_WASM_PACKAGE_PATHS = [
+              'packages/forge-wasm/',
+              'scripts/build-forge-wasm-package.mjs',
+              'scripts/verify-forge-wasm-package.mjs',
+              'public/forge/forge-engine.worker.js',
+              'manabrew-rs/crates/forge-wasm-assets/',
+              'manabrew-rs/crates/forge-cardset-archive/',
+              'forge',
+              '.github/workflows/build-checks.yml',
+            ];
+
+            // Nothing else builds the node image before a release tag does.
+            const NODE_IMAGE_PATHS = [
+              'manabrew-rs/crates/self-hosted-node/Dockerfile',
+              'forge-harness/build-native.sh',
+              'forge-harness/native/',
+              '.github/workflows/build-checks.yml',
+            ];
+
             // Anything that can change a cargo build's inputs: workspace
             // members and manifests, the forge gitlink (card data feeds the
             // cardset archive), and preset decks (networking regression games).
@@ -70,6 +94,22 @@ jobs:
               'tree-sitter-forge-card-script/',
               'xtask/',
               'public/preset_decks/',
+              '.github/workflows/build-checks.yml',
+            ];
+
+            // The landing page + docs site. Nothing else in CI builds it: it is
+            // baked into the web image at release time (Dockerfile.web runs
+            // `yarn build` in website/ and copies dist/landing + dist/docs into
+            // /srv), so before this job a broken MDX page merged green and only
+            // surfaced on the next tag. The site's imports escape website/ —
+            // `../images`, `../public`, `../src` — which is why an asset move
+            // outside it can break the build and belongs in this list.
+            const WEBSITE_PATHS = [
+              'website/',
+              'images/',
+              'src/themes/',
+              'src/assets/manaBrew.png',
+              'public/manabrew_brewery_1.png',
               '.github/workflows/build-checks.yml',
             ];
 
@@ -94,7 +134,15 @@ jobs:
             ];
 
             if (context.eventName !== 'pull_request') {
-              for (const key of ['run_checks', 'run_rust', 'run_native', 'run_forge_room']) {
+              for (const key of [
+                'run_checks',
+                'run_rust',
+                'run_native',
+                'run_forge_room',
+                'run_forge_wasm_package',
+                'run_node_image',
+                'run_website',
+              ]) {
                 core.setOutput(key, 'true');
               }
               return;
@@ -111,6 +159,94 @@ jobs:
             core.setOutput('run_rust', matches(files, RUST_PATHS) ? 'true' : 'false');
             core.setOutput('run_native', matches(files, NATIVE_PATHS) ? 'true' : 'false');
             core.setOutput('run_forge_room', matches(files, FORGE_ROOM_PATHS) ? 'true' : 'false');
+            core.setOutput('run_forge_wasm_package', matches(files, FORGE_WASM_PACKAGE_PATHS) ? 'true' : 'false');
+            core.setOutput('run_node_image', matches(files, NODE_IMAGE_PATHS) ? 'true' : 'false');
+            core.setOutput('run_website', matches(files, WEBSITE_PATHS) ? 'true' : 'false');
+
+  # ── @manabrew/forge-wasm packaging ─────────────────────────────────
+  # The package only builds on a `forge-wasm-v*` tag, so between releases its
+  # packaging rots unnoticed: a moved export, a file missing from `files`, a URL
+  # a bundler stops emitting. `--stub-engine` fakes the two GraalVM outputs so
+  # this can run without a Web Image toolchain; everything else is real,
+  # including `npm pack` and a throwaway consumer that builds the tarball.
+  forge-wasm-package:
+    name: Forge WASM package
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.run_forge_wasm_package == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The cardset archive is built from the submodule's card data.
+          submodules: recursive
+          clean: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Set up mold linker
+        uses: rui314/setup-mold@v1
+
+      # Restores the warm web-wasm cache, which already holds
+      # forge-cardset-archive. Never saves, so it cannot shrink the cache the
+      # typescript job depends on.
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: web-wasm
+          save-if: false
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.13.1
+
+      - name: Build the package
+        run: node scripts/build-forge-wasm-package.mjs --stub-engine
+
+      - name: Verify the package
+        run: node scripts/verify-forge-wasm-package.mjs
+
+  # ── Website: landing page + docs site ──────────────────────────────
+  # Deliberately NOT gated on `run_checks`. A website-only PR sets that to
+  # false, which is precisely the case where this is the only build that can
+  # fail — gating on it would leave the gap this job exists to close.
+  #
+  # Runs the same `yarn build` (both Astro configs) that Dockerfile.web's
+  # website stage runs, so a green job here means the next image build of the
+  # same tree succeeds.
+  website:
+    name: Website (landing + docs)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.run_website == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+          cache-dependency-path: website/yarn.lock
+
+      - name: Install Yarn
+        run: npm install --global yarn
+
+      - name: Install dependencies
+        working-directory: website
+        run: yarn install --frozen-lockfile
+
+      - name: Build landing + docs
+        working-directory: website
+        run: yarn build
 
   # ── TypeScript type-check ──────────────────────────────────────────
   # Builds the wasm bundle (or restores it from cache) and uploads it as an
@@ -878,3 +1014,71 @@ jobs:
 
       - name: Compute release plan
         run: cargo xtask plan --github-summary
+
+  # ── Node engine image ──────────────────────────────────────────────
+  # Otherwise the Dockerfile is first built by the release that ships it.
+  # The harness is dlopened, so the container is started too: a missing JDK
+  # library or a glibc mismatch builds green and fails on start.
+  node-image:
+    name: Node engine image
+    needs: changes
+    if: needs.changes.outputs.run_node_image == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Load, not push: this is a check, and the registry copy is
+      # docker-images.yml's job on a tag.
+      - name: Build node image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: manabrew-rs/crates/self-hosted-node/Dockerfile
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: manabrew-node:pr
+          cache-from: type=registry,ref=ghcr.io/witchesofthehill/manabrew-node:buildcache
+
+      # The engine reads card scripts lazily, so nothing in the log says the
+      # card database is there. Count the files in the runtime layer instead.
+      - name: Check the card database shipped
+        run: |
+          cards=$(docker run --rm --entrypoint find manabrew-node:pr \
+            /build/forge/forge-gui/res/cardsfolder -name '*.txt' | wc -l)
+          echo "card scripts in the image: $cards"
+          if [ "$cards" -lt 30000 ]; then
+            echo "expected ~33k card scripts, saw $cards"
+            exit 1
+          fi
+
+      - name: Start it and wait for the engine
+        run: |
+          docker run -d --name node-smoke --memory 2g \
+            -e SELF_HOSTED_NODE_RELAY_URL=ws://127.0.0.1:9 \
+            -e RUST_LOG=self_hosted_node=info \
+            manabrew-node:pr
+          for _ in $(seq 1 60); do
+            if docker logs node-smoke 2>&1 | grep -q "shared graal isolate initialized"; then
+              echo "engine up"
+              exit 0
+            fi
+            if ! docker ps -q --filter name=node-smoke | grep -q .; then
+              echo "container exited early:"
+              docker logs node-smoke 2>&1 | tail -40
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "engine did not come up within 120s:"
+          docker logs node-smoke 2>&1 | tail -40
+          exit 1
+
+      - name: Container logs on failure
+        if: failure()
+        run: docker logs node-smoke 2>&1 | tail -100 || true

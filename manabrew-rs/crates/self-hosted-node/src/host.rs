@@ -156,12 +156,18 @@ enum LoopExit {
 }
 
 pub async fn cli_entry() {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "self_hosted_node=info".into()),
-        )
-        .init();
+    {
+        use tracing_subscriber::layer::SubscriberExt;
+        use tracing_subscriber::util::SubscriberInitExt;
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| "self_hosted_node=info".into()),
+            )
+            .with(tracing_subscriber::fmt::layer())
+            .with(crate::logs::layer_from_env())
+            .init();
+    }
     crate::metrics::init_from_env();
 
     if std::env::var("SELF_HOSTED_NODE_JAVA_SMOKE").is_ok() {
@@ -977,7 +983,7 @@ async fn seat_client(
             deck: deck.deck.clone(),
             published_deck_id: None,
             commander_name: deck.commander_name.clone(),
-            avatar: None,
+            avatar_url: None,
         })
         .await?;
     client
@@ -2007,15 +2013,28 @@ impl EngineClock {
             .store(Self::now(), std::sync::atomic::Ordering::Relaxed);
     }
 
+    /// Cleared once the decision it was timing completes, so an envelope emitted
+    /// later, while a player is thinking, cannot report that wait as engine time.
+    pub fn mark_decision_complete(&self) {
+        self.0.store(0, std::sync::atomic::Ordering::Relaxed);
+    }
+
     /// Milliseconds since the last response, or `None` if none has arrived yet
-    /// or the gap is implausibly long (the engine was idle, not working).
+    /// or the decision it was timing has already completed.
+    ///
+    /// There is deliberately no upper bound. Idle time used to be excluded by
+    /// discarding anything past 120s, which also discarded the slow decisions
+    /// the metric exists to expose: a real 175s decision reported no `engineMs`
+    /// at all, so the field was absent exactly when it mattered and every
+    /// quantile built from it was understated. `mark_decision_complete` draws
+    /// that line by state instead of by duration.
     pub fn elapsed_ms(&self) -> Option<u32> {
         let at = self.0.load(std::sync::atomic::Ordering::Relaxed);
         if at == 0 {
             return None;
         }
         let delta = Self::now().saturating_sub(at);
-        (delta < 120_000).then_some(delta as u32)
+        Some(delta.min(u32::MAX as u64) as u32)
     }
 }
 
@@ -2071,6 +2090,9 @@ fn spawn_remote_prompt_forwarder(
             let per_seat = seat_usernames.is_some() && player_index != OBSERVER_SEAT;
             let slot = player_slot(player_index);
             let engine_ms = engine_clock.elapsed_ms();
+            if matches!(message, AgentMessage::Prompt(_)) {
+                engine_clock.mark_decision_complete();
+            }
             let emit_started = Instant::now();
             let envelope = match &message {
                 AgentMessage::State(state_update) if !per_seat => StateEnvelope::State {

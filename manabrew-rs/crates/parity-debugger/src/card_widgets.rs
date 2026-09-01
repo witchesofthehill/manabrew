@@ -68,7 +68,7 @@ pub(crate) fn render_card_chip(
         rect,
         0.0,
         egui::Stroke::new(
-            if is_selected { 1.5 } else { 1.0 },
+            if is_selected { 1.5_f32 } else { 1.0_f32 },
             if is_selected {
                 theme::ACCENT
             } else {
@@ -98,7 +98,7 @@ pub(crate) fn render_card_chip(
     ui.painter().circle_stroke(
         cost_rect.center(),
         6.5,
-        egui::Stroke::new(1.0, card_color(card)),
+        egui::Stroke::new(1.0_f32, card_color(card)),
     );
     if card.tapped {
         child.colored_label(theme::FG_3, "T");
@@ -133,7 +133,7 @@ pub(crate) fn render_zone_name_chip(
         rect,
         0.0,
         egui::Stroke::new(
-            if is_selected { 1.5 } else { 1.0 },
+            if is_selected { 1.5_f32 } else { 1.0_f32 },
             if is_selected {
                 theme::ACCENT
             } else {

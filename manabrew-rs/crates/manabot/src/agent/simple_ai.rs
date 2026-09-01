@@ -20,6 +20,8 @@ fn bot_warn(msg: &str) {
 #[derive(Default)]
 pub struct SimpleAi {
     recent_prompts: VecDeque<String>,
+    last_attack_declaration: Vec<(String, String)>,
+    failed_attack_targets: std::collections::HashSet<String>,
 }
 
 impl SimpleAi {
@@ -36,11 +38,36 @@ impl SimpleAi {
                 "loop-breaker engaged on repeated prompt: {signature}"
             ));
         }
+        self.remember(signature);
+        seen
+    }
+
+    fn looping_on_consecutive(&mut self, signature: String) -> bool {
+        let consecutive = self.recent_prompts.back() == Some(&signature);
+        if consecutive {
+            bot_warn(&format!(
+                "loop-breaker engaged on consecutive prompt: {signature}"
+            ));
+        }
+        self.remember(signature);
+        consecutive
+    }
+
+    fn remember(&mut self, signature: String) {
         self.recent_prompts.push_back(signature);
         while self.recent_prompts.len() > LOOP_WINDOW {
             self.recent_prompts.pop_front();
         }
-        seen
+    }
+
+    fn fail_attack_target(&mut self, card_id: &str) {
+        if let Some((_, target_id)) = self
+            .last_attack_declaration
+            .iter()
+            .find(|(a, _)| a == card_id)
+        {
+            self.failed_attack_targets.insert(target_id.clone());
+        }
     }
 }
 
@@ -81,6 +108,7 @@ impl BotAgent for SimpleAi {
                         until: Some(PassUntil {
                             player_id: prompt.deciding_player_id.clone(),
                             phase: manabrew_protocol::game::StepKind::Main1,
+                            through_combat: false,
                         }),
                         exhaust_stack: true,
                     },
@@ -95,18 +123,44 @@ impl BotAgent for SimpleAi {
                     .first()
                     .map(|t| t.id.clone())
                     .unwrap_or_else(|| "player-1".to_string());
+                let signature = format!(
+                    "attack:{}|{}",
+                    attackers
+                        .iter()
+                        .map(|a| format!("{}:{}", a.attacker_id, a.valid_target_ids.join("+")))
+                        .collect::<Vec<_>>()
+                        .join(","),
+                    attack_targets
+                        .iter()
+                        .map(|t| t.id.as_str())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                );
+                let reprompted = self.looping_on_consecutive(signature);
+                let mut assignments = Vec::new();
+                if !reprompted {
+                    for a in &attackers {
+                        let target_id = match a
+                            .valid_target_ids
+                            .iter()
+                            .find(|t| !self.failed_attack_targets.contains(*t))
+                        {
+                            Some(t) => t.clone(),
+                            None if a.valid_target_ids.is_empty() => default_target.clone(),
+                            None => continue,
+                        };
+                        assignments.push(AttackAssignment {
+                            attacker_id: a.attacker_id.clone(),
+                            target_id,
+                        });
+                    }
+                }
+                self.last_attack_declaration = assignments
+                    .iter()
+                    .map(|a| (a.attacker_id.clone(), a.target_id.clone()))
+                    .collect();
                 Some(PromptOutput::ChooseAttackers(ChooseAttackersOutput::DeclareAttackers {
-                    assignments: attackers
-                        .into_iter()
-                        .map(|a| AttackAssignment {
-                            attacker_id: a.attacker_id,
-                            target_id: a
-                                .valid_target_ids
-                                .first()
-                                .cloned()
-                                .unwrap_or_else(|| default_target.clone()),
-                        })
-                        .collect(),
+                    assignments,
                 }))
             }
             PromptInput::ChooseBlockers(manabrew_protocol::prompts::choose_blockers::ChooseBlockersInput {
@@ -182,13 +236,22 @@ impl BotAgent for SimpleAi {
                 let target = if self.looping_on(signature) { max_total } else { min_total };
                 let mut chosen_indices = Vec::new();
                 let mut total = 0;
-                for (index, option) in options.iter().enumerate() {
-                    if total + option.weight > target {
-                        continue;
+                while total < target {
+                    let before = total;
+                    for (index, option) in options.iter().enumerate() {
+                        if total + option.weight > target {
+                            continue;
+                        }
+                        if !option.can_repeat && chosen_indices.contains(&index) {
+                            continue;
+                        }
+                        chosen_indices.push(index);
+                        total += option.weight;
+                        if total == target {
+                            break;
+                        }
                     }
-                    chosen_indices.push(index);
-                    total += option.weight;
-                    if total == target {
+                    if total == before {
                         break;
                     }
                 }
@@ -255,6 +318,7 @@ impl BotAgent for SimpleAi {
                     )
                 });
                 let payment = if input.can_confirm_from_pool {
+                    self.failed_attack_targets.clear();
                     PayManaCostOutput::Pay { auto: false }
                 } else if let Some(action) = waterbend {
                     PayManaCostOutput::Act {
@@ -273,6 +337,7 @@ impl BotAgent for SimpleAi {
                             .join(",")
                     );
                     if input.actions.is_empty() || self.looping_on(signature) {
+                        self.fail_attack_target(&input.card_id);
                         PayManaCostOutput::Cancel
                     } else {
                         PayManaCostOutput::Pay { auto: true }

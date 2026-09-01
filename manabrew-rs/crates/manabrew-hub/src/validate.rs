@@ -1,4 +1,5 @@
 use manabrew_protocol::deck_dto::{Deck, DeckCard};
+use manabrew_protocol::game::PlaymatSettings;
 
 const MAX_AUTHOR_LEN: usize = 50;
 const MAX_NAME_LEN: usize = 100;
@@ -12,6 +13,7 @@ const MAX_RULES_TEXT_LEN: usize = 5000;
 const MAX_SET_CODE_LEN: usize = 10;
 const MAX_LABELS: usize = 50;
 const MAX_LABEL_LEN: usize = 50;
+const MAX_COLOR_LEN: usize = 32;
 const ALLOWED_IMAGE_HOSTS: [&str; 2] = ["scryfall.io", "scryfall.com"];
 
 pub fn validate(author: &str, deck: &Deck) -> Result<(), String> {
@@ -116,9 +118,19 @@ pub fn strip_name_tag(name: &str) -> &str {
 pub fn sanitize(deck: &mut Deck) {
     deck.version = None;
     deck.id = None;
-    deck.playmat = None;
-    deck.playmat_settings = None;
+    deck.playmat_url = None;
     deck.stack_positions = None;
+    if let Some(settings) = deck.playmat_settings.as_mut() {
+        sanitize_playmat_settings(settings);
+    }
+}
+
+fn sanitize_playmat_settings(settings: &mut PlaymatSettings) {
+    settings.color = settings.color.take().filter(|it| it.len() <= MAX_COLOR_LEN);
+    settings.border_color = settings
+        .border_color
+        .take()
+        .filter(|it| it.len() <= MAX_COLOR_LEN);
 }
 
 fn validate_line(value: &str, min: usize, max: usize, field: &str) -> Result<(), String> {
@@ -264,12 +276,21 @@ pub mod tests {
         let mut deck = deck(1);
         deck.version = Some("1".into());
         deck.id = Some("local".into());
-        deck.playmat = Some("data:image/png;base64,AAAA".into());
+        deck.playmat_url = Some("https://elsewhere.example/x.webp".into());
+        deck.playmat_asset_id = Some("2a1f7c8e-0000-4000-8000-000000000001".into());
+        deck.playmat_settings = Some(PlaymatSettings {
+            color: Some("x".repeat(MAX_COLOR_LEN + 1)),
+            ..PlaymatSettings::default()
+        });
         sanitize(&mut deck);
         assert!(deck.version.is_none());
         assert!(deck.id.is_none());
-        assert!(deck.playmat.is_none());
-        assert!(deck.playmat_settings.is_none());
+        assert!(deck.playmat_url.is_none());
         assert!(deck.stack_positions.is_none());
+        assert_eq!(
+            deck.playmat_asset_id.as_deref(),
+            Some("2a1f7c8e-0000-4000-8000-000000000001")
+        );
+        assert!(deck.playmat_settings.expect("settings").color.is_none());
     }
 }

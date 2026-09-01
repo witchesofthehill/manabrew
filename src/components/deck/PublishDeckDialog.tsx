@@ -36,7 +36,8 @@ function toPublishableDeck(deck: EditorDeck): EditorDeck {
     name: resolveDeckName(deck.name, deck.commanders),
     id: undefined,
     version: undefined,
-    playmat: undefined,
+    playmatUrl: undefined,
+    playmatAssetId: undefined,
     playmatSettings: undefined,
     stackPositions: undefined,
   };

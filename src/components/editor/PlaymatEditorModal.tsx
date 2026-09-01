@@ -23,7 +23,7 @@ import {
   clampBorderColor,
   clampPlaymatColor,
 } from "@/pixi/board/PlaymatLayer";
-import { normalizeToWebp, ImageTooLargeError, PLAYMAT_IMAGE_BUDGET } from "@/lib/imageEncode";
+import { useAssetStore, useAssetsAvailable } from "@/stores/useAssetStore";
 import { usePlaymatPreview } from "./usePlaymatPreview";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -53,8 +53,9 @@ interface PlaymatEditorModalProps {
   onClose: () => void;
   title?: string;
   playmat: string | undefined;
+  playmatAssetId: string | undefined;
   storedSettings: PlaymatSettings | undefined;
-  setPlaymat: (dataUrl: string | undefined) => void;
+  setPlaymat: (url: string | undefined, assetId: string | undefined) => void;
   setPlaymatSettings: (settings: PlaymatSettings | undefined) => void;
 }
 
@@ -62,10 +63,15 @@ export function PlaymatEditorModal({
   onClose,
   title = "Customize Playmat",
   playmat,
+  playmatAssetId,
   storedSettings,
   setPlaymat,
   setPlaymatSettings,
 }: PlaymatEditorModalProps) {
+  const replaceAsset = useAssetStore((s) => s.replace);
+  const removeAsset = useAssetStore((s) => s.remove);
+  const uploading = useAssetStore((s) => s.busy);
+  const uploadAvailable = useAssetsAvailable();
   const [settings, setSettings] = useState<Required<PlaymatSettings>>({
     ...DEFAULT_PLAYMAT_SETTINGS,
     ...(storedSettings ?? {}),
@@ -84,7 +90,8 @@ export function PlaymatEditorModal({
   }
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showSampleCards, setShowSampleCards] = useState(true);
-  const [busy, setBusy] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const busy = uploading || fetching;
   const [dragActive, setDragActive] = useState(false);
 
   function update(patch: Partial<PlaymatSettings>) {
@@ -113,16 +120,8 @@ export function PlaymatEditorModal({
   });
 
   async function setPlaymatFromBlob(blob: Blob) {
-    setBusy(true);
-    try {
-      setPlaymat(await normalizeToWebp(blob, PLAYMAT_IMAGE_BUDGET));
-    } catch (err) {
-      toast.error(
-        err instanceof ImageTooLargeError ? err.message : "Couldn't use that image as a playmat",
-      );
-    } finally {
-      setBusy(false);
-    }
+    const uploaded = await replaceAsset("playmat", blob, playmatAssetId);
+    if (uploaded) setPlaymat(uploaded.url, uploaded.assetId);
   }
 
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -153,17 +152,18 @@ export function PlaymatEditorModal({
   }, []);
 
   async function applyPreset(url: string) {
-    setBusy(true);
+    setFetching(true);
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      setPlaymat(await normalizeToWebp(blob, PLAYMAT_IMAGE_BUDGET));
+      const uploaded = await replaceAsset("playmat", await res.blob(), playmatAssetId);
+      if (!uploaded) return;
+      setPlaymat(uploaded.url, uploaded.assetId);
       update({ fit: "cover" });
     } catch {
       toast.error("Couldn't load that preset.");
     } finally {
-      setBusy(false);
+      setFetching(false);
     }
   }
 
@@ -216,47 +216,49 @@ export function PlaymatEditorModal({
             </label>
           </div>
 
-          <section className="space-y-2.5">
-            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Background image
-            </Label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={onPick}
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <ImagePlus className="h-4 w-4" />
-              {playmat ? "Replace image" : "Upload image"}
-            </Button>
-            {PLAYMAT_PRESETS.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {PLAYMAT_PRESETS.map((p) => (
-                  <button
-                    key={p.url}
-                    type="button"
-                    onClick={() => void applyPreset(p.url)}
-                    title={p.name}
-                    className="h-12 w-[5.5rem] shrink-0 overflow-hidden rounded-md border transition-[transform,border-color] hover:scale-[1.04] hover:border-primary"
-                  >
-                    <img
-                      src={p.url}
-                      alt={p.name}
-                      draggable={false}
-                      className="size-full object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
-          </section>
+          {uploadAvailable && (
+            <section className="space-y-2.5">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Background image
+              </Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={onPick}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <ImagePlus className="h-4 w-4" />
+                {playmat ? "Replace image" : "Upload image"}
+              </Button>
+              {PLAYMAT_PRESETS.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {PLAYMAT_PRESETS.map((p) => (
+                    <button
+                      key={p.url}
+                      type="button"
+                      onClick={() => void applyPreset(p.url)}
+                      title={p.name}
+                      className="h-12 w-[5.5rem] shrink-0 overflow-hidden rounded-md border transition-[transform,border-color] hover:scale-[1.04] hover:border-primary"
+                    >
+                      <img
+                        src={p.url}
+                        alt={p.name}
+                        draggable={false}
+                        className="size-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
           {playmat && (
             <section className="space-y-2.5">
@@ -479,8 +481,9 @@ export function PlaymatEditorModal({
             variant="ghost"
             size="sm"
             onClick={() => {
-              setPlaymat(undefined);
+              setPlaymat(undefined, undefined);
               update({ color: "" });
+              void removeAsset(playmatAssetId);
               onClose();
             }}
           >

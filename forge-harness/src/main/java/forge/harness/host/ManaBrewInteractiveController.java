@@ -19,6 +19,7 @@ import forge.LobbyPlayer;
 import forge.ai.AiCostDecision;
 import forge.ai.ComputerUtilCombat;
 import forge.ai.ComputerUtilMana;
+import forge.card.CardRules;
 import forge.card.ColorSet;
 import forge.card.ICardFace;
 import forge.card.MagicColor.Color;
@@ -63,6 +64,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -79,6 +81,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     private final HarnessPlayPlumbing playPlumbing;
     private String passUntilPlayer;
     private String passUntilPhase;
+    private boolean passUntilThroughCombat;
     private int passUntilDeclaredTurn;
     private int passUntilObservedTurn;
     private PhaseType passUntilMaxPhase;
@@ -167,12 +170,13 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     || PriorityFastForward.invalidatedByExtraPhase(currentPhase, passUntilMaxPhase)) {
                 passUntilPlayer = null;
                 passUntilPhase = null;
+                passUntilThroughCombat = false;
             } else {
                 if (currentPhase != null
                         && (passUntilMaxPhase == null || passUntilMaxPhase.isBefore(currentPhase))) {
                     passUntilMaxPhase = currentPhase;
                 }
-                if (PriorityFastForward.canSkip(game)) {
+                if (PriorityFastForward.canSkip(game, passUntilThroughCombat)) {
                     return null;
                 }
             }
@@ -195,6 +199,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             }
             passUntilPlayer = choice.untilPlayer();
             passUntilPhase = choice.untilPhase();
+            passUntilThroughCombat = choice.throughCombat();
             passUntilDeclaredTurn = game.getPhaseHandler().getTurn();
             passUntilObservedTurn = passUntilDeclaredTurn;
             passUntilMaxPhase = game.getPhaseHandler().getPhase();
@@ -1590,13 +1595,25 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public String chooseCardName(final SpellAbility sa, final Predicate<ICardFace> cpp, final String valid, final String message) {
-        final List<ICardFace> faces = filterCardFaces(sa, cpp, valid);
-        return chooseCardName(sa, faces, message);
+        while (true) {
+            final ICardFace cardFace = chooseSingleCardFace(sa, message, cpp, sa.getHostCard().getName());
+            if (cardFace == null) {
+                return "";
+            }
+            final PaperCard cp = forge.StaticData.instance().getCommonCards().getCard(cardFace.getName());
+            if (cp == null) {
+                continue;
+            }
+            final Card instanceForPlayer = Card.fromPaperCard(cp, player);
+            if (instanceForPlayer.isValid(valid, sa.getHostCard().getController(), sa.getHostCard(), sa)) {
+                return cardFace.getName();
+            }
+        }
     }
 
     @Override
     public ICardFace chooseSingleCardFace(final SpellAbility sa, final String message, final Predicate<ICardFace> cpp, final String name) {
-        final List<ICardFace> faces = filterCardFaces(sa, cpp, null);
+        final List<ICardFace> faces = filterCardFaces(cpp);
         return chooseSingleCardFace(sa, faces, message);
     }
 
@@ -2579,27 +2596,30 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         return out;
     }
 
-    private List<ICardFace> filterCardFaces(final SpellAbility sa, final Predicate<ICardFace> cpp, final String valid) {
-        final Card source = sa == null ? null : sa.getHostCard();
+    private List<ICardFace> filterCardFaces(final Predicate<ICardFace> cpp) {
         final Predicate<ICardFace> faceFilter = cpp == null ? x -> true : cpp;
+        final CardCollection cards = new CardCollection(getGame().getCardsInGame());
+        for (final Player p : getGame().getPlayers()) {
+            cards.addAll(p.getCardsIn(ZoneType.Sideboard));
+        }
         final List<ICardFace> faces = new ArrayList<>();
-        forge.StaticData.instance().getCommonCards().streamAllFaces()
-                .filter(faceFilter)
-                .filter(face -> {
-                    if (valid == null || valid.isEmpty()) {
-                        return true;
-                    }
-                    final PaperCard cp = forge.StaticData.instance().getCommonCards().getCard(face.getName());
-                    if (cp == null) {
-                        return false;
-                    }
-                    final Card instanceForPlayer = Card.fromPaperCard(cp, player);
-                    final Player sourceController = source == null ? player : source.getController();
-                    return instanceForPlayer.isValid(valid, sourceController, source, sa);
-                })
-                .sorted()
-                .forEach(faces::add);
+        for (final Card card : cards) {
+            final CardRules rules = card.getRules();
+            if (rules == null) {
+                continue;
+            }
+            addNameableFace(faces, faceFilter, rules.getMainPart());
+            addNameableFace(faces, faceFilter, rules.getOtherPart());
+        }
+        Collections.sort(faces);
         return faces;
+    }
+
+    private static void addNameableFace(
+            final List<ICardFace> faces, final Predicate<ICardFace> faceFilter, final ICardFace face) {
+        if (face != null && faceFilter.test(face) && !faces.contains(face)) {
+            faces.add(face);
+        }
     }
 
     private List<Pair<GameEntity, GameObject>> targetCandidates(

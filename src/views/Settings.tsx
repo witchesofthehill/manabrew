@@ -7,7 +7,6 @@ import {
   type ZonePanelItem,
 } from "@/stores/usePreferencesStore";
 import { isFeatureEnabled } from "@/featureFlags";
-import { getPlatform } from "@/platform";
 import { IRONSMITH_WASM_AVAILABLE } from "@/game/ironsmithWasmAvailable";
 import { relayUsername } from "@/lib/relayUsername";
 import { BattlefieldStylePreview } from "@/components/game/BattlefieldStylePreview";
@@ -16,7 +15,9 @@ import {
   HOVER_DELAY_MIN,
   HOVER_DELAY_STEP,
 } from "@/components/game/game.constants";
+import { HAND_ORDER_OPTIONS } from "@/lib/handOrder";
 import { PlaymatEditorModal } from "@/components/editor/PlaymatEditorModal";
+import { useAssetStore, useAssetsAvailable, useAssetUrl } from "@/stores/useAssetStore";
 import { THEME_PRESETS, type ThemeColors } from "@/themes";
 import { useServerStore } from "@/stores/useServerStore";
 import { useGameStore } from "@/stores/useGameStore";
@@ -24,6 +25,7 @@ import { useScryfallStore } from "@/stores/useScryfallStore";
 import { PromptPreferencesPanel } from "@/components/prompts/internal/PromptPreferencesPanel";
 import { KeybindingsPanel } from "@/components/settings/KeybindingsPanel";
 import { AccountSection } from "@/components/settings/AccountSection";
+import { MyAssetsSection } from "@/components/settings/MyAssetsSection";
 import { PreferenceCard } from "@/components/settings/PreferenceCard";
 import { toPickerHexColor } from "@/themes/gameTheme";
 import type { GameThemeColors } from "@/themes/gameTheme";
@@ -348,13 +350,14 @@ const FLASH_MAX = 2000;
 const FLASH_STEP = 100;
 export default function Settings() {
   const isGameActive = useGameStore((s) => s.isGameActive);
+  const assetsTabAvailable = useAssetsAvailable();
   const prefs = usePreferencesStore();
   const { flashDurationMs, setFlashDurationMs } = prefs;
   const server = useServerStore();
   const { theme, setTheme, resolvedTheme } = useColorMode();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState<
-    "server" | "preferences" | "theme" | "prompts" | "keybindings" | "cache" | "account"
+    "server" | "preferences" | "theme" | "prompts" | "keybindings" | "cache" | "account" | "assets"
   >(() =>
     location.state?.settingsTab === "account" && isFeatureEnabled("accounts")
       ? "account"
@@ -376,7 +379,8 @@ export default function Settings() {
 
   const zoneOrder = prefs.zonePanelOrder;
   const [playmatEditorOpen, setPlaymatEditorOpen] = useState(false);
-  const hasDefaultPlaymat = !!prefs.defaultPlaymat || !!prefs.defaultPlaymatSettings?.color;
+  const defaultPlaymat = useAssetUrl(prefs.defaultPlaymatAssetId);
+  const hasDefaultPlaymat = !!defaultPlaymat || !!prefs.defaultPlaymatSettings?.color;
 
   function setZoneSlot(index: number, value: ZonePanelItem) {
     const next = [...zoneOrder] as ZonePanelItem[];
@@ -494,6 +498,20 @@ export default function Settings() {
               Account
             </button>
           )}
+          {assetsTabAvailable && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("assets")}
+              className={
+                "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
+                (activeTab === "assets"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground")
+              }
+            >
+              My assets
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setActiveTab("preferences")}
@@ -570,6 +588,8 @@ export default function Settings() {
       </section>
 
       {activeTab === "account" && isFeatureEnabled("accounts") && <AccountSection />}
+
+      {activeTab === "assets" && <MyAssetsSection />}
 
       {activeTab === "keybindings" && <KeybindingsPanel />}
 
@@ -762,10 +782,11 @@ export default function Settings() {
                     !hasDefaultPlaymat && "border-dashed",
                   )}
                 >
-                  {prefs.defaultPlaymat ? (
+                  {defaultPlaymat ? (
                     <img
-                      src={prefs.defaultPlaymat}
+                      src={defaultPlaymat}
                       alt="Your default playmat"
+                      crossOrigin="anonymous"
                       className="size-full object-cover"
                     />
                   ) : prefs.defaultPlaymatSettings?.color ? (
@@ -790,7 +811,8 @@ export default function Settings() {
                     type="button"
                     title="Remove playmat"
                     onClick={() => {
-                      prefs.setDefaultPlaymat(undefined);
+                      void useAssetStore.getState().remove(prefs.defaultPlaymatAssetId);
+                      prefs.setDefaultPlaymatAssetId(undefined);
                       prefs.setDefaultPlaymatSettings(undefined);
                     }}
                     className="absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm motion-safe:transition-opacity opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto hover:border-destructive hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring before:absolute before:-inset-2.5 before:content-['']"
@@ -880,6 +902,23 @@ export default function Settings() {
                     )}
                   />
                 </div>
+              </div>
+            </PreferenceCard>
+            <PreferenceCard
+              title="Hand Ordering"
+              description="Drag cards sideways for a custom order, or keep every hand sorted automatically by color or mana value."
+            >
+              <div className="flex flex-wrap gap-2">
+                {HAND_ORDER_OPTIONS.map((option) => (
+                  <Button
+                    key={option.value}
+                    variant={prefs.handOrderMode === option.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => prefs.setHandOrderMode(option.value)}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
               </div>
             </PreferenceCard>
 
@@ -1011,23 +1050,23 @@ export default function Settings() {
               </PreferenceCard>
             )}
 
-            {getPlatform().type === "web" && (
+            {isFeatureEnabled("forgeWasm") && (
               <PreferenceCard
-                title="Ask which engine before AI games"
-                description="Games vs AI normally pick the best available engine automatically. Turn this on to choose between the hosted Forge engine and the in-browser Manabrew engine on every launch."
+                title="Host Forge multiplayer in the browser (experimental)"
+                description="Allows this browser to host Forge multiplayer tables. Offline play always uses Forge regardless of this setting."
               >
                 <div className="flex flex-wrap gap-2">
                   <Button
-                    variant={prefs.askEngineOnAiPlay ? "default" : "outline"}
+                    variant={prefs.forgeWasmEnabled ? "default" : "outline"}
                     size="sm"
-                    onClick={() => prefs.setAskEngineOnAiPlay(true)}
+                    onClick={() => prefs.setForgeWasmEnabled(true)}
                   >
                     On
                   </Button>
                   <Button
-                    variant={!prefs.askEngineOnAiPlay ? "default" : "outline"}
+                    variant={!prefs.forgeWasmEnabled ? "default" : "outline"}
                     size="sm"
-                    onClick={() => prefs.setAskEngineOnAiPlay(false)}
+                    onClick={() => prefs.setForgeWasmEnabled(false)}
                   >
                     Off
                   </Button>
@@ -1109,9 +1148,10 @@ export default function Settings() {
             <PlaymatEditorModal
               onClose={() => setPlaymatEditorOpen(false)}
               title="Default Playmat"
-              playmat={prefs.defaultPlaymat}
+              playmat={defaultPlaymat}
               storedSettings={prefs.defaultPlaymatSettings}
-              setPlaymat={prefs.setDefaultPlaymat}
+              playmatAssetId={prefs.defaultPlaymatAssetId}
+              setPlaymat={(_url, assetId) => prefs.setDefaultPlaymatAssetId(assetId)}
               setPlaymatSettings={prefs.setDefaultPlaymatSettings}
             />
           )}

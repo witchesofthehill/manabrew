@@ -6,24 +6,7 @@ import type { RightActionPanelProps } from "../game.types";
 import { TAB_BUTTON_BASE, TAB_ACTIVE, TAB_INACTIVE } from "../game.styles";
 import { ActionLog } from "./ActionLog";
 import { SnapshotsPanel } from "./SnapshotsPanel";
-import {
-  DEV_PROMPT_ACTION_OVERRIDES,
-  type DevPromptActionOverride,
-  useGameDevStore,
-} from "@/stores/useGameDevStore";
-import { PlayerBadgeDevControls } from "@/components/dev/PlayerBadgeDevControls";
-import { CardBadgeDevControls } from "@/components/dev/CardBadgeDevControls";
-import { CardRailDevControls } from "@/components/dev/CardRailDevControls";
-import { BattlefieldKeywordDevControls } from "@/components/dev/BattlefieldKeywordDevControls";
-
-const DEV_LABELS: Record<DevPromptActionOverride, string> = {
-  chooseAction: "ChooseAction",
-  chooseAttackers: "ChooseAttackers",
-  chooseBlockers: "ChooseBlockers",
-  chooseTargetSpell: "ChooseTargetSpell",
-  payManaCost: "PayManaCost",
-  noAction: "NoAction",
-};
+import { GameDevPanel } from "@/components/dev/GameDevPanel";
 
 export function RightActionPanel({
   collapsed,
@@ -37,12 +20,6 @@ export function RightActionPanel({
   onRestoreSnapshot,
 }: RightActionPanelProps) {
   const visibleLog = gameLog.filter((entry) => entry.entryType !== "rule");
-  const promptActionOverride = useGameDevStore((s) => s.promptActionOverride);
-  const devToolsEnabled = useGameDevStore((s) => s.devToolsEnabled);
-  const setPromptActionOverride = useGameDevStore((s) => s.setPromptActionOverride);
-  const setDevToolsEnabled = useGameDevStore((s) => s.setDevToolsEnabled);
-  const clearPromptActionOverride = useGameDevStore((s) => s.clearPromptActionOverride);
-  const triggerEtbGlow = useGameDevStore((s) => s.triggerEtbGlow);
 
   const activeTab = useGameUIStore((s) => s.rightPanelTab);
   const setActiveTab = useGameUIStore((s) => s.setRightPanelTab);
@@ -50,7 +27,14 @@ export function RightActionPanel({
   if (collapsed) return null;
 
   return (
-    <aside className="absolute right-[calc(0.375rem+var(--safe-area-inset-right))] top-[calc(0.375rem+var(--safe-area-inset-top))] bottom-[calc(0.375rem+var(--safe-area-inset-bottom))] z-50 w-72 rounded-lg bg-card/95 backdrop-blur-sm transition-colors overflow-visible border border-border/70 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
+    <aside
+      className={cn(
+        "absolute right-[calc(0.375rem+var(--safe-area-inset-right))] top-[calc(0.375rem+var(--safe-area-inset-top))] bottom-[calc(0.375rem+var(--safe-area-inset-bottom))] z-50 rounded-lg bg-card/95 backdrop-blur-sm transition-[width,background-color,border-color] overflow-visible border border-border/70 shadow-[0_20px_60px_rgba(0,0,0,0.45)]",
+        activeTab === "dev"
+          ? "w-[calc(100vw_-_0.75rem_-_var(--safe-area-inset-left)_-_var(--safe-area-inset-right))] sm:w-[38rem]"
+          : "w-72",
+      )}
+    >
       <div className="h-full p-3 flex flex-col gap-3 overflow-y-auto">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-4">
@@ -98,109 +82,9 @@ export function RightActionPanel({
             onRestoreSnapshot={onRestoreSnapshot}
           />
         ) : (
-          <div className="flex flex-col gap-2">
-            <PixiFpsCounter />
-            <div className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium">Zustand DevTools</span>
-                <span className="text-xs text-muted-foreground">
-                  Default off to avoid slowing the battlefield UI.
-                </span>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={devToolsEnabled}
-                className={cn(
-                  "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors",
-                  devToolsEnabled ? "border-primary bg-primary" : "border-border/70 bg-muted",
-                )}
-                onClick={() => setDevToolsEnabled(!devToolsEnabled)}
-              >
-                <span
-                  className={cn(
-                    "block h-5 w-5 rounded-full bg-background shadow-sm transition-transform",
-                    devToolsEnabled ? "translate-x-5" : "translate-x-0.5",
-                  )}
-                />
-              </button>
-            </div>
-            <button
-              type="button"
-              className="rounded-md border border-border/70 px-3 py-2 text-sm font-medium hover:bg-accent/50"
-              onClick={triggerEtbGlow}
-            >
-              Flash ETB on board
-            </button>
-            <p className="text-xs text-muted-foreground">Force prompt action view (UI only).</p>
-            <div className="grid grid-cols-2 gap-1.5">
-              <button
-                className={cn(
-                  "px-2 py-1.5 rounded text-xs font-medium border",
-                  promptActionOverride === null
-                    ? "border-primary text-primary bg-primary/10"
-                    : "border-border/70 text-muted-foreground hover:text-foreground hover:bg-accent/50",
-                )}
-                onClick={clearPromptActionOverride}
-              >
-                Auto
-              </button>
-              {DEV_PROMPT_ACTION_OVERRIDES.map((override) => (
-                <button
-                  key={override}
-                  className={cn(
-                    "px-2 py-1.5 rounded text-xs font-medium border",
-                    promptActionOverride === override
-                      ? "border-primary text-primary bg-primary/10"
-                      : "border-border/70 text-muted-foreground hover:text-foreground hover:bg-accent/50",
-                  )}
-                  onClick={() => setPromptActionOverride(override)}
-                >
-                  {DEV_LABELS[override]}
-                </button>
-              ))}
-            </div>
-            <PlayerBadgeDevControls />
-            <CardBadgeDevControls />
-            {import.meta.env.DEV ? <CardRailDevControls /> : null}
-            <BattlefieldKeywordDevControls />
-          </div>
+          <GameDevPanel />
         )}
       </div>
     </aside>
-  );
-}
-
-function PixiFpsCounter() {
-  const stats = useGameDevStore((s) => s.pixiPerfStats);
-
-  if (!stats) {
-    return (
-      <div className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-sm font-medium">Pixi FPS</span>
-          <span className="text-xs text-muted-foreground">Renderer inactive.</span>
-        </div>
-        <span className="font-mono text-xs text-muted-foreground">—</span>
-      </div>
-    );
-  }
-
-  const fps = stats.fps.toFixed(1);
-  const range = `${stats.minFps.toFixed(0)}–${stats.maxFps.toFixed(0)}`;
-  const frameMs = stats.deltaMs.toFixed(1);
-  const color =
-    stats.fps >= 55 ? "text-success" : stats.fps >= 40 ? "text-warning" : "text-destructive";
-
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
-      <div className="flex flex-col gap-0.5">
-        <span className="text-sm font-medium">Pixi FPS</span>
-        <span className="text-xs text-muted-foreground">
-          frame {frameMs}ms · range {range}
-        </span>
-      </div>
-      <span className={cn("font-mono text-lg font-semibold tabular-nums", color)}>{fps}</span>
-    </div>
   );
 }

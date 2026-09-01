@@ -1,25 +1,17 @@
 import { getPlatform } from "@/platform";
 import type { ActiveGameSession } from "@/lib/activeGameSession";
-import {
-  getHostedAiServerConnectionDefaults,
-  isHostedEngineAvailable,
-} from "@/config/webRuntimeConfig";
+import { getHostedAiServerConnectionDefaults } from "@/config/webRuntimeConfig";
 import type { ServerConnectionDefaults } from "@/config/webRuntimeConfig";
 import { createRoomRelayEnvelope, SELF_HOSTED_NODE_RELAY_PROTOCOL } from "@/game/roomRelay";
 import { relayUsername } from "@/lib/relayUsername";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { useServerStore } from "@/stores/useServerStore";
-import type { EngineKind, GameFormat, GameStartedPayload, RoomInfo } from "@/types/server";
+import type { GameFormat, GameStartedPayload, RoomInfo } from "@/types/server";
 import type { RoomListPayload } from "@/types/server";
 import type {} from "@/protocol/game";
 import type { Deck } from "@/protocol/deck";
 
 const HOSTED_AI_TIMEOUT_MS = 20_000;
-
-export function getDefaultAiEngine(): EngineKind {
-  if (getPlatform().type === "tauri") return "Forge";
-  return isHostedEngineAvailable() ? "Forge" : "Manabrew";
-}
 
 interface HostedAiGameRequest {
   playerDeck: Deck;
@@ -54,6 +46,14 @@ export async function startHostedAiGame(request: HostedAiGameRequest): Promise<H
   const format = serverFormatFromId(request.formatId);
   const room = await findHostedRoom(format, 1 + request.opponentDecks.length);
   return joinHostedRoomAndPlay(room.room_id, format, request, username);
+}
+
+export async function claimHostedTable(format: GameFormat, maxPlayers: number): Promise<void> {
+  const room = await findHostedRoom(format, maxPlayers);
+  await leaveCurrentRoomIfNeeded(room.room_id);
+  await useServerStore.getState().joinRoom(room.room_id);
+  await useServerStore.getState().setFormat(format);
+  await useServerStore.getState().setMaxPlayers(maxPlayers);
 }
 
 // The Tauri (graalvm) build has no pool of self-hosted rooms to discover: the
@@ -136,7 +136,7 @@ async function joinHostedRoomAndPlay(
       deckName: request.playerDeck.name || "PlayerDto Deck",
       deck: request.playerDeck,
       commanderName: request.commanderName,
-      avatar: usePreferencesStore.getState().customAvatar,
+      avatarUrl: useAuthStore.getState().account?.avatarUrl,
     });
     await platform.server.setReady({ ready: true });
 

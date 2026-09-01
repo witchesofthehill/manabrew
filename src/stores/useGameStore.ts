@@ -1,3 +1,16 @@
+import { beginGame, noteAnswerSent } from "@/lib/engineTelemetry";
+import {
+  forgeHostLabel,
+  localEngineLabel,
+  reportEngineStats,
+  roomEngineLabel,
+} from "@/lib/engineStatsReport";
+import {
+  abandonOfflineGame,
+  beginOfflineGame,
+  currentOfflineGameId,
+} from "@/lib/offlinePlayRecord";
+import { announceLocalGame, clearLocalGame } from "@/lib/localGamePresence";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { toast } from "sonner";
@@ -10,18 +23,13 @@ import {
   stopManualRoomSync as stopActiveManualRoomSync,
   IronsmithUnsupportedDeckError,
 } from "@/game";
-import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { getFormat } from "@/lib/formats";
 import {
   armActiveGameSession,
   clearActiveGameSession,
   peekActiveGameSession,
 } from "@/lib/activeGameSession";
-import {
-  startHostedAiGame,
-  startTauriForgeAiGame,
-  stopLocalHostedAiRelay,
-} from "@/game/hostedAiPlay";
+import { startTauriForgeAiGame, stopLocalHostedAiRelay } from "@/game/hostedAiPlay";
 import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
 import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
@@ -133,19 +141,9 @@ async function initializeGame({
   const format = getFormat(selectedFormatId);
   const startingLife = format?.deckRules.startingLife ?? DEFAULT_STARTING_LIFE;
 
-  // "Play vs AI" against Forge never runs in-process: a self-hosted node hosts
-  // the room and spawns the bot while the client attaches as a non-host
-  // multiplayer player. On web this uses a pooled hosted room gated by the
-  // deployment flag; on the Tauri graalvm build the desktop app hosts the Forge
-  // room locally. If the local Forge host can't start, fall back to the
-  // in-process Manabrew engine so the game still launches.
   const platformType = getPlatform().type;
-  if (
-    engine === "Forge" &&
-    opponentDecks?.length &&
-    (platformType === "tauri" || (platformType === "web" && isHostedEngineAvailable()))
-  ) {
-    const launchForge = platformType === "tauri" ? startTauriForgeAiGame : startHostedAiGame;
+  if (engine === "Forge" && platformType === "tauri" && opponentDecks?.length) {
+    const launchForge = startTauriForgeAiGame;
     set({
       isGameActive: true,
       fatalError: null,
@@ -198,6 +196,10 @@ async function initializeGame({
         gameDecks: hostedDecks,
         debugInfo: "Joining Forge engine...",
       });
+      // Forge runs on the node, or in the desktop app's own host — never in
+      // this tab, and never under a "forge" runtime, so the launch is the only
+      // place that can name it.
+      beginGame(forgeHostLabel(platformType === "tauri"));
       await hostedRuntime.api.startMultiplayerGame({
         playerNames: hostedLaunch.playerOrder,
         decks: hostedLaunch.decks,
@@ -220,10 +222,8 @@ async function initializeGame({
       }
       if (error instanceof GameLaunchCancelledError) throw error;
       if (!isLaunchCurrent()) throw new GameLaunchCancelledError();
-      console.error("[store] Forge engine unavailable; falling back to Manabrew:", error);
-      toast.error("Forge engine unavailable — using the Manabrew engine.");
-      resetSelectedGameRuntime();
       set({ isMultiplayer: false, isHost: false });
+      throw error;
     }
   }
 
@@ -253,17 +253,34 @@ async function initializeGame({
     debugInfo: "Starting engine...",
   });
 
-  const result = await runtime.api.startGame({
-    deck,
+  const engineLabel = engine === "Forge" ? "forge-wasm" : localEngineLabel();
+  beginGame(engineLabel);
+  announceLocalGame("Singleplayer");
+  void beginOfflineGame({
+    engine: engineLabel,
+    format: selectedFormatId ?? null,
     startingLife,
-    commanderName: commanderName ?? null,
-    opponentDecks: opponentDecks ?? null,
+    decks: gameDecks,
   });
-  if (!isLaunchCurrent()) {
-    await runtime.api.endGame();
-    throw new GameLaunchCancelledError();
+  try {
+    const result = await runtime.api.startGame({
+      deck,
+      startingLife,
+      commanderName: commanderName ?? null,
+      opponentDecks: opponentDecks ?? null,
+      engine,
+    });
+    if (!isLaunchCurrent()) {
+      await runtime.api.endGame();
+      throw new GameLaunchCancelledError();
+    }
+    set({ debugInfo: `Game started: ${result}.` });
+  } catch (error) {
+    // A launch that never became a game must not be reported as the next one.
+    abandonOfflineGame();
+    clearLocalGame();
+    throw error;
   }
-  set({ debugInfo: `Game started: ${result}.` });
 }
 
 export const useGameStore = create<GameState>()(
@@ -497,6 +514,7 @@ export const useGameStore = create<GameState>()(
           const runtime =
             engine === "Ironsmith" ? selectGameRuntime("ironsmith") : resetSelectedGameRuntime();
           set({ debugInfo: "Starting engine..." });
+          beginGame(roomEngineLabel(engine, getPlatform().type === "tauri" && localIsHost));
           await runtime.api.startMultiplayerGame({
             playerNames,
             decks,
@@ -504,6 +522,7 @@ export const useGameStore = create<GameState>()(
             enginePlayerIndex,
             localIsHost,
             startingLife,
+            engine,
             format,
             hostPlayerSlot,
             botPlayerSlots,
@@ -563,6 +582,7 @@ export const useGameStore = create<GameState>()(
           ((output.type === "declareAttackers" || output.type === "declareBlockers") &&
             output.assignments.length === 0);
         try {
+          noteAnswerSent();
           set({
             isWaitingForResponse: true,
             relinquishedPriority,
@@ -607,6 +627,21 @@ export const useGameStore = create<GameState>()(
         clearActiveGameSession();
         const runtime = getSelectedGameRuntime();
         const wasMultiplayer = get().isMultiplayer;
+        // Before the state is cleared: how the engine performed. A game the
+        // relay knows about is reported to it; anything else goes to the hub.
+        // Never throws, never blocks the teardown.
+        reportEngineStats({
+          multiplayer: wasMultiplayer,
+          seats: Object.keys(get().gameDecks).length || 2,
+          format: get().gameConfig?.formatId ?? null,
+          endReason: get().gameView?.gameOver ? "gameOver" : "left",
+          gameId: useServerStore.getState().gameId ?? currentOfflineGameId(),
+          send: wasMultiplayer
+            ? async (stats, gameId) => {
+                await getPlatform().server?.reportEngineStats(stats, gameId);
+              }
+            : undefined,
+        });
         set({
           isGameActive: false,
           gameView: null,
@@ -673,8 +708,17 @@ export const useGameStore = create<GameState>()(
           return;
         }
         const runtime = getSelectedGameRuntime();
-        await runtime.api.restoreSnapshot({ checkpointId });
-        set({ debugInfo: `Requested snapshot restore: #${checkpointId}` });
+        try {
+          await runtime.api.restoreSnapshot({ checkpointId });
+          set({ debugInfo: `Requested snapshot restore: #${checkpointId}` });
+        } catch (error) {
+          // Not every engine can rewind: the browser Forge build rejects it
+          // outright. Say so rather than leaving the click looking successful
+          // or throwing out of a handler.
+          set({
+            debugInfo: `Snapshot restore is not available on this engine (${String(error)}).`,
+          });
+        }
       },
     }),
     { name: "game", enabled: import.meta.env.DEV },

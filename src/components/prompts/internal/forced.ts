@@ -1,5 +1,4 @@
 import type { PromptResolver } from "./promptHandlers";
-import { useTargetIntentStore } from "@/stores/useTargetIntentStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { TRIGGER_ORDER_PROMPT_TITLE } from "@/components/game/game.constants";
 
@@ -20,23 +19,9 @@ function canFinishTargeting(input: {
   return input.maxTargets > input.minTargets && input.chosenTargets >= input.minTargets;
 }
 
-export const singleLegalBoardTarget: PromptResolver<"chooseBoardTargets"> = (prompt, ctx) => {
+export const singleLegalBoardTarget: PromptResolver<"chooseBoardTargets"> = (prompt) => {
   const input = prompt.input;
   if (canFinishTargeting(input)) return { kind: "force-show" };
-
-  const sourceId = prompt.sourceCard?.id;
-  const intent = sourceId ? ctx.targetIntents[sourceId] : undefined;
-  if (intent) {
-    const match = input.candidates.find((c) => c.kind === intent.kind && c.id === intent.id);
-    if (match) {
-      useTargetIntentStore.getState().clearIntent(sourceId!);
-      return {
-        kind: "auto",
-        respond: { type: "boardTargets", chosen: [match] },
-        reason: `pre-selected target ${match.id}`,
-      };
-    }
-  }
 
   if (input.candidates.length !== 1) return { kind: "force-show" };
   const only = input.candidates[0];

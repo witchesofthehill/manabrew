@@ -22,7 +22,8 @@ name: Staging deploy
 # STAGING_HUB_API_URL (= https://staging.manabrew.app).
 #
 # The staging slot's /opt/manabrew-staging/.env is written by this workflow's
-# secret-sync step (MANABREW_SERVER_KEY + hub auth secrets) — it must NOT be a
+# secret-sync step (MANABREW_SERVER_KEY, hub auth secrets, and optional hub
+# asset S3 config) — it must NOT be a
 # symlink to prod's ops/production.secrets, so the slot never inherits prod's
 # OAuth apps or hub config.
 #
@@ -37,6 +38,10 @@ on:
 concurrency:
   group: staging-deploy-${{ github.event.pull_request.number || 'manual' }}
   cancel-in-progress: true
+
+env:
+  GRAALVM_EA_TAG: jdk-25i3-25.0.4.1-ea.03
+  BINARYEN_VERSION: "123"
 
 jobs:
   # ── Build & push the :staging images ───────────────────────────────
@@ -93,6 +98,40 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cache the Web Image toolchain
+        if: matrix.image == 'manabrew-web'
+        id: webimage-toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/webimage
+          key: webimage-${{ env.GRAALVM_EA_TAG }}-binaryen-${{ env.BINARYEN_VERSION }}
+
+      - name: Install the Web Image toolchain
+        if: matrix.image == 'manabrew-web' && steps.webimage-toolchain.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/webimage" && cd "$HOME/.local/webimage"
+          # Web Image needs Oracle GraalVM 25.1+; Community does not ship the
+          # --tool:svm-wasm backend.
+          curl -fsSL -o graalvm.tar.gz \
+            "https://github.com/graalvm/oracle-graalvm-ea-builds/releases/download/${GRAALVM_EA_TAG}/graalvm-jdk-${GRAALVM_EA_TAG#jdk-}_linux-x64_bin.tar.gz"
+          tar xzf graalvm.tar.gz && rm graalvm.tar.gz
+          curl -fsSL -o binaryen.tar.gz \
+            "https://github.com/WebAssembly/binaryen/releases/download/version_${BINARYEN_VERSION}/binaryen-version_${BINARYEN_VERSION}-x86_64-linux.tar.gz"
+          tar xzf binaryen.tar.gz && rm binaryen.tar.gz
+
+      - name: Build the wasm Forge engine
+        if: matrix.image == 'manabrew-web'
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.local/webimage/binaryen-version_${BINARYEN_VERSION}/bin:$PATH"
+          export WEBIMAGE_GRAALVM_HOME="$(echo "$HOME"/.local/webimage/graalvm-*)"
+          wasm-as --version
+          corepack enable
+          yarn install --frozen-lockfile
+          scripts/build-forge-wasm.sh
+          ls -la public/forge/
 
       - name: Build & push
         uses: docker/build-push-action@v6
@@ -164,6 +203,11 @@ jobs:
           AUTH_DISCORD_CLIENT_ID: ${{ secrets.STAGING_OAUTH_DISCORD_CLIENT_ID }}
           AUTH_DISCORD_CLIENT_SECRET: ${{ secrets.STAGING_OAUTH_DISCORD_CLIENT_SECRET }}
           AUTH_RESEND_API_KEY: ${{ secrets.STAGING_RESEND_API_KEY }}
+          AUTH_HUB_S3_ENDPOINT: ${{ secrets.STAGING_HUB_S3_ENDPOINT }}
+          AUTH_HUB_S3_BUCKET: ${{ secrets.STAGING_HUB_S3_BUCKET }}
+          AUTH_HUB_S3_ACCESS_KEY_ID: ${{ secrets.STAGING_HUB_S3_ACCESS_KEY_ID }}
+          AUTH_HUB_S3_SECRET_ACCESS_KEY: ${{ secrets.STAGING_HUB_S3_SECRET_ACCESS_KEY }}
+          AUTH_HUB_S3_PUBLIC_BASE_URL: ${{ secrets.STAGING_HUB_S3_PUBLIC_BASE_URL }}
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
@@ -179,6 +223,11 @@ jobs:
           add_auth DISCORD_CLIENT_ID "$AUTH_DISCORD_CLIENT_ID"
           add_auth DISCORD_CLIENT_SECRET "$AUTH_DISCORD_CLIENT_SECRET"
           add_auth RESEND_API_KEY "$AUTH_RESEND_API_KEY"
+          add_auth HUB_S3_ENDPOINT "$AUTH_HUB_S3_ENDPOINT"
+          add_auth HUB_S3_BUCKET "$AUTH_HUB_S3_BUCKET"
+          add_auth HUB_S3_ACCESS_KEY_ID "$AUTH_HUB_S3_ACCESS_KEY_ID"
+          add_auth HUB_S3_SECRET_ACCESS_KEY "$AUTH_HUB_S3_SECRET_ACCESS_KEY"
+          add_auth HUB_S3_PUBLIC_BASE_URL "$AUTH_HUB_S3_PUBLIC_BASE_URL"
           if [ -n "$AUTH_ENV" ]; then
             printf '%s' "$AUTH_ENV" | ssh -i ~/.ssh/deploy_key \
                 -o StrictHostKeyChecking=yes \

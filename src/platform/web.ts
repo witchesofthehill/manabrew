@@ -5,6 +5,8 @@
  * The game engine runs in a Web Worker for non-blocking UI.
  */
 
+import type { EngineGameStats } from "@/lib/engineTelemetry";
+import { noteEngineThinkTime } from "@/lib/engineTelemetry";
 import type {
   IPlatformApi,
   IGameApi,
@@ -28,7 +30,12 @@ import type {
   SetMaxPlayersParams,
   SpawnAiBotParams,
 } from "./types";
-import { DUPLICATE_USERNAME_ERROR_FRAGMENT, SERVER_ERROR_CODE } from "@/types/server";
+import {
+  DUPLICATE_USERNAME_ERROR_FRAGMENT,
+  SERVER_ERROR_CODE,
+  TOKEN_EXPIRED_ERROR_FRAGMENT,
+  type LocalGameKind,
+} from "@/types/server";
 import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
 import { PROTOCOL_VERSION } from "@/protocol";
 import type {
@@ -40,11 +47,23 @@ import type {
 } from "@/protocol";
 import { APP_VERSION } from "@/lib/constants";
 import { logComms } from "@/lib/commsLog";
-import { relayIdentity } from "@/lib/relayIdentity";
+import { resolveRelayIdentity, type RelayIdentity } from "@/lib/relayIdentity";
 import { getClientPlatform } from "./clientPlatform";
 import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
-import { applyStateDelta } from "@/lib/stateDelta";
+import { applyStateDelta, diffStateDelta } from "@/lib/stateDelta";
+import { isForgeWasmHostingEnabled, setForgeWasmActive } from "@/lib/forgeWasm";
+import { buildForgeAssetBundle } from "@/lib/forgeAssets";
+import type { Deck } from "@/protocol/deck";
+// The seat protocol lives with @manabrew/forge-wasm, which drives the same
+// worker, so there is one implementation rather than one per consumer.
+import {
+  createSeat,
+  deliverSeatDirective,
+  pollSeat,
+  writeSeatMessage,
+  type ForgeSeat,
+} from "@forge-wasm/seat.js";
 
 const DEBUG_TRANSPORT = false;
 
@@ -98,28 +117,38 @@ interface WorkerEvent {
 
 type WorkerMessage = WorkerResponse | WorkerEvent;
 
-interface RemoteSeat {
-  buffer: SharedArrayBuffer;
-  signal: Int32Array;
-  data: Uint8Array;
-  /** terminate() flips this so an already-queued rAF poll short-circuits. */
-  cancelled: boolean;
-  /** A prompt was read off this SAB and no message was written back yet. */
-  awaitingResponse: boolean;
-  /** Directive awaiting delivery: the SAB holds a single slot, so it can only
-   *  be written while the engine is blocked waiting on this seat's prompt. */
-  pendingDirective: DirectiveInput | null;
-}
+// A kind-tagged engine message read off a seat's SAB.
+type EngineMessage = {
+  kind?: string;
+  state?: unknown;
+  event?: unknown;
+  prompt?: unknown;
+  error?: unknown;
+};
 
-// A kind-tagged engine message read off a seat's SAB, awaiting relay.
+// One such message awaiting relay to the seat that owes an answer.
 type RelayMessage = {
   forPlayer: string;
-  msg: { kind: string; state?: unknown; event?: unknown; prompt?: unknown; error?: unknown };
+  msg: EngineMessage & { kind: string };
 };
 
 /**
  * Bridge for communicating with the game engine worker.
  */
+const FORGE_ENGINE_COMMANDS = new Set([
+  "start_game",
+  "start_multiplayer_game",
+  "respond",
+  "end_game",
+  "get_prompt",
+  "get_game_view",
+  "restore_snapshot",
+  "wasm_init",
+  "ensure_card_data",
+  "ping",
+  "echo",
+]);
+
 class WorkerBridge {
   private worker: Worker | null = null;
   private pendingRequests = new Map<
@@ -129,42 +158,52 @@ class WorkerBridge {
   private eventBus: WebEventBus;
   private initPromise: Promise<void> | null = null;
 
-  gameBuffer: SharedArrayBuffer | null = null;
-  private gameSignal: Int32Array | null = null;
-  private gameData: Uint8Array | null = null;
-  private localAwaitingResponse = false;
-  private localPendingDirective: DirectiveInput | null = null;
+  workerIsForgeWasm = false;
+  private fallbackWorker: Worker | null = null;
+  private localSeat: ForgeSeat | null = null;
 
-  private remoteSeats = new Map<string, RemoteSeat>();
+  private remoteSeats = new Map<string, ForgeSeat>();
   private remotePlayerSlots = new Map<string, string>();
+
+  get gameBuffer(): SharedArrayBuffer | null {
+    return this.localSeat?.buffer ?? null;
+  }
 
   constructor(eventBus: WebEventBus) {
     this.eventBus = eventBus;
 
     eventBus.on<{ buffer: SharedArrayBuffer }>("game:sab", (payload) => {
-      this.gameBuffer = payload.buffer;
-      this.gameSignal = new Int32Array(this.gameBuffer, 0, 2);
-      this.gameData = new Uint8Array(this.gameBuffer, 8);
-      console.log("[WorkerBridge] Received local SAB, starting prompt poll");
-      this.pollForPrompts();
+      const seat = createSeat(payload.buffer);
+      if (this.localSeat) this.localSeat.cancelled = true;
+      this.localSeat = seat;
+      if (DEBUG_TRANSPORT) console.log("[WorkerBridge] Received local SAB, starting prompt poll");
+      pollSeat<EngineMessage>(
+        seat,
+        (msg) => this.dispatchEngineMessage(msg),
+        (error) => console.error("[WorkerBridge] Failed to read SAB message:", error),
+      );
     });
 
     // One SAB per non-host seat, tagged with its player slot; one poll
     // loop each, plus the shared response listener installed below.
     eventBus.on<{ buffer: SharedArrayBuffer; playerSlot: string }>("game:remote_sab", (payload) => {
-      const seat: RemoteSeat = {
-        buffer: payload.buffer,
-        signal: new Int32Array(payload.buffer, 0, 2),
-        data: new Uint8Array(payload.buffer, 8),
-        cancelled: false,
-        awaitingResponse: false,
-        pendingDirective: null,
-      };
-      this.remoteSeats.set(payload.playerSlot, seat);
-      console.log(
-        `[WorkerBridge] Received remote SAB for ${payload.playerSlot}, starting relay poll`,
+      const { playerSlot } = payload;
+      const seat = createSeat(payload.buffer);
+      const previous = this.remoteSeats.get(playerSlot);
+      if (previous) previous.cancelled = true;
+      this.remoteSeats.set(playerSlot, seat);
+      if (DEBUG_TRANSPORT)
+        console.log(`[WorkerBridge] Received remote SAB for ${playerSlot}, starting relay poll`);
+      pollSeat<RelayMessage["msg"]>(
+        seat,
+        (msg, json) => {
+          if (DEBUG_TRANSPORT)
+            console.log(`[transport←sab/seat ${playerSlot}] engine emitted:`, json);
+          this.eventBus.emit("game:relay_message", { forPlayer: playerSlot, msg });
+        },
+        (error) =>
+          console.error(`[WorkerBridge] Failed to read SAB message for ${playerSlot}:`, error),
       );
-      this.pollForRemotePromptsSeat(payload.playerSlot, seat);
     });
 
     // Eager so a response can't arrive before the listener exists; it
@@ -172,52 +211,15 @@ class WorkerBridge {
     this.installRemoteResponseListener();
   }
 
-  /**
-   * Poll the SAB for prompts from the game engine (runs on main thread).
-   * When the engine writes a prompt (signal=1), read it and emit as event.
-   */
-  private pollForPrompts(): void {
-    if (!this.gameSignal || !this.gameData) return;
-
-    // Signal protocol:
-    // 0 = IDLE, 1 = PROMPT_READY, 2 = RESPONSE_READY, 3 = PROMPT_ACKNOWLEDGED
-    const poll = () => {
-      if (!this.gameSignal || !this.gameData || !this.gameBuffer) return;
-
-      const current = Atomics.load(this.gameSignal, 0);
-      if (current === 1) {
-        // SIGNAL_PROMPT_READY
-        const len = Atomics.load(this.gameSignal, 1);
-        const jsonBytes = this.gameData.slice(0, len);
-        const jsonStr = new TextDecoder().decode(jsonBytes);
-
-        // Acknowledge the prompt so we don't re-read it
-        Atomics.store(this.gameSignal, 0, 3); // PROMPT_ACKNOWLEDGED
-        Atomics.notify(this.gameSignal, 0);
-
-        try {
-          this.dispatchEngineMessage(JSON.parse(jsonStr));
-        } catch (e) {
-          console.error("[WorkerBridge] Failed to parse SAB message:", e);
-        }
-      }
-
-      if (this.gameBuffer) {
-        requestAnimationFrame(poll);
-      }
-    };
-
-    requestAnimationFrame(poll);
-  }
-
-  private dispatchEngineMessage(msg: {
-    kind?: string;
-    state?: unknown;
-    event?: unknown;
-    prompt?: unknown;
-    error?: unknown;
-  }): void {
+  private dispatchEngineMessage(msg: EngineMessage): void {
     logComms("engine", msg);
+    if (this.workerIsForgeWasm) {
+      const w = window as unknown as { __forgeFrames?: string[] };
+      w.__forgeFrames = w.__forgeFrames ?? [];
+      w.__forgeFrames.push(
+        `${msg?.kind}:${msg?.kind === "state" ? Object.keys((msg.state ?? {}) as object).join("|") : ""}`,
+      );
+    }
     switch (msg?.kind) {
       case "state":
         this.eventBus.emit("game:state", msg.state);
@@ -228,58 +230,24 @@ class WorkerBridge {
       case "error":
         this.eventBus.emit("game:error", msg.error);
         break;
-      case "prompt":
-        this.localAwaitingResponse = true;
-        if (this.localPendingDirective) {
-          this.writeLocalMessage({
-            kind: "directive",
-            directive: this.localPendingDirective,
+      case "prompt": {
+        const w = window as unknown as {
+          __respondedAt?: number;
+          __promptTimings?: Array<{ ms: number; type?: string }>;
+        };
+        if (w.__respondedAt != null) {
+          w.__promptTimings = w.__promptTimings ?? [];
+          w.__promptTimings.push({
+            ms: performance.now() - w.__respondedAt,
+            type: (msg.prompt as { input?: { type?: string } })?.input?.type,
           });
-          this.localPendingDirective = null;
+          w.__respondedAt = undefined;
         }
+        // The seat already noted the prompt and flushed any held directive.
         this.eventBus.emit("game:prompt", msg.prompt);
         break;
-    }
-  }
-
-  /** One rAF poll loop per remote seat's SAB; relays messages via the bus. */
-  private pollForRemotePromptsSeat(playerSlot: string, seat: RemoteSeat): void {
-    const poll = () => {
-      if (seat.cancelled || !this.remoteSeats.has(playerSlot)) return;
-
-      const current = Atomics.load(seat.signal, 0);
-      if (current === 1) {
-        const len = Atomics.load(seat.signal, 1);
-        const jsonBytes = seat.data.slice(0, len);
-        const jsonStr = new TextDecoder().decode(jsonBytes);
-
-        Atomics.store(seat.signal, 0, 3); // ACKNOWLEDGED
-        Atomics.notify(seat.signal, 0);
-
-        if (DEBUG_TRANSPORT)
-          console.log(`[transport←sab/seat ${playerSlot}] engine emitted:`, jsonStr);
-        try {
-          const msg = JSON.parse(jsonStr);
-          if (msg?.kind === "prompt") {
-            seat.awaitingResponse = true;
-            if (seat.pendingDirective) {
-              this.writeSeatMessage(seat, {
-                kind: "directive",
-                directive: seat.pendingDirective,
-              });
-              seat.pendingDirective = null;
-            }
-          }
-          this.eventBus.emit("game:relay_message", { forPlayer: playerSlot, msg });
-        } catch (e) {
-          console.error(`[WorkerBridge] Failed to parse SAB message for ${playerSlot}:`, e);
-        }
       }
-
-      requestAnimationFrame(poll);
-    };
-
-    requestAnimationFrame(poll);
+    }
   }
 
   setEnginePlayerNames(playerNames: string[]): void {
@@ -309,56 +277,38 @@ class WorkerBridge {
         );
       if (!seat) return;
       if (kind === "directive") {
-        this.deliverSeatDirective(seat, payload.state.directive as DirectiveInput);
+        deliverSeatDirective(seat, payload.state.directive as DirectiveInput);
         return;
       }
       const action = payload.state.action as PromptOutput | undefined;
       if (!action) return;
       const promptId = Number(payload.state.promptId ?? 0);
-      this.writeSeatMessage(seat, { kind: "response", promptId, action });
+      writeSeatMessage(seat, { kind: "response", promptId, action });
     });
-  }
-
-  /** Deliver a directive to a remote seat: now if the engine is blocked on
-   *  that seat's prompt, otherwise at its next prompt. */
-  private deliverSeatDirective(seat: RemoteSeat, directive: DirectiveInput): void {
-    if (seat.awaitingResponse) {
-      this.writeSeatMessage(seat, { kind: "directive", directive });
-    } else {
-      seat.pendingDirective = directive;
-    }
-  }
-
-  private writeSeatMessage(seat: RemoteSeat, message: ClientToServerMessage): void {
-    seat.awaitingResponse = false;
-    const json = new TextEncoder().encode(JSON.stringify(message));
-    Atomics.store(seat.signal, 1, json.length);
-    seat.data.set(json, 0);
-    Atomics.store(seat.signal, 0, 2); // RESPONSE_READY
-    Atomics.notify(seat.signal, 0);
   }
 
   /**
    * Write a response to the SharedArrayBuffer and wake the worker.
    */
   writeResponse(action: PromptOutput, promptId: number): void {
+    (window as unknown as { __respondedAt?: number }).__respondedAt = performance.now();
     this.writeLocalMessage({ kind: "response", promptId, action });
   }
 
   /** Deliver a directive to the local seat: now if the engine is blocked on
    *  the local prompt, otherwise at its next prompt. */
   deliverLocalDirective(directive: DirectiveInput): void {
-    if (this.localAwaitingResponse) {
-      this.writeLocalMessage({ kind: "directive", directive });
-    } else {
-      this.localPendingDirective = directive;
+    if (!this.localSeat) {
+      console.error("[WorkerBridge] No SharedArrayBuffer available for directive");
+      return;
     }
+    deliverSeatDirective(this.localSeat, directive);
   }
 
   /** Deliver a directive to a remote seat by slot; drops unknown slots. */
   deliverRemoteDirective(playerSlot: string, directive: DirectiveInput): void {
     const seat = this.remoteSeats.get(playerSlot);
-    if (seat) this.deliverSeatDirective(seat, directive);
+    if (seat) deliverSeatDirective(seat, directive);
   }
 
   hasRemoteSeat(playerSlot: string): boolean {
@@ -366,33 +316,28 @@ class WorkerBridge {
   }
 
   private writeLocalMessage(message: ClientToServerMessage): void {
-    if (!this.gameSignal || !this.gameData) {
+    if (!this.localSeat) {
       console.error("[WorkerBridge] No SharedArrayBuffer available for response");
       return;
     }
-    this.localAwaitingResponse = false;
-    const json = new TextEncoder().encode(JSON.stringify(message));
-    Atomics.store(this.gameSignal, 1, json.length);
-    this.gameData.set(json, 0);
-    Atomics.store(this.gameSignal, 0, 2); // SIGNAL_RESPONSE_READY
-    Atomics.notify(this.gameSignal, 0);
+    writeSeatMessage(this.localSeat, message);
   }
 
   /**
    * Initialize the worker lazily.
    */
-  async init(): Promise<void> {
+  async init(forgeWasm = isForgeWasmHostingEnabled()): Promise<void> {
     if (this.worker) return;
 
     if (this.initPromise) {
       return this.initPromise;
     }
 
-    this.initPromise = this.doInit();
+    this.initPromise = this.doInit(forgeWasm);
     return this.initPromise;
   }
 
-  private async doInit(): Promise<void> {
+  private async doInit(forgeWasm: boolean): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
         // Create worker using Vite's worker import pattern. The worker
@@ -400,9 +345,48 @@ class WorkerBridge {
         // `worker:init { stage: 'ready' | 'error' }` when done — we wait
         // for that event instead of pinging, so init has no command-level
         // timeout to fight.
-        this.worker = new Worker(new URL("../workers/game-engine.worker.ts", import.meta.url), {
-          type: "module",
-        });
+        this.workerIsForgeWasm = forgeWasm;
+        setForgeWasmActive(forgeWasm);
+        this.worker = this.workerIsForgeWasm
+          ? new Worker("/forge/forge-engine.worker.js")
+          : new Worker(new URL("../workers/game-engine.worker.ts", import.meta.url), {
+              type: "module",
+            });
+
+        if (forgeWasm) {
+          const w = window as unknown as { __forgeLog?: string[] };
+          w.__forgeLog = w.__forgeLog ?? [];
+          const dec = window as unknown as {
+            __engineDecisions?: Array<{ ms: number; type: string; turns?: number }>;
+          };
+          dec.__engineDecisions = dec.__engineDecisions ?? [];
+          this.eventBus.on<{ ms: number; type: string; turns?: number }>("forge:decision", (p) => {
+            if (!p) return;
+            dec.__engineDecisions?.push(p);
+            // The engine's own measure of itself, which no other engine
+            // reports: the interval from the answer landing to the next
+            // prompt being ready, with no client polling in it.
+            noteEngineThinkTime(p.ms, p.turns ?? 0);
+          });
+          // Forge prints Java stack traces a line at a time, which is hundreds
+          // of console entries for one message. Every line is kept for the
+          // tests; the console gets the message and a count of the frames
+          // under it.
+          let frames = 0;
+          this.eventBus.on<{ level?: string; text?: string }>("forge:log", (p) => {
+            const text = p?.text ?? "";
+            w.__forgeLog?.push(text);
+            if (/^\s*(at\s|@)/.test(text)) {
+              frames += 1;
+              return;
+            }
+            if (frames > 0) {
+              console.log(`[forge] … ${frames} stack frame${frames === 1 ? "" : "s"}`);
+              frames = 0;
+            }
+            console.log("[forge]", text);
+          });
+        }
 
         this.worker.onmessage = this.handleMessage.bind(this);
         this.worker.onerror = (e) => {
@@ -415,7 +399,7 @@ class WorkerBridge {
           (payload) => {
             if (payload?.stage === "ready") {
               unsubscribe();
-              console.log("[WorkerBridge] Worker reported ready");
+              if (DEBUG_TRANSPORT) console.log("[WorkerBridge] Worker reported ready");
               resolve();
             } else if (payload?.stage === "error") {
               unsubscribe();
@@ -447,15 +431,51 @@ class WorkerBridge {
     }
   }
 
+  private queryWorker(): Worker {
+    if (this.fallbackWorker) return this.fallbackWorker;
+    const worker = new Worker(new URL("../workers/game-engine.worker.ts", import.meta.url), {
+      type: "module",
+    });
+    worker.onmessage = (e: MessageEvent<WorkerMessage>) => {
+      if (e.data?.type === "response") this.handleMessage(e);
+    };
+    this.fallbackWorker = worker;
+    return worker;
+  }
+
   /**
    * Invoke a command on the worker.
    */
   async invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
-    await this.init();
+    const startsGame = command === "start_game" || command === "start_multiplayer_game";
+    let forgeWasm = this.worker ? this.workerIsForgeWasm : isForgeWasmHostingEnabled();
+    if (startsGame) forgeWasm = args?.engine === "Forge";
+    if (startsGame && this.worker && this.workerIsForgeWasm !== forgeWasm) {
+      this.terminate();
+    }
+    await this.init(forgeWasm);
+
+    if (startsGame && this.workerIsForgeWasm) {
+      const decks =
+        command === "start_game"
+          ? [args?.deck as Deck | undefined, ...((args?.opponentDecks as Deck[] | undefined) ?? [])]
+          : ((args?.decks as Deck[] | undefined) ?? []);
+      args = { ...args, forgeAssets: await buildForgeAssetBundle(decks) };
+    }
 
     if (!this.worker) {
       throw new Error("Worker not initialized");
     }
+
+    // Forge answers the game itself. It has no implementation of the card
+    // database queries or the limited/draft surface, and answering those with
+    // `null` is what took the Limited page down with "Cannot read properties
+    // of null": route them to the Rust worker instead, which is the same
+    // engine that answers them when Forge is off.
+    const target =
+      this.workerIsForgeWasm && !FORGE_ENGINE_COMMANDS.has(command)
+        ? this.queryWorker()
+        : this.worker;
 
     const requestId = crypto.randomUUID();
 
@@ -472,12 +492,16 @@ class WorkerBridge {
         args,
       };
 
-      this.worker!.postMessage(message);
+      target.postMessage(message);
 
       // start_game blocks for the whole game; everything else is a quick
       // dispatch over a worker that has already finished initialization
       // (we `await this.init()` above, which waits for the ready event).
-      const timeout = command === "start_game" ? 3600000 : 30000;
+      // The query worker is the exception: its first card-data command pays
+      // for the whole archive download, which a Forge player never otherwise
+      // pays, and 30s is not enough for 34 MB on an ordinary connection.
+      const timeout =
+        command === "start_game" ? 3600000 : target === this.fallbackWorker ? 300000 : 30000;
       setTimeout(() => {
         if (this.pendingRequests.has(requestId)) {
           this.pendingRequests.delete(requestId);
@@ -495,11 +519,8 @@ class WorkerBridge {
       this.worker.terminate();
       this.worker = null;
     }
-    this.gameBuffer = null;
-    this.gameSignal = null;
-    this.gameData = null;
-    this.localAwaitingResponse = false;
-    this.localPendingDirective = null;
+    if (this.localSeat) this.localSeat.cancelled = true;
+    this.localSeat = null;
     for (const seat of this.remoteSeats.values()) seat.cancelled = true;
     this.remoteSeats.clear();
     this.remotePlayerSlots.clear();
@@ -507,6 +528,9 @@ class WorkerBridge {
     // second game on this (singleton) bridge still needs it.
     this.pendingRequests.clear();
     this.initPromise = null;
+    setForgeWasmActive(false);
+    // The query worker holds no game state, so it survives a game ending and
+    // is only torn down with the bridge itself.
   }
 }
 
@@ -533,6 +557,7 @@ class WebGameApi implements IGameApi {
       startingLife: params.startingLife,
       commanderName: params.commanderName,
       opponentDecks: params.opponentDecks,
+      engine: params.engine,
     });
   }
 
@@ -542,7 +567,6 @@ class WebGameApi implements IGameApi {
     this.myPlayerSlot = `player-${params.enginePlayerIndex}`;
 
     if (params.localIsHost) {
-      this.bridge.setEnginePlayerNames(params.playerNames);
       this.serverApi?.setEnginePlayerNames(params.playerNames);
       // Host runs the engine; the worker posts back one SAB per remote
       // seat (see the game:remote_sab handler in WorkerBridge).
@@ -552,7 +576,9 @@ class WebGameApi implements IGameApi {
         playerNames: params.playerNames,
         enginePlayerIndex: params.enginePlayerIndex,
         startingLife: params.startingLife,
+        engine: params.engine,
       });
+      this.bridge.setEnginePlayerNames(params.playerNames);
     }
     // Non-host: prompts arrive via game:remote_prompt WebSocket events.
     // Responses are sent via BroadcastState WebSocket relay.
@@ -703,6 +729,8 @@ class WebServerApi implements IServerApi {
   private relayUrl: string | null = null;
   private serverPassword: string | null = null;
   private authedUsername: string | null = null;
+  private sessionIdentity: RelayIdentity | null = null;
+  private sessionTokenRejected = false;
   private bots = new Map<string, BotEntry>();
   private wasmReady: Promise<typeof import("@/wasm/wasm")> | null = null;
   private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
@@ -714,7 +742,11 @@ class WebServerApi implements IServerApi {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempt = 0;
   private serverShutdownPending: { reconnectInS: number } | null = null;
-  private lastRelayStates = new Map<string, string>();
+  private lastRelayStates = new Map<
+    string,
+    { state: StateUpdate; json: string; fingerprint: string }
+  >();
+  private relayStateSequence = 0;
   private deltaBases = new Map<string, { state: StateUpdate; fingerprint: string }>();
   private lastRelayDisplay: string | null = null;
   private resumeToken: string | null = null;
@@ -727,13 +759,25 @@ class WebServerApi implements IServerApi {
     // Relay engine messages (state/display/prompt) to remote players via WebSocket.
     eventBus.on<RelayMessage>("game:relay_message", ({ forPlayer, msg }) => {
       if (msg.kind === "state") {
-        const json = JSON.stringify(msg.state);
-        if (json === this.lastRelayStates.get(forPlayer)) return;
-        this.lastRelayStates.set(forPlayer, json);
+        const state = msg.state as StateUpdate;
+        const json = JSON.stringify(state);
+        const previous = this.lastRelayStates.get(forPlayer);
+        if (json === previous?.json) return;
+        // Every later patch is against what this seat was last *sent*, so the
+        // base only moves once the send is going out: recording an unsent state
+        // would leave the seat patching from a board it never received.
         const targetPlayer = this.enginePlayerName(forPlayer);
-        if (targetPlayer) {
-          void this.broadcastState({ kind: "state", forPlayer, state: msg.state }, targetPlayer);
-        }
+        if (!targetPlayer) return;
+        const patch = previous ? diffStateDelta(previous.state, state) : undefined;
+        if (previous && patch === undefined) return;
+        const fingerprint = `browser-${++this.relayStateSequence}`;
+        this.lastRelayStates.set(forPlayer, { state, json, fingerprint });
+        void this.broadcastState(
+          previous
+            ? { kind: "stateDelta", forPlayer, base: previous.fingerprint, fingerprint, patch }
+            : { kind: "state", forPlayer, state, fingerprint },
+          targetPlayer,
+        );
       } else if (msg.kind === "display") {
         const json = JSON.stringify(msg.event);
         if (json === this.lastRelayDisplay) return;
@@ -774,20 +818,28 @@ class WebServerApi implements IServerApi {
     this.manualDisconnect = false;
     this.connectParams = params;
     this.reconnectAttempt = 0;
+    this.sessionIdentity = null;
+    this.sessionTokenRejected = false;
     return this.openSocket(params);
   }
 
   private async openSocket(params: ServerConnectParams): Promise<void> {
-    const { proof, username } = await relayIdentity(params.username);
+    const forceRemint = this.sessionTokenRejected;
+    this.sessionTokenRejected = false;
+    const identity = await resolveRelayIdentity(this.sessionIdentity, params.username, forceRemint);
+    this.sessionIdentity = identity;
+    const { proof, username } = identity;
     this.authedUsername = username;
     const url = buildServerUrl(params);
     this.relayUrl = url;
     this.serverPassword = params.password;
 
     return new Promise((resolve, reject) => {
-      this.ws = new WebSocket(url);
+      const socket = new WebSocket(url);
+      this.ws = socket;
 
-      this.ws.onopen = () => {
+      socket.onopen = () => {
+        if (this.ws !== socket) return;
         this.connectedAt = Date.now();
         this.send({
           type: "Authenticate",
@@ -801,15 +853,17 @@ class WebServerApi implements IServerApi {
         resolve();
       };
 
-      this.ws.onerror = () => {
+      socket.onerror = () => {
         reject(new Error(`Failed to connect to ${url}`));
       };
 
-      this.ws.onclose = (event) => {
+      socket.onclose = (event) => {
+        if (this.ws !== socket) return;
         this.handleSocketClose(event);
       };
 
-      this.ws.onmessage = (e: MessageEvent) => {
+      socket.onmessage = (e: MessageEvent) => {
+        if (this.ws !== socket) return;
         this.lastInboundAt = Date.now();
         if (typeof e.data !== "string") return;
         try {
@@ -946,6 +1000,8 @@ class WebServerApi implements IServerApi {
     this.serverShutdownPending = null;
     this.reconnectAttempt = 0;
     this.connectParams = null;
+    this.sessionIdentity = null;
+    this.sessionTokenRejected = false;
     this.stopKeepalive();
     this.stopAllBots();
     const ws = this.ws;
@@ -969,6 +1025,7 @@ class WebServerApi implements IServerApi {
       ws.addEventListener("error", done);
       ws.close();
     });
+    this.eventBus.emit("server:disconnected", { terminal: true });
   }
 
   async listRooms(): Promise<void> {
@@ -979,8 +1036,12 @@ class WebServerApi implements IServerApi {
     this.send({ type: "ListPlayers" });
   }
 
+  async setLocalGame(kind: LocalGameKind | null): Promise<void> {
+    this.send({ type: "SetLocalGame", kind });
+  }
+
   async createRoom(params: CreateRoomParams): Promise<string | null> {
-    if (params.engine === "Forge") {
+    if (params.engine === "Forge" && !isForgeWasmHostingEnabled()) {
       throw new Error("Forge engine is not supported on the web");
     }
     this.send({
@@ -1040,7 +1101,7 @@ class WebServerApi implements IServerApi {
       deck: params.deck,
       published_deck_id: params.publishedDeckId ?? null,
       commander_name: params.commanderName,
-      avatar: params.avatar ?? null,
+      avatar_url: params.avatarUrl ?? null,
     });
   }
 
@@ -1060,6 +1121,17 @@ class WebServerApi implements IServerApi {
     this.stopAllBots();
     clearSpawnedBots();
     this.send({ type: "EndGame", game_id: gameId });
+  }
+
+  async reportEngineStats(stats: EngineGameStats, gameId?: string | null): Promise<void> {
+    // `send` swallows a closed socket, which for a report means losing it
+    // silently: the caller queues for the hub only when this rejects, and a
+    // game that ends with the relay already gone is exactly the case the queue
+    // exists for.
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error("Relay is not connected; queue the engine report instead.");
+    }
+    this.send({ type: "ReportEngineStats", game_id: gameId ?? null, stats });
   }
 
   async requestResync(): Promise<void> {
@@ -1364,11 +1436,11 @@ class WebServerApi implements IServerApi {
     }
 
     if (type === "RoomResumed") {
-      for (const [playerSlot, state] of this.lastRelayStates) {
+      for (const [playerSlot, { state, fingerprint }] of this.lastRelayStates) {
         const targetPlayer = this.enginePlayerName(playerSlot);
         if (targetPlayer) {
           void this.broadcastState(
-            { kind: "state", forPlayer: playerSlot, state: JSON.parse(state) },
+            { kind: "state", forPlayer: playerSlot, state, fingerprint },
             targetPlayer,
           );
         }
@@ -1393,6 +1465,9 @@ class WebServerApi implements IServerApi {
       if (typeof msg.error === "string" && msg.error.includes(DUPLICATE_USERNAME_ERROR_FRAGMENT)) {
         this.reconnectAttempt = Math.max(this.reconnectAttempt, 4);
       }
+      if (typeof msg.error === "string" && msg.error.includes(TOKEN_EXPIRED_ERROR_FRAGMENT)) {
+        this.sessionTokenRejected = true;
+      }
     }
 
     if (type === "SessionTakenOver") {
@@ -1410,6 +1485,7 @@ class WebServerApi implements IServerApi {
           reconnected: msg.reconnected,
           error: msg.error,
           username: this.authedUsername,
+          features: msg.features,
         },
       ],
       RoomList: ["server:room_list", { rooms: msg.rooms }],

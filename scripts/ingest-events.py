@@ -83,6 +83,36 @@ CREATE INDEX IF NOT EXISTS idx_game_players_publication
   WHERE is_bot = 0 AND published_deck_id IS NOT NULL AND deck_fingerprint IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_deck_cards_name ON deck_cards(name);
 CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts);
+CREATE TABLE IF NOT EXISTS engine_stats (
+  report_id TEXT PRIMARY KEY,
+  ts TEXT NOT NULL,
+  source TEXT NOT NULL,
+  game_id TEXT,
+  engine TEXT NOT NULL,
+  client_version TEXT,
+  platform TEXT,
+  format TEXT,
+  seats INTEGER,
+  multiplayer INTEGER,
+  duration_s INTEGER,
+  end_reason TEXT,
+  decisions INTEGER,
+  turnaround_p50 INTEGER,
+  turnaround_p90 INTEGER,
+  turnaround_max INTEGER,
+  engine_p50 INTEGER,
+  engine_p90 INTEGER,
+  engine_max INTEGER,
+  engine_same_p50 INTEGER,
+  engine_same_p90 INTEGER,
+  engine_same_max INTEGER,
+  engine_cross_p50 INTEGER,
+  engine_cross_p90 INTEGER,
+  engine_cross_max INTEGER,
+  think_hidden INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_engine_stats_ts ON engine_stats(ts);
+CREATE INDEX IF NOT EXISTS idx_engine_stats_engine ON engine_stats(engine, ts);
 CREATE TABLE IF NOT EXISTS hub_sync_state (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   synced_at TEXT NOT NULL,
@@ -131,6 +161,22 @@ def open_db(path: Path) -> sqlite3.Connection:
     db.executescript(SCHEMA)
     ensure_column(db, "game_players", "published_deck_id", "TEXT")
     ensure_column(db, "game_players", "deck_fingerprint", "TEXT")
+    # Anything predating the `source` column is by definition a relay game.
+    # An events.db created before the split still has the old engine_stats.
+    for column in (
+        "engine_same_p50",
+        "engine_same_p90",
+        "engine_same_max",
+        "engine_cross_p50",
+        "engine_cross_p90",
+        "engine_cross_max",
+    ):
+        ensure_column(db, "engine_stats", column, "INTEGER")
+    ensure_column(db, "engine_stats", "think_hidden", "INTEGER NOT NULL DEFAULT 0")
+    ensure_column(db, "games", "source", "TEXT")
+    ensure_column(db, "games", "reported_at", "TEXT")
+    db.execute("UPDATE games SET source = 'relay' WHERE source IS NULL")
+    db.commit()
     return db
 
 
@@ -144,8 +190,8 @@ def ingest_game_started(db, ev):
     players = ev.get("players") or []
     db.execute(
         """INSERT INTO games (game_id, room_id, started_at, format, engine, hosted,
-                              official, starting_life, player_count)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                              official, starting_life, player_count, source)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'relay')
            ON CONFLICT(game_id) DO UPDATE SET
              room_id=excluded.room_id, started_at=excluded.started_at,
              format=excluded.format, engine=excluded.engine,
@@ -185,8 +231,8 @@ def ingest_game_started(db, ev):
 def ingest_game_ended(db, ev):
     db.execute(
         """INSERT INTO games (game_id, room_id, ended_at, duration_s, end_reason,
-                              game_over, winner)
-           VALUES (?, ?, ?, ?, ?, ?, ?)
+                              game_over, winner, source)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'relay')
            ON CONFLICT(game_id) DO UPDATE SET
              ended_at=excluded.ended_at, duration_s=excluded.duration_s,
              end_reason=excluded.end_reason, game_over=excluded.game_over,
@@ -226,6 +272,54 @@ def ingest_deck_selected(db, ev):
         )
 
 
+ENGINE_STATS_COLUMNS = (
+    "report_id, ts, source, game_id, engine, client_version, platform, format, "
+    "seats, multiplayer, duration_s, end_reason, decisions, turnaround_p50, "
+    "turnaround_p90, turnaround_max, engine_p50, engine_p90, engine_max, "
+    "engine_same_p50, engine_same_p90, engine_same_max, "
+    "engine_cross_p50, engine_cross_p90, engine_cross_max, think_hidden"
+)
+
+
+def ingest_engine_stats(db, ev):
+    db.execute(
+        f"""INSERT OR IGNORE INTO engine_stats ({ENGINE_STATS_COLUMNS})
+           VALUES ({", ".join("?" * 26)})""",
+        (
+            # A relay from before the report id was forwarded still identifies a
+            # report well enough to keep re-ingestion idempotent. The room is
+            # absent on a report that outlived its seat's membership, which is
+            # most of them, so the timestamp carries the fallback on its own.
+            ev.get("report_id") or f"{ev.get('room_id') or ''}:{ev.get('ts')}",
+            ev.get("ts"),
+            "relay",
+            ev.get("game_id"),
+            ev.get("engine"),
+            ev.get("client_version"),
+            ev.get("platform"),
+            ev.get("format"),
+            ev.get("seats"),
+            int(bool(ev.get("multiplayer"))),
+            ev.get("duration_s"),
+            ev.get("end_reason"),
+            ev.get("decisions"),
+            ev.get("turnaround_p50"),
+            ev.get("turnaround_p90"),
+            ev.get("turnaround_max"),
+            ev.get("engine_p50"),
+            ev.get("engine_p90"),
+            ev.get("engine_max"),
+            ev.get("engine_same_p50"),
+            ev.get("engine_same_p90"),
+            ev.get("engine_same_max"),
+            ev.get("engine_cross_p50"),
+            ev.get("engine_cross_p90"),
+            ev.get("engine_cross_max"),
+            ev.get("think_hidden") or 0,
+        ),
+    )
+
+
 def ingest_client_connected(db, ev):
     db.execute(
         """INSERT INTO client_connections (ts, username, platform, reconnected)
@@ -244,6 +338,7 @@ INGESTERS = {
     "game_started": ingest_game_started,
     "game_ended": ingest_game_ended,
     "deck_selected": ingest_deck_selected,
+    "engine_stats": ingest_engine_stats,
 }
 
 
@@ -310,6 +405,151 @@ def utc_now() -> str:
     )
 
 
+def sync_offline_games(db, hub) -> int:
+    """Expand the hub's offline-play records into the relay's own tables.
+
+    Tagged `source='offline'` so they stay separable from relay games.
+    """
+    watermark = db.execute(
+        "SELECT coalesce(max(reported_at), '') FROM games WHERE source = 'offline'"
+    ).fetchone()[0]
+    games = hub_rows(
+        hub,
+        """SELECT id, reported_at, started_at, ended_at, duration_s, format, engine,
+                  starting_life, end_reason, game_over, winner, seats
+           FROM offline_play_games
+           WHERE reported_at > ?
+           ORDER BY reported_at""",
+        (watermark,),
+    )
+    if not games:
+        return 0
+    ids = [row[0] for row in games]
+    seats_by_game = {}
+    # SQLite caps variables per statement.
+    for start in range(0, len(ids), 500):
+        chunk = ids[start : start + 500]
+        placeholders = ", ".join("?" * len(chunk))
+        for row in hub_rows(
+            hub,
+            f"""SELECT game_id, seat_index, username, is_bot, deck_name, commander,
+                       published_deck_id, deck_fingerprint, sideboard_count, cards
+                FROM offline_play_seats
+                WHERE game_id IN ({placeholders})
+                ORDER BY seat_index""",
+            tuple(chunk),
+        ):
+            seats_by_game.setdefault(row[0], []).append(row)
+
+    written = 0
+    with db:
+        for (
+            game_id,
+            reported_at,
+            started_at,
+            ended_at,
+            duration_s,
+            fmt,
+            engine,
+            starting_life,
+            end_reason,
+            game_over,
+            winner,
+            seat_count,
+        ) in games:
+            cursor = db.execute(
+                """INSERT OR IGNORE INTO games
+                     (game_id, room_id, started_at, ended_at, duration_s, format,
+                      engine, hosted, official, starting_life, player_count,
+                      end_reason, game_over, winner, source, reported_at)
+                   VALUES (?, NULL, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, 'offline', ?)""",
+                (
+                    game_id,
+                    started_at,
+                    ended_at,
+                    duration_s,
+                    fmt,
+                    engine,
+                    starting_life,
+                    seat_count,
+                    end_reason,
+                    game_over,
+                    winner,
+                    reported_at,
+                ),
+            )
+            # `decks` has an autoincrement key, so a game already on file must
+            # not reach the deck inserts below.
+            if not cursor.rowcount:
+                continue
+            written += 1
+            for seat in seats_by_game.get(game_id, []):
+                (
+                    _,
+                    _seat_index,
+                    username,
+                    is_bot,
+                    deck_name,
+                    commander,
+                    published_deck_id,
+                    deck_fingerprint,
+                    sideboard_count,
+                    cards_json,
+                ) = seat
+                db.execute(
+                    """INSERT OR REPLACE INTO game_players
+                       (game_id, username, is_bot, deck_name, commander,
+                        published_deck_id, deck_fingerprint)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        game_id,
+                        username,
+                        int(bool(is_bot)),
+                        deck_name,
+                        commander,
+                        published_deck_id,
+                        deck_fingerprint,
+                    ),
+                )
+                try:
+                    cards = json.loads(cards_json) or []
+                except (TypeError, ValueError):
+                    cards = []
+                if not cards and not deck_name:
+                    continue
+                # No room offline, so `room_id` carries the game id: it is the
+                # only join back to the game the deck was played in.
+                deck_cursor = db.execute(
+                    """INSERT INTO decks (ts, room_id, username, is_bot, deck_name,
+                                          commander, sideboard_count)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        started_at,
+                        game_id,
+                        username,
+                        int(bool(is_bot)),
+                        deck_name,
+                        commander,
+                        sideboard_count,
+                    ),
+                )
+                deck_key = deck_cursor.lastrowid
+                db.executemany(
+                    "INSERT INTO deck_cards (deck_id, name, set_code, count) VALUES (?, ?, ?, ?)",
+                    (
+                        (
+                            deck_key,
+                            card.get("name"),
+                            card.get("setCode"),
+                            card.get("count"),
+                        )
+                        for card in cards
+                        if isinstance(card, dict) and card.get("name")
+                    ),
+                )
+    return written
+
+
 def hub_rows(hub, query, params=()):
     try:
         return hub.execute(query, params).fetchall()
@@ -351,6 +591,7 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
             "top_deck_buckets",
             "top_deck_snapshots",
             "deck_play_reports",
+            "engine_play_stats",
             "card_collection",
             "card_collection_versions",
             "data_migrations",
@@ -405,6 +646,23 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
                 if day is not None
             )
 
+        mirrored_through = db.execute(
+            "SELECT coalesce(max(ts), '') FROM engine_stats WHERE source = 'hub'"
+        ).fetchone()[0]
+        engine_reports = hub_rows(
+            hub,
+            """SELECT id, reported_at, game_id, engine, client_version, platform, format,
+                      seats, multiplayer, duration_s, end_reason, decisions,
+                      turnaround_p50, turnaround_p90, turnaround_max,
+                      engine_p50, engine_p90, engine_max,
+                      engine_same_p50, engine_same_p90, engine_same_max,
+                      engine_cross_p50, engine_cross_p90, engine_cross_max,
+                      coalesce(think_hidden, 0)
+               FROM engine_play_stats
+               WHERE reported_at > ?""",
+            (mirrored_through,),
+        )
+
         collection_cards = hub_rows(
             hub,
             """SELECT card_key, count(DISTINCT account_id), sum(quantity)
@@ -422,6 +680,10 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
                WHERE e.status = 'published'
                GROUP BY c.card_name, coalesce(v.format, 'unknown'), c.zone"""
         )
+        # Games, not a hub metric, so they bypass the snapshot machinery below.
+        offline_written = sync_offline_games(db, hub)
+        if offline_written:
+            print(f"offline games ingested: {offline_written}", flush=True)
     finally:
         hub.close()
 
@@ -437,6 +699,11 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
         db.executemany(
             "INSERT INTO hub_daily_metrics (day, metric, dimension, value) VALUES (?, ?, ?, ?)",
             daily,
+        )
+        db.executemany(
+            f"""INSERT OR IGNORE INTO engine_stats ({ENGINE_STATS_COLUMNS})
+                VALUES (?, ?, 'hub', {", ".join("?" * 23)})""",
+            engine_reports,
         )
         db.execute("DELETE FROM hub_collection_cards")
         db.executemany(

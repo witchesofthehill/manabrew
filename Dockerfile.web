@@ -72,6 +72,7 @@ COPY tree-sitter-forge-card-script/ ./tree-sitter-forge-card-script/
 COPY xtask/ ./xtask/
 COPY scripts/ ./scripts/
 COPY src/ ./src/
+COPY packages/ ./packages/
 COPY public/ ./public/
 # ops/manifest.json is read by vite.config.ts to stamp the app version.
 COPY index.html tsconfig*.json vite.config.ts ./
@@ -88,7 +89,16 @@ COPY forge/forge-gui/res/cardsfolder/ ./forge/forge-gui/res/cardsfolder/
 COPY forge/forge-gui/res/tokenscripts/ ./forge/forge-gui/res/tokenscripts/
 COPY forge/forge-gui/res/editions/ ./forge/forge-gui/res/editions/
 COPY forge/forge-gui/res/blockdata/ ./forge/forge-gui/res/blockdata/
-COPY forge/forge-gui/res/lists/TypeLists.txt ./forge/forge-gui/res/lists/TypeLists.txt
+COPY forge/forge-gui/res/lists/ ./forge/forge-gui/res/lists/
+# Carried verbatim into the archive's `extras` for consumers with no
+# filesystem. Forge's own FModel.initialize reads all of these and throws
+# without them, and a missing dir is skipped silently like editions above.
+COPY forge/forge-gui/res/formats/ ./forge/forge-gui/res/formats/
+COPY forge/forge-gui/res/defaults/ ./forge/forge-gui/res/defaults/
+COPY forge/forge-gui/res/effects/ ./forge/forge-gui/res/effects/
+# The AI profiles. Without them Forge logs "can't find AI profile directory"
+# and every opponent plays on built-in defaults.
+COPY forge/forge-gui/res/ai/ ./forge/forge-gui/res/ai/
 COPY public/preset_decks/ ./public/preset_decks/
 # Production build defaults — the prod compose passes these as build args
 # so the static bundle bakes in the public relay endpoint. Dev builds (yarn

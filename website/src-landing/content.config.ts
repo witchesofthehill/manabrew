@@ -11,6 +11,7 @@ const blog = defineCollection({
     pubDate: z.coerce.date(),
     author: z.string().default("The Manabrew team"),
     audience: z.enum(["players", "developers"]),
+    kind: z.enum(["announcement", "essay"]).default("essay"),
     hero: z.string().optional(),
     heroAlt: z.string().optional(),
     draft: z.boolean().default(false),

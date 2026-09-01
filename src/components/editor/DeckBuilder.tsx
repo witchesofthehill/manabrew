@@ -1065,7 +1065,10 @@ export function DeckBuilder({
       toast.error("Give this deck a name before saving");
       return;
     }
-    const deckToSave = { ...sourceDeck, name: normalizedName };
+    // A full save always clears the draft flag; keeping it here used to leak
+    // `draft: true` into the account snapshot, which then re-infected the
+    // local copy via the server echo and left the deck stuck in Drafts.
+    const deckToSave = { ...sourceDeck, name: normalizedName, draft: undefined };
     if (normalizedName !== sourceDeck.name) useDeckStore.getState().setDeckName(normalizedName);
     saveInFlightRef.current = true;
     setIsSaving(true);
@@ -1073,9 +1076,8 @@ export function DeckBuilder({
     try {
       const saved = savedDecks.find((candidate) => candidate.id === currentDeckId);
       saveCurrentDeck();
-      const savedDeck = { ...deckToSave, draft: undefined };
-      const snapshot = buildDeckSnapshot(savedDeck);
-      setLastSavedDeck(savedDeck);
+      const snapshot = buildDeckSnapshot(deckToSave);
+      setLastSavedDeck(deckToSave);
       setUnsavedState(snapshot, snapshot);
       if (accountsEnabled && saved?.accountDeckId && saved.accountVersionNo) {
         const detail = await useAccountDecksStore

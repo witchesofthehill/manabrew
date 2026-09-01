@@ -95,11 +95,12 @@ class HubAnalyticsTest(unittest.TestCase):
         hub = sqlite3.connect(self.hub_path)
         hub.execute(
             """INSERT INTO engine_play_stats
-               (id, reported_at, engine, client_version, platform, format, seats,
-                multiplayer, duration_s, end_reason, decisions, turnaround_p50,
+               (id, reported_at, game_id, engine, client_version, platform, format,
+                seats, multiplayer, duration_s, end_reason, decisions, turnaround_p50,
                 turnaround_p90, turnaround_max, engine_p50, engine_p90,
                 engine_max, by_type)
-               VALUES ('offline-1', '2026-08-30T04:27:49Z', 'forge-wasm', '3.23.0',
+               VALUES ('offline-1', '2026-08-30T04:27:49Z', 'offline-game-1',
+                       'forge-wasm', '3.23.0',
                        'web', 'standard', 2, 0, 252, 'gameOver', 91, 74, 279, 727,
                        40, 90, 300, '[]')"""
         )
@@ -135,15 +136,51 @@ class HubAnalyticsTest(unittest.TestCase):
             )
 
         rows = self.events.execute(
-            "SELECT report_id, source, engine, turnaround_p50 FROM engine_stats ORDER BY report_id"
+            """SELECT report_id, source, game_id, engine, turnaround_p50
+               FROM engine_stats ORDER BY report_id"""
         ).fetchall()
+        # The game id is what makes a report joinable to what was played, and
+        # both routes have to carry it: the hub one inside the report, the relay
+        # one on the envelope around it.
         self.assertEqual(
             rows,
             [
-                ("offline-1", "hub", "forge-wasm", 74),
-                ("relayed-1", "relay", "forge-hosted", 46),
+                ("offline-1", "hub", "offline-game-1", "forge-wasm", 74),
+                ("relayed-1", "relay", "game-1", "forge-hosted", 46),
             ],
         )
+
+    def test_a_relay_report_survives_the_seat_leaving_its_room(self):
+        """The relay stopped requiring a room, so `room_id` is now absent on
+        most reports. Nothing downstream reads it, but the pre-report-id
+        fallback key did, and an ingester that trips over its absence would
+        trade one silent loss for another."""
+        roomless = json.dumps(
+            {
+                "event": "engine_stats",
+                "ts": "2026-08-30T10:40:00.000Z",
+                "username": "player",
+                "game_id": "game-2",
+                "engine": "forge-hosted",
+                "client_version": "3.33.0",
+                "platform": "web",
+                "seats": 4,
+                "multiplayer": True,
+                "duration_s": 900,
+                "end_reason": "gameOver",
+                "decisions": 210,
+                "turnaround_p50": 812,
+                "turnaround_p90": 1741,
+                "turnaround_max": 40000,
+            }
+        )
+        self.ingester.ingest_line(self.events, roomless)
+        self.ingester.ingest_line(self.events, roomless)
+
+        rows = self.events.execute(
+            "SELECT report_id, game_id, turnaround_p50 FROM engine_stats"
+        ).fetchall()
+        self.assertEqual(rows, [(":2026-08-30T10:40:00.000Z", "game-2", 812)])
 
 
 if __name__ == "__main__":

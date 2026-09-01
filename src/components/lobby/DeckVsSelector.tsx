@@ -3,9 +3,10 @@ import { Link } from "react-router-dom";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { Button } from "@/components/ui/button";
 import { EngineMark } from "@/components/lobby/EngineMark";
+import { PlaytestPlayersDialog } from "@/components/lobby/PlaytestPlayersDialog";
 import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
-import { cn, pickRandom } from "@/lib/utils";
+import { cn, pickRandom, pickRandomDistinct } from "@/lib/utils";
 import { toast } from "sonner";
 import { ROUTES } from "@/lib/constants";
 import { resolveAiOpponent } from "@/lib/aiOpponent";
@@ -44,7 +45,7 @@ interface DeckVsSelectorProps {
   preSelectedHubDeckId?: string;
   onStart: (
     playerDeck: Deck,
-    opponentDeck: Deck,
+    opponentDecks: Deck[],
     formatId?: string,
     commanderName?: string,
   ) => Promise<boolean>;
@@ -100,6 +101,7 @@ export function DeckVsSelector({
   const [opponentConfirmed, setOpponentConfirmed] = useState(false);
   const [deckSearch, setDeckSearch] = useState("");
   const [starting, setStarting] = useState(false);
+  const [playersDialogOpen, setPlayersDialogOpen] = useState(false);
   const [loadingHubDeckId, setLoadingHubDeckId] = useState<string | null>(null);
   const selectedFormatRef = useRef(selectedFormat);
   selectedFormatRef.current = selectedFormat;
@@ -375,7 +377,16 @@ export function DeckVsSelector({
     setPickingSide(playerDeck ? null : "player");
   }
 
-  async function handleFight() {
+  function handleFight() {
+    if (!playerDeck || !opponentDeck || starting) return;
+    if (playerDeck.formatId === "commander") {
+      setPlayersDialogOpen(true);
+      return;
+    }
+    void startFight(1);
+  }
+
+  async function startFight(opponentCount: number) {
     if (!playerDeck || !opponentDeck || starting) return;
     const empty = [playerDeck, opponentDeck].find(
       (d) => d.sourceDeck.cards.length === 0 && (d.sourceDeck.commanders?.length ?? 0) === 0,
@@ -397,10 +408,28 @@ export function DeckVsSelector({
         return;
       }
     }
+
+    const excluded = new Set([
+      getDeckFingerprint(playerDeck.sourceDeck),
+      getDeckFingerprint(opponentDeck.sourceDeck),
+    ]);
+    const additionalOpponents = pickRandomDistinct(
+      formatFilteredPresets.filter(
+        (preset) =>
+          preset.cards.length + (preset.commanders?.length ?? 0) > 0 &&
+          !excluded.has(getDeckFingerprint(preset)),
+      ),
+      opponentCount - 1,
+    );
+    if (additionalOpponents.length !== opponentCount - 1) {
+      toast.error("Not enough distinct Commander decks are available for a 4-player game.");
+      return;
+    }
+
     setStarting(true);
     const started = await onStart(
       playerDeck.sourceDeck,
-      opponentDeck.sourceDeck,
+      [opponentDeck.sourceDeck, ...additionalOpponents],
       playerDeck.formatId,
       playerDeck.commanderName,
     );
@@ -758,6 +787,14 @@ export function DeckVsSelector({
           </Button>
         </div>
       </div>
+      <PlaytestPlayersDialog
+        open={playersDialogOpen}
+        onChoose={(opponentCount) => {
+          setPlayersDialogOpen(false);
+          void startFight(opponentCount);
+        }}
+        onCancel={() => setPlayersDialogOpen(false)}
+      />
     </div>
   );
 }

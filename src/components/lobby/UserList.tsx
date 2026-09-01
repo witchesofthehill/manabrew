@@ -180,7 +180,9 @@ export function UserList({
       >
         <div className="relative shrink-0">
           <Avatar className="h-7 w-7">
-            {player.avatar_url && <AvatarImage src={player.avatar_url} alt="" />}
+            {player.avatar_url && (
+              <AvatarImage src={player.avatar_url} alt="" crossOrigin="anonymous" />
+            )}
             <AvatarFallback className="text-xs">
               {stripUsernameTag(player.username).slice(0, 1).toUpperCase()}
             </AvatarFallback>

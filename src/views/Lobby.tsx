@@ -5,7 +5,7 @@ import { TableCreatingSplash } from "@/components/lobby/TableCreatingSplash";
 import { CreateGameDialog } from "@/components/lobby/CreateGameDialog";
 import { LeaveGameModal } from "@/components/game/modals";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useIsDesktop } from "@/hooks/useBreakpoints";
 import { useServerStore } from "@/stores/useServerStore";
@@ -35,7 +35,6 @@ import type { Deck } from "@/protocol/deck";
 import { toast } from "sonner";
 import { Settings, Users } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { findLanRelay, findOrHostLanRelay, isUnreachable, type LanTarget } from "@/lib/lanRelay";
 
 const START_GAME_ACK_TIMEOUT_MS = 5000;
 
@@ -127,14 +126,6 @@ export default function Lobby() {
       ? "connecting"
       : "disconnected";
   const savedDecks = useOwnedDecks();
-  const [lanTarget, setLanTarget] = useState<LanTarget | null>(null);
-  const lanTried = useRef(false);
-  const lanPreferred = useRef(false);
-  const lanDetail = lanTarget
-    ? lanTarget.hosting
-      ? "Hosting on your network"
-      : `On your network · ${lanTarget.name ?? "nearby host"}`
-    : undefined;
   const [settingUp, setSettingUp] = useState(false);
   const [creatingLabel, setCreatingLabel] = useState<string | null>(null);
   const [preferredSavedDeckId] = useState(initialPreferredSavedDeckId);
@@ -202,44 +193,11 @@ export default function Lobby() {
     }
   }, [sealedMode, navigate]);
 
-  // Nobody answered where we were told to look. Somebody on this network may be
-  // hosting, and if not, we can. Either way what comes back is an ordinary
-  // relay and the rest of the lobby never learns which one it got.
-  useEffect(() => {
-    if (connected || connecting || !isUnreachable(error) || lanTried.current) return;
-    const name = relayUsername();
-    if (!name) return;
-    lanTried.current = true;
-    void findOrHostLanRelay().then((target) => {
-      if (!target) return;
-      setLanTarget(target);
-      connect(target.host, target.port, name, target.password);
-    });
-  }, [connected, connecting, error, connect]);
-
-  // A relay answering on this network is this network's lobby, so it wins. Only
-  // a `relay` record counts: that is a machine somebody set up to be the lobby,
-  // where a `room` is one table on a desktop and belongs to the fallback above.
-  // Decided before the first connection rather than corrected after one, so
-  // nobody watches it connect somewhere and move.
   useEffect(() => {
     const name = relayUsername();
-    if (connected || connecting || error || !name) return;
-    const configured = () =>
+    if (!connected && !connecting && !error && name) {
       connect(prefs.serverHost, prefs.serverPort, name, prefs.serverPassword);
-    if (lanPreferred.current) {
-      configured();
-      return;
     }
-    lanPreferred.current = true;
-    void findLanRelay().then((target) => {
-      if (!target) {
-        configured();
-        return;
-      }
-      setLanTarget(target);
-      connect(target.host, target.port, name, target.password);
-    });
   }, [
     connect,
     connected,
@@ -581,7 +539,6 @@ export default function Lobby() {
               currentPlayerId={playerId}
               currentUsername={myUsername}
               connectionState={connectionState}
-              connectionDetail={lanDetail}
               onJoinRoom={handleJoinRoom}
             />
           </div>
@@ -599,7 +556,6 @@ export default function Lobby() {
               currentPlayerId={playerId}
               currentUsername={myUsername}
               connectionState={connectionState}
-              connectionDetail={lanDetail}
               onJoinRoom={handleJoinRoom}
             />
           </SheetContent>

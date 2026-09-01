@@ -16,6 +16,9 @@ pub mod roster;
 pub use channel::{GameChannel, GameReceiver, GameSender, TransportKind, TransportStatus};
 pub use endpoint::{NetConfig, NetEndpoint, SeatConnection, GAME_ALPN};
 pub use frames::SessionFrame;
+// Re-exported so a consumer never needs iroh in its own manifest, which would
+// pull iroh's MSRV into a crate that does not otherwise compile it.
+pub use iroh::{EndpointId, RelayMode, SecretKey};
 pub use roster::{Roster, RosterEntry};
 
 #[derive(Debug, thiserror::Error)]

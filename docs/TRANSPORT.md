@@ -2,7 +2,10 @@
 
 Game traffic between players in a room goes through `manabrew-server`, which makes two WAN hops
 out of what is often one network. This is the seam that lets it go straight between peers
-instead. Phase 1 is the seam and nothing else: no client uses it yet.
+instead.
+
+Only native peers can be direct. A browser cannot hole punch, so browser-only rooms want WebRTC
+instead: #838.
 
 ## What moves and what does not
 
@@ -47,6 +50,30 @@ clients. No client hardcodes a relay.
 No address lookup service is configured either way. The endpoint is built from `presets::Minimal`
 and the roster is the only source of addressing, so endpoint ids are never published to a
 third-party DNS or DHT.
+
+## The host
+
+`self-hosted-node` is the engine host, on the fleet and in-process in a desktop app under the
+`forge-room` feature. With the `iroh` feature and `SELF_HOSTED_NODE_IROH=1` it offers each seat a
+QUIC channel and sends that seat's engine envelopes over it instead of through
+`BroadcastState`. `Config::for_desktop_room` turns it on.
+
+It is worth being exact about what that wins. A seat on the same network already reaches a
+desktop host in one local hop, through the embedded relay it finds over mDNS
+(`manabrew-lan-discovery`), and iroh cannot beat one local hop. The direct plane is for the seat
+that is somewhere else: hole punched to the host instead of two WAN hops through
+`manabrew.app`.
+
+A seat is chosen for the direct plane at `GameStarted` and never migrates mid-game, in either
+direction. A seat whose channel dies goes back to the relay, but not silently: while it was
+direct the relay saw none of its envelopes, so the host owes it a full state before anything else
+goes out. `SeatTransport::RelayPending` is that debt, paid through `on_fallback` into the ordered
+outbound queue, and cleared when the seat answers over the relay, which is the only signal that
+it is reading that path again.
+
+The relay cannot observe traffic it does not carry, so the host tells it: `ReportTransport` names
+the seats that left, and the relay writes that into the game's capture. Without it a capture file
+is silently incomplete and whoever reads it later measures a game they cannot see all of.
 
 ## Opting in
 

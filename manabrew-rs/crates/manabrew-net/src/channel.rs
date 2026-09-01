@@ -24,6 +24,17 @@ pub enum TransportKind {
     Relayed,
 }
 
+impl TransportKind {
+    /// The same strings the serde renames produce, so a log line, a metric
+    /// label and a transport report all say the same word.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Direct => manabrew_relay_protocol::TRANSPORT_IROH_DIRECT,
+            Self::Relayed => manabrew_relay_protocol::TRANSPORT_IROH_RELAYED,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransportStatus {

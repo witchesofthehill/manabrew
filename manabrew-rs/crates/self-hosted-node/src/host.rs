@@ -6,6 +6,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::config::{Config, DeckSelection, SelfPlayConfig};
+use crate::direct::DirectPlane;
 use crate::engine_backend::{java_backend, rust_backend, EngineBackendKind, HostedGameOver};
 use crate::updater::{run_stale_monitor, StaleConfig};
 use futures_util::stream::{SplitSink, SplitStream};
@@ -481,6 +482,32 @@ async fn host_one_room(
         RelayClient::connect(&config.relay_url, &config.username, &config.password).await?;
     let mut room_id = establish_room(&mut host, &config, &snapshot).await?;
 
+    let direct = match DirectPlane::start(&config).await {
+        Some((plane, mut seats)) => {
+            let plane = Arc::new(plane);
+            let accept_plane = plane.clone();
+            let accept_engine = engine_session.clone();
+            let accept_snapshot = snapshot.clone();
+            tokio::spawn(async move {
+                while let Some(seat) = seats.recv().await {
+                    let engine = accept_engine.clone();
+                    let snap = accept_snapshot.clone();
+                    accept_plane.register_seat(seat, move |username, payload| {
+                        route_seat_envelope(&engine, &snap, username, payload)
+                    });
+                }
+            });
+            let reprime_snapshot = snapshot.clone();
+            let reprime_tx = outbound_tx.clone();
+            plane.set_on_fallback(move |username| {
+                reprime_relay_cache(&reprime_snapshot, &reprime_tx, username);
+            });
+            announce_transport(&plane, &outbound_tx);
+            Some(plane)
+        }
+        None => None,
+    };
+
     if let Some(ready) = ready {
         let _ = ready.send(room_id.clone());
     }
@@ -505,6 +532,7 @@ async fn host_one_room(
             &outbound_tx,
             &mut outbound_rx,
             &cancel,
+            direct.as_ref(),
         )
         .await;
         if matches!(exit, LoopExit::Cancelled) {
@@ -558,8 +586,69 @@ async fn host_one_room(
                 }
             }
         };
+        if let Some(plane) = &direct {
+            plane.clear_game();
+            announce_transport(plane, &outbound_tx);
+        }
         info!(username = %config.username, room_id, "relay connection re-established");
     }
+}
+
+/// Puts a seat's current board back into the relay's replay cache the moment it
+/// leaves the direct plane. While it was direct the relay saw none of its
+/// envelopes, so without this a resync would answer with whatever board the
+/// relay last carried, and a `stateDelta` patch would be folded onto a base the
+/// relay never had.
+fn reprime_relay_cache(
+    snapshot: &SharedHostSnapshot,
+    outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
+    username: &str,
+) {
+    let Some(index) = seat_index_of(snapshot, username) else {
+        return;
+    };
+    let slot = player_slot(index);
+    let Ok(snap) = snapshot.lock() else {
+        return;
+    };
+    let state = snap.last_state_by_slot.get(&slot).cloned();
+    let prompt = snap.pending_prompts.get(&slot).cloned();
+    drop(snap);
+
+    // Full states, not patches: these are stored before `patch_against_last`
+    // runs, which is exactly why they can rebuild a cache that missed the
+    // envelopes in between.
+    for state in [state, prompt].into_iter().flatten() {
+        let _ = outbound_tx.send(ClientMessage::BroadcastState {
+            state,
+            target_player: Some(username.to_string()),
+        });
+    }
+    info!(
+        username,
+        "re-primed the relay cache for a seat that fell back"
+    );
+}
+
+/// Announces this host's endpoint, off the message loop.
+///
+/// `local_endpoint` waits up to five seconds for a home relay, and a caller in
+/// `handle_server_message` would spend that not reading its relay socket.
+/// `outbound_tx` is an unbounded sender, so the announcement still lands; it
+/// just lands when the address is worth announcing.
+fn announce_transport(
+    plane: &Arc<DirectPlane>,
+    outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
+) {
+    let plane = plane.clone();
+    let outbound_tx = outbound_tx.clone();
+    tokio::spawn(async move {
+        let endpoint = plane.local_endpoint().await;
+        info!(endpoint_id = %endpoint.endpoint_id, "announcing the direct endpoint");
+        let _ = outbound_tx.send(ClientMessage::AnnounceTransport {
+            endpoint: Some(endpoint),
+        });
+    });
 }
 
 async fn establish_room(
@@ -1008,6 +1097,7 @@ async fn run_client_loop(
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
     outbound_rx: &mut tokio_mpsc::UnboundedReceiver<ClientMessage>,
     cancel: &RoomCancel,
+    direct: Option<&Arc<DirectPlane>>,
 ) -> LoopExit {
     let mut heartbeat = time::interval(Duration::from_secs(30));
     heartbeat.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
@@ -1047,6 +1137,13 @@ async fn run_client_loop(
                     warn!(username = %client.username, "outbound channel closed");
                     return LoopExit::Cancelled;
                 };
+                if let (Some(plane), ClientMessage::BroadcastState { state, target_player: Some(target) }) =
+                    (direct, &outbound)
+                {
+                    if plane.try_send(target, state) {
+                        continue;
+                    }
+                }
                 if let Err(error) = client.send(&outbound).await {
                     warn!(%error, username = %client.username, "relay send failed");
                     return LoopExit::Disconnected;
@@ -1073,6 +1170,7 @@ async fn run_client_loop(
                     bot_state,
                     outbound_tx,
                     &mut bot_usernames,
+                    direct,
                     message,
                 ).await {
                     warn!(%error, username = %client.username, "relay send failed");
@@ -1092,6 +1190,7 @@ async fn handle_server_message(
     bot_state: &SharedBotState,
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
     bot_usernames: &mut HashSet<String>,
+    direct: Option<&Arc<DirectPlane>>,
     message: ServerMessage,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match message {
@@ -1114,6 +1213,12 @@ async fn handle_server_message(
             maybe_auto_start_room(client, config, &room).await?;
         }
         ServerMessage::StateUpdate { from_player, state } => {
+            // An envelope from this seat over the relay is the acknowledgement
+            // that it is reading that path again, which is the only signal the
+            // host gets and the only one it needs.
+            if let Some(plane) = direct {
+                plane.note_relay_message(&from_player);
+            }
             handle_state_update(
                 client,
                 config,
@@ -1167,6 +1272,22 @@ async fn handle_server_message(
                 snap.pending_prompts.clear();
                 snap.pending_end_game = None;
             }
+            if let Some(plane) = direct {
+                let seats = plane.freeze_for_game(&player_order);
+                if !seats.is_empty() {
+                    info!(
+                        game_id,
+                        ?seats,
+                        "seats playing this game on the direct plane"
+                    );
+                    // The relay is about to stop seeing these seats. Telling it
+                    // so is the only way its capture can record what it missed.
+                    let _ = outbound_tx.send(ClientMessage::ReportTransport {
+                        game_id: game_id.clone(),
+                        seats: plane.transport_report(&seats),
+                    });
+                }
+            }
             maybe_start_hosted_engine(
                 config,
                 engine_session,
@@ -1178,6 +1299,23 @@ async fn handle_server_message(
                 starting_life,
                 bot_usernames,
             );
+        }
+        ServerMessage::RoomTransport {
+            room_id: transport_room_id,
+            iroh_relay_url,
+            host,
+            members,
+        } => {
+            if let Some(plane) = direct {
+                // A host binds relay-less, so the first adoption is what gives
+                // it an address that peers who cannot reach it directly can
+                // use. Only that changes the address, and only that needs
+                // announcing again.
+                if plane.adopt_relay(iroh_relay_url.as_deref()).await {
+                    announce_transport(plane, outbound_tx);
+                }
+                plane.apply_roster(&transport_room_id, host.as_ref(), &members);
+            }
         }
         ServerMessage::ServerShuttingDown { reconnect_in_s } => {
             info!(reconnect_in_s, observer = %client.username, "relay is restarting");
@@ -1209,21 +1347,8 @@ async fn handle_state_update(
     };
 
     match envelope {
-        StateEnvelope::Response { .. } => {
-            route_remote_response(engine_session, snapshot, &from_player, &state);
-            Ok(())
-        }
-        StateEnvelope::Directive {
-            from_player: claimed_slot,
-            directive,
-        } => {
-            route_remote_directive(
-                engine_session,
-                snapshot,
-                &from_player,
-                &claimed_slot,
-                &directive,
-            );
+        StateEnvelope::Response { .. } | StateEnvelope::Directive { .. } => {
+            route_seat_envelope(engine_session, snapshot, &from_player, &state);
             Ok(())
         }
         StateEnvelope::RoomRelay {
@@ -1833,6 +1958,33 @@ fn finish_hosted_engine(
         } else {
             warn!(game_id, message, "stale engine session finished with error");
         }
+    }
+}
+
+/// Dispatches one seat envelope, whichever transport carried it. `from_player`
+/// must be an authenticated username: the relay's `StateUpdate.from_player` on
+/// the relay path, the roster-attested seat name on the direct path.
+fn route_seat_envelope(
+    engine_session: &SharedEngineSession,
+    snapshot: &SharedHostSnapshot,
+    from_player: &str,
+    state: &Value,
+) {
+    match serde_json::from_value::<StateEnvelope>(state.clone()) {
+        Ok(StateEnvelope::Response { .. }) => {
+            route_remote_response(engine_session, snapshot, from_player, state)
+        }
+        Ok(StateEnvelope::Directive {
+            from_player: claimed_slot,
+            directive,
+        }) => route_remote_directive(
+            engine_session,
+            snapshot,
+            from_player,
+            &claimed_slot,
+            &directive,
+        ),
+        _ => debug!(from_player, state = %state, "unroutable seat envelope"),
     }
 }
 

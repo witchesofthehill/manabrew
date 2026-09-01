@@ -39,7 +39,7 @@ All under `manabrew-rs/crates/`. The relay, hub, and self-hosted node each have 
 
 Dependency direction: `foundation`, `card-script`, `cardset-archive` ← `carddb` ← `engine` ← everything else, and `manabrew-protocol` ← `manabrew-relay-protocol` ← `manabrew-net`. Don't introduce cycles.
 
-**`manabrew-net` pulls iroh, which is edition 2024 and declares rust-version 1.91.** Anything that links it needs a toolchain at or above that, including the `Dockerfile`s for the node and web images. It is behind a default-off `iroh` feature on both `manabot` and `self-hosted-node`, so a build that does not ask for it links no QUIC stack at all; `manabot`'s `native` feature deliberately does **not** imply it. `MANABREW_IROH` is a separate runtime gate, and the fleet image compiles the feature in so a rollout is an env change rather than a rebuild.
+**`manabrew-net` pulls iroh, which is edition 2024 and declares rust-version 1.91.** Anything that links it needs a toolchain at or above that, including the `Dockerfile`s for the node and web images. It is behind a default-off `iroh` feature on both `manabot` and `self-hosted-node`, so a build that does not ask for it links no QUIC stack at all; `manabot`'s `native` feature deliberately does **not** imply it. `SELF_HOSTED_NODE_IROH=1` is a separate runtime gate, and the fleet image compiles the feature in so a rollout is an env change rather than a rebuild.
 
 ## `manabrew-engine` crate — module map
 

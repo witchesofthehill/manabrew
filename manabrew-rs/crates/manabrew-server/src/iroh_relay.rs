@@ -9,11 +9,20 @@
 //! carries one this process minted and has not expired. Being in a room is
 //! already an authenticated act, so this adds no new identity, only a way to
 //! prove that act to a component that cannot see the lobby.
+//!
+//! **The signing key is per process and never leaves it.** It cannot be the
+//! relay's `server_key`: that one is published, in `knownRelays.ts` and in the
+//! bundle every browser downloads, so signing with it would let anyone mint
+//! themselves a token and the gate would be decoration. Nothing outside this
+//! process needs to verify a token, so nothing outside it needs the key. A
+//! restart invalidates the tokens it handed out, which costs nothing: the next
+//! `RoomTransport` broadcast carries fresh ones.
 
 use std::net::SocketAddr;
+use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use aws_lc_rs::hmac;
+use aws_lc_rs::{hmac, rand};
 use iroh_relay::server::{Access, AccessControl, ClientRequest};
 use tracing::{debug, error, info};
 
@@ -23,6 +32,11 @@ pub use iroh_relay::server::Server;
 /// nothing about how much. This process also serves the game socket and shares
 /// its cgroup, so an authorised member with a fast link must not be able to
 /// starve the thing it exists to help. Well above a game, well below a link.
+///
+/// Per **connection**, not per client: `accept_conn_limit` is documented as
+/// unimplemented in iroh-relay 1.1, so one holder of a token can still open as
+/// many connections as it likes and pay this toll on each. That is a real hole
+/// and it is bounded only by the token being room-scoped and short-lived.
 const CLIENT_BYTES_PER_SECOND: u32 = 512 * 1024;
 const CLIENT_BURST_BYTES: u32 = 2 * 1024 * 1024;
 
@@ -30,19 +44,43 @@ const CLIENT_BURST_BYTES: u32 = 2 * 1024 * 1024;
 /// enough that a leaked one stops working on its own.
 pub const TOKEN_TTL_SECS: u64 = 6 * 60 * 60;
 
+/// Minted once per process, on first use. Losing it on restart is the whole
+/// design: an outstanding token stops working and the next roster broadcast
+/// replaces it.
+fn signing_key() -> &'static hmac::Key {
+    static KEY: OnceLock<hmac::Key> = OnceLock::new();
+    KEY.get_or_init(|| {
+        let mut bytes = [0u8; 32];
+        rand::fill(&mut bytes).expect("system rng");
+        hmac::Key::new(hmac::HMAC_SHA256, &bytes)
+    })
+}
+
 /// `<room>.<expiry>.<mac>`. The room id is carried so the mac can be recomputed
 /// without the relay storing anything, which means nothing to clean up and no
 /// state to get out of step with the lobby.
-pub fn mint_token(server_key: &str, room_id: &str) -> String {
+pub fn mint_token(room_id: &str) -> String {
     let expiry = now_secs() + TOKEN_TTL_SECS;
-    let mac = sign(server_key, room_id, expiry);
+    let mac = hex(hmac::sign(signing_key(), signed_bytes(room_id, expiry).as_bytes()).as_ref());
     format!("{room_id}.{expiry}.{mac}")
 }
 
-fn sign(server_key: &str, room_id: &str, expiry: u64) -> String {
-    let key = hmac::Key::new(hmac::HMAC_SHA256, server_key.as_bytes());
-    let tag = hmac::sign(&key, format!("{room_id}.{expiry}").as_bytes());
-    tag.as_ref().iter().map(|b| format!("{b:02x}")).collect()
+fn signed_bytes(room_id: &str, expiry: u64) -> String {
+    format!("{room_id}.{expiry}")
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+fn unhex(text: &str) -> Option<Vec<u8>> {
+    if !text.len().is_multiple_of(2) {
+        return None;
+    }
+    (0..text.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(text.get(i..i + 2)?, 16).ok())
+        .collect()
 }
 
 fn now_secs() -> u64 {
@@ -54,9 +92,7 @@ fn now_secs() -> u64 {
 
 /// Admits only connections carrying a token this process minted.
 #[derive(Debug)]
-struct RoomMembersOnly {
-    server_key: String,
-}
+struct RoomMembersOnly;
 
 impl AccessControl for RoomMembersOnly {
     async fn on_connect(&self, request: &ClientRequest) -> Access {
@@ -74,10 +110,18 @@ impl AccessControl for RoomMembersOnly {
         if expiry <= now_secs() {
             return deny("expired token");
         }
-        // Comparing the hex of a fresh mac, not the bytes of the presented one:
-        // an attacker choosing the room id and expiry still cannot produce the
-        // mac without the key.
-        if sign(&self.server_key, room_id, expiry) != mac {
+        let Some(mac) = unhex(mac) else {
+            return deny("malformed token");
+        };
+        // Constant time, because the tag is attacker-supplied and a `String`
+        // comparison leaks where it stopped matching.
+        if hmac::verify(
+            signing_key(),
+            signed_bytes(room_id, expiry).as_bytes(),
+            &mac,
+        )
+        .is_err()
+        {
             return deny("bad token");
         }
         Access::Allow
@@ -94,11 +138,9 @@ fn deny(reason: &'static str) -> Access {
 /// Binds the relay, or returns `None` when it cannot start. A relay that fails
 /// to bind must not take the game socket down with it: peers simply stay direct
 /// only, which on a LAN is all they need anyway.
-pub async fn spawn(bind: SocketAddr, server_key: &str) -> Option<Server> {
+pub async fn spawn(bind: SocketAddr) -> Option<Server> {
     let mut relay = iroh_relay::server::RelayConfig::new(bind);
-    relay.access = std::sync::Arc::new(RoomMembersOnly {
-        server_key: server_key.to_string(),
-    });
+    relay.access = std::sync::Arc::new(RoomMembersOnly);
     let mut rate = iroh_relay::server::ClientRateLimit::new(
         CLIENT_BYTES_PER_SECOND.try_into().expect("non-zero"),
     );
@@ -122,9 +164,25 @@ pub async fn spawn(bind: SocketAddr, server_key: &str) -> Option<Server> {
 mod tests {
     use super::*;
 
+    /// The published relay password, from `src/config/knownRelays.ts`. It is in
+    /// the bundle every browser downloads and on screen in the relay picker.
+    const PUBLISHED_KEY: &[u8] =
+        b"725c5fba479c4e59605e39988e31cb76813afa55cd1e71488c4dd2aae998164b";
+
+    fn forge(key: &[u8], room_id: &str, expiry: u64) -> String {
+        let tag = hmac::sign(
+            &hmac::Key::new(hmac::HMAC_SHA256, key),
+            signed_bytes(room_id, expiry).as_bytes(),
+        );
+        format!("{room_id}.{expiry}.{}", hex(tag.as_ref()))
+    }
+
+    /// A token this process minted verifies. One signed with the relay password
+    /// does not, which is the whole reason the signing key is generated rather
+    /// than configured.
     #[test]
-    fn a_minted_token_verifies_and_a_forged_one_does_not() {
-        let token = mint_token("secret", "room-1");
+    fn only_the_key_this_process_generated_signs_a_token() {
+        let token = mint_token("room-1");
         let mut parts = token.rsplitn(3, '.');
         let (mac, expiry, room) = (
             parts.next().unwrap(),
@@ -132,13 +190,25 @@ mod tests {
             parts.next().unwrap(),
         );
         assert_eq!(room, "room-1");
-        assert_eq!(sign("secret", room, expiry), mac);
+        let verify = |room: &str, expiry: u64, mac: &str| {
+            hmac::verify(
+                signing_key(),
+                signed_bytes(room, expiry).as_bytes(),
+                &unhex(mac).unwrap(),
+            )
+            .is_ok()
+        };
+        assert!(verify(room, expiry, mac));
+        assert_ne!(forge(PUBLISHED_KEY, room, expiry), token);
+        assert!(!verify("room-2", expiry, mac));
+        assert!(!verify(room, expiry + 1, mac));
+    }
 
-        // Anyone can name a room and an expiry; without the key the mac is
-        // what they cannot produce.
-        assert_ne!(sign("other-key", room, expiry), mac);
-        assert_ne!(sign("secret", "room-2", expiry), mac);
-        assert_ne!(sign("secret", room, expiry + 1), mac);
+    #[test]
+    fn a_mac_that_is_not_hex_is_refused_rather_than_parsed() {
+        assert!(unhex("zz").is_none());
+        assert!(unhex("abc").is_none());
+        assert_eq!(unhex("00ff"), Some(vec![0, 255]));
     }
 
     /// The arithmetic above says a forged token fails to verify. This says the
@@ -146,7 +216,7 @@ mod tests {
     /// bandwidth if it is wrong.
     #[tokio::test]
     async fn the_relay_serves_a_room_that_has_a_token_and_nobody_else() {
-        let server = spawn("0.0.0.0:0".parse().unwrap(), "secret")
+        let server = spawn("0.0.0.0:0".parse().unwrap())
             .await
             .expect("spawn relay");
         let url: iroh::RelayUrl = format!("http://{}", server.http_addr().unwrap())
@@ -175,16 +245,23 @@ mod tests {
         };
 
         assert!(
-            dial(Some(mint_token("secret", "room-1"))).await,
+            dial(Some(mint_token("room-1"))).await,
             "a room this process minted for is served"
         );
         assert!(
             !dial(None).await,
             "an endpoint with no token is not, or the relay is anyone's to spend"
         );
+        // Exactly what an outsider can build: a room id of their choosing,
+        // signed with the key that ships in the bundle.
         assert!(
-            !dial(Some(mint_token("another-server", "room-1"))).await,
-            "and neither is one holding a token some other key signed"
+            !dial(Some(forge(
+                PUBLISHED_KEY,
+                "room-1",
+                now_secs() + TOKEN_TTL_SECS
+            )))
+            .await,
+            "the published relay password must not mint a usable token"
         );
 
         let _ = server.shutdown().await;
@@ -192,8 +269,8 @@ mod tests {
 
     #[test]
     fn a_token_carries_its_own_expiry() {
-        let token = mint_token("secret", "room-1");
-        let expiry: u64 = token.rsplitn(3, '.').nth(1).unwrap().parse().unwrap();
+        let token = mint_token("room-1");
+        let expiry: u64 = token.rsplit('.').nth(1).unwrap().parse().unwrap();
         assert!(expiry > now_secs());
         assert!(expiry <= now_secs() + TOKEN_TTL_SECS);
     }

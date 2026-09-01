@@ -96,13 +96,17 @@ impl ChannelGuard {
     pub fn new(tasks: Vec<n0_future::task::JoinHandle<()>>) -> Self {
         Self(tasks)
     }
+
+    fn abort(&self) {
+        for task in &self.0 {
+            task.abort();
+        }
+    }
 }
 
 impl Drop for ChannelGuard {
     fn drop(&mut self) {
-        for task in &self.0 {
-            task.abort();
-        }
+        self.abort();
     }
 }
 
@@ -120,7 +124,7 @@ pub struct GameChannel {
 pub struct GameSender {
     outbound: mpsc::Sender<SessionFrame>,
     status: watch::Receiver<TransportStatus>,
-    _guard: Option<Arc<ChannelGuard>>,
+    guard: Option<Arc<ChannelGuard>>,
 }
 
 #[derive(Debug)]
@@ -144,6 +148,16 @@ impl GameSender {
 
     pub fn status(&self) -> TransportStatus {
         self.status.borrow().clone()
+    }
+
+    /// Tears the transport down from the send half alone. Dropping a sender is
+    /// not enough: the receiver holds the same guard, so a reader that outlives
+    /// its sender keeps the connection open and keeps delivering. A superseded
+    /// connection has to be closed, not merely forgotten.
+    pub fn close(&self) {
+        if let Some(guard) = &self.guard {
+            guard.abort();
+        }
     }
 }
 
@@ -181,7 +195,7 @@ impl GameChannel {
             GameSender {
                 outbound: self.outbound,
                 status: self.status.clone(),
-                _guard: self.guard.clone(),
+                guard: self.guard.clone(),
             },
             GameReceiver {
                 inbound: self.inbound,

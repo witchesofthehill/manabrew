@@ -367,6 +367,9 @@ public final class Main {
                         case "getCounterProperties":
                             sendOk(forge.game.EngineCounters.propertiesJson());
                             break;
+                        case "getCounterCallers":
+                            sendOk(forge.game.EngineCounters.callersJson());
+                            break;
                         case "endGame":
                             sendOk(adapter.endGameJson(requireString(request, "sessionId")));
                             break;

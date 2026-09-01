@@ -159,6 +159,34 @@ def report(patterns, kind):
                   f"isValid/card={checks / board:>7.1f}")
 
 
+def callers(patterns):
+    """Who asked for a validity filter, from the sampled stack walks.
+
+    Sampled one call in N, so the counts are scaled back up and are estimates.
+    The second column is what matters: cards handed to the filter, which is the
+    work, not the number of calls.
+    """
+    seen, sample = defaultdict(lambda: [0, 0]), 1
+    for pattern in patterns:
+        for path in sorted(glob.glob(pattern)):
+            for line in open(path):
+                row = json.loads(line)
+                if row.get("ev") != "callers":
+                    continue
+                sample = row.get("sample", 1)
+                for where, (calls, cards) in row.get("callers", {}).items():
+                    seen[where][0] += calls
+                    seen[where][1] += cards
+    if not seen:
+        return
+    total = sum(v[1] for v in seen.values())
+    print(f"\n=== who calls getValidCards  (sampled 1 in {sample})")
+    print(f"  {'cards':>14} {'share':>6} {'calls':>12}  caller")
+    for where, (calls, cards) in sorted(seen.items(), key=lambda kv: -kv[1][1])[:20]:
+        print(f"  {cards * sample:>14,} {100 * cards / total:>5.1f}%"
+              f" {calls * sample:>12,}  {where}")
+
+
 ap = argparse.ArgumentParser()
 ap.add_argument("--type", default="", help="only this decision type, e.g. chooseAction")
 ap.add_argument("patterns", nargs="+")
@@ -167,3 +195,4 @@ for pattern in args.patterns:
     report([pattern], args.type)
 if len(args.patterns) > 1:
     report(args.patterns, args.type)
+callers(args.patterns)

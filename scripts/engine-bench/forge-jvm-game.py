@@ -228,6 +228,7 @@ while time.time() - started < args.timeout:
 note({"ev": "end", "decisions": decisions, "turn": turn})
 if args.counters:
     note({"ev": "properties", "counts": json.loads(call({"command": "getCounterProperties"}) or "{}")})
+    note({"ev": "callers", **json.loads(call({"command": "getCounterCallers"}) or "{}")})
 print(f"\ndone: {decisions} decisions over {int(time.time() - started)}s, turn {turn}")
 # quit closes stdout before replying, so do not wait for an envelope.
 proc.stdin.write('{"command":"quit"}\n')

@@ -18,6 +18,13 @@ export interface Turnaround {
 export interface EngineGameStats {
   /** Client-generated, so a retry cannot double-count the game. */
   reportId: string;
+  /**
+   * Which game these timings belong to: the relay's game id online, and the
+   * offline record's own id for a game played with no server in the loop.
+   * Null when neither is known, which leaves the report readable on its own but
+   * unjoinable to what was played.
+   */
+  gameId: string | null;
   /** Which engine actually ran; recorded at launch, see `beginGame`. */
   engine: string;
   clientVersion: string;
@@ -168,11 +175,13 @@ export function summariseGame(meta: {
   multiplayer: boolean;
   endReason: EngineGameStats["endReason"];
   reportId: string;
+  gameId: string | null;
 }): EngineGameStats | null {
   // A game nobody played says nothing about how fast the engine is.
   if (startedAtMs === null || samples.length < 5) return null;
   const stats: EngineGameStats = {
     reportId: meta.reportId,
+    gameId: meta.gameId,
     engine: engineLabel,
     clientVersion: meta.clientVersion,
     platform: meta.platform,

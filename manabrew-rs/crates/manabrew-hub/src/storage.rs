@@ -467,9 +467,10 @@ impl Storage {
                  multiplayer, duration_s, end_reason, decisions, turnaround_p50,
                  turnaround_p90, turnaround_max, engine_p50, engine_p90, engine_max, by_type,
                  engine_same_p50, engine_same_p90, engine_same_max,
-                 engine_cross_p50, engine_cross_p90, engine_cross_max, think_hidden)
+                 engine_cross_p50, engine_cross_p90, engine_cross_max, think_hidden,
+                 game_id)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
-                     ?19, ?20, ?21, ?22, ?23, ?24, ?25)",
+                     ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)",
             params![
                 report.report_id,
                 reported_at,
@@ -496,6 +497,7 @@ impl Storage {
                 report.engine_think_cross_turn.as_ref().map(|t| t.p90),
                 report.engine_think_cross_turn.as_ref().map(|t| t.max),
                 report.think_samples_hidden,
+                report.linked_game_id(),
             ],
         )?;
         Ok(inserted > 0)
@@ -3900,6 +3902,7 @@ mod tests {
     fn engine_report(id: &str) -> manabrew_protocol::telemetry::EnginePlayStats {
         manabrew_protocol::telemetry::EnginePlayStats {
             report_id: id.to_string(),
+            game_id: Some("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".to_string()),
             engine: "forge-wasm".to_string(),
             client_version: "3.18.5".to_string(),
             platform: "web".to_string(),
@@ -3958,6 +3961,42 @@ mod tests {
         assert_eq!(p50, 46);
         assert_eq!(think, Some(8));
         assert!(by_type.contains("chooseAction"));
+    }
+
+    /// The whole point of the column: a report the hub receives has to name the
+    /// game it came from, or the timings sit in a table that cannot be joined
+    /// to what was played. A malformed id is stored as no id at all rather than
+    /// as a key that matches nothing.
+    #[test]
+    fn engine_play_stats_record_the_game_they_came_from() {
+        let storage = Storage::open_memory().unwrap();
+        let report = engine_report("11111111-2222-3333-4444-555555555555");
+        storage
+            .record_engine_play_stats(&report, "2026-08-26T00:00:00Z")
+            .unwrap();
+
+        let mut unkeyed = engine_report("22222222-3333-4444-5555-666666666666");
+        unkeyed.game_id = Some("not-a-uuid".to_string());
+        storage
+            .record_engine_play_stats(&unkeyed, "2026-08-26T00:00:01Z")
+            .unwrap();
+
+        let mut ids: Vec<Option<String>> = storage
+            .conn
+            .prepare("SELECT game_id FROM engine_play_stats ORDER BY reported_at")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        ids.sort();
+        assert_eq!(
+            ids,
+            vec![
+                None,
+                Some("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".to_string())
+            ]
+        );
     }
 
     #[test]

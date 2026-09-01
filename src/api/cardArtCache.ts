@@ -49,8 +49,20 @@ export interface PreseedResult {
   failed: number;
 }
 
-export function cardArtCacheAvailable(): boolean {
-  return getPlatformType() === "tauri";
+/**
+ * Whether this build actually serves `/scryfall-img/`, asked of the shell
+ * rather than inferred from the platform. Windows keeps Tauri's embedded
+ * scheme and runs no asset server, and dev hands the path to vite's proxy, so
+ * on both the cache is written and never read. Answering from the one place
+ * that knows is what stops the offer and the capability drifting apart.
+ */
+export async function cardArtCacheAvailable(): Promise<boolean> {
+  if (getPlatformType() !== "tauri") return false;
+  try {
+    return await getPlatform().invoke<boolean>("card_art_route_available");
+  } catch {
+    return false;
+  }
 }
 
 export function deckArtUrls(deck: Deck, variants: ArtVariant[]): string[] {

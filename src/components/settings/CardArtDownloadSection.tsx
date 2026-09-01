@@ -40,6 +40,7 @@ export function CardArtDownloadSection() {
   const [everyStyle, setEveryStyle] = useState(false);
   const [busy, setBusy] = useState<"decks" | "all" | "clearing" | null>(null);
   const [progress, setProgress] = useState<BulkProgress | null>(null);
+  const [available, setAvailable] = useState(false);
 
   const variants = variantsForStyles(everyStyle ? ALL_BATTLEFIELD_STYLES : [style]);
 
@@ -58,7 +59,11 @@ export function CardArtDownloadSection() {
     return () => void unlisten.then((off) => off());
   }, []);
 
-  if (!cardArtCacheAvailable()) return null;
+  useEffect(() => {
+    void cardArtCacheAvailable().then(setAvailable);
+  }, []);
+
+  if (!available) return null;
 
   async function downloadDecks() {
     setBusy("decks");

@@ -92,6 +92,7 @@ pub fn run() {
             local_relay::local_relay_running,
             local_relay::stop_local_relay,
             lan_discovery::discover_lan_rooms,
+            asset_server::card_art_route_available,
             image_cache::preseed_card_art,
             image_cache::download_all_card_art,
             image_cache::cancel_card_art_download,

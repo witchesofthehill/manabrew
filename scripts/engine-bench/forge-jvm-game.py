@@ -35,6 +35,10 @@ ap.add_argument("--jvmarg", action="append", default=[],
 ap.add_argument("--no-compile-huge", action="store_true",
                 help="leave HotSpot's 8000-byte compile limit in place, which "
                      "no build we ship has")
+ap.add_argument("--ai-timeout", type=int, default=0,
+                help="seconds the AI may spend evaluating one decision (default 5). "
+                     "Pass a large value to stop the deadline binding, which is "
+                     "what makes an engine A/B controlled")
 ap.add_argument("--out", default="jvm-4seat.jsonl")
 ap.add_argument("--timeout", type=int, default=1800)
 ap.add_argument("--seed", type=int, default=42)
@@ -84,6 +88,11 @@ request = {
 sysprops = list(args.sysprop)
 if args.counters:
     sysprops.append("forge.engineCounters=true")
+if args.ai_timeout:
+    # The AI bounds its own evaluation against a wall clock, so a faster build
+    # evaluates more candidates in the same budget, plays differently, and the
+    # game diverges. Pin the deadline high and both arms play the same game.
+    sysprops.append(f"forge.aiTimeout={args.ai_timeout}")
 cmd = [args.java] + [f"-D{p}" for p in sysprops] + args.jvmarg
 if not args.no_compile_huge:
     # CardProperty.cardHasProperty is 14,112 bytes of bytecode, and HotSpot

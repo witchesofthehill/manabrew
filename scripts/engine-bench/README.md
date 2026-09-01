@@ -72,9 +72,25 @@ python3 scripts/engine-bench/jfr-top.py g4.jfr
 python3 scripts/engine-bench/jfr-top.py g4.jfr --thread 'Game AI Eval'
 ```
 
-Do not A/B whole games. They diverge run to run even at a fixed seed, so game
-length swamps the change under test. Compare profiles, or pool decisions across
-several games and read the percentiles.
+Do not A/B whole games without pinning the AI's deadline first. See below.
+
+## The AI spends whatever you save
+
+`AiController.chooseSpellAbilityToPlayFromList` bounds its own evaluation
+against a wall clock, both with a timed `future.get` and with a cooperative
+deadline checked between candidate abilities. Both read `game.getAITimeout()`,
+five seconds by default.
+
+So the AI does not do a fixed amount of work per decision. It does as much as
+fits in the budget. Make the engine faster and it evaluates more candidates in
+the same five seconds: it plays differently, the game diverges, and the wall
+clock barely moves. An engine change can remove half the work and look like it
+did nothing.
+
+`--ai-timeout 600` pins the deadline high enough that it never binds, so both
+arms evaluate everything and play the same game. Use it for any engine A/B.
+Without it, a fixed seed is not a control: seeds that replayed identically with
+the deadline pinned diverged 854 decisions against 783 without it.
 
 ## Counting instead of timing
 

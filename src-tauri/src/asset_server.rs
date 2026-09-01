@@ -66,7 +66,30 @@ fn start_asset_server(app: &tauri::AppHandle) -> Option<u16> {
 
             let raw = request.url().to_string();
             if let Some(key) = crate::image_cache::key_from_request_path(&raw) {
-                serve_card_art(request, key);
+                // A hit answers here, because reading a file is not worth a
+                // task. A miss is a CDN round trip, and this is the only thread
+                // accepting: a cold board of a hundred cards would be a hundred
+                // sequential fetches with every other request the webview makes
+                // queued behind them.
+                match crate::image_cache::cache() {
+                    Some(cache) => match cache.read(key) {
+                        Some(bytes) => respond_card_art(request, key, bytes),
+                        None => {
+                            let key = key.to_string();
+                            tauri::async_runtime::spawn(async move {
+                                match cache.get_or_fetch(&key).await {
+                                    Some(bytes) => respond_card_art(request, &key, bytes),
+                                    None => {
+                                        let _ = request.respond(tiny_http::Response::empty(404));
+                                    }
+                                }
+                            });
+                        }
+                    },
+                    None => {
+                        let _ = request.respond(tiny_http::Response::empty(404));
+                    }
+                }
                 continue;
             }
             let path = raw.split('?').next().unwrap_or("").trim_start_matches('/');
@@ -105,30 +128,19 @@ fn start_asset_server(app: &tauri::AppHandle) -> Option<u16> {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn serve_card_art(request: tiny_http::Request, key: &str) {
-    let bytes = crate::image_cache::cache().and_then(|cache| {
-        tauri::async_runtime::block_on(async move { cache.get_or_fetch(key).await })
-    });
-    match bytes {
-        Some(bytes) => {
-            let mime = crate::image_cache::mime_for(key);
-            let mut response = tiny_http::Response::from_data(bytes);
-            for (name, value) in [
-                ("Content-Type", mime),
-                ("Cross-Origin-Resource-Policy", "same-origin"),
-                ("Cache-Control", "public, max-age=31536000, immutable"),
-            ] {
-                if let Ok(header) = tiny_http::Header::from_bytes(name.as_bytes(), value.as_bytes())
-                {
-                    response.add_header(header);
-                }
-            }
-            let _ = request.respond(response);
-        }
-        None => {
-            let _ = request.respond(tiny_http::Response::empty(404));
+fn respond_card_art(request: tiny_http::Request, key: &str, bytes: Vec<u8>) {
+    let mime = crate::image_cache::mime_for(key);
+    let mut response = tiny_http::Response::from_data(bytes);
+    for (name, value) in [
+        ("Content-Type", mime),
+        ("Cross-Origin-Resource-Policy", "same-origin"),
+        ("Cache-Control", "public, max-age=31536000, immutable"),
+    ] {
+        if let Ok(header) = tiny_http::Header::from_bytes(name.as_bytes(), value.as_bytes()) {
+            response.add_header(header);
         }
     }
+    let _ = request.respond(response);
 }
 
 pub fn main_window_url(app: &tauri::AppHandle) -> tauri::WebviewUrl {

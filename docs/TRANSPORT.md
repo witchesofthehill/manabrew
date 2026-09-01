@@ -328,10 +328,21 @@ by, reachable by nobody. `SELF_HOSTED_NODE_IROH_RELAY_URL` is only the fallback 
 old to name one, and against a gated relay it will be refused. The first adoption changes the
 endpoint's address, so it announces itself again.
 
-Adoption runs on **every** `RoomTransport`, not just the first. A token lives six hours and a
-room outlives games, so a node hosting for longer would have its next relay reconnect refused and
-its seats would fall back saying nothing. `insert_relay` replacing the config is the renewal, so
-re-adopting is all it takes; only the first one returns true and triggers an announcement.
+Adoption is offered on **every** `RoomTransport`, not just the first. A token lives six hours and
+a room outlives games, so a node hosting for longer would have its next relay reconnect refused
+and its seats would fall back saying nothing. `insert_relay` replacing the config is the renewal,
+so re-adopting is all it takes; only the first one returns true and triggers an announcement.
+
+**Offered, not performed.** `Endpoint::insert_relay` is not a config swap: it sends
+`RelayMapChange`, which `UpdateReason::is_major` makes a full net report rather than the cheap
+refresh. The relay re-broadcasts `RoomTransport` on every join and every leave, so a lobby people
+drift through would re-probe the network on every membership change. Two things stop that. The
+relay mints a token **once per room** and reuses it until it is within an hour of expiring, so the
+string is identical across broadcasts; and every peer compares the url and token it holds against
+the one it was offered and does nothing when they match. Either alone is not enough: a token that
+moved every time would defeat the comparison, and a comparison nobody made would defeat the stable
+token. Together they come to one insert per room, plus one before each expiry, and an adoption
+line in a log then means something actually happened.
 
 That adoption is why an endpoint with no relay binds with an **empty relay map** rather than
 `RelayMode::Disabled`. Both mean "no relay for now", but `Disabled` builds no relay transport, so

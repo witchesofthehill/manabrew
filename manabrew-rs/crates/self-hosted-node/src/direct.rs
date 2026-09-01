@@ -75,6 +75,12 @@ pub struct DirectPlane {
     /// names no relay of its own. It carries no token, so a gated relay will
     /// refuse it; it is here for a relay too old to send one.
     fallback_relay: Option<String>,
+    /// The url and token currently installed. `insert_relay` is not a config
+    /// swap: it sends `RelayMapChange`, which is a major update reason and so
+    /// schedules a full net report. The relay re-broadcasts on every join and
+    /// leave, so re-inserting an unchanged relay would re-probe the network
+    /// every time somebody walked into the lobby.
+    installed: Mutex<Option<(String, Option<String>)>>,
 }
 
 impl DirectPlane {
@@ -101,6 +107,7 @@ impl DirectPlane {
                         gossip_joined: AtomicBool::new(false),
                         has_relay: AtomicBool::new(false),
                         fallback_relay: config.iroh_relay_url.clone(),
+                        installed: Mutex::new(None),
                     },
                     seats,
                 ))
@@ -138,14 +145,27 @@ impl DirectPlane {
         let Some(url) = url.or(self.fallback_relay.as_deref()) else {
             return false;
         };
+        let wanted = (url.to_string(), token.map(str::to_string));
+        if self
+            .installed
+            .lock()
+            .is_ok_and(|held| held.as_ref() == Some(&wanted))
+        {
+            return false;
+        }
         if let Err(error) = self.endpoint.adopt_relay(url, token).await {
             warn!(%error, url, "control plane named an unusable relay");
             return false;
         }
-        let first = !self.has_relay.swap(true, Ordering::SeqCst);
-        if first {
-            info!(url, "adopted the relay the control plane named");
+        if let Ok(mut held) = self.installed.lock() {
+            *held = Some(wanted);
         }
+        let first = !self.has_relay.swap(true, Ordering::SeqCst);
+        info!(
+            url,
+            renewed = !first,
+            "adopted the relay the control plane named"
+        );
         first
     }
 
@@ -532,6 +552,44 @@ mod tests {
 
     fn status() -> manabrew_net::TransportStatus {
         manabrew_net::TransportStatus::relay()
+    }
+
+    /// The relay re-broadcasts on every join and leave, and `insert_relay` is a
+    /// major update reason: it schedules a full net report. So an unchanged
+    /// relay must not be re-inserted, or a lobby people drift through re-probes
+    /// the network on every membership change.
+    #[tokio::test]
+    async fn an_unchanged_relay_is_not_re_adopted() {
+        let plane = DirectPlane {
+            endpoint: manabrew_net::NetEndpoint::bind(manabrew_net::NetConfig::default())
+                .await
+                .expect("bind")
+                .0,
+            seats: SeatTable::default(),
+            gossip_joined: AtomicBool::new(false),
+            has_relay: AtomicBool::new(false),
+            fallback_relay: None,
+            installed: Mutex::new(None),
+        };
+        let url = "http://127.0.0.1:1";
+
+        assert!(
+            plane.adopt_relay(Some(url), Some("room.1.aa")).await,
+            "the first adoption gives the endpoint an address to announce"
+        );
+        assert!(
+            !plane.adopt_relay(Some(url), Some("room.1.aa")).await,
+            "the same relay and the same token is nothing to do"
+        );
+        assert!(
+            !plane.adopt_relay(Some(url), Some("room.2.bb")).await,
+            "a renewed token is installed, but the address did not change"
+        );
+        assert_eq!(
+            plane.installed.lock().unwrap().as_ref(),
+            Some(&(url.to_string(), Some("room.2.bb".to_string())))
+        );
+        plane.endpoint.shutdown().await;
     }
 
     /// A seat that re-dials leaves its predecessor's reader running. Until that

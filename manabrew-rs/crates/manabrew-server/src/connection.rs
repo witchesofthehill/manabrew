@@ -191,17 +191,19 @@ pub fn broadcast_player_list(state: &Arc<ServerState>) {
 /// is what clients treat as authoritative for "this endpoint id is that player",
 /// so it must never reach a session the relay has not placed in the room.
 pub fn broadcast_room_transport(state: &Arc<ServerState>, room_id: &str) {
-    let Some(room) = state.rooms.get(room_id) else {
+    let Some(mut room) = state.rooms.get_mut(room_id) else {
         return;
     };
+    // The same token every time until it nears expiry, so a peer can compare it
+    // with the one it holds and skip re-inserting its relay config. A token
+    // that moved on every broadcast made every member re-probe the network on
+    // every join and leave.
+    let iroh_relay_token = state.iroh_relay_url.as_ref().map(|_| room.relay_token());
     let msg = ServerMessage::RoomTransport {
         room_id: room_id.to_string(),
         topic_secret: room.topic_secret.clone(),
         iroh_relay_url: state.iroh_relay_url.clone(),
-        iroh_relay_token: state
-            .iroh_relay_url
-            .as_ref()
-            .map(|_| crate::iroh_relay::mint_token(room_id)),
+        iroh_relay_token,
         host: room.transport_host(),
         members: room.transport_members(),
     };

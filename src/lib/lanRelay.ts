@@ -9,10 +9,13 @@
  */
 import { getPlatform } from "@/platform";
 
-interface LanRoom {
+interface LanEndpoint {
   name: string;
   host: string;
   port: number;
+  /** `relay` is an always-on server worth connecting to; `room` is one table on
+   *  somebody's desktop. Absent on builds from before the distinction. */
+  role?: "relay" | "room";
   /** The relay key that host runs with. Not a secret: the identity proof in
    *  `Authenticate` is the real handshake, and a room password is what makes a
    *  room private. */
@@ -53,8 +56,8 @@ export async function findOrHostLanRelay(): Promise<LanTarget | null> {
   if (platform.type !== "tauri") return null;
 
   const found = await platform
-    .invoke<LanRoom[]>("discover_lan_rooms", { timeoutMs: DISCOVER_TIMEOUT_MS })
-    .catch(() => [] as LanRoom[]);
+    .invoke<LanEndpoint[]>("discover_lan_rooms", { timeoutMs: DISCOVER_TIMEOUT_MS })
+    .catch(() => [] as LanEndpoint[]);
   const room = found[0];
   if (room) {
     return {
@@ -71,4 +74,35 @@ export async function findOrHostLanRelay(): Promise<LanTarget | null> {
     .catch(() => null);
   if (!info?.lanHost) return null;
   return { host: info.host, port: info.port, password: info.password, hosting: true };
+}
+
+/**
+ * A relay answering on this network, if one is.
+ *
+ * Only `role: "relay"` counts. That is a machine someone set up to be the lobby
+ * for this network; a `room` is one table on a desktop, which the fallback
+ * above already handles and which nobody should be moved onto wholesale.
+ *
+ * The caller decides whether to act on it. Note the record is plain mDNS and
+ * therefore unauthenticated: anything on the network can claim to be a relay,
+ * so this is only ever safe where being wrong means "a lobby you did not
+ * expect", never where it means trusting what that host says. Identity is
+ * still proved to the relay, and a private room still needs its password.
+ */
+export async function findLanRelay(): Promise<LanTarget | null> {
+  const platform = getPlatform();
+  if (platform.type !== "tauri") return null;
+
+  const found = await platform
+    .invoke<LanEndpoint[]>("discover_lan_rooms", { timeoutMs: DISCOVER_TIMEOUT_MS })
+    .catch(() => [] as LanEndpoint[]);
+  const relay = found.find((entry) => entry.role === "relay");
+  if (!relay) return null;
+  return {
+    host: relay.host,
+    port: relay.port,
+    password: relay.key,
+    hosting: false,
+    name: relay.name,
+  };
 }

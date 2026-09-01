@@ -130,10 +130,23 @@ Lobby-spawned AI bots (`WasmBot`s driven by `spawnAiBot` in `platform/web.ts`) s
 
 ## The relay the lobby connects to
 
-There is no LAN mode. `Lobby` connects to the configured relay; if nothing answers
-(`lanRelay.isUnreachable`, which matches "nobody was there" and not "the relay turned us away"),
-it looks for a room already being hosted on the local network and joins that, and hosts one
-itself only if there is none. Whichever it lands on is an ordinary relay, so the room list, the
+There is no LAN mode, and two different things can put the lobby on the local network.
+
+**A relay answering on this network wins outright.** Before the first connection `Lobby` asks
+`lanRelay.findLanRelay`, and a record advertising `role: "relay"` is used instead of the
+configured relay: that is a machine somebody set up to be this network's lobby, and asking four
+desktops to type its address is the thing discovery exists to avoid. Only `relay` counts; a
+`room` is one table on somebody's desktop and belongs to the fallback below. The choice is made
+before connecting rather than corrected after, so nobody watches it land somewhere and move.
+
+The record is plain mDNS and therefore unauthenticated: anything on the network can claim to be
+a relay. That is only safe because being wrong means "a lobby you did not expect", never
+trusting what that host says — identity is still proved to the relay and a private room still
+needs its password.
+
+**Otherwise, if nothing answers where we were told to look** (`lanRelay.isUnreachable`, which
+matches "nobody was there" and not "the relay turned us away"), it looks for a room already
+being hosted on the local network and joins that, and hosts one itself only if there is none. Whichever it lands on is an ordinary relay, so the room list, the
 seats and the game are unchanged and nothing below `findOrHostLanRelay` knows the difference.
 
 The only thing this shows is `UserList`'s `connectionDetail`, which replaces the "Connected"

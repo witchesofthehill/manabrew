@@ -35,7 +35,7 @@ import type { Deck } from "@/protocol/deck";
 import { toast } from "sonner";
 import { Settings, Users } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { findOrHostLanRelay, isUnreachable, type LanTarget } from "@/lib/lanRelay";
+import { findLanRelay, findOrHostLanRelay, isUnreachable, type LanTarget } from "@/lib/lanRelay";
 
 const START_GAME_ACK_TIMEOUT_MS = 5000;
 
@@ -129,6 +129,7 @@ export default function Lobby() {
   const savedDecks = useOwnedDecks();
   const [lanTarget, setLanTarget] = useState<LanTarget | null>(null);
   const lanTried = useRef(false);
+  const lanPreferred = useRef(false);
   const lanDetail = lanTarget
     ? lanTarget.hosting
       ? "Hosting on your network"
@@ -216,11 +217,29 @@ export default function Lobby() {
     });
   }, [connected, connecting, error, connect]);
 
+  // A relay answering on this network is this network's lobby, so it wins. Only
+  // a `relay` record counts: that is a machine somebody set up to be the lobby,
+  // where a `room` is one table on a desktop and belongs to the fallback above.
+  // Decided before the first connection rather than corrected after one, so
+  // nobody watches it connect somewhere and move.
   useEffect(() => {
     const name = relayUsername();
-    if (!connected && !connecting && !error && name) {
+    if (connected || connecting || error || !name) return;
+    const configured = () =>
       connect(prefs.serverHost, prefs.serverPort, name, prefs.serverPassword);
+    if (lanPreferred.current) {
+      configured();
+      return;
     }
+    lanPreferred.current = true;
+    void findLanRelay().then((target) => {
+      if (!target) {
+        configured();
+        return;
+      }
+      setLanTarget(target);
+      connect(target.host, target.port, name, target.password);
+    });
   }, [
     connect,
     connected,

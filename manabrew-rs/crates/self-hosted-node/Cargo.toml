@@ -10,7 +10,7 @@ java-forge = []
 graal-forge = []
 # The iroh data plane. Off by default so the fleet image carries no QUIC stack
 # and no second listening socket until the transport is deliberately enabled;
-# `MANABREW_IROH` still has to be set on top of it. See docs/TRANSPORT.md.
+# `SELF_HOSTED_NODE_IROH=1` still has to be set on top of it. See docs/TRANSPORT.md.
 iroh = ["dep:manabrew-net", "manabot/iroh"]
 
 [lib]
@@ -49,3 +49,6 @@ rustls = { version = "0.23", default-features = false, features = ["ring"] }
 
 [dev-dependencies]
 iroh = "1.1"
+# Only to build a guarded channel in the supersede test: a relay channel has no
+# guard, so it cannot show a superseded connection being closed.
+n0-future = "0.3"

@@ -18,7 +18,13 @@ pub enum SeatConnection {}
 pub struct DirectPlane(std::convert::Infallible);
 
 impl DirectPlane {
-    pub async fn start(_config: &Config) -> Option<(Self, mpsc::Receiver<SeatConnection>)> {
+    pub async fn start(config: &Config) -> Option<(Self, mpsc::Receiver<SeatConnection>)> {
+        if config.iroh_enabled {
+            tracing::warn!(
+                "the direct data plane is enabled in config but this binary was built without \
+                 the `iroh` feature; every seat stays on the relay"
+            );
+        }
         None
     }
 

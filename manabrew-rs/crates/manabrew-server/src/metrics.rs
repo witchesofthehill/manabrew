@@ -162,6 +162,13 @@ pub fn record_transport_announcement(withdrawn: bool) {
     counter!(TRANSPORT_ANNOUNCEMENTS, LABEL_KIND => kind).increment(1);
 }
 
+/// An announcement the room refused: a non-participant, or an endpoint id
+/// another player in the room already claimed. Nothing is sent back, so this
+/// counter is the only place a squatter shows up.
+pub fn record_transport_rejected() {
+    counter!(TRANSPORT_ANNOUNCEMENTS, LABEL_KIND => "rejected").increment(1);
+}
+
 pub fn record_resync() {
     counter!(RECONNECT_RESYNCS).increment(1);
 }

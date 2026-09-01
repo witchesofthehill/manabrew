@@ -54,8 +54,12 @@ flate2 = "1"
 futures-util = "0.3"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+# `iroh` is not optional here: `Config::for_hosted_room` turns the direct plane
+# on, and without the feature it gets the stub, never announces an endpoint, and
+# every seat on the LAN falls back to the relay.
 self-hosted-node = { path = "../manabrew-rs/crates/self-hosted-node", default-features = false, features = [
     "graal-forge",
+    "iroh",
 ], optional = true }
 manabrew-server = { path = "../manabrew-rs/crates/manabrew-server", optional = true }
 

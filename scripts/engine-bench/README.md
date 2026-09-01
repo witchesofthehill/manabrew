@@ -45,3 +45,40 @@ board, which is how #817 was found.
 Do not A/B whole games. They diverge run to run even at a fixed seed, so game
 length swamps the change under test. Compare profiles, or pool decisions across
 several games and read the percentiles.
+
+## Counting instead of timing
+
+`--counters` records what the engine did for each decision rather than only how
+long it took: static-ability passes, calls to `getValidCards`, cards examined by
+them, `Card.isValid` and `CardProperty.cardHasProperty` entries, and how many
+times an AI seat took priority. A count is deterministic where a duration is
+not, so it survives the divergence that makes whole-game A/B useless.
+
+It needs the engine counters, which live on the fork's `khaliostr/decision-counters`
+branch and are not in a release build. Check that branch out in `forge/`, rebuild,
+and pass the flag:
+
+```sh
+git -C forge fetch origin khaliostr/decision-counters && git -C forge checkout khaliostr/decision-counters
+node scripts/harness.mjs build
+python3 scripts/engine-bench/forge-jvm-game.py --seats 4 --counters --out c4.jsonl
+python3 scripts/engine-bench/counters.py --type chooseAction 'c4*.jsonl'
+python3 scripts/engine-bench/property-chain.py 'c4*.jsonl'
+```
+
+`counters.py` bins by battlefield size rather than by turn, and reports per AI
+priority as well as per decision. Both matter. A decision here is the gap
+between two prompts to the human seat, and at four seats that gap holds three
+AI seats taking priority where two seats holds one, so per-decision counts are
+not comparable across seat counts. It also reports the share of each decision
+spent inside `isValid` and `cardHasProperty`, measured with nanoTime and
+corrected for what nanoTime itself costs, which is a number the profile does
+not give you.
+
+`property-chain.py` joins the property histogram to `CardProperty`'s if/else
+chain and says how many string comparisons the engine walked to answer them.
+
+Everything is behind `-Dforge.engineCounters=true`, a static final read at class
+init, so it folds away when it is off. An earlier round of this used atomics and
+two `nanoTime` calls on every `checkStaticAbilities` and had to be reverted
+(forge `9d14d1511bf`).

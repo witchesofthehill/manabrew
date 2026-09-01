@@ -359,6 +359,14 @@ public final class Main {
                         case "getGameOver":
                             sendOk(adapter.getGameOver(requireString(request, "sessionId")));
                             break;
+                        // #817 measurement scaffolding, inert without
+                        // -Dforge.engineCounters=true. See scripts/engine-bench.
+                        case "getCounters":
+                            sendOk(forge.game.EngineCounters.snapshotJson());
+                            break;
+                        case "getCounterProperties":
+                            sendOk(forge.game.EngineCounters.propertiesJson());
+                            break;
                         case "endGame":
                             sendOk(adapter.endGameJson(requireString(request, "sessionId")));
                             break;

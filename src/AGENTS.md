@@ -125,3 +125,15 @@ A multiplayer engine game arms a localStorage marker (`lib/activeGameSession.ts`
 **Relay restarts** (the relay's memory is wiped) are survivable while the host's tab stays alive. `RoomCreated` returns a `resume_token`, which `WebServerApi` keeps alongside a host-side snapshot of the last relayed state and pending prompts. On re-auth with `reconnected: false` during an active game (`useGameEventListeners`), the host re-registers the room via `ResumeRoom` (`useServerStore.resumeRoomAfterRestart`) and, on `RoomResumed`, re-broadcasts the snapshot to re-prime the relay's replay cache; guests retry `JoinRoom` until the host has resurrected the room (`rejoinAfterRelayRestart`), then pull `RequestResync` as usual; a `game_already_started` rejection ends the retry loop at once — the grace timer forfeited the seat and no retry can bring it back. The relay lets a fresh session retake its own in-game seat by username.
 
 Lobby-spawned AI bots (`WasmBot`s driven by `spawnAiBot` in `platform/web.ts`) self-heal the same way: each bot socket reconnects with backoff and retakes its seat (`JoinRoom` as bot → `RequestResync` mid-game). Because the bots live in the spawning tab's JS, that self-heal loop dies with a page reload — so `spawnAiBot` also persists each bot's spawn params per room (`lib/spawnedBots.ts`), and the resume flow (`useGameSessionResume`) respawns any persisted bot whose in-game seat is still disconnected once the reloaded tab is back in the room (a fresh `WasmBot` per socket attempt is the norm anyway, so respawn = the proven reconnect path). Bots are room-scoped, not session-scoped — `leaveRoom`, `endGame`, and an incoming `GameAborted` tear them down _and_ clear the persisted params; `disconnect` only stops the running bots, leaving the params for a resuming session to reclaim. All wire traffic (main socket, engine messages, and per-bot sockets) is ring-buffered in `lib/commsLog.ts` for the loading screen's "Copy logs" error reports.
+
+## The relay the lobby connects to
+
+There is no LAN mode. `Lobby` connects to the configured relay; if nothing answers
+(`lanRelay.isUnreachable`, which matches "nobody was there" and not "the relay turned us away"),
+it looks for a room already being hosted on the local network and joins that, and hosts one
+itself only if there is none. Whichever it lands on is an ordinary relay, so the room list, the
+seats and the game are unchanged and nothing below `findOrHostLanRelay` knows the difference.
+
+The only thing this shows is `UserList`'s `connectionDetail`, which replaces the "Connected"
+label with where the connection actually goes. It reports state; it does not control anything.
+Desktop only: neither discovery nor hosting exists in a browser.

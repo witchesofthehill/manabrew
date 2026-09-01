@@ -1205,6 +1205,12 @@ async fn handle_server_message(
             maybe_auto_start_room(client, config, &room).await?;
         }
         ServerMessage::StateUpdate { from_player, state } => {
+            // An envelope from this seat over the relay is the acknowledgement
+            // that it is reading that path again, which is the only signal the
+            // host gets and the only one it needs.
+            if let Some(plane) = direct {
+                plane.note_relay_message(&from_player);
+            }
             handle_state_update(
                 client,
                 config,

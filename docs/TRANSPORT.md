@@ -255,11 +255,24 @@ the relay, the relay writes it into that game's capture as a line and emits
 the same seam `ReportEngineStats` uses, and the same principle offline play already runs on: the
 party that did the work reports it, and the relay is a route rather than the source of truth.
 
-The replay cache is repaired rather than left stale: the moment a seat leaves the direct plane
-the host re-sends that seat's last full state and pending prompt over the relay. Those are the
-values stored before `patch_against_last` runs, which is what lets them rebuild a cache that
-missed everything in between. Without it a later `stateDelta` patch would be folded onto a base
-the relay never held.
+**Falling back is a state machine, not a switch.** A seat whose direct channel died has a board
+the relay never saw, so it cannot simply resume relay traffic:
+
+```
+direct dies -> RelayPending -> full authoritative seat state over the relay
+            -> seat answers over the relay -> Relay
+```
+
+`RelayPending` is a debt the host owes that seat, and it is paid before anything else for that
+seat goes out: the re-prime is queued inside `drop_seat`, which runs before `try_send` returns
+false to its caller, and `outbound_tx` is ordered. What it sends is the seat's last **full** state
+and pending prompt, the values stored before `patch_against_last` runs, which is what lets them
+rebuild a cache that missed everything in between. Without it a later `stateDelta` patch would be
+folded onto a base the relay never held.
+
+The acknowledgement is the seat's own next envelope over the relay. It needs no new message and
+it proves the thing that matters, which is that the seat is reading that path again. A seat that
+never went direct has no state here at all.
 
 `TransportStatus` reports, per seat: attempted, connected or failed; `TransportKind` of
 `Relay`, `IrohDirect` or `IrohRelayed`; whether the selected path's remote address is
@@ -319,8 +332,9 @@ itself:
   (`MANABREW_IROH_RELAY_PORT`, `handle /relay*` on `relay.manabrew.app`, which the deploy's own
   ingress reload applies). **Running it is not the same as moving traffic onto it:** the fleet
   keeps `SELF_HOSTED_NODE_IROH` off, so what it serves is the fallback for hosts that do offer a
-  direct plane. What is left here is live migration at a resync boundary,
-  which is optional: transport is chosen before `GameStarted` and never changes mid-game.
+  direct plane. What is left here is live migration at a resync boundary, which is optional:
+  transport is chosen before `GameStarted` and never changes mid-game, and the fallback direction
+  is already a barrier rather than a switch.
 - **Phase 4 (partly done).** The browser seat: `manabrew-net-wasm`, the lazily-imported module,
   and the client wiring. What is **not** verified is a real browser game over it, because that
   needs a browser; the Rust and TypeScript both build and lint, and the relay-only path is

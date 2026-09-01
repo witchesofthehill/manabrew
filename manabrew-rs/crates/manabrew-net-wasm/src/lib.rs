@@ -33,8 +33,12 @@ impl WasmSeat {
     /// Binds an endpoint against the relay the control plane named. There is no
     /// default: without a relay a browser has no path to anything.
     #[wasm_bindgen(js_name = bindSeat)]
-    pub async fn bind(username: String, relay_url: String) -> Result<WasmSeat, JsValue> {
-        let config = NetConfig::with_relay(&relay_url).map_err(err)?;
+    pub async fn bind(
+        username: String,
+        relay_url: String,
+        relay_token: Option<String>,
+    ) -> Result<WasmSeat, JsValue> {
+        let config = NetConfig::with_relay(&relay_url, relay_token.as_deref()).map_err(err)?;
         let (endpoint, _seats) = NetEndpoint::bind(config).await.map_err(err)?;
         Ok(WasmSeat {
             endpoint,

@@ -361,6 +361,11 @@ pub enum ServerMessage {
         /// clients must never fall back to a public relay.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         iroh_relay_url: Option<String>,
+        /// Admits this room to that relay. A relay forwards for whoever dials
+        /// it, so on a public hostname it needs to know who may; being in this
+        /// room is what this proves.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        iroh_relay_token: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         host: Option<TransportMember>,
         members: Vec<TransportMember>,

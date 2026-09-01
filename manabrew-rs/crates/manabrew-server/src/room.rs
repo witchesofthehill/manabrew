@@ -8,6 +8,11 @@ use crate::protocol::{
 use crate::replay::GameReplayCache;
 use manabrew_protocol::deck_dto::Deck;
 
+/// Bounds on what one member may put in the roster, because every other peer
+/// feeds it to iroh to dial.
+pub const MAX_DIRECT_ADDRS: usize = 16;
+pub const MAX_ADDR_LEN: usize = 64;
+
 fn random_topic_secret() -> String {
     let mut bytes = [0u8; 32];
     aws_lc_rs::rand::fill(&mut bytes).expect("system rng");
@@ -404,10 +409,27 @@ impl Room {
         if !self.is_participant(player_id) {
             return false;
         }
-        match endpoint {
-            Some(endpoint) => self.transports.insert(player_id.to_string(), endpoint),
-            None => self.transports.remove(player_id),
+        let Some(mut endpoint) = endpoint else {
+            self.transports.remove(player_id);
+            return true;
         };
+        // An endpoint id is what a host checks a seat's `Hello` against, so a
+        // second claim on one is a way to lock its owner out: they would be
+        // told their endpoint is attested for a different player, and nothing
+        // would say why. First claim in the room holds it.
+        let taken = self.transports.iter().any(|(other, existing)| {
+            other != player_id && existing.endpoint_id == endpoint.endpoint_id
+        });
+        if taken {
+            return false;
+        }
+        // Every peer feeds these into an address book for iroh to dial, so the
+        // room is where they get bounded rather than each peer separately.
+        endpoint
+            .direct_addrs
+            .retain(|addr| addr.len() <= MAX_ADDR_LEN);
+        endpoint.direct_addrs.truncate(MAX_DIRECT_ADDRS);
+        self.transports.insert(player_id.to_string(), endpoint);
         true
     }
 
@@ -517,6 +539,38 @@ mod tests {
         assert!(r.set_transport("host", Some(endpoint("ep-host"))));
         assert!(!r.set_transport("stranger", Some(endpoint("ep-stranger"))));
         assert!(!r.transports.contains_key("stranger"));
+    }
+
+    #[test]
+    fn a_member_cannot_claim_another_members_endpoint() {
+        let mut r = room(false);
+        r.add_player("human".into(), "human".into(), false).unwrap();
+        r.add_player("squatter".into(), "squatter".into(), false)
+            .unwrap();
+        assert!(r.set_transport("human", Some(endpoint("ep-human"))));
+
+        // Taking it would tell the owner their own endpoint is attested for
+        // somebody else, and nothing would say why.
+        assert!(!r.set_transport("squatter", Some(endpoint("ep-human"))));
+        assert_eq!(r.transports["human"].endpoint_id, "ep-human");
+        assert!(!r.transports.contains_key("squatter"));
+
+        // Re-announcing your own is not a collision.
+        assert!(r.set_transport("human", Some(endpoint("ep-human"))));
+    }
+
+    #[test]
+    fn an_announcement_cannot_flood_the_address_book() {
+        let mut r = room(false);
+        r.add_player("human".into(), "human".into(), false).unwrap();
+        let mut flood = endpoint("ep-human");
+        flood.direct_addrs = (0..64).map(|i| format!("10.0.0.{i}:1234")).collect();
+        flood.direct_addrs.push("x".repeat(MAX_ADDR_LEN + 1));
+
+        assert!(r.set_transport("human", Some(flood)));
+        let stored = &r.transports["human"].direct_addrs;
+        assert_eq!(stored.len(), MAX_DIRECT_ADDRS);
+        assert!(stored.iter().all(|addr| addr.len() <= MAX_ADDR_LEN));
     }
 
     #[test]

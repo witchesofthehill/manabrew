@@ -1296,6 +1296,7 @@ async fn handle_server_message(
             room_id: transport_room_id,
             topic_secret,
             iroh_relay_url,
+            iroh_relay_token,
             host,
             members,
         } => {
@@ -1304,7 +1305,7 @@ async fn handle_server_message(
                 // cannot reach it directly. The control plane knows one, so take
                 // it and say so again: the endpoint's address has changed.
                 if let Some(url) = iroh_relay_url.as_deref() {
-                    if plane.adopt_relay(url).await {
+                    if plane.adopt_relay(url, iroh_relay_token.as_deref()).await {
                         announce_transport(plane, outbound_tx).await;
                     }
                 }

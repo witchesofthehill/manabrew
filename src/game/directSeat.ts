@@ -19,7 +19,7 @@ import type { StateEnvelope } from "@/types/server";
 interface NetModule {
   default: (input?: unknown) => Promise<unknown>;
   WasmSeat: {
-    bindSeat(username: string, relayUrl: string): Promise<WasmSeat>;
+    bindSeat(username: string, relayUrl: string, relayToken: string | null): Promise<WasmSeat>;
   };
 }
 
@@ -48,33 +48,43 @@ function isSeatEnvelope(state: Record<string, unknown>): boolean {
 export class DirectSeat {
   private module: NetModule | null = null;
   private seat: WasmSeat | null = null;
-  private announced = false;
+  private binding: Promise<unknown | null> | null = null;
   private active = false;
   private reading = false;
 
   private readonly username: string;
   private readonly relayUrl: string;
+  private readonly relayToken: string | null;
   private readonly deliver: (envelope: StateEnvelope, fromPlayer: string) => void;
 
   constructor(
     username: string,
     relayUrl: string,
+    relayToken: string | null,
     deliver: (envelope: StateEnvelope, fromPlayer: string) => void,
   ) {
     this.username = username;
     this.relayUrl = relayUrl;
+    this.relayToken = relayToken;
     this.deliver = deliver;
   }
 
   /** The endpoint to announce, once. Null when the module cannot load, which
    *  leaves this seat on the relay with nothing else changed. */
-  async announce(): Promise<unknown | null> {
-    if (this.announced) return null;
-    this.announced = true;
+  announce(): Promise<unknown | null> {
+    this.binding ??= this.bind();
+    return this.binding;
+  }
+
+  private async bind(): Promise<unknown | null> {
     try {
       this.module ??= (await import("@/wasm-net/net")) as unknown as NetModule;
       await this.module.default();
-      this.seat = await this.module.WasmSeat.bindSeat(this.username, this.relayUrl);
+      this.seat = await this.module.WasmSeat.bindSeat(
+        this.username,
+        this.relayUrl,
+        this.relayToken,
+      );
       return await this.seat.localEndpoint();
     } catch (error) {
       console.warn("[direct] no direct data plane in this build:", error);
@@ -83,8 +93,12 @@ export class DirectSeat {
     }
   }
 
-  /** Installs the relay's roster and dials the host it names. */
+  /** Installs the relay's roster and dials the host it names. The relay
+   *  re-broadcasts on every membership change, so a second roster can arrive
+   *  while the first is still binding; awaiting the latch is what stops it
+   *  being dropped on a seat that has no endpoint yet. */
   async onRoster(roomId: string, topicSecret: string, members: unknown): Promise<void> {
+    await this.binding;
     if (!this.seat) return;
     try {
       const status = (await this.seat.connectToHost(

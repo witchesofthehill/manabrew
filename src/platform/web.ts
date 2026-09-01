@@ -1287,9 +1287,11 @@ class WebServerApi implements IServerApi {
     // to stay on the relay.
     if (!msg.host) return;
     if (!this.directSeat) {
+      const relayToken = typeof msg.iroh_relay_token === "string" ? msg.iroh_relay_token : null;
       this.directSeat = new DirectSeat(
         this.authedUsername,
         relayUrl,
+        relayToken,
         (state: StateEnvelope, fromPlayer: string) =>
           this.handleServerMessage({ type: "StateUpdate", from_player: fromPlayer, state }),
       );

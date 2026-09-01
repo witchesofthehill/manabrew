@@ -115,7 +115,12 @@ Answers to the questions this raises:
 - _Can a random peer join the topic or dial the host?_ They can dial if they learn the endpoint
   id, and the host will reject them at `Hello`. They cannot derive the topic id without the
   room secret.
-- _What is room-scoped?_ The topic secret. Nothing else new.
+- _What is room-scoped?_ The topic secret, and the relay token. Nothing else new.
+- _Who may spend the deployment's relay bandwidth?_ `relay.manabrew.app` is a public hostname, and
+  an iroh relay forwards for whoever dials it, so the relay is gated rather than open:
+  `RoomMembersOnly` checks a room-scoped HMAC token the control plane mints and delivers in
+  `RoomTransport`, which arrives before a client binds. A token bounds who, not how much, so
+  `Limits::client_rx` bounds the rest; the relay shares a box with the game socket.
 - _Host replacement or reconnect?_ The relay updates `host_player_id` and rebroadcasts
   `RoomTransport`. Peers re-dial. A returning browser host proves the same relay identity it
   had before, announces a new endpoint id, and the roster updates. The endpoint key is

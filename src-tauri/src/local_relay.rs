@@ -4,6 +4,15 @@ use tauri::State;
 #[cfg(feature = "forge-room")]
 use std::sync::{Arc, Mutex};
 
+// A room hosted here turns the direct plane on. Built without the feature it
+// would announce no endpoint and quietly relay every seat, including four
+// machines on one switch, which is the case this exists for.
+#[cfg(feature = "forge-room")]
+const _: () = assert!(
+    self_hosted_node::DIRECT_PLANE,
+    "forge-room needs self-hosted-node/iroh, or a LAN game silently falls back to the relay"
+);
+
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalRelayInfo {
@@ -111,11 +120,8 @@ pub async fn start_local_relay(
         // rather than from the internet.
         let (iroh, iroh_relay_url) = match &lan_host {
             Some(host) => {
-                match manabrew_server::iroh_relay::spawn(
-                    std::net::SocketAddr::from((bind_ip, 0)),
-                    &password,
-                )
-                .await
+                match manabrew_server::iroh_relay::spawn(std::net::SocketAddr::from((bind_ip, 0)))
+                    .await
                 {
                     Some(server) => {
                         let url = server

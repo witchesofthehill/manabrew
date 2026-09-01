@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.33.1](https://github.com/witchesofthehill/manabrew/compare/v3.33.0...v3.33.1) (2026-09-01)
+
+### Fixes
+
+* **engine:** bound the AI's ability evaluation in the browser ([#819](https://github.com/witchesofthehill/manabrew/issues/819)) ([712cd28](https://github.com/witchesofthehill/manabrew/commit/712cd28a3eec99ae37e1fa4b8f2505f8a1ed836e))
+
 ## [3.33.0](https://github.com/witchesofthehill/manabrew/compare/v3.32.5...v3.33.0) (2026-09-01)
 
 ### Features

@@ -5209,6 +5209,7 @@ dependencies = [
  "fs4",
  "futures-util",
  "manabrew-agent-interface",
+ "manabrew-art-cache",
  "manabrew-engine",
  "manabrew-net",
  "manabrew-protocol",
@@ -5246,6 +5247,21 @@ dependencies = [
  "strum",
  "strum_macros",
  "tracing",
+]
+
+[[package]]
+name = "manabrew-art-cache"
+version = "0.1.0"
+dependencies = [
+ "flate2",
+ "fs4",
+ "futures-util",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tiny_http",
+ "tokio",
 ]
 
 [[package]]

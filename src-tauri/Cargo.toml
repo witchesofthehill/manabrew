@@ -65,6 +65,7 @@ self-hosted-node = { path = "../manabrew-rs/crates/self-hosted-node", default-fe
     "iroh",
 ], optional = true }
 manabrew-server = { path = "../manabrew-rs/crates/manabrew-server", optional = true }
+manabrew-art-cache = { path = "../manabrew-rs/crates/manabrew-art-cache", version = "0.1.0" }
 
 [dev-dependencies]
 tempfile = "3"

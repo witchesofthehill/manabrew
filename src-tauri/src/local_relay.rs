@@ -41,7 +41,7 @@ struct RunningRelay {
     /// Held so it lives as long as the room, not for its methods.
     iroh: Option<manabrew_server::iroh_relay::Server>,
     discovery: Option<crate::lan_discovery::Advertisement>,
-    art: Option<crate::art_lan_server::ArtServer>,
+    art: Option<manabrew_art_cache::ArtServer>,
 }
 
 /// Holds the relay this app is running (one at a time), so Forge play-vs-AI
@@ -166,7 +166,7 @@ pub async fn start_local_relay(
         let art = lan_host
             .as_ref()
             .and_then(|_| crate::image_cache::cache())
-            .and_then(|cache| crate::art_lan_server::spawn(bind_ip, cache));
+            .and_then(|cache| manabrew_art_cache::ArtServer::spawn(bind_ip, cache));
         let info = LocalRelayInfo {
             host: lan_host.clone().unwrap_or_else(|| "127.0.0.1".to_string()),
             port,

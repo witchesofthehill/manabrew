@@ -1,7 +1,5 @@
 #![allow(clippy::too_many_arguments)]
 
-#[cfg(feature = "forge-room")]
-mod art_lan_server;
 mod asset_server;
 mod card_db;
 mod commands;

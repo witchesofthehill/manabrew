@@ -1,5 +1,5 @@
-//! Serving this machine's card art to the local network, so only one machine in
-//! a group has to have gone online.
+//! Serving a card art cache to a network, so only one machine in a group has to
+//! have gone online.
 //!
 //! Deliberately not part of `asset_server`: that one refuses anything not
 //! addressed to loopback as anti-DNS-rebinding, and relaxing it would widen the
@@ -13,7 +13,7 @@
 
 use std::sync::Arc;
 
-use crate::image_cache::{self, ImageCache};
+use crate::{key_from_request_path, mime_for, ImageCache};
 
 pub struct ArtServer {
     pub port: u16,
@@ -29,29 +29,31 @@ impl Drop for ArtServer {
     }
 }
 
-/// `None` leaves the room hosted and the other seats falling back to the CDN.
-///
-/// The cache is passed in rather than read from the global, so a test does not
-/// have to plant one.
-pub fn spawn(bind_ip: std::net::IpAddr, cache: Arc<ImageCache>) -> Option<ArtServer> {
-    let server = Arc::new(tiny_http::Server::http((bind_ip, 0)).ok()?);
-    let port = server.server_addr().to_ip()?.port();
-    let accept = server.clone();
+impl ArtServer {
+    /// `None` leaves the caller running and its peers falling back to the CDN.
+    ///
+    /// The cache is passed in rather than read from a global, so a headless host
+    /// and the desktop shell can each own their own.
+    pub fn spawn(bind_ip: std::net::IpAddr, cache: Arc<ImageCache>) -> Option<ArtServer> {
+        let server = Arc::new(tiny_http::Server::http((bind_ip, 0)).ok()?);
+        let port = server.server_addr().to_ip()?.port();
+        let accept = server.clone();
 
-    std::thread::spawn(move || {
-        // `unblock` ends this iterator, so the thread exits and the listener is
-        // closed rather than waiting for one more request to notice.
-        for request in accept.incoming_requests() {
-            serve(request, &cache);
-        }
-    });
+        std::thread::spawn(move || {
+            // `unblock` ends this iterator, so the thread exits and the listener is
+            // closed rather than waiting for one more request to notice.
+            for request in accept.incoming_requests() {
+                serve(request, &cache);
+            }
+        });
 
-    Some(ArtServer { port, server })
+        Some(ArtServer { port, server })
+    }
 }
 
 fn serve(request: tiny_http::Request, cache: &ImageCache) {
     let raw = request.url().to_string();
-    let Some(key) = image_cache::key_from_request_path(&raw) else {
+    let Some(key) = key_from_request_path(&raw) else {
         let _ = request.respond(tiny_http::Response::empty(404));
         return;
     };
@@ -63,7 +65,7 @@ fn serve(request: tiny_http::Request, cache: &ImageCache) {
     };
     let mut response = tiny_http::Response::from_data(bytes);
     for (name, value) in [
-        ("Content-Type", image_cache::mime_for(key)),
+        ("Content-Type", mime_for(key)),
         ("Access-Control-Allow-Origin", "*"),
         ("Cross-Origin-Resource-Policy", "cross-origin"),
         ("Cache-Control", "public, max-age=31536000, immutable"),
@@ -98,7 +100,7 @@ mod tests {
         let dir = tempfile::tempdir().expect("temp dir");
         let cache = Arc::new(ImageCache::new(dir.path().to_path_buf()));
 
-        let server = spawn(Ipv4Addr::LOCALHOST.into(), cache).expect("spawn art server");
+        let server = ArtServer::spawn(Ipv4Addr::LOCALHOST.into(), cache).expect("spawn art server");
         let port = server.port;
         assert!(answers(port), "the listener should be up while the room is");
 

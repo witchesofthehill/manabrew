@@ -24,6 +24,7 @@ interface NetModule {
 }
 
 interface WasmSeat {
+  adoptRelay(relayUrl: string, relayToken: string | null): Promise<void>;
   localEndpoint(): Promise<unknown>;
   endpointId(): string;
   connectToHost(roomId: string, topicSecret: string, members: unknown): Promise<unknown>;
@@ -90,6 +91,19 @@ export class DirectSeat {
       console.warn("[direct] no direct data plane in this build:", error);
       this.seat = null;
       return null;
+    }
+  }
+
+  /** Replaces the relay config with the token from this broadcast. A tab holds
+   *  its seat far longer than a token lives, and a relay reconnect after the
+   *  TTL is refused, so every roster renews it. */
+  async refreshRelay(relayUrl: string, relayToken: string | null): Promise<void> {
+    await this.binding;
+    if (!this.seat) return;
+    try {
+      await this.seat.adoptRelay(relayUrl, relayToken);
+    } catch (error) {
+      console.warn("[direct] could not renew the relay token:", error);
     }
   }
 

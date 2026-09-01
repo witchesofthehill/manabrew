@@ -1297,6 +1297,10 @@ class WebServerApi implements IServerApi {
       );
       const endpoint = await this.directSeat.announce();
       if (endpoint) this.send({ type: "AnnounceTransport", endpoint });
+    } else {
+      // The seat outlives the token it bound with, so each broadcast renews it.
+      const relayToken = typeof msg.iroh_relay_token === "string" ? msg.iroh_relay_token : null;
+      await this.directSeat.refreshRelay(relayUrl, relayToken);
     }
     await this.directSeat.onRoster(
       String(msg.room_id ?? ""),

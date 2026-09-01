@@ -49,6 +49,21 @@ impl WasmSeat {
         })
     }
 
+    /// Replaces the relay config, which is how a token is renewed. A browser
+    /// holds its seat for the life of the tab and a token expires, so without
+    /// this the next relay reconnect after the TTL is refused.
+    #[wasm_bindgen(js_name = adoptRelay)]
+    pub async fn adopt_relay(
+        &self,
+        relay_url: String,
+        relay_token: Option<String>,
+    ) -> Result<(), JsValue> {
+        self.endpoint
+            .adopt_relay(&relay_url, relay_token.as_deref())
+            .await
+            .map_err(err)
+    }
+
     /// The `TransportEndpoint` to put in `AnnounceTransport`, as JSON.
     #[wasm_bindgen(js_name = localEndpoint)]
     pub async fn local_endpoint(&self) -> Result<JsValue, JsValue> {

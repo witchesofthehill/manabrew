@@ -320,10 +320,18 @@ from the roster. Gossip dials by endpoint id alone, so the roster is also loaded
 configured. That keeps the control plane the single origin of addressing and means nothing is
 published to a third-party DNS or DHT.
 
-A host binds with no relay url and then takes the one the control plane names in `RoomTransport`
-(`NetEndpoint::adopt_relay`), announcing itself again because its address has changed. Without
-that, a seat that cannot reach it directly has no path to it at all, which is most of the
-internet.
+**Nothing binds against a relay url, ever.** A host and a seat both bind relay-less and take the
+relay the control plane names in `RoomTransport` (`NetEndpoint::adopt_relay`), because our relay
+admits nobody without a room token and a token only exists once there is a room to mint it for.
+Binding against a configured url would produce an endpoint that advertises a relay it is refused
+by, reachable by nobody. `SELF_HOSTED_NODE_IROH_RELAY_URL` is only the fallback for a relay too
+old to name one, and against a gated relay it will be refused. The first adoption changes the
+endpoint's address, so it announces itself again.
+
+Adoption runs on **every** `RoomTransport`, not just the first. A token lives six hours and a
+room outlives games, so a node hosting for longer would have its next relay reconnect refused and
+its seats would fall back saying nothing. `insert_relay` replacing the config is the renewal, so
+re-adopting is all it takes; only the first one returns true and triggers an announcement.
 
 That adoption is why an endpoint with no relay binds with an **empty relay map** rather than
 `RelayMode::Disabled`. Both mean "no relay for now", but `Disabled` builds no relay transport, so

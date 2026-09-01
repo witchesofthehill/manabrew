@@ -22,6 +22,10 @@ impl DirectSeat {
         match self.0 {}
     }
 
+    pub async fn adopt_relay(&mut self, _url: Option<&str>, _token: Option<&str>) -> bool {
+        match self.0 {}
+    }
+
     pub async fn on_roster(
         &mut self,
         _room_id: &str,

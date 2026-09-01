@@ -13,6 +13,7 @@ declare module "@/wasm-net/net" {
       relayUrl: string,
       relayToken?: string | null,
     ): Promise<WasmSeat>;
+    adoptRelay(relayUrl: string, relayToken?: string | null): Promise<void>;
     localEndpoint(): Promise<unknown>;
     endpointId(): string;
     connectToHost(roomId: string, topicSecret: string, members: unknown): Promise<unknown>;

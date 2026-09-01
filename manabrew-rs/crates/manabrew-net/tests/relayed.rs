@@ -16,6 +16,92 @@ use manabrew_relay_protocol::TransportMember;
 const TOPIC_SECRET: &str = "7777777777777777777777777777777777777777777777777777777777777777";
 const ROOM: &str = "relayed-room";
 
+/// A relay that admits only a known token, which is the shape the deployment's
+/// own relay has. Anything binding against it without one gets no home relay.
+#[derive(Debug)]
+struct TokenOnly(&'static str);
+
+impl iroh_relay::server::AccessControl for TokenOnly {
+    async fn on_connect(
+        &self,
+        request: &iroh_relay::server::ClientRequest,
+    ) -> iroh_relay::server::Access {
+        match request.auth_token() {
+            Some(token) if token == self.0 => iroh_relay::server::Access::Allow,
+            _ => iroh_relay::server::Access::Deny {
+                reason: Some("no token".to_string()),
+            },
+        }
+    }
+}
+
+async fn spawn_gated_relay(token: &'static str) -> (iroh_relay::server::Server, String) {
+    let mut relay = iroh_relay::server::RelayConfig::new(
+        "127.0.0.1:0".parse::<std::net::SocketAddr>().unwrap(),
+    );
+    relay.access = std::sync::Arc::new(TokenOnly(token));
+    let mut config = iroh_relay::server::ServerConfig::default();
+    config.relay = Some(relay);
+    let server = iroh_relay::server::Server::spawn(config)
+        .await
+        .expect("spawn relay");
+    let addr = server.http_addr().expect("relay http addr");
+    (server, format!("http://{addr}"))
+}
+
+/// The node and the bot are configured with a relay url and no token, because a
+/// token only exists once the control plane has a room to mint it for. Binding
+/// against the url is therefore not enough: the endpoint still advertises that
+/// relay, so it looks configured, but nothing can reach it through one that
+/// refuses it. Adopting the relay with the token is the path that works, and it
+/// is the only path there is.
+#[tokio::test]
+async fn a_relay_url_is_not_enough_without_the_token_that_goes_with_it() {
+    const TOKEN: &str = "room-1.9999999999.deadbeef";
+    let (server, url) = spawn_gated_relay(TOKEN).await;
+
+    let reach = |host_config: NetConfig, adopt: bool| {
+        let url = url.clone();
+        async move {
+            let (host, _seats) = NetEndpoint::bind(host_config).await.expect("bind host");
+            if adopt {
+                host.adopt_relay(&url, Some(TOKEN)).await.expect("adopt");
+            }
+            host.wait_online(Duration::from_secs(6)).await;
+
+            // A guest with no IP transports, which is what a browser seat is.
+            let mut guest_config = NetConfig::with_relay(&url, Some(TOKEN)).unwrap();
+            guest_config.relay_only = true;
+            let (guest, _) = NetEndpoint::bind(guest_config).await.expect("bind guest");
+            guest.wait_online(Duration::from_secs(6)).await;
+
+            let members = vec![member(&host, "hostess", true), member(&guest, "bob", false)];
+            let roster = |m: &[TransportMember]| Roster::new(ROOM, TOPIC_SECRET, None, m).unwrap();
+            host.set_roster(roster(&members));
+            guest.set_roster(roster(&members));
+
+            let reached =
+                tokio::time::timeout(Duration::from_secs(10), guest.connect_to_host("bob"))
+                    .await
+                    .is_ok_and(|r| r.is_ok());
+            host.shutdown().await;
+            guest.shutdown().await;
+            reached
+        }
+    };
+
+    assert!(
+        !reach(NetConfig::with_relay(&url, None).unwrap(), false).await,
+        "a host that bound against a gated relay with no token is reachable by nobody"
+    );
+    assert!(
+        reach(NetConfig::default(), true).await,
+        "adopting the relay with the token from RoomTransport is what makes it reachable"
+    );
+
+    let _ = server.shutdown().await;
+}
+
 async fn spawn_relay() -> (iroh_relay::server::Server, String) {
     let mut config = iroh_relay::server::ServerConfig::default();
     config.relay = Some(iroh_relay::server::RelayConfig::new(

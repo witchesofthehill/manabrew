@@ -50,6 +50,7 @@ export class DirectSeat {
   private module: NetModule | null = null;
   private seat: WasmSeat | null = null;
   private binding: Promise<unknown | null> | null = null;
+  private installedRelay: string | null = null;
   private active = false;
   private reading = false;
 
@@ -86,6 +87,9 @@ export class DirectSeat {
         this.relayUrl,
         this.relayToken,
       );
+      // Binding installed one, so the next broadcast carrying the same token
+      // has nothing to do.
+      this.installedRelay = `${this.relayUrl}\u0000${this.relayToken ?? ""}`;
       return await this.seat.localEndpoint();
     } catch (error) {
       console.warn("[direct] no direct data plane in this build:", error);
@@ -96,12 +100,19 @@ export class DirectSeat {
 
   /** Replaces the relay config with the token from this broadcast. A tab holds
    *  its seat far longer than a token lives, and a relay reconnect after the
-   *  TTL is refused, so every roster renews it. */
+   *  TTL is refused, so every roster offers it.
+   *
+   *  Skipped when nothing changed. Replacing the config schedules a full
+   *  network re-probe, and the relay re-broadcasts on every join and leave; the
+   *  token is stable across broadcasts until it nears expiry, which is what
+   *  makes comparing it worth anything. */
   async refreshRelay(relayUrl: string, relayToken: string | null): Promise<void> {
     await this.binding;
-    if (!this.seat) return;
+    const wanted = `${relayUrl}\u0000${relayToken ?? ""}`;
+    if (!this.seat || wanted === this.installedRelay) return;
     try {
       await this.seat.adoptRelay(relayUrl, relayToken);
+      this.installedRelay = wanted;
     } catch (error) {
       console.warn("[direct] could not renew the relay token:", error);
     }

@@ -5353,6 +5353,7 @@ dependencies = [
  "chrono",
  "dashmap 6.1.0",
  "futures-util",
+ "iroh",
  "iroh-relay",
  "manabrew-protocol",
  "manabrew-relay-protocol",

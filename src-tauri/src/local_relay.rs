@@ -111,8 +111,11 @@ pub async fn start_local_relay(
         // rather than from the internet.
         let (iroh, iroh_relay_url) = match &lan_host {
             Some(host) => {
-                match manabrew_server::iroh_relay::spawn(std::net::SocketAddr::from((bind_ip, 0)))
-                    .await
+                match manabrew_server::iroh_relay::spawn(
+                    std::net::SocketAddr::from((bind_ip, 0)),
+                    &password,
+                )
+                .await
                 {
                     Some(server) => {
                         let url = server

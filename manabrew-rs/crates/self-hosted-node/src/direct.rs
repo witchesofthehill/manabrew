@@ -39,8 +39,9 @@ pub enum SeatTransport {
 
 #[derive(Default)]
 struct TableState {
-    /// Seats that dialled in and passed the roster check.
-    live: HashMap<String, GameSender>,
+    /// Seats that dialled in and passed the roster check, with the generation
+    /// of the connection that put them there.
+    live: HashMap<String, (u64, GameSender)>,
     /// Seats whose envelopes this game is allowed to send direct. Frozen when
     /// the relay announces `GameStarted`, so a seat that connects mid-game does
     /// not migrate a stream that is already in flight.
@@ -78,7 +79,7 @@ impl DirectPlane {
             return None;
         }
         let net_config = match &config.iroh_relay_url {
-            Some(url) => match NetConfig::with_relay(url) {
+            Some(url) => match NetConfig::with_relay(url, None) {
                 Ok(config) => config,
                 Err(error) => {
                     warn!(%error, url, "invalid iroh relay url; direct plane disabled");
@@ -128,11 +129,11 @@ impl DirectPlane {
     /// Takes the relay the control plane named, once, for an endpoint that
     /// bound without one. Returns true when the endpoint's address changed and
     /// therefore has to be announced again.
-    pub async fn adopt_relay(&self, url: &str) -> bool {
+    pub async fn adopt_relay(&self, url: &str, token: Option<&str>) -> bool {
         if self.has_relay.swap(true, Ordering::SeqCst) {
             return false;
         }
-        match self.endpoint.adopt_relay(url).await {
+        match self.endpoint.adopt_relay(url, token).await {
             Ok(()) => {
                 info!(url, "adopted the relay the control plane named");
                 true
@@ -238,7 +239,10 @@ impl SeatTable {
         F: Fn(&str, &Value) + Send + 'static,
     {
         let SeatConnection {
-            username, channel, ..
+            username,
+            generation,
+            channel,
+            ..
         } = seat;
         let status = channel.status();
         info!(
@@ -252,22 +256,38 @@ impl SeatTable {
 
         let (sender, receiver) = channel.split();
         if let Ok(mut state) = self.state.lock() {
-            state.live.insert(username.clone(), sender);
+            state.live.insert(username.clone(), (generation, sender));
         }
 
         let table = self.clone();
         let seat_name = username.clone();
         tokio::spawn(async move {
             pump_inbound(receiver, &seat_name, route).await;
-            table.drop_seat(&seat_name);
+            // Only if this is still the live connection: a seat that re-dialled
+            // while this one was dying must not be knocked back to the relay by
+            // its predecessor noticing.
+            table.drop_seat_generation(&seat_name, generation);
             info!(username = %seat_name, "direct seat closed; that seat is back on the relay");
             crate::metrics::record_direct_fallback();
         });
     }
 
     pub fn drop_seat(&self, username: &str) {
+        self.drop_seat_generation(username, u64::MAX);
+    }
+
+    /// `u64::MAX` drops whatever is live; a real generation drops it only if it
+    /// is still the one that connected.
+    pub fn drop_seat_generation(&self, username: &str, generation: u64) {
         let was_direct = match self.state.lock() {
             Ok(mut state) => {
+                let superseded = state
+                    .live
+                    .get(username)
+                    .is_some_and(|(live, _)| generation != u64::MAX && *live != generation);
+                if superseded {
+                    return;
+                }
                 state.live.remove(username);
                 let was_direct = state.active.remove(username);
                 if was_direct {
@@ -351,10 +371,13 @@ impl SeatTable {
         seats
             .iter()
             .filter_map(|username| {
-                state.live.get(username).map(|sender| SeatTransportReport {
-                    username: username.clone(),
-                    transport: sender.status().kind.as_str().to_string(),
-                })
+                state
+                    .live
+                    .get(username)
+                    .map(|(_, sender)| SeatTransportReport {
+                        username: username.clone(),
+                        transport: sender.status().kind.as_str().to_string(),
+                    })
             })
             .collect()
     }
@@ -367,7 +390,7 @@ impl SeatTable {
             if !state.active.contains(target) {
                 return false;
             }
-            let Some(sender) = state.live.get(target).cloned() else {
+            let Some((_, sender)) = state.live.get(target).cloned() else {
                 return false;
             };
             state.seq += 1;
@@ -436,6 +459,7 @@ mod tests {
             SeatConnection {
                 username: username.to_string(),
                 endpoint_id: iroh::SecretKey::generate().public(),
+                generation: 0,
                 channel: GameChannel::relay(out_tx, in_rx),
             },
             move |from, payload| {
@@ -485,6 +509,7 @@ mod tests {
             SeatConnection {
                 username: "bob".into(),
                 endpoint_id: iroh::SecretKey::generate().public(),
+                generation: 0,
                 channel: GameChannel::relay(out_tx, in_rx),
             },
             |_, _| {},

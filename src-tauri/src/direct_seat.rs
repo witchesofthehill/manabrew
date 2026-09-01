@@ -42,9 +42,15 @@ pub struct DesktopSeat {
 
 #[cfg(feature = "direct-seat")]
 impl DesktopSeat {
-    pub async fn bind(username: String, relay_url: Option<&str>) -> Result<Self, String> {
+    pub async fn bind(
+        username: String,
+        relay_url: Option<&str>,
+        relay_token: Option<&str>,
+    ) -> Result<Self, String> {
         let config = match relay_url.filter(|url| !url.is_empty()) {
-            Some(url) => manabrew_net::NetConfig::with_relay(url).map_err(|e| e.to_string())?,
+            Some(url) => {
+                manabrew_net::NetConfig::with_relay(url, relay_token).map_err(|e| e.to_string())?
+            }
             None => manabrew_net::NetConfig::default(),
         };
         let (endpoint, _incoming) = manabrew_net::NetEndpoint::bind(config)
@@ -158,17 +164,20 @@ pub async fn direct_seat_start(
     host: State<'_, DirectSeatHost>,
     username: String,
     relay_url: Option<String>,
+    relay_token: Option<String>,
 ) -> Result<SeatBinding, String> {
     #[cfg(not(feature = "direct-seat"))]
     {
-        let _ = (host, username, relay_url);
+        let _ = (host, username, relay_url, relay_token);
         Err("this desktop build has no direct seat".to_string())
     }
     #[cfg(feature = "direct-seat")]
     {
         let mut guard = host.seat.lock().await;
         if guard.is_none() {
-            *guard = Some(DesktopSeat::bind(username, relay_url.as_deref()).await?);
+            *guard = Some(
+                DesktopSeat::bind(username, relay_url.as_deref(), relay_token.as_deref()).await?,
+            );
         }
         let seat = guard.as_ref().expect("just bound");
         Ok(SeatBinding {
@@ -279,7 +288,7 @@ mod tests {
         let (host, mut seats) = manabrew_net::NetEndpoint::bind(manabrew_net::NetConfig::default())
             .await
             .expect("bind host");
-        let mut seat = DesktopSeat::bind("bob".to_string(), None)
+        let mut seat = DesktopSeat::bind("bob".to_string(), None, None)
             .await
             .expect("bind seat");
 

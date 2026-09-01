@@ -35,9 +35,13 @@ impl WasmSeat {
     /// only, which is what a LAN game with no internet looks like, and a
     /// browser there simply finds no path and stays on the manabrew relay.
     #[wasm_bindgen(js_name = bindSeat)]
-    pub async fn bind(username: String, relay_url: Option<String>) -> Result<WasmSeat, JsValue> {
+    pub async fn bind(
+        username: String,
+        relay_url: Option<String>,
+        relay_token: Option<String>,
+    ) -> Result<WasmSeat, JsValue> {
         let config = match relay_url.as_deref().filter(|url| !url.is_empty()) {
-            Some(url) => NetConfig::with_relay(url).map_err(err)?,
+            Some(url) => NetConfig::with_relay(url, relay_token.as_deref()).map_err(err)?,
             None => NetConfig::default(),
         };
         let (endpoint, _seats) = NetEndpoint::bind(config).await.map_err(err)?;

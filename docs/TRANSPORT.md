@@ -353,8 +353,14 @@ that a LAN should never need.
 `getPlatform().type`. Nothing above it knows which it got, which is the same reason the inbound
 envelope is handed to `handleServerMessage` as a `StateUpdate`.
 
-Nobody types a key. A shared room runs on a well-known one, handed back with the room by
-discovery, because that key was never access control: `Authenticate` checks it and then runs the
+Nobody types a key, and the consequence is worth stating plainly: **an unprotected room on a
+shared network now has no gate at all.** Before, a joiner needed a code off the host's screen.
+For four people at a kitchen table that is the right trade, and it is the same trust model as
+every other device on that network. For anyone who wants a closed room, `CreateRoom.password` is
+the answer and it already has UI.
+
+A shared room runs on a well-known key, handed back with the room by discovery, because that key
+was never access control: `Authenticate` checks it and then runs the
 real handshake, an identity proof that works offline since unsigned self-minted tokens are
 accepted with no hub configured. The public relay already ships its own key to every browser in
 `config.js`. Privacy for a particular room is `CreateRoom.password`, which already exists and

@@ -40,10 +40,10 @@ fn member(endpoint: &NetEndpoint, username: &str, host: bool) -> TransportMember
 async fn a_seat_with_no_direct_path_still_reaches_the_host() {
     let (relay, relay_url) = spawn_relay().await;
 
-    let (host, mut seats) = NetEndpoint::bind(NetConfig::with_relay(&relay_url).unwrap())
+    let (host, mut seats) = NetEndpoint::bind(NetConfig::with_relay(&relay_url, None).unwrap())
         .await
         .expect("bind host");
-    let mut guest_config = NetConfig::with_relay(&relay_url).unwrap();
+    let mut guest_config = NetConfig::with_relay(&relay_url, None).unwrap();
     guest_config.relay_only = true;
     let (guest, _) = NetEndpoint::bind(guest_config).await.expect("bind guest");
 
@@ -102,14 +102,16 @@ async fn a_host_that_bound_without_a_relay_can_adopt_one() {
         "the host starts with no relay to offer"
     );
 
-    host.adopt_relay(&relay_url).await.expect("adopt relay");
+    host.adopt_relay(&relay_url, None)
+        .await
+        .expect("adopt relay");
     host.wait_online(Duration::from_secs(10)).await;
     assert!(
         host.endpoint().addr().addrs.iter().any(|a| a.is_relay()),
         "after adopting, the address it announces carries a way to reach it"
     );
 
-    let mut guest_config = NetConfig::with_relay(&relay_url).unwrap();
+    let mut guest_config = NetConfig::with_relay(&relay_url, None).unwrap();
     guest_config.relay_only = true;
     let (guest, _) = NetEndpoint::bind(guest_config).await.expect("bind guest");
     guest.wait_online(Duration::from_secs(10)).await;

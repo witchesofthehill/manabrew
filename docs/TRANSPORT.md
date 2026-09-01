@@ -119,8 +119,16 @@ Answers to the questions this raises:
 - _Who may spend the deployment's relay bandwidth?_ `relay.manabrew.app` is a public hostname, and
   an iroh relay forwards for whoever dials it, so the relay is gated rather than open:
   `RoomMembersOnly` checks a room-scoped HMAC token the control plane mints and delivers in
-  `RoomTransport`, which arrives before a client binds. A token bounds who, not how much, so
-  `Limits::client_rx` bounds the rest; the relay shares a box with the game socket.
+  `RoomTransport`, which arrives before a client binds. The signing key is **generated per
+  process**, never configured: the relay's `server_key` is published in `knownRelays.ts` and
+  shipped to every browser, so signing with it would let anyone mint their own token. Nothing
+  outside this process verifies a token, so nothing outside it needs the key, and a restart just
+  means the next roster broadcast carries fresh ones.
+- _And how much may they spend?_ `Limits::client_rx` caps a connection at 512 KB/s, because the
+  relay shares a box with the game socket. It caps a **connection, not a client**:
+  `accept_conn_limit` is unimplemented in iroh-relay 1.1, so one token holder can open many
+  connections and pay the toll on each. What bounds that today is only the token being
+  room-scoped and expiring in six hours.
 - _Host replacement or reconnect?_ The relay updates `host_player_id` and rebroadcasts
   `RoomTransport`. Peers re-dial. A returning browser host proves the same relay identity it
   had before, announces a new endpoint id, and the roster updates. The endpoint key is
@@ -241,14 +249,15 @@ gossip and no second listening socket reach a binary that never asked for them. 
 `native` feature used to imply `manabrew-net`, which meant every consumer of the bot got iroh
 whether or not it wanted it. That is what the feature fixes.
 
-`MANABREW_IROH` is the runtime gate, and it is the one the rollout uses. The fleet image is built
+`SELF_HOSTED_NODE_IROH` is the runtime gate, and it is the one the rollout uses. The fleet image is built
 with the feature on precisely so enabling the transport on one node is an env change rather than a
 new image; a compile-time rollout would make "one node, then the fleet" impossible, because the
 fleet runs a single image. Dead code in a binary costs nothing. An open socket does, and that is
 the one that stays shut.
 
 So: `cargo build -p self-hosted-node` gives a relay-only node, `--features iroh` gives one that
-can be switched on, and `MANABREW_IROH` decides whether it is.
+can be switched on, and `SELF_HOSTED_NODE_IROH=1` decides whether it is. (`MANABREW_IROH_RELAY_URL`
+and `MANABREW_IROH_RELAY_PORT` are the relay's own settings and a different thing.)
 
 The transport seam is a channel pair rather than a `dyn` trait: `GameChannel` owns an outbound
 `mpsc::Sender`, an inbound `mpsc::Receiver` and a `watch` of `TransportStatus`. A transport is

@@ -201,7 +201,7 @@ pub fn broadcast_room_transport(state: &Arc<ServerState>, room_id: &str) {
         iroh_relay_token: state
             .iroh_relay_url
             .as_ref()
-            .map(|_| crate::iroh_relay::mint_token(&state.server_key, room_id)),
+            .map(|_| crate::iroh_relay::mint_token(room_id)),
         host: room.transport_host(),
         members: room.transport_members(),
     };
@@ -1596,8 +1596,13 @@ fn handle_client_message(
                 Some(mut room) => room.set_transport(player_id, endpoint),
                 None => false,
             };
+            // Announcing is an optimisation, not something a player did, and a
+            // relay error becomes a toast. Telling someone they are not in the
+            // room they are sitting in because a squatter claimed their
+            // endpoint id is worse than saying nothing: they stay on the relay
+            // and the counter is where this shows up.
             if !accepted {
-                send_error(sender, &ServerError::NotInRoom);
+                metrics::record_transport_rejected();
                 return;
             }
             metrics::record_transport_announcement(withdrawn);

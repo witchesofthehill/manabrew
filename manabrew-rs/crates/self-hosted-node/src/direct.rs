@@ -256,7 +256,14 @@ impl SeatTable {
 
         let (sender, receiver) = channel.split();
         if let Ok(mut state) = self.state.lock() {
-            state.live.insert(username.clone(), (generation, sender));
+            // Closed, not dropped. The superseded connection's reader task
+            // holds the other half of its guard, so forgetting the sender
+            // leaves that QUIC connection open and still feeding the engine
+            // responses under this seat's name.
+            if let Some((_, superseded)) = state.live.insert(username.clone(), (generation, sender))
+            {
+                superseded.close();
+            }
         }
 
         let table = self.clone();
@@ -441,6 +448,7 @@ mod tests {
     use super::*;
     use manabrew_net::GameChannel;
     use serde_json::json;
+    use tokio::sync::watch;
 
     struct FakeSeat {
         table: SeatTable,
@@ -478,6 +486,84 @@ mod tests {
 
     fn envelope() -> Value {
         json!({ "kind": "state", "forPlayer": "player-1" })
+    }
+
+    /// A channel whose inbound half is fed by a task the guard owns, which is
+    /// what a real iroh connection looks like. `GameChannel::relay` carries no
+    /// guard, so it cannot show a connection being closed.
+    fn guarded_seat(
+        table: &SeatTable,
+        username: &str,
+        generation: u64,
+        routed: Arc<Mutex<Vec<(String, Value)>>>,
+    ) -> mpsc::Sender<SessionFrame> {
+        let (out_tx, _outbound) = mpsc::channel(16);
+        let (feed, mut source) = mpsc::channel::<SessionFrame>(16);
+        let (inbound, in_rx) = mpsc::channel(16);
+        let pump = n0_future::task::spawn(async move {
+            while let Some(frame) = source.recv().await {
+                if inbound.send(frame).await.is_err() {
+                    break;
+                }
+            }
+        });
+        let channel = GameChannel::new(out_tx, in_rx, watch::channel(status()).1)
+            .with_guard(manabrew_net::channel::ChannelGuard::new(vec![pump]));
+        table.register(
+            SeatConnection {
+                username: username.to_string(),
+                endpoint_id: iroh::SecretKey::generate().public(),
+                generation,
+                channel,
+            },
+            move |from, payload| {
+                routed
+                    .lock()
+                    .unwrap()
+                    .push((from.to_string(), payload.clone()))
+            },
+        );
+        feed
+    }
+
+    fn status() -> manabrew_net::TransportStatus {
+        manabrew_net::TransportStatus::relay()
+    }
+
+    /// A seat that re-dials leaves its predecessor's reader running. Until that
+    /// connection is closed rather than forgotten, whoever holds it can keep
+    /// feeding the engine responses under the seat's name.
+    #[tokio::test]
+    async fn a_superseded_connection_stops_being_able_to_speak_for_its_seat() {
+        let table = SeatTable::default();
+        let routed: Arc<Mutex<Vec<(String, Value)>>> = Arc::default();
+
+        let stale = guarded_seat(&table, "bob", 1, routed.clone());
+        stale
+            .send(SessionFrame::Game {
+                seq: 1,
+                payload: json!({ "kind": "response", "answer": "first" }),
+            })
+            .await
+            .unwrap();
+        tokio::task::yield_now().await;
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        assert_eq!(routed.lock().unwrap().len(), 1, "the live seat is routed");
+
+        let _fresh = guarded_seat(&table, "bob", 2, routed.clone());
+
+        let sent = stale
+            .send(SessionFrame::Game {
+                seq: 2,
+                payload: json!({ "kind": "response", "answer": "injected" }),
+            })
+            .await;
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let seen = routed.lock().unwrap();
+        assert!(
+            sent.is_err() || seen.len() == 1,
+            "the superseded connection must not reach the engine: {seen:?}"
+        );
     }
 
     #[tokio::test]

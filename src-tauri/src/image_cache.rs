@@ -89,7 +89,10 @@ impl ImageCache {
             if segment.is_empty() || segment == "." || segment == ".." {
                 return None;
             }
-            if segment.contains('\\') || segment.contains(':') {
+            // Every character NTFS refuses in a name. The short list read as
+            // complete and was not, so a key could carry `?` or `*` into a
+            // path that only fails once it reaches the filesystem.
+            if segment.contains(['\\', ':', '?', '*', '<', '>', '|', '"']) {
                 return None;
             }
             path.push(segment);
@@ -439,10 +442,13 @@ fn save_pinned(path: &Path, pinned: &HashSet<String>) {
     }
 }
 
-/// The path a `/scryfall-img/` request is asking for.
+/// The path a `/scryfall-img/` request is asking for. The query and fragment
+/// go the way `key_from_url` already drops them: on the LAN listener this is
+/// the only thing shaping network input before `path_for` sees it.
 pub fn key_from_request_path(path: &str) -> Option<&str> {
     path.trim_start_matches('/')
         .strip_prefix("scryfall-img/")
+        .map(|key| key.split(['?', '#']).next().unwrap_or(""))
         .filter(|key| !key.is_empty())
 }
 
@@ -805,6 +811,34 @@ mod tests {
             concat!("manabrew-desktop/", env!("CARGO_PKG_VERSION")),
             "Scryfall asks the agent to name the application and its version"
         );
+    }
+
+    /// The rejection list read as complete and stopped at two characters, so a
+    /// key could carry the rest of NTFS's illegal set into a path that only
+    /// fails once the filesystem sees it.
+    #[test]
+    fn a_key_cannot_carry_a_character_no_filesystem_will_take() {
+        let (cache, _dir) = cache();
+        for bad in ["a?.jpg", "a*.jpg", "a<.jpg", "a>.jpg", "a|.jpg", "a\".jpg"] {
+            assert!(cache.path_for(bad).is_none(), "{bad} should be refused");
+        }
+        assert!(cache.path_for("front/a1b2.jpg").is_some());
+    }
+
+    /// The LAN listener answers whatever the subnet asks for, and this is the
+    /// only thing shaping that input before `path_for`. A query string used to
+    /// survive into the key.
+    #[test]
+    fn a_request_path_drops_its_query_and_fragment() {
+        assert_eq!(
+            key_from_request_path("/scryfall-img/front/a.jpg?v=2"),
+            Some("front/a.jpg")
+        );
+        assert_eq!(
+            key_from_request_path("/scryfall-img/front/a.jpg#x"),
+            Some("front/a.jpg")
+        );
+        assert_eq!(key_from_request_path("/scryfall-img/?v=2"), None);
     }
 
     #[test]

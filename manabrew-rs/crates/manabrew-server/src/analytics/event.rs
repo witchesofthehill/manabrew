@@ -84,7 +84,11 @@ pub enum AnalyticsEvent {
     },
     EngineStats {
         ts: String,
-        room_id: String,
+        /// The room the seat was in when the report landed, which at game over
+        /// is often none: the report outlives the seat's membership. Nothing
+        /// downstream reads it, so it stays a breadcrumb rather than a key.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        room_id: Option<String>,
         username: String,
         report_id: String,
         #[serde(skip_serializing_if = "Option::is_none")]

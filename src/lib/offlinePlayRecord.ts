@@ -62,6 +62,13 @@ interface PendingRecord {
 }
 
 interface OpenGame {
+  /**
+   * Minted at launch rather than at game over, because it is the game's id and
+   * not the report's: the engine timings next door are written by a different
+   * caller at a different moment, and the two only meet in the analytics tables
+   * if they agree on this before either of them runs.
+   */
+  reportId: string;
   startedAtMs: number;
   engine: string;
   format: string | null;
@@ -98,6 +105,7 @@ export async function beginOfflineGame(meta: {
 }): Promise<void> {
   const decks = new Map<string, Omit<OfflinePlaySeat, "username" | "isBot">>();
   open = {
+    reportId: crypto.randomUUID(),
     startedAtMs: Date.now(),
     engine: meta.engine,
     format: meta.format,
@@ -127,6 +135,15 @@ export async function beginOfflineGame(meta: {
 /** Forget the open game without reporting it. */
 export function abandonOfflineGame(): void {
   open = null;
+}
+
+/**
+ * The id the open offline game will be filed under, for anything that wants to
+ * point at the same game. Null once the game has been reported or when there
+ * was never one, so read it before closing the book, not after.
+ */
+export function currentOfflineGameId(): string | null {
+  return open?.reportId ?? null;
 }
 
 function loadPending(): PendingRecord[] {
@@ -211,7 +228,7 @@ export function reportOfflineGame(meta: {
   try {
     const endedAtMs = Date.now();
     const record: OfflinePlayGame = {
-      reportId: crypto.randomUUID(),
+      reportId: game.reportId,
       startedAt: new Date(game.startedAtMs).toISOString(),
       endedAt: new Date(endedAtMs).toISOString(),
       durationS: Math.round((endedAtMs - game.startedAtMs) / 1000),

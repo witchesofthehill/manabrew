@@ -984,7 +984,7 @@
       "id": 242,
       "type": "timeseries",
       "title": "Engine reports at the relay, by outcome",
-      "description": "What the relay did with the reports it was sent. Both drop paths are silent to the player by design: `outside_room` is a report that arrived after the seat was gone, `implausible` is a malformed or hostile one. Anything but `accepted` is invisible in every other panel here \u2014 the report simply never becomes a row. Offline games and games reported after the relay went away go to the hub and never appear on this panel at all.",
+      "description": "What the relay did with the reports it was sent. `accepted_roomless` is a report that arrived after the seat had left the room it played in, which is normal at game over and is kept; it is split out so a jump in it stays visible. `implausible` is malformed or hostile and is the one drop path, silent to the player by design and invisible in every other panel here \u2014 the report never becomes a row. Offline games and games reported after the relay went away go to the hub and never appear on this panel at all.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"

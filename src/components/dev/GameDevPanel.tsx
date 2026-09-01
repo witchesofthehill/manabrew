@@ -55,6 +55,7 @@ export function GameDevPanel() {
   const cardOverrides = useGameDevStore((s) => s.cardOverrides);
   const playerOverrides = useGameDevStore((s) => s.playerOverrides);
   const keywordCount = useGameDevStore((s) => s.debugBattlefieldKeywords.length);
+  const choiceCount = useGameDevStore((s) => s.debugCardChoices.length);
   const debugCardEnabled = useGameDevStore((s) => s.debugCardEnabled);
   const debugCardRailEnabled = useGameDevStore((s) => s.debugCardRailEnabled);
   const promptActionOverride = useGameDevStore((s) => s.promptActionOverride);
@@ -69,6 +70,7 @@ export function GameDevPanel() {
     card:
       activeValueCount(cardOverrides) +
       keywordCount +
+      choiceCount +
       Number(debugCardEnabled) +
       Number(debugCardRailEnabled),
     player: activeValueCount(playerOverrides),

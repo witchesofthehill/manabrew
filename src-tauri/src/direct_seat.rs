@@ -110,12 +110,31 @@ impl DesktopSeat {
             return Ok(None);
         }
 
-        let channel = match self.endpoint.connect_to_host(&self.username).await {
-            Ok(channel) => channel,
-            Err(error) => {
-                eprintln!("[direct] no direct path to the host: {error}");
-                return Ok(None);
+        // Bounded like the bot's, and for a sharper reason: the webview awaits
+        // this command, so an unbounded dial hangs the join.
+        let mut last = String::new();
+        let mut channel = None;
+        for attempt in 0..manabrew_net::DIAL_ATTEMPTS {
+            match tokio::time::timeout(
+                manabrew_net::DIAL_TIMEOUT,
+                self.endpoint.connect_to_host(&self.username),
+            )
+            .await
+            {
+                Ok(Ok(open)) => {
+                    channel = Some(open);
+                    break;
+                }
+                Ok(Err(error)) => last = error.to_string(),
+                Err(_) => last = "dial timed out".to_string(),
             }
+            if attempt + 1 < manabrew_net::DIAL_ATTEMPTS {
+                tokio::time::sleep(manabrew_net::DIAL_RETRY_DELAY).await;
+            }
+        }
+        let Some(channel) = channel else {
+            eprintln!("[direct] no direct path to the host: {last}");
+            return Ok(None);
         };
         let status = channel.status();
         let (sender, mut receiver) = channel.split();
@@ -314,6 +333,48 @@ mod tests {
             endpoint: endpoint.clone(),
             host,
         }
+    }
+
+    /// The webview awaits `direct_seat_roster`, so an unbounded dial hangs the
+    /// join. A host that is attested but unreachable is the case that does it:
+    /// there is a path to try and nothing at the end of it.
+    #[tokio::test]
+    async fn a_dial_that_will_never_land_gives_up_instead_of_hanging_the_join() {
+        let mut seat = DesktopSeat::bind("bob".to_string(), None, None)
+            .await
+            .expect("bind seat");
+
+        // A real endpoint id, so the roster accepts it, advertised at an
+        // address that will not route: the dial neither connects nor fails
+        // fast, which is the shape that used to hang.
+        let (elsewhere, _) = manabrew_net::NetEndpoint::bind(manabrew_net::NetConfig::default())
+            .await
+            .expect("bind");
+        let unreachable = TransportEndpoint {
+            endpoint_id: elsewhere.local().endpoint_id,
+            relay_url: None,
+            direct_addrs: vec!["10.255.255.1:9".to_string()],
+        };
+        let members = vec![
+            member(&unreachable, "hostess", true),
+            member(&seat.local(), "bob", false),
+        ];
+
+        let started = std::time::Instant::now();
+        let status = seat
+            .connect(ROOM, TOPIC_SECRET, &members, |_| {})
+            .await
+            .expect("a dial that cannot land is not an error");
+        let waited = started.elapsed();
+
+        assert!(status.is_none(), "nothing was reached, so no transport");
+        let ceiling = manabrew_net::DIAL_TIMEOUT * manabrew_net::DIAL_ATTEMPTS as u32
+            + manabrew_net::DIAL_RETRY_DELAY
+            + std::time::Duration::from_secs(2);
+        assert!(
+            waited < ceiling,
+            "the dial has to be bounded: waited {waited:?}, ceiling {ceiling:?}"
+        );
     }
 
     /// A desktop seat against a real host, which is the path a LAN game runs on

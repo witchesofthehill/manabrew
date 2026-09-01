@@ -5,15 +5,12 @@
 //! `state`/`prompt` it receives and the `Response`/`Directive` it sends.
 
 use manabrew_agent_interface::protocol::{TransportEndpoint, TransportMember};
-use manabrew_net::{GameReceiver, GameSender, NetConfig, NetEndpoint, Roster, SessionFrame};
+use manabrew_net::{
+    GameReceiver, GameSender, NetConfig, NetEndpoint, Roster, SessionFrame, DIAL_ATTEMPTS,
+    DIAL_RETRY_DELAY, DIAL_TIMEOUT,
+};
 use serde_json::Value;
 use tracing::{debug, info, warn};
-
-const DIAL_ATTEMPTS: usize = 2;
-const DIAL_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(300);
-/// Dialling happens inline in the session loop, so it must not hold the relay
-/// socket for long.
-const DIAL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
 
 pub struct DirectSeat {
     endpoint: NetEndpoint,

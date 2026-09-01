@@ -207,6 +207,11 @@ pub fn broadcast_room_transport(state: &Arc<ServerState>, room_id: &str) {
         host: room.transport_host(),
         members: room.transport_members(),
     };
+    // Released before broadcasting, not for tidiness: `broadcast_to_room` takes
+    // its own `state.rooms.get`, and dashmap locks per shard, so holding this
+    // guard across the call deadlocks the thread against itself on every room
+    // whose id lands in the same shard. It is a `get_mut` now that the token is
+    // cached on the room, which is what turned this from tidy into load-bearing.
     drop(room);
     broadcast_to_room(state, room_id, &msg);
 }

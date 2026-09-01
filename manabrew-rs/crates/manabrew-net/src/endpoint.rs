@@ -67,6 +67,14 @@ pub struct SeatConnection {
     pub channel: GameChannel,
 }
 
+/// The host may not have applied the same roster yet, so one retry covers that
+/// ordering; a later roster retries anyway.
+pub const DIAL_ATTEMPTS: usize = 2;
+pub const DIAL_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(300);
+/// Dialling happens inline in a message loop or a command the UI awaits, so it
+/// must not hold either for long.
+pub const DIAL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
+
 #[derive(Debug)]
 pub struct NetEndpoint {
     endpoint: Endpoint,
@@ -195,6 +203,11 @@ impl NetEndpoint {
     }
 
     /// Dials the room's authoritative host as `username`.
+    ///
+    /// Every caller does this from somewhere that must not stall: the bot from
+    /// its relay message loop, the desktop seat from a command the webview is
+    /// awaiting. [`DIAL_ATTEMPTS`] and [`DIAL_TIMEOUT`] bound it for all of
+    /// them.
     pub async fn connect_to_host(&self, username: &str) -> Result<GameChannel> {
         let roster = self.roster().ok_or(NetError::NoHost)?;
         let host = roster.host().ok_or(NetError::NoHost)?.clone();

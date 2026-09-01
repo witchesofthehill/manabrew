@@ -30,8 +30,10 @@ impl Drop for ArtServer {
 }
 
 /// `None` leaves the room hosted and the other seats falling back to the CDN.
-pub fn spawn(bind_ip: std::net::IpAddr) -> Option<ArtServer> {
-    let cache = image_cache::cache()?;
+///
+/// The cache is passed in rather than read from the global, so a test does not
+/// have to plant one.
+pub fn spawn(bind_ip: std::net::IpAddr, cache: Arc<ImageCache>) -> Option<ArtServer> {
     let server = Arc::new(tiny_http::Server::http((bind_ip, 0)).ok()?);
     let port = server.server_addr().to_ip()?.port();
     let accept = server.clone();
@@ -94,9 +96,9 @@ mod tests {
     #[test]
     fn dropping_the_server_stops_the_port_answering() {
         let dir = tempfile::tempdir().expect("temp dir");
-        image_cache::set_cache_for_tests(Arc::new(ImageCache::new(dir.path().to_path_buf())));
+        let cache = Arc::new(ImageCache::new(dir.path().to_path_buf()));
 
-        let server = spawn(Ipv4Addr::LOCALHOST.into()).expect("spawn art server");
+        let server = spawn(Ipv4Addr::LOCALHOST.into(), cache).expect("spawn art server");
         let port = server.port;
         assert!(answers(port), "the listener should be up while the room is");
 

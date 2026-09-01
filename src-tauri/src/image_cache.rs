@@ -593,13 +593,6 @@ pub fn cache() -> Option<Arc<ImageCache>> {
     CACHE.get().cloned()
 }
 
-/// Seeds the global the `spawn` paths read, which `init` otherwise fills from
-/// an `AppHandle` no test has.
-#[cfg(test)]
-pub fn set_cache_for_tests(cache: Arc<ImageCache>) {
-    let _ = CACHE.set(cache);
-}
-
 #[tauri::command]
 pub async fn preseed_card_art(urls: Vec<String>) -> Result<PreseedResult, String> {
     let cache = cache().ok_or_else(|| "no cache directory".to_string())?;

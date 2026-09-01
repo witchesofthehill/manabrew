@@ -165,7 +165,8 @@ pub async fn start_local_relay(
         // different trust decision from the password-gated relay.
         let art = lan_host
             .as_ref()
-            .and_then(|_| crate::art_lan_server::spawn(bind_ip));
+            .and_then(|_| crate::image_cache::cache())
+            .and_then(|cache| crate::art_lan_server::spawn(bind_ip, cache));
         let info = LocalRelayInfo {
             host: lan_host.clone().unwrap_or_else(|| "127.0.0.1".to_string()),
             port,

@@ -276,6 +276,27 @@ from the roster. Gossip dials by endpoint id alone, so the roster is also loaded
 configured. That keeps the control plane the single origin of addressing and means nothing is
 published to a third-party DNS or DHT.
 
+## A LAN with the internet still on
+
+The interesting case is not the one with no WAN. It is a group who are all on manabrew.app *and*
+all in the same room, which is where the design is supposed to pay without anybody asking it to.
+
+Nothing special happens, which is the point. The control plane stays on manabrew.app because it
+is reachable, so the local fallback never fires. `RoomTransport` carries each peer's
+`TransportEndpoint`, and on a native endpoint that includes its **local interface addresses**, so
+a seat dials an `EndpointAddr` that already contains the host's LAN address and iroh selects the
+path across the switch. `TransportStatus` then reports `IrohDirect` with `lan: true`. The game
+runs on the local network while the lobby, identity and room lifecycle stay where they were.
+
+This needs the room's host to have a native endpoint, which is the hosted Forge fleet or a
+desktop Forge room. `Config::for_hosted_room` therefore turns the direct plane **on**, unlike the
+fleet default: a desktop room is where the seats are most likely to be one switch away, and it is
+not part of the capture analysis that keeps it off in production. It carries no relay url, so it
+is direct or nothing, and a peer further away simply stays on the relay.
+
+A room hosted by a webview has no native endpoint and stays on the relay entirely. That is the
+next phase, not a limitation of the model.
+
 ## A LAN with no internet
 
 One desktop hosts the whole session. `start_local_relay(shareOnLan)` binds the embedded relay to

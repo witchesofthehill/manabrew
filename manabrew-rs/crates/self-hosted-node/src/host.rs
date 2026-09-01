@@ -502,7 +502,7 @@ async fn host_one_room(
             plane.set_on_fallback(move |username| {
                 reprime_relay_cache(&reprime_snapshot, &reprime_tx, username);
             });
-            announce_transport(&plane, &outbound_tx).await;
+            announce_transport(&plane, &outbound_tx);
             Some(plane)
         }
         None => None,
@@ -588,7 +588,7 @@ async fn host_one_room(
         };
         if let Some(plane) = &direct {
             plane.clear_game();
-            announce_transport(plane, &outbound_tx).await;
+            announce_transport(plane, &outbound_tx);
         }
         info!(username = %config.username, room_id, "relay connection re-established");
     }
@@ -630,14 +630,24 @@ fn reprime_relay_cache(
     );
 }
 
-async fn announce_transport(
+/// Announces this host's endpoint, off the message loop.
+///
+/// `local_endpoint` waits up to five seconds for a home relay, and a caller in
+/// `handle_server_message` would spend that not reading its relay socket.
+/// `outbound_tx` is an unbounded sender, so the announcement still lands; it
+/// just lands when the address is worth announcing.
+fn announce_transport(
     plane: &Arc<DirectPlane>,
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
 ) {
-    let endpoint = plane.local_endpoint().await;
-    info!(endpoint_id = %endpoint.endpoint_id, "announcing the direct endpoint");
-    let _ = outbound_tx.send(ClientMessage::AnnounceTransport {
-        endpoint: Some(endpoint),
+    let plane = plane.clone();
+    let outbound_tx = outbound_tx.clone();
+    tokio::spawn(async move {
+        let endpoint = plane.local_endpoint().await;
+        info!(endpoint_id = %endpoint.endpoint_id, "announcing the direct endpoint");
+        let _ = outbound_tx.send(ClientMessage::AnnounceTransport {
+            endpoint: Some(endpoint),
+        });
     });
 }
 
@@ -1310,7 +1320,7 @@ async fn handle_server_message(
                     .adopt_relay(iroh_relay_url.as_deref(), iroh_relay_token.as_deref())
                     .await
                 {
-                    announce_transport(plane, outbound_tx).await;
+                    announce_transport(plane, outbound_tx);
                 }
                 plane.apply_roster(&transport_room_id, &topic_secret, host.as_ref(), &members);
                 plane.join_gossip(&client.username).await;

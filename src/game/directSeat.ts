@@ -139,6 +139,10 @@ class TauriSeatBackend implements SeatBackend {
   }
 }
 
+function relayKey(relayUrl: string | null, relayToken: string | null): string {
+  return `${relayUrl ?? ""}\u0000${relayToken ?? ""}`;
+}
+
 /** Only a seat's own answers move; a browser hosting a room still serves its
  *  seats over the relay, which is a later phase. */
 function isSeatEnvelope(state: Record<string, unknown>): boolean {
@@ -225,6 +229,7 @@ export class DirectSeat {
    *  seat. The second would install a second event listener and every host
    *  envelope would arrive twice. */
   private binding: Promise<unknown | null> | null = null;
+  private installedRelay: string | null = null;
   private active = false;
 
   constructor(
@@ -262,6 +267,9 @@ export class DirectSeat {
     try {
       const endpoint = await backend.start(this.username, this.relayUrl, this.relayToken);
       this.backend = backend;
+      // Starting installed one, so the next broadcast carrying the same token
+      // has nothing to do.
+      this.installedRelay = relayKey(this.relayUrl, this.relayToken);
       return endpoint;
     } catch (error) {
       console.warn("[direct] no direct data plane on this build:", error);
@@ -270,12 +278,19 @@ export class DirectSeat {
   }
 
   /** Renews the room token this seat bound with. A seat outlives its token and
-   *  a relay reconnect past the TTL is refused, so every roster refreshes it. */
+   *  a relay reconnect past the TTL is refused, so every roster offers it.
+   *
+   *  Skipped when nothing changed. Replacing the relay config schedules a full
+   *  network re-probe, and the relay re-broadcasts on every join and leave; the
+   *  token is stable across broadcasts until it nears expiry, which is what
+   *  makes comparing it worth anything. */
   async refreshRelay(relayUrl: string, relayToken: string | null): Promise<void> {
     await this.binding;
-    if (!this.backend) return;
+    const wanted = relayKey(relayUrl, relayToken);
+    if (!this.backend || wanted === this.installedRelay) return;
     try {
       await this.backend.adoptRelay(relayUrl, relayToken);
+      this.installedRelay = wanted;
     } catch (error) {
       console.warn("[direct] could not renew the relay token:", error);
     }

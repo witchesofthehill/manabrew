@@ -67,6 +67,11 @@ pub struct Room {
     /// Room-scoped secret the members derive their gossip topic id from. Minted
     /// once per room; membership, not this secret, is what authorizes a peer.
     pub topic_secret: String,
+    /// The relay token this room hands out, kept so it is the **same string**
+    /// on every broadcast. Minting fresh each time moved the expiry, which made
+    /// every peer re-insert its relay config and re-probe the network on every
+    /// join and leave.
+    iroh_relay_token: Option<String>,
 }
 
 impl Room {
@@ -136,6 +141,7 @@ impl Room {
             humanless_since: None,
             transports: HashMap::new(),
             topic_secret: random_topic_secret(),
+            iroh_relay_token: None,
         }
     }
 
@@ -453,6 +459,19 @@ impl Room {
         members
     }
 
+    /// The token this room's members present to the iroh relay, reused until it
+    /// is close to expiring so peers can tell one broadcast from the next.
+    pub fn relay_token(&mut self) -> String {
+        let fresh = self
+            .iroh_relay_token
+            .as_deref()
+            .is_some_and(crate::iroh_relay::token_is_fresh);
+        if !fresh {
+            self.iroh_relay_token = Some(crate::iroh_relay::mint_token(&self.room_id));
+        }
+        self.iroh_relay_token.clone().unwrap_or_default()
+    }
+
     pub fn transport_host(&self) -> Option<TransportMember> {
         self.transport_members().into_iter().find(|m| m.host)
     }
@@ -608,6 +627,26 @@ mod tests {
 
         assert!(r.set_transport("human", None));
         assert!(r.transport_members().is_empty());
+    }
+
+    #[test]
+    fn a_room_hands_out_the_same_relay_token_every_time() {
+        let mut room = room(false);
+        let first = room.relay_token();
+        assert_eq!(
+            first,
+            room.relay_token(),
+            "a token that moves on every broadcast makes every member re-insert \
+             its relay config, which schedules a full net report each time"
+        );
+
+        // Near expiry it is replaced, which is the only time a member should be
+        // asked to do that work.
+        room.iroh_relay_token = Some(format!("{}.{}.dead", room.room_id, 1u64));
+        assert_ne!(
+            room.relay_token(),
+            format!("{}.{}.dead", room.room_id, 1u64)
+        );
     }
 
     #[test]

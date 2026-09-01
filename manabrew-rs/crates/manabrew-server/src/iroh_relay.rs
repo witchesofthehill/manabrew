@@ -56,6 +56,23 @@ fn signing_key() -> &'static hmac::Key {
     })
 }
 
+/// Re-mint once a token is inside this of expiring. Well clear of a game, and
+/// it is what keeps the string stable across broadcasts.
+pub const TOKEN_RENEW_BEFORE_SECS: u64 = 60 * 60;
+
+/// Whether a token is worth keeping rather than replacing. A token that changes
+/// on every broadcast forces every peer to re-insert its relay config, and
+/// `Endpoint::insert_relay` is not a config swap: it sends `RelayMapChange`,
+/// which `UpdateReason::is_major` makes a full net report. A lobby where people
+/// drift in and out would re-probe the network on every join and leave.
+pub fn token_is_fresh(token: &str) -> bool {
+    token
+        .rsplit('.')
+        .nth(1)
+        .and_then(|expiry| expiry.parse::<u64>().ok())
+        .is_some_and(|expiry| expiry > now_secs() + TOKEN_RENEW_BEFORE_SECS)
+}
+
 /// `<room>.<expiry>.<mac>`. The room id is carried so the mac can be recomputed
 /// without the relay storing anything, which means nothing to clean up and no
 /// state to get out of step with the lobby.
@@ -265,6 +282,18 @@ mod tests {
         );
 
         let _ = server.shutdown().await;
+    }
+
+    #[test]
+    fn a_token_is_reused_until_it_is_close_to_expiring() {
+        assert!(token_is_fresh(&mint_token("room-1")));
+        let stale = format!(
+            "room-1.{}.deadbeef",
+            now_secs() + TOKEN_RENEW_BEFORE_SECS - 60
+        );
+        assert!(!token_is_fresh(&stale));
+        assert!(!token_is_fresh(&format!("room-1.{}.deadbeef", now_secs())));
+        assert!(!token_is_fresh("not-a-token"));
     }
 
     #[test]

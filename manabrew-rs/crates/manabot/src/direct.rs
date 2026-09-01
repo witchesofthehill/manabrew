@@ -22,6 +22,10 @@ pub struct DirectSeat {
     /// The configured url, used only when the control plane names none. It
     /// carries no token, so a gated relay refuses it.
     fallback_relay: Option<String>,
+    /// What is currently installed, so an unchanged relay is not re-inserted.
+    /// `insert_relay` schedules a full net report, and the relay re-broadcasts
+    /// on every join and leave.
+    installed: Option<(String, Option<String>)>,
     sender: Option<GameSender>,
     receiver: Option<GameReceiver>,
     announced: bool,
@@ -43,6 +47,7 @@ impl DirectSeat {
                 username: username.to_string(),
                 has_relay: false,
                 fallback_relay: iroh_relay_url.map(str::to_string),
+                installed: None,
                 sender: None,
                 receiver: None,
                 announced: false,
@@ -68,16 +73,23 @@ impl DirectSeat {
         let Some(url) = url.or(self.fallback_relay.as_deref()) else {
             return false;
         };
+        let wanted = (url.to_string(), token.map(str::to_string));
+        if self.installed.as_ref() == Some(&wanted) {
+            return false;
+        }
         let url = url.to_string();
         if let Err(error) = self.endpoint.adopt_relay(&url, token).await {
             warn!(%error, url, "control plane named an unusable relay");
             return false;
         }
+        self.installed = Some(wanted);
         let first = !self.has_relay;
         self.has_relay = true;
-        if first {
-            info!(url, "adopted the relay the control plane named");
-        }
+        info!(
+            url,
+            renewed = !first,
+            "adopted the relay the control plane named"
+        );
         first
     }
 

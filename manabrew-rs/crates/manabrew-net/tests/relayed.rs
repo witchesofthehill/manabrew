@@ -85,3 +85,49 @@ async fn a_seat_with_no_direct_path_still_reaches_the_host() {
     guest.shutdown().await;
     let _ = relay.shutdown().await;
 }
+
+/// The production shape for a room hosted from somebody's desktop: the host
+/// binds direct only, because it has no relay to be told about until it joins a
+/// room, and then takes the one the control plane names. Without that a seat
+/// that cannot reach it directly has no path to it at all.
+#[tokio::test]
+async fn a_host_that_bound_without_a_relay_can_adopt_one() {
+    let (relay, relay_url) = spawn_relay().await;
+
+    let (host, mut seats) = NetEndpoint::bind(NetConfig::default())
+        .await
+        .expect("bind host");
+    assert!(
+        !host.endpoint().addr().addrs.iter().any(|a| a.is_relay()),
+        "the host starts with no relay to offer"
+    );
+
+    host.adopt_relay(&relay_url).await.expect("adopt relay");
+    host.wait_online(Duration::from_secs(10)).await;
+    assert!(
+        host.endpoint().addr().addrs.iter().any(|a| a.is_relay()),
+        "after adopting, the address it announces carries a way to reach it"
+    );
+
+    let mut guest_config = NetConfig::with_relay(&relay_url).unwrap();
+    guest_config.relay_only = true;
+    let (guest, _) = NetEndpoint::bind(guest_config).await.expect("bind guest");
+    guest.wait_online(Duration::from_secs(10)).await;
+
+    let members = vec![member(&host, "hostess", true), member(&guest, "bob", false)];
+    let roster = |m: &[TransportMember]| Roster::new(ROOM, TOPIC_SECRET, None, m).unwrap();
+    host.set_roster(roster(&members));
+    guest.set_roster(roster(&members));
+
+    let guest_channel = guest.connect_to_host("bob").await.expect("connect");
+    let seat = tokio::time::timeout(Duration::from_secs(15), seats.recv())
+        .await
+        .expect("host accepted in time")
+        .expect("seat");
+    assert_eq!(seat.username, "bob");
+    assert_eq!(guest_channel.status().kind, TransportKind::IrohRelayed);
+
+    host.shutdown().await;
+    guest.shutdown().await;
+    let _ = relay.shutdown().await;
+}

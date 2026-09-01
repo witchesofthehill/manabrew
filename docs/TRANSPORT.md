@@ -276,6 +276,15 @@ from the roster. Gossip dials by endpoint id alone, so the roster is also loaded
 configured. That keeps the control plane the single origin of addressing and means nothing is
 published to a third-party DNS or DHT.
 
+A host binds with no relay url and then takes the one the control plane names in `RoomTransport`
+(`NetEndpoint::adopt_relay`), announcing itself again because its address has changed. Without
+that, a seat that cannot reach it directly has no path to it at all, which is most of the
+internet.
+
+That adoption is why an endpoint with no relay binds with an **empty relay map** rather than
+`RelayMode::Disabled`. Both mean "no relay for now", but `Disabled` builds no relay transport, so
+a relay inserted later has nothing to run it. `relayed.rs` pins the whole sequence.
+
 ## Manual test, two machines on one LAN
 
 Phase 1 exercises the primitives, not production game traffic, so this checks the transport

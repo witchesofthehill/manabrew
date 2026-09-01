@@ -51,7 +51,7 @@ pub struct DirectPlane {
     endpoint: NetEndpoint,
     seats: SeatTable,
     gossip_joined: AtomicBool,
-    has_relay: bool,
+    has_relay: AtomicBool,
 }
 
 impl DirectPlane {
@@ -81,7 +81,7 @@ impl DirectPlane {
                         endpoint,
                         seats: SeatTable::default(),
                         gossip_joined: AtomicBool::new(false),
-                        has_relay: config.iroh_relay_url.is_some(),
+                        has_relay: AtomicBool::new(config.iroh_relay_url.is_some()),
                     },
                     seats,
                 ))
@@ -99,12 +99,31 @@ impl DirectPlane {
     pub async fn local_endpoint(&self) -> TransportEndpoint {
         // Without a relay configured there is no home relay to wait for, and
         // waiting would delay hosting the room by the whole timeout.
-        if self.has_relay {
+        if self.has_relay.load(Ordering::SeqCst) {
             self.endpoint
                 .wait_online(std::time::Duration::from_secs(5))
                 .await;
         }
         self.endpoint.local()
+    }
+
+    /// Takes the relay the control plane named, once, for an endpoint that
+    /// bound without one. Returns true when the endpoint's address changed and
+    /// therefore has to be announced again.
+    pub async fn adopt_relay(&self, url: &str) -> bool {
+        if self.has_relay.swap(true, Ordering::SeqCst) {
+            return false;
+        }
+        match self.endpoint.adopt_relay(url).await {
+            Ok(()) => {
+                info!(url, "adopted the relay the control plane named");
+                true
+            }
+            Err(error) => {
+                warn!(%error, url, "control plane named an unusable relay");
+                false
+            }
+        }
     }
 
     pub fn apply_roster(

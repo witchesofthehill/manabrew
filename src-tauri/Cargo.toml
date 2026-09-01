@@ -42,9 +42,22 @@ manabrew-agent-interface = { path = "../manabrew-rs/crates/manabrew-agent-interf
 manabrew-protocol = { path = "../manabrew-rs/crates/manabrew-protocol" }
 forge-limited = { path = "../manabrew-rs/crates/forge-limited" }
 tauri-plugin-http = "2.5.9"
+# Already compiled for manabrew-server at the same version and TLS backend, so
+# the card-art cache filling itself costs no new build.
+reqwest = { version = "0.12", default-features = false, features = [
+    "rustls-tls",
+    "json",
+    "stream",
+] }
+# Scryfall's bulk card list is gzipped JSON Lines, streamed rather than held.
+flate2 = "1"
+futures-util = "0.3"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 self-hosted-node = { path = "../manabrew-rs/crates/self-hosted-node", default-features = false, features = [
     "graal-forge",
 ], optional = true }
 manabrew-server = { path = "../manabrew-rs/crates/manabrew-server", optional = true }
+
+[dev-dependencies]
+tempfile = "3"

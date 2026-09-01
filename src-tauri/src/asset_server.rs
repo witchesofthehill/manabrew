@@ -50,7 +50,11 @@ fn start_asset_server(app: &tauri::AppHandle) -> Option<u16> {
                 continue;
             }
 
-            let raw = request.url();
+            let raw = request.url().to_string();
+            if let Some(key) = crate::image_cache::key_from_request_path(&raw) {
+                serve_card_art(request, key);
+                continue;
+            }
             let path = raw.split('?').next().unwrap_or("").trim_start_matches('/');
             let lookup = if path.is_empty() { "index.html" } else { path };
 
@@ -84,6 +88,33 @@ fn start_asset_server(app: &tauri::AppHandle) -> Option<u16> {
     });
 
     Some(ASSET_SERVER_PORT)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn serve_card_art(request: tiny_http::Request, key: &str) {
+    let bytes = crate::image_cache::cache().and_then(|cache| {
+        tauri::async_runtime::block_on(async move { cache.get_or_fetch(key).await })
+    });
+    match bytes {
+        Some(bytes) => {
+            let mime = crate::image_cache::mime_for(key);
+            let mut response = tiny_http::Response::from_data(bytes);
+            for (name, value) in [
+                ("Content-Type", mime),
+                ("Cross-Origin-Resource-Policy", "same-origin"),
+                ("Cache-Control", "public, max-age=31536000, immutable"),
+            ] {
+                if let Ok(header) = tiny_http::Header::from_bytes(name.as_bytes(), value.as_bytes())
+                {
+                    response.add_header(header);
+                }
+            }
+            let _ = request.respond(response);
+        }
+        None => {
+            let _ = request.respond(tiny_http::Response::empty(404));
+        }
+    }
 }
 
 pub fn main_window_url(app: &tauri::AppHandle) -> tauri::WebviewUrl {

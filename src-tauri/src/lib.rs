@@ -1,10 +1,13 @@
 #![allow(clippy::too_many_arguments)]
 
+#[cfg(feature = "forge-room")]
+mod art_lan_server;
 mod asset_server;
 mod card_db;
 mod commands;
 mod direct_seat;
 mod forge_room;
+mod image_cache;
 mod lan_discovery;
 mod limited_bootstrap;
 mod limited_commands;
@@ -57,6 +60,9 @@ pub fn run() {
                 }
             }
 
+            // Before the asset server, which serves `/scryfall-img/` out of it.
+            image_cache::init(app.handle());
+
             let url = asset_server::main_window_url(app.handle());
             let builder = tauri::WebviewWindowBuilder::new(app, "main", url);
             // Sizing/decoration builder methods are desktop-only in tauri v2;
@@ -86,6 +92,12 @@ pub fn run() {
             local_relay::local_relay_running,
             local_relay::stop_local_relay,
             lan_discovery::discover_lan_rooms,
+            image_cache::preseed_card_art,
+            image_cache::download_all_card_art,
+            image_cache::cancel_card_art_download,
+            image_cache::card_art_cache_stats,
+            image_cache::clear_card_art_cache,
+            image_cache::forget_downloaded_card_art,
             direct_seat::direct_seat_start,
             direct_seat::direct_seat_roster,
             direct_seat::direct_seat_send,

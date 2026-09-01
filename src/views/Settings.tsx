@@ -26,6 +26,7 @@ import { PromptPreferencesPanel } from "@/components/prompts/internal/PromptPref
 import { KeybindingsPanel } from "@/components/settings/KeybindingsPanel";
 import { AccountSection } from "@/components/settings/AccountSection";
 import { MyAssetsSection } from "@/components/settings/MyAssetsSection";
+import { CardArtDownloadSection } from "@/components/settings/CardArtDownloadSection";
 import { PreferenceCard } from "@/components/settings/PreferenceCard";
 import { toPickerHexColor } from "@/themes/gameTheme";
 import type { GameThemeColors } from "@/themes/gameTheme";
@@ -596,6 +597,7 @@ export default function Settings() {
       {activeTab === "cache" && (
         <section className="space-y-4">
           <h2 className="text-lg font-semibold">Cache</h2>
+          <CardArtDownloadSection />
           <div className="rounded-lg border bg-card/40 p-4 space-y-3 max-w-xl">
             <Label>Card Image Cache</Label>
             <p className="text-xs text-muted-foreground">

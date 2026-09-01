@@ -17,6 +17,8 @@ pub struct LanRoom {
     pub name: String,
     pub host: String,
     pub port: u16,
+    /// Where this host serves its card art, when it is serving any.
+    pub art_port: Option<u16>,
 }
 
 #[cfg(feature = "forge-room")]
@@ -36,7 +38,7 @@ impl Drop for Advertisement {
 /// Publishes this machine as a room host. The password is deliberately not in
 /// the record: discovery says where a room is, never how to enter it.
 #[cfg(feature = "forge-room")]
-pub fn advertise(host: &str, port: u16) -> Result<Advertisement, String> {
+pub fn advertise(host: &str, port: u16, art_port: Option<u16>) -> Result<Advertisement, String> {
     let daemon = mdns_sd::ServiceDaemon::new().map_err(|e| format!("mdns daemon: {e}"))?;
     let label = hostname();
     let instance = format!("{label}-{port}");
@@ -46,7 +48,7 @@ pub fn advertise(host: &str, port: u16) -> Result<Advertisement, String> {
         &format!("{instance}.local."),
         host,
         port,
-        &[("name", label.as_str())][..],
+        &properties(&label, art_port)[..],
     )
     .map_err(|e| format!("mdns service: {e}"))?;
     let full_name = service.get_fullname().to_string();
@@ -54,6 +56,15 @@ pub fn advertise(host: &str, port: u16) -> Result<Advertisement, String> {
         .register(service)
         .map_err(|e| format!("mdns register: {e}"))?;
     Ok(Advertisement { daemon, full_name })
+}
+
+#[cfg(feature = "forge-room")]
+fn properties(label: &str, art_port: Option<u16>) -> Vec<(String, String)> {
+    let mut properties = vec![("name".to_string(), label.to_string())];
+    if let Some(port) = art_port {
+        properties.push(("art".to_string(), port.to_string()));
+    }
+    properties
 }
 
 #[cfg(feature = "forge-room")]
@@ -104,6 +115,9 @@ pub async fn discover_lan_rooms(timeout_ms: Option<u64>) -> Result<Vec<LanRoom>,
                             .to_string(),
                         host,
                         port,
+                        art_port: info
+                            .get_property_val_str("art")
+                            .and_then(|value| value.parse().ok()),
                     });
                 }
                 Ok(_) => {}

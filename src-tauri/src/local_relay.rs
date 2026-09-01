@@ -18,6 +18,10 @@ pub struct LocalRelayInfo {
     /// still reach the host without anything leaving the network.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub iroh_relay_url: Option<String>,
+    /// Where the other seats read this machine's card art, so only one of them
+    /// has to have gone online. `None` when there is nothing to serve.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub art_port: Option<u16>,
 }
 
 #[cfg(feature = "forge-room")]
@@ -28,6 +32,7 @@ struct RunningRelay {
     /// Held so it lives as long as the room, not for its methods.
     iroh: Option<manabrew_server::iroh_relay::Server>,
     discovery: Option<crate::lan_discovery::Advertisement>,
+    art: Option<crate::art_lan_server::ArtServer>,
 }
 
 /// Holds the relay this app is running (one at a time), so Forge play-vs-AI
@@ -139,17 +144,23 @@ pub async fn start_local_relay(
             shutdown.clone(),
         ));
 
+        // Only while sharing: art is world-readable to the subnet, which is a
+        // different trust decision from the password-gated relay.
+        let art = lan_host
+            .as_ref()
+            .and_then(|_| crate::art_lan_server::spawn(bind_ip));
         let info = LocalRelayInfo {
             host: lan_host.clone().unwrap_or_else(|| "127.0.0.1".to_string()),
             port,
             password,
             lan_host: lan_host.clone(),
             iroh_relay_url,
+            art_port: art.as_ref().map(|server| server.port),
         };
         let discovery = match &lan_host {
             // A room without discovery is still a room: the host can read its
             // address off the screen and the others type it once.
-            Some(host) => crate::lan_discovery::advertise(host, port)
+            Some(host) => crate::lan_discovery::advertise(host, port, info.art_port)
                 .inspect_err(|e| eprintln!("[lan] not advertising this room: {e}"))
                 .ok(),
             None => None,
@@ -167,6 +178,7 @@ pub async fn start_local_relay(
             handle,
             iroh,
             discovery,
+            art,
         });
         Ok(info)
     }
@@ -199,6 +211,7 @@ pub async fn stop_local_relay(relay: State<'_, LocalRelayHost>) -> Result<(), St
             running.shutdown.notify_waiters();
             running.handle.abort();
             drop(running.discovery);
+            drop(running.art);
             if let Some(iroh) = running.iroh {
                 let _ = iroh.shutdown().await;
             }

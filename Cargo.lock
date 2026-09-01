@@ -5191,10 +5191,12 @@ dependencies = [
 name = "manabrew"
 version = "3.32.2"
 dependencies = [
+ "flate2",
  "forge-carddb",
  "forge-cardset-archive",
  "forge-foundation",
  "forge-limited",
+ "futures-util",
  "manabrew-agent-interface",
  "manabrew-engine",
  "manabrew-net",
@@ -5203,6 +5205,7 @@ dependencies = [
  "mdns-sd",
  "memmap2",
  "rand 0.8.6",
+ "reqwest 0.12.28",
  "self-hosted-node",
  "serde",
  "serde_json",
@@ -5212,6 +5215,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-process",
  "tauri-plugin-updater",
+ "tempfile",
  "tiny_http",
  "tokio",
  "walkdir",
@@ -7952,6 +7956,7 @@ dependencies = [
  "cookie_store",
  "encoding_rs",
  "futures-core",
+ "futures-util",
  "h2 0.4.13",
  "http 1.4.0",
  "http-body 1.0.1",
@@ -7976,12 +7981,14 @@ dependencies = [
  "tokio",
  "tokio-native-tls",
  "tokio-rustls 0.26.4",
+ "tokio-util",
  "tower 0.5.3",
  "tower-http 0.6.8",
  "tower-service",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm-streams 0.4.2",
  "web-sys",
  "webpki-roots",
 ]
@@ -8021,7 +8028,7 @@ dependencies = [
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-streams",
+ "wasm-streams 0.5.0",
  "web-sys",
 ]
 
@@ -11009,6 +11016,19 @@ dependencies = [
  "indexmap 2.13.0",
  "wasm-encoder",
  "wasmparser",
+]
+
+[[package]]
+name = "wasm-streams"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15053d8d85c7eccdbefef60f06769760a563c7f0a9d6902a13d35c7800b0ad65"
+dependencies = [
+ "futures-util",
+ "js-sys",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]

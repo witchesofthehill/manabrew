@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.33.2](https://github.com/witchesofthehill/manabrew/compare/v3.33.1...v3.33.2) (2026-09-01)
+
+### Performance
+
+* **engine:** stop building rules text the client never shows ([#829](https://github.com/witchesofthehill/manabrew/issues/829)) ([d6791a1](https://github.com/witchesofthehill/manabrew/commit/d6791a115a99cc5a96c22702f108ce0dae44e3e5))
+
 ## [3.33.1](https://github.com/witchesofthehill/manabrew/compare/v3.33.0...v3.33.1) (2026-09-01)
 
 ### Fixes

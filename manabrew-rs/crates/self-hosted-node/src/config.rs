@@ -175,7 +175,14 @@ impl Config {
             max_players,
             max_games: 1,
             state_delta: false,
-            iroh_enabled: false,
+            // On for a desktop-hosted room, unlike the fleet. This is where the
+            // seats are most likely to be one switch away, and a room hosted
+            // from somebody's machine is not part of the capture analysis that
+            // keeps it off in production. No relay url, so it is direct or
+            // nothing: peers on the same network get a direct path, and anyone
+            // further away stays on the relay, which is the right answer for
+            // both.
+            iroh_enabled: true,
             iroh_relay_url: None,
             format,
             auto_start: false,

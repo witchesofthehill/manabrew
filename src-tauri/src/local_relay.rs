@@ -85,27 +85,35 @@ pub async fn start_local_relay(
             return Ok(running.info.clone());
         }
 
-        let bind_ip = std::net::IpAddr::from(if share_on_lan {
-            [0, 0, 0, 0]
-        } else {
-            [127, 0, 0, 1]
-        });
+        // Bound to the one interface the neighbours are on rather than every
+        // interface this machine has, so sharing a room on a home network does
+        // not also open a lobby on whatever else the machine is attached to.
+        let lan_host = if share_on_lan { lan_address() } else { None };
+        let bind_ip = match &lan_host {
+            Some(host) => host.parse().unwrap_or(std::net::IpAddr::from([0, 0, 0, 0])),
+            None => std::net::IpAddr::from([127, 0, 0, 1]),
+        };
         let listener = tokio::net::TcpListener::bind((bind_ip, 0))
             .await
             .map_err(|e| format!("failed to bind the local relay: {e}"))?;
         let port = listener.local_addr().map_err(|e| e.to_string())?.port();
 
-        use rand::{distributions::Alphanumeric, Rng};
-        let password: String = rand::thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(32)
-            .map(char::from)
-            .collect();
+        // A shared room uses the well-known LAN key; a loopback one may as well
+        // use a random one, since nothing else can reach it anyway.
+        let password = if share_on_lan {
+            crate::lan_discovery::LAN_RELAY_KEY.to_string()
+        } else {
+            use rand::{distributions::Alphanumeric, Rng};
+            rand::thread_rng()
+                .sample_iter(&Alphanumeric)
+                .take(32)
+                .map(char::from)
+                .collect()
+        };
 
         // Sharing means this machine serves the whole session, iroh relay
         // included, so a seat with no direct path is still served from here
         // rather than from the internet.
-        let lan_host = if share_on_lan { lan_address() } else { None };
         let (iroh, iroh_relay_url) = match &lan_host {
             Some(host) => {
                 match manabrew_server::iroh_relay::spawn(std::net::SocketAddr::from((bind_ip, 0)))

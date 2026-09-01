@@ -22,6 +22,8 @@ interface UserListProps {
   currentPlayerId: string | null;
   currentUsername: string | null;
   connectionState: ConnectionState;
+  /** Where this connection actually goes, when that is not the usual relay. */
+  connectionDetail?: string;
   onJoinRoom: (roomId: string, password?: string) => Promise<void>;
 }
 
@@ -97,6 +99,7 @@ export function UserList({
   currentPlayerId,
   currentUsername,
   connectionState,
+  connectionDetail,
   onJoinRoom,
 }: UserListProps) {
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
@@ -180,7 +183,9 @@ export function UserList({
       >
         <div className="relative shrink-0">
           <Avatar className="h-7 w-7">
-            {player.avatar_url && <AvatarImage src={player.avatar_url} alt="" />}
+            {player.avatar_url && (
+              <AvatarImage src={player.avatar_url} alt="" crossOrigin="anonymous" />
+            )}
             <AvatarFallback className="text-xs">
               {stripUsernameTag(player.username).slice(0, 1).toUpperCase()}
             </AvatarFallback>
@@ -206,7 +211,7 @@ export function UserList({
               <status.Icon
                 className={cn("h-2.5 w-3.5", connectionState === "connecting" && "animate-spin")}
               />
-              {status.label}
+              {connectionDetail ?? status.label}
             </span>
           ) : (
             <span className="text-[10px] text-muted-foreground" title={room?.room_name}>

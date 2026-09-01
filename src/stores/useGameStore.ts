@@ -5,7 +5,11 @@ import {
   reportEngineStats,
   roomEngineLabel,
 } from "@/lib/engineStatsReport";
-import { abandonOfflineGame, beginOfflineGame } from "@/lib/offlinePlayRecord";
+import {
+  abandonOfflineGame,
+  beginOfflineGame,
+  currentOfflineGameId,
+} from "@/lib/offlinePlayRecord";
 import { announceLocalGame, clearLocalGame } from "@/lib/localGamePresence";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
@@ -631,7 +635,7 @@ export const useGameStore = create<GameState>()(
           seats: Object.keys(get().gameDecks).length || 2,
           format: get().gameConfig?.formatId ?? null,
           endReason: get().gameView?.gameOver ? "gameOver" : "left",
-          gameId: useServerStore.getState().gameId ?? null,
+          gameId: useServerStore.getState().gameId ?? currentOfflineGameId(),
           send: wasMultiplayer
             ? async (stats, gameId) => {
                 await getPlatform().server?.reportEngineStats(stats, gameId);

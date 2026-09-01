@@ -1,5 +1,29 @@
 # Changelog
 
+## [3.33.0](https://github.com/witchesofthehill/manabrew/compare/v3.32.5...v3.33.0) (2026-09-01)
+
+### Features
+
+* **play:** add four-player offline commander ([ba2676b](https://github.com/witchesofthehill/manabrew/commit/ba2676b9996ee129ba8856fc5516082382e5cae5))
+
+## [3.32.5](https://github.com/witchesofthehill/manabrew/compare/v3.32.4...v3.32.5) (2026-09-01)
+
+### Fixes
+
+* **telemetry:** keep every engine report, and name the game it came from ([#816](https://github.com/witchesofthehill/manabrew/issues/816)) ([e6f3786](https://github.com/witchesofthehill/manabrew/commit/e6f37861d5aa791691b7bbf5e2b1fc3a17430d04))
+
+## [3.32.4](https://github.com/witchesofthehill/manabrew/compare/v3.32.3...v3.32.4) (2026-08-31)
+
+### Fixes
+
+* **editor:** strip draft flag before saving a deck to the account ([4f63f8d](https://github.com/witchesofthehill/manabrew/commit/4f63f8dfce6e4819cbc0145dac2316b6451d6715))
+
+## [3.32.3](https://github.com/witchesofthehill/manabrew/compare/v3.32.2...v3.32.3) (2026-08-31)
+
+### Fixes
+
+* more CORS and bot loop on propaganda ([#810](https://github.com/witchesofthehill/manabrew/issues/810)) ([6341d51](https://github.com/witchesofthehill/manabrew/commit/6341d5155532ae179ef790347c8ac73523ca1fef))
+
 ## [3.32.2](https://github.com/witchesofthehill/manabrew/compare/v3.32.1...v3.32.2) (2026-08-31)
 
 ### Fixes

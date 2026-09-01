@@ -20,6 +20,7 @@ const meta = {
   multiplayer: false,
   endReason: "gameOver" as const,
   reportId: "11111111-2222-3333-4444-555555555555",
+  gameId: "66666666-7777-8888-9999-aaaaaaaaaaaa",
 };
 
 describe("engine telemetry", () => {
@@ -58,6 +59,8 @@ describe("engine telemetry", () => {
     expect(stats?.byType[0]?.type).toBe("chooseAction");
     expect(stats?.clientVersion).toBe("test");
     expect(stats?.engine).toBe("forge-wasm");
+    // Without this the timings cannot be joined to what was played.
+    expect(stats?.gameId).toBe("66666666-7777-8888-9999-aaaaaaaaaaaa");
   });
 
   it("reports nothing for a game that barely started", () => {

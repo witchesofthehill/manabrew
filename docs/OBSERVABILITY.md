@@ -114,11 +114,11 @@ Turnaround is measured on the client: the answer leaving to the next prompt land
 
 `engine` names what ran, not what the room asked for: `forge-hosted` (a self-hosted node), `forge-desktop` (the desktop build hosting its own room), `forge-wasm` (the browser build), `manabrew`, `ironsmith`. The label is fixed when the game starts, because a hosted game is driven through the Manabrew runtime like any other and cannot be recognised afterwards.
 
-The last two panels are the ones to read before believing any of the others. A report that is never sent, or that arrives after the seat is gone, leaves no row anywhere: the engine panels above simply undercount, silently and without a gap in the series.
+The last two panels are the ones to read before believing any of the others. A report that is never sent leaves no row anywhere and the engine panels above simply undercount, silently and without a gap in the series. A report that arrives after the seat has left its room is kept and counted as `accepted_roomless`: the relay used to drop those, which cost about two reports in three on the hosted path.
 
 ### Offline games
 
-An offline game never touches the relay, so it has no `game_id` and cannot be counted from relay traffic. The client reports it to the hub instead (`POST /api/stats/game`, table `offline_play_games`), and `scripts/ingest-events.py` expands it into `games`, `game_players`, `decks` and `deck_cards` alongside relay games. `games.source` separates the two (`relay` or `offline`) and `games.reported_at` is the ingest watermark; rows predating the column are relay games.
+An offline game never touches the relay, so no relay `game_id` exists for it and it cannot be counted from relay traffic. The client mints its own id at launch and reports the game to the hub instead (`POST /api/stats/game`, table `offline_play_games`), and `scripts/ingest-events.py` expands it into `games`, `game_players`, `decks` and `deck_cards` alongside relay games under that id. The engine report for the same game carries the id too, so `engine_stats.game_id` joins to `games.game_id` on both routes. `games.source` separates the two (`relay` or `offline`) and `games.reported_at` is the ingest watermark; rows predating the column are relay games.
 
 This restores what the hosted nodes recorded for Play vs AI before the engine moved into the browser, so those games count again in duration, completion, format mix, winrate and card popularity. Two caveats. It names players, unlike `engine_play_stats` next to it, which is why `Storage::delete_account` scrubs erased handles out of the offline tables. And a game reports once, at game over or teardown, from a queue that survives a reload: a player who never reopens the app is a game that never arrives.
 

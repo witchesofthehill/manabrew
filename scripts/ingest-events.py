@@ -287,8 +287,10 @@ def ingest_engine_stats(db, ev):
            VALUES ({", ".join("?" * 26)})""",
         (
             # A relay from before the report id was forwarded still identifies a
-            # report well enough to keep re-ingestion idempotent.
-            ev.get("report_id") or f"{ev.get('room_id')}:{ev.get('ts')}",
+            # report well enough to keep re-ingestion idempotent. The room is
+            # absent on a report that outlived its seat's membership, which is
+            # most of them, so the timestamp carries the fallback on its own.
+            ev.get("report_id") or f"{ev.get('room_id') or ''}:{ev.get('ts')}",
             ev.get("ts"),
             "relay",
             ev.get("game_id"),
@@ -649,7 +651,7 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
         ).fetchone()[0]
         engine_reports = hub_rows(
             hub,
-            """SELECT id, reported_at, engine, client_version, platform, format,
+            """SELECT id, reported_at, game_id, engine, client_version, platform, format,
                       seats, multiplayer, duration_s, end_reason, decisions,
                       turnaround_p50, turnaround_p90, turnaround_max,
                       engine_p50, engine_p90, engine_max,
@@ -700,7 +702,7 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
         )
         db.executemany(
             f"""INSERT OR IGNORE INTO engine_stats ({ENGINE_STATS_COLUMNS})
-                VALUES (?, ?, 'hub', NULL, {", ".join("?" * 22)})""",
+                VALUES (?, ?, 'hub', {", ".join("?" * 23)})""",
             engine_reports,
         )
         db.execute("DELETE FROM hub_collection_cards")

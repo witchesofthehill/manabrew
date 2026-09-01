@@ -22,6 +22,21 @@ use tracing::{debug, info, warn};
 
 use crate::config::Config;
 
+/// Where a seat's envelopes go, and how it gets back.
+///
+/// The middle state is the point. A seat whose direct channel died has a board
+/// the relay never saw, so it cannot simply resume relay traffic: the host owes
+/// it a full authoritative state first. `RelayPending` is that debt, and it is
+/// paid before anything else for that seat goes out, because `outbound_tx` is
+/// ordered. The seat acknowledges by answering over the relay, which is the
+/// first thing it does that proves it is reading that path again.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SeatTransport {
+    Direct,
+    RelayPending,
+    Relay,
+}
+
 #[derive(Default)]
 struct TableState {
     /// Seats that dialled in and passed the roster check.
@@ -30,6 +45,9 @@ struct TableState {
     /// the relay announces `GameStarted`, so a seat that connects mid-game does
     /// not migrate a stream that is already in flight.
     active: HashSet<String>,
+    /// Only holds seats that have been on the direct plane this game. A seat
+    /// that never left the relay has no state to track.
+    transport: HashMap<String, SeatTransport>,
     seq: u64,
 }
 
@@ -51,7 +69,7 @@ pub struct DirectPlane {
     endpoint: NetEndpoint,
     seats: SeatTable,
     gossip_joined: AtomicBool,
-    has_relay: bool,
+    has_relay: AtomicBool,
 }
 
 impl DirectPlane {
@@ -81,7 +99,7 @@ impl DirectPlane {
                         endpoint,
                         seats: SeatTable::default(),
                         gossip_joined: AtomicBool::new(false),
-                        has_relay: config.iroh_relay_url.is_some(),
+                        has_relay: AtomicBool::new(config.iroh_relay_url.is_some()),
                     },
                     seats,
                 ))
@@ -99,12 +117,31 @@ impl DirectPlane {
     pub async fn local_endpoint(&self) -> TransportEndpoint {
         // Without a relay configured there is no home relay to wait for, and
         // waiting would delay hosting the room by the whole timeout.
-        if self.has_relay {
+        if self.has_relay.load(Ordering::SeqCst) {
             self.endpoint
                 .wait_online(std::time::Duration::from_secs(5))
                 .await;
         }
         self.endpoint.local()
+    }
+
+    /// Takes the relay the control plane named, once, for an endpoint that
+    /// bound without one. Returns true when the endpoint's address changed and
+    /// therefore has to be announced again.
+    pub async fn adopt_relay(&self, url: &str) -> bool {
+        if self.has_relay.swap(true, Ordering::SeqCst) {
+            return false;
+        }
+        match self.endpoint.adopt_relay(url).await {
+            Ok(()) => {
+                info!(url, "adopted the relay the control plane named");
+                true
+            }
+            Err(error) => {
+                warn!(%error, url, "control plane named an unusable relay");
+                false
+            }
+        }
     }
 
     pub fn apply_roster(
@@ -175,6 +212,10 @@ impl DirectPlane {
         self.seats.set_on_fallback(reprime);
     }
 
+    pub fn note_relay_message(&self, username: &str) {
+        self.seats.note_relay_message(username);
+    }
+
     pub fn transport_report(&self, seats: &[String]) -> Vec<SeatTransportReport> {
         self.seats.transport_report(seats)
     }
@@ -228,18 +269,46 @@ impl SeatTable {
         let was_direct = match self.state.lock() {
             Ok(mut state) => {
                 state.live.remove(username);
-                state.active.remove(username)
+                let was_direct = state.active.remove(username);
+                if was_direct {
+                    state
+                        .transport
+                        .insert(username.to_string(), SeatTransport::RelayPending);
+                }
+                was_direct
             }
             Err(_) => false,
         };
         if !was_direct {
             return;
         }
+        // Queued before this seat's next envelope, because the queue is ordered
+        // and this runs before `try_send` returns false to its caller.
         if let Ok(guard) = self.on_fallback.lock() {
             if let Some(reprime) = guard.as_ref() {
                 reprime(username);
             }
         }
+    }
+
+    /// A seat answered over the relay, which is the acknowledgement: it is
+    /// reading that path again, so the state it was owed arrived.
+    pub fn note_relay_message(&self, username: &str) {
+        if let Ok(mut state) = self.state.lock() {
+            if state.transport.get(username) == Some(&SeatTransport::RelayPending) {
+                state
+                    .transport
+                    .insert(username.to_string(), SeatTransport::Relay);
+                info!(username, "seat is back on the relay");
+            }
+        }
+    }
+
+    pub fn transport_of(&self, username: &str) -> Option<SeatTransport> {
+        self.state
+            .lock()
+            .ok()
+            .and_then(|state| state.transport.get(username).copied())
     }
 
     pub fn set_on_fallback(&self, reprime: impl Fn(&str) + Send + 'static) {
@@ -257,6 +326,11 @@ impl SeatTable {
             .filter(|name| state.live.contains_key(*name))
             .cloned()
             .collect();
+        state.transport = state
+            .active
+            .iter()
+            .map(|name| (name.clone(), SeatTransport::Direct))
+            .collect();
         state.seq = 0;
         let mut frozen: Vec<String> = state.active.iter().cloned().collect();
         frozen.sort();
@@ -266,6 +340,7 @@ impl SeatTable {
     pub fn clear_game(&self) {
         if let Ok(mut state) = self.state.lock() {
             state.active.clear();
+            state.transport.clear();
         }
     }
 
@@ -459,6 +534,43 @@ mod tests {
         );
         assert_eq!(report[0].username, "bob");
         assert_eq!(report[0].transport, "relay", "a relay-backed test channel");
+    }
+
+    #[tokio::test]
+    async fn a_seat_walks_direct_to_relay_pending_to_relay() {
+        let mut seat = seat("bob");
+        let owed: Arc<Mutex<Vec<String>>> = Arc::default();
+        let sink = owed.clone();
+        seat.table
+            .set_on_fallback(move |username| sink.lock().unwrap().push(username.to_string()));
+
+        seat.table.freeze_for_game(&["bob".into()]);
+        assert_eq!(seat.table.transport_of("bob"), Some(SeatTransport::Direct));
+
+        seat.outbound.close();
+        while seat.outbound.try_recv().is_ok() {}
+        assert!(!seat.table.try_send("bob", &envelope()));
+
+        assert_eq!(
+            seat.table.transport_of("bob"),
+            Some(SeatTransport::RelayPending),
+            "the host owes this seat a full state before it resumes"
+        );
+        assert_eq!(owed.lock().unwrap().as_slice(), ["bob"]);
+
+        seat.table.note_relay_message("bob");
+        assert_eq!(
+            seat.table.transport_of("bob"),
+            Some(SeatTransport::Relay),
+            "answering over the relay is the acknowledgement"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_seat_that_never_went_direct_has_no_transport_state() {
+        let table = SeatTable::default();
+        table.note_relay_message("carol");
+        assert_eq!(table.transport_of("carol"), None);
     }
 
     #[tokio::test]

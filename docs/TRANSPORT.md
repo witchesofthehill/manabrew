@@ -255,11 +255,24 @@ the relay, the relay writes it into that game's capture as a line and emits
 the same seam `ReportEngineStats` uses, and the same principle offline play already runs on: the
 party that did the work reports it, and the relay is a route rather than the source of truth.
 
-The replay cache is repaired rather than left stale: the moment a seat leaves the direct plane
-the host re-sends that seat's last full state and pending prompt over the relay. Those are the
-values stored before `patch_against_last` runs, which is what lets them rebuild a cache that
-missed everything in between. Without it a later `stateDelta` patch would be folded onto a base
-the relay never held.
+**Falling back is a state machine, not a switch.** A seat whose direct channel died has a board
+the relay never saw, so it cannot simply resume relay traffic:
+
+```
+direct dies -> RelayPending -> full authoritative seat state over the relay
+            -> seat answers over the relay -> Relay
+```
+
+`RelayPending` is a debt the host owes that seat, and it is paid before anything else for that
+seat goes out: the re-prime is queued inside `drop_seat`, which runs before `try_send` returns
+false to its caller, and `outbound_tx` is ordered. What it sends is the seat's last **full** state
+and pending prompt, the values stored before `patch_against_last` runs, which is what lets them
+rebuild a cache that missed everything in between. Without it a later `stateDelta` patch would be
+folded onto a base the relay never held.
+
+The acknowledgement is the seat's own next envelope over the relay. It needs no new message and
+it proves the thing that matters, which is that the seat is reading that path again. A seat that
+never went direct has no state here at all.
 
 `TransportStatus` reports, per seat: attempted, connected or failed; `TransportKind` of
 `Relay`, `IrohDirect` or `IrohRelayed`; whether the selected path's remote address is
@@ -275,6 +288,49 @@ from the roster. Gossip dials by endpoint id alone, so the roster is also loaded
 `iroh::address_lookup::memory::MemoryLookup` on the endpoint, which is the only address source
 configured. That keeps the control plane the single origin of addressing and means nothing is
 published to a third-party DNS or DHT.
+
+## A LAN with the internet still on
+
+The interesting case is not the one with no WAN. It is a group who are all on manabrew.app *and*
+all in the same room, which is where the design is supposed to pay without anybody asking it to.
+
+Nothing special happens, which is the point. The control plane stays on manabrew.app because it
+is reachable, so the local fallback never fires. `RoomTransport` carries each peer's
+`TransportEndpoint`, and on a native endpoint that includes its **local interface addresses**, so
+a seat dials an `EndpointAddr` that already contains the host's LAN address and iroh selects the
+path across the switch. `TransportStatus` then reports `IrohDirect` with `lan: true`. The game
+runs on the local network while the lobby, identity and room lifecycle stay where they were.
+
+This needs the room's host to have a native endpoint, which is the hosted Forge fleet or a
+desktop Forge room. `Config::for_hosted_room` therefore turns the direct plane **on**, unlike the
+fleet default: a desktop room is where the seats are most likely to be one switch away, and it is
+not part of the capture analysis that keeps it off in production. It binds with no relay url, and then takes the one
+the control plane names in `RoomTransport` (`NetEndpoint::adopt_relay`) and announces itself
+again, because its address has changed. Without that a seat that cannot reach it directly has no
+path to it at all, which is most of the internet.
+
+That adoption is why an endpoint with no relay binds with an **empty relay map** rather than
+`RelayMode::Disabled`. Both mean "no relay for now", but `Disabled` builds no relay transport,
+so a relay inserted later has nothing to run it. `relayed.rs` pins the whole sequence.
+
+A room hosted by a webview has no native endpoint and stays on the relay entirely. That is the
+next phase, not a limitation of the model.
+
+**A browser seat gains nothing from being on the same network, and cannot.** Under `wasm_browser`
+iroh has no IP transports, so a browser has no socket with which to take the LAN path however
+close the host is. Its only route is an iroh relay, and reaching one on the local network is
+blocked for a different reason: a page served from `https://play.manabrew.app` may not open
+`ws://192.168.x.x`, and no header fixes mixed content. So a browser on the same switch as the
+host still plays through a relay over the WAN, and no seat binds an endpoint, or fetches a
+module, until the roster names a host offering a direct plane. The host announces before any seat
+does, so waiting for it costs nothing and saves a megabyte in every room that was always going to
+stay on the relay.
+
+The way out is not configuration. Either the player installs the desktop app, which binds
+natively and does take the LAN path, or a LAN relay is made reachable over `wss` — which needs a
+publicly trusted certificate for a private address, the trick Plex runs with `*.plex.direct`. That
+is DNS and certificate infrastructure we would have to operate, and it is worth doing only if
+browser players on a LAN ever become a case worth serving.
 
 ## A LAN with no internet
 
@@ -296,6 +352,13 @@ that a LAN should never need.
 `src/game/directSeat.ts` holds both backends behind one seam and picks on
 `getPlatform().type`. Nothing above it knows which it got, which is the same reason the inbound
 envelope is handed to `handleServerMessage` as a `StateUpdate`.
+
+Nobody types a key. A shared room runs on a well-known one, handed back with the room by
+discovery, because that key was never access control: `Authenticate` checks it and then runs the
+real handshake, an identity proof that works offline since unsigned self-minted tokens are
+accepted with no hub configured. The public relay already ships its own key to every browser in
+`config.js`. Privacy for a particular room is `CreateRoom.password`, which already exists and
+already has UI.
 
 Card art is the one thing still missing offline; there is no image cache today (#811).
 
@@ -329,8 +392,13 @@ itself:
   that dials, which is what puts real games on the direct plane on the preview.
   See `docs/agents/SELF_HOSTED_NODE.md`.
 - **Phase 3 (done).** The deployment's own iroh relay, hosted by `manabrew-server`, and
-  replay-cache re-priming on fallback. What is left here is live migration at a resync boundary,
-  which is optional: transport is chosen before `GameStarted` and never changes mid-game.
+  replay-cache re-priming on fallback. Production runs the relay from the next deploy
+  (`MANABREW_IROH_RELAY_PORT`, `handle /relay*` on `relay.manabrew.app`, which the deploy's own
+  ingress reload applies). **Running it is not the same as moving traffic onto it:** the fleet
+  keeps `SELF_HOSTED_NODE_IROH` off, so what it serves is the fallback for hosts that do offer a
+  direct plane, which today means a room hosted from somebody's desktop. What is left here is live migration at a resync boundary,
+  which is optional: transport is chosen before `GameStarted` and never changes mid-game, and the
+  fallback direction is already a barrier rather than a switch.
 - **Phase 4 (partly done).** The browser seat: `manabrew-net-wasm`, the lazily-imported module,
   and the client wiring. What is **not** verified is a real browser game over it, because that
   needs a browser; the Rust and TypeScript both build and lint, and the relay-only path is

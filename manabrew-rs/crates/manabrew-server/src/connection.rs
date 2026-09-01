@@ -1356,16 +1356,21 @@ fn handle_client_message(
                 );
                 return;
             }
+            // The relay path carries the game on the envelope; the hub path has
+            // only the report, so newer clients put it there too.
+            let game_id = game_id.or_else(|| stats.linked_game_id().map(str::to_string));
+            // A report is written at game over, and by then the seat is often
+            // out of the room already: the client has left for the lobby, the
+            // room has been recycled, or the zombie sweep has reset a hosted
+            // one. The room was never more than a label on the event, and
+            // nothing downstream stores it, so requiring one threw away two
+            // reports for every one it kept.
             let room_id = state.players.get(player_id).and_then(|p| p.room_id.clone());
-            let Some(room_id) = room_id else {
-                metrics::record_engine_report(metrics::ENGINE_REPORT_OUTSIDE_ROOM);
-                debug!(
-                    "[analytics] '{}' reported engine stats outside a room",
-                    username
-                );
-                return;
-            };
-            metrics::record_engine_report(metrics::ENGINE_REPORT_ACCEPTED);
+            metrics::record_engine_report(if room_id.is_some() {
+                metrics::ENGINE_REPORT_ACCEPTED
+            } else {
+                metrics::ENGINE_REPORT_ROOMLESS
+            });
             state.analytics.emit(AnalyticsEvent::EngineStats {
                 ts: analytics::now_ts(),
                 room_id,

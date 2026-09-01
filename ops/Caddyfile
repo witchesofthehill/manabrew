@@ -17,11 +17,21 @@ docs.manabrew.app {
 }
 
 relay.manabrew.app {
-    reverse_proxy manabrew-server:9443 {
-        health_uri /health
-        health_port 9444
-        health_interval 15s
-        health_timeout 3s
+    # The iroh relay manabrew-server hosts in-process. iroh dials
+    # wss://<relay-url>/relay, so it shares this hostname and its certificate
+    # rather than needing DNS and a certificate of its own. This block is the
+    # only thing that has to change for it, and it applies on the next
+    # production deploy, which reloads the ingress anyway.
+    handle /relay* {
+        reverse_proxy manabrew-server:9445
+    }
+    handle {
+        reverse_proxy manabrew-server:9443 {
+            health_uri /health
+            health_port 9444
+            health_interval 15s
+            health_timeout 3s
+        }
     }
 }
 

@@ -48,10 +48,13 @@ describe("engine stats reporting", () => {
       send: () => Promise.reject(new Error("relay is not connected")),
     });
     await vi.waitFor(() => expect(recordEngineStats).toHaveBeenCalledTimes(1));
+    // The hub route has no envelope to hang the game on, so the id has to
+    // travel inside the report or the row lands with nothing to join to.
     expect(recordEngineStats.mock.calls[0]?.[0]).toMatchObject({
       engine: "forge-hosted",
       multiplayer: true,
       endReason: "gameOver",
+      gameId: "game-1",
     });
   });
 

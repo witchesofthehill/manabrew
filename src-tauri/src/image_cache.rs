@@ -50,6 +50,10 @@ pub struct ImageCache {
     root: PathBuf,
     pinned: Mutex<HashSet<String>>,
     written_since_sweep: AtomicU64,
+    /// Running totals, so a sweep and the settings panel do not each walk a
+    /// tree heading for 100k files. Reconciled once by `reconcile`; every store
+    /// and evict after that adjusts them.
+    totals: Mutex<CacheStats>,
     client: reqwest::Client,
 }
 
@@ -60,6 +64,12 @@ impl ImageCache {
             root,
             pinned: Mutex::new(pinned),
             written_since_sweep: AtomicU64::new(0),
+            totals: Mutex::new(CacheStats {
+                files: 0,
+                bytes: 0,
+                pinned_files: 0,
+                pinned_bytes: 0,
+            }),
             client: reqwest::Client::builder()
                 .user_agent("manabrew-desktop")
                 .build()
@@ -109,11 +119,13 @@ impl ImageCache {
         // Written beside the target and renamed, so a half-written file is
         // never served: the LAN listener has no way to tell one from a whole.
         let temp = path.with_extension("part");
+        let replaced = std::fs::metadata(&path).ok().map(|m| m.len());
         std::fs::write(&temp, bytes).map_err(|e| e.to_string())?;
         std::fs::rename(&temp, &path).map_err(|e| e.to_string())?;
         if pin {
             self.pin(key);
         }
+        self.note_stored(bytes.len() as u64, pin || self.is_pinned(key), replaced);
         let written = self
             .written_since_sweep
             .fetch_add(bytes.len() as u64, Ordering::Relaxed)
@@ -215,21 +227,73 @@ impl ImageCache {
     }
 
     pub fn stats(&self) -> CacheStats {
-        let mut stats = CacheStats {
+        self.totals
+            .lock()
+            .map(|totals| totals.clone())
+            .unwrap_or(CacheStats {
+                files: 0,
+                bytes: 0,
+                pinned_files: 0,
+                pinned_bytes: 0,
+            })
+    }
+
+    /// The one full walk, at startup. Also the only place `.part` files left by
+    /// a cancelled or crashed download are removed: `walk` skips them, so they
+    /// were never counted, never evicted and never cleaned.
+    pub fn reconcile(&self) {
+        let mut totals = CacheStats {
             files: 0,
             bytes: 0,
             pinned_files: 0,
             pinned_bytes: 0,
         };
-        for entry in self.walk() {
-            stats.files += 1;
-            stats.bytes += entry.size;
+        for entry in self.walk_all() {
+            if entry.partial {
+                let _ = std::fs::remove_file(&entry.path);
+                continue;
+            }
+            totals.files += 1;
+            totals.bytes += entry.size;
             if entry.pinned {
-                stats.pinned_files += 1;
-                stats.pinned_bytes += entry.size;
+                totals.pinned_files += 1;
+                totals.pinned_bytes += entry.size;
             }
         }
-        stats
+        if let Ok(mut held) = self.totals.lock() {
+            *held = totals;
+        }
+    }
+
+    fn note_stored(&self, size: u64, pinned: bool, replaced: Option<u64>) {
+        let Ok(mut totals) = self.totals.lock() else {
+            return;
+        };
+        match replaced {
+            Some(old) => totals.bytes = totals.bytes.saturating_sub(old) + size,
+            None => {
+                totals.files += 1;
+                totals.bytes += size;
+            }
+        }
+        if pinned {
+            if replaced.is_none() {
+                totals.pinned_files += 1;
+            }
+            totals.pinned_bytes = totals.pinned_bytes.saturating_sub(replaced.unwrap_or(0)) + size;
+        }
+    }
+
+    fn note_removed(&self, size: u64, pinned: bool) {
+        let Ok(mut totals) = self.totals.lock() else {
+            return;
+        };
+        totals.files = totals.files.saturating_sub(1);
+        totals.bytes = totals.bytes.saturating_sub(size);
+        if pinned {
+            totals.pinned_files = totals.pinned_files.saturating_sub(1);
+            totals.pinned_bytes = totals.pinned_bytes.saturating_sub(size);
+        }
     }
 
     pub fn clear(&self, include_pinned: bool) -> Result<(), String> {
@@ -241,11 +305,12 @@ impl ImageCache {
                 pinned.clear();
                 save_pinned(&self.root.join(PINNED_FILE), &pinned);
             }
+            self.reconcile();
             return Ok(());
         }
         for entry in self.walk() {
-            if !entry.pinned {
-                let _ = std::fs::remove_file(&entry.path);
+            if !entry.pinned && std::fs::remove_file(&entry.path).is_ok() {
+                self.note_removed(entry.size, false);
             }
         }
         Ok(())
@@ -256,6 +321,10 @@ impl ImageCache {
         if let Ok(mut pinned) = self.pinned.lock() {
             pinned.clear();
             save_pinned(&self.root.join(PINNED_FILE), &pinned);
+        }
+        if let Ok(mut totals) = self.totals.lock() {
+            totals.pinned_files = 0;
+            totals.pinned_bytes = 0;
         }
     }
 
@@ -272,11 +341,16 @@ impl ImageCache {
             }
             if std::fs::remove_file(&entry.path).is_ok() {
                 total = total.saturating_sub(entry.size);
+                self.note_removed(entry.size, false);
             }
         }
     }
 
     fn walk(&self) -> Vec<Entry> {
+        self.walk_all().into_iter().filter(|e| !e.partial).collect()
+    }
+
+    fn walk_all(&self) -> Vec<Entry> {
         let mut out = Vec::new();
         let mut stack = vec![self.root.clone()];
         while let Some(dir) = stack.pop() {
@@ -293,14 +367,13 @@ impl ImageCache {
                 if path.file_name().is_some_and(|n| n == PINNED_FILE) {
                     continue;
                 }
-                if path.extension().is_some_and(|e| e == "part") {
-                    continue;
-                }
+                let partial = path.extension().is_some_and(|e| e == "part");
                 let Some(key) = self.key_of(&path) else {
                     continue;
                 };
                 out.push(Entry {
-                    pinned: self.is_pinned(&key),
+                    pinned: !partial && self.is_pinned(&key),
+                    partial,
                     path,
                     size: meta.len(),
                     modified: meta.modified().unwrap_or(SystemTime::UNIX_EPOCH),
@@ -329,6 +402,8 @@ struct Entry {
     size: u64,
     modified: SystemTime,
     pinned: bool,
+    /// A `.part` left by a cancelled or crashed download.
+    partial: bool,
 }
 
 fn human_bytes(bytes: u64) -> String {
@@ -461,7 +536,12 @@ pub fn init(app: &tauri::AppHandle) {
     let Ok(dir) = app.path().app_data_dir() else {
         return;
     };
-    let _ = CACHE.set(Arc::new(ImageCache::new(dir.join(CACHE_DIR))));
+    let cache = Arc::new(ImageCache::new(dir.join(CACHE_DIR)));
+    // One walk, off the startup path: it also sweeps `.part` leftovers and is
+    // what makes `stats` a read of two numbers rather than a tree walk.
+    let counted = cache.clone();
+    std::thread::spawn(move || counted.reconcile());
+    let _ = CACHE.set(cache);
 }
 
 pub fn cache() -> Option<Arc<ImageCache>> {
@@ -632,6 +712,48 @@ mod tests {
         // Both numbers, so the message says what to free up.
         assert!(error.contains("PB"), "wants the estimate: {error}");
         assert!(error.contains(" free"), "wants what the disk has: {error}");
+    }
+
+    /// A cancelled or crashed download leaves `.part` files. `walk` skips them,
+    /// so nothing counted them, nothing evicted them and nothing cleaned them:
+    /// they accumulated for the life of the install.
+    #[test]
+    fn a_startup_reconcile_sweeps_what_a_cancelled_download_left() {
+        let (cache, dir) = cache();
+        cache.store("a.jpg", b"1234", true).unwrap();
+        let orphan = dir.path().join("half.jpg.part");
+        std::fs::write(&orphan, b"partial").unwrap();
+
+        cache.reconcile();
+
+        assert!(!orphan.exists(), "a .part file must not outlive a restart");
+        let stats = cache.stats();
+        assert_eq!(stats.files, 1, "and must never be counted as cached art");
+        assert_eq!(stats.bytes, 4);
+    }
+
+    /// `stats` reads running totals now, so eviction and clearing have to keep
+    /// them true. A walk could not be wrong; these can.
+    #[test]
+    fn the_totals_follow_what_eviction_and_clearing_actually_removed() {
+        let (cache, _dir) = cache();
+        cache.store("keep.jpg", b"1234", true).unwrap();
+        cache.store("drop.jpg", b"12", false).unwrap();
+        assert_eq!(cache.stats().files, 2);
+
+        cache.clear(false).unwrap();
+        let stats = cache.stats();
+        assert_eq!(stats.files, 1, "the unpinned one is gone");
+        assert_eq!(stats.bytes, 4);
+        assert_eq!(stats.pinned_files, 1);
+
+        cache.reconcile();
+        let walked = cache.stats();
+        assert_eq!(
+            (walked.files, walked.bytes, walked.pinned_bytes),
+            (stats.files, stats.bytes, stats.pinned_bytes),
+            "the running totals must agree with a fresh walk of the same tree"
+        );
     }
 
     #[test]

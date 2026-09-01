@@ -87,10 +87,20 @@ the same five seconds: it plays differently, the game diverges, and the wall
 clock barely moves. An engine change can remove half the work and look like it
 did nothing.
 
-`--ai-timeout 600` pins the deadline high enough that it never binds, so both
-arms evaluate everything and play the same game. Use it for any engine A/B.
-Without it, a fixed seed is not a control: seeds that replayed identically with
-the deadline pinned diverged 854 decisions against 783 without it.
+`--ai-timeout 600` pins the deadline high enough that it never binds. That alone
+is not enough: with it, four A/B pairs still diverged and gave 30%, 69%, 76% and
+5% for the same change. Add `-Dforge.synchronous=true`, which the fork already
+has for Web Image and which runs the AI evaluation on the calling thread, and
+the games replay exactly, same decisions and same priorities in every board
+bucket.
+
+```sh
+python3 scripts/engine-bench/forge-jvm-game.py --seats 4 --counters \
+    --ai-timeout 600 --sysprop forge.synchronous=true --out arm-a.jsonl
+```
+
+Use both for any engine A/B. Without them a fixed seed is not a control, and the
+same change can measure anywhere between 5% and 76%.
 
 ## Counting instead of timing
 

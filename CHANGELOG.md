@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.32.5](https://github.com/witchesofthehill/manabrew/compare/v3.32.4...v3.32.5) (2026-09-01)
+
+### Fixes
+
+* **telemetry:** keep every engine report, and name the game it came from ([#816](https://github.com/witchesofthehill/manabrew/issues/816)) ([e6f3786](https://github.com/witchesofthehill/manabrew/commit/e6f37861d5aa791691b7bbf5e2b1fc3a17430d04))
+
 ## [3.32.4](https://github.com/witchesofthehill/manabrew/compare/v3.32.3...v3.32.4) (2026-08-31)
 
 ### Fixes

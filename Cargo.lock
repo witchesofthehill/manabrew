@@ -5396,6 +5396,8 @@ dependencies = [
  "futures-util",
  "iroh",
  "iroh-relay",
+ "manabrew-art-cache",
+ "manabrew-lan-discovery",
  "manabrew-protocol",
  "manabrew-relay-protocol",
  "metrics",

@@ -605,6 +605,8 @@ async fn authenticate(
                         .iter()
                         .map(|f| f.to_string())
                         .collect(),
+
+                    art_base_url: state.art_base_url.clone(),
                 };
                 send_msg(sender, &reply);
                 return Err(ServerError::AuthFailed("Invalid server key".into()));
@@ -624,6 +626,8 @@ async fn authenticate(
                         .iter()
                         .map(|f| f.to_string())
                         .collect(),
+
+                    art_base_url: state.art_base_url.clone(),
                 };
                 send_msg(sender, &reply);
                 return Err(ServerError::AuthFailed("identity token expired".into()));
@@ -644,6 +648,8 @@ async fn authenticate(
                         .iter()
                         .map(|f| f.to_string())
                         .collect(),
+
+                    art_base_url: state.art_base_url.clone(),
                 };
                 send_msg(sender, &reply);
                 return Err(ServerError::AuthFailed("Empty username".into()));
@@ -665,6 +671,7 @@ async fn authenticate(
                             .iter()
                             .map(|f| f.to_string())
                             .collect(),
+                        art_base_url: state.art_base_url.clone(),
                     };
                     send_msg(sender, &reply);
                     return Err(ServerError::DuplicateUsername(username));
@@ -739,6 +746,8 @@ async fn authenticate(
                     .iter()
                     .map(|f| f.to_string())
                     .collect(),
+
+                art_base_url: state.art_base_url.clone(),
             };
             send_msg(sender, &reply);
             broadcast_player_list(state);
@@ -755,6 +764,8 @@ async fn authenticate(
                     .iter()
                     .map(|f| f.to_string())
                     .collect(),
+
+                art_base_url: state.art_base_url.clone(),
             };
             send_msg(sender, &reply);
             Err(ServerError::AuthFailed(
@@ -817,6 +828,7 @@ fn reclaim_session(
             .iter()
             .map(|f| f.to_string())
             .collect(),
+        art_base_url: state.art_base_url.clone(),
     };
     send_msg(sender, &reply);
 

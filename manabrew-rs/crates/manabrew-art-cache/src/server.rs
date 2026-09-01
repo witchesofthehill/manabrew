@@ -35,7 +35,17 @@ impl ArtServer {
     /// The cache is passed in rather than read from a global, so a headless host
     /// and the desktop shell can each own their own.
     pub fn spawn(bind_ip: std::net::IpAddr, cache: Arc<ImageCache>) -> Option<ArtServer> {
-        let server = Arc::new(tiny_http::Server::http((bind_ip, 0)).ok()?);
+        Self::spawn_on(bind_ip, 0, cache)
+    }
+
+    /// A fixed port, for a host whose address a client learns from configuration
+    /// rather than from a fresh mDNS record every time.
+    pub fn spawn_on(
+        bind_ip: std::net::IpAddr,
+        port: u16,
+        cache: Arc<ImageCache>,
+    ) -> Option<ArtServer> {
+        let server = Arc::new(tiny_http::Server::http((bind_ip, port)).ok()?);
         let port = server.server_addr().to_ip()?.port();
         let accept = server.clone();
 
@@ -89,6 +99,41 @@ mod tests {
             Duration::from_millis(250),
         )
         .is_ok()
+    }
+
+    /// The whole point of a host holding the art: another machine asks for a
+    /// key over http and gets the bytes, with no Scryfall in the path.
+    #[test]
+    fn a_cached_key_is_served_to_the_network() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let cache = Arc::new(ImageCache::new(dir.path().to_path_buf()));
+        cache
+            .store("front/a/b/card.jpg", b"pixels", true)
+            .expect("store");
+
+        let server = ArtServer::spawn(Ipv4Addr::LOCALHOST.into(), cache).expect("spawn");
+        let body = get(server.port, "/scryfall-img/front/a/b/card.jpg");
+        assert!(body.contains("200 OK"), "{body}");
+        assert!(body.ends_with("pixels"), "{body}");
+
+        // And nothing it does not have, rather than fetching it.
+        assert!(get(server.port, "/scryfall-img/front/missing.jpg").contains("404"));
+        // And nothing outside the cache.
+        assert!(get(server.port, "/scryfall-img/../../etc/passwd").contains("404"));
+    }
+
+    fn get(port: u16, path: &str) -> String {
+        use std::io::{Read, Write};
+        let mut stream =
+            TcpStream::connect((Ipv4Addr::LOCALHOST, port)).expect("connect to art server");
+        write!(
+            stream,
+            "GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"
+        )
+        .expect("request");
+        let mut body = String::new();
+        let _ = stream.read_to_string(&mut body);
+        body
     }
 
     /// Un-sharing a room has to close the listener. The shutdown flag was only

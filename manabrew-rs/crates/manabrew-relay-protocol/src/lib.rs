@@ -268,6 +268,11 @@ pub enum ServerMessage {
         /// a parse error. Absent from relays built before the list existed.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         features: Vec<String>,
+        /// Where this relay serves card art, when it serves any. A self-hosted
+        /// box holding the images is the reason to run one, and the client
+        /// cannot guess the port. Absent means fall back to the CDN.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        art_base_url: Option<String>,
     },
 
     SessionTakenOver,

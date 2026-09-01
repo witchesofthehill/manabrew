@@ -83,6 +83,7 @@ pub struct ServerState {
     /// `RoomTransport`. `None` keeps peers direct-only; there is deliberately
     /// no public default.
     pub iroh_relay_url: Option<String>,
+    pub art_base_url: Option<String>,
 }
 
 impl ServerState {
@@ -104,11 +105,20 @@ impl ServerState {
             deck_play_events,
             identity: IdentityVerifier::new(hub_jwks_url),
             iroh_relay_url: None,
+            art_base_url: None,
         }
     }
 
     pub fn with_iroh_relay_url(mut self, url: Option<String>) -> Self {
         self.iroh_relay_url = url;
+        self
+    }
+
+    /// Where this relay serves card art, handed to every client at auth. A
+    /// self-hosted box holding the images is the reason to run one, and the
+    /// client cannot guess the port.
+    pub fn with_art_base_url(mut self, url: Option<String>) -> Self {
+        self.art_base_url = url;
         self
     }
 

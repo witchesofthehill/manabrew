@@ -163,13 +163,22 @@ async fn on_transport_message(
         ServerMessage::RoomTransport {
             room_id,
             topic_secret,
+            iroh_relay_url,
+            iroh_relay_token,
             host,
             members,
-            ..
         } => {
+            // Before the roster, because dialling a host reachable only through
+            // a relay needs that relay usable first. Every broadcast, not just
+            // the first: this is also what renews an expiring token.
+            let adopted = seat
+                .adopt_relay(iroh_relay_url.as_deref(), iroh_relay_token.as_deref())
+                .await;
             seat.on_roster(room_id, topic_secret, host.as_ref(), members)
                 .await;
-            (!seat.announced()).then_some(())?;
+            // Announce on the first roster, and again if adopting a relay gave
+            // this endpoint an address it did not have when it last announced.
+            (!seat.announced() || adopted).then_some(())?;
             Some(ClientMessage::AnnounceTransport {
                 endpoint: Some(seat.announce().await),
             })

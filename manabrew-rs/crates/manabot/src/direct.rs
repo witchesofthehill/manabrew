@@ -19,6 +19,9 @@ pub struct DirectSeat {
     endpoint: NetEndpoint,
     username: String,
     has_relay: bool,
+    /// The configured url, used only when the control plane names none. It
+    /// carries no token, so a gated relay refuses it.
+    fallback_relay: Option<String>,
     sender: Option<GameSender>,
     receiver: Option<GameReceiver>,
     announced: bool,
@@ -30,22 +33,16 @@ pub struct DirectSeat {
 }
 
 impl DirectSeat {
+    /// Binds with no relay even when one is configured: ours admits nobody
+    /// without a room token, and the token arrives with the roster. See
+    /// [`Self::adopt_relay`].
     pub async fn start(username: &str, iroh_relay_url: Option<&str>) -> Option<Self> {
-        let config = match iroh_relay_url {
-            Some(url) => match NetConfig::with_relay(url, None) {
-                Ok(config) => config,
-                Err(error) => {
-                    warn!(%error, url, "invalid iroh relay url; staying on the relay");
-                    return None;
-                }
-            },
-            None => NetConfig::default(),
-        };
-        match NetEndpoint::bind(config).await {
+        match NetEndpoint::bind(NetConfig::default()).await {
             Ok((endpoint, _seats)) => Some(Self {
                 endpoint,
                 username: username.to_string(),
-                has_relay: iroh_relay_url.is_some(),
+                has_relay: false,
+                fallback_relay: iroh_relay_url.map(str::to_string),
                 sender: None,
                 receiver: None,
                 announced: false,
@@ -61,6 +58,27 @@ impl DirectSeat {
 
     pub fn announced(&self) -> bool {
         self.announced
+    }
+
+    /// Takes the relay the control plane named and the token that goes with it.
+    /// Runs on every `RoomTransport`, because a token expires and replacing the
+    /// config is what renews it. True only the first time, when the endpoint
+    /// gains an address it has to announce.
+    pub async fn adopt_relay(&mut self, url: Option<&str>, token: Option<&str>) -> bool {
+        let Some(url) = url.or(self.fallback_relay.as_deref()) else {
+            return false;
+        };
+        let url = url.to_string();
+        if let Err(error) = self.endpoint.adopt_relay(&url, token).await {
+            warn!(%error, url, "control plane named an unusable relay");
+            return false;
+        }
+        let first = !self.has_relay;
+        self.has_relay = true;
+        if first {
+            info!(url, "adopted the relay the control plane named");
+        }
+        first
     }
 
     pub async fn announce(&mut self) -> TransportEndpoint {

@@ -88,6 +88,7 @@ pub fn run() {
             lan_discovery::discover_lan_rooms,
             direct_seat::direct_seat_start,
             direct_seat::direct_seat_roster,
+            direct_seat::direct_seat_adopt_relay,
             direct_seat::direct_seat_send,
             direct_seat::direct_seat_stop,
             limited_commands::limited_start_sealed,

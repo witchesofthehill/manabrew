@@ -196,7 +196,7 @@ impl Sim {
         let log_path = direct.then(|| {
             std::env::temp_dir().join(format!("manabrew-node-{port}-{}.log", std::process::id()))
         });
-        let node = spawn_node(&relay_url, manifest, direct, log_path.as_deref());
+        let node = spawn_node(&relay_url, port, manifest, direct, log_path.as_deref());
         let mut sim = Sim {
             port,
             relay_url,
@@ -865,6 +865,15 @@ fn spawn_relay_with(port: u16, capture_dir: Option<&std::path::Path>) -> Proc {
     let mut command = Command::new(bin("manabrew-server", "REGRESSION_RELAY_BIN"));
     if let Some(dir) = capture_dir {
         command.env("MANABREW_GAME_CAPTURE_DIR", dir);
+        // The relay hosts its own iroh relay, gated by a room token it mints.
+        // Without this the direct plane runs direct-only, which is the easy
+        // case: nothing would notice a host that can never obtain a token.
+        command
+            .env("MANABREW_IROH_RELAY_PORT", (port + 2).to_string())
+            .env(
+                "MANABREW_IROH_RELAY_URL",
+                format!("http://127.0.0.1:{}", port + 2),
+            );
     }
     Proc(
         command
@@ -879,6 +888,7 @@ fn spawn_relay_with(port: u16, capture_dir: Option<&std::path::Path>) -> Proc {
 
 fn spawn_node(
     relay_url: &str,
+    relay_port: u16,
     manifest: Option<&str>,
     direct: bool,
     log_path: Option<&std::path::Path>,
@@ -903,6 +913,14 @@ fn spawn_node(
             let err = log.try_clone().expect("clone node log handle");
             command
                 .env("SELF_HOSTED_NODE_IROH", if direct { "1" } else { "0" })
+                // Configured, which is the shape the fleet rollout uses and the
+                // one that used to bind tokenless and be refused by its own
+                // relay. A host binds relay-less regardless and adopts this
+                // from `RoomTransport` with the token.
+                .env(
+                    "SELF_HOSTED_NODE_IROH_RELAY_URL",
+                    format!("http://127.0.0.1:{}", relay_port + 2),
+                )
                 .env("RUST_LOG", "info")
                 .stdout(Stdio::from(log))
                 .stderr(Stdio::from(err));

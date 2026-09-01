@@ -71,6 +71,10 @@ pub struct DirectPlane {
     seats: SeatTable,
     gossip_joined: AtomicBool,
     has_relay: AtomicBool,
+    /// `SELF_HOSTED_NODE_IROH_RELAY_URL`, used only when the control plane
+    /// names no relay of its own. It carries no token, so a gated relay will
+    /// refuse it; it is here for a relay too old to send one.
+    fallback_relay: Option<String>,
 }
 
 impl DirectPlane {
@@ -78,17 +82,12 @@ impl DirectPlane {
         if !config.iroh_enabled {
             return None;
         }
-        let net_config = match &config.iroh_relay_url {
-            Some(url) => match NetConfig::with_relay(url, None) {
-                Ok(config) => config,
-                Err(error) => {
-                    warn!(%error, url, "invalid iroh relay url; direct plane disabled");
-                    return None;
-                }
-            },
-            None => NetConfig::default(),
-        };
-        match NetEndpoint::bind(net_config).await {
+        // Bound with no relay even when one is configured, because our relay
+        // admits nobody without a room token and a token only exists once the
+        // control plane has a room to mint it for. `RoomTransport` carries
+        // both, so the relay is adopted there; the configured url is the
+        // fallback for a relay too old to name one.
+        match NetEndpoint::bind(NetConfig::default()).await {
             Ok((endpoint, seats)) => {
                 info!(
                     endpoint_id = %endpoint.id(),
@@ -100,7 +99,8 @@ impl DirectPlane {
                         endpoint,
                         seats: SeatTable::default(),
                         gossip_joined: AtomicBool::new(false),
-                        has_relay: AtomicBool::new(config.iroh_relay_url.is_some()),
+                        has_relay: AtomicBool::new(false),
+                        fallback_relay: config.iroh_relay_url.clone(),
                     },
                     seats,
                 ))
@@ -126,23 +126,27 @@ impl DirectPlane {
         self.endpoint.local()
     }
 
-    /// Takes the relay the control plane named, once, for an endpoint that
-    /// bound without one. Returns true when the endpoint's address changed and
-    /// therefore has to be announced again.
-    pub async fn adopt_relay(&self, url: &str, token: Option<&str>) -> bool {
-        if self.has_relay.swap(true, Ordering::SeqCst) {
+    /// Takes the relay the control plane named, and the token that goes with
+    /// it. Runs on **every** `RoomTransport`, not just the first: a token
+    /// expires and `insert_relay` replacing the config is what renews it. A
+    /// room outliving the TTL would otherwise have its next relay reconnect
+    /// refused, and the seat would fall back saying nothing.
+    ///
+    /// Returns true only the first time, which is when the endpoint gains an
+    /// address it did not have and therefore has to announce again.
+    pub async fn adopt_relay(&self, url: Option<&str>, token: Option<&str>) -> bool {
+        let Some(url) = url.or(self.fallback_relay.as_deref()) else {
+            return false;
+        };
+        if let Err(error) = self.endpoint.adopt_relay(url, token).await {
+            warn!(%error, url, "control plane named an unusable relay");
             return false;
         }
-        match self.endpoint.adopt_relay(url, token).await {
-            Ok(()) => {
-                info!(url, "adopted the relay the control plane named");
-                true
-            }
-            Err(error) => {
-                warn!(%error, url, "control plane named an unusable relay");
-                false
-            }
+        let first = !self.has_relay.swap(true, Ordering::SeqCst);
+        if first {
+            info!(url, "adopted the relay the control plane named");
         }
+        first
     }
 
     pub fn apply_roster(

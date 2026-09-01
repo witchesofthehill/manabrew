@@ -32,7 +32,7 @@ impl DirectPlane {
         match self.0 {}
     }
 
-    pub async fn adopt_relay(&self, _url: &str, _token: Option<&str>) -> bool {
+    pub async fn adopt_relay(&self, _url: Option<&str>, _token: Option<&str>) -> bool {
         match self.0 {}
     }
 

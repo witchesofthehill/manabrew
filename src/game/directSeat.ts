@@ -31,6 +31,7 @@ interface NetModule {
 }
 
 interface WasmSeat {
+  adoptRelay(relayUrl: string, relayToken: string | null): Promise<void>;
   localEndpoint(): Promise<unknown>;
   endpointId(): string;
   connectToHost(roomId: string, topicSecret: string, members: unknown): Promise<unknown>;
@@ -62,6 +63,10 @@ interface SeatBackend {
     topicSecret: string,
     members: unknown,
   ): Promise<DirectTransportStatus | null>;
+  /** Replaces the relay config, which is how a room token is renewed. A seat
+   *  outlives the token it bound with, and a relay reconnect after the TTL is
+   *  refused. */
+  adoptRelay(relayUrl: string, relayToken: string | null): Promise<void>;
   send(envelope: unknown): boolean | Promise<boolean>;
   connected(): boolean;
 }
@@ -109,6 +114,10 @@ class TauriSeatBackend implements SeatBackend {
     });
     if (status) this.live = true;
     return status;
+  }
+
+  async adoptRelay(relayUrl: string, relayToken: string | null): Promise<void> {
+    await invoke("direct_seat_adopt_relay", { relayUrl, relayToken });
   }
 
   async send(envelope: unknown): Promise<boolean> {
@@ -172,6 +181,10 @@ class WasmSeatBackend implements SeatBackend {
     )) as DirectTransportStatus | null;
     if (status) this.startReading();
     return status;
+  }
+
+  async adoptRelay(relayUrl: string, relayToken: string | null): Promise<void> {
+    await this.seat?.adoptRelay(relayUrl, relayToken);
   }
 
   send(envelope: unknown): boolean {
@@ -253,6 +266,18 @@ export class DirectSeat {
     } catch (error) {
       console.warn("[direct] no direct data plane on this build:", error);
       return null;
+    }
+  }
+
+  /** Renews the room token this seat bound with. A seat outlives its token and
+   *  a relay reconnect past the TTL is refused, so every roster refreshes it. */
+  async refreshRelay(relayUrl: string, relayToken: string | null): Promise<void> {
+    await this.binding;
+    if (!this.backend) return;
+    try {
+      await this.backend.adoptRelay(relayUrl, relayToken);
+    } catch (error) {
+      console.warn("[direct] could not renew the relay token:", error);
     }
   }
 

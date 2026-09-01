@@ -31,7 +31,10 @@ ap.add_argument("--java", default=os.environ.get("JAVA_HOME", "") + "/bin/java" 
 ap.add_argument("--jfr", default="")
 ap.add_argument("--sysprop", action="append", default=[])
 ap.add_argument("--jvmarg", action="append", default=[],
-                help="extra JVM flag, e.g. -XX:-DontCompileHugeMethods")
+                help="extra JVM flag, e.g. --jvmarg=-Xss4m")
+ap.add_argument("--no-compile-huge", action="store_true",
+                help="leave HotSpot's 8000-byte compile limit in place, which "
+                     "no build we ship has")
 ap.add_argument("--out", default="jvm-4seat.jsonl")
 ap.add_argument("--timeout", type=int, default=1800)
 ap.add_argument("--seed", type=int, default=42)
@@ -82,6 +85,15 @@ sysprops = list(args.sysprop)
 if args.counters:
     sysprops.append("forge.engineCounters=true")
 cmd = [args.java] + [f"-D{p}" for p in sysprops] + args.jvmarg
+if not args.no_compile_huge:
+    # CardProperty.cardHasProperty is 14,112 bytes of bytecode, and HotSpot
+    # refuses to compile a method over 8000, so by default it runs interpreted
+    # for the whole game: three to eight times its compiled cost, and the top
+    # self frame in any profile taken here. Nothing we ship is HotSpot. The
+    # desktop engine is a GraalVM native image and the browser one is Web
+    # Image, and both compile every reachable method ahead of time. Leaving the
+    # limit on makes this harness rank the engine wrongly, so turn it off.
+    cmd.append("-XX:-DontCompileHugeMethods")
 if args.jfr:
     # DebugNonSafepoints matters: without it the sampler can only land on
     # safepoint-pollable spots, which over-counts allocating code and

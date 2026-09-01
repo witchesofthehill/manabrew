@@ -31,6 +31,27 @@ is what tells a GC pause from a slow AI search. The engine's Java heap is the
 host's, because the Web Image build targets WasmGC and declares no linear
 memory, so there is no engine-side heap cap to raise.
 
+## HotSpot does not compile the hot method
+
+`CardProperty.cardHasProperty` is 14,112 bytes of bytecode. HotSpot refuses to
+compile a method over 8000 (`DontCompileHugeMethods`, `HugeMethodLimit`), so on
+a stock JVM it runs **interpreted for the whole game**: three to eight times its
+compiled per-call cost, 10-28% of a four-seat game, and the top self frame in
+any profile taken here.
+
+Nothing we ship is HotSpot. The desktop engine is a GraalVM native image built
+by `forge-harness/build-native.sh`, the browser one is Web Image, and both
+compile every reachable method ahead of time. So this is a property of the
+measuring rig, not of the product, and a profile taken with the limit in place
+ranks the engine wrongly: with the method compiled, `cardHasProperty` leaves the
+top of the profile entirely and `FCollection` allocation and the static-ability
+rebuild take its place.
+
+`forge-jvm-game.py` therefore passes `-XX:-DontCompileHugeMethods` by default.
+`--no-compile-huge` puts the limit back, which is only worth doing to reproduce
+an old measurement. Any JVM profile of this engine taken before 2026-09-01 was
+taken with the limit on.
+
 ## The JVM driver
 
 ```sh
@@ -41,6 +62,15 @@ python3 scripts/engine-bench/forge-jvm-game.py --seats 4 --out g4.jsonl --jfr g4
 Wasm frames in a released build carry no names, so a profile there stops at
 `wasm-function[51278]`. The JVM gives Java stacks for the same AI on the same
 board, which is how #817 was found.
+
+`jfr-top.py` ranks the frames in a recording by self and inclusive samples, and
+splits the samples by thread so the AI's search can be told from the rules
+engine.
+
+```sh
+python3 scripts/engine-bench/jfr-top.py g4.jfr
+python3 scripts/engine-bench/jfr-top.py g4.jfr --thread 'Game AI Eval'
+```
 
 Do not A/B whole games. They diverge run to run even at a fixed seed, so game
 length swamps the change under test. Compare profiles, or pool decisions across

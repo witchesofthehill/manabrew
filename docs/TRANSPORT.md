@@ -291,8 +291,14 @@ runs on the local network while the lobby, identity and room lifecycle stay wher
 This needs the room's host to have a native endpoint, which is the hosted Forge fleet or a
 desktop Forge room. `Config::for_hosted_room` therefore turns the direct plane **on**, unlike the
 fleet default: a desktop room is where the seats are most likely to be one switch away, and it is
-not part of the capture analysis that keeps it off in production. It carries no relay url, so it
-is direct or nothing, and a peer further away simply stays on the relay.
+not part of the capture analysis that keeps it off in production. It binds with no relay url, and then takes the one
+the control plane names in `RoomTransport` (`NetEndpoint::adopt_relay`) and announces itself
+again, because its address has changed. Without that a seat that cannot reach it directly has no
+path to it at all, which is most of the internet.
+
+That adoption is why an endpoint with no relay binds with an **empty relay map** rather than
+`RelayMode::Disabled`. Both mean "no relay for now", but `Disabled` builds no relay transport,
+so a relay inserted later has nothing to run it. `relayed.rs` pins the whole sequence.
 
 A room hosted by a webview has no native endpoint and stays on the relay entirely. That is the
 next phase, not a limitation of the model.

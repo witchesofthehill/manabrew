@@ -30,7 +30,7 @@ pub struct NetConfig {
     /// Reused across restarts if the caller persists it. Fresh keys are fine:
     /// the relay re-attests the new endpoint id on the next announcement.
     pub secret_key: Option<SecretKey>,
-    /// Defaults to [`RelayMode::Disabled`], never to the public n0 relays.
+    /// Defaults to an empty relay map, never to the public n0 relays.
     /// Manabrew runs its own `iroh-relay`; endpoint ids and connection metadata
     /// must not transit third-party infrastructure.
     pub relay_mode: Option<RelayMode>,
@@ -82,7 +82,14 @@ impl NetEndpoint {
     pub async fn bind(config: NetConfig) -> Result<(Self, mpsc::Receiver<SeatConnection>)> {
         let known_addrs = MemoryLookup::new();
         let mut builder = Endpoint::builder(iroh::endpoint::presets::Minimal)
-            .relay_mode(config.relay_mode.unwrap_or(RelayMode::Disabled))
+            // An empty map rather than `Disabled`: both mean no relay to start
+            // with, but `Disabled` builds no relay transport at all, so
+            // `adopt_relay` would have nothing to run the relay it inserts.
+            .relay_mode(
+                config
+                    .relay_mode
+                    .unwrap_or_else(|| RelayMode::Custom(RelayMap::empty())),
+            )
             .address_lookup(known_addrs.clone());
         // A browser endpoint has no IP transports to begin with, so the knob
         // only exists where they do.
@@ -145,6 +152,23 @@ impl NetEndpoint {
         n0_future::time::timeout(timeout, self.endpoint.online())
             .await
             .is_ok()
+    }
+
+    /// Adds a relay the control plane named, for an endpoint that bound without
+    /// one. A host that nobody can reach directly then has a path anyway, which
+    /// is the difference between a desktop room being playable from across the
+    /// internet and only from the same network.
+    ///
+    /// No QUIC address discovery is configured with it: the relay is reached
+    /// through an ordinary reverse proxy, which carries the WebSocket and not
+    /// the QAD endpoint.
+    pub async fn adopt_relay(&self, url: &str) -> Result<()> {
+        let url: RelayUrl = url
+            .parse()
+            .map_err(|_| NetError::BadRelayUrl(url.to_string()))?;
+        let config = Arc::new(iroh::RelayConfig::new(url.clone(), None));
+        self.endpoint.insert_relay(url, config).await;
+        Ok(())
     }
 
     /// Installs the roster the relay just sent. Admission checks read this, so

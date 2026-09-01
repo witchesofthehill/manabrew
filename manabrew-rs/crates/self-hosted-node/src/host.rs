@@ -1289,11 +1289,19 @@ async fn handle_server_message(
         ServerMessage::RoomTransport {
             room_id: transport_room_id,
             topic_secret,
+            iroh_relay_url,
             host,
             members,
-            ..
         } => {
             if let Some(plane) = direct {
+                // A host that bound without a relay has no path for a seat that
+                // cannot reach it directly. The control plane knows one, so take
+                // it and say so again: the endpoint's address has changed.
+                if let Some(url) = iroh_relay_url.as_deref() {
+                    if plane.adopt_relay(url).await {
+                        announce_transport(plane, outbound_tx).await;
+                    }
+                }
                 plane.apply_roster(&transport_room_id, &topic_secret, host.as_ref(), &members);
                 plane.join_gossip(&client.username).await;
             }

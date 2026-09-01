@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.33.0](https://github.com/witchesofthehill/manabrew/compare/v3.32.5...v3.33.0) (2026-09-01)
+
+### Features
+
+* **play:** add four-player offline commander ([ba2676b](https://github.com/witchesofthehill/manabrew/commit/ba2676b9996ee129ba8856fc5516082382e5cae5))
+
 ## [3.32.5](https://github.com/witchesofthehill/manabrew/compare/v3.32.4...v3.32.5) (2026-09-01)
 
 ### Fixes

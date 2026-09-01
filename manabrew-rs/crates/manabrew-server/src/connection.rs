@@ -198,6 +198,10 @@ pub fn broadcast_room_transport(state: &Arc<ServerState>, room_id: &str) {
         room_id: room_id.to_string(),
         topic_secret: room.topic_secret.clone(),
         iroh_relay_url: state.iroh_relay_url.clone(),
+        iroh_relay_token: state
+            .iroh_relay_url
+            .as_ref()
+            .map(|_| crate::iroh_relay::mint_token(&state.server_key, room_id)),
         host: room.transport_host(),
         members: room.transport_members(),
     };
@@ -1322,6 +1326,20 @@ fn handle_client_message(
             let Some(room_id) = state.players.get(player_id).and_then(|p| p.room_id.clone()) else {
                 return;
             };
+            // The capture is the one artefact this feature exists to keep
+            // honest, so only the room's engine host writes into it, and only
+            // about the game the relay believes is running.
+            let authorised = state.rooms.get(&room_id).is_some_and(|room| {
+                room.is_host(player_id)
+                    && room
+                        .replay
+                        .as_ref()
+                        .is_some_and(|replay| replay.game_id == game_id)
+            });
+            if !authorised {
+                debug!(username, game_id, "ignoring a transport report");
+                return;
+            }
             let off_relay: Vec<_> = seats
                 .into_iter()
                 .filter(|seat| seat.transport != crate::protocol::TRANSPORT_RELAY)

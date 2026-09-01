@@ -7,7 +7,10 @@ description = "AI bot player for the manabrew engine"
 
 [features]
 default = ["native"]
-native = ["dep:tokio", "dep:tokio-tungstenite", "dep:futures-util", "dep:manabrew-net"]
+native = ["dep:tokio", "dep:tokio-tungstenite", "dep:futures-util"]
+# The iroh data plane for a seat. Off by default: a bot works fine on the relay,
+# and this is what keeps QUIC out of builds that have not opted in.
+iroh = ["native", "dep:manabrew-net"]
 
 [dependencies]
 manabrew-agent-interface = { path = "../manabrew-agent-interface", version = "0.10.11" }

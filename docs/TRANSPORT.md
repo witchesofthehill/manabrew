@@ -115,7 +115,12 @@ Answers to the questions this raises:
 - _Can a random peer join the topic or dial the host?_ They can dial if they learn the endpoint
   id, and the host will reject them at `Hello`. They cannot derive the topic id without the
   room secret.
-- _What is room-scoped?_ The topic secret. Nothing else new.
+- _What is room-scoped?_ The topic secret, and the relay token. Nothing else new.
+- _Who may spend the deployment's relay bandwidth?_ `relay.manabrew.app` is a public hostname, and
+  an iroh relay forwards for whoever dials it, so the relay is gated rather than open:
+  `RoomMembersOnly` checks a room-scoped HMAC token the control plane mints and delivers in
+  `RoomTransport`, which arrives before a client binds. A token bounds who, not how much, so
+  `Limits::client_rx` bounds the rest; the relay shares a box with the game socket.
 - _Host replacement or reconnect?_ The relay updates `host_player_id` and rebroadcasts
   `RoomTransport`. Peers re-dial. A returning browser host proves the same relay identity it
   had before, announces a new endpoint id, and the roster updates. The endpoint key is
@@ -196,7 +201,7 @@ Two build constraints found while checking this, both real:
 wasm bundle: iroh costs 3.0MB raw and 1.19MB gzipped, and a player who never joins a room that
 offers a direct transport should not download it, so `src/game/directSeat.ts` imports it only
 when `RoomTransport` arrives carrying a relay url. The module is genuinely optional, in both directions. `ring` compiles C for wasm32, so building
-it needs a clang that can *target* wasm32 — and Apple's clang, which is on every mac, cannot, so
+it needs a clang that can _target_ wasm32 — and Apple's clang, which is on every mac, cannot, so
 `scripts/build-wasm.mjs` asks a candidate clang to compile for the target rather than trusting
 that one exists. When none does it skips the module, and `vite.config.ts` then resolves
 `@/wasm-net/net` to a stub that reports itself; `DirectSeat` catches the throw and the seat stays
@@ -204,7 +209,7 @@ on the relay. `src/types/wasmNet.d.ts` declares the module so `tsc` never needs 
 files. That alias must sit **before** the `@` alias or the broader one claims the specifier.
 
 A browser seat sends only its own answers over the channel (`response` and `directive`); a
-browser *hosting* a room still serves its seats over the relay. Hosting from the browser is the
+browser _hosting_ a room still serves its seats over the relay. Hosting from the browser is the
 next phase, and nothing in the design prevents it: the host role is the same `SeatTable` the node
 runs.
 
@@ -228,6 +233,23 @@ toasts, so a client must not send it blind.
 `manabrew-relay-protocol` does not depend on iroh. The wire carries strings, so the control
 plane stays transport agnostic and the same messages work for a future non-iroh transport.
 
+### Two gates, and why they are not the same one
+
+`self-hosted-node` and `manabot` both put the data plane behind a default-off cargo feature named
+`iroh`. It is a build gate: without it neither crate pulls `manabrew-net`, so no QUIC stack, no
+gossip and no second listening socket reach a binary that never asked for them. `manabot`'s
+`native` feature used to imply `manabrew-net`, which meant every consumer of the bot got iroh
+whether or not it wanted it. That is what the feature fixes.
+
+`MANABREW_IROH` is the runtime gate, and it is the one the rollout uses. The fleet image is built
+with the feature on precisely so enabling the transport on one node is an env change rather than a
+new image; a compile-time rollout would make "one node, then the fleet" impossible, because the
+fleet runs a single image. Dead code in a binary costs nothing. An open socket does, and that is
+the one that stays shut.
+
+So: `cargo build -p self-hosted-node` gives a relay-only node, `--features iroh` gives one that
+can be switched on, and `MANABREW_IROH` decides whether it is.
+
 The transport seam is a channel pair rather than a `dyn` trait: `GameChannel` owns an outbound
 `mpsc::Sender`, an inbound `mpsc::Receiver` and a `watch` of `TransportStatus`. A transport is
 whatever task pumps that pair. `IrohChannel` is one such task; the existing relay WebSocket loop
@@ -238,13 +260,13 @@ is the other, and it needs no rewrite to qualify.
 **The relay only records what it carries, so the host says what it took away.** Most telemetry
 is unaffected, and it is worth being precise about which:
 
-| Signal | Source | Affected |
-| --- | --- | --- |
-| `games`, `game_players`, `GameStarted`/`GameEnded`, deck play reports | control-plane messages | no |
-| `manabrew_node_forge_decision_seconds`, engine GC/heap/stall | the node, per decision | no |
-| `AnalyticsEvent::EngineStats` | the seat, over `ReportEngineStats` on the control socket | no |
-| relay game capture (`MANABREW_GAME_CAPTURE_DIR`) | the envelope stream | **yes** |
-| relay replay cache | the envelope stream | **yes** |
+| Signal                                                                | Source                                                   | Affected |
+| --------------------------------------------------------------------- | -------------------------------------------------------- | -------- |
+| `games`, `game_players`, `GameStarted`/`GameEnded`, deck play reports | control-plane messages                                   | no       |
+| `manabrew_node_forge_decision_seconds`, engine GC/heap/stall          | the node, per decision                                   | no       |
+| `AnalyticsEvent::EngineStats`                                         | the seat, over `ReportEngineStats` on the control socket | no       |
+| relay game capture (`MANABREW_GAME_CAPTURE_DIR`)                      | the envelope stream                                      | **yes**  |
+| relay replay cache                                                    | the envelope stream                                      | **yes**  |
 
 Only the two that read the stream lose anything, and the danger there is not the missing bytes
 but the silence: a capture file that quietly omits a seat produces wrong latency conclusions,
@@ -289,9 +311,18 @@ from the roster. Gossip dials by endpoint id alone, so the roster is also loaded
 configured. That keeps the control plane the single origin of addressing and means nothing is
 published to a third-party DNS or DHT.
 
+A host binds with no relay url and then takes the one the control plane names in `RoomTransport`
+(`NetEndpoint::adopt_relay`), announcing itself again because its address has changed. Without
+that, a seat that cannot reach it directly has no path to it at all, which is most of the
+internet.
+
+That adoption is why an endpoint with no relay binds with an **empty relay map** rather than
+`RelayMode::Disabled`. Both mean "no relay for now", but `Disabled` builds no relay transport, so
+a relay inserted later has nothing to run it. `relayed.rs` pins the whole sequence.
+
 ## A LAN with the internet still on
 
-The interesting case is not the one with no WAN. It is a group who are all on manabrew.app *and*
+The interesting case is not the one with no WAN. It is a group who are all on manabrew.app _and_
 all in the same room, which is where the design is supposed to pay without anybody asking it to.
 
 Nothing special happens, which is the point. The control plane stays on manabrew.app because it
@@ -304,17 +335,9 @@ runs on the local network while the lobby, identity and room lifecycle stay wher
 This needs the room's host to have a native endpoint, which is the hosted Forge fleet or a
 desktop Forge room. `Config::for_hosted_room` therefore turns the direct plane **on**, unlike the
 fleet default: a desktop room is where the seats are most likely to be one switch away, and it is
-not part of the capture analysis that keeps it off in production. It binds with no relay url, and then takes the one
-the control plane names in `RoomTransport` (`NetEndpoint::adopt_relay`) and announces itself
-again, because its address has changed. Without that a seat that cannot reach it directly has no
-path to it at all, which is most of the internet.
+not part of the capture analysis that keeps it off in production.
 
-That adoption is why an endpoint with no relay binds with an **empty relay map** rather than
-`RelayMode::Disabled`. Both mean "no relay for now", but `Disabled` builds no relay transport,
-so a relay inserted later has nothing to run it. `relayed.rs` pins the whole sequence.
-
-A room hosted by a webview has no native endpoint and stays on the relay entirely. That is the
-next phase, not a limitation of the model.
+A room hosted by a webview has no native endpoint and stays on the relay entirely.
 
 **A browser seat gains nothing from being on the same network, and cannot.** Under `wasm_browser`
 iroh has no IP transports, so a browser has no socket with which to take the LAN path however
@@ -322,9 +345,7 @@ close the host is. Its only route is an iroh relay, and reaching one on the loca
 blocked for a different reason: a page served from `https://play.manabrew.app` may not open
 `ws://192.168.x.x`, and no header fixes mixed content. So a browser on the same switch as the
 host still plays through a relay over the WAN, and no seat binds an endpoint, or fetches a
-module, until the roster names a host offering a direct plane. The host announces before any seat
-does, so waiting for it costs nothing and saves a megabyte in every room that was always going to
-stay on the relay.
+module, until the roster names a host offering a direct plane.
 
 The way out is not configuration. Either the player installs the desktop app, which binds
 natively and does take the LAN path, or a LAN relay is made reachable over `wss` — which needs a
@@ -353,12 +374,16 @@ that a LAN should never need.
 `getPlatform().type`. Nothing above it knows which it got, which is the same reason the inbound
 envelope is handed to `handleServerMessage` as a `StateUpdate`.
 
-Nobody types a key. A shared room runs on a well-known one, handed back with the room by
-discovery, because that key was never access control: `Authenticate` checks it and then runs the
-real handshake, an identity proof that works offline since unsigned self-minted tokens are
-accepted with no hub configured. The public relay already ships its own key to every browser in
-`config.js`. Privacy for a particular room is `CreateRoom.password`, which already exists and
-already has UI.
+Nobody types a key, and the consequence is worth stating plainly: **an unprotected room on a
+shared network now has no gate at all.** Before, a joiner needed a code off the host's screen.
+For four people at a kitchen table that is the right trade, and it is the same trust model as
+every other device on that network. For anyone who wants a closed room, `CreateRoom.password` is
+the answer and it already has UI.
+
+A shared room runs on a well-known key, handed back with the room by discovery, because that key
+was never access control: `Authenticate` checks it and then runs the real handshake, an identity
+proof that works offline since unsigned self-minted tokens are accepted with no hub configured.
+The public relay already ships its own key to every browser in `config.js`.
 
 Card art is the one thing still missing offline; there is no image cache today (#811).
 
@@ -396,12 +421,13 @@ itself:
   (`MANABREW_IROH_RELAY_PORT`, `handle /relay*` on `relay.manabrew.app`, which the deploy's own
   ingress reload applies). **Running it is not the same as moving traffic onto it:** the fleet
   keeps `SELF_HOSTED_NODE_IROH` off, so what it serves is the fallback for hosts that do offer a
-  direct plane, which today means a room hosted from somebody's desktop. What is left here is live migration at a resync boundary,
-  which is optional: transport is chosen before `GameStarted` and never changes mid-game, and the
-  fallback direction is already a barrier rather than a switch.
+  direct plane, which today means a room hosted from somebody's desktop. What is left here is
+  live migration at a resync boundary, which is optional:
+  transport is chosen before `GameStarted` and never changes mid-game, and the fallback direction
+  is already a barrier rather than a switch.
 - **Phase 4 (partly done).** The browser seat: `manabrew-net-wasm`, the lazily-imported module,
   and the client wiring. What is **not** verified is a real browser game over it, because that
   needs a browser; the Rust and TypeScript both build and lint, and the relay-only path is
   covered natively by `manabrew-net/tests/relayed.rs`, which uses an endpoint with its IP
-  transports cleared. Still open: browser-*hosted* rooms, and a desktop-embedded relay, which is
+  transports cleared. Still open: browser-_hosted_ rooms, and a desktop-embedded relay, which is
   still not worth it.

@@ -193,7 +193,12 @@ jobs:
         run: cargo run -p forge-cardset-archive --features build --release --bin build-cardset-archive
 
       - name: Build relay and node
-        run: cargo build --release -p manabrew-server -p self-hosted-node
+        # The node needs `iroh` explicitly: the feature is off by default so
+        # the fleet image stays relay-only, but the regression suite drives a
+        # seat onto the direct plane.
+        run: >
+          cargo build --release -p manabrew-server -p self-hosted-node
+          --features self-hosted-node/iroh
 
       - name: Build networking test artifacts
         run: cargo test --release -p networking-tests --test networking_regression --no-run

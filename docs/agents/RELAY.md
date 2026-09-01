@@ -46,7 +46,9 @@ relay's **own** record of each session's username. That is what makes an endpoin
 to a player: clients treat a `username -> endpoint_id` pair as authoritative because the relay
 said it, never because a peer claimed it over gossip. `MANABREW_IROH_RELAY_PORT` makes this process host the deployment's own
 iroh relay alongside the game socket, and `MANABREW_IROH_RELAY_URL` is the address it advertises
-to room members. Unset means peers stay direct-only, and there is deliberately no public default.
+to room members. That relay admits only connections carrying a **room-scoped token** this process
+minted (`iroh_relay::mint_token`, an HMAC over the room id and an expiry, handed out in
+`RoomTransport`); without it a relay on a public hostname forwards for anyone who knows the url. Unset means peers stay direct-only, and there is deliberately no public default.
 Both native and browser iroh clients reach a relay over plain WebSocket at `/relay`, so the edge
 routes `handle /relay*` on the existing relay hostname; it needs no certificate or DNS of its own.
 

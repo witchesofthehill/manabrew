@@ -37,7 +37,11 @@ async fn main() {
 
     let iroh_relay = match config.iroh_relay_port {
         Some(port) => {
-            manabrew_server::iroh_relay::spawn(SocketAddr::from(([0, 0, 0, 0], port))).await
+            manabrew_server::iroh_relay::spawn(
+                SocketAddr::from(([0, 0, 0, 0], port)),
+                &config.server_key,
+            )
+            .await
         }
         None => None,
     };

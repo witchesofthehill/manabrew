@@ -22,7 +22,11 @@ import type { StateEnvelope } from "@/types/server";
 interface NetModule {
   default: (input?: unknown) => Promise<unknown>;
   WasmSeat: {
-    bindSeat(username: string, relayUrl: string | null): Promise<WasmSeat>;
+    bindSeat(
+      username: string,
+      relayUrl: string | null,
+      relayToken: string | null,
+    ): Promise<WasmSeat>;
   };
 }
 
@@ -48,7 +52,11 @@ export interface DirectTransportStatus {
  * above here is concerned.
  */
 interface SeatBackend {
-  start(username: string, relayUrl: string | null): Promise<unknown | null>;
+  start(
+    username: string,
+    relayUrl: string | null,
+    relayToken: string | null,
+  ): Promise<unknown | null>;
   roster(
     roomId: string,
     topicSecret: string,
@@ -69,10 +77,15 @@ class TauriSeatBackend implements SeatBackend {
     this.deliver = deliver;
   }
 
-  async start(username: string, relayUrl: string | null): Promise<unknown | null> {
+  async start(
+    username: string,
+    relayUrl: string | null,
+    relayToken: string | null,
+  ): Promise<unknown | null> {
     const binding = await invoke<{ endpoint: unknown }>("direct_seat_start", {
       username,
       relayUrl,
+      relayToken,
     });
     this.unlisten = await listen<StateEnvelope | null>("direct-seat:envelope", (event) => {
       if (event.payload === null) {
@@ -135,10 +148,14 @@ class WasmSeatBackend implements SeatBackend {
     this.deliver = deliver;
   }
 
-  async start(username: string, relayUrl: string | null): Promise<unknown | null> {
+  async start(
+    username: string,
+    relayUrl: string | null,
+    relayToken: string | null,
+  ): Promise<unknown | null> {
     this.module = (await import("@/wasm-net/net")) as unknown as NetModule;
     await this.module.default();
-    this.seat = await this.module.WasmSeat.bindSeat(username, relayUrl);
+    this.seat = await this.module.WasmSeat.bindSeat(username, relayUrl, relayToken);
     return await this.seat.localEndpoint();
   }
 
@@ -187,26 +204,37 @@ class WasmSeatBackend implements SeatBackend {
 export class DirectSeat {
   private readonly username: string;
   private readonly relayUrl: string | null;
+  private readonly relayToken: string | null;
   private readonly deliver: (envelope: StateEnvelope, fromPlayer: string) => void;
   private backend: SeatBackend | null = null;
-  private announced = false;
+  /** The in-flight bind, so two `RoomTransport` messages arriving together
+   *  cannot both get past a check that sits before an await and each build a
+   *  seat. The second would install a second event listener and every host
+   *  envelope would arrive twice. */
+  private binding: Promise<unknown | null> | null = null;
   private active = false;
 
   constructor(
     username: string,
     relayUrl: string | null,
+    relayToken: string | null,
     deliver: (envelope: StateEnvelope, fromPlayer: string) => void,
   ) {
     this.username = username;
     this.relayUrl = relayUrl;
+    this.relayToken = relayToken;
     this.deliver = deliver;
   }
 
   /** The endpoint to announce, once. Null when no backend can start, which
    *  leaves this seat on the relay with nothing else changed. */
   async announce(): Promise<unknown | null> {
-    if (this.announced) return null;
-    this.announced = true;
+    if (this.binding) return null;
+    this.binding = this.bind();
+    return this.binding;
+  }
+
+  private async bind(): Promise<unknown | null> {
     // A browser endpoint has no IP transports at all, so without a relay it has
     // no way to reach anything and the module is a megabyte fetched for
     // nothing. A desktop binds natively and is fine direct-only, which is what
@@ -219,7 +247,7 @@ export class DirectSeat {
     const backend =
       getPlatform().type === "tauri" ? new TauriSeatBackend(receive) : new WasmSeatBackend(receive);
     try {
-      const endpoint = await backend.start(this.username, this.relayUrl);
+      const endpoint = await backend.start(this.username, this.relayUrl, this.relayToken);
       this.backend = backend;
       return endpoint;
     } catch (error) {
@@ -230,6 +258,7 @@ export class DirectSeat {
 
   /** Installs the relay's roster and dials the host it names. */
   async onRoster(roomId: string, topicSecret: string, members: unknown): Promise<void> {
+    await this.binding;
     if (!this.backend) return;
     try {
       const status = await this.backend.roster(roomId, topicSecret, members);
@@ -254,16 +283,17 @@ export class DirectSeat {
     this.active = false;
   }
 
-  /** True when this envelope has been taken; false means send it over the
-   *  relay. The desktop's send crosses into the shell, so the answer arrives
-   *  after the fact and a failure there falls back on the next envelope. */
-  trySend(state: Record<string, unknown>): boolean {
+  /**
+   * Takes this envelope, or says it did not. The desktop's send crosses into
+   * the shell, so the answer only arrives after the fact and this has to wait
+   * for it: claiming an envelope the shell then failed to send would drop it
+   * on the floor, and the one most likely to be lost is a prompt response,
+   * which leaves the game waiting on that seat until a resync.
+   */
+  async trySend(state: Record<string, unknown>): Promise<boolean> {
     if (!this.active || !this.backend || !isSeatEnvelope(state)) return false;
-    const sent = this.backend.send(state);
-    if (typeof sent === "boolean") return sent;
-    void sent.then((ok) => {
-      if (!ok) this.active = false;
-    });
-    return true;
+    const sent = await this.backend.send(state);
+    if (!sent) this.active = false;
+    return sent;
   }
 }

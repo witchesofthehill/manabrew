@@ -42,13 +42,14 @@ pub struct NetConfig {
 
 impl NetConfig {
     /// Points the endpoint at a manabrew-operated `iroh-relay`.
-    pub fn with_relay(url: &str) -> Result<Self> {
-        let url: RelayUrl = url
-            .parse()
-            .map_err(|_| NetError::BadRelayUrl(url.to_string()))?;
+    /// The token is what the relay admits this room on; a relay running without
+    /// one ignores it.
+    pub fn with_relay(url: &str, token: Option<&str>) -> Result<Self> {
         Ok(Self {
             secret_key: None,
-            relay_mode: Some(RelayMode::Custom(RelayMap::from_iter([url]))),
+            relay_mode: Some(RelayMode::Custom(RelayMap::from_iter([relay_config(
+                url, token,
+            )?]))),
             relay_only: false,
         })
     }
@@ -59,6 +60,10 @@ impl NetConfig {
 pub struct SeatConnection {
     pub username: String,
     pub endpoint_id: EndpointId,
+    /// Distinguishes one connection from the same seat's next one. A seat that
+    /// re-dials after a blip is a new connection, not the old one recovering,
+    /// and the old one's reader will still fire when it finally notices.
+    pub generation: u64,
     pub channel: GameChannel,
 }
 
@@ -116,6 +121,7 @@ impl NetEndpoint {
                 GameAcceptor {
                     roster: roster.clone(),
                     seats: seats_tx,
+                    generation: Arc::default(),
                 },
             )
             .spawn();
@@ -162,12 +168,11 @@ impl NetEndpoint {
     /// No QUIC address discovery is configured with it: the relay is reached
     /// through an ordinary reverse proxy, which carries the WebSocket and not
     /// the QAD endpoint.
-    pub async fn adopt_relay(&self, url: &str) -> Result<()> {
-        let url: RelayUrl = url
-            .parse()
-            .map_err(|_| NetError::BadRelayUrl(url.to_string()))?;
-        let config = Arc::new(iroh::RelayConfig::new(url.clone(), None));
-        self.endpoint.insert_relay(url, config).await;
+    pub async fn adopt_relay(&self, url: &str, token: Option<&str>) -> Result<()> {
+        let config = relay_config(url, token)?;
+        self.endpoint
+            .insert_relay(config.url.clone(), Arc::new(config))
+            .await;
         Ok(())
     }
 
@@ -238,6 +243,7 @@ impl NetEndpoint {
 struct GameAcceptor {
     roster: SharedRoster,
     seats: mpsc::Sender<SeatConnection>,
+    generation: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl ProtocolHandler for GameAcceptor {
@@ -313,6 +319,9 @@ impl ProtocolHandler for GameAcceptor {
         let seat = SeatConnection {
             username,
             endpoint_id: remote,
+            generation: self
+                .generation
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst),
             channel: pump(conn, send, recv, Duration::ZERO),
         };
         if self.seats.send(seat).await.is_err() {
@@ -442,6 +451,20 @@ fn is_lan(ip: IpAddr) -> bool {
                 || (v6.segments()[0] & 0xffc0) == 0xfe80
         }
     }
+}
+
+/// No QUIC address discovery is configured with it: the relay is reached
+/// through an ordinary reverse proxy, which carries the WebSocket and not the
+/// QAD endpoint.
+fn relay_config(url: &str, token: Option<&str>) -> Result<iroh::RelayConfig> {
+    let parsed: RelayUrl = url
+        .parse()
+        .map_err(|_| NetError::BadRelayUrl(url.to_string()))?;
+    let config = iroh::RelayConfig::new(parsed, None);
+    Ok(match token {
+        Some(token) => config.with_auth_token(token),
+        None => config,
+    })
 }
 
 pub(crate) fn iroh_err<E: std::fmt::Display>(err: E) -> NetError {

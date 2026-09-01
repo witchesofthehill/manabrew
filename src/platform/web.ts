@@ -1141,7 +1141,9 @@ class WebServerApi implements IServerApi {
   }
 
   async broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void> {
-    if (this.directSeat?.trySend(state)) return;
+    // Awaited, not raced: the desktop's send crosses into the shell, and an
+    // envelope it failed to send has to come back here rather than vanish.
+    if (this.directSeat && (await this.directSeat.trySend(state))) return;
     this.send({ type: "BroadcastState", state, target_player: targetPlayer });
   }
 
@@ -1290,9 +1292,11 @@ class WebServerApi implements IServerApi {
     // to stay on the relay.
     if (!msg.host) return;
     if (!this.directSeat) {
+      const relayToken = typeof msg.iroh_relay_token === "string" ? msg.iroh_relay_token : null;
       this.directSeat = new DirectSeat(
         this.authedUsername,
         relayUrl,
+        relayToken,
         (state: StateEnvelope, fromPlayer: string) =>
           this.handleServerMessage({ type: "StateUpdate", from_player: fromPlayer, state }),
       );

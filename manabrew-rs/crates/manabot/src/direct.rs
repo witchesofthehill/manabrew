@@ -32,7 +32,7 @@ pub struct DirectSeat {
 impl DirectSeat {
     pub async fn start(username: &str, iroh_relay_url: Option<&str>) -> Option<Self> {
         let config = match iroh_relay_url {
-            Some(url) => match NetConfig::with_relay(url) {
+            Some(url) => match NetConfig::with_relay(url, None) {
                 Ok(config) => config,
                 Err(error) => {
                     warn!(%error, url, "invalid iroh relay url; staying on the relay");

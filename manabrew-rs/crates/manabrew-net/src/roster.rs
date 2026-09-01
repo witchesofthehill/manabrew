@@ -116,13 +116,18 @@ fn derive_topic(room_id: &str, secret: &[u8; 32]) -> TopicId {
 }
 
 fn decode_topic_secret(hex: &str) -> Result<[u8; 32]> {
-    if hex.len() != 64 {
-        return Err(NetError::BadTopicSecret);
-    }
+    // `get` rather than a slice: a 64-*byte* string can hold a multi-byte
+    // character, and slicing one off a boundary panics. This is reachable from
+    // any relay a peer talks to, which now includes one on somebody's LAN.
     let mut out = [0u8; 32];
     for (idx, byte) in out.iter_mut().enumerate() {
-        *byte = u8::from_str_radix(&hex[idx * 2..idx * 2 + 2], 16)
-            .map_err(|_| NetError::BadTopicSecret)?;
+        let pair = hex
+            .get(idx * 2..idx * 2 + 2)
+            .ok_or(NetError::BadTopicSecret)?;
+        *byte = u8::from_str_radix(pair, 16).map_err(|_| NetError::BadTopicSecret)?;
+    }
+    if hex.len() != 64 {
+        return Err(NetError::BadTopicSecret);
     }
     Ok(out)
 }
@@ -214,6 +219,24 @@ mod tests {
         let alice = SecretKey::generate().public();
         assert!(matches!(
             Roster::new("room-1", "not-hex", None, &[member("alice", &alice, true)]),
+            Err(NetError::BadTopicSecret)
+        ));
+    }
+
+    #[test]
+    fn a_hostile_topic_secret_is_refused_rather_than_fatal() {
+        let alice = SecretKey::generate().public();
+        let members = [member("alice", &alice, true)];
+        // 64 bytes, but not 64 characters: slicing this at byte 2 lands inside
+        // a character.
+        let multibyte = "é".repeat(32);
+        assert_eq!(multibyte.len(), 64);
+        assert!(matches!(
+            Roster::new("room-1", &multibyte, None, &members),
+            Err(NetError::BadTopicSecret)
+        ));
+        assert!(matches!(
+            Roster::new("room-1", "", None, &members),
             Err(NetError::BadTopicSecret)
         ));
     }

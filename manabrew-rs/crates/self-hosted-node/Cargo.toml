@@ -8,6 +8,10 @@ description = "Headless manabrew engine node for hosting AI games"
 [features]
 java-forge = []
 graal-forge = []
+# The iroh data plane. Off by default so the fleet image carries no QUIC stack
+# and no second listening socket until the transport is deliberately enabled;
+# `MANABREW_IROH` still has to be set on top of it. See docs/TRANSPORT.md.
+iroh = ["dep:manabrew-net", "manabot/iroh"]
 
 [lib]
 name = "self_hosted_node"
@@ -19,7 +23,7 @@ path = "src/main.rs"
 
 [dependencies]
 manabrew-relay-protocol = { path = "../manabrew-relay-protocol", version = "5.8.2" }
-manabrew-net = { path = "../manabrew-net", version = "0.1.0" }
+manabrew-net = { path = "../manabrew-net", version = "0.1.0", optional = true }
 manabrew-agent-interface = { path = "../manabrew-agent-interface", version = "0.10.11" }
 manabrew-protocol = { path = "../manabrew-protocol", version = "5.6.1" }
 manabot = { path = "../manabot/", version = "0.11.9" }

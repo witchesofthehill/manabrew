@@ -14,7 +14,10 @@ mod state;
 pub use agent::{AgentKind, BotAgent, BotResponder, SimpleAi};
 pub use state::{BotConfig, BotState};
 
-#[cfg(feature = "native")]
+#[cfg(all(feature = "native", feature = "iroh"))]
+pub mod direct;
+#[cfg(all(feature = "native", not(feature = "iroh")))]
+#[path = "direct_stub.rs"]
 pub mod direct;
 #[cfg(feature = "native")]
 mod native;

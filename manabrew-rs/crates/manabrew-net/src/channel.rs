@@ -15,14 +15,19 @@ use crate::{NetError, Result};
 
 pub const CHANNEL_CAPACITY: usize = 256;
 
+/// One spelling, everywhere. These serialize as the same strings `as_str`
+/// returns and the same ones `SeatTransportReport.transport` carries, so a log
+/// line, a metric label and a report all say the same word.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub enum TransportKind {
     /// manabrew-server carried it.
+    #[serde(rename = "relay")]
     Relay,
     /// iroh, on a direct path to the peer.
+    #[serde(rename = "iroh-direct")]
     IrohDirect,
     /// iroh, but the selected path still goes through an iroh relay.
+    #[serde(rename = "iroh-relayed")]
     IrohRelayed,
 }
 

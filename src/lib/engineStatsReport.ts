@@ -152,6 +152,10 @@ export function reportEngineStats(meta: {
       multiplayer: meta.multiplayer,
       endReason: meta.endReason,
       reportId: crypto.randomUUID(),
+      // Carried inside the report as well as beside it, because the hub route
+      // has no envelope to put it on. Without it a hub report is an orphan:
+      // percentiles with nothing to say what game produced them.
+      gameId: meta.gameId ?? null,
     });
   } catch {
     return;

@@ -1,6 +1,6 @@
 {
   "name": "@manabrew/forge-wasm",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Forge rules engine compiled to WebAssembly for browser-hosted Magic games",
   "type": "module",
   "license": "AGPL-3.0-or-later",

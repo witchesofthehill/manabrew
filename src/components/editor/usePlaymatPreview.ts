@@ -89,6 +89,7 @@ export function usePlaymatPreview({
   useEffect(() => {
     if (!playmat) return;
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.onload = () => {
       naturalRef.current = { w: img.naturalWidth || 1, h: img.naturalHeight || 1 };
     };

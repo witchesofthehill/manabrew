@@ -8,7 +8,11 @@ import {
 } from "@/game";
 import { teardownForgeAiSession } from "@/game/hostedAiPlay";
 import { reportEngineStats } from "@/lib/engineStatsReport";
-import { reportOfflineGame, type OfflineSeatOutcome } from "@/lib/offlinePlayRecord";
+import {
+  currentOfflineGameId,
+  reportOfflineGame,
+  type OfflineSeatOutcome,
+} from "@/lib/offlinePlayRecord";
 import { clearLocalGame } from "@/lib/localGamePresence";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useGameStore } from "@/stores/useGameStore";
@@ -159,6 +163,9 @@ function offlineSeats(state: GameState): OfflineSeatOutcome[] {
 /** Close the book on the current game. Safe to call more than once. */
 function reportEngineGame(): void {
   const state = useGameStore.getState();
+  // Read before the offline record is closed: reporting the game clears it, and
+  // the engine report below needs the same id to file itself against.
+  const offlineGameId = currentOfflineGameId();
   if (!state.isMultiplayer) {
     clearLocalGame();
     const players = state.gameView?.players ?? [];
@@ -177,7 +184,7 @@ function reportEngineGame(): void {
     // engine sends a gameOver prompt and `gameView` never gets the flag, so
     // reading the flag alone filed finished games as quits.
     endReason: isOver(state) ? "gameOver" : "left",
-    gameId: useServerStore.getState().gameId ?? null,
+    gameId: useServerStore.getState().gameId ?? offlineGameId,
     send: state.isMultiplayer
       ? async (stats, gameId) => {
           await getPlatform().server?.reportEngineStats(stats, gameId);

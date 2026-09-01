@@ -37,7 +37,10 @@ const LABEL_OUTCOME: &str = "outcome";
 pub const REJECTION_OUTDATED_WIRE: &str = "outdated_wire";
 
 pub const ENGINE_REPORT_ACCEPTED: &str = "accepted";
-pub const ENGINE_REPORT_OUTSIDE_ROOM: &str = "outside_room";
+/// Accepted, but the seat had already left the room it played in. Normal at
+/// game over rather than a fault; kept apart from `accepted` because a sharp
+/// rise in it means seats are leaving earlier than they used to.
+pub const ENGINE_REPORT_ROOMLESS: &str = "accepted_roomless";
 pub const ENGINE_REPORT_IMPLAUSIBLE: &str = "implausible";
 
 #[derive(Clone, Copy)]

@@ -128,6 +128,20 @@ async fn main() {
         }
     });
 
+    // A relay in a cupboard is the half nobody logs into, and one left behind
+    // far enough refuses its own clients on `PROTOCOL_VERSION`. Off unless
+    // asked: production is deployed on purpose.
+    let updating = state.clone();
+    tokio::spawn(manabrew_server::self_update::run(
+        manabrew_server::self_update::UpdateConfig::from_env(),
+        move || {
+            !updating
+                .rooms
+                .iter()
+                .any(|room| room.status == manabrew_server::protocol::RoomStatus::InGame)
+        },
+    ));
+
     if !state.identity.hub_configured() {
         tracing::info!("[auth] no hub jwks url -- account identity disabled, device proofs only");
     }

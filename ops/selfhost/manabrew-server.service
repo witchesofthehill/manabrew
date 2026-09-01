@@ -12,6 +12,10 @@ ExecStart=/usr/local/bin/manabrew-server
 Environment=MANABREW_ART_DIR=/var/lib/manabrew
 # Answer mDNS, so the desktops on this network find this box on their own.
 Environment=MANABREW_LAN_ADVERTISE=1
+# Replace this binary when a newer one is published, never mid-game.
+Environment=MANABREW_SELF_UPDATE=1
+
+# Restarting is what completes an update: it swaps itself and exits 0.
 Restart=always
 RestartSec=2
 

@@ -603,6 +603,18 @@ jobs:
           cargo build --release -p manabrew-server --target x86_64-unknown-linux-musl
           cp target/x86_64-unknown-linux-musl/release/manabrew-server \
             release-assets/manabrew-server-linux-x86_64
+            release-assets/manabrew-server-linux-x86_64.sig
+
+      # Signed with the key the desktop updater already trusts, because the
+      # relay checks it before replacing itself.
+      - name: Sign the relay binary
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        run: |
+          yarn tauri signer sign \
+            --private-key "$TAURI_SIGNING_PRIVATE_KEY" \
+            release-assets/manabrew-server-linux-x86_64
 
       - name: Download macOS artifact
         uses: actions/download-artifact@v4

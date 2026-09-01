@@ -178,9 +178,14 @@ pub async fn start_local_relay(
         let discovery = match &lan_host {
             // A room without discovery is still a room: the host can read its
             // address off the screen and the others type it once.
-            Some(host) => crate::lan_discovery::advertise(host, port, info.art_port)
-                .inspect_err(|e| eprintln!("[lan] not advertising this room: {e}"))
-                .ok(),
+            Some(host) => crate::lan_discovery::advertise(
+                crate::lan_discovery::LanRole::Room,
+                host,
+                port,
+                info.art_port,
+            )
+            .inspect_err(|e| eprintln!("[lan] not advertising this room: {e}"))
+            .ok(),
             None => None,
         };
 

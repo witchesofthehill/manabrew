@@ -5211,6 +5211,7 @@ dependencies = [
  "manabrew-agent-interface",
  "manabrew-art-cache",
  "manabrew-engine",
+ "manabrew-lan-discovery",
  "manabrew-net",
  "manabrew-protocol",
  "manabrew-server",
@@ -5318,6 +5319,15 @@ dependencies = [
  "tracing-subscriber",
  "ts-rs",
  "uuid",
+]
+
+[[package]]
+name = "manabrew-lan-discovery"
+version = "0.1.0"
+dependencies = [
+ "mdns-sd",
+ "serde",
+ "tokio",
 ]
 
 [[package]]

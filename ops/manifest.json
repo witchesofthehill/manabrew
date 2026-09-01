@@ -16,6 +16,7 @@
     "manabrew-engine-macros": "0.2.0",
     "manabrew-hub": "0.15.1",
     "manabrew-art-cache": "0.1.0",
+    "manabrew-lan-discovery": "0.1.0",
     "manabrew-net": "0.1.0",
     "manabrew-net-wasm": "0.1.0",
     "manabrew-protocol": "5.6.1",

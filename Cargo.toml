@@ -12,6 +12,7 @@ members = [
     "manabrew-rs/crates/manabrew-protocol",
     "manabrew-rs/crates/manabrew-relay-protocol",
     "manabrew-rs/crates/manabrew-art-cache",
+    "manabrew-rs/crates/manabrew-lan-discovery",
     "manabrew-rs/crates/manabrew-net",
     "manabrew-rs/crates/manabrew-net-wasm",
     "manabrew-rs/crates/manabrew-server",

@@ -17,34 +17,34 @@ use crate::image_cache::{self, ImageCache};
 
 pub struct ArtServer {
     pub port: u16,
-    shutdown: Arc<std::sync::atomic::AtomicBool>,
+    /// Held so `Drop` can `unblock` it. A flag alone is only read after the
+    /// next request arrives, so un-sharing a room left the thread parked on
+    /// accept with the port still bound and still answering the subnet.
+    server: Arc<tiny_http::Server>,
 }
 
 impl Drop for ArtServer {
     fn drop(&mut self) {
-        self.shutdown
-            .store(true, std::sync::atomic::Ordering::Relaxed);
+        self.server.unblock();
     }
 }
 
 /// `None` leaves the room hosted and the other seats falling back to the CDN.
 pub fn spawn(bind_ip: std::net::IpAddr) -> Option<ArtServer> {
     let cache = image_cache::cache()?;
-    let server = tiny_http::Server::http((bind_ip, 0)).ok()?;
+    let server = Arc::new(tiny_http::Server::http((bind_ip, 0)).ok()?);
     let port = server.server_addr().to_ip()?.port();
-    let shutdown = Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let stop = shutdown.clone();
+    let accept = server.clone();
 
     std::thread::spawn(move || {
-        for request in server.incoming_requests() {
-            if stop.load(std::sync::atomic::Ordering::Relaxed) {
-                break;
-            }
+        // `unblock` ends this iterator, so the thread exits and the listener is
+        // closed rather than waiting for one more request to notice.
+        for request in accept.incoming_requests() {
             serve(request, &cache);
         }
     });
 
-    Some(ArtServer { port, shutdown })
+    Some(ArtServer { port, server })
 }
 
 fn serve(request: tiny_http::Request, cache: &ImageCache) {
@@ -71,4 +71,46 @@ fn serve(request: tiny_http::Request, cache: &ImageCache) {
         }
     }
     let _ = request.respond(response);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::{Ipv4Addr, TcpStream};
+    use std::time::{Duration, Instant};
+
+    fn answers(port: u16) -> bool {
+        TcpStream::connect_timeout(
+            &(Ipv4Addr::LOCALHOST, port).into(),
+            Duration::from_millis(250),
+        )
+        .is_ok()
+    }
+
+    /// Un-sharing a room has to close the listener. The shutdown flag was only
+    /// read after `incoming_requests()` yielded the next request, so a dropped
+    /// `ArtServer` left the thread parked on accept: the port stayed bound and
+    /// the subnet could still read this machine's whole card cache.
+    #[test]
+    fn dropping_the_server_stops_the_port_answering() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        image_cache::set_cache_for_tests(Arc::new(ImageCache::new(dir.path().to_path_buf())));
+
+        let server = spawn(Ipv4Addr::LOCALHOST.into()).expect("spawn art server");
+        let port = server.port;
+        assert!(answers(port), "the listener should be up while the room is");
+
+        drop(server);
+
+        // The accept loop ends on `unblock`, then the thread drops its handle
+        // and the socket closes.
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while Instant::now() < deadline {
+            if !answers(port) {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        panic!("port {port} still answering after the ArtServer was dropped");
+    }
 }

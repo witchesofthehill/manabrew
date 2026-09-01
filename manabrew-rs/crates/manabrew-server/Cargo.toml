@@ -28,6 +28,10 @@ metrics-exporter-prometheus = { version = "0.18", default-features = false }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 zstd = "0.13"
+manabrew-art-cache = { path = "../manabrew-art-cache", version = "0.1.0" }
+manabrew-lan-discovery = { path = "../manabrew-lan-discovery", version = "0.1.0" }
 aws-lc-rs = "1"
 base64 = "0.22"
+minisign-verify = "0.2"
 sha2 = "0.10"
+

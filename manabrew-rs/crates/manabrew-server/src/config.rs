@@ -1,4 +1,8 @@
 const DEFAULT_CAPTURE_MAX_GB: u64 = 20;
+/// Fixed rather than ephemeral: a client that learns it from config rather
+/// than from mDNS needs it to survive a restart.
+const DEFAULT_ART_PORT: u16 = 9528;
+
 const BYTES_PER_GB: u64 = 1024 * 1024 * 1024;
 
 pub struct ServerConfig {
@@ -15,6 +19,19 @@ pub struct ServerConfig {
     pub hub_deck_plays_url: Option<String>,
     pub hub_deck_plays_token: Option<String>,
     pub hub_jwks_url: Option<String>,
+    /// Where this relay keeps card art. Set it and the relay serves
+    /// `/scryfall-img/` for everyone on the network, which is the point of
+    /// running one: nobody else has to hold 8GB of images.
+    pub art_dir: Option<String>,
+    pub art_port: u16,
+    /// An absolute url, for a deployment behind a proxy where the port this
+    /// binds is not the one a client reaches. On a LAN nobody sets this: the
+    /// mDNS record already carries the port and the client already knows the
+    /// host it connected to.
+    pub art_base_url: Option<String>,
+    /// Answer mDNS, so four desktops on a network find this box without anyone
+    /// typing its address.
+    pub lan_advertise: bool,
 }
 
 impl ServerConfig {
@@ -62,6 +79,24 @@ impl ServerConfig {
             hub_jwks_url: std::env::var("MANABREW_HUB_JWKS_URL")
                 .ok()
                 .filter(|url| !url.is_empty()),
+            art_dir: std::env::var("MANABREW_ART_DIR")
+                .ok()
+                .filter(|dir| !dir.is_empty()),
+            art_port: std::env::var("MANABREW_ART_PORT")
+                .ok()
+                .and_then(|port| port.parse().ok())
+                .unwrap_or(DEFAULT_ART_PORT),
+            art_base_url: std::env::var("MANABREW_ART_BASE_URL")
+                .ok()
+                .filter(|url| !url.is_empty()),
+            lan_advertise: std::env::var("MANABREW_LAN_ADVERTISE")
+                .map(|value| {
+                    matches!(
+                        value.to_ascii_lowercase().as_str(),
+                        "1" | "true" | "yes" | "on"
+                    )
+                })
+                .unwrap_or(false),
         }
     }
 

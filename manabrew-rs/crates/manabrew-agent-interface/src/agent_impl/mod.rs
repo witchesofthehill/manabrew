@@ -132,6 +132,13 @@ impl<R: Responder> PromptAgent<R> {
     }
 
     pub(crate) fn recv_action(&mut self) -> PromptOutput {
+        self.recv_action_matching(|_| true)
+    }
+
+    pub(crate) fn recv_action_matching(
+        &mut self,
+        accepts: impl Fn(&PromptOutput) -> bool,
+    ) -> PromptOutput {
         let prompt = self
             .pending_prompt
             .take()
@@ -157,7 +164,14 @@ impl<R: Responder> PromptAgent<R> {
                         continue;
                     }
                     match prompt.input.validate_response(&action) {
-                        Ok(()) => return action,
+                        Ok(()) if accepts(&action) => return action,
+                        Ok(()) => {
+                            self.reject(
+                                &prompt,
+                                ProtocolErrorCode::UnknownActionId,
+                                "response value was not advertised by the prompt".to_string(),
+                            );
+                        }
                         Err(ResponseViolation::WrongPromptType) => {
                             self.reject(
                                 &prompt,

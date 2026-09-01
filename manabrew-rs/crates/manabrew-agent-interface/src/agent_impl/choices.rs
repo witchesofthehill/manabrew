@@ -721,13 +721,19 @@ pub(super) fn choose_card_name<T: Responder>(
         }),
         None,
     );
-    match agent.recv_action() {
+    match agent.recv_action_matching(|action| match action {
+        PromptOutput::ChooseCardName(ChooseCardNameOutput::CardNameDecision { name }) => {
+            valid_names
+                .iter()
+                .any(|valid| valid.eq_ignore_ascii_case(name))
+        }
+        _ => true,
+    }) {
         PromptOutput::ChooseCardName(ChooseCardNameOutput::CardNameDecision { name }) => {
             valid_names
                 .iter()
                 .find(|valid| valid.eq_ignore_ascii_case(&name))
                 .cloned()
-                .or_else(|| valid_names.first().cloned())
         }
         _ => valid_names.first().cloned(),
     }

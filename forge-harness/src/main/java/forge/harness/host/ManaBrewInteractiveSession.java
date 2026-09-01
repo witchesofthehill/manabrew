@@ -1316,11 +1316,13 @@ public final class ManaBrewInteractiveSession {
             if (!"string_decision".equals(actionKind)) {
                 throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
             }
-            final String value = action.has("value") ? action.get("value").getAsString() : "";
-            if (!options.contains(value)) {
-                throw new IllegalArgumentException("string choice not among offered options: " + value);
+            final String value = action.has("value") ? action.get("value").getAsString().trim() : "";
+            for (final String option : options) {
+                if (option.equalsIgnoreCase(value)) {
+                    return option;
+                }
             }
-            return value;
+            publishOptionPrompt(kind, playerId, options, 1, 1, sourceCardId, description);
         }
         return options.isEmpty() ? "" : options.get(0);
     }

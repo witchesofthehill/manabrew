@@ -55,3 +55,7 @@ Two of them read `window.__gameStore`, which a **production build strips**, so
 against a deployed `BASE` they fall back to the frame stream and the board's own
 text. A script that reads only the store reports an empty board against staging
 and looks exactly like an engine hang.
+
+## direct-plane.mjs
+
+Joins a room hosted by a `self-hosted-node` with the direct data plane on and checks the browser seat announces an endpoint, is attested, and reaches the host over iroh. A browser has no IP transports, so it should report `iroh-relayed` through the relay `manabrew-server` hosts. Needs a local relay with `MANABREW_IROH_RELAY_PORT`, a node with `SELF_HOSTED_NODE_IROH=1`, and `yarn dev:web`; the header comment carries the exact commands.

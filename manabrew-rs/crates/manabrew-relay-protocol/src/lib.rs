@@ -74,6 +74,28 @@ impl ClientPlatform {
     }
 }
 
+/// A peer's addressing information for the direct data plane. Deliberately
+/// stringly typed: this crate must not depend on iroh, so the same messages
+/// carry a future non-iroh transport unchanged.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TransportEndpoint {
+    pub endpoint_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub direct_addrs: Vec<String>,
+}
+
+/// One room member's endpoint, as attested by the relay. `username` is the
+/// relay's own view of the announcing session, never a client-supplied field.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TransportMember {
+    pub username: String,
+    pub endpoint: TransportEndpoint,
+    #[serde(default)]
+    pub host: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[allow(clippy::large_enum_variant)]
@@ -198,6 +220,12 @@ pub enum ClientMessage {
         new_active_player: String,
         turn_number: u32,
     },
+    /// Publishes (or, with `None`, withdraws) this session's data-plane
+    /// endpoint for the room it is in.
+    AnnounceTransport {
+        #[serde(default)]
+        endpoint: Option<TransportEndpoint>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -296,6 +324,16 @@ pub enum ServerMessage {
 
     ServerShuttingDown {
         reconnect_in_s: u32,
+    },
+    /// The room's data-plane roster. Sent only to room members. Absent
+    /// `iroh_relay_url` means the peers take iroh's own relay defaults.
+    RoomTransport {
+        room_id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        iroh_relay_url: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        host: Option<TransportMember>,
+        members: Vec<TransportMember>,
     },
 }
 
@@ -440,7 +478,12 @@ pub struct PlayerInfo {
 /// Names [`ClientMessage::SetLocalGame`] in `AuthResult::features`.
 pub const FEATURE_LOCAL_GAME: &str = "local_game";
 
-pub const FEATURES: &[&str] = &[FEATURE_LOCAL_GAME];
+/// Names [`ClientMessage::AnnounceTransport`] and [`ServerMessage::RoomTransport`]
+/// in `AuthResult::features`. A relay without it never sends a roster, so a
+/// client stays on the relay data plane.
+pub const FEATURE_ROOM_TRANSPORT: &str = "room_transport";
+
+pub const FEATURES: &[&str] = &[FEATURE_LOCAL_GAME, FEATURE_ROOM_TRANSPORT];
 
 /// A game running on the player's own machine, which the relay never sees.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

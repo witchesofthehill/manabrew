@@ -79,6 +79,9 @@ pub struct ServerState {
     pub analytics: AnalyticsHandle,
     pub deck_play_events: DeckPlayEventHandle,
     pub identity: IdentityVerifier,
+    /// See `ServerConfig::direct_transport`. Fails closed.
+    pub direct_transport: bool,
+    pub iroh_relay_url: Option<String>,
 }
 
 impl ServerState {
@@ -99,7 +102,15 @@ impl ServerState {
             analytics,
             deck_play_events,
             identity: IdentityVerifier::new(hub_jwks_url),
+            direct_transport: false,
+            iroh_relay_url: None,
         }
+    }
+
+    pub fn with_direct_transport(mut self, enabled: bool, relay_url: Option<String>) -> Self {
+        self.direct_transport = enabled;
+        self.iroh_relay_url = relay_url;
+        self
     }
 
     pub fn session_by_username(&self, username: &str) -> Option<UsernameSession> {

@@ -15,6 +15,12 @@ pub struct ServerConfig {
     pub hub_deck_plays_url: Option<String>,
     pub hub_deck_plays_token: Option<String>,
     pub hub_jwks_url: Option<String>,
+    /// Opt-in. Off, the relay never sends a roster and every room stays on the
+    /// relay data plane, which is what it does today.
+    pub direct_transport: bool,
+    /// The iroh relay rooms should use. Unset leaves peers on iroh's own relay
+    /// defaults.
+    pub iroh_relay_url: Option<String>,
 }
 
 impl ServerConfig {
@@ -60,6 +66,11 @@ impl ServerConfig {
                 .ok()
                 .filter(|token| !token.is_empty()),
             hub_jwks_url: std::env::var("MANABREW_HUB_JWKS_URL")
+                .ok()
+                .filter(|url| !url.is_empty()),
+            direct_transport: std::env::var("MANABREW_DIRECT_TRANSPORT")
+                .is_ok_and(|v| v == "1" || v.eq_ignore_ascii_case("true")),
+            iroh_relay_url: std::env::var("MANABREW_IROH_RELAY_URL")
                 .ok()
                 .filter(|url| !url.is_empty()),
         }

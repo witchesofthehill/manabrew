@@ -187,6 +187,40 @@ pub fn broadcast_player_list(state: &Arc<ServerState>) {
     }
 }
 
+/// `room_transport` is advertised only where it works, so a client can tell a
+/// relay that will send it a roster from one that never will.
+fn advertised_features(state: &Arc<ServerState>) -> Vec<String> {
+    crate::protocol::FEATURES
+        .iter()
+        .filter(|f| state.direct_transport || **f != crate::protocol::FEATURE_ROOM_TRANSPORT)
+        .map(|f| f.to_string())
+        .collect()
+}
+
+/// Pushes the room's data-plane roster to its members. Members only: clients
+/// treat the roster as authoritative for "this endpoint id is that player", so
+/// it must never reach a session the relay has not placed in the room.
+pub fn broadcast_room_transport(state: &Arc<ServerState>, room_id: &str) {
+    if !state.direct_transport {
+        return;
+    }
+    let Some(room) = state.rooms.get(room_id) else {
+        return;
+    };
+    let msg = ServerMessage::RoomTransport {
+        room_id: room_id.to_string(),
+        iroh_relay_url: state.iroh_relay_url.clone(),
+        host: room.transport_host(),
+        members: room.transport_members(),
+    };
+    // Released before broadcasting, not for tidiness: `broadcast_to_room` takes
+    // its own `state.rooms.get`, and dashmap locks per shard, so holding this
+    // guard across the call deadlocks the thread against itself on every room
+    // whose id lands in the same shard.
+    drop(room);
+    broadcast_to_room(state, room_id, &msg);
+}
+
 pub fn broadcast_to_room_except(
     state: &Arc<ServerState>,
     sender_player_id: &str,
@@ -572,10 +606,7 @@ async fn authenticate(
                     player_id: None,
                     reconnected: None,
                     error: Some("Invalid server key".into()),
-                    features: crate::protocol::FEATURES
-                        .iter()
-                        .map(|f| f.to_string())
-                        .collect(),
+                    features: advertised_features(state),
                 };
                 send_msg(sender, &reply);
                 return Err(ServerError::AuthFailed("Invalid server key".into()));
@@ -591,10 +622,7 @@ async fn authenticate(
                     player_id: None,
                     reconnected: None,
                     error: Some("identity token expired".into()),
-                    features: crate::protocol::FEATURES
-                        .iter()
-                        .map(|f| f.to_string())
-                        .collect(),
+                    features: advertised_features(state),
                 };
                 send_msg(sender, &reply);
                 return Err(ServerError::AuthFailed("identity token expired".into()));
@@ -611,10 +639,7 @@ async fn authenticate(
                     player_id: None,
                     reconnected: None,
                     error: Some("Username cannot be empty".into()),
-                    features: crate::protocol::FEATURES
-                        .iter()
-                        .map(|f| f.to_string())
-                        .collect(),
+                    features: advertised_features(state),
                 };
                 send_msg(sender, &reply);
                 return Err(ServerError::AuthFailed("Empty username".into()));
@@ -632,10 +657,7 @@ async fn authenticate(
                         player_id: None,
                         reconnected: None,
                         error: Some(format!("Username '{username}' is already taken")),
-                        features: crate::protocol::FEATURES
-                            .iter()
-                            .map(|f| f.to_string())
-                            .collect(),
+                        features: advertised_features(state),
                     };
                     send_msg(sender, &reply);
                     return Err(ServerError::DuplicateUsername(username));
@@ -706,10 +728,7 @@ async fn authenticate(
                 player_id: Some(player_id.clone()),
                 reconnected: Some(false),
                 error: None,
-                features: crate::protocol::FEATURES
-                    .iter()
-                    .map(|f| f.to_string())
-                    .collect(),
+                features: advertised_features(state),
             };
             send_msg(sender, &reply);
             broadcast_player_list(state);
@@ -722,10 +741,7 @@ async fn authenticate(
                 player_id: None,
                 reconnected: None,
                 error: Some("First message must be Authenticate".into()),
-                features: crate::protocol::FEATURES
-                    .iter()
-                    .map(|f| f.to_string())
-                    .collect(),
+                features: advertised_features(state),
             };
             send_msg(sender, &reply);
             Err(ServerError::AuthFailed(
@@ -784,10 +800,7 @@ fn reclaim_session(
         player_id: Some(existing_pid.to_string()),
         reconnected: Some(true),
         error: None,
-        features: crate::protocol::FEATURES
-            .iter()
-            .map(|f| f.to_string())
-            .collect(),
+        features: advertised_features(state),
     };
     send_msg(sender, &reply);
 
@@ -1015,6 +1028,7 @@ fn handle_client_message(
                         }
                     }
                     broadcast_to_room(state, &room_id, &ServerMessage::RoomUpdate { room: info });
+                    broadcast_room_transport(state, &room_id);
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' join room failed: {}", username, e);
@@ -1521,6 +1535,30 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::AnnounceTransport { endpoint } => {
+            let Some(room_id) = state.players.get(player_id).and_then(|p| p.room_id.clone()) else {
+                send_error(sender, &ServerError::NotInRoom);
+                return;
+            };
+            let withdrawn = endpoint.is_none();
+            let accepted = state.direct_transport
+                && match state.rooms.get_mut(&room_id) {
+                    Some(mut room) => room.set_transport(player_id, endpoint),
+                    None => false,
+                };
+            // Announcing is an optimisation, not something a player did, and a
+            // relay error becomes a toast. Telling someone they are not in the
+            // room they are sitting in because a squatter claimed their
+            // endpoint id is worse than saying nothing: they stay on the relay
+            // and the counter is where this shows up.
+            if !accepted {
+                metrics::record_transport_announcement("rejected");
+                return;
+            }
+            metrics::record_transport_announcement(if withdrawn { "withdraw" } else { "announce" });
+            broadcast_room_transport(state, &room_id);
+        }
+
         ClientMessage::TurnChange {
             new_active_player,
             turn_number,
@@ -1588,6 +1626,7 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
         ServerMessage::GameAborted { .. } => "GameAborted",
         ServerMessage::Error { .. } => "Error",
         ServerMessage::ServerShuttingDown { .. } => "ServerShuttingDown",
+        ServerMessage::RoomTransport { .. } => "RoomTransport",
     }
 }
 
@@ -1612,5 +1651,6 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::RequestResync => "RequestResync",
         ClientMessage::BroadcastState { .. } => "BroadcastState",
         ClientMessage::TurnChange { .. } => "TurnChange",
+        ClientMessage::AnnounceTransport { .. } => "AnnounceTransport",
     }
 }

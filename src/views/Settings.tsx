@@ -786,6 +786,7 @@ export default function Settings() {
                     <img
                       src={defaultPlaymat}
                       alt="Your default playmat"
+                      crossOrigin="anonymous"
                       className="size-full object-cover"
                     />
                   ) : prefs.defaultPlaymatSettings?.color ? (

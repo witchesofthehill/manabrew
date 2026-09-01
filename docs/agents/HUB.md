@@ -10,11 +10,13 @@ OAuth 2.0: `POST /api/auth/token` is the token endpoint (`grant_type=refresh_tok
 
 Guests have no account row: `POST /api/auth/guest-token` mints a relay-audience token for a guest's chosen display name, refusing (409) when the base name (minus the `@NNNN` tag) matches a claimed account handle, case-insensitively. The guest `sub` is derived from the browser's device secret. No reservation is written — guest names stay ephemeral.
 
-`accounts.qualification` (nullable TEXT, `16_account_qualification.sql`) is an operator-assigned role (e.g. `maintainer`) with no set-API — write it directly in the database. It is minted into access tokens as an optional `qualification` claim, which the relay surfaces to lobby clients as a badge.
+`accounts.qualification` (nullable TEXT, `16_account_qualification.sql`) is an operator-assigned role (e.g. `maintainer`) with no set-API — write it directly in the database. It is minted into access tokens as an optional `qualification` claim, which the relay surfaces to lobby clients as a badge. The account's avatar asset URL is likewise minted as an optional `avatar_url` claim (only for account tokens — guests get neither claim), which the relay surfaces as `PlayerInfo.avatar_url`.
 
 ## Account deletion vs publications
 
 `DELETE /api/auth/me` (`Storage::delete_account`) erases the account and hard-deletes its decks, but a deck backing a Community publication survives with `account_id` set to NULL, which `15_orphan_decks.sql` allows by relaxing the `decks` CHECK. An ownerless deck is normal: queries that read `decks.account_id` into a non-optional value must filter `account_id IS NOT NULL`, and the entry `author` is `None` on the wire so the client can distinguish a deleted owner from a real handle.
+
+Offline play records a handle per seat rather than an account id (`19_offline_play_games.sql`), so deletion also scrubs the handle out of `offline_play_seats.username`, `offline_play_games.winner` and `offline_play_games.conceded`, replacing it with `(erased)`. The rows themselves stay: they are the only record those games happened, and deleting an account must not quietly rewrite games/day. Any future table that stores a username rather than an account id has to be added to `delete_account` the same way.
 
 ## Player assets
 

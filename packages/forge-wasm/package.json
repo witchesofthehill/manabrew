@@ -1,0 +1,74 @@
+{
+  "name": "@manabrew/forge-wasm",
+  "version": "0.2.0",
+  "description": "Forge rules engine compiled to WebAssembly for browser-hosted Magic games",
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/witchesofthehill/manabrew.git",
+    "directory": "packages/forge-wasm"
+  },
+  "homepage": "https://github.com/witchesofthehill/manabrew/tree/main/packages/forge-wasm",
+  "bugs": "https://github.com/witchesofthehill/manabrew/issues",
+  "main": "./forge.js",
+  "types": "./forge.d.ts",
+  "exports": {
+    ".": {
+      "types": "./forge.d.ts",
+      "node": "./node.js",
+      "default": "./forge.js"
+    },
+    "./vite": {
+      "types": "./vite.d.ts",
+      "default": "./vite.js"
+    },
+    "./deckCards": {
+      "types": "./deckCards.d.ts",
+      "default": "./deckCards.js"
+    },
+    "./seat": {
+      "types": "./seat.d.ts",
+      "default": "./seat.js"
+    },
+    "./cardset.rkyv": "./cardset.rkyv",
+    "./forge-engine.worker.js": "./forge-engine.worker.js",
+    "./forgeharness.js": "./forgeharness.js",
+    "./forgeharness.js.wasm": "./forgeharness.js.wasm"
+  },
+  "files": [
+    "forge.js",
+    "forge.d.ts",
+    "engine.js",
+    "node.js",
+    "node-worker.cjs",
+    "stamp.js",
+    "deckCards.js",
+    "deckCards.d.ts",
+    "seat.js",
+    "seat.d.ts",
+    "vite.js",
+    "vite.d.ts",
+    "forge-assets.js",
+    "forge-assets_bg.wasm",
+    "forge-engine.worker.js",
+    "forgeharness.js",
+    "forgeharness.js.wasm",
+    "cardset.rkyv",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "./forgeharness.js"
+  ],
+  "dependencies": {
+    "@manabrew/protocol": "^5.4.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

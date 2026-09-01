@@ -1,4 +1,5 @@
 import type { EngineGameStats } from "@/lib/engineTelemetry";
+import type { OfflinePlayGame } from "@/lib/offlinePlayRecord";
 import { getHubApiUrl } from "@/config/webRuntimeConfig";
 import { platformFetch } from "@/lib/platformFetch";
 import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
@@ -293,6 +294,14 @@ export async function recordEngineStats(stats: EngineGameStats): Promise<void> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(stats),
+  });
+}
+
+export async function recordOfflineGame(game: OfflinePlayGame): Promise<void> {
+  await hubRequest("/api/stats/game", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(game),
   });
 }
 

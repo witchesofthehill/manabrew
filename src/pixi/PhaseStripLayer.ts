@@ -25,10 +25,14 @@ interface PhaseSpec {
   indicatorPhases?: string[];
 }
 
-const COMBAT_SUB_PHASES = STEP_DEFS.filter((p) => p.combat).map((p) => p.id);
+const COMBAT_SUB_PHASES: string[] = STEP_DEFS.filter((p) => p.combat).map((p) => p.id);
 
 const COMBAT_LABELS: Record<string, string> = Object.fromEntries(
   STEP_DEFS.filter((p) => p.combat).map((p) => [p.id, p.short]),
+);
+
+const COMBAT_FULL_LABELS: Record<string, string> = Object.fromEntries(
+  STEP_DEFS.filter((p) => p.combat).map((p) => [p.id, p.label]),
 );
 
 const PHASES: PhaseSpec[] = STEP_DEFS.filter((p) => p.id !== "untap").flatMap((p): PhaseSpec[] => {
@@ -45,7 +49,6 @@ const PHASES: PhaseSpec[] = STEP_DEFS.filter((p) => p.id !== "untap").flatMap((p
 });
 
 const CELL_W = 60;
-const COMBAT_CELL_W = 84;
 const CELL_H = 28;
 const CELL_GAP = 5;
 const CELL_R = 4;
@@ -54,6 +57,15 @@ const COMPACT_PILL_MIN_W = 76;
 const COMPACT_PILL_PAD_X = 14;
 const COMPACT_PILL_HIT_PAD = 10;
 const COMBAT_ICON_SIZE = 16;
+const COMBAT_EXPAND_PAD_X = 12;
+const COMBAT_EXPAND_LABEL_GAP = 5;
+const COMBAT_EXPAND_PIPS_GAP = 10;
+const COMBAT_PIP_W = 4;
+const COMBAT_PIP_H = 4;
+const COMBAT_PIP_ACTIVE_W = 10;
+const COMBAT_PIP_GAP = 3;
+const COMBAT_PIPS_W =
+  (COMBAT_SUB_PHASES.length - 1) * (COMBAT_PIP_W + COMBAT_PIP_GAP) + COMBAT_PIP_ACTIVE_W;
 const FONT = "Inter, system-ui, -apple-system, sans-serif";
 
 const FLASH_DURATION_MS = 800;
@@ -122,6 +134,7 @@ interface PhaseCell {
   hitArea: Graphics;
   text: Text;
   icon?: Sprite;
+  pips?: Graphics;
   id: string;
   defaultLabel: string;
   subPhases?: string[];
@@ -179,6 +192,9 @@ export class PhaseStripLayer {
   private stripHitArea: Graphics;
   private hoveredCellIndex = -1;
   private cellsContainer: Container;
+  private combatContainer: Container;
+  private combatCellW: number;
+  private dimAlpha = 1;
   private expandedBackdrop: Graphics;
   private pillContainer: Container;
   private pillBg: Graphics;
@@ -213,6 +229,10 @@ export class PhaseStripLayer {
     this.cellsContainer = new Container();
     this.container.addChild(this.cellsContainer);
 
+    // Combat cell lives outside cellsContainer so the combat dim can spare it.
+    this.combatContainer = new Container();
+    this.container.addChild(this.combatContainer);
+
     // Full-strip hit area for hover detection (show/hide empty indicators)
     this.stripHitArea = new Graphics();
     this.stripHitArea.eventMode = "static";
@@ -221,26 +241,30 @@ export class PhaseStripLayer {
 
     this.cells = [];
     for (const p of PHASES) {
+      const isCombat = !!p.subPhases;
+      const parent = isCombat ? this.combatContainer : this.cellsContainer;
       const bg = new Graphics();
-      this.cellsContainer.addChild(bg);
+      parent.addChild(bg);
       const flashGfx = new Graphics();
-      this.cellsContainer.addChild(flashGfx);
+      parent.addChild(flashGfx);
       const hoverBg = new Graphics();
       hoverBg.visible = false;
-      this.cellsContainer.addChild(hoverBg);
+      parent.addChild(hoverBg);
       // Combat cell gets an icon; default label is empty (icon replaces it)
       let icon: Sprite | undefined;
-      const isCombat = !!p.subPhases;
+      let pips: Graphics | undefined;
       if (isCombat) {
         icon = new Sprite();
         icon.width = COMBAT_ICON_SIZE;
         icon.height = COMBAT_ICON_SIZE;
-        this.cellsContainer.addChild(icon);
+        parent.addChild(icon);
         applyIcon(icon, "cmdsword", getIconColor("cmdsword", this.theme.gameTheme));
+        pips = new Graphics();
+        parent.addChild(pips);
       }
       const text = new Text({ text: isCombat ? "" : p.short, style: normalStyle });
       text.anchor.set(0.5, 0.5);
-      this.cellsContainer.addChild(text);
+      parent.addChild(text);
       // Main cell hit area (for hover) — added first so indicators sit on top
       const hitArea = new Graphics();
       hitArea.eventMode = "static";
@@ -252,11 +276,11 @@ export class PhaseStripLayer {
       hitArea.on("pointerout", () => {
         if (this.hoveredCellIndex === cellIndex) this.hoveredCellIndex = -1;
       });
-      this.cellsContainer.addChild(hitArea);
+      parent.addChild(hitArea);
 
       // Self indicator (bottom — my turn toggle)
       const selfIndicator = new Graphics();
-      this.cellsContainer.addChild(selfIndicator);
+      parent.addChild(selfIndicator);
       const selfHitArea = new Graphics();
       selfHitArea.eventMode = "static";
       selfHitArea.cursor = "pointer";
@@ -272,10 +296,10 @@ export class PhaseStripLayer {
       selfHitArea.on("pointerout", () => {
         cellRef.selfHovered = false;
       });
-      this.cellsContainer.addChild(selfHitArea);
+      parent.addChild(selfHitArea);
 
       const oppIndicators = new Graphics();
-      this.cellsContainer.addChild(oppIndicators);
+      parent.addChild(oppIndicators);
       const oppHitAreas: Graphics[] = [];
       const oppHovered: boolean[] = [false, false, false];
       for (let oi = 0; oi < 3; oi++) {
@@ -298,7 +322,7 @@ export class PhaseStripLayer {
         oha.on("pointerout", () => {
           cellRef.oppHovered[oi] = false;
         });
-        this.cellsContainer.addChild(oha);
+        parent.addChild(oha);
         oppHitAreas.push(oha);
       }
 
@@ -309,6 +333,7 @@ export class PhaseStripLayer {
         hitArea,
         text,
         icon,
+        pips,
         id: p.id,
         defaultLabel: p.short,
         subPhases: p.subPhases,
@@ -340,6 +365,34 @@ export class PhaseStripLayer {
     this.pillHit.on("pointertap", () => this.expand());
     this.pillContainer.addChild(this.pillHit);
     this.container.addChild(this.pillContainer);
+
+    const measurer = new Text({ text: "", style: activeStyle });
+    let maxLabelW = 0;
+    for (const id of COMBAT_SUB_PHASES) {
+      measurer.text = COMBAT_FULL_LABELS[id] ?? "";
+      maxLabelW = Math.max(maxLabelW, measurer.width);
+    }
+    measurer.destroy();
+    this.combatCellW = Math.ceil(
+      COMBAT_EXPAND_PAD_X * 2 +
+        COMBAT_ICON_SIZE +
+        COMBAT_EXPAND_LABEL_GAP +
+        maxLabelW +
+        COMBAT_EXPAND_PIPS_GAP +
+        COMBAT_PIPS_W,
+    );
+  }
+
+  getDimAlpha(): number {
+    return this.dimAlpha;
+  }
+
+  setDimAlpha(alpha: number): void {
+    this.dimAlpha = alpha;
+    this.lineGfx.alpha = alpha;
+    this.expandedBackdrop.alpha = alpha;
+    this.cellsContainer.alpha = alpha;
+    this.pillContainer.alpha = alpha;
   }
 
   setCompact(compact: boolean): void {
@@ -452,6 +505,7 @@ export class PhaseStripLayer {
 
     const showPill = this.compact && !this.expanded;
     this.cellsContainer.visible = !showPill;
+    this.combatContainer.visible = !showPill;
     this.pillContainer.visible = showPill;
     this.forceShowIndicators = (this.compact && this.expanded) || isCoarsePointer();
 
@@ -459,7 +513,7 @@ export class PhaseStripLayer {
     const leftCells = this.cells.slice(0, combatIdx);
     const rightCells = this.cells.slice(combatIdx + 1);
 
-    const combatX = centerX - COMBAT_CELL_W / 2;
+    const combatX = centerX - this.combatCellW / 2;
 
     const cellPositions: number[] = new Array(this.cells.length);
     cellPositions[combatIdx] = combatX;
@@ -469,7 +523,7 @@ export class PhaseStripLayer {
       cellPositions[i] = lx;
       lx -= CELL_GAP;
     }
-    let rx = combatX + COMBAT_CELL_W + CELL_GAP;
+    let rx = combatX + this.combatCellW + CELL_GAP;
     for (let i = 0; i < rightCells.length; i++) {
       cellPositions[combatIdx + 1 + i] = rx;
       rx += CELL_W + CELL_GAP;
@@ -587,7 +641,7 @@ export class PhaseStripLayer {
     for (let i = 0; i < count; i++) {
       const cell = this.cells[i]!;
       const isCombatCell = !!cell.subPhases;
-      const cellW = isCombatCell ? COMBAT_CELL_W : CELL_W;
+      const cellW = isCombatCell ? this.combatCellW : CELL_W;
       const cx = cellPositions[i]!;
 
       const combatSubActive = isCombatCell && cell.subPhases!.includes(state.currentStep);
@@ -596,9 +650,12 @@ export class PhaseStripLayer {
       const phaseIds = cell.indicatorPhases ?? cell.subPhases ?? [cell.id];
       const isEnabled = phaseIds.some((s) => state.selfEnabledPhases.has(s));
 
-      // Combat label: show sub-phase when active, icon-only otherwise
+      // Combat cell: permanent battle section — idle shows "COMBAT" + ghost
+      // pips; a combat step swaps in the sub-phase name and lights its pip
       if (isCombatCell) {
-        cell.text.text = combatSubActive ? (COMBAT_LABELS[state.currentStep] ?? "") : "";
+        cell.text.text = combatSubActive
+          ? (COMBAT_FULL_LABELS[state.currentStep] ?? "")
+          : cell.defaultLabel;
       }
 
       // Combat icon position + tint
@@ -609,14 +666,26 @@ export class PhaseStripLayer {
         applyIcon(cell.icon, "cmdsword", iconTint);
         cell.icon.width = COMBAT_ICON_SIZE;
         cell.icon.height = COMBAT_ICON_SIZE;
-        if (combatSubActive) {
-          // Icon left, label right
-          cell.icon.x = cx + (cellW - COMBAT_ICON_SIZE - cell.text.width - 3) / 2;
-          cell.icon.y = y + (CELL_H - COMBAT_ICON_SIZE) / 2;
-          cell.text.x = cell.icon.x + COMBAT_ICON_SIZE + 3 + cell.text.width / 2;
-        } else {
-          cell.icon.x = cx + (cellW - COMBAT_ICON_SIZE) / 2;
-          cell.icon.y = y + (CELL_H - COMBAT_ICON_SIZE) / 2;
+        const iconX = cx + COMBAT_EXPAND_PAD_X;
+        cell.icon.x = iconX;
+        cell.icon.y = y + (CELL_H - COMBAT_ICON_SIZE) / 2;
+        cell.text.x = iconX + COMBAT_ICON_SIZE + COMBAT_EXPAND_LABEL_GAP + cell.text.width / 2;
+      }
+
+      if (cell.pips) {
+        cell.pips.clear();
+        const currentIdx = combatSubActive ? COMBAT_SUB_PHASES.indexOf(state.currentStep) : -1;
+        let px = cx + cellW - COMBAT_EXPAND_PAD_X - COMBAT_PIPS_W;
+        const py = y + (CELL_H - COMBAT_PIP_H) / 2;
+        for (let pi = 0; pi < COMBAT_SUB_PHASES.length; pi++) {
+          const activePip = pi === currentIdx;
+          const pipW = activePip ? COMBAT_PIP_ACTIVE_W : COMBAT_PIP_W;
+          cell.pips.roundRect(px, py, pipW, COMBAT_PIP_H, COMBAT_PIP_H / 2);
+          cell.pips.fill({
+            color: activePip ? turnColor : hexToNum(t.textMuted),
+            alpha: activePip ? 1 : INDICATOR_GHOST_ALPHA,
+          });
+          px += pipW + COMBAT_PIP_GAP;
         }
       }
 
@@ -640,14 +709,9 @@ export class PhaseStripLayer {
 
       // Text position (non-combat cells; combat text is positioned with the icon above)
       cell.text.style = isActive ? activeStyle : isEnabled ? enabledStyle : normalStyle;
+      cell.text.y = y + CELL_H / 2;
       if (!isCombatCell) {
         cell.text.x = cx + cellW / 2;
-        cell.text.y = y + CELL_H / 2;
-      } else if (!combatSubActive) {
-        // No text when showing icon only — position offscreen
-        cell.text.x = -999;
-      } else {
-        cell.text.y = y + CELL_H / 2;
       }
 
       cell._indData = {

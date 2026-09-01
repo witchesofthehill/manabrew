@@ -104,6 +104,14 @@ pub enum ClientMessage {
 
     ListPlayers,
 
+    /// The session entered or left a game running on its own machine. `None`
+    /// clears it. Such a game opens no room and sends no state, so the relay
+    /// has no other way to know it is happening.
+    SetLocalGame {
+        #[serde(default)]
+        kind: Option<LocalGameKind>,
+    },
+
     CreateRoom {
         room_name: String,
         max_players: u8,
@@ -202,6 +210,11 @@ pub enum ServerMessage {
         player_id: Option<String>,
         reconnected: Option<bool>,
         error: Option<String>,
+        /// Wire features this relay understands, so a newer client can stay
+        /// quiet instead of sending a message an older one would reject with
+        /// a parse error. Absent from relays built before the list existed.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        features: Vec<String>,
     },
 
     SessionTakenOver,
@@ -414,8 +427,38 @@ pub struct PlayerInfo {
     pub verified: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub qualification: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub room_id: Option<String>,
+    /// In a game on their own machine rather than in a relay room. Never set
+    /// at the same time as `room_id`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_game: Option<LocalGameKind>,
+}
+
+/// Names [`ClientMessage::SetLocalGame`] in `AuthResult::features`.
+pub const FEATURE_LOCAL_GAME: &str = "local_game";
+
+pub const FEATURES: &[&str] = &[FEATURE_LOCAL_GAME];
+
+/// A game running on the player's own machine, which the relay never sees.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum LocalGameKind {
+    /// Play vs AI.
+    Singleplayer,
+}
+
+impl LocalGameKind {
+    /// So the exporter can publish a zero for an unplayed kind rather than
+    /// leaving its series stale at the last value it had.
+    pub const ALL: &'static [Self] = &[Self::Singleplayer];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Singleplayer => "singleplayer",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

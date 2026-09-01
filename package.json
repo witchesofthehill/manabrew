@@ -1,7 +1,7 @@
 {
   "name": "manabrew",
   "private": true,
-  "version": "3.26.2",
+  "version": "3.32.4",
   "type": "module",
   "license": "AGPL-3.0-or-later",
   "scripts": {
@@ -51,6 +51,8 @@
     "test:networking": "cargo build -p manabrew-server -p self-hosted-node && cargo test -p networking-tests --test networking_regression -- --ignored --nocapture --test-threads=1",
     "build:wasm": "node scripts/build-wasm.mjs",
     "build:forge-wasm": "./scripts/build-forge-wasm.sh",
+    "build:forge-wasm-package": "node scripts/build-forge-wasm-package.mjs",
+    "verify:forge-wasm-package": "node scripts/verify-forge-wasm-package.mjs",
     "dev:web": "yarn gen:types && yarn ensure:wasm && vite",
     "website:dev": "npm --prefix website run dev",
     "website:dev:docs": "npm --prefix website run dev:docs",

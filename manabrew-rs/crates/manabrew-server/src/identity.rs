@@ -42,6 +42,7 @@ pub struct ResolvedIdentity {
     pub name: Option<String>,
     pub name_verified: bool,
     pub qualification: Option<String>,
+    pub avatar_url: Option<String>,
     pub stale_token: bool,
 }
 
@@ -93,7 +94,7 @@ impl IdentityVerifier {
                 if let Some(name) = unverified_name(&decoded) {
                     resolved.name = Some(name);
                 }
-            } else if let Some((identity, name, qualification)) =
+            } else if let Some((identity, name, qualification, avatar_url)) =
                 self.account_identity(&decoded).await
             {
                 if !claims_current(&decoded.claims) {
@@ -104,6 +105,7 @@ impl IdentityVerifier {
                         resolved.name = Some(name);
                         resolved.name_verified = true;
                         resolved.qualification = qualification;
+                        resolved.avatar_url = avatar_url;
                     }
                 }
             }
@@ -117,7 +119,7 @@ impl IdentityVerifier {
     async fn account_identity(
         &self,
         decoded: &DecodedIdentityToken,
-    ) -> Option<(SessionIdentity, String, Option<String>)> {
+    ) -> Option<(SessionIdentity, String, Option<String>, Option<String>)> {
         if decoded.header.alg != SIGNED_ALG {
             return None;
         }
@@ -136,6 +138,7 @@ impl IdentityVerifier {
             SessionIdentity::Account(claims.sub.clone()),
             claims.handle.clone(),
             claims.qualification.clone(),
+            claims.avatar_url.clone(),
         ))
     }
 

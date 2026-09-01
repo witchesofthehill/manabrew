@@ -682,16 +682,19 @@ export function GameBoard({
   const defaultPlaymat = useAssetUrl(defaultPlaymatAssetId);
   const defaultPlaymatSettings = usePreferencesStore((s) => s.defaultPlaymatSettings);
   const playerDecks = useServerStore((s) => s.playerDecks);
+  const relayPlayers = useServerStore((s) => s.players);
 
   const avatarByPlayerId = useMemo(() => {
     const map = new Map<string, string>();
     if (myAvatar) map.set(me.id, myAvatar);
     for (const op of opponents) {
       const entry = playerDecks.find((d) => d.username === op.name);
-      if (entry?.avatar_url) map.set(op.id, entry.avatar_url);
+      const avatarUrl =
+        relayPlayers.find((p) => p.username === op.name)?.avatar_url ?? entry?.avatar_url;
+      if (avatarUrl) map.set(op.id, avatarUrl);
     }
     return map;
-  }, [myAvatar, playerDecks, me.id, opponents]);
+  }, [myAvatar, playerDecks, relayPlayers, me.id, opponents]);
 
   const combatEngagedIds = useMemo(() => {
     const controllerById = new Map(battlefield.map((c) => [c.id, c.controllerId]));

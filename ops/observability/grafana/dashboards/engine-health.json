@@ -1,6 +1,6 @@
 {
   "uid": "manabrew-engine-health",
-  "title": "Manabrew — Engine Health",
+  "title": "Manabrew \u2014 Engine Health",
   "tags": ["manabrew", "ops", "engine"],
   "schemaVersion": 39,
   "editable": true,
@@ -26,7 +26,7 @@
     {
       "id": 200,
       "type": "row",
-      "title": "Hosted engine — node fleet (#684 watch)",
+      "title": "Hosted engine \u2014 node fleet (#684 watch)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -485,7 +485,7 @@
     {
       "id": 220,
       "type": "row",
-      "title": "Player-side engines — one report per finished game",
+      "title": "Player-side engines \u2014 one report per finished game",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -947,7 +947,7 @@
       "id": 241,
       "type": "timeseries",
       "title": "Games with a player, and how many of them reported",
-      "description": "The denominator for everything above. A client reports once per finished game with at least five decisions in it, so the two lines never meet — but a wide, persistent gap means reports are being lost, not that games are short. Games with only bots in them are excluded; they have no client to report. Reports that reach the hub instead of the relay carry no game id and cannot be joined, so they count in the panels above and not here.",
+      "description": "The denominator for everything above. A client reports once per finished game with at least five decisions in it, so the two lines never meet \u2014 but a wide, persistent gap means reports are being lost, not that games are short. Games with only bots in them are excluded; they have no client to report. Reports that reach the hub instead of the relay carry no game id and cannot be joined, so they count in the panels above and not here.",
       "datasource": {
         "type": "frser-sqlite-datasource",
         "uid": "events-sqlite"
@@ -984,7 +984,7 @@
       "id": 242,
       "type": "timeseries",
       "title": "Engine reports at the relay, by outcome",
-      "description": "What the relay did with the reports it was sent. Both drop paths are silent to the player by design: `outside_room` is a report that arrived after the seat was gone, `implausible` is a malformed or hostile one. Anything but `accepted` is invisible in every other panel here — the report simply never becomes a row. Offline games and games reported after the relay went away go to the hub and never appear on this panel at all.",
+      "description": "What the relay did with the reports it was sent. Both drop paths are silent to the player by design: `outside_room` is a report that arrived after the seat was gone, `implausible` is a malformed or hostile one. Anything but `accepted` is invisible in every other panel here \u2014 the report simply never becomes a row. Offline games and games reported after the relay went away go to the hub and never appear on this panel at all.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1015,6 +1015,41 @@
             "fillOpacity": 60
           }
         },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 243,
+      "type": "table",
+      "title": "Engine think, split",
+      "description": "A think sample is answer-received to next-prompt-ready, so a cross-turn one contains the opponents' whole turns and is not one decision. Seat count dominates the unsplit number: cut by seats before comparing anything.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 78,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT engine, seats, count(*) AS games, round(avg(engine_p50)) AS all_p50, round(avg(engine_same_p50)) AS same_turn_p50, round(avg(engine_cross_p50)) AS cross_turn_p50, max(engine_cross_max) AS worst_cross_ms, sum(think_hidden) AS dropped_hidden FROM engine_stats WHERE engine_p50 IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY engine, seats ORDER BY engine, seats",
+          "rawQueryText": "SELECT engine, seats, count(*) AS games, round(avg(engine_p50)) AS all_p50, round(avg(engine_same_p50)) AS same_turn_p50, round(avg(engine_cross_p50)) AS cross_turn_p50, max(engine_cross_max) AS worst_cross_ms, sum(think_hidden) AS dropped_hidden FROM engine_stats WHERE engine_p50 IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY engine, seats ORDER BY engine, seats",
+          "rawQuerySql": "SELECT engine, seats, count(*) AS games, round(avg(engine_p50)) AS all_p50, round(avg(engine_same_p50)) AS same_turn_p50, round(avg(engine_cross_p50)) AS cross_turn_p50, max(engine_cross_max) AS worst_cross_ms, sum(think_hidden) AS dropped_hidden FROM engine_stats WHERE engine_p50 IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY engine, seats ORDER BY engine, seats",
+          "queryType": "table",
+          "timeColumns": [],
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
         "overrides": []
       },
       "options": {}

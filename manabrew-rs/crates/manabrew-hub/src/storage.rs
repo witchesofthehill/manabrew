@@ -237,6 +237,8 @@ pub enum LoginCodeOutcome {
 
 include!(concat!(env!("OUT_DIR"), "/migrations.rs"));
 
+const ERASED_USERNAME: &str = "(erased)";
+
 pub struct Storage {
     conn: Connection,
     asset_base_url: Option<String>,
@@ -463,8 +465,11 @@ impl Storage {
             "INSERT OR IGNORE INTO engine_play_stats
                 (id, reported_at, engine, client_version, platform, format, seats,
                  multiplayer, duration_s, end_reason, decisions, turnaround_p50,
-                 turnaround_p90, turnaround_max, engine_p50, engine_p90, engine_max, by_type)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
+                 turnaround_p90, turnaround_max, engine_p50, engine_p90, engine_max, by_type,
+                 engine_same_p50, engine_same_p90, engine_same_max,
+                 engine_cross_p50, engine_cross_p90, engine_cross_max, think_hidden)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
+                     ?19, ?20, ?21, ?22, ?23, ?24, ?25)",
             params![
                 report.report_id,
                 reported_at,
@@ -484,9 +489,77 @@ impl Storage {
                 report.engine_think.as_ref().map(|t| t.p90),
                 report.engine_think.as_ref().map(|t| t.max),
                 by_type,
+                report.engine_think_same_turn.as_ref().map(|t| t.p50),
+                report.engine_think_same_turn.as_ref().map(|t| t.p90),
+                report.engine_think_same_turn.as_ref().map(|t| t.max),
+                report.engine_think_cross_turn.as_ref().map(|t| t.p50),
+                report.engine_think_cross_turn.as_ref().map(|t| t.p90),
+                report.engine_think_cross_turn.as_ref().map(|t| t.max),
+                report.think_samples_hidden,
             ],
         )?;
         Ok(inserted > 0)
+    }
+
+    /// Returns false when the report id is already on file, which is a retry
+    /// rather than a second game.
+    pub fn record_offline_play_game(
+        &self,
+        game: &manabrew_protocol::telemetry::OfflinePlayGame,
+        reported_at: &str,
+    ) -> SqlResult<bool> {
+        let tx = self.conn.unchecked_transaction()?;
+        let conceded = serde_json::to_string(&game.conceded).unwrap_or_else(|_| "[]".to_string());
+        let inserted = tx.execute(
+            "INSERT OR IGNORE INTO offline_play_games
+                (id, reported_at, started_at, ended_at, duration_s, format, engine,
+                 starting_life, end_reason, game_over, winner, conceded,
+                 client_version, platform, seats)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+            params![
+                game.report_id,
+                reported_at,
+                game.started_at,
+                game.ended_at,
+                game.duration_s,
+                game.format,
+                game.engine,
+                game.starting_life,
+                game.end_reason,
+                game.game_over,
+                game.winner,
+                conceded,
+                game.client_version,
+                game.platform,
+                game.players.len() as i64,
+            ],
+        )?;
+        if inserted == 0 {
+            return Ok(false);
+        }
+        for (index, seat) in game.players.iter().enumerate() {
+            let cards = serde_json::to_string(&seat.cards).unwrap_or_else(|_| "[]".to_string());
+            tx.execute(
+                "INSERT INTO offline_play_seats
+                    (game_id, seat_index, username, is_bot, deck_name, commander,
+                     published_deck_id, deck_fingerprint, sideboard_count, cards)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                params![
+                    game.report_id,
+                    index as i64,
+                    seat.username,
+                    seat.is_bot,
+                    seat.deck_name,
+                    seat.commander,
+                    seat.published_deck_id,
+                    seat.deck_fingerprint,
+                    seat.sideboard_count,
+                    cards,
+                ],
+            )?;
+        }
+        tx.commit()?;
+        Ok(true)
     }
 
     pub fn record_relay_game_started(
@@ -2281,6 +2354,40 @@ impl Storage {
             "DELETE FROM decks WHERE account_id = ?1",
             params![account_id],
         )?;
+        // Offline play keys seats by handle, not account id, so erasure reaches
+        // them by name. The rows stay: deleting an account must not rewrite
+        // games/day.
+        let handle: Option<String> = tx
+            .query_row(
+                "SELECT handle FROM accounts WHERE id = ?1",
+                params![account_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if let Some(handle) = handle {
+            tx.execute(
+                "UPDATE offline_play_seats SET username = ?1 WHERE username = ?2",
+                params![ERASED_USERNAME, handle],
+            )?;
+            tx.execute(
+                "UPDATE offline_play_games SET winner = ?1 WHERE winner = ?2",
+                params![ERASED_USERNAME, handle],
+            )?;
+            tx.execute(
+                "UPDATE offline_play_games
+                 SET conceded = (
+                     SELECT json_group_array(
+                         CASE WHEN value = ?2 THEN ?1 ELSE value END
+                     )
+                     FROM json_each(offline_play_games.conceded)
+                 )
+                 WHERE EXISTS (
+                     SELECT 1 FROM json_each(offline_play_games.conceded)
+                     WHERE value = ?2
+                 )",
+                params![ERASED_USERNAME, handle],
+            )?;
+        }
         tx.execute("DELETE FROM accounts WHERE id = ?1", params![account_id])?;
         tx.commit()
     }
@@ -3813,6 +3920,9 @@ mod tests {
                 p90: 18,
                 max: 96,
             }),
+            engine_think_same_turn: None,
+            engine_think_cross_turn: None,
+            think_samples_hidden: 0,
             by_type: vec![manabrew_protocol::telemetry::EngineTypeTurnaround {
                 prompt_type: "chooseAction".to_string(),
                 n: 120,

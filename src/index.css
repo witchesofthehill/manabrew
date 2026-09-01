@@ -888,3 +888,109 @@
     animation: none !important;
   }
 }
+
+@property --maintainer-wash {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: transparent;
+}
+
+.maintainer-row {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  --maintainer-wash: var(--color-format-badge-amber);
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--maintainer-wash) 16%, transparent),
+    color-mix(in srgb, var(--maintainer-wash) 7%, transparent) 55%,
+    color-mix(in srgb, var(--maintainer-wash) 14%, transparent)
+  );
+  background-size: 240% 100%;
+  animation:
+    maintainer-drift 16s ease-in-out infinite,
+    maintainer-hue 21s ease-in-out infinite;
+}
+
+.maintainer-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(
+      circle 2.5px at 15% 70%,
+      color-mix(in srgb, var(--color-format-badge-amber) 20%, transparent) 50%,
+      color-mix(in srgb, var(--color-format-badge-amber) 55%, transparent) 68%,
+      transparent 78%
+    ),
+    radial-gradient(
+      circle 3.5px at 45% 25%,
+      color-mix(in srgb, var(--color-format-badge-purple) 18%, transparent) 50%,
+      color-mix(in srgb, var(--color-format-badge-purple) 48%, transparent) 68%,
+      transparent 78%
+    ),
+    radial-gradient(
+      circle 5px at 72% 55%,
+      color-mix(in srgb, var(--color-format-badge-blue) 15%, transparent) 52%,
+      color-mix(in srgb, var(--color-format-badge-blue) 42%, transparent) 70%,
+      transparent 80%
+    );
+  background-size:
+    120px 72px,
+    160px 96px,
+    110px 80px;
+  animation: maintainer-bubbles 12s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes maintainer-drift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes maintainer-hue {
+  0%,
+  100% {
+    --maintainer-wash: var(--color-format-badge-amber);
+  }
+  33% {
+    --maintainer-wash: var(--color-format-badge-purple);
+  }
+  66% {
+    --maintainer-wash: var(--color-format-badge-blue);
+  }
+}
+
+@keyframes maintainer-bubbles {
+  0% {
+    background-position:
+      0 0,
+      0 0,
+      0 0;
+  }
+  50% {
+    background-position:
+      14px -36px,
+      -18px -48px,
+      10px -40px;
+  }
+  100% {
+    background-position:
+      0 -72px,
+      0 -96px,
+      0 -80px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .maintainer-row,
+  .maintainer-row::before {
+    animation: none !important;
+  }
+}

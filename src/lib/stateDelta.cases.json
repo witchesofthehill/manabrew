@@ -1,0 +1,401 @@
+[
+  {
+    "name": "null fields survive",
+    "before": {
+      "power": 2,
+      "toughness": null
+    },
+    "after": {
+      "power": null,
+      "toughness": 3
+    },
+    "patch": {
+      "power": null,
+      "toughness": 3
+    }
+  },
+  {
+    "name": "removed fields are explicit",
+    "before": {
+      "a": 1,
+      "b": 2
+    },
+    "after": {
+      "a": 1
+    },
+    "patch": {
+      "$d": ["b"]
+    }
+  },
+  {
+    "name": "object replacing a scalar is a literal",
+    "before": {
+      "a": 1
+    },
+    "after": {
+      "a": {
+        "b": 2
+      }
+    },
+    "patch": {
+      "a": {
+        "$v": {
+          "b": 2
+        }
+      }
+    }
+  },
+  {
+    "name": "scalar replacing an object",
+    "before": {
+      "a": {
+        "b": 2
+      }
+    },
+    "after": {
+      "a": 1
+    },
+    "patch": {
+      "a": 1
+    }
+  },
+  {
+    "name": "array without stable keys is replaced whole",
+    "before": {
+      "types": ["Land"]
+    },
+    "after": {
+      "types": ["Creature", "Artifact"]
+    },
+    "patch": {
+      "types": ["Creature", "Artifact"]
+    }
+  },
+  {
+    "name": "removal and reordering",
+    "before": [
+      {
+        "id": "a"
+      },
+      {
+        "id": "b"
+      },
+      {
+        "id": "c"
+      }
+    ],
+    "after": [
+      {
+        "id": "c"
+      },
+      {
+        "id": "a"
+      }
+    ],
+    "patch": {
+      "$d": ["b"],
+      "$o": ["c", "a"]
+    }
+  },
+  {
+    "name": "a card joins the zone",
+    "before": [
+      {
+        "id": "a"
+      }
+    ],
+    "after": [
+      {
+        "id": "a"
+      },
+      {
+        "id": "b",
+        "tapped": false
+      }
+    ],
+    "patch": {
+      "$k": {
+        "b": {
+          "$v": {
+            "id": "b",
+            "tapped": false
+          }
+        }
+      },
+      "$o": ["a", "b"]
+    }
+  },
+  {
+    "name": "a hand empties out",
+    "before": {
+      "z": [
+        {
+          "zone": "hand",
+          "ownerId": "player-0",
+          "count": 2,
+          "cards": [
+            {
+              "id": "c1"
+            },
+            {
+              "id": "c2"
+            }
+          ]
+        }
+      ]
+    },
+    "after": {
+      "z": [
+        {
+          "zone": "hand",
+          "ownerId": "player-0",
+          "count": 0,
+          "cards": []
+        }
+      ]
+    },
+    "patch": {
+      "z": {
+        "$k": {
+          "hand/player-0": {
+            "count": 0,
+            "cards": {
+              "$d": ["c1", "c2"],
+              "$o": []
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "one card taps without resending the zone",
+    "before": {
+      "z": [
+        {
+          "zone": "battlefield",
+          "ownerId": "player-0",
+          "count": 2,
+          "cards": [
+            {
+              "id": "c1",
+              "tapped": false,
+              "text": "x"
+            },
+            {
+              "id": "c2",
+              "tapped": false,
+              "text": "y"
+            }
+          ]
+        }
+      ]
+    },
+    "after": {
+      "z": [
+        {
+          "zone": "battlefield",
+          "ownerId": "player-0",
+          "count": 2,
+          "cards": [
+            {
+              "id": "c1",
+              "tapped": false,
+              "text": "x"
+            },
+            {
+              "id": "c2",
+              "tapped": true,
+              "text": "y"
+            }
+          ]
+        }
+      ]
+    },
+    "patch": {
+      "z": {
+        "$k": {
+          "battlefield/player-0": {
+            "cards": {
+              "$k": {
+                "c2": {
+                  "tapped": true
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "a turn of play across several fields",
+    "before": {
+      "turn": 1,
+      "gameView": {
+        "players": [
+          {
+            "id": "p0",
+            "life": 20
+          },
+          {
+            "id": "p1",
+            "life": 20
+          }
+        ]
+      },
+      "z": [
+        {
+          "zone": "hand",
+          "ownerId": "player-0",
+          "count": 1,
+          "cards": [
+            {
+              "id": "c1"
+            }
+          ]
+        }
+      ]
+    },
+    "after": {
+      "turn": 2,
+      "gameView": {
+        "players": [
+          {
+            "id": "p0",
+            "life": 20
+          },
+          {
+            "id": "p1",
+            "life": 17
+          }
+        ]
+      },
+      "z": [
+        {
+          "zone": "hand",
+          "ownerId": "player-0",
+          "count": 0,
+          "cards": []
+        },
+        {
+          "zone": "graveyard",
+          "ownerId": "player-0",
+          "count": 1,
+          "cards": [
+            {
+              "id": "c1"
+            }
+          ]
+        }
+      ]
+    },
+    "patch": {
+      "turn": 2,
+      "gameView": {
+        "players": {
+          "$k": {
+            "p1": {
+              "life": 17
+            }
+          }
+        }
+      },
+      "z": {
+        "$k": {
+          "hand/player-0": {
+            "count": 0,
+            "cards": {
+              "$d": ["c1"],
+              "$o": []
+            }
+          },
+          "graveyard/player-0": {
+            "$v": {
+              "zone": "graveyard",
+              "ownerId": "player-0",
+              "count": 1,
+              "cards": [
+                {
+                  "id": "c1"
+                }
+              ]
+            }
+          }
+        },
+        "$o": ["hand/player-0", "graveyard/player-0"]
+      }
+    }
+  },
+  {
+    "name": "duplicate keys fall back to a whole-array replacement",
+    "before": {
+      "zones": [
+        {
+          "id": "a"
+        },
+        {
+          "id": "a"
+        }
+      ]
+    },
+    "after": {
+      "zones": [
+        {
+          "id": "a"
+        }
+      ]
+    },
+    "patch": {
+      "zones": [
+        {
+          "id": "a"
+        }
+      ]
+    }
+  },
+  {
+    "name": "array replacing an object",
+    "before": {
+      "a": {
+        "b": 2
+      }
+    },
+    "after": {
+      "a": [
+        {
+          "id": "c1"
+        }
+      ]
+    },
+    "patch": {
+      "a": [
+        {
+          "id": "c1"
+        }
+      ]
+    }
+  },
+  {
+    "name": "object replacing an array",
+    "before": {
+      "a": [
+        {
+          "id": "c1"
+        }
+      ]
+    },
+    "after": {
+      "a": {
+        "b": 2
+      }
+    },
+    "patch": {
+      "a": {
+        "$v": {
+          "b": 2
+        }
+      }
+    }
+  }
+]

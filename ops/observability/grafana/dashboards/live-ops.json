@@ -81,7 +81,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(manabrew_relay_rooms{status=\"in_game\"})",
+          "expr": "sum(manabrew_relay_rooms{status=\"in_game\"} or vector(0)) + sum(manabrew_relay_local_games or vector(0))",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -93,7 +93,8 @@
         "defaults": {},
         "overrides": []
       },
-      "options": {}
+      "options": {},
+      "description": "Relay rooms in game plus games running on players' own machines. A solo game opens no room, so the relay only counts it because the client says so; a player with no connection is not counted at all."
     },
     {
       "id": 3,
@@ -705,7 +706,7 @@
       "id": 20,
       "type": "stat",
       "title": "Concurrent games record",
-      "description": "highest number of games running at the same time during Prometheus retention",
+      "description": "highest number of games running at the same time during Prometheus retention, relay rooms and solo games together",
       "gridPos": {
         "x": 6,
         "y": 45,
@@ -719,7 +720,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max_over_time((sum(manabrew_relay_rooms{status=\"in_game\"}))[30d:])",
+          "expr": "max_over_time((sum(manabrew_relay_rooms{status=\"in_game\"} or vector(0)) + sum(manabrew_relay_local_games or vector(0)))[30d:])",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -789,6 +790,38 @@
             "uid": "prometheus"
           },
           "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 23,
+      "type": "timeseries",
+      "title": "Solo games in progress",
+      "description": "Games running on a player's own machine, by kind. Counted only for clients connected to the relay, so treat it as a floor.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 49,
+        "w": 12,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (kind) (manabrew_relay_local_games)",
+          "legendFormat": "{{kind}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
       "fieldConfig": {

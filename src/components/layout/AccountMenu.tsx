@@ -44,7 +44,14 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
 
   function renderAvatar(sizeClass: string, initialClass: string) {
     if (customAvatar) {
-      return <img src={customAvatar} alt="" className={cn("size-full object-cover", sizeClass)} />;
+      return (
+        <img
+          src={customAvatar}
+          crossOrigin="anonymous"
+          alt=""
+          className={cn("size-full object-cover", sizeClass)}
+        />
+      );
     }
     if (initial) {
       return (

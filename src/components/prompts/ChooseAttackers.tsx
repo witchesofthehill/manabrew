@@ -1,4 +1,4 @@
-import { Ban, Sword, Swords } from "lucide-react";
+import { Ban, Crosshair, Sword, Swords } from "lucide-react";
 import { PromptActionButton } from "@/components/prompts/PromptActionButton";
 import { usePromptActionColors } from "@/components/prompts/internal/promptActionTheme";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
@@ -34,9 +34,15 @@ export function ChooseAttackers({
           {mustAttackHint}
         </p>
       )}
-      {!minimal && (
-        <p className="text-center text-[11px] text-muted-foreground/70">{ATTACK_DRAG_HINT}</p>
-      )}
+      {!minimal &&
+        (pendingAttackers.length > 0 ? (
+          <p className="flex animate-pulse items-center justify-center gap-1.5 text-center text-[11px] font-bold text-foreground">
+            <Crosshair className="h-3.5 w-3.5 shrink-0" />
+            Pick a target — click an opponent or planeswalker
+          </p>
+        ) : (
+          <p className="text-center text-[11px] text-muted-foreground/70">{ATTACK_DRAG_HINT}</p>
+        ))}
       <div className="flex flex-row items-center justify-center gap-1.5">
         <PromptActionButton
           label="Attack All"

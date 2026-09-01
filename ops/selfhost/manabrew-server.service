@@ -1,41 +1,26 @@
-# A relay of your own: the lobby and the card art for one network.
-#
-#   sudo cp manabrew-server /usr/local/bin/
-#   sudo cp manabrew-server.service /etc/systemd/system/
-#   sudo systemctl enable --now manabrew-server
-#
-# Fill the art cache once, before or after; it resumes if interrupted:
-#   sudo -u manabrew MANABREW_ART_DIR=/var/lib/manabrew \
-#     /usr/local/bin/manabrew-server --download-art
+# See README.md. Fill the art cache once with `manabrew-server --download-art`.
 [Unit]
 Description=Manabrew relay
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-Type=simple
 User=manabrew
 Group=manabrew
 StateDirectory=manabrew
 ExecStart=/usr/local/bin/manabrew-server
-
 Environment=MANABREW_ART_DIR=/var/lib/manabrew
 # Answer mDNS, so the desktops on this network find this box on their own.
 Environment=MANABREW_LAN_ADVERTISE=1
-# Replace this binary when a newer one is published, and never mid-game.
-Environment=MANABREW_SELF_UPDATE=1
-
-# Restart is what completes a self-update: the binary swaps itself and exits 0.
 Restart=always
 RestartSec=2
 
-# The relay needs the network, its own state directory, and nothing else.
+# The network and its own state directory, nothing else.
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
 ProtectKernelTunables=true
-ProtectControlGroups=true
 RestrictSUIDSGID=true
 
 [Install]

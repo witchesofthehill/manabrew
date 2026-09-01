@@ -1,15 +1,10 @@
 //! Serving a card art cache to a network, so only one machine in a group has to
 //! have gone online.
 //!
-//! Deliberately not part of `asset_server`: that one refuses anything not
-//! addressed to loopback as anti-DNS-rebinding, and relaxing it would widen the
-//! surface that serves the app's own assets and answers its commands. This is a
-//! second listener with one route, no upstream fetch, and a lifetime bounded by
-//! the room being hosted.
-//!
-//! Serving art is not the same trust decision as serving the relay: the relay
-//! is password-gated, this is world-readable to the subnet. It starts only with
-//! `share_on_lan`, which is already a deliberate act.
+//! Deliberately not `asset_server` with its loopback check relaxed: that one
+//! serves the app's assets and answers its commands. This has one route, never
+//! fetches upstream, and is world-readable to the subnet, which is why it only
+//! starts on a deliberate act.
 
 use std::sync::Arc;
 
@@ -17,9 +12,8 @@ use crate::{key_from_request_path, mime_for, ImageCache};
 
 pub struct ArtServer {
     pub port: u16,
-    /// Held so `Drop` can `unblock` it. A flag alone is only read after the
-    /// next request arrives, so un-sharing a room left the thread parked on
-    /// accept with the port still bound and still answering the subnet.
+    /// Held so `Drop` can `unblock` it: a flag is only read after the next
+    /// request arrives, leaving the port bound and answering.
     server: Arc<tiny_http::Server>,
 }
 
@@ -30,16 +24,13 @@ impl Drop for ArtServer {
 }
 
 impl ArtServer {
-    /// `None` leaves the caller running and its peers falling back to the CDN.
-    ///
-    /// The cache is passed in rather than read from a global, so a headless host
-    /// and the desktop shell can each own their own.
+    /// `None` leaves peers falling back to the CDN. The cache is passed in so a
+    /// headless host and the desktop shell can each own one.
     pub fn spawn(bind_ip: std::net::IpAddr, cache: Arc<ImageCache>) -> Option<ArtServer> {
         Self::spawn_on(bind_ip, 0, cache)
     }
 
-    /// A fixed port, for a host whose address a client learns from configuration
-    /// rather than from a fresh mDNS record every time.
+    /// Fixed, for a host whose address a client learns from configuration.
     pub fn spawn_on(
         bind_ip: std::net::IpAddr,
         port: u16,
@@ -50,8 +41,7 @@ impl ArtServer {
         let accept = server.clone();
 
         std::thread::spawn(move || {
-            // `unblock` ends this iterator, so the thread exits and the listener is
-            // closed rather than waiting for one more request to notice.
+            // `unblock` ends this iterator, closing the listener.
             for request in accept.incoming_requests() {
                 serve(request, &cache);
             }
@@ -67,8 +57,7 @@ fn serve(request: tiny_http::Request, cache: &ImageCache) {
         let _ = request.respond(tiny_http::Response::empty(404));
         return;
     };
-    // Read-only on purpose: a host with no internet cannot fetch, and a host
-    // with one must not become an open proxy for the subnet.
+    // Read-only: a host with internet must not become a proxy for the subnet.
     let Some(bytes) = cache.read(key) else {
         let _ = request.respond(tiny_http::Response::empty(404));
         return;
@@ -101,8 +90,6 @@ mod tests {
         .is_ok()
     }
 
-    /// The whole point of a host holding the art: another machine asks for a
-    /// key over http and gets the bytes, with no Scryfall in the path.
     #[test]
     fn a_cached_key_is_served_to_the_network() {
         let dir = tempfile::tempdir().expect("temp dir");
@@ -136,10 +123,8 @@ mod tests {
         body
     }
 
-    /// Un-sharing a room has to close the listener. The shutdown flag was only
-    /// read after `incoming_requests()` yielded the next request, so a dropped
-    /// `ArtServer` left the thread parked on accept: the port stayed bound and
-    /// the subnet could still read this machine's whole card cache.
+    /// A flag was only read after the next request arrived, so the port stayed
+    /// bound and serving the subnet after the room was gone.
     #[test]
     fn dropping_the_server_stops_the_port_answering() {
         let dir = tempfile::tempdir().expect("temp dir");

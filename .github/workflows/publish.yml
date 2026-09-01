@@ -604,17 +604,6 @@ jobs:
           cp target/x86_64-unknown-linux-musl/release/manabrew-server \
             release-assets/manabrew-server-linux-x86_64
 
-      # Signed with the same key the desktop updater trusts, because the relay
-      # checks it before replacing itself. No signature means no self-update.
-      - name: Sign the relay binary
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
-        run: |
-          yarn tauri signer sign \
-            --private-key "$TAURI_SIGNING_PRIVATE_KEY" \
-            release-assets/manabrew-server-linux-x86_64
-
       - name: Download macOS artifact
         uses: actions/download-artifact@v4
         with:
@@ -649,7 +638,6 @@ jobs:
             release-assets/tauri.json
             release-assets/manabrew-xtask-linux-x86_64
             release-assets/manabrew-server-linux-x86_64
-            release-assets/manabrew-server-linux-x86_64.sig
             ops/manifest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

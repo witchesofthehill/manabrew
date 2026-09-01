@@ -1,12 +1,6 @@
-//! Card art on disk, the `/scryfall-img/` route it backs, and the listener that
-//! serves it to a network.
-//!
-//! Keyed by the path below `cards.scryfall.io`, so a request path maps straight
-//! to a file. That is what lets one machine serve its cache to another: a
-//! desktop sharing a room on a LAN, or a relay holding it for everyone.
-//!
-//! Nothing here knows about Tauri. The desktop shell owns the process-wide
-//! instance and the commands; a headless host owns its own.
+//! Card art on disk, keyed by the path below `cards.scryfall.io` so a request
+//! path maps straight to a file. That is what lets one machine serve its cache
+//! to another.
 
 pub mod server;
 
@@ -21,17 +15,14 @@ use std::time::SystemTime;
 
 use serde::Serialize;
 
-/// The directory name a host appends to whatever root it keeps state in.
 pub const CACHE_DIR: &str = "image-cache";
 const PINNED_FILE: &str = "pinned.json";
 const UPSTREAM_ORIGIN: &str = "https://cards.scryfall.io";
 
-/// Applies to unpinned entries only. Deliberate downloads are never counted
-/// against it, so filling the cache by browsing cannot undo one.
+/// Unpinned entries only, so browsing cannot evict a deliberate download.
 const UNPINNED_CAP_BYTES: u64 = 1_500_000_000;
 
-/// A sweep walks the whole tree, so it runs on written volume rather than on
-/// every store: at roughly 100KB an image this is a sweep every few hundred.
+/// Written volume rather than a count: a sweep walks the tree.
 const SWEEP_EVERY_BYTES: u64 = 64 * 1024 * 1024;
 
 #[derive(Debug, Clone, Serialize)]
@@ -55,9 +46,7 @@ pub struct ImageCache {
     root: PathBuf,
     pinned: Mutex<HashSet<String>>,
     written_since_sweep: AtomicU64,
-    /// Running totals, so a sweep and the settings panel do not each walk a
-    /// tree heading for 100k files. Reconciled once by `reconcile`; every store
-    /// and evict after that adjusts them.
+    /// So `stats` and `evict` do not each walk a tree heading for 100k files.
     totals: Mutex<CacheStats>,
     client: reqwest::Client,
 }
@@ -82,9 +71,8 @@ impl ImageCache {
         }
     }
 
-    /// Where a request path lands on disk, or `None` if it tries to leave the
-    /// cache. A LAN listener answers whatever the network asks for, so this is
-    /// the only thing standing between a request and the rest of the disk.
+    /// A network listener answers whatever it is asked for, so this is the only
+    /// thing between a request and the rest of the disk.
     fn path_for(&self, key: &str) -> Option<PathBuf> {
         if key.is_empty() || key.len() > 512 {
             return None;
@@ -94,9 +82,7 @@ impl ImageCache {
             if segment.is_empty() || segment == "." || segment == ".." {
                 return None;
             }
-            // Every character NTFS refuses in a name. The short list read as
-            // complete and was not, so a key could carry `?` or `*` into a
-            // path that only fails once it reaches the filesystem.
+            // Every character NTFS refuses, not just the obvious two.
             if segment.contains(['\\', ':', '?', '*', '<', '>', '|', '"']) {
                 return None;
             }
@@ -124,16 +110,14 @@ impl ImageCache {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
-        // Written beside the target and renamed, so a half-written file is
-        // never served: the LAN listener has no way to tell one from a whole.
+        // Renamed into place, so a half-written file is never served.
         let temp = path.with_extension("part");
         let replaced = std::fs::metadata(&path).ok().map(|m| m.len());
         let was_pinned = self.is_pinned(key);
         std::fs::write(&temp, bytes).map_err(|e| e.to_string())?;
         std::fs::rename(&temp, &path).map_err(|e| e.to_string())?;
-        // Content first, then the pin: `note_stored` only touches the pinned
-        // half for a key that was already in it, so `pin` is free to claim a
-        // new one without either of them counting it twice.
+        // Content first: `note_stored` only touches the pinned half for a key
+        // already in it, so `pin` can claim a new one without double-counting.
         self.note_stored(bytes.len() as u64, replaced, was_pinned);
         if pin {
             self.pin(key);
@@ -163,9 +147,8 @@ impl ImageCache {
         if !newly {
             return;
         }
-        // The totals count files, not keys, so a pin only moves them when there
-        // is something on disk. `preseed`'s common path is this call on its own:
-        // art already picked up by browsing, pinned by a deliberate download.
+        // Totals count files, not keys, so a pin only moves them if one exists.
+        // `preseed`'s common path is this call alone.
         let Some(size) = self
             .path_for(key)
             .and_then(|path| std::fs::metadata(path).ok())
@@ -196,8 +179,8 @@ impl ImageCache {
     }
 
     async fn fetch(&self, key: &str) -> Result<Vec<u8>, String> {
-        // Rejected before the request so a bad key cannot be turned into a
-        // fetch of something else.
+        // Before the request, so a bad key cannot become a fetch of something
+        // else.
         self.path_for(key)
             .ok_or_else(|| "bad cache key".to_string())?;
         let url = format!("{UPSTREAM_ORIGIN}/{key}");
@@ -217,8 +200,6 @@ impl ImageCache {
             .map_err(|e| format!("{url}: {e}"))
     }
 
-    /// Per-url outcomes rather than a failed batch: one dead url should not
-    /// lose a download somebody is waiting on.
     pub async fn preseed(&self, keys: &[String]) -> PreseedResult {
         let mut result = PreseedResult {
             already_cached: 0,
@@ -242,9 +223,8 @@ impl ImageCache {
         result
     }
 
-    /// Refuses a download the disk cannot hold. The estimate comes from the
-    /// caller because the per-variant sizes are measured in the UI and nothing
-    /// is served by having a second copy of them here that can disagree.
+    /// The estimate comes from the caller: the per-variant sizes are measured in
+    /// the UI and a second copy here could disagree.
     pub fn check_room_for(&self, estimate_bytes: u64) -> Result<(), String> {
         std::fs::create_dir_all(&self.root).map_err(|e| e.to_string())?;
         let available = fs4::available_space(&self.root).map_err(|e| e.to_string())?;
@@ -270,9 +250,8 @@ impl ImageCache {
             })
     }
 
-    /// The one full walk, at startup. Also the only place `.part` files left by
-    /// a cancelled or crashed download are removed: `walk` skips them, so they
-    /// were never counted, never evicted and never cleaned.
+    /// The one full walk, at startup, and the only place `.part` files left by a
+    /// cancelled download are swept.
     pub fn reconcile(&self) {
         let mut totals = CacheStats {
             files: 0,
@@ -297,9 +276,8 @@ impl ImageCache {
         }
     }
 
-    /// Content only. `was_pinned` is the state *before* the write, so this never
-    /// double-counts a key `pin` is about to claim, and never subtracts bytes
-    /// from the pinned half that were never in it.
+    /// `was_pinned` is the state *before* the write, so this never double-counts
+    /// a key `pin` is about to claim.
     fn note_stored(&self, size: u64, replaced: Option<u64>, was_pinned: bool) {
         let Ok(mut totals) = self.totals.lock() else {
             return;
@@ -694,9 +672,8 @@ mod tests {
         assert!(reopened.is_pinned("normal/keep.jpg"));
     }
 
-    /// Nothing checked free space, so "download every card" would fill a disk
-    /// to zero and only stop when writes started failing one image at a time.
     #[test]
+    /// Nothing checked free space, so it filled a disk and failed per image.
     fn a_download_bigger_than_the_disk_is_refused_before_it_starts() {
         let (cache, _dir) = cache();
         assert!(cache.check_room_for(1024).is_ok());
@@ -711,10 +688,8 @@ mod tests {
         assert!(error.contains(" free"), "wants what the disk has: {error}");
     }
 
-    /// A cancelled or crashed download leaves `.part` files. `walk` skips them,
-    /// so nothing counted them, nothing evicted them and nothing cleaned them:
-    /// they accumulated for the life of the install.
     #[test]
+    /// `walk` skips `.part`, so nothing counted, evicted or cleaned them.
     fn a_startup_reconcile_sweeps_what_a_cancelled_download_left() {
         let (cache, dir) = cache();
         cache.store("a.jpg", b"1234", true).unwrap();
@@ -729,8 +704,6 @@ mod tests {
         assert_eq!(stats.bytes, 4);
     }
 
-    /// `stats` reads running totals now, so eviction and clearing have to keep
-    /// them true. A walk could not be wrong; these can.
     #[test]
     fn the_totals_follow_what_eviction_and_clearing_actually_removed() {
         let (cache, _dir) = cache();
@@ -753,10 +726,8 @@ mod tests {
         );
     }
 
-    /// Scryfall requires both headers on every `api.scryfall.com` request and
-    /// asks that the agent carry a version. The client sent `manabrew-desktop`
-    /// with neither a version nor an `Accept`.
     #[tokio::test]
+    /// Scryfall requires both on every `api.scryfall.com` request.
     async fn api_requests_identify_this_build_and_say_what_they_accept() {
         let server = tiny_http::Server::http("127.0.0.1:0").expect("bind");
         let port = server.server_addr().to_ip().unwrap().port();
@@ -796,10 +767,8 @@ mod tests {
         );
     }
 
-    /// The rejection list read as complete and stopped at two characters, so a
-    /// key could carry the rest of NTFS's illegal set into a path that only
-    /// fails once the filesystem sees it.
     #[test]
+    /// The rejection list read as complete and stopped at two characters.
     fn a_key_cannot_carry_a_character_no_filesystem_will_take() {
         let (cache, _dir) = cache();
         for bad in ["a?.jpg", "a*.jpg", "a<.jpg", "a>.jpg", "a|.jpg", "a\".jpg"] {
@@ -808,10 +777,8 @@ mod tests {
         assert!(cache.path_for("front/a1b2.jpg").is_some());
     }
 
-    /// The LAN listener answers whatever the subnet asks for, and this is the
-    /// only thing shaping that input before `path_for`. A query string used to
-    /// survive into the key.
     #[test]
+    /// The only thing shaping network input before `path_for`.
     fn a_request_path_drops_its_query_and_fragment() {
         assert_eq!(
             key_from_request_path("/scryfall-img/front/a.jpg?v=2"),
@@ -824,13 +791,8 @@ mod tests {
         assert_eq!(key_from_request_path("/scryfall-img/?v=2"), None);
     }
 
-    /// `preseed`'s common path for anyone who has looked at a deck before
-    /// downloading it: the art is already there from browsing, so the branch is
-    /// `contains` then `pin` and no store at all. `pin` touched only the
-    /// HashSet, so that art was exempt from eviction while still reported as
-    /// unpinned, and the pinned figure is what the clear dialog's "keep
-    /// downloaded art" is deciding about.
     #[tokio::test]
+    /// `preseed`'s common path is `contains` then `pin` and no store at all.
     async fn pinning_art_that_was_already_cached_moves_it_into_the_pinned_half() {
         let (cache, _dir) = cache();
         cache.store("browsed.jpg", b"12345678", false).unwrap();
@@ -844,9 +806,6 @@ mod tests {
         assert_eq!(stats.pinned_bytes, 8);
     }
 
-    /// Re-storing a key that is already pinned changes its size, not its class.
-    /// The old accounting skipped the file count on any replace and subtracted
-    /// the old bytes from the pinned half whether or not they were ever in it.
     #[test]
     fn re_storing_a_pinned_key_adjusts_its_bytes_and_nothing_else() {
         let (cache, _dir) = cache();
@@ -858,8 +817,6 @@ mod tests {
         assert_eq!((stats.pinned_files, stats.pinned_bytes), (1, 6));
     }
 
-    /// Pinning a key whose file was already there under a different class used
-    /// to lose the file from `pinned_files` and over-subtract its bytes.
     #[test]
     fn storing_over_an_unpinned_file_and_pinning_it_counts_once() {
         let (cache, _dir) = cache();

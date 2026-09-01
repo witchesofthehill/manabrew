@@ -4571,7 +4571,6 @@ dependencies = [
  "manabrew-relay-protocol",
  "metrics",
  "metrics-exporter-prometheus",
- "minisign-verify",
  "reqwest 0.12.28",
  "serde",
  "serde_json",

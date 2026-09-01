@@ -1,23 +1,17 @@
 //! Finding a manabrew relay or room on the local network, so nobody types an
-//! address.
-//!
-//! Advertised by whoever is worth connecting to: an always-on relay on a box in
-//! a cupboard, or a desktop hosting a table. The record says where something is
-//! and what kind of thing it is, never how to enter it: a room's password is
-//! not in here.
+//! address. The record says where something is and what it is, never how to
+//! enter it: a room's password is not in here.
 
 use serde::{Deserialize, Serialize};
 
 pub const SERVICE_TYPE: &str = "_manabrew._tcp.local.";
 
-/// The key a shared listener runs on. Never access control: `Authenticate`
-/// checks it and then runs the real identity handshake. It is here so a client
-/// never has to be told it.
+/// Never access control: `Authenticate` checks it and then runs the real
+/// identity handshake. Here so a client is never told it.
 pub const LAN_RELAY_KEY: &str = "manabrew-lan";
 
-/// What is answering. A relay is infrastructure worth staying connected to; a
-/// room is one table on somebody's desktop. They need the same fields and lead
-/// to different places, so the record has to say which.
+/// A relay is this network's lobby; a room is one table on a desktop. Same
+/// fields, different destinations, so the record has to say which.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum LanRole {
@@ -33,8 +27,7 @@ impl LanRole {
         }
     }
 
-    /// Absent means room: desktop builds already shipped advertising without
-    /// this property, and they were all rooms.
+    /// Absent means room: shipped builds advertise without it, and all are rooms.
     fn parse(value: Option<&str>) -> Self {
         match value {
             Some("relay") => Self::Relay,
@@ -71,8 +64,7 @@ impl Drop for Advertisement {
     }
 }
 
-/// Publishes this machine. Held for as long as it should be findable; dropping
-/// it withdraws the record.
+/// Held for as long as this should be findable; dropping it withdraws.
 pub fn advertise(
     role: LanRole,
     host: &str,
@@ -105,8 +97,7 @@ pub fn advertise(
     Ok(Advertisement { daemon, full_name })
 }
 
-/// Collects what is answering on this network. Time-boxed rather than
-/// continuous: a player opens the list, sees what is there, and picks.
+/// Time-boxed rather than continuous: a player opens the list and picks.
 pub fn discover(timeout: std::time::Duration) -> Result<Vec<LanEndpoint>, String> {
     let daemon = mdns_sd::ServiceDaemon::new().map_err(|e| format!("mdns daemon: {e}"))?;
     let receiver = daemon
@@ -149,10 +140,9 @@ pub fn discover(timeout: std::time::Duration) -> Result<Vec<LanEndpoint>, String
     Ok(found)
 }
 
-/// The label a player picks this machine out of a list by, so it has to be the
-/// machine's actual name. `HOSTNAME` is a shell variable: a macOS GUI app and a
-/// systemd unit both run without it, and every one of them would otherwise
-/// advertise as "manabrew" and collide with the next.
+/// `HOSTNAME` is a shell variable that a systemd unit and a macOS GUI app both
+/// run without, so reading only the environment made every machine advertise as
+/// "manabrew" and collide with the next.
 fn hostname() -> String {
     #[cfg(unix)]
     let read = std::fs::read_to_string("/etc/hostname")

@@ -196,7 +196,7 @@ Two build constraints found while checking this, both real:
 wasm bundle: iroh costs 3.0MB raw and 1.19MB gzipped, and a player who never joins a room that
 offers a direct transport should not download it, so `src/game/directSeat.ts` imports it only
 when `RoomTransport` arrives carrying a relay url. The module is genuinely optional, in both directions. `ring` compiles C for wasm32, so building
-it needs a clang that can *target* wasm32 — and Apple's clang, which is on every mac, cannot, so
+it needs a clang that can _target_ wasm32 — and Apple's clang, which is on every mac, cannot, so
 `scripts/build-wasm.mjs` asks a candidate clang to compile for the target rather than trusting
 that one exists. When none does it skips the module, and `vite.config.ts` then resolves
 `@/wasm-net/net` to a stub that reports itself; `DirectSeat` catches the throw and the seat stays
@@ -204,7 +204,7 @@ on the relay. `src/types/wasmNet.d.ts` declares the module so `tsc` never needs 
 files. That alias must sit **before** the `@` alias or the broader one claims the specifier.
 
 A browser seat sends only its own answers over the channel (`response` and `directive`); a
-browser *hosting* a room still serves its seats over the relay. Hosting from the browser is the
+browser _hosting_ a room still serves its seats over the relay. Hosting from the browser is the
 next phase, and nothing in the design prevents it: the host role is the same `SeatTable` the node
 runs.
 
@@ -228,6 +228,23 @@ toasts, so a client must not send it blind.
 `manabrew-relay-protocol` does not depend on iroh. The wire carries strings, so the control
 plane stays transport agnostic and the same messages work for a future non-iroh transport.
 
+### Two gates, and why they are not the same one
+
+`self-hosted-node` and `manabot` both put the data plane behind a default-off cargo feature named
+`iroh`. It is a build gate: without it neither crate pulls `manabrew-net`, so no QUIC stack, no
+gossip and no second listening socket reach a binary that never asked for them. `manabot`'s
+`native` feature used to imply `manabrew-net`, which meant every consumer of the bot got iroh
+whether or not it wanted it. That is what the feature fixes.
+
+`MANABREW_IROH` is the runtime gate, and it is the one the rollout uses. The fleet image is built
+with the feature on precisely so enabling the transport on one node is an env change rather than a
+new image; a compile-time rollout would make "one node, then the fleet" impossible, because the
+fleet runs a single image. Dead code in a binary costs nothing. An open socket does, and that is
+the one that stays shut.
+
+So: `cargo build -p self-hosted-node` gives a relay-only node, `--features iroh` gives one that
+can be switched on, and `MANABREW_IROH` decides whether it is.
+
 The transport seam is a channel pair rather than a `dyn` trait: `GameChannel` owns an outbound
 `mpsc::Sender`, an inbound `mpsc::Receiver` and a `watch` of `TransportStatus`. A transport is
 whatever task pumps that pair. `IrohChannel` is one such task; the existing relay WebSocket loop
@@ -238,13 +255,13 @@ is the other, and it needs no rewrite to qualify.
 **The relay only records what it carries, so the host says what it took away.** Most telemetry
 is unaffected, and it is worth being precise about which:
 
-| Signal | Source | Affected |
-| --- | --- | --- |
-| `games`, `game_players`, `GameStarted`/`GameEnded`, deck play reports | control-plane messages | no |
-| `manabrew_node_forge_decision_seconds`, engine GC/heap/stall | the node, per decision | no |
-| `AnalyticsEvent::EngineStats` | the seat, over `ReportEngineStats` on the control socket | no |
-| relay game capture (`MANABREW_GAME_CAPTURE_DIR`) | the envelope stream | **yes** |
-| relay replay cache | the envelope stream | **yes** |
+| Signal                                                                | Source                                                   | Affected |
+| --------------------------------------------------------------------- | -------------------------------------------------------- | -------- |
+| `games`, `game_players`, `GameStarted`/`GameEnded`, deck play reports | control-plane messages                                   | no       |
+| `manabrew_node_forge_decision_seconds`, engine GC/heap/stall          | the node, per decision                                   | no       |
+| `AnalyticsEvent::EngineStats`                                         | the seat, over `ReportEngineStats` on the control socket | no       |
+| relay game capture (`MANABREW_GAME_CAPTURE_DIR`)                      | the envelope stream                                      | **yes**  |
+| relay replay cache                                                    | the envelope stream                                      | **yes**  |
 
 Only the two that read the stream lose anything, and the danger there is not the missing bytes
 but the silence: a capture file that quietly omits a seat produces wrong latency conclusions,
@@ -291,7 +308,7 @@ published to a third-party DNS or DHT.
 
 ## A LAN with the internet still on
 
-The interesting case is not the one with no WAN. It is a group who are all on manabrew.app *and*
+The interesting case is not the one with no WAN. It is a group who are all on manabrew.app _and_
 all in the same room, which is where the design is supposed to pay without anybody asking it to.
 
 Nothing special happens, which is the point. The control plane stays on manabrew.app because it
@@ -409,5 +426,5 @@ itself:
   and the client wiring. What is **not** verified is a real browser game over it, because that
   needs a browser; the Rust and TypeScript both build and lint, and the relay-only path is
   covered natively by `manabrew-net/tests/relayed.rs`, which uses an endpoint with its IP
-  transports cleared. Still open: browser-*hosted* rooms, and a desktop-embedded relay, which is
+  transports cleared. Still open: browser-_hosted_ rooms, and a desktop-embedded relay, which is
   still not worth it.

@@ -1,4 +1,8 @@
 pub mod config;
+#[cfg(feature = "iroh")]
+pub mod direct;
+#[cfg(not(feature = "iroh"))]
+#[path = "direct_stub.rs"]
 pub mod direct;
 pub mod engine_backend;
 pub mod host;

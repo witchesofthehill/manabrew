@@ -172,7 +172,11 @@ COPY --from=native-builder /build/forge-harness/native/build/ \
     /build/forge-harness/native/build/
 
 COPY --from=planner /build/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json -p self-hosted-node --features graal-forge
+# `iroh` is compiled in but stays off at runtime behind MANABREW_IROH. The
+# rollout is a per-node env flip, so it must not need a new image; what the
+# cargo feature keeps clean is every build that is not this one.
+RUN cargo chef cook --release --recipe-path recipe.json -p self-hosted-node \
+    --features graal-forge,iroh
 
 COPY Cargo.toml Cargo.lock ./
 COPY manabrew-rs/ manabrew-rs/
@@ -184,7 +188,7 @@ RUN mkdir -p src-tauri/src && echo "fn main() {}" > src-tauri/src/main.rs && tou
 COPY tree-sitter-forge-card-script/ tree-sitter-forge-card-script/
 COPY xtask/ xtask/
 
-RUN cargo build --release -p self-hosted-node --features graal-forge && \
+RUN cargo build --release -p self-hosted-node --features graal-forge,iroh && \
     cp /build/target/release/self-hosted-node /usr/local/bin/self-hosted-node
 
 # ── Stage 4: Runtime ─────────────────────────────────────────────────

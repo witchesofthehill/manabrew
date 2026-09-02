@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.34.0](https://github.com/witchesofthehill/manabrew/compare/v3.33.5...v3.34.0) (2026-09-02)
+
+### Features
+
+* **play:** always host Forge multiplayer in the browser ([#837](https://github.com/witchesofthehill/manabrew/issues/837)) ([6a3624f](https://github.com/witchesofthehill/manabrew/commit/6a3624fc40f9d6d4f143fabd0bc13dd9d6d70029))
+
 ## [3.33.5](https://github.com/witchesofthehill/manabrew/compare/v3.33.4...v3.33.5) (2026-09-02)
 
 ### Fixes

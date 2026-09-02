@@ -414,7 +414,7 @@ public final class InteractiveSnapshotExtractor {
         dto.mergedCardIds = mergedCardIds(card);
         dto.damage = card.getDamage();
         dto.summoningSick = card.hasSickness();
-        dto.isCopy = card.isCloned();
+        dto.isCopy = card.isCloned() || card.getCopiedPermanent() != null;
         dto.isDoubleFaced = card.isDoubleFaced();
         dto.isTransformed = card.isTransformed();
         dto.isFaceDown = card.isFaceDown();

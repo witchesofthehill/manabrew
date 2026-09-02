@@ -16,8 +16,12 @@ import {
   normalizeToWebp,
   PLAYMAT_IMAGE_BUDGET,
 } from "@/lib/imageEncode";
+import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
+import { resyncRelayIdentity } from "@/lib/resyncRelayIdentity";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useDeckStore } from "@/stores/useDeckStore";
 import { useHubStore } from "@/stores/useHubStore";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 export interface AssetRef {
   assetId: string;
@@ -78,6 +82,7 @@ export const useAssetStore = create<AssetState>()(
           const uploaded = await uploadAsset(kind, encoded);
           await discard(replaces);
           await get().refresh();
+          if (kind === "playmat" && replaces) retargetPlaymatReferences(replaces, uploaded);
           return uploaded;
         } catch (error) {
           reportUploadFailure(error);
@@ -94,6 +99,7 @@ export const useAssetStore = create<AssetState>()(
         await setAccountAvatar(uploaded.assetId);
         await get().refresh();
         await useAuthStore.getState().refresh();
+        void resyncRelayIdentity();
       },
 
       clearAvatar: async () => {
@@ -101,14 +107,17 @@ export const useAssetStore = create<AssetState>()(
         await setAccountAvatar(undefined);
         await useAuthStore.getState().refresh();
         await get().remove(previous);
+        void resyncRelayIdentity();
       },
 
       remove: async (assetId) => {
         if (!assetId) return;
+        const kind = get().assets.find((asset) => asset.id === assetId)?.kind;
         set({ busy: true });
         try {
           await discard(assetId);
           await get().refresh();
+          if (kind === "playmat") retargetPlaymatReferences(assetId, undefined);
         } finally {
           set({ busy: false });
         }
@@ -146,6 +155,16 @@ export async function assetUrlById(assetId: string | undefined): Promise<string 
   if (state.loaded) return undefined;
   await state.refresh().catch(() => {});
   return useAssetStore.getState().assets.find((a) => a.id === assetId)?.url;
+}
+
+function retargetPlaymatReferences(previousAssetId: string, next: AssetRef | undefined): void {
+  const prefs = usePreferencesStore.getState();
+  if (prefs.defaultPlaymatAssetId === previousAssetId) {
+    prefs.setDefaultPlaymatAssetId(next?.assetId);
+    if (!next) prefs.setDefaultPlaymatSettings(undefined);
+  }
+  useDeckStore.getState().replacePlaymatAsset(previousAssetId, next);
+  void useAccountDecksStore.getState().replacePlaymatAsset(previousAssetId, next);
 }
 
 async function discard(assetId: string | undefined): Promise<void> {

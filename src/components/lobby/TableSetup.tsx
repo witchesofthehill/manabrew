@@ -51,8 +51,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
   const ironsmithOptedIn = usePreferencesStore((s) => s.ironsmithRuntimeEnabled);
   const ironsmithEnabled =
     isFeatureEnabled("ironsmithRuntime") && IRONSMITH_WASM_AVAILABLE && ironsmithOptedIn;
-  const forgeWasmOptedIn = usePreferencesStore((s) => s.forgeWasmEnabled);
-  const forgeWasm = isFeatureEnabled("forgeWasm") && forgeWasmOptedIn;
+  const forgeWasm = isFeatureEnabled("forgeWasm");
   const hostedNode = !isTauri && !forgeWasm;
   const canHostForge = (isTauri && forgeRoomAvailable) || forgeWasm || hostedNode;
 

@@ -1053,30 +1053,6 @@ export default function Settings() {
               </PreferenceCard>
             )}
 
-            {isFeatureEnabled("forgeWasm") && (
-              <PreferenceCard
-                title="Host Forge multiplayer in the browser (experimental)"
-                description="Allows this browser to host Forge multiplayer tables. Offline play always uses Forge regardless of this setting."
-              >
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant={prefs.forgeWasmEnabled ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => prefs.setForgeWasmEnabled(true)}
-                  >
-                    On
-                  </Button>
-                  <Button
-                    variant={!prefs.forgeWasmEnabled ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => prefs.setForgeWasmEnabled(false)}
-                  >
-                    Off
-                  </Button>
-                </div>
-              </PreferenceCard>
-            )}
-
             <PreferenceCard
               title="Card Preview Trigger"
               description={

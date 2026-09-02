@@ -3,7 +3,8 @@
 //! The framing is `path\0body\0…`, which is what `WasmMain.writeFramed`
 //! unpacks into the in-memory filesystem.
 
-use crate::load_checked;
+use crate::{load_checked, ArchivedCardArchive};
+use forge_card_script::ParsedCardScript;
 
 /// Name a card script the way Forge does, because with lazily loaded card
 /// scripts the *filename* is how Forge finds a card: it strips the accents and
@@ -65,6 +66,38 @@ fn push(out: &mut String, path: &str, body: &str) {
     out.push('\0');
 }
 
+fn choose_from_list_dependencies(raw: &str) -> Vec<String> {
+    let parsed = ParsedCardScript::parse(raw);
+    let mut names = Vec::new();
+    for ability in parsed.abilities() {
+        let Some(choices) = ability.params.get("ChooseFromList") else {
+            continue;
+        };
+        names.extend(choices.split(',').filter_map(|name| {
+            let name = name.trim().replace(';', ",");
+            (!name.is_empty()).then(|| name.to_ascii_lowercase())
+        }));
+    }
+    names
+}
+
+fn add_named_card_dependencies(
+    archive: &ArchivedCardArchive,
+    keep: &mut std::collections::HashSet<String>,
+) {
+    let mut pending: Vec<String> = keep.iter().cloned().collect();
+    while let Some(name) = pending.pop() {
+        let Some(card) = archive.lookup(&name) else {
+            continue;
+        };
+        for dependency in choose_from_list_dependencies(card.raw.as_str()) {
+            if keep.insert(dependency.clone()) {
+                pending.push(dependency);
+            }
+        }
+    }
+}
+
 /// Map every flavor name an edition file carries to the card Forge files it
 /// under, both lowercased.
 ///
@@ -112,10 +145,10 @@ fn json_string_field(tail: &str, field: &str) -> Option<String> {
 
 /// Build the NUL-framed asset bundle the Wasm Forge build unpacks at boot.
 ///
-/// `wanted` restricts the card scripts to the names actually in play. Forge
-/// reads its whole cardsfolder at init, so shipping all 33k scripts costs
-/// seconds of boot for cards no game will touch; pass the decks' names and it
-/// stays a few hundred KB. An empty list means every card.
+/// `wanted` restricts the card scripts to the names actually in play and the
+/// cards those scripts name through `ChooseFromList`. Forge reads its whole
+/// cardsfolder at init, so shipping all 33k scripts costs seconds of boot for
+/// cards no game will touch. An empty list means every card.
 pub fn forge_asset_bundle(bytes: &[u8], wanted: Vec<String>) -> Result<String, String> {
     let archive = load_checked(bytes)?;
 
@@ -150,6 +183,7 @@ pub fn forge_asset_bundle(bytes: &[u8], wanted: Vec<String>) -> Result<String, S
                 }
             }
         }
+        add_named_card_dependencies(archive, keep);
     }
     let filter = filter;
 

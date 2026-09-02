@@ -5,7 +5,13 @@
  * is in.
  */
 import { describe, expect, it, vi } from "vitest";
-import { WebRtcPlane, endpointSpeaks, TRANSPORT_KIND_WEBRTC } from "./webrtcPlane";
+import {
+  WebRtcPlane,
+  endpointSpeaks,
+  planeForRoom,
+  TRANSPORT_KIND_IROH,
+  TRANSPORT_KIND_WEBRTC,
+} from "./webrtcPlane";
 import type { RosterMember } from "./webrtcPlane";
 
 class FakeChannel {
@@ -126,6 +132,27 @@ describe("choosing a plane from what the host advertises", () => {
   it("treats an endpoint with no kinds as iroh, which is what every announcer before the field meant", () => {
     expect(endpointSpeaks({ username: "h", endpoint: {} }, "iroh")).toBe(true);
     expect(endpointSpeaks({ username: "h", endpoint: {} }, TRANSPORT_KIND_WEBRTC)).toBe(false);
+  });
+
+  it("gives a desktop seat iroh and a browser seat WebRTC out of the same desktop host", () => {
+    // A desktop host advertises both, most preferred first.
+    const desktopHost = member("alice", ["iroh", "webrtc"], true);
+    expect(planeForRoom(desktopHost, ["iroh", "webrtc"])).toBe(TRANSPORT_KIND_IROH);
+    expect(planeForRoom(desktopHost, ["webrtc"])).toBe(TRANSPORT_KIND_WEBRTC);
+  });
+
+  it("gives a desktop seat WebRTC in a browser-hosted room, not the native endpoint", () => {
+    // The seat's own platform must not decide: reaching for iroh here would
+    // find nothing and fall back to the relay when WebRTC was available.
+    const browserHost = member("alice", ["webrtc"], true);
+    expect(planeForRoom(browserHost, ["iroh", "webrtc"])).toBe(TRANSPORT_KIND_WEBRTC);
+  });
+
+  it("leaves a browser seat on the relay in an iroh-only room, which is all it can do", () => {
+    expect(planeForRoom(member("alice", ["iroh"], true), ["webrtc"])).toBeNull();
+    // And an endpoint from before `kinds` existed reads as iroh.
+    expect(planeForRoom({ username: "alice", endpoint: {} }, ["webrtc"])).toBeNull();
+    expect(planeForRoom({ username: "alice", endpoint: {} }, ["iroh"])).toBe(TRANSPORT_KIND_IROH);
   });
 
   it("ignores a room whose host speaks iroh, rather than offering into silence", () => {
@@ -263,6 +290,59 @@ describe("a host", () => {
     const { channel, delivered } = await connectedHost();
     channel.onmessage?.({ data: JSON.stringify({ kind: "response" }) });
     expect(delivered).toEqual([{ envelope: { kind: "response" }, from: "bob" }]);
+  });
+});
+
+describe("a host proxy, whose freeze lives in the node", () => {
+  async function connectedHost() {
+    const host = member("alice", ["iroh", "webrtc"], true);
+    const h = harness("alice", ["bob"]);
+    h.plane.onRoster([member("alice", ["iroh", "webrtc"]), member("bob", ["webrtc"])], host);
+    await vi.waitFor(() => expect(h.connections.get("bob")).toBeDefined());
+    const connection = h.connections.get("bob")!;
+    await vi.waitFor(() => expect(connection.channel).toBeDefined());
+    connection.channel!.open();
+    return { ...h, channel: connection.channel! };
+  }
+
+  it("sends without a local freeze, because the node already decided", async () => {
+    const { plane, channel } = await connectedHost();
+    // `trySend` would refuse: nothing froze here. `sendTo` is the proxy's path.
+    expect(plane.trySend({ kind: "prompt" }, "bob")).toBe(false);
+    expect(plane.sendTo("bob", { kind: "prompt" })).toBe(true);
+    expect(envelopes(channel)).toEqual([{ kind: "prompt" }]);
+  });
+
+  it("refuses once the channel is gone, which is what puts the seat back on the relay", async () => {
+    const { plane, channel } = await connectedHost();
+    channel.close();
+    expect(plane.sendTo("bob", { kind: "prompt" })).toBe(false);
+  });
+
+  it("reports the seats it is serving as channels open and close", async () => {
+    const seen: string[][] = [];
+    const host = member("alice", ["iroh", "webrtc"], true);
+    const connections = new Map<string, FakeConnection>();
+    const queue = ["bob"];
+    const plane = new WebRtcPlane({
+      username: "alice",
+      signal: () => {},
+      deliver: () => {},
+      onServing: (seats) => seen.push(seats),
+      createConnection: () => {
+        const connection = new FakeConnection();
+        connections.set(queue.shift()!, connection);
+        return connection as unknown as RTCPeerConnection;
+      },
+    });
+    plane.onRoster([member("alice", ["iroh", "webrtc"]), member("bob", ["webrtc"])], host);
+    await vi.waitFor(() => expect(connections.get("bob")?.channel).toBeDefined());
+    connections.get("bob")!.channel!.open();
+    expect(plane.serving()).toEqual(["bob"]);
+    connections.get("bob")!.channel!.close();
+    expect(plane.serving()).toEqual([]);
+    expect(seen).toContainEqual(["bob"]);
+    expect(seen.at(-1)).toEqual([]);
   });
 });
 

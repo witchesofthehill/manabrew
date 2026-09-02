@@ -8,6 +8,10 @@ pub mod engine_backend;
 pub mod host;
 pub mod logs;
 pub mod metrics;
+/// Unconditional, unlike `direct`: the webview does not need the iroh feature
+/// to hold a WebRTC connection, and a desktop build without iroh still hosts
+/// browser seats.
+pub mod shell_bridge;
 pub mod updater;
 
 /// Whether the `iroh` feature is compiled in. A build that turns the direct
@@ -18,4 +22,4 @@ pub const DIRECT_PLANE: bool = cfg!(feature = "iroh");
 
 pub use config::Config;
 pub use engine_backend::EngineBackendKind;
-pub use host::{cli_entry, host_room, RoomCancel};
+pub use host::{cli_entry, host_room, host_room_bridged, RoomCancel, ShellBridgeHandle};

@@ -111,7 +111,8 @@ Three rules keep the mixed desktop/browser case cheap:
 - **Peers are addressed by username, never by peer type.** A desktop seat uses the same signalling
   path.
 - **A room's plane comes from what the host advertises**, in `TransportEndpoint::kinds`, not from
-  "am I a browser". Otherwise a desktop seat in a browser-hosted room reaches for its native
+  "am I a browser". A seat takes the first kind the host offers that it can itself speak
+  (`planeForRoom`). Otherwise a desktop seat in a browser-hosted room reaches for its native
   endpoint, finds nothing, and falls back to the relay when WebRTC was there. An endpoint with no
   `kinds` means `iroh`, which is what every announcer before the field meant.
 - **The send seam takes a second sink rather than a rewrite.** `trySend` returns false and the
@@ -139,12 +140,51 @@ plane has to beat.
 why not. A negotiation that never completes shows up there, because a dropped signal is answered
 with silence the same way a rejected announcement is.
 
+### A desktop host serving a browser seat
+
+Two thirds of mixed rooms are desktop-hosted, and that host cannot dial a browser. Its engine is
+`self-hosted-node` in-process on its own relay session (`forge-host-<uuid>`), and a browser is
+reachable over WebRTC and nothing else. The only thing in that process that can make a WebRTC
+connection is the webview sitting beside it, so the envelopes go out through the shell rather than
+through a second Rust transport stack.
+
+`ShellBridge` is that seam, a third sink after the native endpoint and before the relay:
+
+```
+engine -> DirectPlane::try_send  (iroh, a desktop seat)
+       -> ShellBridge::try_send  (the webview, a browser seat)
+       -> the relay              (everything else, always)
+```
+
+Four things cross it. Outward, an engine envelope for a seat and signalling addressed to the host.
+Inward, the seats the webview currently reaches, signalling to send, and a seat's own envelope,
+which takes the same route into the engine that a relay `StateUpdate` takes.
+
+The relay session stays in the node. `ForgeHostBridge` in the webview runs a `WebRtcPlane` under
+the node's username, so it reads itself as the room's host and every host rule applies unchanged,
+but it never gets a relay session it could speak for the host with. Signalling arrives on the
+node's socket, is forwarded out, and what the webview answers goes back and is sent under the
+host's own attested identity.
+
+The freeze lives in the node, not the webview. `ShellBridge::freeze_for_game` runs after the direct
+plane has taken its seats and is given them, so no seat is claimed by two planes; the webview only
+reports which channels are open and delivers what it is handed.
+
+`ShellBridge::try_send` cannot know the send landed: the answer would have to come back across the
+shell and the caller is the room's message loop. A seat whose channel dies in the window between
+the webview's last report and that call loses envelopes. What repairs it is the debt the direct
+plane already has: a seat that leaves this plane is owed a full board before it reads the relay
+again, paid through `on_fallback` and cleared when it answers over the relay. A seat that leaves
+does not come back for the rest of the game, in either direction.
+
+A desktop host announces `kinds: ["iroh", "webrtc"]`, most preferred first, and a seat takes the
+first of them it can speak. That is one roster serving both: its desktop seats land on iroh, its
+browser seats on WebRTC.
+
 ### Not yet
 
-A desktop-native host serving a browser seat. The engine is `self-hosted-node` in-process and owns
-its own relay socket, so its envelopes do not pass through the webview. Forwarding them through the
-shell to the webview, which already knows how to make the connection, is the cheap way in, and
-`DirectPlane::try_send` returning false is the seam it slots into. See #838.
+Measured numbers from two real browsers, `RTCDataChannel` on WebKitGTK, and two machines on one
+switch with the internet off, where Chromium replaces host candidates with mDNS names. See #838.
 
 ## Opting in
 

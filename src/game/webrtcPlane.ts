@@ -87,6 +87,9 @@ export interface WebRtcPlaneOptions {
    *  nothing else. */
   iceServers?: RTCIceServer[];
   onMeasurement?: (measurement: PlaneMeasurement) => void;
+  /** The peers with an open channel, whenever that set changes. A host proxy
+   *  reports it onward so the node knows which seats it can still reach. */
+  onServing?: (seats: string[]) => void;
   now?: () => number;
 }
 
@@ -108,9 +111,25 @@ function median(values: number[]): number | undefined {
  *  `TransportEndpoint::speaks` on the Rust side: absent or empty `kinds` is
  *  what every announcer before the field meant, which is iroh. */
 export function endpointSpeaks(member: RosterMember | undefined, kind: string): boolean {
+  return advertisedKinds(member).includes(kind);
+}
+
+function advertisedKinds(member: RosterMember | undefined): string[] {
   const kinds = member?.endpoint?.kinds;
-  if (!kinds || kinds.length === 0) return kind === TRANSPORT_KIND_IROH;
-  return kinds.includes(kind);
+  return !kinds || kinds.length === 0 ? [TRANSPORT_KIND_IROH] : kinds;
+}
+
+/**
+ * The plane a seat should take: the first one the HOST advertises that this
+ * client can actually speak. Not "am I a desktop" — a desktop seat in a
+ * browser-hosted room has to take WebRTC, and a desktop host advertises both
+ * so each of its seats can pick the one that suits it.
+ *
+ * `mine` is in no particular order; the host's list carries the preference,
+ * which is why a desktop seat in a desktop-hosted room lands on iroh.
+ */
+export function planeForRoom(host: RosterMember | undefined, mine: string[]): string | null {
+  return advertisedKinds(host).find((kind) => mine.includes(kind)) ?? null;
 }
 
 interface Peer {
@@ -268,15 +287,43 @@ export class WebRtcPlane {
     // the only thing that fans one out.
     if (!peer || !this.active.has(peer)) return false;
     if (!this.isHost && !isSeatEnvelope(state)) return false;
+    return this.sendTo(peer, state);
+  }
+
+  /**
+   * Puts one envelope on a peer's channel. Separate from `trySend` for the
+   * host proxy, whose barrier lives in the node rather than here: the node
+   * froze the seat set at `GameStarted` and decided this envelope belongs on
+   * this plane, so there is no second gate to pass.
+   */
+  sendTo(peer: string, envelope: unknown): boolean {
+    if (this.closed) return false;
     const channel = this.peers.get(peer)?.channel;
     if (!channel || channel.readyState !== "open") return false;
     try {
-      channel.send(JSON.stringify(state));
+      channel.send(JSON.stringify(envelope));
       return true;
     } catch (error) {
       console.warn(`[webrtc] send to ${peer} failed, falling back to the relay:`, error);
       this.active.delete(peer);
+      this.announceServing();
       return false;
+    }
+  }
+
+  /** The peers with an open channel right now. */
+  serving(): string[] {
+    return [...this.peers]
+      .filter(([, peer]) => peer.open && peer.channel?.readyState === "open")
+      .map(([username]) => username)
+      .sort();
+  }
+
+  private announceServing(): void {
+    try {
+      this.opts.onServing?.(this.serving());
+    } catch {
+      // Reporting must never take a game down with it.
     }
   }
 
@@ -347,11 +394,13 @@ export class WebRtcPlane {
     channel.onopen = () => {
       state.open = true;
       this.settle(peer, state, "connected");
+      this.announceServing();
       void this.probe(peer, state);
     };
     channel.onclose = () => {
       state.open = false;
       this.active.delete(peer);
+      this.announceServing();
     };
     channel.onmessage = (event) => this.receive(peer, state, event.data);
   }
@@ -459,5 +508,6 @@ export class WebRtcPlane {
     state.connection.close();
     this.peers.delete(peer);
     this.active.delete(peer);
+    this.announceServing();
   }
 }

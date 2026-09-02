@@ -55,11 +55,13 @@ import { applyStateDelta, diffStateDelta } from "@/lib/stateDelta";
 import { DirectSeat } from "@/game/directSeat";
 import {
   WebRtcPlane,
-  endpointSpeaks,
+  planeForRoom,
+  TRANSPORT_KIND_IROH,
   TRANSPORT_KIND_WEBRTC,
   type PlaneMeasurement,
   type RosterMember,
 } from "@/game/webrtcPlane";
+import { ForgeHostBridge } from "@/game/forgeHostBridge";
 import { isForgeWasmHostingEnabled, setForgeWasmActive } from "@/lib/forgeWasm";
 import { buildForgeAssetBundle } from "@/lib/forgeAssets";
 import type { Deck } from "@/protocol/deck";
@@ -767,6 +769,9 @@ class WebServerApi implements IServerApi {
   /** Whether this relay will carry signalling at all. Without it a negotiation
    *  could only ever half-finish, so none is started. */
   private peerSignalling = false;
+  /** Set when this app is the one running the room's engine host, so the
+   *  webview drives WebRTC for a node that cannot dial a browser itself. */
+  private forgeHostBridge: ForgeHostBridge | null = null;
   /** Keepalive round trip to the relay, which is the number the direct plane
    *  has to beat. The relay records its own view of this as
    *  `manabrew_relay_client_rtt_ms`; this is the client's. */
@@ -1315,9 +1320,23 @@ class WebServerApi implements IServerApi {
     const host = msg.host as RosterMember;
     const members = Array.isArray(msg.members) ? (msg.members as RosterMember[]) : [];
 
-    if (endpointSpeaks(host, TRANSPORT_KIND_WEBRTC)) {
-      this.onWebRtcRoster(members, host);
-      return;
+    // This app may be the one running the room's engine host. The node cannot
+    // dial a browser seat, so the webview holds those connections for it.
+    if (host.username !== this.authedUsername) {
+      void this.maybeProxyForgeHost(members, host);
+    }
+
+    // The first plane the host offers that this client speaks. A desktop host
+    // offers both, so its desktop seats take iroh and its browser seats take
+    // WebRTC out of the same roster.
+    switch (planeForRoom(host, this.myTransportKinds())) {
+      case TRANSPORT_KIND_WEBRTC:
+        this.onWebRtcRoster(members, host);
+        return;
+      case TRANSPORT_KIND_IROH:
+        break;
+      default:
+        return;
     }
 
     const relayUrl = typeof msg.iroh_relay_url === "string" ? msg.iroh_relay_url : null;
@@ -1331,6 +1350,31 @@ class WebServerApi implements IServerApi {
       await this.directSeat.adoptRelay(relayUrl);
     }
     await this.directSeat.onRoster(String(msg.room_id ?? ""), msg.members);
+  }
+
+  /// The planes this client can actually speak. A desktop binds a native
+  /// endpoint in the shell; every build with `RTCPeerConnection` can do WebRTC.
+  private myTransportKinds(): string[] {
+    const mine: string[] = [];
+    if (getClientPlatform() === "desktop") mine.push(TRANSPORT_KIND_IROH);
+    if (this.peerSignalling && WebRtcPlane.supported()) mine.push(TRANSPORT_KIND_WEBRTC);
+    return mine;
+  }
+
+  /// When this app runs the room's engine host, its envelopes for a browser
+  /// seat come out through the shell and go onto a connection held here.
+  /// Silent on the web and in a desktop that is not hosting: the command
+  /// answers with an error and there is nothing to do.
+  private async maybeProxyForgeHost(members: RosterMember[], host: RosterMember): Promise<void> {
+    if (!this.peerSignalling || !WebRtcPlane.supported()) return;
+    if (getClientPlatform() !== "desktop") return;
+    if (!this.forgeHostBridge) {
+      if (!(await ForgeHostBridge.hosting())) return;
+      // The roster's host is the node this app started, and the plane runs
+      // under that name so it reads itself as the host.
+      this.forgeHostBridge = new ForgeHostBridge(host.username);
+    }
+    await this.forgeHostBridge.onRoster(members, host);
   }
 
   /// A room whose host speaks WebRTC. The plane is built on the first such

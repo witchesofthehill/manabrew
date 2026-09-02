@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use crate::config::{Config, DeckSelection, SelfPlayConfig};
 use crate::direct::DirectPlane;
 use crate::engine_backend::{java_backend, rust_backend, EngineBackendKind, HostedGameOver};
+use crate::shell_bridge::{ShellBridge, ShellCommand};
 use crate::updater::{run_stale_monitor, StaleConfig};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
@@ -304,7 +305,27 @@ pub async fn host_room(
     ready: tokio::sync::oneshot::Sender<String>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     ensure_engine_ready(&config)?;
-    host_one_room(config, None, cancel, Some(ready), None).await
+    host_one_room(config, None, cancel, Some(ready), None, None).await
+}
+
+/// The webview's half of the data plane, handed in by a desktop shell.
+///
+/// A browser seat cannot be dialled from here, so its envelopes go out through
+/// the webview instead (see [`crate::shell_bridge`]). Headless nodes pass none
+/// of this and behave exactly as they do today.
+pub struct ShellBridgeHandle {
+    pub bridge: Arc<ShellBridge>,
+    pub commands: tokio_mpsc::UnboundedReceiver<ShellCommand>,
+}
+
+pub async fn host_room_bridged(
+    config: Config,
+    cancel: RoomCancel,
+    ready: tokio::sync::oneshot::Sender<String>,
+    bridge: ShellBridgeHandle,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ensure_engine_ready(&config)?;
+    host_one_room(config, None, cancel, Some(ready), None, Some(bridge)).await
 }
 
 async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -383,7 +404,7 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
     });
 
     if single {
-        return host_one_room(config, None, cancels[0].clone(), None, Some(registry)).await;
+        return host_one_room(config, None, cancels[0].clone(), None, Some(registry), None).await;
     }
 
     config.format = GameFormat::Any;
@@ -397,7 +418,7 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
         let registry = registry.clone();
         handles.push(tokio::spawn(async move {
             if let Err(error) =
-                host_one_room(cfg, Some(label.clone()), cancel, None, Some(registry)).await
+                host_one_room(cfg, Some(label.clone()), cancel, None, Some(registry), None).await
             {
                 error!(%error, label, "room host exited");
             }
@@ -444,6 +465,7 @@ async fn host_one_room(
     cancel: RoomCancel,
     ready: Option<tokio::sync::oneshot::Sender<String>>,
     sessions: Option<SessionRegistry>,
+    shell: Option<ShellBridgeHandle>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if let Some(label) = &label {
         config.username = format!("{}-{label}", config.username);
@@ -482,6 +504,24 @@ async fn host_one_room(
         RelayClient::connect(&config.relay_url, &config.username, &config.password).await?;
     let mut room_id = establish_room(&mut host, &config, &snapshot).await?;
 
+    // Always a receiver, so the room loop's `select!` has one branch shape. With
+    // no shell the sender is held here for the life of the room: a dropped one
+    // makes `recv()` return `None` at once and spin the select.
+    let (bridge, mut bridge_rx, _idle_bridge_tx) = match shell {
+        Some(handle) => (Some(handle.bridge), handle.commands, None),
+        None => {
+            let (tx, rx) = tokio_mpsc::unbounded_channel::<ShellCommand>();
+            (None, rx, Some(tx))
+        }
+    };
+    if let Some(bridge) = &bridge {
+        let reprime_snapshot = snapshot.clone();
+        let reprime_tx = outbound_tx.clone();
+        bridge.set_on_fallback(move |username| {
+            reprime_relay_cache(&reprime_snapshot, &reprime_tx, username);
+        });
+    }
+
     let direct = match DirectPlane::start(&config).await {
         Some((plane, mut seats)) => {
             let plane = Arc::new(plane);
@@ -502,10 +542,18 @@ async fn host_one_room(
             plane.set_on_fallback(move |username| {
                 reprime_relay_cache(&reprime_snapshot, &reprime_tx, username);
             });
-            announce_transport(&plane, &outbound_tx);
+            announce_transport(&plane, &outbound_tx, bridge.is_some());
             Some(plane)
         }
-        None => None,
+        None => {
+            // No native endpoint, but a webview that can still hold a WebRTC
+            // channel. The seat picks the plane from what this host advertises,
+            // so it has to be advertised.
+            if bridge.is_some() {
+                announce_webrtc_only(&config, &outbound_tx);
+            }
+            None
+        }
     };
 
     if let Some(ready) = ready {
@@ -533,6 +581,8 @@ async fn host_one_room(
             &mut outbound_rx,
             &cancel,
             direct.as_ref(),
+            bridge.as_ref(),
+            &mut bridge_rx,
         )
         .await;
         if matches!(exit, LoopExit::Cancelled) {
@@ -588,7 +638,13 @@ async fn host_one_room(
         };
         if let Some(plane) = &direct {
             plane.clear_game();
-            announce_transport(plane, &outbound_tx);
+            announce_transport(plane, &outbound_tx, bridge.is_some());
+        }
+        if let Some(bridge) = &bridge {
+            bridge.clear_game();
+            if direct.is_none() {
+                announce_webrtc_only(&config, &outbound_tx);
+            }
         }
         info!(username = %config.username, room_id, "relay connection re-established");
     }
@@ -639,15 +695,44 @@ fn reprime_relay_cache(
 fn announce_transport(
     plane: &Arc<DirectPlane>,
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
+    webrtc: bool,
 ) {
     let plane = plane.clone();
     let outbound_tx = outbound_tx.clone();
     tokio::spawn(async move {
-        let endpoint = plane.local_endpoint().await;
-        info!(endpoint_id = %endpoint.endpoint_id, "announcing the direct endpoint");
+        let mut endpoint = plane.local_endpoint().await;
+        // Most preferred first. A desktop seat reads `iroh` and dials natively;
+        // a browser seat reads past it to `webrtc`. Neither decides from its own
+        // platform: it takes the first plane this host offers that it speaks.
+        if webrtc {
+            endpoint
+                .kinds
+                .push(manabrew_relay_protocol::TRANSPORT_KIND_WEBRTC.to_string());
+        }
+        info!(
+            endpoint_id = %endpoint.endpoint_id,
+            kinds = ?endpoint.kinds,
+            "announcing the direct endpoint"
+        );
         let _ = outbound_tx.send(ClientMessage::AnnounceTransport {
             endpoint: Some(endpoint),
         });
+    });
+}
+
+/// A host with a webview but no native endpoint. The endpoint id names it in
+/// the roster and nothing else: WebRTC addressing crosses over signalling, not
+/// here.
+fn announce_webrtc_only(config: &Config, outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>) {
+    let endpoint = manabrew_relay_protocol::TransportEndpoint {
+        endpoint_id: format!("webrtc:{}", config.username),
+        relay_url: None,
+        direct_addrs: Vec::new(),
+        kinds: vec![manabrew_relay_protocol::TRANSPORT_KIND_WEBRTC.to_string()],
+    };
+    info!(endpoint_id = %endpoint.endpoint_id, "announcing a webrtc-only endpoint");
+    let _ = outbound_tx.send(ClientMessage::AnnounceTransport {
+        endpoint: Some(endpoint),
     });
 }
 
@@ -1098,6 +1183,8 @@ async fn run_client_loop(
     outbound_rx: &mut tokio_mpsc::UnboundedReceiver<ClientMessage>,
     cancel: &RoomCancel,
     direct: Option<&Arc<DirectPlane>>,
+    bridge: Option<&Arc<ShellBridge>>,
+    bridge_rx: &mut tokio_mpsc::UnboundedReceiver<ShellCommand>,
 ) -> LoopExit {
     let mut heartbeat = time::interval(Duration::from_secs(30));
     heartbeat.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
@@ -1137,16 +1224,50 @@ async fn run_client_loop(
                     warn!(username = %client.username, "outbound channel closed");
                     return LoopExit::Cancelled;
                 };
-                if let (Some(plane), ClientMessage::BroadcastState { state, target_player: Some(target) }) =
-                    (direct, &outbound)
-                {
-                    if plane.try_send(target, state) {
+                if let ClientMessage::BroadcastState { state, target_player: Some(target) } = &outbound {
+                    // Three sinks in order: the native endpoint, the webview,
+                    // the relay. A seat is on exactly one of them for a game.
+                    if direct.is_some_and(|plane| plane.try_send(target, state)) {
+                        continue;
+                    }
+                    if bridge.is_some_and(|shell| shell.try_send(target, state)) {
                         continue;
                     }
                 }
                 if let Err(error) = client.send(&outbound).await {
                     warn!(%error, username = %client.username, "relay send failed");
                     return LoopExit::Disconnected;
+                }
+            }
+            command = bridge_rx.recv() => {
+                // Only reachable with a shell installed: without one the sender
+                // is held for the life of the room and this never fires.
+                let Some(command) = command else {
+                    warn!(username = %client.username, "shell bridge closed");
+                    return LoopExit::Cancelled;
+                };
+                let Some(shell) = bridge else { continue };
+                match command {
+                    ShellCommand::Serving { seats } => shell.set_serving(seats),
+                    ShellCommand::Signal { to, payload } => {
+                        // Sent under this host's own relay identity, which is
+                        // the whole reason it goes back through here rather than
+                        // out of the webview's own session.
+                        if let Err(error) = client
+                            .send(&ClientMessage::SignalPeer { to, payload })
+                            .await
+                        {
+                            warn!(%error, username = %client.username, "relay send failed");
+                            return LoopExit::Disconnected;
+                        }
+                    }
+                    ShellCommand::SeatEnvelope { from, envelope } => {
+                        // The same route a direct seat's envelope takes, and the
+                        // same one a relay `StateUpdate` takes. The name is the
+                        // webview's, and the webview only ever learned it from a
+                        // roster the relay attested.
+                        route_seat_envelope(engine_session, snapshot, &from, &envelope);
+                    }
                 }
             }
             message = client.recv() => {
@@ -1171,6 +1292,7 @@ async fn run_client_loop(
                     outbound_tx,
                     &mut bot_usernames,
                     direct,
+                    bridge,
                     message,
                 ).await {
                     warn!(%error, username = %client.username, "relay send failed");
@@ -1191,6 +1313,7 @@ async fn handle_server_message(
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
     bot_usernames: &mut HashSet<String>,
     direct: Option<&Arc<DirectPlane>>,
+    bridge: Option<&Arc<ShellBridge>>,
     message: ServerMessage,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match message {
@@ -1219,6 +1342,9 @@ async fn handle_server_message(
             if let Some(plane) = direct {
                 plane.note_relay_message(&from_player);
             }
+            if let Some(shell) = bridge {
+                shell.note_relay_message(&from_player);
+            }
             handle_state_update(
                 client,
                 config,
@@ -1230,6 +1356,14 @@ async fn handle_server_message(
                 state,
             )
             .await?;
+        }
+        ServerMessage::PeerSignal { from, payload } => {
+            // The connections live in the webview; this session only carries
+            // the signalling for them.
+            match bridge {
+                Some(shell) => shell.forward_signal(&from, payload),
+                None => debug!(from, "signalling arrived with no shell to hand it to"),
+            }
         }
         ServerMessage::ReadyStateChanged { username, ready } => {
             info!(username, ready, observer = %client.username, "ready changed");
@@ -1272,21 +1406,43 @@ async fn handle_server_message(
                 snap.pending_prompts.clear();
                 snap.pending_end_game = None;
             }
-            if let Some(plane) = direct {
-                let seats = plane.freeze_for_game(&player_order);
+            // The native plane takes its seats first, then the webview takes
+            // what is left. A seat cannot be on both, and the order is what
+            // decides a desktop seat in a mixed room.
+            let mut left_the_relay = Vec::new();
+            let direct_seats = match direct {
+                Some(plane) => {
+                    let seats = plane.freeze_for_game(&player_order);
+                    if !seats.is_empty() {
+                        info!(
+                            game_id,
+                            ?seats,
+                            "seats playing this game on the direct plane"
+                        );
+                        left_the_relay.extend(plane.transport_report(&seats));
+                    }
+                    seats
+                }
+                None => Vec::new(),
+            };
+            if let Some(shell) = bridge {
+                let seats = shell.freeze_for_game(&player_order, &direct_seats);
                 if !seats.is_empty() {
                     info!(
                         game_id,
                         ?seats,
-                        "seats playing this game on the direct plane"
+                        "seats playing this game through the webview"
                     );
-                    // The relay is about to stop seeing these seats. Telling it
-                    // so is the only way its capture can record what it missed.
-                    let _ = outbound_tx.send(ClientMessage::ReportTransport {
-                        game_id: game_id.clone(),
-                        seats: plane.transport_report(&seats),
-                    });
+                    left_the_relay.extend(shell.transport_report(&seats));
                 }
+            }
+            if !left_the_relay.is_empty() {
+                // The relay is about to stop seeing these seats. Telling it so
+                // is the only way its capture can record what it missed.
+                let _ = outbound_tx.send(ClientMessage::ReportTransport {
+                    game_id: game_id.clone(),
+                    seats: left_the_relay,
+                });
             }
             maybe_start_hosted_engine(
                 config,
@@ -1312,7 +1468,7 @@ async fn handle_server_message(
                 // use. Only that changes the address, and only that needs
                 // announcing again.
                 if plane.adopt_relay(iroh_relay_url.as_deref()).await {
-                    announce_transport(plane, outbound_tx);
+                    announce_transport(plane, outbound_tx, bridge.is_some());
                 }
                 plane.apply_roster(&transport_room_id, host.as_ref(), &members);
             }

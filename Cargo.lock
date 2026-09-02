@@ -2656,7 +2656,7 @@ dependencies = [
 
 [[package]]
 name = "forge-carddb"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "deunicode",
  "forge-card-script",
@@ -2668,7 +2668,7 @@ dependencies = [
 
 [[package]]
 name = "forge-cardset-archive"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "forge-card-script",
  "memmap2",
@@ -2698,7 +2698,7 @@ dependencies = [
 
 [[package]]
 name = "forge-wasm-assets"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "forge-cardset-archive",
  "wasm-bindgen",
@@ -4303,7 +4303,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "loadgen"
-version = "0.2.11"
+version = "0.2.12"
 dependencies = [
  "futures-util",
  "manabot",
@@ -4387,7 +4387,7 @@ dependencies = [
 
 [[package]]
 name = "manabot"
-version = "0.11.9"
+version = "0.11.10"
 dependencies = [
  "futures-util",
  "js-sys",
@@ -4404,7 +4404,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew"
-version = "3.33.2"
+version = "3.34.1"
 dependencies = [
  "flate2",
  "forge-carddb",
@@ -4439,7 +4439,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-agent-interface"
-version = "0.10.11"
+version = "0.10.12"
 dependencies = [
  "forge-foundation",
  "manabrew-engine",
@@ -4470,7 +4470,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-engine"
-version = "0.8.2"
+version = "0.8.3"
 dependencies = [
  "dyn-clone",
  "forge-card-script",
@@ -4586,7 +4586,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew_game_runtime"
-version = "0.3.40"
+version = "0.3.41"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -5640,7 +5640,7 @@ dependencies = [
 
 [[package]]
 name = "parity"
-version = "0.5.2"
+version = "0.5.3"
 dependencies = [
  "axum",
  "chrono",
@@ -5667,7 +5667,7 @@ dependencies = [
 
 [[package]]
 name = "parity-debugger"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "eframe",
  "egui",
@@ -7089,7 +7089,7 @@ dependencies = [
 
 [[package]]
 name = "self-hosted-node"
-version = "0.27.4"
+version = "0.27.7"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -9248,7 +9248,7 @@ dependencies = [
 
 [[package]]
 name = "wasm"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "console_error_panic_hook",
  "forge-carddb",

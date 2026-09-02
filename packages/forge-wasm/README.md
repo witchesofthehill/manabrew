@@ -2,7 +2,7 @@
 
 Forge compiled to WebAssembly with GraalVM Web Image. The package runs Forge on a worker and exposes its state, display and prompt messages on the main thread.
 
-It runs in a browser and on Node. The entry point differs, the API does not. It includes the Forge launcher, the WebAssembly engine and a static `cardset.rkyv` archive. Card scripts for the decks in play are selected from the archive before Forge boots, so the Java boundary only receives the files needed by that game.
+It runs in a browser and on Node. The entry point differs, the API does not. It includes the Forge launcher, the WebAssembly engine and a static `cardset.rkyv` archive. Card scripts for the decks in play and cards named by those scripts are selected from the archive before Forge boots, so the Java boundary only receives the files needed by that game.
 
 ## Install
 

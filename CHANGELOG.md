@@ -1,5 +1,7 @@
 # Changelog
 
+## [3.34.1](https://github.com/witchesofthehill/manabrew/compare/v3.34.0...v3.34.1) (2026-09-02)
+
 ## [3.34.0](https://github.com/witchesofthehill/manabrew/compare/v3.33.5...v3.34.0) (2026-09-02)
 
 ### Features

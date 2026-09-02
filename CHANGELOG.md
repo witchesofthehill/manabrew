@@ -1,5 +1,29 @@
 # Changelog
 
+## [3.33.4](https://github.com/witchesofthehill/manabrew/compare/v3.33.3...v3.33.4) (2026-09-02)
+
+### Fixes
+
+* hot swap assets when changed so the app doesnt display stale infop ([#812](https://github.com/witchesofthehill/manabrew/issues/812)) ([320449e](https://github.com/witchesofthehill/manabrew/commit/320449ebb516783f28711a7a4b8bc3abac29f22f))
+
+## [3.33.3](https://github.com/witchesofthehill/manabrew/compare/v3.33.2...v3.33.3) (2026-09-01)
+
+### Fixes
+
+* bump forge to new lazy fix ([#833](https://github.com/witchesofthehill/manabrew/issues/833)) ([a876ce1](https://github.com/witchesofthehill/manabrew/commit/a876ce162e897046978a34895ba8480716308cff))
+
+## [3.33.2](https://github.com/witchesofthehill/manabrew/compare/v3.33.1...v3.33.2) (2026-09-01)
+
+### Performance
+
+* **engine:** stop building rules text the client never shows ([#829](https://github.com/witchesofthehill/manabrew/issues/829)) ([d6791a1](https://github.com/witchesofthehill/manabrew/commit/d6791a115a99cc5a96c22702f108ce0dae44e3e5))
+
+## [3.33.1](https://github.com/witchesofthehill/manabrew/compare/v3.33.0...v3.33.1) (2026-09-01)
+
+### Fixes
+
+* **engine:** bound the AI's ability evaluation in the browser ([#819](https://github.com/witchesofthehill/manabrew/issues/819)) ([712cd28](https://github.com/witchesofthehill/manabrew/commit/712cd28a3eec99ae37e1fa4b8f2505f8a1ed836e))
+
 ## [3.33.0](https://github.com/witchesofthehill/manabrew/compare/v3.32.5...v3.33.0) (2026-09-01)
 
 ### Features

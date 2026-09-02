@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ImageUp, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +13,6 @@ import { Label } from "@/components/ui/label";
 import type { AccountAsset, AssetKind } from "@/api/hubTypes";
 import { formatBytes, useAssetStore, useAssetsAvailable } from "@/stores/useAssetStore";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { cn } from "@/lib/utils";
 
 const KIND_LABELS: Record<AssetKind, string> = { avatar: "Avatar", playmat: "Playmat" };
@@ -64,29 +62,20 @@ export function MyAssetsSection() {
     const target = editing;
     setEditing(null);
     if (!file || !target) return;
-    const prefs = usePreferencesStore.getState();
     if (target.kind === "avatar" && target.id === useAuthStore.getState().account?.avatarAssetId) {
       await useAssetStore.getState().uploadAvatar(file);
       return;
     }
-    const uploaded = await useAssetStore.getState().replace(target.kind, file, target.id);
-    if (uploaded && target.id === prefs.defaultPlaymatAssetId) {
-      prefs.setDefaultPlaymatAssetId(uploaded.assetId);
-    }
+    await useAssetStore.getState().replace(target.kind, file, target.id);
   }
 
   async function handleDelete() {
     const target = deleting;
     setDeleting(null);
     if (!target) return;
-    const prefs = usePreferencesStore.getState();
     if (target.kind === "avatar" && target.id === useAuthStore.getState().account?.avatarAssetId) {
       await useAssetStore.getState().clearAvatar();
       return;
-    }
-    if (target.id === prefs.defaultPlaymatAssetId) {
-      prefs.setDefaultPlaymatAssetId(undefined);
-      prefs.setDefaultPlaymatSettings(undefined);
     }
     await useAssetStore.getState().remove(target.id);
   }
@@ -222,7 +211,6 @@ function AssetTile({
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">{KIND_LABELS[asset.kind]}</span>
-            {asset.state === "pending" && <Badge variant="secondary">Pending</Badge>}
           </div>
           <p className="text-xs text-muted-foreground">{formatBytes(asset.byteSize)}</p>
         </div>

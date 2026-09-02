@@ -351,6 +351,10 @@ interface DeckState {
   updateDeckLabelColor: (label: string, color?: string) => void;
   setCoverCard: (name: string | undefined, face?: 0 | 1) => void;
   setPlaymat: (url: string | undefined, assetId: string | undefined) => void;
+  replacePlaymatAsset: (
+    previousAssetId: string,
+    next: { assetId: string; url: string } | undefined,
+  ) => void;
   setPlaymatSettings: (settings: PlaymatSettings | undefined) => void;
   setStackPositions: (positions: Record<string, { x: number; y: number }>) => void;
   setEditorMetadata: (metadata: DeckEditorMetadata) => void;
@@ -1142,6 +1146,21 @@ export const useDeckStore = create<DeckState>()(
         setPlaymat: (url, assetId) =>
           set((state) => ({
             currentDeck: { ...state.currentDeck, playmatUrl: url, playmatAssetId: assetId },
+          })),
+        replacePlaymatAsset: (previousAssetId, next) =>
+          set((state) => ({
+            savedDecks: state.savedDecks.map((saved) =>
+              saved.deck.playmatAssetId === previousAssetId
+                ? {
+                    ...saved,
+                    deck: { ...saved.deck, playmatUrl: next?.url, playmatAssetId: next?.assetId },
+                  }
+                : saved,
+            ),
+            currentDeck:
+              state.currentDeck.playmatAssetId === previousAssetId
+                ? { ...state.currentDeck, playmatUrl: next?.url, playmatAssetId: next?.assetId }
+                : state.currentDeck,
           })),
         setPlaymatSettings: (settings) =>
           set((state) => ({

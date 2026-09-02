@@ -1,6 +1,58 @@
 const DEFAULT_CAPTURE_MAX_GB: u64 = 20;
 const BYTES_PER_GB: u64 = 1024 * 1024 * 1024;
 
+pub use crate::protocol::IceServer as TransportIceServer;
+
+/// Reads `MANABREW_ICE_SERVERS`, in either of two shapes.
+///
+/// A comma or whitespace separated list of urls covers the common case, which
+/// is one or more STUN servers and no credentials:
+///
+/// ```text
+/// MANABREW_ICE_SERVERS=stun:stun.example.org:19302,stun:stun2.example.org
+/// ```
+///
+/// A JSON array is the whole `RTCIceServer` shape, for TURN, which needs a
+/// username and a credential:
+///
+/// ```text
+/// MANABREW_ICE_SERVERS=[{"urls":["turn:turn.example.org"],"username":"u","credential":"p"}]
+/// ```
+///
+/// Anything unparseable yields an empty list rather than a panic: a relay that
+/// starts with no ICE servers keeps every seat on a working path, where one
+/// that refuses to start serves nobody.
+pub fn parse_ice_servers(raw: &str) -> Vec<TransportIceServer> {
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return Vec::new();
+    }
+    if raw.starts_with('[') {
+        return match serde_json::from_str::<Vec<TransportIceServer>>(raw) {
+            Ok(servers) => servers.into_iter().filter(|s| !s.urls.is_empty()).collect(),
+            Err(error) => {
+                tracing::error!(%error, "MANABREW_ICE_SERVERS is not valid JSON; ignoring it");
+                Vec::new()
+            }
+        };
+    }
+    let urls: Vec<String> = raw
+        .split([',', ' ', '\t', '\n'])
+        .map(str::trim)
+        .filter(|url| !url.is_empty())
+        .map(str::to_string)
+        .collect();
+    if urls.is_empty() {
+        Vec::new()
+    } else {
+        vec![TransportIceServer {
+            urls,
+            username: None,
+            credential: None,
+        }]
+    }
+}
+
 pub struct ServerConfig {
     pub host: String,
     pub port: u16,
@@ -21,6 +73,11 @@ pub struct ServerConfig {
     /// The iroh relay rooms should use. Unset leaves peers on iroh's own relay
     /// defaults.
     pub iroh_relay_url: Option<String>,
+    /// ICE servers handed to the browser data plane. See
+    /// [`parse_ice_servers`]; empty leaves WebRTC with host candidates only,
+    /// which reaches nothing the embedded LAN relay does not already reach in
+    /// one hop.
+    pub ice_servers: Vec<TransportIceServer>,
 }
 
 impl ServerConfig {
@@ -73,10 +130,54 @@ impl ServerConfig {
             iroh_relay_url: std::env::var("MANABREW_IROH_RELAY_URL")
                 .ok()
                 .filter(|url| !url.is_empty()),
+            ice_servers: std::env::var("MANABREW_ICE_SERVERS")
+                .ok()
+                .map(|raw| parse_ice_servers(&raw))
+                .unwrap_or_default(),
         }
     }
 
     pub fn capture_max_bytes(&self) -> u64 {
         self.capture_max_gb.saturating_mul(BYTES_PER_GB)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The common case: one or more STUN urls, no credentials.
+    #[test]
+    fn a_plain_url_list_becomes_one_server() {
+        let parsed = parse_ice_servers("stun:a.example.org:19302, stun:b.example.org");
+        assert_eq!(parsed.len(), 1);
+        assert_eq!(
+            parsed[0].urls,
+            vec!["stun:a.example.org:19302", "stun:b.example.org"]
+        );
+        assert!(parsed[0].username.is_none());
+    }
+
+    /// TURN needs the full shape, so JSON is accepted too.
+    #[test]
+    fn json_carries_turn_credentials() {
+        let parsed = parse_ice_servers(
+            r#"[{"urls":["turn:t.example.org"],"username":"u","credential":"p"}]"#,
+        );
+        assert_eq!(parsed.len(), 1);
+        assert_eq!(parsed[0].username.as_deref(), Some("u"));
+        assert_eq!(parsed[0].credential.as_deref(), Some("p"));
+    }
+
+    /// A relay that cannot parse its ICE config still starts. Every seat has a
+    /// working path without one; a relay that refuses to boot serves nobody.
+    #[test]
+    fn anything_unparseable_yields_no_servers_rather_than_a_panic() {
+        assert!(parse_ice_servers("").is_empty());
+        assert!(parse_ice_servers("   ").is_empty());
+        assert!(parse_ice_servers("[not json").is_empty());
+        assert!(parse_ice_servers(r#"[{"username":"u"}]"#).is_empty());
+        // An entry with no urls is useless to RTCPeerConnection, so it is dropped.
+        assert!(parse_ice_servers(r#"[{"urls":[]}]"#).is_empty());
     }
 }

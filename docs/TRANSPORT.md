@@ -128,6 +128,41 @@ relay.
 There is no TURN server, so a WebRTC seat is direct or it is on the relay. `TRANSPORT_WEBRTC` has
 no relayed variant for that reason.
 
+### ICE servers
+
+Without a STUN server a browser gathers host candidates only, and Chromium
+replaces those with mDNS names. Measured against the staging relay on
+2026-09-02, two Chrome tabs each offered exactly one candidate:
+
+```
+a=candidate:... 0848d8e7-….local 57333 typ host
+a=candidate:... 55aae59b-….local 50149 typ host
+```
+
+`iceConnectionState` never left `new`. Not a pairing failure: ICE never
+started. Adding a STUN server produced `srflx` candidates and took it to
+`checking`.
+
+So an empty list is not a neutral default. It leaves the plane able to reach a
+peer on the same network at best, and a seat on the same network already has
+one local hop through the embedded relay, which nothing beats. Without ICE
+servers the browser plane has no case it wins.
+
+`MANABREW_ICE_SERVERS` on the relay names them and `RoomTransport` carries them
+to every member, the same way `MANABREW_IROH_RELAY_URL` works and for the same
+reason: no client hardcodes one, so a deployment answers the question by
+configuring its relay rather than by shipping new clients. A comma separated
+url list covers STUN; a JSON array of `RTCIceServer` covers TURN, which needs a
+username and a credential. Unparseable config yields no servers rather than a
+refusal to start, because a relay that will not boot serves nobody.
+
+Whether TURN is needed is a separate question from whether STUN is. STUN is
+what makes a hole-punched pair possible at all; TURN is the fallback for the
+pairs that cannot be punched, and running one means carrying their traffic. The
+epic rejected a relay bridge for that reason. Start with STUN and read
+`manabrew_relay_peer_signals_total` and the client's connect outcomes before
+deciding.
+
 ### What the spike measures
 
 Every peer reports once when it settles, with the outcome and how long it took, and again with the

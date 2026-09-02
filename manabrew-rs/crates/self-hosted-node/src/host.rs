@@ -1459,6 +1459,9 @@ async fn handle_server_message(
         ServerMessage::RoomTransport {
             room_id: transport_room_id,
             iroh_relay_url,
+            // The webview holds the WebRTC connections and reads these from
+            // its own session's roster, so the node has no use for them.
+            ice_servers: _,
             host,
             members,
         } => {

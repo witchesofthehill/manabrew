@@ -55,6 +55,7 @@ import { applyStateDelta, diffStateDelta } from "@/lib/stateDelta";
 import { DirectSeat } from "@/game/directSeat";
 import {
   WebRtcPlane,
+  iceServersFrom,
   planeForRoom,
   TRANSPORT_KIND_IROH,
   TRANSPORT_KIND_WEBRTC,
@@ -1323,7 +1324,7 @@ class WebServerApi implements IServerApi {
     // This app may be the one running the room's engine host. The node cannot
     // dial a browser seat, so the webview holds those connections for it.
     if (host.username !== this.authedUsername) {
-      void this.maybeProxyForgeHost(members, host);
+      void this.maybeProxyForgeHost(members, host, iceServersFrom(msg));
     }
 
     // The first plane the host offers that this client speaks. A desktop host
@@ -1337,7 +1338,7 @@ class WebServerApi implements IServerApi {
     switch (planeForRoom(host, this.myTransportKinds())) {
       case TRANSPORT_KIND_WEBRTC:
         this.dropDirectSeat();
-        this.onWebRtcRoster(members, host);
+        this.onWebRtcRoster(members, host, iceServersFrom(msg));
         return;
       case TRANSPORT_KIND_IROH:
         this.dropWebRtcPlane();
@@ -1386,14 +1387,18 @@ class WebServerApi implements IServerApi {
   /// seat come out through the shell and go onto a connection held here.
   /// Silent on the web and in a desktop that is not hosting: the command
   /// answers with an error and there is nothing to do.
-  private async maybeProxyForgeHost(members: RosterMember[], host: RosterMember): Promise<void> {
+  private async maybeProxyForgeHost(
+    members: RosterMember[],
+    host: RosterMember,
+    iceServers: RTCIceServer[],
+  ): Promise<void> {
     if (!this.peerSignalling || !WebRtcPlane.supported()) return;
     if (getClientPlatform() !== "desktop") return;
     if (!this.forgeHostBridge) {
       if (!(await ForgeHostBridge.hosting())) return;
       // The roster's host is the node this app started, and the plane runs
       // under that name so it reads itself as the host.
-      this.forgeHostBridge = new ForgeHostBridge(host.username);
+      this.forgeHostBridge = new ForgeHostBridge(host.username, iceServers);
     }
     await this.forgeHostBridge.onRoster(members, host);
   }
@@ -1401,10 +1406,26 @@ class WebServerApi implements IServerApi {
   /// A room whose host speaks WebRTC. The plane is built on the first such
   /// roster and handed every one after it, because a roster arrives on every
   /// join and leave and the peer set follows it.
-  private onWebRtcRoster(members: RosterMember[], host: RosterMember): void {
+  private onWebRtcRoster(
+    members: RosterMember[],
+    host: RosterMember,
+    iceServers: RTCIceServer[],
+  ): void {
     if (!this.peerSignalling || !WebRtcPlane.supported()) return;
     if (!this.webrtc) {
+      // Worth saying out loud. With no ICE servers a browser gathers host
+      // candidates only, which Chromium replaces with mDNS names, so the plane
+      // reaches a peer on the same network at best. A seat on the same network
+      // already has one local hop through the embedded relay, so this
+      // configuration leaves the plane with no case it wins.
+      if (iceServers.length === 0) {
+        console.warn(
+          "[webrtc] this relay published no ICE servers; the direct plane will " +
+            "not reach a peer on another network. Set MANABREW_ICE_SERVERS on the relay.",
+        );
+      }
       this.webrtc = new WebRtcPlane({
+        iceServers,
         username: this.authedUsername!,
         signal: (to, payload) => this.send({ type: "SignalPeer", to, payload }),
         deliver: (envelope, fromPlayer) =>

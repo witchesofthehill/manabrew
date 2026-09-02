@@ -34,6 +34,9 @@ export class ForgeHostBridge {
   /** The node's relay username. The plane runs as this, so it sees itself as
    *  the room's host and every host rule applies unchanged. */
   private readonly hostUsername: string;
+  /** Published by the relay in the roster. Without them the host reaches a
+   *  browser seat on the same network at best. */
+  private readonly iceServers: RTCIceServer[];
   private plane: WebRtcPlane | null = null;
   private unlisten: (() => void) | null = null;
   /** The in-flight start, so two rosters arriving together cannot each install
@@ -41,8 +44,9 @@ export class ForgeHostBridge {
   private starting: Promise<void> | null = null;
   private lastServing = "";
 
-  constructor(hostUsername: string) {
+  constructor(hostUsername: string, iceServers: RTCIceServer[] = []) {
     this.hostUsername = hostUsername;
+    this.iceServers = iceServers;
   }
 
   /** Whether this app is the one running a Forge room's engine host. False on
@@ -59,6 +63,7 @@ export class ForgeHostBridge {
   private async begin(): Promise<void> {
     this.plane = new WebRtcPlane({
       username: this.hostUsername,
+      iceServers: this.iceServers,
       signal: (to, payload) => {
         void invoke("forge_host_signal", { to, payload }).catch((error) =>
           console.warn("[forge-host] could not send signalling:", error),

@@ -105,6 +105,22 @@ impl TransportEndpoint {
     }
 }
 
+/// An ICE server for the browser data plane, shaped like the `RTCIceServer`
+/// dictionary so it passes to `RTCPeerConnection` unchanged.
+///
+/// The relay hands these out for the same reason it hands out
+/// `iroh_relay_url`: no client hardcodes one, and a self-hosted deployment
+/// answers the question by configuring its relay rather than by shipping new
+/// clients.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IceServer {
+    pub urls: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub username: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub credential: Option<String>,
+}
+
 /// How one seat's game traffic travelled, reported by the room's engine host.
 /// The relay's capture and replay cache only ever see what still goes through
 /// the relay, so without this a capture file is silently incomplete.
@@ -393,6 +409,16 @@ pub enum ServerMessage {
         room_id: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         iroh_relay_url: Option<String>,
+        /// STUN, and TURN where one is configured, for the WebRTC plane.
+        ///
+        /// Empty is not a neutral default. Without a STUN server a browser
+        /// gathers only host candidates, which Chromium then replaces with
+        /// mDNS names, so the plane can reach a peer on the same network at
+        /// best and usually not even that. A seat on the same network already
+        /// has one local hop through the embedded relay, so an empty list
+        /// leaves the browser plane with no case it wins.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        ice_servers: Vec<IceServer>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         host: Option<TransportMember>,
         members: Vec<TransportMember>,

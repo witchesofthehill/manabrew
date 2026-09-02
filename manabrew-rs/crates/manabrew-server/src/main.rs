@@ -32,7 +32,11 @@ async fn main() {
             deck_play_events,
             config.hub_jwks_url.clone(),
         )
-        .with_direct_transport(config.direct_transport, config.iroh_relay_url.clone()),
+        .with_direct_transport(
+            config.direct_transport,
+            config.iroh_relay_url.clone(),
+            config.ice_servers.clone(),
+        ),
     );
 
     if !state.identity.hub_configured() {

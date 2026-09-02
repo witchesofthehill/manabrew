@@ -67,6 +67,12 @@ services:
       # roster, so every seat stays on the relay and a preview of #831/#846/#848
       # would look like a clean pass while testing nothing.
       MANABREW_DIRECT_TRANSPORT: "${MANABREW_DIRECT_TRANSPORT:-1}"
+      # Without these a browser gathers host candidates only, which Chromium
+      # replaces with mDNS names, so the WebRTC plane reaches a peer on the
+      # same network at best. Unset here on purpose: point it at a STUN server
+      # the deployment is willing to depend on before testing the browser
+      # plane between two networks.
+      MANABREW_ICE_SERVERS: "${MANABREW_ICE_SERVERS:-}"
       RUST_LOG: "manabrew_server=info"
     volumes:
       - ./ops/events:/var/manabrew/events

@@ -217,6 +217,7 @@ pub fn broadcast_room_transport(state: &Arc<ServerState>, room_id: &str) {
     let msg = ServerMessage::RoomTransport {
         room_id: room_id.to_string(),
         iroh_relay_url: state.iroh_relay_url.clone(),
+        ice_servers: state.ice_servers.clone(),
         host: room.transport_host(),
         members: room.transport_members(),
     };

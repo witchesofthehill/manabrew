@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   WebRtcPlane,
   endpointSpeaks,
+  iceServersFrom,
   planeForRoom,
   TRANSPORT_KIND_IROH,
   TRANSPORT_KIND_WEBRTC,
@@ -162,6 +163,50 @@ describe("choosing a plane from what the host advertises", () => {
       member("bob", ["iroh"], true),
     );
     expect(h.signals).toHaveLength(0);
+  });
+});
+
+describe("ice servers, which the relay is the only source of", () => {
+  it("reads what a roster published, in the shape RTCPeerConnection wants", () => {
+    expect(
+      iceServersFrom({
+        ice_servers: [
+          { urls: ["stun:a.example.org"] },
+          { urls: ["turn:t.example.org"], username: "u", credential: "p" },
+        ],
+      }),
+    ).toEqual([
+      { urls: ["stun:a.example.org"] },
+      { urls: ["turn:t.example.org"], username: "u", credential: "p" },
+    ]);
+  });
+
+  it("ignores an entry with no urls, which RTCPeerConnection cannot use", () => {
+    expect(iceServersFrom({ ice_servers: [{ urls: [] }, { username: "u" }] })).toEqual([]);
+    // An older relay sends no field at all.
+    expect(iceServersFrom({})).toEqual([]);
+  });
+
+  it("hands them to every connection it builds", async () => {
+    const configs: RTCConfiguration[] = [];
+    const plane = new WebRtcPlane({
+      username: "alice",
+      signal: () => {},
+      deliver: () => {},
+      iceServers: [{ urls: ["stun:a.example.org"] }],
+      createConnection: (config) => {
+        configs.push(config);
+        return new FakeConnection() as unknown as RTCPeerConnection;
+      },
+    });
+    plane.onRoster(
+      [member("alice", ["webrtc"]), member("bob", ["webrtc"])],
+      member("alice", ["webrtc"], true),
+    );
+    await vi.waitFor(() => expect(configs.length).toBeGreaterThan(0));
+    // Without these a browser gathers host candidates only, which Chromium
+    // replaces with mDNS names, and ICE never leaves "new".
+    expect(configs[0].iceServers).toEqual([{ urls: ["stun:a.example.org"] }]);
   });
 });
 

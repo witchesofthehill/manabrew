@@ -82,6 +82,9 @@ pub struct ServerState {
     /// See `ServerConfig::direct_transport`. Fails closed.
     pub direct_transport: bool,
     pub iroh_relay_url: Option<String>,
+    /// Handed to the browser plane in every roster. See
+    /// `ServerConfig::ice_servers`.
+    pub ice_servers: Vec<crate::protocol::IceServer>,
 }
 
 impl ServerState {
@@ -104,12 +107,19 @@ impl ServerState {
             identity: IdentityVerifier::new(hub_jwks_url),
             direct_transport: false,
             iroh_relay_url: None,
+            ice_servers: Vec::new(),
         }
     }
 
-    pub fn with_direct_transport(mut self, enabled: bool, relay_url: Option<String>) -> Self {
+    pub fn with_direct_transport(
+        mut self,
+        enabled: bool,
+        relay_url: Option<String>,
+        ice_servers: Vec<crate::protocol::IceServer>,
+    ) -> Self {
         self.direct_transport = enabled;
         self.iroh_relay_url = relay_url;
+        self.ice_servers = ice_servers;
         self
     }
 

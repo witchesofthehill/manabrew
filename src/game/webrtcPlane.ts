@@ -132,6 +132,25 @@ export function planeForRoom(host: RosterMember | undefined, mine: string[]): st
   return advertisedKinds(host).find((kind) => mine.includes(kind)) ?? null;
 }
 
+/**
+ * The ICE servers a roster published, in the shape `RTCPeerConnection` wants.
+ * The relay is the only source: no client hardcodes one, the same rule the
+ * iroh relay url follows, so a self-hosted deployment answers the question by
+ * configuring its relay rather than by shipping new clients.
+ */
+export function iceServersFrom(msg: Record<string, unknown>): RTCIceServer[] {
+  const raw = msg.ice_servers;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((entry) => entry as { urls?: string[]; username?: string; credential?: string })
+    .filter((entry) => Array.isArray(entry.urls) && entry.urls.length > 0)
+    .map((entry) => ({
+      urls: entry.urls!,
+      ...(entry.username ? { username: entry.username } : {}),
+      ...(entry.credential ? { credential: entry.credential } : {}),
+    }));
+}
+
 interface Peer {
   connection: RTCPeerConnection;
   channel: RTCDataChannel | null;

@@ -92,9 +92,7 @@ interface PreferencesState {
   // the compile flag + `IRONSMITH_WASM_AVAILABLE`, so this only surfaces it
   // where the real wasm is bundled.
   ironsmithRuntimeEnabled: boolean;
-  forgeWasmEnabled: boolean;
   setIronsmithRuntimeEnabled: (value: boolean) => void;
-  setForgeWasmEnabled: (value: boolean) => void;
 
   hideAccountSaveNudge: boolean;
   setHideAccountSaveNudge: (value: boolean) => void;
@@ -146,7 +144,6 @@ const PERSISTED_PREFERENCE_KEYS = [
   "inGameAnimations",
   "chooseOrderOnMultipleTriggers",
   "ironsmithRuntimeEnabled",
-  "forgeWasmEnabled",
   "hideAccountSaveNudge",
   "cardPreviewMode",
   "cardHoverDelayMs",
@@ -256,8 +253,6 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           ironsmithRuntimeEnabled: false,
           setIronsmithRuntimeEnabled: (ironsmithRuntimeEnabled) => set({ ironsmithRuntimeEnabled }),
-          forgeWasmEnabled: false,
-          setForgeWasmEnabled: (forgeWasmEnabled) => set({ forgeWasmEnabled }),
 
           hideAccountSaveNudge: false,
           setHideAccountSaveNudge: (hideAccountSaveNudge) => set({ hideAccountSaveNudge }),

@@ -61,6 +61,12 @@ services:
       # counters. Small cap — this disk is production's too.
       MANABREW_GAME_CAPTURE_DIR: "/var/manabrew/captures"
       MANABREW_GAME_CAPTURE_MAX_GB: "${MANABREW_GAME_CAPTURE_MAX_GB:-2}"
+      # On here and nowhere else. The direct planes fail closed: without this
+      # the relay advertises neither `room_transport` nor `peer_signal`,
+      # refuses `AnnounceTransport`, drops `SignalPeer` and never sends a
+      # roster, so every seat stays on the relay and a preview of #831/#846/#848
+      # would look like a clean pass while testing nothing.
+      MANABREW_DIRECT_TRANSPORT: "${MANABREW_DIRECT_TRANSPORT:-1}"
       RUST_LOG: "manabrew_server=info"
     volumes:
       - ./ops/events:/var/manabrew/events

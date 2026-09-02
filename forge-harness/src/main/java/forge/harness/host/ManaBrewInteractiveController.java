@@ -19,7 +19,6 @@ import forge.LobbyPlayer;
 import forge.ai.AiCostDecision;
 import forge.ai.ComputerUtilCombat;
 import forge.ai.ComputerUtilMana;
-import forge.card.CardRules;
 import forge.card.ColorSet;
 import forge.card.ICardFace;
 import forge.card.MagicColor.Color;
@@ -805,12 +804,13 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         }
         if (!isOptional && optionList.size() == 1) {
             for (final T option : optionList) {
-                return option;
+                return rememberSecretPlayerViewer(sa, option);
             }
         }
         final CardCollection cards = cardOptions(optionList);
         if (cards == null) {
-            return chooseSingleEntityGeneric(optionList, sa, title, isOptional);
+            return rememberSecretPlayerViewer(
+                    sa, chooseSingleEntityGeneric(optionList, sa, title, isOptional));
         }
         final CardCollection selected = session.awaitCardChoice(
                 "choose_cards_for_effect", me(), cards, 1, 1, sourceName(sa), sourceCardId(sa), title, isOptional);
@@ -1411,6 +1411,14 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (sa != null && sa.hasParam("Secretly")) {
             session.rememberSecretTypeViewer(sourceCardId(sa), player);
         }
+    }
+
+    private <T extends GameEntity> T rememberSecretPlayerViewer(
+            final SpellAbility sa, final T choice) {
+        if (choice instanceof Player && sa != null && sa.hasParam("Secretly")) {
+            session.rememberSecretPlayerViewer(sourceCardId(sa), (Player) choice);
+        }
+        return choice;
     }
 
     @Override
@@ -2629,18 +2637,10 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     private List<ICardFace> filterCardFaces(final Predicate<ICardFace> cpp) {
         final Predicate<ICardFace> faceFilter = cpp == null ? x -> true : cpp;
-        final CardCollection cards = new CardCollection(getGame().getCardsInGame());
-        for (final Player p : getGame().getPlayers()) {
-            cards.addAll(p.getCardsIn(ZoneType.Sideboard));
-        }
+        forge.StaticData.instance().ensureAllCardsLoaded();
         final List<ICardFace> faces = new ArrayList<>();
-        for (final Card card : cards) {
-            final CardRules rules = card.getRules();
-            if (rules == null) {
-                continue;
-            }
-            addNameableFace(faces, faceFilter, rules.getMainPart());
-            addNameableFace(faces, faceFilter, rules.getOtherPart());
+        for (final ICardFace face : forge.StaticData.instance().getCommonCards().getAllFaces()) {
+            addNameableFace(faces, faceFilter, face);
         }
         Collections.sort(faces);
         return faces;

@@ -56,6 +56,7 @@ public final class InteractiveSnapshotExtractor {
     static final class SecretChoiceVisibility {
         private final Map<String, Player> numberViewers = new ConcurrentHashMap<>();
         private final Map<String, Player> typeViewers = new ConcurrentHashMap<>();
+        private final Map<String, Player> playerViewers = new ConcurrentHashMap<>();
 
         void rememberNumber(final String cardId, final Player viewer) {
             if (cardId != null) {
@@ -69,6 +70,12 @@ public final class InteractiveSnapshotExtractor {
             }
         }
 
+        void rememberPlayer(final String cardId, final Player viewer) {
+            if (cardId != null) {
+                playerViewers.put(cardId, viewer);
+            }
+        }
+
         boolean canViewNumber(final Card card, final Player viewer) {
             return viewer != null
                     && numberViewers.get(SnapshotExtractor.javaCardId(card)) == viewer;
@@ -78,6 +85,12 @@ public final class InteractiveSnapshotExtractor {
             return viewer != null
                     && typeViewers.get(SnapshotExtractor.javaCardId(card)) == viewer;
         }
+
+        boolean canViewPlayer(final Card card, final Player viewer) {
+            return viewer != null
+                    && playerViewers.get(SnapshotExtractor.javaCardId(card)) == viewer;
+        }
+
     }
 
     private static final Gson GSON = new GsonBuilder().create();
@@ -500,7 +513,10 @@ public final class InteractiveSnapshotExtractor {
         if (!card.getView().getChosenMode().isEmpty()) {
             choices.add(new CardChoiceDto_mode(card.getView().getChosenMode()));
         }
-        if (card.getView().getChosenPlayer() != null && card.getChosenPlayer() != null) {
+        final boolean chosenPlayerVisible = card.getView().getChosenPlayer() != null
+                || secretChoiceVisibility != null
+                && secretChoiceVisibility.canViewPlayer(card, viewerPlayer);
+        if (chosenPlayerVisible && card.getChosenPlayer() != null) {
             final Player player = card.getChosenPlayer();
             choices.add(new CardChoiceDto_player(
                     "player-" + SnapshotExtractor.playerIndex(game, player),

@@ -144,6 +144,10 @@ public final class ManaBrewInteractiveSession {
         secretChoiceVisibility.rememberType(sourceCardId, viewer);
     }
 
+    void rememberSecretPlayerViewer(final String sourceCardId, final Player viewer) {
+        secretChoiceVisibility.rememberPlayer(sourceCardId, viewer);
+    }
+
     void beginCast(final SpellAbility sa) {
         this.castingAbility = sa;
     }

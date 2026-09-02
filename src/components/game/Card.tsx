@@ -171,10 +171,6 @@ function CardComponent({
                   style={CARD_BADGES.token.style}
                 />
               ) : null}
-              <CardChoiceIndicators
-                card={card}
-                className="absolute left-1 right-1 top-[18%] z-10"
-              />
               {card.keywords && card.keywords.length > 0 && (
                 <KeywordChips
                   keywords={card.keywords}
@@ -289,6 +285,9 @@ function CardComponent({
           {rail && <CardRail state={rail} />}
         </div>
       )}
+      {!bare && (
+        <CardChoiceIndicators card={card} className="absolute left-1 right-1 top-[18%] z-10" />
+      )}
     </div>
   );
 }
@@ -370,6 +369,9 @@ export const Card = memo(CardComponent, (prev, next) => {
   }
   if (pc.sagaChapters !== nc.sagaChapters) {
     if (JSON.stringify(pc.sagaChapters) !== JSON.stringify(nc.sagaChapters)) return false;
+  }
+  if (pc.choices !== nc.choices) {
+    if (JSON.stringify(pc.choices) !== JSON.stringify(nc.choices)) return false;
   }
   if (pc.counters !== nc.counters) {
     if (JSON.stringify(pc.counters) !== JSON.stringify(nc.counters)) return false;

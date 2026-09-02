@@ -67,13 +67,13 @@ services:
       # roster, so every seat stays on the relay and a preview of #831/#846/#848
       # would look like a clean pass while testing nothing.
       MANABREW_DIRECT_TRANSPORT: "${MANABREW_DIRECT_TRANSPORT:-1}"
-      # Empty until a STUN server is actually answering. Naming one that is not
-      # up is worse than naming none: ICE gathering waits out the timeout and
-      # then produces the same host-only candidates anyway. With the coturn
-      # below running and UDP open, this becomes
-      # `stun:relay-staging.manabrew.app:3478`; a client handed nothing says so
-      # in the console.
-      MANABREW_ICE_SERVERS: "${MANABREW_ICE_SERVERS:-}"
+      # The coturn below, on this same box. Naming a STUN server that is not
+      # answering would be worse than naming none, because ICE gathering waits
+      # out the timeout and then produces the same host-only candidates anyway,
+      # so this default and that service go together. Override to point
+      # somewhere else, or to empty to take the browser plane's reach away
+      # without touching MANABREW_DIRECT_TRANSPORT.
+      MANABREW_ICE_SERVERS: "${MANABREW_ICE_SERVERS:-stun:relay-staging.manabrew.app:3478}"
       RUST_LOG: "manabrew_server=info"
     volumes:
       - ./ops/events:/var/manabrew/events
@@ -237,16 +237,11 @@ services:
   # Needs UDP 3478 open on the box; nothing else here does, so the firewall
   # rule is a separate step from deploying this file.
   coturn-staging:
-    # Behind a profile, so a normal deploy neither starts it nor waits on it.
-    # That is the right coupling rather than caution: it is useless until UDP
-    # 3478 is open on the box, and opening that is a step on the box, not in
-    # this file. Turn both on together, then set MANABREW_ICE_SERVERS:
-    #
-    #   docker compose -f compose.staging.yml --profile stun up -d coturn-staging
-    #
-    # Keeping it out of the default set also keeps it out of `up --wait`, so a
-    # coturn that will not start cannot roll back the whole slot.
-    profiles: ["stun"]
+    # Verified on the box 2026-09-02: this flag set starts clean, binds
+    # 37.27.253.153:3478, and answered a STUN binding request sent from another
+    # network in 67ms with the correct XOR-MAPPED-ADDRESS. The box runs no host
+    # firewall (ufw inactive, iptables INPUT ACCEPT) and nothing else there
+    # binds UDP, so no rule had to be opened for it.
     image: coturn/coturn:4.6-alpine
     restart: unless-stopped
     network_mode: host

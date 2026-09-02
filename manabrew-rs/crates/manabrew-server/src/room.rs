@@ -412,6 +412,18 @@ const MAX_DIRECT_ADDRS: usize = 16;
 const MAX_ADDR_LEN: usize = 64;
 
 impl Room {
+    /// The session id behind a username in this room. Signalling routes on
+    /// this: a name only reaches a peer the relay has placed in the same room.
+    ///
+    /// Seats and the host only. An observer carries no engine envelopes, so it
+    /// is not addressable here even though it may announce an endpoint.
+    pub fn participant_id_by_username(&self, username: &str) -> Option<String> {
+        if let Some(slot) = self.players.iter().find(|p| p.username == username) {
+            return Some(slot.player_id.clone());
+        }
+        (self.host_username == username).then(|| self.host_player_id.clone())
+    }
+
     fn participant_username(&self, player_id: &str) -> Option<String> {
         if let Some(slot) = self.players.iter().find(|p| p.player_id == player_id) {
             return Some(slot.username.clone());
@@ -508,11 +520,50 @@ mod tests {
         assert!(!r.is_controller("bot"));
     }
 
+    /// Signalling routes on this, so a name that is not in the room must not
+    /// resolve to anyone. Otherwise a member could address a session the relay
+    /// never placed beside it.
+    #[test]
+    fn only_room_members_are_addressable_by_name() {
+        let mut r = room(false);
+        r.add_player("p-human".into(), "human".into(), false)
+            .unwrap();
+        r.add_observer("p-watcher".into(), "watcher".into())
+            .unwrap();
+
+        assert_eq!(
+            r.participant_id_by_username("human"),
+            Some("p-human".into())
+        );
+        assert_eq!(r.participant_id_by_username("host"), Some("host".into()));
+        assert_eq!(r.participant_id_by_username("stranger"), None);
+        // An observer carries no engine envelopes, so it is not a signalling
+        // target even though it may announce an endpoint.
+        assert_eq!(r.participant_id_by_username("watcher"), None);
+    }
+
+    /// The pre-`kinds` default. Every endpoint announced before the field
+    /// existed meant iroh, and a roster full of them must keep meaning that.
+    #[test]
+    fn an_endpoint_without_kinds_speaks_iroh_and_nothing_else() {
+        let iroh_only = endpoint("a");
+        assert!(iroh_only.speaks(manabrew_relay_protocol::TRANSPORT_KIND_IROH));
+        assert!(!iroh_only.speaks(manabrew_relay_protocol::TRANSPORT_KIND_WEBRTC));
+
+        let browser = TransportEndpoint {
+            kinds: vec![manabrew_relay_protocol::TRANSPORT_KIND_WEBRTC.into()],
+            ..endpoint("b")
+        };
+        assert!(browser.speaks(manabrew_relay_protocol::TRANSPORT_KIND_WEBRTC));
+        assert!(!browser.speaks(manabrew_relay_protocol::TRANSPORT_KIND_IROH));
+    }
+
     fn endpoint(id: &str) -> TransportEndpoint {
         TransportEndpoint {
             endpoint_id: id.into(),
             relay_url: None,
             direct_addrs: vec![],
+            kinds: vec![],
         }
     }
 

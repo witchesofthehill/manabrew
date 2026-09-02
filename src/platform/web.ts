@@ -53,6 +53,13 @@ import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/sp
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 import { applyStateDelta, diffStateDelta } from "@/lib/stateDelta";
 import { DirectSeat } from "@/game/directSeat";
+import {
+  WebRtcPlane,
+  endpointSpeaks,
+  TRANSPORT_KIND_WEBRTC,
+  type PlaneMeasurement,
+  type RosterMember,
+} from "@/game/webrtcPlane";
 import { isForgeWasmHostingEnabled, setForgeWasmActive } from "@/lib/forgeWasm";
 import { buildForgeAssetBundle } from "@/lib/forgeAssets";
 import type { Deck } from "@/protocol/deck";
@@ -754,6 +761,17 @@ class WebServerApi implements IServerApi {
   private pendingRelayPrompts = new Map<string, Record<string, unknown>>();
   private enginePlayerNames: string[] = [];
   private directSeat: DirectSeat | null = null;
+  /** The browser data plane, built only for a room whose host advertises it.
+   *  Null on every other room, which is every room today. */
+  private webrtc: WebRtcPlane | null = null;
+  /** Whether this relay will carry signalling at all. Without it a negotiation
+   *  could only ever half-finish, so none is started. */
+  private peerSignalling = false;
+  /** Keepalive round trip to the relay, which is the number the direct plane
+   *  has to beat. The relay records its own view of this as
+   *  `manabrew_relay_client_rtt_ms`; this is the client's. */
+  private relayRttMs: number | null = null;
+  private pingSentAt: number | null = null;
 
   constructor(eventBus: WebEventBus) {
     this.eventBus = eventBus;
@@ -975,6 +993,7 @@ class WebServerApi implements IServerApi {
         this.failStaleSocket();
         return;
       }
+      this.pingSentAt = now;
       this.send({ type: "Ping" });
     }, KEEPALIVE_INTERVAL_MS);
   }
@@ -1144,6 +1163,9 @@ class WebServerApi implements IServerApi {
     // Awaited, not raced: the send crosses into the desktop shell, and an
     // envelope it failed to send has to come back here rather than vanish.
     if (this.directSeat && (await this.directSeat.trySend(state))) return;
+    // The browser plane is in-process, so it answers without awaiting. A room
+    // has one plane or the other, never both: the host advertises one kind.
+    if (this.webrtc?.trySend(state, targetPlayer)) return;
     this.send({ type: "BroadcastState", state, target_player: targetPlayer });
   }
 
@@ -1279,12 +1301,25 @@ class WebServerApi implements IServerApi {
 
   /// The relay names the room's data plane. Nothing here invents an address,
   /// and an older relay sends no roster at all, in which case nothing happens.
+  ///
+  /// Which plane a room uses comes from what the HOST advertises, never from
+  /// this client's own platform. A desktop seat in a browser-hosted room takes
+  /// the WebRTC path; a browser in an iroh-hosted room takes neither and stays
+  /// on the relay, which is what it can do.
   private async onRoomTransport(msg: Record<string, unknown>): Promise<void> {
     if (!this.authedUsername) return;
     // Nothing to dial until the room has an engine host offering one, and the
     // host announces before any seat does. Waiting for it means a seat never
     // binds an endpoint for a room that was always going to stay on the relay.
     if (!msg.host) return;
+    const host = msg.host as RosterMember;
+    const members = Array.isArray(msg.members) ? (msg.members as RosterMember[]) : [];
+
+    if (endpointSpeaks(host, TRANSPORT_KIND_WEBRTC)) {
+      this.onWebRtcRoster(members, host);
+      return;
+    }
+
     const relayUrl = typeof msg.iroh_relay_url === "string" ? msg.iroh_relay_url : null;
     if (!this.directSeat) {
       this.directSeat = new DirectSeat(this.authedUsername, relayUrl, (envelope, fromPlayer) =>
@@ -1296,6 +1331,43 @@ class WebServerApi implements IServerApi {
       await this.directSeat.adoptRelay(relayUrl);
     }
     await this.directSeat.onRoster(String(msg.room_id ?? ""), msg.members);
+  }
+
+  /// A room whose host speaks WebRTC. The plane is built on the first such
+  /// roster and handed every one after it, because a roster arrives on every
+  /// join and leave and the peer set follows it.
+  private onWebRtcRoster(members: RosterMember[], host: RosterMember): void {
+    if (!this.peerSignalling || !WebRtcPlane.supported()) return;
+    if (!this.webrtc) {
+      this.webrtc = new WebRtcPlane({
+        username: this.authedUsername!,
+        signal: (to, payload) => this.send({ type: "SignalPeer", to, payload }),
+        deliver: (envelope, fromPlayer) =>
+          this.handleServerMessage({
+            type: "StateUpdate",
+            from_player: fromPlayer,
+            state: envelope,
+          }),
+        onMeasurement: (m) => this.onPlaneMeasurement(m),
+      });
+      // A browser has no address to publish. The endpoint id names it in the
+      // roster; the addresses come later, over signalling, from ICE.
+      this.send({ type: "AnnounceTransport", endpoint: this.webrtc.endpoint() });
+    }
+    this.webrtc.onRoster(members, host);
+  }
+
+  /// What the spike is for. Every peer reports once when it settles and again
+  /// with its measured round trip, next to the relay's own
+  /// `manabrew_relay_client_rtt_ms` for the same session.
+  private onPlaneMeasurement(m: PlaneMeasurement): void {
+    const parts = [`peer=${m.peer}`, `outcome=${m.outcome}`];
+    if (m.connectMs !== undefined) parts.push(`connect=${Math.round(m.connectMs)}ms`);
+    if (m.rttMs !== undefined) parts.push(`rtt=${Math.round(m.rttMs)}ms`);
+    if (m.candidatePair) parts.push(`pair=${m.candidatePair}`);
+    if (this.relayRttMs !== null) parts.push(`relayRtt=${this.relayRttMs}ms`);
+    console.info(`[webrtc] ${parts.join(" ")}`);
+    this.eventBus.emit("transport:measurement", { transport: "webrtc", ...m });
   }
 
   private send(msg: Record<string, unknown>): void {
@@ -1310,8 +1382,20 @@ class WebServerApi implements IServerApi {
   private handleServerMessage(msg: Record<string, unknown>): void {
     const type = msg.type as string;
     // The heartbeat would evict real traffic from the bug-report ring buffer.
-    if (type === "Pong") return;
+    if (type === "Pong") {
+      if (this.pingSentAt !== null) {
+        this.relayRttMs = Date.now() - this.pingSentAt;
+        this.pingSentAt = null;
+      }
+      return;
+    }
     logComms("recv", msg);
+    if (type === "AuthResult" && msg.success) {
+      // A relay that does not advertise it drops signalling, so no negotiation
+      // is ever started against one.
+      this.peerSignalling =
+        Array.isArray(msg.features) && (msg.features as string[]).includes("peer_signal");
+    }
     if (DEBUG_TRANSPORT) console.log("[transport←ws] received:", JSON.stringify(msg));
     if (isPromptLoggingEnabled()) {
       if (type === "AuthResult") {
@@ -1357,10 +1441,22 @@ class WebServerApi implements IServerApi {
       void this.onRoomTransport(msg);
       return;
     }
+    if (type === "PeerSignal") {
+      // `from` is the relay's own view of the sender, which is what makes it
+      // safe to key a connection on.
+      void this.webrtc?.onSignal(String(msg.from ?? ""), msg.payload);
+      return;
+    }
     // Both ends freeze on the same relay message, so a stream never changes
     // transport once a game is running.
-    if (type === "GameStarted") this.directSeat?.freeze();
-    if (type === "GameAborted") this.directSeat?.clear();
+    if (type === "GameStarted") {
+      this.directSeat?.freeze();
+      this.webrtc?.freeze();
+    }
+    if (type === "GameAborted") {
+      this.directSeat?.clear();
+      this.webrtc?.clear();
+    }
 
     if (type === "StateUpdate" && msg.state) {
       const envelope = msg.state as StateEnvelope;

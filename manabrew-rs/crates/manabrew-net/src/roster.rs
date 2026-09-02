@@ -110,6 +110,10 @@ pub fn to_transport_endpoint(addr: &EndpointAddr) -> TransportEndpoint {
         endpoint_id: addr.id.to_string(),
         relay_url,
         direct_addrs,
+        // Said out loud rather than left to the empty-means-iroh default, so a
+        // browser reading this roster can tell what the host speaks without
+        // knowing the history of the field.
+        kinds: vec![manabrew_relay_protocol::TRANSPORT_KIND_IROH.to_string()],
     }
 }
 
@@ -125,6 +129,7 @@ mod tests {
                 endpoint_id: id.to_string(),
                 relay_url: None,
                 direct_addrs: vec!["192.168.1.9:4433".to_string()],
+                kinds: vec![],
             },
             host,
         }

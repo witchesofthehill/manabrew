@@ -335,6 +335,7 @@ mod tests {
             endpoint_id: elsewhere.local().endpoint_id,
             relay_url: None,
             direct_addrs: vec!["10.255.255.1:9".to_string()],
+            kinds: vec![],
         };
         let members = vec![
             member(&unreachable, "hostess", true),

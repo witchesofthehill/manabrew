@@ -189,10 +189,17 @@ pub fn broadcast_player_list(state: &Arc<ServerState>) {
 
 /// `room_transport` is advertised only where it works, so a client can tell a
 /// relay that will send it a roster from one that never will.
+/// The direct-plane features are advertised only where they work. Off, a
+/// client sees no `room_transport` and no `peer_signal`, so it never starts a
+/// negotiation this relay would drop.
 fn advertised_features(state: &Arc<ServerState>) -> Vec<String> {
     crate::protocol::FEATURES
         .iter()
-        .filter(|f| state.direct_transport || **f != crate::protocol::FEATURE_ROOM_TRANSPORT)
+        .filter(|f| {
+            state.direct_transport
+                || (**f != crate::protocol::FEATURE_ROOM_TRANSPORT
+                    && **f != crate::protocol::FEATURE_PEER_SIGNAL)
+        })
         .map(|f| f.to_string())
         .collect()
 }
@@ -1594,6 +1601,61 @@ fn handle_client_message(
             broadcast_room_transport(state, &room_id);
         }
 
+        ClientMessage::SignalPeer { to, payload } => {
+            let Some(room_id) = state.players.get(player_id).and_then(|p| p.room_id.clone()) else {
+                send_error(sender, &ServerError::NotInRoom);
+                return;
+            };
+            if !state.direct_transport {
+                metrics::record_peer_signal("disabled");
+                return;
+            }
+            // The blob is opaque, so its size is the only thing the relay can
+            // judge it on. Without this the control plane is a data plane with
+            // no accounting, which is exactly what this whole seam exists to
+            // stop.
+            if serde_json::to_string(&payload)
+                .map_or(true, |json| json.len() > crate::protocol::MAX_SIGNAL_BYTES)
+            {
+                metrics::record_peer_signal("oversize");
+                return;
+            }
+            // The sender is named from the relay's own record, never from the
+            // message, which is the attestation `RoomTransport` already gives
+            // the roster. A peer that lies about who it is cannot get past it.
+            let Some(from) = state.players.get(player_id).map(|p| p.username.clone()) else {
+                metrics::record_peer_signal("no_sender");
+                return;
+            };
+            // Same room only, resolved by username. Signalling reaches a peer
+            // the relay has placed beside this one, or it reaches nobody.
+            let target = state
+                .rooms
+                .get(&room_id)
+                .and_then(|room| room.participant_id_by_username(&to));
+            let Some(target_id) = target else {
+                metrics::record_peer_signal("no_target");
+                return;
+            };
+            if target_id == player_id {
+                metrics::record_peer_signal("self");
+                return;
+            }
+            let Some(target_player) = state.players.get(&target_id) else {
+                metrics::record_peer_signal("no_target");
+                return;
+            };
+            if !target_player.connected {
+                metrics::record_peer_signal("offline");
+                return;
+            }
+            send_msg(
+                &target_player.sender,
+                &ServerMessage::PeerSignal { from, payload },
+            );
+            metrics::record_peer_signal("forwarded");
+        }
+
         ClientMessage::TurnChange {
             new_active_player,
             turn_number,
@@ -1662,6 +1724,7 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
         ServerMessage::Error { .. } => "Error",
         ServerMessage::ServerShuttingDown { .. } => "ServerShuttingDown",
         ServerMessage::RoomTransport { .. } => "RoomTransport",
+        ServerMessage::PeerSignal { .. } => "PeerSignal",
     }
 }
 
@@ -1688,5 +1751,6 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::TurnChange { .. } => "TurnChange",
         ClientMessage::AnnounceTransport { .. } => "AnnounceTransport",
         ClientMessage::ReportTransport { .. } => "ReportTransport",
+        ClientMessage::SignalPeer { .. } => "SignalPeer",
     }
 }

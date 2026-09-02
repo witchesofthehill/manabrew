@@ -4,8 +4,8 @@ Game traffic between players in a room goes through `manabrew-server`, which mak
 out of what is often one network. This is the seam that lets it go straight between peers
 instead.
 
-Only native peers can be direct. A browser cannot hole punch, so browser-only rooms want WebRTC
-instead: #838.
+A native peer is direct over iroh; a browser cannot hole punch, so it is direct over WebRTC or
+not at all. Both sit behind the same rendezvous. #838.
 
 ## What moves and what does not
 
@@ -89,20 +89,77 @@ macOS has no WebDriver for WKWebView, so no window can be driven to exercise thi
 therefore lives in `DesktopSeat`, with no Tauri in it, and is tested against a real host over a
 real connection.
 
+## The browser plane
+
+A browser cannot hole punch, so iroh gives it a relayed connection and nothing more. WebRTC is the
+only direct transport it has, and it is a second implementation behind this same rendezvous rather
+than a second rendezvous.
+
+`WebRtcPlane` holds one `RTCPeerConnection` per peer and one reliable ordered `RTCDataChannel` on
+each, carrying the same engine envelope set. A seat connects to the host and to nobody else,
+because that is the only edge envelopes cross.
+
+The relay carries the offer, the answer and the ICE candidates, and stops there.
+`ClientMessage::SignalPeer` names a room member by username; the relay does not read the payload,
+routes on the name, stamps `from` from its own record of the sending session and forwards
+`ServerMessage::PeerSignal`. That is the attestation `RoomTransport` already gives the roster,
+applied to signalling. A blob over `MAX_SIGNAL_BYTES` is dropped, because an opaque payload's size
+is the only thing the relay can judge it on and the control plane must not become a data plane.
+
+Three rules keep the mixed desktop/browser case cheap:
+
+- **Peers are addressed by username, never by peer type.** A desktop seat uses the same signalling
+  path.
+- **A room's plane comes from what the host advertises**, in `TransportEndpoint::kinds`, not from
+  "am I a browser". Otherwise a desktop seat in a browser-hosted room reaches for its native
+  endpoint, finds nothing, and falls back to the relay when WebRTC was there. An endpoint with no
+  `kinds` means `iroh`, which is what every announcer before the field meant.
+- **The send seam takes a second sink rather than a rewrite.** `trySend` returns false and the
+  caller puts the envelope on the relay, the same shape `DirectPlane::try_send` has on the Rust
+  side.
+
+Exactly one end of a pair offers, decided by username order, so two ends cannot glare at each
+other. A candidate that arrives before the description it would attach to is held rather than
+dropped: adding it early throws, and it may be the only pair that would have worked. A peer that
+has neither connected nor failed within the connect timeout is treated as failed and stays on the
+relay.
+
+There is no TURN server, so a WebRTC seat is direct or it is on the relay. `TRANSPORT_WEBRTC` has
+no relayed variant for that reason.
+
+### What the spike measures
+
+Every peer reports once when it settles, with the outcome and how long it took, and again with the
+median of a short `RTCDataChannel` ping/pong. The probe frames carry a `__probe` discriminator, so
+they cannot be confused with an engine envelope, which is always an object with a `kind`. The
+client's own keepalive round trip to the relay is logged beside it, which is the number the direct
+plane has to beat.
+
+`manabrew_relay_peer_signals_total{kind}` counts what the relay did with each signal: forwarded, or
+why not. A negotiation that never completes shows up there, because a dropped signal is answered
+with silence the same way a rejected announcement is.
+
+### Not yet
+
+A desktop-native host serving a browser seat. The engine is `self-hosted-node` in-process and owns
+its own relay socket, so its envelopes do not pass through the webview. Forwarding them through the
+shell to the webview, which already knows how to make the connection, is the cheap way in, and
+`DirectPlane::try_send` returning false is the seam it slots into. See #838.
+
 ## Opting in
 
-`MANABREW_DIRECT_TRANSPORT` is off by default. Off, the relay does not advertise the
-`room_transport` feature, ignores `AnnounceTransport`, and never sends a roster, so every room
-behaves exactly as it does today. It fails closed.
+`MANABREW_DIRECT_TRANSPORT` is off by default. Off, the relay advertises neither `room_transport`
+nor `peer_signal`, ignores `AnnounceTransport`, drops `SignalPeer`, and never sends a roster, so
+every room behaves exactly as it does today. It fails closed, and a client that sees no
+`peer_signal` never starts a negotiation that could not finish.
 
 ## Limits worth knowing before building on this
 
-- **A browser cannot be direct.** iroh's `build.rs` sets `wasm_browser` for
+- **A browser cannot be direct over iroh.** iroh's `build.rs` sets `wasm_browser` for
   `wasm32-unknown-unknown`, and under that cfg the IP transports are compiled out. A browser
   endpoint has a real address and can host a room, but it cannot hole punch, so browser-to-browser
   over iroh is always relayed. It moves traffic off `manabrew-server`; it is not a latency win and
-  it is not LAN. A direct data plane between browsers means WebRTC, which is a different
-  implementation behind this same rendezvous.
+  it is not LAN. A direct data plane between browsers means WebRTC: see "The browser plane".
 - **Transport is chosen before `GameStarted` and does not migrate mid-game.**
 - **A superseded seat connection must be closed, not forgotten.** Dropping a `GameSender` is not
   enough: the receiver holds the same guard, so the old connection would keep feeding the engine

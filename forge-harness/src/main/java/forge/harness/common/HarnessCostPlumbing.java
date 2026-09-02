@@ -26,12 +26,18 @@ public final class HarnessCostPlumbing {
     private final PlayerController controller;
     private final HarnessPlayHooks hooks;
     private final Player payer;
+    private final boolean humanCostPayment;
     private final List<Set<Card>> reservedSacrificeStack = new ArrayList<>();
 
-    public HarnessCostPlumbing(final PlayerController controller, final HarnessPlayHooks hooks, final Player payer) {
+    public HarnessCostPlumbing(
+            final PlayerController controller,
+            final HarnessPlayHooks hooks,
+            final Player payer,
+            final boolean humanCostPayment) {
         this.controller = controller;
         this.hooks = hooks;
         this.payer = payer;
+        this.humanCostPayment = humanCostPayment;
     }
 
     public static boolean isSpellPaymentContext(final SpellAbility sa) {
@@ -54,12 +60,17 @@ public final class HarnessCostPlumbing {
     }
 
     public boolean payWithControllerDecision(final Cost cost, final SpellAbility sa, final boolean effect) {
+        return payWithControllerDecision(cost, sa, effect, new CostPayment(cost, sa));
+    }
+
+    public boolean payWithControllerDecision(
+            final Cost cost, final SpellAbility sa, final boolean effect, final CostPayment pay) {
         final Set<Card> inheritedReserved = currentReservedSacrifices();
         final Set<Card> localReserved = new LinkedHashSet<>(inheritedReserved);
         reservedSacrificeStack.add(localReserved);
         try {
-            final CostPayment pay = new CostPayment(cost, sa);
-            return pay.payComputerCosts(new HarnessCostDecision(payer, sa, effect));
+            final HarnessCostDecision decision = new HarnessCostDecision(payer, sa, effect);
+            return humanCostPayment ? pay.payCost(decision) : pay.payComputerCosts(decision);
         } finally {
             reservedSacrificeStack.remove(reservedSacrificeStack.size() - 1);
         }

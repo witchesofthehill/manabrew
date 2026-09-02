@@ -156,6 +156,32 @@ url list covers STUN; a JSON array of `RTCIceServer` covers TURN, which needs a
 username and a credential. Unparseable config yields no servers rather than a
 refusal to start, because a relay that will not boot serves nobody.
 
+### Running the STUN server
+
+`compose.staging.yml` carries a STUN-only coturn behind a `stun` profile, so a
+normal deploy neither starts it nor waits on it. Three steps, in order, because
+each is useless without the one before:
+
+1. Open UDP 3478 on the box. Nothing else there uses UDP, so this is a firewall
+   change rather than a deploy.
+2. `docker compose -f compose.staging.yml --profile stun up -d coturn-staging`
+3. Set `MANABREW_ICE_SERVERS=stun:relay-staging.manabrew.app:3478` and recreate
+   the relay.
+
+Naming a STUN server that is not answering is worse than naming none: ICE
+gathering waits out the timeout and then produces the same host-only candidates
+anyway. So step 3 comes last, and until it is done a client says in its console
+that it was handed nothing.
+
+`network_mode: host` on that container is load-bearing, not a shortcut. A STUN
+server answers with the source address it observed, so anything that rewrites
+the client's source on the way in makes it answer with that address instead,
+and every peer is handed one no other peer can reach. Publishing a port through
+the docker proxy does exactly that.
+
+`--stun-only` makes it refuse allocation requests, so it cannot become a data
+path by accident or because somebody else pointed a client at it.
+
 Whether TURN is needed is a separate question from whether STUN is. STUN is
 what makes a hole-punched pair possible at all; TURN is the fallback for the
 pairs that cannot be punched, and running one means carrying their traffic. The

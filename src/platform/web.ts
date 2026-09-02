@@ -1329,13 +1329,22 @@ class WebServerApi implements IServerApi {
     // The first plane the host offers that this client speaks. A desktop host
     // offers both, so its desktop seats take iroh and its browser seats take
     // WebRTC out of the same roster.
+    // Whichever plane this room does not use is torn down, not merely left
+    // idle. `DirectSeat.freeze()` reads a liveness flag set when it last
+    // reached a host, and that flag outlives the room it was set in: a seat
+    // that took iroh in an earlier room would otherwise freeze onto that
+    // host's connection here and send this room's envelopes down it.
     switch (planeForRoom(host, this.myTransportKinds())) {
       case TRANSPORT_KIND_WEBRTC:
+        this.dropDirectSeat();
         this.onWebRtcRoster(members, host);
         return;
       case TRANSPORT_KIND_IROH:
+        this.dropWebRtcPlane();
         break;
       default:
+        this.dropDirectSeat();
+        this.dropWebRtcPlane();
         return;
     }
 
@@ -1350,6 +1359,18 @@ class WebServerApi implements IServerApi {
       await this.directSeat.adoptRelay(relayUrl);
     }
     await this.directSeat.onRoster(String(msg.room_id ?? ""), msg.members);
+  }
+
+  private dropDirectSeat(): void {
+    if (!this.directSeat) return;
+    this.directSeat.stop();
+    this.directSeat = null;
+  }
+
+  private dropWebRtcPlane(): void {
+    if (!this.webrtc) return;
+    this.webrtc.close();
+    this.webrtc = null;
   }
 
   /// The planes this client can actually speak. A desktop binds a native

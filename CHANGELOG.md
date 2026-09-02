@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.33.4](https://github.com/witchesofthehill/manabrew/compare/v3.33.3...v3.33.4) (2026-09-02)
+
+### Fixes
+
+* hot swap assets when changed so the app doesnt display stale infop ([#812](https://github.com/witchesofthehill/manabrew/issues/812)) ([320449e](https://github.com/witchesofthehill/manabrew/commit/320449ebb516783f28711a7a4b8bc3abac29f22f))
+
 ## [3.33.3](https://github.com/witchesofthehill/manabrew/compare/v3.33.2...v3.33.3) (2026-09-01)
 
 ### Fixes

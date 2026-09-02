@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.33.5](https://github.com/witchesofthehill/manabrew/compare/v3.33.4...v3.33.5) (2026-09-02)
+
+### Fixes
+
+* **harness:** preserve copied token identity ([#844](https://github.com/witchesofthehill/manabrew/issues/844)) ([66a505c](https://github.com/witchesofthehill/manabrew/commit/66a505c97205c4478168a7f7d9526b5fd831ebd3))
+
 ## [3.33.4](https://github.com/witchesofthehill/manabrew/compare/v3.33.3...v3.33.4) (2026-09-02)
 
 ### Fixes

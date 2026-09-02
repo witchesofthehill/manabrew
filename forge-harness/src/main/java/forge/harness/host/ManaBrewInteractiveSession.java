@@ -57,6 +57,8 @@ public final class ManaBrewInteractiveSession {
     private volatile Thread gameThread;
     private static volatile InteractiveBridge bridge;
     private volatile SpellAbility castingAbility;
+    private final InteractiveSnapshotExtractor.SecretChoiceVisibility secretChoiceVisibility =
+            new InteractiveSnapshotExtractor.SecretChoiceVisibility();
 
     ManaBrewInteractiveSession(final String sessionId) {
         this.sessionId = Objects.requireNonNull(sessionId, "sessionId");
@@ -130,7 +132,16 @@ public final class ManaBrewInteractiveSession {
 
     public String getSnapshotJson(final int viewer) {
         requireAttached();
-        return InteractiveSnapshotExtractor.snapshotJson(game, castingAbility, sessionId, viewer);
+        return InteractiveSnapshotExtractor.snapshotJson(
+                game, castingAbility, sessionId, viewer, secretChoiceVisibility);
+    }
+
+    void rememberSecretNumberViewer(final String sourceCardId, final Player viewer) {
+        secretChoiceVisibility.rememberNumber(sourceCardId, viewer);
+    }
+
+    void rememberSecretTypeViewer(final String sourceCardId, final Player viewer) {
+        secretChoiceVisibility.rememberType(sourceCardId, viewer);
     }
 
     void beginCast(final SpellAbility sa) {
@@ -2033,9 +2044,8 @@ public final class ManaBrewInteractiveSession {
             return;
         }
         if ("choose_card_name".equals(kind)) {
-            final List<String> suggestions = options.size() <= CARD_NAME_SUGGESTION_LIMIT
-                    ? new ArrayList<>(options)
-                    : new ArrayList<>();
+            final List<String> suggestions = new ArrayList<>(
+                    options.subList(0, Math.min(options.size(), CARD_NAME_SUGGESTION_LIMIT)));
             publishAgentPrompt("player-" + playerId, sourceCardId,
                     new ChooseCardNameInput(presentation("Name a card", description), suggestions));
             return;

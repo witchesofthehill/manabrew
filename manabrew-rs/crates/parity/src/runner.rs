@@ -17,7 +17,7 @@ use manabrew_engine::agent::{
 };
 use manabrew_engine::card::CardInstance;
 use manabrew_engine::combat::DefenderId;
-use manabrew_engine::game::GameState;
+use manabrew_engine::game::{CardDatabaseRegistry, GameState};
 use manabrew_engine::game_loop::GameLoop;
 use manabrew_engine::game_runtime::GameRuntime;
 use manabrew_engine::ids::{CardId, PlayerId};
@@ -896,7 +896,7 @@ pub struct RunConfig {
 }
 
 pub struct LoadedData {
-    pub db: CardDatabase,
+    pub db: Arc<CardDatabase>,
     pub token_templates: Vec<(String, CardInstance)>,
 }
 
@@ -948,6 +948,8 @@ pub fn load_data(cards_dir: Option<&str>, verbose: bool) -> Result<LoadedData, S
         cards_result: _,
         tokens_result: _,
     } = bundle;
+    let db = Arc::new(db);
+    CardDatabaseRegistry::load(Arc::clone(&db));
     if verbose {
         let script_stats = crate::card_pool::scan_raw_script_diagnostics(cards_path);
         eprintln!("[parity] {script_stats}");

@@ -57,6 +57,7 @@ import {
   WebRtcPlane,
   iceServersFrom,
   planeForRoom,
+  webRtcEndpoint,
   TRANSPORT_KIND_IROH,
   TRANSPORT_KIND_WEBRTC,
   type PlaneMeasurement,
@@ -773,6 +774,9 @@ class WebServerApi implements IServerApi {
   /** Set when this app is the one running the room's engine host, so the
    *  webview drives WebRTC for a node that cannot dial a browser itself. */
   private forgeHostBridge: ForgeHostBridge | null = null;
+  /** The room this session has already announced a WebRTC endpoint for, so a
+   *  roster arriving on every join and leave does not re-announce. */
+  private announcedRoom: string | null = null;
   /** Keepalive round trip to the relay, which is the number the direct plane
    *  has to beat. The relay records its own view of this as
    *  `manabrew_relay_client_rtt_ms`; this is the client's. */
@@ -1114,6 +1118,10 @@ class WebServerApi implements IServerApi {
     }
     this.stopAllBots();
     clearSpawnedBots();
+    // The relay drops this session's endpoint when it leaves, so the next room
+    // has to announce again.
+    this.announcedRoom = null;
+    this.dropWebRtcPlane();
     this.send({ type: "LeaveRoom" });
   }
 
@@ -1374,6 +1382,27 @@ class WebServerApi implements IServerApi {
     this.webrtc = null;
   }
 
+  /// Announces this session's WebRTC endpoint on entering a room.
+  ///
+  /// Somebody has to go first. The relay sends a roster only once a member has
+  /// announced, and `onRoomTransport` returns early until a roster names a
+  /// host, so in a browser-hosted room nobody announced, no roster ever
+  /// arrived, and the plane never started. A node-hosted room does not have
+  /// the problem because `self-hosted-node` announces unprompted at startup.
+  ///
+  /// Doing it here is safe in a way the native endpoint is not: a browser
+  /// endpoint is a name, not a bound socket, so announcing one for a room that
+  /// turns out to stay on the relay costs nothing. `DirectSeat` still binds
+  /// lazily, and its announcement replaces this one when the room turns out to
+  /// be iroh-hosted.
+  private announceWebRtcEndpoint(roomId: string): void {
+    if (!roomId || this.announcedRoom === roomId) return;
+    if (!this.peerSignalling || !WebRtcPlane.supported()) return;
+    if (!this.authedUsername) return;
+    this.announcedRoom = roomId;
+    this.send({ type: "AnnounceTransport", endpoint: webRtcEndpoint(this.authedUsername) });
+  }
+
   /// The planes this client can actually speak. A desktop binds a native
   /// endpoint in the shell; every build with `RTCPeerConnection` can do WebRTC.
   private myTransportKinds(): string[] {
@@ -1436,9 +1465,8 @@ class WebServerApi implements IServerApi {
           }),
         onMeasurement: (m) => this.onPlaneMeasurement(m),
       });
-      // A browser has no address to publish. The endpoint id names it in the
-      // roster; the addresses come later, over signalling, from ICE.
-      this.send({ type: "AnnounceTransport", endpoint: this.webrtc.endpoint() });
+      // Already announced on entering the room, which is what produced the
+      // roster being handled here.
     }
     this.webrtc.onRoster(members, host);
   }
@@ -1643,6 +1671,15 @@ class WebServerApi implements IServerApi {
 
     if (type === "RoomCreated") {
       this.resumeToken = typeof msg.resume_token === "string" ? msg.resume_token : null;
+      this.announceWebRtcEndpoint(String(msg.room_id ?? ""));
+    }
+
+    // A join is confirmed by the room update that follows it, and the relay
+    // sends these only to members, so this cannot announce into a room this
+    // session is not in.
+    if (type === "RoomUpdate") {
+      const room = msg.room as { room_id?: string } | undefined;
+      this.announceWebRtcEndpoint(String(room?.room_id ?? ""));
     }
 
     if (type === "GameStarted") {

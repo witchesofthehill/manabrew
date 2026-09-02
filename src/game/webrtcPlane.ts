@@ -151,6 +151,20 @@ export function iceServersFrom(msg: Record<string, unknown>): RTCIceServer[] {
     }));
 }
 
+/**
+ * What a browser announces. There is no address in it: a browser has none to
+ * publish, the endpoint id only names it in the roster, and the addresses
+ * cross later over signalling once there is a peer to reach.
+ *
+ * Which is why announcing costs nothing, and why it happens on entering a room
+ * rather than lazily. Somebody has to announce first: the relay sends a roster
+ * only after a member has, and a browser-hosted room has no node to do it
+ * unprompted.
+ */
+export function webRtcEndpoint(username: string): { endpoint_id: string; kinds: string[] } {
+  return { endpoint_id: `webrtc:${username}`, kinds: [TRANSPORT_KIND_WEBRTC] };
+}
+
 interface Peer {
   connection: RTCPeerConnection;
   channel: RTCDataChannel | null;
@@ -192,7 +206,7 @@ export class WebRtcPlane {
    *  publish: the endpoint id names it in the roster and the addresses come
    *  from ICE, over signalling, later. */
   endpoint(): { endpoint_id: string; kinds: string[] } {
-    return { endpoint_id: `webrtc:${this.opts.username}`, kinds: [TRANSPORT_KIND_WEBRTC] };
+    return webRtcEndpoint(this.opts.username);
   }
 
   /** Whether this build can offer the plane at all. */

@@ -10,6 +10,7 @@ import {
   endpointSpeaks,
   iceServersFrom,
   planeForRoom,
+  webRtcEndpoint,
   TRANSPORT_KIND_IROH,
   TRANSPORT_KIND_WEBRTC,
 } from "./webrtcPlane";
@@ -163,6 +164,30 @@ describe("choosing a plane from what the host advertises", () => {
       member("bob", ["iroh"], true),
     );
     expect(h.signals).toHaveLength(0);
+  });
+});
+
+describe("announcing, which is what starts everything", () => {
+  it("is a name and no address, so it costs nothing to send on entering a room", () => {
+    // The whole reason this can be announced eagerly. A browser has no address
+    // to publish and binds no socket; the addresses cross later over
+    // signalling. The relay only sends a roster once a member has announced,
+    // and a browser-hosted room has no node to do it unprompted, so an
+    // announcement that waits for a roster waits forever.
+    expect(webRtcEndpoint("alice")).toEqual({
+      endpoint_id: "webrtc:alice",
+      kinds: [TRANSPORT_KIND_WEBRTC],
+    });
+  });
+
+  it("matches what the plane itself would announce", () => {
+    const plane = new WebRtcPlane({
+      username: "alice",
+      signal: () => {},
+      deliver: () => {},
+      createConnection: () => new FakeConnection() as unknown as RTCPeerConnection,
+    });
+    expect(plane.endpoint()).toEqual(webRtcEndpoint("alice"));
   });
 });
 

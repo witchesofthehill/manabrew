@@ -106,6 +106,19 @@ routes on the name, stamps `from` from its own record of the sending session and
 applied to signalling. A blob over `MAX_SIGNAL_BYTES` is dropped, because an opaque payload's size
 is the only thing the relay can judge it on and the control plane must not become a data plane.
 
+Somebody has to announce first. The relay sends a roster only once a member has
+announced, and a seat ignores a roster until one names a host, so a room where
+nobody announces unprompted never starts a plane at all. A node-hosted room does
+not have the problem: `self-hosted-node` announces at startup. A browser-hosted
+one has no node, so a browser announces its endpoint on entering a room rather
+than in response to a roster it would be waiting on forever.
+
+That is safe here in a way it would not be for the native endpoint. A browser
+endpoint is a name, not a bound socket: the addresses cross later over
+signalling, so announcing one for a room that turns out to stay on the relay
+costs nothing. `DirectSeat` still binds lazily, and its announcement replaces
+the browser one when the room turns out to be iroh-hosted.
+
 Three rules keep the mixed desktop/browser case cheap:
 
 - **Peers are addressed by username, never by peer type.** A desktop seat uses the same signalling

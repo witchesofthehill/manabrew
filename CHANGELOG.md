@@ -1,5 +1,31 @@
 # Changelog
 
+## [3.34.1](https://github.com/witchesofthehill/manabrew/compare/v3.34.0...v3.34.1) (2026-09-02)
+
+## [3.34.0](https://github.com/witchesofthehill/manabrew/compare/v3.33.5...v3.34.0) (2026-09-02)
+
+### Features
+
+* **play:** always host Forge multiplayer in the browser ([#837](https://github.com/witchesofthehill/manabrew/issues/837)) ([6a3624f](https://github.com/witchesofthehill/manabrew/commit/6a3624fc40f9d6d4f143fabd0bc13dd9d6d70029))
+
+## [3.33.5](https://github.com/witchesofthehill/manabrew/compare/v3.33.4...v3.33.5) (2026-09-02)
+
+### Fixes
+
+* **harness:** preserve copied token identity ([#844](https://github.com/witchesofthehill/manabrew/issues/844)) ([66a505c](https://github.com/witchesofthehill/manabrew/commit/66a505c97205c4478168a7f7d9526b5fd831ebd3))
+
+## [3.33.4](https://github.com/witchesofthehill/manabrew/compare/v3.33.3...v3.33.4) (2026-09-02)
+
+### Fixes
+
+* hot swap assets when changed so the app doesnt display stale infop ([#812](https://github.com/witchesofthehill/manabrew/issues/812)) ([320449e](https://github.com/witchesofthehill/manabrew/commit/320449ebb516783f28711a7a4b8bc3abac29f22f))
+
+## [3.33.3](https://github.com/witchesofthehill/manabrew/compare/v3.33.2...v3.33.3) (2026-09-01)
+
+### Fixes
+
+* bump forge to new lazy fix ([#833](https://github.com/witchesofthehill/manabrew/issues/833)) ([a876ce1](https://github.com/witchesofthehill/manabrew/commit/a876ce162e897046978a34895ba8480716308cff))
+
 ## [3.33.2](https://github.com/witchesofthehill/manabrew/compare/v3.33.1...v3.33.2) (2026-09-01)
 
 ### Performance

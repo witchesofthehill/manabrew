@@ -117,7 +117,7 @@ public final class HarnessPlayPlumbing {
             return false;
         }
 
-        if (costPlumbing.payWithControllerDecision(cost, sa, false)) {
+        if (costPlumbing.payWithControllerDecision(cost, sa, false, pay)) {
             game.getStack().add(sa);
             return true;
         }
@@ -182,19 +182,20 @@ public final class HarnessPlayPlumbing {
 
         sa = GameActionUtil.addExtraKeywordCost(sa);
 
+        final Cost cost = sa.getPayCosts();
+        final CostPayment pay = new CostPayment(cost, sa);
+
         if (!announceType(sa) || !announceValuesLikeX(sa) || !sa.checkRestrictions(ai)
                 || !sa.setupTargets() || !sa.isLegalAfterStack()) {
             if (sa.isSpell() && !source.isCopiedSpell() && hz != null) {
-                GameActionUtil.rollbackAbility(sa, hz, zonePosition,
-                        new CostPayment(sa.getPayCosts(), sa), host);
+                GameActionUtil.rollbackAbility(sa, hz, zonePosition, pay, host);
             }
             return false;
         }
 
-        final Cost cost = sa.getPayCosts();
         game.getStack().freezeStack(sa);
 
-        if (costPlumbing.payWithControllerDecision(cost, sa, false)) {
+        if (costPlumbing.payWithControllerDecision(cost, sa, false, pay)) {
             // Fix for LTB trigger collection during frozen stack.
             // When a card is sacrificed as a cost while the stack is frozen, its
             // LTB (leaves-the-battlefield) triggers are registered in activeTriggers
@@ -223,7 +224,7 @@ public final class HarnessPlayPlumbing {
                 + sa.getHostCard() + " [" + sa.getHostCard().getZone() + "]");
         sa.setSkip(true);
         if (host != null && hz != null) {
-            GameActionUtil.rollbackAbility(sa, hz, zonePosition, new CostPayment(cost, sa), host);
+            GameActionUtil.rollbackAbility(sa, hz, zonePosition, pay, host);
             final Card rolledBackHost = sa.getHostCard();
             if (rolledBackHost != null) {
                 hooks.markFailedPaymentCard(rolledBackHost);

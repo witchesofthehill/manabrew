@@ -3,10 +3,16 @@ identifier = "allow-app-commands"
 description = "Grants the app's own IPC commands to the main window — both the local origin (dev / Windows tauri.localhost) and the http://localhost asset-server remote origin used on macOS/Linux. Keep in sync with the generate_handler! list in lib.rs: a command missing here fails on every origin once this manifest exists."
 commands.allow = [
   "is_card_supported",
+  "card_roles",
   "forge_room_available",
   "forge_room_running",
   "start_forge_host",
   "stop_forge_host",
+  "direct_seat_start",
+  "direct_seat_roster",
+  "direct_seat_adopt_relay",
+  "direct_seat_send",
+  "direct_seat_stop",
   "start_local_relay",
   "local_relay_running",
   "stop_local_relay",

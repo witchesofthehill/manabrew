@@ -193,6 +193,27 @@ the docker proxy does exactly that.
 `--stun-only` makes it refuse allocation requests, so it cannot become a data
 path by accident or because somebody else pointed a client at it.
 
+### What cellular settles
+
+Measured 2026-09-03, browser at home to iOS Safari on cellular, two networks:
+announcement and signalling completed (2 announcements, 8 signals forwarded and
+attested), ICE did not connect, the seat fell back to the relay and the game
+carried on.
+
+Cellular is behind carrier-grade NAT, which is symmetric, and symmetric NAT
+cannot be punched through with STUN. Firefox says as much: "add a TURN server".
+
+It is not an argument for running one. TURN would carry that seat's traffic
+through a server, which is two hops, which is what the relay already does at a
+measured 55ms. The epic rejected a relay bridge because it is "the same two
+hops, so it is not a peer-to-peer win", and TURN is that bridge with the
+traversal unused. A cellular seat on the relay has lost nothing it had; a
+cellular seat on TURN gains nothing except a second data plane to maintain.
+
+So the rule this measurement establishes: a seat behind carrier-grade NAT stays
+on the relay, by design and permanently. The browser plane is for pairs that can
+be punched through, which is where the win exists.
+
 Whether TURN is needed is a separate question from whether STUN is. STUN is
 what makes a hole-punched pair possible at all; TURN is the fallback for the
 pairs that cannot be punched, and running one means carrying their traffic. The

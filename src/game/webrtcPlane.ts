@@ -35,9 +35,17 @@ export const TRANSPORT_KIND_IROH = "iroh";
 const CHANNEL_LABEL = "manabrew-engine";
 
 /** A peer that has neither connected nor failed by now is treated as failed.
- *  ICE gives up on its own eventually, but not on any timescale a player
- *  waiting for a game to start would accept. */
-const CONNECT_TIMEOUT_MS = 8_000;
+ *
+ *  Nothing waits on this. The seat is on the relay from the moment it sits
+ *  down and keeps playing throughout; the plane is only ever an upgrade
+ *  attempt in the background. So the budget should be ICE's, not a guess at
+ *  what a player would tolerate, which is what 8s was.
+ *
+ *  8s was also actively misleading: a browser-at-home to phone-on-cellular
+ *  pair reported `outcome=timeout connect=8002ms`, which said the deadline
+ *  expired and nothing about whether ICE would have succeeded. Firefox's own
+ *  budget is nearer 30s. */
+const CONNECT_TIMEOUT_MS = 25_000;
 
 /** Round trips for the RTT probe, and the gap between them. Enough to see a
  *  median without making the channel's first seconds about measurement. */

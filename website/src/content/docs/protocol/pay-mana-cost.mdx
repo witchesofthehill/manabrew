@@ -29,13 +29,16 @@ type PayManaCostOutput =
   | { type: "cancel" };
 ```
 
-Send `{ type: "act", actionId }` with the `id` of an entry in `actions` to take
-an incremental step - tapping a mana source, untapping one (`undoMana`),
-delving/un-delving a graveyard card, or paying life for a Phyrexian cost
-(`payLife`) - and the engine answers with an updated `payManaCost` prompt. The
-client never builds an `actionId`; it only echoes one the prompt offered. Send
-`{ type: "pay", auto }` to finalize (`auto: true` lets the engine auto-tap the
-remaining sources), or `cancel` to back out of the payment entirely.
+Sending `{ type: "act", actionId }` will take an incremental step towards the payment. This can be something like tapping (or untapping) a land for mana,
+delving, convoking, or paying life for a Phyrexian cost.
+The engine answers with an updated `payManaCost` prompt, which will include the updated leftover price to pay. 
+`actionId` must always be chosen from the ids provided in the prompt.
+
+Sending `{ type: "pay", auto }` will let the engine auto-tap resources to match the cost.
+
+Sending `{ type: "pay" }` when the remaining cost is 0 will confirm the payment. 
+
+Sending `{ type: "cancel" }` will abort the payment, and with it, the cast or activation.
 
 ## Example
 

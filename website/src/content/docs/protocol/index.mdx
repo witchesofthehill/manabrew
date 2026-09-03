@@ -9,8 +9,12 @@ import { Card, CardGrid } from "@astrojs/starlight/components";
 
 Manabrew separates the **engine** (the rules) from the **client** (the UI). Any
 engine that speaks this protocol can drive the a Manabrew client, and any client
-that implements it can host a Manabrew compatible engine. This section documents the
-protocol so you can implement it yourself.
+that implements it can host a Manabrew compatible engine.
+
+> What we hope to achieve by putting effort and love into the spec, is that more people and projects start adopting it.
+> We see huge potential in a truly open-standard for online card gaming, and we dream of a day where UIs and Engines for all sorts of games will be able to be inter-changed for a superior community driven ecosystem.
+>
+> *- Witches of the Hill*
 
 ## The protocol ensures:
 
@@ -105,9 +109,7 @@ type ProtocolErrorCode =
   | "invalidShape";
 ```
 
-
 ## The prompt catalogue
-
 
 :::note[Careful about the type blocks]
 For language convenience, we show the type blocks in multiple languages.

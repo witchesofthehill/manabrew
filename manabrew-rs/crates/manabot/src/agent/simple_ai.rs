@@ -274,16 +274,6 @@ impl BotAgent for SimpleAi {
                     chosen_colors: chosen,
                 }))
             }
-            PromptInput::ChooseCardName(
-                manabrew_protocol::prompts::choose_card_name::ChooseCardNameInput {
-                    suggestions,
-                    ..
-                },
-            ) => Some(PromptOutput::ChooseCardName(
-                ChooseCardNameOutput::CardNameDecision {
-                    name: suggestions.into_iter().next().unwrap_or_default(),
-                },
-            )),
             PromptInput::ChooseNumber(manabrew_protocol::prompts::choose_number::ChooseNumberInput { min, .. }) => Some(PromptOutput::ChooseNumber(ChooseNumberOutput::NumberDecision {
                 chosen_number: Some(min),
             })),

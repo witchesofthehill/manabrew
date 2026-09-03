@@ -19,6 +19,7 @@ import forge.LobbyPlayer;
 import forge.ai.AiCostDecision;
 import forge.ai.ComputerUtilCombat;
 import forge.ai.ComputerUtilMana;
+import forge.card.CardRules;
 import forge.card.ColorSet;
 import forge.card.ICardFace;
 import forge.card.MagicColor.Color;
@@ -2637,10 +2638,18 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     private List<ICardFace> filterCardFaces(final Predicate<ICardFace> cpp) {
         final Predicate<ICardFace> faceFilter = cpp == null ? x -> true : cpp;
-        forge.StaticData.instance().ensureAllCardsLoaded();
+        final CardCollection cards = new CardCollection(getGame().getCardsInGame());
+        for (final Player p : getGame().getPlayers()) {
+            cards.addAll(p.getCardsIn(ZoneType.Sideboard));
+        }
         final List<ICardFace> faces = new ArrayList<>();
-        for (final ICardFace face : forge.StaticData.instance().getCommonCards().getAllFaces()) {
-            addNameableFace(faces, faceFilter, face);
+        for (final Card card : cards) {
+            final CardRules rules = card.getRules();
+            if (rules == null) {
+                continue;
+            }
+            addNameableFace(faces, faceFilter, rules.getMainPart());
+            addNameableFace(faces, faceFilter, rules.getOtherPart());
         }
         Collections.sort(faces);
         return faces;

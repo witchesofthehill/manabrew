@@ -44,7 +44,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public final class ManaBrewInteractiveSession {
-    private static final int CARD_NAME_SUGGESTION_LIMIT = 50;
 
     private final String sessionId;
     private Match match;
@@ -2047,17 +2046,13 @@ public final class ManaBrewInteractiveSession {
                             new java.util.ArrayList<>(options), 1, false));
             return;
         }
-        if ("choose_card_name".equals(kind)) {
-            final List<String> suggestions = new ArrayList<>(
-                    options.subList(0, Math.min(options.size(), CARD_NAME_SUGGESTION_LIMIT)));
-            publishAgentPrompt("player-" + playerId, sourceCardId,
-                    new ChooseCardNameInput(presentation("Name a card", description), suggestions));
-            return;
-        }
         final String title;
         switch (kind) {
             case "choose_type":
                 title = "Choose a " + (description != null ? description : "type");
+                break;
+            case "choose_card_name":
+                title = "Name a card";
                 break;
             default:
                 throw new UnsupportedOperationException("unsupported option prompt kind: " + kind);

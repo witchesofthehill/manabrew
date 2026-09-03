@@ -14,8 +14,6 @@ use crate::prompt::*;
 
 use super::{PromptAgent, Responder};
 
-const CARD_NAME_SUGGESTION_LIMIT: usize = 50;
-
 fn card_choice_presentation(title: &str, description: Option<String>) -> PromptPresentation {
     PromptPresentation {
         title: title.to_string(),
@@ -710,32 +708,12 @@ pub(super) fn choose_card_name<T: Responder>(
     if valid_names.is_empty() {
         return None;
     }
-    agent.send_prompt(
-        PromptInput::ChooseCardName(ChooseCardNameInput {
-            presentation: card_choice_presentation("Name a card", None),
-            suggestions: valid_names
-                .iter()
-                .take(CARD_NAME_SUGGESTION_LIMIT)
-                .cloned()
-                .collect(),
-        }),
-        None,
-    );
-    match agent.recv_action_matching(|action| match action {
-        PromptOutput::ChooseCardName(ChooseCardNameOutput::CardNameDecision { name }) => {
-            valid_names
-                .iter()
-                .any(|valid| valid.eq_ignore_ascii_case(name))
-        }
-        _ => true,
-    }) {
-        PromptOutput::ChooseCardName(ChooseCardNameOutput::CardNameDecision { name }) => {
-            valid_names
-                .iter()
-                .find(|valid| valid.eq_ignore_ascii_case(&name))
-                .cloned()
-        }
-        _ => valid_names.first().cloned(),
+    send_selection(agent, "Name a card", None, valid_names.to_vec(), 1, 1, None);
+    match recv_selection(agent) {
+        Some(chosen_indices) => chosen_indices
+            .first()
+            .and_then(|index| valid_names.get(*index).cloned()),
+        None => valid_names.first().cloned(),
     }
 }
 

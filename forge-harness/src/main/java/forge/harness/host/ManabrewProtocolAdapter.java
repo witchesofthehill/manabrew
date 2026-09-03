@@ -139,10 +139,6 @@ final class ManabrewProtocolAdapter {
             }
             case "chooseColor":
                 return translateColorDecision(output);
-            case "chooseCardName":
-                flat.addProperty("kind", "string_decision");
-                flat.addProperty("value", asString(output, "name"));
-                return flat;
             case "chooseNumber":
                 flat.addProperty("kind", "number_decision");
                 flat.addProperty("number", output.has("chosenNumber") && !output.get("chosenNumber").isJsonNull()

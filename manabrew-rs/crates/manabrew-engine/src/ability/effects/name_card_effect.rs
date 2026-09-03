@@ -104,11 +104,21 @@ fn valid_names(ctx: &EffectContext, sa: &SpellAbility) -> Vec<String> {
                 }
             }
         }
-    } else {
-        let database =
-            CardDatabaseRegistry::all().expect("card database must be loaded for card naming");
+    } else if sa.ir.at_random {
+        let database = CardDatabaseRegistry::all()
+            .expect("card database must be loaded for random card naming");
         for (_, rules) in database.iter() {
             insert_all_rules_faces(&mut names, ctx.game, sa, rules);
+        }
+    } else {
+        for card in &ctx.game.cards {
+            if let Some(rules) =
+                database.and_then(|database| database.get_by_card_name(&card.full_name))
+            {
+                insert_all_rules_faces(&mut names, ctx.game, sa, rules);
+            } else {
+                insert_game_card_faces(&mut names, ctx.game, sa, card, true);
+            }
         }
     }
     names.into_iter().collect()

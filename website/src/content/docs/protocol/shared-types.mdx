@@ -12,13 +12,13 @@ arguments link back to the entries it uses.
 ## PromptPresentation
 
 The title/description header most modal prompts open with.
+The client is supposed to use this information to add visual clarity about what card or effect triggered the specific prompt being shown.
 
 <ProtocolType type="PromptPresentation" />
 
 ## TargetRef
 
-A typed reference to a player, card, or spell. The `kind` field says which id
-space `id` belongs to; `intent` and `oracle` optionally annotate the target.
+A typed reference to a player, card, or spell. `intent` and `oracle` are hints for the UI to optionally annotate the target.
 
 <ProtocolType type="TargetRef" />
 
@@ -31,7 +31,7 @@ spell on the stack.
 
 ## ScryDestination
 
-The zones a scry-style prompt can sort cards into.
+Specifically used for scry-style prompts that need to sort and divide cards into specific zones.
 
 <ProtocolType type="ScryDestination" />
 
@@ -43,7 +43,7 @@ One player's dice result.
 
 ## AvailableAction
 
-One legal action offered by [chooseAction](/protocol/choose-action/): cast a
+One legal action. Offered by [chooseAction](/protocol/choose-action/): cast a
 spell, activate an ability, or undo a mana activation.
 
 <ProtocolType type="AvailableAction" />
@@ -83,11 +83,12 @@ An incoming attacker and how it may be blocked
 
 ## TokenScript
 
-The Forge token definition used to distinguish tokens with the same name but
+Taken directly from the Forge spec. This is a definition used to distinguish tokens with the same name but
 different rules, such as two 2/2 white Knight tokens with different abilities.
-It is an opaque string on the wire; values follow Forge's token-script names,
-typically `colors_power_toughness_type_abilities`, for example
-`w_2_2_knight_vigilance`. See Forge's
+It is an opaque string on the wire. 
+
+Examples are `w_2_2_knight_vigilance` or `w_2_2_knight_flying`
+See Forge's
 [`tokenscripts`](https://github.com/Card-Forge/forge/tree/master/forge-gui/res/tokenscripts)
 directory for the canonical definitions.
 

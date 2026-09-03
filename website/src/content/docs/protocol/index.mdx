@@ -69,21 +69,11 @@ interface AgentPrompt {
   promptId: number; // correlate the response back to this prompt
   decidingPlayerId: string; // who must answer
   sourceCard?: CardDto; // the complete card that caused this prompt, if any
-  input: PromptInput; // the discriminated union below
+  input: PromptInput; // each prompt type defines the shape of its input
 }
 ```
 
-`sourceCard` is carried inside the privately addressed prompt, so it remains
-available even when the source is outside the recipient's visible game state.
-Image URLs are client-owned metadata and are not part of `CardDto`.
-
-`input` is a discriminated union tagged by a `type` field. Each variant is one
-kind of decision - `mulligan`, `chooseNumber`, `chooseCards`, `payManaCost`,
-`chooseAttackers`, and so on. The pages in this section document one variant each.
-
 ## Answering a prompt
-
-Everything the client sends is one union, `ClientToServerMessage`:
 
 ```ts
 type ClientToServerMessage =
@@ -91,11 +81,7 @@ type ClientToServerMessage =
   | { kind: "directive"; directive: DirectiveInput }; // out-of-band; currently { type: "concede" }
 ```
 
-A **response** answers the open prompt: `action` is a `PromptOutput` - a
-discriminated union tagged by the same `type` as the prompt family - and
-`promptId` MUST echo the prompt being answered. Each prompt page lists the
-exact response shape the engine expects. A **directive** is fire-and-forget and
-never paired with a prompt (conceding is legal at any time).
+It is important `promptId` is always the same as the last `promptId` emitted by the engine.
 
 ```ts
 // engine → client

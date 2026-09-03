@@ -5,7 +5,7 @@ description: Offer the deciding player their legal actions while they hold prior
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent whenever the player has priority and may take a legal action or pass — cast
+Sent whenever the player has priority and may take a legal action or pass - cast
 a spell, play a land, activate an ability, or do nothing. Unlike the modal
 prompts, the reference client doesn't show a dialog for this: it **highlights the
 available actions directly on the board**.
@@ -18,7 +18,7 @@ available actions directly on the board**.
 
 ## Rendering
 
-There's no dialog — while you hold priority, each entry in `actions` is
+There's no dialog - while you hold priority, each entry in `actions` is
 highlighted in place.
 
 <figure class="prompt-figure">
@@ -37,7 +37,7 @@ highlighted in place.
   />
   <div class="prompt-figure__caption">
     When one card offers several abilities, selecting it opens a small picker to choose which
-    `activateAbility` to use — here, Sunken Hollow's two mana abilities.
+    `activateAbility` to use - here, Sunken Hollow's two mana abilities.
   </div>
 </figure>
 
@@ -52,19 +52,19 @@ type ChooseActionOutput =
 type PassUntil = { playerId: string; phase: StepKind };
 ```
 
-Send `{ type: "act", actionId }` to perform an action by its `id` — including
+Send `{ type: "act", actionId }` to perform an action by its `id` - including
 tapping a mana source or untapping one (`undoMana`), which appear in `actions`
 like any other entry. `actionId` MUST be an `id` advertised in this prompt's
 `actions`; anything else is [rejected](/protocol/#errors).
 Send `pass` to pass priority; the optional `until` asks the engine to keep
 auto-passing until `playerId` reaches `phase` (a [`StepKind`](/protocol/game-view/)).
 `exhaustStack: true` asks the engine to keep auto-passing until every object
-currently on the stack has resolved; the fast-forward ends early — priority
-comes back with a fresh prompt — as soon as any new object (a spell, an
+currently on the stack has resolved; the fast-forward ends early - priority
+comes back with a fresh prompt - as soon as any new object (a spell, an
 activated ability, or a trigger) is put on the stack, so the passing player
 can respond to it.
-Conceding is **not** a response — it is the out-of-band `directive` message
-(see [Transport](/protocol/transport/)), legal at any time.
+Conceding is **not** a response - it is the out-of-band `directive` message
+(see [Answering a prompt](/protocol/#answering-a-prompt)), legal at any time.
 
 ## Example
 

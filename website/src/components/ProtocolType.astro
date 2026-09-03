@@ -20,7 +20,7 @@ const name = type ?? (slug ? prompts[slug] : undefined);
 const entry = name ? types[name] : undefined;
 if (!entry) {
   throw new Error(
-    `<ProtocolType>: no type for ${JSON.stringify({ slug, type })} — run yarn gen:protocol-docs`,
+    `<ProtocolType>: no type for ${JSON.stringify({ slug, type })} - run yarn gen:protocol-docs`,
   );
 }
 

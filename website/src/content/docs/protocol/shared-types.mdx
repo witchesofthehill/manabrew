@@ -6,12 +6,8 @@ description: Common data types referenced across the manabrew protocol prompts.
 import ProtocolType from "../../../components/ProtocolType.astro";
 
 The prompt protocol is built from a small set of reusable structures. Instead of
-redefining them on every prompt page, they're collected here — each prompt's
+redefining them on every prompt page, they're collected here - each prompt's
 arguments link back to the entries it uses.
-
-Every block below is generated from the same source as the engine bindings
-(`ts-rs` for TypeScript, the `manabrew-protocol` crate for Rust), so it can't
-drift from what's actually on the wire.
 
 ## PromptPresentation
 
@@ -28,7 +24,7 @@ space `id` belongs to; `intent` and `oracle` optionally annotate the target.
 
 ## TargetKind
 
-Which id space a [`TargetRef`](#targetref) points into — a player, a card, or a
+Which id space a [`TargetRef`](#targetref) points into - a player, a card, or a
 spell on the stack.
 
 <ProtocolType type="TargetKind" />
@@ -68,7 +64,7 @@ A creature that can attack, with the set of targets it may attack
 
 ## AttackTargetDto
 
-Something an attacker can be declared against — a player, planeswalker, or battle.
+Something an attacker can be declared against - a player, planeswalker, or battle.
 
 <ProtocolType type="AttackTargetDto" />
 

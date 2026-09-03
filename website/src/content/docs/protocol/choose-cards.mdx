@@ -5,7 +5,7 @@ description: Ask the deciding player to select a number of cards from a set.
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent when the player must pick cards from a presented set — discard to hand
+Sent when the player must pick cards from a presented set - discard to hand
 size, choose cards to sacrifice, pick targets from a revealed pile, and similar.
 The engine sends the candidate cards inline so the client can render them
 without consulting game state.
@@ -25,7 +25,7 @@ once between `min` and `max` are picked.
 <figure class="prompt-figure">
   <img src="/protocol/choose-cards.webp" alt="A few cards laid out in a single row" />
   <div class="prompt-figure__caption">
-    A small set lays the cards out in a single row — quick to scan and tap.
+    A small set lays the cards out in a single row - quick to scan and tap.
   </div>
 </figure>
 
@@ -43,7 +43,7 @@ once between `min` and `max` are picked.
 type ChooseCardsOutput = { type: "chooseCardsDecision"; chosenCardIds: string[] };
 ```
 
-Return the `id`s of the chosen cards — between `min` and `max` of them.
+Return the `id`s of the chosen cards - between `min` and `max` of them.
 
 ## Example
 
@@ -94,6 +94,6 @@ Return the `id`s of the chosen cards — between `min` and `max` of them.
 ```
 
 :::note
-The `cards` above are abbreviated — the real `CardDto` has every field listed in
+The `cards` above are abbreviated - the real `CardDto` has every field listed in
 `protocol/values`. Only `id` and `name` are required to round-trip a choice.
 :::

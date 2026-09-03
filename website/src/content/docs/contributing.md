@@ -23,7 +23,7 @@ before opening a pull request.
 ## The parity philosophy
 
 The Rust engine is a port of Forge, not a reimplementation. Every engine change
-mirrors the corresponding Java code — same file names, same control flow — and
+mirrors the corresponding Java code - same file names, same control flow - and
 is verified by a parity harness that runs both engines with identical decks,
 seeds, and choices, then compares the game traces. Most contributions are
 parity fixes: find a card that diverges, locate the rule the Rust port is
@@ -36,16 +36,17 @@ suits it: Java Forge is an external oracle, so a model can propose an engine
 fix but the parity harness decides whether behavior actually matches. AI is
 never treated as a rules authority. If you use AI in a contribution, review the
 generated diff yourself, test it, and make sure every behavioral claim traces
-back to Forge or a documented convention — see
+back to Forge or a documented convention - see
 [AI_USAGE.md](https://github.com/witchesofthehill/manabrew/blob/main/docs/AI_USAGE.md).
 
 ## Building your own client or engine
 
 The wire protocol between frontends and engine backends is specified in
 [PROTOCOL.md](https://github.com/witchesofthehill/manabrew/blob/main/docs/PROTOCOL.md)
-— message shapes, game-state snapshots, prompts, and actions. Unlike the
-AGPL-licensed implementation, the spec itself is CC-BY-4.0, so independent
-clients and engines can implement it without license entanglement.
+
+- message shapes, game-state snapshots, prompts, and actions. Unlike the
+  AGPL-licensed implementation, the spec itself is CC-BY-4.0, so independent
+  clients and engines can implement it without license entanglement.
 
 ## Where to start
 

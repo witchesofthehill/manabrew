@@ -46,7 +46,6 @@ export default defineConfig({
           label: "Protocol",
           items: [
             "protocol",
-            "protocol/transport",
             "protocol/game-view",
             {
               label: "Prompts",
@@ -88,7 +87,6 @@ export default defineConfig({
             },
             "protocol/shared-types",
             "protocol/deck",
-            "protocol/conformance",
           ],
         },
         {

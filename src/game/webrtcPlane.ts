@@ -498,6 +498,45 @@ export class WebRtcPlane {
 
   /** Which pair ICE settled on, which is what says whether this was a LAN hop,
    *  a punched-through path, or TURN. */
+  /**
+   * What ICE had to work with, for the case where it did not connect.
+   *
+   * The winning pair says nothing when there is no winner, and that is exactly
+   * when the question matters: `srflx` on both sides means STUN worked and the
+   * failure is NAT traversal, where only `host` means STUN produced nothing and
+   * traversal was never attempted. Without this the answer lives in
+   * `about:webrtc` on one machine and nowhere in the logs.
+   */
+  private async candidateSummary(state: Peer): Promise<string | undefined> {
+    try {
+      const stats = await state.connection.getStats();
+      const local = new Set<string>();
+      const remote = new Set<string>();
+      const pairs: string[] = [];
+      const byId = new Map<string, string>();
+      stats.forEach((report: Record<string, unknown>) => {
+        if (report.type === "local-candidate") {
+          local.add(String(report.candidateType));
+          byId.set(String(report.id), String(report.candidateType));
+        }
+        if (report.type === "remote-candidate") {
+          remote.add(String(report.candidateType));
+          byId.set(String(report.id), String(report.candidateType));
+        }
+      });
+      stats.forEach((report: Record<string, unknown>) => {
+        if (report.type !== "candidate-pair") return;
+        const l = byId.get(String(report.localCandidateId)) ?? "?";
+        const r = byId.get(String(report.remoteCandidateId)) ?? "?";
+        pairs.push(`${l}/${r}:${report.state ?? "?"}`);
+      });
+      const fmt = (set: Set<string>) => (set.size ? [...set].sort().join("+") : "none");
+      return `local=${fmt(local)} remote=${fmt(remote)} pairs=[${pairs.join(" ")}]`;
+    } catch {
+      return undefined;
+    }
+  }
+
   private async candidatePair(state: Peer): Promise<string | undefined> {
     try {
       const stats = await state.connection.getStats();
@@ -529,10 +568,19 @@ export class WebRtcPlane {
     }
     if (state.settled) return;
     state.settled = true;
-    if (outcome !== "connected") {
-      console.warn(`[webrtc] ${peer} stayed on the relay: ${outcome}`);
+    const connectMs = this.now() - state.startedAt;
+    if (outcome === "connected") {
+      this.report({ peer, outcome, connectMs });
+      return;
     }
-    this.report({ peer, outcome, connectMs: this.now() - state.startedAt });
+    // Read the candidates before anything tears the connection down, and log
+    // them with the failure rather than making somebody open about:webrtc.
+    void this.candidateSummary(state).then((summary) => {
+      console.warn(
+        `[webrtc] ${peer} stayed on the relay: ${outcome}` + (summary ? ` (${summary})` : ""),
+      );
+      this.report({ peer, outcome, connectMs, candidatePair: summary });
+    });
   }
 
   private report(measurement: PlaneMeasurement): void {

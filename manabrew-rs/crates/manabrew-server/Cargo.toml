@@ -1,6 +1,6 @@
 [package]
 name = "manabrew-server"
-version = "0.26.1"
+version = "0.27.0"
 edition = "2021"
 license.workspace = true
 description = "Matchmaking and lobby relay server for manabrew multiplayer"

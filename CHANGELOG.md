@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.34.2](https://github.com/witchesofthehill/manabrew/compare/v3.34.1...v3.34.2) (2026-09-03)
+
+### Fixes
+
+* **telemetry:** label multiplayer forge hosts ([#855](https://github.com/witchesofthehill/manabrew/issues/855)) ([e3de430](https://github.com/witchesofthehill/manabrew/commit/e3de43036e62cf26e8b78333887842cc69ac0ba7))
+
 ## [3.34.1](https://github.com/witchesofthehill/manabrew/compare/v3.34.0...v3.34.1) (2026-09-02)
 
 ## [3.34.0](https://github.com/witchesofthehill/manabrew/compare/v3.33.5...v3.34.0) (2026-09-02)

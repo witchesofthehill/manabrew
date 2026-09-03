@@ -25,6 +25,7 @@
     "gen:types": "cargo xtask gen-types && prettier --write src/protocol src/api/hubTypes.ts src/api/authTypes.ts",
     "gen:protocol-docs": "yarn gen:types && node scripts/gen-protocol-doc-types.mjs",
     "check:docs-drift": "node scripts/check-docs-drift.mjs",
+    "check:tauri-permissions": "node scripts/check-tauri-permissions.mjs",
     "vite:dev": "yarn gen:types && vite",
     "vite:build": "yarn gen:types && tsc -b && vite build",
     "tauri:before-build": "yarn build:harness && yarn vite:build",

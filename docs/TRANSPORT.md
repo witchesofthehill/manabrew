@@ -193,6 +193,42 @@ the docker proxy does exactly that.
 `--stun-only` makes it refuse allocation requests, so it cannot become a data
 path by accident or because somebody else pointed a client at it.
 
+### Measured
+
+Browser to browser, two ordinary home lines on different ISPs, 2026-09-03:
+
+```
+[webrtc] peer=... outcome=connected connect=204ms relayRtt=62ms
+[webrtc] peer=... outcome=connected rtt=16ms pair=srflx/srflx relayRtt=62ms
+```
+
+16ms on the data channel against 62ms through the relay, so the plane is worth
+having: 46ms off every round trip, and a prompt-and-response is a round trip.
+`srflx/srflx` means it hole punched, with STUN alone and no TURN. Connect took
+204ms, which is nothing against the `GameStarted` barrier.
+
+One pair is not a connect rate. What it settles is that the mechanism works and
+the win is real; how often a pair can be punched needs many pairs.
+
+### iCloud Private Relay defeats it
+
+Worth knowing before reading a failure as a NAT problem. With Private Relay on,
+an iOS seat contributes exactly one candidate and no host candidate:
+
+```
+remote: candidate:... 146.75.186.18 21724 typ srflx
+```
+
+That address belongs to Fastly, and on an earlier attempt it was Cloudflare.
+Those are Private Relay's egress providers, and the provider changing between
+attempts is the giveaway: a home ISP does not do that. A proxied reflexive
+address is not a NAT binding the phone can receive punch traffic on, so the one
+pair ICE can form only times out. Turning Private Relay off produced the numbers
+above on the same two networks.
+
+`local=host+srflx remote=srflx` with no remote `host` is the fingerprint. The
+seat falls back to the relay and plays, so this costs nothing but the upgrade.
+
 ### What cellular settles
 
 Measured 2026-09-03, browser at home to iOS Safari on cellular, two networks:
@@ -202,6 +238,10 @@ carried on.
 
 Cellular is behind carrier-grade NAT, which is symmetric, and symmetric NAT
 cannot be punched through with STUN. Firefox says as much: "add a TURN server".
+
+The connect deadline was not the cause, in that run or the Private Relay ones.
+Firefox fails a pair on its own once its 5s trickle grace period elapses with
+every pair failed, well inside any deadline this client sets.
 
 It is not an argument for running one. TURN would carry that seat's traffic
 through a server, which is two hops, which is what the relay already does at a

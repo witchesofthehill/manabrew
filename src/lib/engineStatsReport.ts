@@ -53,15 +53,18 @@ export function forgeHostLabel(onThisMachine: boolean): string {
 }
 
 /**
- * The engine behind a relay room. The "forge" runtime kind is never selectable
- * — a hosted room is driven through the Manabrew runtime like any other — so
- * the room's own engine is the only thing that says Forge ran.
+ * The engine behind a relay room. A local host can name the engine exactly;
+ * other seats only know that Forge runs remotely.
  */
 export function roomEngineLabel(
   engine: EngineKind | null | undefined,
   hostedHere: boolean,
+  platform: "tauri" | "web",
 ): string {
-  if (engine === "Forge") return forgeHostLabel(hostedHere);
+  if (engine === "Forge") {
+    if (!hostedHere) return "forge-remote";
+    return platform === "tauri" ? "forge-desktop" : "forge-wasm";
+  }
   if (engine === "Ironsmith") return "ironsmith";
   return localEngineLabel();
 }

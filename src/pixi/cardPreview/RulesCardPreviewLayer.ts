@@ -20,12 +20,7 @@ import {
   type CardStatusTone,
 } from "@/components/game/cardPresentation";
 import { getPreviewActionShortcut } from "@/components/game/game.utils";
-import {
-  cardFrameTintHex,
-  frameTint,
-  type GameThemeColors,
-  type ManaLetter,
-} from "@/themes/gameTheme";
+import { cardFrameTintHex } from "@/themes/gameTheme";
 import { hexToNum } from "@/pixi/colorUtils";
 import { PixiRichText } from "@/pixi/cardPreview/PixiRichText";
 import { PixiCardRailPreview } from "@/pixi/cardPreview/PixiCardRailPreview";
@@ -118,17 +113,6 @@ function oracleTextStyle(fill: string, italic = false): TextStyle {
   });
 }
 
-function framePalette(
-  colorIdentity: string[] | undefined,
-  mana: GameThemeColors["mana"],
-  fallback: string,
-): string[] {
-  const colors = [...new Set(colorIdentity ?? [])].filter((color): color is ManaLetter =>
-    ["W", "U", "B", "R", "G"].includes(color),
-  );
-  return colors.length > 0 ? colors.map((color) => frameTint(mana[color])) : [fallback];
-}
-
 function normalizeAbilityText(text: string): string {
   return text
     .toLowerCase()
@@ -207,7 +191,6 @@ export class RulesCardPreviewLayer {
   private theme: Theme;
   private callbacks: RulesCardPreviewCallbacks;
   private background = new Graphics();
-  private frame = new Graphics();
   private artBackdrop = new Graphics();
   private artSprite = new Sprite(Texture.EMPTY);
   private artMask = new Graphics();
@@ -275,7 +258,6 @@ export class RulesCardPreviewLayer {
 
     this.container.addChild(
       this.background,
-      this.frame,
       this.artBackdrop,
       this.artSprite,
       this.artMask,
@@ -419,14 +401,7 @@ export class RulesCardPreviewLayer {
       : classLevelUpActions;
     const mainActions = indexedActions.filter(({ action }) => !action.isClassLevelUp);
     const deckCard = asDeckCard(useGameStore.getState().gameDecks[spec.card.ownerId], spec.card);
-    const isLand = spec.card.types.some((type) => type.toLowerCase() === "land");
-    const isArtifact = spec.card.types.some((type) => type.toLowerCase() === "artifact");
-    const baseAccent = cardFrameTintHex(deckCard.colorIdentity, gameTheme.mana);
-    const fallbackAccent =
-      isLand && deckCard.colorIdentity.length === 0 ? frameTint(gameTheme.rarity.land) : baseAccent;
-    const frameColors = framePalette(deckCard.colorIdentity, gameTheme.mana, fallbackAccent);
-    const accent = frameColors[0]!;
-    const rulesTint = isLand ? gameTheme.rarity.land : isArtifact ? gameTheme.mana.C : accent;
+    const accent = cardFrameTintHex(deckCard.colorIdentity, gameTheme.mana);
     const surface = appTheme.popover;
     const raisedSurface = appTheme.muted;
     const foreground = appTheme["popover-foreground"];
@@ -445,7 +420,7 @@ export class RulesCardPreviewLayer {
       this.artHeight,
       ART_RADIUS,
     );
-    this.artBackdrop.fill({ color: hexToNum(gameTheme.canvas.shadow), alpha: 0.88 });
+    this.artBackdrop.fill({ color: hexToNum(appTheme.muted), alpha: 1 });
 
     this.artMask.clear();
     this.artMask.roundRect(
@@ -455,7 +430,7 @@ export class RulesCardPreviewLayer {
       this.artHeight,
       ART_RADIUS,
     );
-    this.artMask.fill(hexToNum(gameTheme.canvas.neutral));
+    this.artMask.fill(hexToNum(appTheme.popover));
     this.fitArt();
 
     const name = new Text({
@@ -489,7 +464,7 @@ export class RulesCardPreviewLayer {
     const typeBandTop = HEADER_HEIGHT + this.artHeight;
     const typeBand = new Graphics();
     typeBand.rect(0, typeBandTop, PANEL_WIDTH, TYPE_HEIGHT);
-    typeBand.fill({ color: hexToNum(raisedSurface), alpha: 0.98 });
+    typeBand.fill({ color: hexToNum(raisedSurface), alpha: 1 });
     this.chrome.addChild(typeBand);
 
     let typeLineX = CONTENT_PAD;
@@ -661,16 +636,12 @@ export class RulesCardPreviewLayer {
 
     this.background.clear();
     this.background.roundRect(0, 0, PANEL_WIDTH, this.panelHeight, PANEL_RADIUS);
-    this.background.fill({ color: hexToNum(surface), alpha: 0.98 });
-
-    this.frame.clear();
-    this.frame.roundRect(0, 0, PANEL_WIDTH, this.panelHeight, PANEL_RADIUS);
-    this.frame.fill({ color: hexToNum(rulesTint), alpha: 0.07 });
+    this.background.fill({ color: hexToNum(surface), alpha: 1 });
 
     this.bodyScroller.hitArea = new Rectangle(0, 0, CONTENT_WIDTH, this.bodyHeight);
     this.bodyMask.clear();
     this.bodyMask.rect(CONTENT_PAD, this.bodyTop, CONTENT_WIDTH, this.bodyHeight);
-    this.bodyMask.fill(hexToNum(appTheme.background));
+    this.bodyMask.fill(hexToNum(appTheme.popover));
 
     this.setScroll(this.scrollOffset);
     this.drawFooter(presentation.stats, presentation.loyalty, presentation.defense);
@@ -723,7 +694,7 @@ export class RulesCardPreviewLayer {
       const height = rich.setContent(
         `${label}${cost ? ` ${cost}` : ""}`.toUpperCase(),
         new TextStyle({
-          fill: this.theme.gameTheme.textOnTinted,
+          fill: this.theme.appTheme["secondary-foreground"],
           fontFamily: "Inter, system-ui, sans-serif",
           fontSize: 10,
           fontWeight: "700",
@@ -745,8 +716,8 @@ export class RulesCardPreviewLayer {
       const background = new Graphics();
       background.roundRect(0, 0, width, badgeHeight, 4);
       background.fill({
-        color: hexToNum(this.theme.gameTheme.canvas.shadow),
-        alpha: 0.75,
+        color: hexToNum(this.theme.appTheme.secondary),
+        alpha: 1,
       });
       rich.position.set(8, 3);
       badge.position.set(x, y);
@@ -924,11 +895,11 @@ export class RulesCardPreviewLayer {
     const background = new Graphics();
     background.roundRect(0, 0, PANEL_WIDTH, this.footerHeight, PANEL_RADIUS);
     background.fill({
-      color: hexToNum(this.theme.appTheme.card),
+      color: hexToNum(this.theme.appTheme.popover),
       alpha: 1,
     });
     background.rect(0, 0, PANEL_WIDTH, PANEL_RADIUS);
-    background.fill({ color: hexToNum(this.theme.appTheme.card), alpha: 1 });
+    background.fill({ color: hexToNum(this.theme.appTheme.popover), alpha: 1 });
     this.footer.addChild(background);
 
     if (stats?.damage) {

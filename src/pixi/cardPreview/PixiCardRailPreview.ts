@@ -73,7 +73,7 @@ export class PixiCardRailPreview extends Container {
     const header = new Container();
     const iconBackground = new Graphics();
     iconBackground.circle(14, 14, 14);
-    iconBackground.fill({ color: hexToNum(appTheme.background), alpha: 0.82 });
+    iconBackground.fill({ color: hexToNum(appTheme.muted), alpha: 1 });
     const icon = new Sprite(Texture.EMPTY);
     icon.position.set(6, 6);
     icon.tint = hexToNum(accent);
@@ -215,8 +215,6 @@ export class PixiCardRailPreview extends Container {
             color: hexToNum(accent),
             alpha: focused ? 0.3 : notch.active ? 0.15 : 0.1,
           });
-        } else {
-          rowBackground.fill({ color: hexToNum(appTheme.popover), alpha: 0.01 });
         }
       };
       drawBackground(false);
@@ -241,6 +239,6 @@ export class PixiCardRailPreview extends Container {
 
     this.contentHeight = y;
     background.roundRect(0, 0, width, this.contentHeight, 9);
-    background.fill({ color: hexToNum(appTheme.popover), alpha: 0.97 });
+    background.fill({ color: hexToNum(appTheme.popover), alpha: 1 });
   }
 }

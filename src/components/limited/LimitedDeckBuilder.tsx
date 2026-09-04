@@ -40,7 +40,6 @@ import {
   BASIC_LAND_NAMES,
   type BasicLandName,
   countManaPips,
-  effectiveRarity,
   groupByName,
   groupByRarity,
   indexPool,
@@ -48,13 +47,12 @@ import {
   type LimitedZone,
   makeBasicLand,
   type PoolEntry,
-  RARITY_LABEL,
   refToDeckCard,
   resolveDeckCards,
-  type UIRarity,
   unusedIndices,
   validateLimitedDeck,
 } from "@/lib/limited.utils";
+import { effectiveRarity, RARITY_LABEL, type UIRarity } from "@/lib/cardRarity";
 import { cn } from "@/lib/utils";
 import type { DraftCard } from "@/types/limited";
 import type { Deck, DeckFormat } from "@/protocol/deck";

@@ -36,15 +36,17 @@ const CONTENT_RIGHT = 10;
 const NODE_X = 26;
 const NODE_Y = 25;
 const NODE_RADIUS = 13.5;
+const ORACLE_FONT = "Cormorant Garamond, Georgia, serif";
 
 function style(
   fill: string,
   fontSize: number,
   fontWeight: "400" | "500" | "600" | "700" = "400",
+  fontFamily = "Inter, system-ui, sans-serif",
 ): TextStyle {
   return new TextStyle({
     fill,
-    fontFamily: "Inter, system-ui, sans-serif",
+    fontFamily,
     fontSize,
     fontWeight,
     lineHeight: fontSize * 1.3,
@@ -154,7 +156,7 @@ export class PixiCardRailPreview extends Container {
         const label = new PixiRichText();
         const labelHeight = label.setContent(
           effect.label,
-          style(foreground, 11, "600"),
+          style(foreground, 13, "600", ORACLE_FONT),
           width - CONTENT_LEFT - CONTENT_RIGHT,
           14,
           2,
@@ -167,7 +169,7 @@ export class PixiCardRailPreview extends Container {
       const effectText = new PixiRichText();
       const effectHeight = effectText.setContent(
         effect?.text || "Effect text unavailable",
-        style(notch.reached || interaction ? foreground : muted, 11, "400"),
+        style(notch.reached || interaction ? foreground : muted, 13, "600", ORACLE_FONT),
         width - CONTENT_LEFT - CONTENT_RIGHT,
         14,
         2,

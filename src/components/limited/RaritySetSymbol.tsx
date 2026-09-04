@@ -1,7 +1,7 @@
 import { useSetLookup } from "@/stores/useScryfallStore";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
-import { rarityToken, type UIRarity } from "@/lib/limited.utils";
+import { rarityToken, type UIRarity } from "@/lib/cardRarity";
 
 interface RaritySetSymbolProps {
   rarity: UIRarity;

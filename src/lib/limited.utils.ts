@@ -5,6 +5,7 @@ import type { Deck, DeckCard } from "@/protocol/deck";
 import type { ScryfallCard } from "@/types/scryfall";
 import { frontFaceName, parseTypeLine } from "@/lib/scryfall.utils";
 import { cardKey, peekCard, useCard, useScryfallStore } from "@/stores/useScryfallStore";
+import { effectiveRarity, RARITY_ORDER, type UIRarity } from "@/lib/cardRarity";
 
 export type LimitedZone = "pool" | "main" | "sideboard";
 
@@ -13,81 +14,12 @@ export interface PoolEntry {
   card: DraftCard;
 }
 
-export type UIRarity =
-  | "common"
-  | "uncommon"
-  | "rare"
-  | "mythic"
-  | "special"
-  | "land"
-  | "token"
-  | "unknown";
-
-export const RARITY_ORDER: Record<UIRarity, number> = {
-  mythic: 0,
-  rare: 1,
-  uncommon: 2,
-  common: 3,
-  special: 4,
-  land: 5,
-  token: 6,
-  unknown: 7,
-};
-
-export const RARITY_LABEL: Record<UIRarity, string> = {
-  mythic: "Mythic",
-  rare: "Rare",
-  uncommon: "Uncommon",
-  common: "Common",
-  special: "Special",
-  land: "Land",
-  token: "Token",
-  unknown: "Other",
-};
-
 export function manaPipPattern(letter: string): RegExp {
   return new RegExp(`\\{[^}]*${letter}[^}]*\\}`, "g");
 }
 
 export function countManaPips(cost: string, letter: string): number {
   return cost.match(manaPipPattern(letter))?.length ?? 0;
-}
-
-export type RarityToken = keyof import("@/themes/gameTheme").GameThemeColors["rarity"];
-
-const RARITY_TOKEN: Partial<Record<UIRarity, RarityToken>> = {
-  common: "common",
-  uncommon: "uncommon",
-  rare: "rare",
-  mythic: "mythic",
-  special: "special",
-  land: "land",
-};
-
-export function rarityToken(rarity: UIRarity): RarityToken | null {
-  return RARITY_TOKEN[rarity] ?? null;
-}
-
-export function effectiveRarity(card: ScryfallCard | null | undefined): UIRarity {
-  if (!card) return "unknown";
-  const typeLine = card.type_line ?? "";
-  if (/\bToken\b/i.test(typeLine)) return "token";
-  if (/\bBasic\b.*\bLand\b/i.test(typeLine)) return "land";
-  switch (card.rarity) {
-    case "common":
-      return "common";
-    case "uncommon":
-      return "uncommon";
-    case "rare":
-      return "rare";
-    case "mythic":
-      return "mythic";
-    case "special":
-    case "bonus":
-      return "special";
-    default:
-      return "unknown";
-  }
 }
 
 export function deckCardToDraftCard(card: DeckCard): DraftCard {

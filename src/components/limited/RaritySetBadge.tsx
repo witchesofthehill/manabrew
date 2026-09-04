@@ -1,5 +1,5 @@
 import { useCard, useSetLookup } from "@/stores/useScryfallStore";
-import { effectiveRarity, RARITY_LABEL, rarityToken } from "@/lib/limited.utils";
+import { effectiveRarity, RARITY_LABEL, rarityToken } from "@/lib/cardRarity";
 import { RaritySetSymbol } from "@/components/limited/RaritySetSymbol";
 import type { DraftCard } from "@/types/limited";
 

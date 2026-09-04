@@ -60,14 +60,17 @@ export interface CardPresentation {
   counters: CardCounterPresentation[];
   stats: CardStatPresentation | null;
   loyalty: number | null;
+  defense: number | null;
   costs: CardCostPresentation[];
   progression: CardProgressionPresentation | null;
 }
+const LOYALTY_COUNTER_TYPE = "Loyalty";
+const DEFENSE_COUNTER_TYPE = "DEFENSE";
 
 const COUNTER_COLOR_KEYS: Record<string, keyof GameThemeColors["counter"]> = {
   P1P1: "p1p1",
   M1M1: "m1m1",
-  Loyalty: "loyalty",
+  [LOYALTY_COUNTER_TYPE]: "loyalty",
   Charge: "charge",
   Quest: "quest",
   Study: "study",
@@ -85,7 +88,7 @@ const COUNTER_COLOR_KEYS: Record<string, keyof GameThemeColors["counter"]> = {
 };
 
 const COUNTER_ICON_NAMES: Record<string, string> = {
-  Loyalty: "vibrating-shield",
+  [LOYALTY_COUNTER_TYPE]: "vibrating-shield",
   Charge: "lightning-trio",
   Quest: "scroll-quill",
   Study: "book-aura",
@@ -181,9 +184,10 @@ function deriveCosts(card: CardDto): CardCostPresentation[] {
 
 export function deriveCardPresentation(card: CardDto): CardPresentation {
   const rail = deriveCardRailState(card);
-  const loyalty = card.types.some((type) => type.toLowerCase() === "planeswalker")
-    ? (card.counters.Loyalty ?? null)
-    : null;
+  const isPlaneswalker = card.types.some((type) => type.toLowerCase() === "planeswalker");
+  const isBattle = card.types.some((type) => type.toLowerCase() === "battle");
+  const loyalty = isPlaneswalker ? (card.counters[LOYALTY_COUNTER_TYPE] ?? null) : null;
+  const defense = isBattle ? (card.counters[DEFENSE_COUNTER_TYPE] ?? null) : null;
 
   return {
     name: card.identity.name,
@@ -194,7 +198,12 @@ export function deriveCardPresentation(card: CardDto): CardPresentation {
     keywords: card.keywords,
     statuses: deriveStatuses(card),
     counters: Object.entries(card.counters)
-      .filter(([, count]) => count > 0)
+      .filter(
+        ([type, count]) =>
+          count > 0 &&
+          !(isPlaneswalker && type === LOYALTY_COUNTER_TYPE) &&
+          !(isBattle && type === DEFENSE_COUNTER_TYPE),
+      )
       .map(([type, count]) => ({
         type,
         count,
@@ -203,6 +212,7 @@ export function deriveCardPresentation(card: CardDto): CardPresentation {
       })),
     stats: deriveStats(card),
     loyalty,
+    defense,
     costs: deriveCosts(card),
     progression: rail ? { rail, effects: deriveCardRailEffects(card, rail) } : null,
   };

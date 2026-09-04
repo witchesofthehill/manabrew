@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.34.5](https://github.com/witchesofthehill/manabrew/compare/v3.34.4...v3.34.5) (2026-09-04)
+
+### Fixes
+
+* **web:** route unsupported forge wasm browsers to hosted nodes ([#860](https://github.com/witchesofthehill/manabrew/issues/860)) ([29c34d2](https://github.com/witchesofthehill/manabrew/commit/29c34d2341467cc6e46cbc68ca33e18c16ae6485))
+
 ## [3.34.4](https://github.com/witchesofthehill/manabrew/compare/v3.34.3...v3.34.4) (2026-09-03)
 
 ### Fixes

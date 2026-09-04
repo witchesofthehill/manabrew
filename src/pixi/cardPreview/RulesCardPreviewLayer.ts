@@ -91,7 +91,6 @@ const CONTENT_WIDTH = PANEL_WIDTH - CONTENT_PAD * 2;
 const PANEL_RADIUS = 13;
 const ART_INSET = 8;
 const ART_RADIUS = 8;
-const FRAME_WIDTH = 4;
 const ORACLE_FONT = "Cormorant Garamond, Georgia, serif";
 const ENTRY_INTERACTION_PAD_MS = 80;
 
@@ -665,23 +664,8 @@ export class RulesCardPreviewLayer {
     this.background.fill({ color: hexToNum(surface), alpha: 0.98 });
 
     this.frame.clear();
-    this.frame.roundRect(
-      FRAME_WIDTH,
-      FRAME_WIDTH,
-      PANEL_WIDTH - FRAME_WIDTH * 2,
-      this.panelHeight - FRAME_WIDTH * 2,
-      PANEL_RADIUS - FRAME_WIDTH,
-    );
-    this.frame.stroke({ color: hexToNum(accent), width: FRAME_WIDTH, alpha: 0.72 });
-    this.frame.rect(FRAME_WIDTH, FRAME_WIDTH, PANEL_WIDTH - FRAME_WIDTH * 2, HEADER_HEIGHT);
-    this.frame.fill({ color: hexToNum(accent), alpha: 0.13 });
-    this.frame.rect(FRAME_WIDTH, this.bodyTop, PANEL_WIDTH - FRAME_WIDTH * 2, this.bodyHeight);
-    this.frame.fill({ color: hexToNum(rulesTint), alpha: 0.1 });
-    const railWidth = (PANEL_WIDTH - PANEL_RADIUS * 2) / frameColors.length;
-    frameColors.forEach((color, index) => {
-      this.frame.rect(PANEL_RADIUS + railWidth * index, 1, railWidth + 0.5, FRAME_WIDTH);
-      this.frame.fill({ color: hexToNum(color), alpha: 1 });
-    });
+    this.frame.roundRect(0, 0, PANEL_WIDTH, this.panelHeight, PANEL_RADIUS);
+    this.frame.fill({ color: hexToNum(rulesTint), alpha: 0.07 });
 
     this.bodyScroller.hitArea = new Rectangle(0, 0, CONTENT_WIDTH, this.bodyHeight);
     this.bodyMask.clear();
@@ -905,11 +889,8 @@ export class RulesCardPreviewLayer {
         background.roundRect(0, 0, CONTENT_WIDTH, height, 9);
         background.fill({
           color: hexToNum(focused ? ring : this.theme.appTheme.muted),
-          alpha: focused ? 0.24 : 0.5,
+          alpha: focused ? 0.34 : 0.5,
         });
-        if (focused) {
-          background.stroke({ color: hexToNum(ring), width: 1.5, alpha: 1 });
-        }
       };
       setFocused(false);
       this.bodyContent.addChild(row);
@@ -941,11 +922,13 @@ export class RulesCardPreviewLayer {
     const top = this.panelHeight - this.footerHeight;
     this.footer.position.set(0, top);
     const background = new Graphics();
-    background.rect(0, 0, PANEL_WIDTH, this.footerHeight);
+    background.roundRect(0, 0, PANEL_WIDTH, this.footerHeight, PANEL_RADIUS);
     background.fill({
       color: hexToNum(this.theme.appTheme.card),
       alpha: 1,
     });
+    background.rect(0, 0, PANEL_WIDTH, PANEL_RADIUS);
+    background.fill({ color: hexToNum(this.theme.appTheme.card), alpha: 1 });
     this.footer.addChild(background);
 
     if (stats?.damage) {

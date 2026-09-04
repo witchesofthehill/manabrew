@@ -190,13 +190,8 @@ export class PixiCardRailPreview extends Container {
       const node = new Graphics();
       node.circle(NODE_X, NODE_Y, NODE_RADIUS);
       node.fill({
-        color: hexToNum(notch.active ? accent : appTheme.background),
-        alpha: notch.active ? 1 : 0.94,
-      });
-      node.stroke({
-        color: hexToNum(notch.active || notch.reached || interaction ? accent : appTheme.border),
-        width: notch.active ? 2 : 1,
-        alpha: 1,
+        color: hexToNum(notch.active || notch.reached || interaction ? accent : appTheme.muted),
+        alpha: notch.active ? 1 : notch.reached ? 0.34 : interaction ? 0.22 : 0.82,
       });
       const nodeLabel = new Text({
         text: notch.label,
@@ -218,13 +213,10 @@ export class PixiCardRailPreview extends Container {
         if (focused || interaction || notch.active) {
           rowBackground.fill({
             color: hexToNum(accent),
-            alpha: focused ? 0.22 : notch.active ? 0.15 : 0.1,
+            alpha: focused ? 0.3 : notch.active ? 0.15 : 0.1,
           });
         } else {
           rowBackground.fill({ color: hexToNum(appTheme.popover), alpha: 0.01 });
-        }
-        if (focused) {
-          rowBackground.stroke({ color: hexToNum(accent), width: 1.5, alpha: 0.9 });
         }
       };
       drawBackground(false);

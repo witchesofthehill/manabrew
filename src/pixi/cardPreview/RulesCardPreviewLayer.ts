@@ -78,7 +78,7 @@ const PANEL_HEIGHT = PANEL_WIDTH * (7 / 5);
 const EDGE_PAD = 12;
 const PANEL_GAP = 18;
 const HEADER_HEIGHT = 52;
-const ART_HEIGHT = 166;
+const ART_HEIGHT = 184;
 const TYPE_HEIGHT = 32;
 const FOOTER_HEIGHT = 44;
 const CONTENT_PAD = 14;
@@ -1190,8 +1190,8 @@ export class RulesCardPreviewLayer {
     const frameAspect = width / height;
     this.artSprite.anchor.set(0.5);
     this.artSprite.position.set(ART_INSET + width / 2, HEADER_HEIGHT + height / 2);
-    if (imageAspect > frameAspect) this.artSprite.setSize(height * imageAspect, height);
-    else this.artSprite.setSize(width, width / imageAspect);
+    if (imageAspect > frameAspect) this.artSprite.setSize(width, width / imageAspect);
+    else this.artSprite.setSize(height * imageAspect, height);
   }
 
   private hide(): void {

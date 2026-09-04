@@ -12,6 +12,7 @@ import type { HandOrderMode } from "@/lib/handOrder";
 export type ZonePanelItem = "library" | "graveyard" | "exile";
 export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
 export type BattlefieldCardStyle = "realistic" | "art" | "frame";
+export type InGameCardPreviewStyle = "printed" | "rules";
 
 export interface LastRoomSetup {
   kind: "match" | "limited";
@@ -102,6 +103,8 @@ interface PreferencesState {
 
   cardHoverDelayMs: number;
   setCardHoverDelayMs: (ms: number) => void;
+  inGameCardPreviewStyle: InGameCardPreviewStyle;
+  setInGameCardPreviewStyle: (style: InGameCardPreviewStyle) => void;
 
   appThemeColorOverrides: Record<string, string>;
   setAppThemeColorOverride: (key: string, hsl: string) => void;
@@ -147,6 +150,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "hideAccountSaveNudge",
   "cardPreviewMode",
   "cardHoverDelayMs",
+  "inGameCardPreviewStyle",
   "appThemeColorOverrides",
   "gameThemeColorOverrides",
   "lastPlayedDeckId",
@@ -262,6 +266,8 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           cardHoverDelayMs: 350,
           setCardHoverDelayMs: (ms) => set({ cardHoverDelayMs: ms }),
+          inGameCardPreviewStyle: "printed",
+          setInGameCardPreviewStyle: (inGameCardPreviewStyle) => set({ inGameCardPreviewStyle }),
 
           appThemeColorOverrides: {},
           setAppThemeColorOverride: (key, hsl) =>

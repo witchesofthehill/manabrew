@@ -12,6 +12,7 @@ import {
 } from "pixi.js";
 import type { CardDto } from "@/protocol/game";
 import { deriveCardRailState, type CardRailState } from "@/components/game/cardRailState";
+import { cardTypeLine, counterColorKey, counterIconName } from "@/components/game/cardPresentation";
 import { CARD_W, CARD_H, CARD_RADIUS, CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import type { Theme } from "@/hooks/useTheme";
@@ -186,12 +187,6 @@ const BADGE_TITLE_BAND_FRAC = 0.1;
 
 const MAX_VISIBLE_COUNTERS = 4;
 
-function frameTypeLine(card: CardDto): string {
-  const left = [...(card.supertypes ?? []), ...(card.types ?? [])].join(" ");
-  const subtypes = card.subtypes ?? [];
-  return subtypes.length > 0 ? `${left} - ${subtypes.join(" ")}` : left;
-}
-
 type CardStatusKey = keyof Theme["gameTheme"]["cardStatus"];
 
 interface BadgeRule {
@@ -216,47 +211,9 @@ function badgeColor(key: CardStatusKey): number {
   return hexToNum(activeTheme.gameTheme.cardStatus[key]);
 }
 
-const COUNTER_TYPE_KEYS: Record<string, keyof Theme["gameTheme"]["counter"]> = {
-  P1P1: "p1p1",
-  M1M1: "m1m1",
-  Loyalty: "loyalty",
-  Charge: "charge",
-  Quest: "quest",
-  Study: "study",
-  Lore: "lore",
-  Age: "age",
-  Time: "time",
-  Fade: "fade",
-  Level: "level",
-  Storage: "storage",
-  Mining: "mining",
-  Brick: "brick",
-  Depletion: "depletion",
-  Page: "page",
-};
-
 function getCounterColor(type: string): number {
-  const palette = activeTheme.gameTheme.counter;
-  const key = COUNTER_TYPE_KEYS[type];
-  return hexToNum(key ? palette[key] : palette.default);
+  return hexToNum(activeTheme.gameTheme.counter[counterColorKey(type)]);
 }
-
-const COUNTER_ICON_NAMES: Record<string, string> = {
-  Loyalty: "vibrating-shield",
-  Charge: "lightning-trio",
-  Quest: "scroll-quill",
-  Study: "book-aura",
-  Lore: "spell-book",
-  Age: "hourglass",
-  Time: "stopwatch",
-  Fade: "ghost",
-  Level: "rank-3",
-  Storage: "stack",
-  Mining: "mining",
-  Brick: "brick-wall",
-  Depletion: "battery-pack-alt",
-  Page: "scroll-unfurled",
-};
 
 const parseStat = (value: string | null | undefined): number => {
   if (!value) return 0;
@@ -747,7 +704,7 @@ export class CardSprite extends Container {
 
     this.frameGfx.clear();
     this.frameNameText.text = this.card.identity.name;
-    this.frameTypeText.text = frameTypeLine(this.card);
+    this.frameTypeText.text = cardTypeLine(this.card);
 
     const pad = 3;
     this.frameTypeBandH = 0;
@@ -1402,7 +1359,7 @@ export class CardSprite extends Container {
     let offsetX = 3;
     for (const [type, count] of entries) {
       const color = getCounterColor(type);
-      const iconName = COUNTER_ICON_NAMES[type];
+      const iconName = counterIconName(type);
       const textLabel = type.slice(0, 3);
 
       const badge = new Container();

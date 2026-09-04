@@ -34,6 +34,7 @@ import { useCastingState } from "@/hooks/useCastingState";
 import { useResolveSourceCard } from "@/components/prompts/internal/usePromptSourceCard";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { BoardCanvasLayout } from "@/pixi/BoardCanvas";
+import type { BoardOverlayPreviewSpec } from "@/pixi/BoardOverlayCanvas";
 import { buildArrowSpecs } from "@/components/game/arrowSpecs";
 import { getDisplayedManaAbilities } from "@/components/game/manaUtils";
 import { PlayModePicker } from "@/components/game/PlayModePicker";
@@ -77,6 +78,7 @@ import { Card } from "@/components/game/Card";
 import { cn } from "@/lib/utils";
 import { applyManualTabletopAction, getSelectedGameRuntime } from "@/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
+import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 
 const HOVER_ALLOWED_PROMPTS = new Set<PromptType>([
@@ -133,6 +135,26 @@ function buildDebugKeywordCard(
     basePower: numericPrintedStat(definition?.power),
     baseToughness: numericPrintedStat(definition?.toughness),
   };
+  const printedRail = definition ? parsePrintedCardRailMetadata(definition) : null;
+  if (railEnabled && mode === "saga" && printedRail?.kind === "saga") {
+    return {
+      ...base,
+      counters: {
+        ...base.counters,
+        Lore: Math.max(0, Math.min(printedRail.finalChapter, current)),
+      },
+      finalChapter: printedRail.finalChapter,
+      sagaChapters: printedRail.sagaChapters,
+    };
+  }
+  if (railEnabled && mode === "class" && printedRail?.kind === "class") {
+    const finalLevel = Math.max(...printedRail.classLevels.map((level) => level.level));
+    return {
+      ...base,
+      classLevel: Math.max(1, Math.min(finalLevel, current)),
+      classLevels: printedRail.classLevels,
+    };
+  }
   if (!railEnabled) return base;
 
   if (mode === "saga") {
@@ -228,6 +250,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
   const flashDurationMs = usePreferencesStore((s) => s.flashDurationMs);
   const zonePanelOrder = usePreferencesStore((s) => s.zonePanelOrder);
+  const inGameCardPreviewStyle = usePreferencesStore((s) => s.inGameCardPreviewStyle);
   const vScale = useHandScale();
   const themeColors = useTheme().gameTheme;
   const location = useLocation();
@@ -1741,6 +1764,28 @@ export default function Game({ exitTo }: GameProps = {}) {
     showPreStackFlash: shouldShowPreStackFlash,
     collapsed: stackCollapsed,
   };
+  const showInGamePreview =
+    preview.hoveredCard != null &&
+    preview.hoveredCard.zoneId !== "hand" &&
+    !draggingHandCard &&
+    !viewingZone &&
+    !spellStackModalOpen &&
+    !abilityPickerState &&
+    preview.phase !== "hidden";
+  const previewSuppressed = !!promptType && !HOVER_ALLOWED_PROMPTS.has(promptType);
+  const rulesPreview: BoardOverlayPreviewSpec | null =
+    inGameCardPreviewStyle === "rules" && showInGamePreview && preview.hoveredCard
+      ? {
+          card: preview.hoveredCard,
+          phase: preview.phase === "closing" ? "closing" : "open",
+          sticky: preview.isSticky,
+          showBackFace: preview.showBackFace,
+          suppressed: previewSuppressed,
+          actions: hoveredCardActions,
+          mousePos: preview.mousePos,
+          anchorRect: preview.anchorRect,
+        }
+      : null;
 
   return (
     <div
@@ -1823,6 +1868,9 @@ export default function Game({ exitTo }: GameProps = {}) {
           onHandCardDragStart={handleHandCardDragStart}
           onHoverCard={handleHoverCardGuarded}
           onDismissHoverPreview={preview.dismiss}
+          rulesPreview={rulesPreview}
+          onPreviewPointerEnter={preview.onMouseEnterPreview}
+          onPreviewPointerLeave={preview.onMouseLeavePreview}
           onLongPressCard={(card, rect) =>
             preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2)
           }
@@ -2181,19 +2229,14 @@ export default function Game({ exitTo }: GameProps = {}) {
           document.body,
         )}
 
-      {preview.hoveredCard &&
-        preview.hoveredCard.zoneId !== "hand" &&
-        !draggingHandCard &&
-        !viewingZone &&
-        !spellStackModalOpen &&
-        !abilityPickerState && (
-          <HoverCardPreview
-            preview={preview}
-            actions={hoveredCardActions}
-            onSelectAction={handlePreviewAction}
-            suppressed={!!promptType && !HOVER_ALLOWED_PROMPTS.has(promptType)}
-          />
-        )}
+      {inGameCardPreviewStyle === "printed" && showInGamePreview && (
+        <HoverCardPreview
+          preview={preview}
+          actions={hoveredCardActions}
+          onSelectAction={handlePreviewAction}
+          suppressed={previewSuppressed}
+        />
+      )}
 
       {interruption.waiting && (
         <WaitingForPlayerScreen

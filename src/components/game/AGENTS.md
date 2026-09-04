@@ -90,15 +90,16 @@ Use the standard size constants. Don't invent pixel values.
 | `MULLIGAN_CARD_SIZE` | `w-[160px] h-[222px]` — cards inside mulligan modals                                                                                        |
 | `FLASH_CARD_SIZE`    | `{ w: 310, h: 434 }` (numeric — for Pixi-rendered preview, not a Tailwind class)                                                            |
 
-## Card rendering — keep the three renderers in sync
+## Card rendering — keep the four renderers in sync
 
-A card's look is produced by **three independent renderers**. They share no draw code, so any visual change must be applied to all three (or consciously skipped with a note):
+A card's look is produced by four renderers. `components/game/cardPresentation.ts` is the shared semantic model for type lines, counters, state, costs, progression, and stats; drawing remains renderer-specific.
 
-| Renderer                              | Tech | Where it shows                                                                                      |
-| ------------------------------------- | ---- | --------------------------------------------------------------------------------------------------- |
-| `@/pixi/CardSprite`                   | PIXI | In-game battlefield + hand (the real game)                                                          |
-| `components/game/BattlefieldCardFace` | DOM  | Custom battlefield styles (art-forward / mini-frame) — settings preview, dev gallery (`/card-mock`) |
-| `components/game/CardPreview`         | DOM  | Hover preview popup (and deck-editor hover)                                                         |
+| Renderer                                      | Tech | Where it shows                                                                                      |
+| --------------------------------------------- | ---- | --------------------------------------------------------------------------------------------------- |
+| `@/pixi/CardSprite`                           | PIXI | In-game battlefield + hand (the real game)                                                          |
+| `components/game/BattlefieldCardFace`         | DOM  | Custom battlefield styles (art-forward / mini-frame) — settings preview, dev gallery (`/card-mock`) |
+| `components/game/CardPreview`                 | DOM  | Printed-card hover preview in-game and across deck/editor surfaces                                  |
+| `@/pixi/cardPreview/RulesCardPreviewLayer.ts` | PIXI | Opt-in in-game rules preview over the board and stack                                               |
 
 **Rule:** when you add, restyle, or remove a card visual — counters, damage wash, summoning-sickness, P/T coloring, frame tint/bars, keyword chips, mana pips, foil, badges, etc. — change **every** renderer that should show it, in the same commit. A change that lands in only one drifts the others (this has bitten us repeatedly: FPS-style regressions, counter display, damage-wash corners, summoning sickness).
 
@@ -110,13 +111,14 @@ A card's look is produced by **three independent renderers**. They share no draw
 
 ## Card preview (hover / sticky)
 
-One preview system serves the whole app (game, deck editor, limited, modals), in three layers:
+One preview state machine serves the whole app. The game chooses a persisted printed-card or Pixi rules renderer; deck, editor, limited, and modal surfaces keep the DOM renderer.
 
-| Layer    | File                                                                                                                      | Role                                                                                                                                                                                                                                                        |
-| -------- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Machine  | `lib/cardPreview.ts` (`CardPreviewMachine`)                                                                               | Sole owner of preview state + every timer. **All timing knobs are `PREVIEW_TIMING` in that file** (warm/cold show delay, leave grace, enter/exit animation, battlefield hover-out hold); the cold show delay is the user's "Card Preview Delay" preference. |
-| Hook     | `hooks/useCardPreview.ts`                                                                                                 | Thin React binding (`useSyncExternalStore`, stable callbacks). Applies the modifier-mode / hover-delay preferences as input filtering.                                                                                                                      |
-| Renderer | `components/game/HoverCardPreview` → `CardPreview` (+ `CardPreviewOverlay`, `CardPreviewActions`, `cardPreviewLayout.ts`) | Dumb presentation. Placement math is the pure `computePreviewLayout`. `CardPreviewRail` is the reusable pinned presentation shell; it owns its portal slot, collapse and resize behavior, and accepts optional consumer-specific details.                   |
+| Layer         | File                                                                                                                      | Role                                                                                                                                                                                                                                                        |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Machine       | `lib/cardPreview.ts` (`CardPreviewMachine`)                                                                               | Sole owner of preview state + every timer. **All timing knobs are `PREVIEW_TIMING` in that file** (warm/cold show delay, leave grace, enter/exit animation, battlefield hover-out hold); the cold show delay is the user's "Card Preview Delay" preference. |
+| Hook          | `hooks/useCardPreview.ts`                                                                                                 | Thin React binding (`useSyncExternalStore`, stable callbacks). Applies the modifier-mode / hover-delay preferences as input filtering.                                                                                                                      |
+| DOM renderer  | `components/game/HoverCardPreview` → `CardPreview` (+ `CardPreviewOverlay`, `CardPreviewActions`, `cardPreviewLayout.ts`) | Printed-card presentation. Placement math is the pure `computePreviewLayout`. `CardPreviewRail` owns its portal slot, collapse and resize behavior, and accepts optional consumer-specific details.                                                         |
+| Pixi renderer | `pixi/BoardOverlayCanvas` → `pixi/cardPreview/RulesCardPreviewLayer.ts` (+ `PixiCardRailPreview.ts`)                      | In-game rules presentation. The overlay owns preview/stack hit routing, outside-tap dismissal, keyboard action focus/activation, and touch scrolling; the rail mirrors `CardRailPreview` from the shared `cardRailState` model.                             |
 
 Rules — these encode fixed bugs, keep them:
 

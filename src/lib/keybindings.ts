@@ -198,6 +198,30 @@ export const KEYBINDINGS: KeybindingDef[] = [
     defaultCombo: { key: "f" },
   },
   {
+    id: "preview-prev-action",
+    label: "Previous preview action",
+    category: "Game",
+    defaultCombo: { key: "arrowup" },
+  },
+  {
+    id: "preview-next-action",
+    label: "Next preview action",
+    category: "Game",
+    defaultCombo: { key: "arrowdown" },
+  },
+  {
+    id: "preview-activate-action",
+    label: "Activate focused preview action",
+    category: "Game",
+    defaultCombo: { key: "enter" },
+  },
+  {
+    id: "preview-dismiss",
+    label: "Close card preview",
+    category: "Game",
+    defaultCombo: { key: "escape" },
+  },
+  {
     id: "pass-priority",
     label: "Pass priority / confirm",
     category: "Battlefield",

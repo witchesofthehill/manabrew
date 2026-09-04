@@ -14,6 +14,7 @@ import { ScryfallImg } from "@/components/ScryfallImg";
 import { CounterDisplay } from "@/components/game/CounterBadge";
 import { CardRail, CARD_RAIL_WIDTH } from "@/components/game/CardRail";
 import { deriveCardRailState } from "@/components/game/cardRailState";
+import { cardTypeLine } from "@/components/game/cardPresentation";
 import { isCreature, isLethalDamage } from "@/components/game/game.utils";
 import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
 
@@ -93,9 +94,7 @@ export function BattlefieldCardFace({
     ? `calc(${pad}px + var(--card-rail-width) + ${0.35 * u}px)`
     : `${pad}px`;
 
-  const typeLine =
-    [...card.supertypes, ...card.types].join(" ") +
-    (card.subtypes.length > 0 ? ` - ${card.subtypes.join(" ")}` : "");
+  const typeLine = cardTypeLine(card);
   const { shown: keywords, hidden: hiddenKeywords } = battlefieldKeywords(card.keywords);
 
   // P1P1 / M1M1 are dropped here: the net buff/debuff shows in the P/T color.

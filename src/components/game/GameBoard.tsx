@@ -8,7 +8,7 @@ import { stripUsernameTag } from "@/lib/username";
 import { nextHandOrderMode } from "@/lib/handOrder";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
-import { BoardOverlayCanvas } from "@/pixi/BoardOverlayCanvas";
+import { BoardOverlayCanvas, type BoardOverlayPreviewSpec } from "@/pixi/BoardOverlayCanvas";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import type { CombatRow } from "@/components/game/combatRows";
 import type { BoardScene } from "@/pixi/board/BoardScene";
@@ -107,6 +107,9 @@ interface GameBoardProps {
     options?: { useAnchor?: boolean; placement?: "auto" | "top-center"; anchorOverride?: DOMRect },
   ) => void;
   onDismissHoverPreview?: () => void;
+  rulesPreview?: BoardOverlayPreviewSpec | null;
+  onPreviewPointerEnter?: () => void;
+  onPreviewPointerLeave?: () => void;
   onLongPressCard?: (card: CardDto, anchor: DOMRect) => void;
   onHandHoverChange?: (hovering: boolean) => void;
   getHandActions?: (card: CardDto) => HandActionOption[];
@@ -203,6 +206,9 @@ export function GameBoard({
   onHandCardDragStart,
   onHoverCard,
   onDismissHoverPreview,
+  rulesPreview,
+  onPreviewPointerEnter,
+  onPreviewPointerLeave,
   onLongPressCard,
   onHandHoverChange,
   getHandActions,
@@ -1431,6 +1437,12 @@ export function GameBoard({
           onTargetSpell={onTargetSpell}
           onHoverStack={onHoverStack}
           onToggleStack={onToggleStack}
+          previewSpec={rulesPreview}
+          onPreviewPointerEnter={onPreviewPointerEnter}
+          onPreviewPointerLeave={onPreviewPointerLeave}
+          onSelectPreviewAction={onSelectHandAction}
+          onDismissPreview={onDismissHoverPreview}
+          onFlipPreview={onFlipCard}
         />
       </div>
       {sheetSpec && <PlayerSheetModal spec={sheetSpec} onClose={() => setSheetPlayerId(null)} />}

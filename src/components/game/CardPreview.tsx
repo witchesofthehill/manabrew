@@ -27,6 +27,7 @@ import { ScryfallImg } from "@/components/ScryfallImg";
 import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { deriveCardRailEffects, deriveCardRailState } from "@/components/game/cardRailState";
+import { cardTypeLine } from "@/components/game/cardPresentation";
 
 interface CardPreviewProps {
   card: CardDto;
@@ -488,7 +489,7 @@ export function CardPreview({
                       ))}
                   </div>
                   {!hasDoubleFace && (
-                    <div className="text-xs text-muted-foreground">{card.types?.join(" ")}</div>
+                    <div className="text-xs text-muted-foreground">{cardTypeLine(card)}</div>
                   )}
                   <div className="flex-1 text-xs text-foreground/80 whitespace-pre-wrap">
                     {hasDoubleFace && showBackFace

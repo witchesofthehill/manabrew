@@ -10,6 +10,7 @@ import { isFeatureEnabled } from "@/featureFlags";
 import { IRONSMITH_WASM_AVAILABLE } from "@/game/ironsmithWasmAvailable";
 import { relayUsername } from "@/lib/relayUsername";
 import { BattlefieldStylePreview } from "@/components/game/BattlefieldStylePreview";
+import { IN_GAME_CARD_PREVIEW_STYLE_OPTIONS } from "@/components/game/cardPreviewStyles";
 import {
   HOVER_DELAY_MAX,
   HOVER_DELAY_MIN,
@@ -1049,6 +1050,24 @@ export default function Settings() {
                 </div>
               </PreferenceCard>
             )}
+
+            <PreferenceCard
+              title="Card Preview Style"
+              description="Printed card shows the full card image. Rules view prioritizes live game state, rules text, actions, costs, and counters during a game."
+            >
+              <div className="flex flex-wrap gap-2">
+                {IN_GAME_CARD_PREVIEW_STYLE_OPTIONS.map((option) => (
+                  <Button
+                    key={option.value}
+                    variant={prefs.inGameCardPreviewStyle === option.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => prefs.setInGameCardPreviewStyle(option.value)}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+            </PreferenceCard>
 
             <PreferenceCard
               title="Card Preview Trigger"

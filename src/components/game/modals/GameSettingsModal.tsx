@@ -13,6 +13,7 @@ import {
   HOVER_DELAY_STEP,
 } from "@/components/game/game.constants";
 import { BATTLEFIELD_CARD_STYLE_OPTIONS } from "@/components/game/battlefieldCardStyles";
+import { IN_GAME_CARD_PREVIEW_STYLE_OPTIONS } from "@/components/game/cardPreviewStyles";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { HAND_ORDER_OPTIONS } from "@/lib/handOrder";
 
@@ -213,6 +214,24 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
             >
               Off
             </Button>
+          </div>
+        </SettingRow>
+
+        <SettingRow
+          label="Card preview style"
+          hint="Printed card shows the full card image. Rules view prioritizes live game state, rules text, actions, costs, and counters."
+        >
+          <div className="flex items-center gap-2">
+            {IN_GAME_CARD_PREVIEW_STYLE_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                variant={prefs.inGameCardPreviewStyle === option.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => prefs.setInGameCardPreviewStyle(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
           </div>
         </SettingRow>
 

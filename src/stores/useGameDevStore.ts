@@ -3,6 +3,7 @@ import { devtools } from "zustand/middleware";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import type { ArrowType } from "@/pixi/types";
+import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
 
 export const DEBUG_KEYWORD_CARD_ID = "dev-keyword-card";
 export const DEFAULT_DEBUG_CARD_NAME = "Raging Goblin";
@@ -276,7 +277,24 @@ export const useGameDevStore = create<GameDevState>()(
         }),
       clearDebugBattlefieldKeywords: () => set({ debugBattlefieldKeywords: [] }),
       setDebugCardEnabled: (value) => set({ debugCardEnabled: value }),
-      setDebugCard: (card) => set({ debugCardName: card.identity.name, debugCardDefinition: card }),
+      setDebugCard: (card) =>
+        set((state) => {
+          const rail = parsePrintedCardRailMetadata(card);
+          const final =
+            rail?.kind === "saga"
+              ? rail.finalChapter
+              : rail?.kind === "class"
+                ? Math.max(...rail.classLevels.map((level) => level.level))
+                : state.debugCardFinal;
+          return {
+            debugCardName: card.identity.name,
+            debugCardDefinition: card,
+            debugCardRailEnabled: rail != null,
+            debugCardMode: rail?.kind ?? state.debugCardMode,
+            debugCardCurrent: rail ? 1 : state.debugCardCurrent,
+            debugCardFinal: final,
+          };
+        }),
       setDebugCardRailEnabled: (value) => set({ debugCardRailEnabled: value }),
       setDebugCardMode: (mode) => set({ debugCardMode: mode }),
       setDebugCardRail: (current, final) =>

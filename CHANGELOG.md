@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.34.6](https://github.com/witchesofthehill/manabrew/compare/v3.34.5...v3.34.6) (2026-09-04)
+
+### Fixes
+
+* **desktop:** give the embedded node somewhere to log ([#861](https://github.com/witchesofthehill/manabrew/issues/861)) ([f242704](https://github.com/witchesofthehill/manabrew/commit/f2427042e4c9733caf828dfd735a3b5a95dac432))
+
 ## [3.34.5](https://github.com/witchesofthehill/manabrew/compare/v3.34.4...v3.34.5) (2026-09-04)
 
 ### Fixes

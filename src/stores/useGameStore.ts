@@ -526,7 +526,14 @@ export const useGameStore = create<GameState>()(
           const runtime =
             engine === "Ironsmith" ? selectGameRuntime("ironsmith") : resetSelectedGameRuntime();
           set({ debugInfo: "Starting engine..." });
-          beginGame(roomEngineLabel(engine, localIsHost, getPlatform().type));
+          beginGame(
+            roomEngineLabel(
+              engine,
+              localIsHost,
+              getPlatform().type,
+              useServerStore.getState().currentRoom?.hosted ?? false,
+            ),
+          );
           await runtime.api.startMultiplayerGame({
             playerNames,
             decks,

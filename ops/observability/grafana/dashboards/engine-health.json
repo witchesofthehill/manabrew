@@ -529,7 +529,7 @@
       "id": 222,
       "type": "stat",
       "title": "Reporting engines",
-      "description": "How many distinct engines reported. 'forge-wasm' is Forge in the browser, 'forge-hosted' the node fleet, 'forge-desktop' the desktop app, 'manabrew' the Rust engine on the player's machine.",
+      "description": "How many distinct engines reported. 'forge-wasm' is Forge in this player's own browser, 'forge-remote' Forge in another player's client, 'forge-hosted' the node fleet, 'forge-desktop' the desktop app hosting its own room, 'manabrew' the Rust engine on the player's machine. The labels only mean this from 3.34.2 on; see docs/OBSERVABILITY.md.",
       "datasource": {
         "type": "frser-sqlite-datasource",
         "uid": "events-sqlite"

@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.34.7](https://github.com/witchesofthehill/manabrew/compare/v3.34.6...v3.34.7) (2026-09-04)
+
+### Fixes
+
+* **telemetry:** tell a node host from a peer host ([#865](https://github.com/witchesofthehill/manabrew/issues/865)) ([172a0cb](https://github.com/witchesofthehill/manabrew/commit/172a0cbff51f4ab9dd2a984e30833ded2bc15aa4))
+
 ## [3.34.6](https://github.com/witchesofthehill/manabrew/compare/v3.34.5...v3.34.6) (2026-09-04)
 
 ### Fixes

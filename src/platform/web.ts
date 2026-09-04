@@ -52,7 +52,7 @@ import { getClientPlatform } from "./clientPlatform";
 import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 import { applyStateDelta, diffStateDelta } from "@/lib/stateDelta";
-import { DirectSeat } from "@/game/directSeat";
+import { DirectSeat, type DirectSeatMeasurement } from "@/game/directSeat";
 import {
   WebRtcPlane,
   iceServersFrom,
@@ -1360,15 +1360,27 @@ class WebServerApi implements IServerApi {
 
     const relayUrl = typeof msg.iroh_relay_url === "string" ? msg.iroh_relay_url : null;
     if (!this.directSeat) {
-      this.directSeat = new DirectSeat(this.authedUsername, relayUrl, (envelope, fromPlayer) =>
-        this.handleServerMessage({ type: "StateUpdate", from_player: fromPlayer, state: envelope }),
+      this.directSeat = new DirectSeat(
+        this.authedUsername,
+        relayUrl,
+        (envelope, fromPlayer) =>
+          this.handleServerMessage({
+            type: "StateUpdate",
+            from_player: fromPlayer,
+            state: envelope,
+          }),
+        (m) => this.onDirectSeatMeasurement(m),
       );
       const endpoint = await this.directSeat.announce();
       if (endpoint) this.send({ type: "AnnounceTransport", endpoint });
     } else if (relayUrl) {
       await this.directSeat.adoptRelay(relayUrl);
     }
-    await this.directSeat.onRoster(String(msg.room_id ?? ""), msg.members);
+    await this.directSeat.onRoster(
+      String(msg.room_id ?? ""),
+      msg.members,
+      typeof msg.host === "string" ? msg.host : "",
+    );
   }
 
   private dropDirectSeat(): void {
@@ -1497,6 +1509,20 @@ class WebServerApi implements IServerApi {
    * succeeded. An attempt that times out currently reaches nobody at all,
    * which leaves a connect rate with no denominator.
    */
+  /** The iroh seat measured itself all along and only ever said so in a
+   *  console line, exactly as the browser plane did. QUIC keeps the path's
+   *  round trip, so there is nothing to probe: one report per attempt. */
+  private onDirectSeatMeasurement(m: DirectSeatMeasurement): void {
+    this.reportPlaneQuality("iroh-direct", {
+      peer: m.peer,
+      outcome: m.outcome,
+      phase: "settled",
+      rttMs: m.rttMs,
+      connectMs: m.connectMs,
+      candidatePair: m.path,
+    });
+  }
+
   private reportPlaneQuality(plane: string, m: PlaneMeasurement): void {
     if (!this.planeQualityReporting) return;
     const whole = (value: number | undefined): number | undefined =>

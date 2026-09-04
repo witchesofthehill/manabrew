@@ -23,6 +23,30 @@ export interface DirectTransportStatus {
   kind: string;
   lan: boolean;
   rttMs?: number;
+  setupMs?: number;
+  reconnects?: number;
+}
+
+/** What the relay is told about one attempt on this plane. Mirrors the browser
+ *  plane's report so both arrive as the same measurement.
+ *
+ *  iroh needs no probe: QUIC keeps the path's round trip, whether it went
+ *  direct, and whether the remote address is private. That is the same three
+ *  facts the WebRTC plane has to derive from ICE stats. */
+export interface DirectSeatMeasurement {
+  peer: string;
+  outcome: "connected" | "failed";
+  rttMs?: number;
+  connectMs?: number;
+  /** iroh's own vocabulary, not ICE's: the relay buckets both. */
+  path?: "direct-lan" | "direct-wan" | "relayed";
+}
+
+/** iroh's three facts, in iroh's own words. Inventing ICE candidate types for
+ *  a QUIC path would read as a measurement of something that never happened. */
+function pathOf(status: DirectTransportStatus): DirectSeatMeasurement["path"] {
+  if (status.kind === "iroh-relayed") return "relayed";
+  return status.lan ? "direct-lan" : "direct-wan";
 }
 
 /** Only a seat's own answers move. A host serves its seats from the shell's
@@ -36,6 +60,7 @@ export class DirectSeat {
   private readonly username: string;
   private readonly relayUrl: string | null;
   private readonly deliver: (envelope: StateEnvelope, fromPlayer: string) => void;
+  private readonly onMeasurement: ((m: DirectSeatMeasurement) => void) | undefined;
   private unlisten: (() => void) | null = null;
   private live = false;
   private active = false;
@@ -50,10 +75,12 @@ export class DirectSeat {
     username: string,
     relayUrl: string | null,
     deliver: (envelope: StateEnvelope, fromPlayer: string) => void,
+    onMeasurement?: (m: DirectSeatMeasurement) => void,
   ) {
     this.username = username;
     this.relayUrl = relayUrl;
     this.deliver = deliver;
+    this.onMeasurement = onMeasurement;
   }
 
   /** The endpoint to announce, once. Null when nothing can bind, which leaves
@@ -102,7 +129,7 @@ export class DirectSeat {
   }
 
   /** Installs the relay's roster and dials the host it names. */
-  async onRoster(roomId: string, members: unknown): Promise<void> {
+  async onRoster(roomId: string, members: unknown, host: string): Promise<void> {
     await this.binding;
     if (!this.unlisten) return;
     try {
@@ -110,15 +137,37 @@ export class DirectSeat {
         roomId,
         members,
       });
-      if (!status) return;
+      if (!status) {
+        // No path to the host. This seat stays on the relay, and until now that
+        // was the end of it: the attempt reached nobody, so the failures never
+        // appeared in any denominator.
+        this.measured({ peer: host, outcome: "failed" });
+        return;
+      }
       this.live = true;
       console.info(
         `[direct] seat reached the host over ${status.kind}` +
           (status.lan ? " on the local network" : "") +
           (status.rttMs === undefined ? "" : ` (rtt ${status.rttMs}ms)`),
       );
+      this.measured({
+        peer: host,
+        outcome: "connected",
+        rttMs: status.rttMs,
+        connectMs: status.setupMs,
+        path: pathOf(status),
+      });
     } catch (error) {
       console.warn("[direct] could not reach the host:", error);
+      this.measured({ peer: host, outcome: "failed" });
+    }
+  }
+
+  private measured(m: DirectSeatMeasurement): void {
+    try {
+      this.onMeasurement?.(m);
+    } catch {
+      // Measurement must never take a seat down with it.
     }
   }
 

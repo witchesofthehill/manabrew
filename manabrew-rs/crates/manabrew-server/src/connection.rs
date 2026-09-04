@@ -1850,6 +1850,16 @@ fn candidate_pair_label(pair: Option<&str>) -> &'static str {
     let Some(pair) = pair else {
         return "unknown";
     };
+    // iroh reports the path in its own words rather than ICE's, because a
+    // QUIC path has no candidate types and inventing some would read as a
+    // measurement of something that never happened. The buckets are the same
+    // question either way: did this leave the network, and did it stay direct.
+    match pair {
+        "direct-lan" => return "lan",
+        "direct-wan" => return "punched",
+        "relayed" => return "turn",
+        _ => {}
+    }
     let (local, remote) = match pair.split_once('/') {
         Some(split) => split,
         None => return "other",
@@ -1905,6 +1915,19 @@ mod plane_quality_tests {
         // configured with one we did not publish.
         assert_eq!(candidate_pair_label(Some("relay/srflx")), "turn");
         assert_eq!(candidate_pair_label(Some("srflx/relay")), "turn");
+    }
+
+    /// iroh has no candidate types, so it names the path itself. Both planes
+    /// still answer the same question, and both land in the same buckets.
+    #[test]
+    fn an_iroh_path_buckets_beside_an_ice_pair() {
+        assert_eq!(candidate_pair_label(Some("direct-lan")), "lan");
+        assert_eq!(candidate_pair_label(Some("direct-wan")), "punched");
+        assert_eq!(candidate_pair_label(Some("relayed")), "turn");
+        assert_eq!(
+            candidate_pair_label(Some("direct-lan")),
+            candidate_pair_label(Some("host/host"))
+        );
     }
 
     #[test]

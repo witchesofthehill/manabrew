@@ -91,6 +91,34 @@ pub enum AnalyticsEvent {
         host: String,
         seats: Vec<SeatTransportReport>,
     },
+    /// One end's account of one attempt to reach a peer off the relay, kept
+    /// whether or not it worked.
+    ///
+    /// [`AnalyticsEvent::TransportUsed`] is the host's list of seats that
+    /// succeeded. This is the other half: the attempts, including the ones
+    /// that failed and left the seat on the relay saying nothing. A connect
+    /// rate needs both.
+    PlaneQuality {
+        ts: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        room_id: Option<String>,
+        /// The reporter, named from the relay's own record of the session.
+        username: String,
+        /// The other end, as the reporter named it.
+        peer: String,
+        plane: String,
+        outcome: String,
+        /// `settled` or `measured`; a connected peer reports both.
+        phase: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connect_ms: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        rtt_ms: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        relay_rtt_ms: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        candidate_pair: Option<String>,
+    },
     EngineStats {
         ts: String,
         /// The room the seat was in when the report landed, which at game over

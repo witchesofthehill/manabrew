@@ -132,6 +132,67 @@ pub struct SeatTransportReport {
     pub transport: String,
 }
 
+/// One end's account of one attempt to reach a peer off the relay.
+///
+/// Every field past `peer` and `outcome` is the reporter's own measurement, so
+/// the relay treats all of it as a claim: it bounds the numbers, caps the
+/// strings, and records who said it rather than trusting what was said.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PlaneQualityReport {
+    /// The other end, as the relay attested that username to this session.
+    pub peer: String,
+    /// [`PLANE_OUTCOME_CONNECTED`], [`PLANE_OUTCOME_FAILED`] or
+    /// [`PLANE_OUTCOME_TIMEOUT`]. Anything else is dropped.
+    pub outcome: String,
+    /// Which plane was attempted: [`TRANSPORT_WEBRTC`] or
+    /// [`TRANSPORT_IROH_DIRECT`].
+    pub plane: String,
+    /// [`PLANE_PHASE_SETTLED`] once per attempt, when it reaches its outcome,
+    /// or [`PLANE_PHASE_MEASURED`] for the later report that carries the round
+    /// trip. Only the first is counted as an attempt: a connected peer reports
+    /// twice and a failed one once, so counting both would inflate the connect
+    /// rate this exists to measure.
+    pub phase: String,
+    /// First offer to open channel.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub connect_ms: Option<u32>,
+    /// Median round trip measured on the channel itself.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rtt_ms: Option<u32>,
+    /// The same session's round trip to the relay, sampled by the reporter at
+    /// the same time. Paired deliberately: an unpaired direct RTT cannot say
+    /// whether it beat the path it replaced.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay_rtt_ms: Option<u32>,
+    /// The ICE pair that won, `local/remote`, or what was on offer when none
+    /// did. `host/host` never left the LAN and proves no traversal.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_pair: Option<String>,
+}
+
+pub const PLANE_PHASE_SETTLED: &str = "settled";
+pub const PLANE_PHASE_MEASURED: &str = "measured";
+
+pub const PLANE_OUTCOME_CONNECTED: &str = "connected";
+pub const PLANE_OUTCOME_FAILED: &str = "failed";
+pub const PLANE_OUTCOME_TIMEOUT: &str = "timeout";
+
+/// Outcomes the relay will record. An unknown one is dropped rather than
+/// recorded, so a client cannot invent labels into the metric's cardinality.
+pub const PLANE_OUTCOMES: &[&str] = &[
+    PLANE_OUTCOME_CONNECTED,
+    PLANE_OUTCOME_FAILED,
+    PLANE_OUTCOME_TIMEOUT,
+];
+
+/// Longest `candidate_pair` the relay will record. Real values are like
+/// `srflx/srflx`; this is room for that and not for a label attack.
+pub const MAX_CANDIDATE_PAIR_BYTES: usize = 64;
+
+/// Anything past this is a broken clock or a lie, and is dropped rather than
+/// skewing an average. Ten minutes.
+pub const MAX_PLANE_MS: u32 = 600_000;
+
 pub const TRANSPORT_IROH_DIRECT: &str = "iroh-direct";
 pub const TRANSPORT_IROH_RELAYED: &str = "iroh-relayed";
 /// A browser pair on an `RTCDataChannel`. There is no TURN server, so a WebRTC
@@ -303,6 +364,23 @@ pub enum ClientMessage {
     SignalPeer {
         to: String,
         payload: serde_json::Value,
+    },
+
+    /// Reports how one direct-plane attempt turned out, whether or not it
+    /// worked. Analytics only, like [`ClientMessage::ReportTransport`].
+    ///
+    /// [`ClientMessage::ReportTransport`] cannot answer this. It is sent by the
+    /// host at game start and names only the seats that succeeded, so the
+    /// attempts that failed reach nobody: a seat that cannot punch through
+    /// stays on the relay and says nothing about having tried. Without the
+    /// failures there is no denominator, and a connect rate is exactly the
+    /// number that decides whether production gets ICE servers.
+    ///
+    /// The measuring end sends this, which is the seat, not the host. The relay
+    /// stamps the sender from its own record and does not read the numbers
+    /// beyond bounding them.
+    ReportPlaneQuality {
+        report: PlaneQualityReport,
     },
 }
 
@@ -584,10 +662,16 @@ pub const FEATURE_ROOM_TRANSPORT: &str = "room_transport";
 /// never starts a negotiation that cannot finish.
 pub const FEATURE_PEER_SIGNAL: &str = "peer_signal";
 
+/// The relay accepts [`ClientMessage::ReportPlaneQuality`]. A client that
+/// does not see this stays quiet rather than sending a message an older
+/// relay would reject as a parse error.
+pub const FEATURE_PLANE_QUALITY: &str = "plane_quality";
+
 pub const FEATURES: &[&str] = &[
     FEATURE_LOCAL_GAME,
     FEATURE_ROOM_TRANSPORT,
     FEATURE_PEER_SIGNAL,
+    FEATURE_PLANE_QUALITY,
 ];
 
 /// The largest signalling blob the relay will forward. An SDP offer with a

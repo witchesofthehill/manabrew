@@ -1657,6 +1657,71 @@ fn handle_client_message(
             metrics::record_peer_signal("forwarded");
         }
 
+        ClientMessage::ReportPlaneQuality { report } => {
+            if !state.direct_transport {
+                return;
+            }
+            // Same attestation as `SignalPeer`: the reporter is named from the
+            // relay's own record, never from the message. A session cannot file
+            // a measurement under someone else's name.
+            let Some(username) = state.players.get(player_id).map(|p| p.username.clone()) else {
+                return;
+            };
+            let room_id = state.players.get(player_id).and_then(|p| p.room_id.clone());
+            // A report about someone the relay has not placed beside this
+            // session is not a measurement of anything it can reason about.
+            let known_peer = room_id
+                .as_ref()
+                .and_then(|rid| state.rooms.get(rid))
+                .is_some_and(|room| room.participant_id_by_username(&report.peer).is_some());
+            if !known_peer {
+                return;
+            }
+            // Labels come from fixed sets, never from the wire: a client that
+            // could name a label could pick this metric's cardinality.
+            let Some(outcome) = plane_outcome_label(&report.outcome) else {
+                return;
+            };
+            let Some(plane) = plane_label(&report.plane) else {
+                return;
+            };
+            let pair = candidate_pair_label(report.candidate_pair.as_deref());
+            // Counted once per attempt. The follow-up that carries the round
+            // trip is the same attempt, not another one.
+            if report.phase == crate::protocol::PLANE_PHASE_SETTLED {
+                metrics::record_plane_attempt(plane, outcome, pair);
+            }
+
+            // A broken clock or a lie is dropped rather than averaged in.
+            let sane = |value: Option<u32>| value.filter(|ms| *ms <= crate::protocol::MAX_PLANE_MS);
+            let connect_ms = sane(report.connect_ms);
+            let rtt_ms = sane(report.rtt_ms);
+            let relay_rtt_ms = sane(report.relay_rtt_ms);
+            if let Some(ms) = connect_ms {
+                metrics::record_plane_connect(plane, ms);
+            }
+            if let Some(ms) = rtt_ms {
+                metrics::record_plane_rtt(plane, ms, relay_rtt_ms);
+            }
+
+            let candidate_pair = report.candidate_pair.filter(|value| {
+                value.len() <= crate::protocol::MAX_CANDIDATE_PAIR_BYTES && !value.is_empty()
+            });
+            state.analytics.emit(AnalyticsEvent::PlaneQuality {
+                ts: analytics::now_ts(),
+                room_id,
+                username,
+                peer: report.peer,
+                plane: plane.to_string(),
+                outcome: outcome.to_string(),
+                phase: report.phase,
+                connect_ms,
+                rtt_ms,
+                relay_rtt_ms,
+                candidate_pair,
+            });
+        }
+
         ClientMessage::TurnChange {
             new_active_player,
             turn_number,
@@ -1753,5 +1818,99 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::AnnounceTransport { .. } => "AnnounceTransport",
         ClientMessage::ReportTransport { .. } => "ReportTransport",
         ClientMessage::SignalPeer { .. } => "SignalPeer",
+        ClientMessage::ReportPlaneQuality { .. } => "ReportPlaneQuality",
+    }
+}
+
+/// Maps a reported outcome onto the fixed set the metric labels come from.
+/// An unknown value is dropped, not recorded as itself.
+fn plane_outcome_label(outcome: &str) -> Option<&'static str> {
+    crate::protocol::PLANE_OUTCOMES
+        .iter()
+        .find(|known| **known == outcome)
+        .copied()
+}
+
+fn plane_label(plane: &str) -> Option<&'static str> {
+    match plane {
+        crate::protocol::TRANSPORT_WEBRTC => Some(crate::protocol::TRANSPORT_WEBRTC),
+        crate::protocol::TRANSPORT_IROH_DIRECT => Some(crate::protocol::TRANSPORT_IROH_DIRECT),
+        _ => None,
+    }
+}
+
+/// Buckets an ICE candidate pair into labels that are worth separating and
+/// cannot grow without bound.
+///
+/// The distinction that matters is whether the path left the network at all:
+/// `host/host` is a LAN pair and proves no traversal, `srflx` on both sides is
+/// a punched-through path, and `relay` would be TURN, which we do not run. The
+/// exact pair still reaches the capture; only the metric is bucketed.
+fn candidate_pair_label(pair: Option<&str>) -> &'static str {
+    let Some(pair) = pair else {
+        return "unknown";
+    };
+    let (local, remote) = match pair.split_once('/') {
+        Some(split) => split,
+        None => return "other",
+    };
+    match (local, remote) {
+        ("host", "host") => "lan",
+        (_, "relay") | ("relay", _) => "turn",
+        ("srflx" | "prflx", "srflx" | "prflx") => "punched",
+        ("host", "srflx" | "prflx") | ("srflx" | "prflx", "host") => "mixed",
+        _ => "other",
+    }
+}
+
+#[cfg(test)]
+mod plane_quality_tests {
+    use super::*;
+
+    #[test]
+    fn outcomes_come_from_the_fixed_set() {
+        assert_eq!(plane_outcome_label("connected"), Some("connected"));
+        assert_eq!(plane_outcome_label("timeout"), Some("timeout"));
+        // A client cannot name a label, because a label it could name is a
+        // label it could use to pick this metric's cardinality.
+        assert_eq!(plane_outcome_label("connected "), None);
+        assert_eq!(plane_outcome_label("whatever"), None);
+        assert_eq!(plane_outcome_label(""), None);
+    }
+
+    #[test]
+    fn planes_come_from_the_fixed_set() {
+        assert_eq!(plane_label("webrtc"), Some("webrtc"));
+        assert_eq!(plane_label("iroh-direct"), Some("iroh-direct"));
+        // Relayed iroh is not a direct plane, so it is not an attempt at one.
+        assert_eq!(plane_label("iroh-relayed"), None);
+        assert_eq!(plane_label("carrier pigeon"), None);
+    }
+
+    /// The distinction the whole measurement turns on: a pair that never left
+    /// the network says nothing about traversal, and counting it beside a
+    /// punched-through pair would flatter the connect rate.
+    #[test]
+    fn a_lan_pair_is_not_a_punched_one() {
+        assert_eq!(candidate_pair_label(Some("host/host")), "lan");
+        assert_eq!(candidate_pair_label(Some("srflx/srflx")), "punched");
+        assert_eq!(candidate_pair_label(Some("prflx/srflx")), "punched");
+        assert_eq!(candidate_pair_label(Some("host/srflx")), "mixed");
+        assert_eq!(candidate_pair_label(Some("srflx/host")), "mixed");
+    }
+
+    #[test]
+    fn turn_is_labelled_even_though_we_run_none() {
+        // We do not run TURN, so seeing this at all would mean a client was
+        // configured with one we did not publish.
+        assert_eq!(candidate_pair_label(Some("relay/srflx")), "turn");
+        assert_eq!(candidate_pair_label(Some("srflx/relay")), "turn");
+    }
+
+    #[test]
+    fn an_absent_or_malformed_pair_stays_bounded() {
+        assert_eq!(candidate_pair_label(None), "unknown");
+        assert_eq!(candidate_pair_label(Some("nonsense")), "other");
+        assert_eq!(candidate_pair_label(Some("a/b")), "other");
     }
 }

@@ -80,6 +80,13 @@ export interface PlaneMeasurement {
    *  a LAN pair, `srflx` means it was punched through, `relay` means TURN,
    *  which we do not run. */
   candidatePair?: string;
+  /** `settled` is the attempt reaching its outcome, once. `measured` is the
+   *  later refinement that carries the round trip.
+   *
+   *  A connected peer reports twice, and without telling the two apart anything
+   *  counting attempts counts a success twice and a failure once -- which
+   *  inflates exactly the connect rate this measurement exists to establish. */
+  phase: "settled" | "measured";
 }
 
 export interface WebRtcPlaneOptions {
@@ -491,6 +498,7 @@ export class WebRtcPlane {
     this.report({
       peer,
       outcome: "connected",
+      phase: "measured",
       rttMs,
       candidatePair: await this.candidatePair(state),
     });
@@ -570,7 +578,7 @@ export class WebRtcPlane {
     state.settled = true;
     const connectMs = this.now() - state.startedAt;
     if (outcome === "connected") {
-      this.report({ peer, outcome, connectMs });
+      this.report({ peer, outcome, connectMs, phase: "settled" });
       return;
     }
     // Read the candidates before anything tears the connection down, and log
@@ -579,7 +587,7 @@ export class WebRtcPlane {
       console.warn(
         `[webrtc] ${peer} stayed on the relay: ${outcome}` + (summary ? ` (${summary})` : ""),
       );
-      this.report({ peer, outcome, connectMs, candidatePair: summary });
+      this.report({ peer, outcome, connectMs, candidatePair: summary, phase: "settled" });
     });
   }
 

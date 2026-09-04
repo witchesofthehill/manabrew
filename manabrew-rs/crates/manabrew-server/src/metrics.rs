@@ -22,6 +22,10 @@ const STATE_PATCH_DOWNGRADES: &str = "manabrew_relay_state_patch_downgrades_tota
 const ENGINE_REPORTS: &str = "manabrew_relay_engine_reports_total";
 const TRANSPORT_ANNOUNCEMENTS: &str = "manabrew_relay_transport_announcements_total";
 const PEER_SIGNALS: &str = "manabrew_relay_peer_signals_total";
+const PLANE_ATTEMPTS: &str = "manabrew_relay_plane_attempts_total";
+const PLANE_RTT: &str = "manabrew_relay_plane_rtt_ms";
+const PLANE_RELAY_RTT: &str = "manabrew_relay_plane_relay_rtt_ms";
+const PLANE_CONNECT: &str = "manabrew_relay_plane_connect_ms";
 const CLIENT_RTT: &str = "manabrew_relay_client_rtt_ms";
 const STATE_HANDLING: &str = "manabrew_relay_state_handling_seconds";
 const SOCKET_WRITE: &str = "manabrew_relay_socket_write_seconds";
@@ -34,6 +38,8 @@ const LABEL_ENGINE: &str = "engine";
 const LABEL_REASON: &str = "reason";
 const LABEL_SEATS: &str = "seats";
 const LABEL_OUTCOME: &str = "outcome";
+const LABEL_PLANE: &str = "plane";
+const LABEL_PAIR: &str = "pair";
 
 pub const REJECTION_OUTDATED_WIRE: &str = "outdated_wire";
 
@@ -170,6 +176,39 @@ pub fn record_transport_announcement(kind: &'static str) {
 /// never completes becomes visible.
 pub fn record_peer_signal(kind: &'static str) {
     counter!(PEER_SIGNALS, LABEL_KIND => kind).increment(1);
+}
+
+/// One end's account of one attempt to leave the relay, whether it worked or
+/// not. The failures are the point: `ReportTransport` names only the seats
+/// that succeeded, so without this the denominator of a connect rate does not
+/// exist anywhere, and the rate is what decides whether production runs ICE
+/// servers at all.
+///
+/// `pair` is bounded to a known set by the caller before it reaches here. A
+/// client-supplied label would otherwise pick the cardinality of this metric.
+pub fn record_plane_attempt(plane: &'static str, outcome: &'static str, pair: &'static str) {
+    counter!(PLANE_ATTEMPTS, LABEL_PLANE => plane, LABEL_OUTCOME => outcome, LABEL_PAIR => pair)
+        .increment(1);
+}
+
+/// The direct path's round trip next to the same session's round trip to the
+/// relay, recorded as a pair. Either number alone says nothing: the direct
+/// path is only worth having if it beats the path it replaced, and how far it
+/// beats it depends entirely on where the two players are.
+///
+/// Unlike [`record_client_rtt`] this is the client's own measurement. The
+/// relay cannot take it: once a seat goes direct the relay stops seeing that
+/// seat's traffic, which is the same reason `clientRttMs` disappears from a
+/// capture the moment the feature works.
+pub fn record_plane_rtt(plane: &'static str, rtt_ms: u32, relay_rtt_ms: Option<u32>) {
+    histogram!(PLANE_RTT, LABEL_PLANE => plane).record(rtt_ms as f64);
+    if let Some(relay) = relay_rtt_ms {
+        histogram!(PLANE_RELAY_RTT, LABEL_PLANE => plane).record(relay as f64);
+    }
+}
+
+pub fn record_plane_connect(plane: &'static str, connect_ms: u32) {
+    histogram!(PLANE_CONNECT, LABEL_PLANE => plane).record(connect_ms as f64);
 }
 
 pub fn record_resync() {

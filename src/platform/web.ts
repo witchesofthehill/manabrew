@@ -781,6 +781,7 @@ class WebServerApi implements IServerApi {
    *  has to beat. The relay records its own view of this as
    *  `manabrew_relay_client_rtt_ms`; this is the client's. */
   private relayRttMs: number | null = null;
+  private planeQualityReporting = false;
   private pingSentAt: number | null = null;
 
   constructor(eventBus: WebEventBus) {
@@ -1482,6 +1483,37 @@ class WebServerApi implements IServerApi {
     if (this.relayRttMs !== null) parts.push(`relayRtt=${this.relayRttMs}ms`);
     console.info(`[webrtc] ${parts.join(" ")}`);
     this.eventBus.emit("transport:measurement", { transport: "webrtc", ...m });
+    this.reportPlaneQuality("webrtc", m);
+  }
+
+  /**
+   * Sends the measurement to the relay, failures included.
+   *
+   * The console line above is only ever read by whoever happens to have the
+   * tab open, which is why the one cross-network sample anybody has is a
+   * screenshot. More to the point, the relay stops seeing a seat the moment
+   * this works, so `manabrew_relay_client_rtt_ms` goes quiet for exactly the
+   * seats worth measuring, and `ReportTransport` names only the ones that
+   * succeeded. An attempt that times out currently reaches nobody at all,
+   * which leaves a connect rate with no denominator.
+   */
+  private reportPlaneQuality(plane: string, m: PlaneMeasurement): void {
+    if (!this.planeQualityReporting) return;
+    const whole = (value: number | undefined): number | undefined =>
+      value === undefined || !Number.isFinite(value) ? undefined : Math.max(0, Math.round(value));
+    this.send({
+      type: "ReportPlaneQuality",
+      report: {
+        peer: m.peer,
+        outcome: m.outcome,
+        plane,
+        phase: m.phase,
+        connect_ms: whole(m.connectMs),
+        rtt_ms: whole(m.rttMs),
+        relay_rtt_ms: whole(this.relayRttMs ?? undefined),
+        candidate_pair: m.candidatePair,
+      },
+    });
   }
 
   private send(msg: Record<string, unknown>): void {
@@ -1509,6 +1541,10 @@ class WebServerApi implements IServerApi {
       // is ever started against one.
       this.peerSignalling =
         Array.isArray(msg.features) && (msg.features as string[]).includes("peer_signal");
+      // A relay built before the report existed rejects it as a parse error,
+      // so an older one is simply never sent one.
+      this.planeQualityReporting =
+        Array.isArray(msg.features) && (msg.features as string[]).includes("plane_quality");
     }
     if (DEBUG_TRANSPORT) console.log("[transport←ws] received:", JSON.stringify(msg));
     if (isPromptLoggingEnabled()) {

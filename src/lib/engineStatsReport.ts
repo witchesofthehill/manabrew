@@ -53,17 +53,24 @@ export function forgeHostLabel(onThisMachine: boolean): string {
 }
 
 /**
- * The engine behind a relay room. A local host can name the engine exactly;
- * other seats only know that Forge runs remotely.
+ * The engine behind a relay room, named from this seat's vantage point.
+ *
+ * A local host names the engine exactly. Every other seat is measuring a wire
+ * as well as an engine, and the two remote cases are not the same machine or
+ * the same cost: a node runs on the fleet, a peer runs in another player's
+ * browser or desktop app. The room says which — `RoomInfo.hosted` is true only
+ * for a node-hosted room — so the label says which too, or the fleet's timings
+ * and a peer's are pooled into one number that describes neither.
  */
 export function roomEngineLabel(
   engine: EngineKind | null | undefined,
   hostedHere: boolean,
   platform: "tauri" | "web",
+  roomIsNodeHosted: boolean,
 ): string {
   if (engine === "Forge") {
-    if (!hostedHere) return "forge-remote";
-    return platform === "tauri" ? "forge-desktop" : "forge-wasm";
+    if (hostedHere) return platform === "tauri" ? "forge-desktop" : "forge-wasm";
+    return roomIsNodeHosted ? "forge-hosted" : "forge-remote";
   }
   if (engine === "Ironsmith") return "ironsmith";
   return localEngineLabel();

@@ -1074,6 +1074,12 @@ export default function Game({ exitTo }: GameProps = {}) {
     void concede();
     if (ownsEngine) eliminatedModalShownRef.current = true;
   }, [concede, ownsEngine]);
+  // The engine owner cannot walk away from a live game: the engine goes with
+  // them. With one opponent left there is still a proper way out — concede,
+  // and the engine declares the winner before it stops — which is what a
+  // node-hosted game does when a player quits. Only a table that would carry
+  // on without them has no result to reach.
+  const leaveEndsWithConcede = ownsEngine && !gameContinuesWithoutMe;
   const handleLeave = useCallback(() => {
     if (ownsEngine) setLeaveGameModalOpen(true);
     else void endGame();
@@ -2059,7 +2065,13 @@ export default function Game({ exitTo }: GameProps = {}) {
       )}
       {leaveGameModalOpen && (
         <LeaveGameModal
+          endsWithConcede={leaveEndsWithConcede}
           onStay={() => setLeaveGameModalOpen(false)}
+          onConcede={() => {
+            setLeaveGameModalOpen(false);
+            eliminatedModalShownRef.current = true;
+            void concede();
+          }}
           onLeave={() => {
             setLeaveGameModalOpen(false);
             void endGame();

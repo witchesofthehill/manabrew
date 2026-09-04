@@ -105,13 +105,8 @@ export class PixiCardRailPreview extends Container {
     header.addChild(iconBackground, icon, title, summaryText);
     this.addChild(header);
 
-    const headerDivider = new Graphics();
-    headerDivider.rect(0, HEADER_HEIGHT - 1, width, 1);
-    headerDivider.fill({ color: hexToNum(appTheme.border), alpha: 0.7 });
-    this.addChild(headerDivider);
-
     let y = HEADER_HEIGHT;
-    state.notches.forEach((notch, index) => {
+    state.notches.forEach((notch) => {
       const effect = effectByPosition.get(notch.position);
       const interaction = interactionByPosition.get(notch.position);
       const row = new Container();
@@ -124,7 +119,6 @@ export class PixiCardRailPreview extends Container {
         const keyBackground = new Graphics();
         keyBackground.roundRect(CONTENT_LEFT, 7, 20, 20, 5);
         keyBackground.fill({ color: hexToNum(appTheme.muted), alpha: 1 });
-        keyBackground.stroke({ color: hexToNum(appTheme.border), width: 1, alpha: 0.9 });
         const key = new Text({
           text: String(interaction.shortcut),
           style: style(foreground, 10, "700"),
@@ -218,13 +212,6 @@ export class PixiCardRailPreview extends Container {
       row.addChildAt(timeline, 1);
       row.addChild(node, nodeLabel);
 
-      const divider = new Graphics();
-      if (index < state.notches.length - 1) {
-        divider.rect(0, rowHeight - 1, width, 1);
-        divider.fill({ color: hexToNum(appTheme.border), alpha: 0.5 });
-        row.addChild(divider);
-      }
-
       const drawBackground = (focused: boolean) => {
         rowBackground.clear();
         rowBackground.rect(0, 0, width, rowHeight);
@@ -263,6 +250,5 @@ export class PixiCardRailPreview extends Container {
     this.contentHeight = y;
     background.roundRect(0, 0, width, this.contentHeight, 9);
     background.fill({ color: hexToNum(appTheme.popover), alpha: 0.97 });
-    background.stroke({ color: hexToNum(appTheme.border), width: 1, alpha: 0.8 });
   }
 }

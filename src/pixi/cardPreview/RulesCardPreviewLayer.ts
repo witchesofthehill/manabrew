@@ -491,8 +491,6 @@ export class RulesCardPreviewLayer {
     const typeBand = new Graphics();
     typeBand.rect(0, typeBandTop, PANEL_WIDTH, TYPE_HEIGHT);
     typeBand.fill({ color: hexToNum(raisedSurface), alpha: 0.98 });
-    typeBand.rect(0, typeBandTop, PANEL_WIDTH, 2);
-    typeBand.fill({ color: hexToNum(accent), alpha: 0.82 });
     this.chrome.addChild(typeBand);
 
     let typeLineX = CONTENT_PAD;
@@ -665,7 +663,6 @@ export class RulesCardPreviewLayer {
     this.background.clear();
     this.background.roundRect(0, 0, PANEL_WIDTH, this.panelHeight, PANEL_RADIUS);
     this.background.fill({ color: hexToNum(surface), alpha: 0.98 });
-    this.background.stroke({ color: hexToNum(accent), width: 1.5, alpha: 0.95 });
 
     this.frame.clear();
     this.frame.roundRect(
@@ -692,7 +689,7 @@ export class RulesCardPreviewLayer {
     this.bodyMask.fill(hexToNum(appTheme.background));
 
     this.setScroll(this.scrollOffset);
-    this.drawFooter(presentation.stats, presentation.loyalty, presentation.defense, accent);
+    this.drawFooter(presentation.stats, presentation.loyalty, presentation.defense);
     this.redrawActionRows();
     this.layoutPanel();
   }
@@ -709,7 +706,6 @@ export class RulesCardPreviewLayer {
     const height = 18;
     background.roundRect(0, 0, width, height, 9);
     background.fill({ color: hexToNum(this.theme.appTheme.muted), alpha: 0.96 });
-    background.stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.9 });
     text.position.set(6, 2);
     control.addChild(background, text);
     control.eventMode = "static";
@@ -723,17 +719,13 @@ export class RulesCardPreviewLayer {
   }
 
   private addSectionLabel(label: string, y: number, accent: string): number {
-    const line = new Graphics();
-    line.rect(0, y + 8, CONTENT_WIDTH, 1);
-    line.fill({ color: hexToNum(accent), alpha: 0.4 });
-    const background = new Graphics();
-    const text = new Text({ text: label, style: textStyle(accent, 10, "700") });
+    const sectionStyle = textStyle(accent, 10, "700");
+    sectionStyle.letterSpacing = 0.8;
+    const text = new Text({ text: label, style: sectionStyle });
     text.resolution = 2;
-    background.roundRect(0, y, text.width + 12, 17, 8.5);
-    background.fill({ color: hexToNum(this.theme.appTheme.popover), alpha: 1 });
-    text.position.set(6, y + 1.5);
-    this.bodyContent.addChild(line, background, text);
-    return y + 23;
+    text.position.set(2, y);
+    this.bodyContent.addChild(text);
+    return y + 20;
   }
 
   private addKeywordBadges(keywords: string[], y: number): number {
@@ -829,14 +821,11 @@ export class RulesCardPreviewLayer {
       5,
     );
     const height = Math.max(34, textHeight + 14);
-    const divider = new Graphics();
-    divider.rect(0, height - 1, CONTENT_WIDTH, 1);
-    divider.fill({ color: hexToNum(this.theme.appTheme.border), alpha: 0.42 });
     rich.position.set(4, 6);
     row.position.set(0, y);
-    row.addChild(divider, rich);
+    row.addChild(rich);
     this.bodyContent.addChild(row);
-    return y + height + 5;
+    return y + height + 7;
   }
 
   private addDisabledAbilityRow(text: string, y: number): number {
@@ -845,11 +834,6 @@ export class RulesCardPreviewLayer {
     const keyBackground = new Graphics();
     keyBackground.roundRect(9, 9, 23, 23, 6);
     keyBackground.fill({ color: hexToNum(this.theme.appTheme.muted), alpha: 0.62 });
-    keyBackground.stroke({
-      color: hexToNum(this.theme.appTheme.border),
-      width: 1,
-      alpha: 0.55,
-    });
     const key = new Text({
       text: "—",
       style: textStyle(this.theme.appTheme["muted-foreground"], 12, "700"),
@@ -869,11 +853,6 @@ export class RulesCardPreviewLayer {
     const height = Math.max(41, labelHeight + 18);
     background.roundRect(0, 0, CONTENT_WIDTH, height, 9);
     background.fill({ color: hexToNum(this.theme.appTheme.muted), alpha: 0.2 });
-    background.stroke({
-      color: hexToNum(this.theme.appTheme.border),
-      width: 1,
-      alpha: 0.42,
-    });
     row.position.set(0, y);
     row.alpha = 0.7;
     row.addChild(background, keyBackground, key, label);
@@ -922,18 +901,15 @@ export class RulesCardPreviewLayer {
       });
       const setFocused = (focused: boolean) => {
         const ring = this.theme.appTheme.ring;
-        const border = this.theme.appTheme.border;
         background.clear();
         background.roundRect(0, 0, CONTENT_WIDTH, height, 9);
         background.fill({
           color: hexToNum(focused ? ring : this.theme.appTheme.muted),
           alpha: focused ? 0.24 : 0.5,
         });
-        background.stroke({
-          color: hexToNum(focused ? ring : border),
-          width: focused ? 1.5 : 1,
-          alpha: focused ? 1 : 0.65,
-        });
+        if (focused) {
+          background.stroke({ color: hexToNum(ring), width: 1.5, alpha: 1 });
+        }
       };
       setFocused(false);
       this.bodyContent.addChild(row);
@@ -960,7 +936,6 @@ export class RulesCardPreviewLayer {
     stats: CardStatPresentation | null,
     loyalty: number | null,
     defense: number | null,
-    accent: string,
   ): void {
     if (this.footerHeight === 0) return;
     const top = this.panelHeight - this.footerHeight;
@@ -971,8 +946,6 @@ export class RulesCardPreviewLayer {
       color: hexToNum(this.theme.appTheme.card),
       alpha: 1,
     });
-    background.rect(CONTENT_PAD, 0, CONTENT_WIDTH, 1);
-    background.fill({ color: hexToNum(accent), alpha: 0.38 });
     this.footer.addChild(background);
 
     if (stats?.damage) {
@@ -1038,7 +1011,6 @@ export class RulesCardPreviewLayer {
       29,
     ]);
     badge.fill({ color: hexToNum(color), alpha: 0.94 });
-    badge.stroke({ color: hexToNum(this.theme.appTheme["card-foreground"]), width: 1, alpha: 0.5 });
     const valueText = new Text({
       text: String(value),
       style: textStyle(this.theme.gameTheme.textOnTinted, 18, "700"),

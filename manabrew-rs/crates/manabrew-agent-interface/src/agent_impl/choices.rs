@@ -633,6 +633,27 @@ pub(super) fn choose_colors<T: Responder>(
     if valid_colors.is_empty() || max == 0 {
         return Vec::new();
     }
+    if min == max {
+        agent.send_prompt(
+            PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput {
+                presentation: card_choice_presentation("Choose colors", None),
+                valid_colors: valid_colors.to_vec(),
+                amount: min as u32,
+                repeat_allowed: false,
+            }),
+            None,
+        );
+        return match agent.recv_action() {
+            PromptOutput::ChooseColor(ChooseColorOutput::ColorDecision { chosen_colors }) => {
+                chosen_colors
+                    .into_iter()
+                    .flat_map(|(color, count)| std::iter::repeat_n(color, count as usize))
+                    .take(max)
+                    .collect()
+            }
+            _ => valid_colors.iter().take(min).cloned().collect(),
+        };
+    }
     send_selection(
         agent,
         "Choose colors",

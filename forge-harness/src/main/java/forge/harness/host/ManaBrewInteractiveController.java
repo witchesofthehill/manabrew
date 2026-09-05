@@ -805,12 +805,13 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         }
         if (!isOptional && optionList.size() == 1) {
             for (final T option : optionList) {
-                return option;
+                return rememberSecretPlayerViewer(sa, option);
             }
         }
         final CardCollection cards = cardOptions(optionList);
         if (cards == null) {
-            return chooseSingleEntityGeneric(optionList, sa, title, isOptional);
+            return rememberSecretPlayerViewer(
+                    sa, chooseSingleEntityGeneric(optionList, sa, title, isOptional));
         }
         final CardCollection selected = session.awaitCardChoice(
                 "choose_cards_for_effect", me(), cards, 1, 1, sourceName(sa), sourceCardId(sa), title, isOptional);
@@ -1401,9 +1402,31 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     // ── Numbers / colors / types / names ──────────────────────────────
 
+    private void rememberSecretNumberViewer(final SpellAbility sa) {
+        if (sa != null && sa.hasParam("Secretly") && sa.hasParam("KeepSecret")) {
+            session.rememberSecretNumberViewer(sourceCardId(sa), player);
+        }
+    }
+
+    private void rememberSecretTypeViewer(final SpellAbility sa) {
+        if (sa != null && sa.hasParam("Secretly")) {
+            session.rememberSecretTypeViewer(sourceCardId(sa), player);
+        }
+    }
+
+    private <T extends GameEntity> T rememberSecretPlayerViewer(
+            final SpellAbility sa, final T choice) {
+        if (choice instanceof Player && sa != null && sa.hasParam("Secretly")) {
+            session.rememberSecretPlayerViewer(sourceCardId(sa), (Player) choice);
+        }
+        return choice;
+    }
+
     @Override
     public int chooseNumber(final SpellAbility sa, final String title, final int min, final int max) {
-        return session.awaitNumberChoice(me(), min, max, sourceCardId(sa), title);
+        final int chosen = session.awaitNumberChoice(me(), min, max, sourceCardId(sa), title);
+        rememberSecretNumberViewer(sa);
+        return chosen;
     }
 
     @Override
@@ -1417,7 +1440,9 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         }
         final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, sourceName(sa));
         final int idx = chosen.isEmpty() ? 0 : chosen.get(0);
-        return idx >= 0 && idx < values.size() ? values.get(idx) : values.get(0);
+        final int result = idx >= 0 && idx < values.size() ? values.get(idx) : values.get(0);
+        rememberSecretNumberViewer(sa);
+        return result;
     }
 
     @Override
@@ -1447,13 +1472,20 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (manaX) {
             bounds[1] = Math.min(bounds[1], ComputerUtilMana.determineLeftoverMana(ability, player, false));
         }
+        final Integer chosen;
         if (bounds[0] >= bounds[1]) {
-            return bounds[0];
+            chosen = bounds[0];
+        } else if (ability.getPayCosts() != null && ability.getPayCosts().isMandatory()) {
+            chosen = session.awaitNumberChoice(
+                    me(), bounds[0], bounds[1], sourceCardId(ability), "Choose a value for " + announce);
+        } else {
+            chosen = session.awaitCancellableNumberChoice(
+                    me(), bounds[0], bounds[1], sourceCardId(ability), "Choose a value for " + announce);
         }
-        if (ability.getPayCosts() != null && ability.getPayCosts().isMandatory()) {
-            return session.awaitNumberChoice(me(), bounds[0], bounds[1], sourceCardId(ability), "Choose a value for " + announce);
+        if (chosen != null) {
+            rememberSecretNumberViewer(ability);
         }
-        return session.awaitCancellableNumberChoice(me(), bounds[0], bounds[1], sourceCardId(ability), "Choose a value for " + announce);
+        return chosen;
     }
 
     @Override
@@ -1505,6 +1537,15 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             labels.add(colorName(color));
             atoms.add(color.getColorMask());
         }
+        if (min > 0 && min == max) {
+            final List<String> chosen = session.awaitColorChoice(
+                    me(), labels, min, false, sourceName(sa), sourceCardId(sa));
+            int mask = 0;
+            for (final String color : chosen) {
+                mask |= colorMask(color);
+            }
+            return ColorSet.fromMask(mask);
+        }
         final List<Integer> chosen = session.awaitModeChoice(me(), labels, min, max, sourceName(sa));
         int mask = 0;
         for (final Integer index : chosen) {
@@ -1525,10 +1566,18 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 return null;
             }
             final int idx = chosen.get(0);
-            return idx >= 0 && idx < typeOptions.size() ? typeOptions.get(idx) : null;
+            final String result = idx >= 0 && idx < typeOptions.size() ? typeOptions.get(idx) : null;
+            if (result != null) {
+                rememberSecretTypeViewer(sa);
+            }
+            return result;
         }
         final String chosen = session.awaitStringChoice("choose_type", me(), typeOptions, sourceCardId(sa), kindOfType == null ? "Card" : kindOfType);
-        return EngineHandler.validateOption(chosen, typeOptions, isOptional);
+        final String result = EngineHandler.validateOption(chosen, typeOptions, false);
+        if (result != null) {
+            rememberSecretTypeViewer(sa);
+        }
+        return result;
     }
 
     @Override

@@ -1,10 +1,19 @@
-import type { CardDto, StackObjectDto } from "@/protocol/game";
+import type { CardChoiceDto, CardDto, ManaColor, StackObjectDto } from "@/protocol/game";
 import type { CardRulesSummary } from "@/types/manabrew";
 import type { AvailableAction, PaymentAction } from "@/protocol/prompts/common";
 import type { ClientCardDto } from "@/stores/gameStore.types";
 import type { ManaAbilityActionInfo } from "@/components/game/manaUtils";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { PROMPT_LABELS } from "./game.constants";
+
+const MANA_COLOR_LABEL: Record<ManaColor, string> = {
+  W: "White",
+  U: "Blue",
+  B: "Black",
+  R: "Red",
+  G: "Green",
+  C: "Colorless",
+};
 
 export function isPermanentSpellCard(card: Pick<CardDto, "types">): boolean {
   return !card.types.includes("Instant") && !card.types.includes("Sorcery");
@@ -85,4 +94,83 @@ export function getPreviewActionShortcut(
   const actionPosition =
     index - (classLevelUpIndex !== null && classLevelUpIndex < index ? 1 : 0) + 1;
   return classLevel !== null && actionPosition >= classLevel ? actionPosition + 1 : actionPosition;
+}
+
+export interface CardChoiceIndicator {
+  key: string;
+  kind: CardChoiceDto["kind"];
+  label: string;
+  description: string;
+  colors: ManaColor[];
+}
+
+export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): CardChoiceIndicator[] {
+  return (card.choices ?? []).map((choice, index) => {
+    switch (choice.kind) {
+      case "color": {
+        const label = choice.colors.map((color) => MANA_COLOR_LABEL[color]).join(" / ");
+        return {
+          key: `color-${index}`,
+          kind: choice.kind,
+          label,
+          description: `Chosen color: ${label}`,
+          colors: choice.colors,
+        };
+      }
+      case "type": {
+        const label = choice.values.join(", ");
+        return {
+          key: `type-${index}`,
+          kind: choice.kind,
+          label,
+          description: `Chosen type: ${label}`,
+          colors: [],
+        };
+      }
+      case "namedCard": {
+        const label = choice.names.join(", ");
+        return {
+          key: `named-card-${index}`,
+          kind: choice.kind,
+          label,
+          description: `Named card: ${label}`,
+          colors: [],
+        };
+      }
+      case "chosenCard": {
+        const label = `${choice.count} ${choice.count === 1 ? "card" : "cards"}`;
+        return {
+          key: `chosen-card-${index}`,
+          kind: choice.kind,
+          label,
+          description: `Chosen cards: ${choice.count}`,
+          colors: [],
+        };
+      }
+      case "number":
+        return {
+          key: `number-${index}`,
+          kind: choice.kind,
+          label: `#${choice.value}`,
+          description: `Chosen number: ${choice.value}`,
+          colors: [],
+        };
+      case "mode":
+        return {
+          key: `mode-${index}`,
+          kind: choice.kind,
+          label: choice.value,
+          description: `Chosen mode: ${choice.value}`,
+          colors: [],
+        };
+      case "player":
+        return {
+          key: `player-${choice.playerId}`,
+          kind: choice.kind,
+          label: choice.name,
+          description: `Chosen player: ${choice.name}`,
+          colors: [],
+        };
+    }
+  });
 }

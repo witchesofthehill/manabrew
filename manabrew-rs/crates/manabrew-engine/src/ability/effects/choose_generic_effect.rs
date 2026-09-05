@@ -145,6 +145,11 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 
         if !chosen_sas.is_empty() {
             for chosen_sa in chosen_sas {
+                if sa.ir.set_chosen_mode {
+                    ctx.game
+                        .card_mut(source_id)
+                        .set_chosen_mode(chosen_sa.description.clone());
+                }
                 super::resolve_effect_chain_with_parent(
                     ctx,
                     chosen_sa,

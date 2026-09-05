@@ -1,10 +1,19 @@
 package forge.harness.host;
 
 import forge.harness.common.SnapshotExtractor;
+import forge.harness.protocol.CardChoiceDto;
+import forge.harness.protocol.CardChoiceDto_chosenCard;
+import forge.harness.protocol.CardChoiceDto_color;
+import forge.harness.protocol.CardChoiceDto_namedCard;
+import forge.harness.protocol.CardChoiceDto_mode;
+import forge.harness.protocol.CardChoiceDto_number;
+import forge.harness.protocol.CardChoiceDto_player;
+import forge.harness.protocol.CardChoiceDto_type;
 import forge.harness.protocol.CardDto;
 import forge.harness.protocol.CardIdentity;
 import forge.harness.protocol.ClassLevelDto;
 import forge.harness.protocol.SagaChapterDto;
+import forge.harness.protocol.ManaColor;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -39,9 +48,50 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class InteractiveSnapshotExtractor {
     private InteractiveSnapshotExtractor() {}
+
+    static final class SecretChoiceVisibility {
+        private final Map<String, Player> numberViewers = new ConcurrentHashMap<>();
+        private final Map<String, Player> typeViewers = new ConcurrentHashMap<>();
+        private final Map<String, Player> playerViewers = new ConcurrentHashMap<>();
+
+        void rememberNumber(final String cardId, final Player viewer) {
+            if (cardId != null) {
+                numberViewers.put(cardId, viewer);
+            }
+        }
+
+        void rememberType(final String cardId, final Player viewer) {
+            if (cardId != null) {
+                typeViewers.put(cardId, viewer);
+            }
+        }
+
+        void rememberPlayer(final String cardId, final Player viewer) {
+            if (cardId != null) {
+                playerViewers.put(cardId, viewer);
+            }
+        }
+
+        boolean canViewNumber(final Card card, final Player viewer) {
+            return viewer != null
+                    && numberViewers.get(SnapshotExtractor.javaCardId(card)) == viewer;
+        }
+
+        boolean canViewType(final Card card, final Player viewer) {
+            return viewer != null
+                    && typeViewers.get(SnapshotExtractor.javaCardId(card)) == viewer;
+        }
+
+        boolean canViewPlayer(final Card card, final Player viewer) {
+            return viewer != null
+                    && playerViewers.get(SnapshotExtractor.javaCardId(card)) == viewer;
+        }
+
+    }
 
     private static final Gson GSON = new GsonBuilder().create();
 
@@ -49,16 +99,19 @@ public final class InteractiveSnapshotExtractor {
             final Game game,
             final SpellAbility castingAbility,
             final String gameId,
-            final int viewer
+            final int viewer,
+            final SecretChoiceVisibility secretChoiceVisibility
     ) {
-        return GSON.toJson(buildGameView(game, castingAbility, gameId, viewer));
+        return GSON.toJson(
+                buildGameView(game, castingAbility, gameId, viewer, secretChoiceVisibility));
     }
 
     private static Map<String, Object> buildGameView(
             final Game game,
             final SpellAbility castingAbility,
             final String gameId,
-            final int viewer
+            final int viewer,
+            final SecretChoiceVisibility secretChoiceVisibility
     ) {
         final Map<String, Object> base = SnapshotExtractor.extractSnapshot(game);
 
@@ -70,24 +123,29 @@ public final class InteractiveSnapshotExtractor {
             final String ownerId = "player-" + index;
             players.add(toPlayer(game, player, index, viewer));
             zones.add(zoneWithVisibility("hand", ownerId, game,
-                    player.getCardsIn(ZoneType.Hand), index, true, viewerPlayer, false));
-            zones.add(visibleZone("graveyard", ownerId, game, player.getCardsIn(ZoneType.Graveyard), index, false));
+                    player.getCardsIn(ZoneType.Hand), index, true, viewerPlayer, false,
+                    secretChoiceVisibility));
+            zones.add(visibleZone("graveyard", ownerId, game, player.getCardsIn(ZoneType.Graveyard),
+                    index, false, viewerPlayer, secretChoiceVisibility));
             zones.add(zoneWithVisibility("exile", ownerId, game,
-                    player.getCardsIn(ZoneType.Exile), index, false, viewerPlayer, true));
+                    player.getCardsIn(ZoneType.Exile), index, false, viewerPlayer, true,
+                    secretChoiceVisibility));
             final List<Card> commandZone = new ArrayList<>();
             for (final Card card : player.getCardsIn(ZoneType.Command)) {
                 if (!card.isImmutable()) {
                     commandZone.add(card);
                 }
             }
-            zones.add(visibleZone("command", ownerId, game, commandZone, index, true));
+            zones.add(visibleZone("command", ownerId, game, commandZone, index, true,
+                    viewerPlayer, secretChoiceVisibility));
             // Library bulk stays hidden (count only); the top card is included
             // when the viewer may see it (Augur/Courser-style statics), so
             // `count >= cards.length`.
             final List<JsonObject> libraryCards = new ArrayList<>();
             final CardCollectionView library = player.getCardsIn(ZoneType.Library);
             if (!library.isEmpty() && shownTo(library.get(0), viewerPlayer)) {
-                libraryCards.add(visibleCard(toCard(game, library.get(0), index, true)));
+                libraryCards.add(visibleCard(toCard(
+                        game, library.get(0), index, true, viewerPlayer, secretChoiceVisibility)));
             }
             zones.add(zoneEntry("library", ownerId, libraryCards, library.size()));
         }
@@ -97,7 +155,8 @@ public final class InteractiveSnapshotExtractor {
             for (final Card card : player.getCardsIn(ZoneType.Battlefield)) {
                 final String controllerId =
                         "player-" + SnapshotExtractor.playerIndex(game, card.getController());
-                final CardDto dto = toCard(game, card, ownerIndex, false);
+                final CardDto dto = toCard(
+                        game, card, ownerIndex, false, viewerPlayer, secretChoiceVisibility);
                 if (card.isFaceDown() && !faceShownTo(card, viewerPlayer)) {
                     redact(dto);
                 }
@@ -112,7 +171,8 @@ public final class InteractiveSnapshotExtractor {
                             continue;
                         }
                         final CardDto component = toCard(
-                                game, merged, SnapshotExtractor.playerIndex(game, merged.getOwner()), false);
+                                game, merged, SnapshotExtractor.playerIndex(game, merged.getOwner()),
+                                false, viewerPlayer, secretChoiceVisibility);
                         component.attachedTo = dto.id;
                         dto.attachmentIds.add(component.id);
                         battlefieldByController
@@ -209,11 +269,14 @@ public final class InteractiveSnapshotExtractor {
             final Game game,
             final Iterable<Card> cards,
             final int ownerIndex,
-            final boolean castable
+            final boolean castable,
+            final Player viewerPlayer,
+            final SecretChoiceVisibility secretChoiceVisibility
     ) {
         final List<JsonObject> views = new ArrayList<>();
         for (final Card card : cards) {
-            views.add(visibleCard(toCard(game, card, ownerIndex, castable)));
+            views.add(visibleCard(toCard(
+                    game, card, ownerIndex, castable, viewerPlayer, secretChoiceVisibility)));
         }
         return zoneEntry(zone, ownerId, views, views.size());
     }
@@ -253,14 +316,16 @@ public final class InteractiveSnapshotExtractor {
             final int ownerIndex,
             final boolean castable,
             final Player viewerPlayer,
-            final boolean keepHiddenEntries
+            final boolean keepHiddenEntries,
+            final SecretChoiceVisibility secretChoiceVisibility
     ) {
         final List<JsonObject> views = new ArrayList<>();
         int count = 0;
         for (final Card card : cards) {
             count++;
             if (shownTo(card, viewerPlayer)) {
-                views.add(visibleCard(toCard(game, card, ownerIndex, castable)));
+                views.add(visibleCard(toCard(
+                        game, card, ownerIndex, castable, viewerPlayer, secretChoiceVisibility)));
             } else if (keepHiddenEntries) {
                 views.add(hiddenCard(card));
             }
@@ -298,6 +363,7 @@ public final class InteractiveSnapshotExtractor {
         dto.classLevel = null;
         dto.classLevels = Collections.emptyList();
         dto.sagaChapters = Collections.emptyList();
+        dto.choices = Collections.emptyList();
         dto.identity = new CardIdentity("", "", "", false, null);
         dto.text = "";
         dto.manaCost = "";
@@ -351,7 +417,7 @@ public final class InteractiveSnapshotExtractor {
 
     static CardDto cardDto(final Game game, final Card card, final boolean castable) {
         final int ownerIndex = card.getOwner() != null ? SnapshotExtractor.playerIndex(game, card.getOwner()) : 0;
-        return toCard(game, card, ownerIndex, castable);
+        return toCard(game, card, ownerIndex, castable, null, null);
     }
 
     private static List<String> mergedCardIds(final Card card) {
@@ -366,11 +432,106 @@ public final class InteractiveSnapshotExtractor {
         return ids;
     }
 
+    private static ManaColor manaColor(final String color) {
+        if (color.equalsIgnoreCase("W") || color.equalsIgnoreCase("White")) {
+            return ManaColor.W;
+        }
+        if (color.equalsIgnoreCase("U") || color.equalsIgnoreCase("Blue")) {
+            return ManaColor.U;
+        }
+        if (color.equalsIgnoreCase("B") || color.equalsIgnoreCase("Black")) {
+            return ManaColor.B;
+        }
+        if (color.equalsIgnoreCase("R") || color.equalsIgnoreCase("Red")) {
+            return ManaColor.R;
+        }
+        if (color.equalsIgnoreCase("G") || color.equalsIgnoreCase("Green")) {
+            return ManaColor.G;
+        }
+        if (color.equalsIgnoreCase("C") || color.equalsIgnoreCase("Colorless")) {
+            return ManaColor.C;
+        }
+        return null;
+    }
+
+    private static List<CardChoiceDto> choices(
+            final Game game,
+            final Card card,
+            final Player viewerPlayer,
+            final SecretChoiceVisibility secretChoiceVisibility
+    ) {
+        final List<CardChoiceDto> choices = new ArrayList<>();
+        final List<ManaColor> colors = new ArrayList<>();
+        final List<String> chosenColors = card.getView().getChosenColors();
+        if (chosenColors != null) {
+            for (final String color : chosenColors) {
+                final ManaColor parsed = manaColor(color);
+                if (parsed != null) {
+                    colors.add(parsed);
+                }
+            }
+            if (!colors.isEmpty()) {
+                choices.add(new CardChoiceDto_color(colors));
+            }
+        }
+
+        final List<String> types = new ArrayList<>();
+        String chosenType = card.getView().getChosenType();
+        if (chosenType.isEmpty()
+                && secretChoiceVisibility != null
+                && secretChoiceVisibility.canViewType(card, viewerPlayer)
+                && card.hasChosenType()) {
+            chosenType = card.getChosenType();
+        }
+        if (!chosenType.isEmpty()) {
+            types.add(chosenType);
+        }
+        if (!card.getView().getChosenType2().isEmpty()) {
+            types.add(card.getView().getChosenType2());
+        }
+        if (!types.isEmpty()) {
+            choices.add(new CardChoiceDto_type(types));
+        }
+
+        final List<String> namedCards = card.getView().getNamedCard();
+        if (namedCards != null && !namedCards.isEmpty()) {
+            choices.add(new CardChoiceDto_namedCard(new ArrayList<>(namedCards)));
+        }
+        if (!card.getView().getChosenCards().isEmpty()) {
+            choices.add(new CardChoiceDto_chosenCard(card.getView().getChosenCards().size()));
+        }
+        String chosenNumber = card.getView().getChosenNumber();
+        if (chosenNumber.isEmpty()
+                && secretChoiceVisibility != null
+                && secretChoiceVisibility.canViewNumber(card, viewerPlayer)
+                && card.hasChosenNumber()) {
+            chosenNumber = String.valueOf(card.getChosenNumber());
+        }
+        if (!chosenNumber.isEmpty()) {
+            choices.add(new CardChoiceDto_number(Integer.parseInt(chosenNumber)));
+        }
+        if (!card.getView().getChosenMode().isEmpty()) {
+            choices.add(new CardChoiceDto_mode(card.getView().getChosenMode()));
+        }
+        final boolean chosenPlayerVisible = card.getView().getChosenPlayer() != null
+                || secretChoiceVisibility != null
+                && secretChoiceVisibility.canViewPlayer(card, viewerPlayer);
+        if (chosenPlayerVisible && card.getChosenPlayer() != null) {
+            final Player player = card.getChosenPlayer();
+            choices.add(new CardChoiceDto_player(
+                    "player-" + SnapshotExtractor.playerIndex(game, player),
+                    player.getName()));
+        }
+        return choices;
+    }
+
     private static CardDto toCard(
             final Game game,
             final Card card,
             final int ownerIndex,
-            final boolean castable
+            final boolean castable,
+            final Player viewerPlayer,
+            final SecretChoiceVisibility secretChoiceVisibility
     ) {
         final CardDto dto = new CardDto();
         dto.id = SnapshotExtractor.javaCardId(card);
@@ -406,6 +567,7 @@ public final class InteractiveSnapshotExtractor {
         dto.classLevels = classLevels(card);
         dto.sagaChapters = sagaChapters(card);
         dto.text = normalizedOracle(card);
+        dto.choices = choices(game, card, viewerPlayer, secretChoiceVisibility);
         dto.controllerId = "player-" + SnapshotExtractor.playerIndex(game, card.getController());
         dto.ownerId = "player-" + ownerIndex;
         dto.tapped = card.isTapped();

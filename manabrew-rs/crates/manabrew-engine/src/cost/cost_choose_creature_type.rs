@@ -9,13 +9,11 @@ use crate::ids::{CardId, PlayerId};
 pub fn pay_as_decided(
     game: &mut GameState,
     source: CardId,
-    player: PlayerId,
+    _player: PlayerId,
     chosen_type: &str,
 ) -> bool {
-    let card = game.card_mut(source);
-    card.chosen_type = Some(chosen_type.to_string());
-    card.chosen_type_controller = Some(player);
-    card.chosen_type_revealed = false;
+    game.card_mut(source)
+        .set_chosen_type(Some(chosen_type.to_string()), None, true);
     true
 }
 

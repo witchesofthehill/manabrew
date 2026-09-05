@@ -188,11 +188,9 @@ pub fn broadcast_player_list(state: &Arc<ServerState>) {
     }
 }
 
-/// `room_transport` is advertised only where it works, so a client can tell a
-/// relay that will send it a roster from one that never will.
-/// The direct-plane features are advertised only where they work. Off, a
-/// client sees no `room_transport` and no `peer_signal`, so it never starts a
-/// negotiation this relay would drop.
+/// The direct-plane features are advertised only where they work. Off, a client
+/// sees no `room_transport` or `peer_signal` and starts no negotiation this
+/// relay would drop.
 fn advertised_features(state: &Arc<ServerState>) -> Vec<String> {
     crate::protocol::FEATURES
         .iter()
@@ -215,10 +213,9 @@ pub fn broadcast_room_transport(state: &Arc<ServerState>, room_id: &str) {
     let Some(room) = state.rooms.get(room_id) else {
         return;
     };
-    // Opt-in is per player and the room upgrades only when every player took
-    // it. Until then the roster goes out empty rather than not at all: an
-    // empty roster is what tells a seat that dialled earlier, before somebody
-    // who did not opt in sat down, to tear its connection down again.
+    // The room upgrades only when every player opted in. Until then the roster
+    // goes out empty rather than not at all, which tells a seat that dialled
+    // earlier to tear its connection down.
     let consented = room.transport_consented();
     let msg = ServerMessage::RoomTransport {
         room_id: room_id.to_string(),
@@ -1562,9 +1559,8 @@ fn handle_client_message(
             let Some(room_id) = state.players.get(player_id).and_then(|p| p.room_id.clone()) else {
                 return;
             };
-            // The capture is the one artefact this exists to keep honest, so
-            // only the room's engine host writes into it, and only about the
-            // game the relay believes is running.
+            // Only the room's engine host writes the capture, and only about
+            // the game the relay believes is running.
             let authorised = state.rooms.get(&room_id).is_some_and(|room| {
                 room.is_host(player_id)
                     && room
@@ -1604,11 +1600,8 @@ fn handle_client_message(
                     Some(mut room) => room.set_transport(player_id, endpoint),
                     None => false,
                 };
-            // Announcing is an optimisation, not something a player did, and a
-            // relay error becomes a toast. Telling someone they are not in the
-            // room they are sitting in because a squatter claimed their
-            // endpoint id is worse than saying nothing: they stay on the relay
-            // and the counter is where this shows up.
+            // Silent: a squatter must not be able to show a real player an
+            // error about the room they sit in. The rejection is a counter.
             if !accepted {
                 metrics::record_transport_announcement("rejected");
                 return;

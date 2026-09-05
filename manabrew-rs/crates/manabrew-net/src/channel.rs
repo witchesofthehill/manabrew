@@ -1,9 +1,6 @@
-//! The transport seam.
-//!
-//! A transport is not a trait object here. It is whatever task pumps a
-//! [`GameChannel`]'s two ends and reports its own health. That is enough to
-//! swap implementations, and it lets the existing relay WebSocket loop qualify
-//! as a transport without being rewritten as a `dyn` implementation.
+//! The transport seam. A transport is whatever task pumps a [`GameChannel`]'s
+//! two ends and reports its health, so the relay WebSocket loop qualifies
+//! without becoming a `dyn` implementation.
 
 use std::sync::Arc;
 
@@ -78,8 +75,7 @@ pub struct GameChannel {
     guard: Option<Arc<ChannelGuard>>,
 }
 
-/// The send half of a [`GameChannel`]. Splitting is what lets one task write
-/// while another reads; both halves keep the transport's tasks alive.
+/// The send half of a [`GameChannel`]; both halves keep the pump tasks alive.
 #[derive(Debug, Clone)]
 pub struct GameSender {
     outbound: mpsc::Sender<SessionFrame>,
@@ -109,10 +105,9 @@ impl GameSender {
         self.status.borrow().clone()
     }
 
-    /// Tears the transport down from the send half alone. Dropping a sender is
-    /// not enough: the receiver holds the same guard, so a reader that outlives
-    /// its sender keeps the connection open and keeps delivering. A superseded
-    /// connection has to be closed, not merely forgotten.
+    /// Tears the transport down from the send half. Dropping a sender is not
+    /// enough: the receiver holds the same guard, so a superseded connection
+    /// must be closed, not forgotten, or its reader keeps delivering.
     pub fn close(&self) {
         if let Some(guard) = &self.guard {
             guard.abort();

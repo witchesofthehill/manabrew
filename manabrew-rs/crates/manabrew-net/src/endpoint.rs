@@ -21,19 +21,16 @@ use crate::{NetError, Result};
 pub const GAME_ALPN: &[u8] = b"manabrew/game/1";
 
 const HELLO_TIMEOUT: Duration = Duration::from_secs(10);
-/// Give a rejected peer time to read the reason. Closing straight away races
-/// it, and it would only see "connection lost".
+/// Give a rejected peer time to read the reason before the close races it.
 const REJECT_LINGER: Duration = Duration::from_secs(2);
 
 #[derive(Debug, Default)]
 pub struct NetConfig {
-    /// Reused across restarts if the caller persists it. Fresh keys are fine:
-    /// the relay re-attests the new endpoint id on the next announcement.
+    /// Persist to reuse across restarts; a fresh key is re-attested on the next
+    /// announcement.
     pub secret_key: Option<SecretKey>,
-    /// Which relays coordinate hole punching, and carry traffic for a pair that
-    /// cannot be punched through. `None` takes iroh's own defaults; a
-    /// deployment that would rather run its own names it in `RoomTransport`.
-    /// Relays never see plaintext: they forward QUIC between endpoint keys.
+    /// Relays for hole punching and relayed fallback. `None` takes iroh's
+    /// defaults. Relays forward QUIC between keys and never see plaintext.
     pub relay_mode: Option<RelayMode>,
 }
 
@@ -46,12 +43,10 @@ impl NetConfig {
     }
 }
 
-/// The host may not have applied the same roster yet, so one retry covers that
-/// ordering; a later roster retries anyway.
+/// One retry covers the host not having applied the same roster yet.
 pub const DIAL_ATTEMPTS: usize = 2;
 pub const DIAL_RETRY_DELAY: Duration = Duration::from_millis(300);
-/// Dialling happens inline in a message loop or a command the UI awaits, so it
-/// must not hold either for long.
+/// Dialling is inline in a loop or an awaited command, so keep it short.
 pub const DIAL_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// A seat that dialled us and passed the roster check.
@@ -59,9 +54,8 @@ pub const DIAL_TIMEOUT: Duration = Duration::from_secs(2);
 pub struct SeatConnection {
     pub username: String,
     pub endpoint_id: EndpointId,
-    /// Distinguishes one connection from the same seat's next one. A seat that
-    /// re-dials after a blip is a new connection, not the old one recovering,
-    /// and the old one's reader will still fire when it finally notices.
+    /// Distinguishes a re-dial from the connection it replaces; the old one's
+    /// reader still fires when it notices.
     pub generation: u64,
     pub channel: GameChannel,
 }
@@ -71,8 +65,7 @@ pub struct NetEndpoint {
     endpoint: Endpoint,
     router: Router,
     roster: SharedRoster,
-    /// Addresses learned out of band, which for manabrew means "from the
-    /// relay". Feeding it only from the roster keeps the control plane the sole
+    /// Addresses learned from the roster only, so the control plane is the sole
     /// source of addressing.
     known_addrs: MemoryLookup,
 }
@@ -82,9 +75,8 @@ pub(crate) type SharedRoster = Arc<RwLock<Option<Roster>>>;
 impl NetEndpoint {
     pub async fn bind(config: NetConfig) -> Result<(Self, mpsc::Receiver<SeatConnection>)> {
         let known_addrs = MemoryLookup::new();
-        // `presets::Minimal` and no address lookup service, on purpose: the
-        // relay hands us a full address for every peer, so publishing endpoint
-        // ids to a third-party DNS or DHT would leak the roster for no benefit.
+        // Minimal, no address lookup: the relay hands us every peer's address,
+        // so publishing to a third-party DNS or DHT would only leak the roster.
         let mut builder = Endpoint::builder(iroh::endpoint::presets::Minimal)
             .relay_mode(config.relay_mode.unwrap_or(RelayMode::Default))
             .address_lookup(known_addrs.clone());
@@ -126,9 +118,8 @@ impl NetEndpoint {
         to_transport_endpoint(&self.endpoint.addr())
     }
 
-    /// Waits until the endpoint has a home relay, so `local()` is worth
-    /// announcing. Returns false on timeout; the caller can still announce its
-    /// direct addresses, which is all a peer on the same network needs.
+    /// Waits for a home relay so `local()` is worth announcing. False on
+    /// timeout; the direct addresses still suffice for a peer on this network.
     pub async fn wait_online(&self, timeout: Duration) -> bool {
         n0_future::time::timeout(timeout, self.endpoint.online())
             .await
@@ -228,9 +219,9 @@ impl ProtocolHandler for GameAcceptor {
             return Ok(());
         };
 
-        // The whole admission decision. `remote` is proven by the QUIC
-        // handshake; the roster is the relay's word on who owns it. A claim in
-        // the `Hello` frame is worth nothing on its own.
+        // The whole admission decision: `remote` is proven by the handshake,
+        // the roster is the relay's word on who owns it, the `Hello` name is
+        // worth nothing on its own.
         let verdict = {
             let guard = self.roster.read().expect("roster lock");
             match guard.as_ref() {

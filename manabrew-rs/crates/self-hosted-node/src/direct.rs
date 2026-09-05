@@ -1,12 +1,7 @@
-//! The direct data plane for a hosted room (phase 2 of `docs/TRANSPORT.md`).
-//!
-//! The relay stays the control plane and the fallback. What moves here is one
-//! thing: the per-seat engine envelopes this node would otherwise push through
-//! `BroadcastState` with a `target_player`. A seat that has proved itself over
-//! iroh receives them on its own QUIC stream instead.
-//!
-//! One endpoint per room rather than per node, because the roster is per room
-//! and `max_games` defaults to 1 on the fleet.
+//! The direct data plane for a hosted room. The relay stays the control plane
+//! and the fallback; what moves here is the per-seat engine envelopes, from
+//! `BroadcastState` onto a seat's own QUIC stream. One endpoint per room. See
+//! docs/TRANSPORT.md.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
@@ -21,14 +16,9 @@ use tracing::{debug, info, warn};
 
 use crate::config::Config;
 
-/// Where a seat's envelopes go, and how it gets back.
-///
-/// The middle state is the point. A seat whose direct channel died has a board
-/// the relay never saw, so it cannot simply resume relay traffic: the host owes
-/// it a full authoritative state first. `RelayPending` is that debt, and it is
-/// paid before anything else for that seat goes out, because `outbound_tx` is
-/// ordered. The seat acknowledges by answering over the relay, which is the
-/// first thing it does that proves it is reading that path again.
+/// Where a seat's envelopes go. `RelayPending` is the debt owed to a seat that
+/// fell back: the relay never saw its board, so a full state goes out before
+/// anything else, cleared when the seat answers over the relay.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SeatTransport {
     Direct,
@@ -68,11 +58,8 @@ pub struct SeatTable {
 pub struct DirectPlane {
     endpoint: NetEndpoint,
     seats: SeatTable,
-    /// The relay currently installed. `insert_relay` is not a config swap: it
-    /// sends `RelayMapChange`, which schedules a full net report. The relay
-    /// re-broadcasts the roster on every join and leave, so re-inserting an
-    /// unchanged relay would re-probe the network every time somebody walked
-    /// into the lobby.
+    /// The relay currently installed. Re-inserting an unchanged one schedules a
+    /// full net report on every join and leave, so it is guarded.
     installed: Mutex<Option<String>>,
 }
 
@@ -174,10 +161,9 @@ impl DirectPlane {
     /// Called on `GameStarted`. Only seats already connected take part, so no
     /// stream changes transport while the game runs.
     ///
-    /// Only seats the current roster names, too. The relay sends an empty
-    /// roster while any human at the table has not opted in, and a seat that
-    /// dialled before that player sat down is still connected here. The
-    /// roster is the relay's word on who agreed; a live connection is not.
+    /// Only seats the current roster names: the relay empties the roster while
+    /// anyone at the table has not opted in, and the roster, not a live
+    /// connection, is the word on who agreed.
     pub fn freeze_for_game(&self, seats: &[String]) -> Vec<String> {
         let roster = self.endpoint.roster();
         let named: Vec<String> = roster
@@ -271,10 +257,8 @@ impl SeatTable {
 
         let (sender, receiver) = channel.split();
         if let Ok(mut state) = self.state.lock() {
-            // Closed, not dropped. The superseded connection's reader task
-            // holds the other half of its guard, so forgetting the sender
-            // leaves that QUIC connection open and still feeding the engine
-            // responses under this seat's name.
+            // Closed, not dropped: the superseded reader holds the other half
+            // of the guard and would keep feeding the engine under this name.
             if let Some((_, superseded)) = state.live.insert(username.clone(), (generation, sender))
             {
                 superseded.close();
@@ -438,10 +422,9 @@ impl SeatTable {
     }
 }
 
-/// Reads a seat's inbound frames. The username is the one the relay attested
-/// and `manabrew-net` matched against the connecting endpoint id, so it carries
-/// exactly the authority `StateUpdate.from_player` carries on the relay path,
-/// and the same routing and seat checks apply unchanged.
+/// Reads a seat's inbound frames. The username is relay-attested and matched
+/// against the endpoint id, so it carries the same authority as
+/// `StateUpdate.from_player` on the relay path.
 async fn pump_inbound(mut receiver: GameReceiver, username: &str, route: impl Fn(&str, &Value)) {
     while let Some(frame) = receiver.recv().await {
         match frame {

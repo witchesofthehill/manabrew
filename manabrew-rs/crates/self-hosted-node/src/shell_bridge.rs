@@ -1,24 +1,12 @@
-//! The webview's half of a desktop host's data plane, for the seat a native
-//! endpoint cannot reach.
+//! The webview's half of a desktop host's data plane, for a browser seat the
+//! node cannot dial. A browser speaks WebRTC only, and the webview is the one
+//! thing beside the node that can hold such a connection, so the node's
+//! envelopes go out through the shell. A third sink after `DirectPlane` and
+//! before the relay; a seat is on exactly one of the three.
 //!
-//! A desktop-hosted room runs its engine here, in Rust, on its own relay
-//! session. A browser seat in that room cannot be dialled from it: a browser is
-//! reachable over WebRTC and nothing else, and the only thing in this process
-//! that can make a WebRTC connection is the webview sitting beside it. So the
-//! envelopes go out through the shell rather than through a second Rust
-//! transport stack, which is what #838 settled on.
-//!
-//! Two thirds of mixed rooms are desktop-hosted, so this is the larger half of
-//! that case.
-//!
-//! The seam is [`crate::direct::DirectPlane::try_send`] returning false: this
-//! is a second sink beside it, tried after it and before the relay. A seat is
-//! on one of the three, never two.
-//!
-//! The relay socket stays here, in the node. Signalling addressed to this host
-//! arrives on it and is forwarded out to the webview; what the webview answers
-//! comes back and goes out under this host's attested identity. The webview
-//! never gets a relay session of its own to speak for the host with.
+//! The relay socket stays in the node: signalling for the host arrives here,
+//! is forwarded to the webview, and what it answers goes back under the host's
+//! attested identity. See docs/TRANSPORT.md.
 
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
@@ -107,18 +95,16 @@ impl ShellBridge {
         }
     }
 
-    /// Paid the same way the direct plane pays it: a seat that leaves this
-    /// plane mid-game needs its board put back into the relay's replay cache
-    /// before it reads that path again.
+    /// A seat that leaves this plane mid-game is owed a full board before it
+    /// reads the relay again, the same debt the direct plane pays.
     pub fn set_on_fallback(&self, reprime: impl Fn(&str) + Send + Sync + 'static) {
         if let Ok(mut slot) = self.on_fallback.lock() {
             *slot = Some(Box::new(reprime));
         }
     }
 
-    /// Replaces the served set. A seat this plane was carrying that drops out
-    /// of it has lost its channel: it leaves the plane for good and goes back
-    /// on the relay owing a board.
+    /// Replaces the served set. A carried seat that drops out has lost its
+    /// channel: it goes back on the relay owing a board.
     pub fn set_serving(&self, seats: Vec<String>) {
         let incoming: HashSet<String> = seats.into_iter().collect();
         let lost: Vec<String> = {
@@ -151,11 +137,10 @@ impl ShellBridge {
         }
     }
 
-    /// Called on `GameStarted`, after the direct plane has taken its seats.
-    /// `taken` names those, so a seat cannot be claimed by both planes. Only
-    /// seats the current roster attests are carried, so an incomplete opt-in
-    /// (an empty roster) freezes nobody onto this plane.
-    /// Returns the seats this bridge is carrying for the game.
+    /// Called on `GameStarted`. `taken` names the seats the direct plane
+    /// already took, so none is claimed twice; only roster-attested seats are
+    /// carried, so an empty roster (incomplete opt-in) freezes nobody. Returns
+    /// the seats this bridge carries.
     pub fn freeze_for_game(&self, seats: &[String], taken: &[String]) -> Vec<String> {
         let Ok(serving) = self.serving.lock() else {
             return Vec::new();
@@ -198,15 +183,9 @@ impl ShellBridge {
         }
     }
 
-    /// Hands one engine envelope to the webview for a seat, or says it did not.
-    ///
-    /// Unlike the direct plane this cannot know the send landed: the answer
-    /// would have to come back across the shell, and the caller is the room's
-    /// message loop. What makes that safe is the fallback debt above. A seat
-    /// whose channel dies in the window between the webview's last `Serving`
-    /// and this call loses envelopes, and is then owed a full board before it
-    /// reads the relay again, which is the same repair the direct plane makes
-    /// for the same reason.
+    /// Hands one envelope to the webview, or says it did not. This cannot know
+    /// the send landed, so a seat whose channel died since its last `Serving`
+    /// loses envelopes and is then owed a full board, the same debt as above.
     pub fn try_send(&self, target: &str, envelope: &Value) -> bool {
         let claimed = self
             .frozen

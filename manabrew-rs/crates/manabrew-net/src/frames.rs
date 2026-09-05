@@ -1,8 +1,6 @@
-//! Wire framing for a seat's session stream.
-//!
-//! The payload is the same opaque engine envelope the relay already carries in
-//! `BroadcastState.state` and `StateUpdate.state`. Nothing in this module reads
-//! it, which is what keeps the game protocol transport-agnostic.
+//! Wire framing for a seat's session stream. The payload is the same opaque
+//! engine envelope the relay carries; nothing here reads it, which keeps the
+//! game protocol transport-agnostic.
 
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};

@@ -1,13 +1,8 @@
 /**
- * A seat's direct channel to the room's engine host.
- *
- * Desktop only. The endpoint is native, in the Tauri shell, because a browser
- * build of iroh has no IP transports and could only ever be relayed; a browser
- * room wants WebRTC instead (#838). On the web this class binds nothing and
- * every seat stays on the relay, which is what it does today.
- *
- * Both ends freeze on `GameStarted`, the same relay message, which is how host
- * and seat agree on a transport for a game without negotiating.
+ * A seat's direct channel to the room's engine host. Desktop only: the endpoint
+ * is native in the Tauri shell, because a browser build of iroh has no IP
+ * transports. On the web this binds nothing. Both ends freeze on `GameStarted`.
+ * See docs/TRANSPORT.md.
  */
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -27,12 +22,9 @@ export interface DirectTransportStatus {
   reconnects?: number;
 }
 
-/** What the relay is told about one attempt on this plane. Mirrors the browser
- *  plane's report so both arrive as the same measurement.
- *
- *  iroh needs no probe: QUIC keeps the path's round trip, whether it went
- *  direct, and whether the remote address is private. That is the same three
- *  facts the WebRTC plane has to derive from ICE stats. */
+/** One attempt on this plane, mirroring the browser plane's report. iroh needs
+ *  no probe: QUIC already has the round trip, the path kind and whether the
+ *  address is private. */
 export interface DirectSeatMeasurement {
   peer: string;
   outcome: "connected" | "failed";
@@ -64,10 +56,8 @@ export class DirectSeat {
   private unlisten: (() => void) | null = null;
   private live = false;
   private active = false;
-  /** The in-flight bind, so two `RoomTransport` messages arriving together
-   *  cannot both get past a check that sits before an await and each build a
-   *  seat. The second would install a second event listener and every host
-   *  envelope would arrive twice. */
+  /** The in-flight bind, so two rosters arriving together do not each build a
+   *  seat and double every host envelope. */
   private binding: Promise<unknown | null> | null = null;
   private installedRelay: string | null = null;
 

@@ -1,12 +1,7 @@
-//! The manabrew data plane.
-//!
-//! `manabrew-server` stays the control plane: it authenticates sessions, owns
-//! room lifecycle and membership, and is the only thing that binds a relay
-//! username to an endpoint id. This crate carries game traffic between the
-//! peers that control plane named. Nothing here replaces the relay; a peer that
-//! cannot bind or cannot reach the host stays on it.
-//!
-//! See `docs/TRANSPORT.md`.
+//! The manabrew data plane. `manabrew-server` stays the control plane and the
+//! only thing that binds a username to an endpoint id; this crate carries game
+//! traffic between the peers it named. A peer that cannot bind or reach the
+//! host stays on the relay. See docs/TRANSPORT.md.
 
 pub mod channel;
 pub mod endpoint;

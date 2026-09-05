@@ -1536,8 +1536,11 @@ class WebServerApi implements IServerApi {
           scope: msg.scope,
           room_id: msg.room_id,
           from: msg.from,
+          avatar_url: msg.avatar_url,
+          qualification: msg.qualification,
           text: msg.text,
           sent_at_ms: msg.sent_at_ms,
+          seal: msg.seal,
         },
       ],
       ChatHistory: [

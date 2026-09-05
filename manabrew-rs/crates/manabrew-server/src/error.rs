@@ -22,6 +22,7 @@ pub enum ServerError {
     PlayerInGame(String),
     InvalidChatMessage(String),
     ChatRateLimited,
+    AccountRequired,
     WebSocket(Box<tokio_tungstenite::tungstenite::Error>),
     Serde(serde_json::Error),
 }
@@ -49,6 +50,7 @@ impl fmt::Display for ServerError {
             Self::PlayerInGame(name) => write!(f, "Player is in a game: {name}"),
             Self::InvalidChatMessage(msg) => write!(f, "Invalid chat message: {msg}"),
             Self::ChatRateLimited => write!(f, "You are sending messages too quickly"),
+            Self::AccountRequired => write!(f, "Sign in to chat in General"),
             Self::WebSocket(e) => write!(f, "WebSocket error: {e}"),
             Self::Serde(e) => write!(f, "Serialization error: {e}"),
         }
@@ -80,6 +82,7 @@ impl ServerError {
             Self::PlayerInGame(_) => "player_in_game",
             Self::InvalidChatMessage(_) => "invalid_chat_message",
             Self::ChatRateLimited => "chat_rate_limited",
+            Self::AccountRequired => "account_required",
             Self::WebSocket(_) => "websocket_error",
             Self::Serde(_) => "parse_error",
         }

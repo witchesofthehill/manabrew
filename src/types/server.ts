@@ -66,6 +66,7 @@ export interface PlayerInfo {
   avatar_url?: string;
   room_id?: string;
   local_game?: LocalGameKind;
+  seal?: string;
 }
 
 export interface AuthResultPayload {
@@ -198,8 +199,11 @@ export interface ChatMessagePayload {
   scope: ChatScope;
   room_id?: string;
   from: string;
+  avatar_url?: string;
+  qualification?: string;
   text: string;
   sent_at_ms: number;
+  seal?: string;
 }
 
 export interface ChatHistoryPayload {
@@ -240,6 +244,7 @@ export const SERVER_ERROR_CODE = {
   PlayerInGame: "player_in_game",
   InvalidChatMessage: "invalid_chat_message",
   ChatRateLimited: "chat_rate_limited",
+  AccountRequired: "account_required",
   WebSocket: "websocket_error",
   Parse: "parse_error",
 } as const;
@@ -263,6 +268,7 @@ export const START_GAME_FAILURE_CODES: ReadonlySet<ServerErrorCode> = new Set([
 export const CHAT_ERROR_CODES: ReadonlySet<ServerErrorCode> = new Set([
   SERVER_ERROR_CODE.InvalidChatMessage,
   SERVER_ERROR_CODE.ChatRateLimited,
+  SERVER_ERROR_CODE.AccountRequired,
 ]);
 
 export const USER_FACING_ERROR_MESSAGES: Partial<Record<ServerErrorCode, string>> = {
@@ -278,6 +284,7 @@ export const USER_FACING_ERROR_MESSAGES: Partial<Record<ServerErrorCode, string>
   [SERVER_ERROR_CODE.PlayerInGame]: "That player is in a game",
   [SERVER_ERROR_CODE.InvalidChatMessage]: "That message can't be sent",
   [SERVER_ERROR_CODE.ChatRateLimited]: "You're sending too many messages",
+  [SERVER_ERROR_CODE.AccountRequired]: "Sign in to chat in General",
 };
 
 export interface ServerErrorPayload {

@@ -4,8 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessageRow } from "@/components/lobby/ChatMessageRow";
+import { ReportPlayerDialog, type ReportTarget } from "@/components/lobby/ReportPlayerDialog";
 import { useChatStore, type ChatEntry } from "@/stores/useChatStore";
 import { useServerStore } from "@/stores/useServerStore";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { useSignInDialog } from "@/stores/useSignInDialogStore";
+import { useHubAvailable } from "@/hooks/useHubAvailable";
 import { CHAT_MESSAGE_MAX_CHARS, type ChatScope, type RoomInfo } from "@/types/server";
 import { cn } from "@/lib/utils";
 
@@ -30,10 +34,14 @@ export function ChatPanel({
   const send = useChatStore((s) => s.send);
   const markRead = useChatStore((s) => s.markRead);
   const players = useServerStore((s) => s.players);
+  const signedIn = useAuthStore((s) => s.status === "signedIn");
+  const showSignIn = useSignInDialog((s) => s.show);
+  const hubAvailable = useHubAvailable();
   const inRoom = currentRoom != null;
   const [scope, setScope] = useState<ChatScope>(inRoom ? "Room" : "Lobby");
   const [prevInRoom, setPrevInRoom] = useState(inRoom);
   const [input, setInput] = useState("");
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   if (inRoom !== prevInRoom) {
@@ -111,6 +119,9 @@ export function ChatPanel({
                 entry={entry}
                 mine={entry.from === currentUsername}
                 player={players.find((p) => p.username === entry.from)}
+                onReport={
+                  hubAvailable ? (target) => setReportTarget({ username: target.from }) : undefined
+                }
                 continued={
                   previous != null &&
                   !previous.system &&
@@ -123,31 +134,41 @@ export function ChatPanel({
           <div ref={endRef} />
         </div>
       </ScrollArea>
-      <form
-        className="flex shrink-0 gap-1.5 px-2 pb-2 pt-1"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void handleSend();
-        }}
-      >
-        <Input
-          className="h-9 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
-          placeholder={scope === "Room" ? "Message your table…" : "Message everyone…"}
-          value={input}
-          maxLength={CHAT_MESSAGE_MAX_CHARS}
-          disabled={disabled}
-          onChange={(event) => setInput(event.target.value)}
-        />
-        <Button
-          type="submit"
-          size="icon"
-          className="h-9 w-9 shrink-0"
-          disabled={disabled || !input.trim()}
-          aria-label="Send message"
+      {scope === "Lobby" && !signedIn ? (
+        <div className="flex shrink-0 items-center justify-between gap-2 px-3 pb-2 pt-1 text-xs text-muted-foreground">
+          <span>Sign in to chat in General.</span>
+          <Button size="sm" variant="outline" onClick={() => showSignIn()}>
+            Sign in
+          </Button>
+        </div>
+      ) : (
+        <form
+          className="flex shrink-0 gap-1.5 px-2 pb-2 pt-1"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleSend();
+          }}
         >
-          <Send className="h-4 w-4" />
-        </Button>
-      </form>
+          <Input
+            className="h-9 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
+            placeholder={scope === "Room" ? "Message your table…" : "Message everyone…"}
+            value={input}
+            maxLength={CHAT_MESSAGE_MAX_CHARS}
+            disabled={disabled}
+            onChange={(event) => setInput(event.target.value)}
+          />
+          <Button
+            type="submit"
+            size="icon"
+            className="h-9 w-9 shrink-0"
+            disabled={disabled || !input.trim()}
+            aria-label="Send message"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </form>
+      )}
+      <ReportPlayerDialog player={reportTarget} onClose={() => setReportTarget(null)} />
     </div>
   );
 }

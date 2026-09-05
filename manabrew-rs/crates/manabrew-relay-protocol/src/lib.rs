@@ -336,8 +336,14 @@ pub struct ChatMessage {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub room_id: Option<String>,
     pub from: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qualification: Option<String>,
     pub text: String,
     pub sent_at_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seal: Option<String>,
 }
 
 pub const CHAT_MESSAGE_MAX_CHARS: usize = 500;
@@ -481,6 +487,10 @@ pub struct PlayerInfo {
     /// at the same time as `room_id`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub local_game: Option<LocalGameKind>,
+    /// Opaque to clients: the session's IP sealed together with its handle,
+    /// which only the hub can open. Carried verbatim into chat reports.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seal: Option<String>,
 }
 
 /// Names [`ClientMessage::SetLocalGame`] in `AuthResult::features`.

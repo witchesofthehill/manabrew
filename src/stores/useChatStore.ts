@@ -16,9 +16,12 @@ import type {
 export interface ChatEntry {
   id: number;
   from: string;
+  avatarUrl?: string;
+  qualification?: string;
   text: string;
   sentAtMs: number;
   system?: boolean;
+  seal?: string;
 }
 
 const MAX_ENTRIES_PER_SCOPE = 200;
@@ -41,8 +44,11 @@ function toEntry(payload: ChatMessagePayload): ChatEntry {
   return {
     id: nextEntryId++,
     from: payload.from,
+    avatarUrl: payload.avatar_url,
+    qualification: payload.qualification,
     text: payload.text,
     sentAtMs: payload.sent_at_ms,
+    seal: payload.seal,
   };
 }
 

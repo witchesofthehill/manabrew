@@ -12,5 +12,6 @@ pub mod metrics;
 pub mod protocol;
 pub mod replay;
 pub mod room;
+pub mod seal;
 pub mod server;
 pub mod state;

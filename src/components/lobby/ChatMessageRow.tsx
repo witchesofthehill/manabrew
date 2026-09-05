@@ -1,3 +1,5 @@
+import { Flag } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { PlayerAvatar } from "@/components/lobby/PlayerAvatar";
 import { PlayerCard } from "@/components/lobby/PlayerCard";
 import { QualificationBadge } from "@/components/lobby/QualificationBadge";
@@ -11,6 +13,7 @@ interface ChatMessageRowProps {
   mine: boolean;
   player: PlayerInfo | undefined;
   continued: boolean;
+  onReport?: (entry: ChatEntry) => void;
 }
 
 function formatTime(sentAtMs: number): string {
@@ -21,7 +24,7 @@ function formatTime(sentAtMs: number): string {
   });
 }
 
-export function ChatMessageRow({ entry, mine, player, continued }: ChatMessageRowProps) {
+export function ChatMessageRow({ entry, mine, player, continued, onReport }: ChatMessageRowProps) {
   if (entry.system) {
     return <p className="py-0.5 text-center text-sm italic text-muted-foreground">{entry.text}</p>;
   }
@@ -29,13 +32,19 @@ export function ChatMessageRow({ entry, mine, player, continued }: ChatMessageRo
   const avatar = (
     <PlayerAvatar
       username={entry.from}
-      avatarUrl={player?.avatar_url}
+      avatarUrl={entry.avatarUrl}
       className="h-7 w-7 shrink-0"
       fallbackClassName="text-xs"
     />
   );
   return (
-    <div className={cn("flex items-end gap-2", mine && "flex-row-reverse", continued && "-mt-1.5")}>
+    <div
+      className={cn(
+        "group flex items-end gap-2",
+        mine && "flex-row-reverse",
+        continued && "-mt-1.5",
+      )}
+    >
       {mine ? null : continued ? (
         <span className="w-7 shrink-0" />
       ) : player ? (
@@ -48,7 +57,7 @@ export function ChatMessageRow({ entry, mine, player, continued }: ChatMessageRo
           }
           side="left"
         >
-          <button type="button" className="shrink-0 rounded-full">
+          <button type="button" className="shrink-0 rounded-full outline-none">
             {avatar}
           </button>
         </PlayerCard>
@@ -66,7 +75,7 @@ export function ChatMessageRow({ entry, mine, player, continued }: ChatMessageRo
             )}
           >
             <span className="font-semibold text-foreground/80">{name}</span>
-            <QualificationBadge qualification={player?.qualification} className="h-3.5 w-3.5" />
+            <QualificationBadge qualification={entry.qualification} className="h-3.5 w-3.5" />
           </div>
         )}
         <p className="break-words text-sm leading-snug text-foreground/90">
@@ -76,6 +85,18 @@ export function ChatMessageRow({ entry, mine, player, continued }: ChatMessageRo
           </span>
         </p>
       </div>
+      {!mine && onReport && entry.qualification !== "maintainer" && (
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-6 w-6 shrink-0 self-center text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
+          onClick={() => onReport(entry)}
+          aria-label={`Report ${name}`}
+          title="Report this message"
+        >
+          <Flag className="h-3 w-3" />
+        </Button>
+      )}
     </div>
   );
 }

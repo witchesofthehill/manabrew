@@ -469,7 +469,7 @@ export default function Lobby() {
   return (
     <div className="flex h-full w-full min-h-0">
       <div className="flex min-w-0 flex-1 flex-col">
-        {!currentRoom && (!connected || (!isDesktop && !!myUsername)) && (
+        {(!connected || (!isDesktop && !!myUsername)) && (
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 px-4 py-2 sm:px-6 lg:px-8">
             {!connected && error && (
               <Button
@@ -493,9 +493,9 @@ export default function Lobby() {
                 variant="ghost"
                 className="md:hidden"
                 onClick={() => setPlayersDrawerOpen(true)}
-                title="Show players"
+                title="Show players and chat"
               >
-                <Users /> Players
+                <Users /> {chatEnabled ? "Players & chat" : "Players"}
                 <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                   {players.length}
                 </span>
@@ -562,10 +562,10 @@ export default function Lobby() {
         </aside>
       )}
 
-      {myUsername && !currentRoom && (
+      {myUsername && (
         <Sheet open={playersDrawerOpen} onOpenChange={setPlayersDrawerOpen}>
           <SheetContent side="right" className="w-80 max-w-[88vw] p-0 sm:w-96">
-            <SheetTitle className="sr-only">Players</SheetTitle>
+            <SheetTitle className="sr-only">Players and chat</SheetTitle>
             <LobbySidePanel
               players={players}
               rooms={rooms}
@@ -575,6 +575,7 @@ export default function Lobby() {
               connectionState={connectionState}
               chatEnabled={chatEnabled}
               invitesEnabled={invitesEnabled}
+              layout="tabs"
               onJoinRoom={handleJoinRoom}
               onInvite={handleInvite}
             />

@@ -35,7 +35,7 @@ export function PlayerRow({
       <PlayerCard player={player} status={status} action={action}>
         <button
           type="button"
-          className="-mx-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-1 py-0.5 text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="-mx-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-1 py-0.5 text-left outline-none hover:bg-muted/40"
         >
           <div className="relative shrink-0">
             <PlayerAvatar username={player.username} avatarUrl={player.avatar_url} />

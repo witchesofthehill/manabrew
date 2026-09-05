@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::error::ProtocolError;
+use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, info, warn};
 
@@ -21,6 +22,7 @@ use crate::protocol::{
     CHAT_MIN_INTERVAL_MS,
 };
 use crate::room::Room;
+use crate::seal::{chat_seal_aad, presence_seal_aad};
 use crate::state::{ConnectedPlayer, ServerState};
 use manabrew_protocol::deck_dto::OUTDATED_CLIENT_MESSAGE;
 use manabrew_protocol::transport::ClientToServerMessage as EngineInput;
@@ -36,6 +38,7 @@ type WsReceiver =
 pub(crate) const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(25);
 pub(crate) const READ_IDLE_TIMEOUT: Duration = Duration::from_secs(90);
 const SELF_HOSTED_NODE_PROTOCOL: &str = "self-hosted-node";
+const FORWARDED_FOR_HEADER: &str = "x-forwarded-for";
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum GameMessageSource {
@@ -169,6 +172,7 @@ fn player_list(state: &Arc<ServerState>) -> Vec<crate::protocol::PlayerInfo> {
                 .connected
                 .then(|| entry.value().local_game)
                 .flatten(),
+            seal: entry.value().seal.clone(),
         })
         .collect()
 }
@@ -209,6 +213,13 @@ fn connected_player_id_by_username(state: &Arc<ServerState>, username: &str) -> 
         .map(|entry| entry.key().clone())
 }
 
+fn presence_seal(state: &Arc<ServerState>, username: &str, client_ip: &str) -> Option<String> {
+    state
+        .seal
+        .as_ref()
+        .and_then(|sealer| sealer.seal(client_ip, &presence_seal_aad(username)))
+}
+
 fn broadcast_chat_to_room(state: &Arc<ServerState>, room_id: &str, msg: &ServerMessage) {
     let json = match serde_json::to_string(msg) {
         Ok(j) => j,
@@ -242,11 +253,14 @@ fn send_chat(
             "longer than {CHAT_MESSAGE_MAX_CHARS} characters"
         )));
     }
-    let room_id = {
+    let (room_id, client_ip, avatar_url, qualification) = {
         let mut player = state
             .players
             .get_mut(player_id)
             .ok_or(ServerError::NotInRoom)?;
+        if scope == ChatScope::Lobby && !player.verified() {
+            return Err(ServerError::AccountRequired);
+        }
         let now = Instant::now();
         if player.last_chat_at.is_some_and(|last| {
             now.duration_since(last) < Duration::from_millis(CHAT_MIN_INTERVAL_MS)
@@ -254,17 +268,33 @@ fn send_chat(
             return Err(ServerError::ChatRateLimited);
         }
         player.last_chat_at = Some(now);
-        match scope {
+        let room_id = match scope {
             ChatScope::Lobby => None,
             ChatScope::Room => Some(player.room_id.clone().ok_or(ServerError::NotInRoom)?),
-        }
+        };
+        (
+            room_id,
+            player.client_ip.clone(),
+            player.avatar_url.clone(),
+            player.qualification.clone(),
+        )
     };
+    let sent_at_ms = unix_time_ms();
+    let seal = state.seal.as_ref().and_then(|sealer| {
+        sealer.seal(
+            &client_ip,
+            &chat_seal_aad(username, text, sent_at_ms, room_id.as_deref()),
+        )
+    });
     let message = ChatMessage {
         scope,
         room_id: room_id.clone(),
         from: username.to_string(),
+        avatar_url,
+        qualification,
         text: text.to_string(),
-        sent_at_ms: unix_time_ms(),
+        sent_at_ms,
+        seal,
     };
     match room_id {
         Some(room_id) => {
@@ -507,9 +537,21 @@ pub async fn handle_connection(
 ) -> Result<(), ServerError> {
     info!("[connect] new TCP connection from {}", addr);
 
-    let ws_stream = tokio_tungstenite::accept_async(stream)
-        .await
-        .map_err(|e| ServerError::WebSocket(Box::new(e)))?;
+    let mut forwarded_for: Option<String> = None;
+    #[allow(clippy::result_large_err)]
+    let ws_stream = tokio_tungstenite::accept_hdr_async(stream, |req: &Request, resp: Response| {
+        forwarded_for = req
+            .headers()
+            .get(FORWARDED_FOR_HEADER)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.split(',').next_back())
+            .map(|ip| ip.trim().to_string())
+            .filter(|ip| !ip.is_empty());
+        Ok(resp)
+    })
+    .await
+    .map_err(|e| ServerError::WebSocket(Box::new(e)))?;
+    let client_ip = forwarded_for.unwrap_or_else(|| addr.ip().to_string());
 
     info!("[connect] WebSocket upgraded for {}", addr);
 
@@ -519,7 +561,7 @@ pub async fn handle_connection(
     let mut write_task = tokio::spawn(write_loop(rx, sink));
 
     let (player_id, username, reconnected, generation, client, service) =
-        match authenticate(&mut receiver, &tx, &state).await {
+        match authenticate(&mut receiver, &tx, &state, client_ip).await {
             Ok(result) => result,
             Err(e) => {
                 if matches!(e, ServerError::AuthTimeout) {
@@ -714,6 +756,7 @@ async fn authenticate(
     receiver: &mut WsReceiver,
     sender: &mpsc::UnboundedSender<Message>,
     state: &Arc<ServerState>,
+    client_ip: String,
 ) -> Result<(String, String, bool, u64, ClientBuild, bool), ServerError> {
     let timeout = Duration::from_secs(10);
 
@@ -850,12 +893,14 @@ async fn authenticate(
                     qualification,
                     avatar_url,
                     client.clone(),
+                    client_ip,
                 );
                 return Ok((session.player_id, username, true, new_gen, client, service));
             }
 
             let player_id = uuid::Uuid::new_v4().to_string();
             let generation = 0u64;
+            let seal = presence_seal(state, &username, &client_ip);
             state.players.insert(
                 player_id.clone(),
                 ConnectedPlayer {
@@ -876,6 +921,8 @@ async fn authenticate(
                     client: client.clone(),
                     local_game: None,
                     last_chat_at: None,
+                    client_ip,
+                    seal,
                 },
             );
 
@@ -936,6 +983,7 @@ fn reclaim_session(
     qualification: Option<String>,
     avatar_url: Option<String>,
     client: ClientBuild,
+    client_ip: String,
 ) -> u64 {
     let new_gen = old_gen + 1;
     info!(
@@ -955,6 +1003,8 @@ fn reclaim_session(
         player.qualification = qualification;
         player.avatar_url = avatar_url;
         player.client = client;
+        player.seal = presence_seal(state, username, &client_ip);
+        player.client_ip = client_ip;
         if !identities.is_empty() {
             player.identity = identities;
         }

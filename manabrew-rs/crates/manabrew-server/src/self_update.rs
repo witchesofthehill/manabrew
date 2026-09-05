@@ -1,17 +1,9 @@
-//! Keeping a self-hosted relay current without anyone logging into the box.
+//! Keeps a self-hosted relay current without anyone logging into the box: a
+//! relay left behind eventually refuses its own clients on `PROTOCOL_VERSION`.
 //!
-//! The reason this exists is that the relay is the half of a self-hosted setup
-//! nobody touches. The engine rides the desktop app's updater and changes
-//! constantly; the relay sits in a cupboard, and a relay left behind long
-//! enough eventually refuses its own clients on `PROTOCOL_VERSION`. That is the
-//! one maintenance cost of "low maintenance", and this removes it.
-//!
-//! Off unless asked. The same binary runs our production relay, which is
-//! deployed deliberately and must never pull a new version off a manifest on
-//! its own.
-//!
-//! Trust is the minisign signature CI produces, the same key the desktop
-//! updater checks. A downloaded binary that does not verify is discarded.
+//! Off unless asked, since the same binary runs production. Trust is the
+//! minisign signature CI produces; a download that does not verify is
+//! discarded.
 
 use std::time::Duration;
 

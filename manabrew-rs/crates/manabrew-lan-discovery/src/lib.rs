@@ -10,8 +10,8 @@ pub const SERVICE_TYPE: &str = "_manabrew._tcp.local.";
 /// identity handshake. Here so a client is never told it.
 pub const LAN_RELAY_KEY: &str = "manabrew-lan";
 
-/// A relay is this network's lobby; a room is one table on a desktop. Same
-/// fields, different destinations, so the record has to say which.
+/// A relay is the network's lobby; a room is one table on a desktop. The
+/// record says which.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum LanRole {

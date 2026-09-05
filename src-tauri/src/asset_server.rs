@@ -1,25 +1,15 @@
-// macOS/Linux packaged Tauri serves the frontend from the `tauri://localhost`
-// custom scheme, which WKWebView/WebKitGTK refuse for `fetch`/Cache API
-// ("Request url is not HTTP/HTTPS") and cannot make cross-origin isolated, so
-// the WASM engine (cardset, presets, and `SharedArrayBuffer` games) can't run.
-// `tauri dev` works because vite serves over `http://localhost:1420` — a real
-// http origin. This reproduces that for the packaged build: serve the embedded
-// assets over `http://localhost:<port>` with COOP/COEP.
-// Windows already uses `http://tauri.localhost`, so it keeps the default scheme.
+// Packaged macOS/Linux Tauri serves the frontend from `tauri://localhost`,
+// which WKWebView/WebKitGTK refuse for `fetch`/Cache API and cannot make
+// cross-origin isolated, so the WASM engine cannot run. This serves the
+// embedded assets over `http://localhost:<port>` with COOP/COEP instead, the
+// way `tauri dev` already has a real http origin. Windows keeps the default.
 //
-// To Tauri this is a *remote* origin, so the app's own commands are ACL-gated:
-// they reach Rust only because capabilities/default.json grants the
-// `allow-app-commands` permission (permissions/app-commands.toml) for this
-// origin. The `remote` block alone grants nothing — it only scopes which origin
-// the listed permissions apply to.
+// To Tauri this is a remote origin, so the app's commands are ACL-gated by
+// capabilities/default.json (permissions/app-commands.toml) for it.
 //
-// Returns None in dev and on bind failure, so the window falls back to the
-// default URL (the vite devUrl). The dev gate must be explicit: in dev the
-// asset resolver reads `frontendDist` (../dist) straight from disk, so a stale
-// `dist/` left by an earlier `vite build` would otherwise hijack `tauri dev`
-// and silently serve that old bundle instead of vite. The port is fixed
-// so capabilities/default.json can list an exact `http://localhost:9527` origin.
-// Also listed in manabrew-hub's `cors_origins` — the Hub rejects the app
+// Returns None in dev and on bind failure. The dev gate is explicit, or a
+// stale `dist/` would hijack `tauri dev`. The port is fixed so the capability
+// can list an exact origin, also in manabrew-hub's `cors_origins` — the Hub
 // without it. Keep both in sync.
 const ASSET_SERVER_PORT: u16 = 9527;
 

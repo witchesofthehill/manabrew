@@ -450,6 +450,13 @@ export class WebRtcPlane {
     // A seat receives from the host and reports no sender, exactly as the
     // relay's own `StateUpdate` does for a host envelope. A host receives from
     // the seat and must name it, because the engine routes responses by seat.
+    if ((parsed as { kind?: string })?.kind === "prompt") {
+      console.info(
+        this.isHost
+          ? `[webrtc] received a prompt response from ${peer}`
+          : "[webrtc] received a prompt from the host over the data channel",
+      );
+    }
     this.opts.deliver(parsed as StateEnvelope, this.isHost ? peer : "");
   }
 

@@ -195,6 +195,11 @@ impl ShellBridge {
         if !claimed {
             return false;
         }
+        // The shell-path counterpart of the direct plane's "sent a prompt"
+        // line, for a browser seat whose envelopes leave through the webview.
+        if envelope.get("kind").and_then(Value::as_str) == Some("prompt") {
+            tracing::info!(target, "shell bridge: handed a prompt to the webview");
+        }
         (self.emit)(ShellEvent::Envelope {
             target: target.to_string(),
             envelope: envelope.clone(),

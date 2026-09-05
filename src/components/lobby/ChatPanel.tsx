@@ -99,30 +99,39 @@ export function ChatPanel({
       <ScrollArea className="min-h-0 flex-1 px-3 py-2">
         <div className="space-y-2">
           {entries.length === 0 && (
-            <p className="py-4 text-center text-xs italic text-muted-foreground">
+            <p className="py-4 text-center text-sm italic text-muted-foreground">
               {scope === "Room" ? "Say hello to your table." : "No messages yet."}
             </p>
           )}
-          {entries.map((entry) => (
-            <ChatMessageRow
-              key={entry.id}
-              entry={entry}
-              mine={entry.from === currentUsername}
-              player={players.find((p) => p.username === entry.from)}
-            />
-          ))}
+          {entries.map((entry, index) => {
+            const previous = entries[index - 1];
+            return (
+              <ChatMessageRow
+                key={entry.id}
+                entry={entry}
+                mine={entry.from === currentUsername}
+                player={players.find((p) => p.username === entry.from)}
+                continued={
+                  previous != null &&
+                  !previous.system &&
+                  !entry.system &&
+                  previous.from === entry.from
+                }
+              />
+            );
+          })}
           <div ref={endRef} />
         </div>
       </ScrollArea>
       <form
-        className="flex shrink-0 gap-1.5 border-t p-2"
+        className="flex shrink-0 gap-1.5 px-2 pb-2 pt-1"
         onSubmit={(event) => {
           event.preventDefault();
           void handleSend();
         }}
       >
         <Input
-          className="h-8 text-xs pointer-coarse:h-10 pointer-coarse:text-base"
+          className="h-9 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
           placeholder={scope === "Room" ? "Message your table…" : "Message everyone…"}
           value={input}
           maxLength={CHAT_MESSAGE_MAX_CHARS}
@@ -132,11 +141,11 @@ export function ChatPanel({
         <Button
           type="submit"
           size="icon"
-          className="h-8 w-8 shrink-0"
+          className="h-9 w-9 shrink-0"
           disabled={disabled || !input.trim()}
           aria-label="Send message"
         >
-          <Send className="h-3.5 w-3.5" />
+          <Send className="h-4 w-4" />
         </Button>
       </form>
     </div>

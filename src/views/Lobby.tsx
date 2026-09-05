@@ -544,7 +544,7 @@ export default function Lobby() {
       </div>
 
       {myUsername && (
-        <aside className="hidden w-72 shrink-0 flex-col md:flex lg:w-80">
+        <aside className="hidden w-80 shrink-0 flex-col md:flex lg:w-96">
           <div className="m-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card/70 shadow-sm backdrop-blur-md">
             <LobbySidePanel
               players={players}

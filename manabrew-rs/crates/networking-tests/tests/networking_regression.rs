@@ -806,6 +806,69 @@ async fn a_room_stays_on_the_relay_until_every_seat_opts_in() {
     seat.shutdown().await;
 }
 
+async fn two_direct_seats_each_get_their_first_prompt() {
+    scenario(
+        "a node-hosted room with the direct plane on, and TWO human seats that both opted in.",
+        "both announce, both dial the host direct, and the game starts.",
+        "each seat receives and answers its own first prompt over its own QUIC channel.",
+    );
+    let sim = Sim::spawn_direct(9680).await;
+    let mut alice = Client::connect(&sim.relay_url, "alice").await.unwrap();
+    let mut bob = Client::connect(&sim.relay_url, "bob").await.unwrap();
+    alice.join(&sim.room_id, false).await.unwrap();
+    bob.join(&sim.room_id, false).await.unwrap();
+
+    let mut alice_seat = DirectSeat::bind("alice").await;
+    let mut bob_seat = DirectSeat::bind("bob").await;
+    alice.announce(Some(alice_seat.endpoint())).await.unwrap();
+    bob.announce(Some(bob_seat.endpoint())).await.unwrap();
+    let (host, members) = alice.wait_roster(Duration::from_secs(15)).await.unwrap();
+    let _ = bob.wait_roster(Duration::from_secs(15)).await.unwrap();
+    assert_eq!(
+        alice_seat
+            .dial(&sim.room_id, &host, &members)
+            .await
+            .unwrap()
+            .kind,
+        TransportKind::Direct
+    );
+    assert_eq!(
+        bob_seat
+            .dial(&sim.room_id, &host, &members)
+            .await
+            .unwrap()
+            .kind,
+        TransportKind::Direct
+    );
+
+    alice.select_deck_and_ready().await.unwrap();
+    bob.select_deck_and_ready().await.unwrap();
+    alice.start_game(2).await.unwrap();
+    bob.start_game(2).await.unwrap();
+
+    // The point. Both seats are direct, so each seat's first prompt (the
+    // mulligan and the play/draw around it) crosses only its own channel. If
+    // the host does not actually put it there, the seat sits waiting for a
+    // prompt it will never see, which is what a desktop-hosted game showed on
+    // staging.
+    let (a, b) = tokio::join!(
+        alice.answer_prompts_over(&mut alice_seat, 1),
+        bob.answer_prompts_over(&mut bob_seat, 1),
+    );
+    let a = a.unwrap();
+    let b = b.unwrap();
+    assert_eq!(
+        a.direct, 1,
+        "alice's first prompt has to reach her over the plane"
+    );
+    assert_eq!(
+        b.direct, 1,
+        "bob's first prompt has to reach him over the plane"
+    );
+    alice_seat.shutdown().await;
+    bob_seat.shutdown().await;
+}
+
 fn main() {
     let args = Arguments::from_args();
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -889,6 +952,10 @@ fn main() {
         case(
             "a_room_stays_on_the_relay_until_every_seat_opts_in",
             a_room_stays_on_the_relay_until_every_seat_opts_in,
+        ),
+        case(
+            "two_direct_seats_each_get_their_first_prompt",
+            two_direct_seats_each_get_their_first_prompt,
         ),
     ];
 

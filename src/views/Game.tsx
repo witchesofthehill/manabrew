@@ -79,6 +79,8 @@ import { cn } from "@/lib/utils";
 import { applyManualTabletopAction, getSelectedGameRuntime } from "@/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
+import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
+import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 
 const HOVER_ALLOWED_PROMPTS = new Set<PromptType>([
@@ -110,6 +112,7 @@ function buildDebugKeywordCard(
   mode: "page" | "saga" | "class",
   current: number,
   final: number,
+  transformed: boolean,
 ): ClientCardDto {
   const base: ClientCardDto = {
     ...GAME_CARD_DEFAULTS,
@@ -117,7 +120,7 @@ function buildDebugKeywordCard(
     id: DEBUG_KEYWORD_CARD_ID,
     identity: {
       ...(definition?.identity ?? {}),
-      name: (definition?.identity.name ?? name.trim()) || DEFAULT_DEBUG_CARD_NAME,
+      name: definition?.identity.name ?? (name.trim() || DEFAULT_DEBUG_CARD_NAME),
       setCode: definition?.identity.setCode ?? "",
       cardNumber: definition?.identity.cardNumber ?? "",
       isToken: false,
@@ -134,7 +137,34 @@ function buildDebugKeywordCard(
     toughness: definition?.toughness ?? null,
     basePower: numericPrintedStat(definition?.power),
     baseToughness: numericPrintedStat(definition?.toughness),
+    isTransformed: transformed,
+    isFaceDown: definition?.identity.name === "",
   };
+  const info =
+    transformed && definition
+      ? peekCard(useScryfallStore.getState().cards, {
+          name: definition.identity.name,
+          setCode: definition.identity.setCode || undefined,
+          collectorNumber: definition.identity.cardNumber || undefined,
+        })
+      : null;
+  const face = info?.card_faces?.[1];
+  if (info && face) {
+    const selected = scryfallToSampleGameCard({
+      ...info,
+      ...face,
+      type_line: face.type_line ?? info.type_line,
+    });
+    base.types = selected.types;
+    base.subtypes = selected.subtypes;
+    base.supertypes = selected.supertypes;
+    base.text = selected.text;
+    base.manaCost = selected.manaCost;
+    base.power = selected.power;
+    base.toughness = selected.toughness;
+    base.basePower = selected.basePower;
+    base.baseToughness = selected.baseToughness;
+  }
   const printedRail = definition ? parsePrintedCardRailMetadata(definition) : null;
   if (railEnabled && mode === "saga" && printedRail?.kind === "saga") {
     return {
@@ -257,6 +287,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const devExtraOpponents =
     (location.state as { devExtraOpponents?: number } | null)?.devExtraOpponents ?? 0;
   const containerRef = useRef<HTMLDivElement>(null);
+  const [rightPanelLeft, setRightPanelLeft] = useState<number>();
   const boardSceneRef = useRef<BoardScene | null>(null);
   const placementIntentRef = useRef<{ cardId: string; castStarted: boolean } | null>(null);
   const [boardLayout, setBoardLayout] = useState<BoardCanvasLayout | null>(null);
@@ -986,8 +1017,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   const ghostCardW = Math.round(HAND_CARD_BASE.cardW * vScale);
   const ghostCardH = Math.round(HAND_CARD_BASE.cardH * vScale);
 
-  const hoveredCardActions = preview.hoveredCard ? getCardActions(preview.hoveredCard) : [];
-
   const handlePreviewAction = (action: HandActionOption) => {
     preview.dismiss();
     if (action.kind === "manual-move" && action.toZoneId) {
@@ -1397,12 +1426,19 @@ export default function Game({ exitTo }: GameProps = {}) {
   const debugCardMode = useGameDevStore((s) => s.debugCardMode);
   const debugCardCurrent = useGameDevStore((s) => s.debugCardCurrent);
   const debugCardFinal = useGameDevStore((s) => s.debugCardFinal);
+  const debugCardTransformed = useGameDevStore((s) => s.cardOverrides.forceTransformed);
 
   const visibleCardsById = useMemo(() => {
-    if (!gameView) return new Map<string, CardDto>();
-    const cards: CardDto[] = [
+    if (!gameView) return new Map<string, ClientCardDto>();
+    const cards: ClientCardDto[] = [
       ...gameView.battlefield,
-      ...gameView.players.flatMap((p) => [...p.hand, ...p.graveyard, ...p.exile, ...p.commandZone]),
+      ...gameView.players.flatMap((p) => [
+        ...p.hand,
+        ...p.graveyard,
+        ...p.exile,
+        ...p.commandZone,
+        ...p.library,
+      ]),
     ];
     const map = new Map(cards.map((c) => [c.id, c]));
     if (debugCardEnabled && me?.id) {
@@ -1417,6 +1453,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           debugCardMode,
           debugCardCurrent,
           debugCardFinal,
+          debugCardTransformed,
         ),
       );
     }
@@ -1430,6 +1467,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     debugCardMode,
     debugCardCurrent,
     debugCardFinal,
+    debugCardTransformed,
     debugBattlefieldKeywords,
     me?.id,
   ]);
@@ -1472,6 +1510,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           debugCardMode,
           debugCardCurrent,
           debugCardFinal,
+          debugCardTransformed,
         ),
       );
     }
@@ -1488,6 +1527,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     debugCardMode,
     debugCardCurrent,
     debugCardFinal,
+    debugCardTransformed,
     debugBattlefieldKeywords,
     regionOwnerOf,
     battlefieldById,
@@ -1506,13 +1546,40 @@ export default function Game({ exitTo }: GameProps = {}) {
   }, [gameView, opponents, regionOwnerOf, battlefieldById]);
 
   const stackCardsBySourceId = useMemo(() => {
-    const byId = new Map<string, CardDto>();
+    const byId = new Map<string, ClientCardDto>();
     for (const s of gameView?.stack ?? []) {
       if (byId.has(s.sourceId)) continue;
       byId.set(s.sourceId, stackObjectToCardStub(s));
     }
     return byId;
   }, [gameView?.stack]);
+
+  const livePreviewCard = preview.hoveredCard
+    ? (visibleCardsById.get(preview.hoveredCard.id) ??
+      stackCardsBySourceId.get(preview.hoveredCard.id) ??
+      null)
+    : null;
+  const [previewFaceOverride, setPreviewFaceOverride] = useState<{
+    cardId: string;
+    showBackFace: boolean;
+  } | null>(null);
+  if (previewFaceOverride && previewFaceOverride.cardId !== preview.hoveredCard?.id) {
+    setPreviewFaceOverride(null);
+  }
+  const previewShowBackFace =
+    previewFaceOverride && previewFaceOverride.cardId === livePreviewCard?.id
+      ? previewFaceOverride.showBackFace
+      : (livePreviewCard?.isTransformed ?? false);
+  const handleFlipPreview = () => {
+    if (!livePreviewCard) return;
+    const showBackFace = !previewShowBackFace;
+    setPreviewFaceOverride(
+      showBackFace === livePreviewCard.isTransformed
+        ? null
+        : { cardId: livePreviewCard.id, showBackFace },
+    );
+  };
+  const hoveredCardActions = livePreviewCard ? getCardActions(livePreviewCard) : [];
 
   const promptSourceDeckCard = useResolveSourceCard(activePrompt?.sourceCard);
 
@@ -1608,16 +1675,12 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
   }, [draggingHandCard, dismissPreview]);
 
-  const hoverableCardIds = useMemo(() => {
-    return new Set(visibleCardsById.keys());
-  }, [visibleCardsById]);
-
   useEffect(() => {
     if (!previewedCard) return;
-    if (!hoverableCardIds.has(previewedCard.id) && !stackCardsBySourceId.has(previewedCard.id)) {
+    if (!livePreviewCard) {
       dismissPreview();
     }
-  }, [previewedCard, dismissPreview, hoverableCardIds, stackCardsBySourceId]);
+  }, [previewedCard, dismissPreview, livePreviewCard]);
 
   const cardNameById = useMemo(() => {
     const byId = new Map<string, string>();
@@ -1765,8 +1828,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     collapsed: stackCollapsed,
   };
   const showInGamePreview =
-    preview.hoveredCard != null &&
-    preview.hoveredCard.zoneId !== "hand" &&
+    livePreviewCard != null &&
+    livePreviewCard.zoneId !== "hand" &&
     !draggingHandCard &&
     !viewingZone &&
     !spellStackModalOpen &&
@@ -1774,16 +1837,17 @@ export default function Game({ exitTo }: GameProps = {}) {
     preview.phase !== "hidden";
   const previewSuppressed = !!promptType && !HOVER_ALLOWED_PROMPTS.has(promptType);
   const rulesPreview: BoardOverlayPreviewSpec | null =
-    inGameCardPreviewStyle === "rules" && showInGamePreview && preview.hoveredCard
+    inGameCardPreviewStyle === "rules" && showInGamePreview && livePreviewCard
       ? {
-          card: preview.hoveredCard,
+          card: livePreviewCard,
           phase: preview.phase === "closing" ? "closing" : "open",
           sticky: preview.isSticky,
-          showBackFace: preview.showBackFace,
+          showBackFace: previewShowBackFace,
           suppressed: previewSuppressed,
           actions: hoveredCardActions,
           mousePos: preview.mousePos,
           anchorRect: preview.anchorRect,
+          viewportRight: isActionPanelCollapsed ? undefined : rightPanelLeft,
         }
       : null;
 
@@ -1877,7 +1941,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           onHandHoverChange={setHandCardLifted}
           getHandActions={getHandActionOptions}
           onSelectHandAction={handlePreviewAction}
-          onFlipCard={preview.flipCard}
+          onFlipCard={handleFlipPreview}
           onBattlefieldClick={(card) => {
             if (manualApi) {
               void applyManualAction({
@@ -1957,6 +2021,7 @@ export default function Game({ exitTo }: GameProps = {}) {
 
       <RightActionPanel
         collapsed={isActionPanelCollapsed}
+        onLeftEdgeChange={setRightPanelLeft}
         onToggleCollapse={toggleActionPanel}
         gameLog={gameLog}
         onHoverLogCard={handleLogCardHover}
@@ -2231,7 +2296,12 @@ export default function Game({ exitTo }: GameProps = {}) {
 
       {inGameCardPreviewStyle === "printed" && showInGamePreview && (
         <HoverCardPreview
-          preview={preview}
+          preview={{
+            ...preview,
+            hoveredCard: livePreviewCard,
+            showBackFace: previewShowBackFace,
+            flipCard: handleFlipPreview,
+          }}
           actions={hoveredCardActions}
           onSelectAction={handlePreviewAction}
           suppressed={previewSuppressed}

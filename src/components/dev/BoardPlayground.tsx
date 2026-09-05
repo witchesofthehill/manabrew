@@ -13,6 +13,12 @@ import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { Button } from "@/components/ui/button";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { HandActionOption } from "@/stores/useGameUIStore";
+import { useScryfallStore } from "@/stores/useScryfallStore";
+import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
+import { resolveCardFaces } from "@/lib/cardFaces";
+import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
+import { Input } from "@/components/ui/input";
+import { PREVIEW_SCENARIOS } from "./devPreviewScenarios";
 
 const PLAYER_ID = "dev-playground";
 const DEV_MANA_ACTION_ID = "dev-mana";
@@ -66,6 +72,12 @@ const LANDS: CardSpec[] = [
   { name: "Forest", color: "", types: ["Land"], supertypes: ["Basic"], subtypes: ["Forest"] },
 ];
 
+const PREVIEW_VIEWPORTS = [
+  { label: "Desktop", width: undefined, height: "85dvh" },
+  { label: "Phone portrait", width: 390, height: 640 },
+  { label: "Phone landscape", width: 740, height: 340 },
+] as const;
+
 let seq = 0;
 
 function makeCard(spec: CardSpec): ClientCardDto {
@@ -113,11 +125,94 @@ export function BoardPlayground() {
   const [cards, setCards] = useState<ClientCardDto[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const sceneRef = useRef<BoardScene | null>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const loadGeneration = useRef(0);
+  const [scenarioIndex, setScenarioIndex] = useState(0);
+  const [customName, setCustomName] = useState("");
+  const [loadingScenario, setLoadingScenario] = useState(false);
+  const [scenarioError, setScenarioError] = useState("");
+  const [actionCount, setActionCount] = useState(0);
+  const [lastAction, setLastAction] = useState("");
+  const [viewportIndex, setViewportIndex] = useState(0);
   const triggerEtbGlow = useGameDevStore((s) => s.triggerEtbGlow);
-  const preview = useCardPreview([cards]);
+  const preview = useCardPreview();
   const compactBoard = useIsMobileGame();
   const previewStyle = usePreferencesStore((s) => s.inGameCardPreviewStyle);
   const setPreviewStyle = usePreferencesStore((s) => s.setInGameCardPreviewStyle);
+  const previewCard = cards.find((card) => card.id === preview.hoveredCard?.id) ?? null;
+  const viewport = PREVIEW_VIEWPORTS[viewportIndex]!;
+
+  const openScenario = async (index: number, nameOverride?: string) => {
+    const generation = ++loadGeneration.current;
+    const scenario = PREVIEW_SCENARIOS[index]!;
+    const name = nameOverride ?? scenario.name;
+    setScenarioIndex(index);
+    setScenarioError("");
+    setLoadingScenario(true);
+    setLastAction("");
+    try {
+      let card: ClientCardDto;
+      if (!name) {
+        card = {
+          ...GAME_CARD_DEFAULTS,
+          id: `pg-${++seq}`,
+          ownerId: PLAYER_ID,
+          controllerId: PLAYER_ID,
+          zoneId: "battlefield",
+          isFaceDown: true,
+          types: ["Creature"],
+          power: "2",
+          toughness: "2",
+        };
+      } else {
+        const { info } = await useScryfallStore.getState().getCard({ name });
+        if (generation !== loadGeneration.current) return;
+        const faces = resolveCardFaces(info);
+        const back = nameOverride == null && !!scenario.back && faces.isFlippable;
+        const face = info.card_faces?.[back ? 1 : 0];
+        card = scryfallToSampleGameCard(
+          face ? { ...info, ...face, type_line: face.type_line ?? info.type_line } : info,
+          {
+            id: `pg-${++seq}`,
+            identity: {
+              name: info.name,
+              setCode: info.set,
+              cardNumber: info.collector_number,
+              isToken: info.layout.includes("token"),
+            },
+            isDoubleFaced: faces.isFlippable,
+            isTransformed: back,
+            ownerId: PLAYER_ID,
+            controllerId: PLAYER_ID,
+          },
+        );
+        const loyalty = face?.loyalty ?? info.loyalty;
+        const defense = face?.defense ?? info.defense;
+        if (loyalty) card.counters = { Loyalty: Number(loyalty) };
+        if (defense) card.counters = { Defense: Number(defense) };
+        const rail = parsePrintedCardRailMetadata(card);
+        if (rail?.kind === "saga") {
+          card.sagaChapters = rail.sagaChapters;
+          card.counters = { Lore: 1 };
+        } else if (rail?.kind === "class") {
+          card.classLevels = rail.classLevels;
+          card.classLevel = 1;
+        }
+      }
+      if (generation !== loadGeneration.current) return;
+      preview.dismiss();
+      setCards([card]);
+      setSelectedId(card.id);
+      boardRef.current?.scrollIntoView({ block: "nearest" });
+      preview.showSticky(card);
+    } catch (error) {
+      if (generation === loadGeneration.current) {
+        setScenarioError(error instanceof Error ? error.message : String(error));
+      }
+    } finally {
+      if (generation === loadGeneration.current) setLoadingScenario(false);
+    }
+  };
 
   const update = (id: string | null, fn: (c: ClientCardDto) => ClientCardDto) => {
     if (!id) return;
@@ -131,6 +226,7 @@ export function BoardPlayground() {
   const addLand = () => setCards((cs) => [...cs, makeCard(LANDS[cs.length % LANDS.length]!)]);
   const removeTarget = () => {
     if (!targetId) return;
+    if (preview.hoveredCard?.id === targetId) preview.dismiss();
     setCards((cs) => cs.filter((c) => c.id !== targetId));
     setSelectedId(null);
   };
@@ -150,30 +246,22 @@ export function BoardPlayground() {
   };
 
   const previewActions = useMemo<HandActionOption[]>(() => {
-    if (!preview.hoveredCard) return [];
-    return [
-      {
-        kind: "ability",
-        cardId: preview.hoveredCard.id,
-        actionId: DEV_MANA_ACTION_ID,
-        label: "Add {G}.",
-        cost: "{T}",
-        isManaAbility: true,
-      },
-      {
-        kind: "ability",
-        cardId: preview.hoveredCard.id,
-        actionId: "dev-counter",
-        label: "Put a +1/+1 counter on this creature.",
-        cost: "{2}{G}",
-      },
-    ];
-  }, [preview.hoveredCard]);
+    if (!previewCard) return [];
+    return Array.from({ length: actionCount }, (_, index) => ({
+      kind: "ability",
+      cardId: previewCard.id,
+      actionId: index === 0 ? DEV_MANA_ACTION_ID : `dev-action-${index}`,
+      label: index === 0 ? "Add {G}." : `Preview test action ${index + 1}.`,
+      cost: index === 0 ? "{T}" : `{${index + 1}}`,
+      isManaAbility: index === 0,
+      abilityIndex: index,
+    }));
+  }, [previewCard, actionCount]);
 
   const rulesPreview: BoardOverlayPreviewSpec | null =
-    previewStyle === "rules" && preview.hoveredCard && preview.phase !== "hidden"
+    previewStyle === "rules" && previewCard && preview.phase !== "hidden"
       ? {
-          card: preview.hoveredCard,
+          card: previewCard,
           phase: preview.phase === "closing" ? "closing" : "open",
           sticky: preview.isSticky,
           showBackFace: preview.showBackFace,
@@ -185,6 +273,7 @@ export function BoardPlayground() {
       : null;
 
   const handlePreviewAction = (action: HandActionOption) => {
+    setLastAction(`Selected ${action.label} (${action.actionId})`);
     if (action.actionId === DEV_MANA_ACTION_ID) {
       update(action.cardId, (card) => ({ ...card, tapped: true }));
       return;
@@ -204,6 +293,120 @@ export function BoardPlayground() {
 
   return (
     <div className="space-y-3">
+      <div className="space-y-2 rounded-lg bg-muted p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="text-sm font-medium" htmlFor="preview-scenario">
+            Preview scenario
+          </label>
+          <select
+            id="preview-scenario"
+            className="h-9 max-w-full rounded-md border border-input bg-background px-2 text-sm"
+            value={scenarioIndex}
+            onChange={(event) => void openScenario(Number(event.target.value))}
+          >
+            {PREVIEW_SCENARIOS.map((scenario, index) => (
+              <option key={scenario.label} value={index}>
+                {scenario.label}
+              </option>
+            ))}
+          </select>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={loadingScenario}
+            onClick={() =>
+              void openScenario(
+                (scenarioIndex + PREVIEW_SCENARIOS.length - 1) % PREVIEW_SCENARIOS.length,
+              )
+            }
+          >
+            Previous
+          </Button>
+          <Button
+            size="sm"
+            disabled={loadingScenario}
+            onClick={() => void openScenario(scenarioIndex)}
+          >
+            {loadingScenario ? "Loading card…" : "Open scenario"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={loadingScenario}
+            onClick={() => void openScenario((scenarioIndex + 1) % PREVIEW_SCENARIOS.length)}
+          >
+            Next
+          </Button>
+        </div>
+        <form
+          className="flex flex-wrap items-center gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (customName.trim()) void openScenario(scenarioIndex, customName.trim());
+          }}
+        >
+          <Input
+            aria-label="Custom preview card name"
+            placeholder="Any card name"
+            value={customName}
+            onChange={(event) => setCustomName(event.target.value)}
+            className="max-w-72"
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            type="submit"
+            disabled={loadingScenario || !customName.trim()}
+          >
+            Open card
+          </Button>
+          <label className="flex items-center gap-2 text-sm">
+            Test actions
+            <select
+              aria-label="Test action count"
+              className="h-9 rounded-md border border-input bg-background px-2"
+              value={actionCount}
+              onChange={(event) => setActionCount(Number(event.target.value))}
+            >
+              {[0, 2, 9].map((count) => (
+                <option key={count} value={count}>
+                  {count}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            Viewport
+            <select
+              aria-label="Preview viewport"
+              className="h-9 rounded-md border border-input bg-background px-2"
+              value={viewportIndex}
+              onChange={(event) => setViewportIndex(Number(event.target.value))}
+            >
+              {PREVIEW_VIEWPORTS.map((size, index) => (
+                <option key={size.label} value={index}>
+                  {size.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </form>
+        <p className="text-xs text-muted-foreground">
+          Each scenario opens a real Scryfall card. Flip changes the displayed face; rotate switches
+          portrait and landscape without rotating rules text. Test actions are local playground
+          controls.
+        </p>
+        {scenarioError && (
+          <p role="alert" className="text-sm text-destructive">
+            {scenarioError}
+          </p>
+        )}
+        {lastAction && (
+          <p role="status" className="text-xs text-muted-foreground">
+            {lastAction}
+          </p>
+        )}
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" onClick={addCreature}>
           + Creature
@@ -234,7 +437,11 @@ export function BoardPlayground() {
         <Button
           size="sm"
           variant="ghost"
-          onClick={() => setCards([])}
+          onClick={() => {
+            preview.dismiss();
+            setSelectedId(null);
+            setCards([]);
+          }}
           disabled={cards.length === 0}
         >
           Clear
@@ -263,7 +470,11 @@ export function BoardPlayground() {
         Card style follows the Realistic / Art-forward / Mini-frame toggle above; the In-game
         Animations toggle lives in Settings.
       </p>
-      <div className="relative h-[85vh] overflow-hidden rounded-lg border border-border bg-black/40">
+      <div
+        ref={boardRef}
+        style={{ width: viewport.width, height: viewport.height }}
+        className="relative max-w-full overflow-hidden rounded-lg border border-border bg-background"
+      >
         <BoardCanvas
           regions={regions}
           hand={{ cards: [] }}
@@ -307,7 +518,7 @@ export function BoardPlayground() {
       </div>
       {previewStyle === "printed" && (
         <HoverCardPreview
-          preview={preview}
+          preview={{ ...preview, hoveredCard: previewCard }}
           actions={previewActions}
           onSelectAction={handlePreviewAction}
         />

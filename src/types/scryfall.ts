@@ -36,6 +36,11 @@ export interface ScryfallCard {
     type_line?: string;
     oracle_text?: string;
     mana_cost?: string;
+    flavor_text?: string;
+    power?: string;
+    toughness?: string;
+    loyalty?: string;
+    defense?: string;
     image_uris?: {
       small: string;
       normal: string;
@@ -49,6 +54,9 @@ export interface ScryfallCard {
   cmc: number;
   type_line: string;
   oracle_text?: string;
+  flavor_text?: string;
+  loyalty?: string;
+  defense?: string;
   power?: string;
   toughness?: string;
   colors?: string[];

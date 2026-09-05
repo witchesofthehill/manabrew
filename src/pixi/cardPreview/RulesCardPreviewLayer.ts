@@ -1,7 +1,6 @@
 import {
   Container,
   FederatedPointerEvent,
-  FederatedWheelEvent,
   Graphics,
   Rectangle,
   Sprite,
@@ -9,7 +8,9 @@ import {
   TextStyle,
   Texture,
 } from "pixi.js";
-import type { CardDto } from "@/protocol/game";
+import type { ClientCardDto } from "@/stores/gameStore.types";
+import type { ScryfallCard } from "@/types/scryfall";
+import { resolveCardFaces } from "@/lib/cardFaces";
 import type { PreviewPhase } from "@/lib/cardPreview";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { Theme } from "@/hooks/useTheme";
@@ -24,18 +25,19 @@ import { cardFrameTintHex } from "@/themes/gameTheme";
 import { hexToNum } from "@/pixi/colorUtils";
 import { PixiRichText } from "@/pixi/cardPreview/PixiRichText";
 import { PixiCardRailPreview } from "@/pixi/cardPreview/PixiCardRailPreview";
-import { setSymbolTexture } from "@/pixi/cardPreview/setSymbolCache";
-import { useScryfallStore } from "@/stores/useScryfallStore";
+import { resolveRulesPreviewDisplay } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
+import { RulesPreviewIdentity } from "@/pixi/cardPreview/RulesPreviewIdentity";
+import { loadCardBack } from "@/pixi/CardSprite";
+import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { asDeckCard } from "@/lib/decks";
 import { isFacelessCard } from "@/lib/gameCard";
 import { gsap } from "@/pixi/effects/gsap";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { PREVIEW_TIMING } from "@/lib/cardPreview";
-import { effectiveRarity, rarityToken } from "@/lib/cardRarity";
 
 export interface RulesCardPreviewSpec {
-  card: CardDto;
+  card: ClientCardDto;
   phase: Exclude<PreviewPhase, "hidden">;
   sticky: boolean;
   showBackFace: boolean;
@@ -59,11 +61,6 @@ interface IndexedAction {
   shortcut: number;
 }
 
-interface AbilityTextEntry {
-  text: string;
-  activated: boolean;
-}
-
 interface ActionRow {
   container: Container;
   top: number;
@@ -73,20 +70,26 @@ interface ActionRow {
   setFocused: (focused: boolean) => void;
 }
 
-const PANEL_WIDTH = 360;
-const PANEL_HEIGHT = PANEL_WIDTH * (7 / 5);
+const PORTRAIT_WIDTH = 360;
+const PORTRAIT_HEIGHT = PORTRAIT_WIDTH * (7 / 5);
+const LANDSCAPE_WIDTH = PORTRAIT_HEIGHT;
+const LANDSCAPE_HEIGHT = PORTRAIT_WIDTH;
 const EDGE_PAD = 12;
 const PANEL_GAP = 18;
-const HEADER_HEIGHT = 52;
-const ART_HEIGHT = 184;
+const PORTRAIT_HEADER_HEIGHT = 52;
+const LANDSCAPE_HEADER_HEIGHT = 48;
+const PORTRAIT_ART_HEIGHT = 184;
 const TYPE_HEIGHT = 32;
 const FOOTER_HEIGHT = 44;
+const HELP_FOOTER_HEIGHT = 28;
 const CONTENT_PAD = 14;
-const CONTENT_WIDTH = PANEL_WIDTH - CONTENT_PAD * 2;
 const PANEL_RADIUS = 13;
 const ART_INSET = 8;
 const ART_RADIUS = 8;
+const LANDSCAPE_ART_HEIGHT = 176;
+const FACE_GAP = 8;
 const ORACLE_FONT = "Cormorant Garamond, Georgia, serif";
+const ORACLE_LINE_HEIGHT = 17;
 const ENTRY_INTERACTION_PAD_MS = 80;
 
 function prefersReducedMotion(): boolean {
@@ -109,7 +112,7 @@ function oracleTextStyle(fill: string, italic = false): TextStyle {
     fontSize: 15,
     fontWeight: "600",
     fontStyle: italic ? "italic" : "normal",
-    lineHeight: 17,
+    lineHeight: ORACLE_LINE_HEIGHT,
   });
 }
 
@@ -121,16 +124,10 @@ function normalizeAbilityText(text: string): string {
     .trim();
 }
 
-function isActivatedAbilityText(text: string): boolean {
-  const colonIndex = text.indexOf(":");
-  if (colonIndex <= 0) return false;
-  return !/["“]/.test(text.slice(0, colonIndex));
-}
-
 function abilityTextEntries(
   rulesText: string,
   progression: CardPresentation["progression"],
-): AbilityTextEntry[] {
+): string[] {
   const progressionEffects = new Set(
     (progression?.effects ?? []).flatMap((effect) =>
       effect.text.split("\n").map(normalizeAbilityText).filter(Boolean),
@@ -152,8 +149,7 @@ function abilityTextEntries(
         if (/^.*:\s*Level\s+\d+$/.test(line)) return false;
       }
       return true;
-    })
-    .map((text) => ({ text, activated: isActivatedAbilityText(text) }));
+    });
 }
 
 function actionText(action: HandActionOption): string {
@@ -162,27 +158,6 @@ function actionText(action: HandActionOption): string {
     return action.label;
   }
   return `${cost}: ${action.label}`;
-}
-
-function actionMatchScore(text: string, action: HandActionOption): number {
-  if (action.kind !== "ability") return 0;
-  const normalizedText = normalizeAbilityText(text);
-  const normalizedLabel = normalizeAbilityText(action.label);
-  const normalizedCost = normalizeAbilityText(action.cost ?? "");
-  const separatorIndex = normalizedText.indexOf(":");
-  const normalizedEffect =
-    separatorIndex < 0 ? normalizedText : normalizedText.slice(separatorIndex + 1).trim();
-  if (
-    normalizedLabel &&
-    (normalizedText.includes(normalizedLabel) ||
-      normalizedLabel.includes(normalizedText) ||
-      (normalizedEffect.length >= 8 &&
-        (normalizedLabel.includes(normalizedEffect) || normalizedEffect.includes(normalizedLabel))))
-  ) {
-    return 2;
-  }
-  if (normalizedCost && normalizedText.startsWith(`${normalizedCost}:`)) return 1;
-  return 0;
 }
 
 export class RulesCardPreviewLayer {
@@ -198,24 +173,41 @@ export class RulesCardPreviewLayer {
   private bodyScroller = new Container();
   private bodyContent = new Container();
   private bodyMask = new Graphics();
+  private scrollTrack = new Graphics();
+  private scrollThumb = new Graphics();
+  private scrollFade = new Graphics();
   private footer = new Container();
   private spec: RulesCardPreviewSpec | null = null;
   private viewportWidth = 0;
   private viewportHeight = 0;
-  private panelHeight = PANEL_HEIGHT;
+  private panelWidth = PORTRAIT_WIDTH;
+  private panelHeight = PORTRAIT_HEIGHT;
+  private headerHeight = PORTRAIT_HEADER_HEIGHT;
+  private bodyTop = PORTRAIT_HEADER_HEIGHT + PORTRAIT_ART_HEIGHT + TYPE_HEIGHT;
   private bodyHeight = 0;
-  private artHeight = ART_HEIGHT;
-  private bodyTop = HEADER_HEIGHT + ART_HEIGHT + TYPE_HEIGHT;
   private footerHeight = FOOTER_HEIGHT;
+  private contentX = CONTENT_PAD;
+  private contentWidth = PORTRAIT_WIDTH - CONTENT_PAD * 2;
+  private artX = ART_INSET;
+  private artY = PORTRAIT_HEADER_HEIGHT;
+  private artWidth = PORTRAIT_WIDTH - ART_INSET * 2;
+  private artHeight = PORTRAIT_ART_HEIGHT;
+  private typeBandY = PORTRAIT_HEADER_HEIGHT + PORTRAIT_ART_HEIGHT;
   private contentHeight = 0;
   private scrollOffset = 0;
   private actionRows: ActionRow[] = [];
   private focusedActionIndex = 0;
   private artGeneration = 0;
-  private setSymbolGeneration = 0;
+  private cardInfoGeneration = 0;
+  private scryfallInfo: ScryfallCard | null = null;
+  private displayedBackFace = false;
+  private horizontalFace = false;
+  private forcePortrait = false;
+  private canFlip = false;
   private interactiveReady = false;
   private interactionTimer: number | null = null;
   private dragStartY: number | null = null;
+  private dragPointerId: number | null = null;
   private dragStartScroll = 0;
   private dragMoved = false;
 
@@ -234,27 +226,27 @@ export class RulesCardPreviewLayer {
     this.bodyScroller.mask = this.bodyMask;
     this.bodyScroller.addChild(this.bodyContent);
     this.bodyScroller.eventMode = "static";
-    this.bodyScroller.on("wheel", (event: FederatedWheelEvent) => {
-      event.stopPropagation();
-      this.scrollBy(event.deltaY);
-    });
     this.bodyScroller.on("pointerdown", (event: FederatedPointerEvent) => {
-      if (event.pointerType !== "touch") return;
+      this.dragMoved = false;
+      if (event.pointerType !== "touch" || this.dragPointerId !== null) return;
+      this.dragPointerId = event.pointerId;
       this.dragStartY = event.global.y;
       this.dragStartScroll = this.scrollOffset;
-      this.dragMoved = false;
     });
-    this.bodyScroller.on("pointermove", (event: FederatedPointerEvent) => {
-      if (this.dragStartY == null) return;
+    this.bodyScroller.on("globalpointermove", (event: FederatedPointerEvent) => {
+      if (this.dragStartY == null || event.pointerId !== this.dragPointerId) return;
       const delta = event.global.y - this.dragStartY;
       if (Math.abs(delta) > 5) this.dragMoved = true;
-      this.setScroll(this.dragStartScroll - delta);
+      this.setScroll(this.dragStartScroll - delta / this.container.scale.y);
     });
-    const endDrag = () => {
+    const endDrag = (event: FederatedPointerEvent) => {
+      if (event.pointerId !== this.dragPointerId) return;
       this.dragStartY = null;
+      this.dragPointerId = null;
     };
     this.bodyScroller.on("pointerup", endDrag);
     this.bodyScroller.on("pointerupoutside", endDrag);
+    this.bodyScroller.on("pointercancel", endDrag);
 
     this.container.addChild(
       this.background,
@@ -265,6 +257,9 @@ export class RulesCardPreviewLayer {
       this.bodyScroller,
       this.bodyMask,
       this.footer,
+      this.scrollTrack,
+      this.scrollThumb,
+      this.scrollFade,
     );
   }
 
@@ -278,37 +273,62 @@ export class RulesCardPreviewLayer {
   }
 
   setViewport(width: number, height: number): void {
+    if (width === this.viewportWidth && height === this.viewportHeight) return;
     this.viewportWidth = width;
     this.viewportHeight = height;
-    if (this.spec) this.rebuild();
+    if (width <= EDGE_PAD * 2 || height <= EDGE_PAD * 2) this.setSpec(null);
+    else if (this.spec) this.rebuild();
   }
 
   setSpec(spec: RulesCardPreviewSpec | null): void {
     const previous = this.spec;
     this.spec = spec;
-    if (!spec) {
+    if (!spec || this.viewportWidth <= EDGE_PAD * 2 || this.viewportHeight <= EDGE_PAD * 2) {
+      this.spec = null;
       this.hide();
       return;
     }
 
-    const artChanged =
-      previous?.card.id !== spec.card.id || previous.showBackFace !== spec.showBackFace;
+    const cardChanged = previous?.card.id !== spec.card.id;
+    const lookupChanged =
+      cardChanged ||
+      previous?.card.identity.name !== spec.card.identity.name ||
+      previous?.card.identity.setCode !== spec.card.identity.setCode ||
+      previous?.card.identity.cardNumber !== spec.card.identity.cardNumber;
+    const faceChanged = previous?.showBackFace !== spec.showBackFace;
     const contentChanged = !previous || previous.card !== spec.card;
     const actionsChanged =
       !previous ||
       previous.actions.length !== spec.actions.length ||
       previous.actions.some((action, index) => action !== spec.actions[index]);
-    if (artChanged) {
+    if (cardChanged) this.forcePortrait = false;
+    if (lookupChanged) {
+      this.displayedBackFace = spec.showBackFace;
+      this.artSprite.texture = Texture.EMPTY;
+      this.cardInfoGeneration += 1;
+      this.scryfallInfo = isFacelessCard(spec.card)
+        ? null
+        : peekCard(useScryfallStore.getState().cards, {
+            name: spec.card.identity.name,
+            setCode: spec.card.identity.setCode || undefined,
+            collectorNumber: spec.card.identity.cardNumber || undefined,
+          });
+      if (!this.scryfallInfo) void this.loadCardInfo();
+    }
+    if (lookupChanged || faceChanged) {
       this.scrollOffset = 0;
       this.focusedActionIndex = 0;
-      void this.loadArt();
+      this.artGeneration += 1;
+      if (this.scryfallInfo || isFacelessCard(spec.card)) void this.loadArt();
     }
-    if (contentChanged || actionsChanged || previous?.sticky !== spec.sticky) this.rebuild();
-    else this.layoutPanel();
+    if (contentChanged || actionsChanged || faceChanged || previous?.sticky !== spec.sticky) {
+      this.rebuild();
+    } else {
+      this.layoutPanel();
+    }
 
     if (spec.suppressed) {
-      this.container.alpha = 0;
-      this.interactiveReady = false;
+      this.hide();
       return;
     }
 
@@ -334,7 +354,7 @@ export class RulesCardPreviewLayer {
     const scale = this.container.scale.x;
     return (
       x >= this.container.x &&
-      x <= this.container.x + PANEL_WIDTH * scale &&
+      x <= this.container.x + this.panelWidth * scale &&
       y >= this.container.y &&
       y <= this.container.y + this.panelHeight * scale
     );
@@ -359,8 +379,20 @@ export class RulesCardPreviewLayer {
     return true;
   }
 
-  scrollBy(delta: number): void {
-    this.setScroll(this.scrollOffset + delta);
+  activatePrimaryTransform(): void {
+    if (this.horizontalFace) {
+      this.forcePortrait = !this.forcePortrait;
+      this.scrollOffset = 0;
+      this.rebuild();
+      return;
+    }
+    if (this.canFlip) this.callbacks.onFlip();
+  }
+
+  scrollBy(delta: number, mode: number): void {
+    const unit =
+      mode === 1 ? ORACLE_LINE_HEIGHT : mode === 2 ? this.bodyHeight : 1 / this.container.scale.y;
+    this.setScroll(this.scrollOffset + delta * unit);
   }
 
   private rebuild(): void {
@@ -373,10 +405,22 @@ export class RulesCardPreviewLayer {
 
     const { appTheme, gameTheme } = this.theme;
     const presentation = deriveCardPresentation(spec.card);
+    const deckCard = asDeckCard(useGameStore.getState().gameDecks[spec.card.ownerId], spec.card);
+    const display = resolveRulesPreviewDisplay({
+      card: spec.card,
+      presentation,
+      info: this.scryfallInfo,
+      deckLayout: deckCard.layout,
+      showBackFace: this.displayedBackFace,
+      faceless: isFacelessCard(spec.card),
+    });
+    const progression =
+      display.currentFace && !display.multipart && !display.faceless
+        ? presentation.progression
+        : null;
     const nextClassLevel =
-      presentation.progression?.rail.kind === "class" &&
-      presentation.progression.rail.current < presentation.progression.rail.max
-        ? presentation.progression.rail.current + 1
+      progression?.rail.kind === "class" && progression.rail.current < progression.rail.max
+        ? progression.rail.current + 1
         : null;
     const classLevelUpIndex = nextClassLevel
       ? spec.actions.findIndex((action) => action.isClassLevelUp)
@@ -391,170 +435,141 @@ export class RulesCardPreviewLayer {
         integratedClassLevelUpIndex === null ? null : nextClassLevel,
       ),
     }));
-    const classLevelUpActions = indexedActions.filter(({ action }) => action.isClassLevelUp);
     const railClassLevelUpAction =
       integratedClassLevelUpIndex === null
         ? undefined
         : indexedActions[integratedClassLevelUpIndex];
-    const extraClassActions = railClassLevelUpAction
-      ? classLevelUpActions.filter(({ index }) => index !== railClassLevelUpAction.index)
-      : classLevelUpActions;
-    const mainActions = indexedActions.filter(({ action }) => !action.isClassLevelUp);
-    const deckCard = asDeckCard(useGameStore.getState().gameDecks[spec.card.ownerId], spec.card);
+    const availableActions = railClassLevelUpAction
+      ? indexedActions.filter(({ index }) => index !== railClassLevelUpAction.index)
+      : indexedActions;
     const accent = cardFrameTintHex(deckCard.colorIdentity, gameTheme.mana);
     const surface = appTheme.popover;
     const raisedSurface = appTheme.muted;
-    const foreground = appTheme["popover-foreground"];
-    this.artHeight = ART_HEIGHT;
-    this.bodyTop = HEADER_HEIGHT + ART_HEIGHT + TYPE_HEIGHT;
-    this.footerHeight =
-      presentation.stats || presentation.loyalty != null || presentation.defense != null
-        ? FOOTER_HEIGHT
-        : 0;
+    this.horizontalFace = display.horizontal;
+    this.canFlip = display.flippable;
+    const hasFooterValue = display.stats || display.loyalty != null || display.defense != null;
+    this.configureGeometry(
+      display.horizontal && !this.forcePortrait,
+      hasFooterValue ? FOOTER_HEIGHT : spec.sticky ? HELP_FOOTER_HEIGHT : 0,
+    );
+    const faceColumns = display.multipart && this.panelWidth === LANDSCAPE_WIDTH;
 
     this.artBackdrop.clear();
-    this.artBackdrop.roundRect(
-      ART_INSET,
-      HEADER_HEIGHT,
-      PANEL_WIDTH - ART_INSET * 2,
-      this.artHeight,
-      ART_RADIUS,
-    );
+    this.artBackdrop.roundRect(this.artX, this.artY, this.artWidth, this.artHeight, ART_RADIUS);
     this.artBackdrop.fill({ color: hexToNum(appTheme.muted), alpha: 1 });
 
     this.artMask.clear();
-    this.artMask.roundRect(
-      ART_INSET,
-      HEADER_HEIGHT,
-      PANEL_WIDTH - ART_INSET * 2,
-      this.artHeight,
-      ART_RADIUS,
-    );
+    if (faceColumns) {
+      const width = (this.artWidth - FACE_GAP) / display.sections.length;
+      for (let index = 0; index < display.sections.length; index += 1) {
+        this.artMask.roundRect(
+          this.artX + index * (width + FACE_GAP),
+          this.artY,
+          width,
+          this.artHeight,
+          ART_RADIUS,
+        );
+      }
+    } else {
+      this.artMask.roundRect(this.artX, this.artY, this.artWidth, this.artHeight, ART_RADIUS);
+    }
     this.artMask.fill(hexToNum(appTheme.popover));
     this.fitArt();
 
-    const name = new Text({
-      text: presentation.name,
-      style: new TextStyle({
-        fill: foreground,
-        fontFamily: ORACLE_FONT,
-        fontSize: 24,
-        fontWeight: "700",
-        lineHeight: 24,
-        wordWrap: true,
-        wordWrapWidth: 225,
-      }),
-    });
-    name.resolution = 2;
-    name.position.set(17, 8);
-    this.chrome.addChild(name);
-
-    const mana = new PixiRichText();
-    mana.setContent(
-      presentation.effectiveManaCost || presentation.manaCost,
-      textStyle(foreground, 16, "600"),
-      88,
-      19,
-      1,
-    );
-    mana.x = PANEL_WIDTH - CONTENT_PAD - mana.width;
-    mana.y = 13;
-    this.chrome.addChild(mana);
-
-    const typeBandTop = HEADER_HEIGHT + this.artHeight;
     const typeBand = new Graphics();
-    typeBand.rect(0, typeBandTop, PANEL_WIDTH, TYPE_HEIGHT);
-    typeBand.fill({ color: hexToNum(raisedSurface), alpha: 1 });
     this.chrome.addChild(typeBand);
+    const identities = faceColumns ? display.sections : [display];
+    const identityWidth =
+      (this.panelWidth - FACE_GAP * (identities.length - 1)) / identities.length;
+    let typeHeight = TYPE_HEIGHT;
+    for (const [index, section] of identities.entries()) {
+      const identity = new RulesPreviewIdentity({
+        section,
+        width: identityWidth,
+        headerHeight: this.headerHeight,
+        typeY: this.typeBandY,
+        contentPad: CONTENT_PAD,
+        fontFamily: ORACLE_FONT,
+        fontSize: faceColumns ? 20 : this.panelWidth === LANDSCAPE_WIDTH ? 22 : 24,
+        info: this.scryfallInfo,
+        setCode: spec.card.identity.setCode,
+        faceless: display.faceless,
+        theme: this.theme,
+      });
+      identity.x = index * (identityWidth + FACE_GAP);
+      typeHeight = Math.max(typeHeight, identity.typeHeight);
+      this.chrome.addChild(identity);
+    }
+    this.bodyTop = this.typeBandY + typeHeight;
+    this.bodyHeight = this.panelHeight - this.bodyTop - this.footerHeight;
+    typeBand.rect(0, this.typeBandY, this.panelWidth, typeHeight);
+    typeBand.fill({ color: hexToNum(raisedSurface), alpha: 1 });
 
-    let typeLineX = CONTENT_PAD;
-    if (spec.card.isDoubleFaced) {
-      const flip = this.createControl("↻ F", () => this.callbacks.onFlip());
-      flip.position.set(CONTENT_PAD, typeBandTop + 5);
+    let controlX = this.artX + 8;
+    if (display.horizontal) {
+      const rotate = this.createControl(this.forcePortrait ? "LANDSCAPE · F" : "ROTATE · F", () =>
+        this.activatePrimaryTransform(),
+      );
+      rotate.position.set(controlX, this.artY + 8);
+      controlX += rotate.width + 6;
+      this.chrome.addChild(rotate);
+    }
+    if (display.flippable) {
+      const shortcut = display.horizontal ? "" : " · F";
+      const flip = this.createControl(
+        `FLIP ${display.faceIndex === 0 ? "BACK" : "FRONT"}${shortcut}`,
+        () => this.callbacks.onFlip(),
+      );
+      flip.position.set(
+        Math.max(controlX, this.artX + this.artWidth - flip.width - 8),
+        this.artY + 8,
+      );
       this.chrome.addChild(flip);
-      typeLineX = 47;
     }
 
-    const typeLine = new Text({
-      text: presentation.typeLine,
-      style: new TextStyle({
-        fill: foreground,
-        fontFamily: ORACLE_FONT,
-        fontSize: 14,
-        fontWeight: "700",
-        lineHeight: 16,
-        wordWrap: true,
-        wordWrapWidth: PANEL_WIDTH - typeLineX - 52,
-      }),
-    });
-    typeLine.resolution = 2;
-    typeLine.position.set(typeLineX, typeBandTop + 7);
-    this.chrome.addChild(typeLine);
-
-    const setSymbol = new Sprite(Texture.EMPTY);
-    const setFallback = new Text({
-      text: spec.card.identity.setCode.toUpperCase(),
-      style: textStyle(appTheme["muted-foreground"], 9, "700"),
-    });
-    setFallback.resolution = 2;
-    setFallback.anchor.set(0.5);
-    setFallback.position.set(PANEL_WIDTH - CONTENT_PAD - 11, typeBandTop + 16);
-    setSymbol.position.set(PANEL_WIDTH - CONTENT_PAD - 22, typeBandTop + 5);
-    this.chrome.addChild(setFallback, setSymbol);
-    void this.loadSetSymbol(setSymbol, setFallback, spec.card, ++this.setSymbolGeneration);
-
-    this.bodyScroller.position.set(CONTENT_PAD, this.bodyTop);
+    this.bodyScroller.position.set(this.contentX, this.bodyTop);
 
     let y = 10;
-    if (presentation.keywords.length > 0) {
-      y = this.addKeywordBadges(presentation.keywords, y);
+    if (display.otherFace) {
+      y = this.addSectionLabel("OTHER FACE · PRINTED TEXT", y, accent);
+    }
+    if (display.keywords.length > 0) {
+      y = this.addKeywordBadges(display.keywords, y);
       y += 7;
     }
 
-    const abilityEntries = abilityTextEntries(presentation.rulesText, presentation.progression);
-    const staticAbilities = abilityEntries.filter((entry) => !entry.activated);
-    const activatedAbilities = abilityEntries.filter((entry) => entry.activated);
-    const unmatchedActions = [...mainActions];
-    y = this.addSectionLabel("ABILITIES", y, appTheme.ring);
-    if (abilityEntries.length === 0 && unmatchedActions.length === 0 && !presentation.progression) {
-      y = this.addStaticAbilityRow("No abilities.", y);
+    if (display.faceless) {
+      y = this.addStaticAbilityRow("Card identity and rules are hidden.", y);
     } else {
-      for (const entry of staticAbilities) {
-        y = this.addStaticAbilityRow(entry.text, y);
-      }
-      for (const entry of activatedAbilities) {
-        let matchIndex = -1;
-        let matchScore = 0;
-        for (const [index, candidate] of unmatchedActions.entries()) {
-          const score = actionMatchScore(entry.text, candidate.action);
-          if (score > matchScore) {
-            matchIndex = index;
-            matchScore = score;
-          }
+      const startY = y;
+      for (const [sectionIndex, section] of display.sections.entries()) {
+        let sectionY = faceColumns ? startY : y;
+        const width = faceColumns ? identityWidth - CONTENT_PAD * 2 : this.contentWidth;
+        const parent = faceColumns ? new Container() : this.bodyContent;
+        if (faceColumns) {
+          parent.x = sectionIndex * (identityWidth + FACE_GAP);
+          this.bodyContent.addChild(parent);
+        } else if (display.multipart) {
+          sectionY = this.addFaceHeading(
+            section.name,
+            section.manaCost,
+            section.typeLine,
+            sectionY,
+            accent,
+          );
         }
-        if (matchIndex < 0) {
-          y = this.addDisabledAbilityRow(entry.text, y);
-          continue;
+        for (const text of abilityTextEntries(section.rulesText, progression)) {
+          sectionY = this.addOracleAbilityRow(text, sectionY, section.planeswalker, parent, width);
         }
-        const [matchedAction] = unmatchedActions.splice(matchIndex, 1);
-        const relatedActions =
-          matchedAction?.action.abilityIndex == null
-            ? []
-            : unmatchedActions.filter(
-                ({ action }) => action.abilityIndex === matchedAction.action.abilityIndex,
-              );
-        for (const related of relatedActions) {
-          unmatchedActions.splice(unmatchedActions.indexOf(related), 1);
-        }
-        y = this.addActionRows([matchedAction!, ...relatedActions], y, appTheme.ring);
-      }
-      if (unmatchedActions.length > 0) {
-        y = this.addActionRows(unmatchedActions, y, appTheme.ring);
+        if (section.flavorText)
+          sectionY = this.addFlavorText(section.flavorText, sectionY, parent, width);
+        y = faceColumns ? Math.max(y, sectionY) : sectionY;
+        if (!faceColumns && display.multipart && sectionIndex < display.sections.length - 1) y += 8;
       }
     }
     y += 8;
 
-    if (presentation.progression) {
+    if (progression) {
       const railInteractions =
         nextClassLevel && railClassLevelUpAction
           ? [
@@ -567,10 +582,10 @@ export class RulesCardPreviewLayer {
             ]
           : [];
       const rail = new PixiCardRailPreview({
-        state: presentation.progression.rail,
-        effects: presentation.progression.effects,
+        state: progression.rail,
+        effects: progression.effects,
         interactions: railInteractions,
-        width: CONTENT_WIDTH,
+        width: this.contentWidth,
         theme: this.theme,
       });
       rail.position.set(0, y);
@@ -597,13 +612,25 @@ export class RulesCardPreviewLayer {
       y += rail.contentHeight + 8;
     }
 
-    if (extraClassActions.length > 0) {
-      y = this.addActionRows(extraClassActions, y, appTheme.ring);
+    if (availableActions.length > 0) {
+      y = this.addSectionLabel(
+        display.otherFace ? "AVAILABLE ON CURRENT FACE" : "AVAILABLE NOW",
+        y,
+        appTheme.ring,
+      );
+      y = this.addActionRows(availableActions, y, appTheme.ring);
       y += 8;
     }
 
+    if (display.costs.length > 0) {
+      y = this.addSectionLabel("ALTERNATE COSTS", y, accent);
+      for (const cost of display.costs) {
+        y = this.addStaticAbilityRow(`${cost.label} ${cost.cost}`, y);
+      }
+      y += 4;
+    }
+
     if (presentation.statuses.length > 0) {
-      y = this.addSectionLabel("STATE", y, accent);
       y = this.addChips(
         presentation.statuses.map((status) => ({
           label: status.label,
@@ -615,7 +642,7 @@ export class RulesCardPreviewLayer {
     }
 
     const visibleCounters =
-      presentation.progression?.rail.kind === "saga"
+      progression?.rail.kind === "saga"
         ? presentation.counters.filter((counter) => counter.type !== "Lore")
         : presentation.counters;
     if (visibleCounters.length > 0) {
@@ -631,20 +658,17 @@ export class RulesCardPreviewLayer {
     }
 
     this.contentHeight = y;
-    this.bodyHeight = PANEL_HEIGHT - this.bodyTop - this.footerHeight;
-    this.panelHeight = PANEL_HEIGHT;
-
     this.background.clear();
-    this.background.roundRect(0, 0, PANEL_WIDTH, this.panelHeight, PANEL_RADIUS);
+    this.background.roundRect(0, 0, this.panelWidth, this.panelHeight, PANEL_RADIUS);
     this.background.fill({ color: hexToNum(surface), alpha: 1 });
 
-    this.bodyScroller.hitArea = new Rectangle(0, 0, CONTENT_WIDTH, this.bodyHeight);
+    this.bodyScroller.hitArea = new Rectangle(0, 0, this.contentWidth, this.bodyHeight);
     this.bodyMask.clear();
-    this.bodyMask.rect(CONTENT_PAD, this.bodyTop, CONTENT_WIDTH, this.bodyHeight);
+    this.bodyMask.rect(this.contentX, this.bodyTop, this.contentWidth, this.bodyHeight);
     this.bodyMask.fill(hexToNum(appTheme.popover));
 
+    this.drawFooter(display.stats, display.loyalty, display.defense);
     this.setScroll(this.scrollOffset);
-    this.drawFooter(presentation.stats, presentation.loyalty, presentation.defense);
     this.redrawActionRows();
     this.layoutPanel();
   }
@@ -658,14 +682,17 @@ export class RulesCardPreviewLayer {
     text.resolution = 2;
     const background = new Graphics();
     const width = text.width + 12;
-    const height = 18;
+    const height = 28;
     background.roundRect(0, 0, width, height, 9);
     background.fill({ color: hexToNum(this.theme.appTheme.muted), alpha: 0.96 });
-    text.position.set(6, 2);
+    text.position.set(6, 7);
     control.addChild(background, text);
     control.eventMode = "static";
     control.cursor = "pointer";
-    control.hitArea = new Rectangle(-4, -4, width + 8, height + 8);
+    control.hitArea = new Rectangle(-4, -6, width + 8, height + 12);
+    control.on("pointerdown", () => {
+      this.dragMoved = false;
+    });
     control.on("pointertap", (event: FederatedPointerEvent) => {
       event.stopPropagation();
       if (!this.dragMoved) activate();
@@ -681,6 +708,51 @@ export class RulesCardPreviewLayer {
     text.position.set(2, y);
     this.bodyContent.addChild(text);
     return y + 20;
+  }
+
+  private addFaceHeading(
+    name: string,
+    manaCost: string,
+    typeLine: string,
+    y: number,
+    accent: string,
+  ): number {
+    const nameText = new Text({
+      text: name,
+      style: new TextStyle({
+        fill: this.theme.appTheme["popover-foreground"],
+        fontFamily: ORACLE_FONT,
+        fontSize: 17,
+        fontWeight: "700",
+        wordWrap: true,
+        wordWrapWidth: this.contentWidth - 98,
+        lineHeight: 18,
+      }),
+    });
+    nameText.resolution = 2;
+    nameText.position.set(2, y);
+    const mana = new PixiRichText();
+    mana.setContent(
+      manaCost,
+      textStyle(this.theme.appTheme["popover-foreground"], 13, "600"),
+      86,
+      15,
+      1,
+    );
+    mana.position.set(this.contentWidth - mana.width, y + 1);
+    const type = new Text({
+      text: typeLine,
+      style: textStyle(this.theme.appTheme["muted-foreground"], 10, "600", ORACLE_FONT),
+    });
+    type.resolution = 2;
+    type.position.set(2, y + Math.max(20, nameText.height) + 2);
+    const marker = new Graphics();
+    marker.rect(0, y, 2, Math.max(36, nameText.height + 16));
+    marker.fill({ color: hexToNum(accent), alpha: 0.9 });
+    nameText.x = 8;
+    type.x = 8;
+    this.bodyContent.addChild(marker, nameText, mana, type);
+    return y + Math.max(42, nameText.height + 24);
   }
 
   private addKeywordBadges(keywords: string[], y: number): number {
@@ -701,13 +773,13 @@ export class RulesCardPreviewLayer {
           letterSpacing: 0.4,
           lineHeight: 13,
         }),
-        CONTENT_WIDTH - 16,
+        this.contentWidth - 16,
         14,
         1,
       );
-      const width = Math.min(CONTENT_WIDTH, rich.width + 16);
+      const width = Math.min(this.contentWidth, rich.width + 16);
       const badgeHeight = Math.max(21, height + 6);
-      if (x > 0 && x + width > CONTENT_WIDTH) {
+      if (x > 0 && x + width > this.contentWidth) {
         x = 0;
         y += rowHeight + 5;
         rowHeight = 0;
@@ -738,9 +810,9 @@ export class RulesCardPreviewLayer {
         style: textStyle(this.theme.appTheme["secondary-foreground"], 10, "700"),
       });
       label.resolution = 2;
-      const width = Math.min(CONTENT_WIDTH, label.width + 14);
+      const width = Math.min(this.contentWidth, label.width + 14);
       const height = 21;
-      if (x > 0 && x + width > CONTENT_WIDTH) {
+      if (x > 0 && x + width > this.contentWidth) {
         x = 0;
         y += rowHeight + 5;
         rowHeight = 0;
@@ -760,59 +832,72 @@ export class RulesCardPreviewLayer {
   }
 
   private addStaticAbilityRow(text: string, y: number): number {
+    return this.addOracleAbilityRow(text, y, false);
+  }
+
+  private addOracleAbilityRow(
+    text: string,
+    y: number,
+    planeswalker: boolean,
+    parent = this.bodyContent,
+    width = this.contentWidth,
+  ): number {
+    const loyalty = planeswalker ? /^([+\-−]?\d+):\s*(.+)$/.exec(text) : null;
+    const content = loyalty?.[2] ?? text;
+    const contentX = loyalty ? 43 : 4;
     const row = new Container();
     const rich = new PixiRichText();
-    const reminder = /^\([\s\S]*\)$/.test(text.trim());
     const textHeight = rich.setContent(
+      content,
+      oracleTextStyle(this.theme.appTheme["popover-foreground"]),
+      width - contentX - 4,
+      17,
+      3,
+      {
+        parentheticalStyle: oracleTextStyle(this.theme.appTheme["muted-foreground"], true),
+      },
+    );
+    const height = Math.max(loyalty ? 34 : 0, textHeight + 8);
+    rich.position.set(contentX, 4);
+    row.position.set(0, y);
+    row.addChild(rich);
+    if (loyalty) {
+      const badge = new Graphics();
+      badge.poly([4, 7, 34, 7, 37, height / 2, 34, height - 7, 4, height - 7, 1, height / 2]);
+      badge.fill({
+        color: hexToNum(this.theme.gameTheme.counter.loyalty),
+        alpha: 0.94,
+      });
+      const value = new Text({
+        text: loyalty[1]!.replace("-", "−"),
+        style: textStyle(this.theme.gameTheme.textOnTinted, 12, "700"),
+      });
+      value.resolution = 2;
+      value.anchor.set(0.5);
+      value.position.set(19, height / 2);
+      row.addChild(badge, value);
+    }
+    parent.addChild(row);
+    return y + height + 5;
+  }
+
+  private addFlavorText(
+    text: string,
+    y: number,
+    parent = this.bodyContent,
+    width = this.contentWidth,
+  ): number {
+    const rich = new PixiRichText();
+    const height = rich.setContent(
       text,
-      oracleTextStyle(
-        reminder
-          ? this.theme.appTheme["muted-foreground"]
-          : this.theme.appTheme["popover-foreground"],
-        reminder,
-      ),
-      CONTENT_WIDTH - 8,
+      oracleTextStyle(this.theme.appTheme["muted-foreground"], true),
+      width - 8,
       17,
       5,
     );
-    const height = Math.max(34, textHeight + 14);
-    rich.position.set(4, 6);
-    row.position.set(0, y);
-    row.addChild(rich);
-    this.bodyContent.addChild(row);
-    return y + height + 7;
-  }
-
-  private addDisabledAbilityRow(text: string, y: number): number {
-    const row = new Container();
-    const background = new Graphics();
-    const keyBackground = new Graphics();
-    keyBackground.roundRect(9, 9, 23, 23, 6);
-    keyBackground.fill({ color: hexToNum(this.theme.appTheme.muted), alpha: 0.62 });
-    const key = new Text({
-      text: "—",
-      style: textStyle(this.theme.appTheme["muted-foreground"], 12, "700"),
-    });
-    key.resolution = 2;
-    key.anchor.set(0.5);
-    key.position.set(20.5, 20.5);
-    const label = new PixiRichText();
-    const labelHeight = label.setContent(
-      text,
-      oracleTextStyle(this.theme.appTheme["muted-foreground"]),
-      CONTENT_WIDTH - 55,
-      17,
-      4,
-    );
-    label.position.set(43, 9);
-    const height = Math.max(41, labelHeight + 18);
-    background.roundRect(0, 0, CONTENT_WIDTH, height, 9);
-    background.fill({ color: hexToNum(this.theme.appTheme.muted), alpha: 0.2 });
-    row.position.set(0, y);
-    row.alpha = 0.7;
-    row.addChild(background, keyBackground, key, label);
-    this.bodyContent.addChild(row);
-    return y + height + 6;
+    rich.position.set(4, y + 4);
+    parent.addChild(rich);
+    return y + height + 14;
   }
 
   private addActionRows(actions: IndexedAction[], y: number, accent: string): number {
@@ -833,14 +918,17 @@ export class RulesCardPreviewLayer {
       const labelHeight = label.setContent(
         actionText(action),
         oracleTextStyle(this.theme.appTheme["popover-foreground"]),
-        CONTENT_WIDTH - 55,
+        this.contentWidth - 55,
         17,
         4,
+        {
+          parentheticalStyle: oracleTextStyle(this.theme.appTheme["muted-foreground"], true),
+        },
       );
       label.position.set(43, 9);
       const height = Math.max(41, labelHeight + 18);
       row.position.set(0, y);
-      row.hitArea = new Rectangle(0, 0, CONTENT_WIDTH, height);
+      row.hitArea = new Rectangle(0, 0, this.contentWidth, height);
       row.eventMode = "static";
       row.cursor = "pointer";
       row.addChild(background, keyBackground, key, label);
@@ -857,7 +945,7 @@ export class RulesCardPreviewLayer {
       const setFocused = (focused: boolean) => {
         const ring = this.theme.appTheme.ring;
         background.clear();
-        background.roundRect(0, 0, CONTENT_WIDTH, height, 9);
+        background.roundRect(0, 0, this.contentWidth, height, 9);
         background.fill({
           color: hexToNum(focused ? ring : this.theme.appTheme.muted),
           alpha: focused ? 0.34 : 0.5,
@@ -879,9 +967,37 @@ export class RulesCardPreviewLayer {
   }
 
   private redrawActionRows(): void {
+    this.focusedActionIndex = Math.min(
+      this.focusedActionIndex,
+      Math.max(0, this.actionRows.length - 1),
+    );
     this.actionRows.forEach((row, index) => {
       row.setFocused(index === this.focusedActionIndex);
     });
+  }
+
+  private configureGeometry(landscape: boolean, footerHeight: number): void {
+    this.footerHeight = footerHeight;
+    this.panelWidth = landscape ? LANDSCAPE_WIDTH : PORTRAIT_WIDTH;
+    this.panelHeight = landscape ? LANDSCAPE_HEIGHT : PORTRAIT_HEIGHT;
+    this.headerHeight = landscape ? LANDSCAPE_HEADER_HEIGHT : PORTRAIT_HEADER_HEIGHT;
+    this.artX = ART_INSET;
+    this.artY = this.headerHeight;
+    this.artWidth = this.panelWidth - ART_INSET * 2;
+    const texture = this.artSprite.texture;
+    this.artHeight = landscape
+      ? Math.min(
+          LANDSCAPE_ART_HEIGHT,
+          texture !== Texture.EMPTY && texture.width > 0
+            ? (this.artWidth * texture.height) / texture.width
+            : LANDSCAPE_ART_HEIGHT,
+        )
+      : PORTRAIT_ART_HEIGHT;
+    this.typeBandY = this.artY + this.artHeight;
+    this.contentX = CONTENT_PAD;
+    this.contentWidth = this.panelWidth - CONTENT_PAD * 2;
+    this.bodyTop = this.typeBandY + TYPE_HEIGHT;
+    this.bodyHeight = this.panelHeight - this.bodyTop - this.footerHeight;
   }
 
   private drawFooter(
@@ -893,14 +1009,26 @@ export class RulesCardPreviewLayer {
     const top = this.panelHeight - this.footerHeight;
     this.footer.position.set(0, top);
     const background = new Graphics();
-    background.roundRect(0, 0, PANEL_WIDTH, this.footerHeight, PANEL_RADIUS);
+    background.roundRect(0, 0, this.panelWidth, this.footerHeight, PANEL_RADIUS);
     background.fill({
       color: hexToNum(this.theme.appTheme.popover),
       alpha: 1,
     });
-    background.rect(0, 0, PANEL_WIDTH, PANEL_RADIUS);
+    background.rect(0, 0, this.panelWidth, PANEL_RADIUS);
     background.fill({ color: hexToNum(this.theme.appTheme.popover), alpha: 1 });
     this.footer.addChild(background);
+
+    if (this.spec?.sticky) {
+      const shortcuts = this.actionRows.length > 0 ? ["↑↓", "ENTER", "1–9", "ESC"] : ["ESC"];
+      if (this.horizontalFace || this.canFlip) shortcuts.push("F");
+      const help = new Text({
+        text: shortcuts.join(" · "),
+        style: textStyle(this.theme.appTheme["muted-foreground"], 8, "600"),
+      });
+      help.resolution = 2;
+      help.position.set(CONTENT_PAD, 5);
+      this.footer.addChild(help);
+    }
 
     if (stats?.damage) {
       const damage = new Text({
@@ -908,7 +1036,7 @@ export class RulesCardPreviewLayer {
         style: textStyle(this.theme.gameTheme.pt.lethal, 11, "700"),
       });
       damage.resolution = 2;
-      damage.position.set(CONTENT_PAD, 20);
+      damage.position.set(CONTENT_PAD, this.spec?.sticky ? 23 : 20);
       this.footer.addChild(damage);
     }
 
@@ -927,9 +1055,9 @@ export class RulesCardPreviewLayer {
       value.resolution = 2;
       const width = value.width + 20;
       const badge = new Graphics();
-      badge.roundRect(PANEL_WIDTH - CONTENT_PAD - width, 7, width, 30, 8);
+      badge.roundRect(this.panelWidth - CONTENT_PAD - width, 7, width, 30, 8);
       badge.fill({ color: hexToNum(color), alpha: 0.94 });
-      value.position.set(PANEL_WIDTH - CONTENT_PAD - width / 2, 22);
+      value.position.set(this.panelWidth - CONTENT_PAD - width / 2, 22);
       value.anchor.set(0.5);
       this.footer.addChild(badge, value);
 
@@ -940,14 +1068,14 @@ export class RulesCardPreviewLayer {
         });
         base.resolution = 2;
         base.anchor.set(1, 0.5);
-        base.position.set(PANEL_WIDTH - CONTENT_PAD - width - 7, 22);
+        base.position.set(this.panelWidth - CONTENT_PAD - width - 7, 22);
         this.footer.addChild(base);
       }
     }
   }
 
   private drawShieldValue(value: number, label: string, color: string): void {
-    const right = PANEL_WIDTH - CONTENT_PAD;
+    const right = this.panelWidth - CONTENT_PAD;
     const badgeWidth = 42;
     const badgeHeight = 36;
     const badgeLeft = right - badgeWidth;
@@ -999,13 +1127,13 @@ export class RulesCardPreviewLayer {
     if (!spec || this.viewportWidth <= 0 || this.viewportHeight <= 0) return;
     const scale = Math.min(
       1,
-      (this.viewportWidth - EDGE_PAD * 2) / PANEL_WIDTH,
-      (this.viewportHeight - EDGE_PAD * 2) / PANEL_HEIGHT,
+      (this.viewportWidth - EDGE_PAD * 2) / this.panelWidth,
+      (this.viewportHeight - EDGE_PAD * 2) / this.panelHeight,
     );
-    const width = PANEL_WIDTH * scale;
+    const width = this.panelWidth * scale;
     const height = this.panelHeight * scale;
     this.container.scale.set(scale);
-    this.container.hitArea = new Rectangle(0, 0, PANEL_WIDTH, this.panelHeight);
+    this.container.hitArea = new Rectangle(0, 0, this.panelWidth, this.panelHeight);
 
     let x: number;
     let y: number;
@@ -1047,7 +1175,7 @@ export class RulesCardPreviewLayer {
     const anchorCenterX = spec.anchor ? spec.anchor.x + spec.anchor.width / 2 : spec.pointer.x;
     const anchorCenterY = spec.anchor ? spec.anchor.y + spec.anchor.height / 2 : spec.pointer.y;
     const startScale = spec.anchor
-      ? Math.max(0.25, Math.min(0.85, spec.anchor.width / PANEL_WIDTH))
+      ? Math.max(0.25, Math.min(0.85, spec.anchor.width / this.panelWidth))
       : 0.5;
     gsap.fromTo(
       this.container,
@@ -1109,6 +1237,42 @@ export class RulesCardPreviewLayer {
     const maxScroll = Math.max(0, this.contentHeight - this.bodyHeight);
     this.scrollOffset = Math.max(0, Math.min(offset, maxScroll));
     this.bodyContent.y = -this.scrollOffset;
+    this.drawScrollAffordance(maxScroll);
+  }
+
+  private drawScrollAffordance(maxScroll: number): void {
+    this.scrollTrack.clear();
+    this.scrollThumb.clear();
+    this.scrollFade.clear();
+    if (maxScroll <= 0 || this.bodyHeight <= 0) return;
+    const trackX = this.contentX + this.contentWidth + 4;
+    const trackY = this.bodyTop + 5;
+    const trackHeight = Math.max(12, this.bodyHeight - 10);
+    const thumbHeight = Math.max(28, trackHeight * (this.bodyHeight / this.contentHeight));
+    const thumbTravel = Math.max(0, trackHeight - thumbHeight);
+    const thumbY = trackY + thumbTravel * (this.scrollOffset / maxScroll);
+    this.scrollTrack.roundRect(trackX, trackY, 2, trackHeight, 1);
+    this.scrollTrack.fill({
+      color: hexToNum(this.theme.appTheme.muted),
+      alpha: 0.7,
+    });
+    this.scrollThumb.roundRect(trackX - 1, thumbY, 4, thumbHeight, 2);
+    this.scrollThumb.fill({
+      color: hexToNum(this.theme.appTheme["muted-foreground"]),
+      alpha: 0.85,
+    });
+    if (this.scrollOffset < maxScroll - 1) {
+      this.scrollFade.rect(
+        this.contentX,
+        this.bodyTop + this.bodyHeight - 18,
+        this.contentWidth,
+        18,
+      );
+      this.scrollFade.fill({
+        color: hexToNum(this.theme.appTheme.muted),
+        alpha: 0.36,
+      });
+    }
   }
 
   private ensureFocusedActionVisible(): void {
@@ -1120,43 +1284,28 @@ export class RulesCardPreviewLayer {
     }
   }
 
-  private async loadSetSymbol(
-    symbol: Sprite,
-    fallback: Text,
-    card: CardDto,
-    generation: number,
-  ): Promise<void> {
-    fallback.visible = false;
+  private async loadCardInfo(): Promise<void> {
+    const spec = this.spec;
+    if (!spec) return;
+    const generation = ++this.cardInfoGeneration;
+    if (isFacelessCard(spec.card) || !spec.card.identity.name) {
+      this.scryfallInfo = null;
+      return;
+    }
     try {
-      const store = useScryfallStore.getState();
-      const entry = await store.getCard({
-        name: card.identity.name,
-        setCode: card.identity.setCode || undefined,
-        collectorNumber: card.identity.cardNumber || undefined,
+      const entry = await useScryfallStore.getState().getCard({
+        name: spec.card.identity.name,
+        setCode: spec.card.identity.setCode || undefined,
+        collectorNumber: spec.card.identity.cardNumber || undefined,
       });
-      if (generation !== this.setSymbolGeneration || symbol.destroyed || fallback.destroyed) return;
-      const rarity = effectiveRarity(entry.info);
-      const token = rarityToken(rarity);
-      if (!token) return;
-      const color = this.theme.gameTheme.rarity[token];
-      fallback.text = rarity[0]!.toUpperCase();
-      fallback.style.fill = color;
-      fallback.visible = true;
-      const iconUrl = useScryfallStore
-        .getState()
-        .sets.find((set) => set.code === entry.info.set.toLowerCase())?.icon_svg_uri;
-      if (!iconUrl) return;
-      const texture = await setSymbolTexture(iconUrl);
-      if (generation !== this.setSymbolGeneration || symbol.destroyed || fallback.destroyed) return;
-      symbol.texture = texture;
-      symbol.tint = hexToNum(color);
-      symbol.setSize(22, 22);
-      symbol.visible = true;
-      fallback.visible = false;
+      if (!this.spec || generation !== this.cardInfoGeneration) return;
+      this.scryfallInfo = entry.info;
+      this.artSprite.texture = Texture.EMPTY;
+      this.scrollOffset = 0;
+      this.rebuild();
+      void this.loadArt();
     } catch {
-      if (generation === this.setSymbolGeneration && !symbol.destroyed) {
-        symbol.visible = false;
-      }
+      if (generation === this.cardInfoGeneration) this.scryfallInfo = null;
     }
   }
 
@@ -1166,17 +1315,20 @@ export class RulesCardPreviewLayer {
     const generation = ++this.artGeneration;
     const deckCard = asDeckCard(useGameStore.getState().gameDecks[spec.card.ownerId], spec.card);
     try {
+      const faces = resolveCardFaces(this.scryfallInfo ?? undefined);
+      const faceIndex: 0 | 1 = spec.showBackFace && faces.isFlippable ? 1 : 0;
       const texture = isFacelessCard(spec.card)
-        ? Texture.EMPTY
-        : await useScryfallStore
-            .getState()
-            .getCardTexture(deckCard, "art", spec.showBackFace ? 1 : 0);
+        ? await loadCardBack()
+        : await useScryfallStore.getState().getCardTexture(deckCard, "art", faceIndex);
       if (!this.spec || generation !== this.artGeneration || this.artSprite.destroyed) return;
       this.artSprite.texture = texture;
-      this.fitArt();
+      this.displayedBackFace = faceIndex === 1;
+      this.rebuild();
     } catch {
       if (generation === this.artGeneration && !this.artSprite.destroyed) {
         this.artSprite.texture = Texture.EMPTY;
+        this.displayedBackFace = spec.showBackFace;
+        this.rebuild();
       }
     }
   }
@@ -1184,14 +1336,11 @@ export class RulesCardPreviewLayer {
   private fitArt(): void {
     const texture = this.artSprite.texture;
     if (!texture || texture === Texture.EMPTY || texture.width <= 0 || texture.height <= 0) return;
-    const width = PANEL_WIDTH - ART_INSET * 2;
-    const height = this.artHeight;
-    const imageAspect = texture.width / texture.height;
-    const frameAspect = width / height;
+    const fit = this.panelWidth === LANDSCAPE_WIDTH ? Math.min : Math.max;
+    const scale = fit(this.artWidth / texture.width, this.artHeight / texture.height);
     this.artSprite.anchor.set(0.5);
-    this.artSprite.position.set(ART_INSET + width / 2, HEADER_HEIGHT + height / 2);
-    if (imageAspect > frameAspect) this.artSprite.setSize(width, width / imageAspect);
-    else this.artSprite.setSize(height * imageAspect, height);
+    this.artSprite.position.set(this.artX + this.artWidth / 2, this.artY + this.artHeight / 2);
+    this.artSprite.setSize(texture.width * scale, texture.height * scale);
   }
 
   private hide(): void {
@@ -1202,6 +1351,9 @@ export class RulesCardPreviewLayer {
       this.interactionTimer = null;
     }
     this.interactiveReady = false;
+    this.dragStartY = null;
+    this.dragPointerId = null;
+    this.dragMoved = false;
     this.container.visible = false;
     this.container.alpha = 0;
   }
@@ -1209,7 +1361,7 @@ export class RulesCardPreviewLayer {
   destroy(): void {
     this.hide();
     this.artGeneration += 1;
-    this.setSymbolGeneration += 1;
+    this.cardInfoGeneration += 1;
     this.container.destroy({ children: true });
   }
 }

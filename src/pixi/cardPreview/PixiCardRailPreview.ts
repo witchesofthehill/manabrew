@@ -161,12 +161,15 @@ export class PixiCardRailPreview extends Container {
       }
 
       const effectText = new PixiRichText();
+      const reminderStyle = style(muted, 13, "600", ORACLE_FONT);
+      reminderStyle.fontStyle = "italic";
       const effectHeight = effectText.setContent(
         effect?.text || "Effect text unavailable",
         style(notch.reached || interaction ? foreground : muted, 13, "600", ORACLE_FONT),
         width - CONTENT_LEFT - CONTENT_RIGHT,
         14,
         2,
+        { parentheticalStyle: reminderStyle },
       );
       effectText.position.set(CONTENT_LEFT, contentY);
       row.addChild(effectText);

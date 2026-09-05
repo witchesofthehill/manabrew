@@ -17,11 +17,12 @@ import {
   RulesCardPreviewLayer,
   type RulesCardPreviewSpec,
 } from "./cardPreview/RulesCardPreviewLayer";
-import type { CardDto } from "@/protocol/game";
+import type { ClientCardDto } from "@/stores/gameStore.types";
 import type { HandActionOption } from "@/stores/useGameUIStore";
+import { bindPreviewScroll } from "./cardPreview/previewScroll";
 
 export interface BoardOverlayPreviewSpec {
-  card: CardDto;
+  card: ClientCardDto;
   phase: "open" | "closing";
   sticky: boolean;
   showBackFace: boolean;
@@ -29,6 +30,7 @@ export interface BoardOverlayPreviewSpec {
   actions: HandActionOption[];
   mousePos: { x: number; y: number };
   anchorRect: DOMRect | null;
+  viewportRight?: number;
 }
 
 interface BoardOverlayCanvasProps {
@@ -70,6 +72,22 @@ function toRulesPreviewSpec(
       y: spec.mousePos.y - canvasRect.top,
     },
   };
+}
+
+function updateRulesPreview(
+  preview: RulesCardPreviewLayer,
+  spec: BoardOverlayPreviewSpec | null | undefined,
+  canvasRect: DOMRect,
+  width = canvasRect.width,
+  height = canvasRect.height,
+): void {
+  const previewWidth = Math.min(width, (spec?.viewportRight ?? canvasRect.right) - canvasRect.left);
+  if (!(previewWidth > 0) || !(height > 0)) {
+    preview.setSpec(null);
+    return;
+  }
+  preview.setViewport(previewWidth, height);
+  preview.setSpec(spec ? toRulesPreviewSpec(spec, canvasRect) : null);
 }
 
 export function BoardOverlayCanvas({
@@ -204,12 +222,11 @@ export function BoardOverlayCanvas({
         if (w > 0 && h > 0) {
           app.renderer.resize(w, h);
           stack.setViewport(w, h);
-          preview.setViewport(w, h);
         }
         const currentSpec = previewSpecRef.current;
         const canvasRect = canvasRef.current?.getBoundingClientRect();
-        if (currentSpec && canvasRect) {
-          preview.setSpec(toRulesPreviewSpec(currentSpec, canvasRect));
+        if (canvasRect) {
+          updateRulesPreview(preview, currentSpec, canvasRect, w, h);
         }
         app.ticker.add(() => {
           const scene = sceneRef.current;
@@ -244,9 +261,7 @@ export function BoardOverlayCanvas({
     const preview = previewRef.current;
     const canvas = canvasRef.current;
     if (!preview || !canvas) return;
-    preview.setSpec(
-      previewSpec ? toRulesPreviewSpec(previewSpec, canvas.getBoundingClientRect()) : null,
-    );
+    updateRulesPreview(preview, previewSpec, canvas.getBoundingClientRect());
     if (!previewSpec || previewSpec.phase !== "open" || previewSpec.suppressed) {
       canvas.style.pointerEvents = "none";
     }
@@ -261,7 +276,11 @@ export function BoardOverlayCanvas({
         if (width > 0 && height > 0) {
           appRef.current?.renderer?.resize(width, height);
           stackRef.current?.setViewport(width, height);
-          previewRef.current?.setViewport(width, height);
+          const preview = previewRef.current;
+          const canvasRect = canvasRef.current?.getBoundingClientRect();
+          if (preview && canvasRect) {
+            updateRulesPreview(preview, previewSpecRef.current, canvasRect, width, height);
+          }
         }
       }
     });
@@ -281,9 +300,15 @@ export function BoardOverlayCanvas({
         preview: previewRef.current?.hitTest(x, y) ?? false,
       };
     };
+    const unbindPreviewScroll = bindPreviewScroll(
+      window,
+      (x, y) => hitAt(x, y).preview,
+      (delta, mode) => previewRef.current?.scrollBy(delta, mode),
+    );
     const onMove = (event: PointerEvent) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
+      if (event.pointerId === replayPointerId) return;
       const hit = hitAt(event.clientX, event.clientY);
       canvas.style.pointerEvents = hit.stack || hit.preview ? "auto" : "none";
     };
@@ -300,8 +325,11 @@ export function BoardOverlayCanvas({
         buttons: event.buttons,
       });
     let replayPointerId: number | null = null;
+    let dismissedPointerId: number | null = null;
+    let dismissedClickPointerId: number | null = null;
     const onDown = (event: PointerEvent) => {
       if (!event.isTrusted) return;
+      dismissedClickPointerId = null;
       const canvas = canvasRef.current;
       if (!canvas) return;
       const hit = hitAt(event.clientX, event.clientY);
@@ -315,6 +343,8 @@ export function BoardOverlayCanvas({
       if (stickyOpen && !hit.preview) {
         cbRef.current.onDismissPreview?.();
         if (event.pointerType === "touch" && !hit.stack) {
+          dismissedPointerId = event.pointerId;
+          event.preventDefault();
           event.stopPropagation();
           return;
         }
@@ -325,24 +355,51 @@ export function BoardOverlayCanvas({
       canvas.style.pointerEvents = "auto";
       replayPointerId = event.pointerId;
       canvas.dispatchEvent(clonePointerEvent("pointerdown", event));
+      canvas.setPointerCapture(event.pointerId);
     };
     const onUp = (event: PointerEvent) => {
-      if (event.pointerId !== replayPointerId) return;
       if (!event.isTrusted) return;
+      if (event.pointerId === dismissedPointerId) {
+        dismissedPointerId = null;
+        dismissedClickPointerId = event.type === "pointerup" ? event.pointerId : null;
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      if (event.pointerId !== replayPointerId) return;
       replayPointerId = null;
       const canvas = canvasRef.current;
       if (!canvas) return;
       event.stopPropagation();
-      canvas.dispatchEvent(clonePointerEvent("pointerup", event));
+      canvas.dispatchEvent(clonePointerEvent(event.type, event));
+      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
       canvas.style.pointerEvents = "none";
+    };
+    const onClick = (event: MouseEvent) => {
+      if (dismissedClickPointerId === null || event.detail === 0) return;
+      if (
+        event instanceof PointerEvent &&
+        event.pointerId >= 0 &&
+        event.pointerId !== dismissedClickPointerId
+      ) {
+        return;
+      }
+      dismissedClickPointerId = null;
+      event.preventDefault();
+      event.stopPropagation();
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerdown", onDown, true);
     window.addEventListener("pointerup", onUp, true);
+    window.addEventListener("pointercancel", onUp, true);
+    window.addEventListener("click", onClick, true);
     return () => {
+      unbindPreviewScroll();
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerdown", onDown, true);
       window.removeEventListener("pointerup", onUp, true);
+      window.removeEventListener("pointercancel", onUp, true);
+      window.removeEventListener("click", onClick, true);
     };
   }, []);
 
@@ -355,19 +412,18 @@ export function BoardOverlayCanvas({
 
   const hoveredStackCard = stackSpec.cards.find((card) => card.id === hoveredStackObjectId);
   const rulesPreviewOpen = previewSpec?.phase === "open" && !previewSpec.suppressed;
-  const previewCanFlip = rulesPreviewOpen && previewSpec.card.isDoubleFaced;
 
   useKeybindings({
-    ...(rulesPreviewOpen
+    ...(rulesPreviewOpen && previewSpec.actions.length > 0
       ? {
           "preview-prev-action": () => previewRef.current?.focusAction(-1),
           "preview-next-action": () => previewRef.current?.focusAction(1),
           "preview-activate-action": () => previewRef.current?.activateFocusedAction(),
-          "preview-dismiss": () => cbRef.current.onDismissPreview?.(),
         }
       : {}),
-    ...(previewCanFlip
-      ? { "flip-card": () => cbRef.current.onFlipPreview?.() }
+    ...(rulesPreviewOpen ? { "preview-dismiss": () => cbRef.current.onDismissPreview?.() } : {}),
+    ...(rulesPreviewOpen
+      ? { "flip-card": () => previewRef.current?.activatePrimaryTransform() }
       : hoveredStackObjectId && hoveredStackCard?.card.isDoubleFaced
         ? { "flip-card": () => stackRef.current?.toggleFace(hoveredStackObjectId) }
         : {}),
@@ -376,6 +432,7 @@ export function BoardOverlayCanvas({
   useEffect(() => {
     if (!rulesPreviewOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
       const target = event.target;
       if (
         target instanceof HTMLElement &&
@@ -401,7 +458,13 @@ export function BoardOverlayCanvas({
     <canvas
       ref={canvasRef}
       className={className}
-      style={{ width: "100%", height: "100%", display: "block", pointerEvents: "none" }}
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "block",
+        pointerEvents: "none",
+        touchAction: "none",
+      }}
       onContextMenu={(e) => e.preventDefault()}
     />
   );

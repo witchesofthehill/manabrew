@@ -1,4 +1,5 @@
 import type { CardDto } from "@/protocol/game";
+import type { ClientCardDto } from "@/stores/gameStore.types";
 import type { GameThemeColors } from "@/themes/gameTheme";
 import {
   deriveCardRailEffects,
@@ -65,7 +66,7 @@ export interface CardPresentation {
   progression: CardProgressionPresentation | null;
 }
 const LOYALTY_COUNTER_TYPE = "Loyalty";
-const DEFENSE_COUNTER_TYPE = "DEFENSE";
+const DEFENSE_COUNTER_TYPE = "Defense";
 
 const COUNTER_COLOR_KEYS: Record<string, keyof GameThemeColors["counter"]> = {
   P1P1: "p1p1",
@@ -182,12 +183,15 @@ function deriveCosts(card: CardDto): CardCostPresentation[] {
   return costs;
 }
 
-export function deriveCardPresentation(card: CardDto): CardPresentation {
+export function deriveCardPresentation(card: ClientCardDto): CardPresentation {
   const rail = deriveCardRailState(card);
   const isPlaneswalker = card.types.some((type) => type.toLowerCase() === "planeswalker");
   const isBattle = card.types.some((type) => type.toLowerCase() === "battle");
-  const loyalty = isPlaneswalker ? (card.counters[LOYALTY_COUNTER_TYPE] ?? null) : null;
-  const defense = isBattle ? (card.counters[DEFENSE_COUNTER_TYPE] ?? null) : null;
+  const emptyCounterValue = card.zoneId === "battlefield" ? 0 : null;
+  const loyalty = isPlaneswalker
+    ? (card.counters[LOYALTY_COUNTER_TYPE] ?? emptyCounterValue)
+    : null;
+  const defense = isBattle ? (card.counters[DEFENSE_COUNTER_TYPE] ?? emptyCounterValue) : null;
 
   return {
     name: card.identity.name,

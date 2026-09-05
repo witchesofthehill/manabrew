@@ -120,6 +120,20 @@ One preview state machine serves the whole app. The game chooses a persisted pri
 | DOM renderer  | `components/game/HoverCardPreview` → `CardPreview` (+ `CardPreviewOverlay`, `CardPreviewActions`, `cardPreviewLayout.ts`) | Printed-card presentation. Placement math is the pure `computePreviewLayout`. `CardPreviewRail` owns its portal slot, collapse and resize behavior, and accepts optional consumer-specific details.                                                         |
 | Pixi renderer | `pixi/BoardOverlayCanvas` → `pixi/cardPreview/RulesCardPreviewLayer.ts` (+ `PixiCardRailPreview.ts`)                      | In-game rules presentation. The overlay owns preview/stack hit routing, outside-tap dismissal, keyboard action focus/activation, and touch scrolling; the rail mirrors `CardRailPreview` from the shared `cardRailState` model.                             |
 
+`rulesCardPreviewPresentation.ts` resolves the displayed face separately from live game state. Keep current-face actions in the distinct `AVAILABLE NOW` section; Oracle text has no stable engine ability IDs, so text similarity cannot safely make a rules row actionable. Inactive faces use printed metadata and label current-face actions separately. Faceless cards expose no identity or Oracle text.
+
+`Game.tsx` resolves the hovered ID against current visible and stack cards; follow live transformations unless the user explicitly selected a face. The right panel reports its left edge as `viewportRight`, limiting only the preview's placement area while the stack keeps its original canvas size and z-order.
+
+Supplemental keywords and costs omit exact normalized Oracle entries, not prose mentions of an ability. Keep Oracle lines in source order. `pixi/cardPreview/previewScroll.ts` owns native wheel/touch cancellation over the rules preview, including at scroll boundaries; Pixi propagation alone cannot prevent page scrolling. Wheel events outside the preview and Ctrl+wheel remain untouched. Sticky touch dismissal also consumes the matching compatibility click.
+
+Rules previews choose portrait or landscape geometry per displayed face. `F` rotates a horizontal layout first; otherwise it flips eligible double-faced cards. Explicit flip buttons remain available on horizontal DFCs. Split, Room, aftermath, adventure, and flip-card sections share `resolveCardFaces`; cards sharing one image are multipart, not flippable.
+
+Landscape previews place artwork above the rules and preserve the full source image. Split-card and Room halves use aligned header, artwork, type, and rules columns; `RulesPreviewIdentity.ts` draws the per-face name/mana/type/set chrome. Their rules share one scroll viewport, with current actions below both columns. Keep the horizontal artwork out of tall sidebars.
+
+Forge spells the live defense counter `Defense`. Missing loyalty or defense counters mean zero on the battlefield, not the printed starting value.
+
+The in-game lab's Card tab and `/card-mock` share `components/dev/devPreviewScenarios.ts`. The playground opens scenarios directly and supplies local action controls and viewport sizing. Scryfall may report Room/aftermath as `split` and Battles as `transform`; use the shared layout/type predicates instead of assuming one layout string per mechanic.
+
 Rules — these encode fixed bugs, keep them:
 
 - **Never unmount the preview on transient state.** Engine prompt churn (a prompt answered and replaced within a frame) must not blink the DOM: pass `suppressed` to `HoverCardPreview` (opacity fade; hover state survives) instead of adding conditions to the mount gate. Unmount-gating on `promptType` is exactly what caused the show/hide/show flash.

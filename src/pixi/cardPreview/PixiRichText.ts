@@ -5,9 +5,14 @@ interface RichToken {
   kind: "text" | "symbol";
   value: string;
   width: number;
+  style?: TextStyle;
 }
 
-const TOKEN_PATTERN = /\{([^}]+)\}|\n|[^\s\n]+|[ \t]+/g;
+export interface PixiRichTextOptions {
+  parentheticalStyle?: TextStyle;
+}
+
+const TOKEN_PATTERN = /\{([^}]+)\}|\n|[()]|[^\s\n{}()]+|[ \t]+|[{}]/g;
 
 export class PixiRichText extends Container {
   private generation = 0;
@@ -18,6 +23,7 @@ export class PixiRichText extends Container {
     width: number,
     symbolSize: number,
     lineGap = 4,
+    options: PixiRichTextOptions = {},
   ): number {
     const generation = ++this.generation;
     this.removeChildren().forEach((child) => child.destroy());
@@ -26,6 +32,7 @@ export class PixiRichText extends Container {
     const rawTokens = content.match(TOKEN_PATTERN) ?? [];
     const lines: RichToken[][] = [[]];
     let lineWidth = 0;
+    let parentheticalDepth = 0;
 
     for (const raw of rawTokens) {
       if (raw === "\n") {
@@ -35,13 +42,22 @@ export class PixiRichText extends Container {
       }
 
       const symbolMatch = /^\{([^}]+)\}$/.exec(raw);
+      const tokenStyle =
+        options.parentheticalStyle && (parentheticalDepth > 0 || raw.includes("("))
+          ? options.parentheticalStyle
+          : style;
       const token: RichToken = symbolMatch
         ? { kind: "symbol", value: symbolMatch[1]!, width: symbolSize }
         : {
             kind: "text",
             value: raw,
-            width: CanvasTextMetrics.measureText(raw, style, undefined, false).width,
+            width: CanvasTextMetrics.measureText(raw, tokenStyle, undefined, false).width,
+            style: tokenStyle,
           };
+      if (!symbolMatch) {
+        parentheticalDepth += (raw.match(/\(/g) ?? []).length;
+        parentheticalDepth = Math.max(0, parentheticalDepth - (raw.match(/\)/g) ?? []).length);
+      }
       const isSpace = token.kind === "text" && /^\s+$/.test(token.value);
       const currentLine = lines[lines.length - 1]!;
 
@@ -70,9 +86,10 @@ export class PixiRichText extends Container {
       let x = 0;
       let textRun = "";
       let textRunX = 0;
+      let textRunStyle = style;
       const flushText = () => {
         if (!textRun) return;
-        const text = new Text({ text: textRun, style });
+        const text = new Text({ text: textRun, style: textRunStyle });
         text.resolution = 2;
         text.position.set(textRunX, lineIndex * (lineHeight + lineGap));
         this.addChild(text);
@@ -81,7 +98,12 @@ export class PixiRichText extends Container {
 
       for (const token of line) {
         if (token.kind === "text") {
-          if (!textRun) textRunX = x;
+          const nextStyle = token.style ?? style;
+          if (textRun && nextStyle !== textRunStyle) flushText();
+          if (!textRun) {
+            textRunX = x;
+            textRunStyle = nextStyle;
+          }
           textRun += token.value;
           x += token.width;
           continue;

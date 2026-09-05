@@ -112,6 +112,7 @@ export function BoardOverlayCanvas({
   const arrowRef = useRef<ArrowLayer | null>(null);
   const stackRef = useRef<StackLayer | null>(null);
   const previewRef = useRef<RulesCardPreviewLayer | null>(null);
+  const syncPreviewPointerRef = useRef<(() => void) | null>(null);
   const previewSpecRef = useRef(previewSpec);
   const stickyOpenedAtRef = useRef(0);
   const stickyPreviewKeyRef = useRef<string | null>(null);
@@ -205,6 +206,7 @@ export function BoardOverlayCanvas({
         const preview = new RulesCardPreviewLayer(themeRef.current, {
           onPointerEnter: () => cbRef.current.onPreviewPointerEnter?.(),
           onPointerLeave: () => cbRef.current.onPreviewPointerLeave?.(),
+          onInteractionReady: () => syncPreviewPointerRef.current?.(),
           onSelectAction: (action) => cbRef.current.onSelectPreviewAction?.(action),
           onDismiss: () => cbRef.current.onDismissPreview?.(),
           onFlip: () => cbRef.current.onFlipPreview?.(),
@@ -231,8 +233,10 @@ export function BoardOverlayCanvas({
         app.ticker.add(() => {
           const scene = sceneRef.current;
           if (scene && scene !== registeredScene) {
+            registeredScene?.setOverlayHitTest(null);
             registeredScene = scene;
             scene.setStackAnchorProvider(stack);
+            scene.setOverlayHitTest((x, y) => preview.hitTestHover(x, y) || stack.hitTest(x, y));
           }
           const defs = scene?.getArrowDefs() ?? [];
           arrow.update(defs, app.ticker.deltaMS);
@@ -241,6 +245,7 @@ export function BoardOverlayCanvas({
     return () => {
       active = false;
       registeredScene?.setStackAnchorProvider(null);
+      registeredScene?.setOverlayHitTest(null);
       unregisterRef.current?.();
       unregisterRef.current = null;
       arrowRef.current?.destroy();
@@ -303,19 +308,39 @@ export function BoardOverlayCanvas({
     const unbindPreviewScroll = bindPreviewScroll(
       window,
       (x, y) => hitAt(x, y).preview,
-      (delta, mode, clientY) => {
+      (delta, mode, clientX, clientY) => {
         const canvas = canvasRef.current;
         if (canvas) {
-          previewRef.current?.scrollBy(delta, mode, clientY - canvas.getBoundingClientRect().top);
+          const rect = canvas.getBoundingClientRect();
+          previewRef.current?.scrollBy(delta, mode, clientX - rect.left, clientY - rect.top);
         }
       },
     );
-    const onMove = (event: PointerEvent) => {
+    let pointerX = 0;
+    let pointerY = 0;
+    let hasPointer = false;
+    const syncPointer = () => {
       const canvas = canvasRef.current;
-      if (!canvas) return;
-      if (replayPointerId !== null) return;
-      const hit = hitAt(event.clientX, event.clientY);
-      canvas.style.pointerEvents = hit.stack || hit.preview ? "auto" : "none";
+      if (!canvas || !hasPointer || replayPointerId !== null) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = pointerX - rect.left;
+      const y = pointerY - rect.top;
+      const preview = previewRef.current?.updateHover(x, y) ?? false;
+      canvas.style.pointerEvents = preview || stackRef.current?.hitTest(x, y) ? "auto" : "none";
+    };
+    syncPreviewPointerRef.current = syncPointer;
+    const onMove = (event: PointerEvent) => {
+      hasPointer = event.pointerType !== "touch";
+      if (!hasPointer) return;
+      pointerX = event.clientX;
+      pointerY = event.clientY;
+      syncPointer();
+    };
+    const onWindowLeave = (event: PointerEvent) => {
+      if (event.relatedTarget !== null) return;
+      hasPointer = false;
+      previewRef.current?.clearHover();
+      if (canvasRef.current) canvasRef.current.style.pointerEvents = "none";
     };
     const clonePointerEvent = (type: string, event: PointerEvent) =>
       new PointerEvent(type, {
@@ -334,6 +359,7 @@ export function BoardOverlayCanvas({
     let dismissedClickPointerId: number | null = null;
     const onDown = (event: PointerEvent) => {
       if (!event.isTrusted) return;
+      if (event.pointerType === "touch") hasPointer = false;
       dismissedClickPointerId = null;
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -395,13 +421,16 @@ export function BoardOverlayCanvas({
       event.stopPropagation();
     };
     window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerout", onWindowLeave);
     window.addEventListener("pointerdown", onDown, true);
     window.addEventListener("pointerup", onUp, true);
     window.addEventListener("pointercancel", onUp, true);
     window.addEventListener("click", onClick, true);
     return () => {
+      syncPreviewPointerRef.current = null;
       unbindPreviewScroll();
       window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerout", onWindowLeave);
       window.removeEventListener("pointerdown", onDown, true);
       window.removeEventListener("pointerup", onUp, true);
       window.removeEventListener("pointercancel", onUp, true);
@@ -447,6 +476,20 @@ export function BoardOverlayCanvas({
           target.tagName === "TEXTAREA" ||
           target.tagName === "SELECT")
       ) {
+        return;
+      }
+      if (event.key === "Tab") {
+        event.preventDefault();
+        event.stopPropagation();
+        previewRef.current?.focusSection(event.shiftKey ? -1 : 1);
+        return;
+      }
+      if (
+        (event.key === "Enter" || event.key === " ") &&
+        previewRef.current?.activateFocusedSection()
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
         return;
       }
       const shortcut = Number.parseInt(event.key, 10);

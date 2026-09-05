@@ -227,6 +227,7 @@ export class BoardScene {
     { x: number; y: number; scaleX: number; scaleY: number }
   >();
   private stackProvider: StackAnchorProvider | null = null;
+  private overlayHitTest: ((x: number, y: number) => boolean) | null = null;
 
   private hoveredCell: GridCell | null = null;
   private stackTargetId: string | null = null;
@@ -283,6 +284,16 @@ export class BoardScene {
     this.root.sortableChildren = true;
     app.stage.addChild(this.root);
     app.stage.eventMode = "static";
+    app.stage.hitArea = {
+      contains: (x, y) =>
+        x >= 0 &&
+        x <= this.canvasW &&
+        y >= 0 &&
+        y <= this.canvasH &&
+        (this.activeGesturePointerId !== null ||
+          this.hand?.isDraggingFromHand() ||
+          !this.overlayHitTest?.(x, y)),
+    };
 
     // Solid page-background base behind everything (the canvas itself is
     // transparent). Gives the whole battlefield one consistent colour so the
@@ -369,6 +380,7 @@ export class BoardScene {
     window.addEventListener("pointermove", this.cursorListener);
     this.canvasLeaveListener = () => this.hand?.clearHover();
     this.app.canvas.addEventListener("pointerleave", this.canvasLeaveListener);
+    app.stage.on("pointerleave", this.canvasLeaveListener);
 
     this.pinchDownListener = (e: PointerEvent) => {
       if (e.pointerType !== "touch") return;
@@ -1230,6 +1242,10 @@ export class BoardScene {
 
   setStackAnchorProvider(provider: StackAnchorProvider | null): void {
     this.stackProvider = provider;
+  }
+
+  setOverlayHitTest(hitTest: ((x: number, y: number) => boolean) | null): void {
+    this.overlayHitTest = hitTest;
   }
 
   setPlayerBlockers(blockers: Map<string, BlockingRect[]>): void {
@@ -2183,6 +2199,7 @@ export class BoardScene {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.overlayHitTest = null;
     if (import.meta.env.DEV) useGameDevStore.getState().setPixiPerfStats(null);
     this.cancelHoverClear();
     window.removeEventListener("pointermove", this.cursorListener);
@@ -2194,6 +2211,7 @@ export class BoardScene {
     window.removeEventListener("pointercancel", this.pinchUpListener);
     this.longPress.cancel();
     this.app.canvas.removeEventListener("pointerleave", this.canvasLeaveListener);
+    this.app.stage.off("pointerleave", this.canvasLeaveListener);
     this.app.ticker.remove(this.tick, this);
     this.app.stage.off("pointermove", this.onStageMove);
     this.app.stage.off("pointerup", this.onStageUp);

@@ -16,6 +16,7 @@ interface ActionsContent {
   hint: string;
   label: string;
   onSelectAction: (action: HandActionOption) => void;
+  embedded?: boolean;
 }
 
 interface ActionRow {
@@ -24,8 +25,8 @@ interface ActionRow {
   background: Graphics;
 }
 
-const PAD = 16;
-const GAP = 6;
+const PAD = 10;
+const GAP = 4;
 const SCROLL_GUTTER = 8;
 const LINE_HEIGHT = 18;
 const DRAG_SLOP = 5;
@@ -94,7 +95,7 @@ export class RulesPreviewActions extends Container {
     this.viewport.mask = this.clip;
     this.addChild(this.background, this.viewport, this.clip, this.scrollbar, this.utilities);
     this.on("pointerdown", (event: FederatedPointerEvent) => {
-      event.stopPropagation();
+      if (!this.spec?.embedded) event.stopPropagation();
       if (this.pointerId !== null) return;
       this.pointerId = event.pointerId;
       this.tapPointerId = null;
@@ -108,7 +109,7 @@ export class RulesPreviewActions extends Container {
       if (event.pointerId !== this.pointerId) return;
       const delta = event.global.y - this.pressY;
       if (Math.hypot(event.global.x - this.pressX, delta) > DRAG_SLOP) this.dragMoved = true;
-      if (this.touchPress && this.dragMoved) {
+      if (this.touchPress && this.dragMoved && !this.spec?.embedded) {
         const scale = Math.hypot(this.worldTransform.c, this.worldTransform.d);
         if (scale > 0) this.setScroll(this.pressScroll - delta / scale);
       }
@@ -120,6 +121,11 @@ export class RulesPreviewActions extends Container {
 
   get panelHeight(): number {
     return this.heightValue;
+  }
+
+  get focusedActionBounds(): { top: number; height: number } | null {
+    const row = this.rows[this.focusedIndex];
+    return row ? { top: row.top + PAD, height: row.height } : null;
   }
 
   setContent(spec: ActionsContent): void {
@@ -149,26 +155,24 @@ export class RulesPreviewActions extends Container {
         const background = new Graphics();
         const key = new Text({
           text: String(entry.shortcut),
-          style: textStyle(spec.theme.appTheme["primary-foreground"], 12, true),
+          style: textStyle(spec.theme.appTheme["muted-foreground"], 11),
         });
         key.resolution = 2;
         key.anchor.set(0.5);
-        key.position.set(21, 21);
-        const keyBackground = new Graphics();
-        keyBackground.roundRect(9, 9, 24, 24, 6).fill(hexToNum(spec.theme.appTheme.primary));
+        key.position.set(12, 18);
         const label = new PixiRichText();
         const labelHeight = label.setContent(
           actionText(entry.action),
           textStyle(spec.theme.appTheme["popover-foreground"]),
-          Math.max(1, this.contentWidth - 53),
+          Math.max(1, this.contentWidth - 32),
           15,
           3,
           { parentheticalStyle: textStyle(spec.theme.appTheme["muted-foreground"]) },
         );
-        const height = Math.max(42, labelHeight + 18);
-        label.position.set(43, 9);
+        const height = Math.max(40, labelHeight + 16);
+        label.position.set(26, 8);
         row.position.set(0, y);
-        row.addChild(background, keyBackground, key, label);
+        row.addChild(background, key, label);
         row.hitArea = new Rectangle(0, 0, this.contentWidth, height);
         row.eventMode = "static";
         row.cursor = "pointer";
@@ -300,11 +304,11 @@ export class RulesPreviewActions extends Container {
     let rowHeight = 0;
     for (const status of this.spec!.statuses) {
       const color = this.statusColor(status.tone);
-      const style = textStyle(color, 10, true);
+      const style = textStyle(this.spec!.theme.gameTheme.textOnTinted, 10, true);
       style.wordWrap = true;
       style.breakWords = true;
       style.wordWrapWidth = Math.max(1, this.contentWidth - 16);
-      const text = new Text({ text: status.label, style });
+      const text = new Text({ text: status.label.toUpperCase(), style });
       text.resolution = 2;
       const width = Math.min(this.contentWidth, text.width + 16);
       const height = Math.max(24, text.height + 12);
@@ -315,7 +319,7 @@ export class RulesPreviewActions extends Container {
       }
       const chip = new Container();
       const background = new Graphics();
-      background.roundRect(0, 0, width, height, 7).fill({ color: hexToNum(color), alpha: 0.15 });
+      background.roundRect(0, 0, width, height, 7).fill({ color: hexToNum(color), alpha: 0.9 });
       text.position.set(8, (height - text.height) / 2);
       chip.position.set(x, y);
       chip.addChild(background, text);
@@ -391,14 +395,16 @@ export class RulesPreviewActions extends Container {
     const theme = this.spec!.theme.appTheme;
     this.rows.forEach((row, index) => {
       const focused = index === this.focusedIndex;
-      row.background
-        .clear()
-        .roundRect(0, 0, this.contentWidth, row.height, 8)
-        .fill({
-          color: hexToNum(focused ? theme.ring : theme.muted),
-          alpha: focused ? 0.3 : 0.55,
-        });
-      if (focused) row.background.stroke({ color: hexToNum(theme.ring), width: 1 });
+      row.background.clear();
+      if (focused) {
+        row.background
+          .roundRect(0, 0, this.contentWidth, row.height, 4)
+          .fill({ color: hexToNum(theme.ring), alpha: 0.12 });
+        row.background
+          .moveTo(0, 4)
+          .lineTo(0, row.height - 4)
+          .stroke({ color: hexToNum(theme.ring), width: 2 });
+      }
     });
   }
 
@@ -425,7 +431,7 @@ export class RulesPreviewActions extends Container {
 
   private endPress(event: FederatedPointerEvent, cancelled: boolean): void {
     if (event.pointerId !== this.pointerId) return;
-    event.stopPropagation();
+    if (!this.spec?.embedded) event.stopPropagation();
     if (Math.hypot(event.global.x - this.pressX, event.global.y - this.pressY) > DRAG_SLOP) {
       this.dragMoved = true;
     }

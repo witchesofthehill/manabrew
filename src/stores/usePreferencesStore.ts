@@ -13,6 +13,13 @@ export type ZonePanelItem = "library" | "graveyard" | "exile";
 export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
 export type BattlefieldCardStyle = "realistic" | "art" | "frame";
 export type InGameCardPreviewStyle = "printed" | "rules";
+export type RulesPreviewSectionId =
+  | "artwork"
+  | "actions"
+  | "rules"
+  | "progression"
+  | "details"
+  | "flavor";
 
 export interface LastRoomSetup {
   kind: "match" | "limited";
@@ -105,6 +112,8 @@ interface PreferencesState {
   setCardHoverDelayMs: (ms: number) => void;
   inGameCardPreviewStyle: InGameCardPreviewStyle;
   setInGameCardPreviewStyle: (style: InGameCardPreviewStyle) => void;
+  collapsedRulesPreviewSections: RulesPreviewSectionId[];
+  setRulesPreviewSectionCollapsed: (section: RulesPreviewSectionId, collapsed: boolean) => void;
 
   appThemeColorOverrides: Record<string, string>;
   setAppThemeColorOverride: (key: string, hsl: string) => void;
@@ -151,6 +160,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "cardPreviewMode",
   "cardHoverDelayMs",
   "inGameCardPreviewStyle",
+  "collapsedRulesPreviewSections",
   "appThemeColorOverrides",
   "gameThemeColorOverrides",
   "lastPlayedDeckId",
@@ -268,6 +278,15 @@ export const usePreferencesStore = create<PreferencesState>()(
           setCardHoverDelayMs: (ms) => set({ cardHoverDelayMs: ms }),
           inGameCardPreviewStyle: "printed",
           setInGameCardPreviewStyle: (inGameCardPreviewStyle) => set({ inGameCardPreviewStyle }),
+          collapsedRulesPreviewSections: [],
+          setRulesPreviewSectionCollapsed: (section, collapsed) =>
+            set((state) => ({
+              collapsedRulesPreviewSections: collapsed
+                ? state.collapsedRulesPreviewSections.includes(section)
+                  ? state.collapsedRulesPreviewSections
+                  : [...state.collapsedRulesPreviewSections, section]
+                : state.collapsedRulesPreviewSections.filter((id) => id !== section),
+            })),
 
           appThemeColorOverrides: {},
           setAppThemeColorOverride: (key, hsl) =>

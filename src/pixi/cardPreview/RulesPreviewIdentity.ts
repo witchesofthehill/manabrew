@@ -8,6 +8,7 @@ import { effectiveRarity, rarityToken } from "@/lib/cardRarity";
 import { hexToNum } from "@/pixi/colorUtils";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { RULES_TITLE_FONT, type RulesPreviewFrameStyle } from "./rulesPreviewFrame";
+import { parseManaCost } from "@/pixi/manaSymbols";
 
 const SET_SYMBOL_SIZE = 22;
 
@@ -37,7 +38,9 @@ export class RulesPreviewIdentity extends Container {
     const mana = new PixiRichText();
     const manaWidth = Math.min(108, (width - contentPad * 2) * 0.4);
     mana.setContent(
-      section.manaCost,
+      parseManaCost(section.manaCost)
+        .map((code) => `{${code}}`)
+        .join(""),
       new TextStyle({
         fill: foreground,
         fontFamily: RULES_TITLE_FONT,

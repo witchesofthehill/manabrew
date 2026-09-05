@@ -4,6 +4,7 @@ import {
   Texture,
   ImageSource,
   Graphics,
+  GraphicsContext,
   Text,
   TextStyle,
   FillGradient,
@@ -34,16 +35,43 @@ import { type OneShot, oneShot, oneShotProgress, pulse } from "./effects/animati
 import { gsap } from "./effects/gsap";
 import { bump } from "./effects/easing";
 import { animationsEnabled } from "./effects/enabled";
-import { DAMAGE_HIT, EDGE_GLOW, STAT_POP, SUMMONING_FILTER } from "./effects/config";
+import { CARD_SHADOW, DAMAGE_HIT, EDGE_GLOW, STAT_POP, SUMMONING_FILTER } from "./effects/config";
 
 let activeTheme: Theme = getTheme();
 
 const TINTED_TEXT_STYLES: TextStyle[] = [];
+const SHADOW_CONTEXTS: { width: number; height: number; context: GraphicsContext }[] = [];
+
+function drawShadowContext(context: GraphicsContext, width: number, height: number): void {
+  context.clear();
+  const color = hexToNum(activeTheme.gameTheme.canvas.shadow);
+  for (let layer = CARD_SHADOW.layers; layer > 0; layer--) {
+    const spread = (layer / CARD_SHADOW.layers) * CARD_SHADOW.spreadPx;
+    context
+      .roundRect(-spread, -spread, width + spread * 2, height + spread * 2, CARD_RADIUS + spread)
+      .fill({ color, alpha: CARD_SHADOW.layerAlpha });
+  }
+}
+
+function shadowContext(width: number, height: number): GraphicsContext {
+  const cached = SHADOW_CONTEXTS.find((entry) => entry.width === width && entry.height === height);
+  if (cached) return cached.context;
+  const context = new GraphicsContext();
+  drawShadowContext(context, width, height);
+  SHADOW_CONTEXTS.push({ width, height, context });
+  return context;
+}
 
 export function setCardSpriteTheme(theme: Theme): void {
+  const shadowChanged = activeTheme.gameTheme.canvas.shadow !== theme.gameTheme.canvas.shadow;
   activeTheme = theme;
   for (const style of TINTED_TEXT_STYLES) {
     style.fill = theme.gameTheme.textOnTinted;
+  }
+  if (shadowChanged) {
+    for (const { context, width, height } of SHADOW_CONTEXTS) {
+      drawShadowContext(context, width, height);
+    }
   }
 }
 
@@ -65,12 +93,6 @@ function registerTintedTextStyle(style: TextStyle): TextStyle {
 }
 
 const TEXT_RASTER_RESOLUTION = 5;
-
-function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
 
 const tintedTextFill = (): string => activeTheme.gameTheme.textOnTinted;
 
@@ -294,6 +316,8 @@ export function loadCardBack(): Promise<Texture> {
 export class CardSprite extends Container {
   card: CardDto;
 
+  private shadowGfx: Graphics;
+  private elevation = 0;
   private imageSpr: Sprite;
   private imageMask: Graphics;
   private frameContainer: Container;
@@ -381,6 +405,12 @@ export class CardSprite extends Container {
     this.ch = horizontal ? CARD_W : CARD_H;
     this.eventMode = "static";
     this.cursor = "pointer";
+
+    this.shadowGfx = new Graphics({ context: shadowContext(this.cw, this.ch) });
+    this.shadowGfx.eventMode = "none";
+    this.shadowGfx.visible = this.isBattlefield;
+    this.addChild(this.shadowGfx);
+    this.updateShadow();
 
     this.ownerRingGfx = new Graphics();
     this.addChild(this.ownerRingGfx);
@@ -569,6 +599,7 @@ export class CardSprite extends Container {
     // the interaction ring at full color.
     for (const child of [...this.children]) {
       if (
+        child !== this.shadowGfx &&
         child !== this.ringGfx &&
         child !== this.pulseRing.gfx &&
         child !== this.contentContainer
@@ -615,6 +646,8 @@ export class CardSprite extends Container {
     if (cw === this.cw && ch === this.ch) return;
     this.cw = cw;
     this.ch = ch;
+    this.shadowGfx.context = shadowContext(cw, ch);
+    this.updateShadow();
     this.placeholderGfx.clear();
     this.placeholderGfx.roundRect(0, 0, cw, ch, CARD_RADIUS);
     this.placeholderGfx.fill({
@@ -946,6 +979,7 @@ export class CardSprite extends Container {
     gsap.killTweensOf(this.railMarkerGfx);
     gsap.killTweensOf(this.railMarkerGfx.position);
     gsap.killTweensOf(this.railMarkerGfx.scale);
+    this.shadowGfx.destroy({ context: false });
     this.pulseRing.destroy();
     if (this.sickFilter) {
       this.sickFilter.destroy();
@@ -1216,7 +1250,7 @@ export class CardSprite extends Container {
     if (!force && next === prev) return;
     this.railState = next;
 
-    const canAnimate = animationsEnabled() && !prefersReducedMotion();
+    const canAnimate = animationsEnabled();
 
     gsap.killTweensOf(this.railContainer);
     gsap.killTweensOf(this.railMarkerGfx);
@@ -1491,6 +1525,25 @@ export class CardSprite extends Container {
       this.damageGfx.roundRect(0, 0, this.cw, this.ch, CARD_RADIUS);
     }
     this.damageGfx.fill({ color: hexToNum(activeTheme.gameTheme.pt.lethal), alpha });
+  }
+
+  setElevation(amount: number): void {
+    const elevation = Math.max(0, Math.min(1, amount));
+    if (elevation === this.elevation) return;
+    this.elevation = elevation;
+    this.updateShadow();
+  }
+
+  private updateShadow(): void {
+    const spread = this.elevation * CARD_SHADOW.liftSpreadPx;
+    this.shadowGfx.scale.set(1 + (spread * 2) / this.cw, 1 + (spread * 2) / this.ch);
+    this.shadowGfx.position.set(
+      CARD_SHADOW.restingOffsetX + this.elevation * CARD_SHADOW.liftOffsetX - spread,
+      CARD_SHADOW.restingOffsetY + this.elevation * CARD_SHADOW.liftOffsetY - spread,
+    );
+    this.shadowGfx.alpha =
+      CARD_SHADOW.restingAlpha +
+      this.elevation * (CARD_SHADOW.liftedAlpha - CARD_SHADOW.restingAlpha);
   }
 
   setHitPad(pad: number): void {

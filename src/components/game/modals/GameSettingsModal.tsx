@@ -17,6 +17,7 @@ import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { HAND_ORDER_OPTIONS } from "@/lib/handOrder";
 
 const PREVIEW_MODES: { value: CardPreviewMode; label: string }[] = [
+  { value: "click", label: "Click only" },
   { value: "hover", label: "Hover" },
   { value: "shift", label: "Shift" },
   { value: "alt", label: "Alt" },
@@ -151,6 +152,28 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
         </SettingRow>
 
         <SettingRow
+          label="Opponent layout"
+          hint="Focus on one opponent, or keep every opponent field equally visible."
+        >
+          <div className="flex items-center gap-2">
+            <Button
+              variant={prefs.opponentLayout === "focused" ? "default" : "outline"}
+              size="sm"
+              onClick={() => prefs.setOpponentLayout("focused")}
+            >
+              Focused
+            </Button>
+            <Button
+              variant={prefs.opponentLayout === "overview" ? "default" : "outline"}
+              size="sm"
+              onClick={() => prefs.setOpponentLayout("overview")}
+            >
+              Overview
+            </Button>
+          </div>
+        </SettingRow>
+
+        <SettingRow
           label="Lock zone piles"
           hint="Keeps the deck, graveyard, exile, and command piles fixed in place so a drag can't move them. Tapping to open still works."
         >
@@ -218,9 +241,9 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
 
         <SettingRow
           label="Card preview trigger"
-          hint='When the big card preview appears. "Hover" shows on mouse over; the others need the modifier key held.'
+          hint="Click to inspect, then use an action button to play or activate. Hover modes also open a preview while pointing at a card. Long-press always inspects."
         >
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {PREVIEW_MODES.map((m) => (
               <Button
                 key={m.value}
@@ -240,6 +263,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
         >
           <input
             type="range"
+            disabled={prefs.cardPreviewMode === "click"}
             min={HOVER_DELAY_MIN}
             max={HOVER_DELAY_MAX}
             step={HOVER_DELAY_STEP}

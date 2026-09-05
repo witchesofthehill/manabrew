@@ -95,10 +95,6 @@ export const EXIT_SHRINK = 0.95;
 export const COMBAT_STAGE_PADDING_PX = 2;
 export const COMBAT_ROW_PAD_Y = 4;
 export const FIELD_INNER_EDGE_PAD_PX = 8;
-// The local grid + its card-scale reserve only this fraction of the hand-fan
-// height (the fan extends partly below the field and renders on top), so the
-// bottom row can grow down behind the hand. The action overlay keeps the full
-// reserve so it never sits under the hand.
 export const HAND_RESERVE_TRIM = 0.85;
 export const HAND_RESERVE_TRIM_COMPACT = 0.4;
 export const HAND_BOTTOM_SINK_FRAC = 0.45;
@@ -110,7 +106,6 @@ export const Z_STAGED_REGION = 8000;
 // an unclipped scene layer (above every region's accordion mask) so they glide
 // across the board into a collapsed defender's row instead of popping in.
 export const Z_COMBAT_GUEST = 8500;
-export const PHASE_STRIP_COMBAT_ALPHA = 0.25;
 export const STRIP_COMPACT_EXPAND_TIMEOUT_MS = 5000;
 export const STRIP_EXPANDED_BG_ALPHA = 0.92;
 export const COMBAT_DIM_ALPHA = 0.3;
@@ -129,7 +124,6 @@ export const Z_SELECTION_BADGE = 9500;
 export const Z_HAND_ACTIONS_MENU = 200;
 
 export const BG_ALPHA_IDLE = 0.4;
-export const STRIP_TURN_ALPHA = 0.85;
 export const BG_ALPHA_DROP = 0.15;
 export const DROP_STROKE_ALPHA = 0.8;
 export const DROP_TINT_ALPHA = 0.06;
@@ -137,22 +131,6 @@ export const GHOST_STROKE_ALPHA = 0.55;
 export const GHOST_FILL_ALPHA = 0.08;
 
 export const PLAYABLE_RING_ALPHA = 0.85;
-export const MANA_BUTTON_ALPHA = 0.45;
-export const MANA_BUTTON_HOVER_ALPHA = 0.75;
-export const MANA_BUTTON_STROKE_ALPHA = 0.2;
-export const MANA_BUTTON_STROKE_HOVER_ALPHA = 0.55;
-export const ACTION_BUTTON_ALPHA = 0.4;
-export const ACTION_BUTTON_HOVER_ALPHA = 0.65;
 export const SELECT_BUTTON_ALPHA = 0.3;
 export const SELECT_BUTTON_HOVER_ALPHA = 0.55;
-export const ICON_BG_ALPHA = 0.4;
-export const ICON_HOVER_SCALE = 1.12;
-
-export const OVERLAY_LABEL_TAP = "TAP";
-export const OVERLAY_LABEL_UNTAP = "UNTAP";
-export const OVERLAY_LABEL_WATERBEND = "WATERBEND";
-export const OVERLAY_LABEL_UNWATERBEND = "RELEASE";
 export const OVERLAY_LABEL_SELECT = "SELECT";
-
-export const SYMBOL_TAP = "T";
-export const SYMBOL_UNTAP = "Q";

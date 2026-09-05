@@ -5,12 +5,12 @@ import { PlayerHudTooltip } from "./PlayerHudTooltip";
 import type { PlayerHudSpec } from "./playerHud.types";
 import type { ScreenBounds, ScreenPos } from "@/pixi/types";
 
-export const PLAYER_HUD_HEIGHT_PX = 60;
-export const SELF_PLAYER_HUD_HEIGHT_PX = 60;
-export const SELF_PLAYER_HUD_COMPACT_SCALE = 0.7;
-export const PLAYER_HUD_TOP_MARGIN_PX = 8;
-export const PLAYER_HUD_SIDE_MARGIN_PX = 10;
-export const PLAYER_HUD_MAX_WIDTH_PX = 280;
+export const SELF_PLAYER_HUD_HEIGHT_PX = 164;
+export const SELF_PLAYER_HUD_MAX_WIDTH_PX = 400;
+export const SELF_PLAYER_HUD_MIN_WIDTH_PX = 272;
+export const PLAYER_HUD_HAND_GAP_PX = 8;
+export const SELF_PLAYER_HUD_EDGE_INSET_PX = 12;
+export const PLAYER_HUD_COMPACT_HEIGHT_PX = 176;
 
 // Above this y a capsule is a top-anchored opponent, so its tooltip drops below
 // the badge instead of rising above it (off the top edge).
@@ -22,6 +22,7 @@ export class PlayerHudLayer {
   private onTarget: (playerId: string) => void;
   private onShowSheet: (playerId: string) => void;
   private onMenu: () => void;
+  private onInspect: (playerId: string) => void;
   private capsules = new Map<string, PlayerHudCapsule>();
   private tooltip: PlayerHudTooltip;
   private compact = false;
@@ -31,11 +32,13 @@ export class PlayerHudLayer {
     onTarget: (playerId: string) => void,
     onShowSheet: (playerId: string) => void,
     onMenu: () => void,
+    onInspect: (playerId: string) => void,
   ) {
     this.theme = theme;
     this.onTarget = onTarget;
     this.onShowSheet = onShowSheet;
     this.onMenu = onMenu;
+    this.onInspect = onInspect;
     this.container = new Container();
     this.container.sortableChildren = true;
     this.tooltip = new PlayerHudTooltip(theme);
@@ -69,6 +72,7 @@ export class PlayerHudLayer {
             if (!content) this.tooltip.hide();
             else this.tooltip.show(content, cx!, top!, bottom!, top! < ANCHOR_BELOW_Y);
           },
+          () => this.onInspect(spec.playerId),
         );
         this.container.addChild(capsule.container);
         this.capsules.set(spec.playerId, capsule);
@@ -90,12 +94,9 @@ export class PlayerHudLayer {
     width: number,
     height: number,
     column: boolean,
+    bottomDocked = false,
   ): void {
-    this.capsules.get(playerId)?.setRect(x, y, width, height, column);
-  }
-
-  setCapsuleScale(playerId: string, scale: number): void {
-    this.capsules.get(playerId)?.setScale(scale);
+    this.capsules.get(playerId)?.setRect(x, y, width, height, column, bottomDocked);
   }
 
   setCompact(compact: boolean): void {
@@ -106,6 +107,10 @@ export class PlayerHudLayer {
 
   getPlayerAnchor(playerId: string): ScreenPos | null {
     return this.capsules.get(playerId)?.getAvatarCenter() ?? null;
+  }
+
+  tick(): void {
+    for (const capsule of this.capsules.values()) capsule.refreshMotion();
   }
 
   getZoneAnchor(playerId: string, zoneKey: string): ScreenPos | null {

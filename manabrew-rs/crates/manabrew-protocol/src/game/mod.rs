@@ -274,6 +274,9 @@ pub struct CardDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub effective_mana_cost: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub commander_tax: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub madness_cost: Option<String>,

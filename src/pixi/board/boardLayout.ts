@@ -4,9 +4,6 @@ import type { PlayZoneRect } from "../types";
  *  player (upright); `top` opponents are mirrored. */
 export type RegionOrientation = "bottom" | "top";
 
-/** One opponent's region. The `rect` is the FIXED play area used for the grid
- *  and card positions — it never changes. The visible clip band (delimiters) is
- *  owned and animated by `BoardScene`, not computed here. */
 export interface OpponentRegion {
   rect: PlayZoneRect;
   orientation: RegionOrientation;
@@ -21,6 +18,7 @@ export interface BoardLayout {
   opponents: OpponentRegion[];
   dividerY: number;
   stripBandPx: number;
+  opponentLayout: "focused" | "overview";
 }
 
 /** Fixed vertical band, in px, reserved at the center for the phase strip. */
@@ -28,9 +26,11 @@ export const STRIP_BAND_PX = 38;
 
 export const STRIP_BAND_COMPACT_PX = 32;
 
-/** Width, in px, of a collapsed opponent column — just enough for the avatar
- *  sphere + life banner peeking out from under its neighbour. */
-export const COLLAPSED_OPPONENT_WIDTH_PX = 80;
+export const COLLAPSED_OPPONENT_WIDTH_PX = 112;
+
+export function collapsedOpponentWidth(width: number, opponentCount: number): number {
+  return Math.min(COLLAPSED_OPPONENT_WIDTH_PX, width / (opponentCount + 1));
+}
 
 export function computeBoardLayout(
   width: number,
@@ -38,6 +38,7 @@ export function computeBoardLayout(
   opponentCount: number,
   selfBottomReserve = 0,
   compact = false,
+  opponentLayout: "focused" | "overview" = "focused",
 ): BoardLayout {
   const count = Math.max(1, opponentCount);
   const bandPx = compact ? STRIP_BAND_COMPACT_PX : STRIP_BAND_PX;
@@ -45,23 +46,23 @@ export function computeBoardLayout(
   const usable = Math.max(0, height - band);
   const fraction =
     usable > 0 ? Math.min(0.8, Math.max(0.2, 0.5 + selfBottomReserve / (2 * usable))) : 0.5;
-  const selfHeight = Math.round(usable * fraction);
+  const minimumTop = Math.min(176, usable * 0.55);
+  const selfHeight = Math.min(Math.round(usable * fraction), Math.floor(usable - minimumTop));
   const topHeight = usable - selfHeight;
   const dividerY = topHeight + band / 2;
+  const overview = opponentLayout === "overview" && !compact && opponentCount > 1;
 
-  // Each opponent field's `rect` is the FIXED play area — grid and card positions
-  // are computed from it and never move. Field `i` starts at `i` collapsed-banner
-  // widths from the left and extends to the canvas right edge, so its rect equals
-  // its maximally-expanded clip band (every field left of it collapsed to a
-  // banner). Because a delimiter can never push field `i`'s band-left below
-  // `i · COLLAPSED` (the grip clamp uses that as `minGap`), the band is always a
-  // subset of the rect — the felt/grid/cards align with the field's visible left
-  // edge when expanded, never leaving a gap. The clip band is eased by `BoardScene`.
+  const opponentHeight = overview ? topHeight / count : topHeight;
   const opponents: OpponentRegion[] = [];
   for (let i = 0; i < count; i++) {
-    const x = i * COLLAPSED_OPPONENT_WIDTH_PX;
+    const x = overview ? 0 : i * collapsedOpponentWidth(width, count);
     opponents.push({
-      rect: { x, y: 0, width: Math.max(1, width - x), height: topHeight },
+      rect: {
+        x,
+        y: overview ? i * opponentHeight : 0,
+        width: Math.max(1, width - x),
+        height: opponentHeight,
+      },
       orientation: "top",
     });
   }
@@ -71,5 +72,6 @@ export function computeBoardLayout(
     opponents,
     dividerY,
     stripBandPx: band,
+    opponentLayout: overview ? "overview" : "focused",
   };
 }

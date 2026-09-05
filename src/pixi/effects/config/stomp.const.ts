@@ -1,7 +1,6 @@
-// Durations are in seconds (GSAP).
 export const STOMP = {
-  squashX: 1.24,
-  squashY: 0.78,
-  settleSec: 0.26,
-  settleEase: "back.out(2.4)",
+  squashX: 1.025,
+  squashY: 0.97,
+  settleSec: 0.18,
+  settleEase: "power2.out",
 } as const;

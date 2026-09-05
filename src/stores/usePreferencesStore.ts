@@ -10,7 +10,7 @@ import type { GameFormat } from "@/types/server";
 import type { HandOrderMode } from "@/lib/handOrder";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
-export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
+export type CardPreviewMode = "click" | "hover" | "shift" | "alt" | "ctrl";
 export type BattlefieldCardStyle = "realistic" | "art" | "frame";
 
 export interface LastRoomSetup {
@@ -58,6 +58,8 @@ interface PreferencesState {
   setBattlefieldAutoSort: (value: boolean) => void;
   handOrderMode: HandOrderMode;
   setHandOrderMode: (mode: HandOrderMode) => void;
+  opponentLayout: "focused" | "overview";
+  setOpponentLayout: (layout: "focused" | "overview") => void;
 
   // One knob for card size: battlefield cards on ALL fields plus the hand
   // fan. 1 = the classic 3-row board; 1.5 = the 2-row fill that is the
@@ -138,6 +140,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "zonePanelOrder",
   "battlefieldAutoSort",
   "handOrderMode",
+  "opponentLayout",
   "cardSizeMultiplier",
   "lockZoneTiles",
   "battlefieldCardStyle",
@@ -257,8 +260,11 @@ export const usePreferencesStore = create<PreferencesState>()(
           hideAccountSaveNudge: false,
           setHideAccountSaveNudge: (hideAccountSaveNudge) => set({ hideAccountSaveNudge }),
 
-          cardPreviewMode: "hover",
+          cardPreviewMode: "click",
           setCardPreviewMode: (cardPreviewMode) => set({ cardPreviewMode }),
+
+          opponentLayout: "focused",
+          setOpponentLayout: (opponentLayout) => set({ opponentLayout }),
 
           cardHoverDelayMs: 350,
           setCardHoverDelayMs: (ms) => set({ cardHoverDelayMs: ms }),

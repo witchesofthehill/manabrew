@@ -1051,12 +1051,41 @@ export default function Settings() {
             )}
 
             <PreferenceCard
+              title="Opponent layout"
+              description="Focus on one opponent, or keep every opponent field equally visible."
+            >
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={prefs.opponentLayout === "focused" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setOpponentLayout("focused")}
+                >
+                  Focused
+                </Button>
+                <Button
+                  variant={prefs.opponentLayout === "overview" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setOpponentLayout("overview")}
+                >
+                  Overview
+                </Button>
+              </div>
+            </PreferenceCard>
+
+            <PreferenceCard
               title="Card Preview Trigger"
               description={
-                'Controls when the card preview and ability panel appears. "Hover" shows on mouse over, others require holding a modifier key.'
+                "Click to inspect, then use an action button to play or activate. Hover modes also open a preview while pointing at a card. Long-press always inspects."
               }
             >
               <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={prefs.cardPreviewMode === "click" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setCardPreviewMode("click")}
+                >
+                  Click only
+                </Button>
                 <Button
                   variant={prefs.cardPreviewMode === "hover" ? "default" : "outline"}
                   size="sm"
@@ -1095,6 +1124,7 @@ export default function Settings() {
             >
               <input
                 type="range"
+                disabled={prefs.cardPreviewMode === "click"}
                 min={HOVER_DELAY_MIN}
                 max={HOVER_DELAY_MAX}
                 step={HOVER_DELAY_STEP}

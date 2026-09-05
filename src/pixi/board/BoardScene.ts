@@ -9,7 +9,7 @@ import {
   type FederatedPointerEvent,
 } from "pixi.js";
 import { darken, withAlpha } from "@/themes/gameTheme";
-import type { CardDto, PlaymatSettings } from "@/protocol/game";
+import type { CardDto, PlaymatSettings, ZoneDto, ZoneKind } from "@/protocol/game";
 import type { AttackTargetDto } from "@/protocol/prompts/common";
 import {
   CardSprite,
@@ -33,17 +33,17 @@ import { prewarmManaSymbols } from "../manaSymbolCache";
 import { CARD_H } from "@/components/game/game.constants";
 import { isCoarsePointer } from "@/lib/responsive";
 import { lerp, setFrameRatio } from "./pixiHelpers";
+import { animationsEnabled } from "../effects/enabled";
 import { LongPressGesture } from "../LongPressGesture";
 import { PREVIEW_TIMING } from "@/lib/cardPreview";
 import {
-  BG_ALPHA_IDLE,
+  BATTLEFIELD_LERP,
+  SNAP_PX,
   FLOATER_FONT_SIZE,
   FLOATER_LIFETIME_FRAMES,
   FLOATER_RISE_PER_FRAME,
   FPS_SAMPLE_INTERVAL_MS,
-  PHASE_STRIP_COMBAT_ALPHA,
   STACK_SEED_TTL_MS,
-  TABLE_RADIUS,
   Z_STAGED_REGION,
   Z_COMBAT_GUEST,
   HAND_RESERVE_TRIM,
@@ -64,12 +64,12 @@ import { BoardRegion } from "./BoardRegion";
 import type { ZoneTileSpec } from "./BoardZoneTiles";
 import {
   PlayerHudLayer,
-  PLAYER_HUD_HEIGHT_PX as PLAYER_BAR_HEIGHT_PX,
   SELF_PLAYER_HUD_HEIGHT_PX as SELF_PLAYER_BAR_HEIGHT_PX,
-  SELF_PLAYER_HUD_COMPACT_SCALE,
-  PLAYER_HUD_TOP_MARGIN_PX as PLAYER_BAR_TOP_MARGIN_PX,
-  PLAYER_HUD_SIDE_MARGIN_PX as PLAYER_BAR_SIDE_MARGIN_PX,
-  PLAYER_HUD_MAX_WIDTH_PX as PLAYER_BAR_MAX_WIDTH_PX,
+  SELF_PLAYER_HUD_EDGE_INSET_PX,
+  SELF_PLAYER_HUD_MAX_WIDTH_PX,
+  SELF_PLAYER_HUD_MIN_WIDTH_PX,
+  PLAYER_HUD_HAND_GAP_PX,
+  PLAYER_HUD_COMPACT_HEIGHT_PX,
 } from "@/pixi/hud/PlayerHudLayer";
 import type { PlayerHudSpec as PlayerBarSpec } from "@/pixi/hud/playerHud.types";
 import { isAttackerTap } from "./combatRouting";
@@ -78,6 +78,7 @@ import { HandController } from "./HandController";
 import { SelectionController } from "./SelectionController";
 import {
   COLLAPSED_OPPONENT_WIDTH_PX,
+  collapsedOpponentWidth,
   STRIP_BAND_PX,
   type BoardLayout,
   type RegionOrientation,
@@ -216,8 +217,11 @@ export class BoardScene {
   private overlay: BattlefieldOverlay | null = null;
   private dragHandler: DragHandler;
   private phaseStrip: PhaseStripLayer;
-  private stripBackgroundGfx: Graphics;
-  private lastLayout: BoardLayout | null = null;
+  private overview = false;
+  private focusLocked = false;
+  private zoneDestinations = new Map<string, { ownerId: string; zone: ZoneKind }>();
+  private liveBattlefieldIds: ReadonlySet<string> = new Set();
+  private zoneTransitions = new Map<string, { sprite: CardSprite; target: ScreenPos }>();
 
   private arrowSpecs: ArrowSpec[] = [];
   private castingArrow: { sourceCardId: string; hostile: boolean } | null = null;
@@ -295,11 +299,6 @@ export class BoardScene {
 
     this.dragHandler = new DragHandler();
 
-    this.stripBackgroundGfx = new Graphics();
-    this.stripBackgroundGfx.eventMode = "none";
-    this.stripBackgroundGfx.zIndex = 5;
-    this.root.addChild(this.stripBackgroundGfx);
-
     // Delimiter fog veils the field content (cards/zones) but sits BELOW the
     // player bars, so a collapsed field's avatar stays clear of the fog.
     this.fogGfx = new Graphics();
@@ -332,6 +331,7 @@ export class BoardScene {
         this.callbacks.onShowPlayerSheet?.(id);
       },
       () => this.callbacks.onShowBoardMenu?.(),
+      (id) => this.callbacks.onShowPlayerSheet?.(id),
     );
     this.playerBars.container.zIndex = 5600;
     this.playerBars.container.visible = false;
@@ -428,6 +428,8 @@ export class BoardScene {
   ): void {
     if (this.destroyed) return;
     this.cardScale = scales.self;
+    this.overview = layout.opponentLayout === "overview";
+    this.gripLayer.visible = !this.overview;
     const seen = new Set<string>();
     let oppIndex = 0;
 
@@ -443,6 +445,7 @@ export class BoardScene {
       if (existing) {
         existing.zone = zone;
         existing.region.container.zIndex = zIndex;
+        existing.region.setOverviewMode(this.overview && !spec.isLocal);
         existing.region.setZone(zone, orientation);
         existing.region.setCardScale(regionScale);
         existing.region.setPlaymatSettings(spec.playmatSettings);
@@ -457,6 +460,7 @@ export class BoardScene {
         { orientation },
       );
       region.setPlaymatSettings(spec.playmatSettings);
+      region.setOverviewMode(this.overview && !spec.isLocal);
       region.setPlaymat(spec.playmat);
       region.container.zIndex = zIndex;
       region.setAutoSort(this.autoSort);
@@ -472,7 +476,7 @@ export class BoardScene {
     }
 
     this.boardWidth = layout.self.width;
-    this.topHeight = layout.opponents[0]?.rect.height ?? 0;
+    this.topHeight = layout.dividerY - layout.stripBandPx / 2;
     const oppIds = players.filter((p) => !p.isLocal).map((p) => p.playerId);
     const sameOpponents =
       oppIds.length === this.opponentIds.length &&
@@ -531,19 +535,28 @@ export class BoardScene {
     this.recomputeDelimTarget();
   }
 
+  setFocusLocked(locked: boolean): void {
+    if (locked === this.focusLocked) return;
+    this.focusLocked = locked;
+    if (!locked) this.recomputeDelimTarget();
+  }
+
   private recomputeDelimTarget(): void {
     const n = this.opponentIds.length;
-    // Precedence: hover (momentary) > manual keyboard pick > combat (the set of
-    // attacked opponents) > turn focus.
-    const focusIds = this.hoveredOpponentId
-      ? [this.hoveredOpponentId]
-      : this.manualFocusId
-        ? [this.manualFocusId]
-        : this.combatFocusIds.length > 0
-          ? this.combatFocusIds
-          : this.focusPlayerId
-            ? [this.focusPlayerId]
-            : [];
+    if (this.overview) {
+      this.delimTarget = evenDelimiters(n);
+      return;
+    }
+    const focusIds =
+      this.combatFocusIds.length > 0
+        ? this.combatFocusIds
+        : this.manualFocusId
+          ? [this.manualFocusId]
+          : !this.focusLocked && this.hoveredOpponentId
+            ? [this.hoveredOpponentId]
+            : this.focusPlayerId
+              ? [this.focusPlayerId]
+              : [];
     const focused = new Set<number>();
     for (const id of focusIds) {
       const i = this.opponentIds.indexOf(id);
@@ -553,7 +566,7 @@ export class BoardScene {
       this.delimTarget = evenDelimiters(n);
       return;
     }
-    const banner = COLLAPSED_OPPONENT_WIDTH_PX / this.boardWidth;
+    const banner = collapsedOpponentWidth(this.boardWidth, n) / this.boardWidth;
     const each = Math.max(banner, (1 - (n - focused.size) * banner) / focused.size);
     const target: number[] = [];
     let acc = 0;
@@ -566,6 +579,7 @@ export class BoardScene {
 
   private easeDelimiters(): void {
     const n = this.opponentIds.length;
+    if (this.overview) return;
     if (n <= 1) return;
     if (this.delimCurrent.length !== n - 1) this.delimCurrent = evenDelimiters(n);
     if (this.delimTarget.length !== n - 1) this.recomputeDelimTarget();
@@ -574,7 +588,7 @@ export class BoardScene {
         this.delimCurrent[i] = lerp(
           this.delimCurrent[i]!,
           this.delimTarget[i]!,
-          DELIMITER_EASE.FACTOR,
+          animationsEnabled() ? DELIMITER_EASE.FACTOR : 1,
           DELIMITER_EASE.SNAP,
         );
       }
@@ -596,7 +610,29 @@ export class BoardScene {
     const n = this.opponentIds.length;
     const W = this.boardWidth;
     if (n <= 0 || W <= 0) return;
+    const playerHudHeight = this.preferredPlayerHudHeight();
     this.collapseVeil.clear();
+    if (this.overview) {
+      this.fogGfx.clear();
+      for (const id of this.opponentIds) {
+        const rec = this.regions.get(id);
+        if (!rec) continue;
+        const zone = rec.zone;
+        rec.region.setClip(zone.x, zone.width);
+        if (this.barsEnabled) {
+          const field = rec.region.getPlaymatRect();
+          this.playerBars.setRect(
+            id,
+            field.x,
+            field.y,
+            Math.min(SELF_PLAYER_HUD_MAX_WIDTH_PX, field.width),
+            Math.min(playerHudHeight, field.height),
+            false,
+          );
+        }
+      }
+      return;
+    }
     const veilStart = COLLAPSED_OPPONENT_WIDTH_PX * 2;
     const veilColor = hexToNum(this.theme.appTheme.background);
     for (let i = 0; i < n; i++) {
@@ -617,21 +653,14 @@ export class BoardScene {
           this.collapseVeil.rect(left, 0, bandW, this.topHeight + this.stripBandPx / 2);
           this.collapseVeil.fill({ color: veilColor, alpha: frac });
         }
-        // A field clipped down to (about) its banner width → collapsed column;
-        // otherwise a left-aligned bar capped at the max width.
-        const column = bandW <= COLLAPSED_OPPONENT_WIDTH_PX + 4;
-        // Collapsed → the panel fills the whole band and the field's full height
-        // (sitting on the `collapseVeil` that occludes the cards). Expanded → a
-        // left-aligned bar at the fixed max width / capsule height.
-        const barW = column ? bandW : PLAYER_BAR_MAX_WIDTH_PX;
-        const barH = column ? this.topHeight : PLAYER_BAR_HEIGHT_PX;
-        const barX = column ? left : left + PLAYER_BAR_SIDE_MARGIN_PX;
-        const barY = column ? 0 : PLAYER_BAR_TOP_MARGIN_PX;
-        this.playerBars.setRect(this.opponentIds[i]!, barX, barY, barW, barH, column);
-        this.playerBars.setCapsuleScale(
-          this.opponentIds[i]!,
-          !column && this.compactMode ? SELF_PLAYER_HUD_COMPACT_SCALE : 1,
+        const field = rec.region.getPlaymatRect();
+        const column = field.width < 228;
+        const barW = Math.max(
+          1,
+          Math.min(column ? field.width : SELF_PLAYER_HUD_MAX_WIDTH_PX, field.width),
         );
+        const barH = column ? field.height : Math.min(playerHudHeight, field.height);
+        this.playerBars.setRect(this.opponentIds[i]!, field.x, field.y, barW, barH, column);
       }
     }
     this.drawDelimiterFog();
@@ -643,22 +672,49 @@ export class BoardScene {
     for (const [id, rec] of this.regions) rec.region.setZoneTiles(byPlayer[id] ?? []);
   }
 
+  private preferredPlayerHudHeight(): number {
+    if (this.compactMode) return PLAYER_HUD_COMPACT_HEIGHT_PX;
+    if (!this.localPlayerId) return SELF_PLAYER_BAR_HEIGHT_PX;
+    return this.playerBlockers.get(this.localPlayerId)?.[0]?.height ?? SELF_PLAYER_BAR_HEIGHT_PX;
+  }
+
   private layoutSelfBar(): void {
     if (!this.barsEnabled || !this.localPlayerId) return;
-    const zone = this.localZone();
-    if (!zone) return;
-    const pad = 8;
-    const scale = this.compactMode ? SELF_PLAYER_HUD_COMPACT_SCALE : 1;
-    const width = Math.min(Math.max(0, zone.width - pad * 2), PLAYER_BAR_MAX_WIDTH_PX);
+    const record = this.regions.get(this.localPlayerId);
+    if (!record) return;
+    const field = record.region.getPlaymatRect();
+    const hand = this.hand?.getBlockerRect();
+    const preferredHeight = this.preferredPlayerHudHeight();
+    const x = record.zone.x + SELF_PLAYER_HUD_EDGE_INSET_PX;
+    const availableWidth = Math.max(1, field.x + field.width - x);
+    const desiredWidth = Math.min(availableWidth, SELF_PLAYER_HUD_MAX_WIDTH_PX);
+    let width = desiredWidth;
+    const zoneBottom = record.zone.y + record.zone.height;
+    let bottom = zoneBottom;
+    const overlapsHand =
+      hand &&
+      hand.x < x + width &&
+      hand.x + hand.width > x &&
+      hand.y < bottom &&
+      hand.y + hand.height > bottom - preferredHeight;
+    if (overlapsHand) {
+      const clearWidth = hand.x - PLAYER_HUD_HAND_GAP_PX - x;
+      if (clearWidth >= Math.min(availableWidth, SELF_PLAYER_HUD_MIN_WIDTH_PX)) {
+        width = Math.min(width, clearWidth);
+      } else {
+        bottom = Math.min(bottom, hand.y - PLAYER_HUD_HAND_GAP_PX);
+      }
+    }
+    const height = Math.max(1, Math.min(preferredHeight, bottom - field.y));
     this.playerBars.setRect(
       this.localPlayerId,
-      zone.x + pad,
-      zone.y + zone.height - SELF_PLAYER_BAR_HEIGHT_PX * scale - pad,
+      x,
+      bottom - height,
       width,
-      SELF_PLAYER_BAR_HEIGHT_PX,
+      height,
       false,
+      bottom === zoneBottom,
     );
-    this.playerBars.setCapsuleScale(this.localPlayerId, scale);
   }
 
   /** Set the opponent player bars (thin Pixi panels over the top of each field)
@@ -669,6 +725,11 @@ export class BoardScene {
     this.barsEnabled = enabled;
     this.playerBars.container.visible = enabled;
     this.playerBars.setBars(enabled ? specs : []);
+    for (const spec of specs) {
+      this.regions
+        .get(spec.playerId)
+        ?.region.setSeatState(spec.color, spec.isActiveTurn, spec.name);
+    }
     if (reserveChanged) {
       for (const rec of this.regions.values()) {
         if (rec.isLocal) continue;
@@ -685,7 +746,6 @@ export class BoardScene {
    *  lay out (configure order, delimiter easing), and capsule growth (badge
    *  wrap, pill counts) triggers no battlefield update on its own. */
   private refreshCapsuleBlockers(): void {
-    if (!this.compactMode) return;
     for (const [id, rec] of this.regions) {
       const b = this.playerBars.getCapsuleBounds(id);
       const key = b ? [b.x, b.y, b.width, b.height].map((v) => Math.round(v / 4)).join(",") : "";
@@ -713,6 +773,7 @@ export class BoardScene {
     g.clear();
     const n = this.opponentIds.length;
     const W = this.boardWidth;
+    if (this.overview) return;
     if (n <= 1 || W <= 0) return;
     // Reach the middle horizontal line; the phase strip (drawn on top) hides the
     // end so it tucks under the phase bar.
@@ -809,7 +870,7 @@ export class BoardScene {
     const W = this.boardWidth;
     const i = this.draggingDelim;
     if (i === null || n <= 1 || W <= 0) return;
-    const minGap = COLLAPSED_OPPONENT_WIDTH_PX / W;
+    const minGap = collapsedOpponentWidth(W, n) / W;
     const lo = (i === 0 ? 0 : this.delimCurrent[i - 1]!) + minGap;
     const hi = (i === n - 2 ? 1 : this.delimCurrent[i + 1]!) - minGap;
     this.delimCurrent[i] = Math.max(lo, Math.min(hi, localX / W));
@@ -923,9 +984,16 @@ export class BoardScene {
       !this.isOverStack(canvasX, canvasY)
     ) {
       for (let i = 0; i < n; i++) {
-        const left = (i === 0 ? 0 : this.delimCurrent[i - 1]!) * W;
-        const right = (i === n - 1 ? 1 : this.delimCurrent[i]!) * W;
-        if (localX >= left && localX < right) {
+        const zone = this.regions.get(this.opponentIds[i]!)?.zone;
+        const left = this.overview ? zone!.x : (i === 0 ? 0 : this.delimCurrent[i - 1]!) * W;
+        const right = this.overview
+          ? zone!.x + zone!.width
+          : (i === n - 1 ? 1 : this.delimCurrent[i]!) * W;
+        if (
+          localX >= left &&
+          localX < right &&
+          (!this.overview || (localY >= zone!.y && localY < zone!.y + zone!.height))
+        ) {
           hovered = this.opponentIds[i]!;
           break;
         }
@@ -936,7 +1004,7 @@ export class BoardScene {
     this.drawHoverHighlight();
     // Open the hovered field (or fall back to the turn focus on leave). A manual
     // grip drag owns the delimiters, so don't retarget mid-drag.
-    if (this.draggingDelim === null) this.recomputeDelimTarget();
+    if (!this.focusLocked && this.draggingDelim === null) this.recomputeDelimTarget();
     this.callbacks.onHoverOpponent?.(hovered);
   }
 
@@ -966,20 +1034,10 @@ export class BoardScene {
   }
 
   private positionPhaseStrip(layout: BoardLayout): void {
-    this.lastLayout = layout;
     this.stripBandPx = layout.stripBandPx;
     this.phaseStrip.container.x = layout.self.x;
     this.phaseStrip.container.y = layout.dividerY - this.stripBandPx / 2;
     this.phaseStrip.resize(layout.self.width, this.stripBandPx);
-    this.drawStripBackground(layout);
-  }
-
-  private drawStripBackground(layout: BoardLayout): void {
-    const g = this.stripBackgroundGfx;
-    g.clear();
-    const y = layout.dividerY - this.stripBandPx / 2;
-    g.roundRect(layout.self.x, y, layout.self.width, this.stripBandPx, TABLE_RADIUS);
-    g.fill({ color: hexToNum(this.theme.gameTheme.canvas.background), alpha: BG_ALPHA_IDLE });
   }
 
   private localRegion(): BoardRegion | null {
@@ -1013,16 +1071,74 @@ export class BoardScene {
         break;
       }
     }
-    this.phaseStripAlphaTarget =
-      active && !this.phaseStrip.isCompactExpanded() ? PHASE_STRIP_COMBAT_ALPHA : 1;
+    this.phaseStripAlphaTarget = 1;
     for (const rec of this.regions.values()) rec.region.setCombatDim(active);
   }
 
   updateHand(state: HandState): void {
     this.hand?.updateHand(state);
+    this.layoutSelfBar();
+    this.refreshCapsuleBlockers();
   }
   getHandBounds(): BlockingRect | null {
     return this.hand?.getBlockerRect() ?? null;
+  }
+
+  setZoneDestinations(zones: ZoneDto[], battlefieldIds: ReadonlySet<string>): void {
+    this.liveBattlefieldIds = battlefieldIds;
+    this.captureStackSeeds();
+    const previous = this.zoneDestinations;
+    this.zoneDestinations = new Map();
+    for (const zone of zones) {
+      for (const card of zone.cards) {
+        this.zoneDestinations.set(card.id, { ownerId: zone.ownerId, zone: zone.zone });
+      }
+    }
+    if (previous.size === 0) return;
+    for (const zone of zones) {
+      if (zone.zone === "battlefield") continue;
+      for (const card of zone.cards) {
+        const prior = previous.get(card.id);
+        if (prior?.zone === zone.zone && prior.ownerId === zone.ownerId) continue;
+        this.zoneTransitions.get(card.id)?.sprite.destroy({ children: true });
+        this.zoneTransitions.delete(card.id);
+        if (!animationsEnabled() || prior?.zone === "battlefield" || card.visibility === "hidden")
+          continue;
+        const stack = this.stackCardSeeds.get(card.id);
+        const destination = this.exitTarget(card.id);
+        if (!stack || !destination) continue;
+        const source = this.root.toLocal(stack);
+        const target = this.root.toLocal(destination);
+        const sprite = new CardSprite(card, "hand");
+        sprite.eventMode = "none";
+        sprite.position.set(source.x, source.y);
+        sprite.scale.set(stack.scale / this.root.scale.x, stack.scale / this.root.scale.y);
+        sprite.setElevation(1);
+        this.combatGuestLayer.addChild(sprite);
+        this.zoneTransitions.set(card.id, { sprite, target });
+        this.stackCardSeeds.delete(card.id);
+      }
+    }
+  }
+
+  private exitTarget(cardId: string): ScreenPos | null {
+    if (this.liveBattlefieldIds.has(cardId)) return null;
+    const dest = this.zoneDestinations.get(cardId);
+    if (!dest || dest.zone === "battlefield") return null;
+    if (dest.zone === "hand") {
+      if (dest.ownerId === this.localPlayerId && this.hand) {
+        const origin = this.hand.getOriginSeed();
+        return this.root.toGlobal(origin);
+      }
+      return this.playerBars.getPlayerAnchor(dest.ownerId);
+    }
+    const keyByZone = { library: "lib", graveyard: "gy", exile: "ex", command: "cmd" };
+    const key = keyByZone[dest.zone];
+    return (
+      this.regions.get(dest.ownerId)?.region.getZoneTileCenter(key) ??
+      this.playerBars.getZoneAnchor(dest.ownerId, key) ??
+      this.playerBars.getPlayerAnchor(dest.ownerId)
+    );
   }
 
   holdHandHover(): void {
@@ -1234,6 +1350,7 @@ export class BoardScene {
 
   setPlayerBlockers(blockers: Map<string, BlockingRect[]>): void {
     this.playerBlockers = blockers;
+    this.layoutSelfBar();
     for (const rec of this.regions.values()) {
       const state = rec.region.getLastState();
       if (state) rec.region.updateBattlefield(state);
@@ -1300,9 +1417,6 @@ export class BoardScene {
     this.phaseStrip.setTheme(theme);
     this.playerBars.setTheme(theme);
     this.drawBaseBg();
-    if (this.lastLayout) {
-      this.drawStripBackground(this.lastLayout);
-    }
     for (const rec of this.regions.values()) rec.region.redrawTheme();
     this.applyDelimiters(); // repaint the collapse veil in the new theme colour
   }
@@ -1332,11 +1446,13 @@ export class BoardScene {
       collectBlockers: () => [
         ...(this.playerBlockers.get(playerId) ?? []),
         ...(isLocal ? this.localBlockers() : []),
-        ...(this.compactMode ? this.capsuleBlockers(playerId) : []),
+        ...this.capsuleBlockers(playerId),
       ],
       getEntrySeed: (cardId) => this.entrySeedFor(playerId, isLocal, cardId),
       getCombatGuestLayer: () => this.combatGuestLayer,
       recordCardExit: (cardId, seed) => this.lastCardPositions.set(cardId, seed),
+      getExitTarget: (cardId) => this.exitTarget(cardId),
+      isBattlefieldCard: (cardId) => this.liveBattlefieldIds.has(cardId),
       isSelected: (cardId) => (isLocal ? (this.selection?.has(cardId) ?? false) : false),
       rebuildOverlay: (entry, state) => {
         if (isLocal) this.overlay?.rebuild(entry, state);
@@ -1415,10 +1531,6 @@ export class BoardScene {
     this.handReserveCb = cb;
   }
 
-  /** The hand blocker is root-local; `collectBlockers` rects are canvas-space
-   *  (regions convert back through the zoomed root transform). Only the trimmed
-   *  reserve fraction of the fan blocks cells — same trim as
-   *  `getHandReserveBottom` — so the bottom row may tuck under the fan's top. */
   private localBlockers(): BlockingRect[] {
     const handRect = this.hand?.getBlockerRect();
     if (!handRect) return [];
@@ -1446,7 +1558,15 @@ export class BoardScene {
   ): { x: number; y: number; scaleX: number; scaleY: number; glide?: boolean } {
     if (isLocal && this.hand) {
       const live = this.hand.getLiveSpriteTransform(cardId);
-      if (live) return live;
+      if (live) {
+        const point = this.root.toGlobal(live);
+        return {
+          x: point.x,
+          y: point.y,
+          scaleX: live.scaleX * this.root.scale.x,
+          scaleY: live.scaleY * this.root.scale.y,
+        };
+      }
     }
     const remembered = this.lastCardPositions.get(cardId);
     if (remembered) return { ...remembered, glide: true };
@@ -1454,16 +1574,26 @@ export class BoardScene {
     if (stack) return { x: stack.x, y: stack.y, scaleX: stack.scale, scaleY: stack.scale };
     if (isLocal && this.hand) {
       const origin = this.hand.getOriginSeed();
-      return { x: origin.x, y: origin.y, scaleX: origin.scale, scaleY: origin.scale };
+      const point = this.root.toGlobal(origin);
+      return {
+        x: point.x,
+        y: point.y,
+        scaleX: origin.scale * this.root.scale.x,
+        scaleY: origin.scale * this.root.scale.y,
+      };
     }
     const zone = this.regions.get(playerId)?.zone;
     const scale = this.cardScale;
     if (!zone) return { x: 0, y: 0, scaleX: scale, scaleY: scale };
-    return {
+    const point = this.root.toGlobal({
       x: zone.x + zone.width / 2,
       y: zone.y + (CARD_H * scale) / 2,
-      scaleX: scale,
-      scaleY: scale,
+    });
+    return {
+      x: point.x,
+      y: point.y,
+      scaleX: scale * this.root.scale.x,
+      scaleY: scale * this.root.scale.y,
     };
   }
 
@@ -1510,17 +1640,15 @@ export class BoardScene {
       getTheme: () => this.theme,
       getCallbacks: () => this.callbacks,
       getContainer: () => region.container,
-      getSelectedCardIds: () => this.selection?.getSelected() ?? new Set<string>(),
       getLastState: () => region.getLastState(),
       getEntries: () => region.getEntries(),
-      isJustDragged: (id) => this.dragHandler.justDraggedCardIds.has(id),
+      isJustDragged: (id) =>
+        this.dragHandler.justDraggedCardIds.has(id) || this.longPress.consumeTap(id),
       startCardDrag: (sprite, e) => this.onBattlefieldCardDown(sprite, e),
       cancelHoverClear: () => this.cancelHoverClear(),
       setCardHovered: (sprite, force = false) =>
         this.setBattlefieldCardHovered(region, sprite, force),
       scheduleHoverClear: (id) => this.scheduleHoverClear(id),
-      getCardScale: () => region.getCardScale(),
-      isCompact: () => this.compactMode,
     };
   }
 
@@ -1591,6 +1719,7 @@ export class BoardScene {
   }
 
   private isCollapsedOpponentBand(playerId: string): boolean {
+    if (this.overview) return false;
     const n = this.opponentIds.length;
     const i = this.opponentIds.indexOf(playerId);
     const W = this.boardWidth;
@@ -1911,6 +2040,16 @@ export class BoardScene {
     this.easeDelimiters();
     for (const rec of this.regions.values()) rec.region.animate();
     this.hand?.animate();
+    for (const [id, transition] of this.zoneTransitions) {
+      const { sprite, target } = transition;
+      sprite.x = lerp(sprite.x, target.x, BATTLEFIELD_LERP, SNAP_PX);
+      sprite.y = lerp(sprite.y, target.y, BATTLEFIELD_LERP, SNAP_PX);
+      if (!animationsEnabled() || (sprite.x === target.x && sprite.y === target.y)) {
+        sprite.destroy({ children: true });
+        this.zoneTransitions.delete(id);
+      }
+    }
+    this.playerBars.tick();
     this.phaseStrip.tick();
     this.phaseStrip.setDimAlpha(
       lerp(this.phaseStrip.getDimAlpha(), this.phaseStripAlphaTarget, 0.2, 0.01),
@@ -2207,6 +2346,8 @@ export class BoardScene {
       for (const rec of this.regions.values()) rec.region.destroy();
       for (const f of this.floaters) f.text.destroy();
       this.floaters = [];
+      for (const { sprite } of this.zoneTransitions.values()) sprite.destroy({ children: true });
+      this.zoneTransitions.clear();
     } catch (err) {
       console.warn("[pixi] BoardScene teardown threw:", err);
     }

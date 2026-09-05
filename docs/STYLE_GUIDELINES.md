@@ -282,7 +282,7 @@ This means:
    `@theme` CSS block in `src/index.css`.
 4. The new token is immediately available as a Tailwind utility
    (e.g. `bg-my-new-token`) and via `useTheme().gameTheme.myNewToken`.
-   All 12 presets automatically get a value via `buildGameColors`.
+   All 15 presets automatically get a value via `buildGameColors`.
 
 If you find yourself about to type a hex literal in a component, stop
 and add a semantic theme key instead.

@@ -1,9 +1,8 @@
-// Gates only decorative effects (stomp, dust, stat/damage pops, glow pulses), not
-// state indicators (rings, dim, P/T colors, floaters) or functional motion (movement, hover).
-
 let enabled = true;
+const reducedMotion =
+  typeof window === "undefined" ? null : window.matchMedia("(prefers-reduced-motion: reduce)");
 
-export const animationsEnabled = (): boolean => enabled;
+export const animationsEnabled = (): boolean => enabled && !reducedMotion?.matches;
 
 export const setAnimationsEnabled = (value: boolean): void => {
   enabled = value;

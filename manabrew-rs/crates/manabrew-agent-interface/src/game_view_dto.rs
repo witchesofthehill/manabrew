@@ -603,6 +603,8 @@ pub fn card_to_dto(game: &GameState, cid: CardId) -> CardDto {
         phased_out: card.phased_out,
         exerted: card.exerted,
         is_ring_bearer: game.player(card.controller).ring_bearer == Some(cid),
+        commander_tax: (!card.face_down && game.player_is_commander(card.owner, cid))
+            .then(|| game.player_commander_tax(card.owner, cid)),
         effective_mana_cost: {
             let is_command_zone_commander =
                 card.zone == ZoneType::Command && game.player_is_commander(card.controller, cid);

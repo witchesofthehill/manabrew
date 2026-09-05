@@ -20,7 +20,6 @@ import {
   PLAYMAT_BLUR_MAX,
   PLAYMAT_BRIGHTNESS_MIN,
   PLAYMAT_BRIGHTNESS_MAX,
-  clampBorderColor,
   clampPlaymatColor,
 } from "@/pixi/board/PlaymatLayer";
 import { useAssetStore, useAssetsAvailable } from "@/stores/useAssetStore";
@@ -76,12 +75,6 @@ export function PlaymatEditorModal({
     ...DEFAULT_PLAYMAT_SETTINGS,
     ...(storedSettings ?? {}),
   });
-  const [borderHex, setBorderHex] = useState(settings.borderColor);
-  const [prevBorder, setPrevBorder] = useState(settings.borderColor);
-  if (prevBorder !== settings.borderColor) {
-    setPrevBorder(settings.borderColor);
-    setBorderHex(settings.borderColor);
-  }
   const [bgHex, setBgHex] = useState(settings.color);
   const [prevBg, setPrevBg] = useState(settings.color);
   if (prevBg !== settings.color) {
@@ -97,14 +90,16 @@ export function PlaymatEditorModal({
   function update(patch: Partial<PlaymatSettings>) {
     setSettings((prev) => {
       const next = { ...prev, ...patch };
-      setPlaymatSettings(next);
+      const persisted: PlaymatSettings = { ...next };
+      delete persisted.borderColor;
+      setPlaymatSettings(persisted);
       return next;
     });
   }
 
-  const isDefaultSettings = (
-    Object.keys(DEFAULT_PLAYMAT_SETTINGS) as (keyof PlaymatSettings)[]
-  ).every((k) => settings[k] === DEFAULT_PLAYMAT_SETTINGS[k]);
+  const isDefaultSettings = (Object.keys(DEFAULT_PLAYMAT_SETTINGS) as (keyof PlaymatSettings)[])
+    .filter((key) => key !== "borderColor")
+    .every((key) => settings[key] === DEFAULT_PLAYMAT_SETTINGS[key]);
 
   function resetSettings() {
     setSettings({ ...DEFAULT_PLAYMAT_SETTINGS });
@@ -429,39 +424,14 @@ export function PlaymatEditorModal({
             <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Border
             </Label>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <SliderControl
-                label="Width"
-                value={`${settings.borderWidth}px`}
-                min={0}
-                max={40}
-                current={settings.borderWidth}
-                onChange={(v) => update({ borderWidth: v })}
-              />
-              <div className="space-y-2 rounded-lg border bg-card/40 p-3">
-                <Label className="text-xs font-medium">Color</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={settings.borderColor}
-                    onChange={(e) => update({ borderColor: clampBorderColor(e.target.value) })}
-                    className="h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
-                  />
-                  <input
-                    value={borderHex}
-                    onChange={(e) => {
-                      setBorderHex(e.target.value);
-                      if (HEX_RE.test(e.target.value))
-                        update({ borderColor: clampBorderColor(e.target.value) });
-                    }}
-                    onBlur={() => setBorderHex(settings.borderColor)}
-                    spellCheck={false}
-                    autoComplete="off"
-                    className="h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 font-mono text-xs uppercase pointer-coarse:text-base"
-                  />
-                </div>
-              </div>
-            </div>
+            <SliderControl
+              label="Width"
+              value={`${settings.borderWidth}px`}
+              min={0}
+              max={40}
+              current={settings.borderWidth}
+              onChange={(v) => update({ borderWidth: v })}
+            />
           </section>
         </div>
       </Modal.Body>

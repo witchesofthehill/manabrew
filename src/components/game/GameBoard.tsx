@@ -253,6 +253,8 @@ export function GameBoard({
     (handVisibleFrac * HAND_CARD_BASE.cardH * vScale + GAP) *
       (compactBoard ? HAND_RESERVE_TRIM_COMPACT : HAND_RESERVE_TRIM),
   );
+  const opponentLayout = usePreferencesStore((s) => s.opponentLayout);
+  const gameZones = useGameStore((s) => s.gameView?.zones);
 
   const isTargetingPrompt = promptType === "chooseBoardTargets";
   const chooseActionPrompt = promptOf(currentPrompt, "chooseAction");
@@ -500,13 +502,7 @@ export function GameBoard({
 
   const pixiCallbacks = useMemo(
     (): GameCanvasCallbacks => ({
-      onClickCard:
-        promptType === "chooseAction" ||
-        promptType === "chooseAttackers" ||
-        promptType === "chooseBlockers" ||
-        promptType === "chooseBoardTargets"
-          ? onBattlefieldClick
-          : undefined,
+      onClickCard: onBattlefieldClick,
       onHoverCard: (card, bounds) => {
         if (card && bounds) {
           const rect = new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height);
@@ -551,7 +547,6 @@ export function GameBoard({
         : undefined,
     }),
     [
-      promptType,
       onBattlefieldClick,
       onHoverCard,
       onDismissHoverPreview,
@@ -596,12 +591,32 @@ export function GameBoard({
       isActiveTurn: activePlayerId === me.id,
       activePlayerId,
       myPlayerId: me.id,
+      priorityPlayerId,
+      activePlayerName: stripUsernameTag(
+        activePlayerId === me.id
+          ? me.name
+          : (opponents.find((op) => op.id === activePlayerId)?.name ?? ""),
+      ),
+      priorityPlayerName: stripUsernameTag(
+        priorityPlayerId === me.id
+          ? me.name
+          : (opponents.find((op) => op.id === priorityPlayerId)?.name ?? ""),
+      ),
       selfEnabledPhases: selfStops,
       opponentEnabledPhases: oppEnabled,
       opponents: opponents.map((op, i) => ({ id: op.id, index: i })),
       isInteractive: true,
     };
-  }, [step, activePlayerId, me.id, selfStops, opponents, opponentStopsMap]);
+  }, [
+    step,
+    activePlayerId,
+    priorityPlayerId,
+    me.id,
+    me.name,
+    selfStops,
+    opponents,
+    opponentStopsMap,
+  ]);
 
   const pixiPhaseStripCallbacks = useMemo(
     (): import("@/pixi/PhaseStripLayer").PhaseStripCallbacks => ({
@@ -637,20 +652,15 @@ export function GameBoard({
     return opponents[0]?.id ?? null;
   }, [isSelfTurn, activePlayerId, stickyOpponentId, opponents]);
 
-  // Opponent fields to expand during combat: the OTHER party in the combat —
-  // the opponents I'm attacking (even-split among them when more than one), or,
-  // when I'm being attacked, the field of whoever is attacking me.
   const combatFocusIds = useMemo(() => {
-    const myDefenders = new Set<string>();
-    const attackingMe = new Set<string>();
+    const ids = new Set<string>();
     for (const row of combatRows) {
-      if (row.defenderId === me.id) {
-        for (const g of row.groups) attackingMe.add(g.controllerId);
-      } else if (row.groups.some((g) => g.controllerId === me.id)) {
-        myDefenders.add(row.defenderId);
+      if (row.defenderId !== me.id) ids.add(row.defenderId);
+      for (const group of row.groups) {
+        if (group.controllerId !== me.id) ids.add(group.controllerId);
       }
     }
-    return myDefenders.size > 0 ? [...myDefenders] : [...attackingMe];
+    return [...ids];
   }, [combatRows, me.id]);
 
   const cycleField = (dir: 1 | -1) => {
@@ -756,7 +766,12 @@ export function GameBoard({
     // Commander damage is keyed by the source commander's card id; resolve each
     // to its owner so the badge can take that opponent's seat colour.
     const cardOwner = new Map<string, string>();
-    const addCards = (cards?: CardDto[]) => cards?.forEach((c) => cardOwner.set(c.id, c.ownerId));
+    const cardNames = new Map<string, string>();
+    const addCards = (cards?: CardDto[]) =>
+      cards?.forEach((card) => {
+        cardOwner.set(card.id, card.ownerId);
+        if (card.identity.name) cardNames.set(card.id, card.identity.name);
+      });
     addCards(myPermanents);
     for (const list of opponentPermanentsByPlayer.values()) addCards(list);
     for (const p of allPlayers) {
@@ -793,15 +808,17 @@ export function GameBoard({
             id: `cmd-${cardId}`,
             icon: "crossed-swords",
             color: ownerId ? seatColorOf(ownerId) : gameTheme.badges.commanderDamage,
-            label: `Commander Damage from ${ownerId ? nameOf(ownerId) : "a commander"}`,
+            label: `Commander damage from ${cardNames.get(cardId) ?? `commander ${cardId}`}${ownerId ? ` · ${nameOf(ownerId)}` : ""}`,
             count: dmg,
             lethal: dmg >= 21,
           };
         });
     };
 
+    const incomingDamageFor = (player: ClientPlayerDto): number =>
+      dev.incomingDamage ?? incomingDamageByPlayer.get(player.id) ?? 0;
     const incomingDamageBadges = (player: ClientPlayerDto): PlayerHudBadge[] => {
-      const incoming = incomingDamageByPlayer.get(player.id) ?? 0;
+      const incoming = incomingDamageFor(player);
       if (incoming <= 0) return [];
       const lethal = incoming >= (dev.life ?? player.life);
       return [
@@ -838,19 +855,17 @@ export function GameBoard({
         ),
         ...cmdDamageBadges(player),
       ];
-      const incoming = incomingDamageByPlayer.get(player.id) ?? 0;
+      const incoming = incomingDamageFor(player);
       return {
         playerId: player.id,
         name: stripUsernameTag(player.name),
         isSelf,
         life: dev.life ?? player.life,
         color,
-        avatarUrl: avatarByPlayerId.get(player.id),
-        isBot: player.isHuman === false,
+        avatarUrl: dev.forceBot || dev.forceNoAvatar ? undefined : avatarByPlayerId.get(player.id),
+        isBot: dev.forceBot ? true : player.isHuman === false,
         isActiveTurn: dev.forceActiveTurn ? true : activePlayerId === player.id,
-        isPriorityPlayer: dev.forcePriority
-          ? true
-          : priorityPlayerId === player.id && activePlayerId !== player.id,
+        isPriorityPlayer: dev.forcePriority ? true : priorityPlayerId === player.id,
         isTargetable: dev.forceTargetable ? true : playerIsTargetable(player.id),
         isSelectedTarget: dev.forceSelectedTarget ? true : selectedAttackDefenderId === player.id,
         isFlashing: dev.forceFlashing ? true : turnFlashPlayerId === player.id,
@@ -858,9 +873,18 @@ export function GameBoard({
         isDisconnected: dev.forceDisconnected
           ? true
           : !isSelf && player.isHuman && roomByName.get(player.name)?.connected === false,
-        inCombat: combatEngagedIds.has(player.id),
-        combatLethal: incoming > 0 && incoming >= (dev.life ?? player.life),
-        manaPool: player.manaPool,
+        inCombat: dev.forceInCombat || dev.forceCombatLethal || combatEngagedIds.has(player.id),
+        combatLethal:
+          dev.forceCombatLethal || (incoming > 0 && incoming >= (dev.life ?? player.life)),
+        manaPool: {
+          ...player.manaPool,
+          W: dev.manaWhite ?? player.manaPool.W ?? 0,
+          U: dev.manaBlue ?? player.manaPool.U ?? 0,
+          B: dev.manaBlack ?? player.manaPool.B ?? 0,
+          R: dev.manaRed ?? player.manaPool.R ?? 0,
+          G: dev.manaGreen ?? player.manaPool.G ?? 0,
+          C: dev.manaColorless ?? player.manaPool.C ?? 0,
+        },
         badges,
       };
     };
@@ -1050,6 +1074,7 @@ export function GameBoard({
         onOpen: openCommandZone,
         highlightColor: (commandPlayableIds?.length ?? 0) > 0 ? active : undefined,
         commander: playerColors.self,
+        commanderTax: top(myCommandZone!)?.commanderTax,
       });
     }
 
@@ -1124,6 +1149,7 @@ export function GameBoard({
             openOpZone(`${stripUsernameTag(op.name)}'s Command Zone`, op.commandZone, cmdTargets),
           highlightColor: cmdTargets.length > 0 ? targetColor : cmdPlayable ? active : undefined,
           commander: playerColors[OPPONENT_SEATS[oppIndex] ?? "opponent1"],
+          commanderTax: top(op.commandZone)?.commanderTax,
         });
       }
       byPlayer[op.id] = tiles;
@@ -1241,6 +1267,7 @@ export function GameBoard({
       {
         playerId: me.id,
         isLocal: true,
+        color: playerColors.self,
         state: {
           ...pixiBattlefield,
           cards: selfCards,
@@ -1322,7 +1349,6 @@ export function GameBoard({
       scene.setPlayerBlockers(new Map(Object.entries(next)));
     };
     measure();
-    if (!compactBoard) return;
     const actionEl = document.querySelector<HTMLElement>("[data-action-cluster]");
     if (!actionEl) return;
     const ro = new ResizeObserver(measure);
@@ -1387,6 +1413,16 @@ export function GameBoard({
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         {a11ySummary}
       </div>
+      {hudBarSpecs.map((spec) => (
+        <button
+          key={spec.playerId}
+          type="button"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-background focus:p-3 focus:text-foreground"
+          onClick={() => setSheetPlayerId(spec.playerId)}
+        >
+          Inspect {spec.isSelf ? "your" : `${spec.name}'s`} mana pool and player states
+        </button>
+      ))}
       <div className="sr-only" aria-live="assertive" aria-atomic="true">
         {combatA11y}
       </div>
@@ -1394,6 +1430,15 @@ export function GameBoard({
         <BoardCanvas
           regions={unifiedRegions}
           hand={pixiHand}
+          zones={gameZones}
+          opponentLayout={opponentLayout}
+          focusLocked={
+            isTargetingPrompt ||
+            !!sheetPlayerId ||
+            promptType === "chooseAttackers" ||
+            promptType === "chooseBlockers" ||
+            !!draggingCardId
+          }
           arrowSpecs={arrowSpecs ?? []}
           castingArrow={castingArrow}
           declareBlockers={promptType === "chooseBlockers"}

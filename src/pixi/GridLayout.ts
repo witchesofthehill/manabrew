@@ -68,7 +68,7 @@ export const maxScaleForRows = (usableH: number, rows: number): number => {
  *  estimating it from a band-less scale (the old two-pass) starves the grid at
  *  1-2 rows; this is the joint solve, derived from
  *  `maxScaleForRows(usableH - combatRowReserve(s), rows) = s`. */
-const scaleForRowsWithCombatRow = (usableH: number, rows: number): number => {
+export const scaleForRowsWithCombatRow = (usableH: number, rows: number): number => {
   const bandFixed = COMBAT_ROW_PAD_Y * 2 + COMBAT_STAGE_PADDING_PX;
   return (
     (usableH - bandFixed + GAP - rows * (0.5 + GAP)) /

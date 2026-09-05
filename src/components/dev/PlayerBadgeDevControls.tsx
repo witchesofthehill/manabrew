@@ -24,6 +24,11 @@ interface ToggleRow {
   label: string;
 }
 
+const PLAYER_IDENTITY_ROWS: ToggleRow[] = [
+  { key: "forceBot", label: "Bot" },
+  { key: "forceNoAvatar", label: "Initials avatar" },
+];
+
 const PLAYER_BADGE_ROWS: ToggleRow[] = [
   { key: "forceMonarch", label: "Monarch" },
   { key: "forceInitiative", label: "Initiative" },
@@ -34,6 +39,8 @@ const PLAYER_BADGE_ROWS: ToggleRow[] = [
 const PLAYER_STATE_ROWS: ToggleRow[] = [
   { key: "forceActiveTurn", label: "Active turn" },
   { key: "forcePriority", label: "Priority" },
+  { key: "forceInCombat", label: "In combat" },
+  { key: "forceCombatLethal", label: "Combat lethal" },
   { key: "forceTargetable", label: "Targetable" },
   { key: "forceSelectedTarget", label: "Selected" },
   { key: "forceFlashing", label: "Turn flash" },
@@ -46,11 +53,20 @@ interface CounterRow {
   label: string;
   base: number;
 }
+const MANA_POOL_ROWS: CounterRow[] = [
+  { key: "manaWhite", label: "White (W)", base: NUMERIC_BUMP_BASE },
+  { key: "manaBlue", label: "Blue (U)", base: NUMERIC_BUMP_BASE },
+  { key: "manaBlack", label: "Black (B)", base: NUMERIC_BUMP_BASE },
+  { key: "manaRed", label: "Red (R)", base: NUMERIC_BUMP_BASE },
+  { key: "manaGreen", label: "Green (G)", base: NUMERIC_BUMP_BASE },
+  { key: "manaColorless", label: "Colorless (C)", base: NUMERIC_BUMP_BASE },
+];
 
 const COUNTER_ROWS: CounterRow[] = [
   { key: "poison", label: "Poison", base: NUMERIC_BUMP_BASE },
   { key: "energy", label: "Energy", base: NUMERIC_BUMP_BASE },
   { key: "cmdDamage", label: "Commander damage", base: NUMERIC_BUMP_BASE },
+  { key: "incomingDamage", label: "Incoming damage", base: NUMERIC_BUMP_BASE },
   { key: "radiation", label: "Radiation", base: NUMERIC_BUMP_BASE },
   { key: "experience", label: "Experience", base: NUMERIC_BUMP_BASE },
   { key: "ticket", label: "Ticket", base: NUMERIC_BUMP_BASE },
@@ -95,6 +111,20 @@ export function PlayerBadgeDevControls() {
       </div>
 
       <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        Identity
+      </p>
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+        {PLAYER_IDENTITY_ROWS.map((row) => (
+          <DevToggleButton
+            key={row.key}
+            label={row.label}
+            active={overrides[row.key]}
+            onClick={() => toggleBool(row.key)}
+          />
+        ))}
+      </div>
+
+      <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
         Game badges
       </p>
       <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
@@ -118,6 +148,21 @@ export function PlayerBadgeDevControls() {
             label={row.label}
             active={overrides[row.key]}
             onClick={() => toggleBool(row.key)}
+          />
+        ))}
+      </div>
+
+      <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        Mana pool
+      </p>
+      <div className="grid gap-1.5 sm:grid-cols-2">
+        {MANA_POOL_ROWS.map((row) => (
+          <DevCounterControl
+            key={row.key}
+            label={row.label}
+            value={overrides[row.key]}
+            onClear={() => setOverride(row.key, null)}
+            onBump={(delta) => bumpNumeric(row.key, row.base, delta)}
           />
         ))}
       </div>

@@ -82,6 +82,7 @@ export const CARD_BADGES = {
 } as const;
 
 export const ACTION_DRAWER_BUMP_EVENT = "actiondrawer:bump";
+export const ACTION_CLUSTER_PREFERRED_HEIGHT_PX = 104;
 
 export const CARD_W = 72;
 export const CARD_H = 100;

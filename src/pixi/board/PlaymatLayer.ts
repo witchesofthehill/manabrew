@@ -9,6 +9,7 @@ import {
   TilingSprite,
 } from "pixi.js";
 import type { PlaymatSettings } from "@/protocol/game";
+import { getTheme, type GameTheme } from "@/hooks/useTheme";
 import type { PlayZoneRect } from "../types";
 import { TABLE_RADIUS } from "../constants";
 import { hexToNum } from "../colorUtils";
@@ -18,7 +19,9 @@ export const DEFAULT_PLAYMAT_SETTINGS: Required<PlaymatSettings> = {
   opacity: 0.62,
   texture: 0.5,
   borderWidth: 2,
-  borderColor: "#27272a",
+  get borderColor() {
+    return getTheme().gameTheme.canvas.neutral;
+  },
   fit: "cover",
   offsetX: 0.5,
   offsetY: 0.5,
@@ -45,16 +48,12 @@ const PLAYMAT_DROP_DIM = 0.29;
 const PLAYMAT_PADDING = 0.04;
 export const playmatPad = (width: number, height: number): number =>
   Math.min(width, height) * PLAYMAT_PADDING;
-const PLAYMAT_VIGNETTE_ALPHA = 0.7;
-const PLAYMAT_TINT = 0xe4e4e4;
+const PLAYMAT_VIGNETTE_ALPHA = 0.42;
 const PLAYMAT_FABRIC_TILE_SCALE = 0.6;
-const PLAYMAT_FABRIC_MAX_ALPHA = 0.75;
+const PLAYMAT_FABRIC_MAX_ALPHA = 0.2;
 
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 
-const BORDER_LIGHTNESS_MIN = 0.04;
-const BORDER_LIGHTNESS_MAX = 0.42;
-const BORDER_SATURATION_MAX = 0.5;
 const BACKGROUND_LIGHTNESS_MIN = 0.03;
 const BACKGROUND_LIGHTNESS_MAX = 0.4;
 const BACKGROUND_SATURATION_MAX = 0.5;
@@ -70,7 +69,7 @@ function hue2rgb(p: number, q: number, t: number): number {
 
 function clampColor(hex: string, lMin: number, lMax: number, sMax: number): string {
   const match = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
-  if (!match) return "#000000";
+  if (!match) return getTheme().gameTheme.canvas.background;
   const int = parseInt(match[1], 16);
   const r = ((int >> 16) & 255) / 255;
   const g = ((int >> 8) & 255) / 255;
@@ -109,65 +108,42 @@ function clampColor(hex: string, lMin: number, lMax: number, sMax: number): stri
   return `#${toHex(cr)}${toHex(cg)}${toHex(cb)}`;
 }
 
-export const clampBorderColor = (hex: string): string =>
-  clampColor(hex, BORDER_LIGHTNESS_MIN, BORDER_LIGHTNESS_MAX, BORDER_SATURATION_MAX);
-
 export const clampPlaymatColor = (hex: string): string =>
   clampColor(hex, BACKGROUND_LIGHTNESS_MIN, BACKGROUND_LIGHTNESS_MAX, BACKGROUND_SATURATION_MAX);
 
-let fabricTextureCache: Texture | null = null;
-function getFabricTexture(): Texture {
-  if (fabricTextureCache) return fabricTextureCache;
-  const tile = 64;
-  const cell = 8;
-  const canvas = document.createElement("canvas");
-  canvas.width = tile;
-  canvas.height = tile;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return Texture.EMPTY;
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, tile, tile);
-  for (let y = 0; y < tile; y += cell) {
-    for (let x = 0; x < tile; x += cell) {
-      const over = (x / cell + y / cell) % 2 === 0;
-      ctx.fillStyle = over ? "rgba(0,0,0,0.05)" : "rgba(0,0,0,0.11)";
-      ctx.fillRect(x, y, cell, cell);
-    }
-  }
-  ctx.strokeStyle = "rgba(0,0,0,0.07)";
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= tile; i += cell) {
-    ctx.beginPath();
-    ctx.moveTo(i + 0.5, 0);
-    ctx.lineTo(i + 0.5, tile);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(0, i + 0.5);
-    ctx.lineTo(tile, i + 0.5);
-    ctx.stroke();
-  }
-  fabricTextureCache = Texture.from(canvas);
-  return fabricTextureCache;
-}
+const materialTextures = new Map<"fabric" | "vignette" | "light", Texture>();
 
-let vignetteTextureCache: Texture | null = null;
-function getVignetteTexture(): Texture {
-  if (vignetteTextureCache) return vignetteTextureCache;
-  const size = 256;
+function getMaterialTexture(kind: "fabric" | "vignette" | "light"): Texture {
+  const cached = materialTextures.get(kind);
+  if (cached) return cached;
+  const size = kind === "fabric" ? 64 : 128;
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return Texture.EMPTY;
-  const c = size / 2;
-  const gradient = ctx.createRadialGradient(c, c, size * 0.3, c, c, size * 0.62);
-  gradient.addColorStop(0, "rgba(0,0,0,0)");
-  gradient.addColorStop(0.75, "rgba(0,0,0,0.35)");
-  gradient.addColorStop(1, "rgba(0,0,0,0.92)");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-  vignetteTextureCache = Texture.from(canvas);
-  return vignetteTextureCache;
+  const ctx = canvas.getContext("2d")!;
+  const pixels = ctx.createImageData(size, size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const offset = (y * size + x) * 4;
+      const distance = Math.hypot((x + 0.5) / size - 0.5, (y + 0.5) / size - 0.5) * 2;
+      const weave = (Math.floor(x / 2) + Math.floor(y / 2)) % 2 === 0;
+      const grain = ((x * 37 + y * 17 + x * y * 13) % 31) / 31;
+      const alpha =
+        kind === "fabric"
+          ? (weave ? 0.35 : 0.65) + grain * 0.2
+          : kind === "light"
+            ? Math.pow(Math.max(0, 1 - distance), 2)
+            : Math.pow(clamp01((distance - 0.25) / 0.95), 2);
+      pixels.data[offset] = 255;
+      pixels.data[offset + 1] = 255;
+      pixels.data[offset + 2] = 255;
+      pixels.data[offset + 3] = Math.round(alpha * 255);
+    }
+  }
+  ctx.putImageData(pixels, 0, 0);
+  const texture = Texture.from(canvas);
+  materialTextures.set(kind, texture);
+  return texture;
 }
 
 export class PlaymatLayer {
@@ -177,6 +153,9 @@ export class PlaymatLayer {
   private image: Sprite;
   private fabric: TilingSprite;
   private vignette: Sprite;
+  private lightPool: Sprite;
+  private seatLight: Sprite;
+  private overlays: (Sprite | TilingSprite)[];
   private border: Graphics;
   private mask: Graphics;
   private imageTexture: Texture | null = null;
@@ -187,6 +166,11 @@ export class PlaymatLayer {
   private rect: PlayZoneRect | null = null;
   private dropActive = false;
   private mirrored = false;
+  private seatColor: string | null = null;
+  private seatActive = false;
+  private materialDirty = true;
+  private materialTheme: GameTheme | null = null;
+  private insetRect: PlayZoneRect = { x: 0, y: 0, width: 0, height: 0 };
 
   constructor() {
     this.container = new Container();
@@ -197,14 +181,17 @@ export class PlaymatLayer {
     this.colorFill = new Graphics();
     this.image = new Sprite();
     this.image.anchor.set(0.5);
-    this.image.tint = PLAYMAT_TINT;
     this.image.visible = false;
-    this.fabric = new TilingSprite({ texture: getFabricTexture() });
+    this.fabric = new TilingSprite({ texture: getMaterialTexture("fabric") });
     this.fabric.tileScale.set(PLAYMAT_FABRIC_TILE_SCALE);
-    this.fabric.blendMode = "multiply";
-    this.vignette = new Sprite(getVignetteTexture());
+    this.vignette = new Sprite(getMaterialTexture("vignette"));
     this.vignette.alpha = PLAYMAT_VIGNETTE_ALPHA;
-    this.content.addChild(this.colorFill, this.image, this.fabric, this.vignette);
+    this.lightPool = new Sprite(getMaterialTexture("light"));
+    this.lightPool.alpha = 0.08;
+    this.seatLight = new Sprite(getMaterialTexture("light"));
+    this.seatLight.visible = false;
+    this.overlays = [this.fabric, this.vignette, this.lightPool, this.seatLight];
+    this.content.addChild(this.colorFill, this.image, ...this.overlays);
 
     this.mask = new Graphics();
     this.border = new Graphics();
@@ -226,13 +213,16 @@ export class PlaymatLayer {
       return;
     }
     const img = new Image();
+    this.materialDirty = true;
     // The blur and brightness filters read this texture back through WebGL,
     // which throws on a tainted cross-origin image.
     img.crossOrigin = "anonymous";
     img.onload = () => {
+      if (this.container.destroyed) return;
       if (this.url !== next) return;
       this.imageTexture?.destroy(true);
       this.imageTexture = new Texture({ source: new ImageSource({ resource: img }) });
+      this.materialDirty = true;
       this.image.texture = this.imageTexture;
       this.image.visible = true;
       this.updateVisibility();
@@ -243,6 +233,7 @@ export class PlaymatLayer {
 
   setSettings(settings: PlaymatSettings | undefined): void {
     this.settings = { ...DEFAULT_PLAYMAT_SETTINGS, ...(settings ?? {}) };
+    this.materialDirty = true;
     this.applySettings();
     this.updateVisibility();
     if (this.rect) this.layout(this.rect, { dropActive: this.dropActive });
@@ -251,11 +242,12 @@ export class PlaymatLayer {
   setMirrored(mirrored: boolean): void {
     if (mirrored === this.mirrored) return;
     this.mirrored = mirrored;
+    this.materialDirty = true;
     if (this.rect) this.layout(this.rect, { dropActive: this.dropActive });
   }
 
   private updateVisibility(): void {
-    this.container.visible = !!this.url || !!this.settings.color;
+    this.container.visible = this.rect !== null;
   }
 
   private applySettings(): void {
@@ -275,23 +267,61 @@ export class PlaymatLayer {
     this.image.filters = filters;
   }
 
+  setSeatState(color: string, active: boolean): void {
+    if (this.seatColor === color && this.seatActive === active) return;
+    const colorChanged = this.seatColor !== color;
+    this.seatColor = color;
+    this.seatActive = active;
+    this.seatLight.tint = hexToNum(color);
+    this.seatLight.alpha = active ? 0.18 : 0.045;
+    this.seatLight.visible = true;
+    this.lightPool.alpha = active ? 0.12 : 0.08;
+    if (colorChanged) {
+      this.materialDirty = true;
+      if (this.rect) this.layout(this.rect, { dropActive: this.dropActive });
+    }
+  }
+
   layout(rect: PlayZoneRect, opts: { dropActive: boolean }): void {
     this.rect = rect;
     this.dropActive = opts.dropActive;
-
+    this.updateVisibility();
+    const opacity = clamp01(this.settings.opacity);
+    this.content.alpha = opts.dropActive ? opacity * PLAYMAT_DROP_DIM : opacity;
+    this.border.alpha = this.content.alpha;
+    const gt = getTheme().gameTheme;
     const pad = playmatPad(rect.width, rect.height);
-    const r = {
-      x: rect.x + pad,
-      y: rect.y + pad,
-      width: Math.max(1, rect.width - pad * 2),
-      height: Math.max(1, rect.height - pad * 2),
-    };
+    const x = rect.x + pad;
+    const y = rect.y + pad;
+    const width = Math.max(1, rect.width - pad * 2);
+    const height = Math.max(1, rect.height - pad * 2);
+    const r = this.insetRect;
+    if (
+      !this.materialDirty &&
+      this.materialTheme === gt &&
+      r.x === x &&
+      r.y === y &&
+      r.width === width &&
+      r.height === height
+    )
+      return;
+    this.materialDirty = false;
+    this.materialTheme = gt;
+    r.x = x;
+    r.y = y;
+    r.width = width;
+    r.height = height;
+    this.fabric.tint = hexToNum(gt.canvas.shadow);
+    this.vignette.tint = hexToNum(gt.canvas.shadow);
+    this.lightPool.tint = hexToNum(gt.textOnTinted);
 
     this.colorFill.clear();
-    if (this.settings.color) {
-      this.colorFill.rect(r.x, r.y, r.width, r.height);
-      this.colorFill.fill({ color: hexToNum(clampPlaymatColor(this.settings.color)) });
-    }
+    this.colorFill.rect(r.x, r.y, r.width, r.height);
+    this.colorFill.fill({
+      color: hexToNum(
+        this.settings.color ? clampPlaymatColor(this.settings.color) : gt.canvas.background,
+      ),
+    });
 
     const tw = this.image.texture.width || 1;
     const th = this.image.texture.height || 1;
@@ -320,7 +350,7 @@ export class PlaymatLayer {
       this.image.y = cy + (0.5 - oy) * (th * scale - r.height);
     }
 
-    for (const overlay of [this.fabric, this.vignette]) {
+    for (const overlay of this.overlays) {
       overlay.x = r.x;
       overlay.y = r.y;
       overlay.width = r.width;
@@ -329,7 +359,7 @@ export class PlaymatLayer {
 
     this.mask.clear();
     this.mask.roundRect(r.x, r.y, r.width, r.height, TABLE_RADIUS);
-    this.mask.fill({ color: 0xffffff });
+    this.mask.fill({ color: hexToNum(gt.canvas.neutral) });
 
     this.border.clear();
     const bw = this.settings.borderWidth;
@@ -343,13 +373,20 @@ export class PlaymatLayer {
       );
       this.border.stroke({
         width: bw,
-        color: hexToNum(clampBorderColor(this.settings.borderColor)),
+        color: hexToNum(this.seatColor ?? gt.canvas.neutral),
       });
     }
-
-    const opacity = clamp01(this.settings.opacity);
-    this.content.alpha = opts.dropActive ? opacity * PLAYMAT_DROP_DIM : opacity;
-    this.border.alpha = this.content.alpha;
+    const inset = Math.max(3, bw + 1);
+    if (r.width > inset * 2 && r.height > inset * 2) {
+      this.border.roundRect(
+        r.x + inset,
+        r.y + inset,
+        r.width - inset * 2,
+        r.height - inset * 2,
+        Math.max(0, TABLE_RADIUS - inset),
+      );
+      this.border.stroke({ color: hexToNum(gt.textOnTinted), width: 1, alpha: 0.08 });
+    }
   }
 
   destroy(): void {

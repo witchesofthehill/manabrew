@@ -261,6 +261,13 @@ export function CardPreview({
   useEffect(() => {
     if (!onDismiss) return;
     function handleKey(e: KeyboardEvent) {
+      if (e.defaultPrevented || e.repeat || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (
+        e.target instanceof HTMLElement &&
+        e.target.closest("input, textarea, select, [contenteditable=true]")
+      ) {
+        return;
+      }
       if (e.key === "Escape") {
         onDismiss!();
         return;
@@ -277,6 +284,7 @@ export function CardPreview({
       );
       if (num >= 1 && num <= 9 && action) {
         e.preventDefault();
+        e.stopImmediatePropagation();
         onSelectAction!(action);
       }
     }

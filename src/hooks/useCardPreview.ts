@@ -3,8 +3,13 @@ import type { CardDto } from "@/protocol/game";
 import { CardPreviewMachine } from "@/lib/cardPreview";
 import { usePreferencesStore, type CardPreviewMode } from "@/stores/usePreferencesStore";
 
-function isModifierHeld(e: React.MouseEvent | MouseEvent, mode: CardPreviewMode): boolean {
+function isModifierHeld(
+  e: Pick<KeyboardEvent, "shiftKey" | "altKey" | "ctrlKey" | "metaKey">,
+  mode: CardPreviewMode,
+): boolean {
   switch (mode) {
+    case "click":
+      return false;
     case "hover":
       return true;
     case "shift":
@@ -15,13 +20,6 @@ function isModifierHeld(e: React.MouseEvent | MouseEvent, mode: CardPreviewMode)
       return e.ctrlKey || e.metaKey;
   }
 }
-
-const MODIFIER_KEYS: Record<string, CardPreviewMode[]> = {
-  Shift: ["shift"],
-  Alt: ["alt"],
-  Control: ["ctrl"],
-  Meta: ["ctrl"],
-};
 
 const ignorePreviewUpdates = () => () => undefined;
 
@@ -48,6 +46,7 @@ export function useCardPreview(dismissDeps: unknown[] = [], options: { subscribe
   modeRef.current = cardPreviewMode;
   const delayRef = useRef(cardHoverDelayMs);
   delayRef.current = cardHoverDelayMs;
+  const keysRef = useRef({ shiftKey: false, altKey: false, ctrlKey: false, metaKey: false });
 
   const handleMouseEnter = useCallback(
     (card: CardDto, e?: React.MouseEvent, options: HoverOptions = {}) => {
@@ -55,7 +54,7 @@ export function useCardPreview(dismissDeps: unknown[] = [], options: { subscribe
         machine.dismiss();
         return;
       }
-      if (e && !isModifierHeld(e, modeRef.current)) return;
+      if (!isModifierHeld(e ?? keysRef.current, modeRef.current)) return;
       machine.hoverStart(card, {
         pointer: e ? { x: e.clientX, y: e.clientY } : undefined,
         anchorRect:
@@ -98,14 +97,35 @@ export function useCardPreview(dismissDeps: unknown[] = [], options: { subscribe
   });
 
   useEffect(() => {
-    if (cardPreviewMode === "hover") return;
-    function handleKeyUp(e: KeyboardEvent) {
-      if (MODIFIER_KEYS[e.key]?.includes(cardPreviewMode) && !machine.getSnapshot().sticky) {
+    if (!machine.getSnapshot().sticky) machine.dismiss();
+    const updateKeys = (event: KeyboardEvent | PointerEvent) => {
+      const wasHeld = isModifierHeld(keysRef.current, cardPreviewMode);
+      keysRef.current.shiftKey = event.shiftKey;
+      keysRef.current.altKey = event.altKey;
+      keysRef.current.ctrlKey = event.ctrlKey;
+      keysRef.current.metaKey = event.metaKey;
+      if (wasHeld && !isModifierHeld(event, cardPreviewMode) && !machine.getSnapshot().sticky) {
         machine.dismiss();
       }
-    }
-    window.addEventListener("keyup", handleKeyUp);
-    return () => window.removeEventListener("keyup", handleKeyUp);
+    };
+    const clearKeys = () => {
+      keysRef.current = { shiftKey: false, altKey: false, ctrlKey: false, metaKey: false };
+      if (!machine.getSnapshot().sticky) machine.dismiss();
+    };
+    window.addEventListener("keydown", updateKeys, true);
+    window.addEventListener("keyup", updateKeys, true);
+    window.addEventListener("pointerover", updateKeys, true);
+    window.addEventListener("pointerdown", updateKeys, true);
+    window.addEventListener("pointermove", updateKeys, true);
+    window.addEventListener("blur", clearKeys);
+    return () => {
+      window.removeEventListener("keydown", updateKeys, true);
+      window.removeEventListener("keyup", updateKeys, true);
+      window.removeEventListener("pointerover", updateKeys, true);
+      window.removeEventListener("pointerdown", updateKeys, true);
+      window.removeEventListener("pointermove", updateKeys, true);
+      window.removeEventListener("blur", clearKeys);
+    };
   }, [cardPreviewMode, machine]);
 
   useEffect(() => () => machine.destroy(), [machine]);

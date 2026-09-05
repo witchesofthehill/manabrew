@@ -9,7 +9,7 @@ import { BoardScene, type BoardPlayerSpec } from "./board/BoardScene";
 import { computeBoardLayout, type RegionOrientation } from "./board/boardLayout";
 import type { PlayerHudSpec as PlayerBarSpec } from "./hud/playerHud.types";
 import type { ZoneTileSpec } from "./board/BoardZoneTiles";
-import { battlefieldScaleForMultiplier, combatRowReserve, maxScaleForRows } from "./GridLayout";
+import { battlefieldScaleForMultiplier, scaleForRowsWithCombatRow } from "./GridLayout";
 import { playmatPad } from "./board/PlaymatLayer";
 import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme } from "@/hooks/useTheme";
@@ -18,9 +18,8 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { isCoarsePointer } from "@/lib/responsive";
 import { registerPixiApp } from "./visibility";
 import {
-  BATTLEFIELD_CARD_SCALE_FLOOR,
-  BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT,
   BATTLEFIELD_MIN_ROWS,
+  BATTLEFIELD_MIN_ROWS_LARGEST,
   FIELD_INNER_EDGE_PAD_PX,
   HAND_ACTIONS_CLEAR_DELAY_MS,
   HAND_ACTIONS_GAP_PX,
@@ -39,7 +38,7 @@ import { RotateCw } from "lucide-react";
 /** Matches HandCardActions `w-[220px]`. */
 const HAND_ACTIONS_PANEL_W = 220;
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import type { CardDto, PlaymatSettings } from "@/protocol/game";
+import type { CardDto, PlaymatSettings, ZoneDto } from "@/protocol/game";
 import type { AttackTargetDto } from "@/protocol/prompts/common";
 import type {
   ArrowSpec,
@@ -91,6 +90,9 @@ interface BoardCanvasProps {
   phaseStrip: PhaseStripState;
   phaseStripCallbacks?: PhaseStripCallbacks;
   compact?: boolean;
+  opponentLayout?: "focused" | "overview";
+  focusLocked?: boolean;
+  zones?: ZoneDto[];
   /** The opponent whose field auto-expands (their turn), or `null` for an even
    *  split (our turn). The scene owns + eases the delimiters; this sets the
    *  target. */
@@ -138,6 +140,9 @@ export function BoardCanvas({
   phaseStrip,
   phaseStripCallbacks,
   compact,
+  opponentLayout = "focused",
+  focusLocked = false,
+  zones,
   focusedOpponentId,
   combatFocusIds,
   manualFocusId,
@@ -239,6 +244,7 @@ export function BoardCanvas({
       onAttackerClick: (...a) => callbacksRef.current.onAttackerClick?.(...a),
       onAssignBlock: (...a) => callbacksRef.current.onAssignBlock?.(...a),
       onUnassignBlock: (...a) => callbacksRef.current.onUnassignBlock?.(...a),
+      onLongPressCard: (...a) => callbacksRef.current.onLongPressCard?.(...a),
       onBlockDragChange: (...a) => callbacksRef.current.onBlockDragChange?.(...a),
       onAssignAttacker: (...a) => callbacksRef.current.onAssignAttacker?.(...a),
       onUnassignAttacker: (...a) => callbacksRef.current.onUnassignAttacker?.(...a),
@@ -340,58 +346,40 @@ export function BoardCanvas({
       opponentCount,
       selfBottomReserve ?? 0,
       compact ?? false,
+      opponentLayout,
     );
     s.setCompactMode(compact ?? false);
-    // Each region is scaled to fill its OWN height — a single shared scale let
-    // the tightest field (self, after the hand-fan reserve) shrink everyone, so
-    // the roomier opponent fields wasted space. Every field follows the card
-    // size multiplier (100% = 3-row board), clamped per field to a 2-row
-    // fill; compact locks to 3 rows regardless.
-    const scaleFloor = compact
-      ? BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT
-      : BATTLEFIELD_CARD_SCALE_FLOOR;
-    // The region's playArea insets the usable zone by the playmat pad on every
-    // edge before laying rows, so the pad must come off before picking the
-    // scale on EVERY platform — the exact joint solve fills the height it is
-    // given, and an un-trimmed height makes the real grid floor a row short
-    // (a 2-row fill rendered as a single row). The old desktop path only
-    // survived without the trim because its two-pass band estimate under-sized
-    // cards enough to leave slack.
+    s.setFocusLocked(focusLocked);
     const playmatTrim = (usable: number, width: number) =>
       Math.max(1, usable - playmatPad(width, usable) - FIELD_INNER_EDGE_PAD_PX);
     const selfUsable = playmatTrim(
       Math.max(1, layout.self.height - (selfBottomReserve ?? 0)),
       layout.self.width,
     );
-    const compactSelfBand = combatRowReserve(maxScaleForRows(selfUsable, BATTLEFIELD_MIN_ROWS));
-    const selfScale = compact
-      ? Math.max(
-          scaleFloor,
-          maxScaleForRows(Math.max(1, selfUsable - compactSelfBand), BATTLEFIELD_MIN_ROWS),
-        )
-      : battlefieldScaleForMultiplier(selfUsable, cardSizeMultiplier);
-    // No top reserve: the opponent HUD is a keep-out blocker, so the grid uses
-    // the full field height (the avatar's top-left cells are blocked instead).
+    const selfScale = Math.max(
+      Number.EPSILON,
+      compact
+        ? scaleForRowsWithCombatRow(selfUsable, BATTLEFIELD_MIN_ROWS)
+        : Math.min(
+            battlefieldScaleForMultiplier(selfUsable, cardSizeMultiplier),
+            scaleForRowsWithCombatRow(selfUsable, BATTLEFIELD_MIN_ROWS_LARGEST),
+          ),
+    );
     const oppUsables = layout.opponents.map((o) =>
       playmatTrim(Math.max(1, o.rect.height), o.rect.width),
     );
     const oppUsable = oppUsables.length ? Math.min(...oppUsables) : selfUsable;
-    const compactOppBand = combatRowReserve(maxScaleForRows(oppUsable, BATTLEFIELD_MIN_ROWS));
-    const oppScale = compact
-      ? Math.max(
-          scaleFloor,
-          maxScaleForRows(Math.max(1, oppUsable - compactOppBand), BATTLEFIELD_MIN_ROWS),
-        )
-      : battlefieldScaleForMultiplier(oppUsable, cardSizeMultiplier);
+    const oppRows = layout.opponentLayout === "overview" ? 1 : BATTLEFIELD_MIN_ROWS_LARGEST;
+    const oppScale = Math.max(
+      Number.EPSILON,
+      compact
+        ? scaleForRowsWithCombatRow(oppUsable, BATTLEFIELD_MIN_ROWS)
+        : Math.min(
+            battlefieldScaleForMultiplier(oppUsable, cardSizeMultiplier),
+            scaleForRowsWithCombatRow(oppUsable, oppRows),
+          ),
+    );
     s.configure(players, layout, { self: selfScale, opponent: oppScale });
-    // The hand fan gets `useHandScale` — viewport factor times the DAMPED
-    // card-size multiplier — the exact number the hand reserve (GameBoard)
-    // and drag ghosts are computed from, so the fan and the grid can never
-    // disagree (a fan bigger than its reserve swallows the bottom battlefield
-    // row through its cell blocker). Growth is additionally capped at a
-    // fraction of the field height in HandController.setScale. Compact keeps
-    // the fixed fan its mobile layout was tuned for. Applied after configure
-    // so a rebuilt HandController picks it up and the cap re-evaluates.
     s.setHandScale(compact ? 1 : handViewportScale);
     const next: BoardCanvasLayout = {
       self: layout.self,
@@ -411,6 +399,8 @@ export function BoardCanvas({
     cardSizeMultiplier,
     handViewportScale,
     compact,
+    opponentLayout,
+    focusLocked,
     selfBottomReserve,
     showPlayerBars,
   ]);
@@ -447,15 +437,16 @@ export function BoardCanvas({
       lastRegionStateRef.current.clear();
       lastRegionSceneRef.current = scene;
     }
+    const liveIds = new Set<string>();
+    for (const r of regions) for (const c of r.state.cards) liveIds.add(c.id);
+    scene.setZoneDestinations(zones ?? [], liveIds);
     for (const r of regions) {
       if (!seeding && lastRegionStateRef.current.get(r.playerId) === r.state) continue;
       lastRegionStateRef.current.set(r.playerId, r.state);
       scene.updateRegionState(r.playerId, r.state);
     }
-    const liveIds = new Set<string>();
-    for (const r of regions) for (const c of r.state.cards) liveIds.add(c.id);
     scene.pruneCardPositions(liveIds);
-  }, [scene, regions]);
+  }, [scene, regions, zones]);
 
   useEffect(() => {
     scene?.setOpponentFocus(focusedOpponentId ?? null);

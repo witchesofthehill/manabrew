@@ -54,8 +54,6 @@ export interface HandHitZone {
   height: number;
 }
 
-/** A single battlefield card's sprite plus its animation targets and the
- *  lazily-created action overlay (tap/untap/mana buttons). */
 export interface SpriteEntry {
   sprite: CardSprite;
   targetX: number;
@@ -79,9 +77,6 @@ export interface SpriteEntry {
    *  update that transiently drops the card's actions (prompt round-trips)
    *  must not blink the overlay. */
   overlayActive?: boolean;
-  /** Spec signature of the current overlay children; unchanged specs skip the
-   *  rebuild so buttons aren't destroyed under the cursor on every state. */
-  overlaySig?: string;
 }
 
 /** Narrow seam the `BattlefieldOverlay` uses to read scene state and drive
@@ -91,7 +86,6 @@ export interface OverlayHost {
   getTheme(): Theme;
   getCallbacks(): GameCanvasCallbacks;
   getContainer(): Container;
-  getSelectedCardIds(): ReadonlySet<string>;
   getLastState(): BattlefieldState | null;
   getEntries(): ReadonlyMap<string, SpriteEntry>;
   isJustDragged(cardId: string): boolean;
@@ -99,8 +93,6 @@ export interface OverlayHost {
   cancelHoverClear(): void;
   setCardHovered(sprite: CardSprite, force?: boolean): void;
   scheduleHoverClear(cardId: string): void;
-  getCardScale(): number;
-  isCompact(): boolean;
 }
 
 /** Narrow seam a `BoardRegion` uses to reach orchestrator-level services
@@ -130,6 +122,8 @@ export interface RegionHost {
     cardId: string,
     seed: { x: number; y: number; scaleX: number; scaleY: number },
   ): void;
+  getExitTarget(cardId: string): { x: number; y: number } | null;
+  isBattlefieldCard(cardId: string): boolean;
   isSelected(cardId: string): boolean;
   rebuildOverlay(entry: SpriteEntry, state: BattlefieldState): void;
   wireSprite(sprite: CardSprite): void;

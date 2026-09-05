@@ -13,7 +13,7 @@ import { hexToNum } from "../colorUtils";
 import { applyIcon } from "../panelIcons";
 import { CardSprite, loadCardBack } from "../CardSprite";
 
-import { CARD_W } from "@/components/game/game.constants";
+import { CARD_W, ZONE_BADGES, ZONE_TILE_KEY } from "@/components/game/game.constants";
 import { CARD_RADIUS } from "../constants";
 import { LongPressGesture } from "../LongPressGesture";
 
@@ -27,6 +27,7 @@ export interface ZoneTileSpec {
   /** Seat colour for the commander helm badge; absent when the zone holds no
    *  commander. */
   commander?: string;
+  commanderTax?: number;
   onOpen?: () => void;
 }
 
@@ -45,22 +46,19 @@ interface Tile {
   spec: ZoneTileSpec;
   container: Container;
   outline: Graphics;
+  stack: Graphics;
   face: CardSprite | null;
   back: Sprite | null;
   icon: Text;
   iconSprite: Sprite;
-  badge: Sprite | null;
   countText: Text;
+  taxText: Text;
 }
 
 const DRAG_THRESHOLD_PX = 4;
 const DRAG_Z = 1000;
 
-const ZONE_ICONS: Record<string, string> = { cmd: "♛", lib: "▦" };
-
-/** Zones drawn with a rasterised `panelIcons` SVG instead of a text glyph —
- *  the same tombstone/vortex icons the scry prompt uses. */
-const ZONE_ICON_SVG: Record<string, string> = { gy: "graveyard", ex: "exile" };
+const MIN_ZONE_TARGET_PX = 44;
 
 export class BoardZoneTiles {
   readonly container = new Container();
@@ -139,7 +137,11 @@ export class BoardZoneTiles {
     container.eventMode = "static";
     container.cursor = "pointer";
     const outline = new Graphics();
-    const icon = new Text({ text: ZONE_ICONS[spec.key] ?? "", style: { fontSize: 24 } });
+    const stack = new Graphics();
+    const icon = new Text({
+      text: spec.label,
+      style: { fontFamily: "system-ui, sans-serif", fontSize: 10, fontWeight: "500" },
+    });
     icon.anchor.set(0.5);
     const iconSprite = new Sprite(Texture.EMPTY);
     iconSprite.anchor.set(0.5);
@@ -154,18 +156,29 @@ export class BoardZoneTiles {
       },
     });
     countText.anchor.set(0.5);
-    container.addChild(outline, icon, iconSprite, countText);
+    const taxText = new Text({
+      text: "",
+      style: {
+        fontFamily: "system-ui, sans-serif",
+        fontSize: 11,
+        fontWeight: "700",
+        fill: hexToNum(this.theme.gameTheme.textOnTinted),
+      },
+    });
+    taxText.anchor.set(0.5);
+    container.addChild(stack, outline, icon, iconSprite, countText, taxText);
     this.container.addChild(container);
     const tile: Tile = {
       spec,
       container,
       outline,
+      stack,
       face: null,
       back: null,
       icon,
       iconSprite,
-      badge: null,
       countText,
+      taxText,
     };
 
     container.on("pointerdown", (e: FederatedPointerEvent) => {
@@ -254,7 +267,7 @@ export class BoardZoneTiles {
       }
       if (!tile.back) {
         tile.back = new Sprite(Texture.EMPTY);
-        tile.container.addChildAt(tile.back, 0);
+        tile.container.addChildAt(tile.back, 1);
         this.ensureCardBack();
       }
       return;
@@ -268,7 +281,7 @@ export class BoardZoneTiles {
       const faceCard = { ...spec.topCard, summoningSick: false };
       if (!tile.face) {
         tile.face = new CardSprite(faceCard, "zone");
-        tile.container.addChildAt(tile.face, 0);
+        tile.container.addChildAt(tile.face, 1);
       }
       tile.face.updateCardContent(faceCard);
     }
@@ -288,155 +301,127 @@ export class BoardZoneTiles {
     if (cardW <= 0 || cardH <= 0) return;
     const gt = this.theme.gameTheme;
     const neutral = hexToNum(gt.canvas.neutral);
+    const shadow = hexToNum(gt.canvas.shadow);
+    const k = Math.min(1, cardW / CARD_W);
+    const radius = CARD_RADIUS * k;
+    const padX = Math.max(this.hitPad, (MIN_ZONE_TARGET_PX - cardW) / 2);
+    const padY = Math.max(this.hitPad, (MIN_ZONE_TARGET_PX - cardH) / 2);
     for (const spec of this.specs) {
       const tile = this.tiles.get(spec.key);
       const pos = this.placements.get(spec.key);
       if (!tile || !pos) continue;
       if (this.drag?.tile !== tile) tile.container.position.set(pos.x, pos.y);
-      tile.container.hitArea = new Rectangle(
-        -this.hitPad,
-        -this.hitPad,
-        cardW + this.hitPad * 2,
-        cardH + this.hitPad * 2,
-      );
+      tile.container.hitArea = new Rectangle(-padX, -padY, cardW + padX * 2, cardH + padY * 2);
       const hl = spec.highlightColor ? hexToNum(spec.highlightColor) : null;
       const hasContent = spec.count > 0;
-
+      const isLibrary = spec.key === ZONE_TILE_KEY.library;
+      const isCommand = spec.key === ZONE_TILE_KEY.command;
+      const identity = spec.commander ?? gt.textMuted;
+      const color = hl ?? hexToNum(identity);
+      const iconKey = isCommand ? "overlord-helm" : ZONE_BADGES[spec.key]?.icon;
+      const iconSize = Math.round(cardW * (hasContent ? 0.2 : 0.32));
       tile.outline.clear();
+      tile.stack.clear();
 
+      if (hasContent && isLibrary) {
+        const layers = Math.min(4, Math.ceil(spec.count / 20));
+        for (let layer = layers; layer > 0; layer--) {
+          const offset = layer * 1.8 * k;
+          tile.stack.roundRect(offset, offset, cardW, cardH, radius);
+          tile.stack.fill({ color: shadow, alpha: 0.95 });
+          tile.stack.stroke({ color: neutral, width: Math.max(0.75, k), alpha: 0.65 });
+        }
+      }
+      if (tile.back) {
+        tile.back.visible = hasContent;
+        tile.back.width = cardW;
+        tile.back.height = cardH;
+        tile.back.position.set(0, 0);
+      }
+      if (tile.face) {
+        tile.face.visible = hasContent && !!spec.topCard;
+        tile.face.scale.set(cardW / CARD_W);
+        tile.face.position.set(cardW / 2, cardH / 2);
+      }
+      tile.icon.visible = !hasContent;
+      tile.icon.text = spec.label;
+      tile.icon.style.fontSize = Math.max(9, Math.round(10 * k));
+      tile.icon.style.fill = color;
+      tile.icon.alpha = hl !== null ? 1 : 0.75;
+      tile.icon.position.set(cardW / 2, cardH / 2 + iconSize * 0.8);
+      tile.iconSprite.visible = !!iconKey && (!hasContent || !isLibrary);
+      if (iconKey) {
+        applyIcon(
+          tile.iconSprite,
+          iconKey,
+          spec.highlightColor ?? identity,
+          64,
+          iconSize,
+          iconSize,
+        );
+        tile.iconSprite.alpha = hasContent || hl !== null ? 1 : 0.7;
+        tile.iconSprite.position.set(
+          hasContent ? iconSize / 2 + 5 * k : cardW / 2,
+          hasContent ? iconSize / 2 + 5 * k : cardH / 2 - iconSize * 0.15,
+        );
+      }
+
+      if (hasContent || hl !== null || isCommand) {
+        tile.outline.roundRect(0, 0, cardW, cardH, radius);
+        tile.outline.stroke({
+          color: hl ?? (isCommand ? color : neutral),
+          width: hl !== null ? 2.5 : isCommand ? 1.5 : 1,
+          alpha: hl !== null ? 0.95 : isCommand ? 0.6 : 0.35,
+        });
+      }
+      if (!hasContent) {
+        const etchY = cardH / 2 + iconSize * 1.2;
+        tile.outline.moveTo(cardW * 0.35, etchY);
+        tile.outline.lineTo(cardW * 0.65, etchY);
+        tile.outline.stroke({ color, width: 1, alpha: 0.3 });
+      } else if (tile.iconSprite.visible) {
+        const badgeRadius = iconSize / 2 + 3 * k;
+        tile.outline.circle(tile.iconSprite.x, tile.iconSprite.y, badgeRadius);
+        tile.outline.fill({ color: shadow, alpha: 0.9 });
+        if (isCommand) {
+          tile.outline.stroke({ color, width: 1, alpha: 0.8 });
+        }
+      }
+
+      tile.countText.visible = hasContent;
       if (hasContent) {
-        tile.icon.visible = false;
-        tile.iconSprite.visible = false;
-        if (tile.back) {
-          tile.back.visible = true;
-          tile.back.width = cardW;
-          tile.back.height = cardH;
-          tile.back.position.set(0, 0);
-        }
-        if (tile.face) {
-          tile.face.visible = true;
-          tile.face.scale.set(cardW / CARD_W);
-          tile.face.position.set(cardW / 2, cardH / 2);
-        }
-        tile.outline.roundRect(0, 0, cardW, cardH, CARD_RADIUS);
-        tile.outline.stroke({ color: hl ?? neutral, width: hl ? 2.5 : 1, alpha: hl ? 0.95 : 0.5 });
-
-        tile.countText.visible = true;
         tile.countText.style.fill = hexToNum(gt.textOnTinted);
-        const k = Math.min(1, cardW / CARD_W);
-        tile.countText.style.fontSize = Math.max(8, Math.round(12 * k));
+        tile.countText.style.fontSize = Math.max(10, Math.round(12 * k));
         tile.countText.text = String(spec.count);
         const pillW = tile.countText.width + 12 * k;
-        const pillH = 17 * k;
-        const pillX = (cardW - pillW) / 2;
+        const pillH = Math.max(16, 18 * k);
         const pillY = cardH - pillH - 3 * k;
-        tile.outline.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
-        tile.outline.fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.78 });
+        tile.outline.roundRect((cardW - pillW) / 2, pillY, pillW, pillH, pillH / 2);
+        tile.outline.fill({ color: shadow, alpha: 0.94 });
         tile.countText.position.set(cardW / 2, pillY + pillH / 2);
+      }
 
-        if (spec.commander) {
-          if (!tile.badge) {
-            tile.badge = new Sprite(Texture.EMPTY);
-            tile.badge.anchor.set(0.5);
-            tile.container.addChild(tile.badge);
-          }
-          const br = Math.round(cardW * 0.19);
-          const bcx = br + 3;
-          const bcy = br + 3;
-          tile.outline.circle(bcx, bcy, br);
-          tile.outline.fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.85 });
-          tile.outline.circle(bcx, bcy, br);
-          tile.outline.stroke({ color: hexToNum(spec.commander), width: 1.5, alpha: 0.9 });
-          const bs = Math.round(br * 1.5);
-          applyIcon(tile.badge, "overlord-helm", spec.commander, 64, bs, bs);
-          tile.badge.position.set(bcx, bcy);
-          tile.badge.visible = true;
-        } else if (tile.badge) {
-          tile.badge.visible = false;
-        }
-      } else {
-        if (tile.badge) tile.badge.visible = false;
-        if (tile.back) tile.back.visible = false;
-        if (tile.face) tile.face.visible = false;
-        tile.countText.visible = false;
-        const color = hl ?? neutral;
-        this.dottedRoundRect(tile.outline, cardW, cardH, CARD_RADIUS, color, hl ? 0.9 : 0.45);
-        const svgKey = ZONE_ICON_SVG[spec.key];
-        if (svgKey) {
-          tile.icon.visible = false;
-          tile.iconSprite.visible = true;
-          const size = Math.round(cardW * 0.5);
-          applyIcon(
-            tile.iconSprite,
-            svgKey,
-            spec.highlightColor ?? gt.canvas.neutral,
-            64,
-            size,
-            size,
-          );
-          tile.iconSprite.alpha = hl ? 0.95 : 0.55;
-          tile.iconSprite.position.set(cardW / 2, cardH / 2);
-        } else {
-          tile.iconSprite.visible = false;
-          tile.icon.visible = true;
-          tile.icon.text = ZONE_ICONS[spec.key] ?? "";
-          tile.icon.style = { fontSize: Math.round(cardW * 0.42), fill: color };
-          tile.icon.alpha = hl ? 0.95 : 0.55;
-          tile.icon.position.set(cardW / 2, cardH / 2);
-        }
+      tile.taxText.visible = isCommand && spec.commanderTax !== undefined;
+      if (tile.taxText.visible) {
+        tile.taxText.text = `Tax +${spec.commanderTax}`;
+        tile.taxText.style.fill = hexToNum(gt.textOnTinted);
+        tile.taxText.style.fontSize = Math.max(9, Math.round(11 * k));
+        const taxW = tile.taxText.width + 8 * k;
+        const taxH = Math.max(16, 18 * k);
+        const taxY = hasContent ? cardH - taxH * 2 - 5 * k : cardH - taxH - 3 * k;
+        tile.outline.roundRect((cardW - taxW) / 2, taxY, taxW, taxH, taxH / 2);
+        tile.outline.fill({ color: shadow, alpha: 0.94 });
+        tile.outline.stroke({ color, width: 1, alpha: 0.65 });
+        tile.taxText.position.set(cardW / 2, taxY + taxH / 2);
       }
     }
   }
 
-  private dottedRoundRect(
-    g: Graphics,
-    w: number,
-    h: number,
-    r: number,
-    color: number,
-    alpha: number,
-  ): void {
-    const SEG = 8;
-    const pts: { x: number; y: number }[] = [];
-    const arc = (cx: number, cy: number, from: number, to: number) => {
-      for (let i = 0; i <= SEG; i++) {
-        const a = from + ((to - from) * i) / SEG;
-        pts.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r });
-      }
-    };
-    pts.push({ x: r, y: 0 }, { x: w - r, y: 0 });
-    arc(w - r, r, -Math.PI / 2, 0);
-    pts.push({ x: w, y: h - r });
-    arc(w - r, h - r, 0, Math.PI / 2);
-    pts.push({ x: r, y: h });
-    arc(r, h - r, Math.PI / 2, Math.PI);
-    pts.push({ x: 0, y: r });
-    arc(r, r, Math.PI, Math.PI * 1.5);
-    pts.push(pts[0]!);
-
-    const segLen: number[] = [];
-    let total = 0;
-    for (let i = 1; i < pts.length; i++) {
-      const l = Math.hypot(pts[i]!.x - pts[i - 1]!.x, pts[i]!.y - pts[i - 1]!.y);
-      segLen.push(l);
-      total += l;
-    }
-    const count = Math.max(4, Math.round(total / 7));
-    const step = total / count;
-    let seg = 0;
-    let segStart = 0;
-    for (let k = 0; k < count; k++) {
-      const target = k * step;
-      while (seg < segLen.length - 1 && segStart + segLen[seg]! < target) {
-        segStart += segLen[seg]!;
-        seg++;
-      }
-      const from = pts[seg]!;
-      const to = pts[seg + 1]!;
-      const t = segLen[seg]! === 0 ? 0 : (target - segStart) / segLen[seg]!;
-      g.circle(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t, 1.3);
-    }
-    g.fill({ color, alpha });
+  getAnchor(key: string): { x: number; y: number } | null {
+    const tile = this.tiles.get(key);
+    if (!tile || !this.placements.has(key)) return null;
+    const point = tile.container.toGlobal({ x: this.cardW / 2, y: this.cardH / 2 });
+    return { x: point.x, y: point.y };
   }
 
   cancelDrag(): void {

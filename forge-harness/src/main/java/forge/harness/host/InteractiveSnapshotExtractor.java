@@ -304,6 +304,7 @@ public final class InteractiveSnapshotExtractor {
         dto.flashbackCost = null;
         dto.kickerCost = null;
         dto.effectiveManaCost = null;
+        dto.commanderTax = null;
         dto.madnessCost = null;
     }
 
@@ -408,6 +409,10 @@ public final class InteractiveSnapshotExtractor {
         dto.text = normalizedOracle(card);
         dto.controllerId = "player-" + SnapshotExtractor.playerIndex(game, card.getController());
         dto.ownerId = "player-" + ownerIndex;
+        final Player owner = card.getOwner();
+        if (card.isCommander() && owner != null) {
+            dto.commanderTax = 2 * owner.getCommanderCast(card);
+        }
         dto.tapped = card.isTapped();
         dto.keywords = keywords(card);
         dto.counters = counterMap(card);

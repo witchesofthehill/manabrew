@@ -6,7 +6,11 @@ import { CombatInfo } from "./CombatInfo";
 import { getPromptContextLines } from "./promptContextHints";
 import { DynamicTextRender } from "../DynamicTextRender";
 import { TouchHintPopover } from "../TouchHintPopover";
-import { ACTION_DRAWER_BUMP_EVENT, PHASES } from "../game.constants";
+import {
+  ACTION_CLUSTER_PREFERRED_HEIGHT_PX,
+  ACTION_DRAWER_BUMP_EVENT,
+  PHASES,
+} from "../game.constants";
 import { useTheme } from "@/hooks/useTheme";
 import { withAlpha } from "@/themes/gameTheme";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
@@ -234,7 +238,7 @@ export function MainActionOverlay({
       data-action-cluster
       {...(minimal ? longPress : {})}
       className={cn(
-        "absolute z-40 max-w-[calc(100%-12px)] origin-bottom flex flex-col gap-0 overflow-hidden border border-border/70 bg-card/95 shadow-lg backdrop-blur-sm",
+        "absolute z-40 max-w-[calc(100%-12px)] origin-bottom flex flex-col gap-0 overflow-hidden border border-border/70 bg-card shadow-lg",
         minimal
           ? dividerY != null
             ? "right-1.5 w-auto -translate-y-1/2 rounded-2xl"
@@ -249,6 +253,11 @@ export function MainActionOverlay({
       style={
         {
           ...(minimal && dividerY != null ? { top: dividerY } : {}),
+          ...(!minimal
+            ? {
+                minHeight: Math.min(ACTION_CLUSTER_PREFERRED_HEIGHT_PX, selfClusterMaxHeight ?? 0),
+              }
+            : {}),
           ...(hasAction
             ? {
                 "--action-glow-ring": withAlpha(glow, 0.75),

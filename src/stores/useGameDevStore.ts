@@ -53,6 +53,8 @@ export interface DevPlayerOverrides {
   forceInitiative: boolean;
   forceCityBlessing: boolean;
   forceEnduringStory: boolean;
+  forceBot: boolean;
+  forceNoAvatar: boolean;
   forceActiveTurn: boolean;
   forcePriority: boolean;
   forceTargetable: boolean;
@@ -60,6 +62,8 @@ export interface DevPlayerOverrides {
   forceFlashing: boolean;
   forceEliminated: boolean;
   forceDisconnected: boolean;
+  forceInCombat: boolean;
+  forceCombatLethal: boolean;
   poison: number | null;
   energy: number | null;
   radiation: number | null;
@@ -68,6 +72,13 @@ export interface DevPlayerOverrides {
   ringLevel: number | null;
   speed: number | null;
   cmdDamage: number | null;
+  incomingDamage: number | null;
+  manaWhite: number | null;
+  manaBlue: number | null;
+  manaBlack: number | null;
+  manaRed: number | null;
+  manaGreen: number | null;
+  manaColorless: number | null;
   life: number | null;
   handCount: number | null;
 }
@@ -77,6 +88,8 @@ export const DEFAULT_DEV_PLAYER_OVERRIDES: DevPlayerOverrides = {
   forceInitiative: false,
   forceCityBlessing: false,
   forceEnduringStory: false,
+  forceBot: false,
+  forceNoAvatar: false,
   forceActiveTurn: false,
   forcePriority: false,
   forceTargetable: false,
@@ -84,6 +97,8 @@ export const DEFAULT_DEV_PLAYER_OVERRIDES: DevPlayerOverrides = {
   forceFlashing: false,
   forceEliminated: false,
   forceDisconnected: false,
+  forceInCombat: false,
+  forceCombatLethal: false,
   poison: null,
   energy: null,
   radiation: null,
@@ -92,6 +107,13 @@ export const DEFAULT_DEV_PLAYER_OVERRIDES: DevPlayerOverrides = {
   ringLevel: null,
   speed: null,
   cmdDamage: null,
+  incomingDamage: null,
+  manaWhite: null,
+  manaBlue: null,
+  manaBlack: null,
+  manaRed: null,
+  manaGreen: null,
+  manaColorless: null,
   life: null,
   handCount: null,
 };

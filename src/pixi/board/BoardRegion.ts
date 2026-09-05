@@ -23,7 +23,6 @@ import {
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import { hexToNum } from "../colorUtils";
 import { lerp, safeDestroy } from "./pixiHelpers";
-import { EffectsLayer } from "../effects/EffectsLayer";
 import { playStomp } from "../effects/stomp";
 import { animationsEnabled } from "../effects/enabled";
 import {
@@ -78,11 +77,6 @@ import {
 } from "../constants";
 import type { BlockingRect, RegionHost, SceneCombatStaging, SpriteEntry } from "./types";
 import { COLLAPSED_OPPONENT_WIDTH_PX, type RegionOrientation } from "./boardLayout";
-import {
-  PLAYER_HUD_HEIGHT_PX,
-  PLAYER_HUD_MAX_WIDTH_PX,
-  PLAYER_HUD_TOP_MARGIN_PX,
-} from "../hud/PlayerHudLayer";
 import { PlaymatLayer, playmatPad } from "./PlaymatLayer";
 import { loadAvatarTexture } from "../hud/avatarTextureCache";
 import { applyIcon } from "../panelIcons";
@@ -128,17 +122,19 @@ export class BoardRegion {
   private clipX: number | null = null;
   private clipWidth: number | null = null;
   private cardScale: number;
+  private overview = false;
+  private seatColor: string;
+  private seatName = "";
 
   private backgroundGfx: Graphics;
   private clipGfx: Graphics;
   private playmat = new PlaymatLayer();
-  private effects = new EffectsLayer();
   private gridSkeletonGfx: Graphics;
   private zoneTiles: BoardZoneTiles;
   private zoneTileKeys: string[] = [];
   private compactZones = false;
   private zoneTilesLocked = false;
-  private zoneSlots = new Map<string, { col: number; row: number }>();
+  private draggedZoneSlots = new Map<string, { col: number; row: number }>();
 
   private entries = new Map<string, SpriteEntry>();
   private gridInfo: GridLayoutInfo | null = null;
@@ -179,6 +175,7 @@ export class BoardRegion {
     options: BoardRegionOptions,
   ) {
     this.host = host;
+    this.seatColor = host.getTheme().gameTheme.canvas.neutral;
     this.cardScale = cardScale;
     this.mirrored = options.orientation !== "bottom";
 
@@ -200,10 +197,6 @@ export class BoardRegion {
     this.playmat.container.zIndex = -9;
     this.playmat.setMirrored(this.mirrored);
     this.container.addChild(this.playmat.container);
-
-    // Above the felt, below the cards.
-    this.effects.container.zIndex = 0;
-    this.container.addChild(this.effects.container);
 
     this.combatRowGfx.eventMode = "none";
     this.combatRowGfx.zIndex = Z_COMBAT_STAGED - 5;
@@ -325,7 +318,7 @@ export class BoardRegion {
     };
 
     for (const key of this.zoneTileKeys) {
-      const slot = this.compactZones ? undefined : this.zoneSlots.get(key);
+      const slot = this.compactZones ? undefined : this.draggedZoneSlots.get(key);
       let cell = slot ? resolveCell(slot.col, slot.row) : null;
       if (!isFree(cell)) cell = nextDefaultCell();
       // A giant-card grid (few cells, partly covered by the hand fan and
@@ -333,7 +326,6 @@ export class BoardRegion {
       // blocker rather than stranding the tile at its stale geometry.
       if (!cell) cell = nextDefaultCell(true);
       if (!cell) continue;
-      if (!this.compactZones) this.zoneSlots.set(key, { col: cell.col, row: cell.row });
       taken.add(cellKey(cell.col, cell.row));
       occupied.add(cellKey(cell.col, cell.row));
       placements.set(key, { x: cell.x, y: cell.y });
@@ -350,7 +342,7 @@ export class BoardRegion {
     const grid = this.gridInfo;
     if (!grid) return;
     const cell = cellFromPoint(grid, centerX, centerY);
-    if (cell && !cell.blocked) this.zoneSlots.set(key, { col: cell.col, row: cell.row });
+    if (cell && !cell.blocked) this.draggedZoneSlots.set(key, { col: cell.col, row: cell.row });
     // Re-place tiles (snapping the drop, or reverting an invalid one) and relayout
     // cards to avoid the new cells.
     if (this.lastState) this.updateBattlefield(this.lastState);
@@ -384,6 +376,20 @@ export class BoardRegion {
     if (zoneChanged && this.lastState) this.updateBattlefield(this.lastState);
   }
 
+  setOverviewMode(overview: boolean): void {
+    if (this.overview === overview) return;
+    this.overview = overview;
+    this.updateClip();
+  }
+
+  setSeatState(color: string, active: boolean, name: string): void {
+    const changed = this.seatColor !== color || this.seatName !== name;
+    this.seatColor = color;
+    this.seatName = name;
+    this.playmat.setSeatState(color, active);
+    if (changed) this.applyCombatRow();
+  }
+
   /** Set the visible clip band (mask only — never relayouts cards). `BoardScene`
    *  owns and eases the delimiters, calling this each frame. Null = no clip. */
   setClip(clipX: number | null, clipWidth: number | null): void {
@@ -405,7 +411,11 @@ export class BoardRegion {
     }
     const OVERSCAN = 100000;
     this.clipGfx.clear();
-    this.clipGfx.rect(this.clipX ?? this.zone.x, -OVERSCAN, this.clipWidth, OVERSCAN * 2);
+    if (this.overview) {
+      this.clipGfx.rect(this.zone.x, this.zone.y, this.zone.width, this.zone.height);
+    } else {
+      this.clipGfx.rect(this.clipX ?? this.zone.x, -OVERSCAN, this.clipWidth, OVERSCAN * 2);
+    }
     this.clipGfx.fill({ color: 0xffffff });
     this.container.mask = this.clipGfx;
   }
@@ -429,27 +439,11 @@ export class BoardRegion {
   }
 
   private collectLocalBlockers(): BlockingRect[] {
-    const blockers = this.host.collectBlockers().map((r) => {
+    return this.host.collectBlockers().map((r) => {
       const p1 = this.canvasToLocal(r.x, r.y);
       const p2 = this.canvasToLocal(r.x + r.width, r.y + r.height);
       return { x: p1.x, y: p1.y, width: p2.x - p1.x, height: p2.y - p1.y };
     });
-    if (this.mirrored && !this.compactZones) {
-      // The opponent HUD capsule (avatar / life / badges) sits at the top-left
-      // of the band; block just its cells so the grid uses the rest of the top
-      // instead of reserving the whole bar-height band across the field.
-      // Compact skips this estimate — the scene supplies the capsule's live
-      // rendered bounds instead, and the 280px-wide estimate would over-block
-      // cells the 0.7-scaled capsule doesn't cover.
-      const bandLeft = this.clipX ?? this.zone.x;
-      blockers.push({
-        x: bandLeft,
-        y: this.zone.y,
-        width: Math.min(PLAYER_HUD_MAX_WIDTH_PX, this.clipWidth ?? this.zone.width),
-        height: PLAYER_HUD_HEIGHT_PX + PLAYER_HUD_TOP_MARGIN_PX * 2,
-      });
-    }
-    return blockers;
   }
 
   setCardScale(scale: number): void {
@@ -503,14 +497,25 @@ export class BoardRegion {
   }
 
   private isCombatant(card: CardDto): boolean {
-    if (card.isAttacking) return true;
+    const id = card.attachedTo ?? card.id;
+    if (
+      card.isAttacking ||
+      this.entries.get(id)?.sprite.card.isAttacking ||
+      this.combatRowAttackerIds.has(id) ||
+      this.combatRowBlockerIds.has(id)
+    )
+      return true;
     const s = this.combatStaging;
-    return !!s && (s.attackerIds.has(card.id) || s.blockerIds.has(card.id));
+    return !!s && (s.attackerIds.has(id) || s.blockerIds.has(id));
   }
 
   private isDeclaredBlocker(cardId: string): boolean {
     if (this.combatStaging?.blockerIds.has(cardId)) return true;
     return this.combatRowBlocks.some((b) => b.blockerId === cardId);
+  }
+
+  getPlaymatRect(): PlayZoneRect {
+    return this.playmatRect();
   }
 
   getGridInfo(): GridLayoutInfo | null {
@@ -605,7 +610,18 @@ export class BoardRegion {
     for (const [id, entry] of this.entries) {
       const s = entry.sprite;
       if (entry.exiting) {
-        s.alpha = lerp(s.alpha, 0, EXIT_FADE_LERP, 0.02);
+        if (!animationsEnabled()) {
+          (exited ??= []).push(id);
+          continue;
+        }
+        if (entry.gliding) {
+          s.x = lerp(s.x, entry.targetX, BATTLEFIELD_LERP, SNAP_PX);
+          s.y = lerp(s.y, entry.targetY, BATTLEFIELD_LERP, SNAP_PX);
+          const distance = Math.hypot(s.x - entry.targetX, s.y - entry.targetY);
+          if (distance < CARD_H * this.cardScale) s.alpha = lerp(s.alpha, 0, EXIT_FADE_LERP, 0.02);
+        } else {
+          s.alpha = lerp(s.alpha, 0, EXIT_FADE_LERP, 0.02);
+        }
         s.scale.set(s.scale.x * EXIT_SHRINK);
         if (s.alpha <= 0.05) (exited ??= []).push(id);
         continue;
@@ -617,8 +633,8 @@ export class BoardRegion {
       this.host.recordCardExit(id, {
         x: cp.x,
         y: cp.y,
-        scaleX: s.scale.x,
-        scaleY: s.scale.y,
+        scaleX: s.scale.x * this.container.worldTransform.a,
+        scaleY: s.scale.y * this.container.worldTransform.d,
       });
       if (entry.gliding) {
         const dx = s.x - entry.targetX;
@@ -645,7 +661,9 @@ export class BoardRegion {
         s.y += (Math.random() - 0.5) * 2 * amp;
         entry.shakeFrames -= 1;
       }
-      s.rotation = lerp(s.rotation, entry.targetRotation, ROTATION_LERP, SNAP_ROT);
+      s.rotation = animationsEnabled()
+        ? lerp(s.rotation, entry.targetRotation, ROTATION_LERP, SNAP_ROT)
+        : entry.targetRotation;
       s.zIndex = entry.targetZIndex;
 
       // Alpha is owned here (not in updateCard), so a state update mid-combat
@@ -686,6 +704,14 @@ export class BoardRegion {
       entry.scaleBase = lerp(entry.scaleBase, targetScale, HOVER_SCALE_LERP, SNAP_SCALE);
       const fx = s.fxScale;
       s.scale.set(entry.scaleBase * fx.x, entry.scaleBase * fx.y);
+      s.setElevation(
+        isHovered
+          ? Math.min(
+              1,
+              Math.max(0, (entry.scaleBase / (this.cardScale * fit) - 1) / (HOVER_SCALE - 1)),
+            )
+          : 0,
+      );
 
       if (entry.overlay) {
         const overlayActive = entry.overlayActive ?? false;
@@ -708,7 +734,6 @@ export class BoardRegion {
       }
     }
     if (exited) for (const id of exited) this.destroyEntry(id);
-    this.effects.tick();
   }
 
   updateBattlefield(state: BattlefieldState): void {
@@ -1004,16 +1029,16 @@ export class BoardRegion {
       });
     }
 
-    const red = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
+    const defenseColor = hexToNum(this.seatColor);
     const halfH = (CARD_H * this.cardScale) / 2;
     const stripLeft = bandLeft;
     const stripW = bandW;
     const stripTop = y - halfH - COMBAT_ROW_PAD_Y;
     const stripH = halfH * 2 + COMBAT_ROW_PAD_Y * 2;
     this.combatRowGfx.roundRect(stripLeft, stripTop, stripW, stripH, 10);
-    this.combatRowGfx.fill({ color: red, alpha: 0.22 });
+    this.combatRowGfx.fill({ color: defenseColor, alpha: 0.09 });
     this.combatRowGfx.roundRect(stripLeft, stripTop, stripW, stripH, 10);
-    this.combatRowGfx.stroke({ color: red, width: 1.5, alpha: 0.6 });
+    this.combatRowGfx.stroke({ color: defenseColor, width: 1.5, alpha: 0.6 });
 
     if (connectors.length > 0) {
       const defense = hexToNum(this.host.getTheme().gameTheme.promptAction.defenseAction);
@@ -1055,7 +1080,7 @@ export class BoardRegion {
         applyIcon(av.sprite, COMBAT_ROW_BOT_ICON, lightHex, 64, avatarD * 0.7, avatarD * 0.7);
       }
       const label = this.combatRowLabel(gi);
-      label.text = group.label;
+      label.text = this.seatName ? `${group.label} → ${this.seatName}` : group.label;
       label.style.fill = col;
       label.anchor.set(0, 0.5);
       label.position.set(ax + avatarD / 2 + 6, ay);
@@ -1444,9 +1469,23 @@ export class BoardRegion {
       this.host.recordCardExit(id, {
         x: c.x,
         y: c.y,
-        scaleX: entry.sprite.scale.x,
-        scaleY: entry.sprite.scale.y,
+        scaleX: entry.sprite.scale.x * this.container.worldTransform.a,
+        scaleY: entry.sprite.scale.y * this.container.worldTransform.d,
       });
+      if (this.host.isBattlefieldCard(id)) {
+        this.destroyEntry(id);
+        continue;
+      }
+      const exit = this.host.getExitTarget(id);
+      if (exit && animationsEnabled()) {
+        const target = this.canvasToLocal(exit.x, exit.y);
+        entry.targetX = target.x;
+        entry.targetY = target.y;
+        entry.gliding = true;
+        this.host.getCombatGuestLayer().addChild(entry.sprite);
+      } else {
+        entry.gliding = false;
+      }
       entry.overlayActive = false;
       if (entry.overlay) entry.overlay.visible = false;
       this.userPlacedCards.delete(id);
@@ -1527,7 +1566,10 @@ export class BoardRegion {
     const local = this.canvasToLocal(seed.x, seed.y);
     sprite.x = local.x;
     sprite.y = local.y;
-    sprite.scale.set(seed.scaleX, seed.scaleY);
+    sprite.scale.set(
+      seed.scaleX / this.container.worldTransform.a,
+      seed.scaleY / this.container.worldTransform.d,
+    );
 
     this.entries.set(card.id, {
       sprite,
@@ -1696,11 +1738,8 @@ export class BoardRegion {
   private playEntranceFx(entry: SpriteEntry, card: CardDto): void {
     if (!animationsEnabled()) return;
     if (!card.types?.some((t) => t.toLowerCase() === "creature")) return;
-    const footX = entry.targetX;
-    const footY = entry.targetY + (CARD_H * this.cardScale) / 2;
     playStomp({
       fxScale: entry.sprite.fxScale,
-      onImpact: () => this.effects.stompGround(footX, footY),
     });
   }
 
@@ -2067,7 +2106,6 @@ export class BoardRegion {
       safeDestroy(entry.sprite);
     }
     this.playmat.destroy();
-    this.effects.destroy();
     this.zoneTiles.destroy();
     this.container.destroy({ children: true });
     this.entries.clear();

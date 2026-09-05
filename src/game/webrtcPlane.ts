@@ -1,28 +1,13 @@
 /**
- * The room's WebRTC data plane: one `RTCPeerConnection` per peer, one reliable
- * ordered `RTCDataChannel`, carrying exactly the engine envelopes the relay
- * would have carried.
+ * The room's WebRTC data plane: one `RTCPeerConnection` and one reliable
+ * ordered channel per peer, carrying the same engine envelopes the relay would.
+ * The browser half of #838: a browser cannot hole punch with iroh, so WebRTC is
+ * its only direct transport. The relay carries only the offer, answer and ICE.
  *
- * This is the browser half of #838. A browser cannot hole punch with iroh, so
- * for a browser-hosted room WebRTC is the only direct transport there is. The
- * relay carries the offer, the answer and the ICE candidates, and nothing
- * else: once the channel opens the envelopes stop crossing it.
- *
- * Three things this deliberately does the awkward way, because the mixed
- * desktop/browser case has to stay cheap later:
- *
- *  - peers are addressed by USERNAME, never by peer type, so a desktop seat
- *    can use this same signalling path;
- *  - the plane a room uses comes from what the HOST advertises in the roster,
- *    not from "am I a browser", so a desktop seat in a browser-hosted room
- *    picks WebRTC instead of reaching for its native endpoint and finding
- *    nothing;
- *  - `trySend` returns false rather than throwing, so this is a sink beside
- *    the relay rather than a replacement for it.
- *
- * Both ends freeze on `GameStarted`, the same relay message the iroh path
- * uses, which is how they agree on a transport for a game without negotiating
- * one.
+ * Peers are addressed by username (so a desktop seat uses this path too), the
+ * plane comes from what the host advertises (not "am I a browser"), and
+ * `trySend` returns false rather than throwing. Both ends freeze on
+ * `GameStarted`. See docs/TRANSPORT.md.
  */
 import type { StateEnvelope } from "@/types/server";
 
@@ -34,17 +19,9 @@ export const TRANSPORT_KIND_IROH = "iroh";
 /** The label is part of the handshake: both ends open the same one. */
 const CHANNEL_LABEL = "manabrew-engine";
 
-/** A peer that has neither connected nor failed by now is treated as failed.
- *
- *  Nothing waits on this. The seat is on the relay from the moment it sits
- *  down and keeps playing throughout; the plane is only ever an upgrade
- *  attempt in the background. So the budget should be ICE's, not a guess at
- *  what a player would tolerate, which is what 8s was.
- *
- *  8s was also actively misleading: a browser-at-home to phone-on-cellular
- *  pair reported `outcome=timeout connect=8002ms`, which said the deadline
- *  expired and nothing about whether ICE would have succeeded. Firefox's own
- *  budget is nearer 30s. */
+/** A peer neither connected nor failed by now counts as failed. Nothing waits
+ *  on it (the seat plays on the relay throughout), so the budget is ICE's, not
+ *  a guess at player patience; Firefox's own is nearer 30s. */
 const CONNECT_TIMEOUT_MS = 25_000;
 
 /** Round trips for the RTT probe, and the gap between them. Enough to see a
@@ -135,13 +112,9 @@ function advertisedKinds(member: RosterMember | undefined): string[] {
 }
 
 /**
- * The plane a seat should take: the first one the HOST advertises that this
- * client can actually speak. Not "am I a desktop" — a desktop seat in a
- * browser-hosted room has to take WebRTC, and a desktop host advertises both
- * so each of its seats can pick the one that suits it.
- *
- * `mine` is in no particular order; the host's list carries the preference,
- * which is why a desktop seat in a desktop-hosted room lands on iroh.
+ * The plane a seat takes: the first one the HOST advertises that this client
+ * speaks. The host's list carries the preference, so a desktop seat lands on
+ * iroh in a desktop-hosted room and on WebRTC in a browser-hosted one.
  */
 export function planeForRoom(host: RosterMember | undefined, mine: string[]): string | null {
   return advertisedKinds(host).find((kind) => mine.includes(kind)) ?? null;
@@ -167,14 +140,8 @@ export function iceServersFrom(msg: Record<string, unknown>): RTCIceServer[] {
 }
 
 /**
- * What a browser announces. There is no address in it: a browser has none to
- * publish, the endpoint id only names it in the roster, and the addresses
- * cross later over signalling once there is a peer to reach.
- *
- * Which is why announcing costs nothing, and why it happens on entering a room
- * rather than lazily. Somebody has to announce first: the relay sends a roster
- * only after a member has, and a browser-hosted room has no node to do it
- * unprompted.
+ * What a browser announces: a name, no address. The addresses cross later over
+ * signalling, so announcing costs nothing and happens on entering a room.
  */
 export function webRtcEndpoint(username: string): { endpoint_id: string; kinds: string[] } {
   return { endpoint_id: `webrtc:${username}`, kinds: [TRANSPORT_KIND_WEBRTC] };

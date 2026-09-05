@@ -485,13 +485,9 @@ impl Room {
         self.transport_members().into_iter().find(|m| m.host)
     }
 
-    /// Whether this room may leave the relay at all.
-    ///
-    /// Announcing an endpoint is how a player opts in, so every human seat has
-    /// to have announced one before anybody's traffic goes direct. One seat
-    /// that has not is one player who did not agree to it, and the room stays
-    /// on the relay for everyone. Bots never announce and never count. A seat
-    /// in its reconnect window still counts: it is still at the table.
+    /// Whether this room may leave the relay. Announcing is how a player opts
+    /// in, so every human seat has to have announced before anyone goes direct;
+    /// one that has not keeps the whole room on the relay. Bots never count.
     pub fn transport_consented(&self) -> bool {
         self.players
             .iter()

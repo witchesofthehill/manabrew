@@ -1,8 +1,6 @@
-//! The relay-attested view of a room's data plane.
-//!
-//! Everything here comes from `ServerMessage::RoomTransport`, which the relay
-//! sends only to room members and fills in from its own session records. A peer
-//! learned any other way is not in the roster and is not believed.
+//! The relay-attested view of a room's data plane. Everything comes from
+//! `ServerMessage::RoomTransport`, filled in from the relay's own session
+//! records; a peer learned any other way is not believed.
 
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -30,9 +28,8 @@ pub struct Roster {
 impl Roster {
     pub fn new(room_id: &str, host: Option<&TransportMember>, members: &[TransportMember]) -> Self {
         let host_name = host.map(|m| m.username.as_str());
-        // A member whose endpoint does not parse is dropped rather than
-        // failing the roster: one bad announcement must not cost everyone else
-        // the data plane.
+        // A member whose endpoint does not parse is dropped, not failed: one
+        // bad announcement must not cost everyone else the plane.
         let entries: Vec<RosterEntry> = members
             .iter()
             .filter_map(|member| {
@@ -110,9 +107,8 @@ pub fn to_transport_endpoint(addr: &EndpointAddr) -> TransportEndpoint {
         endpoint_id: addr.id.to_string(),
         relay_url,
         direct_addrs,
-        // Said out loud rather than left to the empty-means-iroh default, so a
-        // browser reading this roster can tell what the host speaks without
-        // knowing the history of the field.
+        // Stated rather than left to the empty-means-iroh default, so a browser
+        // can read what the host speaks.
         kinds: vec![manabrew_relay_protocol::TRANSPORT_KIND_IROH.to_string()],
     }
 }

@@ -145,7 +145,14 @@ impl DesktopSeat {
         self.seq = 0;
         self.reader = Some(tauri::async_runtime::spawn(async move {
             while let Some(frame) = receiver.recv().await {
-                if let manabrew_net::SessionFrame::Game { payload, .. } = frame {
+                if let manabrew_net::SessionFrame::Game { payload, seq } = frame {
+                    // The wire side of the seat's receive path: if the host
+                    // logged a prompt sent and this does not fire, QUIC dropped
+                    // it; if this fires but the webview does not, the Tauri
+                    // event hop did.
+                    if payload.get("kind").and_then(|k| k.as_str()) == Some("prompt") {
+                        tracing::info!(seq, "direct seat: received a prompt off the wire");
+                    }
                     on_envelope(Some(payload));
                 }
             }

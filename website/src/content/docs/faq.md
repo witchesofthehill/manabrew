@@ -8,13 +8,13 @@ description: Common questions and what to do when something breaks.
 The web engine needs `SharedArrayBuffer`, which requires cross-origin
 isolation. The app shows a toast and a console error when the host is
 misconfigured. On [manabrew.app](https://play.manabrew.app) this should never
-happen — report it on [Discord](https://discord.gg/NqrKpbhtcd). If you're
+happen - report it on [Discord](https://discord.gg/NqrKpbhtcd). If you're
 hosting the client yourself, see
 [hosting the web client](/self-hosting/#hosting-the-web-client).
 
 ## Card images don't load
 
-Images aren't shipped with the client — they come from
+Images aren't shipped with the client - they come from
 [Scryfall](https://scryfall.com) at runtime. If images are missing, check
 your connection or whether Scryfall is reachable from your network. Game
 rules keep working without images.
@@ -45,7 +45,7 @@ On desktop, the engine runs locally but card images still need internet. The
 web client is not offline-capable. See the
 [web vs desktop comparison](/formats/#web-vs-desktop).
 
-## I closed my tab mid-game — is the game lost?
+## I closed my tab mid-game - is the game lost?
 
 Reopen the app within the room's reconnection window (30–90 seconds, set by
 the host) and you'll be put back in your seat. If the host disconnects, the
@@ -55,11 +55,11 @@ game ends and the room returns to the lobby. See
 ## Where are my decks stored?
 
 Locally, in your browser's (or the desktop app's) storage. Nothing is
-uploaded. That also means clearing site data deletes them — export decks you
+uploaded. That also means clearing site data deletes them - export decks you
 care about.
 
 ## Is this free? Is it official?
 
-Free and open source, AGPL-3.0-or-later. It is unofficial fan software — not
+Free and open source, AGPL-3.0-or-later. It is unofficial fan software - not
 affiliated with, endorsed by, or sponsored by Wizards of the Coast LLC or the
 Forge project.

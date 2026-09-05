@@ -22,6 +22,23 @@ pub enum ManaColor {
     Colorless,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "game/index.ts")]
+pub enum CardChoiceDto {
+    Color { colors: Vec<ManaColor> },
+    Type { values: Vec<String> },
+    NamedCard { names: Vec<String> },
+    ChosenCard { count: usize },
+    Number { value: i32 },
+    Mode { value: String },
+    Player { player_id: String, name: String },
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "game/index.ts")]
@@ -227,6 +244,8 @@ pub struct CardDto {
     pub class_levels: Vec<ClassLevelDto>,
     pub saga_chapters: Vec<SagaChapterDto>,
     pub text: String,
+    #[serde(default)]
+    pub choices: Vec<CardChoiceDto>,
     pub controller_id: String,
     pub owner_id: String,
     pub tapped: bool,

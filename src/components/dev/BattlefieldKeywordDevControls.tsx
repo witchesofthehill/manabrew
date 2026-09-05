@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
+
 import { useScryfallStore } from "@/stores/useScryfallStore";
+import { BattlefieldChoiceDevControls } from "./BattlefieldChoiceDevControls";
 import { DevCardSearch } from "./DevCardSearch";
 
 import {
@@ -158,6 +160,8 @@ export function BattlefieldKeywordDevControls() {
           onSelect={(card) => setDebugCard(scryfallToDeckCard(card))}
         />
       </div>
+
+      <BattlefieldChoiceDevControls />
 
       <div className="mt-4 flex items-center justify-between gap-3">
         <div>

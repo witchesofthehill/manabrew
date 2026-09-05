@@ -7,7 +7,7 @@ description: Play Manabrew in the browser, install the desktop app, or build fro
 
 The fastest way to try Manabrew is the web client at
 [manabrew.app](https://play.manabrew.app). It runs the Manabrew engine compiled to
-WebAssembly — nothing to install.
+WebAssembly - nothing to install.
 
 ## Desktop app
 
@@ -42,7 +42,7 @@ yarn web
 yarn dev
 ```
 
-The `forge` submodule provides card scripts and the Java reference engine —
+The `forge` submodule provides card scripts and the Java reference engine -
 the `--recurse-submodules` flag matters.
 
 ### Initialize the submodule
@@ -55,7 +55,7 @@ git submodule update --init --recursive
 
 ### Update the submodule
 
-The `forge` submodule is the whole Forge tree — the Java reference engine plus
+The `forge` submodule is the whole Forge tree - the Java reference engine plus
 card scripts, editions, and tokens (it tracks the `manabrew` branch). Pull the
 latest commit and rebuild, since the harness, the WASM engine, and the card
 archives all build from it:
@@ -67,7 +67,7 @@ yarn web             # rebuilds the WASM engine and card archive (yarn dev does 
 ```
 
 Skipping the rebuild leaves stale builds; one visible symptom is the deck loader
-removing any card not yet in the bundle — that "Removed from your deck" notice.
+removing any card not yet in the bundle - that "Removed from your deck" notice.
 
 ## Getting help
 

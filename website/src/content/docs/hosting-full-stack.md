@@ -7,7 +7,7 @@ The [relay](/hosting-relay/) and [web client](/hosting-web-client/) can be
 self-hosted independently, but the common case is running both on one box: the
 relay handles matchmaking and message relay, and the web client is what players
 open in their browser. This page wires them together behind a single Caddy
-instance that terminates TLS for both — pulling published images, so no repo
+instance that terminates TLS for both - pulling published images, so no repo
 checkout is needed.
 
 ## Compose file
@@ -106,6 +106,6 @@ automatically. Players open `https://play.example.com`; their client connects to
   (in WASM), so this stack needs no game node. To host games with the Java Forge
   engine instead, add a [self-hosted node](/self-hosting/).
 - **Production reference.** `compose.production.yml` and `ops/Caddyfile` in the
-  repo are the real manabrew.app deployment — they add the landing and docs
+  repo are the real manabrew.app deployment - they add the landing and docs
   sites, an opt-in hosted-AI node, resource limits, and health checks on top of
   the two services here.

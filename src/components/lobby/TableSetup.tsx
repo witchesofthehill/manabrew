@@ -26,6 +26,7 @@ import { useForgeRoomAvailabilityStore } from "@/stores/useForgeRoomAvailability
 import { getPlatformType } from "@/platform";
 import { claimHostedTable } from "@/game/hostedAiPlay";
 import { isFeatureEnabled } from "@/featureFlags";
+import { isForgeWasmHostingEnabled } from "@/lib/forgeWasm";
 import { cn } from "@/lib/utils";
 import { IRONSMITH_WASM_AVAILABLE } from "@/game/ironsmithWasmAvailable";
 import { DEFAULT_RECONNECT_TIMEOUT_S } from "@/types/server";
@@ -51,7 +52,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
   const ironsmithOptedIn = usePreferencesStore((s) => s.ironsmithRuntimeEnabled);
   const ironsmithEnabled =
     isFeatureEnabled("ironsmithRuntime") && IRONSMITH_WASM_AVAILABLE && ironsmithOptedIn;
-  const forgeWasm = isFeatureEnabled("forgeWasm");
+  const forgeWasm = isForgeWasmHostingEnabled();
   const hostedNode = !isTauri && !forgeWasm;
   const canHostForge = (isTauri && forgeRoomAvailable) || forgeWasm || hostedNode;
 

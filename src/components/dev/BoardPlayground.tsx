@@ -34,9 +34,19 @@ interface CardSpec {
   toughness?: string;
   subtypes?: string[];
   supertypes?: string[];
+  choices?: ClientCardDto["choices"];
 }
 
 const CREATURES: CardSpec[] = [
+  {
+    name: "Roaming Throne",
+    color: "",
+    types: ["Artifact", "Creature"],
+    power: "4",
+    toughness: "4",
+    subtypes: ["Golem"],
+    choices: [{ kind: "type", values: ["Dragon"] }],
+  },
   {
     name: "Serra Angel",
     color: "W",
@@ -68,6 +78,12 @@ const CREATURES: CardSpec[] = [
 ];
 
 const LANDS: CardSpec[] = [
+  {
+    name: "Temple of the Dragon Queen",
+    color: "",
+    types: ["Land"],
+    choices: [{ kind: "color", colors: ["U"] }],
+  },
   { name: "Steam Vents", color: "", types: ["Land"] },
   { name: "Forest", color: "", types: ["Land"], supertypes: ["Basic"], subtypes: ["Forest"] },
 ];
@@ -101,6 +117,7 @@ function makeCard(spec: CardSpec): ClientCardDto {
     ownerId: PLAYER_ID,
     zoneId: "battlefield",
     keywords: spec.keywords ?? [],
+    choices: spec.choices ?? [],
   };
 }
 

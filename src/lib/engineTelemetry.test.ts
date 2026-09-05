@@ -77,11 +77,13 @@ describe("engine label", () => {
       await import("@/lib/engineStatsReport");
     // The registry defaults to the Rust engine in a fresh module graph.
     expect(localEngineLabel()).toBe("manabrew");
-    expect(roomEngineLabel("Forge", false, "web")).toBe("forge-remote");
-    expect(roomEngineLabel("Forge", true, "web")).toBe("forge-wasm");
-    expect(roomEngineLabel("Forge", true, "tauri")).toBe("forge-desktop");
-    expect(roomEngineLabel("Ironsmith", false, "web")).toBe("ironsmith");
-    expect(roomEngineLabel("Manabrew", false, "web")).toBe("manabrew");
+    expect(roomEngineLabel("Forge", false, "web", false)).toBe("forge-remote");
+    expect(roomEngineLabel("Forge", false, "web", true)).toBe("forge-hosted");
+    expect(roomEngineLabel("Forge", false, "tauri", true)).toBe("forge-hosted");
+    expect(roomEngineLabel("Forge", true, "web", false)).toBe("forge-wasm");
+    expect(roomEngineLabel("Forge", true, "tauri", false)).toBe("forge-desktop");
+    expect(roomEngineLabel("Ironsmith", false, "web", false)).toBe("ironsmith");
+    expect(roomEngineLabel("Manabrew", false, "web", false)).toBe("manabrew");
     expect(forgeHostLabel(false)).toBe("forge-hosted");
   });
 });

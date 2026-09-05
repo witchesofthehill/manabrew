@@ -90,6 +90,7 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "cardStatus.madness": p.redDeep,
     "cardStatus.warped": p.cyan,
     "cardStatus.copy": p.sky,
+    "cardStatus.choice": p.amber,
 
     textOnTinted: p.foreground,
     textMuted: p.labelMuted,

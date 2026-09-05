@@ -83,11 +83,11 @@ export class DirectSeat {
     this.onMeasurement = onMeasurement;
   }
 
-  /** The endpoint to announce, once. Null when nothing can bind, which leaves
-   *  this seat on the relay with nothing else changed. */
+  /** The endpoint to announce. Bound once; a second call answers with the
+   *  same endpoint, which is what a second room needs. Null when nothing can
+   *  bind, which leaves this seat on the relay with nothing else changed. */
   async announce(): Promise<unknown | null> {
-    if (this.binding) return null;
-    this.binding = this.bind();
+    if (!this.binding) this.binding = this.bind();
     return this.binding;
   }
 
@@ -128,8 +128,10 @@ export class DirectSeat {
     }
   }
 
-  /** Installs the relay's roster and dials the host it names. */
-  async onRoster(roomId: string, members: unknown, host: string): Promise<void> {
+  /** Installs the relay's roster and dials the host it names. A roster with
+   *  no host (`null`) is the relay withdrawing the plane, because a player at
+   *  the table has not opted in; the shell hangs up whatever was dialled. */
+  async onRoster(roomId: string, members: unknown, host: string | null): Promise<void> {
     await this.binding;
     if (!this.unlisten) return;
     try {
@@ -138,12 +140,17 @@ export class DirectSeat {
         members,
       });
       if (!status) {
+        const wasLive = this.live;
+        this.live = false;
+        this.active = false;
         // No path to the host. This seat stays on the relay, and until now that
         // was the end of it: the attempt reached nobody, so the failures never
-        // appeared in any denominator.
-        this.measured({ peer: host, outcome: "failed" });
+        // appeared in any denominator. A hang-up is not an attempt.
+        if (host && !wasLive) this.measured({ peer: host, outcome: "failed" });
         return;
       }
+      // Rosters repeat on every join and leave; the connection is the same one.
+      if (this.live || !host) return;
       this.live = true;
       console.info(
         `[direct] seat reached the host over ${status.kind}` +
@@ -159,7 +166,7 @@ export class DirectSeat {
       });
     } catch (error) {
       console.warn("[direct] could not reach the host:", error);
-      this.measured({ peer: host, outcome: "failed" });
+      if (host) this.measured({ peer: host, outcome: "failed" });
     }
   }
 

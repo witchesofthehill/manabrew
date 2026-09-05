@@ -5774,6 +5774,7 @@ dependencies = [
  "libtest-mimic",
  "manabot",
  "manabrew-agent-interface",
+ "manabrew-net",
  "serde_json",
  "tokio",
  "tokio-tungstenite",

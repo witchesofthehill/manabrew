@@ -94,6 +94,13 @@ interface PreferencesState {
   ironsmithRuntimeEnabled: boolean;
   setIronsmithRuntimeEnabled: (value: boolean) => void;
 
+  // Opt-in for peer-to-peer game traffic (#838). Off by default. A room only
+  // leaves the relay when every player in it has this on; one player without
+  // it keeps the whole table on the relay, so turning it on is a request, not
+  // a switch. Read by the relay client on entering a room and when it changes.
+  directTransport: boolean;
+  setDirectTransport: (value: boolean) => void;
+
   hideAccountSaveNudge: boolean;
   setHideAccountSaveNudge: (value: boolean) => void;
 
@@ -144,6 +151,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "inGameAnimations",
   "chooseOrderOnMultipleTriggers",
   "ironsmithRuntimeEnabled",
+  "directTransport",
   "hideAccountSaveNudge",
   "cardPreviewMode",
   "cardHoverDelayMs",
@@ -253,6 +261,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           ironsmithRuntimeEnabled: false,
           setIronsmithRuntimeEnabled: (ironsmithRuntimeEnabled) => set({ ironsmithRuntimeEnabled }),
+
+          directTransport: false,
+          setDirectTransport: (directTransport) => set({ directTransport }),
 
           hideAccountSaveNudge: false,
           setHideAccountSaveNudge: (hideAccountSaveNudge) => set({ hideAccountSaveNudge }),

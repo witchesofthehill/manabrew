@@ -321,10 +321,36 @@ switch with the internet off, where Chromium replaces host candidates with mDNS 
 
 ## Opting in
 
-`MANABREW_DIRECT_TRANSPORT` is off by default. Off, the relay advertises neither `room_transport`
-nor `peer_signal`, ignores `AnnounceTransport`, drops `SignalPeer`, and never sends a roster, so
-every room behaves exactly as it does today. It fails closed, and a client that sees no
-`peer_signal` never starts a negotiation that could not finish.
+Two switches, one per side.
+
+**The deployment's.** `MANABREW_DIRECT_TRANSPORT` is off by default in the relay binary and on
+in `compose.production.yml` and `compose.staging.yml`. Off, the relay advertises neither
+`room_transport` nor `peer_signal`, ignores `AnnounceTransport`, drops `SignalPeer`, and never
+sends a roster, so every room behaves exactly as it did before. It fails closed, and a client
+that sees no `peer_signal` never starts a negotiation that could not finish.
+
+**The player's.** "Direct connections" in Settings, off by default. Announcing an endpoint is
+how a player opts in: a client with the setting off announces nothing, dials nobody, and tears
+down any plane a roster offers it. A desktop that hosts a room with it off binds no endpoint and
+gets no shell bridge, so it announces nothing either.
+
+**The room upgrades only when every player in it opted in.** The relay enforces this
+(`Room::transport_consented`): a roster with a host and members goes out only once every human
+seat has announced; until then, and again the moment a seat that has not announced sits down or
+one withdraws, the roster goes out empty. Bots never announce and never count. An empty roster
+is a message, not an absence: a seat that dialled earlier hangs up on it (`DesktopSeat`,
+`WebRtcPlane.onRoster`), and the host freezes only seats the current roster names
+(`DirectPlane::freeze_for_game`, `ShellBridge::freeze_for_game`), so a connection left over from
+before the objector arrived cannot carry a game. A player leaving or disconnecting re-broadcasts
+the roster, because the leaver may have been the one holding the table back.
+
+`manabrew_relay_transport_rosters_total{kind="withheld"}` beside `{kind="sent"}` says how often a
+table wanted the plane and did not get it.
+
+The networking regression (`yarn test:networking`) plays these rules against the real relay and a
+real node built with `--features iroh`: the flag failing closed, a seat playing a whole game over
+QUIC with nothing for it on the relay, the fallback re-priming a seat that hung up, a room held on
+the relay by one seat that never announced, and signalling attested and bounded by the relay.
 
 ## Limits worth knowing before building on this
 

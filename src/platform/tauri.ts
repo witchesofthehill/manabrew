@@ -25,6 +25,7 @@ import type {
   SpawnAiBotParams,
 } from "./types";
 import type { LocalGameKind, RoomRelayEnvelope } from "@/types/server";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 // Tauri Server API — delegates to the web relay client, except Forge hosting
 
@@ -60,6 +61,10 @@ class TauriServerApi implements IServerApi {
         maxPlayers: params.maxPlayers,
         password: params.password ?? null,
         reconnectTimeoutS: params.reconnectTimeoutS ?? null,
+        // The hosting player's own opt-in. Off, the node binds no endpoint and
+        // gets no bridge, so the room stays on the relay whatever the seats
+        // chose.
+        directTransport: usePreferencesStore.getState().directTransport,
       });
     }
     return this.inner.createRoom(params);

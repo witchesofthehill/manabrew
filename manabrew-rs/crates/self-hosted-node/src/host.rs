@@ -1475,6 +1475,11 @@ async fn handle_server_message(
                 }
                 plane.apply_roster(&transport_room_id, host.as_ref(), &members);
             }
+            if let Some(shell) = bridge {
+                // Empty while anyone at the table has not opted in, and the
+                // freeze believes this over any channel the webview has open.
+                shell.set_roster(members.iter().map(|member| member.username.clone()));
+            }
         }
         ServerMessage::ServerShuttingDown { reconnect_in_s } => {
             info!(reconnect_in_s, observer = %client.username, "relay is restarting");

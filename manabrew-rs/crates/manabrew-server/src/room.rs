@@ -484,6 +484,20 @@ impl Room {
     pub fn transport_host(&self) -> Option<TransportMember> {
         self.transport_members().into_iter().find(|m| m.host)
     }
+
+    /// Whether this room may leave the relay at all.
+    ///
+    /// Announcing an endpoint is how a player opts in, so every human seat has
+    /// to have announced one before anybody's traffic goes direct. One seat
+    /// that has not is one player who did not agree to it, and the room stays
+    /// on the relay for everyone. Bots never announce and never count. A seat
+    /// in its reconnect window still counts: it is still at the table.
+    pub fn transport_consented(&self) -> bool {
+        self.players
+            .iter()
+            .filter(|p| !p.is_bot)
+            .all(|p| self.transports.contains_key(&p.player_id))
+    }
 }
 
 #[cfg(test)]
@@ -587,6 +601,32 @@ mod tests {
 
         r.remove_participant("human");
         assert!(!r.transports.contains_key("human"));
+    }
+
+    /// The room upgrades only when everyone at the table agreed to it. A seat
+    /// that never announced is a player who never opted in, and one is enough
+    /// to keep the whole room on the relay.
+    #[test]
+    fn every_human_seat_has_to_announce_before_the_room_leaves_the_relay() {
+        let mut r = room(false);
+        r.add_player("alice".into(), "alice".into(), false).unwrap();
+        r.add_player("bob".into(), "bob".into(), false).unwrap();
+        r.add_player("bot".into(), "bot".into(), true).unwrap();
+        r.set_transport("host", Some(endpoint("ep-host")));
+
+        assert!(r.set_transport("alice", Some(endpoint("ep-alice"))));
+        assert!(!r.transport_consented(), "bob has not opted in");
+
+        assert!(r.set_transport("bob", Some(endpoint("ep-bob"))));
+        assert!(r.transport_consented(), "bots do not have to announce");
+
+        // Withdrawing is opting out again, and it takes the room with it.
+        assert!(r.set_transport("bob", None));
+        assert!(!r.transport_consented());
+
+        // A seat that leaves stops counting.
+        r.remove_participant("bob");
+        assert!(r.transport_consented());
     }
 
     #[test]

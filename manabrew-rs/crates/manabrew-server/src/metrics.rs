@@ -21,6 +21,7 @@ const DECK_PLAY_EVENTS_DROPPED: &str = "manabrew_relay_deck_play_events_dropped_
 const STATE_PATCH_DOWNGRADES: &str = "manabrew_relay_state_patch_downgrades_total";
 const ENGINE_REPORTS: &str = "manabrew_relay_engine_reports_total";
 const TRANSPORT_ANNOUNCEMENTS: &str = "manabrew_relay_transport_announcements_total";
+const TRANSPORT_ROSTERS: &str = "manabrew_relay_transport_rosters_total";
 const PEER_SIGNALS: &str = "manabrew_relay_peer_signals_total";
 const PLANE_ATTEMPTS: &str = "manabrew_relay_plane_attempts_total";
 const PLANE_RTT: &str = "manabrew_relay_plane_rtt_ms";
@@ -177,6 +178,14 @@ pub fn record_client_rtt(ms: f64) {
 /// answered with silence, so this counter is the only place a squatter shows up.
 pub fn record_transport_announcement(kind: &'static str) {
     counter!(TRANSPORT_ANNOUNCEMENTS, LABEL_KIND => kind).increment(1);
+}
+
+/// `kind` is sent or withheld. A withheld roster is a room where at least one
+/// human seat has not opted in, so the room stays on the relay; a rising
+/// `withheld` beside a flat `sent` says the feature is on and nobody is
+/// taking it.
+pub fn record_transport_roster(kind: &'static str) {
+    counter!(TRANSPORT_ROSTERS, LABEL_KIND => kind).increment(1);
 }
 
 /// `kind` is forwarded, or why it was not: disabled, oversize, no_sender,

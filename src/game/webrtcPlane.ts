@@ -235,8 +235,15 @@ export class WebRtcPlane {
    */
   onRoster(members: RosterMember[], host: RosterMember | undefined): void {
     if (this.closed) return;
+    // A roster with no host is the relay withdrawing the plane: somebody at
+    // the table has not opted in. Every connection goes, so that nothing is
+    // open when `GameStarted` freezes the transport.
+    if (!host) {
+      for (const [peer, state] of this.peers) this.teardown(peer, state);
+      return;
+    }
     if (!endpointSpeaks(host, TRANSPORT_KIND_WEBRTC)) return;
-    const hostname = host?.username;
+    const hostname = host.username;
     if (!hostname) return;
     this.isHost = hostname === this.opts.username;
     this.hostPeer = this.isHost ? null : hostname;

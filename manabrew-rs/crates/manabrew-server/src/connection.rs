@@ -215,13 +215,23 @@ pub fn broadcast_room_transport(state: &Arc<ServerState>, room_id: &str) {
     let Some(room) = state.rooms.get(room_id) else {
         return;
     };
+    // Opt-in is per player and the room upgrades only when every player took
+    // it. Until then the roster goes out empty rather than not at all: an
+    // empty roster is what tells a seat that dialled earlier, before somebody
+    // who did not opt in sat down, to tear its connection down again.
+    let consented = room.transport_consented();
     let msg = ServerMessage::RoomTransport {
         room_id: room_id.to_string(),
         iroh_relay_url: state.iroh_relay_url.clone(),
         ice_servers: state.ice_servers.clone(),
-        host: room.transport_host(),
-        members: room.transport_members(),
+        host: consented.then(|| room.transport_host()).flatten(),
+        members: if consented {
+            room.transport_members()
+        } else {
+            Vec::new()
+        },
     };
+    metrics::record_transport_roster(if consented { "sent" } else { "withheld" });
     // Released before broadcasting, not for tidiness: `broadcast_to_room` takes
     // its own `state.rooms.get`, and dashmap locks per shard, so holding this
     // guard across the call deadlocks the thread against itself on every room
@@ -1116,6 +1126,9 @@ fn handle_client_message(
                                 },
                             );
                         }
+                        // The leaver may have been the one seat that had not
+                        // opted in, in which case the rest may now go direct.
+                        broadcast_room_transport(state, &rid);
                     }
                 }
                 Err(ServerError::NotInRoom) => {

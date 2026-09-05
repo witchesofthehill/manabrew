@@ -69,6 +69,11 @@ pub struct ShellBridge {
     /// anything else goes out, because while they were here the relay saw none
     /// of their envelopes. Settled when the seat answers over the relay.
     owed_a_board: Mutex<HashSet<String>>,
+    /// The seats the relay's latest roster names. The relay sends an empty
+    /// roster while anyone at the table has not opted in, and a channel the
+    /// webview opened before that player sat down is still open; the freeze
+    /// believes the roster, not the channel.
+    attested: Mutex<HashSet<String>>,
     emit: Arc<dyn Fn(ShellEvent) + Send + Sync>,
     on_fallback: Mutex<Option<Reprime>>,
 }
@@ -88,10 +93,18 @@ impl ShellBridge {
             serving: Mutex::new(HashSet::new()),
             frozen: Mutex::new(HashSet::new()),
             owed_a_board: Mutex::new(HashSet::new()),
+            attested: Mutex::new(HashSet::new()),
             emit: Arc::new(emit),
             on_fallback: Mutex::new(None),
         });
         (bridge, tx, rx)
+    }
+
+    /// The relay's latest roster, by username. Replaces the whole set.
+    pub fn set_roster(&self, seats: impl IntoIterator<Item = String>) {
+        if let Ok(mut attested) = self.attested.lock() {
+            *attested = seats.into_iter().collect();
+        }
     }
 
     /// Paid the same way the direct plane pays it: a seat that leaves this
@@ -139,15 +152,22 @@ impl ShellBridge {
     }
 
     /// Called on `GameStarted`, after the direct plane has taken its seats.
-    /// `taken` names those, so a seat cannot be claimed by both planes.
+    /// `taken` names those, so a seat cannot be claimed by both planes. Only
+    /// seats the current roster attests are carried, so an incomplete opt-in
+    /// (an empty roster) freezes nobody onto this plane.
     /// Returns the seats this bridge is carrying for the game.
     pub fn freeze_for_game(&self, seats: &[String], taken: &[String]) -> Vec<String> {
         let Ok(serving) = self.serving.lock() else {
             return Vec::new();
         };
+        let Ok(attested) = self.attested.lock() else {
+            return Vec::new();
+        };
         let mine: HashSet<String> = seats
             .iter()
-            .filter(|seat| serving.contains(*seat) && !taken.contains(*seat))
+            .filter(|seat| {
+                serving.contains(*seat) && attested.contains(*seat) && !taken.contains(*seat)
+            })
             .cloned()
             .collect();
         let mut listed: Vec<String> = mine.iter().cloned().collect();
@@ -241,6 +261,7 @@ mod tests {
     #[test]
     fn nothing_leaves_this_plane_before_the_game_freezes_it() {
         let (bridge, events) = bridge();
+        bridge.set_roster(["bob".to_string()]);
         bridge.set_serving(vec!["bob".into()]);
         // Serving is not the same as carrying. Until GameStarted the relay has
         // the seat, the same rule the direct plane follows.
@@ -254,6 +275,7 @@ mod tests {
     #[test]
     fn a_seat_the_direct_plane_took_is_not_claimed_twice() {
         let (bridge, _events) = bridge();
+        bridge.set_roster(["bob".to_string(), "carol".to_string()]);
         bridge.set_serving(vec!["bob".into(), "carol".into()]);
         // bob is already on iroh. A desktop seat and a browser seat in the same
         // room is exactly the mixed case, and each gets one plane.
@@ -263,6 +285,23 @@ mod tests {
         assert!(bridge.try_send("carol", &json!({})));
     }
 
+    /// An open channel is not consent. The relay empties the roster while any
+    /// player at the table has not opted in, and the freeze follows the roster.
+    #[test]
+    fn a_seat_the_roster_does_not_name_stays_on_the_relay() {
+        let (bridge, _events) = bridge();
+        bridge.set_serving(vec!["bob".into()]);
+        assert!(
+            bridge.freeze_for_game(&["bob".into()], &[]).is_empty(),
+            "no roster, no plane"
+        );
+        bridge.set_roster(["bob".to_string()]);
+        assert_eq!(
+            bridge.freeze_for_game(&["bob".into()], &[]),
+            vec!["bob".to_string()]
+        );
+    }
+
     #[test]
     fn a_seat_that_loses_its_channel_falls_back_owing_a_board() {
         let (bridge, _events) = bridge();
@@ -270,6 +309,7 @@ mod tests {
         let seen = repriced.clone();
         bridge.set_on_fallback(move |seat| seen.lock().unwrap().push(seat.to_string()));
 
+        bridge.set_roster(["bob".to_string()]);
         bridge.set_serving(vec!["bob".into()]);
         bridge.freeze_for_game(&["bob".into()], &[]);
         assert!(bridge.try_send("bob", &json!({})));
@@ -288,6 +328,7 @@ mod tests {
         let seen = count.clone();
         bridge.set_on_fallback(move |_| *seen.lock().unwrap() += 1);
 
+        bridge.set_roster(["bob".to_string()]);
         bridge.set_serving(vec!["bob".into()]);
         bridge.freeze_for_game(&["bob".into()], &[]);
         bridge.set_serving(vec![]);

@@ -1051,6 +1051,28 @@ export default function Settings() {
             )}
 
             <PreferenceCard
+              title="Direct connections"
+              description="Send game traffic straight to the other players instead of through the relay. A table only goes direct when every player at it has this on; otherwise everything stays on the relay as before. Your address is shared with the other players in the room."
+            >
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={prefs.directTransport ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setDirectTransport(true)}
+                >
+                  On
+                </Button>
+                <Button
+                  variant={!prefs.directTransport ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setDirectTransport(false)}
+                >
+                  Off
+                </Button>
+              </div>
+            </PreferenceCard>
+
+            <PreferenceCard
               title="Card Preview Trigger"
               description={
                 'Controls when the card preview and ability panel appears. "Hover" shows on mouse over, others require holding a modifier key.'

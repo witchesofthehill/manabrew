@@ -83,6 +83,7 @@ pub async fn start_forge_host(
     max_players: u8,
     password: Option<String>,
     reconnect_timeout_s: Option<u32>,
+    direct_transport: Option<bool>,
 ) -> Result<String, String> {
     #[cfg(not(feature = "forge-room"))]
     {
@@ -97,6 +98,7 @@ pub async fn start_forge_host(
             max_players,
             password,
             reconnect_timeout_s,
+            direct_transport,
         );
         Err("this desktop build was not compiled with the forge-room feature".to_string())
     }
@@ -109,6 +111,11 @@ pub async fn start_forge_host(
         let scheme = if port == 443 { "wss" } else { "ws" };
         let relay_url = format!("{}://{}:{}", scheme, host, port);
 
+        // The hosting player's own opt-in, read by the webview from Settings.
+        // Off, this host has no direct plane of either kind: no native
+        // endpoint, and no bridge for the webview to carry browser seats over.
+        // It announces nothing, so the relay keeps the room on the relay.
+        let direct_transport = direct_transport.unwrap_or(false);
         let config = self_hosted_node::Config::for_hosted_room(
             relay_url,
             relay_password,
@@ -117,7 +124,8 @@ pub async fn start_forge_host(
             max_players,
             password.filter(|value| !value.is_empty()),
             reconnect_timeout_s,
-        );
+        )
+        .with_direct_plane(direct_transport);
 
         let cancel: Arc<Notify> = Arc::new(Notify::new());
         let room_cancel = cancel.clone();
@@ -125,33 +133,44 @@ pub async fn start_forge_host(
 
         // A browser seat cannot be dialled from the node, so its envelopes go
         // out through the webview instead. The bridge is installed for every
-        // hosted room: it costs one idle channel, and whether a browser seat
-        // turns up is not known until one joins.
-        let emitter = app.clone();
-        let (bridge, bridge_tx, bridge_rx) =
-            self_hosted_node::shell_bridge::ShellBridge::new(move |event| {
-                let payload = match event {
-                    self_hosted_node::shell_bridge::ShellEvent::Envelope { target, envelope } => {
-                        BridgeEvent::Envelope { target, envelope }
-                    }
-                    self_hosted_node::shell_bridge::ShellEvent::Signal { from, payload } => {
-                        BridgeEvent::Signal { from, payload }
-                    }
-                };
-                let _ = emitter.emit(BRIDGE_EVENT, payload);
-            });
-        let shell = self_hosted_node::ShellBridgeHandle {
-            bridge,
-            commands: bridge_rx,
+        // hosted room the player opted in for: it costs one idle channel, and
+        // whether a browser seat turns up is not known until one joins.
+        let mut bridge_tx = None;
+        let handle = if direct_transport {
+            let emitter = app.clone();
+            let (bridge, tx, bridge_rx) =
+                self_hosted_node::shell_bridge::ShellBridge::new(move |event| {
+                    let payload = match event {
+                        self_hosted_node::shell_bridge::ShellEvent::Envelope {
+                            target,
+                            envelope,
+                        } => BridgeEvent::Envelope { target, envelope },
+                        self_hosted_node::shell_bridge::ShellEvent::Signal { from, payload } => {
+                            BridgeEvent::Signal { from, payload }
+                        }
+                    };
+                    let _ = emitter.emit(BRIDGE_EVENT, payload);
+                });
+            bridge_tx = Some(tx);
+            let shell = self_hosted_node::ShellBridgeHandle {
+                bridge,
+                commands: bridge_rx,
+            };
+            tauri::async_runtime::spawn(async move {
+                if let Err(error) =
+                    self_hosted_node::host_room_bridged(config, room_cancel, ready_tx, shell).await
+                {
+                    eprintln!("[forge_room] host exited: {error}");
+                }
+            })
+        } else {
+            tauri::async_runtime::spawn(async move {
+                if let Err(error) = self_hosted_node::host_room(config, room_cancel, ready_tx).await
+                {
+                    eprintln!("[forge_room] host exited: {error}");
+                }
+            })
         };
-
-        let handle = tauri::async_runtime::spawn(async move {
-            if let Err(error) =
-                self_hosted_node::host_room_bridged(config, room_cancel, ready_tx, shell).await
-            {
-                eprintln!("[forge_room] host exited: {error}");
-            }
-        });
 
         let room_id = match tokio::time::timeout(std::time::Duration::from_secs(20), ready_rx).await
         {
@@ -170,7 +189,7 @@ pub async fn start_forge_host(
         *forge.running.lock().map_err(|e| e.to_string())? = Some(RunningRoom {
             cancel,
             handle,
-            bridge: Some(bridge_tx),
+            bridge: bridge_tx,
         });
         Ok(room_id)
     }

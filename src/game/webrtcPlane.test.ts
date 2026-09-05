@@ -249,6 +249,25 @@ describe("negotiation", () => {
     expect(b.signals).toHaveLength(0);
   });
 
+  it("hangs up every peer when the roster comes back without a host", async () => {
+    // The relay empties the roster while a player at the table has not opted
+    // in. A connection made before that player sat down must not survive to
+    // the freeze, or one seat would play direct at a table that did not agree.
+    const host = member("alice", ["webrtc"], true);
+    const a = harness("alice", ["bob"]);
+    a.plane.onRoster([member("alice", ["webrtc"]), member("bob", ["webrtc"])], host);
+    await vi.waitFor(() => expect(a.connections.has("bob")).toBe(true));
+    const bob = a.connections.get("bob")!;
+    bob.channel!.open();
+    expect(a.plane.serving()).toEqual(["bob"]);
+
+    a.plane.onRoster([], undefined);
+    expect(bob.connectionState).toBe("closed");
+    expect(a.plane.serving()).toEqual([]);
+    a.plane.freeze();
+    expect(a.plane.trySend({ kind: "prompt" }, "bob")).toBe(false);
+  });
+
   it("does not offer to a member that only speaks iroh, which is the mixed room", async () => {
     const host = member("alice", ["webrtc"], true);
     const h = harness("alice", ["carol"]);

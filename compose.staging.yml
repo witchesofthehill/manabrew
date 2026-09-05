@@ -73,7 +73,7 @@ services:
       # so this default and that service go together. Override to point
       # somewhere else, or to empty to take the browser plane's reach away
       # without touching MANABREW_DIRECT_TRANSPORT.
-      MANABREW_ICE_SERVERS: "${MANABREW_ICE_SERVERS:-stun:relay-staging.manabrew.app:3478}"
+      MANABREW_ICE_SERVERS: "${MANABREW_ICE_SERVERS:-stun:relay-staging.manabrew.app:3479}"
       RUST_LOG: "manabrew_server=info"
     volumes:
       - ./ops/events:/var/manabrew/events
@@ -234,8 +234,10 @@ services:
   # address no other peer can reach. Published ports through the docker proxy
   # do exactly that. Host networking is what keeps the answer true.
   #
-  # Needs UDP 3478 open on the box; nothing else here does, so the firewall
-  # rule is a separate step from deploying this file.
+  # Needs its UDP port open on the box; nothing else here does, so the
+  # firewall rule is a separate step from deploying this file. 3479, not 3478:
+  # this slot shares the box with production, whose coturn holds 3478, and two
+  # host-networked containers cannot both bind it.
   coturn-staging:
     # Verified on the box 2026-09-02: this flag set starts clean, binds
     # 37.27.253.153:3478, and answered a STUN binding request sent from another
@@ -246,7 +248,7 @@ services:
     restart: unless-stopped
     network_mode: host
     command:
-      - --listening-port=${MANABREW_STUN_PORT:-3478}
+      - --listening-port=${MANABREW_STUN_PORT:-3479}
       - --listening-ip=0.0.0.0
       # Refuses every allocation request, so this cannot become a data path by
       # accident or by someone else pointing a client at it.

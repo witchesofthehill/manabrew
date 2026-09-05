@@ -175,12 +175,12 @@ impl Config {
             max_players,
             max_games: 1,
             state_delta: false,
-            // On for a desktop-hosted room, unlike a headless node. What it
-            // buys is a seat that is *not* on this network: the local one
-            // already reaches an embedded relay over mDNS in one hop, so the
-            // direct plane is for the player in another house, who would
+            // Off until the shell says the player opted in (`with_direct_plane`).
+            // What it buys is a seat that is *not* on this network: the local
+            // one already reaches an embedded relay over mDNS in one hop, so
+            // the direct plane is for the player in another house, who would
             // otherwise take two WAN hops through manabrew.app.
-            iroh_enabled: true,
+            iroh_enabled: false,
             iroh_relay_url: None,
             format,
             auto_start: false,
@@ -195,6 +195,14 @@ impl Config {
             host_deck: synthetic_deck("forge-host", None),
             bot_deck: synthetic_deck("forge-bot", None),
         }
+    }
+
+    /// The hosting player's own opt-in. Off, this host binds no endpoint and
+    /// announces nothing, so its room stays on the relay whatever the seats
+    /// chose; the rule is that everyone at the table agrees or nobody leaves.
+    pub fn with_direct_plane(mut self, enabled: bool) -> Self {
+        self.iroh_enabled = enabled;
+        self
     }
 }
 

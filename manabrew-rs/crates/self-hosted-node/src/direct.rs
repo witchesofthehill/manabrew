@@ -173,8 +173,41 @@ impl DirectPlane {
 
     /// Called on `GameStarted`. Only seats already connected take part, so no
     /// stream changes transport while the game runs.
+    ///
+    /// Only seats the current roster names, too. The relay sends an empty
+    /// roster while any human at the table has not opted in, and a seat that
+    /// dialled before that player sat down is still connected here. The
+    /// roster is the relay's word on who agreed; a live connection is not.
     pub fn freeze_for_game(&self, seats: &[String]) -> Vec<String> {
-        self.seats.freeze_for_game(seats)
+        let roster = self.endpoint.roster();
+        let named: Vec<String> = roster
+            .as_ref()
+            .map(|roster| {
+                roster
+                    .entries()
+                    .iter()
+                    .map(|e| e.username.clone())
+                    .collect()
+            })
+            .unwrap_or_default();
+        self.seats.freeze_for_game(&attested_seats(seats, &named))
+    }
+
+    /// The seats the relay currently attests, in `seats` order. Empty when the
+    /// roster is, which is what an incomplete opt-in looks like from here.
+    pub fn attested(&self, seats: &[String]) -> Vec<String> {
+        let roster = self.endpoint.roster();
+        let named: Vec<String> = roster
+            .as_ref()
+            .map(|roster| {
+                roster
+                    .entries()
+                    .iter()
+                    .map(|e| e.username.clone())
+                    .collect()
+            })
+            .unwrap_or_default();
+        attested_seats(seats, &named)
     }
 
     pub fn clear_game(&self) {
@@ -203,6 +236,16 @@ impl DirectPlane {
     pub async fn shutdown(self) {
         self.endpoint.shutdown().await;
     }
+}
+
+/// `seats` restricted to the names in `roster`, order kept. Kept apart from the
+/// endpoint so the rule can be tested without a network.
+pub fn attested_seats(seats: &[String], roster: &[String]) -> Vec<String> {
+    seats
+        .iter()
+        .filter(|seat| roster.contains(*seat))
+        .cloned()
+        .collect()
 }
 
 impl SeatTable {
@@ -570,6 +613,22 @@ mod tests {
             table.transport_of("bob"),
             Some(SeatTransport::Relay),
             "answering over the relay is the acknowledgement"
+        );
+    }
+
+    /// The relay withholds the roster while anyone at the table has not opted
+    /// in. A seat that dialled before then is connected but not attested, and
+    /// the freeze has to believe the roster, not the connection.
+    #[test]
+    fn a_connected_seat_the_roster_no_longer_names_is_not_frozen_direct() {
+        let seats = ["alice".to_string(), "bob".to_string(), "bot".to_string()];
+        assert_eq!(
+            attested_seats(&seats, &["bob".to_string(), "alice".to_string()]),
+            ["alice", "bob"]
+        );
+        assert!(
+            attested_seats(&seats, &[]).is_empty(),
+            "an empty roster freezes nobody"
         );
     }
 

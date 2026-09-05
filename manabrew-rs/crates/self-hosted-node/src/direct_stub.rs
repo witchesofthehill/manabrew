@@ -55,6 +55,10 @@ impl DirectPlane {
         match self.0 {}
     }
 
+    pub fn attested(&self, _seats: &[String]) -> Vec<String> {
+        match self.0 {}
+    }
+
     pub fn clear_game(&self) {
         match self.0 {}
     }

@@ -40,6 +40,9 @@ pub struct DesktopSeat {
     username: String,
     sender: Option<manabrew_net::GameSender>,
     reader: Option<tauri::async_runtime::JoinHandle<()>>,
+    /// The room the live connection was dialled for. A roster for another
+    /// room, or one that no longer names a host, hangs it up.
+    connected_room: Option<String>,
     seq: u64,
 }
 
@@ -61,6 +64,7 @@ impl DesktopSeat {
             username,
             sender: None,
             reader: None,
+            connected_room: None,
             seq: 0,
         })
     }
@@ -93,7 +97,18 @@ impl DesktopSeat {
             .is_some_and(|name| name == self.username);
         let has_host = roster.host().is_some();
         self.endpoint.set_roster(roster);
-        if self.sender.is_some() || !has_host || !attested {
+        if let Some(sender) = &self.sender {
+            if self.connected_room.as_deref() == Some(room_id) && has_host && attested {
+                // The roster is re-broadcast on every join and leave. Still
+                // connected is not a failed attempt; it is the same one.
+                return Ok(Some(sender.status()));
+            }
+            // A different room, or the relay withdrew the plane because a
+            // player at this table has not opted in. Either way the connection
+            // from before does not carry over.
+            self.hang_up();
+        }
+        if !has_host || !attested {
             return Ok(None);
         }
 
@@ -126,6 +141,7 @@ impl DesktopSeat {
         let status = channel.status();
         let (sender, mut receiver) = channel.split();
         self.sender = Some(sender);
+        self.connected_room = Some(room_id.to_string());
         self.seq = 0;
         self.reader = Some(tauri::async_runtime::spawn(async move {
             while let Some(frame) = receiver.recv().await {
@@ -138,6 +154,19 @@ impl DesktopSeat {
             on_envelope(None);
         }));
         Ok(Some(status))
+    }
+
+    /// Closes the live connection, if any. `close`, not drop: the reader holds
+    /// the other half of the channel guard, so a dropped sender would leave
+    /// the QUIC connection open and still delivering.
+    fn hang_up(&mut self) {
+        if let Some(sender) = self.sender.take() {
+            sender.close();
+        }
+        if let Some(reader) = self.reader.take() {
+            reader.abort();
+        }
+        self.connected_room = None;
     }
 
     pub fn send(&mut self, envelope: serde_json::Value) -> bool {

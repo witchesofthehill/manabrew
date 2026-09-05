@@ -79,6 +79,7 @@ pub struct ServerState {
     pub analytics: AnalyticsHandle,
     pub deck_play_events: DeckPlayEventHandle,
     pub identity: IdentityVerifier,
+    pub art_base_url: Option<String>,
 }
 
 impl ServerState {
@@ -99,7 +100,16 @@ impl ServerState {
             analytics,
             deck_play_events,
             identity: IdentityVerifier::new(hub_jwks_url),
+            art_base_url: None,
         }
+    }
+
+    /// Where this relay serves card art, handed to every client at auth. A
+    /// self-hosted box holding the images is the reason to run one, and the
+    /// client cannot guess the port.
+    pub fn with_art_base_url(mut self, url: Option<String>) -> Self {
+        self.art_base_url = url;
+        self
     }
 
     pub fn session_by_username(&self, username: &str) -> Option<UsernameSession> {

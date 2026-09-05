@@ -1,0 +1,334 @@
+name: Staging desktop builds
+
+# Installers for an integration branch, so the LAN/self-hosted-relay stack
+# (#834, #835, #836) and the direct-transport stack (#831, #839, #840) can be
+# exercised together on real desktops before any of it merges.
+#
+# This is publish.yml's macOS/Windows pair plus the self-hosted relay binary,
+# with everything that publishes stripped out: no GitHub Release, no
+# ops/manifest.json, no Discord. The artifacts live on the workflow run only,
+# so an installed app can never be pointed at one by the updater.
+#
+# Caches are restore-only against cache-warm.yml's main-scoped keys, the same
+# way publish.yml treats them — a staging branch must not evict them, and the
+# Actions cache is already near its 10GB quota.
+
+on:
+  push:
+    branches: ["khaliostr/staging-**"]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── macOS .dmg ─────────────────────────────────────────────────────
+  macos-dmg:
+    name: Build macOS .dmg
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          clean: true
+          fetch-depth: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Set up GraalVM (JDK 21)
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: "21"
+          distribution: "graalvm-community"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: "maven"
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: tauri-macos
+          save-if: false
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.13.1
+
+      - run: yarn
+
+      - name: Compute wasm output key
+        id: wasm-key
+        shell: bash
+        run: echo "key=wasm-output-$(git rev-parse HEAD:forge)-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'manabrew-rs/**/*.rs', 'manabrew-rs/**/Cargo.toml', 'scripts/build-wasm.mjs') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Wasm output cache
+        id: wasm-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            src/wasm
+            public/wasm
+          key: ${{ steps.wasm-key.outputs.key }}
+
+      - name: Build WASM + bundle cards
+        if: steps.wasm-cache.outputs.cache-hit != 'true'
+        run: yarn build:wasm
+
+      - name: Harness cache keys
+        id: harness-keys
+        shell: bash
+        run: |
+          echo "jar=$(node scripts/harness.mjs checksum)" >> "$GITHUB_OUTPUT"
+          echo "native=$(node scripts/harness.mjs native-checksum)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Forge harness jar
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            forge-harness/target/forge-harness-jar-with-dependencies.jar
+            forge-harness/target/.harness-sources-checksum
+            forge-harness/src/main/java/forge/harness/protocol
+          key: harness-jar-v2-${{ steps.harness-keys.outputs.jar }}
+
+      - name: Cache Forge native library
+        id: forge-native-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: forge-harness/native/build
+          key: forge-native-${{ runner.os }}-${{ runner.arch }}-${{ steps.harness-keys.outputs.native }}
+
+      - name: Build Forge harness jar (Maven, GraalVM JDK 21)
+        run: yarn ensure:harness
+
+      - name: Build native Forge library (GraalVM native-image)
+        if: steps.forge-native-cache.outputs.cache-hit != 'true'
+        run: ./forge-harness/build-native.sh
+
+      - name: Smoke the Forge native library
+        env:
+          SELF_HOSTED_NODE_GRAAL_SMOKE: "1"
+          RUST_LOG: self_hosted_node=info
+        run: cargo run -p self-hosted-node --features graal-forge
+
+      - name: Tauri build (macOS)
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+          TAURI_BUNDLER_DMG_IGNORE_CI: "false"
+        with:
+          tauriScript: yarn tauri
+          args: --features forge-room --config src-tauri/updater.conf.json --verbose
+          retryAttempts: 2
+
+      - name: Upload .dmg
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-macos-dmg-${{ github.sha }}
+          path: |
+            target/release/bundle/dmg/*.dmg
+            target/release/bundle/macos/*.app.tar.gz
+            target/release/bundle/macos/*.app.tar.gz.sig
+          if-no-files-found: error
+          retention-days: 14
+
+  # ── Windows .exe ───────────────────────────────────────────────────
+  windows-exe:
+    name: Build Windows .exe
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          clean: true
+          fetch-depth: 10
+
+      - name: Set up MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Set up GraalVM (JDK 21)
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: "21"
+          distribution: "graalvm-community"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: "maven"
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: tauri-windows
+          save-if: false
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.13.1
+
+      - run: yarn
+
+      - name: Compute wasm output key
+        id: wasm-key
+        shell: bash
+        run: echo "key=wasm-output-$(git rev-parse HEAD:forge)-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'manabrew-rs/**/*.rs', 'manabrew-rs/**/Cargo.toml', 'scripts/build-wasm.mjs') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Wasm output cache
+        id: wasm-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            src/wasm
+            public/wasm
+          key: ${{ steps.wasm-key.outputs.key }}
+
+      - name: Build WASM + bundle cards
+        if: steps.wasm-cache.outputs.cache-hit != 'true'
+        run: yarn build:wasm
+
+      - name: Harness cache keys
+        id: harness-keys
+        shell: bash
+        run: |
+          echo "jar=$(node scripts/harness.mjs checksum)" >> "$GITHUB_OUTPUT"
+          echo "native=$(node scripts/harness.mjs native-checksum)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Forge harness jar
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            forge-harness/target/forge-harness-jar-with-dependencies.jar
+            forge-harness/target/.harness-sources-checksum
+            forge-harness/src/main/java/forge/harness/protocol
+          key: harness-jar-v2-${{ steps.harness-keys.outputs.jar }}
+
+      - name: Cache Forge native library
+        id: forge-native-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: forge-harness/native/build
+          key: forge-native-${{ runner.os }}-${{ runner.arch }}-${{ steps.harness-keys.outputs.native }}
+
+      - name: Build Forge harness jar (Maven, GraalVM JDK 21)
+        run: yarn ensure:harness
+
+      - name: Build native Forge library (GraalVM native-image)
+        if: steps.forge-native-cache.outputs.cache-hit != 'true'
+        run: ./forge-harness/build-native.ps1
+        shell: pwsh
+
+      - name: Smoke the Forge native library
+        env:
+          SELF_HOSTED_NODE_GRAAL_SMOKE: "1"
+          RUST_LOG: self_hosted_node=info
+        run: cargo run -p self-hosted-node --features graal-forge
+
+      - name: Tauri build (Windows)
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        with:
+          tauriScript: yarn tauri
+          args: --features forge-room --config src-tauri/updater.conf.json --verbose
+          retryAttempts: 2
+
+      - name: Upload .exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-windows-exe-${{ github.sha }}
+          path: |
+            target/release/bundle/nsis/*.exe
+            target/release/bundle/nsis/*.exe.sig
+            target/release/bundle/msi/*.msi
+          if-no-files-found: error
+          retention-days: 14
+
+  # ── Self-hosted relay (Linux musl) ─────────────────────────────────
+  # The other half of #834/#836: the binary somebody drops on a box, and the
+  # one the relay's own updater replaces. Signed with the key the updater
+  # verifies, so the signature path is exercised, not just the build.
+  relay-binary:
+    name: Build self-hosted relay
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: relay-musl
+          save-if: false
+
+      # aws-lc-rs and zstd are C, so rust-lld on its own is not enough here.
+      - name: Install musl toolchain
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      # The tauri CLI lives in node_modules; the signer step below needs it.
+      - run: yarn --frozen-lockfile
+
+      - name: Build self-hosted relay
+        env:
+          CC_x86_64_unknown_linux_musl: musl-gcc
+          AR_x86_64_unknown_linux_musl: ar
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
+        run: |
+          cargo build --release -p manabrew-server --target x86_64-unknown-linux-musl
+          mkdir -p release-assets
+          cp target/x86_64-unknown-linux-musl/release/manabrew-server \
+            release-assets/manabrew-server-linux-x86_64
+
+      - name: Sign the relay binary
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        run: |
+          yarn tauri signer sign \
+            --private-key "$TAURI_SIGNING_PRIVATE_KEY" \
+            release-assets/manabrew-server-linux-x86_64
+
+      - name: Upload relay binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-relay-linux-x86_64-${{ github.sha }}
+          path: |
+            release-assets/manabrew-server-linux-x86_64
+            release-assets/manabrew-server-linux-x86_64.sig
+          if-no-files-found: error
+          retention-days: 14

@@ -94,6 +94,9 @@ export class ForgeHostBridge {
       // The node already decided this envelope belongs on this plane. If the
       // channel has gone since, saying so is what puts the seat back on the
       // relay, and the node owes it a board from that moment.
+      if ((message.envelope as { kind?: string }).kind === "prompt") {
+        console.info(`[forge-host] handed a prompt to the plane for ${message.target}`);
+      }
       const sent = this.plane?.sendTo(message.target, message.envelope) ?? false;
       if (!sent) {
         console.warn(`[forge-host] no channel to ${message.target}; reporting it gone`);

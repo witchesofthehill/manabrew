@@ -94,6 +94,12 @@ export class DirectSeat {
           this.active = false;
           return;
         }
+        // The webview end of the seat's receive path. A prompt logged by the
+        // native reader but not here means the Tauri event hop dropped it,
+        // most likely because it fired before this listener was attached.
+        if ((event.payload as { kind?: string }).kind === "prompt") {
+          console.info("[direct] webview received a prompt over the native seat channel");
+        }
         this.deliver(event.payload, "");
       });
       this.installedRelay = this.relayUrl;

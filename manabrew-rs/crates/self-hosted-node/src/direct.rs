@@ -407,9 +407,17 @@ impl SeatTable {
             seq,
             payload: envelope.clone(),
         };
+        let kind = envelope.get("kind").and_then(Value::as_str).unwrap_or("?");
         match sender.try_send(frame) {
             Ok(()) => {
                 crate::metrics::record_direct_frame("out");
+                // Prompts are the envelope a seat waits on, so name them: this
+                // is the "did the host send the mulligan over iroh" line.
+                if kind == "prompt" {
+                    info!(target, seq, "direct plane: sent a prompt to the seat");
+                } else {
+                    debug!(target, seq, kind, "direct frame out");
+                }
                 true
             }
             Err(error) => {

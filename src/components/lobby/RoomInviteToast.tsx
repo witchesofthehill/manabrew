@@ -1,7 +1,7 @@
 import { LockKeyhole, Users } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { EngineMark } from "@/components/lobby/EngineMark";
+import { PlayerAvatar } from "@/components/lobby/PlayerAvatar";
 import { getFormat } from "@/lib/formats";
 import { stripUsernameTag } from "@/lib/username";
 import type { RoomInfo } from "@/types/server";
@@ -39,10 +39,12 @@ export function RoomInviteToast({
   return (
     <div className="flex w-[22rem] max-w-[calc(100vw-2rem)] flex-col gap-3 rounded-xl border border-primary/30 bg-card p-3 text-foreground shadow-lg">
       <div className="flex items-start gap-3">
-        <Avatar className="h-9 w-9 shrink-0">
-          {fromAvatarUrl && <AvatarImage src={fromAvatarUrl} alt="" crossOrigin="anonymous" />}
-          <AvatarFallback className="text-sm">{name.slice(0, 1).toUpperCase()}</AvatarFallback>
-        </Avatar>
+        <PlayerAvatar
+          username={from}
+          avatarUrl={fromAvatarUrl}
+          className="h-9 w-9 shrink-0"
+          fallbackClassName="text-sm"
+        />
         <div className="min-w-0 flex-1">
           <p className="text-sm leading-snug">
             <span className="font-semibold">{name}</span> invited you to {modeSentence(room)}

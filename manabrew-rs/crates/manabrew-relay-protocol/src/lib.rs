@@ -343,7 +343,7 @@ pub struct ChatMessage {
 pub const CHAT_MESSAGE_MAX_CHARS: usize = 500;
 pub const CHAT_HISTORY_MAX_MESSAGES: usize = 100;
 pub const CHAT_HISTORY_MAX_AGE_MS: u64 = 24 * 60 * 60 * 1000;
-pub const CHAT_MIN_INTERVAL_MS: u64 = 2000;
+pub const CHAT_MIN_INTERVAL_MS: u64 = 400;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "lobby/index.ts")]

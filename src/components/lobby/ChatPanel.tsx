@@ -3,10 +3,11 @@ import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChatMessageRow } from "@/components/lobby/ChatMessageRow";
 import { useChatStore, type ChatEntry } from "@/stores/useChatStore";
+import { useServerStore } from "@/stores/useServerStore";
 import { CHAT_MESSAGE_MAX_CHARS, type ChatScope, type RoomInfo } from "@/types/server";
 import { cn } from "@/lib/utils";
-import { stripUsernameTag } from "@/lib/username";
 
 interface ChatPanelProps {
   currentRoom: RoomInfo | null;
@@ -15,11 +16,7 @@ interface ChatPanelProps {
   className?: string;
 }
 
-const SCOPE_LABEL: Record<ChatScope, string> = { Room: "Table", Lobby: "Lobby" };
-
-function formatTime(sentAtMs: number): string {
-  return new Date(sentAtMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
+const SCOPE_LABEL: Record<ChatScope, string> = { Room: "Table", Lobby: "General" };
 
 export function ChatPanel({
   currentRoom,
@@ -32,6 +29,7 @@ export function ChatPanel({
   const unread = useChatStore((s) => s.unread);
   const send = useChatStore((s) => s.send);
   const markRead = useChatStore((s) => s.markRead);
+  const players = useServerStore((s) => s.players);
   const inRoom = currentRoom != null;
   const [scope, setScope] = useState<ChatScope>(inRoom ? "Room" : "Lobby");
   const [prevInRoom, setPrevInRoom] = useState(inRoom);
@@ -94,38 +92,25 @@ export function ChatPanel({
           </>
         ) : (
           <span className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Lobby chat
+            General
           </span>
         )}
       </div>
       <ScrollArea className="min-h-0 flex-1 px-3 py-2">
-        <div className="space-y-1">
+        <div className="space-y-2">
           {entries.length === 0 && (
             <p className="py-4 text-center text-xs italic text-muted-foreground">
               {scope === "Room" ? "Say hello to your table." : "No messages yet."}
             </p>
           )}
-          {entries.map((entry) => {
-            if (entry.system) {
-              return (
-                <p key={entry.id} className="text-xs italic text-muted-foreground">
-                  {entry.text}
-                </p>
-              );
-            }
-            const mine = entry.from === currentUsername;
-            return (
-              <div key={entry.id} className="text-xs leading-snug">
-                <span className="mr-1 text-[10px] text-muted-foreground/70">
-                  {formatTime(entry.sentAtMs)}
-                </span>
-                <span className={cn("mr-1.5 font-semibold", mine && "text-primary")}>
-                  {stripUsernameTag(entry.from)}
-                </span>
-                <span className="break-words text-foreground/85">{entry.text}</span>
-              </div>
-            );
-          })}
+          {entries.map((entry) => (
+            <ChatMessageRow
+              key={entry.id}
+              entry={entry}
+              mine={entry.from === currentUsername}
+              player={players.find((p) => p.username === entry.from)}
+            />
+          ))}
           <div ref={endRef} />
         </div>
       </ScrollArea>
@@ -138,7 +123,7 @@ export function ChatPanel({
       >
         <Input
           className="h-8 text-xs pointer-coarse:h-10 pointer-coarse:text-base"
-          placeholder={scope === "Room" ? "Message your table…" : "Message the lobby…"}
+          placeholder={scope === "Room" ? "Message your table…" : "Message everyone…"}
           value={input}
           maxLength={CHAT_MESSAGE_MAX_CHARS}
           disabled={disabled}

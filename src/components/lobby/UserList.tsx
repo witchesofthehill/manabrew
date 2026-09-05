@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { JoinPasswordDialog } from "@/components/lobby/JoinPasswordDialog";
+import { PLAYER_ROW_ACTION_CLASS, PlayerRow } from "@/components/lobby/PlayerRow";
 import { Wifi, WifiOff, Loader2, Search, UserPlus } from "lucide-react";
-import { GameIcon, type GameIconKey } from "@/components/companion/GameIcon";
 import { USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type { LocalGameKind, PlayerInfo, RoomInfo, ServerErrorCode } from "@/types/server";
 import { cn } from "@/lib/utils";
@@ -44,29 +43,6 @@ const CONNECTION_STATUS: Record<
     Icon: WifiOff,
   },
 };
-
-const QUALIFICATION_BADGES: Record<string, { icon: GameIconKey; label: string; color: string }> = {
-  maintainer: { icon: "witch-flight", label: "Maintainer", color: "text-format-badge-amber" },
-};
-
-function IconBadge({ icon, label, color }: { icon: GameIconKey; label: string; color: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span className={cn("flex shrink-0", color)}>
-          <GameIcon icon={icon} className="h-3.5 w-3.5" />
-        </span>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
-  );
-}
-
-function QualificationBadge({ qualification }: { qualification: string | undefined }) {
-  const badge = qualification ? QUALIFICATION_BADGES[qualification] : undefined;
-  if (!badge) return null;
-  return <IconBadge icon={badge.icon} label={badge.label} color={badge.color} />;
-}
 
 const LOCAL_GAME_LABEL: Record<LocalGameKind, string> = {
   Singleplayer: "Playing solo",
@@ -194,79 +170,53 @@ export function UserList({
       room.players.length < room.max_players;
     const invitable =
       canInvite && !isCurrentPlayer && player.connected && room == null && !player.local_game;
-    return (
-      <div
-        key={player.player_id}
-        className={cn(
-          "flex items-center gap-2.5 px-2 py-1.5 rounded-md",
-          isCurrentPlayer && "bg-muted/40",
-          player.qualification === "maintainer" && "maintainer-row",
-        )}
+    const statusLine = isCurrentPlayer ? (
+      <span className={cn("flex items-center gap-1 text-[10px]", status.text)}>
+        <status.Icon
+          className={cn("h-2.5 w-3.5", connectionState === "connecting" && "animate-spin")}
+        />
+        {status.label}
+      </span>
+    ) : (
+      <span className="text-[10px] text-muted-foreground" title={room?.room_name}>
+        {playerStatus(room, player.local_game)}
+      </span>
+    );
+    const action = joinable ? (
+      <Button
+        size="sm"
+        variant="secondary"
+        className={PLAYER_ROW_ACTION_CLASS}
+        disabled={joiningRoomId === room.room_id}
+        onClick={() => requestJoin(room)}
+        title={`Join ${room.room_name}`}
       >
-        <div className="relative shrink-0">
-          <Avatar className="h-7 w-7">
-            {player.avatar_url && (
-              <AvatarImage src={player.avatar_url} alt="" crossOrigin="anonymous" />
-            )}
-            <AvatarFallback className="text-xs">
-              {stripUsernameTag(player.username).slice(0, 1).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <span
-            className={cn(
-              "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-background",
-              isCurrentPlayer
-                ? status.dot
-                : player.connected
-                  ? "bg-success"
-                  : "bg-muted-foreground/40",
-            )}
-          />
-        </div>
-        <div className="flex-1 min-w-0">
-          <span className="flex items-center gap-1 text-sm font-medium leading-none">
-            <span className="truncate">{stripUsernameTag(player.username)}</span>
-            <QualificationBadge qualification={player.qualification} />
-          </span>
-          {isCurrentPlayer ? (
-            <span className={cn("flex items-center gap-1 text-[10px]", status.text)}>
-              <status.Icon
-                className={cn("h-2.5 w-3.5", connectionState === "connecting" && "animate-spin")}
-              />
-              {status.label}
-            </span>
-          ) : (
-            <span className="text-[10px] text-muted-foreground" title={room?.room_name}>
-              {playerStatus(room, player.local_game)}
-            </span>
-          )}
-        </div>
-        {joinable && (
-          <Button
-            size="sm"
-            variant="secondary"
-            className="h-6 px-2 text-[11px] shrink-0 hover:bg-primary hover:text-primary-foreground hover:shadow"
-            disabled={joiningRoomId === room.room_id}
-            onClick={() => requestJoin(room)}
-            title={`Join ${room.room_name}`}
-          >
-            {joiningRoomId === room.room_id ? "Joining…" : "Join"}
-          </Button>
-        )}
-        {invitable && (
-          <Button
-            size="sm"
-            variant="secondary"
-            className="h-6 px-2 text-[11px] shrink-0 hover:bg-primary hover:text-primary-foreground hover:shadow"
-            disabled={invited.has(player.username)}
-            onClick={() => void handleInvite(player.username)}
-            title="Invite to your table"
-          >
-            <UserPlus className="h-3 w-3" />
-            {invited.has(player.username) ? "Invited" : "Invite"}
-          </Button>
-        )}
-      </div>
+        {joiningRoomId === room.room_id ? "Joining…" : "Join"}
+      </Button>
+    ) : invitable ? (
+      <Button
+        size="sm"
+        variant="secondary"
+        className={PLAYER_ROW_ACTION_CLASS}
+        disabled={invited.has(player.username)}
+        onClick={() => void handleInvite(player.username)}
+        title="Invite to your table"
+      >
+        <UserPlus className="h-3 w-3" />
+        {invited.has(player.username) ? "Invited" : "Invite"}
+      </Button>
+    ) : null;
+    return (
+      <PlayerRow
+        key={player.player_id}
+        player={player}
+        presenceDotClass={
+          isCurrentPlayer ? status.dot : player.connected ? "bg-success" : "bg-muted-foreground/40"
+        }
+        status={statusLine}
+        highlighted={isCurrentPlayer}
+        action={action}
+      />
     );
   }
 

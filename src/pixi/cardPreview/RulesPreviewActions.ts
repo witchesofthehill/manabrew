@@ -1,0 +1,448 @@
+import { Container, Graphics, Rectangle, Text, TextStyle } from "pixi.js";
+import type { DestroyOptions, FederatedPointerEvent } from "pixi.js";
+import type { CardStatusPresentation, CardStatusTone } from "@/components/game/cardPresentation";
+import type { Theme } from "@/hooks/useTheme";
+import type { HandActionOption } from "@/stores/useGameUIStore";
+import { hexToNum } from "@/pixi/colorUtils";
+import { PixiRichText } from "./PixiRichText";
+
+interface ActionsContent {
+  width: number;
+  maxHeight: number;
+  theme: Theme;
+  actions: Array<{ action: HandActionOption; shortcut: number }>;
+  controls: Array<{ label: string; activate: () => void }>;
+  statuses: CardStatusPresentation[];
+  hint: string;
+  label: string;
+  onSelectAction: (action: HandActionOption) => void;
+}
+
+interface ActionRow {
+  top: number;
+  height: number;
+  background: Graphics;
+}
+
+const PAD = 16;
+const GAP = 6;
+const SCROLL_GUTTER = 8;
+const LINE_HEIGHT = 18;
+const DRAG_SLOP = 5;
+
+function textStyle(fill: string, fontSize = 13, bold = false): TextStyle {
+  return new TextStyle({
+    fill,
+    fontSize,
+    fontFamily: "Inter, system-ui, sans-serif",
+    fontWeight: bold ? "700" : "400",
+    lineHeight: fontSize * 1.3,
+  });
+}
+
+function sameAction(left: HandActionOption, right: HandActionOption): boolean {
+  return (
+    left.kind === right.kind &&
+    left.cardId === right.cardId &&
+    left.actionId === right.actionId &&
+    left.abilityIndex === right.abilityIndex &&
+    left.mode === right.mode &&
+    left.colorChoice === right.colorChoice &&
+    left.toZoneId === right.toZoneId &&
+    left.tapped === right.tapped &&
+    left.isClassLevelUp === right.isClassLevelUp &&
+    left.isManaAbility === right.isManaAbility &&
+    (left.actionId !== undefined || left.abilityIndex !== undefined || left.label === right.label)
+  );
+}
+
+function actionText(action: HandActionOption): string {
+  const cost = action.cost?.trim();
+  if (!cost || action.label.toLowerCase().startsWith(cost.toLowerCase())) return action.label;
+  return `${cost}: ${action.label}`;
+}
+
+export class RulesPreviewActions extends Container {
+  private background = new Graphics();
+  private viewport = new Container();
+  private content = new Container();
+  private clip = new Graphics();
+  private utilities = new Container();
+  private scrollbar = new Graphics();
+  private spec: ActionsContent | null = null;
+  private rows: ActionRow[] = [];
+  private focusedIndex = 0;
+  private contentWidth = 0;
+  private contentHeight = 0;
+  private viewportHeight = 0;
+  private heightValue = 0;
+  private scrollOffset = 0;
+  private pointerId: number | null = null;
+  private tapPointerId: number | null = null;
+  private pressX = 0;
+  private pressY = 0;
+  private pressScroll = 0;
+  private touchPress = false;
+  private dragMoved = false;
+
+  constructor() {
+    super();
+    this.eventMode = "static";
+    this.content.eventMode = this.utilities.eventMode = "passive";
+    this.background.eventMode = this.clip.eventMode = this.scrollbar.eventMode = "none";
+    this.viewport.addChild(this.content);
+    this.viewport.mask = this.clip;
+    this.addChild(this.background, this.viewport, this.clip, this.scrollbar, this.utilities);
+    this.on("pointerdown", (event: FederatedPointerEvent) => {
+      event.stopPropagation();
+      if (this.pointerId !== null) return;
+      this.pointerId = event.pointerId;
+      this.tapPointerId = null;
+      this.pressX = event.global.x;
+      this.pressY = event.global.y;
+      this.pressScroll = this.scrollOffset;
+      this.touchPress = event.pointerType === "touch";
+      this.dragMoved = false;
+    });
+    this.on("globalpointermove", (event: FederatedPointerEvent) => {
+      if (event.pointerId !== this.pointerId) return;
+      const delta = event.global.y - this.pressY;
+      if (Math.hypot(event.global.x - this.pressX, delta) > DRAG_SLOP) this.dragMoved = true;
+      if (this.touchPress && this.dragMoved) {
+        const scale = Math.hypot(this.worldTransform.c, this.worldTransform.d);
+        if (scale > 0) this.setScroll(this.pressScroll - delta / scale);
+      }
+    });
+    this.on("pointerup", (event: FederatedPointerEvent) => this.endPress(event, false));
+    this.on("pointerupoutside", (event: FederatedPointerEvent) => this.endPress(event, true));
+    this.on("pointercancel", (event: FederatedPointerEvent) => this.endPress(event, true));
+  }
+
+  get panelHeight(): number {
+    return this.heightValue;
+  }
+
+  setContent(spec: ActionsContent): void {
+    const previousAction = this.spec?.actions[this.focusedIndex]?.action;
+    this.clearInput();
+    this.content.removeChildren().forEach((child) => child.destroy({ children: true }));
+    this.utilities.removeChildren().forEach((child) => child.destroy({ children: true }));
+    this.rows = [];
+    this.spec = spec;
+    this.contentWidth = Math.max(1, spec.width - PAD * 2 - SCROLL_GUTTER);
+    const matchingIndex = previousAction
+      ? spec.actions.findIndex(
+          ({ action }) => action === previousAction || sameAction(action, previousAction),
+        )
+      : -1;
+    this.focusedIndex =
+      matchingIndex >= 0
+        ? matchingIndex
+        : Math.min(this.focusedIndex, Math.max(0, spec.actions.length - 1));
+    let y = 0;
+    if (spec.actions.length > 0) {
+      if (spec.label) {
+        y = this.addText(spec.label, y, spec.theme.appTheme["muted-foreground"], 11, true);
+      }
+      for (const [index, entry] of spec.actions.entries()) {
+        const row = new Container();
+        const background = new Graphics();
+        const key = new Text({
+          text: String(entry.shortcut),
+          style: textStyle(spec.theme.appTheme["primary-foreground"], 12, true),
+        });
+        key.resolution = 2;
+        key.anchor.set(0.5);
+        key.position.set(21, 21);
+        const keyBackground = new Graphics();
+        keyBackground.roundRect(9, 9, 24, 24, 6).fill(hexToNum(spec.theme.appTheme.primary));
+        const label = new PixiRichText();
+        const labelHeight = label.setContent(
+          actionText(entry.action),
+          textStyle(spec.theme.appTheme["popover-foreground"]),
+          Math.max(1, this.contentWidth - 53),
+          15,
+          3,
+          { parentheticalStyle: textStyle(spec.theme.appTheme["muted-foreground"]) },
+        );
+        const height = Math.max(42, labelHeight + 18);
+        label.position.set(43, 9);
+        row.position.set(0, y);
+        row.addChild(background, keyBackground, key, label);
+        row.hitArea = new Rectangle(0, 0, this.contentWidth, height);
+        row.eventMode = "static";
+        row.cursor = "pointer";
+        row.on("pointerenter", (event: FederatedPointerEvent) => {
+          if (event.pointerType === "touch" || this.pointerId !== null) return;
+          this.focusedIndex = index;
+          this.drawFocus();
+        });
+        row.on("pointertap", (event: FederatedPointerEvent) => {
+          if (this.consumeTap(event)) this.activateAction(index);
+        });
+        this.rows.push({ top: y, height, background });
+        this.content.addChild(row);
+        y += height + GAP;
+      }
+    }
+    if (spec.statuses.length > 0) y = this.addChips(y > 0 ? y + GAP : y);
+    if (spec.hint) y = this.addText(spec.hint, y, spec.theme.appTheme["muted-foreground"], 10);
+    this.contentHeight = Math.max(0, y - GAP);
+    const utilityHeight = this.addControls();
+    const sectionGap = this.contentHeight > 0 && utilityHeight > 0 ? GAP * 2 : 0;
+    this.heightValue =
+      this.contentHeight > 0 || utilityHeight > 0
+        ? Math.max(
+            0,
+            Math.min(spec.maxHeight, this.contentHeight + utilityHeight + sectionGap + PAD * 2),
+          )
+        : 0;
+    this.viewportHeight = Math.max(0, this.heightValue - PAD * 2 - utilityHeight - sectionGap);
+    this.utilities.position.set(PAD, PAD + this.viewportHeight + sectionGap);
+    this.visible = this.heightValue > 0;
+    this.hitArea = new Rectangle(0, 0, spec.width, this.heightValue);
+    this.viewport.position.set(PAD, PAD);
+    this.viewport.hitArea = new Rectangle(0, 0, this.contentWidth, this.viewportHeight);
+    this.background
+      .clear()
+      .roundRect(0, 0, spec.width, this.heightValue, 10)
+      .fill(hexToNum(spec.theme.appTheme.popover));
+    if (sectionGap > 0) {
+      const dividerY = PAD + this.viewportHeight + GAP;
+      this.background
+        .moveTo(PAD, dividerY)
+        .lineTo(spec.width - PAD, dividerY)
+        .stroke({ color: hexToNum(spec.theme.appTheme.border), width: 1, alpha: 0.45 });
+    }
+    this.clip
+      .clear()
+      .rect(PAD, PAD, this.contentWidth, this.viewportHeight)
+      .fill(hexToNum(spec.theme.appTheme.popover));
+    this.setScroll(this.scrollOffset);
+    this.drawFocus();
+  }
+
+  focusAction(delta: number): void {
+    if (this.rows.length === 0) return;
+    this.focusedIndex =
+      (((this.focusedIndex + Math.trunc(delta)) % this.rows.length) + this.rows.length) %
+      this.rows.length;
+    this.drawFocus();
+    const row = this.rows[this.focusedIndex]!;
+    if (row.top < this.scrollOffset) this.setScroll(row.top);
+    else if (row.top + row.height > this.scrollOffset + this.viewportHeight) {
+      this.setScroll(
+        row.height > this.viewportHeight ? row.top : row.top + row.height - this.viewportHeight,
+      );
+    }
+  }
+
+  activateFocusedAction(): void {
+    this.activateAction(this.focusedIndex);
+  }
+
+  activateShortcut(shortcut: number): boolean {
+    const index = this.spec?.actions.findIndex((entry) => entry.shortcut === shortcut) ?? -1;
+    if (index < 0) return false;
+    this.activateAction(index);
+    return true;
+  }
+
+  scrollBy(delta: number, mode: number, scale: number): void {
+    const unit =
+      mode === 1 ? LINE_HEIGHT : mode === 2 ? this.viewportHeight : scale > 0 ? 1 / scale : 0;
+    this.setScroll(this.scrollOffset + delta * unit);
+  }
+
+  reset(): void {
+    this.clearInput();
+    this.spec = null;
+    this.rows = [];
+    this.focusedIndex =
+      this.scrollOffset =
+      this.contentWidth =
+      this.contentHeight =
+      this.viewportHeight =
+      this.heightValue =
+        0;
+    this.content.removeChildren().forEach((child) => child.destroy({ children: true }));
+    this.utilities.removeChildren().forEach((child) => child.destroy({ children: true }));
+    this.content.y = 0;
+    this.background.clear();
+    this.clip.clear();
+    this.scrollbar.clear();
+    this.hitArea = new Rectangle();
+    this.visible = false;
+  }
+
+  override destroy(options?: DestroyOptions): void {
+    this.reset();
+    super.destroy(
+      typeof options === "object" ? { ...options, children: true } : { children: true },
+    );
+  }
+
+  private addText(value: string, y: number, color: string, size: number, bold = false): number {
+    const style = textStyle(color, size, bold);
+    style.wordWrap = true;
+    style.breakWords = true;
+    style.wordWrapWidth = this.contentWidth;
+    const text = new Text({ text: value, style });
+    text.resolution = 2;
+    text.position.set(0, y);
+    this.content.addChild(text);
+    return y + text.height + GAP;
+  }
+
+  private addChips(top: number): number {
+    let x = 0;
+    let y = top;
+    let rowHeight = 0;
+    for (const status of this.spec!.statuses) {
+      const color = this.statusColor(status.tone);
+      const style = textStyle(color, 10, true);
+      style.wordWrap = true;
+      style.breakWords = true;
+      style.wordWrapWidth = Math.max(1, this.contentWidth - 16);
+      const text = new Text({ text: status.label, style });
+      text.resolution = 2;
+      const width = Math.min(this.contentWidth, text.width + 16);
+      const height = Math.max(24, text.height + 12);
+      if (x > 0 && x + width > this.contentWidth) {
+        x = 0;
+        y += rowHeight + GAP;
+        rowHeight = 0;
+      }
+      const chip = new Container();
+      const background = new Graphics();
+      background.roundRect(0, 0, width, height, 7).fill({ color: hexToNum(color), alpha: 0.15 });
+      text.position.set(8, (height - text.height) / 2);
+      chip.position.set(x, y);
+      chip.addChild(background, text);
+      this.content.addChild(chip);
+      x += width + GAP;
+      rowHeight = Math.max(rowHeight, height);
+    }
+    return y + rowHeight + GAP;
+  }
+
+  private addControls(): number {
+    const spec = this.spec!;
+    let x = 0;
+    let y = 0;
+    let rowHeight = 0;
+    for (const control of spec.controls) {
+      const style = textStyle(spec.theme.appTheme["muted-foreground"], 11);
+      style.wordWrap = true;
+      style.breakWords = true;
+      style.wordWrapWidth = Math.max(1, this.contentWidth - 16);
+      const text = new Text({ text: control.label, style });
+      text.resolution = 2;
+      const width = Math.min(this.contentWidth, text.width + 16);
+      const height = Math.max(40, text.height + 16);
+      if (x > 0 && x + width > this.contentWidth) {
+        x = 0;
+        y += rowHeight + GAP;
+        rowHeight = 0;
+      }
+      const button = new Container();
+      const background = new Graphics();
+      text.position.set(8, (height - text.height) / 2);
+      button.position.set(x, y);
+      button.addChild(background, text);
+      button.eventMode = "static";
+      button.cursor = "pointer";
+      button.hitArea = new Rectangle(0, 0, width, height);
+      button.on("pointerenter", (event: FederatedPointerEvent) => {
+        if (event.pointerType === "touch") return;
+        background
+          .clear()
+          .roundRect(0, 0, width, height, 6)
+          .fill({ color: hexToNum(spec.theme.appTheme.muted), alpha: 0.65 });
+      });
+      button.on("pointerleave", () => background.clear());
+      button.on("pointertap", (event: FederatedPointerEvent) => {
+        if (this.consumeTap(event)) control.activate();
+      });
+      this.utilities.addChild(button);
+      x += width + GAP;
+      rowHeight = Math.max(rowHeight, height);
+    }
+    return y + rowHeight;
+  }
+
+  private statusColor(tone: CardStatusTone): string {
+    const theme = this.spec!.theme.gameTheme;
+    if (tone in theme.cardStatus) return theme.cardStatus[tone as keyof typeof theme.cardStatus];
+    if (tone === "danger") return theme.pt.lethal;
+    if (tone === "positive") return theme.success;
+    if (tone === "ring") return theme.badges.ring;
+    if (tone === "accent") return theme.cardRing;
+    return theme.counter.default;
+  }
+
+  private activateAction(index: number): void {
+    const spec = this.spec;
+    const entry = spec?.actions[index];
+    if (spec && entry) spec.onSelectAction(entry.action);
+  }
+
+  private drawFocus(): void {
+    const theme = this.spec!.theme.appTheme;
+    this.rows.forEach((row, index) => {
+      const focused = index === this.focusedIndex;
+      row.background
+        .clear()
+        .roundRect(0, 0, this.contentWidth, row.height, 8)
+        .fill({
+          color: hexToNum(focused ? theme.ring : theme.muted),
+          alpha: focused ? 0.3 : 0.55,
+        });
+      if (focused) row.background.stroke({ color: hexToNum(theme.ring), width: 1 });
+    });
+  }
+
+  private setScroll(offset: number): void {
+    const maxScroll = Math.max(0, this.contentHeight - this.viewportHeight);
+    this.scrollOffset = Math.max(0, Math.min(offset, maxScroll));
+    this.content.y = -this.scrollOffset;
+    this.scrollbar.clear();
+    if (!this.spec || maxScroll <= 0 || this.viewportHeight <= 0) return;
+    const trackHeight = this.viewportHeight;
+    const thumbHeight = Math.min(
+      trackHeight,
+      Math.max(18, (trackHeight * this.viewportHeight) / this.contentHeight),
+    );
+    const x = this.spec.width - PAD;
+    const y = PAD + ((trackHeight - thumbHeight) * this.scrollOffset) / maxScroll;
+    this.scrollbar
+      .roundRect(x, PAD, 2, trackHeight, 1)
+      .fill({ color: hexToNum(this.spec.theme.appTheme.muted), alpha: 0.8 });
+    this.scrollbar
+      .roundRect(x - 1, y, 4, thumbHeight, 2)
+      .fill(hexToNum(this.spec.theme.appTheme["muted-foreground"]));
+  }
+
+  private endPress(event: FederatedPointerEvent, cancelled: boolean): void {
+    if (event.pointerId !== this.pointerId) return;
+    event.stopPropagation();
+    if (Math.hypot(event.global.x - this.pressX, event.global.y - this.pressY) > DRAG_SLOP) {
+      this.dragMoved = true;
+    }
+    this.tapPointerId = !cancelled && !this.dragMoved ? event.pointerId : null;
+    this.pointerId = null;
+  }
+
+  private consumeTap(event: FederatedPointerEvent): boolean {
+    event.stopPropagation();
+    if (event.pointerId !== this.tapPointerId) return false;
+    this.tapPointerId = null;
+    return true;
+  }
+
+  private clearInput(): void {
+    this.pointerId = this.tapPointerId = null;
+    this.pressX = this.pressY = this.pressScroll = 0;
+    this.touchPress = this.dragMoved = false;
+  }
+}

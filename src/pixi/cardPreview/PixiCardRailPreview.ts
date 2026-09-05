@@ -1,32 +1,18 @@
-import { Container, Graphics, Rectangle, Sprite, Text, TextStyle, Texture } from "pixi.js";
+import { Container, Graphics, Sprite, Text, TextStyle, Texture } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import type { CardRailEffect, CardRailState } from "@/components/game/cardRailState";
 import { gameIconTexture } from "@/pixi/gameIconCache";
 import { hexToNum } from "@/pixi/colorUtils";
 import { PixiRichText } from "@/pixi/cardPreview/PixiRichText";
-
-export interface PixiCardRailPreviewInteraction {
-  position: number;
-  shortcut: number;
-  label: string;
-  onActivate: () => void;
-}
-
-export interface PixiCardRailInteractionRow {
-  activate: () => void;
-  container: Container;
-  top: number;
-  height: number;
-  shortcut: number;
-  setFocused: (focused: boolean) => void;
-}
+import { readableTextColor } from "@/themes/gameTheme";
+import { RULES_BODY_FONT, type RulesPreviewFrameStyle } from "./rulesPreviewFrame";
 
 interface PixiCardRailPreviewOptions {
   state: CardRailState;
   effects: CardRailEffect[];
-  interactions: PixiCardRailPreviewInteraction[];
   width: number;
   theme: Theme;
+  frame: RulesPreviewFrameStyle;
 }
 
 const HEADER_HEIGHT = 54;
@@ -36,17 +22,15 @@ const CONTENT_RIGHT = 10;
 const NODE_X = 26;
 const NODE_Y = 25;
 const NODE_RADIUS = 13.5;
-const ORACLE_FONT = "Cormorant Garamond, Georgia, serif";
 
 function style(
   fill: string,
   fontSize: number,
   fontWeight: "400" | "500" | "600" | "700" = "400",
-  fontFamily = "Inter, system-ui, sans-serif",
 ): TextStyle {
   return new TextStyle({
     fill,
-    fontFamily,
+    fontFamily: RULES_BODY_FONT,
     fontSize,
     fontWeight,
     lineHeight: fontSize * 1.3,
@@ -54,26 +38,20 @@ function style(
 }
 
 export class PixiCardRailPreview extends Container {
-  readonly interactionRows: PixiCardRailInteractionRow[] = [];
   readonly contentHeight: number;
 
-  constructor({ state, effects, interactions, width, theme }: PixiCardRailPreviewOptions) {
+  constructor({ state, effects, width, theme, frame }: PixiCardRailPreviewOptions) {
     super();
-    const { appTheme, gameTheme } = theme;
+    const { gameTheme } = theme;
     const accent = state.kind === "saga" ? gameTheme.counter.lore : gameTheme.counter.level;
-    const foreground = appTheme["popover-foreground"];
-    const muted = appTheme["muted-foreground"];
+    const foreground = frame.ink;
+    const muted = frame.mutedInk;
     const effectByPosition = new Map(effects.map((effect) => [effect.position, effect]));
-    const interactionByPosition = new Map(
-      interactions.map((interaction) => [interaction.position, interaction]),
-    );
-    const background = new Graphics();
-    this.addChild(background);
 
     const header = new Container();
     const iconBackground = new Graphics();
     iconBackground.circle(14, 14, 14);
-    iconBackground.fill({ color: hexToNum(appTheme.muted), alpha: 1 });
+    iconBackground.fill({ color: hexToNum(frame.ink), alpha: 0.08 });
     const icon = new Sprite(Texture.EMPTY);
     icon.position.set(6, 6);
     icon.tint = hexToNum(accent);
@@ -108,34 +86,17 @@ export class PixiCardRailPreview extends Container {
     let y = HEADER_HEIGHT;
     state.notches.forEach((notch) => {
       const effect = effectByPosition.get(notch.position);
-      const interaction = interactionByPosition.get(notch.position);
       const row = new Container();
       row.position.set(0, y);
       const rowBackground = new Graphics();
       row.addChild(rowBackground);
-
-      let metaLeft = CONTENT_LEFT;
-      if (interaction) {
-        const keyBackground = new Graphics();
-        keyBackground.roundRect(CONTENT_LEFT, 7, 20, 20, 5);
-        keyBackground.fill({ color: hexToNum(appTheme.muted), alpha: 1 });
-        const key = new Text({
-          text: String(interaction.shortcut),
-          style: style(foreground, 10, "700"),
-        });
-        key.resolution = 2;
-        key.anchor.set(0.5);
-        key.position.set(CONTENT_LEFT + 10, 17);
-        row.addChild(keyBackground, key);
-        metaLeft += 27;
-      }
 
       const meta = new Text({
         text: state.kind === "saga" ? `CHAPTER ${notch.label}` : `LEVEL ${notch.label}`,
         style: style(muted, 10, "700"),
       });
       meta.resolution = 2;
-      meta.position.set(metaLeft, 9);
+      meta.position.set(CONTENT_LEFT, 9);
       row.addChild(meta);
 
       if (effect?.cost) {
@@ -150,9 +111,9 @@ export class PixiCardRailPreview extends Container {
         const label = new PixiRichText();
         const labelHeight = label.setContent(
           effect.label,
-          style(foreground, 13, "600", ORACLE_FONT),
+          style(foreground, 14, "700"),
           width - CONTENT_LEFT - CONTENT_RIGHT,
-          14,
+          16,
           2,
         );
         label.position.set(CONTENT_LEFT, contentY);
@@ -161,13 +122,13 @@ export class PixiCardRailPreview extends Container {
       }
 
       const effectText = new PixiRichText();
-      const reminderStyle = style(muted, 13, "600", ORACLE_FONT);
+      const reminderStyle = style(muted, 14);
       reminderStyle.fontStyle = "italic";
       const effectHeight = effectText.setContent(
         effect?.text || "Effect text unavailable",
-        style(notch.reached || interaction ? foreground : muted, 13, "600", ORACLE_FONT),
+        style(foreground, 14),
         width - CONTENT_LEFT - CONTENT_RIGHT,
-        14,
+        16,
         2,
         { parentheticalStyle: reminderStyle },
       );
@@ -179,27 +140,29 @@ export class PixiCardRailPreview extends Container {
       if (notch.position > 1) {
         timeline.rect(NODE_X - 1, 0, 2, NODE_Y);
         timeline.fill({
-          color: hexToNum(notch.reached ? accent : appTheme.border),
+          color: hexToNum(notch.reached ? accent : frame.mutedInk),
           alpha: 0.92,
         });
       }
       if (notch.position < state.max) {
         timeline.rect(NODE_X - 1, NODE_Y, 2, rowHeight - NODE_Y);
         timeline.fill({
-          color: hexToNum(notch.position < state.current ? accent : appTheme.border),
+          color: hexToNum(notch.position < state.current ? accent : frame.mutedInk),
           alpha: 0.92,
         });
       }
       const node = new Graphics();
       node.circle(NODE_X, NODE_Y, NODE_RADIUS);
       node.fill({
-        color: hexToNum(notch.active || notch.reached || interaction ? accent : appTheme.muted),
-        alpha: notch.active ? 1 : notch.reached ? 0.34 : interaction ? 0.22 : 0.82,
+        color: hexToNum(notch.active || notch.reached ? accent : frame.ink),
+        alpha: notch.active ? 1 : notch.reached ? 0.2 : 0.08,
       });
       const nodeLabel = new Text({
         text: notch.label,
         style: style(
-          notch.active ? gameTheme.textOnTinted : notch.reached ? accent : muted,
+          notch.active
+            ? readableTextColor(accent, gameTheme.canvas.shadow, gameTheme.textOnTinted)
+            : foreground,
           9,
           "700",
         ),
@@ -210,30 +173,9 @@ export class PixiCardRailPreview extends Container {
       row.addChildAt(timeline, 1);
       row.addChild(node, nodeLabel);
 
-      const drawBackground = (focused: boolean) => {
-        rowBackground.clear();
+      if (notch.active) {
         rowBackground.rect(0, 0, width, rowHeight);
-        if (focused || interaction || notch.active) {
-          rowBackground.fill({
-            color: hexToNum(accent),
-            alpha: focused ? 0.3 : notch.active ? 0.15 : 0.1,
-          });
-        }
-      };
-      drawBackground(false);
-
-      if (interaction) {
-        row.eventMode = "static";
-        row.cursor = "pointer";
-        row.hitArea = new Rectangle(0, 0, width, rowHeight);
-        this.interactionRows.push({
-          activate: interaction.onActivate,
-          container: row,
-          top: y,
-          height: rowHeight,
-          shortcut: interaction.shortcut,
-          setFocused: drawBackground,
-        });
+        rowBackground.fill({ color: hexToNum(accent), alpha: 0.08 });
       }
 
       this.addChild(row);
@@ -241,7 +183,5 @@ export class PixiCardRailPreview extends Container {
     });
 
     this.contentHeight = y;
-    background.roundRect(0, 0, width, this.contentHeight, 9);
-    background.fill({ color: hexToNum(appTheme.popover), alpha: 1 });
   }
 }

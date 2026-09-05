@@ -303,12 +303,17 @@ export function BoardOverlayCanvas({
     const unbindPreviewScroll = bindPreviewScroll(
       window,
       (x, y) => hitAt(x, y).preview,
-      (delta, mode) => previewRef.current?.scrollBy(delta, mode),
+      (delta, mode, clientY) => {
+        const canvas = canvasRef.current;
+        if (canvas) {
+          previewRef.current?.scrollBy(delta, mode, clientY - canvas.getBoundingClientRect().top);
+        }
+      },
     );
     const onMove = (event: PointerEvent) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
-      if (event.pointerId === replayPointerId) return;
+      if (replayPointerId !== null) return;
       const hit = hitAt(event.clientX, event.clientY);
       canvas.style.pointerEvents = hit.stack || hit.preview ? "auto" : "none";
     };
@@ -352,6 +357,7 @@ export function BoardOverlayCanvas({
 
       if (event.pointerType !== "touch" || (!hit.stack && !hit.preview)) return;
       event.stopPropagation();
+      if (replayPointerId !== null) return;
       canvas.style.pointerEvents = "auto";
       replayPointerId = event.pointerId;
       canvas.dispatchEvent(clonePointerEvent("pointerdown", event));

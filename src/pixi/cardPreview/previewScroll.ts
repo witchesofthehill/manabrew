@@ -1,14 +1,14 @@
 export function bindPreviewScroll(
   target: Window,
   hitTest: (x: number, y: number) => boolean,
-  scroll: (delta: number, mode: number) => void,
+  scroll: (delta: number, mode: number, clientY: number) => void,
 ): () => void {
   let touchId: number | null = null;
   const onWheel = (event: WheelEvent) => {
     if (event.ctrlKey || !hitTest(event.clientX, event.clientY)) return;
     event.preventDefault();
     event.stopPropagation();
-    scroll(event.deltaY, event.deltaMode);
+    scroll(event.deltaY, event.deltaMode, event.clientY);
   };
   const onTouchStart = (event: TouchEvent) => {
     if (touchId !== null) return;

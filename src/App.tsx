@@ -2,6 +2,8 @@ import { RouterProvider } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { router } from "@/router";
 import { Toaster } from "@/components/ui/sonner";
+// Staging-only in-app log view (khaliostr/staging-lan-iroh); not in any release.
+import { DebugLogOverlay } from "@/components/dev/DebugLogOverlay";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppInitGate } from "@/components/AppInitGate";
 import { useTheme } from "@/hooks/useTheme";
@@ -89,6 +91,7 @@ function App() {
             <RouterProvider router={router} />
           </AppInitGate>
           <Toaster />
+          <DebugLogOverlay />
           {import.meta.env.DEV && devToolsEnabled && (
             <Suspense>
               <DevToolsPanel />

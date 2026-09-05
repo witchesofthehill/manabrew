@@ -11,8 +11,9 @@ use crate::util::run;
 /// into package.json / tauri.conf.json.
 pub const APP_PACKAGE: &str = "manabrew";
 /// Files/dirs outside `src-tauri/` that count as app changes (the web bundle
-/// ships inside the desktop app and at play.manabrew.app).
-pub const APP_EXTRA_DIRS: &[&str] = &["src", "public"];
+/// ships inside the desktop app and at play.manabrew.app; the website ships
+/// in the same web image, so it only deploys with an app release).
+pub const APP_EXTRA_DIRS: &[&str] = &["src", "public", "website"];
 pub const APP_EXTRA_FILES: &[&str] = &[
     "package.json",
     "index.html",

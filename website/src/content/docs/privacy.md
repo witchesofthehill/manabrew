@@ -89,7 +89,7 @@ between your account and an entry, but we do not publish who favorited it. You
 can remove each public entry from any device you are signed in on. Removing a
 deck from My Decks also hides its public entries, because a removed deck is
 kept but excluded from every public listing. Deleting your account is the one
-exception — see below.
+exception - see below.
 
 Top Deck collections are dated ranking snapshots of public Community entries,
 so they show the same publication and account-handle information as the entry
@@ -138,7 +138,7 @@ in public, say so and we will arrange somewhere private.
 | Aggregate Top Deck rankings                                                   | Our legitimate interest in making the app useful                         |
 | Offline play reports from published decks                                     | Our legitimate interest in ranking decks; the report carries no username |
 
-You can object to anything resting on legitimate interests — see below. We do
+You can object to anything resting on legitimate interests - see below. We do
 not sell data, we do not advertise, and we do not profile you.
 
 ## How long we keep things
@@ -185,7 +185,7 @@ typed when joining, which is not connected to any account, so deleting your
 account cannot reach them. Tell us the username and we will scrub it.
 
 If you think we have handled your data badly, you can complain to your
-national data protection authority — in the UK, the
+national data protection authority - in the UK, the
 [ICO](https://ico.org.uk/make-a-complaint/).
 
 ## Who else touches your data

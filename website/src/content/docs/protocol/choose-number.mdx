@@ -5,7 +5,7 @@ description: Ask the deciding player to pick a number within a range.
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent when the engine needs the player to choose an integer — for example, how
+Sent when the engine needs the player to choose an integer - for example, how
 many times to replicate a spell, or a value for an "X" choice that isn't part of
 a mana cost.
 
@@ -17,14 +17,14 @@ a mana cost.
 
 ## Rendering
 
-How the field is presented depends on the size of the range — both forms send
+How the field is presented depends on the size of the range - both forms send
 the same `numberDecision` response.
 
 <figure class="prompt-figure">
   <img src="/protocol/choose-number.webp" alt="A row of number buttons from 4 to 12" />
   <div class="prompt-figure__caption">
     For a small range the client enumerates every legal value as a button. The player taps one and
-    the choice is sent immediately — no confirm step.
+    the choice is sent immediately - no confirm step.
   </div>
 </figure>
 

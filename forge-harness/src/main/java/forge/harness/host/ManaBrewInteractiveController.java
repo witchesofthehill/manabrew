@@ -98,7 +98,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         super(game, player, lobbyPlayer);
         this.game = game;
         this.session = session;
-        this.costPlumbing = new HarnessCostPlumbing(this, this, player);
+        this.costPlumbing = new HarnessCostPlumbing(this, this, player, true);
         this.autoPay = new AutoPay(player, costPlumbing, true);
         this.playPlumbing = new HarnessPlayPlumbing(this, player, costPlumbing, true);
     }

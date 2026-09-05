@@ -53,15 +53,25 @@ export function forgeHostLabel(onThisMachine: boolean): string {
 }
 
 /**
- * The engine behind a relay room. The "forge" runtime kind is never selectable
- * — a hosted room is driven through the Manabrew runtime like any other — so
- * the room's own engine is the only thing that says Forge ran.
+ * The engine behind a relay room, named from this seat's vantage point.
+ *
+ * A local host names the engine exactly. Every other seat is measuring a wire
+ * as well as an engine, and the two remote cases are not the same machine or
+ * the same cost: a node runs on the fleet, a peer runs in another player's
+ * browser or desktop app. The room says which — `RoomInfo.hosted` is true only
+ * for a node-hosted room — so the label says which too, or the fleet's timings
+ * and a peer's are pooled into one number that describes neither.
  */
 export function roomEngineLabel(
   engine: EngineKind | null | undefined,
   hostedHere: boolean,
+  platform: "tauri" | "web",
+  roomIsNodeHosted: boolean,
 ): string {
-  if (engine === "Forge") return forgeHostLabel(hostedHere);
+  if (engine === "Forge") {
+    if (hostedHere) return platform === "tauri" ? "forge-desktop" : "forge-wasm";
+    return roomIsNodeHosted ? "forge-hosted" : "forge-remote";
+  }
   if (engine === "Ironsmith") return "ironsmith";
   return localEngineLabel();
 }

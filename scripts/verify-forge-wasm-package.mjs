@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageDir = join(root, "target", "npm", "forge-wasm");
@@ -66,6 +66,38 @@ if (stubEngine) {
 }
 if (statSync(join(packageDir, "cardset.rkyv")).size < 30_000_000) {
   throw new Error("Forge cardset is unexpectedly small.");
+}
+
+const assetModule = await import(pathToFileURL(join(packageDir, "forge-assets.js")));
+await assetModule.default({
+  module_or_path: readFileSync(join(packageDir, "forge-assets_bg.wasm")),
+});
+const cardset = readFileSync(join(packageDir, "cardset.rkyv"));
+
+function cardScriptPaths(wanted) {
+  const assets = assetModule.forge_asset_bundle(cardset, wanted).split("\0");
+  return new Set(assets.filter((value, index) => index % 2 === 0));
+}
+
+const garthScripts = cardScriptPaths(["Garth One-Eye"]);
+for (const path of [
+  "res/cardsfolder/g/garth_one_eye.txt",
+  "res/cardsfolder/d/disenchant.txt",
+  "res/cardsfolder/b/braingeyser.txt",
+  "res/cardsfolder/t/terror.txt",
+  "res/cardsfolder/s/shivan_dragon.txt",
+  "res/cardsfolder/r/regrowth.txt",
+  "res/cardsfolder/b/black_lotus.txt",
+]) {
+  if (!garthScripts.has(path)) throw new Error(`Garth's asset bundle is missing ${path}.`);
+}
+if (garthScripts.has("res/cardsfolder/l/lightning_bolt.txt")) {
+  throw new Error("Garth's asset bundle includes an unrelated card script.");
+}
+
+const heronScripts = cardScriptPaths(["The Heron Moon"]);
+if (!heronScripts.has("res/cardsfolder/e/emrakul_the_promised_end.txt")) {
+  throw new Error("ChooseFromList does not restore commas escaped as semicolons.");
 }
 
 // A mismatch means the stamp did not run, and consumers would read stale

@@ -5,13 +5,9 @@ description: Ask the player to choose targets on the board for a spell or abilit
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent when a spell or ability needs targets chosen from the board — players,
+Sent when a spell or ability needs targets chosen from the board - players,
 permanents, or spells on the stack. For example, picking the creature or player
 Lightning Bolt will deal 3 damage to.
-
-:::note[Answered on the board]
-The reference client answers this prompt through interaction with the battlefield (not a modal dialog), so it has no standalone screenshot. The fields below are what the engine sends; the response is what the client returns once the player has acted.
-:::
 
 ## Arguments
 
@@ -32,7 +28,7 @@ Each `candidates` entry is a `TargetRef`:
 type ChooseBoardTargetsOutput = { type: "boardTargets"; chosen: TargetRef[] };
 ```
 
-Return the chosen `TargetRef`s — between `minTargets` and `maxTargets` of them,
+Return the chosen `TargetRef`s - between `minTargets` and `maxTargets` of them,
 drawn from `candidates`.
 
 ## Example

@@ -5,7 +5,7 @@ description: The game-state snapshot the engine sends in every StateUpdate.
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-A [`StateUpdate`](/protocol/transport/) carries one field, `gameView` — a complete
+A [`StateUpdate`](/protocol/#message-families) carries one field, `gameView` - a complete
 `GameViewDto` snapshot of the game. It is the **only** carrier of authoritative
 game state: the client throws away its previous view and re-renders the board
 from each one.
@@ -19,49 +19,46 @@ and game-end state.
 
 ## PlayerDto
 
-One player's scalar state — life, counters, mana pool, statuses. Cards live in
+One player's scalar state - life, counters, mana pool, statuses. Cards live in
 the top-level `zones` list, not on the player.
 
 <ProtocolType type="PlayerDto" />
 
-## ZoneDto and CardView — visibility
+## ZoneDto and CardView - visibility
 
-Cards arrive as one `ZoneDto` per `(zone, owner)` pair (battlefield entries are
-bucketed by controller). Each zone's `cards` are `CardView`s ordered top-first
-where the order is public knowledge, and `count` is the zone's true size:
-zones whose bulk is hidden from the recipient elide those entries, so
-`count >= cards.length`.
+Cards arrive as one `ZoneDto` per `(zone, owner)` pair. Each zone's `cards` are `CardView`s ordered top-first
+where the order is public knowledge, and `count` is the zone's size.
+
 
 <ProtocolType type="ZoneDto" />
 
 <ProtocolType type="CardView" />
 
-An engine that computes **per-recipient views** (see
-[Transport](/protocol/transport/)) applies visibility per card:
+An engine that computes **per-recipient views** applies visibility per card:
 
-- **Hands** — visible entries only for the owner (or under reveal effects);
+- **Hands** - visible entries only for the owner (or under reveal effects);
   other seats get the `count` alone.
-- **Library** — `count` only, plus the top card as a visible entry when the
+- **Library** - `count` only, plus the top card as a visible entry when the
   recipient may look at it (e.g. "play with the top card of your library
   revealed").
-- **Face-down exile** (foretell and similar) — a `hidden` entry per card, so
+- **Face-down exile** (foretell and similar) - a `hidden` entry per card, so
   clients render an anonymous face-down card without learning its identity.
-- **Face-down battlefield permanents** (morphs) — never hidden entries: the
+- **Face-down battlefield permanents** (morphs) - the
   permanent itself is public. Recipients who may not see the face get a
-  **redacted** `CardDto` — blank `identity`, no text or costs — while public
+  **redacted** `CardDto` - blank `identity`, no text or costs - while public
   state (counters, tapped, power/toughness) stays. Clients render a face-down
   card with an empty `identity.name` as a card back.
 
 ## StepKind
 
-Where the turn currently stands — `GameViewDto.step`. Also referenced by
+Where the turn currently stands - `GameViewDto.step`. Also referenced by
 [`chooseAction`](/protocol/choose-action/)'s pass-until response.
 
 <ProtocolType type="StepKind" />
 
 ## CardDto
 
-The engine's snapshot of a single card — every zone holds these. Only `id` and
+The engine's snapshot of a single card - every zone holds these. Only `id` and
 the card's `identity` are needed to round-trip a choice; the rest drives richer
 rendering. The prompt pages that show cards reference this same type.
 
@@ -69,7 +66,7 @@ rendering. The prompt pages that show cards reference this same type.
 
 ## CardIdentity
 
-Which card a `CardDto` or `StackObjectDto` is — name, printing
+Which card a `CardDto` or `StackObjectDto` is - name, printing
 (`setCode`/`cardNumber`), and whether it's a token.
 
 <ProtocolType type="CardIdentity" />
@@ -90,8 +87,79 @@ A spell or ability currently on the stack. Its `targets` are
 
 ## TargetingIntent
 
-A semantic hint describing what an effect intends to do to its target — the
+A semantic hint describing what an effect intends to do to its target - the
 client uses it to pre-highlight sensible targets. Carried by
 [`TargetRef`](/protocol/shared-types/#targetref) and by the targeting prompts.
 
 <ProtocolType type="TargetingIntent" />
+
+## State patches
+
+An engine *may* send a `stateDelta` instead of a `state`. It carries a `patch`
+against the last state the client applied, `base` (the fingerprint of that
+state) and `fingerprint` (the fingerprint of the result). An engine that sends
+patches also puts `fingerprint` on every full `state`.
+
+To ensure correctness, it is recommended that a client should apply the patch only when `base` equals the fingerprint of the state it holds. 
+
+Patches are completely optional. An engine may always send full states. A conforming client should accept patches.
+
+### Patch encoding
+
+A patch has the same shape as the `state` it edits. Objects merge: each key in
+the patch is applied to the same key in the state, keys absent from the patch
+are untouched. Four reserved keys carry the rest:
+
+| Key  | Meaning                                                                |
+| ---- | ---------------------------------------------------------------------- |
+| `$v` | Literal replacement.  |
+| `$d` | Removal.  |
+| `$k` | Keyed array edits. An object of element key to patch.                  |
+| `$o` | Keyed array order. The full list of element keys, in their new order.  |
+
+Arrays whose elements all have a stable key are edited element by element
+under `$k`. The key is the element's `id`; zone entries have none, so theirs is
+`"<zone>/<ownerId>"`. `$k` on a key that does not exist inserts the element at
+the end. `$o` lists every key in the new order and is omitted when the order did
+not change. Any other array is replaced whole.
+
+Scalars and arrays appear as themselves, so `null` is a value, not a deletion.
+An object that must replace instead of merge is wrapped in `$v`.
+
+### Example
+
+Player 1's Lightning Bolt (`card-7`) resolves against player 0. The stack
+empties, the card goes on top of player 1's graveyard, player 0 drops to 17
+and gets priority back:
+
+```json
+{
+  "kind": "stateDelta",
+  "base": "9f3c1a0e5b7d2461",
+  "fingerprint": "4d0e8b2a7c91f356",
+  "patch": {
+    "gameView": {
+      "priorityPlayerId": "player-0",
+      "players": {
+        "$k": { "player-0": { "life": 17 } }
+      },
+      "zones": {
+        "$k": {
+          "graveyard/player-1": {
+            "count": 2,
+            "cards": {
+              "$k": { "card-7": { "$v": { "visibility": "visible", "id": "card-7", ... } } },
+              "$o": ["card-7", "card-3"]
+            }
+          }
+        }
+      },
+      "stack": { "$d": ["card-7"], "$o": [] }
+    }
+  }
+}
+```
+
+`players` keeps its order, so it has `$k` and no `$o`. The graveyard gains a
+new element, so its full `CardView` arrives under `$v` and `$o` puts it first.
+The stack loses its only element, so `$o` is empty.

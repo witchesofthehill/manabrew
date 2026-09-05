@@ -10,6 +10,7 @@ mod limited_commands;
 mod limited_dto;
 mod limited_manager;
 mod local_relay;
+mod logging;
 
 use limited_manager::LimitedManager;
 use tauri::Manager;
@@ -41,6 +42,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
+            logging::init(app.handle());
             if let Ok(resource_dir) = app.path().resource_dir() {
                 for (key, subdir) in RESOURCE_ENV_MAP {
                     let path = resource_dir.join(subdir);

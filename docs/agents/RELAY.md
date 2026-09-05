@@ -38,7 +38,7 @@ A session with no proof at all keeps the pre-identity behaviour — the old dupl
 
 ## Observability
 
-`/metrics` (Prometheus) on the health port (incl. `manabrew_relay_session_takeovers_total`); env-gated analytics JSONL + per-game zstd stream capture (`MANABREW_EVENTS_DIR`, `MANABREW_GAME_CAPTURE_DIR`).
+`/metrics` (Prometheus) on the health port, including heartbeat RTT (`manabrew_relay_client_rtt_ms`), WebSocket payload transfer by direction (`manabrew_relay_websocket_payload_bytes_total`), and session takeovers (`manabrew_relay_session_takeovers_total`). Payload transfer excludes WebSocket framing, TLS, TCP, and IP overhead. Env-gated analytics JSONL + per-game zstd stream capture live under `MANABREW_EVENTS_DIR` and `MANABREW_GAME_CAPTURE_DIR`.
 
 ## Games the relay cannot see
 

@@ -1,6 +1,6 @@
 [package]
 name = "manabrew"
-version = "3.34.1"
+version = "3.34.7"
 edition = "2021"
 publish = false
 
@@ -44,6 +44,9 @@ tauri-plugin-process = "2"
 # `iroh` is not optional here: a desktop-hosted room turns the direct plane on,
 # and without the feature it gets the stub, never announces an endpoint, and
 # every seat on the network falls back to the relay.
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
 self-hosted-node = { path = "../manabrew-rs/crates/self-hosted-node", default-features = false, features = [
     "graal-forge",
     "iroh",

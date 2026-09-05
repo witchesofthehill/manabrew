@@ -34,11 +34,11 @@ experimental, with many mechanics still not working.
 | Install      | None                                    | `.dmg` / `.exe` from releases                            |
 
 The web client additionally requires a cross-origin-isolated host (see
-[hosting the web client](/self-hosting/#hosting-the-web-client)) — this
+[hosting the web client](/self-hosting/#hosting-the-web-client)) - this
 is handled for you on play.manabrew.app.
 
 ## Reporting a gap
 
 If a card behaves differently than it would in paper, that's exactly the bug
-report this project runs on — see the [FAQ](/faq/#a-card-did-the-wrong-thing)
+report this project runs on - see the [FAQ](/faq/#a-card-did-the-wrong-thing)
 for what to include.

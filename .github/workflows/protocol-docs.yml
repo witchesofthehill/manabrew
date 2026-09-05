@@ -4,7 +4,7 @@ name: Protocol docs
 #   - the committed protocol-types.json (consumed by the docs site, which has
 #     no cargo to regenerate it) has drifted from the protocol source;
 #   - a docs page contradicts the source it describes (#777: "v1" against a
-#     5.2.0 crate, and an envelope table missing stateDelta).
+#     5.2.0 crate).
 on:
   pull_request:
     paths:

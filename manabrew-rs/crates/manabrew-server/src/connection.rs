@@ -109,9 +109,10 @@ fn authorize_game_message(
 async fn write_loop(mut rx: mpsc::UnboundedReceiver<Message>, mut sink: WsSender) {
     while let Some(msg) = rx.recv().await {
         let backlog = rx.len();
+        let bytes = msg.len();
         let started = Instant::now();
         let sent = sink.send(msg).await;
-        metrics::record_socket_write(backlog, started.elapsed());
+        metrics::record_socket_write(backlog, started.elapsed(), sent.is_ok().then_some(bytes));
         if sent.is_err() {
             break;
         }
@@ -500,6 +501,7 @@ pub async fn handle_connection(
             }
         }
 
+        metrics::record_socket_read(frame.len());
         match frame {
             Message::Text(text) => {
                 let client_msg: ClientMessage = match serde_json::from_str(&text) {

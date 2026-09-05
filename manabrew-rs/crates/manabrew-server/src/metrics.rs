@@ -30,6 +30,7 @@ const CLIENT_RTT: &str = "manabrew_relay_client_rtt_ms";
 const STATE_HANDLING: &str = "manabrew_relay_state_handling_seconds";
 const SOCKET_WRITE: &str = "manabrew_relay_socket_write_seconds";
 const OUTBOUND_BACKLOG: &str = "manabrew_relay_outbound_backlog";
+const WEBSOCKET_PAYLOAD_BYTES: &str = "manabrew_relay_websocket_payload_bytes_total";
 
 const LABEL_KIND: &str = "kind";
 const LABEL_STATUS: &str = "status";
@@ -40,6 +41,7 @@ const LABEL_SEATS: &str = "seats";
 const LABEL_OUTCOME: &str = "outcome";
 const LABEL_PLANE: &str = "plane";
 const LABEL_PAIR: &str = "pair";
+const LABEL_DIRECTION: &str = "direction";
 
 pub const REJECTION_OUTDATED_WIRE: &str = "outdated_wire";
 
@@ -124,9 +126,16 @@ pub fn record_state_handling(seats: usize, elapsed: std::time::Duration) {
 /// message queues behind it. That is invisible in the handling metric, which
 /// stops at the hand-off, and it grows with seat count because a four-seat room
 /// enqueues five envelopes per decision where a two-seat room enqueues three.
-pub fn record_socket_write(backlog: usize, elapsed: std::time::Duration) {
+pub fn record_socket_write(backlog: usize, elapsed: std::time::Duration, bytes: Option<usize>) {
     histogram!(SOCKET_WRITE).record(elapsed.as_secs_f64());
     histogram!(OUTBOUND_BACKLOG).record(backlog as f64);
+    if let Some(bytes) = bytes {
+        counter!(WEBSOCKET_PAYLOAD_BYTES, LABEL_DIRECTION => "outbound").increment(bytes as u64);
+    }
+}
+
+pub fn record_socket_read(bytes: usize) {
+    counter!(WEBSOCKET_PAYLOAD_BYTES, LABEL_DIRECTION => "inbound").increment(bytes as u64);
 }
 
 pub fn record_game_started(engine: EngineKind) {

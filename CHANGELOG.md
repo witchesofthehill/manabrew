@@ -1,5 +1,41 @@
 # Changelog
 
+## [3.34.7](https://github.com/witchesofthehill/manabrew/compare/v3.34.6...v3.34.7) (2026-09-04)
+
+### Fixes
+
+* **telemetry:** tell a node host from a peer host ([#865](https://github.com/witchesofthehill/manabrew/issues/865)) ([172a0cb](https://github.com/witchesofthehill/manabrew/commit/172a0cbff51f4ab9dd2a984e30833ded2bc15aa4))
+
+## [3.34.6](https://github.com/witchesofthehill/manabrew/compare/v3.34.5...v3.34.6) (2026-09-04)
+
+### Fixes
+
+* **desktop:** give the embedded node somewhere to log ([#861](https://github.com/witchesofthehill/manabrew/issues/861)) ([f242704](https://github.com/witchesofthehill/manabrew/commit/f2427042e4c9733caf828dfd735a3b5a95dac432))
+
+## [3.34.5](https://github.com/witchesofthehill/manabrew/compare/v3.34.4...v3.34.5) (2026-09-04)
+
+### Fixes
+
+* **web:** route unsupported forge wasm browsers to hosted nodes ([#860](https://github.com/witchesofthehill/manabrew/issues/860)) ([29c34d2](https://github.com/witchesofthehill/manabrew/commit/29c34d2341467cc6e46cbc68ca33e18c16ae6485))
+
+## [3.34.4](https://github.com/witchesofthehill/manabrew/compare/v3.34.3...v3.34.4) (2026-09-03)
+
+### Fixes
+
+* fix docs ([#857](https://github.com/witchesofthehill/manabrew/issues/857)) ([e693539](https://github.com/witchesofthehill/manabrew/commit/e6935390aa1d0b60f15ece9391939cb0f234d630))
+
+## [3.34.3](https://github.com/witchesofthehill/manabrew/compare/v3.34.2...v3.34.3) (2026-09-03)
+
+### Fixes
+
+* 813 ([#850](https://github.com/witchesofthehill/manabrew/issues/850)) ([0cb0257](https://github.com/witchesofthehill/manabrew/commit/0cb0257e828c8ede0fa40d4d738c591e808b538d))
+
+## [3.34.2](https://github.com/witchesofthehill/manabrew/compare/v3.34.1...v3.34.2) (2026-09-03)
+
+### Fixes
+
+* **telemetry:** label multiplayer forge hosts ([#855](https://github.com/witchesofthehill/manabrew/issues/855)) ([e3de430](https://github.com/witchesofthehill/manabrew/commit/e3de43036e62cf26e8b78333887842cc69ac0ba7))
+
 ## [3.34.1](https://github.com/witchesofthehill/manabrew/compare/v3.34.0...v3.34.1) (2026-09-02)
 
 ## [3.34.0](https://github.com/witchesofthehill/manabrew/compare/v3.33.5...v3.34.0) (2026-09-02)

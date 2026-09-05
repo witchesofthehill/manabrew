@@ -5,7 +5,7 @@ description: Arrange a group of cards or simultaneous triggers into a chosen ord
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent when a player arranges a group of things in an order they choose — putting the
+Sent when a player arranges a group of things in an order they choose - putting the
 two cards from Brainstorm back on top of the library, ordering the cards a scry-style
 effect leaves on top, or stacking several abilities that triggered at the same time.
 
@@ -27,7 +27,7 @@ as a textual cue to the player about which trigger this is referring to.
 type ReorderOutput = { type: "reorderDecision"; orderedIds: string[] };
 ```
 
-Return the `items` ids in their final order — the first id ends up on top.
+Return the `items` ids in their final order - the first id ends up on top.
 
 ## Example
 
@@ -64,11 +64,11 @@ The response lists the same card `id`s in the desired draw order:
 }
 ```
 
-## Example — ordering triggers
+## Example - ordering triggers
 
 The deciding player is piloting a Teval, the Balanced Scale deck. A card leaves their
 graveyard (they reanimated a creature), and both Teval and Teval's Judgment carry the
-same "whenever one or more cards leave your graveyard" trigger — so both go on the
+same "whenever one or more cards leave your graveyard" trigger - so both go on the
 stack and the player orders them. `oracle` carries each trigger's text; the first id
 in the response resolves first (on top of the stack).
 
@@ -92,7 +92,7 @@ in the response resolves first (on top of the stack).
       {
         "id": "trigger-judgment",
         "card": { "id": "bf-judgment", "identity": { "name": "Teval's Judgment" } },
-        "oracle": "Whenever one or more cards leave your graveyard, choose one that hasn't been chosen this turn — • Draw a card. • Create a Treasure token. • Create a 2/2 black Zombie Druid creature token."
+        "oracle": "Whenever one or more cards leave your graveyard, choose one that hasn't been chosen this turn - • Draw a card. • Create a Treasure token. • Create a 2/2 black Zombie Druid creature token."
       }
     ]
   }

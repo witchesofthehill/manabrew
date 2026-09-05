@@ -36,7 +36,7 @@ export function ChatMessageRow({ entry, mine, player, continued }: ChatMessageRo
   );
   return (
     <div className={cn("flex items-end gap-2", mine && "flex-row-reverse", continued && "-mt-1.5")}>
-      {continued ? (
+      {mine ? null : continued ? (
         <span className="w-7 shrink-0" />
       ) : player ? (
         <PlayerCard
@@ -56,9 +56,9 @@ export function ChatMessageRow({ entry, mine, player, continued }: ChatMessageRo
         avatar
       )}
       <div
-        className={cn("max-w-[85%] rounded-lg px-3 py-2", mine ? "bg-primary/15" : "bg-muted/50")}
+        className={cn("max-w-[85%] rounded-lg px-3 py-2", mine ? "bg-primary/25" : "bg-muted/50")}
       >
-        {!continued && (
+        {!continued && !mine && (
           <div
             className={cn(
               "mb-1 flex items-center gap-1 text-xs leading-none text-muted-foreground",

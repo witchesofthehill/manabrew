@@ -7,7 +7,7 @@ import { Tabs, TabItem } from "@astrojs/starlight/components";
 
 The browser client is a static site (`yarn build:web` → `dist/`), but it is not
 "just static files": the game worker uses `SharedArrayBuffer`, which requires
-cross-origin isolation. Whatever serves it — and every proxy in front — must
+cross-origin isolation. Whatever serves it - and every proxy in front - must
 deliver these headers on the HTML, worker JS, and WASM responses:
 
 ```http
@@ -17,17 +17,17 @@ Cross-Origin-Embedder-Policy: credentialless
 
 If a proxy strips them, the page loads but games won't start. Verify in
 DevTools: `window.crossOriginIsolated` must be `true`. Also note the web client
-is not offline-capable — card images come from Scryfall at runtime.
+is not offline-capable - card images come from Scryfall at runtime.
 
 ## Pointing at your relay
 
 The published image defaults to the official public relay and is repointed at
-**runtime** — one image, any relay, no rebuild. Set these on the container:
+**runtime** - one image, any relay, no rebuild. Set these on the container:
 
 | Env var          | Default            | Purpose                                         |
 | ---------------- | ------------------ | ----------------------------------------------- |
 | `RELAY_HOST`     | _(official relay)_ | Relay host the client connects to               |
-| `RELAY_PORT`     | `443`              | Relay port — `443` dials `wss://`, else `ws://` |
+| `RELAY_PORT`     | `443`              | Relay port - `443` dials `wss://`, else `ws://` |
 | `RELAY_PASSWORD` | `forge`            | Shared relay key (`MANABREW_SERVER_KEY`)        |
 
 The entrypoint writes these into `/srv/manabrew/config.js` on start, which the
@@ -65,12 +65,12 @@ runtime `RELAY_*` overrides a baked default when both are present.
     docker compose up -d
     ```
 
-    This serves plain HTTP on port 80 — put it behind your own TLS proxy, or
+    This serves plain HTTP on port 80 - put it behind your own TLS proxy, or
     mount a Caddyfile with a real hostname over `/etc/caddy/Caddyfile` for
     automatic HTTPS:
 
     ```caddyfile
-    # ./Caddyfile — replace play.example.com with your domain.
+    # ./Caddyfile - replace play.example.com with your domain.
     play.example.com {
     	root * /srv/manabrew
     	encode zstd gzip

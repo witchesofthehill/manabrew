@@ -11,6 +11,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { toast } from "sonner";
 import { getPlatformType } from "@/platform";
 import { initApp } from "@/lib/appInit";
+import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 // Importing the store wires the `app:init` event subscription at module load —
 // earlier than App mounts, and earlier than the `initApp()` below — so the gate
 // observes every boot stage from the first event.
@@ -34,16 +35,26 @@ function PlatformRuntimeChecks() {
     const hasSharedArrayBuffer = typeof window.SharedArrayBuffer !== "undefined";
 
     if (!isolated || !hasSharedArrayBuffer) {
+      const platform = getPlatformType();
+      const hostedFallback = platform === "web" && isHostedEngineAvailable();
+      const details = {
+        platform,
+        crossOriginIsolated: isolated,
+        hasSharedArrayBuffer,
+      };
+      if (hostedFallback) {
+        console.warn(
+          "[Runtime] In-browser engines are unavailable. Forge games will use a hosted engine.",
+          details,
+        );
+        return;
+      }
       console.error(
         "[Runtime] Deployment is missing cross-origin isolation. SharedArrayBuffer game flow will fail.",
-        {
-          platform: getPlatformType(),
-          crossOriginIsolated: isolated,
-          hasSharedArrayBuffer,
-        },
+        details,
       );
       toast.error(
-        getPlatformType() === "tauri"
+        platform === "tauri"
           ? "This desktop build is missing required isolation headers (COOP/COEP). The game engine cannot start."
           : "Web deployment is missing required isolation headers. Ask infra to enable COOP/COEP through the Twingate/SSO path.",
         { duration: 12000 },

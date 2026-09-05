@@ -29,7 +29,13 @@ import {
   clearActiveGameSession,
   peekActiveGameSession,
 } from "@/lib/activeGameSession";
-import { startTauriForgeAiGame, stopLocalHostedAiRelay } from "@/game/hostedAiPlay";
+import {
+  startHostedAiGame,
+  startTauriForgeAiGame,
+  stopLocalHostedAiRelay,
+} from "@/game/hostedAiPlay";
+import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
+import { isForgeWasmSupported } from "@/lib/forgeWasm";
 import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
 import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
@@ -142,8 +148,14 @@ async function initializeGame({
   const startingLife = format?.deckRules.startingLife ?? DEFAULT_STARTING_LIFE;
 
   const platformType = getPlatform().type;
-  if (engine === "Forge" && platformType === "tauri" && opponentDecks?.length) {
-    const launchForge = startTauriForgeAiGame;
+  const useHostedBrowserForge =
+    platformType === "web" && !isForgeWasmSupported() && isHostedEngineAvailable();
+  if (
+    engine === "Forge" &&
+    opponentDecks?.length &&
+    (platformType === "tauri" || useHostedBrowserForge)
+  ) {
+    const launchForge = platformType === "tauri" ? startTauriForgeAiGame : startHostedAiGame;
     set({
       isGameActive: true,
       fatalError: null,
@@ -514,7 +526,14 @@ export const useGameStore = create<GameState>()(
           const runtime =
             engine === "Ironsmith" ? selectGameRuntime("ironsmith") : resetSelectedGameRuntime();
           set({ debugInfo: "Starting engine..." });
-          beginGame(roomEngineLabel(engine, getPlatform().type === "tauri" && localIsHost));
+          beginGame(
+            roomEngineLabel(
+              engine,
+              localIsHost,
+              getPlatform().type,
+              useServerStore.getState().currentRoom?.hosted ?? false,
+            ),
+          );
           await runtime.api.startMultiplayerGame({
             playerNames,
             decks,

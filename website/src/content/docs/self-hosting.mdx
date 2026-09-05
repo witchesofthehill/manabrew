@@ -6,20 +6,20 @@ description: Run your own headless game room backed by the Forge engine, from a 
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 
 A **self-hosted node** is a headless room host. It connects to a relay server,
-opens a lobby room, and runs the games for everyone who joins — players only
+opens a lobby room, and runs the games for everyone who joins - players only
 need the web or desktop client. With the `forge` backend the node spawns
 one Forge process per game, so games are played on the original Forge
 rules engine rather than the Rust port.
 
 The node authenticates to the relay with the relay's server key. Set it via
-`SELF_HOSTED_NODE_SERVER_KEY` — never commit it anywhere.
+`SELF_HOSTED_NODE_SERVER_KEY` - never commit it anywhere.
 
 ## Running the node
 
 <Tabs>
   <TabItem label="Docker Compose">
     The image is published on GHCR and bundles everything: the node binary and
-    Forge compiled ahead of time by GraalVM `native-image` — no JVM, no jar, no
+    Forge compiled ahead of time by GraalVM `native-image` - no JVM, no jar, no
     checkout needed. Create a `compose.yml`:
 
     ```yaml
@@ -41,7 +41,7 @@ The node authenticates to the relay with the relay's server key. Set it via
     ```
 
     To build the image yourself instead of pulling, replace the `image:` line
-    with a `build:` block (needs a full checkout —
+    with a `build:` block (needs a full checkout -
     `git clone --recurse-submodules https://github.com/witchesofthehill/manabrew.git`):
 
     ```yaml
@@ -86,7 +86,7 @@ The node authenticates to the relay with the relay's server key. Set it via
 
 ## Hosting multiple rooms
 
-One node can host any number of rooms — set `SELF_HOSTED_NODE_MAX_GAMES` and it
+One node can host any number of rooms - set `SELF_HOSTED_NODE_MAX_GAMES` and it
 opens that many lobbies, suffixed `my-room (1)`, `my-room (2)`, …:
 
 ```yaml
@@ -102,7 +102,7 @@ services:
     restart: unless-stopped
 ```
 
-In multi-room mode the format is forced to `any` — players pick per game.
+In multi-room mode the format is forced to `any` - players pick per game.
 
 In the published image every room shares one engine and therefore one copy of
 the 34,000-card database, which is the bulk of the memory. Four rooms fit in
@@ -130,7 +130,7 @@ The published image compiles Forge ahead of time with
 into a shared library the node links and calls **in-process**. To reproduce that
 from a checkout rather than pulling the image:
 
-Build the library (needs GraalVM for JDK 21 — see the
+Build the library (needs GraalVM for JDK 21 - see the
 [native build README](https://github.com/witchesofthehill/manabrew/blob/main/forge-harness/native/README.md)),
 then run the node with the `graal-forge` feature instead of `java-forge`:
 
@@ -149,8 +149,8 @@ cargo run --release -p self-hosted-node --features graal-forge
 intend to run the node on.
 
 The older backend spawns one Forge **process** per game against a JRE and the
-harness jar. It is still supported — build with `--features java-forge` as shown
-under "From source" — but the published image no longer ships a JVM.
+harness jar. It is still supported - build with `--features java-forge` as shown
+under "From source" - but the published image no longer ships a JVM.
 
 ## Configuration
 
@@ -159,7 +159,7 @@ All settings are environment variables:
 | Variable                          | Default               | Purpose                                                          |
 | --------------------------------- | --------------------- | ---------------------------------------------------------------- |
 | `SELF_HOSTED_NODE_RELAY_URL`      | `ws://127.0.0.1:9443` | Relay server to connect to                                       |
-| `SELF_HOSTED_NODE_SERVER_KEY`     | —                     | Relay server key (must match the relay's)                        |
+| `SELF_HOSTED_NODE_SERVER_KEY`     | -                     | Relay server key (must match the relay's)                        |
 | `SELF_HOSTED_NODE_ROOM_NAME`      | `Self-Hosted Node`    | Lobby name shown to players                                      |
 | `SELF_HOSTED_NODE_ROOM_PASSWORD`  | none                  | Require a password to join                                       |
 | `SELF_HOSTED_NODE_FORMAT`         | `any`                 | Game format (e.g. `commander`)                                   |
@@ -176,7 +176,7 @@ any game in progress ends.
 
 `SIGUSR1` drains instead. The node stops starting new games, each room closes
 itself as soon as it has no game running, and the process exits `0` once the
-last room is gone — games in progress run to completion. Use this to retire a
+last room is gone - games in progress run to completion. Use this to retire a
 node (for example to replace it with one on a new configuration) without
 kicking players mid-game:
 

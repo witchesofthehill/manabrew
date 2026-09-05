@@ -55,7 +55,7 @@ does not redistribute Scryfall's image files. Your use of card imagery is
 subject to Scryfall's terms of service and to Wizards' rights in the
 underlying artwork.
 
-## 7. Public alpha — pre-release software
+## 7. Public alpha - pre-release software
 
 Manabrew is in public alpha. Expect bugs, missing features, incomplete rules
 coverage, and breaking changes. Saved decks, settings, and game data may be
@@ -66,7 +66,7 @@ service at any time.
 ## 8. Local data and privacy
 
 Your local decks, preferences, and this acknowledgement are stored on your
-device — in your browser's local storage on the web build, and in the
+device - in your browser's local storage on the web build, and in the
 operating system's application data directory on desktop. Accounts are
 optional and store your handle, linked sign-in identities, sessions, decks you
 explicitly save to your account, their version history, public Community

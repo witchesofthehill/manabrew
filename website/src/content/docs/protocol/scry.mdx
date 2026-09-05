@@ -5,7 +5,7 @@ description: Sort revealed cards into one of several destination zones.
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent for effects that sort cards into zones — Scry, Surveil, and Fateseal all use
+Sent for effects that sort cards into zones - Scry, Surveil, and Fateseal all use
 this prompt. The player assigns each presented card to one of the allowed
 destinations.
 
@@ -21,7 +21,7 @@ type ScryDestination = "libraryTop" | "libraryBottom" | "graveyard" | "exile" | 
 
 ## Rendering
 
-The client renders **one destination bin per entry in `zones`** — so the same
+The client renders **one destination bin per entry in `zones`** - so the same
 prompt covers Scry, Surveil, and wider sorts. You decide which destinations to
 offer (and in what order) by setting `zones`; the examples below are just three
 configurations.
@@ -29,7 +29,7 @@ configurations.
 <figure class="prompt-figure">
   <img src="/protocol/scry.webp" alt="Top of library and bottom of library bins" />
   <div class="prompt-figure__caption">
-    Classic Scry — `["libraryTop", "libraryBottom"]` gives top- and bottom-of-library bins.
+    Classic Scry - `["libraryTop", "libraryBottom"]` gives top- and bottom-of-library bins.
   </div>
 </figure>
 
@@ -43,7 +43,7 @@ configurations.
 <figure class="prompt-figure">
   <img src="/protocol/scry-multiple.webp" alt="Top of library, graveyard, and exile bins" />
   <div class="prompt-figure__caption">
-    Add more zones — `["libraryTop", "graveyard", "exile"]` renders three bins.
+    Add more zones - `["libraryTop", "graveyard", "exile"]` renders three bins.
   </div>
 </figure>
 

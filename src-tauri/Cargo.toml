@@ -1,6 +1,6 @@
 [package]
 name = "manabrew"
-version = "3.34.1"
+version = "3.34.7"
 edition = "2021"
 publish = false
 
@@ -50,6 +50,9 @@ flate2 = "1"
 futures-util = "0.3"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
 self-hosted-node = { path = "../manabrew-rs/crates/self-hosted-node", default-features = false, features = [
     "graal-forge",
 ], optional = true }

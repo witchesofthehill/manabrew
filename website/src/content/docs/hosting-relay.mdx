@@ -5,7 +5,7 @@ description: Run the Manabrew relay server (manabrew-server) from a published Do
 
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 
-You don't have to use the public relay — the relay server (`manabrew-server`) is
+You don't have to use the public relay - the relay server (`manabrew-server`) is
 self-hostable. It handles lobbies, matchmaking, and message relay between
 players; it never runs games itself. Every player's client (web or desktop) runs
 the engine, and the relay just passes messages between them.
@@ -86,7 +86,7 @@ All settings are environment variables:
 The relay speaks plain `ws://` and does no TLS itself. For a public deployment,
 put it behind a TLS-terminating reverse proxy (Caddy, nginx, …) and connect over
 `wss://`. The web client dials `wss://` automatically when its relay port is
-`443` — see [Hosting the web client](/hosting-web-client/). The
+`443` - see [Hosting the web client](/hosting-web-client/). The
 [full-stack example](/hosting-full-stack/) wires the relay and web client
 together behind one Caddy instance, and `compose.production.yml` in the repo
 root is the complete production deployment.

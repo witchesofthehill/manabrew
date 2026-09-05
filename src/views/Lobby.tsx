@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useIsDesktop } from "@/hooks/useBreakpoints";
 import { useServerStore } from "@/stores/useServerStore";
+import { useInviteStore } from "@/stores/useInviteStore";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { useMultiplayerSealedStore } from "@/stores/useMultiplayerSealedStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -22,6 +23,7 @@ import { startMpSealed } from "@/game/sealedStart";
 import { getDeckFingerprint } from "@/lib/decks";
 import { ROUTES } from "@/lib/constants";
 import { stripUsernameTag } from "@/lib/username";
+import { cn } from "@/lib/utils";
 import { getPlatform } from "@/platform";
 import { RELAY_FEATURE, START_GAME_FAILURE_CODES } from "@/types/server";
 import type {
@@ -115,10 +117,10 @@ export default function Lobby() {
     setFormat,
     setMaxPlayers,
     startGame,
-    inviteToRoom,
     relayFeatures,
   } = useServerStore();
   const chatEnabled = relayFeatures.includes(RELAY_FEATURE.Chat);
+  const pendingInviteCount = useInviteStore((s) => s.invites.length);
   const invitesEnabled = relayFeatures.includes(RELAY_FEATURE.RoomInvites);
   const prefs = usePreferencesStore();
   const accountHandle = useAuthStore((s) =>
@@ -287,15 +289,6 @@ export default function Lobby() {
       await Promise.all([listRooms(), listPlayers()]);
     } finally {
       setRefreshingLobby(false);
-    }
-  }
-
-  async function handleInvite(username: string) {
-    try {
-      await inviteToRoom(username);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't send the invite.");
-      throw error;
     }
   }
 
@@ -496,8 +489,15 @@ export default function Lobby() {
                 title="Show players and chat"
               >
                 <Users /> {chatEnabled ? "Players & chat" : "Players"}
-                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                  {players.length}
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[10px]",
+                    pendingInviteCount > 0
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {pendingInviteCount > 0 ? pendingInviteCount : players.length}
                 </span>
               </Button>
             )}
@@ -556,7 +556,6 @@ export default function Lobby() {
               chatEnabled={chatEnabled}
               invitesEnabled={invitesEnabled}
               onJoinRoom={handleJoinRoom}
-              onInvite={handleInvite}
             />
           </div>
         </aside>
@@ -577,7 +576,6 @@ export default function Lobby() {
               invitesEnabled={invitesEnabled}
               layout="tabs"
               onJoinRoom={handleJoinRoom}
-              onInvite={handleInvite}
             />
           </SheetContent>
         </Sheet>

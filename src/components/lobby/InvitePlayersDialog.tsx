@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Search, UserPlus } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PLAYER_ROW_ACTION_CLASS, PlayerRow } from "@/components/lobby/PlayerRow";
 import { useServerStore } from "@/stores/useServerStore";
+import { useInviteStore } from "@/stores/useInviteStore";
 import { stripUsernameTag } from "@/lib/username";
 import type { PlayerInfo } from "@/types/server";
 
@@ -22,9 +22,9 @@ function invitable(player: PlayerInfo, me: string | null): boolean {
 export function InvitePlayersDialog({ open, onClose }: InvitePlayersDialogProps) {
   const players = useServerStore((s) => s.players);
   const username = useServerStore((s) => s.username);
-  const inviteToRoom = useServerStore((s) => s.inviteToRoom);
+  const invited = useInviteStore((s) => s.sent);
+  const invite = useInviteStore((s) => s.send);
   const [search, setSearch] = useState("");
-  const [invited, setInvited] = useState<ReadonlySet<string>>(new Set());
 
   const query = search.trim().toLowerCase();
   const candidates = players
@@ -38,22 +38,7 @@ export function InvitePlayersDialog({ open, onClose }: InvitePlayersDialogProps)
 
   function close() {
     setSearch("");
-    setInvited(new Set());
     onClose();
-  }
-
-  async function invite(target: string) {
-    setInvited((prev) => new Set(prev).add(target));
-    try {
-      await inviteToRoom(target);
-    } catch (error) {
-      setInvited((prev) => {
-        const next = new Set(prev);
-        next.delete(target);
-        return next;
-      });
-      toast.error(error instanceof Error ? error.message : "Couldn't send the invite.");
-    }
   }
 
   return (

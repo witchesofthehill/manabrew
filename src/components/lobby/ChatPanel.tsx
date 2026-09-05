@@ -50,6 +50,7 @@ export function ChatPanel({
   }
 
   const entries: ChatEntry[] = scope === "Room" ? room : lobby;
+  const locked = scope === "Lobby" && !signedIn;
 
   useEffect(() => {
     markRead(scope);
@@ -134,40 +135,47 @@ export function ChatPanel({
           <div ref={endRef} />
         </div>
       </ScrollArea>
-      {scope === "Lobby" && !signedIn ? (
-        <div className="flex shrink-0 items-center justify-between gap-2 px-3 pb-2 pt-1 text-xs text-muted-foreground">
-          <span>Sign in to chat in General.</span>
-          <Button size="sm" variant="outline" onClick={() => showSignIn()}>
-            Sign in
-          </Button>
-        </div>
-      ) : (
-        <form
-          className="flex shrink-0 gap-1.5 px-2 pb-2 pt-1"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void handleSend();
-          }}
-        >
+      <form
+        className="flex shrink-0 gap-1.5 px-2 pb-2 pt-1"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleSend();
+        }}
+      >
+        <div className="relative min-w-0 flex-1">
           <Input
             className="h-9 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
-            placeholder={scope === "Room" ? "Message your table…" : "Message everyone…"}
+            placeholder={
+              locked ? "" : scope === "Room" ? "Message your table…" : "Message everyone…"
+            }
             value={input}
             maxLength={CHAT_MESSAGE_MAX_CHARS}
-            disabled={disabled}
+            disabled={disabled || locked}
             onChange={(event) => setInput(event.target.value)}
           />
-          <Button
-            type="submit"
-            size="icon"
-            className="h-9 w-9 shrink-0"
-            disabled={disabled || !input.trim()}
-            aria-label="Send message"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
-        </form>
-      )}
+          {locked && (
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted-foreground">
+              <button
+                type="button"
+                onClick={() => showSignIn()}
+                className="pointer-events-auto font-medium text-primary hover:underline"
+              >
+                Sign in
+              </button>
+              <span className="ml-1">to chat in General</span>
+            </span>
+          )}
+        </div>
+        <Button
+          type="submit"
+          size="icon"
+          className="h-9 w-9 shrink-0"
+          disabled={disabled || locked || !input.trim()}
+          aria-label="Send message"
+        >
+          <Send className="h-4 w-4" />
+        </Button>
+      </form>
       <ReportPlayerDialog player={reportTarget} onClose={() => setReportTarget(null)} />
     </div>
   );

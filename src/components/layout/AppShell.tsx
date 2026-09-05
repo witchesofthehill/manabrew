@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useGameSessionResume } from "@/hooks/useGameSessionResume";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
+import { RoomInviteOverlay } from "@/components/lobby/RoomInviteOverlay";
 import { IronsmithUnsupportedDeckModal } from "@/components/IronsmithUnsupportedDeckModal";
 import { SignInDialog } from "@/components/auth/SignInDialog";
 import { GuestNameConflictModal } from "@/components/GuestNameConflictModal";
@@ -132,6 +133,7 @@ export function AppShell() {
         <IronsmithUnsupportedDeckModal />
         {accountsEnabled && <SignInDialog />}
         {accountsEnabled && <GuestNameConflictModal />}
+        <RoomInviteOverlay />
         {!hideNavChrome && <TopBar override={activeTopBarOverride} />}
         <main
           className={cn(

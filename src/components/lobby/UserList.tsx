@@ -5,6 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { JoinPasswordDialog } from "@/components/lobby/JoinPasswordDialog";
 import { PLAYER_ROW_ACTION_CLASS, PlayerRow } from "@/components/lobby/PlayerRow";
+import { useInviteStore } from "@/stores/useInviteStore";
 import { Wifi, WifiOff, Loader2, Search, UserPlus } from "lucide-react";
 import { USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type { LocalGameKind, PlayerInfo, RoomInfo, ServerErrorCode } from "@/types/server";
@@ -22,7 +23,7 @@ interface UserListProps {
   currentUsername: string | null;
   connectionState: ConnectionState;
   onJoinRoom: (roomId: string, password?: string) => Promise<void>;
-  onInvite?: (username: string) => Promise<void>;
+  invitesEnabled?: boolean;
 }
 
 const CONNECTION_STATUS: Record<
@@ -75,10 +76,11 @@ export function UserList({
   currentUsername,
   connectionState,
   onJoinRoom,
-  onInvite,
+  invitesEnabled = false,
 }: UserListProps) {
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
-  const [invited, setInvited] = useState<ReadonlySet<string>>(new Set());
+  const invited = useInviteStore((s) => s.sent);
+  const sendInvite = useInviteStore((s) => s.send);
   const [passwordRoom, setPasswordRoom] = useState<RoomInfo | null>(null);
   const [search, setSearch] = useState("");
 
@@ -141,24 +143,10 @@ export function UserList({
   }
 
   const canInvite =
-    onInvite != null &&
+    invitesEnabled &&
     currentRoom != null &&
     currentRoom.status === "Lobby" &&
     currentRoom.players.length < currentRoom.max_players;
-
-  async function handleInvite(username: string) {
-    if (!onInvite) return;
-    setInvited((prev) => new Set(prev).add(username));
-    try {
-      await onInvite(username);
-    } catch {
-      setInvited((prev) => {
-        const next = new Set(prev);
-        next.delete(username);
-        return next;
-      });
-    }
-  }
 
   function renderPlayer(player: PlayerInfo, isCurrentPlayer = false) {
     const room = rooms.find((r) => r.room_id === player.room_id);
@@ -199,7 +187,7 @@ export function UserList({
         variant="secondary"
         className={PLAYER_ROW_ACTION_CLASS}
         disabled={invited.has(player.username)}
-        onClick={() => void handleInvite(player.username)}
+        onClick={() => void sendInvite(player.username)}
         title="Invite to your table"
       >
         <UserPlus className="h-3 w-3" />
@@ -276,7 +264,6 @@ export function UserList({
               },
               true,
             )}
-
           {renderSection("Playing", playing.length, playing)}
           {renderSection("At a table", atTable.length, atTable)}
           {renderSection("Available", available.length, available)}

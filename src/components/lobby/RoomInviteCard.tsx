@@ -4,14 +4,16 @@ import { EngineMark } from "@/components/lobby/EngineMark";
 import { PlayerAvatar } from "@/components/lobby/PlayerAvatar";
 import { getFormat } from "@/lib/formats";
 import { stripUsernameTag } from "@/lib/username";
+import { cn } from "@/lib/utils";
 import type { RoomInfo } from "@/types/server";
 
-interface RoomInviteToastProps {
+interface RoomInviteCardProps {
   from: string;
   fromAvatarUrl?: string;
   room: RoomInfo;
   onJoin: () => void;
   onIgnore: () => void;
+  className?: string;
 }
 
 function modeSentence(room: RoomInfo): string {
@@ -28,44 +30,49 @@ function modeSentence(room: RoomInfo): string {
   return `a ${format?.name ?? room.format} game`;
 }
 
-export function RoomInviteToast({
+export function RoomInviteCard({
   from,
   fromAvatarUrl,
   room,
   onJoin,
   onIgnore,
-}: RoomInviteToastProps) {
+  className,
+}: RoomInviteCardProps) {
   const name = stripUsernameTag(from);
   return (
-    <div className="flex w-[22rem] max-w-[calc(100vw-2rem)] flex-col gap-3 rounded-xl border border-primary/30 bg-card p-3 text-foreground shadow-lg">
-      <div className="flex items-start gap-3">
+    <div
+      className={cn(
+        "pointer-events-auto flex w-full flex-col gap-2.5 rounded-xl border bg-card p-3 text-foreground shadow-lg [--preview-shift-y:-6px] motion-safe:animate-preview-in",
+        className,
+      )}
+    >
+      <div className="flex items-center gap-2.5">
         <PlayerAvatar
           username={from}
           avatarUrl={fromAvatarUrl}
-          className="h-9 w-9 shrink-0"
-          fallbackClassName="text-sm"
+          className="h-8 w-8 shrink-0"
+          fallbackClassName="text-xs"
         />
         <div className="min-w-0 flex-1">
-          <p className="text-sm leading-snug">
-            <span className="font-semibold">{name}</span> invited you to {modeSentence(room)}
+          <p className="truncate text-sm leading-tight">
+            <span className="font-semibold">{name}</span>{" "}
+            <span className="text-muted-foreground">invited you to {modeSentence(room)}</span>
           </p>
           <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="truncate font-medium text-foreground/85">{room.room_name}</span>
+            <span className="truncate font-medium text-foreground/80">{room.room_name}</span>
             {room.password_protected && (
               <LockKeyhole
                 aria-label="Password-protected table"
                 className="h-3 w-3 shrink-0 text-format-badge-amber"
               />
             )}
-          </p>
-          <p className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <EngineMark engine={room.engine} className="h-3 w-3" />
-              {room.engine}
-            </span>
-            <span className="flex items-center gap-1">
-              <Users aria-hidden="true" className="h-3 w-3" />
-              {room.players.length}/{room.max_players} seated
+            <span aria-hidden="true">·</span>
+            <EngineMark engine={room.engine} className="h-3 w-3 shrink-0" />
+            <span>{room.engine}</span>
+            <span aria-hidden="true">·</span>
+            <Users aria-hidden="true" className="h-3 w-3 shrink-0" />
+            <span>
+              {room.players.length}/{room.max_players}
             </span>
           </p>
         </div>

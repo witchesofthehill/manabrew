@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { MessageSquare, Users } from "lucide-react";
 import { ChatPanel } from "@/components/lobby/ChatPanel";
+import { RoomInviteOverlay } from "@/components/lobby/RoomInviteOverlay";
 import { useChatStore } from "@/stores/useChatStore";
 import { cn } from "@/lib/utils";
 import { UserList, type ConnectionState } from "@/components/lobby/UserList";
@@ -18,7 +19,6 @@ interface LobbySidePanelProps {
   invitesEnabled: boolean;
   layout?: "split" | "tabs";
   onJoinRoom: (roomId: string, password?: string) => Promise<void>;
-  onInvite: (username: string) => Promise<void>;
 }
 
 export function LobbySidePanel({
@@ -32,7 +32,6 @@ export function LobbySidePanel({
   invitesEnabled,
   layout = "split",
   onJoinRoom,
-  onInvite,
 }: LobbySidePanelProps) {
   const [tab, setTab] = useState<"players" | "chat">("players");
   const unread = useChatStore((s) => s.unread.Lobby + s.unread.Room);
@@ -45,11 +44,20 @@ export function LobbySidePanel({
       currentUsername={currentUsername}
       connectionState={connectionState}
       onJoinRoom={onJoinRoom}
-      onInvite={invitesEnabled ? onInvite : undefined}
+      invitesEnabled={invitesEnabled}
     />
   );
 
-  if (!chatEnabled) return roster;
+  const invites = <RoomInviteOverlay inline />;
+
+  if (!chatEnabled) {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        {invites}
+        <div className="min-h-0 flex-1">{roster}</div>
+      </div>
+    );
+  }
 
   if (layout === "tabs") {
     const chat = (
@@ -82,6 +90,7 @@ export function LobbySidePanel({
     );
     return (
       <div className="flex h-full min-h-0 flex-col">
+        {invites}
         <div className="flex shrink-0 border-b">
           {renderTab("players", "Players", Users)}
           {renderTab("chat", "Chat", MessageSquare)}
@@ -92,22 +101,25 @@ export function LobbySidePanel({
   }
 
   return (
-    <ResizablePanelGroup orientation="vertical" resizeTargetMinimumSize={{ coarse: 24, fine: 6 }}>
-      <ResizablePanel defaultSize={50} minSize="10rem">
-        {roster}
-      </ResizablePanel>
-      <ResizableHandle
-        withHandle
-        className="h-px w-full after:inset-x-0 after:inset-y-auto after:top-1/2 after:h-2 after:w-full after:-translate-y-1/2 after:translate-x-0 [&>div]:rotate-90"
-      />
-      <ResizablePanel defaultSize={50} minSize="16rem">
-        <ChatPanel
-          currentRoom={currentRoom}
-          currentUsername={currentUsername}
-          disabled={connectionState !== "connected"}
-          className="h-full"
+    <div className="flex h-full min-h-0 flex-col">
+      {invites}
+      <ResizablePanelGroup orientation="vertical" resizeTargetMinimumSize={{ coarse: 24, fine: 6 }}>
+        <ResizablePanel defaultSize={50} minSize="10rem">
+          {roster}
+        </ResizablePanel>
+        <ResizableHandle
+          withHandle
+          className="h-px w-full after:inset-x-0 after:inset-y-auto after:top-1/2 after:h-2 after:w-full after:-translate-y-1/2 after:translate-x-0 [&>div]:rotate-90"
         />
-      </ResizablePanel>
-    </ResizablePanelGroup>
+        <ResizablePanel defaultSize={50} minSize="16rem">
+          <ChatPanel
+            currentRoom={currentRoom}
+            currentUsername={currentUsername}
+            disabled={connectionState !== "connected"}
+            className="h-full"
+          />
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
   );
 }

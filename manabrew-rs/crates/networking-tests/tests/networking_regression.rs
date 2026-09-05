@@ -14,9 +14,11 @@ const CURRENT_CLIENT_VERSION: &str = "3.17.0";
 
 use libtest_mimic::Arguments;
 use manabrew_agent_interface::protocol::{identity_token, IdentityProof};
+use manabrew_net::TransportKind;
+use serde_json::json;
 use support::{
-    case, execute, list, scenario, spawn_guest_bot, summary, Case, Client, Manifest, Sim,
-    GRACE_DEADLINE,
+    case, execute, list, scenario, spawn_guest_bot, step, summary, Case, Client, DirectSeat,
+    Manifest, Sim, GRACE_DEADLINE,
 };
 
 async fn brief_disconnect_reclaims_seat() {
@@ -549,6 +551,324 @@ async fn publishing_a_release_never_ends_a_live_game() {
     sim.wait_node_exit(Duration::from_secs(60)).await;
 }
 
+// ── the direct data plane (#838, docs/TRANSPORT.md) ─────────────────
+
+async fn direct_transport_fails_closed_without_the_flag() {
+    scenario(
+        "a relay started without MANABREW_DIRECT_TRANSPORT, and a seat that opted in.",
+        "the seat announces an endpoint and signals a room-mate.",
+        "the relay advertises neither feature, names no host, and forwards nothing.",
+    );
+    let sim = Sim::spawn_relay_only(9660).await;
+    let mut alice = Client::connect(&sim.relay_url, "alice").await.unwrap();
+    assert!(
+        !alice
+            .features
+            .iter()
+            .any(|f| f == "room_transport" || f == "peer_signal"),
+        "an opt-out relay must not advertise the plane: {:?}",
+        alice.features
+    );
+    alice.create_room("Relay only").await.unwrap();
+    let room = alice.wait_own_room().await.unwrap();
+    let mut bob = Client::connect(&sim.relay_url, "bob").await.unwrap();
+    bob.join(&room.room_id, false).await.unwrap();
+
+    let seat = DirectSeat::bind("alice").await;
+    alice.announce(Some(seat.endpoint())).await.unwrap();
+    alice
+        .signal_peer("bob", json!({ "sdp": { "type": "offer", "sdp": "v=0" } }))
+        .await
+        .unwrap();
+
+    let hosts = alice.roster_hosts_within(Duration::from_secs(3)).await;
+    assert!(
+        hosts.is_empty(),
+        "no roster at all off this relay, got {hosts:?}"
+    );
+    bob.expect_no_peer_signal(Duration::from_secs(2))
+        .await
+        .unwrap();
+    assert_eq!(
+        sim.metric(r#"manabrew_relay_transport_announcements_total{kind="rejected"}"#)
+            .await,
+        1.0,
+        "the announcement is refused, silently"
+    );
+    assert_eq!(
+        sim.metric(r#"manabrew_relay_peer_signals_total{kind="disabled"}"#)
+            .await,
+        1.0,
+        "the signal is dropped, and the counter is where it shows"
+    );
+    seat.shutdown().await;
+}
+
+async fn signalling_is_routed_by_the_relay_and_stamped_with_the_sender() {
+    scenario(
+        "a relay with the direct transport on, and two seats in one room.",
+        "each signals the other by name; one signals a stranger; one sends a blob too big.",
+        "each blob reaches the named peer stamped `from` the relay's own record; the rest reach nobody.",
+    );
+    let sim = Sim::spawn_relay_only_direct(9664).await;
+    let mut alice = Client::connect(&sim.relay_url, "alice").await.unwrap();
+    assert!(
+        alice.features.iter().any(|f| f == "peer_signal"),
+        "the relay advertises signalling: {:?}",
+        alice.features
+    );
+    alice.create_room("Signalling").await.unwrap();
+    let room = alice.wait_own_room().await.unwrap();
+    let mut bob = Client::connect(&sim.relay_url, "bob").await.unwrap();
+    bob.join(&room.room_id, false).await.unwrap();
+
+    let offer = json!({ "sdp": { "type": "offer", "sdp": "v=0 alice" } });
+    alice.signal_peer("bob", offer.clone()).await.unwrap();
+    let (from, payload) = bob
+        .expect_peer_signal(Duration::from_secs(5))
+        .await
+        .unwrap();
+    assert_eq!(
+        from, "alice",
+        "the sender is the relay's word, not the message's"
+    );
+    assert_eq!(payload, offer, "the relay does not read or alter the blob");
+
+    let answer = json!({ "sdp": { "type": "answer", "sdp": "v=0 bob" } });
+    bob.signal_peer("alice", answer.clone()).await.unwrap();
+    let (from, payload) = alice
+        .expect_peer_signal(Duration::from_secs(5))
+        .await
+        .unwrap();
+    assert_eq!((from.as_str(), payload), ("bob", answer));
+
+    step("alice signals somebody who is not in the room, then sends bob 20kB");
+    alice
+        .signal_peer("nobody", json!({ "ice": {} }))
+        .await
+        .unwrap();
+    alice
+        .signal_peer("bob", json!({ "sdp": "x".repeat(20 * 1024) }))
+        .await
+        .unwrap();
+    bob.expect_no_peer_signal(Duration::from_secs(2))
+        .await
+        .unwrap();
+
+    assert_eq!(
+        sim.metric(r#"manabrew_relay_peer_signals_total{kind="forwarded"}"#)
+            .await,
+        2.0
+    );
+    assert_eq!(
+        sim.metric(r#"manabrew_relay_peer_signals_total{kind="no_target"}"#)
+            .await,
+        1.0
+    );
+    assert_eq!(
+        sim.metric(r#"manabrew_relay_peer_signals_total{kind="oversize"}"#)
+            .await,
+        1.0
+    );
+}
+
+async fn a_seat_plays_its_game_on_the_direct_plane() {
+    scenario(
+        "a relay with the direct transport on and a node offering the iroh plane; one human seat that opted in.",
+        "the seat announces, dials the host the roster names, and the game starts.",
+        "every prompt for that seat crosses the QUIC channel, none crosses the relay, and the host reports the seat left the relay.",
+    );
+    let sim = Sim::spawn_direct(9668).await;
+    let mut alice = Client::connect(&sim.relay_url, "alice").await.unwrap();
+    assert!(alice.features.iter().any(|f| f == "room_transport"));
+    alice.join(&sim.room_id, false).await.unwrap();
+
+    let mut seat = DirectSeat::bind("alice").await;
+    alice.announce(Some(seat.endpoint())).await.unwrap();
+    let (host, members) = alice.wait_roster(Duration::from_secs(15)).await.unwrap();
+    let status = seat.dial(&sim.room_id, &host, &members).await.unwrap();
+    assert_eq!(
+        status.kind,
+        TransportKind::Direct,
+        "one box, one hop: never relayed"
+    );
+
+    alice.spawn_node_bot(&sim.room_id).await.unwrap();
+    alice.select_deck_and_ready().await.unwrap();
+    alice.start_game(2).await.unwrap();
+    let answered = alice.answer_prompts_over(&mut seat, 3).await.unwrap();
+    assert_eq!(answered.direct, 3, "the seat's prompts travel direct");
+    assert_eq!(
+        answered.relay_prompts_for_me, 0,
+        "a prompt for a direct seat must not also be put on the relay"
+    );
+
+    sim.wait_event(
+        Duration::from_secs(10),
+        "the host told the relay this seat left its data plane (ReportTransport)",
+        |event| {
+            event.get("event").and_then(|e| e.as_str()) == Some("transport_used")
+                && event.to_string().contains("alice")
+                && event.to_string().contains("iroh-direct")
+        },
+    )
+    .await;
+    assert!(
+        sim.metric(r#"manabrew_relay_transport_announcements_total{kind="announce"}"#)
+            .await
+            >= 2.0,
+        "the host and the seat both announced"
+    );
+    seat.shutdown().await;
+}
+
+async fn a_seat_that_hangs_up_is_re_primed_on_the_relay() {
+    scenario(
+        "a seat playing on the direct plane.",
+        "its direct channel closes mid-game.",
+        "the host puts a full board and the pending prompt back on the relay for that seat, and the game goes on there.",
+    );
+    let sim = Sim::spawn_direct(9672).await;
+    let mut alice = Client::connect(&sim.relay_url, "alice").await.unwrap();
+    alice.join(&sim.room_id, false).await.unwrap();
+    let mut seat = DirectSeat::bind("alice").await;
+    alice.announce(Some(seat.endpoint())).await.unwrap();
+    let (host, members) = alice.wait_roster(Duration::from_secs(15)).await.unwrap();
+    seat.dial(&sim.room_id, &host, &members).await.unwrap();
+    alice.spawn_node_bot(&sim.room_id).await.unwrap();
+    alice.select_deck_and_ready().await.unwrap();
+    alice.start_game(2).await.unwrap();
+    let answered = alice.answer_prompts_over(&mut seat, 2).await.unwrap();
+    assert_eq!((answered.direct, answered.relay_prompts_for_me), (2, 0));
+
+    seat.hang_up().await;
+    alice.on_fallback();
+    // The relay saw none of this seat's envelopes while it was direct, so the
+    // host owes it a full board before anything else, and then the prompt it
+    // was waiting on. Answering over the relay is what proves both arrived.
+    alice.answer_prompts(2).await.unwrap();
+    assert!(
+        alice.saw_envelope_kind("state"),
+        "a full board was re-primed over the relay before the seat's next prompt"
+    );
+    assert!(alice.saw_envelope_kind("prompt"));
+    seat.shutdown().await;
+}
+
+async fn a_room_stays_on_the_relay_until_every_seat_opts_in() {
+    scenario(
+        "a relay with the direct transport on, a node offering the plane, and two human seats: one opted in, one not.",
+        "the opted-in seat announces and the game starts.",
+        "the relay never names a host to anyone, and the opted-in seat's whole game goes through the relay.",
+    );
+    let sim = Sim::spawn_direct(9676).await;
+    let mut alice = Client::connect(&sim.relay_url, "alice").await.unwrap();
+    alice.join(&sim.room_id, false).await.unwrap();
+    // bob never announces: that is what not opting in looks like on the wire.
+    let bob = spawn_guest_bot(
+        sim.relay_url.clone(),
+        "bob".to_string(),
+        sim.room_id.clone(),
+        Duration::from_millis(500),
+        false,
+    );
+    sim.wait_room(Duration::from_secs(10), "bob is seated", |room| {
+        room.is_some_and(|room| {
+            room.players
+                .iter()
+                .any(|p| p.username == "bob" && p.connected)
+        })
+    })
+    .await;
+
+    let mut seat = DirectSeat::bind("alice").await;
+    alice.announce(Some(seat.endpoint())).await.unwrap();
+    let hosts = alice.roster_hosts_within(Duration::from_secs(3)).await;
+    assert!(
+        !hosts.is_empty() && hosts.iter().all(Option::is_none),
+        "the roster went out, and named nobody to dial: {hosts:?}"
+    );
+    assert!(
+        sim.metric(r#"manabrew_relay_transport_rosters_total{kind="withheld"}"#)
+            .await
+            >= 1.0
+    );
+
+    alice.select_deck_and_ready().await.unwrap();
+    alice.start_game(2).await.unwrap();
+    let answered = alice.answer_prompts_over(&mut seat, 2).await.unwrap();
+    assert_eq!(
+        (answered.direct, answered.relay),
+        (0, 2),
+        "one seat that did not opt in keeps the whole table on the relay"
+    );
+    bob.abort();
+    seat.shutdown().await;
+}
+
+async fn two_direct_seats_each_get_their_first_prompt() {
+    scenario(
+        "a node-hosted room with the direct plane on, and TWO human seats that both opted in.",
+        "both announce, both dial the host direct, and the game starts.",
+        "each seat receives and answers its own first prompt over its own QUIC channel.",
+    );
+    let sim = Sim::spawn_direct(9680).await;
+    let mut alice = Client::connect(&sim.relay_url, "alice").await.unwrap();
+    let mut bob = Client::connect(&sim.relay_url, "bob").await.unwrap();
+    alice.join(&sim.room_id, false).await.unwrap();
+    bob.join(&sim.room_id, false).await.unwrap();
+
+    let mut alice_seat = DirectSeat::bind("alice").await;
+    let mut bob_seat = DirectSeat::bind("bob").await;
+    alice.announce(Some(alice_seat.endpoint())).await.unwrap();
+    bob.announce(Some(bob_seat.endpoint())).await.unwrap();
+    let (host, members) = alice.wait_roster(Duration::from_secs(15)).await.unwrap();
+    let _ = bob.wait_roster(Duration::from_secs(15)).await.unwrap();
+    assert_eq!(
+        alice_seat
+            .dial(&sim.room_id, &host, &members)
+            .await
+            .unwrap()
+            .kind,
+        TransportKind::Direct
+    );
+    assert_eq!(
+        bob_seat
+            .dial(&sim.room_id, &host, &members)
+            .await
+            .unwrap()
+            .kind,
+        TransportKind::Direct
+    );
+
+    alice.select_deck_and_ready().await.unwrap();
+    bob.select_deck_and_ready().await.unwrap();
+    alice.start_game(2).await.unwrap();
+    bob.start_game(2).await.unwrap();
+
+    // The point. Both seats are direct, so each seat's first prompt (the
+    // mulligan and the play/draw around it) crosses only its own channel. If
+    // the host does not actually put it there, the seat sits waiting for a
+    // prompt it will never see, which is what a desktop-hosted game showed on
+    // staging.
+    let (a, b) = tokio::join!(
+        alice.answer_prompts_over(&mut alice_seat, 1),
+        bob.answer_prompts_over(&mut bob_seat, 1),
+    );
+    let a = a.unwrap();
+    let b = b.unwrap();
+    assert_eq!(
+        a.direct, 1,
+        "alice's first prompt has to reach her over the plane"
+    );
+    assert_eq!(
+        b.direct, 1,
+        "bob's first prompt has to reach him over the plane"
+    );
+    alice_seat.shutdown().await;
+    bob_seat.shutdown().await;
+}
+
 fn main() {
     let args = Arguments::from_args();
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -612,6 +932,30 @@ fn main() {
         case(
             "publishing_a_release_never_ends_a_live_game",
             publishing_a_release_never_ends_a_live_game,
+        ),
+        case(
+            "direct_transport_fails_closed_without_the_flag",
+            direct_transport_fails_closed_without_the_flag,
+        ),
+        case(
+            "signalling_is_routed_by_the_relay_and_stamped_with_the_sender",
+            signalling_is_routed_by_the_relay_and_stamped_with_the_sender,
+        ),
+        case(
+            "a_seat_plays_its_game_on_the_direct_plane",
+            a_seat_plays_its_game_on_the_direct_plane,
+        ),
+        case(
+            "a_seat_that_hangs_up_is_re_primed_on_the_relay",
+            a_seat_that_hangs_up_is_re_primed_on_the_relay,
+        ),
+        case(
+            "a_room_stays_on_the_relay_until_every_seat_opts_in",
+            a_room_stays_on_the_relay_until_every_seat_opts_in,
+        ),
+        case(
+            "two_direct_seats_each_get_their_first_prompt",
+            two_direct_seats_each_get_their_first_prompt,
         ),
     ];
 

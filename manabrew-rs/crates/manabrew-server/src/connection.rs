@@ -188,6 +188,58 @@ pub fn broadcast_player_list(state: &Arc<ServerState>) {
     }
 }
 
+/// `room_transport` is advertised only where it works, so a client can tell a
+/// relay that will send it a roster from one that never will.
+/// The direct-plane features are advertised only where they work. Off, a
+/// client sees no `room_transport` and no `peer_signal`, so it never starts a
+/// negotiation this relay would drop.
+fn advertised_features(state: &Arc<ServerState>) -> Vec<String> {
+    crate::protocol::FEATURES
+        .iter()
+        .filter(|f| {
+            state.direct_transport
+                || (**f != crate::protocol::FEATURE_ROOM_TRANSPORT
+                    && **f != crate::protocol::FEATURE_PEER_SIGNAL)
+        })
+        .map(|f| f.to_string())
+        .collect()
+}
+
+/// Pushes the room's data-plane roster to its members. Members only: clients
+/// treat the roster as authoritative for "this endpoint id is that player", so
+/// it must never reach a session the relay has not placed in the room.
+pub fn broadcast_room_transport(state: &Arc<ServerState>, room_id: &str) {
+    if !state.direct_transport {
+        return;
+    }
+    let Some(room) = state.rooms.get(room_id) else {
+        return;
+    };
+    // Opt-in is per player and the room upgrades only when every player took
+    // it. Until then the roster goes out empty rather than not at all: an
+    // empty roster is what tells a seat that dialled earlier, before somebody
+    // who did not opt in sat down, to tear its connection down again.
+    let consented = room.transport_consented();
+    let msg = ServerMessage::RoomTransport {
+        room_id: room_id.to_string(),
+        iroh_relay_url: state.iroh_relay_url.clone(),
+        ice_servers: state.ice_servers.clone(),
+        host: consented.then(|| room.transport_host()).flatten(),
+        members: if consented {
+            room.transport_members()
+        } else {
+            Vec::new()
+        },
+    };
+    metrics::record_transport_roster(if consented { "sent" } else { "withheld" });
+    // Released before broadcasting, not for tidiness: `broadcast_to_room` takes
+    // its own `state.rooms.get`, and dashmap locks per shard, so holding this
+    // guard across the call deadlocks the thread against itself on every room
+    // whose id lands in the same shard.
+    drop(room);
+    broadcast_to_room(state, room_id, &msg);
+}
+
 pub fn broadcast_to_room_except(
     state: &Arc<ServerState>,
     sender_player_id: &str,
@@ -574,10 +626,7 @@ async fn authenticate(
                     player_id: None,
                     reconnected: None,
                     error: Some("Invalid server key".into()),
-                    features: crate::protocol::FEATURES
-                        .iter()
-                        .map(|f| f.to_string())
-                        .collect(),
+                    features: advertised_features(state),
                     art_base_url: state.art_base_url.clone(),
                 };
                 send_msg(sender, &reply);
@@ -594,10 +643,7 @@ async fn authenticate(
                     player_id: None,
                     reconnected: None,
                     error: Some("identity token expired".into()),
-                    features: crate::protocol::FEATURES
-                        .iter()
-                        .map(|f| f.to_string())
-                        .collect(),
+                    features: advertised_features(state),
                     art_base_url: state.art_base_url.clone(),
                 };
                 send_msg(sender, &reply);
@@ -615,10 +661,7 @@ async fn authenticate(
                     player_id: None,
                     reconnected: None,
                     error: Some("Username cannot be empty".into()),
-                    features: crate::protocol::FEATURES
-                        .iter()
-                        .map(|f| f.to_string())
-                        .collect(),
+                    features: advertised_features(state),
                     art_base_url: state.art_base_url.clone(),
                 };
                 send_msg(sender, &reply);
@@ -637,10 +680,7 @@ async fn authenticate(
                         player_id: None,
                         reconnected: None,
                         error: Some(format!("Username '{username}' is already taken")),
-                        features: crate::protocol::FEATURES
-                            .iter()
-                            .map(|f| f.to_string())
-                            .collect(),
+                        features: advertised_features(state),
                         art_base_url: state.art_base_url.clone(),
                     };
                     send_msg(sender, &reply);
@@ -712,10 +752,7 @@ async fn authenticate(
                 player_id: Some(player_id.clone()),
                 reconnected: Some(false),
                 error: None,
-                features: crate::protocol::FEATURES
-                    .iter()
-                    .map(|f| f.to_string())
-                    .collect(),
+                features: advertised_features(state),
                 art_base_url: state.art_base_url.clone(),
             };
             send_msg(sender, &reply);
@@ -729,10 +766,7 @@ async fn authenticate(
                 player_id: None,
                 reconnected: None,
                 error: Some("First message must be Authenticate".into()),
-                features: crate::protocol::FEATURES
-                    .iter()
-                    .map(|f| f.to_string())
-                    .collect(),
+                features: advertised_features(state),
                 art_base_url: state.art_base_url.clone(),
             };
             send_msg(sender, &reply);
@@ -792,10 +826,7 @@ fn reclaim_session(
         player_id: Some(existing_pid.to_string()),
         reconnected: Some(true),
         error: None,
-        features: crate::protocol::FEATURES
-            .iter()
-            .map(|f| f.to_string())
-            .collect(),
+        features: advertised_features(state),
         art_base_url: state.art_base_url.clone(),
     };
     send_msg(sender, &reply);
@@ -1024,6 +1055,7 @@ fn handle_client_message(
                         }
                     }
                     broadcast_to_room(state, &room_id, &ServerMessage::RoomUpdate { room: info });
+                    broadcast_room_transport(state, &room_id);
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' join room failed: {}", username, e);
@@ -1101,6 +1133,9 @@ fn handle_client_message(
                                 },
                             );
                         }
+                        // The leaver may have been the one seat that had not
+                        // opted in, in which case the rest may now go direct.
+                        broadcast_room_transport(state, &rid);
                     }
                 }
                 Err(ServerError::NotInRoom) => {
@@ -1530,6 +1565,185 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::ReportTransport { game_id, seats } => {
+            let Some(room_id) = state.players.get(player_id).and_then(|p| p.room_id.clone()) else {
+                return;
+            };
+            // The capture is the one artefact this exists to keep honest, so
+            // only the room's engine host writes into it, and only about the
+            // game the relay believes is running.
+            let authorised = state.rooms.get(&room_id).is_some_and(|room| {
+                room.is_host(player_id)
+                    && room
+                        .replay
+                        .as_ref()
+                        .is_some_and(|replay| replay.game_id == game_id)
+            });
+            if !authorised || seats.is_empty() {
+                return;
+            }
+            let event = AnalyticsEvent::TransportUsed {
+                ts: analytics::now_ts(),
+                room_id,
+                game_id: game_id.clone(),
+                host: username.to_string(),
+                seats,
+            };
+            // Into the capture too, not just the event stream: a capture file
+            // has to be able to state its own incompleteness, or whoever reads
+            // it later measures a game they cannot see all of.
+            if let Ok(envelope) = serde_json::to_value(&event) {
+                state
+                    .analytics
+                    .capture_envelope(&game_id, username, &envelope, None);
+            }
+            state.analytics.emit(event);
+        }
+
+        ClientMessage::AnnounceTransport { endpoint } => {
+            let Some(room_id) = state.players.get(player_id).and_then(|p| p.room_id.clone()) else {
+                send_error(sender, &ServerError::NotInRoom);
+                return;
+            };
+            let withdrawn = endpoint.is_none();
+            let accepted = state.direct_transport
+                && match state.rooms.get_mut(&room_id) {
+                    Some(mut room) => room.set_transport(player_id, endpoint),
+                    None => false,
+                };
+            // Announcing is an optimisation, not something a player did, and a
+            // relay error becomes a toast. Telling someone they are not in the
+            // room they are sitting in because a squatter claimed their
+            // endpoint id is worse than saying nothing: they stay on the relay
+            // and the counter is where this shows up.
+            if !accepted {
+                metrics::record_transport_announcement("rejected");
+                return;
+            }
+            metrics::record_transport_announcement(if withdrawn { "withdraw" } else { "announce" });
+            broadcast_room_transport(state, &room_id);
+        }
+
+        ClientMessage::SignalPeer { to, payload } => {
+            let Some(room_id) = state.players.get(player_id).and_then(|p| p.room_id.clone()) else {
+                send_error(sender, &ServerError::NotInRoom);
+                return;
+            };
+            if !state.direct_transport {
+                metrics::record_peer_signal("disabled");
+                return;
+            }
+            // The blob is opaque, so its size is the only thing the relay can
+            // judge it on. Without this the control plane is a data plane with
+            // no accounting, which is exactly what this whole seam exists to
+            // stop.
+            if serde_json::to_string(&payload)
+                .map_or(true, |json| json.len() > crate::protocol::MAX_SIGNAL_BYTES)
+            {
+                metrics::record_peer_signal("oversize");
+                return;
+            }
+            // The sender is named from the relay's own record, never from the
+            // message, which is the attestation `RoomTransport` already gives
+            // the roster. A peer that lies about who it is cannot get past it.
+            let Some(from) = state.players.get(player_id).map(|p| p.username.clone()) else {
+                metrics::record_peer_signal("no_sender");
+                return;
+            };
+            // Same room only, resolved by username. Signalling reaches a peer
+            // the relay has placed beside this one, or it reaches nobody.
+            let target = state
+                .rooms
+                .get(&room_id)
+                .and_then(|room| room.participant_id_by_username(&to));
+            let Some(target_id) = target else {
+                metrics::record_peer_signal("no_target");
+                return;
+            };
+            if target_id == player_id {
+                metrics::record_peer_signal("self");
+                return;
+            }
+            let Some(target_player) = state.players.get(&target_id) else {
+                metrics::record_peer_signal("no_target");
+                return;
+            };
+            if !target_player.connected {
+                metrics::record_peer_signal("offline");
+                return;
+            }
+            send_msg(
+                &target_player.sender,
+                &ServerMessage::PeerSignal { from, payload },
+            );
+            metrics::record_peer_signal("forwarded");
+        }
+
+        ClientMessage::ReportPlaneQuality { report } => {
+            if !state.direct_transport {
+                return;
+            }
+            // Same attestation as `SignalPeer`: the reporter is named from the
+            // relay's own record, never from the message. A session cannot file
+            // a measurement under someone else's name.
+            let Some(username) = state.players.get(player_id).map(|p| p.username.clone()) else {
+                return;
+            };
+            let room_id = state.players.get(player_id).and_then(|p| p.room_id.clone());
+            // A report about someone the relay has not placed beside this
+            // session is not a measurement of anything it can reason about.
+            let known_peer = room_id
+                .as_ref()
+                .and_then(|rid| state.rooms.get(rid))
+                .is_some_and(|room| room.participant_id_by_username(&report.peer).is_some());
+            if !known_peer {
+                return;
+            }
+            // Labels come from fixed sets, never from the wire: a client that
+            // could name a label could pick this metric's cardinality.
+            let Some(outcome) = plane_outcome_label(&report.outcome) else {
+                return;
+            };
+            let Some(plane) = plane_label(&report.plane) else {
+                return;
+            };
+            let pair = candidate_pair_label(report.candidate_pair.as_deref());
+            // Counted once per attempt. The follow-up that carries the round
+            // trip is the same attempt, not another one.
+            if report.phase == crate::protocol::PLANE_PHASE_SETTLED {
+                metrics::record_plane_attempt(plane, outcome, pair);
+            }
+
+            // A broken clock or a lie is dropped rather than averaged in.
+            let sane = |value: Option<u32>| value.filter(|ms| *ms <= crate::protocol::MAX_PLANE_MS);
+            let connect_ms = sane(report.connect_ms);
+            let rtt_ms = sane(report.rtt_ms);
+            let relay_rtt_ms = sane(report.relay_rtt_ms);
+            if let Some(ms) = connect_ms {
+                metrics::record_plane_connect(plane, ms);
+            }
+            if let Some(ms) = rtt_ms {
+                metrics::record_plane_rtt(plane, ms, relay_rtt_ms);
+            }
+
+            let candidate_pair = report.candidate_pair.filter(|value| {
+                value.len() <= crate::protocol::MAX_CANDIDATE_PAIR_BYTES && !value.is_empty()
+            });
+            state.analytics.emit(AnalyticsEvent::PlaneQuality {
+                ts: analytics::now_ts(),
+                room_id,
+                username,
+                peer: report.peer,
+                plane: plane.to_string(),
+                outcome: outcome.to_string(),
+                phase: report.phase,
+                connect_ms,
+                rtt_ms,
+                relay_rtt_ms,
+                candidate_pair,
+            });
+        }
+
         ClientMessage::TurnChange {
             new_active_player,
             turn_number,
@@ -1597,6 +1811,8 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
         ServerMessage::GameAborted { .. } => "GameAborted",
         ServerMessage::Error { .. } => "Error",
         ServerMessage::ServerShuttingDown { .. } => "ServerShuttingDown",
+        ServerMessage::RoomTransport { .. } => "RoomTransport",
+        ServerMessage::PeerSignal { .. } => "PeerSignal",
     }
 }
 
@@ -1621,5 +1837,125 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::RequestResync => "RequestResync",
         ClientMessage::BroadcastState { .. } => "BroadcastState",
         ClientMessage::TurnChange { .. } => "TurnChange",
+        ClientMessage::AnnounceTransport { .. } => "AnnounceTransport",
+        ClientMessage::ReportTransport { .. } => "ReportTransport",
+        ClientMessage::SignalPeer { .. } => "SignalPeer",
+        ClientMessage::ReportPlaneQuality { .. } => "ReportPlaneQuality",
+    }
+}
+
+/// Maps a reported outcome onto the fixed set the metric labels come from.
+/// An unknown value is dropped, not recorded as itself.
+fn plane_outcome_label(outcome: &str) -> Option<&'static str> {
+    crate::protocol::PLANE_OUTCOMES
+        .iter()
+        .find(|known| **known == outcome)
+        .copied()
+}
+
+fn plane_label(plane: &str) -> Option<&'static str> {
+    match plane {
+        crate::protocol::TRANSPORT_WEBRTC => Some(crate::protocol::TRANSPORT_WEBRTC),
+        crate::protocol::TRANSPORT_IROH_DIRECT => Some(crate::protocol::TRANSPORT_IROH_DIRECT),
+        _ => None,
+    }
+}
+
+/// Buckets an ICE candidate pair into labels that are worth separating and
+/// cannot grow without bound.
+///
+/// The distinction that matters is whether the path left the network at all:
+/// `host/host` is a LAN pair and proves no traversal, `srflx` on both sides is
+/// a punched-through path, and `relay` would be TURN, which we do not run. The
+/// exact pair still reaches the capture; only the metric is bucketed.
+fn candidate_pair_label(pair: Option<&str>) -> &'static str {
+    let Some(pair) = pair else {
+        return "unknown";
+    };
+    // iroh reports the path in its own words rather than ICE's, because a
+    // QUIC path has no candidate types and inventing some would read as a
+    // measurement of something that never happened. The buckets are the same
+    // question either way: did this leave the network, and did it stay direct.
+    match pair {
+        "direct-lan" => return "lan",
+        "direct-wan" => return "punched",
+        "relayed" => return "turn",
+        _ => {}
+    }
+    let (local, remote) = match pair.split_once('/') {
+        Some(split) => split,
+        None => return "other",
+    };
+    match (local, remote) {
+        ("host", "host") => "lan",
+        (_, "relay") | ("relay", _) => "turn",
+        ("srflx" | "prflx", "srflx" | "prflx") => "punched",
+        ("host", "srflx" | "prflx") | ("srflx" | "prflx", "host") => "mixed",
+        _ => "other",
+    }
+}
+
+#[cfg(test)]
+mod plane_quality_tests {
+    use super::*;
+
+    #[test]
+    fn outcomes_come_from_the_fixed_set() {
+        assert_eq!(plane_outcome_label("connected"), Some("connected"));
+        assert_eq!(plane_outcome_label("timeout"), Some("timeout"));
+        // A client cannot name a label, because a label it could name is a
+        // label it could use to pick this metric's cardinality.
+        assert_eq!(plane_outcome_label("connected "), None);
+        assert_eq!(plane_outcome_label("whatever"), None);
+        assert_eq!(plane_outcome_label(""), None);
+    }
+
+    #[test]
+    fn planes_come_from_the_fixed_set() {
+        assert_eq!(plane_label("webrtc"), Some("webrtc"));
+        assert_eq!(plane_label("iroh-direct"), Some("iroh-direct"));
+        // Relayed iroh is not a direct plane, so it is not an attempt at one.
+        assert_eq!(plane_label("iroh-relayed"), None);
+        assert_eq!(plane_label("carrier pigeon"), None);
+    }
+
+    /// The distinction the whole measurement turns on: a pair that never left
+    /// the network says nothing about traversal, and counting it beside a
+    /// punched-through pair would flatter the connect rate.
+    #[test]
+    fn a_lan_pair_is_not_a_punched_one() {
+        assert_eq!(candidate_pair_label(Some("host/host")), "lan");
+        assert_eq!(candidate_pair_label(Some("srflx/srflx")), "punched");
+        assert_eq!(candidate_pair_label(Some("prflx/srflx")), "punched");
+        assert_eq!(candidate_pair_label(Some("host/srflx")), "mixed");
+        assert_eq!(candidate_pair_label(Some("srflx/host")), "mixed");
+    }
+
+    #[test]
+    fn turn_is_labelled_even_though_we_run_none() {
+        // We do not run TURN, so seeing this at all would mean a client was
+        // configured with one we did not publish.
+        assert_eq!(candidate_pair_label(Some("relay/srflx")), "turn");
+        assert_eq!(candidate_pair_label(Some("srflx/relay")), "turn");
+    }
+
+    /// iroh has no candidate types, so it names the path itself. Both planes
+    /// still answer the same question, and both land in the same buckets.
+    #[test]
+    fn an_iroh_path_buckets_beside_an_ice_pair() {
+        assert_eq!(candidate_pair_label(Some("direct-lan")), "lan");
+        assert_eq!(candidate_pair_label(Some("direct-wan")), "punched");
+        assert_eq!(candidate_pair_label(Some("relayed")), "turn");
+        assert_eq!(
+            candidate_pair_label(Some("direct-lan")),
+            candidate_pair_label(Some("host/host"))
+        );
+    }
+
+    #[test]
+    fn an_absent_or_malformed_pair_stays_bounded() {
+        assert_eq!(candidate_pair_label(None), "unknown");
+        assert_eq!(candidate_pair_label(Some("nonsense")), "other");
+        assert_eq!(candidate_pair_label(Some("a/b")), "other");
     }
 }

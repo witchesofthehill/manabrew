@@ -61,6 +61,19 @@ services:
       # counters. Small cap — this disk is production's too.
       MANABREW_GAME_CAPTURE_DIR: "/var/manabrew/captures"
       MANABREW_GAME_CAPTURE_MAX_GB: "${MANABREW_GAME_CAPTURE_MAX_GB:-2}"
+      # On here and nowhere else. The direct planes fail closed: without this
+      # the relay advertises neither `room_transport` nor `peer_signal`,
+      # refuses `AnnounceTransport`, drops `SignalPeer` and never sends a
+      # roster, so every seat stays on the relay and a preview of #831/#846/#848
+      # would look like a clean pass while testing nothing.
+      MANABREW_DIRECT_TRANSPORT: "${MANABREW_DIRECT_TRANSPORT:-1}"
+      # The coturn below, on this same box. Naming a STUN server that is not
+      # answering would be worse than naming none, because ICE gathering waits
+      # out the timeout and then produces the same host-only candidates anyway,
+      # so this default and that service go together. Override to point
+      # somewhere else, or to empty to take the browser plane's reach away
+      # without touching MANABREW_DIRECT_TRANSPORT.
+      MANABREW_ICE_SERVERS: "${MANABREW_ICE_SERVERS:-stun:relay-staging.manabrew.app:3479}"
       RUST_LOG: "manabrew_server=info"
     volumes:
       - ./ops/events:/var/manabrew/events
@@ -203,6 +216,53 @@ services:
     depends_on:
       - manabrew-server-staging
     restart: unless-stopped
+
+  # ── STUN, for the browser data plane ───────────────────────────────
+  # One question, once: what public address does this browser's UDP socket
+  # look like from outside? It never sees an engine envelope, so it costs a
+  # rounding error of bandwidth. Without it a browser gathers host candidates
+  # only, Chromium replaces those with mDNS names, and ICE never starts (#838).
+  #
+  # STUN only. There is no TURN here and there should not be: TURN relays the
+  # data for a pair that cannot be punched through, and the WebSocket relay
+  # already does that, permanently, as the fallback both direct planes fall
+  # back to. A second relay for the same envelopes buys nothing.
+  #
+  # `network_mode: host` is not a shortcut. A STUN server answers with the
+  # source address it observed, so anything that rewrites the client's source
+  # on the way in makes it answer with that instead, and every peer gets an
+  # address no other peer can reach. Published ports through the docker proxy
+  # do exactly that. Host networking is what keeps the answer true.
+  #
+  # Needs its UDP port open on the box; nothing else here does, so the
+  # firewall rule is a separate step from deploying this file. 3479, not 3478:
+  # this slot shares the box with production, whose coturn holds 3478, and two
+  # host-networked containers cannot both bind it.
+  coturn-staging:
+    # Verified on the box 2026-09-02: this flag set starts clean, binds
+    # 37.27.253.153:3478, and answered a STUN binding request sent from another
+    # network in 67ms with the correct XOR-MAPPED-ADDRESS. The box runs no host
+    # firewall (ufw inactive, iptables INPUT ACCEPT) and nothing else there
+    # binds UDP, so no rule had to be opened for it.
+    image: coturn/coturn:4.6-alpine
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - --listening-port=${MANABREW_STUN_PORT:-3479}
+      - --listening-ip=0.0.0.0
+      # Refuses every allocation request, so this cannot become a data path by
+      # accident or by someone else pointing a client at it.
+      - --stun-only
+      - --no-cli
+      - --no-tls
+      - --no-dtls
+      - --no-multicast-peers
+      - --fingerprint
+      - --log-file=stdout
+      - --simple-log
+    mem_limit: 96m
+    cpus: 0.25
+    cpu_shares: 128
 
 networks:
   default:

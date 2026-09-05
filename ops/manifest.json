@@ -17,6 +17,7 @@
     "manabrew-engine-macros": "0.2.0",
     "manabrew-hub": "0.15.2",
     "manabrew-lan-discovery": "0.1.0",
+    "manabrew-net": "0.1.0",
     "manabrew-protocol": "5.7.0",
     "manabrew-relay-protocol": "5.8.3",
     "manabrew-server": "0.27.1",

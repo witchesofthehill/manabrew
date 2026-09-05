@@ -80,6 +80,12 @@ pub struct ServerState {
     pub deck_play_events: DeckPlayEventHandle,
     pub identity: IdentityVerifier,
     pub art_base_url: Option<String>,
+    /// See `ServerConfig::direct_transport`. Fails closed.
+    pub direct_transport: bool,
+    pub iroh_relay_url: Option<String>,
+    /// Handed to the browser plane in every roster. See
+    /// `ServerConfig::ice_servers`.
+    pub ice_servers: Vec<crate::protocol::IceServer>,
 }
 
 impl ServerState {
@@ -101,6 +107,9 @@ impl ServerState {
             deck_play_events,
             identity: IdentityVerifier::new(hub_jwks_url),
             art_base_url: None,
+            direct_transport: false,
+            iroh_relay_url: None,
+            ice_servers: Vec::new(),
         }
     }
 
@@ -111,6 +120,19 @@ impl ServerState {
         self.art_base_url = url;
         self
     }
+
+    pub fn with_direct_transport(
+        mut self,
+        enabled: bool,
+        relay_url: Option<String>,
+        ice_servers: Vec<crate::protocol::IceServer>,
+    ) -> Self {
+        self.direct_transport = enabled;
+        self.iroh_relay_url = relay_url;
+        self.ice_servers = ice_servers;
+        self
+    }
+
 
     pub fn session_by_username(&self, username: &str) -> Option<UsernameSession> {
         let mut connected = None;

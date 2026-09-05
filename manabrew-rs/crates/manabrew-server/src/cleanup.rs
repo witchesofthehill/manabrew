@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use tracing::{info, warn};
 
 use crate::analytics::{self, GameEndReason};
-use crate::connection::{broadcast_to_room, emit_to};
+use crate::connection::{broadcast_room_transport, broadcast_to_room, emit_to};
 use crate::lobby;
 use crate::protocol::{RoomStatus, ServerMessage};
 use crate::room::Room;
@@ -399,6 +399,9 @@ fn mark_disconnected_inner(state: &Arc<ServerState>, player_id: &str, our_genera
                             },
                         );
                     }
+                    // The seat that dropped may have been the one that had
+                    // not opted in, in which case the rest may now go direct.
+                    broadcast_room_transport(state, rid);
                 }
 
                 info!("[cleanup] '{}' removed (disconnected from lobby)", username);

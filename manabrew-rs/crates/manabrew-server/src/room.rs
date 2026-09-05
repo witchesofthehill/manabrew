@@ -1,8 +1,9 @@
+use std::collections::HashMap;
 use std::time::Instant;
 
 use crate::protocol::{
     DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomPlayerInfo, RoomStatus,
-    SealedConfig,
+    SealedConfig, TransportEndpoint, TransportMember,
 };
 use crate::replay::GameReplayCache;
 use manabrew_protocol::deck_dto::Deck;
@@ -49,6 +50,9 @@ pub struct Room {
     pub replay: Option<GameReplayCache>,
     pub resume_token: String,
     pub humanless_since: Option<Instant>,
+    /// Data-plane endpoints announced by members, keyed by player id. The relay
+    /// is the only thing that binds one of these to a username.
+    pub transports: HashMap<String, TransportEndpoint>,
 }
 
 impl Room {
@@ -116,6 +120,7 @@ impl Room {
             replay: None,
             resume_token: String::new(),
             humanless_since: None,
+            transports: HashMap::new(),
         }
     }
 
@@ -219,6 +224,7 @@ impl Room {
     }
 
     pub fn remove_participant(&mut self, player_id: &str) -> bool {
+        self.transports.remove(player_id);
         self.remove_player(player_id).is_some() || self.remove_observer(player_id).is_some()
     }
 
@@ -400,6 +406,100 @@ impl Room {
     }
 }
 
+/// Bounds on what one member may put in the roster, because every other peer
+/// feeds it to iroh to dial.
+const MAX_DIRECT_ADDRS: usize = 16;
+const MAX_ADDR_LEN: usize = 64;
+
+impl Room {
+    /// The session id behind a username in this room. Signalling routes on
+    /// this: a name only reaches a peer the relay has placed in the same room.
+    ///
+    /// Seats and the host only. An observer carries no engine envelopes, so it
+    /// is not addressable here even though it may announce an endpoint.
+    pub fn participant_id_by_username(&self, username: &str) -> Option<String> {
+        if let Some(slot) = self.players.iter().find(|p| p.username == username) {
+            return Some(slot.player_id.clone());
+        }
+        (self.host_username == username).then(|| self.host_player_id.clone())
+    }
+
+    fn participant_username(&self, player_id: &str) -> Option<String> {
+        if let Some(slot) = self.players.iter().find(|p| p.player_id == player_id) {
+            return Some(slot.username.clone());
+        }
+        (self.host_player_id == player_id).then(|| self.host_username.clone())
+    }
+
+    /// Records a member's endpoint, or withdraws it with `None`. False means
+    /// the announcement was refused and the caller should leave the announcer
+    /// on the relay.
+    pub fn set_transport(&mut self, player_id: &str, endpoint: Option<TransportEndpoint>) -> bool {
+        let participant = self.players.iter().any(|p| p.player_id == player_id)
+            || self.observers.iter().any(|p| p.player_id == player_id);
+        if !participant {
+            return false;
+        }
+        let Some(mut endpoint) = endpoint else {
+            self.transports.remove(player_id);
+            return true;
+        };
+        // An endpoint id is what a host checks a seat's `Hello` against, so a
+        // second claim on one is a way to lock its owner out. First claim in
+        // the room holds it.
+        let taken = self.transports.iter().any(|(other, existing)| {
+            other != player_id && existing.endpoint_id == endpoint.endpoint_id
+        });
+        if taken {
+            return false;
+        }
+        endpoint
+            .direct_addrs
+            .retain(|addr| addr.len() <= MAX_ADDR_LEN);
+        endpoint.direct_addrs.truncate(MAX_DIRECT_ADDRS);
+        self.transports.insert(player_id.to_string(), endpoint);
+        true
+    }
+
+    /// The roster clients are allowed to believe. Every username is the relay's
+    /// own record for that session, never a client-supplied field, which is what
+    /// makes an endpoint id attributable to a player.
+    pub fn transport_members(&self) -> Vec<TransportMember> {
+        let mut members: Vec<TransportMember> = self
+            .transports
+            .iter()
+            .filter_map(|(player_id, endpoint)| {
+                self.participant_username(player_id)
+                    .map(|username| TransportMember {
+                        username,
+                        endpoint: endpoint.clone(),
+                        host: player_id == &self.host_player_id,
+                    })
+            })
+            .collect();
+        members.sort_by(|a, b| a.username.cmp(&b.username));
+        members
+    }
+
+    pub fn transport_host(&self) -> Option<TransportMember> {
+        self.transport_members().into_iter().find(|m| m.host)
+    }
+
+    /// Whether this room may leave the relay at all.
+    ///
+    /// Announcing an endpoint is how a player opts in, so every human seat has
+    /// to have announced one before anybody's traffic goes direct. One seat
+    /// that has not is one player who did not agree to it, and the room stays
+    /// on the relay for everyone. Bots never announce and never count. A seat
+    /// in its reconnect window still counts: it is still at the table.
+    pub fn transport_consented(&self) -> bool {
+        self.players
+            .iter()
+            .filter(|p| !p.is_bot)
+            .all(|p| self.transports.contains_key(&p.player_id))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -432,5 +532,114 @@ mod tests {
         assert!(r.is_controller("human"));
         r.add_player("bot".into(), "bot".into(), true).unwrap();
         assert!(!r.is_controller("bot"));
+    }
+
+    /// Signalling routes on this, so a name that is not in the room must not
+    /// resolve to anyone. Otherwise a member could address a session the relay
+    /// never placed beside it.
+    #[test]
+    fn only_room_members_are_addressable_by_name() {
+        let mut r = room(false);
+        r.add_player("p-human".into(), "human".into(), false)
+            .unwrap();
+        r.add_observer("p-watcher".into(), "watcher".into())
+            .unwrap();
+
+        assert_eq!(
+            r.participant_id_by_username("human"),
+            Some("p-human".into())
+        );
+        assert_eq!(r.participant_id_by_username("host"), Some("host".into()));
+        assert_eq!(r.participant_id_by_username("stranger"), None);
+        // An observer carries no engine envelopes, so it is not a signalling
+        // target even though it may announce an endpoint.
+        assert_eq!(r.participant_id_by_username("watcher"), None);
+    }
+
+    /// The pre-`kinds` default. Every endpoint announced before the field
+    /// existed meant iroh, and a roster full of them must keep meaning that.
+    #[test]
+    fn an_endpoint_without_kinds_speaks_iroh_and_nothing_else() {
+        let iroh_only = endpoint("a");
+        assert!(iroh_only.speaks(manabrew_relay_protocol::TRANSPORT_KIND_IROH));
+        assert!(!iroh_only.speaks(manabrew_relay_protocol::TRANSPORT_KIND_WEBRTC));
+
+        let browser = TransportEndpoint {
+            kinds: vec![manabrew_relay_protocol::TRANSPORT_KIND_WEBRTC.into()],
+            ..endpoint("b")
+        };
+        assert!(browser.speaks(manabrew_relay_protocol::TRANSPORT_KIND_WEBRTC));
+        assert!(!browser.speaks(manabrew_relay_protocol::TRANSPORT_KIND_IROH));
+    }
+
+    fn endpoint(id: &str) -> TransportEndpoint {
+        TransportEndpoint {
+            endpoint_id: id.into(),
+            relay_url: None,
+            direct_addrs: vec![],
+            kinds: vec![],
+        }
+    }
+
+    #[test]
+    fn only_members_announce_and_nobody_takes_another_endpoint() {
+        let mut r = room(false);
+        r.add_player("human".into(), "human".into(), false).unwrap();
+        r.add_player("squatter".into(), "squatter".into(), false)
+            .unwrap();
+
+        assert!(r.set_transport("human", Some(endpoint("ep-human"))));
+        assert!(!r.set_transport("stranger", Some(endpoint("ep-stranger"))));
+        // Taking it would tell the owner their own endpoint is attested for
+        // somebody else, and nothing would say why.
+        assert!(!r.set_transport("squatter", Some(endpoint("ep-human"))));
+        assert_eq!(r.transports["human"].endpoint_id, "ep-human");
+
+        r.set_transport("host", Some(endpoint("ep-host")));
+        assert_eq!(r.transport_host().unwrap().username, "host");
+        assert_eq!(r.transport_members().len(), 2);
+
+        r.remove_participant("human");
+        assert!(!r.transports.contains_key("human"));
+    }
+
+    /// The room upgrades only when everyone at the table agreed to it. A seat
+    /// that never announced is a player who never opted in, and one is enough
+    /// to keep the whole room on the relay.
+    #[test]
+    fn every_human_seat_has_to_announce_before_the_room_leaves_the_relay() {
+        let mut r = room(false);
+        r.add_player("alice".into(), "alice".into(), false).unwrap();
+        r.add_player("bob".into(), "bob".into(), false).unwrap();
+        r.add_player("bot".into(), "bot".into(), true).unwrap();
+        r.set_transport("host", Some(endpoint("ep-host")));
+
+        assert!(r.set_transport("alice", Some(endpoint("ep-alice"))));
+        assert!(!r.transport_consented(), "bob has not opted in");
+
+        assert!(r.set_transport("bob", Some(endpoint("ep-bob"))));
+        assert!(r.transport_consented(), "bots do not have to announce");
+
+        // Withdrawing is opting out again, and it takes the room with it.
+        assert!(r.set_transport("bob", None));
+        assert!(!r.transport_consented());
+
+        // A seat that leaves stops counting.
+        r.remove_participant("bob");
+        assert!(r.transport_consented());
+    }
+
+    #[test]
+    fn an_announcement_cannot_flood_the_address_book() {
+        let mut r = room(false);
+        r.add_player("human".into(), "human".into(), false).unwrap();
+        let mut flood = endpoint("ep-human");
+        flood.direct_addrs = (0..64).map(|i| format!("10.0.0.{i}:1234")).collect();
+        flood.direct_addrs.push("x".repeat(MAX_ADDR_LEN + 1));
+
+        assert!(r.set_transport("human", Some(flood)));
+        let stored = &r.transports["human"].direct_addrs;
+        assert_eq!(stored.len(), MAX_DIRECT_ADDRS);
+        assert!(stored.iter().all(|addr| addr.len() <= MAX_ADDR_LEN));
     }
 }

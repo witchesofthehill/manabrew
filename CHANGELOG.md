@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.35.0](https://github.com/witchesofthehill/manabrew/compare/v3.34.7...v3.35.0) (2026-09-05)
+
+### Features
+
+* **game:** show persistent card choices ([#774](https://github.com/witchesofthehill/manabrew/issues/774)) ([55fcd6d](https://github.com/witchesofthehill/manabrew/commit/55fcd6dac56d5c1e7a7e47a2efb300804f30fa91))
+
 ## [3.34.7](https://github.com/witchesofthehill/manabrew/compare/v3.34.6...v3.34.7) (2026-09-04)
 
 ### Fixes

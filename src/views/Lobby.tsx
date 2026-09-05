@@ -1,5 +1,6 @@
 import { TablesList } from "@/components/lobby/TablesList";
-import { UserList, type ConnectionState } from "@/components/lobby/UserList";
+import { LobbySidePanel } from "@/components/lobby/LobbySidePanel";
+import type { ConnectionState } from "@/components/lobby/UserList";
 import { TableSetup } from "@/components/lobby/TableSetup";
 import { TableCreatingSplash } from "@/components/lobby/TableCreatingSplash";
 import { CreateGameDialog } from "@/components/lobby/CreateGameDialog";
@@ -22,7 +23,7 @@ import { getDeckFingerprint } from "@/lib/decks";
 import { ROUTES } from "@/lib/constants";
 import { stripUsernameTag } from "@/lib/username";
 import { getPlatform } from "@/platform";
-import { START_GAME_FAILURE_CODES } from "@/types/server";
+import { RELAY_FEATURE, START_GAME_FAILURE_CODES } from "@/types/server";
 import type {
   BotFailedPayload,
   DraftConfig,
@@ -114,7 +115,11 @@ export default function Lobby() {
     setFormat,
     setMaxPlayers,
     startGame,
+    inviteToRoom,
+    relayFeatures,
   } = useServerStore();
+  const chatEnabled = relayFeatures.includes(RELAY_FEATURE.Chat);
+  const invitesEnabled = relayFeatures.includes(RELAY_FEATURE.RoomInvites);
   const prefs = usePreferencesStore();
   const accountHandle = useAuthStore((s) =>
     s.status === "signedIn" ? (s.account?.handle ?? null) : null,
@@ -282,6 +287,15 @@ export default function Lobby() {
       await Promise.all([listRooms(), listPlayers()]);
     } finally {
       setRefreshingLobby(false);
+    }
+  }
+
+  async function handleInvite(username: string) {
+    try {
+      await inviteToRoom(username);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't send the invite.");
+      throw error;
     }
   }
 
@@ -532,14 +546,17 @@ export default function Lobby() {
       {myUsername && (
         <aside className="hidden w-72 shrink-0 flex-col md:flex lg:w-80">
           <div className="m-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card/70 shadow-sm backdrop-blur-md">
-            <UserList
+            <LobbySidePanel
               players={players}
               rooms={rooms}
               currentRoom={currentRoom}
               currentPlayerId={playerId}
               currentUsername={myUsername}
               connectionState={connectionState}
+              chatEnabled={chatEnabled}
+              invitesEnabled={invitesEnabled}
               onJoinRoom={handleJoinRoom}
+              onInvite={handleInvite}
             />
           </div>
         </aside>
@@ -549,14 +566,17 @@ export default function Lobby() {
         <Sheet open={playersDrawerOpen} onOpenChange={setPlayersDrawerOpen}>
           <SheetContent side="right" className="w-80 max-w-[88vw] p-0 sm:w-96">
             <SheetTitle className="sr-only">Players</SheetTitle>
-            <UserList
+            <LobbySidePanel
               players={players}
               rooms={rooms}
               currentRoom={currentRoom}
               currentPlayerId={playerId}
               currentUsername={myUsername}
               connectionState={connectionState}
+              chatEnabled={chatEnabled}
+              invitesEnabled={invitesEnabled}
               onJoinRoom={handleJoinRoom}
+              onInvite={handleInvite}
             />
           </SheetContent>
         </Sheet>

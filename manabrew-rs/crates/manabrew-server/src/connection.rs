@@ -9,13 +9,17 @@ use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, info, warn};
 
 use crate::analytics::{self, AnalyticsEvent};
+use crate::chat::unix_time_ms;
 use crate::cleanup::mark_disconnected;
 use crate::client_build::ClientBuild;
 use crate::error::ServerError;
 use crate::identity::{self, SessionIdentity};
 use crate::lobby;
 use crate::metrics;
-use crate::protocol::{ClientMessage, RoomStatus, ServerMessage};
+use crate::protocol::{
+    ChatMessage, ChatScope, ClientMessage, RoomStatus, ServerMessage, CHAT_MESSAGE_MAX_CHARS,
+    CHAT_MIN_INTERVAL_MS,
+};
 use crate::room::Room;
 use crate::state::{ConnectedPlayer, ServerState};
 use manabrew_protocol::deck_dto::OUTDATED_CLIENT_MESSAGE;
@@ -170,10 +174,16 @@ fn player_list(state: &Arc<ServerState>) -> Vec<crate::protocol::PlayerInfo> {
 }
 
 pub fn broadcast_player_list(state: &Arc<ServerState>) {
-    let msg = ServerMessage::PlayerList {
-        players: player_list(state),
-    };
-    let json = match serde_json::to_string(&msg) {
+    broadcast_to_lobby(
+        state,
+        &ServerMessage::PlayerList {
+            players: player_list(state),
+        },
+    );
+}
+
+fn broadcast_to_lobby(state: &Arc<ServerState>, msg: &ServerMessage) {
+    let json = match serde_json::to_string(msg) {
         Ok(j) => j,
         Err(_) => return,
     };
@@ -184,8 +194,173 @@ pub fn broadcast_player_list(state: &Arc<ServerState>) {
         .map(|entry| entry.key().clone())
         .collect();
     for pid in &player_ids {
-        emit_to(state, pid, &msg, &json);
+        emit_to(state, pid, msg, &json);
     }
+}
+
+fn connected_player_id_by_username(state: &Arc<ServerState>, username: &str) -> Option<String> {
+    state
+        .players
+        .iter()
+        .find(|entry| {
+            let player = entry.value();
+            player.connected && !player.is_service && player.username == username
+        })
+        .map(|entry| entry.key().clone())
+}
+
+fn broadcast_chat_to_room(state: &Arc<ServerState>, room_id: &str, msg: &ServerMessage) {
+    let json = match serde_json::to_string(msg) {
+        Ok(j) => j,
+        Err(_) => return,
+    };
+    let player_ids: Vec<String> = match state.rooms.get(room_id) {
+        Some(room) => room.connected_player_ids(),
+        None => return,
+    };
+    for pid in &player_ids {
+        let is_service = state.players.get(pid).is_some_and(|p| p.is_service);
+        if !is_service {
+            emit_to(state, pid, msg, &json);
+        }
+    }
+}
+
+fn send_chat(
+    state: &Arc<ServerState>,
+    player_id: &str,
+    username: &str,
+    scope: ChatScope,
+    text: String,
+) -> Result<(), ServerError> {
+    let text = text.trim();
+    if text.is_empty() {
+        return Err(ServerError::InvalidChatMessage("empty message".into()));
+    }
+    if text.chars().count() > CHAT_MESSAGE_MAX_CHARS {
+        return Err(ServerError::InvalidChatMessage(format!(
+            "longer than {CHAT_MESSAGE_MAX_CHARS} characters"
+        )));
+    }
+    let room_id = {
+        let mut player = state
+            .players
+            .get_mut(player_id)
+            .ok_or(ServerError::NotInRoom)?;
+        let now = Instant::now();
+        if player.last_chat_at.is_some_and(|last| {
+            now.duration_since(last) < Duration::from_millis(CHAT_MIN_INTERVAL_MS)
+        }) {
+            return Err(ServerError::ChatRateLimited);
+        }
+        player.last_chat_at = Some(now);
+        match scope {
+            ChatScope::Lobby => None,
+            ChatScope::Room => Some(player.room_id.clone().ok_or(ServerError::NotInRoom)?),
+        }
+    };
+    let message = ChatMessage {
+        scope,
+        room_id: room_id.clone(),
+        from: username.to_string(),
+        text: text.to_string(),
+        sent_at_ms: unix_time_ms(),
+    };
+    match room_id {
+        Some(room_id) => {
+            let Some(mut room) = state.rooms.get_mut(&room_id) else {
+                return Err(ServerError::RoomNotFound(room_id));
+            };
+            room.chat.push(message.clone());
+            drop(room);
+            broadcast_chat_to_room(state, &room_id, &ServerMessage::ChatMessage(message));
+        }
+        None => {
+            state.lobby_chat.lock().unwrap().push(message.clone());
+            broadcast_to_lobby(state, &ServerMessage::ChatMessage(message));
+        }
+    }
+    Ok(())
+}
+
+fn send_lobby_chat_history(state: &Arc<ServerState>, player_id: &str) {
+    let msg = ServerMessage::ChatHistory {
+        scope: ChatScope::Lobby,
+        room_id: None,
+        messages: state.lobby_chat.lock().unwrap().snapshot(),
+    };
+    if let Ok(json) = serde_json::to_string(&msg) {
+        emit_to(state, player_id, &msg, &json);
+    }
+}
+
+fn send_room_chat_history(state: &Arc<ServerState>, player_id: &str, room_id: &str) {
+    let Some(mut room) = state.rooms.get_mut(room_id) else {
+        return;
+    };
+    let msg = ServerMessage::ChatHistory {
+        scope: ChatScope::Room,
+        room_id: Some(room_id.to_string()),
+        messages: room.chat.snapshot(),
+    };
+    drop(room);
+    if let Ok(json) = serde_json::to_string(&msg) {
+        emit_to(state, player_id, &msg, &json);
+    }
+}
+
+fn player_in_game(state: &Arc<ServerState>, player_id: &str) -> bool {
+    let Some(player) = state.players.get(player_id) else {
+        return false;
+    };
+    if player.local_game.is_some() {
+        return true;
+    }
+    player.room_id.as_ref().is_some_and(|room_id| {
+        state
+            .rooms
+            .get(room_id)
+            .is_some_and(|room| room.status == RoomStatus::InGame)
+    })
+}
+
+fn invite_to_room(
+    state: &Arc<ServerState>,
+    player_id: &str,
+    username: &str,
+    target_username: &str,
+) -> Result<(), ServerError> {
+    let room_id = state
+        .players
+        .get(player_id)
+        .and_then(|p| p.room_id.clone())
+        .ok_or(ServerError::NotInRoom)?;
+    let (room_info, password) = {
+        let room = state
+            .rooms
+            .get(&room_id)
+            .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
+        if room.status != RoomStatus::Lobby {
+            return Err(ServerError::GameAlreadyStarted);
+        }
+        if room.is_full() {
+            return Err(ServerError::RoomFull(room_id.clone()));
+        }
+        (room.to_room_info(), room.password.clone())
+    };
+    let target_id = connected_player_id_by_username(state, target_username)
+        .ok_or_else(|| ServerError::PlayerNotFound(target_username.to_string()))?;
+    if player_in_game(state, &target_id) {
+        return Err(ServerError::PlayerInGame(target_username.to_string()));
+    }
+    let msg = ServerMessage::RoomInvite {
+        from: username.to_string(),
+        room: room_info,
+        password,
+    };
+    let json = serde_json::to_string(&msg)?;
+    emit_to(state, &target_id, &msg, &json);
+    Ok(())
 }
 
 pub fn broadcast_to_room_except(
@@ -700,6 +875,7 @@ async fn authenticate(
                     avatar_url,
                     client: client.clone(),
                     local_game: None,
+                    last_chat_at: None,
                 },
             );
 
@@ -714,6 +890,9 @@ async fn authenticate(
                     .collect(),
             };
             send_msg(sender, &reply);
+            if !service {
+                send_lobby_chat_history(state, &player_id);
+            }
             broadcast_player_list(state);
 
             Ok((player_id, username, false, generation, client, service))
@@ -792,6 +971,13 @@ fn reclaim_session(
             .collect(),
     };
     send_msg(sender, &reply);
+    let is_service = state
+        .players
+        .get(existing_pid)
+        .is_some_and(|p| p.is_service);
+    if !is_service {
+        send_lobby_chat_history(state, existing_pid);
+    }
 
     if let Some(rid) = &room_id {
         if let Some(mut room) = state.rooms.get_mut(rid) {
@@ -1017,6 +1203,10 @@ fn handle_client_message(
                         }
                     }
                     broadcast_to_room(state, &room_id, &ServerMessage::RoomUpdate { room: info });
+                    let is_service = state.players.get(player_id).is_some_and(|p| p.is_service);
+                    if !is_service {
+                        send_room_chat_history(state, player_id, &room_id);
+                    }
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' join room failed: {}", username, e);
@@ -1523,6 +1713,20 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::SendChat { scope, text } => {
+            if let Err(err) = send_chat(state, player_id, username, scope, text) {
+                send_error(sender, &err);
+            }
+        }
+
+        ClientMessage::InviteToRoom {
+            username: target_username,
+        } => {
+            if let Err(err) = invite_to_room(state, player_id, username, &target_username) {
+                send_error(sender, &err);
+            }
+        }
+
         ClientMessage::TurnChange {
             new_active_player,
             turn_number,
@@ -1590,6 +1794,9 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
         ServerMessage::GameAborted { .. } => "GameAborted",
         ServerMessage::Error { .. } => "Error",
         ServerMessage::ServerShuttingDown { .. } => "ServerShuttingDown",
+        ServerMessage::ChatMessage(_) => "ChatMessage",
+        ServerMessage::ChatHistory { .. } => "ChatHistory",
+        ServerMessage::RoomInvite { .. } => "RoomInvite",
     }
 }
 
@@ -1614,5 +1821,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::RequestResync => "RequestResync",
         ClientMessage::BroadcastState { .. } => "BroadcastState",
         ClientMessage::TurnChange { .. } => "TurnChange",
+        ClientMessage::SendChat { .. } => "SendChat",
+        ClientMessage::InviteToRoom { .. } => "InviteToRoom",
     }
 }

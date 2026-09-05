@@ -1,9 +1,11 @@
 use dashmap::DashMap;
+use std::sync::Mutex;
 use std::time::Instant;
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::analytics::AnalyticsHandle;
+use crate::chat::ChatHistory;
 use crate::client_build::ClientBuild;
 use crate::deck_play_events::DeckPlayEventHandle;
 use crate::identity::{IdentityVerifier, SessionIdentity};
@@ -35,6 +37,7 @@ pub struct ConnectedPlayer {
     /// Playing on their own machine, reported by the client. Only meaningful
     /// while `connected`: a dropped socket stops asserting anything.
     pub local_game: Option<LocalGameKind>,
+    pub last_chat_at: Option<Instant>,
 }
 
 impl ConnectedPlayer {
@@ -79,6 +82,7 @@ pub struct ServerState {
     pub analytics: AnalyticsHandle,
     pub deck_play_events: DeckPlayEventHandle,
     pub identity: IdentityVerifier,
+    pub lobby_chat: Mutex<ChatHistory>,
 }
 
 impl ServerState {
@@ -99,6 +103,7 @@ impl ServerState {
             analytics,
             deck_play_events,
             identity: IdentityVerifier::new(hub_jwks_url),
+            lobby_chat: Mutex::new(ChatHistory::default()),
         }
     }
 

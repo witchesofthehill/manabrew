@@ -1,4 +1,5 @@
 pub mod analytics;
+pub mod chat;
 pub mod cleanup;
 pub mod client_build;
 pub mod config;

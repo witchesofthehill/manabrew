@@ -40,6 +40,16 @@ A session with no proof at all keeps the pre-identity behaviour — the old dupl
 
 `/metrics` (Prometheus) on the health port, including heartbeat RTT (`manabrew_relay_client_rtt_ms`), WebSocket payload transfer by direction (`manabrew_relay_websocket_payload_bytes_total`), and session takeovers (`manabrew_relay_session_takeovers_total`). Payload transfer excludes WebSocket framing, TLS, TCP, and IP overhead. Env-gated analytics JSONL + per-game zstd stream capture live under `MANABREW_EVENTS_DIR` and `MANABREW_GAME_CAPTURE_DIR`.
 
+## Chat and invites
+
+`SendChat { scope: Lobby | Room }` fans out `ChatMessage` to every connected non-service session (lobby) or to the sender's room minus service sessions (room) — the hosted node never receives chat. `from` is the authenticated session name, room scope resolves from the session, so a client cannot post into a room it is not in. Text is trimmed, capped at `CHAT_MESSAGE_MAX_CHARS`, and a sender is refused with `chat_rate_limited` inside `CHAT_MIN_INTERVAL_MS` of their last message.
+
+The relay is the only holder of history: one ring for the lobby (`ServerState.lobby_chat`) and one per room (`Room.chat`, dies with the room), each bounded by `CHAT_HISTORY_MAX_MESSAGES` and `CHAT_HISTORY_MAX_AGE_MS` (`chat.rs`). The lobby ring is pushed as `ChatHistory` right after every successful `AuthResult`, the room ring after every successful `JoinRoom`; the client replaces its buffer with each snapshot and keeps nothing across connections, so a reconnect has no gaps and no dedup. A relay restart empties both rings. Player-written text lives in relay memory for up to a day and is not reached by hub account deletion.
+
+`InviteToRoom { username }` sends the target session a `RoomInvite` carrying the inviter's `RoomInfo` and the room password, so the invitee joins a locked table without being told the password. Any seat can invite while the room is in `Lobby` and has an open seat; the target must be a connected non-service session (`player_not_found` otherwise). Nothing is tracked after the send.
+
+`FEATURE_CHAT` and `FEATURE_ROOM_INVITES` gate both on the client.
+
 ## Games the relay cannot see
 
 `SetLocalGame` is the one thing on the wire the relay does not observe but only believes. A game against the AI runs on the player's machine with no room and no state, so the client says it is happening; the relay holds the `LocalGameKind` on `ConnectedPlayer`, reports it in `PlayerInfo.local_game` and counts it in `manabrew_relay_local_games{kind}`. It is session state, so a dropped socket clears it and the client re-asserts after re-authenticating, and it is only reported while `connected` so a half-open socket cannot leave a player playing forever. Keep it out of `manabrew_relay_rooms`: those gauges are what the relay saw, and merging a claim into them would quietly make the fleet-sizing numbers unfalsifiable.

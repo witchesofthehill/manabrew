@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { isFeatureEnabled } from "@/featureFlags";
 import { useServerStore } from "@/stores/useServerStore";
+import { useChatStore } from "@/stores/useChatStore";
+import { useRoomInvites } from "@/hooks/useRoomInvites";
 import { useGameStore } from "@/stores/useGameStore";
 import { cn } from "@/lib/utils";
 import { useGameSessionResume } from "@/hooks/useGameSessionResume";
@@ -73,6 +75,9 @@ export function AppShell() {
     const cleanup = setupListeners();
     return cleanup;
   }, [setupListeners]);
+
+  useEffect(() => useChatStore.getState().setupListeners(), []);
+  useRoomInvites();
 
   useEffect(() => {
     if (accountsEnabled) void useAuthStore.getState().hydrate();

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { JoinPasswordDialog } from "@/components/lobby/JoinPasswordDialog";
-import { Wifi, WifiOff, Loader2, Search } from "lucide-react";
+import { Wifi, WifiOff, Loader2, Search, UserPlus } from "lucide-react";
 import { GameIcon, type GameIconKey } from "@/components/companion/GameIcon";
 import { USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type { LocalGameKind, PlayerInfo, RoomInfo, ServerErrorCode } from "@/types/server";
@@ -23,6 +23,7 @@ interface UserListProps {
   currentUsername: string | null;
   connectionState: ConnectionState;
   onJoinRoom: (roomId: string, password?: string) => Promise<void>;
+  onInvite?: (username: string) => Promise<void>;
 }
 
 const CONNECTION_STATUS: Record<
@@ -98,8 +99,10 @@ export function UserList({
   currentUsername,
   connectionState,
   onJoinRoom,
+  onInvite,
 }: UserListProps) {
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
+  const [invited, setInvited] = useState<ReadonlySet<string>>(new Set());
   const [passwordRoom, setPasswordRoom] = useState<RoomInfo | null>(null);
   const [search, setSearch] = useState("");
 
@@ -161,6 +164,26 @@ export function UserList({
     }
   }
 
+  const canInvite =
+    onInvite != null &&
+    currentRoom != null &&
+    currentRoom.status === "Lobby" &&
+    currentRoom.players.length < currentRoom.max_players;
+
+  async function handleInvite(username: string) {
+    if (!onInvite) return;
+    setInvited((prev) => new Set(prev).add(username));
+    try {
+      await onInvite(username);
+    } catch {
+      setInvited((prev) => {
+        const next = new Set(prev);
+        next.delete(username);
+        return next;
+      });
+    }
+  }
+
   function renderPlayer(player: PlayerInfo, isCurrentPlayer = false) {
     const room = rooms.find((r) => r.room_id === player.room_id);
     const joinable =
@@ -169,6 +192,8 @@ export function UserList({
       room.status === "Lobby" &&
       currentRoom == null &&
       room.players.length < room.max_players;
+    const invitable =
+      canInvite && !isCurrentPlayer && player.connected && room == null && !player.local_game;
     return (
       <div
         key={player.player_id}
@@ -226,6 +251,19 @@ export function UserList({
             title={`Join ${room.room_name}`}
           >
             {joiningRoomId === room.room_id ? "Joining…" : "Join"}
+          </Button>
+        )}
+        {invitable && (
+          <Button
+            size="sm"
+            variant="secondary"
+            className="h-6 px-2 text-[11px] shrink-0 hover:bg-primary hover:text-primary-foreground hover:shadow"
+            disabled={invited.has(player.username)}
+            onClick={() => void handleInvite(player.username)}
+            title="Invite to your table"
+          >
+            <UserPlus className="h-3 w-3" />
+            {invited.has(player.username) ? "Invited" : "Invite"}
           </Button>
         )}
       </div>

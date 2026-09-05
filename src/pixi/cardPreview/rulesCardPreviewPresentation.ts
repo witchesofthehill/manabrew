@@ -80,9 +80,11 @@ function additionalRulesDetails(presentation: CardPresentation, rulesText: strin
       .map(normalize)
       .filter(Boolean),
   );
+  const keywordKeys = new Set<string>();
   const keywords = presentation.keywords.filter((keyword) => {
     const key = normalize(keyword);
-    if (!key || visibleEntries.has(key)) return false;
+    if (!key || keywordKeys.has(key)) return false;
+    keywordKeys.add(key);
     visibleEntries.add(key);
     return true;
   });

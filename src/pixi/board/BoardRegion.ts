@@ -77,7 +77,7 @@ import {
 } from "../constants";
 import type { BlockingRect, RegionHost, SceneCombatStaging, SpriteEntry } from "./types";
 import { COLLAPSED_OPPONENT_WIDTH_PX, type RegionOrientation } from "./boardLayout";
-import { PlaymatLayer, playmatPad } from "./PlaymatLayer";
+import { PlaymatLayer } from "./PlaymatLayer";
 import { loadAvatarTexture } from "../hud/avatarTextureCache";
 import { applyIcon } from "../panelIcons";
 import { isCoarsePointer } from "@/lib/responsive";
@@ -383,11 +383,10 @@ export class BoardRegion {
     this.updateClip();
   }
 
-  setSeatState(color: string, active: boolean, name: string): void {
+  setSeatState(color: string, name: string): void {
     const changed = this.seatColor !== color || this.seatName !== name;
     this.seatColor = color;
     this.seatName = name;
-    this.playmat.setSeatState(color, active);
     if (changed) this.applyCombatRow();
   }
 
@@ -1148,11 +1147,10 @@ export class BoardRegion {
   private frontEdgeY(): number {
     const zone = this.usableZone();
     const halfCard = (CARD_H * this.cardScale) / 2;
-    const playmatInset = playmatPad(zone.width, zone.height);
     if (this.mirrored) {
-      return zone.y + zone.height - playmatInset - COMBAT_ROW_PAD_Y - halfCard;
+      return zone.y + zone.height - COMBAT_ROW_PAD_Y - halfCard;
     }
-    return zone.y + playmatInset + COMBAT_ROW_PAD_Y + halfCard;
+    return zone.y + COMBAT_ROW_PAD_Y + halfCard;
   }
 
   private applyNameGrouping(topLevel: CardDto[]): void {
@@ -1661,32 +1659,18 @@ export class BoardRegion {
     return { x: left, y, width: Math.max(1, right - left), height };
   }
 
-  /** The VISIBLE playmat rect — `PlaymatLayer`'s uniform inset of the band zone.
-   *  The combat row's strip + position align to this so they match the playmat
-   *  border on every side. Keep the inset in sync with `PlaymatLayer.layout`. */
   private playmatRect(): PlayZoneRect {
-    const b = this.bandZone();
-    const pad = playmatPad(b.width, b.height);
-    return {
-      x: b.x + pad,
-      y: b.y + pad,
-      width: Math.max(1, b.width - pad * 2),
-      height: Math.max(1, b.height - pad * 2),
-    };
+    return this.bandZone();
   }
 
   private playArea(): PlayZoneRect {
     const z = this.usableZone();
-    const pad = playmatPad(z.width, z.height);
-    // Every field permanently reserves the inner-edge combat-row band so the
-    // grid rows are sized once and never reflow when combat starts/ends; the row
-    // shows/hides inside the reserved strip. The inner edge (next to the divider)
     const reserve = combatRowReserve(this.cardScale);
     return {
-      x: z.x + pad,
-      y: z.y + (this.mirrored ? pad : FIELD_INNER_EDGE_PAD_PX + reserve),
-      width: Math.max(1, z.width - pad * 2),
-      height: Math.max(1, z.height - pad - FIELD_INNER_EDGE_PAD_PX - reserve),
+      x: z.x,
+      y: z.y + (this.mirrored ? 0 : FIELD_INNER_EDGE_PAD_PX + reserve),
+      width: Math.max(1, z.width),
+      height: Math.max(1, z.height - FIELD_INNER_EDGE_PAD_PX - reserve),
     };
   }
 

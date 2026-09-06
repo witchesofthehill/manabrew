@@ -421,6 +421,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     return map;
   }, [promptActions]);
+  const tappableLandIdSet = useMemo(() => new Set(tappableLandIds), [tappableLandIds]);
 
   const applyManualAction = useCallback(
     async (action: Parameters<typeof applyManualTabletopAction>[1]) => {
@@ -483,39 +484,37 @@ export default function Game({ exitTo }: GameProps = {}) {
         : [...castOptions(card), ...(abilitiesByCardId.get(card.id) ?? [])],
     [manualApi, getManualCardActions, castOptions, abilitiesByCardId],
   );
+  const getBattlefieldAbilityOptions = useCallback(
+    (card: CardDto): HandActionOption[] => abilitiesByCardId.get(card.id) ?? [],
+    [abilitiesByCardId],
+  );
 
   const getCardActions = useCallback(
     (card: CardDto): HandActionOption[] => {
       if (manualApi) return getManualCardActions(card);
-      if (isWaitingForResponse || (promptType !== "chooseAction" && promptType !== "payManaCost")) {
-        return [];
-      }
-      const options = [
-        ...castOptions(card),
-        ...(abilitiesByCardId.get(card.id) ?? []),
-        ...(manaAbilitiesByCardId.get(card.id) ?? []),
-      ];
-      for (const action of promptActions) {
-        if (
-          (action.type === "undoMana" ||
-            ((action.type === "useResource" || action.type === "releaseResource") &&
-              action.resource === "waterbend")) &&
-          action.cardId === card.id
-        ) {
+      if (promptType === "payManaCost") {
+        const options = [...(manaAbilitiesByCardId.get(card.id) ?? [])];
+        const waterbend = waterbendActionIdByCardId.get(card.id);
+        if (waterbend) {
           options.push({
             kind: "ability",
             cardId: card.id,
-            label:
-              action.type === "undoMana"
-                ? "Undo mana"
-                : action.type === "releaseResource"
-                  ? "Release waterbend"
-                  : "Waterbend (pays {1})",
-            actionId: action.id,
+            label: "Waterbend (pays {1})",
+            actionId: waterbend,
           });
         }
+        return options;
       }
-      return options;
+      if (promptType !== "chooseAction") return [];
+
+      const abilities = [...(abilitiesByCardId.get(card.id) ?? [])];
+      const manaAbilities = manaAbilitiesByCardId.get(card.id) ?? [];
+      const isManaSource = tappableLandIdSet.has(card.id);
+
+      if (isManaSource && manaAbilities.length > 0) {
+        abilities.unshift(...manaAbilities);
+      }
+      return [...castOptions(card), ...abilities];
     },
     [
       manualApi,
@@ -524,13 +523,12 @@ export default function Game({ exitTo }: GameProps = {}) {
       castOptions,
       abilitiesByCardId,
       manaAbilitiesByCardId,
-      promptActions,
-      isWaitingForResponse,
+      waterbendActionIdByCardId,
+      tappableLandIdSet,
     ],
   );
 
   const respondHandAction = (option: HandActionOption): boolean => {
-    if (useGameStore.getState().isWaitingForResponse) return false;
     if (option.actionId != null) {
       respond({ type: "act", actionId: option.actionId });
       return true;
@@ -581,6 +579,8 @@ export default function Game({ exitTo }: GameProps = {}) {
       preview.showSticky(card, e.clientX, e.clientY);
       return;
     }
+    // Zone-viewer clicks carry no anchor point, and the sticky preview would be
+    // dismissed by the viewer closing — use the modal picker instead.
     openPlayModePicker({
       cardId: card.id,
       card: asDeckCard(gameDecks[card.ownerId], card),
@@ -596,6 +596,17 @@ export default function Game({ exitTo }: GameProps = {}) {
       actions.length <= 1 &&
       !actions.some((action) => action.kind === "ability");
     startHandCardDrag(card, e, { canCast });
+  };
+  const handleBattlefieldCardAction = (card: CardDto, e?: React.MouseEvent) => {
+    const abilities = getBattlefieldAbilityOptions(card);
+    if (abilities.length === 0) return false;
+
+    if (abilities.length === 1 && !abilities[0].isClassLevelUp) {
+      return respondHandAction(abilities[0]);
+    }
+
+    preview.showSticky(card, e?.clientX, e?.clientY);
+    return true;
   };
 
   const {
@@ -702,51 +713,47 @@ export default function Game({ exitTo }: GameProps = {}) {
     openZoneViewer({
       title,
       cards,
-      onClickCard:
-        onClickCard ??
-        ((cardId) => {
-          const card = cards.find((candidate) => candidate.id === cardId);
-          closeZoneViewer();
-          if (card) preview.showSticky(card);
-        }),
+      onClickCard,
       clickableCardIds,
       targetHostile,
       stickyPromptType,
     });
   }
-
-  function inspectBattlefieldCard(card: CardDto) {
-    const cards = gameView?.battlefield ?? [];
-    const byId = new Map(cards.map((entry) => [entry.id, entry]));
-    let root = card;
-    while (root.attachedTo && byId.has(root.attachedTo)) root = byId.get(root.attachedTo)!;
-    const pile = [root];
-    const included = new Set([root.id]);
-    for (let i = 0; i < pile.length; i++) {
-      for (const entry of cards) {
-        if (entry.attachedTo === pile[i]!.id && !included.has(entry.id)) {
-          included.add(entry.id);
-          pile.push(entry);
-        }
-      }
-    }
-    if (pile.length === 1) {
-      preview.showSticky(card);
-      return;
-    }
-    const targeting = promptType === "chooseBoardTargets";
-    openZone(
-      `${root.identity.name} · Attached cards`,
-      pile,
-      targeting ? casting.wrappedTargetCard : undefined,
-      targeting ? boardTargets?.battlefieldCardIds : undefined,
-      targeting
-        ? activePrompt?.input.type === "chooseBoardTargets" && activePrompt.input.hostile
-        : undefined,
-    );
+  function openManualZone(title: string, cards: ClientCardDto[]) {
+    openZoneViewer({
+      title,
+      cards,
+      onClickCard: (cardId) => {
+        const card = cards.find((candidate) => candidate.id === cardId);
+        closeZoneViewer();
+        if (!card) return;
+        void applyManualAction({
+          type: "moveCard",
+          cardId,
+          fromZoneId: card.zoneId,
+          toZoneId: "battlefield",
+        });
+      },
+    });
   }
   function closeZone() {
     closeZoneViewer();
+  }
+  function openZoneAndCast(
+    title: string,
+    cards: CardDto[],
+    onClickCard: (cardId: string) => void,
+    clickableCardIds?: string[],
+  ) {
+    openZoneViewer({
+      title,
+      cards,
+      clickableCardIds,
+      onClickCard: (cardId) => {
+        closeZoneViewer();
+        onClickCard(cardId);
+      },
+    });
   }
 
   const handleTapLand = (card: CardDto) => {
@@ -925,11 +932,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     return false;
   };
 
-  const preview = useCardPreview([spellStackModalOpen, abilityPickerState, playModePicker]);
-  const { dismiss: dismissPreview } = preview;
-  useEffect(() => {
-    if (viewingZone) dismissPreview();
-  }, [viewingZone, dismissPreview]);
+  const preview = useCardPreview([viewingZone, spellStackModalOpen, abilityPickerState]);
 
   const battlefieldContainerRef = useRef<HTMLDivElement>(null);
   const { draggingHandCard, ghostPos, isOverBattlefield, isOverHand, startHandCardDrag } =
@@ -1130,13 +1133,18 @@ export default function Game({ exitTo }: GameProps = {}) {
     openZoneViewer({ ...vz, clickableCardIds: delveSourceIds, selectedCardIds: delvedCardIds });
   }, [delveSourceIds, delvedCardIds, openZoneViewer]);
 
+  // Keep an open zone-target viewer in sync with the live valid set as each
+  // target is picked (the engine re-prompts with the remaining candidates).
+  // `boardTargets` is null while a response is in flight — leave the viewer be;
+  // if targeting is active but no longer has zone candidates, close it.
   useEffect(() => {
     const vz = useGameUIStore.getState().viewingZone;
     if (vz?.stickyPromptType !== "chooseBoardTargets" || !boardTargets) return;
-    const clickableCardIds = validCardIdsInCards(
-      [...boardTargets.battlefieldCardIds, ...(boardTargets.zone?.validCardIds ?? [])],
-      vz.cards,
-    );
+    if (!boardTargets.zone) {
+      closeZoneViewer();
+      return;
+    }
+    const clickableCardIds = validCardIdsInCards(boardTargets.zone.validCardIds, vz.cards);
     if (clickableCardIds.length === 0) {
       closeZoneViewer();
       return;
@@ -1507,12 +1515,12 @@ export default function Game({ exitTo }: GameProps = {}) {
       return;
     }
     if (!cardId) {
-      preview.handleMouseLeave();
+      preview.dismiss();
       return;
     }
     const card = visibleCardsById.get(cardId) ?? stackCardsBySourceId.get(cardId);
     if (!card) {
-      preview.handleMouseLeave();
+      preview.dismiss();
       return;
     }
     preview.handleMouseEnter(card, e, { useDelay: true, ...options });
@@ -1576,7 +1584,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     return () => observer.disconnect();
   }, []);
 
-  const { hoveredCard: previewedCard } = preview;
+  const { dismiss: dismissPreview, hoveredCard: previewedCard } = preview;
 
   useEffect(() => {
     if (draggingHandCard) {
@@ -1835,25 +1843,18 @@ export default function Game({ exitTo }: GameProps = {}) {
           onSelectHandAction={handlePreviewAction}
           onFlipCard={preview.flipCard}
           onBattlefieldClick={(card) => {
-            if (
-              promptType === "chooseBoardTargets" &&
-              (card.attachedTo ||
-                gameView.battlefield.some((entry) => entry.attachedTo === card.id))
-            ) {
-              inspectBattlefieldCard(card);
+            if (manualApi) {
+              void applyManualAction({
+                type: "tapCard",
+                cardId: card.id,
+                tapped: !card.tapped,
+              });
               return;
             }
-            if (
-              !manualApi &&
-              (promptType === "chooseAttackers" ||
-                promptType === "chooseBlockers" ||
-                promptType === "chooseBoardTargets" ||
-                promptType === "chooseDamageAssignmentOrder")
-            ) {
-              handleBattlefieldClick(card);
+            if (promptType === "chooseAction" && handleBattlefieldCardAction(card)) {
               return;
             }
-            inspectBattlefieldCard(card);
+            handleBattlefieldClick(card);
           }}
           onAttackerClick={handleAttackerClick}
           onAssignBlock={assignBlockPair}
@@ -1861,9 +1862,26 @@ export default function Game({ exitTo }: GameProps = {}) {
           onAssignAttacker={assignAttackPair}
           onUnassignAttacker={unassignAttack}
           onTargetPlayer={handleTargetPlayer}
-          onShowBoardMenu={() => setBoardMenuOpen(true)}
-          onOpenZone={openZone}
-          onOpenZoneAndCast={(title, cards) => openZone(title, cards)}
+          onOpenZone={(title, cards, onClickCard, clickableCardIds, targetHostile) => {
+            if (manualApi) {
+              openManualZone(title, cards as ClientCardDto[]);
+              return;
+            }
+            openZone(title, cards, onClickCard, clickableCardIds, targetHostile);
+          }}
+          onOpenZoneAndCast={(title, cards, onClickCard, clickableCardIds) =>
+            openZoneAndCast(
+              title,
+              cards,
+              (cardId) => {
+                const card = cards.find((c) => c.id === cardId);
+                if (card) handleHandCardAction(card);
+                else handleCastSpell(cardId);
+                onClickCard(cardId);
+              },
+              clickableCardIds,
+            )
+          }
           delveAvailable={delveSourceIds.length > 0}
           onOpenDelveZone={openDelveZone}
           onTargetFromZone={(cardId) => {
@@ -2007,6 +2025,7 @@ export default function Game({ exitTo }: GameProps = {}) {
                 mulliganPutBackCount={mulliganPutBack.count}
                 mulliganSelectedCount={mulliganPutBack.selected.size}
                 onMulliganPutBackConfirm={mulliganPutBack.confirm}
+                onToggleBoardMenu={() => setBoardMenuOpen((open) => !open)}
                 selfClusterMaxHeight={boardLayout?.selfClusterMaxHeight}
                 dividerY={boardLayout?.dividerY}
                 dimmed={handCardLifted}

@@ -131,10 +131,10 @@ export function ChooseAction({
   }
 
   return (
-    <div className="flex w-full flex-col py-0.5">
+    <div className="flex w-full flex-col py-1">
       <div
         className={cn(
-          "flex h-9 w-full overflow-hidden rounded-lg ring-1 ring-inset ring-white/20",
+          "flex h-10 w-full overflow-hidden rounded-lg ring-1 ring-inset ring-white/20",
           isWaitingForResponse && "pointer-events-none opacity-60",
         )}
         style={{ ...passActionStyle, boxShadow: "none" }}

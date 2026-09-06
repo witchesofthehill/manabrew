@@ -71,7 +71,6 @@ export interface GameCanvasCallbacks {
   onShowPlayerSheet?: (playerId: string) => void;
   onFocusOpponentField?: (playerId: string) => void;
   onLongPressCard?: (card: CardDto, screenBounds: ScreenBounds) => void;
-  onShowBoardMenu?: () => void;
   onHoverOpponent?: (playerId: string | null) => void;
   onTapLand?: (card: CardDto) => void;
   onTapLands?: (cardIds: string[]) => void;

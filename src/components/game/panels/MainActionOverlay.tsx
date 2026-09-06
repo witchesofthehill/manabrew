@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Hand, Zap } from "lucide-react";
+import { ChevronDown, ChevronUp, Hand, Settings, Zap } from "lucide-react";
 import type { MainActionOverlayProps } from "../game.types";
 import { PromptActionController } from "@/components/prompts/PromptActionController";
 import { CombatInfo } from "./CombatInfo";
 import { getPromptContextLines } from "./promptContextHints";
 import { DynamicTextRender } from "../DynamicTextRender";
 import { TouchHintPopover } from "../TouchHintPopover";
-import {
-  ACTION_CLUSTER_PREFERRED_HEIGHT_PX,
-  ACTION_DRAWER_BUMP_EVENT,
-  PHASES,
-} from "../game.constants";
+import { ACTION_DRAWER_BUMP_EVENT, PHASES } from "../game.constants";
 import { useTheme } from "@/hooks/useTheme";
 import { withAlpha } from "@/themes/gameTheme";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
@@ -118,6 +114,7 @@ export function MainActionOverlay({
   onUndoDamageOrder,
   onDefaultDamageOrder,
   onOpenStack,
+  onToggleBoardMenu,
   targetCompletionLabel,
   targetCompletionKind,
   onCompleteTargets,
@@ -261,7 +258,7 @@ export function MainActionOverlay({
       data-action-cluster
       {...(minimal ? longPress : {})}
       className={cn(
-        "absolute z-40 max-w-[calc(100%-12px)] origin-bottom flex flex-col gap-0 overflow-hidden border border-border/70 bg-card shadow-lg",
+        "absolute z-40 max-w-[calc(100%-12px)] origin-bottom flex flex-col gap-0 overflow-hidden border border-border/70 bg-card/95 shadow-lg backdrop-blur-sm",
         minimal
           ? dividerY != null
             ? "right-1.5 w-auto -translate-y-1/2 rounded-2xl"
@@ -276,11 +273,6 @@ export function MainActionOverlay({
       style={
         {
           ...(minimal && dividerY != null ? { top: dividerY } : {}),
-          ...(!minimal
-            ? {
-                minHeight: Math.min(ACTION_CLUSTER_PREFERRED_HEIGHT_PX, selfClusterMaxHeight ?? 0),
-              }
-            : {}),
           ...(hasAction
             ? {
                 "--action-glow-ring": withAlpha(glow, 0.75),
@@ -297,24 +289,22 @@ export function MainActionOverlay({
           {!minimal && (
             <div
               ref={headerRef}
-              className={cn(
-                "flex items-center justify-between gap-2 border-b px-2.5 py-1.5",
-                hasAction
-                  ? "border-active-action-priority/35 bg-active-action-priority/10"
-                  : "border-border/70",
-              )}
+              className="flex items-center justify-between gap-2 px-2 py-1.5 border-b border-border/70"
             >
-              <span className="flex min-w-0 items-center gap-2 text-[13px] font-bold uppercase tracking-[0.12em] text-foreground">
-                {hasAction && (
-                  <span
-                    className="h-2 w-2 shrink-0 rounded-full bg-active-action-priority"
-                    aria-hidden="true"
-                  />
-                )}
-                <span className="truncate">{title}</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-foreground/90 truncate">
+                {title}
               </span>
               <div className="flex shrink-0 items-center gap-1">
                 {showPriorityMode && <PriorityModePill />}
+                <button
+                  type="button"
+                  onClick={onToggleBoardMenu}
+                  className="relative shrink-0 rounded p-0.5 text-muted-foreground transition-colors before:absolute before:-inset-2.5 before:content-[''] hover:text-foreground"
+                  title="Game menu"
+                  aria-label="Open game menu"
+                >
+                  <Settings className="h-3.5 w-3.5" />
+                </button>
                 <button
                   type="button"
                   onClick={() => setCollapsed((c) => !c)}
@@ -339,21 +329,9 @@ export function MainActionOverlay({
           <section
             className={cn(
               "flex w-full flex-col",
-              minimal ? "gap-1 px-1.5 py-1" : "gap-1 px-2 py-1",
+              minimal ? "gap-1 px-1.5 py-1" : "gap-2 px-2 pt-2 pb-2",
             )}
           >
-            {!minimal &&
-              hasAction &&
-              contextLines.length > 0 &&
-              effectivePromptType !== "chooseAction" && (
-                <div className="w-full rounded-md border border-active-action-priority/25 bg-active-action-priority/5 px-2.5 py-2">
-                  {contextLines.map((line) => (
-                    <p key={line} className="text-xs font-medium leading-snug text-foreground/90">
-                      <DynamicTextRender className="align-middle" text={line} />
-                    </p>
-                  ))}
-                </div>
-              )}
             {!minimal && (
               <CombatInfo
                 promptType={promptType}

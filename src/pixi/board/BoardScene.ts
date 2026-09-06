@@ -244,7 +244,6 @@ export class BoardScene {
   private handInsetRight = 0;
   private playerBlockers = new Map<string, BlockingRect[]>();
   private lastCapsuleRects = new Map<string, string>();
-  private delimsWereMoving = false;
   private autoSort = false;
   private zoneTilesLocked = false;
   private gridSkeletonDebug = false;
@@ -330,7 +329,6 @@ export class BoardScene {
         }
         this.callbacks.onShowPlayerSheet?.(id);
       },
-      () => this.callbacks.onShowBoardMenu?.(),
       (id) => this.callbacks.onShowPlayerSheet?.(id),
     );
     this.playerBars.container.zIndex = 5600;
@@ -594,12 +592,6 @@ export class BoardScene {
       }
     }
     this.applyDelimiters();
-    // Capsules ride the bands (setClip never re-grids), so the keep-outs must
-    // be reconciled once the motion ends — ease settle and grip release both
-    // land here as a moving→still edge.
-    const moving = this.draggingDelim !== null || this.delimitersSettling();
-    if (this.delimsWereMoving && !moving) this.refreshCapsuleBlockers();
-    this.delimsWereMoving = moving;
   }
 
   /** Apply the current delimiters to each opponent region as a clip band, and
@@ -720,9 +712,7 @@ export class BoardScene {
     this.playerBars.container.visible = enabled;
     this.playerBars.setBars(enabled ? specs : []);
     for (const spec of specs) {
-      this.regions
-        .get(spec.playerId)
-        ?.region.setSeatState(spec.color, spec.isActiveTurn, spec.name);
+      this.regions.get(spec.playerId)?.region.setSeatState(spec.color, spec.name);
     }
     if (reserveChanged) {
       for (const rec of this.regions.values()) {
@@ -735,13 +725,12 @@ export class BoardScene {
     this.refreshCapsuleBlockers();
   }
 
-  /** Re-grid a region when its capsule's keep-out footprint moved or resized
-   *  since the last battlefield layout — capsules are positioned after regions
-   *  lay out (configure order, delimiter easing), and capsule growth (badge
-   *  wrap, pill counts) triggers no battlefield update on its own. */
+  /** Re-grid a region when its stable capsule keep-out footprint moved or resized
+   *  since the last battlefield layout. Focused opponent fields use the expanded
+   *  panel footprint, so delimiter hover changes only the mask. */
   private refreshCapsuleBlockers(): void {
     for (const [id, rec] of this.regions) {
-      const b = this.playerBars.getCapsuleBounds(id);
+      const [b] = this.gridCapsuleBlockers(id, rec.isLocal);
       const key = b ? [b.x, b.y, b.width, b.height].map((v) => Math.round(v / 4)).join(",") : "";
       if (this.lastCapsuleRects.get(id) === key) continue;
       this.lastCapsuleRects.set(id, key);
@@ -1444,7 +1433,7 @@ export class BoardScene {
       collectBlockers: () => [
         ...(this.playerBlockers.get(playerId) ?? []),
         ...(isLocal ? this.localBlockers() : []),
-        ...this.capsuleBlockers(playerId),
+        ...this.gridCapsuleBlockers(playerId, isLocal),
       ],
       getEntrySeed: (cardId) => this.entrySeedFor(playerId, isLocal, cardId),
       getCombatGuestLayer: () => this.combatGuestLayer,
@@ -1547,6 +1536,27 @@ export class BoardScene {
   private capsuleBlockers(playerId: string): BlockingRect[] {
     const b = this.playerBars.getCapsuleBounds(playerId);
     return b ? [b] : [];
+  }
+
+  private gridCapsuleBlockers(playerId: string, isLocal: boolean): BlockingRect[] {
+    if (isLocal || this.overview) return this.capsuleBlockers(playerId);
+    const record = this.regions.get(playerId);
+    const index = this.opponentIds.indexOf(playerId);
+    if (!this.barsEnabled || !record || index < 0 || this.boardWidth <= 0) return [];
+    const collapsedWidth = collapsedOpponentWidth(this.boardWidth, this.opponentIds.length);
+    const right = this.boardWidth - (this.opponentIds.length - index - 1) * collapsedWidth;
+    const x = record.zone.x;
+    const width = Math.min(SELF_PLAYER_HUD_MAX_WIDTH_PX, Math.max(1, right - x));
+    const preferredHeight = this.compactMode
+      ? PLAYER_HUD_COMPACT_HEIGHT_PX
+      : OPPONENT_PLAYER_HUD_HEIGHT_PX;
+    const height = Math.min(preferredHeight, Math.max(1, record.zone.height));
+    const tl = this.root.toGlobal(RECT_SCRATCH_A.set(x, record.zone.y), RECT_SCRATCH_A);
+    const br = this.root.toGlobal(
+      RECT_SCRATCH_B.set(x + width, record.zone.y + height),
+      RECT_SCRATCH_B,
+    );
+    return [{ x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y }];
   }
 
   private entrySeedFor(

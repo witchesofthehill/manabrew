@@ -10,7 +10,7 @@ import type { GameFormat } from "@/types/server";
 import type { HandOrderMode } from "@/lib/handOrder";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
-export type CardPreviewMode = "click" | "hover" | "shift" | "alt" | "ctrl";
+export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
 export type BattlefieldCardStyle = "realistic" | "art" | "frame";
 
 export interface LastRoomSetup {
@@ -170,6 +170,7 @@ function pickPersistedPreferences(persistedState: unknown): Partial<PreferencesS
   // wins on rehydrate. Without this, users who once had the empty default
   // saved would never get a generated name.
   if (next.serverUsername === "") delete next.serverUsername;
+  if (next.cardPreviewMode === "click") delete next.cardPreviewMode;
   // Values saved while the slider still went to 300% clamp to the new max.
   if (typeof next.cardSizeMultiplier === "number") {
     next.cardSizeMultiplier = Math.max(
@@ -260,7 +261,7 @@ export const usePreferencesStore = create<PreferencesState>()(
           hideAccountSaveNudge: false,
           setHideAccountSaveNudge: (hideAccountSaveNudge) => set({ hideAccountSaveNudge }),
 
-          cardPreviewMode: "click",
+          cardPreviewMode: "hover",
           setCardPreviewMode: (cardPreviewMode) => set({ cardPreviewMode }),
 
           opponentLayout: "focused",

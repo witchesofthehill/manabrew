@@ -17,7 +17,6 @@ import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { HAND_ORDER_OPTIONS } from "@/lib/handOrder";
 
 const PREVIEW_MODES: { value: CardPreviewMode; label: string }[] = [
-  { value: "click", label: "Click only" },
   { value: "hover", label: "Hover" },
   { value: "shift", label: "Shift" },
   { value: "alt", label: "Alt" },
@@ -241,9 +240,9 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
 
         <SettingRow
           label="Card preview trigger"
-          hint="Click to inspect, then use an action button to play or activate. Hover modes also open a preview while pointing at a card. Long-press always inspects."
+          hint='When the big card preview appears. "Hover" shows on mouse over; the others need the modifier key held.'
         >
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
             {PREVIEW_MODES.map((m) => (
               <Button
                 key={m.value}
@@ -263,7 +262,6 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
         >
           <input
             type="range"
-            disabled={prefs.cardPreviewMode === "click"}
             min={HOVER_DELAY_MIN}
             max={HOVER_DELAY_MAX}
             step={HOVER_DELAY_STEP}

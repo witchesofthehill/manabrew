@@ -44,11 +44,6 @@ export function CardPreviewActions({
               <span className="flex h-5 min-w-[22px] items-center justify-center rounded border border-border bg-muted text-xs font-bold shadow-[0_1px_0_rgba(0,0,0,0.1)]">
                 {shortcut}
               </span>
-              {(action.kind === "cast" || action.kind === "ability") && (
-                <span className="text-xs font-semibold">
-                  {action.kind === "cast" ? "Play" : "Activate"}
-                </span>
-              )}
               {action.cost && (
                 <span className="flex items-center gap-0.5 text-[11px] opacity-90">
                   <DynamicTextRender text={action.cost} />

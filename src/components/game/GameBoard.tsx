@@ -144,7 +144,6 @@ interface GameBoardProps {
   onAssignAttacker: (attackerId: string, targetId: string) => void;
   onUnassignAttacker: (attackerId: string) => void;
   onTargetPlayer: (playerId: string) => void;
-  onShowBoardMenu?: () => void;
   onOpenZone: (
     title: string,
     cards: CardDto[],
@@ -242,7 +241,6 @@ export function GameBoard({
   onAssignAttacker,
   onUnassignAttacker,
   onTargetPlayer,
-  onShowBoardMenu,
   onOpenZone,
   onOpenZoneAndCast,
   onTargetFromZone,
@@ -529,7 +527,13 @@ export function GameBoard({
 
   const pixiCallbacks = useMemo(
     (): GameCanvasCallbacks => ({
-      onClickCard: onBattlefieldClick,
+      onClickCard:
+        promptType === "chooseAction" ||
+        promptType === "chooseAttackers" ||
+        promptType === "chooseBlockers" ||
+        promptType === "chooseBoardTargets"
+          ? onBattlefieldClick
+          : undefined,
       onHoverCard: (card, bounds) => {
         if (card && bounds) {
           const rect = new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height);
@@ -565,7 +569,6 @@ export function GameBoard({
       },
       onTargetPlayer,
       onShowPlayerSheet: setSheetPlayerId,
-      onShowBoardMenu,
       onFocusOpponentField: setManualFocusId,
       onHoverHandCard: onHandHoverChange ? (card) => onHandHoverChange(!!card) : undefined,
       onLongPressCard: onLongPressCard
@@ -574,6 +577,7 @@ export function GameBoard({
         : undefined,
     }),
     [
+      promptType,
       onBattlefieldClick,
       onHoverCard,
       onDismissHoverPreview,
@@ -593,7 +597,6 @@ export function GameBoard({
       onAssignAttacker,
       onUnassignAttacker,
       onTargetPlayer,
-      onShowBoardMenu,
       setDragBlockerId,
       setDragAttackerId,
       setSheetPlayerId,
@@ -618,32 +621,12 @@ export function GameBoard({
       isActiveTurn: activePlayerId === me.id,
       activePlayerId,
       myPlayerId: me.id,
-      priorityPlayerId,
-      activePlayerName: stripUsernameTag(
-        activePlayerId === me.id
-          ? me.name
-          : (opponents.find((op) => op.id === activePlayerId)?.name ?? ""),
-      ),
-      priorityPlayerName: stripUsernameTag(
-        priorityPlayerId === me.id
-          ? me.name
-          : (opponents.find((op) => op.id === priorityPlayerId)?.name ?? ""),
-      ),
       selfEnabledPhases: selfStops,
       opponentEnabledPhases: oppEnabled,
       opponents: opponents.map((op, i) => ({ id: op.id, index: i })),
       isInteractive: true,
     };
-  }, [
-    step,
-    activePlayerId,
-    priorityPlayerId,
-    me.id,
-    me.name,
-    selfStops,
-    opponents,
-    opponentStopsMap,
-  ]);
+  }, [step, activePlayerId, me.id, selfStops, opponents, opponentStopsMap]);
 
   const pixiPhaseStripCallbacks = useMemo(
     (): import("@/pixi/PhaseStripLayer").PhaseStripCallbacks => ({

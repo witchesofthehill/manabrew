@@ -10,7 +10,6 @@ import { computeBoardLayout, type RegionOrientation } from "./board/boardLayout"
 import type { PlayerHudSpec as PlayerBarSpec } from "./hud/playerHud.types";
 import type { ZoneTileSpec } from "./board/BoardZoneTiles";
 import { battlefieldScaleForMultiplier, scaleForRowsWithCombatRow } from "./GridLayout";
-import { playmatPad } from "./board/PlaymatLayer";
 import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme } from "@/hooks/useTheme";
 import { useHandScale } from "@/hooks/useHandScale";
@@ -251,7 +250,6 @@ export function BoardCanvas({
       onAttackDragChange: (...a) => callbacksRef.current.onAttackDragChange?.(...a),
       onTargetPlayer: (...a) => callbacksRef.current.onTargetPlayer?.(...a),
       onShowPlayerSheet: (...a) => callbacksRef.current.onShowPlayerSheet?.(...a),
-      onShowBoardMenu: (...a) => callbacksRef.current.onShowBoardMenu?.(...a),
       onHoverOpponent: (...a) => callbacksRef.current.onHoverOpponent?.(...a),
       onStartDrag: (...a) => callbacksRef.current.onStartDrag?.(...a),
       onReorderHand: (...a) => callbacksRef.current.onReorderHand?.(...a),
@@ -350,12 +348,8 @@ export function BoardCanvas({
     );
     s.setCompactMode(compact ?? false);
     s.setFocusLocked(focusLocked);
-    const playmatTrim = (usable: number, width: number) =>
-      Math.max(1, usable - playmatPad(width, usable) - FIELD_INNER_EDGE_PAD_PX);
-    const selfUsable = playmatTrim(
-      Math.max(1, layout.self.height - (selfBottomReserve ?? 0)),
-      layout.self.width,
-    );
+    const playmatTrim = (usable: number) => Math.max(1, usable - FIELD_INNER_EDGE_PAD_PX);
+    const selfUsable = playmatTrim(Math.max(1, layout.self.height - (selfBottomReserve ?? 0)));
     const selfScale = Math.max(
       Number.EPSILON,
       compact
@@ -365,9 +359,7 @@ export function BoardCanvas({
             scaleForRowsWithCombatRow(selfUsable, BATTLEFIELD_MIN_ROWS_LARGEST),
           ),
     );
-    const oppUsables = layout.opponents.map((o) =>
-      playmatTrim(Math.max(1, o.rect.height), o.rect.width),
-    );
+    const oppUsables = layout.opponents.map((o) => playmatTrim(Math.max(1, o.rect.height)));
     const oppUsable = oppUsables.length ? Math.min(...oppUsables) : selfUsable;
     const oppRows = layout.opponentLayout === "overview" ? 1 : BATTLEFIELD_MIN_ROWS_LARGEST;
     const oppScale = Math.max(

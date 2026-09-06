@@ -149,7 +149,6 @@ export function usePlaymatPreview({
     felt.clear();
     felt.roundRect(0, 0, previewWidth, previewHeight, TABLE_RADIUS);
     felt.fill({ color: hexToNum(theme.gameTheme.canvas.background), alpha: BG_ALPHA_IDLE });
-    layer.setSeatState(theme.gameTheme.playerColors.self, false);
     layer.setImage(playmat);
     layer.setSettings(settings);
     layer.layout({ x: 0, y: 0, width: previewWidth, height: previewHeight }, { dropActive: false });

@@ -26,7 +26,6 @@ import { getPlatformType } from "@/platform";
 import { useKeybindings } from "@/hooks/useKeybindings";
 
 interface MiddleBarDockProps {
-  /** Controlled open state — the trigger is the Pixi gear in the self panel. */
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onOpenSettings: () => void;
@@ -41,9 +40,6 @@ interface MiddleBarDockProps {
   players: { id: string; name: string; color: string; textColor: string }[];
 }
 
-/** Board menu opened by the self panel's Pixi gear — fullscreen, the dev/side
- *  panel toggle, and concede. Controlled; the trigger is just a positioning
- *  anchor near the gear. */
 export function MiddleBarDock({
   open,
   onOpenChange,
@@ -83,12 +79,10 @@ export function MiddleBarDock({
 
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
-      {/* The visible trigger is the Pixi gear in the self panel; this is just a
-          zero-size anchor near it for the menu to position against. */}
       <DropdownMenuTrigger asChild>
-        <span aria-hidden className="pointer-events-none absolute bottom-14 left-6 h-0 w-0" />
+        <span aria-hidden className="pointer-events-none absolute bottom-14 right-6 h-0 w-0" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side="top">
+      <DropdownMenuContent align="end" side="top">
         {isWeb && (
           <DropdownMenuItem onSelect={() => toggleFullscreen()}>
             <FullscreenIcon className="mr-2 h-4 w-4" />

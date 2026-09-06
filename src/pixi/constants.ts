@@ -108,6 +108,7 @@ export const Z_STAGED_REGION = 8000;
 export const Z_COMBAT_GUEST = 8500;
 export const STRIP_COMPACT_EXPAND_TIMEOUT_MS = 5000;
 export const STRIP_EXPANDED_BG_ALPHA = 0.92;
+export const STRIP_TURN_ALPHA = 0.85;
 export const COMBAT_DIM_ALPHA = 0.3;
 // Tint rather than alpha so overlapping stacked cards don't show through each
 // other; 1 = full color.

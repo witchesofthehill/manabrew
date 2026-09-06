@@ -82,6 +82,7 @@ export interface MainActionOverlayProps {
   onUndoDamageOrder: () => void;
   onDefaultDamageOrder: () => void;
   onOpenStack: () => void;
+  onToggleBoardMenu: () => void;
   targetCompletionLabel?: string | null;
   targetCompletionKind?: "done" | "cancel" | null;
   onCompleteTargets?: (() => void) | null;

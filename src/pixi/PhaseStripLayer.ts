@@ -9,7 +9,11 @@ import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
 import { applyIcon, getIconColor } from "./panelIcons";
 import { isCoarsePointer } from "@/lib/responsive";
-import { STRIP_COMPACT_EXPAND_TIMEOUT_MS, STRIP_EXPANDED_BG_ALPHA } from "./constants";
+import {
+  STRIP_TURN_ALPHA,
+  STRIP_COMPACT_EXPAND_TIMEOUT_MS,
+  STRIP_EXPANDED_BG_ALPHA,
+} from "./constants";
 import { PHASES as STEP_DEFS } from "@/components/game/game.constants";
 import type { StepKind } from "@/protocol";
 import { animationsEnabled } from "./effects/enabled";
@@ -67,7 +71,6 @@ const FONT = "Inter, system-ui, -apple-system, sans-serif";
 
 const FLASH_DURATION_MS = 800;
 const FLASH_MAX_EXPAND = 8;
-const STATUS_MAX_WIDTH = 180;
 
 const SWEEP_STEP_ORDER: string[] = STEP_DEFS.map((p) => p.id).filter((id) => id !== "untap");
 const SWEEP_DWELL_MS = 10;
@@ -98,7 +101,7 @@ const normalStyle = new TextStyle({
 });
 const activeStyle = new TextStyle({
   fontFamily: FONT,
-  fontSize: 12,
+  fontSize: 11,
   fontWeight: "bold",
   fill: _initTheme.textOnTinted,
   align: "center",
@@ -160,9 +163,6 @@ export interface PhaseStripState {
   currentStep: string;
   isActiveTurn: boolean;
   activePlayerId: string;
-  priorityPlayerId?: string | null;
-  activePlayerName?: string;
-  priorityPlayerName?: string;
   myPlayerId: string;
   selfEnabledPhases: Set<string>;
   opponentEnabledPhases: Map<string, Set<string>>;
@@ -189,29 +189,7 @@ export class PhaseStripLayer {
   private displayActivePlayerId: string | null = null;
   private canvasWidth = 0;
   private canvasHeight = 0;
-  private turnStatusText = new Text({
-    text: "",
-    style: {
-      fontFamily: FONT,
-      fontSize: 11,
-      fontWeight: "700",
-      fill: _initTheme.textOnTinted,
-      wordWrap: true,
-      wordWrapWidth: STATUS_MAX_WIDTH,
-    },
-  });
-  private priorityStatusText = new Text({
-    text: "",
-    style: {
-      fontFamily: FONT,
-      fontSize: 10,
-      fontWeight: "600",
-      fill: _initTheme.textOnTinted,
-      wordWrap: true,
-      wordWrapWidth: STATUS_MAX_WIDTH,
-    },
-  });
-  private displayActivePlayerName = "";
+  private lineGfx: Graphics;
   private stripHitArea: Graphics;
   private hoveredCellIndex = -1;
   private cellsContainer: Container;
@@ -243,9 +221,8 @@ export class PhaseStripLayer {
     this.container = new Container();
     this.container.label = "phaseStrip";
 
-    this.turnStatusText.eventMode = "none";
-    this.priorityStatusText.eventMode = "none";
-    this.container.addChild(this.turnStatusText, this.priorityStatusText);
+    this.lineGfx = new Graphics();
+    this.container.addChild(this.lineGfx);
 
     this.expandedBackdrop = new Graphics();
     this.container.addChild(this.expandedBackdrop);
@@ -413,6 +390,7 @@ export class PhaseStripLayer {
 
   setDimAlpha(alpha: number): void {
     this.dimAlpha = alpha;
+    this.lineGfx.alpha = alpha;
     this.expandedBackdrop.alpha = alpha;
     this.cellsContainer.alpha = alpha;
     this.pillContainer.alpha = alpha;
@@ -563,9 +541,6 @@ export class PhaseStripLayer {
     // so the color doesn't flip early during cleanup.
     if (state.currentStep !== "cleanup") {
       this.displayActivePlayerId = state.activePlayerId;
-      if (state.activePlayerId === this.realState?.activePlayerId) {
-        this.displayActivePlayerName = state.activePlayerName ?? "";
-      }
     }
     const displayActive = this.displayActivePlayerId ?? state.activePlayerId;
 
@@ -587,42 +562,17 @@ export class PhaseStripLayer {
       layer.scale.x = fitX;
       layer.x = stripOffset;
     }
-    const turnName = isMeActive
-      ? "Your turn"
-      : `${this.displayActivePlayerName || "Opponent"}'s turn`;
-    const priorityIsMe = state.priorityPlayerId === state.myPlayerId;
-    const priorityOppIdx = state.opponents.findIndex((o) => o.id === state.priorityPlayerId);
-    const priorityColor = priorityIsMe
-      ? selfColor
-      : priorityOppIdx >= 0
-        ? oppColors[priorityOppIdx]!
-        : hexToNum(t.textMuted);
-    const priorityName = state.priorityPlayerId
-      ? priorityIsMe
-        ? "Your priority"
-        : `${state.priorityPlayerName || "Opponent"}'s priority`
-      : "";
-    this.turnStatusText.text = turnName;
-    this.turnStatusText.style.fill = turnColor;
-    this.priorityStatusText.text = priorityName;
-    this.priorityStatusText.style.fill = priorityColor;
-    const statusWidth = showPill
-      ? STATUS_MAX_WIDTH
-      : Math.min(STATUS_MAX_WIDTH, stripLeft * fitX + stripOffset - 20);
-    const statusVisible = statusWidth >= 80 && !(this.compact && this.expanded);
-    this.turnStatusText.visible = statusVisible;
-    this.priorityStatusText.visible = statusVisible && priorityName.length > 0;
-    this.turnStatusText.style.wordWrapWidth = Math.max(80, statusWidth);
-    this.priorityStatusText.style.wordWrapWidth = Math.max(80, statusWidth);
-    const statusX = showPill ? centerX - STATUS_MAX_WIDTH / 2 : 10;
-    const statusHeight =
-      this.turnStatusText.height +
-      (this.priorityStatusText.visible ? this.priorityStatusText.height + 1 : 0);
-    const statusY = showPill
-      ? lineY - COMPACT_PILL_H / 2 - statusHeight - 5
-      : lineY - statusHeight / 2;
-    this.turnStatusText.position.set(statusX, statusY);
-    this.priorityStatusText.position.set(statusX, statusY + this.turnStatusText.height + 1);
+
+    this.lineGfx.clear();
+    if (!showPill) {
+      const lineLeft = stripLeft * fitX + stripOffset;
+      const lineRight = stripRight * fitX + stripOffset;
+      this.lineGfx.moveTo(0, lineY);
+      this.lineGfx.lineTo(lineLeft, lineY);
+      this.lineGfx.moveTo(lineRight, lineY);
+      this.lineGfx.lineTo(this.canvasWidth, lineY);
+      this.lineGfx.stroke({ color: turnColor, width: 2, alpha: STRIP_TURN_ALPHA });
+    }
 
     // Strip hover hit area — covers cells + indicator rows
     const hoverPad = INDICATOR_HIT_H + INDICATOR_MARGIN + 2;
@@ -655,7 +605,7 @@ export class PhaseStripLayer {
       this.pillText.y = lineY;
       this.pillBg.clear();
       this.pillBg.roundRect(pillX, pillY, pillW, COMPACT_PILL_H, COMPACT_PILL_H / 2);
-      this.pillBg.fill({ color: hexToNum(appTheme.secondary), alpha: 0.65 });
+      this.pillBg.fill({ color: hexToNum(appTheme.secondary) });
       this.pillBg.roundRect(pillX, pillY, pillW, COMPACT_PILL_H, COMPACT_PILL_H / 2);
       this.pillBg.stroke({ color: turnColor, width: 2, alignment: 0.5 });
       this.pillHit.clear();
@@ -666,6 +616,11 @@ export class PhaseStripLayer {
         COMPACT_PILL_H + COMPACT_PILL_HIT_PAD * 2,
       );
       this.pillHit.fill({ color: 0x000000, alpha: 0.001 });
+      this.lineGfx.moveTo(0, lineY);
+      this.lineGfx.lineTo(pillX - CELL_GAP, lineY);
+      this.lineGfx.moveTo(pillX + pillW + CELL_GAP, lineY);
+      this.lineGfx.lineTo(this.canvasWidth, lineY);
+      this.lineGfx.stroke({ color: turnColor, width: 2, alpha: STRIP_TURN_ALPHA });
       this.pillRect = { x: pillX, y: pillY, w: pillW, c: turnColor };
       if (stepChanged && animationsEnabled()) this.pillFlashStart = performance.now();
     } else {
@@ -760,19 +715,17 @@ export class PhaseStripLayer {
       cell.hitArea.fill({ color: 0x000000, alpha: 0.001 });
 
       cell.bg.clear();
+      cell.bg.roundRect(cx, y, cellW, CELL_H, CELL_R);
+      cell.bg.fill({ color: hexToNum(appTheme.secondary) });
       if (isActive) {
         cell.bg.roundRect(cx, y, cellW, CELL_H, CELL_R);
-        cell.bg.fill({ color: turnColor, alpha: 0.22 });
-        cell.bg.moveTo(cx + 5, y + CELL_H - 2);
-        cell.bg.lineTo(cx + cellW - 5, y + CELL_H - 2);
-        cell.bg.stroke({ color: turnColor, width: 3, alpha: 1 });
+        cell.bg.stroke({ color: turnColor, width: 2, alignment: 0.5 });
       }
 
       cell.hoverBg.clear();
 
       // Text position (non-combat cells; combat text is positioned with the icon above)
       cell.text.style = isActive ? activeStyle : isEnabled ? enabledStyle : normalStyle;
-      cell.text.alpha = isActive ? 1 : isEnabled ? 0.88 : 0.68;
       cell.text.y = y + CELL_H / 2;
       if (!isCombatCell) {
         cell.text.x = cx + cellW / 2;

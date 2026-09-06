@@ -156,6 +156,7 @@ const GAME_THEME_COLOR_DESCRIPTIONS: Partial<Record<GameThemePath, string>> = {
   "canvas.background": "Pixi canvas table background fill.",
   "canvas.shadow": "Drop-shadow ink (almost always black).",
   "canvas.neutral": "High-contrast stroke / outline colour for arrows and icons.",
+  "phaseStrip.background": "Raised charcoal surface behind phase-strip cells.",
   "cardPlaceholder.fill": "Loading-state card sprite fill.",
   "cardPlaceholder.stroke": "Loading-state card sprite border.",
   textOnTinted: "Text colour placed on tinted chips and badges.",

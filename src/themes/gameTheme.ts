@@ -55,6 +55,9 @@ export interface GameThemeColors {
     shadow: string;
     neutral: string;
   };
+  phaseStrip: {
+    background: string;
+  };
   cardPlaceholder: {
     fill: string;
     stroke: string;

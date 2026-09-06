@@ -69,6 +69,7 @@
   --color-canvas-background: var(--canvas-background);
   --color-canvas-shadow: var(--canvas-shadow);
   --color-canvas-neutral: var(--canvas-neutral);
+  --color-phase-strip-background: var(--phase-strip-background);
   --color-card-placeholder-fill: var(--card-placeholder-fill);
   --color-card-placeholder-stroke: var(--card-placeholder-stroke);
   --color-pt-neutral: var(--pt-neutral);

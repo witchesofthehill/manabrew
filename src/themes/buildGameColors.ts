@@ -100,6 +100,7 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "canvas.background": p.canvasBackground,
     "canvas.shadow": "#000000",
     "canvas.neutral": p.foreground,
+    "phaseStrip.background": p.placeholderFill,
 
     "cardPlaceholder.fill": p.placeholderFill,
     "cardPlaceholder.stroke": p.placeholderStroke,

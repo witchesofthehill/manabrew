@@ -96,7 +96,7 @@ const normalStyle = new TextStyle({
   fontFamily: FONT,
   fontSize: 11,
   fontWeight: "600",
-  fill: _initTheme.textMuted,
+  fill: _initTheme.textOnTinted,
   align: "center",
 });
 const activeStyle = new TextStyle({
@@ -104,13 +104,6 @@ const activeStyle = new TextStyle({
   fontSize: 11,
   fontWeight: "bold",
   fill: _initTheme.textOnTinted,
-  align: "center",
-});
-const enabledStyle = new TextStyle({
-  fontFamily: FONT,
-  fontSize: 11,
-  fontWeight: "600",
-  fill: _initTheme.textGhost,
   align: "center",
 });
 
@@ -439,9 +432,8 @@ export class PhaseStripLayer {
 
   setTheme(theme: Theme): void {
     this.theme = theme;
-    normalStyle.fill = theme.gameTheme.textMuted;
+    normalStyle.fill = theme.gameTheme.textOnTinted;
     activeStyle.fill = theme.gameTheme.textOnTinted;
-    enabledStyle.fill = theme.gameTheme.textGhost;
   }
 
   setCallbacks(cb: PhaseStripCallbacks): void {
@@ -502,7 +494,6 @@ export class PhaseStripLayer {
   private render(state: PhaseStripState): void {
     this.lastState = state;
     const t = this.theme.gameTheme;
-    const appTheme = this.theme.appTheme;
     const y = this.canvasHeight / 2 - CELL_H / 2;
     const centerX = this.canvasWidth / 2;
 
@@ -605,7 +596,7 @@ export class PhaseStripLayer {
       this.pillText.y = lineY;
       this.pillBg.clear();
       this.pillBg.roundRect(pillX, pillY, pillW, COMPACT_PILL_H, COMPACT_PILL_H / 2);
-      this.pillBg.fill({ color: hexToNum(appTheme.secondary) });
+      this.pillBg.fill({ color: hexToNum(t.phaseStrip.background) });
       this.pillBg.roundRect(pillX, pillY, pillW, COMPACT_PILL_H, COMPACT_PILL_H / 2);
       this.pillBg.stroke({ color: turnColor, width: 2, alignment: 0.5 });
       this.pillHit.clear();
@@ -665,7 +656,6 @@ export class PhaseStripLayer {
       const isCurrentPhase = isCombatCell ? combatSubActive : state.currentStep === cell.id;
       const isActive = isCurrentPhase; // highlight current phase regardless of whose turn
       const phaseIds = cell.indicatorPhases ?? cell.subPhases ?? [cell.id];
-      const isEnabled = phaseIds.some((s) => state.selfEnabledPhases.has(s));
 
       // Combat cell: permanent battle section — idle shows "COMBAT" + ghost
       // pips; a combat step swaps in the sub-phase name and lights its pip
@@ -716,7 +706,7 @@ export class PhaseStripLayer {
 
       cell.bg.clear();
       cell.bg.roundRect(cx, y, cellW, CELL_H, CELL_R);
-      cell.bg.fill({ color: hexToNum(appTheme.secondary) });
+      cell.bg.fill({ color: hexToNum(t.phaseStrip.background) });
       if (isActive) {
         cell.bg.roundRect(cx, y, cellW, CELL_H, CELL_R);
         cell.bg.stroke({ color: turnColor, width: 2, alignment: 0.5 });
@@ -725,7 +715,7 @@ export class PhaseStripLayer {
       cell.hoverBg.clear();
 
       // Text position (non-combat cells; combat text is positioned with the icon above)
-      cell.text.style = isActive ? activeStyle : isEnabled ? enabledStyle : normalStyle;
+      cell.text.style = isActive ? activeStyle : normalStyle;
       cell.text.y = y + CELL_H / 2;
       if (!isCombatCell) {
         cell.text.x = cx + cellW / 2;

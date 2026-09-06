@@ -3,10 +3,15 @@ import {
   Container,
   FillGradient,
   Graphics,
+  ImageSource,
   Point,
+  Rectangle,
+  Sprite,
   Text,
+  Texture,
   type FederatedPointerEvent,
 } from "pixi.js";
+import boardBackgroundUrl from "@/assets/boardBackground.png";
 import { darken, withAlpha } from "@/themes/gameTheme";
 import type { CardDto, PlaymatSettings } from "@/protocol/game";
 import type { AttackTargetDto } from "@/protocol/prompts/common";
@@ -152,12 +157,30 @@ interface RegionRecord {
   isLocal: boolean;
 }
 
+let boardBackgroundTexture: Texture | null = null;
+let boardBackgroundPromise: Promise<Texture> | null = null;
+
+function loadBoardBackground(): Promise<Texture> {
+  if (boardBackgroundTexture) return Promise.resolve(boardBackgroundTexture);
+  boardBackgroundPromise ??= new Promise<Texture>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      boardBackgroundTexture = new Texture({ source: new ImageSource({ resource: img }) });
+      resolve(boardBackgroundTexture);
+    };
+    img.onerror = reject;
+    img.src = boardBackgroundUrl;
+  });
+  return boardBackgroundPromise;
+}
+
 export class BoardScene {
   private app: Application;
   private callbacks: GameCanvasCallbacks;
   private theme: Theme;
   private root: Container;
   private baseBg: Graphics;
+  private baseImage: Sprite;
   private collapseVeil: Graphics;
   private canvasW = 0;
   private canvasH = 0;
@@ -292,6 +315,19 @@ export class BoardScene {
     this.baseBg.eventMode = "none";
     this.baseBg.zIndex = -1000;
     this.root.addChild(this.baseBg);
+
+    this.baseImage = new Sprite();
+    this.baseImage.eventMode = "none";
+    this.baseImage.zIndex = -999;
+    this.baseImage.anchor.set(0.5);
+    this.baseImage.visible = false;
+    this.root.addChild(this.baseImage);
+    void loadBoardBackground().then((texture) => {
+      if (this.destroyed) return;
+      this.baseImage.texture = texture;
+      this.baseImage.visible = true;
+      this.drawBaseBg();
+    });
 
     this.dragHandler = new DragHandler();
 
@@ -1298,6 +1334,10 @@ export class BoardScene {
     if (this.canvasW <= 0 || this.canvasH <= 0) return;
     this.baseBg.rect(0, 0, this.canvasW, this.canvasH);
     this.baseBg.fill({ color: hexToNum(this.theme.gameTheme.canvas.background), alpha: 1 });
+    if (!this.baseImage.visible) return;
+    const texture = this.baseImage.texture;
+    this.baseImage.scale.set(Math.max(this.canvasW / texture.width, this.canvasH / texture.height));
+    this.baseImage.position.set(this.canvasW / 2, this.canvasH / 2);
   }
 
   private makeRegionHost(playerId: string, isLocal: boolean): RegionHost {

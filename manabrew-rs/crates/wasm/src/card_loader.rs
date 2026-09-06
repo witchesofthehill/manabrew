@@ -1,16 +1,16 @@
 //! Card database loading for WASM.
 //!
 
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use forge_carddb::CardDatabase;
 use forge_foundation::edition::EditionsRegistry;
 use forge_limited::bootstrap::build_registry;
-use manabrew_engine::game::TypeRegistry;
+use manabrew_engine::game::{CardDatabaseRegistry, TypeRegistry};
 use wasm_bindgen::prelude::*;
 
 /// The global card database, populated by `load_card_archive`.
-static CARD_DB: OnceLock<CardDatabase> = OnceLock::new();
+static CARD_DB: OnceLock<Arc<CardDatabase>> = OnceLock::new();
 /// The global token-script database, populated alongside `CARD_DB` from the
 /// unified archive.
 static TOKEN_DB: OnceLock<CardDatabase> = OnceLock::new();
@@ -62,11 +62,12 @@ pub fn load_card_archive(bytes: &[u8]) -> Result<u64, JsError> {
     }
 
     CARD_DB
-        .set(bundle.cards)
+        .set(Arc::new(bundle.cards))
         .map_err(|_| JsError::new("Card database already initialized"))?;
     TOKEN_DB
         .set(bundle.tokens)
         .map_err(|_| JsError::new("Token database already initialized"))?;
+    CardDatabaseRegistry::load(Arc::clone(CARD_DB.get().expect("just set")));
 
     if let Some(archive) = CARD_DB.get().and_then(|db| db.archive()) {
         TypeRegistry::load(archive.type_lists.as_str());
@@ -142,7 +143,7 @@ pub fn get_card_count() -> u32 {
 
 /// Get the card database (internal use).
 pub fn get_card_db() -> Option<&'static CardDatabase> {
-    CARD_DB.get()
+    CARD_DB.get().map(Arc::as_ref)
 }
 
 #[wasm_bindgen]

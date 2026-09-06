@@ -140,6 +140,7 @@ export class PlayerHudCapsule {
   private identityWidth = 0;
   private panelHeight = 0;
   private motionEnabled = animationsEnabled();
+  private manaTray = new Graphics();
   private manaLayer = new Container();
   private badgeLayer = new Container();
   private sparkles = new Container();
@@ -236,6 +237,7 @@ export class PlayerHudCapsule {
     this.damageWash.eventMode = "none";
     this.targetRing.eventMode = "none";
     this.flashRing.eventMode = "none";
+    this.manaTray.eventMode = "none";
     this.sparkles.eventMode = "none";
 
     this.avatarHit.eventMode = "static";
@@ -297,6 +299,7 @@ export class PlayerHudCapsule {
     this.container.addChild(
       this.bg,
       this.seatRail,
+      this.manaTray,
       this.glow,
       this.avatarMask,
       this.avatarPhoto,
@@ -692,6 +695,7 @@ export class PlayerHudCapsule {
     this.bg.clear();
     this.handFan.visible = false;
     this.seatRail.clear();
+    this.manaTray.clear();
     this.overflow.visible = false;
     this.overflowHit.clear();
     this.overflowHit.visible = false;
@@ -812,8 +816,10 @@ export class PlayerHudCapsule {
     this.avatarDia = AVATAR_DIAMETER;
     this.drawAvatar(this.avatarCx, this.avatarCy, this.avatarDia, showAvatar);
     if (shallow) {
+      let statusX = pad;
       if (showAvatar) {
         const contentX = pad + AVATAR_DIAMETER + 12;
+        statusX = contentX;
         this.layoutIdentity(
           contentX,
           5,
@@ -831,17 +837,21 @@ export class PlayerHudCapsule {
         this.layoutLife(lifeX, 32, false);
         this.makeHandItem(30).place(pad, 32);
       }
+      this.priorityText.position.x =
+        statusX + (this.seatState.text ? this.seatState.width + 12 : 0);
       this.heart.visible = false;
-      const bodyX = this.identityWidth;
       const manaRight = w - SHALLOW_RIGHT_RAIL_WIDTH;
-      const manaX = showAvatar ? bodyX - SHALLOW_MANA_IDENTITY_OVERLAP : bodyX;
-      this.layoutMana(manaX, h < 80 ? 14 : 20, Math.max(1, manaRight - manaX), 6, 20);
+      const manaX = showAvatar
+        ? this.identityWidth - SHALLOW_MANA_IDENTITY_OVERLAP
+        : this.identityWidth;
+      const manaY = h < 80 ? 14 : 20;
+      this.layoutMana(manaX, manaY, Math.max(1, manaRight - manaX), 6, 20);
       const stateBottom = h - 8;
       const stateY = Math.max(h < 80 ? 24 : 36, stateBottom - SHALLOW_STATE_BLOCK_HEIGHT);
       this.layoutStates(
-        bodyX,
+        manaX,
         stateY,
-        Math.max(1, manaRight - bodyX),
+        Math.max(1, manaRight - manaX),
         Math.max(1, stateBottom - stateY),
         3,
       );
@@ -908,7 +918,7 @@ export class PlayerHudCapsule {
     statusY = y + 19,
   ): void {
     const gt = this.theme.gameTheme;
-    this.nameText.style = this.styled(column ? 11 : 12, "600", gt.textOnTinted);
+    this.nameText.style = this.styled(column ? 11 : 12, "700", gt.textOnTinted);
     this.nameText.text = this.spec.name;
     while (this.nameText.width > width && this.nameText.text.length > 2) {
       this.nameText.text = `${this.nameText.text.replace(/…$/, "").slice(0, -1)}…`;
@@ -971,6 +981,11 @@ export class PlayerHudCapsule {
     const gt = this.theme.gameTheme;
     const cellWidth = width / columns;
     const size = Math.min(18, rowHeight - 4);
+    const rows = Math.ceil(MANA_LETTERS.length / columns);
+    this.manaTray
+      .roundRect(x - 6, y - rowHeight / 2 - 2, width + 12, rows * rowHeight + 4, 6)
+      .fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.38 })
+      .stroke({ color: hexToNum(this.theme.appTheme.border), alpha: 0.65, width: 1 });
     for (let i = 0; i < MANA_LETTERS.length; i++) {
       const letter = MANA_LETTERS[i]!;
       const pip = this.pips[i]!;
@@ -979,13 +994,14 @@ export class PlayerHudCapsule {
       const cy = y + Math.floor(i / columns) * rowHeight;
       const texture = this.manaTexture(letter);
       if (texture) pip.sprite.texture = texture;
-      const visible = value > 0;
-      pip.sprite.visible = pip.count.visible = visible;
+      const active = value > 0;
+      pip.sprite.visible = pip.count.visible = true;
       pip.sprite.width = pip.sprite.height = size;
       pip.sprite.position.set(left, cy - size / 2);
-      pip.sprite.alpha = 1;
+      pip.sprite.alpha = active ? 1 : 0.24;
       pip.count.text = String(value);
-      pip.count.style = this.styled(12, "700", gt.textOnTinted);
+      pip.count.style = this.styled(12, "700", active ? gt.textOnTinted : gt.textGhost);
+      pip.count.alpha = active ? 1 : 0.65;
       pip.count.scale.set(1);
       pip.count.scale.x = Math.min(1, Math.max(1, cellWidth - size - 6) / pip.count.width);
       pip.count.position.set(left + size + 4, cy);

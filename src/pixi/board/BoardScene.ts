@@ -280,10 +280,8 @@ export class BoardScene {
     app.stage.addChild(this.root);
     app.stage.eventMode = "static";
 
-    // Solid page-background base behind everything (the canvas itself is
-    // transparent). Gives the whole battlefield one consistent colour so the
-    // collapsed player panels — drawn in the same colour — blend in seamlessly
-    // instead of popping against the translucent felt.
+    // Solid game-canvas base behind everything. Matching the region felt keeps
+    // the hand and HUD reserve visually continuous with the battlefield.
     this.baseBg = new Graphics();
     this.baseBg.eventMode = "none";
     this.baseBg.zIndex = -1000;
@@ -298,10 +296,9 @@ export class BoardScene {
     this.fogGfx.zIndex = 5550;
     this.root.addChild(this.fogGfx);
 
-    // Solid page-background veil over each opponent field, its opacity driven
-    // by how collapsed the field is (computed every frame in `applyDelimiters`,
-    // so it stays perfectly in sync with the delimiter ease). Sits above the
-    // cards but below the player panels, which render on top of it.
+    // Solid game-canvas veil over each opponent field, its opacity driven by
+    // how collapsed the field is. Sits above the cards but below the player
+    // panels.
     this.collapseVeil = new Graphics();
     this.collapseVeil.eventMode = "none";
     this.collapseVeil.zIndex = 5560;
@@ -614,7 +611,7 @@ export class BoardScene {
       return;
     }
     const veilStart = COLLAPSED_OPPONENT_WIDTH_PX * 2;
-    const veilColor = hexToNum(this.theme.appTheme.background);
+    const veilColor = hexToNum(this.theme.gameTheme.canvas.background);
     for (let i = 0; i < n; i++) {
       const rec = this.regions.get(this.opponentIds[i]!);
       if (!rec) continue;
@@ -1353,7 +1350,7 @@ export class BoardScene {
     this.baseBg.clear();
     if (this.canvasW <= 0 || this.canvasH <= 0) return;
     this.baseBg.rect(0, 0, this.canvasW, this.canvasH);
-    this.baseBg.fill({ color: hexToNum(this.theme.appTheme.background), alpha: 1 });
+    this.baseBg.fill({ color: hexToNum(this.theme.gameTheme.canvas.background), alpha: 1 });
   }
 
   private makeRegionHost(playerId: string, isLocal: boolean): RegionHost {

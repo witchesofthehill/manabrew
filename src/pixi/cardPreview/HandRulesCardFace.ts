@@ -27,6 +27,7 @@ import {
   resolveRulesPreviewFrame,
   RULES_BODY_FONT,
   RULES_TITLE_FONT,
+  RULES_TITLE_ART_RADIUS,
   type RulesPreviewFrameStyle,
 } from "./rulesPreviewFrame";
 
@@ -204,7 +205,7 @@ export class HandRulesCardFace extends Container {
         ? FOOTER_HEIGHT
         : FRAME_BOTTOM_PAD;
     const artHeight = display.faceless ? 0 : landscape ? LANDSCAPE_ART_HEIGHT : PORTRAIT_ART_HEIGHT;
-    const artY = HEADER_HEIGHT + 4;
+    const artY = HEADER_HEIGHT - 4;
     const typeY = artY + artHeight + 4;
     const identity = new RulesPreviewIdentity({
       section: display,
@@ -240,7 +241,10 @@ export class HandRulesCardFace extends Container {
     const artWidth = designWidth - ART_INSET * 2;
     const artwork = new Sprite(this.artTexture);
     const artMask = new Graphics();
-    artMask.roundRect(ART_INSET, artY, artWidth, artHeight, 8).fill(hexToNum(frame.paper));
+    artMask
+      .roundRect(ART_INSET, artY, artWidth, artHeight, RULES_TITLE_ART_RADIUS)
+      .rect(ART_INSET, artY, artWidth, RULES_TITLE_ART_RADIUS)
+      .fill(hexToNum(frame.paper));
     artwork.mask = artMask;
     artwork.visible =
       artHeight > 0 &&

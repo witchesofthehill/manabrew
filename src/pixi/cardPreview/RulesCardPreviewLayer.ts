@@ -34,6 +34,7 @@ import {
   resolveRulesPreviewFrame,
   RULES_BODY_FONT,
   RULES_TITLE_FONT,
+  RULES_TITLE_ART_RADIUS,
   type RulesPreviewFrameStyle,
 } from "@/pixi/cardPreview/rulesPreviewFrame";
 import { loadCardBack } from "@/pixi/CardSprite";
@@ -89,7 +90,6 @@ const FOOTER_HEIGHT = 40;
 const FRAME_BOTTOM_PAD = 16;
 const CONTENT_PAD = 16;
 const ART_INSET = 8;
-const ART_RADIUS = 8;
 const LANDSCAPE_ART_HEIGHT = 152;
 const FACE_GAP = 8;
 const ACTION_PANEL_GAP = 8;
@@ -581,15 +581,6 @@ export class RulesCardPreviewLayer {
       identity.x = index * (this.faceWidth + FACE_GAP);
       typeHeight = Math.max(typeHeight, identity.typeHeight);
       this.chrome.addChild(identity);
-      if (!display.faceless) {
-        const artHeader = new Container();
-        artHeader.position.set(
-          index * (this.faceWidth + FACE_GAP) + CONTENT_PAD,
-          this.headerHeight + 4,
-        );
-        this.addSectionHeader("artwork", "Artwork", 0, artHeader);
-        this.chrome.addChild(artHeader);
-      }
     }
     this.bodyTop = this.typeBandY + typeHeight;
     this.bodyHeight = this.panelHeight - this.bodyTop - this.footerHeight;
@@ -611,7 +602,9 @@ export class RulesCardPreviewLayer {
         typeHeight,
         footerHeight: this.footerHeight,
       });
-      this.artMask.roundRect(x + this.artX, this.artY, this.artWidth, this.artHeight, ART_RADIUS);
+      this.artMask
+        .roundRect(x + this.artX, this.artY, this.artWidth, this.artHeight, RULES_TITLE_ART_RADIUS)
+        .rect(x + this.artX, this.artY, this.artWidth, RULES_TITLE_ART_RADIUS);
       this.bodyMask.rect(x + this.contentX, this.bodyTop, this.contentWidth, this.bodyHeight);
     }
     this.artMask.fill(hexToNum(this.frame.paper));
@@ -996,8 +989,7 @@ export class RulesCardPreviewLayer {
     this.faceWidth = (this.panelWidth - FACE_GAP * (faceCount - 1)) / faceCount;
     this.headerHeight = landscape ? LANDSCAPE_HEADER_HEIGHT : PORTRAIT_HEADER_HEIGHT;
     this.artX = ART_INSET;
-    const artworkHeaderHeight = isFacelessCard(this.spec!.card) ? 0 : PREVIEW_SECTION_HEADER_HEIGHT;
-    this.artY = this.headerHeight + 4 + artworkHeaderHeight;
+    this.artY = this.headerHeight - 4;
     this.artWidth = this.faceWidth - ART_INSET * 2;
     const texture = this.artSprite.texture;
     this.artHeight = landscape
@@ -1008,10 +1000,6 @@ export class RulesCardPreviewLayer {
             : LANDSCAPE_ART_HEIGHT,
         )
       : PORTRAIT_ART_HEIGHT;
-    this.artHeight =
-      artworkHeaderHeight > 0 && this.isCollapsed("artwork")
-        ? 0
-        : Math.max(0, this.artHeight - artworkHeaderHeight);
     this.typeBandY = this.artY + this.artHeight + 4;
     this.contentX = CONTENT_PAD;
     this.contentWidth = this.faceWidth - CONTENT_PAD * 2;

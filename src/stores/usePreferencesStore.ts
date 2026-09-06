@@ -13,13 +13,7 @@ export type ZonePanelItem = "library" | "graveyard" | "exile";
 export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
 export type BattlefieldCardStyle = "realistic" | "art" | "frame";
 export type InGameCardPreviewStyle = "printed" | "rules";
-export type RulesPreviewSectionId =
-  | "artwork"
-  | "actions"
-  | "rules"
-  | "progression"
-  | "details"
-  | "flavor";
+export type RulesPreviewSectionId = "actions" | "rules" | "progression" | "details" | "flavor";
 
 export interface LastRoomSetup {
   kind: "match" | "limited";

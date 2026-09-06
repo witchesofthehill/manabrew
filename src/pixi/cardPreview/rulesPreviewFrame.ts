@@ -4,6 +4,7 @@ import { hexToNum } from "@/pixi/colorUtils";
 
 export const RULES_BODY_FONT = "Georgia, Cambria, Times New Roman, serif";
 export const RULES_TITLE_FONT = "Cormorant Garamond, Georgia, serif";
+export const RULES_TITLE_ART_RADIUS = 7;
 
 const GRAIN_POINTS = (() => {
   const points = new Float32Array(1024);
@@ -69,6 +70,8 @@ export function drawRulesPreviewFrame(
   } = geometry;
   const insetX = x + artInset;
   const innerWidth = width - artInset * 2;
+  const titleY = y + 8;
+  const titleHeight = headerHeight - 12;
   const rulesY = y + typeY + typeHeight + 4;
   const rulesHeight = height - typeY - typeHeight - footerHeight - 4;
   const border = hexToNum(style.border);
@@ -79,10 +82,15 @@ export function drawRulesPreviewFrame(
     .roundRect(x, y, width, height, radius)
     .fill(surface)
     .stroke({ color: border, width: 1.25 });
-  graphics.roundRect(insetX, y + 8, innerWidth, headerHeight - 12, 7).fill(raised);
-  if (artHeight > 0) {
-    graphics.roundRect(insetX, y + artY, innerWidth, artHeight, 8).fill(raised);
-  }
+  graphics
+    .roundRect(
+      insetX,
+      titleY,
+      innerWidth,
+      artHeight > 0 ? artY + artHeight - 8 : titleHeight,
+      RULES_TITLE_ART_RADIUS,
+    )
+    .fill(raised);
   graphics.roundRect(insetX, y + typeY, innerWidth, typeHeight, 5).fill(raised);
   graphics
     .moveTo(insetX + 8, rulesY)

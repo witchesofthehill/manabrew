@@ -12,22 +12,9 @@ import { probeTabSession } from "@/lib/tabSession";
 import { relayUsername } from "@/lib/relayUsername";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useServerStore } from "@/stores/useServerStore";
-import type { LocalGameKind } from "@/types/server";
-
-/** Names `SetLocalGame` in the relay's `AuthResult` feature list. */
-const FEATURE = "local_game";
+import { RELAY_FEATURE, type LocalGameKind } from "@/types/server";
 
 let announced: LocalGameKind | null = null;
-let relayFeatures: string[] = [];
-
-/**
- * A relay built before the feature list answers an unknown message with a parse
- * error, which the client surfaces to the player as a toast. Silence is the
- * only safe default against one.
- */
-export function setRelayFeatures(features: string[] | undefined): void {
-  relayFeatures = features ?? [];
-}
 
 export function announceLocalGame(kind: LocalGameKind): void {
   announced = kind;
@@ -70,7 +57,7 @@ async function push(): Promise<void> {
       await connectForPresence();
       if (!useServerStore.getState().connected) return;
     }
-    if (!relayFeatures.includes(FEATURE)) return;
+    if (!useServerStore.getState().hasRelayFeature(RELAY_FEATURE.LocalGame)) return;
     await server.setLocalGame(announced);
   } catch {
     // Presence is never worth failing, delaying or interrupting a game for.

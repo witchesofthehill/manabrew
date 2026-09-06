@@ -91,6 +91,7 @@ services:
       HUB_DB_PATH: "/var/manabrew/hub/hub.db"
       HUB_ANALYTICS_IMPORT_DB_PATH: "/var/manabrew/events/events.db"
       HUB_RELAY_DECK_PLAYS_TOKEN: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
+      SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
       HUB_RANKING_REFRESH_SECONDS: "5"
       DECK_HUB: "${DECK_HUB:-1}"
       HUB_S3_ENDPOINT: "${HUB_S3_ENDPOINT:-}"

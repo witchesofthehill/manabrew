@@ -1,3 +1,4 @@
+import { arenaSurface } from "@/themes/arenaSurface";
 import { CardPreview } from "@/three/CardPreview";
 import { useMemo, useState } from "react";
 
@@ -7,16 +8,7 @@ import type { ArenaCard, ArenaColors } from "@/three/arena.types";
 import preset from "@/themes/kanagawa";
 import "@/three/arena.css";
 
-const colors: ArenaColors = {
-  background: preset.dark.background,
-  surface: preset.dark.card,
-  border: preset.dark.border,
-  foreground: preset.dark.foreground,
-  muted: preset.dark["muted-foreground"],
-  accent: preset.gameColors["mana.U"],
-  hostile: preset.gameColors["arrow.attack"],
-  playable: preset.gameColors.cardPlayable,
-};
+const colors: ArenaColors = arenaSurface;
 const styles = Object.fromEntries(
   Object.entries(colors).map(([key, value]) => [`--arena-${key}`, value]),
 ) as CSSProperties;
@@ -93,7 +85,20 @@ const initial: ArenaCard[] = [
 ];
 
 export function ArenaPlayground() {
-  const [cards, setCards] = useState(initial);
+  const [cards, setCards] = useState(() => {
+    if (new URLSearchParams(location.search).get("layout") !== "multiplayer") return initial;
+    return [
+      ...initial.filter((card) => card.side !== "opponent"),
+      ...[3, 6, 9].flatMap((count, seat) => {
+        const playerId = `player-${seat + 1}`;
+        return [
+          ...Array.from({ length: count }, (_, i) => ({ ...makeCard(`${playerId}-creature-${i}`, ["Silvercoat Lion", "Standing Troops", "Savannah Lions"][i % 3], "opponent", "Creature", "2/2"), playerId })),
+          ...Array.from({ length: 8 }, (_, i) => ({ ...makeCard(`${playerId}-land-${i}`, "Plains", "opponent", "Basic Land"), tapped: i < 4, playerId })),
+          ...Array.from({ length: 7 }, (_, i) => ({ ...makeCard(`${playerId}-hand-${i}`, "Hidden card", "opponentHand", ""), image: undefined, artImage: undefined, hidden: true, playerId })),
+        ];
+      }),
+    ];
+  });
   const [phase, setPhase] = useState("Main phase");
   const [life, setLife] = useState(20);
   const [hover, setHover] = useState<string | null>(null);

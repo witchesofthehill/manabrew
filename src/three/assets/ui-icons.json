@@ -1,0 +1,18 @@
+{
+  "library": "M7 3h13v16H7z M4 6v16h13 M10 7h7 M10 11h7 M10 15h4",
+  "graveyard": "M5 21h14 M7 21V9a5 5 0 0 1 10 0v12 M10 10h4 M12 8v6 M5 17l2 2 M19 17l-2 2",
+  "exile": "M12 2l8 10-8 10-8-10z M9 9l6 6 M15 9l-6 6",
+  "auto-pay": "M12 2l-8 12h7l-1 8 10-13h-8z",
+  "mana-pool": "M4 13c0 5 3 8 8 8s8-3 8-8 M3 13h18 M12 2l4 6-4 4-4-4z",
+  "cancel": "M6 6l12 12 M18 6L6 18",
+  "attack": "M5 3l14 14 M3 5l14 14 M3 3l1 5 4-4z M14 20l6-6 M17 17l4 4 M19 3L5 17 M21 5L7 19 M21 3l-1 5-4-4 M4 14l6 6",
+  "block": "M12 2l8 4v6c0 5-8 10-8 10S4 17 4 12V6z M12 6v12 M8 10h8",
+  "confirm": "M4 12l5 5L20 6",
+  "mulligan": "M19 8a8 8 0 1 0 1 8 M19 3v5h-5",
+  "hand": "M3 7l5-2 5 15-5 2z M9 3h6l2 17h-4 M16 4l5 2-3 14",
+  "stack": "M12 2L2 7l10 5 10-5z M2 12l10 5 10-5 M2 17l10 5 10-5",
+  "next": "M5 5l8 7-8 7 M13 5l8 7-8 7",
+  "control": "M6 10h12v12H6z M8 10V6a4 4 0 0 1 8 0v4 M12 14v4",
+  "menu": "M4 6h16 M4 12h16 M4 18h16",
+  "target": "M3 8V3h5 M16 3h5v5 M21 16v5h-5 M8 21H3v-5 M8 12h8 M12 8v8"
+}

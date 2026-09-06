@@ -1,8 +1,9 @@
 import type { ForgeDeck } from "@manabrew/forge-wasm";
 
-export const duelDecks: ForgeDeck[] = [
+export const duelDecks: (ForgeDeck & { colorIdentity: string[] })[] = [
   {
     name: "Dawn Patrol",
+    colorIdentity: ["W"],
     format: "Legacy",
     cards: [
       { name: "Plains", count: 24 },
@@ -21,6 +22,7 @@ export const duelDecks: ForgeDeck[] = [
   },
   {
     name: "Wildwood",
+    colorIdentity: ["G"],
     format: "Legacy",
     cards: [
       { name: "Forest", count: 24 },

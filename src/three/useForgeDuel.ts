@@ -15,6 +15,7 @@ export function useForgeDuel() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [deckIndex, setDeckIndex] = useState(0);
+  const [playerColors, setPlayerColors] = useState<Record<string, string[]>>({});
   const [fullControl, setFullControl] = useState(false);
   const [stops, setStops] = useState<string[]>([]);
   const [paused, setPaused] = useState(false);
@@ -27,17 +28,20 @@ export function useForgeDuel() {
     },
     [],
   );
-  const start = async (index: number) => {
+  const start = async (index: number, playerCount = 2) => {
     const run = ++generation.current;
     engine.current?.dispose();
     pending.current = null;
     setDeckIndex(index);
+    setPlayerColors(Object.fromEntries(Array.from({ length: playerCount }, (_, seat) => [
+      `player-${seat}`, duelDecks[(index + seat) % duelDecks.length].colorIdentity,
+    ])));
     setView(null);
     setPrompt(null);
     setError("");
     setLoading(true);
     setAutoPaying(false);
-    setStatus("Loading Forge and preparing both decks…");
+    setStatus("Loading Forge and preparing the table…");
     try {
       const next = await createForgeEngine({
         onState: (state) => {
@@ -70,7 +74,7 @@ export function useForgeDuel() {
       engine.current = next;
       await next.startGame({
         deck: duelDecks[index],
-        opponentDecks: [duelDecks[1 - index]],
+        opponentDecks: Array.from({ length: playerCount - 1 }, (_, seat) => duelDecks[(index + seat + 1) % duelDecks.length]),
         startingLife: 20,
       });
     } catch (failure) {
@@ -196,6 +200,7 @@ export function useForgeDuel() {
     error,
     loading,
     deckIndex,
+    playerColors,
     start,
     respond,
     concede,

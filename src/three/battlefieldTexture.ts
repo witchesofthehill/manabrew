@@ -1,6 +1,7 @@
 import { CanvasTexture, SRGBColorSpace } from "three";
 import type { ArenaCard, ArenaColors } from "@/three/arena.types";
 import { drawFrame } from "@/three/frameAsset";
+import { loadManaSprite } from "@/three/battlefieldMana";
 
 const imageCache = new Map<string, HTMLImageElement>();
 
@@ -13,6 +14,7 @@ export function battlefieldTexture(card: ArenaCard, colors: ArenaColors) {
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   let disposed = false;
+  let mana: HTMLImageElement | null = null;
   const url = card.artImage ?? card.image;
   let art: HTMLImageElement | null = url ? (imageCache.get(url) ?? null) : null;
   const draw = () => {
@@ -62,19 +64,19 @@ export function battlefieldTexture(card: ArenaCard, colors: ArenaColors) {
     ctx.beginPath();
     ctx.roundRect(9, 9, 366, 312, 13);
     ctx.stroke();
-    drawFrame(ctx, card, colors);
+    drawFrame(ctx, card, colors, mana);
     if (card.stats) {
       ctx.fillStyle = colors.foreground;
       ctx.strokeStyle = colors.border;
       ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.roundRect(224, 276, 125, 46, 16);
+      ctx.roundRect(224, 266, 125, 56, 14);
       ctx.fill();
       ctx.stroke();
       ctx.fillStyle = card.statsChanged ? colors.hostile : colors.background;
-      ctx.font = "bold 36px Georgia";
+      ctx.font = "bold 44px Georgia";
       ctx.textAlign = "center";
-      ctx.fillText(card.stats, 286, 311, 111);
+      ctx.fillText(card.stats, 286, 308, 111);
       ctx.textAlign = "start";
     }
     if (card.tapped) {
@@ -113,6 +115,12 @@ export function battlefieldTexture(card: ArenaCard, colors: ArenaColors) {
     texture.needsUpdate = true;
   };
   draw();
+  if (card.cost) void loadManaSprite().then((image) => {
+    if (!disposed && image) {
+      mana = image;
+      draw();
+    }
+  });
   if (url && !art) {
     const image = new Image();
     image.crossOrigin = "anonymous";

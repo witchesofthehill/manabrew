@@ -1,3 +1,5 @@
+import { NextAction } from "@/three/NextAction";
+import { GameIcon } from "@/three/GameIcon";
 import { useState } from "react";
 import { ManaText } from "@/three/ManaSymbols";
 import { ChoicePages } from "@/three/ChoicePages";
@@ -33,6 +35,7 @@ export function DuelPrompt({
   const toggle = (id: string) =>
     onSelected(selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id]);
   let controls;
+  let confirmation;
   switch (input.type) {
     case "mulligan":
       controls = (
@@ -43,14 +46,14 @@ export function DuelPrompt({
               send({ type: input.type, output: { type: "mulliganDecision", keep: true } })
             }
           >
-            Keep hand
+            <GameIcon name="hand" /> Keep hand
           </button>
           <button
             onClick={() =>
               send({ type: input.type, output: { type: "mulliganDecision", keep: false } })
             }
           >
-            Mulligan
+            <GameIcon name="mulligan" /> Mulligan
           </button>
         </>
       );
@@ -58,17 +61,7 @@ export function DuelPrompt({
     case "chooseAction":
       controls = (
         <>
-          <button
-            className="duel-primary duel-next"
-            title="Advance priority (Space)"
-            disabled={autoPassing}
-            onClick={() =>
-              send({ type: input.type, output: { type: "pass", exhaustStack: false } })
-            }
-          >
-            <span>{autoPassing ? "Passing…" : nextLabel === "Resolve" ? "Resolve" : "Next"}</span>
-            <small>{nextLabel === "Resolve" ? "Top of stack" : nextLabel}</small>
-          </button>
+          <NextAction label={nextLabel} busy={autoPassing} onNext={() => send({ type: input.type, output: { type: "pass", exhaustStack: false } })} />
         </>
       );
       break;
@@ -84,17 +77,17 @@ export function DuelPrompt({
               onAutoPay ?? (() => send({ type: input.type, output: { type: "pay", auto: true } }))
             }
           >
-            Auto-pay mana
+            <GameIcon name="auto-pay" /> Auto-pay mana
           </button>
           {input.canConfirmFromPool && (
             <button
               onClick={() => send({ type: input.type, output: { type: "pay", auto: false } })}
             >
-              Pay from pool
+              <GameIcon name="mana-pool" /> Pay from pool
             </button>
           )}
           <button onClick={() => send({ type: input.type, output: { type: "cancel" } })}>
-            Cancel casting
+            <GameIcon name="cancel" /> Cancel casting
           </button>
         </>
       );
@@ -154,7 +147,7 @@ export function DuelPrompt({
               send({ type: input.type, output: { type: "declareAttackers", assignments } })
             }
           >
-            {selected.length ? `Attack with ${selected.length}` : "No attacks"}
+            <GameIcon name="attack" />{selected.length ? `Attack with ${selected.length}` : "No attacks"}
           </button>
         </>
       );
@@ -189,10 +182,14 @@ export function DuelPrompt({
                 onSelected([]);
               }}
             >
-              Clear blocks
+              <GameIcon name="cancel" /> Clear blocks
             </button>
           )}
           {input.error && <p>{input.error}</p>}
+
+        </>
+      );
+      confirmation = (
           <button
             className="duel-primary"
             onClick={() =>
@@ -207,11 +204,11 @@ export function DuelPrompt({
               })
             }
           >
+            <GameIcon name="block" />
             {Object.values(blocks).filter(Boolean).length
               ? `Block with ${Object.values(blocks).filter(Boolean).length}`
               : "No blocks"}
           </button>
-        </>
       );
       break;
     case "chooseBoardTargets":
@@ -282,7 +279,7 @@ export function DuelPrompt({
               )
             }
           >
-            Confirm cards
+            <GameIcon name="confirm" /> Confirm cards
           </button>
         </>
       );
@@ -388,12 +385,13 @@ export function DuelPrompt({
   const title =
     "presentation" in input ? input.presentation.title : input.type.replace(/([A-Z])/g, " $1");
   return (
-    <section className="arena-actions duel-prompt">
+    <section className="arena-actions duel-prompt" data-choice={input.type}>
       <small>YOUR DECISION</small>
       {input.type !== "chooseAction" && <strong>{title}</strong>}
       <div className="duel-prompt-options">
         <ChoicePages>{controls}</ChoicePages>
       </div>
+      {confirmation && <div className="duel-prompt-confirmation">{confirmation}</div>}
     </section>
   );
 }

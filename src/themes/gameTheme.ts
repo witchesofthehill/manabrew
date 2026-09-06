@@ -1,9 +1,8 @@
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { THEME_PRESETS, DEFAULT_GAME_FONT_SIZES, type GameFontSizes } from "./presets";
 
-export type ManaLetter = "W" | "U" | "B" | "R" | "G" | "C";
-
-export const MANA_LETTERS: readonly ManaLetter[] = ["W", "U", "B", "R", "G", "C"] as const;
+import type { ManaLetter } from "./manaLetters";
+export { MANA_LETTERS, type ManaLetter } from "./manaLetters";
 
 export const MANA_BG_CLASS: Record<ManaLetter, string> = {
   W: "bg-mana-w",

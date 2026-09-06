@@ -10,8 +10,8 @@ export function tableTexture(colors: ArenaColors) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   for (let y = 0; y < 1400; y += 64)
     for (let x = 0; x < 1536; x += 96) {
-      ctx.globalAlpha = 0.1 + ((x * 13 + y * 7) % 19) / 150;
-      ctx.fillStyle = (x + y) % 128 ? colors.background : colors.border;
+      ctx.globalAlpha = 0.045 + ((x * 13 + y * 7) % 19) / 700;
+      ctx.fillStyle = colors.background;
       ctx.fillRect(x + (y % 128 ? 48 : 0), y, 94, 62);
     }
   // Fine, deterministic mineral grain and a broad pool of light keep card art dominant.
@@ -28,14 +28,14 @@ export function tableTexture(colors: ArenaColors) {
     ctx.fillRect(x, y, 1 + (i % 3), 1);
   }
   const light = ctx.createRadialGradient(768, 618, 80, 768, 700, 870);
-  light.addColorStop(0, "rgba(110,140,160,.12)");
-  light.addColorStop(0.6, "rgba(12,18,28,.08)");
-  light.addColorStop(1, "rgba(4,8,16,.68)");
+  light.addColorStop(0, "transparent");
+  light.addColorStop(0.65, "transparent");
+  light.addColorStop(1, colors.background);
   ctx.globalAlpha = 1;
   ctx.fillStyle = light;
   ctx.fillRect(0, 0, 1536, 1400);
   ctx.globalAlpha = 0.18;
-  ctx.strokeStyle = colors.accent;
+  ctx.strokeStyle = colors.background;
   for (const radius of [200, 214, 260, 267, 420]) {
     ctx.lineWidth = radius === 214 ? 5 : 2;
     ctx.beginPath();

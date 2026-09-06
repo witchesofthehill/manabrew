@@ -1,3 +1,5 @@
+import { arenaSurface } from "@/themes/arenaSurface";
+import { GameIcon } from "@/three/GameIcon";
 import { constrainSelection } from "@/three/duelSelection";
 import { LifeBadge } from "@/three/LifeBadge";
 import { SpellStack } from "@/three/SpellStack";
@@ -5,7 +7,7 @@ import { ZoneCards } from "@/three/ZoneCards";
 import { DuelModal } from "@/three/DuelModal";
 import { ManaSymbol, ManaText } from "@/three/ManaSymbols";
 import { DuelFlowBar } from "@/three/DuelFlowBar";
-import { nextStepLabel, stepNames } from "@/three/duelFlow";
+import { nextStepLabel } from "@/three/duelFlow";
 import { CardPreview } from "@/three/CardPreview";
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
@@ -19,16 +21,7 @@ import preset from "@/themes/kanagawa";
 import "@/three/arena.css";
 import "@/three/duel.css";
 
-const colors: ArenaColors = {
-  background: preset.dark.background,
-  surface: preset.dark.card,
-  border: preset.dark.border,
-  foreground: preset.dark.foreground,
-  muted: preset.dark["muted-foreground"],
-  accent: preset.gameColors["mana.U"],
-  hostile: preset.gameColors["arrow.attack"],
-  playable: preset.gameColors.cardPlayable,
-};
+const colors: ArenaColors = arenaSurface;
 const style = Object.fromEntries(
   Object.entries(colors).map(([key, value]) => [`--arena-${key}`, value]),
 ) as CSSProperties;
@@ -39,7 +32,22 @@ const imageUrl = (card: CardDto, variant: string) =>
 
 export function ForgeDuel() {
   const game = useForgeDuel();
+  const [playerCount, setPlayerCount] = useState(2);
   const { view, prompt } = game;
+  const [priorityDisplay, setPriorityDisplay] = useState<{ prompt: NonNullable<typeof prompt>; label: string } | null>(null);
+  if (prompt?.input.type === "chooseAction" && view) {
+    const label = game.autoPassing
+      ? priorityDisplay?.label ?? "Continue"
+      : nextStepLabel(view.step, view.stack.length, game.fullControl);
+    if (priorityDisplay?.prompt !== prompt || priorityDisplay.label !== label) {
+      setPriorityDisplay({ prompt, label });
+    }
+  } else if (priorityDisplay && ((prompt && prompt.input.type !== "chooseAction") || !view)) {
+    setPriorityDisplay(null);
+  }
+  const displayedPrompt = prompt ?? priorityDisplay?.prompt;
+  const priorityBusy = game.autoPassing || !prompt;
+  const activeName = view?.players.find((p) => p.id === view.activePlayerId)?.name ?? "Opponent";
   const [abilityChoice, setAbilityChoice] = useState<{ cardId: string; promptId?: string } | null>(
     null,
   );
@@ -119,6 +127,7 @@ export function ForgeDuel() {
               : "C")) as "W" | "U" | "B" | "R" | "G" | "C";
         return {
           id: card.id,
+          playerId: playerCount === 4 ? card.controllerId : undefined,
           name: card.isFaceDown ? "Face-down card" : card.identity.name,
           type: card.types.join(" "),
           text: card.text,
@@ -144,6 +153,7 @@ export function ForgeDuel() {
           tapped: card.tapped,
           hidden: card.isFaceDown,
           attacking: card.isAttacking,
+          attackingPlayerId: playerCount === 4 ? card.attackingPlayerId : undefined,
           selected:
             selected.includes(card.id) ||
             (prompt?.input.type === "chooseBlockers" && Boolean(blocks[card.id])),
@@ -151,21 +161,13 @@ export function ForgeDuel() {
         };
       });
   });
-  const opponentHandCount =
-    view?.zones.find((z) => z.zone === "hand" && z.ownerId !== "player-0")?.count ?? 0;
-  for (let i = 0; i < opponentHandCount; i++) {
-    cards.push({
-      id: `opponent-hand-${i}`,
-      name: "Opponent's card",
-      type: "",
-      cost: "",
-      text: "",
-      side: "opponentHand",
-      hidden: true,
-      color: colors.border,
+  for (const zone of view?.zones.filter((z) => z.zone === "hand" && z.ownerId !== "player-0") ?? []) {
+    for (let i = 0; i < zone.count; i++) cards.push({
+      id: `${zone.ownerId}-hand-${i}`, playerId: playerCount === 4 ? zone.ownerId : undefined,
+      name: "Opponent's card", type: "", cost: "", text: "", side: "opponentHand",
+      hidden: true, color: colors.border,
     });
-  }
-  const choose = (id: string) => {
+  }  const choose = (id: string) => {
     if (!prompt) return;
     const input = prompt.input;
     if (input.type === "chooseAction") {
@@ -212,7 +214,7 @@ export function ForgeDuel() {
       )
     : [];
   return (
-    <main className="arena-root duel-root" style={style}>
+    <main className="arena-root duel-root" data-players={playerCount} style={style}>
       <ArenaScene
         colors={colors}
         cards={cards}
@@ -227,6 +229,7 @@ export function ForgeDuel() {
               zone: z.zone as ArenaZonePile["zone"],
               side: z.ownerId === "player-0" ? "self" : "opponent",
               count: z.count,
+              seat: playerCount === 4 && z.ownerId !== "player-0" ? Number(z.ownerId.split("-").at(-1)) - 1 : undefined,
               topImage: top?.visibility === "visible" ? imageUrl(top, "large") : undefined,
               topName: top?.visibility === "visible" ? top.identity.name : undefined,
             };
@@ -259,13 +262,15 @@ export function ForgeDuel() {
       />
       <div className="duel-hand-aura" aria-hidden="true" />
       {hintCard?.side === "hand" && prompt?.input.type === "chooseAction" && (
-        <div className="duel-play-hint" data-valid={hintCard.playable} role="status">
+        <div className="duel-play-hint" data-valid={hintCard.playable} data-ready={Boolean(drag?.canPlay)} role="status">
+          <span className="duel-hint-emblem"><GameIcon name={drag?.canPlay ? "confirm" : hintCard.playable ? "hand" : "control"} /></span>
+          <div>
           <strong>
             {drag
               ? drag.canPlay
-                ? `Release to ${hintCard.type.includes("Land") ? "play" : "cast"} ${hintCard.name}`
+                ? `Release to ${hintCard.type.includes("Land") ? "play land" : "cast spell"}`
                 : hintCard.playable
-                  ? "Move onto the glowing battlefield"
+                  ? "Drag onto the battlefield"
                   : "Not playable right now"
               : hintCard.playable
                 ? `Click or drag to ${hintCard.type.includes("Land") ? "play" : "cast"}`
@@ -273,11 +278,12 @@ export function ForgeDuel() {
           </strong>
           <small>
             {drag
-              ? "Return to hand or press Esc to cancel"
+              ? "Esc or return to hand to cancel"
               : hintCard.playable
-                ? "Release inside the border to confirm"
+                ? hintCard.name
                 : "Available cards have a cyan outline"}
           </small>
+          </div>
         </div>
       )}
       <header className="arena-brand">
@@ -288,10 +294,14 @@ export function ForgeDuel() {
         <section className="duel-start">
           <small>CHOOSE YOUR DECK</small>
           <h2>A real duel. Your next move.</h2>
-          <p>Play a complete 60-card match against Forge AI.</p>
+          <p>Play a 60-card match against Forge AI.</p>
+<div className="duel-table-size" role="group" aria-label="Table size">
+  <button aria-pressed={playerCount === 2} disabled={game.loading} onClick={() => setPlayerCount(2)}>Duel · 2 players</button>
+  <button aria-pressed={playerCount === 4} disabled={game.loading} onClick={() => setPlayerCount(4)}>Free-for-all · 4 players</button>
+</div>
           {duelDecks.map((deck, i) => (
-            <button key={deck.name} disabled={game.loading} onClick={() => void game.start(i)}>
-              <ManaSymbol symbol={i === 0 ? "W" : "G"} /> {deck.name} ·{" "}
+            <button key={deck.name} disabled={game.loading} onClick={() => void game.start(i, playerCount)}>
+              {deck.colorIdentity.map((symbol) => <ManaSymbol key={symbol} symbol={symbol} />)} {deck.name} ·{" "}
               {i === 0 ? "White creatures" : "Green creatures"}
             </button>
           ))}
@@ -302,39 +312,34 @@ export function ForgeDuel() {
       )}
       {view && (
         <>
-          <div className="arena-status">
-            <small>
-              TURN {view.turn} ·{" "}
-              {view.activePlayerId === "player-0" ? "YOUR TURN" : "OPPONENT'S TURN"}
-            </small>
-            <h2>{stepNames[view.step] ?? view.step}</h2>
-            <p>
-              {duelDecks[game.deckIndex].name} vs {duelDecks[1 - game.deckIndex].name}
-            </p>
-          </div>
           {view.turn > 0 && (
             <div key={`turn-${view.turn}`} className="duel-turn-notice" aria-live="polite">
               <small>Turn {view.turn}</small>
-              <strong>{view.activePlayerId === "player-0" ? "Your turn" : "Opponent turn"}</strong>
+              <strong>{view.activePlayerId === "player-0" ? "Your turn" : `${activeName} turn`}</strong>
             </div>
           )}
           {view.players.map((player) => (
             <div
               key={player.id}
+              data-seat={player.id}
+              data-eliminated={player.status !== "playing"}
+              data-active-turn={player.id === view.activePlayerId && player.status === "playing"}
               className={`arena-player arena-player-${player.id === "player-0" ? "self" : "opponent"}`}
             >
               <LifeBadge
+                playerId={player.id}
                 life={player.life}
                 priority={player.id === view.priorityPlayerId}
                 self={player.id === "player-0"}
-                symbol={
-                  (player.id === "player-0" ? game.deckIndex : 1 - game.deckIndex) === 0 ? "W" : "G"
-                }
+                symbols={game.playerColors[player.id]}
                 onClick={() => choose(player.id)}
               />
               <div>
-                <small>{player.id === view.priorityPlayerId ? "PRIORITY" : "PLANESWALKER"}</small>
-                <h3>{player.name}</h3>
+                <small>{player.status !== "playing" ? "ELIMINATED" : player.id === view.activePlayerId ? "TAKING TURN" : player.id === view.priorityPlayerId ? "HAS PRIORITY" : "WAITING"}</small>
+                <h3 className="duel-player-name">
+                  <span className="duel-turn-marker" aria-hidden="true">◆</span>
+                  {player.name}
+                </h3>
                 <small>
                   {Object.entries(player.manaPool)
                     .filter(([, n]) => n)
@@ -349,7 +354,7 @@ export function ForgeDuel() {
             </div>
           ))}
           <button className="arena-menu" onClick={() => setConfirmConcede(true)}>
-            Match menu
+            <GameIcon name="menu" /> Match menu
           </button>
           <div className="duel-decision-dock">
             {!view.gameOver && (
@@ -357,35 +362,36 @@ export function ForgeDuel() {
                 step={view.step}
                 turn={view.turn}
                 ownTurn={view.activePlayerId === "player-0"}
+                activeName={activeName}
                 fullControl={game.fullControl}
                 onControl={game.toggleControl}
                 stops={game.stops}
                 onStop={game.toggleStop}
               />
             )}
-            {prompt && !game.autoPassing && !game.autoPaying && !view.gameOver && (
+            {displayedPrompt && (!game.autoPassing || displayedPrompt.input.type === "chooseAction") && !game.autoPaying && !view.gameOver && (
               <DuelPrompt
-                key={prompt.promptId}
-                prompt={prompt}
+                key={displayedPrompt.input.type === "chooseAction" ? "priority" : displayedPrompt.promptId}
+                prompt={displayedPrompt}
                 onAutoPay={game.payAutomatically}
-                nextLabel={nextStepLabel(view.step, view.stack.length, game.fullControl)}
-                autoPassing={game.autoPassing}
+                nextLabel={priorityBusy ? priorityDisplay?.label ?? "Continue" : nextStepLabel(view.step, view.stack.length, game.fullControl)}
+                autoPassing={priorityBusy}
                 cards={allCards}
                 selected={selected}
                 onSelected={onSelected}
                 blocks={blocks}
                 onBlocks={onBlocks}
-                send={(action) => game.respond(prompt.promptId, action)}
+                send={(action) => { if (prompt) game.respond(prompt.promptId, action); }}
               />
             )}
-            {(!prompt || game.autoPassing || game.autoPaying) && !view.gameOver && (
+            {(!displayedPrompt || (game.autoPassing && displayedPrompt.input.type !== "chooseAction") || game.autoPaying) && !view.gameOver && (
               <div className="arena-actions duel-auto-status">
                 <strong>
                   {game.autoPaying
                     ? "Paying mana…"
                     : view.activePlayerId === "player-0"
                       ? "Continuing your turn"
-                      : "Opponent’s turn"}
+                      : `${activeName} turn`}
                 </strong>
                 <small>
                   {game.autoPaying
@@ -489,7 +495,7 @@ export function ForgeDuel() {
                 {view.winnerId === "player-0" ? "Victory" : view.winnerId ? "Defeat" : "Draw"}
               </h2>
               <p>The Forge engine has ended the game.</p>
-              <button onClick={() => void game.start(game.deckIndex)}>Play again</button>
+              <button onClick={() => void game.start(game.deckIndex, playerCount)}>Play again</button>
             </section>
           )}
         </>

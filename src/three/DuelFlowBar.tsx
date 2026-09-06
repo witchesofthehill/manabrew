@@ -1,4 +1,4 @@
-import { LockKeyhole, Zap } from "lucide-react";
+import { GameIcon } from "@/three/GameIcon";
 import type { CSSProperties } from "react";
 import beginning from "@/three/assets/phase-beginning.svg";
 import main from "@/three/assets/phase-main.svg";
@@ -19,6 +19,7 @@ export function DuelFlowBar({
   step,
   turn,
   ownTurn,
+  activeName = "Opponent",
   fullControl,
   onControl,
   stops,
@@ -27,6 +28,7 @@ export function DuelFlowBar({
   step: string;
   turn: number;
   ownTurn: boolean;
+  activeName?: string;
   fullControl: boolean;
   onControl: () => void;
   stops: string[];
@@ -36,7 +38,7 @@ export function DuelFlowBar({
     <nav className="duel-flow" aria-label="Turn phases">
       <div className="duel-flow-heading">
         <span>
-          {ownTurn ? "Your turn" : "Opponent’s turn"} · {turn}
+          {ownTurn ? "Your turn" : `${activeName} turn`} · {turn}
         </span>
         <span aria-live="polite">{stepNames[step] ?? step}</span>
       </div>
@@ -75,7 +77,7 @@ export function DuelFlowBar({
         onClick={onControl}
         title="Toggle full control (Shift+Ctrl)"
       >
-        {fullControl ? <LockKeyhole size={13} /> : <Zap size={13} />}{" "}
+        <GameIcon name={fullControl ? "control" : "auto-pay"} />{" "}
         {fullControl ? "Full control" : "Auto priority"}
         <kbd>⇧ Ctrl</kbd>
       </button>

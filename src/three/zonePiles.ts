@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { ArenaColors, ArenaZonePile } from "@/three/arena.types";
 import { cardBackTexture } from "@/three/cardBackTexture";
 import { cardGeometry } from "@/three/cardGeometry";
+import icons from "@/three/assets/ui-icons.json";
 
 export function createZonePiles(scene: THREE.Scene, colors: ArenaColors) {
   const piles = new Map<
@@ -48,6 +49,11 @@ export function createZonePiles(scene: THREE.Scene, colors: ArenaColors) {
                 : -9.8,
           );
           const pick = new THREE.Mesh(geometry, [back, edge]);
+          if (zone.seat !== undefined) {
+            group.position.x = (zone.seat - 1) * 7 + (zone.zone === "library" ? 2.1 : 0.2);
+            group.position.z = zone.zone === "exile" ? -7.65 : -8.7;
+            group.scale.setScalar(0.6);
+          }
           pick.scale.setScalar(0.78);
           pick.userData.zoneId = zone.id;
           pick.visible = zone.zone !== "exile";
@@ -135,7 +141,16 @@ export function createZonePiles(scene: THREE.Scene, colors: ArenaColors) {
         t.fillStyle = colors.foreground;
         t.font = "36px Georgia";
         t.textAlign = "center";
-        t.fillText(`${zone.zone.toUpperCase()}  ·  ${zone.count}`, 260, 65);
+        t.save();
+        t.translate(22, 28);
+        t.scale(2, 2);
+        t.strokeStyle = colors.foreground;
+        t.lineWidth = 1.7;
+        t.lineCap = "round";
+        t.lineJoin = "round";
+        t.stroke(new Path2D(icons[zone.zone]));
+        t.restore();
+        t.fillText(`${zone.zone.toUpperCase()}  ·  ${zone.count}`, 290, 65, 410);
         const labelTexture = new THREE.CanvasTexture(textCanvas);
         labelTexture.colorSpace = THREE.SRGBColorSpace;
         const material = pile.label.material as THREE.MeshBasicMaterial;

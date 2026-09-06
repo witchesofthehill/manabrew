@@ -1,4 +1,6 @@
 export interface ArenaCard {
+  playerId?: string;
+  attackingPlayerId?: string;
   id: string;
   name: string;
   type: string;
@@ -50,6 +52,7 @@ export interface ArenaSceneProps {
 }
 
 export interface ArenaZonePile {
+  seat?: number;
   id: string;
   zone: "library" | "graveyard" | "exile";
   side: "self" | "opponent";

@@ -23,6 +23,7 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
   const camera = new THREE.PerspectiveCamera(43, 1, 0.5, 80);
   let sceneWidth = 1;
   let handZ = 8.5;
+  let handOrder: string[] = [];
   const resize = () => {
     const { width, height } = element.getBoundingClientRect();
     renderer.setSize(width, height);
@@ -31,7 +32,7 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
     renderer.setViewport(0, 0, sceneWidth, height);
     camera.aspect = sceneWidth / Math.max(height, 1);
     const distance = Math.max(22, (22 / camera.aspect) * 1.45);
-    camera.position.set(0, distance * 0.8, distance * 0.65);
+    camera.position.set(0, distance * 0.99, distance * 0.28);
     camera.lookAt(0, 0, 0.5);
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld(true);
@@ -73,7 +74,7 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
   for (const x of [-11.4, 11.4])
     for (const z of [-10, 0, 9]) {
       const crystal = new THREE.Mesh(
-        new THREE.OctahedronGeometry(0.32),
+        new THREE.SphereGeometry(0.22, 12, 8),
         new THREE.MeshStandardMaterial({
           color: colors.accent,
           emissive: colors.accent,
@@ -89,7 +90,7 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
       );
       plinth.position.set(x, -0.02, z);
       scene.add(plinth);
-      crystal.scale.y = 1.8;
+      crystal.scale.y = 0.75;
       scene.add(crystal);
       const light = new THREE.PointLight(colors.accent, 8, 7);
       light.position.set(x, 2, z);
@@ -218,6 +219,20 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
     const wasDragged = dragPosition !== null;
     const card = live.current.cards.find((c) => c.id === previous.id);
     const validHandDrop = Boolean(card?.playable && canDropHand());
+    const bounds = element.getBoundingClientRect();
+    if (card?.side === "hand" && wasDragged && !validHandDrop &&
+      e.clientY >= bounds.top + bounds.height * 0.72 &&
+      e.clientY <= bounds.bottom && e.clientX >= bounds.left && e.clientX <= bounds.left + sceneWidth) {
+      const others = handOrder.filter((id) => id !== card.id);
+      const insertion = others.findIndex((id) => {
+        const tile = tiles.get(id);
+        if (!tile?.rest) return false;
+        const screen = tile.rest.position.clone().project(camera);
+        return bounds.left + (screen.x + 1) * sceneWidth / 2 > e.clientX;
+      });
+      others.splice(insertion < 0 ? others.length : insertion, 0, card.id);
+      handOrder = others;
+    }
     pressed = null;
     dragPosition = null;
     dragFeedback(null);
@@ -270,7 +285,16 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
     const focusCard = current.cards.find((c) => c.id === (pressed?.id ?? hovered));
     playArea.visible = Boolean(focusCard?.side === "hand" && focusCard.playable);
     playArea.material.opacity = dragPosition && canDropHand() ? 0.95 : 0.38;
-    const layout = arenaLayout(current.cards);
+    const hand = current.cards.filter((card) => card.side === "hand");
+    const handIds = new Set(hand.map((card) => card.id));
+    handOrder = handOrder.filter((id) => handIds.has(id));
+    const known = new Set(handOrder);
+    for (const card of hand) if (!known.has(card.id)) handOrder.push(card.id);
+    const byId = new Map(hand.map((card) => [card.id, card]));
+    const layout = arenaLayout([
+      ...current.cards.filter((card) => card.side !== "hand"),
+      ...handOrder.map((id) => byId.get(id)!),
+    ]);
     for (const card of current.cards)
       if (card.side === "hand") {
         const position = layout.get(card.id)!;
@@ -296,6 +320,19 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
     const combatPositions = new Map(
       [...tiles].map(([id, t]) => [id, { x: t.mesh.position.x, z: t.mesh.position.z }]),
     );
+    const bounds = element.getBoundingClientRect();
+    for (const side of ["self", "opponent", "player-0", "player-1", "player-2", "player-3"]) {
+      const badge = element.closest(".arena-root")?.querySelector(`[data-player-side="${side}"], [data-player-id="${side}"]`);
+      if (!badge) continue;
+      const rect = badge.getBoundingClientRect();
+      const ray = new THREE.Raycaster();
+      ray.setFromCamera(new THREE.Vector2(
+        ((rect.left + rect.width / 2 - bounds.left) / sceneWidth) * 2 - 1,
+        1 - ((rect.top + rect.height / 2 - bounds.top) / bounds.height) * 2,
+      ), camera);
+      const target = ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.8), new THREE.Vector3());
+      if (target) combatPositions.set(`player:${side}`, target);
+    }
     combat.update(current, time, combatPositions);
     for (const [id, tile] of tiles)
       if (!layout.has(id)) {
@@ -462,7 +499,19 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
         scale: tile.mesh.scale.clone(),
       };
       combat.apply(id, tile.mesh, time, reduced.matches);
-      if (combat.impact(id, time) && !reduced.matches) atmosphere.impact(tile.mesh.position, time);
+      const impact = combat.impact(id, time);
+      if (impact) {
+        if (!reduced.matches) atmosphere.impact(impact.position, time);
+        if (impact.player) {
+          const badge = element.closest(".arena-root")?.querySelector(`[data-player-side="${impact.player}"], [data-player-id="${impact.player}"]`);
+          badge?.animate([
+            { boxShadow: `0 0 0 3px ${colors.hostile}, 0 0 36px ${colors.hostile}`, transform: "translateX(0)" },
+            { transform: reduced.matches ? "none" : "translateX(-7px)" },
+            { transform: reduced.matches ? "none" : "translateX(5px)" },
+            { boxShadow: "none", transform: "translateX(0)" },
+          ], { duration: 460, easing: "ease-out" });
+        }
+      }
       if (tile.departing !== undefined) {
         const wait = tile.departureDelay ?? 0;
         const fade = THREE.MathUtils.clamp(

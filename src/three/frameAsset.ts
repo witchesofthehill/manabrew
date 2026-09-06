@@ -1,6 +1,7 @@
 import type { ArenaCard, ArenaColors } from "@/three/arena.types";
+import { drawBattlefieldMana } from "@/three/battlefieldMana";
 
-export function drawFrame(ctx: CanvasRenderingContext2D, card: ArenaCard, colors: ArenaColors) {
+export function drawFrame(ctx: CanvasRenderingContext2D, card: ArenaCard, colors: ArenaColors, mana: HTMLImageElement | null = null) {
   const finish = card.frame ?? "C";
   const bevel = ctx.createLinearGradient(0, 0, 384, 330);
   bevel.addColorStop(0, colors.foreground);
@@ -72,5 +73,6 @@ export function drawFrame(ctx: CanvasRenderingContext2D, card: ArenaCard, colors
   ctx.globalAlpha = 1;
   ctx.fillStyle = finish === "B" ? colors.foreground : colors.background;
   ctx.font = "bold 22px Georgia";
-  ctx.fillText(card.name, 23, 33, 338);
+  const costWidth = drawBattlefieldMana(ctx, card.cost, mana);
+  ctx.fillText(card.name, 23, 33, 338 - costWidth);
 }

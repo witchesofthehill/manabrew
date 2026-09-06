@@ -1,6 +1,16 @@
 import type { ArenaCard } from "@/three/arena.types";
+import { multiplayerSeat } from "@/three/multiplayerLayout";
 
-export function arenaLayout(cards: ArenaCard[]) {
+export function arenaLayout(cards: ArenaCard[]): Map<string, { x: number; y: number; z: number; angle: number; scale: number; pileCount?: number }> {
+  const opponents = [...new Set(cards.filter((c) => c.side === "opponent" || c.side === "opponentHand").map((c) => c.playerId).filter(Boolean))];
+  if (opponents.length > 0) {
+    const result = arenaLayout(cards.filter((c) => c.side === "self" || c.side === "hand"));
+    for (const player of opponents) {
+      const seat = Number(player!.split("-").at(-1)) - 1;
+      for (const [id, position] of multiplayerSeat(cards.filter((c) => c.playerId === player), seat)) result.set(id, position);
+    }
+    return result;
+  }
   const positions = new Map<
     string,
     { x: number; y: number; z: number; angle: number; scale: number; pileCount?: number }

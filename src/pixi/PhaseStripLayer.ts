@@ -189,11 +189,22 @@ export class PhaseStripLayer {
   private displayActivePlayerId: string | null = null;
   private canvasWidth = 0;
   private canvasHeight = 0;
-  private statusText = new Text({
+  private turnStatusText = new Text({
     text: "",
     style: {
       fontFamily: FONT,
       fontSize: 11,
+      fontWeight: "700",
+      fill: _initTheme.textOnTinted,
+      wordWrap: true,
+      wordWrapWidth: STATUS_MAX_WIDTH,
+    },
+  });
+  private priorityStatusText = new Text({
+    text: "",
+    style: {
+      fontFamily: FONT,
+      fontSize: 10,
       fontWeight: "600",
       fill: _initTheme.textOnTinted,
       wordWrap: true,
@@ -232,8 +243,9 @@ export class PhaseStripLayer {
     this.container = new Container();
     this.container.label = "phaseStrip";
 
-    this.statusText.eventMode = "none";
-    this.container.addChild(this.statusText);
+    this.turnStatusText.eventMode = "none";
+    this.priorityStatusText.eventMode = "none";
+    this.container.addChild(this.turnStatusText, this.priorityStatusText);
 
     this.expandedBackdrop = new Graphics();
     this.container.addChild(this.expandedBackdrop);
@@ -578,23 +590,39 @@ export class PhaseStripLayer {
     const turnName = isMeActive
       ? "Your turn"
       : `${this.displayActivePlayerName || "Opponent"}'s turn`;
-    const priorityName =
-      state.priorityPlayerId === state.myPlayerId
+    const priorityIsMe = state.priorityPlayerId === state.myPlayerId;
+    const priorityOppIdx = state.opponents.findIndex((o) => o.id === state.priorityPlayerId);
+    const priorityColor = priorityIsMe
+      ? selfColor
+      : priorityOppIdx >= 0
+        ? oppColors[priorityOppIdx]!
+        : hexToNum(t.textMuted);
+    const priorityName = state.priorityPlayerId
+      ? priorityIsMe
         ? "Your priority"
-        : state.priorityPlayerName
-          ? `Waiting for ${state.priorityPlayerName}`
-          : "";
-    this.statusText.text = priorityName ? `${turnName} · ${priorityName}` : turnName;
-    this.statusText.style.fill = t.textOnTinted;
+        : `${state.priorityPlayerName || "Opponent"}'s priority`
+      : "";
+    this.turnStatusText.text = turnName;
+    this.turnStatusText.style.fill = turnColor;
+    this.priorityStatusText.text = priorityName;
+    this.priorityStatusText.style.fill = priorityColor;
     const statusWidth = showPill
       ? STATUS_MAX_WIDTH
       : Math.min(STATUS_MAX_WIDTH, stripLeft * fitX + stripOffset - 20);
-    this.statusText.visible = statusWidth >= 80 && !(this.compact && this.expanded);
-    this.statusText.style.wordWrapWidth = Math.max(80, statusWidth);
-    this.statusText.x = showPill ? centerX - STATUS_MAX_WIDTH / 2 : 10;
-    this.statusText.y = showPill
-      ? lineY - COMPACT_PILL_H / 2 - this.statusText.height - 5
-      : lineY - this.statusText.height / 2;
+    const statusVisible = statusWidth >= 80 && !(this.compact && this.expanded);
+    this.turnStatusText.visible = statusVisible;
+    this.priorityStatusText.visible = statusVisible && priorityName.length > 0;
+    this.turnStatusText.style.wordWrapWidth = Math.max(80, statusWidth);
+    this.priorityStatusText.style.wordWrapWidth = Math.max(80, statusWidth);
+    const statusX = showPill ? centerX - STATUS_MAX_WIDTH / 2 : 10;
+    const statusHeight =
+      this.turnStatusText.height +
+      (this.priorityStatusText.visible ? this.priorityStatusText.height + 1 : 0);
+    const statusY = showPill
+      ? lineY - COMPACT_PILL_H / 2 - statusHeight - 5
+      : lineY - statusHeight / 2;
+    this.turnStatusText.position.set(statusX, statusY);
+    this.priorityStatusText.position.set(statusX, statusY + this.turnStatusText.height + 1);
 
     // Strip hover hit area — covers cells + indicator rows
     const hoverPad = INDICATOR_HIT_H + INDICATOR_MARGIN + 2;

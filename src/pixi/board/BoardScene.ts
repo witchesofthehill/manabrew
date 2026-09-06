@@ -694,9 +694,7 @@ export class BoardScene {
   }
 
   private preferredPlayerHudHeight(): number {
-    if (this.compactMode) return PLAYER_HUD_COMPACT_HEIGHT_PX;
-    if (!this.localPlayerId) return SELF_PLAYER_BAR_HEIGHT_PX;
-    return this.playerBlockers.get(this.localPlayerId)?.[0]?.height ?? SELF_PLAYER_BAR_HEIGHT_PX;
+    return this.compactMode ? PLAYER_HUD_COMPACT_HEIGHT_PX : SELF_PLAYER_BAR_HEIGHT_PX;
   }
 
   private layoutSelfBar(): void {

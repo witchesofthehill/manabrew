@@ -1590,8 +1590,17 @@ export function GameBoard({
     return () => ro.disconnect();
   }, [sceneRef, me.id, opponentIdsKey, unifiedLayout, promptType, compactBoard]);
 
-  const sheetSpec = sheetPlayerId
-    ? (hudBarSpecs.find((s) => s.playerId === sheetPlayerId) ?? null)
+  const baseSheetSpec = sheetPlayerId
+    ? (hudBarSpecs.find((spec) => spec.playerId === sheetPlayerId) ?? null)
+    : null;
+  const sheetSpec = baseSheetSpec
+    ? {
+        ...baseSheetSpec,
+        badges: [
+          ...baseSheetSpec.badges.filter((badge) => !badge.zone),
+          ...buildZoneBadges(zoneTilesByPlayer[baseSheetSpec.playerId] ?? [], gameTheme.textMuted),
+        ],
+      }
     : null;
 
   // Screen-reader mirror of the Pixi HUD (Pixi has no DOM accessibility).

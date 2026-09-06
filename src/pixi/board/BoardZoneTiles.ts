@@ -59,6 +59,74 @@ const DRAG_THRESHOLD_PX = 4;
 const DRAG_Z = 1000;
 
 const MIN_ZONE_TARGET_PX = 44;
+const ZONE_SKELETON_ARC_SEGMENTS = 8;
+const ZONE_SKELETON_DOT_SPACING_PX = 7;
+const ZONE_SKELETON_DOT_RADIUS_PX = 1.3;
+const ZONE_SKELETON_MIN_DOTS = 4;
+const ZONE_SKELETON_ALPHA = 0.45;
+function drawDottedRoundRect(
+  graphics: Graphics,
+  width: number,
+  height: number,
+  radius: number,
+  color: number,
+): void {
+  const points: { x: number; y: number }[] = [];
+  const addArc = (centerX: number, centerY: number, from: number, to: number) => {
+    for (let i = 0; i <= ZONE_SKELETON_ARC_SEGMENTS; i++) {
+      const angle = from + ((to - from) * i) / ZONE_SKELETON_ARC_SEGMENTS;
+      points.push({
+        x: centerX + Math.cos(angle) * radius,
+        y: centerY + Math.sin(angle) * radius,
+      });
+    }
+  };
+  points.push({ x: radius, y: 0 }, { x: width - radius, y: 0 });
+  addArc(width - radius, radius, -Math.PI / 2, 0);
+  points.push({ x: width, y: height - radius });
+  addArc(width - radius, height - radius, 0, Math.PI / 2);
+  points.push({ x: radius, y: height });
+  addArc(radius, height - radius, Math.PI / 2, Math.PI);
+  points.push({ x: 0, y: radius });
+  addArc(radius, radius, Math.PI, Math.PI * 1.5);
+  points.push(points[0]!);
+
+  const segmentLengths: number[] = [];
+  let perimeter = 0;
+  for (let i = 1; i < points.length; i++) {
+    const length = Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y);
+    segmentLengths.push(length);
+    perimeter += length;
+  }
+
+  const dotCount = Math.max(
+    ZONE_SKELETON_MIN_DOTS,
+    Math.round(perimeter / ZONE_SKELETON_DOT_SPACING_PX),
+  );
+  const dotSpacing = perimeter / dotCount;
+  let segment = 0;
+  let segmentStart = 0;
+  for (let i = 0; i < dotCount; i++) {
+    const target = i * dotSpacing;
+    while (
+      segment < segmentLengths.length - 1 &&
+      segmentStart + segmentLengths[segment]! < target
+    ) {
+      segmentStart += segmentLengths[segment]!;
+      segment++;
+    }
+    const from = points[segment]!;
+    const to = points[segment + 1]!;
+    const segmentLength = segmentLengths[segment]!;
+    const progress = segmentLength === 0 ? 0 : (target - segmentStart) / segmentLength;
+    graphics.circle(
+      from.x + (to.x - from.x) * progress,
+      from.y + (to.y - from.y) * progress,
+      ZONE_SKELETON_DOT_RADIUS_PX,
+    );
+  }
+  graphics.fill({ color, alpha: ZONE_SKELETON_ALPHA });
+}
 
 export class BoardZoneTiles {
   readonly container = new Container();
@@ -316,6 +384,8 @@ export class BoardZoneTiles {
       const hasContent = spec.count > 0;
       const isLibrary = spec.key === ZONE_TILE_KEY.library;
       const isCommand = spec.key === ZONE_TILE_KEY.command;
+      const hasEmptySkeleton =
+        !hasContent && (spec.key === ZONE_TILE_KEY.graveyard || spec.key === ZONE_TILE_KEY.exile);
       const identity = spec.commander ?? gt.textMuted;
       const color = hl ?? hexToNum(identity);
       const iconKey = isCommand ? "overlord-helm" : ZONE_BADGES[spec.key]?.icon;
@@ -373,6 +443,8 @@ export class BoardZoneTiles {
           width: hl !== null ? 2.5 : isCommand ? 1.5 : 1,
           alpha: hl !== null ? 0.95 : isCommand ? 0.6 : 0.35,
         });
+      } else if (hasEmptySkeleton) {
+        drawDottedRoundRect(tile.outline, cardW, cardH, radius, neutral);
       }
       if (!hasContent) {
         const etchY = cardH / 2 + iconSize * 1.2;

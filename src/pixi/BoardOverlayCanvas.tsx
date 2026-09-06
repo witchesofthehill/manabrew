@@ -376,13 +376,14 @@ export function BoardOverlayCanvas({
         if (event.pointerType === "touch" && !hit.stack) {
           dismissedPointerId = event.pointerId;
           event.preventDefault();
-          event.stopPropagation();
+          event.stopImmediatePropagation();
           return;
         }
       }
 
       if (event.pointerType !== "touch" || (!hit.stack && !hit.preview)) return;
-      event.stopPropagation();
+      event.preventDefault();
+      event.stopImmediatePropagation();
       if (replayPointerId !== null) return;
       canvas.style.pointerEvents = "auto";
       replayPointerId = event.pointerId;
@@ -395,14 +396,15 @@ export function BoardOverlayCanvas({
         dismissedPointerId = null;
         dismissedClickPointerId = event.type === "pointerup" ? event.pointerId : null;
         event.preventDefault();
-        event.stopPropagation();
+        event.stopImmediatePropagation();
         return;
       }
       if (event.pointerId !== replayPointerId) return;
       replayPointerId = null;
+      event.preventDefault();
+      event.stopImmediatePropagation();
       const canvas = canvasRef.current;
       if (!canvas) return;
-      event.stopPropagation();
       canvas.dispatchEvent(clonePointerEvent(event.type, event));
       if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
       canvas.style.pointerEvents = "none";
@@ -418,7 +420,7 @@ export function BoardOverlayCanvas({
       }
       dismissedClickPointerId = null;
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation();
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerout", onWindowLeave);
@@ -480,7 +482,7 @@ export function BoardOverlayCanvas({
       }
       if (event.key === "Tab") {
         event.preventDefault();
-        event.stopPropagation();
+        event.stopImmediatePropagation();
         previewRef.current?.focusSection(event.shiftKey ? -1 : 1);
         return;
       }
@@ -489,14 +491,14 @@ export function BoardOverlayCanvas({
         previewRef.current?.activateFocusedSection()
       ) {
         event.preventDefault();
-        event.stopPropagation();
+        event.stopImmediatePropagation();
         return;
       }
       const shortcut = Number.parseInt(event.key, 10);
       if (shortcut < 1 || shortcut > 9) return;
       if (previewRef.current?.activateShortcut(shortcut)) {
         event.preventDefault();
-        event.stopPropagation();
+        event.stopImmediatePropagation();
       }
     };
     window.addEventListener("keydown", onKeyDown, { capture: true });

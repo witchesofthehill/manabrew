@@ -552,10 +552,6 @@ export class CardSprite extends Container {
       }
     }
     this.addChild(this.pulseRing.gfx);
-    if (kind === "hand") {
-      this.handControls = new HandCardControls(activeTheme);
-      this.addChild(this.handControls);
-    }
 
     this.pivot.set(this.cw / 2, this.ch / 2);
     this.loadImage();
@@ -689,13 +685,19 @@ export class CardSprite extends Container {
       );
       this.contentContainer.addChild(this.handRulesFace);
       this.handRulesFace.setActions(this.handRulesActions, this.onSelectHandRulesAction);
+    } else {
+      this.handRulesFace.visible = active;
+      if (active) this.updateHandRulesFace();
     }
-    this.handRulesFace.visible = active;
     this.updateHandControls();
   }
 
   setHandControls(spec: HandCardControlsSpec | null): void {
     if (this.kind !== "hand") return;
+    if (spec && !this.handControls) {
+      this.handControls = new HandCardControls(activeTheme);
+      this.addChild(this.handControls);
+    }
     this.handControlsSpec = spec;
     this.updateHandControls();
   }
@@ -730,7 +732,7 @@ export class CardSprite extends Container {
   }
 
   private updateHandRulesFace(): void {
-    if (!this.handRulesFace) return;
+    if (!this.handRulesFace?.visible) return;
     const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
     this.handRulesFace.setContent(this.card, faceIndex, this.cw, this.ch, this.deckCard().layout);
   }

@@ -416,6 +416,7 @@ export class RulesCardPreviewLayer {
   }
 
   activateFocusedAction(): void {
+    if (this.focusedSection !== null) return;
     if (this.isCollapsed("actions")) {
       this.focusAction(0);
       return;

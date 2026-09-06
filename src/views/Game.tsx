@@ -1561,18 +1561,17 @@ export default function Game({ exitTo }: GameProps = {}) {
     return byId;
   }, [gameView?.stack]);
 
-  const livePreviewCard = preview.hoveredCard
-    ? (visibleCardsById.get(preview.hoveredCard.id) ??
-      stackCardsBySourceId.get(preview.hoveredCard.id) ??
-      null)
+  const previewCardId = preview.hoveredCard?.id ?? null;
+  const livePreviewCard = previewCardId
+    ? (visibleCardsById.get(previewCardId) ?? stackCardsBySourceId.get(previewCardId) ?? null)
     : null;
   const [previewFaceOverride, setPreviewFaceOverride] = useState<{
     cardId: string;
     showBackFace: boolean;
   } | null>(null);
-  if (previewFaceOverride && previewFaceOverride.cardId !== preview.hoveredCard?.id) {
+  useEffect(() => {
     setPreviewFaceOverride(null);
-  }
+  }, [previewCardId]);
   const previewShowBackFace =
     previewFaceOverride && previewFaceOverride.cardId === livePreviewCard?.id
       ? previewFaceOverride.showBackFace

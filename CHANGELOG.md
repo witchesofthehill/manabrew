@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.37.2](https://github.com/witchesofthehill/manabrew/compare/v3.37.1...v3.37.2) (2026-09-06)
+
+### Fixes
+
+* **ui:** resolve avatars across player surfaces ([#859](https://github.com/witchesofthehill/manabrew/issues/859)) ([5246c02](https://github.com/witchesofthehill/manabrew/commit/5246c02342a2a76da5a04525d67526fed89c9b51))
+
 ## [3.37.1](https://github.com/witchesofthehill/manabrew/compare/v3.37.0...v3.37.1) (2026-09-06)
 
 ### Fixes

@@ -32,6 +32,9 @@ const FONT = "Inter, system-ui, -apple-system, sans-serif";
 const PANEL_PADDING = 10;
 const AVATAR_DIAMETER = 44;
 const SHALLOW_AVATAR_MIN_HEIGHT = 96;
+const SHALLOW_MANA_IDENTITY_OVERLAP = 36;
+const SHALLOW_RIGHT_RAIL_WIDTH = 42;
+const SHALLOW_STATE_BLOCK_HEIGHT = 48;
 const STATE_ROW_HEIGHT = 24;
 const STATE_TOUCH_ROW_HEIGHT = 40;
 const STATE_ORDER = ["incoming-damage", "poison", "commander", "monarch", "initiative"];
@@ -816,7 +819,7 @@ export class PlayerHudCapsule {
           5,
           Math.max(1, this.identityWidth - contentX - pad),
           false,
-          h - 14,
+          h - 16,
         );
         this.nameText.position.set(this.avatarCx - this.nameText.width / 2, 5);
         this.layoutLife(contentX, this.avatarCy, false);
@@ -824,17 +827,24 @@ export class PlayerHudCapsule {
         this.makeHandItem(30).place(contentX, h - 32);
       } else {
         const lifeX = this.identityWidth - 4;
-        this.layoutIdentity(pad, 7, this.identityWidth - pad * 2, false, h - 14);
+        this.layoutIdentity(pad, 7, this.identityWidth - pad * 2, false, h - 16);
         this.layoutLife(lifeX, 32, false);
         this.makeHandItem(30).place(pad, 32);
       }
       this.heart.visible = false;
-      const bodyX = this.identityWidth + pad;
-      const manaX = showAvatar ? this.identityWidth - 36 : bodyX;
-      const manaRight = w - 42;
+      const bodyX = this.identityWidth;
+      const manaRight = w - SHALLOW_RIGHT_RAIL_WIDTH;
+      const manaX = showAvatar ? bodyX - SHALLOW_MANA_IDENTITY_OVERLAP : bodyX;
       this.layoutMana(manaX, h < 80 ? 14 : 20, Math.max(1, manaRight - manaX), 6, 20);
-      const stateY = h < 80 ? 24 : 36;
-      this.layoutStates(bodyX, stateY, w - bodyX - pad, h - stateY - 2, 3);
+      const stateBottom = h - 8;
+      const stateY = Math.max(h < 80 ? 24 : 36, stateBottom - SHALLOW_STATE_BLOCK_HEIGHT);
+      this.layoutStates(
+        bodyX,
+        stateY,
+        Math.max(1, manaRight - bodyX),
+        Math.max(1, stateBottom - stateY),
+        3,
+      );
       this.avatarHit
         .clear()
         .rect(0, 0, this.identityWidth, h)

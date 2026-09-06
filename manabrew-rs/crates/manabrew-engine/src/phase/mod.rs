@@ -147,6 +147,7 @@ pub struct TurnState {
     pub active_player: PlayerId,
     pub phase: PhaseType,
     pub priority_player: PlayerId,
+    #[serde(default)]
     pub is_extra_turn: bool,
     pub num_players: u32,
 

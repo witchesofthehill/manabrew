@@ -725,9 +725,7 @@ export class BoardScene {
     this.refreshCapsuleBlockers();
   }
 
-  /** Re-grid a region when its stable capsule keep-out footprint moved or resized
-   *  since the last battlefield layout. Focused opponent fields use the expanded
-   *  panel footprint, so delimiter hover changes only the mask. */
+  // Focused opponents reserve expanded HUD bounds so delimiter motion cannot re-grid them.
   private refreshCapsuleBlockers(): void {
     for (const [id, rec] of this.regions) {
       const [b] = this.gridCapsuleBlockers(id, rec.isLocal);

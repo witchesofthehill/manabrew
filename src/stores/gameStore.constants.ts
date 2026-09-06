@@ -83,8 +83,10 @@ function normalizeGameView(
     monarchId: incoming.monarchId ?? current?.monarchId ?? null,
     initiativeHolderId: incoming.initiativeHolderId ?? current?.initiativeHolderId ?? null,
     dayTime: incoming.dayTime ?? current?.dayTime ?? "neither",
-    activePlaneNames: Array.isArray(incoming.activePlaneNames)
-      ? incoming.activePlaneNames
+    activePlaneNames: hasView
+      ? Array.isArray(incoming.activePlaneNames)
+        ? incoming.activePlaneNames
+        : undefined
       : current?.activePlaneNames,
   };
 }

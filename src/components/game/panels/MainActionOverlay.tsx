@@ -328,8 +328,8 @@ export function MainActionOverlay({
           )}
           <section
             className={cn(
-              "flex w-full flex-col",
-              minimal ? "gap-1 px-1.5 py-1" : "gap-2 px-2 pt-2 pb-2",
+              "flex w-full",
+              minimal ? "flex-row items-center gap-1 px-1.5 py-1" : "flex-col gap-2 px-2 pt-2 pb-2",
             )}
           >
             {!minimal && (
@@ -345,7 +345,7 @@ export function MainActionOverlay({
               />
             )}
             <div
-              className="flex flex-col items-center w-full [&_button]:mx-0"
+              className={cn("flex flex-col items-center [&_button]:mx-0", !minimal && "w-full")}
               onKeyDownCapture={(e) => {
                 if (e.code === "Space" && e.target instanceof HTMLButtonElement) {
                   e.preventDefault();
@@ -397,6 +397,18 @@ export function MainActionOverlay({
                 onMulliganPutBackConfirm={onMulliganPutBackConfirm}
               />
             </div>
+            {minimal && (
+              <button
+                type="button"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={onToggleBoardMenu}
+                className="relative shrink-0 rounded p-1 text-muted-foreground transition-colors before:absolute before:-inset-2 before:content-[''] hover:text-foreground"
+                title="Game menu"
+                aria-label="Open game menu"
+              >
+                <Settings className="h-3.5 w-3.5" />
+              </button>
+            )}
           </section>
         </div>
       </div>

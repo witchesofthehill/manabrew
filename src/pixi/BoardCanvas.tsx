@@ -361,15 +361,16 @@ export function BoardCanvas({
     );
     const oppUsables = layout.opponents.map((o) => playmatTrim(Math.max(1, o.rect.height)));
     const oppUsable = oppUsables.length ? Math.min(...oppUsables) : selfUsable;
-    const oppRows = layout.opponentLayout === "overview" ? 1 : BATTLEFIELD_MIN_ROWS_LARGEST;
     const oppScale = Math.max(
       Number.EPSILON,
-      compact
-        ? scaleForRowsWithCombatRow(oppUsable, BATTLEFIELD_MIN_ROWS)
-        : Math.min(
-            battlefieldScaleForMultiplier(oppUsable, cardSizeMultiplier),
-            scaleForRowsWithCombatRow(oppUsable, oppRows),
-          ),
+      layout.opponentLayout === "overview"
+        ? scaleForRowsWithCombatRow(oppUsable, 1)
+        : compact
+          ? scaleForRowsWithCombatRow(oppUsable, BATTLEFIELD_MIN_ROWS)
+          : Math.min(
+              battlefieldScaleForMultiplier(oppUsable, cardSizeMultiplier),
+              scaleForRowsWithCombatRow(oppUsable, BATTLEFIELD_MIN_ROWS_LARGEST),
+            ),
     );
     s.configure(players, layout, { self: selfScale, opponent: oppScale });
     s.setHandScale(compact ? 1 : handViewportScale);

@@ -28,10 +28,8 @@ services:
     # ~1h WASM+Vite build that does not fit the prod host's disk. The published
     # image is relay-agnostic; it is pointed at the relay at RUNTIME via the
     # RELAY_* env below (ops/web-entrypoint.sh writes /srv/manabrew/config.js),
-    # replacing the old VITE_RELAY_* build args. NOTE: the CI image is built
-    # without VITE_SCRYFALL_SYMBOL_BASE, so mana symbols load from
-    # svgs.scryfall.io directly rather than the /scryfall-symbols/ Caddy proxy —
-    # make it runtime-configurable if the proxy is required.
+    # replacing the old VITE_RELAY_* build args. Mana symbols use the
+    # same-origin /scryfall-symbols/ proxy configured in ops/web.Caddyfile.
     image: ghcr.io/witchesofthehill/manabrew-web:${MANABREW_IMAGE_TAG:-latest}
     restart: unless-stopped
     expose:

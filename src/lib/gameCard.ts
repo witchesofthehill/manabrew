@@ -15,6 +15,7 @@ export const GAME_CARD_DEFAULTS: ClientCardDto = {
   classLevels: [],
   sagaChapters: [],
   text: "",
+  choices: [],
   controllerId: "",
   ownerId: "",
   zoneId: "",

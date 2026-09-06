@@ -12,6 +12,7 @@ import {
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { CounterDisplay } from "@/components/game/CounterBadge";
+import { CardChoiceIndicators } from "@/components/game/CardChoiceIndicators";
 import { CardRail, CARD_RAIL_WIDTH } from "@/components/game/CardRail";
 import { deriveCardRailState } from "@/components/game/cardRailState";
 import { isCreature, isLethalDamage } from "@/components/game/game.utils";
@@ -136,10 +137,15 @@ export function BattlefieldCardFace({
 
   const Overlays = (
     <>
+      <CardChoiceIndicators
+        card={card}
+        className="absolute inset-x-1 z-10"
+        style={{ top: 18 * u, transform: `scale(${u})`, transformOrigin: "top center" }}
+      />
       {keywords.length > 0 && (
         <div
           className="absolute z-10 flex flex-col items-start"
-          style={{ left: pad, top: "30%", gap: 1 * u }}
+          style={{ left: pad, top: (card.choices?.length ?? 0) > 0 ? "42%" : "30%", gap: 1 * u }}
         >
           {keywords.map((kw) => (
             <span

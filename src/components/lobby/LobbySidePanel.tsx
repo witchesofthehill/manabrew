@@ -15,6 +15,7 @@ interface LobbySidePanelProps {
   currentPlayerId: string | null;
   currentUsername: string | null;
   connectionState: ConnectionState;
+  connectionDetail?: string;
   chatEnabled: boolean;
   invitesEnabled: boolean;
   layout?: "split" | "tabs";
@@ -28,6 +29,7 @@ export function LobbySidePanel({
   currentPlayerId,
   currentUsername,
   connectionState,
+  connectionDetail,
   chatEnabled,
   invitesEnabled,
   layout = "split",
@@ -43,6 +45,7 @@ export function LobbySidePanel({
       currentPlayerId={currentPlayerId}
       currentUsername={currentUsername}
       connectionState={connectionState}
+      connectionDetail={connectionDetail}
       onJoinRoom={onJoinRoom}
       invitesEnabled={invitesEnabled}
     />

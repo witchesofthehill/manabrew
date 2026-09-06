@@ -87,6 +87,7 @@ pub struct ServerState {
     pub identity: IdentityVerifier,
     pub lobby_chat: Mutex<ChatHistory>,
     pub seal: Option<MessageSealer>,
+    pub art_base_url: Option<String>,
 }
 
 impl ServerState {
@@ -111,7 +112,16 @@ impl ServerState {
             identity: IdentityVerifier::new(hub_jwks_url),
             lobby_chat: Mutex::new(ChatHistory::default()),
             seal,
+            art_base_url: None,
         }
+    }
+
+    /// Where this relay serves card art, handed to every client at auth. A
+    /// self-hosted box holding the images is the reason to run one, and the
+    /// client cannot guess the port.
+    pub fn with_art_base_url(mut self, url: Option<String>) -> Self {
+        self.art_base_url = url;
+        self
     }
 
     pub fn session_by_username(&self, username: &str) -> Option<UsernameSession> {

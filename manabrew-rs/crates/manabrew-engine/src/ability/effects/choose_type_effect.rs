@@ -62,7 +62,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             ctx.game.card_mut(source_id).set_chosen_type(
                 Some(chosen_type),
                 Some(controller),
-                false,
+                !sa.ir.secretly,
             );
         }
     }

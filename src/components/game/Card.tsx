@@ -5,6 +5,7 @@ import { CounterDisplay } from "@/components/game/CounterBadge";
 import { CardRail, CARD_RAIL_WIDTH } from "@/components/game/CardRail";
 import { PtBadge } from "@/components/game/PtBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
+import { CardChoiceIndicators } from "@/components/game/CardChoiceIndicators";
 import { KeywordChips } from "@/components/game/CardKeywords";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
@@ -171,7 +172,10 @@ function CardComponent({
                 />
               ) : null}
               {card.keywords && card.keywords.length > 0 && (
-                <KeywordChips keywords={card.keywords} />
+                <KeywordChips
+                  keywords={card.keywords}
+                  className={(card.choices?.length ?? 0) > 0 ? "top-[42%]" : undefined}
+                />
               )}
               {visibleCounters && (
                 <CounterDisplay
@@ -281,6 +285,9 @@ function CardComponent({
           {rail && <CardRail state={rail} />}
         </div>
       )}
+      {!bare && (
+        <CardChoiceIndicators card={card} className="absolute left-1 right-1 top-[18%] z-10" />
+      )}
     </div>
   );
 }
@@ -362,6 +369,9 @@ export const Card = memo(CardComponent, (prev, next) => {
   }
   if (pc.sagaChapters !== nc.sagaChapters) {
     if (JSON.stringify(pc.sagaChapters) !== JSON.stringify(nc.sagaChapters)) return false;
+  }
+  if (pc.choices !== nc.choices) {
+    if (JSON.stringify(pc.choices) !== JSON.stringify(nc.choices)) return false;
   }
   if (pc.counters !== nc.counters) {
     if (JSON.stringify(pc.counters) !== JSON.stringify(nc.counters)) return false;

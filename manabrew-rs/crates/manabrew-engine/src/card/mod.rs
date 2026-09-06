@@ -560,6 +560,9 @@ pub struct Card {
     pub named_cards: Vec<String>,
     /// Number chosen by ChooseNumber effect.
     pub chosen_number: Option<i32>,
+    pub chosen_number_controller: Option<PlayerId>,
+    pub chosen_number_revealed: bool,
+    pub chosen_mode: Option<String>,
     /// Player chosen by ChoosePlayer effect.
     pub chosen_player: Option<PlayerId>,
     /// Controller who made the chosen-player choice.
@@ -879,6 +882,9 @@ impl Card {
             noted_types: Vec::new(),
             named_cards: Vec::new(),
             chosen_number: None,
+            chosen_number_controller: None,
+            chosen_number_revealed: false,
+            chosen_mode: None,
             chosen_player: None,
             chosen_player_controller: None,
             chosen_type_controller: None,
@@ -1826,6 +1832,8 @@ impl Card {
 
     pub fn clear_chosen_number(&mut self) {
         self.chosen_number = None;
+        self.chosen_number_controller = None;
+        self.chosen_number_revealed = false;
     }
 
     pub fn has_chosen_type(&self) -> bool {
@@ -2232,6 +2240,23 @@ impl Card {
 
     pub fn set_chosen_number(&mut self, number: Option<i32>) {
         self.chosen_number = number;
+        self.chosen_number_controller = None;
+        self.chosen_number_revealed = number.is_some();
+    }
+
+    pub fn set_chosen_number_for_player(
+        &mut self,
+        number: Option<i32>,
+        chooser: PlayerId,
+        revealed: bool,
+    ) {
+        self.chosen_number = number;
+        self.chosen_number_controller = Some(chooser);
+        self.chosen_number_revealed = revealed;
+    }
+
+    pub fn set_chosen_mode(&mut self, mode: impl Into<String>) {
+        self.chosen_mode = Some(mode.into());
     }
 
     pub fn set_chosen_player(

@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.36.1](https://github.com/witchesofthehill/manabrew/compare/v3.36.0...v3.36.1) (2026-09-06)
+
+### Fixes
+
+* windows doesn't load cards ([#875](https://github.com/witchesofthehill/manabrew/issues/875)) ([ba6711a](https://github.com/witchesofthehill/manabrew/commit/ba6711a9fde005151a02dce1968ede65d5d84304))
+
+## [3.36.0](https://github.com/witchesofthehill/manabrew/compare/v3.35.0...v3.36.0) (2026-09-06)
+
+### Features
+
+* **relay:** a self-hosted relay that holds the card art, and the desktop that finds it ([#870](https://github.com/witchesofthehill/manabrew/issues/870)) ([ee81fc4](https://github.com/witchesofthehill/manabrew/commit/ee81fc4f7232af8c97b599266e647525c56e1940))
+
+## [3.35.0](https://github.com/witchesofthehill/manabrew/compare/v3.34.7...v3.35.0) (2026-09-05)
+
+### Features
+
+* **game:** show persistent card choices ([#774](https://github.com/witchesofthehill/manabrew/issues/774)) ([55fcd6d](https://github.com/witchesofthehill/manabrew/commit/55fcd6dac56d5c1e7a7e47a2efb300804f30fa91))
+
 ## [3.34.7](https://github.com/witchesofthehill/manabrew/compare/v3.34.6...v3.34.7) (2026-09-04)
 
 ### Fixes

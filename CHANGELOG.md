@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.37.1](https://github.com/witchesofthehill/manabrew/compare/v3.37.0...v3.37.1) (2026-09-06)
+
+### Fixes
+
+* desktop build ([#876](https://github.com/witchesofthehill/manabrew/issues/876)) ([b6a9c7e](https://github.com/witchesofthehill/manabrew/commit/b6a9c7e6e21c1823cb9de901a0881a8e59c1ee06))
+
 ## [3.37.0](https://github.com/witchesofthehill/manabrew/compare/v3.36.1...v3.37.0) (2026-09-06)
 
 ### Features

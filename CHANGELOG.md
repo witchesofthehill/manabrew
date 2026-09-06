@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.37.0](https://github.com/witchesofthehill/manabrew/compare/v3.36.1...v3.37.0) (2026-09-06)
+
+### Features
+
+* chat and invites ([#868](https://github.com/witchesofthehill/manabrew/issues/868)) ([1539396](https://github.com/witchesofthehill/manabrew/commit/1539396649c58322973d6b59604b393460db4d0e))
+
 ## [3.36.1](https://github.com/witchesofthehill/manabrew/compare/v3.36.0...v3.36.1) (2026-09-06)
 
 ### Fixes

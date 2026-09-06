@@ -2055,9 +2055,12 @@ export class BoardScene {
     }
     const attackTargetSeen = new Map<string, number>();
     for (const spec of this.arrowSpecs) {
-      const from = this.resolveArrowEndpoint(spec.from, canvasRect);
+      let from = this.resolveArrowEndpoint(spec.from, canvasRect);
       const to = this.resolveTargetEndpoint(spec.to, canvasRect);
       if (!from || !to) continue;
+      if (spec.from.kind === "stack") {
+        from = this.stackProvider?.getAnchor(spec.from.id, to.pos) ?? from;
+      }
       if (spec.type === "attack" && spec.to.kind === "player") {
         const total = attackTargetCounts.get(spec.to.id) ?? 1;
         if (total > 1) {
@@ -2096,16 +2099,20 @@ export class BoardScene {
       // (incl. the command zone, which has no sprite); fall back to the card
       // resolver for battlefield ability sources.
       const id = this.castingArrow.sourceCardId;
+      const target = {
+        x: this.cursorViewportX - canvasRect.left,
+        y: this.cursorViewportY - canvasRect.top,
+      };
       const from =
-        this.stackProvider?.getCastingAnchor(id) ??
+        this.stackProvider?.getCastingAnchor(id, target) ??
         this.resolveArrowEndpoint({ kind: "card", id }, canvasRect);
       if (from) {
         const t = this.theme.gameTheme.pointer;
         resolved.push({
           fromX: from.x,
           fromY: from.y,
-          toX: this.cursorViewportX - canvasRect.left,
-          toY: this.cursorViewportY - canvasRect.top,
+          toX: target.x,
+          toY: target.y,
           type: "casting",
           color: hexToNum(this.castingArrow.hostile ? t.hostile : t.friendly),
         });

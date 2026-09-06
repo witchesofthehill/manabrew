@@ -94,8 +94,8 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
         </SettingRow>
 
         <SettingRow
-          label="Stack card style"
-          hint="Printed card shows the card image. Rules view makes spells on the stack default to their live rules face; each card can still be switched."
+          label="Default stack card view"
+          hint="Choose which face stack cards show when they appear. You can still switch individual cards."
         >
           <div className="flex items-center gap-2">
             {INLINE_CARD_STYLE_OPTIONS.map((option) => (

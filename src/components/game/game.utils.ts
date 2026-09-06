@@ -85,6 +85,12 @@ export function stackObjectToCardStub(obj: StackObjectDto): ClientCardDto {
   };
 }
 
+export function stackObjectAbilityText(obj: StackObjectDto): string {
+  const sourceAbilityText = obj.sourceAbilityText?.trim();
+  if (sourceAbilityText) return sourceAbilityText;
+  return obj.isPermanentSpell ? "" : obj.text.trim();
+}
+
 export function getPreviewActionShortcut(
   index: number,
   classLevelUpIndex: number | null,

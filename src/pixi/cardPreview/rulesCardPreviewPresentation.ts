@@ -105,6 +105,18 @@ function normalizeAbilityText(text: string): string {
     .trim();
 }
 
+export function rulesEntryMatchesStackAbility(entry: string, ability: string): boolean {
+  const normalizedEntry = normalizeAbilityText(entry);
+  const normalizedAbility = normalizeAbilityText(ability);
+  if (!normalizedEntry || !normalizedAbility) return false;
+  if (normalizedEntry === normalizedAbility) return true;
+  const shorterLength = Math.min(normalizedEntry.length, normalizedAbility.length);
+  return (
+    shorterLength >= 12 &&
+    (normalizedEntry.includes(normalizedAbility) || normalizedAbility.includes(normalizedEntry))
+  );
+}
+
 export function rulesTextEntries(
   rulesText: string,
   progression: CardPresentation["progression"],

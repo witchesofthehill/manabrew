@@ -338,6 +338,7 @@ export class CardSprite extends Container {
   private handRulesFace: HandRulesCardFace | null = null;
   private handRulesActions: HandActionOption[] = [];
   private onSelectHandRulesAction: ((action: HandActionOption) => void) | null = null;
+  private handRulesHighlight = "";
   private handControls: HandCardControls | null = null;
   private handControlsSpec: HandCardControlsSpec | null = null;
 
@@ -685,6 +686,7 @@ export class CardSprite extends Container {
       );
       this.contentContainer.addChild(this.handRulesFace);
       this.handRulesFace.setActions(this.handRulesActions, this.onSelectHandRulesAction);
+      this.handRulesFace.setHighlightedEffect(this.handRulesHighlight);
     } else {
       this.handRulesFace.visible = active;
       if (active) this.updateHandRulesFace();
@@ -730,6 +732,12 @@ export class CardSprite extends Container {
     this.handRulesActions = actions;
     this.onSelectHandRulesAction = onSelectAction;
     this.handRulesFace?.setActions(actions, onSelectAction);
+  }
+
+  setHandRulesHighlight(text: string): void {
+    if (this.handRulesHighlight === text) return;
+    this.handRulesHighlight = text;
+    this.handRulesFace?.setHighlightedEffect(text);
   }
 
   private updateHandRulesFace(): void {

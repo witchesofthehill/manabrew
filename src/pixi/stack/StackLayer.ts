@@ -231,16 +231,18 @@ export class StackLayer implements StackAnchorProvider {
     this.container.destroy({ children: true });
   }
 
-  getAnchor(stackObjectId: string): ScreenPos | null {
+  getAnchor(stackObjectId: string, toward?: ScreenPos): ScreenPos | null {
     if (this.effectiveCollapsed()) return this.buttonAnchor();
     const sprite = this.sprites.get(stackObjectId);
-    return sprite ? sprite.getCenter() : null;
+    if (!sprite) return null;
+    return toward ? sprite.getAnchorTowards(toward) : sprite.getCenter();
   }
 
-  getCastingAnchor(sourceCardId: string): ScreenPos | null {
+  getCastingAnchor(sourceCardId: string, toward?: ScreenPos): ScreenPos | null {
     if (this.effectiveCollapsed()) return this.buttonAnchor();
     for (const sprite of this.sprites.values()) {
-      if (sprite.sourceId === sourceCardId) return sprite.getCenter();
+      if (sprite.sourceId !== sourceCardId) continue;
+      return toward ? sprite.getAnchorTowards(toward) : sprite.getCenter();
     }
     return null;
   }

@@ -1068,8 +1068,8 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title="Stack Card Style"
-              description="Printed card shows the card image. Rules view makes spells on the stack default to their live rules face; each card can still be switched."
+              title="Default Stack Card View"
+              description="Choose which face stack cards show when they appear. You can still switch individual cards."
             >
               <div className="flex flex-wrap gap-2">
                 {INLINE_CARD_STYLE_OPTIONS.map((option) => (

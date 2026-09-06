@@ -38,6 +38,24 @@ export interface StackLayoutResult {
   flash: { x: number; y: number } | null;
 }
 
+export function getRectBorderAnchor(
+  center: { x: number; y: number },
+  width: number,
+  height: number,
+  toward: { x: number; y: number },
+): { x: number; y: number } {
+  const dx = toward.x - center.x;
+  const dy = toward.y - center.y;
+  if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) return center;
+  const xScale = Math.abs(dx) > 0.001 ? width / 2 / Math.abs(dx) : Number.POSITIVE_INFINITY;
+  const yScale = Math.abs(dy) > 0.001 ? height / 2 / Math.abs(dy) : Number.POSITIVE_INFINITY;
+  const scale = Math.min(xScale, yScale);
+  return {
+    x: center.x + dx * scale,
+    y: center.y + dy * scale,
+  };
+}
+
 export function reconcileStackHover(
   hoveredId: string | null,
   incomingIds: ReadonlySet<string>,

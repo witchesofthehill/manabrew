@@ -7,6 +7,7 @@ import { hexToNum } from "../colorUtils";
 import { LongPressGesture } from "../LongPressGesture";
 import type { StackCardSpec } from "./stack.types";
 import { HandCardControls } from "../HandCardControls";
+import { getRectBorderAnchor } from "./stackLayout";
 
 const ENTER_MS = 0.42;
 const FLASH_MS = 0.56;
@@ -64,6 +65,7 @@ export class StackCardSprite {
     this.face = new CardSprite(spec.card, "hand");
     this.face.scale.set(this.faceScale);
     this.face.setHandRulesView(rulesView);
+    this.face.setHandRulesHighlight(spec.sourceAbilityText ?? "");
     this.viewControls = new HandCardControls(theme);
     this.face.position.set(0, 0);
 
@@ -139,6 +141,7 @@ export class StackCardSprite {
     const dimChanged = spec.isDimmed !== this.spec.isDimmed;
     this.spec = spec;
     this.face.updateCardContent(spec.card);
+    this.face.setHandRulesHighlight(spec.sourceAbilityText ?? "");
     if (controlsChanged) this.syncControls();
     if (dimChanged) this.container.alpha = spec.isDimmed ? 0.6 : 1;
     if (ringChanged) this.redraw();
@@ -193,6 +196,15 @@ export class StackCardSprite {
 
   getCenter(): { x: number; y: number } {
     return { x: this.container.position.x, y: this.container.position.y };
+  }
+
+  getAnchorTowards(toward: { x: number; y: number }): { x: number; y: number } {
+    return getRectBorderAnchor(
+      this.getCenter(),
+      this.width * Math.abs(this.container.scale.x),
+      this.height * Math.abs(this.container.scale.y),
+      toward,
+    );
   }
 
   getSize(): { width: number; height: number } {

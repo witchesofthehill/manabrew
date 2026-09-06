@@ -75,7 +75,11 @@ import {
   DEBUG_STACK_OBJECT_ID,
   DEFAULT_DEBUG_CARD_NAME,
 } from "@/stores/useGameDevStore";
-import { stackObjectToCardStub, isPermanentSpellCard } from "@/components/game/game.utils";
+import {
+  isPermanentSpellCard,
+  stackObjectAbilityText,
+  stackObjectToCardStub,
+} from "@/components/game/game.utils";
 import { createPortal } from "react-dom";
 import { Card } from "@/components/game/Card";
 import { cn } from "@/lib/utils";
@@ -1878,6 +1882,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       id: obj.id,
       sourceId: obj.sourceId,
       card: resolveStackCard(obj),
+      sourceAbilityText: stackObjectAbilityText(obj),
       controllerId: obj.controllerId,
       isCasting: obj.isCasting,
       isTopOfStack: debugStackCard === null && idx === arr.length - 1,

@@ -201,9 +201,13 @@ export function resolveRulesPreviewDisplay(options: {
   const typeLine = currentFace
     ? presentation.typeLine || face?.typeLine || ""
     : (face?.typeLine ?? presentation.typeLine);
+  const manaCost = currentFace
+    ? (presentation.effectiveManaCost ??
+      (flippable ? (face?.manaCost ?? presentation.manaCost) : presentation.manaCost))
+    : (face?.manaCost ?? "");
   const section: RulesPreviewSection = {
     name: face?.name ?? presentation.name,
-    manaCost: face?.manaCost ?? presentation.manaCost,
+    manaCost,
     typeLine,
     rulesText,
     flavorText: face?.flavorText ?? "",
@@ -219,10 +223,7 @@ export function resolveRulesPreviewDisplay(options: {
 
   return {
     name: face?.name ?? presentation.name,
-    manaCost: currentFace
-      ? (presentation.effectiveManaCost ??
-        (flippable ? (face?.manaCost ?? presentation.manaCost) : presentation.manaCost))
-      : (face?.manaCost ?? ""),
+    manaCost,
     typeLine,
     faceIndex,
     currentFace,

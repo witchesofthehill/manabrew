@@ -108,8 +108,10 @@ interface GameBoardProps {
   ) => void;
   onDismissHoverPreview?: () => void;
   rulesPreview?: BoardOverlayPreviewSpec | null;
+  externalPreviewActive?: boolean;
   onPreviewPointerEnter?: () => void;
   onPreviewPointerLeave?: () => void;
+  onTogglePreviewView?: () => void;
   onLongPressCard?: (card: CardDto, anchor: DOMRect) => void;
   onHandHoverChange?: (hovering: boolean) => void;
   getHandActions?: (card: CardDto) => HandActionOption[];
@@ -207,8 +209,10 @@ export function GameBoard({
   onHoverCard,
   onDismissHoverPreview,
   rulesPreview,
+  externalPreviewActive,
   onPreviewPointerEnter,
   onPreviewPointerLeave,
+  onTogglePreviewView,
   onLongPressCard,
   onHandHoverChange,
   getHandActions,
@@ -1423,6 +1427,7 @@ export function GameBoard({
           sceneRef={sceneRef}
           getHandActions={getHandActions}
           onSelectHandAction={(_card, action) => onSelectHandAction?.(action)}
+          externalPreviewActive={externalPreviewActive}
           onLayout={(layout) => {
             setUnifiedLayout(layout);
             onLayoutChange?.(layout);
@@ -1443,6 +1448,7 @@ export function GameBoard({
           onSelectPreviewAction={onSelectHandAction}
           onDismissPreview={onDismissHoverPreview}
           onFlipPreview={onFlipCard}
+          onTogglePreviewView={onTogglePreviewView}
         />
       </div>
       {sheetSpec && <PlayerSheetModal spec={sheetSpec} onClose={() => setSheetPlayerId(null)} />}

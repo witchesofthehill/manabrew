@@ -7,6 +7,7 @@ import { CARD_RAIL_WIDTH } from "@/components/game/CardRail";
 import { CardRailPreview } from "@/components/game/CardRailPreview";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { CardPreviewOverlay } from "./CardPreviewOverlay";
+import { GameIcon } from "./GameIcon";
 import { CardPreviewActions, type IndexedPreviewAction } from "./CardPreviewActions";
 import { computePreviewLayout } from "./cardPreviewLayout";
 import { getPreviewActionShortcut } from "./game.utils";
@@ -38,10 +39,12 @@ interface CardPreviewProps {
   phase?: "open" | "closing";
   suppressed?: boolean;
   showBackFace?: boolean;
+  skipEnterAnimation?: boolean;
   actions?: HandActionOption[];
   onSelectAction?: (action: HandActionOption) => void;
   onDismiss?: () => void;
   onFlip?: () => void;
+  onToggleView?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   isSticky?: boolean;
@@ -119,11 +122,13 @@ export function CardPreview({
   placement = "auto",
   phase = "open",
   suppressed = false,
+  skipEnterAnimation = false,
   showBackFace = false,
   actions,
   onSelectAction,
   onDismiss,
   onFlip,
+  onToggleView,
   onMouseEnter,
   onMouseLeave,
   isSticky = false,
@@ -190,13 +195,14 @@ export function CardPreview({
   // The hero zoom travels across the hovered card; an interactive preview
   // passing under the cursor steals pointer events from the canvas and kills
   // the sprite's hover state. Stay pointer-transparent until the enter lands.
-  const [entered, setEntered] = useState(false);
+  const [entered, setEntered] = useState(skipEnterAnimation);
   const interactive = entered && phase === "open" && !suppressed;
 
   useEffect(() => {
+    if (skipEnterAnimation) return;
     const timer = setTimeout(() => setEntered(true), PREVIEW_TIMING.enterMs + 80);
     return () => clearTimeout(timer);
-  }, []);
+  }, [skipEnterAnimation]);
 
   useLayoutEffect(() => {
     const update = () => setLayoutVersion((version) => version + 1);
@@ -376,7 +382,9 @@ export function CardPreview({
         <div
           className={cn(
             "relative @container",
-            phase === "closing" ? "animate-preview-out" : "animate-preview-in",
+            phase === "closing"
+              ? "animate-preview-out"
+              : !skipEnterAnimation && "animate-preview-in",
           )}
           style={
             {
@@ -426,22 +434,43 @@ export function CardPreview({
                     style={{ backgroundColor: withAlpha(themeColors.success, 0.28) }}
                   />
                 )}
-                {hasDoubleFace && onFlip && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onFlip();
-                    }}
-                    className={cn(
-                      "absolute top-2 right-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 shadow",
-                      interactive ? "pointer-events-auto" : "pointer-events-none",
+                {(onToggleView || (hasDoubleFace && onFlip)) && (
+                  <div className="absolute top-2 right-2 z-20 flex items-center gap-1">
+                    {onToggleView && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onToggleView();
+                        }}
+                        className={cn(
+                          "inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/65 text-white shadow hover:bg-black/85 pointer-coarse:h-9 pointer-coarse:w-9",
+                          interactive ? "pointer-events-auto" : "pointer-events-none",
+                        )}
+                        aria-label="Show rules"
+                        title="Show rules (R)"
+                      >
+                        <GameIcon name="spell-book" className="h-3.5 w-3.5" />
+                      </button>
                     )}
-                    title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
-                  >
-                    <RotateCw className="h-3 w-3" />
-                    {showBackFace ? "Front" : "Back"}
-                  </button>
+                    {hasDoubleFace && onFlip && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onFlip();
+                        }}
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:px-3 pointer-coarse:py-2",
+                          interactive ? "pointer-events-auto" : "pointer-events-none",
+                        )}
+                        title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
+                      >
+                        <RotateCw className="h-3 w-3" />
+                        {showBackFace ? "Front" : "Back"}
+                      </button>
+                    )}
+                  </div>
                 )}
                 {horizontalCard && (
                   <button

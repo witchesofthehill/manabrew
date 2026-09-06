@@ -18,6 +18,7 @@ import {
   deriveCardPresentation,
   type CardStatPresentation,
 } from "@/components/game/cardPresentation";
+import { FLASH_CARD_SIZE } from "@/components/game/game.styles";
 import { getPreviewActionShortcut } from "@/components/game/game.utils";
 import { hexToNum } from "@/pixi/colorUtils";
 import { PixiRichText } from "@/pixi/cardPreview/PixiRichText";
@@ -43,6 +44,7 @@ import { isFacelessCard } from "@/lib/gameCard";
 import { gsap } from "@/pixi/effects/gsap";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { PREVIEW_TIMING } from "@/lib/cardPreview";
+import { HandCardControls } from "@/pixi/HandCardControls";
 import { containsPreviewHoverBridge } from "@/pixi/cardPreview/previewHoverArea";
 import { usePreferencesStore, type RulesPreviewSectionId } from "@/stores/usePreferencesStore";
 import {
@@ -57,6 +59,7 @@ export interface RulesCardPreviewSpec {
   sticky: boolean;
   showBackFace: boolean;
   suppressed: boolean;
+  skipEnterAnimation: boolean;
   actions: HandActionOption[];
   anchor: { x: number; y: number; width: number; height: number } | null;
   pointer: { x: number; y: number };
@@ -69,10 +72,11 @@ export interface RulesCardPreviewCallbacks {
   onSelectAction: (action: HandActionOption) => void;
   onDismiss: () => void;
   onFlip: () => void;
+  onToggleView: () => void;
 }
 
-const PORTRAIT_WIDTH = 360;
-const PORTRAIT_HEIGHT = PORTRAIT_WIDTH * (7 / 5);
+const PORTRAIT_WIDTH: number = FLASH_CARD_SIZE.w;
+const PORTRAIT_HEIGHT: number = FLASH_CARD_SIZE.h;
 const LANDSCAPE_WIDTH = PORTRAIT_HEIGHT;
 const LANDSCAPE_HEIGHT = PORTRAIT_WIDTH;
 const EDGE_PAD = 12;
@@ -146,6 +150,7 @@ export class RulesCardPreviewLayer {
   private footer = new Container();
   private actions = new RulesPreviewActions();
   private controls = new RulesPreviewActions();
+  private viewControls: HandCardControls;
   private sectionHeaders: Array<{ id: RulesPreviewSectionId; header: RulesPreviewSectionHeader }> =
     [];
   private focusedSection: RulesPreviewSectionId | null = null;
@@ -187,6 +192,7 @@ export class RulesCardPreviewLayer {
     this.theme = theme;
     this.frame = resolveRulesPreviewFrame(theme);
     this.callbacks = callbacks;
+    this.viewControls = new HandCardControls(theme);
     this.container.visible = false;
     this.container.sortableChildren = true;
     this.container.eventMode = "static";
@@ -238,7 +244,7 @@ export class RulesCardPreviewLayer {
       this.scrollThumb,
       this.scrollFade,
     );
-    this.container.addChild(this.cardContainer, this.controls);
+    this.container.addChild(this.cardContainer, this.controls, this.viewControls);
   }
 
   setCallbacks(callbacks: RulesCardPreviewCallbacks): void {
@@ -247,6 +253,7 @@ export class RulesCardPreviewLayer {
 
   setTheme(theme: Theme): void {
     this.theme = theme;
+    this.viewControls.setTheme(theme);
     if (this.spec) this.rebuild();
   }
 
@@ -334,6 +341,7 @@ export class RulesCardPreviewLayer {
 
     if (!previous || previous.phase !== spec.phase || previous.suppressed) {
       if (spec.phase === "closing") this.animateOut();
+      else if (spec.skipEnterAnimation) this.showImmediately();
       else this.animateIn(previous == null);
     } else if (spec.phase === "open") {
       this.container.visible = true;
@@ -538,6 +546,19 @@ export class RulesCardPreviewLayer {
       landscape,
       hasFooterValue ? FOOTER_HEIGHT : FRAME_BOTTOM_PAD,
       identities.length,
+    );
+    this.viewControls.setSpec(
+      {
+        rulesView: true,
+        horizontal: false,
+        alternateFace: false,
+        showFaceControl: false,
+        onToggleRules: () => this.callbacks.onToggleView(),
+        onToggleFace: () => undefined,
+      },
+      this.panelWidth,
+      1,
+      1,
     );
     this.frame = resolveRulesPreviewFrame(this.theme);
 
@@ -1117,6 +1138,7 @@ export class RulesCardPreviewLayer {
     this.layoutX = this.container.x;
     this.layoutY = this.container.y;
     this.layoutScale = scale;
+    this.viewControls.setParentScale(scale, scale, this.panelWidth);
     const anchorX = spec.anchor?.x ?? spec.pointer.x;
     const anchorY = spec.anchor?.y ?? spec.pointer.y;
     const anchorWidth = spec.anchor?.width ?? 0;
@@ -1176,6 +1198,19 @@ export class RulesCardPreviewLayer {
         ease: "power3.out",
       },
     );
+  }
+
+  private showImmediately(): void {
+    gsap.killTweensOf(this.container);
+    gsap.killTweensOf(this.container.scale);
+    if (this.interactionTimer != null) {
+      window.clearTimeout(this.interactionTimer);
+      this.interactionTimer = null;
+    }
+    this.container.visible = true;
+    this.container.alpha = 1;
+    this.interactiveReady = true;
+    this.callbacks.onInteractionReady();
   }
 
   private animateOut(): void {

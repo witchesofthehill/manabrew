@@ -994,6 +994,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   };
 
   const preview = useCardPreview([viewingZone, spellStackModalOpen, abilityPickerState]);
+  const previewViewSwitchCardIdRef = useRef<string | null>(null);
 
   const battlefieldContainerRef = useRef<HTMLDivElement>(null);
   const { draggingHandCard, ghostPos, isOverBattlefield, isOverHand, startHandCardDrag } =
@@ -1585,7 +1586,10 @@ export default function Game({ exitTo }: GameProps = {}) {
         : { cardId: livePreviewCard.id, showBackFace },
     );
   };
-  const hoveredCardActions = livePreviewCard ? getCardActions(livePreviewCard) : [];
+  const hoveredCardActions = useMemo(
+    () => (livePreviewCard ? getCardActions(livePreviewCard) : []),
+    [getCardActions, livePreviewCard],
+  );
 
   const promptSourceDeckCard = useResolveSourceCard(activePrompt?.sourceCard);
 
@@ -1716,6 +1720,38 @@ export default function Game({ exitTo }: GameProps = {}) {
     );
   }, [activeFlash, visibleCardsById, stackCardsBySourceId]);
 
+  const showInGamePreview =
+    livePreviewCard != null &&
+    (livePreviewCard.zoneId !== "hand" || preview.isSticky) &&
+    !draggingHandCard &&
+    !viewingZone &&
+    !spellStackModalOpen &&
+    !abilityPickerState &&
+    preview.phase !== "hidden";
+  const previewSuppressed = !!promptType && !HOVER_ALLOWED_PROMPTS.has(promptType);
+  const externalPreviewActive = showInGamePreview && preview.phase === "open" && !previewSuppressed;
+  useEffect(() => {
+    if (preview.phase !== "open") previewViewSwitchCardIdRef.current = null;
+  }, [preview.phase]);
+  const skipPreviewEnterAnimation =
+    preview.phase === "open" &&
+    livePreviewCard != null &&
+    previewViewSwitchCardIdRef.current === livePreviewCard.id;
+  const togglePreviewView = useCallback(() => {
+    if (!livePreviewCard) return;
+    previewViewSwitchCardIdRef.current = livePreviewCard.id;
+    const preferences = usePreferencesStore.getState();
+    preferences.setInGameCardPreviewStyle(
+      preferences.inGameCardPreviewStyle === "printed" ? "rules" : "printed",
+    );
+  }, [livePreviewCard]);
+  useKeybindings(
+    externalPreviewActive
+      ? {
+          "toggle-card-view": togglePreviewView,
+        }
+      : {},
+  );
   useEffect(() => {
     if (!gameView?.gameOver && activePrompt?.input.type !== "gameOver") return;
     if (peekGauntletMatch()) return;
@@ -1833,15 +1869,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     showPreStackFlash: shouldShowPreStackFlash,
     collapsed: stackCollapsed,
   };
-  const showInGamePreview =
-    livePreviewCard != null &&
-    (livePreviewCard.zoneId !== "hand" || preview.isSticky) &&
-    !draggingHandCard &&
-    !viewingZone &&
-    !spellStackModalOpen &&
-    !abilityPickerState &&
-    preview.phase !== "hidden";
-  const previewSuppressed = !!promptType && !HOVER_ALLOWED_PROMPTS.has(promptType);
   const rulesPreview: BoardOverlayPreviewSpec | null =
     inGameCardPreviewStyle === "rules" && showInGamePreview && livePreviewCard
       ? {
@@ -1850,6 +1877,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           sticky: preview.isSticky,
           showBackFace: previewShowBackFace,
           suppressed: previewSuppressed,
+          skipEnterAnimation: skipPreviewEnterAnimation,
           actions: hoveredCardActions,
           mousePos: preview.mousePos,
           anchorRect: preview.anchorRect,
@@ -1939,8 +1967,10 @@ export default function Game({ exitTo }: GameProps = {}) {
           onHoverCard={handleHoverCardGuarded}
           onDismissHoverPreview={preview.dismiss}
           rulesPreview={rulesPreview}
+          externalPreviewActive={externalPreviewActive}
           onPreviewPointerEnter={preview.onMouseEnterPreview}
           onPreviewPointerLeave={preview.onMouseLeavePreview}
+          onTogglePreviewView={togglePreviewView}
           onLongPressCard={(card, rect) =>
             preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2)
           }
@@ -2311,6 +2341,8 @@ export default function Game({ exitTo }: GameProps = {}) {
           actions={hoveredCardActions}
           onSelectAction={handlePreviewAction}
           suppressed={previewSuppressed}
+          skipEnterAnimation={skipPreviewEnterAnimation}
+          onToggleView={togglePreviewView}
         />
       )}
 

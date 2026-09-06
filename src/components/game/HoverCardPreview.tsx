@@ -7,7 +7,9 @@ interface HoverCardPreviewProps {
   actions?: HandActionOption[];
   onSelectAction?: (action: HandActionOption) => void;
   suppressed?: boolean;
+  skipEnterAnimation?: boolean;
   pinned?: boolean;
+  onToggleView?: () => void;
   slot?: HTMLElement | null;
   imageSize?: "normal" | "large";
 }
@@ -17,7 +19,9 @@ export function HoverCardPreview({
   actions,
   onSelectAction,
   suppressed,
+  skipEnterAnimation,
   pinned,
+  onToggleView,
   slot,
   imageSize,
 }: HoverCardPreviewProps) {
@@ -33,12 +37,14 @@ export function HoverCardPreview({
       placement={pinned ? "pinned" : preview.placement}
       phase={preview.phase === "closing" ? "closing" : "open"}
       suppressed={suppressed}
+      skipEnterAnimation={skipEnterAnimation}
       showBackFace={preview.showBackFace}
       isSticky={preview.isSticky}
       actions={actions}
       onSelectAction={onSelectAction}
       onDismiss={preview.dismiss}
       onFlip={preview.flipCard}
+      onToggleView={onToggleView}
       onMouseEnter={preview.onMouseEnterPreview}
       onMouseLeave={preview.onMouseLeavePreview}
       slot={slot}

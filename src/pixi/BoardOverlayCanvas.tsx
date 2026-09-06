@@ -27,6 +27,7 @@ export interface BoardOverlayPreviewSpec {
   sticky: boolean;
   showBackFace: boolean;
   suppressed: boolean;
+  skipEnterAnimation: boolean;
   actions: HandActionOption[];
   mousePos: { x: number; y: number };
   anchorRect: DOMRect | null;
@@ -47,6 +48,7 @@ interface BoardOverlayCanvasProps {
   onSelectPreviewAction?: (action: HandActionOption) => void;
   onDismissPreview?: () => void;
   onFlipPreview?: () => void;
+  onTogglePreviewView?: () => void;
 }
 function toRulesPreviewSpec(
   spec: BoardOverlayPreviewSpec,
@@ -58,6 +60,7 @@ function toRulesPreviewSpec(
     sticky: spec.sticky,
     showBackFace: spec.showBackFace,
     suppressed: spec.suppressed,
+    skipEnterAnimation: spec.skipEnterAnimation,
     actions: spec.actions,
     anchor: spec.anchorRect
       ? {
@@ -104,6 +107,7 @@ export function BoardOverlayCanvas({
   onSelectPreviewAction,
   onDismissPreview,
   onFlipPreview,
+  onTogglePreviewView,
 }: BoardOverlayCanvasProps) {
   const theme = useTheme();
   const themeRef = useRef(theme);
@@ -129,6 +133,7 @@ export function BoardOverlayCanvas({
     onSelectPreviewAction,
     onDismissPreview,
     onFlipPreview,
+    onTogglePreviewView,
   });
   useEffect(() => {
     cbRef.current = {
@@ -141,10 +146,12 @@ export function BoardOverlayCanvas({
       onSelectPreviewAction,
       onDismissPreview,
       onFlipPreview,
+      onTogglePreviewView,
     };
   }, [
     onDismissPreview,
     onFlipPreview,
+    onTogglePreviewView,
     onHoverStack,
     onOpenStack,
     onPreviewPointerEnter,
@@ -210,6 +217,7 @@ export function BoardOverlayCanvas({
           onSelectAction: (action) => cbRef.current.onSelectPreviewAction?.(action),
           onDismiss: () => cbRef.current.onDismissPreview?.(),
           onFlip: () => cbRef.current.onFlipPreview?.(),
+          onToggleView: () => cbRef.current.onTogglePreviewView?.(),
         });
         preview.container.zIndex = 10_000;
         previewRef.current = preview;

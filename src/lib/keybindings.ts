@@ -198,8 +198,8 @@ export const KEYBINDINGS: KeybindingDef[] = [
     defaultCombo: { key: "f" },
   },
   {
-    id: "toggle-hand-card-view",
-    label: "Toggle hovered hand card view",
+    id: "toggle-card-view",
+    label: "Toggle card rules / printed view",
     category: "Game",
     defaultCombo: { key: "r" },
   },

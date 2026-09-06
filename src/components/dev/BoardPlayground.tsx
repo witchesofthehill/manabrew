@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ClientCardDto } from "@/stores/gameStore.types";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { BoardCanvas } from "@/pixi/BoardCanvas";
@@ -9,6 +9,7 @@ import type { PhaseStripState } from "@/pixi/PhaseStripLayer";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { useCardPreview } from "@/hooks/useCardPreview";
+import { useKeybindings } from "@/hooks/useKeybindings";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { Button } from "@/components/ui/button";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -157,6 +158,7 @@ export function BoardPlayground() {
   const previewStyle = usePreferencesStore((s) => s.inGameCardPreviewStyle);
   const setPreviewStyle = usePreferencesStore((s) => s.setInGameCardPreviewStyle);
   const previewCard = cards.find((card) => card.id === preview.hoveredCard?.id) ?? null;
+  const previewViewSwitchCardIdRef = useRef<string | null>(null);
   const viewport = PREVIEW_VIEWPORTS[viewportIndex]!;
 
   const openScenario = async (index: number, nameOverride?: string) => {
@@ -275,6 +277,22 @@ export function BoardPlayground() {
     }));
   }, [previewCard, actionCount]);
 
+  useEffect(() => {
+    if (preview.phase !== "open") previewViewSwitchCardIdRef.current = null;
+  }, [preview.phase]);
+  const skipPreviewEnterAnimation =
+    preview.phase === "open" &&
+    previewCard != null &&
+    previewViewSwitchCardIdRef.current === previewCard.id;
+  const togglePreviewView = () => {
+    if (!previewCard) return;
+    previewViewSwitchCardIdRef.current = previewCard.id;
+    const preferences = usePreferencesStore.getState();
+    preferences.setInGameCardPreviewStyle(
+      preferences.inGameCardPreviewStyle === "printed" ? "rules" : "printed",
+    );
+  };
+
   const rulesPreview: BoardOverlayPreviewSpec | null =
     previewStyle === "rules" && previewCard && preview.phase !== "hidden"
       ? {
@@ -283,11 +301,20 @@ export function BoardPlayground() {
           sticky: preview.isSticky,
           showBackFace: preview.showBackFace,
           suppressed: false,
+          skipEnterAnimation: skipPreviewEnterAnimation,
           actions: previewActions,
           mousePos: preview.mousePos,
           anchorRect: preview.anchorRect,
         }
       : null;
+  const externalPreviewActive = previewCard !== null && preview.phase === "open";
+  useKeybindings(
+    externalPreviewActive
+      ? {
+          "toggle-card-view": togglePreviewView,
+        }
+      : {},
+  );
 
   const handlePreviewAction = (action: HandActionOption) => {
     setLastAction(`Selected ${action.label} (${action.actionId})`);
@@ -499,6 +526,7 @@ export function BoardPlayground() {
           phaseStrip={PHASE_STRIP_STUB}
           compact={compactBoard}
           sceneRef={sceneRef}
+          externalPreviewActive={externalPreviewActive}
           callbacks={{
             onClickCard: (c) => setSelectedId((id) => (id === c.id ? null : c.id)),
             onClickAnyCard: (c) => setSelectedId((id) => (id === c.id ? null : c.id)),
@@ -530,6 +558,7 @@ export function BoardPlayground() {
             onSelectPreviewAction={handlePreviewAction}
             onDismissPreview={preview.dismiss}
             onFlipPreview={preview.flipCard}
+            onTogglePreviewView={togglePreviewView}
           />
         </div>
       </div>
@@ -538,6 +567,8 @@ export function BoardPlayground() {
           preview={{ ...preview, hoveredCard: previewCard }}
           actions={previewActions}
           onSelectAction={handlePreviewAction}
+          skipEnterAnimation={skipPreviewEnterAnimation}
+          onToggleView={togglePreviewView}
         />
       )}
     </div>

@@ -115,6 +115,7 @@ interface BoardCanvasProps {
   sceneRef?: React.MutableRefObject<BoardScene | null>;
   getHandActions?: (card: CardDto) => HandActionOption[];
   onSelectHandAction?: (card: CardDto, action: HandActionOption) => void;
+  externalPreviewActive?: boolean;
   onLayout?: (layout: BoardCanvasLayout) => void;
   className?: string;
 }
@@ -151,6 +152,7 @@ export function BoardCanvas({
   sceneRef: externalSceneRef,
   getHandActions,
   onSelectHandAction,
+  externalPreviewActive,
   onLayout,
   className,
 }: BoardCanvasProps) {
@@ -655,12 +657,8 @@ export function BoardCanvas({
   }, [handActions, handHover, handRulesView, scene, selectHandAction]);
 
   useKeybindings({
-    "flip-card": () => {
-      if (showHandFlip) toggleHandFlip();
-    },
-    "toggle-hand-card-view": () => {
-      if (handHover) toggleHandRulesView();
-    },
+    ...(!externalPreviewActive && showHandFlip ? { "flip-card": toggleHandFlip } : {}),
+    ...(!externalPreviewActive && handHover ? { "toggle-card-view": toggleHandRulesView } : {}),
   });
 
   return (

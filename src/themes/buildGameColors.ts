@@ -70,6 +70,11 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "arrow.friendlyTarget": rgbaFromHex(p.promptDefense, 0.88),
 
     cardRing: p.amber,
+    cardPlayable: p.cyan,
+    "phase.beginning": p.amber,
+    "phase.main": p.cyan,
+    "phase.combat": p.red,
+    "phase.end": p.violet,
 
     "pointer.hostile": rgbaFromHex(p.red, 0.88),
     "pointer.friendly": rgbaFromHex(p.blue, 0.88),

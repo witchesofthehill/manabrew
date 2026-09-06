@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import type { CardDto } from "@/protocol/game";
 import type { ClientPlayerDto } from "@/stores/gameStore.types";
@@ -44,6 +44,9 @@ import {
 } from "@/pixi/constants";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
+const ArenaBoardCanvas = lazy(() =>
+  import("@/three/ArenaBoardCanvas").then((module) => ({ default: module.ArenaBoardCanvas })),
+);
 
 function promptOf<TType extends PromptType>(
   prompt: Prompt | null | undefined,
@@ -1378,12 +1381,22 @@ export function GameBoard({
       .join(". ")}.`;
   }, [battlefield, opponents, me.id]);
 
+  const [arenaEnabled, setArenaEnabled] = useState(false);
+  const Canvas = arenaEnabled && opponents.length === 1 ? ArenaBoardCanvas : BoardCanvas;
+
   return (
     <div
       ref={setBoardRef}
       className="game-board-surface relative flex flex-col min-h-0 flex-1 overflow-hidden"
     >
       <ReconnectBanner />
+      <button
+        className="absolute top-2 left-2 z-50 rounded border border-border bg-background px-3 py-2 text-xs text-foreground"
+        disabled={opponents.length !== 1}
+        onClick={() => setArenaEnabled((value) => !value)}
+      >
+        {arenaEnabled ? "Classic battlefield" : "Three.js battlefield"}
+      </button>
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         {a11ySummary}
       </div>
@@ -1391,37 +1404,41 @@ export function GameBoard({
         {combatA11y}
       </div>
       <div ref={battlefieldContainerRef} className="absolute inset-0 z-10 overflow-hidden">
-        <BoardCanvas
-          regions={unifiedRegions}
-          hand={pixiHand}
-          arrowSpecs={arrowSpecs ?? []}
-          castingArrow={castingArrow}
-          declareBlockers={promptType === "chooseBlockers"}
-          combatBlocks={combatAssignmentsAll}
-          declareAttackers={promptType === "chooseAttackers"}
-          attackTargets={chooseAttackersPrompt?.input.attackTargets ?? []}
-          attackerOptions={chooseAttackersPrompt?.input.attackers ?? []}
-          phaseStrip={pixiPhaseStrip}
-          phaseStripCallbacks={pixiPhaseStripCallbacks}
-          compact={compactBoard}
-          focusedOpponentId={focusedOpponentId}
-          combatFocusIds={combatFocusIds}
-          manualFocusId={manualFocusId}
-          playerBars={hudBarSpecs}
-          showPlayerBars
-          zoneTiles={boardZoneTiles}
-          callbacks={pixiCallbacks}
-          isDropActive={isOverBattlefield}
-          autoSort={battlefieldAutoSort}
-          selfBottomReserve={selfBottomReserve}
-          sceneRef={sceneRef}
-          getHandActions={getHandActions}
-          onSelectHandAction={(_card, action) => onSelectHandAction?.(action)}
-          onLayout={(layout) => {
-            setUnifiedLayout(layout);
-            onLayoutChange?.(layout);
-          }}
-        />
+        <Suspense
+          fallback={<div className="p-6 text-muted-foreground">Loading Three.js battlefield…</div>}
+        >
+          <Canvas
+            regions={unifiedRegions}
+            hand={pixiHand}
+            arrowSpecs={arrowSpecs ?? []}
+            castingArrow={castingArrow}
+            declareBlockers={promptType === "chooseBlockers"}
+            combatBlocks={combatAssignmentsAll}
+            declareAttackers={promptType === "chooseAttackers"}
+            attackTargets={chooseAttackersPrompt?.input.attackTargets ?? []}
+            attackerOptions={chooseAttackersPrompt?.input.attackers ?? []}
+            phaseStrip={pixiPhaseStrip}
+            phaseStripCallbacks={pixiPhaseStripCallbacks}
+            compact={compactBoard}
+            focusedOpponentId={focusedOpponentId}
+            combatFocusIds={combatFocusIds}
+            manualFocusId={manualFocusId}
+            playerBars={hudBarSpecs}
+            showPlayerBars
+            zoneTiles={boardZoneTiles}
+            callbacks={pixiCallbacks}
+            isDropActive={isOverBattlefield}
+            autoSort={battlefieldAutoSort}
+            selfBottomReserve={selfBottomReserve}
+            sceneRef={sceneRef}
+            getHandActions={getHandActions}
+            onSelectHandAction={(_card, action) => onSelectHandAction?.(action)}
+            onLayout={(layout) => {
+              setUnifiedLayout(layout);
+              onLayoutChange?.(layout);
+            }}
+          />
+        </Suspense>
       </div>
       <div className="absolute inset-0 z-40 pointer-events-none">
         <BoardOverlayCanvas

@@ -90,6 +90,8 @@ export interface GameThemeColors {
     shield: string;
   };
   cardRing: string;
+  cardPlayable: string;
+  phase: { beginning: string; main: string; combat: string; end: string };
   playerColors: {
     self: string;
     opponent1: string;

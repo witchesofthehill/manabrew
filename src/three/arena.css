@@ -1,0 +1,317 @@
+@font-face {
+  font-family: "Cinzel";
+  src: url("./assets/fonts/Cinzel-Variable.ttf") format("truetype");
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+.arena-root {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: var(--arena-foreground);
+  background: var(--arena-background);
+  font-family: Inter, sans-serif;
+}
+.arena-canvas {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+.arena-canvas canvas {
+  display: block;
+}
+.arena-root button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 1px solid var(--arena-border);
+  background: var(--arena-background);
+  border-radius: 6px;
+  padding: 9px 14px;
+}
+.arena-root button:hover {
+  border-color: var(--arena-accent);
+}
+.arena-root button:focus-visible {
+  outline: 2px solid var(--arena-accent);
+  outline-offset: 3px;
+}
+.arena-root button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.arena-player {
+  position: absolute;
+  left: 28px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  pointer-events: none;
+}
+.arena-player button {
+  pointer-events: auto;
+}
+.arena-player-self {
+  bottom: 30px;
+}
+.arena-player-opponent {
+  top: 80px;
+}
+.arena-player h3 {
+  margin: 5px 0 9px;
+  font:
+    23px "Cinzel",
+    Georgia,
+    serif;
+}
+.arena-root small {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--arena-muted);
+}
+.arena-root .arena-avatar {
+  width: 66px;
+  height: 78px;
+  border-radius: 34px 34px 22px 22px;
+  border-width: 2px;
+  display: grid;
+  padding: 8px;
+  background: linear-gradient(var(--arena-surface), var(--arena-background));
+}
+.arena-avatar span {
+  font:
+    20px "Cinzel",
+    Georgia,
+    serif;
+  color: var(--arena-accent);
+}
+.arena-avatar strong {
+  font:
+    29px "Cinzel",
+    Georgia,
+    serif;
+}
+.arena-zones {
+  display: flex;
+  gap: 4px;
+}
+.arena-zones button {
+  font-size: 10px;
+  padding: 5px 8px;
+}
+.arena-phase-strip {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 4px;
+  white-space: nowrap;
+}
+.arena-phase-strip button {
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 5px 9px;
+  background: transparent;
+  border-color: transparent;
+  opacity: 0.6;
+}
+.arena-phase-strip button[data-active="true"] {
+  color: var(--arena-accent);
+  border-color: var(--arena-accent);
+  opacity: 1;
+  background: var(--arena-background);
+}
+.arena-menu {
+  position: absolute;
+  right: 22px;
+  top: 22px;
+}
+.arena-frame-samples {
+  position: absolute;
+  top: 22px;
+  right: 160px;
+}
+.arena-actions {
+  position: absolute;
+  bottom: 22px;
+  right: 22px;
+  width: 230px;
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid var(--arena-accent);
+  border-radius: 12px;
+  background: var(--arena-background);
+  box-shadow: 0 15px 50px var(--arena-background);
+}
+.arena-actions strong {
+  font:
+    20px "Cinzel",
+    Georgia,
+    serif;
+}
+.arena-brand {
+  position: absolute;
+  top: 25px;
+  left: 28px;
+}
+.arena-brand h1 {
+  font:
+    28px "Cinzel",
+    Georgia,
+    serif;
+  letter-spacing: 5px;
+  margin: 0 0 7px;
+}
+.arena-status {
+  position: absolute;
+  right: 25px;
+  top: 85px;
+  max-width: 250px;
+  text-align: right;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.arena-status h2 {
+  font:
+    25px "Cinzel",
+    Georgia,
+    serif;
+  margin: 0 0 10px;
+}
+.arena-preview {
+  position: absolute;
+  left: 24px;
+  top: 24%;
+  width: min(250px, 21vw);
+  pointer-events: none;
+  z-index: 8;
+  perspective: 900px;
+  transition:
+    opacity 160ms ease,
+    transform 220ms ease;
+  transform-origin: bottom right;
+}
+.arena-preview[data-visible="false"] {
+  opacity: 0;
+  transform: translateY(12px) scale(0.96);
+}
+.arena-preview img {
+  opacity: 0;
+}
+.arena-preview img[data-loaded="true"] {
+  opacity: 1;
+  animation: arena-preview-arrive 260ms cubic-bezier(0.18, 0.8, 0.22, 1) both;
+}
+@keyframes arena-preview-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(16px) rotateY(-7deg) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotateY(0) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arena-preview {
+    transition: none;
+  }
+  .arena-preview img {
+    animation: none;
+  }
+}
+.arena-preview h3 {
+  font:
+    21px "Cinzel",
+    Georgia,
+    serif;
+  margin: 12px 0 8px;
+}
+.arena-preview p {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.arena-preview img {
+  width: 100%;
+  display: block;
+  aspect-ratio: 63 / 88;
+  border-radius: 4.76% / 3.41%;
+  box-shadow: 0 12px 28px var(--arena-background);
+}
+.arena-footer {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  color: var(--arena-muted);
+  white-space: nowrap;
+}
+@media (max-width: 760px), (max-height: 520px) {
+  .arena-player {
+    left: 10px;
+    gap: 7px;
+  }
+  .arena-player h3 {
+    font-size: 15px;
+  }
+  .arena-player-opponent {
+    top: 70px;
+  }
+  .arena-player-self {
+    bottom: 12px;
+  }
+  .arena-root .arena-avatar {
+    width: 48px;
+    height: 62px;
+  }
+  .arena-zones button {
+    padding: 4px;
+  }
+  .arena-brand {
+    left: 14px;
+    top: 15px;
+  }
+  .arena-brand h1 {
+    font-size: 18px;
+  }
+  .arena-status {
+    top: 67px;
+    right: 14px;
+    max-width: 170px;
+    font-size: 10px;
+  }
+  .arena-status h2 {
+    font-size: 18px;
+  }
+  .arena-actions {
+    right: 10px;
+    bottom: 10px;
+    width: 150px;
+    padding: 12px;
+    font-size: 11px;
+  }
+  .arena-phase-strip {
+    max-width: 98%;
+    overflow-x: auto;
+  }
+  .arena-phase-strip button {
+    font-size: 8px;
+    padding: 4px;
+  }
+  .arena-preview {
+    left: 10px;
+    width: 140px;
+  }
+  .arena-footer {
+    display: none;
+  }
+}
+@media (pointer: coarse) {
+  .arena-root button {
+    min-height: 40px;
+  }
+}

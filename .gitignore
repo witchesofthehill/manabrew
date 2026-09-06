@@ -122,3 +122,4 @@ __pycache__/
 *.pyc
 public/forge/forgeharness.js
 public/forge/forgeharness.js.wasm
+/dist-arena/

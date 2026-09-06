@@ -33,6 +33,8 @@ Read first: `/AGENTS.md`, `docs/STYLE_GUIDELINES.md`, `docs/agents/UI_THEME_RULE
 
 ## Conventions
 
+The optional duel renderer lives under `three/`. `ArenaBoardCanvas` adapts the existing board props and callbacks; `arena.html` is a separate visual playground without a rules engine. `duel.html` runs the published Forge WASM engine against local AI, including automatic priority, full control, and phase stops. Its server needs cross-origin isolation headers and WASM/SVG MIME types. Run with `yarn arena` and build both entries with `yarn build:arena`. Playable outlines use the shared `cardPlayable` theme token. The mana sprite in `three/assets` was supplied from the user's collectors-vault project; keep symbol cell positions consistent with `ManaSymbols.tsx`.
+
 - **Colors are theme-driven.** No hex / rgb / rgba / hsl / `0xRRGGBB` literals. No semantic palette tailwind (`ring-red-500`). See `docs/agents/UI_THEME_RULES.md` — read it before any color work.
 - **Always `cn()` for conditional classes**, never template literals. Tailwind's JIT cannot detect dynamic class names.
 - **No Tailwind animation plugin.** Neither `tailwindcss-animate` nor `tw-animate-css` is installed, so `animate-in` / `fade-in` / `zoom-in-*` / `slide-in-from-*` classes are silent no-ops — including the ones baked into the shadcn `components/ui/*` files. Real animations are custom `--animate-*` keyframes in `index.css` (`@theme`); add one there and use the generated `animate-<name>` utility.

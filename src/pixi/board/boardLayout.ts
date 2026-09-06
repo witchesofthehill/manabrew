@@ -22,7 +22,7 @@ export interface BoardLayout {
 }
 
 /** Fixed vertical band, in px, reserved at the center for the phase strip. */
-export const STRIP_BAND_PX = 38;
+export const STRIP_BAND_PX = 30;
 
 export const STRIP_BAND_COMPACT_PX = 32;
 

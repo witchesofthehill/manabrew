@@ -288,7 +288,7 @@ export class PlaymatLayer {
     this.updateVisibility();
     const opacity = clamp01(this.settings.opacity);
     this.content.alpha = opts.dropActive ? opacity * PLAYMAT_DROP_DIM : opacity;
-    this.border.alpha = this.content.alpha;
+    this.border.alpha = 1;
     const gt = getTheme().gameTheme;
     const pad = playmatPad(rect.width, rect.height);
     const x = rect.x + pad;
@@ -375,17 +375,6 @@ export class PlaymatLayer {
         width: bw,
         color: hexToNum(this.seatColor ?? gt.canvas.neutral),
       });
-    }
-    const inset = Math.max(3, bw + 1);
-    if (r.width > inset * 2 && r.height > inset * 2) {
-      this.border.roundRect(
-        r.x + inset,
-        r.y + inset,
-        r.width - inset * 2,
-        r.height - inset * 2,
-        Math.max(0, TABLE_RADIUS - inset),
-      );
-      this.border.stroke({ color: hexToNum(gt.textOnTinted), width: 1, alpha: 0.08 });
     }
   }
 

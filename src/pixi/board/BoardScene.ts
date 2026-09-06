@@ -65,7 +65,7 @@ import type { ZoneTileSpec } from "./BoardZoneTiles";
 import {
   PlayerHudLayer,
   SELF_PLAYER_HUD_HEIGHT_PX as SELF_PLAYER_BAR_HEIGHT_PX,
-  SELF_PLAYER_HUD_EDGE_INSET_PX,
+  OPPONENT_PLAYER_HUD_HEIGHT_PX,
   SELF_PLAYER_HUD_MAX_WIDTH_PX,
   SELF_PLAYER_HUD_MIN_WIDTH_PX,
   PLAYER_HUD_HAND_GAP_PX,
@@ -610,8 +610,9 @@ export class BoardScene {
     const n = this.opponentIds.length;
     const W = this.boardWidth;
     if (n <= 0 || W <= 0) return;
-    const playerHudHeight = this.preferredPlayerHudHeight();
-    const playerHudLeftOverhang = this.localPlayerHudLeftOverhang();
+    const playerHudHeight = this.compactMode
+      ? PLAYER_HUD_COMPACT_HEIGHT_PX
+      : OPPONENT_PLAYER_HUD_HEIGHT_PX;
     this.collapseVeil.clear();
     if (this.overview) {
       this.fogGfx.clear();
@@ -622,20 +623,15 @@ export class BoardScene {
         rec.region.setClip(zone.x, zone.width);
         if (this.barsEnabled) {
           const field = rec.region.getPlaymatRect();
-          const barX = Math.max(
-            zone.x,
-            Math.min(field.x - playerHudLeftOverhang, field.x + field.width - 1),
-          );
-          const availableWidth = Math.max(1, field.x + field.width - barX);
-          const availableHeight = Math.max(1, field.y + field.height - zone.y);
+          const availableWidth = Math.max(1, field.width);
+          const availableHeight = Math.max(1, field.height);
           this.playerBars.setRect(
             id,
-            barX,
-            zone.y,
+            field.x,
+            field.y,
             Math.min(SELF_PLAYER_HUD_MAX_WIDTH_PX, availableWidth),
             Math.min(playerHudHeight, availableHeight),
             false,
-            "top",
           );
         }
       }
@@ -663,17 +659,13 @@ export class BoardScene {
         }
         const field = rec.region.getPlaymatRect();
         const column = field.width < 228;
-        const barX = Math.max(
-          left,
-          Math.min(field.x - playerHudLeftOverhang, field.x + field.width - 1),
-        );
-        const availableWidth = Math.max(1, field.x + field.width - barX);
-        const availableHeight = Math.max(1, field.y + field.height - rec.zone.y);
+        const availableWidth = Math.max(1, field.width);
+        const availableHeight = Math.max(1, field.height);
         const barW = column
           ? availableWidth
           : Math.min(SELF_PLAYER_HUD_MAX_WIDTH_PX, availableWidth);
         const barH = column ? availableHeight : Math.min(playerHudHeight, availableHeight);
-        this.playerBars.setRect(this.opponentIds[i]!, barX, rec.zone.y, barW, barH, column, "top");
+        this.playerBars.setRect(this.opponentIds[i]!, field.x, field.y, barW, barH, column);
       }
     }
     this.drawDelimiterFog();
@@ -683,14 +675,6 @@ export class BoardScene {
 
   setZoneTiles(byPlayer: Record<string, ZoneTileSpec[]>): void {
     for (const [id, rec] of this.regions) rec.region.setZoneTiles(byPlayer[id] ?? []);
-  }
-
-  private localPlayerHudLeftOverhang(): number {
-    if (!this.localPlayerId) return SELF_PLAYER_HUD_EDGE_INSET_PX;
-    const record = this.regions.get(this.localPlayerId);
-    if (!record) return SELF_PLAYER_HUD_EDGE_INSET_PX;
-    const field = record.region.getPlaymatRect();
-    return Math.max(0, field.x - record.zone.x - SELF_PLAYER_HUD_EDGE_INSET_PX);
   }
 
   private preferredPlayerHudHeight(): number {
@@ -704,12 +688,11 @@ export class BoardScene {
     const field = record.region.getPlaymatRect();
     const hand = this.hand?.getBlockerRect();
     const preferredHeight = this.preferredPlayerHudHeight();
-    const x = record.zone.x + SELF_PLAYER_HUD_EDGE_INSET_PX;
-    const availableWidth = Math.max(1, field.x + field.width - x);
+    const x = field.x;
+    const availableWidth = Math.max(1, field.width);
     const desiredWidth = Math.min(availableWidth, SELF_PLAYER_HUD_MAX_WIDTH_PX);
     let width = desiredWidth;
-    const zoneBottom = record.zone.y + record.zone.height;
-    let bottom = zoneBottom;
+    let bottom = field.y + field.height;
     const overlapsHand =
       hand &&
       hand.x < x + width &&
@@ -725,15 +708,7 @@ export class BoardScene {
       }
     }
     const height = Math.max(1, Math.min(preferredHeight, bottom - field.y));
-    this.playerBars.setRect(
-      this.localPlayerId,
-      x,
-      bottom - height,
-      width,
-      height,
-      false,
-      bottom === zoneBottom ? "bottom" : null,
-    );
+    this.playerBars.setRect(this.localPlayerId, x, bottom - height, width, height, false);
   }
 
   /** Set the opponent player bars (thin Pixi panels over the top of each field)
@@ -1414,6 +1389,10 @@ export class BoardScene {
     setCardSpriteHoverDebug(on);
     for (const rec of this.regions.values()) rec.region.redrawHoverDebug();
     this.hand?.setHoverDebug(on);
+  }
+  setPlayerPanelBoundsDebug(on: boolean): void {
+    if (this.destroyed) return;
+    this.playerBars.setBoundsDebug(on);
   }
 
   setGridSkeletonDebug(on: boolean): void {

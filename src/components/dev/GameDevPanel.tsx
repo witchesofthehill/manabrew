@@ -66,6 +66,7 @@ export function GameDevPanel() {
   const promptActionOverride = useGameDevStore((s) => s.promptActionOverride);
   const debugViewportPreset = useGameDevStore((s) => s.debugViewportPreset);
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
+  const showPlayerPanelBounds = useGameDevStore((s) => s.showPlayerPanelBounds);
   const showGridSkeleton = useGameDevStore((s) => s.showGridSkeleton);
   const showAttackRows = useGameDevStore((s) => s.showAttackRows);
   const devToolsEnabled = useGameDevStore((s) => s.devToolsEnabled);
@@ -81,6 +82,7 @@ export function GameDevPanel() {
     board:
       activeValueCount(gameStateOverrides) +
       Number(showHoverAreas) +
+      Number(showPlayerPanelBounds) +
       Number(showGridSkeleton) +
       Number(showAttackRows) +
       Number(devToolsEnabled) +

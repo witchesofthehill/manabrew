@@ -1,15 +1,15 @@
 import { Container } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
-import { PlayerHudCapsule, type PlayerHudEdgeDock } from "./PlayerHudCapsule";
+import { PlayerHudCapsule } from "./PlayerHudCapsule";
 import { PlayerHudTooltip } from "./PlayerHudTooltip";
 import type { PlayerHudSpec } from "./playerHud.types";
 import type { ScreenBounds, ScreenPos } from "@/pixi/types";
 
-export const SELF_PLAYER_HUD_HEIGHT_PX = 164;
+export const SELF_PLAYER_HUD_HEIGHT_PX = 58;
+export const OPPONENT_PLAYER_HUD_HEIGHT_PX = 58;
 export const SELF_PLAYER_HUD_MAX_WIDTH_PX = 400;
 export const SELF_PLAYER_HUD_MIN_WIDTH_PX = 272;
 export const PLAYER_HUD_HAND_GAP_PX = 8;
-export const SELF_PLAYER_HUD_EDGE_INSET_PX = 12;
 export const PLAYER_HUD_COMPACT_HEIGHT_PX = 176;
 
 // Above this y a capsule is a top-anchored opponent, so its tooltip drops below
@@ -26,6 +26,7 @@ export class PlayerHudLayer {
   private capsules = new Map<string, PlayerHudCapsule>();
   private tooltip: PlayerHudTooltip;
   private compact = false;
+  private boundsDebug = false;
 
   constructor(
     theme: Theme,
@@ -77,6 +78,7 @@ export class PlayerHudLayer {
         this.container.addChild(capsule.container);
         this.capsules.set(spec.playerId, capsule);
         capsule.setCompact(this.compact);
+        capsule.setBoundsDebug(this.boundsDebug);
       }
       capsule.setSpec(spec);
     }
@@ -94,15 +96,19 @@ export class PlayerHudLayer {
     width: number,
     height: number,
     column: boolean,
-    edgeDock: PlayerHudEdgeDock = null,
   ): void {
-    this.capsules.get(playerId)?.setRect(x, y, width, height, column, edgeDock);
+    this.capsules.get(playerId)?.setRect(x, y, width, height, column);
   }
 
   setCompact(compact: boolean): void {
     if (this.compact === compact) return;
     this.compact = compact;
     for (const capsule of this.capsules.values()) capsule.setCompact(compact);
+  }
+  setBoundsDebug(on: boolean): void {
+    if (this.boundsDebug === on) return;
+    this.boundsDebug = on;
+    for (const capsule of this.capsules.values()) capsule.setBoundsDebug(on);
   }
 
   getPlayerAnchor(playerId: string): ScreenPos | null {

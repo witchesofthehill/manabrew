@@ -1,4 +1,4 @@
-import { Eye, Grid3X3, MousePointer2, Sparkles } from "lucide-react";
+import { Eye, Grid3X3, MousePointer2, PanelTop, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -11,10 +11,12 @@ export function BoardDevControls() {
   const stats = useGameDevStore((s) => s.pixiPerfStats);
   const devToolsEnabled = useGameDevStore((s) => s.devToolsEnabled);
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
+  const showPlayerPanelBounds = useGameDevStore((s) => s.showPlayerPanelBounds);
   const showGridSkeleton = useGameDevStore((s) => s.showGridSkeleton);
   const showAttackRows = useGameDevStore((s) => s.showAttackRows);
   const setDevToolsEnabled = useGameDevStore((s) => s.setDevToolsEnabled);
   const setShowHoverAreas = useGameDevStore((s) => s.setShowHoverAreas);
+  const setShowPlayerPanelBounds = useGameDevStore((s) => s.setShowPlayerPanelBounds);
   const setShowGridSkeleton = useGameDevStore((s) => s.setShowGridSkeleton);
   const setShowAttackRows = useGameDevStore((s) => s.setShowAttackRows);
   const triggerEtbGlow = useGameDevStore((s) => s.triggerEtbGlow);
@@ -64,6 +66,13 @@ export function BoardDevControls() {
             description="Hand, battlefield, and preview hit areas"
             checked={showHoverAreas}
             onChange={setShowHoverAreas}
+          />
+          <GuideToggle
+            icon={PanelTop}
+            label="Player panel bounds"
+            description="Full layout box for every player HUD"
+            checked={showPlayerPanelBounds}
+            onChange={setShowPlayerPanelBounds}
           />
           <GuideToggle
             icon={Grid3X3}

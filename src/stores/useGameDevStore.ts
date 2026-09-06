@@ -264,6 +264,8 @@ interface GameDevState {
   debugViewportPreset: DevViewportPreset;
   showHoverAreas: boolean;
   setShowHoverAreas: (value: boolean) => void;
+  showPlayerPanelBounds: boolean;
+  setShowPlayerPanelBounds: (value: boolean) => void;
   showGridSkeleton: boolean;
   setShowGridSkeleton: (value: boolean) => void;
   showAttackRows: boolean;
@@ -324,6 +326,8 @@ export const useGameDevStore = create<GameDevState>()(
       debugViewportPreset: "native",
       showHoverAreas: false,
       setShowHoverAreas: (value) => set({ showHoverAreas: value }),
+      showPlayerPanelBounds: false,
+      setShowPlayerPanelBounds: (value) => set({ showPlayerPanelBounds: value }),
       showGridSkeleton: false,
       setShowGridSkeleton: (value) => set({ showGridSkeleton: value }),
       showAttackRows: false,
@@ -409,6 +413,7 @@ export const useGameDevStore = create<GameDevState>()(
           debugCardFinal: DEFAULT_DEV_CARD_RAIL_FINAL,
           debugViewportPreset: "native",
           showHoverAreas: false,
+          showPlayerPanelBounds: false,
           showGridSkeleton: false,
           showAttackRows: false,
         }),

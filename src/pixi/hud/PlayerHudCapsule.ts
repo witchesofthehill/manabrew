@@ -31,6 +31,7 @@ const GEAR_ICON_NAME = "cog";
 const DETAILS_ICON_NAME = "info";
 const FONT = "Inter, system-ui, -apple-system, sans-serif";
 const PANEL_PADDING = 10;
+const PANEL_BORDER_BLEND_RADIUS = 14;
 const AVATAR_DIAMETER = 44;
 const SHALLOW_AVATAR_MIN_HEIGHT = 96;
 const SHALLOW_RESOURCE_IDENTITY_OVERLAP = 30;
@@ -81,8 +82,6 @@ export type HoverFn = (
   bottom?: number,
 ) => void;
 
-export type PlayerHudEdgeDock = "top" | "bottom" | null;
-
 interface ManaPip {
   sprite: Sprite;
   count: Text;
@@ -121,7 +120,7 @@ export class PlayerHudCapsule {
   private onHover: HoverFn;
 
   private bg = new Graphics();
-  private glow = new Graphics();
+  private boundsOutline = new Graphics();
   private combatGlow = new Graphics();
   private damageWash = new Graphics();
   private targetRing = new Graphics();
@@ -141,9 +140,6 @@ export class PlayerHudCapsule {
   private heart: Text;
   private life: Text;
   private lifeFloat: Text;
-  private nameText: Text;
-  private seatState: Text;
-  private priorityText: Text;
   private handCount: Text;
   private handFan = new Container();
   private handBacks: Sprite[] = [];
@@ -169,7 +165,7 @@ export class PlayerHudCapsule {
   private height = 0;
   private column = false;
   private compact = false;
-  private edgeDock: PlayerHudEdgeDock = null;
+  private boundsDebug = false;
   private avatarUrl: string | null = null;
   private readonly isBot: boolean;
   private renderedLife: number | null = null;
@@ -252,11 +248,11 @@ export class PlayerHudCapsule {
       this.styleGear();
     });
     this.greyscale.desaturate();
-    this.glow.eventMode = "none";
     this.damageWash.eventMode = "none";
     this.targetRing.eventMode = "none";
     this.flashRing.eventMode = "none";
     this.manaTray.eventMode = "none";
+    this.boundsOutline.eventMode = "none";
     this.stateTray.eventMode = "none";
     this.sparkles.eventMode = "none";
 
@@ -284,9 +280,6 @@ export class PlayerHudCapsule {
     this.lifeFloat = new Text({ text: "", style: this.textStyle(16) });
     this.lifeFloat.anchor.set(0.5);
     this.lifeFloat.visible = false;
-    this.nameText = new Text({ text: "", style: this.textStyle(12, "600") });
-    this.seatState = new Text({ text: "", style: this.textStyle(9, "700") });
-    this.priorityText = new Text({ text: "Priority", style: this.textStyle(9, "600") });
     this.handCount = new Text({ text: "", style: this.textStyle(13) });
     this.handCount.anchor.set(0, 0.5);
     this.overflow = new Text({ text: "", style: this.textStyle(11, "600") });
@@ -325,10 +318,10 @@ export class PlayerHudCapsule {
 
     this.container.addChild(
       this.bg,
+      this.boundsOutline,
       this.seatRail,
       this.manaTray,
       this.stateTray,
-      this.glow,
       this.avatarMask,
       this.avatarPhoto,
       this.avatarFx,
@@ -345,9 +338,6 @@ export class PlayerHudCapsule {
       this.gear,
       this.heart,
       this.life,
-      this.nameText,
-      this.seatState,
-      this.priorityText,
       this.handFan,
       this.handCount,
       this.emptyStateText,
@@ -450,6 +440,11 @@ export class PlayerHudCapsule {
     this.lastSig = "";
     this.render();
   }
+  setBoundsDebug(on: boolean): void {
+    if (this.boundsDebug === on) return;
+    this.boundsDebug = on;
+    this.drawBoundsDebug();
+  }
 
   refreshMotion(): void {
     const enabled = animationsEnabled();
@@ -467,7 +462,6 @@ export class PlayerHudCapsule {
     this.lifeFloat.visible = false;
     this.damageWash.visible = false;
     this.flashRing.visible = false;
-    this.glow.alpha = 1;
     this.targetRing.alpha = 1;
     this.offline.alpha = 1;
     this.combatActive = false;
@@ -489,26 +483,12 @@ export class PlayerHudCapsule {
     this.render();
   }
 
-  setRect(
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    column: boolean,
-    edgeDock: PlayerHudEdgeDock,
-  ): void {
+  setRect(x: number, y: number, width: number, height: number, column: boolean): void {
     this.container.position.set(x, y);
-    if (
-      this.width === width &&
-      this.height === height &&
-      this.column === column &&
-      this.edgeDock === edgeDock
-    )
-      return;
+    if (this.width === width && this.height === height && this.column === column) return;
     this.width = width;
     this.height = height;
     this.column = column;
-    this.edgeDock = edgeDock;
     this.render();
   }
 
@@ -745,15 +725,17 @@ export class PlayerHudCapsule {
     for (const pip of this.pips) {
       pip.sprite.visible = false;
       pip.count.visible = false;
+      pip.flash.clear();
+      pip.flash.alpha = 0;
     }
     if (this.column) this.renderColumn(w, h);
     else this.renderCapsule(w, h);
     this.applyLifeAnim();
-    this.applyPriority();
     this.applyCombatGlow();
     this.applyTargetable();
     this.applyFlash();
     this.checkBadgeSparkles();
+    this.drawBoundsDebug();
   }
 
   private applyOffline(): void {
@@ -830,7 +812,6 @@ export class PlayerHudCapsule {
     this.avatarCy = 34;
     this.avatarDia = AVATAR_DIAMETER;
     this.drawAvatar(this.avatarCx, this.avatarCy, this.avatarDia, !short);
-    this.layoutIdentity(pad, short ? 5 : 64, w - pad * 2, true, short ? 48 : 120);
     this.layoutLife(short ? w / 2 - 4 : w / 2, short ? 32 : 98, !short);
     this.heart.visible = false;
     const hand = this.makeHandItem(short ? 26 : 32);
@@ -840,7 +821,49 @@ export class PlayerHudCapsule {
     this.layoutStates(pad, stateY, w - pad * 2, this.panelHeight - stateY - 4, 2);
   }
 
+  private renderCompactCapsule(w: number, h: number): void {
+    const pad = PANEL_PADDING;
+    this.panelHeight = h;
+    this.identityHeight = h;
+    this.identityWidth = w;
+    this.drawPlate(w, h);
+    const avatarDia = Math.min(AVATAR_DIAMETER, h - 14);
+    this.avatarCx = pad + avatarDia / 2;
+    this.avatarCy = h / 2;
+    this.avatarDia = avatarDia;
+    this.drawAvatar(this.avatarCx, this.avatarCy, avatarDia, true);
+    const lifeX = pad + avatarDia + 54;
+    this.layoutLife(lifeX, 29, false);
+    this.heart.visible = true;
+    this.heart.text = "LIFE";
+    this.heart.style = this.styled(8, "600", this.theme.gameTheme.textMuted);
+    this.heart.anchor.set(1, 0.5);
+    this.heart.position.set(lifeX, 49);
+    const handX = lifeX + 14;
+    const hand = this.makeHandItem(30);
+    hand.place(handX, 34);
+    const dividerX = handX + hand.w + 8;
+    const stateLeft = dividerX + 10;
+    const badgeRight = Math.max(stateLeft, w - (this.spec.isSelf ? 44 : PANEL_PADDING));
+    const visibleStates = this.layoutCompactStateIcons(stateLeft, 34, badgeRight - stateLeft);
+    if (visibleStates > 0) {
+      this.stateTray
+        .moveTo(dividerX, 15)
+        .lineTo(dividerX, 51)
+        .stroke({
+          color: hexToNum(this.theme.gameTheme.textGhost),
+          alpha: 0.3,
+          width: 1,
+        });
+    }
+    this.layoutFloatingMana(16, this.spec.isSelf ? -16 : h + 16);
+  }
+
   private renderCapsule(w: number, h: number): void {
+    if (!this.compact && !this.column) {
+      this.renderCompactCapsule(w, h);
+      return;
+    }
     const pad = PANEL_PADDING;
     const shallow = h < 132;
     const showAvatar = !shallow || h >= SHALLOW_AVATAR_MIN_HEIGHT;
@@ -853,29 +876,16 @@ export class PlayerHudCapsule {
     this.avatarDia = AVATAR_DIAMETER;
     this.drawAvatar(this.avatarCx, this.avatarCy, this.avatarDia, showAvatar);
     if (shallow) {
-      let statusX = pad;
       if (showAvatar) {
         const contentX = pad + AVATAR_DIAMETER + 12;
-        statusX = contentX;
-        this.layoutIdentity(
-          contentX,
-          5,
-          Math.max(1, this.identityWidth - contentX - pad),
-          false,
-          h - 16,
-        );
-        this.nameText.position.set(this.avatarCx - this.nameText.width / 2, 5);
         this.layoutLife(contentX, this.avatarCy, false);
         this.life.anchor.set(0, 0.5);
         this.makeHandItem(30).place(contentX, h - 32);
       } else {
         const lifeX = this.identityWidth - 4;
-        this.layoutIdentity(pad, 7, this.identityWidth - pad * 2, false, h - 16);
         this.layoutLife(lifeX, 32, false);
         this.makeHandItem(30).place(pad, 32);
       }
-      this.priorityText.position.x =
-        statusX + (this.seatState.text ? this.seatState.width + 12 : 0);
       this.heart.visible = false;
       const utilityTop = h - 28;
       const utilityHeight = 20;
@@ -905,9 +915,7 @@ export class PlayerHudCapsule {
         .fill({ color: hexToNum(this.theme.gameTheme.canvas.background), alpha: 0.001 });
       return;
     }
-    const lifeX = w - 42;
-    const identityX = pad + AVATAR_DIAMETER + 10;
-    this.layoutIdentity(identityX, 12, lifeX - identityX - 58, false);
+    const lifeX = pad + AVATAR_DIAMETER + 54;
     this.layoutLife(lifeX, 29, false);
     this.heart.visible = true;
     this.heart.text = "LIFE";
@@ -929,23 +937,51 @@ export class PlayerHudCapsule {
   }
 
   private drawPlate(width: number, height: number): void {
-    const { appTheme, gameTheme: gt } = this.theme;
-    const plateY = this.edgeDock === "top" ? -8 : 0;
-    const plateHeight = height + (this.edgeDock ? 8 : 0);
-    this.bg.roundRect(0, plateY, width, plateHeight, 8);
-    this.bg.fill({ color: hexToNum(appTheme.card) });
-    this.bg.roundRect(0.5, plateY + 0.5, width - 1, plateHeight - 1, 8);
-    this.bg.stroke({ color: hexToNum(appTheme.border), alpha: 0.7, width: 1 });
-    this.seatRail.roundRect(0, 10, 3, Math.max(12, this.identityHeight - 20), 1.5);
-    this.seatRail.fill({
-      color: hexToNum(this.spec.color),
-      alpha: this.spec.isActiveTurn ? 1 : 0.35,
-    });
+    const gt = this.theme.gameTheme;
+    if (!this.compact && !this.column) {
+      const direction = this.spec.isSelf ? 1 : -1;
+      const innerY = this.spec.isSelf ? 1 : height - 1;
+      const outerY = this.spec.isSelf ? height - 1 : 1;
+      const edgeX = 1;
+      const branchX = width - 1;
+      const blend = Math.min(PANEL_BORDER_BLEND_RADIUS, Math.abs(outerY - innerY) / 2);
+      this.seatRail
+        .moveTo(edgeX, innerY + direction * blend)
+        .quadraticCurveTo(edgeX, innerY, edgeX + blend, innerY)
+        .lineTo(branchX - blend, innerY)
+        .quadraticCurveTo(branchX, innerY, branchX, innerY + direction * blend)
+        .lineTo(branchX, outerY - direction * blend)
+        .quadraticCurveTo(branchX, outerY, branchX - blend, outerY)
+        .stroke({
+          color: hexToNum(this.spec.color),
+          width: 2,
+          cap: "round",
+          join: "round",
+        });
+    } else {
+      this.seatRail.roundRect(0, 10, 3, Math.max(12, this.identityHeight - 20), 1.5);
+      this.seatRail.fill({
+        color: hexToNum(this.spec.color),
+        alpha: this.spec.isActiveTurn ? 1 : 0.35,
+      });
+    }
     if (this.spec.isSelectedTarget) {
       this.bg.roundRect(1, 1, this.identityWidth - 2, this.identityHeight - 2, 7);
       this.bg.stroke({ color: hexToNum(gt.promptAction.attackAction), alpha: 1, width: 2 });
     }
     this.extendContent(0, 0, width, height);
+  }
+  private drawBoundsDebug(): void {
+    this.boundsOutline.clear();
+    if (!this.boundsDebug || this.width <= 0 || this.height <= 0) return;
+    this.boundsOutline
+      .roundRect(0.5, 0.5, this.width - 1, this.height - 1, 8)
+      .fill({ color: hexToNum(this.theme.gameTheme.activeAction.active), alpha: 0.08 })
+      .stroke({
+        color: hexToNum(this.theme.gameTheme.activeAction.active),
+        alpha: 0.9,
+        width: 1,
+      });
   }
 
   private layoutLife(x: number, y: number, centered: boolean): void {
@@ -953,38 +989,6 @@ export class PlayerHudCapsule {
     this.life.style = this.textStyle(this.lifeFontSize, "800");
     this.life.anchor.set(centered ? 0.5 : 1, 0.5);
     this.life.position.set(x, y);
-  }
-
-  private layoutIdentity(
-    x: number,
-    y: number,
-    width: number,
-    column: boolean,
-    statusY = y + 19,
-  ): void {
-    const gt = this.theme.gameTheme;
-    this.nameText.style = this.styled(12, "700", gt.textOnTinted);
-    this.nameText.text = this.spec.name;
-    while (this.nameText.width > width && this.nameText.text.length > 2) {
-      this.nameText.text = `${this.nameText.text.replace(/…$/, "").slice(0, -1)}…`;
-    }
-    this.nameText.position.set(column ? x + (width - this.nameText.width) / 2 : x, y);
-    this.seatState.text = this.spec.isEliminated
-      ? "Eliminated"
-      : this.spec.isDisconnected
-        ? "Offline"
-        : this.spec.isActiveTurn
-          ? "Turn"
-          : "";
-    this.seatState.style = this.styled(
-      10,
-      "700",
-      this.spec.isEliminated || this.spec.isDisconnected ? gt.pt.lethal : this.spec.color,
-    );
-    this.seatState.position.set(x, statusY);
-    this.priorityText.visible = this.spec.isPriorityPlayer && !this.spec.isEliminated;
-    this.priorityText.style = this.styled(10, "700", gt.activeAction.priority);
-    this.priorityText.position.set(x + width - this.priorityText.width, statusY);
   }
 
   private makeHandItem(unit: number): ContentItem {
@@ -1013,6 +1017,42 @@ export class PlayerHudCapsule {
         this.handCount.position.set(x + fanWidth + 5, y);
       },
     };
+  }
+
+  private layoutFloatingMana(x: number, cy: number): void {
+    this.ensurePips();
+    const gt = this.theme.gameTheme;
+    const size = 22;
+    const slotWidth = 40;
+    let slot = 0;
+    for (let i = 0; i < MANA_LETTERS.length; i++) {
+      const letter = MANA_LETTERS[i]!;
+      const pip = this.pips[i]!;
+      const value = this.spec.manaPool[letter] ?? 0;
+      const previous = pip.value;
+      pip.value = value;
+      if (value <= 0) continue;
+      const left = x + slot * slotWidth;
+      const texture = this.manaTexture(letter);
+      if (texture) pip.sprite.texture = texture;
+      pip.sprite.visible = pip.count.visible = true;
+      pip.sprite.width = pip.sprite.height = size;
+      pip.sprite.position.set(left, cy - size / 2);
+      pip.sprite.alpha = 1;
+      pip.count.text = String(value);
+      pip.count.style = this.styled(11, "700", gt.textOnTinted);
+      pip.count.alpha = 1;
+      pip.count.scale.set(1);
+      pip.count.position.set(left + size + 3, cy);
+      pip.flash
+        .roundRect(left - 3, cy - size / 2 - 3, slotWidth - 2, size + 6, 6)
+        .fill({ color: hexToNum(gt.activeAction.priority) });
+      if (previous !== undefined && previous !== value && this.motionEnabled) {
+        gsap.killTweensOf(pip.flash);
+        gsap.fromTo(pip.flash, { alpha: 0.35 }, { alpha: 0, duration: 0.55, ease: "power1.out" });
+      }
+      slot++;
+    }
   }
 
   private layoutMana(
@@ -1132,6 +1172,50 @@ export class PlayerHudCapsule {
       }
       chip.label.position.set(x + size + 8, cy);
     }
+  }
+
+  private layoutCompactStateIcons(x: number, cy: number, width: number): number {
+    this.ensureChips();
+    const rank = (id: string) => {
+      const index = STATE_ORDER.indexOf(id.startsWith("cmd-") ? "commander" : id);
+      return index < 0 ? STATE_ORDER.length : index;
+    };
+    const states = this.spec.badges
+      .map((badge, index) => ({ badge, index }))
+      .filter(({ badge }) => badge.id !== "hand" && !badge.zone)
+      .sort(
+        (a, b) =>
+          Number(this.badgeIsUrgent(b.badge)) - Number(this.badgeIsUrgent(a.badge)) ||
+          rank(a.badge.id) - rank(b.badge.id) ||
+          a.badge.id.localeCompare(b.badge.id),
+      );
+    const slotWidth = 28;
+    const visible = Math.min(states.length, Math.max(0, Math.floor(width / slotWidth)));
+    for (let i = 0; i < visible; i++) {
+      this.placeBadgeIcon(states[i]!.index, x + slotWidth / 2 + i * slotWidth, cy);
+    }
+    return visible;
+  }
+
+  private placeBadgeIcon(index: number, cx: number, cy: number): void {
+    const badge = this.spec.badges[index]!;
+    const chip = this.chips[index]!;
+    const size = 18;
+    const texture = this.iconTexture(badge.icon);
+    if (texture) chip.sprite.texture = texture;
+    chip.sprite.tint = hexToNum(badge.color);
+    chip.sprite.width = chip.sprite.height = size;
+    chip.sprite.position.set(cx - size / 2, cy - size / 2);
+    chip.sprite.visible = chip.hit.visible = true;
+    chip.count.visible = false;
+    chip.label.visible = false;
+    chip.badgeId = badge.id;
+    chip.content = this.badgeTooltip(badge);
+    chip.hit
+      .clear()
+      .circle(cx, cy, 12)
+      .fill({ color: hexToNum(this.theme.gameTheme.canvas.background), alpha: 0.001 });
+    chip.hit.position.set(0, 0);
   }
 
   private layoutStates(
@@ -1406,23 +1490,6 @@ export class PlayerHudCapsule {
     );
   }
 
-  private applyPriority(): void {
-    this.glow.visible = this.priorityText.visible;
-    this.drawGlow();
-  }
-
-  private drawGlow(): void {
-    this.glow.clear();
-    if (!this.priorityText.visible) return;
-    const color = hexToNum(this.theme.gameTheme.activeAction.priority);
-    const x = this.priorityText.x - 6;
-    const y = this.priorityText.y + 5;
-    this.glow.circle(x, y, 3);
-    this.glow.fill({ color });
-    this.glow.moveTo(x + 5, y).lineTo(this.priorityText.x + this.priorityText.width, y);
-    this.glow.stroke({ color, width: 1.5, alpha: 0.7 });
-  }
-
   private applyCombatGlow(): void {
     const lethal = this.spec.combatLethal;
     if (this.spec.inCombat === this.combatActive && lethal === this.combatLethalActive) {
@@ -1481,7 +1548,6 @@ export class PlayerHudCapsule {
     gsap.killTweensOf(this.combatGlow);
     gsap.killTweensOf(this.life.scale);
     gsap.killTweensOf(this.lifeFloat);
-    gsap.killTweensOf(this.glow);
     gsap.killTweensOf(this.damageWash);
     for (const pip of this.pips) gsap.killTweensOf(pip.flash);
     for (const chip of this.chips) gsap.killTweensOf(chip.sprite);

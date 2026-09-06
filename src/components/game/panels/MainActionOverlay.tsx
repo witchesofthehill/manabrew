@@ -298,7 +298,7 @@ export function MainActionOverlay({
             <div
               ref={headerRef}
               className={cn(
-                "flex items-center justify-between gap-2 border-b px-2.5 py-2",
+                "flex items-center justify-between gap-2 border-b px-2.5 py-1.5",
                 hasAction
                   ? "border-active-action-priority/35 bg-active-action-priority/10"
                   : "border-border/70",
@@ -339,18 +339,21 @@ export function MainActionOverlay({
           <section
             className={cn(
               "flex w-full flex-col",
-              minimal ? "gap-1 px-1.5 py-1" : "gap-2 px-2 pt-2 pb-2",
+              minimal ? "gap-1 px-1.5 py-1" : "gap-1 px-2 py-1",
             )}
           >
-            {!minimal && hasAction && contextLines.length > 0 && (
-              <div className="w-full rounded-md border border-active-action-priority/25 bg-active-action-priority/5 px-2.5 py-2">
-                {contextLines.map((line) => (
-                  <p key={line} className="text-xs font-medium leading-snug text-foreground/90">
-                    <DynamicTextRender className="align-middle" text={line} />
-                  </p>
-                ))}
-              </div>
-            )}
+            {!minimal &&
+              hasAction &&
+              contextLines.length > 0 &&
+              effectivePromptType !== "chooseAction" && (
+                <div className="w-full rounded-md border border-active-action-priority/25 bg-active-action-priority/5 px-2.5 py-2">
+                  {contextLines.map((line) => (
+                    <p key={line} className="text-xs font-medium leading-snug text-foreground/90">
+                      <DynamicTextRender className="align-middle" text={line} />
+                    </p>
+                  ))}
+                </div>
+              )}
             {!minimal && (
               <CombatInfo
                 promptType={promptType}

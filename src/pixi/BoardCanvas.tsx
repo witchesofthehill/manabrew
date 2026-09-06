@@ -556,6 +556,11 @@ export function BoardCanvas({
   useEffect(() => {
     scene?.setHoverDebug(showHoverAreas);
   }, [scene, showHoverAreas]);
+  const showPlayerPanelBounds = useGameDevStore((s) => s.showPlayerPanelBounds);
+
+  useEffect(() => {
+    scene?.setPlayerPanelBoundsDebug(showPlayerPanelBounds);
+  }, [scene, showPlayerPanelBounds]);
 
   const showGridSkeleton = useGameDevStore((s) => s.showGridSkeleton);
 

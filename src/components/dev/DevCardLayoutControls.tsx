@@ -5,6 +5,9 @@ import { cn } from "@/lib/utils";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { useScryfallStore } from "@/stores/useScryfallStore";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { PREVIEW_SCENARIOS } from "./devPreviewScenarios";
+import { Button } from "@/components/ui/button";
 
 import {
   DEV_CONTROL_ACTIVE,
@@ -14,52 +17,6 @@ import {
   DEV_SECTION_HEADING,
 } from "./devPanel.styles";
 
-const LAYOUT_CASES = [
-  {
-    id: "transform",
-    label: "Transform",
-    cardName: "Delver of Secrets",
-    identityName: "Delver of Secrets",
-  },
-  {
-    id: "modal_dfc",
-    label: "Modal DFC",
-    cardName: "Kazuul's Fury",
-    identityName: "Kazuul's Fury",
-  },
-  { id: "split", label: "Split", cardName: "Fire // Ice", identityName: "Fire" },
-  {
-    id: "adventure",
-    label: "Adventure",
-    cardName: "Bonecrusher Giant",
-    identityName: "Bonecrusher Giant",
-  },
-  {
-    id: "room",
-    label: "Room",
-    cardName: "Dollmaker's Shop // Porcelain Gallery",
-    identityName: "Dollmaker's Shop",
-  },
-  {
-    id: "battle",
-    label: "Battle",
-    cardName: "Invasion of Zendikar",
-    identityName: "Invasion of Zendikar",
-  },
-  {
-    id: "prototype",
-    label: "Prototype",
-    cardName: "Phyrexian Fleshgorger",
-    identityName: "Phyrexian Fleshgorger",
-  },
-  {
-    id: "meld",
-    label: "Meld",
-    cardName: "Bruna, the Fading Light",
-    identityName: "Bruna, the Fading Light",
-  },
-] as const;
-
 export function DevCardLayoutControls() {
   const definition = useGameDevStore((s) => s.debugCardDefinition);
   const transformed = useGameDevStore((s) => s.cardOverrides.forceTransformed);
@@ -68,17 +25,38 @@ export function DevCardLayoutControls() {
   const setCardOverride = useGameDevStore((s) => s.setCardOverride);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const previewStyle = usePreferencesStore((s) => s.inGameCardPreviewStyle);
+  const setPreviewStyle = usePreferencesStore((s) => s.setInGameCardPreviewStyle);
 
-  const selectLayout = async (layoutCase: (typeof LAYOUT_CASES)[number]) => {
-    setLoadingId(layoutCase.id);
+  const selectLayout = async (scenario: (typeof PREVIEW_SCENARIOS)[number]) => {
+    setLoadingId(scenario.label);
     setError(null);
     try {
-      const card = await useScryfallStore.getState().getCard({ name: layoutCase.cardName });
-      setDebugCard(scryfallToDeckCard(card.info));
-      setCardOverride("forceTransformed", false);
+      const { info } = await useScryfallStore
+        .getState()
+        .getCard({ name: scenario.name || "Serra Angel" });
+      const card = scryfallToDeckCard(info);
+      setDebugCard(
+        scenario.name
+          ? card
+          : {
+              ...card,
+              identity: { ...card.identity, name: "", setCode: "", cardNumber: "" },
+              text: "",
+              manaCost: "",
+              types: ["Creature"],
+              subtypes: [],
+              supertypes: [],
+              power: "2",
+              toughness: "2",
+              keywords: [],
+            },
+      );
+      setCardOverride("forceTransformed", !!scenario.back);
+      setCardOverride("forceFaceDown", !scenario.name);
       setDebugCardEnabled(true);
     } catch {
-      setError(`Could not load ${layoutCase.label}.`);
+      setError(`Could not load ${scenario.label}.`);
     } finally {
       setLoadingId(null);
     }
@@ -88,9 +66,10 @@ export function DevCardLayoutControls() {
     <section className={DEV_SECTION}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className={DEV_SECTION_HEADING}>Card layouts</p>
+          <p className={DEV_SECTION_HEADING}>Card layouts and previews</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Stage a known card for each unusual Scryfall layout.
+            Stage a scenario, then hover the staged card. Use its flip and rotate buttons to inspect
+            each face.
           </p>
         </div>
         {definition?.layout ? (
@@ -100,12 +79,37 @@ export function DevCardLayoutControls() {
         ) : null}
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-        {LAYOUT_CASES.map((layoutCase) => {
-          const active = definition?.identity.name === layoutCase.identityName;
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant={previewStyle === "rules" ? "default" : "outline"}
+          onClick={() => setPreviewStyle("rules")}
+        >
+          Rules preview
+        </Button>
+        <Button
+          size="sm"
+          variant={previewStyle === "printed" ? "default" : "outline"}
+          onClick={() => setPreviewStyle("printed")}
+        >
+          Printed preview
+        </Button>
+        {import.meta.env.DEV && (
+          <Button size="sm" variant="outline" asChild>
+            <a href="/card-mock" target="_blank" rel="noopener noreferrer">
+              Open preview playground
+            </a>
+          </Button>
+        )}
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-1.5">
+        {PREVIEW_SCENARIOS.map((layoutCase) => {
+          const active =
+            definition?.identity.name === layoutCase.name.split(" // ")[0] &&
+            transformed === !!layoutCase.back;
           return (
             <button
-              key={layoutCase.id}
+              key={layoutCase.label}
               type="button"
               className={cn(
                 DEV_CONTROL_BUTTON,
@@ -114,9 +118,9 @@ export function DevCardLayoutControls() {
               )}
               disabled={loadingId !== null}
               onClick={() => void selectLayout(layoutCase)}
-              title={layoutCase.cardName}
+              title={layoutCase.name || "Face-down card"}
             >
-              {loadingId === layoutCase.id ? (
+              {loadingId === layoutCase.label ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : null}
               {layoutCase.label}

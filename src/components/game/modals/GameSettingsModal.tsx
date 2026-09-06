@@ -13,6 +13,10 @@ import {
   HOVER_DELAY_STEP,
 } from "@/components/game/game.constants";
 import { BATTLEFIELD_CARD_STYLE_OPTIONS } from "@/components/game/battlefieldCardStyles";
+import {
+  INLINE_CARD_STYLE_OPTIONS,
+  IN_GAME_CARD_PREVIEW_STYLE_OPTIONS,
+} from "@/components/game/cardPreviewStyles";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { HAND_ORDER_OPTIONS } from "@/lib/handOrder";
 
@@ -21,6 +25,7 @@ const PREVIEW_MODES: { value: CardPreviewMode; label: string }[] = [
   { value: "shift", label: "Shift" },
   { value: "alt", label: "Alt" },
   { value: "ctrl", label: "Ctrl" },
+  { value: "right-click", label: "Right click" },
 ];
 
 function SettingRow({
@@ -41,9 +46,6 @@ function SettingRow({
   );
 }
 
-/** In-game board settings, opened from the board menu (gear → Board settings).
- *  Every control writes its preference store directly, so changes apply to the
- *  live board immediately and persist like the Settings page equivalents. */
 export function GameSettingsModal({ onClose }: { onClose: () => void }) {
   const prefs = usePreferencesStore();
   const fullControl = usePromptPreferencesStore((s) => s.fullControl);
@@ -66,6 +68,60 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
                 variant={prefs.handOrderMode === option.value ? "default" : "outline"}
                 size="sm"
                 onClick={() => prefs.setHandOrderMode(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        </SettingRow>
+
+        <SettingRow
+          label="Hand card style"
+          hint="Printed card shows the card image. Live view uses the card's current rules and game state; each card can still be switched."
+        >
+          <div className="flex items-center gap-2">
+            {INLINE_CARD_STYLE_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                variant={prefs.handCardStyle === option.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => prefs.setHandCardStyle(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        </SettingRow>
+
+        <SettingRow
+          label="Default stack card view"
+          hint="Choose which face stack cards show when they appear. You can still switch individual cards."
+        >
+          <div className="flex items-center gap-2">
+            {INLINE_CARD_STYLE_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                variant={prefs.stackCardStyle === option.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => prefs.setStackCardStyle(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        </SettingRow>
+
+        <SettingRow
+          label="Card preview style"
+          hint="Printed card shows the full card image. Live view prioritizes current rules, actions, costs, counters, and other game state."
+        >
+          <div className="flex items-center gap-2">
+            {IN_GAME_CARD_PREVIEW_STYLE_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                variant={prefs.inGameCardPreviewStyle === option.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => prefs.setInGameCardPreviewStyle(option.value)}
               >
                 {option.label}
               </Button>
@@ -218,9 +274,9 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
 
         <SettingRow
           label="Card preview trigger"
-          hint='When the big card preview appears. "Hover" shows on mouse over; the others need the modifier key held.'
+          hint="Hover opens automatically. Shift, Alt, and Ctrl require that key while hovering. Right click opens a preview that stays until dismissed."
         >
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {PREVIEW_MODES.map((m) => (
               <Button
                 key={m.value}
@@ -236,7 +292,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
 
         <SettingRow
           label={`Card preview delay (${prefs.cardHoverDelayMs}ms)`}
-          hint="How long to hover before the preview appears."
+          hint="How long hover and modifier previews wait before appearing."
         >
           <input
             type="range"

@@ -10,8 +10,11 @@ import type { GameFormat } from "@/types/server";
 import type { HandOrderMode } from "@/lib/handOrder";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
-export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
+export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl" | "right-click";
 export type BattlefieldCardStyle = "realistic" | "art" | "frame";
+export type InGameCardPreviewStyle = "printed" | "rules";
+export type InlineCardStyle = "printed" | "rules";
+export type RulesPreviewSectionId = "actions" | "rules" | "progression" | "details" | "flavor";
 
 export interface LastRoomSetup {
   kind: "match" | "limited";
@@ -102,6 +105,14 @@ interface PreferencesState {
 
   cardHoverDelayMs: number;
   setCardHoverDelayMs: (ms: number) => void;
+  inGameCardPreviewStyle: InGameCardPreviewStyle;
+  setInGameCardPreviewStyle: (style: InGameCardPreviewStyle) => void;
+  handCardStyle: InlineCardStyle;
+  setHandCardStyle: (style: InlineCardStyle) => void;
+  stackCardStyle: InlineCardStyle;
+  setStackCardStyle: (style: InlineCardStyle) => void;
+  collapsedRulesPreviewSections: RulesPreviewSectionId[];
+  setRulesPreviewSectionCollapsed: (section: RulesPreviewSectionId, collapsed: boolean) => void;
 
   appThemeColorOverrides: Record<string, string>;
   setAppThemeColorOverride: (key: string, hsl: string) => void;
@@ -147,6 +158,10 @@ const PERSISTED_PREFERENCE_KEYS = [
   "hideAccountSaveNudge",
   "cardPreviewMode",
   "cardHoverDelayMs",
+  "inGameCardPreviewStyle",
+  "handCardStyle",
+  "stackCardStyle",
+  "collapsedRulesPreviewSections",
   "appThemeColorOverrides",
   "gameThemeColorOverrides",
   "lastPlayedDeckId",
@@ -262,6 +277,21 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           cardHoverDelayMs: 350,
           setCardHoverDelayMs: (ms) => set({ cardHoverDelayMs: ms }),
+          inGameCardPreviewStyle: "printed",
+          setInGameCardPreviewStyle: (inGameCardPreviewStyle) => set({ inGameCardPreviewStyle }),
+          handCardStyle: "printed",
+          setHandCardStyle: (handCardStyle) => set({ handCardStyle }),
+          stackCardStyle: "printed",
+          setStackCardStyle: (stackCardStyle) => set({ stackCardStyle }),
+          collapsedRulesPreviewSections: [],
+          setRulesPreviewSectionCollapsed: (section, collapsed) =>
+            set((state) => ({
+              collapsedRulesPreviewSections: collapsed
+                ? state.collapsedRulesPreviewSections.includes(section)
+                  ? state.collapsedRulesPreviewSections
+                  : [...state.collapsedRulesPreviewSections, section]
+                : state.collapsedRulesPreviewSections.filter((id) => id !== section),
+            })),
 
           appThemeColorOverrides: {},
           setAppThemeColorOverride: (key, hsl) =>

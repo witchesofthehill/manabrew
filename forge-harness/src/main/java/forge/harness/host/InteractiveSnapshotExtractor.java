@@ -38,6 +38,7 @@ import forge.game.player.Player;
 import forge.game.spellability.SpellAbility;
 import forge.game.spellability.SpellAbilityStackInstance;
 import forge.game.spellability.TargetChoices;
+import forge.game.trigger.Trigger;
 import forge.game.zone.ZoneType;
 import forge.item.IPaperCard;
 import forge.item.PaperToken;
@@ -913,6 +914,7 @@ public final class InteractiveSnapshotExtractor {
                     : normalizeCardName(source.getName());
             stackItem.put("identity", stackIdentity(name, source));
             stackItem.put("text", item.getStackDescription());
+            putIfNotBlank(stackItem, "sourceAbilityText", sourceAbilityText(sa));
             stackItem.put("isPermanentSpell", source != null && item.isSpell() && source.isPermanent());
             stackItem.put("isCasting", false);
             stackItem.put("isDoubleFaced", source != null
@@ -960,12 +962,42 @@ public final class InteractiveSnapshotExtractor {
                 : "");
         stackItem.put("identity", stackIdentity(normalizeCardName(source.getName()), source));
         stackItem.put("text", castingAbility.getStackDescription());
+        putIfNotBlank(stackItem, "sourceAbilityText", sourceAbilityText(castingAbility));
         stackItem.put("isPermanentSpell", castingAbility.isSpell() && source.isPermanent());
         stackItem.put("isCasting", true);
         stackItem.put("isDoubleFaced", source.isDoubleFaced() || source.isModal());
         stackItem.put("faceIndex", stackFaceIndex(source, castingAbility));
         stackItem.put("targets", stackTargets(game, castingAbility));
         return stackItem;
+    }
+
+    private static String sourceAbilityText(final SpellAbility ability) {
+        if (ability == null) {
+            return null;
+        }
+        if (ability.isTrigger()) {
+            final Trigger trigger = ability.getTrigger();
+            String text = trigger.toString(true);
+            if (text.contains("ABILITY")) {
+                text = trigger.replaceAbilityText(text, ability, true);
+            }
+            return text.trim();
+        }
+        final Card source = ability.getHostCard();
+        if (ability.isSpell() && source != null && source.isPermanent()) {
+            return null;
+        }
+        return ability.toString().trim();
+    }
+
+    private static void putIfNotBlank(
+            final Map<String, Object> target,
+            final String key,
+            final String value
+    ) {
+        if (value != null && !value.isEmpty()) {
+            target.put(key, value);
+        }
     }
 
     private static int stackFaceIndex(final Card source, final SpellAbility ability) {

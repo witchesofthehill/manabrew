@@ -38,6 +38,7 @@ export const OPPONENT_SEATS: readonly Exclude<PlayerSeat, "self">[] = [
 export interface RightActionPanelProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
+  onLeftEdgeChange?: (left: number | undefined) => void;
   gameLog: GameLogEntry[];
   onHoverLogCard: (
     cardId: string | null,

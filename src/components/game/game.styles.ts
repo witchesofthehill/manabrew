@@ -19,7 +19,7 @@ export const HAND_CARD = "w-[80px] h-[112px]" as const;
 
 export const HAND_CARD_BASE = { cardW: 130, cardH: 182, containerH: 220 } as const;
 export const MODAL_CARD_SIZE = "w-[100px] h-[140px]" as const;
-export const FLASH_CARD_SIZE = { w: 310, h: 434 } as const;
+export const FLASH_CARD_SIZE = { w: 360, h: 504 } as const;
 export const MULLIGAN_CARD_SIZE = "w-[160px] h-[222px]" as const;
 export const CHOOSE_CARD_TILE_SIZE = "w-[94px] sm:w-[150px]" as const;
 export const PROMPT_SOURCE_CARD_SIZE = {

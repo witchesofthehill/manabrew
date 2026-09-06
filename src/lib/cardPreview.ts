@@ -1,6 +1,13 @@
 import type { CardDto } from "@/protocol/game";
 
 export type PreviewCard = CardDto & { zoneId?: string };
+export interface PreviewPointerInput {
+  buttons: number;
+  shiftKey: boolean;
+  altKey: boolean;
+  ctrlKey: boolean;
+  metaKey: boolean;
+}
 export type PreviewPlacement = "auto" | "top-center" | "pinned";
 export type PreviewPhase = "hidden" | "open" | "closing";
 

@@ -312,15 +312,31 @@ export function frameTint(hex: string, maxLuminance = FRAME_TINT_MAX_LUMINANCE):
   return lum <= maxLuminance ? base : darken(base, 1 - maxLuminance / lum);
 }
 
-const WUBRG = new Set(["W", "U", "B", "R", "G"]);
+type ColoredManaLetter = Exclude<ManaLetter, "C">;
+const WUBRG = new Set<ColoredManaLetter>(["W", "U", "B", "R", "G"]);
+
+export interface CardFrameTints {
+  primary: string;
+  secondary: string | null;
+}
+
+export function cardFrameTints(
+  colorIdentity: string[] | undefined,
+  mana: GameThemeColors["mana"],
+): CardFrameTints {
+  const colors = (colorIdentity ?? []).filter((color): color is ColoredManaLetter =>
+    WUBRG.has(color as ColoredManaLetter),
+  );
+  const colorless = colors.length === 0;
+  const tintMax = colorless ? FRAME_TINT_COLORLESS_MAX_LUMINANCE : undefined;
+  const primary = frameTint(colorless ? mana.C : mana[colors[0]!], tintMax);
+  const secondary = colors.length > 1 ? frameTint(mana[colors[1]!]) : null;
+  return { primary, secondary };
+}
 
 export function cardFrameTintHex(
   colorIdentity: string[] | undefined,
   mana: GameThemeColors["mana"],
 ): string {
-  const first = (colorIdentity ?? []).find((c) => WUBRG.has(c));
-  return frameTint(
-    first ? mana[first as keyof typeof mana] : mana.C,
-    first ? undefined : FRAME_TINT_COLORLESS_MAX_LUMINANCE,
-  );
+  return cardFrameTints(colorIdentity, mana).primary;
 }

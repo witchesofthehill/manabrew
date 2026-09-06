@@ -1,5 +1,6 @@
 import type { CardDto, CombatAssignmentDto } from "@/protocol/game";
 import type { ManaAbilityActionInfo } from "@/components/game/manaUtils";
+import type { PreviewPointerInput } from "@/lib/cardPreview";
 
 export interface ScreenBounds {
   x: number;
@@ -56,8 +57,13 @@ export interface GameCanvasCallbacks {
   onHoverCard?: (
     card: CardDto | null,
     screenBounds?: ScreenBounds,
-    options?: { useAnchor?: boolean; placement?: HoverPlacement },
+    options?: {
+      useAnchor?: boolean;
+      placement?: HoverPlacement;
+      trigger?: PreviewPointerInput;
+    },
   ) => void;
+  onRightClickCard?: (card: CardDto, screenBounds: ScreenBounds) => void;
   onFlipCard?: () => void;
   onStartDrag?: (
     card: CardDto,

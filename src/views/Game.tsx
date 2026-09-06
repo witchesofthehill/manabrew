@@ -29,11 +29,12 @@ import {
   GameSettingsModal,
   LeaveGameModal,
 } from "@/components/game/modals";
-import type { StackSpec } from "@/pixi/stack/stack.types";
+import type { StackCardSpec, StackSpec } from "@/pixi/stack/stack.types";
 import { useCastingState } from "@/hooks/useCastingState";
 import { useResolveSourceCard } from "@/components/prompts/internal/usePromptSourceCard";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { BoardCanvasLayout } from "@/pixi/BoardCanvas";
+import type { BoardOverlayPreviewSpec } from "@/pixi/BoardOverlayCanvas";
 import { buildArrowSpecs } from "@/components/game/arrowSpecs";
 import { getDisplayedManaAbilities } from "@/components/game/manaUtils";
 import { PlayModePicker } from "@/components/game/PlayModePicker";
@@ -43,6 +44,7 @@ import { useHandScale } from "@/hooks/useHandScale";
 import { useFlashQueue } from "@/hooks/useFlashQueue";
 import { useHandDrag, type HandDragStart } from "@/hooks/useHandDrag";
 import { useCardPreview } from "@/hooks/useCardPreview";
+import type { PreviewPointerInput } from "@/lib/cardPreview";
 import { useMulliganSelection } from "@/hooks/useMulliganSelection";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { usePromptEffects } from "@/hooks/usePromptEffects";
@@ -68,15 +70,24 @@ import type { CombatPairing } from "@/components/game/game.types";
 import { useStackUIStore } from "@/stores/useStackUIStore";
 import {
   useGameDevStore,
+  applyCardOverrides,
   DEBUG_KEYWORD_CARD_ID,
+  DEBUG_STACK_OBJECT_ID,
   DEFAULT_DEBUG_CARD_NAME,
 } from "@/stores/useGameDevStore";
-import { stackObjectToCardStub, isPermanentSpellCard } from "@/components/game/game.utils";
+import {
+  isPermanentSpellCard,
+  stackObjectAbilityText,
+  stackObjectToCardStub,
+} from "@/components/game/game.utils";
 import { createPortal } from "react-dom";
 import { Card } from "@/components/game/Card";
 import { cn } from "@/lib/utils";
 import { applyManualTabletopAction, getSelectedGameRuntime } from "@/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
+import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
+import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
+import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 
 const HOVER_ALLOWED_PROMPTS = new Set<PromptType>([
@@ -109,6 +120,7 @@ function buildDebugKeywordCard(
   mode: "page" | "saga" | "class",
   current: number,
   final: number,
+  transformed: boolean,
 ): ClientCardDto {
   const base: ClientCardDto = {
     ...GAME_CARD_DEFAULTS,
@@ -116,7 +128,7 @@ function buildDebugKeywordCard(
     id: DEBUG_KEYWORD_CARD_ID,
     identity: {
       ...(definition?.identity ?? {}),
-      name: (definition?.identity.name ?? name.trim()) || DEFAULT_DEBUG_CARD_NAME,
+      name: definition?.identity.name ?? (name.trim() || DEFAULT_DEBUG_CARD_NAME),
       setCode: definition?.identity.setCode ?? "",
       cardNumber: definition?.identity.cardNumber ?? "",
       isToken: false,
@@ -134,7 +146,54 @@ function buildDebugKeywordCard(
     toughness: definition?.toughness ?? null,
     basePower: numericPrintedStat(definition?.power),
     baseToughness: numericPrintedStat(definition?.toughness),
+    isTransformed: transformed,
+    isFaceDown: definition?.identity.name === "",
   };
+  const info =
+    transformed && definition
+      ? peekCard(useScryfallStore.getState().cards, {
+          name: definition.identity.name,
+          setCode: definition.identity.setCode || undefined,
+          collectorNumber: definition.identity.cardNumber || undefined,
+        })
+      : null;
+  const face = info?.card_faces?.[1];
+  if (info && face) {
+    const selected = scryfallToSampleGameCard({
+      ...info,
+      ...face,
+      type_line: face.type_line ?? info.type_line,
+    });
+    base.types = selected.types;
+    base.subtypes = selected.subtypes;
+    base.supertypes = selected.supertypes;
+    base.text = selected.text;
+    base.manaCost = selected.manaCost;
+    base.power = selected.power;
+    base.toughness = selected.toughness;
+    base.basePower = selected.basePower;
+    base.baseToughness = selected.baseToughness;
+  }
+  const printedRail = definition ? parsePrintedCardRailMetadata(definition) : null;
+  if (railEnabled && mode === "saga" && printedRail?.kind === "saga") {
+    return {
+      ...base,
+      counters: {
+        ...base.counters,
+        Lore: Math.max(0, Math.min(printedRail.finalChapter, current)),
+      },
+      finalChapter: printedRail.finalChapter,
+      sagaChapters: printedRail.sagaChapters,
+    };
+  }
+  if (railEnabled && mode === "class" && printedRail?.kind === "class") {
+    const finalLevel = Math.max(...printedRail.classLevels.map((level) => level.level));
+    return {
+      ...base,
+      classLevel: Math.max(1, Math.min(finalLevel, current)),
+      classLevels: printedRail.classLevels,
+    };
+  }
   if (!railEnabled) return base;
 
   if (mode === "saga") {
@@ -230,12 +289,15 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
   const flashDurationMs = usePreferencesStore((s) => s.flashDurationMs);
   const zonePanelOrder = usePreferencesStore((s) => s.zonePanelOrder);
+  const inGameCardPreviewStyle = usePreferencesStore((s) => s.inGameCardPreviewStyle);
+  const cardPreviewMode = usePreferencesStore((s) => s.cardPreviewMode);
   const vScale = useHandScale();
   const themeColors = useTheme().gameTheme;
   const location = useLocation();
   const devExtraOpponents =
     (location.state as { devExtraOpponents?: number } | null)?.devExtraOpponents ?? 0;
   const containerRef = useRef<HTMLDivElement>(null);
+  const [rightPanelLeft, setRightPanelLeft] = useState<number>();
   const boardSceneRef = useRef<BoardScene | null>(null);
   const placementIntentRef = useRef<{ cardId: string; castStarted: boolean } | null>(null);
   const [boardLayout, setBoardLayout] = useState<BoardCanvasLayout | null>(null);
@@ -939,7 +1001,10 @@ export default function Game({ exitTo }: GameProps = {}) {
     return false;
   };
 
-  const preview = useCardPreview([viewingZone, spellStackModalOpen, abilityPickerState]);
+  const preview = useCardPreview([viewingZone, spellStackModalOpen, abilityPickerState], {
+    useTriggerPreference: true,
+  });
+  const previewViewSwitchCardIdRef = useRef<string | null>(null);
 
   const battlefieldContainerRef = useRef<HTMLDivElement>(null);
   const { draggingHandCard, ghostPos, isOverBattlefield, isOverHand, startHandCardDrag } =
@@ -964,8 +1029,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   const draggingIsPermanent = draggingHandCard ? isPermanentSpellCard(draggingHandCard) : false;
   const ghostCardW = Math.round(HAND_CARD_BASE.cardW * vScale);
   const ghostCardH = Math.round(HAND_CARD_BASE.cardH * vScale);
-
-  const hoveredCardActions = preview.hoveredCard ? getCardActions(preview.hoveredCard) : [];
 
   const handlePreviewAction = (action: HandActionOption) => {
     preview.dismiss();
@@ -1371,18 +1434,27 @@ export default function Game({ exitTo }: GameProps = {}) {
   const debugBattlefieldKeywords = useGameDevStore((s) => s.debugBattlefieldKeywords);
   const debugCardChoices = useGameDevStore((s) => s.debugCardChoices);
   const debugCardEnabled = useGameDevStore((s) => s.debugCardEnabled);
+  const debugStackCardEnabled = useGameDevStore((s) => s.debugStackCardEnabled);
   const debugCardName = useGameDevStore((s) => s.debugCardName);
   const debugCardDefinition = useGameDevStore((s) => s.debugCardDefinition);
   const debugCardRailEnabled = useGameDevStore((s) => s.debugCardRailEnabled);
   const debugCardMode = useGameDevStore((s) => s.debugCardMode);
   const debugCardCurrent = useGameDevStore((s) => s.debugCardCurrent);
   const debugCardFinal = useGameDevStore((s) => s.debugCardFinal);
+  const debugCardOverrides = useGameDevStore((s) => s.cardOverrides);
+  const debugCardTransformed = debugCardOverrides.forceTransformed;
 
   const visibleCardsById = useMemo(() => {
-    if (!gameView) return new Map<string, CardDto>();
-    const cards: CardDto[] = [
+    if (!gameView) return new Map<string, ClientCardDto>();
+    const cards: ClientCardDto[] = [
       ...gameView.battlefield,
-      ...gameView.players.flatMap((p) => [...p.hand, ...p.graveyard, ...p.exile, ...p.commandZone]),
+      ...gameView.players.flatMap((p) => [
+        ...p.hand,
+        ...p.graveyard,
+        ...p.exile,
+        ...p.commandZone,
+        ...p.library,
+      ]),
     ];
     const map = new Map(cards.map((c) => [c.id, c]));
     if (debugCardEnabled && me?.id) {
@@ -1398,6 +1470,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           debugCardMode,
           debugCardCurrent,
           debugCardFinal,
+          debugCardTransformed,
         ),
       );
     }
@@ -1411,6 +1484,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     debugCardMode,
     debugCardCurrent,
     debugCardFinal,
+    debugCardTransformed,
     debugBattlefieldKeywords,
     debugCardChoices,
     me?.id,
@@ -1455,6 +1529,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           debugCardMode,
           debugCardCurrent,
           debugCardFinal,
+          debugCardTransformed,
         ),
       );
     }
@@ -1471,6 +1546,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     debugCardMode,
     debugCardCurrent,
     debugCardFinal,
+    debugCardTransformed,
     debugBattlefieldKeywords,
     debugCardChoices,
     regionOwnerOf,
@@ -1490,13 +1566,42 @@ export default function Game({ exitTo }: GameProps = {}) {
   }, [gameView, opponents, regionOwnerOf, battlefieldById]);
 
   const stackCardsBySourceId = useMemo(() => {
-    const byId = new Map<string, CardDto>();
+    const byId = new Map<string, ClientCardDto>();
     for (const s of gameView?.stack ?? []) {
       if (byId.has(s.sourceId)) continue;
       byId.set(s.sourceId, stackObjectToCardStub(s));
     }
     return byId;
   }, [gameView?.stack]);
+
+  const previewCardId = preview.hoveredCard?.id ?? null;
+  const livePreviewCard = previewCardId
+    ? (visibleCardsById.get(previewCardId) ?? stackCardsBySourceId.get(previewCardId) ?? null)
+    : null;
+  const [previewFaceOverride, setPreviewFaceOverride] = useState<{
+    cardId: string;
+    showBackFace: boolean;
+  } | null>(null);
+  useEffect(() => {
+    setPreviewFaceOverride(null);
+  }, [previewCardId]);
+  const previewShowBackFace =
+    previewFaceOverride && previewFaceOverride.cardId === livePreviewCard?.id
+      ? previewFaceOverride.showBackFace
+      : (livePreviewCard?.isTransformed ?? false);
+  const handleFlipPreview = () => {
+    if (!livePreviewCard) return;
+    const showBackFace = !previewShowBackFace;
+    setPreviewFaceOverride(
+      showBackFace === livePreviewCard.isTransformed
+        ? null
+        : { cardId: livePreviewCard.id, showBackFace },
+    );
+  };
+  const hoveredCardActions = useMemo(
+    () => (livePreviewCard ? getCardActions(livePreviewCard) : []),
+    [getCardActions, livePreviewCard],
+  );
 
   const promptSourceDeckCard = useResolveSourceCard(activePrompt?.sourceCard);
 
@@ -1508,6 +1613,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       placement?: "auto" | "top-center";
       anchorOverride?: DOMRect;
       useDelay?: boolean;
+      trigger?: PreviewPointerInput;
     } = {},
   ) => {
     if (draggingHandCard) {
@@ -1533,6 +1639,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       useAnchor?: boolean;
       placement?: "auto" | "top-center";
       anchorOverride?: DOMRect;
+      trigger?: PreviewPointerInput;
     } = {},
   ) => {
     if (draggingHandCard) {
@@ -1592,16 +1699,12 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
   }, [draggingHandCard, dismissPreview]);
 
-  const hoverableCardIds = useMemo(() => {
-    return new Set(visibleCardsById.keys());
-  }, [visibleCardsById]);
-
   useEffect(() => {
     if (!previewedCard) return;
-    if (!hoverableCardIds.has(previewedCard.id) && !stackCardsBySourceId.has(previewedCard.id)) {
+    if (!livePreviewCard) {
       dismissPreview();
     }
-  }, [previewedCard, dismissPreview, hoverableCardIds, stackCardsBySourceId]);
+  }, [previewedCard, dismissPreview, livePreviewCard]);
 
   const cardNameById = useMemo(() => {
     const byId = new Map<string, string>();
@@ -1631,6 +1734,38 @@ export default function Game({ exitTo }: GameProps = {}) {
     );
   }, [activeFlash, visibleCardsById, stackCardsBySourceId]);
 
+  const showInGamePreview =
+    livePreviewCard != null &&
+    (livePreviewCard.zoneId !== "hand" || preview.isSticky) &&
+    !draggingHandCard &&
+    !viewingZone &&
+    !spellStackModalOpen &&
+    !abilityPickerState &&
+    preview.phase !== "hidden";
+  const previewSuppressed = !!promptType && !HOVER_ALLOWED_PROMPTS.has(promptType);
+  const externalPreviewActive = showInGamePreview && preview.phase === "open" && !previewSuppressed;
+  useEffect(() => {
+    if (preview.phase !== "open") previewViewSwitchCardIdRef.current = null;
+  }, [preview.phase]);
+  const skipPreviewEnterAnimation =
+    preview.phase === "open" &&
+    livePreviewCard != null &&
+    previewViewSwitchCardIdRef.current === livePreviewCard.id;
+  const togglePreviewView = useCallback(() => {
+    if (!livePreviewCard) return;
+    previewViewSwitchCardIdRef.current = livePreviewCard.id;
+    const preferences = usePreferencesStore.getState();
+    preferences.setInGameCardPreviewStyle(
+      preferences.inGameCardPreviewStyle === "printed" ? "rules" : "printed",
+    );
+  }, [livePreviewCard]);
+  useKeybindings(
+    externalPreviewActive
+      ? {
+          "toggle-card-view": togglePreviewView,
+        }
+      : {},
+  );
   useEffect(() => {
     if (!gameView?.gameOver && activePrompt?.input.type !== "gameOver") return;
     if (peekGauntletMatch()) return;
@@ -1723,21 +1858,54 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const stackValidTargetSet = new Set(boardTargets?.spellIds ?? []);
   const stackTargetingActive = stackValidTargetSet.size > 0;
+  const debugStackCard =
+    debugStackCardEnabled && me
+      ? applyCardOverrides(
+          buildDebugKeywordCard(
+            me.id,
+            debugCardName,
+            debugCardDefinition,
+            debugBattlefieldKeywords,
+            debugCardChoices,
+            debugCardRailEnabled,
+            debugCardMode,
+            debugCardCurrent,
+            debugCardFinal,
+            debugCardTransformed,
+          ),
+          debugCardOverrides,
+        )
+      : null;
+  const stackCards: StackCardSpec[] = (gameView?.stack ?? []).map((obj, idx, arr) => {
+    const isValidTarget = stackTargetingActive && stackValidTargetSet.has(obj.id);
+    return {
+      id: obj.id,
+      sourceId: obj.sourceId,
+      card: resolveStackCard(obj),
+      sourceAbilityText: stackObjectAbilityText(obj),
+      controllerId: obj.controllerId,
+      isCasting: obj.isCasting,
+      isTopOfStack: debugStackCard === null && idx === arr.length - 1,
+      seatColor: playerColorMap.get(obj.controllerId),
+      isValidTarget,
+      isDimmed: stackTargetingActive && !isValidTarget,
+    };
+  });
+  if (debugStackCard) {
+    stackCards.push({
+      id: DEBUG_STACK_OBJECT_ID,
+      sourceId: DEBUG_KEYWORD_CARD_ID,
+      card: debugStackCard,
+      controllerId: me.id,
+      isCasting: false,
+      isTopOfStack: true,
+      seatColor: playerColorMap.get(me.id),
+      isValidTarget: false,
+      isDimmed: false,
+    });
+  }
   const stackSpec: StackSpec = {
-    cards: (gameView?.stack ?? []).map((obj, idx, arr) => {
-      const isValidTarget = stackTargetingActive && stackValidTargetSet.has(obj.id);
-      return {
-        id: obj.id,
-        sourceId: obj.sourceId,
-        card: resolveStackCard(obj),
-        controllerId: obj.controllerId,
-        isCasting: obj.isCasting,
-        isTopOfStack: idx === arr.length - 1,
-        seatColor: playerColorMap.get(obj.controllerId),
-        isValidTarget,
-        isDimmed: stackTargetingActive && !isValidTarget,
-      };
-    }),
+    cards: stackCards,
     flash:
       shouldRenderStackFlashCard && activeFlashCard && activeFlash
         ? {
@@ -1746,8 +1914,23 @@ export default function Game({ exitTo }: GameProps = {}) {
           }
         : null,
     showPreStackFlash: shouldShowPreStackFlash,
-    collapsed: stackCollapsed,
+    collapsed: debugStackCard === null && stackCollapsed,
   };
+  const rulesPreview: BoardOverlayPreviewSpec | null =
+    inGameCardPreviewStyle === "rules" && showInGamePreview && livePreviewCard
+      ? {
+          card: livePreviewCard,
+          phase: preview.phase === "closing" ? "closing" : "open",
+          sticky: preview.isSticky,
+          showBackFace: previewShowBackFace,
+          suppressed: previewSuppressed,
+          skipEnterAnimation: skipPreviewEnterAnimation,
+          actions: hoveredCardActions,
+          mousePos: preview.mousePos,
+          anchorRect: preview.anchorRect,
+          viewportRight: isActionPanelCollapsed ? undefined : rightPanelLeft,
+        }
+      : null;
 
   return (
     <div
@@ -1829,14 +2012,25 @@ export default function Game({ exitTo }: GameProps = {}) {
           castingCardId={casting.castingCardId}
           onHandCardDragStart={handleHandCardDragStart}
           onHoverCard={handleHoverCardGuarded}
+          onRightClickCard={
+            cardPreviewMode === "right-click"
+              ? (card, rect) =>
+                  preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2)
+              : undefined
+          }
           onDismissHoverPreview={preview.dismiss}
+          rulesPreview={rulesPreview}
+          externalPreviewActive={externalPreviewActive}
+          onPreviewPointerEnter={preview.onMouseEnterPreview}
+          onPreviewPointerLeave={preview.onMouseLeavePreview}
+          onTogglePreviewView={togglePreviewView}
           onLongPressCard={(card, rect) =>
             preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2)
           }
           onHandHoverChange={setHandCardLifted}
           getHandActions={getHandActionOptions}
           onSelectHandAction={handlePreviewAction}
-          onFlipCard={preview.flipCard}
+          onFlipCard={handleFlipPreview}
           onBattlefieldClick={(card) => {
             if (manualApi) {
               void applyManualAction({
@@ -1916,6 +2110,7 @@ export default function Game({ exitTo }: GameProps = {}) {
 
       <RightActionPanel
         collapsed={isActionPanelCollapsed}
+        onLeftEdgeChange={setRightPanelLeft}
         onToggleCollapse={toggleActionPanel}
         gameLog={gameLog}
         onHoverLogCard={handleLogCardHover}
@@ -2188,19 +2383,21 @@ export default function Game({ exitTo }: GameProps = {}) {
           document.body,
         )}
 
-      {preview.hoveredCard &&
-        preview.hoveredCard.zoneId !== "hand" &&
-        !draggingHandCard &&
-        !viewingZone &&
-        !spellStackModalOpen &&
-        !abilityPickerState && (
-          <HoverCardPreview
-            preview={preview}
-            actions={hoveredCardActions}
-            onSelectAction={handlePreviewAction}
-            suppressed={!!promptType && !HOVER_ALLOWED_PROMPTS.has(promptType)}
-          />
-        )}
+      {inGameCardPreviewStyle === "printed" && showInGamePreview && (
+        <HoverCardPreview
+          preview={{
+            ...preview,
+            hoveredCard: livePreviewCard,
+            showBackFace: previewShowBackFace,
+            flipCard: handleFlipPreview,
+          }}
+          actions={hoveredCardActions}
+          onSelectAction={handlePreviewAction}
+          suppressed={previewSuppressed}
+          skipEnterAnimation={skipPreviewEnterAnimation}
+          onToggleView={togglePreviewView}
+        />
+      )}
 
       {interruption.waiting && (
         <WaitingForPlayerScreen

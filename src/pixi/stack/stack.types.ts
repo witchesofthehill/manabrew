@@ -5,6 +5,7 @@ export interface StackCardSpec {
   id: string;
   sourceId: string;
   card: CardDto;
+  sourceAbilityText?: string;
   controllerId: string;
   isCasting: boolean;
   isTopOfStack: boolean;
@@ -33,8 +34,8 @@ export interface StackCallbacks {
 }
 
 export interface StackAnchorProvider {
-  getAnchor(stackObjectId: string): ScreenPos | null;
-  getCastingAnchor(sourceCardId: string): ScreenPos | null;
+  getAnchor(stackObjectId: string, toward?: ScreenPos): ScreenPos | null;
+  getCastingAnchor(sourceCardId: string, toward?: ScreenPos): ScreenPos | null;
   getSeeds(): Array<{ cardId: string; x: number; y: number; scale: number }>;
   getBounds(): ScreenBounds | null;
 }

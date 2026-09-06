@@ -1,4 +1,4 @@
-import { Container, Graphics, Rectangle, Text, type FederatedPointerEvent } from "pixi.js";
+import { Container, Graphics, Rectangle, type FederatedPointerEvent } from "pixi.js";
 import { gsap } from "../effects/gsap";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import type { Theme } from "@/hooks/useTheme";
@@ -6,6 +6,8 @@ import { CardSprite } from "../CardSprite";
 import { hexToNum } from "../colorUtils";
 import { LongPressGesture } from "../LongPressGesture";
 import type { StackCardSpec } from "./stack.types";
+import { HandCardControls } from "../HandCardControls";
+import { getRectBorderAnchor } from "./stackLayout";
 
 const ENTER_MS = 0.42;
 const FLASH_MS = 0.56;
@@ -16,8 +18,6 @@ export const HOVER_SCALE = 1.12;
 const HOVER_LIFT_PX = 2;
 const RING_RADIUS_FRAC = 0.05;
 const GLOW_PAD = 6;
-const FLIP_BUTTON_SIZE = 28;
-const FLIP_BUTTON_INSET = 17;
 
 export class StackCardSprite {
   readonly container: Container;
@@ -30,12 +30,6 @@ export class StackCardSprite {
   private glow = new Graphics();
   private ring = new Graphics();
   private face: CardSprite;
-  private flipButton = new Container();
-  private flipButtonBg = new Graphics();
-  private flipButtonLabel = new Text({
-    text: "↻",
-    style: { fontSize: 17, fontWeight: "bold" },
-  });
   private hovered = false;
   private entered = false;
   private lastTargetKey = "";
@@ -43,19 +37,26 @@ export class StackCardSprite {
   private castingTween: gsap.core.Tween | null = null;
   private hoverTween: gsap.core.Tween | null = null;
   private longPress = new LongPressGesture();
+  private viewControls: HandCardControls;
+  private readonly onToggleRules: (id: string) => void;
+  private readonly onFlip: (id: string) => void;
 
   constructor(
     theme: Theme,
     spec: StackCardSpec,
     cardWidth: number,
+    rulesView: boolean,
     onOpen: () => void,
     onTarget: (id: string) => void,
     onHover: (id: string | null) => void,
+    onToggleRules: (id: string) => void,
     onFlip: (id: string) => void,
   ) {
     this.theme = theme;
     this.spec = spec;
     this.sourceId = spec.sourceId;
+    this.onToggleRules = onToggleRules;
+    this.onFlip = onFlip;
     this.faceScale = cardWidth / CARD_W;
 
     this.container = new Container();
@@ -63,84 +64,67 @@ export class StackCardSprite {
     this.ring.eventMode = "none";
     this.face = new CardSprite(spec.card, "hand");
     this.face.scale.set(this.faceScale);
+    this.face.setHandRulesView(rulesView);
+    this.face.setHandRulesHighlight(spec.sourceAbilityText ?? "");
+    this.viewControls = new HandCardControls(theme);
     this.face.position.set(0, 0);
 
     const horiz = this.face.horizontalFrame;
     this.width = (horiz ? CARD_H : CARD_W) * this.faceScale;
     this.height = (horiz ? CARD_W : CARD_H) * this.faceScale;
 
-    const hit = new Graphics()
-      .roundRect(
-        -this.width / 2,
-        -this.height / 2,
-        this.width,
-        this.height,
-        this.width * RING_RADIUS_FRAC,
-      )
-      .fill({ color: 0xffffff, alpha: 0.001 });
-    hit.eventMode = "static";
-    hit.cursor = "pointer";
-    hit.on("pointertap", () => {
+    this.container.eventMode = "static";
+    this.container.cursor = "pointer";
+    this.container.hitArea = new Rectangle(
+      -this.width / 2,
+      -this.height / 2,
+      this.width,
+      this.height,
+    );
+    this.container.on("pointertap", () => {
       if (this.longPress.consumeTap(this.spec.id)) return;
       if (this.spec.isValidTarget) onTarget(this.spec.id);
       else onOpen();
     });
-    hit.on("pointerdown", (e: FederatedPointerEvent) => {
-      this.longPress.start(e, this.spec.id, () => {
+    this.container.on("pointerdown", (event: FederatedPointerEvent) => {
+      this.longPress.start(event, this.spec.id, () => {
         this.hovered = true;
-        this.syncFlipButton();
+        this.syncControls();
         this.applyHover();
         onHover(this.spec.id);
       });
     });
-    hit.on("globalpointermove", (e: FederatedPointerEvent) =>
-      this.longPress.move(e.global.x, e.global.y),
+    this.container.on("globalpointermove", (event: FederatedPointerEvent) =>
+      this.longPress.move(event.global.x, event.global.y),
     );
     const endTouch = () => {
       this.longPress.cancel();
       this.longPress.releaseFired();
     };
-    hit.on("pointerup", endTouch);
-    hit.on("pointerupoutside", endTouch);
-    hit.on("pointerover", (e: FederatedPointerEvent) => {
-      if (e.pointerType === "touch") return;
+    this.container.on("pointerup", endTouch);
+    this.container.on("pointerupoutside", endTouch);
+    this.container.on("pointerenter", (event: FederatedPointerEvent) => {
+      if (event.pointerType === "touch") return;
       this.hovered = true;
-      this.syncFlipButton();
+      this.syncControls();
       this.applyHover();
       onHover(this.spec.id);
     });
-    hit.on("pointerout", () => {
+    this.container.on("pointerleave", () => {
       this.hovered = false;
-      this.syncFlipButton();
+      this.syncControls();
       this.applyHover();
       onHover(null);
     });
 
-    this.flipButtonLabel.anchor.set(0.5);
-    this.flipButton.position.set(
-      this.width / 2 - FLIP_BUTTON_INSET,
-      -this.height / 2 + FLIP_BUTTON_INSET,
-    );
-    this.flipButton.eventMode = "static";
-    this.flipButton.cursor = "pointer";
-    this.flipButton.hitArea = new Rectangle(
-      -FLIP_BUTTON_SIZE / 2,
-      -FLIP_BUTTON_SIZE / 2,
-      FLIP_BUTTON_SIZE,
-      FLIP_BUTTON_SIZE,
-    );
-    this.flipButton.on("pointertap", (e: FederatedPointerEvent) => {
-      e.stopPropagation();
-      onFlip(this.spec.id);
-    });
-    this.flipButton.addChild(this.flipButtonBg, this.flipButtonLabel);
-
-    this.container.addChild(this.glow, this.face, this.ring, hit, this.flipButton);
+    this.container.addChild(this.glow, this.face, this.ring, this.viewControls);
+    this.syncControls();
     this.redraw();
   }
 
   setTheme(theme: Theme): void {
     this.theme = theme;
+    this.viewControls.setTheme(theme);
     this.redraw();
   }
 
@@ -150,9 +134,15 @@ export class StackCardSprite {
       spec.isCasting !== this.spec.isCasting ||
       spec.isTopOfStack !== this.spec.isTopOfStack ||
       spec.isValidTarget !== this.spec.isValidTarget;
+    const controlsChanged =
+      spec.id !== this.spec.id ||
+      spec.card.isDoubleFaced !== this.spec.card.isDoubleFaced ||
+      spec.card.isTransformed !== this.spec.card.isTransformed;
     const dimChanged = spec.isDimmed !== this.spec.isDimmed;
     this.spec = spec;
-    this.syncFlipButton();
+    this.face.updateCardContent(spec.card);
+    this.face.setHandRulesHighlight(spec.sourceAbilityText ?? "");
+    if (controlsChanged) this.syncControls();
     if (dimChanged) this.container.alpha = spec.isDimmed ? 0.6 : 1;
     if (ringChanged) this.redraw();
   }
@@ -208,8 +198,26 @@ export class StackCardSprite {
     return { x: this.container.position.x, y: this.container.position.y };
   }
 
+  getAnchorTowards(toward: { x: number; y: number }): { x: number; y: number } {
+    return getRectBorderAnchor(
+      this.getCenter(),
+      this.width * Math.abs(this.container.scale.x),
+      this.height * Math.abs(this.container.scale.y),
+      toward,
+    );
+  }
+
   getSize(): { width: number; height: number } {
     return { width: this.width, height: this.height };
+  }
+
+  get usesRulesView(): boolean {
+    return this.face.usesHandRulesView;
+  }
+
+  setRulesView(active: boolean): void {
+    this.face.setHandRulesView(active);
+    this.syncControls();
   }
 
   destroy(): void {
@@ -239,7 +247,6 @@ export class StackCardSprite {
     this.ring.clear();
     this.castingTween?.kill();
     this.castingTween = null;
-    this.drawFlipButton();
 
     const seat = this.spec.seatColor ? hexToNum(this.spec.seatColor) : null;
     if (seat !== null) {
@@ -282,16 +289,24 @@ export class StackCardSprite {
     }
   }
 
-  private syncFlipButton(): void {
-    this.flipButton.visible = this.spec.card.isDoubleFaced;
-  }
-
-  private drawFlipButton(): void {
-    const background = hexToNum(this.theme.gameTheme.activeAction.active);
-    const foreground = hexToNum(this.theme.gameTheme.canvas.shadow);
-    this.flipButtonBg.clear();
-    this.flipButtonBg.circle(0, 0, FLIP_BUTTON_SIZE / 2).fill({ color: background, alpha: 0.9 });
-    this.flipButtonLabel.style.fill = foreground;
-    this.syncFlipButton();
+  private syncControls(): void {
+    this.viewControls.setSpec(
+      this.hovered
+        ? {
+            rulesView: this.face.usesHandRulesView,
+            horizontal: false,
+            alternateFace: this.spec.card.isTransformed,
+            showFaceControl: this.spec.card.isDoubleFaced,
+            onToggleRules: () => this.onToggleRules(this.spec.id),
+            onToggleFace: () => this.onFlip(this.spec.id),
+          }
+        : null,
+      this.width,
+      this.face.previewControlArtTop * this.faceScale,
+      1,
+      1,
+    );
+    this.viewControls.position.x -= this.width / 2;
+    this.viewControls.position.y -= this.height / 2;
   }
 }

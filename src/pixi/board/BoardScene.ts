@@ -621,11 +621,13 @@ export class BoardScene {
         rec.region.setClip(zone.x, zone.width);
         if (this.barsEnabled) {
           const field = rec.region.getPlaymatRect();
+          const barX = Math.min(zone.x + SELF_PLAYER_HUD_EDGE_INSET_PX, field.x + field.width - 1);
+          const availableWidth = Math.max(1, field.x + field.width - barX);
           this.playerBars.setRect(
             id,
-            field.x,
+            barX,
             field.y,
-            Math.min(SELF_PLAYER_HUD_MAX_WIDTH_PX, field.width),
+            Math.min(SELF_PLAYER_HUD_MAX_WIDTH_PX, availableWidth),
             Math.min(playerHudHeight, field.height),
             false,
             "top",
@@ -656,12 +658,13 @@ export class BoardScene {
         }
         const field = rec.region.getPlaymatRect();
         const column = field.width < 228;
-        const barW = Math.max(
-          1,
-          Math.min(column ? field.width : SELF_PLAYER_HUD_MAX_WIDTH_PX, field.width),
-        );
+        const barX = Math.min(left + SELF_PLAYER_HUD_EDGE_INSET_PX, field.x + field.width - 1);
+        const availableWidth = Math.max(1, field.x + field.width - barX);
+        const barW = column
+          ? availableWidth
+          : Math.min(SELF_PLAYER_HUD_MAX_WIDTH_PX, availableWidth);
         const barH = column ? field.height : Math.min(playerHudHeight, field.height);
-        this.playerBars.setRect(this.opponentIds[i]!, field.x, field.y, barW, barH, column, "top");
+        this.playerBars.setRect(this.opponentIds[i]!, barX, field.y, barW, barH, column, "top");
       }
     }
     this.drawDelimiterFog();

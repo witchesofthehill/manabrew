@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.36.1](https://github.com/witchesofthehill/manabrew/compare/v3.36.0...v3.36.1) (2026-09-06)
+
+### Fixes
+
+* windows doesn't load cards ([#875](https://github.com/witchesofthehill/manabrew/issues/875)) ([ba6711a](https://github.com/witchesofthehill/manabrew/commit/ba6711a9fde005151a02dce1968ede65d5d84304))
+
 ## [3.36.0](https://github.com/witchesofthehill/manabrew/compare/v3.35.0...v3.36.0) (2026-09-06)
 
 ### Features

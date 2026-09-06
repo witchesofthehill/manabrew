@@ -560,7 +560,12 @@ export class RulesCardPreviewLayer {
       1,
       1,
     );
-    this.frame = resolveRulesPreviewFrame(this.theme);
+    this.background.clear();
+    this.frame.titleGradient?.destroy();
+    this.frame = resolveRulesPreviewFrame(
+      this.theme,
+      deckCard.colorIdentity ?? this.scryfallInfo?.color_identity,
+    );
 
     let typeHeight = TYPE_HEIGHT;
     for (const [index, section] of identities.entries()) {
@@ -584,7 +589,6 @@ export class RulesCardPreviewLayer {
     }
     this.bodyTop = this.typeBandY + typeHeight;
     this.bodyHeight = this.panelHeight - this.bodyTop - this.footerHeight;
-    this.background.clear();
     this.artMask.clear();
     this.bodyMask.clear();
     for (let index = 0; index < this.faceCount; index += 1) {
@@ -1413,5 +1417,6 @@ export class RulesCardPreviewLayer {
     this.clearArtFaces();
     this.actions.destroy();
     this.container.destroy({ children: true });
+    this.frame.titleGradient?.destroy();
   }
 }

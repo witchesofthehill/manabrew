@@ -1,6 +1,7 @@
-import type { Graphics } from "pixi.js";
+import { FillGradient, type Graphics } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "@/pixi/colorUtils";
+import { cardFrameTints, readableTextColor } from "@/themes/gameTheme";
 
 export const RULES_BODY_FONT = "Georgia, Cambria, Times New Roman, serif";
 export const RULES_TITLE_FONT = "Cormorant Garamond, Georgia, serif";
@@ -22,6 +23,9 @@ export interface RulesPreviewFrameStyle {
   ink: string;
   mutedInk: string;
   border: string;
+  title: string;
+  titleInk: string;
+  titleGradient: FillGradient | null;
 }
 
 interface RulesPreviewFrameGeometry {
@@ -39,13 +43,38 @@ interface RulesPreviewFrameGeometry {
   radius?: number;
 }
 
-export function resolveRulesPreviewFrame(theme: Theme): RulesPreviewFrameStyle {
+export function resolveRulesPreviewFrame(
+  theme: Theme,
+  colorIdentity?: string[],
+): RulesPreviewFrameStyle {
+  const { primary, secondary } = cardFrameTints(colorIdentity, theme.gameTheme.mana);
+  const titleGradient = secondary
+    ? new FillGradient({
+        type: "linear",
+        start: { x: 0, y: 0 },
+        end: { x: 1, y: 0 },
+        colorStops: [
+          { offset: 0, color: primary },
+          { offset: 0.42, color: primary },
+          { offset: 0.58, color: secondary },
+          { offset: 1, color: secondary },
+        ],
+        textureSpace: "local",
+      })
+    : null;
   return {
     paper: theme.appTheme.popover,
     raised: theme.appTheme.muted,
     ink: theme.appTheme["popover-foreground"],
     mutedInk: theme.appTheme["muted-foreground"],
-    border: theme.appTheme.border,
+    border: primary,
+    title: primary,
+    titleInk: readableTextColor(
+      primary,
+      theme.gameTheme.canvas.shadow,
+      theme.gameTheme.textOnTinted,
+    ),
+    titleGradient,
   };
 }
 
@@ -70,8 +99,9 @@ export function drawRulesPreviewFrame(
   } = geometry;
   const insetX = x + artInset;
   const innerWidth = width - artInset * 2;
-  const titleY = y + 8;
-  const titleHeight = headerHeight - 12;
+  const titleTopInset = 11;
+  const titleY = y + titleTopInset;
+  const titleHeight = headerHeight - titleTopInset - 4;
   const rulesY = y + typeY + typeHeight + 4;
   const rulesHeight = height - typeY - typeHeight - footerHeight - 4;
   const border = hexToNum(style.border);
@@ -87,10 +117,10 @@ export function drawRulesPreviewFrame(
       insetX,
       titleY,
       innerWidth,
-      artHeight > 0 ? artY + artHeight - 8 : titleHeight,
+      artHeight > 0 ? artY + artHeight - titleTopInset : titleHeight,
       RULES_TITLE_ART_RADIUS,
     )
-    .fill(raised);
+    .fill(style.titleGradient ?? hexToNum(style.title));
   graphics.roundRect(insetX, y + typeY, innerWidth, typeHeight, 5).fill(raised);
   graphics
     .moveTo(insetX + 8, rulesY)

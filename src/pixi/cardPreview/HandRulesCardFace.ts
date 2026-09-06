@@ -1,4 +1,13 @@
-import { Container, Graphics, Sprite, Text, TextStyle, Texture } from "pixi.js";
+import {
+  Container,
+  Graphics,
+  Sprite,
+  Text,
+  TextStyle,
+  Texture,
+  type DestroyOptions,
+  type FillGradient,
+} from "pixi.js";
 import type { CardDto } from "@/protocol/game";
 import type { Theme } from "@/hooks/useTheme";
 import type { ScryfallCard } from "@/types/scryfall";
@@ -70,6 +79,7 @@ export class HandRulesCardFace extends Container {
   private slotHeight: number;
   private deckLayout?: string;
   private theme: Theme;
+  private frameGradient: FillGradient | null = null;
 
   constructor(
     card: CardDto,
@@ -184,12 +194,15 @@ export class HandRulesCardFace extends Container {
 
   private rebuild(): void {
     this.root.removeChildren().forEach((child) => child.destroy({ children: true }));
+    this.frameGradient?.destroy();
+    this.frameGradient = null;
     const landscape = this.slotWidth > this.slotHeight;
     const designWidth = landscape ? LANDSCAPE_WIDTH : PORTRAIT_WIDTH;
     const designHeight = landscape ? LANDSCAPE_HEIGHT : PORTRAIT_HEIGHT;
     this.root.scale.set(this.slotWidth / designWidth, this.slotHeight / designHeight);
 
     const presentation = deriveCardPresentation({ ...this.card, zoneId: "hand" });
+    const deckCard = asDeckCard(useGameStore.getState().gameDecks[this.card.ownerId], this.card);
     const display = resolveRulesPreviewDisplay({
       card: this.card,
       presentation,
@@ -198,7 +211,11 @@ export class HandRulesCardFace extends Container {
       showBackFace: this.faceIndex === 1,
       faceless: isFacelessCard(this.card),
     });
-    const frame = resolveRulesPreviewFrame(this.theme);
+    const frame = resolveRulesPreviewFrame(
+      this.theme,
+      deckCard.colorIdentity ?? this.info?.color_identity,
+    );
+    this.frameGradient = frame.titleGradient;
     const background = new Graphics();
     const footerHeight =
       display.stats || display.loyalty != null || display.defense != null
@@ -321,7 +338,7 @@ export class HandRulesCardFace extends Container {
         this.addTextBlock(flavorContent, y, contentBudget, contentWidth, frame, true);
       }
     }
-    this.drawFooter(display, designWidth, designHeight, footerHeight);
+    this.drawFooter(display, designWidth, designHeight, footerHeight, frame);
   }
 
   private isCollapsed(id: HandRulesSectionId): boolean {
@@ -445,9 +462,9 @@ export class HandRulesCardFace extends Container {
     designWidth: number,
     designHeight: number,
     footerHeight: number,
+    frame: RulesPreviewFrameStyle,
   ): void {
     if (footerHeight === FRAME_BOTTOM_PAD) return;
-    const frame = resolveRulesPreviewFrame(this.theme);
     let label = "";
     let value = "";
     let fill = frame.ink;
@@ -489,5 +506,11 @@ export class HandRulesCardFace extends Container {
     valueText.anchor.set(1, 0.5);
     valueText.position.set(designWidth - CONTENT_PAD, y + footerHeight / 2);
     this.root.addChild(labelText, valueText);
+  }
+
+  override destroy(options?: DestroyOptions): void {
+    this.frameGradient?.destroy();
+    this.frameGradient = null;
+    super.destroy(options);
   }
 }

@@ -34,7 +34,7 @@ export class RulesPreviewIdentity extends Container {
     super();
     const { section, width, headerHeight, typeY, contentPad, fontFamily, fontSize, frame } =
       options;
-    const foreground = frame.ink;
+    const foreground = frame.titleInk;
     const mana = new PixiRichText();
     const manaWidth = Math.min(108, (width - contentPad * 2) * 0.4);
     mana.setContent(

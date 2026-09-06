@@ -47,9 +47,10 @@ function drawShadowContext(context: GraphicsContext, width: number, height: numb
   const color = hexToNum(activeTheme.gameTheme.canvas.shadow);
   for (let layer = CARD_SHADOW.layers; layer > 0; layer--) {
     const spread = (layer / CARD_SHADOW.layers) * CARD_SHADOW.spreadPx;
+    const alpha = (CARD_SHADOW.layerAlpha * (CARD_SHADOW.layers - layer + 1)) / CARD_SHADOW.layers;
     context
       .roundRect(-spread, -spread, width + spread * 2, height + spread * 2, CARD_RADIUS + spread)
-      .fill({ color, alpha: CARD_SHADOW.layerAlpha });
+      .fill({ color, alpha });
   }
 }
 
@@ -1535,11 +1536,9 @@ export class CardSprite extends Container {
   }
 
   private updateShadow(): void {
-    const spread = this.elevation * CARD_SHADOW.liftSpreadPx;
-    this.shadowGfx.scale.set(1 + (spread * 2) / this.cw, 1 + (spread * 2) / this.ch);
     this.shadowGfx.position.set(
-      CARD_SHADOW.restingOffsetX + this.elevation * CARD_SHADOW.liftOffsetX - spread,
-      CARD_SHADOW.restingOffsetY + this.elevation * CARD_SHADOW.liftOffsetY - spread,
+      CARD_SHADOW.restingOffsetX + this.elevation * CARD_SHADOW.liftOffsetX,
+      CARD_SHADOW.restingOffsetY + this.elevation * CARD_SHADOW.liftOffsetY,
     );
     this.shadowGfx.alpha =
       CARD_SHADOW.restingAlpha +

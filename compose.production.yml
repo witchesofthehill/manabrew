@@ -82,6 +82,17 @@ services:
       MANABREW_EVENTS_DIR: "/var/manabrew/events"
       MANABREW_GAME_CAPTURE_DIR: "/var/manabrew/captures"
       MANABREW_GAME_CAPTURE_MAX_GB: "${MANABREW_GAME_CAPTURE_MAX_GB:-20}"
+      # Peer-to-peer game traffic (#838, docs/TRANSPORT.md). This switch is the
+      # deployment's; the player's is the "Direct connections" setting, off by
+      # default, and a room leaves the relay only when every player in it has
+      # that on. With this unset the relay advertises neither `room_transport`
+      # nor `peer_signal` and no room can leave the relay whatever the players
+      # chose.
+      MANABREW_DIRECT_TRANSPORT: "${MANABREW_DIRECT_TRANSPORT:-1}"
+      # The coturn below, on this same box. Naming a STUN server that is not
+      # answering is worse than naming none, so this default and that service
+      # go together.
+      MANABREW_ICE_SERVERS: "${MANABREW_ICE_SERVERS:-stun:relay.manabrew.app:3478}"
     volumes:
       - ./ops/observability/data/events:/var/manabrew/events
       - ./ops/observability/data/captures:/var/manabrew/captures
@@ -147,6 +158,39 @@ services:
       timeout: 3s
       retries: 3
       start_period: 5s
+
+  # ── STUN, for the browser data plane ───────────────────────────────
+  # Answers one question for a browser: what does my UDP socket look like from
+  # outside? Without it a browser gathers host candidates only, Chromium
+  # replaces those with mDNS names, and ICE never starts. It never sees an
+  # engine envelope.
+  #
+  # STUN only, no TURN. TURN would carry the data for a pair that cannot be
+  # punched through, and the WebSocket relay already does that, permanently, as
+  # the fallback. `--stun-only` refuses allocation requests so this cannot
+  # become a data path.
+  #
+  # `network_mode: host` is load-bearing: a STUN server answers with the
+  # source address it observed, and the docker proxy would rewrite it. UDP
+  # 3478 on the box; the staging slot's coturn sits on 3479 for this reason.
+  coturn:
+    image: coturn/coturn:4.6-alpine
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - --listening-port=${MANABREW_STUN_PORT:-3478}
+      - --listening-ip=0.0.0.0
+      - --stun-only
+      - --no-cli
+      - --no-tls
+      - --no-dtls
+      - --no-multicast-peers
+      - --fingerprint
+      - --log-file=stdout
+      - --simple-log
+    mem_limit: 96m
+    cpus: 0.25
+    cpu_shares: 128
 
   # Headless engine node hosting a room for web "Play vs AI". Opt-in: the
   # default deploy doesn't build/run it (Play-vs-AI works client-side). Start

@@ -92,7 +92,12 @@ async fn main() {
             config.hub_jwks_url.clone(),
             seal,
         )
-        .with_art_base_url(config.art_base_url.clone()),
+        .with_art_base_url(config.art_base_url.clone())
+        .with_direct_transport(
+            config.direct_transport,
+            config.iroh_relay_url.clone(),
+            config.ice_servers.clone(),
+        ),
     );
 
     // Serving art is the reason to run a relay of your own: one machine holds

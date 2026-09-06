@@ -74,6 +74,145 @@ impl ClientPlatform {
     }
 }
 
+/// A peer's addressing information for the direct data plane. Deliberately
+/// stringly typed: this crate must not depend on iroh, so the same messages
+/// carry a future non-iroh transport unchanged.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TransportEndpoint {
+    pub endpoint_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub direct_addrs: Vec<String>,
+    /// Which data planes this peer speaks, most preferred first. A seat picks
+    /// the room's plane from what the HOST advertises here, never from its own
+    /// platform: a desktop seat in a browser-hosted room has to choose WebRTC
+    /// rather than reach for its native endpoint and find nothing.
+    ///
+    /// Empty means [`TRANSPORT_KIND_IROH`], which is what every announcer
+    /// before this field meant.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub kinds: Vec<String>,
+}
+
+impl TransportEndpoint {
+    /// Whether this peer speaks a plane, with the pre-`kinds` default applied.
+    pub fn speaks(&self, kind: &str) -> bool {
+        if self.kinds.is_empty() {
+            return kind == TRANSPORT_KIND_IROH;
+        }
+        self.kinds.iter().any(|k| k == kind)
+    }
+}
+
+/// An ICE server for the browser data plane, shaped like the `RTCIceServer`
+/// dictionary so it passes to `RTCPeerConnection` unchanged.
+///
+/// The relay hands these out for the same reason it hands out
+/// `iroh_relay_url`: no client hardcodes one, and a self-hosted deployment
+/// answers the question by configuring its relay rather than by shipping new
+/// clients.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IceServer {
+    pub urls: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub username: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub credential: Option<String>,
+}
+
+/// How one seat's game traffic travelled, reported by the room's engine host.
+/// The relay's capture and replay cache only ever see what still goes through
+/// the relay, so without this a capture file is silently incomplete.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SeatTransportReport {
+    pub username: String,
+    /// [`TRANSPORT_IROH_DIRECT`], [`TRANSPORT_IROH_RELAYED`] or
+    /// [`TRANSPORT_WEBRTC`].
+    pub transport: String,
+}
+
+/// One end's account of one attempt to reach a peer off the relay.
+///
+/// Every field past `peer` and `outcome` is the reporter's own measurement, so
+/// the relay treats all of it as a claim: it bounds the numbers, caps the
+/// strings, and records who said it rather than trusting what was said.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PlaneQualityReport {
+    /// The other end, as the relay attested that username to this session.
+    pub peer: String,
+    /// [`PLANE_OUTCOME_CONNECTED`], [`PLANE_OUTCOME_FAILED`] or
+    /// [`PLANE_OUTCOME_TIMEOUT`]. Anything else is dropped.
+    pub outcome: String,
+    /// Which plane was attempted: [`TRANSPORT_WEBRTC`] or
+    /// [`TRANSPORT_IROH_DIRECT`].
+    pub plane: String,
+    /// [`PLANE_PHASE_SETTLED`] once per attempt, when it reaches its outcome,
+    /// or [`PLANE_PHASE_MEASURED`] for the later report that carries the round
+    /// trip. Only the first is counted as an attempt: a connected peer reports
+    /// twice and a failed one once, so counting both would inflate the connect
+    /// rate this exists to measure.
+    pub phase: String,
+    /// First offer to open channel.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub connect_ms: Option<u32>,
+    /// Median round trip measured on the channel itself.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rtt_ms: Option<u32>,
+    /// The same session's round trip to the relay, sampled by the reporter at
+    /// the same time. Paired deliberately: an unpaired direct RTT cannot say
+    /// whether it beat the path it replaced.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay_rtt_ms: Option<u32>,
+    /// The ICE pair that won, `local/remote`, or what was on offer when none
+    /// did. `host/host` never left the LAN and proves no traversal.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_pair: Option<String>,
+}
+
+pub const PLANE_PHASE_SETTLED: &str = "settled";
+pub const PLANE_PHASE_MEASURED: &str = "measured";
+
+pub const PLANE_OUTCOME_CONNECTED: &str = "connected";
+pub const PLANE_OUTCOME_FAILED: &str = "failed";
+pub const PLANE_OUTCOME_TIMEOUT: &str = "timeout";
+
+/// Outcomes the relay will record. An unknown one is dropped rather than
+/// recorded, so a client cannot invent labels into the metric's cardinality.
+pub const PLANE_OUTCOMES: &[&str] = &[
+    PLANE_OUTCOME_CONNECTED,
+    PLANE_OUTCOME_FAILED,
+    PLANE_OUTCOME_TIMEOUT,
+];
+
+/// Longest `candidate_pair` the relay will record. Real values are like
+/// `srflx/srflx`; this is room for that and not for a label attack.
+pub const MAX_CANDIDATE_PAIR_BYTES: usize = 64;
+
+/// Anything past this is a broken clock or a lie, and is dropped rather than
+/// skewing an average. Ten minutes.
+pub const MAX_PLANE_MS: u32 = 600_000;
+
+pub const TRANSPORT_IROH_DIRECT: &str = "iroh-direct";
+pub const TRANSPORT_IROH_RELAYED: &str = "iroh-relayed";
+/// A browser pair on an `RTCDataChannel`. There is no TURN server, so a WebRTC
+/// seat is direct or it is on the relay; there is no relayed variant.
+pub const TRANSPORT_WEBRTC: &str = "webrtc";
+
+/// Names for [`TransportEndpoint::kinds`].
+pub const TRANSPORT_KIND_IROH: &str = "iroh";
+pub const TRANSPORT_KIND_WEBRTC: &str = "webrtc";
+
+/// One room member's endpoint, as attested by the relay. `username` is the
+/// relay's own view of the announcing session, never a client-supplied field.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TransportMember {
+    pub username: String,
+    pub endpoint: TransportEndpoint,
+    #[serde(default)]
+    pub host: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[allow(clippy::large_enum_variant)]
@@ -198,6 +337,51 @@ pub enum ClientMessage {
         new_active_player: String,
         turn_number: u32,
     },
+    /// Tells the relay which transport each seat's traffic took for this game,
+    /// so its capture records what it is about to miss. Analytics only, like
+    /// [`ClientMessage::ReportEngineStats`].
+    ReportTransport {
+        game_id: String,
+        seats: Vec<SeatTransportReport>,
+    },
+
+    /// Publishes (or, with `None`, withdraws) this session's data-plane
+    /// endpoint for the room it is in.
+    AnnounceTransport {
+        #[serde(default)]
+        endpoint: Option<TransportEndpoint>,
+    },
+
+    /// Carries one peer's opaque signalling blob to another member of the same
+    /// room, named by username. WebRTC needs an offer, an answer and ICE
+    /// candidates to cross before any channel exists, and the relay is the
+    /// only path both ends already have.
+    ///
+    /// The relay does not read `payload`. It routes on `to`, stamps the sender
+    /// from its own record of the session, and forwards
+    /// [`ServerMessage::PeerSignal`]. Addressing by username, not by peer
+    /// type, is what lets a desktop seat use this path too.
+    SignalPeer {
+        to: String,
+        payload: serde_json::Value,
+    },
+
+    /// Reports how one direct-plane attempt turned out, whether or not it
+    /// worked. Analytics only, like [`ClientMessage::ReportTransport`].
+    ///
+    /// [`ClientMessage::ReportTransport`] cannot answer this. It is sent by the
+    /// host at game start and names only the seats that succeeded, so the
+    /// attempts that failed reach nobody: a seat that cannot punch through
+    /// stays on the relay and says nothing about having tried. Without the
+    /// failures there is no denominator, and a connect rate is exactly the
+    /// number that decides whether production gets ICE servers.
+    ///
+    /// The measuring end sends this, which is the seat, not the host. The relay
+    /// stamps the sender from its own record and does not read the numbers
+    /// beyond bounding them.
+    ReportPlaneQuality {
+        report: PlaneQualityReport,
+    },
 
     SendChat {
         scope: ChatScope,
@@ -310,6 +494,34 @@ pub enum ServerMessage {
 
     ServerShuttingDown {
         reconnect_in_s: u32,
+    },
+    /// The room's data-plane roster. Sent only to room members. Absent
+    /// `iroh_relay_url` means the peers take iroh's own relay defaults.
+    RoomTransport {
+        room_id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        iroh_relay_url: Option<String>,
+        /// STUN, and TURN where one is configured, for the WebRTC plane.
+        ///
+        /// Empty is not a neutral default. Without a STUN server a browser
+        /// gathers only host candidates, which Chromium then replaces with
+        /// mDNS names, so the plane can reach a peer on the same network at
+        /// best and usually not even that. A seat on the same network already
+        /// has one local hop through the embedded relay, so an empty list
+        /// leaves the browser plane with no case it wins.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        ice_servers: Vec<IceServer>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        host: Option<TransportMember>,
+        members: Vec<TransportMember>,
+    },
+
+    /// A signalling blob from another member of the room. `from` is the
+    /// relay's own view of the sending session, never a client-supplied
+    /// field, which is the same attestation `RoomTransport` gives the roster.
+    PeerSignal {
+        from: String,
+        payload: serde_json::Value,
     },
 
     ChatMessage(ChatMessage),
@@ -505,7 +717,34 @@ pub const FEATURE_CHAT: &str = "chat";
 /// Names [`ClientMessage::InviteToRoom`] in `AuthResult::features`.
 pub const FEATURE_ROOM_INVITES: &str = "room_invites";
 
-pub const FEATURES: &[&str] = &[FEATURE_LOCAL_GAME, FEATURE_CHAT, FEATURE_ROOM_INVITES];
+/// Names [`ClientMessage::AnnounceTransport`] and [`ServerMessage::RoomTransport`]
+/// in `AuthResult::features`. A relay without it never sends a roster, so a
+/// client stays on the relay data plane.
+pub const FEATURE_ROOM_TRANSPORT: &str = "room_transport";
+
+/// Names [`ClientMessage::SignalPeer`] and [`ServerMessage::PeerSignal`] in
+/// `AuthResult::features`. A relay without it drops signalling, so a client
+/// never starts a negotiation that cannot finish.
+pub const FEATURE_PEER_SIGNAL: &str = "peer_signal";
+
+/// The relay accepts [`ClientMessage::ReportPlaneQuality`]. A client that
+/// does not see this stays quiet rather than sending a message an older
+/// relay would reject as a parse error.
+pub const FEATURE_PLANE_QUALITY: &str = "plane_quality";
+
+pub const FEATURES: &[&str] = &[
+    FEATURE_LOCAL_GAME,
+    FEATURE_ROOM_TRANSPORT,
+    FEATURE_PEER_SIGNAL,
+    FEATURE_PLANE_QUALITY,
+    FEATURE_CHAT,
+    FEATURE_ROOM_INVITES,
+];
+
+/// The largest signalling blob the relay will forward. An SDP offer with a
+/// full candidate list is a few kB; this is room for that and no room for
+/// using the control plane as a data plane.
+pub const MAX_SIGNAL_BYTES: usize = 16 * 1024;
 
 /// A game running on the player's own machine, which the relay never sees.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

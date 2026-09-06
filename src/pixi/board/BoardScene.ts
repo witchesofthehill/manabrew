@@ -18,6 +18,8 @@ import {
   setCardSpriteHoverDebug,
 } from "../CardSprite";
 import type { BattlefieldCardStyle } from "@/stores/usePreferencesStore";
+import type { HandCardControlsSpec } from "../HandCardControls";
+import type { HandActionOption } from "@/stores/useGameUIStore";
 import { hexToNum } from "../colorUtils";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
@@ -1052,6 +1054,22 @@ export class BoardScene {
   setHandFlippedHorizontal(flipped: boolean): void {
     this.hand?.setHoveredHorizontalFlipped(flipped);
   }
+  handUsesRulesView(cardId: string): boolean {
+    return this.hand?.usesRulesView(cardId) === true;
+  }
+
+  toggleHoveredHandRulesView(): boolean | null {
+    return this.hand?.toggleHoveredRulesView() ?? null;
+  }
+  setHoveredHandRulesActions(
+    actions: HandActionOption[],
+    onSelectAction: ((action: HandActionOption) => void) | null,
+  ): void {
+    this.hand?.setHoveredRulesActions(actions, onSelectAction);
+  }
+  setHoveredHandControls(spec: HandCardControlsSpec | null): void {
+    this.hand?.setHoveredControls(spec);
+  }
 
   setHandScale(scale: number): void {
     this.hand?.setScale(scale);
@@ -1313,6 +1331,7 @@ export class BoardScene {
     this.theme = theme;
     this.fogGradRight = this.fogGradLeft = null;
     setCardSpriteTheme(theme);
+    this.hand?.restyle();
     this.phaseStrip.setTheme(theme);
     this.playerBars.setTheme(theme);
     this.drawBaseBg();

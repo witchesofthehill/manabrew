@@ -22,11 +22,13 @@ export class PulseRing {
   ): void {
     const key = `${x},${y},${width},${height},${radius},${color},${strokeWidth}`;
     if (key === this.key) return;
+    const startTween = this.key === "";
     this.key = key;
-    this.stopTween();
     this.gfx.clear();
     this.gfx.roundRect(x, y, width, height, radius);
     this.gfx.stroke({ color, width: strokeWidth });
+    if (!startTween) return;
+    this.stopTween();
     this.tween = gsap.to(this.gfx, {
       alpha: PULSE_RING.minAlpha,
       duration: PULSE_RING.periodS,

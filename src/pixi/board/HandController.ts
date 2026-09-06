@@ -1,5 +1,7 @@
 import { Container, Graphics, type FederatedPointerEvent } from "pixi.js";
 import type { CardDto } from "@/protocol/game";
+import type { HandActionOption } from "@/stores/useGameUIStore";
+import type { HandCardControlsSpec } from "../HandCardControls";
 import { CardSprite } from "../CardSprite";
 import { getTheme } from "@/hooks/useTheme";
 import type { HandState, ScreenBounds, ScreenPos } from "../types";
@@ -72,6 +74,9 @@ export class HandController {
   setHoverDebug(on: boolean): void {
     this.hoverDebug = on;
     this.drawHoverDebug();
+  }
+  restyle(): void {
+    for (const sprite of this.sprites.values()) sprite.restyle();
   }
 
   private drawHoverDebug(): void {
@@ -259,6 +264,7 @@ export class HandController {
             },
       );
 
+      sprite.setChromeScale(1 / Math.max(sprite.scale.x, sprite.scale.y));
       this.applyHighlight(sprite, card, selectionMode, isSelected);
     }
     if (!reorderIndicatorShown) this.reorderIndicator.hide();
@@ -278,6 +284,8 @@ export class HandController {
         lerp(sprite.scale.x, target.scaleX, positionLerp, SNAP_HAND_SCALE),
         lerp(sprite.scale.y, target.scaleY, positionLerp, SNAP_HAND_SCALE),
       );
+      sprite.setChromeScale(1 / Math.max(sprite.scale.x, sprite.scale.y));
+      if (id === this.hoveredCardId) sprite.syncHandControlsScale();
       sprite.zIndex = target.zIndex;
     }
     this.reorderIndicator.animate();
@@ -389,7 +397,10 @@ export class HandController {
 
   private resetHoveredFace(): void {
     if (this.hoveredCardId === null) return;
-    this.sprites.get(this.hoveredCardId)?.setPreviewFace(null);
+    const sprite = this.sprites.get(this.hoveredCardId);
+    sprite?.setPreviewFace(null);
+    sprite?.setHandRulesActions([], null);
+    sprite?.setHandControls(null);
     this.hoveredCardId = null;
     this.flippedHorizontalId = null;
   }
@@ -402,6 +413,29 @@ export class HandController {
   setHoveredHorizontalFlipped(flipped: boolean): void {
     this.flippedHorizontalId = flipped ? this.hoveredCardId : null;
     this.recalcTargets();
+  }
+  usesRulesView(cardId: string): boolean {
+    return this.sprites.get(cardId)?.usesHandRulesView === true;
+  }
+
+  toggleHoveredRulesView(): boolean | null {
+    if (this.hoveredCardId === null) return null;
+    const sprite = this.sprites.get(this.hoveredCardId);
+    if (!sprite) return null;
+    const active = !sprite.usesHandRulesView;
+    sprite.setHandRulesView(active);
+    return active;
+  }
+  setHoveredRulesActions(
+    actions: HandActionOption[],
+    onSelectAction: ((action: HandActionOption) => void) | null,
+  ): void {
+    if (this.hoveredCardId === null) return;
+    this.sprites.get(this.hoveredCardId)?.setHandRulesActions(actions, onSelectAction);
+  }
+  setHoveredControls(spec: HandCardControlsSpec | null): void {
+    if (this.hoveredCardId === null) return;
+    this.sprites.get(this.hoveredCardId)?.setHandControls(spec);
   }
 
   clearHover(): void {
@@ -449,11 +483,13 @@ export class HandController {
     const params = HAND_FAN_PARAMS;
     const scale = this.vScale;
     const cardW = Math.round(base.cardW * scale);
+    const cardH = Math.round(base.cardH * scale);
+    const sink = this.compact ? HAND_BOTTOM_SINK_FRAC_COMPACT : HAND_BOTTOM_SINK_FRAC;
     const available = Math.max(cardW, this.host.getPlayZone().width - cardW);
     return {
       cardW,
-      cardH: Math.round(base.cardH * scale),
-      hoverLift: Math.round(params.hoverLift * scale),
+      cardH,
+      hoverLift: Math.max(Math.round(params.hoverLift * scale), Math.ceil(cardH * sink) + GAP),
       neighborPush: Math.round(params.neighborPush * scale),
       maxSpread: Math.round(params.maxSpread * scale),
       minSpread: Math.round(params.minSpread * scale),

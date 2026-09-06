@@ -16,14 +16,16 @@ import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { Theme } from "@/hooks/useTheme";
 import {
   deriveCardPresentation,
-  type CardPresentation,
   type CardStatPresentation,
 } from "@/components/game/cardPresentation";
 import { getPreviewActionShortcut } from "@/components/game/game.utils";
 import { hexToNum } from "@/pixi/colorUtils";
 import { PixiRichText } from "@/pixi/cardPreview/PixiRichText";
 import { PixiCardRailPreview } from "@/pixi/cardPreview/PixiCardRailPreview";
-import { resolveRulesPreviewDisplay } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
+import {
+  resolveRulesPreviewDisplay,
+  rulesTextEntries,
+} from "@/pixi/cardPreview/rulesCardPreviewPresentation";
 import { RulesPreviewIdentity } from "@/pixi/cardPreview/RulesPreviewIdentity";
 import { RulesPreviewActions } from "@/pixi/cardPreview/RulesPreviewActions";
 import {
@@ -114,42 +116,6 @@ function oracleTextStyle(fill: string, italic = false): TextStyle {
     fontStyle: italic ? "italic" : "normal",
     lineHeight: ORACLE_LINE_HEIGHT,
   });
-}
-
-function normalizeAbilityText(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[“”"'’.,]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function abilityTextEntries(
-  rulesText: string,
-  progression: CardPresentation["progression"],
-): string[] {
-  const progressionEffects = new Set(
-    (progression?.effects ?? []).flatMap((effect) =>
-      effect.text.split("\n").map(normalizeAbilityText).filter(Boolean),
-    ),
-  );
-  return rulesText
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((line) => {
-      if (
-        progression?.rail.kind === "saga" &&
-        /^(?:[IVXLCDM]+(?:,\s*[IVXLCDM]+)*)\s+[—–-]\s+/.test(line)
-      ) {
-        return false;
-      }
-      if (progressionEffects.has(normalizeAbilityText(line))) return false;
-      if (progression?.rail.kind === "class") {
-        if (/^.*:\s*Level\s+\d+$/.test(line)) return false;
-      }
-      return true;
-    });
 }
 
 export class RulesCardPreviewLayer {
@@ -704,7 +670,7 @@ export class RulesCardPreviewLayer {
       }
     }
     const rulesEntries = display.sections.map((section) =>
-      abilityTextEntries(section.rulesText, progression),
+      rulesTextEntries(section.rulesText, progression),
     );
     if (display.faceless) {
       y = this.addStaticAbilityRow("Card identity and rules are hidden.", y);

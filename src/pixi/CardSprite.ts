@@ -11,6 +11,7 @@ import {
   type DestroyOptions,
 } from "pixi.js";
 import type { CardDto } from "@/protocol/game";
+import type { HandActionOption } from "@/stores/useGameUIStore";
 import { deriveCardRailState, type CardRailState } from "@/components/game/cardRailState";
 import { cardTypeLine, counterColorKey, counterIconName } from "@/components/game/cardPresentation";
 import { CARD_W, CARD_H, CARD_RADIUS, CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
@@ -36,7 +37,9 @@ import { type OneShot, oneShot, oneShotProgress, pulse } from "./effects/animati
 import { gsap } from "./effects/gsap";
 import { bump } from "./effects/easing";
 import { animationsEnabled } from "./effects/enabled";
-import { DAMAGE_HIT, EDGE_GLOW, STAT_POP, SUMMONING_FILTER } from "./effects/config";
+import { DAMAGE_HIT, EDGE_GLOW, PULSE_RING, STAT_POP, SUMMONING_FILTER } from "./effects/config";
+import { HandRulesCardFace } from "./cardPreview/HandRulesCardFace";
+import { HandCardControls, type HandCardControlsSpec } from "./HandCardControls";
 
 let activeTheme: Theme = getTheme();
 
@@ -281,6 +284,7 @@ export class CardSprite extends Container {
   private hitPad = 0;
   private chromeScale = 1;
   private lastRing: { color: number; alpha: number } | null = null;
+  private playableRingColor: number | null = null;
   private lastOwnerRing: number | null = null;
   private pulseRing = new PulseRing();
   private ownerRingGfx: Graphics;
@@ -330,10 +334,17 @@ export class CardSprite extends Container {
   onReorient?: () => void;
   private previewFace: 0 | 1 | null = null;
   private loadGeneration = 0;
+  private readonly kind: "battlefield" | "hand" | "zone";
+  private handRulesFace: HandRulesCardFace | null = null;
+  private handRulesActions: HandActionOption[] = [];
+  private onSelectHandRulesAction: ((action: HandActionOption) => void) | null = null;
+  private handControls: HandCardControls | null = null;
+  private handControlsSpec: HandCardControlsSpec | null = null;
 
   constructor(card: CardDto, kind: "battlefield" | "hand" | "zone" = "battlefield") {
     super();
     this.card = card;
+    this.kind = kind;
     this.isBattlefield = kind !== "hand";
     this.showsBattlefieldRail = kind === "battlefield";
     const horizontal = this.isHorizontal();
@@ -540,6 +551,11 @@ export class CardSprite extends Container {
         this.contentContainer.addChild(child);
       }
     }
+    this.addChild(this.pulseRing.gfx);
+    if (kind === "hand") {
+      this.handControls = new HandCardControls(activeTheme);
+      this.addChild(this.handControls);
+    }
 
     this.pivot.set(this.cw / 2, this.ch / 2);
     this.loadImage();
@@ -598,6 +614,8 @@ export class CardSprite extends Container {
     this.foilStar.x = cw - 3;
     this.pivot.set(cw / 2, ch / 2);
     this.onReorient?.();
+    this.updateHandRulesFace();
+    this.updateHandControls();
   }
 
   private fitImageToSlot(): void {
@@ -648,6 +666,73 @@ export class CardSprite extends Container {
     if (this.previewFace === face) return;
     this.previewFace = face;
     this.loadImage();
+    this.updateHandRulesFace();
+    this.updateHandControls();
+  }
+
+  get usesHandRulesView(): boolean {
+    return this.handRulesFace?.visible === true;
+  }
+
+  setHandRulesView(active: boolean): void {
+    if (this.kind !== "hand" || this.usesHandRulesView === active) return;
+    if (!this.handRulesFace) {
+      const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
+      const deckCard = this.deckCard();
+      this.handRulesFace = new HandRulesCardFace(
+        this.card,
+        faceIndex,
+        this.cw,
+        this.ch,
+        deckCard.layout,
+        activeTheme,
+      );
+      this.contentContainer.addChild(this.handRulesFace);
+      this.handRulesFace.setActions(this.handRulesActions, this.onSelectHandRulesAction);
+    }
+    this.handRulesFace.visible = active;
+    this.updateHandControls();
+  }
+
+  setHandControls(spec: HandCardControlsSpec | null): void {
+    if (this.kind !== "hand") return;
+    this.handControlsSpec = spec;
+    this.updateHandControls();
+  }
+
+  private updateHandControls(): void {
+    const spec = this.handControlsSpec;
+    this.handControls?.setSpec(
+      spec
+        ? {
+            ...spec,
+            rulesView: this.usesHandRulesView,
+            alternateFace: spec.horizontal ? spec.alternateFace : this.previewFace === 1,
+          }
+        : null,
+      this.cw,
+      this.scale.x,
+      this.scale.y,
+    );
+  }
+
+  syncHandControlsScale(): void {
+    this.handControls?.setParentScale(this.scale.x, this.scale.y, this.cw);
+  }
+
+  setHandRulesActions(
+    actions: HandActionOption[],
+    onSelectAction: ((action: HandActionOption) => void) | null,
+  ): void {
+    this.handRulesActions = actions;
+    this.onSelectHandRulesAction = onSelectAction;
+    this.handRulesFace?.setActions(actions, onSelectAction);
+  }
+
+  private updateHandRulesFace(): void {
+    if (!this.handRulesFace) return;
+    const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
+    this.handRulesFace.setContent(this.card, faceIndex, this.cw, this.ch, this.deckCard().layout);
   }
 
   private fitArtCover(): void {
@@ -673,6 +758,8 @@ export class CardSprite extends Container {
     this.updateKeywords();
     this.updateMana();
     this.updateChoice(true);
+    this.handRulesFace?.setTheme(activeTheme);
+    this.handControls?.setTheme(activeTheme);
   }
 
   private updateMana(): void {
@@ -825,6 +912,7 @@ export class CardSprite extends Container {
     this.updateMana();
     this.updateCardFilter();
     this.updateEdgeGlow();
+    this.updateHandRulesFace();
   }
 
   private updateEdgeGlow(): void {
@@ -1533,11 +1621,23 @@ export class CardSprite extends Container {
     if (this.chromeScale === scale) return;
     this.chromeScale = scale;
     if (this.lastRing) this.setRing(this.lastRing.color, this.lastRing.alpha);
+    if (this.playableRingColor != null) {
+      this.pulseRing.show(
+        0,
+        0,
+        this.cw,
+        this.ch,
+        CARD_RADIUS,
+        this.playableRingColor,
+        PULSE_RING.strokeWidth * this.chromeScale,
+      );
+    }
     if (this.lastOwnerRing != null) this.setOwnerRing(this.lastOwnerRing);
   }
 
   setRing(color: number | null, alpha = 1): void {
     this.lastRing = color == null ? null : { color, alpha };
+    this.playableRingColor = null;
     this.pulseRing.hide();
     this.ringGfx.clear();
     if (color == null) return;
@@ -1545,13 +1645,22 @@ export class CardSprite extends Container {
   }
 
   setPlayableRing(color: number | null): void {
+    this.playableRingColor = color;
     if (color == null) {
       this.pulseRing.hide();
       return;
     }
     this.lastRing = null;
     this.ringGfx.clear();
-    this.pulseRing.show(0, 0, this.cw, this.ch, CARD_RADIUS, color);
+    this.pulseRing.show(
+      0,
+      0,
+      this.cw,
+      this.ch,
+      CARD_RADIUS,
+      color,
+      PULSE_RING.strokeWidth * this.chromeScale,
+    );
   }
 
   setOwnerRing(color: number | null): void {

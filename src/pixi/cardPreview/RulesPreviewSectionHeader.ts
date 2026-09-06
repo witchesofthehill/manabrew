@@ -12,6 +12,7 @@ interface SectionHeaderOptions {
   collapsed: boolean;
   frame: RulesPreviewFrameStyle;
   collapsedAccent?: string;
+  fontSize?: number;
   onToggle: () => void;
 }
 
@@ -36,7 +37,7 @@ export class RulesPreviewSectionHeader extends Container {
       style: new TextStyle({
         fill: collapsed && collapsedAccent ? collapsedAccent : frame.mutedInk,
         fontFamily: "Inter, system-ui, sans-serif",
-        fontSize: 11,
+        fontSize: options.fontSize ?? 11,
         fontWeight: "600",
       }),
     });

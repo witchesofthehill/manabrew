@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useEffect, useCallback, useMemo, useState } from "react";
 import { Application } from "pixi.js";
 import { destroyPixiApp, installPixiPatches } from "./pixiPatches";
 
@@ -34,7 +34,6 @@ import { useKeybindings } from "@/hooks/useKeybindings";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { setAnimationsEnabled } from "./effects/enabled";
 import { withAlpha } from "@/themes/gameTheme";
-import { RotateCw } from "lucide-react";
 
 /** Matches HandCardActions `w-[220px]`. */
 const HAND_ACTIONS_PANEL_W = 220;
@@ -542,7 +541,10 @@ export function BoardCanvas({
     });
   }, [scene]);
 
-  const handActions = handHover && getHandActions ? getHandActions(handHover.card) : [];
+  const handActions = useMemo(
+    () => (handHover && getHandActions ? getHandActions(handHover.card) : []),
+    [getHandActions, handHover],
+  );
   const showActionPanel =
     handHover && handActions.length > 0 && !!onSelectHandAction && !isCoarsePointer();
 
@@ -554,10 +556,14 @@ export function BoardCanvas({
   const hoverHorizontal = !!handHover && isHorizontalGameCard(handHover.card);
   const [handFlipBack, setHandFlipBack] = useState(false);
   const [handFlippedHorizontal, setHandFlippedHorizontal] = useState(false);
+  const [handRulesView, setHandRulesView] = useState(false);
   const hoverCardId = handHover?.card.id ?? null;
   useEffect(() => {
     setHandFlipBack(false);
     setHandFlippedHorizontal(false);
+    setHandRulesView(
+      hoverCardId ? (sceneRef.current?.handUsesRulesView(hoverCardId) ?? false) : false,
+    );
   }, [hoverCardId]);
   const showHandFlip = !!handHover && (hoverFaces.isFlippable || hoverHorizontal);
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
@@ -603,10 +609,57 @@ export function BoardCanvas({
       return next;
     });
   }, [sceneRef, hoverHorizontal]);
+  const toggleHandRulesView = useCallback(() => {
+    const active = sceneRef.current?.toggleHoveredHandRulesView();
+    if (active != null) setHandRulesView(active);
+  }, []);
+  const selectHandAction = useCallback(
+    (action: HandActionOption) => {
+      if (!handHover) return;
+      cancelHandHoverClear();
+      sceneRef.current?.releaseHandHover();
+      setHandHover(null);
+      onSelectHandAction?.(handHover.card, action);
+    },
+    [cancelHandHoverClear, handHover, onSelectHandAction],
+  );
+  useEffect(() => {
+    if (!scene || !handHover) return;
+    scene.setHoveredHandControls({
+      rulesView: handRulesView,
+      horizontal: hoverHorizontal,
+      alternateFace: hoverHorizontal ? handFlippedHorizontal : handFlipBack,
+      showFaceControl: showHandFlip,
+      onToggleRules: toggleHandRulesView,
+      onToggleFace: toggleHandFlip,
+    });
+    return () => scene.setHoveredHandControls(null);
+  }, [
+    handFlipBack,
+    handFlippedHorizontal,
+    handHover,
+    handRulesView,
+    hoverHorizontal,
+    scene,
+    showHandFlip,
+    toggleHandFlip,
+    toggleHandRulesView,
+  ]);
+
+  useEffect(() => {
+    if (!scene || !handHover) return;
+    scene.setHoveredHandRulesActions(
+      handRulesView ? handActions : [],
+      handRulesView ? selectHandAction : null,
+    );
+  }, [handActions, handHover, handRulesView, scene, selectHandAction]);
 
   useKeybindings({
     "flip-card": () => {
       if (showHandFlip) toggleHandFlip();
+    },
+    "toggle-hand-card-view": () => {
+      if (handHover) toggleHandRulesView();
     },
   });
 
@@ -617,47 +670,7 @@ export function BoardCanvas({
         style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }}
         onContextMenu={(e) => e.preventDefault()}
       />
-      {showHandFlip && (
-        <div
-          className="pointer-events-none absolute flex justify-end p-1.5"
-          style={{
-            left: handHover.bounds.x,
-            top: handHover.bounds.y,
-            width: handHover.bounds.width,
-            zIndex: Z_HAND_ACTIONS_MENU,
-          }}
-        >
-          <button
-            type="button"
-            className="pointer-events-auto relative inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-['']"
-            title={
-              hoverHorizontal ? "Rotate the card to read it" : "Flip card to view the other face"
-            }
-            onMouseEnter={() => {
-              cancelHandHoverClear();
-              sceneRef.current?.holdHandHover();
-            }}
-            onMouseLeave={() => {
-              scheduleHandHoverClear();
-              sceneRef.current?.releaseHandHover();
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleHandFlip();
-            }}
-          >
-            <RotateCw className="h-3 w-3" />
-            {hoverHorizontal
-              ? handFlippedHorizontal
-                ? "Upright"
-                : "Read"
-              : handFlipBack
-                ? "Front"
-                : "Back"}
-          </button>
-        </div>
-      )}
-      {showActionPanel && (
+      {showActionPanel && !handRulesView && (
         <>
           {/* Curved hover bridge: its border-radius clips the hit region so the
               cursor can travel from the lifted card to the action panel without
@@ -706,15 +719,7 @@ export function BoardCanvas({
               sceneRef.current?.releaseHandHover();
             }}
           >
-            <HandCardActions
-              actions={handActions}
-              onSelectAction={(action) => {
-                cancelHandHoverClear();
-                sceneRef.current?.releaseHandHover();
-                setHandHover(null);
-                onSelectHandAction?.(handHover.card, action);
-              }}
-            />
+            <HandCardActions actions={handActions} onSelectAction={selectHandAction} />
           </div>
         </>
       )}

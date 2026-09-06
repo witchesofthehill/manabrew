@@ -97,6 +97,40 @@ function additionalRulesDetails(presentation: CardPresentation, rulesText: strin
   return { keywords, costs };
 }
 
+function normalizeAbilityText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[“”"'’.,]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function rulesTextEntries(
+  rulesText: string,
+  progression: CardPresentation["progression"],
+): string[] {
+  const progressionEffects = new Set(
+    (progression?.effects ?? []).flatMap((effect) =>
+      effect.text.split("\n").map(normalizeAbilityText).filter(Boolean),
+    ),
+  );
+  return rulesText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => {
+      if (
+        progression?.rail.kind === "saga" &&
+        /^(?:[IVXLCDM]+(?:,\s*[IVXLCDM]+)*)\s+[—–-]\s+/.test(line)
+      ) {
+        return false;
+      }
+      if (progressionEffects.has(normalizeAbilityText(line))) return false;
+      if (progression?.rail.kind === "class" && /^.*:\s*Level\s+\d+$/.test(line)) return false;
+      return true;
+    });
+}
+
 export function resolveRulesPreviewDisplay(options: {
   card: CardDto;
   presentation: CardPresentation;

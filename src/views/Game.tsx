@@ -1836,7 +1836,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   };
   const showInGamePreview =
     livePreviewCard != null &&
-    livePreviewCard.zoneId !== "hand" &&
+    (livePreviewCard.zoneId !== "hand" || preview.isSticky) &&
     !draggingHandCard &&
     !viewingZone &&
     !spellStackModalOpen &&

@@ -73,6 +73,7 @@ export class RulesPreviewActions extends Container {
   private spec: ActionsContent | null = null;
   private rows: ActionRow[] = [];
   private focusedIndex = 0;
+  private hoveredIndex: number | null = null;
   private contentWidth = 0;
   private contentHeight = 0;
   private viewportHeight = 0;
@@ -179,6 +180,11 @@ export class RulesPreviewActions extends Container {
         row.on("pointerenter", (event: FederatedPointerEvent) => {
           if (event.pointerType === "touch" || this.pointerId !== null) return;
           this.focusedIndex = index;
+          this.hoveredIndex = index;
+          this.drawFocus();
+        });
+        row.on("pointerleave", () => {
+          if (this.hoveredIndex === index) this.hoveredIndex = null;
           this.drawFocus();
         });
         row.on("pointertap", (event: FederatedPointerEvent) => {
@@ -395,15 +401,16 @@ export class RulesPreviewActions extends Container {
     const theme = this.spec!.theme.appTheme;
     this.rows.forEach((row, index) => {
       const focused = index === this.focusedIndex;
+      const hovered = index === this.hoveredIndex;
       row.background.clear();
-      if (focused) {
+      if (focused || hovered) {
         row.background
           .roundRect(0, 0, this.contentWidth, row.height, 4)
-          .fill({ color: hexToNum(theme.ring), alpha: 0.12 });
+          .fill({ color: hexToNum(theme.ring), alpha: hovered ? 0.24 : 0.12 });
         row.background
           .moveTo(0, 4)
           .lineTo(0, row.height - 4)
-          .stroke({ color: hexToNum(theme.ring), width: 2 });
+          .stroke({ color: hexToNum(theme.ring), width: hovered ? 3 : 2 });
       }
     });
   }
@@ -448,6 +455,7 @@ export class RulesPreviewActions extends Container {
 
   private clearInput(): void {
     this.pointerId = this.tapPointerId = null;
+    this.hoveredIndex = null;
     this.pressX = this.pressY = this.pressScroll = 0;
     this.touchPress = this.dragMoved = false;
   }

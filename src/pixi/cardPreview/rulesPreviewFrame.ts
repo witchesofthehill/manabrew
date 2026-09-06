@@ -35,6 +35,7 @@ interface RulesPreviewFrameGeometry {
   typeY: number;
   typeHeight: number;
   footerHeight: number;
+  radius?: number;
 }
 
 export function resolveRulesPreviewFrame(theme: Theme): RulesPreviewFrameStyle {
@@ -64,6 +65,7 @@ export function drawRulesPreviewFrame(
     typeY,
     typeHeight,
     footerHeight,
+    radius = 13,
   } = geometry;
   const insetX = x + artInset;
   const innerWidth = width - artInset * 2;
@@ -73,9 +75,14 @@ export function drawRulesPreviewFrame(
   const surface = hexToNum(style.paper);
   const raised = hexToNum(style.raised);
 
-  graphics.roundRect(x, y, width, height, 13).fill(surface).stroke({ color: border, width: 1.25 });
+  graphics
+    .roundRect(x, y, width, height, radius)
+    .fill(surface)
+    .stroke({ color: border, width: 1.25 });
   graphics.roundRect(insetX, y + 8, innerWidth, headerHeight - 12, 7).fill(raised);
-  graphics.roundRect(insetX, y + artY, innerWidth, artHeight, 8).fill(raised);
+  if (artHeight > 0) {
+    graphics.roundRect(insetX, y + artY, innerWidth, artHeight, 8).fill(raised);
+  }
   graphics.roundRect(insetX, y + typeY, innerWidth, typeHeight, 5).fill(raised);
   graphics
     .moveTo(insetX + 8, rulesY)

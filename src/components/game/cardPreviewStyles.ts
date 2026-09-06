@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import type { HandCardStyle, InGameCardPreviewStyle } from "@/stores/usePreferencesStore";
+import type { InlineCardStyle, InGameCardPreviewStyle } from "@/stores/usePreferencesStore";
 
 export const IN_GAME_CARD_PREVIEW_STYLE_OPTIONS: ReadonlyArray<{
   value: InGameCardPreviewStyle;
@@ -9,8 +9,8 @@ export const IN_GAME_CARD_PREVIEW_STYLE_OPTIONS: ReadonlyArray<{
   { value: "rules", label: "Rules view" },
 ];
 
-export const HAND_CARD_STYLE_OPTIONS: ReadonlyArray<{
-  value: HandCardStyle;
+export const INLINE_CARD_STYLE_OPTIONS: ReadonlyArray<{
+  value: InlineCardStyle;
   label: string;
 }> = [
   { value: "printed", label: "Printed card" },

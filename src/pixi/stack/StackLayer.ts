@@ -10,7 +10,7 @@ import { HOVER_SCALE, StackCardSprite } from "./StackCardSprite";
 import { computeStackLayout, reconcileStackHover } from "./stackLayout";
 import type { StackAnchorProvider, StackCallbacks, StackSpec } from "./stack.types";
 
-const CARD_WIDTH = 220;
+const CARD_WIDTH = 300;
 const MAX_CARD_HEIGHT_FRAC = 0.55;
 const HOVER_MOVE_MS = 0.16;
 const HOVER_EASE = "power2.out";
@@ -32,6 +32,8 @@ export class StackLayer implements StackAnchorProvider {
   private readonly callbacks: StackCallbacks;
   private sprites = new Map<string, StackCardSprite>();
   private faceOverrides = new Map<string, boolean>();
+  private rulesViewOverrides = new Map<string, boolean>();
+  private rulesViewDefault = false;
   private spec: StackSpec = {
     cards: [],
     flash: null,
@@ -108,6 +110,13 @@ export class StackLayer implements StackAnchorProvider {
     this.layout();
   }
 
+  setRulesViewDefault(active: boolean): void {
+    if (this.rulesViewDefault === active) return;
+    this.rulesViewDefault = active;
+    this.rulesViewOverrides.clear();
+    for (const sprite of this.sprites.values()) sprite.setRulesView(active);
+  }
+
   setViewport(width: number, height: number): void {
     if (this.viewW === width && this.viewH === height) return;
     this.viewW = width;
@@ -149,6 +158,11 @@ export class StackLayer implements StackAnchorProvider {
           const staleOverride = this.faceOverrides.get(staleId!);
           this.faceOverrides.delete(staleId!);
           if (staleOverride !== undefined) this.faceOverrides.set(card.id, staleOverride);
+          const staleRulesViewOverride = this.rulesViewOverrides.get(staleId!);
+          this.rulesViewOverrides.delete(staleId!);
+          if (staleRulesViewOverride !== undefined) {
+            this.rulesViewOverrides.set(card.id, staleRulesViewOverride);
+          }
           const displayCard =
             staleOverride === undefined
               ? card
@@ -166,9 +180,11 @@ export class StackLayer implements StackAnchorProvider {
           this.theme,
           displayCard,
           this.builtCardWidth,
+          this.rulesViewOverrides.get(card.id) ?? this.rulesViewDefault,
           () => this.callbacks.onOpen(),
           (id) => this.callbacks.onTargetSpell(id),
           (id) => this.setHovered(id),
+          (id) => this.toggleRulesView(id),
           (id) => this.toggleFace(id),
         );
         this.container.addChild(sprite.container);
@@ -187,6 +203,7 @@ export class StackLayer implements StackAnchorProvider {
       sprite.destroy();
       this.sprites.delete(id);
       this.faceOverrides.delete(id);
+      this.rulesViewOverrides.delete(id);
     }
     const nextHoveredId = reconcileStackHover(this.hoveredId, incoming, replacements);
     if (nextHoveredId !== this.hoveredId) {
@@ -270,6 +287,14 @@ export class StackLayer implements StackAnchorProvider {
     this.sprites.get(stackObjectId)?.destroy();
     this.sprites.delete(stackObjectId);
     this.setSpec(this.spec);
+  }
+
+  toggleRulesView(stackObjectId: string): void {
+    const sprite = this.sprites.get(stackObjectId);
+    if (!sprite) return;
+    const active = !sprite.usesRulesView;
+    this.rulesViewOverrides.set(stackObjectId, active);
+    sprite.setRulesView(active);
   }
 
   private effectiveCollapsed(): boolean {

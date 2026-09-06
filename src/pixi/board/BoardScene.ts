@@ -17,7 +17,7 @@ import {
   setCardSpriteStyle,
   setCardSpriteHoverDebug,
 } from "../CardSprite";
-import type { BattlefieldCardStyle, HandCardStyle } from "@/stores/usePreferencesStore";
+import type { BattlefieldCardStyle, InlineCardStyle } from "@/stores/usePreferencesStore";
 import type { HandCardControlsSpec } from "../HandCardControls";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { hexToNum } from "../colorUtils";
@@ -1056,7 +1056,7 @@ export class BoardScene {
   setHandFlippedHorizontal(flipped: boolean): void {
     this.hand?.setHoveredHorizontalFlipped(flipped);
   }
-  setHandCardStyle(style: HandCardStyle): void {
+  setHandCardStyle(style: InlineCardStyle): void {
     this.handRulesViewDefault = style === "rules";
     this.hand?.setRulesViewDefault(this.handRulesViewDefault);
   }

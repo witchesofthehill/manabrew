@@ -29,7 +29,7 @@ import {
   GameSettingsModal,
   LeaveGameModal,
 } from "@/components/game/modals";
-import type { StackSpec } from "@/pixi/stack/stack.types";
+import type { StackCardSpec, StackSpec } from "@/pixi/stack/stack.types";
 import { useCastingState } from "@/hooks/useCastingState";
 import { useResolveSourceCard } from "@/components/prompts/internal/usePromptSourceCard";
 import type { BoardScene } from "@/pixi/board/BoardScene";
@@ -70,7 +70,9 @@ import type { CombatPairing } from "@/components/game/game.types";
 import { useStackUIStore } from "@/stores/useStackUIStore";
 import {
   useGameDevStore,
+  applyCardOverrides,
   DEBUG_KEYWORD_CARD_ID,
+  DEBUG_STACK_OBJECT_ID,
   DEFAULT_DEBUG_CARD_NAME,
 } from "@/stores/useGameDevStore";
 import { stackObjectToCardStub, isPermanentSpellCard } from "@/components/game/game.utils";
@@ -1428,13 +1430,15 @@ export default function Game({ exitTo }: GameProps = {}) {
   const debugBattlefieldKeywords = useGameDevStore((s) => s.debugBattlefieldKeywords);
   const debugCardChoices = useGameDevStore((s) => s.debugCardChoices);
   const debugCardEnabled = useGameDevStore((s) => s.debugCardEnabled);
+  const debugStackCardEnabled = useGameDevStore((s) => s.debugStackCardEnabled);
   const debugCardName = useGameDevStore((s) => s.debugCardName);
   const debugCardDefinition = useGameDevStore((s) => s.debugCardDefinition);
   const debugCardRailEnabled = useGameDevStore((s) => s.debugCardRailEnabled);
   const debugCardMode = useGameDevStore((s) => s.debugCardMode);
   const debugCardCurrent = useGameDevStore((s) => s.debugCardCurrent);
   const debugCardFinal = useGameDevStore((s) => s.debugCardFinal);
-  const debugCardTransformed = useGameDevStore((s) => s.cardOverrides.forceTransformed);
+  const debugCardOverrides = useGameDevStore((s) => s.cardOverrides);
+  const debugCardTransformed = debugCardOverrides.forceTransformed;
 
   const visibleCardsById = useMemo(() => {
     if (!gameView) return new Map<string, ClientCardDto>();
@@ -1850,21 +1854,53 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const stackValidTargetSet = new Set(boardTargets?.spellIds ?? []);
   const stackTargetingActive = stackValidTargetSet.size > 0;
+  const debugStackCard =
+    debugStackCardEnabled && me
+      ? applyCardOverrides(
+          buildDebugKeywordCard(
+            me.id,
+            debugCardName,
+            debugCardDefinition,
+            debugBattlefieldKeywords,
+            debugCardChoices,
+            debugCardRailEnabled,
+            debugCardMode,
+            debugCardCurrent,
+            debugCardFinal,
+            debugCardTransformed,
+          ),
+          debugCardOverrides,
+        )
+      : null;
+  const stackCards: StackCardSpec[] = (gameView?.stack ?? []).map((obj, idx, arr) => {
+    const isValidTarget = stackTargetingActive && stackValidTargetSet.has(obj.id);
+    return {
+      id: obj.id,
+      sourceId: obj.sourceId,
+      card: resolveStackCard(obj),
+      controllerId: obj.controllerId,
+      isCasting: obj.isCasting,
+      isTopOfStack: debugStackCard === null && idx === arr.length - 1,
+      seatColor: playerColorMap.get(obj.controllerId),
+      isValidTarget,
+      isDimmed: stackTargetingActive && !isValidTarget,
+    };
+  });
+  if (debugStackCard) {
+    stackCards.push({
+      id: DEBUG_STACK_OBJECT_ID,
+      sourceId: DEBUG_KEYWORD_CARD_ID,
+      card: debugStackCard,
+      controllerId: me.id,
+      isCasting: false,
+      isTopOfStack: true,
+      seatColor: playerColorMap.get(me.id),
+      isValidTarget: false,
+      isDimmed: false,
+    });
+  }
   const stackSpec: StackSpec = {
-    cards: (gameView?.stack ?? []).map((obj, idx, arr) => {
-      const isValidTarget = stackTargetingActive && stackValidTargetSet.has(obj.id);
-      return {
-        id: obj.id,
-        sourceId: obj.sourceId,
-        card: resolveStackCard(obj),
-        controllerId: obj.controllerId,
-        isCasting: obj.isCasting,
-        isTopOfStack: idx === arr.length - 1,
-        seatColor: playerColorMap.get(obj.controllerId),
-        isValidTarget,
-        isDimmed: stackTargetingActive && !isValidTarget,
-      };
-    }),
+    cards: stackCards,
     flash:
       shouldRenderStackFlashCard && activeFlashCard && activeFlash
         ? {
@@ -1873,7 +1909,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           }
         : null,
     showPreStackFlash: shouldShowPreStackFlash,
-    collapsed: stackCollapsed,
+    collapsed: debugStackCard === null && stackCollapsed,
   };
   const rulesPreview: BoardOverlayPreviewSpec | null =
     inGameCardPreviewStyle === "rules" && showInGamePreview && livePreviewCard

@@ -26,6 +26,7 @@ import {
   actionableCardGlowStyle,
 } from "@/components/game/cardPreviewStyles";
 import { cn } from "@/lib/utils";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 export interface BoardOverlayPreviewSpec {
   card: ClientCardDto;
@@ -48,6 +49,7 @@ interface BoardOverlayCanvasProps {
   onHoverStack: (stackObjectId: string | null) => void;
   onToggleStack: () => void;
   className?: string;
+  externalPreviewActive?: boolean;
   previewSpec?: BoardOverlayPreviewSpec | null;
   onPreviewPointerEnter?: () => void;
   onPreviewPointerLeave?: () => void;
@@ -140,6 +142,7 @@ export function BoardOverlayCanvas({
   onHoverStack,
   onToggleStack,
   className,
+  externalPreviewActive = false,
   previewSpec,
   onPreviewPointerEnter,
   onPreviewPointerLeave,
@@ -149,6 +152,7 @@ export function BoardOverlayCanvas({
   onTogglePreviewView,
 }: BoardOverlayCanvasProps) {
   const theme = useTheme();
+  const stackCardStyle = usePreferencesStore((state) => state.stackCardStyle);
   const themeRef = useRef(theme);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const previewGlowRef = useRef<HTMLDivElement>(null);
@@ -158,6 +162,8 @@ export function BoardOverlayCanvas({
   const previewRef = useRef<RulesCardPreviewLayer | null>(null);
   const syncPreviewPointerRef = useRef<(() => void) | null>(null);
   const previewSpecRef = useRef(previewSpec);
+  const stackSpecRef = useRef(stackSpec);
+  const stackCardStyleRef = useRef(stackCardStyle);
   const stickyOpenedAtRef = useRef(0);
   const stickyPreviewKeyRef = useRef<string | null>(null);
   const unregisterRef = useRef<(() => void) | null>(null);
@@ -267,6 +273,7 @@ export function BoardOverlayCanvas({
           onToggleCollapsed: () => cbRef.current.onToggleStack(),
         });
         stackRef.current = stack;
+        stack.setRulesViewDefault(stackCardStyleRef.current === "rules");
         const preview = new RulesCardPreviewLayer(themeRef.current, {
           onPointerEnter: () => cbRef.current.onPreviewPointerEnter?.(),
           onPointerLeave: () => cbRef.current.onPreviewPointerLeave?.(),
@@ -290,6 +297,7 @@ export function BoardOverlayCanvas({
           app.renderer.resize(w, h);
           stack.setViewport(w, h);
         }
+        stack.setSpec(stackSpecRef.current);
         const currentSpec = previewSpecRef.current;
         const canvasRect = canvasRef.current?.getBoundingClientRect();
         if (canvasRect) {
@@ -326,8 +334,13 @@ export function BoardOverlayCanvas({
   }, [sceneRef]);
 
   useEffect(() => {
+    stackSpecRef.current = stackSpec;
     stackRef.current?.setSpec(stackSpec);
   }, [stackSpec]);
+  useEffect(() => {
+    stackCardStyleRef.current = stackCardStyle;
+    stackRef.current?.setRulesViewDefault(stackCardStyle === "rules");
+  }, [stackCardStyle]);
   useEffect(() => {
     const preview = previewRef.current;
     const canvas = canvasRef.current;
@@ -530,6 +543,11 @@ export function BoardOverlayCanvas({
       : hoveredStackObjectId && hoveredStackCard?.card.isDoubleFaced
         ? { "flip-card": () => stackRef.current?.toggleFace(hoveredStackObjectId) }
         : {}),
+    ...(!externalPreviewActive && hoveredStackObjectId
+      ? {
+          "toggle-card-view": () => stackRef.current?.toggleRulesView(hoveredStackObjectId),
+        }
+      : {}),
   });
 
   useEffect(() => {

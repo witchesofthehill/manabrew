@@ -11,7 +11,7 @@ import { IRONSMITH_WASM_AVAILABLE } from "@/game/ironsmithWasmAvailable";
 import { relayUsername } from "@/lib/relayUsername";
 import { BattlefieldStylePreview } from "@/components/game/BattlefieldStylePreview";
 import {
-  HAND_CARD_STYLE_OPTIONS,
+  INLINE_CARD_STYLE_OPTIONS,
   IN_GAME_CARD_PREVIEW_STYLE_OPTIONS,
 } from "@/components/game/cardPreviewStyles";
 import { HAND_ORDER_OPTIONS } from "@/lib/handOrder";
@@ -1054,12 +1054,30 @@ export default function Settings() {
               description="Printed card shows the card image. Rules view makes cards in your hand default to their live rules face; each card can still be switched."
             >
               <div className="flex flex-wrap gap-2">
-                {HAND_CARD_STYLE_OPTIONS.map((option) => (
+                {INLINE_CARD_STYLE_OPTIONS.map((option) => (
                   <Button
                     key={option.value}
                     variant={prefs.handCardStyle === option.value ? "default" : "outline"}
                     size="sm"
                     onClick={() => prefs.setHandCardStyle(option.value)}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+            </PreferenceCard>
+
+            <PreferenceCard
+              title="Stack Card Style"
+              description="Printed card shows the card image. Rules view makes spells on the stack default to their live rules face; each card can still be switched."
+            >
+              <div className="flex flex-wrap gap-2">
+                {INLINE_CARD_STYLE_OPTIONS.map((option) => (
+                  <Button
+                    key={option.value}
+                    variant={prefs.stackCardStyle === option.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => prefs.setStackCardStyle(option.value)}
                   >
                     {option.label}
                   </Button>

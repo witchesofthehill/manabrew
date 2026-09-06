@@ -6,6 +6,7 @@ import type { ArrowType } from "@/pixi/types";
 import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
 
 export const DEBUG_KEYWORD_CARD_ID = "dev-keyword-card";
+export const DEBUG_STACK_OBJECT_ID = "dev-stack-object";
 export const DEFAULT_DEBUG_CARD_NAME = "Raging Goblin";
 
 export const DEV_CARD_CHOICE_KINDS = [
@@ -204,6 +205,7 @@ interface GameDevState {
   debugBattlefieldKeywords: string[];
   debugCardChoices: CardChoiceDto[];
   debugCardEnabled: boolean;
+  debugStackCardEnabled: boolean;
   debugCardName: string;
   debugCardDefinition: DeckCard | null;
   debugCardRailEnabled: boolean;
@@ -236,6 +238,7 @@ interface GameDevState {
   setAllDebugCardChoices: () => void;
   clearDebugCardChoices: () => void;
   setDebugCardEnabled: (value: boolean) => void;
+  setDebugStackCardEnabled: (value: boolean) => void;
   setDebugCard: (card: DeckCard) => void;
   setDebugCardRailEnabled: (value: boolean) => void;
   setDebugCardMode: (mode: DevCardRailMode) => void;
@@ -262,6 +265,7 @@ export const useGameDevStore = create<GameDevState>()(
       debugBattlefieldKeywords: [],
       debugCardChoices: [],
       debugCardEnabled: false,
+      debugStackCardEnabled: false,
       debugCardName: DEFAULT_DEBUG_CARD_NAME,
       debugCardDefinition: null,
       debugCardRailEnabled: false,
@@ -313,6 +317,7 @@ export const useGameDevStore = create<GameDevState>()(
         }),
       clearDebugCardChoices: () => set({ debugCardChoices: [] }),
       setDebugCardEnabled: (value) => set({ debugCardEnabled: value }),
+      setDebugStackCardEnabled: (value) => set({ debugStackCardEnabled: value }),
       setDebugCard: (card) =>
         set((state) => {
           const rail = parsePrintedCardRailMetadata(card);
@@ -371,6 +376,7 @@ export const useGameDevStore = create<GameDevState>()(
           debugBattlefieldKeywords: [],
           debugCardChoices: [],
           debugCardEnabled: false,
+          debugStackCardEnabled: false,
           debugCardName: DEFAULT_DEBUG_CARD_NAME,
           debugCardDefinition: null,
           debugCardRailEnabled: false,

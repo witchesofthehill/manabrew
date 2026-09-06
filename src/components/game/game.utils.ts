@@ -68,15 +68,15 @@ export function isLethalDamage(card: CardDto, queuedDamage = 0): boolean {
 
 export type ScryfallImageSize = "small" | "normal" | "large" | "png" | "border_crop" | "art_crop";
 
-/** CardDto view of a stack-resident source for rendering. Owner/controller
- *  come from the StackObjectDto; printing identity comes from the wire so
- *  `asDeckCard` can resolve the image. */
+/** CardDto view of a stack-resident source for rendering. `StackObjectDto.text`
+ *  is a stack label rather than Oracle text, so the rules renderer hydrates
+ *  rules and printed characteristics from the printing identity. */
 export function stackObjectToCardStub(obj: StackObjectDto): ClientCardDto {
   return {
     ...GAME_CARD_DEFAULTS,
     id: obj.sourceId,
     identity: obj.identity,
-    text: obj.text,
+    text: "",
     controllerId: obj.controllerId,
     ownerId: obj.ownerId,
     zoneId: "stack",

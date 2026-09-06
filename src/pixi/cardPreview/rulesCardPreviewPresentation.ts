@@ -191,19 +191,22 @@ export function resolveRulesPreviewDisplay(options: {
         presentation,
         resolved.faces.map((part) => part.oracleText ?? "").join("\n"),
       ),
-      stats: presentation.stats,
+      stats: presentation.stats ?? printedStats(resolved.faces[0]),
       loyalty: presentation.loyalty,
       defense: presentation.defense,
     };
   }
 
-  const rulesText = currentFace ? presentation.rulesText : (face?.oracleText ?? "");
+  const rulesText = currentFace
+    ? presentation.rulesText || face?.oracleText || ""
+    : (face?.oracleText ?? "");
   const typeLine = currentFace
     ? presentation.typeLine || face?.typeLine || ""
     : (face?.typeLine ?? presentation.typeLine);
   const manaCost = currentFace
-    ? (presentation.effectiveManaCost ??
-      (flippable ? (face?.manaCost ?? presentation.manaCost) : presentation.manaCost))
+    ? presentation.effectiveManaCost !== undefined
+      ? presentation.effectiveManaCost
+      : presentation.manaCost || face?.manaCost || ""
     : (face?.manaCost ?? "");
   const section: RulesPreviewSection = {
     name: face?.name ?? presentation.name,
@@ -213,7 +216,7 @@ export function resolveRulesPreviewDisplay(options: {
     flavorText: face?.flavorText ?? "",
     planeswalker: /\bPlaneswalker\b/i.test(typeLine),
   };
-  const stats = currentFace ? presentation.stats : printedStats(face);
+  const stats = currentFace ? (presentation.stats ?? printedStats(face)) : printedStats(face);
   const loyalty = currentFace
     ? (presentation.loyalty ?? numericValue(face?.loyalty))
     : numericValue(face?.loyalty);

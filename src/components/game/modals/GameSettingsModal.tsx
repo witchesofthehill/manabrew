@@ -14,7 +14,7 @@ import {
 } from "@/components/game/game.constants";
 import { BATTLEFIELD_CARD_STYLE_OPTIONS } from "@/components/game/battlefieldCardStyles";
 import {
-  HAND_CARD_STYLE_OPTIONS,
+  INLINE_CARD_STYLE_OPTIONS,
   IN_GAME_CARD_PREVIEW_STYLE_OPTIONS,
 } from "@/components/game/cardPreviewStyles";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
@@ -80,12 +80,30 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
           hint="Printed card shows the card image. Rules view makes cards in your hand default to their live rules face; each card can still be switched."
         >
           <div className="flex items-center gap-2">
-            {HAND_CARD_STYLE_OPTIONS.map((option) => (
+            {INLINE_CARD_STYLE_OPTIONS.map((option) => (
               <Button
                 key={option.value}
                 variant={prefs.handCardStyle === option.value ? "default" : "outline"}
                 size="sm"
                 onClick={() => prefs.setHandCardStyle(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        </SettingRow>
+
+        <SettingRow
+          label="Stack card style"
+          hint="Printed card shows the card image. Rules view makes spells on the stack default to their live rules face; each card can still be switched."
+        >
+          <div className="flex items-center gap-2">
+            {INLINE_CARD_STYLE_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                variant={prefs.stackCardStyle === option.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => prefs.setStackCardStyle(option.value)}
               >
                 {option.label}
               </Button>

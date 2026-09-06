@@ -1459,6 +1459,7 @@ export function GameBoard({
           onTargetSpell={onTargetSpell}
           onHoverStack={onHoverStack}
           onToggleStack={onToggleStack}
+          externalPreviewActive={externalPreviewActive}
           previewSpec={rulesPreview}
           onPreviewPointerEnter={onPreviewPointerEnter}
           onPreviewPointerLeave={onPreviewPointerLeave}

@@ -563,6 +563,7 @@ export function BoardPlayground() {
             onTargetSpell={() => undefined}
             onHoverStack={() => undefined}
             onToggleStack={() => undefined}
+            externalPreviewActive={externalPreviewActive}
             previewSpec={rulesPreview}
             onPreviewPointerEnter={preview.onMouseEnterPreview}
             onPreviewPointerLeave={preview.onMouseLeavePreview}

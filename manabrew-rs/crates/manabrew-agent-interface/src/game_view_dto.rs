@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
-use forge_foundation::ZoneType;
+use forge_foundation::{CoreType, ZoneType};
 use manabrew_engine::card::Card;
 use manabrew_engine::game::GameState;
 use manabrew_engine::ids::{CardId, PlayerId};
@@ -694,12 +694,47 @@ impl GameViewDtoExt for GameViewDto {
                 .iter()
                 .map(|(&card_raw_id, &dmg)| (card_id_str(CardId(card_raw_id)), dmg))
                 .collect();
+            let commander_casts: HashMap<String, u32> = ps
+                .commander_casts
+                .iter()
+                .map(|(&card_raw_id, &casts)| (card_id_str(CardId(card_raw_id)), casts))
+                .collect();
+            let mut player_keywords = ps.changed_keywords.clone();
+            player_keywords.extend(ps.keywords_until_my_next_turn.iter().cloned());
+            player_keywords.extend(ps.keywords_until_end_of_turn.iter().cloned());
+            player_keywords.sort_unstable();
+            player_keywords.dedup();
+            let command_zone = game.cards_in_zone(ZoneType::Command, pid);
+            let dungeon_state = command_zone.iter().find_map(|&cid| {
+                let card = game.card(cid);
+                if !card.type_line.core_types.contains(&CoreType::Dungeon) {
+                    return None;
+                }
+                Some(DungeonStateDto {
+                    name: card
+                        .svars
+                        .get("DungeonName")
+                        .cloned()
+                        .unwrap_or_else(|| card.card_name.clone()),
+                    room: card.svars.get("CurrentRoom").cloned().unwrap_or_default(),
+                })
+            });
+            let active_scheme_names: Vec<String> = command_zone
+                .iter()
+                .map(|&cid| game.card(cid))
+                .filter(|card| card.type_line.core_types.contains(&CoreType::Scheme))
+                .map(|card| card.card_name.clone())
+                .collect();
+            let team_number = (ps.team_number >= 0
+                && game.player_order.iter().any(|&other| {
+                    other != pid && game.player(other).team_number == ps.team_number
+                }))
+            .then_some(ps.team_number);
 
             zones.push(visible_zone(ZoneType::Hand, ZoneKind::Hand, pid));
             zones.push(visible_zone(ZoneType::Graveyard, ZoneKind::Graveyard, pid));
             zones.push(visible_zone(ZoneType::Exile, ZoneKind::Exile, pid));
-            let command_cards: Vec<CardView> = game
-                .cards_in_zone(ZoneType::Command, pid)
+            let command_cards: Vec<CardView> = command_zone
                 .iter()
                 .copied()
                 .filter(|&cid| should_show_command_zone_card(game, cid))
@@ -742,6 +777,26 @@ impl GameViewDtoExt for GameViewDto {
                 },
                 is_human: pid == human_player,
                 life: ps.life,
+                max_hand_size: ps.max_hand_size,
+                unlimited_hand_size: ps.unlimited_hand_size,
+                lands_played_this_turn: ps.lands_played_this_turn,
+                max_land_plays_per_turn: ps.max_land_plays_per_turn,
+                unlimited_land_plays: ps.unlimited_land_plays,
+                cards_drawn_this_turn: ps.drawn_this_turn,
+                damage_prevention: ps.damage_prevention,
+                is_extra_turn: game.turn.is_extra_turn && game.turn.active_player == pid,
+                extra_turn_count: game
+                    .extra_turns
+                    .iter()
+                    .filter(|extra_turn| extra_turn.player == pid)
+                    .count() as u32,
+                controlled_by: ps.controlled_by.map(player_id_str),
+                player_keywords,
+                commander_casts,
+                dungeon_state,
+                active_scheme_names: (!active_scheme_names.is_empty())
+                    .then_some(active_scheme_names),
+                team_number,
                 counters,
                 mana_pool: mana_pool_to_map(&pool),
                 commander_damage,
@@ -823,6 +878,17 @@ impl GameViewDtoExt for GameViewDto {
                 }
             })
             .collect();
+        let active_plane_names: Vec<String> = game
+            .player_order
+            .iter()
+            .flat_map(|&pid| game.cards_in_zone(ZoneType::Command, pid))
+            .map(|&cid| game.card(cid))
+            .filter(|card| {
+                card.type_line.core_types.contains(&CoreType::Plane)
+                    || card.type_line.core_types.contains(&CoreType::Phenomenon)
+            })
+            .map(|card| card.card_name.clone())
+            .collect();
 
         GameViewDto {
             game_id: game_id.to_string(),
@@ -847,6 +913,7 @@ impl GameViewDtoExt for GameViewDto {
             monarch_id: game.monarch.map(player_id_str),
             initiative_holder_id: game.initiative_holder.map(player_id_str),
             day_time: day_time_of(game),
+            active_plane_names: (!active_plane_names.is_empty()).then_some(active_plane_names),
         }
     }
 

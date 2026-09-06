@@ -143,6 +143,10 @@ public final class InteractiveSnapshotExtractor {
         view.put("stack", snapshotStack(game, castingAbility, activePlayerId));
         view.put("gameOver", base.get("game_over"));
         view.put("dayTime", dayTime(game));
+        final List<String> activePlaneNames = activePlaneNames(game);
+        if (!activePlaneNames.isEmpty()) {
+            view.put("activePlaneNames", activePlaneNames);
+        }
         final Object winner = base.get("winner");
         if (winner != null) {
             view.put("winnerId", "player-" + winner);
@@ -174,17 +178,84 @@ public final class InteractiveSnapshotExtractor {
         out.put("status", player.conceded() ? "conceded" : player.hasLost() ? "lost" : "playing");
         out.put("isHuman", index == viewer);
         out.put("life", player.getLife());
+        out.put("maxHandSize", player.getMaxHandSize());
+        out.put("unlimitedHandSize", player.isUnlimitedHandSize());
+        out.put("landsPlayedThisTurn", player.getLandsPlayedThisTurn());
+        out.put("maxLandPlaysPerTurn", player.getMaxLandPlays());
+        out.put("unlimitedLandPlays", player.getMaxLandPlaysInfinite());
+        out.put("cardsDrawnThisTurn", player.getNumDrawnThisTurn());
+        out.put("damagePrevention", player.getPreventNextDamageTotalShields());
+        out.put("isExtraTurn", player.isExtraTurn());
+        out.put("extraTurnCount", player.getExtraTurnCount());
+        final Player controller = player.getControllingPlayer();
+        if (controller != null && controller != player) {
+            out.put("controlledBy", "player-" + SnapshotExtractor.playerIndex(game, controller));
+        }
+        out.put("playerKeywords", playerKeywords(player));
+        out.put("commanderCasts", commanderCasts(player));
         out.put("counters", playerCounters(player));
         out.put("manaPool", manaPool(player));
         out.put("commanderDamage", commanderDamage(game, player));
         out.put("hasCityBlessing", player.hasBlessing());
         out.put("ringLevel", player.getNumRingTemptedYou());
         out.put("speed", player.getSpeed());
-        // Storied is the only mechanic through Forge 2.0.14 carrying player-level state beyond the
-        // designations above, which is why the list stops here: Recruit resolves through
-        // chooseCardsToDiscardFrom and FacesDilemma is trigger-side, so neither reaches a snapshot.
         out.put("hasEnduringStory", player.hasEnduringStory());
+        final Map<String, Object> dungeonState = dungeonState(player);
+        if (dungeonState != null) {
+            out.put("dungeonState", dungeonState);
+        }
+        final List<String> activeSchemeNames = activeSchemeNames(player);
+        if (!activeSchemeNames.isEmpty()) {
+            out.put("activeSchemeNames", activeSchemeNames);
+        }
+        final Integer teamNumber = teamNumber(game, player);
+        if (teamNumber != null) {
+            out.put("teamNumber", teamNumber);
+        }
         return out;
+    }
+
+    private static List<String> activePlaneNames(final Game game) {
+        final List<String> names = new ArrayList<>();
+        if (game.getActivePlanes() == null) {
+            return names;
+        }
+        for (final Card plane : game.getActivePlanes()) {
+            names.add(plane.getName());
+        }
+        return names;
+    }
+
+    private static Map<String, Object> dungeonState(final Player player) {
+        for (final Card card : player.getCardsIn(ZoneType.Command)) {
+            if (!card.getType().isDungeon()) {
+                continue;
+            }
+            final Map<String, Object> state = new LinkedHashMap<>();
+            state.put("name", card.getName());
+            state.put("room", card.getCurrentRoom() == null ? "" : card.getCurrentRoom());
+            return state;
+        }
+        return null;
+    }
+
+    private static List<String> activeSchemeNames(final Player player) {
+        final List<String> names = new ArrayList<>();
+        for (final Card card : player.getCardsIn(ZoneType.Command)) {
+            if (card.isScheme()) {
+                names.add(card.getName());
+            }
+        }
+        return names;
+    }
+
+    private static Integer teamNumber(final Game game, final Player player) {
+        for (final Player other : game.getRegisteredPlayers()) {
+            if (other != player && other.getTeam() == player.getTeam()) {
+                return player.getTeam();
+            }
+        }
+        return null;
     }
 
     private static Map<String, Integer> playerCounters(final Player player) {
@@ -201,6 +272,23 @@ public final class InteractiveSnapshotExtractor {
         if (value > 0) {
             map.put(key, value);
         }
+    }
+
+    private static List<String> playerKeywords(final Player player) {
+        final List<String> keywords = new ArrayList<>();
+        for (final KeywordInterface keyword : player.getKeywords()) {
+            keywords.add(keyword.getOriginal());
+        }
+        Collections.sort(keywords);
+        return keywords;
+    }
+
+    private static Map<String, Integer> commanderCasts(final Player player) {
+        final Map<String, Integer> casts = new LinkedHashMap<>();
+        for (final Card commander : player.getCommanders()) {
+            casts.put(SnapshotExtractor.javaCardId(commander), player.getCommanderCast(commander));
+        }
+        return casts;
     }
 
     private static Map<String, Object> visibleZone(

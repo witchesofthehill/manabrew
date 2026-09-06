@@ -74,6 +74,7 @@ export interface MainActionOverlayProps {
   attackerIds: string[];
   blockAssignments: CombatAssignment[];
   combatPairings: CombatPairing[];
+  combatDefenderLife?: number;
   onDeclareBlockers: (assignments: CombatAssignment[]) => void;
   damageOrderCount: number;
   damageOrderTotal: number;

@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useGameDevStore } from "@/stores/useGameDevStore";
 import { useGameUIStore } from "@/stores/useGameUIStore";
-import { PanelRightClose } from "lucide-react";
+import { PanelRightClose, ScrollText } from "lucide-react";
 import type { RightActionPanelProps } from "../game.types";
 import { TAB_BUTTON_BASE, TAB_ACTIVE, TAB_INACTIVE } from "../game.styles";
 import { ActionLog } from "./ActionLog";
@@ -20,11 +21,29 @@ export function RightActionPanel({
   onRestoreSnapshot,
 }: RightActionPanelProps) {
   const visibleLog = gameLog.filter((entry) => entry.entryType !== "rule");
-
+  const forceLogActivity = useGameDevStore((state) => state.gameStateOverrides.forceLogActivity);
   const activeTab = useGameUIStore((s) => s.rightPanelTab);
   const setActiveTab = useGameUIStore((s) => s.setRightPanelTab);
+  const logActivityCount = forceLogActivity ? Math.max(4, visibleLog.length) : visibleLog.length;
 
-  if (collapsed) return null;
+  if (collapsed)
+    return logActivityCount > 0 ? (
+      <button
+        type="button"
+        className="absolute right-[calc(0.75rem+var(--safe-area-inset-right))] top-[calc(0.75rem+var(--safe-area-inset-top))] z-50 flex items-center gap-2 rounded-full border border-primary/50 bg-card/95 px-3 py-2 font-game text-xs font-semibold text-foreground shadow-lg backdrop-blur-sm transition-colors hover:bg-accent"
+        aria-label={`Open action log with ${logActivityCount} entries`}
+        onClick={() => {
+          setActiveTab("log");
+          rawToggle();
+        }}
+      >
+        <ScrollText className="h-4 w-4 text-primary" />
+        Log
+        <span className="min-w-5 rounded-full bg-primary px-1.5 py-0.5 font-mono text-[10px] text-primary-foreground">
+          {logActivityCount}
+        </span>
+      </button>
+    ) : null;
 
   return (
     <aside
@@ -42,7 +61,7 @@ export function RightActionPanel({
               className={cn(TAB_BUTTON_BASE, activeTab === "log" ? TAB_ACTIVE : TAB_INACTIVE)}
               onClick={() => setActiveTab("log")}
             >
-              Log ({visibleLog.length})
+              Log ({logActivityCount})
             </button>
             <button
               className={cn(TAB_BUTTON_BASE, activeTab === "snapshots" ? TAB_ACTIVE : TAB_INACTIVE)}

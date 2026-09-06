@@ -782,7 +782,7 @@ export class PlayerHudCapsule {
     // `null`, not `[]` — an empty filters array still routes the container
     // through a filter render-pass in Pixi, which softens/blurs it.
     this.container.filters = eliminated ? [this.greyscale] : null;
-    this.container.alpha = eliminated ? 0.5 : this.spec.isDisconnected ? 0.6 : 1;
+    this.container.alpha = !eliminated && this.spec.isDisconnected ? 0.6 : 1;
   }
 
   private checkBadgeSparkles(): void {
@@ -963,7 +963,7 @@ export class PlayerHudCapsule {
     statusY = y + 19,
   ): void {
     const gt = this.theme.gameTheme;
-    this.nameText.style = this.styled(column ? 11 : 12, "700", gt.textOnTinted);
+    this.nameText.style = this.styled(12, "700", gt.textOnTinted);
     this.nameText.text = this.spec.name;
     while (this.nameText.width > width && this.nameText.text.length > 2) {
       this.nameText.text = `${this.nameText.text.replace(/…$/, "").slice(0, -1)}…`;
@@ -977,13 +977,13 @@ export class PlayerHudCapsule {
           ? "Turn"
           : "";
     this.seatState.style = this.styled(
-      9,
-      "600",
+      10,
+      "700",
       this.spec.isEliminated || this.spec.isDisconnected ? gt.pt.lethal : this.spec.color,
     );
     this.seatState.position.set(x, statusY);
     this.priorityText.visible = this.spec.isPriorityPlayer && !this.spec.isEliminated;
-    this.priorityText.style = this.styled(9, "600", gt.activeAction.priority);
+    this.priorityText.style = this.styled(10, "700", gt.activeAction.priority);
     this.priorityText.position.set(x + width - this.priorityText.width, statusY);
   }
 
@@ -1071,9 +1071,16 @@ export class PlayerHudCapsule {
   private badgeIsUrgent(badge: PlayerHudSpec["badges"][number]): boolean {
     return (
       !!badge.lethal ||
+      badge.id === "extra-turn" ||
+      badge.id === "controlled-player" ||
+      badge.id === "damage-prevention" ||
       (badge.id === "poison" && (badge.count ?? 0) >= 8) ||
       (badge.id.startsWith("cmd-") && (badge.count ?? 0) >= 18)
     );
+  }
+
+  private badgeIsGlanceworthy(badge: PlayerHudSpec["badges"][number]): boolean {
+    return this.badgeIsUrgent(badge) || badge.id === "monarch" || badge.id === "initiative";
   }
 
   private placeBadge(
@@ -1154,7 +1161,7 @@ export class PlayerHudCapsule {
       const index = STATE_ORDER.indexOf(id.startsWith("cmd-") ? "commander" : id);
       return index < 0 ? STATE_ORDER.length : index;
     };
-    const states = this.spec.badges
+    const allStates = this.spec.badges
       .map((badge, index) => ({ badge, index }))
       .filter(({ badge }) => badge.id !== "hand" && !badge.zone)
       .sort(
@@ -1163,9 +1170,12 @@ export class PlayerHudCapsule {
           rank(a.badge.id) - rank(b.badge.id) ||
           a.badge.id.localeCompare(b.badge.id),
       );
-    this.emptyStateText.visible = states.length === 0 && width >= 160;
+    const states = this.column
+      ? allStates.filter(({ badge }) => this.badgeIsGlanceworthy(badge)).slice(0, 2)
+      : allStates;
+    this.emptyStateText.visible = allStates.length === 0 && width >= 160;
     if (this.emptyStateText.visible) {
-      this.emptyStateText.style = this.styled(9, "500", this.theme.gameTheme.textGhost);
+      this.emptyStateText.style = this.styled(10, "500", this.theme.gameTheme.textMuted);
       this.emptyStateText.position.set(x + 8, y + (rows * cellHeight) / 2);
     }
     const capacity = rows * columns - (overflowRect ? 0 : 1);
@@ -1180,9 +1190,12 @@ export class PlayerHudCapsule {
         cellWidth >= 80,
       );
     }
-    const hidden = states.length - visible;
-    const danger = states.slice(visible).some(({ badge }) => this.badgeIsUrgent(badge));
-    const slot = rows * columns - 1;
+    const hidden = allStates.length - visible;
+    const visibleIds = new Set(states.slice(0, visible).map(({ badge }) => badge.id));
+    const danger = allStates.some(
+      ({ badge }) => !visibleIds.has(badge.id) && this.badgeIsUrgent(badge),
+    );
+    const slot = this.column ? Math.min(rows * columns - 1, visible) : rows * columns - 1;
     this.placeOverflow(
       overflowRect ?? {
         x: x + (slot % columns) * cellWidth,
@@ -1383,7 +1396,7 @@ export class PlayerHudCapsule {
       { alpha: 1, x: this.life.x - this.life.width * (this.life.anchor.x - 0.5), y: this.life.y },
       {
         alpha: 0,
-        y: this.life.y - this.lifeFontSize,
+        y: this.life.y - this.avatarDia * 0.8,
         duration: 0.9,
         ease: "power1.out",
         onComplete: () => {
@@ -1401,8 +1414,13 @@ export class PlayerHudCapsule {
   private drawGlow(): void {
     this.glow.clear();
     if (!this.priorityText.visible) return;
-    this.glow.circle(this.priorityText.x - 5, this.priorityText.y + 5, 2);
-    this.glow.fill({ color: hexToNum(this.theme.gameTheme.activeAction.priority) });
+    const color = hexToNum(this.theme.gameTheme.activeAction.priority);
+    const x = this.priorityText.x - 6;
+    const y = this.priorityText.y + 5;
+    this.glow.circle(x, y, 3);
+    this.glow.fill({ color });
+    this.glow.moveTo(x + 5, y).lineTo(this.priorityText.x + this.priorityText.width, y);
+    this.glow.stroke({ color, width: 1.5, alpha: 0.7 });
   }
 
   private applyCombatGlow(): void {

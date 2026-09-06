@@ -134,7 +134,7 @@ export class BoardRegion {
   private zoneTileKeys: string[] = [];
   private compactZones = false;
   private zoneTilesLocked = false;
-  private draggedZoneSlots = new Map<string, { col: number; row: number }>();
+  private zoneSlots = new Map<string, { col: number; row: number }>();
 
   private entries = new Map<string, SpriteEntry>();
   private gridInfo: GridLayoutInfo | null = null;
@@ -318,7 +318,7 @@ export class BoardRegion {
     };
 
     for (const key of this.zoneTileKeys) {
-      const slot = this.compactZones ? undefined : this.draggedZoneSlots.get(key);
+      const slot = this.compactZones ? undefined : this.zoneSlots.get(key);
       let cell = slot ? resolveCell(slot.col, slot.row) : null;
       if (!isFree(cell)) cell = nextDefaultCell();
       // A giant-card grid (few cells, partly covered by the hand fan and
@@ -326,6 +326,7 @@ export class BoardRegion {
       // blocker rather than stranding the tile at its stale geometry.
       if (!cell) cell = nextDefaultCell(true);
       if (!cell) continue;
+      if (!this.compactZones) this.zoneSlots.set(key, { col: cell.col, row: cell.row });
       taken.add(cellKey(cell.col, cell.row));
       occupied.add(cellKey(cell.col, cell.row));
       placements.set(key, { x: cell.x, y: cell.y });
@@ -342,7 +343,7 @@ export class BoardRegion {
     const grid = this.gridInfo;
     if (!grid) return;
     const cell = cellFromPoint(grid, centerX, centerY);
-    if (cell && !cell.blocked) this.draggedZoneSlots.set(key, { col: cell.col, row: cell.row });
+    if (cell && !cell.blocked) this.zoneSlots.set(key, { col: cell.col, row: cell.row });
     // Re-place tiles (snapping the drop, or reverting an invalid one) and relayout
     // cards to avoid the new cells.
     if (this.lastState) this.updateBattlefield(this.lastState);

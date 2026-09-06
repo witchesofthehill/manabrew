@@ -48,6 +48,14 @@ const PLAYER_STATE_ROWS: ToggleRow[] = [
   { key: "forceDisconnected", label: "Disconnected" },
 ];
 
+const PLAYER_RULE_ROWS: ToggleRow[] = [
+  { key: "forceUnlimitedHand", label: "Unlimited hand" },
+  { key: "forceUnlimitedLands", label: "Unlimited lands" },
+  { key: "forceExtraTurn", label: "Extra turn" },
+  { key: "forceControlledBy", label: "Controlled player" },
+  { key: "forcePlayerKeyword", label: "Player keyword" },
+];
+
 interface CounterRow {
   key: NumericOverrideKey;
   label: string;
@@ -74,6 +82,14 @@ const COUNTER_ROWS: CounterRow[] = [
   { key: "speed", label: "Speed", base: NUMERIC_BUMP_BASE },
   { key: "handCount", label: "Hand", base: NUMERIC_BUMP_BASE },
   { key: "life", label: "Life", base: LIFE_BUMP_BASE },
+  { key: "maxHandSize", label: "Max hand", base: 7 },
+  { key: "landsPlayed", label: "Lands played", base: NUMERIC_BUMP_BASE },
+  { key: "maxLandPlays", label: "Max land plays", base: 1 },
+  { key: "cardsDrawn", label: "Cards drawn", base: NUMERIC_BUMP_BASE },
+  { key: "damagePrevention", label: "Damage prevention", base: NUMERIC_BUMP_BASE },
+  { key: "extraTurnCount", label: "Queued extra turns", base: NUMERIC_BUMP_BASE },
+  { key: "commanderCasts", label: "Commander casts", base: NUMERIC_BUMP_BASE },
+  { key: "graveyardCardTypes", label: "Graveyard types", base: NUMERIC_BUMP_BASE },
 ];
 export function PlayerBadgeDevControls() {
   const overrides = useGameDevStore((s) => s.playerOverrides);
@@ -143,6 +159,20 @@ export function PlayerBadgeDevControls() {
       </p>
       <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
         {PLAYER_STATE_ROWS.map((row) => (
+          <DevToggleButton
+            key={row.key}
+            label={row.label}
+            active={overrides[row.key]}
+            onClick={() => toggleBool(row.key)}
+          />
+        ))}
+      </div>
+
+      <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        Player rules
+      </p>
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+        {PLAYER_RULE_ROWS.map((row) => (
           <DevToggleButton
             key={row.key}
             label={row.label}

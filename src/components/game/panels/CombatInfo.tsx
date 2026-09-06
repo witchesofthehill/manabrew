@@ -10,6 +10,7 @@ interface CombatInfoProps {
   combatPairings: CombatPairing[];
   resolveCardName: (cardId: string) => string;
   resolveCard: (cardId: string) => CardDto | undefined;
+  defenderLife?: number;
 }
 
 export function CombatInfo({
@@ -20,6 +21,7 @@ export function CombatInfo({
   combatPairings,
   resolveCardName,
   resolveCard,
+  defenderLife,
 }: CombatInfoProps) {
   return (
     <>
@@ -48,6 +50,7 @@ export function CombatInfo({
         blockAssignments={blockAssignments}
         resolveCardName={resolveCardName}
         resolveCard={resolveCard}
+        defenderLife={defenderLife}
       />
     </>
   );

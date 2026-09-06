@@ -34,6 +34,17 @@ const PROMPT_TITLES: Partial<Record<string, string>> = {
   mulliganPutBack: "Mulligan",
 };
 
+function promptTypeForView(
+  promptType: MainActionOverlayProps["promptType"],
+  override: PromptActionViewKey | null,
+): MainActionOverlayProps["promptType"] {
+  if (!override) return promptType;
+  if (override === "chooseTargetSpell" || override === "promptLabel") return "chooseBoardTargets";
+  if (override === "chooseDamageOrder") return "chooseDamageAssignmentOrder";
+  if (override === "promptRequired" || override === "noAction") return undefined;
+  return override;
+}
+
 const BUMP = {
   heightPx: 12,
   durationMs: 280,
@@ -99,6 +110,7 @@ export function MainActionOverlay({
   attackerIds,
   blockAssignments,
   combatPairings,
+  combatDefenderLife,
   onDeclareBlockers,
   damageOrderCount,
   damageOrderTotal,
@@ -163,11 +175,22 @@ export function MainActionOverlay({
   const isNoActionView = promptActionOverride
     ? NO_ACTION_VIEWS.includes(promptActionOverride)
     : !promptType || isWaitingForOthers;
+  const effectivePromptType = promptTypeForView(promptType, promptActionOverride);
   const showPriorityMode = promptActionOverride
     ? promptActionOverride === "chooseAction" || promptActionOverride === "noAction"
     : isNoActionView || promptType === "chooseAction";
   const hasAction = !isNoActionView;
-  const title = hasAction ? (PROMPT_TITLES[promptType ?? ""] ?? "Action Required") : "Waiting";
+  const title = hasAction
+    ? (PROMPT_TITLES[effectivePromptType ?? ""] ?? "Action Required")
+    : "Waiting";
+  const contextLines = getPromptContextLines(effectivePromptType, {
+    mulliganCount,
+    mustAttackHint,
+    blockRestrictionHint,
+    payManaCostInfo,
+    mulliganPutBackCount,
+    mulliganSelectedCount,
+  });
   const effectiveCollapsed = !minimal && hasAction && collapsed;
   const isRenderable =
     promptType !== "gameOver" && !!selfClusterMaxHeight && selfClusterMaxHeight > 0;
@@ -227,7 +250,7 @@ export function MainActionOverlay({
     currentPhaseIndex >= 0
       ? (PHASES[(currentPhaseIndex + 1) % PHASES.length]?.short ?? "NEXT")
       : "NEXT";
-  const awaitingTarget = promptType === "chooseAttackers" && pendingAttackers.length > 0;
+  const awaitingTarget = effectivePromptType === "chooseAttackers" && pendingAttackers.length > 0;
   const glow = awaitingTarget
     ? themeColors.promptAction.attackAction
     : themeColors.activeAction.priority;
@@ -274,10 +297,21 @@ export function MainActionOverlay({
           {!minimal && (
             <div
               ref={headerRef}
-              className="flex items-center justify-between gap-2 px-2 py-1.5 border-b border-border/70"
+              className={cn(
+                "flex items-center justify-between gap-2 border-b px-2.5 py-2",
+                hasAction
+                  ? "border-active-action-priority/35 bg-active-action-priority/10"
+                  : "border-border/70",
+              )}
             >
-              <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-foreground/90 truncate">
-                {title}
+              <span className="flex min-w-0 items-center gap-2 text-[13px] font-bold uppercase tracking-[0.12em] text-foreground">
+                {hasAction && (
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full bg-active-action-priority"
+                    aria-hidden="true"
+                  />
+                )}
+                <span className="truncate">{title}</span>
               </span>
               <div className="flex shrink-0 items-center gap-1">
                 {showPriorityMode && <PriorityModePill />}
@@ -285,7 +319,7 @@ export function MainActionOverlay({
                   type="button"
                   onClick={() => setCollapsed((c) => !c)}
                   className={cn(
-                    "relative rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0 before:absolute before:-inset-2.5 before:content-['']",
+                    "relative shrink-0 rounded p-0.5 text-muted-foreground transition-colors before:absolute before:-inset-2.5 before:content-[''] hover:text-foreground",
                     !hasAction && "invisible",
                   )}
                   title={collapsed ? "Expand" : "Collapse"}
@@ -308,6 +342,15 @@ export function MainActionOverlay({
               minimal ? "gap-1 px-1.5 py-1" : "gap-2 px-2 pt-2 pb-2",
             )}
           >
+            {!minimal && hasAction && contextLines.length > 0 && (
+              <div className="w-full rounded-md border border-active-action-priority/25 bg-active-action-priority/5 px-2.5 py-2">
+                {contextLines.map((line) => (
+                  <p key={line} className="text-xs font-medium leading-snug text-foreground/90">
+                    <DynamicTextRender className="align-middle" text={line} />
+                  </p>
+                ))}
+              </div>
+            )}
             {!minimal && (
               <CombatInfo
                 promptType={promptType}
@@ -317,6 +360,7 @@ export function MainActionOverlay({
                 combatPairings={combatPairings}
                 resolveCardName={resolveCardName}
                 resolveCard={resolveCard}
+                defenderLife={combatDefenderLife}
               />
             )}
             <div
@@ -380,14 +424,7 @@ export function MainActionOverlay({
           <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-foreground/90">
             {title}
           </p>
-          {getPromptContextLines(promptType, {
-            mulliganCount,
-            mustAttackHint,
-            blockRestrictionHint,
-            payManaCostInfo,
-            mulliganPutBackCount,
-            mulliganSelectedCount,
-          }).map((line) => (
+          {contextLines.map((line) => (
             <p key={line} className="text-[11px] text-muted-foreground">
               <DynamicTextRender className="align-middle" text={line} />
             </p>
@@ -400,6 +437,7 @@ export function MainActionOverlay({
             combatPairings={combatPairings}
             resolveCardName={resolveCardName}
             resolveCard={resolveCard}
+            defenderLife={combatDefenderLife}
           />
         </TouchHintPopover>
       )}

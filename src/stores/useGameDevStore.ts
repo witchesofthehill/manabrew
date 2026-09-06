@@ -29,6 +29,8 @@ export const DEV_PROMPT_ACTION_OVERRIDES = [
   "chooseBlockers",
   "chooseTargetSpell",
   "payManaCost",
+  "mulligan",
+  "mulliganPutBack",
   "noAction",
 ] as const;
 
@@ -62,6 +64,11 @@ export interface DevPlayerOverrides {
   forceFlashing: boolean;
   forceEliminated: boolean;
   forceDisconnected: boolean;
+  forceUnlimitedHand: boolean;
+  forceUnlimitedLands: boolean;
+  forceExtraTurn: boolean;
+  forceControlledBy: boolean;
+  forcePlayerKeyword: boolean;
   forceInCombat: boolean;
   forceCombatLethal: boolean;
   poison: number | null;
@@ -79,9 +86,39 @@ export interface DevPlayerOverrides {
   manaRed: number | null;
   manaGreen: number | null;
   manaColorless: number | null;
+  maxHandSize: number | null;
+  landsPlayed: number | null;
+  maxLandPlays: number | null;
+  cardsDrawn: number | null;
+  damagePrevention: number | null;
+  extraTurnCount: number | null;
+  commanderCasts: number | null;
+  graveyardCardTypes: number | null;
   life: number | null;
   handCount: number | null;
 }
+
+export interface DevGameStateOverrides {
+  forceStackActivity: boolean;
+  forceLogActivity: boolean;
+  forceCombatSummary: boolean;
+  dayNight: "none" | "day" | "night";
+  forceDungeon: boolean;
+  forcePlane: boolean;
+  forceScheme: boolean;
+  forceTeam: boolean;
+}
+
+export const DEFAULT_DEV_GAME_STATE_OVERRIDES: DevGameStateOverrides = {
+  forceStackActivity: false,
+  forceLogActivity: false,
+  forceCombatSummary: false,
+  dayNight: "none",
+  forceDungeon: false,
+  forcePlane: false,
+  forceScheme: false,
+  forceTeam: false,
+};
 
 export const DEFAULT_DEV_PLAYER_OVERRIDES: DevPlayerOverrides = {
   forceMonarch: false,
@@ -102,6 +139,11 @@ export const DEFAULT_DEV_PLAYER_OVERRIDES: DevPlayerOverrides = {
   poison: null,
   energy: null,
   radiation: null,
+  forceUnlimitedHand: false,
+  forceUnlimitedLands: false,
+  forceExtraTurn: false,
+  forceControlledBy: false,
+  forcePlayerKeyword: false,
   experience: null,
   ticket: null,
   ringLevel: null,
@@ -114,6 +156,14 @@ export const DEFAULT_DEV_PLAYER_OVERRIDES: DevPlayerOverrides = {
   manaRed: null,
   manaGreen: null,
   manaColorless: null,
+  maxHandSize: null,
+  landsPlayed: null,
+  maxLandPlays: null,
+  cardsDrawn: null,
+  damagePrevention: null,
+  extraTurnCount: null,
+  commanderCasts: null,
+  graveyardCardTypes: null,
   life: null,
   handCount: null,
 };
@@ -200,6 +250,7 @@ interface GameDevState {
   pixiPerfStats: PixiPerfStats | null;
   playerOverrides: DevPlayerOverrides;
   cardOverrides: DevCardOverrides;
+  gameStateOverrides: DevGameStateOverrides;
   etbGlowVersion: number;
   debugArrowType: ArrowType | null;
   debugBattlefieldKeywords: string[];
@@ -227,6 +278,11 @@ interface GameDevState {
   ) => void;
   resetPlayerOverrides: () => void;
   setCardOverride: <K extends keyof DevCardOverrides>(key: K, value: DevCardOverrides[K]) => void;
+  setGameStateOverride: <K extends keyof DevGameStateOverrides>(
+    key: K,
+    value: DevGameStateOverrides[K],
+  ) => void;
+  resetGameStateOverrides: () => void;
   resetCardOverrides: () => void;
   triggerEtbGlow: () => void;
   setDebugArrowType: (type: ArrowType | null) => void;
@@ -254,6 +310,7 @@ export const useGameDevStore = create<GameDevState>()(
       pixiPerfStats: null,
       playerOverrides: DEFAULT_DEV_PLAYER_OVERRIDES,
       cardOverrides: DEFAULT_DEV_CARD_OVERRIDES,
+      gameStateOverrides: DEFAULT_DEV_GAME_STATE_OVERRIDES,
       etbGlowVersion: 0,
       debugArrowType: null,
       debugBattlefieldKeywords: [],
@@ -285,6 +342,11 @@ export const useGameDevStore = create<GameDevState>()(
           cardOverrides: { ...state.cardOverrides, [key]: value },
         })),
       resetCardOverrides: () => set({ cardOverrides: DEFAULT_DEV_CARD_OVERRIDES }),
+      setGameStateOverride: (key, value) =>
+        set((state) => ({
+          gameStateOverrides: { ...state.gameStateOverrides, [key]: value },
+        })),
+      resetGameStateOverrides: () => set({ gameStateOverrides: DEFAULT_DEV_GAME_STATE_OVERRIDES }),
       triggerEtbGlow: () => set((s) => ({ etbGlowVersion: s.etbGlowVersion + 1 })),
       setDebugArrowType: (type) => set({ debugArrowType: type }),
       toggleDebugBattlefieldKeyword: (keyword) =>
@@ -335,6 +397,7 @@ export const useGameDevStore = create<GameDevState>()(
           devToolsEnabled: false,
           playerOverrides: DEFAULT_DEV_PLAYER_OVERRIDES,
           cardOverrides: DEFAULT_DEV_CARD_OVERRIDES,
+          gameStateOverrides: DEFAULT_DEV_GAME_STATE_OVERRIDES,
           debugArrowType: null,
           debugBattlefieldKeywords: [],
           debugCardEnabled: false,

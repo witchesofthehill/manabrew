@@ -151,6 +151,17 @@ export function buildPlaygroundSpecs(
       combatLethal: false,
       manaPool: table.manaPools[player.id]!,
       badges,
+      ruleFacts: [
+        { id: "max-hand", label: "Maximum hand size", value: "7" },
+        { id: "land-plays", label: "Lands played this turn", value: "0 / 1" },
+        { id: "cards-drawn", label: "Cards drawn this turn", value: "1" },
+        {
+          id: "graveyard-types",
+          label: "Card types in graveyard",
+          value: table.scenario === "player-panels" ? "4 · Delirium" : "0",
+          emphasized: table.scenario === "player-panels",
+        },
+      ],
     });
   });
   return {

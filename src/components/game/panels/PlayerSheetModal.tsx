@@ -6,6 +6,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 import { MANA_LETTERS } from "@/themes/gameTheme";
 import type { GameIconName } from "@/components/game/GameIcon";
+import { PlayerRuleFacts } from "@/components/game/panels/PlayerRuleFacts";
 import type { PlayerHudBadge, PlayerHudSpec } from "@/pixi/hud/playerHud.types";
 
 interface PlayerSheetModalProps {
@@ -103,6 +104,7 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
         </dl>
       </section>
       <Modal.Body className="min-h-0 space-y-5">
+        <PlayerRuleFacts facts={spec.ruleFacts} />
         {sections.map(({ title, badges, empty }) => (
           <section key={title} aria-label={title}>
             <h3 className="mb-2 text-xs font-semibold text-muted-foreground">{title}</h3>

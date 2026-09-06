@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useKeybindings } from "@/hooks/useKeybindings";
-import type { CardDto } from "@/protocol/game";
+import type { CardDto, DayTime } from "@/protocol/game";
 import type { ClientPlayerDto } from "@/stores/gameStore.types";
 import type { Prompt } from "@/protocol";
 import { validCardIdsInCards, type BoardTargetBuckets } from "@/lib/boardTargets";
@@ -12,9 +12,10 @@ import { BoardOverlayCanvas } from "@/pixi/BoardOverlayCanvas";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import type { CombatRow } from "@/components/game/combatRows";
 import type { BoardScene } from "@/pixi/board/BoardScene";
-import type { PlayerHudSpec, PlayerHudBadge } from "@/pixi/hud/playerHud.types";
+import type { PlayerHudSpec, PlayerHudBadge, PlayerHudFact } from "@/pixi/hud/playerHud.types";
 import { buildPlayerHudBadges, buildZoneBadges } from "@/components/game/panels/playerHudBadges";
 import { PlayerSheetModal } from "@/components/game/panels/PlayerSheetModal";
+import { GlobalStateRail } from "@/components/game/panels/GlobalStateRail";
 import type { ZoneTileSpec } from "@/pixi/board/BoardZoneTiles";
 import type { BlockingRect } from "@/pixi/board/types";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -54,6 +55,28 @@ function promptOf<TType extends PromptType>(
     : null;
 }
 
+const GRAVEYARD_CARD_TYPES = new Set([
+  "Artifact",
+  "Battle",
+  "Creature",
+  "Enchantment",
+  "Instant",
+  "Kindred",
+  "Land",
+  "Planeswalker",
+  "Sorcery",
+]);
+
+function graveyardCardTypeCount(cards: CardDto[]): number {
+  const present = new Set<string>();
+  for (const card of cards) {
+    for (const type of card.types) {
+      if (GRAVEYARD_CARD_TYPES.has(type)) present.add(type);
+    }
+  }
+  return present.size;
+}
+
 interface GameBoardProps {
   me: ClientPlayerDto;
   opponents: ClientPlayerDto[];
@@ -89,6 +112,8 @@ interface GameBoardProps {
 
   monarchId?: string | null;
   initiativeHolderId?: string | null;
+  dayTime: DayTime;
+  activePlaneNames?: string[];
 
   turnFlashPlayerId: string | null;
 
@@ -194,6 +219,8 @@ export function GameBoard({
   playerIsTargetable,
   monarchId,
   initiativeHolderId,
+  dayTime,
+  activePlaneNames,
   turnFlashPlayerId,
   isOverBattlefield,
   isOverHand,
@@ -834,8 +861,142 @@ export function GameBoard({
     };
 
     const toSpec = (player: ClientPlayerDto, color: string, isSelf: boolean): PlayerHudSpec => {
+      const controlledById = dev.forceControlledBy
+        ? isSelf
+          ? opponents[0]?.id
+          : me.id
+        : player.controlledBy;
+      const controlledByName = controlledById ? nameOf(controlledById) : null;
+      const damagePrevention = dev.damagePrevention ?? player.damagePrevention ?? 0;
+      const isExtraTurn = dev.forceExtraTurn || player.isExtraTurn === true;
+      const extraTurnCount = dev.extraTurnCount ?? player.extraTurnCount ?? 0;
+      const maxHandSize = dev.maxHandSize ?? player.maxHandSize ?? 7;
+      const unlimitedHandSize = dev.forceUnlimitedHand || player.unlimitedHandSize === true;
+      const landsPlayed = dev.landsPlayed ?? player.landsPlayedThisTurn ?? 0;
+      const maxLandPlays = dev.maxLandPlays ?? player.maxLandPlaysPerTurn ?? 1;
+      const unlimitedLandPlays = dev.forceUnlimitedLands || player.unlimitedLandPlays === true;
+      const cardsDrawn = dev.cardsDrawn ?? player.cardsDrawnThisTurn ?? 0;
+      const graveyardTypes =
+        dev.graveyardCardTypes ?? graveyardCardTypeCount(player.graveyard ?? []);
+      const playerKeywords = [...(player.playerKeywords ?? [])];
+      if (dev.forcePlayerKeyword && !playerKeywords.includes("Hexproof")) {
+        playerKeywords.push("Hexproof");
+      }
+      const commanderCasts =
+        dev.commanderCasts != null
+          ? player.commandZone.length > 0
+            ? Object.fromEntries(player.commandZone.map((card) => [card.id, dev.commanderCasts!]))
+            : { dev: dev.commanderCasts }
+          : (player.commanderCasts ?? {});
+      const ruleBadges: PlayerHudBadge[] = [
+        ...(isExtraTurn || extraTurnCount > 0
+          ? [
+              {
+                id: "extra-turn",
+                icon: "hourglass",
+                color: gameTheme.activeAction.active,
+                label: isExtraTurn ? "Taking an extra turn" : "Extra turns queued",
+                count: Math.max(extraTurnCount, isExtraTurn ? 1 : 0),
+              },
+            ]
+          : []),
+        ...(controlledByName
+          ? [
+              {
+                id: "controlled-player",
+                icon: "overlord-helm",
+                color: gameTheme.activeAction.priority,
+                label: `Controlled by ${controlledByName}`,
+              },
+            ]
+          : []),
+        ...(damagePrevention > 0
+          ? [
+              {
+                id: "damage-prevention",
+                icon: "round-shield",
+                color: gameTheme.promptAction.defenseAction,
+                label: "Damage prevention",
+                count: damagePrevention,
+              },
+            ]
+          : []),
+        ...(unlimitedLandPlays || maxLandPlays !== 1 || dev.landsPlayed != null
+          ? [
+              {
+                id: "land-plays",
+                icon: "deck",
+                color: gameTheme.textMuted,
+                label: unlimitedLandPlays
+                  ? `${landsPlayed} land plays · unlimited`
+                  : `${landsPlayed} of ${maxLandPlays} land plays`,
+                count: landsPlayed,
+              },
+            ]
+          : []),
+        ...(unlimitedHandSize || maxHandSize !== 7 || dev.maxHandSize != null
+          ? [
+              {
+                id: "hand-limit",
+                icon: "card-pickup",
+                color: gameTheme.textMuted,
+                label: unlimitedHandSize
+                  ? "Unlimited hand size"
+                  : `Maximum hand size: ${maxHandSize}`,
+                count: unlimitedHandSize ? undefined : maxHandSize,
+              },
+            ]
+          : []),
+        ...(dev.cardsDrawn != null
+          ? [
+              {
+                id: "cards-drawn",
+                icon: "card-pickup",
+                color: gameTheme.textMuted,
+                label: "Cards drawn this turn",
+                count: cardsDrawn,
+              },
+            ]
+          : []),
+        ...(dev.graveyardCardTypes != null
+          ? [
+              {
+                id: "graveyard-types",
+                icon: "death-skull",
+                color: gameTheme.textMuted,
+                label:
+                  graveyardTypes >= 4
+                    ? "Card types in graveyard · Delirium"
+                    : "Card types in graveyard",
+                count: graveyardTypes,
+              },
+            ]
+          : []),
+        ...(dev.forcePlayerKeyword
+          ? [
+              {
+                id: "player-keyword",
+                icon: "round-shield",
+                color: gameTheme.activeAction.priority,
+                label: playerKeywords.join(" · "),
+              },
+            ]
+          : []),
+        ...(dev.commanderCasts != null
+          ? [
+              {
+                id: "commander-casts",
+                icon: "crossed-swords",
+                color: gameTheme.badges.commanderDamage,
+                label: "Commander casts",
+                count: dev.commanderCasts,
+              },
+            ]
+          : []),
+      ];
       const badges = [
         ...incomingDamageBadges(player),
+        ...ruleBadges,
         ...buildPlayerHudBadges(
           {
             isMonarch: dev.forceMonarch ? true : monarchId === player.id,
@@ -855,6 +1016,74 @@ export function GameBoard({
         ),
         ...cmdDamageBadges(player),
       ];
+      const ruleFacts: PlayerHudFact[] = [
+        {
+          id: "max-hand",
+          label: "Maximum hand size",
+          value: unlimitedHandSize ? "Unlimited" : String(maxHandSize),
+          emphasized: unlimitedHandSize || maxHandSize !== 7,
+        },
+        {
+          id: "land-plays",
+          label: "Lands played this turn",
+          value: unlimitedLandPlays
+            ? `${landsPlayed} / Unlimited`
+            : `${landsPlayed} / ${maxLandPlays}`,
+          emphasized: unlimitedLandPlays || maxLandPlays !== 1,
+        },
+        {
+          id: "cards-drawn",
+          label: "Cards drawn this turn",
+          value: String(cardsDrawn),
+        },
+        {
+          id: "graveyard-types",
+          label: "Card types in graveyard",
+          value: graveyardTypes >= 4 ? `${graveyardTypes} · Delirium` : String(graveyardTypes),
+          emphasized: graveyardTypes >= 4,
+        },
+      ];
+      if (damagePrevention > 0) {
+        ruleFacts.push({
+          id: "damage-prevention",
+          label: "Damage prevention",
+          value: String(damagePrevention),
+          emphasized: true,
+        });
+      }
+      if (isExtraTurn || extraTurnCount > 0) {
+        ruleFacts.push({
+          id: "extra-turns",
+          label: "Extra turns",
+          value: isExtraTurn ? `Current · ${extraTurnCount} queued` : `${extraTurnCount} queued`,
+          emphasized: true,
+        });
+      }
+      if (controlledByName) {
+        ruleFacts.push({
+          id: "controlled-by",
+          label: "Controlled by",
+          value: controlledByName,
+          emphasized: true,
+        });
+      }
+      if (playerKeywords.length > 0) {
+        ruleFacts.push({
+          id: "player-keywords",
+          label: "Player effects",
+          value: playerKeywords.join(" · "),
+          emphasized: true,
+        });
+      }
+      for (const [cardId, casts] of Object.entries(commanderCasts)) {
+        ruleFacts.push({
+          id: `commander-casts-${cardId}`,
+          label:
+            cardId === "dev" ? "Commander casts" : `${cardNames.get(cardId) ?? "Commander"} casts`,
+          value: String(casts),
+          emphasized: casts > 0,
+        });
+      }
       const incoming = incomingDamageFor(player);
       return {
         playerId: player.id,
@@ -886,6 +1115,7 @@ export function GameBoard({
           C: dev.manaColorless ?? player.manaPool.C ?? 0,
         },
         badges,
+        ruleFacts,
       };
     };
     return [
@@ -910,6 +1140,10 @@ export function GameBoard({
     initiativeHolderId,
     gameTheme.badges,
     gameTheme.pt,
+    gameTheme.activeAction.active,
+    gameTheme.activeAction.priority,
+    gameTheme.promptAction.defenseAction,
+    gameTheme.textMuted,
     devOverrides,
     currentRoom,
     myPermanents,
@@ -1410,6 +1644,34 @@ export function GameBoard({
       className="game-board-surface relative flex flex-col min-h-0 flex-1 overflow-hidden"
     >
       <ReconnectBanner />
+      <GlobalStateRail
+        dayTime={dayTime}
+        monarchName={
+          monarchId
+            ? stripUsernameTag(
+                monarchId === me.id
+                  ? me.name
+                  : (opponents.find((player) => player.id === monarchId)?.name ?? "Player"),
+              )
+            : undefined
+        }
+        initiativeName={
+          initiativeHolderId
+            ? stripUsernameTag(
+                initiativeHolderId === me.id
+                  ? me.name
+                  : (opponents.find((player) => player.id === initiativeHolderId)?.name ??
+                      "Player"),
+              )
+            : undefined
+        }
+        dungeonState={me.dungeonState}
+        activePlaneNames={activePlaneNames}
+        activeSchemeNames={[me, ...opponents].flatMap((player) => player.activeSchemeNames ?? [])}
+        teamNumber={me.teamNumber}
+        selfName={stripUsernameTag(me.name)}
+        dividerY={unifiedLayout?.dividerY}
+      />
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         {a11ySummary}
       </div>

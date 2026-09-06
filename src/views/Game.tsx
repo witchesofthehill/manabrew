@@ -1177,6 +1177,17 @@ export default function Game({ exitTo }: GameProps = {}) {
             status: "playing",
             isHuman: false,
             life: 20,
+            maxHandSize: 7,
+            unlimitedHandSize: false,
+            landsPlayedThisTurn: 0,
+            maxLandPlaysPerTurn: 1,
+            unlimitedLandPlays: false,
+            cardsDrawnThisTurn: 0,
+            damagePrevention: 0,
+            isExtraTurn: false,
+            extraTurnCount: 0,
+            playerKeywords: [],
+            commanderCasts: {},
             poison: 0,
             hand: [],
             graveyard: [],
@@ -1341,6 +1352,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
 
   const debugArrowType = useGameDevStore((s) => s.debugArrowType);
+  const gameStateOverrides = useGameDevStore((s) => s.gameStateOverrides);
   const arrowSpecs = useMemo(() => {
     if (!debugArrowType || !me?.id || !opponent?.id) return liveArrowSpecs;
     return [
@@ -1727,6 +1739,9 @@ export default function Game({ exitTo }: GameProps = {}) {
         : null,
     showPreStackFlash: shouldShowPreStackFlash,
     collapsed: stackCollapsed,
+    activityCount: gameStateOverrides.forceStackActivity
+      ? Math.max(3, gameView?.stack.length ?? 0)
+      : gameView?.stack.length,
   };
 
   return (
@@ -1782,6 +1797,8 @@ export default function Game({ exitTo }: GameProps = {}) {
           priorityPlayerId={effectivePriorityHighlightPlayerId}
           monarchId={gameView.monarchId ?? null}
           initiativeHolderId={gameView.initiativeHolderId ?? null}
+          dayTime={gameView.dayTime}
+          activePlaneNames={gameView.activePlaneNames}
           step={gameView.step}
           promptType={promptType}
           currentPrompt={activePrompt}
@@ -1934,6 +1951,7 @@ export default function Game({ exitTo }: GameProps = {}) {
                 attackerIds={chooseBlockersInput?.attackers.map((a) => a.attackerId) ?? []}
                 blockAssignments={blockAssignments}
                 combatPairings={combatPairings}
+                combatDefenderLife={me.life}
                 onDeclareBlockers={(assignments) =>
                   respond({ type: "declareBlockers", assignments })
                 }

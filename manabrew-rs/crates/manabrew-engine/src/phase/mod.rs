@@ -147,6 +147,7 @@ pub struct TurnState {
     pub active_player: PlayerId,
     pub phase: PhaseType,
     pub priority_player: PlayerId,
+    pub is_extra_turn: bool,
     pub num_players: u32,
 
     // Combat tracking
@@ -167,6 +168,7 @@ impl TurnState {
             phase: PhaseType::Untap,
             priority_player: active_player,
             num_players,
+            is_extra_turn: false,
             combat_attackers_declared: false,
             combat_blockers_declared: false,
             combat_block_assignments: vec![],
@@ -204,6 +206,7 @@ impl TurnState {
             let next = (pos + 1) % player_order.len();
             self.active_player = player_order[next];
             self.priority_player = self.active_player;
+            self.is_extra_turn = false;
             self.turn_number += 1;
             self.combat_attackers_declared = false;
             self.combat_blockers_declared = false;
@@ -225,6 +228,7 @@ impl TurnState {
             let player = extra_turn.player;
             self.active_player = player;
             self.priority_player = player;
+            self.is_extra_turn = true;
             self.turn_number += 1;
             self.combat_attackers_declared = false;
             self.combat_blockers_declared = false;
@@ -236,6 +240,7 @@ impl TurnState {
                 None
             }
         } else {
+            self.is_extra_turn = false;
             self.next_player_turn(player_order);
             None
         }

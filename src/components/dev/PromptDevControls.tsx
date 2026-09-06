@@ -19,6 +19,8 @@ const PROMPT_LABELS: Record<DevPromptActionOverride, { label: string; descriptio
   chooseBlockers: { label: "Blockers", description: "Declare blockers state" },
   chooseTargetSpell: { label: "Target spell", description: "Spell targeting state" },
   payManaCost: { label: "Mana payment", description: "Mana payment state" },
+  mulligan: { label: "Mulligan", description: "Keep or redraw decision" },
+  mulliganPutBack: { label: "Mulligan bottom", description: "Bottom-card selection state" },
   noAction: { label: "No action", description: "No available action state" },
 };
 

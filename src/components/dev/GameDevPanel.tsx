@@ -45,7 +45,12 @@ function activeValueCount(values: object): number {
   let count = 0;
   for (const key in values) {
     const value = (values as Record<string, unknown>)[key];
-    if (value === true || typeof value === "number") count += 1;
+    if (
+      value === true ||
+      typeof value === "number" ||
+      (typeof value === "string" && value !== "none")
+    )
+      count += 1;
   }
   return count;
 }
@@ -54,6 +59,7 @@ export function GameDevPanel() {
   const [workspace, setWorkspace] = useState<DevWorkspace>("card");
   const cardOverrides = useGameDevStore((s) => s.cardOverrides);
   const playerOverrides = useGameDevStore((s) => s.playerOverrides);
+  const gameStateOverrides = useGameDevStore((s) => s.gameStateOverrides);
   const keywordCount = useGameDevStore((s) => s.debugBattlefieldKeywords.length);
   const debugCardEnabled = useGameDevStore((s) => s.debugCardEnabled);
   const debugCardRailEnabled = useGameDevStore((s) => s.debugCardRailEnabled);
@@ -73,6 +79,7 @@ export function GameDevPanel() {
       Number(debugCardRailEnabled),
     player: activeValueCount(playerOverrides),
     board:
+      activeValueCount(gameStateOverrides) +
       Number(showHoverAreas) +
       Number(showGridSkeleton) +
       Number(showAttackRows) +

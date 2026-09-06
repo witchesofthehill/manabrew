@@ -16,6 +16,13 @@ export interface PlayerHudBadge {
   zone?: boolean;
 }
 
+export interface PlayerHudFact {
+  id: string;
+  label: string;
+  value: string;
+  emphasized?: boolean;
+}
+
 export interface PlayerHudSpec {
   playerId: string;
   name: string;
@@ -35,4 +42,5 @@ export interface PlayerHudSpec {
   combatLethal: boolean;
   manaPool: Record<string, number>;
   badges: PlayerHudBadge[];
+  ruleFacts: PlayerHudFact[];
 }

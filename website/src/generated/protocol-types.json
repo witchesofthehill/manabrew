@@ -48,6 +48,7 @@
     "ClassLevelDto",
     "CombatAssignmentDto",
     "DayTime",
+    "DungeonStateDto",
     "EngineKind",
     "GameFormat",
     "GameViewDto",
@@ -352,6 +353,11 @@
       "rust": "#[serde(tag = \"type\", rename_all = \"camelCase\")]\npub enum DirectiveInput {\n    Concede,\n}",
       "refs": []
     },
+    "DungeonStateDto": {
+      "ts": "interface DungeonStateDto {\n  name: string;\n  room: string;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DungeonStateDto {\n    pub name: String,\n    pub room: String,\n}",
+      "refs": []
+    },
     "EngineKind": {
       "ts": "type EngineKind = \"Manabrew\" | \"Forge\" | \"Ironsmith\";",
       "rust": "pub enum EngineKind {\n    #[default]\n    Manabrew,\n    Forge,\n    Ironsmith,\n}",
@@ -368,8 +374,8 @@
       "refs": []
     },
     "GameViewDto": {
-      "ts": "interface GameViewDto {\n  gameId: string;\n  turn: number;\n  step: StepKind;\n  combatAssignments: Array<CombatAssignmentDto>;\n  activePlayerId: string;\n  priorityPlayerId: string;\n  players: Array<PlayerDto>;\n  zones: Array<ZoneDto>;\n  stack: Array<StackObjectDto>;\n  gameOver: boolean;\n  winnerId: string | null;\n  monarchId: string | null;\n  initiativeHolderId: string | null;\n  dayTime: DayTime;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct GameViewDto {\n    pub game_id: String,\n    pub turn: u32,\n    pub step: StepKind,\n    pub combat_assignments: Vec<CombatAssignmentDto>,\n    pub active_player_id: String,\n    pub priority_player_id: String,\n    pub players: Vec<PlayerDto>,\n    pub zones: Vec<ZoneDto>,\n    pub stack: Vec<StackObjectDto>,\n    pub game_over: bool,\n    pub winner_id: Option<String>,\n    pub monarch_id: Option<String>,\n    pub initiative_holder_id: Option<String>,\n    pub day_time: DayTime,\n}",
+      "ts": "interface GameViewDto {\n  gameId: string;\n  turn: number;\n  step: StepKind;\n  combatAssignments: Array<CombatAssignmentDto>;\n  activePlayerId: string;\n  priorityPlayerId: string;\n  players: Array<PlayerDto>;\n  zones: Array<ZoneDto>;\n  stack: Array<StackObjectDto>;\n  gameOver: boolean;\n  winnerId: string | null;\n  monarchId: string | null;\n  initiativeHolderId: string | null;\n  dayTime: DayTime;\n  activePlaneNames?: Array<string>;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct GameViewDto {\n    pub game_id: String,\n    pub turn: u32,\n    pub step: StepKind,\n    pub combat_assignments: Vec<CombatAssignmentDto>,\n    pub active_player_id: String,\n    pub priority_player_id: String,\n    pub players: Vec<PlayerDto>,\n    pub zones: Vec<ZoneDto>,\n    pub stack: Vec<StackObjectDto>,\n    pub game_over: bool,\n    pub winner_id: Option<String>,\n    pub monarch_id: Option<String>,\n    pub initiative_holder_id: Option<String>,\n    pub day_time: DayTime,\n    pub active_plane_names: Option<Vec<String>>,\n}",
       "refs": [
         "CombatAssignmentDto",
         "DayTime",
@@ -425,9 +431,14 @@
       "refs": []
     },
     "PlayerDto": {
-      "ts": "interface PlayerDto {\n  id: string;\n  name: string;\n  status: PlayerStatus;\n  isHuman: boolean;\n  life: number;\n  counters: { [key in PlayerCounterKind]?: number };\n  manaPool: { [key in ManaColor]?: number };\n  commanderDamage: Record<string, number>;\n  hasCityBlessing: boolean;\n  hasEnduringStory: boolean;\n  ringLevel: number;\n  speed: number;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PlayerDto {\n    pub id: String,\n    pub name: String,\n    pub status: PlayerStatus,\n    pub is_human: bool,\n    pub life: i32,\n    pub counters: BTreeMap<PlayerCounterKind, u32>,\n    pub mana_pool: BTreeMap<ManaColor, u32>,\n    pub commander_damage: HashMap<String, i32>,\n    pub has_city_blessing: bool,\n    pub has_enduring_story: bool,\n    pub ring_level: i32,\n    pub speed: i32,\n}",
-      "refs": ["ManaColor", "PlayerCounterKind", "PlayerStatus"]
+      "ts": "interface PlayerDto {\n  id: string;\n  name: string;\n  status: PlayerStatus;\n  isHuman: boolean;\n  life: number;\n  maxHandSize: number;\n  unlimitedHandSize: boolean;\n  landsPlayedThisTurn: number;\n  maxLandPlaysPerTurn: number;\n  unlimitedLandPlays: boolean;\n  cardsDrawnThisTurn: number;\n  damagePrevention: number;\n  isExtraTurn: boolean;\n  extraTurnCount: number;\n  controlledBy?: string;\n  playerKeywords: Array<string>;\n  commanderCasts: Record<string, number>;\n  dungeonState?: DungeonStateDto;\n  activeSchemeNames?: Array<string>;\n  teamNumber?: number;\n  counters: { [key in PlayerCounterKind]?: number };\n  manaPool: { [key in ManaColor]?: number };\n  commanderDamage: Record<string, number>;\n  hasCityBlessing: boolean;\n  hasEnduringStory: boolean;\n  ringLevel: number;\n  speed: number;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PlayerDto {\n    pub id: String,\n    pub name: String,\n    pub status: PlayerStatus,\n    pub is_human: bool,\n    pub life: i32,\n    #[serde(default)]\n    pub max_hand_size: i32,\n    #[serde(default)]\n    pub unlimited_hand_size: bool,\n    #[serde(default)]\n    pub lands_played_this_turn: i32,\n    #[serde(default)]\n    pub max_land_plays_per_turn: i32,\n    #[serde(default)]\n    pub unlimited_land_plays: bool,\n    #[serde(default)]\n    pub cards_drawn_this_turn: i32,\n    #[serde(default)]\n    pub damage_prevention: i32,\n    #[serde(default)]\n    pub is_extra_turn: bool,\n    #[serde(default)]\n    pub extra_turn_count: u32,\n    pub controlled_by: Option<String>,\n    #[serde(default)]\n    pub player_keywords: Vec<String>,\n    #[serde(default)]\n    pub commander_casts: HashMap<String, u32>,\n    pub dungeon_state: Option<DungeonStateDto>,\n    pub active_scheme_names: Option<Vec<String>>,\n    pub team_number: Option<i32>,\n    pub counters: BTreeMap<PlayerCounterKind, u32>,\n    pub mana_pool: BTreeMap<ManaColor, u32>,\n    pub commander_damage: HashMap<String, i32>,\n    pub has_city_blessing: bool,\n    pub has_enduring_story: bool,\n    pub ring_level: i32,\n    pub speed: i32,\n}",
+      "refs": [
+        "DungeonStateDto",
+        "ManaColor",
+        "PlayerCounterKind",
+        "PlayerStatus"
+      ]
     },
     "PlayerStatus": {
       "ts": "type PlayerStatus = \"playing\" | \"lost\" | \"conceded\";",

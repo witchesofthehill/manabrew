@@ -98,7 +98,7 @@ const normalStyle = new TextStyle({
 });
 const activeStyle = new TextStyle({
   fontFamily: FONT,
-  fontSize: 11,
+  fontSize: 12,
   fontWeight: "bold",
   fill: _initTheme.textOnTinted,
   align: "center",
@@ -193,9 +193,9 @@ export class PhaseStripLayer {
     text: "",
     style: {
       fontFamily: FONT,
-      fontSize: 10,
-      fontWeight: "500",
-      fill: _initTheme.textMuted,
+      fontSize: 11,
+      fontWeight: "600",
+      fill: _initTheme.textOnTinted,
       wordWrap: true,
       wordWrapWidth: STATUS_MAX_WIDTH,
     },
@@ -585,7 +585,7 @@ export class PhaseStripLayer {
           ? `Waiting for ${state.priorityPlayerName}`
           : "";
     this.statusText.text = priorityName ? `${turnName} · ${priorityName}` : turnName;
-    this.statusText.style.fill = t.textMuted;
+    this.statusText.style.fill = t.textOnTinted;
     const statusWidth = showPill
       ? STATUS_MAX_WIDTH
       : Math.min(STATUS_MAX_WIDTH, stripLeft * fitX + stripOffset - 20);
@@ -734,17 +734,17 @@ export class PhaseStripLayer {
       cell.bg.clear();
       if (isActive) {
         cell.bg.roundRect(cx, y, cellW, CELL_H, CELL_R);
-        cell.bg.fill({ color: turnColor, alpha: 0.12 });
+        cell.bg.fill({ color: turnColor, alpha: 0.22 });
         cell.bg.moveTo(cx + 5, y + CELL_H - 2);
         cell.bg.lineTo(cx + cellW - 5, y + CELL_H - 2);
-        cell.bg.stroke({ color: turnColor, width: 2, alpha: 0.95 });
+        cell.bg.stroke({ color: turnColor, width: 3, alpha: 1 });
       }
 
       cell.hoverBg.clear();
 
       // Text position (non-combat cells; combat text is positioned with the icon above)
       cell.text.style = isActive ? activeStyle : isEnabled ? enabledStyle : normalStyle;
-      cell.text.alpha = isActive ? 1 : isEnabled ? 0.82 : 0.58;
+      cell.text.alpha = isActive ? 1 : isEnabled ? 0.88 : 0.68;
       cell.text.y = y + CELL_H / 2;
       if (!isCombatCell) {
         cell.text.x = cx + cellW / 2;

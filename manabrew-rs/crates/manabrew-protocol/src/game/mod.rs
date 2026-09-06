@@ -127,6 +127,8 @@ pub struct GameViewDto {
     pub monarch_id: Option<String>,
     pub initiative_holder_id: Option<String>,
     pub day_time: DayTime,
+    #[ts(optional)]
+    pub active_plane_names: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -150,12 +152,51 @@ pub enum PlayerStatus {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "game/index.ts")]
+pub struct DungeonStateDto {
+    pub name: String,
+    pub room: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "game/index.ts")]
 pub struct PlayerDto {
     pub id: String,
     pub name: String,
     pub status: PlayerStatus,
     pub is_human: bool,
     pub life: i32,
+    #[serde(default)]
+    pub max_hand_size: i32,
+    #[serde(default)]
+    pub unlimited_hand_size: bool,
+    #[serde(default)]
+    pub lands_played_this_turn: i32,
+    #[serde(default)]
+    pub max_land_plays_per_turn: i32,
+    #[serde(default)]
+    pub unlimited_land_plays: bool,
+    #[serde(default)]
+    pub cards_drawn_this_turn: i32,
+    #[serde(default)]
+    pub damage_prevention: i32,
+    #[serde(default)]
+    pub is_extra_turn: bool,
+    #[serde(default)]
+    pub extra_turn_count: u32,
+    #[ts(optional)]
+    pub controlled_by: Option<String>,
+    #[serde(default)]
+    pub player_keywords: Vec<String>,
+    #[serde(default)]
+    #[ts(type = "Record<string, number>")]
+    pub commander_casts: HashMap<String, u32>,
+    #[ts(optional)]
+    pub dungeon_state: Option<DungeonStateDto>,
+    #[ts(optional)]
+    pub active_scheme_names: Option<Vec<String>>,
+    #[ts(optional)]
+    pub team_number: Option<i32>,
     pub counters: BTreeMap<PlayerCounterKind, u32>,
     pub mana_pool: BTreeMap<ManaColor, u32>,
     #[ts(type = "Record<string, number>")]

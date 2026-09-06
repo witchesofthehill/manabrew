@@ -3,6 +3,7 @@ import { Eye, Grid3X3, MousePointer2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
+import { useStackUIStore } from "@/stores/useStackUIStore";
 
 import { DEV_SECTION, DEV_SECTION_HEADING } from "./devPanel.styles";
 
@@ -17,6 +18,9 @@ export function BoardDevControls() {
   const setShowGridSkeleton = useGameDevStore((s) => s.setShowGridSkeleton);
   const setShowAttackRows = useGameDevStore((s) => s.setShowAttackRows);
   const triggerEtbGlow = useGameDevStore((s) => s.triggerEtbGlow);
+  const gameStateOverrides = useGameDevStore((s) => s.gameStateOverrides);
+  const setGameStateOverride = useGameDevStore((s) => s.setGameStateOverride);
+  const setStackCollapsed = useStackUIStore((s) => s.setCollapsed);
 
   const fps = stats?.fps.toFixed(1) ?? "—";
   const frameMs = stats?.deltaMs.toFixed(1) ?? "—";
@@ -74,6 +78,76 @@ export function BoardDevControls() {
             description="Combat drop areas for every player"
             checked={showAttackRows}
             onChange={setShowAttackRows}
+          />
+        </div>
+      </section>
+
+      <section className={DEV_SECTION}>
+        <p className={DEV_SECTION_HEADING}>Game-state surfaces</p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <GuideToggle
+            label="Stack activity"
+            description="Collapsed stack count and attention state"
+            checked={gameStateOverrides.forceStackActivity}
+            onChange={(checked) => {
+              setGameStateOverride("forceStackActivity", checked);
+              if (checked) setStackCollapsed(true);
+            }}
+          />
+          <GuideToggle
+            label="Log activity"
+            description="Unread action-log indicator"
+            checked={gameStateOverrides.forceLogActivity}
+            onChange={(checked) => setGameStateOverride("forceLogActivity", checked)}
+          />
+          <GuideToggle
+            label="Combat summary"
+            description="Active combat totals and danger state"
+            checked={gameStateOverrides.forceCombatSummary}
+            onChange={(checked) => setGameStateOverride("forceCombatSummary", checked)}
+          />
+        </div>
+      </section>
+
+      <section className={DEV_SECTION}>
+        <p className={DEV_SECTION_HEADING}>Global mechanics</p>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {(["none", "day", "night"] as const).map((value) => (
+            <Button
+              key={value}
+              type="button"
+              size="sm"
+              variant={gameStateOverrides.dayNight === value ? "default" : "outline"}
+              onClick={() => setGameStateOverride("dayNight", value)}
+            >
+              {value === "none" ? "Live" : value}
+            </Button>
+          ))}
+        </div>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          <GuideToggle
+            label="Dungeon"
+            description="Current dungeon room"
+            checked={gameStateOverrides.forceDungeon}
+            onChange={(checked) => setGameStateOverride("forceDungeon", checked)}
+          />
+          <GuideToggle
+            label="Plane"
+            description="Current plane and planar die"
+            checked={gameStateOverrides.forcePlane}
+            onChange={(checked) => setGameStateOverride("forcePlane", checked)}
+          />
+          <GuideToggle
+            label="Scheme"
+            description="Active scheme"
+            checked={gameStateOverrides.forceScheme}
+            onChange={(checked) => setGameStateOverride("forceScheme", checked)}
+          />
+          <GuideToggle
+            label="Team"
+            description="Shared-team designation"
+            checked={gameStateOverrides.forceTeam}
+            onChange={(checked) => setGameStateOverride("forceTeam", checked)}
           />
         </div>
       </section>

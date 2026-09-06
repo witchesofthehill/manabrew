@@ -611,6 +611,7 @@ export class BoardScene {
     const W = this.boardWidth;
     if (n <= 0 || W <= 0) return;
     const playerHudHeight = this.preferredPlayerHudHeight();
+    const playerHudLeftOverhang = this.localPlayerHudLeftOverhang();
     this.collapseVeil.clear();
     if (this.overview) {
       this.fogGfx.clear();
@@ -621,7 +622,10 @@ export class BoardScene {
         rec.region.setClip(zone.x, zone.width);
         if (this.barsEnabled) {
           const field = rec.region.getPlaymatRect();
-          const barX = Math.min(zone.x + SELF_PLAYER_HUD_EDGE_INSET_PX, field.x + field.width - 1);
+          const barX = Math.max(
+            zone.x,
+            Math.min(field.x - playerHudLeftOverhang, field.x + field.width - 1),
+          );
           const availableWidth = Math.max(1, field.x + field.width - barX);
           const availableHeight = Math.max(1, field.y + field.height - zone.y);
           this.playerBars.setRect(
@@ -659,7 +663,10 @@ export class BoardScene {
         }
         const field = rec.region.getPlaymatRect();
         const column = field.width < 228;
-        const barX = Math.min(left + SELF_PLAYER_HUD_EDGE_INSET_PX, field.x + field.width - 1);
+        const barX = Math.max(
+          left,
+          Math.min(field.x - playerHudLeftOverhang, field.x + field.width - 1),
+        );
         const availableWidth = Math.max(1, field.x + field.width - barX);
         const availableHeight = Math.max(1, field.y + field.height - rec.zone.y);
         const barW = column
@@ -676,6 +683,14 @@ export class BoardScene {
 
   setZoneTiles(byPlayer: Record<string, ZoneTileSpec[]>): void {
     for (const [id, rec] of this.regions) rec.region.setZoneTiles(byPlayer[id] ?? []);
+  }
+
+  private localPlayerHudLeftOverhang(): number {
+    if (!this.localPlayerId) return SELF_PLAYER_HUD_EDGE_INSET_PX;
+    const record = this.regions.get(this.localPlayerId);
+    if (!record) return SELF_PLAYER_HUD_EDGE_INSET_PX;
+    const field = record.region.getPlaymatRect();
+    return Math.max(0, field.x - record.zone.x - SELF_PLAYER_HUD_EDGE_INSET_PX);
   }
 
   private preferredPlayerHudHeight(): number {

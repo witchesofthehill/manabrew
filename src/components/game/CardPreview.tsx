@@ -430,8 +430,8 @@ export function CardPreview({
                     style={{ backgroundColor: withAlpha(themeColors.success, 0.28) }}
                   />
                 )}
-                {(onToggleView || (hasDoubleFace && onFlip)) && (
-                  <div className="absolute top-2 right-2 z-20 flex items-center gap-1">
+                {(onToggleView || (hasDoubleFace && onFlip) || horizontalCard) && (
+                  <div className="absolute top-[12%] right-2 z-20 flex items-center gap-1">
                     {onToggleView && (
                       <button
                         type="button"
@@ -466,24 +466,24 @@ export function CardPreview({
                         {showBackFace ? "Front" : "Back"}
                       </button>
                     )}
-                  </div>
-                )}
-                {horizontalCard && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOrientationFlipped((prev) => !prev);
-                    }}
-                    className={cn(
-                      "absolute top-2 left-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 shadow",
-                      interactive ? "pointer-events-auto" : "pointer-events-none",
+                    {horizontalCard && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setOrientationFlipped((prev) => !prev);
+                        }}
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:px-3 pointer-coarse:py-2",
+                          interactive ? "pointer-events-auto" : "pointer-events-none",
+                        )}
+                        title="Rotate the card to read it (F)"
+                      >
+                        <RotateCw className="h-3 w-3" />
+                        {orientationFlipped ? "Read" : "Rotate"}
+                      </button>
                     )}
-                    title="Rotate the card to read it (F)"
-                  >
-                    <RotateCw className="h-3 w-3" />
-                    {orientationFlipped ? "Read" : "Rotate"}
-                  </button>
+                  </div>
                 )}
               </>
             ) : cardLookupPending ? (

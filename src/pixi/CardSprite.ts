@@ -188,6 +188,7 @@ const RAIL_LABEL_STYLE = registerTintedTextStyle(
   }),
 );
 const BADGE_TITLE_BAND_FRAC = 0.1;
+const PRINTED_ART_TOP_FRAC = 0.12;
 
 const MAX_VISIBLE_COUNTERS = 4;
 
@@ -671,6 +672,12 @@ export class CardSprite extends Container {
     return this.handRulesFace?.visible === true;
   }
 
+  get previewControlArtTop(): number {
+    return this.usesHandRulesView && this.handRulesFace
+      ? this.handRulesFace.artworkTop
+      : this.ch * PRINTED_ART_TOP_FRAC;
+  }
+
   setHandRulesView(active: boolean): void {
     if (this.kind !== "hand" || this.usesHandRulesView === active) return;
     if (!this.handRulesFace) {
@@ -716,13 +723,19 @@ export class CardSprite extends Container {
           }
         : null,
       this.cw,
+      this.previewControlArtTop,
       this.scale.x,
       this.scale.y,
     );
   }
 
   syncHandControlsScale(): void {
-    this.handControls?.setParentScale(this.scale.x, this.scale.y, this.cw);
+    this.handControls?.setParentScale(
+      this.scale.x,
+      this.scale.y,
+      this.cw,
+      this.previewControlArtTop,
+    );
   }
 
   setHandRulesActions(

@@ -47,18 +47,19 @@ export class HandCardControls extends Container {
   setSpec(
     spec: HandCardControlsSpec | null,
     cardWidth: number,
+    artTop: number,
     parentScaleX: number,
     parentScaleY: number,
   ): void {
     this.spec = spec;
     this.redraw();
-    this.setParentScale(parentScaleX, parentScaleY, cardWidth);
+    this.setParentScale(parentScaleX, parentScaleY, cardWidth, artTop);
   }
 
-  setParentScale(scaleX: number, scaleY: number, cardWidth: number): void {
+  setParentScale(scaleX: number, scaleY: number, cardWidth: number, artTop: number): void {
     if (scaleX <= 0 || scaleY <= 0) return;
     this.scale.set(1 / scaleX, 1 / scaleY);
-    this.position.set(cardWidth - CONTROL_INSET / scaleX, CONTROL_INSET / scaleY);
+    this.position.set(cardWidth - CONTROL_INSET / scaleX, artTop);
   }
 
   setTheme(theme: Theme): void {

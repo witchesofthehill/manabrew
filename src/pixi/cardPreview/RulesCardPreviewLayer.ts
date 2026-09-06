@@ -106,6 +106,9 @@ const FACE_GAP = 8;
 const ACTION_PANEL_GAP = 8;
 const ACTION_PANEL_MAX_HEIGHT = 160;
 const ORACLE_LINE_HEIGHT = 20;
+const FLAVOR_FONT_SIZE = 13;
+const FLAVOR_LINE_HEIGHT = 17;
+const FLAVOR_MANA_SIZE = 15;
 const ABILITY_GAP = 10;
 const ENTRY_INTERACTION_PAD_MS = 80;
 
@@ -130,6 +133,17 @@ function oracleTextStyle(fill: string, italic = false): TextStyle {
     fontWeight: "400",
     fontStyle: italic ? "italic" : "normal",
     lineHeight: ORACLE_LINE_HEIGHT,
+  });
+}
+
+function flavorTextStyle(fill: string): TextStyle {
+  return new TextStyle({
+    fill,
+    fontFamily: RULES_BODY_FONT,
+    fontSize: FLAVOR_FONT_SIZE,
+    fontWeight: "400",
+    fontStyle: "italic",
+    lineHeight: FLAVOR_LINE_HEIGHT,
   });
 }
 
@@ -583,6 +597,7 @@ export class RulesCardPreviewLayer {
         onToggleFace: () => undefined,
       },
       this.panelWidth,
+      this.artY,
       1,
       1,
     );
@@ -1001,7 +1016,13 @@ export class RulesCardPreviewLayer {
     width = this.contentWidth,
   ): number {
     const rich = new PixiRichText();
-    const height = rich.setContent(text, oracleTextStyle(this.frame.mutedInk, true), width, 17, 5);
+    const height = rich.setContent(
+      text,
+      flavorTextStyle(this.frame.mutedInk),
+      width,
+      FLAVOR_MANA_SIZE,
+      4,
+    );
     const divider = new Graphics();
     divider.moveTo(0, y).lineTo(width, y);
     divider.stroke({ color: hexToNum(this.frame.border), alpha: 0.45, width: 1 });
@@ -1123,7 +1144,7 @@ export class RulesCardPreviewLayer {
     this.layoutX = this.container.x;
     this.layoutY = this.container.y;
     this.layoutScale = scale;
-    this.viewControls.setParentScale(scale, scale, this.panelWidth);
+    this.viewControls.setParentScale(scale, scale, this.panelWidth, this.artY);
     const anchorX = spec.anchor?.x ?? spec.pointer.x;
     const anchorY = spec.anchor?.y ?? spec.pointer.y;
     const anchorWidth = spec.anchor?.width ?? 0;

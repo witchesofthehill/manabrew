@@ -60,6 +60,8 @@ const FOOTER_HEIGHT = 44;
 const FRAME_BOTTOM_PAD = 16;
 const RULES_FONT_MAX = 21;
 const RULES_FONT_MIN = 16;
+const FLAVOR_FONT_MAX = 15;
+const FLAVOR_FONT_MIN = 13;
 const RULES_LINE_GAP = 3;
 const STACK_RULES_FONT_SIZE = 19;
 const BODY_TOP_GAP = 6;
@@ -116,6 +118,11 @@ export class HandRulesCardFace extends Container {
     this.resolveInfo();
     this.rebuild();
     void this.loadArt();
+  }
+
+  get artworkTop(): number {
+    const designHeight = this.slotWidth > this.slotHeight ? LANDSCAPE_HEIGHT : PORTRAIT_HEIGHT;
+    return (HEADER_HEIGHT - 4) * (this.slotHeight / designHeight);
   }
 
   setContent(
@@ -320,6 +327,10 @@ export class HandRulesCardFace extends Container {
       expandedCount > 0
         ? Math.max(1, (remainingBodyHeight - headersHeight - expandedGaps) / expandedCount)
         : 0;
+    const singleSectionContentBudget = Math.max(
+      1,
+      remainingBodyHeight - headersHeight - SECTION_GAP,
+    );
 
     if (hasActions) {
       y = this.addSectionHeader(
@@ -363,7 +374,15 @@ export class HandRulesCardFace extends Container {
               contentWidth,
               frame,
             )
-          : this.addTextBlock(rulesContent, y, contentBudget, contentWidth, frame, false);
+          : this.addTextBlock(
+              rulesContent,
+              y,
+              contentBudget,
+              contentWidth,
+              frame,
+              false,
+              singleSectionContentBudget,
+            );
       }
     }
 
@@ -567,11 +586,14 @@ export class HandRulesCardFace extends Container {
     width: number,
     frame: RulesPreviewFrameStyle,
     italic: boolean,
+    fitHeight = maxHeight,
   ): number {
     if (maxHeight <= 0) return y;
+    const maxFontSize = italic ? FLAVOR_FONT_MAX : RULES_FONT_MAX;
+    const minFontSize = italic ? FLAVOR_FONT_MIN : RULES_FONT_MIN;
     const richText = new PixiRichText();
     let contentHeight = 0;
-    for (let fontSize = RULES_FONT_MAX; fontSize >= RULES_FONT_MIN; fontSize -= 1) {
+    for (let fontSize = maxFontSize; fontSize >= minFontSize; fontSize -= 1) {
       const style = new TextStyle({
         fill: italic ? frame.mutedInk : frame.ink,
         fontFamily: RULES_BODY_FONT,
@@ -598,7 +620,7 @@ export class HandRulesCardFace extends Container {
               }),
             },
       );
-      if (contentHeight <= maxHeight || fontSize === RULES_FONT_MIN) break;
+      if (contentHeight <= fitHeight || fontSize === minFontSize) break;
     }
     const visibleHeight = Math.min(contentHeight, maxHeight);
     richText.position.set(CONTENT_PAD, y);

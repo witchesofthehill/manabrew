@@ -301,10 +301,12 @@ export class StackCardSprite {
             onToggleFace: () => this.onFlip(this.spec.id),
           }
         : null,
-      this.width / 2,
+      this.width,
+      this.face.previewControlArtTop * this.faceScale,
       1,
       1,
     );
-    this.viewControls.y -= this.height / 2;
+    this.viewControls.position.x -= this.width / 2;
+    this.viewControls.position.y -= this.height / 2;
   }
 }

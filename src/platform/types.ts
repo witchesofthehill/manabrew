@@ -1,5 +1,6 @@
 import type { EngineGameStats } from "@/lib/engineTelemetry";
 import type {
+  ChatScope,
   DraftConfig,
   EngineKind,
   GameFormat,
@@ -86,6 +87,15 @@ export interface SetDeckSelectionParams {
   avatarUrl?: string;
 }
 
+export interface SendChatParams {
+  scope: ChatScope;
+  text: string;
+}
+
+export interface InviteToRoomParams {
+  username: string;
+}
+
 export interface StartServerGameParams {
   format?: GameFormat;
 }
@@ -131,6 +141,8 @@ export interface IServerApi {
   listRooms(): Promise<void>;
   listPlayers(): Promise<void>;
   setLocalGame(kind: LocalGameKind | null): Promise<void>;
+  sendChat(params: SendChatParams): Promise<void>;
+  inviteToRoom(params: InviteToRoomParams): Promise<void>;
   createRoom(params: CreateRoomParams): Promise<string | null>;
   stopRoom(): Promise<void>;
   joinRoom(params: JoinRoomParams): Promise<void>;

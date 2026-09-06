@@ -29,6 +29,8 @@ import type {
   SetFormatParams,
   SetMaxPlayersParams,
   SpawnAiBotParams,
+  SendChatParams,
+  InviteToRoomParams,
 } from "./types";
 import {
   DUPLICATE_USERNAME_ERROR_FRAGMENT,
@@ -1040,6 +1042,14 @@ class WebServerApi implements IServerApi {
     this.send({ type: "SetLocalGame", kind });
   }
 
+  async sendChat(params: SendChatParams): Promise<void> {
+    this.send({ type: "SendChat", scope: params.scope, text: params.text });
+  }
+
+  async inviteToRoom(params: InviteToRoomParams): Promise<void> {
+    this.send({ type: "InviteToRoom", username: params.username });
+  }
+
   async createRoom(params: CreateRoomParams): Promise<string | null> {
     if (params.engine === "Forge" && !isForgeWasmHostingEnabled()) {
       throw new Error("Forge engine is not supported on the web");
@@ -1520,6 +1530,27 @@ class WebServerApi implements IServerApi {
         },
       ],
       GameAborted: ["server:game_aborted", { room_id: msg.room_id }],
+      ChatMessage: [
+        "server:chat_message",
+        {
+          scope: msg.scope,
+          room_id: msg.room_id,
+          from: msg.from,
+          avatar_url: msg.avatar_url,
+          qualification: msg.qualification,
+          text: msg.text,
+          sent_at_ms: msg.sent_at_ms,
+          seal: msg.seal,
+        },
+      ],
+      ChatHistory: [
+        "server:chat_history",
+        { scope: msg.scope, room_id: msg.room_id, messages: msg.messages },
+      ],
+      RoomInvite: [
+        "server:room_invite",
+        { from: msg.from, room: msg.room, password: msg.password },
+      ],
       Error: ["server:error", { code: msg.code, message: msg.message }],
     };
 

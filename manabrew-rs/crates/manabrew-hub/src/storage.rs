@@ -5,9 +5,9 @@ use manabrew_hub::dto::{
     AccountDeckDetail, AccountDeckSummary, AccountExport, AccountExportDeck, AccountExportFavorite,
     AccountExportIdentity, AccountExportProfile, AccountExportPublication, AccountExportSession,
     AdminTopDeckSnapshotEntry, AssetKind, AssetQuota, AssetState, AuthAccount, AuthIdentity,
-    DeckHubEntryDetail, DeckHubEntrySummary, DeckHubFacet, DeckHubFacets, DeckHubTag,
-    DeckVersionDetail, DeckVersionSummary, FavoriteResponse, TopDeckBucket, TopDeckSnapshot,
-    TopDeckSnapshotEntry,
+    ChatReportRequest, DeckHubEntryDetail, DeckHubEntrySummary, DeckHubFacet, DeckHubFacets,
+    DeckHubTag, DeckVersionDetail, DeckVersionSummary, FavoriteResponse, TopDeckBucket,
+    TopDeckSnapshot, TopDeckSnapshotEntry,
 };
 
 use manabrew_protocol::deck_dto::{deck_fingerprint, Deck, DeckCard, DeckFormat};
@@ -15,6 +15,15 @@ use rusqlite::{params, Connection, OptionalExtension, Result as SqlResult, Row, 
 use sha2::{Digest, Sha256};
 
 use crate::preset_decks::PresetDeck;
+
+pub struct ChatReportRow<'a> {
+    pub id: &'a str,
+    pub created_at: &'a str,
+    pub reporter_account_id: Option<&'a str>,
+    pub request_ip: &'a str,
+    pub reported_ip: Option<&'a str>,
+    pub transcript: &'a str,
+}
 
 pub struct DeckHubListParams {
     pub search: Option<String>,
@@ -505,6 +514,32 @@ impl Storage {
 
     /// Returns false when the report id is already on file, which is a retry
     /// rather than a second game.
+    pub fn record_chat_report(
+        &self,
+        row: &ChatReportRow<'_>,
+        request: &ChatReportRequest,
+    ) -> SqlResult<()> {
+        self.conn.execute(
+            "INSERT INTO chat_reports
+                (id, created_at, reporter_account_id, request_ip, reported_username,
+                 reported_ip, reason, details, room_id, transcript)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![
+                row.id,
+                row.created_at,
+                row.reporter_account_id,
+                row.request_ip,
+                request.reported_username,
+                row.reported_ip,
+                request.reason.as_str(),
+                request.details,
+                request.room_id,
+                row.transcript,
+            ],
+        )?;
+        Ok(())
+    }
+
     pub fn record_offline_play_game(
         &self,
         game: &manabrew_protocol::telemetry::OfflinePlayGame,
@@ -2175,6 +2210,18 @@ impl Storage {
                 |row| map_account(row, self.asset_base_url.as_deref()),
             )
             .optional()
+    }
+
+    pub fn handle_is_maintainer(&self, handle: &str) -> SqlResult<bool> {
+        self.conn
+            .query_row(
+                "SELECT 1 FROM accounts
+                 WHERE handle = ?1 COLLATE NOCASE AND qualification = 'maintainer' LIMIT 1",
+                params![handle],
+                |_| Ok(()),
+            )
+            .optional()
+            .map(|row| row.is_some())
     }
 
     pub fn handle_exists(&self, handle: &str) -> SqlResult<bool> {

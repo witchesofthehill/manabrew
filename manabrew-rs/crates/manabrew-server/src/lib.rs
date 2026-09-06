@@ -1,4 +1,5 @@
 pub mod analytics;
+pub mod chat;
 pub mod cleanup;
 pub mod client_build;
 pub mod config;
@@ -11,6 +12,7 @@ pub mod metrics;
 pub mod protocol;
 pub mod replay;
 pub mod room;
+pub mod seal;
 pub mod self_update;
 pub mod server;
 pub mod state;

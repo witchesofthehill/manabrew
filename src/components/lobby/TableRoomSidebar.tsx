@@ -1,7 +1,10 @@
 import { useState } from "react";
-import { Bot, Check, ChevronDown, Copy, LockKeyhole, LogOut, Shield } from "lucide-react";
+import { Bot, Check, ChevronDown, Copy, LockKeyhole, LogOut, Shield, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { InvitePlayersDialog } from "@/components/lobby/InvitePlayersDialog";
+import { useServerStore } from "@/stores/useServerStore";
+import { RELAY_FEATURE } from "@/types/server";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,6 +68,8 @@ export function TableRoomSidebar({
   onAddBot,
 }: TableRoomSidebarProps) {
   const [copiedPassword, setCopiedPassword] = useState(false);
+  const [inviting, setInviting] = useState(false);
+  const invitesEnabled = useServerStore((s) => s.relayFeatures.includes(RELAY_FEATURE.RoomInvites));
   const inLobby = room.status === "Lobby";
   const allowsMultiplayer = MULTIPLAYER_FORMATS.includes(room.format);
 
@@ -211,6 +216,11 @@ export function TableRoomSidebar({
               <Shield /> Change deck
             </Button>
           )}
+          {inLobby && openSeats > 0 && invitesEnabled && (
+            <Button variant="outline" onClick={() => setInviting(true)}>
+              <UserPlus /> Invite players
+            </Button>
+          )}
           {inLobby && isController && openSeats > 0 && !isOpenFormat && onAddBot && (
             <Button variant="outline" onClick={onAddBot}>
               <Bot /> Add a bot
@@ -230,6 +240,8 @@ export function TableRoomSidebar({
           </Button>
         </div>
       </section>
+
+      <InvitePlayersDialog open={inviting} onClose={() => setInviting(false)} />
     </aside>
   );
 }

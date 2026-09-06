@@ -1,15 +1,18 @@
 use dashmap::DashMap;
+use std::sync::Mutex;
 use std::time::Instant;
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::analytics::AnalyticsHandle;
+use crate::chat::ChatHistory;
 use crate::client_build::ClientBuild;
 use crate::deck_play_events::DeckPlayEventHandle;
 use crate::identity::{IdentityVerifier, SessionIdentity};
 use crate::protocol::identity_token::GUEST_SUBJECT_PREFIX;
 use crate::protocol::LocalGameKind;
 use crate::room::Room;
+use crate::seal::MessageSealer;
 
 pub struct ConnectedPlayer {
     pub player_id: String,
@@ -35,6 +38,9 @@ pub struct ConnectedPlayer {
     /// Playing on their own machine, reported by the client. Only meaningful
     /// while `connected`: a dropped socket stops asserting anything.
     pub local_game: Option<LocalGameKind>,
+    pub last_chat_at: Option<Instant>,
+    pub client_ip: String,
+    pub seal: Option<String>,
 }
 
 impl ConnectedPlayer {
@@ -79,10 +85,13 @@ pub struct ServerState {
     pub analytics: AnalyticsHandle,
     pub deck_play_events: DeckPlayEventHandle,
     pub identity: IdentityVerifier,
+    pub lobby_chat: Mutex<ChatHistory>,
+    pub seal: Option<MessageSealer>,
     pub art_base_url: Option<String>,
 }
 
 impl ServerState {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         server_key: String,
         max_rooms: usize,
@@ -90,6 +99,7 @@ impl ServerState {
         analytics: AnalyticsHandle,
         deck_play_events: DeckPlayEventHandle,
         hub_jwks_url: Option<String>,
+        seal: Option<MessageSealer>,
     ) -> Self {
         ServerState {
             players: DashMap::new(),
@@ -100,6 +110,8 @@ impl ServerState {
             analytics,
             deck_play_events,
             identity: IdentityVerifier::new(hub_jwks_url),
+            lobby_chat: Mutex::new(ChatHistory::default()),
+            seal,
             art_base_url: None,
         }
     }

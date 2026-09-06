@@ -198,6 +198,15 @@ pub enum ClientMessage {
         new_active_player: String,
         turn_number: u32,
     },
+
+    SendChat {
+        scope: ChatScope,
+        text: String,
+    },
+
+    InviteToRoom {
+        username: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -302,7 +311,50 @@ pub enum ServerMessage {
     ServerShuttingDown {
         reconnect_in_s: u32,
     },
+
+    ChatMessage(ChatMessage),
+
+    ChatHistory {
+        scope: ChatScope,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        room_id: Option<String>,
+        messages: Vec<ChatMessage>,
+    },
+
+    RoomInvite {
+        from: String,
+        room: RoomInfo,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        password: Option<String>,
+    },
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ChatScope {
+    Lobby,
+    Room,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatMessage {
+    pub scope: ChatScope,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub room_id: Option<String>,
+    pub from: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qualification: Option<String>,
+    pub text: String,
+    pub sent_at_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seal: Option<String>,
+}
+
+pub const CHAT_MESSAGE_MAX_CHARS: usize = 500;
+pub const CHAT_HISTORY_MAX_MESSAGES: usize = 100;
+pub const CHAT_HISTORY_MAX_AGE_MS: u64 = 24 * 60 * 60 * 1000;
+pub const CHAT_MIN_INTERVAL_MS: u64 = 400;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "lobby/index.ts")]
@@ -440,12 +492,20 @@ pub struct PlayerInfo {
     /// at the same time as `room_id`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub local_game: Option<LocalGameKind>,
+    /// Opaque to clients: the session's IP sealed together with its handle,
+    /// which only the hub can open. Carried verbatim into chat reports.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seal: Option<String>,
 }
 
 /// Names [`ClientMessage::SetLocalGame`] in `AuthResult::features`.
 pub const FEATURE_LOCAL_GAME: &str = "local_game";
+/// Names [`ClientMessage::SendChat`] in `AuthResult::features`.
+pub const FEATURE_CHAT: &str = "chat";
+/// Names [`ClientMessage::InviteToRoom`] in `AuthResult::features`.
+pub const FEATURE_ROOM_INVITES: &str = "room_invites";
 
-pub const FEATURES: &[&str] = &[FEATURE_LOCAL_GAME];
+pub const FEATURES: &[&str] = &[FEATURE_LOCAL_GAME, FEATURE_CHAT, FEATURE_ROOM_INVITES];
 
 /// A game running on the player's own machine, which the relay never sees.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

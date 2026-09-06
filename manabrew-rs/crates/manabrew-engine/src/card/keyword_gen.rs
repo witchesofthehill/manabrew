@@ -159,29 +159,6 @@ impl Card {
             }
         }
 
-        // Adapt: K:Adapt:N:cost → AB$ PutCounter with Adapt$ True gate.
-        // Mirrors Java CardFactoryUtil lines 2665-2684.
-        for kw in self
-            .keywords
-            .iter_strings()
-            .chain(self.granted_keywords.iter_strings())
-        {
-            if let Some(rest) = crate::keyword::extract_keyword_cost_str(kw, "Adapt") {
-                let parts: Vec<&str> = rest.splitn(2, ':').collect();
-                if parts.len() == 2 {
-                    let magnitude = parts[0].trim();
-                    let mana_cost = parts[1].trim();
-                    let ab_text = format!(
-                        "AB$ PutCounter | Cost$ {mana_cost} | Adapt$ True | CounterNum$ {magnitude} | CounterType$ P1P1 | StackDescription$ SpellDescription | SpellDescription$ Adapt {magnitude}"
-                    );
-                    let next_idx = self.activated_abilities.len();
-                    if let Some(ab) = parse_activated_ability(&ab_text, next_idx) {
-                        self.activated_abilities.push(ab);
-                    }
-                }
-            }
-        }
-
         // Crew: K:Crew:N → AB$ Animate (tap creatures with total power ≥N).
         // Mirrors Java CardFactoryUtil lines 3820-3835.
         // Uses tapXType<Any/Creature.Other+withTotalPowerGE{N}> matching Java's format.

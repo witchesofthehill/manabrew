@@ -1,6 +1,6 @@
 [package]
 name = "manabrew-lan-discovery"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license.workspace = true
 description = "mDNS advertise and browse, so nobody types an address to find a manabrew relay or room on their network"

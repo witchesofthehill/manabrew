@@ -1,6 +1,6 @@
 [package]
 name = "manabrew"
-version = "3.35.0"
+version = "3.36.0"
 edition = "2021"
 publish = false
 
@@ -57,8 +57,8 @@ self-hosted-node = { path = "../manabrew-rs/crates/self-hosted-node", default-fe
     "graal-forge",
 ], optional = true }
 manabrew-server = { path = "../manabrew-rs/crates/manabrew-server", optional = true }
-manabrew-art-cache = { path = "../manabrew-rs/crates/manabrew-art-cache", version = "0.1.0" }
-manabrew-lan-discovery = { path = "../manabrew-rs/crates/manabrew-lan-discovery", version = "0.1.0" }
+manabrew-art-cache = { path = "../manabrew-rs/crates/manabrew-art-cache", version = "0.2.0" }
+manabrew-lan-discovery = { path = "../manabrew-rs/crates/manabrew-lan-discovery", version = "0.2.0" }
 
 [dev-dependencies]
 tempfile = "3"

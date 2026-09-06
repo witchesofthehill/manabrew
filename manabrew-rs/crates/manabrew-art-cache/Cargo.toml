@@ -1,6 +1,6 @@
 [package]
 name = "manabrew-art-cache"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license.workspace = true
 description = "Card art on disk, the /scryfall-img/ route it backs, and the listener that serves it to a network"

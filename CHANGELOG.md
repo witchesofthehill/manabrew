@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.36.0](https://github.com/witchesofthehill/manabrew/compare/v3.35.0...v3.36.0) (2026-09-06)
+
+### Features
+
+* **relay:** a self-hosted relay that holds the card art, and the desktop that finds it ([#870](https://github.com/witchesofthehill/manabrew/issues/870)) ([ee81fc4](https://github.com/witchesofthehill/manabrew/commit/ee81fc4f7232af8c97b599266e647525c56e1940))
+
 ## [3.35.0](https://github.com/witchesofthehill/manabrew/compare/v3.34.7...v3.35.0) (2026-09-05)
 
 ### Features

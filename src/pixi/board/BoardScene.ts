@@ -628,6 +628,7 @@ export class BoardScene {
             Math.min(SELF_PLAYER_HUD_MAX_WIDTH_PX, field.width),
             Math.min(playerHudHeight, field.height),
             false,
+            "top",
           );
         }
       }
@@ -660,7 +661,7 @@ export class BoardScene {
           Math.min(column ? field.width : SELF_PLAYER_HUD_MAX_WIDTH_PX, field.width),
         );
         const barH = column ? field.height : Math.min(playerHudHeight, field.height);
-        this.playerBars.setRect(this.opponentIds[i]!, field.x, field.y, barW, barH, column);
+        this.playerBars.setRect(this.opponentIds[i]!, field.x, field.y, barW, barH, column, "top");
       }
     }
     this.drawDelimiterFog();
@@ -713,7 +714,7 @@ export class BoardScene {
       width,
       height,
       false,
-      bottom === zoneBottom,
+      bottom === zoneBottom ? "bottom" : null,
     );
   }
 

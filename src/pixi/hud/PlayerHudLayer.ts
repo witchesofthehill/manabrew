@@ -1,6 +1,6 @@
 import { Container } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
-import { PlayerHudCapsule } from "./PlayerHudCapsule";
+import { PlayerHudCapsule, type PlayerHudEdgeDock } from "./PlayerHudCapsule";
 import { PlayerHudTooltip } from "./PlayerHudTooltip";
 import type { PlayerHudSpec } from "./playerHud.types";
 import type { ScreenBounds, ScreenPos } from "@/pixi/types";
@@ -94,9 +94,9 @@ export class PlayerHudLayer {
     width: number,
     height: number,
     column: boolean,
-    bottomDocked = false,
+    edgeDock: PlayerHudEdgeDock = null,
   ): void {
-    this.capsules.get(playerId)?.setRect(x, y, width, height, column, bottomDocked);
+    this.capsules.get(playerId)?.setRect(x, y, width, height, column, edgeDock);
   }
 
   setCompact(compact: boolean): void {

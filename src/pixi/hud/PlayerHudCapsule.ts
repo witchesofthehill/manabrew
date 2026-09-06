@@ -28,12 +28,12 @@ const BOT_ICON_NAME = "robot-antennas";
 const SKULL_ICON_NAME = "skull-crossed-bones";
 const OFFLINE_ICON_NAME = "aerial-signal";
 const GEAR_ICON_NAME = "cog";
+const DETAILS_ICON_NAME = "info";
 const FONT = "Inter, system-ui, -apple-system, sans-serif";
 const PANEL_PADDING = 10;
 const AVATAR_DIAMETER = 44;
 const SHALLOW_AVATAR_MIN_HEIGHT = 96;
 const SHALLOW_MANA_IDENTITY_OVERLAP = 36;
-const SHALLOW_RIGHT_RAIL_WIDTH = 42;
 const SHALLOW_STATE_BLOCK_HEIGHT = 48;
 const STATE_ROW_HEIGHT = 24;
 const STATE_TOUCH_ROW_HEIGHT = 40;
@@ -77,6 +77,8 @@ export type HoverFn = (
   bottom?: number,
 ) => void;
 
+export type PlayerHudEdgeDock = "top" | "bottom" | null;
+
 interface ManaPip {
   sprite: Sprite;
   count: Text;
@@ -96,6 +98,13 @@ interface BadgeChip {
 interface ContentItem {
   w: number;
   place: (x: number, y: number) => void;
+}
+
+interface LayoutRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 export class PlayerHudCapsule {
@@ -121,6 +130,7 @@ export class PlayerHudCapsule {
   private skull = new Sprite();
   private offline = new Sprite();
   private gear = new Sprite();
+  private detailsIcon = new Sprite();
   private gearHit = new Graphics();
   private initial: Text;
   private avatarHit = new Graphics();
@@ -141,6 +151,7 @@ export class PlayerHudCapsule {
   private panelHeight = 0;
   private motionEnabled = animationsEnabled();
   private manaTray = new Graphics();
+  private stateTray = new Graphics();
   private manaLayer = new Container();
   private badgeLayer = new Container();
   private sparkles = new Container();
@@ -153,7 +164,7 @@ export class PlayerHudCapsule {
   private height = 0;
   private column = false;
   private compact = false;
-  private bottomDocked = false;
+  private edgeDock: PlayerHudEdgeDock = null;
   private avatarUrl: string | null = null;
   private readonly isBot: boolean;
   private renderedLife: number | null = null;
@@ -215,6 +226,9 @@ export class PlayerHudCapsule {
     this.gear.anchor.set(0.5);
     this.gear.visible = false;
     this.gear.eventMode = "none";
+    this.detailsIcon.anchor.set(0.5);
+    this.detailsIcon.visible = false;
+    this.detailsIcon.eventMode = "none";
     this.gearHit.visible = false;
     this.gearHit.eventMode = "static";
     this.gearHit.cursor = "pointer";
@@ -238,6 +252,7 @@ export class PlayerHudCapsule {
     this.targetRing.eventMode = "none";
     this.flashRing.eventMode = "none";
     this.manaTray.eventMode = "none";
+    this.stateTray.eventMode = "none";
     this.sparkles.eventMode = "none";
 
     this.avatarHit.eventMode = "static";
@@ -300,6 +315,7 @@ export class PlayerHudCapsule {
       this.bg,
       this.seatRail,
       this.manaTray,
+      this.stateTray,
       this.glow,
       this.avatarMask,
       this.avatarPhoto,
@@ -323,6 +339,7 @@ export class PlayerHudCapsule {
       this.handFan,
       this.handCount,
       this.overflow,
+      this.detailsIcon,
       this.overflowHit,
       this.manaLayer,
       this.badgeLayer,
@@ -465,20 +482,20 @@ export class PlayerHudCapsule {
     width: number,
     height: number,
     column: boolean,
-    bottomDocked: boolean,
+    edgeDock: PlayerHudEdgeDock,
   ): void {
     this.container.position.set(x, y);
     if (
       this.width === width &&
       this.height === height &&
       this.column === column &&
-      this.bottomDocked === bottomDocked
+      this.edgeDock === edgeDock
     )
       return;
     this.width = width;
     this.height = height;
     this.column = column;
-    this.bottomDocked = bottomDocked;
+    this.edgeDock = edgeDock;
     this.render();
   }
 
@@ -595,15 +612,19 @@ export class PlayerHudCapsule {
     this.avatarHit.cursor = "pointer";
     this.gear.visible = this.gearHit.visible = this.spec.isSelf;
     if (this.spec.isSelf) {
-      this.gearCx = this.width - 20;
-      this.gearCy = 20;
-      this.gearChipR = this.compact ? 20 : 12;
-      this.redrawGearChip();
-      const tex = this.iconTexture(GEAR_ICON_NAME);
-      if (tex) this.gear.texture = tex;
-      this.gear.position.set(this.gearCx, this.gearCy);
-      this.styleGear();
+      this.layoutGear(this.width - 20, 20, this.compact ? 20 : 12);
     }
+  }
+
+  private layoutGear(cx: number, cy: number, radius: number): void {
+    this.gearCx = cx;
+    this.gearCy = cy;
+    this.gearChipR = radius;
+    this.redrawGearChip();
+    const texture = this.iconTexture(GEAR_ICON_NAME);
+    if (texture) this.gear.texture = texture;
+    this.gear.position.set(cx, cy);
+    this.styleGear();
   }
 
   private redrawGearChip(): void {
@@ -696,6 +717,8 @@ export class PlayerHudCapsule {
     this.handFan.visible = false;
     this.seatRail.clear();
     this.manaTray.clear();
+    this.stateTray.clear();
+    this.detailsIcon.visible = false;
     this.overflow.visible = false;
     this.overflowHit.clear();
     this.overflowHit.visible = false;
@@ -840,7 +863,13 @@ export class PlayerHudCapsule {
       this.priorityText.position.x =
         statusX + (this.seatState.text ? this.seatState.width + 12 : 0);
       this.heart.visible = false;
-      const manaRight = w - SHALLOW_RIGHT_RAIL_WIDTH;
+      const utilityTop = h - 28;
+      const utilityHeight = 22;
+      const detailsRect: LayoutRect = this.spec.isSelf
+        ? { x: pad + 24, y: utilityTop, width: 30, height: utilityHeight }
+        : { x: pad, y: utilityTop, width: AVATAR_DIAMETER, height: utilityHeight };
+      if (this.spec.isSelf) this.layoutGear(pad + 10, utilityTop + utilityHeight / 2, 10);
+      const manaRight = w - pad;
       const manaX = showAvatar
         ? this.identityWidth - SHALLOW_MANA_IDENTITY_OVERLAP
         : this.identityWidth;
@@ -854,6 +883,7 @@ export class PlayerHudCapsule {
         Math.max(1, manaRight - manaX),
         Math.max(1, stateBottom - stateY),
         3,
+        detailsRect,
       );
       this.avatarHit
         .clear()
@@ -886,10 +916,11 @@ export class PlayerHudCapsule {
 
   private drawPlate(width: number, height: number): void {
     const { appTheme, gameTheme: gt } = this.theme;
-    const plateHeight = this.bottomDocked ? height + 8 : height;
-    this.bg.roundRect(0, 0, width, plateHeight, 8);
+    const plateY = this.edgeDock === "top" ? -8 : 0;
+    const plateHeight = height + (this.edgeDock ? 8 : 0);
+    this.bg.roundRect(0, plateY, width, plateHeight, 8);
     this.bg.fill({ color: hexToNum(appTheme.card) });
-    this.bg.roundRect(0.5, 0.5, width - 1, plateHeight - 1, 8);
+    this.bg.roundRect(0.5, plateY + 0.5, width - 1, plateHeight - 1, 8);
     this.bg.stroke({ color: hexToNum(appTheme.border), alpha: 0.7, width: 1 });
     this.seatRail.roundRect(0, 10, 3, Math.max(12, this.identityHeight - 20), 1.5);
     this.seatRail.fill({
@@ -1076,12 +1107,23 @@ export class PlayerHudCapsule {
     }
   }
 
-  private layoutStates(x: number, y: number, width: number, height: number, columns: number): void {
+  private layoutStates(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    columns: number,
+    overflowRect?: LayoutRect,
+  ): void {
     this.ensureChips();
     const rowHeight = this.compact ? STATE_TOUCH_ROW_HEIGHT : STATE_ROW_HEIGHT;
     const rows = Math.max(1, Math.min(3, Math.floor(height / rowHeight)));
     const cellHeight = Math.min(rowHeight, height / rows);
     const cellWidth = width / columns;
+    this.stateTray
+      .roundRect(x - 6, y - 2, width + 12, rows * cellHeight + 4, 6)
+      .fill({ color: hexToNum(this.theme.gameTheme.canvas.shadow), alpha: 0.26 })
+      .stroke({ color: hexToNum(this.theme.appTheme.border), alpha: 0.5, width: 1 });
     const rank = (id: string) => {
       const index = STATE_ORDER.indexOf(id.startsWith("cmd-") ? "commander" : id);
       return index < 0 ? STATE_ORDER.length : index;
@@ -1095,7 +1137,8 @@ export class PlayerHudCapsule {
           rank(a.badge.id) - rank(b.badge.id) ||
           a.badge.id.localeCompare(b.badge.id),
       );
-    const visible = Math.min(states.length, rows * columns - 1);
+    const capacity = rows * columns - (overflowRect ? 0 : 1);
+    const visible = Math.min(states.length, capacity);
     for (let i = 0; i < visible; i++) {
       this.placeBadge(
         states[i]!.index,
@@ -1109,20 +1152,51 @@ export class PlayerHudCapsule {
     const hidden = states.length - visible;
     const danger = states.slice(visible).some(({ badge }) => this.badgeIsUrgent(badge));
     const slot = rows * columns - 1;
-    const left = x + (slot % columns) * cellWidth;
-    const top = y + Math.floor(slot / columns) * cellHeight;
+    this.placeOverflow(
+      overflowRect ?? {
+        x: x + (slot % columns) * cellWidth,
+        y: y + Math.floor(slot / columns) * cellHeight,
+        width: cellWidth,
+        height: cellHeight,
+      },
+      hidden,
+      danger,
+    );
+  }
+
+  private placeOverflow(rect: LayoutRect, hidden: number, danger: boolean): void {
+    const compact = rect.width < 48;
+    const showIcon = hidden === 0 && compact;
+    this.detailsIcon.visible = showIcon;
+    if (showIcon) {
+      const texture = this.iconTexture(DETAILS_ICON_NAME);
+      if (texture) this.detailsIcon.texture = texture;
+      this.detailsIcon.tint = hexToNum(this.theme.gameTheme.textMuted);
+      this.detailsIcon.width = this.detailsIcon.height = 12;
+      this.detailsIcon.position.set(rect.x + rect.width / 2, rect.y + rect.height / 2);
+    }
     this.overflow.text =
-      hidden > 0 ? (cellWidth < 70 ? `+${hidden}\nstates` : `+${hidden} states`) : "Details";
+      hidden > 0
+        ? compact
+          ? `+${hidden}`
+          : rect.width < 70
+            ? `+${hidden}\nstates`
+            : `+${hidden} states`
+        : "Details";
     this.overflow.style = this.styled(
       10,
       danger ? "700" : "500",
       danger ? this.theme.gameTheme.pt.lethal : this.theme.gameTheme.textMuted,
     );
-    this.overflow.position.set(left + 4, top + cellHeight / 2);
-    this.overflow.visible = this.overflowHit.visible = true;
-    this.overflowHit.roundRect(left, top + 1, cellWidth - 3, cellHeight - 2, 4).fill({
+    this.overflow.position.set(
+      rect.x + (rect.width - this.overflow.width) / 2,
+      rect.y + rect.height / 2,
+    );
+    this.overflow.visible = !showIcon;
+    this.overflowHit.visible = true;
+    this.overflowHit.roundRect(rect.x, rect.y, rect.width, rect.height, 5).fill({
       color: hexToNum(danger ? this.theme.gameTheme.pt.lethal : this.theme.gameTheme.textGhost),
-      alpha: danger ? 0.16 : 0.06,
+      alpha: danger ? 0.16 : 0.08,
     });
   }
 

@@ -37,7 +37,7 @@ import { RotateCw } from "lucide-react";
 /** Matches HandCardActions `w-[220px]`. */
 const HAND_ACTIONS_PANEL_W = 220;
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import type { CardDto, PlaymatSettings, ZoneDto } from "@/protocol/game";
+import type { CardDto, PlaymatSettings } from "@/protocol/game";
 import type { AttackTargetDto } from "@/protocol/prompts/common";
 import type {
   ArrowSpec,
@@ -91,7 +91,6 @@ interface BoardCanvasProps {
   compact?: boolean;
   opponentLayout?: "focused" | "overview";
   focusLocked?: boolean;
-  zones?: ZoneDto[];
   /** The opponent whose field auto-expands (their turn), or `null` for an even
    *  split (our turn). The scene owns + eases the delimiters; this sets the
    *  target. */
@@ -141,7 +140,6 @@ export function BoardCanvas({
   compact,
   opponentLayout = "focused",
   focusLocked = false,
-  zones,
   focusedOpponentId,
   combatFocusIds,
   manualFocusId,
@@ -432,14 +430,13 @@ export function BoardCanvas({
     }
     const liveIds = new Set<string>();
     for (const r of regions) for (const c of r.state.cards) liveIds.add(c.id);
-    scene.setZoneDestinations(zones ?? [], liveIds);
     for (const r of regions) {
       if (!seeding && lastRegionStateRef.current.get(r.playerId) === r.state) continue;
       lastRegionStateRef.current.set(r.playerId, r.state);
       scene.updateRegionState(r.playerId, r.state);
     }
     scene.pruneCardPositions(liveIds);
-  }, [scene, regions, zones]);
+  }, [scene, regions]);
 
   useEffect(() => {
     scene?.setOpponentFocus(focusedOpponentId ?? null);

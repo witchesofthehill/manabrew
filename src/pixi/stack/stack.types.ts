@@ -23,7 +23,6 @@ export interface StackSpec {
   flash: StackFlashSpec | null;
   showPreStackFlash: boolean;
   collapsed: boolean;
-  activityCount?: number;
 }
 
 export interface StackCallbacks {

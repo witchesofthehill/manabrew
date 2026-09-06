@@ -122,8 +122,6 @@ export interface RegionHost {
     cardId: string,
     seed: { x: number; y: number; scaleX: number; scaleY: number },
   ): void;
-  getExitTarget(cardId: string): { x: number; y: number } | null;
-  isBattlefieldCard(cardId: string): boolean;
   isSelected(cardId: string): boolean;
   rebuildOverlay(entry: SpriteEntry, state: BattlefieldState): void;
   wireSprite(sprite: CardSprite): void;

@@ -1,4 +1,4 @@
-import { Container, Graphics, Rectangle, Text } from "pixi.js";
+import { Container, Graphics, Rectangle } from "pixi.js";
 import { isCoarsePointer } from "@/lib/responsive";
 import gsap from "gsap";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
@@ -48,7 +48,6 @@ export class StackLayer implements StackAnchorProvider {
   private btn = new Container();
   private btnGlow = new Graphics();
   private btnGfx = new Graphics();
-  private btnCount: Text;
   private btnPulsing = false;
   private btnTween: gsap.core.Tween | null = null;
   private btnVisible = false;
@@ -79,23 +78,12 @@ export class StackLayer implements StackAnchorProvider {
     this.theme = theme;
     this.callbacks = callbacks;
     this.container = new Container();
-    this.btnCount = new Text({
-      text: "",
-      style: {
-        fontFamily: '"Inter", "Avenir Next", sans-serif',
-        fontSize: 10,
-        fontWeight: "800",
-        fill: hexToNum(theme.gameTheme.canvas.shadow),
-      },
-    });
     this.container.sortableChildren = true;
 
     this.btnGlow.eventMode = "none";
     this.btnGlow.visible = false;
     this.btnGfx.eventMode = "none";
-    this.btnCount.anchor.set(0.5);
-    this.btnCount.eventMode = "none";
-    this.btn.addChild(this.btnGlow, this.btnGfx, this.btnCount);
+    this.btn.addChild(this.btnGlow, this.btnGfx);
     this.btn.zIndex = 400;
     this.btn.visible = false;
     this.btn.eventMode = "static";
@@ -116,7 +104,6 @@ export class StackLayer implements StackAnchorProvider {
 
   setTheme(theme: Theme): void {
     this.theme = theme;
-    this.btnCount.style.fill = hexToNum(theme.gameTheme.canvas.shadow);
     for (const sprite of this.sprites.values()) sprite.setTheme(theme);
     this.layout();
   }
@@ -372,18 +359,11 @@ export class StackLayer implements StackAnchorProvider {
       sprite.place(position.x, position.y, position.zIndex, flashed, moveDur, moveEase);
     });
 
-    const activityCount = this.spec.activityCount ?? n;
-    this.layoutButton(
-      activityCount > 0,
-      activityCount,
-      layout.buttonX,
-      layout.centerY,
-      transitioning,
-    );
+    this.layoutButton(n > 0, layout.buttonX, layout.centerY, transitioning);
 
-    if (n === 0 && activityCount === 0) {
+    if (n === 0) {
       this.bounds = null;
-    } else if (collapsed || n === 0) {
+    } else if (collapsed) {
       const halfW = (BTN_W / 2) * BTN_HOVER_SCALE + 8;
       const halfH = (BTN_H / 2) * BTN_HOVER_SCALE + 6;
       const x = layout.buttonX - halfW;
@@ -407,7 +387,6 @@ export class StackLayer implements StackAnchorProvider {
 
   private layoutButton(
     show: boolean,
-    activityCount: number,
     targetX: number,
     centerY: number,
     transitioning: boolean,
@@ -452,32 +431,23 @@ export class StackLayer implements StackAnchorProvider {
     this.btnGlow
       .roundRect(-BTN_W / 2 - 4, -BTN_H / 2 - 4, BTN_W + 8, BTN_H + 8, BTN_RADIUS + 3)
       .fill({ color });
-    this.btnCount.text = String(activityCount);
-    this.btnCount.position.set(0, -14);
-    this.drawButton(this.btnGfx, this.spec.collapsed ? "left" : "right", activityCount > 0);
+    this.drawButton(this.btnGfx, this.spec.collapsed ? "left" : "right");
 
     if (this.effectiveCollapsed()) this.startBtnPulse();
     else this.stopBtnPulse();
   }
 
-  private drawButton(gfx: Graphics, chevron: "left" | "right", showCount: boolean): void {
+  private drawButton(gfx: Graphics, chevron: "left" | "right"): void {
     const color = hexToNum(this.theme.gameTheme.activeAction.active);
     const glyph = hexToNum(this.theme.gameTheme.canvas.shadow);
     const aw = BTN_ARROW_W / 2;
-    const arrowY = showCount ? 10 : 0;
     const ah = BTN_ARROW_H / 2;
     gfx.clear();
     gfx.roundRect(-BTN_W / 2, -BTN_H / 2, BTN_W, BTN_H, BTN_RADIUS).fill({ color });
     if (chevron === "left") {
-      gfx
-        .moveTo(aw, arrowY - ah)
-        .lineTo(-aw, arrowY)
-        .lineTo(aw, arrowY + ah);
+      gfx.moveTo(aw, -ah).lineTo(-aw, 0).lineTo(aw, ah);
     } else {
-      gfx
-        .moveTo(-aw, arrowY - ah)
-        .lineTo(aw, arrowY)
-        .lineTo(-aw, arrowY + ah);
+      gfx.moveTo(-aw, -ah).lineTo(aw, 0).lineTo(-aw, ah);
     }
     gfx.stroke({ color: glyph, width: 2.5, cap: "round", join: "round" });
   }

@@ -279,7 +279,6 @@ export function GameBoard({
       (compactBoard ? HAND_RESERVE_TRIM_COMPACT : HAND_RESERVE_TRIM),
   );
   const opponentLayout = usePreferencesStore((s) => s.opponentLayout);
-  const gameZones = useGameStore((s) => s.gameView?.zones);
 
   const isTargetingPrompt = promptType === "chooseBoardTargets";
   const chooseActionPrompt = promptOf(currentPrompt, "chooseAction");
@@ -1684,7 +1683,6 @@ export function GameBoard({
         <BoardCanvas
           regions={unifiedRegions}
           hand={pixiHand}
-          zones={gameZones}
           opponentLayout={opponentLayout}
           focusLocked={
             isTargetingPrompt ||

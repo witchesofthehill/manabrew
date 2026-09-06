@@ -614,14 +614,7 @@ export class BoardRegion {
           (exited ??= []).push(id);
           continue;
         }
-        if (entry.gliding) {
-          s.x = lerp(s.x, entry.targetX, BATTLEFIELD_LERP, SNAP_PX);
-          s.y = lerp(s.y, entry.targetY, BATTLEFIELD_LERP, SNAP_PX);
-          const distance = Math.hypot(s.x - entry.targetX, s.y - entry.targetY);
-          if (distance < CARD_H * this.cardScale) s.alpha = lerp(s.alpha, 0, EXIT_FADE_LERP, 0.02);
-        } else {
-          s.alpha = lerp(s.alpha, 0, EXIT_FADE_LERP, 0.02);
-        }
+        s.alpha = lerp(s.alpha, 0, EXIT_FADE_LERP, 0.02);
         s.scale.set(s.scale.x * EXIT_SHRINK);
         if (s.alpha <= 0.05) (exited ??= []).push(id);
         continue;
@@ -1473,20 +1466,6 @@ export class BoardRegion {
         scaleX: entry.sprite.scale.x * this.container.worldTransform.a,
         scaleY: entry.sprite.scale.y * this.container.worldTransform.d,
       });
-      if (this.host.isBattlefieldCard(id)) {
-        this.destroyEntry(id);
-        continue;
-      }
-      const exit = this.host.getExitTarget(id);
-      if (exit && animationsEnabled()) {
-        const target = this.canvasToLocal(exit.x, exit.y);
-        entry.targetX = target.x;
-        entry.targetY = target.y;
-        entry.gliding = true;
-        this.host.getCombatGuestLayer().addChild(entry.sprite);
-      } else {
-        entry.gliding = false;
-      }
       entry.overlayActive = false;
       if (entry.overlay) entry.overlay.visible = false;
       this.userPlacedCards.delete(id);

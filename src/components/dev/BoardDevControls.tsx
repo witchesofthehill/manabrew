@@ -3,7 +3,6 @@ import { Eye, Grid3X3, MousePointer2, PanelTop, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
-import { useStackUIStore } from "@/stores/useStackUIStore";
 
 import { DEV_SECTION, DEV_SECTION_HEADING } from "./devPanel.styles";
 
@@ -22,7 +21,6 @@ export function BoardDevControls() {
   const triggerEtbGlow = useGameDevStore((s) => s.triggerEtbGlow);
   const gameStateOverrides = useGameDevStore((s) => s.gameStateOverrides);
   const setGameStateOverride = useGameDevStore((s) => s.setGameStateOverride);
-  const setStackCollapsed = useStackUIStore((s) => s.setCollapsed);
 
   const fps = stats?.fps.toFixed(1) ?? "—";
   const frameMs = stats?.deltaMs.toFixed(1) ?? "—";
@@ -94,15 +92,6 @@ export function BoardDevControls() {
       <section className={DEV_SECTION}>
         <p className={DEV_SECTION_HEADING}>Game-state surfaces</p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <GuideToggle
-            label="Stack activity"
-            description="Collapsed stack count and attention state"
-            checked={gameStateOverrides.forceStackActivity}
-            onChange={(checked) => {
-              setGameStateOverride("forceStackActivity", checked);
-              if (checked) setStackCollapsed(true);
-            }}
-          />
           <GuideToggle
             label="Log activity"
             description="Unread action-log indicator"

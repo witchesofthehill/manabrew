@@ -271,7 +271,6 @@ export function BoardPlayground() {
         <BoardCanvas
           regions={specs.regions}
           hand={{ cards: hand }}
-          zones={specs.zones}
           arrowSpecs={[]}
           focusLocked={!!sheetPlayerId || preview.isSticky}
           combatBlocks={specs.blocks}

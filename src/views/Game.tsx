@@ -1360,7 +1360,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
 
   const debugArrowType = useGameDevStore((s) => s.debugArrowType);
-  const gameStateOverrides = useGameDevStore((s) => s.gameStateOverrides);
   const arrowSpecs = useMemo(() => {
     if (!debugArrowType || !me?.id || !opponent?.id) return liveArrowSpecs;
     return [
@@ -1747,9 +1746,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         : null,
     showPreStackFlash: shouldShowPreStackFlash,
     collapsed: stackCollapsed,
-    activityCount: gameStateOverrides.forceStackActivity
-      ? Math.max(3, gameView?.stack.length ?? 0)
-      : gameView?.stack.length,
   };
 
   return (

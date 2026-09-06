@@ -20,7 +20,7 @@ Two complementary timing systems:
 
 ## Principles
 
-- **One Pixi tick.** Board animation advances from `BoardScene.tick` through regions, hand, HUD, phase strip, and zone transitions. GSAP mutates plain effect data such as `fxScale`; it never drives the Pixi clock. `animationsEnabled()` combines the user preference with `prefers-reduced-motion`.
+- **One Pixi tick.** Board animation advances from `BoardScene.tick` through regions, hand, HUD, and phase strip. GSAP mutates plain effect data such as `fxScale`; it never drives the Pixi clock. `animationsEnabled()` combines the user preference with `prefers-reduced-motion`.
 - **Compose, don't fight.** The region owns a sprite's final scale (card + hover, via `entry.scaleBase`). Effects that scale a card write a **multiplier** (`CardSprite.fxScale`) the region multiplies in — they never set `sprite.scale` directly.
 - **No animated render-to-texture filters.** Animating under a filter re-renders it every frame (see the summoning-sick desaturate filter). For motion use particles / GSAP transforms; filters only as cheap static or very short one-shots.
 

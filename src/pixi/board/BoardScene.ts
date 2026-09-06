@@ -8,7 +8,7 @@ import {
   type FederatedPointerEvent,
 } from "pixi.js";
 import { darken, withAlpha } from "@/themes/gameTheme";
-import type { CardDto, PlaymatSettings, ZoneDto, ZoneKind } from "@/protocol/game";
+import type { CardDto, PlaymatSettings } from "@/protocol/game";
 import type { AttackTargetDto } from "@/protocol/prompts/common";
 import {
   CardSprite,
@@ -35,8 +35,6 @@ import { animationsEnabled } from "../effects/enabled";
 import { LongPressGesture } from "../LongPressGesture";
 import { PREVIEW_TIMING } from "@/lib/cardPreview";
 import {
-  BATTLEFIELD_LERP,
-  SNAP_PX,
   FLOATER_FONT_SIZE,
   FLOATER_LIFETIME_FRAMES,
   FLOATER_RISE_PER_FRAME,
@@ -215,9 +213,6 @@ export class BoardScene {
   private phaseStrip: PhaseStripLayer;
   private overview = false;
   private focusLocked = false;
-  private zoneDestinations = new Map<string, { ownerId: string; zone: ZoneKind }>();
-  private liveBattlefieldIds: ReadonlySet<string> = new Set();
-  private zoneTransitions = new Map<string, { sprite: CardSprite; target: ScreenPos }>();
 
   private arrowSpecs: ArrowSpec[] = [];
   private castingArrow: { sourceCardId: string; hostile: boolean } | null = null;
@@ -993,63 +988,6 @@ export class BoardScene {
     return this.hand?.getBlockerRect() ?? null;
   }
 
-  setZoneDestinations(zones: ZoneDto[], battlefieldIds: ReadonlySet<string>): void {
-    this.liveBattlefieldIds = battlefieldIds;
-    this.captureStackSeeds();
-    const previous = this.zoneDestinations;
-    this.zoneDestinations = new Map();
-    for (const zone of zones) {
-      for (const card of zone.cards) {
-        this.zoneDestinations.set(card.id, { ownerId: zone.ownerId, zone: zone.zone });
-      }
-    }
-    if (previous.size === 0) return;
-    for (const zone of zones) {
-      if (zone.zone === "battlefield") continue;
-      for (const card of zone.cards) {
-        const prior = previous.get(card.id);
-        if (prior?.zone === zone.zone && prior.ownerId === zone.ownerId) continue;
-        this.zoneTransitions.get(card.id)?.sprite.destroy({ children: true });
-        this.zoneTransitions.delete(card.id);
-        if (!animationsEnabled() || prior?.zone === "battlefield" || card.visibility === "hidden")
-          continue;
-        const stack = this.stackCardSeeds.get(card.id);
-        const destination = this.exitTarget(card.id);
-        if (!stack || !destination) continue;
-        const source = this.root.toLocal(stack);
-        const target = this.root.toLocal(destination);
-        const sprite = new CardSprite(card, "hand");
-        sprite.eventMode = "none";
-        sprite.position.set(source.x, source.y);
-        sprite.scale.set(stack.scale / this.root.scale.x, stack.scale / this.root.scale.y);
-        sprite.setElevation(1);
-        this.combatGuestLayer.addChild(sprite);
-        this.zoneTransitions.set(card.id, { sprite, target });
-        this.stackCardSeeds.delete(card.id);
-      }
-    }
-  }
-
-  private exitTarget(cardId: string): ScreenPos | null {
-    if (this.liveBattlefieldIds.has(cardId)) return null;
-    const dest = this.zoneDestinations.get(cardId);
-    if (!dest || dest.zone === "battlefield") return null;
-    if (dest.zone === "hand") {
-      if (dest.ownerId === this.localPlayerId && this.hand) {
-        const origin = this.hand.getOriginSeed();
-        return this.root.toGlobal(origin);
-      }
-      return this.playerBars.getPlayerAnchor(dest.ownerId);
-    }
-    const keyByZone = { library: "lib", graveyard: "gy", exile: "ex", command: "cmd" };
-    const key = keyByZone[dest.zone];
-    return (
-      this.regions.get(dest.ownerId)?.region.getZoneTileCenter(key) ??
-      this.playerBars.getZoneAnchor(dest.ownerId, key) ??
-      this.playerBars.getPlayerAnchor(dest.ownerId)
-    );
-  }
-
   holdHandHover(): void {
     this.hand?.holdHover();
   }
@@ -1364,8 +1302,6 @@ export class BoardScene {
       getEntrySeed: (cardId) => this.entrySeedFor(playerId, isLocal, cardId),
       getCombatGuestLayer: () => this.combatGuestLayer,
       recordCardExit: (cardId, seed) => this.lastCardPositions.set(cardId, seed),
-      getExitTarget: (cardId) => this.exitTarget(cardId),
-      isBattlefieldCard: (cardId) => this.liveBattlefieldIds.has(cardId),
       isSelected: (cardId) => (isLocal ? (this.selection?.has(cardId) ?? false) : false),
       rebuildOverlay: (entry, state) => {
         if (isLocal) this.overlay?.rebuild(entry, state);
@@ -1966,15 +1902,6 @@ export class BoardScene {
     this.easeDelimiters();
     for (const rec of this.regions.values()) rec.region.animate();
     this.hand?.animate();
-    for (const [id, transition] of this.zoneTransitions) {
-      const { sprite, target } = transition;
-      sprite.x = lerp(sprite.x, target.x, BATTLEFIELD_LERP, SNAP_PX);
-      sprite.y = lerp(sprite.y, target.y, BATTLEFIELD_LERP, SNAP_PX);
-      if (!animationsEnabled() || (sprite.x === target.x && sprite.y === target.y)) {
-        sprite.destroy({ children: true });
-        this.zoneTransitions.delete(id);
-      }
-    }
     this.playerBars.tick();
     this.phaseStrip.tick();
     this.phaseStrip.setDimAlpha(
@@ -2272,8 +2199,6 @@ export class BoardScene {
       for (const rec of this.regions.values()) rec.region.destroy();
       for (const f of this.floaters) f.text.destroy();
       this.floaters = [];
-      for (const { sprite } of this.zoneTransitions.values()) sprite.destroy({ children: true });
-      this.zoneTransitions.clear();
     } catch (err) {
       console.warn("[pixi] BoardScene teardown threw:", err);
     }

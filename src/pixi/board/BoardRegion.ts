@@ -1145,11 +1145,13 @@ export class BoardRegion {
   }
 
   private frontEdgeY(): number {
+    const zone = this.usableZone();
     const halfCard = (CARD_H * this.cardScale) / 2;
+    const playmatInset = playmatPad(zone.width, zone.height);
     if (this.mirrored) {
-      return this.zone.y + this.zone.height - FIELD_INNER_EDGE_PAD_PX - COMBAT_ROW_PAD_Y - halfCard;
+      return zone.y + zone.height - playmatInset - COMBAT_ROW_PAD_Y - halfCard;
     }
-    return this.zone.y + FIELD_INNER_EDGE_PAD_PX + COMBAT_ROW_PAD_Y + halfCard;
+    return zone.y + playmatInset + COMBAT_ROW_PAD_Y + halfCard;
   }
 
   private applyNameGrouping(topLevel: CardDto[]): void {
@@ -1990,15 +1992,7 @@ export class BoardRegion {
     }
 
     for (const cell of grid.cells) {
-      if (cell.blocked) {
-        if (this.skeletonDebug) {
-          gfx.roundRect(cell.x, cell.y, grid.cardW, grid.cardH, CARD_RADIUS);
-          gfx.fill({ color: blockedColor, alpha: GRID_SKELETON_FILL_ALPHA * 4 });
-          gfx.roundRect(cell.x, cell.y, grid.cardW, grid.cardH, CARD_RADIUS);
-          gfx.stroke({ color: blockedColor, width: 1, alpha: GRID_SKELETON_HOVER_ALPHA });
-        }
-        continue;
-      }
+      if (cell.blocked) continue;
       const key = cellKey(cell.col, cell.row);
       const isStack = key === stackKey;
       const isHover = key === hoveredKey && !isStack;

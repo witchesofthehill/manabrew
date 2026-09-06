@@ -2,6 +2,7 @@ import {
   Bounds,
   ColorMatrixFilter,
   Container,
+  Rectangle,
   Graphics,
   Point,
   Sprite,
@@ -114,7 +115,6 @@ export class PlayerHudCapsule {
   private theme: Theme;
   private onTarget: () => void;
   private onShowSheet: () => void;
-  private onInspect: () => void;
   private onHover: HoverFn;
 
   private bg = new Graphics();
@@ -164,7 +164,7 @@ export class PlayerHudCapsule {
   private avatarUrl: string | null = null;
   private readonly isBot: boolean;
   private renderedLife: number | null = null;
-  private targetableActive = false;
+  private targetRingMode: "off" | "pulse" | "solid" = "off";
   private targetTween: gsap.core.Tween | null = null;
   private flashTween: gsap.core.Tween | null = null;
   private lifeTween: gsap.core.Tween | null = null;
@@ -188,17 +188,22 @@ export class PlayerHudCapsule {
     onTarget: () => void,
     onShowSheet: () => void,
     onHover: HoverFn,
-    onInspect: () => void,
   ) {
     this.theme = theme;
     this.spec = spec;
     this.isBot = spec.isBot;
     this.onTarget = onTarget;
     this.onShowSheet = onShowSheet;
-    this.onInspect = onInspect;
     this.onHover = onHover;
 
     this.container = new Container();
+    this.container.eventMode = "static";
+    this.container.cursor = "pointer";
+    this.container.on("pointertap", () => {
+      this.onHover(null);
+      if (this.spec.isTargetable) this.onTarget();
+      else this.onShowSheet();
+    });
     this.avatarPhoto.anchor.set(0.5);
     this.avatarPhoto.visible = false;
     this.avatarPhoto.eventMode = "none";
@@ -224,10 +229,6 @@ export class PlayerHudCapsule {
 
     this.avatarHit.eventMode = "static";
     this.avatarHit.cursor = "pointer";
-    this.avatarHit.on("pointertap", () => {
-      if (this.spec.isTargetable) this.onTarget();
-      else this.onShowSheet();
-    });
 
     this.initial = new Text({ text: "", style: this.textStyle(16) });
     this.initial.anchor.set(0.5);
@@ -253,13 +254,7 @@ export class PlayerHudCapsule {
     this.emptyStateText.eventMode = "none";
     this.overflow.anchor.set(0, 0.5);
     this.overflow.eventMode = "none";
-    this.overflowHit.eventMode = "static";
-    this.overflowHit.cursor = "pointer";
-    this.overflowHit.on("pointertap", (event) => {
-      event.stopPropagation();
-      this.onHover(null);
-      this.onInspect();
-    });
+    this.overflowHit.eventMode = "none";
     this.handFan.eventMode = "none";
     for (let i = 0; i < 3; i++) {
       const back = new Sprite();
@@ -419,7 +414,7 @@ export class PlayerHudCapsule {
     this.targetRing.alpha = 1;
     this.offline.alpha = 1;
     this.combatActive = false;
-    this.targetableActive = false;
+    this.targetRingMode = "off";
     this.offlineActive = false;
     for (const chip of this.chips) {
       gsap.killTweensOf(chip.sprite);
@@ -443,6 +438,7 @@ export class PlayerHudCapsule {
     this.width = width;
     this.height = height;
     this.column = column;
+    this.container.hitArea = new Rectangle(0, 0, width, height);
     this.render();
   }
 
@@ -588,13 +584,7 @@ export class PlayerHudCapsule {
         this.emitHover(chip.content, hit.x + hit.width / 2, hit.y, hit.y + hit.height),
       );
       hit.on("pointerout", () => this.onHover(null));
-      hit.on("pointertap", (event) => {
-        event.stopPropagation();
-        this.onHover(null);
-        const badge = this.spec.badges.find((entry) => entry.id === chip.badgeId);
-        if (badge?.onTap) badge.onTap();
-        else this.onInspect();
-      });
+      hit.on("pointertap", () => this.onHover(null));
       this.badgeLayer.addChild(hit, sprite, label, count);
       this.chips.push(chip);
     }
@@ -855,11 +845,6 @@ export class PlayerHudCapsule {
   }
 
   private drawPlate(width: number, height: number): void {
-    const gt = this.theme.gameTheme;
-    if (this.spec.isSelectedTarget) {
-      this.bg.roundRect(1, 1, this.identityWidth - 2, this.identityHeight - 2, 7);
-      this.bg.stroke({ color: hexToNum(gt.promptAction.attackAction), alpha: 1, width: 2 });
-    }
     this.extendContent(0, 0, width, height);
   }
   private drawBoundsDebug(): void {
@@ -1285,35 +1270,41 @@ export class PlayerHudCapsule {
   }
 
   private applyTargetable(): void {
-    const on = this.spec.isTargetable && !this.spec.isSelectedTarget;
-    if (on === this.targetableActive) {
-      if (on) this.drawTargetRing();
+    const mode = this.spec.isSelectedTarget
+      ? "solid"
+      : this.spec.isTargetable
+        ? this.motionEnabled
+          ? "pulse"
+          : "solid"
+        : "off";
+    if (mode === this.targetRingMode) {
+      if (mode !== "off") this.drawTargetRing();
       return;
     }
-    this.targetableActive = on;
-    if (on) {
-      this.drawTargetRing();
-      this.targetRing.visible = true;
-      if (!this.motionEnabled) {
-        this.targetRing.alpha = 1;
-        return;
-      }
-      this.targetTween = gsap.fromTo(
-        this.targetRing,
-        { alpha: 0.55 },
-        { alpha: 1, duration: 0.75, ease: "sine.inOut", repeat: -1, yoyo: true },
-      );
-    } else {
-      this.targetTween?.kill();
-      this.targetTween = null;
+    this.targetRingMode = mode;
+    this.targetTween?.kill();
+    this.targetTween = null;
+    if (mode === "off") {
       this.targetRing.visible = false;
       this.targetRing.clear();
+      return;
     }
+    this.drawTargetRing();
+    this.targetRing.visible = true;
+    if (mode === "solid") {
+      this.targetRing.alpha = 1;
+      return;
+    }
+    this.targetTween = gsap.fromTo(
+      this.targetRing,
+      { alpha: 0.55 },
+      { alpha: 1, duration: 0.75, ease: "sine.inOut", repeat: -1, yoyo: true },
+    );
   }
 
   private drawTargetRing(): void {
     this.targetRing.clear();
-    this.targetRing.roundRect(1, 1, this.identityWidth - 2, this.identityHeight - 2, 7);
+    this.targetRing.circle(this.avatarCx, this.avatarCy, this.avatarDia / 2 + 1);
     this.targetRing.stroke({
       color: hexToNum(this.theme.gameTheme.promptAction.attackAction),
       width: 2,

@@ -308,7 +308,6 @@ export function BoardPlayground() {
             onHoverCard: hover,
             onHoverHandCard: hover,
             onLongPressCard: (card) => inspect(card),
-            onFocusOpponentField: setFocusedPlayerId,
             onShowPlayerSheet: (playerId) => {
               preview.dismiss();
               setSheetPlayerId(playerId);

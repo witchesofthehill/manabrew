@@ -568,7 +568,6 @@ export function GameBoard({
       },
       onTargetPlayer,
       onShowPlayerSheet: setSheetPlayerId,
-      onFocusOpponentField: setManualFocusId,
       onHoverHandCard: onHandHoverChange ? (card) => onHandHoverChange(!!card) : undefined,
       onLongPressCard: onLongPressCard
         ? (card, bounds) =>
@@ -600,7 +599,6 @@ export function GameBoard({
       setDragAttackerId,
       setSheetPlayerId,
       setStickyOpponentId,
-      setManualFocusId,
       isSelfTurn,
       onLongPressCard,
       onHandHoverChange,

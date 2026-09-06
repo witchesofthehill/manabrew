@@ -49,6 +49,7 @@ interface Tile {
   stack: Graphics;
   face: CardSprite | null;
   back: Sprite | null;
+  backMask: Graphics | null;
   icon: Text;
   iconSprite: Sprite;
   countText: Text;
@@ -243,6 +244,7 @@ export class BoardZoneTiles {
       stack,
       face: null,
       back: null,
+      backMask: null,
       icon,
       iconSprite,
       countText,
@@ -335,15 +337,25 @@ export class BoardZoneTiles {
       }
       if (!tile.back) {
         tile.back = new Sprite(Texture.EMPTY);
+        tile.backMask = new Graphics();
+        tile.backMask.eventMode = "none";
+        tile.back.mask = tile.backMask;
         tile.container.addChildAt(tile.back, 1);
+        tile.container.addChildAt(tile.backMask, 2);
         this.ensureCardBack();
       }
       return;
     }
     if (tile.back) {
+      tile.back.mask = null;
       tile.container.removeChild(tile.back);
       tile.back.destroy();
       tile.back = null;
+      if (tile.backMask) {
+        tile.container.removeChild(tile.backMask);
+        tile.backMask.destroy();
+        tile.backMask = null;
+      }
     }
     if (spec.topCard) {
       const faceCard = { ...spec.topCard, summoningSick: false };
@@ -399,7 +411,11 @@ export class BoardZoneTiles {
           const offset = layer * 1.8 * k;
           tile.stack.roundRect(offset, offset, cardW, cardH, radius);
           tile.stack.fill({ color: shadow, alpha: 0.95 });
-          tile.stack.stroke({ color: neutral, width: Math.max(0.75, k), alpha: 0.65 });
+          tile.stack.stroke({
+            color: hexToNum(gt.canvas.background),
+            width: Math.max(0.75, k),
+            alpha: 0.9,
+          });
         }
       }
       if (tile.back) {
@@ -407,6 +423,7 @@ export class BoardZoneTiles {
         tile.back.width = cardW;
         tile.back.height = cardH;
         tile.back.position.set(0, 0);
+        tile.backMask?.clear().roundRect(0, 0, cardW, cardH, radius).fill({ color: shadow });
       }
       if (tile.face) {
         tile.face.visible = hasContent && !!spec.topCard;
@@ -436,7 +453,7 @@ export class BoardZoneTiles {
         );
       }
 
-      if (hasContent || hl !== null || isCommand) {
+      if ((hasContent && !isLibrary) || hl !== null || isCommand) {
         tile.outline.roundRect(0, 0, cardW, cardH, radius);
         tile.outline.stroke({
           color: hl ?? (isCommand ? color : neutral),

@@ -307,13 +307,6 @@ export class BoardScene {
     this.playerBars = new PlayerHudLayer(
       this.theme,
       (id) => this.callbacks.onTargetPlayer?.(id),
-      (id) => {
-        if (this.compactMode && this.isCollapsedOpponentBand(id)) {
-          this.callbacks.onFocusOpponentField?.(id);
-          return;
-        }
-        this.callbacks.onShowPlayerSheet?.(id);
-      },
       (id) => this.callbacks.onShowPlayerSheet?.(id),
     );
     this.playerBars.container.zIndex = 5600;
@@ -1586,17 +1579,6 @@ export class BoardScene {
     // A sprite removed while hovered never fires pointerleave, which would
     // leave the hover preview up until an unrelated dismiss.
     sprite.on("destroyed", () => this.scheduleHoverClear(sprite.card.id));
-  }
-
-  private isCollapsedOpponentBand(playerId: string): boolean {
-    if (this.overview) return false;
-    const n = this.opponentIds.length;
-    const i = this.opponentIds.indexOf(playerId);
-    const W = this.boardWidth;
-    if (i < 0 || n <= 1 || W <= 0) return false;
-    const left = Math.round((i === 0 ? 0 : this.delimCurrent[i - 1]!) * W);
-    const right = Math.round((i === n - 1 ? 1 : this.delimCurrent[i]!) * W);
-    return right - left <= COLLAPSED_OPPONENT_WIDTH_PX + 4;
   }
 
   private toViewportBounds(bounds: { x: number; y: number; width: number; height: number }): {

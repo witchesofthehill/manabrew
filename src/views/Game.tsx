@@ -44,6 +44,7 @@ import { useHandScale } from "@/hooks/useHandScale";
 import { useFlashQueue } from "@/hooks/useFlashQueue";
 import { useHandDrag, type HandDragStart } from "@/hooks/useHandDrag";
 import { useCardPreview } from "@/hooks/useCardPreview";
+import type { PreviewPointerInput } from "@/lib/cardPreview";
 import { useMulliganSelection } from "@/hooks/useMulliganSelection";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { usePromptEffects } from "@/hooks/usePromptEffects";
@@ -283,6 +284,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const flashDurationMs = usePreferencesStore((s) => s.flashDurationMs);
   const zonePanelOrder = usePreferencesStore((s) => s.zonePanelOrder);
   const inGameCardPreviewStyle = usePreferencesStore((s) => s.inGameCardPreviewStyle);
+  const cardPreviewMode = usePreferencesStore((s) => s.cardPreviewMode);
   const vScale = useHandScale();
   const themeColors = useTheme().gameTheme;
   const location = useLocation();
@@ -993,7 +995,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     return false;
   };
 
-  const preview = useCardPreview([viewingZone, spellStackModalOpen, abilityPickerState]);
+  const preview = useCardPreview([viewingZone, spellStackModalOpen, abilityPickerState], {
+    useTriggerPreference: true,
+  });
   const previewViewSwitchCardIdRef = useRef<string | null>(null);
 
   const battlefieldContainerRef = useRef<HTMLDivElement>(null);
@@ -1601,6 +1605,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       placement?: "auto" | "top-center";
       anchorOverride?: DOMRect;
       useDelay?: boolean;
+      trigger?: PreviewPointerInput;
     } = {},
   ) => {
     if (draggingHandCard) {
@@ -1626,6 +1631,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       useAnchor?: boolean;
       placement?: "auto" | "top-center";
       anchorOverride?: DOMRect;
+      trigger?: PreviewPointerInput;
     } = {},
   ) => {
     if (draggingHandCard) {
@@ -1965,6 +1971,12 @@ export default function Game({ exitTo }: GameProps = {}) {
           castingCardId={casting.castingCardId}
           onHandCardDragStart={handleHandCardDragStart}
           onHoverCard={handleHoverCardGuarded}
+          onRightClickCard={
+            cardPreviewMode === "right-click"
+              ? (card, rect) =>
+                  preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2)
+              : undefined
+          }
           onDismissHoverPreview={preview.dismiss}
           rulesPreview={rulesPreview}
           externalPreviewActive={externalPreviewActive}

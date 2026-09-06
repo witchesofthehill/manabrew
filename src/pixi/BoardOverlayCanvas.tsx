@@ -15,11 +15,17 @@ import type { BoardScene } from "./board/BoardScene";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import {
   RulesCardPreviewLayer,
+  type RulesPreviewActionGlowBounds,
   type RulesCardPreviewSpec,
 } from "./cardPreview/RulesCardPreviewLayer";
 import type { ClientCardDto } from "@/stores/gameStore.types";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { bindPreviewScroll } from "./cardPreview/previewScroll";
+import {
+  ACTIONABLE_CARD_GLOW_CLASS,
+  actionableCardGlowStyle,
+} from "@/components/game/cardPreviewStyles";
+import { cn } from "@/lib/utils";
 
 export interface BoardOverlayPreviewSpec {
   card: ClientCardDto;
@@ -93,6 +99,39 @@ function updateRulesPreview(
   preview.setSpec(spec ? toRulesPreviewSpec(spec, canvasRect) : null);
 }
 
+interface RulesPreviewActionGlowSyncState extends RulesPreviewActionGlowBounds {
+  visible: boolean;
+}
+
+function syncRulesPreviewActionGlow(
+  element: HTMLDivElement | null,
+  preview: RulesCardPreviewLayer,
+  bounds: RulesPreviewActionGlowBounds,
+  state: RulesPreviewActionGlowSyncState,
+): void {
+  if (!element) return;
+  if (!preview.readActionGlowBounds(bounds)) {
+    if (state.visible) element.style.visibility = "hidden";
+    state.visible = false;
+    return;
+  }
+  if (!state.visible) element.style.visibility = "visible";
+  if (bounds.x !== state.x || bounds.y !== state.y) {
+    element.style.transform = `translate3d(${bounds.x}px, ${bounds.y}px, 0)`;
+  }
+  if (bounds.width !== state.width) element.style.width = `${bounds.width}px`;
+  if (bounds.height !== state.height) element.style.height = `${bounds.height}px`;
+  if (bounds.radius !== state.radius) element.style.borderRadius = `${bounds.radius}px`;
+  if (bounds.opacity !== state.opacity) element.style.opacity = String(bounds.opacity);
+  state.x = bounds.x;
+  state.y = bounds.y;
+  state.width = bounds.width;
+  state.height = bounds.height;
+  state.radius = bounds.radius;
+  state.opacity = bounds.opacity;
+  state.visible = true;
+}
+
 export function BoardOverlayCanvas({
   sceneRef,
   stackSpec,
@@ -112,6 +151,7 @@ export function BoardOverlayCanvas({
   const theme = useTheme();
   const themeRef = useRef(theme);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const previewGlowRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
   const arrowRef = useRef<ArrowLayer | null>(null);
   const stackRef = useRef<StackLayer | null>(null);
@@ -173,6 +213,23 @@ export function BoardOverlayCanvas({
   useEffect(() => {
     let active = true;
     let registeredScene: BoardScene | null = null;
+    const glowBounds: RulesPreviewActionGlowBounds = {
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+      radius: 0,
+      opacity: 0,
+    };
+    const glowState: RulesPreviewActionGlowSyncState = {
+      x: Number.NaN,
+      y: Number.NaN,
+      width: Number.NaN,
+      height: Number.NaN,
+      radius: Number.NaN,
+      opacity: Number.NaN,
+      visible: false,
+    };
     const app = new Application();
     appRef.current = app;
     app
@@ -248,6 +305,7 @@ export function BoardOverlayCanvas({
           }
           const defs = scene?.getArrowDefs() ?? [];
           arrow.update(defs, app.ticker.deltaMS);
+          syncRulesPreviewActionGlow(previewGlowRef.current, preview, glowBounds, glowState);
         });
       });
     return () => {
@@ -514,17 +572,28 @@ export function BoardOverlayCanvas({
   }, [rulesPreviewOpen]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className={className}
-      style={{
-        width: "100%",
-        height: "100%",
-        display: "block",
-        pointerEvents: "none",
-        touchAction: "none",
-      }}
-      onContextMenu={(e) => e.preventDefault()}
-    />
+    <>
+      <canvas
+        ref={canvasRef}
+        className={className}
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "block",
+          pointerEvents: "none",
+          touchAction: "none",
+        }}
+        onContextMenu={(e) => e.preventDefault()}
+      />
+      <div
+        ref={previewGlowRef}
+        className={cn("pointer-events-none absolute left-0 top-0 z-10", ACTIONABLE_CARD_GLOW_CLASS)}
+        style={{
+          ...actionableCardGlowStyle(theme.gameTheme.cardRing),
+          visibility: "hidden",
+          willChange: "transform, width, height, opacity",
+        }}
+      />
+    </>
   );
 }

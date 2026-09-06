@@ -10,12 +10,10 @@ import { isFeatureEnabled } from "@/featureFlags";
 import { IRONSMITH_WASM_AVAILABLE } from "@/game/ironsmithWasmAvailable";
 import { relayUsername } from "@/lib/relayUsername";
 import { BattlefieldStylePreview } from "@/components/game/BattlefieldStylePreview";
-import { IN_GAME_CARD_PREVIEW_STYLE_OPTIONS } from "@/components/game/cardPreviewStyles";
 import {
-  HOVER_DELAY_MAX,
-  HOVER_DELAY_MIN,
-  HOVER_DELAY_STEP,
-} from "@/components/game/game.constants";
+  HAND_CARD_STYLE_OPTIONS,
+  IN_GAME_CARD_PREVIEW_STYLE_OPTIONS,
+} from "@/components/game/cardPreviewStyles";
 import { HAND_ORDER_OPTIONS } from "@/lib/handOrder";
 import { PlaymatEditorModal } from "@/components/editor/PlaymatEditorModal";
 import { useAssetStore, useAssetsAvailable, useAssetUrl } from "@/stores/useAssetStore";
@@ -974,7 +972,7 @@ export default function Settings() {
             <PreferenceCard
               title="Battlefield Card Style"
               description={
-                '"Realistic" uses the full printed card image. "Art-forward" shows the art with a crisp name/type overlay. "Mini-frame" frames the art with name and type bars. Hand, stack, and previews always use the full card image.'
+                '"Realistic" uses the full printed card image. "Art-forward" shows the art with a crisp name/type overlay. "Mini-frame" frames the art with name and type bars. This setting only affects battlefield cards.'
               }
             >
               <div className="flex items-start gap-4">
@@ -1052,6 +1050,24 @@ export default function Settings() {
             )}
 
             <PreferenceCard
+              title="Hand Card Style"
+              description="Printed card shows the card image. Rules view makes cards in your hand default to their live rules face; each card can still be switched."
+            >
+              <div className="flex flex-wrap gap-2">
+                {HAND_CARD_STYLE_OPTIONS.map((option) => (
+                  <Button
+                    key={option.value}
+                    variant={prefs.handCardStyle === option.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => prefs.setHandCardStyle(option.value)}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+            </PreferenceCard>
+
+            <PreferenceCard
               title="Card Preview Style"
               description="Printed card shows the full card image. Rules view prioritizes live game state, rules text, actions, costs, and counters during a game."
             >
@@ -1067,60 +1083,6 @@ export default function Settings() {
                   </Button>
                 ))}
               </div>
-            </PreferenceCard>
-
-            <PreferenceCard
-              title="Card Preview Trigger"
-              description={
-                'Controls when the card preview and ability panel appears. "Hover" shows on mouse over, others require holding a modifier key.'
-              }
-            >
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={prefs.cardPreviewMode === "hover" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => prefs.setCardPreviewMode("hover")}
-                >
-                  Hover
-                </Button>
-                <Button
-                  variant={prefs.cardPreviewMode === "shift" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => prefs.setCardPreviewMode("shift")}
-                >
-                  Shift + Hover
-                </Button>
-                <Button
-                  variant={prefs.cardPreviewMode === "alt" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => prefs.setCardPreviewMode("alt")}
-                >
-                  Alt + Hover
-                </Button>
-                <Button
-                  variant={prefs.cardPreviewMode === "ctrl" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => prefs.setCardPreviewMode("ctrl")}
-                >
-                  Ctrl + Hover
-                </Button>
-              </div>
-            </PreferenceCard>
-
-            <PreferenceCard
-              title="Card Preview Delay"
-              value={`${prefs.cardHoverDelayMs}ms`}
-              description="How long to hover before the card preview appears. Lower values feel snappier, higher values reduce accidental popups."
-            >
-              <input
-                type="range"
-                min={HOVER_DELAY_MIN}
-                max={HOVER_DELAY_MAX}
-                step={HOVER_DELAY_STEP}
-                value={prefs.cardHoverDelayMs}
-                onChange={(e) => prefs.setCardHoverDelayMs(Number(e.target.value))}
-                className="w-full accent-primary"
-              />
             </PreferenceCard>
 
             <PreferenceCard

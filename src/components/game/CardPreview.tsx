@@ -9,12 +9,13 @@ import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { CardPreviewOverlay } from "./CardPreviewOverlay";
 import { GameIcon } from "./GameIcon";
 import { CardPreviewActions, type IndexedPreviewAction } from "./CardPreviewActions";
+import { ACTIONABLE_CARD_GLOW_CLASS, actionableCardGlowStyle } from "./cardPreviewStyles";
 import { computePreviewLayout } from "./cardPreviewLayout";
 import { getPreviewActionShortcut } from "./game.utils";
 import { CARD_W, CARD_RADIUS } from "./game.constants";
 import { CARD_BACK_IMAGE_URL } from "./game.constants";
 import { isFacelessCard } from "@/lib/gameCard";
-import { cardFrameTintHex, withAlpha } from "@/themes/gameTheme";
+import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import { cn } from "@/lib/utils";
@@ -327,7 +328,6 @@ export function CardPreview({
   });
   const { cardLeft, top, cardWidth, cardHeight, sidePanelWidth, panelSide } = layout;
   const cardCornerRadius = (Math.min(cardWidth, cardHeight) * CARD_RADIUS) / CARD_W;
-  const frameBorderTint = cardFrameTintHex(deckCard.colorIdentity, themeColors.mana);
 
   const anchorCenterX = anchorRect ? anchorRect.left + anchorRect.width / 2 : mouseX;
   const anchorCenterY = anchorRect ? anchorRect.top + anchorRect.height / 2 : mouseY;
@@ -401,18 +401,14 @@ export function CardPreview({
         >
           <div
             className={cn(
-              "w-full h-full shadow-2xl overflow-hidden bg-black transition-shadow duration-200 relative",
-              hasActions && "ring-2",
+              "w-full h-full shadow-2xl overflow-hidden bg-black relative",
+              hasActions && ACTIONABLE_CARD_GLOW_CLASS,
               card.foil && "draft-tile-foil",
             )}
-            style={
-              {
-                borderRadius: cardCornerRadius,
-                ...(hasActions
-                  ? { "--tw-ring-color": ringColor, boxShadow: `0 0 20px ${ringColor}` }
-                  : {}),
-              } as CSSProperties
-            }
+            style={{
+              borderRadius: cardCornerRadius,
+              ...(hasActions ? actionableCardGlowStyle(ringColor) : {}),
+            }}
           >
             {currentImageUrl ? (
               <>
@@ -536,10 +532,6 @@ export function CardPreview({
                 </div>
               </div>
             )}
-            <div
-              className="pointer-events-none absolute inset-0 z-20 rounded-[inherit]"
-              style={{ boxShadow: `inset 0 0 0 2px ${withAlpha(frameBorderTint, 0.9)}` }}
-            />
           </div>
 
           {showSidePanel && (

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import type { CardDto } from "@/protocol/game";
-import { CardPreviewMachine } from "@/lib/cardPreview";
+import { CardPreviewMachine, type PreviewPointerInput } from "@/lib/cardPreview";
 import { usePreferencesStore, type CardPreviewMode } from "@/stores/usePreferencesStore";
 
-function isModifierHeld(e: React.MouseEvent | MouseEvent, mode: CardPreviewMode): boolean {
+function isModifierHeld(e: PreviewPointerInput, mode: CardPreviewMode): boolean {
   switch (mode) {
     case "hover":
       return true;
@@ -13,6 +13,8 @@ function isModifierHeld(e: React.MouseEvent | MouseEvent, mode: CardPreviewMode)
       return e.altKey;
     case "ctrl":
       return e.ctrlKey || e.metaKey;
+    case "right-click":
+      return false;
   }
 }
 
@@ -30,15 +32,19 @@ export interface HoverOptions {
   placement?: "auto" | "top-center" | "pinned";
   anchorOverride?: DOMRect;
   useDelay?: boolean;
+  trigger?: PreviewPointerInput;
 }
 
-export function useCardPreview(dismissDeps: unknown[] = [], options: { subscribe?: boolean } = {}) {
+export function useCardPreview(
+  dismissDeps: unknown[] = [],
+  hookOptions: { subscribe?: boolean; useTriggerPreference?: boolean } = {},
+) {
   const machineRef = useRef<CardPreviewMachine | null>(null);
   machineRef.current ??= new CardPreviewMachine();
   const machine = machineRef.current;
 
   const snapshot = useSyncExternalStore(
-    options.subscribe === false ? ignorePreviewUpdates : machine.subscribe,
+    hookOptions.subscribe === false ? ignorePreviewUpdates : machine.subscribe,
     machine.getSnapshot,
   );
 
@@ -51,11 +57,18 @@ export function useCardPreview(dismissDeps: unknown[] = [], options: { subscribe
 
   const handleMouseEnter = useCallback(
     (card: CardDto, e?: React.MouseEvent, options: HoverOptions = {}) => {
-      if (e && e.buttons !== 0) {
+      const trigger = options.trigger ?? e;
+      if (trigger && trigger.buttons !== 0) {
         machine.dismiss();
         return;
       }
-      if (e && !isModifierHeld(e, modeRef.current)) return;
+      if (
+        hookOptions.useTriggerPreference &&
+        modeRef.current !== "hover" &&
+        (!trigger || !isModifierHeld(trigger, modeRef.current))
+      ) {
+        return;
+      }
       machine.hoverStart(card, {
         pointer: e ? { x: e.clientX, y: e.clientY } : undefined,
         anchorRect:
@@ -67,7 +80,7 @@ export function useCardPreview(dismissDeps: unknown[] = [], options: { subscribe
         delayMs: options.useDelay ? delayRef.current : 0,
       });
     },
-    [machine],
+    [hookOptions.useTriggerPreference, machine],
   );
 
   const handleMouseLeave = useCallback(() => machine.hoverEnd(), [machine]);
@@ -98,7 +111,13 @@ export function useCardPreview(dismissDeps: unknown[] = [], options: { subscribe
   });
 
   useEffect(() => {
-    if (cardPreviewMode === "hover") return;
+    if (
+      !hookOptions.useTriggerPreference ||
+      cardPreviewMode === "hover" ||
+      cardPreviewMode === "right-click"
+    ) {
+      return;
+    }
     function handleKeyUp(e: KeyboardEvent) {
       if (MODIFIER_KEYS[e.key]?.includes(cardPreviewMode) && !machine.getSnapshot().sticky) {
         machine.dismiss();
@@ -106,7 +125,7 @@ export function useCardPreview(dismissDeps: unknown[] = [], options: { subscribe
     }
     window.addEventListener("keyup", handleKeyUp);
     return () => window.removeEventListener("keyup", handleKeyUp);
-  }, [cardPreviewMode, machine]);
+  }, [cardPreviewMode, hookOptions.useTriggerPreference, machine]);
 
   useEffect(() => () => machine.destroy(), [machine]);
 

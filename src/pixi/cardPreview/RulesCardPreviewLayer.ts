@@ -18,7 +18,6 @@ import {
   deriveCardPresentation,
   type CardStatPresentation,
 } from "@/components/game/cardPresentation";
-import { FLASH_CARD_SIZE } from "@/components/game/game.styles";
 import { getPreviewActionShortcut } from "@/components/game/game.utils";
 import { hexToNum } from "@/pixi/colorUtils";
 import { PixiRichText } from "@/pixi/cardPreview/PixiRichText";
@@ -31,8 +30,11 @@ import { RulesPreviewIdentity } from "@/pixi/cardPreview/RulesPreviewIdentity";
 import { RulesPreviewActions } from "@/pixi/cardPreview/RulesPreviewActions";
 import {
   drawRulesPreviewFrame,
+  drawRulesStatBadge,
   resolveRulesPreviewFrame,
+  rulesCardRadius,
   RULES_BODY_FONT,
+  RULES_CARD_CONSTRAINTS,
   RULES_TITLE_FONT,
   RULES_TITLE_ART_RADIUS,
   type RulesPreviewFrameStyle,
@@ -66,6 +68,15 @@ export interface RulesCardPreviewSpec {
   pointer: { x: number; y: number };
 }
 
+export interface RulesPreviewActionGlowBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  radius: number;
+  opacity: number;
+}
+
 export interface RulesCardPreviewCallbacks {
   onPointerEnter: () => void;
   onPointerLeave: () => void;
@@ -76,8 +87,8 @@ export interface RulesCardPreviewCallbacks {
   onToggleView: () => void;
 }
 
-const PORTRAIT_WIDTH: number = FLASH_CARD_SIZE.w;
-const PORTRAIT_HEIGHT: number = FLASH_CARD_SIZE.h;
+const PORTRAIT_WIDTH: number = RULES_CARD_CONSTRAINTS.width;
+const PORTRAIT_HEIGHT: number = RULES_CARD_CONSTRAINTS.height;
 const LANDSCAPE_WIDTH = PORTRAIT_HEIGHT;
 const LANDSCAPE_HEIGHT = PORTRAIT_WIDTH;
 const EDGE_PAD = 12;
@@ -377,6 +388,21 @@ export class RulesCardPreviewLayer {
         (y - this.layoutY) / this.layoutScale,
       )
     );
+  }
+
+  readActionGlowBounds(target: RulesPreviewActionGlowBounds): boolean {
+    const spec = this.spec;
+    if (!spec || spec.actions.length === 0 || spec.suppressed || !this.container.visible) {
+      return false;
+    }
+    const scale = this.container.scale.x;
+    target.x = this.container.x;
+    target.y = this.container.y;
+    target.width = this.panelWidth * scale;
+    target.height = this.panelHeight * scale;
+    target.radius = rulesCardRadius(this.faceWidth, this.panelHeight) * scale;
+    target.opacity = this.container.alpha;
+    return target.opacity > 0;
   }
 
   updateHover(x: number, y: number): boolean {
@@ -1019,40 +1045,7 @@ export class RulesCardPreviewLayer {
     this.footer.position.set(0, this.panelHeight - this.footerHeight);
     let right = this.panelWidth - CONTENT_PAD;
     if (stats) {
-      const value = new Text({
-        text: `${stats.power}/${stats.toughness}`,
-        style: textStyle(
-          stats.state === "neutral" ? this.frame.ink : this.theme.gameTheme.textOnTinted,
-          20,
-          "700",
-          RULES_TITLE_FONT,
-        ),
-      });
-      value.resolution = 2;
-      const width = value.width + 24;
-      const badge = new Graphics();
-      badge.roundRect(right - width, 3, width, 30, 7);
-      badge.fill(
-        hexToNum(
-          stats.state === "neutral" ? this.frame.raised : this.theme.gameTheme.pt[stats.state],
-        ),
-      );
-      badge.stroke({ color: hexToNum(this.frame.border), width: 1 });
-      value.position.set(right - width / 2, 18);
-      value.anchor.set(0.5);
-      this.footer.addChild(badge, value);
-      right -= width + 10;
-      if (stats.basePower != null && stats.baseToughness != null && stats.state !== "neutral") {
-        const base = new Text({
-          text: `${stats.basePower}/${stats.baseToughness}`,
-          style: textStyle(this.frame.mutedInk, 11, "400", RULES_BODY_FONT),
-        });
-        base.resolution = 2;
-        base.anchor.set(1, 0.5);
-        base.position.set(right, 18);
-        this.footer.addChild(base);
-        right -= base.width + 10;
-      }
+      right = drawRulesStatBadge(this.footer, stats, right, 3, this.frame, this.theme);
     }
     if (loyalty != null) this.drawShieldValue(loyalty, "Loyalty", right);
     else if (defense != null) this.drawShieldValue(defense, "Defense", right);

@@ -230,6 +230,7 @@ export function BoardCanvas({
     const newScene = new BoardScene(app, {
       onClickCard: (...a) => callbacksRef.current.onClickCard?.(...a),
       onHoverCard: (...a) => callbacksRef.current.onHoverCard?.(...a),
+      onRightClickCard: (...a) => callbacksRef.current.onRightClickCard?.(...a),
       onClickAnyCard: (...a) => callbacksRef.current.onClickAnyCard?.(...a),
       onFlipCard: () => callbacksRef.current.onFlipCard?.(),
       onTapLand: (...a) => callbacksRef.current.onTapLand?.(...a),
@@ -559,14 +560,16 @@ export function BoardCanvas({
   const [handFlipBack, setHandFlipBack] = useState(false);
   const [handFlippedHorizontal, setHandFlippedHorizontal] = useState(false);
   const [handRulesView, setHandRulesView] = useState(false);
+  const handCardStyle = usePreferencesStore((state) => state.handCardStyle);
   const hoverCardId = handHover?.card.id ?? null;
   useEffect(() => {
+    scene?.setHandCardStyle(handCardStyle);
     setHandFlipBack(false);
     setHandFlippedHorizontal(false);
     setHandRulesView(
       hoverCardId ? (sceneRef.current?.handUsesRulesView(hoverCardId) ?? false) : false,
     );
-  }, [hoverCardId]);
+  }, [handCardStyle, hoverCardId, scene]);
   const showHandFlip = !!handHover && (hoverFaces.isFlippable || hoverHorizontal);
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
 

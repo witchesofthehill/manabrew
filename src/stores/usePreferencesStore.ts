@@ -10,9 +10,10 @@ import type { GameFormat } from "@/types/server";
 import type { HandOrderMode } from "@/lib/handOrder";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
-export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
+export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl" | "right-click";
 export type BattlefieldCardStyle = "realistic" | "art" | "frame";
 export type InGameCardPreviewStyle = "printed" | "rules";
+export type HandCardStyle = "printed" | "rules";
 export type RulesPreviewSectionId = "actions" | "rules" | "progression" | "details" | "flavor";
 
 export interface LastRoomSetup {
@@ -106,6 +107,8 @@ interface PreferencesState {
   setCardHoverDelayMs: (ms: number) => void;
   inGameCardPreviewStyle: InGameCardPreviewStyle;
   setInGameCardPreviewStyle: (style: InGameCardPreviewStyle) => void;
+  handCardStyle: HandCardStyle;
+  setHandCardStyle: (style: HandCardStyle) => void;
   collapsedRulesPreviewSections: RulesPreviewSectionId[];
   setRulesPreviewSectionCollapsed: (section: RulesPreviewSectionId, collapsed: boolean) => void;
 
@@ -154,6 +157,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "cardPreviewMode",
   "cardHoverDelayMs",
   "inGameCardPreviewStyle",
+  "handCardStyle",
   "collapsedRulesPreviewSections",
   "appThemeColorOverrides",
   "gameThemeColorOverrides",
@@ -272,6 +276,8 @@ export const usePreferencesStore = create<PreferencesState>()(
           setCardHoverDelayMs: (ms) => set({ cardHoverDelayMs: ms }),
           inGameCardPreviewStyle: "printed",
           setInGameCardPreviewStyle: (inGameCardPreviewStyle) => set({ inGameCardPreviewStyle }),
+          handCardStyle: "printed",
+          setHandCardStyle: (handCardStyle) => set({ handCardStyle }),
           collapsedRulesPreviewSections: [],
           setRulesPreviewSectionCollapsed: (section, collapsed) =>
             set((state) => ({

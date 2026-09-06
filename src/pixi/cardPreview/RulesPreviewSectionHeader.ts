@@ -103,9 +103,5 @@ export class RulesPreviewSectionHeader extends Container {
     if (hovered || this.focused) {
       this.background.rect(0, 0, width, PREVIEW_SECTION_HEADER_HEIGHT).fill(hexToNum(frame.raised));
     }
-    this.background
-      .moveTo(0, PREVIEW_SECTION_HEADER_HEIGHT - 1)
-      .lineTo(width, PREVIEW_SECTION_HEADER_HEIGHT - 1)
-      .stroke({ color: hexToNum(frame.border), width: 1, alpha: this.focused ? 1 : 0.4 });
   }
 }

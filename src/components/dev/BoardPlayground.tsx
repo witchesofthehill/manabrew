@@ -153,10 +153,11 @@ export function BoardPlayground() {
   const [lastAction, setLastAction] = useState("");
   const [viewportIndex, setViewportIndex] = useState(0);
   const triggerEtbGlow = useGameDevStore((s) => s.triggerEtbGlow);
-  const preview = useCardPreview();
+  const preview = useCardPreview([], { useTriggerPreference: true });
   const compactBoard = useIsMobileGame();
   const previewStyle = usePreferencesStore((s) => s.inGameCardPreviewStyle);
   const setPreviewStyle = usePreferencesStore((s) => s.setInGameCardPreviewStyle);
+  const previewMode = usePreferencesStore((s) => s.cardPreviewMode);
   const previewCard = cards.find((card) => card.id === preview.hoveredCard?.id) ?? null;
   const previewViewSwitchCardIdRef = useRef<string | null>(null);
   const viewport = PREVIEW_VIEWPORTS[viewportIndex]!;
@@ -530,10 +531,11 @@ export function BoardPlayground() {
           callbacks={{
             onClickCard: (c) => setSelectedId((id) => (id === c.id ? null : c.id)),
             onClickAnyCard: (c) => setSelectedId((id) => (id === c.id ? null : c.id)),
-            onHoverCard: (card, bounds) => {
+            onHoverCard: (card, bounds, options) => {
               if (card && bounds) {
                 const rect = new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height);
                 preview.handleMouseEnter(card, undefined, {
+                  ...options,
                   useAnchor: true,
                   anchorOverride: rect,
                 });
@@ -541,6 +543,15 @@ export function BoardPlayground() {
                 preview.handleMouseLeave();
               }
             },
+            onRightClickCard:
+              previewMode === "right-click"
+                ? (card, bounds) =>
+                    preview.showSticky(
+                      card,
+                      bounds.x + bounds.width / 2,
+                      bounds.y + bounds.height / 2,
+                    )
+                : undefined,
             onDismissHoverPreview: preview.dismiss,
           }}
         />

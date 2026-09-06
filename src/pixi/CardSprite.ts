@@ -39,6 +39,7 @@ import { bump } from "./effects/easing";
 import { animationsEnabled } from "./effects/enabled";
 import { DAMAGE_HIT, EDGE_GLOW, PULSE_RING, STAT_POP, SUMMONING_FILTER } from "./effects/config";
 import { HandRulesCardFace } from "./cardPreview/HandRulesCardFace";
+import { rulesCardRadius } from "./cardPreview/rulesPreviewFrame";
 import { HandCardControls, type HandCardControlsSpec } from "./HandCardControls";
 
 let activeTheme: Theme = getTheme();
@@ -150,7 +151,6 @@ const FOIL_STAR_STYLE = new TextStyle({
  *  across every preset; the surrounding card art carries the theme. */
 const FOIL_RING_COLOR = 0xffd87a;
 
-const RING_RADIUS = 8;
 const RING_INSET = 2;
 const CHIP_RADIUS = 3;
 const COUNTER_HEIGHT = 16;
@@ -690,6 +690,7 @@ export class CardSprite extends Container {
       if (active) this.updateHandRulesFace();
     }
     this.updateHandControls();
+    this.refreshCardRadiusChrome();
   }
 
   setHandControls(spec: HandCardControlsSpec | null): void {
@@ -1622,19 +1623,7 @@ export class CardSprite extends Container {
   setChromeScale(scale: number): void {
     if (this.chromeScale === scale) return;
     this.chromeScale = scale;
-    if (this.lastRing) this.setRing(this.lastRing.color, this.lastRing.alpha);
-    if (this.playableRingColor != null) {
-      this.pulseRing.show(
-        0,
-        0,
-        this.cw,
-        this.ch,
-        CARD_RADIUS,
-        this.playableRingColor,
-        PULSE_RING.strokeWidth * this.chromeScale,
-      );
-    }
-    if (this.lastOwnerRing != null) this.setOwnerRing(this.lastOwnerRing);
+    this.refreshCardRadiusChrome();
   }
 
   setRing(color: number | null, alpha = 1): void {
@@ -1659,7 +1648,7 @@ export class CardSprite extends Container {
       0,
       this.cw,
       this.ch,
-      CARD_RADIUS,
+      this.cardRadius(),
       color,
       PULSE_RING.strokeWidth * this.chromeScale,
     );
@@ -1670,7 +1659,7 @@ export class CardSprite extends Container {
     this.ownerRingGfx.clear();
     if (color == null) return;
     const o = RING_INSET + 3;
-    this.ownerRingGfx.roundRect(-o, -o, this.cw + o * 2, this.ch + o * 2, RING_RADIUS + 3);
+    this.ownerRingGfx.roundRect(-o, -o, this.cw + o * 2, this.ch + o * 2, this.cardRadius() + o);
     this.ownerRingGfx.stroke({ color, width: 2.5 * this.chromeScale });
   }
 
@@ -1686,8 +1675,31 @@ export class CardSprite extends Container {
     });
   }
 
+  private cardRadius(): number {
+    return this.usesHandRulesView ? rulesCardRadius(this.cw, this.ch) : CARD_RADIUS;
+  }
+
+  private refreshCardRadiusChrome(): void {
+    if (this.lastRing) {
+      this.ringGfx.clear();
+      this.drawRingStroke(this.lastRing.color, this.lastRing.alpha);
+    }
+    if (this.playableRingColor != null) {
+      this.pulseRing.show(
+        0,
+        0,
+        this.cw,
+        this.ch,
+        this.cardRadius(),
+        this.playableRingColor,
+        PULSE_RING.strokeWidth * this.chromeScale,
+      );
+    }
+    if (this.lastOwnerRing != null) this.setOwnerRing(this.lastOwnerRing);
+  }
+
   private drawRingStroke(color: number, alpha: number): void {
-    this.ringGfx.roundRect(0, 0, this.cw, this.ch, CARD_RADIUS);
+    this.ringGfx.roundRect(0, 0, this.cw, this.ch, this.cardRadius());
     this.ringGfx.stroke({ color, width: 2 * this.chromeScale, alpha });
   }
 }

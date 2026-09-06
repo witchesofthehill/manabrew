@@ -12,7 +12,6 @@ import type { CardDto } from "@/protocol/game";
 import type { Theme } from "@/hooks/useTheme";
 import type { ScryfallCard } from "@/types/scryfall";
 import { deriveCardPresentation } from "@/components/game/cardPresentation";
-import { CARD_RADIUS } from "@/components/game/game.constants";
 import { isFacelessCard } from "@/lib/gameCard";
 import { hexToNum } from "@/pixi/colorUtils";
 import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
@@ -33,15 +32,17 @@ import {
 } from "./rulesCardPreviewPresentation";
 import {
   drawRulesPreviewFrame,
+  drawRulesStatBadge,
   resolveRulesPreviewFrame,
   RULES_BODY_FONT,
+  RULES_CARD_CONSTRAINTS,
   RULES_TITLE_FONT,
   RULES_TITLE_ART_RADIUS,
   type RulesPreviewFrameStyle,
 } from "./rulesPreviewFrame";
 
-const PORTRAIT_WIDTH = 360;
-const PORTRAIT_HEIGHT = 500;
+const PORTRAIT_WIDTH = RULES_CARD_CONSTRAINTS.width;
+const PORTRAIT_HEIGHT = RULES_CARD_CONSTRAINTS.height;
 const LANDSCAPE_WIDTH = PORTRAIT_HEIGHT;
 const LANDSCAPE_HEIGHT = PORTRAIT_WIDTH;
 const HEADER_HEIGHT = 52;
@@ -252,7 +253,6 @@ export class HandRulesCardFace extends Container {
       typeY,
       typeHeight: identity.typeHeight,
       footerHeight,
-      radius: (CARD_RADIUS * designWidth) / this.slotWidth,
     });
 
     const artWidth = designWidth - ART_INSET * 2;
@@ -317,6 +317,7 @@ export class HandRulesCardFace extends Container {
           hint: "",
           label: "",
           onSelectAction: this.onSelectAction!,
+          embedded: true,
         });
         actionPanel.scale.set(ACTIONS_CONTENT_SCALE);
         actionPanel.position.set(CONTENT_PAD, y);
@@ -465,23 +466,21 @@ export class HandRulesCardFace extends Container {
     frame: RulesPreviewFrameStyle,
   ): void {
     if (footerHeight === FRAME_BOTTOM_PAD) return;
-    let label = "";
-    let value = "";
-    let fill = frame.ink;
-    if (display.stats) {
-      label = "POWER / TOUGHNESS";
-      value = `${display.stats.power}/${display.stats.toughness}`;
-      if (display.stats.state !== "neutral") {
-        fill = this.theme.gameTheme.pt[display.stats.state];
-      }
-    } else if (display.loyalty != null) {
-      label = "LOYALTY";
-      value = String(display.loyalty);
-    } else if (display.defense != null) {
-      label = "DEFENSE";
-      value = String(display.defense);
-    }
     const y = designHeight - footerHeight;
+    if (display.stats) {
+      drawRulesStatBadge(
+        this.root,
+        display.stats,
+        designWidth - CONTENT_PAD,
+        y + 3,
+        frame,
+        this.theme,
+      );
+      return;
+    }
+    const label = display.loyalty != null ? "LOYALTY" : "DEFENSE";
+    const value = display.loyalty ?? display.defense;
+    if (value == null) return;
     const labelText = new Text({
       text: label,
       style: new TextStyle({
@@ -494,9 +493,9 @@ export class HandRulesCardFace extends Container {
     labelText.resolution = 2;
     labelText.position.set(CONTENT_PAD, y + 15);
     const valueText = new Text({
-      text: value,
+      text: String(value),
       style: new TextStyle({
-        fill,
+        fill: frame.ink,
         fontFamily: RULES_TITLE_FONT,
         fontSize: 24,
         fontWeight: "700",

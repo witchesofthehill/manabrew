@@ -1,11 +1,26 @@
-import { FillGradient, type Graphics } from "pixi.js";
+import { FillGradient, Graphics, Text, TextStyle, type Container } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "@/pixi/colorUtils";
 import { cardFrameTints, readableTextColor } from "@/themes/gameTheme";
+import { FLASH_CARD_SIZE } from "@/components/game/game.styles";
+import type { CardStatPresentation } from "@/components/game/cardPresentation";
 
 export const RULES_BODY_FONT = "Georgia, Cambria, Times New Roman, serif";
 export const RULES_TITLE_FONT = "Cormorant Garamond, Georgia, serif";
 export const RULES_TITLE_ART_RADIUS = 7;
+
+export const RULES_CARD_CONSTRAINTS = {
+  width: FLASH_CARD_SIZE.w,
+  height: FLASH_CARD_SIZE.h,
+  radius: 13,
+} as const;
+
+export function rulesCardRadius(width: number, height: number): number {
+  return (
+    (Math.min(width, height) * RULES_CARD_CONSTRAINTS.radius) /
+    Math.min(RULES_CARD_CONSTRAINTS.width, RULES_CARD_CONSTRAINTS.height)
+  );
+}
 
 const GRAIN_POINTS = (() => {
   const points = new Float32Array(1024);
@@ -40,7 +55,6 @@ interface RulesPreviewFrameGeometry {
   typeY: number;
   typeHeight: number;
   footerHeight: number;
-  radius?: number;
 }
 
 export function resolveRulesPreviewFrame(
@@ -78,6 +92,54 @@ export function resolveRulesPreviewFrame(
   };
 }
 
+export function drawRulesStatBadge(
+  target: Container,
+  stats: CardStatPresentation,
+  right: number,
+  top: number,
+  style: RulesPreviewFrameStyle,
+  theme: Theme,
+): number {
+  const value = new Text({
+    text: `${stats.power}/${stats.toughness}`,
+    style: new TextStyle({
+      fill: stats.state === "neutral" ? style.ink : theme.gameTheme.textOnTinted,
+      fontFamily: RULES_TITLE_FONT,
+      fontSize: 20,
+      fontWeight: "700",
+      lineHeight: 26,
+    }),
+  });
+  value.resolution = 2;
+  const width = value.width + 24;
+  const badge = new Graphics();
+  badge.roundRect(right - width, top, width, 30, 7);
+  badge.fill(hexToNum(stats.state === "neutral" ? style.raised : theme.gameTheme.pt[stats.state]));
+  badge.stroke({ color: hexToNum(style.border), width: 1 });
+  value.position.set(right - width / 2, top + 15);
+  value.anchor.set(0.5);
+  target.addChild(badge, value);
+  right -= width + 10;
+  if (stats.basePower != null && stats.baseToughness != null && stats.state !== "neutral") {
+    const base = new Text({
+      text: `${stats.basePower}/${stats.baseToughness}`,
+      style: new TextStyle({
+        fill: style.mutedInk,
+        fontFamily: RULES_BODY_FONT,
+        fontSize: 11,
+        fontWeight: "400",
+        lineHeight: 14,
+      }),
+    });
+    base.resolution = 2;
+    base.anchor.set(1, 0.5);
+    base.position.set(right, top + 15);
+    target.addChild(base);
+    right -= base.width + 10;
+  }
+  return right;
+}
+
 export function drawRulesPreviewFrame(
   graphics: Graphics,
   style: RulesPreviewFrameStyle,
@@ -95,7 +157,6 @@ export function drawRulesPreviewFrame(
     typeY,
     typeHeight,
     footerHeight,
-    radius = 13,
   } = geometry;
   const insetX = x + artInset;
   const innerWidth = width - artInset * 2;
@@ -109,7 +170,7 @@ export function drawRulesPreviewFrame(
   const raised = hexToNum(style.raised);
 
   graphics
-    .roundRect(x, y, width, height, radius)
+    .roundRect(x, y, width, height, rulesCardRadius(width, height))
     .fill(surface)
     .stroke({ color: border, width: 1.25 });
   graphics
@@ -122,10 +183,6 @@ export function drawRulesPreviewFrame(
     )
     .fill(style.titleGradient ?? hexToNum(style.title));
   graphics.roundRect(insetX, y + typeY, innerWidth, typeHeight, 5).fill(raised);
-  graphics
-    .moveTo(insetX + 8, rulesY)
-    .lineTo(insetX + innerWidth - 8, rulesY)
-    .stroke({ color: border, width: 1, alpha: 0.45 });
 
   for (let index = 0; index < GRAIN_POINTS.length; index += 2) {
     graphics.circle(

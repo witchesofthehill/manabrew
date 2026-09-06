@@ -4,6 +4,7 @@ import type { CardDto } from "@/protocol/game";
 import type { ClientPlayerDto } from "@/stores/gameStore.types";
 import type { Prompt } from "@/protocol";
 import { validCardIdsInCards, type BoardTargetBuckets } from "@/lib/boardTargets";
+import type { PreviewPointerInput } from "@/lib/cardPreview";
 import { stripUsernameTag } from "@/lib/username";
 import { nextHandOrderMode } from "@/lib/handOrder";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
@@ -104,8 +105,14 @@ interface GameBoardProps {
   onHoverCard: (
     card: CardDto | null,
     e?: React.MouseEvent,
-    options?: { useAnchor?: boolean; placement?: "auto" | "top-center"; anchorOverride?: DOMRect },
+    options?: {
+      useAnchor?: boolean;
+      placement?: "auto" | "top-center";
+      anchorOverride?: DOMRect;
+      trigger?: PreviewPointerInput;
+    },
   ) => void;
+  onRightClickCard?: (card: CardDto, anchor: DOMRect) => void;
   onDismissHoverPreview?: () => void;
   rulesPreview?: BoardOverlayPreviewSpec | null;
   externalPreviewActive?: boolean;
@@ -207,6 +214,7 @@ export function GameBoard({
   castingCardId,
   onHandCardDragStart,
   onHoverCard,
+  onRightClickCard,
   onDismissHoverPreview,
   rulesPreview,
   externalPreviewActive,
@@ -517,14 +525,22 @@ export function GameBoard({
         promptType === "chooseBoardTargets"
           ? onBattlefieldClick
           : undefined,
-      onHoverCard: (card, bounds) => {
+      onHoverCard: (card, bounds, options) => {
         if (card && bounds) {
           const rect = new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height);
-          onHoverCard(card, undefined, { useAnchor: true, anchorOverride: rect });
+          onHoverCard(card, undefined, {
+            ...options,
+            useAnchor: true,
+            anchorOverride: rect,
+          });
         } else {
           onHoverCard(null);
         }
       },
+      onRightClickCard: onRightClickCard
+        ? (card, bounds) =>
+            onRightClickCard(card, new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height))
+        : undefined,
       onStartDrag: (card, _screenPos, pointer) => {
         onHandCardDragStart(card, pointer);
       },
@@ -565,6 +581,7 @@ export function GameBoard({
       onBattlefieldClick,
       onHoverCard,
       onDismissHoverPreview,
+      onRightClickCard,
       onHandCardDragStart,
       moveHandCard,
       handSelectionMode,

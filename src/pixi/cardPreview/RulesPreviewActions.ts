@@ -72,9 +72,10 @@ export class RulesPreviewActions extends Container {
   private scrollbar = new Graphics();
   private spec: ActionsContent | null = null;
   private rows: ActionRow[] = [];
-  private focusedIndex = 0;
+  private focusedIndex: number | null = null;
   private hoveredIndex: number | null = null;
   private contentWidth = 0;
+  private contentInset = PAD;
   private contentHeight = 0;
   private viewportHeight = 0;
   private heightValue = 0;
@@ -125,27 +126,30 @@ export class RulesPreviewActions extends Container {
   }
 
   get focusedActionBounds(): { top: number; height: number } | null {
+    if (this.focusedIndex === null) return null;
     const row = this.rows[this.focusedIndex];
-    return row ? { top: row.top + PAD, height: row.height } : null;
+    return row ? { top: row.top + this.contentInset, height: row.height } : null;
   }
 
   setContent(spec: ActionsContent): void {
-    const previousAction = this.spec?.actions[this.focusedIndex]?.action;
+    const previousAction =
+      this.focusedIndex === null ? undefined : this.spec?.actions[this.focusedIndex]?.action;
     this.clearInput();
     this.content.removeChildren().forEach((child) => child.destroy({ children: true }));
     this.utilities.removeChildren().forEach((child) => child.destroy({ children: true }));
     this.rows = [];
     this.spec = spec;
-    this.contentWidth = Math.max(1, spec.width - PAD * 2 - SCROLL_GUTTER);
+    this.contentInset = spec.embedded ? 0 : PAD;
+    this.contentWidth = Math.max(
+      1,
+      spec.width - this.contentInset * 2 - (spec.embedded ? 0 : SCROLL_GUTTER),
+    );
     const matchingIndex = previousAction
       ? spec.actions.findIndex(
           ({ action }) => action === previousAction || sameAction(action, previousAction),
         )
       : -1;
-    this.focusedIndex =
-      matchingIndex >= 0
-        ? matchingIndex
-        : Math.min(this.focusedIndex, Math.max(0, spec.actions.length - 1));
+    this.focusedIndex = matchingIndex >= 0 ? matchingIndex : null;
     let y = 0;
     if (spec.actions.length > 0) {
       if (spec.label) {
@@ -179,7 +183,7 @@ export class RulesPreviewActions extends Container {
         row.cursor = "pointer";
         row.on("pointerenter", (event: FederatedPointerEvent) => {
           if (event.pointerType === "touch" || this.pointerId !== null) return;
-          this.focusedIndex = index;
+          this.focusedIndex = null;
           this.hoveredIndex = index;
           this.drawFocus();
         });
@@ -204,39 +208,53 @@ export class RulesPreviewActions extends Container {
       this.contentHeight > 0 || utilityHeight > 0
         ? Math.max(
             0,
-            Math.min(spec.maxHeight, this.contentHeight + utilityHeight + sectionGap + PAD * 2),
+            Math.min(
+              spec.maxHeight,
+              this.contentHeight + utilityHeight + sectionGap + this.contentInset * 2,
+            ),
           )
         : 0;
-    this.viewportHeight = Math.max(0, this.heightValue - PAD * 2 - utilityHeight - sectionGap);
-    this.utilities.position.set(PAD, PAD + this.viewportHeight + sectionGap);
+    this.viewportHeight = Math.max(
+      0,
+      this.heightValue - this.contentInset * 2 - utilityHeight - sectionGap,
+    );
+    this.utilities.position.set(
+      this.contentInset,
+      this.contentInset + this.viewportHeight + sectionGap,
+    );
     this.visible = this.heightValue > 0;
     this.hitArea = new Rectangle(0, 0, spec.width, this.heightValue);
-    this.viewport.position.set(PAD, PAD);
+    this.viewport.position.set(this.contentInset, this.contentInset);
     this.viewport.hitArea = new Rectangle(0, 0, this.contentWidth, this.viewportHeight);
-    this.background
-      .clear()
-      .roundRect(0, 0, spec.width, this.heightValue, 10)
-      .fill(hexToNum(spec.theme.appTheme.popover));
-    if (sectionGap > 0) {
-      const dividerY = PAD + this.viewportHeight + GAP;
+    this.background.clear();
+    if (!spec.embedded) {
       this.background
-        .moveTo(PAD, dividerY)
-        .lineTo(spec.width - PAD, dividerY)
+        .roundRect(0, 0, spec.width, this.heightValue, 10)
+        .fill(hexToNum(spec.theme.appTheme.popover));
+    }
+    if (sectionGap > 0) {
+      const dividerY = this.contentInset + this.viewportHeight + GAP;
+      this.background
+        .moveTo(this.contentInset, dividerY)
+        .lineTo(spec.width - this.contentInset, dividerY)
         .stroke({ color: hexToNum(spec.theme.appTheme.border), width: 1, alpha: 0.45 });
     }
     this.clip
       .clear()
-      .rect(PAD, PAD, this.contentWidth, this.viewportHeight)
+      .rect(this.contentInset, this.contentInset, this.contentWidth, this.viewportHeight)
       .fill(hexToNum(spec.theme.appTheme.popover));
-    this.setScroll(this.scrollOffset);
     this.drawFocus();
   }
 
   focusAction(delta: number): void {
     if (this.rows.length === 0) return;
     this.focusedIndex =
-      (((this.focusedIndex + Math.trunc(delta)) % this.rows.length) + this.rows.length) %
-      this.rows.length;
+      this.focusedIndex === null
+        ? delta < 0
+          ? this.rows.length - 1
+          : 0
+        : (((this.focusedIndex + Math.trunc(delta)) % this.rows.length) + this.rows.length) %
+          this.rows.length;
     this.drawFocus();
     const row = this.rows[this.focusedIndex]!;
     if (row.top < this.scrollOffset) this.setScroll(row.top);
@@ -248,7 +266,15 @@ export class RulesPreviewActions extends Container {
   }
 
   activateFocusedAction(): void {
-    this.activateAction(this.focusedIndex);
+    if (this.focusedIndex !== null) {
+      this.activateAction(this.focusedIndex);
+      return;
+    }
+    if (this.hoveredIndex !== null) {
+      this.activateAction(this.hoveredIndex);
+      return;
+    }
+    this.focusAction(0);
   }
 
   activateShortcut(shortcut: number): boolean {
@@ -268,8 +294,8 @@ export class RulesPreviewActions extends Container {
     this.clearInput();
     this.spec = null;
     this.rows = [];
-    this.focusedIndex =
-      this.scrollOffset =
+    this.focusedIndex = null;
+    this.scrollOffset =
       this.contentWidth =
       this.contentHeight =
       this.viewportHeight =
@@ -398,7 +424,7 @@ export class RulesPreviewActions extends Container {
   }
 
   private drawFocus(): void {
-    const theme = this.spec!.theme.appTheme;
+    const color = hexToNum(this.spec!.theme.gameTheme.activeAction.active);
     this.rows.forEach((row, index) => {
       const focused = index === this.focusedIndex;
       const hovered = index === this.hoveredIndex;
@@ -406,11 +432,7 @@ export class RulesPreviewActions extends Container {
       if (focused || hovered) {
         row.background
           .roundRect(0, 0, this.contentWidth, row.height, 4)
-          .fill({ color: hexToNum(theme.ring), alpha: hovered ? 0.24 : 0.12 });
-        row.background
-          .moveTo(0, 4)
-          .lineTo(0, row.height - 4)
-          .stroke({ color: hexToNum(theme.ring), width: hovered ? 3 : 2 });
+          .fill({ color, alpha: hovered ? 0.28 : 0.18 });
       }
     });
   }
@@ -426,10 +448,10 @@ export class RulesPreviewActions extends Container {
       trackHeight,
       Math.max(18, (trackHeight * this.viewportHeight) / this.contentHeight),
     );
-    const x = this.spec.width - PAD;
-    const y = PAD + ((trackHeight - thumbHeight) * this.scrollOffset) / maxScroll;
+    const x = this.spec.width - (this.spec.embedded ? 2 : PAD);
+    const y = this.contentInset + ((trackHeight - thumbHeight) * this.scrollOffset) / maxScroll;
     this.scrollbar
-      .roundRect(x, PAD, 2, trackHeight, 1)
+      .roundRect(x, this.contentInset, 2, trackHeight, 1)
       .fill({ color: hexToNum(this.spec.theme.appTheme.muted), alpha: 0.8 });
     this.scrollbar
       .roundRect(x - 1, y, 4, thumbHeight, 2)

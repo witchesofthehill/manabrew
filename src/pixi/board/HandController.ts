@@ -1,6 +1,7 @@
 import { Container, Graphics, type FederatedPointerEvent } from "pixi.js";
 import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
+import type { PreviewPointerInput } from "@/lib/cardPreview";
 import type { HandCardControlsSpec } from "../HandCardControls";
 import { CardSprite } from "../CardSprite";
 import { getTheme } from "@/hooks/useTheme";
@@ -48,6 +49,7 @@ export class HandController {
   private lastState: HandState | null = null;
   private vScale = 1;
   private compact = false;
+  private rulesViewDefault = false;
   private dropActive = false;
   private reorderIndex: number | null = null;
   private hoverDebugGfx: Graphics;
@@ -110,6 +112,12 @@ export class HandController {
     if (this.compact === compact) return;
     this.compact = compact;
     if (this.lastState) this.updateHand(this.lastState);
+  }
+
+  setRulesViewDefault(active: boolean): void {
+    if (this.rulesViewDefault === active) return;
+    this.rulesViewDefault = active;
+    for (const sprite of this.sprites.values()) sprite.setHandRulesView(active);
   }
 
   setDropActive(active: boolean): void {
@@ -374,13 +382,13 @@ export class HandController {
     return { cardId: draggedId, toIndex };
   }
 
-  updateHoverAt(x: number, y: number): void {
+  updateHoverAt(x: number, y: number, trigger?: PreviewPointerInput): void {
     const hit = this.hitAt(x, y);
     if (!hit) {
       this.clearHover();
       return;
     }
-    this.setHovered(hit);
+    this.setHovered(hit, trigger);
   }
 
   resetHover(): void {
@@ -565,12 +573,14 @@ export class HandController {
 
   private createSprite(card: CardDto): CardSprite {
     const sprite = new CardSprite(card, "hand");
+    sprite.setHandRulesView(this.rulesViewDefault);
     sprite.eventMode = "static";
     sprite.cursor = "grab";
     sprite.onReorient = () => this.relayout();
 
     sprite.on("pointerdown", (e: FederatedPointerEvent) => {
       e.stopPropagation();
+      if (e.button !== 0) return;
       if (this.lastState?.selectionMode) {
         this.host.getCallbacks().onClickCard_Hand?.(sprite.card);
         return;
@@ -586,28 +596,44 @@ export class HandController {
         },
       );
     });
+    sprite.on("rightclick", (e: FederatedPointerEvent) => {
+      e.stopPropagation();
+      this.host.getCallbacks().onRightClickCard?.(sprite.card, this.hoveredSpriteBounds(sprite));
+    });
 
     this.container.addChild(sprite);
     this.sprites.set(card.id, sprite);
     return sprite;
   }
 
-  private setHovered(hit: HandHitZone): void {
+  private setHovered(hit: HandHitZone, trigger?: PreviewPointerInput): void {
     this.cancelHoverHoldTimer();
     this.pendingLeaveIndex = null;
-    if (this.hoveredIndex === hit.index) return;
+    if (this.hoveredIndex === hit.index) {
+      this.emitHover(hit, trigger, false);
+      return;
+    }
     this.resetHoveredFace();
     this.hoveredIndex = hit.index;
     this.hoveredCardId = hit.card.id;
     this.recalcTargets();
+    this.emitHover(hit, trigger, true);
+  }
+
+  private emitHover(
+    hit: HandHitZone,
+    trigger: PreviewPointerInput | undefined,
+    notifyHand: boolean,
+  ): void {
     const sprite = this.sprites.get(hit.card.id);
     if (!sprite) return;
     const screenBounds = this.hoveredSpriteBounds(sprite);
     this.host.getCallbacks().onHoverCard?.(hit.card, screenBounds, {
       useAnchor: true,
       placement: "top-center",
+      trigger,
     });
-    this.host.getCallbacks().onHoverHandCard?.(hit.card, screenBounds);
+    if (notifyHand) this.host.getCallbacks().onHoverHandCard?.(hit.card, screenBounds);
   }
 
   private hitAt(x: number, y: number): HandHitZone | null {

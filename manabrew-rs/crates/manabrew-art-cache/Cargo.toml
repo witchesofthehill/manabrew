@@ -1,0 +1,19 @@
+[package]
+name = "manabrew-art-cache"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+description = "Card art on disk, the /scryfall-img/ route it backs, and the listener that serves it to a network"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
+flate2 = "1"
+futures-util = "0.3"
+tiny_http = "0.12"
+fs4 = "0.13"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+tempfile = "3"

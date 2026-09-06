@@ -107,6 +107,7 @@ services:
       HUB_DB_PATH: "/var/manabrew/hub/hub.db"
       HUB_ANALYTICS_IMPORT_DB_PATH: "/var/manabrew/events/events.db"
       HUB_RELAY_DECK_PLAYS_TOKEN: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
+      SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
       DECK_HUB: "${DECK_HUB:-1}"
       # Player avatars and playmats. All five are required together; with any of
       # them unset the hub reports no asset capability and the upload endpoints

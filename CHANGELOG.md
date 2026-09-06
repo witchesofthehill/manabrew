@@ -1,5 +1,29 @@
 # Changelog
 
+## [3.37.1](https://github.com/witchesofthehill/manabrew/compare/v3.37.0...v3.37.1) (2026-09-06)
+
+### Fixes
+
+* desktop build ([#876](https://github.com/witchesofthehill/manabrew/issues/876)) ([b6a9c7e](https://github.com/witchesofthehill/manabrew/commit/b6a9c7e6e21c1823cb9de901a0881a8e59c1ee06))
+
+## [3.37.0](https://github.com/witchesofthehill/manabrew/compare/v3.36.1...v3.37.0) (2026-09-06)
+
+### Features
+
+* chat and invites ([#868](https://github.com/witchesofthehill/manabrew/issues/868)) ([1539396](https://github.com/witchesofthehill/manabrew/commit/1539396649c58322973d6b59604b393460db4d0e))
+
+## [3.36.1](https://github.com/witchesofthehill/manabrew/compare/v3.36.0...v3.36.1) (2026-09-06)
+
+### Fixes
+
+* windows doesn't load cards ([#875](https://github.com/witchesofthehill/manabrew/issues/875)) ([ba6711a](https://github.com/witchesofthehill/manabrew/commit/ba6711a9fde005151a02dce1968ede65d5d84304))
+
+## [3.36.0](https://github.com/witchesofthehill/manabrew/compare/v3.35.0...v3.36.0) (2026-09-06)
+
+### Features
+
+* **relay:** a self-hosted relay that holds the card art, and the desktop that finds it ([#870](https://github.com/witchesofthehill/manabrew/issues/870)) ([ee81fc4](https://github.com/witchesofthehill/manabrew/commit/ee81fc4f7232af8c97b599266e647525c56e1940))
+
 ## [3.35.0](https://github.com/witchesofthehill/manabrew/compare/v3.34.7...v3.35.0) (2026-09-05)
 
 ### Features

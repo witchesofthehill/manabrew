@@ -1,6 +1,6 @@
 [package]
 name = "manabrew-hub"
-version = "0.15.2"
+version = "0.16.0"
 edition = "2021"
 license.workspace = true
 description = "Accounts, decks, and Community API for manabrew"

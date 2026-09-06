@@ -6,6 +6,7 @@ mod rate_limit;
 mod routes;
 mod scryfall_api;
 mod scryfall_bulk;
+mod seal;
 mod storage;
 mod validate;
 
@@ -110,6 +111,10 @@ async fn main() {
         deck_hub_enabled: config.deck_hub_enabled,
         publish_per_day: config.publish_per_day,
         relay_deck_plays_token: config.relay_deck_plays_token,
+        seal: config
+            .official_key
+            .as_deref()
+            .and_then(seal::SealOpener::from_secret),
         auth_email_limiter: RateLimiter::new(config.auth.auth_emails_per_hour),
         auth_code_limiter: RateLimiter::new(config.auth.auth_attempts_per_hour),
         auth: config.auth.clone(),

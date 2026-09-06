@@ -1,5 +1,6 @@
 use std::time::Instant;
 
+use crate::chat::ChatHistory;
 use crate::protocol::{
     DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomPlayerInfo, RoomStatus,
     SealedConfig,
@@ -49,6 +50,7 @@ pub struct Room {
     pub replay: Option<GameReplayCache>,
     pub resume_token: String,
     pub humanless_since: Option<Instant>,
+    pub chat: ChatHistory,
 }
 
 impl Room {
@@ -116,6 +118,7 @@ impl Room {
             replay: None,
             resume_token: String::new(),
             humanless_since: None,
+            chat: ChatHistory::default(),
         }
     }
 

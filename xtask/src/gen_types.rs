@@ -11,11 +11,11 @@ use anyhow::{ensure, Context, Result};
 use manabrew_hub::dto::{
     AccessTokenResponse, AccountAssetList, AccountDeckDetail, AccountDeckList, AccountDeckSummary,
     AccountExport, AdminTopDeckSnapshotRequest, AssetUpload, AuthProviders, AuthSessionResponse,
-    Capability, CardCollection, CreateAccountDeckRequest, CreateAssetUploadRequest,
-    DeckHubEntryDetail, DeckHubEntryList, DeckHubEntrySummary, DeckHubFacets, DeckHubTag,
-    DeckPlayReportRequest, DeckVersionDetail, DeckVersionSummary, EmailVerifyRequest,
-    ExchangeCodeRequest, FavoriteResponse, GuestTokenRequest, HubCapabilities, MagicLinkRequest,
-    MeResponse, MissingCapabilityError, OAuthStartRequest, OAuthStartResponse,
+    Capability, CardCollection, ChatReportRequest, CreateAccountDeckRequest,
+    CreateAssetUploadRequest, DeckHubEntryDetail, DeckHubEntryList, DeckHubEntrySummary,
+    DeckHubFacets, DeckHubTag, DeckPlayReportRequest, DeckVersionDetail, DeckVersionSummary,
+    EmailVerifyRequest, ExchangeCodeRequest, FavoriteResponse, GuestTokenRequest, HubCapabilities,
+    MagicLinkRequest, MeResponse, MissingCapabilityError, OAuthStartRequest, OAuthStartResponse,
     PublishDeckHubEntryRequest, RevocationRequest, SaveDeckVersionRequest, SetAccountAvatarRequest,
     TokenRequest, TopDeckBucket, TopDeckSnapshot, UpdateDeckHubEntryRequest, UpdateHandleRequest,
     VerifyCardPrintingsRequest, VerifyCardPrintingsResponse,
@@ -54,6 +54,7 @@ pub fn generate(root: &Path) -> Result<()> {
     VerifyCardPrintingsResponse::export_all_to(&out)
         .context("export VerifyCardPrintingsResponse")?;
     DeckPlayReportRequest::export_all_to(&out).context("export DeckPlayReportRequest")?;
+    ChatReportRequest::export_all_to(&out).context("export ChatReportRequest")?;
     CreateAccountDeckRequest::export_all_to(&out).context("export CreateAccountDeckRequest")?;
     SaveDeckVersionRequest::export_all_to(&out).context("export SaveDeckVersionRequest")?;
     AccountDeckSummary::export_all_to(&out).context("export AccountDeckSummary")?;

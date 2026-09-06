@@ -1755,7 +1755,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e75b2483e97a5a7da73ac68a05b629f9c53cff58d8ed1c77866079e18b00dba5"
 dependencies = [
  "digest 0.10.7",
- "spin",
+ "spin 0.10.1",
 ]
 
 [[package]]
@@ -2514,9 +2514,9 @@ checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
 
 [[package]]
 name = "fastrand"
-version = "2.3.0"
+version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
+checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
 name = "fdeflate"
@@ -2561,6 +2561,17 @@ checksum = "843fba2746e448b37e26a819579957415c8cef339bf08564fe8b7ddbd959573c"
 dependencies = [
  "crc32fast",
  "miniz_oxide",
+]
+
+[[package]]
+name = "flume"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e139bc46ca777eb5efaf62df0ab8cc5fd400866427e56c68b22e414e53bd3be"
+dependencies = [
+ "futures-core",
+ "futures-sink",
+ "spin 0.9.9",
 ]
 
 [[package]]
@@ -2700,6 +2711,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf"
 dependencies = [
  "percent-encoding",
+]
+
+[[package]]
+name = "fs4"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8640e34b88f7652208ce9e88b1a37a2ae95227d84abec377ccd3c5cfeb141ed4"
+dependencies = [
+ "rustix 1.1.3",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3833,6 +3854,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "if-addrs"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0a05c691e1fae256cf7013d99dad472dc52d5543322761f83ec8d47eab40d2b"
+dependencies = [
+ "libc",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "image"
 version = "0.25.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4173,9 +4204,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.182"
+version = "0.2.189"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6800badb6cb2082ffd7b6a67e6125bb39f18782f793520caee8cb8846be06112"
+checksum = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
 
 [[package]]
 name = "libdbus-sys"
@@ -4272,7 +4303,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "loadgen"
-version = "0.2.13"
+version = "0.2.15"
 dependencies = [
  "futures-util",
  "manabot",
@@ -4356,7 +4387,7 @@ dependencies = [
 
 [[package]]
 name = "manabot"
-version = "0.11.11"
+version = "0.11.13"
 dependencies = [
  "futures-util",
  "js-sys",
@@ -4373,18 +4404,24 @@ dependencies = [
 
 [[package]]
 name = "manabrew"
-version = "3.35.0"
+version = "3.37.1"
 dependencies = [
+ "flate2",
  "forge-carddb",
  "forge-cardset-archive",
  "forge-foundation",
  "forge-limited",
+ "fs4",
+ "futures-util",
  "manabrew-agent-interface",
+ "manabrew-art-cache",
  "manabrew-engine",
+ "manabrew-lan-discovery",
  "manabrew-protocol",
  "manabrew-server",
  "memmap2",
  "rand 0.8.6",
+ "reqwest 0.12.28",
  "self-hosted-node",
  "serde",
  "serde_json",
@@ -4394,6 +4431,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-process",
  "tauri-plugin-updater",
+ "tempfile",
  "tiny_http",
  "tokio",
  "tracing",
@@ -4404,7 +4442,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-agent-interface"
-version = "0.11.0"
+version = "0.11.2"
 dependencies = [
  "forge-foundation",
  "manabrew-engine",
@@ -4416,6 +4454,21 @@ dependencies = [
  "strum",
  "strum_macros",
  "tracing",
+]
+
+[[package]]
+name = "manabrew-art-cache"
+version = "0.2.0"
+dependencies = [
+ "flate2",
+ "fs4",
+ "futures-util",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tiny_http",
+ "tokio",
 ]
 
 [[package]]
@@ -4449,7 +4502,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-hub"
-version = "0.15.2"
+version = "0.16.0"
 dependencies = [
  "aws-lc-rs",
  "aws-sdk-s3",
@@ -4475,6 +4528,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "manabrew-lan-discovery"
+version = "0.2.0"
+dependencies = [
+ "mdns-sd",
+ "serde",
+ "tokio",
+]
+
+[[package]]
 name = "manabrew-protocol"
 version = "5.7.0"
 dependencies = [
@@ -4487,7 +4549,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-relay-protocol"
-version = "5.8.3"
+version = "5.10.0"
 dependencies = [
  "base64 0.22.1",
  "manabrew-protocol",
@@ -4498,7 +4560,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-server"
-version = "0.27.1"
+version = "0.29.0"
 dependencies = [
  "aws-lc-rs",
  "axum",
@@ -4506,10 +4568,13 @@ dependencies = [
  "chrono",
  "dashmap 6.1.0",
  "futures-util",
+ "manabrew-art-cache",
+ "manabrew-lan-discovery",
  "manabrew-protocol",
  "manabrew-relay-protocol",
  "metrics",
  "metrics-exporter-prometheus",
+ "minisign-verify",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -4525,7 +4590,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew_game_runtime"
-version = "0.3.42"
+version = "0.3.44"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -4625,6 +4690,21 @@ checksum = "69b6441f590336821bb897fb28fc622898ccceb1d6cea3fde5ea86b090c4de98"
 dependencies = [
  "cfg-if",
  "digest 0.11.3",
+]
+
+[[package]]
+name = "mdns-sd"
+version = "0.21.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0a19dd805348943831582c4d9e6921c66de689127d6b27665a4e155c2117799"
+dependencies = [
+ "fastrand",
+ "flume",
+ "if-addrs",
+ "log",
+ "mio",
+ "socket-pktinfo",
+ "socket2 0.6.2",
 ]
 
 [[package]]
@@ -4749,11 +4829,12 @@ dependencies = [
 
 [[package]]
 name = "mio"
-version = "1.1.1"
+version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a69bcab0ad47271a0234d9422b131806bf3968021e5dc9328caf2d4cd58557fc"
+checksum = "30d65c71f1ce40ab09135ce117d742b9f8a19ff91a41a8b57ed50bc2de59c427"
 dependencies = [
  "libc",
+ "log",
  "wasi 0.11.1+wasi-snapshot-preview1",
  "windows-sys 0.61.2",
 ]
@@ -6504,6 +6585,7 @@ dependencies = [
  "cookie_store",
  "encoding_rs",
  "futures-core",
+ "futures-util",
  "h2 0.4.13",
  "http 1.4.0",
  "http-body 1.0.1",
@@ -6528,12 +6610,14 @@ dependencies = [
  "tokio",
  "tokio-native-tls",
  "tokio-rustls 0.26.4",
+ "tokio-util",
  "tower 0.5.3",
  "tower-http 0.6.8",
  "tower-service",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm-streams 0.4.2",
  "web-sys",
  "webpki-roots",
 ]
@@ -6573,7 +6657,7 @@ dependencies = [
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-streams",
+ "wasm-streams 0.5.0",
  "web-sys",
 ]
 
@@ -7009,7 +7093,7 @@ dependencies = [
 
 [[package]]
 name = "self-hosted-node"
-version = "0.28.0"
+version = "0.28.2"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -7449,6 +7533,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "socket-pktinfo"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "612942246d0cc239cfd83af1dfd39be47f649208a3524e5e9da651910128e0ac"
+dependencies = [
+ "libc",
+ "socket2 0.6.2",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "socket2"
 version = "0.5.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7514,6 +7609,15 @@ dependencies = [
  "gobject-sys",
  "libc",
  "system-deps",
+]
+
+[[package]]
+name = "spin"
+version = "0.9.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3763264f6b73151db08c50ff20d7d8a0b8796e021cdea7ceedad07b80155fa0e"
+dependencies = [
+ "lock_api",
 ]
 
 [[package]]
@@ -9167,7 +9271,7 @@ dependencies = [
 
 [[package]]
 name = "wasm"
-version = "0.9.0"
+version = "0.9.2"
 dependencies = [
  "console_error_panic_hook",
  "forge-carddb",
@@ -9309,6 +9413,19 @@ dependencies = [
  "indexmap 2.13.0",
  "wasm-encoder",
  "wasmparser",
+]
+
+[[package]]
+name = "wasm-streams"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15053d8d85c7eccdbefef60f06769760a563c7f0a9d6902a13d35c7800b0ad65"
+dependencies = [
+ "futures-util",
+ "js-sys",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]

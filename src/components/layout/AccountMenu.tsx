@@ -1,5 +1,7 @@
-import { CircleUserRound, LogIn, Settings } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CircleUserRound, LogIn, Maximize2, Minimize2, Settings } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +34,23 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
   const serverUsername = usePreferencesStore((s) => s.serverUsername);
   const signedInAccount = status === "signedIn" ? account : null;
   const accountsEnabled = isFeatureEnabled("accounts");
+  const [isFullscreen, setIsFullscreen] = useState(
+    typeof document !== "undefined" && document.fullscreenElement !== null,
+  );
+
+  useEffect(() => {
+    const sync = () => setIsFullscreen(document.fullscreenElement !== null);
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
+
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => undefined);
+    } else {
+      void document.documentElement.requestFullscreen().catch(() => undefined);
+    }
+  }
 
   const displayName = signedInAccount
     ? `@${signedInAccount.handle}`
@@ -99,12 +118,22 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
           <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/70 bg-muted">
             {renderAvatar("h-11 w-11", "text-base")}
           </span>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold leading-tight">{displayName || "Guest"}</p>
             <p className="truncate text-xs text-muted-foreground">
               {signedInAccount ? "Signed in" : "Playing as a guest"}
             </p>
           </div>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-8 shrink-0"
+            onClick={toggleFullscreen}
+            aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+          >
+            {isFullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+          </Button>
         </div>
         <DropdownMenuSeparator />
         {accountsEnabled && signedInAccount && (

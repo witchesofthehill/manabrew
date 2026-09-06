@@ -5,6 +5,71 @@ use manabrew_protocol::game::EngineKind;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub enum ChatReportReason {
+    Harassment,
+    Hate,
+    InappropriateContent,
+    Spam,
+    Other,
+}
+
+impl ChatReportReason {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Harassment => "harassment",
+            Self::Hate => "hate",
+            Self::InappropriateContent => "inappropriate_content",
+            Self::Spam => "spam",
+            Self::Other => "other",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct ChatReportMessage {
+    pub from: String,
+    pub text: String,
+    #[ts(type = "number")]
+    pub sent_at_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub room_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub seal: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct ChatReportTranscript {
+    pub general: Vec<ChatReportMessage>,
+    pub room: Vec<ChatReportMessage>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct ChatReportRequest {
+    pub reported_username: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub seal: Option<String>,
+    pub reason: ChatReportReason,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub details: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub room_id: Option<String>,
+    pub transcript: ChatReportTranscript,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "hubTypes.ts")]

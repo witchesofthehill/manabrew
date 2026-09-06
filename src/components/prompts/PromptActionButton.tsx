@@ -46,7 +46,7 @@ export function PromptActionButton({
         size="icon"
         variant={variant}
         className={cn(
-          "min-h-9 min-w-9 pointer-coarse:min-h-10 pointer-coarse:min-w-10 rounded-lg p-0 shrink-0 !border-0 !text-white transition-[filter,box-shadow] hover:brightness-105",
+          "min-h-9 min-w-9 pointer-coarse:min-h-10 pointer-coarse:min-w-10 rounded-lg p-0 shrink-0 !border-0 transition-[filter,box-shadow] hover:brightness-105",
           showLabel && "w-auto pointer-coarse:w-auto px-1.5",
           className,
         )}

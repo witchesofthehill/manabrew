@@ -65,9 +65,9 @@ export class PlayerHudLayer {
           spec,
           () => this.onTarget(spec.playerId),
           () => this.onShowSheet(spec.playerId),
-          (content, cx, top, bottom) => {
+          (content, cx, top, bottom, color) => {
             if (!content) this.tooltip.hide();
-            else this.tooltip.show(content, cx!, top!, bottom!, top! < ANCHOR_BELOW_Y);
+            else this.tooltip.show(content, cx!, top!, bottom!, top! < ANCHOR_BELOW_Y, color!);
           },
           () => this.onInspect(spec.playerId),
         );

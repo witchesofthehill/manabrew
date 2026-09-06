@@ -78,6 +78,7 @@ export type HoverFn = (
   cx?: number,
   top?: number,
   bottom?: number,
+  color?: string,
 ) => void;
 
 interface ManaPip {
@@ -227,11 +228,6 @@ export class PlayerHudCapsule {
       if (this.spec.isTargetable) this.onTarget();
       else this.onShowSheet();
     });
-    this.avatarHit.on("pointerover", () => {
-      const r = this.avatarDia / 2;
-      this.emitHover(this.avatarHover(), this.avatarCx, this.avatarCy - r, this.avatarCy + r);
-    });
-    this.avatarHit.on("pointerout", () => this.onHover(null));
 
     this.initial = new Text({ text: "", style: this.textStyle(16) });
     this.initial.anchor.set(0.5);
@@ -312,10 +308,6 @@ export class PlayerHudCapsule {
     );
   }
 
-  private avatarHover(): PlayerHudTooltipContent {
-    return { title: this.spec.isTargetable ? `Target ${this.spec.name}` : this.spec.name };
-  }
-
   private badgeTooltip(badge: PlayerHudSpec["badges"][number]): PlayerHudTooltipContent {
     if (badge.id === "ring") {
       const level = Math.min(badge.count ?? 0, RING_ABILITIES.length);
@@ -340,6 +332,7 @@ export class PlayerHudCapsule {
       this.container.x + localCx * sx,
       this.container.y + localTop * sy,
       this.container.y + localBottom * sy,
+      this.spec.color,
     );
   }
 

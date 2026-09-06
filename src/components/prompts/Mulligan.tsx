@@ -3,7 +3,7 @@
  * same bottom-right slot that hosts Pass Priority during normal play.
  */
 import { Check, RotateCw } from "lucide-react";
-import { usePromptActionColors } from "@/components/prompts/internal/promptActionTheme";
+import { useTheme } from "@/hooks/useTheme";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { PromptActionButton } from "./PromptActionButton";
 import { MulliganButton } from "./MulliganButton";
@@ -21,7 +21,7 @@ export function Mulligan({
   onKeep,
   onMulligan,
 }: MulliganProps) {
-  const colors = usePromptActionColors();
+  const { appTheme, gameTheme } = useTheme();
   const minimal = useIsMobileGame();
 
   if (minimal) {
@@ -30,14 +30,15 @@ export function Mulligan({
         <PromptActionButton
           label="Keep"
           icon={<Check className="h-3.5 w-3.5" />}
-          baseColor={colors.defenseAction}
+          baseColor={gameTheme.promptAction.passAction}
           onClick={onKeep}
           disabled={isWaitingForResponse}
         />
         <PromptActionButton
           label="Mulligan"
           icon={<RotateCw className="h-3.5 w-3.5" />}
-          baseColor={colors.cancel}
+          baseColor={appTheme.secondary}
+          style={{ color: appTheme["secondary-foreground"] }}
           badge={mulliganCount > 0 ? String(mulliganCount) : undefined}
           onClick={onMulligan}
           disabled={isWaitingForResponse}
@@ -50,7 +51,8 @@ export function Mulligan({
     <div className="flex flex-row items-center justify-center gap-1.5">
       <MulliganButton
         className="flex-1"
-        color={colors.defenseAction}
+        color={gameTheme.promptAction.passAction}
+        foregroundColor={gameTheme.textOnTinted}
         label="Keep"
         icon={<Check className="h-3.5 w-3.5" />}
         onClick={onKeep}
@@ -58,7 +60,8 @@ export function Mulligan({
       />
       <MulliganButton
         className="flex-1"
-        color={colors.cancel}
+        color={appTheme.secondary}
+        foregroundColor={appTheme["secondary-foreground"]}
         label="Mulligan"
         icon={<RotateCw className="h-3.5 w-3.5" />}
         onClick={onMulligan}

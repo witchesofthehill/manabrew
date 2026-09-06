@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Hand, Settings, Zap } from "lucide-react";
+import { Hand, Settings, Zap } from "lucide-react";
 import type { MainActionOverlayProps } from "../game.types";
 import { PromptActionController } from "@/components/prompts/PromptActionController";
 import { CombatInfo } from "./CombatInfo";
@@ -138,19 +138,11 @@ export function MainActionOverlay({
 }: MainActionOverlayProps) {
   const promptActionOverride = useGameDevStore((s) => s.promptActionOverride);
   const themeColors = useTheme().gameTheme;
-  const [collapsed, setCollapsed] = useState(false);
-  const [prevPromptType, setPrevPromptType] = useState(promptType);
   const containerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const headerRef = useRef<HTMLDivElement>(null);
   const animRef = useRef<Animation | null>(null);
   const bumpRef = useRef<Animation | null>(null);
-
-  if (promptType !== prevPromptType) {
-    setPrevPromptType(promptType);
-    setCollapsed(false);
-  }
 
   const minimal = useIsMobileGame();
   const [contextRect, setContextRect] = useState<DOMRect | null>(null);
@@ -188,7 +180,6 @@ export function MainActionOverlay({
     mulliganPutBackCount,
     mulliganSelectedCount,
   });
-  const effectiveCollapsed = !minimal && hasAction && collapsed;
   const isRenderable =
     promptType !== "gameOver" && !!selfClusterMaxHeight && selfClusterMaxHeight > 0;
 
@@ -196,9 +187,7 @@ export function MainActionOverlay({
     const body = bodyRef.current;
     const content = contentRef.current;
     if (!body || !content) return;
-    const target = effectiveCollapsed
-      ? (headerRef.current?.offsetHeight ?? 0)
-      : content.offsetHeight;
+    const target = content.offsetHeight;
     const from = body.getBoundingClientRect().height;
     animRef.current?.cancel();
     body.style.height = `${target}px`;
@@ -207,7 +196,7 @@ export function MainActionOverlay({
       duration: 160,
       easing: "cubic-bezier(0.33, 1, 0.68, 1)",
     });
-  }, [effectiveCollapsed]);
+  }, []);
 
   useEffect(() => {
     const content = contentRef.current;
@@ -287,10 +276,7 @@ export function MainActionOverlay({
       <div ref={bodyRef} className="overflow-hidden">
         <div ref={contentRef}>
           {!minimal && (
-            <div
-              ref={headerRef}
-              className="flex items-center justify-between gap-2 px-2 py-1.5 border-b border-border/70"
-            >
+            <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-b border-border/70">
               <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-foreground/90 truncate">
                 {title}
               </span>
@@ -304,24 +290,6 @@ export function MainActionOverlay({
                   aria-label="Open game menu"
                 >
                   <Settings className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCollapsed((c) => !c)}
-                  className={cn(
-                    "relative shrink-0 rounded p-0.5 text-muted-foreground transition-colors before:absolute before:-inset-2.5 before:content-[''] hover:text-foreground",
-                    !hasAction && "invisible",
-                  )}
-                  title={collapsed ? "Expand" : "Collapse"}
-                  aria-label={collapsed ? "Expand action panel" : "Collapse action panel"}
-                  aria-expanded={!collapsed}
-                  tabIndex={hasAction ? 0 : -1}
-                >
-                  {collapsed ? (
-                    <ChevronUp className="h-3.5 w-3.5" />
-                  ) : (
-                    <ChevronDown className="h-3.5 w-3.5" />
-                  )}
                 </button>
               </div>
             </div>

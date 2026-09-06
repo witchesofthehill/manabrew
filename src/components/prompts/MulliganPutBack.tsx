@@ -4,7 +4,7 @@
  * flow reads as a single sequence.
  */
 import { Check } from "lucide-react";
-import { usePromptActionColors } from "@/components/prompts/internal/promptActionTheme";
+import { useTheme } from "@/hooks/useTheme";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { PromptActionButton } from "./PromptActionButton";
 import { MulliganButton } from "./MulliganButton";
@@ -22,7 +22,7 @@ export function MulliganPutBack({
   selectedCount,
   onConfirm,
 }: MulliganPutBackProps) {
-  const colors = usePromptActionColors();
+  const appTheme = useTheme().appTheme;
   const minimal = useIsMobileGame();
   const canConfirm = selectedCount === count && !isWaitingForResponse;
 
@@ -35,7 +35,8 @@ export function MulliganPutBack({
         <PromptActionButton
           label="Confirm"
           icon={<Check className="h-3.5 w-3.5" />}
-          baseColor={colors.defenseAction}
+          baseColor={appTheme.primary}
+          style={{ color: appTheme["primary-foreground"] }}
           onClick={onConfirm}
           disabled={!canConfirm}
         />
@@ -50,7 +51,8 @@ export function MulliganPutBack({
       </p>
       <MulliganButton
         className="w-full"
-        color={colors.defenseAction}
+        color={appTheme.primary}
+        foregroundColor={appTheme["primary-foreground"]}
         label="CONFIRM"
         icon={<Check className="h-3.5 w-3.5" />}
         onClick={onConfirm}

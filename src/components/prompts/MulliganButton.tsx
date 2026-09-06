@@ -11,10 +11,11 @@ import { cn } from "@/lib/utils";
 import { getPromptActionButtonStyle } from "@/components/prompts/internal/promptActionTheme";
 
 const BUTTON_CLASSNAME =
-  "h-9 rounded-lg px-3 text-sm font-black tracking-[0.08em] !border-0 !text-white transition-[filter,box-shadow] hover:brightness-105 flex items-center justify-center gap-2";
+  "h-9 rounded-lg px-3 text-sm font-black tracking-[0.08em] !border-0 transition-[filter,box-shadow] hover:brightness-105 flex items-center justify-center gap-2";
 
 interface MulliganButtonProps {
   color: string;
+  foregroundColor: string;
   label: string;
   icon?: ReactNode;
   onClick: () => void;
@@ -24,6 +25,7 @@ interface MulliganButtonProps {
 
 export function MulliganButton({
   color,
+  foregroundColor,
   label,
   icon,
   onClick,
@@ -37,7 +39,7 @@ export function MulliganButton({
       className={cn(BUTTON_CLASSNAME, className)}
       onClick={onClick}
       disabled={disabled}
-      style={getPromptActionButtonStyle(color)}
+      style={{ ...getPromptActionButtonStyle(color), color: foregroundColor }}
     >
       {icon}
       {label}

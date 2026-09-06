@@ -1054,7 +1054,7 @@ export default function Settings() {
 
             <PreferenceCard
               title="Hand Card Style"
-              description="Printed card shows the card image. Rules view makes cards in your hand default to their live rules face; each card can still be switched."
+              description="Printed card shows the card image. Live view uses the card's current rules and game state; each card can still be switched."
             >
               <div className="flex flex-wrap gap-2">
                 {INLINE_CARD_STYLE_OPTIONS.map((option) => (
@@ -1090,7 +1090,7 @@ export default function Settings() {
 
             <PreferenceCard
               title="Card Preview Style"
-              description="Printed card shows the full card image. Rules view prioritizes live game state, rules text, actions, costs, and counters during a game."
+              description="Printed card shows the full card image. Live view prioritizes current rules, actions, costs, counters, and other game state."
             >
               <div className="flex flex-wrap gap-2">
                 {IN_GAME_CARD_PREVIEW_STYLE_OPTIONS.map((option) => (

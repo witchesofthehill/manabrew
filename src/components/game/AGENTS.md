@@ -114,6 +114,8 @@ Five renderers draw cards. `components/game/cardPresentation.ts` provides shared
 
 The app has one preview state machine. Games can use the persisted printed-card renderer or the Pixi rules renderer. Deck, editor, limited, and modal views always use the DOM renderer.
 
+The rules-backed option is labeled **Live view** because it represents current game state, not only Oracle text. Keep **Hand card style**, **Default stack card view**, and **Card preview style** adjacent in Board settings.
+
 | Layer         | File                                                                                                                      | Role                                                                                                                                                                                                                                            |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Machine       | `lib/cardPreview.ts` (`CardPreviewMachine`)                                                                               | Stores preview state and controls every timer. `PREVIEW_TIMING` contains the warm and cold show delays, leave grace, enter and exit timing, and battlefield hover-out hold. The cold delay comes from the user's Card Preview Delay preference. |

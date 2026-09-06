@@ -77,7 +77,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
 
         <SettingRow
           label="Hand card style"
-          hint="Printed card shows the card image. Rules view makes cards in your hand default to their live rules face; each card can still be switched."
+          hint="Printed card shows the card image. Live view uses the card's current rules and game state; each card can still be switched."
         >
           <div className="flex items-center gap-2">
             {INLINE_CARD_STYLE_OPTIONS.map((option) => (
@@ -104,6 +104,24 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
                 variant={prefs.stackCardStyle === option.value ? "default" : "outline"}
                 size="sm"
                 onClick={() => prefs.setStackCardStyle(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        </SettingRow>
+
+        <SettingRow
+          label="Card preview style"
+          hint="Printed card shows the full card image. Live view prioritizes current rules, actions, costs, counters, and other game state."
+        >
+          <div className="flex items-center gap-2">
+            {IN_GAME_CARD_PREVIEW_STYLE_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                variant={prefs.inGameCardPreviewStyle === option.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => prefs.setInGameCardPreviewStyle(option.value)}
               >
                 {option.label}
               </Button>
@@ -251,24 +269,6 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
             >
               Off
             </Button>
-          </div>
-        </SettingRow>
-
-        <SettingRow
-          label="Card preview style"
-          hint="Printed card shows the full card image. Rules view prioritizes live game state, rules text, actions, costs, and counters."
-        >
-          <div className="flex items-center gap-2">
-            {IN_GAME_CARD_PREVIEW_STYLE_OPTIONS.map((option) => (
-              <Button
-                key={option.value}
-                variant={prefs.inGameCardPreviewStyle === option.value ? "default" : "outline"}
-                size="sm"
-                onClick={() => prefs.setInGameCardPreviewStyle(option.value)}
-              >
-                {option.label}
-              </Button>
-            ))}
           </div>
         </SettingRow>
 

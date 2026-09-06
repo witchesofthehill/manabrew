@@ -23,6 +23,8 @@ import type {
   SetFormatParams,
   SetMaxPlayersParams,
   SpawnAiBotParams,
+  SendChatParams,
+  InviteToRoomParams,
 } from "./types";
 import type { LocalGameKind, RoomRelayEnvelope } from "@/types/server";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -84,6 +86,12 @@ class TauriServerApi implements IServerApi {
 
   setLocalGame(kind: LocalGameKind | null): Promise<void> {
     return this.inner.setLocalGame(kind);
+  }
+  sendChat(params: SendChatParams): Promise<void> {
+    return this.inner.sendChat(params);
+  }
+  inviteToRoom(params: InviteToRoomParams): Promise<void> {
+    return this.inner.inviteToRoom(params);
   }
   joinRoom(params: JoinRoomParams): Promise<void> {
     return this.inner.joinRoom(params);

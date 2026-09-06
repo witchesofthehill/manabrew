@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
+use crate::chat::ChatHistory;
 use crate::protocol::{
     DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomPlayerInfo, RoomStatus,
     SealedConfig, TransportEndpoint, TransportMember,
@@ -53,6 +54,7 @@ pub struct Room {
     /// Data-plane endpoints announced by members, keyed by player id. The relay
     /// is the only thing that binds one of these to a username.
     pub transports: HashMap<String, TransportEndpoint>,
+    pub chat: ChatHistory,
 }
 
 impl Room {
@@ -121,6 +123,7 @@ impl Room {
             resume_token: String::new(),
             humanless_since: None,
             transports: HashMap::new(),
+            chat: ChatHistory::default(),
         }
     }
 

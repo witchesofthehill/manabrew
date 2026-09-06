@@ -382,6 +382,15 @@ pub enum ClientMessage {
     ReportPlaneQuality {
         report: PlaneQualityReport,
     },
+
+    SendChat {
+        scope: ChatScope,
+        text: String,
+    },
+
+    InviteToRoom {
+        username: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -399,6 +408,11 @@ pub enum ServerMessage {
         /// a parse error. Absent from relays built before the list existed.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         features: Vec<String>,
+        /// Where this relay serves card art, when it serves any. A self-hosted
+        /// box holding the images is the reason to run one, and the client
+        /// cannot guess the port. Absent means fall back to the CDN.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        art_base_url: Option<String>,
     },
 
     SessionTakenOver,
@@ -509,7 +523,50 @@ pub enum ServerMessage {
         from: String,
         payload: serde_json::Value,
     },
+
+    ChatMessage(ChatMessage),
+
+    ChatHistory {
+        scope: ChatScope,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        room_id: Option<String>,
+        messages: Vec<ChatMessage>,
+    },
+
+    RoomInvite {
+        from: String,
+        room: RoomInfo,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        password: Option<String>,
+    },
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ChatScope {
+    Lobby,
+    Room,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatMessage {
+    pub scope: ChatScope,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub room_id: Option<String>,
+    pub from: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qualification: Option<String>,
+    pub text: String,
+    pub sent_at_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seal: Option<String>,
+}
+
+pub const CHAT_MESSAGE_MAX_CHARS: usize = 500;
+pub const CHAT_HISTORY_MAX_MESSAGES: usize = 100;
+pub const CHAT_HISTORY_MAX_AGE_MS: u64 = 24 * 60 * 60 * 1000;
+pub const CHAT_MIN_INTERVAL_MS: u64 = 400;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "lobby/index.ts")]
@@ -647,10 +704,18 @@ pub struct PlayerInfo {
     /// at the same time as `room_id`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub local_game: Option<LocalGameKind>,
+    /// Opaque to clients: the session's IP sealed together with its handle,
+    /// which only the hub can open. Carried verbatim into chat reports.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seal: Option<String>,
 }
 
 /// Names [`ClientMessage::SetLocalGame`] in `AuthResult::features`.
 pub const FEATURE_LOCAL_GAME: &str = "local_game";
+/// Names [`ClientMessage::SendChat`] in `AuthResult::features`.
+pub const FEATURE_CHAT: &str = "chat";
+/// Names [`ClientMessage::InviteToRoom`] in `AuthResult::features`.
+pub const FEATURE_ROOM_INVITES: &str = "room_invites";
 
 /// Names [`ClientMessage::AnnounceTransport`] and [`ServerMessage::RoomTransport`]
 /// in `AuthResult::features`. A relay without it never sends a roster, so a
@@ -672,6 +737,8 @@ pub const FEATURES: &[&str] = &[
     FEATURE_ROOM_TRANSPORT,
     FEATURE_PEER_SIGNAL,
     FEATURE_PLANE_QUALITY,
+    FEATURE_CHAT,
+    FEATURE_ROOM_INVITES,
 ];
 
 /// The largest signalling blob the relay will forward. An SDP offer with a

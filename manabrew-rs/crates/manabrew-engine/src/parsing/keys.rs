@@ -495,6 +495,7 @@ pub const REMEMBER_COUNTERED_CMC: &str = "RememberCounteredCMC";
 pub const REMEMBER_FOR_COUNTER: &str = "RememberForCounter";
 pub const REMEMBER_DAMAGED_CREATURE: &str = "RememberDamagedCreature";
 pub const SECRETLY: &str = "Secretly";
+pub const KEEP_SECRET: &str = "KeepSecret";
 pub const STORE_VOTE_NUM: &str = "StoreVoteNum";
 pub const REMEMBER_VOTED_OBJECTS: &str = "RememberVotedObjects";
 pub const TRUE_SUB_ABILITY: &str = "TrueSubAbility";

@@ -26,6 +26,7 @@ import { PromptPreferencesPanel } from "@/components/prompts/internal/PromptPref
 import { KeybindingsPanel } from "@/components/settings/KeybindingsPanel";
 import { AccountSection } from "@/components/settings/AccountSection";
 import { MyAssetsSection } from "@/components/settings/MyAssetsSection";
+import { CardArtDownloadSection } from "@/components/settings/CardArtDownloadSection";
 import { PreferenceCard } from "@/components/settings/PreferenceCard";
 import { toPickerHexColor } from "@/themes/gameTheme";
 import type { GameThemeColors } from "@/themes/gameTheme";
@@ -592,6 +593,8 @@ export default function Settings() {
       {activeTab === "assets" && <MyAssetsSection />}
 
       {activeTab === "keybindings" && <KeybindingsPanel />}
+
+      {activeTab === "cache" && <CardArtDownloadSection />}
 
       {activeTab === "cache" && (
         <section className="space-y-4">

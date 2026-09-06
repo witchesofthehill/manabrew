@@ -5,6 +5,8 @@ mod card_db;
 mod commands;
 mod direct_seat;
 mod forge_room;
+mod image_cache;
+mod lan_discovery;
 mod limited_bootstrap;
 mod limited_commands;
 mod limited_dto;
@@ -58,6 +60,9 @@ pub fn run() {
                 }
             }
 
+            // Before the asset server, which serves `/scryfall-img/` out of it.
+            image_cache::init(app.handle());
+
             let url = asset_server::main_window_url(app.handle());
             let builder = tauri::WebviewWindowBuilder::new(app, "main", url);
             // Sizing/decoration builder methods are desktop-only in tauri v2;
@@ -94,6 +99,14 @@ pub fn run() {
             direct_seat::direct_seat_adopt_relay,
             direct_seat::direct_seat_send,
             direct_seat::direct_seat_stop,
+            lan_discovery::discover_lan_rooms,
+            asset_server::card_art_route_available,
+            image_cache::preseed_card_art,
+            image_cache::download_all_card_art,
+            image_cache::cancel_card_art_download,
+            image_cache::card_art_cache_stats,
+            image_cache::clear_card_art_cache,
+            image_cache::forget_downloaded_card_art,
             limited_commands::limited_start_sealed,
             limited_commands::limited_get_sealed_pool,
             limited_commands::limited_get_edition_info,

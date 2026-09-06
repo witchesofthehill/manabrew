@@ -51,6 +51,7 @@ services:
       MANABREW_HUB_DECK_PLAYS_URL: "http://hub:9500"
       MANABREW_HUB_JWKS_URL: "http://hub:9500/api/auth/jwks"
       MANABREW_HUB_DECK_PLAYS_TOKEN: "forge"
+      SECRET_MANABREW_KEY: "forge-dev"
       RUST_LOG: "manabrew_server=info"
     ports:
       - "9443:9443"
@@ -98,6 +99,7 @@ services:
       HUB_DB_PATH: "/data/hub.db"
       HUB_ANALYTICS_IMPORT_DB_PATH: "/events/events.db"
       HUB_RELAY_DECK_PLAYS_TOKEN: "forge"
+      SECRET_MANABREW_KEY: "forge-dev"
       HUB_RANKING_REFRESH_SECONDS: "5"
       HUB_PUBLIC_URL: "http://localhost:9500"
       WEB_APP_URL: "http://localhost:1420"

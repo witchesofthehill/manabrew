@@ -33,10 +33,14 @@ const FONT = "Inter, system-ui, -apple-system, sans-serif";
 const PANEL_PADDING = 10;
 const AVATAR_DIAMETER = 44;
 const SHALLOW_AVATAR_MIN_HEIGHT = 96;
-const SHALLOW_MANA_IDENTITY_OVERLAP = 36;
+const SHALLOW_RESOURCE_IDENTITY_OVERLAP = 30;
+const SHALLOW_RESOURCE_RIGHT_INSET = 16;
 const SHALLOW_STATE_BLOCK_HEIGHT = 48;
 const STATE_ROW_HEIGHT = 24;
 const STATE_TOUCH_ROW_HEIGHT = 40;
+const TRAY_HORIZONTAL_PADDING = 6;
+const TRAY_VERTICAL_PADDING = 2;
+const TRAY_RADIUS = 6;
 const STATE_ORDER = ["incoming-damage", "poison", "commander", "monarch", "initiative"];
 
 const iconTextures = new Map<string, Texture>();
@@ -145,6 +149,7 @@ export class PlayerHudCapsule {
   private handBacks: Sprite[] = [];
   private seatRail = new Graphics();
   private overflow: Text;
+  private emptyStateText: Text;
   private overflowHit = new Graphics();
   private identityHeight = 0;
   private identityWidth = 0;
@@ -285,6 +290,13 @@ export class PlayerHudCapsule {
     this.handCount = new Text({ text: "", style: this.textStyle(13) });
     this.handCount.anchor.set(0, 0.5);
     this.overflow = new Text({ text: "", style: this.textStyle(11, "600") });
+    this.emptyStateText = new Text({
+      text: "No active effects",
+      style: this.styled(9, "500", theme.gameTheme.textGhost),
+    });
+    this.emptyStateText.anchor.set(0, 0.5);
+    this.emptyStateText.visible = false;
+    this.emptyStateText.eventMode = "none";
     this.overflow.anchor.set(0, 0.5);
     this.overflow.eventMode = "none";
     this.overflowHit.eventMode = "static";
@@ -338,6 +350,7 @@ export class PlayerHudCapsule {
       this.priorityText,
       this.handFan,
       this.handCount,
+      this.emptyStateText,
       this.overflow,
       this.detailsIcon,
       this.overflowHit,
@@ -720,6 +733,7 @@ export class PlayerHudCapsule {
     this.stateTray.clear();
     this.detailsIcon.visible = false;
     this.overflow.visible = false;
+    this.emptyStateText.visible = false;
     this.overflowHit.clear();
     this.overflowHit.visible = false;
     for (const chip of this.chips) {
@@ -864,18 +878,18 @@ export class PlayerHudCapsule {
         statusX + (this.seatState.text ? this.seatState.width + 12 : 0);
       this.heart.visible = false;
       const utilityTop = h - 28;
-      const utilityHeight = 22;
+      const utilityHeight = 20;
       const detailsRect: LayoutRect = this.spec.isSelf
-        ? { x: pad + 24, y: utilityTop, width: 30, height: utilityHeight }
+        ? { x: pad + 24, y: utilityTop, width: 24, height: utilityHeight }
         : { x: pad, y: utilityTop, width: AVATAR_DIAMETER, height: utilityHeight };
       if (this.spec.isSelf) this.layoutGear(pad + 10, utilityTop + utilityHeight / 2, 10);
-      const manaRight = w - pad;
+      const manaRight = w - SHALLOW_RESOURCE_RIGHT_INSET;
       const manaX = showAvatar
-        ? this.identityWidth - SHALLOW_MANA_IDENTITY_OVERLAP
+        ? this.identityWidth - SHALLOW_RESOURCE_IDENTITY_OVERLAP
         : this.identityWidth;
       const manaY = h < 80 ? 14 : 20;
       this.layoutMana(manaX, manaY, Math.max(1, manaRight - manaX), 6, 20);
-      const stateBottom = h - 8;
+      const stateBottom = h - 10;
       const stateY = Math.max(h < 80 ? 24 : 36, stateBottom - SHALLOW_STATE_BLOCK_HEIGHT);
       this.layoutStates(
         manaX,
@@ -1014,7 +1028,13 @@ export class PlayerHudCapsule {
     const size = Math.min(18, rowHeight - 4);
     const rows = Math.ceil(MANA_LETTERS.length / columns);
     this.manaTray
-      .roundRect(x - 6, y - rowHeight / 2 - 2, width + 12, rows * rowHeight + 4, 6)
+      .roundRect(
+        x - TRAY_HORIZONTAL_PADDING,
+        y - rowHeight / 2 - TRAY_VERTICAL_PADDING,
+        width + TRAY_HORIZONTAL_PADDING * 2,
+        rows * rowHeight + TRAY_VERTICAL_PADDING * 2,
+        TRAY_RADIUS,
+      )
       .fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.38 })
       .stroke({ color: hexToNum(this.theme.appTheme.border), alpha: 0.65, width: 1 });
     for (let i = 0; i < MANA_LETTERS.length; i++) {
@@ -1121,7 +1141,13 @@ export class PlayerHudCapsule {
     const cellHeight = Math.min(rowHeight, height / rows);
     const cellWidth = width / columns;
     this.stateTray
-      .roundRect(x - 6, y - 2, width + 12, rows * cellHeight + 4, 6)
+      .roundRect(
+        x - TRAY_HORIZONTAL_PADDING,
+        y - TRAY_VERTICAL_PADDING,
+        width + TRAY_HORIZONTAL_PADDING * 2,
+        rows * cellHeight + TRAY_VERTICAL_PADDING * 2,
+        TRAY_RADIUS,
+      )
       .fill({ color: hexToNum(this.theme.gameTheme.canvas.shadow), alpha: 0.26 })
       .stroke({ color: hexToNum(this.theme.appTheme.border), alpha: 0.5, width: 1 });
     const rank = (id: string) => {
@@ -1137,6 +1163,11 @@ export class PlayerHudCapsule {
           rank(a.badge.id) - rank(b.badge.id) ||
           a.badge.id.localeCompare(b.badge.id),
       );
+    this.emptyStateText.visible = states.length === 0 && width >= 160;
+    if (this.emptyStateText.visible) {
+      this.emptyStateText.style = this.styled(9, "500", this.theme.gameTheme.textGhost);
+      this.emptyStateText.position.set(x + 8, y + (rows * cellHeight) / 2);
+    }
     const capacity = rows * columns - (overflowRect ? 0 : 1);
     const visible = Math.min(states.length, capacity);
     for (let i = 0; i < visible; i++) {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Application } from "pixi.js";
+import { Application, Graphics } from "pixi.js";
 import { destroyPixiApp, installPixiPatches } from "./pixiPatches";
 
 installPixiPatches();
@@ -27,6 +27,7 @@ import {
 } from "@/components/game/cardPreviewStyles";
 import { cn } from "@/lib/utils";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { hexToNum } from "./colorUtils";
 
 export interface BoardOverlayPreviewSpec {
   card: ClientCardDto;
@@ -39,6 +40,30 @@ export interface BoardOverlayPreviewSpec {
   mousePos: { x: number; y: number };
   anchorRect: DOMRect | null;
   viewportRight?: number;
+}
+const PREVIEW_BACKDROP_ALPHA = 0.3;
+
+function hasRulesPreviewBackdrop(
+  spec: BoardOverlayPreviewSpec | null | undefined,
+): spec is BoardOverlayPreviewSpec {
+  return !!spec && spec.sticky && !spec.suppressed && spec.actions.length > 0;
+}
+
+function updateRulesPreviewBackdrop(
+  backdrop: Graphics,
+  spec: BoardOverlayPreviewSpec | null | undefined,
+  width: number,
+  height: number,
+  color: string,
+): void {
+  backdrop.clear();
+  backdrop.visible = hasRulesPreviewBackdrop(spec) && width > 0 && height > 0;
+  if (backdrop.visible) {
+    backdrop.rect(0, 0, width, height).fill({
+      color: hexToNum(color),
+      alpha: PREVIEW_BACKDROP_ALPHA,
+    });
+  }
 }
 
 interface BoardOverlayCanvasProps {
@@ -160,6 +185,7 @@ export function BoardOverlayCanvas({
   const arrowRef = useRef<ArrowLayer | null>(null);
   const stackRef = useRef<StackLayer | null>(null);
   const previewRef = useRef<RulesCardPreviewLayer | null>(null);
+  const previewBackdropRef = useRef<Graphics | null>(null);
   const syncPreviewPointerRef = useRef<(() => void) | null>(null);
   const previewSpecRef = useRef(previewSpec);
   const stackSpecRef = useRef(stackSpec);
@@ -273,6 +299,10 @@ export function BoardOverlayCanvas({
           onToggleCollapsed: () => cbRef.current.onToggleStack(),
         });
         stackRef.current = stack;
+        const previewBackdrop = new Graphics();
+        previewBackdrop.eventMode = "none";
+        previewBackdrop.zIndex = 9_999;
+        previewBackdropRef.current = previewBackdrop;
         stack.setRulesViewDefault(stackCardStyleRef.current === "rules");
         const preview = new RulesCardPreviewLayer(themeRef.current, {
           onPointerEnter: () => cbRef.current.onPreviewPointerEnter?.(),
@@ -288,6 +318,7 @@ export function BoardOverlayCanvas({
 
         app.stage.addChild(stack.container);
         app.stage.addChild(arrow.graphics);
+        app.stage.addChild(previewBackdrop);
         app.stage.addChild(preview.container);
 
         const parent = canvasRef.current?.parentElement;
@@ -297,6 +328,13 @@ export function BoardOverlayCanvas({
           app.renderer.resize(w, h);
           stack.setViewport(w, h);
         }
+        updateRulesPreviewBackdrop(
+          previewBackdrop,
+          previewSpecRef.current,
+          w,
+          h,
+          themeRef.current.gameTheme.canvas.shadow,
+        );
         stack.setSpec(stackSpecRef.current);
         const currentSpec = previewSpecRef.current;
         const canvasRect = canvasRef.current?.getBoundingClientRect();
@@ -309,7 +347,12 @@ export function BoardOverlayCanvas({
             registeredScene?.setOverlayHitTest(null);
             registeredScene = scene;
             scene.setStackAnchorProvider(stack);
-            scene.setOverlayHitTest((x, y) => preview.hitTestHover(x, y) || stack.hitTest(x, y));
+            scene.setOverlayHitTest(
+              (x, y) =>
+                hasRulesPreviewBackdrop(previewSpecRef.current) ||
+                preview.hitTestHover(x, y) ||
+                stack.hitTest(x, y),
+            );
           }
           const defs = scene?.getArrowDefs() ?? [];
           arrow.update(defs, app.ticker.deltaMS);
@@ -327,6 +370,7 @@ export function BoardOverlayCanvas({
       stackRef.current?.destroy();
       stackRef.current = null;
       previewRef.current?.destroy();
+      previewBackdropRef.current = null;
       previewRef.current = null;
       destroyPixiApp(appRef.current);
       appRef.current = null;
@@ -346,6 +390,13 @@ export function BoardOverlayCanvas({
     const canvas = canvasRef.current;
     if (!preview || !canvas) return;
     updateRulesPreview(preview, previewSpec, canvas.getBoundingClientRect());
+    updateRulesPreviewBackdrop(
+      previewBackdropRef.current!,
+      previewSpec,
+      canvas.clientWidth,
+      canvas.clientHeight,
+      themeRef.current.gameTheme.canvas.shadow,
+    );
     if (!previewSpec || previewSpec.phase !== "open" || previewSpec.suppressed) {
       canvas.style.pointerEvents = "none";
     }
@@ -364,6 +415,16 @@ export function BoardOverlayCanvas({
           const canvasRect = canvasRef.current?.getBoundingClientRect();
           if (preview && canvasRect) {
             updateRulesPreview(preview, previewSpecRef.current, canvasRect, width, height);
+            const backdrop = previewBackdropRef.current;
+            if (backdrop) {
+              updateRulesPreviewBackdrop(
+                backdrop,
+                previewSpecRef.current,
+                width,
+                height,
+                themeRef.current.gameTheme.canvas.shadow,
+              );
+            }
           }
         }
       }
@@ -452,7 +513,10 @@ export function BoardOverlayCanvas({
 
       if (stickyOpen && !hit.preview) {
         cbRef.current.onDismissPreview?.();
-        if (event.pointerType === "touch" && !hit.stack) {
+        if (
+          hasRulesPreviewBackdrop(currentPreview) ||
+          (event.pointerType === "touch" && !hit.stack)
+        ) {
           dismissedPointerId = event.pointerId;
           event.preventDefault();
           event.stopImmediatePropagation();
@@ -524,6 +588,17 @@ export function BoardOverlayCanvas({
     arrowRef.current?.setTheme(theme);
     stackRef.current?.setTheme(theme);
     previewRef.current?.setTheme(theme);
+    const backdrop = previewBackdropRef.current;
+    const app = appRef.current;
+    if (backdrop && app) {
+      updateRulesPreviewBackdrop(
+        backdrop,
+        previewSpecRef.current,
+        app.screen.width,
+        app.screen.height,
+        theme.gameTheme.canvas.shadow,
+      );
+    }
   }, [theme]);
 
   const hoveredStackCard = stackSpec.cards.find((card) => card.id === hoveredStackObjectId);

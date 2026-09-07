@@ -21,6 +21,8 @@ import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { asDeckCard } from "@/lib/decks";
 import { useGameStore } from "@/stores/useGameStore";
 import type { HandActionOption } from "@/stores/useGameUIStore";
+import { gsap } from "@/pixi/effects/gsap";
+import { animationsEnabled } from "@/pixi/effects/enabled";
 import { PixiRichText } from "./PixiRichText";
 import { RulesPreviewIdentity } from "./RulesPreviewIdentity";
 import { RulesPreviewActions } from "./RulesPreviewActions";
@@ -70,6 +72,7 @@ const FADE_HEIGHT = 18;
 const RULES_ENTRY_GAP = 12;
 const RULES_ENTRY_PAD = 6;
 const RULES_SCROLL_GUTTER = 8;
+const STACK_RULES_PULSE_S = 0.9;
 type HandRulesSectionId = "actions" | "rules" | "flavor";
 
 export class HandRulesCardFace extends Container {
@@ -92,6 +95,7 @@ export class HandRulesCardFace extends Container {
   private frameGradient: FillGradient | null = null;
   private highlightedEffect = "";
   private rulesScrollOffset: number | null = null;
+  private highlightedEffectTween: gsap.core.Tween | null = null;
 
   constructor(
     card: CardDto,
@@ -218,6 +222,8 @@ export class HandRulesCardFace extends Container {
   }
 
   private rebuild(): void {
+    this.highlightedEffectTween?.kill();
+    this.highlightedEffectTween = null;
     this.root.removeChildren().forEach((child) => child.destroy({ children: true }));
     this.frameGradient?.destroy();
     this.frameGradient = null;
@@ -417,6 +423,7 @@ export class HandRulesCardFace extends Container {
     });
     let contentY = 0;
     let firstHighlightedTop: number | null = null;
+    const pulseTargets: Container[] = [];
     for (const entry of entries) {
       const row = new Container();
       const richText = new PixiRichText();
@@ -430,11 +437,12 @@ export class HandRulesCardFace extends Container {
         const highlight = new Graphics();
         highlight.roundRect(0, 0, width - RULES_SCROLL_GUTTER, rowHeight, 6).fill({
           color,
-          alpha: 0.18,
+          alpha: 0.28,
         });
         const marker = new Graphics();
         marker.roundRect(0, 0, 4, rowHeight, 2).fill(color);
         row.addChild(highlight, marker);
+        pulseTargets.push(row);
         firstHighlightedTop ??= contentY;
       }
       row.position.y = contentY;
@@ -521,6 +529,15 @@ export class HandRulesCardFace extends Container {
     }
     viewport.addChild(track, thumb);
     this.root.addChild(viewport, mask);
+    if (pulseTargets.length > 0 && animationsEnabled()) {
+      this.highlightedEffectTween = gsap.to(pulseTargets, {
+        alpha: 0.72,
+        duration: STACK_RULES_PULSE_S,
+        ease: "sine.inOut",
+        yoyo: true,
+        repeat: -1,
+      });
+    }
     return y + viewportHeight + SECTION_GAP;
   }
 
@@ -657,6 +674,8 @@ export class HandRulesCardFace extends Container {
   }
 
   override destroy(options?: DestroyOptions): void {
+    this.highlightedEffectTween?.kill();
+    this.highlightedEffectTween = null;
     this.frameGradient?.destroy();
     this.frameGradient = null;
     super.destroy(options);

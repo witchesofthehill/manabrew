@@ -5,14 +5,18 @@ import {
   FederatedPointerEvent,
   Graphics,
   Rectangle,
+  Sprite,
   Text,
   TextStyle,
+  type Texture,
   type Ticker,
 } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "@/pixi/colorUtils";
 import { CardSprite } from "@/pixi/CardSprite";
+import { gameIconTexture } from "@/pixi/gameIconCache";
+import { loadManaSymbolTexture } from "@/pixi/manaSymbolCache";
 import { deckCardToPreviewDto } from "@/lib/scryfall.utils";
 import { AUTOPASS_DELAY_MAX_MS, AUTOPASS_DELAY_MIN_MS } from "@/components/game/game.constants";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
@@ -310,6 +314,11 @@ export class PromptLayer {
       disabled?: boolean;
       width?: number;
       compact?: boolean;
+      title?: string;
+      icon?: string;
+      iconTexture?: Promise<Texture>;
+      iconTint?: boolean;
+      iconSize?: number;
     } = {},
   ): PromptButton {
     return new PromptButton(this.theme, {
@@ -321,7 +330,68 @@ export class PromptLayer {
       disabled: options.disabled,
       width: options.width,
       compact: options.compact,
+      title: options.title,
+      icon: options.icon,
+      iconTexture: options.iconTexture,
+      iconTint: options.iconTint,
+      iconSize: options.iconSize,
     });
+  }
+
+  private makeIcon(name: string, size: number, color: string): Sprite {
+    const sprite = new Sprite();
+    sprite.anchor.set(0.5);
+    sprite.eventMode = "none";
+    sprite.tint = hexToNum(color);
+    void gameIconTexture(name)
+      .then((texture) => {
+        if (sprite.destroyed) return;
+        sprite.texture = texture;
+        sprite.width = size;
+        sprite.height = size;
+      })
+      .catch(() => {});
+    return sprite;
+  }
+
+  private manaSymbol(color: string): string {
+    switch (color) {
+      case "White":
+      case "W":
+        return "W";
+      case "Blue":
+      case "U":
+        return "U";
+      case "Black":
+      case "B":
+        return "B";
+      case "Red":
+      case "R":
+        return "R";
+      case "Green":
+      case "G":
+        return "G";
+      case "Colorless":
+      case "C":
+        return "C";
+      default:
+        return "C";
+    }
+  }
+
+  private makeManaIcon(symbol: string, size: number): Sprite {
+    const sprite = new Sprite();
+    sprite.anchor.set(0.5);
+    sprite.eventMode = "none";
+    void loadManaSymbolTexture(symbol)
+      .then((texture) => {
+        if (sprite.destroyed) return;
+        sprite.texture = texture;
+        sprite.width = size;
+        sprite.height = size;
+      })
+      .catch(() => {});
+    return sprite;
   }
   private renderActionPanel(): void {
     const spec = this.spec!;
@@ -333,6 +403,7 @@ export class PromptLayer {
     const buttons: PromptButton[] = [];
     let title = "Waiting";
     let hint = "Waiting for priority";
+    let hintIcon: string | null = null;
     const waiting = action.isWaitingForResponse;
     const waitingOthers = action.isWaitingForOthers;
     const promptView =
@@ -364,7 +435,11 @@ export class PromptLayer {
         title = "Action Required";
         hint = "A modal prompt is waiting";
         buttons.push(
-          this.makeButton("OPEN PROMPT", spec.onShowModal, { color: defenseColor, width: 132 }),
+          this.makeButton("OPEN PROMPT", spec.onShowModal, {
+            color: defenseColor,
+            width: 148,
+            icon: "lucide-alert-circle",
+          }),
         );
         break;
       }
@@ -374,6 +449,7 @@ export class PromptLayer {
         hint = action.pendingAttackers.length
           ? "Pick a target — click an opponent or planeswalker"
           : action.mustAttackHint || "Drag creatures to defenders or select attackers";
+        if (action.pendingAttackers.length) hintIcon = "lucide-crosshair";
         const attackAll = action.multipleAttackDefenders
           ? () => action.onBeginAttackTargetPick(action.availableAttackerIds)
           : () =>
@@ -382,19 +458,25 @@ export class PromptLayer {
                 action.selectedAttackDefenderId ?? undefined,
               );
         buttons.push(
-          this.makeButton("ATTACK ALL", attackAll, { color: attackColor, disabled: waiting }),
+          this.makeButton("ATTACK ALL", attackAll, {
+            color: attackColor,
+            disabled: waiting,
+            icon: "lucide-swords",
+          }),
           this.makeButton(
             attackCount ? `ATTACK (${attackCount})` : "ATTACK",
             action.onSubmitAttack,
             {
               color: attackColor,
               disabled: waiting || attackCount === 0,
+              icon: "lucide-sword",
             },
           ),
           this.makeButton("PASS", action.onPassPriority, {
             color: passColor,
             outline: true,
             disabled: waiting,
+            icon: "lucide-ban",
           }),
         );
         break;
@@ -417,6 +499,7 @@ export class PromptLayer {
               {
                 color: defenseColor,
                 disabled: waiting || !!action.blockRequirementError,
+                icon: "lucide-shield",
               },
             ),
           );
@@ -426,6 +509,7 @@ export class PromptLayer {
             color: cancelColor,
             outline: true,
             disabled: waiting,
+            icon: "lucide-ban",
           }),
         );
         break;
@@ -450,6 +534,7 @@ export class PromptLayer {
               color: action.targetCompletionKind === "cancel" ? cancelColor : defenseColor,
               outline: action.targetCompletionKind === "cancel",
               disabled: waiting,
+              icon: action.targetCompletionKind === "cancel" ? "lucide-ban" : "lucide-check",
             }),
           );
         }
@@ -458,6 +543,7 @@ export class PromptLayer {
             this.makeButton("OPEN STACK", action.onOpenStack, {
               color: defenseColor,
               outline: true,
+              icon: "lucide-layers",
             }),
           );
         }
@@ -482,6 +568,7 @@ export class PromptLayer {
           this.makeButton("CONFIRM", action.onConfirmDamageOrder, {
             color: attackColor,
             disabled: waiting || action.damageOrderCount < action.damageOrderTotal,
+            icon: "lucide-swords",
           }),
         );
         break;
@@ -499,12 +586,17 @@ export class PromptLayer {
             {
               color: passColor,
               disabled: waiting,
+              icon: info?.canConfirmFromPool ? "lucide-check" : "lucide-wand-sparkles",
             },
           ),
         );
         if (info?.delveAvailable && info.onOpenDelve) {
           buttons.push(
-            this.makeButton("DELVE", info.onOpenDelve, { color: defenseColor, outline: true }),
+            this.makeButton("DELVE", info.onOpenDelve, {
+              color: defenseColor,
+              outline: true,
+              icon: "exile",
+            }),
           );
         }
         if (info?.lifeToPay != null && info.onPayLife) {
@@ -512,6 +604,7 @@ export class PromptLayer {
             this.makeButton(`${info.lifeToPay} LIFE`, info.onPayLife, {
               color: attackColor,
               outline: true,
+              icon: "lucide-heart-crack",
             }),
           );
         }
@@ -520,6 +613,7 @@ export class PromptLayer {
             color: cancelColor,
             outline: true,
             disabled: waiting,
+            icon: "lucide-ban",
           }),
         );
         break;
@@ -533,11 +627,13 @@ export class PromptLayer {
           this.makeButton("KEEP", action.onMulliganKeep, {
             color: passColor,
             disabled: waiting,
+            icon: "lucide-check",
             width: 118,
           }),
           this.makeButton("MULLIGAN", action.onMulliganDraw, {
             color: this.theme.appTheme.secondary,
             disabled: waiting,
+            icon: "lucide-rotate-cw",
             width: 126,
           }),
         );
@@ -551,6 +647,7 @@ export class PromptLayer {
         buttons.push(
           this.makeButton("CONFIRM", action.onMulliganPutBackConfirm, {
             color: this.theme.appTheme.primary,
+            icon: "lucide-check",
             disabled: waiting || selected !== count,
             width: 126,
           }),
@@ -568,7 +665,11 @@ export class PromptLayer {
           title = "Action Required";
           hint = "The prompt is minimized";
           buttons.push(
-            this.makeButton("OPEN PROMPT", spec.onShowModal, { color: defenseColor, width: 132 }),
+            this.makeButton("OPEN PROMPT", spec.onShowModal, {
+              color: defenseColor,
+              width: 148,
+              icon: "lucide-alert-circle",
+            }),
           );
         } else if (waitingOthers) {
           hint = "Waiting for another player";
@@ -585,6 +686,15 @@ export class PromptLayer {
     hintText.anchor.set(0.5, 0);
     hintText.position.set(width / 2 - PANEL_PADDING, 0);
     content.addChild(hintText);
+    if (hintIcon) {
+      const icon = this.makeIcon(
+        hintIcon,
+        compact ? 12 : 14,
+        this.theme.appTheme["muted-foreground"],
+      );
+      icon.position.set(width / 2 - PANEL_PADDING - hintText.width / 2 - 10, 7);
+      content.addChild(icon);
+    }
     const buttonY = Math.max(24, hintText.height + 8);
     const buttonHeight = this.addButtonRow(content, buttons, buttonY, width - PANEL_PADDING * 2);
     const bodyHeight = Math.max(42, buttonY + buttonHeight);
@@ -632,12 +742,21 @@ export class PromptLayer {
           }
           this.rebuild();
         },
-        { outline: true, compact: true, width: 78 },
+        {
+          outline: true,
+          compact: true,
+          width: 88,
+          icon: fullControl ? "lucide-hand" : "lucide-zap",
+          iconSize: 13,
+        },
       );
       modeButton.scale.set(0.72);
-      modeButton.position.set(width - 94, 4);
+      modeButton.position.set(width - 104, 4);
       panel.addChild(modeButton);
-      const menuButton = this.makeButton("⋮", action.onToggleBoardMenu, {
+      const menuButton = this.makeButton("", action.onToggleBoardMenu, {
+        title: "Game menu",
+        icon: "lucide-settings",
+        iconSize: 16,
         outline: true,
         compact: true,
         width: 30,
@@ -736,12 +855,20 @@ export class PromptLayer {
     const externalSource = !!sourceSprite && this.viewportWidth - width >= 444;
     if (sourceSprite) {
       const targetWidth = externalSource ? 200 : 76;
-      sourceSprite.scale.set(targetWidth / sourceSprite.width);
+      const left = externalSource ? width + 22 : PANEL_PADDING;
+      const top = externalSource ? 0 : 16;
+      const placeSourceSprite = () => {
+        sourceSprite.scale.set(1);
+        const scale = targetWidth / sourceSprite.width;
+        sourceSprite.scale.set(scale);
+        sourceSprite.position.set(
+          left + sourceSprite.pivot.x * scale,
+          top + sourceSprite.pivot.y * scale,
+        );
+      };
+      sourceSprite.onReorient = placeSourceSprite;
+      placeSourceSprite();
       sourceSprite.eventMode = "none";
-      sourceSprite.position.set(
-        externalSource ? width + 22 : PANEL_PADDING,
-        externalSource ? 0 : 16,
-      );
       panel.addChild(sourceSprite);
     }
     const titleX = sourceSprite && !externalSource ? PANEL_PADDING + 92 : PANEL_PADDING;
@@ -776,7 +903,9 @@ export class PromptLayer {
       bodyTop += rules.height + 8;
     }
     if (minimizable) {
-      const minimize = this.makeButton("−", this.spec!.onHideModal, {
+      const minimize = this.makeButton("", this.spec!.onHideModal, {
+        title: "Minimize prompt",
+        icon: "lucide-minus",
         outline: true,
         compact: true,
         width: 32,
@@ -875,9 +1004,7 @@ export class PromptLayer {
       const selected = count > 0;
       const disabled = option.weight > maxTotal || (!selected && total + option.weight > maxTotal);
       const repeatedWidth = option.canRepeat ? availableWidth - 76 : availableWidth;
-      const label = option.canRepeat
-        ? `${option.label}  × ${count}`
-        : `${selected ? "✓ " : ""}${option.label}`;
+      const label = option.canRepeat ? `${option.label}  × ${count}` : option.label;
       const increment = () => {
         if (autoConfirm) {
           this.spec!.respond({ type: "selectionDecision", chosenIndices: [index] });
@@ -897,22 +1024,32 @@ export class PromptLayer {
         outline: !selected,
         disabled,
         width: repeatedWidth,
+        icon: !option.canRepeat && selected && !autoConfirm ? "lucide-check" : undefined,
       });
       button.position.set(0, y);
       body.addChild(button);
       if (option.canRepeat) {
         const minus = this.makeButton(
-          "−",
+          "",
           () => {
             if (count <= 1) this.counts.delete(index);
             else this.counts.set(index, count - 1);
             this.rebuild();
           },
-          { outline: true, compact: true, disabled: count === 0, width: 32 },
+          {
+            title: "Remove one",
+            icon: "lucide-minus",
+            outline: true,
+            compact: true,
+            disabled: count === 0,
+            width: 32,
+          },
         );
         minus.position.set(availableWidth - 72, y + 3);
         body.addChild(minus);
-        const plus = this.makeButton("+", increment, {
+        const plus = this.makeButton("", increment, {
+          title: "Add one",
+          icon: "lucide-plus",
           outline: true,
           compact: true,
           disabled,
@@ -1021,8 +1158,14 @@ export class PromptLayer {
     tile.accessibleTitle = card.identity.name;
     tile.tabIndex = disabled ? -1 : 0;
     const sprite = new CardSprite(card, "zone");
-    const scale = Math.min(CARD_WIDTH / sprite.width, CARD_HEIGHT / sprite.height);
-    sprite.scale.set(scale);
+    const placeSprite = () => {
+      sprite.scale.set(1);
+      const scale = Math.min(CARD_WIDTH / sprite.width, CARD_HEIGHT / sprite.height);
+      sprite.scale.set(scale);
+      sprite.position.set(sprite.pivot.x * scale, sprite.pivot.y * scale);
+    };
+    sprite.onReorient = placeSprite;
+    placeSprite();
     sprite.eventMode = "none";
     tile.addChild(sprite);
     if (selected) {
@@ -1075,7 +1218,10 @@ export class PromptLayer {
           {
             color: colors[color] ?? this.theme.appTheme.muted,
             foreground: this.theme.gameTheme.textOnTinted,
-            width: 92,
+            width: 106,
+            iconTexture: loadManaSymbolTexture(this.manaSymbol(color)),
+            iconTint: false,
+            iconSize: 24,
           },
         ),
       );
@@ -1086,28 +1232,40 @@ export class PromptLayer {
     const total = [...this.counts.values()].reduce((sum, value) => sum + value, 0);
     for (const color of validColors) {
       const count = this.counts.get(color) ?? 0;
+      const manaIcon = this.makeManaIcon(this.manaSymbol(color), 28);
+      manaIcon.position.set(14, y + 18);
       const colorText = promptText(color, 13, this.theme.appTheme.foreground, { weight: "600" });
-      colorText.position.set(0, y + 9);
-      body.addChild(colorText);
+      colorText.position.set(38, y + 9);
+      body.addChild(manaIcon, colorText);
       const minus = this.makeButton(
-        "−",
+        "",
         () => {
           if (count <= 1) this.counts.delete(color);
           else this.counts.set(color, count - 1);
           this.rebuild();
         },
-        { color: colors[color], outline: true, disabled: count <= 0, compact: true, width: 34 },
+        {
+          title: "Remove one",
+          icon: "lucide-minus",
+          color: colors[color],
+          outline: true,
+          disabled: count <= 0,
+          compact: true,
+          width: 34,
+        },
       );
       const countText = promptText(String(count), 14, this.theme.appTheme.foreground, {
         weight: "700",
       });
       const plus = this.makeButton(
-        "+",
+        "",
         () => {
           this.counts.set(color, count + 1);
           this.rebuild();
         },
         {
+          title: "Add one",
+          icon: "lucide-plus",
           color: colors[color],
           outline: true,
           disabled: total >= amount || (!repeatAllowed && count >= 1),
@@ -1122,13 +1280,23 @@ export class PromptLayer {
       y += 42;
     }
     const ready = total === amount;
+    let previewX = 14;
+    for (const [color, count] of this.counts) {
+      if (typeof color !== "string") continue;
+      for (let index = 0; index < count; index += 1) {
+        const icon = this.makeManaIcon(this.manaSymbol(color), 26);
+        icon.position.set(previewX, y + 18);
+        body.addChild(icon);
+        previewX += 30;
+      }
+    }
     const status = promptText(
       ready ? "Ready" : `${amount - total} left`,
       12,
       ready ? this.theme.gameTheme.success : this.theme.appTheme["muted-foreground"],
       { weight: "600" },
     );
-    status.position.set(0, y + 10);
+    status.position.set(total > 0 ? previewX + 2 : 0, y + 10);
     body.addChild(status);
     const confirm = this.makeButton(
       "CONFIRM",
@@ -1185,17 +1353,29 @@ export class PromptLayer {
       this.rebuild();
     };
     const buttons = [
-      this.makeButton("−", () => setValue((isValid ? parsedValue : min) - 1), {
+      this.makeButton("", () => setValue((isValid ? parsedValue : min) - 1), {
+        title: "Decrease",
+        icon: "lucide-minus",
+        iconSize: 22,
         outline: true,
         disabled: isValid && parsedValue <= min,
         width: 58,
       }),
       this.makeButton(
-        "CONFIRM",
+        "",
         () => this.spec!.respond({ type: "numberDecision", chosenNumber: parsedValue }),
-        { disabled: !isValid, width: 112 },
+        {
+          title: "Confirm",
+          icon: "lucide-check",
+          iconSize: 24,
+          disabled: !isValid,
+          width: 70,
+        },
       ),
-      this.makeButton("+", () => setValue((isValid ? parsedValue : min) + 1), {
+      this.makeButton("", () => setValue((isValid ? parsedValue : min) + 1), {
+        title: "Increase",
+        icon: "lucide-plus",
+        iconSize: 22,
         outline: true,
         disabled: isValid && parsedValue >= max,
         width: 58,
@@ -1352,6 +1532,7 @@ export class PromptLayer {
           this.makeDraggable(tile, (x, y) => this.dropScryCard(id, x, y));
         body.addChild(tile);
       });
+      if (ids.length === 0) this.addScryDestinationHint(body, destination, rect);
     });
     const allPlaced = poolIds.length === 0;
     const status = promptText(
@@ -1411,6 +1592,65 @@ export class PromptLayer {
         return "EXILE";
       case "hand":
         return "HAND";
+    }
+  }
+
+  private addScryDestinationHint(
+    body: Container,
+    destination: ScryDestination,
+    rect: Rectangle,
+  ): void {
+    const color = this.theme.appTheme["muted-foreground"];
+    const centerX = rect.x + rect.width / 2;
+    const centerY = rect.y + rect.height / 2 - 8;
+    if (destination === "libraryTop" || destination === "libraryBottom") {
+      if (destination === "libraryTop") {
+        const deck = this.makeIcon("deck", 42, color);
+        deck.position.set(centerX + 4, centerY);
+        body.addChild(deck);
+      } else {
+        const card = new Graphics();
+        for (let x = -24; x < 24; x += 10) {
+          card.moveTo(x, -18).lineTo(Math.min(x + 6, 24), -18);
+          card.moveTo(x, 18).lineTo(Math.min(x + 6, 24), 18);
+        }
+        for (let y = -18; y < 18; y += 10) {
+          card.moveTo(-24, y).lineTo(-24, Math.min(y + 6, 18));
+          card.moveTo(24, y).lineTo(24, Math.min(y + 6, 18));
+        }
+        card.stroke({ color: hexToNum(color), width: 2, alpha: 0.7 });
+        card.position.set(centerX + 4, centerY);
+        body.addChild(card);
+      }
+      const arrow = this.makeIcon("arrow-dunk", 26, color);
+      arrow.position.set(centerX - 17, centerY - 24);
+      body.addChild(arrow);
+    } else {
+      const icon = this.makeIcon(destination, 44, color);
+      icon.position.set(centerX, centerY);
+      body.addChild(icon);
+    }
+    const hint = promptText(this.scryDestinationHint(destination), 11, color, {
+      weight: "600",
+      align: "center",
+    });
+    hint.anchor.set(0.5, 0);
+    hint.position.set(centerX, centerY + 32);
+    body.addChild(hint);
+  }
+
+  private scryDestinationHint(destination: ScryDestination): string {
+    switch (destination) {
+      case "libraryTop":
+        return "Put on top";
+      case "libraryBottom":
+        return "Send to bottom";
+      case "graveyard":
+        return "To graveyard";
+      case "exile":
+        return "Exile";
+      case "hand":
+        return "To hand";
     }
   }
   private renderDamageOrder(): void {
@@ -1473,6 +1713,7 @@ export class PromptLayer {
     buttons.push(
       this.makeButton("CONFIRM", damageOrder.onConfirm, {
         disabled: this.spec!.action.isWaitingForResponse || !complete,
+        icon: "lucide-swords",
       }),
     );
     this.addButtonRow(body, buttons, height - body.y - 48, width - PANEL_PADDING * 2, "right");
@@ -1528,6 +1769,11 @@ export class PromptLayer {
       );
       text.position.set(10, y + 15);
       body.addChild(text);
+      if (lethal != null && lethal > 0 && damage >= lethal) {
+        const skull = this.makeIcon("lucide-skull", 14, this.theme.appTheme.destructive);
+        skull.position.set(width - PANEL_PADDING * 2 - 122, y + 24);
+        body.addChild(skull);
+      }
       const minus = this.makeButton(
         "−",
         () => {

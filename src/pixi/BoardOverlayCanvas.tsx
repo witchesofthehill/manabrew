@@ -564,20 +564,6 @@ export function BoardOverlayCanvas({
       ) {
         return;
       }
-      if (event.key === "Tab") {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        previewRef.current?.focusSection(event.shiftKey ? -1 : 1);
-        return;
-      }
-      if (
-        (event.key === "Enter" || event.key === " ") &&
-        previewRef.current?.activateFocusedSection()
-      ) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        return;
-      }
       const shortcut = Number.parseInt(event.key, 10);
       if (shortcut < 1 || shortcut > 9) return;
       if (previewRef.current?.activateShortcut(shortcut)) {

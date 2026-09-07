@@ -22,7 +22,6 @@ export class RulesPreviewSectionHeader extends Container {
   private pressX = 0;
   private pressY = 0;
   private dragMoved = false;
-  private focused = false;
   private options: SectionHeaderOptions;
 
   constructor(options: SectionHeaderOptions) {
@@ -89,18 +88,13 @@ export class RulesPreviewSectionHeader extends Container {
     });
   }
 
-  setFocused(focused: boolean): void {
-    this.focused = focused;
-    this.drawBackground(false);
-  }
-
   private drawBackground(hovered: boolean): void {
     const { width, frame } = this.options;
     this.background
       .clear()
       .rect(0, 0, width, PREVIEW_SECTION_HEADER_HEIGHT)
       .fill(hexToNum(frame.paper));
-    if (hovered || this.focused) {
+    if (hovered) {
       this.background.rect(0, 0, width, PREVIEW_SECTION_HEADER_HEIGHT).fill(hexToNum(frame.raised));
     }
   }

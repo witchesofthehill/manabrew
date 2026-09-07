@@ -289,7 +289,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
 
         <SettingRow
           label={`Card preview delay (${prefs.cardHoverDelayMs}ms)`}
-          hint="How long hover and modifier previews wait before appearing."
+          hint="How long hover previews wait before appearing."
         >
           <input
             type="range"

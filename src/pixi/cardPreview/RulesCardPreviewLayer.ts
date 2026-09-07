@@ -178,9 +178,6 @@ export class RulesCardPreviewLayer {
   private actions = new RulesPreviewActions();
   private controls = new RulesPreviewActions();
   private viewControls: HandCardControls;
-  private sectionHeaders: Array<{ id: RulesPreviewSectionId; header: RulesPreviewSectionHeader }> =
-    [];
-  private focusedSection: RulesPreviewSectionId | null = null;
   private spec: RulesCardPreviewSpec | null = null;
   private viewportWidth = 0;
   private viewportHeight = 0;
@@ -226,8 +223,6 @@ export class RulesCardPreviewLayer {
     this.container.cursor = "default";
     this.container.on("pointerdown", (event: FederatedPointerEvent) => {
       event.stopPropagation();
-      this.focusedSection = null;
-      for (const { header } of this.sectionHeaders) header.setFocused(false);
     });
     this.container.hitArea = {
       contains: (x, y) => this.interactiveReady && this.containsHoverArea(x, y),
@@ -325,10 +320,7 @@ export class RulesCardPreviewLayer {
     ) {
       usePreferencesStore.getState().setRulesPreviewSectionCollapsed("rules", false);
     }
-    if (cardChanged) {
-      this.forcePortrait = false;
-      this.focusedSection = null;
-    }
+    if (cardChanged) this.forcePortrait = false;
     if (lookupChanged) {
       this.displayedBackFace = spec.showBackFace;
       this.artSprite.texture = Texture.EMPTY;
@@ -457,16 +449,13 @@ export class RulesCardPreviewLayer {
   }
 
   focusAction(delta: number): void {
-    this.focusedSection = null;
     if (!this.revealActions()) return;
-    for (const { header } of this.sectionHeaders) header.setFocused(false);
     this.actions.focusAction(delta);
     const row = this.actions.focusedActionBounds;
     if (row) this.scrollIntoView(this.actions.y + row.top, row.height);
   }
 
   activateFocusedAction(): void {
-    if (this.focusedSection !== null) return;
     if (this.isCollapsed("actions")) {
       this.focusAction(0);
       return;
@@ -476,25 +465,6 @@ export class RulesCardPreviewLayer {
 
   activateShortcut(shortcut: number): boolean {
     return this.actions.activateShortcut(shortcut);
-  }
-
-  focusSection(delta: number): void {
-    const ids = [...new Set(this.sectionHeaders.map(({ id }) => id))];
-    if (ids.length === 0) return;
-    const index =
-      this.focusedSection === null ? (delta < 0 ? 0 : -1) : ids.indexOf(this.focusedSection);
-    this.focusedSection = ids[(index + delta + ids.length) % ids.length]!;
-    for (const { id, header } of this.sectionHeaders) header.setFocused(id === this.focusedSection);
-    const entry = this.sectionHeaders.find(({ id }) => id === this.focusedSection)!;
-    if (entry.header.parent === this.bodyContent) {
-      this.scrollIntoView(entry.header.y, PREVIEW_SECTION_HEADER_HEIGHT);
-    }
-  }
-
-  activateFocusedSection(): boolean {
-    if (this.focusedSection === null) return false;
-    this.toggleSection(this.focusedSection);
-    return true;
   }
 
   private revealActions(): boolean {
@@ -543,7 +513,6 @@ export class RulesCardPreviewLayer {
     const spec = this.spec;
     if (!spec || this.viewportWidth <= 0 || this.viewportHeight <= 0) return;
     this.actions.removeFromParent();
-    this.sectionHeaders = [];
     this.chrome.removeChildren().forEach((child) => child.destroy({ children: true }));
     this.bodyContent.removeChildren().forEach((child) => child.destroy({ children: true }));
     this.footer.removeChildren().forEach((child) => child.destroy({ children: true }));
@@ -844,9 +813,7 @@ export class RulesCardPreviewLayer {
     });
     header.label = id;
     header.position.set(0, y);
-    header.setFocused(this.focusedSection === id);
     parent.addChild(header);
-    this.sectionHeaders.push({ id, header });
     return y + PREVIEW_SECTION_HEADER_HEIGHT + 4;
   }
 

@@ -1,5 +1,5 @@
 import { Container, Graphics, Rectangle, Text, TextStyle } from "pixi.js";
-import type { DestroyOptions, FederatedPointerEvent } from "pixi.js";
+import type { DestroyOptions, FederatedPointerEvent, FederatedWheelEvent } from "pixi.js";
 import type { CardStatusPresentation, CardStatusTone } from "@/components/game/cardPresentation";
 import type { Theme } from "@/hooks/useTheme";
 import type { HandActionOption } from "@/stores/useGameUIStore";
@@ -17,6 +17,7 @@ interface ActionsContent {
   label: string;
   onSelectAction: (action: HandActionOption) => void;
   embedded?: boolean;
+  ownsScroll?: boolean;
 }
 
 interface ActionRow {
@@ -97,7 +98,7 @@ export class RulesPreviewActions extends Container {
     this.viewport.mask = this.clip;
     this.addChild(this.background, this.viewport, this.clip, this.scrollbar, this.utilities);
     this.on("pointerdown", (event: FederatedPointerEvent) => {
-      if (!this.spec?.embedded) event.stopPropagation();
+      if (!this.spec?.embedded || this.spec.ownsScroll) event.stopPropagation();
       if (this.pointerId !== null) return;
       this.pointerId = event.pointerId;
       this.tapPointerId = null;
@@ -111,7 +112,7 @@ export class RulesPreviewActions extends Container {
       if (event.pointerId !== this.pointerId) return;
       const delta = event.global.y - this.pressY;
       if (Math.hypot(event.global.x - this.pressX, delta) > DRAG_SLOP) this.dragMoved = true;
-      if (this.touchPress && this.dragMoved && !this.spec?.embedded) {
+      if (this.touchPress && this.dragMoved && this.spec?.ownsScroll) {
         const scale = Math.hypot(this.worldTransform.c, this.worldTransform.d);
         if (scale > 0) this.setScroll(this.pressScroll - delta / scale);
       }
@@ -119,6 +120,13 @@ export class RulesPreviewActions extends Container {
     this.on("pointerup", (event: FederatedPointerEvent) => this.endPress(event, false));
     this.on("pointerupoutside", (event: FederatedPointerEvent) => this.endPress(event, true));
     this.on("pointercancel", (event: FederatedPointerEvent) => this.endPress(event, true));
+    this.on("wheel", (event: FederatedWheelEvent) => {
+      if (!this.spec?.ownsScroll) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const scale = Math.hypot(this.worldTransform.c, this.worldTransform.d);
+      this.scrollBy(event.deltaY, event.deltaMode, scale);
+    });
   }
 
   get panelHeight(): number {
@@ -460,7 +468,7 @@ export class RulesPreviewActions extends Container {
 
   private endPress(event: FederatedPointerEvent, cancelled: boolean): void {
     if (event.pointerId !== this.pointerId) return;
-    if (!this.spec?.embedded) event.stopPropagation();
+    if (!this.spec?.embedded || this.spec.ownsScroll) event.stopPropagation();
     if (Math.hypot(event.global.x - this.pressX, event.global.y - this.pressY) > DRAG_SLOP) {
       this.dragMoved = true;
     }

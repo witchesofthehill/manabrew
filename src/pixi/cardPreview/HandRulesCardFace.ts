@@ -354,6 +354,7 @@ export class HandRulesCardFace extends Container {
           label: "",
           onSelectAction: this.onSelectAction!,
           embedded: true,
+          ownsScroll: true,
         });
         actionPanel.scale.set(ACTIONS_CONTENT_SCALE);
         actionPanel.position.set(CONTENT_PAD, y);

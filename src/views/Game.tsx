@@ -66,7 +66,7 @@ import { declareAttackersOutput } from "@/components/prompts/internal/playerActi
 import { DamageOrderModal } from "@/components/prompts/DamageOrderModal";
 import { TargetingCursor } from "@/components/game/TargetingCursor";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
-import type { CombatPairing } from "@/components/game/game.types";
+import type { CombatPairing, LogCardPreviewOptions } from "@/components/game/game.types";
 import { useStackUIStore } from "@/stores/useStackUIStore";
 import {
   useGameDevStore,
@@ -1608,25 +1608,33 @@ export default function Game({ exitTo }: GameProps = {}) {
   const handleLogCardHover = (
     cardId: string | null,
     e?: React.MouseEvent,
-    options: {
-      useAnchor?: boolean;
-      placement?: "auto" | "top-center";
-      anchorOverride?: DOMRect;
-      useDelay?: boolean;
-      trigger?: PreviewPointerInput;
-    } = {},
+    options: LogCardPreviewOptions = {},
   ) => {
     if (draggingHandCard) {
       preview.dismiss();
       return;
     }
     if (!cardId) {
-      preview.dismiss();
+      preview.handleMouseLeave();
       return;
     }
     const card = visibleCardsById.get(cardId) ?? stackCardsBySourceId.get(cardId);
     if (!card) {
       preview.dismiss();
+      return;
+    }
+    if (options.sticky) {
+      const anchor =
+        options.anchorOverride ??
+        (options.useAnchor && e
+          ? (e.currentTarget as HTMLElement).getBoundingClientRect()
+          : undefined);
+      preview.showSticky(
+        card,
+        e?.clientX ?? (anchor ? anchor.left + anchor.width / 2 : undefined),
+        e?.clientY ?? (anchor ? anchor.top + anchor.height / 2 : undefined),
+        anchor,
+      );
       return;
     }
     preview.handleMouseEnter(card, e, { useDelay: true, ...options });

@@ -11,6 +11,7 @@ export interface HoverOptions {
   anchorOverride?: DOMRect;
   useDelay?: boolean;
   trigger?: PreviewPointerInput;
+  ignoreTriggerPreference?: boolean;
 }
 
 export function useCardPreview(
@@ -40,7 +41,12 @@ export function useCardPreview(
         machine.dismiss();
         return;
       }
-      if (hookOptions.useTriggerPreference && modeRef.current === "right-click") return;
+      if (
+        hookOptions.useTriggerPreference &&
+        modeRef.current === "right-click" &&
+        !options.ignoreTriggerPreference
+      )
+        return;
       machine.hoverStart(card, {
         pointer: e ? { x: e.clientX, y: e.clientY } : undefined,
         anchorRect:

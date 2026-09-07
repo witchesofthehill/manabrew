@@ -18,8 +18,6 @@ import { CardSprite } from "@/pixi/CardSprite";
 import { gameIconTexture } from "@/pixi/gameIconCache";
 import { loadManaSymbolTexture } from "@/pixi/manaSymbolCache";
 import { deckCardToPreviewDto } from "@/lib/scryfall.utils";
-import { AUTOPASS_DELAY_MAX_MS, AUTOPASS_DELAY_MIN_MS } from "@/components/game/game.constants";
-import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import type {
   CardDto,
   ChooseCombatDamageAssignmentInput,
@@ -119,7 +117,6 @@ export class PromptLayer {
   private promptKey: unknown = null;
   private viewportWidth = 0;
   private viewportHeight = 0;
-  private actionBounds: Rectangle | null = null;
   private modalOpen = false;
   private selectedIds = new Set<string>();
   private counts = new Map<number | string, number>();
@@ -132,13 +129,10 @@ export class PromptLayer {
   private dropZones: DropZone[] = [];
   private drag: DragState | null = null;
   private diceElapsedMs = 0;
-  private autopassRemainingMs: number | null = null;
   private diceVisuals: DiceVisual[] = [];
   private diceWinnerText: Text | null = null;
   private diceConfirm: PromptButton | null = null;
   private diceSettled = false;
-  private autopassTotalMs = 0;
-  private autopassFill: Graphics | null = null;
   private selectionFilter = "";
   private modalScrollOffset = 0;
   private modalScrollMax = 0;
@@ -194,18 +188,8 @@ export class PromptLayer {
     return this.modalOpen;
   }
 
-  hitTest(x: number, y: number): boolean {
-    if (!this.container.visible) return false;
-    if (this.modalOpen) return true;
-    return this.actionBounds?.contains(x, y) ?? false;
-  }
-
-  getActionBounds(): Rectangle | null {
-    return this.actionBounds?.clone() ?? null;
-  }
-
-  get compactAction(): boolean {
-    return this.viewportWidth < 760 || this.viewportHeight < 520;
+  hitTest(_x: number, _y: number): boolean {
+    return this.container.visible && this.modalOpen;
   }
 
   destroy(): void {
@@ -225,8 +209,6 @@ export class PromptLayer {
     this.counts.clear();
     this.selectionFilter = "";
     this.order = [];
-    this.autopassRemainingMs = null;
-    this.autopassTotalMs = 0;
     this.scryItems = {};
     this.scrySelectedId = null;
     this.damageAssigned = {};
@@ -253,23 +235,11 @@ export class PromptLayer {
         ...Object.fromEntries(input.zones.map((_, index) => [`zone-${index}`, []])),
       };
     }
-    if (
-      input.type === "chooseAction" &&
-      spec.gameView.stack.length === 0 &&
-      !usePromptPreferencesStore.getState().fullControl &&
-      input.actions.every((action) => action.type === "activateAbility" && action.isManaAbility)
-    ) {
-      this.autopassTotalMs =
-        AUTOPASS_DELAY_MIN_MS + Math.random() * (AUTOPASS_DELAY_MAX_MS - AUTOPASS_DELAY_MIN_MS);
-      this.autopassRemainingMs = this.autopassTotalMs;
-    }
   }
 
   private rebuild(): void {
     this.callbacks.onReferenceChange?.(null);
     this.drag = null;
-    this.actionBounds = null;
-    this.autopassFill = null;
     this.modalOpen = false;
     this.modalBody = null;
     this.dropZones = [];
@@ -289,13 +259,13 @@ export class PromptLayer {
       input &&
       MODAL_TYPES.has(input.type) &&
       !this.spec.modalHidden &&
-      !this.spec.action.isWaitingForResponse
+      !this.spec.isWaitingForResponse
     ) {
       this.modalOpen = true;
       this.renderModal();
       return;
     }
-    this.renderActionPanel();
+    this.container.visible = false;
   }
 
   private panel(width: number, height: number, x: number, y: number, radius = 12): Container {
@@ -427,525 +397,6 @@ export class PromptLayer {
       })
       .catch(() => {});
     return sprite;
-  }
-  private renderActionPanel(): void {
-    const spec = this.spec!;
-    const action = spec.action;
-    const compact = this.viewportWidth < 760 || this.viewportHeight < 520;
-    if (compact && action.dimmed) return;
-    const width = compact ? Math.min(280, this.viewportWidth - 12) : 300;
-    const content = new Container();
-    const buttons: PromptButton[] = [];
-    let title = "Waiting";
-    let hint = "Waiting for priority";
-    let hintIcon: string | null = null;
-    const waiting = action.isWaitingForResponse;
-    const waitingOthers = action.isWaitingForOthers;
-    const promptView =
-      action.promptActionOverride ?? (waitingOthers ? undefined : action.promptType);
-    const passColor = this.theme.gameTheme.promptAction.passAction;
-    const attackColor = this.theme.gameTheme.promptAction.attackAction;
-    const defenseColor = this.theme.gameTheme.promptAction.defenseAction;
-    const cancelColor = this.theme.gameTheme.promptAction.cancel;
-
-    switch (promptView) {
-      case "chooseAction": {
-        title = "Priority";
-        const step = action.step.replace(/([A-Z])/g, " $1").trim();
-        hint = action.isMyTurn
-          ? `You have priority · ${step}`
-          : `${action.activePlayerName}'s turn · ${step}`;
-        const cancelAutopass = () => {
-          this.autopassRemainingMs = null;
-          this.autopassTotalMs = 0;
-          this.rebuild();
-        };
-        buttons.push(
-          this.makeButton(
-            this.autopassRemainingMs == null ? "PASS PRIORITY" : "CANCEL AUTO-PASS",
-            this.autopassRemainingMs == null ? action.onPassPriority : cancelAutopass,
-            {
-              color: passColor,
-              outline: this.autopassRemainingMs != null,
-              disabled: waiting,
-              width: 138,
-            },
-          ),
-          this.makeButton("END TURN", action.onPassEndTurn, {
-            color: this.theme.appTheme.secondary,
-            disabled: waiting,
-            width: 116,
-          }),
-        );
-        break;
-      }
-      case "promptRequired": {
-        title = "Action Required";
-        hint = "A modal prompt is waiting";
-        buttons.push(
-          this.makeButton("OPEN PROMPT", spec.onShowModal, {
-            color: defenseColor,
-            width: 148,
-            icon: "lucide-alert-circle",
-          }),
-        );
-        break;
-      }
-      case "chooseAttackers": {
-        title = "Declare Attackers";
-        const attackCount = action.attackAssignmentCount + action.pendingAttackers.length;
-        hint = action.pendingAttackers.length
-          ? "Pick a defender for the selected attackers"
-          : attackCount > 0
-            ? `${attackCount} attacker${attackCount === 1 ? "" : "s"} assigned`
-            : action.mustAttackHint || "Drag creatures to defenders or select attackers";
-        if (action.pendingAttackers.length) hintIcon = "lucide-crosshair";
-        const attackAll = action.multipleAttackDefenders
-          ? () => action.onBeginAttackTargetPick(action.availableAttackerIds)
-          : () =>
-              action.onDeclareAttackers(
-                action.availableAttackerIds,
-                action.selectedAttackDefenderId ?? undefined,
-              );
-        buttons.push(
-          this.makeButton("ATTACK ALL", attackAll, {
-            color: attackColor,
-            disabled: waiting,
-            icon: "lucide-swords",
-          }),
-          this.makeButton(
-            attackCount ? `ATTACK (${attackCount})` : "ATTACK",
-            action.onSubmitAttack,
-            {
-              color: attackColor,
-              disabled: waiting || attackCount === 0,
-              icon: "lucide-sword",
-            },
-          ),
-          this.makeButton("PASS", action.onPassPriority, {
-            color: passColor,
-            outline: true,
-            disabled: waiting,
-            icon: "lucide-ban",
-          }),
-        );
-        break;
-      }
-      case "chooseBlockers": {
-        title = "Declare Blockers";
-        hint =
-          action.blockError ||
-          action.blockRequirementError ||
-          (action.pendingAttacker
-            ? "Attacker selected — click your blocker"
-            : action.pendingBlocker
-              ? "Blocker selected — click the attacker"
-              : action.blockRestrictionHint || "Assign blockers, then confirm");
-        if (action.blockAssignments.length) {
-          buttons.push(
-            this.makeButton(
-              `BLOCK ${action.blockAssignments.length}`,
-              () => action.onDeclareBlockers(action.blockAssignments),
-              {
-                color: defenseColor,
-                disabled: waiting || !!action.blockRequirementError,
-                icon: "lucide-shield",
-              },
-            ),
-          );
-        }
-        buttons.push(
-          this.makeButton("NO BLOCKS", action.onPassPriority, {
-            color: cancelColor,
-            outline: true,
-            disabled: waiting,
-            icon: "lucide-ban",
-          }),
-        );
-        break;
-      }
-      case "chooseTargetSpell":
-      case "promptLabel":
-      case "chooseBoardTargets": {
-        title = "Choose Targets";
-        const input = spec.currentPrompt?.input;
-        const hasSpellTargets =
-          promptView === "chooseTargetSpell" ||
-          (input?.type === "chooseBoardTargets" &&
-            input.candidates.some((target) => target.kind === "spell"));
-        hint =
-          input?.type === "chooseBoardTargets"
-            ? `${input.presentation.title} · ${input.chosenTargets}/${input.maxTargets} selected`
-            : hasSpellTargets
-              ? "Choose a glowing spell on the stack"
-              : "Choose a valid target";
-        if (hasSpellTargets) {
-          const spellTarget =
-            input?.type === "chooseBoardTargets"
-              ? input.candidates.find((target) => target.kind === "spell")
-              : spec.gameView.stack[0]
-                ? { kind: "spell" as const, id: spec.gameView.stack[0].id }
-                : undefined;
-          if (spellTarget) this.callbacks.onReferenceChange?.(spellTarget);
-        }
-        if (action.targetCompletionLabel && action.onCompleteTargets) {
-          buttons.push(
-            this.makeButton(action.targetCompletionLabel.toUpperCase(), action.onCompleteTargets, {
-              color: action.targetCompletionKind === "cancel" ? cancelColor : defenseColor,
-              outline: action.targetCompletionKind === "cancel",
-              disabled: waiting,
-              icon: action.targetCompletionKind === "cancel" ? "lucide-ban" : "lucide-check",
-            }),
-          );
-        }
-        if (hasSpellTargets) {
-          buttons.unshift(
-            this.makeButton("OPEN STACK", action.onOpenStack, {
-              color: defenseColor,
-              outline: true,
-              icon: "lucide-layers",
-            }),
-          );
-        }
-        break;
-      }
-      case "chooseDamageOrder":
-      case "chooseDamageAssignmentOrder": {
-        title = "Damage Order";
-        hint = `${action.damageOrderCount}/${action.damageOrderTotal} blockers ordered`;
-        buttons.push(
-          this.makeButton("AUTO", action.onDefaultDamageOrder, {
-            outline: true,
-            disabled: waiting,
-          }),
-        );
-        if (action.damageOrderCount > 0) {
-          buttons.push(
-            this.makeButton("UNDO", action.onUndoDamageOrder, { outline: true, disabled: waiting }),
-          );
-        }
-        buttons.push(
-          this.makeButton("CONFIRM", action.onConfirmDamageOrder, {
-            color: attackColor,
-            disabled: waiting || action.damageOrderCount < action.damageOrderTotal,
-            icon: "lucide-swords",
-          }),
-        );
-        break;
-      }
-      case "payManaCost": {
-        title = "Pay Mana";
-        const info = action.payManaCostInfo;
-        const poolTotal = info
-          ? Object.values(info.manaPool).reduce((sum, value) => sum + value, 0)
-          : 0;
-        hint = info
-          ? `${info.cardName} · cost ${info.manaCost} · pool ${poolTotal}${
-              info.delveCount ? ` · ${info.delveCount} delved` : ""
-            }`
-          : "Pay mana cost";
-        buttons.push(
-          this.makeButton(
-            info?.canConfirmFromPool ? "CONFIRM" : "AUTO",
-            info?.canConfirmFromPool ? action.onPayManaCost : action.onAutoManaCost,
-            {
-              color: passColor,
-              disabled: waiting,
-              icon: info?.canConfirmFromPool ? "lucide-check" : "lucide-wand-sparkles",
-            },
-          ),
-        );
-        if (info?.delveAvailable && info.onOpenDelve) {
-          buttons.push(
-            this.makeButton("DELVE", info.onOpenDelve, {
-              color: defenseColor,
-              outline: true,
-              icon: "exile",
-            }),
-          );
-        }
-        if (info?.lifeToPay != null && info.onPayLife) {
-          buttons.push(
-            this.makeButton(`${info.lifeToPay} LIFE`, info.onPayLife, {
-              color: attackColor,
-              outline: true,
-              icon: "lucide-heart-crack",
-            }),
-          );
-        }
-        buttons.push(
-          this.makeButton("CANCEL", action.onCancelManaCost, {
-            color: cancelColor,
-            outline: true,
-            disabled: waiting,
-            icon: "lucide-ban",
-          }),
-        );
-        break;
-      }
-      case "mulligan": {
-        title = "Opening Hand";
-        const input = spec.currentPrompt?.input;
-        const handSize = input?.type === "mulligan" ? input.handCardIds.length : 7;
-        const nextSize = Math.max(0, handSize - 1);
-        hint = action.mulliganCount
-          ? `Mulligan ${action.mulliganCount} · review ${handSize} cards`
-          : `Review your opening ${handSize}`;
-        buttons.push(
-          this.makeButton(`KEEP ${handSize}`, action.onMulliganKeep, {
-            color: passColor,
-            disabled: waiting,
-            icon: "lucide-check",
-            width: 118,
-          }),
-          this.makeButton(`TO ${nextSize}`, action.onMulliganDraw, {
-            color: this.theme.appTheme.secondary,
-            disabled: waiting,
-            icon: "lucide-rotate-cw",
-            width: 126,
-            title: `Mulligan to ${nextSize} cards`,
-          }),
-        );
-        break;
-      }
-      case "mulliganPutBack": {
-        title = "Put Cards Back";
-        const selected = action.mulliganSelectedCount ?? 0;
-        const count = action.mulliganPutBackCount ?? 0;
-        hint =
-          selected === count
-            ? `${count} selected · ready for library bottom`
-            : `Select ${count - selected} more for library bottom`;
-        buttons.push(
-          this.makeButton("CONFIRM", action.onMulliganPutBackConfirm, {
-            color: this.theme.appTheme.primary,
-            icon: "lucide-check",
-            disabled: waiting || selected !== count,
-            width: 126,
-          }),
-        );
-        break;
-      }
-      case "noAction":
-        break;
-      default: {
-        if (
-          spec.currentPrompt &&
-          MODAL_TYPES.has(spec.currentPrompt.input.type) &&
-          spec.modalHidden
-        ) {
-          const minimizedInput = spec.currentPrompt.input;
-          title = "Action Required";
-          hint =
-            "presentation" in minimizedInput
-              ? `${minimizedInput.presentation.title} · minimized`
-              : "A decision is minimized";
-          buttons.push(
-            this.makeButton("OPEN PROMPT", spec.onShowModal, {
-              color: defenseColor,
-              width: 148,
-              icon: "lucide-alert-circle",
-            }),
-          );
-        } else if (waitingOthers) {
-          title = "Waiting";
-          hint = `Waiting for ${action.activePlayerName}`;
-        }
-      }
-    }
-
-    const headerHeight = compact ? 0 : 34;
-    const hintText = promptText(hint, compact ? 10 : 11, this.theme.appTheme["muted-foreground"], {
-      width: width - PANEL_PADDING * 2,
-      align: "center",
-      weight: "500",
-    });
-    hintText.anchor.set(0.5, 0);
-    hintText.position.set(width / 2 - PANEL_PADDING, 0);
-    content.addChild(hintText);
-    if (hintIcon) {
-      const icon = this.makeIcon(
-        hintIcon,
-        compact ? 12 : 14,
-        this.theme.appTheme["muted-foreground"],
-      );
-      icon.position.set(width / 2 - PANEL_PADDING - hintText.width / 2 - 10, 7);
-      content.addChild(icon);
-    }
-    let detailY = Math.max(24, hintText.height + 8);
-    if (promptView === "chooseBlockers" && action.blockAssignments.length > 0) {
-      for (const assignment of action.blockAssignments.slice(0, 2)) {
-        const row = new Container();
-        row.position.set(0, detailY);
-        row.eventMode = "static";
-        row.cursor = "default";
-        row.hitArea = new Rectangle(0, 0, width - PANEL_PADDING * 2, 28);
-        row.accessible = true;
-        row.accessibleTitle = `${action.resolveCardName(assignment.blockerId)} blocks ${action.resolveCardName(assignment.attackerId)}`;
-        row.tabIndex = 0;
-        const background = new Graphics()
-          .roundRect(0, 0, width - PANEL_PADDING * 2, 28, 7)
-          .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.55 })
-          .stroke({ color: hexToNum(defenseColor), width: 1, alpha: 0.7 });
-        const label = promptText(
-          `${action.resolveCardName(assignment.blockerId)} → ${action.resolveCardName(assignment.attackerId)}`,
-          10,
-          this.theme.appTheme.foreground,
-          { weight: "600", width: width - PANEL_PADDING * 2 - 16 },
-        );
-        label.position.set(8, 7);
-        const target: TargetRef = { kind: "card", id: assignment.blockerId, intent: "block" };
-        row.on("pointerover", () => this.callbacks.onReferenceChange?.(target));
-        row.on("pointerout", () => this.callbacks.onReferenceChange?.(null));
-        row.on("focusin", () => this.callbacks.onReferenceChange?.(target));
-        row.on("focusout", () => this.callbacks.onReferenceChange?.(null));
-        row.addChild(background, label);
-        content.addChild(row);
-        detailY += 32;
-      }
-      if (action.blockAssignments.length > 2) {
-        const more = promptText(
-          `+${action.blockAssignments.length - 2} more assignments`,
-          10,
-          this.theme.appTheme["muted-foreground"],
-          { weight: "600" },
-        );
-        more.position.set(4, detailY);
-        content.addChild(more);
-        detailY += 18;
-      }
-    }
-    const targetInput = spec.currentPrompt?.input;
-    if (promptView === "chooseBoardTargets" && targetInput?.type === "chooseBoardTargets") {
-      for (const target of targetInput.presentation.targets.slice(0, 2)) {
-        const row = new Container();
-        row.position.set(0, detailY);
-        row.eventMode = "static";
-        row.cursor = "default";
-        row.hitArea = new Rectangle(0, 0, width - PANEL_PADDING * 2, 26);
-        row.accessible = true;
-        const name =
-          target.kind === "card"
-            ? action.resolveCardName(target.id)
-            : target.kind === "player"
-              ? (spec.gameView.players.find((player) => player.id === target.id)?.name ?? target.id)
-              : "Stack spell";
-        row.accessibleTitle = `Selected target: ${name}`;
-        row.tabIndex = 0;
-        const background = new Graphics()
-          .roundRect(0, 0, width - PANEL_PADDING * 2, 26, 7)
-          .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.55 });
-        const label = promptText(`✓ ${name}`, 10, this.theme.appTheme.foreground, {
-          weight: "600",
-          width: width - PANEL_PADDING * 2 - 16,
-        });
-        label.position.set(8, 6);
-        row.on("pointerover", () => this.callbacks.onReferenceChange?.(target));
-        row.on("pointerout", () => this.callbacks.onReferenceChange?.(null));
-        row.on("focusin", () => this.callbacks.onReferenceChange?.(target));
-        row.on("focusout", () => this.callbacks.onReferenceChange?.(null));
-        row.addChild(background, label);
-        content.addChild(row);
-        detailY += 30;
-      }
-    }
-    const buttonY = detailY;
-    const buttonHeight = this.addButtonRow(content, buttons, buttonY, width - PANEL_PADDING * 2);
-    const bodyHeight = Math.max(42, buttonY + buttonHeight);
-    const panelHeight = headerHeight + PANEL_PADDING + bodyHeight + 10;
-    const x = this.viewportWidth - width - (compact ? 6 : 12);
-    const y = compact
-      ? Math.max(
-          6,
-          Math.min(
-            this.viewportHeight - panelHeight - 6,
-            (action.dividerY ?? this.viewportHeight / 2) - panelHeight / 2,
-          ),
-        )
-      : this.viewportHeight - panelHeight;
-    const panel = this.panel(width, panelHeight, x, y, compact ? 16 : 9);
-    const needsAttention =
-      promptView === "promptRequired" ||
-      (!!spec.currentPrompt && MODAL_TYPES.has(spec.currentPrompt.input.type) && spec.modalHidden);
-    if (needsAttention) {
-      const attention = new Graphics()
-        .roundRect(0, 0, 4, panelHeight, compact ? 16 : 9)
-        .fill({ color: hexToNum(defenseColor) });
-      attention.eventMode = "none";
-      panel.addChild(attention);
-    }
-    if (!compact) {
-      const titleText = promptText(title.toUpperCase(), 11, this.theme.appTheme.foreground, {
-        weight: "700",
-        width: width - 130,
-      });
-      titleText.position.set(10, 10);
-      panel.addChild(titleText);
-      const fullControl = usePromptPreferencesStore.getState().fullControl;
-      const modeButton = this.makeButton(
-        fullControl ? "FULL CTRL" : "AUTOPASS",
-        () => {
-          const nextFullControl = !usePromptPreferencesStore.getState().fullControl;
-          usePromptPreferencesStore.getState().setFullControl(nextFullControl);
-          if (!nextFullControl) {
-            const input = this.spec?.currentPrompt?.input;
-            if (
-              input?.type === "chooseAction" &&
-              this.spec?.gameView.stack.length === 0 &&
-              input.actions.every(
-                (candidate) => candidate.type === "activateAbility" && candidate.isManaAbility,
-              )
-            ) {
-              this.autopassTotalMs =
-                AUTOPASS_DELAY_MIN_MS +
-                Math.random() * (AUTOPASS_DELAY_MAX_MS - AUTOPASS_DELAY_MIN_MS);
-              this.autopassRemainingMs = this.autopassTotalMs;
-            }
-          } else {
-            this.autopassRemainingMs = null;
-          }
-          this.rebuild();
-        },
-        {
-          outline: true,
-          compact: true,
-          width: 88,
-          icon: fullControl ? "lucide-hand" : "lucide-zap",
-          iconSize: 13,
-        },
-      );
-      modeButton.scale.set(0.72);
-      modeButton.position.set(width - 104, 4);
-      panel.addChild(modeButton);
-      const menuButton = this.makeButton("", action.onToggleBoardMenu, {
-        title: "Game menu",
-        icon: "lucide-settings",
-        iconSize: 16,
-        outline: true,
-        compact: true,
-        width: 30,
-      });
-      menuButton.scale.set(0.72);
-      menuButton.position.set(width - 32, 4);
-      panel.addChild(menuButton);
-      const divider = new Graphics()
-        .rect(0, headerHeight - 1, width, 1)
-        .fill({ color: hexToNum(this.theme.appTheme.border), alpha: 0.8 });
-      panel.addChild(divider);
-    }
-    content.position.set(PANEL_PADDING, headerHeight + 10);
-    panel.addChild(content);
-    panel.alpha = 1;
-    if (this.autopassRemainingMs != null && this.autopassTotalMs > 0) {
-      const progress = 1 - this.autopassRemainingMs / this.autopassTotalMs;
-      this.autopassFill = new Graphics()
-        .roundRect(0, panelHeight - 3, width * progress, 3, 2)
-        .fill({ color: hexToNum(passColor) });
-      this.autopassFill.eventMode = "none";
-      panel.addChild(this.autopassFill);
-    }
-    this.container.addChild(panel);
-    this.actionBounds = new Rectangle(x, y, width, panelHeight);
   }
 
   private renderModal(): void {
@@ -2109,20 +1560,20 @@ export class PromptLayer {
     const buttons = [
       this.makeButton("AUTO", damageOrder.onAuto, {
         outline: true,
-        disabled: this.spec!.action.isWaitingForResponse,
+        disabled: this.spec!.isWaitingForResponse,
       }),
     ];
     if (damageOrder.order.length > 0) {
       buttons.push(
         this.makeButton("UNDO", damageOrder.onUndo, {
           outline: true,
-          disabled: this.spec!.action.isWaitingForResponse,
+          disabled: this.spec!.isWaitingForResponse,
         }),
       );
     }
     buttons.push(
       this.makeButton("CONFIRM", damageOrder.onConfirm, {
-        disabled: this.spec!.action.isWaitingForResponse || !complete,
+        disabled: this.spec!.isWaitingForResponse || !complete,
         icon: "lucide-swords",
       }),
     );
@@ -2880,33 +2331,6 @@ export class PromptLayer {
   }
 
   private tick(ticker: Ticker): void {
-    if (this.autopassRemainingMs != null) {
-      const input = this.spec?.currentPrompt?.input;
-      const canAutopass =
-        input?.type === "chooseAction" &&
-        this.spec?.gameView.stack.length === 0 &&
-        input.actions.every(
-          (action) => action.type === "activateAbility" && action.isManaAbility,
-        ) &&
-        !this.spec.action.isWaitingForResponse;
-      if (!canAutopass) {
-        this.autopassRemainingMs = null;
-        this.autopassTotalMs = 0;
-        this.rebuild();
-      } else {
-        this.autopassRemainingMs -= ticker.deltaMS;
-        if (this.autopassRemainingMs <= 0) {
-          this.autopassRemainingMs = null;
-          this.spec!.action.onPassPriority();
-        } else if (this.autopassFill && this.actionBounds && this.autopassTotalMs > 0) {
-          const progress = 1 - this.autopassRemainingMs / this.autopassTotalMs;
-          this.autopassFill
-            .clear()
-            .roundRect(0, this.actionBounds.height - 3, this.actionBounds.width * progress, 3, 2)
-            .fill({ color: hexToNum(this.theme.gameTheme.promptAction.passAction) });
-        }
-      }
-    }
     const input = this.spec?.currentPrompt?.input;
     if (!this.modalOpen || input?.type !== "diceRolled" || this.diceElapsedMs >= DICE_FINISH_MS)
       return;

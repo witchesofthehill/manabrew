@@ -98,8 +98,6 @@ export function BattlefieldDialogPreview({
           blockAssignments={[{ attackerId: cards[0].id, blockerId: cards[1].id }]}
           resolveCardName={(cardId) => cardById.get(cardId)?.identity.name ?? cardId}
           resolveCard={(cardId) => cardById.get(cardId)}
-          defenderLife={12}
-          initialOpen
         />
       );
     default:

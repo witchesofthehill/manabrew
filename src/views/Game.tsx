@@ -21,7 +21,7 @@ import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
 import { DevViewportFrame } from "@/components/dev/DevViewportFrame";
 import { ManualTabletopControls } from "@/components/game/ManualTabletopControls";
-import { MiddleBarDock, RightActionPanel } from "@/components/game/panels";
+import { MainActionOverlay, MiddleBarDock, RightActionPanel } from "@/components/game/panels";
 import {
   ConcedeGameModal,
   EliminatedModal,
@@ -63,7 +63,7 @@ import type { PromptType } from "@/protocol";
 import { declareAttackersOutput } from "@/components/prompts/internal/playerActions";
 import { TargetingCursor } from "@/components/game/TargetingCursor";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
-import type { CombatPairing } from "@/components/game/game.types";
+import type { CombatPairing, MainActionOverlayProps } from "@/components/game/game.types";
 import { useStackUIStore } from "@/stores/useStackUIStore";
 import {
   useGameDevStore,
@@ -1383,7 +1383,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   const debugCardMode = useGameDevStore((s) => s.debugCardMode);
   const debugCardCurrent = useGameDevStore((s) => s.debugCardCurrent);
   const debugCardFinal = useGameDevStore((s) => s.debugCardFinal);
-  const promptActionOverride = useGameDevStore((state) => state.promptActionOverride);
 
   const visibleCardsById = useMemo(() => {
     if (!gameView) return new Map<string, CardDto>();
@@ -1740,95 +1739,93 @@ export default function Game({ exitTo }: GameProps = {}) {
     collapsed: stackCollapsed,
   };
 
+  const promptActionSpec: MainActionOverlayProps = {
+    promptType,
+    isWaitingForResponse,
+    isWaitingForOthers:
+      relinquishedPriority || (isWaitingForResponse && gameView.priorityPlayerId !== me.id),
+    availableAttackerIds:
+      chooseAttackersInput?.attackers.map((attacker) => attacker.attackerId) ?? [],
+    pendingAttackers,
+    onPassPriority: passPriority,
+    onPassEndTurn: passEndTurn,
+    selectedAttackDefenderId: attackDefenderId,
+    multipleAttackDefenders,
+    attackAssignmentCount: attackAssignments.length,
+    mustAttackHint,
+    onDeclareAttackers: (attackerIds, defenderId) =>
+      void respond(declareAttackersOutput(activePrompt, attackerIds, defenderId)),
+    onBeginAttackTargetPick: selectAllAttackersForPick,
+    onSubmitAttack: submitAttack,
+    pendingAttacker,
+    pendingBlocker,
+    blockError,
+    blockRequirementError,
+    blockRestrictionHint,
+    attackerIds: chooseBlockersInput?.attackers.map((attacker) => attacker.attackerId) ?? [],
+    blockAssignments,
+    combatPairings,
+    onDeclareBlockers: (assignments) => void respond({ type: "declareBlockers", assignments }),
+    damageOrderCount: damageOrder.length,
+    damageOrderTotal: damageOrderInput?.blockerIds.length ?? 0,
+    onConfirmDamageOrder: () =>
+      void respond({
+        type: "damageAssignmentOrderDecision",
+        orderedBlockerIds: damageOrder,
+      }),
+    onUndoDamageOrder: undoDamageOrder,
+    onDefaultDamageOrder: () =>
+      void respond({
+        type: "damageAssignmentOrderDecision",
+        orderedBlockerIds: damageOrderInput?.blockerIds ?? [],
+      }),
+    onOpenStack: () => setSpellStackModalOpen(true),
+    targetCompletionLabel: targetCompletion?.label,
+    targetCompletionKind: targetCompletion?.kind,
+    onCompleteTargets: targetCompletion?.onComplete,
+    resolveCardName: (cardId) => cardNameById.get(cardId) ?? cardId,
+    resolveCard: (cardId) => visibleCardsById.get(cardId),
+    turn: gameView.turn,
+    activePlayerName:
+      gameView.players.find((player) => player.id === gameView.activePlayerId)?.name ?? "Unknown",
+    isMyTurn: gameView.activePlayerId === me.id,
+    step: gameView.step,
+    payManaCostInfo: payManaCostInput
+      ? {
+          cardName: payManaCostInput.cardName,
+          sourceCard: promptSourceDeckCard,
+          manaCost: payManaCostInput.manaCost,
+          description: payManaCostInput.presentation.text,
+          manaPool: gameView.players.find((player) => player.isHuman)?.manaPool ?? {},
+          canConfirmFromPool: payManaCostInput.canConfirmFromPool,
+          delveCount: delvedCardIds.length,
+          delveAvailable: delveSourceIds.length > 0,
+          onOpenDelve: openDelveZone,
+          lifeToPay: payLifeAction?.amount,
+          onPayLife: payLifeAction
+            ? () => void respond({ type: "act", actionId: payLifeAction.id })
+            : undefined,
+        }
+      : null,
+    onPayManaCost: () => void respond({ type: "pay", auto: false }),
+    onAutoManaCost: () => void respond({ type: "pay", auto: true }),
+    onCancelManaCost: () => void respond({ type: "cancel" }),
+    mulliganCount: mulliganInput?.mulliganCount ?? 0,
+    onMulliganKeep: () => void respond({ type: "mulliganDecision", keep: true }),
+    onMulliganDraw: () => void respond({ type: "mulliganDecision", keep: false }),
+    mulliganPutBackCount: mulliganPutBack.count,
+    mulliganSelectedCount: mulliganPutBack.selected.size,
+    onMulliganPutBackConfirm: mulliganPutBack.confirm,
+    selfClusterMaxHeight: boardLayout?.selfClusterMaxHeight,
+    dividerY: boardLayout?.dividerY,
+    dimmed: handCardLifted,
+  };
+
   const promptOverlaySpec: PromptOverlaySpec = {
     currentPrompt: activePrompt,
-    localPlayerId: me.id,
     gameView,
     sourceDeckCard: promptSourceDeckCard,
-    action: {
-      promptType,
-      promptActionOverride,
-      isWaitingForResponse,
-      isWaitingForOthers:
-        relinquishedPriority || (isWaitingForResponse && gameView.priorityPlayerId !== me.id),
-      availableAttackerIds:
-        chooseAttackersInput?.attackers.map((attacker) => attacker.attackerId) ?? [],
-      pendingAttackers,
-      onPassPriority: passPriority,
-      onPassEndTurn: passEndTurn,
-      selectedAttackDefenderId: attackDefenderId,
-      multipleAttackDefenders,
-      attackAssignmentCount: attackAssignments.length,
-      mustAttackHint,
-      onDeclareAttackers: (attackerIds, defenderId) =>
-        void respond(declareAttackersOutput(activePrompt, attackerIds, defenderId)),
-      onBeginAttackTargetPick: selectAllAttackersForPick,
-      onSubmitAttack: submitAttack,
-      pendingAttacker,
-      pendingBlocker,
-      blockError,
-      blockRequirementError,
-      blockRestrictionHint,
-      attackerIds: chooseBlockersInput?.attackers.map((attacker) => attacker.attackerId) ?? [],
-      blockAssignments,
-      combatPairings,
-      combatDefenderLife: me.life,
-      onDeclareBlockers: (assignments) => void respond({ type: "declareBlockers", assignments }),
-      damageOrderCount: damageOrder.length,
-      damageOrderTotal: damageOrderInput?.blockerIds.length ?? 0,
-      onConfirmDamageOrder: () =>
-        void respond({
-          type: "damageAssignmentOrderDecision",
-          orderedBlockerIds: damageOrder,
-        }),
-      onUndoDamageOrder: undoDamageOrder,
-      onDefaultDamageOrder: () =>
-        void respond({
-          type: "damageAssignmentOrderDecision",
-          orderedBlockerIds: damageOrderInput?.blockerIds ?? [],
-        }),
-      onOpenStack: () => setSpellStackModalOpen(true),
-      onToggleBoardMenu: () => setBoardMenuOpen((open) => !open),
-      targetCompletionLabel: targetCompletion?.label,
-      targetCompletionKind: targetCompletion?.kind,
-      onCompleteTargets: targetCompletion?.onComplete,
-      resolveCardName: (cardId) => cardNameById.get(cardId) ?? cardId,
-      resolveCard: (cardId) => visibleCardsById.get(cardId),
-      turn: gameView.turn,
-      activePlayerName:
-        gameView.players.find((player) => player.id === gameView.activePlayerId)?.name ?? "Unknown",
-      isMyTurn: gameView.activePlayerId === me.id,
-      step: gameView.step,
-      payManaCostInfo: payManaCostInput
-        ? {
-            cardName: payManaCostInput.cardName,
-            sourceCard: promptSourceDeckCard,
-            manaCost: payManaCostInput.manaCost,
-            description: payManaCostInput.presentation.text,
-            manaPool: gameView.players.find((player) => player.isHuman)?.manaPool ?? {},
-            canConfirmFromPool: payManaCostInput.canConfirmFromPool,
-            delveCount: delvedCardIds.length,
-            delveAvailable: delveSourceIds.length > 0,
-            onOpenDelve: openDelveZone,
-            lifeToPay: payLifeAction?.amount,
-            onPayLife: payLifeAction
-              ? () => void respond({ type: "act", actionId: payLifeAction.id })
-              : undefined,
-          }
-        : null,
-      onPayManaCost: () => void respond({ type: "pay", auto: false }),
-      onAutoManaCost: () => void respond({ type: "pay", auto: true }),
-      onCancelManaCost: () => void respond({ type: "cancel" }),
-      mulliganCount: mulliganInput?.mulliganCount ?? 0,
-      onMulliganKeep: () => void respond({ type: "mulliganDecision", keep: true }),
-      onMulliganDraw: () => void respond({ type: "mulliganDecision", keep: false }),
-      mulliganPutBackCount: mulliganPutBack.count,
-      mulliganSelectedCount: mulliganPutBack.selected.size,
-      onMulliganPutBackConfirm: mulliganPutBack.confirm,
-      selfClusterMaxHeight: boardLayout?.selfClusterMaxHeight,
-      dividerY: boardLayout?.dividerY,
-      dimmed: handCardLifted,
-    },
+    isWaitingForResponse,
     damageOrder: damageOrderInput
       ? {
           attackerName:
@@ -2053,29 +2050,32 @@ export default function Game({ exitTo }: GameProps = {}) {
       {boardSurfaceEl &&
         createPortal(
           !manualApi && (
-            <MiddleBarDock
-              open={boardMenuOpen}
-              onOpenChange={setBoardMenuOpen}
-              onOpenSettings={() => setGameSettingsOpen(true)}
-              onConcede={handleConcede}
-              eliminated={iAmEliminated}
-              onLeave={handleLeave}
-              sidePanelCollapsed={isActionPanelCollapsed}
-              onToggleSidePanel={toggleActionPanel}
-              players={gameView.players.map((player) => {
-                const color = playerColorMap.get(player.id) ?? themeColors.playerColors.self;
-                return {
-                  id: player.id,
-                  name: player.name,
-                  color,
-                  textColor: readableTextColor(
+            <>
+              <MainActionOverlay {...promptActionSpec} />
+              <MiddleBarDock
+                open={boardMenuOpen}
+                onOpenChange={setBoardMenuOpen}
+                onOpenSettings={() => setGameSettingsOpen(true)}
+                onConcede={handleConcede}
+                eliminated={iAmEliminated}
+                onLeave={handleLeave}
+                sidePanelCollapsed={isActionPanelCollapsed}
+                onToggleSidePanel={toggleActionPanel}
+                players={gameView.players.map((player) => {
+                  const color = playerColorMap.get(player.id) ?? themeColors.playerColors.self;
+                  return {
+                    id: player.id,
+                    name: player.name,
                     color,
-                    themeColors.canvas.shadow,
-                    themeColors.textOnTinted,
-                  ),
-                };
-              })}
-            />
+                    textColor: readableTextColor(
+                      color,
+                      themeColors.canvas.shadow,
+                      themeColors.textOnTinted,
+                    ),
+                  };
+                })}
+              />
+            </>
           ),
           boardSurfaceEl,
         )}

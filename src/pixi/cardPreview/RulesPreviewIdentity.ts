@@ -79,7 +79,7 @@ export class RulesPreviewIdentity extends Container {
     const type = new Text({
       text: section.typeLine,
       style: new TextStyle({
-        fill: frame.mutedInk,
+        fill: frame.ink,
         fontFamily: "Inter, system-ui, sans-serif",
         fontSize: 13,
         fontWeight: "500",

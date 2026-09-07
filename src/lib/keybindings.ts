@@ -239,12 +239,16 @@ export const KEYBINDINGS: KeybindingDef[] = [
     category: "Battlefield",
     defaultCombo: { key: "[" },
   },
-  {
-    id: "open-dev-panel",
-    label: "Open the dev panel",
-    category: "Battlefield",
-    defaultCombo: { key: "d", mod: true, shift: true },
-  },
+  ...(import.meta.env.DEV
+    ? [
+        {
+          id: "open-dev-panel",
+          label: "Open the dev panel",
+          category: "Battlefield",
+          defaultCombo: { key: "d", mod: true, shift: true },
+        } satisfies KeybindingDef,
+      ]
+    : []),
   {
     id: "toggle-fullscreen",
     label: "Toggle fullscreen",

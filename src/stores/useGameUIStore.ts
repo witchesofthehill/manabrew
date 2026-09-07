@@ -93,7 +93,9 @@ export const useGameUIStore = create<GameUIState>()(
         set((state) => ({ isActionPanelCollapsed: !state.isActionPanelCollapsed })),
       setActionPanelCollapsed: (collapsed) => set({ isActionPanelCollapsed: collapsed }),
       setRightPanelTab: (tab) => set({ rightPanelTab: tab }),
-      openDevPanel: () => set({ isActionPanelCollapsed: false, rightPanelTab: "dev" }),
+      openDevPanel: () => {
+        if (import.meta.env.DEV) set({ isActionPanelCollapsed: false, rightPanelTab: "dev" });
+      },
       hidePromptModal: () => set({ promptModalHidden: true }),
       showPromptModal: () => set({ promptModalHidden: false }),
 

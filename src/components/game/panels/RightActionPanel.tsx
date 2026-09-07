@@ -21,9 +21,13 @@ export function RightActionPanel({
   onRestoreSnapshot,
 }: RightActionPanelProps) {
   const visibleLog = gameLog.filter((entry) => entry.entryType !== "rule");
-  const forceLogActivity = useGameDevStore((state) => state.gameStateOverrides.forceLogActivity);
-  const activeTab = useGameUIStore((s) => s.rightPanelTab);
+  const forceLogActivityOverride = useGameDevStore(
+    (state) => state.gameStateOverrides.forceLogActivity,
+  );
+  const storedActiveTab = useGameUIStore((s) => s.rightPanelTab);
+  const activeTab = storedActiveTab === "dev" && !import.meta.env.DEV ? "log" : storedActiveTab;
   const setActiveTab = useGameUIStore((s) => s.setRightPanelTab);
+  const forceLogActivity = import.meta.env.DEV && forceLogActivityOverride;
   const logActivityCount = forceLogActivity ? Math.max(4, visibleLog.length) : visibleLog.length;
 
   if (collapsed)
@@ -69,12 +73,14 @@ export function RightActionPanel({
             >
               Snapshots ({snapshots.length})
             </button>
-            <button
-              className={cn(TAB_BUTTON_BASE, activeTab === "dev" ? TAB_ACTIVE : TAB_INACTIVE)}
-              onClick={() => setActiveTab("dev")}
-            >
-              Dev
-            </button>
+            {import.meta.env.DEV ? (
+              <button
+                className={cn(TAB_BUTTON_BASE, activeTab === "dev" ? TAB_ACTIVE : TAB_INACTIVE)}
+                onClick={() => setActiveTab("dev")}
+              >
+                Dev
+              </button>
+            ) : null}
           </div>
           <Button
             size="icon"

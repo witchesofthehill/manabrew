@@ -5,12 +5,12 @@ import { destroyPixiApp, installPixiPatches } from "./pixiPatches";
 installPixiPatches();
 
 import { ArrowLayer } from "./ArrowLayer";
+import { OverlayRenderScheduler, overlayResolution } from "./overlay/overlayRuntime";
+import { installOverlayPointerRouting } from "./overlay/pointerRouting";
 import { StackLayer } from "./stack/StackLayer";
 import type { StackSpec } from "./stack/stack.types";
 import { useTheme } from "@/hooks/useTheme";
-import { GHOST_CLICK_ARM_MS, isCoarsePointer } from "@/lib/responsive";
-import { registerPixiApp } from "./visibility";
-import { PIXI_MAX_FPS } from "./constants";
+import { GHOST_CLICK_ARM_MS } from "@/lib/responsive";
 import type { BoardScene } from "./board/BoardScene";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import {
@@ -67,7 +67,7 @@ function updateRulesPreviewBackdrop(
 }
 
 interface BoardOverlayCanvasProps {
-  sceneRef: React.MutableRefObject<BoardScene | null>;
+  scene: BoardScene | null;
   stackSpec: StackSpec;
   onOpenStack: () => void;
   onTargetSpell: (spellId: string) => void;
@@ -160,7 +160,7 @@ function syncRulesPreviewActionGlow(
 }
 
 export function BoardOverlayCanvas({
-  sceneRef,
+  scene,
   stackSpec,
   onOpenStack,
   onTargetSpell,
@@ -184,6 +184,8 @@ export function BoardOverlayCanvas({
   const appRef = useRef<Application | null>(null);
   const arrowRef = useRef<ArrowLayer | null>(null);
   const stackRef = useRef<StackLayer | null>(null);
+  const schedulerRef = useRef<OverlayRenderScheduler | null>(null);
+  const sceneRef = useRef(scene);
   const previewRef = useRef<RulesCardPreviewLayer | null>(null);
   const previewBackdropRef = useRef<Graphics | null>(null);
   const syncPreviewPointerRef = useRef<(() => void) | null>(null);
@@ -192,7 +194,6 @@ export function BoardOverlayCanvas({
   const stackCardStyleRef = useRef(stackCardStyle);
   const stickyOpenedAtRef = useRef(0);
   const stickyPreviewKeyRef = useRef<string | null>(null);
-  const unregisterRef = useRef<(() => void) | null>(null);
   const [hoveredStackObjectId, setHoveredStackObjectId] = useState<string | null>(null);
 
   const cbRef = useRef({
@@ -243,8 +244,23 @@ export function BoardOverlayCanvas({
   }, [previewSpec]);
 
   useEffect(() => {
+    sceneRef.current = scene;
+    schedulerRef.current?.request();
+  }, [scene]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
     let active = true;
+    let initialized = false;
+    let destroyed = false;
     let registeredScene: BoardScene | null = null;
+    let arrow: ArrowLayer | null = null;
+    let stack: StackLayer | null = null;
+    let preview: RulesCardPreviewLayer | null = null;
+    let previewBackdrop: Graphics | null = null;
+    let scheduler: OverlayRenderScheduler | null = null;
     const glowBounds: RulesPreviewActionGlowBounds = {
       x: 0,
       y: 0,
@@ -264,32 +280,55 @@ export function BoardOverlayCanvas({
     };
     const app = new Application();
     appRef.current = app;
-    app
-      .init({
-        canvas: canvasRef.current!,
-        backgroundAlpha: 0,
-        antialias: true,
-        autoDensity: true,
-        resolution: isCoarsePointer()
-          ? Math.min(2, window.devicePixelRatio || 1)
-          : Math.max(2, window.devicePixelRatio || 1),
-      })
-      .then(() => {
+
+    const teardown = (): void => {
+      if (destroyed) return;
+      destroyed = true;
+      scheduler?.dispose();
+      registeredScene?.setStackAnchorProvider(null);
+      registeredScene?.setOverlayInvalidation(null);
+      registeredScene?.setOverlayHitTest(null);
+      arrow?.destroy();
+      stack?.destroy();
+      preview?.destroy();
+      previewBackdrop?.destroy();
+      if (schedulerRef.current === scheduler) schedulerRef.current = null;
+      if (arrowRef.current === arrow) arrowRef.current = null;
+      if (stackRef.current === stack) stackRef.current = null;
+      if (previewRef.current === preview) previewRef.current = null;
+      if (previewBackdropRef.current === previewBackdrop) previewBackdropRef.current = null;
+      if (appRef.current === app) appRef.current = null;
+      destroyPixiApp(app);
+    };
+
+    const initialize = async (): Promise<void> => {
+      try {
+        const parent = canvas.parentElement;
+        const width = Math.max(1, parent?.clientWidth ?? canvas.clientWidth);
+        const height = Math.max(1, parent?.clientHeight ?? canvas.clientHeight);
+        await app.init({
+          canvas,
+          backgroundAlpha: 0,
+          antialias: true,
+          autoDensity: true,
+          autoStart: false,
+          resolution: overlayResolution(width, height),
+        });
+        initialized = true;
         if (!active || !app.renderer) {
-          destroyPixiApp(app);
+          teardown();
           return;
         }
-        app.ticker.maxFPS = PIXI_MAX_FPS;
+
         app.stage.eventMode = "static";
         app.stage.sortableChildren = true;
-        unregisterRef.current = registerPixiApp(app);
 
-        const arrow = new ArrowLayer();
+        arrow = new ArrowLayer();
         arrow.setTheme(themeRef.current);
         arrow.graphics.eventMode = "none";
         arrowRef.current = arrow;
 
-        const stack = new StackLayer(themeRef.current, {
+        stack = new StackLayer(themeRef.current, {
           onOpen: () => cbRef.current.onOpenStack(),
           onTargetSpell: (id) => cbRef.current.onTargetSpell(id),
           onHover: (id) => {
@@ -299,91 +338,99 @@ export function BoardOverlayCanvas({
           onToggleCollapsed: () => cbRef.current.onToggleStack(),
         });
         stackRef.current = stack;
-        const previewBackdrop = new Graphics();
-        previewBackdrop.eventMode = "none";
-        previewBackdrop.zIndex = 9_999;
-        previewBackdropRef.current = previewBackdrop;
+        stack.setViewport(width, height);
+        stack.setSpec(stackSpecRef.current);
         stack.setRulesViewDefault(stackCardStyleRef.current === "rules");
-        const preview = new RulesCardPreviewLayer(themeRef.current, {
+
+        const backdrop = new Graphics();
+        backdrop.eventMode = "none";
+        backdrop.zIndex = 9_999;
+        previewBackdrop = backdrop;
+        previewBackdropRef.current = backdrop;
+        const previewLayer = new RulesCardPreviewLayer(themeRef.current, {
           onPointerEnter: () => cbRef.current.onPreviewPointerEnter?.(),
           onPointerLeave: () => cbRef.current.onPreviewPointerLeave?.(),
-          onInteractionReady: () => syncPreviewPointerRef.current?.(),
+          onInteractionReady: () => {
+            syncPreviewPointerRef.current?.();
+            scheduler?.request();
+          },
           onSelectAction: (action) => cbRef.current.onSelectPreviewAction?.(action),
           onDismiss: () => cbRef.current.onDismissPreview?.(),
           onFlip: () => cbRef.current.onFlipPreview?.(),
           onToggleView: () => cbRef.current.onTogglePreviewView?.(),
         });
-        preview.container.zIndex = 10_000;
-        previewRef.current = preview;
+        previewLayer.container.zIndex = 10_000;
+        preview = previewLayer;
+        previewRef.current = previewLayer;
 
         app.stage.addChild(stack.container);
         app.stage.addChild(arrow.graphics);
-        app.stage.addChild(previewBackdrop);
-        app.stage.addChild(preview.container);
+        app.stage.addChild(backdrop);
+        app.stage.addChild(previewLayer.container);
+        app.renderer.resize(width, height);
 
-        const parent = canvasRef.current?.parentElement;
-        const w = parent?.clientWidth ?? 0;
-        const h = parent?.clientHeight ?? 0;
-        if (w > 0 && h > 0) {
-          app.renderer.resize(w, h);
-          stack.setViewport(w, h);
-        }
         updateRulesPreviewBackdrop(
-          previewBackdrop,
+          backdrop,
           previewSpecRef.current,
-          w,
-          h,
+          width,
+          height,
           themeRef.current.gameTheme.canvas.shadow,
         );
-        stack.setSpec(stackSpecRef.current);
         const currentSpec = previewSpecRef.current;
-        const canvasRect = canvasRef.current?.getBoundingClientRect();
-        if (canvasRect) {
-          updateRulesPreview(preview, currentSpec, canvasRect, w, h);
-        }
-        app.ticker.add(() => {
-          const scene = sceneRef.current;
-          if (scene && scene !== registeredScene) {
+        const canvasRect = canvas.getBoundingClientRect();
+        updateRulesPreview(previewLayer, currentSpec, canvasRect, width, height);
+
+        scheduler = new OverlayRenderScheduler(app, (deltaMs) => {
+          const currentScene = sceneRef.current;
+          if (currentScene !== registeredScene) {
+            registeredScene?.setStackAnchorProvider(null);
+            registeredScene?.setOverlayInvalidation(null);
             registeredScene?.setOverlayHitTest(null);
-            registeredScene = scene;
-            scene.setStackAnchorProvider(stack);
-            scene.setOverlayHitTest(
+            registeredScene = currentScene;
+            registeredScene?.setStackAnchorProvider(stack);
+            registeredScene?.setOverlayInvalidation(() => scheduler?.request());
+            registeredScene?.setOverlayHitTest(
               (x, y) =>
                 hasRulesPreviewBackdrop(previewSpecRef.current) ||
-                preview.hitTestHover(x, y) ||
-                stack.hitTest(x, y),
+                previewLayer.hitTestHover(x, y) ||
+                stack?.hitTest(x, y) === true,
             );
           }
-          const defs = scene?.getArrowDefs() ?? [];
-          arrow.update(defs, app.ticker.deltaMS);
-          syncRulesPreviewActionGlow(previewGlowRef.current, preview, glowBounds, glowState);
+          const definitions = currentScene?.getArrowDefs() ?? [];
+          arrow?.update(definitions, deltaMs);
+          syncRulesPreviewActionGlow(previewGlowRef.current, previewLayer, glowBounds, glowState);
+          return (
+            definitions.length > 0 ||
+            stack?.isAnimating() === true ||
+            previewLayer.container.visible
+          );
         });
-      });
+        schedulerRef.current = scheduler;
+        scheduler.request();
+      } catch (error) {
+        if (active) console.error("[pixi] BoardOverlayCanvas init failed:", error);
+        teardown();
+      }
+    };
+
+    void initialize();
     return () => {
       active = false;
-      registeredScene?.setStackAnchorProvider(null);
-      registeredScene?.setOverlayHitTest(null);
-      unregisterRef.current?.();
-      unregisterRef.current = null;
-      arrowRef.current?.destroy();
-      arrowRef.current = null;
-      stackRef.current?.destroy();
-      stackRef.current = null;
-      previewRef.current?.destroy();
-      previewBackdropRef.current = null;
-      previewRef.current = null;
-      destroyPixiApp(appRef.current);
-      appRef.current = null;
+      canvas.style.pointerEvents = "none";
+      if (initialized) teardown();
+      else if (appRef.current === app) appRef.current = null;
     };
-  }, [sceneRef]);
+  }, []);
 
   useEffect(() => {
     stackSpecRef.current = stackSpec;
     stackRef.current?.setSpec(stackSpec);
+    schedulerRef.current?.request();
   }, [stackSpec]);
   useEffect(() => {
     stackCardStyleRef.current = stackCardStyle;
     stackRef.current?.setRulesViewDefault(stackCardStyle === "rules");
+    schedulerRef.current?.request();
   }, [stackCardStyle]);
   useEffect(() => {
     const preview = previewRef.current;
@@ -400,6 +447,7 @@ export function BoardOverlayCanvas({
     if (!previewSpec || previewSpec.phase !== "open" || previewSpec.suppressed) {
       canvas.style.pointerEvents = "none";
     }
+    schedulerRef.current?.request();
   }, [previewSpec]);
 
   useEffect(() => {
@@ -408,25 +456,27 @@ export function BoardOverlayCanvas({
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
-        if (width > 0 && height > 0) {
-          appRef.current?.renderer?.resize(width, height);
-          stackRef.current?.setViewport(width, height);
-          const preview = previewRef.current;
-          const canvasRect = canvasRef.current?.getBoundingClientRect();
-          if (preview && canvasRect) {
-            updateRulesPreview(preview, previewSpecRef.current, canvasRect, width, height);
-            const backdrop = previewBackdropRef.current;
-            if (backdrop) {
-              updateRulesPreviewBackdrop(
-                backdrop,
-                previewSpecRef.current,
-                width,
-                height,
-                themeRef.current.gameTheme.canvas.shadow,
-              );
-            }
+        const renderer = appRef.current?.renderer;
+        if (width <= 0 || height <= 0 || !renderer) continue;
+        renderer.resolution = overlayResolution(width, height);
+        renderer.resize(width, height);
+        stackRef.current?.setViewport(width, height);
+        const preview = previewRef.current;
+        const canvasRect = canvasRef.current?.getBoundingClientRect();
+        if (preview && canvasRect) {
+          updateRulesPreview(preview, previewSpecRef.current, canvasRect, width, height);
+          const backdrop = previewBackdropRef.current;
+          if (backdrop) {
+            updateRulesPreviewBackdrop(
+              backdrop,
+              previewSpecRef.current,
+              width,
+              height,
+              themeRef.current.gameTheme.canvas.shadow,
+            );
           }
         }
+        schedulerRef.current?.request();
       }
     });
     observer.observe(parent);
@@ -434,9 +484,10 @@ export function BoardOverlayCanvas({
   }, []);
 
   useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
     const hitAt = (clientX: number, clientY: number) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return { stack: false, preview: false };
       const rect = canvas.getBoundingClientRect();
       const x = clientX - rect.left;
       const y = clientY - rect.top;
@@ -449,24 +500,22 @@ export function BoardOverlayCanvas({
       window,
       (x, y) => hitAt(x, y).preview,
       (delta, mode, clientX, clientY) => {
-        const canvas = canvasRef.current;
-        if (canvas) {
-          const rect = canvas.getBoundingClientRect();
-          previewRef.current?.scrollBy(delta, mode, clientX - rect.left, clientY - rect.top);
-        }
+        const rect = canvas.getBoundingClientRect();
+        previewRef.current?.scrollBy(delta, mode, clientX - rect.left, clientY - rect.top);
+        schedulerRef.current?.request();
       },
     );
     let pointerX = 0;
     let pointerY = 0;
     let hasPointer = false;
     const syncPointer = () => {
-      const canvas = canvasRef.current;
-      if (!canvas || !hasPointer || replayPointerId !== null) return;
+      if (!hasPointer) return;
       const rect = canvas.getBoundingClientRect();
       const x = pointerX - rect.left;
       const y = pointerY - rect.top;
       const preview = previewRef.current?.updateHover(x, y) ?? false;
       canvas.style.pointerEvents = preview || stackRef.current?.hitTest(x, y) ? "auto" : "none";
+      schedulerRef.current?.request();
     };
     syncPreviewPointerRef.current = syncPointer;
     const onMove = (event: PointerEvent) => {
@@ -480,29 +529,15 @@ export function BoardOverlayCanvas({
       if (event.relatedTarget !== null) return;
       hasPointer = false;
       previewRef.current?.clearHover();
-      if (canvasRef.current) canvasRef.current.style.pointerEvents = "none";
+      canvas.style.pointerEvents = "none";
+      schedulerRef.current?.request();
     };
-    const clonePointerEvent = (type: string, event: PointerEvent) =>
-      new PointerEvent(type, {
-        bubbles: true,
-        cancelable: true,
-        pointerId: event.pointerId,
-        pointerType: event.pointerType,
-        isPrimary: event.isPrimary,
-        clientX: event.clientX,
-        clientY: event.clientY,
-        button: event.button,
-        buttons: event.buttons,
-      });
-    let replayPointerId: number | null = null;
     let dismissedPointerId: number | null = null;
     let dismissedClickPointerId: number | null = null;
     const onDown = (event: PointerEvent) => {
       if (!event.isTrusted) return;
       if (event.pointerType === "touch") hasPointer = false;
       dismissedClickPointerId = null;
-      const canvas = canvasRef.current;
-      if (!canvas) return;
       const hit = hitAt(event.clientX, event.clientY);
       const currentPreview = previewSpecRef.current;
       const stickyOpen =
@@ -511,46 +546,25 @@ export function BoardOverlayCanvas({
         !currentPreview.suppressed &&
         Date.now() - stickyOpenedAtRef.current >= GHOST_CLICK_ARM_MS;
 
-      if (stickyOpen && !hit.preview) {
-        cbRef.current.onDismissPreview?.();
-        if (
-          hasRulesPreviewBackdrop(currentPreview) ||
-          (event.pointerType === "touch" && !hit.stack)
-        ) {
-          dismissedPointerId = event.pointerId;
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          return;
-        }
-      }
-
-      if (event.pointerType !== "touch" || (!hit.stack && !hit.preview)) return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      if (replayPointerId !== null) return;
-      canvas.style.pointerEvents = "auto";
-      replayPointerId = event.pointerId;
-      canvas.dispatchEvent(clonePointerEvent("pointerdown", event));
-      canvas.setPointerCapture(event.pointerId);
-    };
-    const onUp = (event: PointerEvent) => {
-      if (!event.isTrusted) return;
-      if (event.pointerId === dismissedPointerId) {
-        dismissedPointerId = null;
-        dismissedClickPointerId = event.type === "pointerup" ? event.pointerId : null;
-        event.preventDefault();
-        event.stopImmediatePropagation();
+      if (!stickyOpen || hit.preview) return;
+      cbRef.current.onDismissPreview?.();
+      schedulerRef.current?.request();
+      if (
+        !hasRulesPreviewBackdrop(currentPreview) &&
+        (event.pointerType !== "touch" || hit.stack)
+      ) {
         return;
       }
-      if (event.pointerId !== replayPointerId) return;
-      replayPointerId = null;
+      dismissedPointerId = event.pointerId;
       event.preventDefault();
       event.stopImmediatePropagation();
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      canvas.dispatchEvent(clonePointerEvent(event.type, event));
-      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-      canvas.style.pointerEvents = "none";
+    };
+    const onUp = (event: PointerEvent) => {
+      if (!event.isTrusted || event.pointerId !== dismissedPointerId) return;
+      dismissedPointerId = null;
+      dismissedClickPointerId = event.type === "pointerup" ? event.pointerId : null;
+      event.preventDefault();
+      event.stopImmediatePropagation();
     };
     const onClick = (event: MouseEvent) => {
       if (dismissedClickPointerId === null || event.detail === 0) return;
@@ -571,9 +585,19 @@ export function BoardOverlayCanvas({
     window.addEventListener("pointerup", onUp, true);
     window.addEventListener("pointercancel", onUp, true);
     window.addEventListener("click", onClick, true);
+    const uninstallPointerRouting = installOverlayPointerRouting({
+      canvas,
+      hitTest: (clientX, clientY) => {
+        const hit = hitAt(clientX, clientY);
+        return hit.stack || hit.preview;
+      },
+      onActivity: () => schedulerRef.current?.request(),
+      onOverlayCancel: (pointerId) => stackRef.current?.cancelPointer(pointerId),
+    });
     return () => {
       syncPreviewPointerRef.current = null;
       unbindPreviewScroll();
+      uninstallPointerRouting();
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerout", onWindowLeave);
       window.removeEventListener("pointerdown", onDown, true);
@@ -599,6 +623,7 @@ export function BoardOverlayCanvas({
         theme.gameTheme.canvas.shadow,
       );
     }
+    schedulerRef.current?.request();
   }, [theme]);
 
   const hoveredStackCard = stackSpec.cards.find((card) => card.id === hoveredStackObjectId);
@@ -616,11 +641,19 @@ export function BoardOverlayCanvas({
     ...(rulesPreviewOpen
       ? { "flip-card": () => previewRef.current?.activatePrimaryTransform() }
       : hoveredStackObjectId && hoveredStackCard?.card.isDoubleFaced
-        ? { "flip-card": () => stackRef.current?.toggleFace(hoveredStackObjectId) }
+        ? {
+            "flip-card": () => {
+              stackRef.current?.toggleFace(hoveredStackObjectId);
+              schedulerRef.current?.request();
+            },
+          }
         : {}),
     ...(!externalPreviewActive && hoveredStackObjectId
       ? {
-          "toggle-card-view": () => stackRef.current?.toggleRulesView(hoveredStackObjectId),
+          "toggle-card-view": () => {
+            stackRef.current?.toggleRulesView(hoveredStackObjectId);
+            schedulerRef.current?.request();
+          },
         }
       : {}),
   });

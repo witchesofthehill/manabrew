@@ -224,6 +224,7 @@ export class BoardScene {
     { x: number; y: number; scaleX: number; scaleY: number }
   >();
   private stackProvider: StackAnchorProvider | null = null;
+  private overlayInvalidation: (() => void) | null = null;
   private overlayHitTest: ((x: number, y: number) => boolean) | null = null;
 
   private hoveredCell: GridCell | null = null;
@@ -1083,10 +1084,12 @@ export class BoardScene {
 
   setArrowSpecs(specs: ArrowSpec[]): void {
     this.arrowSpecs = specs;
+    this.overlayInvalidation?.();
   }
 
   setCastingArrow(arrow: { sourceCardId: string; hostile: boolean } | null): void {
     this.castingArrow = arrow;
+    this.overlayInvalidation?.();
   }
 
   setDeclareBlockers(active: boolean): void {
@@ -1097,6 +1100,7 @@ export class BoardScene {
   private setBlockDragId(id: string | null): void {
     if (this.blockDragBlockerId === id) return;
     this.blockDragBlockerId = id;
+    this.overlayInvalidation?.();
     this.callbacks.onBlockDragChange?.(id);
   }
 
@@ -1117,6 +1121,7 @@ export class BoardScene {
   private setAttackDragId(id: string | null): void {
     if (this.attackDragAttackerId === id) return;
     this.attackDragAttackerId = id;
+    this.overlayInvalidation?.();
     if (id === null) {
       this.attackDragTargetId = null;
       this.updateAttackTargetRing(null);
@@ -1188,6 +1193,10 @@ export class BoardScene {
 
   setStackAnchorProvider(provider: StackAnchorProvider | null): void {
     this.stackProvider = provider;
+  }
+
+  setOverlayInvalidation(invalidate: (() => void) | null): void {
+    this.overlayInvalidation = invalidate;
   }
 
   setOverlayHitTest(hitTest: ((x: number, y: number) => boolean) | null): void {
@@ -1337,7 +1346,7 @@ export class BoardScene {
         fontSize: FLOATER_FONT_SIZE,
         fontWeight: "900",
         fill: color,
-        stroke: { color: 0x000000, width: 4 },
+        stroke: { color: hexToNum(this.theme.gameTheme.canvas.shadow), width: 4 },
       },
     });
     text.anchor.set(0.5);
@@ -1907,7 +1916,9 @@ export class BoardScene {
     if (this.destroyed) return;
     const frameRatio = setFrameRatio(this.app.ticker.deltaMS);
     if (import.meta.env.DEV) this.samplePerf();
+    const delimitersWereSettling = this.delimitersSettling();
     this.easeDelimiters();
+    if (delimitersWereSettling && this.arrowSpecs.length > 0) this.overlayInvalidation?.();
     for (const rec of this.regions.values()) rec.region.animate();
     this.hand?.animate();
     this.playerBars.tick();
@@ -2190,6 +2201,7 @@ export class BoardScene {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.overlayInvalidation = null;
     this.overlayHitTest = null;
     if (import.meta.env.DEV) useGameDevStore.getState().setPixiPerfStats(null);
     this.cancelHoverClear();

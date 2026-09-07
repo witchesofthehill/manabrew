@@ -37,6 +37,7 @@ export class StackCardSprite {
   private castingTween: gsap.core.Tween | null = null;
   private hoverTween: gsap.core.Tween | null = null;
   private longPress = new LongPressGesture();
+  private touchPointerId: number | null = null;
   private viewControls: HandCardControls;
   private readonly onToggleRules: (id: string) => void;
   private readonly onFlip: (id: string) => void;
@@ -87,6 +88,7 @@ export class StackCardSprite {
       else onOpen();
     });
     this.container.on("pointerdown", (event: FederatedPointerEvent) => {
+      if (event.pointerType === "touch") this.touchPointerId = event.pointerId;
       this.longPress.start(event, this.spec.id, () => {
         this.hovered = true;
         this.syncControls();
@@ -94,15 +96,20 @@ export class StackCardSprite {
         onHover(this.spec.id);
       });
     });
-    this.container.on("globalpointermove", (event: FederatedPointerEvent) =>
-      this.longPress.move(event.global.x, event.global.y),
-    );
-    const endTouch = () => {
+    this.container.on("globalpointermove", (event: FederatedPointerEvent) => {
+      if (event.pointerId === this.touchPointerId) {
+        this.longPress.move(event.global.x, event.global.y);
+      }
+    });
+    const endTouch = (event: FederatedPointerEvent) => {
+      if (event.pointerId !== this.touchPointerId) return;
+      this.touchPointerId = null;
       this.longPress.cancel();
       this.longPress.releaseFired();
     };
     this.container.on("pointerup", endTouch);
     this.container.on("pointerupoutside", endTouch);
+    this.container.on("pointercancel", endTouch);
     this.container.on("pointerenter", (event: FederatedPointerEvent) => {
       if (event.pointerType === "touch") return;
       this.hovered = true;
@@ -211,6 +218,25 @@ export class StackCardSprite {
     return { width: this.width, height: this.height };
   }
 
+  cancelPointer(pointerId: number): void {
+    if (pointerId !== this.touchPointerId) return;
+    this.touchPointerId = null;
+    this.longPress.cancel();
+    this.longPress.releaseFired();
+  }
+
+  isAnimating(): boolean {
+    return (
+      this.face.usesHandRulesView ||
+      !this.face.imageSettled ||
+      gsap.isTweening(this.face.scale) ||
+      gsap.isTweening(this.container) ||
+      gsap.isTweening(this.container.position) ||
+      gsap.isTweening(this.container.scale) ||
+      gsap.isTweening(this.ring)
+    );
+  }
+
   get usesRulesView(): boolean {
     return this.face.usesHandRulesView;
   }
@@ -222,6 +248,7 @@ export class StackCardSprite {
 
   destroy(): void {
     this.longPress.cancel();
+    this.touchPointerId = null;
     this.moveTween?.kill();
     this.castingTween?.kill();
     this.hoverTween?.kill();

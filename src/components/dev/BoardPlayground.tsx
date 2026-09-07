@@ -67,6 +67,7 @@ export function BoardPlayground() {
   const [viewportIndex, setViewportIndex] = useState(0);
   const nextId = useRef(0);
   const sceneRef = useRef<BoardScene | null>(null);
+  const [overlayScene, setOverlayScene] = useState<BoardScene | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const loadGeneration = useRef(0);
   const previewScenarioCardId = useRef<string | null>(null);
@@ -616,6 +617,7 @@ export function BoardPlayground() {
           arrowSpecs={[]}
           focusLocked={!!sheetPlayerId || preview.isSticky}
           sceneRef={sceneRef}
+          onSceneChange={setOverlayScene}
           externalPreviewActive={externalPreviewActive}
           combatBlocks={specs.blocks}
           combatFocusIds={specs.combatFocusIds}
@@ -675,7 +677,7 @@ export function BoardPlayground() {
         <div className="pointer-events-none absolute inset-0 z-40">
           <BoardOverlayCanvas
             onOpenStack={() => undefined}
-            sceneRef={sceneRef}
+            scene={overlayScene}
             stackSpec={EMPTY_STACK}
             onTargetSpell={() => undefined}
             onHoverStack={() => undefined}

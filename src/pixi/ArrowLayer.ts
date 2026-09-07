@@ -5,18 +5,25 @@ import { hexToNum } from "./colorUtils";
 import { gameIconTexture } from "./gameIconCache";
 import type { ArrowType } from "./types";
 
-// Lazily-loaded "info" game-icon, drawn (pulsing, active-action color) at the
-// end of an arrow whose real target is hidden inside a collapsed field.
+const INFO_RETRY_MS = 1000;
+const INFO_ICON = "info";
 let infoTexture: Texture | null = null;
 let infoLoading = false;
+let infoRetryAfter = 0;
 function ensureInfoTexture(): void {
-  if (infoTexture || infoLoading) return;
+  if (infoTexture || infoLoading || performance.now() < infoRetryAfter) return;
   infoLoading = true;
-  gameIconTexture("info")
-    .then((t) => {
-      infoTexture = t;
+  void gameIconTexture(INFO_ICON)
+    .then((texture) => {
+      infoTexture = texture;
+      infoRetryAfter = 0;
     })
-    .catch(() => {});
+    .catch(() => {
+      infoRetryAfter = performance.now() + INFO_RETRY_MS;
+    })
+    .finally(() => {
+      infoLoading = false;
+    });
 }
 
 // Re-export so existing callers still import ArrowType from this module.
@@ -223,19 +230,8 @@ function roundedRectPath(cx: number, cy: number, w: number, h: number, r: number
   return pts;
 }
 
-/**
- * Symmetric fade-in / fade-out envelope used by all particle variants —
- * matches the spec's `opacity 0;1;1;0` keyframes (fade in for 25%, hold
- * for 50%, fade out 25%).
- */
-/** Pack a 0xRRGGBB hue plus separate alpha into the rgba() string form
- *  Pixi's `addColorStop` accepts via `ColorSource`. The gradient API only
- *  takes one color arg per stop, so we encode alpha into it. */
-function hueAsRgba(hue: number, alpha: number): string {
-  const r = (hue >> 16) & 0xff;
-  const g = (hue >> 8) & 0xff;
-  const b = hue & 0xff;
-  return `rgba(${r},${g},${b},${alpha})`;
+function hueWithAlpha(hue: number, alpha: number): number[] {
+  return [((hue >> 16) & 255) / 255, ((hue >> 8) & 255) / 255, (hue & 255) / 255, alpha];
 }
 
 function particleAlpha(t: number): number {
@@ -244,6 +240,11 @@ function particleAlpha(t: number): number {
   return 1;
 }
 
+type ArrowAnimation =
+  | { kind: "painterly"; curve: CubicCurve; color: number }
+  | { kind: "rune"; curve: CubicCurve; color: number }
+  | { kind: "dashed"; points: Point[]; style: DashedArrowStyle };
+
 interface ArrowEntry {
   root: Container;
   underGfx: Graphics;
@@ -251,6 +252,9 @@ interface ArrowEntry {
   headGfx: Graphics;
   particlesGfx: Graphics;
   marker: Sprite;
+  geometryKey: string;
+  arrow: ArrowDef | null;
+  animation: ArrowAnimation | null;
   gradKey: string;
   underGrad: FillGradient | null;
   coreGrad: FillGradient | null;
@@ -266,9 +270,8 @@ export class ArrowLayer {
   private arrows: ArrowDef[] = [];
   private pool: ArrowEntry[] = [];
   private elapsedMs = 0;
-  // Shared marching-ants phase for the dashed arrows (placement + casting).
-  // Period is a common multiple of both dash cycles so each stays seamless.
   private dashMarchOffset = 0;
+  private themeRevision = 0;
   private clear = true;
 
   constructor() {
@@ -287,7 +290,8 @@ export class ArrowLayer {
 
   setTheme(theme: Theme): void {
     this.theme = theme;
-    if (this.arrows.length > 0) this.redraw();
+    this.themeRevision += 1;
+    if (this.arrows.length > 0) this.renderEntries();
   }
 
   update(arrows: ArrowDef[], deltaMs = 0): void {
@@ -298,7 +302,7 @@ export class ArrowLayer {
       ((PLACEMENT_DASH + PLACEMENT_GAP) * (CAST_DASH + CAST_GAP));
     this.arrows = arrows;
     this.ensurePool(arrows.length);
-    this.redraw();
+    this.renderEntries();
     this.clear = arrows.length === 0;
   }
 
@@ -336,6 +340,9 @@ export class ArrowLayer {
         headGfx,
         particlesGfx,
         marker,
+        geometryKey: "",
+        arrow: null,
+        animation: null,
         gradKey: "",
         underGrad: null,
         coreGrad: null,
@@ -343,32 +350,59 @@ export class ArrowLayer {
     }
   }
 
-  private redraw(): void {
-    for (let i = 0; i < this.pool.length; i += 1) {
-      const entry = this.pool[i]!;
-      entry.underGfx.clear();
-      entry.coreGfx.clear();
-      entry.headGfx.clear();
-      entry.particlesGfx.clear();
-      if (i < this.arrows.length) {
-        entry.root.visible = true;
-        this.drawArrow(entry, this.arrows[i]!);
-      } else {
+  private renderEntries(): void {
+    for (let index = 0; index < this.pool.length; index += 1) {
+      const entry = this.pool[index]!;
+      const arrow = this.arrows[index];
+      if (!arrow) {
         entry.root.visible = false;
+        entry.arrow = null;
+        entry.animation = null;
+        entry.geometryKey = "";
+        continue;
       }
+
+      entry.root.visible = true;
+      const geometryKey = this.geometryKey(arrow);
+      if (entry.geometryKey !== geometryKey) {
+        this.setupArrow(entry, arrow);
+        entry.geometryKey = geometryKey;
+      }
+      entry.arrow = arrow;
+      this.drawAnimation(entry);
     }
   }
 
-  private drawArrow(entry: ArrowEntry, arrow: ArrowDef): void {
+  private geometryKey(arrow: ArrowDef): string {
+    return [
+      this.themeRevision,
+      arrow.type,
+      arrow.fromX,
+      arrow.fromY,
+      arrow.toX,
+      arrow.toY,
+      arrow.color ?? "",
+      arrow.hint ? 1 : 0,
+      arrow.slot?.width ?? "",
+      arrow.slot?.height ?? "",
+    ].join(":");
+  }
+
+  private setupArrow(entry: ArrowEntry, arrow: ArrowDef): void {
+    entry.underGfx.clear();
+    entry.coreGfx.clear();
+    entry.headGfx.clear();
+    entry.particlesGfx.clear();
+    entry.marker.visible = false;
+    entry.animation = null;
+
     switch (arrow.type) {
       case "attack":
       case "block":
-        this.drawPainterly(entry, arrow);
+        this.setupPainterly(entry, arrow);
         break;
       case "casting":
-        // Bold dashed targeting arrow (matches the original board's cast arrow)
-        // — distinct from the painterly combat stroke.
-        this.drawPlacement(entry, arrow, {
+        this.setupPlacement(entry, arrow, {
           color: arrow.color ?? hexToNum(this.theme.gameTheme.arrow.friendlyTarget),
           strokeWidth: CAST_STROKE_WIDTH,
           alpha: CAST_ALPHA,
@@ -380,10 +414,10 @@ export class ArrowLayer {
         });
         break;
       case "attach":
-        this.drawRune(entry, arrow);
+        this.setupRune(entry, arrow);
         break;
       case "placement":
-        this.drawPlacement(entry, arrow, {
+        this.setupPlacement(entry, arrow, {
           color: hexToNum(this.theme.gameTheme.activeAction.active),
           strokeWidth: PLACEMENT_STROKE_WIDTH,
           alpha: PLACEMENT_ALPHA,
@@ -396,8 +430,27 @@ export class ArrowLayer {
         break;
     }
     if (arrow.slot) this.drawPlacementSlot(entry, arrow);
+    if (arrow.hint) ensureInfoTexture();
+  }
+
+  private drawAnimation(entry: ArrowEntry): void {
+    const animation = entry.animation;
+    if (animation?.kind === "painterly") {
+      entry.particlesGfx.clear();
+      this.drawPainterlyParticles(entry.particlesGfx, animation.curve, animation.color);
+    } else if (animation?.kind === "rune") {
+      entry.particlesGfx.clear();
+      this.drawRuneParticles(entry.particlesGfx, animation.curve, animation.color);
+    } else if (animation?.kind === "dashed") {
+      entry.coreGfx.clear();
+      animation.style.dashOffset = this.dashMarchOffset;
+      this.strokeDashedPath(entry.coreGfx, animation.points, animation.style);
+    }
+
     entry.marker.visible = false;
-    if (arrow.hint) this.drawHintCallout(entry, arrow.toX, arrow.toY);
+    if (entry.arrow?.hint) {
+      this.drawHintCallout(entry, entry.arrow.toX, entry.arrow.toY);
+    }
   }
 
   private drawHintCallout(entry: ArrowEntry, x: number, y: number): void {
@@ -411,7 +464,7 @@ export class ArrowLayer {
     entry.marker.visible = true;
   }
 
-  private drawPainterly(entry: ArrowEntry, arrow: ArrowDef): void {
+  private setupPainterly(entry: ArrowEntry, arrow: ArrowDef): void {
     const { ax1, ay1, ax2, ay2 } = shortenEndpoints(arrow.fromX, arrow.fromY, arrow.toX, arrow.toY);
     const curve = cubicCurve(ax1, ay1, ax2, ay2, BOW_PAINTERLY);
     const hue =
@@ -429,38 +482,34 @@ export class ArrowLayer {
       entry.underGrad = new FillGradient(ax1, ay1, ax2, ay2);
       entry.coreGrad = new FillGradient(ax1, ay1, ax2, ay2);
       for (const [stop, alpha] of PAINTERLY_GRADIENT_STOPS) {
-        const rgba = hueAsRgba(hue, alpha);
-        entry.underGrad.addColorStop(stop, rgba);
-        entry.coreGrad.addColorStop(stop, rgba);
+        const color = hueWithAlpha(hue, alpha);
+        entry.underGrad.addColorStop(stop, color);
+        entry.coreGrad.addColorStop(stop, color);
       }
       entry.gradKey = gradKey;
     }
-    const underGrad = entry.underGrad;
-    const coreGrad = entry.coreGrad;
 
     entry.underGfx
       .moveTo(curve.p0.x, curve.p0.y)
       .bezierCurveTo(curve.c1.x, curve.c1.y, curve.c2.x, curve.c2.y, curve.p1.x, curve.p1.y)
       .stroke({
-        fill: underGrad,
+        fill: entry.underGrad,
         width: PAINTERLY_UNDER_WIDTH,
         alpha: PAINTERLY_UNDER_ALPHA,
         cap: "round",
         join: "round",
       });
-
     entry.coreGfx
       .moveTo(curve.p0.x, curve.p0.y)
       .bezierCurveTo(curve.c1.x, curve.c1.y, curve.c2.x, curve.c2.y, curve.p1.x, curve.p1.y)
       .stroke({
-        fill: coreGrad,
+        fill: entry.coreGrad,
         width: PAINTERLY_CORE_WIDTH,
         cap: "round",
         join: "round",
       });
-
     this.drawChevronHead(entry.headGfx, curve, hue);
-    this.drawPainterlyParticles(entry.particlesGfx, curve, hue);
+    entry.animation = { kind: "painterly", curve, color: hue };
   }
 
   private drawChevronHead(gfx: Graphics, curve: CubicCurve, color: number): void {
@@ -497,35 +546,29 @@ export class ArrowLayer {
       gfx.circle(pt.x, pt.y, r);
       gfx.fill({ color, alpha: env * PAINTERLY_PARTICLE_HALO_ALPHA });
       gfx.circle(pt.x, pt.y, r * PAINTERLY_PARTICLE_CORE_RATIO);
-      gfx.fill({ color: 0xffffff, alpha: env });
+      gfx.fill({ color: hexToNum(this.theme.gameTheme.textOnTinted), alpha: env });
     }
   }
 
-  private drawRune(entry: ArrowEntry, arrow: ArrowDef): void {
+  private setupRune(entry: ArrowEntry, arrow: ArrowDef): void {
     const { ax1, ay1, ax2, ay2 } = shortenEndpoints(arrow.fromX, arrow.fromY, arrow.toX, arrow.toY);
     const curve = cubicCurve(ax1, ay1, ax2, ay2, BOW_RUNE);
-    // Attach-line color uses the app primary so it picks up the active
-    // theme's accent (kanagawa blue, gruvbox green, etc.) instead of the
-    // game-layer pointer palette.
     const hue = hexToNum(this.theme.appTheme.primary);
-
-    // Dashed line — sample the cubic and toggle pen segment-by-segment so
-    // dashes follow the curvature (Pixi has no native curved dash support).
     const points = sampleCubic(curve, RUNE_BEZIER_STEPS);
     let drawing = true;
     let remaining = RUNE_DASH_ON;
     let prev = points[0]!;
-    if (drawing) entry.coreGfx.moveTo(prev.x, prev.y);
+    entry.coreGfx.moveTo(prev.x, prev.y);
 
-    for (let i = 1; i < points.length; i += 1) {
-      const cur = points[i]!;
-      const segLen = Math.hypot(cur.x - prev.x, cur.y - prev.y);
-      if (segLen <= remaining) {
-        if (drawing) entry.coreGfx.lineTo(cur.x, cur.y);
-        remaining -= segLen;
+    for (let index = 1; index < points.length; index += 1) {
+      const current = points[index]!;
+      const segmentLength = Math.hypot(current.x - prev.x, current.y - prev.y);
+      if (segmentLength <= remaining) {
+        if (drawing) entry.coreGfx.lineTo(current.x, current.y);
+        remaining -= segmentLength;
       } else {
         if (drawing) {
-          entry.coreGfx.lineTo(cur.x, cur.y);
+          entry.coreGfx.lineTo(current.x, current.y);
           entry.coreGfx.stroke({
             color: hue,
             width: RUNE_LINE_WIDTH,
@@ -535,9 +578,9 @@ export class ArrowLayer {
         }
         drawing = !drawing;
         remaining = drawing ? RUNE_DASH_ON : RUNE_DASH_OFF;
-        if (drawing) entry.coreGfx.moveTo(cur.x, cur.y);
+        if (drawing) entry.coreGfx.moveTo(current.x, current.y);
       }
-      prev = cur;
+      prev = current;
     }
     if (drawing) {
       entry.coreGfx.stroke({
@@ -549,7 +592,7 @@ export class ArrowLayer {
     }
 
     this.drawReticleHead(entry.headGfx, curve, hue);
-    this.drawRuneParticles(entry.particlesGfx, curve, hue);
+    entry.animation = { kind: "rune", curve, color: hue };
   }
 
   private drawReticleHead(gfx: Graphics, curve: CubicCurve, color: number): void {
@@ -586,51 +629,47 @@ export class ArrowLayer {
     }
   }
 
-  private drawPlacement(entry: ArrowEntry, arrow: ArrowDef, style: DashedArrowStyle): void {
+  private setupPlacement(entry: ArrowEntry, arrow: ArrowDef, style: DashedArrowStyle): void {
     const { ax1, ay1, ax2, ay2 } = shortenEndpoints(arrow.fromX, arrow.fromY, arrow.toX, arrow.toY);
     const curve = cubicCurve(ax1, ay1, ax2, ay2, BOW_PLACEMENT);
     const points = sampleCubic(curve, PLACEMENT_BEZIER_STEPS);
-    this.strokeDashedPath(entry.coreGfx, points, {
-      dash: style.dash,
-      gap: style.gap,
-      offset: style.dashOffset,
-      color: style.color,
-      width: style.strokeWidth,
-      alpha: style.alpha,
-    });
     this.drawPlacementHead(entry.headGfx, curve, style.color, style);
+    entry.animation = { kind: "dashed", points, style };
   }
 
-  /** Marching dashes along the placement arrow's bezier polyline. */
-  private strokeDashedPath(
-    gfx: Graphics,
-    points: Point[],
-    s: { dash: number; gap: number; offset: number; color: number; width: number; alpha: number },
-  ): void {
-    const cycle = s.dash + s.gap;
-    let drawing = s.offset % cycle < s.dash;
-    let remaining = drawing ? s.dash - (s.offset % cycle) : cycle - (s.offset % cycle);
+  private strokeDashedPath(gfx: Graphics, points: Point[], style: DashedArrowStyle): void {
+    const cycle = style.dash + style.gap;
+    let drawing = style.dashOffset % cycle < style.dash;
+    let remaining = drawing
+      ? style.dash - (style.dashOffset % cycle)
+      : cycle - (style.dashOffset % cycle);
     const stroke = (): Graphics =>
-      gfx.stroke({ color: s.color, width: s.width, alpha: s.alpha, cap: "round", join: "round" });
+      gfx.stroke({
+        color: style.color,
+        width: style.strokeWidth,
+        alpha: style.alpha,
+        cap: "round",
+        join: "round",
+      });
 
-    let prev = points[0]!;
-    if (drawing) gfx.moveTo(prev.x, prev.y);
-    for (let i = 1; i < points.length; i += 1) {
-      const cur = points[i]!;
-      const segLen = Math.hypot(cur.x - prev.x, cur.y - prev.y);
-      if (segLen <= remaining) {
-        if (drawing) gfx.lineTo(cur.x, cur.y);
-        remaining -= segLen;
+    let previous = points[0]!;
+    if (drawing) gfx.moveTo(previous.x, previous.y);
+    for (let index = 1; index < points.length; index += 1) {
+      const current = points[index]!;
+      const segmentLength = Math.hypot(current.x - previous.x, current.y - previous.y);
+      if (segmentLength <= remaining) {
+        if (drawing) gfx.lineTo(current.x, current.y);
+        remaining -= segmentLength;
       } else {
         if (drawing) {
-          gfx.lineTo(cur.x, cur.y);
+          gfx.lineTo(current.x, current.y);
           stroke();
         }
         drawing = !drawing;
-        remaining = drawing ? s.dash : s.gap;
-        if (drawing) gfx.moveTo(cur.x, cur.y);
+        remaining = drawing ? style.dash : style.gap;
+        if (drawing) gfx.moveTo(current.x, current.y);
       }
-      prev = cur;
+      previous = current;
     }
     if (drawing) stroke();
   }
@@ -644,7 +683,7 @@ export class ArrowLayer {
       arrow.slot.height,
       SLOT_RADIUS,
     );
-    const gfx = entry.coreGfx;
+    const gfx = entry.underGfx;
     const color = hexToNum(this.theme.gameTheme.activeAction.active);
     const cycle = SLOT_DASH + SLOT_GAP;
     let dist = 0;

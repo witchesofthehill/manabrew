@@ -7,25 +7,7 @@ const BYTES_PER_GB: u64 = 1024 * 1024 * 1024;
 
 pub use crate::protocol::IceServer as TransportIceServer;
 
-/// Reads `MANABREW_ICE_SERVERS`, in either of two shapes.
-///
-/// A comma or whitespace separated list of urls covers the common case, which
-/// is one or more STUN servers and no credentials:
-///
-/// ```text
-/// MANABREW_ICE_SERVERS=stun:stun.example.org:19302,stun:stun2.example.org
-/// ```
-///
-/// A JSON array is the whole `RTCIceServer` shape, for TURN, which needs a
-/// username and a credential:
-///
-/// ```text
-/// MANABREW_ICE_SERVERS=[{"urls":["turn:turn.example.org"],"username":"u","credential":"p"}]
-/// ```
-///
-/// Anything unparseable yields an empty list rather than a panic: a relay that
-/// starts with no ICE servers keeps every seat on a working path, where one
-/// that refuses to start serves nobody.
+/// Reads `MANABREW_ICE_SERVERS`: a url list, or a JSON array of `RTCIceServer`.
 pub fn parse_ice_servers(raw: &str) -> Vec<TransportIceServer> {
     let raw = raw.trim();
     if raw.is_empty() {
@@ -71,16 +53,10 @@ pub struct ServerConfig {
     pub hub_deck_plays_url: Option<String>,
     pub hub_deck_plays_token: Option<String>,
     pub hub_jwks_url: Option<String>,
-    /// Opt-in. Off, the relay never sends a roster and every room stays on the
-    /// relay data plane, which is what it does today.
+    /// Opt-in. Off, the relay never sends a roster.
     pub direct_transport: bool,
-    /// The iroh relay rooms should use. Unset leaves peers on iroh's own relay
-    /// defaults.
     pub iroh_relay_url: Option<String>,
-    /// ICE servers handed to the browser data plane. See
-    /// [`parse_ice_servers`]; empty leaves WebRTC with host candidates only,
-    /// which reaches nothing the embedded LAN relay does not already reach in
-    /// one hop.
+    /// ICE servers handed to the browser plane. See [`parse_ice_servers`].
     pub ice_servers: Vec<TransportIceServer>,
     /// Where this relay keeps card art. Set it and the relay serves
     /// `/scryfall-img/` for everyone on the network, which is the point of
@@ -181,7 +157,6 @@ impl ServerConfig {
 mod tests {
     use super::*;
 
-    /// The common case: one or more STUN urls, no credentials.
     #[test]
     fn a_plain_url_list_becomes_one_server() {
         let parsed = parse_ice_servers("stun:a.example.org:19302, stun:b.example.org");
@@ -193,7 +168,6 @@ mod tests {
         assert!(parsed[0].username.is_none());
     }
 
-    /// TURN needs the full shape, so JSON is accepted too.
     #[test]
     fn json_carries_turn_credentials() {
         let parsed = parse_ice_servers(
@@ -204,15 +178,12 @@ mod tests {
         assert_eq!(parsed[0].credential.as_deref(), Some("p"));
     }
 
-    /// A relay that cannot parse its ICE config still starts. Every seat has a
-    /// working path without one; a relay that refuses to boot serves nobody.
     #[test]
     fn anything_unparseable_yields_no_servers_rather_than_a_panic() {
         assert!(parse_ice_servers("").is_empty());
         assert!(parse_ice_servers("   ").is_empty());
         assert!(parse_ice_servers("[not json").is_empty());
         assert!(parse_ice_servers(r#"[{"username":"u"}]"#).is_empty());
-        // An entry with no urls is useless to RTCPeerConnection, so it is dropped.
         assert!(parse_ice_servers(r#"[{"urls":[]}]"#).is_empty());
     }
 }

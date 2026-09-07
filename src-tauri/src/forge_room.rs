@@ -6,10 +6,7 @@ use tauri::Emitter;
 use tauri::State;
 use tokio::sync::Notify;
 
-/// Engine envelopes for a browser seat, and signalling for the host, on their
-/// way out to the webview that holds the peer connections. A null payload is
-/// never sent: the webview learns a channel is gone from its own
-/// `RTCDataChannel`, and tells the node with `forge_host_serving`.
+/// Node-to-webview event carrying a `BridgeEvent`.
 #[cfg(feature = "forge-room")]
 const BRIDGE_EVENT: &str = "forge-host:bridge";
 
@@ -22,9 +19,6 @@ type BridgeSender =
 struct RunningRoom {
     cancel: Arc<Notify>,
     handle: tauri::async_runtime::JoinHandle<()>,
-    /// How the webview answers the node: the seats it is serving, signalling
-    /// to send under the host's identity, and seat envelopes to feed the
-    /// engine.
     #[cfg(feature = "forge-room")]
     bridge: Option<BridgeSender>,
 }
@@ -35,18 +29,15 @@ pub struct ForgeRoomHost {
     running: Mutex<Option<RunningRoom>>,
 }
 
-/// What crosses to the webview. Mirrors `ShellEvent`, tagged the way the
-/// webview's other transport events are.
+/// `ShellEvent`, serialised for the webview.
 #[cfg(feature = "forge-room")]
 #[derive(serde::Serialize, Clone)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 enum BridgeEvent {
-    /// An engine envelope this host wants delivered to `target`.
     Envelope {
         target: String,
         envelope: serde_json::Value,
     },
-    /// Signalling addressed to this host, from a room member.
     Signal {
         from: String,
         payload: serde_json::Value,
@@ -111,10 +102,6 @@ pub async fn start_forge_host(
         let scheme = if port == 443 { "wss" } else { "ws" };
         let relay_url = format!("{}://{}:{}", scheme, host, port);
 
-        // The hosting player's own opt-in, read by the webview from Settings.
-        // Off, this host has no direct plane of either kind: no native
-        // endpoint, and no bridge for the webview to carry browser seats over.
-        // It announces nothing, so the relay keeps the room on the relay.
         let direct_transport = direct_transport.unwrap_or(false);
         let config = self_hosted_node::Config::for_hosted_room(
             relay_url,
@@ -130,10 +117,6 @@ pub async fn start_forge_host(
         let room_cancel = cancel.clone();
         let (ready_tx, ready_rx) = tokio::sync::oneshot::channel::<String>();
 
-        // A browser seat cannot be dialled from the node, so its envelopes go
-        // out through the webview instead. The bridge is installed for every
-        // hosted room the player opted in for: it costs one idle channel, and
-        // whether a browser seat turns up is not known until one joins.
         let mut bridge_tx = None;
         let handle = if direct_transport {
             let emitter = app.clone();
@@ -194,9 +177,7 @@ pub async fn start_forge_host(
     }
 }
 
-/// Which seats the webview has an open channel to, right now. Replaces the
-/// whole set: a seat missing from this list is one whose channel has gone, and
-/// the node puts it back on the relay owing a board.
+/// Seats the webview has an open channel to. Replaces the whole set.
 #[tauri::command]
 pub fn forge_host_serving(
     forge: State<'_, ForgeRoomHost>,
@@ -214,9 +195,7 @@ pub fn forge_host_serving(
     )
 }
 
-/// Signalling the webview wants sent under the host's relay identity. It has
-/// no session of its own to speak for the host with, which is why it goes back
-/// through the node.
+/// Signalling to send under the host's relay identity.
 #[tauri::command]
 pub fn forge_host_signal(
     forge: State<'_, ForgeRoomHost>,
@@ -235,8 +214,7 @@ pub fn forge_host_signal(
     )
 }
 
-/// A seat's own envelope, arrived over the webview's channel. Takes the same
-/// route into the engine a relay `StateUpdate` takes.
+/// A seat's envelope, arrived over the webview's channel.
 #[tauri::command]
 pub fn forge_host_seat_envelope(
     forge: State<'_, ForgeRoomHost>,

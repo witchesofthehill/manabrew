@@ -174,50 +174,28 @@ pub fn record_client_rtt(ms: f64) {
     histogram!(CLIENT_RTT).record(ms);
 }
 
-/// `kind` is announce, withdraw, or rejected. A rejected announcement is
-/// answered with silence, so this counter is the only place a squatter shows up.
+/// `kind` is announce, withdraw or rejected.
 pub fn record_transport_announcement(kind: &'static str) {
     counter!(TRANSPORT_ANNOUNCEMENTS, LABEL_KIND => kind).increment(1);
 }
 
-/// `kind` is sent or withheld. A withheld roster is a room where at least one
-/// human seat has not opted in, so the room stays on the relay; a rising
-/// `withheld` beside a flat `sent` says the feature is on and nobody is
-/// taking it.
+/// `kind` is sent or withheld.
 pub fn record_transport_roster(kind: &'static str) {
     counter!(TRANSPORT_ROSTERS, LABEL_KIND => kind).increment(1);
 }
 
-/// `kind` is forwarded, or why it was not: disabled, oversize, no_sender,
-/// no_target, self, offline. A dropped signal is answered with silence, the
-/// way a rejected announcement is, so this counter is where a negotiation that
-/// never completes becomes visible.
+/// `kind` is forwarded, disabled, oversize, no_sender, no_target, self or offline.
 pub fn record_peer_signal(kind: &'static str) {
     counter!(PEER_SIGNALS, LABEL_KIND => kind).increment(1);
 }
 
-/// One end's account of one attempt to leave the relay, whether it worked or
-/// not. The failures are the point: `ReportTransport` names only the seats
-/// that succeeded, so without this the denominator of a connect rate does not
-/// exist anywhere, and the rate is what decides whether production runs ICE
-/// servers at all.
-///
-/// `pair` is bounded to a known set by the caller before it reaches here. A
-/// client-supplied label would otherwise pick the cardinality of this metric.
+/// `pair` must already be bounded to a known set by the caller.
 pub fn record_plane_attempt(plane: &'static str, outcome: &'static str, pair: &'static str) {
     counter!(PLANE_ATTEMPTS, LABEL_PLANE => plane, LABEL_OUTCOME => outcome, LABEL_PAIR => pair)
         .increment(1);
 }
 
-/// The direct path's round trip next to the same session's round trip to the
-/// relay, recorded as a pair. Either number alone says nothing: the direct
-/// path is only worth having if it beats the path it replaced, and how far it
-/// beats it depends entirely on where the two players are.
-///
-/// Unlike [`record_client_rtt`] this is the client's own measurement. The
-/// relay cannot take it: once a seat goes direct the relay stops seeing that
-/// seat's traffic, which is the same reason `clientRttMs` disappears from a
-/// capture the moment the feature works.
+/// Client-measured, unlike [`record_client_rtt`].
 pub fn record_plane_rtt(plane: &'static str, rtt_ms: u32, relay_rtt_ms: Option<u32>) {
     histogram!(PLANE_RTT, LABEL_PLANE => plane).record(rtt_ms as f64);
     if let Some(relay) = relay_rtt_ms {

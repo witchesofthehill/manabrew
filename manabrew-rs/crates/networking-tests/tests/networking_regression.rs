@@ -550,8 +550,6 @@ async fn publishing_a_release_never_ends_a_live_game() {
     sim.wait_node_exit(Duration::from_secs(60)).await;
 }
 
-// ── the direct data plane (#838, docs/TRANSPORT.md) ─────────────────
-
 async fn direct_transport_fails_closed_without_the_flag() {
     scenario(
         "a relay started without MANABREW_DIRECT_TRANSPORT, and a seat that opted in.",
@@ -573,7 +571,10 @@ async fn direct_transport_fails_closed_without_the_flag() {
     let mut bob = Client::connect(&sim.relay_url, "bob").await.unwrap();
     bob.join(&room.room_id, false).await.unwrap();
 
-    alice.announce(Some(webrtc_endpoint("alice"))).await.unwrap();
+    alice
+        .announce(Some(webrtc_endpoint("alice")))
+        .await
+        .unwrap();
     alice
         .signal_peer("bob", json!({ "sdp": { "type": "offer", "sdp": "v=0" } }))
         .await
@@ -617,8 +618,7 @@ async fn signalling_is_routed_by_the_relay_and_stamped_with_the_sender() {
     alice.create_room("Signalling").await.unwrap();
     let room = alice.wait_own_room().await.unwrap();
     let mut bob = Client::connect(&sim.relay_url, "bob").await.unwrap();
-    // Wait for the relay to register the join, not just send it: a signal that
-    // arrives before bob is a room member is dropped as `no_target`.
+    // A signal sent before the relay registers bob is dropped as `no_target`.
     bob.join_retry(&room.room_id).await.unwrap();
 
     let offer = json!({ "sdp": { "type": "offer", "sdp": "v=0 alice" } });
@@ -681,13 +681,14 @@ async fn a_room_stays_on_the_relay_until_every_seat_opts_in() {
     let mut alice = Client::connect(&sim.relay_url, "alice").await.unwrap();
     alice.create_room("Consent").await.unwrap();
     let room = alice.wait_own_room().await.unwrap();
-    // bob joins but never announces: that is what not opting in looks like.
-    // Confirm the relay registered him before alice announces, or consent
-    // could read as met against a room that does not yet know he is in it.
+    // bob never announces; the relay must register him before alice announces.
     let mut bob = Client::connect(&sim.relay_url, "bob").await.unwrap();
     bob.join_retry(&room.room_id).await.unwrap();
 
-    alice.announce(Some(webrtc_endpoint("alice"))).await.unwrap();
+    alice
+        .announce(Some(webrtc_endpoint("alice")))
+        .await
+        .unwrap();
     let hosts = alice.roster_hosts_within(Duration::from_secs(3)).await;
     assert!(
         !hosts.is_empty() && hosts.iter().all(Option::is_none),

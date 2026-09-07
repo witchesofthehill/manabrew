@@ -500,9 +500,7 @@ jobs:
         with:
           node-version: "20"
 
-      # A command missing from the permission manifest is denied on every
-      # origin, and the rejection only ever reaches a console the release build
-      # cannot show. Six were missing when this check was written.
+      # A command missing from the permission manifest fails silently in release builds.
       - name: Tauri commands match their permission manifest
         run: node scripts/check-tauri-permissions.mjs
 

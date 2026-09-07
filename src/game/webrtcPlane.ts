@@ -1,41 +1,22 @@
 /**
- * The room's WebRTC data plane: one `RTCPeerConnection` and one reliable
- * ordered channel per peer, carrying the same engine envelopes the relay would.
- * The browser half of #838: a browser cannot hole punch with iroh, so WebRTC is
- * its only direct transport. The relay carries only the offer, answer and ICE.
- *
- * Peers are addressed by username (so a desktop seat uses this path too), the
- * plane comes from what the host advertises (not "am I a browser"), and
- * `trySend` returns false rather than throwing. Both ends freeze on
- * `GameStarted`. See docs/TRANSPORT.md.
+ * The room's WebRTC data plane: one connection and one ordered channel per peer.
+ * Only the offer, answer and ICE cross the relay. See docs/TRANSPORT.md.
  */
 import type { StateEnvelope } from "@/types/server";
 
 /** Matches `TRANSPORT_KIND_WEBRTC` in manabrew-relay-protocol. */
 export const TRANSPORT_KIND_WEBRTC = "webrtc";
-/** Matches `TRANSPORT_KIND_IROH`. An endpoint with no `kinds` means this. */
 export const TRANSPORT_KIND_IROH = "iroh";
 
-/** The label is part of the handshake: both ends open the same one. */
 const CHANNEL_LABEL = "manabrew-engine";
 
-/** A peer neither connected nor failed by now counts as failed. Nothing waits
- *  on it (the seat plays on the relay throughout), so the budget is ICE's, not
- *  a guess at player patience; Firefox's own is nearer 30s. */
 const CONNECT_TIMEOUT_MS = 25_000;
 
-/** Round trips for the RTT probe, and the gap between them. Enough to see a
- *  median without making the channel's first seconds about measurement. */
 const PROBE_COUNT = 5;
 const PROBE_GAP_MS = 250;
 
-/** How often each open channel is re-measured while the game runs, so the
- *  data channel's round trip and winning candidate pair are a time series, not
- *  one reading at connect. */
 const MEASURE_INTERVAL_MS = 15_000;
 
-/** A probe, not an envelope. Engine envelopes are objects with a `kind`, so a
- *  string discriminator cannot collide with one. */
 interface ProbeMessage {
   __probe: "ping" | "pong";
   seq: number;
@@ -48,50 +29,32 @@ export interface RosterMember {
   host?: boolean;
 }
 
-/** What the spike is for: whether the channel opened at all, and how it
- *  compares with the relay path it replaced. */
 export interface PlaneMeasurement {
   peer: string;
   /** `connected`, `failed` or `timeout`. */
   outcome: string;
-  /** Wall clock from first offer to the channel opening. */
   connectMs?: number;
-  /** Median of `PROBE_COUNT` round trips on the data channel. */
   rttMs?: number;
-  /** The ICE pair that won, as `local/remote` candidate types: `host/host` is
-   *  a LAN pair, `srflx` means it was punched through, `relay` means TURN,
-   *  which we do not run. */
+  /** The winning ICE pair as `local/remote` candidate types. */
   candidatePair?: string;
-  /** `settled` is the attempt reaching its outcome, once. `measured` is the
-   *  later refinement that carries the round trip.
-   *
-   *  A connected peer reports twice, and without telling the two apart anything
-   *  counting attempts counts a success twice and a failure once -- which
-   *  inflates exactly the connect rate this measurement exists to establish. */
+  /** `settled` once per attempt; `measured` on each later RTT sample. */
   phase: "settled" | "measured";
 }
 
 export interface WebRtcPlaneOptions {
-  /** This client's own username, as the relay attested it. */
+  /** Relay-attested; never client supplied. */
   username: string;
-  /** Sends a `SignalPeer` to a named room member. */
   signal: (to: string, payload: unknown) => void;
-  /** Hands a received envelope to the same path a relay `StateUpdate` takes. */
+  /** Takes the same path a relay `StateUpdate` takes. */
   deliver: (envelope: StateEnvelope, fromPlayer: string) => void;
-  /** Injected so the negotiation can be tested without a browser. */
   createConnection?: (config: RTCConfiguration) => RTCPeerConnection;
-  /** ICE servers. Empty means host candidates only, which is a LAN pair and
-   *  nothing else. */
   iceServers?: RTCIceServer[];
   onMeasurement?: (measurement: PlaneMeasurement) => void;
-  /** The peers with an open channel, whenever that set changes. A host proxy
-   *  reports it onward so the node knows which seats it can still reach. */
+  /** Peers with an open channel, whenever that set changes. */
   onServing?: (seats: string[]) => void;
   now?: () => number;
 }
 
-/** A seat's own envelopes are the only ones it sends. A host sends everything
- *  else, each to the seat it is for. */
 function isSeatEnvelope(state: Record<string, unknown>): boolean {
   const kind = (state as Partial<StateEnvelope>).kind;
   return kind === "response" || kind === "directive";
@@ -104,9 +67,7 @@ function median(values: number[]): number | undefined {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-/** Whether a roster endpoint speaks a plane, mirroring
- *  `TransportEndpoint::speaks` on the Rust side: absent or empty `kinds` is
- *  what every announcer before the field meant, which is iroh. */
+/** Mirrors `TransportEndpoint::speaks` on the Rust side. */
 export function endpointSpeaks(member: RosterMember | undefined, kind: string): boolean {
   return advertisedKinds(member).includes(kind);
 }
@@ -116,21 +77,12 @@ function advertisedKinds(member: RosterMember | undefined): string[] {
   return !kinds || kinds.length === 0 ? [TRANSPORT_KIND_IROH] : kinds;
 }
 
-/**
- * The plane a seat takes: the first one the HOST advertises that this client
- * speaks. The host's list carries the preference, so a desktop seat lands on
- * iroh in a desktop-hosted room and on WebRTC in a browser-hosted one.
- */
+/** The first plane the host advertises that this client speaks. */
 export function planeForRoom(host: RosterMember | undefined, mine: string[]): string | null {
   return advertisedKinds(host).find((kind) => mine.includes(kind)) ?? null;
 }
 
-/**
- * The ICE servers a roster published, in the shape `RTCPeerConnection` wants.
- * The relay is the only source: no client hardcodes one, the same rule the
- * iroh relay url follows, so a self-hosted deployment answers the question by
- * configuring its relay rather than by shipping new clients.
- */
+/** ICE servers a roster published. No client hardcodes one. */
 export function iceServersFrom(msg: Record<string, unknown>): RTCIceServer[] {
   const raw = msg.ice_servers;
   if (!Array.isArray(raw)) return [];
@@ -144,10 +96,7 @@ export function iceServersFrom(msg: Record<string, unknown>): RTCIceServer[] {
     }));
 }
 
-/**
- * What a browser announces: a name, no address. The addresses cross later over
- * signalling, so announcing costs nothing and happens on entering a room.
- */
+/** The endpoint a browser announces to the relay. */
 export function webRtcEndpoint(username: string): { endpoint_id: string; kinds: string[] } {
   return { endpoint_id: `webrtc:${username}`, kinds: [TRANSPORT_KIND_WEBRTC] };
 }
@@ -155,16 +104,11 @@ export function webRtcEndpoint(username: string): { endpoint_id: string; kinds: 
 interface Peer {
   connection: RTCPeerConnection;
   channel: RTCDataChannel | null;
-  /** True for the side that offers. Exactly one end of a pair offers, decided
-   *  by username order, so both ends cannot glare at each other. */
   offering: boolean;
   open: boolean;
   startedAt: number;
   settled: boolean;
   timer: ReturnType<typeof setTimeout> | null;
-  /** Candidates that arrived before the remote description did. Adding one
-   *  early throws, and dropping it can cost the only pair that would have
-   *  worked. */
   pending: RTCIceCandidateInit[];
   probes: Map<number, number>;
   rtts: number[];
@@ -176,12 +120,9 @@ export class WebRtcPlane {
     WebRtcPlaneOptions;
   private readonly peers = new Map<string, Peer>();
   private readonly now: () => number;
-  /** The peer a seat sends to: the room's host. A host has no single peer and
-   *  routes by target instead. */
   private hostPeer: string | null = null;
   private isHost = false;
-  /** Frozen at `GameStarted`. Until then nothing is sent on this plane, and
-   *  after it the set never changes for the life of the game. */
+  /** Frozen at `GameStarted`; never changes for the life of the game. */
   private active = new Set<string>();
   private closed = false;
   private measureTimer: ReturnType<typeof setInterval> | null = null;
@@ -191,27 +132,18 @@ export class WebRtcPlane {
     this.now = opts.now ?? (() => Date.now());
   }
 
-  /** What this client announces to the relay. A browser has no address to
-   *  publish: the endpoint id names it in the roster and the addresses come
-   *  from ICE, over signalling, later. */
   endpoint(): { endpoint_id: string; kinds: string[] } {
     return webRtcEndpoint(this.opts.username);
   }
 
-  /** Whether this build can offer the plane at all. */
   static supported(create?: WebRtcPlaneOptions["createConnection"]): boolean {
     return Boolean(create) || typeof RTCPeerConnection !== "undefined";
   }
 
-  /**
-   * Installs the relay's roster. The host's advertised kinds decide the room's
-   * plane; this client's own platform does not come into it.
-   */
+  /** The host's advertised kinds decide the room's plane. */
   onRoster(members: RosterMember[], host: RosterMember | undefined): void {
     if (this.closed) return;
-    // A roster with no host is the relay withdrawing the plane: somebody at
-    // the table has not opted in. Every connection goes, so that nothing is
-    // open when `GameStarted` freezes the transport.
+    // No host means the relay withdrew the plane. Hang up before the freeze.
     if (!host) {
       for (const [peer, state] of this.peers) this.teardown(peer, state);
       return;
@@ -222,14 +154,6 @@ export class WebRtcPlane {
     this.isHost = hostname === this.opts.username;
     this.hostPeer = this.isHost ? null : hostname;
 
-    // A seat talks to the host and to nobody else: engine envelopes only ever
-    // cross that one edge. Meshing every pair would be connections nothing
-    // sends on.
-    //
-    // A host peers only with members that announced they speak this plane. The
-    // roster can hold an iroh endpoint beside a WebRTC one — that is the mixed
-    // room — and offering to a peer that cannot answer buys a timeout and a
-    // fallback that was already going to happen.
     const wanted = this.isHost
       ? members
           .filter(
@@ -248,16 +172,10 @@ export class WebRtcPlane {
     }
   }
 
-  /**
-   * A signalling blob from a named peer. `from` is the relay's own view of the
-   * sender, so it is safe to key a connection on.
-   */
+  /** `from` is relay-attested, so it is safe to key a connection on. */
   async onSignal(from: string, payload: unknown): Promise<void> {
     if (this.closed) return;
     const message = payload as { sdp?: RTCSessionDescriptionInit; ice?: RTCIceCandidateInit };
-    // A peer that offers to us before the roster named it is still a peer the
-    // relay placed in this room, so the connection is created here too. Only
-    // the offering side is decided in advance.
     let peer = this.peers.get(from);
     if (!peer) {
       if (!message.sdp || message.sdp.type !== "offer") return;
@@ -277,9 +195,6 @@ export class WebRtcPlane {
         return;
       }
       if (message.ice) {
-        // Before the remote description exists there is nothing to attach a
-        // candidate to, and adding one throws. Held, not dropped: it may be
-        // the only pair that would have worked.
         if (!peer.connection.remoteDescription) peer.pending.push(message.ice);
         else await peer.connection.addIceCandidate(message.ice);
       }
@@ -289,8 +204,7 @@ export class WebRtcPlane {
     }
   }
 
-  /** Both ends freeze here, on the same relay message, so a stream never
-   *  changes transport once a game is running. */
+  /** Both ends freeze on `GameStarted`; transport never changes mid-game. */
   freeze(): void {
     this.active = new Set(
       [...this.peers].filter(([, peer]) => peer.open).map(([username]) => username),
@@ -306,27 +220,16 @@ export class WebRtcPlane {
     this.stopMeasuring();
   }
 
-  /**
-   * Takes this envelope, or says it did not, in which case the caller puts it
-   * on the relay. Never throws: a plane that can fail a send is a plane that
-   * can lose a prompt response, and the seat behind it waits for a resync.
-   */
+  /** False means the caller sends over the relay. Never throws. */
   trySend(state: Record<string, unknown>, targetPlayer?: string): boolean {
     if (this.closed || !this.active.size) return false;
     const peer = this.isHost ? targetPlayer : this.hostPeer;
-    // A host envelope with no target is for the whole room, and the relay is
-    // the only thing that fans one out.
     if (!peer || !this.active.has(peer)) return false;
     if (!this.isHost && !isSeatEnvelope(state)) return false;
     return this.sendTo(peer, state);
   }
 
-  /**
-   * Puts one envelope on a peer's channel. Separate from `trySend` for the
-   * host proxy, whose barrier lives in the node rather than here: the node
-   * froze the seat set at `GameStarted` and decided this envelope belongs on
-   * this plane, so there is no second gate to pass.
-   */
+  /** Host proxy path: the node holds the freeze, so no `trySend` gate here. */
   sendTo(peer: string, envelope: unknown): boolean {
     if (this.closed) return false;
     const channel = this.peers.get(peer)?.channel;
@@ -342,7 +245,6 @@ export class WebRtcPlane {
     }
   }
 
-  /** The peers with an open channel right now. */
   serving(): string[] {
     return [...this.peers]
       .filter(([, peer]) => peer.open && peer.channel?.readyState === "open")
@@ -364,8 +266,6 @@ export class WebRtcPlane {
     for (const [peer, state] of this.peers) this.teardown(peer, state);
     this.active = new Set();
   }
-
-  // ── negotiation ──────────────────────────────────────────────────
 
   private create(peer: string, offering: boolean): Peer {
     const create =
@@ -393,7 +293,6 @@ export class WebRtcPlane {
       const status = connection.connectionState;
       if (status === "failed" || status === "closed") this.settle(peer, state, "failed");
     };
-    // The answering side never creates a channel; it receives the offerer's.
     connection.ondatachannel = (event) => this.attach(peer, state, event.channel);
 
     state.timer = setTimeout(() => this.settle(peer, state, "timeout"), CONNECT_TIMEOUT_MS);
@@ -401,9 +300,6 @@ export class WebRtcPlane {
   }
 
   private async open(peer: string): Promise<void> {
-    // Exactly one end of a pair offers, and both ends work it out from the two
-    // usernames alone. Otherwise each offers, each answers, and the pair
-    // glares until one side's rollback saves it.
     const offering = this.opts.username < peer;
     const state = this.create(peer, offering);
     if (!offering) return;
@@ -458,9 +354,7 @@ export class WebRtcPlane {
       }
       return;
     }
-    // A seat receives from the host and reports no sender, exactly as the
-    // relay's own `StateUpdate` does for a host envelope. A host receives from
-    // the seat and must name it, because the engine routes responses by seat.
+    // A host must name the seat: the engine routes responses by seat.
     if ((parsed as { kind?: string })?.kind === "prompt") {
       console.info(
         this.isHost
@@ -471,8 +365,6 @@ export class WebRtcPlane {
     this.opts.deliver(parsed as StateEnvelope, this.isHost ? peer : "");
   }
 
-  /** Measures the channel so the spike has a number to compare with the relay
-   *  path. Fire and forget: nothing waits on it. */
   private async probe(peer: string, state: Peer): Promise<void> {
     const rttMs = await this.sampleRtt(state);
     if (rttMs === undefined) return;
@@ -485,9 +377,6 @@ export class WebRtcPlane {
     });
   }
 
-  /** One fresh batch of `PROBE_COUNT` round trips on the channel. Clears the
-   *  previous batch so a periodic re-measure reports the current RTT, not a
-   *  running average since the channel opened. */
   private async sampleRtt(state: Peer): Promise<number | undefined> {
     state.rtts = [];
     for (let i = 0; i < PROBE_COUNT; i += 1) {
@@ -505,7 +394,6 @@ export class WebRtcPlane {
     return median(state.rtts);
   }
 
-  /** Re-measures every open channel on an interval while the game runs. */
   private startMeasuring(): void {
     if (this.measureTimer) return;
     this.measureTimer = setInterval(() => void this.measureAll(), MEASURE_INTERVAL_MS);
@@ -533,17 +421,7 @@ export class WebRtcPlane {
     }
   }
 
-  /** Which pair ICE settled on, which is what says whether this was a LAN hop,
-   *  a punched-through path, or TURN. */
-  /**
-   * What ICE had to work with, for the case where it did not connect.
-   *
-   * The winning pair says nothing when there is no winner, and that is exactly
-   * when the question matters: `srflx` on both sides means STUN worked and the
-   * failure is NAT traversal, where only `host` means STUN produced nothing and
-   * traversal was never attempted. Without this the answer lives in
-   * `about:webrtc` on one machine and nowhere in the logs.
-   */
+  /** Every candidate ICE gathered, for logging a failed attempt. */
   private async candidateSummary(state: Peer): Promise<string | undefined> {
     try {
       const stats = await state.connection.getStats();
@@ -596,8 +474,6 @@ export class WebRtcPlane {
     }
   }
 
-  /** One outcome per peer. `connected` may be reported twice, once when the
-   *  channel opens and again with the RTT, and the caller is told both. */
   private settle(peer: string, state: Peer, outcome: string): void {
     if (state.timer) {
       clearTimeout(state.timer);
@@ -610,8 +486,6 @@ export class WebRtcPlane {
       this.report({ peer, outcome, connectMs, phase: "settled" });
       return;
     }
-    // Read the candidates before anything tears the connection down, and log
-    // them with the failure rather than making somebody open about:webrtc.
     void this.candidateSummary(state).then((summary) => {
       console.warn(
         `[webrtc] ${peer} stayed on the relay: ${outcome}` + (summary ? ` (${summary})` : ""),

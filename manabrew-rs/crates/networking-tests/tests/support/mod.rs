@@ -93,11 +93,8 @@ pub struct Sim {
     pub port: u16,
     pub relay_url: String,
     pub room_id: String,
-    /// `MANABREW_DIRECT_TRANSPORT` on the relay: it advertises the rendezvous
-    /// and signalling. Off is production before #838 and the default here.
+    /// Sets `MANABREW_DIRECT_TRANSPORT` on the relay.
     direct: bool,
-    /// Where the relay writes its analytics events, for the direct scenarios,
-    /// which are the only ones that need to read them.
     events_dir: Option<PathBuf>,
     _relay: Option<Proc>,
     node: Option<Proc>,
@@ -140,8 +137,7 @@ impl Sim {
         Sim::spawn_relay_only_with(port, false).await
     }
 
-    /// Relay only, direct transport on: the rendezvous and signalling without
-    /// an engine host behind them.
+    /// Relay only, with the direct transport on.
     pub async fn spawn_relay_only_direct(port: u16) -> Sim {
         Sim::spawn_relay_only_with(port, true).await
     }
@@ -174,7 +170,6 @@ impl Sim {
         step("relay killed and restarted — memory wiped");
     }
 
-    /// The relay's Prometheus text, off its health port.
     pub async fn metrics(&self) -> String {
         let Ok(mut stream) = TcpStream::connect(("127.0.0.1", self.port + 1)).await else {
             return String::new();
@@ -191,8 +186,7 @@ impl Sim {
             .unwrap_or_default()
     }
 
-    /// One series, by its exact `name{labels}` text; 0 when the relay has not
-    /// recorded it, which is what an untouched counter looks like.
+    /// One series by its exact `name{labels}` text; 0 when unrecorded.
     pub async fn metric(&self, series: &str) -> f64 {
         self.metrics()
             .await
@@ -312,7 +306,6 @@ pub struct Client {
     pub username: String,
     pub slot: Option<String>,
     pub game_id: Option<String>,
-    /// What the relay advertised in `AuthResult.features`.
     pub features: Vec<String>,
     write: WsWrite,
     read: WsRead,
@@ -590,7 +583,6 @@ impl Client {
         self.envelope_response(state)
     }
 
-    /// The same decision for an envelope whichever transport carried it.
     fn envelope_response(&mut self, state: Value) -> Result<Option<StateEnvelope>, String> {
         if let Some(kind) = state.get("kind").and_then(serde_json::Value::as_str) {
             self.envelope_kinds.insert(kind.to_string());
@@ -623,7 +615,7 @@ impl Client {
         }))
     }
 
-    /// Publishes, or with `None` withdraws, this seat's endpoint.
+    /// Publishes this seat's endpoint; `None` withdraws it.
     pub async fn announce(&mut self, endpoint: Option<TransportEndpoint>) -> Result<(), String> {
         let what = if endpoint.is_some() {
             "announced a direct endpoint"
@@ -639,8 +631,7 @@ impl Client {
         Ok(())
     }
 
-    /// Every roster's host within `window`, so a scenario can say "none of
-    /// them named one".
+    /// The host named by every roster received within `window`.
     pub async fn roster_hosts_within(&mut self, window: Duration) -> Vec<Option<String>> {
         let mut hosts = Vec::new();
         let _ = tokio::time::timeout(window, async {
@@ -937,12 +928,7 @@ fn spawn_relay(port: u16, direct: bool, events_dir: Option<&std::path::Path>) ->
     Proc(command.spawn().expect("spawn manabrew-server"))
 }
 
-/// A directory the relay can write events into, emptied first so a scenario
-/// reads only its own.
-/// The endpoint a browser (or desktop webview) seat announces: a WebRTC-only
-/// peer with no iroh addressing, which is all the relay's rendezvous and
-/// signalling ever carry. The relay attests the username itself, so the
-/// `endpoint_id` here is only a placeholder the relay never reads.
+/// A WebRTC-only endpoint; the relay never reads `endpoint_id`.
 pub fn webrtc_endpoint(name: &str) -> TransportEndpoint {
     TransportEndpoint {
         endpoint_id: format!("webrtc:{name}"),

@@ -1,12 +1,5 @@
 /**
- * A small in-app log view, so testing an installer does not mean opening the
- * webview console. Staging only: this file lives on `khaliostr/staging-lan-iroh`
- * and nowhere else, so it never reaches a release build.
- *
- * It patches `console.*` once at module load to tee every line into a ring
- * buffer, then renders the last of them in a collapsible panel. The transport
- * lines (`[direct]`, `[webrtc]`, `[forge-host]`) are what this exists for, so
- * they are the default filter, but the toggle shows everything.
+ * In-app log panel for staging builds. Tees `console.*` into a ring buffer.
  */
 import { useEffect, useRef, useState } from "react";
 
@@ -76,8 +69,7 @@ export function DebugLogOverlay() {
     };
   }, []);
 
-  // Recomputed every render, which the `tick` state above forces on each new
-  // log line. Cheap: the ring is bounded and this only mounts on staging.
+  // `tick` forces a render on each new line.
   void tick;
   const needle = filter.trim().toLowerCase();
   const lines = buffer.filter((l) => {

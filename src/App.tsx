@@ -2,7 +2,6 @@ import { RouterProvider } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { router } from "@/router";
 import { Toaster } from "@/components/ui/sonner";
-// Staging-only debug tooling, gated by a build flag so it never ships to prod.
 import { DebugLogOverlay } from "@/components/dev/DebugLogOverlay";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppInitGate } from "@/components/AppInitGate";

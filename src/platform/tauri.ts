@@ -63,9 +63,6 @@ class TauriServerApi implements IServerApi {
         maxPlayers: params.maxPlayers,
         password: params.password ?? null,
         reconnectTimeoutS: params.reconnectTimeoutS ?? null,
-        // The hosting player's own opt-in. Off, the node binds no endpoint and
-        // gets no bridge, so the room stays on the relay whatever the seats
-        // chose.
         directTransport: usePreferencesStore.getState().directTransport,
       });
     }

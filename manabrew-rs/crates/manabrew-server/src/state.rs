@@ -88,8 +88,7 @@ pub struct ServerState {
     /// See `ServerConfig::direct_transport`. Fails closed.
     pub direct_transport: bool,
     pub iroh_relay_url: Option<String>,
-    /// Handed to the browser plane in every roster. See
-    /// `ServerConfig::ice_servers`.
+    /// See `ServerConfig::ice_servers`.
     pub ice_servers: Vec<crate::protocol::IceServer>,
     pub lobby_chat: Mutex<ChatHistory>,
     pub seal: Option<MessageSealer>,

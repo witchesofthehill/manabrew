@@ -765,37 +765,20 @@ class WebServerApi implements IServerApi {
   private resumeToken: string | null = null;
   private pendingRelayPrompts = new Map<string, Record<string, unknown>>();
   private enginePlayerNames: string[] = [];
-  /** The browser data plane, built only for a room whose host advertises it.
-   *  Null on every other room, which is every room today. */
   private webrtc: WebRtcPlane | null = null;
-  /** Whether this relay will carry signalling at all. Without it a negotiation
-   *  could only ever half-finish, so none is started. */
   private peerSignalling = false;
-  /** Set when this app is the one running the room's engine host, so the
-   *  webview drives WebRTC for a node that cannot dial a browser itself. */
   private forgeHostBridge: ForgeHostBridge | null = null;
-  /** The room this session has already announced a WebRTC endpoint for, so a
-   *  roster arriving on every join and leave does not re-announce. */
   private announcedRoom: string | null = null;
-  /** Keepalive round trip to the relay, which is the number the direct plane
-   *  has to beat. The relay records its own view of this as
-   *  `manabrew_relay_client_rtt_ms`; this is the client's. */
   private relayRttMs: number | null = null;
   private planeQualityReporting = false;
   private pingSentAt: number | null = null;
-  /** This player's opt-in (Settings). Off, this client announces nothing and
-   *  dials nobody, which also keeps its rooms on the relay: the relay names a
-   *  host only once every player has announced. */
   private directTransportOptIn = usePreferencesStore.getState().directTransport;
-  /** Whether this relay sends rosters at all. Without it there is nothing to
-   *  announce to. */
   private roomTransport = false;
   private currentRoomId: string | null = null;
 
   constructor(eventBus: WebEventBus) {
     this.eventBus = eventBus;
 
-    // Flipping the setting mid-room takes effect at once.
     usePreferencesStore.subscribe((prefs) => {
       if (prefs.directTransport === this.directTransportOptIn) return;
       this.directTransportOptIn = prefs.directTransport;
@@ -1142,8 +1125,6 @@ class WebServerApi implements IServerApi {
     }
     this.stopAllBots();
     clearSpawnedBots();
-    // The relay drops this session's endpoint when it leaves, so the next room
-    // has to announce again.
     this.announcedRoom = null;
     this.currentRoomId = null;
     this.dropWebRtcPlane();
@@ -1199,8 +1180,6 @@ class WebServerApi implements IServerApi {
   }
 
   async broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void> {
-    // The browser plane is in-process, so it answers without awaiting. A seat
-    // not on the plane, or one the plane could not reach, goes over the relay.
     if (this.webrtc?.trySend(state, targetPlayer)) return;
     this.send({ type: "BroadcastState", state, target_player: targetPlayer });
   }
@@ -1335,23 +1314,14 @@ class WebServerApi implements IServerApi {
     return this.wasmReady;
   }
 
-  /// The relay names the room's data plane. Nothing here invents an address,
-  /// and an older relay sends no roster at all, in which case nothing happens.
-  ///
-  /// Which plane a room uses comes from what the HOST advertises. Every seat is
-  /// on WebRTC now: a host that speaks it gets a browser plane, and anything
-  /// else stays on the relay, which is what it can do.
+  /** The host's advertised kinds decide the room's plane. */
   private onRoomTransport(msg: Record<string, unknown>): void {
     if (!this.authedUsername) return;
     const members = Array.isArray(msg.members) ? (msg.members as RosterMember[]) : [];
-    // Belt and braces: an opted-out client tears down any plane a roster offers.
     if (!this.directTransportOptIn) {
       this.dropWebRtcPlane();
       return;
     }
-    // A roster with no host is the relay withdrawing the plane (a player has
-    // not opted in): hang up whatever was dialled, so nothing is open at the
-    // GameStarted freeze.
     if (!msg.host) {
       this.webrtc?.onRoster([], undefined);
       void this.forgeHostBridge?.onRoster([], undefined);
@@ -1359,8 +1329,6 @@ class WebServerApi implements IServerApi {
     }
     const host = msg.host as RosterMember;
 
-    // This app may be the one running the room's engine host. The node cannot
-    // dial a browser seat, so the webview holds those connections for it.
     if (host.username !== this.authedUsername) {
       void this.maybeProxyForgeHost(members, host, iceServersFrom(msg));
     }
@@ -1372,13 +1340,11 @@ class WebServerApi implements IServerApi {
     }
   }
 
-  /// The setting changed while this session may be in a room.
   private onDirectTransportPreference(): void {
     if (this.directTransportOptIn) {
       if (this.currentRoomId) this.announceTransport(this.currentRoomId);
       return;
     }
-    // Withdrawing re-empties the room's roster, hanging everyone else up too.
     if (this.announcedRoom && this.ws?.readyState === WebSocket.OPEN) {
       this.send({ type: "AnnounceTransport", endpoint: null });
     }
@@ -1394,30 +1360,19 @@ class WebServerApi implements IServerApi {
     this.webrtc = null;
   }
 
-  /// Announces this session's WebRTC endpoint on entering a room, if opted in.
-  /// Everybody announces up front: the relay names a host only once every seat
-  /// has, so waiting for a roster first would wait for ever.
+  /** Announces on entering a room. The relay names a host once all have. */
   private announceTransport(roomId: string): void {
     if (!roomId || this.announcedRoom === roomId) return;
-    // Announcing is how a player opts in, so nothing is announced for one who
-    // did not. The relay counts every human seat; one missing keeps the room
-    // on the relay.
     if (!this.directTransportOptIn || !this.roomTransport) return;
     if (!this.peerSignalling || !WebRtcPlane.supported() || !this.authedUsername) return;
     this.announcedRoom = roomId;
     this.send({ type: "AnnounceTransport", endpoint: webRtcEndpoint(this.authedUsername) });
   }
 
-  /// The planes this client can speak: WebRTC, wherever `RTCPeerConnection` is
-  /// available and the relay carries signalling.
   private myTransportKinds(): string[] {
     return this.peerSignalling && WebRtcPlane.supported() ? [TRANSPORT_KIND_WEBRTC] : [];
   }
 
-  /// When this app runs the room's engine host, its envelopes for a browser
-  /// seat come out through the shell and go onto a connection held here.
-  /// Silent on the web and in a desktop that is not hosting: the command
-  /// answers with an error and there is nothing to do.
   private async maybeProxyForgeHost(
     members: RosterMember[],
     host: RosterMember,
@@ -1428,16 +1383,11 @@ class WebServerApi implements IServerApi {
     if (getClientPlatform() !== "desktop") return;
     if (!this.forgeHostBridge) {
       if (!(await ForgeHostBridge.hosting())) return;
-      // The roster's host is the node this app started, and the plane runs
-      // under that name so it reads itself as the host.
       this.forgeHostBridge = new ForgeHostBridge(host.username, iceServers);
     }
     await this.forgeHostBridge.onRoster(members, host);
   }
 
-  /// A room whose host speaks WebRTC. The plane is built on the first such
-  /// roster and handed every one after it, because a roster arrives on every
-  /// join and leave and the peer set follows it.
   private onWebRtcRoster(
     members: RosterMember[],
     host: RosterMember,
@@ -1445,11 +1395,6 @@ class WebServerApi implements IServerApi {
   ): void {
     if (!this.peerSignalling || !WebRtcPlane.supported()) return;
     if (!this.webrtc) {
-      // Worth saying out loud. With no ICE servers a browser gathers host
-      // candidates only, which Chromium replaces with mDNS names, so the plane
-      // reaches a peer on the same network at best. A seat on the same network
-      // already has one local hop through the embedded relay, so this
-      // configuration leaves the plane with no case it wins.
       if (iceServers.length === 0) {
         console.warn(
           "[webrtc] this relay published no ICE servers; the direct plane will " +
@@ -1468,15 +1413,10 @@ class WebServerApi implements IServerApi {
           }),
         onMeasurement: (m) => this.onPlaneMeasurement(m),
       });
-      // Already announced on entering the room, which is what produced the
-      // roster being handled here.
     }
     this.webrtc.onRoster(members, host);
   }
 
-  /// What the spike is for. Every peer reports once when it settles and again
-  /// with its measured round trip, next to the relay's own
-  /// `manabrew_relay_client_rtt_ms` for the same session.
   private onPlaneMeasurement(m: PlaneMeasurement): void {
     const parts = [`peer=${m.peer}`, `outcome=${m.outcome}`];
     if (m.connectMs !== undefined) parts.push(`connect=${Math.round(m.connectMs)}ms`);
@@ -1488,17 +1428,7 @@ class WebServerApi implements IServerApi {
     this.reportPlaneQuality("webrtc", m);
   }
 
-  /**
-   * Sends the measurement to the relay, failures included.
-   *
-   * The console line above is only ever read by whoever happens to have the
-   * tab open, which is why the one cross-network sample anybody has is a
-   * screenshot. More to the point, the relay stops seeing a seat the moment
-   * this works, so `manabrew_relay_client_rtt_ms` goes quiet for exactly the
-   * seats worth measuring, and `ReportTransport` names only the ones that
-   * succeeded. An attempt that times out currently reaches nobody at all,
-   * which leaves a connect rate with no denominator.
-   */
+  /** Sends the measurement to the relay, failures included. */
   private reportPlaneQuality(plane: string, m: PlaneMeasurement): void {
     if (!this.planeQualityReporting) return;
     const whole = (value: number | undefined): number | undefined =>
@@ -1539,14 +1469,10 @@ class WebServerApi implements IServerApi {
     }
     logComms("recv", msg);
     if (type === "AuthResult" && msg.success) {
-      // A relay that does not advertise it drops signalling, so no negotiation
-      // is ever started against one.
       this.peerSignalling =
         Array.isArray(msg.features) && (msg.features as string[]).includes("peer_signal");
       this.roomTransport =
         Array.isArray(msg.features) && (msg.features as string[]).includes("room_transport");
-      // A relay built before the report existed rejects it as a parse error,
-      // so an older one is simply never sent one.
       this.planeQualityReporting =
         Array.isArray(msg.features) && (msg.features as string[]).includes("plane_quality");
     }
@@ -1596,13 +1522,9 @@ class WebServerApi implements IServerApi {
       return;
     }
     if (type === "PeerSignal") {
-      // `from` is the relay's own view of the sender, which is what makes it
-      // safe to key a connection on.
       void this.webrtc?.onSignal(String(msg.from ?? ""), msg.payload);
       return;
     }
-    // Both ends freeze on the same relay message, so a stream never changes
-    // transport once a game is running.
     if (type === "GameStarted") {
       this.webrtc?.freeze();
     }
@@ -1715,9 +1637,7 @@ class WebServerApi implements IServerApi {
       this.announceTransport(roomId);
     }
 
-    // A join is confirmed by the room update that follows it, and the relay
-    // sends these only to members, so this cannot announce into a room this
-    // session is not in.
+    // RoomUpdate reaches members only, so this never announces into a foreign room.
     if (type === "RoomUpdate") {
       const room = msg.room as { room_id?: string } | undefined;
       const roomId = String(room?.room_id ?? "");

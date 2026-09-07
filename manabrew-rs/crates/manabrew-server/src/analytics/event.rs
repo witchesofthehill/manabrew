@@ -82,8 +82,7 @@ pub enum AnalyticsEvent {
         conceded: Vec<String>,
         fatal_message: Option<String>,
     },
-    /// Which seats left the relay's data plane for this game. Emitted from the
-    /// host's own report: the relay cannot observe traffic it does not carry.
+    /// Which seats left the relay's data plane, as reported by the host.
     TransportUsed {
         ts: String,
         room_id: String,
@@ -91,18 +90,12 @@ pub enum AnalyticsEvent {
         host: String,
         seats: Vec<SeatTransportReport>,
     },
-    /// One end's account of one attempt to reach a peer off the relay, kept
-    /// whether or not it worked.
-    ///
-    /// [`AnalyticsEvent::TransportUsed`] is the host's list of seats that
-    /// succeeded. This is the other half: the attempts, including the ones
-    /// that failed and left the seat on the relay saying nothing. A connect
-    /// rate needs both.
+    /// One end's account of one direct-plane attempt, whether or not it worked.
     PlaneQuality {
         ts: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         room_id: Option<String>,
-        /// The reporter, named from the relay's own record of the session.
+        /// Relay-attested; never client supplied.
         username: String,
         /// The other end, as the reporter named it.
         peer: String,

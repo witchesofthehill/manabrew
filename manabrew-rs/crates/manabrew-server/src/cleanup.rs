@@ -399,8 +399,6 @@ fn mark_disconnected_inner(state: &Arc<ServerState>, player_id: &str, our_genera
                             },
                         );
                     }
-                    // The seat that dropped may have been the one that had
-                    // not opted in, in which case the rest may now go direct.
                     broadcast_room_transport(state, rid);
                 }
 

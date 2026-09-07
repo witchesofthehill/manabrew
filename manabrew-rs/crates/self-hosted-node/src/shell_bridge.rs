@@ -1,12 +1,5 @@
-//! The webview's half of a desktop host's data plane, for a browser seat the
-//! node cannot dial. A browser speaks WebRTC only, and the webview is the one
-//! thing beside the node that can hold such a connection, so the node's
-//! envelopes go out through the shell. A third sink after `DirectPlane` and
-//! before the relay; a seat is on exactly one of the three.
-//!
-//! The relay socket stays in the node: signalling for the host arrives here,
-//! is forwarded to the webview, and what it answers goes back under the host's
-//! attested identity. See docs/TRANSPORT.md.
+//! Webview half of a desktop host's data plane, for seats reached over WebRTC.
+//! See docs/TRANSPORT.md.
 
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
@@ -18,7 +11,7 @@ use tokio::sync::mpsc;
 /// Node to webview.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ShellEvent {
-    /// An engine envelope for a seat the webview said it is serving.
+    /// An engine envelope for a seat the webview serves.
     Envelope { target: String, envelope: Value },
     /// Signalling for this host, forwarded off the relay socket.
     Signal { from: String, payload: Value },
@@ -27,48 +20,30 @@ pub enum ShellEvent {
 /// Webview to node.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ShellCommand {
-    /// The seats the webview has an open channel to, right now. Replaces the
-    /// whole set: the webview is the only thing that knows, so a seat missing
-    /// from this list is a seat that has gone.
+    /// Seats the webview has an open channel to. Replaces the whole set.
     Serving { seats: Vec<String> },
-    /// Signalling the webview wants sent under this host's relay identity.
+    /// Signalling to send under this host's relay identity.
     Signal { to: String, payload: Value },
-    /// A seat's own envelope, arrived over the webview's channel. Takes the
-    /// same route into the engine that a relay `StateUpdate` takes.
+    /// A seat's envelope, arrived over the webview's channel.
     SeatEnvelope { from: String, envelope: Value },
 }
 
-/// Puts a seat's board back where the relay can serve it, once that seat has
-/// left this plane. Same repair the direct plane makes, for the same reason.
 type Reprime = Box<dyn Fn(&str) + Send + Sync>;
 
-/// A seat is claimed by this bridge only while the webview says it can reach
-/// it AND the game froze it here.
+/// Carries the seats the webview reaches that the game froze on this plane.
 pub struct ShellBridge {
-    /// What the webview currently reaches.
     serving: Mutex<HashSet<String>>,
-    /// The seats this plane is carrying, frozen at `GameStarted`. The only
-    /// thing `try_send` reads, and empty outside a game, which is why nothing
-    /// leaves this way before one starts. A seat is removed when its channel
-    /// goes and is never put back: transport is chosen once per game and does
-    /// not migrate, in either direction.
+    /// Frozen at `GameStarted`; a seat leaves and never comes back.
     frozen: Mutex<HashSet<String>>,
-    /// Seats that left this plane mid-game and are owed a full board before
-    /// anything else goes out, because while they were here the relay saw none
-    /// of their envelopes. Settled when the seat answers over the relay.
+    /// Seats that left this plane mid-game and need a full board first.
     owed_a_board: Mutex<HashSet<String>>,
-    /// The seats the relay's latest roster names. The relay sends an empty
-    /// roster while anyone at the table has not opted in, and a channel the
-    /// webview opened before that player sat down is still open; the freeze
-    /// believes the roster, not the channel.
+    /// Relay-attested roster; the freeze carries only seats named here.
     attested: Mutex<HashSet<String>>,
     emit: Arc<dyn Fn(ShellEvent) + Send + Sync>,
     on_fallback: Mutex<Option<Reprime>>,
 }
 
 impl ShellBridge {
-    /// `emit` hands an event to the shell, which puts it in front of the
-    /// webview. The returned sender is what the shell feeds commands back on.
     pub fn new(
         emit: impl Fn(ShellEvent) + Send + Sync + 'static,
     ) -> (
@@ -88,23 +63,19 @@ impl ShellBridge {
         (bridge, tx, rx)
     }
 
-    /// The relay's latest roster, by username. Replaces the whole set.
     pub fn set_roster(&self, seats: impl IntoIterator<Item = String>) {
         if let Ok(mut attested) = self.attested.lock() {
             *attested = seats.into_iter().collect();
         }
     }
 
-    /// A seat that leaves this plane mid-game is owed a full board before it
-    /// reads the relay again, the same debt the direct plane pays.
     pub fn set_on_fallback(&self, reprime: impl Fn(&str) + Send + Sync + 'static) {
         if let Ok(mut slot) = self.on_fallback.lock() {
             *slot = Some(Box::new(reprime));
         }
     }
 
-    /// Replaces the served set. A carried seat that drops out has lost its
-    /// channel: it goes back on the relay owing a board.
+    /// Replaces the served set; a dropped frozen seat falls back owing a board.
     pub fn set_serving(&self, seats: Vec<String>) {
         let incoming: HashSet<String> = seats.into_iter().collect();
         let lost: Vec<String> = {
@@ -137,10 +108,7 @@ impl ShellBridge {
         }
     }
 
-    /// Called on `GameStarted`. `taken` names the seats the direct plane
-    /// already took, so none is claimed twice; only roster-attested seats are
-    /// carried, so an empty roster (incomplete opt-in) freezes nobody. Returns
-    /// the seats this bridge carries.
+    /// Called on `GameStarted`; returns the seats this bridge carries.
     pub fn freeze_for_game(&self, seats: &[String], taken: &[String]) -> Vec<String> {
         let Ok(serving) = self.serving.lock() else {
             return Vec::new();
@@ -175,17 +143,14 @@ impl ShellBridge {
         }
     }
 
-    /// An envelope from this seat over the relay says it is reading that path,
-    /// so the debt is settled. Same signal the direct plane uses.
+    /// A relay envelope from this seat settles its owed board.
     pub fn note_relay_message(&self, username: &str) {
         if let Ok(mut owed) = self.owed_a_board.lock() {
             owed.remove(username);
         }
     }
 
-    /// Hands one envelope to the webview, or says it did not. This cannot know
-    /// the send landed, so a seat whose channel died since its last `Serving`
-    /// loses envelopes and is then owed a full board, the same debt as above.
+    /// Hands one envelope to the webview; false when the seat is not frozen here.
     pub fn try_send(&self, target: &str, envelope: &Value) -> bool {
         let claimed = self
             .frozen
@@ -195,8 +160,6 @@ impl ShellBridge {
         if !claimed {
             return false;
         }
-        // The shell-path counterpart of the direct plane's "sent a prompt"
-        // line, for a browser seat whose envelopes leave through the webview.
         if envelope.get("kind").and_then(Value::as_str) == Some("prompt") {
             tracing::info!(target, "shell bridge: handed a prompt to the webview");
         }
@@ -207,8 +170,6 @@ impl ShellBridge {
         true
     }
 
-    /// Signalling addressed to this host, on its way to the webview that holds
-    /// the peer connections.
     pub fn forward_signal(&self, from: &str, payload: Value) {
         (self.emit)(ShellEvent::Signal {
             from: from.to_string(),
@@ -216,7 +177,6 @@ impl ShellBridge {
         });
     }
 
-    /// What the relay's capture is about to stop seeing.
     pub fn transport_report(&self, seats: &[String]) -> Vec<SeatTransportReport> {
         seats
             .iter()
@@ -247,8 +207,6 @@ mod tests {
         let (bridge, events) = bridge();
         bridge.set_roster(["bob".to_string()]);
         bridge.set_serving(vec!["bob".into()]);
-        // Serving is not the same as carrying. Until GameStarted the relay has
-        // the seat, the same rule the direct plane follows.
         assert!(!bridge.try_send("bob", &json!({"kind": "prompt"})));
         assert!(events.try_recv().is_err());
 
@@ -261,16 +219,12 @@ mod tests {
         let (bridge, _events) = bridge();
         bridge.set_roster(["bob".to_string(), "carol".to_string()]);
         bridge.set_serving(vec!["bob".into(), "carol".into()]);
-        // bob is already on iroh. A desktop seat and a browser seat in the same
-        // room is exactly the mixed case, and each gets one plane.
         let mine = bridge.freeze_for_game(&["bob".into(), "carol".into()], &["bob".into()]);
         assert_eq!(mine, vec!["carol".to_string()]);
         assert!(!bridge.try_send("bob", &json!({})));
         assert!(bridge.try_send("carol", &json!({})));
     }
 
-    /// An open channel is not consent. The relay empties the roster while any
-    /// player at the table has not opted in, and the freeze follows the roster.
     #[test]
     fn a_seat_the_roster_does_not_name_stays_on_the_relay() {
         let (bridge, _events) = bridge();
@@ -298,10 +252,8 @@ mod tests {
         bridge.freeze_for_game(&["bob".into()], &[]);
         assert!(bridge.try_send("bob", &json!({})));
 
-        // The webview reports the channel gone.
         bridge.set_serving(vec![]);
         assert_eq!(repriced.lock().unwrap().as_slice(), ["bob"]);
-        // And the envelope goes on the relay from here on.
         assert!(!bridge.try_send("bob", &json!({})));
     }
 
@@ -319,12 +271,9 @@ mod tests {
         bridge.set_serving(vec![]);
         assert_eq!(*count.lock().unwrap(), 1);
 
-        // Settling the debt must not put the seat back on this plane. Transport
-        // is chosen once per game and does not migrate, in either direction.
         bridge.note_relay_message("bob");
         assert!(!bridge.try_send("bob", &json!({})));
 
-        // Nor does the webview reporting it reachable again.
         bridge.set_serving(vec!["bob".into()]);
         assert!(!bridge.try_send("bob", &json!({})));
     }

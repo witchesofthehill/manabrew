@@ -1,9 +1,4 @@
-/**
- * The negotiation and the fallback, driven against a fake `RTCPeerConnection`.
- * Two real browsers is the other half of this spike and cannot run here; what
- * can run here is every rule the plane has to obey no matter which browser it
- * is in.
- */
+/** The negotiation and the fallback, against a fake `RTCPeerConnection`. */
 import { describe, expect, it, vi } from "vitest";
 import {
   WebRtcPlane,
@@ -27,8 +22,6 @@ class FakeChannel {
   send(data: string): void {
     if (this.readyState !== "open") throw new Error("not open");
     this.sent.push(data);
-    // Delivered on a later turn, the way a real channel does, so nothing here
-    // accidentally depends on a synchronous round trip.
     queueMicrotask(() => this.peer?.onmessage?.({ data }));
   }
 
@@ -102,8 +95,6 @@ function harness(username: string, peers: string[]): Harness {
   const connections = new Map<string, FakeConnection>();
   const signals: Signal[] = [];
   const delivered: Delivery[] = [];
-  // The plane creates one connection per peer in roster order, which is what
-  // lets the fake hand back a connection the test can address by name.
   const queue = [...peers];
   const plane = new WebRtcPlane({
     username,
@@ -118,8 +109,6 @@ function harness(username: string, peers: string[]): Harness {
   return { plane, connections, signals, delivered };
 }
 
-/** The RTT probe starts as soon as a channel opens, so the frames a test cares
- *  about are the ones that are not probes. */
 function envelopes(channel: FakeChannel): unknown[] {
   return channel.sent
     .map((raw) => JSON.parse(raw) as Record<string, unknown>)
@@ -137,22 +126,18 @@ describe("choosing a plane from what the host advertises", () => {
   });
 
   it("gives a desktop seat iroh and a browser seat WebRTC out of the same desktop host", () => {
-    // A desktop host advertises both, most preferred first.
     const desktopHost = member("alice", ["iroh", "webrtc"], true);
     expect(planeForRoom(desktopHost, ["iroh", "webrtc"])).toBe(TRANSPORT_KIND_IROH);
     expect(planeForRoom(desktopHost, ["webrtc"])).toBe(TRANSPORT_KIND_WEBRTC);
   });
 
   it("gives a desktop seat WebRTC in a browser-hosted room, not the native endpoint", () => {
-    // The seat's own platform must not decide: reaching for iroh here would
-    // find nothing and fall back to the relay when WebRTC was available.
     const browserHost = member("alice", ["webrtc"], true);
     expect(planeForRoom(browserHost, ["iroh", "webrtc"])).toBe(TRANSPORT_KIND_WEBRTC);
   });
 
   it("leaves a browser seat on the relay in an iroh-only room, which is all it can do", () => {
     expect(planeForRoom(member("alice", ["iroh"], true), ["webrtc"])).toBeNull();
-    // And an endpoint from before `kinds` existed reads as iroh.
     expect(planeForRoom({ username: "alice", endpoint: {} }, ["webrtc"])).toBeNull();
     expect(planeForRoom({ username: "alice", endpoint: {} }, ["iroh"])).toBe(TRANSPORT_KIND_IROH);
   });
@@ -169,11 +154,6 @@ describe("choosing a plane from what the host advertises", () => {
 
 describe("announcing, which is what starts everything", () => {
   it("is a name and no address, so it costs nothing to send on entering a room", () => {
-    // The whole reason this can be announced eagerly. A browser has no address
-    // to publish and binds no socket; the addresses cross later over
-    // signalling. The relay only sends a roster once a member has announced,
-    // and a browser-hosted room has no node to do it unprompted, so an
-    // announcement that waits for a roster waits forever.
     expect(webRtcEndpoint("alice")).toEqual({
       endpoint_id: "webrtc:alice",
       kinds: [TRANSPORT_KIND_WEBRTC],
@@ -208,7 +188,6 @@ describe("ice servers, which the relay is the only source of", () => {
 
   it("ignores an entry with no urls, which RTCPeerConnection cannot use", () => {
     expect(iceServersFrom({ ice_servers: [{ urls: [] }, { username: "u" }] })).toEqual([]);
-    // An older relay sends no field at all.
     expect(iceServersFrom({})).toEqual([]);
   });
 
@@ -229,8 +208,6 @@ describe("ice servers, which the relay is the only source of", () => {
       member("alice", ["webrtc"], true),
     );
     await vi.waitFor(() => expect(configs.length).toBeGreaterThan(0));
-    // Without these a browser gathers host candidates only, which Chromium
-    // replaces with mDNS names, and ICE never leaves "new".
     expect(configs[0].iceServers).toEqual([{ urls: ["stun:a.example.org"] }]);
   });
 });
@@ -238,7 +215,7 @@ describe("ice servers, which the relay is the only source of", () => {
 describe("negotiation", () => {
   it("offers from exactly one end of a pair, so the two cannot glare", async () => {
     const host = member("alice", ["webrtc"], true);
-    // alice < bob, so alice offers and bob waits.
+    // alice < bob, so alice offers.
     const a = harness("alice", ["bob"]);
     a.plane.onRoster([member("alice", ["webrtc"]), member("bob", ["webrtc"])], host);
     await vi.waitFor(() => expect(a.signals.length).toBeGreaterThan(0));
@@ -250,9 +227,6 @@ describe("negotiation", () => {
   });
 
   it("hangs up every peer when the roster comes back without a host", async () => {
-    // The relay empties the roster while a player at the table has not opted
-    // in. A connection made before that player sat down must not survive to
-    // the freeze, or one seat would play direct at a table that did not agree.
     const host = member("alice", ["webrtc"], true);
     const a = harness("alice", ["bob"]);
     a.plane.onRoster([member("alice", ["webrtc"]), member("bob", ["webrtc"])], host);
@@ -288,8 +262,7 @@ describe("negotiation", () => {
 
   it("holds a candidate that arrives before the description it would attach to", async () => {
     const h = harness("bob", ["alice"]);
-    // A bare candidate cannot create a connection, so this one is dropped: it
-    // names a peer nothing has offered to us.
+    // No connection yet, so this candidate is dropped.
     await h.plane.onSignal("alice", { ice: { candidate: "early" } });
     expect(h.connections.size).toBe(0);
 
@@ -304,7 +277,6 @@ describe("the send seam", () => {
   async function connectedSeat() {
     const host = member("alice", ["webrtc"], true);
     const h = harness("bob", ["alice"]);
-    // bob answers alice, so the channel arrives on `ondatachannel`.
     await h.plane.onSignal("alice", { sdp: { type: "offer", sdp: "offer-sdp" } });
     const connection = h.connections.get("alice")!;
     const channel = new FakeChannel();
@@ -326,8 +298,6 @@ describe("the send seam", () => {
     const { plane } = await connectedSeat();
     plane.freeze();
     expect(plane.trySend({ kind: "directive" })).toBe(true);
-    // A seat never emits these; if one appeared it belongs on the relay, which
-    // is the only thing that fans out to a room.
     expect(plane.trySend({ kind: "state" })).toBe(false);
   });
 
@@ -396,7 +366,6 @@ describe("a host proxy, whose freeze lives in the node", () => {
 
   it("sends without a local freeze, because the node already decided", async () => {
     const { plane, channel } = await connectedHost();
-    // `trySend` would refuse: nothing froze here. `sendTo` is the proxy's path.
     expect(plane.trySend({ kind: "prompt" }, "bob")).toBe(false);
     expect(plane.sendTo("bob", { kind: "prompt" })).toBe(true);
     expect(envelopes(channel)).toEqual([{ kind: "prompt" }]);

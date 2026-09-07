@@ -51,8 +51,7 @@ pub struct Room {
     pub replay: Option<GameReplayCache>,
     pub resume_token: String,
     pub humanless_since: Option<Instant>,
-    /// Data-plane endpoints announced by members, keyed by player id. The relay
-    /// is the only thing that binds one of these to a username.
+    /// Announced endpoints by player id. Only the relay binds one to a username.
     pub transports: HashMap<String, TransportEndpoint>,
     pub chat: ChatHistory,
 }
@@ -409,17 +408,11 @@ impl Room {
     }
 }
 
-/// Bounds on what one member may put in the roster, because every other peer
-/// feeds it to iroh to dial.
 const MAX_DIRECT_ADDRS: usize = 16;
 const MAX_ADDR_LEN: usize = 64;
 
 impl Room {
-    /// The session id behind a username in this room. Signalling routes on
-    /// this: a name only reaches a peer the relay has placed in the same room.
-    ///
-    /// Seats and the host only. An observer carries no engine envelopes, so it
-    /// is not addressable here even though it may announce an endpoint.
+    /// Seats and the host only; observers are not signalling targets.
     pub fn participant_id_by_username(&self, username: &str) -> Option<String> {
         if let Some(slot) = self.players.iter().find(|p| p.username == username) {
             return Some(slot.player_id.clone());
@@ -434,9 +427,7 @@ impl Room {
         (self.host_player_id == player_id).then(|| self.host_username.clone())
     }
 
-    /// Records a member's endpoint, or withdraws it with `None`. False means
-    /// the announcement was refused and the caller should leave the announcer
-    /// on the relay.
+    /// Records a member's endpoint, or withdraws it with `None`. False means refused.
     pub fn set_transport(&mut self, player_id: &str, endpoint: Option<TransportEndpoint>) -> bool {
         let participant = self.players.iter().any(|p| p.player_id == player_id)
             || self.observers.iter().any(|p| p.player_id == player_id);
@@ -447,9 +438,7 @@ impl Room {
             self.transports.remove(player_id);
             return true;
         };
-        // An endpoint id is what a host checks a seat's `Hello` against, so a
-        // second claim on one is a way to lock its owner out. First claim in
-        // the room holds it.
+        // First claim on an endpoint id holds it.
         let taken = self.transports.iter().any(|(other, existing)| {
             other != player_id && existing.endpoint_id == endpoint.endpoint_id
         });
@@ -464,9 +453,7 @@ impl Room {
         true
     }
 
-    /// The roster clients are allowed to believe. Every username is the relay's
-    /// own record for that session, never a client-supplied field, which is what
-    /// makes an endpoint id attributable to a player.
+    /// The attested roster; every username is the relay's own record.
     pub fn transport_members(&self) -> Vec<TransportMember> {
         let mut members: Vec<TransportMember> = self
             .transports
@@ -488,9 +475,7 @@ impl Room {
         self.transport_members().into_iter().find(|m| m.host)
     }
 
-    /// Whether this room may leave the relay. Announcing is how a player opts
-    /// in, so every human seat has to have announced before anyone goes direct;
-    /// one that has not keeps the whole room on the relay. Bots never count.
+    /// Whether every human seat has announced. Bots never count.
     pub fn transport_consented(&self) -> bool {
         self.players
             .iter()
@@ -533,9 +518,6 @@ mod tests {
         assert!(!r.is_controller("bot"));
     }
 
-    /// Signalling routes on this, so a name that is not in the room must not
-    /// resolve to anyone. Otherwise a member could address a session the relay
-    /// never placed beside it.
     #[test]
     fn only_room_members_are_addressable_by_name() {
         let mut r = room(false);
@@ -550,13 +532,9 @@ mod tests {
         );
         assert_eq!(r.participant_id_by_username("host"), Some("host".into()));
         assert_eq!(r.participant_id_by_username("stranger"), None);
-        // An observer carries no engine envelopes, so it is not a signalling
-        // target even though it may announce an endpoint.
         assert_eq!(r.participant_id_by_username("watcher"), None);
     }
 
-    /// The pre-`kinds` default. Every endpoint announced before the field
-    /// existed meant iroh, and a roster full of them must keep meaning that.
     #[test]
     fn an_endpoint_without_kinds_speaks_iroh_and_nothing_else() {
         let iroh_only = endpoint("a");
@@ -589,8 +567,6 @@ mod tests {
 
         assert!(r.set_transport("human", Some(endpoint("ep-human"))));
         assert!(!r.set_transport("stranger", Some(endpoint("ep-stranger"))));
-        // Taking it would tell the owner their own endpoint is attested for
-        // somebody else, and nothing would say why.
         assert!(!r.set_transport("squatter", Some(endpoint("ep-human"))));
         assert_eq!(r.transports["human"].endpoint_id, "ep-human");
 
@@ -602,9 +578,6 @@ mod tests {
         assert!(!r.transports.contains_key("human"));
     }
 
-    /// The room upgrades only when everyone at the table agreed to it. A seat
-    /// that never announced is a player who never opted in, and one is enough
-    /// to keep the whole room on the relay.
     #[test]
     fn every_human_seat_has_to_announce_before_the_room_leaves_the_relay() {
         let mut r = room(false);
@@ -619,11 +592,9 @@ mod tests {
         assert!(r.set_transport("bob", Some(endpoint("ep-bob"))));
         assert!(r.transport_consented(), "bots do not have to announce");
 
-        // Withdrawing is opting out again, and it takes the room with it.
         assert!(r.set_transport("bob", None));
         assert!(!r.transport_consented());
 
-        // A seat that leaves stops counting.
         r.remove_participant("bob");
         assert!(r.transport_consented());
     }

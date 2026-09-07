@@ -308,10 +308,6 @@ pub async fn host_room(
 }
 
 /// The webview's half of the data plane, handed in by a desktop shell.
-///
-/// A browser seat cannot be dialled from here, so its envelopes go out through
-/// the webview instead (see [`crate::shell_bridge`]). Headless nodes pass none
-/// of this and behave exactly as they do today.
 pub struct ShellBridgeHandle {
     pub bridge: Arc<ShellBridge>,
     pub commands: tokio_mpsc::UnboundedReceiver<ShellCommand>,
@@ -503,9 +499,7 @@ async fn host_one_room(
         RelayClient::connect(&config.relay_url, &config.username, &config.password).await?;
     let mut room_id = establish_room(&mut host, &config, &snapshot).await?;
 
-    // Always a receiver, so the room loop's `select!` has one branch shape. With
-    // no shell the sender is held here for the life of the room: a dropped one
-    // makes `recv()` return `None` at once and spin the select.
+    // Keep the sender alive without a shell, or `recv()` spins the select.
     let (bridge, mut bridge_rx, _idle_bridge_tx) = match shell {
         Some(handle) => (Some(handle.bridge), handle.commands, None),
         None => {
@@ -521,9 +515,6 @@ async fn host_one_room(
         });
     }
 
-    // WebRTC only: every seat, browser or desktop, is served over the webview's
-    // WebRTC plane through the shell bridge. The host advertises webrtc so a
-    // seat knows to reach it that way.
     if bridge.is_some() {
         announce_webrtc_only(&config, &outbound_tx);
     }
@@ -615,11 +606,7 @@ async fn host_one_room(
     }
 }
 
-/// Puts a seat's current board back into the relay's replay cache the moment it
-/// leaves the direct plane. While it was direct the relay saw none of its
-/// envelopes, so without this a resync would answer with whatever board the
-/// relay last carried, and a `stateDelta` patch would be folded onto a base the
-/// relay never had.
+/// Re-primes the relay's replay cache for a seat leaving the plane.
 fn reprime_relay_cache(
     snapshot: &SharedHostSnapshot,
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
@@ -636,9 +623,7 @@ fn reprime_relay_cache(
     let prompt = snap.pending_prompts.get(&slot).cloned();
     drop(snap);
 
-    // Full states, not patches: these are stored before `patch_against_last`
-    // runs, which is exactly why they can rebuild a cache that missed the
-    // envelopes in between.
+    // Stored before `patch_against_last` runs, so these are full states.
     for state in [state, prompt].into_iter().flatten() {
         let _ = outbound_tx.send(ClientMessage::BroadcastState {
             state,
@@ -651,9 +636,6 @@ fn reprime_relay_cache(
     );
 }
 
-/// A host with a webview but no native endpoint. The endpoint id names it in
-/// the roster and nothing else: WebRTC addressing crosses over signalling, not
-/// here.
 fn announce_webrtc_only(config: &Config, outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>) {
     let endpoint = manabrew_relay_protocol::TransportEndpoint {
         endpoint_id: format!("webrtc:{}", config.username),
@@ -1155,8 +1137,6 @@ async fn run_client_loop(
                     return LoopExit::Cancelled;
                 };
                 if let ClientMessage::BroadcastState { state, target_player: Some(target) } = &outbound {
-                    // The webview carries a seat's envelopes; everything else,
-                    // and any seat not on the plane, goes over the relay.
                     if bridge.is_some_and(|shell| shell.try_send(target, state)) {
                         continue;
                     }
@@ -1167,8 +1147,6 @@ async fn run_client_loop(
                 }
             }
             command = bridge_rx.recv() => {
-                // Only reachable with a shell installed: without one the sender
-                // is held for the life of the room and this never fires.
                 let Some(command) = command else {
                     warn!(username = %client.username, "shell bridge closed");
                     return LoopExit::Cancelled;
@@ -1177,9 +1155,6 @@ async fn run_client_loop(
                 match command {
                     ShellCommand::Serving { seats } => shell.set_serving(seats),
                     ShellCommand::Signal { to, payload } => {
-                        // Sent under this host's own relay identity, which is
-                        // the whole reason it goes back through here rather than
-                        // out of the webview's own session.
                         if let Err(error) = client
                             .send(&ClientMessage::SignalPeer { to, payload })
                             .await
@@ -1189,10 +1164,7 @@ async fn run_client_loop(
                         }
                     }
                     ShellCommand::SeatEnvelope { from, envelope } => {
-                        // The same route a direct seat's envelope takes, and the
-                        // same one a relay `StateUpdate` takes. The name is the
-                        // webview's, and the webview only ever learned it from a
-                        // roster the relay attested.
+                        // `from` came from a relay-attested roster.
                         route_seat_envelope(engine_session, snapshot, &from, &envelope);
                     }
                 }
@@ -1261,9 +1233,6 @@ async fn handle_server_message(
             maybe_auto_start_room(client, config, &room).await?;
         }
         ServerMessage::StateUpdate { from_player, state } => {
-            // An envelope from this seat over the relay is the acknowledgement
-            // that it is reading that path again, which is the only signal the
-            // host gets and the only one it needs.
             if let Some(shell) = bridge {
                 shell.note_relay_message(&from_player);
             }
@@ -1279,14 +1248,10 @@ async fn handle_server_message(
             )
             .await?;
         }
-        ServerMessage::PeerSignal { from, payload } => {
-            // The connections live in the webview; this session only carries
-            // the signalling for them.
-            match bridge {
-                Some(shell) => shell.forward_signal(&from, payload),
-                None => debug!(from, "signalling arrived with no shell to hand it to"),
-            }
-        }
+        ServerMessage::PeerSignal { from, payload } => match bridge {
+            Some(shell) => shell.forward_signal(&from, payload),
+            None => debug!(from, "signalling arrived with no shell to hand it to"),
+        },
         ServerMessage::ReadyStateChanged { username, ready } => {
             info!(username, ready, observer = %client.username, "ready changed");
         }
@@ -1341,8 +1306,6 @@ async fn handle_server_message(
                 }
             }
             if !left_the_relay.is_empty() {
-                // The relay is about to stop seeing these seats. Telling it so
-                // is the only way its capture can record what it missed.
                 let _ = outbound_tx.send(ClientMessage::ReportTransport {
                     game_id: game_id.clone(),
                     seats: left_the_relay,
@@ -1360,16 +1323,9 @@ async fn handle_server_message(
                 bot_usernames,
             );
         }
-        ServerMessage::RoomTransport {
-            // The webview holds the WebRTC connections and reads the ice servers
-            // and addressing from its own session's roster; the node only needs
-            // the member list to know who it may serve over the plane.
-            members,
-            ..
-        } => {
+        ServerMessage::RoomTransport { members, .. } => {
             if let Some(shell) = bridge {
-                // Empty while anyone at the table has not opted in, and the
-                // freeze believes this over any channel the webview has open.
+                // Empty until every seat has opted in.
                 shell.set_roster(members.iter().map(|member| member.username.clone()));
             }
         }
@@ -2017,9 +1973,7 @@ fn finish_hosted_engine(
     }
 }
 
-/// Dispatches one seat envelope, whichever transport carried it. `from_player`
-/// must be an authenticated username: the relay's `StateUpdate.from_player` on
-/// the relay path, the roster-attested seat name on the direct path.
+/// `from_player` is relay-attested; never client supplied.
 fn route_seat_envelope(
     engine_session: &SharedEngineSession,
     snapshot: &SharedHostSnapshot,

@@ -97,10 +97,7 @@ interface PreferencesState {
   ironsmithRuntimeEnabled: boolean;
   setIronsmithRuntimeEnabled: (value: boolean) => void;
 
-  // Opt-in for peer-to-peer game traffic (#838). Off by default. A room only
-  // leaves the relay when every player in it has this on; one player without
-  // it keeps the whole table on the relay, so turning it on is a request, not
-  // a switch. Read by the relay client on entering a room and when it changes.
+  // P2P game traffic. Every player must opt in or the room stays on the relay.
   directTransport: boolean;
   setDirectTransport: (value: boolean) => void;
 

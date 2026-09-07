@@ -181,7 +181,6 @@ impl Config {
             bot_deck: synthetic_deck("forge-bot", None),
         }
     }
-
 }
 
 #[derive(Debug, Clone)]

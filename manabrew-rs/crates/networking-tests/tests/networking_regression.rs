@@ -617,7 +617,9 @@ async fn signalling_is_routed_by_the_relay_and_stamped_with_the_sender() {
     alice.create_room("Signalling").await.unwrap();
     let room = alice.wait_own_room().await.unwrap();
     let mut bob = Client::connect(&sim.relay_url, "bob").await.unwrap();
-    bob.join(&room.room_id, false).await.unwrap();
+    // Wait for the relay to register the join, not just send it: a signal that
+    // arrives before bob is a room member is dropped as `no_target`.
+    bob.join_retry(&room.room_id).await.unwrap();
 
     let offer = json!({ "sdp": { "type": "offer", "sdp": "v=0 alice" } });
     alice.signal_peer("bob", offer.clone()).await.unwrap();
@@ -680,8 +682,10 @@ async fn a_room_stays_on_the_relay_until_every_seat_opts_in() {
     alice.create_room("Consent").await.unwrap();
     let room = alice.wait_own_room().await.unwrap();
     // bob joins but never announces: that is what not opting in looks like.
+    // Confirm the relay registered him before alice announces, or consent
+    // could read as met against a room that does not yet know he is in it.
     let mut bob = Client::connect(&sim.relay_url, "bob").await.unwrap();
-    bob.join(&room.room_id, false).await.unwrap();
+    bob.join_retry(&room.room_id).await.unwrap();
 
     alice.announce(Some(webrtc_endpoint("alice"))).await.unwrap();
     let hosts = alice.roster_hosts_within(Duration::from_secs(3)).await;

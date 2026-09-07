@@ -1,3 +1,4 @@
+import { loadArenaImage } from "@/three/arenaImageCache";
 import { CanvasTexture, SRGBColorSpace } from "three";
 import type { ArenaCard, ArenaColors } from "@/three/arena.types";
 import { CARD_TEXTURE_WIDTH, CARD_TEXTURE_HEIGHT } from "@/three/cardGeometry";
@@ -66,10 +67,8 @@ export function cardTexture(card: ArenaCard, colors: ArenaColors) {
   ctx.font = "bold 23px Georgia";
   ctx.fillText(card.hidden ? "" : (card.stats ?? card.cost), 240, 505, 110);
   if (card.image && !card.hidden) {
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.onload = () => {
-      if (disposed) return;
+    void loadArenaImage(card.image).then((image) => {
+      if (disposed || !image) return;
       ctx.drawImage(image, 0, 0, 384, 536);
       if (card.stats && card.statsChanged && card.side !== "hand") {
         ctx.fillStyle = colors.background;
@@ -83,8 +82,7 @@ export function cardTexture(card: ArenaCard, colors: ArenaColors) {
         ctx.fillText(card.stats, 267, 506, 85);
       }
       texture.needsUpdate = true;
-    };
-    image.src = card.image;
+    });
   }
   return {
     texture,

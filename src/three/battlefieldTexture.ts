@@ -1,10 +1,9 @@
+import { cachedArenaImage, loadArenaImage } from "@/three/arenaImageCache";
 import { CanvasTexture, SRGBColorSpace } from "three";
 import type { ArenaCard, ArenaColors } from "@/three/arena.types";
 import { drawFrame } from "@/three/frameAsset";
 import { loadManaSprite } from "@/three/battlefieldMana";
 import { keywordDetails } from "@/three/keywordDetails";
-
-const imageCache = new Map<string, HTMLImageElement>();
 
 export function battlefieldTexture(card: ArenaCard, colors: ArenaColors) {
   const canvas = document.createElement("canvas");
@@ -17,7 +16,7 @@ export function battlefieldTexture(card: ArenaCard, colors: ArenaColors) {
   let disposed = false;
   let mana: HTMLImageElement | null = null;
   const url = card.artImage ?? card.image;
-  let art: HTMLImageElement | null = url ? (imageCache.get(url) ?? null) : null;
+  let art: HTMLImageElement | null = url ? (cachedArenaImage(url) ?? null) : null;
   const draw = () => {
     ctx.clearRect(0, 0, 384, 330);
     ctx.fillStyle = colors.background;
@@ -188,17 +187,12 @@ export function battlefieldTexture(card: ArenaCard, colors: ArenaColors) {
       }
     });
   if (url && !art) {
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.onload = () => {
-      if (imageCache.size >= 128) imageCache.delete(imageCache.keys().next().value!);
-      imageCache.set(url, image);
-      if (!disposed) {
+    void loadArenaImage(url).then((image) => {
+      if (!disposed && image) {
         art = image;
         draw();
       }
-    };
-    image.src = url;
+    });
   }
   return {
     texture,

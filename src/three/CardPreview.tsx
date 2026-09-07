@@ -1,3 +1,4 @@
+import cardBack from "@/three/assets/card-back.png";
 import { KeywordIcon } from "@/three/KeywordIcon";
 import { useEffect, useRef, useState } from "react";
 import type { ArenaCard } from "@/three/arena.types";
@@ -42,18 +43,25 @@ export function CardPreview({
   useEffect(() => {
     let cancelled = false;
     let pending: HTMLImageElement | undefined;
+    let retry: number | undefined;
+    let attempts = 0;
     const timer = window.setTimeout(
       () => {
         if (!id || !name || !image) {
           setShown(undefined);
           return;
         }
+        setShown({ ...latest.current, id, image: cardBack, name });
         pending = new Image();
+        pending.crossOrigin = "anonymous";
         pending.onload = () => {
           if (!cancelled) setShown({ ...latest.current, id, image, name });
         };
         pending.onerror = () => {
-          if (!cancelled) setShown(undefined);
+          if (!cancelled && attempts++ < 2)
+            retry = window.setTimeout(() => {
+              if (!cancelled && pending) pending.src = image;
+            }, attempts * 1000);
         };
         pending.src = image;
       },
@@ -62,6 +70,7 @@ export function CardPreview({
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      window.clearTimeout(retry);
       if (pending) {
         pending.onload = null;
         pending.onerror = null;
@@ -82,12 +91,11 @@ export function CardPreview({
       aria-label={`${shown.name} details`}
     >
       <img
-        key={shown.id}
+        key={`${shown.id}:${shown.image}`}
+        crossOrigin="anonymous"
+        data-loaded="true"
         src={shown.image}
         alt={shown.name}
-        onLoad={(event) => {
-          event.currentTarget.dataset.loaded = "true";
-        }}
       />
       {details && !hideDetails && (
         <div

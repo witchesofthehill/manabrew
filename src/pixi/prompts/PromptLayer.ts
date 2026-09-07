@@ -8,7 +8,6 @@ import {
   Sprite,
   Text,
   TextStyle,
-  type Texture,
   type Ticker,
 } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
@@ -18,6 +17,21 @@ import { CardSprite } from "@/pixi/CardSprite";
 import { gameIconTexture } from "@/pixi/gameIconCache";
 import { loadManaSymbolTexture } from "@/pixi/manaSymbolCache";
 import { deckCardToPreviewDto } from "@/lib/scryfall.utils";
+import {
+  ACTION_DRAWER_BUMP_EVENT,
+  AUTOPASS_DELAY_MAX_MS,
+  AUTOPASS_DELAY_MIN_MS,
+} from "@/components/game/game.constants";
+import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
+import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
+import { resolveCombo, useKeybindingsStore } from "@/stores/useKeybindingsStore";
+import { comboSymbols, formatCombo, normalizeCombo } from "@/lib/keybindings";
+import { isCoarsePointer } from "@/lib/responsive";
+import {
+  ATTACK_DRAG_HINT,
+  getPromptContextLines,
+} from "@/components/game/panels/promptContextHints";
+import type { DeckCard } from "@/protocol/deck";
 import type {
   CardDto,
   ChooseCombatDamageAssignmentInput,
@@ -27,7 +41,7 @@ import type {
   SelectionOption,
   TargetRef,
 } from "@/protocol";
-import { PromptButton } from "./PromptButton";
+import { PromptButton, type PromptButtonOptions } from "./PromptButton";
 import { LongPressGesture } from "@/pixi/LongPressGesture";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
@@ -80,9 +94,13 @@ function promptText(
   size: number,
   color: string,
   options: {
-    weight?: "400" | "500" | "600" | "700";
+    weight?: "400" | "500" | "600" | "700" | "800" | "900";
     width?: number;
     align?: "left" | "center";
+    style?: "normal" | "italic";
+    letterSpacing?: number;
+    lineHeight?: number;
+    truncate?: boolean;
   } = {},
 ): Text {
   const text = new Text({
@@ -91,13 +109,26 @@ function promptText(
       fontFamily: FONT,
       fontSize: size,
       fontWeight: options.weight ?? "400",
+      fontStyle: options.style ?? "normal",
+      letterSpacing: options.letterSpacing ?? 0,
       fill: hexToNum(color),
       align: options.align ?? "left",
-      wordWrap: options.width != null,
+      wordWrap: options.width != null && !options.truncate,
       wordWrapWidth: options.width,
-      lineHeight: Math.ceil(size * 1.35),
+      lineHeight: options.lineHeight ?? Math.ceil(size * 1.35),
     }),
   });
+  if (options.truncate && options.width != null && text.width > options.width) {
+    let low = 0;
+    let high = value.length;
+    while (low < high) {
+      const middle = Math.ceil((low + high) / 2);
+      text.text = `${value.slice(0, middle).trimEnd()}…`;
+      if (text.width <= options.width) low = middle;
+      else high = middle - 1;
+    }
+    text.text = `${value.slice(0, low).trimEnd()}…`;
+  }
   text.eventMode = "none";
   return text;
 }
@@ -106,6 +137,67 @@ function parseCombatNumber(value?: string | null): number {
   if (!value) return 0;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+interface ActionViewLayout {
+  container: Container;
+  width: number;
+  height: number;
+}
+
+function runtimeActionView(
+  promptType: PromptOverlaySpec["action"]["promptType"],
+): PromptActionViewKey {
+  switch (promptType) {
+    case undefined:
+    case "gameOver":
+    case "chooseDamageAssignmentOrder":
+      return "noAction";
+    case "chooseAction":
+    case "chooseAttackers":
+    case "chooseBlockers":
+    case "payManaCost":
+    case "mulligan":
+    case "mulliganPutBack":
+      return promptType;
+    case "chooseBoardTargets":
+      return "promptLabel";
+    default:
+      return "promptRequired";
+  }
+}
+
+function promptTypeForView(
+  promptType: PromptOverlaySpec["action"]["promptType"],
+  override: PromptActionViewKey | null | undefined,
+): PromptOverlaySpec["action"]["promptType"] {
+  if (!override) return promptType;
+  if (override === "chooseTargetSpell" || override === "promptLabel") return "chooseBoardTargets";
+  if (override === "chooseDamageOrder") return "chooseDamageAssignmentOrder";
+  if (override === "promptRequired" || override === "noAction") return undefined;
+  return override;
+}
+
+function actionTitle(promptType: PromptOverlaySpec["action"]["promptType"]): string {
+  switch (promptType) {
+    case "chooseAction":
+      return "Priority";
+    case "chooseAttackers":
+      return "Declare Attackers";
+    case "chooseBlockers":
+      return "Declare Blockers";
+    case "chooseBoardTargets":
+      return "Choose Targets";
+    case "chooseDamageAssignmentOrder":
+      return "Damage Order";
+    case "payManaCost":
+      return "Pay Mana";
+    case "mulligan":
+    case "mulliganPutBack":
+      return "Mulligan";
+    default:
+      return "Action Required";
+  }
 }
 
 export class PromptLayer {
@@ -117,6 +209,7 @@ export class PromptLayer {
   private promptKey: unknown = null;
   private viewportWidth = 0;
   private viewportHeight = 0;
+  private actionBounds: Rectangle | null = null;
   private modalOpen = false;
   private selectedIds = new Set<string>();
   private counts = new Map<number | string, number>();
@@ -129,10 +222,25 @@ export class PromptLayer {
   private dropZones: DropZone[] = [];
   private drag: DragState | null = null;
   private diceElapsedMs = 0;
+  private autopassRemainingMs: number | null = null;
   private diceVisuals: DiceVisual[] = [];
   private diceWinnerText: Text | null = null;
   private diceConfirm: PromptButton | null = null;
   private diceSettled = false;
+  private autopassTotalMs = 0;
+  private autopassFill: Graphics | null = null;
+  private actionPromptType: PromptOverlaySpec["action"]["promptType"] = undefined;
+  private readonly unsubscribePromptPreferences: () => void;
+  private readonly unsubscribeKeybindings: () => void;
+  private endTurnModifiersHeld = false;
+  private actionContextOpen = false;
+  private combatBreakdownOpen = false;
+  private actionPanel: Container | null = null;
+  private actionPanelHeight = 0;
+  private actionGlow: [Graphics, Graphics, Graphics, Graphics] | null = null;
+  private actionPulseNodes: Array<{ node: Container; maxAlpha: number }> = [];
+  private actionHourglass: Sprite | null = null;
+  private actionLongPress = new LongPressGesture();
   private selectionFilter = "";
   private modalScrollOffset = 0;
   private modalScrollMax = 0;
@@ -142,6 +250,10 @@ export class PromptLayer {
   private stickyPreviewCardId: string | null = null;
   private onStageMove = (event: FederatedPointerEvent): void => this.moveDrag(event);
   private onStageUp = (event: FederatedPointerEvent): void => this.finishDrag(event);
+  private onModifierEvent = (event: KeyboardEvent | PointerEvent): void =>
+    this.updateEndTurnModifiers(event);
+  private onModifierReset = (): void => this.setEndTurnModifiersHeld(false);
+  private onActionBump = (): void => this.bumpActionPanel();
 
   constructor(app: Application, callbacks: PromptLayerCallbacks = {}) {
     this.app = app;
@@ -157,6 +269,19 @@ export class PromptLayer {
     this.app.ticker.add(this.tick, this);
     this.keyListener = (event) => this.handleKey(event);
     window.addEventListener("keydown", this.keyListener);
+    window.addEventListener("keydown", this.onModifierEvent);
+    window.addEventListener("keyup", this.onModifierEvent);
+    window.addEventListener("pointermove", this.onModifierEvent);
+    window.addEventListener("pointerdown", this.onModifierEvent);
+    window.addEventListener("blur", this.onModifierReset);
+    document.addEventListener("visibilitychange", this.onModifierReset);
+    window.addEventListener(ACTION_DRAWER_BUMP_EVENT, this.onActionBump);
+    this.unsubscribePromptPreferences = usePromptPreferencesStore.subscribe((state, previous) => {
+      if (state.fullControl === previous.fullControl) return;
+      this.resetAutopassState();
+      this.rebuild();
+    });
+    this.unsubscribeKeybindings = useKeybindingsStore.subscribe(() => this.rebuild());
   }
 
   setTheme(theme: Theme): void {
@@ -172,6 +297,12 @@ export class PromptLayer {
   }
 
   setSpec(spec: PromptOverlaySpec | null): void {
+    const nextActionPromptType = spec?.action.promptType;
+    if (nextActionPromptType !== this.actionPromptType) {
+      this.actionPromptType = nextActionPromptType;
+      this.combatBreakdownOpen = false;
+      this.actionContextOpen = false;
+    }
     const nextKey = spec?.currentPrompt ?? spec?.gameOver ?? null;
     if (nextKey !== this.promptKey) {
       this.promptKey = nextKey;
@@ -188,17 +319,37 @@ export class PromptLayer {
     return this.modalOpen;
   }
 
-  hitTest(_x: number, _y: number): boolean {
-    return this.container.visible && this.modalOpen;
+  hitTest(x: number, y: number): boolean {
+    if (!this.container.visible) return false;
+    if (this.modalOpen) return true;
+    return this.actionBounds?.contains(x, y) ?? false;
+  }
+
+  getActionBounds(): Rectangle | null {
+    return this.actionBounds?.clone() ?? null;
+  }
+
+  get compactAction(): boolean {
+    return this.viewportHeight <= 520 && isCoarsePointer();
   }
 
   destroy(): void {
     window.removeEventListener("keydown", this.keyListener);
+    window.removeEventListener("keydown", this.onModifierEvent);
+    window.removeEventListener("keyup", this.onModifierEvent);
+    window.removeEventListener("pointermove", this.onModifierEvent);
+    window.removeEventListener("pointerdown", this.onModifierEvent);
+    window.removeEventListener("blur", this.onModifierReset);
+    document.removeEventListener("visibilitychange", this.onModifierReset);
+    window.removeEventListener(ACTION_DRAWER_BUMP_EVENT, this.onActionBump);
     this.app.stage.off("pointermove", this.onStageMove);
     this.app.stage.off("pointerup", this.onStageUp);
+    this.unsubscribePromptPreferences();
+    this.unsubscribeKeybindings();
     this.app.stage.off("pointerupoutside", this.onStageUp);
     this.app.ticker.remove(this.tick, this);
     this.longPress.reset();
+    this.actionLongPress.reset();
     this.callbacks.onReferenceChange?.(null);
     this.callbacks.onPreviewCard?.(null);
     this.container.destroy({ children: true });
@@ -209,6 +360,8 @@ export class PromptLayer {
     this.counts.clear();
     this.selectionFilter = "";
     this.order = [];
+    this.autopassRemainingMs = null;
+    this.autopassTotalMs = 0;
     this.scryItems = {};
     this.scrySelectedId = null;
     this.damageAssigned = {};
@@ -235,14 +388,30 @@ export class PromptLayer {
         ...Object.fromEntries(input.zones.map((_, index) => [`zone-${index}`, []])),
       };
     }
+    if (
+      input.type === "chooseAction" &&
+      spec.gameView.stack.length === 0 &&
+      !usePromptPreferencesStore.getState().fullControl &&
+      input.actions.every((action) => action.type === "activateAbility" && action.isManaAbility)
+    ) {
+      this.autopassTotalMs =
+        AUTOPASS_DELAY_MIN_MS + Math.random() * (AUTOPASS_DELAY_MAX_MS - AUTOPASS_DELAY_MIN_MS);
+      this.autopassRemainingMs = this.autopassTotalMs;
+    }
   }
 
   private rebuild(): void {
     this.callbacks.onReferenceChange?.(null);
     this.drag = null;
+    this.actionBounds = null;
+    this.autopassFill = null;
+    this.actionPanel = null;
+    this.actionPanelHeight = 0;
+    this.actionGlow = null;
+    this.actionPulseNodes = [];
+    this.actionHourglass = null;
     this.modalOpen = false;
     this.modalBody = null;
-    this.dropZones = [];
     this.container.removeChildren().forEach((child) => child.destroy({ children: true }));
     if (!this.spec || this.viewportWidth <= 0 || this.viewportHeight <= 0) {
       this.container.visible = false;
@@ -259,13 +428,13 @@ export class PromptLayer {
       input &&
       MODAL_TYPES.has(input.type) &&
       !this.spec.modalHidden &&
-      !this.spec.isWaitingForResponse
+      !this.spec.action.isWaitingForResponse
     ) {
       this.modalOpen = true;
       this.renderModal();
       return;
     }
-    this.container.visible = false;
+    this.renderActionPanel();
   }
 
   private panel(width: number, height: number, x: number, y: number, radius = 12): Container {
@@ -310,36 +479,12 @@ export class PromptLayer {
   private makeButton(
     label: string,
     onPress: (() => void) | undefined,
-    options: {
-      color?: string;
-      foreground?: string;
-      outline?: boolean;
-      disabled?: boolean;
-      width?: number;
-      compact?: boolean;
-      height?: number;
-      title?: string;
-      icon?: string;
-      iconTexture?: Promise<Texture>;
-      iconTint?: boolean;
-      iconSize?: number;
-    } = {},
+    options: Omit<PromptButtonOptions, "label" | "onPress"> = {},
   ): PromptButton {
     return new PromptButton(this.theme, {
       label,
       onPress,
-      color: options.color,
-      foreground: options.foreground,
-      outline: options.outline,
-      disabled: options.disabled,
-      width: options.width,
-      compact: options.compact,
-      title: options.title,
-      height: options.height,
-      icon: options.icon,
-      iconTexture: options.iconTexture,
-      iconTint: options.iconTint,
-      iconSize: options.iconSize,
+      ...options,
     });
   }
 
@@ -397,6 +542,1732 @@ export class PromptLayer {
       })
       .catch(() => {});
     return sprite;
+  }
+  private renderActionPanel(): void {
+    const spec = this.spec!;
+    const action = spec.action;
+    const shortScreen = this.viewportHeight <= 520;
+    const touch = isCoarsePointer();
+    const minimal = shortScreen && touch;
+    if (
+      action.promptType === "gameOver" ||
+      !action.selfClusterMaxHeight ||
+      action.selfClusterMaxHeight <= 0 ||
+      (minimal && action.dimmed)
+    ) {
+      this.container.visible = false;
+      return;
+    }
+
+    const runtimeView = action.isWaitingForOthers
+      ? "noAction"
+      : runtimeActionView(action.promptType);
+    const viewKey = action.promptActionOverride ?? runtimeView;
+    const effectivePromptType = promptTypeForView(action.promptType, action.promptActionOverride);
+    const preview = action.promptActionOverride != null;
+    const isNoActionView = action.promptActionOverride
+      ? viewKey === "noAction"
+      : !action.promptType || action.isWaitingForOthers;
+    const hasAction = !isNoActionView;
+    const showPriorityMode = action.promptActionOverride
+      ? viewKey === "chooseAction" || viewKey === "noAction"
+      : isNoActionView || action.promptType === "chooseAction";
+    const fixedWidth = minimal ? null : shortScreen ? 230 : 300;
+    const fixedContentWidth = fixedWidth == null ? this.viewportWidth - 24 : fixedWidth - 16;
+    const menu = minimal ? this.makeActionMenuButton(true) : null;
+    const viewAvailableWidth = fixedContentWidth - (menu ? menu.width + 4 : 0);
+    const view = this.buildActionView(viewKey, viewAvailableWidth, minimal, touch, preview);
+    const combat = minimal ? null : this.buildActionCombatInfo(fixedContentWidth);
+    const rowWidth = view.width + (menu ? 4 + menu.width : 0);
+    const contentWidth =
+      fixedWidth == null ? Math.max(rowWidth, combat?.width ?? 0) : fixedContentWidth;
+    const width = fixedWidth ?? Math.min(this.viewportWidth - 12, Math.max(40, contentWidth + 12));
+    const headerHeight = minimal ? 0 : 34;
+    const sectionPaddingX = minimal ? 6 : 8;
+    const sectionPaddingTop = minimal ? 4 : 8;
+    const sectionPaddingBottom = minimal ? 4 : 8;
+    const contentGap = combat ? 8 : 0;
+    const viewHeight = Math.max(view.height, menu?.height ?? 0);
+    const bodyHeight =
+      sectionPaddingTop + (combat?.height ?? 0) + contentGap + viewHeight + sectionPaddingBottom;
+    const panelHeight = headerHeight + bodyHeight;
+    const x = this.viewportWidth - width - (minimal || shortScreen ? 6 : 12);
+    const unclampedY =
+      minimal && action.dividerY != null
+        ? action.dividerY - panelHeight / 2
+        : minimal
+          ? this.viewportHeight - panelHeight - 80
+          : shortScreen
+            ? this.viewportHeight - panelHeight - 118
+            : this.viewportHeight - panelHeight;
+    const y = minimal
+      ? Math.max(6, Math.min(this.viewportHeight - panelHeight - 6, unclampedY))
+      : unclampedY;
+    const radius = minimal ? 16 : 8;
+    const squareBottom = !minimal && !shortScreen;
+    const panel = new Container();
+    panel.position.set(x, y + panelHeight);
+    panel.pivot.set(0, panelHeight);
+    panel.eventMode = "static";
+    panel.hitArea = new Rectangle(0, 0, width, panelHeight);
+    panel.accessible = true;
+    panel.accessibleTitle = hasAction ? actionTitle(effectivePromptType) : "Waiting";
+    panel.tabIndex = -1;
+
+    if (hasAction) {
+      const glowColor =
+        effectivePromptType === "chooseAttackers" && action.pendingAttackers.length > 0
+          ? this.theme.gameTheme.promptAction.attackAction
+          : this.theme.gameTheme.activeAction.priority;
+      const softGlow = new Graphics()
+        .roundRect(-6, -6, width + 12, panelHeight + 12, radius + 6)
+        .stroke({ color: hexToNum(glowColor), width: 12 });
+      softGlow.alpha = 0.3;
+      const strongSoftGlow = new Graphics()
+        .roundRect(-11, -11, width + 22, panelHeight + 22, radius + 11)
+        .stroke({ color: hexToNum(glowColor), width: 22 });
+      strongSoftGlow.alpha = 0;
+      const ringGlow = new Graphics()
+        .roundRect(-2, -2, width + 4, panelHeight + 4, radius + 2)
+        .stroke({ color: hexToNum(glowColor), width: 2 });
+      ringGlow.alpha = 0.75;
+      const strongRingGlow = new Graphics()
+        .roundRect(-3, -3, width + 6, panelHeight + 6, radius + 3)
+        .stroke({ color: hexToNum(glowColor), width: 3 });
+      strongRingGlow.alpha = 0;
+      for (const glow of [softGlow, strongSoftGlow, ringGlow, strongRingGlow]) {
+        glow.eventMode = "none";
+      }
+      panel.addChild(softGlow, strongSoftGlow, ringGlow, strongRingGlow);
+      this.actionGlow = [softGlow, strongSoftGlow, ringGlow, strongRingGlow];
+    }
+
+    const background = this.makeActionPanelSurface(width, panelHeight, radius, squareBottom);
+    panel.addChild(background);
+
+    if (!minimal) {
+      let right = width - 8;
+      const menuButton = this.makeActionMenuButton(false);
+      menuButton.container.position.set(right - menuButton.width, 8);
+      panel.addChild(menuButton.container);
+      right -= menuButton.width + 5;
+      if (showPriorityMode) {
+        const mode = this.makePriorityModePill(preview);
+        mode.position.set(right - mode.buttonWidth, 6);
+        panel.addChild(mode);
+        right -= mode.buttonWidth + 6;
+      }
+      const title = promptText(
+        (hasAction ? actionTitle(effectivePromptType) : "Waiting").toUpperCase(),
+        11,
+        this.theme.appTheme.foreground,
+        {
+          weight: "700",
+          width: Math.max(20, right - 8),
+          letterSpacing: 1.32,
+          truncate: true,
+        },
+      );
+      title.position.set(8, 9);
+      title.alpha = 0.9;
+      panel.addChild(title);
+      panel.addChild(
+        new Graphics()
+          .rect(0, headerHeight - 1, width, 1)
+          .fill({ color: hexToNum(this.theme.appTheme.border), alpha: 0.7 }),
+      );
+    }
+
+    let contentY = headerHeight + sectionPaddingTop;
+    if (combat) {
+      combat.container.position.set(sectionPaddingX, contentY);
+      panel.addChild(combat.container);
+      contentY += combat.height + contentGap;
+    }
+    if (menu) {
+      view.container.position.set(sectionPaddingX, contentY + (viewHeight - view.height) / 2);
+      menu.container.position.set(
+        sectionPaddingX + view.width + 4,
+        contentY + (viewHeight - menu.height) / 2,
+      );
+      panel.addChild(view.container, menu.container);
+    } else {
+      view.container.position.set(
+        sectionPaddingX + Math.max(0, (contentWidth - view.width) / 2),
+        contentY,
+      );
+      panel.addChild(view.container);
+    }
+
+    if (minimal) {
+      panel.on("pointerdown", (event: FederatedPointerEvent) => {
+        this.actionLongPress.start(event, "action-panel", () => {
+          this.actionContextOpen = true;
+          this.renderActionContextPopover(
+            x,
+            y,
+            width,
+            hasAction ? actionTitle(effectivePromptType) : "Waiting",
+          );
+        });
+      });
+      panel.on("globalpointermove", (event: FederatedPointerEvent) => {
+        this.actionLongPress.move(event.global.x, event.global.y);
+      });
+      const finish = () => {
+        this.actionLongPress.cancel();
+        if (!this.actionContextOpen) {
+          this.actionLongPress.releaseFired();
+          return;
+        }
+        this.actionContextOpen = false;
+        this.actionLongPress.releaseFired();
+        this.rebuild();
+      };
+      panel.on("pointerup", finish);
+      panel.on("pointerupoutside", finish);
+      panel.on("pointertapcapture", (event: FederatedPointerEvent) => {
+        if (this.actionLongPress.consumeTap("action-panel")) event.stopImmediatePropagation();
+      });
+    }
+
+    this.container.addChild(panel);
+    this.actionPanel = panel;
+    this.actionPanelHeight = panelHeight;
+    this.actionBounds = new Rectangle(x, y, width, panelHeight);
+    if (this.combatBreakdownOpen) this.renderCombatBreakdown();
+  }
+
+  private buildActionView(
+    viewKey: PromptActionViewKey,
+    availableWidth: number,
+    minimal: boolean,
+    touch: boolean,
+    preview: boolean,
+  ): ActionViewLayout {
+    const action = this.spec!.action;
+    const disabled = action.isWaitingForResponse || preview;
+    const passColor = this.theme.gameTheme.promptAction.passAction;
+    const attackColor = this.theme.gameTheme.promptAction.attackAction;
+    const defenseColor = this.theme.gameTheme.promptAction.defenseAction;
+    const cancelColor = this.theme.gameTheme.promptAction.cancel;
+    const muted = this.theme.appTheme["muted-foreground"];
+
+    switch (viewKey) {
+      case "chooseAction":
+        return this.buildChooseActionView(availableWidth, minimal, disabled);
+      case "chooseAttackers": {
+        const container = new Container();
+        let y = 0;
+        let width = 0;
+        if (!minimal && action.mustAttackHint) {
+          const text = promptText(action.mustAttackHint, 11, muted, {
+            weight: "500",
+            width: availableWidth,
+            align: "center",
+          });
+          text.anchor.set(0.5, 0);
+          text.position.set(availableWidth / 2, y);
+          container.addChild(text);
+          y += text.height + 6;
+          width = availableWidth;
+        }
+        if (!minimal) {
+          const pending = action.pendingAttackers.length > 0;
+          const hint = promptText(
+            pending ? "Pick a target — click an opponent or planeswalker" : ATTACK_DRAG_HINT,
+            11,
+            pending ? this.theme.appTheme.foreground : muted,
+            {
+              weight: pending ? "700" : "400",
+              width: availableWidth,
+              align: "center",
+            },
+          );
+          hint.anchor.set(0.5, 0);
+          hint.position.set(availableWidth / 2 + (pending ? 9 : 0), y);
+          container.addChild(hint);
+          if (pending) {
+            const hintWidth = Math.min(hint.width, availableWidth - 24);
+            const crosshair = this.makeIcon("lucide-crosshair", 14, this.theme.appTheme.foreground);
+            crosshair.position.set(availableWidth / 2 - hintWidth / 2 - 1, y + 7);
+            container.addChild(crosshair);
+            this.actionPulseNodes.push(
+              { node: hint, maxAlpha: 1 },
+              { node: crosshair, maxAlpha: 1 },
+            );
+          } else {
+            hint.alpha = 0.7;
+          }
+          y += hint.height + 6;
+          width = availableWidth;
+        }
+        const attackCount = action.attackAssignmentCount + action.pendingAttackers.length;
+        const attackAll = action.multipleAttackDefenders
+          ? () => action.onBeginAttackTargetPick(action.availableAttackerIds)
+          : () =>
+              action.onDeclareAttackers(
+                action.availableAttackerIds,
+                action.selectedAttackDefenderId ?? undefined,
+              );
+        const buttons = [
+          this.makeActionButton(
+            "Attack All",
+            "lucide-swords",
+            attackAll,
+            attackColor,
+            disabled,
+            minimal,
+            touch,
+          ),
+          this.makeActionButton(
+            !minimal && attackCount > 0 ? `Attack (${attackCount})` : "Attack",
+            "lucide-sword",
+            action.onSubmitAttack,
+            attackColor,
+            disabled || attackCount === 0,
+            minimal,
+            touch,
+            { badge: minimal && attackCount > 0 ? String(attackCount) : undefined },
+          ),
+          this.makeActionButton(
+            "Pass",
+            "lucide-ban",
+            action.onPassPriority,
+            passColor,
+            disabled,
+            minimal,
+            touch,
+          ),
+        ];
+        const row = this.layoutActionRow(buttons, 6);
+        row.container.position.set(minimal ? 0 : Math.max(0, (availableWidth - row.width) / 2), y);
+        container.addChild(row.container);
+        return {
+          container,
+          width: Math.max(width, minimal ? row.width : availableWidth),
+          height: y + row.height,
+        };
+      }
+      case "chooseBlockers": {
+        const container = new Container();
+        let y = 0;
+        let width = 0;
+        const error = action.blockError ?? action.blockRequirementError;
+        const hint = action.pendingAttacker
+          ? "Attacker selected — click your blocker."
+          : action.pendingBlocker
+            ? "Blocker selected — click the attacker to block."
+            : null;
+        if (error) {
+          const shown = minimal && error.length > 42 ? `${error.slice(0, 41).trimEnd()}…` : error;
+          const textWidth = minimal ? Math.min(192, availableWidth) : availableWidth;
+          const text = promptText(shown, minimal ? 10 : 12, attackColor, {
+            weight: "600",
+            width: textWidth,
+            align: "center",
+            truncate: minimal,
+          });
+          text.anchor.set(0.5, 0);
+          text.position.set(textWidth / 2, y);
+          container.addChild(text);
+          y += text.height + 6;
+          width = textWidth;
+        }
+        if (!minimal && hint) {
+          const text = promptText(hint, 11, muted, {
+            style: "italic",
+            width: availableWidth,
+            align: "center",
+          });
+          text.anchor.set(0.5, 0);
+          text.position.set(availableWidth / 2, y);
+          container.addChild(text);
+          y += text.height + 6;
+          width = availableWidth;
+        } else if (!minimal && !error && action.blockRestrictionHint) {
+          const text = promptText(action.blockRestrictionHint, 11, muted, {
+            weight: "500",
+            width: availableWidth,
+            align: "center",
+          });
+          text.anchor.set(0.5, 0);
+          text.position.set(availableWidth / 2, y);
+          container.addChild(text);
+          y += text.height + 6;
+          width = availableWidth;
+        }
+        const buttons: PromptButton[] = [];
+        if (action.blockAssignments.length > 0) {
+          buttons.push(
+            this.makeActionButton(
+              `Block ${action.blockAssignments.length}`,
+              "lucide-shield",
+              () => action.onDeclareBlockers(action.blockAssignments),
+              defenseColor,
+              disabled || !!action.blockRequirementError,
+              minimal,
+              touch,
+              {
+                badge: minimal ? String(action.blockAssignments.length) : undefined,
+              },
+            ),
+          );
+        }
+        buttons.push(
+          this.makeActionButton(
+            "No Blocks",
+            "lucide-ban",
+            action.onPassPriority,
+            cancelColor,
+            disabled,
+            minimal,
+            touch,
+          ),
+        );
+        const row = this.layoutActionRow(buttons, 6);
+        const finalWidth = Math.max(width, row.width);
+        row.container.position.set(
+          minimal ? (finalWidth - row.width) / 2 : Math.max(0, (availableWidth - row.width) / 2),
+          y,
+        );
+        container.addChild(row.container);
+        return {
+          container,
+          width: minimal ? finalWidth : availableWidth,
+          height: y + row.height,
+        };
+      }
+      case "chooseDamageOrder": {
+        const width = Math.max(120, availableWidth * 0.6);
+        const container = new Container();
+        const complete =
+          action.damageOrderCount >= action.damageOrderTotal && action.damageOrderTotal > 0;
+        const instruction = promptText(
+          action.damageOrderCount === 0
+            ? "Click blockers in the order damage is dealt."
+            : complete
+              ? "Order set — confirm to deal damage."
+              : `Click the next blocker (${action.damageOrderCount}/${action.damageOrderTotal}).`,
+          12,
+          muted,
+          { style: "italic", width, align: "center" },
+        );
+        instruction.anchor.set(0.5, 0);
+        instruction.position.set(width / 2, 0);
+        container.addChild(instruction);
+        let y = instruction.height + 6;
+        const controls = [
+          this.makeButton("AUTO", action.onDefaultDamageOrder, {
+            color: attackColor,
+            foreground: this.theme.appTheme["primary-foreground"],
+            flat: true,
+            shadow: true,
+            radius: 8,
+            disabled,
+            width: action.damageOrderCount > 0 ? (width - 6) / 2 : width,
+            height: 36,
+            fontSize: 12,
+            fontWeight: "700",
+          }),
+        ];
+        if (action.damageOrderCount > 0) {
+          controls.push(
+            this.makeButton("UNDO", action.onUndoDamageOrder, {
+              color: attackColor,
+              foreground: this.theme.appTheme["primary-foreground"],
+              flat: true,
+              shadow: true,
+              radius: 8,
+              disabled,
+              width: (width - 6) / 2,
+              height: 36,
+              fontSize: 12,
+              fontWeight: "700",
+            }),
+          );
+        }
+        const row = this.layoutActionRow(controls, 6);
+        row.container.position.set(0, y);
+        container.addChild(row.container);
+        y += row.height;
+        if (complete) {
+          y += 6;
+          const confirm = this.makeButton("CONFIRM ORDER", action.onConfirmDamageOrder, {
+            color: attackColor,
+            foreground: this.theme.appTheme["primary-foreground"],
+            flat: true,
+            shadow: true,
+            radius: 8,
+            disabled,
+            width,
+            height: 36,
+            icon: "lucide-swords",
+            iconSize: 14,
+            fontSize: 14,
+            fontWeight: "900",
+            letterSpacing: 1.68,
+          });
+          confirm.position.set(0, y);
+          container.addChild(confirm);
+          y += confirm.buttonHeight;
+        }
+        return { container, width, height: y };
+      }
+      case "chooseTargetSpell": {
+        const buttons = [
+          this.makeActionButton(
+            "View Stack",
+            "lucide-layers",
+            action.onOpenStack,
+            passColor,
+            disabled,
+            minimal,
+            touch,
+            { title: "Click a glowing spell on the stack to counter it" },
+          ),
+        ];
+        if (action.onCompleteTargets) {
+          const cancel = action.targetCompletionKind === "cancel";
+          buttons.push(
+            this.makeActionButton(
+              action.targetCompletionLabel ?? "Done",
+              cancel ? "lucide-ban" : "lucide-check",
+              action.onCompleteTargets,
+              cancel ? cancelColor : passColor,
+              disabled,
+              minimal,
+              touch,
+            ),
+          );
+        }
+        return this.layoutActionRow(buttons, 6);
+      }
+      case "promptLabel":
+        return this.buildPromptLabelView(availableWidth, minimal, touch, disabled);
+      case "promptRequired": {
+        const hidden = this.spec!.modalHidden;
+        const button = this.makeButton(
+          minimal ? "PROMPT" : hidden ? "PROMPT REQUIRED" : "PROMPT OPEN",
+          this.spec!.onShowModal,
+          {
+            title: hidden ? "Prompt required. Click to reopen." : "Prompt is open.",
+            color: cancelColor,
+            foreground: this.theme.appTheme["primary-foreground"],
+            flat: true,
+            radius: minimal ? 20 : 8,
+            shadow: true,
+            disabled,
+            width: minimal ? undefined : 200,
+            height: minimal ? 40 : 36,
+            paddingX: minimal ? 12 : 12,
+            icon: "lucide-alert-circle",
+            iconSize: 14,
+            fontSize: minimal ? 12 : 14,
+            fontWeight: "900",
+            letterSpacing: minimal ? 0.72 : 0.84,
+          },
+        );
+        if (hidden) this.actionPulseNodes.push({ node: button, maxAlpha: 1 });
+        return { container: button, width: button.buttonWidth, height: button.buttonHeight };
+      }
+      case "payManaCost":
+        return this.buildPayManaView(availableWidth, minimal, touch, disabled);
+      case "mulligan": {
+        if (minimal) {
+          return this.layoutActionRow(
+            [
+              this.makeActionButton(
+                "Keep",
+                "lucide-check",
+                action.onMulliganKeep,
+                passColor,
+                disabled,
+                true,
+                touch,
+              ),
+              this.makeActionButton(
+                "Mulligan",
+                "lucide-rotate-cw",
+                action.onMulliganDraw,
+                this.theme.appTheme.secondary,
+                disabled,
+                true,
+                touch,
+                {
+                  badge: (action.mulliganCount ?? 0) > 0 ? String(action.mulliganCount) : undefined,
+                  foreground: this.theme.appTheme["secondary-foreground"],
+                },
+              ),
+            ],
+            6,
+          );
+        }
+        const width = availableWidth;
+        return this.layoutActionRow(
+          [
+            this.makeButton("Keep", action.onMulliganKeep, {
+              color: passColor,
+              foreground: this.theme.gameTheme.textOnTinted,
+              flat: true,
+              shadow: true,
+              radius: 8,
+              disabled,
+              width: (width - 6) / 2,
+              height: 36,
+              icon: "lucide-check",
+              iconSize: 14,
+              fontSize: 14,
+              fontWeight: "900",
+              letterSpacing: 1.12,
+            }),
+            this.makeButton("Mulligan", action.onMulliganDraw, {
+              color: this.theme.appTheme.secondary,
+              foreground: this.theme.appTheme["secondary-foreground"],
+              flat: true,
+              shadow: true,
+              radius: 8,
+              disabled,
+              width: (width - 6) / 2,
+              height: 36,
+              icon: "lucide-rotate-cw",
+              iconSize: 14,
+              fontSize: 14,
+              fontWeight: "900",
+              letterSpacing: 1.12,
+            }),
+          ],
+          6,
+        );
+      }
+      case "mulliganPutBack":
+        return this.buildMulliganPutBackView(availableWidth, minimal, touch, disabled);
+      case "noAction":
+      default:
+        return this.buildNoActionView(availableWidth, minimal);
+    }
+  }
+
+  private makeActionButton(
+    label: string,
+    icon: string,
+    onPress: (() => void) | undefined,
+    color: string,
+    disabled: boolean,
+    minimal: boolean,
+    touch: boolean,
+    options: { badge?: string; title?: string; foreground?: string } = {},
+  ): PromptButton {
+    const showLabel = minimal || touch;
+    return this.makeButton(label, onPress, {
+      color,
+      foreground: options.foreground ?? this.theme.appTheme["primary-foreground"],
+      flat: true,
+      shadow: true,
+      radius: 8,
+      disabled,
+      labelPlacement: showLabel ? "stacked" : "hidden",
+      tooltip: !showLabel,
+      title: options.title ?? label,
+      badge: options.badge,
+      icon,
+      iconSize: 14,
+      fontSize: showLabel ? 8 : 12,
+      fontWeight: "700",
+      letterSpacing: showLabel ? 0.4 : 0,
+      paddingX: 6,
+    });
+  }
+
+  private layoutActionRow(buttons: PromptButton[], gap: number): ActionViewLayout {
+    const container = new Container();
+    let x = 0;
+    let height = 0;
+    for (const button of buttons) {
+      button.position.set(x, 0);
+      container.addChild(button);
+      x += button.buttonWidth + gap;
+      height = Math.max(height, button.buttonHeight);
+    }
+    return {
+      container,
+      width: Math.max(0, x - (buttons.length > 0 ? gap : 0)),
+      height,
+    };
+  }
+
+  private buildChooseActionView(
+    availableWidth: number,
+    minimal: boolean,
+    disabled: boolean,
+  ): ActionViewLayout {
+    const action = this.spec!.action;
+    const passColor = this.theme.gameTheme.promptAction.passAction;
+    const foreground = this.theme.appTheme["primary-foreground"];
+    const stackEmpty = this.spec!.gameView.stack.length === 0;
+    const endLabel = stackEmpty ? (action.isMyTurn ? "END TURN" : "NEXT TURN") : "RESOLVE STACK";
+    const endTitle = stackEmpty
+      ? action.isMyTurn
+        ? "Pass until end of turn"
+        : "Pass until the next turn"
+      : "Pass until the stack is empty";
+    const endCombo = resolveCombo("pass-end-of-turn", useKeybindingsStore.getState().overrides);
+    const endComboTitle = endCombo ? `${endTitle} (${comboSymbols(endCombo)})` : endTitle;
+    const passCombo = resolveCombo("pass-priority", useKeybindingsStore.getState().overrides);
+    const morphed = this.endTurnModifiersHeld;
+    const counting = this.autopassRemainingMs != null;
+    const passLabel = morphed ? endLabel : counting ? "PASSING" : "PASS";
+
+    if (minimal) {
+      const pass = this.makeButton(
+        passLabel,
+        morphed ? action.onPassEndTurn : action.onPassPriority,
+        {
+          color: passColor,
+          foreground,
+          flat: true,
+          shadow: true,
+          radius: 20,
+          disabled,
+          height: 40,
+          paddingX: 16,
+          fontSize: 12,
+          fontWeight: "900",
+          letterSpacing: 1.44,
+          title: morphed ? endTitle : undefined,
+        },
+      );
+      const end = this.makeButton(endLabel, action.onPassEndTurn, {
+        color: this.theme.appTheme.secondary,
+        foreground: this.theme.appTheme["secondary-foreground"],
+        flat: true,
+        radius: 20,
+        disabled,
+        height: 40,
+        paddingX: 12,
+        fontSize: 10,
+        fontWeight: "900",
+        letterSpacing: 1.2,
+      });
+      const row = this.layoutActionRow([pass, end], 4);
+      if (counting) this.addAutopassFill(pass, pass.buttonWidth, pass.buttonHeight, 20, foreground);
+      return row;
+    }
+
+    const container = new Container();
+    const width = availableWidth;
+    const height = 48;
+    const buttonY = 4;
+    const buttonHeight = 40;
+    const outer = new Graphics()
+      .roundRect(0, buttonY, width, buttonHeight, 8)
+      .fill({ color: hexToNum(passColor) })
+      .stroke({ color: hexToNum(foreground), width: 1, alpha: 0.2 });
+    container.addChild(outer);
+    if (morphed) {
+      container.addChild(
+        new Graphics()
+          .roundRect(0, buttonY, width, buttonHeight, 8)
+          .fill({ color: hexToNum(foreground), alpha: 0.15 }),
+      );
+    }
+    const endText = promptText(endLabel, 11, foreground, {
+      weight: "700",
+      letterSpacing: 1.54,
+    });
+    const endWidth = morphed ? 0 : endText.width + 28;
+    const passWidth = width - endWidth;
+    if (counting && !morphed) {
+      const progress = 1 - this.autopassRemainingMs! / this.autopassTotalMs;
+      const fill = new Graphics()
+        .rect(0, buttonY, passWidth, buttonHeight)
+        .fill({ color: hexToNum(foreground), alpha: 0.25 });
+      fill.scale.x = progress;
+      container.addChild(fill);
+      this.autopassFill = fill;
+    }
+    if (!morphed) {
+      const endBackground = new Graphics()
+        .rect(passWidth, buttonY, endWidth, buttonHeight)
+        .fill({ color: 0x000000, alpha: 0.15 });
+      container.addChild(endBackground);
+      container.addChild(
+        new Graphics()
+          .rect(passWidth, buttonY, 1, buttonHeight)
+          .fill({ color: hexToNum(foreground), alpha: 0.2 }),
+      );
+      endText.anchor.set(0.5);
+      endText.position.set(passWidth + endWidth / 2, buttonY + buttonHeight / 2);
+      endText.alpha = 0.75;
+      container.addChild(endText);
+      this.makeActionHitTarget(
+        container,
+        passWidth,
+        buttonY,
+        endWidth,
+        buttonHeight,
+        endComboTitle,
+        disabled,
+        action.onPassEndTurn,
+      );
+    }
+    const passText = promptText(passLabel, 12, foreground, {
+      weight: "900",
+      letterSpacing: 1.68,
+    });
+    const chipCombo = morphed ? endCombo : passCombo;
+    const chip = chipCombo ? this.makeKeyChip(comboSymbols(chipCombo), foreground) : null;
+    const groupWidth = passText.width + (chip ? chip.width + 6 : 0);
+    passText.anchor.set(0.5);
+    passText.position.set(passWidth / 2 - (chip ? (chip.width + 6) / 2 : 0), buttonY + 20);
+    container.addChild(passText);
+    if (chip) {
+      chip.position.set(passText.x + passText.width / 2 + 6, buttonY + 20);
+      container.addChild(chip);
+    }
+    if (morphed) {
+      passText.x = width / 2 - (chip ? (chip.width + 6) / 2 : 0);
+    } else if (groupWidth > passWidth - 12) {
+      passText.scale.set((passWidth - 12) / groupWidth);
+      if (chip) chip.scale.set((passWidth - 12) / groupWidth);
+    }
+    this.makeActionHitTarget(
+      container,
+      0,
+      buttonY,
+      passWidth,
+      buttonHeight,
+      morphed ? endTitle : "Pass priority",
+      disabled,
+      morphed ? action.onPassEndTurn : action.onPassPriority,
+    );
+    container.alpha = disabled ? 0.6 : 1;
+    return { container, width, height };
+  }
+
+  private buildNoActionView(availableWidth: number, minimal: boolean): ActionViewLayout {
+    const container = new Container();
+    const width = minimal ? 30 : availableWidth;
+    const height = minimal ? 40 : 48;
+    const hourglass = this.makeIcon(
+      "lucide-hourglass",
+      14,
+      this.theme.appTheme["muted-foreground"],
+    );
+    hourglass.position.set(minimal ? width / 2 : width / 2 - 69, height / 2);
+    container.addChild(hourglass);
+    this.actionHourglass = hourglass;
+    if (!minimal) {
+      const label = promptText("WAITING FOR OTHERS", 11, this.theme.appTheme["muted-foreground"], {
+        weight: "600",
+        letterSpacing: 1.54,
+      });
+      label.anchor.set(0.5);
+      label.position.set(width / 2 + 10, height / 2);
+      container.addChild(label);
+    }
+    return { container, width, height };
+  }
+
+  private buildPromptLabelView(
+    availableWidth: number,
+    minimal: boolean,
+    touch: boolean,
+    disabled: boolean,
+  ): ActionViewLayout {
+    const action = this.spec!.action;
+    const input = this.spec!.currentPrompt?.input;
+    const label =
+      input?.type === "chooseBoardTargets"
+        ? input.presentation.title
+        : action.promptType === "chooseBoardTargets"
+          ? "Choose a target"
+          : action.promptType === "scry"
+            ? "Scry"
+            : action.promptType === "chooseCards"
+              ? "Choose cards"
+              : "Waiting...";
+    const container = new Container();
+    const source = this.spec!.sourceDeckCard
+      ? this.makeActionCardThumbnail(this.spec!.sourceDeckCard)
+      : null;
+    const completion = action.onCompleteTargets
+      ? this.makeActionButton(
+          action.targetCompletionLabel ?? "Done",
+          action.targetCompletionKind === "cancel" ? "lucide-ban" : "lucide-check",
+          action.onCompleteTargets,
+          action.targetCompletionKind === "cancel"
+            ? this.theme.gameTheme.promptAction.cancel
+            : this.theme.gameTheme.promptAction.passAction,
+          disabled,
+          minimal,
+          touch,
+        )
+      : null;
+    const stripWidth = Math.max(
+      110,
+      Math.min(
+        minimal
+          ? 208
+          : availableWidth - (source ? 68 : 0) - (completion ? completion.buttonWidth + 6 : 0),
+        availableWidth,
+      ),
+    );
+    const strip = new Container();
+    const stripBackground = new Graphics()
+      .roundRect(0, 0, stripWidth, 36, 8)
+      .fill({ color: 0xffffff, alpha: 0.05 })
+      .stroke({ color: 0xffffff, width: 1, alpha: 0.2 });
+    const crosshair = this.makeIcon("lucide-crosshair", 14, "#ffffff");
+    crosshair.position.set(14, 18);
+    crosshair.alpha = 0.8;
+    this.actionPulseNodes.push({ node: crosshair, maxAlpha: 0.8 });
+    const text = promptText(label, 12, "#ffffff", {
+      weight: "600",
+      width: stripWidth - 38,
+      truncate: true,
+      letterSpacing: 0.3,
+    });
+    text.anchor.set(0.5);
+    text.position.set(stripWidth / 2 + 6, 18);
+    text.alpha = 0.8;
+    strip.addChild(stripBackground, crosshair, text);
+    if (minimal) {
+      let y = 0;
+      if (source) {
+        source.position.set(
+          (Math.max(stripWidth, completion ? stripWidth + completion.buttonWidth + 6 : stripWidth) -
+            60) /
+            2,
+          0,
+        );
+        container.addChild(source);
+        y = 90;
+      }
+      strip.position.set(0, y);
+      container.addChild(strip);
+      let width = stripWidth;
+      if (completion) {
+        completion.position.set(stripWidth + 6, y);
+        container.addChild(completion);
+        width += 6 + completion.buttonWidth;
+      }
+      return { container, width, height: y + Math.max(36, completion?.buttonHeight ?? 0) };
+    }
+    let x = 0;
+    if (source) {
+      source.position.set(0, 0);
+      container.addChild(source);
+      x = 68;
+    }
+    strip.position.set(x, source ? 24 : 0);
+    container.addChild(strip);
+    x += stripWidth;
+    if (completion) {
+      completion.position.set(x + 6, source ? 24 : 0);
+      container.addChild(completion);
+      x += 6 + completion.buttonWidth;
+    }
+    return {
+      container,
+      width: x,
+      height: source ? 84 : Math.max(36, completion?.buttonHeight ?? 0),
+    };
+  }
+
+  private buildPayManaView(
+    availableWidth: number,
+    minimal: boolean,
+    touch: boolean,
+    disabled: boolean,
+  ): ActionViewLayout {
+    const action = this.spec!.action;
+    const info = action.payManaCostInfo;
+    const container = new Container();
+    let y = 0;
+    let width = 0;
+    if (info?.sourceCard) {
+      const source = this.makeActionCardThumbnail(info.sourceCard);
+      if (minimal) {
+        container.addChild(source);
+        y = 92;
+        width = 60;
+      } else {
+        source.position.set(0, 0);
+        container.addChild(source);
+        const description = info.description || `Cast ${info.cardName} for ${info.manaCost}`;
+        const text = promptText(description, 12, this.theme.appTheme["muted-foreground"], {
+          width: availableWidth - 68,
+        });
+        text.position.set(68, 4);
+        container.addChild(text);
+        if (info.delveCount) {
+          const delved = promptText(
+            `Delved for {${info.delveCount}}`,
+            12,
+            this.theme.appTheme["muted-foreground"],
+          );
+          delved.position.set(68, 8 + text.height);
+          container.addChild(delved);
+        }
+        y = 92;
+        width = availableWidth;
+      }
+    } else if (!minimal && info) {
+      const description = info.description || `Cast ${info.cardName} for ${info.manaCost}`;
+      const text = promptText(description, 12, this.theme.appTheme["muted-foreground"], {
+        width: availableWidth,
+        align: "center",
+      });
+      text.anchor.set(0.5, 0);
+      text.position.set(availableWidth / 2, 0);
+      container.addChild(text);
+      y = text.height + 8;
+      width = availableWidth;
+    }
+    const buttons = [
+      this.makeActionButton(
+        info?.canConfirmFromPool ? "Confirm" : "Auto",
+        info?.canConfirmFromPool ? "lucide-check" : "lucide-wand-sparkles",
+        info?.canConfirmFromPool ? action.onPayManaCost : action.onAutoManaCost,
+        this.theme.gameTheme.promptAction.passAction,
+        disabled,
+        minimal,
+        touch,
+      ),
+    ];
+    if (info?.delveAvailable && info.onOpenDelve) {
+      buttons.push(
+        this.makeActionButton(
+          "Delve",
+          "exile",
+          info.onOpenDelve,
+          this.theme.gameTheme.promptAction.defenseAction,
+          disabled,
+          minimal,
+          touch,
+        ),
+      );
+    }
+    if (info?.lifeToPay != null && info.onPayLife) {
+      buttons.push(
+        this.makeActionButton(
+          `${info.lifeToPay} Life`,
+          "lucide-heart-crack",
+          info.onPayLife,
+          this.theme.gameTheme.promptAction.attackAction,
+          disabled,
+          minimal,
+          touch,
+        ),
+      );
+    }
+    buttons.push(
+      this.makeActionButton(
+        "Cancel",
+        "lucide-ban",
+        action.onCancelManaCost,
+        this.theme.gameTheme.promptAction.cancel,
+        disabled,
+        minimal,
+        touch,
+      ),
+    );
+    const rows = this.layoutWrappedActionButtons(
+      buttons,
+      minimal ? this.viewportWidth - 24 : availableWidth,
+      12,
+    );
+    if (minimal && info?.sourceCard) {
+      const source = container.children[0];
+      if (source) source.x = Math.max(0, (rows.width - 60) / 2);
+    }
+    rows.container.position.set(minimal ? 0 : Math.max(0, (availableWidth - rows.width) / 2), y);
+    container.addChild(rows.container);
+    return {
+      container,
+      width: Math.max(width, minimal ? rows.width : availableWidth),
+      height: y + rows.height,
+    };
+  }
+
+  private buildMulliganPutBackView(
+    availableWidth: number,
+    minimal: boolean,
+    touch: boolean,
+    disabled: boolean,
+  ): ActionViewLayout {
+    const action = this.spec!.action;
+    const selected = action.mulliganSelectedCount ?? 0;
+    const count = action.mulliganPutBackCount ?? 0;
+    const canConfirm = !disabled && selected === count;
+    const color = this.theme.appTheme.primary;
+    if (minimal) {
+      const label = promptText(
+        `${selected}/${count}`,
+        10,
+        this.theme.appTheme["muted-foreground"],
+        {
+          weight: "600",
+          letterSpacing: 0.8,
+        },
+      );
+      label.anchor.set(0, 0.5);
+      const button = this.makeActionButton(
+        "Confirm",
+        "lucide-check",
+        action.onMulliganPutBackConfirm,
+        color,
+        !canConfirm,
+        true,
+        touch,
+        { foreground: this.theme.appTheme["primary-foreground"] },
+      );
+      label.position.set(0, button.buttonHeight / 2);
+      button.position.set(label.width + 6, 0);
+      const container = new Container();
+      container.addChild(label, button);
+      return {
+        container,
+        width: label.width + 6 + button.buttonWidth,
+        height: button.buttonHeight,
+      };
+    }
+    const width = Math.max(120, availableWidth * 0.6);
+    const container = new Container();
+    const label = promptText(
+      `${selected}/${count} TO LIBRARY BOTTOM`,
+      10,
+      this.theme.appTheme["muted-foreground"],
+      {
+        weight: "600",
+        letterSpacing: 0.8,
+      },
+    );
+    label.anchor.set(0.5, 0);
+    label.position.set(width / 2, 0);
+    const button = this.makeButton("CONFIRM", action.onMulliganPutBackConfirm, {
+      color,
+      foreground: this.theme.appTheme["primary-foreground"],
+      flat: true,
+      shadow: true,
+      radius: 8,
+      disabled: !canConfirm,
+      width,
+      height: 36,
+      icon: "lucide-check",
+      iconSize: 14,
+      fontSize: 14,
+      fontWeight: "900",
+      letterSpacing: 1.12,
+    });
+    button.position.set(0, label.height + 6);
+    container.addChild(label, button);
+    return { container, width, height: label.height + 6 + button.buttonHeight };
+  }
+
+  private makeActionPanelSurface(
+    width: number,
+    height: number,
+    radius: number,
+    squareBottom: boolean,
+  ): Graphics {
+    const surface = new Graphics();
+    surface
+      .roundRect(0, 4, width, height, radius)
+      .fill({ color: 0x000000, alpha: 0.18 })
+      .roundRect(0, 0, width, height, radius)
+      .fill({ color: hexToNum(this.theme.appTheme.card), alpha: 0.95 });
+    if (squareBottom) {
+      surface
+        .rect(0, height - radius, width, radius)
+        .fill({ color: hexToNum(this.theme.appTheme.card), alpha: 0.95 })
+        .moveTo(0, height)
+        .lineTo(0, radius)
+        .quadraticCurveTo(0, 0, radius, 0)
+        .lineTo(width - radius, 0)
+        .quadraticCurveTo(width, 0, width, radius)
+        .lineTo(width, height)
+        .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.7 });
+    } else {
+      surface
+        .roundRect(0, 0, width, height, radius)
+        .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.7 });
+    }
+    surface.eventMode = "none";
+    return surface;
+  }
+
+  private makeActionMenuButton(minimal: boolean): ActionViewLayout {
+    const size = minimal ? 22 : 18;
+    const button = new Container();
+    const icon = this.makeIcon("lucide-settings", 14, this.theme.appTheme["muted-foreground"]);
+    icon.position.set(size / 2, size / 2);
+    button.addChild(icon);
+    button.eventMode = "static";
+    button.cursor = "pointer";
+    const inset = minimal ? 8 : 10;
+    button.hitArea = new Rectangle(-inset, -inset, size + inset * 2, size + inset * 2);
+    button.on("pointerover", () => {
+      icon.tint = hexToNum(this.theme.appTheme.foreground);
+    });
+    button.on("pointerout", () => {
+      icon.tint = hexToNum(this.theme.appTheme["muted-foreground"]);
+    });
+    button.on("focusin", () => {
+      icon.tint = hexToNum(this.theme.appTheme.foreground);
+    });
+    button.on("focusout", () => {
+      icon.tint = hexToNum(this.theme.appTheme["muted-foreground"]);
+    });
+    button.accessible = true;
+    button.accessibleTitle = "Open game menu";
+    button.tabIndex = 0;
+    if (minimal) {
+      button.on("pointerdown", (event: FederatedPointerEvent) => event.stopPropagation());
+    }
+    button.on("pointertap", () => this.spec!.action.onToggleBoardMenu());
+    return { container: button, width: size, height: size };
+  }
+
+  private makePriorityModePill(disabled: boolean): PromptButton {
+    const state = usePromptPreferencesStore.getState();
+    const combo = resolveCombo("toggle-priority-mode", useKeybindingsStore.getState().overrides);
+    const fullControl = state.fullControl;
+    const hint = combo ? ` (${formatCombo(combo)})` : "";
+    return this.makeButton(
+      fullControl ? "FULL CTRL" : "AUTOPASS",
+      () => {
+        const next = !usePromptPreferencesStore.getState().fullControl;
+        usePromptPreferencesStore.getState().setFullControl(next);
+      },
+      {
+        title: fullControl
+          ? `Full control — you stop at every priority window${hint}`
+          : `Autopass: dead priority windows pass automatically${hint}`,
+        icon: fullControl ? "lucide-hand" : "lucide-zap",
+        iconSize: 12,
+        color: fullControl ? "#ffffff" : this.theme.appTheme.border,
+        foreground: fullControl
+          ? this.theme.appTheme.foreground
+          : this.theme.appTheme["muted-foreground"],
+        outline: true,
+        backgroundColor: "#ffffff",
+        backgroundAlpha: fullControl ? 0.15 : 0.05,
+        borderColor: fullControl ? "#ffffff" : this.theme.appTheme.border,
+        hoverBackgroundAlpha: fullControl ? 0.2 : 0.1,
+        hoverBorderAlpha: fullControl ? 0.3 : 1,
+        hoverForeground: this.theme.appTheme.foreground,
+        pressOffsetY: 1,
+        borderAlpha: fullControl ? 0.3 : 0.6,
+        disabled,
+        width: fullControl ? 88 : 86,
+        height: 22,
+        paddingX: 8,
+        fontSize: 9,
+        fontWeight: "700",
+        letterSpacing: 1.08,
+      },
+    );
+  }
+
+  private layoutWrappedActionButtons(
+    buttons: PromptButton[],
+    maxWidth: number,
+    gap: number,
+  ): ActionViewLayout {
+    const container = new Container();
+    let x = 0;
+    let y = 0;
+    let rowHeight = 0;
+    let width = 0;
+    for (const button of buttons) {
+      if (x > 0 && x + button.buttonWidth > maxWidth) {
+        x = 0;
+        y += rowHeight + gap;
+        rowHeight = 0;
+      }
+      button.position.set(x, y);
+      container.addChild(button);
+      x += button.buttonWidth + gap;
+      width = Math.max(width, Math.min(maxWidth, x - gap));
+      rowHeight = Math.max(rowHeight, button.buttonHeight);
+    }
+    return { container, width, height: y + rowHeight };
+  }
+
+  private makeActionCardThumbnail(card: DeckCard): Container {
+    const container = new Container();
+    const sprite = new CardSprite(deckCardToPreviewDto(card), "zone");
+    const place = () => {
+      sprite.scale.set(1);
+      const scale = 60 / sprite.width;
+      sprite.scale.set(scale);
+      sprite.position.set(sprite.pivot.x * scale, sprite.pivot.y * scale);
+    };
+    sprite.onReorient = place;
+    place();
+    sprite.eventMode = "none";
+    container.addChild(sprite);
+    container.hitArea = new Rectangle(0, 0, 60, 84);
+    return container;
+  }
+
+  private makeActionHitTarget(
+    parent: Container,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    title: string,
+    disabled: boolean,
+    onPress: (() => void) | undefined,
+  ): Container {
+    const hit = new Container();
+    hit.position.set(x, y);
+    hit.hitArea = new Rectangle(0, 0, width, height);
+    hit.eventMode = disabled ? "none" : "static";
+    hit.cursor = disabled ? "default" : "pointer";
+    hit.accessible = true;
+    hit.accessibleTitle = title;
+    hit.tabIndex = disabled ? -1 : 0;
+    hit.on("pointertap", () => {
+      if (!disabled) onPress?.();
+    });
+    parent.addChild(hit);
+    return hit;
+  }
+
+  private makeKeyChip(value: string, color: string): Container {
+    const container = new Container();
+    const text = promptText(value, 10, color, { weight: "700" });
+    const width = text.width + 12;
+    container.addChild(
+      new Graphics().roundRect(0, -10, width, 20, 4).fill({ color: 0x000000, alpha: 0.25 }),
+      text,
+    );
+    text.anchor.set(0.5);
+    text.alpha = 0.85;
+    text.position.set(width / 2, 0);
+    return container;
+  }
+
+  private addAutopassFill(
+    button: PromptButton,
+    width: number,
+    height: number,
+    radius: number,
+    color: string,
+  ): void {
+    const progress = 1 - this.autopassRemainingMs! / this.autopassTotalMs;
+    const fill = new Graphics()
+      .roundRect(0, 0, width, height, radius)
+      .fill({ color: hexToNum(color), alpha: 0.25 });
+    fill.scale.x = progress;
+    fill.eventMode = "none";
+    button.addProgressFill(fill);
+    this.autopassFill = fill;
+  }
+
+  private updateEndTurnModifiers(event: KeyboardEvent | PointerEvent): void {
+    const combo = resolveCombo("pass-end-of-turn", useKeybindingsStore.getState().overrides);
+    if (!combo) {
+      this.setEndTurnModifiersHeld(false);
+      return;
+    }
+    const normalized = normalizeCombo(combo);
+    const hasModifier =
+      !!normalized.meta || !!normalized.ctrl || !!normalized.alt || !!normalized.shift;
+    const held =
+      hasModifier &&
+      (!normalized.meta || event.metaKey) &&
+      (!normalized.ctrl || event.ctrlKey) &&
+      (!normalized.alt || event.altKey) &&
+      (!normalized.shift || event.shiftKey);
+    this.setEndTurnModifiersHeld(held);
+  }
+
+  private setEndTurnModifiersHeld(held: boolean): void {
+    if (held === this.endTurnModifiersHeld) return;
+    this.endTurnModifiersHeld = held;
+    if (this.spec?.action.promptType === "chooseAction") this.rebuild();
+  }
+
+  private resetAutopassState(): void {
+    this.autopassRemainingMs = null;
+    this.autopassTotalMs = 0;
+    const input = this.spec?.currentPrompt?.input;
+    if (
+      input?.type !== "chooseAction" ||
+      this.spec?.gameView.stack.length !== 0 ||
+      usePromptPreferencesStore.getState().fullControl ||
+      !input.actions.every((action) => action.type === "activateAbility" && action.isManaAbility)
+    ) {
+      return;
+    }
+    this.autopassTotalMs =
+      AUTOPASS_DELAY_MIN_MS + Math.random() * (AUTOPASS_DELAY_MAX_MS - AUTOPASS_DELAY_MIN_MS);
+    this.autopassRemainingMs = this.autopassTotalMs;
+  }
+
+  private bumpActionPanel(): void {
+    const panel = this.actionPanel;
+    if (!panel || !animationsEnabled()) return;
+    gsap.killTweensOf(panel.scale);
+    const bumpScale = 1 + 12 / Math.max(1, this.actionPanelHeight);
+    gsap
+      .timeline()
+      .to(panel.scale, { y: bumpScale, duration: 0.112, ease: "back.out(1.56)" })
+      .to(panel.scale, { y: 1, duration: 0.168, ease: "power2.out" });
+  }
+
+  private buildActionCombatInfo(availableWidth: number): ActionViewLayout | null {
+    const action = this.spec!.action;
+    const container = new Container();
+    const destructive = this.theme.appTheme.destructive;
+    const muted = this.theme.appTheme["muted-foreground"];
+    let y = 0;
+    let visible = false;
+
+    if (action.combatPairings.length > 0) {
+      visible = true;
+      const pairingsHeight = 16 + action.combatPairings.length * 16;
+      container.addChild(
+        new Graphics()
+          .roundRect(0, y, availableWidth, pairingsHeight, 8)
+          .fill({ color: hexToNum(destructive), alpha: 0.1 }),
+      );
+      for (const [index, pairing] of action.combatPairings.entries()) {
+        const rowY = y + 12 + index * 16;
+        const attacker = promptText(pairing.attacker, 12, this.theme.appTheme.foreground, {
+          weight: "600",
+        });
+        attacker.position.set(8, rowY - attacker.height / 2);
+        const verb = promptText(pairing.attacker === "You" ? "attack" : "attacks", 12, muted);
+        verb.position.set(
+          Math.min(availableWidth - 100, 14 + attacker.width),
+          rowY - verb.height / 2,
+        );
+        const defender = promptText(pairing.defender, 12, destructive, { weight: "600" });
+        defender.position.set(
+          Math.min(availableWidth - defender.width - 28, verb.x + verb.width + 6),
+          rowY - defender.height / 2,
+        );
+        container.addChild(attacker, verb, defender);
+        if (pairing.count > 1) {
+          const count = promptText(`×${pairing.count}`, 10, destructive, { weight: "700" });
+          count.anchor.set(1, 0.5);
+          count.position.set(availableWidth - 8, rowY);
+          const badgeWidth = count.width + 8;
+          container.addChild(
+            new Graphics()
+              .roundRect(availableWidth - badgeWidth - 6, rowY - 8, badgeWidth, 16, 3)
+              .fill({ color: hexToNum(destructive), alpha: 0.15 }),
+            count,
+          );
+        }
+      }
+      y += pairingsHeight + 8;
+    }
+
+    const isAttackDecl = action.promptType === "chooseAttackers";
+    const isBlockDecl = action.promptType === "chooseBlockers";
+    const activeAttackers = isAttackDecl ? action.pendingAttackers : action.attackerIds;
+    const sample =
+      useGameDevStore.getState().gameStateOverrides.forceCombatSummary &&
+      activeAttackers.length === 0;
+    if ((isAttackDecl || isBlockDecl || sample) && (activeAttackers.length > 0 || sample)) {
+      visible = true;
+      const blockedIds = new Set(
+        action.blockAssignments.map((assignment) => assignment.attackerId),
+      );
+      const attackerCount = sample ? 3 : activeAttackers.length;
+      const blockedCount = sample ? 1 : activeAttackers.filter((id) => blockedIds.has(id)).length;
+      const unblockedCount = attackerCount - blockedCount;
+      const incomingDamage = sample
+        ? 7
+        : activeAttackers.reduce((sum, id) => {
+            if (blockedIds.has(id)) return sum;
+            const card = action.resolveCard(id);
+            const power = Math.max(0, parseCombatNumber(card?.power));
+            const doubles =
+              card?.keywords?.some((keyword) =>
+                keyword.toLowerCase().startsWith("double strike"),
+              ) ?? false;
+            return sum + (doubles ? power * 2 : power);
+          }, 0);
+      const firstStrike =
+        sample ||
+        [
+          ...activeAttackers,
+          ...action.blockAssignments.map((assignment) => assignment.blockerId),
+        ].some(
+          (id) =>
+            action.resolveCard(id)?.keywords?.some((keyword) => {
+              const normalized = keyword.toLowerCase();
+              return (
+                normalized.startsWith("first strike") || normalized.startsWith("double strike")
+              );
+            }) ?? false,
+        );
+      const lethal =
+        sample ||
+        (isBlockDecl &&
+          action.combatDefenderLife != null &&
+          incomingDamage >= action.combatDefenderLife);
+      const showIncoming = isBlockDecl || sample;
+      const height = firstStrike ? 50 : 34;
+      container.addChild(
+        new Graphics()
+          .roundRect(0, y, availableWidth, height, 8)
+          .fill({ color: hexToNum(destructive), alpha: 0.1 })
+          .stroke({ color: hexToNum(destructive), width: 1, alpha: 0.25 }),
+      );
+      const swords = this.makeIcon("lucide-swords", 14, destructive);
+      swords.position.set(14, y + 17);
+      const count = promptText(
+        `${attackerCount} ${attackerCount === 1 ? "attacker" : "attackers"}`,
+        12,
+        this.theme.appTheme.foreground,
+        { weight: "600" },
+      );
+      count.position.set(24, y + 17 - count.height / 2);
+      container.addChild(swords, count);
+      let x = count.x + count.width + 8;
+      if (showIncoming) {
+        const blocks = promptText(`${blockedCount} blocked · ${unblockedCount} open`, 12, muted);
+        blocks.position.set(x, y + 17 - blocks.height / 2);
+        container.addChild(blocks);
+        x += blocks.width + 8;
+      }
+      const damage = promptText(
+        `${showIncoming ? "Incoming" : "Open"} ${incomingDamage}`,
+        12,
+        lethal ? destructive : this.theme.appTheme.foreground,
+        { weight: lethal ? "700" : "600" },
+      );
+      damage.position.set(
+        Math.min(x, availableWidth - damage.width - (isBlockDecl ? 30 : 8)),
+        y + 17 - damage.height / 2,
+      );
+      container.addChild(damage);
+      if (firstStrike) {
+        const strike = promptText("First or double strike", 12, this.theme.appTheme.warning, {
+          weight: "500",
+        });
+        const zap = this.makeIcon("lucide-zap", 12, this.theme.appTheme.warning);
+        zap.position.set(14, y + 40);
+        strike.position.set(24, y + 40 - strike.height / 2);
+        container.addChild(zap, strike);
+      }
+      if (lethal) {
+        const lethalLabel = promptText("LETHAL", 10, destructive, {
+          weight: "700",
+          letterSpacing: 0.5,
+        });
+        lethalLabel.anchor.set(1, 0.5);
+        lethalLabel.position.set(
+          availableWidth - (isBlockDecl ? 30 : 8),
+          y + (firstStrike ? 40 : 17),
+        );
+        container.addChild(lethalLabel);
+      }
+      if (isBlockDecl && !sample) {
+        const info = this.makeIcon("lucide-info", 14, muted);
+        info.position.set(availableWidth - 14, y + 17);
+        const target = new Container();
+        target.position.set(availableWidth - 28, y + 3);
+        target.hitArea = new Rectangle(0, 0, 28, 28);
+        target.eventMode = "static";
+        target.cursor = "pointer";
+        target.accessible = true;
+        target.accessibleTitle = "Combat breakdown";
+        target.tabIndex = 0;
+        target.on("pointertap", () => {
+          this.combatBreakdownOpen = true;
+          this.rebuild();
+        });
+        container.addChild(info, target);
+      }
+      y += height;
+    }
+
+    return visible ? { container, width: availableWidth, height: y } : null;
+  }
+
+  private renderActionContextPopover(
+    panelX: number,
+    panelY: number,
+    panelWidth: number,
+    titleValue: string,
+  ): void {
+    const action = this.spec!.action;
+    const lines = getPromptContextLines(
+      promptTypeForView(action.promptType, action.promptActionOverride),
+      {
+        mulliganCount: action.mulliganCount,
+        mustAttackHint: action.mustAttackHint,
+        blockRestrictionHint: action.blockRestrictionHint,
+        payManaCostInfo: action.payManaCostInfo,
+        mulliganPutBackCount: action.mulliganPutBackCount,
+        mulliganSelectedCount: action.mulliganSelectedCount,
+      },
+    );
+    const width = Math.min(256, Math.max(120, panelX + panelWidth - 8));
+    const popover = new Container();
+    const title = promptText(titleValue.toUpperCase(), 11, this.theme.appTheme.foreground, {
+      weight: "700",
+      letterSpacing: 1.32,
+      width: width - 24,
+    });
+    title.position.set(12, 8);
+    title.alpha = 0.9;
+    popover.addChild(title);
+    let y = 8 + title.height + 6;
+    for (const line of lines) {
+      const text = promptText(line, 11, this.theme.appTheme["muted-foreground"], {
+        width: width - 24,
+      });
+      text.position.set(12, y);
+      popover.addChild(text);
+      y += text.height + 4;
+    }
+    const combat = this.buildActionCombatInfo(width - 24);
+    if (combat) {
+      combat.container.position.set(12, y + 2);
+      popover.addChild(combat.container);
+      y += combat.height + 6;
+    }
+    const contentHeight = y + 4;
+    const height = Math.min(contentHeight, this.viewportHeight * 0.55, Math.max(48, panelY - 16));
+    popover.addChildAt(this.makeActionPanelSurface(width, height, 8, false), 0);
+    if (height < contentHeight) {
+      const mask = new Graphics().rect(0, 0, width, height).fill({ color: 0xffffff });
+      popover.addChild(mask);
+      popover.mask = mask;
+    }
+    popover.position.set(
+      Math.max(8, panelX + panelWidth - width),
+      Math.max(8, panelY - height - 8),
+    );
+    popover.eventMode = "none";
+    popover.zIndex = 20;
+    this.container.addChild(popover);
+  }
+
+  private renderCombatBreakdown(): void {
+    const action = this.spec!.action;
+    const blockedIds = new Set(action.blockAssignments.map((entry) => entry.attackerId));
+    const attackerPower = action.attackerIds.reduce(
+      (sum, id) => sum + Math.max(0, parseCombatNumber(action.resolveCard(id)?.power)),
+      0,
+    );
+    const blockerToughness = action.blockAssignments.reduce(
+      (sum, entry) => sum + parseCombatNumber(action.resolveCard(entry.blockerId)?.toughness),
+      0,
+    );
+    const incoming = action.attackerIds.reduce((sum, id) => {
+      if (blockedIds.has(id)) return sum;
+      const card = action.resolveCard(id);
+      const power = Math.max(0, parseCombatNumber(card?.power));
+      const doubleStrike =
+        card?.keywords?.some((keyword) => keyword.toLowerCase().startsWith("double strike")) ??
+        false;
+      return sum + (doubleStrike ? power * 2 : power);
+    }, 0);
+    const width = Math.min(432, this.viewportWidth - 24);
+    const rowHeight = 42;
+    const height = Math.min(
+      this.viewportHeight - 24,
+      116 + Math.max(1, action.attackerIds.length) * rowHeight,
+    );
+    const x = (this.viewportWidth - width) / 2;
+    const y = (this.viewportHeight - height) / 2;
+    const close = () => {
+      this.combatBreakdownOpen = false;
+      this.rebuild();
+    };
+    const backdrop = new Graphics()
+      .rect(0, 0, this.viewportWidth, this.viewportHeight)
+      .fill({ color: hexToNum(this.theme.appTheme.overlay), alpha: 0.76 });
+    backdrop.eventMode = "static";
+    backdrop.hitArea = new Rectangle(0, 0, this.viewportWidth, this.viewportHeight);
+    backdrop.on("pointertap", close);
+    const panel = this.panel(width, height, x, y, 12);
+    panel.eventMode = "static";
+    panel.hitArea = new Rectangle(0, 0, width, height);
+    panel.on("pointertap", (event: FederatedPointerEvent) => event.stopPropagation());
+    const heading = promptText("COMBAT", 14, this.theme.appTheme.foreground, {
+      weight: "700",
+      letterSpacing: 0.7,
+    });
+    heading.position.set(18, 14);
+    const closeButton = this.makeButton("", close, {
+      title: "Close combat breakdown",
+      icon: "lucide-x",
+      iconSize: 16,
+      outline: true,
+      compact: true,
+      width: 30,
+      height: 30,
+    });
+    closeButton.position.set(width - 42, 8);
+    const summary = promptText(
+      `Power ${attackerPower}   vs   Blocker toughness ${blockerToughness}   ·   Incoming ${incoming}`,
+      14,
+      this.theme.appTheme.foreground,
+      { weight: "600", width: width - 36, align: "center" },
+    );
+    summary.anchor.set(0.5, 0);
+    summary.position.set(width / 2, 52);
+    panel.addChild(heading, closeButton, summary);
+    let rowY = 82;
+    for (const attackerId of action.attackerIds) {
+      const attacker = action.resolveCard(attackerId);
+      const blockers = action.blockAssignments.filter((entry) => entry.attackerId === attackerId);
+      panel.addChild(
+        new Graphics()
+          .roundRect(16, rowY, width - 32, 36, 6)
+          .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.5 }),
+      );
+      const pt =
+        attacker?.power && attacker.toughness ? `${attacker.power}/${attacker.toughness}  ` : "";
+      const name = promptText(
+        `${pt}${action.resolveCardName(attackerId)}`,
+        12,
+        this.theme.appTheme.foreground,
+        {
+          weight: "600",
+        },
+      );
+      name.position.set(24, rowY + 10);
+      const blockerText =
+        blockers.length === 0
+          ? "unblocked"
+          : blockers
+              .map((entry) => {
+                const card = action.resolveCard(entry.blockerId);
+                const blockerPt =
+                  card?.power && card.toughness ? `${card.power}/${card.toughness} ` : "";
+                return `${blockerPt}${action.resolveCardName(entry.blockerId)}`;
+              })
+              .join(", ");
+      const blockersLabel = promptText(
+        `←  ${blockerText}`,
+        11,
+        blockers.length === 0
+          ? this.theme.appTheme.destructive
+          : this.theme.appTheme["muted-foreground"],
+        { width: width / 2 - 24, truncate: true },
+      );
+      blockersLabel.position.set(width / 2, rowY + 10);
+      panel.addChild(name, blockersLabel);
+      rowY += rowHeight;
+    }
+    backdrop.zIndex = 50;
+    panel.zIndex = 51;
+    this.container.addChild(backdrop, panel);
+    this.modalOpen = true;
   }
 
   private renderModal(): void {
@@ -1560,20 +3431,20 @@ export class PromptLayer {
     const buttons = [
       this.makeButton("AUTO", damageOrder.onAuto, {
         outline: true,
-        disabled: this.spec!.isWaitingForResponse,
+        disabled: this.spec!.action.isWaitingForResponse,
       }),
     ];
     if (damageOrder.order.length > 0) {
       buttons.push(
         this.makeButton("UNDO", damageOrder.onUndo, {
           outline: true,
-          disabled: this.spec!.isWaitingForResponse,
+          disabled: this.spec!.action.isWaitingForResponse,
         }),
       );
     }
     buttons.push(
       this.makeButton("CONFIRM", damageOrder.onConfirm, {
-        disabled: this.spec!.isWaitingForResponse || !complete,
+        disabled: this.spec!.action.isWaitingForResponse || !complete,
         icon: "lucide-swords",
       }),
     );
@@ -2147,6 +4018,12 @@ export class PromptLayer {
 
   private handleKey(event: KeyboardEvent): void {
     if (!this.spec || !this.modalOpen) return;
+    if (this.combatBreakdownOpen && event.key === "Escape") {
+      event.preventDefault();
+      this.combatBreakdownOpen = false;
+      this.rebuild();
+      return;
+    }
     if (this.spec.gameOver && event.key === "Enter") {
       event.preventDefault();
       this.spec.gameOver.onEndGame();
@@ -2331,6 +4208,64 @@ export class PromptLayer {
   }
 
   private tick(ticker: Ticker): void {
+    const elapsed = performance.now();
+    if (animationsEnabled()) {
+      const actionPulse = (1 - Math.cos((elapsed / 1800) * Math.PI * 2)) / 2;
+      if (this.actionGlow) {
+        this.actionGlow[0].alpha = 0.3 * (1 - actionPulse);
+        this.actionGlow[1].alpha = 0.6 * actionPulse;
+        this.actionGlow[2].alpha = 0.75 * (1 - actionPulse);
+        this.actionGlow[3].alpha = actionPulse;
+      }
+      for (const { node, maxAlpha } of this.actionPulseNodes) {
+        node.alpha = maxAlpha * (0.5 + actionPulse * 0.5);
+      }
+      if (this.actionHourglass) {
+        const phase = (elapsed % 2400) / 2400;
+        this.actionHourglass.rotation =
+          phase < 0.4
+            ? 0
+            : phase < 0.5
+              ? ((1 - Math.cos(((phase - 0.4) / 0.1) * Math.PI)) / 2) * Math.PI
+              : phase < 0.9
+                ? Math.PI
+                : Math.PI + ((1 - Math.cos(((phase - 0.9) / 0.1) * Math.PI)) / 2) * Math.PI;
+      }
+    } else {
+      if (this.actionGlow) {
+        this.actionGlow[0].alpha = 0.3;
+        this.actionGlow[1].alpha = 0;
+        this.actionGlow[2].alpha = 0.75;
+        this.actionGlow[3].alpha = 0;
+      }
+      for (const { node, maxAlpha } of this.actionPulseNodes) node.alpha = maxAlpha;
+      if (this.actionHourglass) this.actionHourglass.rotation = 0;
+    }
+
+    if (this.autopassRemainingMs != null) {
+      const input = this.spec?.currentPrompt?.input;
+      const canAutopass =
+        input?.type === "chooseAction" &&
+        this.spec?.gameView.stack.length === 0 &&
+        input.actions.every(
+          (action) => action.type === "activateAbility" && action.isManaAbility,
+        ) &&
+        !this.spec.action.isWaitingForResponse &&
+        !usePromptPreferencesStore.getState().fullControl;
+      if (!canAutopass) {
+        this.autopassRemainingMs = null;
+        this.autopassTotalMs = 0;
+        this.rebuild();
+      } else {
+        this.autopassRemainingMs -= ticker.deltaMS;
+        if (this.autopassRemainingMs <= 0) {
+          this.autopassRemainingMs = null;
+          this.spec!.action.onPassPriority();
+        } else if (this.autopassFill && this.autopassTotalMs > 0) {
+          this.autopassFill.scale.x = 1 - this.autopassRemainingMs / this.autopassTotalMs;
+        }
+      }
+    }
     const input = this.spec?.currentPrompt?.input;
     if (!this.modalOpen || input?.type !== "diceRolled" || this.diceElapsedMs >= DICE_FINISH_MS)
       return;

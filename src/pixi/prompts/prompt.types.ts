@@ -1,3 +1,4 @@
+import type { PromptActionSpec } from "@/components/game/game.types";
 import type { DeckCard } from "@/protocol/deck";
 import type { CardDto, PlayerDto } from "@/protocol/game";
 import type { ClientGameView } from "@/stores/gameStore.types";
@@ -31,9 +32,10 @@ export interface PromptLayerCallbacks {
 
 export interface PromptOverlaySpec {
   currentPrompt: Prompt | null;
+  localPlayerId: string;
   gameView: ClientGameView;
   sourceDeckCard?: DeckCard;
-  isWaitingForResponse: boolean;
+  action: PromptActionSpec;
   damageOrder: DamageOrderPromptSpec | null;
   gameOver: GameOverPromptSpec | null;
   modalHidden: boolean;

@@ -17,6 +17,7 @@ import { hexToNum } from "./colorUtils";
 import { registerPixiApp } from "./visibility";
 import { PIXI_MAX_FPS } from "./constants";
 import type { BoardScene } from "./board/BoardScene";
+import type { BlockingRect } from "./board/types";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { PromptLayer } from "./prompts/PromptLayer";
 import type { PromptOverlaySpec } from "./prompts/prompt.types";
@@ -83,6 +84,7 @@ export function BoardOverlayCanvas({
   useEffect(() => {
     let active = true;
     let registeredScene: BoardScene | null = null;
+    let lastPromptBlockers = "";
     const app = new Application();
     appRef.current = app;
     app
@@ -178,7 +180,32 @@ export function BoardOverlayCanvas({
           const scene = sceneRef.current;
           if (scene && scene !== registeredScene) {
             registeredScene = scene;
+            lastPromptBlockers = "";
             scene.setStackAnchorProvider(stack);
+          }
+          if (scene) {
+            const bounds = prompt.getActionBounds();
+            const spec = promptSpecRef.current;
+            const blockers = new Map<string, BlockingRect[]>();
+            if (bounds && spec) {
+              blockers.set(spec.localPlayerId, [
+                { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+              ]);
+              if (prompt.compactAction) {
+                for (const player of spec.gameView.players) {
+                  if (player.id !== spec.localPlayerId) {
+                    blockers.set(player.id, [
+                      { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+                    ]);
+                  }
+                }
+              }
+            }
+            const blockerKey = JSON.stringify([...blockers]);
+            if (blockerKey !== lastPromptBlockers) {
+              lastPromptBlockers = blockerKey;
+              scene.setPlayerBlockers(blockers);
+            }
           }
           const defs = scene?.getArrowDefs() ?? [];
           arrow.update(defs, app.ticker.deltaMS);
@@ -189,6 +216,7 @@ export function BoardOverlayCanvas({
       registeredScene?.setStackAnchorProvider(null);
       registeredScene?.setPromptReference(null);
       stackRef.current?.setPromptReference(null, null);
+      registeredScene?.setPlayerBlockers(new Map());
       unregisterRef.current?.();
       unregisterRef.current = null;
       arrowRef.current?.destroy();

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Application } from "pixi.js";
 import { createPortal } from "react-dom";
 
+import type { PromptActionSpec } from "@/components/game/game.types";
 import { destroyPixiApp, installPixiPatches } from "@/pixi/pixiPatches";
 import { PromptLayer } from "@/pixi/prompts/PromptLayer";
 import type { PromptOverlaySpec } from "@/pixi/prompts/prompt.types";
@@ -28,11 +29,50 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
   const prompt = useMemo<Prompt>(() => ({ input }) as Prompt, [input]);
   const blockerCards = fixtures.cards.slice(1, 3);
 
+  const action: PromptActionSpec = {
+    promptType: input.type,
+    isWaitingForResponse: false,
+    isWaitingForOthers: false,
+    availableAttackerIds: [],
+    pendingAttackers: [],
+    onPassPriority: noAction,
+    onPassEndTurn: noAction,
+    multipleAttackDefenders: false,
+    attackAssignmentCount: 0,
+    onDeclareAttackers: noAction,
+    onBeginAttackTargetPick: noAction,
+    onSubmitAttack: noAction,
+    pendingAttacker: null,
+    pendingBlocker: null,
+    attackerIds: [],
+    blockAssignments: [],
+    combatPairings: [],
+    onDeclareBlockers: noAction,
+    damageOrderCount: damageOrder.length,
+    damageOrderTotal: blockerCards.length,
+    onConfirmDamageOrder: onClose,
+    onUndoDamageOrder: () => setDamageOrder((current) => current.slice(0, -1)),
+    onDefaultDamageOrder: () => setDamageOrder(blockerCards.map((card) => card.id)),
+    onOpenStack: noAction,
+    onToggleBoardMenu: noAction,
+    resolveCardName: (cardId) => cardId,
+    resolveCard: () => undefined,
+    turn: fixtures.gameView.turn,
+    activePlayerName: fixtures.me.name,
+    isMyTurn: true,
+    step: fixtures.gameView.step,
+    payManaCostInfo: null,
+    onPayManaCost: noAction,
+    onAutoManaCost: noAction,
+    onCancelManaCost: noAction,
+  };
+
   const spec: PromptOverlaySpec = {
     currentPrompt: prompt,
+    localPlayerId: fixtures.me.id,
     gameView: fixtures.gameView,
     sourceDeckCard: fixtures.sourceCard,
-    isWaitingForResponse: false,
+    action,
     damageOrder:
       input.type === "chooseDamageAssignmentOrder"
         ? {

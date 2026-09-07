@@ -3,6 +3,7 @@ import type { DeckCard } from "@/protocol/deck";
 import type { GameLogEntry } from "@/types/gameLog";
 import type { GameSnapshotEntry } from "@/types/gameSnapshot";
 import type { PromptType } from "@/protocol";
+import type { DevPromptActionOverride } from "@/stores/useGameDevStore";
 
 export type PromptActionType = PromptType;
 
@@ -51,8 +52,9 @@ export interface RightActionPanelProps {
   onRestoreSnapshot: (checkpointId: number) => void;
 }
 
-export interface MainActionOverlayProps {
+export interface PromptActionSpec {
   promptType?: PromptActionType;
+  promptActionOverride?: DevPromptActionOverride | null;
   isWaitingForResponse: boolean;
   isWaitingForOthers: boolean;
   availableAttackerIds: string[];
@@ -74,6 +76,7 @@ export interface MainActionOverlayProps {
   attackerIds: string[];
   blockAssignments: CombatAssignment[];
   combatPairings: CombatPairing[];
+  combatDefenderLife?: number;
   onDeclareBlockers: (assignments: CombatAssignment[]) => void;
   damageOrderCount: number;
   damageOrderTotal: number;
@@ -81,6 +84,7 @@ export interface MainActionOverlayProps {
   onUndoDamageOrder: () => void;
   onDefaultDamageOrder: () => void;
   onOpenStack: () => void;
+  onToggleBoardMenu: () => void;
   targetCompletionLabel?: string | null;
   targetCompletionKind?: "done" | "cancel" | null;
   onCompleteTargets?: (() => void) | null;

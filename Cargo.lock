@@ -4531,6 +4531,7 @@ dependencies = [
 name = "manabrew-lan-discovery"
 version = "0.2.0"
 dependencies = [
+ "if-addrs",
  "mdns-sd",
  "serde",
  "tokio",

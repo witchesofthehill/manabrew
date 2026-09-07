@@ -4,7 +4,9 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
+
 import { useScryfallStore } from "@/stores/useScryfallStore";
+import { BattlefieldChoiceDevControls } from "./BattlefieldChoiceDevControls";
 import { DevCardSearch } from "./DevCardSearch";
 
 import {
@@ -93,10 +95,22 @@ export function BattlefieldKeywordDevControls() {
     "Hidden",
     debugCardName,
   );
+  const showChoiceControls = matchesDevPanelSearch(
+    query,
+    "Persistent choices",
+    "forced choices",
+    "Color Black",
+    "Type Dragon",
+    "Named Black Vise",
+    "Cards",
+    "Number",
+    "Mode Abzan",
+    "Player Opponent",
+  );
   const showKeywordControls =
     sectionMatch || visibleKeywords.length > 0 || visibleSelected.length > 0;
 
-  if (!showCardControls && !showKeywordControls) return null;
+  if (!showCardControls && !showChoiceControls && !showKeywordControls) return null;
   const toggleDebugCard = async () => {
     if (debugCardEnabled) {
       setDebugCardEnabled(false);
@@ -173,6 +187,7 @@ export function BattlefieldKeywordDevControls() {
           </div>
         </>
       ) : null}
+      {showChoiceControls ? <BattlefieldChoiceDevControls /> : null}
 
       {showKeywordControls ? (
         <>

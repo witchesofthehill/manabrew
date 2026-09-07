@@ -7,13 +7,15 @@ import { CARD_RAIL_WIDTH } from "@/components/game/CardRail";
 import { CardRailPreview } from "@/components/game/CardRailPreview";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { CardPreviewOverlay } from "./CardPreviewOverlay";
+import { GameIcon } from "./GameIcon";
 import { CardPreviewActions, type IndexedPreviewAction } from "./CardPreviewActions";
+import { ACTIONABLE_CARD_GLOW_CLASS, actionableCardGlowStyle } from "./cardPreviewStyles";
 import { computePreviewLayout } from "./cardPreviewLayout";
 import { getPreviewActionShortcut } from "./game.utils";
 import { CARD_W, CARD_RADIUS } from "./game.constants";
 import { CARD_BACK_IMAGE_URL } from "./game.constants";
 import { isFacelessCard } from "@/lib/gameCard";
-import { cardFrameTintHex, withAlpha } from "@/themes/gameTheme";
+import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import { cn } from "@/lib/utils";
@@ -27,6 +29,7 @@ import { ScryfallImg } from "@/components/ScryfallImg";
 import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { deriveCardRailEffects, deriveCardRailState } from "@/components/game/cardRailState";
+import { cardTypeLine } from "@/components/game/cardPresentation";
 
 interface CardPreviewProps {
   card: CardDto;
@@ -37,10 +40,12 @@ interface CardPreviewProps {
   phase?: "open" | "closing";
   suppressed?: boolean;
   showBackFace?: boolean;
+  skipEnterAnimation?: boolean;
   actions?: HandActionOption[];
   onSelectAction?: (action: HandActionOption) => void;
   onDismiss?: () => void;
   onFlip?: () => void;
+  onToggleView?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   isSticky?: boolean;
@@ -118,11 +123,13 @@ export function CardPreview({
   placement = "auto",
   phase = "open",
   suppressed = false,
+  skipEnterAnimation = false,
   showBackFace = false,
   actions,
   onSelectAction,
   onDismiss,
   onFlip,
+  onToggleView,
   onMouseEnter,
   onMouseLeave,
   isSticky = false,
@@ -189,13 +196,14 @@ export function CardPreview({
   // The hero zoom travels across the hovered card; an interactive preview
   // passing under the cursor steals pointer events from the canvas and kills
   // the sprite's hover state. Stay pointer-transparent until the enter lands.
-  const [entered, setEntered] = useState(false);
+  const [entered, setEntered] = useState(skipEnterAnimation);
   const interactive = entered && phase === "open" && !suppressed;
 
   useEffect(() => {
+    if (skipEnterAnimation) return;
     const timer = setTimeout(() => setEntered(true), PREVIEW_TIMING.enterMs + 80);
     return () => clearTimeout(timer);
-  }, []);
+  }, [skipEnterAnimation]);
 
   useLayoutEffect(() => {
     const update = () => setLayoutVersion((version) => version + 1);
@@ -320,7 +328,6 @@ export function CardPreview({
   });
   const { cardLeft, top, cardWidth, cardHeight, sidePanelWidth, panelSide } = layout;
   const cardCornerRadius = (Math.min(cardWidth, cardHeight) * CARD_RADIUS) / CARD_W;
-  const frameBorderTint = cardFrameTintHex(deckCard.colorIdentity, themeColors.mana);
 
   const anchorCenterX = anchorRect ? anchorRect.left + anchorRect.width / 2 : mouseX;
   const anchorCenterY = anchorRect ? anchorRect.top + anchorRect.height / 2 : mouseY;
@@ -375,7 +382,9 @@ export function CardPreview({
         <div
           className={cn(
             "relative @container",
-            phase === "closing" ? "animate-preview-out" : "animate-preview-in",
+            phase === "closing"
+              ? "animate-preview-out"
+              : !skipEnterAnimation && "animate-preview-in",
           )}
           style={
             {
@@ -392,18 +401,14 @@ export function CardPreview({
         >
           <div
             className={cn(
-              "w-full h-full shadow-2xl overflow-hidden bg-black transition-shadow duration-200 relative",
-              hasActions && "ring-2",
+              "w-full h-full shadow-2xl overflow-hidden bg-black relative",
+              hasActions && ACTIONABLE_CARD_GLOW_CLASS,
               card.foil && "draft-tile-foil",
             )}
-            style={
-              {
-                borderRadius: cardCornerRadius,
-                ...(hasActions
-                  ? { "--tw-ring-color": ringColor, boxShadow: `0 0 20px ${ringColor}` }
-                  : {}),
-              } as CSSProperties
-            }
+            style={{
+              borderRadius: cardCornerRadius,
+              ...(hasActions ? actionableCardGlowStyle(ringColor) : {}),
+            }}
           >
             {currentImageUrl ? (
               <>
@@ -425,39 +430,60 @@ export function CardPreview({
                     style={{ backgroundColor: withAlpha(themeColors.success, 0.28) }}
                   />
                 )}
-                {hasDoubleFace && onFlip && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onFlip();
-                    }}
-                    className={cn(
-                      "absolute top-2 right-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 shadow",
-                      interactive ? "pointer-events-auto" : "pointer-events-none",
+                {(onToggleView || (hasDoubleFace && onFlip) || horizontalCard) && (
+                  <div className="absolute top-[12%] right-2 z-20 flex items-center gap-1">
+                    {onToggleView && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onToggleView();
+                        }}
+                        className={cn(
+                          "inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/65 text-white shadow hover:bg-black/85 pointer-coarse:h-9 pointer-coarse:w-9",
+                          interactive ? "pointer-events-auto" : "pointer-events-none",
+                        )}
+                        aria-label="Show rules"
+                        title="Show rules (R)"
+                      >
+                        <GameIcon name="spell-book" className="h-3.5 w-3.5" />
+                      </button>
                     )}
-                    title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
-                  >
-                    <RotateCw className="h-3 w-3" />
-                    {showBackFace ? "Front" : "Back"}
-                  </button>
-                )}
-                {horizontalCard && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOrientationFlipped((prev) => !prev);
-                    }}
-                    className={cn(
-                      "absolute top-2 left-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 shadow",
-                      interactive ? "pointer-events-auto" : "pointer-events-none",
+                    {hasDoubleFace && onFlip && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onFlip();
+                        }}
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:px-3 pointer-coarse:py-2",
+                          interactive ? "pointer-events-auto" : "pointer-events-none",
+                        )}
+                        title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
+                      >
+                        <RotateCw className="h-3 w-3" />
+                        {showBackFace ? "Front" : "Back"}
+                      </button>
                     )}
-                    title="Rotate the card to read it (F)"
-                  >
-                    <RotateCw className="h-3 w-3" />
-                    {orientationFlipped ? "Read" : "Rotate"}
-                  </button>
+                    {horizontalCard && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setOrientationFlipped((prev) => !prev);
+                        }}
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:px-3 pointer-coarse:py-2",
+                          interactive ? "pointer-events-auto" : "pointer-events-none",
+                        )}
+                        title="Rotate the card to read it (F)"
+                      >
+                        <RotateCw className="h-3 w-3" />
+                        {orientationFlipped ? "Read" : "Rotate"}
+                      </button>
+                    )}
+                  </div>
                 )}
               </>
             ) : cardLookupPending ? (
@@ -488,7 +514,7 @@ export function CardPreview({
                       ))}
                   </div>
                   {!hasDoubleFace && (
-                    <div className="text-xs text-muted-foreground">{card.types?.join(" ")}</div>
+                    <div className="text-xs text-muted-foreground">{cardTypeLine(card)}</div>
                   )}
                   <div className="flex-1 text-xs text-foreground/80 whitespace-pre-wrap">
                     {hasDoubleFace && showBackFace
@@ -506,10 +532,6 @@ export function CardPreview({
                 </div>
               </div>
             )}
-            <div
-              className="pointer-events-none absolute inset-0 z-20 rounded-[inherit]"
-              style={{ boxShadow: `inset 0 0 0 2px ${withAlpha(frameBorderTint, 0.9)}` }}
-            />
           </div>
 
           {showSidePanel && (

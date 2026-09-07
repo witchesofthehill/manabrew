@@ -4,11 +4,12 @@ import type { CardDto, DayTime } from "@/protocol/game";
 import type { ClientPlayerDto } from "@/stores/gameStore.types";
 import type { Prompt } from "@/protocol";
 import { validCardIdsInCards, type BoardTargetBuckets } from "@/lib/boardTargets";
+import type { PreviewPointerInput } from "@/lib/cardPreview";
 import { stripUsernameTag } from "@/lib/username";
 import { nextHandOrderMode } from "@/lib/handOrder";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
-import { BoardOverlayCanvas } from "@/pixi/BoardOverlayCanvas";
+import { BoardOverlayCanvas, type BoardOverlayPreviewSpec } from "@/pixi/BoardOverlayCanvas";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import type { CombatRow } from "@/components/game/combatRows";
 import type { BoardScene } from "@/pixi/board/BoardScene";
@@ -45,6 +46,7 @@ import {
 } from "@/pixi/constants";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
+import { GameBoardAccessibility } from "@/components/game/GameBoardAccessibility";
 
 function promptOf<TType extends PromptType>(
   prompt: Prompt | null | undefined,
@@ -129,9 +131,20 @@ interface GameBoardProps {
   onHoverCard: (
     card: CardDto | null,
     e?: React.MouseEvent,
-    options?: { useAnchor?: boolean; placement?: "auto" | "top-center"; anchorOverride?: DOMRect },
+    options?: {
+      useAnchor?: boolean;
+      placement?: "auto" | "top-center";
+      anchorOverride?: DOMRect;
+      trigger?: PreviewPointerInput;
+    },
   ) => void;
+  onRightClickCard?: (card: CardDto, anchor: DOMRect) => void;
   onDismissHoverPreview?: () => void;
+  rulesPreview?: BoardOverlayPreviewSpec | null;
+  externalPreviewActive?: boolean;
+  onPreviewPointerEnter?: () => void;
+  onPreviewPointerLeave?: () => void;
+  onTogglePreviewView?: () => void;
   onLongPressCard?: (card: CardDto, anchor: DOMRect) => void;
   onHandHoverChange?: (hovering: boolean) => void;
   getHandActions?: (card: CardDto) => HandActionOption[];
@@ -229,7 +242,13 @@ export function GameBoard({
   castingCardId,
   onHandCardDragStart,
   onHoverCard,
+  onRightClickCard,
   onDismissHoverPreview,
+  rulesPreview,
+  externalPreviewActive,
+  onPreviewPointerEnter,
+  onPreviewPointerLeave,
+  onTogglePreviewView,
   onLongPressCard,
   onHandHoverChange,
   getHandActions,
@@ -535,14 +554,22 @@ export function GameBoard({
         promptType === "chooseBoardTargets"
           ? onBattlefieldClick
           : undefined,
-      onHoverCard: (card, bounds) => {
+      onHoverCard: (card, bounds, options) => {
         if (card && bounds) {
           const rect = new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height);
-          onHoverCard(card, undefined, { useAnchor: true, anchorOverride: rect });
+          onHoverCard(card, undefined, {
+            ...options,
+            useAnchor: true,
+            anchorOverride: rect,
+          });
         } else {
           onHoverCard(null);
         }
       },
+      onRightClickCard: onRightClickCard
+        ? (card, bounds) =>
+            onRightClickCard(card, new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height))
+        : undefined,
       onStartDrag: (card, _screenPos, pointer) => {
         onHandCardDragStart(card, pointer);
       },
@@ -581,6 +608,7 @@ export function GameBoard({
       onBattlefieldClick,
       onHoverCard,
       onDismissHoverPreview,
+      onRightClickCard,
       onHandCardDragStart,
       moveHandCard,
       handSelectionMode,
@@ -647,6 +675,7 @@ export function GameBoard({
   const [unifiedLayout, setUnifiedLayout] = useState<BoardCanvasLayout | null>(null);
   const localSceneRef = useRef<BoardScene | null>(null);
   const sceneRef = boardSceneRef ?? localSceneRef;
+  const [overlayScene, setOverlayScene] = useState<BoardScene | null>(null);
   const gameTheme = useTheme().gameTheme;
   const playerColors = gameTheme.playerColors;
 
@@ -1651,19 +1680,67 @@ export function GameBoard({
         selfName={stripUsernameTag(me.name)}
         dividerY={unifiedLayout?.dividerY}
       />
+      <GameBoardAccessibility
+        players={playerBarSpecs.map((player) => ({
+          id: player.playerId,
+          name: player.name,
+          life: player.life,
+          isSelf: player.isSelf,
+          isTargetable: player.isTargetable,
+        }))}
+        battlefield={battlefield}
+        hand={orderedHand}
+        selectableBattlefieldCardIds={selectableBattlefieldCardIds}
+        playableIds={playableIds}
+        handSelectionMode={!!handSelectionMode}
+        handSelectedIds={handSelectedIds}
+        tappableCardIds={[
+          ...(manaAbilityOptions?.map((option) => option.cardId) ?? []),
+          ...(waterbendSourceIds ?? []),
+        ]}
+        untappableCardIds={[
+          ...(promptActions?.flatMap((action) =>
+            action.type === "undoMana" ? [action.cardId] : [],
+          ) ?? []),
+          ...(waterbentCardIds ?? []),
+        ]}
+        manaAbilityOptions={manaAbilityOptions}
+        zonesByPlayer={zoneTilesByPlayer}
+        stack={stackSpec}
+        currentStep={step}
+        selfStops={selfStops}
+        opponentStops={opponentStopsMap}
+        getHandActions={getHandActions}
+        onSelectHandAction={onSelectHandAction}
+        onToggleHandCard={onHandCardToggle}
+        onTapLand={onTapLand}
+        onUntapLand={onUntapLand}
+        onTapLandAbility={onTapLandAbility}
+        onActivateBattlefieldCard={(card) =>
+          pendingBlocker ? onAttackerClick(card) : onBattlefieldClick(card)
+        }
+        onInspectCard={(card, anchor) => {
+          if (onLongPressCard) {
+            onLongPressCard(card, anchor);
+            return;
+          }
+          onHoverCard(card, undefined, { useAnchor: true, anchorOverride: anchor });
+        }}
+        onFocusCard={(card, anchor) =>
+          onHoverCard(card, undefined, { useAnchor: true, anchorOverride: anchor })
+        }
+        onBlurCard={() => onHoverCard(null)}
+        onInspectPlayer={setSheetPlayerId}
+        onTargetPlayer={onTargetPlayer}
+        onOpenStack={onOpenStack}
+        onTargetSpell={onTargetSpell}
+        onToggleStack={onToggleStack}
+        onToggleSelfPhase={toggleSelfStop}
+        onToggleOpponentPhase={toggleOpponentStop}
+      />
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         {a11ySummary}
       </div>
-      {hudBarSpecs.map((spec) => (
-        <button
-          key={spec.playerId}
-          type="button"
-          className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-background focus:p-3 focus:text-foreground"
-          onClick={() => setSheetPlayerId(spec.playerId)}
-        >
-          Inspect {spec.isSelf ? "your" : `${spec.name}'s`} mana pool and player states
-        </button>
-      ))}
       <div className="sr-only" aria-live="assertive" aria-atomic="true">
         {combatA11y}
       </div>
@@ -1700,8 +1777,10 @@ export function GameBoard({
           autoSort={battlefieldAutoSort}
           selfBottomReserve={selfBottomReserve}
           sceneRef={sceneRef}
+          onSceneChange={setOverlayScene}
           getHandActions={getHandActions}
           onSelectHandAction={(_card, action) => onSelectHandAction?.(action)}
+          externalPreviewActive={externalPreviewActive}
           onLayout={(layout) => {
             setUnifiedLayout(layout);
             onLayoutChange?.(layout);
@@ -1710,7 +1789,7 @@ export function GameBoard({
       </div>
       <div className="absolute inset-0 z-[9000] pointer-events-none">
         <BoardOverlayCanvas
-          sceneRef={sceneRef}
+          scene={overlayScene}
           stackSpec={stackSpec}
           onOpenStack={onOpenStack}
           onTargetSpell={onTargetSpell}
@@ -1719,6 +1798,14 @@ export function GameBoard({
           onHoverCard={(card, options) => onHoverCard(card, undefined, options)}
           onLongPressCard={onLongPressCard}
           promptSpec={promptOverlaySpec ?? null}
+          externalPreviewActive={externalPreviewActive}
+          previewSpec={rulesPreview}
+          onPreviewPointerEnter={onPreviewPointerEnter}
+          onPreviewPointerLeave={onPreviewPointerLeave}
+          onSelectPreviewAction={onSelectHandAction}
+          onDismissPreview={onDismissHoverPreview}
+          onFlipPreview={onFlipCard}
+          onTogglePreviewView={onTogglePreviewView}
         />
       </div>
       {sheetSpec && <PlayerSheetModal spec={sheetSpec} onClose={() => setSheetPlayerId(null)} />}

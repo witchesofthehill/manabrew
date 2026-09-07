@@ -5,6 +5,7 @@ pub struct HubConfig {
     pub jwt_key_path: String,
     pub analytics_import_db_path: Option<String>,
     pub relay_deck_plays_token: Option<String>,
+    pub official_key: Option<String>,
     pub preset_decks_dir: String,
     pub deck_hub_enabled: bool,
     pub publish_per_hour: u32,
@@ -75,6 +76,9 @@ impl HubConfig {
             analytics_import_db_path: std::env::var("HUB_ANALYTICS_IMPORT_DB_PATH")
                 .ok()
                 .filter(|path| !path.is_empty()),
+            official_key: std::env::var("SECRET_MANABREW_KEY")
+                .ok()
+                .filter(|key| !key.is_empty()),
             relay_deck_plays_token: std::env::var("HUB_RELAY_DECK_PLAYS_TOKEN")
                 .ok()
                 .filter(|token| !token.is_empty()),

@@ -18,7 +18,9 @@ import {
   probeTabSession,
   type TabSessionHolder,
 } from "@/lib/tabSession";
+import { stripUsernameTag } from "@/lib/username";
 import {
+  CHAT_ERROR_CODES,
   DUPLICATE_USERNAME_ERROR_FRAGMENT,
   SERVER_ERROR_CODE,
   USER_FACING_ERROR_MESSAGES,
@@ -45,9 +47,10 @@ import type {
   ServerErrorPayload,
   ReconnectingPayload,
   DisconnectedPayload,
+  RelayFeature,
 } from "@/types/server";
 import type { Deck } from "@/protocol/deck";
-import { resendLocalGame, setRelayFeatures } from "@/lib/localGamePresence";
+import { resendLocalGame } from "@/lib/localGamePresence";
 
 export const DEFAULT_STARTING_LIFE = 20;
 
@@ -64,6 +67,7 @@ interface ServerState {
   playerId: string | null;
   username: string | null;
   reconnect: ReconnectState;
+  relayFeatures: string[];
 
   rooms: RoomInfo[];
   currentRoom: RoomInfo | null;
@@ -106,6 +110,8 @@ interface ServerState {
   setMaxPlayers(maxPlayers: number): Promise<void>;
   startGame(format?: GameFormat): Promise<void>;
   endGame(): Promise<void>;
+  inviteToRoom(username: string): Promise<void>;
+  hasRelayFeature(feature: RelayFeature): boolean;
 
   setupListeners(): () => void;
 }
@@ -189,6 +195,7 @@ export const useServerStore = create<ServerState>()(
       playerId: null,
       username: null,
       reconnect: { phase: "idle", attempt: 0 },
+      relayFeatures: [],
       rooms: [],
       currentRoom: null,
       roomPassword: null,
@@ -441,6 +448,17 @@ export const useServerStore = create<ServerState>()(
         await platform.server.endGame(get().gameId);
       },
 
+      async inviteToRoom(username) {
+        const platform = getPlatform();
+        if (!platform.server) return;
+        await platform.server.inviteToRoom({ username });
+        toast.success(`Invited ${stripUsernameTag(username)} to your table`);
+      },
+
+      hasRelayFeature(feature) {
+        return get().relayFeatures.includes(feature);
+      },
+
       setupListeners() {
         const platform = getPlatform();
         if (!platform.server) {
@@ -451,7 +469,7 @@ export const useServerStore = create<ServerState>()(
 
         unsubscribers.push(
           platform.events.on<AuthResultPayload>("server:auth_result", (payload) => {
-            setRelayFeatures(payload.features);
+            set({ relayFeatures: payload.features ?? [] });
             if (payload.success) {
               duplicateRejectionSince = null;
               set({
@@ -584,6 +602,7 @@ export const useServerStore = create<ServerState>()(
           platform.events.on<ServerErrorPayload>("server:error", (payload) => {
             console.error("[server] error:", payload.code, payload.message);
             if (payload.code === SERVER_ERROR_CODE.GameNotInProgress) return;
+            if (CHAT_ERROR_CODES.has(payload.code as ServerErrorCode)) return;
             if (
               JOIN_FAILURE_CODES.has(payload.code as ServerErrorCode) &&
               settlePendingJoin(new Error(payload.code))

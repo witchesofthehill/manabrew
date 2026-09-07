@@ -1097,10 +1097,8 @@ impl GameLoop {
                     if let Some(chosen) =
                         agents[player.index()].choose_type(player, "Creature", &valid_types)
                     {
-                        let source = game.card_mut(card_id);
-                        source.chosen_type = Some(chosen);
-                        source.chosen_type_controller = Some(player);
-                        source.chosen_type_revealed = false;
+                        game.card_mut(card_id)
+                            .set_chosen_type(Some(chosen), None, true);
                     }
                 }
                 CostPart::FlipCoin(amount) => {
@@ -1821,10 +1819,8 @@ impl GameLoop {
                     if let Some(chosen) =
                         agents[player.index()].choose_type(player, "Creature", &valid_types)
                     {
-                        let source = game.card_mut(card_id);
-                        source.chosen_type = Some(chosen);
-                        source.chosen_type_controller = Some(player);
-                        source.chosen_type_revealed = false;
+                        game.card_mut(card_id)
+                            .set_chosen_type(Some(chosen), None, true);
                     }
                 }
                 CostPart::FlipCoin(amount) => {

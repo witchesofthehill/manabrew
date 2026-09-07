@@ -254,6 +254,7 @@ export class PromptLayer {
     this.updateEndTurnModifiers(event);
   private onModifierReset = (): void => this.setEndTurnModifiersHeld(false);
   private onActionBump = (): void => this.bumpActionPanel();
+  private readonly onTick = (ticker: Ticker): void => this.update(ticker.deltaMS);
 
   constructor(app: Application, callbacks: PromptLayerCallbacks = {}) {
     this.app = app;
@@ -266,7 +267,7 @@ export class PromptLayer {
     this.app.stage.on("pointermove", this.onStageMove);
     this.app.stage.on("pointerup", this.onStageUp);
     this.app.stage.on("pointerupoutside", this.onStageUp);
-    this.app.ticker.add(this.tick, this);
+    this.app.ticker.add(this.onTick);
     this.keyListener = (event) => this.handleKey(event);
     window.addEventListener("keydown", this.keyListener);
     window.addEventListener("keydown", this.onModifierEvent);
@@ -347,7 +348,7 @@ export class PromptLayer {
     this.unsubscribePromptPreferences();
     this.unsubscribeKeybindings();
     this.app.stage.off("pointerupoutside", this.onStageUp);
-    this.app.ticker.remove(this.tick, this);
+    this.app.ticker.remove(this.onTick);
     this.longPress.reset();
     this.actionLongPress.reset();
     this.callbacks.onReferenceChange?.(null);
@@ -4207,7 +4208,7 @@ export class PromptLayer {
     }
   }
 
-  private tick(ticker: Ticker): void {
+  update(deltaMs: number): void {
     const elapsed = performance.now();
     if (animationsEnabled()) {
       const actionPulse = (1 - Math.cos((elapsed / 1800) * Math.PI * 2)) / 2;
@@ -4257,7 +4258,7 @@ export class PromptLayer {
         this.autopassTotalMs = 0;
         this.rebuild();
       } else {
-        this.autopassRemainingMs -= ticker.deltaMS;
+        this.autopassRemainingMs -= deltaMs;
         if (this.autopassRemainingMs <= 0) {
           this.autopassRemainingMs = null;
           this.spec!.action.onPassPriority();
@@ -4270,7 +4271,7 @@ export class PromptLayer {
     if (!this.modalOpen || input?.type !== "diceRolled" || this.diceElapsedMs >= DICE_FINISH_MS)
       return;
     this.diceElapsedMs = animationsEnabled()
-      ? Math.min(DICE_FINISH_MS, this.diceElapsedMs + ticker.deltaMS)
+      ? Math.min(DICE_FINISH_MS, this.diceElapsedMs + deltaMs)
       : DICE_FINISH_MS;
     this.syncDiceVisuals();
   }

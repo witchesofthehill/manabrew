@@ -430,13 +430,34 @@ const createTextureFromImage = (img: HTMLImageElement): Texture => {
   return tex;
 };
 
+const MAX_CACHED_CARD_ART_TEXTURES = 64;
+
 const textureCache = new Map<string, Texture>();
 const pendingTexturePromises = new Map<string, Promise<Texture>>();
+let textureCacheGeneration = 0;
+
+const getCachedTexture = (url: string): Texture | undefined => {
+  const texture = textureCache.get(url);
+  if (!texture) return undefined;
+  textureCache.delete(url);
+  textureCache.set(url, texture);
+  return texture;
+};
+
+const cacheTexture = (url: string, texture: Texture): void => {
+  textureCache.delete(url);
+  textureCache.set(url, texture);
+  if (textureCache.size <= MAX_CACHED_CARD_ART_TEXTURES) return;
+
+  const oldestUrl = textureCache.keys().next().value;
+  if (oldestUrl !== undefined) textureCache.delete(oldestUrl);
+};
 
 export const useScryfallStore = create<ScryfallState>()(
   devtools(
     immer((set, get) => ({
       cards: {},
+      sets: [],
       hydratedSets: {},
       _fetchCardLookup: async (lookup) => {
         const key = cardKey(lookup);
@@ -497,21 +518,26 @@ export const useScryfallStore = create<ScryfallState>()(
         }
         if (!url) return Texture.EMPTY;
 
-        const cached = textureCache.get(url);
+        const cached = getCachedTexture(url);
         if (cached) return cached;
         const pending = pendingTexturePromises.get(url);
         if (pending) return pending;
 
         const resolvedUrl = url;
+        const generation = textureCacheGeneration;
         const promise = (async () => {
           const htmlImage = await fetchImageElement(resolvedUrl);
           const texture = createTextureFromImage(htmlImage);
-          textureCache.set(resolvedUrl, texture);
+          if (generation === textureCacheGeneration) cacheTexture(resolvedUrl, texture);
           return texture;
-        })().finally(() => {
-          pendingTexturePromises.delete(resolvedUrl);
-        });
+        })();
+        const clearPending = () => {
+          if (pendingTexturePromises.get(resolvedUrl) === promise) {
+            pendingTexturePromises.delete(resolvedUrl);
+          }
+        };
         pendingTexturePromises.set(resolvedUrl, promise);
+        void promise.then(clearPending, clearPending);
         return promise;
       },
       getRulings: async (c) => {
@@ -616,6 +642,7 @@ export const useScryfallStore = create<ScryfallState>()(
         });
       },
       clearImageCaches: () => {
+        textureCacheGeneration += 1;
         for (const tex of textureCache.values()) tex.destroy(true);
         textureCache.clear();
         pendingTexturePromises.clear();

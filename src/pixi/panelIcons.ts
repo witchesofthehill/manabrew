@@ -2,6 +2,7 @@ import { Sprite, Texture } from "pixi.js";
 import type { GameThemeColors } from "@/themes/gameTheme";
 import { icons as gameIconsPack } from "@iconify-json/game-icons";
 import { VORTEX_PATH } from "@/components/icons/VortexCircleIcon";
+import { rasterizeSvgTexture } from "./assets/rasterizeSvgTexture";
 
 export const SVG: Record<string, string> = {
   hearts:
@@ -92,13 +93,32 @@ export function getIconColor(key: string, theme: GameThemeColors): string {
 }
 
 interface PendingSprite {
-  sprite: Sprite;
   displayWidth?: number;
   displayHeight?: number;
 }
 
 const iconCache = new Map<string, Texture>();
-const pendingSprites = new Map<string, Set<PendingSprite>>();
+const pendingSprites = new Map<string, Map<Sprite, PendingSprite>>();
+const pendingKeyBySprite = new WeakMap<Sprite, string>();
+const loadingIcons = new Set<string>();
+
+function detachPendingSprite(sprite: Sprite): void {
+  const cacheKey = pendingKeyBySprite.get(sprite);
+  if (!cacheKey) return;
+  const pending = pendingSprites.get(cacheKey);
+  pending?.delete(sprite);
+  if (pending?.size === 0) pendingSprites.delete(cacheKey);
+  pendingKeyBySprite.delete(sprite);
+}
+
+function takePendingSprites(cacheKey: string): Map<Sprite, PendingSprite> | undefined {
+  const pending = pendingSprites.get(cacheKey);
+  pendingSprites.delete(cacheKey);
+  for (const sprite of pending?.keys() ?? []) {
+    if (pendingKeyBySprite.get(sprite) === cacheKey) pendingKeyBySprite.delete(sprite);
+  }
+  return pending;
+}
 
 export const ICON_RASTER = 64;
 export const PANEL_ICON_VIEWBOX = 512;
@@ -122,39 +142,45 @@ export function resolveIconBody(
   };
 }
 
-function getIconBody(key: string): { body: string; width: number; height: number } | null {
-  return resolveIconBody(key);
-}
-
 export function rasterIcon(key: string, hex: string, size: number): void {
   const cacheKey = `${key}:${hex}:${size}`;
-  if (iconCache.has(cacheKey)) return;
-  const icon = getIconBody(key);
-  if (!icon) return;
+  const cached = iconCache.get(cacheKey);
+  if (cached && !cached.destroyed) return;
+  if (cached) iconCache.delete(cacheKey);
+  if (loadingIcons.has(cacheKey)) return;
+
+  const icon = resolveIconBody(key);
+  if (!icon) {
+    takePendingSprites(cacheKey);
+    return;
+  }
+
   const coloured = icon.body.replaceAll("currentColor", hex);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${icon.width} ${icon.height}" width="${size}" height="${size}">${coloured}</svg>`;
-  const blob = new Blob([svg], { type: "image/svg+xml" });
-  const url = URL.createObjectURL(blob);
-  const img = new Image();
-  img.width = size;
-  img.height = size;
-  img.src = url;
-  img.onload = () => {
-    const c = document.createElement("canvas");
-    c.width = size;
-    c.height = size;
-    c.getContext("2d")!.drawImage(img, 0, 0, size, size);
-    URL.revokeObjectURL(url);
-    const tex = Texture.from(c);
-    iconCache.set(cacheKey, tex);
-    pendingSprites.get(cacheKey)?.forEach((entry) => {
-      if (entry.sprite.destroyed) return;
-      entry.sprite.texture = tex;
-      if (entry.displayWidth != null) entry.sprite.width = entry.displayWidth;
-      if (entry.displayHeight != null) entry.sprite.height = entry.displayHeight;
+  loadingIcons.add(cacheKey);
+  const completion = rasterizeSvgTexture(svg, size)
+    .then(
+      (texture) => {
+        loadingIcons.delete(cacheKey);
+        iconCache.set(cacheKey, texture);
+        const pending = takePendingSprites(cacheKey);
+        pending?.forEach((entry, sprite) => {
+          if (sprite.destroyed) return;
+          sprite.texture = texture;
+          if (entry.displayWidth != null) sprite.width = entry.displayWidth;
+          if (entry.displayHeight != null) sprite.height = entry.displayHeight;
+        });
+      },
+      () => {
+        loadingIcons.delete(cacheKey);
+        takePendingSprites(cacheKey);
+      },
+    )
+    .catch(() => {
+      loadingIcons.delete(cacheKey);
+      takePendingSprites(cacheKey);
     });
-    pendingSprites.delete(cacheKey);
-  };
+  void completion;
 }
 
 export function applyIcon(
@@ -165,15 +191,24 @@ export function applyIcon(
   displayWidth?: number,
   displayHeight?: number,
 ): void {
+  if (sprite.destroyed) return;
+  detachPendingSprite(sprite);
   const cacheKey = `${key}:${hex}:${size}`;
   const cached = iconCache.get(cacheKey);
-  if (cached) {
+  if (cached && !cached.destroyed) {
     sprite.texture = cached;
     if (displayWidth != null) sprite.width = displayWidth;
     if (displayHeight != null) sprite.height = displayHeight;
     return;
   }
+  if (cached) iconCache.delete(cacheKey);
+
+  let pending = pendingSprites.get(cacheKey);
+  if (!pending) {
+    pending = new Map();
+    pendingSprites.set(cacheKey, pending);
+  }
+  pending.set(sprite, { displayWidth, displayHeight });
+  pendingKeyBySprite.set(sprite, cacheKey);
   rasterIcon(key, hex, size);
-  if (!pendingSprites.has(cacheKey)) pendingSprites.set(cacheKey, new Set());
-  pendingSprites.get(cacheKey)!.add({ sprite, displayWidth, displayHeight });
 }

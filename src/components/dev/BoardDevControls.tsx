@@ -1,4 +1,4 @@
-import { Eye, Grid3X3, MousePointer2, PanelTop, Sparkles } from "lucide-react";
+import { Eye, Grid3X3, Layers3, MousePointer2, PanelTop, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -15,11 +15,13 @@ export function BoardDevControls() {
   const showPlayerPanelBounds = useGameDevStore((s) => s.showPlayerPanelBounds);
   const showGridSkeleton = useGameDevStore((s) => s.showGridSkeleton);
   const showAttackRows = useGameDevStore((s) => s.showAttackRows);
+  const debugStackCardEnabled = useGameDevStore((s) => s.debugStackCardEnabled);
   const setDevToolsEnabled = useGameDevStore((s) => s.setDevToolsEnabled);
   const setShowHoverAreas = useGameDevStore((s) => s.setShowHoverAreas);
   const setShowPlayerPanelBounds = useGameDevStore((s) => s.setShowPlayerPanelBounds);
   const setShowGridSkeleton = useGameDevStore((s) => s.setShowGridSkeleton);
   const setShowAttackRows = useGameDevStore((s) => s.setShowAttackRows);
+  const setDebugStackCardEnabled = useGameDevStore((s) => s.setDebugStackCardEnabled);
   const triggerEtbGlow = useGameDevStore((s) => s.triggerEtbGlow);
   const gameStateOverrides = useGameDevStore((s) => s.gameStateOverrides);
   const setGameStateOverride = useGameDevStore((s) => s.setGameStateOverride);
@@ -64,6 +66,8 @@ export function BoardDevControls() {
     query,
     "Tools",
     "Replay ETB glow",
+    "Debug stack card",
+    "Add the staged card to the live stack",
     "Zustand DevTools",
     "state inspector",
   );
@@ -233,6 +237,14 @@ export function BoardDevControls() {
                 Replay ETB glow
               </Button>
             </DevSearchable>
+            <GuideToggle
+              icon={Layers3}
+              label="Debug stack card"
+              description="Add the staged card to the live stack"
+              searchTerms={["Tools"]}
+              checked={debugStackCardEnabled}
+              onChange={setDebugStackCardEnabled}
+            />
             <GuideToggle
               label="Zustand DevTools"
               description="Mount the state inspector"

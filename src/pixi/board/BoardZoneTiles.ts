@@ -48,6 +48,7 @@ interface Tile {
   outline: Graphics;
   stack: Graphics;
   face: CardSprite | null;
+  renderedTopCard: CardDto | null;
   back: Sprite | null;
   backMask: Graphics | null;
   icon: Text;
@@ -147,6 +148,8 @@ export class BoardZoneTiles {
     grabY: number;
     moved: boolean;
   } | null = null;
+  private destroyed = false;
+  private cardBackRequest: Promise<void> | null = null;
   private longPress = new LongPressGesture();
 
   constructor(theme: Theme, host: ZoneTileHost) {
@@ -243,6 +246,7 @@ export class BoardZoneTiles {
       outline,
       stack,
       face: null,
+      renderedTopCard: null,
       back: null,
       backMask: null,
       icon,
@@ -333,6 +337,7 @@ export class BoardZoneTiles {
       if (tile.face) {
         tile.container.removeChild(tile.face);
         tile.face.destroy();
+        tile.renderedTopCard = null;
         tile.face = null;
       }
       if (!tile.back) {
@@ -342,8 +347,8 @@ export class BoardZoneTiles {
         tile.back.mask = tile.backMask;
         tile.container.addChildAt(tile.back, 1);
         tile.container.addChildAt(tile.backMask, 2);
-        this.ensureCardBack();
       }
+      if (tile.back.texture === Texture.EMPTY) this.ensureCardBack();
       return;
     }
     if (tile.back) {
@@ -357,23 +362,30 @@ export class BoardZoneTiles {
         tile.backMask = null;
       }
     }
-    if (spec.topCard) {
+    if (spec.topCard && tile.renderedTopCard !== spec.topCard) {
       const faceCard = { ...spec.topCard, summoningSick: false };
       if (!tile.face) {
         tile.face = new CardSprite(faceCard, "zone");
         tile.container.addChildAt(tile.face, 1);
+      } else {
+        tile.face.updateCardContent(faceCard);
       }
-      tile.face.updateCardContent(faceCard);
+      tile.renderedTopCard = spec.topCard;
     }
   }
 
   private ensureCardBack(): void {
-    loadCardBack()
-      .then((tex) => {
-        for (const tile of this.tiles.values()) if (tile.back) tile.back.texture = tex;
+    if (this.cardBackRequest) return;
+    this.cardBackRequest = loadCardBack()
+      .then((texture) => {
+        if (this.destroyed) return;
+        for (const tile of this.tiles.values()) if (tile.back) tile.back.texture = texture;
         this.redraw();
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        this.cardBackRequest = null;
+      });
   }
 
   private redraw(): void {
@@ -527,6 +539,7 @@ export class BoardZoneTiles {
   }
 
   destroy(): void {
+    this.destroyed = true;
     this.longPress.cancel();
     for (const tile of this.tiles.values()) tile.container.destroy({ children: true });
     this.tiles.clear();

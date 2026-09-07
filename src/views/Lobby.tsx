@@ -1,14 +1,16 @@
 import { TablesList } from "@/components/lobby/TablesList";
-import { UserList, type ConnectionState } from "@/components/lobby/UserList";
+import { LobbySidePanel } from "@/components/lobby/LobbySidePanel";
+import type { ConnectionState } from "@/components/lobby/UserList";
 import { TableSetup } from "@/components/lobby/TableSetup";
 import { TableCreatingSplash } from "@/components/lobby/TableCreatingSplash";
 import { CreateGameDialog } from "@/components/lobby/CreateGameDialog";
 import { LeaveGameModal } from "@/components/game/modals";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useIsDesktop } from "@/hooks/useBreakpoints";
 import { useServerStore } from "@/stores/useServerStore";
+import { useInviteStore } from "@/stores/useInviteStore";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { useMultiplayerSealedStore } from "@/stores/useMultiplayerSealedStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -21,8 +23,9 @@ import { startMpSealed } from "@/game/sealedStart";
 import { getDeckFingerprint } from "@/lib/decks";
 import { ROUTES } from "@/lib/constants";
 import { stripUsernameTag } from "@/lib/username";
+import { cn } from "@/lib/utils";
 import { getPlatform } from "@/platform";
-import { START_GAME_FAILURE_CODES } from "@/types/server";
+import { RELAY_FEATURE, START_GAME_FAILURE_CODES } from "@/types/server";
 import type {
   BotFailedPayload,
   DraftConfig,
@@ -35,6 +38,7 @@ import type { Deck } from "@/protocol/deck";
 import { toast } from "sonner";
 import { Settings, Users } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { findLanRelay, findOrHostLanRelay, isUnreachable, type LanTarget } from "@/lib/lanRelay";
 
 const START_GAME_ACK_TIMEOUT_MS = 5000;
 
@@ -114,7 +118,11 @@ export default function Lobby() {
     setFormat,
     setMaxPlayers,
     startGame,
+    relayFeatures,
   } = useServerStore();
+  const chatEnabled = relayFeatures.includes(RELAY_FEATURE.Chat);
+  const pendingInviteCount = useInviteStore((s) => s.invites.length);
+  const invitesEnabled = relayFeatures.includes(RELAY_FEATURE.RoomInvites);
   const prefs = usePreferencesStore();
   const accountHandle = useAuthStore((s) =>
     s.status === "signedIn" ? (s.account?.handle ?? null) : null,
@@ -126,6 +134,14 @@ export default function Lobby() {
       ? "connecting"
       : "disconnected";
   const savedDecks = useOwnedDecks();
+  const [lanTarget, setLanTarget] = useState<LanTarget | null>(null);
+  const lanTried = useRef(false);
+  const lanPreferred = useRef(false);
+  const lanDetail = lanTarget
+    ? lanTarget.hosting
+      ? "Hosting on your network"
+      : `On your network · ${lanTarget.name ?? "nearby host"}`
+    : undefined;
   const [settingUp, setSettingUp] = useState(false);
   const [creatingLabel, setCreatingLabel] = useState<string | null>(null);
   const [preferredSavedDeckId] = useState(initialPreferredSavedDeckId);
@@ -193,11 +209,44 @@ export default function Lobby() {
     }
   }, [sealedMode, navigate]);
 
+  // Nobody answered where we were told to look. Somebody on this network may be
+  // hosting, and if not, we can. Either way what comes back is an ordinary
+  // relay and the rest of the lobby never learns which one it got.
+  useEffect(() => {
+    if (connected || connecting || !isUnreachable(error) || lanTried.current) return;
+    const name = relayUsername();
+    if (!name) return;
+    lanTried.current = true;
+    void findOrHostLanRelay().then((target) => {
+      if (!target) return;
+      setLanTarget(target);
+      connect(target.host, target.port, name, target.password);
+    });
+  }, [connected, connecting, error, connect]);
+
+  // A relay answering on this network is this network's lobby, so it wins. Only
+  // a `relay` record counts: that is a machine somebody set up to be the lobby,
+  // where a `room` is one table on a desktop and belongs to the fallback above.
+  // Decided before the first connection rather than corrected after one, so
+  // nobody watches it connect somewhere and move.
   useEffect(() => {
     const name = relayUsername();
-    if (!connected && !connecting && !error && name) {
+    if (connected || connecting || error || !name) return;
+    const configured = () =>
       connect(prefs.serverHost, prefs.serverPort, name, prefs.serverPassword);
+    if (lanPreferred.current) {
+      configured();
+      return;
     }
+    lanPreferred.current = true;
+    void findLanRelay().then((target) => {
+      if (!target) {
+        configured();
+        return;
+      }
+      setLanTarget(target);
+      connect(target.host, target.port, name, target.password);
+    });
   }, [
     connect,
     connected,
@@ -455,7 +504,7 @@ export default function Lobby() {
   return (
     <div className="flex h-full w-full min-h-0">
       <div className="flex min-w-0 flex-1 flex-col">
-        {!currentRoom && (!connected || (!isDesktop && !!myUsername)) && (
+        {(!connected || (!isDesktop && !!myUsername)) && (
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 px-4 py-2 sm:px-6 lg:px-8">
             {!connected && error && (
               <Button
@@ -479,11 +528,18 @@ export default function Lobby() {
                 variant="ghost"
                 className="md:hidden"
                 onClick={() => setPlayersDrawerOpen(true)}
-                title="Show players"
+                title="Show players and chat"
               >
-                <Users /> Players
-                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                  {players.length}
+                <Users /> {chatEnabled ? "Players & chat" : "Players"}
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[10px]",
+                    pendingInviteCount > 0
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {pendingInviteCount > 0 ? pendingInviteCount : players.length}
                 </span>
               </Button>
             )}
@@ -530,32 +586,39 @@ export default function Lobby() {
       </div>
 
       {myUsername && (
-        <aside className="hidden w-72 shrink-0 flex-col md:flex lg:w-80">
+        <aside className="hidden w-80 shrink-0 flex-col md:flex lg:w-96">
           <div className="m-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card/70 shadow-sm backdrop-blur-md">
-            <UserList
+            <LobbySidePanel
               players={players}
               rooms={rooms}
               currentRoom={currentRoom}
               currentPlayerId={playerId}
               currentUsername={myUsername}
               connectionState={connectionState}
+              chatEnabled={chatEnabled}
+              invitesEnabled={invitesEnabled}
+              connectionDetail={lanDetail}
               onJoinRoom={handleJoinRoom}
             />
           </div>
         </aside>
       )}
 
-      {myUsername && !currentRoom && (
+      {myUsername && (
         <Sheet open={playersDrawerOpen} onOpenChange={setPlayersDrawerOpen}>
           <SheetContent side="right" className="w-80 max-w-[88vw] p-0 sm:w-96">
-            <SheetTitle className="sr-only">Players</SheetTitle>
-            <UserList
+            <SheetTitle className="sr-only">Players and chat</SheetTitle>
+            <LobbySidePanel
               players={players}
               rooms={rooms}
               currentRoom={currentRoom}
               currentPlayerId={playerId}
               currentUsername={myUsername}
               connectionState={connectionState}
+              chatEnabled={chatEnabled}
+              invitesEnabled={invitesEnabled}
+              layout="tabs"
+              connectionDetail={lanDetail}
               onJoinRoom={handleJoinRoom}
             />
           </SheetContent>

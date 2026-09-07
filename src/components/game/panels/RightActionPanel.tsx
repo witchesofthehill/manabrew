@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { PanelRightClose, ScrollText } from "lucide-react";
+import { useLayoutEffect, useRef } from "react";
 import type { RightActionPanelProps } from "../game.types";
 import { TAB_BUTTON_BASE, TAB_ACTIVE, TAB_INACTIVE } from "../game.styles";
 import { ActionLog } from "./ActionLog";
@@ -19,6 +20,7 @@ export function RightActionPanel({
   snapshots,
   canRestoreSnapshots,
   onRestoreSnapshot,
+  onLeftEdgeChange,
 }: RightActionPanelProps) {
   const visibleLog = gameLog.filter((entry) => entry.entryType !== "rule");
   const forceLogActivityOverride = useGameDevStore(
@@ -29,6 +31,23 @@ export function RightActionPanel({
   const setActiveTab = useGameUIStore((s) => s.setRightPanelTab);
   const forceLogActivity = import.meta.env.DEV && forceLogActivityOverride;
   const logActivityCount = forceLogActivity ? Math.max(4, visibleLog.length) : visibleLog.length;
+  const panelRef = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!panel || !onLeftEdgeChange) return;
+    const measure = () => onLeftEdgeChange(panel.getBoundingClientRect().left);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(panel);
+    if (panel.parentElement) observer.observe(panel.parentElement);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+      onLeftEdgeChange(undefined);
+    };
+  }, [collapsed, onLeftEdgeChange]);
 
   if (collapsed)
     return logActivityCount > 0 ? (
@@ -51,6 +70,7 @@ export function RightActionPanel({
 
   return (
     <aside
+      ref={panelRef}
       className={cn(
         "absolute right-[calc(0.375rem+var(--safe-area-inset-right))] top-[calc(0.375rem+var(--safe-area-inset-top))] bottom-[calc(0.375rem+var(--safe-area-inset-bottom))] z-50 rounded-lg bg-card/95 backdrop-blur-sm transition-[width,background-color,border-color] overflow-visible border border-border/70 shadow-[0_20px_60px_rgba(0,0,0,0.45)]",
         activeTab === "dev"

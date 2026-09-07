@@ -1,5 +1,7 @@
 use std::collections::{BTreeMap, VecDeque};
+use std::sync::{Arc, Once, OnceLock};
 
+use forge_carddb::CardDatabase;
 use forge_foundation::ZoneType;
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +27,7 @@ use crate::zone::{CostPaymentStack, Zone, ZoneKey, ZoneStore};
 /// return the loaded data without any per-game copying.
 pub struct TypeRegistry;
 
-static CREATURE_TYPES: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+static CREATURE_TYPES: OnceLock<Vec<String>> = OnceLock::new();
 
 impl TypeRegistry {
     /// Load creature types from the raw contents of `TypeLists.txt`.
@@ -85,6 +87,29 @@ impl TypeRegistry {
             }
         }
         types
+    }
+}
+
+static CARD_DATABASE: OnceLock<Arc<CardDatabase>> = OnceLock::new();
+static CARD_DATABASE_PARSED: Once = Once::new();
+
+pub struct CardDatabaseRegistry;
+
+impl CardDatabaseRegistry {
+    pub fn load(database: Arc<CardDatabase>) {
+        let _ = CARD_DATABASE.set(database);
+    }
+
+    pub fn get() -> Option<&'static CardDatabase> {
+        CARD_DATABASE.get().map(Arc::as_ref)
+    }
+
+    pub fn all() -> Option<&'static CardDatabase> {
+        let database = Self::get()?;
+        CARD_DATABASE_PARSED.call_once(|| {
+            database.force_parse_all();
+        });
+        Some(database)
     }
 }
 

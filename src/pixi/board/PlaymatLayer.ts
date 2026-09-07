@@ -19,7 +19,7 @@ export const DEFAULT_PLAYMAT_SETTINGS: Required<PlaymatSettings> = {
   opacity: 0.62,
   texture: 0.5,
   borderWidth: 2,
-  borderColor: "#27272a",
+  borderColor: "",
   fit: "cover",
   offsetX: 0.5,
   offsetY: 0.5,
@@ -65,9 +65,15 @@ function hue2rgb(p: number, q: number, t: number): number {
   return p;
 }
 
-function clampColor(hex: string, lMin: number, lMax: number, sMax: number): string {
+function clampColor(
+  hex: string,
+  fallback: string,
+  lMin: number,
+  lMax: number,
+  sMax: number,
+): string {
   const match = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
-  if (!match) return getTheme().gameTheme.canvas.background;
+  if (!match) return fallback;
   const int = parseInt(match[1], 16);
   const r = ((int >> 16) & 255) / 255;
   const g = ((int >> 8) & 255) / 255;
@@ -107,10 +113,22 @@ function clampColor(hex: string, lMin: number, lMax: number, sMax: number): stri
 }
 
 export const clampBorderColor = (hex: string): string =>
-  clampColor(hex, BORDER_LIGHTNESS_MIN, BORDER_LIGHTNESS_MAX, BORDER_SATURATION_MAX);
+  clampColor(
+    hex,
+    getTheme().gameTheme.canvas.shadow,
+    BORDER_LIGHTNESS_MIN,
+    BORDER_LIGHTNESS_MAX,
+    BORDER_SATURATION_MAX,
+  );
 
 export const clampPlaymatColor = (hex: string): string =>
-  clampColor(hex, BACKGROUND_LIGHTNESS_MIN, BACKGROUND_LIGHTNESS_MAX, BACKGROUND_SATURATION_MAX);
+  clampColor(
+    hex,
+    getTheme().gameTheme.canvas.background,
+    BACKGROUND_LIGHTNESS_MIN,
+    BACKGROUND_LIGHTNESS_MAX,
+    BACKGROUND_SATURATION_MAX,
+  );
 
 const materialTextures = new Map<"fabric" | "vignette", Texture>();
 
@@ -156,6 +174,7 @@ export class PlaymatLayer {
   private border: Graphics;
   private mask: Graphics;
   private imageTexture: Texture | null = null;
+  private pendingImage: HTMLImageElement | null = null;
   private blurFilter = new BlurFilter({ strength: 0, quality: 4 });
   private brightnessFilter = new ColorMatrixFilter();
   private url: string | null = null;
@@ -166,9 +185,11 @@ export class PlaymatLayer {
   private materialDirty = true;
   private materialTheme: GameTheme | null = null;
   private layoutRect: PlayZoneRect = { x: 0, y: 0, width: 0, height: 0 };
+  private onVisualChange: (() => void) | undefined;
 
-  constructor() {
+  constructor(onVisualChange?: () => void) {
     this.container = new Container();
+    this.onVisualChange = onVisualChange;
     this.container.eventMode = "none";
     this.container.visible = false;
 
@@ -193,33 +214,65 @@ export class PlaymatLayer {
 
   setImage(url: string | undefined): void {
     const next = url ?? null;
-    if (next === this.url) return;
+    if (next === this.url && (this.pendingImage || this.imageTexture)) return;
+    this.cancelImageLoad();
     this.url = next;
-    if (!next) {
-      this.imageTexture?.destroy(true);
-      this.imageTexture = null;
-      this.image.visible = false;
-      this.updateVisibility();
-      if (this.rect) this.layout(this.rect, { dropActive: this.dropActive });
-      return;
-    }
+    this.clearImageTexture();
+    this.updateVisibility();
+    if (this.rect) this.layout(this.rect, { dropActive: this.dropActive });
+    this.onVisualChange?.();
+    if (!next) return;
+
     const img = new Image();
+    this.pendingImage = img;
     this.materialDirty = true;
-    // The blur and brightness filters read this texture back through WebGL,
-    // which throws on a tainted cross-origin image.
     img.crossOrigin = "anonymous";
     img.onload = () => {
-      if (this.container.destroyed) return;
-      if (this.url !== next) return;
-      this.imageTexture?.destroy(true);
-      this.imageTexture = new Texture({ source: new ImageSource({ resource: img }) });
+      if (this.container.destroyed || this.pendingImage !== img || this.url !== next) return;
+      this.pendingImage = null;
+      img.onload = null;
+      img.onerror = null;
+      try {
+        this.imageTexture = new Texture({ source: new ImageSource({ resource: img }) });
+      } catch {
+        this.clearImageTexture();
+      }
       this.materialDirty = true;
-      this.image.texture = this.imageTexture;
-      this.image.visible = true;
+      if (this.imageTexture) {
+        this.image.texture = this.imageTexture;
+        this.image.visible = true;
+      }
       this.updateVisibility();
       if (this.rect) this.layout(this.rect, { dropActive: this.dropActive });
+      this.onVisualChange?.();
+    };
+    img.onerror = () => {
+      if (this.container.destroyed || this.pendingImage !== img || this.url !== next) return;
+      this.pendingImage = null;
+      img.onload = null;
+      img.onerror = null;
+      this.clearImageTexture();
+      this.updateVisibility();
+      if (this.rect) this.layout(this.rect, { dropActive: this.dropActive });
+      this.onVisualChange?.();
     };
     img.src = next;
+  }
+
+  private cancelImageLoad(): void {
+    if (!this.pendingImage) return;
+    this.pendingImage.onload = null;
+    this.pendingImage.onerror = null;
+    this.pendingImage = null;
+  }
+
+  private clearImageTexture(): void {
+    const texture = this.imageTexture;
+    this.imageTexture = null;
+    this.image.texture = Texture.EMPTY;
+    this.image.visible = false;
+    this.materialDirty = true;
+    texture?.destroy(true);
   }
 
   setSettings(settings: PlaymatSettings | undefined): void {
@@ -238,7 +291,7 @@ export class PlaymatLayer {
   }
 
   private updateVisibility(): void {
-    this.container.visible = !!this.url || !!this.settings.color;
+    this.container.visible = !!this.imageTexture || !!this.settings.color;
   }
 
   private applySettings(): void {
@@ -351,9 +404,10 @@ export class PlaymatLayer {
   }
 
   destroy(): void {
+    this.cancelImageLoad();
+    this.clearImageTexture();
+    this.onVisualChange = undefined;
     this.content.mask = null;
     safeDestroy(this.container);
-    this.imageTexture?.destroy(true);
-    this.imageTexture = null;
   }
 }

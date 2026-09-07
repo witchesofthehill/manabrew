@@ -187,9 +187,19 @@ export const RELAY_FEATURE = {
   LocalGame: "local_game",
   Chat: "chat",
   RoomInvites: "room_invites",
+  GameOutcome: "game_outcome",
 } as const;
 
 export type RelayFeature = (typeof RELAY_FEATURE)[keyof typeof RELAY_FEATURE];
+
+/** Engine slots, not names: the relay maps them to seats itself. */
+export interface GameOutcomeReport {
+  game_over: boolean;
+  winner_slot?: string;
+  conceded_slots?: string[];
+  fatal_message?: string;
+  turns?: number;
+}
 
 export type ChatScope = "Lobby" | "Room";
 

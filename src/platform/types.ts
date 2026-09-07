@@ -4,6 +4,7 @@ import type {
   DraftConfig,
   EngineKind,
   GameFormat,
+  GameOutcomeReport,
   RoomRelayEnvelope,
   SealedConfig,
   LocalGameKind,
@@ -156,6 +157,7 @@ export interface IServerApi {
   startGame(params?: StartServerGameParams): Promise<void>;
   endGame(gameId: string): Promise<void>;
   reportEngineStats(stats: EngineGameStats, gameId?: string | null): Promise<void>;
+  reportGameOutcome(gameId: string, outcome: GameOutcomeReport): Promise<void>;
   requestResync(): Promise<void>;
   broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void>;
   sendRoomMessage(message: RoomRelayEnvelope): Promise<void>;

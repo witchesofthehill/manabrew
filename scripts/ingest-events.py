@@ -75,6 +75,21 @@ CREATE TABLE IF NOT EXISTS client_connections (
   reconnected INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_client_connections_ts ON client_connections(ts);
+CREATE TABLE IF NOT EXISTS plane_attempts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts TEXT NOT NULL,
+  room_id TEXT,
+  username TEXT NOT NULL,
+  peer TEXT NOT NULL,
+  plane TEXT NOT NULL,
+  outcome TEXT NOT NULL,
+  phase TEXT NOT NULL,
+  connect_ms INTEGER,
+  rtt_ms INTEGER,
+  relay_rtt_ms INTEGER,
+  candidate_pair TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_plane_attempts_ts ON plane_attempts(ts);
 CREATE INDEX IF NOT EXISTS idx_games_started ON games(started_at);
 CREATE INDEX IF NOT EXISTS idx_games_ranking ON games(official, format, started_at);
 CREATE INDEX IF NOT EXISTS idx_game_players_user ON game_players(username);
@@ -175,6 +190,13 @@ def open_db(path: Path) -> sqlite3.Connection:
     ensure_column(db, "engine_stats", "think_hidden", "INTEGER NOT NULL DEFAULT 0")
     ensure_column(db, "games", "source", "TEXT")
     ensure_column(db, "games", "reported_at", "TEXT")
+    # Whether the engine host filed the outcome. Relay rows from before the
+    # host reported it carry NULL: their outcome was read off the state stream.
+    ensure_column(db, "games", "reported", "INTEGER")
+    ensure_column(db, "games", "turns", "INTEGER")
+    # Seats the host served off the relay, from its transport report; NULL
+    # when none did. Compare with player_count for the room's shape.
+    ensure_column(db, "games", "direct_seats", "INTEGER")
     db.execute("UPDATE games SET source = 'relay' WHERE source IS NULL")
     db.commit()
     return db
@@ -229,14 +251,16 @@ def ingest_game_started(db, ev):
 
 
 def ingest_game_ended(db, ev):
+    reported = ev.get("reported")
     db.execute(
         """INSERT INTO games (game_id, room_id, ended_at, duration_s, end_reason,
-                              game_over, winner, source)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 'relay')
+                              game_over, winner, reported, turns, source)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'relay')
            ON CONFLICT(game_id) DO UPDATE SET
              ended_at=excluded.ended_at, duration_s=excluded.duration_s,
              end_reason=excluded.end_reason, game_over=excluded.game_over,
-             winner=excluded.winner""",
+             winner=excluded.winner, reported=excluded.reported,
+             turns=excluded.turns""",
         (
             ev.get("game_id"),
             ev.get("room_id"),
@@ -245,6 +269,41 @@ def ingest_game_ended(db, ev):
             ev.get("reason"),
             int(bool(ev.get("game_over"))),
             ev.get("winner"),
+            None if reported is None else int(bool(reported)),
+            ev.get("turns"),
+        ),
+    )
+
+
+def ingest_transport_used(db, ev):
+    seats = ev.get("seats") or []
+    direct = sum(1 for seat in seats if seat.get("transport") == "webrtc")
+    db.execute(
+        """INSERT INTO games (game_id, room_id, direct_seats, source)
+           VALUES (?, ?, ?, 'relay')
+           ON CONFLICT(game_id) DO UPDATE SET direct_seats=excluded.direct_seats""",
+        (ev.get("game_id"), ev.get("room_id"), direct),
+    )
+
+
+def ingest_plane_quality(db, ev):
+    db.execute(
+        """INSERT INTO plane_attempts
+             (ts, room_id, username, peer, plane, outcome, phase,
+              connect_ms, rtt_ms, relay_rtt_ms, candidate_pair)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            ev.get("ts"),
+            ev.get("room_id"),
+            ev.get("username"),
+            ev.get("peer"),
+            ev.get("plane"),
+            ev.get("outcome"),
+            ev.get("phase"),
+            ev.get("connect_ms"),
+            ev.get("rtt_ms"),
+            ev.get("relay_rtt_ms"),
+            ev.get("candidate_pair"),
         ),
     )
 
@@ -339,6 +398,8 @@ INGESTERS = {
     "game_ended": ingest_game_ended,
     "deck_selected": ingest_deck_selected,
     "engine_stats": ingest_engine_stats,
+    "transport_used": ingest_transport_used,
+    "plane_quality": ingest_plane_quality,
 }
 
 
@@ -461,8 +522,8 @@ def sync_offline_games(db, hub) -> int:
                 """INSERT OR IGNORE INTO games
                      (game_id, room_id, started_at, ended_at, duration_s, format,
                       engine, hosted, official, starting_life, player_count,
-                      end_reason, game_over, winner, source, reported_at)
-                   VALUES (?, NULL, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, 'offline', ?)""",
+                      end_reason, game_over, winner, reported, source, reported_at)
+                   VALUES (?, NULL, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, 1, 'offline', ?)""",
                 (
                     game_id,
                     started_at,

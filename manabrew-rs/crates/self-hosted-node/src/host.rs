@@ -14,12 +14,13 @@ use manabot::{run_bot, AgentKind, BotConfig};
 use manabrew_agent_interface::ids_codec::{parse_player_slot, player_slot};
 use manabrew_agent_interface::prompt::{AgentMessage, ClientToServerMessage, PromptOutput};
 use manabrew_agent_interface::protocol::{
-    identity_token, ClientMessage, ClientPlatform, EngineKind, GameFormat, IdentityProof,
-    PlayerDeckInfo, ResumeRoomRequest, RoomInfo, RoomStatus, ServerMessage, StateEnvelope,
-    PROTOCOL_VERSION,
+    identity_token, ClientMessage, ClientPlatform, EngineKind, GameFormat, GameOutcomeReport,
+    IdentityProof, PlayerDeckInfo, ResumeRoomRequest, RoomInfo, RoomStatus, ServerMessage,
+    StateEnvelope, PROTOCOL_VERSION,
 };
 use manabrew_protocol::deck_dto::Deck;
-use manabrew_protocol::transport::DirectiveInput;
+use manabrew_protocol::game::{GameViewDto, PlayerStatus};
+use manabrew_protocol::transport::{DirectiveInput, StateUpdate};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::net::TcpStream;
@@ -1821,6 +1822,13 @@ fn finish_hosted_engine(
                     snap.pending_end_game = Some(game_id.to_string());
                 }
             }
+            let _ = outbound_tx.send(ClientMessage::ReportGameOutcome {
+                game_id: game_id.to_string(),
+                outcome: GameOutcomeReport {
+                    fatal_message: Some(message.clone()),
+                    ..GameOutcomeReport::default()
+                },
+            });
             if let Ok(state) = serde_json::to_value(StateEnvelope::Fatal { message }) {
                 let _ = outbound_tx.send(ClientMessage::BroadcastState {
                     state,
@@ -2177,6 +2185,26 @@ fn spawn_remote_prompt_forwarder(
     });
 }
 
+fn outcome_report(view: &GameViewDto) -> GameOutcomeReport {
+    GameOutcomeReport {
+        game_over: view.game_over,
+        winner_slot: view.winner_id.clone(),
+        conceded_slots: view
+            .players
+            .iter()
+            .filter(|player| player.status == PlayerStatus::Conceded)
+            .map(|player| player.id.clone())
+            .collect(),
+        fatal_message: None,
+        turns: Some(view.turn),
+    }
+}
+
+fn cached_outcome_report(envelope: &Value) -> Option<GameOutcomeReport> {
+    let update: StateUpdate = serde_json::from_value(envelope.get("state")?.clone()).ok()?;
+    Some(outcome_report(&update.game_view))
+}
+
 fn spawn_game_over_forwarder(
     outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
     game_over_rx: std_mpsc::Receiver<HostedGameOver>,
@@ -2209,6 +2237,22 @@ fn spawn_game_over_forwarder(
                     snap.pending_end_game = Some(game_id.clone());
                 }
             }
+            let outcome = game_over
+                .messages
+                .iter()
+                .rev()
+                .find_map(|(_, message)| match message {
+                    AgentMessage::State(update) => Some(outcome_report(&update.game_view)),
+                    _ => None,
+                })
+                .or_else(|| {
+                    let snap = snapshot.lock().ok()?;
+                    snap.last_state
+                        .as_ref()
+                        .or_else(|| snap.last_state_by_slot.values().next())
+                        .and_then(cached_outcome_report)
+                        .filter(|outcome| outcome.game_over)
+                });
             let mut last_state_by_seat: HashMap<usize, Value> = HashMap::new();
             let mut last_state: Option<Value> = None;
             for (player_index, message) in game_over.messages {
@@ -2283,6 +2327,12 @@ fn spawn_game_over_forwarder(
                 .is_err()
             {
                 return;
+            }
+            if let Some(outcome) = outcome {
+                let _ = outbound_tx.send(ClientMessage::ReportGameOutcome {
+                    game_id: game_id.clone(),
+                    outcome,
+                });
             }
             if outbound_tx
                 .send(ClientMessage::EndGame {

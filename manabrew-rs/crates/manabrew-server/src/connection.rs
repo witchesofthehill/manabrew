@@ -1604,6 +1604,31 @@ fn handle_client_message(
             });
         }
 
+        ClientMessage::ReportGameOutcome { game_id, outcome } => {
+            let room_id = state.players.get(player_id).and_then(|p| p.room_id.clone());
+            let recorded = room_id
+                .and_then(|room_id| state.rooms.get_mut(&room_id))
+                .filter(|room| room.is_host(player_id))
+                .and_then(|mut room| {
+                    room.replay
+                        .as_mut()
+                        .filter(|replay| replay.game_id == game_id)
+                        .map(|replay| replay.record_outcome(outcome))
+                })
+                .is_some();
+            metrics::record_game_outcome_report(if recorded {
+                metrics::OUTCOME_REPORT_ACCEPTED
+            } else {
+                metrics::OUTCOME_REPORT_REJECTED
+            });
+            if !recorded {
+                debug!(
+                    "[analytics] '{}' filed an outcome for a game it does not host",
+                    username
+                );
+            }
+        }
+
         ClientMessage::RequestResync => {
             let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
             let replayed = room_id.and_then(|rid| {
@@ -1874,6 +1899,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::SetMaxPlayers { .. } => "SetMaxPlayers",
         ClientMessage::StartGame { .. } => "StartGame",
         ClientMessage::EndGame { .. } => "EndGame",
+        ClientMessage::ReportGameOutcome { .. } => "ReportGameOutcome",
         ClientMessage::ReportEngineStats { .. } => "ReportEngineStats",
         ClientMessage::RequestResync => "RequestResync",
         ClientMessage::BroadcastState { .. } => "BroadcastState",

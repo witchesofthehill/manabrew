@@ -3,9 +3,8 @@ use std::time::Instant;
 
 use serde_json::Value;
 
-use crate::protocol::PlayerDeckInfo;
+use crate::protocol::{GameOutcomeReport, PlayerDeckInfo, MAX_FATAL_MESSAGE_CHARS};
 const PLAYER_SLOT_PREFIX: &str = "player-";
-const MAX_FATAL_MESSAGE_CHARS: usize = 500;
 
 #[derive(Debug, Clone)]
 pub struct QueuedEngineInput {
@@ -14,11 +13,13 @@ pub struct QueuedEngineInput {
 }
 
 #[derive(Debug, Default)]
-pub struct ObservedOutcome {
+pub struct ReportedOutcome {
+    pub reported: bool,
     pub game_over: bool,
     pub winner_slot: Option<String>,
     pub conceded_slots: Vec<String>,
     pub fatal_message: Option<String>,
+    pub turns: Option<u32>,
 }
 
 #[derive(Debug)]
@@ -32,7 +33,7 @@ pub struct GameReplayCache {
     pub last_state_by_slot: HashMap<String, Value>,
     pub pending_prompts: HashMap<String, Value>,
     pub queued_inputs: HashMap<String, Vec<QueuedEngineInput>>,
-    pub outcome: ObservedOutcome,
+    pub outcome: ReportedOutcome,
 }
 
 impl GameReplayCache {
@@ -52,25 +53,21 @@ impl GameReplayCache {
             last_state_by_slot: HashMap::new(),
             pending_prompts: HashMap::new(),
             queued_inputs: HashMap::new(),
-            outcome: ObservedOutcome::default(),
+            outcome: ReportedOutcome::default(),
         }
     }
 
     pub fn observe(&mut self, envelope: &Value) {
         match envelope.get("kind").and_then(Value::as_str) {
-            Some("state") => {
-                self.observe_outcome(envelope);
-                match envelope.get("forPlayer").and_then(Value::as_str) {
-                    Some(slot) => {
-                        self.last_state_by_slot
-                            .insert(slot.to_string(), envelope.clone());
-                    }
-                    None => self.last_state = Some(envelope.clone()),
+            Some("state") => match envelope.get("forPlayer").and_then(Value::as_str) {
+                Some(slot) => {
+                    self.last_state_by_slot
+                        .insert(slot.to_string(), envelope.clone());
                 }
-            }
+                None => self.last_state = Some(envelope.clone()),
+            },
             // Patches must be folded into the cached state, not stored raw: a
-            // resyncing client needs a whole board, and the outcome watcher
-            // reads gameOver out of it.
+            // resyncing client needs a whole board.
             Some("stateDelta") => {
                 let slot = envelope.get("forPlayer").and_then(Value::as_str);
                 let previous = match slot {
@@ -94,7 +91,6 @@ impl GameReplayCache {
                         object.insert("fingerprint".to_string(), fingerprint.clone());
                     }
                 }
-                self.observe_outcome(&rebuilt);
                 self.restore_state(slot, rebuilt);
             }
             Some("prompt") => {
@@ -106,12 +102,6 @@ impl GameReplayCache {
             Some("response") => {
                 if let Some(slot) = envelope.get("fromPlayer").and_then(Value::as_str) {
                     self.pending_prompts.remove(slot);
-                }
-            }
-            Some("fatal") => {
-                if let Some(message) = envelope.get("message").and_then(Value::as_str) {
-                    self.outcome.fatal_message =
-                        Some(message.chars().take(MAX_FATAL_MESSAGE_CHARS).collect());
                 }
             }
             _ => {}
@@ -127,29 +117,18 @@ impl GameReplayCache {
         }
     }
 
-    fn observe_outcome(&mut self, envelope: &Value) {
-        let Some(game_view) = envelope
-            .get("state")
-            .and_then(|state| state.get("gameView"))
-        else {
-            return;
+    pub fn record_outcome(&mut self, report: GameOutcomeReport) {
+        let seats = self.player_order.len();
+        self.outcome = ReportedOutcome {
+            reported: true,
+            game_over: report.game_over,
+            winner_slot: report.winner_slot,
+            conceded_slots: report.conceded_slots.into_iter().take(seats).collect(),
+            fatal_message: report
+                .fatal_message
+                .map(|message| message.chars().take(MAX_FATAL_MESSAGE_CHARS).collect()),
+            turns: report.turns,
         };
-        if game_view.get("gameOver").and_then(Value::as_bool) != Some(true) {
-            return;
-        }
-        self.outcome.game_over = true;
-        self.outcome.winner_slot = game_view
-            .get("winnerId")
-            .and_then(Value::as_str)
-            .map(str::to_string);
-        if let Some(players) = game_view.get("players").and_then(Value::as_array) {
-            self.outcome.conceded_slots = players
-                .iter()
-                .filter(|player| player.get("status").and_then(Value::as_str) == Some("conceded"))
-                .filter_map(|player| player.get("id").and_then(Value::as_str))
-                .map(str::to_string)
-                .collect();
-        }
     }
 
     /// The whole board this seat should be holding, as folded by [`Self::observe`].

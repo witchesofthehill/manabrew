@@ -36,6 +36,7 @@ import {
   DUPLICATE_USERNAME_ERROR_FRAGMENT,
   SERVER_ERROR_CODE,
   TOKEN_EXPIRED_ERROR_FRAGMENT,
+  type GameOutcomeReport,
   type LocalGameKind,
 } from "@/types/server";
 import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
@@ -1142,6 +1143,10 @@ class WebServerApi implements IServerApi {
       throw new Error("Relay is not connected; queue the engine report instead.");
     }
     this.send({ type: "ReportEngineStats", game_id: gameId ?? null, stats });
+  }
+
+  async reportGameOutcome(gameId: string, outcome: GameOutcomeReport): Promise<void> {
+    this.send({ type: "ReportGameOutcome", game_id: gameId, outcome });
   }
 
   async requestResync(): Promise<void> {

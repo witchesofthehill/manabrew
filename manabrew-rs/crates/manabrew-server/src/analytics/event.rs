@@ -81,6 +81,11 @@ pub enum AnalyticsEvent {
         winner: Option<String>,
         conceded: Vec<String>,
         fatal_message: Option<String>,
+        /// Whether the host filed the outcome; false means the reason is the
+        /// room lifecycle's fallback and `game_over` says nothing.
+        reported: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        turns: Option<u32>,
     },
     EngineStats {
         ts: String,

@@ -185,6 +185,14 @@ pub enum ClientMessage {
         stats: EnginePlayStats,
     },
 
+    /// How the game ended, from the seat that ran the engine. The relay
+    /// stopped reading it out of the state stream, which need not pass
+    /// through it any more.
+    ReportGameOutcome {
+        game_id: String,
+        outcome: GameOutcomeReport,
+    },
+
     RequestResync,
 
     BroadcastState {
@@ -504,8 +512,33 @@ pub const FEATURE_LOCAL_GAME: &str = "local_game";
 pub const FEATURE_CHAT: &str = "chat";
 /// Names [`ClientMessage::InviteToRoom`] in `AuthResult::features`.
 pub const FEATURE_ROOM_INVITES: &str = "room_invites";
+/// Names [`ClientMessage::ReportGameOutcome`] in `AuthResult::features`.
+pub const FEATURE_GAME_OUTCOME: &str = "game_outcome";
 
-pub const FEATURES: &[&str] = &[FEATURE_LOCAL_GAME, FEATURE_CHAT, FEATURE_ROOM_INVITES];
+pub const FEATURES: &[&str] = &[
+    FEATURE_LOCAL_GAME,
+    FEATURE_CHAT,
+    FEATURE_ROOM_INVITES,
+    FEATURE_GAME_OUTCOME,
+];
+
+/// Longest `fatal_message` the relay keeps.
+pub const MAX_FATAL_MESSAGE_CHARS: usize = 500;
+
+/// Engine slots (`player-N`), never usernames: the relay holds the seat map
+/// and does not take a name from a client.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GameOutcomeReport {
+    pub game_over: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub winner_slot: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub conceded_slots: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fatal_message: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turns: Option<u32>,
+}
 
 /// A game running on the player's own machine, which the relay never sees.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

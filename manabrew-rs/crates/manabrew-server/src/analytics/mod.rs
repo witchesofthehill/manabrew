@@ -190,6 +190,8 @@ pub fn emit_game_ended(
         winner,
         conceded,
         fatal_message: replay.outcome.fatal_message.clone(),
+        reported: replay.outcome.reported,
+        turns: replay.outcome.turns,
     });
 }
 

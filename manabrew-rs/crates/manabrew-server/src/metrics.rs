@@ -20,6 +20,7 @@ const ANALYTICS_DROPPED: &str = "manabrew_relay_analytics_dropped_total";
 const DECK_PLAY_EVENTS_DROPPED: &str = "manabrew_relay_deck_play_events_dropped_total";
 const STATE_PATCH_DOWNGRADES: &str = "manabrew_relay_state_patch_downgrades_total";
 const ENGINE_REPORTS: &str = "manabrew_relay_engine_reports_total";
+const GAME_OUTCOME_REPORTS: &str = "manabrew_relay_game_outcome_reports_total";
 const CLIENT_RTT: &str = "manabrew_relay_client_rtt_ms";
 const STATE_HANDLING: &str = "manabrew_relay_state_handling_seconds";
 const SOCKET_WRITE: &str = "manabrew_relay_socket_write_seconds";
@@ -43,6 +44,9 @@ pub const ENGINE_REPORT_ACCEPTED: &str = "accepted";
 /// rise in it means seats are leaving earlier than they used to.
 pub const ENGINE_REPORT_ROOMLESS: &str = "accepted_roomless";
 pub const ENGINE_REPORT_IMPLAUSIBLE: &str = "implausible";
+
+pub const OUTCOME_REPORT_ACCEPTED: &str = "accepted";
+pub const OUTCOME_REPORT_REJECTED: &str = "rejected";
 
 #[derive(Clone, Copy)]
 enum ConnectionKind {
@@ -155,6 +159,12 @@ pub fn record_state_patch_downgrade() {
 /// no way to tell a client that never sent from a relay that threw it away.
 pub fn record_engine_report(outcome: &'static str) {
     counter!(ENGINE_REPORTS, LABEL_OUTCOME => outcome).increment(1);
+}
+
+/// A rise in `rejected` means a seat other than the host, or a host naming a
+/// game the relay is not running, is filing outcomes.
+pub fn record_game_outcome_report(kind: &'static str) {
+    counter!(GAME_OUTCOME_REPORTS, LABEL_KIND => kind).increment(1);
 }
 
 /// Round trip from the relay to a client and back, taken from the websocket

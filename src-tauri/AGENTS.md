@@ -32,9 +32,6 @@ Read first: `/AGENTS.md`.
 
 ## The direct transport
 
-Every seat, desktop included, takes the direct plane over WebRTC, driven from the webview
-(`src/game/webrtcPlane.ts`); the Tauri shell binds nothing. `forge_room.rs` runs
-`self-hosted-node` in-process under the `forge-room` feature, and when the room opts in it installs
-a `ShellBridge` so the engine's envelopes for a WebRTC seat go out through the webview beside it. A
-desktop host cannot make a WebRTC connection from Rust, so the webview holds those connections for
-it. See `docs/TRANSPORT.md`.
+WebRTC runs in the webview (`src/game/webrtcPlane.ts`); the shell binds nothing. `forge_room.rs`
+hosts `self-hosted-node` in-process and, when opted in, installs a `ShellBridge` so a WebRTC seat's
+envelopes go out through the webview. See `docs/TRANSPORT.md`.

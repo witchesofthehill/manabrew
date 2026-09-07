@@ -20,7 +20,5 @@ A background `updater` monitor (`updater.rs`) polls the version manifest (defaul
 
 ## The direct data plane
 
-Seats take the direct plane over WebRTC, driven from the webview. The headless node has no webview,
-so it never offers a plane itself and every seat on a fleet-hosted room stays on the relay. A
-desktop-hosted room drives WebRTC from the shell instead: `forge-room` installs a `ShellBridge`
-that carries the engine's envelopes for a seat out through the webview. See `docs/TRANSPORT.md`.
+A headless node offers no plane; its rooms stay on the relay. Under `forge-room` a desktop host
+installs a `ShellBridge` that serves WebRTC seats through the webview. See `docs/TRANSPORT.md`.

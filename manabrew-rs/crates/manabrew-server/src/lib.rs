@@ -4,7 +4,6 @@ pub mod cleanup;
 pub mod client_build;
 pub mod config;
 pub mod connection;
-pub mod deck_play_events;
 pub mod error;
 pub mod identity;
 pub mod lobby;

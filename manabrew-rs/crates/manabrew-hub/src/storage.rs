@@ -540,6 +540,44 @@ impl Storage {
         Ok(())
     }
 
+    /// Lines that are not a JSON object with an `event` field are skipped, not
+    /// refused: a truncated tail in a drained spool file must not wedge the
+    /// batch behind it. Returns the lines that were new.
+    pub fn record_relay_events(
+        &self,
+        lines: &[String],
+        received_at: &str,
+    ) -> SqlResult<Vec<String>> {
+        let tx = self.conn.unchecked_transaction()?;
+        let mut inserted = Vec::new();
+        for line in lines {
+            let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+                continue;
+            };
+            let Some(event) = value.get("event").and_then(|event| event.as_str()) else {
+                continue;
+            };
+            let new = tx.execute(
+                "INSERT OR IGNORE INTO relay_events
+                    (event_id, received_at, ts, event, room_id, payload)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![
+                    sha256_hex(line.as_bytes()),
+                    received_at,
+                    value.get("ts").and_then(|ts| ts.as_str()),
+                    event,
+                    value.get("room_id").and_then(|room| room.as_str()),
+                    line,
+                ],
+            )?;
+            if new > 0 {
+                inserted.push(line.clone());
+            }
+        }
+        tx.commit()?;
+        Ok(inserted)
+    }
+
     pub fn record_offline_play_game(
         &self,
         game: &manabrew_protocol::telemetry::OfflinePlayGame,
@@ -2435,6 +2473,13 @@ impl Storage {
                      WHERE value = ?2
                  )",
                 params![ERASED_USERNAME, handle],
+            )?;
+            let quoted = serde_json::to_string(&handle).unwrap_or_default();
+            let erased = serde_json::to_string(ERASED_USERNAME).unwrap_or_default();
+            tx.execute(
+                "UPDATE relay_events SET payload = replace(payload, ?2, ?1)
+                 WHERE instr(payload, ?2) > 0",
+                params![erased, quoted],
             )?;
         }
         tx.execute("DELETE FROM accounts WHERE id = ?1", params![account_id])?;

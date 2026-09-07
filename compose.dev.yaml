@@ -140,8 +140,8 @@ services:
     command:
       - python
       - /app/ingest-events.py
-      - --dir
-      - /events
+      - --db
+      - /events/events.db
       - --hub-db
       - /hub/hub.db
       - --watch

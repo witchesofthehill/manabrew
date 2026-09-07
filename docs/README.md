@@ -525,7 +525,7 @@ Top Decks ranks Community publications, never anonymous statistics or mutable de
 - an optional numeric score;
 - the user-facing reason explaining the ranking.
 
-Only human play with both a publication ID and matching deck fingerprint is accepted. Offline and hosted-AI clients write through `/api/deckhub/plays`; the managed relay writes authenticated game starts and outcomes through `/internal/deckhub/relay-games`. Hosted Relay rooms are excluded from the dedicated channel so the client report is not counted twice, and bot seats never contribute. This Deck Play evidence channel is separate from relay analytics. The Hub verifies every fingerprint against the immutable published version before storing it. Relay game and player identifiers are hashed before persistence, and no username or card list is stored.
+Only human play with both a publication ID and matching deck fingerprint is accepted. Offline and hosted-AI clients write through `/api/deckhub/plays`; the managed relay's game starts and outcomes reach the Hub inside its analytics feed (`POST /internal/analytics/events`) and are applied from there. Hosted Relay rooms are excluded so the client report is not counted twice, and bot seats never contribute. The Hub verifies every fingerprint against the immutable published version before storing it. Relay game and player identifiers are hashed before persistence, and no username or card list is stored.
 
 The automated buckets are:
 

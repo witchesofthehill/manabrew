@@ -16,8 +16,10 @@ pub struct ServerConfig {
     pub capture_dir: Option<String>,
     pub capture_max_gb: u64,
     pub deck_hub_enabled: bool,
-    pub hub_deck_plays_url: Option<String>,
-    pub hub_deck_plays_token: Option<String>,
+    /// The hub takes the analytics feed and, with `DECK_HUB`, deck-play
+    /// evidence. Env names keep the older `DECK_PLAYS` spelling.
+    pub hub_url: Option<String>,
+    pub hub_token: Option<String>,
     pub hub_jwks_url: Option<String>,
     /// Where this relay keeps card art. Set it and the relay serves
     /// `/scryfall-img/` for everyone on the network, which is the point of
@@ -70,10 +72,10 @@ impl ServerConfig {
                     "1" | "true" | "yes" | "on"
                 )
             }),
-            hub_deck_plays_url: std::env::var("MANABREW_HUB_DECK_PLAYS_URL")
+            hub_url: std::env::var("MANABREW_HUB_DECK_PLAYS_URL")
                 .ok()
                 .filter(|url| !url.is_empty()),
-            hub_deck_plays_token: std::env::var("MANABREW_HUB_DECK_PLAYS_TOKEN")
+            hub_token: std::env::var("MANABREW_HUB_DECK_PLAYS_TOKEN")
                 .ok()
                 .filter(|token| !token.is_empty()),
             hub_jwks_url: std::env::var("MANABREW_HUB_JWKS_URL")

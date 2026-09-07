@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
-"""Ingest relay events and sanitized Hub analytics into SQLite; stdlib only.
-Idempotent via per-file offsets and snapshot timestamps; --watch N loops."""
+"""Materialise the hub's relay_events feed and sanitized Hub analytics into
+SQLite; stdlib only. Idempotent: every relay event is keyed by the SHA-256 of
+its line, offline games by the reported_at watermark; --watch N loops."""
 
 import argparse
 import datetime
+import hashlib
 import json
 import sqlite3
 import sys
 import time
 from pathlib import Path
 
-DB_NAME = "events.db"
-FILE_GLOB = "events-*.jsonl"
+RELAY_EVENTS_WATERMARK = "hub:relay_events"
+RELAY_EVENTS_PAGE = 5000
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS ingest_state (
@@ -198,8 +200,31 @@ def open_db(path: Path) -> sqlite3.Connection:
     # when none did. Compare with player_count for the room's shape.
     ensure_column(db, "games", "direct_seats", "INTEGER")
     db.execute("UPDATE games SET source = 'relay' WHERE source IS NULL")
+    ensure_column(db, "events", "event_id", "TEXT")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_events_event_id ON events(event_id)")
+    backfill_event_ids(db)
     db.commit()
     return db
+
+
+def event_id(line: str) -> str:
+    return hashlib.sha256(line.encode("utf-8")).hexdigest()
+
+
+def backfill_event_ids(db):
+    """Rows ingested from the JSONL files predate the key; hash them once so
+    the same lines arriving through the hub are recognised, not duplicated."""
+    while True:
+        rows = db.execute(
+            "SELECT id, payload FROM events WHERE event_id IS NULL LIMIT 10000"
+        ).fetchall()
+        if not rows:
+            return
+        db.executemany(
+            "UPDATE events SET event_id = ? WHERE id = ?",
+            [(event_id(payload), row_id) for row_id, payload in rows],
+        )
+        db.commit()
 
 
 def ensure_column(db, table: str, column: str, declaration: str):
@@ -403,52 +428,53 @@ INGESTERS = {
 }
 
 
-def ingest_line(db, line: str):
+def ingest_line(db, line: str, key: str | None = None) -> bool:
     try:
         ev = json.loads(line)
     except json.JSONDecodeError:
-        return
+        return False
+    key = key or event_id(line)
+    if db.execute("SELECT 1 FROM events WHERE event_id = ?", (key,)).fetchone():
+        return False
     kind = ev.get("event")
     db.execute(
-        "INSERT INTO events (ts, event, room_id, payload) VALUES (?, ?, ?, ?)",
-        (ev.get("ts"), kind, ev.get("room_id"), line),
+        "INSERT INTO events (ts, event, room_id, payload, event_id) VALUES (?, ?, ?, ?, ?)",
+        (ev.get("ts"), kind, ev.get("room_id"), line, key),
     )
     handler = INGESTERS.get(kind)
     if handler:
         handler(db, ev)
+    return True
 
 
-def ingest_file(db, path: Path) -> int:
+def ingest_relay_events(db, hub) -> int:
+    """Pull relay_events past the last hub row id seen. The watermark advances
+    per page and a line already present by event_id is skipped, so a restart,
+    a rebuilt events.db or a re-imported history all converge."""
     row = db.execute(
-        "SELECT byte_offset FROM ingest_state WHERE file = ?", (path.name,)
+        "SELECT byte_offset FROM ingest_state WHERE file = ?", (RELAY_EVENTS_WATERMARK,)
     ).fetchone()
-    offset = row[0] if row else 0
-    size = path.stat().st_size
-    if size <= offset:
-        return 0
+    last_id = row[0] if row else 0
     ingested = 0
-    with path.open("rb") as fh:
-        fh.seek(offset)
-        for raw in fh:
-            if not raw.endswith(b"\n"):
-                break
-            ingest_line(db, raw.decode("utf-8", errors="replace").rstrip("\n"))
-            offset += len(raw)
-            ingested += 1
-    db.execute(
-        """INSERT INTO ingest_state (file, byte_offset) VALUES (?, ?)
-           ON CONFLICT(file) DO UPDATE SET byte_offset=excluded.byte_offset""",
-        (path.name, offset),
-    )
+    while True:
+        rows = hub_rows(
+            hub,
+            "SELECT id, event_id, payload FROM relay_events WHERE id > ? ORDER BY id LIMIT ?",
+            (last_id, RELAY_EVENTS_PAGE),
+        )
+        if not rows:
+            break
+        for row_id, key, payload in rows:
+            if ingest_line(db, payload, key):
+                ingested += 1
+            last_id = row_id
+        db.execute(
+            """INSERT INTO ingest_state (file, byte_offset) VALUES (?, ?)
+               ON CONFLICT(file) DO UPDATE SET byte_offset=excluded.byte_offset""",
+            (RELAY_EVENTS_WATERMARK, last_id),
+        )
+        db.commit()
     return ingested
-
-
-def run_once(db, events_dir: Path) -> int:
-    total = 0
-    for path in sorted(events_dir.glob(FILE_GLOB)):
-        total += ingest_file(db, path)
-    db.commit()
-    return total
 
 
 def utc_hour() -> str:
@@ -792,25 +818,28 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dir", required=True, help="events directory")
-    parser.add_argument("--db", help="database path (default: <dir>/events.db)")
-    parser.add_argument("--hub-db", help="Hub database to export sanitized analytics from")
+    parser.add_argument("--db", required=True, help="analytics database to materialise")
+    parser.add_argument("--hub-db", required=True, help="Hub database to read from")
     parser.add_argument("--hub-refresh", type=int, default=300)
     parser.add_argument("--watch", type=int, help="loop every N seconds")
     args = parser.parse_args()
 
-    events_dir = Path(args.dir)
-    db_path = Path(args.db) if args.db else events_dir / DB_NAME
-    db = open_db(db_path)
+    db = open_db(Path(args.db))
+    hub_path = Path(args.hub_db)
     next_hub_refresh = 0.0
 
     while True:
-        count = run_once(db, events_dir)
-        if count:
-            print(f"ingested {count} events", flush=True)
-        if args.hub_db and time.monotonic() >= next_hub_refresh:
+        if hub_path.is_file():
+            hub = sqlite3.connect(f"file:{hub_path}?mode=ro", uri=True)
             try:
-                refresh_hub_analytics(db, Path(args.hub_db))
+                count = ingest_relay_events(db, hub)
+            finally:
+                hub.close()
+            if count:
+                print(f"ingested {count} events", flush=True)
+        if time.monotonic() >= next_hub_refresh:
+            try:
+                refresh_hub_analytics(db, hub_path)
             except Exception as error:
                 print(f"Hub analytics refresh failed: {error}", file=sys.stderr, flush=True)
             next_hub_refresh = time.monotonic() + args.hub_refresh

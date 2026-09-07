@@ -1,18 +1,36 @@
+import { ManaText } from "@/three/ManaSymbols";
 import { useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import type { CardDto } from "@manabrew/protocol";
+import type { AvailableAction, CardDto } from "@manabrew/protocol";
 import back from "@/three/assets/card-back.png";
 import { arenaCardImageUrl } from "@/three/arenaImageCache";
 import "@/three/ZoneCards.css";
 
-export function ZoneCards({ cards }: { cards: CardDto[] }) {
+export function ZoneCards({
+  cards,
+  actions = [],
+  onAction,
+  inspectFaceDown = false,
+}: {
+  cards: CardDto[];
+  actions?: AvailableAction[];
+  onAction?: (action: AvailableAction) => void;
+  inspectFaceDown?: boolean;
+}) {
   const [index, setIndex] = useState(0);
   const current = Math.min(index, Math.max(0, cards.length - 1));
   const swipe = useRef<number | null>(null);
   const wheel = useRef(0);
   const move = (delta: number) =>
     setIndex(Math.max(0, Math.min(cards.length - 1, current + delta)));
-  const name = (card: CardDto) => (card.isFaceDown ? "Face-down card" : card.identity.name);
+  const concealed = (card: CardDto) =>
+    card.isFaceDown &&
+    !(
+      inspectFaceDown &&
+      card.identity.name &&
+      !["Hidden Card", "Face-down card", "Face Down"].includes(card.identity.name)
+    );
+  const name = (card: CardDto) => (concealed(card) ? "Face-down card" : card.identity.name);
   if (!cards.length) return <p>This zone is empty.</p>;
   return (
     <section
@@ -69,7 +87,7 @@ export function ZoneCards({ cards }: { cards: CardDto[] }) {
               onClick={() => setIndex(i)}
             >
               <img
-                src={card.isFaceDown ? back : arenaCardImageUrl(card.identity.name, "large")}
+                src={concealed(card) ? back : arenaCardImageUrl(card.identity.name, "large")}
                 alt={name(card)}
                 draggable={false}
                 onError={(event) => {
@@ -86,6 +104,25 @@ export function ZoneCards({ cards }: { cards: CardDto[] }) {
           {current + 1} / {cards.length} cards
         </span>
       </div>
+      {onAction && (
+        <div className="duel-zone-actions" aria-label="Available card actions">
+          {actions
+            .filter((action) => action.cardId === cards[current].id)
+            .map((action) => (
+              <button key={action.id} onClick={() => onAction(action)}>
+                <ManaText
+                  text={
+                    action.type === "cast"
+                      ? action.label
+                      : action.type === "activateAbility"
+                        ? action.description
+                        : "Undo mana"
+                  }
+                />
+              </button>
+            ))}
+        </div>
+      )}
       {cards.length > 1 && (
         <>
           <input

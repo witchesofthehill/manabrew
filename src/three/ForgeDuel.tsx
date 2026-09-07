@@ -641,7 +641,20 @@ export function ForgeDuel({
               {zone.endsWith(":exile") && zoneCards.length === 0 && (
                 <p>No visible cards in exile.</p>
               )}
-              <ZoneCards key={zone} cards={zoneCards} />
+              <ZoneCards
+                key={zone}
+                cards={zoneCards}
+                inspectFaceDown={zone === "player-0:exile"}
+                actions={prompt?.input.type === "chooseAction" ? prompt.input.actions : []}
+                onAction={(action) => {
+                  if (prompt?.input.type !== "chooseAction") return;
+                  setZone(null);
+                  void game.respond(prompt.promptId, {
+                    type: "chooseAction",
+                    output: { type: "act", actionId: action.id },
+                  });
+                }}
+              />
             </DuelModal>
           )}
           {confirmConcede && (

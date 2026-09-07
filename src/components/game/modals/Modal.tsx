@@ -1,8 +1,7 @@
 import { createPortal } from "react-dom";
-import { useContext, useEffect, useRef } from "react";
-import { Minus, X } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PromptModalChromeContext } from "./promptModalChrome.context";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { useIsTouch } from "@/hooks/useBreakpoints";
@@ -36,7 +35,6 @@ export function Modal({
   className,
   backdropClassName,
 }: ModalProps) {
-  const promptChrome = useContext(PromptModalChromeContext);
   const isTouch = useIsTouch();
   const isGameActive = useGameStore((s) => s.isGameActive);
   const touchGameSurface = isTouch && isGameActive;
@@ -93,16 +91,6 @@ export function Modal({
           }
         }}
       >
-        {promptChrome.showMinimize && promptChrome.onMinimize && (
-          <button
-            className="absolute -top-3 -right-3 z-10 rounded-full border border-border bg-card p-1.5 shadow-[0_8px_20px_rgba(0,0,0,0.35)] hover:bg-muted transition-colors before:absolute before:-inset-2.5 before:content-['']"
-            onClick={promptChrome.onMinimize}
-            title="Minimize prompt"
-            type="button"
-          >
-            <Minus className="h-3.5 w-3.5" />
-          </button>
-        )}
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>
       </div>
     </div>,

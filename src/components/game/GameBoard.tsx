@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import type { CardDto, DayTime } from "@/protocol/game";
 import type { ClientPlayerDto } from "@/stores/gameStore.types";
@@ -13,11 +13,11 @@ import type { StackSpec } from "@/pixi/stack/stack.types";
 import type { CombatRow } from "@/components/game/combatRows";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { PlayerHudSpec, PlayerHudBadge, PlayerHudFact } from "@/pixi/hud/playerHud.types";
+import type { PromptOverlaySpec } from "@/pixi/prompts/prompt.types";
 import { buildPlayerHudBadges, buildZoneBadges } from "@/components/game/panels/playerHudBadges";
 import { PlayerSheetModal } from "@/components/game/panels/PlayerSheetModal";
 import { GlobalStateRail } from "@/components/game/panels/GlobalStateRail";
 import type { ZoneTileSpec } from "@/pixi/board/BoardZoneTiles";
-import type { BlockingRect } from "@/pixi/board/types";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useAssetUrl } from "@/stores/useAssetStore";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -174,6 +174,7 @@ interface GameBoardProps {
   onTargetSpell: (spellId: string) => void;
   onHoverStack: (stackObjectId: string | null) => void;
   onToggleStack: () => void;
+  promptOverlaySpec?: PromptOverlaySpec | null;
 
   boardSceneRef?: React.MutableRefObject<BoardScene | null>;
 
@@ -258,6 +259,7 @@ export function GameBoard({
   onTargetSpell,
   onHoverStack,
   onToggleStack,
+  promptOverlaySpec,
   boardSceneRef,
   battlefieldContainerRef,
   handSelectionMode,
@@ -1558,44 +1560,6 @@ export function GameBoard({
     playerColors,
   ]);
 
-  // Keep battlefield cards from laying out under the local action-button
-  // cluster. (Player panels no longer reserve space — the Pixi HUD sits in the
-  // playmat's own margin.)
-  const lastPanelBlockersRef = useRef<string>("");
-  const opponentIdsKey = opponents.map((op) => op.id).join(",");
-  useLayoutEffect(() => {
-    const opponentIds = opponentIdsKey ? opponentIdsKey.split(",") : [];
-    const measure = () => {
-      const board = boardRef.current;
-      const scene = sceneRef.current;
-      if (!board || !scene) return;
-      const b = board.getBoundingClientRect();
-      const actionEl = document.querySelector<HTMLElement>("[data-action-cluster]");
-      const next: Record<string, BlockingRect[]> = {};
-      if (actionEl) {
-        const r = actionEl.getBoundingClientRect();
-        const height = Math.min(r.height, unifiedLayout?.selfClusterMaxHeight ?? r.height);
-        next[me.id] = [
-          { x: r.left - b.left, y: r.bottom - b.top - height, width: r.width, height },
-        ];
-        if (compactBoard) {
-          const full = { x: r.left - b.left, y: r.top - b.top, width: r.width, height: r.height };
-          for (const id of opponentIds) next[id] = [full];
-        }
-      }
-      const json = JSON.stringify(next);
-      if (json === lastPanelBlockersRef.current) return;
-      lastPanelBlockersRef.current = json;
-      scene.setPlayerBlockers(new Map(Object.entries(next)));
-    };
-    measure();
-    const actionEl = document.querySelector<HTMLElement>("[data-action-cluster]");
-    if (!actionEl) return;
-    const ro = new ResizeObserver(measure);
-    ro.observe(actionEl);
-    return () => ro.disconnect();
-  }, [sceneRef, me.id, opponentIdsKey, unifiedLayout, promptType, compactBoard]);
-
   const baseSheetSpec = sheetPlayerId
     ? (hudBarSpecs.find((spec) => spec.playerId === sheetPlayerId) ?? null)
     : null;
@@ -1744,7 +1708,7 @@ export function GameBoard({
           }}
         />
       </div>
-      <div className="absolute inset-0 z-40 pointer-events-none">
+      <div className="absolute inset-0 z-[9000] pointer-events-none">
         <BoardOverlayCanvas
           sceneRef={sceneRef}
           stackSpec={stackSpec}
@@ -1752,6 +1716,7 @@ export function GameBoard({
           onTargetSpell={onTargetSpell}
           onHoverStack={onHoverStack}
           onToggleStack={onToggleStack}
+          promptSpec={promptOverlaySpec ?? null}
         />
       </div>
       {sheetSpec && <PlayerSheetModal spec={sheetSpec} onClose={() => setSheetPlayerId(null)} />}

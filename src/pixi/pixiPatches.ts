@@ -9,31 +9,14 @@
 import { Application, TexturePool } from "pixi.js";
 
 /**
- * Tear down a Pixi `Application` and force-release its WebGL context.
- *
- * Browsers cap concurrent WebGL contexts (WebKit ≈ 8, Chrome ≈ 16). On
- * dev-server hot reloads — and to a lesser extent on quick component
- * remounts — Pixi's `app.destroy(true)` doesn't always release the GL
- * context immediately, so retained contexts pile up until the browser
- * starts evicting "the oldest" with the noisy
- * "too many active WebGL contexts" warning. Forcing
- * `WEBGL_lose_context.loseContext()` before destroy guarantees the slot
- * is freed even if Pixi's internal teardown is incomplete (e.g. when
- * destroy is called on an Application that was still mid-init).
- *
- * Both calls are best-effort and swallow errors — this runs from React
- * effect cleanup where throwing would cascade.
+ * Tear down a Pixi `Application` without releasing resources shared by other
+ * live renderers.
  */
 export function destroyPixiApp(app: Application | null | undefined): void {
   if (!app) return;
-  // Pixi's `destroy()` already calls `loseContext()` internally on a
-  // healthy renderer. We only force it ourselves when the context is
-  // still alive but `destroy()` threw (e.g. when called on an app that
-  // was still mid-init) — calling `loseContext()` on an already-lost
-  // context produces a noisy "context already lost" warning.
   let destroyThrew = false;
   try {
-    app.destroy(true);
+    app.destroy({ removeView: true });
   } catch (err) {
     destroyThrew = true;
     console.warn("[pixi] app.destroy threw during teardown:", err);

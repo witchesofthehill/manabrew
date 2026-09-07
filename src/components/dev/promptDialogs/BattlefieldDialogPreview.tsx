@@ -1,4 +1,3 @@
-import { GameOverScreen } from "@/components/game/GameOverScreen";
 import { PlayModePicker } from "@/components/game/PlayModePicker";
 import { CombatSummarySection } from "@/components/game/CombatSummarySection";
 import {
@@ -26,7 +25,7 @@ export function BattlefieldDialogPreview({
   fixtures,
   onClose,
 }: BattlefieldDialogPreviewProps) {
-  const { gameView, cards, sourceCard, me, opponents, stack, cardById, playerSpec } = fixtures;
+  const { cards, sourceCard, stack, cardById, playerSpec } = fixtures;
 
   switch (preview) {
     case "ability-picker":
@@ -102,18 +101,6 @@ export function BattlefieldDialogPreview({
           defenderLife={12}
           initialOpen
         />
-      );
-    case "game-over":
-      return (
-        <div className="fixed inset-0 z-[9000] bg-background text-foreground">
-          <GameOverScreen
-            winnerId={me.id}
-            me={me}
-            opponents={opponents}
-            turn={gameView.turn}
-            onEndGame={onClose}
-          />
-        </div>
       );
     default:
       return null;

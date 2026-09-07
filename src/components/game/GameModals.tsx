@@ -1,13 +1,8 @@
-import { PromptModalHost } from "@/components/prompts/promptComponents";
 import { GameOverlays } from "@/components/game/GameOverlays";
 import type { CardDto, StackObjectDto } from "@/protocol/game";
-import type { DeckCard } from "@/protocol/deck";
-import type { Prompt } from "@/protocol";
 import type { AbilityPickerState, HandActionOption } from "@/stores/useGameUIStore";
 
 interface GameModalsProps {
-  currentPrompt: Prompt | null;
-  sourceDeckCard?: DeckCard;
   viewingZone: {
     title: string;
     cards: CardDto[];
@@ -28,8 +23,6 @@ interface GameModalsProps {
 }
 
 export function GameModals({
-  currentPrompt,
-  sourceDeckCard,
   viewingZone,
   onCloseZone,
   spellStackModalOpen,
@@ -44,7 +37,6 @@ export function GameModals({
 }: GameModalsProps) {
   return (
     <>
-      <PromptModalHost currentPrompt={currentPrompt} ctx={{ sourceDeckCard }} />
       <GameOverlays
         viewingZone={viewingZone}
         onCloseZone={onCloseZone}

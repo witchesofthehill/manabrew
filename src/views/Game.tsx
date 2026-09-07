@@ -16,13 +16,12 @@ import type { DeckCard } from "@/protocol/deck";
 import type { ClientCardDto, ClientPlayerDto } from "@/stores/gameStore.types";
 import { GameModals } from "@/components/game/GameModals";
 import { LandscapeGate } from "@/components/LandscapeGate";
-import { GameOverScreen } from "@/components/game/GameOverScreen";
 import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
 import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
 import { DevViewportFrame } from "@/components/dev/DevViewportFrame";
 import { ManualTabletopControls } from "@/components/game/ManualTabletopControls";
-import { MainActionOverlay, MiddleBarDock, RightActionPanel } from "@/components/game/panels";
+import { MiddleBarDock, RightActionPanel } from "@/components/game/panels";
 import {
   ConcedeGameModal,
   EliminatedModal,
@@ -34,6 +33,7 @@ import { useCastingState } from "@/hooks/useCastingState";
 import { useResolveSourceCard } from "@/components/prompts/internal/usePromptSourceCard";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { BoardCanvasLayout } from "@/pixi/BoardCanvas";
+import type { PromptOverlaySpec } from "@/pixi/prompts/prompt.types";
 import { buildArrowSpecs } from "@/components/game/arrowSpecs";
 import { getDisplayedManaAbilities } from "@/components/game/manaUtils";
 import { PlayModePicker } from "@/components/game/PlayModePicker";
@@ -61,7 +61,6 @@ import { peek as peekGauntletMatch, tryConsumeGauntletMatch } from "@/lib/gauntl
 import { intentPrefersArrow } from "@/types/promptType";
 import type { PromptType } from "@/protocol";
 import { declareAttackersOutput } from "@/components/prompts/internal/playerActions";
-import { DamageOrderModal } from "@/components/prompts/DamageOrderModal";
 import { TargetingCursor } from "@/components/game/TargetingCursor";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
 import type { CombatPairing } from "@/components/game/game.types";
@@ -323,6 +322,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     playModePicker,
     viewingZone,
     isActionPanelCollapsed,
+    promptModalHidden,
+    hidePromptModal,
+    showPromptModal,
     closeAbilityPicker,
     openPlayModePicker,
     closePlayModePicker,
@@ -335,6 +337,9 @@ export default function Game({ exitTo }: GameProps = {}) {
       playModePicker: s.playModePicker,
       viewingZone: s.viewingZone,
       isActionPanelCollapsed: s.isActionPanelCollapsed,
+      promptModalHidden: s.promptModalHidden,
+      hidePromptModal: s.hidePromptModal,
+      showPromptModal: s.showPromptModal,
       closeAbilityPicker: s.closeAbilityPicker,
       openPlayModePicker: s.openPlayModePicker,
       closePlayModePicker: s.closePlayModePicker,
@@ -1060,8 +1065,6 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const iAmEliminated = selfConceded || (me != null && me.status !== "playing");
   const ownsEngine = isHost || hostingForgeRoom;
-  // With fewer than two other players left, my elimination ends the game —
-  // GameOverScreen takes over, so the observe-or-leave modal would only flash.
   const gameContinuesWithoutMe = opponents.filter((p) => p.status === "playing").length >= 2;
   const handleConcede = useCallback(() => setConcedeModalOpen(true), []);
   const handleConcedeConfirm = useCallback(() => {
@@ -1380,6 +1383,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const debugCardMode = useGameDevStore((s) => s.debugCardMode);
   const debugCardCurrent = useGameDevStore((s) => s.debugCardCurrent);
   const debugCardFinal = useGameDevStore((s) => s.debugCardFinal);
+  const promptActionOverride = useGameDevStore((state) => state.promptActionOverride);
 
   const visibleCardsById = useMemo(() => {
     if (!gameView) return new Map<string, CardDto>();
@@ -1692,18 +1696,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     });
   }
 
-  if (gameView.gameOver || promptType === "gameOver") {
-    return (
-      <GameOverScreen
-        winnerId={gameView.winnerId}
-        me={me}
-        opponents={opponents}
-        turn={gameView.turn}
-        onEndGame={endGame}
-      />
-    );
-  }
-
   const turnFlashPlayerId = activeFlash?.kind === "turn" ? activeFlash.playerId : null;
   const effectivePriorityHighlightPlayerId = priorityHighlightPlayerId ?? gameView.priorityPlayerId;
   const shouldRenderStackFlashCard = activeFlash?.kind === "card";
@@ -1748,6 +1740,132 @@ export default function Game({ exitTo }: GameProps = {}) {
     collapsed: stackCollapsed,
   };
 
+  const promptOverlaySpec: PromptOverlaySpec = {
+    currentPrompt: activePrompt,
+    localPlayerId: me.id,
+    gameView,
+    sourceDeckCard: promptSourceDeckCard,
+    action: {
+      promptType,
+      promptActionOverride,
+      isWaitingForResponse,
+      isWaitingForOthers:
+        relinquishedPriority || (isWaitingForResponse && gameView.priorityPlayerId !== me.id),
+      availableAttackerIds:
+        chooseAttackersInput?.attackers.map((attacker) => attacker.attackerId) ?? [],
+      pendingAttackers,
+      onPassPriority: passPriority,
+      onPassEndTurn: passEndTurn,
+      selectedAttackDefenderId: attackDefenderId,
+      multipleAttackDefenders,
+      attackAssignmentCount: attackAssignments.length,
+      mustAttackHint,
+      onDeclareAttackers: (attackerIds, defenderId) =>
+        void respond(declareAttackersOutput(activePrompt, attackerIds, defenderId)),
+      onBeginAttackTargetPick: selectAllAttackersForPick,
+      onSubmitAttack: submitAttack,
+      pendingAttacker,
+      pendingBlocker,
+      blockError,
+      blockRequirementError,
+      blockRestrictionHint,
+      attackerIds: chooseBlockersInput?.attackers.map((attacker) => attacker.attackerId) ?? [],
+      blockAssignments,
+      combatPairings,
+      combatDefenderLife: me.life,
+      onDeclareBlockers: (assignments) => void respond({ type: "declareBlockers", assignments }),
+      damageOrderCount: damageOrder.length,
+      damageOrderTotal: damageOrderInput?.blockerIds.length ?? 0,
+      onConfirmDamageOrder: () =>
+        void respond({
+          type: "damageAssignmentOrderDecision",
+          orderedBlockerIds: damageOrder,
+        }),
+      onUndoDamageOrder: undoDamageOrder,
+      onDefaultDamageOrder: () =>
+        void respond({
+          type: "damageAssignmentOrderDecision",
+          orderedBlockerIds: damageOrderInput?.blockerIds ?? [],
+        }),
+      onOpenStack: () => setSpellStackModalOpen(true),
+      onToggleBoardMenu: () => setBoardMenuOpen((open) => !open),
+      targetCompletionLabel: targetCompletion?.label,
+      targetCompletionKind: targetCompletion?.kind,
+      onCompleteTargets: targetCompletion?.onComplete,
+      resolveCardName: (cardId) => cardNameById.get(cardId) ?? cardId,
+      resolveCard: (cardId) => visibleCardsById.get(cardId),
+      turn: gameView.turn,
+      activePlayerName:
+        gameView.players.find((player) => player.id === gameView.activePlayerId)?.name ?? "Unknown",
+      isMyTurn: gameView.activePlayerId === me.id,
+      step: gameView.step,
+      payManaCostInfo: payManaCostInput
+        ? {
+            cardName: payManaCostInput.cardName,
+            sourceCard: promptSourceDeckCard,
+            manaCost: payManaCostInput.manaCost,
+            description: payManaCostInput.presentation.text,
+            manaPool: gameView.players.find((player) => player.isHuman)?.manaPool ?? {},
+            canConfirmFromPool: payManaCostInput.canConfirmFromPool,
+            delveCount: delvedCardIds.length,
+            delveAvailable: delveSourceIds.length > 0,
+            onOpenDelve: openDelveZone,
+            lifeToPay: payLifeAction?.amount,
+            onPayLife: payLifeAction
+              ? () => void respond({ type: "act", actionId: payLifeAction.id })
+              : undefined,
+          }
+        : null,
+      onPayManaCost: () => void respond({ type: "pay", auto: false }),
+      onAutoManaCost: () => void respond({ type: "pay", auto: true }),
+      onCancelManaCost: () => void respond({ type: "cancel" }),
+      mulliganCount: mulliganInput?.mulliganCount ?? 0,
+      onMulliganKeep: () => void respond({ type: "mulliganDecision", keep: true }),
+      onMulliganDraw: () => void respond({ type: "mulliganDecision", keep: false }),
+      mulliganPutBackCount: mulliganPutBack.count,
+      mulliganSelectedCount: mulliganPutBack.selected.size,
+      onMulliganPutBackConfirm: mulliganPutBack.confirm,
+      selfClusterMaxHeight: boardLayout?.selfClusterMaxHeight,
+      dividerY: boardLayout?.dividerY,
+      dimmed: handCardLifted,
+    },
+    damageOrder: damageOrderInput
+      ? {
+          attackerName:
+            gameView.battlefield.find((card) => card.id === damageOrderInput.attackerId)?.identity
+              .name ?? "The attacker",
+          blockerCards: damageOrderInput.blockerCards,
+          order: damageOrder,
+          onToggle: toggleDamageOrder,
+          onUndo: undoDamageOrder,
+          onAuto: () =>
+            void respond({
+              type: "damageAssignmentOrderDecision",
+              orderedBlockerIds: damageOrderInput.blockerIds,
+            }),
+          onConfirm: () =>
+            void respond({
+              type: "damageAssignmentOrderDecision",
+              orderedBlockerIds: damageOrder,
+            }),
+        }
+      : null,
+    gameOver:
+      gameView.gameOver || promptType === "gameOver"
+        ? {
+            winnerId: gameView.winnerId,
+            me,
+            opponents,
+            turn: gameView.turn,
+            onEndGame: () => void endGame(),
+          }
+        : null,
+    modalHidden: promptModalHidden,
+    respond: (output) => void respond(output),
+    onHideModal: hidePromptModal,
+    onShowModal: showPromptModal,
+  };
+
   return (
     <div
       ref={containerRef}
@@ -1777,6 +1895,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           onLayoutChange={setBoardLayout}
           boardSurfaceRef={setBoardSurfaceEl}
           stackSpec={stackSpec}
+          promptOverlaySpec={manualApi ? null : promptOverlaySpec}
           onOpenStack={() => setSpellStackModalOpen(true)}
           onTargetSpell={(spellId) => {
             casting.wrappedTargetSpell(spellId);
@@ -1934,122 +2053,29 @@ export default function Game({ exitTo }: GameProps = {}) {
       {boardSurfaceEl &&
         createPortal(
           !manualApi && (
-            <>
-              <MainActionOverlay
-                promptType={promptType}
-                isWaitingForResponse={isWaitingForResponse}
-                isWaitingForOthers={
-                  relinquishedPriority ||
-                  (isWaitingForResponse && gameView.priorityPlayerId !== me.id)
-                }
-                availableAttackerIds={
-                  chooseAttackersInput?.attackers.map((a) => a.attackerId) ?? []
-                }
-                pendingAttackers={pendingAttackers}
-                onPassPriority={passPriority}
-                onPassEndTurn={passEndTurn}
-                selectedAttackDefenderId={attackDefenderId}
-                multipleAttackDefenders={multipleAttackDefenders}
-                onDeclareAttackers={(attackerIds, defenderId) =>
-                  respond(declareAttackersOutput(activePrompt, attackerIds, defenderId))
-                }
-                onBeginAttackTargetPick={selectAllAttackersForPick}
-                attackAssignmentCount={attackAssignments.length}
-                mustAttackHint={mustAttackHint}
-                onSubmitAttack={submitAttack}
-                pendingAttacker={pendingAttacker}
-                pendingBlocker={pendingBlocker}
-                blockError={blockError}
-                blockRequirementError={blockRequirementError}
-                blockRestrictionHint={blockRestrictionHint}
-                attackerIds={chooseBlockersInput?.attackers.map((a) => a.attackerId) ?? []}
-                blockAssignments={blockAssignments}
-                combatPairings={combatPairings}
-                combatDefenderLife={me.life}
-                onDeclareBlockers={(assignments) =>
-                  respond({ type: "declareBlockers", assignments })
-                }
-                damageOrderCount={damageOrder.length}
-                damageOrderTotal={damageOrderInput?.blockerIds.length ?? 0}
-                onConfirmDamageOrder={() =>
-                  respond({ type: "damageAssignmentOrderDecision", orderedBlockerIds: damageOrder })
-                }
-                onUndoDamageOrder={undoDamageOrder}
-                onDefaultDamageOrder={() =>
-                  respond({
-                    type: "damageAssignmentOrderDecision",
-                    orderedBlockerIds: damageOrderInput?.blockerIds ?? [],
-                  })
-                }
-                onOpenStack={() => setSpellStackModalOpen(true)}
-                targetCompletionLabel={targetCompletion?.label}
-                targetCompletionKind={targetCompletion?.kind}
-                onCompleteTargets={targetCompletion?.onComplete}
-                resolveCardName={(cardId) => cardNameById.get(cardId) ?? cardId}
-                resolveCard={(cardId) => visibleCardsById.get(cardId)}
-                turn={gameView.turn}
-                activePlayerName={
-                  gameView.players.find((p) => p.id === gameView.activePlayerId)?.name ?? "Unknown"
-                }
-                isMyTurn={gameView.activePlayerId === me.id}
-                step={gameView.step}
-                payManaCostInfo={
-                  payManaCostInput
-                    ? {
-                        cardName: payManaCostInput.cardName,
-                        sourceCard: promptSourceDeckCard,
-                        manaCost: payManaCostInput.manaCost,
-                        description: payManaCostInput.presentation.text,
-                        manaPool: gameView.players.find((p) => p.isHuman)?.manaPool ?? {},
-                        canConfirmFromPool: payManaCostInput.canConfirmFromPool,
-                        delveCount: delvedCardIds.length,
-                        delveAvailable: delveSourceIds.length > 0,
-                        onOpenDelve: openDelveZone,
-                        lifeToPay: payLifeAction?.amount,
-                        onPayLife: payLifeAction
-                          ? () => respond({ type: "act", actionId: payLifeAction.id })
-                          : undefined,
-                      }
-                    : null
-                }
-                onPayManaCost={() => respond({ type: "pay", auto: false })}
-                onAutoManaCost={() => respond({ type: "pay", auto: true })}
-                onCancelManaCost={() => respond({ type: "cancel" })}
-                mulliganCount={mulliganInput?.mulliganCount ?? 0}
-                onMulliganKeep={() => respond({ type: "mulliganDecision", keep: true })}
-                onMulliganDraw={() => respond({ type: "mulliganDecision", keep: false })}
-                mulliganPutBackCount={mulliganPutBack.count}
-                mulliganSelectedCount={mulliganPutBack.selected.size}
-                onMulliganPutBackConfirm={mulliganPutBack.confirm}
-                onToggleBoardMenu={() => setBoardMenuOpen((open) => !open)}
-                selfClusterMaxHeight={boardLayout?.selfClusterMaxHeight}
-                dividerY={boardLayout?.dividerY}
-                dimmed={handCardLifted}
-              />
-              <MiddleBarDock
-                open={boardMenuOpen}
-                onOpenChange={setBoardMenuOpen}
-                onOpenSettings={() => setGameSettingsOpen(true)}
-                onConcede={handleConcede}
-                eliminated={iAmEliminated}
-                onLeave={handleLeave}
-                sidePanelCollapsed={isActionPanelCollapsed}
-                onToggleSidePanel={toggleActionPanel}
-                players={gameView.players.map((p) => {
-                  const color = playerColorMap.get(p.id) ?? themeColors.playerColors.self;
-                  return {
-                    id: p.id,
-                    name: p.name,
+            <MiddleBarDock
+              open={boardMenuOpen}
+              onOpenChange={setBoardMenuOpen}
+              onOpenSettings={() => setGameSettingsOpen(true)}
+              onConcede={handleConcede}
+              eliminated={iAmEliminated}
+              onLeave={handleLeave}
+              sidePanelCollapsed={isActionPanelCollapsed}
+              onToggleSidePanel={toggleActionPanel}
+              players={gameView.players.map((player) => {
+                const color = playerColorMap.get(player.id) ?? themeColors.playerColors.self;
+                return {
+                  id: player.id,
+                  name: player.name,
+                  color,
+                  textColor: readableTextColor(
                     color,
-                    textColor: readableTextColor(
-                      color,
-                      themeColors.canvas.shadow,
-                      themeColors.textOnTinted,
-                    ),
-                  };
-                })}
-              />
-            </>
+                    themeColors.canvas.shadow,
+                    themeColors.textOnTinted,
+                  ),
+                };
+              })}
+            />
           ),
           boardSurfaceEl,
         )}
@@ -2082,24 +2108,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         />
       )}
 
-      {promptType === "chooseBoardTargets" &&
-        (boardTargets?.spellIds.length ?? 0) > 0 &&
-        !spellStackModalOpen && (
-          <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
-            <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
-              <span className="text-sm font-semibold tracking-wide">
-                Click a glowing spell on the stack to counter it
-              </span>
-              <button
-                className="text-xs font-medium uppercase text-muted-foreground hover:text-foreground"
-                onClick={() => setSpellStackModalOpen(true)}
-              >
-                Expand
-              </button>
-            </div>
-          </div>
-        )}
-
       {gameView.step === "combatFirstStrikeDamage" && (
         <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
           <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
@@ -2112,8 +2120,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       )}
 
       <GameModals
-        currentPrompt={activePrompt}
-        sourceDeckCard={promptSourceDeckCard}
         viewingZone={viewingZone}
         onCloseZone={closeZone}
         spellStackModalOpen={spellStackModalOpen}
@@ -2132,29 +2138,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         }}
         onCancelAbilityPicker={closeAbilityPicker}
       />
-
-      {damageOrderInput && (
-        <DamageOrderModal
-          attackerName={
-            gameView.battlefield.find((c) => c.id === damageOrderInput.attackerId)?.identity.name ??
-            "The attacker"
-          }
-          blockerCards={damageOrderInput.blockerCards}
-          order={damageOrder}
-          isWaiting={isWaitingForResponse}
-          onToggle={toggleDamageOrder}
-          onUndo={undoDamageOrder}
-          onAuto={() =>
-            respond({
-              type: "damageAssignmentOrderDecision",
-              orderedBlockerIds: damageOrderInput.blockerIds,
-            })
-          }
-          onConfirm={() =>
-            respond({ type: "damageAssignmentOrderDecision", orderedBlockerIds: damageOrder })
-          }
-        />
-      )}
 
       {playModePicker && (
         <PlayModePicker

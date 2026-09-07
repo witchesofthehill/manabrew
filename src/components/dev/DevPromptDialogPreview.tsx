@@ -1,5 +1,3 @@
-import { PromptModalChromeContext } from "@/components/game/modals/promptModalChrome.context";
-
 import type { DevDialogPreview } from "./promptDialogPreviews";
 import { BattlefieldDialogPreview } from "./promptDialogs/BattlefieldDialogPreview";
 import { PromptModalPreview } from "./promptDialogs/PromptModalPreview";
@@ -25,6 +23,7 @@ const PROMPT_DIALOG_PREVIEWS = new Set<DevDialogPreview>([
   "damage-order",
   "dice-roll",
   "dice-roll-contest",
+  "game-over",
 ]);
 
 export function DevPromptDialogPreview({ preview, onClose }: DevPromptDialogPreviewProps) {
@@ -32,9 +31,7 @@ export function DevPromptDialogPreview({ preview, onClose }: DevPromptDialogPrev
   if (!fixtures) return null;
 
   return PROMPT_DIALOG_PREVIEWS.has(preview) ? (
-    <PromptModalChromeContext.Provider value={{ showMinimize: true, onMinimize: onClose }}>
-      <PromptModalPreview preview={preview} fixtures={fixtures} onClose={onClose} />
-    </PromptModalChromeContext.Provider>
+    <PromptModalPreview preview={preview} fixtures={fixtures} onClose={onClose} />
   ) : (
     <BattlefieldDialogPreview preview={preview} fixtures={fixtures} onClose={onClose} />
   );

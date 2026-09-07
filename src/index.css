@@ -298,35 +298,6 @@
     }
   }
 
-  /* Per-die randomization (rotation amount, fall delay) is applied via inline
-     CSS variables — see `DiceRollAnimation.tsx`. */
-  @keyframes dice-roll {
-    0% {
-      opacity: 0;
-      transform: translateY(-80px) rotate(0deg) scale(0.8);
-    }
-    35% {
-      opacity: 1;
-      transform: translateY(0) rotate(var(--dice-spin, 540deg)) scale(1);
-    }
-    50% {
-      transform: translateY(0) rotate(var(--dice-spin, 540deg)) scale(1.12);
-    }
-    62% {
-      transform: translateY(-6px) rotate(var(--dice-spin, 540deg)) scale(1);
-    }
-    74% {
-      transform: translateY(0) rotate(var(--dice-spin, 540deg)) scale(1);
-    }
-    85% {
-      transform: translateY(-2px) rotate(var(--dice-spin, 540deg)) scale(1);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0) rotate(var(--dice-spin, 540deg)) scale(1);
-    }
-  }
-
   @keyframes onboard-fade-in {
     from {
       opacity: 0;

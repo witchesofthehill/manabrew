@@ -5,18 +5,17 @@ import { destroyPixiApp, installPixiPatches } from "./pixiPatches";
 installPixiPatches();
 
 import { ArrowLayer } from "./ArrowLayer";
+import { OverlayRenderScheduler, overlayResolution } from "./overlay/overlayRuntime";
+import { installOverlayPointerRouting } from "./overlay/pointerRouting";
 import { StackLayer } from "./stack/StackLayer";
 import type { StackSpec } from "./stack/stack.types";
 import { getTheme } from "@/hooks/useTheme";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { isCoarsePointer } from "@/lib/responsive";
-import { registerPixiApp } from "./visibility";
-import { PIXI_MAX_FPS } from "./constants";
 import type { BoardScene } from "./board/BoardScene";
 import { useKeybindings } from "@/hooks/useKeybindings";
 
 interface BoardOverlayCanvasProps {
-  sceneRef: React.MutableRefObject<BoardScene | null>;
+  scene: BoardScene | null;
   stackSpec: StackSpec;
   onOpenStack: () => void;
   onTargetSpell: (spellId: string) => void;
@@ -26,7 +25,7 @@ interface BoardOverlayCanvasProps {
 }
 
 export function BoardOverlayCanvas({
-  sceneRef,
+  scene,
   stackSpec,
   onOpenStack,
   onTargetSpell,
@@ -38,7 +37,9 @@ export function BoardOverlayCanvas({
   const appRef = useRef<Application | null>(null);
   const arrowRef = useRef<ArrowLayer | null>(null);
   const stackRef = useRef<StackLayer | null>(null);
-  const unregisterRef = useRef<(() => void) | null>(null);
+  const schedulerRef = useRef<OverlayRenderScheduler | null>(null);
+  const sceneRef = useRef(scene);
+  const stackSpecRef = useRef(stackSpec);
   const [hoveredStackObjectId, setHoveredStackObjectId] = useState<string | null>(null);
 
   const cbRef = useRef({ onOpenStack, onTargetSpell, onHoverStack, onToggleStack });
@@ -47,36 +48,67 @@ export function BoardOverlayCanvas({
   }, [onOpenStack, onTargetSpell, onHoverStack, onToggleStack]);
 
   useEffect(() => {
+    sceneRef.current = scene;
+    schedulerRef.current?.request();
+  }, [scene]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
     let active = true;
+    let initialized = false;
+    let destroyed = false;
     let registeredScene: BoardScene | null = null;
+    let arrow: ArrowLayer | null = null;
+    let stack: StackLayer | null = null;
+    let scheduler: OverlayRenderScheduler | null = null;
     const app = new Application();
     appRef.current = app;
-    app
-      .init({
-        canvas: canvasRef.current!,
-        backgroundAlpha: 0,
-        antialias: true,
-        autoDensity: true,
-        resolution: isCoarsePointer()
-          ? Math.min(2, window.devicePixelRatio || 1)
-          : Math.max(2, window.devicePixelRatio || 1),
-      })
-      .then(() => {
+
+    const teardown = (): void => {
+      if (destroyed) return;
+      destroyed = true;
+      scheduler?.dispose();
+      registeredScene?.setStackAnchorProvider(null);
+      registeredScene?.setOverlayInvalidation(null);
+      arrow?.destroy();
+      stack?.destroy();
+      if (schedulerRef.current === scheduler) schedulerRef.current = null;
+      if (arrowRef.current === arrow) arrowRef.current = null;
+      if (stackRef.current === stack) stackRef.current = null;
+      if (appRef.current === app) appRef.current = null;
+      destroyPixiApp(app);
+    };
+
+    const initialize = async (): Promise<void> => {
+      try {
+        const parent = canvas.parentElement;
+        const width = Math.max(1, parent?.clientWidth ?? canvas.clientWidth);
+        const height = Math.max(1, parent?.clientHeight ?? canvas.clientHeight);
+        await app.init({
+          canvas,
+          backgroundAlpha: 0,
+          antialias: true,
+          autoDensity: true,
+          autoStart: false,
+          resolution: overlayResolution(width, height),
+        });
+        initialized = true;
         if (!active || !app.renderer) {
-          destroyPixiApp(app);
+          teardown();
           return;
         }
-        app.ticker.maxFPS = PIXI_MAX_FPS;
+
         app.stage.eventMode = "static";
         app.stage.sortableChildren = true;
-        unregisterRef.current = registerPixiApp(app);
 
-        const arrow = new ArrowLayer();
+        arrow = new ArrowLayer();
         arrow.setTheme(getTheme());
         arrow.graphics.eventMode = "none";
         arrowRef.current = arrow;
 
-        const stack = new StackLayer(getTheme(), {
+        stack = new StackLayer(getTheme(), {
           onOpen: () => cbRef.current.onOpenStack(),
           onTargetSpell: (id) => cbRef.current.onTargetSpell(id),
           onHover: (id) => {
@@ -86,43 +118,47 @@ export function BoardOverlayCanvas({
           onToggleCollapsed: () => cbRef.current.onToggleStack(),
         });
         stackRef.current = stack;
+        stack.setViewport(width, height);
+        stack.setSpec(stackSpecRef.current);
 
         app.stage.addChild(stack.container);
         app.stage.addChild(arrow.graphics);
+        app.renderer.resize(width, height);
 
-        const parent = canvasRef.current?.parentElement;
-        const w = parent?.clientWidth ?? 0;
-        const h = parent?.clientHeight ?? 0;
-        if (w > 0 && h > 0) {
-          app.renderer.resize(w, h);
-          stack.setViewport(w, h);
-        }
-        app.ticker.add(() => {
+        scheduler = new OverlayRenderScheduler(app, (deltaMs) => {
           const scene = sceneRef.current;
-          if (scene && scene !== registeredScene) {
+          if (scene !== registeredScene) {
+            registeredScene?.setStackAnchorProvider(null);
+            registeredScene?.setOverlayInvalidation(null);
             registeredScene = scene;
-            scene.setStackAnchorProvider(stack);
+            registeredScene?.setStackAnchorProvider(stack);
+            registeredScene?.setOverlayInvalidation(() => scheduler?.request());
           }
-          const defs = scene?.getArrowDefs() ?? [];
-          arrow.update(defs, app.ticker.deltaMS);
+          const definitions = scene?.getArrowDefs() ?? [];
+          arrow?.update(definitions, deltaMs);
+          return definitions.length > 0 || stack?.isAnimating() === true;
         });
-      });
+        schedulerRef.current = scheduler;
+        scheduler.request();
+      } catch (error) {
+        if (active) console.error("[pixi] BoardOverlayCanvas init failed:", error);
+        teardown();
+      }
+    };
+
+    void initialize();
     return () => {
       active = false;
-      registeredScene?.setStackAnchorProvider(null);
-      unregisterRef.current?.();
-      unregisterRef.current = null;
-      arrowRef.current?.destroy();
-      arrowRef.current = null;
-      stackRef.current?.destroy();
-      stackRef.current = null;
-      destroyPixiApp(appRef.current);
-      appRef.current = null;
+      canvas.style.pointerEvents = "none";
+      if (initialized) teardown();
+      else if (appRef.current === app) appRef.current = null;
     };
-  }, [sceneRef]);
+  }, []);
 
   useEffect(() => {
+    stackSpecRef.current = stackSpec;
     stackRef.current?.setSpec(stackSpec);
+    schedulerRef.current?.request();
   }, [stackSpec]);
 
   useEffect(() => {
@@ -131,10 +167,12 @@ export function BoardOverlayCanvas({
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
-        if (width > 0 && height > 0) {
-          appRef.current?.renderer?.resize(width, height);
-          stackRef.current?.setViewport(width, height);
-        }
+        const renderer = appRef.current?.renderer;
+        if (width <= 0 || height <= 0 || !renderer) continue;
+        renderer.resolution = overlayResolution(width, height);
+        renderer.resize(width, height);
+        stackRef.current?.setViewport(width, height);
+        schedulerRef.current?.request();
       }
     });
     observer.observe(parent);
@@ -142,62 +180,19 @@ export function BoardOverlayCanvas({
   }, []);
 
   useEffect(() => {
-    const insideStack = (clientX: number, clientY: number): boolean => {
-      const canvas = canvasRef.current;
-      const stack = stackRef.current;
-      if (!canvas || !stack) return false;
-      const rect = canvas.getBoundingClientRect();
-      return stack.hitTest(clientX - rect.left, clientY - rect.top);
-    };
-    const onMove = (e: PointerEvent) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      canvas.style.pointerEvents = insideStack(e.clientX, e.clientY) ? "auto" : "none";
-    };
-    // Touch taps arrive with no preceding pointermove, so the hover tracking
-    // above never enables the canvas for them. Intercept the touch at the
-    // window capture phase and replay it onto the canvas so Pixi sees a full
-    // down/up pair (the board underneath must not also react — stop the
-    // original).
-    const clonePointerEvent = (type: string, e: PointerEvent) =>
-      new PointerEvent(type, {
-        bubbles: true,
-        cancelable: true,
-        pointerId: e.pointerId,
-        pointerType: e.pointerType,
-        isPrimary: e.isPrimary,
-        clientX: e.clientX,
-        clientY: e.clientY,
-        button: e.button,
-        buttons: e.buttons,
-      });
-    let replayPointerId: number | null = null;
-    const onDown = (e: PointerEvent) => {
-      if (e.pointerType !== "touch") return;
-      const canvas = canvasRef.current;
-      if (!canvas || !insideStack(e.clientX, e.clientY)) return;
-      e.stopPropagation();
-      canvas.style.pointerEvents = "auto";
-      replayPointerId = e.pointerId;
-      canvas.dispatchEvent(clonePointerEvent("pointerdown", e));
-    };
-    const onUp = (e: PointerEvent) => {
-      if (e.pointerId !== replayPointerId) return;
-      replayPointerId = null;
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      e.stopPropagation();
-      canvas.dispatchEvent(clonePointerEvent("pointerup", e));
-      canvas.style.pointerEvents = "none";
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerdown", onDown, true);
-    window.addEventListener("pointerup", onUp, true);
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerdown", onDown, true);
-      window.removeEventListener("pointerup", onUp, true);
-    };
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    return installOverlayPointerRouting({
+      canvas,
+      hitTest: (clientX, clientY) => {
+        const stack = stackRef.current;
+        if (!stack) return false;
+        const rect = canvas.getBoundingClientRect();
+        return stack.hitTest(clientX - rect.left, clientY - rect.top);
+      },
+      onActivity: () => schedulerRef.current?.request(),
+      onOverlayCancel: (pointerId) => stackRef.current?.cancelPointer(pointerId),
+    });
   }, []);
 
   useEffect(
@@ -205,6 +200,7 @@ export function BoardOverlayCanvas({
       usePreferencesStore.subscribe(() => {
         arrowRef.current?.setTheme(getTheme());
         stackRef.current?.setTheme(getTheme());
+        schedulerRef.current?.request();
       }),
     [],
   );
@@ -214,7 +210,10 @@ export function BoardOverlayCanvas({
   useKeybindings(
     hoveredStackObjectId && hoveredStackCard?.card.isDoubleFaced
       ? {
-          "flip-card": () => stackRef.current?.toggleFace(hoveredStackObjectId),
+          "flip-card": () => {
+            stackRef.current?.toggleFace(hoveredStackObjectId);
+            schedulerRef.current?.request();
+          },
         }
       : {},
   );

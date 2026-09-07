@@ -1,11 +1,4 @@
-import {
-  Container,
-  Graphics,
-  Point as PixiPoint,
-  Sprite,
-  Text,
-  type FederatedPointerEvent,
-} from "pixi.js";
+import { Container, Graphics, Point as PixiPoint, type FederatedPointerEvent } from "pixi.js";
 import type { CardDto, CombatAssignmentDto, PlaymatSettings } from "@/protocol/game";
 import { CardSprite } from "../CardSprite";
 import { BoardZoneTiles, type ZoneTileSpec } from "./BoardZoneTiles";
@@ -22,7 +15,7 @@ import {
 } from "../GridLayout";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import { hexToNum } from "../colorUtils";
-import { lerp, safeDestroy } from "./pixiHelpers";
+import { getFrameRatio, lerp, safeDestroy } from "./pixiHelpers";
 import { playStomp } from "../effects/stomp";
 import { animationsEnabled } from "../effects/enabled";
 import {
@@ -78,12 +71,10 @@ import {
 import type { BlockingRect, RegionHost, SceneCombatStaging, SpriteEntry } from "./types";
 import { COLLAPSED_OPPONENT_WIDTH_PX, type RegionOrientation } from "./boardLayout";
 import { PlaymatLayer } from "./PlaymatLayer";
-import { loadAvatarTexture } from "../hud/avatarTextureCache";
-import { applyIcon } from "../panelIcons";
+import { CombatRowRenderer } from "./CombatRowRenderer";
 import { isCoarsePointer } from "@/lib/responsive";
 
 const COARSE_POINTER = isCoarsePointer();
-const COMBAT_ROW_BOT_ICON = "robot-antennas";
 
 type Point = ScreenPos;
 
@@ -93,8 +84,6 @@ interface BoardRegionOptions {
 
 const ENTRANCE_LAND_PX = 8;
 const GLIDE_LAND_PX = 24;
-
-const COMBAT_ROW_AVATAR_D = 24;
 
 /** Keyed by the card object. The engine mints fresh `CardDto` objects per state
  *  update, so a real change recomputes; the many re-layout passes that reuse the
@@ -153,10 +142,7 @@ export class BoardRegion {
   private attackRowDebug = false;
   private attackRowDebugGfx = new Graphics();
   private combatRowGroups: NonNullable<BattlefieldState["combatRowGroups"]> = [];
-  private combatRowGfx = new Graphics();
-  private combatRowLabels: Text[] = [];
-  private combatRowAvatars: { sprite: Sprite; mask: Graphics; url: string | null; size: number }[] =
-    [];
+  private combatRow: CombatRowRenderer;
   private effectiveChildrenMap = new Map<string, string[]>();
   private cardById = new Map<string, CardDto>();
   private lastState: BattlefieldState | null = null;
@@ -199,9 +185,7 @@ export class BoardRegion {
     this.playmat.setMirrored(this.mirrored);
     this.container.addChild(this.playmat.container);
 
-    this.combatRowGfx.eventMode = "none";
-    this.combatRowGfx.zIndex = Z_COMBAT_STAGED - 5;
-    this.container.addChild(this.combatRowGfx);
+    this.combatRow = new CombatRowRenderer(this.container);
     this.attackRowDebugGfx.eventMode = "none";
     this.attackRowDebugGfx.visible = false;
     this.attackRowDebugGfx.zIndex = Z_COMBAT_STAGED - 6;
@@ -220,10 +204,8 @@ export class BoardRegion {
       onPreview: (card, bounds) => this.host.previewCard(card, bounds),
       isPointerTapSuppressed: (pointerId) => this.host.isPointerTapSuppressed(pointerId),
     });
-    // Above the combat-row band (`combatRowGfx`, Z_COMBAT_STAGED - 5) so a zone
-    // tile parked in the inner-edge attack slot (mirrored fields) sits on top of
-    // the red strip instead of being dimmed beneath it — still below staged
-    // attacker cards and the row's avatar/label header.
+    // The zone tile stays above the combat-row band but below staged cards and
+    // the row's avatar/label header.
     this.zoneTiles.container.zIndex = Z_COMBAT_STAGED - 4;
     this.applyZoneTileDraggable();
     this.container.addChild(this.zoneTiles.container);
@@ -417,7 +399,7 @@ export class BoardRegion {
     } else {
       this.clipGfx.rect(this.clipX ?? this.zone.x, -OVERSCAN, this.clipWidth, OVERSCAN * 2);
     }
-    this.clipGfx.fill({ color: 0xffffff });
+    this.clipGfx.fill({ color: hexToNum(this.host.getTheme().gameTheme.canvas.neutral) });
     this.container.mask = this.clipGfx;
   }
 
@@ -608,15 +590,17 @@ export class BoardRegion {
   animate(): void {
     let exited: string[] | null = null;
     const now = performance.now();
+    const frameRatio = getFrameRatio();
+    const motionEnabled = animationsEnabled();
     for (const [id, entry] of this.entries) {
       const s = entry.sprite;
       if (entry.exiting) {
-        if (!animationsEnabled()) {
+        if (!motionEnabled) {
           (exited ??= []).push(id);
           continue;
         }
         s.alpha = lerp(s.alpha, 0, EXIT_FADE_LERP, 0.02);
-        s.scale.set(s.scale.x * EXIT_SHRINK);
+        s.scale.set(s.scale.x * Math.pow(EXIT_SHRINK, frameRatio));
         if (s.alpha <= 0.05) (exited ??= []).push(id);
         continue;
       }
@@ -649,13 +633,15 @@ export class BoardRegion {
           this.playEntranceFx(entry, s.card);
         }
       }
-      if (entry.shakeFrames > 0) {
+      if (!motionEnabled) {
+        entry.shakeFrames = 0;
+      } else if (entry.shakeFrames > 0) {
         const amp = DAMAGE_SHAKE_AMP_PX * (entry.shakeFrames / DAMAGE_SHAKE_FRAMES);
         s.x += (Math.random() - 0.5) * 2 * amp;
         s.y += (Math.random() - 0.5) * 2 * amp;
-        entry.shakeFrames -= 1;
+        entry.shakeFrames = Math.max(0, entry.shakeFrames - frameRatio);
       }
-      s.rotation = animationsEnabled()
+      s.rotation = motionEnabled
         ? lerp(s.rotation, entry.targetRotation, ROTATION_LERP, SNAP_ROT)
         : entry.targetRotation;
       s.zIndex = entry.targetZIndex;
@@ -960,19 +946,14 @@ export class BoardRegion {
   }
 
   private applyCombatRow(): void {
-    this.combatRowGfx.clear();
-    for (const t of this.combatRowLabels) t.visible = false;
-    for (const a of this.combatRowAvatars) a.sprite.visible = false;
-    if (this.combatRowAttackerIds.size === 0) return;
+    if (this.combatRowAttackerIds.size === 0) {
+      this.combatRow.hide();
+      return;
+    }
     const ids = [...this.combatRowAttackerIds];
     const y = this.frontEdgeY();
     const cardW = CARD_W * this.cardScale;
     const mat = this.playmatRect();
-    // Opponent bands hold a zone tile (exile/…) in the attack-row slot (grid
-    // col 0), so start the band at col 1's left edge to clear that whole column.
-    // grid.originX is full-field (unclipped) space while `mat` is the eased/clipped
-    // band, so during the accordion ease col-1 can fall outside the visible band —
-    // clamp bandLeft into [mat.x, bandRight] so bandW never inverts.
     const grid = this.gridInfo;
     const bandRight = mat.x + mat.width;
     const bandLeft =
@@ -987,8 +968,8 @@ export class BoardRegion {
     const startX = centerX - ((ids.length - 1) * step) / 2;
 
     const attackerX = new Map<string, number>();
-    ids.forEach((id, i) => {
-      const x = startX + i * step;
+    ids.forEach((id, index) => {
+      const x = startX + index * step;
       attackerX.set(id, x);
       const entry = this.entries.get(id);
       if (!entry) return;
@@ -999,10 +980,10 @@ export class BoardRegion {
     });
 
     const byAttacker = new Map<string, string[]>();
-    for (const b of this.combatRowBlocks) {
-      const list = byAttacker.get(b.attackerId);
-      if (list) list.push(b.blockerId);
-      else byAttacker.set(b.attackerId, [b.blockerId]);
+    for (const block of this.combatRowBlocks) {
+      const list = byAttacker.get(block.attackerId);
+      if (list) list.push(block.blockerId);
+      else byAttacker.set(block.attackerId, [block.blockerId]);
     }
     const onAttacker = CARD_H * this.cardScale * COMBAT_BLOCKER_OVERLAP_FRAC;
     const fanStep = cardW * COMBAT_STAGE_FAN_FRAC;
@@ -1010,10 +991,10 @@ export class BoardRegion {
     for (const [attackerId, blockerIds] of byAttacker) {
       const ax = attackerX.get(attackerId);
       if (ax === undefined) continue;
-      blockerIds.forEach((blockerId, i) => {
+      blockerIds.forEach((blockerId, index) => {
         const entry = this.entries.get(blockerId);
         if (!entry) return;
-        const offset = (i - (blockerIds.length - 1) / 2) * fanStep;
+        const offset = (index - (blockerIds.length - 1) / 2) * fanStep;
         const bx = ax + offset;
         const by = y + (this.mirrored ? -onAttacker : onAttacker);
         entry.targetX = bx;
@@ -1023,127 +1004,22 @@ export class BoardRegion {
       });
     }
 
-    const attackColor = hexToNum(this.host.getTheme().gameTheme.promptAction.attackAction);
     const halfH = (CARD_H * this.cardScale) / 2;
-    const stripLeft = bandLeft;
-    const stripW = bandW;
     const stripTop = y - halfH - COMBAT_ROW_PAD_Y;
-    const stripH = halfH * 2 + COMBAT_ROW_PAD_Y * 2;
-    this.combatRowGfx.roundRect(stripLeft, stripTop, stripW, stripH, 10);
-    this.combatRowGfx.fill({ color: attackColor, alpha: 0.22 });
-    this.combatRowGfx.roundRect(stripLeft, stripTop, stripW, stripH, 10);
-    this.combatRowGfx.stroke({ color: attackColor, width: 1.5, alpha: 0.6 });
-
-    if (connectors.length > 0) {
-      const defense = hexToNum(this.host.getTheme().gameTheme.promptAction.defenseAction);
-      for (const c of connectors) {
-        this.combatRowGfx.moveTo(c.ax, y);
-        this.combatRowGfx.lineTo(c.bx, c.by);
-      }
-      this.combatRowGfx.stroke({ color: defense, width: 2, alpha: 0.55 });
-    }
-
-    const lightHex = this.host.getTheme().gameTheme.textOnTinted;
-    const avatarD = Math.min(COMBAT_ROW_AVATAR_D, stripH - 6);
-    const groups = this.combatRowGroups;
-    for (let gi = 0; gi < groups.length; gi++) {
-      const group = groups[gi]!;
-      const col = hexToNum(group.color);
-      const ax = stripLeft + 6 + avatarD / 2;
-      // Opponent bands carry a zone tile (exile/…) in the attack-row slot, so the
-      // group label sits just *below* the band (far-left, in the gap above the
-      // divider) to avoid overlapping anything inside the play area; the self band
-      // has no tile there and keeps its top-left anchor inside the strip.
-      const ay = this.mirrored
-        ? stripTop + stripH + 6 + avatarD / 2 + gi * (avatarD + 4)
-        : stripTop + 6 + avatarD / 2 + gi * (avatarD + 4);
-      this.combatRowGfx.circle(ax, ay, avatarD / 2);
-      this.combatRowGfx.fill({ color: col, alpha: 0.4 });
-      this.combatRowGfx.circle(ax, ay, avatarD / 2);
-      this.combatRowGfx.stroke({ color: col, width: 1.5 });
-      const av = this.combatRowAvatar(gi);
-      av.sprite.visible = true;
-      av.sprite.position.set(ax, ay);
-      av.mask.clear();
-      av.mask.circle(ax, ay, avatarD / 2 - 1);
-      av.mask.fill({ color: 0xffffff });
-      if (group.avatarUrl) {
-        this.loadCombatRowAvatar(av, group.avatarUrl, avatarD);
-      } else {
-        av.url = null;
-        applyIcon(av.sprite, COMBAT_ROW_BOT_ICON, lightHex, 64, avatarD * 0.7, avatarD * 0.7);
-      }
-      const label = this.combatRowLabel(gi);
-      label.text = this.seatName ? `${group.label} → ${this.seatName}` : group.label;
-      label.style.fill = col;
-      label.anchor.set(0, 0.5);
-      label.position.set(ax + avatarD / 2 + 6, ay);
-      label.visible = true;
-    }
-  }
-
-  private combatRowAvatar(i: number): {
-    sprite: Sprite;
-    mask: Graphics;
-    url: string | null;
-    size: number;
-  } {
-    let a = this.combatRowAvatars[i];
-    if (!a) {
-      const sprite = new Sprite();
-      sprite.anchor.set(0.5);
-      sprite.eventMode = "none";
-      sprite.zIndex = Z_COMBAT_STAGED + 2;
-      const mask = new Graphics();
-      mask.eventMode = "none";
-      sprite.mask = mask;
-      this.container.addChild(mask, sprite);
-      a = { sprite, mask, url: null, size: 0 };
-      this.combatRowAvatars[i] = a;
-    }
-    return a;
-  }
-
-  private loadCombatRowAvatar(
-    a: { sprite: Sprite; mask: Graphics; url: string | null; size: number },
-    url: string,
-    size: number,
-  ): void {
-    a.size = size;
-    a.sprite.width = size;
-    a.sprite.height = size;
-    if (a.url === url) return;
-    a.url = url;
-    loadAvatarTexture(url)
-      .then((tex) => {
-        if (a.sprite.destroyed || a.url !== url) return;
-        a.sprite.texture = tex;
-        a.sprite.width = a.size;
-        a.sprite.height = a.size;
-      })
-      .catch(() => {});
-  }
-
-  private combatRowLabel(i: number): Text {
-    let t = this.combatRowLabels[i];
-    if (!t) {
-      t = new Text({
-        text: "",
-        style: {
-          fontFamily: "Inter, system-ui, sans-serif",
-          fontSize: 12,
-          fontWeight: "800",
-          fill: 0xffffff,
-          dropShadow: { color: 0x000000, alpha: 0.6, blur: 3, distance: 1, angle: Math.PI / 2 },
-        },
-      });
-      t.anchor.set(0.5);
-      t.eventMode = "none";
-      t.zIndex = Z_COMBAT_STAGED + 2;
-      this.container.addChild(t);
-      this.combatRowLabels[i] = t;
-    }
-    return t;
+    this.combatRow.render(
+      {
+        y,
+        stripLeft: bandLeft,
+        stripTop,
+        stripWidth: bandW,
+        stripHeight: halfH * 2 + COMBAT_ROW_PAD_Y * 2,
+        mirrored: this.mirrored,
+        targetName: this.seatName,
+        connectors,
+        groups: this.combatRowGroups,
+      },
+      this.host.getTheme(),
+    );
   }
 
   private frontEdgeY(): number {
@@ -1516,7 +1392,7 @@ export class BoardRegion {
       card.id === DEBUG_KEYWORD_CARD_ID
         ? applyCardOverrides(card, useGameDevStore.getState().cardOverrides)
         : card;
-    entry.sprite.updateCardContent(overriddenCard);
+    if (entry.sprite.card !== overriddenCard) entry.sprite.updateCardContent(overriddenCard);
     entry.sprite.setStackCount(this.stackCounts.get(card.id) ?? 1);
     const orderIdx = state.orderedCardIds?.indexOf(card.id) ?? -1;
     entry.sprite.setOrderBadge(orderIdx >= 0 ? orderIdx + 1 : null);
@@ -1693,6 +1569,7 @@ export class BoardRegion {
   redrawTheme(): void {
     this.drawBackground();
     this.zoneTiles.setTheme(this.host.getTheme());
+    this.applyCombatRow();
   }
 
   restyleCards(): void {

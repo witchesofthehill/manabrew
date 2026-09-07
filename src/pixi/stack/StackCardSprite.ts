@@ -43,6 +43,7 @@ export class StackCardSprite {
   private castingTween: gsap.core.Tween | null = null;
   private hoverTween: gsap.core.Tween | null = null;
   private longPress = new LongPressGesture();
+  private touchPointerId: number | null = null;
 
   constructor(
     theme: Theme,
@@ -86,6 +87,7 @@ export class StackCardSprite {
       else onOpen();
     });
     hit.on("pointerdown", (e: FederatedPointerEvent) => {
+      if (e.pointerType === "touch") this.touchPointerId = e.pointerId;
       this.longPress.start(e, this.spec.id, () => {
         this.hovered = true;
         this.syncFlipButton();
@@ -93,15 +95,18 @@ export class StackCardSprite {
         onHover(this.spec.id);
       });
     });
-    hit.on("globalpointermove", (e: FederatedPointerEvent) =>
-      this.longPress.move(e.global.x, e.global.y),
-    );
-    const endTouch = () => {
+    hit.on("globalpointermove", (e: FederatedPointerEvent) => {
+      if (e.pointerId === this.touchPointerId) this.longPress.move(e.global.x, e.global.y);
+    });
+    const endTouch = (e: FederatedPointerEvent) => {
+      if (e.pointerId !== this.touchPointerId) return;
+      this.touchPointerId = null;
       this.longPress.cancel();
       this.longPress.releaseFired();
     };
     hit.on("pointerup", endTouch);
     hit.on("pointerupoutside", endTouch);
+    hit.on("pointercancel", endTouch);
     hit.on("pointerover", (e: FederatedPointerEvent) => {
       if (e.pointerType === "touch") return;
       this.hovered = true;
@@ -212,8 +217,27 @@ export class StackCardSprite {
     return { width: this.width, height: this.height };
   }
 
+  cancelPointer(pointerId: number): void {
+    if (pointerId !== this.touchPointerId) return;
+    this.touchPointerId = null;
+    this.longPress.cancel();
+    this.longPress.releaseFired();
+  }
+
+  isAnimating(): boolean {
+    return (
+      !this.face.imageSettled ||
+      gsap.isTweening(this.face.scale) ||
+      gsap.isTweening(this.container) ||
+      gsap.isTweening(this.container.position) ||
+      gsap.isTweening(this.container.scale) ||
+      gsap.isTweening(this.ring)
+    );
+  }
+
   destroy(): void {
     this.longPress.cancel();
+    this.touchPointerId = null;
     this.moveTween?.kill();
     this.castingTween?.kill();
     this.hoverTween?.kill();

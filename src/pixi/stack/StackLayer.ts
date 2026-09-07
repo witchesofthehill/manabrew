@@ -261,6 +261,36 @@ export class StackLayer implements StackAnchorProvider {
     return false;
   }
 
+  cancelPointer(pointerId: number): void {
+    for (const sprite of this.sprites.values()) sprite.cancelPointer(pointerId);
+  }
+
+  isAnimating(): boolean {
+    if (
+      this.peeking ||
+      this.btnPulsing ||
+      gsap.isTweening(this.btn) ||
+      gsap.isTweening(this.btn.position) ||
+      gsap.isTweening(this.btn.scale) ||
+      gsap.isTweening(this.btnGlow) ||
+      gsap.isTweening(this.btnGlow.scale)
+    ) {
+      return true;
+    }
+    if (
+      this.flashSprite &&
+      (!this.flashSprite.imageSettled ||
+        gsap.isTweening(this.flashSprite) ||
+        gsap.isTweening(this.flashSprite.scale))
+    ) {
+      return true;
+    }
+    for (const sprite of this.sprites.values()) {
+      if (sprite.isAnimating()) return true;
+    }
+    return false;
+  }
+
   toggleFace(stackObjectId: string): void {
     const card = this.spec.cards.find((candidate) => candidate.id === stackObjectId);
     if (!card?.card.isDoubleFaced) return;

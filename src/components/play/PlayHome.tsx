@@ -42,13 +42,10 @@ export function PlayHome() {
   const connectionError = useServerStore((state) => state.error);
   const rooms = useServerStore((state) => state.rooms);
   const players = useServerStore((state) => state.players);
-  const connect = useServerStore((state) => state.connect);
+  const connectPreferred = useServerStore((state) => state.connectPreferred);
   const listRooms = useServerStore((state) => state.listRooms);
   const listPlayers = useServerStore((state) => state.listPlayers);
-  const serverHost = usePreferencesStore((state) => state.serverHost);
-  const serverPort = usePreferencesStore((state) => state.serverPort);
   const serverUsername = usePreferencesStore((state) => state.serverUsername);
-  const serverPassword = usePreferencesStore((state) => state.serverPassword);
   const accountHandle = useAuthStore((s) =>
     s.status === "signedIn" ? (s.account?.handle ?? null) : null,
   );
@@ -62,18 +59,15 @@ export function PlayHome() {
   useEffect(() => {
     const name = relayUsername();
     if (!resumePending && !connected && !connecting && !connectionError && name) {
-      connect(serverHost, serverPort, name, serverPassword);
+      void connectPreferred(name);
     }
   }, [
-    connect,
+    connectPreferred,
     connected,
     connecting,
     connectionError,
     resumePending,
-    serverHost,
-    serverPort,
     serverUsername,
-    serverPassword,
     accountHandle,
   ]);
 

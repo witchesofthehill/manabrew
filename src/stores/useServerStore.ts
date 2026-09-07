@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { toast } from "sonner";
 import { getPlatform } from "@/platform";
+import { findLanRelay, type LanTarget } from "@/lib/lanRelay";
 import { attachDraftPeer, detachDraftPeer } from "@/game/draftPeer";
 import { teardownHost as teardownDraftHost } from "@/game/draftHost";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
@@ -68,6 +69,9 @@ interface ServerState {
   username: string | null;
   reconnect: ReconnectState;
   relayFeatures: string[];
+  /** Set when the session is on a relay or room found on this network rather
+   *  than the configured one, for the lobby to say so. */
+  lanTarget: LanTarget | null;
 
   rooms: RoomInfo[];
   currentRoom: RoomInfo | null;
@@ -83,6 +87,9 @@ interface ServerState {
   startingLife: number;
 
   connect(host: string, port: number, username: string, password: string): Promise<void>;
+  /** The configured relay, unless one is answering on this network: that is
+   *  the network's lobby and wins. */
+  connectPreferred(username: string): Promise<void>;
   disconnect(): Promise<void>;
   listRooms(): Promise<void>;
   listPlayers(): Promise<void>;
@@ -196,6 +203,7 @@ export const useServerStore = create<ServerState>()(
       username: null,
       reconnect: { phase: "idle", attempt: 0 },
       relayFeatures: [],
+      lanTarget: null,
       rooms: [],
       currentRoom: null,
       roomPassword: null,
@@ -214,7 +222,7 @@ export const useServerStore = create<ServerState>()(
           set({ connecting: false, error: "Multiplayer not supported on this platform" });
           return;
         }
-        set({ username, connecting: true, error: null });
+        set({ username, connecting: true, error: null, lanTarget: null });
         duplicateRejectionSince = null;
         releaseTabSession();
         const claim = await claimTabSession(username);
@@ -243,6 +251,22 @@ export const useServerStore = create<ServerState>()(
         }
       },
 
+      // Decided where the first connection is made. The home screen connects
+      // as soon as it opens, and a lookup that lived only in the lobby ran
+      // after that, when there was nothing left to decide.
+      async connectPreferred(username) {
+        if (get().connected || get().connecting) return;
+        set({ connecting: true, error: null });
+        const found = await findLanRelay();
+        const prefs = usePreferencesStore.getState();
+        if (found) {
+          await get().connect(found.host, found.port, username, found.password);
+          if (!get().error) set({ lanTarget: found });
+        } else {
+          await get().connect(prefs.serverHost, prefs.serverPort, username, prefs.serverPassword);
+        }
+      },
+
       async disconnect() {
         duplicateRejectionSince = null;
         releaseTabSession();
@@ -256,6 +280,7 @@ export const useServerStore = create<ServerState>()(
           playerId: null,
           username: null,
           reconnect: { phase: "idle", attempt: 0 },
+          lanTarget: null,
           currentRoom: null,
           roomPassword: null,
           hostingForgeRoom: false,

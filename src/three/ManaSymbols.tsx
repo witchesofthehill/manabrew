@@ -32,3 +32,32 @@ export function ManaText({ text }: { text: string }) {
     </span>
   );
 }
+
+const colorSymbols: Record<string, string> = {
+  white: "W",
+  blue: "U",
+  black: "B",
+  red: "R",
+  green: "G",
+  colorless: "C",
+  w: "W",
+  u: "U",
+  b: "B",
+  r: "R",
+  g: "G",
+  c: "C",
+};
+
+export function ManaChoiceLabel({ label }: { label: string }) {
+  const symbol = colorSymbols[label.trim().toLowerCase()];
+  return symbol ? (
+    <span className="duel-mana-text">
+      <span aria-hidden="true">
+        <ManaSymbol symbol={symbol} />
+      </span>
+      <span>{label}</span>
+    </span>
+  ) : (
+    <ManaText text={label} />
+  );
+}

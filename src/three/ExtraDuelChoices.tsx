@@ -1,8 +1,7 @@
 import { ChoicePages } from "@/three/ChoicePages";
 import { useState } from "react";
 import type { PromptInput, PromptOutput } from "@manabrew/protocol";
-import { ManaSymbol } from "@/three/ManaSymbols";
-import { ManaText } from "@/three/ManaSymbols";
+import { ManaChoiceLabel } from "@/three/ManaSymbols";
 
 export function ExtraDuelChoices({
   input,
@@ -59,7 +58,7 @@ export function ExtraDuelChoices({
                 )
               }
             >
-              <ManaText text={option.label} />
+              <ManaChoiceLabel label={option.label} />
               {chosen.includes(i) ? ` ×${chosen.filter((n) => n === i).length}` : ""}
             </button>
           ))}
@@ -113,7 +112,7 @@ export function ExtraDuelChoices({
           {input.validColors.map((color) => (
             <label key={color}>
               <span>
-                <ManaSymbol symbol={color} /> {color}
+                <ManaChoiceLabel label={color} />
               </span>
               <input
                 aria-label={`${color} count`}

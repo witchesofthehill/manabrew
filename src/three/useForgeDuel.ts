@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { warmArenaDeckImages } from "@/three/arenaImageCache";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createForgeEngine } from "@manabrew/forge-wasm";
 import type { ForgeEngine } from "@manabrew/forge-wasm";
 import type { GameViewDto, Prompt, PromptOutput } from "@manabrew/protocol";
@@ -8,12 +9,30 @@ import type { DuelMatch } from "@/three/duelMatch";
 import { AUTOPASS_DELAY_MIN_MS, AUTOPASS_DELAY_MAX_MS } from "@/components/game/game.constants";
 import type { AutoPassCountdown } from "@/three/arena.types";
 
-export function useForgeDuel() {
+export interface DuelSession {
+  view: GameViewDto | null;
+  prompt: Prompt | null;
+  error: string;
+  deckName: string;
+  playerColors: Record<string, string[]>;
+  respond: (id: string | number | undefined, action: PromptOutput) => Promise<void>;
+  concede: () => void;
+  restart: () => void;
+}
+
+export function useForgeDuel(session?: DuelSession) {
+  const sessionRef = useRef(session);
   const engine = useRef<ForgeEngine | null>(null);
   const generation = useRef(0);
   const pending = useRef<Prompt | null>(null);
-  const [view, setView] = useState<GameViewDto | null>(null);
-  const [prompt, setPrompt] = useState<Prompt | null>(null);
+  const [localView, setView] = useState<GameViewDto | null>(null);
+  const [localPrompt, setPrompt] = useState<Prompt | null>(null);
+  const view = session ? session.view : localView;
+  const prompt = session ? session.prompt : localPrompt;
+  useLayoutEffect(() => {
+    sessionRef.current = session;
+    if (session) pending.current = session.prompt;
+  }, [session]);
   const [status, setStatus] = useState("Choose your deck to begin.");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,6 +43,11 @@ export function useForgeDuel() {
   const [stops, setStops] = useState<string[]>([]);
   const [paused, setPaused] = useState(false);
   const [autoPaying, setAutoPaying] = useState(false);
+  useEffect(() => {
+    if (!session || !prompt || prompt.input.type === "payManaCost" || !autoPaying) return;
+    const timer = window.setTimeout(() => setAutoPaying(false), 0);
+    return () => window.clearTimeout(timer);
+  }, [session, prompt, autoPaying]);
   const [autoPassCountdown, setAutoPassCountdown] = useState<AutoPassCountdown | null>(null);
   const autoPaySteps = useRef(0);
   const lastMatch = useRef<DuelMatch | undefined>(undefined);
@@ -46,6 +70,9 @@ export function useForgeDuel() {
         { length: playerCount - 1 },
         (_, seat) => duelDecks[(index + seat + 1) % duelDecks.length],
       );
+    warmArenaDeckImages(
+      [deck, ...opponents].flatMap((entry) => entry.cards.map((card) => card.name)),
+    );
     const run = ++generation.current;
     engine.current?.dispose();
     pending.current = null;
@@ -108,6 +135,12 @@ export function useForgeDuel() {
     }
   };
   const respond = useCallback((id: string | number | undefined, action: PromptOutput) => {
+    if (sessionRef.current) {
+      if (!pending.current || String(pending.current.promptId) !== String(id)) return;
+      pending.current = null;
+      void sessionRef.current.respond(id, action).catch((failure) => setError(String(failure)));
+      return;
+    }
     if (!engine.current || String(pending.current?.promptId) !== String(id) || !pending.current)
       return;
     try {
@@ -120,6 +153,10 @@ export function useForgeDuel() {
     }
   }, []);
   const concede = () => {
+    if (sessionRef.current) {
+      sessionRef.current.concede();
+      return;
+    }
     engine.current?.directive({ type: "concede" });
     setStatus("Conceding at the next priority window…");
   };
@@ -156,6 +193,7 @@ export function useForgeDuel() {
     !fullControl &&
     !paused &&
     !error &&
+    !session?.error &&
     prompt?.input.type === "chooseAction" &&
     !ownMain &&
     !meaningful &&
@@ -231,13 +269,14 @@ export function useForgeDuel() {
     view,
     prompt,
     status,
-    error,
+    error: session?.error || error,
     loading,
     deckIndex,
-    deckName,
-    playerColors,
+    deckName: session?.deckName ?? deckName,
+    playerColors: session?.playerColors ?? playerColors,
     start,
-    restart: () => start(deckIndex, lastPlayerCount.current, lastMatch.current),
+    restart:
+      session?.restart ?? (() => start(deckIndex, lastPlayerCount.current, lastMatch.current)),
     respond,
     concede,
     fullControl,

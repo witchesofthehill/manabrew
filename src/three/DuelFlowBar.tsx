@@ -82,26 +82,33 @@ export function DuelFlowBar({
           );
         })}
       </div>
-      {combatIndex >= 0 && (
-        <ol className="duel-combat-steps" aria-label="Combat steps">
-          {combatSteps.map(([id, label], index) => (
-            <li
-              key={id}
-              aria-current={id === step ? "step" : undefined}
-              data-active={id === step}
-              data-past={index < combatIndex}
-              title={
-                id === "combatFirstStrikeDamage"
-                  ? "First strike damage — only when first strike or double strike applies"
-                  : stepNames[id]
-              }
-            >
-              <span aria-hidden="true">{index + 1}</span>
-              {label}
-            </li>
-          ))}
-        </ol>
-      )}
+      <div
+        className="duel-combat-reveal"
+        data-open={combatIndex >= 0}
+        aria-hidden={combatIndex < 0}
+      >
+        <div className="duel-combat-clip">
+          <ol className="duel-combat-steps" aria-label="Combat steps">
+            {combatSteps.map(([id, label], index) => (
+              <li
+                key={id}
+                style={{ "--combat-order": index } as CSSProperties}
+                aria-current={id === step ? "step" : undefined}
+                data-active={id === step}
+                data-past={index < combatIndex}
+                title={
+                  id === "combatFirstStrikeDamage"
+                    ? "First strike damage — only when first strike or double strike applies"
+                    : stepNames[id]
+                }
+              >
+                <span aria-hidden="true">{index + 1}</span>
+                {label}
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
       <button
         className="duel-control"
         aria-pressed={fullControl}

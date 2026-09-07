@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef } from "react";
+import cardBack from "@/three/assets/card-back.png";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { StackObjectDto } from "@manabrew/protocol";
 import { cardScreenTransform, takeCastOrigin } from "@/three/castMotion";
@@ -16,6 +17,29 @@ export function StackCard({
   onMotion: (active: boolean) => void;
   onHover: (id: string | null) => void;
 }) {
+  const [loadedImage, setLoadedImage] = useState("");
+  useEffect(() => {
+    let cancelled = false;
+    let attempts = 0;
+    let timer: number | undefined;
+    const pending = new Image();
+    pending.crossOrigin = "anonymous";
+    pending.onload = () => {
+      if (!cancelled) setLoadedImage(image);
+    };
+    pending.onerror = () => {
+      if (!cancelled && attempts++ < 2)
+        timer = window.setTimeout(() => {
+          pending.src = image;
+        }, attempts * 1200);
+    };
+    pending.src = image;
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      pending.onload = pending.onerror = null;
+    };
+  }, [image]);
   const host = useRef<HTMLSpanElement>(null);
   const notify = useRef(onMotion);
   useLayoutEffect(() => {
@@ -118,7 +142,12 @@ export function StackCard({
       style={{ "--depth": depth } as CSSProperties}
       onMouseEnter={() => onHover(spell.id)}
     >
-      <img src={image} alt={spell.identity.name} draggable={false} />
+      <img
+        src={loadedImage === image ? image : cardBack}
+        crossOrigin="anonymous"
+        alt={spell.identity.name}
+        draggable={false}
+      />
       <b>{depth === 0 ? "NEXT" : `+${depth}`}</b>
     </span>
   );

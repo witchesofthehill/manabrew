@@ -11,7 +11,7 @@ const ArenaMatch = lazy(() => import("@/views/ArenaMatch"));
 import Lobby from "@/views/Lobby";
 import DeckEditor from "@/views/DeckEditor";
 
-import Game from "@/views/Game";
+import Game from "@/views/GamePresentation";
 import Play from "@/views/Play";
 import Draft from "@/views/Draft";
 import MultiplayerDraft from "@/views/MultiplayerDraft";

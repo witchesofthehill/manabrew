@@ -6,7 +6,7 @@ import { OfflinePlaySetup } from "@/components/play/OfflinePlaySetup";
 import { OfflinePlayShell } from "@/components/play/OfflinePlayShell";
 import { PlayHome } from "@/components/play/PlayHome";
 import { DeckPlayActions } from "@/components/play/DeckPlayActions";
-import Game from "./Game";
+import Game from "./GamePresentation";
 import { isLiveEngineGameRouteState } from "@/game/engineGameLaunch";
 import { ROUTES } from "@/lib/constants";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";

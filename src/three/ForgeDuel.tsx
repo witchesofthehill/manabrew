@@ -1,3 +1,4 @@
+import { arenaCardImageUrl } from "@/three/arenaImageCache";
 import { CardActionPicker } from "@/three/CardActionPicker";
 import { arenaSurface } from "@/themes/arenaSurface";
 import { GameIcon } from "@/three/GameIcon";
@@ -17,6 +18,7 @@ import type { CardDto } from "@manabrew/protocol";
 import { ArenaScene } from "@/three/ArenaScene";
 import { DuelPrompt } from "@/three/DuelPrompt";
 import { useForgeDuel } from "@/three/useForgeDuel";
+import type { DuelSession } from "@/three/useForgeDuel";
 import { duelDecks } from "@/three/duelDecks";
 import type { ArenaCard, ArenaColors, ArenaZonePile } from "@/three/arena.types";
 import preset from "@/themes/kanagawa";
@@ -28,19 +30,20 @@ const style = Object.fromEntries(
   Object.entries(colors).map(([key, value]) => [`--arena-${key}`, value]),
 ) as CSSProperties;
 const imageUrl = (card: CardDto, variant: string) =>
-  card.isFaceDown
-    ? undefined
-    : `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(card.identity.name)}&format=image&version=${variant}`;
+  card.isFaceDown ? undefined : arenaCardImageUrl(card.identity.name, variant);
 
 export function ForgeDuel({
   renderSetup,
   onExit,
+  session,
 }: {
   renderSetup?: (start: (match: DuelMatch) => void, loading: boolean) => ReactNode;
   onExit?: () => void;
+  session?: DuelSession;
 } = {}) {
-  const game = useForgeDuel();
-  const [playerCount, setPlayerCount] = useState(2);
+  const game = useForgeDuel(session);
+  const [localPlayerCount, setPlayerCount] = useState(2);
+  const playerCount = session?.view?.players.length ?? localPlayerCount;
   const { view, prompt } = game;
   const [priorityDisplay, setPriorityDisplay] = useState<{
     prompt: NonNullable<typeof prompt>;

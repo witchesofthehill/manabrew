@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import type { CardDto } from "@/protocol/game";
 import type { ClientPlayerDto } from "@/stores/gameStore.types";
@@ -44,9 +44,6 @@ import {
 } from "@/pixi/constants";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
-const ArenaBoardCanvas = lazy(() =>
-  import("@/three/ArenaBoardCanvas").then((module) => ({ default: module.ArenaBoardCanvas })),
-);
 
 function promptOf<TType extends PromptType>(
   prompt: Prompt | null | undefined,
@@ -1381,8 +1378,7 @@ export function GameBoard({
       .join(". ")}.`;
   }, [battlefield, opponents, me.id]);
 
-  const arenaEnabled = usePreferencesStore((state) => state.battlefieldRenderer === "3d");
-  const Canvas = arenaEnabled ? ArenaBoardCanvas : BoardCanvas;
+  const Canvas = BoardCanvas;
 
   return (
     <div

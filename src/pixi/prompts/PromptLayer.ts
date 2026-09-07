@@ -27,9 +27,13 @@ import type {
   ReorderItem,
   ScryDestination,
   SelectionOption,
+  TargetRef,
 } from "@/protocol";
 import { PromptButton } from "./PromptButton";
-import type { PromptOverlaySpec } from "./prompt.types";
+import { LongPressGesture } from "@/pixi/LongPressGesture";
+import { animationsEnabled } from "@/pixi/effects/enabled";
+import { gsap } from "@/pixi/effects/gsap";
+import type { PromptLayerCallbacks, PromptOverlaySpec } from "./prompt.types";
 
 const MODAL_TYPES = new Set([
   "chooseBoolean",
@@ -48,8 +52,10 @@ const MODAL_TYPES = new Set([
 const FONT = "Inter, system-ui, sans-serif";
 const PANEL_PADDING = 20;
 const ROW_GAP = 10;
-const CARD_WIDTH = 86;
-const CARD_HEIGHT = 120;
+const CARD_WIDTH = 100;
+const CARD_HEIGHT = 140;
+const DICE_ROLL_MS = 1200;
+const DICE_FINISH_MS = 1450;
 
 interface DragState {
   item: Container;
@@ -58,9 +64,17 @@ interface DragState {
   onDrop: (x: number, y: number) => void;
 }
 
+interface DiceVisual {
+  die: Graphics;
+  value: Text;
+  finalValue: number;
+  index: number;
+  sides: number;
+}
 interface DropZone {
   id: string;
   rect: Rectangle;
+  visual: Graphics;
 }
 
 function promptText(
@@ -100,6 +114,7 @@ export class PromptLayer {
   readonly container = new Container();
   private readonly app: Application;
   private theme: Theme;
+  private readonly callbacks: PromptLayerCallbacks;
   private spec: PromptOverlaySpec | null = null;
   private promptKey: unknown = null;
   private viewportWidth = 0;
@@ -112,11 +127,16 @@ export class PromptLayer {
   private numberBuffer = "";
   private order: string[] = [];
   private scryItems: Record<string, string[]> = {};
+  private scrySelectedId: string | null = null;
   private damageAssigned: Record<string, number> = {};
   private dropZones: DropZone[] = [];
   private drag: DragState | null = null;
   private diceElapsedMs = 0;
   private autopassRemainingMs: number | null = null;
+  private diceVisuals: DiceVisual[] = [];
+  private diceWinnerText: Text | null = null;
+  private diceConfirm: PromptButton | null = null;
+  private diceSettled = false;
   private autopassTotalMs = 0;
   private autopassFill: Graphics | null = null;
   private selectionFilter = "";
@@ -124,11 +144,14 @@ export class PromptLayer {
   private modalScrollMax = 0;
   private modalBody: { body: Container; bodyTop: number; height: number } | null = null;
   private keyListener: (event: KeyboardEvent) => void;
+  private longPress = new LongPressGesture();
+  private stickyPreviewCardId: string | null = null;
   private onStageMove = (event: FederatedPointerEvent): void => this.moveDrag(event);
   private onStageUp = (event: FederatedPointerEvent): void => this.finishDrag(event);
 
-  constructor(app: Application) {
+  constructor(app: Application, callbacks: PromptLayerCallbacks = {}) {
     this.app = app;
+    this.callbacks = callbacks;
     this.theme = getTheme();
     this.container.sortableChildren = true;
     this.container.zIndex = 10000;
@@ -191,6 +214,9 @@ export class PromptLayer {
     this.app.stage.off("pointerup", this.onStageUp);
     this.app.stage.off("pointerupoutside", this.onStageUp);
     this.app.ticker.remove(this.tick, this);
+    this.longPress.reset();
+    this.callbacks.onReferenceChange?.(null);
+    this.callbacks.onPreviewCard?.(null);
     this.container.destroy({ children: true });
   }
 
@@ -202,9 +228,15 @@ export class PromptLayer {
     this.autopassRemainingMs = null;
     this.autopassTotalMs = 0;
     this.scryItems = {};
+    this.scrySelectedId = null;
     this.damageAssigned = {};
     this.dropZones = [];
     this.drag = null;
+    this.stickyPreviewCardId = null;
+    this.diceVisuals = [];
+    this.diceWinnerText = null;
+    this.diceConfirm = null;
+    this.diceSettled = false;
     this.diceElapsedMs = 0;
     this.modalScrollOffset = 0;
     this.modalScrollMax = 0;
@@ -234,6 +266,7 @@ export class PromptLayer {
   }
 
   private rebuild(): void {
+    this.callbacks.onReferenceChange?.(null);
     this.drag = null;
     this.actionBounds = null;
     this.autopassFill = null;
@@ -314,6 +347,7 @@ export class PromptLayer {
       disabled?: boolean;
       width?: number;
       compact?: boolean;
+      height?: number;
       title?: string;
       icon?: string;
       iconTexture?: Promise<Texture>;
@@ -331,6 +365,7 @@ export class PromptLayer {
       width: options.width,
       compact: options.compact,
       title: options.title,
+      height: options.height,
       icon: options.icon,
       iconTexture: options.iconTexture,
       iconTint: options.iconTint,
@@ -416,17 +451,30 @@ export class PromptLayer {
     switch (promptView) {
       case "chooseAction": {
         title = "Priority";
-        hint = action.isMyTurn ? "You have priority" : `${action.activePlayerName}'s turn`;
+        const step = action.step.replace(/([A-Z])/g, " $1").trim();
+        hint = action.isMyTurn
+          ? `You have priority · ${step}`
+          : `${action.activePlayerName}'s turn · ${step}`;
+        const cancelAutopass = () => {
+          this.autopassRemainingMs = null;
+          this.autopassTotalMs = 0;
+          this.rebuild();
+        };
         buttons.push(
           this.makeButton(
-            this.autopassRemainingMs == null ? "PASS" : "PASSING",
-            action.onPassPriority,
-            { color: passColor, disabled: waiting, width: 112 },
+            this.autopassRemainingMs == null ? "PASS PRIORITY" : "CANCEL AUTO-PASS",
+            this.autopassRemainingMs == null ? action.onPassPriority : cancelAutopass,
+            {
+              color: passColor,
+              outline: this.autopassRemainingMs != null,
+              disabled: waiting,
+              width: 138,
+            },
           ),
           this.makeButton("END TURN", action.onPassEndTurn, {
             color: this.theme.appTheme.secondary,
             disabled: waiting,
-            width: 126,
+            width: 116,
           }),
         );
         break;
@@ -447,8 +495,10 @@ export class PromptLayer {
         title = "Declare Attackers";
         const attackCount = action.attackAssignmentCount + action.pendingAttackers.length;
         hint = action.pendingAttackers.length
-          ? "Pick a target — click an opponent or planeswalker"
-          : action.mustAttackHint || "Drag creatures to defenders or select attackers";
+          ? "Pick a defender for the selected attackers"
+          : attackCount > 0
+            ? `${attackCount} attacker${attackCount === 1 ? "" : "s"} assigned`
+            : action.mustAttackHint || "Drag creatures to defenders or select attackers";
         if (action.pendingAttackers.length) hintIcon = "lucide-crosshair";
         const attackAll = action.multipleAttackDefenders
           ? () => action.onBeginAttackTargetPick(action.availableAttackerIds)
@@ -523,11 +573,21 @@ export class PromptLayer {
           promptView === "chooseTargetSpell" ||
           (input?.type === "chooseBoardTargets" &&
             input.candidates.some((target) => target.kind === "spell"));
-        hint = hasSpellTargets
-          ? "Click a glowing spell on the stack to target it"
-          : input?.type === "chooseBoardTargets"
-            ? input.presentation.title
-            : "Choose a valid target";
+        hint =
+          input?.type === "chooseBoardTargets"
+            ? `${input.presentation.title} · ${input.chosenTargets}/${input.maxTargets} selected`
+            : hasSpellTargets
+              ? "Choose a glowing spell on the stack"
+              : "Choose a valid target";
+        if (hasSpellTargets) {
+          const spellTarget =
+            input?.type === "chooseBoardTargets"
+              ? input.candidates.find((target) => target.kind === "spell")
+              : spec.gameView.stack[0]
+                ? { kind: "spell" as const, id: spec.gameView.stack[0].id }
+                : undefined;
+          if (spellTarget) this.callbacks.onReferenceChange?.(spellTarget);
+        }
         if (action.targetCompletionLabel && action.onCompleteTargets) {
           buttons.push(
             this.makeButton(action.targetCompletionLabel.toUpperCase(), action.onCompleteTargets, {
@@ -576,9 +636,14 @@ export class PromptLayer {
       case "payManaCost": {
         title = "Pay Mana";
         const info = action.payManaCostInfo;
-        hint =
-          info?.description ||
-          (info ? `Cast ${info.cardName} for ${info.manaCost}` : "Pay mana cost");
+        const poolTotal = info
+          ? Object.values(info.manaPool).reduce((sum, value) => sum + value, 0)
+          : 0;
+        hint = info
+          ? `${info.cardName} · cost ${info.manaCost} · pool ${poolTotal}${
+              info.delveCount ? ` · ${info.delveCount} delved` : ""
+            }`
+          : "Pay mana cost";
         buttons.push(
           this.makeButton(
             info?.canConfirmFromPool ? "CONFIRM" : "AUTO",
@@ -619,31 +684,38 @@ export class PromptLayer {
         break;
       }
       case "mulligan": {
-        title = "Mulligan";
+        title = "Opening Hand";
+        const input = spec.currentPrompt?.input;
+        const handSize = input?.type === "mulligan" ? input.handCardIds.length : 7;
+        const nextSize = Math.max(0, handSize - 1);
         hint = action.mulliganCount
-          ? `Mulligan ${action.mulliganCount}: your next hand will contain one fewer card`
-          : "Keep this opening hand or draw a new one";
+          ? `Mulligan ${action.mulliganCount} · review ${handSize} cards`
+          : `Review your opening ${handSize}`;
         buttons.push(
-          this.makeButton("KEEP", action.onMulliganKeep, {
+          this.makeButton(`KEEP ${handSize}`, action.onMulliganKeep, {
             color: passColor,
             disabled: waiting,
             icon: "lucide-check",
             width: 118,
           }),
-          this.makeButton("MULLIGAN", action.onMulliganDraw, {
+          this.makeButton(`TO ${nextSize}`, action.onMulliganDraw, {
             color: this.theme.appTheme.secondary,
             disabled: waiting,
             icon: "lucide-rotate-cw",
             width: 126,
+            title: `Mulligan to ${nextSize} cards`,
           }),
         );
         break;
       }
       case "mulliganPutBack": {
-        title = "Mulligan";
+        title = "Put Cards Back";
         const selected = action.mulliganSelectedCount ?? 0;
         const count = action.mulliganPutBackCount ?? 0;
-        hint = `${selected}/${count} to library bottom`;
+        hint =
+          selected === count
+            ? `${count} selected · ready for library bottom`
+            : `Select ${count - selected} more for library bottom`;
         buttons.push(
           this.makeButton("CONFIRM", action.onMulliganPutBackConfirm, {
             color: this.theme.appTheme.primary,
@@ -662,8 +734,12 @@ export class PromptLayer {
           MODAL_TYPES.has(spec.currentPrompt.input.type) &&
           spec.modalHidden
         ) {
+          const minimizedInput = spec.currentPrompt.input;
           title = "Action Required";
-          hint = "The prompt is minimized";
+          hint =
+            "presentation" in minimizedInput
+              ? `${minimizedInput.presentation.title} · minimized`
+              : "A decision is minimized";
           buttons.push(
             this.makeButton("OPEN PROMPT", spec.onShowModal, {
               color: defenseColor,
@@ -672,7 +748,8 @@ export class PromptLayer {
             }),
           );
         } else if (waitingOthers) {
-          hint = "Waiting for another player";
+          title = "Waiting";
+          hint = `Waiting for ${action.activePlayerName}`;
         }
       }
     }
@@ -695,7 +772,84 @@ export class PromptLayer {
       icon.position.set(width / 2 - PANEL_PADDING - hintText.width / 2 - 10, 7);
       content.addChild(icon);
     }
-    const buttonY = Math.max(24, hintText.height + 8);
+    let detailY = Math.max(24, hintText.height + 8);
+    if (promptView === "chooseBlockers" && action.blockAssignments.length > 0) {
+      for (const assignment of action.blockAssignments.slice(0, 2)) {
+        const row = new Container();
+        row.position.set(0, detailY);
+        row.eventMode = "static";
+        row.cursor = "default";
+        row.hitArea = new Rectangle(0, 0, width - PANEL_PADDING * 2, 28);
+        row.accessible = true;
+        row.accessibleTitle = `${action.resolveCardName(assignment.blockerId)} blocks ${action.resolveCardName(assignment.attackerId)}`;
+        row.tabIndex = 0;
+        const background = new Graphics()
+          .roundRect(0, 0, width - PANEL_PADDING * 2, 28, 7)
+          .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.55 })
+          .stroke({ color: hexToNum(defenseColor), width: 1, alpha: 0.7 });
+        const label = promptText(
+          `${action.resolveCardName(assignment.blockerId)} → ${action.resolveCardName(assignment.attackerId)}`,
+          10,
+          this.theme.appTheme.foreground,
+          { weight: "600", width: width - PANEL_PADDING * 2 - 16 },
+        );
+        label.position.set(8, 7);
+        const target: TargetRef = { kind: "card", id: assignment.blockerId, intent: "block" };
+        row.on("pointerover", () => this.callbacks.onReferenceChange?.(target));
+        row.on("pointerout", () => this.callbacks.onReferenceChange?.(null));
+        row.on("focusin", () => this.callbacks.onReferenceChange?.(target));
+        row.on("focusout", () => this.callbacks.onReferenceChange?.(null));
+        row.addChild(background, label);
+        content.addChild(row);
+        detailY += 32;
+      }
+      if (action.blockAssignments.length > 2) {
+        const more = promptText(
+          `+${action.blockAssignments.length - 2} more assignments`,
+          10,
+          this.theme.appTheme["muted-foreground"],
+          { weight: "600" },
+        );
+        more.position.set(4, detailY);
+        content.addChild(more);
+        detailY += 18;
+      }
+    }
+    const targetInput = spec.currentPrompt?.input;
+    if (promptView === "chooseBoardTargets" && targetInput?.type === "chooseBoardTargets") {
+      for (const target of targetInput.presentation.targets.slice(0, 2)) {
+        const row = new Container();
+        row.position.set(0, detailY);
+        row.eventMode = "static";
+        row.cursor = "default";
+        row.hitArea = new Rectangle(0, 0, width - PANEL_PADDING * 2, 26);
+        row.accessible = true;
+        const name =
+          target.kind === "card"
+            ? action.resolveCardName(target.id)
+            : target.kind === "player"
+              ? (spec.gameView.players.find((player) => player.id === target.id)?.name ?? target.id)
+              : "Stack spell";
+        row.accessibleTitle = `Selected target: ${name}`;
+        row.tabIndex = 0;
+        const background = new Graphics()
+          .roundRect(0, 0, width - PANEL_PADDING * 2, 26, 7)
+          .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.55 });
+        const label = promptText(`✓ ${name}`, 10, this.theme.appTheme.foreground, {
+          weight: "600",
+          width: width - PANEL_PADDING * 2 - 16,
+        });
+        label.position.set(8, 6);
+        row.on("pointerover", () => this.callbacks.onReferenceChange?.(target));
+        row.on("pointerout", () => this.callbacks.onReferenceChange?.(null));
+        row.on("focusin", () => this.callbacks.onReferenceChange?.(target));
+        row.on("focusout", () => this.callbacks.onReferenceChange?.(null));
+        row.addChild(background, label);
+        content.addChild(row);
+        detailY += 30;
+      }
+    }
+    const buttonY = detailY;
     const buttonHeight = this.addButtonRow(content, buttons, buttonY, width - PANEL_PADDING * 2);
     const bodyHeight = Math.max(42, buttonY + buttonHeight);
     const panelHeight = headerHeight + PANEL_PADDING + bodyHeight + 10;
@@ -710,6 +864,16 @@ export class PromptLayer {
         )
       : this.viewportHeight - panelHeight;
     const panel = this.panel(width, panelHeight, x, y, compact ? 16 : 9);
+    const needsAttention =
+      promptView === "promptRequired" ||
+      (!!spec.currentPrompt && MODAL_TYPES.has(spec.currentPrompt.input.type) && spec.modalHidden);
+    if (needsAttention) {
+      const attention = new Graphics()
+        .roundRect(0, 0, 4, panelHeight, compact ? 16 : 9)
+        .fill({ color: hexToNum(defenseColor) });
+      attention.eventMode = "none";
+      panel.addChild(attention);
+    }
     if (!compact) {
       const titleText = promptText(title.toUpperCase(), 11, this.theme.appTheme.foreground, {
         weight: "700",
@@ -771,7 +935,7 @@ export class PromptLayer {
     }
     content.position.set(PANEL_PADDING, headerHeight + 10);
     panel.addChild(content);
-    panel.alpha = waiting ? 0.7 : 1;
+    panel.alpha = 1;
     if (this.autopassRemainingMs != null && this.autopassTotalMs > 0) {
       const progress = 1 - this.autopassRemainingMs / this.autopassTotalMs;
       this.autopassFill = new Graphics()
@@ -785,13 +949,18 @@ export class PromptLayer {
   }
 
   private renderModal(): void {
-    const backdrop = new Graphics()
-      .rect(0, 0, this.viewportWidth, this.viewportHeight)
-      .fill({ color: hexToNum(this.theme.appTheme.overlay), alpha: 0.76 });
+    const input = this.spec!.currentPrompt!.input;
+    const boardContext =
+      input.type === "chooseCombatDamageAssignment" ||
+      input.type === "chooseDamageAssignmentOrder" ||
+      (input.type === "chooseBoolean" && input.presentation.targets.length > 0);
+    const backdrop = new Graphics().rect(0, 0, this.viewportWidth, this.viewportHeight).fill({
+      color: hexToNum(this.theme.appTheme.overlay),
+      alpha: boardContext ? 0.38 : 0.76,
+    });
     backdrop.eventMode = "static";
     backdrop.hitArea = new Rectangle(0, 0, this.viewportWidth, this.viewportHeight);
     this.container.addChild(backdrop);
-    const input = this.spec!.currentPrompt!.input;
     switch (input.type) {
       case "chooseBoolean":
         this.renderBoolean(input.presentation, input.denyLabel, input.confirmLabel);
@@ -835,13 +1004,28 @@ export class PromptLayer {
     height: number,
     presentation: PromptPresentation,
     minimizable = true,
+    boardContext = false,
   ): {
     panel: Container;
     body: Container;
     bodyTop: number;
   } {
-    const x = (this.viewportWidth - width) / 2;
-    const y = (this.viewportHeight - height) / 2;
+    const compact = this.viewportWidth < 760 || this.viewportHeight < 520;
+    let x = (this.viewportWidth - width) / 2;
+    if (boardContext && !compact && this.viewportWidth >= width + 160) {
+      const anchors = presentation.targets
+        .map((target) => this.callbacks.getReferenceAnchor?.(target))
+        .filter((anchor): anchor is { x: number; y: number } => anchor != null);
+      const meanX =
+        anchors.length > 0
+          ? anchors.reduce((sum, anchor) => sum + anchor.x, 0) / anchors.length
+          : this.viewportWidth;
+      x = meanX < this.viewportWidth / 2 ? this.viewportWidth - width - 16 : 16;
+    }
+    const y =
+      compact && boardContext
+        ? this.viewportHeight - height - 12
+        : (this.viewportHeight - height) / 2;
     const panel = this.panel(width, height, x, y, 12);
     panel.eventMode = "static";
     panel.hitArea = new Rectangle(0, 0, width, height);
@@ -929,7 +1113,7 @@ export class PromptLayer {
         0,
         Math.min(this.modalScrollMax, this.modalScrollOffset + Math.sign(event.deltaY) * 48),
       );
-      this.rebuild();
+      body.y = bodyTop - this.modalScrollOffset;
     });
     this.modalBody = { body, bodyTop, height };
     this.container.addChild(panel);
@@ -953,14 +1137,22 @@ export class PromptLayer {
   ): void {
     const width = Math.min(520, this.viewportWidth - 24);
     const height = Math.min(280, this.viewportHeight - 24);
-    const { body } = this.createModalShell(width, height, presentation);
+    const { body } = this.createModalShell(
+      width,
+      height,
+      presentation,
+      true,
+      presentation.targets.length > 0,
+    );
     const buttons = [
       this.makeButton(denyLabel, () => this.spec!.respond({ type: "decision", value: false }), {
         outline: true,
         width: 150,
+        height: 58,
       }),
       this.makeButton(confirmLabel, () => this.spec!.respond({ type: "decision", value: true }), {
         width: 150,
+        height: 58,
       }),
     ];
     this.addButtonRow(body, buttons, Math.max(12, height - body.y - 76), width - PANEL_PADDING * 2);
@@ -984,27 +1176,57 @@ export class PromptLayer {
     const { body } = this.createModalShell(width, height, presentation);
     const autoConfirm = minTotal === 1 && maxTotal === 1;
     const availableWidth = width - PANEL_PADDING * 2;
+    const total = this.selectionTotal(options);
     let y = 4;
+    if (!autoConfirm) {
+      const requirement =
+        minTotal === maxTotal
+          ? `${total}/${maxTotal} selected`
+          : `${total} selected · choose ${minTotal}–${maxTotal}`;
+      const status = promptText(requirement, 12, this.theme.appTheme.primary, {
+        weight: "700",
+      });
+      status.position.set(2, y);
+      body.addChild(status);
+      y += 28;
+    }
     if (showFilter) {
+      const filterBg = new Graphics()
+        .roundRect(0, y, availableWidth, 32, 8)
+        .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.55 })
+        .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.8 });
       const filter = promptText(
-        `Filter: ${this.selectionFilter || "type to search"}`,
+        `⌕  ${this.selectionFilter || "Type to filter choices"}`,
         12,
         this.selectionFilter
           ? this.theme.appTheme.foreground
           : this.theme.appTheme["muted-foreground"],
-        { width: availableWidth },
+        { width: availableWidth - 18 },
       );
-      filter.position.set(2, y);
-      body.addChild(filter);
-      y += 30;
+      filter.position.set(10, y + 8);
+      body.addChild(filterBg, filter);
+      y += 42;
+    }
+    if (visibleOptions.length === 0) {
+      const empty = promptText("No choices match this filter", 12, this.theme.appTheme.muted, {
+        width: availableWidth,
+        align: "center",
+      });
+      empty.position.set(0, y + 18);
+      body.addChild(empty);
+      y += 58;
     }
     for (const { option, index } of visibleOptions) {
       const count = this.counts.get(index) ?? 0;
-      const total = this.selectionTotal(options);
+      const currentTotal = this.selectionTotal(options);
       const selected = count > 0;
-      const disabled = option.weight > maxTotal || (!selected && total + option.weight > maxTotal);
+      const disabled =
+        option.weight > maxTotal || (!selected && currentTotal + option.weight > maxTotal);
       const repeatedWidth = option.canRepeat ? availableWidth - 76 : availableWidth;
-      const label = option.canRepeat ? `${option.label}  × ${count}` : option.label;
+      const weightLabel = option.weight > 1 ? ` · ${option.weight} points` : "";
+      const label = option.canRepeat
+        ? `${option.label}${weightLabel}  × ${count}`
+        : `${option.label}${weightLabel}`;
       const increment = () => {
         if (autoConfirm) {
           this.spec!.respond({ type: "selectionDecision", chosenIndices: [index] });
@@ -1059,12 +1281,14 @@ export class PromptLayer {
         body.addChild(plus);
       }
       y += 44;
-      if (y > height - body.y - 66) break;
     }
     if (!autoConfirm) {
-      const total = this.selectionTotal(options);
-      const canConfirm = total >= minTotal && total <= maxTotal;
-      const label = minTotal === 0 && total === 0 ? "SKIP" : `CONFIRM${total ? ` (${total})` : ""}`;
+      const selectedTotal = this.selectionTotal(options);
+      const canConfirm = selectedTotal >= minTotal && selectedTotal <= maxTotal;
+      const label =
+        minTotal === 0 && selectedTotal === 0
+          ? "SKIP"
+          : `CONFIRM${selectedTotal ? ` (${selectedTotal})` : ""}`;
       const confirm = this.makeButton(
         label,
         () => {
@@ -1075,7 +1299,7 @@ export class PromptLayer {
         },
         { disabled: !canConfirm, width: 130 },
       );
-      confirm.position.set(availableWidth - confirm.buttonWidth, height - body.y - 54);
+      confirm.position.set(availableWidth - confirm.buttonWidth, y + 8);
       body.addChild(confirm);
     }
   }
@@ -1101,15 +1325,29 @@ export class PromptLayer {
       Math.min(cards.length, Math.floor((width - PANEL_PADDING * 2) / (CARD_WIDTH + 10))),
     );
     const rows = Math.ceil(cards.length / columns);
-    const height = Math.min(this.viewportHeight - 24, 190 + rows * (CARD_HEIGHT + 12));
+    const height = Math.min(this.viewportHeight - 24, 220 + rows * (CARD_HEIGHT + 12));
     const { body } = this.createModalShell(
       width,
       height,
       reveal
-        ? { ...presentation, title: "Revealed cards", description: presentation.title }
+        ? {
+            ...presentation,
+            title: "Cards Revealed",
+            description: `${cards.length} card${cards.length === 1 ? "" : "s"} shown`,
+          }
         : presentation,
     );
-    const startY = 4;
+    const status = promptText(
+      reveal
+        ? "Inspect any card before continuing"
+        : `${this.selectedIds.size}/${max} selected · minimum ${min}`,
+      12,
+      reveal ? this.theme.appTheme["muted-foreground"] : this.theme.appTheme.primary,
+      { weight: reveal ? "500" : "700" },
+    );
+    status.position.set(0, 3);
+    body.addChild(status);
+    const startY = 32;
     cards.forEach((card, index) => {
       const selected = this.selectedIds.has(card.id);
       const disabled = !reveal && this.selectedIds.size >= max && !selected;
@@ -1124,7 +1362,7 @@ export class PromptLayer {
       tile.position.set(column * (CARD_WIDTH + 10), startY + row * (CARD_HEIGHT + 12));
       body.addChild(tile);
     });
-    const footerY = height - body.y - 48;
+    const footerY = startY + rows * (CARD_HEIGHT + 12) + 6;
     const chosen = [...this.selectedIds];
     const canConfirm = reveal || (chosen.length >= min && chosen.length <= max);
     const label = reveal
@@ -1149,14 +1387,18 @@ export class PromptLayer {
     selected: boolean,
     disabled: boolean,
     onPress?: () => void,
+    intent: TargetRef["intent"] = "friendly",
   ): Container {
     const tile = new Container();
-    tile.eventMode = disabled ? "none" : "static";
+    tile.eventMode = "static";
     tile.cursor = disabled ? "default" : onPress ? "pointer" : "grab";
     tile.hitArea = new Rectangle(0, 0, CARD_WIDTH, CARD_HEIGHT);
     tile.accessible = true;
-    tile.accessibleTitle = card.identity.name;
-    tile.tabIndex = disabled ? -1 : 0;
+    tile.accessibleTitle = `${card.identity.name}${selected ? ", selected" : ""}${
+      disabled ? ", unavailable" : ""
+    }`;
+    tile.accessibleHint = "Focus or hover to preview and locate this card";
+    tile.tabIndex = 0;
     const sprite = new CardSprite(card, "zone");
     const placeSprite = () => {
       sprite.scale.set(1);
@@ -1175,8 +1417,48 @@ export class PromptLayer {
       ring.eventMode = "none";
       tile.addChild(ring);
     }
-    tile.alpha = disabled ? 0.3 : 1;
-    if (onPress) tile.on("pointertap", onPress);
+    tile.alpha = disabled ? 0.42 : 1;
+    const target: TargetRef = { kind: "card", id: card.id, intent };
+    const showPreview = (sticky: boolean) => {
+      const bounds = tile.getBounds();
+      sprite.setElevation(1);
+      sprite.setPromptReference(hexToNum(this.theme.gameTheme.cardRing));
+      this.callbacks.onReferenceChange?.(target);
+      this.callbacks.onPreviewCard?.(
+        card,
+        { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+        sticky,
+      );
+      if (sticky) this.stickyPreviewCardId = card.id;
+    };
+    const hidePreview = () => {
+      sprite.setElevation(0);
+      sprite.setPromptReference(null);
+      this.callbacks.onReferenceChange?.(null);
+      if (this.stickyPreviewCardId !== card.id) this.callbacks.onPreviewCard?.(null);
+    };
+    tile.on("pointerover", (event: FederatedPointerEvent) => {
+      if (event.pointerType !== "touch") showPreview(false);
+    });
+    tile.on("pointerout", hidePreview);
+    tile.on("focusin", () => showPreview(false));
+    tile.on("focusout", hidePreview);
+    tile.on("pointerdown", (event: FederatedPointerEvent) => {
+      this.longPress.start(event, card.id, () => showPreview(true));
+    });
+    tile.on("globalpointermove", (event: FederatedPointerEvent) => {
+      this.longPress.move(event.global.x, event.global.y);
+    });
+    const endTouch = () => {
+      this.longPress.cancel();
+      this.longPress.releaseFired();
+    };
+    tile.on("pointerup", endTouch);
+    tile.on("pointerupoutside", endTouch);
+    tile.on("pointertap", () => {
+      if (this.longPress.consumeTap(card.id) || disabled) return;
+      onPress?.();
+    });
     return tile;
   }
 
@@ -1186,7 +1468,7 @@ export class PromptLayer {
     amount: number,
     repeatAllowed: boolean,
   ): void {
-    const width = Math.min(430, this.viewportWidth - 24);
+    const width = Math.min(amount <= 1 ? 680 : 430, this.viewportWidth - 24);
     const height = Math.min(
       this.viewportHeight - 24,
       210 + validColors.length * (amount > 1 ? 42 : 0),
@@ -1218,10 +1500,11 @@ export class PromptLayer {
           {
             color: colors[color] ?? this.theme.appTheme.muted,
             foreground: this.theme.gameTheme.textOnTinted,
-            width: 106,
+            width: 112,
+            height: 64,
             iconTexture: loadManaSymbolTexture(this.manaSymbol(color)),
             iconTint: false,
-            iconSize: 24,
+            iconSize: 28,
           },
         ),
       );
@@ -1327,7 +1610,8 @@ export class PromptLayer {
           {
             outline: true,
             compact: true,
-            width: 42,
+            width: 48,
+            height: 52,
           },
         );
       });
@@ -1353,6 +1637,12 @@ export class PromptLayer {
       this.rebuild();
     };
     const buttons = [
+      this.makeButton("MIN", () => setValue(min), {
+        title: `Set to minimum ${min}`,
+        outline: true,
+        width: 62,
+        height: 52,
+      }),
       this.makeButton("", () => setValue((isValid ? parsedValue : min) - 1), {
         title: "Decrease",
         icon: "lucide-minus",
@@ -1360,6 +1650,7 @@ export class PromptLayer {
         outline: true,
         disabled: isValid && parsedValue <= min,
         width: 58,
+        height: 52,
       }),
       this.makeButton(
         "",
@@ -1370,6 +1661,7 @@ export class PromptLayer {
           iconSize: 24,
           disabled: !isValid,
           width: 70,
+          height: 52,
         },
       ),
       this.makeButton("", () => setValue((isValid ? parsedValue : min) + 1), {
@@ -1379,17 +1671,24 @@ export class PromptLayer {
         outline: true,
         disabled: isValid && parsedValue >= max,
         width: 58,
+        height: 52,
+      }),
+      this.makeButton("MAX", () => setValue(max), {
+        title: `Set to maximum ${max}`,
+        outline: true,
+        width: 62,
+        height: 52,
       }),
     ];
-    this.addButtonRow(body, buttons, 78, width - PANEL_PADDING * 2);
+    this.addButtonRow(body, buttons, 82, width - PANEL_PADDING * 2);
     const rangeText = promptText(
-      `Enter a number between ${min} and ${max}.`,
+      `Type a value or use the stepper · ${min} to ${max}`,
       12,
       this.theme.appTheme["muted-foreground"],
       { align: "center" },
     );
     rangeText.anchor.set(0.5, 0);
-    rangeText.position.set((width - PANEL_PADDING * 2) / 2, 124);
+    rangeText.position.set((width - PANEL_PADDING * 2) / 2, 142);
     body.addChild(rangeText);
   }
 
@@ -1404,8 +1703,9 @@ export class PromptLayer {
       230 + Math.ceil(items.length / columns) * (CARD_HEIGHT + 30),
     );
     const { body } = this.createModalShell(width, height, presentation);
+    body.sortableChildren = true;
     const instruction = promptText(
-      "Drag to arrange — number 1 goes first",
+      "Drag cards into order, or use arrow controls · 1 resolves first",
       12,
       this.theme.gameTheme.promptAction.defenseAction,
       { weight: "600" },
@@ -1421,6 +1721,12 @@ export class PromptLayer {
       const row = Math.floor(index / columns);
       const x = column * (CARD_WIDTH + 18);
       const y = 30 + row * (CARD_HEIGHT + 30);
+      const slot = new Graphics()
+        .roundRect(x - 4, y - 4, CARD_WIDTH + 8, CARD_HEIGHT + 8, 8)
+        .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.35 })
+        .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.75 });
+      slot.eventMode = "none";
+      body.addChild(slot);
       card.position.set(x, y);
       this.makeDraggable(card, (dropX, dropY) => {
         const localX = dropX - (this.viewportWidth - width) / 2 - PANEL_PADDING;
@@ -1451,6 +1757,34 @@ export class PromptLayer {
       rankText.anchor.set(0.5);
       rankText.position.set(0, 0);
       card.addChild(rank, rankText);
+      const move = (offset: number) => {
+        const target = Math.max(0, Math.min(this.order.length - 1, index + offset));
+        if (target === index) return;
+        this.order.splice(index, 1);
+        this.order.splice(target, 0, id);
+        this.rebuild();
+      };
+      const previous = this.makeButton("", () => move(-1), {
+        title: "Move earlier",
+        icon: "lucide-chevron-left",
+        outline: true,
+        compact: true,
+        disabled: index === 0,
+        width: 32,
+      });
+      const next = this.makeButton("", () => move(1), {
+        title: "Move later",
+        icon: "lucide-chevron-right",
+        outline: true,
+        compact: true,
+        disabled: index === this.order.length - 1,
+        width: 32,
+      });
+      previous.scale.set(0.76);
+      next.scale.set(0.76);
+      previous.position.set(14, CARD_HEIGHT + 4);
+      next.position.set(58, CARD_HEIGHT + 4);
+      card.addChild(previous, next);
       body.addChild(card);
     });
     const confirm = this.makeButton(
@@ -1458,7 +1792,10 @@ export class PromptLayer {
       () => this.spec!.respond({ type: "reorderDecision", orderedIds: [...this.order] }),
       { width: 150 },
     );
-    confirm.position.set(width - PANEL_PADDING * 2 - confirm.buttonWidth, height - body.y - 48);
+    confirm.position.set(
+      width - PANEL_PADDING * 2 - confirm.buttonWidth,
+      40 + Math.ceil(items.length / columns) * (CARD_HEIGHT + 30),
+    );
     body.addChild(confirm);
   }
 
@@ -1479,12 +1816,15 @@ export class PromptLayer {
       .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.6 })
       .stroke({ color: hexToNum(this.theme.appTheme["muted-foreground"]), width: 2, alpha: 0.45 });
     body.addChild(poolBg);
-    this.dropZones.push({ id: "pool", rect: this.localRectToGlobal(body, pool) });
+    this.dropZones.push({ id: "pool", rect: this.localRectToGlobal(body, pool), visual: poolBg });
     const poolIds = this.scryItems.pool ?? [];
     poolIds.forEach((id, index) => {
       const card = byId.get(id);
       if (!card) return;
-      const tile = this.createCardTile(card, false, false);
+      const tile = this.createCardTile(card, this.scrySelectedId === id, false, () => {
+        this.scrySelectedId = this.scrySelectedId === id ? null : id;
+        this.rebuild();
+      });
       tile.position.set(
         10 +
           index *
@@ -1512,6 +1852,14 @@ export class PromptLayer {
           width: 2,
           alpha: 0.45,
         });
+      zoneBg.eventMode = "static";
+      zoneBg.cursor = this.scrySelectedId ? "pointer" : "default";
+      zoneBg.accessible = true;
+      zoneBg.accessibleTitle = `Move selected card to ${this.scryDestinationLabel(destination)}`;
+      zoneBg.tabIndex = this.scrySelectedId ? 0 : -1;
+      zoneBg.on("pointertap", () => {
+        if (this.scrySelectedId) this.moveScryCard(this.scrySelectedId, key);
+      });
       body.addChild(zoneBg);
       const label = promptText(
         this.scryDestinationLabel(destination),
@@ -1521,12 +1869,26 @@ export class PromptLayer {
       );
       label.position.set(rect.x + 8, rect.y - 22);
       body.addChild(label);
-      this.dropZones.push({ id: key, rect: this.localRectToGlobal(body, rect) });
+      this.dropZones.push({
+        id: key,
+        rect: this.localRectToGlobal(body, rect),
+        visual: zoneBg,
+      });
       const ids = this.scryItems[key] ?? [];
       ids.forEach((id, cardIndex) => {
         const card = byId.get(id);
         if (!card) return;
-        const tile = this.createCardTile(card, false, cardIndex !== ids.length - 1);
+        const tile = this.createCardTile(
+          card,
+          this.scrySelectedId === id,
+          cardIndex !== ids.length - 1,
+          cardIndex === ids.length - 1
+            ? () => {
+                this.scrySelectedId = this.scrySelectedId === id ? null : id;
+                this.rebuild();
+              }
+            : undefined,
+        );
         tile.position.set(rect.x + (rect.width - CARD_WIDTH) / 2, rect.y + 10 + cardIndex * 18);
         if (cardIndex === ids.length - 1)
           this.makeDraggable(tile, (x, y) => this.dropScryCard(id, x, y));
@@ -1564,6 +1926,10 @@ export class PromptLayer {
       this.rebuild();
       return;
     }
+    this.moveScryCard(cardId, target.id);
+  }
+
+  private moveScryCard(cardId: string, targetId: string): void {
     let source: string | undefined;
     for (const [key, ids] of Object.entries(this.scryItems)) {
       if (ids.includes(cardId)) {
@@ -1571,12 +1937,13 @@ export class PromptLayer {
         break;
       }
     }
-    if (!source || source === target.id) {
+    if (!source || source === targetId) {
       this.rebuild();
       return;
     }
     this.scryItems[source] = this.scryItems[source]!.filter((id) => id !== cardId);
-    this.scryItems[target.id] = [...(this.scryItems[target.id] ?? []), cardId];
+    this.scryItems[targetId] = [...(this.scryItems[targetId] ?? []), cardId];
+    this.scrySelectedId = null;
     this.rebuild();
   }
 
@@ -1657,22 +2024,38 @@ export class PromptLayer {
     const damageOrder = this.spec!.damageOrder;
     if (!damageOrder) return;
     const width = Math.min(500, this.viewportWidth - 24);
-    const height = Math.min(this.viewportHeight - 24, 230 + damageOrder.blockerCards.length * 48);
+    const height = Math.min(this.viewportHeight - 24, 260 + damageOrder.blockerCards.length * 64);
+    const input = this.spec!.currentPrompt?.input;
+    const targets: TargetRef[] =
+      input?.type === "chooseDamageAssignmentOrder"
+        ? [
+            { kind: "card", id: input.attackerId, intent: "damage" },
+            ...damageOrder.blockerCards.map((card) => ({
+              kind: "card" as const,
+              id: card.id,
+              intent: "damage" as const,
+            })),
+          ]
+        : damageOrder.blockerCards.map((card) => ({
+            kind: "card" as const,
+            id: card.id,
+            intent: "damage" as const,
+          }));
     const presentation: PromptPresentation = {
       title: "Order Combat Damage",
       description: `${damageOrder.attackerName} is blocked by ${damageOrder.blockerCards.length} creatures — choose the order it assigns damage.`,
-      targets: [],
+      targets,
     };
-    const { body } = this.createModalShell(width, height, presentation, false);
+    const { body } = this.createModalShell(width, height, presentation, false, true);
     const complete =
       damageOrder.order.length >= damageOrder.blockerCards.length &&
       damageOrder.blockerCards.length > 0;
     const instruction = promptText(
       damageOrder.order.length === 0
-        ? "Click blockers in the order damage is dealt."
+        ? "Choose blockers in the order damage is dealt."
         : complete
           ? "Order set — confirm to deal damage."
-          : `Click the next blocker (${damageOrder.order.length}/${damageOrder.blockerCards.length}).`,
+          : `Choose the next blocker (${damageOrder.order.length}/${damageOrder.blockerCards.length}).`,
       12,
       this.theme.appTheme["muted-foreground"],
       { width: width - PANEL_PADDING * 2 },
@@ -1682,19 +2065,46 @@ export class PromptLayer {
     let y = instruction.height + 16;
     for (const card of damageOrder.blockerCards) {
       const index = damageOrder.order.indexOf(card.id);
-      const button = this.makeButton(
-        index >= 0 ? `${index + 1}. ${card.identity.name}` : card.identity.name,
-        () => damageOrder.onToggle(card.id),
+      const row = new Container();
+      row.position.set(0, y);
+      row.eventMode = "static";
+      row.cursor = "pointer";
+      row.hitArea = new Rectangle(0, 0, width - PANEL_PADDING * 2, 52);
+      row.accessible = true;
+      row.accessibleTitle =
+        index >= 0 ? `${card.identity.name}, damage order ${index + 1}` : card.identity.name;
+      row.tabIndex = 0;
+      const background = new Graphics()
+        .roundRect(0, 0, width - PANEL_PADDING * 2, 52, 8)
+        .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.62 })
+        .stroke({
+          color: hexToNum(index >= 0 ? this.theme.appTheme.primary : this.theme.appTheme.border),
+          width: index >= 0 ? 2 : 1,
+        });
+      const rank = promptText(
+        index >= 0 ? String(index + 1) : "—",
+        16,
+        this.theme.appTheme.foreground,
         {
-          color: this.theme.appTheme.primary,
-          outline: index < 0,
-          disabled: this.spec!.action.isWaitingForResponse,
-          width: width - PANEL_PADDING * 2,
+          weight: "700",
         },
       );
-      button.position.set(0, y);
-      body.addChild(button);
-      y += 42;
+      rank.anchor.set(0.5);
+      rank.position.set(24, 26);
+      const label = promptText(card.identity.name, 13, this.theme.appTheme.foreground, {
+        weight: "600",
+        width: width - PANEL_PADDING * 2 - 76,
+      });
+      label.position.set(48, 16);
+      row.addChild(background, rank, label);
+      const target: TargetRef = { kind: "card", id: card.id, intent: "damage" };
+      row.on("pointerover", () => this.callbacks.onReferenceChange?.(target));
+      row.on("pointerout", () => this.callbacks.onReferenceChange?.(null));
+      row.on("focusin", () => this.callbacks.onReferenceChange?.(target));
+      row.on("focusout", () => this.callbacks.onReferenceChange?.(null));
+      row.on("pointertap", () => damageOrder.onToggle(card.id));
+      body.addChild(row);
+      y += 62;
     }
     const buttons = [
       this.makeButton("AUTO", damageOrder.onAuto, {
@@ -1716,22 +2126,33 @@ export class PromptLayer {
         icon: "lucide-swords",
       }),
     );
-    this.addButtonRow(body, buttons, height - body.y - 48, width - PANEL_PADDING * 2, "right");
+    this.addButtonRow(body, buttons, y + 14, width - PANEL_PADDING * 2, "right");
   }
 
   private renderCombatDamage(input: ChooseCombatDamageAssignmentInput): void {
     const width = Math.min(500, this.viewportWidth - 24);
     const assignees = [...input.blockerIds, ...(input.defenderId ? [input.defenderId] : [])];
-    const height = Math.min(this.viewportHeight - 24, 230 + assignees.length * 56);
+    const height = Math.min(this.viewportHeight - 24, 250 + assignees.length * 64);
     const attacker = this.spec!.gameView.battlefield.find((card) => card.id === input.attackerId);
+    const targets: TargetRef[] = [
+      { kind: "card", id: input.attackerId, intent: "damage" },
+      ...input.blockerIds.map((id) => ({
+        kind: "card" as const,
+        id,
+        intent: "damage" as const,
+      })),
+      ...(input.defenderId
+        ? [{ kind: "player" as const, id: input.defenderId, intent: "damage" as const }]
+        : []),
+    ];
     const presentation: PromptPresentation = {
       title: "Assign Combat Damage",
       description: attacker
         ? `${attacker.identity.name} must assign ${input.totalDamage} damage.`
         : undefined,
-      targets: [],
+      targets,
     };
-    const { body } = this.createModalShell(width, height, presentation);
+    const { body } = this.createModalShell(width, height, presentation, true, true);
     const remaining =
       input.totalDamage -
       Object.values(this.damageAssigned).reduce((sum, damage) => sum + damage, 0);
@@ -1760,12 +2181,30 @@ export class PromptLayer {
           ),
           width: 1,
         });
+      rowBg.eventMode = "static";
+      rowBg.cursor = "default";
+      rowBg.accessible = true;
+      rowBg.accessibleTitle = `Damage assigned to ${label}: ${damage}${
+        lethal == null ? "" : `, lethal damage ${lethal}`
+      }`;
+      rowBg.tabIndex = 0;
+      const target: TargetRef =
+        id === input.defenderId
+          ? { kind: "player", id, intent: "damage" }
+          : { kind: "card", id, intent: "damage" };
+      rowBg.on("pointerover", () => this.callbacks.onReferenceChange?.(target));
+      rowBg.on("pointerout", () => this.callbacks.onReferenceChange?.(null));
+      rowBg.on("focusin", () => this.callbacks.onReferenceChange?.(target));
+      rowBg.on("focusout", () => this.callbacks.onReferenceChange?.(null));
       body.addChild(rowBg);
+      const defender = this.spec!.gameView.players.find((player) => player.id === id);
+      const projectedLife =
+        defender && damage > 0 ? `  ·  ${defender.life} → ${defender.life - damage} life` : "";
       const text = promptText(
-        `${label}${lethal != null ? `  ·  Lethal ${lethal}` : ""}`,
+        `${label}${lethal != null ? `  ·  Lethal ${lethal}` : ""}${projectedLife}`,
         12,
         this.theme.appTheme.foreground,
-        { weight: "600", width: width - 190 },
+        { weight: "600", width: width - 250 },
       );
       text.position.set(10, y + 15);
       body.addChild(text);
@@ -1773,6 +2212,28 @@ export class PromptLayer {
         const skull = this.makeIcon("lucide-skull", 14, this.theme.appTheme.destructive);
         skull.position.set(width - PANEL_PADDING * 2 - 122, y + 24);
         body.addChild(skull);
+      }
+      if (lethal != null) {
+        const lethalButton = this.makeButton(
+          "LETHAL",
+          () => {
+            this.damageAssigned[id] = Math.min(
+              input.totalDamage,
+              damage + Math.max(0, lethal - damage),
+            );
+            this.normalizeDamage(input, assignees);
+            this.rebuild();
+          },
+          {
+            title: `Assign lethal damage to ${label}`,
+            outline: true,
+            disabled: blocked || damage >= lethal || remaining <= 0,
+            compact: true,
+            width: 54,
+          },
+        );
+        lethalButton.position.set(width - PANEL_PADDING * 2 - 164, y + 5);
+        body.addChild(lethalButton);
       }
       const minus = this.makeButton(
         "−",
@@ -1996,6 +2457,10 @@ export class PromptLayer {
       highlighted: boolean;
     }>,
   ): void {
+    this.diceVisuals = [];
+    this.diceWinnerText = null;
+    this.diceConfirm = null;
+    this.diceSettled = !animationsEnabled() || this.diceElapsedMs >= DICE_ROLL_MS;
     const entries = rolls.flatMap((roll, rollIndex) =>
       roll.finalResults.map((value, resultIndex) => ({
         value,
@@ -2017,7 +2482,7 @@ export class PromptLayer {
         ? `Rolled ${(rolls[0]?.finalResults ?? []).join(", ")} (d${sides})`
         : presentation.title || "Dice roll";
     const { body } = this.createModalShell(width, height, { ...presentation, title });
-    const settled = this.diceElapsedMs >= 1800;
+    const settled = this.diceSettled;
     entries.forEach((entry, index) => {
       const column = index % columns;
       const row = Math.floor(index / columns);
@@ -2037,7 +2502,7 @@ export class PromptLayer {
       die.position.set(x, y);
       die.rotation =
         Math.sin(this.diceElapsedMs / 90 + index) *
-        Math.max(0, 1 - this.diceElapsedMs / 1800) *
+        Math.max(0, 1 - this.diceElapsedMs / DICE_ROLL_MS) *
         0.35;
       body.addChild(die);
       const valueText = promptText(String(shownValue), 26, this.theme.appTheme.foreground, {
@@ -2046,6 +2511,13 @@ export class PromptLayer {
       valueText.anchor.set(0.5);
       valueText.position.set(x, y);
       body.addChild(valueText);
+      this.diceVisuals.push({
+        die,
+        value: valueText,
+        finalValue: entry.value,
+        index,
+        sides,
+      });
       if (entry.label) {
         const label = promptText(entry.label, 10, this.theme.appTheme["muted-foreground"], {
           weight: "600",
@@ -2059,7 +2531,7 @@ export class PromptLayer {
     });
     const resultBottom = 18 + rows * rowPitch;
     const winner = rolls.find((roll) => roll.highlighted);
-    if (winner && settled) {
+    if (winner) {
       const winnerText = promptText(
         `First player: ${winner.label ?? winner.finalResults.join(", ")}`,
         13,
@@ -2068,12 +2540,14 @@ export class PromptLayer {
       );
       winnerText.anchor.set(0.5);
       winnerText.position.set((width - PANEL_PADDING * 2) / 2, resultBottom + 4);
+      winnerText.visible = settled;
+      this.diceWinnerText = winnerText;
       body.addChild(winnerText);
     }
     const ignored = rolls.flatMap((roll) => roll.ignoredRolls);
     if (ignored.length) {
       const ignoredText = promptText(
-        `Ignored: ${ignored.join(", ")}`,
+        `Ignored rolls: ${ignored.map((value) => `×${value}`).join("  ")}`,
         11,
         this.theme.appTheme["muted-foreground"],
       );
@@ -2086,8 +2560,10 @@ export class PromptLayer {
       () => this.spec!.respond({ type: "diceRolledAcknowledged" }),
       { disabled: !settled, width: 120 },
     );
+    this.diceConfirm = confirm;
     confirm.position.set(width - PANEL_PADDING * 2 - confirm.buttonWidth, height - body.y - 48);
     body.addChild(confirm);
+    this.syncDiceVisuals();
   }
 
   private renderGameOver(): void {
@@ -2095,74 +2571,99 @@ export class PromptLayer {
     const anyConceded =
       gameOver.me.status === "conceded" ||
       gameOver.opponents.some((player) => player.status === "conceded");
-    let heading = "Draw!";
+    let heading = "Draw";
     let color = this.theme.appTheme["muted-foreground"];
     if (gameOver.me.status === "conceded") {
-      heading = "You conceded";
+      heading = "You Conceded";
       color = this.theme.appTheme.destructive;
     } else if (gameOver.winnerId === gameOver.me.id) {
-      heading = "You Win!";
+      heading = "Victory";
       color = this.theme.gameTheme.success;
     } else if (gameOver.winnerId != null) {
-      heading = "You Lose!";
+      heading = "Defeat";
       color = this.theme.appTheme.destructive;
     } else if (anyConceded) {
       const names = gameOver.opponents
         .filter((player) => player.status === "conceded")
         .map((player) => player.name);
-      if (names.length) heading = `${names.join(" and ")} conceded`;
+      if (names.length) heading = `${names.join(" and ")} Conceded`;
     }
     const backdrop = new Graphics()
       .rect(0, 0, this.viewportWidth, this.viewportHeight)
-      .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 1 });
+      .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.72 });
     backdrop.eventMode = "static";
     this.container.addChild(backdrop);
-    const group = new Container();
-    const title = promptText(heading, 34, color, { weight: "700" });
+    const panelWidth = Math.min(520, this.viewportWidth - 24);
+    const panelHeight = 250;
+    const group = this.panel(panelWidth, panelHeight, 0, 0, 12);
+    group.accessible = true;
+    group.accessibleTitle = `Game over: ${heading}`;
+    group.tabIndex = 0;
+    const accent = new Graphics()
+      .roundRect(0, 0, panelWidth, 4, 12)
+      .fill({ color: hexToNum(color) });
+    group.addChild(accent);
+    const title = promptText(heading, 36, color, { weight: "700" });
     title.anchor.set(0.5);
-    title.position.set(0, 0);
+    title.position.set(panelWidth / 2, 56);
     group.addChild(title);
     const life = promptText(
-      `Final life: You ${gameOver.me.life} — ${gameOver.opponents.map((player) => `${player.name} ${player.life}`).join(" · ")}`,
+      `You ${gameOver.me.life} life  ·  ${gameOver.opponents
+        .map((player) => `${player.name} ${player.life}`)
+        .join("  ·  ")}`,
       14,
-      this.theme.appTheme["muted-foreground"],
-      { align: "center", width: Math.min(600, this.viewportWidth - 40) },
+      this.theme.appTheme.foreground,
+      { align: "center", width: panelWidth - 40, weight: "600" },
     );
     life.anchor.set(0.5, 0);
-    life.position.set(0, 34);
+    life.position.set(panelWidth / 2, 94);
     group.addChild(life);
-    const turn = promptText(`Turn ${gameOver.turn}`, 12, this.theme.appTheme["muted-foreground"]);
+    const turn = promptText(
+      `Game ended on turn ${gameOver.turn}`,
+      12,
+      this.theme.appTheme["muted-foreground"],
+    );
     turn.anchor.set(0.5);
-    turn.position.set(0, 78);
+    turn.position.set(panelWidth / 2, 140);
     group.addChild(turn);
-    const returning = promptText("Returning to menu…", 11, this.theme.appTheme["muted-foreground"]);
-    returning.anchor.set(0.5);
-    returning.position.set(0, 104);
-    group.addChild(returning);
     const button = this.makeButton("RETURN TO MENU", gameOver.onEndGame, {
-      outline: true,
-      width: 160,
+      color,
+      width: 170,
+      height: 48,
+      icon: "lucide-log-out",
     });
-    button.position.set(-button.buttonWidth / 2, 132);
+    button.position.set((panelWidth - button.buttonWidth) / 2, 176);
     group.addChild(button);
-    group.position.set(this.viewportWidth / 2, this.viewportHeight / 2 - 70);
+    group.position.set(
+      (this.viewportWidth - panelWidth) / 2,
+      (this.viewportHeight - panelHeight) / 2,
+    );
     this.container.addChild(group);
+    if (animationsEnabled()) {
+      gsap.from(group.scale, {
+        x: 0.96,
+        y: 0.96,
+        duration: 0.35,
+        ease: "back.out(1.4)",
+      });
+    }
   }
 
   private makeDraggable(item: Container, onDrop: (x: number, y: number) => void): void {
     item.eventMode = "static";
     item.cursor = "grab";
     item.on("pointerdown", (event: FederatedPointerEvent) => {
-      const point = event.global;
-      const bounds = item.getBounds();
+      const parent = item.parent;
+      if (!parent) return;
+      const point = parent.toLocal(event.global);
       this.drag = {
         item,
-        offsetX: point.x - bounds.x,
-        offsetY: point.y - bounds.y,
+        offsetX: point.x - item.x,
+        offsetY: point.y - item.y,
         onDrop,
       };
       item.cursor = "grabbing";
-      item.alpha = 0.9;
+      item.alpha = 0.96;
       item.zIndex = 1000;
       event.stopPropagation();
     });
@@ -2174,12 +2675,17 @@ export class PromptLayer {
     if (!drag || !parent) return;
     const parentPoint = parent.toLocal(event.global);
     drag.item.position.set(parentPoint.x - drag.offsetX, parentPoint.y - drag.offsetY);
+    for (const zone of this.dropZones) {
+      const active = zone.rect.contains(event.global.x, event.global.y);
+      zone.visual.alpha = active ? 1 : 0.58;
+    }
   }
 
   private finishDrag(event: FederatedPointerEvent): void {
     if (!this.drag) return;
     const drag = this.drag;
     this.drag = null;
+    for (const zone of this.dropZones) zone.visual.alpha = 1;
     drag.onDrop(event.global.x, event.global.y);
   }
 
@@ -2319,7 +2825,11 @@ export class PromptLayer {
         event.preventDefault();
         this.spec.damageOrder.onConfirm();
       }
-    } else if (input.type === "diceRolled" && event.key === "Enter" && this.diceElapsedMs >= 1800) {
+    } else if (
+      input.type === "diceRolled" &&
+      event.key === "Enter" &&
+      this.diceElapsedMs >= DICE_ROLL_MS
+    ) {
       event.preventDefault();
       this.spec.respond({ type: "diceRolledAcknowledged" });
     } else if (input.type === "chooseCombatDamageAssignment" && event.key === "Enter") {
@@ -2337,6 +2847,35 @@ export class PromptLayer {
           })),
         });
       }
+    }
+  }
+
+  private syncDiceVisuals(): void {
+    const settled = !animationsEnabled() || this.diceElapsedMs >= DICE_ROLL_MS;
+    for (const visual of this.diceVisuals) {
+      visual.value.text = String(
+        settled
+          ? visual.finalValue
+          : ((Math.floor(this.diceElapsedMs / 70) + visual.index * 7) % Math.max(1, visual.sides)) +
+              1,
+      );
+      visual.die.rotation = settled
+        ? 0
+        : Math.sin(this.diceElapsedMs / 80 + visual.index) *
+          Math.max(0, 1 - this.diceElapsedMs / DICE_ROLL_MS) *
+          0.35;
+    }
+    if (!settled || this.diceSettled) return;
+    this.diceSettled = true;
+    if (this.diceWinnerText) this.diceWinnerText.visible = true;
+    this.diceConfirm?.setDisabled(false);
+    if (!animationsEnabled()) return;
+    for (const visual of this.diceVisuals) {
+      gsap.fromTo(
+        visual.die.scale,
+        { x: 0.86, y: 0.86 },
+        { x: 1, y: 1, duration: 0.28, ease: "back.out(2)" },
+      );
     }
   }
 
@@ -2369,14 +2908,11 @@ export class PromptLayer {
       }
     }
     const input = this.spec?.currentPrompt?.input;
-    if (!this.modalOpen || input?.type !== "diceRolled" || this.diceElapsedMs >= 2100) return;
-    const before = this.diceElapsedMs;
-    this.diceElapsedMs = Math.min(2100, this.diceElapsedMs + ticker.deltaMS);
-    if (
-      Math.floor(before / 80) !== Math.floor(this.diceElapsedMs / 80) ||
-      this.diceElapsedMs === 2100
-    ) {
-      this.rebuild();
-    }
+    if (!this.modalOpen || input?.type !== "diceRolled" || this.diceElapsedMs >= DICE_FINISH_MS)
+      return;
+    this.diceElapsedMs = animationsEnabled()
+      ? Math.min(DICE_FINISH_MS, this.diceElapsedMs + ticker.deltaMS)
+      : DICE_FINISH_MS;
+    this.syncDiceVisuals();
   }
 }

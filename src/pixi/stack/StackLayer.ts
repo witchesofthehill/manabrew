@@ -44,6 +44,8 @@ export class StackLayer implements StackAnchorProvider {
   private bounds: ScreenBounds | null = null;
   private flashSprite: CardSprite | null = null;
   private flashToken: string | null = null;
+  private promptReferenceId: string | null = null;
+  private promptReferenceColor: number | null = null;
 
   private btn = new Container();
   private btnGlow = new Graphics();
@@ -199,6 +201,7 @@ export class StackLayer implements StackAnchorProvider {
     if (spec.collapsed && hasNewCard && spec.cards.length > 0) this.triggerPeek();
 
     this.syncFlash();
+    this.setPromptReference(this.promptReferenceId, this.promptReferenceColor);
     this.layout();
   }
 
@@ -226,6 +229,14 @@ export class StackLayer implements StackAnchorProvider {
       if (sprite.sourceId === sourceCardId) return sprite.getCenter();
     }
     return null;
+  }
+
+  setPromptReference(stackObjectId: string | null, color: number | null): void {
+    this.promptReferenceId = stackObjectId;
+    this.promptReferenceColor = color;
+    for (const [id, sprite] of this.sprites) {
+      sprite.setPromptReference(id === stackObjectId ? color : null);
+    }
   }
 
   getSeeds(): Array<{ cardId: string; x: number; y: number; scale: number }> {

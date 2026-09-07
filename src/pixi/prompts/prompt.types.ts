@@ -3,6 +3,8 @@ import type { DeckCard } from "@/protocol/deck";
 import type { CardDto, PlayerDto } from "@/protocol/game";
 import type { ClientGameView } from "@/stores/gameStore.types";
 import type { Prompt, PromptOutput } from "@/protocol";
+import type { TargetRef } from "@/protocol/prompts/common";
+import type { ScreenBounds, ScreenPos } from "@/pixi/types";
 
 export interface DamageOrderPromptSpec {
   attackerName: string;
@@ -20,6 +22,12 @@ export interface GameOverPromptSpec {
   opponents: PlayerDto[];
   turn: number;
   onEndGame: () => void;
+}
+
+export interface PromptLayerCallbacks {
+  onReferenceChange?: (target: TargetRef | null) => void;
+  onPreviewCard?: (card: CardDto | null, bounds?: ScreenBounds, sticky?: boolean) => void;
+  getReferenceAnchor?: (target: TargetRef) => ScreenPos | null;
 }
 
 export interface PromptOverlaySpec {

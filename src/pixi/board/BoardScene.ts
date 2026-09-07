@@ -9,7 +9,7 @@ import {
 } from "pixi.js";
 import { darken, withAlpha } from "@/themes/gameTheme";
 import type { CardDto, PlaymatSettings } from "@/protocol/game";
-import type { AttackTargetDto } from "@/protocol/prompts/common";
+import type { AttackTargetDto, TargetRef } from "@/protocol/prompts/common";
 import {
   CardSprite,
   setCardSpriteTheme,
@@ -34,6 +34,7 @@ import { lerp, setFrameRatio } from "./pixiHelpers";
 import { animationsEnabled } from "../effects/enabled";
 import { LongPressGesture } from "../LongPressGesture";
 import { PREVIEW_TIMING } from "@/lib/cardPreview";
+import { intentIsHostile } from "@/types/promptType";
 import {
   FLOATER_FONT_SIZE,
   FLOATER_LIFETIME_FRAMES,
@@ -169,6 +170,7 @@ export class BoardScene {
   private regions = new Map<string, RegionRecord>();
   private localPlayerId: string | null = null;
   private cardScale = 1;
+  private promptReference: TargetRef | null = null;
 
   private floaterLayer: Container;
   private floaters: { text: Text; age: number }[] = [];
@@ -1228,6 +1230,7 @@ export class BoardScene {
     this.drawBaseBg();
     for (const rec of this.regions.values()) rec.region.redrawTheme();
     this.applyDelimiters(); // repaint the collapse veil in the new theme colour
+    if (this.promptReference) this.setPromptReference(this.promptReference);
   }
 
   resize(width: number, height: number): void {
@@ -1240,6 +1243,32 @@ export class BoardScene {
     this.pinchPointers.clear();
     this.resetBoardZoom();
     this.drawBaseBg();
+  }
+
+  setPromptReference(target: TargetRef | null): void {
+    this.promptReference = target;
+    const color =
+      target?.intent != null && intentIsHostile(target.intent)
+        ? this.theme.gameTheme.pointer.hostile
+        : this.theme.gameTheme.pointer.friendly;
+    const cardId = target?.kind === "card" ? target.id : null;
+    for (const rec of this.regions.values()) {
+      rec.region.setPromptReference(cardId, target ? hexToNum(color) : null);
+    }
+    this.playerBars.setPromptReference(
+      target?.kind === "player" ? target.id : null,
+      target ? color : null,
+    );
+  }
+
+  getPromptReferenceAnchor(target: TargetRef): ScreenPos | null {
+    if (target.kind === "player") return this.playerBars.getPlayerAnchor(target.id);
+    if (target.kind !== "card") return null;
+    for (const rec of this.regions.values()) {
+      const position = rec.region.getCardPosition(target.id);
+      if (position) return position;
+    }
+    return null;
   }
 
   private drawBaseBg(): void {

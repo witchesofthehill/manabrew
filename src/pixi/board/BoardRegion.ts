@@ -146,6 +146,8 @@ export class BoardRegion {
   private nameGroupChildren = new Set<string>();
   private combatStaging: SceneCombatStaging | null = null;
   private attackTargetRingId: string | null = null;
+  private promptReferenceCardId: string | null = null;
+  private promptReferenceColor: number | null = null;
   private combatRowAttackerIds = new Set<string>();
   private combatRowBlocks: CombatAssignmentDto[] = [];
   private combatRowBlockerIds = new Set<string>();
@@ -556,6 +558,17 @@ export class BoardRegion {
       const e = this.entries.get(mine);
       if (e) e.sprite.setRing(hexToNum(this.host.getTheme().gameTheme.pointer.hostile));
     }
+  }
+
+  setPromptReference(cardId: string | null, color: number | null): void {
+    const mine = cardId && this.entries.has(cardId) ? cardId : null;
+    if (this.promptReferenceCardId === mine && this.promptReferenceColor === color) return;
+    if (this.promptReferenceCardId) {
+      this.entries.get(this.promptReferenceCardId)?.sprite.setPromptReference(null);
+    }
+    this.promptReferenceCardId = mine;
+    this.promptReferenceColor = mine ? color : null;
+    if (mine) this.entries.get(mine)?.sprite.setPromptReference(color);
   }
 
   containsPointInCard(cardId: string, canvasX: number, canvasY: number, pad = 0): boolean {
@@ -1525,6 +1538,9 @@ export class BoardRegion {
     entry.sprite.setOwnerRing(ownerColor ? hexToNum(ownerColor) : null);
     entry.sprite.setMustAttack(state.mustAttackCardIds?.includes(card.id) ?? false);
     this.applyBattlefieldRing(entry.sprite, state);
+    entry.sprite.setPromptReference(
+      this.promptReferenceCardId === card.id ? this.promptReferenceColor : null,
+    );
     this.host.rebuildOverlay(entry, state);
   }
 

@@ -5,6 +5,7 @@ import type { Theme } from "@/hooks/useTheme";
 import { CardSprite } from "../CardSprite";
 import { hexToNum } from "../colorUtils";
 import { LongPressGesture } from "../LongPressGesture";
+import { animationsEnabled } from "../effects/enabled";
 import type { StackCardSpec } from "./stack.types";
 
 const ENTER_MS = 0.42;
@@ -28,6 +29,7 @@ export class StackCardSprite {
   private readonly height: number;
   private readonly faceScale: number;
   private glow = new Graphics();
+  private promptReference = new Graphics();
   private ring = new Graphics();
   private face: CardSprite;
   private flipButton = new Container();
@@ -42,6 +44,7 @@ export class StackCardSprite {
   private moveTween: gsap.core.Tween | null = null;
   private castingTween: gsap.core.Tween | null = null;
   private hoverTween: gsap.core.Tween | null = null;
+  private promptReferenceTween: gsap.core.Tween | null = null;
   private longPress = new LongPressGesture();
 
   constructor(
@@ -61,6 +64,7 @@ export class StackCardSprite {
     this.container = new Container();
     this.glow.eventMode = "none";
     this.ring.eventMode = "none";
+    this.promptReference.eventMode = "none";
     this.face = new CardSprite(spec.card, "hand");
     this.face.scale.set(this.faceScale);
     this.face.position.set(0, 0);
@@ -135,7 +139,14 @@ export class StackCardSprite {
     });
     this.flipButton.addChild(this.flipButtonBg, this.flipButtonLabel);
 
-    this.container.addChild(this.glow, this.face, this.ring, hit, this.flipButton);
+    this.container.addChild(
+      this.glow,
+      this.face,
+      this.ring,
+      this.promptReference,
+      hit,
+      this.flipButton,
+    );
     this.redraw();
   }
 
@@ -155,6 +166,36 @@ export class StackCardSprite {
     this.syncFlipButton();
     if (dimChanged) this.container.alpha = spec.isDimmed ? 0.6 : 1;
     if (ringChanged) this.redraw();
+  }
+
+  setPromptReference(color: number | null): void {
+    this.promptReferenceTween?.kill();
+    this.promptReferenceTween = null;
+    this.promptReference.clear();
+    this.promptReference.alpha = 1;
+    if (color == null) return;
+    const radius = this.width * RING_RADIUS_FRAC;
+    const halfWidth = this.width / 2;
+    const halfHeight = this.height / 2;
+    this.promptReference
+      .roundRect(
+        -halfWidth - GLOW_PAD,
+        -halfHeight - GLOW_PAD,
+        this.width + GLOW_PAD * 2,
+        this.height + GLOW_PAD * 2,
+        radius + GLOW_PAD,
+      )
+      .stroke({ color, width: 8, alpha: 0.2 });
+    this.promptReference
+      .roundRect(-halfWidth - 2, -halfHeight - 2, this.width + 4, this.height + 4, radius + 2)
+      .stroke({ color, width: 3, alpha: 0.95 });
+    if (animationsEnabled()) {
+      this.promptReferenceTween = gsap.fromTo(
+        this.promptReference,
+        { alpha: 0.62 },
+        { alpha: 1, duration: 0.65, ease: "sine.inOut", repeat: -1, yoyo: true },
+      );
+    }
   }
 
   place(
@@ -217,6 +258,7 @@ export class StackCardSprite {
     this.moveTween?.kill();
     this.castingTween?.kill();
     this.hoverTween?.kill();
+    this.promptReferenceTween?.kill();
     this.container.destroy({ children: true });
   }
 

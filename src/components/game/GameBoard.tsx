@@ -1716,6 +1716,8 @@ export function GameBoard({
           onTargetSpell={onTargetSpell}
           onHoverStack={onHoverStack}
           onToggleStack={onToggleStack}
+          onHoverCard={(card, options) => onHoverCard(card, undefined, options)}
+          onLongPressCard={onLongPressCard}
           promptSpec={promptOverlaySpec ?? null}
         />
       </div>

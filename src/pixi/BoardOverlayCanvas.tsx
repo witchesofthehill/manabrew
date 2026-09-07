@@ -10,6 +10,10 @@ import type { StackSpec } from "./stack/stack.types";
 import { getTheme } from "@/hooks/useTheme";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { isCoarsePointer } from "@/lib/responsive";
+import type { CardDto } from "@/protocol/game";
+import type { TargetRef } from "@/protocol/prompts/common";
+import { intentIsHostile } from "@/types/promptType";
+import { hexToNum } from "./colorUtils";
 import { registerPixiApp } from "./visibility";
 import { PIXI_MAX_FPS } from "./constants";
 import type { BoardScene } from "./board/BoardScene";
@@ -25,6 +29,11 @@ interface BoardOverlayCanvasProps {
   onTargetSpell: (spellId: string) => void;
   onHoverStack: (stackObjectId: string | null) => void;
   onToggleStack: () => void;
+  onHoverCard: (
+    card: CardDto | null,
+    options?: { useAnchor?: boolean; placement?: "auto" | "top-center"; anchorOverride?: DOMRect },
+  ) => void;
+  onLongPressCard?: (card: CardDto, anchor: DOMRect) => void;
   promptSpec: PromptOverlaySpec | null;
   className?: string;
 }
@@ -36,6 +45,8 @@ export function BoardOverlayCanvas({
   onTargetSpell,
   onHoverStack,
   onToggleStack,
+  onHoverCard,
+  onLongPressCard,
   promptSpec,
   className,
 }: BoardOverlayCanvasProps) {
@@ -47,11 +58,25 @@ export function BoardOverlayCanvas({
   const unregisterRef = useRef<(() => void) | null>(null);
   const [hoveredStackObjectId, setHoveredStackObjectId] = useState<string | null>(null);
 
-  const cbRef = useRef({ onOpenStack, onTargetSpell, onHoverStack, onToggleStack });
+  const cbRef = useRef({
+    onOpenStack,
+    onTargetSpell,
+    onHoverStack,
+    onToggleStack,
+    onHoverCard,
+    onLongPressCard,
+  });
   const promptSpecRef = useRef(promptSpec);
   useEffect(() => {
-    cbRef.current = { onOpenStack, onTargetSpell, onHoverStack, onToggleStack };
-  }, [onOpenStack, onTargetSpell, onHoverStack, onToggleStack]);
+    cbRef.current = {
+      onOpenStack,
+      onTargetSpell,
+      onHoverStack,
+      onToggleStack,
+      onHoverCard,
+      onLongPressCard,
+    };
+  }, [onOpenStack, onTargetSpell, onHoverStack, onToggleStack, onHoverCard, onLongPressCard]);
   useEffect(() => {
     promptSpecRef.current = promptSpec;
   }, [promptSpec]);
@@ -97,7 +122,42 @@ export function BoardOverlayCanvas({
           onToggleCollapsed: () => cbRef.current.onToggleStack(),
         });
         stackRef.current = stack;
-        const prompt = new PromptLayer(app);
+        const prompt = new PromptLayer(app, {
+          onReferenceChange: (target: TargetRef | null) => {
+            const sceneTarget = target?.kind === "spell" ? null : target;
+            sceneRef.current?.setPromptReference(sceneTarget);
+            const color =
+              target?.intent != null && intentIsHostile(target.intent)
+                ? getTheme().gameTheme.pointer.hostile
+                : getTheme().gameTheme.pointer.friendly;
+            stackRef.current?.setPromptReference(
+              target?.kind === "spell" ? target.id : null,
+              target ? hexToNum(color) : null,
+            );
+          },
+          onPreviewCard: (card, bounds, sticky) => {
+            if (!card || !bounds) {
+              cbRef.current.onHoverCard(null);
+              return;
+            }
+            const rect = canvasRef.current?.getBoundingClientRect();
+            const anchor = new DOMRect(
+              (rect?.left ?? 0) + bounds.x,
+              (rect?.top ?? 0) + bounds.y,
+              bounds.width,
+              bounds.height,
+            );
+            if (sticky && cbRef.current.onLongPressCard) {
+              cbRef.current.onLongPressCard(card, anchor);
+            } else {
+              cbRef.current.onHoverCard(card, { useAnchor: true, anchorOverride: anchor });
+            }
+          },
+          getReferenceAnchor: (target) =>
+            target.kind === "spell"
+              ? (stackRef.current?.getAnchor(target.id) ?? null)
+              : (sceneRef.current?.getPromptReferenceAnchor(target) ?? null),
+        });
         promptRef.current = prompt;
         prompt.setSpec(promptSpecRef.current);
 
@@ -154,6 +214,8 @@ export function BoardOverlayCanvas({
     return () => {
       active = false;
       registeredScene?.setStackAnchorProvider(null);
+      registeredScene?.setPromptReference(null);
+      stackRef.current?.setPromptReference(null, null);
       registeredScene?.setPlayerBlockers(new Map());
       unregisterRef.current?.();
       unregisterRef.current = null;

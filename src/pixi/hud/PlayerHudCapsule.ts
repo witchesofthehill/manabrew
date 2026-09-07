@@ -121,6 +121,7 @@ export class PlayerHudCapsule {
   private damageWash = new Graphics();
   private targetRing = new Graphics();
   private flashRing = new Graphics();
+  private promptReferenceRing = new Graphics();
   private avatarTex: Texture | null = null;
   private avatarPhoto = new Sprite();
   private avatarMask = new Graphics();
@@ -164,6 +165,8 @@ export class PlayerHudCapsule {
   private targetRingMode: "off" | "pulse" | "solid" = "off";
   private targetTween: gsap.core.Tween | null = null;
   private flashTween: gsap.core.Tween | null = null;
+  private promptReferenceTween: gsap.core.Tween | null = null;
+  private promptReferenceColor: string | null = null;
   private lifeTween: gsap.core.Tween | null = null;
   private offlineTween: gsap.core.Tween | null = null;
   private offlineActive = false;
@@ -218,6 +221,8 @@ export class PlayerHudCapsule {
     this.damageWash.eventMode = "none";
     this.targetRing.eventMode = "none";
     this.flashRing.eventMode = "none";
+    this.promptReferenceRing.eventMode = "none";
+    this.promptReferenceRing.visible = false;
     this.manaTray.eventMode = "none";
     this.boundsOutline.eventMode = "none";
     this.stateTray.eventMode = "none";
@@ -279,6 +284,7 @@ export class PlayerHudCapsule {
       this.damageWash,
       this.targetRing,
       this.flashRing,
+      this.promptReferenceRing,
       this.bot,
       this.initial,
       this.skull,
@@ -335,6 +341,12 @@ export class PlayerHudCapsule {
 
   getAvatarCenter(): ScreenPos {
     return this.container.toGlobal(new Point(this.avatarCx, this.avatarCy));
+  }
+
+  setPromptReference(color: string | null): void {
+    if (this.promptReferenceColor === color) return;
+    this.promptReferenceColor = color;
+    this.drawPromptReference();
   }
 
   getZoneAnchor(zoneKey: string): ScreenPos | null {
@@ -398,6 +410,8 @@ export class PlayerHudCapsule {
     this.motionEnabled = enabled;
     this.combatPulse?.kill();
     this.targetTween?.kill();
+    this.promptReferenceTween?.kill();
+    this.promptReferenceTween = null;
     this.offlineTween?.kill();
     this.flashTween?.kill();
     this.lifeTween?.kill();
@@ -634,6 +648,7 @@ export class PlayerHudCapsule {
     this.applyCombatGlow();
     this.applyTargetable();
     this.applyFlash();
+    this.drawPromptReference();
     this.checkBadgeSparkles();
     this.drawBoundsDebug();
   }
@@ -1417,10 +1432,35 @@ export class PlayerHudCapsule {
     }
   }
 
+  private drawPromptReference(): void {
+    this.promptReferenceTween?.kill();
+    this.promptReferenceTween = null;
+    this.promptReferenceRing.clear();
+    this.promptReferenceRing.alpha = 1;
+    this.promptReferenceRing.visible = this.promptReferenceColor != null;
+    if (!this.promptReferenceColor || this.avatarDia <= 0) return;
+    const color = hexToNum(this.promptReferenceColor);
+    const radius = this.avatarDia / 2;
+    this.promptReferenceRing
+      .circle(this.avatarCx, this.avatarCy, radius + 7)
+      .stroke({ color, width: 8, alpha: 0.2 });
+    this.promptReferenceRing
+      .circle(this.avatarCx, this.avatarCy, radius + 2)
+      .stroke({ color, width: 3, alpha: 0.95 });
+    if (this.motionEnabled) {
+      this.promptReferenceTween = gsap.fromTo(
+        this.promptReferenceRing,
+        { alpha: 0.62 },
+        { alpha: 1, duration: 0.65, ease: "sine.inOut", repeat: -1, yoyo: true },
+      );
+    }
+  }
+
   destroy(): void {
     this.combatPulse?.kill();
     this.targetTween?.kill();
     this.flashTween?.kill();
+    this.promptReferenceTween?.kill();
     this.lifeTween?.kill();
     this.offlineTween?.kill();
     gsap.killTweensOf(this.combatGlow);

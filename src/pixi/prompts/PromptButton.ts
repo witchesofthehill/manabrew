@@ -2,6 +2,8 @@ import { Container, Graphics, Rectangle, Sprite, Text, TextStyle, type Texture }
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "@/pixi/colorUtils";
 import { gameIconTexture } from "@/pixi/gameIconCache";
+import { animationsEnabled } from "@/pixi/effects/enabled";
+import { gsap } from "@/pixi/effects/gsap";
 
 export interface PromptButtonOptions {
   label: string;
@@ -21,11 +23,15 @@ export interface PromptButtonOptions {
 }
 
 export class PromptButton extends Container {
+  private readonly visual = new Container();
   private readonly background = new Graphics();
   private readonly labelText: Text;
   private readonly iconSprite: Sprite | null;
   private readonly theme: Theme;
   private options: PromptButtonOptions;
+  private hovered = false;
+  private focused = false;
+  private pressed = false;
 
   constructor(theme: Theme, options: PromptButtonOptions) {
     super();
@@ -36,13 +42,14 @@ export class PromptButton extends Container {
     this.accessible = true;
     this.accessibleTitle = options.title ?? options.label;
     this.tabIndex = options.disabled ? -1 : 0;
-    this.addChild(this.background);
+    this.addChild(this.visual);
+    this.visual.addChild(this.background);
     const iconTexture = options.icon ? gameIconTexture(options.icon) : options.iconTexture;
     this.iconSprite = iconTexture ? new Sprite() : null;
     if (this.iconSprite) {
       this.iconSprite.anchor.set(0.5);
       this.iconSprite.eventMode = "none";
-      this.addChild(this.iconSprite);
+      this.visual.addChild(this.iconSprite);
       void iconTexture!
         .then((texture) => {
           if (!this.iconSprite || this.destroyed) return;
@@ -50,7 +57,7 @@ export class PromptButton extends Container {
           const size = this.options.iconSize ?? 14;
           this.iconSprite.width = size;
           this.iconSprite.height = size;
-          this.redraw(false);
+          this.redraw();
         })
         .catch(() => {});
     }
@@ -67,19 +74,46 @@ export class PromptButton extends Container {
     });
     this.labelText.anchor.set(0.5);
     this.labelText.eventMode = "none";
-    this.addChild(this.labelText);
+    this.visual.addChild(this.labelText);
     this.on("pointertap", () => {
       if (!this.options.disabled) this.options.onPress?.();
     });
+    this.on("pointerdown", () => {
+      if (this.options.disabled) return;
+      this.pressed = true;
+      this.syncVisual();
+    });
+    this.on("pointerup", () => {
+      this.pressed = false;
+      this.syncVisual();
+    });
+    this.on("pointerupoutside", () => {
+      this.pressed = false;
+      this.syncVisual();
+    });
     this.on("pointerover", () => {
-      if (!this.options.disabled) {
-        this.redraw(true);
-      }
+      if (this.options.disabled) return;
+      this.hovered = true;
+      this.redraw();
+      this.syncVisual();
     });
     this.on("pointerout", () => {
-      this.redraw(false);
+      this.hovered = false;
+      this.pressed = false;
+      this.redraw();
+      this.syncVisual();
     });
-    this.redraw(false);
+    this.on("focusin", () => {
+      this.focused = true;
+      this.redraw();
+    });
+    this.on("focusout", () => {
+      this.focused = false;
+      this.pressed = false;
+      this.redraw();
+      this.syncVisual();
+    });
+    this.redraw();
   }
 
   get buttonWidth(): number {
@@ -100,10 +134,14 @@ export class PromptButton extends Container {
     this.eventMode = disabled ? "none" : "static";
     this.cursor = disabled ? "default" : "pointer";
     this.tabIndex = disabled ? -1 : 0;
-    this.redraw(false);
+    this.hovered = false;
+    this.focused = false;
+    this.pressed = false;
+    this.redraw();
+    this.syncVisual();
   }
 
-  private redraw(hovered: boolean): void {
+  private redraw(): void {
     const width = this.buttonWidth;
     const height = this.buttonHeight;
     const color = hexToNum(this.options.color ?? this.theme.appTheme.primary);
@@ -118,11 +156,18 @@ export class PromptButton extends Container {
         color: hexToNum(this.theme.appTheme.card),
         alpha: disabled ? 0.45 : 0.94,
       });
-      this.background.stroke({ color, width: hovered ? 2 : 1, alpha: disabled ? 0.35 : 0.9 });
+      this.background.stroke({
+        color,
+        width: this.hovered || this.focused ? 2 : 1,
+        alpha: disabled ? 0.35 : 0.9,
+      });
       this.labelText.style.fill = color;
       if (this.iconSprite && this.options.iconTint !== false) this.iconSprite.tint = color;
     } else {
-      this.background.fill({ color, alpha: disabled ? 0.35 : hovered ? 1 : 0.9 });
+      this.background.fill({
+        color,
+        alpha: disabled ? 0.35 : this.pressed ? 0.78 : this.hovered || this.focused ? 1 : 0.9,
+      });
       this.background.stroke({ color: border, width: 1, alpha: 0.35 });
       this.labelText.style.fill = foreground;
       if (this.iconSprite && this.options.iconTint !== false) this.iconSprite.tint = foreground;
@@ -141,5 +186,27 @@ export class PromptButton extends Container {
       height / 2,
     );
     this.hitArea = new Rectangle(0, 0, width, height);
+    this.visual.pivot.set(width / 2, height / 2);
+    this.visual.position.set(width / 2, height / 2);
+  }
+
+  private syncVisual(): void {
+    const scale = this.pressed ? 0.97 : this.hovered || this.focused ? 1.015 : 1;
+    gsap.killTweensOf(this.visual.scale);
+    if (!animationsEnabled()) {
+      this.visual.scale.set(scale);
+      return;
+    }
+    gsap.to(this.visual.scale, {
+      x: scale,
+      y: scale,
+      duration: this.pressed ? 0.08 : 0.14,
+      ease: "power2.out",
+    });
+  }
+
+  override destroy(): void {
+    gsap.killTweensOf(this.visual.scale);
+    super.destroy({ children: true });
   }
 }

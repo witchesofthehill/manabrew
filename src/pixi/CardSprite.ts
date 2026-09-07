@@ -350,6 +350,8 @@ export class CardSprite extends Container {
   private lastRing: { color: number; alpha: number } | null = null;
   private lastOwnerRing: number | null = null;
   private pulseRing = new PulseRing();
+  private promptReferenceGfx = new Graphics();
+  private promptReferenceColor: number | null = null;
   private ownerRingGfx: Graphics;
   private contentContainer: Container;
   private ptContainer: Container;
@@ -419,6 +421,8 @@ export class CardSprite extends Container {
     this.ringGfx = new Graphics();
     this.addChild(this.ringGfx);
     this.addChild(this.pulseRing.gfx);
+    this.promptReferenceGfx.eventMode = "none";
+    this.addChild(this.promptReferenceGfx);
 
     this.contentContainer = new Container();
     this.addChild(this.contentContainer);
@@ -603,6 +607,7 @@ export class CardSprite extends Container {
         child !== this.shadowGfx &&
         child !== this.ringGfx &&
         child !== this.pulseRing.gfx &&
+        child !== this.promptReferenceGfx &&
         child !== this.contentContainer
       ) {
         this.contentContainer.addChild(child);
@@ -667,6 +672,7 @@ export class CardSprite extends Container {
     this.nameText.position.set(cw / 2, ch / 2);
     this.foilStar.x = cw - 3;
     this.pivot.set(cw / 2, ch / 2);
+    if (this.promptReferenceColor != null) this.setPromptReference(this.promptReferenceColor);
     this.onReorient?.();
   }
 
@@ -982,6 +988,7 @@ export class CardSprite extends Container {
     gsap.killTweensOf(this.railMarkerGfx.scale);
     this.shadowGfx.destroy({ context: false });
     this.pulseRing.destroy();
+    gsap.killTweensOf(this.promptReferenceGfx);
     if (this.sickFilter) {
       this.sickFilter.destroy();
       this.sickFilter = null;
@@ -1554,6 +1561,7 @@ export class CardSprite extends Container {
     this.chromeScale = scale;
     if (this.lastRing) this.setRing(this.lastRing.color, this.lastRing.alpha);
     if (this.lastOwnerRing != null) this.setOwnerRing(this.lastOwnerRing);
+    if (this.promptReferenceColor != null) this.setPromptReference(this.promptReferenceColor);
   }
 
   setRing(color: number | null, alpha = 1): void {
@@ -1572,6 +1580,30 @@ export class CardSprite extends Container {
     this.lastRing = null;
     this.ringGfx.clear();
     this.pulseRing.show(0, 0, this.cw, this.ch, CARD_RADIUS, color);
+  }
+
+  setPromptReference(color: number | null): void {
+    if (this.promptReferenceColor === color && color == null) return;
+    this.promptReferenceColor = color;
+    gsap.killTweensOf(this.promptReferenceGfx);
+    this.promptReferenceGfx.clear();
+    this.promptReferenceGfx.alpha = 1;
+    if (color == null) return;
+    const outer = 7 * this.chromeScale;
+    const inner = 3 * this.chromeScale;
+    this.promptReferenceGfx
+      .roundRect(-outer, -outer, this.cw + outer * 2, this.ch + outer * 2, CARD_RADIUS + outer)
+      .stroke({ color, width: outer * 1.25, alpha: 0.2 });
+    this.promptReferenceGfx
+      .roundRect(-inner, -inner, this.cw + inner * 2, this.ch + inner * 2, CARD_RADIUS + inner)
+      .stroke({ color, width: inner, alpha: 0.95 });
+    if (animationsEnabled()) {
+      gsap.fromTo(
+        this.promptReferenceGfx,
+        { alpha: 0.62 },
+        { alpha: 1, duration: 0.65, ease: "sine.inOut", repeat: -1, yoyo: true },
+      );
+    }
   }
 
   setOwnerRing(color: number | null): void {

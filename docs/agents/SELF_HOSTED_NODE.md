@@ -20,7 +20,7 @@ A background `updater` monitor (`updater.rs`) polls the version manifest (defaul
 
 ## The direct data plane
 
-Off unless built with `--features iroh` **and** `SELF_HOSTED_NODE_IROH=1`; a desktop-hosted room
-turns it on itself. `SELF_HOSTED_NODE_IROH_RELAY_URL` names a relay, and unset takes iroh's own
-defaults. Without the feature the crate has no iroh in its tree at all and every seat stays on
-the relay. See `docs/TRANSPORT.md`.
+Seats take the direct plane over WebRTC, driven from the webview. The headless node has no webview,
+so it never offers a plane itself and every seat on a fleet-hosted room stays on the relay. A
+desktop-hosted room drives WebRTC from the shell instead: `forge-room` installs a `ShellBridge`
+that carries the engine's envelopes for a seat out through the webview. See `docs/TRANSPORT.md`.

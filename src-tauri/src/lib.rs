@@ -3,7 +3,6 @@
 mod asset_server;
 mod card_db;
 mod commands;
-mod direct_seat;
 mod forge_room;
 mod image_cache;
 mod lan_discovery;
@@ -80,7 +79,6 @@ pub fn run() {
         .manage(LimitedManager::new())
         .manage(forge_room::ForgeRoomHost::new())
         .manage(local_relay::LocalRelayHost::new())
-        .manage(direct_seat::DirectSeatHost::new())
         .invoke_handler(tauri::generate_handler![
             commands::is_card_supported,
             commands::card_roles,
@@ -94,12 +92,6 @@ pub fn run() {
             local_relay::start_local_relay,
             local_relay::local_relay_running,
             local_relay::stop_local_relay,
-            direct_seat::direct_seat_start,
-            direct_seat::direct_seat_roster,
-            direct_seat::direct_seat_status,
-            direct_seat::direct_seat_adopt_relay,
-            direct_seat::direct_seat_send,
-            direct_seat::direct_seat_stop,
             lan_discovery::discover_lan_rooms,
             asset_server::card_art_route_available,
             image_cache::preseed_card_art,

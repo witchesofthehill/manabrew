@@ -31,6 +31,6 @@ Use a GSAP timeline for transient motion, driving `fxScale` or other plain props
 ## Current effects
 
 - **Entrance settle** (`stomp.ts`, creatures only) uses a small GSAP squash-and-settle plus the existing entry glow. The dev panel's "Flash ETB" action reaches `BoardScene.previewEtb`.
-- **Card depth** uses cached layered `GraphicsContext` shadows in `CardSprite`. `setElevation` changes shadow offset, spread, and opacity without changing the card's transform or hit area. These shadows belong to in-game objects, not DOM card-face chrome.
+- **Card depth** uses cached layered `GraphicsContext` shadows in `CardSprite`. `setElevation` changes shadow offset and opacity without changing the card's transform or hit area. These shadows belong to in-game objects, not DOM card-face chrome.
 - **Stat pop** (`CardSprite.playStatPop`) — P/T badge bump on power/toughness change.
 - **Damage hit** (`playDamageHit`) — white flash, alongside the existing shake + `-N` floater.

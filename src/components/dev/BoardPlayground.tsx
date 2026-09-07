@@ -152,6 +152,7 @@ export function BoardPlayground() {
   return (
     <div className="space-y-3">
       <BoardPlaygroundControls
+        key={table.scenario}
         table={table}
         setTable={setTable}
         loadScenario={loadScenario}
@@ -243,7 +244,7 @@ export function BoardPlayground() {
           Inspect
         </Button>
         <Button size="sm" variant="outline" onClick={triggerEtbGlow}>
-          Re-stomp all
+          Replay entry effect
         </Button>
         <Button
           size="sm"

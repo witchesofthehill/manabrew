@@ -39,7 +39,7 @@ const palette: BasePalette = {
 const preset: ThemePreset = {
   id: "darkberry",
   name: "Darkberry",
-  description: "Crisp berry, ember, blue, and mint with hearth gold",
+  description: "Berry, ember, blue, mint, and gold",
   light: {
     background: "#f3f4f2",
     foreground: "#24242b",

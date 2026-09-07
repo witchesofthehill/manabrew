@@ -434,6 +434,7 @@ export class PhaseStripLayer {
     this.theme = theme;
     normalStyle.fill = theme.gameTheme.textOnTinted;
     activeStyle.fill = theme.gameTheme.textOnTinted;
+    if (this.lastState) this.render(this.lastState);
   }
 
   setCallbacks(cb: PhaseStripCallbacks): void {

@@ -40,6 +40,7 @@ export class PlayerHudTooltip {
     this.title.style = this.titleStyle();
     this.activeLineStyle = this.lineStyle(true);
     this.inactiveLineStyle = this.lineStyle(false);
+    this.hide();
   }
 
   setViewport(width: number, height: number): void {

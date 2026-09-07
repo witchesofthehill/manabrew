@@ -752,7 +752,10 @@ export function GameBoard({
       if (c.attackTargetId && c.attackTargetId !== c.attackingPlayerId) continue;
       const p = Number.parseInt(c.power ?? "", 10);
       if (!Number.isFinite(p) || p <= 0) continue;
-      map.set(c.attackingPlayerId, (map.get(c.attackingPlayerId) ?? 0) + p);
+      const hits = c.keywords.some((keyword) => keyword.toLowerCase().startsWith("double strike"))
+        ? 2
+        : 1;
+      map.set(c.attackingPlayerId, (map.get(c.attackingPlayerId) ?? 0) + p * hits);
     }
     return map;
   }, [battlefield, combatAssignments]);
@@ -1053,6 +1056,29 @@ export function GameBoard({
           label: "Player effects",
           value: playerKeywords.join(" · "),
           emphasized: true,
+        });
+      }
+      if (player.dungeonState) {
+        ruleFacts.push({
+          id: "dungeon",
+          label: "Dungeon",
+          value: [player.dungeonState.name, player.dungeonState.room].filter(Boolean).join(" · "),
+          emphasized: true,
+        });
+      }
+      if (player.activeSchemeNames?.length) {
+        ruleFacts.push({
+          id: "active-schemes",
+          label: player.activeSchemeNames.length === 1 ? "Active scheme" : "Active schemes",
+          value: player.activeSchemeNames.join(" · "),
+          emphasized: true,
+        });
+      }
+      if (player.teamNumber != null) {
+        ruleFacts.push({
+          id: "team",
+          label: "Team",
+          value: String(player.teamNumber),
         });
       }
       for (const [cardId, casts] of Object.entries(commanderCasts)) {

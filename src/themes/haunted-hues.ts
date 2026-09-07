@@ -39,7 +39,7 @@ const palette: BasePalette = {
 const preset: ThemePreset = {
   id: "haunted-hues",
   name: "Haunted Hues",
-  description: "Autumn flame, raspberry, aubergine, and moonlit gray",
+  description: "Autumn orange, raspberry, aubergine, and gray",
   light: {
     background: "#f4f2ed",
     foreground: "#2c2830",

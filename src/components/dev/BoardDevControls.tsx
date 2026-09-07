@@ -68,7 +68,7 @@ export function BoardDevControls() {
           <GuideToggle
             icon={PanelTop}
             label="Player panel bounds"
-            description="Full layout box for every player HUD"
+            description="Layout bounds for every player HUD"
             checked={showPlayerPanelBounds}
             onChange={setShowPlayerPanelBounds}
           />
@@ -90,7 +90,7 @@ export function BoardDevControls() {
       </section>
 
       <section className={DEV_SECTION}>
-        <p className={DEV_SECTION_HEADING}>Game-state surfaces</p>
+        <p className={DEV_SECTION_HEADING}>Game state</p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <GuideToggle
             label="Log activity"
@@ -100,7 +100,7 @@ export function BoardDevControls() {
           />
           <GuideToggle
             label="Combat summary"
-            description="Active combat totals and danger state"
+            description="Attacker, blocker, and incoming-damage totals"
             checked={gameStateOverrides.forceCombatSummary}
             onChange={(checked) => setGameStateOverride("forceCombatSummary", checked)}
           />
@@ -131,7 +131,7 @@ export function BoardDevControls() {
           />
           <GuideToggle
             label="Plane"
-            description="Current plane and planar die"
+            description="Current plane"
             checked={gameStateOverrides.forcePlane}
             onChange={(checked) => setGameStateOverride("forcePlane", checked)}
           />

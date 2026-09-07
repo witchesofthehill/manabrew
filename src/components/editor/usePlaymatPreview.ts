@@ -152,15 +152,7 @@ export function usePlaymatPreview({
     layer.setImage(playmat);
     layer.setSettings(settings);
     layer.layout({ x: 0, y: 0, width: previewWidth, height: previewHeight }, { dropActive: false });
-  }, [
-    ready,
-    playmat,
-    settings,
-    previewWidth,
-    previewHeight,
-    theme.gameTheme.canvas.background,
-    theme.gameTheme.playerColors.self,
-  ]);
+  }, [ready, playmat, settings, previewWidth, previewHeight, theme]);
 
   useEffect(() => {
     const app = appRef.current;

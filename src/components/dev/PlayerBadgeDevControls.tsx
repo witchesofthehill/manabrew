@@ -112,7 +112,7 @@ export function PlayerBadgeDevControls() {
         <div>
           <p className={DEV_SECTION_HEADING}>Player HUD</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Apply the same badge and status checks to every player.
+            Override every player's HUD with the same values.
           </p>
         </div>
         {dirty ? (

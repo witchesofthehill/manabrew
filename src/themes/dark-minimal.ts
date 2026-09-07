@@ -37,9 +37,9 @@ const palette: BasePalette = {
 };
 
 const preset: ThemePreset = {
-  id: "dark-neon",
+  id: "dark-minimal",
   name: "Dark Minimal",
-  description: "Clean slate-tinted material design",
+  description: "Slate neutrals with restrained accents",
   light: {
     background: "#f3f5f7",
     foreground: "#1d222a",

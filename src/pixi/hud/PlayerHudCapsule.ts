@@ -48,12 +48,10 @@ const iconTextures = new Map<string, Texture>();
 const SCRATCH_A = new Point();
 const SCRATCH_B = new Point();
 
-// Shared, immutable text styles keyed by (size, weight, fill). Pixi safely
-// shares one TextStyle across many Text objects, so this removes the per-render
-// allocation churn — callers must never mutate a returned style.
 const styleCache = new Map<string, TextStyle>();
 function cachedTextStyle(size: number, weight: TextStyle["fontWeight"], fill: number): TextStyle {
-  const key = `${size}|${weight}|${fill}`;
+  const shadow = getTheme().gameTheme.canvas.shadow;
+  const key = `${size}|${weight}|${fill}|${shadow}`;
   let s = styleCache.get(key);
   if (!s) {
     s = new TextStyle({
@@ -62,7 +60,7 @@ function cachedTextStyle(size: number, weight: TextStyle["fontWeight"], fill: nu
       fontWeight: weight,
       fill,
       dropShadow: {
-        color: getTheme().gameTheme.canvas.shadow,
+        color: shadow,
         alpha: 0.55,
         blur: 3,
         distance: 1,
@@ -162,7 +160,6 @@ export class PlayerHudCapsule {
   private compact = false;
   private boundsDebug = false;
   private avatarUrl: string | null = null;
-  private readonly isBot: boolean;
   private renderedLife: number | null = null;
   private targetRingMode: "off" | "pulse" | "solid" = "off";
   private targetTween: gsap.core.Tween | null = null;
@@ -191,7 +188,6 @@ export class PlayerHudCapsule {
   ) {
     this.theme = theme;
     this.spec = spec;
-    this.isBot = spec.isBot;
     this.onTarget = onTarget;
     this.onShowSheet = onShowSheet;
     this.onHover = onHover;
@@ -365,6 +361,7 @@ export class PlayerHudCapsule {
 
   private static signature(s: PlayerHudSpec): string {
     return JSON.stringify([
+      s.isSelf,
       s.life,
       s.isActiveTurn,
       s.isPriorityPlayer,
@@ -518,7 +515,7 @@ export class PlayerHudCapsule {
     }
     this.avatarFx.circle(cx, cy, r - 0.5);
     this.avatarFx.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
-    this.bot.visible = visible && !hasImage && this.isBot;
+    this.bot.visible = visible && !hasImage && this.spec.isBot;
     if (this.bot.visible) {
       const tex = this.iconTexture(BOT_ICON_NAME);
       if (tex) this.bot.texture = tex;
@@ -526,7 +523,7 @@ export class PlayerHudCapsule {
       this.bot.width = this.bot.height = diameter * 0.56;
       this.bot.position.set(cx, cy);
     }
-    this.initial.visible = visible && !hasImage && !this.isBot;
+    this.initial.visible = visible && !hasImage && !this.spec.isBot;
     if (this.initial.visible) {
       this.initial.text = getInitials(this.spec.name);
       this.initial.style = this.textStyle(Math.round(diameter * 0.36), "800");

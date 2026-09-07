@@ -41,12 +41,12 @@ export function GlobalStateRail({
   const items: RailItem[] = [];
 
   if (effectiveDayTime === "day") {
-    items.push({ id: "day", label: "Day", value: "Daybound", icon: Sun, emphasis: "warning" });
+    items.push({ id: "day", label: "Time", value: "Day", icon: Sun, emphasis: "warning" });
   } else if (effectiveDayTime === "night") {
     items.push({
       id: "night",
-      label: "Night",
-      value: "Nightbound",
+      label: "Time",
+      value: "Night",
       icon: Moon,
       emphasis: "primary",
     });

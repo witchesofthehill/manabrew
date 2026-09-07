@@ -133,9 +133,6 @@ export interface RegionHost {
   /** Px to trim off the bottom of this region's felt so it clears the hand
    *  fan (local player only; 0 for opponents). */
   getHandReserveBottom(): number;
-  /** Px to trim off the top of this region's grid so the first card row clears
-   *  the Pixi player bar (opponents when the bar is on; 0 otherwise). */
-  getTopReserve(): number;
   spawnFloatingText(canvasX: number, canvasY: number, content: string, color: number): void;
   previewCard(card: CardDto | null, bounds?: ScreenBounds): void;
   isPointerTapSuppressed(pointerId: number): boolean;

@@ -91,17 +91,9 @@ interface BoardCanvasProps {
   compact?: boolean;
   opponentLayout?: "focused" | "overview";
   focusLocked?: boolean;
-  /** The opponent whose field auto-expands (their turn), or `null` for an even
-   *  split (our turn). The scene owns + eases the delimiters; this sets the
-   *  target. */
   focusedOpponentId?: string | null;
-  /** Opponents under attack this combat — expanded (even-split when several)
-   *  over the turn focus so combat stays visible. */
   combatFocusIds?: string[];
-  /** Keyboard-cycled single-opponent focus; wins over combat/turn focus. */
   manualFocusId?: string | null;
-  /** Thin Pixi player bars over each opponent's field. `showPlayerBars` toggles
-   *  them; `playerBars` carries the per-opponent name/life/colour/state. */
   playerBars?: PlayerBarSpec[];
   showPlayerBars?: boolean;
   zoneTiles?: Record<string, ZoneTileSpec[]>;

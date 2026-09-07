@@ -89,7 +89,7 @@ export function CombatSummarySection({
           return normalized.startsWith("first strike") || normalized.startsWith("double strike");
         }) ?? false,
     );
-  const lethal = sample || (defenderLife != null && incomingDamage >= defenderLife);
+  const lethal = sample || (isBlockDecl && defenderLife != null && incomingDamage >= defenderLife);
   const showIncoming = isBlockDecl || sample;
 
   return (
@@ -105,7 +105,7 @@ export function CombatSummarySection({
           </span>
         ) : null}
         <span className={lethal ? "font-bold text-destructive" : "font-semibold"}>
-          {showIncoming ? "Incoming" : "Through"} {incomingDamage}
+          {showIncoming ? "Incoming" : "Open"} {incomingDamage}
         </span>
         {lethal ? (
           <span className="flex items-center gap-1 rounded bg-destructive/15 px-1.5 py-0.5 font-bold uppercase tracking-wide text-destructive">
@@ -116,7 +116,7 @@ export function CombatSummarySection({
         {firstStrike ? (
           <span className="flex items-center gap-1 text-warning">
             <Zap className="h-3 w-3" />
-            First strike
+            First or double strike
           </span>
         ) : null}
         {isBlockDecl && !sample ? (
@@ -141,10 +141,10 @@ export function CombatSummarySection({
             <div className="mb-3 flex items-center justify-center gap-3 text-sm">
               <span className="flex items-center gap-1 font-semibold">
                 <Swords className="h-4 w-4" />
-                {attackerPower}
+                Power {attackerPower}
               </span>
               <span className="text-muted-foreground">vs</span>
-              <span className="font-semibold">Defense {blockerToughness}</span>
+              <span className="font-semibold">Blocker toughness {blockerToughness}</span>
               <span className="text-muted-foreground">·</span>
               <span className="font-semibold text-destructive">Incoming {incomingDamage}</span>
             </div>

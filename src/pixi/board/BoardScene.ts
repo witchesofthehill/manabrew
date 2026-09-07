@@ -73,7 +73,6 @@ import { BattlefieldOverlay } from "./BattlefieldOverlay";
 import { HandController } from "./HandController";
 import { SelectionController } from "./SelectionController";
 import {
-  COLLAPSED_OPPONENT_WIDTH_PX,
   collapsedOpponentWidth,
   STRIP_BAND_PX,
   type BoardLayout,
@@ -254,7 +253,6 @@ export class BoardScene {
   private fogGfx: Graphics;
   private fogGradRight: FillGradient | null = null;
   private fogGradLeft: FillGradient | null = null;
-  private highlightGfx: Graphics;
   private playerBars: PlayerHudLayer;
   private barsEnabled = false;
 
@@ -275,8 +273,6 @@ export class BoardScene {
     app.stage.addChild(this.root);
     app.stage.eventMode = "static";
 
-    // Solid game-canvas base behind everything. Matching the region felt keeps
-    // the hand and HUD reserve visually continuous with the battlefield.
     this.baseBg = new Graphics();
     this.baseBg.eventMode = "none";
     this.baseBg.zIndex = -1000;
@@ -291,18 +287,10 @@ export class BoardScene {
     this.fogGfx.zIndex = 5550;
     this.root.addChild(this.fogGfx);
 
-    // Solid game-canvas veil over each opponent field, its opacity driven by
-    // how collapsed the field is. Sits above the cards but below the player
-    // panels.
     this.collapseVeil = new Graphics();
     this.collapseVeil.eventMode = "none";
     this.collapseVeil.zIndex = 5560;
     this.root.addChild(this.collapseVeil);
-
-    this.highlightGfx = new Graphics();
-    this.highlightGfx.eventMode = "none";
-    this.highlightGfx.zIndex = 5500;
-    this.root.addChild(this.highlightGfx);
 
     this.playerBars = new PlayerHudLayer(
       this.theme,
@@ -476,16 +464,12 @@ export class BoardScene {
     this.refreshCapsuleBlockers();
   }
 
-  /** Set which opponent's field auto-expands (their turn), or `null` for an even
-   *  split (our turn). The delimiters ease to this in `tick`. */
   setOpponentFocus(playerId: string | null): void {
     if (this.focusPlayerId === playerId) return;
     this.focusPlayerId = playerId;
     this.recomputeDelimTarget();
   }
 
-  /** Opponents being attacked this combat — expanded (even-split among them
-   *  when more than one) over the turn focus, so combat is always visible. */
   setCombatFocus(playerIds: string[]): void {
     if (
       this.combatFocusIds.length === playerIds.length &&
@@ -497,8 +481,6 @@ export class BoardScene {
     this.recomputeDelimTarget();
   }
 
-  /** Keyboard-cycled focus — an explicit single-field pick that wins over the
-   *  combat and turn focus (hover still floats on top). Null releases it. */
   setManualFocus(playerId: string | null): void {
     if (this.manualFocusId === playerId) return;
     this.manualFocusId = playerId;
@@ -553,19 +535,20 @@ export class BoardScene {
     if (n <= 1) return;
     if (this.delimCurrent.length !== n - 1) this.delimCurrent = evenDelimiters(n);
     if (this.delimTarget.length !== n - 1) this.recomputeDelimTarget();
+    let changed = false;
     for (let i = 0; i < n - 1; i++) {
-      this.delimCurrent[i] = lerp(
+      const next = lerp(
         this.delimCurrent[i]!,
         this.delimTarget[i]!,
         animationsEnabled() ? DELIMITER_EASE.FACTOR : 1,
         DELIMITER_EASE.SNAP,
       );
+      changed ||= next !== this.delimCurrent[i];
+      this.delimCurrent[i] = next;
     }
-    this.applyDelimiters();
+    if (changed) this.applyDelimiters();
   }
 
-  /** Apply the current delimiters to each opponent region as a clip band. Bands
-   *  tile the canvas, so no card ever moves; only the masks change. */
   private applyDelimiters(): void {
     this.layoutSelfBar();
     const n = this.opponentIds.length;
@@ -598,7 +581,8 @@ export class BoardScene {
       }
       return;
     }
-    const veilStart = COLLAPSED_OPPONENT_WIDTH_PX * 2;
+    const collapsedWidth = collapsedOpponentWidth(W, n);
+    const veilStart = collapsedWidth * 2;
     const veilColor = hexToNum(this.theme.gameTheme.canvas.background);
     for (let i = 0; i < n; i++) {
       const rec = this.regions.get(this.opponentIds[i]!);
@@ -610,10 +594,7 @@ export class BoardScene {
       if (this.barsEnabled) {
         // Solid veil opacity ramps 0→1 as the band narrows from `veilStart` down
         // to its collapsed width — fully in sync with the ease, no separate tween.
-        const frac = Math.max(
-          0,
-          Math.min(1, (veilStart - bandW) / (veilStart - COLLAPSED_OPPONENT_WIDTH_PX)),
-        );
+        const frac = Math.max(0, Math.min(1, (veilStart - bandW) / (veilStart - collapsedWidth)));
         if (frac > 0.001) {
           this.collapseVeil.rect(left, 0, bandW, this.topHeight + this.stripBandPx / 2);
           this.collapseVeil.fill({ color: veilColor, alpha: frac });
@@ -630,7 +611,6 @@ export class BoardScene {
       }
     }
     this.drawDelimiterFog();
-    this.drawHoverHighlight();
   }
 
   setZoneTiles(byPlayer: Record<string, ZoneTileSpec[]>): void {
@@ -671,9 +651,6 @@ export class BoardScene {
     this.playerBars.setRect(this.localPlayerId, x, bottom - height, width, height, false);
   }
 
-  /** Set the opponent player bars (thin Pixi panels over the top of each field)
-   *  and whether they're shown. Toggling on/off re-grids the opponents, since the
-   *  bar reserves space at the top of the grid. */
   setPlayerBars(specs: PlayerBarSpec[], enabled: boolean): void {
     const reserveChanged = this.barsEnabled !== enabled;
     this.barsEnabled = enabled;
@@ -693,7 +670,6 @@ export class BoardScene {
     this.refreshCapsuleBlockers();
   }
 
-  // Focused opponents reserve expanded HUD bounds so delimiter motion cannot re-grid them.
   private refreshCapsuleBlockers(): void {
     for (const [id, rec] of this.regions) {
       const [b] = this.gridCapsuleBlockers(id, rec.isLocal);
@@ -705,10 +681,6 @@ export class BoardScene {
     }
   }
 
-  /** Bleed a fog-of-war fade from each delimiter into its adjacent fields. The
-   *  intensity tracks how far each field is from FULLY expanded (a linear ratio
-   *  of its width between collapsed and max), so the fog eases smoothly in and
-   *  out as a field opens/closes and vanishes entirely once a field is focused. */
   /** The divider + fog colour: a gently darkened canvas background. The field
    *  felt is canvas-background-coloured, so a same-colour fog is invisible
    *  against it; a mild darken (`DIVIDER.darken`) is the minimum distinct shade
@@ -727,7 +699,7 @@ export class BoardScene {
     // Reach the middle horizontal line; the phase strip (drawn on top) hides the
     // end so it tucks under the phase bar.
     const h = this.topHeight + this.stripBandPx / 2;
-    const C = COLLAPSED_OPPONENT_WIDTH_PX;
+    const C = collapsedOpponentWidth(W, n);
     const leftEdge = (i: number) => Math.round((i === 0 ? 0 : this.delimCurrent[i - 1]!) * W);
     const rightEdge = (i: number) => Math.round((i === n - 1 ? 1 : this.delimCurrent[i]!) * W);
     const widthOf = (i: number) => rightEdge(i) - leftEdge(i);
@@ -899,15 +871,8 @@ export class BoardScene {
     }
     if (hovered === this.hoveredOpponentId) return;
     this.hoveredOpponentId = hovered;
-    this.drawHoverHighlight();
-    // Open the hovered field, or fall back to the turn focus on leave.
     if (!this.focusLocked) this.recomputeDelimTarget();
     this.callbacks.onHoverOpponent?.(hovered);
-  }
-
-  private drawHoverHighlight(): void {
-    // Hover still drives focus, but no coloured field tint is drawn.
-    this.highlightGfx.clear();
   }
 
   private setupLocalControllers(region: BoardRegion): void {
@@ -1306,9 +1271,6 @@ export class BoardScene {
           ? this.handReserveBottom() *
             (this.compactMode ? HAND_RESERVE_TRIM_COMPACT : HAND_RESERVE_TRIM)
           : 0,
-      // The opponent HUD is a keep-out blocker (see BoardRegion.collectLocalBlockers)
-      // rather than a full-width top reserve, so the grid uses the whole height.
-      getTopReserve: () => 0,
       spawnFloatingText: (x, y, content, color) => this.spawnFloatingText(x, y, content, color),
       previewCard: (card, bounds) => {
         if (!card) {

@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { PHASES } from "@/components/game/game.constants";
 import {
@@ -31,6 +31,7 @@ export function BoardPlaygroundControls({
   focusedPlayerId,
   setFocusedPlayerId,
 }: BoardPlaygroundControlsProps) {
+  const [manaExpanded, setManaExpanded] = useState(table.scenario === "player-panels");
   const changeMana = (playerId: string, letter: ManaLetter, delta: number) =>
     setTable((current) => ({
       ...current,
@@ -46,7 +47,7 @@ export function BoardPlaygroundControls({
     <div className="space-y-3 rounded-lg border border-border bg-card p-3">
       <div className="flex flex-wrap items-end gap-3">
         <label className="grid gap-1 text-xs text-muted-foreground">
-          Review scenario
+          Scenario
           <select
             className={SELECT_CLASS}
             value={table.scenario}
@@ -184,7 +185,7 @@ export function BoardPlaygroundControls({
           </label>
         ))}
       </div>
-      <details open={table.scenario === "player-panels"}>
+      <details open={manaExpanded} onToggle={(event) => setManaExpanded(event.currentTarget.open)}>
         <summary className="cursor-pointer text-sm font-medium text-foreground">
           Floating mana
         </summary>

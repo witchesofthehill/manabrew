@@ -39,7 +39,7 @@ const palette: BasePalette = {
 const preset: ThemePreset = {
   id: "candle8",
   name: "Candle8",
-  description: "Candlelit clay, sage, teal, and faded denim",
+  description: "Clay, sage, teal, and faded denim",
   light: {
     background: "#f4f2e7",
     foreground: "#29262a",

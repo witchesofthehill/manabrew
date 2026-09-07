@@ -155,7 +155,8 @@ export class BoardRegion {
   private combatRowGroups: NonNullable<BattlefieldState["combatRowGroups"]> = [];
   private combatRowGfx = new Graphics();
   private combatRowLabels: Text[] = [];
-  private combatRowAvatars: { sprite: Sprite; mask: Graphics; url: string | null }[] = [];
+  private combatRowAvatars: { sprite: Sprite; mask: Graphics; url: string | null; size: number }[] =
+    [];
   private effectiveChildrenMap = new Map<string, string[]>();
   private cardById = new Map<string, CardDto>();
   private lastState: BattlefieldState | null = null;
@@ -1081,7 +1082,12 @@ export class BoardRegion {
     }
   }
 
-  private combatRowAvatar(i: number): { sprite: Sprite; mask: Graphics; url: string | null } {
+  private combatRowAvatar(i: number): {
+    sprite: Sprite;
+    mask: Graphics;
+    url: string | null;
+    size: number;
+  } {
     let a = this.combatRowAvatars[i];
     if (!a) {
       const sprite = new Sprite();
@@ -1092,25 +1098,28 @@ export class BoardRegion {
       mask.eventMode = "none";
       sprite.mask = mask;
       this.container.addChild(mask, sprite);
-      a = { sprite, mask, url: null };
+      a = { sprite, mask, url: null, size: 0 };
       this.combatRowAvatars[i] = a;
     }
     return a;
   }
 
   private loadCombatRowAvatar(
-    a: { sprite: Sprite; mask: Graphics; url: string | null },
+    a: { sprite: Sprite; mask: Graphics; url: string | null; size: number },
     url: string,
     size: number,
   ): void {
+    a.size = size;
+    a.sprite.width = size;
+    a.sprite.height = size;
     if (a.url === url) return;
     a.url = url;
     loadAvatarTexture(url)
       .then((tex) => {
         if (a.sprite.destroyed || a.url !== url) return;
         a.sprite.texture = tex;
-        a.sprite.width = size;
-        a.sprite.height = size;
+        a.sprite.width = a.size;
+        a.sprite.height = a.size;
       })
       .catch(() => {});
   }
@@ -1605,15 +1614,11 @@ export class BoardRegion {
     }
   }
 
-  /** The zone with its bottom trimmed so it clears the hand fan (local player
-   *  only) and its top trimmed so the first card row clears the player bar
-   *  (opponents). Drives the felt, the empty label, and the card grid. */
   private usableZone(): PlayZoneRect {
     const zone = this.zone;
     const bottom = this.host.getHandReserveBottom();
-    const top = this.host.getTopReserve();
-    if (bottom <= 0 && top <= 0) return zone;
-    return { ...zone, y: zone.y + top, height: Math.max(0, zone.height - top - bottom) };
+    if (bottom <= 0) return zone;
+    return { ...zone, height: Math.max(0, zone.height - bottom) };
   }
 
   /** The felt fills the FIXED `usableZone` — it is drawn once over the full play

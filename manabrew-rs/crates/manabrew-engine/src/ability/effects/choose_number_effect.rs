@@ -39,7 +39,17 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 
     if let Some(num) = chosen {
         if let Some(source_id) = sa.source {
-            ctx.game.card_mut(source_id).set_chosen_number(Some(num));
+            if sa.ir.secretly {
+                if sa.ir.keep_secret {
+                    ctx.game.card_mut(source_id).set_chosen_number_for_player(
+                        Some(num),
+                        controller,
+                        false,
+                    );
+                }
+            } else {
+                ctx.game.card_mut(source_id).set_chosen_number(Some(num));
+            }
         }
     }
 }

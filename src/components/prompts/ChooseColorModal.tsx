@@ -109,18 +109,19 @@ function SingleColor({
               <button
                 key={color}
                 onClick={() => respond({ type: "colorDecision", chosenColors: { [color]: 1 } })}
+                aria-label={`Choose ${m.label}`}
                 className={cn(
-                  "flex flex-col items-center gap-1 px-4 py-3 rounded-lg border transition-all",
-                  "hover:ring-2 hover:ring-ring hover:scale-105 active:scale-95 text-foreground",
-                  m.bg,
+                  "group flex h-16 w-16 items-center justify-center rounded-full border bg-card",
+                  "transition-transform hover:scale-110 hover:ring-2 hover:ring-ring",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95",
                 )}
               >
                 <ScryfallImg
                   src={manaSymbolUrl(m.symbol)}
-                  alt={`{${m.symbol}}`}
-                  className="w-10 h-10"
+                  alt=""
+                  aria-hidden
+                  className="h-12 w-12 transition-transform group-hover:scale-105"
                 />
-                <span className="text-xs font-semibold">{m.label}</span>
               </button>
             );
           })}

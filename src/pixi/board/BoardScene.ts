@@ -16,7 +16,9 @@ import {
   setCardSpriteStyle,
   setCardSpriteHoverDebug,
 } from "../CardSprite";
-import type { BattlefieldCardStyle } from "@/stores/usePreferencesStore";
+import type { BattlefieldCardStyle, InlineCardStyle } from "@/stores/usePreferencesStore";
+import type { HandCardControlsSpec } from "../HandCardControls";
+import type { HandActionOption } from "@/stores/useGameUIStore";
 import { hexToNum } from "../colorUtils";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
@@ -33,7 +35,7 @@ import { CARD_H } from "@/components/game/game.constants";
 import { lerp, setFrameRatio } from "./pixiHelpers";
 import { animationsEnabled } from "../effects/enabled";
 import { LongPressGesture } from "../LongPressGesture";
-import { PREVIEW_TIMING } from "@/lib/cardPreview";
+import { PREVIEW_TIMING, type PreviewPointerInput } from "@/lib/cardPreview";
 import {
   FLOATER_FONT_SIZE,
   FLOATER_LIFETIME_FRAMES,
@@ -206,6 +208,7 @@ export class BoardScene {
   private tapSuppressedPointers = new Set<number>();
 
   private hand: HandController | null = null;
+  private handRulesViewDefault = false;
   private selection: SelectionController | null = null;
   private overlay: BattlefieldOverlay | null = null;
   private dragHandler: DragHandler;
@@ -222,6 +225,7 @@ export class BoardScene {
   >();
   private stackProvider: StackAnchorProvider | null = null;
   private overlayInvalidation: (() => void) | null = null;
+  private overlayHitTest: ((x: number, y: number) => boolean) | null = null;
 
   private hoveredCell: GridCell | null = null;
   private stackTargetId: string | null = null;
@@ -273,6 +277,16 @@ export class BoardScene {
     this.root.sortableChildren = true;
     app.stage.addChild(this.root);
     app.stage.eventMode = "static";
+    app.stage.hitArea = {
+      contains: (x, y) =>
+        x >= 0 &&
+        x <= this.canvasW &&
+        y >= 0 &&
+        y <= this.canvasH &&
+        (this.activeGesturePointerId !== null ||
+          this.hand?.isDraggingFromHand() ||
+          !this.overlayHitTest?.(x, y)),
+    };
 
     this.baseBg = new Graphics();
     this.baseBg.eventMode = "none";
@@ -330,6 +344,7 @@ export class BoardScene {
     window.addEventListener("pointermove", this.cursorListener);
     this.canvasLeaveListener = () => this.hand?.clearHover();
     this.app.canvas.addEventListener("pointerleave", this.canvasLeaveListener);
+    app.stage.on("pointerleave", this.canvasLeaveListener);
 
     this.pinchDownListener = (e: PointerEvent) => {
       if (e.pointerType !== "touch") return;
@@ -878,6 +893,7 @@ export class BoardScene {
 
   private setupLocalControllers(region: BoardRegion): void {
     this.hand = new HandController(this.makeHandHost(), this.root);
+    this.hand.setRulesViewDefault(this.handRulesViewDefault);
     this.hand.setCompact(this.compactMode);
     this.selection = new SelectionController(this.makeSelectionHost(region), this.root);
     this.overlay = new BattlefieldOverlay(this.makeOverlayHost(region));
@@ -961,6 +977,27 @@ export class BoardScene {
 
   setHandFlippedHorizontal(flipped: boolean): void {
     this.hand?.setHoveredHorizontalFlipped(flipped);
+  }
+  setHandCardStyle(style: InlineCardStyle): void {
+    this.handRulesViewDefault = style === "rules";
+    this.hand?.setRulesViewDefault(this.handRulesViewDefault);
+  }
+
+  handUsesRulesView(cardId: string): boolean {
+    return this.hand?.usesRulesView(cardId) === true;
+  }
+
+  toggleHoveredHandRulesView(): boolean | null {
+    return this.hand?.toggleHoveredRulesView() ?? null;
+  }
+  setHoveredHandRulesActions(
+    actions: HandActionOption[],
+    onSelectAction: ((action: HandActionOption) => void) | null,
+  ): void {
+    this.hand?.setHoveredRulesActions(actions, onSelectAction);
+  }
+  setHoveredHandControls(spec: HandCardControlsSpec | null): void {
+    this.hand?.setHoveredControls(spec);
   }
 
   setHandScale(scale: number): void {
@@ -1162,6 +1199,10 @@ export class BoardScene {
     this.overlayInvalidation = invalidate;
   }
 
+  setOverlayHitTest(hitTest: ((x: number, y: number) => boolean) | null): void {
+    this.overlayHitTest = hitTest;
+  }
+
   setPlayerBlockers(blockers: Map<string, BlockingRect[]>): void {
     this.playerBlockers = blockers;
     this.layoutSelfBar();
@@ -1232,6 +1273,7 @@ export class BoardScene {
     this.theme = theme;
     this.fogGradRight = this.fogGradLeft = null;
     setCardSpriteTheme(theme);
+    this.hand?.restyle();
     this.phaseStrip.setTheme(theme);
     this.playerBars.setTheme(theme);
     this.drawBaseBg();
@@ -1481,8 +1523,9 @@ export class BoardScene {
         this.dragHandler.justDraggedCardIds.has(id) || this.longPress.consumeTap(id),
       startCardDrag: (sprite, e) => this.onBattlefieldCardDown(sprite, e),
       cancelHoverClear: () => this.cancelHoverClear(),
-      setCardHovered: (sprite, force = false) =>
-        this.setBattlefieldCardHovered(region, sprite, force),
+      setCardHovered: (sprite, force = false, trigger) =>
+        this.setBattlefieldCardHovered(region, sprite, force, trigger),
+      rightClickCard: (sprite) => this.fireRightClickPreview(sprite),
       scheduleHoverClear: (id) => this.scheduleHoverClear(id),
       getCardScale: () => region.getCardScale(),
       isCompact: () => this.compactMode,
@@ -1499,12 +1542,14 @@ export class BoardScene {
     if (isLocal && sprite.card.controllerId === playerId) {
       sprite.on("pointerdown", (e: FederatedPointerEvent) => {
         e.stopPropagation();
+        if (e.button !== 0) return;
         if (region) {
           this.longPress.start(e, sprite.card.id, () => this.fireLongPressPreview(region, sprite));
         }
         this.onBattlefieldCardDown(sprite, e);
       });
       sprite.on("pointertap", (e: FederatedPointerEvent) => {
+        if (e.button !== 0) return;
         if (this.tapSuppressedPointers.has(e.pointerId)) return;
         if (this.dragHandler.justDraggedCardIds.has(sprite.card.id)) return;
         if (this.longPress.consumeTap(sprite.card.id)) return;
@@ -1512,6 +1557,7 @@ export class BoardScene {
       });
     } else {
       sprite.on("pointerdown", (e: FederatedPointerEvent) => {
+        if (e.button !== 0) return;
         if (region) {
           this.longPress.start(e, sprite.card.id, () => this.fireLongPressPreview(region, sprite));
         }
@@ -1525,6 +1571,7 @@ export class BoardScene {
         }
       });
       sprite.on("pointertap", (e: FederatedPointerEvent) => {
+        if (e.button !== 0) return;
         if (this.tapSuppressedPointers.has(e.pointerId)) return;
         if (this.longPress.consumeTap(sprite.card.id)) return;
         if (isAttackerTap(region?.getLastState() ?? null, sprite.card.id)) {
@@ -1543,13 +1590,17 @@ export class BoardScene {
         }
       });
     }
-    sprite.on("pointerenter", () => {
-      if (region) this.setBattlefieldCardHovered(region, sprite);
+    sprite.on("pointerenter", (e: FederatedPointerEvent) => {
+      if (region) this.setBattlefieldCardHovered(region, sprite, false, e);
     });
-    sprite.on("pointermove", () => {
-      if (region) this.setBattlefieldCardHovered(region, sprite, true);
+    sprite.on("pointermove", (e: FederatedPointerEvent) => {
+      if (region) this.setBattlefieldCardHovered(region, sprite, true, e);
     });
     sprite.on("pointerleave", () => this.scheduleHoverClear(sprite.card.id));
+    sprite.on("rightclick", (e: FederatedPointerEvent) => {
+      e.stopPropagation();
+      this.fireRightClickPreview(sprite);
+    });
     // A sprite removed while hovered never fires pointerleave, which would
     // leave the hover preview up until an unrelated dismiss.
     sprite.on("destroyed", () => this.scheduleHoverClear(sprite.card.id));
@@ -1568,6 +1619,10 @@ export class BoardScene {
       width: bounds.width,
       height: bounds.height,
     };
+  }
+
+  private fireRightClickPreview(sprite: CardSprite): void {
+    this.callbacks.onRightClickCard?.(sprite.card, this.toViewportBounds(sprite.getBounds()));
   }
 
   private fireLongPressPreview(region: BoardRegion, sprite: CardSprite): void {
@@ -1604,7 +1659,12 @@ export class BoardScene {
     this.setBattlefieldCardHovered(region, sprite, true);
   }
 
-  private setBattlefieldCardHovered(region: BoardRegion, sprite: CardSprite, force = false): void {
+  private setBattlefieldCardHovered(
+    region: BoardRegion,
+    sprite: CardSprite,
+    force = false,
+    trigger?: PreviewPointerInput,
+  ): void {
     if (this.hand?.hasActiveHover()) return;
     this.cancelHoverClear();
     if (!force && this.hoveredCardId === sprite.card.id) return;
@@ -1616,6 +1676,7 @@ export class BoardScene {
 
     this.callbacks.onHoverCard?.(sprite.card, this.toViewportBounds(sprite.getBounds()), {
       useAnchor: true,
+      trigger,
     });
   }
 
@@ -1710,7 +1771,7 @@ export class BoardScene {
     if (draggingFromHand) hand.updateReorderAt(pos.x, pos.y);
     const dragging = this.dragHandler.draggingCardIds.size > 0 || draggingFromHand;
     if (!dragging) {
-      hand.updateHoverAt(pos.x, pos.y);
+      hand.updateHoverAt(pos.x, pos.y, e);
     } else if (hand.hasActiveHover()) {
       hand.resetHover();
     }
@@ -1944,9 +2005,12 @@ export class BoardScene {
     }
     const attackTargetSeen = new Map<string, number>();
     for (const spec of this.arrowSpecs) {
-      const from = this.resolveArrowEndpoint(spec.from, canvasRect);
+      let from = this.resolveArrowEndpoint(spec.from, canvasRect);
       const to = this.resolveTargetEndpoint(spec.to, canvasRect);
       if (!from || !to) continue;
+      if (spec.from.kind === "stack") {
+        from = this.stackProvider?.getAnchor(spec.from.id, to.pos) ?? from;
+      }
       if (spec.type === "attack" && spec.to.kind === "player") {
         const total = attackTargetCounts.get(spec.to.id) ?? 1;
         if (total > 1) {
@@ -1985,16 +2049,20 @@ export class BoardScene {
       // (incl. the command zone, which has no sprite); fall back to the card
       // resolver for battlefield ability sources.
       const id = this.castingArrow.sourceCardId;
+      const target = {
+        x: this.cursorViewportX - canvasRect.left,
+        y: this.cursorViewportY - canvasRect.top,
+      };
       const from =
-        this.stackProvider?.getCastingAnchor(id) ??
+        this.stackProvider?.getCastingAnchor(id, target) ??
         this.resolveArrowEndpoint({ kind: "card", id }, canvasRect);
       if (from) {
         const t = this.theme.gameTheme.pointer;
         resolved.push({
           fromX: from.x,
           fromY: from.y,
-          toX: this.cursorViewportX - canvasRect.left,
-          toY: this.cursorViewportY - canvasRect.top,
+          toX: target.x,
+          toY: target.y,
           type: "casting",
           color: hexToNum(this.castingArrow.hostile ? t.hostile : t.friendly),
         });
@@ -2134,6 +2202,7 @@ export class BoardScene {
     if (this.destroyed) return;
     this.destroyed = true;
     this.overlayInvalidation = null;
+    this.overlayHitTest = null;
     if (import.meta.env.DEV) useGameDevStore.getState().setPixiPerfStats(null);
     this.cancelHoverClear();
     window.removeEventListener("pointermove", this.cursorListener);
@@ -2145,6 +2214,7 @@ export class BoardScene {
     window.removeEventListener("pointercancel", this.pinchUpListener);
     this.longPress.cancel();
     this.app.canvas.removeEventListener("pointerleave", this.canvasLeaveListener);
+    this.app.stage.off("pointerleave", this.canvasLeaveListener);
     this.app.ticker.remove(this.tick, this);
     this.app.stage.off("pointermove", this.onStageMove);
     this.app.stage.off("pointerup", this.onStageUp);

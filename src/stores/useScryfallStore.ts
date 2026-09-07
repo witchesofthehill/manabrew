@@ -457,6 +457,7 @@ export const useScryfallStore = create<ScryfallState>()(
   devtools(
     immer((set, get) => ({
       cards: {},
+      sets: [],
       hydratedSets: {},
       _fetchCardLookup: async (lookup) => {
         const key = cardKey(lookup);

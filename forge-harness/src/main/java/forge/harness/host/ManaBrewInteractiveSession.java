@@ -44,6 +44,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public final class ManaBrewInteractiveSession {
+
     private final String sessionId;
     private Match match;
     private Game game;
@@ -55,6 +56,8 @@ public final class ManaBrewInteractiveSession {
     private volatile Thread gameThread;
     private static volatile InteractiveBridge bridge;
     private volatile SpellAbility castingAbility;
+    private final InteractiveSnapshotExtractor.SecretChoiceVisibility secretChoiceVisibility =
+            new InteractiveSnapshotExtractor.SecretChoiceVisibility();
 
     ManaBrewInteractiveSession(final String sessionId) {
         this.sessionId = Objects.requireNonNull(sessionId, "sessionId");
@@ -128,7 +131,20 @@ public final class ManaBrewInteractiveSession {
 
     public String getSnapshotJson(final int viewer) {
         requireAttached();
-        return InteractiveSnapshotExtractor.snapshotJson(game, castingAbility, sessionId, viewer);
+        return InteractiveSnapshotExtractor.snapshotJson(
+                game, castingAbility, sessionId, viewer, secretChoiceVisibility);
+    }
+
+    void rememberSecretNumberViewer(final String sourceCardId, final Player viewer) {
+        secretChoiceVisibility.rememberNumber(sourceCardId, viewer);
+    }
+
+    void rememberSecretTypeViewer(final String sourceCardId, final Player viewer) {
+        secretChoiceVisibility.rememberType(sourceCardId, viewer);
+    }
+
+    void rememberSecretPlayerViewer(final String sourceCardId, final Player viewer) {
+        secretChoiceVisibility.rememberPlayer(sourceCardId, viewer);
     }
 
     void beginCast(final SpellAbility sa) {
@@ -673,10 +689,22 @@ public final class ManaBrewInteractiveSession {
             final int amount,
             final String sourceName
     ) {
-        publishAgentPrompt("player-" + playerId, null,
+        return awaitColorChoice(playerId, availableColors, amount, true, sourceName, null);
+    }
+
+    List<String> awaitColorChoice(
+            final int playerId,
+            final List<String> availableColors,
+            final int amount,
+            final boolean repeatAllowed,
+            final String sourceName,
+            final String sourceCardId
+    ) {
+        requireAttached();
+        publishAgentPrompt("player-" + playerId, sourceCardId,
                 new ChooseColorInput(
-                        presentation("Choose mana color", null),
-                        new java.util.ArrayList<>(availableColors), amount, true));
+                        presentation(sourceName == null ? "Choose colors" : sourceName, null),
+                        new java.util.ArrayList<>(availableColors), amount, repeatAllowed));
 
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
@@ -684,6 +712,10 @@ public final class ManaBrewInteractiveSession {
                 return new ArrayList<>();
             }
             final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
+            if ("string_decision".equals(actionKind)) {
+                final String value = action.has("value") ? action.get("value").getAsString() : "";
+                return value.isEmpty() ? new ArrayList<>() : new ArrayList<>(List.of(value));
+            }
             if ("mana_combo_decision".equals(actionKind)) {
                 final List<String> chosen = new ArrayList<>();
                 if (action.has("chosenColors") && action.get("chosenColors").isJsonArray()) {
@@ -1298,11 +1330,13 @@ public final class ManaBrewInteractiveSession {
             if (!"string_decision".equals(actionKind)) {
                 throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
             }
-            final String value = action.has("value") ? action.get("value").getAsString() : "";
-            if (!options.contains(value)) {
-                throw new IllegalArgumentException("string choice not among offered options: " + value);
+            final String value = action.has("value") ? action.get("value").getAsString().trim() : "";
+            for (final String option : options) {
+                if (option.equalsIgnoreCase(value)) {
+                    return option;
+                }
             }
-            return value;
+            publishOptionPrompt(kind, playerId, options, 1, 1, sourceCardId, description);
         }
         return options.isEmpty() ? "" : options.get(0);
     }

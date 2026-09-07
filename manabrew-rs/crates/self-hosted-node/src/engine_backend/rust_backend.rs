@@ -12,7 +12,7 @@ use crate::config::DeckSelection;
 use forge_carddb::CardDatabase;
 use manabot::BotResponder;
 use manabrew_engine::agent::PlayerAgent;
-use manabrew_engine::game::TypeRegistry;
+use manabrew_engine::game::{CardDatabaseRegistry, TypeRegistry};
 use manabrew_engine::ids::PlayerId;
 use manabrew_game_runtime::deck::prepare_players;
 use manabrew_game_runtime::host_runtime::{
@@ -157,7 +157,7 @@ pub fn run_self_play(
 /// Card and token databases come from a single rkyv archive bundle —
 /// `src-tauri/build.rs` produces it, and the node panics with a clear hint
 /// if it's missing (rather than silently degrading to an FS scan).
-static CARD_DB: OnceLock<CardDatabase> = OnceLock::new();
+static CARD_DB: OnceLock<Arc<CardDatabase>> = OnceLock::new();
 static TOKEN_DB: OnceLock<CardDatabase> = OnceLock::new();
 static DB_INIT: Once = Once::new();
 
@@ -187,14 +187,19 @@ fn ensure_dbs_loaded() {
         if let Some(archive) = bundle.cards.archive() {
             TypeRegistry::load(archive.type_lists.as_str());
         }
-        let _ = CARD_DB.set(bundle.cards);
+        let card_db = Arc::new(bundle.cards);
+        CardDatabaseRegistry::load(Arc::clone(&card_db));
+        let _ = CARD_DB.set(card_db);
         let _ = TOKEN_DB.set(bundle.tokens);
     });
 }
 
 fn get_card_db() -> &'static CardDatabase {
     ensure_dbs_loaded();
-    CARD_DB.get().expect("card db must be initialized")
+    CARD_DB
+        .get()
+        .map(Arc::as_ref)
+        .expect("card db must be initialized")
 }
 
 fn get_token_db() -> &'static CardDatabase {

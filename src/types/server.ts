@@ -66,6 +66,7 @@ export interface PlayerInfo {
   avatar_url?: string;
   room_id?: string;
   local_game?: LocalGameKind;
+  seal?: string;
 }
 
 export interface AuthResultPayload {
@@ -181,6 +182,42 @@ export function isRoomRelayEnvelope(value: unknown): value is RoomRelayEnvelope 
   );
 }
 
+/** Wire features a relay lists in `AuthResult.features`. */
+export const RELAY_FEATURE = {
+  LocalGame: "local_game",
+  Chat: "chat",
+  RoomInvites: "room_invites",
+} as const;
+
+export type RelayFeature = (typeof RELAY_FEATURE)[keyof typeof RELAY_FEATURE];
+
+export type ChatScope = "Lobby" | "Room";
+
+export const CHAT_MESSAGE_MAX_CHARS = 500;
+
+export interface ChatMessagePayload {
+  scope: ChatScope;
+  room_id?: string;
+  from: string;
+  avatar_url?: string;
+  qualification?: string;
+  text: string;
+  sent_at_ms: number;
+  seal?: string;
+}
+
+export interface ChatHistoryPayload {
+  scope: ChatScope;
+  room_id?: string;
+  messages: ChatMessagePayload[];
+}
+
+export interface RoomInvitePayload {
+  from: string;
+  room: RoomInfo;
+  password?: string;
+}
+
 export interface TurnChangedPayload {
   from_player: string;
   new_active_player: string;
@@ -203,6 +240,11 @@ export const SERVER_ERROR_CODE = {
   InvalidDraftConfig: "invalid_draft_config",
   AlreadyInRoom: "already_in_room",
   DuplicateUsername: "duplicate_username",
+  PlayerNotFound: "player_not_found",
+  PlayerInGame: "player_in_game",
+  InvalidChatMessage: "invalid_chat_message",
+  ChatRateLimited: "chat_rate_limited",
+  AccountRequired: "account_required",
   WebSocket: "websocket_error",
   Parse: "parse_error",
 } as const;
@@ -222,6 +264,13 @@ export const START_GAME_FAILURE_CODES: ReadonlySet<ServerErrorCode> = new Set([
   SERVER_ERROR_CODE.NotInRoom,
 ]);
 
+/** Answered inside the chat pane, never as a toast. */
+export const CHAT_ERROR_CODES: ReadonlySet<ServerErrorCode> = new Set([
+  SERVER_ERROR_CODE.InvalidChatMessage,
+  SERVER_ERROR_CODE.ChatRateLimited,
+  SERVER_ERROR_CODE.AccountRequired,
+]);
+
 export const USER_FACING_ERROR_MESSAGES: Partial<Record<ServerErrorCode, string>> = {
   [SERVER_ERROR_CODE.DeckNotSelected]: "Select a deck before getting ready",
   [SERVER_ERROR_CODE.PlayersNotReady]: "Not all players are ready",
@@ -231,6 +280,11 @@ export const USER_FACING_ERROR_MESSAGES: Partial<Record<ServerErrorCode, string>
   [SERVER_ERROR_CODE.AlreadyInRoom]: "You're already in a room",
   [SERVER_ERROR_CODE.FormatNotChosen]: "Choose a format before starting",
   [SERVER_ERROR_CODE.InvalidDraftConfig]: "Draft config is invalid",
+  [SERVER_ERROR_CODE.PlayerNotFound]: "That player is no longer online",
+  [SERVER_ERROR_CODE.PlayerInGame]: "That player is in a game",
+  [SERVER_ERROR_CODE.InvalidChatMessage]: "That message can't be sent",
+  [SERVER_ERROR_CODE.ChatRateLimited]: "You're sending too many messages",
+  [SERVER_ERROR_CODE.AccountRequired]: "Sign in to chat in General",
 };
 
 export interface ServerErrorPayload {

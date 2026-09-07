@@ -357,6 +357,9 @@ struct ChosenSnapshot {
     type2: Option<String>,
     named_cards: Vec<String>,
     number: Option<i32>,
+    number_controller: Option<PlayerId>,
+    number_revealed: bool,
+    mode: Option<String>,
 }
 
 impl ChosenSnapshot {
@@ -373,6 +376,9 @@ impl ChosenSnapshot {
             type2: host.chosen_type2.clone(),
             named_cards: host.named_cards.clone(),
             number: host.chosen_number,
+            number_controller: host.chosen_number_controller,
+            number_revealed: host.chosen_number_revealed,
+            mode: host.chosen_mode.clone(),
         }
     }
 }
@@ -403,8 +409,17 @@ fn apply_chosen_state(
     for name in &snap.named_cards {
         effect.add_named_card(name);
     }
-    if let Some(n) = chosen_number_override.or(snap.number) {
+    if let Some(n) = chosen_number_override {
         effect.set_chosen_number(Some(n));
+    } else if let Some(n) = snap.number {
+        if let Some(chooser) = snap.number_controller {
+            effect.set_chosen_number_for_player(Some(n), chooser, snap.number_revealed);
+        } else {
+            effect.set_chosen_number(Some(n));
+        }
+    }
+    if let Some(mode) = &snap.mode {
+        effect.set_chosen_mode(mode);
     }
 }
 

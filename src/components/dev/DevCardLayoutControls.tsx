@@ -13,6 +13,7 @@ import {
   DEV_SECTION,
   DEV_SECTION_HEADING,
 } from "./devPanel.styles";
+import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
 
 const LAYOUT_CASES = [
   {
@@ -68,6 +69,20 @@ export function DevCardLayoutControls() {
   const setCardOverride = useGameDevStore((s) => s.setCardOverride);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const query = useDevPanelSearch();
+  const showAll = matchesDevPanelSearch(query, "Card layouts", "Scryfall layout");
+  const visibleLayoutCases = showAll
+    ? LAYOUT_CASES
+    : LAYOUT_CASES.filter((layoutCase) =>
+        matchesDevPanelSearch(
+          query,
+          layoutCase.label,
+          layoutCase.cardName,
+          layoutCase.identityName,
+        ),
+      );
+
+  if (visibleLayoutCases.length === 0) return null;
 
   const selectLayout = async (layoutCase: (typeof LAYOUT_CASES)[number]) => {
     setLoadingId(layoutCase.id);
@@ -101,7 +116,7 @@ export function DevCardLayoutControls() {
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-        {LAYOUT_CASES.map((layoutCase) => {
+        {visibleLayoutCases.map((layoutCase) => {
           const active = definition?.identity.name === layoutCase.identityName;
           return (
             <button

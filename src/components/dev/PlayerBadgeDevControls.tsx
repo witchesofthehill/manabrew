@@ -7,6 +7,8 @@ import {
 import { DevCounterControl } from "./DevCounterControl";
 import { DevToggleButton } from "./DevToggleButton";
 import { DEV_SECTION, DEV_SECTION_HEADING } from "./devPanel.styles";
+import { DevPanelSearchProvider, DevSearchable } from "./DevPanelSearch";
+import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
 
 type BoolOverrideKey = {
   [K in keyof DevPlayerOverrides]: DevPlayerOverrides[K] extends boolean ? K : never;
@@ -95,6 +97,23 @@ export function PlayerBadgeDevControls() {
   const overrides = useGameDevStore((s) => s.playerOverrides);
   const setOverride = useGameDevStore((s) => s.setPlayerOverride);
   const reset = useGameDevStore((s) => s.resetPlayerOverrides);
+  const query = useDevPanelSearch();
+  const sectionMatch = matchesDevPanelSearch(
+    query,
+    "Player HUD",
+    "Override every player's HUD",
+    "Reset players",
+  );
+  const hasMatchingControl = [
+    ...PLAYER_IDENTITY_ROWS,
+    ...PLAYER_BADGE_ROWS,
+    ...PLAYER_STATE_ROWS,
+    ...PLAYER_RULE_ROWS,
+    ...MANA_POOL_ROWS,
+    ...COUNTER_ROWS,
+  ].some((row) => matchesDevPanelSearch(query, row.label));
+
+  if (!sectionMatch && !hasMatchingControl) return null;
   const toggleBool = (key: BoolOverrideKey) => setOverride(key, !overrides[key]);
 
   const bumpNumeric = (key: NumericOverrideKey, base: number, delta: number) => {
@@ -107,110 +126,114 @@ export function PlayerBadgeDevControls() {
   );
 
   return (
-    <section className={DEV_SECTION}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className={DEV_SECTION_HEADING}>Player HUD</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Override every player's HUD with the same values.
-          </p>
+    <DevPanelSearchProvider query={sectionMatch ? "" : query}>
+      <section className={DEV_SECTION}>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className={DEV_SECTION_HEADING}>Player HUD</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Override every player's HUD with the same values.
+            </p>
+          </div>
+          <DevSearchable terms={["Reset players"]}>
+            {dirty ? (
+              <button
+                type="button"
+                className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground hover:text-destructive"
+                onClick={reset}
+              >
+                Reset players
+              </button>
+            ) : null}
+          </DevSearchable>
         </div>
-        {dirty ? (
-          <button
-            type="button"
-            className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground hover:text-destructive"
-            onClick={reset}
-          >
-            Reset players
-          </button>
-        ) : null}
-      </div>
 
-      <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        Identity
-      </p>
-      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-        {PLAYER_IDENTITY_ROWS.map((row) => (
-          <DevToggleButton
-            key={row.key}
-            label={row.label}
-            active={overrides[row.key]}
-            onClick={() => toggleBool(row.key)}
-          />
-        ))}
-      </div>
+        <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          Identity
+        </p>
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+          {PLAYER_IDENTITY_ROWS.map((row) => (
+            <DevToggleButton
+              key={row.key}
+              label={row.label}
+              active={overrides[row.key]}
+              onClick={() => toggleBool(row.key)}
+            />
+          ))}
+        </div>
 
-      <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        Game badges
-      </p>
-      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-        {PLAYER_BADGE_ROWS.map((row) => (
-          <DevToggleButton
-            key={row.key}
-            label={row.label}
-            active={overrides[row.key]}
-            onClick={() => toggleBool(row.key)}
-          />
-        ))}
-      </div>
+        <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          Game badges
+        </p>
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+          {PLAYER_BADGE_ROWS.map((row) => (
+            <DevToggleButton
+              key={row.key}
+              label={row.label}
+              active={overrides[row.key]}
+              onClick={() => toggleBool(row.key)}
+            />
+          ))}
+        </div>
 
-      <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        States
-      </p>
-      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-        {PLAYER_STATE_ROWS.map((row) => (
-          <DevToggleButton
-            key={row.key}
-            label={row.label}
-            active={overrides[row.key]}
-            onClick={() => toggleBool(row.key)}
-          />
-        ))}
-      </div>
+        <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          States
+        </p>
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+          {PLAYER_STATE_ROWS.map((row) => (
+            <DevToggleButton
+              key={row.key}
+              label={row.label}
+              active={overrides[row.key]}
+              onClick={() => toggleBool(row.key)}
+            />
+          ))}
+        </div>
 
-      <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        Player rules
-      </p>
-      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-        {PLAYER_RULE_ROWS.map((row) => (
-          <DevToggleButton
-            key={row.key}
-            label={row.label}
-            active={overrides[row.key]}
-            onClick={() => toggleBool(row.key)}
-          />
-        ))}
-      </div>
+        <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          Player rules
+        </p>
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+          {PLAYER_RULE_ROWS.map((row) => (
+            <DevToggleButton
+              key={row.key}
+              label={row.label}
+              active={overrides[row.key]}
+              onClick={() => toggleBool(row.key)}
+            />
+          ))}
+        </div>
 
-      <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        Mana pool
-      </p>
-      <div className="grid gap-1.5 sm:grid-cols-2">
-        {MANA_POOL_ROWS.map((row) => (
-          <DevCounterControl
-            key={row.key}
-            label={row.label}
-            value={overrides[row.key]}
-            onClear={() => setOverride(row.key, null)}
-            onBump={(delta) => bumpNumeric(row.key, row.base, delta)}
-          />
-        ))}
-      </div>
+        <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          Mana pool
+        </p>
+        <div className="grid gap-1.5 sm:grid-cols-2">
+          {MANA_POOL_ROWS.map((row) => (
+            <DevCounterControl
+              key={row.key}
+              label={row.label}
+              value={overrides[row.key]}
+              onClear={() => setOverride(row.key, null)}
+              onBump={(delta) => bumpNumeric(row.key, row.base, delta)}
+            />
+          ))}
+        </div>
 
-      <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        Values
-      </p>
-      <div className="grid gap-1.5 sm:grid-cols-2">
-        {COUNTER_ROWS.map((row) => (
-          <DevCounterControl
-            key={row.key}
-            label={row.label}
-            value={overrides[row.key]}
-            onClear={() => setOverride(row.key, null)}
-            onBump={(delta) => bumpNumeric(row.key, row.base, delta)}
-          />
-        ))}
-      </div>
-    </section>
+        <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          Values
+        </p>
+        <div className="grid gap-1.5 sm:grid-cols-2">
+          {COUNTER_ROWS.map((row) => (
+            <DevCounterControl
+              key={row.key}
+              label={row.label}
+              value={overrides[row.key]}
+              onClear={() => setOverride(row.key, null)}
+              onBump={(delta) => bumpNumeric(row.key, row.base, delta)}
+            />
+          ))}
+        </div>
+      </section>
+    </DevPanelSearchProvider>
   );
 }

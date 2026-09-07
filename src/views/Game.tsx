@@ -1011,7 +1011,7 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   useKeybindings({
     "toggle-stack": () => useStackUIStore.getState().toggleCollapsed(),
-    "open-dev-panel": () => useGameUIStore.getState().openDevPanel(),
+    "toggle-dev-panel": () => useGameUIStore.getState().toggleDevPanel(),
     "pass-priority": () => {
       if (manualApi) return;
       if (document.querySelector('[role="dialog"]')) return;

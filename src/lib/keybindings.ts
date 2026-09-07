@@ -242,10 +242,11 @@ export const KEYBINDINGS: KeybindingDef[] = [
   ...(import.meta.env.DEV
     ? [
         {
-          id: "open-dev-panel",
-          label: "Open the dev panel",
+          id: "toggle-dev-panel",
+          label: "Toggle the dev panel",
           category: "Battlefield",
           defaultCombo: { key: "d", mod: true, shift: true },
+          allowInEditable: true,
         } satisfies KeybindingDef,
       ]
     : []),

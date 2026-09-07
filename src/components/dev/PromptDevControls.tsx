@@ -13,6 +13,8 @@ import {
   DEV_SECTION_HEADING,
 } from "./devPanel.styles";
 import { PromptDialogDevControls } from "./PromptDialogDevControls";
+import { DevSearchable } from "./DevPanelSearch";
+import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
 
 const PROMPT_LABELS: Record<DevPromptActionOverride, { label: string; description: string }> = {
   chooseAction: { label: "Actions", description: "Primary action choices" },
@@ -32,59 +34,80 @@ export function PromptDevControls() {
   const override = useGameDevStore((s) => s.promptActionOverride);
   const setOverride = useGameDevStore((s) => s.setPromptActionOverride);
   const clearOverride = useGameDevStore((s) => s.clearPromptActionOverride);
+  const query = useDevPanelSearch();
+  const actionSectionMatch = matchesDevPanelSearch(
+    query,
+    "Action view",
+    "battlefield action states",
+    "Follow game",
+    "live prompt",
+  );
+  const visibleOverrides = actionSectionMatch
+    ? DEV_PROMPT_ACTION_OVERRIDES
+    : DEV_PROMPT_ACTION_OVERRIDES.filter((promptOverride) => {
+        const option = PROMPT_LABELS[promptOverride];
+        return matchesDevPanelSearch(query, option.label, option.description, promptOverride);
+      });
+  const showActionSection = actionSectionMatch || visibleOverrides.length > 0;
 
   return (
     <>
-      <section className={DEV_SECTION}>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className={DEV_SECTION_HEADING}>Action view</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Preview battlefield action states. The engine prompt stays untouched.
-            </p>
-          </div>
-          <span className="rounded-full bg-muted px-2 py-1 font-mono text-[10px] text-muted-foreground">
-            UI only
-          </span>
-        </div>
-
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <button
-            type="button"
-            className={cn(
-              DEV_CONTROL_BUTTON,
-              "min-h-14 text-left",
-              override == null ? DEV_CONTROL_ACTIVE : DEV_CONTROL_INACTIVE,
-            )}
-            onClick={clearOverride}
-          >
-            <span className="block">Follow game</span>
-            <span className="mt-0.5 block text-[10px] font-normal text-muted-foreground">
-              Use the live prompt
+      {showActionSection ? (
+        <section className={DEV_SECTION}>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className={DEV_SECTION_HEADING}>Action view</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Preview battlefield action states. The engine prompt stays untouched.
+              </p>
+            </div>
+            <span className="rounded-full bg-muted px-2 py-1 font-mono text-[10px] text-muted-foreground">
+              UI only
             </span>
-          </button>
-          {DEV_PROMPT_ACTION_OVERRIDES.map((promptOverride) => {
-            const option = PROMPT_LABELS[promptOverride];
-            return (
+          </div>
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <DevSearchable
+              terms={["Follow game", "live prompt", "Action view", "battlefield action states"]}
+            >
               <button
-                key={promptOverride}
                 type="button"
                 className={cn(
                   DEV_CONTROL_BUTTON,
                   "min-h-14 text-left",
-                  override === promptOverride ? DEV_CONTROL_ACTIVE : DEV_CONTROL_INACTIVE,
+                  override == null ? DEV_CONTROL_ACTIVE : DEV_CONTROL_INACTIVE,
                 )}
-                onClick={() => setOverride(promptOverride)}
+                onClick={clearOverride}
               >
-                <span className="block">{option.label}</span>
+                <span className="block">Follow game</span>
                 <span className="mt-0.5 block text-[10px] font-normal text-muted-foreground">
-                  {option.description}
+                  Use the live prompt
                 </span>
               </button>
-            );
-          })}
-        </div>
-      </section>
+            </DevSearchable>
+            {visibleOverrides.map((promptOverride) => {
+              const option = PROMPT_LABELS[promptOverride];
+              return (
+                <button
+                  key={promptOverride}
+                  type="button"
+                  className={cn(
+                    DEV_CONTROL_BUTTON,
+                    "min-h-14 text-left",
+                    override === promptOverride ? DEV_CONTROL_ACTIVE : DEV_CONTROL_INACTIVE,
+                  )}
+                  onClick={() => setOverride(promptOverride)}
+                >
+                  <span className="block">{option.label}</span>
+                  <span className="mt-0.5 block text-[10px] font-normal text-muted-foreground">
+                    {option.description}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
       <PromptDialogDevControls />
     </>
   );

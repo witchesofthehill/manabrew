@@ -6,10 +6,28 @@ import { Button } from "@/components/ui/button";
 import { DevPromptDialogPreview } from "./DevPromptDialogPreview";
 import { DEV_DIALOG_PREVIEW_GROUPS, type DevDialogPreview } from "./promptDialogPreviews";
 import { DEV_SECTION, DEV_SECTION_HEADING } from "./devPanel.styles";
+import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
 
 export function PromptDialogDevControls() {
   const [preview, setPreview] = useState<DevDialogPreview | null>(null);
   const [previewVersion, setPreviewVersion] = useState(0);
+  const query = useDevPanelSearch();
+  const sectionMatch = matchesDevPanelSearch(
+    query,
+    "Dialogs and screens",
+    "battlefield UI",
+    "representative data",
+  );
+  const visibleGroups = DEV_DIALOG_PREVIEW_GROUPS.map((group) => ({
+    ...group,
+    options: sectionMatch
+      ? group.options
+      : group.options.filter((option) =>
+          matchesDevPanelSearch(query, group.label, option.id, option.label, option.description),
+        ),
+  })).filter((group) => group.options.length > 0);
+
+  if (visibleGroups.length === 0) return null;
 
   return (
     <>
@@ -23,13 +41,12 @@ export function PromptDialogDevControls() {
             </p>
           </div>
           <span className="rounded-full bg-muted px-2 py-1 font-mono text-[10px] text-muted-foreground">
-            {DEV_DIALOG_PREVIEW_GROUPS.reduce((total, group) => total + group.options.length, 0)}{" "}
-            views
+            {visibleGroups.reduce((total, group) => total + group.options.length, 0)} views
           </span>
         </div>
 
         <div className="mt-4 space-y-4">
-          {DEV_DIALOG_PREVIEW_GROUPS.map((group) => (
+          {visibleGroups.map((group) => (
             <div key={group.label}>
               <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 {group.label}

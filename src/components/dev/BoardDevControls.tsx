@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 
 import { DEV_SECTION, DEV_SECTION_HEADING } from "./devPanel.styles";
+import { DevSearchable } from "./DevPanelSearch";
+import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
 
 export function BoardDevControls() {
   const stats = useGameDevStore((s) => s.pixiPerfStats);
@@ -21,6 +23,50 @@ export function BoardDevControls() {
   const triggerEtbGlow = useGameDevStore((s) => s.triggerEtbGlow);
   const gameStateOverrides = useGameDevStore((s) => s.gameStateOverrides);
   const setGameStateOverride = useGameDevStore((s) => s.setGameStateOverride);
+  const query = useDevPanelSearch();
+  const showRenderer = matchesDevPanelSearch(
+    query,
+    "Renderer",
+    "Pixi performance",
+    "FPS",
+    "Frame",
+    "Observed range",
+  );
+  const showBoardGuides = matchesDevPanelSearch(
+    query,
+    "Board guides",
+    "Hover targets",
+    "Hand battlefield preview hit areas",
+    "Player panel bounds",
+    "Layout skeleton",
+    "Rows card slots",
+    "Attack rows",
+    "Combat drop areas",
+  );
+  const showGameState = matchesDevPanelSearch(
+    query,
+    "Game state",
+    "Log activity",
+    "Unread action log",
+    "Combat summary",
+    "Attacker blocker incoming damage",
+  );
+  const showGlobalMechanics = matchesDevPanelSearch(
+    query,
+    "Global mechanics",
+    "Live day night",
+    "Dungeon current room",
+    "Plane",
+    "Scheme",
+    "Team",
+  );
+  const showTools = matchesDevPanelSearch(
+    query,
+    "Tools",
+    "Replay ETB glow",
+    "Zustand DevTools",
+    "state inspector",
+  );
 
   const fps = stats?.fps.toFixed(1) ?? "—";
   const frameMs = stats?.deltaMs.toFixed(1) ?? "—";
@@ -36,140 +82,167 @@ export function BoardDevControls() {
 
   return (
     <>
-      <section className={DEV_SECTION}>
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className={DEV_SECTION_HEADING}>Renderer</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Live Pixi performance for the current battlefield.
-            </p>
+      {showRenderer ? (
+        <section className={DEV_SECTION}>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className={DEV_SECTION_HEADING}>Renderer</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Live Pixi performance for the current battlefield.
+              </p>
+            </div>
+            <div className="text-right">
+              <p className={cn("font-mono text-2xl font-semibold tabular-nums", fpsColor)}>{fps}</p>
+              <p className="font-mono text-[10px] text-muted-foreground">FPS</p>
+            </div>
           </div>
-          <div className="text-right">
-            <p className={cn("font-mono text-2xl font-semibold tabular-nums", fpsColor)}>{fps}</p>
-            <p className="font-mono text-[10px] text-muted-foreground">FPS</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Metric label="Frame" value={`${frameMs} ms`} />
+            <Metric label="Observed range" value={range} />
           </div>
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <Metric label="Frame" value={`${frameMs} ms`} />
-          <Metric label="Observed range" value={range} />
-        </div>
-      </section>
+        </section>
+      ) : null}
 
-      <section className={DEV_SECTION}>
-        <p className={DEV_SECTION_HEADING}>Board guides</p>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <GuideToggle
-            icon={MousePointer2}
-            label="Hover targets"
-            description="Hand, battlefield, and preview hit areas"
-            checked={showHoverAreas}
-            onChange={setShowHoverAreas}
-          />
-          <GuideToggle
-            icon={PanelTop}
-            label="Player panel bounds"
-            description="Layout bounds for every player HUD"
-            checked={showPlayerPanelBounds}
-            onChange={setShowPlayerPanelBounds}
-          />
-          <GuideToggle
-            icon={Grid3X3}
-            label="Layout skeleton"
-            description="Rows and card slots for every player"
-            checked={showGridSkeleton}
-            onChange={setShowGridSkeleton}
-          />
-          <GuideToggle
-            icon={Eye}
-            label="Attack rows"
-            description="Combat drop areas for every player"
-            checked={showAttackRows}
-            onChange={setShowAttackRows}
-          />
-        </div>
-      </section>
+      {showBoardGuides ? (
+        <section className={DEV_SECTION}>
+          <p className={DEV_SECTION_HEADING}>Board guides</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <GuideToggle
+              icon={MousePointer2}
+              label="Hover targets"
+              description="Hand, battlefield, and preview hit areas"
+              searchTerms={["Board guides"]}
+              checked={showHoverAreas}
+              onChange={setShowHoverAreas}
+            />
+            <GuideToggle
+              icon={PanelTop}
+              label="Player panel bounds"
+              description="Layout bounds for every player HUD"
+              searchTerms={["Board guides"]}
+              checked={showPlayerPanelBounds}
+              onChange={setShowPlayerPanelBounds}
+            />
+            <GuideToggle
+              icon={Grid3X3}
+              label="Layout skeleton"
+              description="Rows and card slots for every player"
+              searchTerms={["Board guides"]}
+              checked={showGridSkeleton}
+              onChange={setShowGridSkeleton}
+            />
+            <GuideToggle
+              icon={Eye}
+              label="Attack rows"
+              description="Combat drop areas for every player"
+              searchTerms={["Board guides"]}
+              checked={showAttackRows}
+              onChange={setShowAttackRows}
+            />
+          </div>
+        </section>
+      ) : null}
 
-      <section className={DEV_SECTION}>
-        <p className={DEV_SECTION_HEADING}>Game state</p>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <GuideToggle
-            label="Log activity"
-            description="Unread action-log indicator"
-            checked={gameStateOverrides.forceLogActivity}
-            onChange={(checked) => setGameStateOverride("forceLogActivity", checked)}
-          />
-          <GuideToggle
-            label="Combat summary"
-            description="Attacker, blocker, and incoming-damage totals"
-            checked={gameStateOverrides.forceCombatSummary}
-            onChange={(checked) => setGameStateOverride("forceCombatSummary", checked)}
-          />
-        </div>
-      </section>
+      {showGameState ? (
+        <section className={DEV_SECTION}>
+          <p className={DEV_SECTION_HEADING}>Game state</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <GuideToggle
+              label="Log activity"
+              description="Unread action-log indicator"
+              searchTerms={["Game state"]}
+              checked={gameStateOverrides.forceLogActivity}
+              onChange={(checked) => setGameStateOverride("forceLogActivity", checked)}
+            />
+            <GuideToggle
+              label="Combat summary"
+              description="Attacker, blocker, and incoming-damage totals"
+              searchTerms={["Game state"]}
+              checked={gameStateOverrides.forceCombatSummary}
+              onChange={(checked) => setGameStateOverride("forceCombatSummary", checked)}
+            />
+          </div>
+        </section>
+      ) : null}
 
-      <section className={DEV_SECTION}>
-        <p className={DEV_SECTION_HEADING}>Global mechanics</p>
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          {(["none", "day", "night"] as const).map((value) => (
-            <Button
-              key={value}
-              type="button"
-              size="sm"
-              variant={gameStateOverrides.dayNight === value ? "default" : "outline"}
-              onClick={() => setGameStateOverride("dayNight", value)}
-            >
-              {value === "none" ? "Live" : value}
-            </Button>
-          ))}
-        </div>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-          <GuideToggle
-            label="Dungeon"
-            description="Current dungeon room"
-            checked={gameStateOverrides.forceDungeon}
-            onChange={(checked) => setGameStateOverride("forceDungeon", checked)}
-          />
-          <GuideToggle
-            label="Plane"
-            description="Current plane"
-            checked={gameStateOverrides.forcePlane}
-            onChange={(checked) => setGameStateOverride("forcePlane", checked)}
-          />
-          <GuideToggle
-            label="Scheme"
-            description="Active scheme"
-            checked={gameStateOverrides.forceScheme}
-            onChange={(checked) => setGameStateOverride("forceScheme", checked)}
-          />
-          <GuideToggle
-            label="Team"
-            description="Shared-team designation"
-            checked={gameStateOverrides.forceTeam}
-            onChange={(checked) => setGameStateOverride("forceTeam", checked)}
-          />
-        </div>
-      </section>
+      {showGlobalMechanics ? (
+        <section className={DEV_SECTION}>
+          <p className={DEV_SECTION_HEADING}>Global mechanics</p>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {(["none", "day", "night"] as const)
+              .filter((value) =>
+                matchesDevPanelSearch(query, "Global mechanics", value === "none" ? "Live" : value),
+              )
+              .map((value) => (
+                <Button
+                  key={value}
+                  type="button"
+                  size="sm"
+                  variant={gameStateOverrides.dayNight === value ? "default" : "outline"}
+                  onClick={() => setGameStateOverride("dayNight", value)}
+                >
+                  {value === "none" ? "Live" : value}
+                </Button>
+              ))}
+          </div>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <GuideToggle
+              label="Dungeon"
+              description="Current dungeon room"
+              searchTerms={["Global mechanics"]}
+              checked={gameStateOverrides.forceDungeon}
+              onChange={(checked) => setGameStateOverride("forceDungeon", checked)}
+            />
+            <GuideToggle
+              label="Plane"
+              description="Current plane"
+              searchTerms={["Global mechanics"]}
+              checked={gameStateOverrides.forcePlane}
+              onChange={(checked) => setGameStateOverride("forcePlane", checked)}
+            />
+            <GuideToggle
+              label="Scheme"
+              description="Active scheme"
+              searchTerms={["Global mechanics"]}
+              checked={gameStateOverrides.forceScheme}
+              onChange={(checked) => setGameStateOverride("forceScheme", checked)}
+            />
+            <GuideToggle
+              label="Team"
+              description="Shared-team designation"
+              searchTerms={["Global mechanics"]}
+              checked={gameStateOverrides.forceTeam}
+              onChange={(checked) => setGameStateOverride("forceTeam", checked)}
+            />
+          </div>
+        </section>
+      ) : null}
 
-      <section className={DEV_SECTION}>
-        <p className={DEV_SECTION_HEADING}>Tools</p>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="justify-start"
-            onClick={triggerEtbGlow}
-          >
-            <Sparkles />
-            Replay ETB glow
-          </Button>
-          <GuideToggle
-            label="Zustand DevTools"
-            description="Mount the state inspector"
-            checked={devToolsEnabled}
-            onChange={setDevToolsEnabled}
-          />
-        </div>
-      </section>
+      {showTools ? (
+        <section className={DEV_SECTION}>
+          <p className={DEV_SECTION_HEADING}>Tools</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <DevSearchable terms={["Replay ETB glow", "Tools"]}>
+              <Button
+                type="button"
+                variant="outline"
+                className="justify-start"
+                onClick={triggerEtbGlow}
+              >
+                <Sparkles />
+                Replay ETB glow
+              </Button>
+            </DevSearchable>
+            <GuideToggle
+              label="Zustand DevTools"
+              description="Mount the state inspector"
+              searchTerms={["Tools"]}
+              checked={devToolsEnabled}
+              onChange={setDevToolsEnabled}
+            />
+          </div>
+        </section>
+      ) : null}
     </>
   );
 }
@@ -187,15 +260,19 @@ function GuideToggle({
   icon: Icon,
   label,
   description,
+  searchTerms = [],
   checked,
   onChange,
 }: {
   icon?: typeof Eye;
   label: string;
   description: string;
+  searchTerms?: string[];
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
+  const query = useDevPanelSearch();
+  if (!matchesDevPanelSearch(query, label, description, ...searchTerms)) return null;
   return (
     <button
       type="button"

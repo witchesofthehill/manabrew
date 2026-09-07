@@ -64,7 +64,7 @@ interface GameUIState {
   toggleActionPanel: () => void;
   setActionPanelCollapsed: (collapsed: boolean) => void;
   setRightPanelTab: (tab: "log" | "snapshots" | "dev") => void;
-  openDevPanel: () => void;
+  toggleDevPanel: () => void;
   hidePromptModal: () => void;
   showPromptModal: () => void;
   resetAll: () => void;
@@ -93,8 +93,13 @@ export const useGameUIStore = create<GameUIState>()(
         set((state) => ({ isActionPanelCollapsed: !state.isActionPanelCollapsed })),
       setActionPanelCollapsed: (collapsed) => set({ isActionPanelCollapsed: collapsed }),
       setRightPanelTab: (tab) => set({ rightPanelTab: tab }),
-      openDevPanel: () => {
-        if (import.meta.env.DEV) set({ isActionPanelCollapsed: false, rightPanelTab: "dev" });
+      toggleDevPanel: () => {
+        if (!import.meta.env.DEV) return;
+        set((state) =>
+          state.rightPanelTab === "dev" && !state.isActionPanelCollapsed
+            ? { isActionPanelCollapsed: true }
+            : { isActionPanelCollapsed: false, rightPanelTab: "dev" },
+        );
       },
       hidePromptModal: () => set({ promptModalHidden: true }),
       showPromptModal: () => set({ promptModalHidden: false }),

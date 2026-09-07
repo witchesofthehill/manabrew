@@ -114,7 +114,7 @@ Five renderers draw cards. `components/game/cardPresentation.ts` provides shared
 
 The app has one preview state machine. Games can use the persisted printed-card renderer or the Pixi rules renderer. Deck, editor, limited, and modal views always use the DOM renderer.
 
-The rules-backed option is labeled **Live view** because it represents current game state, not only Oracle text. Keep **Hand card style**, **Default stack card view**, and **Card preview style** adjacent in Board settings.
+The rules-backed option is labeled **Dynamic view** because it represents current game state, not only Oracle text. Keep **Hand card style**, **Default stack card view**, and **Card preview style** adjacent in Board settings.
 
 | Layer         | File                                                                                                                      | Role                                                                                                                                                                                                                                            |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

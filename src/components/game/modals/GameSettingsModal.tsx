@@ -77,7 +77,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
 
         <SettingRow
           label="Hand card style"
-          hint="Printed card shows the card image. Live view uses the card's current rules and game state; each card can still be switched."
+          hint="Printed card shows the card image. Dynamic view uses the card's current rules and game state; each card can still be switched."
         >
           <div className="flex items-center gap-2">
             {INLINE_CARD_STYLE_OPTIONS.map((option) => (
@@ -113,7 +113,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
 
         <SettingRow
           label="Card preview style"
-          hint="Printed card shows the full card image. Live view prioritizes current rules, actions, costs, counters, and other game state."
+          hint="Printed card shows the full card image. Dynamic view prioritizes current rules, actions, costs, counters, and other game state."
         >
           <div className="flex items-center gap-2">
             {IN_GAME_CARD_PREVIEW_STYLE_OPTIONS.map((option) => (

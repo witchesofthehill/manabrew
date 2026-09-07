@@ -3,7 +3,6 @@ import { lanArtUrl } from "@/lib/lanArtHost";
 import { getPlatform, getPlatformType } from "@/platform";
 
 const SCRYFALL_IMAGE_CDN_ORIGIN = "https://cards.scryfall.io/";
-export const SCRYFALL_IMAGE_FETCH_POLICY = { cache: "reload" } satisfies RequestInit;
 
 const SCRYFALL_IMAGE_HOSTS = new Set([
   "cards.scryfall.io",
@@ -95,7 +94,7 @@ async function fetchImageBytes(url: string): Promise<Blob> {
   }
   // cache: "reload" bypasses any non-CORS entry the display <img> cached for
   // this URL — a plain fetch would reuse it and CORS-fail (no ACAO header).
-  const res = await platformFetch(url, SCRYFALL_IMAGE_FETCH_POLICY);
+  const res = await platformFetch(url, { cache: "reload" });
   if (!res.ok) throw new Error(`scryfall image ${url}: HTTP ${res.status}`);
   return await res.blob();
 }

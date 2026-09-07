@@ -9,7 +9,7 @@ import {
 } from "@/types/scryfall";
 import { platformFetch } from "@/lib/platformFetch";
 import { getPlatformType } from "@/platform";
-import { loadScryfallImage, SCRYFALL_IMAGE_FETCH_POLICY } from "@/lib/scryfallImageSource";
+import { loadScryfallImage } from "@/lib/scryfallImageSource";
 import {
   enqueueCardLookup,
   matchesIdentifier,
@@ -281,7 +281,7 @@ function scryfallImageProxyUrl(url: string): string | null {
 
 async function fetchImageBlob(url: string): Promise<string> {
   const response = await fetch(url, {
-    ...SCRYFALL_IMAGE_FETCH_POLICY,
+    cache: "no-store",
     credentials: "omit",
     mode: "cors",
   });

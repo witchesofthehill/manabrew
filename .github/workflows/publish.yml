@@ -588,6 +588,43 @@ jobs:
           mkdir -p release-assets
           cp target/x86_64-unknown-linux-musl/release/xtask release-assets/manabrew-xtask-linux-x86_64
 
+      # The self-hosted relay: one static binary somebody drops on a Linux box.
+      # Unlike xtask this graph is not pure Rust (aws-lc-rs and zstd are C), so
+      # it needs a real musl C toolchain rather than rust-lld on its own.
+      - name: Install musl toolchain
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      # `yarn tauri signer sign` below runs the tauri CLI out of node_modules,
+      # and this job installs none of its own.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - run: yarn --frozen-lockfile
+
+      - name: Build self-hosted relay (release asset)
+        env:
+          CC_x86_64_unknown_linux_musl: musl-gcc
+          AR_x86_64_unknown_linux_musl: ar
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
+        run: |
+          cargo build --release -p manabrew-server --target x86_64-unknown-linux-musl
+          cp target/x86_64-unknown-linux-musl/release/manabrew-server \
+            release-assets/manabrew-server-linux-x86_64
+
+      # Signed with the key the desktop updater already trusts, because the
+      # relay checks it before replacing itself.
+      - name: Sign the relay binary
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        run: |
+          yarn tauri signer sign \
+            --private-key "$TAURI_SIGNING_PRIVATE_KEY" \
+            release-assets/manabrew-server-linux-x86_64
+
       - name: Download macOS artifact
         uses: actions/download-artifact@v4
         with:
@@ -621,6 +658,8 @@ jobs:
             release-assets/windows/**/*.msi
             release-assets/tauri.json
             release-assets/manabrew-xtask-linux-x86_64
+            release-assets/manabrew-server-linux-x86_64
+            release-assets/manabrew-server-linux-x86_64.sig
             ops/manifest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

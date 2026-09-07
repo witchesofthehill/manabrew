@@ -1,19 +1,15 @@
 import type { CardDto } from "@/protocol/game";
 import type { CSSProperties } from "react";
-import type { ManaLetter } from "@/themes/gameTheme";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
-import {
-  FRAME_TINT_COLORLESS_MAX_LUMINANCE,
-  frameTint,
-  readableTextColor,
-  withAlpha,
-} from "@/themes/gameTheme";
+import { cardFrameTints, readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { CounterDisplay } from "@/components/game/CounterBadge";
+import { CardChoiceIndicators } from "@/components/game/CardChoiceIndicators";
 import { CardRail, CARD_RAIL_WIDTH } from "@/components/game/CardRail";
 import { deriveCardRailState } from "@/components/game/cardRailState";
+import { cardTypeLine } from "@/components/game/cardPresentation";
 import { isCreature, isLethalDamage } from "@/components/game/game.utils";
 import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
 
@@ -28,12 +24,6 @@ interface BattlefieldCardFaceProps {
   width?: number;
 }
 
-const WUBRG: ManaLetter[] = ["W", "U", "B", "R", "G"];
-
-function cardColors(colorIdentity: string[] | undefined): ManaLetter[] {
-  return (colorIdentity ?? []).filter((c): c is ManaLetter => WUBRG.includes(c as ManaLetter));
-}
-
 export function BattlefieldCardFace({
   card,
   colorIdentity,
@@ -46,18 +36,11 @@ export function BattlefieldCardFace({
   const height = width * (98 / 70);
   const rail = deriveCardRailState(card);
 
-  const colors = cardColors(colorIdentity);
-  const colorless = colors.length === 0;
-  const rawTint = colorless ? theme.mana.C : theme.mana[colors[0]];
-  const rawTintB = colors.length > 1 ? theme.mana[colors[1]] : rawTint;
-  const tintMax = colorless ? FRAME_TINT_COLORLESS_MAX_LUMINANCE : undefined;
-  const tint = frameTint(rawTint, tintMax);
-  const tintB = frameTint(rawTintB, tintMax);
+  const { primary: tint, secondary: tintB } = cardFrameTints(colorIdentity, theme.mana);
   const barText = readableTextColor(tint, theme.canvas.shadow, theme.textOnTinted);
-  const barBg =
-    colors.length > 1
-      ? `linear-gradient(105deg, ${tint} 0%, ${tint} 42%, ${tintB} 58%, ${tintB} 100%)`
-      : tint;
+  const barBg = tintB
+    ? `linear-gradient(105deg, ${tint} 0%, ${tint} 42%, ${tintB} 58%, ${tintB} 100%)`
+    : tint;
 
   const creature = isCreature(card);
   const summoned = creature && !!card.summoningSick;
@@ -93,9 +76,7 @@ export function BattlefieldCardFace({
     ? `calc(${pad}px + var(--card-rail-width) + ${0.35 * u}px)`
     : `${pad}px`;
 
-  const typeLine =
-    [...card.supertypes, ...card.types].join(" ") +
-    (card.subtypes.length > 0 ? ` - ${card.subtypes.join(" ")}` : "");
+  const typeLine = cardTypeLine(card);
   const { shown: keywords, hidden: hiddenKeywords } = battlefieldKeywords(card.keywords);
 
   // P1P1 / M1M1 are dropped here: the net buff/debuff shows in the P/T color.
@@ -136,10 +117,15 @@ export function BattlefieldCardFace({
 
   const Overlays = (
     <>
+      <CardChoiceIndicators
+        card={card}
+        className="absolute inset-x-1 z-10"
+        style={{ top: 18 * u, transform: `scale(${u})`, transformOrigin: "top center" }}
+      />
       {keywords.length > 0 && (
         <div
           className="absolute z-10 flex flex-col items-start"
-          style={{ left: pad, top: "30%", gap: 1 * u }}
+          style={{ left: pad, top: (card.choices?.length ?? 0) > 0 ? "42%" : "30%", gap: 1 * u }}
         >
           {keywords.map((kw) => (
             <span

@@ -28,8 +28,8 @@ services:
     # ~1h WASM+Vite build that does not fit the prod host's disk. The published
     # image is relay-agnostic; it is pointed at the relay at RUNTIME via the
     # RELAY_* env below (ops/web-entrypoint.sh writes /srv/manabrew/config.js),
-    # replacing the old VITE_RELAY_* build args. Mana symbols use the
-    # same-origin /scryfall-symbols/ proxy configured in ops/web.Caddyfile.
+    # replacing the old VITE_RELAY_* build args. Browser mana symbols use the
+    # same-origin /scryfall-symbols/ Caddy proxy by default.
     image: ghcr.io/witchesofthehill/manabrew-web:${MANABREW_IMAGE_TAG:-latest}
     restart: unless-stopped
     expose:
@@ -107,6 +107,7 @@ services:
       HUB_DB_PATH: "/var/manabrew/hub/hub.db"
       HUB_ANALYTICS_IMPORT_DB_PATH: "/var/manabrew/events/events.db"
       HUB_RELAY_DECK_PLAYS_TOKEN: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
+      SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
       DECK_HUB: "${DECK_HUB:-1}"
       # Player avatars and playmats. All five are required together; with any of
       # them unset the hub reports no asset capability and the upload endpoints

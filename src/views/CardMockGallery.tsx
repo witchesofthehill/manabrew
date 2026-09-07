@@ -51,6 +51,16 @@ const SPECS: Spec[] = [
     overrides: { isAttacking: true, damage: 1 },
   },
   { name: "Steam Vents", label: "Land (U/R)" },
+  {
+    name: "Temple of the Dragon Queen",
+    label: "Chosen color",
+    overrides: { choices: [{ kind: "color", colors: ["U"] }] },
+  },
+  {
+    name: "Roaming Throne",
+    label: "Chosen type",
+    overrides: { choices: [{ kind: "type", values: ["Dragon"] }] },
+  },
 ];
 
 function GalleryRow({

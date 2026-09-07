@@ -4,11 +4,12 @@ import type { CardDto, DayTime } from "@/protocol/game";
 import type { ClientPlayerDto } from "@/stores/gameStore.types";
 import type { Prompt } from "@/protocol";
 import { validCardIdsInCards, type BoardTargetBuckets } from "@/lib/boardTargets";
+import type { PreviewPointerInput } from "@/lib/cardPreview";
 import { stripUsernameTag } from "@/lib/username";
 import { nextHandOrderMode } from "@/lib/handOrder";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
-import { BoardOverlayCanvas } from "@/pixi/BoardOverlayCanvas";
+import { BoardOverlayCanvas, type BoardOverlayPreviewSpec } from "@/pixi/BoardOverlayCanvas";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import type { CombatRow } from "@/components/game/combatRows";
 import type { BoardScene } from "@/pixi/board/BoardScene";
@@ -129,9 +130,20 @@ interface GameBoardProps {
   onHoverCard: (
     card: CardDto | null,
     e?: React.MouseEvent,
-    options?: { useAnchor?: boolean; placement?: "auto" | "top-center"; anchorOverride?: DOMRect },
+    options?: {
+      useAnchor?: boolean;
+      placement?: "auto" | "top-center";
+      anchorOverride?: DOMRect;
+      trigger?: PreviewPointerInput;
+    },
   ) => void;
+  onRightClickCard?: (card: CardDto, anchor: DOMRect) => void;
   onDismissHoverPreview?: () => void;
+  rulesPreview?: BoardOverlayPreviewSpec | null;
+  externalPreviewActive?: boolean;
+  onPreviewPointerEnter?: () => void;
+  onPreviewPointerLeave?: () => void;
+  onTogglePreviewView?: () => void;
   onLongPressCard?: (card: CardDto, anchor: DOMRect) => void;
   onHandHoverChange?: (hovering: boolean) => void;
   getHandActions?: (card: CardDto) => HandActionOption[];
@@ -228,7 +240,13 @@ export function GameBoard({
   castingCardId,
   onHandCardDragStart,
   onHoverCard,
+  onRightClickCard,
   onDismissHoverPreview,
+  rulesPreview,
+  externalPreviewActive,
+  onPreviewPointerEnter,
+  onPreviewPointerLeave,
+  onTogglePreviewView,
   onLongPressCard,
   onHandHoverChange,
   getHandActions,
@@ -533,14 +551,22 @@ export function GameBoard({
         promptType === "chooseBoardTargets"
           ? onBattlefieldClick
           : undefined,
-      onHoverCard: (card, bounds) => {
+      onHoverCard: (card, bounds, options) => {
         if (card && bounds) {
           const rect = new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height);
-          onHoverCard(card, undefined, { useAnchor: true, anchorOverride: rect });
+          onHoverCard(card, undefined, {
+            ...options,
+            useAnchor: true,
+            anchorOverride: rect,
+          });
         } else {
           onHoverCard(null);
         }
       },
+      onRightClickCard: onRightClickCard
+        ? (card, bounds) =>
+            onRightClickCard(card, new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height))
+        : undefined,
       onStartDrag: (card, _screenPos, pointer) => {
         onHandCardDragStart(card, pointer);
       },
@@ -579,6 +605,7 @@ export function GameBoard({
       onBattlefieldClick,
       onHoverCard,
       onDismissHoverPreview,
+      onRightClickCard,
       onHandCardDragStart,
       moveHandCard,
       handSelectionMode,
@@ -1738,6 +1765,7 @@ export function GameBoard({
           sceneRef={sceneRef}
           getHandActions={getHandActions}
           onSelectHandAction={(_card, action) => onSelectHandAction?.(action)}
+          externalPreviewActive={externalPreviewActive}
           onLayout={(layout) => {
             setUnifiedLayout(layout);
             onLayoutChange?.(layout);
@@ -1752,6 +1780,14 @@ export function GameBoard({
           onTargetSpell={onTargetSpell}
           onHoverStack={onHoverStack}
           onToggleStack={onToggleStack}
+          externalPreviewActive={externalPreviewActive}
+          previewSpec={rulesPreview}
+          onPreviewPointerEnter={onPreviewPointerEnter}
+          onPreviewPointerLeave={onPreviewPointerLeave}
+          onSelectPreviewAction={onSelectHandAction}
+          onDismissPreview={onDismissHoverPreview}
+          onFlipPreview={onFlipCard}
+          onTogglePreviewView={onTogglePreviewView}
         />
       </div>
       {sheetSpec && <PlayerSheetModal spec={sheetSpec} onClose={() => setSheetPlayerId(null)} />}

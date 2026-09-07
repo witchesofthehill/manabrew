@@ -22,6 +22,23 @@ pub enum ManaColor {
     Colorless,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "game/index.ts")]
+pub enum CardChoiceDto {
+    Color { colors: Vec<ManaColor> },
+    Type { values: Vec<String> },
+    NamedCard { names: Vec<String> },
+    ChosenCard { count: usize },
+    Number { value: i32 },
+    Mode { value: String },
+    Player { player_id: String, name: String },
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "game/index.ts")]
@@ -268,6 +285,8 @@ pub struct CardDto {
     pub class_levels: Vec<ClassLevelDto>,
     pub saga_chapters: Vec<SagaChapterDto>,
     pub text: String,
+    #[serde(default)]
+    pub choices: Vec<CardChoiceDto>,
     pub controller_id: String,
     pub owner_id: String,
     pub tapped: bool,
@@ -343,6 +362,9 @@ pub struct StackObjectDto {
     pub owner_id: String,
     pub identity: CardIdentity,
     pub text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub source_ability_text: Option<String>,
     pub is_permanent_spell: bool,
     pub is_casting: bool,
     pub is_double_faced: bool,
@@ -363,6 +385,7 @@ mod stack_object_tests {
             owner_id: "player-1".into(),
             identity: CardIdentity::default(),
             text: String::new(),
+            source_ability_text: Some("When this enters, draw a card.".into()),
             is_permanent_spell: true,
             is_casting: true,
             is_double_faced: true,
@@ -371,6 +394,7 @@ mod stack_object_tests {
         };
 
         let value = serde_json::to_value(stack_object).unwrap();
+        assert_eq!(value["sourceAbilityText"], "When this enters, draw a card.");
 
         assert_eq!(value["ownerId"], "player-1");
         assert_eq!(value["isDoubleFaced"], true);

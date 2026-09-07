@@ -25,6 +25,7 @@ import type {
   UpdateDeckHubEntryRequest,
   VerifyCardPrintingsRequest,
   VerifyCardPrintingsResponse,
+  ChatReportRequest,
 } from "@/api/hubTypes";
 import type { EngineKind } from "@/protocol";
 
@@ -302,6 +303,14 @@ export async function recordOfflineGame(game: OfflinePlayGame): Promise<void> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(game),
+  });
+}
+
+export async function reportChatPlayer(request: ChatReportRequest): Promise<void> {
+  await hubRequest("/api/chat/reports", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
   });
 }
 

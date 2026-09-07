@@ -1,10 +1,6 @@
 import { Texture, ImageSource } from "pixi.js";
 import { platformFetch } from "@/lib/platformFetch";
-import { getPlatformType } from "@/platform";
-
-const CONFIGURED_SYMBOL_BASE = import.meta.env.VITE_SCRYFALL_SYMBOL_BASE;
-const REMOTE_SYMBOL_BASE = "https://svgs.scryfall.io/card-symbols/";
-const WEB_SYMBOL_BASE = "/scryfall-symbols/";
+import { manaSymbolUrl, normalizeManaCode } from "@/api/scryfall";
 // Rasterize SVGs into a fixed-size canvas so Pixi gets a concrete texture
 // (SVGs decoded into HTMLImageElement can have zero intrinsic dimensions).
 const SYMBOL_RASTER_SIZE = 96;
@@ -13,10 +9,9 @@ const textures = new Map<string, Texture>();
 const loading = new Map<string, Promise<Texture>>();
 
 async function fetchSvgText(symbol: string): Promise<string> {
-  const base =
-    CONFIGURED_SYMBOL_BASE ||
-    (getPlatformType() === "tauri" ? REMOTE_SYMBOL_BASE : WEB_SYMBOL_BASE);
-  const url = `${base}${encodeURIComponent(symbol)}.svg`;
+  const code = normalizeManaCode(symbol);
+  if (!code) throw new Error(`unsupported mana symbol: ${symbol}`);
+  const url = manaSymbolUrl(code);
   const response = await platformFetch(url);
   if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
   return await response.text();

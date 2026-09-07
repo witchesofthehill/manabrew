@@ -1512,7 +1512,7 @@ fn run_fuzz_mode(cli: &Cli) {
     let data = load_data_or_exit(cli);
 
     // Discover card pool
-    let (pool, pool_stats) = CardPool::discover(&data.db);
+    let (pool, pool_stats) = CardPool::discover(data.db.as_ref());
     if cli.is_verbose() {
         eprintln!("[parity] {pool_stats}");
         for example in pool_stats.example_lines() {
@@ -1927,7 +1927,7 @@ fn run_continuous_mode(cli: &Cli) {
 
     // Initialize scheduler
     let fuzz_db = if cli.fuzz_per_batch > 0 {
-        Some(&data.db)
+        Some(data.db.as_ref())
     } else {
         None
     };
@@ -2208,7 +2208,11 @@ fn run_serve_mode(cli: &Cli) {
     }
 
     let initial_fuzz = cli.fuzz_per_batch > 0;
-    let fuzz_db = if initial_fuzz { Some(&data.db) } else { None };
+    let fuzz_db = if initial_fuzz {
+        Some(data.db.as_ref())
+    } else {
+        None
+    };
     let initial_fuzz_per_batch = if initial_fuzz { cli.fuzz_per_batch } else { 0 };
     let mut scheduler = Scheduler::new(
         &deck_names,
@@ -2609,7 +2613,11 @@ fn run_serve_mode(cli: &Cli) {
             } else {
                 0
             };
-            let fdb = if fuzz_enabled { Some(&data.db) } else { None };
+            let fdb = if fuzz_enabled {
+                Some(data.db.as_ref())
+            } else {
+                None
+            };
             scheduler = Scheduler::new(
                 &deck_names,
                 cli.seed,

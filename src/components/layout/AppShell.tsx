@@ -2,11 +2,14 @@ import { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { isFeatureEnabled } from "@/featureFlags";
 import { useServerStore } from "@/stores/useServerStore";
+import { useChatStore } from "@/stores/useChatStore";
+import { useRoomInvites } from "@/hooks/useRoomInvites";
 import { useGameStore } from "@/stores/useGameStore";
 import { cn } from "@/lib/utils";
 import { useGameSessionResume } from "@/hooks/useGameSessionResume";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
+import { RoomInviteOverlay } from "@/components/lobby/RoomInviteOverlay";
 import { IronsmithUnsupportedDeckModal } from "@/components/IronsmithUnsupportedDeckModal";
 import { SignInDialog } from "@/components/auth/SignInDialog";
 import { GuestNameConflictModal } from "@/components/GuestNameConflictModal";
@@ -74,6 +77,9 @@ export function AppShell() {
     return cleanup;
   }, [setupListeners]);
 
+  useEffect(() => useChatStore.getState().setupListeners(), []);
+  useRoomInvites();
+
   useEffect(() => {
     if (accountsEnabled) void useAuthStore.getState().hydrate();
   }, [accountsEnabled]);
@@ -127,6 +133,7 @@ export function AppShell() {
         <IronsmithUnsupportedDeckModal />
         {accountsEnabled && <SignInDialog />}
         {accountsEnabled && <GuestNameConflictModal />}
+        <RoomInviteOverlay />
         {!hideNavChrome && <TopBar override={activeTopBarOverride} />}
         <main
           className={cn(

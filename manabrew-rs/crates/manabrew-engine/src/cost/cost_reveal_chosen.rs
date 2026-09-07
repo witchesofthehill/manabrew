@@ -13,10 +13,12 @@ pub fn pay_as_decided(game: &mut GameState, source: CardId, reveal_type: &str) -
     let card = game.card_mut(source);
     if reveal_type == "Player" {
         if card.chosen_player.is_some() {
+            card.chosen_player_revealed = true;
             // Mark as revealed (Java calls host.revealChosenPlayer())
             return true;
         }
     } else if reveal_type == "Type" && card.chosen_type.is_some() {
+        card.chosen_type_revealed = true;
         // Mark as revealed (Java calls host.revealChosenType())
         return true;
     }

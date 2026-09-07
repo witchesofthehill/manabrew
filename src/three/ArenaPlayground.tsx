@@ -1,5 +1,10 @@
 import { arenaSurface } from "@/themes/arenaSurface";
+import { SpellStack } from "@/three/SpellStack";
+import { TargetChoices } from "@/three/TargetChoices";
+import "@/three/duel.css";
 import { CardPreview } from "@/three/CardPreview";
+import { CardActionPicker } from "@/three/CardActionPicker";
+import type { AvailableAction } from "@manabrew/protocol";
 import { useMemo, useState } from "react";
 
 import type { CSSProperties } from "react";
@@ -85,16 +90,120 @@ const initial: ArenaCard[] = [
 ];
 
 export function ArenaPlayground() {
+  const targetDemo = new URLSearchParams(location.search).get("layout") === "targets";
+  const [targetIds, setTargetIds] = useState<string[]>([]);
+  const abilityDemo = new URLSearchParams(location.search).get("layout") === "abilities";
+  const [abilitiesOpen, setAbilitiesOpen] = useState(abilityDemo);
+  const demoActions: AvailableAction[] = [
+    ["{R}", "All creatures gain trample and haste until end of turn."],
+    ["{1}{G}", "Put a +1/+1 counter on target creature."],
+    ["{2}{W}", "Target player gains 5 life."],
+    ["{3}{U}", "Target player draws a card."],
+    [
+      "{4}{B}",
+      "Put target creature card from a graveyard onto the battlefield under its owner's control.",
+    ],
+  ].map(([cost, description], abilityIndex) => ({
+    id: `demo-${abilityIndex}`,
+    cardId: "p1",
+    type: "activateAbility",
+    isManaAbility: false,
+    abilityIndex,
+    cost,
+    description,
+  }));
   const [cards, setCards] = useState(() => {
+    if (new URLSearchParams(location.search).get("layout") === "auras")
+      return [
+        ...initial.map((card) =>
+          card.id.startsWith("island")
+            ? makeCard(card.id, "Forest", "self", "Basic Land — Forest")
+            : card,
+        ),
+        {
+          ...makeCard("aura-self", "Utopia Sprawl", "self", "Enchantment — Aura"),
+          attachedTo: "island0",
+        },
+        {
+          ...makeCard("aura-enemy", "Wild Growth", "opponent", "Enchantment — Aura"),
+          attachedTo: "forest0",
+        },
+      ];
+    if (new URLSearchParams(location.search).get("layout") === "lands")
+      return [
+        ...initial,
+        ...Array.from({ length: 7 }, (_, i) => ({
+          ...makeCard(`enemy-hand-${i}`, "Hidden card", "opponentHand", ""),
+          image: undefined,
+          artImage: undefined,
+          hidden: true,
+        })),
+        ...Array.from({ length: 4 }, (_, i) => ({
+          ...makeCard(`enemy-tapped-${i}`, "Forest", "opponent", "Basic Land — Forest"),
+          tapped: true,
+        })),
+      ];
+    if (abilityDemo)
+      return initial.map((c) =>
+        c.id === "p1"
+          ? {
+              ...makeCard(
+                "p1",
+                "Kenrith, the Returned King",
+                "self",
+                "Legendary Creature — Human Noble",
+                "5/5",
+              ),
+              actionCount: 5,
+              playable: true,
+            }
+          : c,
+      );
+    if (new URLSearchParams(location.search).get("layout") === "combat")
+      return initial.map((c) =>
+        c.id === "p1"
+          ? {
+              ...c,
+              keywords: ["Flying", "Vigilance"],
+              counters: { P1P1: 2 },
+              stats: "3/4",
+              statsChanged: true,
+              damage: 1,
+              attacking: true,
+              attackTargetId: "o1",
+            }
+          : c.id === "p2"
+            ? { ...c, keywords: ["Flying"] }
+            : c,
+      );
     if (new URLSearchParams(location.search).get("layout") !== "multiplayer") return initial;
     return [
       ...initial.filter((card) => card.side !== "opponent"),
       ...[3, 6, 9].flatMap((count, seat) => {
         const playerId = `player-${seat + 1}`;
         return [
-          ...Array.from({ length: count }, (_, i) => ({ ...makeCard(`${playerId}-creature-${i}`, ["Silvercoat Lion", "Standing Troops", "Savannah Lions"][i % 3], "opponent", "Creature", "2/2"), playerId })),
-          ...Array.from({ length: 8 }, (_, i) => ({ ...makeCard(`${playerId}-land-${i}`, "Plains", "opponent", "Basic Land"), tapped: i < 4, playerId })),
-          ...Array.from({ length: 7 }, (_, i) => ({ ...makeCard(`${playerId}-hand-${i}`, "Hidden card", "opponentHand", ""), image: undefined, artImage: undefined, hidden: true, playerId })),
+          ...Array.from({ length: count }, (_, i) => ({
+            ...makeCard(
+              `${playerId}-creature-${i}`,
+              ["Silvercoat Lion", "Standing Troops", "Savannah Lions"][i % 3],
+              "opponent",
+              "Creature",
+              "2/2",
+            ),
+            playerId,
+          })),
+          ...Array.from({ length: 8 }, (_, i) => ({
+            ...makeCard(`${playerId}-land-${i}`, "Plains", "opponent", "Basic Land"),
+            tapped: i < 4,
+            playerId,
+          })),
+          ...Array.from({ length: 7 }, (_, i) => ({
+            ...makeCard(`${playerId}-hand-${i}`, "Hidden card", "opponentHand", ""),
+            image: undefined,
+            artImage: undefined,
+            hidden: true,
+            playerId,
+          })),
         ];
       }),
     ];
@@ -105,9 +214,20 @@ export function ArenaPlayground() {
   const [log, setLog] = useState("Play a card from your hand. Click a land to tap it.");
   const [drawCount, setDrawCount] = useState(0);
   const [links, setLinks] = useState<{ from: string; to: string; color: string }[]>([]);
-  const selected = cards.find((c) => c.id === hover);
+  const selected = cards.find((c) => c.id === (abilitiesOpen ? "p1" : hover));
   const attackers = cards.filter((c) => c.attacking && c.side === "self");
   const click = (id: string) => {
+    if (targetDemo) {
+      if (["p1", "o1"].includes(id))
+        setTargetIds((old) =>
+          old.includes(id) ? old.filter((target) => target !== id) : [...old, id],
+        );
+      return;
+    }
+    if (abilityDemo && id === "p1") {
+      setAbilitiesOpen(true);
+      return;
+    }
     const card = cards.find((c) => c.id === id);
     if (!card) return;
     if (card.side === "hand") {
@@ -167,9 +287,46 @@ export function ArenaPlayground() {
   };
   const sceneColors = useMemo(() => colors, []);
   return (
-    <main className="arena-root" style={styles}>
+    <main className={targetDemo ? "arena-root duel-root" : "arena-root"} style={styles}>
+      {targetDemo && (
+        <div style={{ position: "absolute", right: 20, bottom: 20, width: 310, zIndex: 25 }}>
+          <TargetChoices
+            input={{
+              presentation: { title: "Untap", targets: [] },
+              candidates: cards
+                .filter((card) => card.side !== "hand")
+                .map((card) => ({ id: card.id, kind: "card" })),
+              hostile: false,
+              intent: "untap",
+              minTargets: 1,
+              maxTargets: 1,
+              chosenTargets: 0,
+              cancellable: true,
+            }}
+            selected={targetIds}
+            onSelected={(ids) => setTargetIds(ids.slice(-1))}
+            name={(id) => cards.find((card) => card.id === id)?.name ?? id}
+            send={(output) =>
+              setLog(output.output.type === "cancel" ? "Targeting cancelled" : "Targets confirmed")
+            }
+          />
+        </div>
+      )}
       <ArenaScene
-        cards={cards}
+        cards={
+          targetDemo
+            ? cards.map((card) => ({
+                ...card,
+                playable: ["p1", "o1"].includes(card.id),
+                selected: targetIds.includes(card.id),
+              }))
+            : cards
+        }
+        targeting={
+          targetDemo
+            ? { stackId: "target-demo", candidates: ["p1", "o1"], selected: targetIds }
+            : undefined
+        }
         combatStep={
           phase === "Combat"
             ? "combatDeclareBlockers"
@@ -179,6 +336,20 @@ export function ArenaPlayground() {
         }
         colors={sceneColors}
         links={links}
+        blockTargets={
+          phase === "Combat"
+            ? Object.fromEntries(
+                cards
+                  .filter((c) => c.side === "self" && c.type.includes("Creature"))
+                  .map((c) => [
+                    c.id,
+                    cards
+                      .filter((a) => a.side === "opponent" && a.type.includes("Creature"))
+                      .map((a) => a.id),
+                  ]),
+              )
+            : undefined
+        }
         onCard={click}
         onHover={setHover}
         onDrop={(id, target) => {
@@ -193,9 +364,33 @@ export function ArenaPlayground() {
               { from: id, to: target, color: colors.hostile },
             ]);
             setLog("Combat link preview. Choose Resolve combat to continue.");
-          } else click(id);
+          } else if (phase !== "Combat") click(id);
         }}
       />
+      {targetDemo && (
+        <SpellStack
+          stack={[
+            {
+              id: "target-demo",
+              sourceId: "spell-demo",
+              controllerId: "player-0",
+              ownerId: "player-0",
+              identity: { name: "Giant Growth", setCode: "", cardNumber: "", isToken: false },
+              text: "Target creature gets +3/+3 until end of turn.",
+              isPermanentSpell: false,
+              isCasting: true,
+              isDoubleFaced: false,
+              faceIndex: 0,
+              targets: [],
+            },
+          ]}
+          open={false}
+          onOpen={() => {}}
+          onClose={() => {}}
+          onMotion={() => {}}
+          onHover={() => {}}
+        />
+      )}
       <header className="arena-brand">
         <h1>MANABREW</h1>
         <small>THREE.JS · VISUAL PLAYGROUND</small>
@@ -287,7 +482,20 @@ export function ArenaPlayground() {
           Draw a card
         </button>
       </div>
-      <CardPreview card={selected ?? undefined} />
+      <CardPreview card={selected ?? undefined} onInspect={setHover} hideDetails={abilitiesOpen} />
+      {abilitiesOpen && (
+        <CardActionPicker
+          name="Kenrith, the Returned King"
+          actions={demoActions}
+          onChoose={(action) => {
+            setLog(
+              `Ability ${demoActions.indexOf(action) + 1} selected. This is a UI example; no rules action was sent.`,
+            );
+            setAbilitiesOpen(false);
+          }}
+          onClose={() => setAbilitiesOpen(false)}
+        />
+      )}
       <button
         className="arena-frame-samples"
         onClick={() =>

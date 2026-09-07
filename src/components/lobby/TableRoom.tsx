@@ -202,6 +202,7 @@ export function TableRoom({
                     : (myPlayer?.selected_deck_name ?? "Choose the deck you want to play")}
               </p>
             </div>
+            <BattlefieldViewChoice />
             {renderPrimaryAction()}
           </div>
         </section>
@@ -227,3 +228,4 @@ export function TableRoom({
     </div>
   );
 }
+import { BattlefieldViewChoice } from "@/components/play/BattlefieldViewChoice";

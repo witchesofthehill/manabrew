@@ -113,9 +113,11 @@ export function SignInDialog() {
 
   function handleOAuth(provider: OAuthProvider) {
     void run(async () => {
-      const desktop = getPlatformType() === "tauri";
-      const url = await startOAuth(provider, "signin", desktop ? "desktop" : "web");
-      if (desktop) {
+      const codeFlow =
+        getPlatformType() === "tauri" ||
+        ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+      const url = await startOAuth(provider, "signin", codeFlow ? "desktop" : "web");
+      if (codeFlow) {
         await openExternal(url);
         setStep("desktop-code");
       } else {

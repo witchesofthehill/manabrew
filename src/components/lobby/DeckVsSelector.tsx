@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { BattlefieldViewChoice } from "@/components/play/BattlefieldViewChoice";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { Button } from "@/components/ui/button";
 import { EngineMark } from "@/components/lobby/EngineMark";
@@ -475,6 +476,9 @@ export function DeckVsSelector({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 px-4 py-2 sm:px-6 lg:px-8">
+        <BattlefieldViewChoice />
+      </div>
       <div className="flex flex-shrink-0 items-center gap-3 border-b bg-muted/5 px-4 py-2 sm:px-6 lg:px-8">
         <div
           role="group"

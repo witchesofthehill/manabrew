@@ -1,4 +1,5 @@
 import { LibraryBig, Swords, Users } from "lucide-react";
+import { BattlefieldViewChoice } from "@/components/play/BattlefieldViewChoice";
 import { useEffect, useState } from "react";
 import { UpdateCallout } from "@/components/layout/UpdateCallout";
 import { FeatureTile } from "@/components/play/FeatureTile";
@@ -102,6 +103,7 @@ export function PlayHome() {
           </header>
 
           <UpdateCallout />
+          <BattlefieldViewChoice />
 
           {resumeSession && (
             <RejoinMatchCard session={resumeSession} onAbandoned={() => setResumeSession(null)} />

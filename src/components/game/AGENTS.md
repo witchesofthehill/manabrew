@@ -20,7 +20,7 @@ When adding a constant, type, util, or class string, **check the shared modules 
 
 ## Board canvas — single unified Pixi scene
 
-`GameBoard` also offers an opt-in Three.js renderer for two-player games through `@/three/ArenaBoardCanvas`. The classic renderer remains the default. Three.js shares the board callbacks, prompt controls, and Pixi stack overlay, but does not supply a Pixi `BoardScene`; player/stack-origin arrows, attachment layout, and the full set of Pixi status effects are not yet implemented there. The existing card renderers intentionally retain their appearance.
+The pre-match `BattlefieldViewChoice` sets the persisted `battlefieldRenderer` preference shared by offline and multiplayer games. `GameBoard` selects `ArenaBoardCanvas` or the classic `BoardCanvas` from that preference. The Three.js adapter shares the game callbacks, prompt controls, and stack overlay; it does not supply a Pixi `BoardScene`. Keep renderer-specific limitations explicit when extending it.
 
 The whole table renders on **one** Pixi canvas, not one canvas per player. `BoardCanvas` (`@/pixi/BoardCanvas`) drives a single `BoardScene` (`@/pixi/board/BoardScene`) that hosts one `BoardRegion` per player, positioned by `computeBoardLayout` (`@/pixi/board/boardLayout`). Because every player's battlefield shares one coordinate space, cards can animate across the center line (MTGA-style combat staging) without crossing a canvas boundary.
 

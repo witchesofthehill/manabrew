@@ -2,6 +2,7 @@ import { CanvasTexture, SRGBColorSpace } from "three";
 import type { ArenaCard, ArenaColors } from "@/three/arena.types";
 import { drawFrame } from "@/three/frameAsset";
 import { loadManaSprite } from "@/three/battlefieldMana";
+import { keywordDetails } from "@/three/keywordDetails";
 
 const imageCache = new Map<string, HTMLImageElement>();
 
@@ -103,7 +104,7 @@ export function battlefieldTexture(card: ArenaCard, colors: ArenaColors) {
       ctx.restore();
     }
     if (card.selected || card.attacking) {
-      ctx.strokeStyle = card.attacking ? colors.hostile : colors.accent;
+      ctx.strokeStyle = card.attacking ? (colors.attack ?? colors.hostile) : colors.accent;
       ctx.shadowColor = ctx.strokeStyle;
       ctx.shadowBlur = card.selected ? 16 : 8;
       ctx.lineWidth = card.selected ? 6 : 3;
@@ -112,15 +113,80 @@ export function battlefieldTexture(card: ArenaCard, colors: ArenaColors) {
       ctx.stroke();
       ctx.shadowBlur = 0;
     }
+    const keywords = [
+      ...new Set(
+        (card.keywords ?? [])
+          .map((raw) => keywordDetails(raw))
+          .filter(Boolean)
+          .map((k) => k!.path),
+      ),
+    ];
+    keywords.slice(0, 4).forEach((path, i) => {
+      ctx.save();
+      ctx.translate(14 + i * 48, 271);
+      ctx.fillStyle = colors.background;
+      ctx.strokeStyle = colors.accent;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(0, 0, 43, 43, 12);
+      ctx.fill();
+      ctx.stroke();
+      ctx.translate(6, 6);
+      ctx.scale(1.3, 1.3);
+      ctx.lineWidth = 1.8;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.stroke(new Path2D(path));
+      ctx.restore();
+    });
+    const counters = Object.values(card.counters ?? {})
+      .filter((n) => n > 0)
+      .reduce((sum, n) => sum + n, 0);
+    if (counters > 0) {
+      ctx.fillStyle = colors.background;
+      ctx.strokeStyle = colors.playable ?? colors.accent;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(338, 82, 28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = colors.foreground;
+      ctx.font = "bold 34px Georgia";
+      ctx.textAlign = "center";
+      ctx.fillText(String(counters), 338, 94, 45);
+      ctx.textAlign = "start";
+    }
+    if (card.damage) {
+      ctx.fillStyle = colors.background;
+      ctx.beginPath();
+      ctx.roundRect(268, 222, 83, 36, 9);
+      ctx.fill();
+      ctx.fillStyle = colors.attack ?? colors.hostile;
+      ctx.font = "bold 26px sans-serif";
+      ctx.fillText(`−${card.damage}`, 282, 250, 61);
+    }
+    if ((card.actionCount ?? 0) > 1) {
+      ctx.fillStyle = colors.background;
+      ctx.strokeStyle = colors.accent;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(14, 52, 83, 42, 10);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = colors.accent;
+      ctx.font = "bold 28px sans-serif";
+      ctx.fillText(`${card.actionCount} ▸`, 26, 83, 61);
+    }
     texture.needsUpdate = true;
   };
   draw();
-  if (card.cost) void loadManaSprite().then((image) => {
-    if (!disposed && image) {
-      mana = image;
-      draw();
-    }
-  });
+  if (card.cost)
+    void loadManaSprite().then((image) => {
+      if (!disposed && image) {
+        mana = image;
+        draw();
+      }
+    });
   if (url && !art) {
     const image = new Image();
     image.crossOrigin = "anonymous";

@@ -1381,8 +1381,8 @@ export function GameBoard({
       .join(". ")}.`;
   }, [battlefield, opponents, me.id]);
 
-  const [arenaEnabled, setArenaEnabled] = useState(false);
-  const Canvas = arenaEnabled && opponents.length === 1 ? ArenaBoardCanvas : BoardCanvas;
+  const arenaEnabled = usePreferencesStore((state) => state.battlefieldRenderer === "3d");
+  const Canvas = arenaEnabled ? ArenaBoardCanvas : BoardCanvas;
 
   return (
     <div
@@ -1390,13 +1390,6 @@ export function GameBoard({
       className="game-board-surface relative flex flex-col min-h-0 flex-1 overflow-hidden"
     >
       <ReconnectBanner />
-      <button
-        className="absolute top-2 left-2 z-50 rounded border border-border bg-background px-3 py-2 text-xs text-foreground"
-        disabled={opponents.length !== 1}
-        onClick={() => setArenaEnabled((value) => !value)}
-      >
-        {arenaEnabled ? "Classic battlefield" : "Three.js battlefield"}
-      </button>
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         {a11ySummary}
       </div>

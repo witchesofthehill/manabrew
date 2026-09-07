@@ -1,0 +1,144 @@
+.duel-card-actions {
+  left: calc(min(250px, 21vw) + 36px);
+  top: 24%;
+  width: min(320px, calc(100vw - 48px));
+  max-height: 70vh;
+  padding: 12px;
+  gap: 10px;
+  border-color: var(--arena-border);
+  box-shadow: 0 12px 32px var(--arena-background);
+  animation: duel-abilities-enter 180ms ease-out;
+  overflow: auto;
+  scrollbar-width: none;
+}
+.duel-card-actions::-webkit-scrollbar {
+  display: none;
+}
+.duel-card-actions header {
+  display: grid;
+  gap: 4px;
+}
+.duel-card-actions header small,
+.duel-card-actions footer small {
+  color: var(--arena-muted);
+  font: 12px/1.4 sans-serif;
+}
+.duel-card-actions strong {
+  font-size: 17px;
+}
+.duel-ability-options {
+  display: grid;
+  gap: 7px;
+}
+.duel-ability-options > button {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  padding: 10px;
+  line-height: 1.4;
+  font-size: 13px;
+}
+.duel-ability-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--arena-muted);
+}
+.duel-card-actions kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 23px;
+  height: 23px;
+  padding: 0 4px;
+  border: 1px solid var(--arena-border);
+  border-radius: 5px;
+  color: var(--arena-accent);
+  font: 600 12px sans-serif;
+}
+.duel-ability-cost {
+  color: var(--arena-accent);
+}
+.duel-card-actions footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+.duel-card-actions footer button {
+  padding: 5px 8px;
+}
+@keyframes duel-abilities-enter {
+  from {
+    opacity: 0;
+    translate: -6px 5px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@media (max-width: 800px), (max-height: 620px) {
+  .duel-card-actions {
+    width: 260px;
+    max-height: 70vh;
+    top: 22%;
+  }
+}
+@media (max-width: 600px) {
+  .duel-card-actions {
+    left: 160px;
+    width: calc(100vw - 174px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .duel-card-actions {
+    animation: none;
+  }
+}
+
+.duel-card-actions {
+  position: absolute;
+  display: grid;
+  background: var(--arena-background);
+  border: 1px solid var(--arena-border);
+  border-radius: 12px;
+  z-index: 10;
+}
+.duel-card-actions strong {
+  font-family: Cinzel, Georgia, serif;
+}
+.duel-card-actions .duel-choice-pages {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+@media (max-width: 800px), (max-height: 620px) {
+  .duel-ability-options > button {
+    padding: 7px;
+    gap: 4px;
+    font-size: 12px;
+  }
+  .duel-card-actions {
+    gap: 7px;
+  }
+}
+.duel-card-actions {
+  box-sizing: border-box;
+}
+@media (max-width: 800px), (max-height: 620px) {
+  .duel-card-actions {
+    width: 300px;
+    max-height: calc(78dvh - 16px);
+  }
+  .duel-card-actions .duel-ability-options > button {
+    padding: 8px;
+    gap: 4px;
+    font-size: 13px;
+  }
+}
+@media (max-width: 600px) {
+  .duel-card-actions {
+    width: calc(100vw - 174px);
+  }
+}

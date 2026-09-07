@@ -45,7 +45,8 @@ export function AppShell() {
   const isGameActive = useGameStore((s) => s.isGameActive);
   const pathname =
     location.pathname.length > 1 ? location.pathname.replace(/\/+$/, "") : location.pathname;
-  const isGameRoute = pathname.startsWith(ROUTES.GAME) || isGameActive;
+  const isGameRoute =
+    pathname.startsWith(ROUTES.GAME) || pathname === ROUTES.PLAY_ARENA || isGameActive;
   const isCompanionRoute = pathname.startsWith(ROUTES.COMPANION);
   const isImmersiveRoute = isGameRoute || isCompanionRoute;
   const isPlayHome = pathname === ROUTES.PLAY;

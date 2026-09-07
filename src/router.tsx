@@ -7,6 +7,7 @@ import { DESIGN_SYSTEM_ENABLED } from "@/config/designSystem";
 
 const CardMockGallery = import.meta.env.DEV ? lazy(() => import("@/views/CardMockGallery")) : null;
 const DesignSystem = DESIGN_SYSTEM_ENABLED ? lazy(() => import("@/views/DesignSystem")) : null;
+const ArenaMatch = lazy(() => import("@/views/ArenaMatch"));
 import Lobby from "@/views/Lobby";
 import DeckEditor from "@/views/DeckEditor";
 
@@ -42,6 +43,16 @@ export const router = createBrowserRouter([
       </div>
     ),
     children: [
+      {
+        path: "play/arena",
+        element: (
+          <ErrorBoundary context="3D Battlefield">
+            <Suspense fallback={<p>Loading battlefield…</p>}>
+              <ArenaMatch />
+            </Suspense>
+          </ErrorBoundary>
+        ),
+      },
       {
         index: true,
         element: <Navigate to="/play" replace />,

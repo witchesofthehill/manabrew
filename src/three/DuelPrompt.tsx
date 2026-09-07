@@ -1,4 +1,6 @@
+import { TargetChoices } from "@/three/TargetChoices";
 import { NextAction } from "@/three/NextAction";
+import type { AutoPassCountdown } from "@/three/arena.types";
 import { GameIcon } from "@/three/GameIcon";
 import { useState } from "react";
 import { ManaText } from "@/three/ManaSymbols";
@@ -16,6 +18,8 @@ export function DuelPrompt({
   onBlocks,
   nextLabel = "Continue",
   autoPassing = false,
+  autoPassCountdown,
+  onHoldPriority,
   onAutoPay,
 }: {
   prompt: Prompt;
@@ -27,6 +31,8 @@ export function DuelPrompt({
   onBlocks: (blocks: Record<string, string>) => void;
   nextLabel?: string;
   autoPassing?: boolean;
+  autoPassCountdown?: AutoPassCountdown | null;
+  onHoldPriority?: () => void;
   onAutoPay?: () => void;
 }) {
   const input = prompt.input;
@@ -34,6 +40,17 @@ export function DuelPrompt({
   const name = (id: string) => cards.find((c) => c.id === id)?.identity.name ?? id;
   const toggle = (id: string) =>
     onSelected(selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id]);
+  if (input.type === "chooseBoardTargets")
+    return (
+      <TargetChoices
+        key={prompt.promptId}
+        input={input}
+        selected={selected}
+        onSelected={onSelected}
+        name={name}
+        send={send}
+      />
+    );
   let controls;
   let confirmation;
   switch (input.type) {
@@ -61,7 +78,13 @@ export function DuelPrompt({
     case "chooseAction":
       controls = (
         <>
-          <NextAction label={nextLabel} busy={autoPassing} onNext={() => send({ type: input.type, output: { type: "pass", exhaustStack: false } })} />
+          <NextAction
+            label={nextLabel}
+            busy={autoPassing}
+            countdown={autoPassCountdown}
+            onHoldPriority={onHoldPriority}
+            onNext={() => send({ type: input.type, output: { type: "pass", exhaustStack: false } })}
+          />
         </>
       );
       break;
@@ -147,7 +170,8 @@ export function DuelPrompt({
               send({ type: input.type, output: { type: "declareAttackers", assignments } })
             }
           >
-            <GameIcon name="attack" />{selected.length ? `Attack with ${selected.length}` : "No attacks"}
+            <GameIcon name="attack" />
+            {selected.length ? `Attack with ${selected.length}` : "No attacks"}
           </button>
         </>
       );
@@ -186,67 +210,28 @@ export function DuelPrompt({
             </button>
           )}
           {input.error && <p>{input.error}</p>}
-
         </>
       );
       confirmation = (
-          <button
-            className="duel-primary"
-            onClick={() =>
-              send({
-                type: input.type,
-                output: {
-                  type: "declareBlockers",
-                  assignments: Object.entries(blocks)
-                    .filter(([, id]) => id)
-                    .map(([blockerId, attackerId]) => ({ blockerId, attackerId })),
-                },
-              })
-            }
-          >
-            <GameIcon name="block" />
-            {Object.values(blocks).filter(Boolean).length
-              ? `Block with ${Object.values(blocks).filter(Boolean).length}`
-              : "No blocks"}
-          </button>
-      );
-      break;
-    case "chooseBoardTargets":
-      controls = (
-        <>
-          <p>
-            {input.presentation.title} - {selected.length} / {input.maxTargets} selected
-          </p>
-          {input.candidates.map((t) => (
-            <button
-              key={`${t.kind}:${t.id}`}
-              data-selected={selected.includes(t.id)}
-              onClick={() => toggle(t.id)}
-            >
-              {selected.includes(t.id) ? "✓ " : ""}
-              {t.kind === "player" ? (t.id === "player-0" ? "You" : "Opponent") : name(t.id)}
-            </button>
-          ))}
-          <button
-            disabled={selected.length < input.minTargets || selected.length > input.maxTargets}
-            onClick={() =>
-              send({
-                type: input.type,
-                output: {
-                  type: "boardTargets",
-                  chosen: input.candidates.filter((t) => selected.includes(t.id)),
-                },
-              })
-            }
-          >
-            Confirm targets
-          </button>
-          {input.cancellable && (
-            <button onClick={() => send({ type: input.type, output: { type: "cancel" } })}>
-              Cancel
-            </button>
-          )}
-        </>
+        <button
+          className="duel-primary"
+          onClick={() =>
+            send({
+              type: input.type,
+              output: {
+                type: "declareBlockers",
+                assignments: Object.entries(blocks)
+                  .filter(([, id]) => id)
+                  .map(([blockerId, attackerId]) => ({ blockerId, attackerId })),
+              },
+            })
+          }
+        >
+          <GameIcon name="block" />
+          {Object.values(blocks).filter(Boolean).length
+            ? `Block with ${Object.values(blocks).filter(Boolean).length}`
+            : "No blocks"}
+        </button>
       );
       break;
     case "mulliganPutBack":

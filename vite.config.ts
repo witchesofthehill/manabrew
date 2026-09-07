@@ -5,6 +5,7 @@ import type { Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import Icons from "unplugin-icons/vite";
+import { forgeWasm } from "@manabrew/forge-wasm/vite";
 
 const host = process.env.TAURI_DEV_HOST;
 const hubApiTarget = process.env.VITE_HUB_API_URL || "https://api.manabrew.app";
@@ -22,6 +23,25 @@ const appVersion = (
 
 const COEP = process.env.TAURI_ENV_PLATFORM ? "require-corp" : "credentialless";
 
+function forgeRuntimeFiles(): Plugin {
+  const files = ["forgeharness.js", "forgeharness.js.wasm"];
+  const source = (name: string) => readFileSync(path.resolve(__dirname, "node_modules/@manabrew/forge-wasm", name));
+  return {
+    name: "forge-runtime-files",
+    generateBundle() {
+      for (const name of files) this.emitFile({ type: "asset", fileName: `forge/${name}`, source: source(name) });
+    },
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const name = files.find((file) => req.url?.split("?")[0] === `/forge/${file}`);
+        if (!name) return next();
+        res.setHeader("Content-Type", name.endsWith(".wasm") ? "application/wasm" : "text/javascript");
+        res.end(source(name));
+      });
+    },
+  };
+}
+
 function crossOriginIsolation(): Plugin {
   return {
     name: "cross-origin-isolation",
@@ -37,6 +57,8 @@ function crossOriginIsolation(): Plugin {
 
 export default defineConfig({
   plugins: [
+    forgeWasm(),
+    forgeRuntimeFiles(),
     react(),
     tailwindcss(),
     Icons({

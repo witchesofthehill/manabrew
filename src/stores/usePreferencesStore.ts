@@ -27,6 +27,8 @@ export const CARD_SIZE_MULTIPLIER_MIN = 0.75;
 export const CARD_SIZE_MULTIPLIER_MAX = 1.5;
 
 interface PreferencesState {
+  battlefieldRenderer: "classic" | "3d";
+  setBattlefieldRenderer: (value: "classic" | "3d") => void;
   appThemePreset: string;
   setAppThemePreset: (id: string) => void;
 
@@ -141,6 +143,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "cardSizeMultiplier",
   "lockZoneTiles",
   "battlefieldCardStyle",
+  "battlefieldRenderer",
   "inGameAnimations",
   "chooseOrderOnMultipleTriggers",
   "ironsmithRuntimeEnabled",
@@ -242,6 +245,8 @@ export const usePreferencesStore = create<PreferencesState>()(
           setLockZoneTiles: (lockZoneTiles) => set({ lockZoneTiles }),
 
           battlefieldCardStyle: "realistic",
+          battlefieldRenderer: "3d",
+          setBattlefieldRenderer: (battlefieldRenderer) => set({ battlefieldRenderer }),
           setBattlefieldCardStyle: (battlefieldCardStyle) => set({ battlefieldCardStyle }),
 
           inGameAnimations: true,

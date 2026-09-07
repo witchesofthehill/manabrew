@@ -23,7 +23,7 @@ export const PHASES: readonly {
   { id: "cleanup", label: "Cleanup", short: "CL" },
 ];
 
-export { MANA_LETTERS as MANA_KEYS } from "@/themes/gameTheme";
+export { MANA_LETTERS as MANA_KEYS } from "@/themes/manaLetters";
 
 export const ZONE_COLUMN_RESERVED_PX = 120;
 

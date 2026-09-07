@@ -1,0 +1,50 @@
+.duel-combat-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 6px;
+  margin: 10px 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.duel-combat-steps li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 26px;
+  padding: 3px 4px;
+  border-radius: 5px;
+  font:
+    11px/1.25 system-ui,
+    sans-serif;
+  color: var(--arena-muted);
+  background: color-mix(in srgb, var(--arena-background) 60%, transparent);
+}
+.duel-combat-steps li > span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 16px;
+  height: 16px;
+  border: 1px solid var(--arena-border);
+  border-radius: 50%;
+  font-size: 10px;
+}
+.duel-combat-steps li[data-past="true"] {
+  opacity: 0.65;
+}
+.duel-combat-steps li[data-active="true"] {
+  color: var(--arena-foreground);
+  background: color-mix(in srgb, var(--arena-accent) 20%, var(--arena-background));
+  box-shadow: inset 2px 0 var(--arena-accent);
+}
+.duel-combat-steps li[data-active="true"] > span {
+  color: var(--arena-background);
+  background: var(--arena-accent);
+  border-color: var(--arena-accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--arena-accent) 35%, transparent);
+}
+@media (max-width: 900px) {
+  .duel-combat-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

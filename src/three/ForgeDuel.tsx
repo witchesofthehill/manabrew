@@ -1,3 +1,4 @@
+import { CardActionPicker } from "@/three/CardActionPicker";
 import { arenaSurface } from "@/themes/arenaSurface";
 import { GameIcon } from "@/three/GameIcon";
 import { constrainSelection } from "@/three/duelSelection";
@@ -5,12 +6,13 @@ import { LifeBadge } from "@/three/LifeBadge";
 import { SpellStack } from "@/three/SpellStack";
 import { ZoneCards } from "@/three/ZoneCards";
 import { DuelModal } from "@/three/DuelModal";
-import { ManaSymbol, ManaText } from "@/three/ManaSymbols";
+import { ManaSymbol } from "@/three/ManaSymbols";
 import { DuelFlowBar } from "@/three/DuelFlowBar";
 import { nextStepLabel } from "@/three/duelFlow";
 import { CardPreview } from "@/three/CardPreview";
 import { useEffect, useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
+import type { DuelMatch } from "@/three/duelMatch";
 import type { CardDto } from "@manabrew/protocol";
 import { ArenaScene } from "@/three/ArenaScene";
 import { DuelPrompt } from "@/three/DuelPrompt";
@@ -30,14 +32,23 @@ const imageUrl = (card: CardDto, variant: string) =>
     ? undefined
     : `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(card.identity.name)}&format=image&version=${variant}`;
 
-export function ForgeDuel() {
+export function ForgeDuel({
+  renderSetup,
+  onExit,
+}: {
+  renderSetup?: (start: (match: DuelMatch) => void, loading: boolean) => ReactNode;
+  onExit?: () => void;
+} = {}) {
   const game = useForgeDuel();
   const [playerCount, setPlayerCount] = useState(2);
   const { view, prompt } = game;
-  const [priorityDisplay, setPriorityDisplay] = useState<{ prompt: NonNullable<typeof prompt>; label: string } | null>(null);
+  const [priorityDisplay, setPriorityDisplay] = useState<{
+    prompt: NonNullable<typeof prompt>;
+    label: string;
+  } | null>(null);
   if (prompt?.input.type === "chooseAction" && view) {
     const label = game.autoPassing
-      ? priorityDisplay?.label ?? "Continue"
+      ? (priorityDisplay?.label ?? "Continue")
       : nextStepLabel(view.step, view.stack.length, game.fullControl);
     if (priorityDisplay?.prompt !== prompt || priorityDisplay.label !== label) {
       setPriorityDisplay({ prompt, label });
@@ -48,9 +59,11 @@ export function ForgeDuel() {
   const displayedPrompt = prompt ?? priorityDisplay?.prompt;
   const priorityBusy = game.autoPassing || !prompt;
   const activeName = view?.players.find((p) => p.id === view.activePlayerId)?.name ?? "Opponent";
-  const [abilityChoice, setAbilityChoice] = useState<{ cardId: string; promptId?: string } | null>(
-    null,
-  );
+  const [abilityChoice, setAbilityChoice] = useState<{
+    cardId: string;
+    prompt: NonNullable<typeof prompt>;
+  } | null>(null);
+  const activeAbilityChoice = abilityChoice?.prompt === prompt ? abilityChoice : null;
   const [selection, setSelection] = useState<{
     promptId?: string;
     ids: string[];
@@ -59,12 +72,15 @@ export function ForgeDuel() {
   const [drag, setDrag] = useState<{ id: string; canPlay: boolean } | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [stackOpen, setStackOpen] = useState(false);
+  const [castFlights, setCastFlights] = useState(0);
   const [zone, setZone] = useState<string | null>(null);
   const [confirmConcede, setConfirmConcede] = useState(false);
   const { setPaused } = game;
   useEffect(() => {
-    setPaused(Boolean(zone || confirmConcede || drag || abilityChoice || stackOpen));
-  }, [zone, confirmConcede, drag, abilityChoice, stackOpen, setPaused]);
+    setPaused(
+      Boolean(zone || confirmConcede || drag || activeAbilityChoice || stackOpen || castFlights),
+    );
+  }, [zone, confirmConcede, drag, activeAbilityChoice, stackOpen, castFlights, setPaused]);
   const selected = selection.promptId === prompt?.promptId ? selection.ids : [];
   const blocks = selection.promptId === prompt?.promptId ? selection.blocks : {};
   const onSelected = (ids: string[]) =>
@@ -127,10 +143,20 @@ export function ForgeDuel() {
               : "C")) as "W" | "U" | "B" | "R" | "G" | "C";
         return {
           id: card.id,
+          attachedTo: card.attachedTo,
+          actionCount:
+            prompt?.input.type === "chooseAction"
+              ? prompt.input.actions.filter((a) => a.cardId === card.id).length
+              : 0,
           playerId: playerCount === 4 ? card.controllerId : undefined,
           name: card.isFaceDown ? "Face-down card" : card.identity.name,
           type: card.types.join(" "),
           text: card.text,
+          keywords: card.isFaceDown ? [] : card.keywords,
+          counters: card.counters,
+          damage: card.damage,
+          summoningSick: card.summoningSick,
+          attackTargetId: card.attackTargetId,
           cost: card.manaCost,
           stats:
             card.power != null && card.toughness != null
@@ -161,13 +187,22 @@ export function ForgeDuel() {
         };
       });
   });
-  for (const zone of view?.zones.filter((z) => z.zone === "hand" && z.ownerId !== "player-0") ?? []) {
-    for (let i = 0; i < zone.count; i++) cards.push({
-      id: `${zone.ownerId}-hand-${i}`, playerId: playerCount === 4 ? zone.ownerId : undefined,
-      name: "Opponent's card", type: "", cost: "", text: "", side: "opponentHand",
-      hidden: true, color: colors.border,
-    });
-  }  const choose = (id: string) => {
+  for (const zone of view?.zones.filter((z) => z.zone === "hand" && z.ownerId !== "player-0") ??
+    []) {
+    for (let i = 0; i < zone.count; i++)
+      cards.push({
+        id: `${zone.ownerId}-hand-${i}`,
+        playerId: playerCount === 4 ? zone.ownerId : undefined,
+        name: "Opponent's card",
+        type: "",
+        cost: "",
+        text: "",
+        side: "opponentHand",
+        hidden: true,
+        color: colors.border,
+      });
+  }
+  const choose = (id: string) => {
     if (!prompt) return;
     const input = prompt.input;
     if (input.type === "chooseAction") {
@@ -177,7 +212,7 @@ export function ForgeDuel() {
           type: input.type,
           output: { type: "act", actionId: actions[0].id },
         });
-      else if (actions.length > 1) setAbilityChoice({ cardId: id, promptId: prompt.promptId });
+      else if (actions.length > 1) setAbilityChoice({ cardId: id, prompt });
     } else if (input.type === "chooseBlockers") {
       if (input.availableBlockerIds.includes(id)) {
         if (selected[0] === id) {
@@ -205,7 +240,11 @@ export function ForgeDuel() {
     }
   };
   const hintCard = cards.find((c) => c.id === (drag?.id ?? hoverId));
-  const hovered = allCards.find((c) => c.id === hoverId);
+  const hovered = allCards.find((c) => c.id === (activeAbilityChoice?.cardId ?? hoverId));
+  const hoveredSpell =
+    !activeAbilityChoice && !stackOpen
+      ? view?.stack.find((spell) => `stack:${spell.id}` === hoverId)
+      : undefined;
   const zoneCards = zone
     ? allCards.filter((c) =>
         view?.zones.some(
@@ -218,6 +257,18 @@ export function ForgeDuel() {
       <ArenaScene
         colors={colors}
         cards={cards}
+        targeting={
+          prompt?.input.type === "chooseBoardTargets"
+            ? {
+                stackId: (view?.stack.find((spell) => spell.isCasting) ?? view?.stack.at(-1))?.id,
+                sourceId: (view?.stack.find((spell) => spell.isCasting) ?? view?.stack.at(-1))
+                  ?.sourceId,
+                candidates: prompt.input.candidates.map((target) => target.id),
+                maxTargets: prompt.input.maxTargets,
+                selected,
+              }
+            : undefined
+        }
         combatStep={view?.step}
         combatTurn={view?.turn}
         zones={(view?.zones ?? [])
@@ -229,7 +280,10 @@ export function ForgeDuel() {
               zone: z.zone as ArenaZonePile["zone"],
               side: z.ownerId === "player-0" ? "self" : "opponent",
               count: z.count,
-              seat: playerCount === 4 && z.ownerId !== "player-0" ? Number(z.ownerId.split("-").at(-1)) - 1 : undefined,
+              seat:
+                playerCount === 4 && z.ownerId !== "player-0"
+                  ? Number(z.ownerId.split("-").at(-1)) - 1
+                  : undefined,
               topImage: top?.visibility === "visible" ? imageUrl(top, "large") : undefined,
               topName: top?.visibility === "visible" ? top.identity.name : undefined,
             };
@@ -238,6 +292,22 @@ export function ForgeDuel() {
         onCard={choose}
         onHover={setHoverId}
         onDrag={setDrag}
+        blockTargets={
+          prompt?.input.type === "chooseBlockers"
+            ? Object.fromEntries(
+                cards
+                  .filter((c) => c.side === "self")
+                  .map((c) => [
+                    c.id,
+                    prompt.input.type === "chooseBlockers"
+                      ? prompt.input.attackers
+                          .filter((a) => a.validBlockerIds.includes(c.id))
+                          .map((a) => a.attackerId)
+                      : [],
+                  ]),
+              )
+            : undefined
+        }
         links={[
           ...(view?.combatAssignments ?? []).map((a) => ({
             from: a.blockerId,
@@ -257,32 +327,39 @@ export function ForgeDuel() {
             )
           )
             onBlocks({ ...blocks, [id]: target });
-          else choose(id);
+          else if (prompt?.input.type !== "chooseBlockers") choose(id);
         }}
       />
       <div className="duel-hand-aura" aria-hidden="true" />
       {hintCard?.side === "hand" && prompt?.input.type === "chooseAction" && (
-        <div className="duel-play-hint" data-valid={hintCard.playable} data-ready={Boolean(drag?.canPlay)} role="status">
-          <span className="duel-hint-emblem"><GameIcon name={drag?.canPlay ? "confirm" : hintCard.playable ? "hand" : "control"} /></span>
+        <div
+          className="duel-play-hint"
+          data-valid={hintCard.playable}
+          data-ready={Boolean(drag?.canPlay)}
+          role="status"
+        >
+          <span className="duel-hint-emblem">
+            <GameIcon name={drag?.canPlay ? "confirm" : hintCard.playable ? "hand" : "control"} />
+          </span>
           <div>
-          <strong>
-            {drag
-              ? drag.canPlay
-                ? `Release to ${hintCard.type.includes("Land") ? "play land" : "cast spell"}`
+            <strong>
+              {drag
+                ? drag.canPlay
+                  ? `Release to ${hintCard.type.includes("Land") ? "play land" : "cast spell"}`
+                  : hintCard.playable
+                    ? "Drag onto the battlefield"
+                    : "Not playable right now"
                 : hintCard.playable
-                  ? "Drag onto the battlefield"
-                  : "Not playable right now"
-              : hintCard.playable
-                ? `Click or drag to ${hintCard.type.includes("Land") ? "play" : "cast"}`
-                : "Not playable right now"}
-          </strong>
-          <small>
-            {drag
-              ? "Esc or return to hand to cancel"
-              : hintCard.playable
-                ? hintCard.name
-                : "Available cards have a cyan outline"}
-          </small>
+                  ? `Click or drag to ${hintCard.type.includes("Land") ? "play" : "cast"}`
+                  : "Not playable right now"}
+            </strong>
+            <small>
+              {drag
+                ? "Esc or return to hand to cancel"
+                : hintCard.playable
+                  ? hintCard.name
+                  : "Available cards have a cyan outline"}
+            </small>
           </div>
         </div>
       )}
@@ -292,22 +369,55 @@ export function ForgeDuel() {
       </header>
       {!view && (
         <section className="duel-start">
-          <small>CHOOSE YOUR DECK</small>
-          <h2>A real duel. Your next move.</h2>
-          <p>Play a 60-card match against Forge AI.</p>
-<div className="duel-table-size" role="group" aria-label="Table size">
-  <button aria-pressed={playerCount === 2} disabled={game.loading} onClick={() => setPlayerCount(2)}>Duel · 2 players</button>
-  <button aria-pressed={playerCount === 4} disabled={game.loading} onClick={() => setPlayerCount(4)}>Free-for-all · 4 players</button>
-</div>
-          {duelDecks.map((deck, i) => (
-            <button key={deck.name} disabled={game.loading} onClick={() => void game.start(i, playerCount)}>
-              {deck.colorIdentity.map((symbol) => <ManaSymbol key={symbol} symbol={symbol} />)} {deck.name} ·{" "}
-              {i === 0 ? "White creatures" : "Green creatures"}
-            </button>
-          ))}
-          <p role="status">{game.status}</p>
+          {renderSetup ? (
+            renderSetup((match) => {
+              setPlayerCount(match.opponents.length + 1);
+              void game.start(0, match.opponents.length + 1, match);
+            }, game.loading)
+          ) : (
+            <>
+              <small>CHOOSE YOUR DECK</small>
+              <h2>A real duel. Your next move.</h2>
+              <p>Play a 60-card match against Forge AI.</p>
+              <div className="duel-table-size" role="group" aria-label="Table size">
+                <button
+                  aria-pressed={playerCount === 2}
+                  disabled={game.loading}
+                  onClick={() => setPlayerCount(2)}
+                >
+                  Duel · 2 players
+                </button>
+                <button
+                  aria-pressed={playerCount === 4}
+                  disabled={game.loading}
+                  onClick={() => setPlayerCount(4)}
+                >
+                  Free-for-all · 4 players
+                </button>
+              </div>
+              {duelDecks.map((deck, i) => (
+                <button
+                  key={deck.name}
+                  disabled={game.loading}
+                  onClick={() => void game.start(i, playerCount)}
+                >
+                  {deck.colorIdentity.map((symbol) => (
+                    <ManaSymbol key={symbol} symbol={symbol} />
+                  ))}{" "}
+                  {deck.name} · {i === 0 ? "White creatures" : "Green creatures"}
+                </button>
+              ))}
+            </>
+          )}
+          {(!renderSetup || game.loading) && <p role="status">{game.status}</p>}
           {game.error && <p role="alert">{game.error}</p>}
-          <a href="/arena.html">Visual playground</a>
+          {onExit ? (
+            <button disabled={game.loading} onClick={onExit}>
+              Back to Play
+            </button>
+          ) : (
+            <a href="/arena.html">Visual playground</a>
+          )}
         </section>
       )}
       {view && (
@@ -315,7 +425,9 @@ export function ForgeDuel() {
           {view.turn > 0 && (
             <div key={`turn-${view.turn}`} className="duel-turn-notice" aria-live="polite">
               <small>Turn {view.turn}</small>
-              <strong>{view.activePlayerId === "player-0" ? "Your turn" : `${activeName} turn`}</strong>
+              <strong>
+                {view.activePlayerId === "player-0" ? "Your turn" : `${activeName} turn`}
+              </strong>
             </div>
           )}
           {view.players.map((player) => (
@@ -335,9 +447,19 @@ export function ForgeDuel() {
                 onClick={() => choose(player.id)}
               />
               <div>
-                <small>{player.status !== "playing" ? "ELIMINATED" : player.id === view.activePlayerId ? "TAKING TURN" : player.id === view.priorityPlayerId ? "HAS PRIORITY" : "WAITING"}</small>
+                <small>
+                  {player.status !== "playing"
+                    ? "ELIMINATED"
+                    : player.id === view.activePlayerId
+                      ? "TAKING TURN"
+                      : player.id === view.priorityPlayerId
+                        ? "HAS PRIORITY"
+                        : "WAITING"}
+                </small>
                 <h3 className="duel-player-name">
-                  <span className="duel-turn-marker" aria-hidden="true">◆</span>
+                  <span className="duel-turn-marker" aria-hidden="true">
+                    ◆
+                  </span>
                   {player.name}
                 </h3>
                 <small>
@@ -369,37 +491,55 @@ export function ForgeDuel() {
                 onStop={game.toggleStop}
               />
             )}
-            {displayedPrompt && (!game.autoPassing || displayedPrompt.input.type === "chooseAction") && !game.autoPaying && !view.gameOver && (
-              <DuelPrompt
-                key={displayedPrompt.input.type === "chooseAction" ? "priority" : displayedPrompt.promptId}
-                prompt={displayedPrompt}
-                onAutoPay={game.payAutomatically}
-                nextLabel={priorityBusy ? priorityDisplay?.label ?? "Continue" : nextStepLabel(view.step, view.stack.length, game.fullControl)}
-                autoPassing={priorityBusy}
-                cards={allCards}
-                selected={selected}
-                onSelected={onSelected}
-                blocks={blocks}
-                onBlocks={onBlocks}
-                send={(action) => { if (prompt) game.respond(prompt.promptId, action); }}
-              />
-            )}
-            {(!displayedPrompt || (game.autoPassing && displayedPrompt.input.type !== "chooseAction") || game.autoPaying) && !view.gameOver && (
-              <div className="arena-actions duel-auto-status">
-                <strong>
-                  {game.autoPaying
-                    ? "Paying mana…"
-                    : view.activePlayerId === "player-0"
-                      ? "Continuing your turn"
-                      : `${activeName} turn`}
-                </strong>
-                <small>
-                  {game.autoPaying
-                    ? "Tapping sources and completing payment"
-                    : "Automatic priority · Full control to pause"}
-                </small>
-              </div>
-            )}
+            {displayedPrompt &&
+              (!game.autoPassing || displayedPrompt.input.type === "chooseAction") &&
+              !game.autoPaying &&
+              !view.gameOver && (
+                <DuelPrompt
+                  key={
+                    displayedPrompt.input.type === "chooseAction"
+                      ? "priority"
+                      : displayedPrompt.promptId
+                  }
+                  prompt={displayedPrompt}
+                  onAutoPay={game.payAutomatically}
+                  nextLabel={
+                    priorityBusy
+                      ? (priorityDisplay?.label ?? "Continue")
+                      : nextStepLabel(view.step, view.stack.length, game.fullControl)
+                  }
+                  autoPassing={priorityBusy}
+                  autoPassCountdown={game.autoPassCountdown}
+                  onHoldPriority={game.toggleControl}
+                  cards={allCards}
+                  selected={selected}
+                  onSelected={onSelected}
+                  blocks={blocks}
+                  onBlocks={onBlocks}
+                  send={(action) => {
+                    if (prompt) game.respond(prompt.promptId, action);
+                  }}
+                />
+              )}
+            {(!displayedPrompt ||
+              (game.autoPassing && displayedPrompt.input.type !== "chooseAction") ||
+              game.autoPaying) &&
+              !view.gameOver && (
+                <div className="arena-actions duel-auto-status">
+                  <strong>
+                    {game.autoPaying
+                      ? "Paying mana…"
+                      : view.activePlayerId === "player-0"
+                        ? "Continuing your turn"
+                        : `${activeName} turn`}
+                  </strong>
+                  <small>
+                    {game.autoPaying
+                      ? "Tapping sources and completing payment"
+                      : "Automatic priority · Full control to pause"}
+                  </small>
+                </div>
+              )}
           </div>
           {game.error && (
             <div className="duel-error" role="alert">
@@ -407,50 +547,77 @@ export function ForgeDuel() {
             </div>
           )}
           <SpellStack
+            targeting={prompt?.input.type === "chooseBoardTargets"}
+            onMotion={(active) => setCastFlights((count) => Math.max(0, count + (active ? 1 : -1)))}
             stack={view.stack}
             open={stackOpen}
-            onOpen={() => setStackOpen(true)}
+            onHover={(id) => setHoverId(id ? `stack:${id}` : null)}
+            onOpen={() => {
+              if (prompt?.input.type === "chooseBoardTargets") return;
+              setHoverId(null);
+              setStackOpen(true);
+            }}
             onClose={() => setStackOpen(false)}
           />
-          {abilityChoice &&
-            abilityChoice.promptId === prompt?.promptId &&
-            prompt?.input.type === "chooseAction" && (
-              <aside className="duel-card-actions">
-                <strong>
-                  {allCards.find((c) => c.id === abilityChoice.cardId)?.identity.name}
-                </strong>
-                {prompt.input.actions
-                  .filter((a) => a.cardId === abilityChoice.cardId)
-                  .map((a) => (
-                    <button
-                      key={a.id}
-                      onClick={() => {
-                        game.respond(prompt.promptId, {
-                          type: "chooseAction",
-                          output: { type: "act", actionId: a.id },
-                        });
-                        setAbilityChoice(null);
-                      }}
-                    >
-                      <ManaText
-                        text={
-                          a.type === "cast"
-                            ? a.label
-                            : a.type === "activateAbility"
-                              ? a.description
-                              : "Undo mana"
-                        }
-                      />
-                    </button>
-                  ))}
-                <button onClick={() => setAbilityChoice(null)}>Cancel</button>
-              </aside>
-            )}
+          {activeAbilityChoice &&
+            prompt?.input.type === "chooseAction" &&
+            !zone &&
+            !stackOpen &&
+            !confirmConcede && (
+              <CardActionPicker
+                key={`${prompt.promptId}:${activeAbilityChoice.cardId}`}
+                name={
+                  allCards.find((c) => c.id === activeAbilityChoice.cardId)?.identity.name ?? "Card"
+                }
+                actions={prompt.input.actions.filter(
+                  (a) => a.cardId === activeAbilityChoice.cardId,
+                )}
+                onChoose={(action) => {
+                  game.respond(prompt.promptId, {
+                    type: "chooseAction",
+                    output: { type: "act", actionId: action.id },
+                  });
+                  setAbilityChoice(null);
+                }}
+                onClose={() => setAbilityChoice(null)}
+              />
+            )}{" "}
           <CardPreview
+            hideDetails={Boolean(activeAbilityChoice)}
+            onInspect={setHoverId}
             card={
               hovered && !hovered.isFaceDown
-                ? { id: hovered.id, name: hovered.identity.name, image: imageUrl(hovered, "large") }
-                : undefined
+                ? {
+                    id: hovered.id,
+                    name: hovered.identity.name,
+                    attachedToName: allCards.find((card) => card.id === hovered.attachedTo)
+                      ?.identity.name,
+                    attachmentNames: allCards
+                      .filter((card) => card.attachedTo === hovered.id)
+                      .map((card) => card.identity.name),
+                    image: imageUrl(hovered, "large"),
+                    keywords: hovered.keywords,
+                    counters: hovered.counters,
+                    damage: hovered.damage,
+                    text: hovered.text,
+                    stats:
+                      hovered.power != null ? `${hovered.power}/${hovered.toughness}` : undefined,
+                    summoningSick:
+                      hovered.summoningSick &&
+                      hovered.types.includes("Creature") &&
+                      view.zones.some(
+                        (z) => z.zone === "battlefield" && z.cards.some((c) => c.id === hovered.id),
+                      ),
+                    tapped: hovered.tapped,
+                  }
+                : hoveredSpell
+                  ? {
+                      id: `stack:${hoveredSpell.id}`,
+                      name: hoveredSpell.identity.name,
+                      image: `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(hoveredSpell.identity.name)}&format=image&version=large`,
+                      text: hoveredSpell.text,
+                    }
+                  : undefined
             }
           />
           {zone && (
@@ -477,7 +644,9 @@ export function ForgeDuel() {
           {confirmConcede && (
             <DuelModal title="Match menu" onClose={() => setConfirmConcede(false)}>
               <h2>Match menu</h2>
+              <p>Your deck: {game.deckName}</p>
               <button onClick={() => setConfirmConcede(false)}>Return to match</button>
+              {onExit && <button onClick={onExit}>Leave match and return to Play</button>}
               <button
                 onClick={() => {
                   game.concede();
@@ -495,7 +664,8 @@ export function ForgeDuel() {
                 {view.winnerId === "player-0" ? "Victory" : view.winnerId ? "Defeat" : "Draw"}
               </h2>
               <p>The Forge engine has ended the game.</p>
-              <button onClick={() => void game.start(game.deckIndex, playerCount)}>Play again</button>
+              <button onClick={() => void game.restart()}>Play again</button>
+              {onExit && <button onClick={onExit}>Back to Play</button>}
             </section>
           )}
         </>

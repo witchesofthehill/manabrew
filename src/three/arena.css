@@ -315,3 +315,83 @@
     min-height: 40px;
   }
 }
+
+.arena-card-details {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 0;
+  width: clamp(210px, 22vw, 310px);
+  max-height: min(68vh, 620px);
+  overflow: auto;
+  scrollbar-width: none;
+  pointer-events: auto;
+  display: grid;
+  gap: 5px;
+  color: var(--arena-foreground);
+  overscroll-behavior: contain;
+}
+.arena-card-details::-webkit-scrollbar {
+  display: none;
+}
+.arena-card-details section {
+  padding: 10px 12px;
+  border-radius: 4px 10px 10px 4px;
+  background: color-mix(in srgb, var(--arena-background) 96%, transparent);
+  border-left: 2px solid var(--arena-border);
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--arena-background) 55%, transparent);
+}
+.arena-card-details strong {
+  font:
+    600 14px/1.35 Georgia,
+    serif;
+  display: block;
+}
+.arena-card-details p {
+  font: 12px/1.45 sans-serif;
+  margin: 4px 0 0;
+  white-space: pre-line;
+}
+.arena-keyword-detail {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.arena-keyword-detail svg {
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  color: var(--arena-accent);
+}
+.arena-detail-state > div {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  margin-top: 7px;
+  font: 13px/1.4 sans-serif;
+}
+.arena-detail-state strong b {
+  color: var(--arena-accent);
+  margin-left: 6px;
+  white-space: nowrap;
+}
+.arena-counter-number {
+  border: 1px solid var(--arena-playable, var(--arena-accent));
+  border-radius: 50%;
+  min-width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  font-weight: bold;
+}
+.arena-damage-detail {
+  color: var(--arena-attack, var(--arena-hostile));
+}
+@media (max-height: 620px), (max-width: 800px) {
+  .arena-card-details {
+    width: 210px;
+    max-height: 68vh;
+  }
+  .arena-card-details section {
+    padding: 7px 9px;
+  }
+}

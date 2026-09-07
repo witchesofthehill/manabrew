@@ -1,13 +1,67 @@
 import type { ArenaCard } from "@/three/arena.types";
 import { multiplayerSeat } from "@/three/multiplayerLayout";
 
-export function arenaLayout(cards: ArenaCard[]): Map<string, { x: number; y: number; z: number; angle: number; scale: number; pileCount?: number }> {
-  const opponents = [...new Set(cards.filter((c) => c.side === "opponent" || c.side === "opponentHand").map((c) => c.playerId).filter(Boolean))];
+export function arenaLayout(cards: ArenaCard[]) {
+  const attachments = cards.filter(
+    (card) => card.attachedTo && cards.some((host) => host.id === card.attachedTo),
+  );
+  const attachedIds = new Set(attachments.map((card) => card.id));
+  const hosts = new Set(attachments.map((card) => card.attachedTo));
+  const positions = baseLayout(
+    cards
+      .filter((card) => !attachedIds.has(card.id))
+      .map((card) =>
+        hosts.has(card.id)
+          ? {
+              ...card,
+              attachmentNames: attachments
+                .filter((attachment) => attachment.attachedTo === card.id)
+                .map((attachment) => attachment.name),
+            }
+          : card,
+      ),
+  );
+  const placed = new Map<string, number>();
+  for (const card of attachments) {
+    const host = positions.get(card.attachedTo!);
+    if (!host) continue;
+    const index = placed.get(card.attachedTo!) ?? 0;
+    if (!index) host.y += 0.16;
+    placed.set(card.attachedTo!, index + 1);
+    positions.set(card.id, {
+      x: host.x + 0.12 * host.scale,
+      y: host.y - 0.055 - index * 0.015,
+      z: host.z - (0.75 + index * 0.42) * host.scale,
+      angle: host.angle,
+      scale: host.scale * 0.92,
+    });
+  }
+  return positions;
+}
+
+function baseLayout(
+  cards: ArenaCard[],
+): Map<
+  string,
+  { x: number; y: number; z: number; angle: number; scale: number; pileCount?: number }
+> {
+  const opponents = [
+    ...new Set(
+      cards
+        .filter((c) => c.side === "opponent" || c.side === "opponentHand")
+        .map((c) => c.playerId)
+        .filter(Boolean),
+    ),
+  ];
   if (opponents.length > 0) {
-    const result = arenaLayout(cards.filter((c) => c.side === "self" || c.side === "hand"));
+    const result = baseLayout(cards.filter((c) => c.side === "self" || c.side === "hand"));
     for (const player of opponents) {
       const seat = Number(player!.split("-").at(-1)) - 1;
-      for (const [id, position] of multiplayerSeat(cards.filter((c) => c.playerId === player), seat)) result.set(id, position);
+      for (const [id, position] of multiplayerSeat(
+        cards.filter((c) => c.playerId === player),
+        seat,
+      ))
+        result.set(id, position);
     }
     return result;
   }
@@ -36,7 +90,13 @@ export function arenaLayout(cards: ArenaCard[]): Map<string, { x: number; y: num
         const matching = new Map<string, ArenaCard[][]>();
         for (const card of row) {
           // Creatures, hidden cards and cards involved in a decision stay separate.
-          if (/creature/i.test(card.type) || card.hidden || card.selected || card.attacking) {
+          if (
+            /creature/i.test(card.type) ||
+            card.hidden ||
+            card.selected ||
+            card.attacking ||
+            card.attachmentNames?.length
+          ) {
             groups.push([card]);
             continue;
           }
@@ -62,7 +122,13 @@ export function arenaLayout(cards: ArenaCard[]): Map<string, { x: number; y: num
           pile.push(card);
         }
         const columns = Math.min(6, groups.length);
-        const scale = groups.length > 6 ? 0.82 : 1;
+        const rows = Math.ceil(groups.length / 6);
+        const scale =
+          side === "opponent" && rows > 1
+            ? 2.2 / (rows * 2.2 + 0.48)
+            : groups.length > 6
+              ? 0.82
+              : 1;
         groups.forEach((pile, index) =>
           pile.forEach((card, depth) => {
             const sign = side === "self" ? 1 : -1;
@@ -70,8 +136,11 @@ export function arenaLayout(cards: ArenaCard[]): Map<string, { x: number; y: num
               x: ((index % 6) - (columns - 1) / 2) * 2.9 + (depth - (pile.length - 1) / 2) * 0.24,
               y: -0.12 + depth * 0.045,
               z:
-                sign *
-                ((side === "opponent" ? 8.8 : 5.5) + Math.floor(index / 6) * 2.2 + depth * 0.16),
+                side === "opponent"
+                  ? -(rows > 1
+                      ? 5.1 + (1.1 + Math.floor(index / 6) * 2.2 + depth * 0.16) * scale
+                      : 6.2 + depth * 0.16)
+                  : sign * (5.5 + Math.floor(index / 6) * 2.2 + depth * 0.16),
               angle: card.tapped ? -0.14 : 0,
               scale,
               pileCount: depth === pile.length - 1 && pile.length > 1 ? pile.length : undefined,
@@ -98,7 +167,7 @@ export function arenaLayout(cards: ArenaCard[]): Map<string, { x: number; y: num
           z:
             side === "hand"
               ? 6.5 + Math.abs(x) * 0.05
-              : sign * ((side === "opponent" ? 4.6 : 2.1) + depth - (card.attacking ? 1.1 : 0)),
+              : sign * ((side === "opponent" ? 4 : 2.1) + depth - (card.attacking ? 1.1 : 0)),
           angle: card.tapped ? -0.14 : side === "hand" ? -x * 0.045 : 0,
           scale,
         });

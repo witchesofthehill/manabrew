@@ -2,6 +2,7 @@ import { ChoicePages } from "@/three/ChoicePages";
 import { useState } from "react";
 import type { PromptInput, PromptOutput } from "@manabrew/protocol";
 import { ManaSymbol } from "@/three/ManaSymbols";
+import { ManaText } from "@/three/ManaSymbols";
 
 export function ExtraDuelChoices({
   input,
@@ -49,14 +50,16 @@ export function ExtraDuelChoices({
             <button
               key={i}
               data-selected={chosen.includes(i)}
-              disabled={total + option.weight > input.maxTotal && !chosen.includes(i)}
+              disabled={
+                total + option.weight > input.maxTotal && (option.canRepeat || !chosen.includes(i))
+              }
               onClick={() =>
                 setChosen((old) =>
                   !option.canRepeat && old.includes(i) ? old.filter((n) => n !== i) : [...old, i],
                 )
               }
             >
-              {option.label}
+              <ManaText text={option.label} />
               {chosen.includes(i) ? ` ×${chosen.filter((n) => n === i).length}` : ""}
             </button>
           ))}

@@ -1,6 +1,7 @@
 export const ROUTES = {
   LOBBY: "/lobby",
   PLAY: "/play",
+  PLAY_ARENA: "/play/arena",
   PLAY_OFFLINE: "/play/offline",
   PLAY_OFFLINE_CONSTRUCTED: "/play/offline/constructed",
   PLAY_OFFLINE_LIMITED: "/play/offline/limited",

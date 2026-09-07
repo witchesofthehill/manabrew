@@ -1,6 +1,15 @@
 export interface ArenaCard {
+  attachedTo?: string;
+  attachmentNames?: string[];
+  attachedToName?: string;
   playerId?: string;
   attackingPlayerId?: string;
+  attackTargetId?: string;
+  keywords?: string[];
+  counters?: Record<string, number>;
+  damage?: number;
+  summoningSick?: boolean;
+  actionCount?: number;
   id: string;
   name: string;
   type: string;
@@ -20,6 +29,12 @@ export interface ArenaCard {
   hidden?: boolean;
 }
 
+export interface AutoPassCountdown {
+  promptId?: string;
+  startedAt: number;
+  duration: number;
+}
+
 export interface ArenaColors {
   background: string;
   surface: string;
@@ -29,6 +44,8 @@ export interface ArenaColors {
   accent: string;
   hostile: string;
   playable?: string;
+  attack?: string;
+  block?: string;
 }
 
 export interface ArenaLink {
@@ -38,9 +55,17 @@ export interface ArenaLink {
 }
 
 export interface ArenaSceneProps {
+  targeting?: {
+    stackId?: string;
+    sourceId?: string;
+    candidates: string[];
+    selected: string[];
+    maxTargets?: number;
+  };
   cards: ArenaCard[];
   colors: ArenaColors;
   links?: ArenaLink[];
+  blockTargets?: Record<string, string[]>;
   onCard: (id: string) => void;
   onHover?: (id: string | null, rect?: DOMRect) => void;
   onDrop?: (id: string, targetId: string | null) => void;

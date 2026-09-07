@@ -1,0 +1,43 @@
+.arena-account-setup {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 125px;
+  gap: 14px;
+}
+.arena-account-setup label:first-child {
+  grid-column: 1 / -1;
+}
+.duel-start:has(.arena-account-setup) {
+  width: min(560px, 92vw);
+  max-height: calc(100dvh - 32px);
+  padding: 24px;
+}
+.duel-start:has(.arena-account-setup) h2 {
+  font-size: 26px;
+  line-height: 1.3;
+  margin: 8px 0;
+}
+.duel-start:has(.arena-account-setup) p {
+  margin: 8px 0;
+}
+.arena-account-setup label {
+  display: grid;
+  gap: 6px;
+  color: var(--arena-muted);
+  font-size: 14px;
+}
+.arena-account-setup select {
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--arena-border);
+  border-radius: 8px;
+  background: var(--arena-background);
+  color: var(--arena-foreground);
+  font: inherit;
+}
+.duel-start .arena-deck-refresh {
+  display: inline;
+  width: auto;
+  margin: 0 0 0 8px;
+  padding: 4px 8px;
+}

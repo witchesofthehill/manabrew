@@ -4,6 +4,9 @@ import type { ForgeEngine } from "@manabrew/forge-wasm";
 import type { GameViewDto, Prompt, PromptOutput } from "@manabrew/protocol";
 import { isPhaseStopped } from "@/three/duelFlow";
 import { duelDecks } from "@/three/duelDecks";
+import type { DuelMatch } from "@/three/duelMatch";
+import { AUTOPASS_DELAY_MIN_MS, AUTOPASS_DELAY_MAX_MS } from "@/components/game/game.constants";
+import type { AutoPassCountdown } from "@/three/arena.types";
 
 export function useForgeDuel() {
   const engine = useRef<ForgeEngine | null>(null);
@@ -15,12 +18,16 @@ export function useForgeDuel() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [deckIndex, setDeckIndex] = useState(0);
+  const [deckName, setDeckName] = useState(duelDecks[0].name);
   const [playerColors, setPlayerColors] = useState<Record<string, string[]>>({});
   const [fullControl, setFullControl] = useState(false);
   const [stops, setStops] = useState<string[]>([]);
   const [paused, setPaused] = useState(false);
   const [autoPaying, setAutoPaying] = useState(false);
+  const [autoPassCountdown, setAutoPassCountdown] = useState<AutoPassCountdown | null>(null);
   const autoPaySteps = useRef(0);
+  const lastMatch = useRef<DuelMatch | undefined>(undefined);
+  const lastPlayerCount = useRef(2);
   useEffect(
     () => () => {
       generation.current++;
@@ -28,14 +35,29 @@ export function useForgeDuel() {
     },
     [],
   );
-  const start = async (index: number, playerCount = 2) => {
+  const start = async (index: number, playerCount = 2, match?: DuelMatch) => {
+    lastMatch.current = match;
+    lastPlayerCount.current = playerCount;
+    const deck = match?.deck ?? duelDecks[index];
+    setDeckName(deck.name);
+    const opponents =
+      match?.opponents ??
+      Array.from(
+        { length: playerCount - 1 },
+        (_, seat) => duelDecks[(index + seat + 1) % duelDecks.length],
+      );
     const run = ++generation.current;
     engine.current?.dispose();
     pending.current = null;
     setDeckIndex(index);
-    setPlayerColors(Object.fromEntries(Array.from({ length: playerCount }, (_, seat) => [
-      `player-${seat}`, duelDecks[(index + seat) % duelDecks.length].colorIdentity,
-    ])));
+    setPlayerColors(
+      Object.fromEntries(
+        Array.from({ length: playerCount }, (_, seat) => [
+          `player-${seat}`,
+          match?.colors[seat] ?? duelDecks[(index + seat) % duelDecks.length].colorIdentity,
+        ]),
+      ),
+    );
     setView(null);
     setPrompt(null);
     setError("");
@@ -73,9 +95,10 @@ export function useForgeDuel() {
       }
       engine.current = next;
       await next.startGame({
-        deck: duelDecks[index],
-        opponentDecks: Array.from({ length: playerCount - 1 }, (_, seat) => duelDecks[(index + seat + 1) % duelDecks.length]),
-        startingLife: 20,
+        deck,
+        opponentDecks: opponents,
+        commanderName: deck.commanders?.[0]?.identity?.name ?? deck.commanders?.[0]?.name,
+        startingLife: match?.startingLife ?? 20,
       });
     } catch (failure) {
       if (run === generation.current) {
@@ -140,15 +163,26 @@ export function useForgeDuel() {
   );
   useEffect(() => {
     if (!autoPassing || !prompt) return;
-    const timer = window.setTimeout(
-      () =>
-        respond(prompt.promptId, {
-          type: "chooseAction",
-          output: { type: "pass", exhaustStack: false },
-        }),
-      450,
-    );
-    return () => window.clearTimeout(timer);
+    let passTimer: number;
+    const timer = window.setTimeout(() => {
+      const duration = Math.round(
+        AUTOPASS_DELAY_MIN_MS + Math.random() * (AUTOPASS_DELAY_MAX_MS - AUTOPASS_DELAY_MIN_MS),
+      );
+      setAutoPassCountdown({ promptId: prompt.promptId, startedAt: performance.now(), duration });
+      passTimer = window.setTimeout(
+        () =>
+          respond(prompt.promptId, {
+            type: "chooseAction",
+            output: { type: "pass", exhaustStack: false },
+          }),
+        duration,
+      );
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearTimeout(passTimer);
+      setAutoPassCountdown(null);
+    };
   }, [autoPassing, prompt, respond]);
   const toggleControl = useCallback(() => setFullControl((old) => !old), []);
   const toggleStop = (step: string) =>
@@ -200,8 +234,10 @@ export function useForgeDuel() {
     error,
     loading,
     deckIndex,
+    deckName,
     playerColors,
     start,
+    restart: () => start(deckIndex, lastPlayerCount.current, lastMatch.current),
     respond,
     concede,
     fullControl,
@@ -209,6 +245,8 @@ export function useForgeDuel() {
     stops,
     toggleStop,
     autoPassing,
+    autoPassCountdown:
+      autoPassing && autoPassCountdown?.promptId === prompt?.promptId ? autoPassCountdown : null,
     setPaused,
     autoPaying,
     payAutomatically,

@@ -6,6 +6,16 @@ import combat from "@/three/assets/phase-combat.svg";
 import end from "@/three/assets/phase-end.svg";
 import preset from "@/themes/kanagawa";
 import { duelPhases, stepNames } from "@/three/duelFlow";
+import "@/three/CombatSteps.css";
+
+const combatSteps = [
+  ["combatBegin", "Begin"],
+  ["combatDeclareAttackers", "Attackers"],
+  ["combatDeclareBlockers", "Blockers"],
+  ["combatFirstStrikeDamage", "First strike"],
+  ["combatDamage", "Damage"],
+  ["combatEnd", "End combat"],
+] as const;
 
 const icons = { sun: beginning, card: main, swords: combat, moon: end };
 const tints = {
@@ -34,6 +44,7 @@ export function DuelFlowBar({
   stops: string[];
   onStop: (step: string) => void;
 }) {
+  const combatIndex = combatSteps.findIndex(([id]) => id === step);
   return (
     <nav className="duel-flow" aria-label="Turn phases">
       <div className="duel-flow-heading">
@@ -71,6 +82,26 @@ export function DuelFlowBar({
           );
         })}
       </div>
+      {combatIndex >= 0 && (
+        <ol className="duel-combat-steps" aria-label="Combat steps">
+          {combatSteps.map(([id, label], index) => (
+            <li
+              key={id}
+              aria-current={id === step ? "step" : undefined}
+              data-active={id === step}
+              data-past={index < combatIndex}
+              title={
+                id === "combatFirstStrikeDamage"
+                  ? "First strike damage — only when first strike or double strike applies"
+                  : stepNames[id]
+              }
+            >
+              <span aria-hidden="true">{index + 1}</span>
+              {label}
+            </li>
+          ))}
+        </ol>
+      )}
       <button
         className="duel-control"
         aria-pressed={fullControl}

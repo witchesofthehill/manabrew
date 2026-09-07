@@ -1,10 +1,13 @@
 import * as THREE from "three";
+import { targetingOverlay } from "@/three/targetingOverlay";
+import { blockShield } from "@/three/blockShield";
 import type { ArenaSceneProps } from "@/three/arena.types";
 import { cardTexture } from "@/three/cardTexture";
 import { updatePileBadge, clearPileBadge } from "@/three/pileBadge";
 import { arenaLayout } from "@/three/arenaLayout";
 import { tableTexture } from "@/three/tableTexture";
-import { cardGeometry } from "@/three/cardGeometry";
+import { cardGeometry, CARD_WIDTH, CARD_HEIGHT } from "@/three/cardGeometry";
+import { recordCastOrigin } from "@/three/castMotion";
 import { cardGlow, disposeCardGlow } from "@/three/cardGlow";
 import { arenaAtmosphere } from "@/three/arenaAtmosphere";
 import { combatMotion } from "@/three/combatMotion";
@@ -25,7 +28,8 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
   let handZ = 8.5;
   let handOrder: string[] = [];
   const resize = () => {
-    const { width, height } = element.getBoundingClientRect();
+    const width = element.clientWidth;
+    const height = element.clientHeight;
     renderer.setSize(width, height);
     const gutter = width <= 1000 || height <= 620 ? Math.min(220, width * 0.3) : 0;
     sceneWidth = Math.max(1, width - gutter);
@@ -109,6 +113,9 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
     dispose: () => void;
   };
   const tiles = new Map<string, Tile>();
+  const targets = targetingOverlay(element.closest(".arena-root") ?? element, live, (event) =>
+    hit(event),
+  );
   const combat = combatMotion();
   const atmosphere = arenaAtmosphere(scene, colors);
   const zonePiles = createZonePiles(scene, colors);
@@ -119,6 +126,38 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
   let hold = 0;
   let dragPosition: THREE.Vector3 | null = null;
   let dragKey = "";
+  let blockTarget: string | null = null;
+  const blocking = () => Boolean(pressed && live.current.blockTargets?.[pressed.id]);
+  const blockArrow = new THREE.ArrowHelper(
+    new THREE.Vector3(0, 0, -1),
+    new THREE.Vector3(),
+    1,
+    colors.accent,
+    0.5,
+    0.32,
+  );
+  blockArrow.visible = false;
+  blockArrow.line.visible = false;
+  const blockShaft = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.035, 0.035, 1, 8),
+    new THREE.MeshBasicMaterial({ color: colors.accent }),
+  );
+  blockArrow.add(blockShaft);
+  scene.add(blockArrow);
+  const blockColor = colors.block ?? colors.playable ?? colors.accent;
+  const dragShield = blockShield(colors);
+  scene.add(...dragShield);
+  const blockHalo = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.13, 0.13, 1, 8),
+    new THREE.MeshBasicMaterial({
+      color: blockColor,
+      transparent: true,
+      opacity: 0.2,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }),
+  );
+  blockArrow.add(blockHalo);
   const playArea = new THREE.LineLoop(
     new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(-9, 0.08, -4.5),
@@ -191,6 +230,10 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
       }, LONG_PRESS_PREVIEW_MS);
   };
   const move = (e: PointerEvent) => {
+    if (live.current.targeting) {
+      preview(hit(e));
+      return;
+    }
     if (pressed && pressed.pointerId !== e.pointerId) return;
     if (
       pressed &&
@@ -198,12 +241,20 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
     ) {
       clearTimeout(hold);
       if (!pressed.held && tiles.has(pressed.id)) {
-        hit(e);
+        const targetId = hit(e, pressed.id);
         dragPosition = raycaster.ray.intersectPlane(
           new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.9),
           new THREE.Vector3(),
         );
         const card = live.current.cards.find((c) => c.id === pressed?.id);
+        blockTarget =
+          blocking() && targetId && live.current.blockTargets?.[pressed.id]?.includes(targetId)
+            ? targetId
+            : null;
+        if (blocking()) {
+          preview(null);
+          element.style.cursor = blockTarget ? "crosshair" : "default";
+        }
         dragFeedback(pressed.id, Boolean(card?.side === "hand" && card.playable && canDropHand()));
       }
     }
@@ -220,20 +271,27 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
     const card = live.current.cards.find((c) => c.id === previous.id);
     const validHandDrop = Boolean(card?.playable && canDropHand());
     const bounds = element.getBoundingClientRect();
-    if (card?.side === "hand" && wasDragged && !validHandDrop &&
+    if (
+      card?.side === "hand" &&
+      wasDragged &&
+      !validHandDrop &&
       e.clientY >= bounds.top + bounds.height * 0.72 &&
-      e.clientY <= bounds.bottom && e.clientX >= bounds.left && e.clientX <= bounds.left + sceneWidth) {
+      e.clientY <= bounds.bottom &&
+      e.clientX >= bounds.left &&
+      e.clientX <= bounds.left + sceneWidth
+    ) {
       const others = handOrder.filter((id) => id !== card.id);
       const insertion = others.findIndex((id) => {
         const tile = tiles.get(id);
         if (!tile?.rest) return false;
         const screen = tile.rest.position.clone().project(camera);
-        return bounds.left + (screen.x + 1) * sceneWidth / 2 > e.clientX;
+        return bounds.left + ((screen.x + 1) * sceneWidth) / 2 > e.clientX;
       });
       others.splice(insertion < 0 ? others.length : insertion, 0, card.id);
       handOrder = others;
     }
     pressed = null;
+    blockTarget = null;
     dragPosition = null;
     dragFeedback(null);
     if (previous.held) {
@@ -252,6 +310,7 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
   const cancel = () => {
     clearTimeout(hold);
     pressed = null;
+    blockTarget = null;
     dragPosition = null;
     dragFeedback(null);
     preview(null);
@@ -322,15 +381,23 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
     );
     const bounds = element.getBoundingClientRect();
     for (const side of ["self", "opponent", "player-0", "player-1", "player-2", "player-3"]) {
-      const badge = element.closest(".arena-root")?.querySelector(`[data-player-side="${side}"], [data-player-id="${side}"]`);
+      const badge = element
+        .closest(".arena-root")
+        ?.querySelector(`[data-player-side="${side}"], [data-player-id="${side}"]`);
       if (!badge) continue;
       const rect = badge.getBoundingClientRect();
       const ray = new THREE.Raycaster();
-      ray.setFromCamera(new THREE.Vector2(
-        ((rect.left + rect.width / 2 - bounds.left) / sceneWidth) * 2 - 1,
-        1 - ((rect.top + rect.height / 2 - bounds.top) / bounds.height) * 2,
-      ), camera);
-      const target = ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.8), new THREE.Vector3());
+      ray.setFromCamera(
+        new THREE.Vector2(
+          ((rect.left + rect.width / 2 - bounds.left) / sceneWidth) * 2 - 1,
+          1 - ((rect.top + rect.height / 2 - bounds.top) / bounds.height) * 2,
+        ),
+        camera,
+      );
+      const target = ray.ray.intersectPlane(
+        new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.8),
+        new THREE.Vector3(),
+      );
       if (target) combatPositions.set(`player:${side}`, target);
     }
     combat.update(current, time, combatPositions);
@@ -362,6 +429,10 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
         card.text,
         card.stats,
         card.statsChanged,
+        card.keywords,
+        card.counters,
+        card.damage,
+        card.actionCount,
         card.image,
         card.artImage,
         card.side,
@@ -455,7 +526,7 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
         } else destination.y += 0.65;
       }
       tile.mesh.position.lerp(
-        pressed?.id === card.id && dragPosition ? dragPosition : destination,
+        pressed?.id === card.id && dragPosition && !blocking() ? dragPosition : destination,
         ease,
       );
       if (card.side === "opponentHand") {
@@ -480,9 +551,15 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
       const scale =
         target.scale * (hovered === card.id ? (card.side === "hand" ? 1.035 : 1.12) : 1);
       tile.mesh.scale.lerp(new THREE.Vector3(scale, scale, scale), ease);
-      const glow = card.selected || card.playable || hovered === card.id;
+      const glow = card.selected || card.playable || hovered === card.id || blockTarget === card.id;
       tile.glow.material.opacity +=
-        ((card.playable || card.selected ? (hovered === card.id ? 1 : 0.7) : 0) -
+        ((blockTarget === card.id
+          ? 1
+          : card.playable || card.selected
+            ? hovered === card.id
+              ? 1
+              : 0.7
+            : 0) -
           tile.glow.material.opacity) *
         ease;
       for (const child of tile.glow.children)
@@ -503,13 +580,23 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
       if (impact) {
         if (!reduced.matches) atmosphere.impact(impact.position, time);
         if (impact.player) {
-          const badge = element.closest(".arena-root")?.querySelector(`[data-player-side="${impact.player}"], [data-player-id="${impact.player}"]`);
-          badge?.animate([
-            { boxShadow: `0 0 0 3px ${colors.hostile}, 0 0 36px ${colors.hostile}`, transform: "translateX(0)" },
-            { transform: reduced.matches ? "none" : "translateX(-7px)" },
-            { transform: reduced.matches ? "none" : "translateX(5px)" },
-            { boxShadow: "none", transform: "translateX(0)" },
-          ], { duration: 460, easing: "ease-out" });
+          const badge = element
+            .closest(".arena-root")
+            ?.querySelector(
+              `[data-player-side="${impact.player}"], [data-player-id="${impact.player}"]`,
+            );
+          badge?.animate(
+            [
+              {
+                boxShadow: `0 0 0 3px ${colors.hostile}, 0 0 36px ${colors.hostile}`,
+                transform: "translateX(0)",
+              },
+              { transform: reduced.matches ? "none" : "translateX(-7px)" },
+              { transform: reduced.matches ? "none" : "translateX(5px)" },
+              { boxShadow: "none", transform: "translateX(0)" },
+            ],
+            { duration: 460, easing: "ease-out" },
+          );
         }
       }
       if (tile.departing !== undefined) {
@@ -542,7 +629,52 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
         }
       }
     }
-    const nextLinkKey = JSON.stringify([current.links, [...layout]]);
+    blockArrow.visible = Boolean(blocking() && dragPosition);
+    dragShield.forEach((mesh) => {
+      mesh.visible = blockArrow.visible;
+    });
+    if (blockArrow.visible && pressed && dragPosition) {
+      const source = layout.get(pressed.id);
+      const target = blockTarget ? layout.get(blockTarget) : undefined;
+      if (source) {
+        const start = new THREE.Vector3(source.x, 1, source.z);
+        const end = target
+          ? new THREE.Vector3(target.x, 1, target.z)
+          : dragPosition.clone().setY(1);
+        const direction = end.clone().sub(start);
+        blockArrow.position.copy(start);
+        blockArrow.setDirection(direction.clone().normalize());
+        blockArrow.setLength(Math.max(0.01, direction.length()), 0.5, 0.32);
+        blockShaft.scale.y = Math.max(0.01, direction.length() - 0.3);
+        blockShaft.position.y = blockShaft.scale.y / 2;
+        blockShaft.material.color.set(blockColor);
+        blockArrow.setColor(blockColor);
+        blockHalo.scale.y = blockShaft.scale.y;
+        blockHalo.position.y = blockShaft.position.y;
+        dragShield.forEach((mesh) => {
+          mesh.position.copy(start).lerp(end, 0.3);
+          mesh.quaternion.copy(camera.quaternion);
+          mesh.translateZ(mesh.userData.shieldOffset);
+        });
+      }
+    }
+    const attackLinks = current.cards
+      .filter((c) => c.attacking)
+      .map((c) => ({
+        from: c.id,
+        to:
+          c.attackTargetId && layout.has(c.attackTargetId)
+            ? c.attackTargetId
+            : `player:${c.attackingPlayerId ?? (c.side === "self" ? "opponent" : "self")}`,
+        color: current.colors.attack ?? current.colors.hostile,
+        attack: true,
+      }));
+    const nextLinkKey = JSON.stringify([
+      current.links,
+      attackLinks,
+      [...layout],
+      [...combatPositions].filter(([id]) => id.startsWith("player:")),
+    ]);
     if (nextLinkKey !== linkKey) {
       links.children.forEach((o) => {
         const m = o as THREE.Mesh;
@@ -550,9 +682,12 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
         (m.material as THREE.Material).dispose();
       });
       links.clear();
-      for (const link of current.links ?? []) {
+      for (const link of [
+        ...(current.links ?? []).map((l) => ({ ...l, color: blockColor, attack: false })),
+        ...attackLinks,
+      ]) {
         const a = layout.get(link.from),
-          b = layout.get(link.to);
+          b = layout.get(link.to) ?? combatPositions.get(link.to);
         if (!a || !b) continue;
         const curve = new THREE.QuadraticBezierCurve3(
           new THREE.Vector3(a.x, 0.4, a.z),
@@ -565,10 +700,78 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
             new THREE.MeshBasicMaterial({ color: link.color }),
           ),
         );
+        {
+          const glow = new THREE.Mesh(
+            new THREE.TubeGeometry(curve, 28, 0.14, 6, false),
+            new THREE.MeshBasicMaterial({
+              color: link.color,
+              transparent: true,
+              opacity: 0.2,
+              depthWrite: false,
+              blending: THREE.AdditiveBlending,
+            }),
+          );
+          links.add(glow);
+          const tip = new THREE.Mesh(
+            new THREE.ConeGeometry(0.23, 0.65, 3),
+            new THREE.MeshBasicMaterial({ color: link.color }),
+          );
+          tip.position.copy(curve.getPoint(0.94));
+          tip.quaternion.setFromUnitVectors(
+            new THREE.Vector3(0, 1, 0),
+            curve.getTangent(0.94).normalize(),
+          );
+          links.add(tip);
+        }
+        if (!link.attack) {
+          const shield = blockShield(colors);
+          shield.forEach((mesh) => {
+            mesh.position.copy(curve.getPoint(0.3));
+            mesh.quaternion.copy(camera.quaternion);
+            mesh.translateZ(mesh.userData.shieldOffset);
+          });
+          links.add(...shield);
+        }
       }
       linkKey = nextLinkKey;
     }
     atmosphere.update(time, reduced.matches);
+    const root = element.closest(".arena-root");
+    if (root)
+      for (const card of current.cards.filter((c) => c.side === "hand")) {
+        const tile = tiles.get(card.id);
+        if (!tile) continue;
+        tile.mesh.updateMatrixWorld(true);
+        const corners = [
+          [-1, -1],
+          [1, -1],
+          [-1, 1],
+        ].map(([x, z]) => {
+          const point = tile.mesh
+            .localToWorld(new THREE.Vector3((x * CARD_WIDTH) / 2, 0.04, (z * CARD_HEIGHT) / 2))
+            .project(camera);
+          return {
+            x: bounds.left + ((point.x + 1) * sceneWidth) / 2,
+            y: bounds.top + ((1 - point.y) * bounds.height) / 2,
+          };
+        });
+        recordCastOrigin(root, card.id, corners);
+      }
+    targets.update(
+      new Map(
+        [...tiles].map(([id, tile]) => {
+          const point = tile.mesh.position.clone().project(camera);
+          return [
+            id,
+            {
+              x: bounds.left + ((point.x + 1) * sceneWidth) / 2,
+              y: bounds.top + ((1 - point.y) * bounds.height) / 2,
+            },
+          ];
+        }),
+      ),
+      hovered,
+    );
     renderer.render(scene, camera);
   };
   frame = requestAnimationFrame(render);
@@ -576,11 +779,13 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
     cancelAnimationFrame(frame);
     clearTimeout(hold);
     observer.disconnect();
+    targets.dispose();
     zonePiles.dispose();
     atmosphere.dispose();
     window.removeEventListener("keydown", escape);
     playArea.geometry.dispose();
     playArea.material.dispose();
+    blockArrow.dispose();
     canvas.removeEventListener("pointerdown", down);
     canvas.removeEventListener("pointermove", move);
     canvas.removeEventListener("pointerup", up);

@@ -26,6 +26,7 @@ export function PlaytestPlayersDialog({ open, onChoose, onCancel }: PlaytestPlay
           <DialogTitle>Playtest</DialogTitle>
           <DialogDescription>How many players?</DialogDescription>
         </DialogHeader>
+        <BattlefieldViewChoice />
         <div className="grid gap-3 sm:grid-cols-2">
           <button
             onClick={() => onChoose(3)}
@@ -56,3 +57,4 @@ export function PlaytestPlayersDialog({ open, onChoose, onCancel }: PlaytestPlay
     </Dialog>
   );
 }
+import { BattlefieldViewChoice } from "@/components/play/BattlefieldViewChoice";

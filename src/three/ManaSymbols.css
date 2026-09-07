@@ -1,0 +1,17 @@
+.duel-mana-symbol {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  background-repeat: no-repeat;
+  background-size: 209px 146.0004px;
+  vertical-align: middle;
+  flex-shrink: 0;
+  border-radius: 50%;
+  filter: drop-shadow(0 1px 2px var(--arena-background));
+}
+.duel-mana-text {
+  display: inline;
+}
+.duel-mana-text .duel-mana-symbol {
+  margin: 0 1px;
+}

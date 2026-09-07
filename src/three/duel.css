@@ -383,23 +383,6 @@
 .duel-root .duel-next {
   position: relative;
 }
-.duel-mana-symbol {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  background-repeat: no-repeat;
-  background-size: 209px 146.0004px;
-  vertical-align: middle;
-  flex-shrink: 0;
-  border-radius: 50%;
-  filter: drop-shadow(0 1px 2px var(--arena-background));
-}
-.duel-mana-text {
-  display: inline;
-}
-.duel-mana-text .duel-mana-symbol {
-  margin: 0 1px;
-}
 .duel-mana-pool {
   display: inline-flex;
   align-items: center;
@@ -419,25 +402,6 @@
 }
 .duel-prompt-options {
   overflow-x: hidden;
-}
-.duel-card-actions {
-  position: absolute;
-  left: 28px;
-  top: 55%;
-  width: 230px;
-  display: grid;
-  gap: 8px;
-  padding: 16px;
-  border: 1px solid var(--arena-accent);
-  border-radius: 12px;
-  background: var(--arena-background);
-  z-index: 10;
-}
-.duel-card-actions strong {
-  font:
-    18px "Cinzel",
-    Georgia,
-    serif;
 }
 .duel-choice-pages {
   display: flex;
@@ -1568,3 +1532,73 @@ dialog.duel-modal h2 {
   .duel-root .duel-play-hint strong { font-size: 14px; }
 }
 @media (prefers-reduced-motion: reduce) { .duel-root .duel-play-hint { transition: none; } }
+.duel-root:has(.arena-preview[data-visible="true"]) .duel-play-hint { top: 12%; }
+.duel-stack-card[data-flying="true"] { visibility: hidden; animation: none; }
+.duel-cast-flight { position: fixed; left: 0; top: 0; z-index: 60; pointer-events: none; transform-origin: 0 0; border-radius: 4.76% / 3.41%; will-change: transform; }
+.duel-root .duel-spell-stack { right: 352px; width: 160px; }
+@media (max-width: 1000px), (max-height: 620px) {
+  .duel-root .duel-spell-stack { right: 236px; width: 150px; top: 12%; }
+}
+.duel-autopass-track { position: absolute; left: 16px; right: 16px; bottom: 6px; height: 3px; border-radius: 3px; overflow: hidden; opacity: 0; background: color-mix(in srgb, var(--arena-background) 65%, transparent); pointer-events: none; }
+.duel-autopass-track > span { display: block; height: 100%; background: var(--arena-foreground); transform-origin: left; transform: scaleX(1); }
+.duel-next-action[data-counting="true"] .duel-autopass-track { opacity: 1; }
+.duel-next-action[data-counting="true"] .duel-next-word { font-size: 22px; }
+.duel-spell-stack > header,
+.duel-spell-stack > .duel-stack-caption {
+  opacity: 1;
+  translate: 0 0;
+  transition: opacity 200ms ease, translate 240ms cubic-bezier(.22,.7,.2,1);
+}
+.duel-spell-stack:has([data-flying="true"], [data-arriving="true"]) > header,
+.duel-spell-stack:has([data-flying="true"], [data-arriving="true"]) > .duel-stack-caption {
+  opacity: 0;
+  translate: 0 7px;
+  pointer-events: none;
+  transition-duration: 90ms;
+}
+.duel-stack-fan::before {
+  content: "";
+  position: absolute;
+  left: 28px;
+  top: -5px;
+  width: 94px;
+  height: 115px;
+  border-radius: 14px;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--arena-accent) 24%, transparent), transparent 72%);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--arena-accent) 16%, transparent);
+  opacity: 0;
+  scale: .85;
+  transition: opacity 240ms ease, scale 350ms ease;
+  pointer-events: none;
+}
+.duel-stack-fan:has([data-flying="true"], [data-arriving="true"])::before { opacity: 1; scale: 1.12; }
+.duel-stack-card { transition: left 260ms ease, top 260ms ease, transform 260ms ease; }
+.duel-stack-card b { transition: opacity 180ms ease; }
+.duel-stack-card[data-arriving="true"] b { opacity: 0; }
+.duel-spell-stack[data-leaving="true"] > header,
+.duel-spell-stack[data-leaving="true"] > .duel-stack-caption { opacity: 0; translate: 0 -5px; }
+@media (prefers-reduced-motion: reduce) {
+  .duel-spell-stack > header, .duel-spell-stack > .duel-stack-caption,
+  .duel-stack-fan::before, .duel-stack-card, .duel-stack-card b { transition: none; }
+}
+
+.duel-target-arrows {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 18;
+  pointer-events: none;
+  overflow: hidden;
+  fill: none;
+  stroke: var(--arena-accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.duel-target-arrows .target-line-glow { stroke-width: 11; opacity: .18; filter: blur(3px); }
+.duel-target-arrows .target-line { stroke-width: 3; }
+.duel-target-arrows .target-valid { filter: drop-shadow(0 0 5px var(--arena-accent)); }
+.duel-target-arrows .target-aim { opacity: .65; }
+.duel-target-arrows .target-arrowhead { stroke-width: 3; }
+.duel-target-arrows .target-reticle { stroke-width: 2; }
+.arena-player[data-targetable="true"] .duel-life-badge { filter: drop-shadow(0 0 8px var(--arena-accent)); }

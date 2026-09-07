@@ -1,6 +1,13 @@
 import type { ArenaCard } from "@/three/arena.types";
 
-export type CardPlacement = { x: number; y: number; z: number; angle: number; scale: number; pileCount?: number };
+export type CardPlacement = {
+  x: number;
+  y: number;
+  z: number;
+  angle: number;
+  scale: number;
+  pileCount?: number;
+};
 
 export function multiplayerSeat(cards: ArenaCard[], seat: number) {
   const positions = new Map<string, CardPlacement>();
@@ -8,7 +15,13 @@ export function multiplayerSeat(cards: ArenaCard[], seat: number) {
   const hand = cards.filter((c) => c.side === "opponentHand");
   hand.forEach((card, i) => {
     const x = (i - (hand.length - 1) / 2) * Math.min(0.55, 3.5 / Math.max(hand.length, 1));
-    positions.set(card.id, { x: center - 0.6 + x, y: 0.4 + i * 0.025, z: -10, angle: Math.PI + x * 0.05, scale: 0.5 });
+    positions.set(card.id, {
+      x: center - 0.6 + x,
+      y: 0.4 + i * 0.025,
+      z: -10,
+      angle: Math.PI + x * 0.05,
+      scale: 0.5,
+    });
   });
   const permanents = cards.filter((c) => c.side === "opponent");
   const creatures = permanents.filter((c) => !/land/i.test(c.type) || /creature/i.test(c.type));
@@ -29,7 +42,13 @@ export function multiplayerSeat(cards: ArenaCard[], seat: number) {
   const groups: ArenaCard[][] = [];
   const matching = new Map<string, ArenaCard[]>();
   for (const card of permanents.filter((c) => /land/i.test(c.type) && !/creature/i.test(c.type))) {
-    const key = JSON.stringify([card.name, card.text, card.frame, !!card.tapped, card.selected ? card.id : ""]);
+    const key = JSON.stringify([
+      card.name,
+      card.text,
+      card.frame,
+      !!card.tapped,
+      card.selected || card.attachmentNames?.length ? card.id : "",
+    ]);
     let pile = matching.get(key);
     if (!pile || pile.length === 4) {
       pile = [];
@@ -40,16 +59,18 @@ export function multiplayerSeat(cards: ArenaCard[], seat: number) {
   }
   const landRows = Math.max(1, Math.ceil(groups.length / 3));
   const landScale = Math.min(0.66, 2.3 / (landRows * 2.4));
-  groups.forEach((pile, i) => pile.forEach((card, depth) => {
-    const count = Math.min(3, groups.length - Math.floor(i / 3) * 3);
-    positions.set(card.id, {
-      x: center + ((i % 3) - (count - 1) / 2) * 2.05 + depth * 0.12,
-      y: -0.12 + depth * 0.045,
-      z: -4.5 - Math.floor(i / 3) * 2.4 * landScale - depth * 0.1,
-      angle: card.tapped ? -0.14 : 0,
-      scale: landScale,
-      pileCount: depth === pile.length - 1 && pile.length > 1 ? pile.length : undefined,
-    });
-  }));
+  groups.forEach((pile, i) =>
+    pile.forEach((card, depth) => {
+      const count = Math.min(3, groups.length - Math.floor(i / 3) * 3);
+      positions.set(card.id, {
+        x: center + ((i % 3) - (count - 1) / 2) * 2.05 + depth * 0.12,
+        y: -0.12 + depth * 0.045,
+        z: -4.5 - Math.floor(i / 3) * 2.4 * landScale - depth * 0.1,
+        angle: card.tapped ? -0.14 : 0,
+        scale: landScale,
+        pileCount: depth === pile.length - 1 && pile.length > 1 ? pile.length : undefined,
+      });
+    }),
+  );
   return positions;
 }

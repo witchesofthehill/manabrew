@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { CSSProperties } from "react";
+import { StackCard } from "@/three/StackCard";
 import type { StackObjectDto } from "@manabrew/protocol";
 import { DuelModal } from "@/three/DuelModal";
 
@@ -10,11 +10,17 @@ export function SpellStack({
   open,
   onOpen,
   onClose,
+  onMotion,
+  onHover,
+  targeting = false,
 }: {
   stack: StackObjectDto[];
   open: boolean;
   onOpen: () => void;
   onClose: () => void;
+  onMotion: (active: boolean) => void;
+  onHover: (id: string | null) => void;
+  targeting?: boolean;
 }) {
   const [shown, setShown] = useState(stack);
   const [page, setPage] = useState(0);
@@ -24,12 +30,17 @@ export function SpellStack({
     const timer = window.setTimeout(() => setShown(stack), stack.length ? 0 : 260);
     return () => window.clearTimeout(timer);
   }, [stack]);
-  const ordered = [...shown].reverse();
+  const ordered = [...(stack.length ? stack : shown)].reverse();
   const top = ordered[0];
   return (
     <>
       {top && (
-        <aside className="duel-spell-stack" data-leaving={!stack.length} aria-label="Spell stack">
+        <aside
+          className="duel-spell-stack"
+          data-leaving={!stack.length}
+          aria-label="Spell stack"
+          onMouseLeave={() => onHover(null)}
+        >
           <header>
             <strong>Stack</strong>
             <span>{stack.length} pending</span>
@@ -37,7 +48,14 @@ export function SpellStack({
           <button
             className="duel-stack-fan"
             onClick={onOpen}
-            aria-label={`Inspect stack: ${top.identity.name} next to resolve`}
+            onMouseEnter={() => onHover(top.id)}
+            onFocus={() => onHover(top.id)}
+            onBlur={() => onHover(null)}
+            aria-label={
+              targeting
+                ? `Aim ${top.identity.name} at a target`
+                : `Inspect stack: ${top.identity.name} next to resolve`
+            }
           >
             {ordered
               .slice(0, 4)
@@ -45,24 +63,35 @@ export function SpellStack({
               .map((spell, index, cards) => {
                 const depth = cards.length - 1 - index;
                 return (
-                  <span
+                  <StackCard
                     key={spell.id}
-                    className="duel-stack-card"
-                    style={{ "--depth": depth } as CSSProperties}
-                  >
-                    <img src={art(spell)} alt={spell.identity.name} />
-                    <b>{depth === 0 ? "NEXT" : `+${depth}`}</b>
-                  </span>
+                    spell={spell}
+                    depth={depth}
+                    image={art(spell)}
+                    onMotion={onMotion}
+                    onHover={onHover}
+                  />
                 );
               })}
           </button>
-          <button className="duel-stack-caption" onClick={onOpen} aria-label="Inspect spell stack">
+          <button
+            className="duel-stack-caption"
+            onClick={onOpen}
+            aria-label="Inspect spell stack"
+            onMouseEnter={() => onHover(top.id)}
+            onFocus={() => onHover(top.id)}
+            onBlur={() => onHover(null)}
+          >
             <small>
               {top.isCasting ? "Casting" : "Next to resolve"} -{" "}
               {top.controllerId === "player-0" ? "You" : "Opponent"}
             </small>
             <strong>{top.identity.name}</strong>
-            <span>{stack.length > 4 ? `+${stack.length - 4} more - ` : ""}Click to inspect</span>
+            <span>
+              {targeting
+                ? "Drag to a glowing target"
+                : `${stack.length > 4 ? `+${stack.length - 4} more - ` : ""}Click to inspect`}
+            </span>
           </button>
         </aside>
       )}

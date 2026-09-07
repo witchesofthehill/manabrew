@@ -28,6 +28,13 @@ export function ArenaBoardCanvas(props: ComponentProps<typeof BoardCanvas>) {
     [],
   );
   const allCards = [...regions.flatMap((r) => r.state.cards), ...hand.cards];
+  const opponentIds = playerBars
+    .filter((player) => !player.isSelf)
+    .map((player) => player.playerId);
+  const layoutPlayer = (id: string) =>
+    opponentIds.length > 1 && opponentIds.includes(id)
+      ? `player-${1 + (opponentIds.indexOf(id) * 2) / Math.max(1, opponentIds.length - 1)}`
+      : undefined;
   const piles = Object.entries(zoneTiles ?? {}).flatMap(([owner, specs]) =>
     specs
       .filter((spec) => spec.key === "lib" || spec.key === "gy")
@@ -53,6 +60,14 @@ export function ArenaBoardCanvas(props: ComponentProps<typeof BoardCanvas>) {
       card.color.length > 1 ? "M" : ((card.color[0] || "C") as NonNullable<ArenaCard["frame"]>);
     return {
       id: card.id,
+      playerId: region && !region.isLocal ? layoutPlayer(region.playerId) : undefined,
+      attachedTo: card.attachedTo,
+      keywords: card.isFaceDown ? [] : card.keywords,
+      counters: card.counters,
+      damage: card.damage,
+      summoningSick: card.summoningSick,
+      attackingPlayerId: card.attackingPlayerId,
+      attackTargetId: card.attackTargetId,
       name: card.isFaceDown ? "Face-down card" : card.identity.name,
       type: card.isFaceDown ? "" : card.types.join(" "),
       cost: card.isFaceDown ? "" : card.manaCost,
@@ -82,6 +97,7 @@ export function ArenaBoardCanvas(props: ComponentProps<typeof BoardCanvas>) {
     for (let i = 0; i < count; i++) {
       cards.push({
         id: `opponent-hand-${player.playerId}-${i}`,
+        playerId: layoutPlayer(player.playerId),
         name: "Opponent's card",
         type: "",
         cost: "",
@@ -148,6 +164,7 @@ export function ArenaBoardCanvas(props: ComponentProps<typeof BoardCanvas>) {
           zone: p.spec.key === "lib" ? "library" : "graveyard",
           side: regions.find((r) => r.playerId === p.owner)?.isLocal ? "self" : "opponent",
           count: p.spec.count,
+          seat: layoutPlayer(p.owner) ? Number(layoutPlayer(p.owner)!.slice(7)) - 1 : undefined,
           topImage:
             p.spec.key === "gy" && p.spec.topCard ? images[p.spec.topCard.id]?.face : undefined,
         }))}
@@ -183,6 +200,16 @@ export function ArenaBoardCanvas(props: ComponentProps<typeof BoardCanvas>) {
       {playerBars.map((player) => (
         <div
           key={player.playerId}
+          style={
+            !player.isSelf && opponentIds.length > 1
+              ? {
+                  left: `${15 + (opponentIds.indexOf(player.playerId) * 65) / Math.max(1, opponentIds.length - 1)}%`,
+                  top: 65,
+                  transform: "translateX(-50%)",
+                  fontSize: 11,
+                }
+              : undefined
+          }
           className={
             player.isSelf ? "arena-player arena-player-self" : "arena-player arena-player-opponent"
           }

@@ -1,4 +1,5 @@
 import sprite from "@/three/assets/mana-sprite.svg";
+import "@/three/ManaSymbols.css";
 
 import { manaCells } from "@/three/manaCells";
 

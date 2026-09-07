@@ -189,6 +189,7 @@ export function CardPreview({
   const resolveImageUrl = resolvedGameCard.imageUrl;
   const front = cardFaces.faces[0];
   const back = cardFaces.faces[1];
+  const previewFaceIndex = showBackFace ? 1 : 0;
   const railEffects = rail ? deriveCardRailEffects(card, rail) : [];
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelHeight, setPanelHeight] = useState(0);
@@ -245,7 +246,12 @@ export function CardPreview({
 
   const horizontalCard = isDebugCard
     ? false
-    : isHorizontalGameCard(card, deckCard.layout, showBackFace ? 1 : 0);
+    : isHorizontalGameCard(
+        card,
+        deckCard.layout,
+        previewFaceIndex,
+        cardFaces.faces[previewFaceIndex]?.typeLine,
+      );
   const fallbackCounters =
     rail?.kind === "saga" && card.counters
       ? Object.fromEntries(

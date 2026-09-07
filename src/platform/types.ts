@@ -52,6 +52,8 @@ export interface ServerConnectParams {
   port: number;
   username: string;
   password: string;
+  /** A relay found on the local network. No direct plane there for now. */
+  lan?: boolean;
 }
 
 export interface CreateRoomParams {

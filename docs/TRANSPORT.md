@@ -273,7 +273,8 @@ in `compose.production.yml` and `compose.staging.yml`. Off, the relay advertises
 sends a roster, so every room behaves exactly as it did before. It fails closed, and a client
 that sees no `peer_signal` never starts a negotiation that could not finish.
 
-**The player's.** "Peer to Peer" in Settings, off by default. Announcing an endpoint is
+**The player's.** "Peer to Peer" in Settings, off by default. It is ignored on a relay found on the
+local network: a LAN table stays on that relay for now, whatever the players chose. Announcing an endpoint is
 how a player opts in: a client with the setting off announces nothing, dials nobody, and tears
 down any plane a roster offers it. A desktop that hosts a room with it off gets no shell bridge,
 so it announces nothing either.

@@ -1318,7 +1318,7 @@ class WebServerApi implements IServerApi {
   private onRoomTransport(msg: Record<string, unknown>): void {
     if (!this.authedUsername) return;
     const members = Array.isArray(msg.members) ? (msg.members as RosterMember[]) : [];
-    if (!this.directTransportOptIn) {
+    if (!this.directTransportEnabled()) {
       this.dropWebRtcPlane();
       return;
     }
@@ -1340,8 +1340,13 @@ class WebServerApi implements IServerApi {
     }
   }
 
+  /** The player's opt-in, except on a LAN relay, which stays on the relay for now. */
+  private directTransportEnabled(): boolean {
+    return this.directTransportOptIn && !this.connectParams?.lan;
+  }
+
   private onDirectTransportPreference(): void {
-    if (this.directTransportOptIn) {
+    if (this.directTransportEnabled()) {
       if (this.currentRoomId) this.announceTransport(this.currentRoomId);
       return;
     }
@@ -1363,7 +1368,7 @@ class WebServerApi implements IServerApi {
   /** Announces on entering a room. The relay names a host once all have. */
   private announceTransport(roomId: string): void {
     if (!roomId || this.announcedRoom === roomId) return;
-    if (!this.directTransportOptIn || !this.roomTransport) return;
+    if (!this.directTransportEnabled() || !this.roomTransport) return;
     if (!this.peerSignalling || !WebRtcPlane.supported() || !this.authedUsername) return;
     this.announcedRoom = roomId;
     this.send({ type: "AnnounceTransport", endpoint: webRtcEndpoint(this.authedUsername) });
@@ -1378,7 +1383,7 @@ class WebServerApi implements IServerApi {
     host: RosterMember,
     iceServers: RTCIceServer[],
   ): Promise<void> {
-    if (!this.directTransportOptIn) return;
+    if (!this.directTransportEnabled()) return;
     if (!this.peerSignalling || !WebRtcPlane.supported()) return;
     if (getClientPlatform() !== "desktop") return;
     if (!this.forgeHostBridge) {

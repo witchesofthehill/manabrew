@@ -13,6 +13,7 @@ interface CombatSummarySectionProps {
   resolveCardName: (cardId: string) => string;
   resolveCard: (cardId: string) => CardDto | undefined;
   defenderLife?: number;
+  initialOpen?: boolean;
 }
 
 function powerOf(card: CardDto | undefined): number {
@@ -48,8 +49,9 @@ export function CombatSummarySection({
   resolveCardName,
   resolveCard,
   defenderLife,
+  initialOpen = false,
 }: CombatSummarySectionProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initialOpen);
   const forceCombatSummary = useGameDevStore(
     (state) => state.gameStateOverrides.forceCombatSummary,
   );

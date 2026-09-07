@@ -23,18 +23,9 @@ export const PROMPT_ACTION_VIEW_KEYS = [
 
 export type PromptActionViewKey = (typeof PROMPT_ACTION_VIEW_KEYS)[number];
 
-export const DEV_PROMPT_ACTION_OVERRIDES = [
-  "chooseAction",
-  "chooseAttackers",
-  "chooseBlockers",
-  "chooseTargetSpell",
-  "payManaCost",
-  "mulligan",
-  "mulliganPutBack",
-  "noAction",
-] as const;
+export const DEV_PROMPT_ACTION_OVERRIDES = PROMPT_ACTION_VIEW_KEYS;
 
-export type DevPromptActionOverride = (typeof DEV_PROMPT_ACTION_OVERRIDES)[number];
+export type DevPromptActionOverride = PromptActionViewKey;
 
 export type DevCardRailMode = "page" | "saga" | "class";
 export type DevViewportPreset = "native" | "phone" | "tablet" | "desktop" | "ultrawide";

@@ -318,6 +318,9 @@ pub struct StackObjectDto {
     pub owner_id: String,
     pub identity: CardIdentity,
     pub text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub source_ability_text: Option<String>,
     pub is_permanent_spell: bool,
     pub is_casting: bool,
     pub is_double_faced: bool,
@@ -338,6 +341,7 @@ mod stack_object_tests {
             owner_id: "player-1".into(),
             identity: CardIdentity::default(),
             text: String::new(),
+            source_ability_text: Some("When this enters, draw a card.".into()),
             is_permanent_spell: true,
             is_casting: true,
             is_double_faced: true,
@@ -346,6 +350,7 @@ mod stack_object_tests {
         };
 
         let value = serde_json::to_value(stack_object).unwrap();
+        assert_eq!(value["sourceAbilityText"], "When this enters, draw a card.");
 
         assert_eq!(value["ownerId"], "player-1");
         assert_eq!(value["isDoubleFaced"], true);

@@ -288,6 +288,54 @@ export function relativeLuminance(hex: string): number {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 }
 
+function contrastLuminance(hex: string): number {
+  const toLinear = (channel: number): number => {
+    const value = channel / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+  const { r, g, b } = hexToRgb(hex);
+  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+}
+
+export function contrastRatio(foreground: string, background: string): number {
+  const foregroundLuminance = contrastLuminance(foreground);
+  const backgroundLuminance = contrastLuminance(background);
+  const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+  const darker = Math.min(foregroundLuminance, backgroundLuminance);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function mixHexColors(from: string, to: string, amount: number): string {
+  const start = hexToRgb(from);
+  const end = hexToRgb(to);
+  const channel = (left: number, right: number): string =>
+    Math.round(left + (right - left) * amount)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${channel(start.r, end.r)}${channel(start.g, end.g)}${channel(start.b, end.b)}`;
+}
+
+export function ensureTextContrast(
+  color: string,
+  background: string,
+  fallback: string,
+  minimumRatio: number,
+): string {
+  if (contrastRatio(color, background) >= minimumRatio) return color;
+  if (contrastRatio(fallback, background) < minimumRatio) return fallback;
+  let low = 0;
+  let high = 1;
+  for (let iteration = 0; iteration < 12; iteration += 1) {
+    const amount = (low + high) / 2;
+    if (contrastRatio(mixHexColors(color, fallback, amount), background) >= minimumRatio) {
+      high = amount;
+    } else {
+      low = amount;
+    }
+  }
+  return mixHexColors(color, fallback, high);
+}
+
 export function readableTextColor(background: string, dark: string, light: string): string {
   return relativeLuminance(background) > 0.6 ? dark : light;
 }
@@ -312,15 +360,31 @@ export function frameTint(hex: string, maxLuminance = FRAME_TINT_MAX_LUMINANCE):
   return lum <= maxLuminance ? base : darken(base, 1 - maxLuminance / lum);
 }
 
-const WUBRG = new Set(["W", "U", "B", "R", "G"]);
+type ColoredManaLetter = Exclude<ManaLetter, "C">;
+const WUBRG = new Set<ColoredManaLetter>(["W", "U", "B", "R", "G"]);
+
+export interface CardFrameTints {
+  primary: string;
+  secondary: string | null;
+}
+
+export function cardFrameTints(
+  colorIdentity: string[] | undefined,
+  mana: GameThemeColors["mana"],
+): CardFrameTints {
+  const colors = (colorIdentity ?? []).filter((color): color is ColoredManaLetter =>
+    WUBRG.has(color as ColoredManaLetter),
+  );
+  const colorless = colors.length === 0;
+  const tintMax = colorless ? FRAME_TINT_COLORLESS_MAX_LUMINANCE : undefined;
+  const primary = frameTint(colorless ? mana.C : mana[colors[0]!], tintMax);
+  const secondary = colors.length > 1 ? frameTint(mana[colors[1]!]) : null;
+  return { primary, secondary };
+}
 
 export function cardFrameTintHex(
   colorIdentity: string[] | undefined,
   mana: GameThemeColors["mana"],
 ): string {
-  const first = (colorIdentity ?? []).find((c) => WUBRG.has(c));
-  return frameTint(
-    first ? mana[first as keyof typeof mana] : mana.C,
-    first ? undefined : FRAME_TINT_COLORLESS_MAX_LUMINANCE,
-  );
+  return cardFrameTints(colorIdentity, mana).primary;
 }

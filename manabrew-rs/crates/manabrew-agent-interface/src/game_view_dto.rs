@@ -170,6 +170,54 @@ fn collect_stack_targets(root: &SpellAbility) -> Vec<TargetRef> {
     out
 }
 
+fn stack_source_ability_text(game: &GameState, sa: &SpellAbility) -> Option<String> {
+    let source_id = sa.trigger_source.or(sa.source)?;
+    let source = game.card(source_id);
+    if !sa.is_trigger && sa.is_spell && source.is_permanent() {
+        return None;
+    }
+    let raw = if sa.is_trigger {
+        let trigger = sa
+            .trigger_index
+            .and_then(|index| source.triggers.get(index))?;
+        if trigger.description.contains("ABILITY") {
+            trigger.replace_ability_text_for_stack(
+                &trigger.description,
+                Some(sa.clone()),
+                true,
+                game,
+                source_id,
+                sa.activating_player,
+            )
+        } else {
+            trigger.description.clone()
+        }
+    } else {
+        sa.ir
+            .spell_description_text
+            .as_deref()
+            .or(sa.ir.sp_desc_text.as_deref())
+            .filter(|text| !text.trim().is_empty())
+            .map(str::to_owned)
+            .or_else(|| (!sa.description.trim().is_empty()).then(|| sa.description.clone()))
+            .or_else(|| {
+                (!sa.stack_description.trim().is_empty()).then(|| sa.stack_description.clone())
+            })?
+    };
+    let mut text = raw
+        .replace("CARDNAME", &source.card_name)
+        .replace("NICKNAME", &source.card_name);
+    if text.contains("ORIGINALHOST") {
+        let original_host = sa
+            .original_host
+            .map(|id| game.card(id).card_name.as_str())
+            .unwrap_or_default();
+        text = text.replace("ORIGINALHOST", original_host);
+    }
+    let text = text.trim();
+    (!text.is_empty()).then(|| text.to_owned())
+}
+
 fn stack_target_oracle(sa: &SpellAbility) -> Option<String> {
     let desc = if !sa.stack_description.trim().is_empty() {
         sa.stack_description.trim()
@@ -908,6 +956,7 @@ impl GameViewDtoExt for GameViewDto {
                         .unwrap_or_default(),
                     identity,
                     text: entry.spell_ability.ability_text.clone(),
+                    source_ability_text: stack_source_ability_text(game, &entry.spell_ability),
                     is_permanent_spell: entry.is_creature_spell || entry.is_permanent_spell,
                     is_casting: entry.is_pending_cast,
                     is_double_faced: source_card.map(|c| c.is_double_faced()).unwrap_or(false),

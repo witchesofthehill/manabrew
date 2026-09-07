@@ -1,4 +1,4 @@
-import type { CardDto } from "@/protocol/game";
+import type { CardDto, ClassLevelDto, SagaChapterDto } from "@/protocol/game";
 
 export type CardRailKind = "saga" | "class";
 
@@ -24,6 +24,9 @@ export interface CardRailState {
   max: number;
   notches: CardRailNotch[];
 }
+export type PrintedCardRailMetadata =
+  | { kind: "saga"; finalChapter: number; sagaChapters: SagaChapterDto[] }
+  | { kind: "class"; classLevels: ClassLevelDto[] };
 
 export const CARD_RAIL_ROOT_DATA_ATTR = "data-card-rail";
 export const CARD_RAIL_KIND_DATA_ATTR = "data-card-rail-kind";
@@ -73,6 +76,103 @@ function toRomanNumeral(value: number): string {
     }
   }
   return result;
+}
+function fromRomanNumeral(value: string): number | null {
+  let total = 0;
+  let previous = 0;
+  for (const character of [...value].reverse()) {
+    const current =
+      character === "I"
+        ? 1
+        : character === "V"
+          ? 5
+          : character === "X"
+            ? 10
+            : character === "L"
+              ? 50
+              : character === "C"
+                ? 100
+                : character === "D"
+                  ? 500
+                  : character === "M"
+                    ? 1000
+                    : 0;
+    if (current === 0) return null;
+    if (current < previous) total -= current;
+    else {
+      total += current;
+      previous = current;
+    }
+  }
+  return total > 0 ? total : null;
+}
+
+function appendLine(value: string, line: string): string {
+  return value ? `${value}\n${line}` : line;
+}
+
+export function parsePrintedCardRailMetadata(card: {
+  subtypes: string[];
+  text: string;
+}): PrintedCardRailMetadata | null {
+  const lines = card.text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (card.subtypes.includes("Saga")) {
+    const sagaChapters: SagaChapterDto[] = [];
+    let currentChapter: SagaChapterDto | null = null;
+    for (const line of lines) {
+      let heading: SagaChapterDto | null = null;
+      for (const separator of [" — ", " – ", " - "]) {
+        const separatorIndex = line.indexOf(separator);
+        if (separatorIndex < 0) continue;
+        const chapters = line
+          .slice(0, separatorIndex)
+          .split(",")
+          .map((label) => fromRomanNumeral(label.trim()));
+        if (chapters.some((chapter) => chapter == null)) continue;
+        heading = {
+          chapters: chapters as number[],
+          oracle: line.slice(separatorIndex + separator.length),
+        };
+        break;
+      }
+      if (heading) {
+        sagaChapters.push(heading);
+        currentChapter = heading;
+      } else if (line.startsWith("•") && currentChapter) {
+        currentChapter.oracle = appendLine(currentChapter.oracle, line);
+      }
+    }
+    const finalChapter = Math.max(0, ...sagaChapters.flatMap((chapter) => chapter.chapters));
+    return finalChapter > 0 ? { kind: "saga", finalChapter, sagaChapters } : null;
+  }
+
+  if (card.subtypes.includes("Class")) {
+    const classLevels: ClassLevelDto[] = [{ level: 1, oracle: "" }];
+    let currentLevel = classLevels[0]!;
+    for (const line of lines) {
+      if (line.startsWith("(") && classLevels.length === 1 && !currentLevel.oracle) continue;
+      const heading = line.match(/^(.*): Level (\d+)$/);
+      if (heading) {
+        currentLevel = {
+          level: Number.parseInt(heading[2]!, 10),
+          oracle: "",
+          cost: heading[1]!.trim(),
+        };
+        classLevels.push(currentLevel);
+      } else {
+        currentLevel.oracle = appendLine(currentLevel.oracle, line);
+      }
+    }
+    if (classLevels.every((level) => !level.oracle)) return null;
+    classLevels.sort((left, right) => left.level - right.level);
+    return { kind: "class", classLevels };
+  }
+
+  return null;
 }
 
 function getRailId(kind: CardRailKind, cardId: string): string {

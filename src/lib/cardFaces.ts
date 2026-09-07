@@ -6,6 +6,11 @@ export interface CardFace {
   typeLine?: string;
   oracleText?: string;
   manaCost?: string;
+  flavorText?: string;
+  power?: string;
+  toughness?: string;
+  loyalty?: string;
+  defense?: string;
   imageUris?: ScryfallImageUris;
 }
 
@@ -28,6 +33,11 @@ export function resolveCardFaces(info: ScryfallCard | undefined): ResolvedCardFa
           typeLine: info.type_line,
           oracleText: info.oracle_text,
           manaCost: info.mana_cost,
+          flavorText: info.flavor_text,
+          power: info.power,
+          toughness: info.toughness,
+          loyalty: info.loyalty,
+          defense: info.defense,
           imageUris: info.image_uris,
         },
       ],
@@ -37,6 +47,11 @@ export function resolveCardFaces(info: ScryfallCard | undefined): ResolvedCardFa
     name: f.name,
     typeLine: f.type_line,
     oracleText: f.oracle_text,
+    flavorText: f.flavor_text,
+    power: f.power,
+    toughness: f.toughness,
+    loyalty: f.loyalty,
+    defense: f.defense,
     manaCost: f.mana_cost,
     imageUris: f.image_uris ?? info.image_uris,
   }));

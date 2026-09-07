@@ -3,6 +3,7 @@ import type { Theme } from "@/hooks/useTheme";
 import type { CardDto } from "@/protocol/game";
 import type { CardSprite } from "../CardSprite";
 import type { BattlefieldState, GameCanvasCallbacks, PlayZoneRect, ScreenBounds } from "../types";
+import type { PreviewPointerInput } from "@/lib/cardPreview";
 
 /** Canvas-coordinate keep-out rectangle (hand fan, panels, etc.) the grid
  *  layout treats as blocked. */
@@ -97,7 +98,8 @@ export interface OverlayHost {
   isJustDragged(cardId: string): boolean;
   startCardDrag(sprite: CardSprite, e: FederatedPointerEvent): void;
   cancelHoverClear(): void;
-  setCardHovered(sprite: CardSprite, force?: boolean): void;
+  setCardHovered(sprite: CardSprite, force?: boolean, trigger?: PreviewPointerInput): void;
+  rightClickCard(sprite: CardSprite): void;
   scheduleHoverClear(cardId: string): void;
   getCardScale(): number;
   isCompact(): boolean;

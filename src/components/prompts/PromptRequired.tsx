@@ -23,7 +23,7 @@ export function PromptRequired({
         size="sm"
         variant="outline"
         className={cn(
-          "h-10 rounded-full px-3 text-xs font-black tracking-[0.06em] !border-0 !text-white",
+          "h-10 rounded-full px-3 text-xs font-black tracking-[0.06em] !border-0",
           hidden && "animate-pulse",
         )}
         style={themedStyle}
@@ -42,7 +42,10 @@ export function PromptRequired({
       <Button
         size="sm"
         variant="outline"
-        className={`h-9 w-full rounded-lg text-sm font-black tracking-[0.06em] !border-0 !text-white ${hidden ? "animate-pulse" : ""}`}
+        className={cn(
+          "h-9 w-full rounded-lg text-sm font-black tracking-[0.06em] !border-0",
+          hidden && "animate-pulse",
+        )}
         style={themedStyle}
         onClick={onOpenPrompt}
         disabled={isWaitingForResponse}

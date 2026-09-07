@@ -132,6 +132,22 @@ export const GHOST_STROKE_ALPHA = 0.55;
 export const GHOST_FILL_ALPHA = 0.08;
 
 export const PLAYABLE_RING_ALPHA = 0.85;
+export const MANA_BUTTON_ALPHA = 0.45;
+export const MANA_BUTTON_HOVER_ALPHA = 0.75;
+export const MANA_BUTTON_STROKE_ALPHA = 0.2;
+export const MANA_BUTTON_STROKE_HOVER_ALPHA = 0.55;
+export const ACTION_BUTTON_ALPHA = 0.4;
+export const ACTION_BUTTON_HOVER_ALPHA = 0.65;
 export const SELECT_BUTTON_ALPHA = 0.3;
 export const SELECT_BUTTON_HOVER_ALPHA = 0.55;
+export const ICON_BG_ALPHA = 0.4;
+export const ICON_HOVER_SCALE = 1.12;
+
+export const OVERLAY_LABEL_TAP = "TAP";
+export const OVERLAY_LABEL_UNTAP = "UNTAP";
+export const OVERLAY_LABEL_WATERBEND = "WATERBEND";
+export const OVERLAY_LABEL_UNWATERBEND = "RELEASE";
 export const OVERLAY_LABEL_SELECT = "SELECT";
+
+export const SYMBOL_TAP = "T";
+export const SYMBOL_UNTAP = "Q";

@@ -77,6 +77,7 @@ export interface SpriteEntry {
    *  update that transiently drops the card's actions (prompt round-trips)
    *  must not blink the overlay. */
   overlayActive?: boolean;
+  overlaySig?: string;
 }
 
 /** Narrow seam the `BattlefieldOverlay` uses to read scene state and drive
@@ -86,6 +87,7 @@ export interface OverlayHost {
   getTheme(): Theme;
   getCallbacks(): GameCanvasCallbacks;
   getContainer(): Container;
+  getSelectedCardIds(): ReadonlySet<string>;
   getLastState(): BattlefieldState | null;
   getEntries(): ReadonlyMap<string, SpriteEntry>;
   isJustDragged(cardId: string): boolean;
@@ -93,6 +95,8 @@ export interface OverlayHost {
   cancelHoverClear(): void;
   setCardHovered(sprite: CardSprite, force?: boolean): void;
   scheduleHoverClear(cardId: string): void;
+  getCardScale(): number;
+  isCompact(): boolean;
 }
 
 /** Narrow seam a `BoardRegion` uses to reach orchestrator-level services

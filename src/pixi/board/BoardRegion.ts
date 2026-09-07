@@ -1022,16 +1022,16 @@ export class BoardRegion {
       });
     }
 
-    const defenseColor = hexToNum(this.seatColor);
+    const attackColor = hexToNum(this.host.getTheme().gameTheme.promptAction.attackAction);
     const halfH = (CARD_H * this.cardScale) / 2;
     const stripLeft = bandLeft;
     const stripW = bandW;
     const stripTop = y - halfH - COMBAT_ROW_PAD_Y;
     const stripH = halfH * 2 + COMBAT_ROW_PAD_Y * 2;
     this.combatRowGfx.roundRect(stripLeft, stripTop, stripW, stripH, 10);
-    this.combatRowGfx.fill({ color: defenseColor, alpha: 0.09 });
+    this.combatRowGfx.fill({ color: attackColor, alpha: 0.22 });
     this.combatRowGfx.roundRect(stripLeft, stripTop, stripW, stripH, 10);
-    this.combatRowGfx.stroke({ color: defenseColor, width: 1.5, alpha: 0.6 });
+    this.combatRowGfx.stroke({ color: attackColor, width: 1.5, alpha: 0.6 });
 
     if (connectors.length > 0) {
       const defense = hexToNum(this.host.getTheme().gameTheme.promptAction.defenseAction);

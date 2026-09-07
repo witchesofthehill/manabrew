@@ -35,7 +35,7 @@ function AutopassFill({ onDone }: { onDone: () => void }) {
   return (
     <div
       ref={fillRef}
-      className="absolute inset-0 origin-left bg-white/25"
+      className="absolute inset-0 origin-left bg-current opacity-25"
       style={{ transform: "scaleX(0)" }}
     />
   );
@@ -108,7 +108,7 @@ export function ChooseAction({
         <Button
           size="sm"
           variant="outline"
-          className="relative h-10 overflow-hidden rounded-full px-4 text-xs font-black tracking-[0.12em] !border-0 !text-white transition-[filter,box-shadow] hover:brightness-105"
+          className="relative h-10 overflow-hidden rounded-full px-4 text-xs font-black tracking-[0.12em] !border-0 transition-[filter,box-shadow] hover:brightness-105"
           onClick={onClick}
           disabled={isWaitingForResponse}
           style={passActionStyle}
@@ -134,7 +134,7 @@ export function ChooseAction({
     <div className="flex w-full flex-col py-1">
       <div
         className={cn(
-          "flex h-10 w-full overflow-hidden rounded-lg ring-1 ring-inset ring-white/20",
+          "flex h-10 w-full overflow-hidden rounded-lg ring-1 ring-inset ring-current/20",
           isWaitingForResponse && "pointer-events-none opacity-60",
         )}
         style={{ ...passActionStyle, boxShadow: "none" }}
@@ -142,8 +142,8 @@ export function ChooseAction({
         <button
           type="button"
           className={cn(
-            "relative flex h-full flex-1 items-center justify-center gap-1.5 overflow-hidden text-xs font-black tracking-[0.14em] transition-colors hover:bg-white/10 focus-visible:bg-white/10 focus-visible:outline-none",
-            morphed && "bg-white/15",
+            "relative flex h-full flex-1 items-center justify-center gap-1.5 overflow-hidden text-xs font-black tracking-[0.14em] transition-colors hover:bg-current/10 focus-visible:bg-current/10 focus-visible:outline-none",
+            morphed && "bg-current/15",
           )}
           onClick={onClick}
           disabled={isWaitingForResponse}
@@ -158,7 +158,7 @@ export function ChooseAction({
         {!morphed && (
           <button
             type="button"
-            className="flex h-full items-center justify-center border-l border-white/20 bg-black/15 px-3.5 text-[11px] font-bold tracking-[0.14em] text-white/75 transition-[color,background-color] hover:bg-black/30 hover:text-white focus-visible:bg-black/30 focus-visible:text-white focus-visible:outline-none"
+            className="flex h-full items-center justify-center border-l border-current/20 bg-black/15 px-3.5 text-[11px] font-bold tracking-[0.14em] opacity-75 transition-[opacity,background-color] hover:bg-black/30 hover:opacity-100 focus-visible:bg-black/30 focus-visible:opacity-100 focus-visible:outline-none"
             onClick={onPassEndTurn}
             disabled={isWaitingForResponse}
             title={endTurnCombo ? `${endTurnTitle} (${comboSymbols(endTurnCombo)})` : endTurnTitle}

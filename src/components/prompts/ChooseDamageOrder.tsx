@@ -31,7 +31,7 @@ export function ChooseDamageOrder({
         <Button
           size="sm"
           variant="outline"
-          className="h-9 flex-1 rounded-lg text-xs font-bold !border-0 !text-white transition-[filter] hover:brightness-105"
+          className="h-9 flex-1 rounded-lg text-xs font-bold !border-0 transition-[filter] hover:brightness-105"
           onClick={onDefault}
           disabled={isWaitingForResponse}
           style={actionStyle}
@@ -42,7 +42,7 @@ export function ChooseDamageOrder({
           <Button
             size="sm"
             variant="outline"
-            className="h-9 flex-1 rounded-lg text-xs font-bold !border-0 !text-white transition-[filter] hover:brightness-105"
+            className="h-9 flex-1 rounded-lg text-xs font-bold !border-0 transition-[filter] hover:brightness-105"
             onClick={onUndo}
             disabled={isWaitingForResponse}
             style={actionStyle}
@@ -55,7 +55,7 @@ export function ChooseDamageOrder({
         <Button
           size="sm"
           variant="outline"
-          className="h-9 w-full rounded-lg text-sm font-black tracking-[0.12em] !border-0 !text-white transition-[filter,box-shadow] hover:brightness-105 gap-1.5"
+          className="h-9 w-full rounded-lg text-sm font-black tracking-[0.12em] !border-0 transition-[filter,box-shadow] hover:brightness-105 gap-1.5"
           onClick={onConfirm}
           disabled={isWaitingForResponse}
           style={actionStyle}

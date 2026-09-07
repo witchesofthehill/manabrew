@@ -1503,6 +1503,7 @@ export class BoardScene {
       getTheme: () => this.theme,
       getCallbacks: () => this.callbacks,
       getContainer: () => region.container,
+      getSelectedCardIds: () => this.selection?.getSelected() ?? new Set<string>(),
       getLastState: () => region.getLastState(),
       getEntries: () => region.getEntries(),
       isJustDragged: (id) =>
@@ -1512,6 +1513,8 @@ export class BoardScene {
       setCardHovered: (sprite, force = false) =>
         this.setBattlefieldCardHovered(region, sprite, force),
       scheduleHoverClear: (id) => this.scheduleHoverClear(id),
+      getCardScale: () => region.getCardScale(),
+      isCompact: () => this.compactMode,
     };
   }
 

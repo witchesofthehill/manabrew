@@ -536,17 +536,15 @@ mod tests {
     }
 
     #[test]
-    fn an_endpoint_without_kinds_speaks_iroh_and_nothing_else() {
-        let iroh_only = endpoint("a");
-        assert!(iroh_only.speaks(manabrew_relay_protocol::TRANSPORT_KIND_IROH));
-        assert!(!iroh_only.speaks(manabrew_relay_protocol::TRANSPORT_KIND_WEBRTC));
+    fn an_endpoint_without_kinds_speaks_nothing() {
+        assert!(!endpoint("a").speaks(manabrew_relay_protocol::TRANSPORT_KIND_WEBRTC));
 
         let browser = TransportEndpoint {
             kinds: vec![manabrew_relay_protocol::TRANSPORT_KIND_WEBRTC.into()],
             ..endpoint("b")
         };
         assert!(browser.speaks(manabrew_relay_protocol::TRANSPORT_KIND_WEBRTC));
-        assert!(!browser.speaks(manabrew_relay_protocol::TRANSPORT_KIND_IROH));
+        assert!(!browser.speaks("other"));
     }
 
     fn endpoint(id: &str) -> TransportEndpoint {

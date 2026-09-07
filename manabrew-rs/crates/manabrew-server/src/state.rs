@@ -87,7 +87,6 @@ pub struct ServerState {
     pub identity: IdentityVerifier,
     /// See `ServerConfig::direct_transport`. Fails closed.
     pub direct_transport: bool,
-    pub iroh_relay_url: Option<String>,
     /// See `ServerConfig::ice_servers`.
     pub ice_servers: Vec<crate::protocol::IceServer>,
     pub lobby_chat: Mutex<ChatHistory>,
@@ -116,7 +115,6 @@ impl ServerState {
             deck_play_events,
             identity: IdentityVerifier::new(hub_jwks_url),
             direct_transport: false,
-            iroh_relay_url: None,
             ice_servers: Vec::new(),
             lobby_chat: Mutex::new(ChatHistory::default()),
             seal,
@@ -127,11 +125,9 @@ impl ServerState {
     pub fn with_direct_transport(
         mut self,
         enabled: bool,
-        relay_url: Option<String>,
         ice_servers: Vec<crate::protocol::IceServer>,
     ) -> Self {
         self.direct_transport = enabled;
-        self.iroh_relay_url = relay_url;
         self.ice_servers = ice_servers;
         self
     }

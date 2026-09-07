@@ -6,7 +6,6 @@ import type { StateEnvelope } from "@/types/server";
 
 /** Matches `TRANSPORT_KIND_WEBRTC` in manabrew-relay-protocol. */
 export const TRANSPORT_KIND_WEBRTC = "webrtc";
-export const TRANSPORT_KIND_IROH = "iroh";
 
 const CHANNEL_LABEL = "manabrew-engine";
 
@@ -73,8 +72,7 @@ export function endpointSpeaks(member: RosterMember | undefined, kind: string): 
 }
 
 function advertisedKinds(member: RosterMember | undefined): string[] {
-  const kinds = member?.endpoint?.kinds;
-  return !kinds || kinds.length === 0 ? [TRANSPORT_KIND_IROH] : kinds;
+  return member?.endpoint?.kinds ?? [];
 }
 
 /** The first plane the host advertises that this client speaks. */

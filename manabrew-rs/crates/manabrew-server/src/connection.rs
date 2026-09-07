@@ -226,7 +226,6 @@ pub fn broadcast_room_transport(state: &Arc<ServerState>, room_id: &str) {
     let consented = room.transport_consented();
     let msg = ServerMessage::RoomTransport {
         room_id: room_id.to_string(),
-        iroh_relay_url: state.iroh_relay_url.clone(),
         ice_servers: state.ice_servers.clone(),
         host: consented.then(|| room.transport_host()).flatten(),
         members: if consented {
@@ -2074,10 +2073,6 @@ fn plane_outcome_label(outcome: &str) -> Option<&'static str> {
 fn plane_label(plane: &str) -> Option<&'static str> {
     match plane {
         crate::protocol::TRANSPORT_WEBRTC => Some(crate::protocol::TRANSPORT_WEBRTC),
-        // The pre-rename name folds into the same label.
-        crate::protocol::TRANSPORT_KIND_IROH | crate::protocol::TRANSPORT_IROH_DIRECT => {
-            Some(crate::protocol::TRANSPORT_KIND_IROH)
-        }
         _ => None,
     }
 }
@@ -2087,12 +2082,6 @@ fn candidate_pair_label(pair: Option<&str>) -> &'static str {
     let Some(pair) = pair else {
         return "unknown";
     };
-    match pair {
-        "direct-lan" => return "lan",
-        "direct-wan" => return "punched",
-        "relayed" => return "turn",
-        _ => {}
-    }
     let (local, remote) = match pair.split_once('/') {
         Some(split) => split,
         None => return "other",
@@ -2122,9 +2111,6 @@ mod plane_quality_tests {
     #[test]
     fn planes_come_from_the_fixed_set() {
         assert_eq!(plane_label("webrtc"), Some("webrtc"));
-        assert_eq!(plane_label("iroh"), Some("iroh"));
-        assert_eq!(plane_label("iroh-direct"), Some("iroh"));
-        assert_eq!(plane_label("iroh-relayed"), None);
         assert_eq!(plane_label("carrier pigeon"), None);
     }
 
@@ -2141,17 +2127,6 @@ mod plane_quality_tests {
     fn turn_is_labelled_even_though_we_run_none() {
         assert_eq!(candidate_pair_label(Some("relay/srflx")), "turn");
         assert_eq!(candidate_pair_label(Some("srflx/relay")), "turn");
-    }
-
-    #[test]
-    fn an_iroh_path_buckets_beside_an_ice_pair() {
-        assert_eq!(candidate_pair_label(Some("direct-lan")), "lan");
-        assert_eq!(candidate_pair_label(Some("direct-wan")), "punched");
-        assert_eq!(candidate_pair_label(Some("relayed")), "turn");
-        assert_eq!(
-            candidate_pair_label(Some("direct-lan")),
-            candidate_pair_label(Some("host/host"))
-        );
     }
 
     #[test]

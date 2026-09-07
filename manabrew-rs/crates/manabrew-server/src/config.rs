@@ -55,7 +55,6 @@ pub struct ServerConfig {
     pub hub_jwks_url: Option<String>,
     /// Opt-in. Off, the relay never sends a roster.
     pub direct_transport: bool,
-    pub iroh_relay_url: Option<String>,
     /// ICE servers handed to the browser plane. See [`parse_ice_servers`].
     pub ice_servers: Vec<TransportIceServer>,
     /// Where this relay keeps card art. Set it and the relay serves
@@ -120,9 +119,6 @@ impl ServerConfig {
                 .filter(|url| !url.is_empty()),
             direct_transport: std::env::var("MANABREW_DIRECT_TRANSPORT")
                 .is_ok_and(|v| v == "1" || v.eq_ignore_ascii_case("true")),
-            iroh_relay_url: std::env::var("MANABREW_IROH_RELAY_URL")
-                .ok()
-                .filter(|url| !url.is_empty()),
             ice_servers: std::env::var("MANABREW_ICE_SERVERS")
                 .ok()
                 .map(|raw| parse_ice_servers(&raw))

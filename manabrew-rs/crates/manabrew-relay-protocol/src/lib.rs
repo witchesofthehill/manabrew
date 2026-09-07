@@ -88,11 +88,8 @@ pub struct TransportEndpoint {
 }
 
 impl TransportEndpoint {
-    /// Whether this peer speaks a plane, with the pre-`kinds` default applied.
+    /// Whether this peer advertises a plane.
     pub fn speaks(&self, kind: &str) -> bool {
-        if self.kinds.is_empty() {
-            return kind == TRANSPORT_KIND_IROH;
-        }
         self.kinds.iter().any(|k| k == kind)
     }
 }
@@ -160,13 +157,10 @@ pub const MAX_CANDIDATE_PAIR_BYTES: usize = 64;
 /// Longest duration the relay records; ten minutes.
 pub const MAX_PLANE_MS: u32 = 600_000;
 
-pub const TRANSPORT_IROH_DIRECT: &str = "iroh-direct";
-pub const TRANSPORT_IROH_RELAYED: &str = "iroh-relayed";
 /// A browser pair on an `RTCDataChannel`.
 pub const TRANSPORT_WEBRTC: &str = "webrtc";
 
 /// Names for [`TransportEndpoint::kinds`].
-pub const TRANSPORT_KIND_IROH: &str = "iroh";
 pub const TRANSPORT_KIND_WEBRTC: &str = "webrtc";
 
 /// One room member's endpoint. `username` is relay-attested, never client supplied.
@@ -440,8 +434,6 @@ pub enum ServerMessage {
     /// The room's data-plane roster. Sent only to room members.
     RoomTransport {
         room_id: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        iroh_relay_url: Option<String>,
         /// STUN, and TURN where configured, for the WebRTC plane.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         ice_servers: Vec<IceServer>,

@@ -34,10 +34,10 @@ export class RulesPreviewSectionHeader extends Container {
     const label = new Text({
       text: title,
       style: new TextStyle({
-        fill: collapsed && collapsedAccent ? collapsedAccent : frame.mutedInk,
+        fill: frame.ink,
         fontFamily: "Inter, system-ui, sans-serif",
-        fontSize: options.fontSize ?? 11,
-        fontWeight: "600",
+        fontSize: options.fontSize ?? 12,
+        fontWeight: "700",
       }),
     });
     label.resolution = 2;
@@ -46,7 +46,7 @@ export class RulesPreviewSectionHeader extends Container {
     if (collapsed) chevron.moveTo(4, 12).lineTo(8, 16).lineTo(4, 20);
     else chevron.moveTo(2, 14).lineTo(6, 18).lineTo(10, 14);
     chevron.stroke({
-      color: hexToNum(collapsed && collapsedAccent ? collapsedAccent : frame.mutedInk),
+      color: hexToNum(collapsed && collapsedAccent ? collapsedAccent : frame.ink),
       width: 1.5,
     });
     this.addChild(this.background, chevron, label);
@@ -89,12 +89,12 @@ export class RulesPreviewSectionHeader extends Container {
   }
 
   private drawBackground(hovered: boolean): void {
-    const { width, frame } = this.options;
+    const { width, collapsed, frame } = this.options;
     this.background
       .clear()
       .rect(0, 0, width, PREVIEW_SECTION_HEADER_HEIGHT)
       .fill(hexToNum(frame.paper));
-    if (hovered) {
+    if (!collapsed || hovered) {
       this.background.rect(0, 0, width, PREVIEW_SECTION_HEADER_HEIGHT).fill(hexToNum(frame.raised));
     }
   }

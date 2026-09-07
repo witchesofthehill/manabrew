@@ -288,6 +288,54 @@ export function relativeLuminance(hex: string): number {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 }
 
+function contrastLuminance(hex: string): number {
+  const toLinear = (channel: number): number => {
+    const value = channel / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+  const { r, g, b } = hexToRgb(hex);
+  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+}
+
+export function contrastRatio(foreground: string, background: string): number {
+  const foregroundLuminance = contrastLuminance(foreground);
+  const backgroundLuminance = contrastLuminance(background);
+  const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+  const darker = Math.min(foregroundLuminance, backgroundLuminance);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function mixHexColors(from: string, to: string, amount: number): string {
+  const start = hexToRgb(from);
+  const end = hexToRgb(to);
+  const channel = (left: number, right: number): string =>
+    Math.round(left + (right - left) * amount)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${channel(start.r, end.r)}${channel(start.g, end.g)}${channel(start.b, end.b)}`;
+}
+
+export function ensureTextContrast(
+  color: string,
+  background: string,
+  fallback: string,
+  minimumRatio: number,
+): string {
+  if (contrastRatio(color, background) >= minimumRatio) return color;
+  if (contrastRatio(fallback, background) < minimumRatio) return fallback;
+  let low = 0;
+  let high = 1;
+  for (let iteration = 0; iteration < 12; iteration += 1) {
+    const amount = (low + high) / 2;
+    if (contrastRatio(mixHexColors(color, fallback, amount), background) >= minimumRatio) {
+      high = amount;
+    } else {
+      low = amount;
+    }
+  }
+  return mixHexColors(color, fallback, high);
+}
+
 export function readableTextColor(background: string, dark: string, light: string): string {
   return relativeLuminance(background) > 0.6 ? dark : light;
 }

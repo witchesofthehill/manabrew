@@ -81,8 +81,8 @@ export class RulesPreviewIdentity extends Container {
       style: new TextStyle({
         fill: frame.ink,
         fontFamily: "Inter, system-ui, sans-serif",
-        fontSize: 13,
-        fontWeight: "500",
+        fontSize: 14,
+        fontWeight: "600",
         lineHeight: 17,
         wordWrap: true,
         breakWords: true,

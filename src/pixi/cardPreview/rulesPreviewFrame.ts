@@ -1,7 +1,7 @@
 import { FillGradient, Graphics, Text, TextStyle, type Container } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "@/pixi/colorUtils";
-import { cardFrameTints, readableTextColor } from "@/themes/gameTheme";
+import { cardFrameTints, contrastRatio, ensureTextContrast } from "@/themes/gameTheme";
 import { FLASH_CARD_SIZE } from "@/components/game/game.styles";
 import type { CardStatPresentation } from "@/components/game/cardPresentation";
 
@@ -14,6 +14,7 @@ export const RULES_CARD_CONSTRAINTS = {
   height: FLASH_CARD_SIZE.h,
   radius: 13,
 } as const;
+const RULES_TEXT_MIN_CONTRAST = 4.5;
 
 export function rulesCardRadius(width: number, height: number): number {
   return (
@@ -62,32 +63,57 @@ export function resolveRulesPreviewFrame(
   colorIdentity?: string[],
 ): RulesPreviewFrameStyle {
   const { primary, secondary } = cardFrameTints(colorIdentity, theme.gameTheme.mana);
-  const titleGradient = secondary
+  const paper = theme.appTheme.popover;
+  const ink = theme.appTheme["popover-foreground"];
+  const mutedInk = ensureTextContrast(
+    theme.appTheme["muted-foreground"],
+    paper,
+    ink,
+    RULES_TEXT_MIN_CONTRAST,
+  );
+  const darkTitleInk = theme.gameTheme.canvas.shadow;
+  const lightTitleInk = theme.gameTheme.textOnTinted;
+  const darkTitleContrast = Math.min(
+    contrastRatio(darkTitleInk, primary),
+    secondary ? contrastRatio(darkTitleInk, secondary) : Number.POSITIVE_INFINITY,
+  );
+  const lightTitleContrast = Math.min(
+    contrastRatio(lightTitleInk, primary),
+    secondary ? contrastRatio(lightTitleInk, secondary) : Number.POSITIVE_INFINITY,
+  );
+  const titleInk = darkTitleContrast >= lightTitleContrast ? darkTitleInk : lightTitleInk;
+  const titleBackgroundFallback = titleInk === darkTitleInk ? lightTitleInk : darkTitleInk;
+  const title = ensureTextContrast(
+    primary,
+    titleInk,
+    titleBackgroundFallback,
+    RULES_TEXT_MIN_CONTRAST,
+  );
+  const secondaryTitle = secondary
+    ? ensureTextContrast(secondary, titleInk, titleBackgroundFallback, RULES_TEXT_MIN_CONTRAST)
+    : null;
+  const titleGradient = secondaryTitle
     ? new FillGradient({
         type: "linear",
         start: { x: 0, y: 0 },
         end: { x: 1, y: 0 },
         colorStops: [
-          { offset: 0, color: primary },
-          { offset: 0.42, color: primary },
-          { offset: 0.58, color: secondary },
-          { offset: 1, color: secondary },
+          { offset: 0, color: title },
+          { offset: 0.42, color: title },
+          { offset: 0.58, color: secondaryTitle },
+          { offset: 1, color: secondaryTitle },
         ],
         textureSpace: "local",
       })
     : null;
   return {
-    paper: theme.appTheme.popover,
+    paper,
     raised: theme.appTheme.muted,
-    ink: theme.appTheme["popover-foreground"],
-    mutedInk: theme.appTheme["muted-foreground"],
+    ink,
+    mutedInk,
     border: primary,
-    title: primary,
-    titleInk: readableTextColor(
-      primary,
-      theme.gameTheme.canvas.shadow,
-      theme.gameTheme.textOnTinted,
-    ),
+    title,
+    titleInk,
     titleGradient,
   };
 }

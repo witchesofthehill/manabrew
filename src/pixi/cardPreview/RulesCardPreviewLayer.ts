@@ -111,7 +111,7 @@ const ORACLE_LINE_HEIGHT = 20;
 const FLAVOR_FONT_SIZE = 13;
 const FLAVOR_LINE_HEIGHT = 17;
 const FLAVOR_MANA_SIZE = 15;
-const ABILITY_GAP = 10;
+const ABILITY_GAP = 12;
 const ENTRY_INTERACTION_PAD_MS = 80;
 
 function prefersReducedMotion(): boolean {
@@ -645,6 +645,21 @@ export class RulesCardPreviewLayer {
       progression?.rail.kind === "saga"
         ? presentation.counters.filter((counter) => counter.type !== "Lore")
         : presentation.counters;
+    if (indexedActions.length > 0) {
+      y = this.addSectionHeader(
+        "actions",
+        `${display.otherFace ? "Available on current face" : "Available actions"} · ${indexedActions.length}`,
+        y,
+        this.bodyContent,
+        this.theme.gameTheme.cardRing,
+      );
+      this.actions.visible = !this.isCollapsed("actions");
+      if (this.actions.visible) {
+        this.actions.position.set(0, y);
+        this.bodyContent.addChild(this.actions);
+        y += this.actions.panelHeight + 4;
+      }
+    }
     if (display.keywords.length > 0 || display.costs.length > 0 || visibleCounters.length > 0) {
       y = this.addSectionHeader(
         "details",
@@ -668,21 +683,6 @@ export class RulesCardPreviewLayer {
               y + 6,
             ) + 8;
         }
-      }
-    }
-    if (indexedActions.length > 0) {
-      y = this.addSectionHeader(
-        "actions",
-        `${display.otherFace ? "Available on current face" : "Available actions"} · ${indexedActions.length}`,
-        y,
-        this.bodyContent,
-        this.theme.gameTheme.cardRing,
-      );
-      this.actions.visible = !this.isCollapsed("actions");
-      if (this.actions.visible) {
-        this.actions.position.set(0, y);
-        this.bodyContent.addChild(this.actions);
-        y += this.actions.panelHeight + 4;
       }
     }
     if (progression) {
@@ -845,7 +845,7 @@ export class RulesCardPreviewLayer {
     mana.position.set(this.contentWidth - mana.width, y + 1);
     const type = new Text({
       text: typeLine,
-      style: textStyle(this.frame.mutedInk, 12, "600", RULES_BODY_FONT),
+      style: textStyle(this.frame.ink, 12, "600", RULES_BODY_FONT),
     });
     type.resolution = 2;
     type.position.set(0, y + Math.max(20, nameText.height) + 2);

@@ -21,8 +21,6 @@ import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { asDeckCard } from "@/lib/decks";
 import { useGameStore } from "@/stores/useGameStore";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import { gsap } from "@/pixi/effects/gsap";
-import { animationsEnabled } from "@/pixi/effects/enabled";
 import { PixiRichText } from "./PixiRichText";
 import { RulesPreviewIdentity } from "./RulesPreviewIdentity";
 import { RulesPreviewActions } from "./RulesPreviewActions";
@@ -59,7 +57,6 @@ const CONTENT_PAD = 16;
 const FOOTER_HEIGHT = 44;
 const FRAME_BOTTOM_PAD = 16;
 const RULES_FONT_MAX = 21;
-const RULES_FONT_MIN = 16;
 const FLAVOR_FONT_MAX = 15;
 const FLAVOR_FONT_MIN = 13;
 const RULES_LINE_GAP = 3;
@@ -70,10 +67,9 @@ const ACTIONS_CONTENT_SCALE = 1.3;
 const SECTION_GAP = 6;
 const SECTION_HEADER_FONT_SIZE = 15;
 const FADE_HEIGHT = 18;
-const STACK_RULES_ENTRY_GAP = 8;
-const STACK_RULES_ENTRY_PAD = 6;
-const STACK_RULES_SCROLL_GUTTER = 8;
-const STACK_RULES_PULSE_S = 0.9;
+const RULES_ENTRY_GAP = 12;
+const RULES_ENTRY_PAD = 6;
+const RULES_SCROLL_GUTTER = 8;
 type HandRulesSectionId = "actions" | "rules" | "flavor";
 
 export class HandRulesCardFace extends Container {
@@ -95,8 +91,7 @@ export class HandRulesCardFace extends Container {
   private theme: Theme;
   private frameGradient: FillGradient | null = null;
   private highlightedEffect = "";
-  private highlightedEffectScroll: number | null = null;
-  private highlightedEffectTween: gsap.core.Tween | null = null;
+  private rulesScrollOffset: number | null = null;
 
   constructor(
     card: CardDto,
@@ -144,6 +139,7 @@ export class HandRulesCardFace extends Container {
     this.deckLayout = deckLayout;
     if (lookupChanged) this.resolveInfo();
     if (lookupChanged || faceChanged) {
+      this.rulesScrollOffset = null;
       this.artTexture = Texture.EMPTY;
       void this.loadArt();
     }
@@ -177,7 +173,7 @@ export class HandRulesCardFace extends Container {
   setHighlightedEffect(text: string): void {
     if (this.highlightedEffect === text) return;
     this.highlightedEffect = text;
-    this.highlightedEffectScroll = null;
+    this.rulesScrollOffset = null;
     this.rebuild();
   }
 
@@ -222,8 +218,6 @@ export class HandRulesCardFace extends Container {
   }
 
   private rebuild(): void {
-    this.highlightedEffectTween?.kill();
-    this.highlightedEffectTween = null;
     this.root.removeChildren().forEach((child) => child.destroy({ children: true }));
     this.frameGradient?.destroy();
     this.frameGradient = null;
@@ -309,12 +303,11 @@ export class HandRulesCardFace extends Container {
 
     const contentWidth = designWidth - CONTENT_PAD * 2;
     const rulesEntries = this.rulesEntries(display);
-    const rulesContent = rulesEntries.join("\n\n");
     const flavorContent = this.flavorContent(display);
     const hasActions = this.actions.length > 0 && this.onSelectAction !== null;
     const sections = [
       ...(hasActions ? (["actions"] as const) : []),
-      ...(rulesContent ? (["rules"] as const) : []),
+      ...(rulesEntries.length > 0 ? (["rules"] as const) : []),
       ...(flavorContent ? (["flavor"] as const) : []),
     ];
     let y = bodyTop;
@@ -327,10 +320,6 @@ export class HandRulesCardFace extends Container {
       expandedCount > 0
         ? Math.max(1, (remainingBodyHeight - headersHeight - expandedGaps) / expandedCount)
         : 0;
-    const singleSectionContentBudget = Math.max(
-      1,
-      remainingBodyHeight - headersHeight - SECTION_GAP,
-    );
 
     if (hasActions) {
       y = this.addSectionHeader(
@@ -363,34 +352,24 @@ export class HandRulesCardFace extends Container {
       }
     }
 
-    if (rulesContent) {
+    if (rulesEntries.length > 0) {
       y = this.addSectionHeader("rules", "Rules text", y, contentWidth, frame);
       if (!this.rulesCollapsed) {
-        y = highlightedEffect
-          ? this.addHighlightedRulesText(
-              rulesEntries,
-              highlightedEffect,
-              y,
-              contentBudget,
-              contentWidth,
-              frame,
-            )
-          : this.addTextBlock(
-              rulesContent,
-              y,
-              contentBudget,
-              contentWidth,
-              frame,
-              false,
-              singleSectionContentBudget,
-            );
+        y = this.addRulesText(
+          rulesEntries,
+          highlightedEffect,
+          y,
+          contentBudget,
+          contentWidth,
+          frame,
+        );
       }
     }
 
     if (flavorContent) {
       y = this.addSectionHeader("flavor", "Flavor text", y, contentWidth, frame);
       if (!this.flavorCollapsed) {
-        this.addTextBlock(flavorContent, y, contentBudget, contentWidth, frame, true);
+        this.addFlavorTextBlock(flavorContent, y, contentBudget, contentWidth, frame);
       }
     }
     this.drawFooter(display, designWidth, designHeight, footerHeight, frame);
@@ -409,7 +388,7 @@ export class HandRulesCardFace extends Container {
     this.rebuild();
   }
 
-  private addHighlightedRulesText(
+  private addRulesText(
     entries: string[],
     highlightedEffect: string,
     y: number,
@@ -420,62 +399,59 @@ export class HandRulesCardFace extends Container {
     if (maxHeight <= 0) return y;
     const viewport = new Container();
     const content = new Container();
-    const pulseTargets: Container[] = [];
-    const textWidth = width - STACK_RULES_ENTRY_PAD * 2 - STACK_RULES_SCROLL_GUTTER;
+    const textWidth = width - RULES_ENTRY_PAD * 2 - RULES_SCROLL_GUTTER;
+    const fontSize = highlightedEffect ? STACK_RULES_FONT_SIZE : RULES_FONT_MAX;
     const style = new TextStyle({
       fill: frame.ink,
       fontFamily: RULES_BODY_FONT,
-      fontSize: STACK_RULES_FONT_SIZE,
+      fontSize,
       fontWeight: "400",
-      lineHeight: STACK_RULES_FONT_SIZE * 1.25,
+      lineHeight: fontSize * 1.25,
     });
     const parentheticalStyle = new TextStyle({
       fill: frame.mutedInk,
       fontFamily: RULES_BODY_FONT,
-      fontSize: STACK_RULES_FONT_SIZE,
+      fontSize,
       fontStyle: "italic",
-      lineHeight: STACK_RULES_FONT_SIZE * 1.25,
+      lineHeight: fontSize * 1.25,
     });
     let contentY = 0;
     let firstHighlightedTop: number | null = null;
     for (const entry of entries) {
       const row = new Container();
       const richText = new PixiRichText();
-      const textHeight = richText.setContent(
-        entry,
-        style,
-        textWidth,
-        STACK_RULES_FONT_SIZE,
-        RULES_LINE_GAP,
-        { parentheticalStyle },
-      );
-      const rowHeight = textHeight + STACK_RULES_ENTRY_PAD * 2;
-      richText.position.set(STACK_RULES_ENTRY_PAD, STACK_RULES_ENTRY_PAD);
-      if (rulesEntryMatchesStackAbility(entry, highlightedEffect)) {
+      const textHeight = richText.setContent(entry, style, textWidth, fontSize, RULES_LINE_GAP, {
+        parentheticalStyle,
+      });
+      const rowHeight = textHeight + RULES_ENTRY_PAD * 2;
+      richText.position.set(RULES_ENTRY_PAD, RULES_ENTRY_PAD);
+      if (highlightedEffect && rulesEntryMatchesStackAbility(entry, highlightedEffect)) {
+        const color = hexToNum(this.theme.gameTheme.activeAction.active);
         const highlight = new Graphics();
-        highlight.roundRect(0, 0, width - STACK_RULES_SCROLL_GUTTER, rowHeight, 6).fill({
-          color: hexToNum(this.theme.gameTheme.activeAction.active),
-          alpha: 0.28,
+        highlight.roundRect(0, 0, width - RULES_SCROLL_GUTTER, rowHeight, 6).fill({
+          color,
+          alpha: 0.18,
         });
-        row.addChild(highlight);
-        pulseTargets.push(row);
+        const marker = new Graphics();
+        marker.roundRect(0, 0, 4, rowHeight, 2).fill(color);
+        row.addChild(highlight, marker);
         firstHighlightedTop ??= contentY;
       }
       row.position.y = contentY;
       row.addChild(richText);
       content.addChild(row);
-      contentY += rowHeight + STACK_RULES_ENTRY_GAP;
+      contentY += rowHeight + RULES_ENTRY_GAP;
     }
-    const contentHeight = Math.max(0, contentY - STACK_RULES_ENTRY_GAP);
+    const contentHeight = Math.max(0, contentY - RULES_ENTRY_GAP);
     const viewportHeight = Math.min(contentHeight, maxHeight);
     const maxScroll = Math.max(0, contentHeight - viewportHeight);
-    if (this.highlightedEffectScroll === null) {
-      this.highlightedEffectScroll = Math.max(0, Math.min(firstHighlightedTop ?? 0, maxScroll));
+    if (this.rulesScrollOffset === null) {
+      this.rulesScrollOffset = Math.max(0, Math.min(firstHighlightedTop ?? 0, maxScroll));
     } else {
-      this.highlightedEffectScroll = Math.max(0, Math.min(this.highlightedEffectScroll, maxScroll));
+      this.rulesScrollOffset = Math.max(0, Math.min(this.rulesScrollOffset, maxScroll));
     }
     viewport.position.set(CONTENT_PAD, y);
-    content.y = -this.highlightedEffectScroll;
+    content.y = -this.rulesScrollOffset;
     viewport.addChild(content);
     const mask = new Graphics();
     mask.rect(CONTENT_PAD, y, width, viewportHeight).fill(hexToNum(frame.paper));
@@ -496,11 +472,11 @@ export class HandRulesCardFace extends Container {
         .roundRect(trackX - 1, 0, 4, thumbHeight, 2)
         .fill({ color: hexToNum(frame.mutedInk), alpha: 0.85 });
       const setScroll = (offset: number): void => {
-        this.highlightedEffectScroll = Math.max(0, Math.min(offset, maxScroll));
-        content.y = -this.highlightedEffectScroll;
-        thumb.y = thumbTravel * (this.highlightedEffectScroll / maxScroll);
+        this.rulesScrollOffset = Math.max(0, Math.min(offset, maxScroll));
+        content.y = -this.rulesScrollOffset;
+        thumb.y = thumbTravel * (this.rulesScrollOffset / maxScroll);
       };
-      setScroll(this.highlightedEffectScroll);
+      setScroll(this.rulesScrollOffset);
       viewport.eventMode = "static";
       viewport.hitArea = new Rectangle(0, 0, width, viewportHeight);
       viewport.on("wheel", (event: FederatedWheelEvent) => {
@@ -509,13 +485,13 @@ export class HandRulesCardFace extends Container {
         const scale = Math.hypot(viewport.worldTransform.c, viewport.worldTransform.d);
         const unit =
           event.deltaMode === 1
-            ? STACK_RULES_FONT_SIZE * 1.25
+            ? fontSize * 1.25
             : event.deltaMode === 2
               ? viewportHeight
               : scale > 0
                 ? 1 / scale
                 : 0;
-        setScroll(this.highlightedEffectScroll! + event.deltaY * unit);
+        setScroll(this.rulesScrollOffset! + event.deltaY * unit);
       });
       let dragPointerId: number | null = null;
       let dragStartY = 0;
@@ -525,7 +501,7 @@ export class HandRulesCardFace extends Container {
         event.stopPropagation();
         dragPointerId = event.pointerId;
         dragStartY = event.global.y;
-        dragStartScroll = this.highlightedEffectScroll!;
+        dragStartScroll = this.rulesScrollOffset!;
       });
       viewport.on("globalpointermove", (event: FederatedPointerEvent) => {
         if (event.pointerId !== dragPointerId) return;
@@ -545,15 +521,6 @@ export class HandRulesCardFace extends Container {
     }
     viewport.addChild(track, thumb);
     this.root.addChild(viewport, mask);
-    if (pulseTargets.length > 0 && animationsEnabled()) {
-      this.highlightedEffectTween = gsap.to(pulseTargets, {
-        alpha: 0.72,
-        duration: STACK_RULES_PULSE_S,
-        ease: "sine.inOut",
-        yoyo: true,
-        repeat: -1,
-      });
-    }
     return y + viewportHeight + SECTION_GAP;
   }
 
@@ -580,48 +547,27 @@ export class HandRulesCardFace extends Container {
     return y + PREVIEW_SECTION_HEADER_HEIGHT + 4;
   }
 
-  private addTextBlock(
+  private addFlavorTextBlock(
     content: string,
     y: number,
     maxHeight: number,
     width: number,
     frame: RulesPreviewFrameStyle,
-    italic: boolean,
-    fitHeight = maxHeight,
   ): number {
     if (maxHeight <= 0) return y;
-    const maxFontSize = italic ? FLAVOR_FONT_MAX : RULES_FONT_MAX;
-    const minFontSize = italic ? FLAVOR_FONT_MIN : RULES_FONT_MIN;
     const richText = new PixiRichText();
     let contentHeight = 0;
-    for (let fontSize = maxFontSize; fontSize >= minFontSize; fontSize -= 1) {
+    for (let fontSize = FLAVOR_FONT_MAX; fontSize >= FLAVOR_FONT_MIN; fontSize -= 1) {
       const style = new TextStyle({
-        fill: italic ? frame.mutedInk : frame.ink,
+        fill: frame.mutedInk,
         fontFamily: RULES_BODY_FONT,
         fontSize,
-        fontStyle: italic ? "italic" : "normal",
+        fontStyle: "italic",
         fontWeight: "400",
         lineHeight: fontSize * 1.25,
       });
-      contentHeight = richText.setContent(
-        content,
-        style,
-        width,
-        fontSize,
-        RULES_LINE_GAP,
-        italic
-          ? undefined
-          : {
-              parentheticalStyle: new TextStyle({
-                fill: frame.mutedInk,
-                fontFamily: RULES_BODY_FONT,
-                fontSize,
-                fontStyle: "italic",
-                lineHeight: fontSize * 1.25,
-              }),
-            },
-      );
-      if (contentHeight <= fitHeight || fontSize === minFontSize) break;
+      contentHeight = richText.setContent(content, style, width, fontSize, RULES_LINE_GAP);
+      if (contentHeight <= maxHeight || fontSize === FLAVOR_FONT_MIN) break;
     }
     const visibleHeight = Math.min(contentHeight, maxHeight);
     richText.position.set(CONTENT_PAD, y);
@@ -711,8 +657,6 @@ export class HandRulesCardFace extends Container {
   }
 
   override destroy(options?: DestroyOptions): void {
-    this.highlightedEffectTween?.kill();
-    this.highlightedEffectTween = null;
     this.frameGradient?.destroy();
     this.frameGradient = null;
     super.destroy(options);

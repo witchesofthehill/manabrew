@@ -1,10 +1,11 @@
 import { Heart, Skull } from "lucide-react";
 
 import { ScryfallImg } from "@/components/ScryfallImg";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useGameStore } from "@/stores/useGameStore";
 import { useTheme } from "@/hooks/useTheme";
+import { usePlayerAvatar } from "@/hooks/usePlayerAvatar";
 import { withAlpha } from "@/themes/gameTheme";
 import { getInitials } from "@/components/game/game.utils";
 import { useResolveDeckCard } from "./usePromptSourceCard";
@@ -68,6 +69,7 @@ function PromptTargetPlayer({ playerId }: { playerId: string }) {
 
   const index = gameView?.players.findIndex((p) => p.id === playerId) ?? -1;
   const player = index >= 0 ? gameView?.players[index] : undefined;
+  const avatarUrl = usePlayerAvatar(player?.name);
   if (!player) {
     return (
       <span
@@ -92,6 +94,9 @@ function PromptTargetPlayer({ playerId }: { playerId: string }) {
       title={player.name}
     >
       <Avatar className="h-11 w-11">
+        {avatarUrl && (
+          <AvatarImage src={avatarUrl} alt="" crossOrigin="anonymous" className="object-cover" />
+        )}
         <AvatarFallback className="font-bold text-white" style={{ backgroundColor: seatColor }}>
           {getInitials(player.name)}
         </AvatarFallback>

@@ -11,6 +11,12 @@ const FORGE_DECISION_STAGE_SECONDS: &str = "manabrew_node_forge_decision_stage_s
 const FORGE_DECISION_SECONDS: &str = "manabrew_node_forge_decision_seconds";
 const ENGINE_ERRORS: &str = "manabrew_node_engine_errors_total";
 const RELAY_RECONNECTS: &str = "manabrew_node_relay_reconnects_total";
+#[cfg(feature = "iroh")]
+const DIRECT_SEATS: &str = "manabrew_node_direct_seats_total";
+#[cfg(feature = "iroh")]
+const DIRECT_FRAMES: &str = "manabrew_node_direct_frames_total";
+#[cfg(feature = "iroh")]
+const DIRECT_FALLBACKS: &str = "manabrew_node_direct_fallbacks_total";
 const BUILD_INFO: &str = "manabrew_node_build_info";
 const RELAY_SEND_SECONDS: &str = "manabrew_node_relay_send_seconds";
 const JVM_GC_PAUSE_SECONDS: &str = "manabrew_node_jvm_gc_pause_seconds";
@@ -30,6 +36,8 @@ const LABEL_CLEAN: &str = "clean";
 const LABEL_PLAYERS: &str = "players";
 const LABEL_SIGNATURE: &str = "signature";
 const LABEL_STAGE: &str = "stage";
+#[cfg(feature = "iroh")]
+const LABEL_DIRECTION: &str = "direction";
 const LABEL_COLLECTOR: &str = "collector";
 const LABEL_VERSION: &str = "version";
 const LABEL_SEATS: &str = "seats";
@@ -209,6 +217,22 @@ pub fn record_engine_stall(stalled_millis: u64, max_stall_millis: u64, long_stal
 
 pub fn record_relay_reconnect() {
     counter!(RELAY_RECONNECTS).increment(1);
+}
+
+#[cfg(feature = "iroh")]
+pub fn record_direct_seat(kind: manabrew_net::TransportKind) {
+    counter!(DIRECT_SEATS, LABEL_KIND => kind.as_str()).increment(1);
+}
+
+#[cfg(feature = "iroh")]
+pub fn record_direct_frame(direction: &'static str) {
+    counter!(DIRECT_FRAMES, LABEL_DIRECTION => direction).increment(1);
+}
+
+/// A seat that was on the direct plane and is now back on the relay.
+#[cfg(feature = "iroh")]
+pub fn record_direct_fallback() {
+    counter!(DIRECT_FALLBACKS).increment(1);
 }
 
 pub fn record_forge_decision_stage(stage: &'static str, elapsed: Duration) {

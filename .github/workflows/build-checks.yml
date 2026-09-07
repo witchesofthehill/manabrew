@@ -411,8 +411,11 @@ jobs:
       - name: Build cardset archive
         run: cargo run -p forge-cardset-archive --features build --release --bin build-cardset-archive
 
+      # `iroh` on, so the suite exercises the direct plane against the same
+      # node binary a desktop room embeds. Off it would test the relay path
+      # only and pass while the plane was broken.
       - name: Build relay and node
-        run: cargo build --release -p manabrew-server -p self-hosted-node
+        run: cargo build --release -p manabrew-server -p self-hosted-node --features self-hosted-node/iroh
 
       - name: Run networking regression suite
         run: >

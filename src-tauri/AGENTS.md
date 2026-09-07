@@ -30,11 +30,10 @@ Read first: `/AGENTS.md`.
 - **Long-running work runs off the command thread.** Tauri commands are async; spawn into the runtime, don't block.
 - **Mobile safe-area insets are injected natively.** Android's WebView doesn't surface window insets to CSS `env(safe-area-inset-*)`, so `gen/android/app/src/main/java/com/manabrew/app/MainActivity.kt` is a hand-edited override (not the auto-generated `TauriActivity.kt`): it runs `enableEdgeToEdge()`, reads `WindowInsets` in `onWebViewCreate`, and exposes them through the `__ANDROID_SAFE_AREA__` JS bridge that `src/platform/androidSafeArea.ts` mirrors onto the `--safe-area-inset-*` CSS vars. If `tauri android init` ever regenerates `MainActivity.kt`, re-apply this. iOS/iPad get insets from `env()` directly (`viewport-fit=cover` + `black-translucent` status bar in `index.html`).
 
-## The direct transport
+## The direct seat
 
-Every seat, desktop included, takes the direct plane over WebRTC, driven from the webview
-(`src/game/webrtcPlane.ts`); the Tauri shell binds nothing. `forge_room.rs` runs
-`self-hosted-node` in-process under the `forge-room` feature, and when the room opts in it installs
-a `ShellBridge` so the engine's envelopes for a WebRTC seat go out through the webview beside it. A
-desktop host cannot make a WebRTC connection from Rust, so the webview holds those connections for
-it. See `docs/TRANSPORT.md`.
+`direct_seat.rs` binds this machine's iroh endpoint and exposes it to the webview as
+`direct_seat_*` commands plus a `direct-seat:envelope` event. Behind the `direct-seat` feature,
+which `forge-room` turns on. `DesktopSeat` holds the logic and takes no Tauri types, because
+WKWebView cannot be driven headlessly and the tests have to reach it some other way. See
+`docs/TRANSPORT.md`.

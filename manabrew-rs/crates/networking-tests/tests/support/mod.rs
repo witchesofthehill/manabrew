@@ -23,7 +23,11 @@ use manabrew_agent_interface::ids_codec::player_slot;
 use manabrew_agent_interface::prompt::AgentPrompt;
 use manabrew_agent_interface::protocol::{
     ClientMessage, ClientPlatform, EngineKind, GameFormat, IdentityProof, PlayerInfo, RoomInfo,
-    RoomStatus, ServerMessage, StateEnvelope, TransportEndpoint, PROTOCOL_VERSION,
+    RoomStatus, ServerMessage, StateEnvelope, TransportEndpoint, TransportMember, PROTOCOL_VERSION,
+};
+use manabrew_net::{
+    GameReceiver, GameSender, NetConfig, NetEndpoint, RelayMode, Roster, SessionFrame,
+    TransportStatus,
 };
 use serde_json::{json, Value};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -93,8 +97,8 @@ pub struct Sim {
     pub port: u16,
     pub relay_url: String,
     pub room_id: String,
-    /// `MANABREW_DIRECT_TRANSPORT` on the relay: it advertises the rendezvous
-    /// and signalling. Off is production before #838 and the default here.
+    /// `MANABREW_DIRECT_TRANSPORT` on the relay, `SELF_HOSTED_NODE_IROH` on
+    /// the node. Off is production before #838 and the default here.
     direct: bool,
     /// Where the relay writes its analytics events, for the direct scenarios,
     /// which are the only ones that need to read them.
@@ -106,32 +110,47 @@ pub struct Sim {
 impl Sim {
     /// Relay + hosted node, node room discovered and ready.
     pub async fn spawn(port: u16) -> Sim {
-        Sim::spawn_node_sim(port, None).await
+        Sim::spawn_node_sim(port, None, false).await
     }
 
     /// Same, with the node armed to auto-update off `manifest`.
     pub async fn spawn_updating(port: u16, manifest: &str) -> Sim {
-        Sim::spawn_node_sim(port, Some(manifest)).await
+        Sim::spawn_node_sim(port, Some(manifest), false).await
     }
 
-    async fn spawn_node_sim(port: u16, manifest: Option<&str>) -> Sim {
+    /// Relay with the direct transport on and a node offering the iroh plane,
+    /// which is what a desktop-hosted room looks like from a seat.
+    pub async fn spawn_direct(port: u16) -> Sim {
+        Sim::spawn_node_sim(port, None, true).await
+    }
+
+    async fn spawn_node_sim(port: u16, manifest: Option<&str>, direct: bool) -> Sim {
         let relay_url = format!("ws://127.0.0.1:{port}");
-        let relay = spawn_relay(port, false, None);
+        let events_dir = direct.then(|| fresh_events_dir(port));
+        let relay = spawn_relay(port, direct, events_dir.as_deref());
         wait_for_port(port).await;
-        let node = spawn_node(&relay_url, manifest);
+        let node = spawn_node(&relay_url, manifest, direct);
         let mut sim = Sim {
             port,
             relay_url,
             room_id: String::new(),
-            direct: false,
-            events_dir: None,
+            direct,
+            events_dir,
             _relay: Some(relay),
             node: Some(node),
         };
         sim.room_id = tokio::time::timeout(Duration::from_secs(60), sim.discover_room())
             .await
             .expect("node room did not appear within 60s");
-        step(format!("relay on :{port}, node room {}", &sim.room_id[..8]));
+        step(format!(
+            "relay on :{port}{}, node room {}",
+            if direct {
+                " with the direct transport on"
+            } else {
+                ""
+            },
+            &sim.room_id[..8]
+        ));
         sim
     }
 
@@ -202,6 +221,41 @@ impl Sim {
                 (name == series).then(|| value.parse().ok()).flatten()
             })
             .unwrap_or(0.0)
+    }
+
+    /// Every analytics event the relay has written so far.
+    pub fn events(&self) -> Vec<Value> {
+        let Some(dir) = &self.events_dir else {
+            return Vec::new();
+        };
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return Vec::new();
+        };
+        entries
+            .flatten()
+            .filter_map(|entry| std::fs::read_to_string(entry.path()).ok())
+            .flat_map(|text| {
+                text.lines()
+                    .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+                    .collect::<Vec<_>>()
+            })
+            .collect()
+    }
+
+    /// Poll the relay's events until one satisfies `pred`.
+    pub async fn wait_event(&self, deadline: Duration, what: &str, pred: impl Fn(&Value) -> bool) {
+        let started = tokio::time::Instant::now();
+        let result = tokio::time::timeout(deadline, async {
+            loop {
+                if self.events().iter().any(&pred) {
+                    return;
+                }
+                tokio::time::sleep(Duration::from_millis(500)).await;
+            }
+        })
+        .await;
+        assert!(result.is_ok(), "timed out waiting for: {what}");
+        done(what, started.elapsed());
     }
 
     pub fn node_running(&mut self) -> bool {
@@ -623,6 +677,78 @@ impl Client {
         }))
     }
 
+    /// Answer `n` prompts wherever they arrive: on the seat's direct channel
+    /// or on the relay socket. Both are read throughout, because the host puts
+    /// room-wide envelopes on the relay whatever plane a seat took, and a
+    /// socket nobody drains eventually stalls the relay's writer.
+    pub async fn answer_prompts_over(
+        &mut self,
+        seat: &mut DirectSeat,
+        n: usize,
+    ) -> Result<Answered, String> {
+        let mut answered = Answered::default();
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(90);
+        while answered.direct + answered.relay < n {
+            if tokio::time::Instant::now() > deadline {
+                return Err(format!(
+                    "'{}' answered {}/{n} prompts before timing out ({answered:?})",
+                    self.username,
+                    answered.direct + answered.relay
+                ));
+            }
+            let arrived = tokio::select! {
+                frame = seat.recv() => Arrived::Direct(frame),
+                message = recv(&mut self.write, &mut self.read) => Arrived::Relay(message),
+            };
+            match arrived {
+                Arrived::Direct(None) => {
+                    return Err(format!(
+                        "'{}' lost its direct channel mid-game",
+                        self.username
+                    ))
+                }
+                Arrived::Direct(Some(SessionFrame::Game { payload, .. })) => {
+                    if let Some(response) = self.envelope_response(payload)? {
+                        seat.send(&response)?;
+                        answered.direct += 1;
+                    }
+                }
+                Arrived::Direct(Some(_)) => {}
+                Arrived::Relay(None) => {
+                    return Err(format!("'{}' connection closed mid-game", self.username))
+                }
+                Arrived::Relay(Some(message)) => {
+                    if let ServerMessage::StateUpdate { state, .. } = &message {
+                        let for_me = state.get("kind").and_then(Value::as_str) == Some("prompt")
+                            && state.get("forPlayer").and_then(Value::as_str)
+                                == self.slot.as_deref();
+                        if for_me {
+                            answered.relay_prompts_for_me += 1;
+                        }
+                    }
+                    if let Some(response) = self.prompt_response(message)? {
+                        self.broadcast(&response).await?;
+                        answered.relay += 1;
+                    }
+                }
+            }
+        }
+        check(format!(
+            "'{}' answered {n} prompt(s): {} direct, {} over the relay",
+            self.username, answered.direct, answered.relay
+        ));
+        Ok(answered)
+    }
+
+    /// Forget what was seen so far, so the next assertions are about what
+    /// arrives after a transport change rather than before it. A prompt that
+    /// crossed the direct channel unanswered arrives again over the relay and
+    /// must not be deduplicated away.
+    pub fn on_fallback(&mut self) {
+        self.last_prompt = None;
+        self.envelope_kinds.clear();
+    }
+
     /// Publishes, or with `None` withdraws, this seat's endpoint.
     pub async fn announce(&mut self, endpoint: Option<TransportEndpoint>) -> Result<(), String> {
         let what = if endpoint.is_some() {
@@ -637,6 +763,38 @@ impl Client {
         .await?;
         step(format!("'{}' {what}", self.username));
         Ok(())
+    }
+
+    /// The first roster that names a host and this seat: what a seat has to
+    /// have before it may dial.
+    pub async fn wait_roster(
+        &mut self,
+        deadline: Duration,
+    ) -> Result<(TransportMember, Vec<TransportMember>), String> {
+        let started = tokio::time::Instant::now();
+        while started.elapsed() < deadline {
+            match recv(&mut self.write, &mut self.read).await {
+                Some(ServerMessage::RoomTransport {
+                    host: Some(host),
+                    members,
+                    ..
+                }) if members.iter().any(|m| m.username == self.username) => {
+                    check(format!(
+                        "'{}' got a roster naming host '{}' and {} member(s)",
+                        self.username,
+                        host.username,
+                        members.len()
+                    ));
+                    return Ok((host, members));
+                }
+                Some(_) => continue,
+                None => return Err("connection closed awaiting a roster".into()),
+            }
+        }
+        Err(format!(
+            "'{}' never got a roster naming a host",
+            self.username
+        ))
     }
 
     /// Every roster's host within `window`, so a scenario can say "none of
@@ -939,21 +1097,21 @@ fn spawn_relay(port: u16, direct: bool, events_dir: Option<&std::path::Path>) ->
 
 /// A directory the relay can write events into, emptied first so a scenario
 /// reads only its own.
-/// The endpoint a browser (or desktop webview) seat announces: a WebRTC-only
-/// peer with no iroh addressing, which is all the relay's rendezvous and
-/// signalling ever carry. The relay attests the username itself, so the
-/// `endpoint_id` here is only a placeholder the relay never reads.
-pub fn webrtc_endpoint(name: &str) -> TransportEndpoint {
-    TransportEndpoint {
-        endpoint_id: format!("webrtc:{name}"),
-        relay_url: None,
-        direct_addrs: Vec::new(),
-        kinds: vec!["webrtc".to_string()],
-    }
+fn fresh_events_dir(port: u16) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("manabrew-regression-{port}-events"));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("events dir");
+    dir
 }
 
-fn spawn_node(relay_url: &str, manifest: Option<&str>) -> Proc {
+fn spawn_node(relay_url: &str, manifest: Option<&str>, iroh: bool) -> Proc {
     let mut command = Command::new(bin("self-hosted-node", "REGRESSION_NODE_BIN"));
+    if iroh {
+        // The binary has to be built with `--features iroh` too; without it
+        // this is a warning in the node's log and every seat stays on the
+        // relay, which the direct scenarios then fail on.
+        command.env("SELF_HOSTED_NODE_IROH", "1");
+    }
     command
         .env("SELF_HOSTED_NODE_RELAY_URL", relay_url)
         .env("SELF_HOSTED_NODE_ROOM_NAME", "Regression room")
@@ -977,6 +1135,138 @@ fn spawn_node(relay_url: &str, manifest: Option<&str>) -> Proc {
         command.env("SELF_HOSTED_NODE_ENGINE_BACKEND", backend);
     }
     Proc(command.spawn().expect("spawn self-hosted-node"))
+}
+
+/// How many prompts crossed each transport.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct Answered {
+    pub direct: usize,
+    pub relay: usize,
+    /// Prompts for this seat that arrived over the relay, answered or not. A
+    /// prompt already answered on the direct channel is deduplicated and never
+    /// counted in `relay`, so this is the number that says whether the host
+    /// put anything for a direct seat on the relay at all.
+    pub relay_prompts_for_me: usize,
+}
+
+// A frame and a relay message differ in size; one arrives at a time and is
+// matched at once, so boxing the larger would buy nothing.
+#[allow(clippy::large_enum_variant)]
+enum Arrived {
+    Direct(Option<SessionFrame>),
+    Relay(Option<ServerMessage>),
+}
+
+/// A seat's iroh endpoint, standing where the desktop shell stands: it announces
+/// what the shell would announce, dials the host the roster names, and carries
+/// the seat's own envelopes. No relay, because everything here is on one box,
+/// and one box is the case a direct path cannot lose.
+pub struct DirectSeat {
+    endpoint: NetEndpoint,
+    username: String,
+    sender: Option<GameSender>,
+    receiver: Option<GameReceiver>,
+    seq: u64,
+    _incoming: tokio::sync::mpsc::Receiver<manabrew_net::SeatConnection>,
+}
+
+impl DirectSeat {
+    pub async fn bind(username: &str) -> DirectSeat {
+        let (endpoint, incoming) = NetEndpoint::bind(NetConfig {
+            relay_mode: Some(RelayMode::Disabled),
+            ..Default::default()
+        })
+        .await
+        .expect("bind an iroh endpoint");
+        step(format!("'{username}' bound a direct endpoint"));
+        DirectSeat {
+            endpoint,
+            username: username.to_string(),
+            sender: None,
+            receiver: None,
+            seq: 0,
+            _incoming: incoming,
+        }
+    }
+
+    /// What goes into `AnnounceTransport`.
+    pub fn endpoint(&self) -> TransportEndpoint {
+        self.endpoint.local()
+    }
+
+    /// Installs the roster and dials the host it names.
+    pub async fn dial(
+        &mut self,
+        room_id: &str,
+        host: &TransportMember,
+        members: &[TransportMember],
+    ) -> Result<TransportStatus, String> {
+        self.endpoint
+            .set_roster(Roster::new(room_id, Some(host), members));
+        let channel = tokio::time::timeout(
+            Duration::from_secs(10),
+            self.endpoint.connect_to_host(&self.username),
+        )
+        .await
+        .map_err(|_| "dialling the host timed out".to_string())?
+        .map_err(|error| format!("dialling the host: {error}"))?;
+        let status = channel.status();
+        let (sender, receiver) = channel.split();
+        self.sender = Some(sender);
+        self.receiver = Some(receiver);
+        self.seq = 0;
+        check(format!(
+            "'{}' reached the host over {} (lan={})",
+            self.username,
+            status.kind.as_str(),
+            status.lan
+        ));
+        Ok(status)
+    }
+
+    /// The next frame from the host. Pends for ever with no channel, so a
+    /// `select!` over both transports reads the relay alone.
+    pub async fn recv(&mut self) -> Option<SessionFrame> {
+        match &mut self.receiver {
+            Some(receiver) => receiver.recv().await,
+            None => std::future::pending().await,
+        }
+    }
+
+    pub fn send(&mut self, envelope: &StateEnvelope) -> Result<(), String> {
+        let sender = self.sender.as_ref().ok_or("no direct channel to send on")?;
+        self.seq += 1;
+        let frame = SessionFrame::Game {
+            seq: self.seq,
+            payload: serde_json::to_value(envelope).map_err(|e| e.to_string())?,
+        };
+        sender.try_send(frame).map_err(|e| e.to_string())
+    }
+
+    /// Says goodbye and closes the connection. The host puts this seat back on
+    /// the relay owing it a board.
+    pub async fn hang_up(&mut self) {
+        if let Some(sender) = self.sender.take() {
+            let _ = sender
+                .send(SessionFrame::Bye {
+                    reason: Some("regression: seat hangs up".to_string()),
+                })
+                .await;
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            // Closed, not dropped: the receiver holds the other half of the
+            // guard, and a dropped sender would leave the connection open.
+            sender.close();
+        }
+        self.receiver = None;
+        step(format!(
+            "'{}' hung up its direct channel — back on the relay",
+            self.username
+        ));
+    }
+
+    pub async fn shutdown(self) {
+        self.endpoint.shutdown().await;
+    }
 }
 
 /// The release manifest the node polls. Serves this node's own build until

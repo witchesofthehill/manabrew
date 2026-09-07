@@ -124,7 +124,8 @@ pub async fn start_forge_host(
             max_players,
             password.filter(|value| !value.is_empty()),
             reconnect_timeout_s,
-        );
+        )
+        .with_direct_plane(direct_transport);
 
         let cancel: Arc<Notify> = Arc::new(Notify::new());
         let room_cancel = cancel.clone();

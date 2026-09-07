@@ -2108,7 +2108,12 @@ fn plane_outcome_label(outcome: &str) -> Option<&'static str> {
 fn plane_label(plane: &str) -> Option<&'static str> {
     match plane {
         crate::protocol::TRANSPORT_WEBRTC => Some(crate::protocol::TRANSPORT_WEBRTC),
-        crate::protocol::TRANSPORT_IROH_DIRECT => Some(crate::protocol::TRANSPORT_IROH_DIRECT),
+        // "iroh" is the plane; the path (direct-lan / direct-wan / relayed) is
+        // the candidate_pair. "iroh-direct" is the old name a pre-rename client
+        // still sends; both fold to the one "iroh" metric label.
+        crate::protocol::TRANSPORT_KIND_IROH | crate::protocol::TRANSPORT_IROH_DIRECT => {
+            Some(crate::protocol::TRANSPORT_KIND_IROH)
+        }
         _ => None,
     }
 }
@@ -2165,7 +2170,9 @@ mod plane_quality_tests {
     #[test]
     fn planes_come_from_the_fixed_set() {
         assert_eq!(plane_label("webrtc"), Some("webrtc"));
-        assert_eq!(plane_label("iroh-direct"), Some("iroh-direct"));
+        // "iroh" is the plane; the old "iroh-direct" name folds to it.
+        assert_eq!(plane_label("iroh"), Some("iroh"));
+        assert_eq!(plane_label("iroh-direct"), Some("iroh"));
         // Relayed iroh is not a direct plane, so it is not an attempt at one.
         assert_eq!(plane_label("iroh-relayed"), None);
         assert_eq!(plane_label("carrier pigeon"), None);

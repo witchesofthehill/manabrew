@@ -96,6 +96,7 @@ pub fn run() {
             local_relay::stop_local_relay,
             direct_seat::direct_seat_start,
             direct_seat::direct_seat_roster,
+            direct_seat::direct_seat_status,
             direct_seat::direct_seat_adopt_relay,
             direct_seat::direct_seat_send,
             direct_seat::direct_seat_stop,

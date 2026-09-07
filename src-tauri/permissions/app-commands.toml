@@ -13,6 +13,7 @@ commands.allow = [
   "forge_host_seat_envelope",
   "direct_seat_start",
   "direct_seat_roster",
+  "direct_seat_status",
   "direct_seat_adopt_relay",
   "direct_seat_send",
   "direct_seat_stop",

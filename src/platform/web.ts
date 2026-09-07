@@ -1600,10 +1600,12 @@ class WebServerApi implements IServerApi {
    *  console line, exactly as the browser plane did. QUIC keeps the path's
    *  round trip, so there is nothing to probe: one report per attempt. */
   private onDirectSeatMeasurement(m: DirectSeatMeasurement): void {
-    this.reportPlaneQuality("iroh-direct", {
+    // Plane is "iroh"; the path (direct-lan / direct-wan / relayed) rides in
+    // candidate_pair, so a relayed reading is no longer mislabelled "direct".
+    this.reportPlaneQuality("iroh", {
       peer: m.peer,
       outcome: m.outcome,
-      phase: "settled",
+      phase: m.phase ?? "settled",
       rttMs: m.rttMs,
       connectMs: m.connectMs,
       candidatePair: m.path,

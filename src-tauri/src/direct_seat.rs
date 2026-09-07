@@ -73,6 +73,13 @@ impl DesktopSeat {
         self.endpoint.local()
     }
 
+    /// The live path status, read again after connect. iroh comes up relayed
+    /// and hole-punches to a direct path in the background, so a status read a
+    /// few seconds later is how we learn whether it upgraded.
+    pub fn status(&self) -> Option<manabrew_net::TransportStatus> {
+        self.sender.as_ref().map(|s| s.status())
+    }
+
     /// Adds a relay the control plane named after this seat bound.
     pub async fn adopt_relay(&self, relay_url: &str) -> Result<(), String> {
         self.endpoint
@@ -278,6 +285,27 @@ pub async fn direct_seat_roster(
 }
 
 /// Sends one engine envelope. False means the caller must use the relay.
+/// The seat's current path, for a re-measure after the hole-punch window. On a
+/// build without the feature there is no seat, so `None`.
+#[tauri::command]
+pub async fn direct_seat_status(
+    host: State<'_, DirectSeatHost>,
+) -> Result<Option<serde_json::Value>, String> {
+    #[cfg(not(feature = "direct-seat"))]
+    {
+        let _ = host;
+        Ok(None)
+    }
+    #[cfg(feature = "direct-seat")]
+    {
+        let guard = host.seat.lock().await;
+        match guard.as_ref().and_then(|seat| seat.status()) {
+            Some(status) => Ok(Some(serde_json::to_value(status).map_err(|e| e.to_string())?)),
+            None => Ok(None),
+        }
+    }
+}
+
 #[tauri::command]
 pub async fn direct_seat_adopt_relay(
     host: State<'_, DirectSeatHost>,

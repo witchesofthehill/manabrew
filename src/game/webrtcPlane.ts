@@ -29,6 +29,11 @@ const CONNECT_TIMEOUT_MS = 25_000;
 const PROBE_COUNT = 5;
 const PROBE_GAP_MS = 250;
 
+/** How often each open channel is re-measured while the game runs, so the
+ *  data channel's round trip and winning candidate pair are a time series, not
+ *  one reading at connect. */
+const MEASURE_INTERVAL_MS = 15_000;
+
 /** A probe, not an envelope. Engine envelopes are objects with a `kind`, so a
  *  string discriminator cannot collide with one. */
 interface ProbeMessage {
@@ -163,6 +168,7 @@ interface Peer {
   pending: RTCIceCandidateInit[];
   probes: Map<number, number>;
   rtts: number[];
+  probeSeq: number;
 }
 
 export class WebRtcPlane {
@@ -178,6 +184,7 @@ export class WebRtcPlane {
    *  after it the set never changes for the life of the game. */
   private active = new Set<string>();
   private closed = false;
+  private measureTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(opts: WebRtcPlaneOptions) {
     this.opts = opts;
@@ -290,11 +297,13 @@ export class WebRtcPlane {
     );
     if (this.active.size) {
       console.info(`[webrtc] playing this game direct to ${[...this.active].join(", ")}`);
+      this.startMeasuring();
     }
   }
 
   clear(): void {
     this.active = new Set();
+    this.stopMeasuring();
   }
 
   /**
@@ -351,6 +360,7 @@ export class WebRtcPlane {
 
   close(): void {
     this.closed = true;
+    this.stopMeasuring();
     for (const [peer, state] of this.peers) this.teardown(peer, state);
     this.active = new Set();
   }
@@ -372,6 +382,7 @@ export class WebRtcPlane {
       pending: [],
       probes: new Map(),
       rtts: [],
+      probeSeq: 0,
     };
     this.peers.set(peer, state);
 
@@ -463,8 +474,25 @@ export class WebRtcPlane {
   /** Measures the channel so the spike has a number to compare with the relay
    *  path. Fire and forget: nothing waits on it. */
   private async probe(peer: string, state: Peer): Promise<void> {
-    for (let seq = 0; seq < PROBE_COUNT; seq += 1) {
+    const rttMs = await this.sampleRtt(state);
+    if (rttMs === undefined) return;
+    this.report({
+      peer,
+      outcome: "connected",
+      phase: "measured",
+      rttMs,
+      candidatePair: await this.candidatePair(state),
+    });
+  }
+
+  /** One fresh batch of `PROBE_COUNT` round trips on the channel. Clears the
+   *  previous batch so a periodic re-measure reports the current RTT, not a
+   *  running average since the channel opened. */
+  private async sampleRtt(state: Peer): Promise<number | undefined> {
+    state.rtts = [];
+    for (let i = 0; i < PROBE_COUNT; i += 1) {
       if (!state.open || this.closed) break;
+      const seq = state.probeSeq++;
       const at = this.now();
       state.probes.set(seq, at);
       try {
@@ -474,15 +502,35 @@ export class WebRtcPlane {
       }
       await new Promise((resolve) => setTimeout(resolve, PROBE_GAP_MS));
     }
-    const rttMs = median(state.rtts);
-    if (rttMs === undefined) return;
-    this.report({
-      peer,
-      outcome: "connected",
-      phase: "measured",
-      rttMs,
-      candidatePair: await this.candidatePair(state),
-    });
+    return median(state.rtts);
+  }
+
+  /** Re-measures every open channel on an interval while the game runs. */
+  private startMeasuring(): void {
+    if (this.measureTimer) return;
+    this.measureTimer = setInterval(() => void this.measureAll(), MEASURE_INTERVAL_MS);
+  }
+
+  private stopMeasuring(): void {
+    if (this.measureTimer) {
+      clearInterval(this.measureTimer);
+      this.measureTimer = null;
+    }
+  }
+
+  private async measureAll(): Promise<void> {
+    for (const [peer, state] of this.peers) {
+      if (this.closed) return;
+      if (!this.active.has(peer) || !state.open) continue;
+      const rttMs = await this.sampleRtt(state);
+      const candidatePair = await this.candidatePair(state);
+      console.info(
+        `[webrtc] measure peer=${peer} rtt=${rttMs ?? "?"}ms pair=${candidatePair ?? "?"}`,
+      );
+      if (rttMs !== undefined) {
+        this.report({ peer, outcome: "connected", phase: "measured", rttMs, candidatePair });
+      }
+    }
   }
 
   /** Which pair ICE settled on, which is what says whether this was a LAN hop,

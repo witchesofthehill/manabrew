@@ -32,7 +32,16 @@ export interface DirectSeatMeasurement {
   connectMs?: number;
   /** iroh's own vocabulary, not ICE's: the relay buckets both. */
   path?: "direct-lan" | "direct-wan" | "relayed";
+  /** `settled` once at connect; `measured` for the periodic re-checks during
+   *  the game, which is how an iroh path that upgrades relayed->direct after
+   *  the hole-punch window shows up at all. */
+  phase?: "settled" | "measured";
 }
+
+/** How often the path is re-measured while the game runs. iroh comes up
+ *  relayed and hole-punches in the background, so one reading at connect can
+ *  miss the upgrade; this keeps watching. */
+const MEASURE_INTERVAL_MS = 15_000;
 
 /** iroh's three facts, in iroh's own words. Inventing ICE candidate types for
  *  a QUIC path would read as a measurement of something that never happened. */
@@ -60,6 +69,8 @@ export class DirectSeat {
    *  seat and double every host envelope. */
   private binding: Promise<unknown | null> | null = null;
   private installedRelay: string | null = null;
+  private hostName: string | null = null;
+  private measureTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     username: string,
@@ -153,6 +164,7 @@ export class DirectSeat {
           (status.lan ? " on the local network" : "") +
           (status.rttMs === undefined ? "" : ` (rtt ${status.rttMs}ms)`),
       );
+      this.hostName = host;
       this.measured({
         peer: host,
         outcome: "connected",
@@ -176,11 +188,52 @@ export class DirectSeat {
 
   freeze(): void {
     this.active = this.live;
-    if (this.active) console.info("[direct] playing this game on the direct plane");
+    if (this.active) {
+      console.info("[direct] playing this game on the direct plane");
+      this.startMeasuring();
+    }
   }
 
   clear(): void {
     this.active = false;
+    this.stopMeasuring();
+  }
+
+  /** Re-reads the path every `MEASURE_INTERVAL_MS` while the game runs, so an
+   *  iroh connection that upgrades from relayed to direct after connect is
+   *  actually recorded instead of frozen at its first reading. */
+  private startMeasuring(): void {
+    if (this.measureTimer || !this.hostName) return;
+    this.measureTimer = setInterval(() => void this.measureNow(), MEASURE_INTERVAL_MS);
+  }
+
+  private stopMeasuring(): void {
+    if (this.measureTimer) {
+      clearInterval(this.measureTimer);
+      this.measureTimer = null;
+    }
+  }
+
+  private async measureNow(): Promise<void> {
+    if (!this.active || !this.hostName) return;
+    try {
+      const status = await invoke<DirectTransportStatus | null>("direct_seat_status");
+      if (!status) return;
+      const path = pathOf(status);
+      console.info(
+        `[direct] measure ${status.kind}${status.lan ? " (lan)" : ""}` +
+          ` rtt ${status.rttMs ?? "?"}ms pair=${path}`,
+      );
+      this.measured({
+        peer: this.hostName,
+        outcome: "connected",
+        rttMs: status.rttMs,
+        path,
+        phase: "measured",
+      });
+    } catch {
+      // A failed re-measure must never take the seat down.
+    }
   }
 
   /**
@@ -203,10 +256,12 @@ export class DirectSeat {
   }
 
   stop(): void {
+    this.stopMeasuring();
     this.unlisten?.();
     this.unlisten = null;
     this.live = false;
     this.active = false;
+    this.hostName = null;
     void invoke("direct_seat_stop").catch(() => {});
   }
 }

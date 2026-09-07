@@ -2015,7 +2015,12 @@ export default function Game({ exitTo }: GameProps = {}) {
           onRightClickCard={
             cardPreviewMode === "right-click"
               ? (card, rect) =>
-                  preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2)
+                  preview.showSticky(
+                    card,
+                    rect.left + rect.width / 2,
+                    rect.top + rect.height / 2,
+                    rect,
+                  )
               : undefined
           }
           onDismissHoverPreview={preview.dismiss}
@@ -2025,7 +2030,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           onPreviewPointerLeave={preview.onMouseLeavePreview}
           onTogglePreviewView={togglePreviewView}
           onLongPressCard={(card, rect) =>
-            preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2)
+            preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2, rect)
           }
           onHandHoverChange={setHandCardLifted}
           getHandActions={getHandActionOptions}

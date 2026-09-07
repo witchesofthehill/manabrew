@@ -55,6 +55,10 @@ import {
   PREVIEW_SECTION_HEADER_HEIGHT,
 } from "./RulesPreviewSectionHeader";
 import { parseManaCost } from "@/pixi/manaSymbols";
+import {
+  CARD_PREVIEW_ANCHOR_GAP as PANEL_GAP,
+  CARD_PREVIEW_EDGE_PAD as EDGE_PAD,
+} from "@/components/game/cardPreviewLayout";
 
 export interface RulesCardPreviewSpec {
   card: ClientCardDto;
@@ -91,8 +95,6 @@ const PORTRAIT_WIDTH: number = RULES_CARD_CONSTRAINTS.width;
 const PORTRAIT_HEIGHT: number = RULES_CARD_CONSTRAINTS.height;
 const LANDSCAPE_WIDTH = PORTRAIT_HEIGHT;
 const LANDSCAPE_HEIGHT = PORTRAIT_WIDTH;
-const EDGE_PAD = 12;
-const PANEL_GAP = 18;
 const PORTRAIT_HEADER_HEIGHT = 52;
 const LANDSCAPE_HEADER_HEIGHT = 48;
 const PORTRAIT_ART_HEIGHT = 184;
@@ -798,9 +800,6 @@ export class RulesCardPreviewLayer {
         label: `Flip ${display.faceIndex === 0 ? "back" : "front"}${display.horizontal ? "" : " · F"}`,
         activate: () => this.callbacks.onFlip(),
       });
-    }
-    if (spec.sticky) {
-      controls.push({ label: "Close · Esc", activate: () => this.callbacks.onDismiss() });
     }
     this.controls.setContent({
       width: this.panelWidth,

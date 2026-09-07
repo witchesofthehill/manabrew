@@ -545,12 +545,15 @@ export function BoardPlayground() {
             },
             onRightClickCard:
               previewMode === "right-click"
-                ? (card, bounds) =>
+                ? (card, bounds) => {
+                    const rect = new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height);
                     preview.showSticky(
                       card,
                       bounds.x + bounds.width / 2,
                       bounds.y + bounds.height / 2,
-                    )
+                      rect,
+                    );
+                  }
                 : undefined,
             onDismissHoverPreview: preview.dismiss,
           }}

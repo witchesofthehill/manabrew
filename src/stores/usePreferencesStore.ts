@@ -10,7 +10,7 @@ import type { GameFormat } from "@/types/server";
 import type { HandOrderMode } from "@/lib/handOrder";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
-export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl" | "right-click";
+export type CardPreviewMode = "hover" | "right-click";
 export type BattlefieldCardStyle = "realistic" | "art" | "frame";
 export type InGameCardPreviewStyle = "printed" | "rules";
 export type InlineCardStyle = "printed" | "rules";
@@ -188,6 +188,9 @@ function pickPersistedPreferences(persistedState: unknown): Partial<PreferencesS
       CARD_SIZE_MULTIPLIER_MIN,
       Math.min(CARD_SIZE_MULTIPLIER_MAX, next.cardSizeMultiplier),
     );
+  }
+  if (next.cardPreviewMode !== "hover" && next.cardPreviewMode !== "right-click") {
+    next.cardPreviewMode = "hover";
   }
   return next as Partial<PreferencesState>;
 }

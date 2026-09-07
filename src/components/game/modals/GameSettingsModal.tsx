@@ -22,9 +22,6 @@ import { HAND_ORDER_OPTIONS } from "@/lib/handOrder";
 
 const PREVIEW_MODES: { value: CardPreviewMode; label: string }[] = [
   { value: "hover", label: "Hover" },
-  { value: "shift", label: "Shift" },
-  { value: "alt", label: "Alt" },
-  { value: "ctrl", label: "Ctrl" },
   { value: "right-click", label: "Right click" },
 ];
 
@@ -274,7 +271,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
 
         <SettingRow
           label="Card preview trigger"
-          hint="Hover opens automatically. Shift, Alt, and Ctrl require that key while hovering. Right click opens a preview that stays until dismissed."
+          hint="Hover opens automatically. Right click opens a preview that stays until dismissed."
         >
           <div className="flex flex-wrap items-center gap-2">
             {PREVIEW_MODES.map((m) => (

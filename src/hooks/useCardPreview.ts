@@ -1,29 +1,7 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import type { CardDto } from "@/protocol/game";
 import { CardPreviewMachine, type PreviewPointerInput } from "@/lib/cardPreview";
-import { usePreferencesStore, type CardPreviewMode } from "@/stores/usePreferencesStore";
-
-function isModifierHeld(e: PreviewPointerInput, mode: CardPreviewMode): boolean {
-  switch (mode) {
-    case "hover":
-      return true;
-    case "shift":
-      return e.shiftKey;
-    case "alt":
-      return e.altKey;
-    case "ctrl":
-      return e.ctrlKey || e.metaKey;
-    case "right-click":
-      return false;
-  }
-}
-
-const MODIFIER_KEYS: Record<string, CardPreviewMode[]> = {
-  Shift: ["shift"],
-  Alt: ["alt"],
-  Control: ["ctrl"],
-  Meta: ["ctrl"],
-};
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 const ignorePreviewUpdates = () => () => undefined;
 
@@ -62,13 +40,7 @@ export function useCardPreview(
         machine.dismiss();
         return;
       }
-      if (
-        hookOptions.useTriggerPreference &&
-        modeRef.current !== "hover" &&
-        (!trigger || !isModifierHeld(trigger, modeRef.current))
-      ) {
-        return;
-      }
+      if (hookOptions.useTriggerPreference && modeRef.current === "right-click") return;
       machine.hoverStart(card, {
         pointer: e ? { x: e.clientX, y: e.clientY } : undefined,
         anchorRect:
@@ -90,10 +62,11 @@ export function useCardPreview(
   const flipCard = useCallback(() => machine.flip(), [machine]);
 
   const showSticky = useCallback(
-    (card: CardDto, x?: number, y?: number, anchor?: HTMLElement) => {
+    (card: CardDto, x?: number, y?: number, anchor?: HTMLElement | DOMRect) => {
       machine.stick(card, {
         pointer: x != null && y != null ? { x, y } : undefined,
-        anchorRect: anchor?.getBoundingClientRect() ?? null,
+        anchorRect:
+          anchor instanceof HTMLElement ? anchor.getBoundingClientRect() : (anchor ?? null),
       });
     },
     [machine],
@@ -109,23 +82,6 @@ export function useCardPreview(
       machine.dismiss();
     }
   });
-
-  useEffect(() => {
-    if (
-      !hookOptions.useTriggerPreference ||
-      cardPreviewMode === "hover" ||
-      cardPreviewMode === "right-click"
-    ) {
-      return;
-    }
-    function handleKeyUp(e: KeyboardEvent) {
-      if (MODIFIER_KEYS[e.key]?.includes(cardPreviewMode) && !machine.getSnapshot().sticky) {
-        machine.dismiss();
-      }
-    }
-    window.addEventListener("keyup", handleKeyUp);
-    return () => window.removeEventListener("keyup", handleKeyUp);
-  }, [cardPreviewMode, hookOptions.useTriggerPreference, machine]);
 
   useEffect(() => () => machine.destroy(), [machine]);
 

@@ -3,8 +3,8 @@ import { getSafeAreaInsets } from "@/lib/safeArea";
 
 const { w: CARD_W, h: CARD_H } = FLASH_CARD_SIZE;
 const ACTIONS_PANEL_W = 220;
-const ANCHOR_GAP = 12;
-const EDGE_PAD = 8;
+export const CARD_PREVIEW_ANCHOR_GAP = 12;
+export const CARD_PREVIEW_EDGE_PAD = 8;
 
 export interface PreviewLayoutInput {
   placement: "auto" | "top-center" | "pinned";
@@ -55,7 +55,7 @@ export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
   const totalWidth = cardWidth + panelSpace;
 
   const panelFitsRightOf = (left: number) =>
-    !hasPanel || left + cardWidth + panelSpace <= viewRight - EDGE_PAD;
+    !hasPanel || left + cardWidth + panelSpace <= viewRight - CARD_PREVIEW_EDGE_PAD;
 
   let cardLeft: number;
   let top: number;
@@ -67,7 +67,10 @@ export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
     panelSide = "left";
   } else if (placement === "top-center" && anchorRect) {
     cardLeft = anchorRect.left + anchorRect.width / 2 - cardWidth / 2;
-    top = Math.max(viewTop + EDGE_PAD, anchorRect.top - cardHeight - ANCHOR_GAP);
+    top = Math.max(
+      viewTop + CARD_PREVIEW_EDGE_PAD,
+      anchorRect.top - cardHeight - CARD_PREVIEW_ANCHOR_GAP,
+    );
     panelSide = panelFitsRightOf(cardLeft) ? "right" : "left";
   } else {
     const anchorLeft = anchorRect ? anchorRect.left : mouseX;
@@ -76,22 +79,24 @@ export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
     const anchorBottom = anchorRect ? anchorRect.bottom : mouseY;
     const anchorMidY = anchorRect ? anchorRect.top + anchorRect.height / 2 : mouseY;
 
-    const fitsRight = anchorRight + ANCHOR_GAP + totalWidth <= viewRight - EDGE_PAD;
-    const fitsLeft = anchorLeft - ANCHOR_GAP - totalWidth >= viewLeft + EDGE_PAD;
+    const fitsRight =
+      anchorRight + CARD_PREVIEW_ANCHOR_GAP + totalWidth <= viewRight - CARD_PREVIEW_EDGE_PAD;
+    const fitsLeft =
+      anchorLeft - CARD_PREVIEW_ANCHOR_GAP - totalWidth >= viewLeft + CARD_PREVIEW_EDGE_PAD;
 
     if (fitsRight) {
-      cardLeft = anchorRight + ANCHOR_GAP;
+      cardLeft = anchorRight + CARD_PREVIEW_ANCHOR_GAP;
       panelSide = "right";
       top = Math.min(
-        Math.max(anchorMidY - cardHeight / 2, viewTop + EDGE_PAD),
-        viewBottom - cardHeight - EDGE_PAD,
+        Math.max(anchorMidY - cardHeight / 2, viewTop + CARD_PREVIEW_EDGE_PAD),
+        viewBottom - cardHeight - CARD_PREVIEW_EDGE_PAD,
       );
     } else if (fitsLeft) {
-      cardLeft = anchorLeft - ANCHOR_GAP - cardWidth;
+      cardLeft = anchorLeft - CARD_PREVIEW_ANCHOR_GAP - cardWidth;
       panelSide = "left";
       top = Math.min(
-        Math.max(anchorMidY - cardHeight / 2, viewTop + EDGE_PAD),
-        viewBottom - cardHeight - EDGE_PAD,
+        Math.max(anchorMidY - cardHeight / 2, viewTop + CARD_PREVIEW_EDGE_PAD),
+        viewBottom - cardHeight - CARD_PREVIEW_EDGE_PAD,
       );
     } else {
       cardLeft = (anchorLeft + anchorRight) / 2 - cardWidth / 2;
@@ -99,17 +104,29 @@ export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
       const spaceBelow = viewBottom - anchorBottom - 16;
       const below = spaceBelow >= spaceAbove;
       top = below
-        ? Math.min(anchorBottom + ANCHOR_GAP, viewBottom - cardHeight - EDGE_PAD)
-        : Math.max(viewTop + EDGE_PAD, anchorTop - cardHeight - ANCHOR_GAP);
+        ? Math.min(
+            anchorBottom + CARD_PREVIEW_ANCHOR_GAP,
+            viewBottom - cardHeight - CARD_PREVIEW_EDGE_PAD,
+          )
+        : Math.max(
+            viewTop + CARD_PREVIEW_EDGE_PAD,
+            anchorTop - cardHeight - CARD_PREVIEW_ANCHOR_GAP,
+          );
       panelSide = panelFitsRightOf(cardLeft) ? "right" : "left";
     }
   }
 
   cardLeft = Math.max(
-    viewLeft + EDGE_PAD + (panelSide === "left" ? panelSpace : 0),
-    Math.min(cardLeft, viewRight - cardWidth - EDGE_PAD - (panelSide === "right" ? panelSpace : 0)),
+    viewLeft + CARD_PREVIEW_EDGE_PAD + (panelSide === "left" ? panelSpace : 0),
+    Math.min(
+      cardLeft,
+      viewRight - cardWidth - CARD_PREVIEW_EDGE_PAD - (panelSide === "right" ? panelSpace : 0),
+    ),
   );
-  top = Math.max(viewTop + EDGE_PAD, Math.min(top, viewBottom - previewHeight - EDGE_PAD));
+  top = Math.max(
+    viewTop + CARD_PREVIEW_EDGE_PAD,
+    Math.min(top, viewBottom - previewHeight - CARD_PREVIEW_EDGE_PAD),
+  );
 
   const slotMarginLeft = slot
     ? Math.max(

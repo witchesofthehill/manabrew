@@ -4,6 +4,7 @@ import { useGameStore } from "@/stores/useGameStore";
 import { formatCommsLog } from "@/lib/commsLog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { GameLoadingTip } from "./GameLoadingTip";
 
 const STUCK_HINT_AFTER_MS = 10_000;
 const STEP_MIN_MS = 200;
@@ -66,7 +67,7 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
   };
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-8 px-6">
+    <div className="relative flex h-full flex-col items-center justify-center gap-6 px-6 pb-44 pt-6">
       <div className="space-y-1.5 text-center">
         <p className="text-2xl font-semibold">Game starting…</p>
         <p className="text-base text-muted-foreground">
@@ -128,6 +129,9 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
       <Button variant="outline" onClick={() => void endGame()}>
         Leave game
       </Button>
+      <div className="absolute bottom-[calc(1rem+var(--safe-area-inset-bottom))] left-1/2 w-[calc(100%_-_2rem)] max-w-2xl -translate-x-1/2">
+        <GameLoadingTip />
+      </div>
     </div>
   );
 }

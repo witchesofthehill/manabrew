@@ -52,6 +52,10 @@ The whole table renders on **one** Pixi canvas, not one canvas per player. `Boar
 
 The legacy per-player canvases (`PixiGameCanvas` / `PixiGameScene` / `PixiArrowsCanvas` / `PixiPhaseStripCanvas` / `OpponentHalf`) have been removed — do not reintroduce them.
 
+## Game loading
+
+`GameLoadingScreen` keeps setup progress centered and anchors `GameLoadingTip` above the bottom safe area. Configure copy, audience, keybinding IDs, cadence, and transition duration in `gameLoadingTips.ts`; keybinding tips render the player's persisted shortcuts, while touch loading screens exclude desktop-only entries.
+
 ## Modal pattern
 
 All game modals use the `Modal` compound:

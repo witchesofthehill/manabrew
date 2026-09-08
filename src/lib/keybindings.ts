@@ -14,8 +14,13 @@ export interface KeybindingDef {
   defaultCombo: KeyCombo;
   allowInEditable?: boolean;
 }
+function defineKeybindings<const T extends readonly KeybindingDef[]>(
+  definitions: T,
+): readonly (T[number] & KeybindingDef)[] {
+  return definitions;
+}
 
-export const KEYBINDINGS: KeybindingDef[] = [
+export const KEYBINDINGS = defineKeybindings([
   {
     id: "nav-prev-page",
     label: "Previous page",
@@ -292,7 +297,9 @@ export const KEYBINDINGS: KeybindingDef[] = [
     category: "Battlefield",
     defaultCombo: { key: "f", mod: true },
   },
-];
+]);
+
+export type KeybindingId = (typeof KEYBINDINGS)[number]["id"];
 
 export const IS_APPLE =
   typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform);

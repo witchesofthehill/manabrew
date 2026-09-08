@@ -85,6 +85,7 @@ const CARD_MODAL_MAX_WIDTH = 1160;
 const DICE_ROLL_MS = 1200;
 const DICE_FINISH_MS = 1450;
 const SOURCE_CARD_GAP = 20;
+const SOURCE_CARD_MIN_EXTERNAL_WIDTH = 120;
 const SOURCE_LABEL_HEIGHT = 18;
 const DRAG_DROP_MIN_SECONDS = 0.1;
 const DRAG_DROP_MAX_SECONDS = 0.22;
@@ -2527,30 +2528,16 @@ export class PromptLayer {
     body: Container;
     bodyTop: number;
   } {
-    const compact = this.viewportWidth < 760 || this.viewportHeight < 520;
     const sourceCard = this.promptSourceCard();
-    const sourceCardWidth = this.promptCardDimensions().width;
+    const preferredSourceCardWidth = this.promptCardDimensions().width;
+    const externalSourceCardWidth = Math.min(
+      preferredSourceCardWidth,
+      Math.max(0, (this.viewportWidth - width) / 2 - SOURCE_CARD_GAP - 12),
+    );
     const externalSource =
-      !!sourceCard &&
-      !boardContext &&
-      this.viewportWidth >= width + SOURCE_CARD_GAP + sourceCardWidth + 24;
-    let x = externalSource
-      ? (this.viewportWidth - width - SOURCE_CARD_GAP - sourceCardWidth) / 2
-      : (this.viewportWidth - width) / 2;
-    if (boardContext && !compact && this.viewportWidth >= width + 160) {
-      const anchors = presentation.targets
-        .map((target) => this.callbacks.getReferenceAnchor?.(target))
-        .filter((anchor): anchor is { x: number; y: number } => anchor != null);
-      const meanX =
-        anchors.length > 0
-          ? anchors.reduce((sum, anchor) => sum + anchor.x, 0) / anchors.length
-          : this.viewportWidth;
-      x = meanX < this.viewportWidth / 2 ? this.viewportWidth - width - 16 : 16;
-    }
-    const y =
-      compact && boardContext
-        ? this.viewportHeight - height - 12
-        : (this.viewportHeight - height) / 2;
+      !!sourceCard && !boardContext && externalSourceCardWidth >= SOURCE_CARD_MIN_EXTERNAL_WIDTH;
+    const x = (this.viewportWidth - width) / 2;
+    const y = (this.viewportHeight - height) / 2;
     const panel = this.panel(width, height, x, y, 12);
     panel.eventMode = "static";
     panel.hitArea = new Rectangle(0, 0, width, height);
@@ -2561,14 +2548,14 @@ export class PromptLayer {
     const sourceLeft = width + SOURCE_CARD_GAP;
     let sourceWidth = 0;
     if (externalSource) {
-      panel.hitArea = new Rectangle(0, 0, sourceLeft + sourceCardWidth, height);
+      panel.hitArea = new Rectangle(0, 0, sourceLeft + externalSourceCardWidth, height);
     }
     if (sourceSprite && sourceCard) {
       this.configurePromptCardSprite(sourceSprite, sourceCard);
       sourceSprite.setHandRulesHighlight(this.spec?.currentPrompt?.sourceAbilityText ?? "");
       sourceWidth = externalSource
-        ? sourceCardWidth
-        : Math.min(sourceCardWidth, width - PANEL_PADDING * 2);
+        ? externalSourceCardWidth
+        : Math.min(preferredSourceCardWidth, width - PANEL_PADDING * 2);
       const left = externalSource ? sourceLeft : PANEL_PADDING;
       const top = externalSource ? SOURCE_LABEL_HEIGHT : 16;
       const placeSourceSprite = () => {

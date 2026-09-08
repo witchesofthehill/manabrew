@@ -51,6 +51,7 @@ import type {
   TargetRef,
 } from "@/protocol";
 import { PromptButton, type PromptButtonOptions } from "./PromptButton";
+import { PromptGlow } from "./PromptGlow";
 import { LongPressGesture } from "@/pixi/LongPressGesture";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
@@ -73,6 +74,7 @@ const FONT = "Inter, system-ui, sans-serif";
 const PANEL_PADDING = 20;
 const ROW_GAP = 10;
 const CARD_WIDTH = 240;
+const CARD_HOVER_Z_INDEX = 600;
 const CARD_TILE_EDGE_INSET = 8;
 const REORDER_MODAL_VERTICAL_RESERVE = 280;
 const REORDER_ORDER_ZONE_ID = "reorder-order";
@@ -103,6 +105,7 @@ const DRAG_TRANSFORM_HALF_LIFE_MS = 36;
 const DRAG_MAX_TILT_RADIANS = (10 * Math.PI) / 180;
 const DRAG_TILT_RADIANS_PER_PIXEL = 0.017;
 const REORDER_PREVIEW_SECONDS = 0.14;
+const FILTER_CARET_PERIOD_MS = 1000;
 const SCRY_LAYOUT_SETTLE_SECONDS = 0.2;
 
 interface DragState {
@@ -153,6 +156,7 @@ interface DropZone {
 interface PromptCardDisplayState {
   rulesView: boolean;
   face: 0 | 1;
+  horizontalFlipped: boolean;
 }
 
 function promptText(
@@ -217,7 +221,6 @@ function runtimeActionView(
   switch (promptType) {
     case undefined:
     case "gameOver":
-    case "chooseDamageAssignmentOrder":
       return "noAction";
     case "chooseAction":
     case "chooseAttackers":
@@ -323,13 +326,26 @@ export class PromptLayer {
   private endTurnModifiersHeld = false;
   private actionContextOpen = false;
   private combatBreakdownOpen = false;
-  private actionPanel: Container | null = null;
-  private actionPanelHeight = 0;
-  private actionGlow: [Graphics, Graphics, Graphics, Graphics] | null = null;
+  private actionGlow: PromptGlow | null = null;
+  private actionFeedback = { glow: 0, press: 0 };
+  private actionGlowTween: gsap.core.Timeline | null = null;
+  private actionFeedbackEndTurn = false;
+  private priorityButtons: { pass: PromptButton; end: PromptButton | null } | null = null;
   private actionPulseNodes: Array<{ node: Container; maxAlpha: number }> = [];
   private actionHourglass: Sprite | null = null;
+  private entranceKey: object | string | null = null;
+  private entranceTween: gsap.core.Tween | null = null;
   private actionLongPress = new LongPressGesture();
   private selectionFilter = "";
+  private selectionFilterFocused = false;
+  private selectionFilterBlinkAt = 0;
+  private selectionFilterView: {
+    container: Container;
+    background: Graphics;
+    caret: Graphics;
+    width: number;
+    y: number;
+  } | null = null;
   private modalScrollOffset = 0;
   private modalScrollMax = 0;
   private modalBody: {
@@ -356,8 +372,12 @@ export class PromptLayer {
   private onStageCancel = (event: FederatedPointerEvent): void => this.cancelPointerDrag(event);
   private onModifierEvent = (event: KeyboardEvent | PointerEvent): void =>
     this.updateEndTurnModifiers(event);
-  private onModifierReset = (): void => this.setEndTurnModifiersHeld(false);
-  private onActionBump = (): void => this.bumpActionPanel();
+  private onModifierReset = (): void => {
+    this.setEndTurnModifiersHeld(false);
+    this.setSelectionFilterFocused(false);
+  };
+  private onActionBump = (event: Event): void =>
+    this.bumpActionPanel((event as CustomEvent<boolean>).detail === true);
   private readonly onTick = (ticker: Ticker): void => this.update(ticker.deltaMS);
 
   constructor(app: Application, callbacks: PromptLayerCallbacks = {}) {
@@ -407,6 +427,14 @@ export class PromptLayer {
   }
 
   setSpec(spec: PromptOverlaySpec | null): void {
+    const hadPriority =
+      this.spec?.action.promptType === "chooseAction" &&
+      !this.spec.action.isWaitingForResponse &&
+      !this.spec.action.isWaitingForOthers;
+    const hasPriority =
+      spec?.action.promptType === "chooseAction" &&
+      !spec.action.isWaitingForResponse &&
+      !spec.action.isWaitingForOthers;
     const nextActionPromptType = spec?.action.promptType;
     if (nextActionPromptType !== this.actionPromptType) {
       this.actionPromptType = nextActionPromptType;
@@ -424,8 +452,10 @@ export class PromptLayer {
     }
     this.spec = spec;
     const modalUnavailable = !!spec?.modalHidden || !!spec?.action.isWaitingForResponse;
+    if (modalUnavailable) this.selectionFilterFocused = false;
     if (this.drag && !promptChanged && !modalUnavailable) return;
     this.rebuild();
+    if (hasPriority && (promptChanged || !hadPriority)) this.flashActionGlow();
   }
 
   get blocksBoard(): boolean {
@@ -466,7 +496,11 @@ export class PromptLayer {
     this.actionLongPress.reset();
     this.callbacks.onReferenceChange?.(null);
     this.cancelDrag();
+    this.entranceTween?.kill();
+    if (this.diceWinnerText) gsap.killTweensOf(this.diceWinnerText);
     this.clearScryCardTiles();
+    this.actionGlowTween?.kill();
+    gsap.killTweensOf(this.actionFeedback);
     this.clearReorderCardVisuals();
     this.container.destroy({ children: true });
   }
@@ -478,6 +512,7 @@ export class PromptLayer {
     this.selectedIds.clear();
     this.counts.clear();
     this.selectionFilter = "";
+    this.selectionFilterFocused = false;
     this.order = [];
     this.autopassRemainingMs = null;
     this.autopassTotalMs = 0;
@@ -491,6 +526,7 @@ export class PromptLayer {
     this.clearReorderCardVisuals();
     this.reorderPreviousPositions.clear();
     this.reorderPreview = null;
+    if (this.diceWinnerText) gsap.killTweensOf(this.diceWinnerText);
     this.diceVisuals = [];
     this.diceWinnerText = null;
     this.diceConfirm = null;
@@ -526,13 +562,14 @@ export class PromptLayer {
     this.activePromptCard = null;
     this.callbacks.onReferenceChange?.(null);
     this.cancelDrag();
+    this.selectionFilterView = null;
+    if (this.diceWinnerText) gsap.killTweensOf(this.diceWinnerText);
     this.dropZones = [];
     this.clearScryCardTiles();
     this.clearReorderCardVisuals();
     this.actionBounds = null;
     this.autopassFill = null;
-    this.actionPanel = null;
-    this.actionPanelHeight = 0;
+    this.priorityButtons = null;
     this.actionGlow = null;
     this.actionPulseNodes = [];
     this.actionHourglass = null;
@@ -541,12 +578,14 @@ export class PromptLayer {
     this.container.removeChildren().forEach((child) => child.destroy({ children: true }));
     if (!this.spec || this.viewportWidth <= 0 || this.viewportHeight <= 0) {
       this.container.visible = false;
+      this.presentPrompt(null);
       return;
     }
     this.container.visible = true;
     if (this.spec.gameOver) {
       this.modalOpen = true;
       this.renderGameOver();
+      this.presentPrompt(this.spec.gameOver);
       return;
     }
     const input = this.spec.currentPrompt?.input;
@@ -558,9 +597,33 @@ export class PromptLayer {
     ) {
       this.modalOpen = true;
       this.renderModal();
+      this.presentPrompt(this.spec.currentPrompt);
       return;
     }
     this.renderActionPanel();
+    this.syncActionFeedback(performance.now());
+    this.presentPrompt("action");
+  }
+
+  private presentPrompt(key: object | string | null): void {
+    if (key === this.entranceKey) return;
+    this.entranceKey = key;
+    this.entranceTween?.kill();
+    this.entranceTween = null;
+    this.container.alpha = 1;
+    if (key === null || !animationsEnabled()) return;
+    this.entranceTween = gsap.fromTo(
+      this.container,
+      { alpha: 0 },
+      {
+        alpha: 1,
+        duration: this.spec?.gameOver ? 0.28 : 0.18,
+        ease: "power2.out",
+        onComplete: () => {
+          this.entranceTween = null;
+        },
+      },
+    );
   }
 
   private panel(width: number, height: number, x: number, y: number, radius = 12): Container {
@@ -685,9 +748,10 @@ export class PromptLayer {
       return;
     }
 
-    const runtimeView = action.isWaitingForOthers
-      ? "noAction"
-      : runtimeActionView(action.promptType);
+    const runtimeView =
+      action.isWaitingForOthers && action.promptType !== "chooseAction"
+        ? "noAction"
+        : runtimeActionView(action.promptType);
     const viewKey = action.promptActionOverride ?? runtimeView;
     const effectivePromptType = promptTypeForView(action.promptType, action.promptActionOverride);
     const preview = action.promptActionOverride != null;
@@ -745,31 +809,19 @@ export class PromptLayer {
         effectivePromptType === "chooseAttackers" && action.pendingAttackers.length > 0
           ? this.theme.gameTheme.promptAction.attackAction
           : this.theme.gameTheme.activeAction.priority;
-      const softGlow = new Graphics()
-        .roundRect(-6, -6, width + 12, panelHeight + 12, radius + 6)
-        .stroke({ color: hexToNum(glowColor), width: 12 });
-      softGlow.alpha = 0.3;
-      const strongSoftGlow = new Graphics()
-        .roundRect(-11, -11, width + 22, panelHeight + 22, radius + 11)
-        .stroke({ color: hexToNum(glowColor), width: 22 });
-      strongSoftGlow.alpha = 0;
-      const ringGlow = new Graphics()
-        .roundRect(-2, -2, width + 4, panelHeight + 4, radius + 2)
-        .stroke({ color: hexToNum(glowColor), width: 2 });
-      ringGlow.alpha = 0.75;
-      const strongRingGlow = new Graphics()
-        .roundRect(-3, -3, width + 6, panelHeight + 6, radius + 3)
-        .stroke({ color: hexToNum(glowColor), width: 3 });
-      strongRingGlow.alpha = 0;
-      for (const glow of [softGlow, strongSoftGlow, ringGlow, strongRingGlow]) {
-        glow.eventMode = "none";
-      }
-      panel.addChild(softGlow, strongSoftGlow, ringGlow, strongRingGlow);
-      this.actionGlow = [softGlow, strongSoftGlow, ringGlow, strongRingGlow];
+      this.actionGlow = new PromptGlow({
+        width,
+        height: panelHeight,
+        radius,
+        squareBottom,
+        color: hexToNum(glowColor),
+        highlight: hexToNum(this.theme.appTheme.foreground),
+      });
     }
 
     const background = this.makeActionPanelSurface(width, panelHeight, radius, squareBottom);
     panel.addChild(background);
+    if (this.actionGlow) panel.addChild(this.actionGlow);
 
     if (!minimal) {
       let right = width - 8;
@@ -858,8 +910,6 @@ export class PromptLayer {
     }
 
     this.container.addChild(panel);
-    this.actionPanel = panel;
-    this.actionPanelHeight = panelHeight;
     this.actionBounds = new Rectangle(x, y, width, panelHeight);
     if (this.combatBreakdownOpen) this.renderCombatBreakdown();
   }
@@ -872,7 +922,7 @@ export class PromptLayer {
     preview: boolean,
   ): ActionViewLayout {
     const action = this.spec!.action;
-    const disabled = action.isWaitingForResponse || preview;
+    const disabled = action.isWaitingForResponse || action.isWaitingForOthers || preview;
     const passColor = this.theme.gameTheme.promptAction.passAction;
     const attackColor = this.theme.gameTheme.promptAction.attackAction;
     const defenseColor = this.theme.gameTheme.promptAction.defenseAction;
@@ -1086,7 +1136,6 @@ export class PromptLayer {
         const controls = [
           this.makeButton("AUTO", action.onDefaultDamageOrder, {
             color: attackColor,
-            foreground: this.theme.appTheme["primary-foreground"],
             flat: true,
             shadow: true,
             radius: 8,
@@ -1101,7 +1150,6 @@ export class PromptLayer {
           controls.push(
             this.makeButton("UNDO", action.onUndoDamageOrder, {
               color: attackColor,
-              foreground: this.theme.appTheme["primary-foreground"],
               flat: true,
               shadow: true,
               radius: 8,
@@ -1121,7 +1169,6 @@ export class PromptLayer {
           y += 6;
           const confirm = this.makeButton("CONFIRM ORDER", action.onConfirmDamageOrder, {
             color: attackColor,
-            foreground: this.theme.appTheme["primary-foreground"],
             flat: true,
             shadow: true,
             radius: 8,
@@ -1179,7 +1226,6 @@ export class PromptLayer {
           {
             title: hidden ? "Prompt required. Click to reopen." : "Prompt is open.",
             color: cancelColor,
-            foreground: this.theme.appTheme["primary-foreground"],
             flat: true,
             radius: minimal ? 20 : 8,
             shadow: true,
@@ -1222,7 +1268,6 @@ export class PromptLayer {
                 touch,
                 {
                   badge: (action.mulliganCount ?? 0) > 0 ? String(action.mulliganCount) : undefined,
-                  foreground: this.theme.appTheme["secondary-foreground"],
                 },
               ),
             ],
@@ -1250,7 +1295,6 @@ export class PromptLayer {
           [
             this.makeButton("Keep", action.onMulliganKeep, {
               color: passColor,
-              foreground: this.theme.gameTheme.textOnTinted,
               flat: true,
               shadow: true,
               radius: 8,
@@ -1265,7 +1309,6 @@ export class PromptLayer {
             }),
             this.makeButton("Mulligan", action.onMulliganDraw, {
               color: this.theme.appTheme.secondary,
-              foreground: this.theme.appTheme["secondary-foreground"],
               flat: true,
               shadow: true,
               radius: 8,
@@ -1306,12 +1349,11 @@ export class PromptLayer {
     disabled: boolean,
     minimal: boolean,
     touch: boolean,
-    options: { badge?: string; title?: string; foreground?: string } = {},
+    options: { badge?: string; title?: string } = {},
   ): PromptButton {
     const showLabel = minimal || touch;
     return this.makeButton(label, onPress, {
       color,
-      foreground: options.foreground ?? this.theme.appTheme["primary-foreground"],
       flat: true,
       shadow: true,
       radius: 8,
@@ -1352,8 +1394,6 @@ export class PromptLayer {
     disabled: boolean,
   ): ActionViewLayout {
     const action = this.spec!.action;
-    const passColor = this.theme.gameTheme.promptAction.passAction;
-    const foreground = this.theme.appTheme["primary-foreground"];
     const stackEmpty = this.spec!.gameView.stack.length === 0;
     const endLabel = stackEmpty ? (action.isMyTurn ? "END TURN" : "NEXT TURN") : "RESOLVE STACK";
     const endTitle = stackEmpty
@@ -1362,137 +1402,55 @@ export class PromptLayer {
         : "Pass until the next turn"
       : "Pass until the stack is empty";
     const endCombo = resolveCombo("pass-end-of-turn", useKeybindingsStore.getState().overrides);
-    const endComboTitle = endCombo ? `${endTitle} (${comboSymbols(endCombo)})` : endTitle;
     const passCombo = resolveCombo("pass-priority", useKeybindingsStore.getState().overrides);
     const morphed = this.endTurnModifiersHeld;
     const counting = this.autopassRemainingMs != null;
     const passLabel = morphed ? endLabel : counting ? "PASSING" : "PASS";
-
-    if (minimal) {
-      const pass = this.makeButton(
-        passLabel,
-        morphed ? action.onPassEndTurn : action.onPassPriority,
-        {
-          color: passColor,
-          foreground,
+    const combo = morphed ? endCombo : passCombo;
+    const height = 40;
+    const gap = 4;
+    const end = morphed
+      ? null
+      : this.makeButton(endLabel, action.onPassEndTurn, {
+          color: this.theme.appTheme.secondary,
           flat: true,
-          shadow: true,
-          radius: 20,
+          radius: minimal ? 20 : 8,
           disabled,
-          height: 40,
-          paddingX: 16,
-          fontSize: 12,
-          fontWeight: "900",
-          letterSpacing: 1.44,
-          title: morphed ? endTitle : undefined,
-        },
-      );
-      const end = this.makeButton(endLabel, action.onPassEndTurn, {
-        color: this.theme.appTheme.secondary,
-        foreground: this.theme.appTheme["secondary-foreground"],
-        flat: true,
-        radius: 20,
-        disabled,
-        height: 40,
-        paddingX: 12,
-        fontSize: 10,
-        fontWeight: "900",
-        letterSpacing: 1.2,
-      });
-      const row = this.layoutActionRow([pass, end], 4);
-      if (counting) this.addAutopassFill(pass, pass.buttonWidth, pass.buttonHeight, 20, foreground);
-      return row;
-    }
-
-    const container = new Container();
-    const width = availableWidth;
-    const height = 48;
-    const buttonY = 4;
-    const buttonHeight = 40;
-    const outer = new Graphics()
-      .roundRect(0, buttonY, width, buttonHeight, 8)
-      .fill({ color: hexToNum(passColor) })
-      .stroke({ color: hexToNum(foreground), width: 1, alpha: 0.2 });
-    container.addChild(outer);
-    if (morphed) {
-      container.addChild(
-        new Graphics()
-          .roundRect(0, buttonY, width, buttonHeight, 8)
-          .fill({ color: hexToNum(foreground), alpha: 0.15 }),
-      );
-    }
-    const endText = promptText(endLabel, 11, foreground, {
-      weight: "700",
-      letterSpacing: 1.54,
-    });
-    const endWidth = morphed ? 0 : endText.width + 28;
-    const passWidth = width - endWidth;
-    if (counting && !morphed) {
-      const progress = 1 - this.autopassRemainingMs! / this.autopassTotalMs;
-      const fill = new Graphics()
-        .rect(0, buttonY, passWidth, buttonHeight)
-        .fill({ color: hexToNum(foreground), alpha: 0.25 });
-      fill.scale.x = progress;
-      container.addChild(fill);
-      this.autopassFill = fill;
-    }
-    if (!morphed) {
-      const endBackground = new Graphics()
-        .rect(passWidth, buttonY, endWidth, buttonHeight)
-        .fill({ color: 0x000000, alpha: 0.15 });
-      container.addChild(endBackground);
-      container.addChild(
-        new Graphics()
-          .rect(passWidth, buttonY, 1, buttonHeight)
-          .fill({ color: hexToNum(foreground), alpha: 0.2 }),
-      );
-      endText.anchor.set(0.5);
-      endText.position.set(passWidth + endWidth / 2, buttonY + buttonHeight / 2);
-      endText.alpha = 0.75;
-      container.addChild(endText);
-      this.makeActionHitTarget(
-        container,
-        passWidth,
-        buttonY,
-        endWidth,
-        buttonHeight,
-        endComboTitle,
-        disabled,
-        action.onPassEndTurn,
-      );
-    }
-    const passText = promptText(passLabel, 12, foreground, {
-      weight: "900",
-      letterSpacing: 1.68,
-    });
-    const chipCombo = morphed ? endCombo : passCombo;
-    const chip = chipCombo ? this.makeKeyChip(comboSymbols(chipCombo), foreground) : null;
-    const groupWidth = passText.width + (chip ? chip.width + 6 : 0);
-    passText.anchor.set(0.5);
-    passText.position.set(passWidth / 2 - (chip ? (chip.width + 6) / 2 : 0), buttonY + 20);
-    container.addChild(passText);
-    if (chip) {
-      chip.position.set(passText.x + passText.width / 2 + 6, buttonY + 20);
-      container.addChild(chip);
-    }
-    if (morphed) {
-      passText.x = width / 2 - (chip ? (chip.width + 6) / 2 : 0);
-    } else if (groupWidth > passWidth - 12) {
-      passText.scale.set((passWidth - 12) / groupWidth);
-      if (chip) chip.scale.set((passWidth - 12) / groupWidth);
-    }
-    this.makeActionHitTarget(
-      container,
-      0,
-      buttonY,
-      passWidth,
-      buttonHeight,
-      morphed ? endTitle : "Pass priority",
-      disabled,
+          height,
+          paddingX: minimal ? 12 : 14,
+          fontSize: 10,
+          fontWeight: "700",
+          letterSpacing: 1,
+          title: endCombo ? `${endTitle} (${comboSymbols(endCombo)})` : endTitle,
+        });
+    const pass = this.makeButton(
+      !minimal && combo ? `${passLabel}  ${comboSymbols(combo)}` : passLabel,
       morphed ? action.onPassEndTurn : action.onPassPriority,
+      {
+        color: this.theme.gameTheme.promptAction.passAction,
+        flat: true,
+        radius: minimal ? 20 : 8,
+        disabled,
+        height,
+        width: minimal ? undefined : availableWidth - (end ? end.buttonWidth + gap : 0),
+        paddingX: 16,
+        fontSize: 12,
+        fontWeight: "900",
+        letterSpacing: 1.44,
+        title: morphed ? endTitle : "Pass priority",
+      },
     );
-    container.alpha = disabled ? 0.6 : 1;
-    return { container, width, height };
+    if (counting) {
+      this.addAutopassFill(
+        pass,
+        pass.buttonWidth,
+        height,
+        minimal ? 20 : 8,
+        this.theme.gameTheme.textOnTinted,
+      );
+    }
+    this.priorityButtons = { pass, end };
+    return this.layoutActionRow(end ? [pass, end] : [pass], gap);
   }
 
   private buildNoActionView(availableWidth: number, minimal: boolean): ActionViewLayout {
@@ -1545,6 +1503,7 @@ export class PromptLayer {
       state = {
         rulesView: usePreferencesStore.getState().promptCardStyle === "rules",
         face: card.isTransformed ? 1 : 0,
+        horizontalFlipped: true,
       };
       this.promptCardStates.set(card.id, state);
     }
@@ -1555,9 +1514,34 @@ export class PromptLayer {
     const state = this.promptCardState(card);
     sprite.setPreviewFace(state.face);
     sprite.setHandRulesView(state.rulesView);
+    const horizontal = sprite.horizontalFrame && !card.isDoubleFaced;
+    sprite.setHandControls({
+      rulesView: state.rulesView,
+      horizontal,
+      alternateFace: horizontal ? state.horizontalFlipped : state.face === 1,
+      showFaceControl: horizontal || card.isDoubleFaced,
+      onToggleRules: () => this.togglePromptCardView(card, sprite),
+      onToggleFace: () => this.togglePromptCardFace(card, sprite),
+    });
+    sprite.onReorient?.();
+  }
+
+  private togglePromptCardView(card: CardDto, sprite: CardSprite): void {
+    const state = this.promptCardState(card);
+    state.rulesView = !state.rulesView;
+    this.configurePromptCardSprite(sprite, card);
+  }
+
+  private togglePromptCardFace(card: CardDto, sprite: CardSprite): void {
+    const state = this.promptCardState(card);
+    if (card.isDoubleFaced) state.face = state.face === 0 ? 1 : 0;
+    else if (sprite.horizontalFrame) state.horizontalFlipped = !state.horizontalFlipped;
+    else return;
+    this.configurePromptCardSprite(sprite, card);
   }
 
   private bindPromptCardActivation(target: Container, card: CardDto, sprite: CardSprite): void {
+    let restingZIndex: number | null = null;
     const showFeedback = () => {
       sprite.setElevation(1);
       sprite.setRing(hexToNum(this.theme.gameTheme.cardRing));
@@ -1567,15 +1551,21 @@ export class PromptLayer {
       sprite.setRing(null);
     };
     const activate = () => {
+      restingZIndex ??= target.zIndex;
+      if (this.drag?.item !== target || !this.drag.hasMoved) target.zIndex = CARD_HOVER_Z_INDEX;
       this.activePromptCardId = card.id;
       this.activePromptCard = { card, sprite };
       showFeedback();
     };
     const deactivate = () => {
+      if (restingZIndex !== null) {
+        if (this.drag?.item !== target || !this.drag.hasMoved) target.zIndex = restingZIndex;
+        restingZIndex = null;
+      }
+      hideFeedback();
       if (this.activePromptCard?.sprite !== sprite) return;
       this.activePromptCardId = null;
       this.activePromptCard = null;
-      hideFeedback();
     };
     if (this.activePromptCardId === card.id) {
       this.activePromptCard = { card, sprite };
@@ -1583,7 +1573,7 @@ export class PromptLayer {
     }
     target.on("pointerenter", activate);
     target.on("pointerleave", deactivate);
-    target.on("pointerdown", activate);
+    target.on("pointerdowncapture", activate);
     target.on("focusin", activate);
     target.on("focusout", deactivate);
   }
@@ -1595,18 +1585,20 @@ export class PromptLayer {
     const overrides = useKeybindingsStore.getState().overrides;
     const viewCombo = resolveCombo("toggle-card-view", overrides);
     if (viewCombo && combosMatch(pressed, viewCombo)) {
-      const state = this.promptCardState(active.card);
-      state.rulesView = !state.rulesView;
-      active.sprite.setHandRulesView(state.rulesView);
+      this.togglePromptCardView(active.card, active.sprite);
       event.preventDefault();
       event.stopImmediatePropagation();
       return true;
     }
     const flipCombo = resolveCombo("flip-card", overrides);
-    if (!active.card.isDoubleFaced || !flipCombo || !combosMatch(pressed, flipCombo)) return false;
-    const state = this.promptCardState(active.card);
-    state.face = state.face === 0 ? 1 : 0;
-    active.sprite.setPreviewFace(state.face);
+    if (
+      (!active.card.isDoubleFaced && !active.sprite.horizontalFrame) ||
+      !flipCombo ||
+      !combosMatch(pressed, flipCombo)
+    ) {
+      return false;
+    }
+    this.togglePromptCardFace(active.card, active.sprite);
     event.preventDefault();
     event.stopImmediatePropagation();
     return true;
@@ -1618,7 +1610,7 @@ export class PromptLayer {
     const flipCombo = resolveCombo("flip-card", overrides);
     return [
       viewCombo ? `${formatCombo(viewCombo)} changes view` : null,
-      flipCombo ? `${formatCombo(flipCombo)} flips face` : null,
+      flipCombo ? `${formatCombo(flipCombo)} flips or rotates card` : null,
     ]
       .filter((entry): entry is string => entry != null)
       .join(" · ");
@@ -1901,7 +1893,6 @@ export class PromptLayer {
         !canConfirm,
         true,
         touch,
-        { foreground: this.theme.appTheme["primary-foreground"] },
       );
       label.position.set(0, button.buttonHeight / 2);
       button.position.set(label.width + 6, 0);
@@ -1928,7 +1919,6 @@ export class PromptLayer {
     label.position.set(width / 2, 0);
     const button = this.makeButton("CONFIRM", action.onMulliganPutBackConfirm, {
       color,
-      foreground: this.theme.appTheme["primary-foreground"],
       flat: true,
       shadow: true,
       radius: 8,
@@ -1981,7 +1971,7 @@ export class PromptLayer {
   private makeActionMenuButton(minimal: boolean): ActionViewLayout {
     const size = minimal ? 22 : 18;
     const button = new Container();
-    const icon = this.makeIcon("lucide-settings", 14, this.theme.appTheme["muted-foreground"]);
+    const icon = this.makeIcon("lucide-settings", 14, this.theme.gameTheme.textOnTinted);
     icon.position.set(size / 2, size / 2);
     button.addChild(icon);
     button.eventMode = "static";
@@ -1989,16 +1979,16 @@ export class PromptLayer {
     const inset = minimal ? 8 : 10;
     button.hitArea = new Rectangle(-inset, -inset, size + inset * 2, size + inset * 2);
     button.on("pointerover", () => {
-      icon.tint = hexToNum(this.theme.appTheme.foreground);
+      icon.alpha = 0.75;
     });
     button.on("pointerout", () => {
-      icon.tint = hexToNum(this.theme.appTheme["muted-foreground"]);
+      icon.alpha = 1;
     });
     button.on("focusin", () => {
-      icon.tint = hexToNum(this.theme.appTheme.foreground);
+      icon.alpha = 0.75;
     });
     button.on("focusout", () => {
-      icon.tint = hexToNum(this.theme.appTheme["muted-foreground"]);
+      icon.alpha = 1;
     });
     button.accessible = true;
     button.accessibleTitle = "Open game menu";
@@ -2028,16 +2018,12 @@ export class PromptLayer {
         icon: fullControl ? "lucide-hand" : "lucide-zap",
         iconSize: 12,
         color: fullControl ? "#ffffff" : this.theme.appTheme.border,
-        foreground: fullControl
-          ? this.theme.appTheme.foreground
-          : this.theme.appTheme["muted-foreground"],
         outline: true,
         backgroundColor: "#ffffff",
         backgroundAlpha: fullControl ? 0.15 : 0.05,
         borderColor: fullControl ? "#ffffff" : this.theme.appTheme.border,
         hoverBackgroundAlpha: fullControl ? 0.2 : 0.1,
         hoverBorderAlpha: fullControl ? 0.3 : 1,
-        hoverForeground: this.theme.appTheme.foreground,
         pressOffsetY: 1,
         borderAlpha: fullControl ? 0.3 : 0.6,
         disabled,
@@ -2090,45 +2076,6 @@ export class PromptLayer {
     sprite.eventMode = "none";
     container.addChild(sprite);
     container.hitArea = new Rectangle(0, 0, 60, 84);
-    return container;
-  }
-
-  private makeActionHitTarget(
-    parent: Container,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    title: string,
-    disabled: boolean,
-    onPress: (() => void) | undefined,
-  ): Container {
-    const hit = new Container();
-    hit.position.set(x, y);
-    hit.hitArea = new Rectangle(0, 0, width, height);
-    hit.eventMode = disabled ? "none" : "static";
-    hit.cursor = disabled ? "default" : "pointer";
-    hit.accessible = true;
-    hit.accessibleTitle = title;
-    hit.tabIndex = disabled ? -1 : 0;
-    hit.on("pointertap", () => {
-      if (!disabled) onPress?.();
-    });
-    parent.addChild(hit);
-    return hit;
-  }
-
-  private makeKeyChip(value: string, color: string): Container {
-    const container = new Container();
-    const text = promptText(value, 10, color, { weight: "700" });
-    const width = text.width + 12;
-    container.addChild(
-      new Graphics().roundRect(0, -10, width, 20, 4).fill({ color: 0x000000, alpha: 0.25 }),
-      text,
-    );
-    text.anchor.set(0.5);
-    text.alpha = 0.85;
-    text.position.set(width / 2, 0);
     return container;
   }
 
@@ -2190,15 +2137,51 @@ export class PromptLayer {
     this.autopassRemainingMs = this.autopassTotalMs;
   }
 
-  private bumpActionPanel(): void {
-    const panel = this.actionPanel;
-    if (!panel || !animationsEnabled()) return;
-    gsap.killTweensOf(panel.scale);
-    const bumpScale = 1 + 12 / Math.max(1, this.actionPanelHeight);
-    gsap
+  private flashActionGlow(): void {
+    if (!this.actionGlow || !animationsEnabled()) return;
+    this.actionGlowTween?.kill();
+    this.actionGlowTween = gsap
       .timeline()
-      .to(panel.scale, { y: bumpScale, duration: 0.112, ease: "back.out(1.56)" })
-      .to(panel.scale, { y: 1, duration: 0.168, ease: "power2.out" });
+      .to(this.actionFeedback, { glow: 1, duration: 0.1, ease: "power2.out" })
+      .to(this.actionFeedback, { glow: 0, duration: 0.6, ease: "sine.out" });
+  }
+
+  private bumpActionPanel(endTurn = false): void {
+    if (
+      !this.spec ||
+      this.spec.action.isWaitingForResponse ||
+      this.spec.action.isWaitingForOthers ||
+      !animationsEnabled()
+    )
+      return;
+    this.actionFeedbackEndTurn = endTurn;
+    gsap.fromTo(
+      this.actionFeedback,
+      { press: 1 },
+      {
+        press: 0,
+        duration: 0.28,
+        ease: "power2.out",
+        overwrite: "auto",
+      },
+    );
+    this.syncActionFeedback(performance.now());
+  }
+
+  private syncActionFeedback(elapsed: number): void {
+    if (!animationsEnabled()) {
+      this.actionGlowTween?.kill();
+      gsap.killTweensOf(this.actionFeedback);
+      this.actionFeedback.glow = 0;
+      this.actionFeedback.press = 0;
+    }
+    this.actionGlow?.update(elapsed, this.actionFeedback.glow);
+    const buttons = this.priorityButtons;
+    if (!buttons) return;
+    buttons.pass.setPressFeedback(
+      this.actionFeedbackEndTurn && buttons.end ? 0 : this.actionFeedback.press,
+    );
+    buttons.end?.setPressFeedback(this.actionFeedbackEndTurn ? this.actionFeedback.press : 0);
   }
 
   private buildActionCombatInfo(availableWidth: number): ActionViewLayout | null {
@@ -2561,6 +2544,7 @@ export class PromptLayer {
       alpha: boardContext ? 0.38 : 0.76,
     });
     backdrop.eventMode = "static";
+    backdrop.on("pointerdown", () => this.setSelectionFilterFocused(false));
     backdrop.hitArea = new Rectangle(0, 0, this.viewportWidth, this.viewportHeight);
     this.container.addChild(backdrop);
     switch (input.type) {
@@ -2630,6 +2614,13 @@ export class PromptLayer {
     const panel = this.panel(width, height, x, y, 12);
     const panelBackground = panel.children[0] as Graphics;
     panel.eventMode = "static";
+    panel.on("pointerdowncapture", (event: FederatedPointerEvent) => {
+      const filter = this.selectionFilterView;
+      if (!filter) return;
+      let target = event.target as Container | null;
+      while (target && target !== filter.container) target = target.parent;
+      this.setSelectionFilterFocused(target === filter.container);
+    });
     panel.hitArea = new Rectangle(0, 0, width, height);
     panel.accessible = true;
     panel.accessibleTitle = presentation.title;
@@ -2649,13 +2640,16 @@ export class PromptLayer {
       const left = externalSource ? sourceLeft : PANEL_PADDING;
       const top = externalSource ? SOURCE_LABEL_HEIGHT : 16;
       const placeSourceSprite = () => {
-        sourceSprite.scale.set(1);
-        const scale = sourceWidth / sourceSprite.width;
+        const rotated =
+          sourceSprite.horizontalFrame && !this.promptCardState(sourceCard).horizontalFlipped;
+        sourceSprite.rotation = rotated ? -Math.PI / 2 : 0;
+        const horizontal = sourceSprite.horizontalFrame && !rotated;
+        const cardWidth = horizontal ? CARD_H : CARD_W;
+        const cardHeight = horizontal ? CARD_W : CARD_H;
+        const scale = sourceWidth / cardWidth;
         sourceSprite.scale.set(scale);
-        sourceSprite.position.set(
-          left + sourceSprite.pivot.x * scale,
-          top + sourceSprite.pivot.y * scale,
-        );
+        sourceSprite.syncHandControlsScale();
+        sourceSprite.position.set(left + (cardWidth * scale) / 2, top + (cardHeight * scale) / 2);
       };
       sourceSprite.onReorient = placeSourceSprite;
       placeSourceSprite();
@@ -2938,21 +2932,16 @@ export class PromptLayer {
     let y = 4;
 
     if (showFilter) {
-      const filterBackground = new Graphics()
-        .roundRect(0, y, availableWidth, 40, 8)
-        .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.72 })
-        .stroke({
-          color: hexToNum(
-            this.selectionFilter ? this.theme.gameTheme.cardRing : this.theme.appTheme.border,
-          ),
-          width: this.selectionFilter ? 2 : 1,
-          alpha: this.selectionFilter ? 0.8 : 1,
-        });
+      const filter = new Container();
+      body.addChild(filter);
+      const filterBackground = new Graphics();
       filterBackground.eventMode = "static";
       filterBackground.cursor = "text";
       filterBackground.accessible = true;
       filterBackground.accessibleTitle = "Filter choices. Start typing to search.";
       filterBackground.tabIndex = 0;
+      filterBackground.on("focusin", () => this.setSelectionFilterFocused(true));
+      filterBackground.on("focusout", () => this.setSelectionFilterFocused(false));
       const searchIcon = this.makeIcon(
         "lucide-search",
         15,
@@ -2978,12 +2967,24 @@ export class PromptLayer {
       );
       resultCount.anchor.set(1, 0.5);
       resultCount.position.set(availableWidth - (this.selectionFilter ? 42 : 10), y + 20);
-      body.addChild(filterBackground, searchIcon, filterText, resultCount);
+      const caret = new Graphics()
+        .rect(filterText.x + (this.selectionFilter ? filterText.width + 2 : 0), y + 12, 1.5, 16)
+        .fill({ color: hexToNum(this.theme.gameTheme.cardRing) });
+      caret.eventMode = "none";
+      filter.addChild(filterBackground, searchIcon, filterText, resultCount, caret);
+      this.selectionFilterView = {
+        container: filter,
+        background: filterBackground,
+        caret,
+        width: availableWidth,
+        y,
+      };
       if (this.selectionFilter) {
         const clear = this.makeButton(
           "",
           () => {
             this.selectionFilter = "";
+            this.selectionFilterFocused = true;
             this.rebuild();
           },
           {
@@ -2996,8 +2997,9 @@ export class PromptLayer {
           },
         );
         clear.position.set(availableWidth - 34, y + 5);
-        body.addChild(clear);
+        filter.addChild(clear);
       }
+      this.setSelectionFilterFocused(this.selectionFilterFocused);
       y += 52;
     }
 
@@ -3305,10 +3307,15 @@ export class PromptLayer {
     const sprite = new CardSprite(card, "hand");
     this.configurePromptCardSprite(sprite, card);
     const placeSprite = () => {
-      sprite.scale.set(1);
-      const scale = Math.min(width / sprite.width, height / sprite.height);
+      const rotated = sprite.horizontalFrame && !this.promptCardState(card).horizontalFlipped;
+      sprite.rotation = rotated ? -Math.PI / 2 : 0;
+      const horizontal = sprite.horizontalFrame && !rotated;
+      const cardWidth = horizontal ? CARD_H : CARD_W;
+      const cardHeight = horizontal ? CARD_W : CARD_H;
+      const scale = Math.min(width / cardWidth, height / cardHeight);
       sprite.scale.set(scale);
-      sprite.position.set(sprite.pivot.x * scale, sprite.pivot.y * scale);
+      sprite.syncHandControlsScale();
+      sprite.position.set((cardWidth * scale) / 2, (cardHeight * scale) / 2);
     };
     sprite.onReorient = placeSprite;
     placeSprite();
@@ -3386,7 +3393,6 @@ export class PromptLayer {
           () => this.spec!.respond({ type: "colorDecision", chosenColors: { [color]: 1 } }),
           {
             color: colors[color] ?? this.theme.appTheme.muted,
-            foreground: this.theme.gameTheme.textOnTinted,
             width: 112,
             height: 64,
             iconTexture: loadManaSymbolTexture(this.manaSymbol(color)),
@@ -3775,14 +3781,12 @@ export class PromptLayer {
         compact: true,
         disabled: index === 0,
         width: 32,
-        foreground: this.theme.appTheme["muted-foreground"],
         backgroundColor: this.theme.gameTheme.cardRing,
         backgroundAlpha: 0.08,
         borderColor: this.theme.gameTheme.cardRing,
         borderAlpha: 0.42,
         hoverBackgroundAlpha: 0.24,
         hoverBorderAlpha: 1,
-        hoverForeground: this.theme.gameTheme.cardRing,
       });
       const next = this.makeButton("", () => move(1), {
         title: "Move later",
@@ -3791,14 +3795,12 @@ export class PromptLayer {
         compact: true,
         disabled: index === this.order.length - 1,
         width: 32,
-        foreground: this.theme.appTheme["muted-foreground"],
         backgroundColor: this.theme.gameTheme.cardRing,
         backgroundAlpha: 0.08,
         borderColor: this.theme.gameTheme.cardRing,
         borderAlpha: 0.42,
         hoverBackgroundAlpha: 0.24,
         hoverBorderAlpha: 1,
-        hoverForeground: this.theme.gameTheme.cardRing,
       });
       const controlScale = 0.76;
       const controlGap = 10;
@@ -4039,6 +4041,13 @@ export class PromptLayer {
       .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.6 })
       .stroke({ color: hexToNum(this.theme.appTheme["muted-foreground"]), width: 2, alpha: 0.45 });
     body.addChild(poolBg);
+    const poolMarker = new Graphics()
+      .roundRect(pool.x, pool.y, pool.width, pool.height, 8)
+      .stroke({ color: hexToNum(this.theme.gameTheme.cardRing), width: 2.5 });
+    poolMarker.eventMode = "none";
+    poolMarker.visible = false;
+    poolMarker.zIndex = 500;
+    body.addChild(poolMarker);
     const poolIds = this.scryItems.pool ?? [];
     const poolDropCount = poolIds.length + 1;
     const poolDropSpacing = Math.min(
@@ -4053,6 +4062,7 @@ export class PromptLayer {
       dropX: 10 + (poolDropCount - 1) * poolDropSpacing,
       dropY: pool.y + 10,
       targetAlpha: 1,
+      marker: poolMarker,
     });
     poolIds.forEach((id, index) => {
       const card = byId.get(id);
@@ -4127,8 +4137,9 @@ export class PromptLayer {
       const dropX = rect.x + (rect.width - cardWidth) / 2;
       const dropY = rect.y + 10 + ids.length * 16;
       const marker = new Graphics()
-        .roundRect(dropX, Math.min(rect.y + rect.height - 8, dropY), cardWidth, 4, 2)
-        .fill({ color: hexToNum(this.theme.gameTheme.cardRing) });
+        .roundRect(rect.x, rect.y, rect.width, rect.height, 8)
+        .stroke({ color: hexToNum(this.theme.gameTheme.cardRing), width: 2.5 });
+      marker.eventMode = "none";
       marker.visible = false;
       marker.zIndex = 500;
       body.addChild(marker);
@@ -4387,7 +4398,7 @@ export class PromptLayer {
       description: `${damageOrder.attackerName} is blocked by ${damageOrder.blockerCards.length} creatures. Choose which blocker receives damage first.`,
       targets,
     };
-    const { body, footer } = this.createModalShell(width, height, presentation, false, true, 60);
+    const { body, footer } = this.createModalShell(width, height, presentation, true, true, 60);
     const availableWidth = width - PANEL_PADDING * 2;
     const selectedCount = damageOrder.order.length;
     const complete =
@@ -4988,10 +4999,6 @@ export class PromptLayer {
         entry.highlighted ? this.theme.gameTheme.success : this.theme.appTheme.muted,
       );
       die.position.set(x, y);
-      die.rotation =
-        Math.sin(this.diceElapsedMs / 90 + index) *
-        Math.max(0, 1 - this.diceElapsedMs / DICE_ROLL_MS) *
-        0.35;
       body.addChild(die);
       const valueText = promptText(String(shownValue), 26, this.theme.appTheme.foreground, {
         weight: "700",
@@ -5174,14 +5181,6 @@ export class PromptLayer {
       (this.viewportHeight - panelHeight) / 2,
     );
     this.container.addChild(group);
-    if (animationsEnabled()) {
-      gsap.from(group.scale, {
-        x: 0.96,
-        y: 0.96,
-        duration: 0.35,
-        ease: "back.out(1.4)",
-      });
-    }
   }
 
   private makeDraggable(
@@ -5442,9 +5441,26 @@ export class PromptLayer {
     this.rebuild();
   }
 
+  private setSelectionFilterFocused(focused: boolean): void {
+    this.selectionFilterFocused = focused;
+    this.selectionFilterBlinkAt = performance.now();
+    const filter = this.selectionFilterView;
+    if (!filter) return;
+    filter.background
+      .clear()
+      .roundRect(0, filter.y, filter.width, 40, 8)
+      .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.72 })
+      .stroke({
+        color: hexToNum(focused ? this.theme.gameTheme.cardRing : this.theme.appTheme.border),
+        width: focused ? 2 : 1,
+        alpha: focused ? 0.9 : 1,
+      });
+    filter.caret.visible = focused;
+  }
+
   private handleKey(event: KeyboardEvent): void {
     if (!this.spec || !this.modalOpen) return;
-    if (this.handlePromptCardShortcut(event)) return;
+    if (!this.selectionFilterFocused && this.handlePromptCardShortcut(event)) return;
     if (this.combatBreakdownOpen && event.key === "Escape") {
       event.preventDefault();
       this.combatBreakdownOpen = false;
@@ -5464,6 +5480,7 @@ export class PromptLayer {
         (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey))
     ) {
       event.preventDefault();
+      this.selectionFilterFocused = true;
       this.selectionFilter =
         event.key === "Backspace"
           ? this.selectionFilter.slice(0, -1)
@@ -5477,11 +5494,7 @@ export class PromptLayer {
       this.rebuild();
       return;
     }
-    if (
-      event.key === "Escape" &&
-      input?.type !== "chooseDamageAssignmentOrder" &&
-      !this.spec.gameOver
-    ) {
+    if (event.key === "Escape" && !this.spec.gameOver) {
       event.preventDefault();
       this.spec.onHideModal();
       return;
@@ -5606,19 +5619,19 @@ export class PromptLayer {
   }
 
   private syncDiceVisuals(): void {
-    const settled = !animationsEnabled() || this.diceElapsedMs >= DICE_ROLL_MS;
+    const progress = animationsEnabled() ? Math.min(1, this.diceElapsedMs / DICE_ROLL_MS) : 1;
+    const settled = progress === 1;
+    const rollStep = Math.floor((1 - (1 - progress) ** 2) * 18);
     for (const visual of this.diceVisuals) {
-      visual.value.text = String(
+      const value = String(
         settled
           ? visual.finalValue
-          : ((Math.floor(this.diceElapsedMs / 70) + visual.index * 7) % Math.max(1, visual.sides)) +
-              1,
+          : ((rollStep + visual.index * 7) % Math.max(1, visual.sides)) + 1,
       );
-      visual.die.rotation = settled
-        ? 0
-        : Math.sin(this.diceElapsedMs / 80 + visual.index) *
-          Math.max(0, 1 - this.diceElapsedMs / DICE_ROLL_MS) *
-          0.35;
+      if (visual.value.text !== value) visual.value.text = value;
+      visual.die.rotation =
+        Math.sin(progress * Math.PI * 10 + visual.index) * (1 - progress) * 0.22;
+      visual.die.scale.set(1 - Math.sin(progress * Math.PI) * 0.04);
     }
     if (!settled || this.diceSettled) return;
     this.diceSettled = true;
@@ -5626,12 +5639,15 @@ export class PromptLayer {
       this.diceWinnerText.text = this.diceWinnerLabel;
     }
     this.diceConfirm?.setDisabled(false);
-    if (!animationsEnabled()) return;
-    for (const visual of this.diceVisuals) {
+    if (animationsEnabled() && this.diceWinnerText) {
       gsap.fromTo(
-        visual.die.scale,
-        { x: 0.86, y: 0.86 },
-        { x: 1, y: 1, duration: 0.28, ease: "back.out(2)" },
+        this.diceWinnerText,
+        { alpha: 0.55 },
+        {
+          alpha: 1,
+          duration: 0.22,
+          ease: "power2.out",
+        },
       );
     }
   }
@@ -5639,16 +5655,19 @@ export class PromptLayer {
   update(deltaMs: number): void {
     const elapsed = performance.now();
     this.updateDragMotion(deltaMs);
+    this.syncActionFeedback(elapsed);
+    if (this.selectionFilterView) {
+      this.selectionFilterView.caret.visible =
+        this.selectionFilterFocused &&
+        (!animationsEnabled() ||
+          (elapsed - this.selectionFilterBlinkAt) % FILTER_CARET_PERIOD_MS <
+            FILTER_CARET_PERIOD_MS / 2);
+    }
+    if (!animationsEnabled() && this.entranceTween) this.entranceTween.progress(1);
     if (animationsEnabled()) {
-      const actionPulse = (1 - Math.cos((elapsed / 1800) * Math.PI * 2)) / 2;
-      if (this.actionGlow) {
-        this.actionGlow[0].alpha = 0.3 * (1 - actionPulse);
-        this.actionGlow[1].alpha = 0.6 * actionPulse;
-        this.actionGlow[2].alpha = 0.75 * (1 - actionPulse);
-        this.actionGlow[3].alpha = actionPulse;
-      }
+      const actionPulse = (1 - Math.cos((elapsed / 3600) * Math.PI * 2)) / 2;
       for (const { node, maxAlpha } of this.actionPulseNodes) {
-        node.alpha = maxAlpha * (0.5 + actionPulse * 0.5);
+        node.alpha = maxAlpha * (0.8 + actionPulse * 0.2);
       }
       if (this.actionHourglass) {
         const phase = (elapsed % 2400) / 2400;
@@ -5662,12 +5681,6 @@ export class PromptLayer {
                 : Math.PI + ((1 - Math.cos(((phase - 0.9) / 0.1) * Math.PI)) / 2) * Math.PI;
       }
     } else {
-      if (this.actionGlow) {
-        this.actionGlow[0].alpha = 0.3;
-        this.actionGlow[1].alpha = 0;
-        this.actionGlow[2].alpha = 0.75;
-        this.actionGlow[3].alpha = 0;
-      }
       for (const { node, maxAlpha } of this.actionPulseNodes) node.alpha = maxAlpha;
       if (this.actionHourglass) this.actionHourglass.rotation = 0;
     }

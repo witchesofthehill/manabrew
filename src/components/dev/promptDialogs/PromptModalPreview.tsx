@@ -168,9 +168,12 @@ function previewInput(preview: DevDialogPreview, fixtures: DevDialogFixtures): P
         ownerPlayerId: me.id,
       };
     case "scry":
+    case "scry-landscape":
+    case "scry-double-sided":
+    case "scry-mixed":
       return {
         type: "scry",
-        presentation: { ...presentation, title: "Scry 3" },
+        presentation: { ...presentation, title: `Scry ${cards.length}` },
         cards,
         zones: ["libraryTop", "libraryBottom", "graveyard"],
       };

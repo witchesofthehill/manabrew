@@ -1,16 +1,25 @@
 import { useState } from "react";
-import { Eye } from "lucide-react";
+import { Eye, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import type { CardDto } from "@/protocol/game";
 
 import { DevPromptDialogPreview } from "./DevPromptDialogPreview";
-import { DEV_DIALOG_PREVIEW_GROUPS, type DevDialogPreview } from "./promptDialogPreviews";
+import {
+  DEV_DIALOG_PREVIEW_GROUPS,
+  type DevDialogPreview,
+  type DevDialogPreviewOption,
+} from "./promptDialogPreviews";
+import { loadDevScryCards } from "./promptDialogs/useDevDialogFixtures";
 import { DEV_SECTION, DEV_SECTION_HEADING } from "./devPanel.styles";
 import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
 
 export function PromptDialogDevControls() {
   const [preview, setPreview] = useState<DevDialogPreview | null>(null);
   const [previewVersion, setPreviewVersion] = useState(0);
+  const [previewCards, setPreviewCards] = useState<CardDto[] | undefined>(undefined);
+  const [loadingPreview, setLoadingPreview] = useState<DevDialogPreview | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const query = useDevPanelSearch();
   const sectionMatch = matchesDevPanelSearch(
     query,
@@ -28,6 +37,24 @@ export function PromptDialogDevControls() {
   })).filter((group) => group.options.length > 0);
 
   if (visibleGroups.length === 0) return null;
+
+  const openPreview = async (option: DevDialogPreviewOption) => {
+    setPreview(null);
+    setPreviewError(null);
+    setLoadingPreview(option.id);
+    try {
+      const cards = option.scryLayout ? await loadDevScryCards(option.scryLayout) : undefined;
+      setPreviewCards(cards);
+      setPreview(option.id);
+      setPreviewVersion((current) => current + 1);
+    } catch (error) {
+      setPreviewError(
+        `Could not open ${option.label}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      setLoadingPreview(null);
+    }
+  };
 
   return (
     <>
@@ -58,15 +85,17 @@ export function PromptDialogDevControls() {
                     type="button"
                     variant="outline"
                     className="h-auto min-h-14 justify-start gap-2 px-3 py-2 text-left"
-                    onClick={() => {
-                      setPreview(option.id);
-                      setPreviewVersion((current) => current + 1);
-                    }}
+                    disabled={loadingPreview !== null}
+                    onClick={() => void openPreview(option)}
                   >
-                    <Eye className="h-3.5 w-3.5 shrink-0 text-primary" />
+                    {loadingPreview === option.id ? (
+                      <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" />
+                    ) : (
+                      <Eye className="h-3.5 w-3.5 shrink-0 text-primary" />
+                    )}
                     <span className="min-w-0">
                       <span className="block text-xs font-medium text-foreground">
-                        {option.label}
+                        {loadingPreview === option.id ? "Loading cards…" : option.label}
                       </span>
                       <span className="mt-0.5 block text-[10px] font-normal text-muted-foreground">
                         {option.description}
@@ -78,12 +107,14 @@ export function PromptDialogDevControls() {
             </div>
           ))}
         </div>
+        {previewError ? <p className="mt-2 text-xs text-destructive">{previewError}</p> : null}
       </section>
 
       {preview ? (
         <DevPromptDialogPreview
           key={previewVersion}
           preview={preview}
+          cards={previewCards}
           onClose={() => setPreview(null)}
         />
       ) : null}

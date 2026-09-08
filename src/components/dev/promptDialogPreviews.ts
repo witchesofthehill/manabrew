@@ -1,3 +1,5 @@
+import type { ScryPreviewLayout } from "./devPreviewScenarios";
+
 export type DevDialogPreview =
   | "choose-boolean"
   | "choose-color"
@@ -7,6 +9,9 @@ export type DevDialogPreview =
   | "choose-cards"
   | "reveal-cards"
   | "scry"
+  | "scry-landscape"
+  | "scry-double-sided"
+  | "scry-mixed"
   | "reorder"
   | "choose-selection"
   | "assign-combat-damage"
@@ -27,10 +32,11 @@ export type DevDialogPreview =
   | "combat-summary"
   | "game-over";
 
-interface DevDialogPreviewOption {
+export interface DevDialogPreviewOption {
   id: DevDialogPreview;
   label: string;
   description: string;
+  scryLayout?: ScryPreviewLayout;
 }
 
 interface DevDialogPreviewGroup {
@@ -50,6 +56,24 @@ export const DEV_DIALOG_PREVIEW_GROUPS: DevDialogPreviewGroup[] = [
       { id: "choose-cards", label: "Choose cards", description: "Selectable card row" },
       { id: "reveal-cards", label: "Reveal cards", description: "Informational card row" },
       { id: "scry", label: "Scry", description: "Drag cards between zones" },
+      {
+        id: "scry-landscape",
+        label: "Scry: landscape cards",
+        description: "Plane, split, aftermath, and Room layouts",
+        scryLayout: "landscape",
+      },
+      {
+        id: "scry-double-sided",
+        label: "Scry: double-sided cards",
+        description: "Transform, modal DFC, and landscape Battle faces",
+        scryLayout: "double-sided",
+      },
+      {
+        id: "scry-mixed",
+        label: "Scry: mixed layouts",
+        description: "Portrait, landscape, split, aftermath, Room, and double-sided cards",
+        scryLayout: "mixed",
+      },
       { id: "reorder", label: "Reorder cards", description: "Drag cards into order" },
       { id: "choose-selection", label: "Choose options", description: "Weighted repeatable list" },
       {

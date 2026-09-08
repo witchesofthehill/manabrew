@@ -1,13 +1,42 @@
 import { CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
+import { resolveCardFaces } from "@/lib/cardFaces";
+import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
 import { useTheme } from "@/hooks/useTheme";
 import { useGameStore } from "@/stores/useGameStore";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { CardDto, StackObjectDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import type { PromptPresentation } from "@/protocol";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { PlayerHudSpec } from "@/pixi/hud/playerHud.types";
 import type { ClientGameView, ClientPlayerDto } from "@/stores/gameStore.types";
+import { PREVIEW_SCENARIOS, type ScryPreviewLayout } from "../devPreviewScenarios";
+
+export async function loadDevScryCards(layout: ScryPreviewLayout): Promise<CardDto[]> {
+  const scenarios = PREVIEW_SCENARIOS.filter((scenario) => scenario.scry?.includes(layout));
+  return Promise.all(
+    scenarios.map(async (scenario, index) => {
+      const { info } = await useScryfallStore.getState().getCard({ name: scenario.name });
+      const faces = resolveCardFaces(info);
+      const face = info.card_faces?.[0];
+      return scryfallToSampleGameCard(
+        face ? { ...info, ...face, type_line: face.type_line ?? info.type_line } : info,
+        {
+          id: `dev-scry-${index}`,
+          identity: {
+            name: info.name,
+            setCode: info.set,
+            cardNumber: info.collector_number,
+            isToken: info.layout.includes("token"),
+          },
+          isDoubleFaced: faces.isFlippable,
+          zoneId: "library",
+        },
+      );
+    }),
+  );
+}
 
 function makeCard(id: string, name: string, power: string, toughness: string): CardDto {
   return {
@@ -108,7 +137,7 @@ export interface DevDialogFixtures {
   playerSpec: PlayerHudSpec;
 }
 
-export function useDevDialogFixtures(): DevDialogFixtures | null {
+export function useDevDialogFixtures(previewCards?: CardDto[]): DevDialogFixtures | null {
   const gameView = useGameStore((state) => state.gameView);
   const gameDecks = useGameStore((state) => state.gameDecks);
   const theme = useTheme().gameTheme;
@@ -124,10 +153,12 @@ export function useDevDialogFixtures(): DevDialogFixtures | null {
       ...player.commandZone,
     ]),
   ];
-  const cards = FALLBACK_CARDS.map((fallback, index) => visibleCards[index] ?? fallback);
+  const me = gameView.players[0];
+  const cards = previewCards
+    ? previewCards.map((card) => ({ ...card, ownerId: me.id, controllerId: me.id }))
+    : FALLBACK_CARDS.map((fallback, index) => visibleCards[index] ?? fallback);
   const sourceCard =
     Object.values(gameDecks).flatMap((deck) => deck.cards)[0] ?? FALLBACK_SOURCE_CARD;
-  const me = gameView.players[0];
   const opponents = gameView.players.slice(1);
   const targetPlayer = opponents[0] ?? me;
   const presentation: PromptPresentation = {

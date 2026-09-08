@@ -946,11 +946,11 @@ export default function Game({ exitTo }: GameProps = {}) {
     });
 
   const passPriority = useCallback(() => {
-    window.dispatchEvent(new Event(ACTION_DRAWER_BUMP_EVENT));
+    window.dispatchEvent(new CustomEvent(ACTION_DRAWER_BUMP_EVENT, { detail: false }));
     unifiedPass();
   }, [unifiedPass]);
   const passEndTurn = useCallback(() => {
-    window.dispatchEvent(new Event(ACTION_DRAWER_BUMP_EVENT));
+    window.dispatchEvent(new CustomEvent(ACTION_DRAWER_BUMP_EVENT, { detail: true }));
     unifiedPassEndTurn();
   }, [unifiedPassEndTurn]);
   const unifiedPassRef = useRef(passPriority);

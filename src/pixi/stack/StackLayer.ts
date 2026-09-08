@@ -1,7 +1,7 @@
 import { Container, Graphics, Rectangle } from "pixi.js";
 import { isCoarsePointer } from "@/lib/responsive";
 import gsap from "gsap";
-import { CARD_W, CARD_H } from "@/components/game/game.constants";
+import { CARD_H, CARD_W } from "@/components/game/game.constants";
 import type { Theme } from "@/hooks/useTheme";
 import { CardSprite } from "../CardSprite";
 import { hexToNum } from "../colorUtils";

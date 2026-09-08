@@ -86,6 +86,8 @@ export const ACTION_DRAWER_BUMP_EVENT = "actiondrawer:bump";
 export const CARD_W = 72;
 export const CARD_H = 100;
 export const CARD_GAP = 8;
+export const STACK_CARD_WIDTH = 300;
+export const STACK_CARD_MAX_HEIGHT_FRAC = 0.55;
 /** Corner radius at CARD_W scale — renderers drawing at other sizes must scale
  *  it proportionally (radius = size * CARD_RADIUS / CARD_W) to match the
  *  printed card corner. */

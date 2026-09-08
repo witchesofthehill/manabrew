@@ -1,15 +1,11 @@
-import { useCallback, useMemo, useState } from "react";
-import { createPortal, flushSync } from "react-dom";
+import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
-import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import type { PromptActionSpec } from "@/components/game/game.types";
-import { useCardPreview } from "@/hooks/useCardPreview";
-import { useKeybindings } from "@/hooks/useKeybindings";
-import { BoardOverlayCanvas, type BoardOverlayPreviewSpec } from "@/pixi/BoardOverlayCanvas";
+import { BoardOverlayCanvas } from "@/pixi/BoardOverlayCanvas";
 import type { PromptOverlaySpec } from "@/pixi/prompts/prompt.types";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import type { Prompt, PromptInput } from "@/protocol";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 import type { DevDialogPreview } from "../promptDialogPreviews";
 import type { DevDialogFixtures } from "./useDevDialogFixtures";
@@ -31,23 +27,6 @@ const EMPTY_STACK: StackSpec = {
 
 export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPreviewProps) {
   const [damageOrder, setDamageOrder] = useState<string[]>([]);
-  const cardPreview = useCardPreview();
-  const previewStyle = usePreferencesStore((state) => state.inGameCardPreviewStyle);
-  const [previewViewSwitchCardId, setPreviewViewSwitchCardId] = useState<string | null>(null);
-  const [promptPreviewSlot, setPromptPreviewSlot] = useState<DOMRect | null>(null);
-  const [promptPreviewSlotElement, setPromptPreviewSlotElement] = useState<HTMLDivElement | null>(
-    null,
-  );
-  const handlePromptPreviewSlotChange = useCallback((next: DOMRect | null) => {
-    setPromptPreviewSlot((current) =>
-      current?.x === next?.x &&
-      current?.y === next?.y &&
-      current?.width === next?.width &&
-      current?.height === next?.height
-        ? current
-        : next,
-    );
-  }, []);
   const input = useMemo(() => previewInput(preview, fixtures), [preview, fixtures]);
   const prompt = useMemo<Prompt>(() => ({ input }) as Prompt, [input]);
   const blockerCards = useMemo(() => fixtures.cards.slice(1, 3), [fixtures.cards]);
@@ -129,56 +108,6 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
       onShowModal: noAction,
     };
   }, [blockerCards, damageOrder, fixtures, input.type, onClose, preview, prompt]);
-  const previewCard = useMemo(
-    () =>
-      cardPreview.hoveredCard
-        ? {
-            ...cardPreview.hoveredCard,
-            zoneId: cardPreview.hoveredCard.zoneId ?? "prompt",
-          }
-        : null,
-    [cardPreview.hoveredCard],
-  );
-  const previewVisible = previewCard !== null && cardPreview.phase !== "hidden";
-  const externalPreviewActive = previewCard !== null && cardPreview.phase === "open";
-  const usePromptPreviewSlot = promptPreviewSlot !== null;
-
-  const togglePreviewView = () => {
-    if (!previewCard) return;
-    flushSync(() => setPreviewViewSwitchCardId(previewCard.id));
-    const preferences = usePreferencesStore.getState();
-    preferences.setInGameCardPreviewStyle(
-      preferences.inGameCardPreviewStyle === "printed" ? "rules" : "printed",
-    );
-  };
-  const skipPreviewEnterAnimation =
-    cardPreview.phase === "open" &&
-    previewCard !== null &&
-    previewViewSwitchCardId === previewCard.id;
-  const rulesPreview: BoardOverlayPreviewSpec | null =
-    previewStyle === "rules" && previewVisible && previewCard
-      ? {
-          card: previewCard,
-          variant: usePromptPreviewSlot ? "hand" : "field",
-          phase: cardPreview.phase === "closing" ? "closing" : "open",
-          sticky: cardPreview.isSticky,
-          showBackFace: cardPreview.showBackFace,
-          suppressed: false,
-          skipEnterAnimation: skipPreviewEnterAnimation,
-          actions: [],
-          mousePos: cardPreview.mousePos,
-          anchorRect: cardPreview.anchorRect,
-          slotRect: promptPreviewSlot,
-        }
-      : null;
-
-  useKeybindings(
-    externalPreviewActive
-      ? {
-          "toggle-card-view": togglePreviewView,
-        }
-      : {},
-  );
 
   return createPortal(
     <>
@@ -191,61 +120,8 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
           onHoverStack={noAction}
           onToggleStack={noAction}
           promptSpec={spec}
-          onPromptPreviewSlotChange={handlePromptPreviewSlotChange}
-          onHoverCard={(card, options) => {
-            if (!card) {
-              setPreviewViewSwitchCardId(null);
-              cardPreview.handleMouseLeave();
-              return;
-            }
-            if (cardPreview.hoveredCard?.id !== card.id) setPreviewViewSwitchCardId(null);
-            cardPreview.handleMouseEnter(card, undefined, {
-              ...options,
-              useDelay: false,
-            });
-          }}
-          onLongPressCard={(card, rect) =>
-            cardPreview.showSticky(
-              card,
-              rect.left + rect.width / 2,
-              rect.top + rect.height / 2,
-              rect,
-            )
-          }
-          externalPreviewActive={externalPreviewActive}
-          previewSpec={rulesPreview}
-          onPreviewPointerEnter={cardPreview.onMouseEnterPreview}
-          onPreviewPointerLeave={cardPreview.onMouseLeavePreview}
-          onDismissPreview={cardPreview.dismiss}
-          onFlipPreview={cardPreview.flipCard}
-          onTogglePreviewView={togglePreviewView}
         />
       </div>
-      {usePromptPreviewSlot &&
-        createPortal(
-          <div
-            ref={setPromptPreviewSlotElement}
-            className="pointer-events-none fixed z-[9999]"
-            style={{
-              left: promptPreviewSlot.x,
-              top: promptPreviewSlot.y,
-              width: promptPreviewSlot.width,
-              height: promptPreviewSlot.height,
-            }}
-          />,
-          document.body,
-        )}
-      {previewStyle === "printed" &&
-        previewVisible &&
-        (!usePromptPreviewSlot || promptPreviewSlotElement) && (
-          <HoverCardPreview
-            preview={cardPreview}
-            skipEnterAnimation={usePromptPreviewSlot || skipPreviewEnterAnimation}
-            pinned={usePromptPreviewSlot}
-            slot={usePromptPreviewSlot ? promptPreviewSlotElement : null}
-            onToggleView={togglePreviewView}
-          />
-        )}
     </>,
     document.body,
   );

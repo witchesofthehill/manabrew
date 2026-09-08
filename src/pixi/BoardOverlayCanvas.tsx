@@ -13,7 +13,6 @@ import { StackLayer } from "./stack/StackLayer";
 import type { StackSpec } from "./stack/stack.types";
 import { useTheme } from "@/hooks/useTheme";
 import { GHOST_CLICK_ARM_MS } from "@/lib/responsive";
-import type { CardDto } from "@/protocol/game";
 import type { TargetRef } from "@/protocol/prompts/common";
 import { intentIsHostile } from "@/types/promptType";
 import type { BoardScene } from "./board/BoardScene";
@@ -84,17 +83,6 @@ interface BoardOverlayCanvasProps {
   onHoverStack: (stackObjectId: string | null) => void;
   onToggleStack: () => void;
   promptSpec: PromptOverlaySpec | null;
-  onHoverCard: (
-    card: CardDto | null,
-    options?: {
-      useAnchor?: boolean;
-      placement?: "auto" | "top-center";
-      anchorOverride?: DOMRect;
-      ignoreTriggerPreference?: boolean;
-    },
-  ) => void;
-  onLongPressCard?: (card: CardDto, rect: DOMRect) => void;
-  onPromptPreviewSlotChange?: (rect: DOMRect | null) => void;
   className?: string;
   externalPreviewActive?: boolean;
   previewSpec?: BoardOverlayPreviewSpec | null;
@@ -199,9 +187,6 @@ export function BoardOverlayCanvas({
   onHoverStack,
   onToggleStack,
   promptSpec,
-  onHoverCard,
-  onLongPressCard,
-  onPromptPreviewSlotChange,
   className,
   externalPreviewActive = false,
   previewSpec,
@@ -238,9 +223,6 @@ export function BoardOverlayCanvas({
     onTargetSpell,
     onHoverStack,
     onToggleStack,
-    onHoverCard,
-    onPromptPreviewSlotChange,
-    onLongPressCard,
     onPreviewPointerEnter,
     onPreviewPointerLeave,
     onSelectPreviewAction,
@@ -255,9 +237,6 @@ export function BoardOverlayCanvas({
       onTargetSpell,
       onHoverStack,
       onToggleStack,
-      onHoverCard,
-      onPromptPreviewSlotChange,
-      onLongPressCard,
       onPreviewPointerEnter,
       onPreviewPointerLeave,
       onSelectPreviewAction,
@@ -269,11 +248,8 @@ export function BoardOverlayCanvas({
     onDismissPreview,
     onFlipPreview,
     onHoverStack,
-    onHoverCard,
     onOpenStack,
-    onPromptPreviewSlotChange,
     onPreviewPointerEnter,
-    onLongPressCard,
     onPreviewPointerLeave,
     onSelectPreviewAction,
     onTargetSpell,
@@ -410,51 +386,6 @@ export function BoardOverlayCanvas({
             stackRef.current?.setPromptReference(
               target?.kind === "spell" ? target.id : null,
               target ? hexToNum(color) : null,
-            );
-          },
-          onPreviewCard: (card, bounds, sticky) => {
-            if (!card) {
-              cbRef.current.onHoverCard(null);
-              return;
-            }
-            if (!bounds) {
-              cbRef.current.onHoverCard(card);
-              return;
-            }
-            const canvasRect = canvasRef.current?.getBoundingClientRect();
-            const rect = new DOMRect(
-              (canvasRect?.left ?? 0) + bounds.x,
-              (canvasRect?.top ?? 0) + bounds.y,
-              bounds.width,
-              bounds.height,
-            );
-            if (sticky && cbRef.current.onLongPressCard) {
-              cbRef.current.onLongPressCard(card, rect);
-              return;
-            }
-            cbRef.current.onHoverCard(card, {
-              useAnchor: true,
-              anchorOverride: rect,
-              ignoreTriggerPreference: true,
-            });
-          },
-          onDismissPreview: () => {
-            if (cbRef.current.onDismissPreview) cbRef.current.onDismissPreview();
-            else cbRef.current.onHoverCard(null);
-          },
-          onPreviewSlotChange: (bounds) => {
-            if (!bounds) {
-              cbRef.current.onPromptPreviewSlotChange?.(null);
-              return;
-            }
-            const canvasRect = canvasRef.current?.getBoundingClientRect();
-            cbRef.current.onPromptPreviewSlotChange?.(
-              new DOMRect(
-                (canvasRect?.left ?? 0) + bounds.x,
-                (canvasRect?.top ?? 0) + bounds.y,
-                bounds.width,
-                bounds.height,
-              ),
             );
           },
           getReferenceAnchor: (target) =>

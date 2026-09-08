@@ -683,7 +683,6 @@ export function BoardPlayground() {
             onTargetSpell={() => undefined}
             onHoverStack={() => undefined}
             onToggleStack={() => undefined}
-            onHoverCard={() => undefined}
             promptSpec={null}
             externalPreviewActive={externalPreviewActive}
             previewSpec={rulesPreview}

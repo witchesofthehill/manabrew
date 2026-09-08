@@ -21,11 +21,19 @@ import {
   ACTION_DRAWER_BUMP_EVENT,
   AUTOPASS_DELAY_MAX_MS,
   AUTOPASS_DELAY_MIN_MS,
+  CARD_H,
+  CARD_W,
 } from "@/components/game/game.constants";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
 import { resolveCombo, useKeybindingsStore } from "@/stores/useKeybindingsStore";
-import { comboSymbols, formatCombo, normalizeCombo } from "@/lib/keybindings";
+import {
+  comboFromEvent,
+  combosMatch,
+  comboSymbols,
+  formatCombo,
+  normalizeCombo,
+} from "@/lib/keybindings";
 import { isCoarsePointer } from "@/lib/responsive";
 import {
   ATTACK_DRAG_HINT,
@@ -42,7 +50,6 @@ import type {
 } from "@/protocol";
 import { PromptButton, type PromptButtonOptions } from "./PromptButton";
 import { LongPressGesture } from "@/pixi/LongPressGesture";
-import type { ScreenBounds } from "@/pixi/types";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
 import type { PromptLayerCallbacks, PromptOverlaySpec } from "./prompt.types";
@@ -60,24 +67,18 @@ const MODAL_TYPES = new Set([
   "reorder",
   "diceRolled",
 ]);
-
-const CARD_PREVIEW_MODAL_TYPES = new Set(["chooseCards", "revealCards", "reorder", "scry"]);
-
 const FONT = "Inter, system-ui, sans-serif";
 const PANEL_PADDING = 20;
 const ROW_GAP = 10;
-const CARD_WIDTH = 100;
-const CARD_HEIGHT = 140;
+const CARD_WIDTH = 250;
+const CARD_ASPECT_RATIO = CARD_H / CARD_W;
+const CARD_VERTICAL_RESERVE = 288;
+const SCRY_BODY_VERTICAL_RESERVE = 176;
+const CARD_MODAL_MAX_WIDTH = 1160;
 const DICE_ROLL_MS = 1200;
 const DICE_FINISH_MS = 1450;
-const PREVIEW_RAIL_WIDTH = 300;
-const PREVIEW_SOURCE_WIDTH = 160;
-const PREVIEW_RAIL_GAP = 20;
-const PREVIEW_RAIL_LABEL_HEIGHT = 18;
-const PREVIEW_RAIL_SECTION_GAP = 16;
-const PREVIEW_RAIL_MIN_HEIGHT = 240;
-const PREVIEW_RAIL_MAX_HEIGHT = 420;
-const PREVIEW_RAIL_REQUIRED_GUTTER = (PREVIEW_RAIL_WIDTH + PREVIEW_RAIL_GAP) * 2;
+const SOURCE_CARD_GAP = 20;
+const SOURCE_LABEL_HEIGHT = 18;
 const DRAG_DROP_MIN_SECONDS = 0.1;
 const DRAG_DROP_MAX_SECONDS = 0.22;
 const DRAG_DROP_PIXELS_PER_SECOND = 1800;
@@ -88,7 +89,6 @@ const SCRY_LAYOUT_SETTLE_SECONDS = 0.2;
 interface DragState {
   item: Container;
   pointerId: number;
-  previewCardId: string | null;
   originX: number;
   originY: number;
   offsetX: number;
@@ -108,10 +108,15 @@ interface DiceVisual {
 interface DropZone {
   id: string;
   rect: Rectangle;
+  container: Container;
   visual: Graphics;
   dropX: number;
   dropY: number;
   targetAlpha: number;
+}
+interface PromptCardDisplayState {
+  rulesView: boolean;
+  face: 0 | 1;
 }
 
 function promptText(
@@ -248,6 +253,9 @@ export class PromptLayer {
   private drag: DragState | null = null;
   private scryCardTiles = new Map<string, Container>();
   private scryPreviousPositions = new Map<string, { x: number; y: number }>();
+  private promptCardStates = new Map<string, PromptCardDisplayState>();
+  private activePromptCard: { card: CardDto; sprite: CardSprite } | null = null;
+  private activePromptCardId: string | null = null;
   private diceElapsedMs = 0;
   private autopassRemainingMs: number | null = null;
   private diceVisuals: DiceVisual[] = [];
@@ -273,17 +281,6 @@ export class PromptLayer {
   private modalScrollMax = 0;
   private modalBody: { body: Container; bodyTop: number; height: number } | null = null;
   private keyListener: (event: KeyboardEvent) => void;
-  private longPress = new LongPressGesture();
-  private previewCardActive = false;
-  private previewCard: CardDto | null = null;
-  private previewCardBounds: ScreenBounds | null = null;
-  private previewCardSticky = false;
-  private previewSlotBounds: ScreenBounds | null = null;
-  private renderGeneration = 0;
-  private cardPreviewTargets: Array<{
-    cardId: string;
-    show: (sticky: boolean) => void;
-  }> = [];
   private onStageMove = (event: FederatedPointerEvent): void => this.moveDrag(event);
   private onStageUp = (event: FederatedPointerEvent): void => this.finishDrag(event);
   private onStageCancel = (event: FederatedPointerEvent): void => this.cancelPointerDrag(event);
@@ -351,14 +348,7 @@ export class PromptLayer {
       }
     }
     this.spec = spec;
-    const promptType = spec?.currentPrompt?.input.type;
-    const cardPreviewModal = !!promptType && CARD_PREVIEW_MODAL_TYPES.has(promptType);
-    const modalUnavailable =
-      !!spec?.modalHidden || !!spec?.action.isWaitingForResponse || !cardPreviewModal;
-    if (modalUnavailable) {
-      this.setPreviewSlotBounds(null);
-      this.clearPromptCardPreview();
-    }
+    const modalUnavailable = !!spec?.modalHidden || !!spec?.action.isWaitingForResponse;
     if (this.drag && !promptChanged && !modalUnavailable) return;
     this.rebuild();
   }
@@ -396,19 +386,18 @@ export class PromptLayer {
     this.unsubscribeKeybindings();
     this.app.stage.off("pointerupoutside", this.onStageUp);
     this.app.stage.off("pointercancel", this.onStageCancel);
-    this.setPreviewSlotBounds(null);
     this.app.ticker.remove(this.onTick);
-    this.longPress.reset();
     this.actionLongPress.reset();
     this.callbacks.onReferenceChange?.(null);
-    this.clearPromptCardPreview();
     this.cancelDrag();
     this.clearScryCardTiles();
     this.container.destroy({ children: true });
   }
 
   private resetLocalState(spec: PromptOverlaySpec | null): void {
-    this.clearPromptCardPreview();
+    this.promptCardStates.clear();
+    this.activePromptCard = null;
+    this.activePromptCardId = null;
     this.selectedIds.clear();
     this.counts.clear();
     this.selectionFilter = "";
@@ -454,10 +443,7 @@ export class PromptLayer {
     }
   }
   private rebuild(): void {
-    const previewCardId = this.previewCardActive ? this.previewCard?.id : null;
-    const previewCardSticky = this.previewCardSticky;
-    this.renderGeneration += 1;
-    this.cardPreviewTargets = [];
+    this.activePromptCard = null;
     this.callbacks.onReferenceChange?.(null);
     this.cancelDrag();
     this.dropZones = [];
@@ -491,7 +477,6 @@ export class PromptLayer {
     ) {
       this.modalOpen = true;
       this.renderModal();
-      if (previewCardId) this.restorePromptCardPreview(previewCardId, previewCardSticky);
       return;
     }
     this.renderActionPanel();
@@ -1434,6 +1419,101 @@ export class PromptLayer {
     if (promptSource) return promptSource;
     const deckSource = this.spec?.sourceDeckCard;
     return deckSource ? deckCardToPreviewDto(deckSource) : null;
+  }
+  private promptCardDimensions(maxHeight = Number.POSITIVE_INFINITY): {
+    width: number;
+    height: number;
+  } {
+    const availableCardHeight = Math.max(112, (this.viewportHeight - CARD_VERTICAL_RESERVE) / 2);
+    const width = Math.min(
+      CARD_WIDTH,
+      (availableCardHeight * CARD_W) / CARD_H,
+      (maxHeight * CARD_W) / CARD_H,
+      Math.max(80, this.viewportWidth - PANEL_PADDING * 2 - 24),
+    );
+    return { width, height: width * CARD_ASPECT_RATIO };
+  }
+
+  private promptCardState(card: CardDto): PromptCardDisplayState {
+    let state = this.promptCardStates.get(card.id);
+    if (!state) {
+      state = { rulesView: true, face: card.isTransformed ? 1 : 0 };
+      this.promptCardStates.set(card.id, state);
+    }
+    return state;
+  }
+
+  private configurePromptCardSprite(sprite: CardSprite, card: CardDto): void {
+    const state = this.promptCardState(card);
+    sprite.setPreviewFace(state.face);
+    sprite.setHandRulesView(state.rulesView);
+  }
+
+  private bindPromptCardActivation(target: Container, card: CardDto, sprite: CardSprite): void {
+    const showFeedback = () => {
+      sprite.setElevation(1);
+      sprite.setPromptReference(hexToNum(this.theme.gameTheme.cardRing));
+    };
+    const hideFeedback = () => {
+      sprite.setElevation(0);
+      sprite.setPromptReference(null);
+    };
+    const activate = () => {
+      this.activePromptCardId = card.id;
+      this.activePromptCard = { card, sprite };
+      showFeedback();
+    };
+    const deactivate = () => {
+      if (this.activePromptCard?.sprite !== sprite) return;
+      this.activePromptCardId = null;
+      this.activePromptCard = null;
+      hideFeedback();
+    };
+    if (this.activePromptCardId === card.id) {
+      this.activePromptCard = { card, sprite };
+      showFeedback();
+    }
+    target.on("pointerenter", activate);
+    target.on("pointerleave", deactivate);
+    target.on("pointerdown", activate);
+    target.on("focusin", activate);
+    target.on("focusout", deactivate);
+  }
+
+  private handlePromptCardShortcut(event: KeyboardEvent): boolean {
+    const active = this.activePromptCard;
+    const pressed = comboFromEvent(event);
+    if (!active || !pressed) return false;
+    const overrides = useKeybindingsStore.getState().overrides;
+    const viewCombo = resolveCombo("toggle-card-view", overrides);
+    if (viewCombo && combosMatch(pressed, viewCombo)) {
+      const state = this.promptCardState(active.card);
+      state.rulesView = !state.rulesView;
+      active.sprite.setHandRulesView(state.rulesView);
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return true;
+    }
+    const flipCombo = resolveCombo("flip-card", overrides);
+    if (!active.card.isDoubleFaced || !flipCombo || !combosMatch(pressed, flipCombo)) return false;
+    const state = this.promptCardState(active.card);
+    state.face = state.face === 0 ? 1 : 0;
+    active.sprite.setPreviewFace(state.face);
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    return true;
+  }
+
+  private promptCardShortcutHint(): string {
+    const overrides = useKeybindingsStore.getState().overrides;
+    const viewCombo = resolveCombo("toggle-card-view", overrides);
+    const flipCombo = resolveCombo("flip-card", overrides);
+    return [
+      viewCombo ? `${formatCombo(viewCombo)} changes view` : null,
+      flipCombo ? `${formatCombo(flipCombo)} flips face` : null,
+    ]
+      .filter((entry): entry is string => entry != null)
+      .join(" · ");
   }
 
   private buildPromptLabelView(
@@ -2394,14 +2474,21 @@ export class PromptLayer {
     presentation: PromptPresentation,
     minimizable = true,
     boardContext = false,
-    cardPreviewSidecar = false,
   ): {
     panel: Container;
     body: Container;
     bodyTop: number;
   } {
     const compact = this.viewportWidth < 760 || this.viewportHeight < 520;
-    let x = (this.viewportWidth - width) / 2;
+    const sourceCard = this.promptSourceCard();
+    const sourceCardWidth = this.promptCardDimensions().width;
+    const externalSource =
+      !!sourceCard &&
+      !boardContext &&
+      this.viewportWidth >= width + SOURCE_CARD_GAP + sourceCardWidth + 24;
+    let x = externalSource
+      ? (this.viewportWidth - width - SOURCE_CARD_GAP - sourceCardWidth) / 2
+      : (this.viewportWidth - width) / 2;
     if (boardContext && !compact && this.viewportWidth >= width + 160) {
       const anchors = presentation.targets
         .map((target) => this.callbacks.getReferenceAnchor?.(target))
@@ -2422,25 +2509,23 @@ export class PromptLayer {
     panel.accessible = true;
     panel.accessibleTitle = presentation.title;
     panel.tabIndex = -1;
-    const sourcePreviewCard = this.promptSourceCard();
-    const sourceSprite = sourcePreviewCard ? new CardSprite(sourcePreviewCard) : null;
-    const sidecarAvailable =
-      cardPreviewSidecar && this.viewportWidth - width >= PREVIEW_RAIL_REQUIRED_GUTTER;
-    const externalSource =
-      !!sourceSprite && this.viewportWidth - width >= PREVIEW_RAIL_REQUIRED_GUTTER;
-    const sidecarLeft = width + PREVIEW_RAIL_GAP;
+    const sourceSprite = sourceCard ? new CardSprite(sourceCard, "hand") : null;
+    const sourceLeft = width + SOURCE_CARD_GAP;
+    let sourceWidth = 0;
     if (externalSource) {
-      panel.hitArea = new Rectangle(0, 0, sidecarLeft + PREVIEW_RAIL_WIDTH, height);
+      panel.hitArea = new Rectangle(0, 0, sourceLeft + sourceCardWidth, height);
     }
-    if (sourceSprite) {
-      const targetWidth = externalSource ? PREVIEW_SOURCE_WIDTH : 76;
-      const left = externalSource
-        ? sidecarLeft + (PREVIEW_RAIL_WIDTH - PREVIEW_SOURCE_WIDTH) / 2
-        : PANEL_PADDING;
-      const top = externalSource ? PREVIEW_RAIL_LABEL_HEIGHT : 16;
+    if (sourceSprite && sourceCard) {
+      this.configurePromptCardSprite(sourceSprite, sourceCard);
+      sourceSprite.setHandRulesHighlight(this.spec?.currentPrompt?.sourceAbilityText ?? "");
+      sourceWidth = externalSource
+        ? sourceCardWidth
+        : Math.min(sourceCardWidth, width - PANEL_PADDING * 2);
+      const left = externalSource ? sourceLeft : PANEL_PADDING;
+      const top = externalSource ? SOURCE_LABEL_HEIGHT : 16;
       const placeSourceSprite = () => {
         sourceSprite.scale.set(1);
-        const scale = targetWidth / sourceSprite.width;
+        const scale = sourceWidth / sourceSprite.width;
         sourceSprite.scale.set(scale);
         sourceSprite.position.set(
           left + sourceSprite.pivot.x * scale,
@@ -2449,95 +2534,23 @@ export class PromptLayer {
       };
       sourceSprite.onReorient = placeSourceSprite;
       placeSourceSprite();
-      sourceSprite.eventMode = "static";
-      sourceSprite.cursor = "zoom-in";
+      sourceSprite.cursor = "pointer";
       sourceSprite.accessible = true;
-      sourceSprite.accessibleTitle = `${sourcePreviewCard!.identity.name}, source card`;
-      sourceSprite.accessibleHint = "Focus or hover to preview this card";
+      sourceSprite.accessibleTitle = `${sourceCard.identity.name}, source card`;
+      sourceSprite.accessibleHint = "Focus or hover, then change view or flip face";
       sourceSprite.tabIndex = 0;
-      const renderGeneration = this.renderGeneration;
-      const showSourcePreview = () => {
-        const bounds = sourceSprite.getBounds();
-        sourceSprite.setElevation(1);
-        sourceSprite.setPromptReference(hexToNum(this.theme.gameTheme.cardRing));
-        this.showPromptCardPreview(
-          sourcePreviewCard!,
-          { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
-          false,
-        );
-      };
-      const hideSourcePreview = (event?: FederatedPointerEvent) => {
-        if (renderGeneration !== this.renderGeneration) return;
-        const bounds = sourceSprite.getBounds();
-        if (
-          event &&
-          event.global.x >= bounds.x &&
-          event.global.x <= bounds.x + bounds.width &&
-          event.global.y >= bounds.y &&
-          event.global.y <= bounds.y + bounds.height
-        ) {
-          return;
-        }
-        sourceSprite.setElevation(0);
-        sourceSprite.setPromptReference(null);
-        if (this.previewCard === sourcePreviewCard && !this.previewCardSticky) {
-          this.clearPromptCardPreview();
-        }
-      };
-      this.cardPreviewTargets.push({ cardId: sourcePreviewCard!.id, show: showSourcePreview });
-      sourceSprite.on("pointerover", (event: FederatedPointerEvent) => {
-        if (event.pointerType !== "touch") showSourcePreview();
-      });
-      sourceSprite.on("pointerout", hideSourcePreview);
-      sourceSprite.on("focusin", showSourcePreview);
-      sourceSprite.on("focusout", () => hideSourcePreview());
+      this.bindPromptCardActivation(sourceSprite, sourceCard, sourceSprite);
       panel.addChild(sourceSprite);
       if (externalSource) {
         const label = promptText("SOURCE", 10, this.theme.appTheme["muted-foreground"], {
           weight: "700",
         });
-        label.position.set(sidecarLeft, 0);
+        label.position.set(sourceLeft, 0);
         panel.addChild(label);
       }
     }
-    if (sidecarAvailable) {
-      const labelTop = externalSource
-        ? PREVIEW_RAIL_LABEL_HEIGHT + sourceSprite.height + PREVIEW_RAIL_SECTION_GAP
-        : 0;
-      const slotTop = labelTop + PREVIEW_RAIL_LABEL_HEIGHT;
-      const slotHeight = Math.min(PREVIEW_RAIL_MAX_HEIGHT, this.viewportHeight - y - slotTop - 12);
-      if (slotHeight >= PREVIEW_RAIL_MIN_HEIGHT) {
-        const label = promptText("PREVIEW", 10, this.theme.appTheme["muted-foreground"], {
-          weight: "700",
-        });
-        label.position.set(sidecarLeft, labelTop);
-        const frame = new Graphics()
-          .roundRect(sidecarLeft, slotTop, PREVIEW_RAIL_WIDTH, slotHeight, 10)
-          .fill({ color: hexToNum(this.theme.appTheme.card), alpha: 0.72 })
-          .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.9 });
-        frame.eventMode = "none";
-        const empty = promptText("Hover a card", 11, this.theme.appTheme["muted-foreground"], {
-          align: "center",
-          width: PREVIEW_RAIL_WIDTH - 24,
-          weight: "600",
-        });
-        empty.anchor.set(0.5);
-        empty.position.set(sidecarLeft + PREVIEW_RAIL_WIDTH / 2, slotTop + slotHeight / 2);
-        empty.eventMode = "none";
-        panel.addChild(label, frame, empty);
-        this.setPreviewSlotBounds({
-          x: x + sidecarLeft,
-          y: y + slotTop,
-          width: PREVIEW_RAIL_WIDTH,
-          height: slotHeight,
-        });
-      } else {
-        this.setPreviewSlotBounds(null);
-      }
-    } else if (cardPreviewSidecar) {
-      this.setPreviewSlotBounds(null);
-    }
-    const titleX = sourceSprite && !externalSource ? PANEL_PADDING + 92 : PANEL_PADDING;
+    const titleX =
+      sourceSprite && !externalSource ? PANEL_PADDING + sourceWidth + 16 : PANEL_PADDING;
     const title = promptText(
       presentation.title,
       this.viewportWidth < 760 ? 18 : 22,
@@ -2794,52 +2807,6 @@ export class PromptLayer {
     return total;
   }
 
-  private showPromptCardPreview(card: CardDto, bounds: ScreenBounds, sticky = false): void {
-    if (
-      this.previewCardActive &&
-      this.previewCard === card &&
-      this.previewCardSticky === sticky &&
-      this.previewCardBounds?.x === bounds.x &&
-      this.previewCardBounds.y === bounds.y &&
-      this.previewCardBounds.width === bounds.width &&
-      this.previewCardBounds.height === bounds.height
-    ) {
-      return;
-    }
-    this.previewCardActive = true;
-    this.previewCard = card;
-    this.previewCardBounds = bounds;
-    this.previewCardSticky = sticky;
-    this.callbacks.onPreviewCard?.(card, bounds, sticky);
-  }
-
-  private clearPromptCardPreview(): void {
-    if (!this.previewCardActive) return;
-    this.previewCardActive = false;
-    this.previewCard = null;
-    this.previewCardBounds = null;
-    this.previewCardSticky = false;
-    if (this.callbacks.onDismissPreview) this.callbacks.onDismissPreview();
-    else this.callbacks.onPreviewCard?.(null);
-  }
-
-  private setPreviewSlotBounds(bounds: ScreenBounds | null): void {
-    if (
-      this.previewSlotBounds?.x === bounds?.x &&
-      this.previewSlotBounds?.y === bounds?.y &&
-      this.previewSlotBounds?.width === bounds?.width &&
-      this.previewSlotBounds?.height === bounds?.height
-    ) {
-      return;
-    }
-    this.previewSlotBounds = bounds;
-    this.callbacks.onPreviewSlotChange?.(bounds);
-  }
-
-  private restorePromptCardPreview(cardId: string, sticky: boolean): void {
-    this.cardPreviewTargets.find((target) => target.cardId === cardId)?.show(sticky);
-  }
-
   private renderCards(
     presentation: PromptPresentation,
     cards: CardDto[],
@@ -2847,13 +2814,14 @@ export class PromptLayer {
     max: number,
     reveal: boolean,
   ): void {
-    const width = Math.min(720, this.viewportWidth - 24);
+    const width = Math.min(CARD_MODAL_MAX_WIDTH, this.viewportWidth - 24);
+    const { width: cardWidth, height: cardHeight } = this.promptCardDimensions();
     const columns = Math.max(
       1,
-      Math.min(cards.length, Math.floor((width - PANEL_PADDING * 2) / (CARD_WIDTH + 10))),
+      Math.min(cards.length, Math.floor((width - PANEL_PADDING * 2) / (cardWidth + 10))),
     );
     const rows = Math.ceil(cards.length / columns);
-    const height = Math.min(this.viewportHeight - 24, 244 + rows * (CARD_HEIGHT + 12));
+    const height = Math.min(this.viewportHeight - 24, 244 + rows * (cardHeight + 12));
     const { body } = this.createModalShell(
       width,
       height,
@@ -2864,14 +2832,13 @@ export class PromptLayer {
             description: `${cards.length} card${cards.length === 1 ? "" : "s"} shown`,
           }
         : presentation,
-      true,
-      false,
-      true,
     );
+    const summary = reveal
+      ? "Review the cards before continuing"
+      : `${this.selectedIds.size}/${max} selected`;
+    const shortcuts = this.promptCardShortcutHint();
     const status = promptText(
-      reveal
-        ? "Inspect any card before continuing"
-        : `${this.selectedIds.size}/${max} selected · minimum ${min}`,
+      `${summary}${shortcuts ? ` · ${shortcuts}` : ""}`,
       12,
       reveal ? this.theme.appTheme["muted-foreground"] : this.theme.appTheme.primary,
       { weight: reveal ? "500" : "700" },
@@ -2882,7 +2849,7 @@ export class PromptLayer {
     cards.forEach((card, index) => {
       const selected = this.selectedIds.has(card.id);
       const disabled = !reveal && this.selectedIds.size >= max && !selected;
-      const tile = this.createCardTile(card, selected, disabled, () => {
+      const tile = this.createCardTile(card, selected, disabled, cardWidth, cardHeight, () => {
         if (reveal || disabled) return;
         if (selected) this.selectedIds.delete(card.id);
         else this.selectedIds.add(card.id);
@@ -2890,10 +2857,10 @@ export class PromptLayer {
       });
       const row = Math.floor(index / columns);
       const column = index % columns;
-      tile.position.set(column * (CARD_WIDTH + 10), startY + row * (CARD_HEIGHT + 12));
+      tile.position.set(column * (cardWidth + 10), startY + row * (cardHeight + 12));
       body.addChild(tile);
     });
-    const footerY = startY + rows * (CARD_HEIGHT + 12) + 6;
+    const footerY = startY + rows * (cardHeight + 12) + 6;
     const chosen = [...this.selectedIds];
     const canConfirm = reveal || (chosen.length >= min && chosen.length <= max);
     const label = reveal
@@ -2911,38 +2878,33 @@ export class PromptLayer {
     );
     confirm.position.set(width - PANEL_PADDING * 2 - confirm.buttonWidth, footerY);
     body.addChild(confirm);
-    const hint = promptText(
-      "Hover a card to preview · R switches printed / rules · F flips face",
-      11,
-      this.theme.appTheme["muted-foreground"],
-      { width: Math.max(1, width - PANEL_PADDING * 2 - confirm.buttonWidth - 16) },
-    );
-    hint.position.set(0, footerY + 10);
-    body.addChild(hint);
   }
 
   private createCardTile(
     card: CardDto,
     selected: boolean,
     disabled: boolean,
+    width: number,
+    height: number,
     onPress?: () => void,
-    intent: TargetRef["intent"] = "friendly",
   ): Container {
     const tile = new Container();
-    const renderGeneration = this.renderGeneration;
     tile.eventMode = "static";
-    tile.cursor = disabled ? "default" : onPress ? "pointer" : "grab";
-    tile.hitArea = new Rectangle(0, 0, CARD_WIDTH, CARD_HEIGHT);
+    tile.cursor = disabled ? "default" : onPress ? "pointer" : "default";
+    tile.hitArea = new Rectangle(0, 0, width, height);
     tile.accessible = true;
     tile.accessibleTitle = `${card.identity.name}${selected ? ", selected" : ""}${
       disabled ? ", unavailable" : ""
     }`;
-    tile.accessibleHint = "Focus or hover to preview and locate this card";
+    tile.accessibleHint = disabled
+      ? "This card is not currently movable"
+      : "Focus or hover, then change view or flip face";
     tile.tabIndex = 0;
-    const sprite = new CardSprite(card, "zone");
+    const sprite = new CardSprite(card, "hand");
+    this.configurePromptCardSprite(sprite, card);
     const placeSprite = () => {
       sprite.scale.set(1);
-      const scale = Math.min(CARD_WIDTH / sprite.width, CARD_HEIGHT / sprite.height);
+      const scale = Math.min(width / sprite.width, height / sprite.height);
       sprite.scale.set(scale);
       sprite.position.set(sprite.pivot.x * scale, sprite.pivot.y * scale);
     };
@@ -2950,65 +2912,17 @@ export class PromptLayer {
     placeSprite();
     sprite.eventMode = "none";
     tile.addChild(sprite);
+    this.bindPromptCardActivation(tile, card, sprite);
     if (selected) {
       const ring = new Graphics()
-        .roundRect(0, 0, CARD_WIDTH, CARD_HEIGHT, 6)
+        .roundRect(0, 0, width, height, 6)
         .stroke({ color: hexToNum(this.theme.appTheme.primary), width: 3 });
       ring.eventMode = "none";
       tile.addChild(ring);
     }
     tile.alpha = disabled ? 0.42 : 1;
-    const target: TargetRef = { kind: "card", id: card.id, intent };
-    const showPreview = (sticky: boolean) => {
-      const bounds = tile.getBounds();
-      sprite.setElevation(1);
-      sprite.setPromptReference(hexToNum(this.theme.gameTheme.cardRing));
-      this.callbacks.onReferenceChange?.(target);
-      this.showPromptCardPreview(
-        card,
-        { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
-        sticky,
-      );
-    };
-    const hidePreview = (event?: FederatedPointerEvent) => {
-      if (renderGeneration !== this.renderGeneration) return;
-      const bounds = tile.getBounds();
-      if (
-        event &&
-        event.global.x >= bounds.x &&
-        event.global.x <= bounds.x + bounds.width &&
-        event.global.y >= bounds.y &&
-        event.global.y <= bounds.y + bounds.height
-      ) {
-        return;
-      }
-      if (this.drag?.item === tile) return;
-      sprite.setElevation(0);
-      sprite.setPromptReference(null);
-      this.callbacks.onReferenceChange?.(null);
-      if (this.previewCard === card && !this.previewCardSticky) this.clearPromptCardPreview();
-    };
-    this.cardPreviewTargets.push({ cardId: card.id, show: showPreview });
-    tile.on("pointerover", (event: FederatedPointerEvent) => {
-      if (event.pointerType !== "touch") showPreview(false);
-    });
-    tile.on("pointerout", hidePreview);
-    tile.on("focusin", () => showPreview(false));
-    tile.on("focusout", () => hidePreview());
-    tile.on("pointerdown", (event: FederatedPointerEvent) => {
-      this.longPress.start(event, card.id, () => showPreview(true));
-    });
-    tile.on("globalpointermove", (event: FederatedPointerEvent) => {
-      this.longPress.move(event.global.x, event.global.y);
-    });
-    const endTouch = () => {
-      this.longPress.cancel();
-      this.longPress.releaseFired();
-    };
-    tile.on("pointerup", endTouch);
-    tile.on("pointerupoutside", endTouch);
     tile.on("pointertap", () => {
-      if (this.longPress.consumeTap(card.id) || disabled) return;
+      if (disabled) return;
       onPress?.();
     });
     return tile;
@@ -3241,17 +3155,19 @@ export class PromptLayer {
   }
 
   private renderReorder(presentation: PromptPresentation, items: ReorderItem[]): void {
-    const width = Math.min(720, this.viewportWidth - 24);
+    const width = Math.min(CARD_MODAL_MAX_WIDTH, this.viewportWidth - 24);
+    const { width: cardWidth, height: cardHeight } = this.promptCardDimensions();
     const columns = Math.max(
       1,
-      Math.min(items.length, Math.floor((width - PANEL_PADDING * 2) / (CARD_WIDTH + 18))),
+      Math.min(items.length, Math.floor((width - PANEL_PADDING * 2) / (cardWidth + 18))),
     );
     const rows = Math.ceil(items.length / columns);
-    const height = Math.min(this.viewportHeight - 24, 254 + rows * (CARD_HEIGHT + 30));
-    const { body } = this.createModalShell(width, height, presentation, true, false, true);
+    const height = Math.min(this.viewportHeight - 24, 254 + rows * (cardHeight + 30));
+    const { body } = this.createModalShell(width, height, presentation);
     body.sortableChildren = true;
+    const shortcuts = this.promptCardShortcutHint();
     const instruction = promptText(
-      "Drag cards into order, or use arrow controls · 1 resolves first",
+      `Drag cards into order · 1 resolves first${shortcuts ? ` · ${shortcuts}` : ""}`,
       12,
       this.theme.gameTheme.promptAction.defenseAction,
       { weight: "600" },
@@ -3262,26 +3178,25 @@ export class PromptLayer {
     this.order.forEach((id, index) => {
       const item = byId.get(id);
       if (!item) return;
-      const card = this.createCardTile(item.card, false, false);
+      const card = this.createCardTile(item.card, false, false, cardWidth, cardHeight);
       const column = index % columns;
       const row = Math.floor(index / columns);
-      const x = column * (CARD_WIDTH + 18);
-      const y = 30 + row * (CARD_HEIGHT + 30);
+      const x = column * (cardWidth + 18);
+      const y = 30 + row * (cardHeight + 30);
       const slot = new Graphics()
-        .roundRect(x - 4, y - 4, CARD_WIDTH + 8, CARD_HEIGHT + 8, 8)
+        .roundRect(x - 4, y - 4, cardWidth + 8, cardHeight + 8, 8)
         .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.35 })
         .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.75 });
       slot.eventMode = "none";
       body.addChild(slot);
       card.position.set(x, y);
       this.makeDraggable(card, (dropX, dropY) => {
-        const localX = dropX - (this.viewportWidth - width) / 2 - PANEL_PADDING;
-        const localY = dropY - (this.viewportHeight - height) / 2 - body.y;
+        const local = body.toLocal({ x: dropX, y: dropY });
         const targetColumn = Math.max(
           0,
-          Math.min(columns - 1, Math.floor(localX / (CARD_WIDTH + 18))),
+          Math.min(columns - 1, Math.floor(local.x / (cardWidth + 18))),
         );
-        const targetRow = Math.max(0, Math.floor((localY - 30) / (CARD_HEIGHT + 30)));
+        const targetRow = Math.max(0, Math.floor((local.y - 30) / (cardHeight + 30)));
         const targetIndex = Math.max(
           0,
           Math.min(this.order.length - 1, targetRow * columns + targetColumn),
@@ -3328,12 +3243,12 @@ export class PromptLayer {
       });
       previous.scale.set(0.76);
       next.scale.set(0.76);
-      previous.position.set(14, CARD_HEIGHT + 4);
-      next.position.set(58, CARD_HEIGHT + 4);
+      previous.position.set(14, cardHeight + 4);
+      next.position.set(58, cardHeight + 4);
       card.addChild(previous, next);
       body.addChild(card);
     });
-    const footerY = 40 + rows * (CARD_HEIGHT + 30);
+    const footerY = 40 + rows * (cardHeight + 30);
     const confirm = this.makeButton(
       "CONFIRM ORDER",
       () => this.spec!.respond({ type: "reorderDecision", orderedIds: [...this.order] }),
@@ -3341,14 +3256,6 @@ export class PromptLayer {
     );
     confirm.position.set(width - PANEL_PADDING * 2 - confirm.buttonWidth, footerY);
     body.addChild(confirm);
-    const hint = promptText(
-      "Hover a card to preview · R switches printed / rules · F flips face",
-      11,
-      this.theme.appTheme["muted-foreground"],
-      { width: Math.max(1, width - PANEL_PADDING * 2 - confirm.buttonWidth - 16) },
-    );
-    hint.position.set(0, footerY + 10);
-    body.addChild(hint);
   }
 
   private renderScry(
@@ -3356,12 +3263,15 @@ export class PromptLayer {
     cards: CardDto[],
     zones: ScryDestination[],
   ): void {
-    const width = Math.min(720, this.viewportWidth - 24);
-    const height = Math.min(660, this.viewportHeight - 24);
-    const { body } = this.createModalShell(width, height, presentation, true, false, true);
+    const width = Math.min(CARD_MODAL_MAX_WIDTH, this.viewportWidth - 24);
+    const height = this.viewportHeight - 24;
+    const { body, bodyTop } = this.createModalShell(width, height, presentation);
+    const bodyHeight = height - bodyTop - 8;
+    const maxCardHeight = Math.max(112, (bodyHeight - SCRY_BODY_VERTICAL_RESERVE) / 2);
+    const { width: cardWidth, height: cardHeight } = this.promptCardDimensions(maxCardHeight);
     body.sortableChildren = true;
     const byId = new Map(cards.map((card) => [card.id, card]));
-    const poolHeight = CARD_HEIGHT + 28;
+    const poolHeight = cardHeight + 28;
     const poolWidth = width - PANEL_PADDING * 2;
     const pool = new Rectangle(0, 24, poolWidth, poolHeight);
     const poolBg = new Graphics()
@@ -3372,12 +3282,13 @@ export class PromptLayer {
     const poolIds = this.scryItems.pool ?? [];
     const poolDropCount = poolIds.length + 1;
     const poolDropSpacing = Math.min(
-      CARD_WIDTH + 8,
-      (poolWidth - CARD_WIDTH - 20) / Math.max(1, poolDropCount - 1),
+      cardWidth + 8,
+      (poolWidth - cardWidth - 20) / Math.max(1, poolDropCount - 1),
     );
     this.dropZones.push({
       id: "pool",
-      rect: this.localRectToGlobal(body, pool),
+      rect: pool,
+      container: body,
       visual: poolBg,
       dropX: 10 + (poolDropCount - 1) * poolDropSpacing,
       dropY: pool.y + 10,
@@ -3386,14 +3297,21 @@ export class PromptLayer {
     poolIds.forEach((id, index) => {
       const card = byId.get(id);
       if (!card) return;
-      const tile = this.createCardTile(card, this.scrySelectedId === id, false, () => {
-        this.scrySelectedId = this.scrySelectedId === id ? null : id;
-        this.rebuild();
-      });
+      const tile = this.createCardTile(
+        card,
+        this.scrySelectedId === id,
+        false,
+        cardWidth,
+        cardHeight,
+        () => {
+          this.scrySelectedId = this.scrySelectedId === id ? null : id;
+          this.rebuild();
+        },
+      );
       const tileX =
         10 +
         index *
-          Math.min(CARD_WIDTH + 8, (poolWidth - CARD_WIDTH - 20) / Math.max(1, poolIds.length - 1));
+          Math.min(cardWidth + 8, (poolWidth - cardWidth - 20) / Math.max(1, poolIds.length - 1));
       const tileY = pool.y + 10;
       this.makeDraggable(
         tile,
@@ -3405,7 +3323,7 @@ export class PromptLayer {
     const zoneGap = 12;
     const zoneY = pool.y + pool.height + 34;
     const zoneWidth = (poolWidth - zoneGap * (zones.length - 1)) / Math.max(1, zones.length);
-    const zoneHeight = Math.max(130, height - body.y - zoneY - 70);
+    const zoneHeight = Math.max(cardHeight + 20, height - body.y - zoneY - 70);
     zones.forEach((destination, index) => {
       const key = `zone-${index}`;
       const rect = new Rectangle(index * (zoneWidth + zoneGap), zoneY, zoneWidth, zoneHeight);
@@ -3437,9 +3355,10 @@ export class PromptLayer {
       const ids = this.scryItems[key] ?? [];
       this.dropZones.push({
         id: key,
-        rect: this.localRectToGlobal(body, rect),
+        rect,
+        container: body,
         visual: zoneBg,
-        dropX: rect.x + (rect.width - CARD_WIDTH) / 2,
+        dropX: rect.x + (rect.width - cardWidth) / 2,
         dropY: rect.y + 10 + ids.length * 18,
         targetAlpha: 1,
       });
@@ -3450,6 +3369,8 @@ export class PromptLayer {
           card,
           this.scrySelectedId === id,
           cardIndex !== ids.length - 1,
+          cardWidth,
+          cardHeight,
           cardIndex === ids.length - 1
             ? () => {
                 this.scrySelectedId = this.scrySelectedId === id ? null : id;
@@ -3457,7 +3378,7 @@ export class PromptLayer {
               }
             : undefined,
         );
-        const tileX = rect.x + (rect.width - CARD_WIDTH) / 2;
+        const tileX = rect.x + (rect.width - cardWidth) / 2;
         const tileY = rect.y + 10 + cardIndex * 18;
         if (cardIndex === ids.length - 1) {
           this.makeDraggable(
@@ -3471,13 +3392,17 @@ export class PromptLayer {
       if (ids.length === 0) this.addScryDestinationHint(body, destination, rect);
     });
     const allPlaced = poolIds.length === 0;
+    const footerY = zoneY + zoneHeight + 18;
+    const shortcuts = this.promptCardShortcutHint();
     const status = promptText(
-      `${cards.length - poolIds.length}/${cards.length} placed · Hover to preview · R changes view · F flips`,
+      `${cards.length - poolIds.length}/${cards.length} placed · Drag cards or select a destination${
+        shortcuts ? ` · ${shortcuts}` : ""
+      }`,
       11,
       this.theme.appTheme["muted-foreground"],
       { width: Math.max(1, poolWidth - 140) },
     );
-    status.position.set(0, height - body.y - 42);
+    status.position.set(0, footerY + 8);
     body.addChild(status);
     const confirm = this.makeButton(
       "CONFIRM",
@@ -3491,13 +3416,20 @@ export class PromptLayer {
       },
       { disabled: !allPlaced, width: 120 },
     );
-    confirm.position.set(poolWidth - confirm.buttonWidth, height - body.y - 50);
+    confirm.position.set(poolWidth - confirm.buttonWidth, footerY);
     body.addChild(confirm);
     this.scryPreviousPositions.clear();
   }
 
+  private findDropZone(x: number, y: number): DropZone | undefined {
+    return this.dropZones.find((zone) => {
+      const point = zone.container.toLocal({ x, y });
+      return zone.rect.contains(point.x, point.y);
+    });
+  }
+
   private dropScryCard(cardId: string, x: number, y: number): void {
-    const target = this.dropZones.find((zone) => zone.rect.contains(x, y));
+    const target = this.findDropZone(x, y);
     if (!target) {
       this.rebuild();
       return;
@@ -3523,7 +3455,7 @@ export class PromptLayer {
   }
 
   private scryDropPosition(cardId: string, x: number, y: number): { x: number; y: number } | null {
-    const target = this.dropZones.find((zone) => zone.rect.contains(x, y));
+    const target = this.findDropZone(x, y);
     if (!target || target.id === this.scryCardSource(cardId)) return null;
     return { x: target.dropX, y: target.dropY };
   }
@@ -4280,7 +4212,6 @@ export class PromptLayer {
       this.drag = {
         item,
         pointerId: event.pointerId,
-        previewCardId: this.previewCardActive ? (this.previewCard?.id ?? null) : null,
         originX: item.x,
         originY: item.y,
         offsetX: point.x - item.x,
@@ -4311,7 +4242,6 @@ export class PromptLayer {
     if (!drag || drag.settling || event.pointerId !== drag.pointerId) return;
     const dropPosition = drag.resolveDropPosition?.(event.global.x, event.global.y);
     if (!drag.resolveDropPosition || !animationsEnabled()) {
-      this.endDragPreview(drag);
       this.resetDropZones();
       this.drag = null;
       drag.onDrop(event.global.x, event.global.y);
@@ -4335,7 +4265,6 @@ export class PromptLayer {
       ease: "power3.out",
       onComplete: () => {
         if (this.drag !== drag) return;
-        this.endDragPreview(drag);
         this.resetDropZones();
         this.drag = null;
         drag.onDrop(event.global.x, event.global.y);
@@ -4344,7 +4273,7 @@ export class PromptLayer {
   }
 
   private setDropZoneHighlight(x: number, y: number): void {
-    const activeId = this.dropZones.find((zone) => zone.rect.contains(x, y))?.id;
+    const activeId = this.findDropZone(x, y)?.id;
     for (const zone of this.dropZones) {
       const alpha = zone.id === activeId ? 1 : DROP_ZONE_DIM_ALPHA;
       if (zone.targetAlpha === alpha) continue;
@@ -4371,17 +4300,6 @@ export class PromptLayer {
     }
   }
 
-  private endDragPreview(drag: DragState): void {
-    if (
-      drag.previewCardId &&
-      this.previewCard?.id === drag.previewCardId &&
-      !this.previewCardSticky
-    ) {
-      this.callbacks.onReferenceChange?.(null);
-      this.clearPromptCardPreview();
-    }
-  }
-
   private cancelDrag(): void {
     const drag = this.drag;
     this.drag = null;
@@ -4396,18 +4314,13 @@ export class PromptLayer {
   private cancelPointerDrag(event: FederatedPointerEvent): void {
     const drag = this.drag;
     if (!drag || event.pointerId !== drag.pointerId) return;
-    this.endDragPreview(drag);
     this.cancelDrag();
     this.rebuild();
   }
 
-  private localRectToGlobal(container: Container, rect: Rectangle): Rectangle {
-    const topLeft = container.toGlobal({ x: rect.x, y: rect.y });
-    return new Rectangle(topLeft.x, topLeft.y, rect.width, rect.height);
-  }
-
   private handleKey(event: KeyboardEvent): void {
     if (!this.spec || !this.modalOpen) return;
+    if (this.handlePromptCardShortcut(event)) return;
     if (this.combatBreakdownOpen && event.key === "Escape") {
       event.preventDefault();
       this.combatBreakdownOpen = false;

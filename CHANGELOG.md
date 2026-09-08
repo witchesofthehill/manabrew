@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.38.1](https://github.com/witchesofthehill/manabrew/compare/v3.38.0...v3.38.1) (2026-09-07)
+
+### Fixes
+
+* **ui:** correct battle preview faces ([#882](https://github.com/witchesofthehill/manabrew/issues/882)) ([4c044d7](https://github.com/witchesofthehill/manabrew/commit/4c044d716524e333b5283992c88da9b5a97b6471))
+
 ## [3.38.0](https://github.com/witchesofthehill/manabrew/compare/v3.37.2...v3.38.0) (2026-09-07)
 
 ### Features

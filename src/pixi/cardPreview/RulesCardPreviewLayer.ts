@@ -203,8 +203,6 @@ export class RulesCardPreviewLayer {
   private cardInfoGeneration = 0;
   private scryfallInfo: ScryfallCard | null = null;
   private displayedBackFace = false;
-  private horizontalFace = false;
-  private forcePortrait = false;
   private canFlip = false;
   private interactiveReady = false;
   private interactionTimer: number | null = null;
@@ -320,7 +318,6 @@ export class RulesCardPreviewLayer {
     ) {
       usePreferencesStore.getState().setRulesPreviewSectionCollapsed("rules", false);
     }
-    if (cardChanged) this.forcePortrait = false;
     if (lookupChanged) {
       this.displayedBackFace = spec.showBackFace;
       this.artSprite.texture = Texture.EMPTY;
@@ -333,6 +330,10 @@ export class RulesCardPreviewLayer {
             collectorNumber: spec.card.identity.cardNumber || undefined,
           });
       if (!this.scryfallInfo) void this.loadCardInfo();
+    }
+    if (faceChanged) {
+      this.displayedBackFace = spec.showBackFace;
+      this.artSprite.texture = Texture.EMPTY;
     }
     if (lookupChanged || faceChanged) {
       this.scrollOffset = 0;
@@ -484,12 +485,6 @@ export class RulesCardPreviewLayer {
   }
 
   activatePrimaryTransform(): void {
-    if (this.horizontalFace) {
-      this.forcePortrait = !this.forcePortrait;
-      this.scrollOffset = 0;
-      this.rebuild();
-      return;
-    }
     if (this.canFlip) this.callbacks.onFlip();
   }
 
@@ -547,9 +542,8 @@ export class RulesCardPreviewLayer {
         classActionIndex === null ? null : nextClassLevel,
       ),
     }));
-    this.horizontalFace = display.horizontal;
     this.canFlip = display.flippable;
-    const landscape = display.horizontal && !this.forcePortrait;
+    const landscape = display.horizontal;
     const faceColumns = display.multipart && landscape;
     const identities = faceColumns ? display.sections : [display];
     const hasFooterValue = display.stats || display.loyalty != null || display.defense != null;
@@ -758,15 +752,9 @@ export class RulesCardPreviewLayer {
     this.drawFooter(display.stats, display.loyalty, display.defense);
 
     const controls: Array<{ label: string; activate: () => void }> = [];
-    if (display.horizontal) {
-      controls.push({
-        label: this.forcePortrait ? "Landscape · F" : "Rotate · F",
-        activate: () => this.activatePrimaryTransform(),
-      });
-    }
     if (display.flippable) {
       controls.push({
-        label: `Flip ${display.faceIndex === 0 ? "back" : "front"}${display.horizontal ? "" : " · F"}`,
+        label: `Flip ${display.faceIndex === 0 ? "back" : "front"} · F`,
         activate: () => this.callbacks.onFlip(),
       });
     }

@@ -498,12 +498,6 @@ export class RulesCardPreviewLayer {
   }
 
   activatePrimaryTransform(): void {
-    if (this.horizontalFace) {
-      this.forcePortrait = !this.forcePortrait;
-      this.scrollOffset = 0;
-      this.rebuild();
-      return;
-    }
     if (this.canFlip) this.callbacks.onFlip();
   }
 
@@ -779,15 +773,9 @@ export class RulesCardPreviewLayer {
     this.drawFooter(display.stats, display.loyalty, display.defense);
 
     const controls: Array<{ label: string; activate: () => void }> = [];
-    if (display.horizontal) {
-      controls.push({
-        label: this.forcePortrait ? "Landscape · F" : "Rotate · F",
-        activate: () => this.activatePrimaryTransform(),
-      });
-    }
     if (display.flippable) {
       controls.push({
-        label: `Flip ${display.faceIndex === 0 ? "back" : "front"}${display.horizontal ? "" : " · F"}`,
+        label: `Flip ${display.faceIndex === 0 ? "back" : "front"} · F`,
         activate: () => this.callbacks.onFlip(),
       });
     }

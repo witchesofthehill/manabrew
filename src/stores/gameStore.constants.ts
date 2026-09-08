@@ -10,11 +10,11 @@ import type { Prompt, ProtocolError } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 import type { GameViewDto, ZoneDto, ZoneKind } from "@/protocol/game";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
-import { hiddenZoneCard } from "@/lib/gameCard";
+import { GAME_CARD_DEFAULTS, hiddenZoneCard } from "@/lib/gameCard";
 
 function visibleCardsOf(zone: ZoneDto): ClientCardDto[] {
   return zone.cards.flatMap((card) =>
-    card.visibility === "visible" ? [{ ...card, zoneId: zone.zone }] : [],
+    card.visibility === "visible" ? [{ ...GAME_CARD_DEFAULTS, ...card, zoneId: zone.zone }] : [],
   );
 }
 
@@ -40,7 +40,7 @@ function normalizeGameView(
     if (!zone) return [];
     return zone.cards.map((card) =>
       card.visibility === "visible"
-        ? { ...card, zoneId: zone.zone }
+        ? { ...GAME_CARD_DEFAULTS, ...card, zoneId: zone.zone }
         : hiddenZoneCard(card.id, ownerId, zone.zone),
     );
   };

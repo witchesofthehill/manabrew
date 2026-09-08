@@ -42,7 +42,6 @@ export class HandController {
   private hitZones: HandHitZone[] = [];
   private hoveredIndex: number | null = null;
   private hoveredCardId: string | null = null;
-  private flippedHorizontalId: string | null = null;
   private hoverHoldTimer: number | null = null;
   private hoverHeld = false;
   private pendingLeaveIndex: number | null = null;
@@ -227,10 +226,7 @@ export class HandController {
       sprite.alpha = isHidden ? 0 : 1;
       sprite.cursor = selectionMode ? "pointer" : "grab";
 
-      // Horizontal-frame cards (Battle / Plane / …) sit upright (rotated a
-      // quarter-turn) so they fit the portrait fan; hovering + flipping turns
-      // them landscape to read, and they animate back on hover-out.
-      const verticalInHand = sprite.horizontalFrame && this.flippedHorizontalId !== card.id;
+      const verticalInHand = sprite.horizontalFrame && !isHovered;
       let rot = isSelected || isCastingPermanent ? 0 : (l.rotation * Math.PI) / 180;
       if (verticalInHand) rot -= Math.PI / 2;
       if (isReordering) {
@@ -410,7 +406,6 @@ export class HandController {
     sprite?.setHandRulesActions([], null);
     sprite?.setHandControls(null);
     this.hoveredCardId = null;
-    this.flippedHorizontalId = null;
   }
 
   setHoveredPreviewFace(face: 0 | 1): void {
@@ -418,10 +413,6 @@ export class HandController {
     this.sprites.get(this.hoveredCardId)?.setPreviewFace(face);
   }
 
-  setHoveredHorizontalFlipped(flipped: boolean): void {
-    this.flippedHorizontalId = flipped ? this.hoveredCardId : null;
-    this.recalcTargets();
-  }
   usesRulesView(cardId: string): boolean {
     return this.sprites.get(cardId)?.usesHandRulesView === true;
   }

@@ -3312,7 +3312,7 @@ export class PromptLayer {
     };
     sprite.onReorient = placeSprite;
     placeSprite();
-    sprite.eventMode = "none";
+    sprite.eventMode = "passive";
     tile.addChild(sprite);
     this.bindPromptCardActivation(tile, card, sprite);
     if (disabled) {

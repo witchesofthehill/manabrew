@@ -3110,11 +3110,15 @@ export class PromptLayer {
     }
     cards.forEach((card, index) => {
       const selected = this.selectedIds.has(card.id);
-      const disabled = !reveal && this.selectedIds.size >= max && !selected;
+      const disabled = !reveal && max !== 1 && this.selectedIds.size >= max && !selected;
       const tile = this.createCardTile(card, selected, disabled, cardWidth, cardHeight, () => {
         if (reveal || disabled) return;
-        if (selected) this.selectedIds.delete(card.id);
-        else this.selectedIds.add(card.id);
+        if (selected) {
+          this.selectedIds.delete(card.id);
+        } else {
+          if (max === 1) this.selectedIds.clear();
+          this.selectedIds.add(card.id);
+        }
         this.rebuild();
       });
       const row = Math.floor(index / columns);

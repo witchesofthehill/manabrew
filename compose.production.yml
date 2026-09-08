@@ -246,8 +246,8 @@ services:
     command:
       - python
       - /app/ingest-events.py
-      - --dir
-      - /var/manabrew/events
+      - --db
+      - /var/manabrew/events/events.db
       - --hub-db
       - /var/manabrew/hub/hub.db
       - --watch

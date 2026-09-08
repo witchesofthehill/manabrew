@@ -38,7 +38,7 @@ A session with no proof at all keeps the pre-identity behaviour — the old dupl
 
 ## Observability
 
-`/metrics` (Prometheus) on the health port, including heartbeat RTT (`manabrew_relay_client_rtt_ms`), WebSocket payload transfer by direction (`manabrew_relay_websocket_payload_bytes_total`), and session takeovers (`manabrew_relay_session_takeovers_total`). Payload transfer excludes WebSocket framing, TLS, TCP, and IP overhead. Env-gated analytics JSONL + per-game zstd stream capture live under `MANABREW_EVENTS_DIR` and `MANABREW_GAME_CAPTURE_DIR`.
+`/metrics` (Prometheus) on the health port, including heartbeat RTT (`manabrew_relay_client_rtt_ms`), WebSocket payload transfer by direction (`manabrew_relay_websocket_payload_bytes_total`), and session takeovers (`manabrew_relay_session_takeovers_total`). Payload transfer excludes WebSocket framing, TLS, TCP, and IP overhead. Analytics events go to the hub (`analytics/sink.rs`, `POST /internal/analytics/events` with `MANABREW_HUB_DECK_PLAYS_URL` and `_TOKEN`); `MANABREW_EVENTS_DIR` is the spool for batches the hub did not take, drained on a timer, and only a relay without a hub URL still writes daily JSONL there. Per-game zstd stream capture stays local under `MANABREW_GAME_CAPTURE_DIR`. `docs/OBSERVABILITY.md` has the pipeline.
 
 ## Chat and invites
 

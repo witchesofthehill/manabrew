@@ -17,7 +17,7 @@ const CLIENT_REJECTIONS: &str = "manabrew_relay_client_rejections_total";
 const RECONNECT_RESYNCS: &str = "manabrew_relay_reconnect_resyncs_total";
 const SESSION_TAKEOVERS: &str = "manabrew_relay_session_takeovers_total";
 const ANALYTICS_DROPPED: &str = "manabrew_relay_analytics_dropped_total";
-const DECK_PLAY_EVENTS_DROPPED: &str = "manabrew_relay_deck_play_events_dropped_total";
+const ANALYTICS_DELIVERED: &str = "manabrew_relay_analytics_delivered_total";
 const STATE_PATCH_DOWNGRADES: &str = "manabrew_relay_state_patch_downgrades_total";
 const ENGINE_REPORTS: &str = "manabrew_relay_engine_reports_total";
 const GAME_OUTCOME_REPORTS: &str = "manabrew_relay_game_outcome_reports_total";
@@ -47,6 +47,10 @@ pub const ENGINE_REPORT_IMPLAUSIBLE: &str = "implausible";
 
 pub const OUTCOME_REPORT_ACCEPTED: &str = "accepted";
 pub const OUTCOME_REPORT_REJECTED: &str = "rejected";
+
+pub const ANALYTICS_LIVE: &str = "live";
+pub const ANALYTICS_SPOOLED: &str = "spooled";
+pub const ANALYTICS_DRAINED: &str = "drained";
 
 #[derive(Clone, Copy)]
 enum ConnectionKind {
@@ -187,8 +191,10 @@ pub fn record_analytics_dropped() {
     counter!(ANALYTICS_DROPPED).increment(1);
 }
 
-pub fn record_deck_play_event_dropped() {
-    counter!(DECK_PLAY_EVENTS_DROPPED).increment(1);
+/// `spooled` lines wait on disk for the hub; `drained` is what left the disk.
+/// The two should meet, and `spooled` without `drained` means the hub is gone.
+pub fn record_analytics_delivered(path: &'static str, lines: usize) {
+    counter!(ANALYTICS_DELIVERED, "path" => path).increment(lines as u64);
 }
 
 pub fn refresh_gauges(state: &ServerState) {

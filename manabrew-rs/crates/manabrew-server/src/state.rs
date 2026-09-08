@@ -7,7 +7,6 @@ use tokio_tungstenite::tungstenite::Message;
 use crate::analytics::AnalyticsHandle;
 use crate::chat::ChatHistory;
 use crate::client_build::ClientBuild;
-use crate::deck_play_events::DeckPlayEventHandle;
 use crate::identity::{IdentityVerifier, SessionIdentity};
 use crate::protocol::identity_token::GUEST_SUBJECT_PREFIX;
 use crate::protocol::LocalGameKind;
@@ -83,7 +82,6 @@ pub struct ServerState {
     pub max_rooms: usize,
     pub official_key: Option<String>,
     pub analytics: AnalyticsHandle,
-    pub deck_play_events: DeckPlayEventHandle,
     pub identity: IdentityVerifier,
     pub lobby_chat: Mutex<ChatHistory>,
     pub seal: Option<MessageSealer>,
@@ -97,7 +95,6 @@ impl ServerState {
         max_rooms: usize,
         official_key: Option<String>,
         analytics: AnalyticsHandle,
-        deck_play_events: DeckPlayEventHandle,
         hub_jwks_url: Option<String>,
         seal: Option<MessageSealer>,
     ) -> Self {
@@ -108,7 +105,6 @@ impl ServerState {
             max_rooms,
             official_key,
             analytics,
-            deck_play_events,
             identity: IdentityVerifier::new(hub_jwks_url),
             lobby_chat: Mutex::new(ChatHistory::default()),
             seal,

@@ -40,6 +40,7 @@ use crate::validate;
 
 const MAX_BODY_BYTES: usize = 1024 * 1024;
 const MAX_COLLECTION_BODY_BYTES: usize = 8 * 1024 * 1024;
+const MAX_RELAY_EVENTS_BODY_BYTES: usize = 8 * 1024 * 1024;
 const MAX_COLLECTION_ENTRIES: usize = 25_000;
 const MAX_VERIFY_BODY_BYTES: usize = 4 * 1024 * 1024;
 const MAX_VERIFY_IDENTIFIERS: usize = 5_000;
@@ -167,6 +168,10 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route(
             "/internal/deckhub/relay-games",
             post(relay_deck_game_handler),
+        )
+        .route(
+            "/internal/analytics/events",
+            post(relay_events_handler).layer(DefaultBodyLimit::max(MAX_RELAY_EVENTS_BODY_BYTES)),
         )
         .route(
             "/admin/deckhub/top/:bucket",
@@ -1123,6 +1128,53 @@ async fn record_deck_play_handler(
     }
 }
 
+fn relay_authorized(state: &AppState, headers: &HeaderMap) -> bool {
+    state
+        .relay_deck_plays_token
+        .as_deref()
+        .is_some_and(|expected| {
+            headers
+                .get(AUTHORIZATION)
+                .and_then(|value| value.to_str().ok())
+                .and_then(|value| value.strip_prefix("Bearer "))
+                == Some(expected)
+        })
+}
+
+#[derive(Deserialize)]
+struct RelayEventsBatch {
+    events: Vec<String>,
+}
+
+/// The relay's analytics feed, one JSON line per event, stored verbatim. The
+/// game lines in it are also the deck-play evidence, applied once per new
+/// line so a redelivered batch cannot count a play twice.
+async fn relay_events_handler(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Json(batch): Json<RelayEventsBatch>,
+) -> Response {
+    if !relay_authorized(&state, &headers) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    let storage = state.storage.lock().unwrap();
+    let new_lines = match storage.record_relay_events(&batch.events, &now_string()) {
+        Ok(lines) => lines,
+        Err(error) => return internal_error(error),
+    };
+    if state.deck_hub_enabled {
+        for game in new_lines
+            .iter()
+            .filter_map(|line| serde_json::from_str::<RelayDeckGame>(line).ok())
+        {
+            if let Err(error) = apply_relay_deck_game(&storage, game) {
+                return internal_error(error);
+            }
+        }
+    }
+    StatusCode::NO_CONTENT.into_response()
+}
+
 #[derive(Deserialize)]
 #[serde(tag = "event", rename_all = "snake_case")]
 enum RelayDeckGame {
@@ -1156,19 +1208,16 @@ async fn relay_deck_game_handler(
     if !state.deck_hub_enabled {
         return StatusCode::NOT_FOUND.into_response();
     }
-    let authorized = state
-        .relay_deck_plays_token
-        .as_deref()
-        .is_some_and(|expected| {
-            headers
-                .get(AUTHORIZATION)
-                .and_then(|value| value.to_str().ok())
-                .and_then(|value| value.strip_prefix("Bearer "))
-                == Some(expected)
-        });
-    if !authorized {
+    if !relay_authorized(&state, &headers) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
+    match apply_relay_deck_game(&state.storage.lock().unwrap(), event) {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+fn apply_relay_deck_game(storage: &Storage, event: RelayDeckGame) -> rusqlite::Result<()> {
     match event {
         RelayDeckGame::GameStarted {
             ts,
@@ -1190,29 +1239,17 @@ async fn relay_deck_game_handler(
                     })
                 })
                 .collect::<Vec<_>>();
-            match state
-                .storage
-                .lock()
-                .unwrap()
-                .record_relay_game_started(&game_id, &format, &ts, hosted, &plays)
-            {
-                Ok(_) => StatusCode::NO_CONTENT.into_response(),
-                Err(error) => internal_error(error),
-            }
+            storage.record_relay_game_started(&game_id, &format, &ts, hosted, &plays)?;
         }
         RelayDeckGame::GameEnded {
             game_id,
             game_over,
             winner,
-        } => match state.storage.lock().unwrap().record_relay_game_ended(
-            &game_id,
-            game_over,
-            winner.as_deref(),
-        ) {
-            Ok(_) => StatusCode::NO_CONTENT.into_response(),
-            Err(error) => internal_error(error),
-        },
+        } => {
+            storage.record_relay_game_ended(&game_id, game_over, winner.as_deref())?;
+        }
     }
+    Ok(())
 }
 
 #[derive(Deserialize)]

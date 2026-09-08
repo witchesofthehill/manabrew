@@ -8,15 +8,27 @@ interface GameOverScreenProps {
   opponents: PlayerDto[];
   turn: number;
   onEndGame: () => void;
+  /** Set when the engine crashed out of the game instead of finishing it. */
+  engineCrash?: string | null;
 }
 
-export function GameOverScreen({ winnerId, me, opponents, turn, onEndGame }: GameOverScreenProps) {
+export function GameOverScreen({
+  winnerId,
+  me,
+  opponents,
+  turn,
+  onEndGame,
+  engineCrash,
+}: GameOverScreenProps) {
   const didWin = winnerId === me.id;
   const iConceded = me.status === "conceded";
   const otherConcedeNames = opponents.filter((op) => op.status === "conceded").map((op) => op.name);
   const anyConceded = iConceded || otherConcedeNames.length > 0;
 
   const { heading, tone } = (() => {
+    if (engineCrash) {
+      return { heading: "The engine crashed", tone: "loss" as const };
+    }
     if (winnerId == null && !anyConceded) {
       return { heading: "Draw!", tone: "neutral" as const };
     }
@@ -50,6 +62,16 @@ export function GameOverScreen({ winnerId, me, opponents, turn, onEndGame }: Gam
       >
         {heading}
       </h2>
+      {engineCrash && (
+        <div className="max-w-xl text-center" data-testid="engine-crash">
+          <p className="text-sm text-muted-foreground">
+            The game could not continue. This crash has been reported with the decks in play.
+          </p>
+          <pre className="mt-2 max-h-40 overflow-auto rounded bg-muted p-2 text-left text-xs text-muted-foreground whitespace-pre-wrap break-words">
+            {engineCrash.split("\n")[0]}
+          </pre>
+        </div>
+      )}
       <p className="text-muted-foreground">
         Final life: You {me.life} — {opponents.map((op) => `${op.name} ${op.life}`).join(" · ")}
       </p>

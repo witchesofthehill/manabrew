@@ -59,6 +59,20 @@ describe("offline play records", () => {
     });
   });
 
+  it("files an engine crash as engine_error with the crash text", async () => {
+    await launch();
+    reportOfflineGame({
+      gameOver: true,
+      winner: null,
+      seats,
+      engineError: "java.lang.NullPointerException: zone\n  at forge.game.card.CardProperty",
+    });
+    await vi.waitFor(() => expect(recordOfflineGame).toHaveBeenCalledTimes(1));
+    const game = recordOfflineGame.mock.calls[0][0] as { endReason: string; engineError?: string };
+    expect(game.endReason).toBe("engine_error");
+    expect(game.engineError).toContain("NullPointerException");
+  });
+
   it("files the game under the id it minted at launch", async () => {
     await launch();
     // Read while the game is open, which is the only moment the engine report

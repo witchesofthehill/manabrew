@@ -63,6 +63,8 @@ export interface GameState {
    *  start). The game view shows this instead of hanging on the loading
    *  screen. Cleared when a new game starts. */
   fatalError: string | null;
+  /** The engine crashed out of the game: the harness's one-line description of the exception. */
+  engineCrash: string | null;
   /** Set when an Ironsmith match can't start because the deck contains cards the
    *  runtime doesn't implement yet. Drives the unsupported-deck modal, shown
    *  instead of a raw error toast. Cleared on dismiss and on the next start. */

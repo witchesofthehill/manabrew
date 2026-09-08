@@ -137,9 +137,14 @@ pub struct OfflinePlayGame {
     pub format: Option<String>,
     pub engine: String,
     pub starting_life: i32,
-    /// The relay's vocabulary, not the client's: `game_over`, `abandoned`.
+    /// The relay's vocabulary, not the client's: `game_over`, `abandoned`,
+    /// `engine_error`.
     pub end_reason: String,
     pub game_over: bool,
+    /// The engine's description of the crash that ended the game, when one did.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub engine_error: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub winner: Option<String>,

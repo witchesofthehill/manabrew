@@ -551,8 +551,8 @@ impl Storage {
             "INSERT OR IGNORE INTO offline_play_games
                 (id, reported_at, started_at, ended_at, duration_s, format, engine,
                  starting_life, end_reason, game_over, winner, conceded,
-                 client_version, platform, seats)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+                 client_version, platform, seats, engine_error)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
             params![
                 game.report_id,
                 reported_at,
@@ -569,6 +569,7 @@ impl Storage {
                 game.client_version,
                 game.platform,
                 game.players.len() as i64,
+                game.engine_error,
             ],
         )?;
         if inserted == 0 {
@@ -3944,6 +3945,45 @@ mod tests {
             storage.card_collection("acct-1").unwrap(),
             (1, vec![("lightning bolt".to_string(), 4)])
         );
+    }
+
+    #[test]
+    fn offline_play_record_keeps_the_engine_crash() {
+        let storage = accounts();
+        let game = manabrew_protocol::telemetry::OfflinePlayGame {
+            report_id: "crash-1".to_string(),
+            started_at: "2026-09-08T14:07:10Z".to_string(),
+            ended_at: "2026-09-08T14:40:00Z".to_string(),
+            duration_s: 1970,
+            format: Some("commander".to_string()),
+            engine: "forge-wasm".to_string(),
+            starting_life: 40,
+            end_reason: "engine_error".to_string(),
+            game_over: false,
+            engine_error: Some(
+                "java.lang.NullPointerException: zone\n  at CardProperty".to_string(),
+            ),
+            winner: None,
+            conceded: vec![],
+            client_version: "3.38.1".to_string(),
+            platform: "web".to_string(),
+            players: vec![],
+        };
+        assert!(storage
+            .record_offline_play_game(&game, "2026-09-08T14:40:01Z")
+            .unwrap());
+        let (end_reason, engine_error): (String, Option<String>) = storage
+            .conn
+            .query_row(
+                "SELECT end_reason, engine_error FROM offline_play_games WHERE id = 'crash-1'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(end_reason, "engine_error");
+        assert!(engine_error
+            .unwrap()
+            .starts_with("java.lang.NullPointerException"));
     }
 
     fn engine_report(id: &str) -> manabrew_protocol::telemetry::EnginePlayStats {

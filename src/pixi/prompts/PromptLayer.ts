@@ -92,7 +92,7 @@ const MODAL_BODY_BOTTOM_PADDING = 8;
 const DICE_ROLL_MS = 1200;
 const DICE_FINISH_MS = 1450;
 const SOURCE_CARD_GAP = 20;
-const SOURCE_CARD_MIN_EXTERNAL_WIDTH = 120;
+const SOURCE_CARD_EXTERNAL_WIDTH = 180;
 const SOURCE_CARD_INTERNAL_WIDTH = 64;
 const SOURCE_LABEL_HEIGHT = 18;
 const DRAG_START_THRESHOLD = 4;
@@ -2461,14 +2461,15 @@ export class PromptLayer {
   } {
     const sourceCard = this.promptSourceCard();
     const preferredSourceCardWidth = this.promptCardDimensions().width;
-    const externalSourceCardWidth = Math.min(
-      preferredSourceCardWidth,
-      Math.max(0, (this.viewportWidth - width) / 2 - SOURCE_CARD_GAP - 12),
-    );
-    const externalSource =
-      !!sourceCard && !boardContext && externalSourceCardWidth >= SOURCE_CARD_MIN_EXTERNAL_WIDTH;
     const x = (this.viewportWidth - width) / 2;
     const y = (this.viewportHeight - height) / 2;
+    const externalSourceCardWidth = SOURCE_CARD_EXTERNAL_WIDTH;
+    const externalSource =
+      !!sourceCard &&
+      !boardContext &&
+      (this.viewportWidth - width) / 2 - SOURCE_CARD_GAP - 12 >= externalSourceCardWidth &&
+      y + SOURCE_LABEL_HEIGHT + externalSourceCardWidth * CARD_ASPECT_RATIO <=
+        this.viewportHeight - 12;
     const panel = this.panel(width, height, x, y, 12);
     const panelBackground = panel.children[0] as Graphics;
     panel.eventMode = "static";
@@ -3565,7 +3566,8 @@ export class PromptLayer {
     const cardHeight = cardWidth * CARD_ASPECT_RATIO;
     const hasSourceCard = !!(this.spec?.currentPrompt?.sourceCard ?? this.spec?.sourceDeckCard);
     const sourceIsInternal =
-      hasSourceCard && this.viewportWidth < width + SOURCE_CARD_GAP + preferredCardWidth + 24;
+      hasSourceCard &&
+      (this.viewportWidth - width) / 2 - SOURCE_CARD_GAP - 12 < SOURCE_CARD_EXTERNAL_WIDTH;
     const height = Math.min(
       this.viewportHeight - 24,
       cardHeight +

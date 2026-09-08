@@ -1104,6 +1104,9 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   useKeybindings({
     "toggle-stack": () => useStackUIStore.getState().toggleCollapsed(),
+    "toggle-combat-breakdown": () => {
+      if (!manualApi) setCombatDetailsOpen((open) => !open);
+    },
     "toggle-dev-panel": () => useGameUIStore.getState().toggleDevPanel(),
     "pass-priority": () => {
       if (manualApi || document.querySelector('[role="dialog"]')) return false;

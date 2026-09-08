@@ -246,6 +246,12 @@ export const KEYBINDINGS: KeybindingDef[] = [
     defaultCombo: { key: "s", mod: true },
   },
   {
+    id: "toggle-combat-breakdown",
+    label: "Toggle combat breakdown",
+    category: "Battlefield",
+    defaultCombo: { key: "c" },
+  },
+  {
     id: "toggle-priority-mode",
     label: "Toggle autopass / full control",
     category: "Battlefield",

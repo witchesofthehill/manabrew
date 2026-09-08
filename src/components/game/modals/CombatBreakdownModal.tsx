@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import type { CardDto } from "@/protocol/game";
 import type { CombatAssignment } from "@/components/game/game.types";
 import { Card } from "@/components/game/Card";
 import { summarizeCombat } from "@/components/game/combatSummary";
+import { useKeybindings } from "@/hooks/useKeybindings";
+import { useTheme } from "@/hooks/useTheme";
+import { withAlpha } from "@/themes/gameTheme";
 import { DialogCardInspector } from "./DialogCardInspector";
 import { useCardInspection } from "./cardInspection";
 import { Modal } from "./Modal";
@@ -26,6 +29,13 @@ export function CombatBreakdownModal({
   const [inspectedId, setInspectedId] = useState<string | null>(null);
   const inspected = inspectedId ? resolveCard(inspectedId) : undefined;
   const inspection = useCardInspection();
+  const shortcutScope = useRef<HTMLDivElement>(null);
+  const cardRing = useTheme().gameTheme.cardRing;
+  useKeybindings({ "toggle-combat-breakdown": onClose }, shortcutScope);
+  const cardHoverStyle = {
+    "--combat-card-ring": cardRing,
+    "--combat-card-glow": withAlpha(cardRing, 0.66),
+  } as CSSProperties;
   const summary = summarizeCombat(attackerIds, blockAssignments, resolveCard);
   const inspectButton = (id: string) => {
     const card = resolveCard(id);
@@ -33,13 +43,16 @@ export function CombatBreakdownModal({
       <button
         key={id}
         type="button"
-        className="flex min-h-12 min-w-0 items-center gap-3 rounded-lg border border-transparent p-2 text-left hover:border-card-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-card-ring"
+        className="group flex min-h-12 min-w-0 items-center gap-3 rounded-lg border border-transparent p-2 text-left focus-visible:outline-none"
         onClick={() => setInspectedId(id)}
         onFocus={() => setInspectedId(id)}
         disabled={!card}
       >
         {card && (
-          <div className="w-14 shrink-0">
+          <div
+            className="w-14 shrink-0 rounded-lg motion-safe:transition-[box-shadow] motion-safe:duration-150 group-hover:ring-2 group-hover:ring-[var(--combat-card-ring)] group-hover:shadow-[0_0_18px_var(--combat-card-glow)] group-focus-visible:ring-2 group-focus-visible:ring-[var(--combat-card-ring)] group-focus-visible:shadow-[0_0_18px_var(--combat-card-glow)]"
+            style={cardHoverStyle}
+          >
             <Card card={card} bare style={{ width: "100%" }} className="border-0" />
           </div>
         )}
@@ -69,7 +82,7 @@ export function CombatBreakdownModal({
         model trample, prevention or replacement effects.
       </Modal.Instructions>
       <Modal.Body className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0 space-y-3">
+        <div ref={shortcutScope} className="min-w-0 space-y-3">
           {attackerIds.map((id) => {
             const blockers = blockAssignments.filter((block) => block.attackerId === id);
             return (

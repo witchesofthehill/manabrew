@@ -1,9 +1,8 @@
-import { useRef, useState, type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import type { CardDto } from "@/protocol/game";
 import type { CombatAssignment } from "@/components/game/game.types";
 import { Card } from "@/components/game/Card";
 import { summarizeCombat } from "@/components/game/combatSummary";
-import { useKeybindings } from "@/hooks/useKeybindings";
 import { useTheme } from "@/hooks/useTheme";
 import { withAlpha } from "@/themes/gameTheme";
 import { DialogCardInspector } from "./DialogCardInspector";
@@ -18,6 +17,7 @@ export interface CombatBreakdownModalProps {
   defenderLife?: number;
   onClose: () => void;
 }
+
 export function CombatBreakdownModal({
   attackerIds,
   blockAssignments,
@@ -29,9 +29,7 @@ export function CombatBreakdownModal({
   const [inspectedId, setInspectedId] = useState<string | null>(null);
   const inspected = inspectedId ? resolveCard(inspectedId) : undefined;
   const inspection = useCardInspection();
-  const shortcutScope = useRef<HTMLDivElement>(null);
   const cardRing = useTheme().gameTheme.cardRing;
-  useKeybindings({ "toggle-combat-breakdown": onClose }, shortcutScope);
   const cardHoverStyle = {
     "--combat-card-ring": cardRing,
     "--combat-card-glow": withAlpha(cardRing, 0.66),
@@ -69,6 +67,7 @@ export function CombatBreakdownModal({
   };
   return (
     <Modal maxWidth="max-w-5xl" className="h-[85dvh]" onClose={onClose}>
+      <Modal.CloseShortcut keybinding="toggle-combat-breakdown" onClose={onClose} />
       <Modal.Header onClose={onClose}>
         <h2 className="text-base font-semibold">Combat breakdown</h2>
         <p className="text-xs text-muted-foreground">
@@ -82,7 +81,7 @@ export function CombatBreakdownModal({
         model trample, prevention or replacement effects.
       </Modal.Instructions>
       <Modal.Body className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div ref={shortcutScope} className="min-w-0 space-y-3">
+        <div className="min-w-0 space-y-3">
           {attackerIds.map((id) => {
             const blockers = blockAssignments.filter((block) => block.attackerId === id);
             return (

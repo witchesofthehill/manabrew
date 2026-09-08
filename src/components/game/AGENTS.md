@@ -65,7 +65,7 @@ All game modals use the `Modal` compound:
 </Modal>
 ```
 
-Use `Modal.Close` for buttons that dismiss the dialog so exit transitions finish before unmounting. `Modal` owns the nested-dialog stack, focus containment, topmost Escape handling, backdrop dismissal, and reduced-motion-aware entry and exit transitions.
+Use `Modal.Close` for buttons and `Modal.CloseShortcut` for remappable keybindings that dismiss a dialog so both paths finish the exit transition before unmounting. `Modal` owns the nested-dialog stack, focus containment, topmost Escape handling, backdrop dismissal, and reduced-motion-aware entry and exit transitions.
 
 Card browsers use `DialogCardBrowser`. It keeps search, type and color filters, sorting, card size, scroll position, keyboard navigation, and per-card inspection state together. `DialogCardGrid` virtualizes large zones. `DialogCardInspector` renders one hand-style `CardSprite` canvas with the native in-card Realistic/Rules and flip/rotate controls. Do not wrap it in separate card chrome or duplicate those controls in React.
 

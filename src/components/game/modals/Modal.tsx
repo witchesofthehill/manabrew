@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { useIsTouch } from "@/hooks/useBreakpoints";
+import { useKeybindings } from "@/hooks/useKeybindings";
 import { GHOST_CLICK_ARM_MS } from "@/lib/responsive";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -15,6 +16,7 @@ import { modalFocusables, registerModal, topModal, MODAL_BASE_Z_INDEX } from "@/
 
 const ModalTitleContext = createContext<string | undefined>(undefined);
 const ModalCloseContext = createContext<(callback: () => void) => void>((callback) => callback());
+
 const ModalParentContext = createContext<RefObject<HTMLDivElement | null> | null>(null);
 const ENTER_MS = 180;
 const EXIT_MS = 120;
@@ -270,6 +272,12 @@ function ModalClose({
   const close = useContext(ModalCloseContext);
   return <Button {...props} onClick={() => close(onClose)} />;
 }
+function ModalCloseShortcut({ keybinding, onClose }: { keybinding: string; onClose: () => void }) {
+  const close = useContext(ModalCloseContext);
+  const scope = useContext(ModalParentContext);
+  useKeybindings({ [keybinding]: () => close(onClose) }, scope ?? undefined);
+  return null;
+}
 function ModalEmptyState({ message = "No cards" }: { message?: string }) {
   return (
     <p className="text-sm text-muted-foreground text-center py-8" role="status">
@@ -283,3 +291,4 @@ Modal.Body = ModalBody;
 Modal.Footer = ModalFooter;
 Modal.EmptyState = ModalEmptyState;
 Modal.Close = ModalClose;
+Modal.CloseShortcut = ModalCloseShortcut;

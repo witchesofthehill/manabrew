@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useEffect, useRef } from "react";
+import { createContext, useContext, useEffect, useId, useRef } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { withAlpha } from "@/themes/gameTheme";
@@ -7,6 +7,9 @@ import { useTheme } from "@/hooks/useTheme";
 import { useIsTouch } from "@/hooks/useBreakpoints";
 import { GHOST_CLICK_ARM_MS } from "@/lib/responsive";
 import { useGameStore } from "@/stores/useGameStore";
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const ModalTitleContext = createContext<string | undefined>(undefined);
 
 interface ModalProps {
   children: React.ReactNode;
@@ -38,6 +41,24 @@ export function Modal({
   const isTouch = useIsTouch();
   const isGameActive = useGameStore((s) => s.isGameActive);
   const touchGameSurface = isTouch && isGameActive;
+  const panelRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const titleId = useId();
+
+  useEffect(() => {
+    previouslyFocusedRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const frame = requestAnimationFrame(() => {
+      const panel = panelRef.current;
+      const preferred = panel?.querySelector<HTMLElement>("[autofocus], [data-autofocus]");
+      const first = panel?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+      (preferred ?? first ?? panel)?.focus();
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      previouslyFocusedRef.current?.focus();
+    };
+  }, []);
 
   useEffect(() => {
     if (!onClose) return;
@@ -74,9 +95,12 @@ export function Modal({
       }}
     >
       <div
+        ref={panelRef}
         data-modal-panel="true"
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className={cn(
           "relative bg-card border rounded-xl shadow-2xl flex flex-col w-full mx-4 animate-in fade-in zoom-in-95 duration-200",
           maxWidth,
@@ -85,13 +109,38 @@ export function Modal({
           className,
         )}
         onClick={(e) => e.stopPropagation()}
-        onKeyDownCapture={(e) => {
-          if (e.code === "Space" && e.target instanceof HTMLButtonElement) {
-            e.preventDefault();
+        onKeyDown={(event) => {
+          if (event.key !== "Tab") return;
+          const panel = panelRef.current;
+          if (!panel) return;
+          const focusable = Array.from(
+            panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+          ).filter((element) => element.getClientRects().length > 0);
+          if (focusable.length === 0) {
+            event.preventDefault();
+            panel.focus();
+            return;
+          }
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (
+            event.shiftKey &&
+            (document.activeElement === first || !panel.contains(document.activeElement))
+          ) {
+            event.preventDefault();
+            last.focus();
+          } else if (
+            !event.shiftKey &&
+            (document.activeElement === last || !panel.contains(document.activeElement))
+          ) {
+            event.preventDefault();
+            first.focus();
           }
         }}
       >
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>
+        <ModalTitleContext.Provider value={titleId}>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+        </ModalTitleContext.Provider>
       </div>
     </div>,
     document.body,
@@ -105,9 +154,12 @@ interface ModalHeaderProps {
 }
 
 function ModalHeader({ children, onClose, className }: ModalHeaderProps) {
+  const titleId = useContext(ModalTitleContext);
   return (
     <div className={cn("flex items-center justify-between px-4 py-3 border-b", className)}>
-      <div className="flex-1 min-w-0">{children}</div>
+      <div id={titleId} className="flex-1 min-w-0">
+        {children}
+      </div>
       {onClose && (
         <button
           className="relative rounded-md p-1 hover:bg-muted transition-colors shrink-0 ml-2 before:absolute before:-inset-2.5 before:content-['']"

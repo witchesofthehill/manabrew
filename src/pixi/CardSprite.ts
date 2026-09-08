@@ -1146,6 +1146,7 @@ export class CardSprite extends Container {
     const maxAlpha = attacking ? EDGE_GLOW.attackingMaxAlpha : EDGE_GLOW.sickMaxAlpha;
     const layers = EDGE_GLOW.layers;
     const step = EDGE_GLOW.insetStep;
+    const radius = this.cardRadius();
     for (let i = 0; i < layers; i++) {
       const inset = i * step;
       this.edgeGlowGfx.roundRect(
@@ -1153,7 +1154,7 @@ export class CardSprite extends Container {
         inset,
         this.cw - 2 * inset,
         this.ch - 2 * inset,
-        Math.max(0, CARD_RADIUS - inset),
+        Math.max(0, radius - inset),
       );
       this.edgeGlowGfx.stroke({
         color,
@@ -1887,13 +1888,14 @@ export class CardSprite extends Container {
     this.promptReferenceGfx.clear();
     this.promptReferenceGfx.alpha = 1;
     if (color == null) return;
+    const radius = this.cardRadius();
     const outer = 7 * this.chromeScale;
     const inner = 3 * this.chromeScale;
     this.promptReferenceGfx
-      .roundRect(-outer, -outer, this.cw + outer * 2, this.ch + outer * 2, CARD_RADIUS + outer)
+      .roundRect(-outer, -outer, this.cw + outer * 2, this.ch + outer * 2, radius + outer)
       .stroke({ color, width: outer * 1.25, alpha: 0.2 });
     this.promptReferenceGfx
-      .roundRect(-inner, -inner, this.cw + inner * 2, this.ch + inner * 2, CARD_RADIUS + inner)
+      .roundRect(-inner, -inner, this.cw + inner * 2, this.ch + inner * 2, radius + inner)
       .stroke({ color, width: inner, alpha: 0.95 });
     if (animationsEnabled()) {
       gsap.fromTo(

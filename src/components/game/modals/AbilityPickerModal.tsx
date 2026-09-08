@@ -1,10 +1,70 @@
-import { Modal } from "./Modal";
-import { DynamicTextRender } from "@/components/game/DynamicTextRender";
+import { Button } from "@/components/ui/button";
 import { CardImageThumbnail } from "@/components/game/CardImageThumbnail";
-import { cn } from "@/lib/utils";
+import { DynamicTextRender } from "@/components/game/DynamicTextRender";
+import type { DeckCard } from "@/protocol/deck";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { MODAL_CARD_THUMBNAIL } from "../game.styles";
-import type { DeckCard } from "@/protocol/deck";
+import { Modal } from "./Modal";
+
+interface ActionPickerModalProps {
+  card: DeckCard;
+  title: string;
+  options: HandActionOption[];
+  onSelect: (option: HandActionOption) => void;
+  onCancel: () => void;
+}
+
+export function ActionPickerModal({
+  card,
+  title,
+  options,
+  onSelect,
+  onCancel,
+}: ActionPickerModalProps) {
+  return (
+    <Modal maxWidth="max-w-md" maxHeight="" onClose={onCancel}>
+      <Modal.Header onClose={onCancel}>
+        <div className="flex items-center gap-3">
+          <CardImageThumbnail card={card} className={MODAL_CARD_THUMBNAIL} />
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold">{title}</h2>
+            <p className="truncate text-xs font-medium text-muted-foreground">
+              {card.identity.name}
+            </p>
+          </div>
+        </div>
+      </Modal.Header>
+
+      <Modal.Instructions>Select an option to continue.</Modal.Instructions>
+
+      <Modal.Body className="flex max-h-[60dvh] flex-col gap-2">
+        <div role="group" aria-label="Available actions" className="flex flex-col gap-2">
+          {options.map((option, index) => (
+            <Button
+              key={option.actionId ?? `${option.kind}-${index}`}
+              variant="outline"
+              className="h-auto min-h-12 w-full justify-between gap-4 px-4 py-3 text-left"
+              onClick={() => onSelect(option)}
+            >
+              <DynamicTextRender className="min-w-0 flex-1" text={option.label} />
+              {option.cost && (
+                <span className="shrink-0 rounded-md bg-muted/60 px-2 py-1">
+                  <DynamicTextRender text={option.cost} />
+                </span>
+              )}
+            </Button>
+          ))}
+        </div>
+      </Modal.Body>
+
+      <Modal.Footer>
+        <Button size="sm" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+}
 
 interface AbilityPickerModalProps {
   sourceCard: DeckCard;
@@ -20,41 +80,13 @@ export function AbilityPickerModal({
   onCancel,
 }: AbilityPickerModalProps) {
   const hasCastOption = abilities.some((ability) => ability.kind === "cast");
-
   return (
-    <Modal maxWidth="max-w-md" maxHeight="" onClose={onCancel}>
-      <Modal.Header>
-        <div className="flex items-center gap-3">
-          <CardImageThumbnail card={sourceCard} className={MODAL_CARD_THUMBNAIL} />
-          <div>
-            <h2 className="font-semibold text-base">
-              {hasCastOption ? "Choose Action" : "Activate Ability"}
-            </h2>
-            <p className="text-xs text-muted-foreground font-medium">{sourceCard.identity.name}</p>
-          </div>
-        </div>
-      </Modal.Header>
-
-      <Modal.Instructions>Click an option to continue.</Modal.Instructions>
-
-      <div
-        className="p-4 flex flex-col gap-2 max-h-[60dvh] overflow-y-auto"
-        role="group"
-        aria-label="Available abilities"
-      >
-        {abilities.map((ability, idx) => (
-          <button
-            key={idx}
-            onClick={() => onSelect(ability)}
-            className={cn(
-              "w-full text-left px-4 py-3 rounded-lg border text-sm font-medium transition-all",
-              "hover:border-primary/50 hover:bg-muted/50 border-border bg-background",
-            )}
-          >
-            <DynamicTextRender text={ability.label} />
-          </button>
-        ))}
-      </div>
-    </Modal>
+    <ActionPickerModal
+      card={sourceCard}
+      title={hasCastOption ? "Choose an action" : "Activate an ability"}
+      options={abilities}
+      onSelect={onSelect}
+      onCancel={onCancel}
+    />
   );
 }

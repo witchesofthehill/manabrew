@@ -12,6 +12,7 @@ import { Modal } from "./Modal";
 import { ModalCardFilter } from "./ModalCardFilter";
 import { useCardNameFilter } from "./useCardNameFilter";
 import type { CSSProperties } from "react";
+import { Check } from "lucide-react";
 
 interface ZoneViewerProps {
   title: string;
@@ -81,7 +82,7 @@ export function ZoneViewer({
               const clickable =
                 !!onClickCard &&
                 (selected || clickableIdSet == null || clickableIdSet.has(card.id));
-              const cardRingColor = selected ? themeColors.activeAction.active : ringColor;
+              const cardRingColor = selected ? themeColors.cardRing : ringColor;
               const actionLabel = selected ? selectedLabel : clickLabel;
               return (
                 <div
@@ -99,7 +100,7 @@ export function ZoneViewer({
                 >
                   <Card
                     card={card}
-                    className={cn(HAND_CARD, clickable && "ring-2", selected && "opacity-60")}
+                    className={cn(HAND_CARD, clickable && "ring-2")}
                     style={
                       clickable
                         ? ({ "--tw-ring-color": cardRingColor } as CSSProperties)
@@ -107,6 +108,15 @@ export function ZoneViewer({
                     }
                     onClick={clickable ? () => onClickCard!(card.id) : undefined}
                   />
+                  {selected && (
+                    <span
+                      className="pointer-events-none absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-card text-text-on-tinted shadow-md"
+                      style={{ backgroundColor: cardRingColor }}
+                      aria-hidden="true"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </span>
+                  )}
                   {clickable && actionLabel && (
                     <div className="flex items-center justify-center">
                       <span

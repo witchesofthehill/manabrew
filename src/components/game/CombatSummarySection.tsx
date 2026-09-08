@@ -4,6 +4,7 @@ import type { CardDto } from "@/protocol/game";
 import type { PromptActionType, CombatAssignment } from "./game.types";
 import { Modal } from "./modals/Modal";
 import { useGameDevStore } from "@/stores/useGameDevStore";
+import { Card } from "./Card";
 
 interface CombatSummarySectionProps {
   promptType?: PromptActionType;
@@ -161,7 +162,14 @@ export function CombatSummarySection({
                     key={attackerId}
                     className="flex items-center gap-2 rounded-md border border-border/50 px-2 py-1.5"
                   >
-                    <div className="flex min-w-0 items-center gap-1.5">
+                    {attacker ? (
+                      <Card
+                        card={attacker}
+                        bare
+                        className="!w-8 shrink-0 cursor-default !rounded-sm shadow-none"
+                      />
+                    ) : null}
+                    <div className="flex min-w-0 flex-1 items-center gap-1.5">
                       {attacker?.power ? (
                         <span className="shrink-0 rounded bg-destructive/15 px-1 text-[10px] font-bold text-destructive">
                           {ptLabel(attacker)}
@@ -171,11 +179,13 @@ export function CombatSummarySection({
                         {resolveCardName(attackerId)}
                       </span>
                     </div>
-                    <span className="shrink-0 text-xs text-muted-foreground">←</span>
-                    <div className="flex min-w-0 flex-wrap items-center gap-1">
+                    <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      {blockers.length === 0 ? "status" : "blocked by"}
+                    </span>
+                    <div className="flex min-w-0 flex-wrap items-center justify-end gap-1">
                       {blockers.length === 0 ? (
-                        <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-semibold italic text-destructive">
-                          unblocked
+                        <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive">
+                          Unblocked
                         </span>
                       ) : (
                         blockers.map((blocker) => {
@@ -183,14 +193,21 @@ export function CombatSummarySection({
                           return (
                             <span
                               key={blocker.blockerId}
-                              className="flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[11px]"
+                              className="flex items-center gap-1.5 rounded bg-muted px-1.5 py-1 text-[11px]"
                             >
+                              {card ? (
+                                <Card
+                                  card={card}
+                                  bare
+                                  className="!w-6 shrink-0 cursor-default !rounded-sm shadow-none"
+                                />
+                              ) : null}
                               {card?.toughness ? (
                                 <span className="font-bold text-muted-foreground">
                                   {ptLabel(card)}
                                 </span>
                               ) : null}
-                              <span className="max-w-[120px] truncate">
+                              <span className="max-w-[96px] truncate">
                                 {resolveCardName(blocker.blockerId)}
                               </span>
                             </span>

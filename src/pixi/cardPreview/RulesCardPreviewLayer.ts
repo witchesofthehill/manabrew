@@ -1,5 +1,4 @@
 import {
-  BlurFilter,
   Container,
   FederatedPointerEvent,
   Graphics,
@@ -22,6 +21,7 @@ import {
 import { getPreviewActionShortcut } from "@/components/game/game.utils";
 import { hexToNum } from "@/pixi/colorUtils";
 import { PixiRichText } from "@/pixi/cardPreview/PixiRichText";
+import { RulesPreviewArtwork } from "@/pixi/cardPreview/RulesPreviewArtwork";
 import { PixiCardRailPreview } from "@/pixi/cardPreview/PixiCardRailPreview";
 import {
   resolveRulesPreviewDisplay,
@@ -117,12 +117,6 @@ const FLAVOR_LINE_HEIGHT = 17;
 const FLAVOR_MANA_SIZE = 15;
 const ABILITY_GAP = 12;
 const ENTRY_INTERACTION_PAD_MS = 80;
-const ART_FOREGROUND_MAX_CROP_FRAC = 0.1;
-const ART_FOREGROUND_TOP_CROP_SHARE = 0.3;
-const ART_AMBIENT_OVERSCAN = 1.05;
-const ART_AMBIENT_ALPHA = 0.76;
-const ART_AMBIENT_SCRIM_ALPHA = 0.18;
-const ART_AMBIENT_BLUR = 8;
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -175,15 +169,7 @@ export class RulesCardPreviewLayer {
   private frame: RulesPreviewFrameStyle;
   private callbacks: RulesCardPreviewCallbacks;
   private background = new Graphics();
-  private artBackdropSprite = new Sprite(Texture.EMPTY);
-  private artBackdropScrim = new Graphics();
-  private artBackdropBlur = new BlurFilter({
-    strength: ART_AMBIENT_BLUR,
-    quality: 2,
-    kernelSize: 5,
-    resolution: 0.5,
-  });
-  private artSprite = new Sprite(Texture.EMPTY);
+  private artwork = new RulesPreviewArtwork();
   private artFaces = new Container<Sprite>();
   private artMask = new Graphics();
   private chrome = new Container();
@@ -248,11 +234,6 @@ export class RulesCardPreviewLayer {
       contains: (x, y) => this.interactiveReady && this.containsHoverArea(x, y),
     };
 
-    this.artBackdropSprite.mask = this.artMask;
-    this.artBackdropSprite.alpha = ART_AMBIENT_ALPHA;
-    this.artBackdropSprite.filters = [this.artBackdropBlur];
-    this.artBackdropScrim.mask = this.artMask;
-    this.artSprite.mask = this.artMask;
     this.artFaces.mask = this.artMask;
     this.bodyScroller.mask = this.bodyMask;
     this.bodyScroller.addChild(this.bodyContent);
@@ -277,11 +258,9 @@ export class RulesCardPreviewLayer {
     this.bodyScroller.on("pointerupoutside", endDrag);
     this.bodyScroller.on("pointercancel", endDrag);
 
+    this.fieldFace.addChild(this.background);
+    this.artwork.addTo(this.fieldFace);
     this.fieldFace.addChild(
-      this.background,
-      this.artBackdropSprite,
-      this.artBackdropScrim,
-      this.artSprite,
       this.artFaces,
       this.artMask,
       this.chrome,
@@ -353,7 +332,7 @@ export class RulesCardPreviewLayer {
     if (cardChanged || variantChanged) this.forcePortrait = false;
     if (lookupChanged) {
       this.displayedBackFace = spec.showBackFace;
-      this.artSprite.texture = Texture.EMPTY;
+      this.artwork.texture = Texture.EMPTY;
       this.cardInfoGeneration += 1;
       this.scryfallInfo = isFacelessCard(spec.card)
         ? null
@@ -1094,7 +1073,7 @@ export class RulesCardPreviewLayer {
     this.artX = ART_INSET;
     this.artY = this.headerHeight - 4;
     this.artWidth = this.faceWidth - ART_INSET * 2;
-    const texture = this.artSprite.texture;
+    const texture = this.artwork.texture;
     this.artHeight = landscape
       ? Math.min(
           LANDSCAPE_ART_HEIGHT,
@@ -1372,7 +1351,7 @@ export class RulesCardPreviewLayer {
       });
       if (!this.spec || generation !== this.cardInfoGeneration) return;
       this.scryfallInfo = entry.info;
-      this.artSprite.texture = Texture.EMPTY;
+      this.artwork.texture = Texture.EMPTY;
       this.scrollOffset = 0;
       this.rebuild();
       if (this.spec.variant === "field") void this.loadArt();
@@ -1392,13 +1371,13 @@ export class RulesCardPreviewLayer {
       const texture = isFacelessCard(spec.card)
         ? await loadCardBack()
         : await useScryfallStore.getState().getCardTexture(deckCard, "art", faceIndex);
-      if (!this.spec || generation !== this.artGeneration || this.artSprite.destroyed) return;
-      this.artSprite.texture = texture;
+      if (!this.spec || generation !== this.artGeneration || this.artwork.destroyed) return;
+      this.artwork.texture = texture;
       this.displayedBackFace = faceIndex === 1;
       this.rebuild();
     } catch {
-      if (generation === this.artGeneration && !this.artSprite.destroyed) {
-        this.artSprite.texture = Texture.EMPTY;
+      if (generation === this.artGeneration && !this.artwork.destroyed) {
+        this.artwork.texture = Texture.EMPTY;
         this.displayedBackFace = spec.showBackFace;
         this.rebuild();
       }
@@ -1406,12 +1385,9 @@ export class RulesCardPreviewLayer {
   }
 
   private fitArt(): void {
-    const texture = this.artSprite.texture;
-    this.artSprite.visible = this.faceCount === 1;
+    const texture = this.artwork.texture;
+    this.artwork.hide();
     this.artFaces.visible = this.faceCount > 1;
-    this.artBackdropSprite.visible = false;
-    this.artBackdropScrim.visible = false;
-    this.artBackdropScrim.clear();
     if (texture === Texture.EMPTY || texture.width <= 0 || texture.height <= 0) {
       this.clearArtFaces();
       return;
@@ -1455,45 +1431,15 @@ export class RulesCardPreviewLayer {
       return;
     }
     this.clearArtFaces();
-    const landscape = this.panelWidth === LANDSCAPE_WIDTH;
-    const containScale = Math.min(this.artWidth / texture.width, this.artHeight / texture.height);
-    const coverScale = Math.max(this.artWidth / texture.width, this.artHeight / texture.height);
-    const cropLimitScale = Math.min(
-      this.artWidth / (texture.width * (1 - ART_FOREGROUND_MAX_CROP_FRAC)),
-      this.artHeight / (texture.height * (1 - ART_FOREGROUND_MAX_CROP_FRAC)),
-    );
-    const scale = landscape
-      ? containScale
-      : Math.max(containScale, Math.min(coverScale, cropLimitScale));
-    const width = texture.width * scale;
-    const height = texture.height * scale;
-    const centerX = this.artX + this.artWidth / 2;
-    const centerY =
-      this.artY +
-      this.artHeight / 2 +
-      Math.max(0, height - this.artHeight) * (0.5 - ART_FOREGROUND_TOP_CROP_SHARE);
-
-    if (!landscape && (width < this.artWidth - 0.5 || height < this.artHeight - 0.5)) {
-      const ambientScale = coverScale * ART_AMBIENT_OVERSCAN;
-      const ambientHeight = texture.height * ambientScale;
-      const ambientCenterY =
-        this.artY +
-        this.artHeight / 2 +
-        Math.max(0, ambientHeight - this.artHeight) * (0.5 - ART_FOREGROUND_TOP_CROP_SHARE);
-      this.artBackdropSprite.texture = texture;
-      this.artBackdropSprite.anchor.set(0.5);
-      this.artBackdropSprite.position.set(centerX, ambientCenterY);
-      this.artBackdropSprite.setSize(texture.width * ambientScale, ambientHeight);
-      this.artBackdropSprite.visible = true;
-      this.artBackdropScrim
-        .rect(this.artX, this.artY, this.artWidth, this.artHeight)
-        .fill({ color: hexToNum(this.frame.paper), alpha: ART_AMBIENT_SCRIM_ALPHA });
-      this.artBackdropScrim.visible = true;
-    }
-
-    this.artSprite.anchor.set(0.5);
-    this.artSprite.position.set(centerX, centerY);
-    this.artSprite.setSize(width, height);
+    this.artwork.layout({
+      x: this.artX,
+      y: this.artY,
+      width: this.artWidth,
+      height: this.artHeight,
+      radius: RULES_TITLE_ART_RADIUS,
+      paper: this.frame.paper,
+      fit: this.panelWidth === LANDSCAPE_WIDTH ? "contain" : "cover-top",
+    });
   }
 
   private clearArtFaces(): void {
@@ -1524,8 +1470,7 @@ export class RulesCardPreviewLayer {
     this.cardInfoGeneration += 1;
     this.clearArtFaces();
     this.actions.destroy();
-    this.artBackdropSprite.filters = null;
-    this.artBackdropBlur.destroy();
+    this.artwork.destroy();
     this.container.destroy({ children: true });
     this.frame.titleGradient?.destroy();
   }

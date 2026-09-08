@@ -169,15 +169,6 @@ export function SpellStackModal({
                         Casting
                       </Badge>
                     )}
-                    {isValid && (
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px] h-4 px-1"
-                        style={{ color: ringColor }}
-                      >
-                        ← Counter
-                      </Badge>
-                    )}
                   </div>
                   {obj.text && (
                     <p className="text-[10px] text-muted-foreground text-center max-w-[100px] line-clamp-3 leading-tight">

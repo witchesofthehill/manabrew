@@ -89,12 +89,20 @@ import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 
+const CARD_MODAL_PREVIEW_PROMPTS = new Set<PromptType>([
+  "chooseCards",
+  "revealCards",
+  "reorder",
+  "scry",
+]);
+
 const HOVER_ALLOWED_PROMPTS = new Set<PromptType>([
   "chooseAction",
   "chooseAttackers",
   "chooseBlockers",
   "chooseBoardTargets",
   "payManaCost",
+  ...CARD_MODAL_PREVIEW_PROMPTS,
   "gameOver",
 ]);
 
@@ -1005,6 +1013,20 @@ export default function Game({ exitTo }: GameProps = {}) {
     useTriggerPreference: true,
   });
   const previewViewSwitchCardIdRef = useRef<string | null>(null);
+  const [promptPreviewSlot, setPromptPreviewSlot] = useState<DOMRect | null>(null);
+  const [promptPreviewSlotElement, setPromptPreviewSlotElement] = useState<HTMLDivElement | null>(
+    null,
+  );
+  const handlePromptPreviewSlotChange = useCallback((next: DOMRect | null) => {
+    setPromptPreviewSlot((current) =>
+      current?.x === next?.x &&
+      current?.y === next?.y &&
+      current?.width === next?.width &&
+      current?.height === next?.height
+        ? current
+        : next,
+    );
+  }, []);
 
   const battlefieldContainerRef = useRef<HTMLDivElement>(null);
   const { draggingHandCard, ghostPos, isOverBattlefield, isOverHand, startHandCardDrag } =
@@ -1585,9 +1607,25 @@ export default function Game({ exitTo }: GameProps = {}) {
   }, [gameView?.stack]);
 
   const previewCardId = preview.hoveredCard?.id ?? null;
-  const livePreviewCard = previewCardId
-    ? (visibleCardsById.get(previewCardId) ?? stackCardsBySourceId.get(previewCardId) ?? null)
-    : null;
+  const promptCardPreviewActive = !!promptType && CARD_MODAL_PREVIEW_PROMPTS.has(promptType);
+  const usePromptPreviewSlot = promptCardPreviewActive && promptPreviewSlot !== null;
+  const livePreviewCard = useMemo(() => {
+    if (!previewCardId) return null;
+    if (promptCardPreviewActive && preview.hoveredCard) {
+      return { ...preview.hoveredCard, zoneId: "prompt" };
+    }
+    return (
+      visibleCardsById.get(previewCardId) ??
+      stackCardsBySourceId.get(previewCardId) ??
+      (preview.hoveredCard ? { ...preview.hoveredCard, zoneId: "prompt" } : null)
+    );
+  }, [
+    preview.hoveredCard,
+    previewCardId,
+    promptCardPreviewActive,
+    stackCardsBySourceId,
+    visibleCardsById,
+  ]);
   const [previewFaceOverride, setPreviewFaceOverride] = useState<{
     cardId: string;
     showBackFace: boolean;
@@ -1609,8 +1647,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     );
   };
   const hoveredCardActions = useMemo(
-    () => (livePreviewCard ? getCardActions(livePreviewCard) : []),
-    [getCardActions, livePreviewCard],
+    () => (livePreviewCard && !promptCardPreviewActive ? getCardActions(livePreviewCard) : []),
+    [getCardActions, livePreviewCard, promptCardPreviewActive],
   );
 
   const promptSourceDeckCard = useResolveSourceCard(activePrompt?.sourceCard);
@@ -1754,7 +1792,7 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const showInGamePreview =
     livePreviewCard != null &&
-    (livePreviewCard.zoneId !== "hand" || preview.isSticky) &&
+    (promptCardPreviewActive || livePreviewCard.zoneId !== "hand" || preview.isSticky) &&
     !draggingHandCard &&
     !viewingZone &&
     !spellStackModalOpen &&
@@ -1926,6 +1964,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     inGameCardPreviewStyle === "rules" && showInGamePreview && livePreviewCard
       ? {
           card: livePreviewCard,
+          variant: usePromptPreviewSlot ? "hand" : "field",
           phase: preview.phase === "closing" ? "closing" : "open",
           sticky: preview.isSticky,
           showBackFace: previewShowBackFace,
@@ -1934,6 +1973,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           actions: hoveredCardActions,
           mousePos: preview.mousePos,
           anchorRect: preview.anchorRect,
+          slotRect: promptCardPreviewActive ? promptPreviewSlot : null,
           viewportRight: isActionPanelCollapsed ? undefined : rightPanelLeft,
         }
       : null;
@@ -2164,6 +2204,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           onPreviewPointerEnter={preview.onMouseEnterPreview}
           onPreviewPointerLeave={preview.onMouseLeavePreview}
           onTogglePreviewView={togglePreviewView}
+          onPromptPreviewSlotChange={handlePromptPreviewSlotChange}
           onLongPressCard={(card, rect) =>
             preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2, rect)
           }
@@ -2388,21 +2429,40 @@ export default function Game({ exitTo }: GameProps = {}) {
           document.body,
         )}
 
-      {inGameCardPreviewStyle === "printed" && showInGamePreview && (
-        <HoverCardPreview
-          preview={{
-            ...preview,
-            hoveredCard: livePreviewCard,
-            showBackFace: previewShowBackFace,
-            flipCard: handleFlipPreview,
-          }}
-          actions={hoveredCardActions}
-          onSelectAction={handlePreviewAction}
-          suppressed={previewSuppressed}
-          skipEnterAnimation={skipPreviewEnterAnimation}
-          onToggleView={togglePreviewView}
-        />
-      )}
+      {usePromptPreviewSlot &&
+        createPortal(
+          <div
+            ref={setPromptPreviewSlotElement}
+            className="pointer-events-none fixed z-[9999]"
+            style={{
+              left: promptPreviewSlot.x,
+              top: promptPreviewSlot.y,
+              width: promptPreviewSlot.width,
+              height: promptPreviewSlot.height,
+            }}
+          />,
+          document.body,
+        )}
+
+      {inGameCardPreviewStyle === "printed" &&
+        showInGamePreview &&
+        (!usePromptPreviewSlot || promptPreviewSlotElement) && (
+          <HoverCardPreview
+            preview={{
+              ...preview,
+              hoveredCard: livePreviewCard,
+              showBackFace: previewShowBackFace,
+              flipCard: handleFlipPreview,
+            }}
+            actions={hoveredCardActions}
+            onSelectAction={handlePreviewAction}
+            suppressed={previewSuppressed}
+            skipEnterAnimation={usePromptPreviewSlot || skipPreviewEnterAnimation}
+            pinned={usePromptPreviewSlot}
+            slot={usePromptPreviewSlot ? promptPreviewSlotElement : null}
+            onToggleView={togglePreviewView}
+          />
+        )}
 
       {interruption.waiting && (
         <WaitingForPlayerScreen

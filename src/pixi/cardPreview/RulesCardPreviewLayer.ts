@@ -50,6 +50,7 @@ import { PREVIEW_TIMING } from "@/lib/cardPreview";
 import { HandCardControls } from "@/pixi/HandCardControls";
 import { containsPreviewHoverBridge } from "@/pixi/cardPreview/previewHoverArea";
 import { usePreferencesStore, type RulesPreviewSectionId } from "@/stores/usePreferencesStore";
+import { HandRulesCardFace } from "@/pixi/cardPreview/HandRulesCardFace";
 import {
   RulesPreviewSectionHeader,
   PREVIEW_SECTION_HEADER_HEIGHT,
@@ -70,6 +71,8 @@ export interface RulesCardPreviewSpec {
   actions: HandActionOption[];
   anchor: { x: number; y: number; width: number; height: number } | null;
   pointer: { x: number; y: number };
+  slot: { x: number; y: number; width: number; height: number } | null;
+  variant: "field" | "hand";
 }
 
 export interface RulesPreviewActionGlowBounds {
@@ -152,6 +155,7 @@ function flavorTextStyle(fill: string): TextStyle {
 export class RulesCardPreviewLayer {
   readonly container = new Container();
   private cardContainer = new Container();
+  private fieldFace = new Container();
   private cardBounds = new Rectangle();
   private controlsBounds = new Rectangle();
   private anchorBounds = new Rectangle();
@@ -178,6 +182,7 @@ export class RulesCardPreviewLayer {
   private actions = new RulesPreviewActions();
   private controls = new RulesPreviewActions();
   private viewControls: HandCardControls;
+  private handFace: HandRulesCardFace | null = null;
   private spec: RulesCardPreviewSpec | null = null;
   private viewportWidth = 0;
   private viewportHeight = 0;
@@ -253,7 +258,7 @@ export class RulesCardPreviewLayer {
     this.bodyScroller.on("pointerupoutside", endDrag);
     this.bodyScroller.on("pointercancel", endDrag);
 
-    this.cardContainer.addChild(
+    this.fieldFace.addChild(
       this.background,
       this.artSprite,
       this.artFaces,
@@ -266,6 +271,7 @@ export class RulesCardPreviewLayer {
       this.scrollThumb,
       this.scrollFade,
     );
+    this.cardContainer.addChild(this.fieldFace);
     this.container.addChild(this.cardContainer, this.controls, this.viewControls);
   }
 
@@ -287,12 +293,14 @@ export class RulesCardPreviewLayer {
     else if (this.spec) this.rebuild();
   }
 
-  setSpec(spec: RulesCardPreviewSpec | null): void {
+  setSpec(spec: RulesCardPreviewSpec | null, preserveHover = false): void {
     const previous = this.spec;
     this.spec = spec;
     if (!spec || this.viewportWidth <= EDGE_PAD * 2 || this.viewportHeight <= EDGE_PAD * 2) {
       this.spec = null;
-      this.hide();
+      this.hide(
+        preserveHover && this.viewportWidth > EDGE_PAD * 2 && this.viewportHeight > EDGE_PAD * 2,
+      );
       return;
     }
 
@@ -308,6 +316,7 @@ export class RulesCardPreviewLayer {
       !previous ||
       previous.actions.length !== spec.actions.length ||
       previous.actions.some((action, index) => action !== spec.actions[index]);
+    const variantChanged = previous?.variant !== spec.variant;
     if (
       spec.actions.length > 0 &&
       (!previous || previous.actions.length === 0 || previous.card.id !== spec.card.id)
@@ -320,7 +329,7 @@ export class RulesCardPreviewLayer {
     ) {
       usePreferencesStore.getState().setRulesPreviewSectionCollapsed("rules", false);
     }
-    if (cardChanged) this.forcePortrait = false;
+    if (cardChanged || variantChanged) this.forcePortrait = false;
     if (lookupChanged) {
       this.displayedBackFace = spec.showBackFace;
       this.artSprite.texture = Texture.EMPTY;
@@ -334,11 +343,13 @@ export class RulesCardPreviewLayer {
           });
       if (!this.scryfallInfo) void this.loadCardInfo();
     }
-    if (lookupChanged || faceChanged) {
+    if (lookupChanged || faceChanged || variantChanged) {
       this.scrollOffset = 0;
       this.actions.reset();
       this.artGeneration += 1;
-      if (this.scryfallInfo || isFacelessCard(spec.card)) void this.loadArt();
+      if (spec.variant === "field" && (this.scryfallInfo || isFacelessCard(spec.card))) {
+        void this.loadArt();
+      }
     }
     if (
       contentChanged ||
@@ -346,7 +357,8 @@ export class RulesCardPreviewLayer {
       faceChanged ||
       previous?.sticky !== spec.sticky ||
       previous?.suppressed !== spec.suppressed ||
-      previous?.phase !== spec.phase
+      previous?.phase !== spec.phase ||
+      variantChanged
     ) {
       this.rebuild();
     } else {
@@ -359,8 +371,10 @@ export class RulesCardPreviewLayer {
     }
 
     if (!previous || previous.phase !== spec.phase || previous.suppressed) {
-      if (spec.phase === "closing") this.animateOut();
-      else if (spec.skipEnterAnimation) this.showImmediately();
+      if (spec.phase === "closing") {
+        if (spec.slot) this.hide();
+        else this.animateOut();
+      } else if (spec.skipEnterAnimation || spec.slot) this.showImmediately();
       else this.animateIn(previous == null);
     } else if (spec.phase === "open") {
       this.container.visible = true;
@@ -512,6 +526,9 @@ export class RulesCardPreviewLayer {
   private rebuild(): void {
     const spec = this.spec;
     if (!spec || this.viewportWidth <= 0 || this.viewportHeight <= 0) return;
+    this.handFace?.destroy({ children: true });
+    this.handFace = null;
+    this.fieldFace.visible = spec.variant === "field";
     this.actions.removeFromParent();
     this.chrome.removeChildren().forEach((child) => child.destroy({ children: true }));
     this.bodyContent.removeChildren().forEach((child) => child.destroy({ children: true }));
@@ -549,6 +566,10 @@ export class RulesCardPreviewLayer {
     }));
     this.horizontalFace = display.horizontal;
     this.canFlip = display.flippable;
+    if (spec.variant === "hand") {
+      this.rebuildHandFace(spec.card, deckCard.layout);
+      return;
+    }
     const landscape = display.horizontal && !this.forcePortrait;
     const faceColumns = display.multipart && landscape;
     const identities = faceColumns ? display.sections : [display];
@@ -784,6 +805,50 @@ export class RulesCardPreviewLayer {
     this.widgetHeight =
       this.panelHeight + (this.controls.visible ? ACTION_PANEL_GAP + this.controls.panelHeight : 0);
     this.setScroll(this.scrollOffset);
+    this.layoutPanel();
+  }
+
+  private rebuildHandFace(card: ClientCardDto, deckLayout: string | undefined): void {
+    const landscape = this.horizontalFace && !this.forcePortrait;
+    this.configureGeometry(landscape, FRAME_BOTTOM_PAD, 1);
+    this.handFace = new HandRulesCardFace(
+      card,
+      this.displayedBackFace ? 1 : 0,
+      this.panelWidth,
+      this.panelHeight,
+      deckLayout,
+      this.theme,
+    );
+    this.artY = this.handFace.artworkTop;
+    this.cardContainer.addChild(this.handFace);
+    this.viewControls.setSpec(
+      {
+        rulesView: true,
+        horizontal: this.horizontalFace,
+        alternateFace: this.horizontalFace ? this.forcePortrait : this.displayedBackFace,
+        showFaceControl: this.horizontalFace || this.canFlip,
+        onToggleRules: () => this.callbacks.onToggleView(),
+        onToggleFace: () => this.activatePrimaryTransform(),
+      },
+      this.panelWidth,
+      this.handFace.artworkTop,
+      1,
+      1,
+    );
+    this.controls.setContent({
+      width: this.panelWidth,
+      maxHeight: ACTION_PANEL_MAX_HEIGHT,
+      theme: this.theme,
+      actions: [],
+      controls: [],
+      statuses: [],
+      hint: "",
+      label: "",
+      onSelectAction: (action) => this.callbacks.onSelectAction(action),
+    });
+    this.widgetHeight = this.panelHeight;
+    this.contentHeight = 0;
+    this.scrollOffset = 0;
     this.layoutPanel();
   }
 
@@ -1078,18 +1143,23 @@ export class RulesCardPreviewLayer {
   private layoutPanel(): void {
     const spec = this.spec;
     if (!spec || this.viewportWidth <= 0 || this.viewportHeight <= 0) return;
-    const scale = Math.min(
-      1,
-      (this.viewportWidth - EDGE_PAD * 2) / this.panelWidth,
-      (this.viewportHeight - EDGE_PAD * 2) / this.widgetHeight,
-    );
+    const scale = spec.slot
+      ? Math.min(1, spec.slot.width / this.panelWidth, spec.slot.height / this.widgetHeight)
+      : Math.min(
+          1,
+          (this.viewportWidth - EDGE_PAD * 2) / this.panelWidth,
+          (this.viewportHeight - EDGE_PAD * 2) / this.widgetHeight,
+        );
     const width = this.panelWidth * scale;
     const height = this.widgetHeight * scale;
     this.container.scale.set(scale);
 
     let x: number;
     let y: number;
-    if (spec.sticky && spec.anchor == null) {
+    if (spec.slot) {
+      x = spec.slot.x + (spec.slot.width - width) / 2;
+      y = spec.slot.y + (spec.slot.height - height) / 2;
+    } else if (spec.sticky && spec.anchor == null) {
       x = (this.viewportWidth - width) / 2;
       y = (this.viewportHeight - height) / 2;
     } else if (spec.anchor) {
@@ -1284,7 +1354,7 @@ export class RulesCardPreviewLayer {
       this.artSprite.texture = Texture.EMPTY;
       this.scrollOffset = 0;
       this.rebuild();
-      void this.loadArt();
+      if (this.spec.variant === "field") void this.loadArt();
     } catch {
       if (generation === this.cardInfoGeneration) this.scryfallInfo = null;
     }
@@ -1372,7 +1442,7 @@ export class RulesCardPreviewLayer {
     this.artFaces.removeChildren().forEach((sprite) => sprite.destroy({ texture: true }));
   }
 
-  private hide(): void {
+  private hide(preserveHover = false): void {
     gsap.killTweensOf(this.container);
     gsap.killTweensOf(this.container.scale);
     if (this.interactionTimer != null) {
@@ -1380,7 +1450,7 @@ export class RulesCardPreviewLayer {
       this.interactionTimer = null;
     }
     this.interactiveReady = false;
-    if (!this.spec) this.clearHover();
+    if (!preserveHover && !this.spec) this.clearHover();
     this.dragStartY = null;
     this.dragPointerId = null;
     this.actions.reset();

@@ -46,6 +46,8 @@ export interface BoardOverlayPreviewSpec {
   mousePos: { x: number; y: number };
   anchorRect: DOMRect | null;
   viewportRight?: number;
+  slotRect?: DOMRect | null;
+  variant: "field" | "hand";
 }
 const PREVIEW_BACKDROP_ALPHA = 0.3;
 
@@ -79,12 +81,18 @@ interface BoardOverlayCanvasProps {
   onTargetSpell: (spellId: string) => void;
   onHoverStack: (stackObjectId: string | null) => void;
   onToggleStack: () => void;
+  promptSpec: PromptOverlaySpec | null;
   onHoverCard: (
     card: CardDto | null,
-    options?: { useAnchor?: boolean; placement?: "auto" | "top-center"; anchorOverride?: DOMRect },
+    options?: {
+      useAnchor?: boolean;
+      placement?: "auto" | "top-center";
+      anchorOverride?: DOMRect;
+      ignoreTriggerPreference?: boolean;
+    },
   ) => void;
-  onLongPressCard?: (card: CardDto, anchor: DOMRect) => void;
-  promptSpec: PromptOverlaySpec | null;
+  onLongPressCard?: (card: CardDto, rect: DOMRect) => void;
+  onPromptPreviewSlotChange?: (rect: DOMRect | null) => void;
   className?: string;
   externalPreviewActive?: boolean;
   previewSpec?: BoardOverlayPreviewSpec | null;
@@ -100,6 +108,7 @@ function toRulesPreviewSpec(
   canvasRect: DOMRect,
 ): RulesCardPreviewSpec {
   return {
+    variant: spec.variant,
     card: spec.card,
     phase: spec.phase,
     sticky: spec.sticky,
@@ -115,6 +124,14 @@ function toRulesPreviewSpec(
           height: spec.anchorRect.height,
         }
       : null,
+    slot: spec.slotRect
+      ? {
+          x: spec.slotRect.x - canvasRect.left,
+          y: spec.slotRect.y - canvasRect.top,
+          width: spec.slotRect.width,
+          height: spec.slotRect.height,
+        }
+      : null,
     pointer: {
       x: spec.mousePos.x - canvasRect.left,
       y: spec.mousePos.y - canvasRect.top,
@@ -126,6 +143,7 @@ function updateRulesPreview(
   preview: RulesCardPreviewLayer,
   spec: BoardOverlayPreviewSpec | null | undefined,
   canvasRect: DOMRect,
+  preserveHover = false,
   width = canvasRect.width,
   height = canvasRect.height,
 ): void {
@@ -135,7 +153,7 @@ function updateRulesPreview(
     return;
   }
   preview.setViewport(previewWidth, height);
-  preview.setSpec(spec ? toRulesPreviewSpec(spec, canvasRect) : null);
+  preview.setSpec(spec ? toRulesPreviewSpec(spec, canvasRect) : null, preserveHover);
 }
 
 interface RulesPreviewActionGlowSyncState extends RulesPreviewActionGlowBounds {
@@ -178,9 +196,10 @@ export function BoardOverlayCanvas({
   onTargetSpell,
   onHoverStack,
   onToggleStack,
+  promptSpec,
   onHoverCard,
   onLongPressCard,
-  promptSpec,
+  onPromptPreviewSlotChange,
   className,
   externalPreviewActive = false,
   previewSpec,
@@ -218,6 +237,7 @@ export function BoardOverlayCanvas({
     onHoverStack,
     onToggleStack,
     onHoverCard,
+    onPromptPreviewSlotChange,
     onLongPressCard,
     onPreviewPointerEnter,
     onPreviewPointerLeave,
@@ -234,6 +254,7 @@ export function BoardOverlayCanvas({
       onHoverStack,
       onToggleStack,
       onHoverCard,
+      onPromptPreviewSlotChange,
       onLongPressCard,
       onPreviewPointerEnter,
       onPreviewPointerLeave,
@@ -245,11 +266,12 @@ export function BoardOverlayCanvas({
   }, [
     onDismissPreview,
     onFlipPreview,
-    onHoverCard,
     onHoverStack,
-    onLongPressCard,
+    onHoverCard,
     onOpenStack,
+    onPromptPreviewSlotChange,
     onPreviewPointerEnter,
+    onLongPressCard,
     onPreviewPointerLeave,
     onSelectPreviewAction,
     onTargetSpell,
@@ -389,22 +411,49 @@ export function BoardOverlayCanvas({
             );
           },
           onPreviewCard: (card, bounds, sticky) => {
-            if (!card || !bounds) {
+            if (!card) {
               cbRef.current.onHoverCard(null);
               return;
             }
-            const rect = canvasRef.current?.getBoundingClientRect();
-            const anchor = new DOMRect(
-              (rect?.left ?? 0) + bounds.x,
-              (rect?.top ?? 0) + bounds.y,
+            if (!bounds) {
+              cbRef.current.onHoverCard(card);
+              return;
+            }
+            const canvasRect = canvasRef.current?.getBoundingClientRect();
+            const rect = new DOMRect(
+              (canvasRect?.left ?? 0) + bounds.x,
+              (canvasRect?.top ?? 0) + bounds.y,
               bounds.width,
               bounds.height,
             );
             if (sticky && cbRef.current.onLongPressCard) {
-              cbRef.current.onLongPressCard(card, anchor);
-            } else {
-              cbRef.current.onHoverCard(card, { useAnchor: true, anchorOverride: anchor });
+              cbRef.current.onLongPressCard(card, rect);
+              return;
             }
+            cbRef.current.onHoverCard(card, {
+              useAnchor: true,
+              anchorOverride: rect,
+              ignoreTriggerPreference: true,
+            });
+          },
+          onDismissPreview: () => {
+            if (cbRef.current.onDismissPreview) cbRef.current.onDismissPreview();
+            else cbRef.current.onHoverCard(null);
+          },
+          onPreviewSlotChange: (bounds) => {
+            if (!bounds) {
+              cbRef.current.onPromptPreviewSlotChange?.(null);
+              return;
+            }
+            const canvasRect = canvasRef.current?.getBoundingClientRect();
+            cbRef.current.onPromptPreviewSlotChange?.(
+              new DOMRect(
+                (canvasRect?.left ?? 0) + bounds.x,
+                (canvasRect?.top ?? 0) + bounds.y,
+                bounds.width,
+                bounds.height,
+              ),
+            );
           },
           getReferenceAnchor: (target) =>
             target.kind === "spell"
@@ -433,7 +482,7 @@ export function BoardOverlayCanvas({
           onFlip: () => cbRef.current.onFlipPreview?.(),
           onToggleView: () => cbRef.current.onTogglePreviewView?.(),
         });
-        previewLayer.container.zIndex = 10_000;
+        previewLayer.container.zIndex = 10_001;
         preview = previewLayer;
         previewRef.current = previewLayer;
 
@@ -441,7 +490,6 @@ export function BoardOverlayCanvas({
         app.stage.addChild(arrow.graphics);
         app.stage.addChild(backdrop);
         app.stage.addChild(previewLayer.container);
-        app.stage.addChild(promptLayer.container);
         app.renderer.resize(width, height);
         if (promptLayer.blocksBoard) canvas.style.pointerEvents = "auto";
 
@@ -454,7 +502,7 @@ export function BoardOverlayCanvas({
         );
         const currentSpec = previewSpecRef.current;
         const canvasRect = canvas.getBoundingClientRect();
-        updateRulesPreview(previewLayer, currentSpec, canvasRect, width, height);
+        updateRulesPreview(previewLayer, currentSpec, canvasRect, false, width, height);
 
         scheduler = new OverlayRenderScheduler(app, (deltaMs) => {
           const currentScene = sceneRef.current;
@@ -544,7 +592,7 @@ export function BoardOverlayCanvas({
     const preview = previewRef.current;
     const canvas = canvasRef.current;
     if (!preview || !canvas) return;
-    updateRulesPreview(preview, previewSpec, canvas.getBoundingClientRect());
+    updateRulesPreview(preview, previewSpec, canvas.getBoundingClientRect(), externalPreviewActive);
     updateRulesPreviewBackdrop(
       previewBackdropRef.current!,
       previewSpec,
@@ -559,7 +607,7 @@ export function BoardOverlayCanvas({
       canvas.style.pointerEvents = "none";
     }
     schedulerRef.current?.request();
-  }, [previewSpec]);
+  }, [externalPreviewActive, previewSpec]);
 
   useEffect(() => {
     const prompt = promptRef.current;
@@ -587,7 +635,7 @@ export function BoardOverlayCanvas({
         const preview = previewRef.current;
         const canvasRect = canvasRef.current?.getBoundingClientRect();
         if (preview && canvasRect) {
-          updateRulesPreview(preview, previewSpecRef.current, canvasRect, width, height);
+          updateRulesPreview(preview, previewSpecRef.current, canvasRect, false, width, height);
           const backdrop = previewBackdropRef.current;
           if (backdrop) {
             updateRulesPreviewBackdrop(

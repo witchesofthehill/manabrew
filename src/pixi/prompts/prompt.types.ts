@@ -27,6 +27,8 @@ export interface GameOverPromptSpec {
 export interface PromptLayerCallbacks {
   onReferenceChange?: (target: TargetRef | null) => void;
   onPreviewCard?: (card: CardDto | null, bounds?: ScreenBounds, sticky?: boolean) => void;
+  onDismissPreview?: () => void;
+  onPreviewSlotChange?: (bounds: ScreenBounds | null) => void;
   getReferenceAnchor?: (target: TargetRef) => ScreenPos | null;
 }
 

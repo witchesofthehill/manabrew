@@ -145,6 +145,7 @@ interface GameBoardProps {
   onPreviewPointerEnter?: () => void;
   onPreviewPointerLeave?: () => void;
   onTogglePreviewView?: () => void;
+  onPromptPreviewSlotChange?: (rect: DOMRect | null) => void;
   onLongPressCard?: (card: CardDto, anchor: DOMRect) => void;
   onHandHoverChange?: (hovering: boolean) => void;
   getHandActions?: (card: CardDto) => HandActionOption[];
@@ -249,6 +250,7 @@ export function GameBoard({
   onPreviewPointerEnter,
   onPreviewPointerLeave,
   onTogglePreviewView,
+  onPromptPreviewSlotChange,
   onLongPressCard,
   onHandHoverChange,
   getHandActions,
@@ -1798,6 +1800,7 @@ export function GameBoard({
           onHoverCard={(card, options) => onHoverCard(card, undefined, options)}
           onLongPressCard={onLongPressCard}
           promptSpec={promptOverlaySpec ?? null}
+          onPromptPreviewSlotChange={onPromptPreviewSlotChange}
           externalPreviewActive={externalPreviewActive}
           previewSpec={rulesPreview}
           onPreviewPointerEnter={onPreviewPointerEnter}

@@ -298,6 +298,7 @@ export function BoardPlayground() {
     previewStyle === "rules" && previewCard && preview.phase !== "hidden"
       ? {
           card: previewCard,
+          variant: "field",
           phase: preview.phase === "closing" ? "closing" : "open",
           sticky: preview.isSticky,
           showBackFace: preview.showBackFace,

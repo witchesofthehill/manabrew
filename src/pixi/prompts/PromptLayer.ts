@@ -25,6 +25,7 @@ import {
   CARD_W,
 } from "@/components/game/game.constants";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
 import { resolveCombo, useKeybindingsStore } from "@/stores/useKeybindingsStore";
 import {
@@ -70,7 +71,13 @@ const MODAL_TYPES = new Set([
 const FONT = "Inter, system-ui, sans-serif";
 const PANEL_PADDING = 20;
 const ROW_GAP = 10;
-const CARD_WIDTH = 250;
+const CARD_WIDTH = 240;
+const CARD_TILE_EDGE_INSET = 8;
+const REORDER_MODAL_VERTICAL_RESERVE = 280;
+const REORDER_ORDER_ZONE_ID = "reorder-order";
+const REORDER_CARD_INSET = 18;
+const REORDER_LAYOUT_SETTLE_SECONDS = 0.24;
+const REORDER_SNAP_PULSE_SECONDS = 0.34;
 const CARD_ASPECT_RATIO = CARD_H / CARD_W;
 const CARD_VERTICAL_RESERVE = 288;
 const SCRY_BODY_VERTICAL_RESERVE = 176;
@@ -84,6 +91,11 @@ const DRAG_DROP_MAX_SECONDS = 0.22;
 const DRAG_DROP_PIXELS_PER_SECOND = 1800;
 const DROP_ZONE_DIM_ALPHA = 0.62;
 const DROP_ZONE_TWEEN_SECONDS = 0.12;
+const DRAG_LIFT_SCALE = 1.035;
+const DRAG_MAX_TILT_RADIANS = (10 * Math.PI) / 180;
+const DRAG_TILT_RADIANS_PER_PIXEL = 0.017;
+const DRAG_FEEDBACK_SECONDS = 0.14;
+const REORDER_PREVIEW_SECONDS = 0.14;
 const SCRY_LAYOUT_SETTLE_SECONDS = 0.2;
 
 interface DragState {
@@ -94,8 +106,16 @@ interface DragState {
   offsetX: number;
   offsetY: number;
   settling: boolean;
+  restRotation: number;
+  restScaleX: number;
+  restScaleY: number;
+  restOriginX: number;
+  restOriginY: number;
+  lastGlobalX: number;
+  ring: Graphics;
   onDrop: (x: number, y: number) => void;
   resolveDropPosition?: (x: number, y: number) => { x: number; y: number } | null;
+  onDragMove?: (x: number, y: number) => void;
 }
 
 interface DiceVisual {
@@ -253,6 +273,18 @@ export class PromptLayer {
   private drag: DragState | null = null;
   private scryCardTiles = new Map<string, Container>();
   private scryPreviousPositions = new Map<string, { x: number; y: number }>();
+  private reorderCardVisuals = new Map<
+    string,
+    {
+      tile: Container;
+      controls: Container;
+      controlsOffsetX: number;
+      controlsOffsetY: number;
+    }
+  >();
+  private reorderPreviousPositions = new Map<string, { x: number; y: number }>();
+  private reorderSettledCardId: string | null = null;
+  private reorderPreview: { cardId: string; index: number | null } | null = null;
   private promptCardStates = new Map<string, PromptCardDisplayState>();
   private activePromptCard: { card: CardDto; sprite: CardSprite } | null = null;
   private activePromptCardId: string | null = null;
@@ -266,6 +298,7 @@ export class PromptLayer {
   private autopassFill: Graphics | null = null;
   private actionPromptType: PromptOverlaySpec["action"]["promptType"] = undefined;
   private readonly unsubscribePromptPreferences: () => void;
+  private readonly unsubscribePreferences: () => void;
   private readonly unsubscribeKeybindings: () => void;
   private endTurnModifiersHeld = false;
   private actionContextOpen = false;
@@ -315,6 +348,11 @@ export class PromptLayer {
     this.unsubscribePromptPreferences = usePromptPreferencesStore.subscribe((state, previous) => {
       if (state.fullControl === previous.fullControl) return;
       this.resetAutopassState();
+      this.rebuild();
+    });
+    this.unsubscribePreferences = usePreferencesStore.subscribe((state, previous) => {
+      if (state.promptCardStyle === previous.promptCardStyle) return;
+      this.promptCardStates.clear();
       this.rebuild();
     });
     this.unsubscribeKeybindings = useKeybindingsStore.subscribe(() => this.rebuild());
@@ -383,6 +421,7 @@ export class PromptLayer {
     this.app.stage.off("globalpointermove", this.onStageMove);
     this.app.stage.off("pointerup", this.onStageUp);
     this.unsubscribePromptPreferences();
+    this.unsubscribePreferences();
     this.unsubscribeKeybindings();
     this.app.stage.off("pointerupoutside", this.onStageUp);
     this.app.stage.off("pointercancel", this.onStageCancel);
@@ -391,6 +430,7 @@ export class PromptLayer {
     this.callbacks.onReferenceChange?.(null);
     this.cancelDrag();
     this.clearScryCardTiles();
+    this.clearReorderCardVisuals();
     this.container.destroy({ children: true });
   }
 
@@ -411,6 +451,10 @@ export class PromptLayer {
     this.dropZones = [];
     this.clearScryCardTiles();
     this.scryPreviousPositions.clear();
+    this.clearReorderCardVisuals();
+    this.reorderPreviousPositions.clear();
+    this.reorderSettledCardId = null;
+    this.reorderPreview = null;
     this.diceVisuals = [];
     this.diceWinnerText = null;
     this.diceConfirm = null;
@@ -448,6 +492,7 @@ export class PromptLayer {
     this.cancelDrag();
     this.dropZones = [];
     this.clearScryCardTiles();
+    this.clearReorderCardVisuals();
     this.actionBounds = null;
     this.autopassFill = null;
     this.actionPanel = null;
@@ -1437,7 +1482,10 @@ export class PromptLayer {
   private promptCardState(card: CardDto): PromptCardDisplayState {
     let state = this.promptCardStates.get(card.id);
     if (!state) {
-      state = { rulesView: true, face: card.isTransformed ? 1 : 0 };
+      state = {
+        rulesView: usePreferencesStore.getState().promptCardStyle === "rules",
+        face: card.isTransformed ? 1 : 0,
+      };
       this.promptCardStates.set(card.id, state);
     }
     return state;
@@ -1452,11 +1500,11 @@ export class PromptLayer {
   private bindPromptCardActivation(target: Container, card: CardDto, sprite: CardSprite): void {
     const showFeedback = () => {
       sprite.setElevation(1);
-      sprite.setPromptReference(hexToNum(this.theme.gameTheme.cardRing));
+      sprite.setRing(hexToNum(this.theme.gameTheme.cardRing));
     };
     const hideFeedback = () => {
       sprite.setElevation(0);
-      sprite.setPromptReference(null);
+      sprite.setRing(null);
     };
     const activate = () => {
       this.activePromptCardId = card.id;
@@ -2815,10 +2863,13 @@ export class PromptLayer {
     reveal: boolean,
   ): void {
     const width = Math.min(CARD_MODAL_MAX_WIDTH, this.viewportWidth - 24);
-    const { width: cardWidth, height: cardHeight } = this.promptCardDimensions();
+    const cardAreaWidth = width - PANEL_PADDING * 2 - CARD_TILE_EDGE_INSET * 2;
+    const { width: preferredCardWidth } = this.promptCardDimensions();
+    const cardWidth = Math.min(preferredCardWidth, cardAreaWidth);
+    const cardHeight = cardWidth * CARD_ASPECT_RATIO;
     const columns = Math.max(
       1,
-      Math.min(cards.length, Math.floor((width - PANEL_PADDING * 2) / (cardWidth + 10))),
+      Math.min(cards.length, Math.floor((cardAreaWidth + 10) / (cardWidth + 10))),
     );
     const rows = Math.ceil(cards.length / columns);
     const height = Math.min(this.viewportHeight - 24, 244 + rows * (cardHeight + 12));
@@ -2857,7 +2908,10 @@ export class PromptLayer {
       });
       const row = Math.floor(index / columns);
       const column = index % columns;
-      tile.position.set(column * (cardWidth + 10), startY + row * (cardHeight + 12));
+      tile.position.set(
+        CARD_TILE_EDGE_INSET + column * (cardWidth + 10),
+        startY + row * (cardHeight + 12),
+      );
       body.addChild(tile);
     });
     const footerY = startY + rows * (cardHeight + 12) + 6;
@@ -3156,56 +3210,76 @@ export class PromptLayer {
 
   private renderReorder(presentation: PromptPresentation, items: ReorderItem[]): void {
     const width = Math.min(CARD_MODAL_MAX_WIDTH, this.viewportWidth - 24);
-    const { width: cardWidth, height: cardHeight } = this.promptCardDimensions();
-    const columns = Math.max(
-      1,
-      Math.min(items.length, Math.floor((width - PANEL_PADDING * 2) / (cardWidth + 18))),
+    const contentWidth = width - PANEL_PADDING * 2;
+    const zoneWidth = contentWidth - CARD_TILE_EDGE_INSET * 2;
+    const { width: preferredCardWidth } = this.promptCardDimensions();
+    const cardWidth = Math.min(preferredCardWidth, zoneWidth - REORDER_CARD_INSET * 2);
+    const cardHeight = cardWidth * CARD_ASPECT_RATIO;
+    const hasSourceCard = !!(this.spec?.currentPrompt?.sourceCard ?? this.spec?.sourceDeckCard);
+    const sourceIsInternal =
+      hasSourceCard && this.viewportWidth < width + SOURCE_CARD_GAP + preferredCardWidth + 24;
+    const height = Math.min(
+      this.viewportHeight - 24,
+      cardHeight +
+        REORDER_MODAL_VERTICAL_RESERVE +
+        (sourceIsInternal ? preferredCardWidth * CARD_ASPECT_RATIO : 0),
     );
-    const rows = Math.ceil(items.length / columns);
-    const height = Math.min(this.viewportHeight - 24, 254 + rows * (cardHeight + 30));
     const { body } = this.createModalShell(width, height, presentation);
-    body.sortableChildren = true;
+    const byId = new Map(items.map((item) => [item.id, item]));
     const shortcuts = this.promptCardShortcutHint();
     const instruction = promptText(
-      `Drag cards into order · 1 resolves first${shortcuts ? ` · ${shortcuts}` : ""}`,
+      `Drag to reorder · Leftmost resolves first${shortcuts ? ` · ${shortcuts}` : ""}`,
       12,
       this.theme.gameTheme.promptAction.defenseAction,
       { weight: "600" },
     );
-    instruction.position.set(0, 2);
+    instruction.position.set(CARD_TILE_EDGE_INSET, 2);
     body.addChild(instruction);
-    const byId = new Map(items.map((item) => [item.id, item]));
+    body.sortableChildren = true;
+
+    const orderLabel = promptText("RESOLUTION ORDER", 11, this.theme.appTheme["muted-foreground"], {
+      weight: "700",
+    });
+    orderLabel.position.set(CARD_TILE_EDGE_INSET, 26);
+    body.addChild(orderLabel);
+    const orderZone = new Rectangle(
+      CARD_TILE_EDGE_INSET,
+      46,
+      zoneWidth,
+      cardHeight + REORDER_CARD_INSET + 40,
+    );
+    const footerY = orderZone.y + orderZone.height + 12;
+    const orderBackground = new Graphics()
+      .roundRect(orderZone.x, orderZone.y, orderZone.width, orderZone.height, 8)
+      .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.45 })
+      .stroke({ color: hexToNum(this.theme.appTheme["muted-foreground"]), width: 2, alpha: 0.45 });
+    body.addChild(orderBackground);
+    this.dropZones.push({
+      id: REORDER_ORDER_ZONE_ID,
+      rect: orderZone,
+      container: body,
+      visual: orderBackground,
+      dropX: orderZone.x + REORDER_CARD_INSET,
+      dropY: orderZone.y + REORDER_CARD_INSET,
+      targetAlpha: 1,
+    });
+
     this.order.forEach((id, index) => {
       const item = byId.get(id);
       if (!item) return;
-      const card = this.createCardTile(item.card, false, false, cardWidth, cardHeight);
-      const column = index % columns;
-      const row = Math.floor(index / columns);
-      const x = column * (cardWidth + 18);
-      const y = 30 + row * (cardHeight + 30);
-      const slot = new Graphics()
-        .roundRect(x - 4, y - 4, cardWidth + 8, cardHeight + 8, 8)
-        .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.35 })
-        .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.75 });
-      slot.eventMode = "none";
-      body.addChild(slot);
-      card.position.set(x, y);
-      this.makeDraggable(card, (dropX, dropY) => {
-        const local = body.toLocal({ x: dropX, y: dropY });
-        const targetColumn = Math.max(
-          0,
-          Math.min(columns - 1, Math.floor(local.x / (cardWidth + 18))),
-        );
-        const targetRow = Math.max(0, Math.floor((local.y - 30) / (cardHeight + 30)));
-        const targetIndex = Math.max(
-          0,
-          Math.min(this.order.length - 1, targetRow * columns + targetColumn),
-        );
-        const from = this.order.indexOf(id);
-        this.order.splice(from, 1);
-        this.order.splice(targetIndex, 0, id);
-        this.rebuild();
-      });
+      const tile = this.createCardTile(item.card, false, false, cardWidth, cardHeight);
+      tile.accessibleTitle = `${item.card.identity.name}, position ${index + 1}`;
+      tile.accessibleHint = "Drag to reorder or use the earlier and later controls";
+      tile.zIndex = index + 1;
+      const x = this.reorderCardX(orderZone, cardWidth, index, this.order.length);
+      const y = orderZone.y + REORDER_CARD_INSET;
+      tile.position.set(x, y);
+      this.makeDraggable(
+        tile,
+        (dropX, dropY) => this.dropReorderCard(id, cardWidth, dropX, dropY),
+        (dropX, dropY) => this.reorderDropPosition(id, cardWidth, dropX, dropY),
+        (dragX, dragY) => this.previewReorderGap(id, cardWidth, dragX, dragY),
+      );
       const rank = new Graphics()
         .circle(0, 0, 13)
         .fill(hexToNum(index === 0 ? this.theme.appTheme.primary : this.theme.appTheme.muted));
@@ -3216,13 +3290,17 @@ export class PromptLayer {
         { weight: "700" },
       );
       rankText.anchor.set(0.5);
-      rankText.position.set(0, 0);
-      card.addChild(rank, rankText);
+      tile.addChild(rank, rankText);
+
       const move = (offset: number) => {
         const target = Math.max(0, Math.min(this.order.length - 1, index + offset));
         if (target === index) return;
-        this.order.splice(index, 1);
-        this.order.splice(target, 0, id);
+        this.captureReorderCardPositions();
+        this.reorderSettledCardId = id;
+        const next = [...this.order];
+        next.splice(index, 1);
+        next.splice(target, 0, id);
+        this.order = next;
         this.rebuild();
       };
       const previous = this.makeButton("", () => move(-1), {
@@ -3232,6 +3310,14 @@ export class PromptLayer {
         compact: true,
         disabled: index === 0,
         width: 32,
+        foreground: this.theme.appTheme["muted-foreground"],
+        backgroundColor: this.theme.gameTheme.cardRing,
+        backgroundAlpha: 0.08,
+        borderColor: this.theme.gameTheme.cardRing,
+        borderAlpha: 0.42,
+        hoverBackgroundAlpha: 0.24,
+        hoverBorderAlpha: 1,
+        hoverForeground: this.theme.gameTheme.cardRing,
       });
       const next = this.makeButton("", () => move(1), {
         title: "Move later",
@@ -3240,22 +3326,227 @@ export class PromptLayer {
         compact: true,
         disabled: index === this.order.length - 1,
         width: 32,
+        foreground: this.theme.appTheme["muted-foreground"],
+        backgroundColor: this.theme.gameTheme.cardRing,
+        backgroundAlpha: 0.08,
+        borderColor: this.theme.gameTheme.cardRing,
+        borderAlpha: 0.42,
+        hoverBackgroundAlpha: 0.24,
+        hoverBorderAlpha: 1,
+        hoverForeground: this.theme.gameTheme.cardRing,
       });
-      previous.scale.set(0.76);
-      next.scale.set(0.76);
-      previous.position.set(14, cardHeight + 4);
-      next.position.set(58, cardHeight + 4);
-      card.addChild(previous, next);
-      body.addChild(card);
+      const controlScale = 0.76;
+      const controlGap = 10;
+      const controlRowWidth = (previous.buttonWidth + next.buttonWidth) * controlScale + controlGap;
+      const controlX = x + (cardWidth - controlRowWidth) / 2;
+      const controlY = y + cardHeight + 8;
+      const controls = new Container();
+      controls.position.set(controlX, controlY);
+      controls.zIndex = 100 + index;
+      [previous, next].forEach((control, controlIndex) => {
+        control.scale.set(controlScale);
+        control.position.set(controlIndex * (control.buttonWidth * controlScale + controlGap), 0);
+        controls.addChild(control);
+      });
+      body.addChild(tile, controls);
+      this.reorderCardVisuals.set(id, {
+        tile,
+        controls,
+        controlsOffsetX: controlX - x,
+        controlsOffsetY: controlY - y,
+      });
+
+      const oldPosition = this.reorderPreviousPositions.get(id);
+      if (oldPosition && animationsEnabled()) {
+        const start = body.toLocal(oldPosition);
+        if (Math.hypot(x - start.x, y - start.y) >= 0.5) {
+          const offsetX = start.x - x;
+          const offsetY = start.y - y;
+          tile.position.copyFrom(start);
+          controls.position.set(controlX + offsetX, controlY + offsetY);
+          gsap.to(tile.position, {
+            x,
+            y,
+            duration: REORDER_LAYOUT_SETTLE_SECONDS,
+            ease: "power3.out",
+          });
+          gsap.to(controls.position, {
+            x: controlX,
+            y: controlY,
+            duration: REORDER_LAYOUT_SETTLE_SECONDS,
+            ease: "power3.out",
+          });
+        }
+      }
+
+      if (this.reorderSettledCardId === id && animationsEnabled()) {
+        tile.origin.set(cardWidth / 2, cardHeight / 2);
+        gsap.fromTo(
+          tile.scale,
+          { x: 0.97, y: 0.97 },
+          {
+            x: 1,
+            y: 1,
+            duration: REORDER_SNAP_PULSE_SECONDS,
+            ease: "back.out(2.2)",
+          },
+        );
+        const snapRing = new Graphics()
+          .roundRect(0, 0, cardWidth, cardHeight, 6)
+          .stroke({ color: hexToNum(this.theme.gameTheme.cardRing), width: 4 });
+        snapRing.eventMode = "none";
+        tile.addChild(snapRing);
+        gsap.to(snapRing, {
+          alpha: 0,
+          duration: REORDER_SNAP_PULSE_SECONDS,
+          ease: "power2.out",
+        });
+      }
     });
-    const footerY = 40 + rows * (cardHeight + 30);
+    this.reorderPreviousPositions.clear();
+    this.reorderSettledCardId = null;
+
     const confirm = this.makeButton(
       "CONFIRM ORDER",
       () => this.spec!.respond({ type: "reorderDecision", orderedIds: [...this.order] }),
       { width: 150 },
     );
-    confirm.position.set(width - PANEL_PADDING * 2 - confirm.buttonWidth, footerY);
+    confirm.position.set(contentWidth - confirm.buttonWidth, footerY);
     body.addChild(confirm);
+  }
+
+  private reorderCardX(zone: Rectangle, cardWidth: number, index: number, count: number): number {
+    if (count <= 1) return zone.x + REORDER_CARD_INSET;
+    const available = Math.max(0, zone.width - cardWidth - REORDER_CARD_INSET * 2);
+    const spacing = Math.min(cardWidth + 12, available / (count - 1));
+    return zone.x + REORDER_CARD_INSET + index * spacing;
+  }
+
+  private reorderInsertIndex(zone: Rectangle, cardWidth: number, count: number, x: number): number {
+    if (count === 0) return 0;
+    const available = Math.max(0, zone.width - cardWidth - REORDER_CARD_INSET * 2);
+    const spacing = Math.min(cardWidth + 12, available / count);
+    if (spacing === 0) return count;
+    const firstCenter = zone.x + REORDER_CARD_INSET + cardWidth / 2;
+    return Math.max(0, Math.min(count, Math.round((x - firstCenter) / spacing)));
+  }
+
+  private previewReorderGap(cardId: string, cardWidth: number, x: number, y: number): void {
+    const orderZone = this.dropZones.find((zone) => zone.id === REORDER_ORDER_ZONE_ID);
+    const target = this.findDropZone(x, y);
+    if (!orderZone) return;
+
+    let index: number | null = null;
+    if (target?.id === REORDER_ORDER_ZONE_ID) {
+      const point = target.container.toLocal({ x, y });
+      index = this.reorderInsertIndex(target.rect, cardWidth, this.order.length - 1, point.x);
+    }
+    if (this.reorderPreview?.cardId === cardId && this.reorderPreview.index === index) return;
+    this.reorderPreview = { cardId, index };
+
+    const previewOrder = this.order.filter((id) => id !== cardId);
+    if (index != null) previewOrder.splice(index, 0, cardId);
+    else previewOrder.splice(this.order.indexOf(cardId), 0, cardId);
+
+    for (const [previewIndex, id] of previewOrder.entries()) {
+      const visual = this.reorderCardVisuals.get(id);
+      if (!visual) continue;
+      if (id === cardId) {
+        gsap.killTweensOf(visual.controls);
+        if (animationsEnabled()) {
+          gsap.to(visual.controls, {
+            alpha: 0,
+            duration: REORDER_PREVIEW_SECONDS,
+            ease: "power2.out",
+            overwrite: true,
+          });
+        } else {
+          visual.controls.alpha = 0;
+        }
+        continue;
+      }
+
+      const targetX = this.reorderCardX(
+        orderZone.rect,
+        cardWidth,
+        previewIndex,
+        previewOrder.length,
+      );
+      const targetY = orderZone.rect.y + REORDER_CARD_INSET;
+      const controlsX = targetX + visual.controlsOffsetX;
+      const controlsY = targetY + visual.controlsOffsetY;
+      if (!animationsEnabled()) {
+        visual.tile.position.set(targetX, targetY);
+        visual.controls.position.set(controlsX, controlsY);
+        continue;
+      }
+      gsap.to(visual.tile.position, {
+        x: targetX,
+        y: targetY,
+        duration: REORDER_PREVIEW_SECONDS,
+        ease: "power2.out",
+        overwrite: true,
+      });
+      gsap.to(visual.controls.position, {
+        x: controlsX,
+        y: controlsY,
+        duration: REORDER_PREVIEW_SECONDS,
+        ease: "power2.out",
+        overwrite: true,
+      });
+    }
+  }
+
+  private dropReorderCard(cardId: string, cardWidth: number, x: number, y: number): void {
+    const target = this.findDropZone(x, y);
+    if (!target || target.id !== REORDER_ORDER_ZONE_ID) {
+      this.rebuild();
+      return;
+    }
+    this.captureReorderCardPositions();
+    this.reorderSettledCardId = cardId;
+    const next = this.order.filter((id) => id !== cardId);
+    const point = target.container.toLocal({ x, y });
+    const index = this.reorderInsertIndex(target.rect, cardWidth, next.length, point.x);
+    next.splice(index, 0, cardId);
+    this.order = next;
+    this.rebuild();
+  }
+
+  private reorderDropPosition(
+    cardId: string,
+    cardWidth: number,
+    x: number,
+    y: number,
+  ): { x: number; y: number } | null {
+    const target = this.findDropZone(x, y);
+    if (!target || target.id !== REORDER_ORDER_ZONE_ID) return null;
+    const nextOrder = this.order.filter((id) => id !== cardId);
+    const point = target.container.toLocal({ x, y });
+    const index = this.reorderInsertIndex(target.rect, cardWidth, nextOrder.length, point.x);
+    return {
+      x: this.reorderCardX(target.rect, cardWidth, index, nextOrder.length + 1),
+      y: target.rect.y + REORDER_CARD_INSET,
+    };
+  }
+
+  private captureReorderCardPositions(): void {
+    this.reorderPreviousPositions.clear();
+    for (const [cardId, visual] of this.reorderCardVisuals) {
+      const position = visual.tile.toGlobal({ x: 0, y: 0 });
+      this.reorderPreviousPositions.set(cardId, { x: position.x, y: position.y });
+    }
+  }
+
+  private clearReorderCardVisuals(): void {
+    for (const { tile, controls } of this.reorderCardVisuals.values()) {
+      gsap.killTweensOf(tile.position);
+      gsap.killTweensOf(tile.scale);
+      gsap.killTweensOf(controls.position);
+      gsap.killTweensOf(controls);
+    }
+    this.reorderCardVisuals.clear();
+    this.reorderPreview = null;
   }
 
   private renderScry(
@@ -4202,6 +4493,7 @@ export class PromptLayer {
     item: Container,
     onDrop: (x: number, y: number) => void,
     resolveDropPosition?: (x: number, y: number) => { x: number; y: number } | null,
+    onDragMove?: (x: number, y: number) => void,
   ): void {
     item.eventMode = "static";
     item.cursor = "grab";
@@ -4209,6 +4501,14 @@ export class PromptLayer {
       const parent = item.parent;
       if (!parent || this.drag || event.button !== 0) return;
       const point = parent.toLocal(event.global);
+      const bounds =
+        item.hitArea instanceof Rectangle ? item.hitArea : item.getLocalBounds().rectangle;
+      const ring = new Graphics()
+        .roundRect(bounds.x, bounds.y, bounds.width, bounds.height, 6)
+        .stroke({ color: hexToNum(this.theme.gameTheme.cardRing), width: 4 });
+      ring.eventMode = "none";
+      ring.alpha = animationsEnabled() ? 0 : 1;
+      item.addChild(ring);
       this.drag = {
         item,
         pointerId: event.pointerId,
@@ -4217,13 +4517,44 @@ export class PromptLayer {
         offsetX: point.x - item.x,
         offsetY: point.y - item.y,
         settling: false,
+        restRotation: item.rotation,
+        restScaleX: item.scale.x,
+        restScaleY: item.scale.y,
+        restOriginX: item.origin.x,
+        restOriginY: item.origin.y,
+        lastGlobalX: event.global.x,
+        ring,
         onDrop,
         resolveDropPosition,
+        onDragMove,
       };
+      item.origin.set(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
       item.cursor = "grabbing";
       item.alpha = 1;
       item.zIndex = 1000;
+      gsap.killTweensOf(item.scale);
+      if (animationsEnabled()) {
+        gsap.to(item.scale, {
+          x: this.drag.restScaleX * DRAG_LIFT_SCALE,
+          y: this.drag.restScaleY * DRAG_LIFT_SCALE,
+          duration: DRAG_FEEDBACK_SECONDS,
+          ease: "power2.out",
+          overwrite: true,
+        });
+        gsap.to(ring, {
+          alpha: 1,
+          duration: DRAG_FEEDBACK_SECONDS,
+          ease: "power2.out",
+          overwrite: true,
+        });
+      } else {
+        item.scale.set(
+          this.drag.restScaleX * DRAG_LIFT_SCALE,
+          this.drag.restScaleY * DRAG_LIFT_SCALE,
+        );
+      }
       this.setDropZoneHighlight(event.global.x, event.global.y);
+      onDragMove?.(event.global.x, event.global.y);
       event.stopPropagation();
     });
   }
@@ -4234,7 +4565,27 @@ export class PromptLayer {
     if (!drag || !parent || drag.settling || event.pointerId !== drag.pointerId) return;
     const parentPoint = parent.toLocal(event.global);
     drag.item.position.set(parentPoint.x - drag.offsetX, parentPoint.y - drag.offsetY);
+    const movementX = event.global.x - drag.lastGlobalX;
+    drag.lastGlobalX = event.global.x;
+    const rotation =
+      drag.restRotation +
+      Math.max(
+        -DRAG_MAX_TILT_RADIANS,
+        Math.min(DRAG_MAX_TILT_RADIANS, movementX * DRAG_TILT_RADIANS_PER_PIXEL),
+      );
+    gsap.killTweensOf(drag.item);
+    if (animationsEnabled()) {
+      gsap.to(drag.item, {
+        rotation,
+        duration: DRAG_FEEDBACK_SECONDS,
+        ease: "power2.out",
+        overwrite: true,
+      });
+    } else {
+      drag.item.rotation = rotation;
+    }
     this.setDropZoneHighlight(event.global.x, event.global.y);
+    drag.onDragMove?.(event.global.x, event.global.y);
   }
 
   private finishDrag(event: FederatedPointerEvent): void {
@@ -4244,6 +4595,7 @@ export class PromptLayer {
     if (!drag.resolveDropPosition || !animationsEnabled()) {
       this.resetDropZones();
       this.drag = null;
+      this.settleDragFeedback(drag, 0);
       drag.onDrop(event.global.x, event.global.y);
       return;
     }
@@ -4257,6 +4609,7 @@ export class PromptLayer {
     drag.item.cursor = "default";
     drag.item.eventMode = "none";
     this.setDropZoneHighlight(event.global.x, event.global.y);
+    this.settleDragFeedback(drag, duration);
     gsap.killTweensOf(drag.item.position);
     gsap.to(drag.item.position, {
       x: destination.x,
@@ -4268,6 +4621,44 @@ export class PromptLayer {
         this.resetDropZones();
         this.drag = null;
         drag.onDrop(event.global.x, event.global.y);
+      },
+    });
+  }
+
+  private settleDragFeedback(drag: DragState, duration: number): void {
+    gsap.killTweensOf(drag.item);
+    gsap.killTweensOf(drag.item.scale);
+    gsap.killTweensOf(drag.ring);
+    if (duration === 0 || !animationsEnabled()) {
+      drag.item.rotation = drag.restRotation;
+      drag.item.scale.set(drag.restScaleX, drag.restScaleY);
+      drag.item.origin.set(drag.restOriginX, drag.restOriginY);
+      drag.ring.destroy();
+      return;
+    }
+    gsap.to(drag.item, {
+      rotation: drag.restRotation,
+      duration,
+      ease: "power2.out",
+      overwrite: true,
+    });
+    gsap.to(drag.item.scale, {
+      x: drag.restScaleX,
+      y: drag.restScaleY,
+      duration,
+      ease: "power2.out",
+      overwrite: true,
+      onComplete: () => {
+        if (!drag.item.destroyed) drag.item.origin.set(drag.restOriginX, drag.restOriginY);
+      },
+    });
+    gsap.to(drag.ring, {
+      alpha: 0,
+      duration,
+      ease: "power2.out",
+      overwrite: true,
+      onComplete: () => {
+        if (!drag.ring.destroyed) drag.ring.destroy();
       },
     });
   }
@@ -4305,6 +4696,7 @@ export class PromptLayer {
     this.drag = null;
     if (drag) {
       gsap.killTweensOf(drag.item.position);
+      this.settleDragFeedback(drag, 0);
       drag.item.cursor = "grab";
       drag.item.alpha = 1;
     }

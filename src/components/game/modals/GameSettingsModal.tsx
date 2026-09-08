@@ -6,7 +6,7 @@ import {
   CARD_SIZE_MULTIPLIER_MIN,
   usePreferencesStore,
 } from "@/stores/usePreferencesStore";
-import type { CardPreviewMode } from "@/stores/usePreferencesStore";
+import type { CardPreviewMode, InlineCardStyle } from "@/stores/usePreferencesStore";
 import {
   HOVER_DELAY_MAX,
   HOVER_DELAY_MIN,
@@ -23,6 +23,10 @@ import { HAND_ORDER_OPTIONS } from "@/lib/handOrder";
 const PREVIEW_MODES: { value: CardPreviewMode; label: string }[] = [
   { value: "hover", label: "Hover" },
   { value: "right-click", label: "Right click" },
+];
+const PROMPT_PREVIEW_OPTIONS: ReadonlyArray<{ value: InlineCardStyle; label: string }> = [
+  { value: "printed", label: "Realistic" },
+  { value: "rules", label: "Rules" },
 ];
 
 function SettingRow({
@@ -101,6 +105,24 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
                 variant={prefs.stackCardStyle === option.value ? "default" : "outline"}
                 size="sm"
                 onClick={() => prefs.setStackCardStyle(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        </SettingRow>
+
+        <SettingRow
+          label="Prompt default preview"
+          hint="Choose which face cards show when a prompt opens. You can still switch individual cards."
+        >
+          <div className="flex items-center gap-2">
+            {PROMPT_PREVIEW_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                variant={prefs.promptCardStyle === option.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => prefs.setPromptCardStyle(option.value)}
               >
                 {option.label}
               </Button>

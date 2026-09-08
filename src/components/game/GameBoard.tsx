@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import type { CardDto, DayTime } from "@/protocol/game";
 import type { ClientPlayerDto } from "@/stores/gameStore.types";
@@ -311,6 +311,14 @@ export function GameBoard({
   const [dragBlockerId, setDragBlockerId] = useState<string | null>(null);
   const [dragAttackerId, setDragAttackerId] = useState<string | null>(null);
   const [sheetPlayerId, setSheetPlayerId] = useState<string | null>(null);
+  const gameOver = useGameStore((state) => state.gameView?.gameOver);
+  useEffect(
+    () =>
+      useGameStore.subscribe((state) => {
+        if (state.gameView?.gameOver) setSheetPlayerId(null);
+      }),
+    [],
+  );
 
   // On our turn, one opponent field stays expanded (sticky) instead of an even
   // split: the last-active opponent by default, or whichever we last hovered.
@@ -808,9 +816,11 @@ export function GameBoard({
     // to its owner so the badge can take that opponent's seat colour.
     const cardOwner = new Map<string, string>();
     const cardNames = new Map<string, string>();
+    const referenceCards = new Map<string, CardDto>();
     const addCards = (cards?: CardDto[]) =>
       cards?.forEach((card) => {
         cardOwner.set(card.id, card.ownerId);
+        referenceCards.set(card.id, card);
         if (card.identity.name) cardNames.set(card.id, card.identity.name);
       });
     addCards(myPermanents);
@@ -852,6 +862,7 @@ export function GameBoard({
             label: `Commander damage from ${cardNames.get(cardId) ?? `commander ${cardId}`}${ownerId ? ` · ${nameOf(ownerId)}` : ""}`,
             count: dmg,
             lethal: dmg >= 21,
+            referenceCard: referenceCards.get(cardId),
           };
         });
     };
@@ -1589,14 +1600,25 @@ export function GameBoard({
     playerColors,
   ]);
 
-  const baseSheetSpec = sheetPlayerId
-    ? (hudBarSpecs.find((spec) => spec.playerId === sheetPlayerId) ?? null)
-    : null;
+  const sheetPlayer = [me, ...opponents].find((player) => player.id === sheetPlayerId);
+  const baseSheetSpec =
+    sheetPlayerId && !gameOver
+      ? (hudBarSpecs.find((spec) => spec.playerId === sheetPlayerId) ?? null)
+      : null;
   const sheetSpec = baseSheetSpec
     ? {
         ...baseSheetSpec,
         badges: [
-          ...baseSheetSpec.badges.filter((badge) => !badge.zone),
+          ...baseSheetSpec.badges
+            .filter((badge) => !badge.zone)
+            .map((badge) =>
+              badge.id === "hand" && sheetPlayer && sheetPlayer.hand.length > 0
+                ? {
+                    ...badge,
+                    onTap: () => onOpenZone(`${sheetPlayer.name}'s visible hand`, sheetPlayer.hand),
+                  }
+                : badge,
+            ),
           ...buildZoneBadges(zoneTilesByPlayer[baseSheetSpec.playerId] ?? [], gameTheme.textMuted),
         ],
       }

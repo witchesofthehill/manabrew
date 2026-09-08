@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { DialogCardInspector } from "@/components/game/modals/DialogCardInspector";
+import { useCardInspection } from "@/components/game/modals/cardInspection";
 import { GameIcon } from "@/components/game/GameIcon";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { Modal } from "@/components/game/modals/Modal";
@@ -17,6 +20,9 @@ interface PlayerSheetModalProps {
 
 export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
   const theme = useTheme().gameTheme;
+  const [inspectedId, setInspectedId] = useState<string | null>(null);
+  const inspection = useCardInspection();
+  const inspected = spec.badges.find((badge) => badge.id === inspectedId)?.referenceCard;
   const hand = spec.badges.find((badge) => badge.id === "hand");
   const zones = spec.badges.filter((badge) => badge.zone);
   const commanderDamage = spec.badges.filter((badge) => badge.id.startsWith("cmd-"));
@@ -85,7 +91,7 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
                   : "border-border bg-muted/40 text-muted-foreground",
               )}
             >
-              {spec.combatLethal ? "Lethal combat damage incoming" : "In combat"}
+              {spec.combatLethal ? "Potential lethal combat damage" : "In combat"}
             </span>
           )}
         </div>
@@ -96,9 +102,9 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
           <section aria-label="Cards and zones">
             <h3 className="mb-2 text-xs font-semibold text-muted-foreground">Cards and zones</h3>
             <div className="grid grid-cols-2 gap-2">
-              <HandSummary count={hand?.count ?? 0} />
+              <HandSummary count={hand?.count ?? 0} onView={hand?.onTap} />
               {zones.map((badge) => (
-                <ResourceTile key={badge.id} badge={badge} onClose={onClose} />
+                <ResourceTile key={badge.id} badge={badge} />
               ))}
             </div>
           </section>
@@ -129,26 +135,48 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
 
         <PlayerRuleFacts facts={spec.ruleFacts} />
 
-        {states.length > 0 && (
-          <BadgeSection title="Player states" badges={states} onClose={onClose} />
-        )}
+        {states.length > 0 && <BadgeSection title="Player states" badges={states} />}
 
         {commanderDamage.length > 0 && (
           <BadgeSection
             title="Commander damage by source"
-            badges={commanderDamage}
-            onClose={onClose}
+            badges={commanderDamage.map((badge) =>
+              badge.referenceCard ? { ...badge, onTap: () => setInspectedId(badge.id) } : badge,
+            )}
           />
         )}
       </Modal.Body>
+      {inspected && (
+        <Modal onClose={() => setInspectedId(null)} maxWidth="max-w-md">
+          <Modal.Header onClose={() => setInspectedId(null)}>
+            <h2 className="text-base font-semibold">Commander source</h2>
+          </Modal.Header>
+          <Modal.Body>
+            <DialogCardInspector
+              card={inspected}
+              state={inspection.stateFor(inspected)}
+              onChange={(state) => inspection.change(inspected.id, state)}
+            />
+          </Modal.Body>
+        </Modal>
+      )}
     </Modal>
   );
 }
 
-function HandSummary({ count }: { count: number }) {
+function HandSummary({ count, onView }: { count: number; onView?: () => void }) {
   const visibleCards = Math.min(3, count);
+  const Element = onView ? "button" : "div";
   return (
-    <div className="col-span-2 flex min-h-16 items-center gap-3 rounded-md border bg-muted/25 px-3 py-2">
+    <Element
+      onClick={onView}
+      aria-label={onView ? "View permitted hand cards" : "Cards in hand"}
+      className={cn(
+        "col-span-2 flex min-h-16 items-center gap-3 rounded-md border bg-muted/25 px-3 py-2 text-left",
+        onView &&
+          "hover:border-card-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-card-ring",
+      )}
+    >
       <div aria-hidden="true" className="relative h-12 w-16 shrink-0">
         {Array.from({ length: visibleCards }, (_, index) => (
           <ScryfallImg
@@ -168,12 +196,13 @@ function HandSummary({ count }: { count: number }) {
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground">Cards in hand</p>
         <p className="font-mono text-xl font-bold tabular-nums">{count}</p>
+        {onView && <span className="text-xs text-muted-foreground">View visible cards</span>}
       </div>
-    </div>
+    </Element>
   );
 }
 
-function ResourceTile({ badge, onClose }: { badge: PlayerHudBadge; onClose: () => void }) {
+function ResourceTile({ badge }: { badge: PlayerHudBadge }) {
   const content = (
     <>
       <GameIcon
@@ -183,6 +212,7 @@ function ResourceTile({ badge, onClose }: { badge: PlayerHudBadge; onClose: () =
       />
       <span className="min-w-0 flex-1 truncate text-xs">{badge.label}</span>
       <span className="font-mono text-sm font-bold tabular-nums">{badge.count ?? 0}</span>
+      {badge.onTap && <span className="text-xs text-muted-foreground">View</span>}
     </>
   );
   const className =
@@ -193,12 +223,9 @@ function ResourceTile({ badge, onClose }: { badge: PlayerHudBadge; onClose: () =
       type="button"
       className={cn(
         className,
-        "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "hover:border-card-ring hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-card-ring",
       )}
-      onClick={() => {
-        onClose();
-        badge.onTap?.();
-      }}
+      onClick={badge.onTap}
     >
       {content}
     </button>
@@ -207,22 +234,14 @@ function ResourceTile({ badge, onClose }: { badge: PlayerHudBadge; onClose: () =
   );
 }
 
-function BadgeSection({
-  title,
-  badges,
-  onClose,
-}: {
-  title: string;
-  badges: PlayerHudBadge[];
-  onClose: () => void;
-}) {
+function BadgeSection({ title, badges }: { title: string; badges: PlayerHudBadge[] }) {
   return (
     <section aria-label={title}>
       <h3 className="mb-2 text-xs font-semibold text-muted-foreground">{title}</h3>
       <ul className="grid gap-1.5 sm:grid-cols-2">
         {badges.map((badge) => (
           <li key={badge.id} className={cn(badge.id === "ring" && "sm:col-span-2")}>
-            <BadgeRow badge={badge} onClose={onClose} />
+            <BadgeRow badge={badge} />
             {badge.id === "ring" && (
               <ol className="mb-2 ml-8 mt-2 list-decimal space-y-2 pl-4 text-xs">
                 {RING_ABILITIES.map((ability, index) => {
@@ -243,7 +262,7 @@ function BadgeSection({
   );
 }
 
-function BadgeRow({ badge, onClose }: { badge: PlayerHudBadge; onClose: () => void }) {
+function BadgeRow({ badge }: { badge: PlayerHudBadge }) {
   const content = (
     <>
       <GameIcon
@@ -278,12 +297,9 @@ function BadgeRow({ badge, onClose }: { badge: PlayerHudBadge; onClose: () => vo
       type="button"
       className={cn(
         className,
-        "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-card-ring",
       )}
-      onClick={() => {
-        onClose();
-        badge.onTap?.();
-      }}
+      onClick={badge.onTap}
     >
       {content}
     </button>

@@ -1,66 +1,130 @@
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { CardImageThumbnail } from "@/components/game/CardImageThumbnail";
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import type { DeckCard } from "@/protocol/deck";
+import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import { MODAL_CARD_THUMBNAIL } from "../game.styles";
+import { deckCardToPreviewDto } from "@/lib/scryfall.utils";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { Modal } from "./Modal";
+import { DialogCardInspector } from "./DialogCardInspector";
+import type { CardInspectionState } from "./cardInspection";
 
-interface ActionPickerModalProps {
+export interface ActionPickerModalProps {
   card: DeckCard;
+  sourceCard?: CardDto;
   title: string;
   options: HandActionOption[];
+  pending?: boolean;
+  error?: string;
+  initialInspection?: CardInspectionState;
   onSelect: (option: HandActionOption) => void;
   onCancel: () => void;
 }
 
 export function ActionPickerModal({
   card,
+  sourceCard,
   title,
   options,
+  pending = false,
+  error,
+  initialInspection,
   onSelect,
   onCancel,
 }: ActionPickerModalProps) {
+  const source = useMemo(() => sourceCard ?? deckCardToPreviewDto(card), [sourceCard, card]);
+  const defaultView = usePreferencesStore((s) => s.promptCardStyle);
+  const [inspection, setInspection] = useState<CardInspectionState>(
+    initialInspection ?? {
+      rules: defaultView === "rules",
+      face: source.isTransformed ? 1 : 0,
+      rotated: false,
+    },
+  );
+  const [highlight, setHighlight] = useState("");
   return (
-    <Modal maxWidth="max-w-md" maxHeight="" onClose={onCancel}>
-      <Modal.Header onClose={onCancel}>
-        <div className="flex items-center gap-3">
-          <CardImageThumbnail card={card} className={MODAL_CARD_THUMBNAIL} />
-          <div className="min-w-0">
-            <h2 className="text-base font-semibold">{title}</h2>
-            <p className="truncate text-xs font-medium text-muted-foreground">
-              {card.identity.name}
-            </p>
-          </div>
-        </div>
+    <Modal maxWidth="max-w-4xl" onClose={pending ? undefined : onCancel}>
+      <Modal.Header onClose={pending ? undefined : onCancel}>
+        <h2 className="text-base font-semibold">{title}</h2>
+        <p className="text-xs text-muted-foreground">{source.identity.name}</p>
       </Modal.Header>
-
-      <Modal.Instructions>Select an option to continue.</Modal.Instructions>
-
-      <Modal.Body className="flex max-h-[60dvh] flex-col gap-2">
-        <div role="group" aria-label="Available actions" className="flex flex-col gap-2">
-          {options.map((option, index) => (
-            <Button
-              key={option.actionId ?? `${option.kind}-${index}`}
-              variant="outline"
-              className="h-auto min-h-12 w-full justify-between gap-4 px-4 py-3 text-left"
-              onClick={() => onSelect(option)}
+      <Modal.Body className="grid gap-4 md:grid-cols-[minmax(240px,320px)_minmax(0,1fr)]">
+        <DialogCardInspector
+          card={source}
+          state={inspection}
+          onChange={setInspection}
+          highlight={highlight}
+        />
+        <div className="min-w-0 space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Inspect the card, then choose an available action. Viewing another face does not change
+            the action you choose.
+          </p>
+          {error && (
+            <p
+              role="alert"
+              className="rounded-lg border border-destructive p-3 text-sm text-destructive"
             >
-              <DynamicTextRender className="min-w-0 flex-1" text={option.label} />
-              {option.cost && (
-                <span className="shrink-0 rounded-md bg-muted/60 px-2 py-1">
-                  <DynamicTextRender text={option.cost} />
-                </span>
-              )}
-            </Button>
-          ))}
+              {error}
+            </p>
+          )}
+          <div
+            role="group"
+            aria-label="Available actions"
+            className="flex flex-col gap-2"
+            onKeyDown={(event) => {
+              if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+              const buttons = [
+                ...event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"),
+              ];
+              const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+              event.preventDefault();
+              buttons[
+                (index + (event.key === "ArrowDown" ? 1 : buttons.length - 1)) % buttons.length
+              ]?.focus();
+            }}
+          >
+            {options.map((option, index) => (
+              <Button
+                key={option.actionId ?? `${option.kind}-${index}`}
+                variant="outline"
+                disabled={pending}
+                className="h-auto min-h-12 w-full justify-between gap-3 whitespace-normal px-4 py-3 text-left hover:border-card-ring focus-visible:ring-card-ring"
+                onPointerEnter={() => setHighlight(option.kind === "ability" ? option.label : "")}
+                onFocus={() => setHighlight(option.kind === "ability" ? option.label : "")}
+                onClick={() => {
+                  if (!pending) onSelect(option);
+                }}
+              >
+                <DynamicTextRender
+                  className="min-w-0 flex-1 whitespace-normal"
+                  text={option.label}
+                />
+                {option.cost && (
+                  <span className="shrink-0 rounded-md bg-muted/60 px-2 py-1">
+                    <DynamicTextRender text={option.cost} />
+                  </span>
+                )}
+              </Button>
+            ))}
+            {!options.length && (
+              <p role="status" className="p-4 text-sm text-muted-foreground">
+                No actions are currently available for this card.
+              </p>
+            )}
+          </div>
+          {pending && (
+            <p role="status" className="text-sm text-muted-foreground">
+              Waiting for the game to respond…
+            </p>
+          )}
         </div>
       </Modal.Body>
-
       <Modal.Footer>
-        <Button size="sm" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
+        <Modal.Close onClose={onCancel} disabled={pending} variant="outline">
+          Back
+        </Modal.Close>
       </Modal.Footer>
     </Modal>
   );
@@ -68,23 +132,34 @@ export function ActionPickerModal({
 
 interface AbilityPickerModalProps {
   sourceCard: DeckCard;
+  liveCard?: CardDto;
   abilities: HandActionOption[];
+  pending?: boolean;
+  error?: string;
   onSelect: (ability: HandActionOption) => void;
   onCancel: () => void;
 }
-
 export function AbilityPickerModal({
   sourceCard,
+  liveCard,
   abilities,
+  pending,
+  error,
   onSelect,
   onCancel,
 }: AbilityPickerModalProps) {
-  const hasCastOption = abilities.some((ability) => ability.kind === "cast");
   return (
     <ActionPickerModal
       card={sourceCard}
-      title={hasCastOption ? "Choose an action" : "Activate an ability"}
+      sourceCard={liveCard}
+      title={
+        abilities.some((ability) => ability.kind === "cast")
+          ? "Choose an action"
+          : "Activate an ability"
+      }
       options={abilities}
+      pending={pending}
+      error={error}
       onSelect={onSelect}
       onCancel={onCancel}
     />

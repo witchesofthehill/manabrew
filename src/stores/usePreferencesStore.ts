@@ -29,7 +29,7 @@ export const CARD_SIZE_MULTIPLIER_MIN = 0.75;
 // (the old 300% top was one: everything saturated around 150%).
 export const CARD_SIZE_MULTIPLIER_MAX = 1.5;
 
-interface PreferencesState {
+export interface PreferencesState {
   appThemePreset: string;
   setAppThemePreset: (id: string) => void;
 

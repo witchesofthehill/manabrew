@@ -1,17 +1,14 @@
 import { GameOverlays } from "@/components/game/GameOverlays";
-import type { CardDto, StackObjectDto } from "@/protocol/game";
+import type { StackObjectDto } from "@/protocol/game";
 import type { AbilityPickerState, HandActionOption } from "@/stores/useGameUIStore";
+import type { ZoneViewerProps } from "@/components/game/modals/ZoneViewer";
+import type { StackDialogContext } from "@/components/game/modals/SpellStackModal";
 
 interface GameModalsProps {
-  viewingZone: {
-    title: string;
-    cards: CardDto[];
-    onClickCard?: (cardId: string) => void;
-    clickableCardIds?: string[];
-    targetHostile?: boolean;
-  } | null;
+  viewingZone: Omit<ZoneViewerProps, "onClose"> | null;
   onCloseZone: () => void;
   spellStackModalOpen: boolean;
+  stackContext: StackDialogContext;
   stack: StackObjectDto[];
   validSpellIds: string[];
   onTargetSpell: (spellId: string) => void;
@@ -26,6 +23,7 @@ export function GameModals({
   viewingZone,
   onCloseZone,
   spellStackModalOpen,
+  stackContext,
   stack,
   validSpellIds,
   onTargetSpell,
@@ -41,6 +39,7 @@ export function GameModals({
         viewingZone={viewingZone}
         onCloseZone={onCloseZone}
         spellStackModalOpen={spellStackModalOpen}
+        stackContext={stackContext}
         stack={stack}
         validSpellIds={validSpellIds}
         onTargetSpell={onTargetSpell}

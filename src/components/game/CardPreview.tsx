@@ -1,3 +1,4 @@
+import { topModal } from "@/lib/modalStack";
 import { createPortal } from "react-dom";
 import { Loader2, RotateCw } from "lucide-react";
 import type { CardDto } from "@/protocol/game";
@@ -269,6 +270,7 @@ export function CardPreview({
   useEffect(() => {
     if (!onDismiss) return;
     function handleKey(e: KeyboardEvent) {
+      if (topModal() || e.defaultPrevented || e.isComposing) return;
       if (e.key === "Escape") {
         onDismiss!();
         return;

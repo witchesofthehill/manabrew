@@ -1,5 +1,5 @@
 import { PlayModePicker } from "@/components/game/PlayModePicker";
-import { CombatSummarySection } from "@/components/game/CombatSummarySection";
+import { CombatBreakdownModal } from "@/components/game/modals/CombatBreakdownModal";
 import {
   AbilityPickerModal,
   ConcedeGameModal,
@@ -51,6 +51,7 @@ export function BattlefieldDialogPreview({
         <ZoneViewer
           title="Choose a card from your graveyard"
           cards={cards}
+          mode="target"
           onClose={onClose}
           onClickCard={onClose}
           clickableCardIds={cards.slice(0, 2).map((card) => card.id)}
@@ -62,11 +63,18 @@ export function BattlefieldDialogPreview({
       );
     case "spell-stack":
       return (
-        <SpellStackModal stack={stack} validSpellIds={[]} onTarget={onClose} onCancel={onClose} />
+        <SpellStackModal
+          mode="browse"
+          stack={stack}
+          validSpellIds={[]}
+          onTarget={onClose}
+          onCancel={onClose}
+        />
       );
     case "target-spell-stack":
       return (
         <SpellStackModal
+          mode="target"
           stack={stack}
           validSpellIds={[stack[0].id]}
           onTarget={onClose}
@@ -91,15 +99,13 @@ export function BattlefieldDialogPreview({
       return <PlayerSheetModal spec={playerSpec} onClose={onClose} />;
     case "combat-summary":
       return (
-        <CombatSummarySection
-          promptType="chooseBlockers"
+        <CombatBreakdownModal
           attackerIds={[cards[0].id, cards[2].id]}
-          pendingAttackers={[]}
           blockAssignments={[{ attackerId: cards[0].id, blockerId: cards[1].id }]}
           resolveCardName={(cardId) => cardById.get(cardId)?.identity.name ?? cardId}
           resolveCard={(cardId) => cardById.get(cardId)}
           defenderLife={12}
-          initialOpen
+          onClose={onClose}
         />
       );
     default:

@@ -1,9 +1,11 @@
+import { CombatBreakdownModal } from "@/components/game/modals/CombatBreakdownModal";
+import { locateVisibleZone, visibleZoneCards, zoneLocationKey } from "@/lib/zoneView";
 import { isForgeWasmActive } from "@/lib/forgeWasm";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { asDeckCard } from "@/lib/decks";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
-import { partitionBoardTargets, validCardIdsInCards } from "@/lib/boardTargets";
+import { partitionBoardTargets } from "@/lib/boardTargets";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -236,6 +238,9 @@ interface GameProps {
 }
 
 export default function Game({ exitTo }: GameProps = {}) {
+  const responseError = useGameStore((s) =>
+    s.debugInfo.startsWith("Respond error:") ? s.debugInfo : undefined,
+  );
   const interruption = useMultiplayerInterruption();
   useAutoResolvePrompt(interruption.waiting);
   const rawGameView = useGameStore((s) => s.gameView);
@@ -307,12 +312,17 @@ export default function Game({ exitTo }: GameProps = {}) {
   const eliminatedModalShownRef = useRef(false);
   const [leaveGameModalOpen, setLeaveGameModalOpen] = useState(false);
   const [concedeModalOpen, setConcedeModalOpen] = useState(false);
+  const [stackBrowserMode, setStackBrowserMode] = useState<"browse" | "target">("browse");
+  const [combatDetailsOpen, setCombatDetailsOpen] = useState(false);
   const [introDone, setIntroDone] = useState(false);
   const handleLoadingComplete = useCallback(() => setIntroDone(true), []);
   const [boardSurfaceEl, setBoardSurfaceEl] = useState<HTMLDivElement | null>(null);
 
   const activePrompt = manualApi ? null : currentPrompt;
   const promptType = activePrompt?.input.type;
+  useEffect(() => {
+    setCombatDetailsOpen(false);
+  }, [promptType]);
   const chooseActionInput = activePrompt?.input.type === "chooseAction" ? activePrompt.input : null;
   const chooseAttackersInput =
     activePrompt?.input.type === "chooseAttackers" ? activePrompt.input : null;
@@ -598,8 +608,16 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
 
   const respondHandAction = (option: HandActionOption): boolean => {
-    if (option.actionId != null) {
-      respond({ type: "act", actionId: option.actionId });
+    const current = useGameStore.getState();
+    const input = current.currentPrompt?.input;
+    const actions =
+      input?.type === "chooseAction" || input?.type === "payManaCost" ? input.actions : [];
+    if (
+      !current.isWaitingForResponse &&
+      option.actionId != null &&
+      actions.some((action) => action.id === option.actionId)
+    ) {
+      void current.respond({ type: "act", actionId: option.actionId });
       return true;
     }
     return false;
@@ -621,6 +639,8 @@ export default function Game({ exitTo }: GameProps = {}) {
         cardId,
         card: asDeckCard(gameDecks[gc.ownerId], gc),
         options: castActions,
+        promptId: currentPrompt!.promptId,
+        source: gc,
       });
       return;
     }
@@ -648,12 +668,12 @@ export default function Game({ exitTo }: GameProps = {}) {
       preview.showSticky(card, e.clientX, e.clientY);
       return;
     }
-    // Zone-viewer clicks carry no anchor point, and the sticky preview would be
-    // dismissed by the viewer closing — use the modal picker instead.
     openPlayModePicker({
       cardId: card.id,
       card: asDeckCard(gameDecks[card.ownerId], card),
       options: actions,
+      promptId: currentPrompt!.promptId,
+      source: card,
     });
   };
 
@@ -782,6 +802,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     openZoneViewer({
       title,
       cards,
+      mode: onClickCard ? "target" : "browse",
+      source: locateVisibleZone(cards, gameView),
       onClickCard,
       clickableCardIds,
       targetHostile,
@@ -792,6 +814,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     openZoneViewer({
       title,
       cards,
+      mode: "manual",
+      source: locateVisibleZone(cards, gameView),
       onClickCard: (cardId) => {
         const card = cards.find((candidate) => candidate.id === cardId);
         closeZoneViewer();
@@ -817,11 +841,10 @@ export default function Game({ exitTo }: GameProps = {}) {
     openZoneViewer({
       title,
       cards,
+      mode: "cast",
+      source: locateVisibleZone(cards, gameView),
       clickableCardIds,
-      onClickCard: (cardId) => {
-        closeZoneViewer();
-        onClickCard(cardId);
-      },
+      onClickCard,
     });
   }
 
@@ -1083,10 +1106,11 @@ export default function Game({ exitTo }: GameProps = {}) {
     "toggle-stack": () => useStackUIStore.getState().toggleCollapsed(),
     "toggle-dev-panel": () => useGameUIStore.getState().toggleDevPanel(),
     "pass-priority": () => {
-      if (manualApi) return;
-      if (document.querySelector('[role="dialog"]')) return;
-      if (confirmPromptRef.current()) return;
-      if (promptType === "chooseAction") unifiedPassRef.current();
+      if (manualApi || document.querySelector('[role="dialog"]')) return false;
+      if (confirmPromptRef.current()) return true;
+      if (promptType !== "chooseAction") return false;
+      unifiedPassRef.current();
+      return true;
     },
     "pass-end-of-turn": () => {
       if (manualApi) return;
@@ -1132,11 +1156,10 @@ export default function Game({ exitTo }: GameProps = {}) {
   const ownsEngine = isHost || hostingForgeRoom;
   const gameContinuesWithoutMe = opponents.filter((p) => p.status === "playing").length >= 2;
   const handleConcede = useCallback(() => setConcedeModalOpen(true), []);
-  const handleConcedeConfirm = useCallback(() => {
+  const handleConcedeConfirm = useCallback(async () => {
+    await concede();
     setConcedeModalOpen(false);
-    void concede();
-    if (ownsEngine) eliminatedModalShownRef.current = true;
-  }, [concede, ownsEngine]);
+  }, [concede]);
   const handleLeave = useCallback(() => {
     if (ownsEngine) setLeaveGameModalOpen(true);
     else void endGame();
@@ -1145,12 +1168,37 @@ export default function Game({ exitTo }: GameProps = {}) {
   const myStatus = me?.status;
   const gameOverNow = gameView?.gameOver ?? false;
   useEffect(() => {
-    if (gameOverNow || manualApi || !gameContinuesWithoutMe) return;
-    if (myStatus && myStatus !== "playing" && !eliminatedModalShownRef.current) {
+    if (gameOverNow) {
+      setEliminatedModalOpen(false);
+      setConcedeModalOpen(false);
+      setLeaveGameModalOpen(false);
+      setGameSettingsOpen(false);
+      setCombatDetailsOpen(false);
+      closeZoneViewer();
+      closePlayModePicker();
+      closeAbilityPicker();
+      setSpellStackModalOpen(false);
+      return;
+    }
+    if (manualApi || !gameContinuesWithoutMe) return;
+    if (
+      (selfConceded || (myStatus && myStatus !== "playing")) &&
+      !eliminatedModalShownRef.current
+    ) {
       eliminatedModalShownRef.current = true;
       setEliminatedModalOpen(true);
     }
-  }, [myStatus, gameOverNow, manualApi, gameContinuesWithoutMe]);
+  }, [
+    myStatus,
+    selfConceded,
+    gameOverNow,
+    manualApi,
+    gameContinuesWithoutMe,
+    closeZoneViewer,
+    closePlayModePicker,
+    closeAbilityPicker,
+    setSpellStackModalOpen,
+  ]);
 
   const payManaCostPrompt =
     currentPrompt?.input.type === "payManaCost" ? currentPrompt.input : null;
@@ -1186,6 +1234,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     openZoneViewer({
       title: "Delve — Your Graveyard",
       cards: me?.graveyard ?? [],
+      mode: "cost",
+      source: me ? { playerId: me.id, zone: "graveyard" } : undefined,
       onClickCard: handleDelveCard,
       clickableCardIds: delveSourceIds,
       selectedCardIds: delvedCardIds,
@@ -1193,43 +1243,93 @@ export default function Game({ exitTo }: GameProps = {}) {
       selectedLabel: "UN-DELVE",
       stickyPromptType: "payManaCost",
     });
-  }, [openZoneViewer, me?.graveyard, handleDelveCard, delveSourceIds, delvedCardIds]);
+  }, [openZoneViewer, me, handleDelveCard, delveSourceIds, delvedCardIds]);
 
   useEffect(() => {
-    const vz = useGameUIStore.getState().viewingZone;
-    if (vz?.selectedCardIds === undefined) return;
-    openZoneViewer({ ...vz, clickableCardIds: delveSourceIds, selectedCardIds: delvedCardIds });
-  }, [delveSourceIds, delvedCardIds, openZoneViewer]);
+    if (
+      spellStackModalOpen &&
+      stackBrowserMode === "target" &&
+      !isWaitingForResponse &&
+      currentPrompt?.input.type !== "chooseBoardTargets"
+    )
+      setSpellStackModalOpen(false);
+  }, [
+    spellStackModalOpen,
+    stackBrowserMode,
+    isWaitingForResponse,
+    currentPrompt,
+    setSpellStackModalOpen,
+  ]);
 
-  // Keep an open zone-target viewer in sync with the live valid set as each
-  // target is picked (the engine re-prompts with the remaining candidates).
-  // `boardTargets` is null while a response is in flight — leave the viewer be;
-  // if targeting is active but no longer has zone candidates, close it.
-  useEffect(() => {
-    const vz = useGameUIStore.getState().viewingZone;
-    if (vz?.stickyPromptType !== "chooseBoardTargets" || !boardTargets) return;
-    if (!boardTargets.zone) {
-      closeZoneViewer();
-      return;
-    }
-    const clickableCardIds = validCardIdsInCards(boardTargets.zone.validCardIds, vz.cards);
-    if (clickableCardIds.length === 0) {
-      closeZoneViewer();
-      return;
-    }
-    openZoneViewer({ ...vz, clickableCardIds });
-  }, [boardTargets, openZoneViewer, closeZoneViewer]);
-
-  // Generic sticky-viewer close: a viewer bound to a prompt type stays open
-  // across same-type re-prompts and only closes once the prompt changes type
-  // or ends. Keyed on currentPrompt (not activePrompt) so it survives the null
-  // window while a response is in flight.
   useEffect(() => {
     const sticky = viewingZone?.stickyPromptType;
-    if (sticky && currentPrompt?.input.type !== sticky) {
+    if (
+      (sticky && currentPrompt?.input.type !== sticky) ||
+      (viewingZone?.mode === "cast" && currentPrompt && currentPrompt.input.type !== "chooseAction")
+    ) {
       closeZoneViewer();
     }
   }, [currentPrompt, viewingZone, closeZoneViewer]);
+
+  const liveZoneCards =
+    viewingZone?.source && gameView
+      ? visibleZoneCards(viewingZone.source, gameView)
+      : (viewingZone?.cards ?? []);
+  const liveZoneCandidates =
+    viewingZone?.mode === "target"
+      ? (boardTargets?.zone?.validCardIds ?? [])
+      : viewingZone?.mode === "cost"
+        ? delveSourceIds
+        : viewingZone?.mode === "cast" || viewingZone?.mode === "browse"
+          ? [...castOptionsByCardId.keys(), ...abilitiesByCardId.keys()]
+          : viewingZone?.mode === "manual"
+            ? liveZoneCards.map((card) => card.id)
+            : [];
+  const liveViewingZone = viewingZone
+    ? {
+        ...viewingZone,
+        cards: liveZoneCards,
+        clickableCardIds: liveZoneCandidates,
+        selectedCardIds: viewingZone.mode === "cost" ? delvedCardIds : viewingZone.selectedCardIds,
+        pending: isWaitingForResponse,
+        totalCount:
+          viewingZone.source?.zone === "library"
+            ? gameView?.players.find((player) => player.id === viewingZone.source!.playerId)
+                ?.libraryCount
+            : undefined,
+        onClickCard:
+          viewingZone.mode === "browse" && liveZoneCandidates.length === 0
+            ? undefined
+            : (cardId: string) => {
+                if (
+                  isWaitingForResponse ||
+                  (!liveZoneCandidates.includes(cardId) &&
+                    !(viewingZone.mode === "cost" && delvedCardIds.includes(cardId)))
+                )
+                  return;
+                const card = liveZoneCards.find((candidate) => candidate.id === cardId);
+                if (!card) return;
+                if (viewingZone.mode === "cast" || viewingZone.mode === "browse") {
+                  if (viewingZone.mode === "browse")
+                    openZoneViewer({ ...viewingZone, mode: "cast" });
+                  handleHandCardAction(card);
+                } else if (viewingZone.mode === "target") casting.wrappedTargetCard(cardId);
+                else if (viewingZone.mode === "cost") handleDelveCard(cardId);
+                else if (manualApi && viewingZone.source && gameView) {
+                  const source = visibleZoneCards(viewingZone.source, gameView).find(
+                    (candidate) => candidate.id === cardId,
+                  );
+                  if (source)
+                    void applyManualAction({
+                      type: "moveCard",
+                      cardId,
+                      fromZoneId: source.zoneId,
+                      toZoneId: "battlefield",
+                    });
+                }
+              },
+      }
+    : null;
   const opponent = opponents[0];
 
   const playerColorMap = useMemo(() => {
@@ -1499,6 +1599,40 @@ export default function Game({ exitTo }: GameProps = {}) {
     debugCardChoices,
     me?.id,
   ]);
+
+  useEffect(() => {
+    if (
+      playModePicker &&
+      (currentPrompt?.promptId !== playModePicker.promptId ||
+        !visibleCardsById.has(playModePicker.cardId))
+    )
+      closePlayModePicker();
+    if (
+      abilityPickerState &&
+      (currentPrompt?.promptId !== abilityPickerState.promptId ||
+        !visibleCardsById.has(abilityPickerState.cardId))
+    )
+      closeAbilityPicker();
+  }, [
+    currentPrompt,
+    playModePicker,
+    abilityPickerState,
+    visibleCardsById,
+    closePlayModePicker,
+    closeAbilityPicker,
+  ]);
+  const liveAbilityPicker = abilityPickerState
+    ? {
+        ...abilityPickerState,
+        source: visibleCardsById.get(abilityPickerState.cardId) ?? abilityPickerState.source,
+        abilities:
+          abilityPickerState.promptId === currentPrompt?.promptId
+            ? abilityPickerState.abilities.filter((option) =>
+                promptActions.some((action) => action.id === option.actionId),
+              )
+            : [],
+      }
+    : null;
 
   const regionOwnerOf = useCallback((card: CardDto, byId: Map<string, CardDto>): string => {
     let cur = card;
@@ -1992,8 +2126,14 @@ export default function Game({ exitTo }: GameProps = {}) {
           type: "damageAssignmentOrderDecision",
           orderedBlockerIds: damageOrderInput?.blockerIds ?? [],
         }),
-      onOpenStack: () => setSpellStackModalOpen(true),
+      onOpenStack: () => {
+        setStackBrowserMode(
+          activePrompt?.input.type === "chooseBoardTargets" ? "target" : "browse",
+        );
+        setSpellStackModalOpen(true);
+      },
       onToggleBoardMenu: () => setBoardMenuOpen((open) => !open),
+      onOpenCombat: () => setCombatDetailsOpen(true),
       targetCompletionLabel: targetCompletion?.label,
       targetCompletionKind: targetCompletion?.kind,
       onCompleteTargets: targetCompletion?.onComplete,
@@ -2101,7 +2241,10 @@ export default function Game({ exitTo }: GameProps = {}) {
           boardSurfaceRef={setBoardSurfaceEl}
           stackSpec={stackSpec}
           promptOverlaySpec={manualApi ? null : promptOverlaySpec}
-          onOpenStack={() => setSpellStackModalOpen(true)}
+          onOpenStack={() => {
+            setStackBrowserMode("browse");
+            setSpellStackModalOpen(true);
+          }}
           onTargetSpell={(spellId) => {
             casting.wrappedTargetSpell(spellId);
             setSpellStackModalOpen(false);
@@ -2279,6 +2422,7 @@ export default function Game({ exitTo }: GameProps = {}) {
               open={boardMenuOpen}
               onOpenChange={setBoardMenuOpen}
               onOpenSettings={() => setGameSettingsOpen(true)}
+              onOpenCombat={() => setCombatDetailsOpen(true)}
               onConcede={handleConcede}
               eliminated={iAmEliminated}
               onLeave={handleLeave}
@@ -2303,6 +2447,21 @@ export default function Game({ exitTo }: GameProps = {}) {
         )}
 
       {gameSettingsOpen && <GameSettingsModal onClose={() => setGameSettingsOpen(false)} />}
+      {combatDetailsOpen && (
+        <CombatBreakdownModal
+          attackerIds={
+            promptType === "chooseAttackers"
+              ? pendingAttackers
+              : (chooseBlockersInput?.attackers.map((attacker) => attacker.attackerId) ??
+                gameView.battlefield.filter((card) => card.isAttacking).map((card) => card.id))
+          }
+          blockAssignments={promptType === "chooseBlockers" ? blockAssignments : combatAssignments}
+          resolveCard={(id) => visibleCardsById.get(id)}
+          resolveCardName={(id) => cardNameById.get(id) ?? id}
+          defenderLife={promptType === "chooseBlockers" ? me.life : undefined}
+          onClose={() => setCombatDetailsOpen(false)}
+        />
+      )}
       {eliminatedModalOpen && (
         <EliminatedModal
           heading={selfConceded || me?.status === "conceded" ? "You conceded" : "You lost"}
@@ -2317,14 +2476,15 @@ export default function Game({ exitTo }: GameProps = {}) {
       {leaveGameModalOpen && (
         <LeaveGameModal
           onStay={() => setLeaveGameModalOpen(false)}
-          onLeave={() => {
+          onLeave={async () => {
+            await endGame();
             setLeaveGameModalOpen(false);
-            void endGame();
           }}
         />
       )}
       {concedeModalOpen && (
         <ConcedeGameModal
+          hosting={ownsEngine && gameContinuesWithoutMe}
           onConfirm={handleConcedeConfirm}
           onCancel={() => setConcedeModalOpen(false)}
         />
@@ -2342,33 +2502,62 @@ export default function Game({ exitTo }: GameProps = {}) {
       )}
 
       <GameModals
-        viewingZone={viewingZone}
+        viewingZone={liveViewingZone}
         onCloseZone={closeZone}
         spellStackModalOpen={spellStackModalOpen}
+        stackContext={{
+          mode: stackBrowserMode,
+          prompt:
+            activePrompt?.input.type === "chooseBoardTargets" ? activePrompt.input : undefined,
+          pending: isWaitingForResponse,
+          onCancelTarget:
+            activePrompt?.input.type === "chooseBoardTargets" && activePrompt.input.cancellable
+              ? () => {
+                  casting.cancelTargeting();
+                  setSpellStackModalOpen(false);
+                }
+              : undefined,
+          resolveName: (id) =>
+            cardNameById.get(id) ?? gameView.players.find((player) => player.id === id)?.name ?? id,
+        }}
         stack={gameView.stack}
         validSpellIds={boardTargets?.spellIds ?? []}
         onTargetSpell={(spellId) => {
-          casting.wrappedTargetSpell(spellId);
-          setSpellStackModalOpen(false);
+          if (
+            !isWaitingForResponse &&
+            activePrompt?.input.type === "chooseBoardTargets" &&
+            boardTargets?.spellIds.includes(spellId)
+          )
+            casting.wrappedTargetSpell(spellId);
         }}
         onCloseStack={() => setSpellStackModalOpen(false)}
         playerColorMap={playerColorMap}
-        abilityPickerState={abilityPickerState}
-        onSelectAbility={(ability) => {
-          respondHandAction(ability);
-          closeAbilityPicker();
-        }}
+        abilityPickerState={liveAbilityPicker}
+        onSelectAbility={respondHandAction}
         onCancelAbilityPicker={closeAbilityPicker}
       />
 
       {playModePicker && (
         <PlayModePicker
           card={playModePicker.card}
-          options={playModePicker.options}
-          onSelect={(option) => {
-            respondHandAction(option);
-            closePlayModePicker();
-          }}
+          sourceCard={visibleCardsById.get(playModePicker.cardId) ?? playModePicker.source}
+          initialInspection={
+            viewingZone
+              ? useGameUIStore.getState().zoneBrowserStates[
+                  zoneLocationKey(viewingZone.source, viewingZone.title)
+                ]?.inspection[playModePicker.cardId]
+              : undefined
+          }
+          pending={isWaitingForResponse}
+          error={responseError}
+          options={
+            playModePicker.promptId === currentPrompt?.promptId
+              ? playModePicker.options.filter((option) =>
+                  promptActions.some((action) => action.id === option.actionId),
+                )
+              : []
+          }
+          onSelect={respondHandAction}
           onCancel={closePlayModePicker}
         />
       )}

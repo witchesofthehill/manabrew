@@ -1,4 +1,5 @@
 // @refresh reset
+import { topModal } from "@/lib/modalStack";
 
 import { useEffect, useRef, useState } from "react";
 import { Application, Graphics } from "pixi.js";
@@ -771,6 +772,7 @@ export function BoardOverlayCanvas({
   useEffect(() => {
     if (!rulesPreviewOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
+      if (topModal() || event.defaultPrevented || event.isComposing) return;
       if (event.altKey || event.ctrlKey || event.metaKey) return;
       const target = event.target;
       if (

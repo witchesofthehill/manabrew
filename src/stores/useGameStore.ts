@@ -624,19 +624,20 @@ export const useGameStore = create<GameState>()(
       concede: async () => {
         const runtime = getSelectedGameRuntime();
         if (runtime.capabilities.concedeBehavior === "end-session") {
-          void get().endGame();
+          await get().endGame();
           return;
         }
         const { myPlayerSlot } = get();
-        set({ selfConceded: true, currentPrompt: null, isWaitingForResponse: false });
-        if (!myPlayerSlot) return;
+        if (!myPlayerSlot) throw new Error("No local player is available to concede.");
         try {
           await runtime.api.sendDirective({
             playerSlot: myPlayerSlot,
             directive: { type: "concede" },
           });
+          set({ selfConceded: true, currentPrompt: null, isWaitingForResponse: false });
         } catch (e) {
           console.warn("[store] concede directive failed:", e);
+          throw e;
         }
       },
 

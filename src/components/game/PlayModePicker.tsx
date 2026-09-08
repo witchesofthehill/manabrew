@@ -1,22 +1,6 @@
 import { ActionPickerModal } from "@/components/game/modals/AbilityPickerModal";
-import type { DeckCard } from "@/protocol/deck";
-import type { HandActionOption } from "@/stores/useGameUIStore";
+import type { ActionPickerModalProps } from "@/components/game/modals/AbilityPickerModal";
 
-interface PlayModePickerProps {
-  card: DeckCard;
-  options: HandActionOption[];
-  onSelect: (option: HandActionOption) => void;
-  onCancel: () => void;
-}
-
-export function PlayModePicker({ card, options, onSelect, onCancel }: PlayModePickerProps) {
-  return (
-    <ActionPickerModal
-      card={card}
-      title="Choose an action"
-      options={options}
-      onSelect={onSelect}
-      onCancel={onCancel}
-    />
-  );
+export function PlayModePicker(props: Omit<ActionPickerModalProps, "title">) {
+  return <ActionPickerModal {...props} title="Choose how to play this card" />;
 }

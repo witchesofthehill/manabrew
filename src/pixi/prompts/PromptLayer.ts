@@ -1,3 +1,5 @@
+import { topModal } from "@/lib/modalStack";
+import { summarizeCombat } from "@/components/game/combatSummary";
 import {
   Application,
   Container,
@@ -107,6 +109,9 @@ const DRAG_TILT_RADIANS_PER_PIXEL = 0.017;
 const REORDER_PREVIEW_SECONDS = 0.14;
 const FILTER_CARET_PERIOD_MS = 1000;
 const SCRY_LAYOUT_SETTLE_SECONDS = 0.2;
+const MODAL_SCROLL_LINE_HEIGHT = 16;
+const MODAL_SCROLL_SCALE = 0.35;
+const MODAL_SCROLL_MAX_STEP = 56;
 
 interface DragState {
   item: Container;
@@ -325,7 +330,6 @@ export class PromptLayer {
   private readonly unsubscribeKeybindings: () => void;
   private endTurnModifiersHeld = false;
   private actionContextOpen = false;
-  private combatBreakdownOpen = false;
   private actionGlow: PromptGlow | null = null;
   private actionFeedback = { glow: 0, press: 0 };
   private actionGlowTween: gsap.core.Timeline | null = null;
@@ -438,7 +442,6 @@ export class PromptLayer {
     const nextActionPromptType = spec?.action.promptType;
     if (nextActionPromptType !== this.actionPromptType) {
       this.actionPromptType = nextActionPromptType;
-      this.combatBreakdownOpen = false;
       this.actionContextOpen = false;
     }
     const nextKey = spec?.currentPrompt ?? spec?.gameOver ?? null;
@@ -911,7 +914,6 @@ export class PromptLayer {
 
     this.container.addChild(panel);
     this.actionBounds = new Rectangle(x, y, width, panelHeight);
-    if (this.combatBreakdownOpen) this.renderCombatBreakdown();
   }
 
   private buildActionView(
@@ -2241,38 +2243,12 @@ export class PromptLayer {
       activeAttackers.length === 0;
     if ((isAttackDecl || isBlockDecl || sample) && (activeAttackers.length > 0 || sample)) {
       visible = true;
-      const blockedIds = new Set(
-        action.blockAssignments.map((assignment) => assignment.attackerId),
-      );
-      const attackerCount = sample ? 3 : activeAttackers.length;
-      const blockedCount = sample ? 1 : activeAttackers.filter((id) => blockedIds.has(id)).length;
+      const summary = summarizeCombat(activeAttackers, action.blockAssignments, action.resolveCard);
+      const attackerCount = sample ? 3 : summary.attackerCount;
+      const blockedCount = sample ? 1 : summary.blockedCount;
       const unblockedCount = attackerCount - blockedCount;
-      const incomingDamage = sample
-        ? 7
-        : activeAttackers.reduce((sum, id) => {
-            if (blockedIds.has(id)) return sum;
-            const card = action.resolveCard(id);
-            const power = Math.max(0, parseCombatNumber(card?.power));
-            const doubles =
-              card?.keywords?.some((keyword) =>
-                keyword.toLowerCase().startsWith("double strike"),
-              ) ?? false;
-            return sum + (doubles ? power * 2 : power);
-          }, 0);
-      const firstStrike =
-        sample ||
-        [
-          ...activeAttackers,
-          ...action.blockAssignments.map((assignment) => assignment.blockerId),
-        ].some(
-          (id) =>
-            action.resolveCard(id)?.keywords?.some((keyword) => {
-              const normalized = keyword.toLowerCase();
-              return (
-                normalized.startsWith("first strike") || normalized.startsWith("double strike")
-              );
-            }) ?? false,
-        );
+      const incomingDamage = sample ? 7 : summary.estimatedDamage;
+      const firstStrike = sample || summary.firstStrike;
       const lethal =
         sample ||
         (isBlockDecl &&
@@ -2304,7 +2280,7 @@ export class PromptLayer {
         x += blocks.width + 8;
       }
       const damage = promptText(
-        `${showIncoming ? "Incoming" : "Open"} ${incomingDamage}`,
+        `${showIncoming ? "Est." : "Open"} ${incomingDamage}`,
         12,
         lethal ? destructive : this.theme.appTheme.foreground,
         { weight: lethal ? "700" : "600" },
@@ -2324,7 +2300,7 @@ export class PromptLayer {
         container.addChild(zap, strike);
       }
       if (lethal) {
-        const lethalLabel = promptText("LETHAL", 10, destructive, {
+        const lethalLabel = promptText("LETHAL?", 10, destructive, {
           weight: "700",
           letterSpacing: 0.5,
         });
@@ -2335,7 +2311,7 @@ export class PromptLayer {
         );
         container.addChild(lethalLabel);
       }
-      if (isBlockDecl && !sample) {
+      if ((isAttackDecl || isBlockDecl) && !sample && action.onOpenCombat) {
         const info = this.makeIcon("lucide-info", 14, muted);
         info.position.set(availableWidth - 14, y + 17);
         const target = new Container();
@@ -2346,10 +2322,7 @@ export class PromptLayer {
         target.accessible = true;
         target.accessibleTitle = "Combat breakdown";
         target.tabIndex = 0;
-        target.on("pointertap", () => {
-          this.combatBreakdownOpen = true;
-          this.rebuild();
-        });
+        target.on("pointertap", action.onOpenCombat);
         container.addChild(info, target);
       }
       y += height;
@@ -2416,121 +2389,6 @@ export class PromptLayer {
     popover.eventMode = "none";
     popover.zIndex = 20;
     this.container.addChild(popover);
-  }
-
-  private renderCombatBreakdown(): void {
-    const action = this.spec!.action;
-    const blockedIds = new Set(action.blockAssignments.map((entry) => entry.attackerId));
-    const attackerPower = action.attackerIds.reduce(
-      (sum, id) => sum + Math.max(0, parseCombatNumber(action.resolveCard(id)?.power)),
-      0,
-    );
-    const blockerToughness = action.blockAssignments.reduce(
-      (sum, entry) => sum + parseCombatNumber(action.resolveCard(entry.blockerId)?.toughness),
-      0,
-    );
-    const incoming = action.attackerIds.reduce((sum, id) => {
-      if (blockedIds.has(id)) return sum;
-      const card = action.resolveCard(id);
-      const power = Math.max(0, parseCombatNumber(card?.power));
-      const doubleStrike =
-        card?.keywords?.some((keyword) => keyword.toLowerCase().startsWith("double strike")) ??
-        false;
-      return sum + (doubleStrike ? power * 2 : power);
-    }, 0);
-    const width = Math.min(432, this.viewportWidth - 24);
-    const rowHeight = 42;
-    const height = Math.min(
-      this.viewportHeight - 24,
-      116 + Math.max(1, action.attackerIds.length) * rowHeight,
-    );
-    const x = (this.viewportWidth - width) / 2;
-    const y = (this.viewportHeight - height) / 2;
-    const close = () => {
-      this.combatBreakdownOpen = false;
-      this.rebuild();
-    };
-    const backdrop = new Graphics()
-      .rect(0, 0, this.viewportWidth, this.viewportHeight)
-      .fill({ color: hexToNum(this.theme.appTheme.overlay), alpha: 0.76 });
-    backdrop.eventMode = "static";
-    backdrop.hitArea = new Rectangle(0, 0, this.viewportWidth, this.viewportHeight);
-    backdrop.on("pointertap", close);
-    const panel = this.panel(width, height, x, y, 12);
-    panel.eventMode = "static";
-    panel.hitArea = new Rectangle(0, 0, width, height);
-    panel.on("pointertap", (event: FederatedPointerEvent) => event.stopPropagation());
-    const heading = promptText("COMBAT", 14, this.theme.appTheme.foreground, {
-      weight: "700",
-      letterSpacing: 0.7,
-    });
-    heading.position.set(18, 14);
-    const closeButton = this.makeButton("", close, {
-      title: "Close combat breakdown",
-      icon: "lucide-x",
-      iconSize: 16,
-      outline: true,
-      compact: true,
-      width: 30,
-      height: 30,
-    });
-    closeButton.position.set(width - 42, 8);
-    const summary = promptText(
-      `Power ${attackerPower}   vs   Blocker toughness ${blockerToughness}   ·   Incoming ${incoming}`,
-      14,
-      this.theme.appTheme.foreground,
-      { weight: "600", width: width - 36, align: "center" },
-    );
-    summary.anchor.set(0.5, 0);
-    summary.position.set(width / 2, 52);
-    panel.addChild(heading, closeButton, summary);
-    let rowY = 82;
-    for (const attackerId of action.attackerIds) {
-      const attacker = action.resolveCard(attackerId);
-      const blockers = action.blockAssignments.filter((entry) => entry.attackerId === attackerId);
-      panel.addChild(
-        new Graphics()
-          .roundRect(16, rowY, width - 32, 36, 6)
-          .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.5 }),
-      );
-      const pt =
-        attacker?.power && attacker.toughness ? `${attacker.power}/${attacker.toughness}  ` : "";
-      const name = promptText(
-        `${pt}${action.resolveCardName(attackerId)}`,
-        12,
-        this.theme.appTheme.foreground,
-        {
-          weight: "600",
-        },
-      );
-      name.position.set(24, rowY + 10);
-      const blockerText =
-        blockers.length === 0
-          ? "unblocked"
-          : blockers
-              .map((entry) => {
-                const card = action.resolveCard(entry.blockerId);
-                const blockerPt =
-                  card?.power && card.toughness ? `${card.power}/${card.toughness} ` : "";
-                return `${blockerPt}${action.resolveCardName(entry.blockerId)}`;
-              })
-              .join(", ");
-      const blockersLabel = promptText(
-        `←  ${blockerText}`,
-        11,
-        blockers.length === 0
-          ? this.theme.appTheme.destructive
-          : this.theme.appTheme["muted-foreground"],
-        { width: width / 2 - 24, truncate: true },
-      );
-      blockersLabel.position.set(width / 2, rowY + 10);
-      panel.addChild(name, blockersLabel);
-      rowY += rowHeight;
-    }
-    backdrop.zIndex = 50;
-    panel.zIndex = 51;
-    this.container.addChild(backdrop, panel);
-    this.modalOpen = true;
   }
 
   private renderModal(): void {
@@ -2747,16 +2605,7 @@ export class PromptLayer {
       panel.addChild(footerBackground, footer);
     }
 
-    panel.on("wheel", (event: FederatedWheelEvent) => {
-      if (this.modalScrollMax <= 0) return;
-      event.preventDefault();
-      event.stopPropagation();
-      this.modalScrollOffset = Math.max(
-        0,
-        Math.min(this.modalScrollMax, this.modalScrollOffset + Math.sign(event.deltaY) * 48),
-      );
-      this.syncModalScrollPosition();
-    });
+    panel.on("wheel", (event: FederatedWheelEvent) => this.scrollModal(event));
     this.modalBody = {
       panel,
       panelBackground,
@@ -2816,6 +2665,28 @@ export class PromptLayer {
         footerTop + Math.max(8, (state.footerHeight - state.footerContentHeight) / 2),
       );
     }
+  }
+
+  private scrollModal(event: FederatedWheelEvent): void {
+    const state = this.modalBody;
+    if (!state || this.modalScrollMax <= 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const rawDelta =
+      event.deltaMode === 1
+        ? event.deltaY * MODAL_SCROLL_LINE_HEIGHT
+        : event.deltaMode === 2
+          ? event.deltaY * state.viewportHeight
+          : event.deltaY;
+    const delta = Math.max(
+      -MODAL_SCROLL_MAX_STEP,
+      Math.min(MODAL_SCROLL_MAX_STEP, rawDelta * MODAL_SCROLL_SCALE),
+    );
+    this.modalScrollOffset = Math.max(
+      0,
+      Math.min(this.modalScrollMax, this.modalScrollOffset + delta),
+    );
+    this.syncModalScrollPosition();
   }
 
   private finalizeModalScroll(): void {
@@ -5459,15 +5330,16 @@ export class PromptLayer {
   }
 
   private handleKey(event: KeyboardEvent): void {
+    if (topModal() || event.defaultPrevented || event.isComposing) return;
     if (!this.spec || !this.modalOpen) return;
-    if (!this.selectionFilterFocused && this.handlePromptCardShortcut(event)) return;
-    if (this.combatBreakdownOpen && event.key === "Escape") {
-      event.preventDefault();
-      this.combatBreakdownOpen = false;
-      this.rebuild();
+    const primaryActionKey = event.key === "Enter" || event.code === "Space";
+    if (
+      !this.selectionFilterFocused &&
+      event.code !== "Space" &&
+      this.handlePromptCardShortcut(event)
+    )
       return;
-    }
-    if (this.spec.gameOver && event.key === "Enter") {
+    if (this.spec.gameOver && primaryActionKey && !event.repeat) {
       event.preventDefault();
       this.spec.gameOver.onEndGame();
       return;
@@ -5477,7 +5349,11 @@ export class PromptLayer {
       input?.type === "chooseFromSelection" &&
       input.options.length > 5 &&
       (event.key === "Backspace" ||
-        (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey))
+        (event.key.length === 1 &&
+          (this.selectionFilterFocused || event.code !== "Space") &&
+          !event.metaKey &&
+          !event.ctrlKey &&
+          !event.altKey))
     ) {
       event.preventDefault();
       this.selectionFilterFocused = true;
@@ -5528,7 +5404,8 @@ export class PromptLayer {
         this.numberBuffer = this.numberBuffer.slice(0, -1);
         this.rebuild();
       } else if (
-        event.key === "Enter" &&
+        primaryActionKey &&
+        !event.repeat &&
         this.numberBuffer !== "" &&
         this.numberBuffer !== "-" &&
         Number.isInteger(parsed) &&
@@ -5540,20 +5417,20 @@ export class PromptLayer {
       }
       return;
     }
-    if (event.code !== "Space" && event.key !== "Enter") return;
-    if (input.type === "chooseBoolean" && event.code === "Space") {
+    if (!primaryActionKey || event.repeat) return;
+    if (input.type === "chooseBoolean") {
       event.preventDefault();
       this.spec.respond({ type: "decision", value: true });
-    } else if (input.type === "revealCards" && event.key === "Enter") {
+    } else if (input.type === "revealCards") {
       event.preventDefault();
       this.spec.respond({ type: "revealCardsAcknowledged" });
-    } else if (input.type === "chooseCards" && event.key === "Enter") {
+    } else if (input.type === "chooseCards") {
       const chosen = [...this.selectedIds];
       if (chosen.length >= input.min && chosen.length <= input.max) {
         event.preventDefault();
         this.spec.respond({ type: "chooseCardsDecision", chosenCardIds: chosen });
       }
-    } else if (input.type === "chooseColor" && event.key === "Enter") {
+    } else if (input.type === "chooseColor") {
       const total = [...this.counts.values()].reduce((sum, value) => sum + value, 0);
       if (total === input.amount) {
         const chosenColors: Record<string, number> = {};
@@ -5563,7 +5440,7 @@ export class PromptLayer {
         event.preventDefault();
         this.spec.respond({ type: "colorDecision", chosenColors });
       }
-    } else if (input.type === "chooseFromSelection" && event.key === "Enter") {
+    } else if (input.type === "chooseFromSelection") {
       const total = this.selectionTotal(input.options);
       if (total >= input.minTotal && total <= input.maxTotal) {
         event.preventDefault();
@@ -5572,10 +5449,10 @@ export class PromptLayer {
           .flatMap(([index, count]) => Array.from({ length: count }, () => Number(index)));
         this.spec.respond({ type: "selectionDecision", chosenIndices });
       }
-    } else if (input.type === "reorder" && event.key === "Enter") {
+    } else if (input.type === "reorder") {
       event.preventDefault();
       this.spec.respond({ type: "reorderDecision", orderedIds: [...this.order] });
-    } else if (input.type === "scry" && event.key === "Enter") {
+    } else if (input.type === "scry") {
       if ((this.scryItems.pool ?? []).length === 0) {
         event.preventDefault();
         this.spec.respond({
@@ -5585,7 +5462,7 @@ export class PromptLayer {
           ),
         });
       }
-    } else if (input.type === "chooseDamageAssignmentOrder" && event.key === "Enter") {
+    } else if (input.type === "chooseDamageAssignmentOrder") {
       if (
         this.spec.damageOrder &&
         this.spec.damageOrder.order.length >= this.spec.damageOrder.blockerCards.length
@@ -5593,14 +5470,10 @@ export class PromptLayer {
         event.preventDefault();
         this.spec.damageOrder.onConfirm();
       }
-    } else if (
-      input.type === "diceRolled" &&
-      event.key === "Enter" &&
-      this.diceElapsedMs >= DICE_ROLL_MS
-    ) {
+    } else if (input.type === "diceRolled" && this.diceElapsedMs >= DICE_ROLL_MS) {
       event.preventDefault();
       this.spec.respond({ type: "diceRolledAcknowledged" });
-    } else if (input.type === "chooseCombatDamageAssignment" && event.key === "Enter") {
+    } else if (input.type === "chooseCombatDamageAssignment") {
       const assignees = [...input.blockerIds, ...(input.defenderId ? [input.defenderId] : [])];
       const remaining =
         input.totalDamage -

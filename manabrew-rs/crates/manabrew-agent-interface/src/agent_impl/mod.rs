@@ -115,10 +115,22 @@ impl<R: Responder> PromptAgent<R> {
 
     fn build_prompt(&mut self, inner: PromptInput, source: Option<CardId>) -> AgentPrompt {
         self.next_prompt_id += 1;
+        let source_card = source.and_then(|card_id| self.source_cards.get(&card_id).cloned());
+        let source_ability_text = source_card.as_ref().and_then(|card| {
+            self.latest_view
+                .as_ref()?
+                .stack
+                .iter()
+                .rev()
+                .find(|entry| entry.source_id == card.id)?
+                .source_ability_text
+                .clone()
+        });
         AgentPrompt {
             prompt_id: self.next_prompt_id,
             deciding_player_id: player_id_str(self.player_id),
-            source_card: source.and_then(|card_id| self.source_cards.get(&card_id).cloned()),
+            source_card,
+            source_ability_text,
             input: inner,
         }
     }

@@ -31,7 +31,6 @@ import {
   ATTACK_DRAG_HINT,
   getPromptContextLines,
 } from "@/components/game/panels/promptContextHints";
-import type { DeckCard } from "@/protocol/deck";
 import type {
   CardDto,
   ChooseCombatDamageAssignmentInput,
@@ -79,12 +78,24 @@ const PREVIEW_RAIL_SECTION_GAP = 16;
 const PREVIEW_RAIL_MIN_HEIGHT = 240;
 const PREVIEW_RAIL_MAX_HEIGHT = 420;
 const PREVIEW_RAIL_REQUIRED_GUTTER = (PREVIEW_RAIL_WIDTH + PREVIEW_RAIL_GAP) * 2;
+const DRAG_DROP_MIN_SECONDS = 0.1;
+const DRAG_DROP_MAX_SECONDS = 0.22;
+const DRAG_DROP_PIXELS_PER_SECOND = 1800;
+const DROP_ZONE_DIM_ALPHA = 0.62;
+const DROP_ZONE_TWEEN_SECONDS = 0.12;
+const SCRY_LAYOUT_SETTLE_SECONDS = 0.2;
 
 interface DragState {
   item: Container;
+  pointerId: number;
+  previewCardId: string | null;
+  originX: number;
+  originY: number;
   offsetX: number;
   offsetY: number;
+  settling: boolean;
   onDrop: (x: number, y: number) => void;
+  resolveDropPosition?: (x: number, y: number) => { x: number; y: number } | null;
 }
 
 interface DiceVisual {
@@ -98,6 +109,9 @@ interface DropZone {
   id: string;
   rect: Rectangle;
   visual: Graphics;
+  dropX: number;
+  dropY: number;
+  targetAlpha: number;
 }
 
 function promptText(
@@ -232,6 +246,8 @@ export class PromptLayer {
   private damageAssigned: Record<string, number> = {};
   private dropZones: DropZone[] = [];
   private drag: DragState | null = null;
+  private scryCardTiles = new Map<string, Container>();
+  private scryPreviousPositions = new Map<string, { x: number; y: number }>();
   private diceElapsedMs = 0;
   private autopassRemainingMs: number | null = null;
   private diceVisuals: DiceVisual[] = [];
@@ -270,6 +286,7 @@ export class PromptLayer {
   }> = [];
   private onStageMove = (event: FederatedPointerEvent): void => this.moveDrag(event);
   private onStageUp = (event: FederatedPointerEvent): void => this.finishDrag(event);
+  private onStageCancel = (event: FederatedPointerEvent): void => this.cancelPointerDrag(event);
   private onModifierEvent = (event: KeyboardEvent | PointerEvent): void =>
     this.updateEndTurnModifiers(event);
   private onModifierReset = (): void => this.setEndTurnModifiersHeld(false);
@@ -284,9 +301,10 @@ export class PromptLayer {
     this.container.zIndex = 10000;
     this.container.eventMode = "passive";
     this.app.stage.addChild(this.container);
-    this.app.stage.on("pointermove", this.onStageMove);
+    this.app.stage.on("globalpointermove", this.onStageMove);
     this.app.stage.on("pointerup", this.onStageUp);
     this.app.stage.on("pointerupoutside", this.onStageUp);
+    this.app.stage.on("pointercancel", this.onStageCancel);
     this.app.ticker.add(this.onTick);
     this.keyListener = (event) => this.handleKey(event);
     window.addEventListener("keydown", this.keyListener);
@@ -324,7 +342,8 @@ export class PromptLayer {
       this.actionContextOpen = false;
     }
     const nextKey = spec?.currentPrompt ?? spec?.gameOver ?? null;
-    if (nextKey !== this.promptKey) {
+    const promptChanged = nextKey !== this.promptKey;
+    if (promptChanged) {
       this.promptKey = nextKey;
       this.resetLocalState(spec);
       if (spec?.currentPrompt && MODAL_TYPES.has(spec.currentPrompt.input.type)) {
@@ -334,10 +353,13 @@ export class PromptLayer {
     this.spec = spec;
     const promptType = spec?.currentPrompt?.input.type;
     const cardPreviewModal = !!promptType && CARD_PREVIEW_MODAL_TYPES.has(promptType);
-    if (spec?.modalHidden || spec?.action.isWaitingForResponse || !cardPreviewModal) {
+    const modalUnavailable =
+      !!spec?.modalHidden || !!spec?.action.isWaitingForResponse || !cardPreviewModal;
+    if (modalUnavailable) {
       this.setPreviewSlotBounds(null);
       this.clearPromptCardPreview();
     }
+    if (this.drag && !promptChanged && !modalUnavailable) return;
     this.rebuild();
   }
 
@@ -368,17 +390,20 @@ export class PromptLayer {
     window.removeEventListener("blur", this.onModifierReset);
     document.removeEventListener("visibilitychange", this.onModifierReset);
     window.removeEventListener(ACTION_DRAWER_BUMP_EVENT, this.onActionBump);
-    this.app.stage.off("pointermove", this.onStageMove);
+    this.app.stage.off("globalpointermove", this.onStageMove);
     this.app.stage.off("pointerup", this.onStageUp);
     this.unsubscribePromptPreferences();
     this.unsubscribeKeybindings();
     this.app.stage.off("pointerupoutside", this.onStageUp);
+    this.app.stage.off("pointercancel", this.onStageCancel);
     this.setPreviewSlotBounds(null);
     this.app.ticker.remove(this.onTick);
     this.longPress.reset();
     this.actionLongPress.reset();
     this.callbacks.onReferenceChange?.(null);
     this.clearPromptCardPreview();
+    this.cancelDrag();
+    this.clearScryCardTiles();
     this.container.destroy({ children: true });
   }
 
@@ -393,8 +418,10 @@ export class PromptLayer {
     this.scryItems = {};
     this.scrySelectedId = null;
     this.damageAssigned = {};
+    this.cancelDrag();
     this.dropZones = [];
-    this.drag = null;
+    this.clearScryCardTiles();
+    this.scryPreviousPositions.clear();
     this.diceVisuals = [];
     this.diceWinnerText = null;
     this.diceConfirm = null;
@@ -432,7 +459,9 @@ export class PromptLayer {
     this.renderGeneration += 1;
     this.cardPreviewTargets = [];
     this.callbacks.onReferenceChange?.(null);
-    this.drag = null;
+    this.cancelDrag();
+    this.dropZones = [];
+    this.clearScryCardTiles();
     this.actionBounds = null;
     this.autopassFill = null;
     this.actionPanel = null;
@@ -1400,6 +1429,13 @@ export class PromptLayer {
     return { container, width, height };
   }
 
+  private promptSourceCard(): CardDto | null {
+    const promptSource = this.spec?.currentPrompt?.sourceCard;
+    if (promptSource) return promptSource;
+    const deckSource = this.spec?.sourceDeckCard;
+    return deckSource ? deckCardToPreviewDto(deckSource) : null;
+  }
+
   private buildPromptLabelView(
     availableWidth: number,
     minimal: boolean,
@@ -1419,9 +1455,8 @@ export class PromptLayer {
               ? "Choose cards"
               : "Waiting...";
     const container = new Container();
-    const source = this.spec!.sourceDeckCard
-      ? this.makeActionCardThumbnail(this.spec!.sourceDeckCard)
-      : null;
+    const sourceCard = this.promptSourceCard();
+    const source = sourceCard ? this.makeActionCardThumbnail(sourceCard) : null;
     const completion = action.onCompleteTargets
       ? this.makeActionButton(
           action.targetCompletionLabel ?? "Done",
@@ -1517,8 +1552,9 @@ export class PromptLayer {
     const container = new Container();
     let y = 0;
     let width = 0;
-    if (info?.sourceCard) {
-      const source = this.makeActionCardThumbnail(info.sourceCard);
+    const sourceCard = this.promptSourceCard();
+    if (sourceCard && info) {
+      const source = this.makeActionCardThumbnail(sourceCard);
       if (minimal) {
         container.addChild(source);
         y = 92;
@@ -1827,9 +1863,9 @@ export class PromptLayer {
     return { container, width, height: y + rowHeight };
   }
 
-  private makeActionCardThumbnail(card: DeckCard): Container {
+  private makeActionCardThumbnail(card: CardDto): Container {
     const container = new Container();
-    const sprite = new CardSprite(deckCardToPreviewDto(card), "zone");
+    const sprite = new CardSprite(card, "zone");
     const place = () => {
       sprite.scale.set(1);
       const scale = 60 / sprite.width;
@@ -2386,8 +2422,7 @@ export class PromptLayer {
     panel.accessible = true;
     panel.accessibleTitle = presentation.title;
     panel.tabIndex = -1;
-    const sourceCard = this.spec?.sourceDeckCard;
-    const sourcePreviewCard = sourceCard ? deckCardToPreviewDto(sourceCard) : null;
+    const sourcePreviewCard = this.promptSourceCard();
     const sourceSprite = sourcePreviewCard ? new CardSprite(sourcePreviewCard) : null;
     const sidecarAvailable =
       cardPreviewSidecar && this.viewportWidth - width >= PREVIEW_RAIL_REQUIRED_GUTTER;
@@ -2947,6 +2982,7 @@ export class PromptLayer {
       ) {
         return;
       }
+      if (this.drag?.item === tile) return;
       sprite.setElevation(0);
       sprite.setPromptReference(null);
       this.callbacks.onReferenceChange?.(null);
@@ -3323,6 +3359,7 @@ export class PromptLayer {
     const width = Math.min(720, this.viewportWidth - 24);
     const height = Math.min(660, this.viewportHeight - 24);
     const { body } = this.createModalShell(width, height, presentation, true, false, true);
+    body.sortableChildren = true;
     const byId = new Map(cards.map((card) => [card.id, card]));
     const poolHeight = CARD_HEIGHT + 28;
     const poolWidth = width - PANEL_PADDING * 2;
@@ -3332,8 +3369,20 @@ export class PromptLayer {
       .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.6 })
       .stroke({ color: hexToNum(this.theme.appTheme["muted-foreground"]), width: 2, alpha: 0.45 });
     body.addChild(poolBg);
-    this.dropZones.push({ id: "pool", rect: this.localRectToGlobal(body, pool), visual: poolBg });
     const poolIds = this.scryItems.pool ?? [];
+    const poolDropCount = poolIds.length + 1;
+    const poolDropSpacing = Math.min(
+      CARD_WIDTH + 8,
+      (poolWidth - CARD_WIDTH - 20) / Math.max(1, poolDropCount - 1),
+    );
+    this.dropZones.push({
+      id: "pool",
+      rect: this.localRectToGlobal(body, pool),
+      visual: poolBg,
+      dropX: 10 + (poolDropCount - 1) * poolDropSpacing,
+      dropY: pool.y + 10,
+      targetAlpha: 1,
+    });
     poolIds.forEach((id, index) => {
       const card = byId.get(id);
       if (!card) return;
@@ -3341,17 +3390,17 @@ export class PromptLayer {
         this.scrySelectedId = this.scrySelectedId === id ? null : id;
         this.rebuild();
       });
-      tile.position.set(
+      const tileX =
         10 +
-          index *
-            Math.min(
-              CARD_WIDTH + 8,
-              (poolWidth - CARD_WIDTH - 20) / Math.max(1, poolIds.length - 1),
-            ),
-        pool.y + 10,
+        index *
+          Math.min(CARD_WIDTH + 8, (poolWidth - CARD_WIDTH - 20) / Math.max(1, poolIds.length - 1));
+      const tileY = pool.y + 10;
+      this.makeDraggable(
+        tile,
+        (x, y) => this.dropScryCard(id, x, y),
+        (x, y) => this.scryDropPosition(id, x, y),
       );
-      this.makeDraggable(tile, (x, y) => this.dropScryCard(id, x, y));
-      body.addChild(tile);
+      this.placeScryCardTile(body, tile, id, tileX, tileY);
     });
     const zoneGap = 12;
     const zoneY = pool.y + pool.height + 34;
@@ -3385,12 +3434,15 @@ export class PromptLayer {
       );
       label.position.set(rect.x + 8, rect.y - 22);
       body.addChild(label);
+      const ids = this.scryItems[key] ?? [];
       this.dropZones.push({
         id: key,
         rect: this.localRectToGlobal(body, rect),
         visual: zoneBg,
+        dropX: rect.x + (rect.width - CARD_WIDTH) / 2,
+        dropY: rect.y + 10 + ids.length * 18,
+        targetAlpha: 1,
       });
-      const ids = this.scryItems[key] ?? [];
       ids.forEach((id, cardIndex) => {
         const card = byId.get(id);
         if (!card) return;
@@ -3405,10 +3457,16 @@ export class PromptLayer {
               }
             : undefined,
         );
-        tile.position.set(rect.x + (rect.width - CARD_WIDTH) / 2, rect.y + 10 + cardIndex * 18);
-        if (cardIndex === ids.length - 1)
-          this.makeDraggable(tile, (x, y) => this.dropScryCard(id, x, y));
-        body.addChild(tile);
+        const tileX = rect.x + (rect.width - CARD_WIDTH) / 2;
+        const tileY = rect.y + 10 + cardIndex * 18;
+        if (cardIndex === ids.length - 1) {
+          this.makeDraggable(
+            tile,
+            (x, y) => this.dropScryCard(id, x, y),
+            (x, y) => this.scryDropPosition(id, x, y),
+          );
+        }
+        this.placeScryCardTile(body, tile, id, tileX, tileY);
       });
       if (ids.length === 0) this.addScryDestinationHint(body, destination, rect);
     });
@@ -3435,6 +3493,7 @@ export class PromptLayer {
     );
     confirm.position.set(poolWidth - confirm.buttonWidth, height - body.y - 50);
     body.addChild(confirm);
+    this.scryPreviousPositions.clear();
   }
 
   private dropScryCard(cardId: string, x: number, y: number): void {
@@ -3447,21 +3506,62 @@ export class PromptLayer {
   }
 
   private moveScryCard(cardId: string, targetId: string): void {
-    let source: string | undefined;
-    for (const [key, ids] of Object.entries(this.scryItems)) {
-      if (ids.includes(cardId)) {
-        source = key;
-        break;
-      }
-    }
+    const source = this.scryCardSource(cardId);
     if (!source || source === targetId) {
       this.rebuild();
       return;
     }
+    this.captureScryCardPositions();
     this.scryItems[source] = this.scryItems[source]!.filter((id) => id !== cardId);
     this.scryItems[targetId] = [...(this.scryItems[targetId] ?? []), cardId];
     this.scrySelectedId = null;
     this.rebuild();
+  }
+
+  private scryCardSource(cardId: string): string | undefined {
+    return Object.entries(this.scryItems).find(([, ids]) => ids.includes(cardId))?.[0];
+  }
+
+  private scryDropPosition(cardId: string, x: number, y: number): { x: number; y: number } | null {
+    const target = this.dropZones.find((zone) => zone.rect.contains(x, y));
+    if (!target || target.id === this.scryCardSource(cardId)) return null;
+    return { x: target.dropX, y: target.dropY };
+  }
+
+  private captureScryCardPositions(): void {
+    this.scryPreviousPositions.clear();
+    for (const [cardId, tile] of this.scryCardTiles) {
+      const position = tile.toGlobal({ x: 0, y: 0 });
+      this.scryPreviousPositions.set(cardId, { x: position.x, y: position.y });
+    }
+  }
+
+  private placeScryCardTile(
+    body: Container,
+    tile: Container,
+    cardId: string,
+    x: number,
+    y: number,
+  ): void {
+    tile.position.set(x, y);
+    body.addChild(tile);
+    this.scryCardTiles.set(cardId, tile);
+    const previous = this.scryPreviousPositions.get(cardId);
+    if (!previous || !animationsEnabled()) return;
+    const start = body.toLocal(previous);
+    if (Math.hypot(x - start.x, y - start.y) < 0.5) return;
+    tile.position.copyFrom(start);
+    gsap.to(tile.position, {
+      x,
+      y,
+      duration: SCRY_LAYOUT_SETTLE_SECONDS,
+      ease: "power3.out",
+    });
+  }
+
+  private clearScryCardTiles(): void {
+    for (const tile of this.scryCardTiles.values()) gsap.killTweensOf(tile.position);
+    this.scryCardTiles.clear();
   }
 
   private scryDestinationLabel(destination: ScryDestination): string {
@@ -4166,22 +4266,33 @@ export class PromptLayer {
     }
   }
 
-  private makeDraggable(item: Container, onDrop: (x: number, y: number) => void): void {
+  private makeDraggable(
+    item: Container,
+    onDrop: (x: number, y: number) => void,
+    resolveDropPosition?: (x: number, y: number) => { x: number; y: number } | null,
+  ): void {
     item.eventMode = "static";
     item.cursor = "grab";
     item.on("pointerdown", (event: FederatedPointerEvent) => {
       const parent = item.parent;
-      if (!parent) return;
+      if (!parent || this.drag || event.button !== 0) return;
       const point = parent.toLocal(event.global);
       this.drag = {
         item,
+        pointerId: event.pointerId,
+        previewCardId: this.previewCardActive ? (this.previewCard?.id ?? null) : null,
+        originX: item.x,
+        originY: item.y,
         offsetX: point.x - item.x,
         offsetY: point.y - item.y,
+        settling: false,
         onDrop,
+        resolveDropPosition,
       };
       item.cursor = "grabbing";
-      item.alpha = 0.96;
+      item.alpha = 1;
       item.zIndex = 1000;
+      this.setDropZoneHighlight(event.global.x, event.global.y);
       event.stopPropagation();
     });
   }
@@ -4189,21 +4300,105 @@ export class PromptLayer {
   private moveDrag(event: FederatedPointerEvent): void {
     const drag = this.drag;
     const parent = drag?.item.parent;
-    if (!drag || !parent) return;
+    if (!drag || !parent || drag.settling || event.pointerId !== drag.pointerId) return;
     const parentPoint = parent.toLocal(event.global);
     drag.item.position.set(parentPoint.x - drag.offsetX, parentPoint.y - drag.offsetY);
-    for (const zone of this.dropZones) {
-      const active = zone.rect.contains(event.global.x, event.global.y);
-      zone.visual.alpha = active ? 1 : 0.58;
-    }
+    this.setDropZoneHighlight(event.global.x, event.global.y);
   }
 
   private finishDrag(event: FederatedPointerEvent): void {
-    if (!this.drag) return;
+    const drag = this.drag;
+    if (!drag || drag.settling || event.pointerId !== drag.pointerId) return;
+    const dropPosition = drag.resolveDropPosition?.(event.global.x, event.global.y);
+    if (!drag.resolveDropPosition || !animationsEnabled()) {
+      this.endDragPreview(drag);
+      this.resetDropZones();
+      this.drag = null;
+      drag.onDrop(event.global.x, event.global.y);
+      return;
+    }
+    const destination = dropPosition ?? { x: drag.originX, y: drag.originY };
+    const distance = Math.hypot(destination.x - drag.item.x, destination.y - drag.item.y);
+    const duration = Math.min(
+      DRAG_DROP_MAX_SECONDS,
+      Math.max(DRAG_DROP_MIN_SECONDS, distance / DRAG_DROP_PIXELS_PER_SECOND),
+    );
+    drag.settling = true;
+    drag.item.cursor = "default";
+    drag.item.eventMode = "none";
+    this.setDropZoneHighlight(event.global.x, event.global.y);
+    gsap.killTweensOf(drag.item.position);
+    gsap.to(drag.item.position, {
+      x: destination.x,
+      y: destination.y,
+      duration,
+      ease: "power3.out",
+      onComplete: () => {
+        if (this.drag !== drag) return;
+        this.endDragPreview(drag);
+        this.resetDropZones();
+        this.drag = null;
+        drag.onDrop(event.global.x, event.global.y);
+      },
+    });
+  }
+
+  private setDropZoneHighlight(x: number, y: number): void {
+    const activeId = this.dropZones.find((zone) => zone.rect.contains(x, y))?.id;
+    for (const zone of this.dropZones) {
+      const alpha = zone.id === activeId ? 1 : DROP_ZONE_DIM_ALPHA;
+      if (zone.targetAlpha === alpha) continue;
+      zone.targetAlpha = alpha;
+      if (!animationsEnabled()) {
+        gsap.killTweensOf(zone.visual);
+        zone.visual.alpha = alpha;
+        continue;
+      }
+      gsap.to(zone.visual, {
+        alpha,
+        duration: DROP_ZONE_TWEEN_SECONDS,
+        ease: "power2.out",
+        overwrite: true,
+      });
+    }
+  }
+
+  private resetDropZones(): void {
+    for (const zone of this.dropZones) {
+      gsap.killTweensOf(zone.visual);
+      zone.targetAlpha = 1;
+      zone.visual.alpha = 1;
+    }
+  }
+
+  private endDragPreview(drag: DragState): void {
+    if (
+      drag.previewCardId &&
+      this.previewCard?.id === drag.previewCardId &&
+      !this.previewCardSticky
+    ) {
+      this.callbacks.onReferenceChange?.(null);
+      this.clearPromptCardPreview();
+    }
+  }
+
+  private cancelDrag(): void {
     const drag = this.drag;
     this.drag = null;
-    for (const zone of this.dropZones) zone.visual.alpha = 1;
-    drag.onDrop(event.global.x, event.global.y);
+    if (drag) {
+      gsap.killTweensOf(drag.item.position);
+      drag.item.cursor = "grab";
+      drag.item.alpha = 1;
+    }
+    this.resetDropZones();
+  }
+
+  private cancelPointerDrag(event: FederatedPointerEvent): void {
+    const drag = this.drag;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    this.endDragPreview(drag);
+    this.cancelDrag();
+    this.rebuild();
   }
 
   private localRectToGlobal(container: Container, rect: Rectangle): Rectangle {

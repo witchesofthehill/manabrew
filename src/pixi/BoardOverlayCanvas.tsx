@@ -1,3 +1,5 @@
+// @refresh reset
+
 import { useEffect, useRef, useState } from "react";
 import { Application, Graphics } from "pixi.js";
 import { destroyPixiApp, installPixiPatches } from "./pixiPatches";

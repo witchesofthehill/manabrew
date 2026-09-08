@@ -26,6 +26,7 @@ fn wrap(inner: PromptInput) -> AgentPrompt {
             controller_id: "player-0".to_string(),
             ..CardDto::default()
         }),
+        source_ability_text: Some("Lightning Bolt deals 3 damage to any target.".to_string()),
         input: inner,
     }
 }

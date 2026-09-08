@@ -71,7 +71,7 @@ All game modals use the `Modal` compound:
 
 Use `Modal.Close` for buttons and `Modal.CloseShortcut` for remappable keybindings that dismiss a dialog so both paths finish the exit transition before unmounting. `Modal` owns the nested-dialog stack, focus containment, topmost Escape handling, backdrop dismissal, and reduced-motion-aware entry and exit transitions.
 
-Card browsers use `DialogCardBrowser`. It keeps search, type and color filters, sorting, card size, scroll position, keyboard navigation, and per-card inspection state together. `DialogCardGrid` virtualizes large zones. `DialogCardInspector` renders one hand-style `CardSprite` canvas with the native in-card Realistic/Rules and flip/rotate controls. Do not wrap it in separate card chrome or duplicate those controls in React.
+Card browsers use `DialogCardBrowser`. It keeps search, collapsed type and color filters, sorting, card size, scroll position, keyboard navigation, and per-card view state together. Zone pickers default to available cards, render large inline `CardSprite`s in one `DialogCardPickerScene`, and require an explicit action from the bottom tray; they do not open a separate inspector. Their Realistic/Rules and face controls are the same `HandRulesCardFace` and `HandCardControls` used by the hand, engine prompts, and stack. The current candidate retains the shared `cardRing` glow; pointer hover uses that same glow plus the standard card elevation. Stack browsing retains `DialogCardInspector`. `DialogCardGrid` virtualizes the stack browser. Never add a parallel DOM rules-card presentation.
 
 ## Mana text
 

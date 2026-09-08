@@ -1,14 +1,17 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Button } from "@/components/ui/button";
 import { useTheme } from "@/hooks/useTheme";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { cn } from "@/lib/utils";
 import { DialogCardGrid } from "./DialogCardGrid";
-import { DialogCardInspector } from "./DialogCardInspector";
+import { DialogCardPickerGrid } from "./DialogCardPickerGrid";
 import { DialogCardBrowserToolbar } from "./DialogCardBrowserToolbar";
+import { DialogCardBrowserActionTray } from "./DialogCardBrowserActionTray";
+import { DialogCardBrowserInspectorPane } from "./DialogCardBrowserInspectorPane";
 import {
+  createCardBrowserState,
   filterBrowserItems,
   INITIAL_CARD_BROWSER_STATE,
+  toggleCardBrowserRulesView,
   type CardBrowserItem,
   type CardBrowserState,
 } from "./cardBrowser";
@@ -17,14 +20,16 @@ import { useKeybindings } from "@/hooks/useKeybindings";
 import { useKeybindingsStore, resolveCombo } from "@/stores/useKeybindingsStore";
 import { formatCombo } from "@/lib/keybindings";
 import { useIsDesktop } from "@/hooks/useBreakpoints";
+import { isFacelessCard } from "@/lib/gameCard";
 
 interface Props {
   items: CardBrowserItem[];
-  modeLabel: string;
+  picker?: boolean;
   pending?: boolean;
   intentColor?: string;
   onActivate?: (item: CardBrowserItem) => void;
   actionLabel?: (item: CardBrowserItem) => string;
+  defaultActionLabel?: string;
   details?: (item: CardBrowserItem) => ReactNode;
   highlight?: (item: CardBrowserItem) => string;
   initialState?: CardBrowserState;
@@ -33,22 +38,25 @@ interface Props {
 
 export function DialogCardBrowser({
   items,
-  modeLabel,
+  picker = false,
   pending = false,
   intentColor,
   onActivate,
   actionLabel,
+  defaultActionLabel = "Choose card",
   details,
   highlight,
   initialState,
   onStateChange,
 }: Props) {
-  const [state, setState] = useState<CardBrowserState>(initialState ?? INITIAL_CARD_BROWSER_STATE);
-  const [mobileInspect, setMobileInspect] = useState(false);
+  const defaultOnlyActions = picker && !!onActivate;
+  const [state, setState] = useState<CardBrowserState>(() =>
+    createCardBrowserState(initialState, picker, defaultOnlyActions),
+  );
+  const [inspectionOpen, setInspectionOpen] = useState(false);
   const desktop = useIsDesktop();
   const search = useRef<HTMLInputElement>(null);
   const scope = useRef<HTMLDivElement>(null);
-  useKeybindings({ "card-search-focus": () => search.current?.focus() }, scope);
   const overrides = useKeybindingsStore((s) => s.overrides);
   const searchKey = resolveCombo("card-search-focus", overrides);
   const { searchable, loading, incomplete } = useBrowserSearchItems(items);
@@ -78,7 +86,7 @@ export function DialogCardBrowser({
     () => [...new Set(items.flatMap((item) => item.card.types))].sort(),
     [items],
   );
-  const active = items.find((item) => item.id === state.activeId);
+  const active = visible.find((item) => item.id === state.activeId);
   const inspection = active
     ? (state.inspection[active.id] ?? {
         rules: defaultView === "rules",
@@ -86,25 +94,56 @@ export function DialogCardBrowser({
         rotated: false,
       })
     : null;
-  const changeFilter = (patch: Partial<CardBrowserState>) =>
+  const changeFilter = (patch: Partial<CardBrowserState>) => {
+    setInspectionOpen(false);
     setState((current) => ({ ...current, ...patch, scrollTop: 0 }));
+  };
   const selectedCount = items.filter((item) => item.selected).length;
   const scroll = (scrollTop: number) =>
     setState((current) => (current.scrollTop === scrollTop ? current : { ...current, scrollTop }));
   const inspect = (id: string, open: boolean) => {
     setState((current) => (current.activeId === id ? current : { ...current, activeId: id }));
-    if (open && !desktop) setMobileInspect(true);
+    if (!picker && open && !desktop) setInspectionOpen(true);
   };
+  const focusPickerCard = (id: string) => {
+    const option = scope.current?.querySelector<HTMLElement>(`[data-card-key="${CSS.escape(id)}"]`);
+    (option ?? scope.current)?.focus({ preventScroll: true });
+  };
+  const toggleView = (item: CardBrowserItem) => {
+    if (!isFacelessCard(item.card)) {
+      setState((current) => toggleCardBrowserRulesView(current, item, defaultView === "rules"));
+    }
+  };
+  const changeInspection = (item: CardBrowserItem, next: CardBrowserState["inspection"][string]) =>
+    setState((current) => ({
+      ...current,
+      inspection: { ...current.inspection, [item.id]: next },
+    }));
+  useKeybindings(
+    {
+      "card-search-focus": () => search.current?.focus(),
+      ...(picker && active
+        ? {
+            "toggle-card-view": () => {
+              focusPickerCard(active.id);
+              toggleView(active);
+            },
+          }
+        : {}),
+    },
+    scope,
+  );
   return (
     <div
       ref={scope}
-      className="flex min-h-0 flex-1 flex-col"
+      tabIndex={-1}
+      className="flex min-h-0 flex-1 flex-col outline-none"
       onKeyDown={(event) => {
         if (event.isDefaultPrevented() || event.nativeEvent.isComposing) return;
-        if (event.key === "Escape" && mobileInspect && !desktop) {
+        if (event.key === "Escape" && inspectionOpen && !picker && !desktop) {
           event.preventDefault();
           event.stopPropagation();
-          setMobileInspect(false);
+          setInspectionOpen(false);
         } else if (event.key === "Escape" && state.query) {
           event.preventDefault();
           event.stopPropagation();
@@ -117,7 +156,7 @@ export function DialogCardBrowser({
         search={search}
         state={state}
         types={types}
-        modeLabel={modeLabel}
+        picker={picker}
         visibleCount={visible.length}
         totalCount={items.length}
         selectedCount={selectedCount}
@@ -126,75 +165,70 @@ export function DialogCardBrowser({
         incomplete={incomplete}
         onFilter={changeFilter}
         onSize={(size) => setState((current) => ({ ...current, size }))}
+        defaultOnlyActions={defaultOnlyActions}
       />
-      <div className="grid min-h-0 flex-1 gap-3 p-3 md:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
-        <div
-          className={cn("min-h-0 flex-col", mobileInspect && active ? "hidden md:flex" : "flex")}
-        >
-          <DialogCardGrid
+      <div
+        className={cn(
+          "grid min-h-0 flex-1 gap-3 p-3",
+          !picker && "md:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]",
+        )}
+      >
+        {picker ? (
+          <DialogCardPickerGrid
             items={visible}
             state={state}
-            onInspect={inspect}
+            defaultRules={defaultView === "rules"}
+            actionable={!!onActivate}
+            onSelect={(id) => inspect(id, false)}
             onScroll={scroll}
-            intentColor={intentColor ?? theme.cardRing}
+            onChange={changeInspection}
           />
-        </div>
-        <div
-          className={cn(
-            "min-h-0 overflow-y-auto overscroll-contain",
-            mobileInspect && active ? "block" : "hidden md:block",
-          )}
-        >
-          {mobileInspect && active && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mb-2 md:hidden"
-              onClick={() => setMobileInspect(false)}
-            >
-              Back to cards
-            </Button>
-          )}
-          {active && inspection ? (
-            <DialogCardInspector
-              card={active.card}
-              state={inspection}
-              onChange={(next) =>
-                setState((current) => ({
-                  ...current,
-                  inspection: { ...current.inspection, [active.id]: next },
-                }))
-              }
-              highlight={highlight?.(active)}
-            >
-              {details?.(active)}
-              {onActivate && (
-                <>
-                  <Button
-                    className="w-full whitespace-normal"
-                    disabled={pending || (!active.legal && !active.selected)}
-                    onClick={() => {
-                      if (!pending && (active.legal || active.selected)) onActivate(active);
-                    }}
-                  >
-                    {pending ? "Waiting for response…" : (actionLabel?.(active) ?? "Choose card")}
-                  </Button>
-                  {!active.legal && !active.selected && (
-                    <p className="text-xs text-muted-foreground">
-                      This card can be inspected, but is not available for this action.
-                    </p>
-                  )}
-                </>
+        ) : (
+          <>
+            <div
+              className={cn(
+                "min-h-0 flex-col",
+                inspectionOpen && active ? "hidden md:flex" : "flex",
               )}
-            </DialogCardInspector>
-          ) : (
-            <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-              Focus, hover or tap a card to inspect it. Arrow keys browse
-              {searchKey ? `; ${formatCombo(searchKey)} focuses search` : ""}.
-            </p>
-          )}
-        </div>
+            >
+              <DialogCardGrid
+                items={visible}
+                state={state}
+                onInspect={inspect}
+                onScroll={scroll}
+                intentColor={intentColor ?? theme.cardRing}
+              />
+            </div>
+            <DialogCardBrowserInspectorPane
+              active={active}
+              inspection={inspection}
+              open={inspectionOpen}
+              desktop={desktop}
+              pending={pending}
+              defaultActionLabel={defaultActionLabel}
+              searchHint={searchKey ? `; ${formatCombo(searchKey)} focuses search` : ""}
+              actionLabel={actionLabel}
+              details={details}
+              highlight={highlight}
+              onClose={() => setInspectionOpen(false)}
+              onInspectionChange={(next) => {
+                if (active) changeInspection(active, next);
+              }}
+              onActivate={onActivate}
+            />
+          </>
+        )}
       </div>
+      {picker && onActivate && (
+        <DialogCardBrowserActionTray
+          active={active}
+          selectedCount={selectedCount}
+          pending={pending}
+          defaultActionLabel={defaultActionLabel}
+          actionLabel={actionLabel}
+          onActivate={onActivate}
+        />
+      )}
     </div>
   );
 }

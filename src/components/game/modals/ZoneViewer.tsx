@@ -21,13 +21,6 @@ export interface ZoneViewerProps {
   selectedLabel?: string;
   targetHostile?: boolean;
 }
-const MODE_LABELS: Record<ZoneViewMode, string> = {
-  browse: "Browse",
-  cast: "Cast / activate",
-  target: "Choose targets",
-  cost: "Pay a cost",
-  manual: "Manual tabletop",
-};
 const ACTION_LABELS: Record<ZoneViewMode, string> = {
   browse: "Choose action",
   cast: "Choose action",
@@ -84,24 +77,17 @@ export function ZoneViewer({
       <DialogCardBrowser
         key={key}
         items={items}
-        modeLabel={MODE_LABELS[mode]}
+        picker
         pending={pending}
         intentColor={color}
         initialState={useGameUIStore.getState().zoneBrowserStates[key]}
         onStateChange={(state) => saveState(key, state)}
         onActivate={onClickCard ? (item) => onClickCard(item.id) : undefined}
+        defaultActionLabel={clickLabel ?? ACTION_LABELS[mode]}
         actionLabel={(item) =>
           item.selected ? (selectedLabel ?? "Undo selection") : (clickLabel ?? ACTION_LABELS[mode])
         }
       />
-      <Modal.Footer>
-        <p className="mr-auto text-xs text-muted-foreground">
-          Inspecting a card never casts it or chooses a target.
-        </p>
-        <Modal.Close onClose={onClose} variant="outline">
-          Close zone
-        </Modal.Close>
-      </Modal.Footer>
     </Modal>
   );
 }

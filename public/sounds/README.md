@@ -1,6 +1,6 @@
-# Bundled sound cues
+# Bundled presentation audio
 
-These short effects are presentation-only cues. All source packs are dedicated to the public domain under [Creative Commons Zero 1.0](https://creativecommons.org/publicdomain/zero/1.0/). The source and license pages below were checked on 2026-09-09.
+These short effects are client-side mappings for semantic display events. All source packs are dedicated to the public domain under [Creative Commons Zero 1.0](https://creativecommons.org/publicdomain/zero/1.0/). The source and license pages below were checked on 2026-09-09.
 
 | Bundled file       | Semantic use                                           | Original asset and filename                                                                                    | Source page                                                     | Download URL                                                                                                                           | Author          | License                                                       | Transformation                                                                                                                               | Duration |      Size |
 | ------------------ | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------: | --------: |
@@ -84,8 +84,6 @@ Each Forge `SoundEffectType` that was not already represented uses a distinct CC
 | `land-white-red-black.wav`    | `game.land.enter.white-red-black` (`WhiteRedBlackLand`)     | _Interface Sounds_ 1.0 — `Audio/maximize_008.ogg`     |  0.245 s |  21,710 B |
 | `land-other.wav`              | `game.land.enter.other` (`OtherLand`)                       | _Interface Sounds_ 1.0 — `Audio/maximize_009.ogg`     |  0.228 s |  20,174 B |
 | `scripted-effect.wav`         | `game.card.scripted-effect` (`ScriptedEffect`)              | _Interface Sounds_ 1.0 — `Audio/glitch_002.ogg`       |  0.036 s |   6,478 B |
-| `button-press.wav`            | `ui.button.press` (`ButtonPress`)                           | _Interface Sounds_ 1.0 — `Audio/toggle_001.ogg`       |  0.158 s |  14,030 B |
-| `coins-drop.wav`              | `adventure.coins.drop` (`CoinsDrop`)                        | _Casino Audio_ 1.1 — `Audio/chips-collide-2.ogg`      |  0.234 s |  41,294 B |
 
 ## License files
 
@@ -93,4 +91,4 @@ Each Forge `SoundEffectType` that was not already represented uses a distinct CC
 - [`KENNEY_INTERFACE_SOUNDS_LICENSE.txt`](KENNEY_INTERFACE_SOUNDS_LICENSE.txt) is copied verbatim from the root `License.txt` in Kenney’s _Interface Sounds_ 1.0 archive.
 - The _Card Game sounds_ archive contains no license file. Its OpenGameArt source page identifies HaelDB as the author and explicitly publishes the pack under CC0 1.0.
 
-All 75 WAV files are 44.1 kHz signed 16-bit PCM. Total audio payload: 3,656,398 bytes (approximately 3,571 KiB).
+All 73 WAV files are 44.1 kHz signed 16-bit PCM. Total audio payload: 3,601,074 bytes (approximately 3,517 KiB).

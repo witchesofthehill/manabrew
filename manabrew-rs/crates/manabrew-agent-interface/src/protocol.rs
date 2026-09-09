@@ -160,11 +160,7 @@ impl StateEnvelope {
                 emit_ms: None,
             },
             AgentMessage::Display(event) => StateEnvelope::Display {
-                for_player: matches!(
-                    event,
-                    manabrew_protocol::display::DisplayEvent::SoundCue { .. }
-                )
-                .then_some(for_player),
+                for_player: Some(for_player),
                 event: serde_json::to_value(event).unwrap_or(Value::Null),
             },
             AgentMessage::Prompt(prompt) => StateEnvelope::Prompt {

@@ -22,6 +22,7 @@ import forge.game.event.GameEventDayTimeChanged;
 import forge.game.event.GameEventFlipCoin;
 import forge.game.event.GameEventGameOutcome;
 import forge.game.event.GameEventGameStarted;
+import forge.game.event.GameEventLandPlayed;
 import forge.game.event.GameEventManaBurn;
 import forge.game.event.GameEventPlayerLivesChanged;
 import forge.game.event.GameEventPlayerPoisoned;
@@ -30,6 +31,7 @@ import forge.game.event.GameEventRollDie;
 import forge.game.event.GameEventShuffle;
 import forge.game.event.GameEventSnapshotRestored;
 import forge.game.event.GameEventSpeedChanged;
+import forge.game.event.GameEventSpellAbilityCast;
 import forge.game.event.GameEventSpellResolved;
 import forge.game.event.GameEventSprocketUpdate;
 import forge.game.event.GameEventTokenCreated;
@@ -41,13 +43,14 @@ import forge.game.player.Player;
 import forge.game.player.PlayerView;
 import forge.game.zone.ZoneType;
 import forge.harness.common.SnapshotExtractor;
+import forge.item.IPaperCard;
 import forge.sound.SoundSystem;
 import forge.util.TextUtil;
 
 import java.util.Objects;
 
-final class SoundCueProjector extends IGameEventVisitor.Base<SoundCueProjector.Projection> {
-    enum SoundType {
+final class DisplayEventProjector extends IGameEventVisitor.Base<DisplayEventProjector.Projection> {
+    enum EventType {
         CARD_DRAW("game.card.draw"),
         CARD_PLAY("game.card.play"),
         CARD_TAP("game.card.tap"),
@@ -117,8 +120,6 @@ final class SoundCueProjector extends IGameEventVisitor.Base<SoundCueProjector.P
         GAME_LAND_ENTER_WHITE_RED_BLACK("game.land.enter.white-red-black"),
         GAME_LAND_ENTER_OTHER("game.land.enter.other"),
         GAME_CARD_SCRIPTED_EFFECT("game.card.scripted-effect"),
-        UI_BUTTON_PRESS("ui.button.press"),
-        ADVENTURE_COINS_DROP("adventure.coins.drop"),
         DECISION_REQUIRED("prompt.decision-required"),
         TARGET_REQUIRED("prompt.target-required"),
         PAYMENT_REQUIRED("prompt.payment-required"),
@@ -127,7 +128,7 @@ final class SoundCueProjector extends IGameEventVisitor.Base<SoundCueProjector.P
 
         private final String wireName;
 
-        SoundType(final String wireName) {
+        EventType(final String wireName) {
             this.wireName = wireName;
         }
 
@@ -156,55 +157,110 @@ final class SoundCueProjector extends IGameEventVisitor.Base<SoundCueProjector.P
         }
     }
 
-    static final class Cue {
-        final String kind = "soundCue";
-        final long sequence;
-        final String soundType;
-        final Origin origin;
-        final int count;
+    static final class Context {
+        final String kind;
+        final String cardName;
+        final String setCode;
+        final String playerId;
+        final String activePlayerName;
+        final Integer turnNumber;
         final Long promptId;
 
-        Cue(
-                final long sequence,
-                final SoundType soundType,
-                final Origin origin,
-                final int count,
+        private Context(
+                final String kind,
+                final String cardName,
+                final String setCode,
+                final String playerId,
+                final String activePlayerName,
+                final Integer turnNumber,
                 final Long promptId
         ) {
+            this.kind = kind;
+            this.cardName = cardName;
+            this.setCode = setCode;
+            this.playerId = playerId;
+            this.activePlayerName = activePlayerName;
+            this.turnNumber = turnNumber;
+            this.promptId = promptId;
+        }
+
+        static Context card(
+                final String cardName,
+                final String setCode,
+                final String playerId
+        ) {
+            return new Context("card", cardName, setCode, playerId, null, null, null);
+        }
+
+        static Context turn(final String activePlayerName, final int turnNumber) {
+            return new Context("turn", null, null, null, activePlayerName, turnNumber, null);
+        }
+
+        static Context prompt(final long promptId) {
+            return new Context("prompt", null, null, null, null, null, promptId);
+        }
+    }
+
+    static final class Event {
+        final long sequence;
+        final String eventType;
+        final Origin origin;
+        final int count;
+        final Context context;
+
+        Event(
+                final long sequence,
+                final EventType eventType,
+                final Origin origin,
+                final int count,
+                final Context context
+        ) {
             if (sequence < 1) {
-                throw new IllegalArgumentException("sound sequence must be positive");
+                throw new IllegalArgumentException("display event sequence must be positive");
             }
             if (count < 1) {
-                throw new IllegalArgumentException("sound cue count must be positive");
+                throw new IllegalArgumentException("display event count must be positive");
             }
             this.sequence = sequence;
-            this.soundType = Objects.requireNonNull(soundType, "soundType").wireName();
+            this.eventType = Objects.requireNonNull(eventType, "eventType").wireName();
             this.origin = origin;
             this.count = count;
-            this.promptId = promptId;
+            this.context = context;
         }
     }
 
     interface Sink {
-        void broadcast(SoundType soundType, Origin origin, int count);
-        void recipient(int playerIndex, SoundType soundType, Origin origin, int count, Long promptId);
+        void broadcast(EventType eventType, Origin origin, int count, Context context);
+        void recipient(
+                int playerIndex,
+                EventType eventType,
+                Origin origin,
+                int count,
+                Context context
+        );
     }
 
     static final class Projection {
-        final SoundType soundType;
+        final EventType eventType;
         final Origin origin;
+        final Context context;
 
-        private Projection(final SoundType soundType, final Origin origin) {
-            this.soundType = soundType;
+        private Projection(
+                final EventType eventType,
+                final Origin origin,
+                final Context context
+        ) {
+            this.eventType = eventType;
             this.origin = origin;
+            this.context = context;
         }
     }
 
     private final Game game;
     private final Sink sink;
-    private long lastPromptCueId;
+    private long lastPromptEventId;
 
-    SoundCueProjector(final Game game, final Sink sink) {
+    DisplayEventProjector(final Game game, final Sink sink) {
         this.game = Objects.requireNonNull(game, "game");
         this.sink = Objects.requireNonNull(sink, "sink");
     }
@@ -217,7 +273,11 @@ final class SoundCueProjector extends IGameEventVisitor.Base<SoundCueProjector.P
         }
         final Projection projection = event.visit(this);
         if (projection != null) {
-            sink.broadcast(projection.soundType, projection.origin, 1);
+            sink.broadcast(
+                    projection.eventType,
+                    projection.origin,
+                    1,
+                    projection.context);
         }
     }
 
@@ -225,49 +285,72 @@ final class SoundCueProjector extends IGameEventVisitor.Base<SoundCueProjector.P
         if (!claimPromptId(playerIndex, promptId)) {
             return;
         }
-        final SoundType soundType = promptSoundType(promptType);
-        if (soundType != null) {
-            sink.recipient(playerIndex, soundType, null, 1, promptId);
+        final EventType eventType = promptEventType(promptType);
+        if (eventType != null) {
+            sink.recipient(playerIndex, eventType, null, 1, Context.prompt(promptId));
         }
     }
 
     void publishActionRejected(final int playerIndex, final long promptId) {
         if (playerIndex >= 0) {
-            sink.recipient(playerIndex, SoundType.ACTION_REJECTED, null, 1, promptId);
+            sink.recipient(
+                    playerIndex,
+                    EventType.ACTION_REJECTED,
+                    null,
+                    1,
+                    Context.prompt(promptId));
         }
     }
 
     private boolean claimPromptId(final int playerIndex, final long promptId) {
-        if (playerIndex < 0 || promptId == lastPromptCueId) {
+        if (playerIndex < 0 || promptId == lastPromptEventId) {
             return false;
         }
-        lastPromptCueId = promptId;
+        lastPromptEventId = promptId;
         return true;
     }
 
     @Override
     public Projection visit(final GameEventGameStarted event) {
-        return cue(SoundType.GAME_START, null);
+        return event(EventType.GAME_START, null);
     }
 
     @Override
     public Projection visit(final GameEventTurnBegan event) {
-        return cue(SoundType.TURN_START, playerOrigin(event.turnOwner()));
+        return event(
+                EventType.TURN_START,
+                playerOrigin(event.turnOwner()),
+                Context.turn(event.turnOwner().getName(), event.turnNumber()));
+    }
+
+    @Override
+    public Projection visit(final GameEventSpellAbilityCast event) {
+        if (event.sa() == null
+                || !event.sa().isSpell()
+                || event.si() == null) {
+            return null;
+        }
+        return cardPlayed(event.sa().getHostCard(), event.si().getActivatingPlayer());
+    }
+
+    @Override
+    public Projection visit(final GameEventLandPlayed event) {
+        return cardPlayed(event.land(), event.player());
     }
 
     @Override
     public Projection visit(final GameEventCardDamaged event) {
-        return cue(SoundType.GAME_CARD_DAMAGE, null);
+        return event(EventType.GAME_CARD_DAMAGE, null);
     }
 
     @Override
     public Projection visit(final GameEventCardDestroyed event) {
-        return cue(SoundType.CARD_DESTROY, null);
+        return event(EventType.CARD_DESTROY, null);
     }
 
     @Override
     public Projection visit(final GameEventCardAttachment event) {
-        return cue(SoundType.GAME_CARD_ATTACH, null);
+        return event(EventType.GAME_CARD_ATTACH, null);
     }
 
     @Override
@@ -275,27 +358,27 @@ final class SoundCueProjector extends IGameEventVisitor.Base<SoundCueProjector.P
         final ZoneType from = event.from() == null ? null : event.from().zoneType();
         final ZoneType to = event.to() == null ? null : event.to().zoneType();
         if (from == ZoneType.Library && to == ZoneType.Hand) {
-            return cue(SoundType.CARD_DRAW, null);
+            return event(EventType.CARD_DRAW, null);
         }
         if (from == ZoneType.Hand && (to == ZoneType.Graveyard || to == ZoneType.Library)) {
-            return cue(SoundType.CARD_DISCARD, null);
+            return event(EventType.CARD_DISCARD, null);
         }
-        return to == ZoneType.Exile ? cue(SoundType.CARD_EXILE, null) : null;
+        return to == ZoneType.Exile ? event(EventType.CARD_EXILE, null) : null;
     }
 
     @Override
     public Projection visit(final GameEventCardStatsChanged event) {
-        return event.transform() ? cue(SoundType.GAME_CARD_TRANSFORM, null) : null;
+        return event.transform() ? event(EventType.GAME_CARD_TRANSFORM, null) : null;
     }
 
     @Override
     public Projection visit(final GameEventCardRegenerated event) {
-        return cue(SoundType.GAME_CARD_REGENERATE, null);
+        return event(EventType.GAME_CARD_REGENERATE, null);
     }
 
     @Override
     public Projection visit(final GameEventCardSacrificed event) {
-        return cue(SoundType.GAME_CARD_SACRIFICE, null);
+        return event(EventType.GAME_CARD_SACRIFICE, null);
     }
 
     @Override
@@ -303,26 +386,26 @@ final class SoundCueProjector extends IGameEventVisitor.Base<SoundCueProjector.P
         if (event.newValue() == event.oldValue()) {
             return null;
         }
-        return cue(
+        return event(
                 event.newValue() > event.oldValue()
-                        ? SoundType.GAME_CARD_COUNTER_ADD
-                        : SoundType.GAME_CARD_COUNTER_REMOVE,
+                        ? EventType.GAME_CARD_COUNTER_ADD
+                        : EventType.GAME_CARD_COUNTER_REMOVE,
                 null);
     }
 
     @Override
     public Projection visit(final GameEventTurnEnded event) {
-        return cue(SoundType.GAME_TURN_END, null);
+        return event(EventType.GAME_TURN_END, null);
     }
 
     @Override
     public Projection visit(final GameEventFlipCoin event) {
-        return cue(SoundType.GAME_RANDOM_COIN_FLIP, null);
+        return event(EventType.GAME_RANDOM_COIN_FLIP, null);
     }
 
     @Override
     public Projection visit(final GameEventRollDie event) {
-        return cue(SoundType.DIE_ROLL, null);
+        return event(EventType.DIE_ROLL, null);
     }
 
     @Override
@@ -330,43 +413,43 @@ final class SoundCueProjector extends IGameEventVisitor.Base<SoundCueProjector.P
         if (event.newLives() == event.oldLives()) {
             return null;
         }
-        return cue(
+        return event(
                 event.newLives() < event.oldLives()
-                        ? SoundType.PLAYER_LIFE_LOSS
-                        : SoundType.PLAYER_LIFE_GAIN,
+                        ? EventType.PLAYER_LIFE_LOSS
+                        : EventType.PLAYER_LIFE_GAIN,
                 playerOrigin(event.player()));
     }
 
     @Override
     public Projection visit(final GameEventPlayerShardsChanged event) {
-        return cue(SoundType.GAME_PLAYER_SHARD, playerOrigin(event.player()));
+        return event(EventType.GAME_PLAYER_SHARD, playerOrigin(event.player()));
     }
 
     @Override
     public Projection visit(final GameEventManaBurn event) {
-        return cue(SoundType.GAME_PLAYER_MANA_BURN, null);
+        return event(EventType.GAME_PLAYER_MANA_BURN, null);
     }
 
     @Override
     public Projection visit(final GameEventPlayerPoisoned event) {
-        return cue(SoundType.GAME_PLAYER_POISON, null);
+        return event(EventType.GAME_PLAYER_POISON, null);
     }
 
     @Override
     public Projection visit(final GameEventShuffle event) {
-        return cue(SoundType.LIBRARY_SHUFFLE, playerOrigin(event.player()));
+        return event(EventType.LIBRARY_SHUFFLE, playerOrigin(event.player()));
     }
 
     @Override
     public Projection visit(final GameEventSpeedChanged event) {
         return event.newValue() > event.oldValue()
-                ? cue(SoundType.GAME_PLAYER_SPEED_UP, null)
+                ? event(EventType.GAME_PLAYER_SPEED_UP, null)
                 : null;
     }
 
     @Override
     public Projection visit(final GameEventTokenCreated event) {
-        return cue(SoundType.GAME_TOKEN_CREATE, null);
+        return event(EventType.GAME_TOKEN_CREATE, null);
     }
 
     @Override
@@ -374,13 +457,13 @@ final class SoundCueProjector extends IGameEventVisitor.Base<SoundCueProjector.P
         if (event.oldSprocket() == event.sprocket() || event.sprocket() <= 0) {
             return null;
         }
-        return cue(SoundType.GAME_CONTRAPTION_SPROCKET, null);
+        return event(EventType.GAME_CONTRAPTION_SPROCKET, null);
     }
 
     @Override
     public Projection visit(final GameEventDayTimeChanged event) {
-        return cue(
-                event.daytime() ? SoundType.GAME_DAY_NIGHT_DAY : SoundType.GAME_DAY_NIGHT_NIGHT,
+        return event(
+                event.daytime() ? EventType.GAME_DAY_NIGHT_DAY : EventType.GAME_DAY_NIGHT_NIGHT,
                 null);
     }
 
@@ -389,7 +472,7 @@ final class SoundCueProjector extends IGameEventVisitor.Base<SoundCueProjector.P
         final boolean hasBlocker = event.blockers().values().stream().anyMatch(
                 attackers -> attackers.entries().stream().anyMatch(
                         block -> !block.getKey().equals(block.getValue())));
-        return hasBlocker ? cue(SoundType.GAME_COMBAT_BLOCK, null) : null;
+        return hasBlocker ? event(EventType.GAME_COMBAT_BLOCK, null) : null;
     }
 
     @Override
@@ -402,35 +485,35 @@ final class SoundCueProjector extends IGameEventVisitor.Base<SoundCueProjector.P
             return null;
         }
         if (hasScriptedEffect(source)) {
-            return cue(SoundType.GAME_CARD_SCRIPTED_EFFECT, null);
+            return event(EventType.GAME_CARD_SCRIPTED_EFFECT, null);
         }
         final CardStateView state = source.getCurrentState();
         if (state.isCreature() && state.isArtifact()) {
-            return cue(SoundType.GAME_SPELL_RESOLVE_ARTIFACT_CREATURE, null);
+            return event(EventType.GAME_SPELL_RESOLVE_ARTIFACT_CREATURE, null);
         }
         if (state.isCreature()) {
-            return cue(SoundType.GAME_SPELL_RESOLVE_CREATURE, null);
+            return event(EventType.GAME_SPELL_RESOLVE_CREATURE, null);
         }
         if (state.isArtifact()) {
-            return cue(SoundType.GAME_SPELL_RESOLVE_ARTIFACT, null);
+            return event(EventType.GAME_SPELL_RESOLVE_ARTIFACT, null);
         }
         if (state.isInstant()) {
-            return cue(SoundType.GAME_SPELL_RESOLVE_INSTANT, null);
+            return event(EventType.GAME_SPELL_RESOLVE_INSTANT, null);
         }
         if (state.isPlaneswalker()) {
-            return cue(SoundType.GAME_SPELL_RESOLVE_PLANESWALKER, null);
+            return event(EventType.GAME_SPELL_RESOLVE_PLANESWALKER, null);
         }
         if (state.isSorcery()) {
-            return cue(SoundType.GAME_SPELL_RESOLVE_SORCERY, null);
+            return event(EventType.GAME_SPELL_RESOLVE_SORCERY, null);
         }
         return state.isEnchantment()
-                ? cue(SoundType.GAME_SPELL_RESOLVE_ENCHANTMENT, null)
+                ? event(EventType.GAME_SPELL_RESOLVE_ENCHANTMENT, null)
                 : null;
     }
 
     @Override
     public Projection visit(final GameEventCardTapped event) {
-        return cue(event.tapped() ? SoundType.CARD_TAP : SoundType.CARD_UNTAP, null);
+        return event(event.tapped() ? EventType.CARD_TAP : EventType.CARD_UNTAP, null);
     }
 
     @Override
@@ -443,35 +526,51 @@ final class SoundCueProjector extends IGameEventVisitor.Base<SoundCueProjector.P
             return null;
         }
         if (hasScriptedEffect(card)) {
-            return cue(SoundType.GAME_CARD_SCRIPTED_EFFECT, null);
+            return event(EventType.GAME_CARD_SCRIPTED_EFFECT, null);
         }
-        return cue(landSoundType(card.getCurrentState()), null);
+        return event(landEventType(card.getCurrentState()), null);
     }
 
     @Override
     public Projection visit(final GameEventCardPhased event) {
-        return cue(SoundType.GAME_CARD_PHASE, null);
+        return event(EventType.GAME_CARD_PHASE, null);
     }
 
     @Override
     public Projection visit(final GameEventSnapshotRestored event) {
-        return event.start() ? null : cue(SoundType.GAME_SNAPSHOT_RESTORED, null);
+        return event.start() ? null : event(EventType.GAME_SNAPSHOT_RESTORED, null);
     }
 
     private void publishOutcome(final GameEventGameOutcome event) {
         for (final Player player : game.getRegisteredPlayers()) {
             final int playerIndex = SnapshotExtractor.playerIndex(game, player);
-            final SoundType soundType =
+            final EventType eventType =
                     player.hasWon() || Objects.equals(event.winningPlayerName(), player.getName())
-                    ? SoundType.GAME_OUTCOME_WIN
-                    : SoundType.GAME_OUTCOME_LOSS;
+                    ? EventType.GAME_OUTCOME_WIN
+                    : EventType.GAME_OUTCOME_LOSS;
             sink.recipient(
                     playerIndex,
-                    soundType,
+                    eventType,
                     Origin.player("player-" + playerIndex),
                     1,
                     null);
         }
+    }
+
+    private Projection cardPlayed(final CardView view, final PlayerView playerView) {
+        final Card card = game.findByView(view);
+        final Player player = game.getPlayer(playerView);
+        if (card == null || player == null) {
+            return null;
+        }
+        final IPaperCard paper = card.getPaperCard();
+        return event(
+                EventType.CARD_PLAY,
+                Origin.card(SnapshotExtractor.javaCardId(card)),
+                Context.card(
+                        card.getName(),
+                        paper == null ? card.getSetCode() : paper.getEdition(),
+                        "player-" + SnapshotExtractor.playerIndex(game, player)));
     }
 
     private boolean hasScriptedEffect(final CardView view) {
@@ -488,42 +587,50 @@ final class SoundCueProjector extends IGameEventVisitor.Base<SoundCueProjector.P
         return !effect.isEmpty() && SoundSystem.instance.getSoundResource(effect) != null;
     }
 
-    private static SoundType landSoundType(final CardStateView state) {
+    private static EventType landEventType(final CardStateView state) {
         if (state.origProduceAnyMana()) {
-            return SoundType.GAME_LAND_ENTER_OTHER;
+            return EventType.GAME_LAND_ENTER_OTHER;
         }
         return switch (state.origProduceMana()) {
-            case W -> SoundType.GAME_LAND_ENTER_WHITE;
-            case U -> SoundType.GAME_LAND_ENTER_BLUE;
-            case B -> SoundType.GAME_LAND_ENTER_BLACK;
-            case R -> SoundType.GAME_LAND_ENTER_RED;
-            case G -> SoundType.GAME_LAND_ENTER_GREEN;
-            case WU -> SoundType.GAME_LAND_ENTER_WHITE_BLUE;
-            case GW -> SoundType.GAME_LAND_ENTER_WHITE_GREEN;
-            case RW -> SoundType.GAME_LAND_ENTER_WHITE_RED;
-            case WB -> SoundType.GAME_LAND_ENTER_BLACK_WHITE;
-            case BR -> SoundType.GAME_LAND_ENTER_BLACK_RED;
-            case UB -> SoundType.GAME_LAND_ENTER_BLUE_BLACK;
-            case GU -> SoundType.GAME_LAND_ENTER_GREEN_BLUE;
-            case BG -> SoundType.GAME_LAND_ENTER_GREEN_BLACK;
-            case RG -> SoundType.GAME_LAND_ENTER_GREEN_RED;
-            case UR -> SoundType.GAME_LAND_ENTER_RED_BLUE;
-            case WUB -> SoundType.GAME_LAND_ENTER_WHITE_BLUE_BLACK;
-            case GWU -> SoundType.GAME_LAND_ENTER_WHITE_GREEN_BLUE;
-            case RWB -> SoundType.GAME_LAND_ENTER_WHITE_RED_BLACK;
-            case WBG -> SoundType.GAME_LAND_ENTER_BLACK_WHITE_GREEN;
-            case BRG -> SoundType.GAME_LAND_ENTER_BLACK_RED_GREEN;
-            case UBR -> SoundType.GAME_LAND_ENTER_BLUE_BLACK_RED;
-            case GUR -> SoundType.GAME_LAND_ENTER_GREEN_BLUE_RED;
-            case BGU -> SoundType.GAME_LAND_ENTER_GREEN_BLACK_BLUE;
-            case RGW -> SoundType.GAME_LAND_ENTER_GREEN_RED_WHITE;
-            case URW -> SoundType.GAME_LAND_ENTER_RED_BLUE_WHITE;
-            default -> SoundType.GAME_LAND_ENTER_OTHER;
+            case W -> EventType.GAME_LAND_ENTER_WHITE;
+            case U -> EventType.GAME_LAND_ENTER_BLUE;
+            case B -> EventType.GAME_LAND_ENTER_BLACK;
+            case R -> EventType.GAME_LAND_ENTER_RED;
+            case G -> EventType.GAME_LAND_ENTER_GREEN;
+            case WU -> EventType.GAME_LAND_ENTER_WHITE_BLUE;
+            case GW -> EventType.GAME_LAND_ENTER_WHITE_GREEN;
+            case RW -> EventType.GAME_LAND_ENTER_WHITE_RED;
+            case WB -> EventType.GAME_LAND_ENTER_BLACK_WHITE;
+            case BR -> EventType.GAME_LAND_ENTER_BLACK_RED;
+            case UB -> EventType.GAME_LAND_ENTER_BLUE_BLACK;
+            case GU -> EventType.GAME_LAND_ENTER_GREEN_BLUE;
+            case BG -> EventType.GAME_LAND_ENTER_GREEN_BLACK;
+            case RG -> EventType.GAME_LAND_ENTER_GREEN_RED;
+            case UR -> EventType.GAME_LAND_ENTER_RED_BLUE;
+            case WUB -> EventType.GAME_LAND_ENTER_WHITE_BLUE_BLACK;
+            case GWU -> EventType.GAME_LAND_ENTER_WHITE_GREEN_BLUE;
+            case RWB -> EventType.GAME_LAND_ENTER_WHITE_RED_BLACK;
+            case WBG -> EventType.GAME_LAND_ENTER_BLACK_WHITE_GREEN;
+            case BRG -> EventType.GAME_LAND_ENTER_BLACK_RED_GREEN;
+            case UBR -> EventType.GAME_LAND_ENTER_BLUE_BLACK_RED;
+            case GUR -> EventType.GAME_LAND_ENTER_GREEN_BLUE_RED;
+            case BGU -> EventType.GAME_LAND_ENTER_GREEN_BLACK_BLUE;
+            case RGW -> EventType.GAME_LAND_ENTER_GREEN_RED_WHITE;
+            case URW -> EventType.GAME_LAND_ENTER_RED_BLUE_WHITE;
+            default -> EventType.GAME_LAND_ENTER_OTHER;
         };
     }
 
-    private static Projection cue(final SoundType soundType, final Origin origin) {
-        return new Projection(soundType, origin);
+    private static Projection event(final EventType eventType, final Origin origin) {
+        return event(eventType, origin, null);
+    }
+
+    private static Projection event(
+            final EventType eventType,
+            final Origin origin,
+            final Context context
+    ) {
+        return new Projection(eventType, origin, context);
     }
 
     private Origin playerOrigin(final PlayerView view) {
@@ -535,7 +642,7 @@ final class SoundCueProjector extends IGameEventVisitor.Base<SoundCueProjector.P
     }
 
 
-    private static SoundType promptSoundType(final String promptType) {
+    private static EventType promptEventType(final String promptType) {
         if (promptType == null
                 || "chooseAction".equals(promptType)
                 || "gameOver".equals(promptType)
@@ -544,16 +651,16 @@ final class SoundCueProjector extends IGameEventVisitor.Base<SoundCueProjector.P
         }
         switch (promptType) {
             case "chooseBoardTargets":
-                return SoundType.TARGET_REQUIRED;
+                return EventType.TARGET_REQUIRED;
             case "payManaCost":
-                return SoundType.PAYMENT_REQUIRED;
+                return EventType.PAYMENT_REQUIRED;
             case "chooseAttackers":
             case "chooseBlockers":
             case "chooseDamageAssignmentOrder":
             case "chooseCombatDamageAssignment":
-                return SoundType.COMBAT_REQUIRED;
+                return EventType.COMBAT_REQUIRED;
             default:
-                return SoundType.DECISION_REQUIRED;
+                return EventType.DECISION_REQUIRED;
         }
     }
 }

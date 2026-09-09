@@ -47,7 +47,7 @@ export default defineConfig({
           items: [
             "protocol",
             "protocol/game-view",
-            "protocol/sound-cues",
+            "protocol/display-events",
             {
               label: "Prompts",
               items: [

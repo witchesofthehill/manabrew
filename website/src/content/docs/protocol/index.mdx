@@ -35,9 +35,9 @@ The engine → client channel carries **four separate kinds of message**:
     game state. The client re-renders the board from it.
   </Card>
   <Card title="display" icon="sparkles">
-    A `DisplayEvent` - a transient presentation hint carrying no authoritative state. Standard
-    [`soundCue` events](/protocol/sound-cues/) let engines describe what happened without choosing a
-    client's audio files or playback system.
+    A [`DisplayEvent`](/protocol/display-events/) - a transient semantic event carrying no
+    authoritative state. One event can independently drive client audio, animation, haptics, or
+    accessibility feedback without prescribing presentation assets.
   </Card>
   <Card title="prompt" icon="comment">
     An `AgentPrompt` - a **call to action**. The engine has paused and needs a decision from a

@@ -79,8 +79,11 @@ pub trait Responder {
     fn send_log(&mut self, _entry: GameLogEntryDto) {}
     fn send_snapshot(&mut self, _snapshot: GameSnapshotEventDto) {}
 }
-enum SoundProjection<'a> {
-    Notification(&'a GameNotification),
+enum DisplayProjection<'a> {
+    Notification {
+        notification: &'a GameNotification,
+        view: Option<&'a GameViewDto>,
+    },
     Prompt {
         input: &'a PromptInput,
         prompt_id: u32,
@@ -90,42 +93,62 @@ enum SoundProjection<'a> {
     },
 }
 
-struct ProjectedSoundCue {
-    sound_type: SoundType,
-    origin: Option<SoundCueOrigin>,
-    prompt_id: Option<u32>,
+struct ProjectedDisplayEvent {
+    event_type: DisplayEventType,
+    origin: Option<DisplayEventOrigin>,
+    context: Option<DisplayEventContext>,
 }
 
-fn project_sound(source: SoundProjection<'_>) -> Option<ProjectedSoundCue> {
-    let (sound_type, origin, prompt_id) = match source {
-        SoundProjection::Notification(notification) => match notification {
-            GameNotification::GameStarted => (SoundType::GAME_START.clone(), None, None),
+fn project_display(source: DisplayProjection<'_>) -> Option<ProjectedDisplayEvent> {
+    let (event_type, origin, context) = match source {
+        DisplayProjection::Notification { notification, view } => match notification {
+            GameNotification::GameStarted => (DisplayEventType::GAME_START.clone(), None, None),
             GameNotification::CardPlayed {
-                player: _, card_id, ..
+                player,
+                card_id,
+                card_name,
+                set_code,
             } => (
-                SoundType::GAME_CARD_PLAY.clone(),
-                Some(SoundCueOrigin::Card {
+                DisplayEventType::GAME_CARD_PLAY.clone(),
+                Some(DisplayEventOrigin::Card {
                     card_id: card_id_str(*card_id),
                 }),
-                None,
-            ),
-            GameNotification::TurnChanged { active_player, .. } => (
-                SoundType::GAME_TURN_START.clone(),
-                Some(SoundCueOrigin::Player {
-                    player_id: player_id_str(*active_player),
+                Some(DisplayEventContext::Card {
+                    card_name: card_name.clone(),
+                    set_code: set_code.clone(),
+                    player_id: player_id_str(*player),
                 }),
-                None,
             ),
+            GameNotification::TurnChanged {
+                active_player,
+                turn_number,
+            } => {
+                let player_id = player_id_str(*active_player);
+                let active_player_name = view
+                    .and_then(|current| {
+                        current.players.iter().find(|player| player.id == player_id)
+                    })
+                    .map(|player| player.name.clone())
+                    .unwrap_or_else(|| format!("Player {}", active_player.0));
+                (
+                    DisplayEventType::GAME_TURN_START.clone(),
+                    Some(DisplayEventOrigin::Player { player_id }),
+                    Some(DisplayEventContext::Turn {
+                        active_player_name,
+                        turn_number: *turn_number,
+                    }),
+                )
+            }
             GameNotification::FirstPlayerRoll { winner, .. } => (
-                SoundType::GAME_RANDOM_DIE_ROLL.clone(),
-                Some(SoundCueOrigin::Player {
+                DisplayEventType::GAME_RANDOM_DIE_ROLL.clone(),
+                Some(DisplayEventOrigin::Player {
                     player_id: player_id_str(*winner),
                 }),
                 None,
             ),
             GameNotification::DiceRolled { player, .. } => (
-                SoundType::GAME_RANDOM_DIE_ROLL.clone(),
-                Some(SoundCueOrigin::Player {
+                DisplayEventType::GAME_RANDOM_DIE_ROLL.clone(),
+                Some(DisplayEventOrigin::Player {
                     player_id: player_id_str(*player),
                 }),
                 None,
@@ -136,8 +159,8 @@ fn project_sound(source: SoundProjection<'_>) -> Option<ProjectedSoundCue> {
                 destination,
                 ..
             } if *origin == ZoneType::Library && *destination == ZoneType::Hand => (
-                SoundType::GAME_CARD_DRAW.clone(),
-                Some(SoundCueOrigin::Player {
+                DisplayEventType::GAME_CARD_DRAW.clone(),
+                Some(DisplayEventOrigin::Player {
                     player_id: player_id_str(*player),
                 }),
                 None,
@@ -151,8 +174,8 @@ fn project_sound(source: SoundProjection<'_>) -> Option<ProjectedSoundCue> {
                 && matches!(*destination, ZoneType::Graveyard | ZoneType::Library) =>
             {
                 (
-                    SoundType::GAME_CARD_DISCARD.clone(),
-                    Some(SoundCueOrigin::Player {
+                    DisplayEventType::GAME_CARD_DISCARD.clone(),
+                    Some(DisplayEventOrigin::Player {
                         player_id: player_id_str(*player),
                     }),
                     None,
@@ -163,15 +186,15 @@ fn project_sound(source: SoundProjection<'_>) -> Option<ProjectedSoundCue> {
                 destination: ZoneType::Exile,
                 ..
             } => (
-                SoundType::GAME_CARD_EXILE.clone(),
-                Some(SoundCueOrigin::Player {
+                DisplayEventType::GAME_CARD_EXILE.clone(),
+                Some(DisplayEventOrigin::Player {
                     player_id: player_id_str(*player),
                 }),
                 None,
             ),
             GameNotification::CardDestroyed { card_id } => (
-                SoundType::GAME_CARD_DESTROY.clone(),
-                Some(SoundCueOrigin::Card {
+                DisplayEventType::GAME_CARD_DESTROY.clone(),
+                Some(DisplayEventOrigin::Card {
                     card_id: card_id_str(*card_id),
                 }),
                 None,
@@ -180,8 +203,8 @@ fn project_sound(source: SoundProjection<'_>) -> Option<ProjectedSoundCue> {
                 card_id,
                 tapped: true,
             } => (
-                SoundType::GAME_CARD_TAP.clone(),
-                Some(SoundCueOrigin::Card {
+                DisplayEventType::GAME_CARD_TAP.clone(),
+                Some(DisplayEventOrigin::Card {
                     card_id: card_id_str(*card_id),
                 }),
                 None,
@@ -190,15 +213,15 @@ fn project_sound(source: SoundProjection<'_>) -> Option<ProjectedSoundCue> {
                 card_id,
                 tapped: false,
             } => (
-                SoundType::GAME_CARD_UNTAP.clone(),
-                Some(SoundCueOrigin::Card {
+                DisplayEventType::GAME_CARD_UNTAP.clone(),
+                Some(DisplayEventOrigin::Card {
                     card_id: card_id_str(*card_id),
                 }),
                 None,
             ),
             GameNotification::LibraryShuffled { player } => (
-                SoundType::GAME_LIBRARY_SHUFFLE.clone(),
-                Some(SoundCueOrigin::Player {
+                DisplayEventType::GAME_LIBRARY_SHUFFLE.clone(),
+                Some(DisplayEventOrigin::Player {
                     player_id: player_id_str(*player),
                 }),
                 None,
@@ -209,26 +232,28 @@ fn project_sound(source: SoundProjection<'_>) -> Option<ProjectedSoundCue> {
                 new_life,
             } => (
                 if new_life > old_life {
-                    SoundType::GAME_PLAYER_LIFE_GAIN.clone()
+                    DisplayEventType::GAME_PLAYER_LIFE_GAIN.clone()
                 } else {
-                    SoundType::GAME_PLAYER_LIFE_LOSS.clone()
+                    DisplayEventType::GAME_PLAYER_LIFE_LOSS.clone()
                 },
-                Some(SoundCueOrigin::Player {
+                Some(DisplayEventOrigin::Player {
                     player_id: player_id_str(*player),
                 }),
                 None,
             ),
             _ => return None,
         },
-        SoundProjection::Prompt { input, prompt_id } => {
-            let sound_type = match input {
-                PromptInput::ChooseBoardTargets(_) => SoundType::PROMPT_TARGET_REQUIRED.clone(),
-                PromptInput::PayManaCost(_) => SoundType::PROMPT_PAYMENT_REQUIRED.clone(),
+        DisplayProjection::Prompt { input, prompt_id } => {
+            let event_type = match input {
+                PromptInput::ChooseBoardTargets(_) => {
+                    DisplayEventType::PROMPT_TARGET_REQUIRED.clone()
+                }
+                PromptInput::PayManaCost(_) => DisplayEventType::PROMPT_PAYMENT_REQUIRED.clone(),
                 PromptInput::ChooseAttackers(_)
                 | PromptInput::ChooseBlockers(_)
                 | PromptInput::ChooseDamageAssignmentOrder(_)
                 | PromptInput::ChooseCombatDamageAssignment(_) => {
-                    SoundType::PROMPT_COMBAT_REQUIRED.clone()
+                    DisplayEventType::PROMPT_COMBAT_REQUIRED.clone()
                 }
                 PromptInput::Mulligan(_)
                 | PromptInput::MulliganPutBack(_)
@@ -239,23 +264,27 @@ fn project_sound(source: SoundProjection<'_>) -> Option<ProjectedSoundCue> {
                 | PromptInput::ChooseColor(_)
                 | PromptInput::ChooseNumber(_)
                 | PromptInput::ChooseCards(_)
-                | PromptInput::Reorder(_) => SoundType::PROMPT_DECISION_REQUIRED.clone(),
+                | PromptInput::Reorder(_) => DisplayEventType::PROMPT_DECISION_REQUIRED.clone(),
                 PromptInput::ChooseAction(_)
                 | PromptInput::DiceRolled(_)
                 | PromptInput::GameOver(_) => return None,
             };
-            (sound_type, None, Some(prompt_id))
+            (
+                event_type,
+                None,
+                Some(DisplayEventContext::Prompt { prompt_id }),
+            )
         }
-        SoundProjection::Rejection { prompt_id } => (
-            SoundType::PROMPT_ACTION_REJECTED.clone(),
+        DisplayProjection::Rejection { prompt_id } => (
+            DisplayEventType::PROMPT_ACTION_REJECTED.clone(),
             None,
-            Some(prompt_id),
+            Some(DisplayEventContext::Prompt { prompt_id }),
         ),
     };
-    Some(ProjectedSoundCue {
-        sound_type,
+    Some(ProjectedDisplayEvent {
+        event_type,
         origin,
-        prompt_id,
+        context,
     })
 }
 
@@ -270,7 +299,7 @@ pub struct PromptAgent<R: Responder> {
     pub pass_until: Option<manabrew_engine::agent::PassUntilTarget>,
     conceded: bool,
     next_prompt_id: u32,
-    next_sound_sequence: u64,
+    next_display_sequence: u64,
     pub(crate) targeting_cancellable: bool,
     pub(crate) targeting_cancelled: bool,
 }
@@ -288,7 +317,7 @@ impl<R: Responder> PromptAgent<R> {
             pass_until: None,
             conceded: false,
             next_prompt_id: 0,
-            next_sound_sequence: 0,
+            next_display_sequence: 0,
             targeting_cancellable: false,
             targeting_cancelled: false,
         }
@@ -303,30 +332,30 @@ impl<R: Responder> PromptAgent<R> {
             input: inner,
         }
     }
-    fn emit_projected_sound(&mut self, source: SoundProjection<'_>) {
-        let Some(cue) = project_sound(source) else {
+    fn emit_projected_display(&mut self, projected: Option<ProjectedDisplayEvent>) {
+        let Some(event) = projected else {
             return;
         };
-        self.next_sound_sequence = self
-            .next_sound_sequence
+        self.next_display_sequence = self
+            .next_display_sequence
             .checked_add(1)
-            .expect("sound cue sequence exhausted");
-        self.emit_display(DisplayEvent::SoundCue {
-            sequence: self.next_sound_sequence,
-            sound_type: cue.sound_type,
-            origin: cue.origin,
+            .expect("display event sequence exhausted");
+        self.emit_display(DisplayEvent {
+            sequence: self.next_display_sequence,
+            event_type: event.event_type,
+            origin: event.origin,
             count: 1,
-            prompt_id: cue.prompt_id,
+            context: event.context,
         });
     }
 
     pub(crate) fn send_prompt(&mut self, inner: PromptInput, source: Option<CardId>) {
         let prompt = self.build_prompt(inner, source);
         self.emit_state();
-        self.emit_projected_sound(SoundProjection::Prompt {
+        self.emit_projected_display(project_display(DisplayProjection::Prompt {
             input: &prompt.input,
             prompt_id: prompt.prompt_id,
-        });
+        }));
         self.responder
             .present(&AgentMessage::Prompt(prompt.clone()));
         self.pending_prompt = Some(prompt);
@@ -403,9 +432,9 @@ impl<R: Responder> PromptAgent<R> {
             message,
             prompt_id: Some(prompt.prompt_id),
         }));
-        self.emit_projected_sound(SoundProjection::Rejection {
+        self.emit_projected_display(project_display(DisplayProjection::Rejection {
             prompt_id: prompt.prompt_id,
-        });
+        }));
         self.responder
             .present(&AgentMessage::Prompt(prompt.clone()));
     }
@@ -419,10 +448,10 @@ impl<R: Responder> PromptAgent<R> {
     pub(crate) fn present_prompt(&mut self, inner: PromptInput, source: Option<CardId>) {
         let prompt = self.build_prompt(inner, source);
         self.emit_state();
-        self.emit_projected_sound(SoundProjection::Prompt {
+        self.emit_projected_display(project_display(DisplayProjection::Prompt {
             input: &prompt.input,
             prompt_id: prompt.prompt_id,
-        });
+        }));
         self.responder.present(&AgentMessage::Prompt(prompt));
     }
 
@@ -1574,48 +1603,41 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
     }
 
     fn notify(&mut self, event: GameNotification) {
-        self.emit_projected_sound(SoundProjection::Notification(&event));
+        let projected = project_display(DisplayProjection::Notification {
+            notification: &event,
+            view: self.latest_view.as_ref(),
+        });
+        if let (
+            GameNotification::TurnChanged {
+                active_player,
+                turn_number,
+            },
+            Some(ProjectedDisplayEvent {
+                context:
+                    Some(DisplayEventContext::Turn {
+                        active_player_name, ..
+                    }),
+                ..
+            }),
+        ) = (&event, projected.as_ref())
+        {
+            self.responder.send_log(GameLogEntryDto::from_event(
+                manabrew_engine::agent::GameLogEvent::rule(format!(
+                    "TURN {turn_number} — {active_player_name}"
+                ))
+                .with_player(*active_player),
+            ));
+        }
+        self.emit_projected_display(projected);
         match event {
             GameNotification::Event(log_event) => {
                 self.responder
                     .send_log(GameLogEntryDto::from_event(log_event));
             }
-            GameNotification::CardPlayed {
-                player,
-                card_id,
-                card_name,
-                set_code,
-            } => {
-                self.emit_display(DisplayEvent::CardPlayed {
-                    card_id: card_id_str(card_id),
-                    card_name,
-                    set_code,
-                    player_id: player_id_str(player),
-                });
+            GameNotification::CardPlayed { .. } => {
                 self.emit_state();
             }
-            GameNotification::TurnChanged {
-                active_player,
-                turn_number,
-            } => {
-                let player_id = player_id_str(active_player);
-                let active_player_name = self
-                    .latest_view
-                    .as_ref()
-                    .and_then(|v| v.players.iter().find(|p| p.id == player_id))
-                    .map(|p| p.name.clone())
-                    .unwrap_or_else(|| format!("Player {}", active_player.0));
-                self.responder.send_log(GameLogEntryDto::from_event(
-                    manabrew_engine::agent::GameLogEvent::rule(format!(
-                        "TURN {turn_number} — {active_player_name}"
-                    ))
-                    .with_player(active_player),
-                ));
-                self.emit_display(DisplayEvent::TurnChanged {
-                    active_player_id: player_id,
-                    active_player_name,
-                    turn_number,
-                });
+            GameNotification::TurnChanged { .. } => {
                 self.emit_state();
             }
             GameNotification::PhaseChanged { .. } | GameNotification::StateChanged => {

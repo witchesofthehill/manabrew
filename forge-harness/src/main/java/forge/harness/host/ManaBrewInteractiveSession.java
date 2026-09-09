@@ -54,9 +54,10 @@ public final class ManaBrewInteractiveSession {
     private volatile int promptedPlayerIndex = -1;
     private long promptSeq;
     private boolean actionRejectedBeforeNextPrompt;
-    private List<ConcurrentLinkedQueue<SoundCueProjector.Cue>> soundCuesByPlayer = List.of();
-    private long[] soundSequences = new long[0];
-    private SoundCueProjector soundCueProjector;
+    private List<ConcurrentLinkedQueue<DisplayEventProjector.Event>> displayEventsByPlayer =
+            List.of();
+    private long[] displaySequences = new long[0];
+    private DisplayEventProjector displayEventProjector;
     private volatile boolean closed;
     private volatile Thread gameThread;
     private static volatile InteractiveBridge bridge;
@@ -75,35 +76,36 @@ public final class ManaBrewInteractiveSession {
         this.match = Objects.requireNonNull(match, "match");
         this.game = Objects.requireNonNull(game, "game");
         final int playerCount = game.getRegisteredPlayers().size();
-        final List<ConcurrentLinkedQueue<SoundCueProjector.Cue>> queues =
+        final List<ConcurrentLinkedQueue<DisplayEventProjector.Event>> queues =
                 new ArrayList<>(playerCount);
         for (int playerIndex = 0; playerIndex < playerCount; playerIndex++) {
             queues.add(new ConcurrentLinkedQueue<>());
         }
-        soundCuesByPlayer = queues;
-        soundSequences = new long[playerCount];
-        soundCueProjector = new SoundCueProjector(game, new SoundCueProjector.Sink() {
+        displayEventsByPlayer = queues;
+        displaySequences = new long[playerCount];
+        displayEventProjector = new DisplayEventProjector(game, new DisplayEventProjector.Sink() {
             @Override
             public void broadcast(
-                    final SoundCueProjector.SoundType soundType,
-                    final SoundCueProjector.Origin origin,
-                    final int count
+                    final DisplayEventProjector.EventType eventType,
+                    final DisplayEventProjector.Origin origin,
+                    final int count,
+                    final DisplayEventProjector.Context context
             ) {
-                enqueueBroadcastSoundCue(soundType, origin, count);
+                enqueueBroadcastDisplayEvent(eventType, origin, count, context);
             }
 
             @Override
             public void recipient(
                     final int playerIndex,
-                    final SoundCueProjector.SoundType soundType,
-                    final SoundCueProjector.Origin origin,
+                    final DisplayEventProjector.EventType eventType,
+                    final DisplayEventProjector.Origin origin,
                     final int count,
-                    final Long promptId
+                    final DisplayEventProjector.Context context
             ) {
-                enqueueSoundCue(playerIndex, soundType, origin, count, promptId);
+                enqueueDisplayEvent(playerIndex, eventType, origin, count, context);
             }
         });
-        game.subscribeToEvents(soundCueProjector);
+        game.subscribeToEvents(displayEventProjector);
     }
 
     public String getSessionId() {
@@ -167,74 +169,76 @@ public final class ManaBrewInteractiveSession {
         return latestPromptJson;
     }
 
-    String drainSoundCuesJson(final int playerIndex) {
-        if (playerIndex < 0 || playerIndex >= soundCuesByPlayer.size()) {
+    String drainDisplayEventsJson(final int playerIndex) {
+        if (playerIndex < 0 || playerIndex >= displayEventsByPlayer.size()) {
             return "[]";
         }
-        final List<SoundCueProjector.Cue> cues = new ArrayList<>();
-        final ConcurrentLinkedQueue<SoundCueProjector.Cue> queue = soundCuesByPlayer.get(playerIndex);
-        SoundCueProjector.Cue cue;
-        while ((cue = queue.poll()) != null) {
-            cues.add(cue);
+        final List<DisplayEventProjector.Event> events = new ArrayList<>();
+        final ConcurrentLinkedQueue<DisplayEventProjector.Event> queue =
+                displayEventsByPlayer.get(playerIndex);
+        DisplayEventProjector.Event event;
+        while ((event = queue.poll()) != null) {
+            events.add(event);
         }
-        return GSON.toJson(cues);
+        return GSON.toJson(events);
     }
+
     void publishActionRejected(final int playerIndex, final long promptId) {
-        soundCueProjector.publishActionRejected(playerIndex, promptId);
+        displayEventProjector.publishActionRejected(playerIndex, promptId);
     }
 
-
-    private synchronized void enqueueBroadcastSoundCue(
-            final SoundCueProjector.SoundType soundType,
-            final SoundCueProjector.Origin origin,
-            final int count
+    private synchronized void enqueueBroadcastDisplayEvent(
+            final DisplayEventProjector.EventType eventType,
+            final DisplayEventProjector.Origin origin,
+            final int count,
+            final DisplayEventProjector.Context context
     ) {
-        for (int playerIndex = 0; playerIndex < soundCuesByPlayer.size(); playerIndex++) {
-            enqueueSoundCueLocked(playerIndex, soundType, origin, count, null);
+        for (int playerIndex = 0; playerIndex < displayEventsByPlayer.size(); playerIndex++) {
+            enqueueDisplayEventLocked(playerIndex, eventType, origin, count, context);
         }
     }
 
-    private synchronized void enqueueSoundCue(
+    private synchronized void enqueueDisplayEvent(
             final int playerIndex,
-            final SoundCueProjector.SoundType soundType,
-            final SoundCueProjector.Origin origin,
+            final DisplayEventProjector.EventType eventType,
+            final DisplayEventProjector.Origin origin,
             final int count,
-            final Long promptId
+            final DisplayEventProjector.Context context
     ) {
-        enqueueSoundCueLocked(playerIndex, soundType, origin, count, promptId);
+        enqueueDisplayEventLocked(playerIndex, eventType, origin, count, context);
     }
 
-    private void enqueueSoundCueLocked(
+    private void enqueueDisplayEventLocked(
             final int playerIndex,
-            final SoundCueProjector.SoundType soundType,
-            final SoundCueProjector.Origin origin,
+            final DisplayEventProjector.EventType eventType,
+            final DisplayEventProjector.Origin origin,
             final int count,
-            final Long promptId
+            final DisplayEventProjector.Context context
     ) {
-        if (playerIndex < 0 || playerIndex >= soundCuesByPlayer.size()) {
+        if (playerIndex < 0 || playerIndex >= displayEventsByPlayer.size()) {
             return;
         }
-        final long sequence = ++soundSequences[playerIndex];
-        final SoundCueProjector.Cue cue =
-                new SoundCueProjector.Cue(sequence, soundType, origin, count, promptId);
-        soundCuesByPlayer.get(playerIndex).offer(cue);
+        final long sequence = ++displaySequences[playerIndex];
+        final DisplayEventProjector.Event event =
+                new DisplayEventProjector.Event(sequence, eventType, origin, count, context);
+        displayEventsByPlayer.get(playerIndex).offer(event);
     }
 
-    private void flushSoundCuesToBridge(final InteractiveBridge currentBridge) {
-        for (int playerIndex = 0; playerIndex < soundCuesByPlayer.size(); playerIndex++) {
-            final ConcurrentLinkedQueue<SoundCueProjector.Cue> queue =
-                    soundCuesByPlayer.get(playerIndex);
-            SoundCueProjector.Cue cue;
-            while ((cue = queue.poll()) != null) {
-                currentBridge.publishDisplay(playerIndex, GSON.toJson(cue));
+    private void flushDisplayEventsToBridge(final InteractiveBridge currentBridge) {
+        for (int playerIndex = 0; playerIndex < displayEventsByPlayer.size(); playerIndex++) {
+            final ConcurrentLinkedQueue<DisplayEventProjector.Event> queue =
+                    displayEventsByPlayer.get(playerIndex);
+            DisplayEventProjector.Event event;
+            while ((event = queue.poll()) != null) {
+                currentBridge.publishDisplay(playerIndex, GSON.toJson(event));
             }
         }
     }
 
-    public void flushSoundCuesToBridge() {
+    public void flushDisplayEventsToBridge() {
         final InteractiveBridge currentBridge = bridge;
         if (currentBridge != null) {
-            flushSoundCuesToBridge(currentBridge);
+            flushDisplayEventsToBridge(currentBridge);
         }
     }
 
@@ -1939,7 +1943,7 @@ public final class ManaBrewInteractiveSession {
         while (true) {
             final InteractiveBridge currentBridge = bridge;
             if (currentBridge != null && actions.isEmpty() && !closed && !game.isGameOver()) {
-                flushSoundCuesToBridge(currentBridge);
+                flushDisplayEventsToBridge(currentBridge);
                 submitAction(currentBridge.exchange(promptedPlayerIndex, latestPromptJson));
             }
             final JsonObject action = actions.poll(1, java.util.concurrent.TimeUnit.SECONDS);
@@ -2725,9 +2729,9 @@ public final class ManaBrewInteractiveSession {
                 || input.has("error") && !input.get("error").isJsonNull();
         actionRejectedBeforeNextPrompt = false;
         if (rejected) {
-            soundCueProjector.publishActionRejected(promptedPlayerIndex, promptId);
+            displayEventProjector.publishActionRejected(promptedPlayerIndex, promptId);
         } else {
-            soundCueProjector.publishPrompt(
+            displayEventProjector.publishPrompt(
                     promptedPlayerIndex,
                     promptId,
                     input.has("type") ? input.get("type").getAsString() : null);

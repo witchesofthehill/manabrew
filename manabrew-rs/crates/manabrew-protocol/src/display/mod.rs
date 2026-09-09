@@ -3,15 +3,15 @@ use std::borrow::Cow;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-/// A semantic sound identifier. Standard constants keep producers typed,
+/// A semantic transient-event identifier. Standard constants keep producers typed,
 /// while the transparent string representation lets newer identifiers pass
 /// through older protocol clients.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, TS)]
 #[serde(transparent)]
 #[ts(export, export_to = "display/index.ts")]
-pub struct SoundType(#[ts(type = "string")] Cow<'static, str>);
+pub struct DisplayEventType(#[ts(type = "string")] Cow<'static, str>);
 
-impl SoundType {
+impl DisplayEventType {
     pub fn new(value: impl Into<String>) -> Self {
         Self(Cow::Owned(value.into()))
     }
@@ -107,8 +107,6 @@ impl SoundType {
         Self(Cow::Borrowed("game.land.enter.white-red-black"));
     pub const GAME_LAND_ENTER_OTHER: Self = Self(Cow::Borrowed("game.land.enter.other"));
     pub const GAME_CARD_SCRIPTED_EFFECT: Self = Self(Cow::Borrowed("game.card.scripted-effect"));
-    pub const UI_BUTTON_PRESS: Self = Self(Cow::Borrowed("ui.button.press"));
-    pub const ADVENTURE_COINS_DROP: Self = Self(Cow::Borrowed("adventure.coins.drop"));
     pub const PROMPT_DECISION_REQUIRED: Self = Self(Cow::Borrowed("prompt.decision-required"));
     pub const PROMPT_TARGET_REQUIRED: Self = Self(Cow::Borrowed("prompt.target-required"));
     pub const PROMPT_PAYMENT_REQUIRED: Self = Self(Cow::Borrowed("prompt.payment-required"));
@@ -116,7 +114,7 @@ impl SoundType {
     pub const PROMPT_ACTION_REJECTED: Self = Self(Cow::Borrowed("prompt.action-rejected"));
 }
 
-impl<'de> Deserialize<'de> for SoundType {
+impl<'de> Deserialize<'de> for DisplayEventType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -132,58 +130,66 @@ impl<'de> Deserialize<'de> for SoundType {
     rename_all_fields = "camelCase"
 )]
 #[ts(export, export_to = "display/index.ts")]
-pub enum SoundCueOrigin {
+pub enum DisplayEventOrigin {
     Player { player_id: String },
     Card { card_id: String },
 }
-fn default_sound_count() -> u32 {
-    1
-}
 
-fn deserialize_sound_count<'de, D>(deserializer: D) -> Result<u32, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let count = u32::deserialize(deserializer)?;
-    if count == 0 {
-        return Err(serde::de::Error::custom("sound cue count must be positive"));
-    }
-    Ok(count)
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(
     tag = "kind",
     rename_all = "camelCase",
     rename_all_fields = "camelCase"
 )]
 #[ts(export, export_to = "display/index.ts")]
-pub enum DisplayEvent {
-    CardPlayed {
-        card_id: String,
+pub enum DisplayEventContext {
+    Card {
         card_name: String,
         set_code: String,
         player_id: String,
     },
-    TurnChanged {
-        active_player_id: String,
+    Turn {
         active_player_name: String,
         turn_number: u32,
     },
-    SoundCue {
-        #[ts(type = "number")]
-        sequence: u64,
-        sound_type: SoundType,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        origin: Option<SoundCueOrigin>,
-        #[serde(
-            default = "default_sound_count",
-            deserialize_with = "deserialize_sound_count"
-        )]
-        count: u32,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        prompt_id: Option<u32>,
+    Prompt {
+        prompt_id: u32,
     },
+}
+
+fn default_display_event_count() -> u32 {
+    1
+}
+
+fn deserialize_display_event_count<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let count = u32::deserialize(deserializer)?;
+    if count == 0 {
+        return Err(serde::de::Error::custom(
+            "display event count must be positive",
+        ));
+    }
+    Ok(count)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "display/index.ts")]
+pub struct DisplayEvent {
+    #[ts(type = "number")]
+    pub sequence: u64,
+    pub event_type: DisplayEventType,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub origin: Option<DisplayEventOrigin>,
+    #[serde(
+        default = "default_display_event_count",
+        deserialize_with = "deserialize_display_event_count"
+    )]
+    pub count: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub context: Option<DisplayEventContext>,
 }

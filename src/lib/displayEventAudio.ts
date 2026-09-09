@@ -4,29 +4,26 @@ import { loadSoundAsset } from "@/lib/soundRuntime";
 import type { DisplayEvent } from "@/protocol/display";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import {
-  SOUND_ASSETS,
-  SOUND_CUES,
-  type SoundAssetKey,
-  type SoundCueDefinition,
-} from "./soundCueCatalog";
+  DISPLAY_EVENT_AUDIO_ASSETS,
+  DISPLAY_EVENT_AUDIO,
+  type DisplayEventAudioAssetKey,
+  type DisplayEventAudioDefinition,
+} from "./displayEventAudioCatalog";
 
-type SoundCueEvent = Extract<DisplayEvent, { kind: "soundCue" }>;
-
-const loadedAssets = new Map<SoundAssetKey, Sound>();
+const loadedAssets = new Map<DisplayEventAudioAssetKey, Sound>();
 const activeVoices = new Map<string, number>();
 const lastPlayedAt = new Map<string, number>();
 const variantOffsets = new Map<string, number>();
-const seenPromptCues = new Set<string>();
+const seenPromptEvents = new Set<string>();
 let assetLoadPromise: Promise<void> | null = null;
 let playbackQueue = Promise.resolve();
-let lastSequence: number | null = null;
 let sessionGeneration = 0;
 
-export function initializeSoundCues(): void {
+export function initializeDisplayEventAudio(): void {
   if (assetLoadPromise) return;
   assetLoadPromise = Promise.all(
-    (Object.keys(SOUND_ASSETS) as SoundAssetKey[]).map(async (key) => {
-      const asset = SOUND_ASSETS[key];
+    (Object.keys(DISPLAY_EVENT_AUDIO_ASSETS) as DisplayEventAudioAssetKey[]).map(async (key) => {
+      const asset = DISPLAY_EVENT_AUDIO_ASSETS[key];
       const soundAsset = await loadSoundAsset(asset);
       if (soundAsset) loadedAssets.set(key, soundAsset);
     }),
@@ -39,9 +36,9 @@ function releaseVoice(voiceKey: string, generation: number): void {
   if (remaining > 0) activeVoices.set(voiceKey, remaining);
   else activeVoices.delete(voiceKey);
 }
-async function playSoundCue(
-  event: SoundCueEvent,
-  definition: SoundCueDefinition,
+async function playDisplayEventAudio(
+  event: DisplayEvent,
+  definition: DisplayEventAudioDefinition,
   generation: number,
 ): Promise<void> {
   await assetLoadPromise;
@@ -85,32 +82,30 @@ async function playSoundCue(
   }
 }
 
-export function dispatchSoundCue(event: SoundCueEvent): void {
-  if (!Number.isSafeInteger(event.sequence) || event.sequence < 1) return;
-  if (lastSequence !== null && event.sequence <= lastSequence) return;
-  lastSequence = event.sequence;
+export function presentDisplayEventAudio(event: DisplayEvent): void {
   if (usePreferencesStore.getState().soundMuted) return;
-  const definition = SOUND_CUES[event.soundType];
+  const definition = DISPLAY_EVENT_AUDIO[event.eventType];
   if (!definition) return;
 
+  const promptId = event.context?.kind === "prompt" ? event.context.promptId : undefined;
   if (
-    event.soundType.startsWith("prompt.") &&
-    event.soundType !== "prompt.action-rejected" &&
-    event.promptId !== undefined
+    event.eventType.startsWith("prompt.") &&
+    event.eventType !== "prompt.action-rejected" &&
+    promptId !== undefined
   ) {
-    const promptCueKey = `${event.soundType}\u0000${event.promptId}`;
-    if (seenPromptCues.has(promptCueKey)) return;
-    seenPromptCues.add(promptCueKey);
+    const promptEventKey = `${event.eventType}\u0000${promptId}`;
+    if (seenPromptEvents.has(promptEventKey)) return;
+    seenPromptEvents.add(promptEventKey);
   }
 
-  initializeSoundCues();
+  initializeDisplayEventAudio();
   const generation = sessionGeneration;
   playbackQueue = playbackQueue
-    .then(() => playSoundCue(event, definition, generation))
+    .then(() => playDisplayEventAudio(event, definition, generation))
     .catch(() => undefined);
 }
 
-export function stopSoundCuePlayback(): void {
+export function stopDisplayEventAudio(): void {
   sessionGeneration += 1;
   for (const soundAsset of loadedAssets.values()) {
     soundAsset.stop();
@@ -120,9 +115,8 @@ export function stopSoundCuePlayback(): void {
   lastPlayedAt.clear();
 }
 
-export function resetSoundCueSession(): void {
-  stopSoundCuePlayback();
-  lastSequence = null;
+export function resetDisplayEventAudioSession(): void {
+  stopDisplayEventAudio();
   variantOffsets.clear();
-  seenPromptCues.clear();
+  seenPromptEvents.clear();
 }

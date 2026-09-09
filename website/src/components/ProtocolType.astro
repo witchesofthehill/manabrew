@@ -13,7 +13,7 @@ const types = data.types as Record<string, Entry>;
 const pageOf = new Map<string, string>();
 for (const r of data.shared as string[]) pageOf.set(r, "/protocol/shared-types/");
 for (const r of data.state as string[]) pageOf.set(r, "/protocol/game-view/");
-for (const r of data.display as string[]) pageOf.set(r, "/protocol/sound-cues/");
+for (const r of data.display as string[]) pageOf.set(r, "/protocol/display-events/");
 for (const r of data.deck as string[]) pageOf.set(r, "/protocol/deck/");
 
 const { slug, type } = Astro.props;

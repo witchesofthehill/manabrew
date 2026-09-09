@@ -25,7 +25,7 @@ use std::time::Instant;
 use manabrew_protocol::deck_dto::{Deck, DeckCardIdentity};
 use manabrew_protocol::display::DisplayEvent;
 #[cfg(any(feature = "java-forge", feature = "graal-forge"))]
-use manabrew_protocol::display::SoundType;
+use manabrew_protocol::display::DisplayEventType;
 
 use crate::config::DeckSelection;
 #[cfg(feature = "java-forge")]
@@ -81,9 +81,9 @@ pub fn run_smoke_game(max_prompts: usize) -> Result<(), String> {
     info!(session_id, "java-forge smoke session started");
 
     let mut prompts_seen = 0usize;
-    let mut sound_cues_seen = 0usize;
-    let mut rejection_cues_seen = 0usize;
-    let mut last_sound_sequence = [0u64; 2];
+    let mut display_events_seen = 0usize;
+    let mut rejection_events_seen = 0usize;
+    let mut last_display_sequence = [0u64; 2];
     while prompts_seen < max_prompts {
         let Some(prompt_json) = wait_for_prompt(&mut session, 600)? else {
             session.end_game()?;
@@ -97,25 +97,18 @@ pub fn run_smoke_game(max_prompts: usize) -> Result<(), String> {
             session.publish_action_rejected(player, prompt.prompt_id)?;
             session.publish_action_rejected(player, prompt.prompt_id)?;
         }
-        for (player_index, last_sequence) in last_sound_sequence.iter_mut().enumerate() {
+        for (player_index, last_sequence) in last_display_sequence.iter_mut().enumerate() {
             for event in session.get_display_events(player_index)? {
-                if let DisplayEvent::SoundCue {
-                    sequence,
-                    sound_type,
-                    ..
-                } = event
-                {
-                    if sequence <= *last_sequence {
-                        session.end_game()?;
-                        return Err(format!(
-                            "java-forge sound sequence did not increase for player {player_index}"
-                        ));
-                    }
-                    *last_sequence = sequence;
-                    sound_cues_seen += 1;
-                    if sound_type == SoundType::PROMPT_ACTION_REJECTED {
-                        rejection_cues_seen += 1;
-                    }
+                if event.sequence <= *last_sequence {
+                    session.end_game()?;
+                    return Err(format!(
+                        "java-forge display sequence did not increase for player {player_index}"
+                    ));
+                }
+                *last_sequence = event.sequence;
+                display_events_seen += 1;
+                if event.event_type == DisplayEventType::PROMPT_ACTION_REJECTED {
+                    rejection_events_seen += 1;
                 }
             }
         }
@@ -126,15 +119,15 @@ pub fn run_smoke_game(max_prompts: usize) -> Result<(), String> {
         session.submit_action(&serde_json::to_string(&pass).map_err(|err| err.to_string())?)?;
         prompts_seen += 1;
     }
-    if sound_cues_seen == 0 {
+    if display_events_seen == 0 {
         session.end_game()?;
-        return Err("java-forge smoke produced no sound cues".to_string());
+        return Err("java-forge smoke produced no display events".to_string());
     }
-    info!(sound_cues_seen, "java-forge smoke sound cues");
-    if rejection_cues_seen != 2 {
+    info!(display_events_seen, "java-forge smoke display events");
+    if rejection_events_seen != 2 {
         session.end_game()?;
         return Err(format!(
-            "java-forge smoke expected two rejection cues, got {rejection_cues_seen}"
+            "java-forge smoke expected two rejection events, got {rejection_events_seen}"
         ));
     }
 
@@ -191,37 +184,31 @@ pub fn run_graal_smoke() -> Result<(), String> {
     info!(session_id, "graal-forge smoke session started");
     engine.publish_action_rejected(&session_id, 0, 1)?;
     engine.publish_action_rejected(&session_id, 0, 1)?;
-    let mut sound_cues = Vec::new();
+    let mut display_events = Vec::new();
     for _ in 0..600 {
-        sound_cues.extend(engine.get_display_events(&session_id, 0)?);
-        if !sound_cues.is_empty() {
+        display_events.extend(engine.get_display_events(&session_id, 0)?);
+        if !display_events.is_empty() {
             break;
         }
         std::thread::sleep(Duration::from_millis(10));
     }
-    if sound_cues.is_empty() {
+    if display_events.is_empty() {
         engine.end_game(&session_id)?;
-        return Err("graal-forge smoke produced no sound cues".to_string());
+        return Err("graal-forge smoke produced no display events".to_string());
     }
-    let rejection_cues = sound_cues
+    let rejection_events = display_events
         .iter()
-        .filter(|event| {
-            matches!(
-                event,
-                DisplayEvent::SoundCue { sound_type, .. }
-                    if *sound_type == SoundType::PROMPT_ACTION_REJECTED
-            )
-        })
+        .filter(|event| event.event_type == DisplayEventType::PROMPT_ACTION_REJECTED)
         .count();
-    if rejection_cues != 2 {
+    if rejection_events != 2 {
         engine.end_game(&session_id)?;
         return Err(format!(
-            "graal-forge smoke expected two rejection cues, got {rejection_cues}"
+            "graal-forge smoke expected two rejection events, got {rejection_events}"
         ));
     }
     info!(
-        sound_cues = sound_cues.len(),
-        "graal-forge smoke sound cues"
+        display_events = display_events.len(),
+        "graal-forge smoke display events"
     );
     engine.end_game(&session_id)?;
     Ok(())

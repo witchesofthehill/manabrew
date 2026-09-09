@@ -19,7 +19,6 @@ use manabrew_agent_interface::protocol::{
     PROTOCOL_VERSION,
 };
 use manabrew_protocol::deck_dto::Deck;
-use manabrew_protocol::display::DisplayEvent;
 use manabrew_protocol::transport::DirectiveInput;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -2153,7 +2152,7 @@ fn spawn_remote_prompt_forwarder(
                 && matches!(
                     message,
                     AgentMessage::State(_)
-                        | AgentMessage::Display(DisplayEvent::SoundCue { .. })
+                        | AgentMessage::Display(_)
                         | AgentMessage::Prompt(_)
                         | AgentMessage::Error(_)
                 ) {
@@ -2246,7 +2245,7 @@ fn spawn_game_over_forwarder(
                     && matches!(
                         message,
                         AgentMessage::State(_)
-                            | AgentMessage::Display(DisplayEvent::SoundCue { .. })
+                            | AgentMessage::Display(_)
                             | AgentMessage::Prompt(_)
                             | AgentMessage::Error(_)
                     ) {

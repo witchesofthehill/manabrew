@@ -111,7 +111,6 @@ pub async fn start_local_relay(
             4,
             None,
             manabrew_server::analytics::AnalyticsHandle::disabled(),
-            manabrew_server::deck_play_events::DeckPlayEventHandle::disabled(),
             None,
             None,
         ));

@@ -278,34 +278,6 @@ function previewInput(preview: DevDialogPreview, fixtures: DevDialogFixtures): P
           },
         ],
       };
-    case "coin-flip":
-      return {
-        type: "coinFlipped",
-        presentation: { ...presentation, title: "Coin flip" },
-        flips: [
-          {
-            label: me.name,
-            playerId: me.id,
-            results: ["tails", "heads"],
-            keptResult: "heads",
-            calledFace: "heads",
-            won: true,
-          },
-        ],
-      };
-    case "planar-die":
-      return {
-        type: "planarDieRolled",
-        presentation: { ...presentation, title: "Planar die roll" },
-        rolls: [
-          {
-            label: me.name,
-            playerId: me.id,
-            results: ["chaos"],
-            ignoredResults: ["blank"],
-          },
-        ],
-      };
     case "game-over":
       return { type: "gameOver" } as PromptInput;
   }

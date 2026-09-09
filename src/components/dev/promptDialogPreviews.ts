@@ -18,8 +18,6 @@ export type DevDialogPreview =
   | "damage-order"
   | "dice-roll"
   | "dice-roll-contest"
-  | "coin-flip"
-  | "planar-die"
   | "ability-picker"
   | "play-mode-picker"
   | "zone-viewer"
@@ -86,8 +84,6 @@ export const DEV_DIALOG_PREVIEW_GROUPS: DevDialogPreviewGroup[] = [
       { id: "damage-order", label: "Damage order", description: "Order multiple blockers" },
       { id: "dice-roll", label: "Dice result", description: "Single animated result" },
       { id: "dice-roll-contest", label: "Dice contest", description: "Labeled player results" },
-      { id: "coin-flip", label: "Coin result", description: "Called flip with replacement" },
-      { id: "planar-die", label: "Planar die", description: "Planeswalk, chaos, and blank" },
     ],
   },
   {

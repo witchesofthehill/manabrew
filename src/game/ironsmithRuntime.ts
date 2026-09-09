@@ -813,12 +813,8 @@ function botPromptOutput(prompt: Prompt): PromptOutput | null {
         },
       };
     }
-    case "coinFlipped":
-      return { type: "coinFlipped", output: { type: "coinFlippedAcknowledged" } };
     case "diceRolled":
       return { type: "diceRolled", output: { type: "diceRolledAcknowledged" } };
-    case "planarDieRolled":
-      return { type: "planarDieRolled", output: { type: "planarDieRolledAcknowledged" } };
     default:
       return null;
   }

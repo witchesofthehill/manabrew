@@ -130,13 +130,22 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         ctx.agents,
         GameLogEvent::rule(format!("Planar die: {result_name}")).with_player(player),
     );
+    let final_results = results
+        .into_iter()
+        .map(planar_face_number)
+        .collect::<Vec<_>>();
     crate::agent::game_log::broadcast_notification(
         ctx.agents,
-        GameNotification::PlanarDieRolled {
+        GameNotification::DiceRolled {
             player,
-            results,
-            ignored_results,
-            source_card_id,
+            sides: 3,
+            natural_results: final_results.clone(),
+            final_results,
+            ignored_rolls: ignored_results
+                .into_iter()
+                .map(planar_face_number)
+                .collect(),
+            source_card_id: Some(source_card_id),
             source_card_name: Some(source_card_name),
         },
     );
@@ -147,9 +156,9 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 
 fn planar_face_number(result: PlanarDieFace) -> i32 {
     match result {
-        PlanarDieFace::Planeswalk => 0,
-        PlanarDieFace::Chaos => 1,
-        PlanarDieFace::Blank => 2,
+        PlanarDieFace::Planeswalk => 1,
+        PlanarDieFace::Chaos => 2,
+        PlanarDieFace::Blank => 3,
     }
 }
 

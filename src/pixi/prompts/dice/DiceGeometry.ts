@@ -1,7 +1,5 @@
 import { Container, Graphics, GraphicsContext, Text, TextStyle } from "pixi.js";
 
-export type RollTokenKind = "die" | "coin" | "planar";
-
 export interface RollTokenVisual {
   root: Container;
   face: Graphics;
@@ -9,13 +7,11 @@ export interface RollTokenVisual {
   value: Text;
   pips: Graphics[];
   glint: Graphics;
-  kind: RollTokenKind;
   sides: number;
 }
 
 interface RollTokenOptions {
-  kind: RollTokenKind;
-  sides?: number;
+  sides: number;
   size: number;
   fill: string;
   border: string;
@@ -86,34 +82,13 @@ function polygonForSides(sides: number, half: number): number[] | null {
 }
 
 function faceContext(options: RollTokenOptions): GraphicsContext {
-  const sides = options.sides ?? 0;
-  const key = [
-    options.kind,
-    sides,
-    options.size,
-    options.fill,
-    options.border,
-    options.foreground,
-  ].join(":");
+  const sides = options.sides;
+  const key = [sides, options.size, options.fill, options.border, options.foreground].join(":");
   const cached = contexts.get(key);
   if (cached) return cached;
   const context = new GraphicsContext();
   const half = options.size / 2;
-  if (options.kind === "coin") {
-    context.circle(0, 0, half).fill(options.fill).stroke({ color: options.border, width: 2 });
-    context.circle(0, 0, half * 0.76).stroke({ color: options.border, width: 1.5, alpha: 0.55 });
-  } else if (options.kind === "planar") {
-    context
-      .roundRect(-half, -half, options.size, options.size, options.size * 0.12)
-      .fill(options.fill)
-      .stroke({ color: options.border, width: 2 });
-    context
-      .moveTo(-half * 0.72, 0)
-      .lineTo(half * 0.72, 0)
-      .moveTo(0, -half * 0.72)
-      .lineTo(0, half * 0.72)
-      .stroke({ color: options.border, width: 1, alpha: 0.38 });
-  } else if (sides === 6) {
+  if (sides === 6) {
     context
       .roundRect(-half, -half, options.size, options.size, options.size * 0.16)
       .fill(options.fill)
@@ -180,7 +155,7 @@ export function createRollToken(options: RollTokenOptions): RollTokenVisual {
     text: "",
     style: new TextStyle({
       fontFamily: "Inter, system-ui, sans-serif",
-      fontSize: options.kind === "planar" ? options.size * 0.2 : options.size * 0.38,
+      fontSize: options.size * 0.38,
       fontWeight: "700",
       fill: options.foreground,
       align: "center",
@@ -209,14 +184,13 @@ export function createRollToken(options: RollTokenOptions): RollTokenVisual {
     value,
     pips,
     glint,
-    kind: options.kind,
-    sides: options.sides ?? 0,
+    sides: options.sides,
   };
 }
 
 export function setRollTokenValue(visual: RollTokenVisual, value: number | string): void {
   for (const pip of visual.pips) pip.visible = false;
-  if (visual.kind === "die" && visual.sides === 6 && typeof value === "number") {
+  if (visual.sides === 6 && typeof value === "number") {
     const pip = visual.pips[value - 1];
     if (pip) {
       pip.visible = true;
@@ -225,12 +199,5 @@ export function setRollTokenValue(visual: RollTokenVisual, value: number | strin
     }
   }
   visual.value.visible = true;
-  if (visual.kind === "coin") {
-    visual.value.text = String(value).toLowerCase() === "heads" ? "H" : "T";
-  } else if (visual.kind === "planar") {
-    const result = String(value).toLowerCase();
-    visual.value.text = result === "planeswalk" ? "P" : result === "chaos" ? "CHAOS" : "—";
-  } else {
-    visual.value.text = String(value);
-  }
+  visual.value.text = String(value);
 }

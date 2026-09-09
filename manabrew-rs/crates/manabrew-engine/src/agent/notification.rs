@@ -69,21 +69,5 @@ pub enum GameNotification {
         rounds: Vec<Vec<(PlayerId, i32)>>,
         winner: PlayerId,
     },
-    CoinFlipped {
-        player: PlayerId,
-        results: Vec<bool>,
-        kept_result: bool,
-        called_heads: Option<bool>,
-        won: Option<bool>,
-        source_card_id: CardId,
-        source_card_name: Option<String>,
-    },
-    PlanarDieRolled {
-        player: PlayerId,
-        results: Vec<PlanarDieFace>,
-        ignored_results: Vec<PlanarDieFace>,
-        source_card_id: CardId,
-        source_card_name: Option<String>,
-    },
     GameOver,
 }

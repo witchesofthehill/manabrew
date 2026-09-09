@@ -242,40 +242,6 @@ fn main() {
             source_card_id: Some("card-1".to_string()),
             source_card_name: Some("Lightning Bolt".to_string()),
         }),
-        CoinFlipped(coin_flipped::CoinFlippedInput {
-            presentation: common::PromptPresentation {
-                title: "Coin flip".to_string(),
-                description: None,
-                text: None,
-                targets: Vec::new(),
-            },
-            flips: vec![coin_flipped::CoinFlipEntry {
-                label: Some("Player".to_string()),
-                player_id: Some("player-0".to_string()),
-                results: vec![coin_flipped::CoinFace::Tails, coin_flipped::CoinFace::Heads],
-                kept_result: coin_flipped::CoinFace::Heads,
-                called_face: Some(coin_flipped::CoinFace::Heads),
-                won: Some(true),
-            }],
-            source_card_id: Some("card-1".to_string()),
-            source_card_name: Some("Lightning Bolt".to_string()),
-        }),
-        PlanarDieRolled(planar_die_rolled::PlanarDieRolledInput {
-            presentation: common::PromptPresentation {
-                title: "Planar die roll".to_string(),
-                description: None,
-                text: None,
-                targets: Vec::new(),
-            },
-            rolls: vec![planar_die_rolled::PlanarDieRollEntry {
-                label: Some("Player".to_string()),
-                player_id: Some("player-0".to_string()),
-                results: vec![planar_die_rolled::PlanarDieFace::Chaos],
-                ignored_results: vec![planar_die_rolled::PlanarDieFace::Blank],
-            }],
-            source_card_id: Some("card-1".to_string()),
-            source_card_name: Some("Lightning Bolt".to_string()),
-        }),
         ChooseCards(choose_cards::ChooseCardsInput {
             presentation: common::PromptPresentation {
                 title: "Choose cards".to_string(),

@@ -69,12 +69,7 @@ import {
   dragTransformBlend,
 } from "@/pixi/dragMotion";
 import type { PromptLayerCallbacks, PromptOverlaySpec } from "./prompt.types";
-import {
-  createRollToken,
-  setRollTokenValue,
-  type RollTokenKind,
-  type RollTokenVisual,
-} from "./dice/DiceGeometry";
+import { createRollToken, setRollTokenValue, type RollTokenVisual } from "./dice/DiceGeometry";
 import {
   ROLL_FLIGHT_MS,
   ROLL_IMPACT_MS,
@@ -99,9 +94,7 @@ const MODAL_TYPES = new Set([
   "chooseDamageAssignmentOrder",
   "chooseCards",
   "reorder",
-  "coinFlipped",
   "diceRolled",
-  "planarDieRolled",
 ]);
 const FONT = "Inter, system-ui, sans-serif";
 const PANEL_PADDING = 20;
@@ -184,7 +177,6 @@ interface RollVisual {
   playerColor: number;
 }
 interface RollDisplayEntry {
-  kind: RollTokenKind;
   sides: number;
   value: number | string;
   label?: string;
@@ -2488,14 +2480,8 @@ export class PromptLayer {
       case "chooseDamageAssignmentOrder":
         this.renderDamageOrder();
         break;
-      case "coinFlipped":
-        this.renderCoin(input.presentation, input.flips);
-        break;
       case "diceRolled":
         this.renderDice(input.presentation, input.sides, input.rolls);
-        break;
-      case "planarDieRolled":
-        this.renderPlanarDie(input.presentation, input.rolls);
         break;
     }
     this.finalizeModalScroll();
@@ -4827,7 +4813,6 @@ export class PromptLayer {
       const kept = roll.finalResults.map((value, resultIndex) => {
         const natural = roll.naturalResults[resultIndex] ?? value;
         return {
-          kind: "die" as const,
           sides,
           value,
           playerId: roll.playerId,
@@ -4844,7 +4829,6 @@ export class PromptLayer {
       return [
         ...kept,
         ...roll.ignoredRolls.map((value, ignoredIndex) => ({
-          kind: "die" as const,
           sides,
           value,
           playerId: roll.playerId,
@@ -4863,86 +4847,6 @@ export class PromptLayer {
     );
   }
 
-  private renderCoin(
-    presentation: PromptPresentation,
-    flips: Array<{
-      label?: string;
-      playerId?: string;
-      results: Array<"heads" | "tails">;
-      keptResult: "heads" | "tails";
-      calledFace?: "heads" | "tails";
-      won?: boolean;
-    }>,
-  ): void {
-    const entries = flips.flatMap((flip, flipIndex) => {
-      let kept = false;
-      return flip.results.map((value, resultIndex): RollDisplayEntry => {
-        const isKept = !kept && value === flip.keptResult;
-        kept ||= isKept;
-        const call = flip.calledFace ? `Called ${flip.calledFace}` : undefined;
-        const outcome = flip.won == null ? undefined : flip.won ? "Won" : "Lost";
-        return {
-          kind: "coin",
-          sides: 2,
-          value,
-          playerId: flip.playerId,
-          label:
-            flip.results.length > 1
-              ? `${flip.label ?? `Flip ${flipIndex + 1}`} ${resultIndex + 1}`
-              : flip.label,
-          detail: [call, outcome].filter(Boolean).join(" · ") || undefined,
-          round: 0,
-          highlighted: flip.won === true && isKept,
-          ignored: !isKept,
-        };
-      });
-    });
-    this.renderRollResults(presentation, entries, "Coin flip", () =>
-      this.spec!.respond({ type: "coinFlippedAcknowledged" }),
-    );
-  }
-
-  private renderPlanarDie(
-    presentation: PromptPresentation,
-    rolls: Array<{
-      label?: string;
-      playerId?: string;
-      results: Array<"planeswalk" | "chaos" | "blank">;
-      ignoredResults: Array<"planeswalk" | "chaos" | "blank">;
-    }>,
-  ): void {
-    const entries: RollDisplayEntry[] = rolls.flatMap((roll, rollIndex) => [
-      ...roll.results.map((value, index) => ({
-        kind: "planar" as const,
-        sides: 3,
-        value,
-        playerId: roll.playerId,
-        label:
-          roll.results.length > 1
-            ? `${roll.label ?? `Planar roll ${rollIndex + 1}`} ${index + 1}`
-            : roll.label,
-        detail:
-          value === "planeswalk" ? "Planeswalk" : value === "chaos" ? "Chaos ensues" : "Blank",
-        round: 0,
-        highlighted: value !== "blank",
-        ignored: false,
-      })),
-      ...roll.ignoredResults.map((value, index) => ({
-        kind: "planar" as const,
-        sides: 3,
-        value,
-        playerId: roll.playerId,
-        label: `${roll.label ?? `Planar roll ${rollIndex + 1}`} ignored ${index + 1}`,
-        round: 0,
-        highlighted: false,
-        ignored: true,
-      })),
-    ]);
-    this.renderRollResults(presentation, entries, "Planar die roll", () =>
-      this.spec!.respond({ type: "planarDieRolledAcknowledged" }),
-    );
-  }
-
   private renderRollResults(
     presentation: PromptPresentation,
     entries: RollDisplayEntry[],
@@ -4957,7 +4861,6 @@ export class PromptLayer {
       ? entries
       : [
           {
-            kind: "die" as const,
             sides: 6,
             value: "—",
             round: 0,
@@ -5068,7 +4971,6 @@ export class PromptLayer {
       aura.alpha = this.rollSettled ? (entry.highlighted ? 0.46 : entry.ignored ? 0 : 0.12) : 0;
       aura.eventMode = "none";
       const token = createRollToken({
-        kind: entry.kind,
         sides: entry.sides,
         size: dieSize,
         fill: playerColor,
@@ -5886,20 +5788,9 @@ export class PromptLayer {
         event.preventDefault();
         this.spec.damageOrder.onConfirm();
       }
-    } else if (
-      (input.type === "coinFlipped" ||
-        input.type === "diceRolled" ||
-        input.type === "planarDieRolled") &&
-      this.rollElapsedMs >= this.rollDurationMs
-    ) {
+    } else if (input.type === "diceRolled" && this.rollElapsedMs >= this.rollDurationMs) {
       event.preventDefault();
-      if (input.type === "coinFlipped") {
-        this.spec.respond({ type: "coinFlippedAcknowledged" });
-      } else if (input.type === "diceRolled") {
-        this.spec.respond({ type: "diceRolledAcknowledged" });
-      } else {
-        this.spec.respond({ type: "planarDieRolledAcknowledged" });
-      }
+      this.spec.respond({ type: "diceRolledAcknowledged" });
     } else if (input.type === "chooseCombatDamageAssignment") {
       const assignees = [...input.blockerIds, ...(input.defenderId ? [input.defenderId] : [])];
       const remaining =
@@ -5930,23 +5821,10 @@ export class PromptLayer {
       this.rollElapsedMs = Math.min(this.rollDurationMs, this.rollTimeline.time() * 1000);
     }
     for (const visual of this.rollVisuals) {
-      if (visual.token.kind === "die") {
-        setRollTokenValue(
-          visual.token,
-          rollingDieValue(visual.sides, this.rollElapsedMs, visual.seed),
-        );
-      } else if (visual.token.kind === "coin") {
-        setRollTokenValue(
-          visual.token,
-          Math.floor(this.rollElapsedMs / 62 + visual.index) % 2 === 0 ? "heads" : "tails",
-        );
-      } else {
-        const faces = ["planeswalk", "chaos", "blank"];
-        setRollTokenValue(
-          visual.token,
-          faces[Math.floor(this.rollElapsedMs / 76 + visual.index) % faces.length]!,
-        );
-      }
+      setRollTokenValue(
+        visual.token,
+        rollingDieValue(visual.sides, this.rollElapsedMs, visual.seed),
+      );
     }
   }
 
@@ -6008,10 +5886,7 @@ export class PromptLayer {
       }
     }
     const input = this.spec?.currentPrompt?.input;
-    const isRollResult =
-      input?.type === "coinFlipped" ||
-      input?.type === "diceRolled" ||
-      input?.type === "planarDieRolled";
+    const isRollResult = input?.type === "diceRolled";
     if (!this.modalOpen || !isRollResult || this.rollSettled) return;
     this.syncRollVisuals();
   }

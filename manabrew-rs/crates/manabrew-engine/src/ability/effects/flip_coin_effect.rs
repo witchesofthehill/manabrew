@@ -191,15 +191,30 @@ fn flip_single_coin(
         ctx.agents,
         GameLogEvent::rule(format!("Coin flip: {outcome}")).with_player(flipper),
     );
+    let result_number = |heads| if heads { 1 } else { 2 };
+    let kept_result_number = result_number(kept_result);
+    let mut kept_seen = false;
+    let ignored_rolls = results
+        .into_iter()
+        .filter_map(|result| {
+            let result = result_number(result);
+            if !kept_seen && result == kept_result_number {
+                kept_seen = true;
+                None
+            } else {
+                Some(result)
+            }
+        })
+        .collect();
     crate::agent::game_log::broadcast_notification(
         ctx.agents,
-        GameNotification::CoinFlipped {
+        GameNotification::DiceRolled {
             player: flipper,
-            results,
-            kept_result,
-            called_heads,
-            won: (!sa.ir.no_call).then_some(won_or_heads),
-            source_card_id,
+            sides: 2,
+            natural_results: vec![kept_result_number],
+            final_results: vec![kept_result_number],
+            ignored_rolls,
+            source_card_id: Some(source_card_id),
             source_card_name: Some(source_card_name),
         },
     );

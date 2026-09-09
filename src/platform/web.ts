@@ -1095,6 +1095,7 @@ class WebServerApi implements IServerApi {
       sealed_config: params.sealedConfig ?? null,
       reconnect_timeout_s: params.reconnectTimeoutS ?? null,
       password: params.password ?? null,
+      table_style: params.tableStyle ?? null,
     });
     return null;
   }

@@ -119,6 +119,12 @@ public final class SabTransport implements InteractiveBridge {
     }
 
     @Override
+    public void publishDisplay(final int playerIndex, final String displayEventJson) {
+        final int seat = playerIndex < 0 ? 0 : playerIndex;
+        sendTagged(seat, "display", "event", displayEventJson);
+    }
+
+    @Override
     public String exchange(final int playerIndex, final String promptJson) {
         final int seat = playerIndex < 0 ? 0 : playerIndex;
         // Broadcast before the telemetry post so `turnNow` is the turn this

@@ -22,6 +22,7 @@ import { SELF_RECONNECT_WINDOW_S } from "@/hooks/useMultiplayerInterruption";
 import { clearActiveGameSession, peekActiveGameSession } from "@/lib/activeGameSession";
 import { FORETELL_LOG_PREFIX, normalizeGameLogPayload, type GameLogEntry } from "@/types/gameLog";
 import { normalizeSnapshotPayload } from "@/types/gameSnapshot";
+import { initializeSoundCues, resetSoundCueSession } from "@/lib/soundCues";
 import {
   applyDisplay,
   applyPrompt,
@@ -218,6 +219,8 @@ export function useGameEventListeners() {
   }, []);
 
   useEffect(() => {
+    resetSoundCueSession();
+    initializeSoundCues();
     const platform = getPlatform();
     const runtime = getSelectedGameRuntime();
     const unsubscribers: (() => void)[] = [];
@@ -345,10 +348,14 @@ export function useGameEventListeners() {
       );
 
       unsubscribers.push(
-        platform.events.on<{ event: DisplayEvent }>("game:remote_display", (payload) => {
-          if (!payload.event?.kind) return;
-          applyDisplay(payload.event, "Remote", setState, getState);
-        }),
+        platform.events.on<{ forPlayer?: string; event: DisplayEvent }>(
+          "game:remote_display",
+          (payload) => {
+            if (payload.forPlayer && payload.forPlayer !== getState().myPlayerSlot) return;
+            if (!payload.event?.kind) return;
+            applyDisplay(payload.event, "Remote", setState, getState);
+          },
+        ),
       );
 
       unsubscribers.push(
@@ -465,6 +472,7 @@ export function useGameEventListeners() {
 
     return () => {
       unsubscribers.forEach((fn) => fn());
+      resetSoundCueSession();
     };
   }, []);
 }

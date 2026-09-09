@@ -23,6 +23,9 @@ use std::time::Duration;
 use std::time::Instant;
 
 use manabrew_protocol::deck_dto::{Deck, DeckCardIdentity};
+use manabrew_protocol::display::DisplayEvent;
+#[cfg(any(feature = "java-forge", feature = "graal-forge"))]
+use manabrew_protocol::display::SoundType;
 
 use crate::config::DeckSelection;
 #[cfg(feature = "java-forge")]
@@ -78,6 +81,9 @@ pub fn run_smoke_game(max_prompts: usize) -> Result<(), String> {
     info!(session_id, "java-forge smoke session started");
 
     let mut prompts_seen = 0usize;
+    let mut sound_cues_seen = 0usize;
+    let mut rejection_cues_seen = 0usize;
+    let mut last_sound_sequence = [0u64; 2];
     while prompts_seen < max_prompts {
         let Some(prompt_json) = wait_for_prompt(&mut session, 600)? else {
             session.end_game()?;
@@ -87,12 +93,49 @@ pub fn run_smoke_game(max_prompts: usize) -> Result<(), String> {
             .map_err(|err| format!("failed to parse java-forge smoke prompt: {err}"))?;
         let player = player_index(&prompt.deciding_player_id);
         info!(prompts_seen, player, "java-forge smoke prompt");
+        if prompts_seen == 0 {
+            session.publish_action_rejected(player, prompt.prompt_id)?;
+            session.publish_action_rejected(player, prompt.prompt_id)?;
+        }
+        for (player_index, last_sequence) in last_sound_sequence.iter_mut().enumerate() {
+            for event in session.get_display_events(player_index)? {
+                if let DisplayEvent::SoundCue {
+                    sequence,
+                    sound_type,
+                    ..
+                } = event
+                {
+                    if sequence <= *last_sequence {
+                        session.end_game()?;
+                        return Err(format!(
+                            "java-forge sound sequence did not increase for player {player_index}"
+                        ));
+                    }
+                    *last_sequence = sequence;
+                    sound_cues_seen += 1;
+                    if sound_type == SoundType::PROMPT_ACTION_REJECTED {
+                        rejection_cues_seen += 1;
+                    }
+                }
+            }
+        }
         let pass = PromptOutput::ChooseAction(ChooseActionOutput::Pass {
             until: None,
             exhaust_stack: false,
         });
         session.submit_action(&serde_json::to_string(&pass).map_err(|err| err.to_string())?)?;
         prompts_seen += 1;
+    }
+    if sound_cues_seen == 0 {
+        session.end_game()?;
+        return Err("java-forge smoke produced no sound cues".to_string());
+    }
+    info!(sound_cues_seen, "java-forge smoke sound cues");
+    if rejection_cues_seen != 2 {
+        session.end_game()?;
+        return Err(format!(
+            "java-forge smoke expected two rejection cues, got {rejection_cues_seen}"
+        ));
     }
 
     let snapshot_json = session.get_snapshot(Some(0))?;
@@ -146,6 +189,40 @@ pub fn run_graal_smoke() -> Result<(), String> {
 
     let session_id = engine.start_game(&request.to_json().map_err(|err| err.to_string())?)?;
     info!(session_id, "graal-forge smoke session started");
+    engine.publish_action_rejected(&session_id, 0, 1)?;
+    engine.publish_action_rejected(&session_id, 0, 1)?;
+    let mut sound_cues = Vec::new();
+    for _ in 0..600 {
+        sound_cues.extend(engine.get_display_events(&session_id, 0)?);
+        if !sound_cues.is_empty() {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    if sound_cues.is_empty() {
+        engine.end_game(&session_id)?;
+        return Err("graal-forge smoke produced no sound cues".to_string());
+    }
+    let rejection_cues = sound_cues
+        .iter()
+        .filter(|event| {
+            matches!(
+                event,
+                DisplayEvent::SoundCue { sound_type, .. }
+                    if *sound_type == SoundType::PROMPT_ACTION_REJECTED
+            )
+        })
+        .count();
+    if rejection_cues != 2 {
+        engine.end_game(&session_id)?;
+        return Err(format!(
+            "graal-forge smoke expected two rejection cues, got {rejection_cues}"
+        ));
+    }
+    info!(
+        sound_cues = sound_cues.len(),
+        "graal-forge smoke sound cues"
+    );
     engine.end_game(&session_id)?;
     Ok(())
 }
@@ -518,6 +595,29 @@ impl JavaEngineHandle {
             .map_err(|_| "java subprocess mutex poisoned".to_string())?;
         guard.get_prompt(session_id, player_index)
     }
+    pub fn get_display_events(
+        &self,
+        session_id: &str,
+        player_index: usize,
+    ) -> Result<Vec<DisplayEvent>, String> {
+        let bridge = self.bridge_for(session_id)?;
+        let mut guard = bridge
+            .lock()
+            .map_err(|_| "java subprocess mutex poisoned".to_string())?;
+        guard.get_display_events(session_id, player_index)
+    }
+    pub fn publish_action_rejected(
+        &self,
+        session_id: &str,
+        player_index: usize,
+        prompt_id: u32,
+    ) -> Result<(), String> {
+        let bridge = self.bridge_for(session_id)?;
+        let mut guard = bridge
+            .lock()
+            .map_err(|_| "java subprocess mutex poisoned".to_string())?;
+        guard.publish_action_rejected(session_id, player_index, prompt_id)
+    }
 
     pub fn is_game_over(&self, session_id: &str) -> Result<bool, String> {
         let bridge = self.bridge_for(session_id)?;
@@ -693,6 +793,17 @@ mod graal_ffi {
             thread: *mut graal_isolatethread_t,
             session_id: *const c_char,
             player_index: c_int,
+        ) -> *mut c_char;
+        pub fn forge_get_display_events(
+            thread: *mut graal_isolatethread_t,
+            session_id: *const c_char,
+            player_index: c_int,
+        ) -> *mut c_char;
+        pub fn forge_publish_action_rejected(
+            thread: *mut graal_isolatethread_t,
+            session_id: *const c_char,
+            player_index: c_int,
+            prompt_id: i64,
         ) -> *mut c_char;
         pub fn forge_get_snapshot(
             thread: *mut graal_isolatethread_t,
@@ -965,6 +1076,39 @@ impl GraalEngineHandle {
             )
         })?;
         Ok((!prompt.is_empty()).then_some(prompt))
+    }
+    fn get_display_events(
+        &self,
+        session_id: &str,
+        player_index: usize,
+    ) -> Result<Vec<DisplayEvent>, String> {
+        let session = cstring(session_id)?;
+        let events = self.bridge.decode(unsafe {
+            graal_ffi::forge_get_display_events(
+                self.bridge.thread,
+                session.as_ptr(),
+                player_index as std::os::raw::c_int,
+            )
+        })?;
+        parse_display_events(&events)
+    }
+    fn publish_action_rejected(
+        &self,
+        session_id: &str,
+        player_index: usize,
+        prompt_id: u32,
+    ) -> Result<(), String> {
+        let session = cstring(session_id)?;
+        self.bridge
+            .decode(unsafe {
+                graal_ffi::forge_publish_action_rejected(
+                    self.bridge.thread,
+                    session.as_ptr(),
+                    player_index as std::os::raw::c_int,
+                    i64::from(prompt_id),
+                )
+            })
+            .map(|_| ())
     }
 
     fn is_game_over(&self, session_id: &str) -> Result<bool, String> {
@@ -1430,6 +1574,12 @@ pub fn run_hosted_engine_game(
 #[cfg(forge_backend)]
 const SLOW_DECISION: Duration = Duration::from_millis(1500);
 
+#[cfg(forge_backend)]
+fn parse_display_events(events: &str) -> Result<Vec<DisplayEvent>, String> {
+    serde_json::from_str(events)
+        .map_err(|error| format!("failed to parse java display events: {error}"))
+}
+
 /// Serde tag of the prompt variant, for the slow-decision log. `PromptInput` is
 /// internally tagged, so this is the same string the captures carry. Only called
 /// on the rare slow path, so the trip through a `Value` is not worth avoiding.
@@ -1555,62 +1705,77 @@ fn run_hosted_engine_game_inner(
                                 last_prompt.as_ref().filter(|p| p.prompt_id == prompt_id)
                             else {
                                 reject_response(
+                                    &engine,
+                                    &session_id,
                                     &remote_prompt_tx,
                                     *player_index,
+                                    prompt_id,
                                     last_prompt.as_ref().filter(|p| {
                                         self::player_index(&p.deciding_player_id) == *player_index
                                     }),
                                     ProtocolErrorCode::StalePrompt,
                                     format!("response for prompt {prompt_id} is not open"),
-                                );
+                                )?;
                                 continue;
                             };
                             if self::player_index(&prompt.deciding_player_id) != *player_index {
                                 reject_response(
+                                    &engine,
+                                    &session_id,
                                     &remote_prompt_tx,
                                     *player_index,
+                                    prompt_id,
                                     None,
                                     ProtocolErrorCode::WrongPlayer,
                                     format!(
                                         "prompt {prompt_id} is for {}",
                                         prompt.deciding_player_id
                                     ),
-                                );
+                                )?;
                                 continue;
                             }
                             match prompt.input.validate_response(&action) {
                                 Ok(()) => {}
                                 Err(ResponseViolation::WrongPromptType) => {
                                     reject_response(
+                                        &engine,
+                                        &session_id,
                                         &remote_prompt_tx,
                                         *player_index,
+                                        prompt_id,
                                         Some(prompt),
                                         ProtocolErrorCode::WrongPromptType,
                                         "response output does not match the prompt type"
                                             .to_string(),
-                                    );
+                                    )?;
                                     continue;
                                 }
                                 Err(ResponseViolation::UnknownActionId(id)) => {
                                     reject_response(
+                                        &engine,
+                                        &session_id,
                                         &remote_prompt_tx,
                                         *player_index,
+                                        prompt_id,
                                         Some(prompt),
                                         ProtocolErrorCode::UnknownActionId,
                                         format!(
                                             "action id {id:?} was not advertised by the prompt"
                                         ),
-                                    );
+                                    )?;
                                     continue;
                                 }
                                 Err(ResponseViolation::CancelNotAllowed) => {
                                     reject_response(
+                                        &engine,
+                                        &session_id,
                                         &remote_prompt_tx,
                                         *player_index,
+                                        prompt_id,
                                         Some(prompt),
                                         ProtocolErrorCode::CancelNotAllowed,
                                         "this prompt is not cancellable".to_string(),
-                                    );
+                                    )?;
                                     continue;
                                 }
                             }
@@ -1639,6 +1804,19 @@ fn run_hosted_engine_game_inner(
                     Err(TryRecvError::Disconnected) => {
                         debug!(player_index, "java-forge response channel disconnected");
                         break;
+                    }
+                }
+            }
+        }
+        for player_index in 0..player_names.len() {
+            let events = engine.get_display_events(&session_id, player_index)?;
+            if remote_response_rxs.contains_key(&player_index) {
+                for event in events {
+                    if remote_prompt_tx
+                        .send((player_index, AgentMessage::Display(event)))
+                        .is_err()
+                    {
+                        return Ok(());
                     }
                 }
             }
@@ -1807,12 +1985,19 @@ fn player_index(deciding_player_id: &str) -> usize {
 
 #[cfg(forge_backend)]
 fn reject_response(
+    engine: &ForgeEngine,
+    session_id: &str,
     remote_prompt_tx: &std_mpsc::Sender<(usize, AgentMessage)>,
     seat: usize,
+    prompt_id: u32,
     reopen_prompt: Option<&AgentPrompt>,
     code: ProtocolErrorCode,
     message: String,
-) {
+) -> Result<(), String> {
+    engine.publish_action_rejected(session_id, seat, prompt_id)?;
+    for event in engine.get_display_events(session_id, seat)? {
+        let _ = remote_prompt_tx.send((seat, AgentMessage::Display(event)));
+    }
     let _ = remote_prompt_tx.send((
         seat,
         AgentMessage::Error(ProtocolError {
@@ -1824,6 +2009,7 @@ fn reject_response(
     if let Some(prompt) = reopen_prompt {
         let _ = remote_prompt_tx.send((seat, AgentMessage::Prompt(prompt.clone())));
     }
+    Ok(())
 }
 
 #[cfg(forge_backend)]
@@ -2467,6 +2653,17 @@ pub trait JavaBridge {
         session_id: &str,
         player_index: usize,
     ) -> Result<Option<String>, String>;
+    fn get_display_events(
+        &mut self,
+        session_id: &str,
+        player_index: usize,
+    ) -> Result<Vec<DisplayEvent>, String>;
+    fn publish_action_rejected(
+        &mut self,
+        session_id: &str,
+        player_index: usize,
+        prompt_id: u32,
+    ) -> Result<(), String>;
     fn get_snapshot(&mut self, session_id: &str, viewer: Option<usize>) -> Result<String, String>;
     fn is_game_over(&mut self, session_id: &str) -> Result<bool, String>;
     fn end_game(&mut self, session_id: &str) -> Result<(), String>;
@@ -2507,6 +2704,20 @@ impl<B: JavaBridge> JavaForgeSession<B> {
     pub fn get_prompt(&mut self, player_index: usize) -> Result<Option<String>, String> {
         let session_id = self.require_session_id()?.to_string();
         self.bridge.get_prompt(&session_id, player_index)
+    }
+
+    pub fn publish_action_rejected(
+        &mut self,
+        player_index: usize,
+        prompt_id: u32,
+    ) -> Result<(), String> {
+        let session_id = self.require_session_id()?.to_string();
+        self.bridge
+            .publish_action_rejected(&session_id, player_index, prompt_id)
+    }
+    pub fn get_display_events(&mut self, player_index: usize) -> Result<Vec<DisplayEvent>, String> {
+        let session_id = self.require_session_id()?.to_string();
+        self.bridge.get_display_events(&session_id, player_index)
     }
 
     pub fn get_snapshot(&mut self, viewer: Option<usize>) -> Result<String, String> {
@@ -2553,6 +2764,23 @@ impl JavaBridge for UnavailableJavaBridge {
         _session_id: &str,
         _player_index: usize,
     ) -> Result<Option<String>, String> {
+        Err(unsupported_message().to_string())
+    }
+
+    fn get_display_events(
+        &mut self,
+        _session_id: &str,
+        _player_index: usize,
+    ) -> Result<Vec<DisplayEvent>, String> {
+        Err(unsupported_message().to_string())
+    }
+
+    fn publish_action_rejected(
+        &mut self,
+        _session_id: &str,
+        _player_index: usize,
+        _prompt_id: u32,
+    ) -> Result<(), String> {
         Err(unsupported_message().to_string())
     }
 
@@ -2812,6 +3040,35 @@ impl JavaBridge for SubprocessBridge {
         });
         let prompt = self.call(&body.to_string())?;
         Ok((!prompt.is_empty()).then_some(prompt))
+    }
+
+    fn get_display_events(
+        &mut self,
+        session_id: &str,
+        player_index: usize,
+    ) -> Result<Vec<DisplayEvent>, String> {
+        let body = json!({
+            "command": "getDisplayEvents",
+            "sessionId": session_id,
+            "playerIndex": player_index,
+        });
+        let events = self.call(&body.to_string())?;
+        parse_display_events(&events)
+    }
+
+    fn publish_action_rejected(
+        &mut self,
+        session_id: &str,
+        player_index: usize,
+        prompt_id: u32,
+    ) -> Result<(), String> {
+        let body = json!({
+            "command": "publishActionRejected",
+            "sessionId": session_id,
+            "playerIndex": player_index,
+            "promptId": prompt_id,
+        });
+        self.call(&body.to_string()).map(|_| ())
     }
 
     fn get_snapshot(&mut self, session_id: &str, viewer: Option<usize>) -> Result<String, String> {

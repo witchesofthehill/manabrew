@@ -637,6 +637,12 @@ impl GameLoop {
         self.trigger_handler.reset_active_triggers(game);
         self.trigger_handler
             .run_trigger(TriggerType::NewGame, RunParams::default(), true);
+        game.clear_notifications();
+        let _ = self.trigger_handler.take_notifications();
+        crate::agent::game_log::broadcast_notification(
+            agents,
+            crate::agent::notification::GameNotification::GameStarted,
+        );
 
         while !game.game_over && game.turn.turn_number <= max_turns {
             if self.is_aborted() {

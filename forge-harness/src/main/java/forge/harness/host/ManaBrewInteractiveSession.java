@@ -42,6 +42,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public final class ManaBrewInteractiveSession {
 
@@ -52,6 +53,10 @@ public final class ManaBrewInteractiveSession {
     private volatile String latestPromptJson;
     private volatile int promptedPlayerIndex = -1;
     private long promptSeq;
+    private boolean actionRejectedBeforeNextPrompt;
+    private List<ConcurrentLinkedQueue<SoundCueProjector.Cue>> soundCuesByPlayer = List.of();
+    private long[] soundSequences = new long[0];
+    private SoundCueProjector soundCueProjector;
     private volatile boolean closed;
     private volatile Thread gameThread;
     private static volatile InteractiveBridge bridge;
@@ -64,8 +69,41 @@ public final class ManaBrewInteractiveSession {
     }
 
     void attach(final Match match, final Game game) {
+        if (this.game != null) {
+            throw new IllegalStateException("session is already attached");
+        }
         this.match = Objects.requireNonNull(match, "match");
         this.game = Objects.requireNonNull(game, "game");
+        final int playerCount = game.getRegisteredPlayers().size();
+        final List<ConcurrentLinkedQueue<SoundCueProjector.Cue>> queues =
+                new ArrayList<>(playerCount);
+        for (int playerIndex = 0; playerIndex < playerCount; playerIndex++) {
+            queues.add(new ConcurrentLinkedQueue<>());
+        }
+        soundCuesByPlayer = queues;
+        soundSequences = new long[playerCount];
+        soundCueProjector = new SoundCueProjector(game, new SoundCueProjector.Sink() {
+            @Override
+            public void broadcast(
+                    final SoundCueProjector.SoundType soundType,
+                    final SoundCueProjector.Origin origin,
+                    final int count
+            ) {
+                enqueueBroadcastSoundCue(soundType, origin, count);
+            }
+
+            @Override
+            public void recipient(
+                    final int playerIndex,
+                    final SoundCueProjector.SoundType soundType,
+                    final SoundCueProjector.Origin origin,
+                    final int count,
+                    final long promptId
+            ) {
+                enqueueSoundCue(playerIndex, soundType, origin, count, promptId);
+            }
+        });
+        game.subscribeToEvents(soundCueProjector);
     }
 
     public String getSessionId() {
@@ -127,6 +165,64 @@ public final class ManaBrewInteractiveSession {
 
     public String getLatestPromptJson() {
         return latestPromptJson;
+    }
+
+    String drainSoundCuesJson(final int playerIndex) {
+        if (playerIndex < 0 || playerIndex >= soundCuesByPlayer.size()) {
+            return "[]";
+        }
+        final List<SoundCueProjector.Cue> cues = new ArrayList<>();
+        final ConcurrentLinkedQueue<SoundCueProjector.Cue> queue = soundCuesByPlayer.get(playerIndex);
+        SoundCueProjector.Cue cue;
+        while ((cue = queue.poll()) != null) {
+            cues.add(cue);
+        }
+        return GSON.toJson(cues);
+    }
+    void publishActionRejected(final int playerIndex, final long promptId) {
+        soundCueProjector.publishActionRejected(playerIndex, promptId);
+    }
+
+
+    private synchronized void enqueueBroadcastSoundCue(
+            final SoundCueProjector.SoundType soundType,
+            final SoundCueProjector.Origin origin,
+            final int count
+    ) {
+        for (int playerIndex = 0; playerIndex < soundCuesByPlayer.size(); playerIndex++) {
+            enqueueSoundCueLocked(playerIndex, soundType, origin, count, null);
+        }
+    }
+
+    private synchronized void enqueueSoundCue(
+            final int playerIndex,
+            final SoundCueProjector.SoundType soundType,
+            final SoundCueProjector.Origin origin,
+            final int count,
+            final long promptId
+    ) {
+        enqueueSoundCueLocked(playerIndex, soundType, origin, count, promptId);
+    }
+
+    private void enqueueSoundCueLocked(
+            final int playerIndex,
+            final SoundCueProjector.SoundType soundType,
+            final SoundCueProjector.Origin origin,
+            final int count,
+            final Long promptId
+    ) {
+        if (playerIndex < 0 || playerIndex >= soundCuesByPlayer.size()) {
+            return;
+        }
+        final long sequence = ++soundSequences[playerIndex];
+        final SoundCueProjector.Cue cue =
+                new SoundCueProjector.Cue(sequence, soundType, origin, count, promptId);
+        final InteractiveBridge currentBridge = bridge;
+        if (currentBridge == null) {
+            soundCuesByPlayer.get(playerIndex).offer(cue);
+        } else {
+            currentBridge.publishDisplay(playerIndex, GSON.toJson(cue));
+        }
     }
 
     public String getSnapshotJson(final int viewer) {
@@ -274,6 +370,7 @@ public final class ManaBrewInteractiveSession {
                         + " turn=" + game.getPhaseHandler().getTurn()
                         + " action=" + action);
                 invalid.printStackTrace(System.err);
+                actionRejectedBeforeNextPrompt = true;
                 publishPriorityPrompt(playerId, actionsForPrompt, untappableCards);
             }
         }
@@ -429,6 +526,7 @@ public final class ManaBrewInteractiveSession {
                         + " canConfirm=" + canConfirm + " canCancel=" + canCancel
                         + " action=" + action);
                 invalid.printStackTrace(System.err);
+                actionRejectedBeforeNextPrompt = true;
                 publishManaPaymentPrompt(
                         playerId, payingFor, remainingCost, tappableSources, untappableCards, convokeSources,
                         waterbendSources, waterbentCards, delveSources, delvedCards, canConfirm, canCancel,
@@ -1336,6 +1434,7 @@ public final class ManaBrewInteractiveSession {
                     return option;
                 }
             }
+            actionRejectedBeforeNextPrompt = true;
             publishOptionPrompt(kind, playerId, options, 1, 1, sourceCardId, description);
         }
         return options.isEmpty() ? "" : options.get(0);
@@ -2604,8 +2703,20 @@ public final class ManaBrewInteractiveSession {
 
     private void publishAgentPrompt(final String decidingPlayerId, final String sourceCardId, final JsonObject input) {
         promptedPlayerIndex = parsePlayerSlot(decidingPlayerId);
+        final long promptId = ++promptSeq;
         latestPromptJson = ManabrewProtocolAdapter.agentPrompt(
-                ++promptSeq, decidingPlayerId, sourceCard(sourceCardId), input);
+                promptId, decidingPlayerId, sourceCard(sourceCardId), input);
+        final boolean rejected = actionRejectedBeforeNextPrompt
+                || input.has("error") && !input.get("error").isJsonNull();
+        actionRejectedBeforeNextPrompt = false;
+        if (rejected) {
+            soundCueProjector.publishActionRejected(promptedPlayerIndex, promptId);
+        } else {
+            soundCueProjector.publishPrompt(
+                    promptedPlayerIndex,
+                    promptId,
+                    input.has("type") ? input.get("type").getAsString() : null);
+        }
     }
 
     private static int parsePlayerSlot(final String decidingPlayerId) {

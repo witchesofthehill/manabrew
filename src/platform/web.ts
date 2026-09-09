@@ -57,6 +57,7 @@ import { applyStateDelta, diffStateDelta } from "@/lib/stateDelta";
 import { isForgeWasmHostingEnabled, setForgeWasmActive } from "@/lib/forgeWasm";
 import { buildForgeAssetBundle } from "@/lib/forgeAssets";
 import type { Deck } from "@/protocol/deck";
+import type { DisplayEvent } from "@/protocol/display";
 // The seat protocol lives with @manabrew/forge-wasm, which drives the same
 // worker, so there is one implementation rather than one per consumer.
 import {
@@ -781,10 +782,18 @@ class WebServerApi implements IServerApi {
           targetPlayer,
         );
       } else if (msg.kind === "display") {
-        const json = JSON.stringify(msg.event);
-        if (json === this.lastRelayDisplay) return;
-        this.lastRelayDisplay = json;
-        this.broadcastState({ kind: "display", event: msg.event });
+        const event = msg.event as DisplayEvent;
+        if (event.kind === "soundCue") {
+          const targetPlayer = this.enginePlayerName(forPlayer);
+          if (targetPlayer) {
+            void this.broadcastState({ kind: "display", forPlayer, event }, targetPlayer);
+          }
+        } else {
+          const json = JSON.stringify(event);
+          if (json === this.lastRelayDisplay) return;
+          this.lastRelayDisplay = json;
+          void this.broadcastState({ kind: "display", event });
+        }
       } else if (msg.kind === "prompt") {
         const envelope = { kind: "prompt", forPlayer, prompt: msg.prompt };
         this.pendingRelayPrompts.set(forPlayer, envelope);

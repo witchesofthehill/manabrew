@@ -1,4 +1,4 @@
-pub use manabrew_protocol::display::DisplayEvent;
+pub use manabrew_protocol::display::{DisplayEvent, SoundCueOrigin, SoundType};
 pub use manabrew_protocol::game::{Mana, ManaColor};
 pub use manabrew_protocol::prompts::common::*;
 pub use manabrew_protocol::prompts::*;

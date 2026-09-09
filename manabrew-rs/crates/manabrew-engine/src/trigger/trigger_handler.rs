@@ -128,6 +128,14 @@ pub struct TriggerPushLog {
 }
 
 type MatchedTrigger = (PendingTrigger, PlayerId, u64, u8, u32);
+#[derive(Debug, Default)]
+struct PendingNotifications(Vec<crate::agent::notification::GameNotification>);
+
+impl Clone for PendingNotifications {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
+}
 
 /// Mirrors Java's TriggerHandler — central trigger dispatcher.
 /// In Java, lives on Game. In Rust, lives on GameLoop because
@@ -148,6 +156,7 @@ pub struct TriggerHandler {
     /// SBA (e.g. Raptor Hatchling's enrage) are not lost.
     /// Tuple: (PendingTrigger, controller, zone timestamp, trigger bucket, trigger order).
     pre_matched_triggers: Vec<MatchedTrigger>,
+    pending_notifications: PendingNotifications,
 }
 
 impl TriggerHandler {
@@ -162,6 +171,7 @@ impl TriggerHandler {
             all_suppressed: false,
             next_trigger_id: 0,
             pre_matched_triggers: Vec::new(),
+            pending_notifications: PendingNotifications::default(),
         }
     }
 
@@ -169,7 +179,20 @@ impl TriggerHandler {
     /// Called from game actions when events occur.
     /// If `hold` is true, event is queued; otherwise it's also queued
     /// (all triggers go through the waiting queue for APNAP ordering).
+    pub(crate) fn take_notifications(
+        &mut self,
+    ) -> Vec<crate::agent::notification::GameNotification> {
+        std::mem::take(&mut self.pending_notifications.0)
+    }
+
     pub fn run_trigger(&mut self, mode: TriggerType, params: RunParams, hold: bool) {
+        if mode == TriggerType::Destroyed {
+            if let Some(card_id) = params.card {
+                self.pending_notifications
+                    .0
+                    .push(crate::agent::notification::GameNotification::CardDestroyed { card_id });
+            }
+        }
         if self.is_trigger_suppressed(mode) {
             return;
         }

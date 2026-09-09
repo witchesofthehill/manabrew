@@ -1,0 +1,88 @@
+---
+title: Sound cues
+description: Engine-authored semantic audio events for any Manabrew protocol client.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sound cues are transient presentation events. The engine decides **what happened**;
+the client decides whether and how to render it. A client may mute cues, substitute
+its own assets, apply accessibility preferences, or ignore the feature entirely.
+A cue never changes authoritative game state.
+
+## DisplayEvent
+
+`DisplayEvent` is the open protocol envelope for transient presentation events.
+Sound cues are delivered in a recipient-specific stream, not inside a
+`GameViewDto` snapshot. Relay envelopes set `forPlayer` and deliver each cue only
+to that seat.
+
+<ProtocolType type="DisplayEvent" />
+
+The existing `cardPlayed` and `turnChanged` variants drive visual effects. They
+do not imply audio; clients handle them independently from `soundCue`.
+
+## SoundType
+
+`SoundType` is an extensible string, not a closed enum. Producers should use the
+standard identifiers below. Private extensions should use a reverse-DNS or other
+collision-resistant namespace. Consumers must ignore identifiers they do not
+recognize.
+
+<ProtocolType type="SoundType" />
+
+## SoundCueOrigin
+
+`origin` optionally identifies the player or card most closely associated with a
+cue. It supports spatial audio and local emphasis without exposing information the
+recipient could not otherwise see.
+
+<ProtocolType type="SoundCueOrigin" />
+
+## Standard identifiers
+
+| Identifier                 | Meaning                                                   |
+| -------------------------- | --------------------------------------------------------- |
+| `game.start`               | The game has started.                                     |
+| `game.turn.start`          | A player's turn has started.                              |
+| `game.card.draw`           | One or more cards moved from a library to a hand.         |
+| `game.card.play`           | A land was played or a spell was cast.                    |
+| `game.card.tap`            | One or more permanents became tapped.                     |
+| `game.card.untap`          | One or more permanents became untapped.                   |
+| `game.card.discard`        | One or more cards left a hand for a graveyard or library. |
+| `game.card.destroy`        | One or more permanents were destroyed.                    |
+| `game.card.exile`          | One or more cards moved to exile.                         |
+| `game.library.shuffle`     | A player's library was shuffled.                          |
+| `game.player.life-gain`    | A player's life total increased.                          |
+| `game.player.life-loss`    | A player's life total decreased.                          |
+| `game.random.die-roll`     | A die was rolled.                                         |
+| `prompt.decision-required` | The recipient must make a modal decision.                 |
+| `prompt.target-required`   | The recipient must choose board targets.                  |
+| `prompt.payment-required`  | The recipient must make a mana payment.                   |
+| `prompt.combat-required`   | The recipient must make a combat decision.                |
+| `prompt.action-rejected`   | The recipient's submitted action was rejected.            |
+
+## Producer requirements
+
+- Emit cues from authoritative engine events, in recipient-visible emission order.
+- Start `sequence` at `1` for each recipient and increase it for every delivered cue.
+- Set `count` to a positive integer. It may aggregate equivalent events that happen
+  together; consumers are not required to play one voice per count.
+- Send prompt cues only to the player who must respond. Use `promptId` so clients
+  can suppress repeated delivery of the same open prompt. Emit
+  `prompt.action-rejected` for every rejected submission, including repeated
+  submissions for the same prompt.
+- Do not emit sound cues while reconstructing or replaying a state snapshot.
+- Omit `origin` when identifying it would reveal hidden information.
+
+## Consumer requirements
+
+- Treat cues as optional presentation. Never infer or mutate game state from them.
+- Ignore unknown `soundType` values without failing the display stream.
+- Ignore a cue whose `sequence` is not greater than the last sequence already
+  handled for that recipient.
+- Use the pair of `soundType` and `promptId`, when present, to avoid notifying
+  twice for the same prompt cue. Do not use prompt identity to suppress a later
+  `prompt.action-rejected` sequence for the same prompt.
+- Apply local mixing policy such as muting, cooldowns, voice limits, and asset
+  selection. `count` is a semantic quantity, not a playback command.

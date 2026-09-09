@@ -501,7 +501,7 @@ impl GameLoop {
                 // mirror Java legality checks; untap first so this tap emits the
                 // declaration-time Taps trigger once.
                 if game.card(attacker_id).tapped {
-                    game.untap(attacker_id);
+                    game.card_mut(attacker_id).set_tapped(false);
                 }
                 game.tap(attacker_id);
                 // Java attacker.tap(...) emits Taps triggers when a creature becomes tapped

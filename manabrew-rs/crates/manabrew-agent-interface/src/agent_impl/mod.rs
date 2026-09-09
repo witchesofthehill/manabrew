@@ -79,6 +79,185 @@ pub trait Responder {
     fn send_log(&mut self, _entry: GameLogEntryDto) {}
     fn send_snapshot(&mut self, _snapshot: GameSnapshotEventDto) {}
 }
+enum SoundProjection<'a> {
+    Notification(&'a GameNotification),
+    Prompt {
+        input: &'a PromptInput,
+        prompt_id: u32,
+    },
+    Rejection {
+        prompt_id: u32,
+    },
+}
+
+struct ProjectedSoundCue {
+    sound_type: SoundType,
+    origin: Option<SoundCueOrigin>,
+    prompt_id: Option<u32>,
+}
+
+fn project_sound(source: SoundProjection<'_>) -> Option<ProjectedSoundCue> {
+    let (sound_type, origin, prompt_id) = match source {
+        SoundProjection::Notification(notification) => match notification {
+            GameNotification::GameStarted => (SoundType::GAME_START.clone(), None, None),
+            GameNotification::CardPlayed {
+                player: _, card_id, ..
+            } => (
+                SoundType::GAME_CARD_PLAY.clone(),
+                Some(SoundCueOrigin::Card {
+                    card_id: card_id_str(*card_id),
+                }),
+                None,
+            ),
+            GameNotification::TurnChanged { active_player, .. } => (
+                SoundType::GAME_TURN_START.clone(),
+                Some(SoundCueOrigin::Player {
+                    player_id: player_id_str(*active_player),
+                }),
+                None,
+            ),
+            GameNotification::FirstPlayerRoll { winner, .. } => (
+                SoundType::GAME_RANDOM_DIE_ROLL.clone(),
+                Some(SoundCueOrigin::Player {
+                    player_id: player_id_str(*winner),
+                }),
+                None,
+            ),
+            GameNotification::DiceRolled { player, .. } => (
+                SoundType::GAME_RANDOM_DIE_ROLL.clone(),
+                Some(SoundCueOrigin::Player {
+                    player_id: player_id_str(*player),
+                }),
+                None,
+            ),
+            GameNotification::CardMoved {
+                player,
+                origin,
+                destination,
+                ..
+            } if *origin == ZoneType::Library && *destination == ZoneType::Hand => (
+                SoundType::GAME_CARD_DRAW.clone(),
+                Some(SoundCueOrigin::Player {
+                    player_id: player_id_str(*player),
+                }),
+                None,
+            ),
+            GameNotification::CardMoved {
+                player,
+                origin,
+                destination,
+                ..
+            } if *origin == ZoneType::Hand
+                && matches!(*destination, ZoneType::Graveyard | ZoneType::Library) =>
+            {
+                (
+                    SoundType::GAME_CARD_DISCARD.clone(),
+                    Some(SoundCueOrigin::Player {
+                        player_id: player_id_str(*player),
+                    }),
+                    None,
+                )
+            }
+            GameNotification::CardMoved {
+                player,
+                destination: ZoneType::Exile,
+                ..
+            } => (
+                SoundType::GAME_CARD_EXILE.clone(),
+                Some(SoundCueOrigin::Player {
+                    player_id: player_id_str(*player),
+                }),
+                None,
+            ),
+            GameNotification::CardDestroyed { card_id } => (
+                SoundType::GAME_CARD_DESTROY.clone(),
+                Some(SoundCueOrigin::Card {
+                    card_id: card_id_str(*card_id),
+                }),
+                None,
+            ),
+            GameNotification::CardTapped {
+                card_id,
+                tapped: true,
+            } => (
+                SoundType::GAME_CARD_TAP.clone(),
+                Some(SoundCueOrigin::Card {
+                    card_id: card_id_str(*card_id),
+                }),
+                None,
+            ),
+            GameNotification::CardTapped {
+                card_id,
+                tapped: false,
+            } => (
+                SoundType::GAME_CARD_UNTAP.clone(),
+                Some(SoundCueOrigin::Card {
+                    card_id: card_id_str(*card_id),
+                }),
+                None,
+            ),
+            GameNotification::LibraryShuffled { player } => (
+                SoundType::GAME_LIBRARY_SHUFFLE.clone(),
+                Some(SoundCueOrigin::Player {
+                    player_id: player_id_str(*player),
+                }),
+                None,
+            ),
+            GameNotification::PlayerLifeChanged {
+                player,
+                old_life,
+                new_life,
+            } => (
+                if new_life > old_life {
+                    SoundType::GAME_PLAYER_LIFE_GAIN.clone()
+                } else {
+                    SoundType::GAME_PLAYER_LIFE_LOSS.clone()
+                },
+                Some(SoundCueOrigin::Player {
+                    player_id: player_id_str(*player),
+                }),
+                None,
+            ),
+            _ => return None,
+        },
+        SoundProjection::Prompt { input, prompt_id } => {
+            let sound_type = match input {
+                PromptInput::ChooseBoardTargets(_) => SoundType::PROMPT_TARGET_REQUIRED.clone(),
+                PromptInput::PayManaCost(_) => SoundType::PROMPT_PAYMENT_REQUIRED.clone(),
+                PromptInput::ChooseAttackers(_)
+                | PromptInput::ChooseBlockers(_)
+                | PromptInput::ChooseDamageAssignmentOrder(_)
+                | PromptInput::ChooseCombatDamageAssignment(_) => {
+                    SoundType::PROMPT_COMBAT_REQUIRED.clone()
+                }
+                PromptInput::Mulligan(_)
+                | PromptInput::MulliganPutBack(_)
+                | PromptInput::ChooseBoolean(_)
+                | PromptInput::ChooseFromSelection(_)
+                | PromptInput::RevealCards(_)
+                | PromptInput::Scry(_)
+                | PromptInput::ChooseColor(_)
+                | PromptInput::ChooseNumber(_)
+                | PromptInput::ChooseCards(_)
+                | PromptInput::Reorder(_) => SoundType::PROMPT_DECISION_REQUIRED.clone(),
+                PromptInput::ChooseAction(_)
+                | PromptInput::DiceRolled(_)
+                | PromptInput::GameOver(_) => return None,
+            };
+            (sound_type, None, Some(prompt_id))
+        }
+        SoundProjection::Rejection { prompt_id } => (
+            SoundType::PROMPT_ACTION_REJECTED.clone(),
+            None,
+            Some(prompt_id),
+        ),
+    };
+    Some(ProjectedSoundCue {
+        sound_type,
+        origin,
+        prompt_id,
+    })
+}
 
 pub struct PromptAgent<R: Responder> {
     pub player_id: PlayerId,
@@ -91,6 +270,7 @@ pub struct PromptAgent<R: Responder> {
     pub pass_until: Option<manabrew_engine::agent::PassUntilTarget>,
     conceded: bool,
     next_prompt_id: u32,
+    next_sound_sequence: u64,
     pub(crate) targeting_cancellable: bool,
     pub(crate) targeting_cancelled: bool,
 }
@@ -108,6 +288,7 @@ impl<R: Responder> PromptAgent<R> {
             pass_until: None,
             conceded: false,
             next_prompt_id: 0,
+            next_sound_sequence: 0,
             targeting_cancellable: false,
             targeting_cancelled: false,
         }
@@ -122,10 +303,30 @@ impl<R: Responder> PromptAgent<R> {
             input: inner,
         }
     }
+    fn emit_projected_sound(&mut self, source: SoundProjection<'_>) {
+        let Some(cue) = project_sound(source) else {
+            return;
+        };
+        self.next_sound_sequence = self
+            .next_sound_sequence
+            .checked_add(1)
+            .expect("sound cue sequence exhausted");
+        self.emit_display(DisplayEvent::SoundCue {
+            sequence: self.next_sound_sequence,
+            sound_type: cue.sound_type,
+            origin: cue.origin,
+            count: 1,
+            prompt_id: cue.prompt_id,
+        });
+    }
 
     pub(crate) fn send_prompt(&mut self, inner: PromptInput, source: Option<CardId>) {
         let prompt = self.build_prompt(inner, source);
         self.emit_state();
+        self.emit_projected_sound(SoundProjection::Prompt {
+            input: &prompt.input,
+            prompt_id: prompt.prompt_id,
+        });
         self.responder
             .present(&AgentMessage::Prompt(prompt.clone()));
         self.pending_prompt = Some(prompt);
@@ -202,6 +403,9 @@ impl<R: Responder> PromptAgent<R> {
             message,
             prompt_id: Some(prompt.prompt_id),
         }));
+        self.emit_projected_sound(SoundProjection::Rejection {
+            prompt_id: prompt.prompt_id,
+        });
         self.responder
             .present(&AgentMessage::Prompt(prompt.clone()));
     }
@@ -215,6 +419,10 @@ impl<R: Responder> PromptAgent<R> {
     pub(crate) fn present_prompt(&mut self, inner: PromptInput, source: Option<CardId>) {
         let prompt = self.build_prompt(inner, source);
         self.emit_state();
+        self.emit_projected_sound(SoundProjection::Prompt {
+            input: &prompt.input,
+            prompt_id: prompt.prompt_id,
+        });
         self.responder.present(&AgentMessage::Prompt(prompt));
     }
 
@@ -1366,6 +1574,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
     }
 
     fn notify(&mut self, event: GameNotification) {
+        self.emit_projected_sound(SoundProjection::Notification(&event));
         match event {
             GameNotification::Event(log_event) => {
                 self.responder
@@ -1517,6 +1726,12 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     None,
                 );
             }
+            GameNotification::GameStarted
+            | GameNotification::CardMoved { .. }
+            | GameNotification::CardDestroyed { .. }
+            | GameNotification::CardTapped { .. }
+            | GameNotification::LibraryShuffled { .. }
+            | GameNotification::PlayerLifeChanged { .. } => {}
             GameNotification::ManaPaymentResolved { .. } => {}
             GameNotification::ActivatedAbilityPaymentFailed { .. } => {
                 self.emit_state();

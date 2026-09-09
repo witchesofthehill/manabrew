@@ -19,6 +19,7 @@ use manabrew_agent_interface::protocol::{
     PROTOCOL_VERSION,
 };
 use manabrew_protocol::deck_dto::Deck;
+use manabrew_protocol::display::DisplayEvent;
 use manabrew_protocol::transport::DirectiveInput;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -2151,7 +2152,10 @@ fn spawn_remote_prompt_forwarder(
             let target_player = if per_seat
                 && matches!(
                     message,
-                    AgentMessage::State(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_)
+                    AgentMessage::State(_)
+                        | AgentMessage::Display(DisplayEvent::SoundCue { .. })
+                        | AgentMessage::Prompt(_)
+                        | AgentMessage::Error(_)
                 ) {
                 let Some(target_player) = seat_usernames
                     .as_ref()
@@ -2241,7 +2245,10 @@ fn spawn_game_over_forwarder(
                 let target_player = if per_seat
                     && matches!(
                         message,
-                        AgentMessage::State(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_)
+                        AgentMessage::State(_)
+                            | AgentMessage::Display(DisplayEvent::SoundCue { .. })
+                            | AgentMessage::Prompt(_)
+                            | AgentMessage::Error(_)
                     ) {
                     let Some(target_player) = seat_usernames
                         .as_ref()

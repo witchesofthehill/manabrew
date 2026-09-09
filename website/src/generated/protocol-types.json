@@ -66,6 +66,7 @@
     "ZoneDto",
     "ZoneKind"
   ],
+  "display": ["DisplayEvent", "SoundCueOrigin", "SoundType"],
   "deck": [
     "CardBackFaceSummary",
     "CardImageUris",
@@ -364,6 +365,11 @@
       "rust": "#[serde(tag = \"type\", rename_all = \"camelCase\")]\npub enum DirectiveInput {\n    Concede,\n}",
       "refs": []
     },
+    "DisplayEvent": {
+      "ts": "type DisplayEvent =\n  | {\n      kind: \"cardPlayed\";\n      cardId: string;\n      cardName: string;\n      setCode: string;\n      playerId: string;\n    }\n  | {\n      kind: \"turnChanged\";\n      activePlayerId: string;\n      activePlayerName: string;\n      turnNumber: number;\n    }\n  | {\n      kind: \"soundCue\";\n      sequence: number;\n      soundType: SoundType;\n      origin?: SoundCueOrigin;\n      count: number;\n      promptId?: number;\n    };",
+      "rust": "#[serde(\n    tag = \"kind\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum DisplayEvent {\n    CardPlayed {\n        card_id: String,\n        card_name: String,\n        set_code: String,\n        player_id: String,\n    },\n    TurnChanged {\n        active_player_id: String,\n        active_player_name: String,\n        turn_number: u32,\n    },\n    SoundCue {\n        sequence: u64,\n        sound_type: SoundType,\n        #[serde(default, skip_serializing_if = \"Option::is_none\")]\n        origin: Option<SoundCueOrigin>,\n        #[serde(\n            default = \"default_sound_count\",\n            deserialize_with = \"deserialize_sound_count\"\n        )]\n        count: u32,\n        #[serde(default, skip_serializing_if = \"Option::is_none\")]\n        prompt_id: Option<u32>,\n    },\n}",
+      "refs": ["SoundCueOrigin", "SoundType"]
+    },
     "DungeonStateDto": {
       "ts": "interface DungeonStateDto {\n  name: string;\n  room: string;\n}",
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DungeonStateDto {\n    pub name: String,\n    pub room: String,\n}",
@@ -499,6 +505,16 @@
     "SelectionOption": {
       "ts": "interface SelectionOption {\n  label: string;\n  weight: number;\n  canRepeat: boolean;\n}",
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct SelectionOption {\n    pub label: String,\n    pub weight: usize,\n    pub can_repeat: bool,\n}",
+      "refs": []
+    },
+    "SoundCueOrigin": {
+      "ts": "type SoundCueOrigin =\n  | { type: \"player\"; playerId: string }\n  | { type: \"card\"; cardId: string };",
+      "rust": "#[serde(tag = \"type\", rename_all = \"camelCase\", rename_all_fields = \"camelCase\")]\npub enum SoundCueOrigin {\n    Player { player_id: String },\n    Card { card_id: String },\n}",
+      "refs": []
+    },
+    "SoundType": {
+      "ts": "type SoundType = string;",
+      "rust": "/// A semantic sound identifier. Standard constants keep producers typed,\n/// while the transparent string representation lets newer identifiers pass\n/// through older protocol clients.\n#[serde(transparent)]\npub struct SoundType(#[ts(type = \"string\")] Cow<'static, str>);",
       "refs": []
     },
     "StackObjectDto": {

@@ -54,7 +54,7 @@ The legacy per-player canvases (`PixiGameCanvas` / `PixiGameScene` / `PixiArrows
 
 ## Game loading
 
-`GameLoadingScreen` keeps setup progress centered and anchors `GameLoadingTip` above the bottom safe area. Configure copy, audience, keybinding IDs, cadence, and transition duration in `gameLoadingTips.ts`; keybinding tips render the player's persisted shortcuts, while touch loading screens exclude desktop-only entries.
+`GameLoadingScreen` keeps setup progress centered and presents `GameLoadingTip` as the progress card's attached footer so setup status and rotating guidance read as one surface. Configure copy, audience, keybinding IDs, cadence, and transition duration in `gameLoadingTips.ts`; keybinding tips render the player's persisted shortcuts, while touch loading screens exclude desktop-only entries.
 
 ## Modal pattern
 
@@ -71,7 +71,7 @@ All game modals use the `Modal` compound:
 
 Use `Modal.Close` for buttons and `Modal.CloseShortcut` for remappable keybindings that dismiss a dialog so both paths finish the exit transition before unmounting. `Modal` owns the nested-dialog stack, focus containment, topmost Escape handling, backdrop dismissal, and reduced-motion-aware entry and exit transitions.
 
-Card browsers use `DialogCardBrowser`. It keeps search, collapsed type and color filters, sorting, card size, scroll position, keyboard navigation, and per-card view state together. Zone pickers default to available cards, render large inline `CardSprite`s in one `DialogCardPickerScene`, and require an explicit action from the bottom tray; they do not open a separate inspector. Their Realistic/Rules and face controls are the same `HandRulesCardFace` and `HandCardControls` used by the hand, engine prompts, and stack. The current candidate retains the shared `cardRing` glow; pointer hover uses that same glow plus the standard card elevation. Stack browsing retains `DialogCardInspector`. `DialogCardGrid` virtualizes the stack browser. Never add a parallel DOM rules-card presentation.
+Card browsers use `DialogCardBrowser`. It keeps search, collapsed type and color filters, sorting, card size, scroll position, keyboard navigation, and per-card view state together. Zone pickers default to available cards, render large inline `CardSprite`s in one `DialogCardPickerScene`, and require an explicit action from the bottom tray; they do not open a separate inspector. Their Realistic/Rules and face controls are the same `HandRulesCardFace` and `HandCardControls` used by the hand, engine prompts, and stack. The current candidate retains the shared `cardRing` glow; pointer hover uses that same glow plus the standard card elevation. Preserve `CARD_BROWSER_VERTICAL_PADDING` in both virtual layout and Pixi coordinates so card chrome clears the browser edges. Stack browsing retains `DialogCardInspector`. `DialogCardGrid` virtualizes the stack browser. Never add a parallel DOM rules-card presentation.
 
 ## Mana text
 
@@ -181,7 +181,7 @@ The engine sends a `Prompt` (from `@/protocol`) → `Game.tsx` builds a `PromptO
 
 Engine modals, including damage order, can minimize and reopen without clearing their pending choices. A collapsed damage-order prompt routes to `promptRequired`, not `noAction`, so its reopen control remains available.
 
-Card-bearing prompts use hand-style cards inline. `chooseCards`, `revealCards`, `reorder`, and `scry` all build those cards through `PromptLayer.createCardTile`; selection and drag/drop stay on the tile, not the rules face. Prompt cards cap at 240px wide and shrink against the viewport height so a Scry pool, destination row, and footer fit without scrolling at standard desktop sizes. New prompts use the persisted **Prompt default preview** preference and default to the realistic face. Hover or focus a prompt card before using the configured change-view and flip-face shortcuts; use the same thin interaction ring as battlefield sprites for active-card feedback. Do not add a separate hover-preview rail.
+Card-bearing prompts use hand-style cards inline. `chooseCards`, `revealCards`, `reorder`, and `scry` all build those cards through `PromptLayer.createCardTile`; selection and drag/drop stay on the tile, not the rules face. Prompt cards cap at 240px wide and shrink against the viewport height so a Scry pool, destination row, and footer fit without scrolling at standard desktop sizes. New prompts use the persisted **Prompt default preview** preference and default to the realistic face. Hover or focus a prompt card before using the configured change-view and flip-face shortcuts; use the same thin interaction ring as battlefield sprites for active-card feedback. Background hand-card shortcuts must yield while one of these card modals is open so the prompt owns its card controls. Do not add a separate hover-preview rail.
 
 Prompt tiles and source previews reuse `HandCardControls` for printed/rules view changes and eligible face flips or landscape rotation. Controls and keyboard shortcuts share per-card state. Control presses stop before tile selection or dragging; hovered cards rise above overlapping neighbors so their controls remain reachable, while dragged cards retain the higher drag layer.
 

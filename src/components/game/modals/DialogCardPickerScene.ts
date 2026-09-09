@@ -9,7 +9,12 @@ import { destroyPixiApp } from "@/pixi/pixiPatches";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { isFacelessCard } from "@/lib/gameCard";
 import type { CardInspectionState } from "./cardInspection";
-import { CARD_BROWSER_GAP, type CardBrowserItem, type CardBrowserState } from "./cardBrowser";
+import {
+  CARD_BROWSER_GAP,
+  CARD_BROWSER_VERTICAL_PADDING,
+  type CardBrowserItem,
+  type CardBrowserState,
+} from "./cardBrowser";
 
 export interface DialogCardPickerSceneProps {
   items: CardBrowserItem[];
@@ -126,7 +131,8 @@ export class DialogCardPickerScene {
       entry.sprite.position.set(
         (absoluteIndex % props.columns) * (props.cellWidth + CARD_BROWSER_GAP) +
           props.cellWidth / 2,
-        Math.floor(absoluteIndex / props.columns) * props.rowHeight -
+        CARD_BROWSER_VERTICAL_PADDING +
+          Math.floor(absoluteIndex / props.columns) * props.rowHeight -
           props.scrollTop +
           portraitHeight / 2,
       );

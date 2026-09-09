@@ -57,25 +57,25 @@ export function GameLoadingTip() {
   }, [tips.length]);
 
   return (
-    <div className="flex min-h-32 overflow-hidden rounded-xl border bg-card/30 px-6 py-4 text-left">
+    <div className="flex min-h-24 overflow-hidden border-t border-card-ring/30 bg-card/70 px-6 py-4 text-left">
+      <div className="mr-3 mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-card-ring/30 bg-card-ring/10 text-card-ring">
+        <Sparkles className="size-4" />
+      </div>
       <div className="flex min-w-0 flex-1 flex-col">
-        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <Sparkles className="h-3.5 w-3.5 text-primary" />
-          Table tip
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-card-ring">Table tip</p>
         <div
           className={cn(
-            "flex flex-1 flex-col justify-center gap-3 transition-[opacity,transform] ease-out motion-reduce:transition-none",
+            "flex min-h-12 flex-1 flex-col justify-center gap-2 transition-[opacity,transform] ease-out motion-reduce:transition-none",
             tipVisible ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0",
           )}
           style={{ transitionDuration: `${GAME_LOADING_TIP_TRANSITION_MS}ms` }}
         >
           {shortcuts.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {shortcuts.map((shortcut) => (
                 <kbd
                   key={shortcut.id}
-                  className="rounded-md border bg-muted px-2 py-1 text-sm font-semibold text-foreground shadow-sm"
+                  className="rounded border bg-muted px-1.5 py-0.5 font-mono text-xs font-semibold text-foreground shadow-sm"
                 >
                   {shortcut.label}
                 </kbd>

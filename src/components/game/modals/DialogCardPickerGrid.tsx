@@ -3,7 +3,12 @@ import { Check } from "lucide-react";
 import { isFacelessCard } from "@/lib/gameCard";
 import { CARD_H, CARD_W } from "@/components/game/game.constants";
 import type { CardInspectionState } from "./cardInspection";
-import { CARD_BROWSER_GAP, type CardBrowserItem, type CardBrowserState } from "./cardBrowser";
+import {
+  CARD_BROWSER_GAP,
+  CARD_BROWSER_VERTICAL_PADDING,
+  type CardBrowserItem,
+  type CardBrowserState,
+} from "./cardBrowser";
 import { DialogCardPickerCanvas } from "./DialogCardPickerCanvas";
 
 interface DialogCardPickerGridProps {
@@ -51,10 +56,18 @@ export function DialogCardPickerGrid({
   const cardHeight = (state.size * CARD_H) / CARD_W;
   const rowHeight = cardHeight + LABEL_HEIGHT;
   const rows = Math.ceil(items.length / columns);
-  const contentHeight = Math.max(viewport.height, rows * rowHeight);
+  const contentHeight = Math.max(
+    viewport.height,
+    rows * rowHeight + CARD_BROWSER_VERTICAL_PADDING * 2,
+  );
   const top = Math.min(state.scrollTop, Math.max(0, contentHeight - viewport.height));
-  const start = Math.max(0, Math.floor(top / rowHeight) - 1) * columns;
-  const end = Math.min(items.length, Math.ceil((top + viewport.height) / rowHeight + 1) * columns);
+  const start =
+    Math.max(0, Math.floor(Math.max(0, top - CARD_BROWSER_VERTICAL_PADDING) / rowHeight) - 1) *
+    columns;
+  const end = Math.min(
+    items.length,
+    Math.ceil((top + viewport.height - CARD_BROWSER_VERTICAL_PADDING) / rowHeight + 1) * columns,
+  );
   const visible = useMemo(() => items.slice(start, end), [items, start, end]);
 
   useEffect(() => {
@@ -66,7 +79,7 @@ export function DialogCardPickerGrid({
     if (!item) return;
     onSelect(item.id);
     const node = host.current!;
-    const rowTop = Math.floor(index / columns) * rowHeight;
+    const rowTop = CARD_BROWSER_VERTICAL_PADDING + Math.floor(index / columns) * rowHeight;
     const nextTop =
       rowTop < node.scrollTop
         ? rowTop
@@ -132,7 +145,7 @@ export function DialogCardPickerGrid({
         />
         {visible.map((item, offset) => {
           const index = start + offset;
-          const rowTop = Math.floor(index / columns) * rowHeight;
+          const rowTop = CARD_BROWSER_VERTICAL_PADDING + Math.floor(index / columns) * rowHeight;
           const cellLeft = (index % columns) * (cellWidth + CARD_BROWSER_GAP);
           const cardLeft = cellLeft + (cellWidth - state.size) / 2;
           const name = isFacelessCard(item.card) ? "Face-down card" : item.card.identity.name;

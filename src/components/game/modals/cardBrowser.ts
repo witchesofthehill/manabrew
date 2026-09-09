@@ -23,6 +23,7 @@ export interface CardBrowserState {
   inspection: Record<string, CardInspectionState>;
 }
 export const CARD_BROWSER_GAP = 12;
+export const CARD_BROWSER_VERTICAL_PADDING = 16;
 export const CARD_BROWSER_MIN_SIZE = 104;
 export const CARD_BROWSER_MAX_SIZE = 220;
 export const CARD_BROWSER_SIZE_STEP = 8;

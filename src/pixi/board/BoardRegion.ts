@@ -18,11 +18,13 @@ import { hexToNum } from "../colorUtils";
 import { getFrameRatio, lerp, safeDestroy } from "./pixiHelpers";
 import { playStomp } from "../effects/stomp";
 import { animationsEnabled } from "../effects/enabled";
+import { DRAG_LIFT_SCALE, dragPositionBlend, dragTransformBlend } from "../dragMotion";
 import {
   applyCardOverrides,
   useGameDevStore,
   DEBUG_KEYWORD_CARD_ID,
 } from "@/stores/useGameDevStore";
+import { gsap } from "../effects/gsap";
 import {
   ATTACH_FAN_STEP_Y,
   ATTACH_OFFSET_Y,
@@ -185,6 +187,7 @@ export class BoardRegion {
 
     this.playmat.container.zIndex = -9;
     this.playmat.setMirrored(this.mirrored);
+
     this.container.addChild(this.playmat.container);
 
     this.combatRow = new CombatRowRenderer(this.container);
@@ -368,7 +371,6 @@ export class BoardRegion {
     this.overview = overview;
     this.updateClip();
   }
-
   setSeatState(color: string, name: string): void {
     const changed = this.seatColor !== color || this.seatName !== name;
     this.seatColor = color;
@@ -601,12 +603,13 @@ export class BoardRegion {
     if (this.lastState) this.updateBattlefield(this.lastState);
   }
 
-  animate(): void {
+  animate(deltaMs: number): void {
     let exited: string[] | null = null;
     const now = performance.now();
     const frameRatio = getFrameRatio();
     const motionEnabled = animationsEnabled();
     this.zoneTiles.animate(now, motionEnabled);
+    this.combatRow.tick(now, motionEnabled);
     for (const [id, entry] of this.entries) {
       const s = entry.sprite;
       if (entry.exiting) {
@@ -616,12 +619,35 @@ export class BoardRegion {
         }
         s.alpha = lerp(s.alpha, 0, EXIT_FADE_LERP, 0.02);
         s.scale.set(s.scale.x * Math.pow(EXIT_SHRINK, frameRatio));
+        s.y += (this.mirrored ? -1 : 1) * 0.7 * frameRatio;
+        s.rotation += entry.exitDirection * 0.006 * frameRatio;
         if (s.alpha <= 0.05) (exited ??= []).push(id);
         continue;
       }
+      if (
+        !motionEnabled &&
+        (entry.pose.y !== 0 || entry.pose.rotation !== 0 || entry.pose.scale !== 1)
+      ) {
+        gsap.killTweensOf(entry.pose);
+        entry.pose.y = 0;
+        entry.pose.rotation = 0;
+        entry.pose.scale = 1;
+      }
       s.tickEffects(now);
-      s.x = lerp(s.x, entry.targetX, BATTLEFIELD_LERP, SNAP_PX);
-      s.y = lerp(s.y, entry.targetY, BATTLEFIELD_LERP, SNAP_PX);
+      const dragTilt = this.host.getDragTilt(id);
+      const dragging = dragTilt !== null;
+      const poseY = dragging ? 0 : entry.pose.y;
+      const targetY = entry.targetY + poseY;
+      if (dragging && motionEnabled) {
+        const positionBlend = dragPositionBlend(deltaMs);
+        s.x += (entry.targetX - s.x) * positionBlend;
+        s.y += (targetY - s.y) * positionBlend;
+      } else if (dragging) {
+        s.position.set(entry.targetX, targetY);
+      } else {
+        s.x = lerp(s.x, entry.targetX, BATTLEFIELD_LERP, SNAP_PX);
+        s.y = lerp(s.y, targetY, BATTLEFIELD_LERP, SNAP_PX);
+      }
       const cp = this.localToCanvas(s.x, s.y);
       this.host.recordCardExit(id, {
         x: cp.x,
@@ -656,10 +682,15 @@ export class BoardRegion {
         s.y += (Math.random() - 0.5) * 2 * amp;
         entry.shakeFrames = Math.max(0, entry.shakeFrames - frameRatio);
       }
-      s.rotation = motionEnabled
-        ? lerp(s.rotation, entry.targetRotation, ROTATION_LERP, SNAP_ROT)
-        : entry.targetRotation;
-      s.zIndex = entry.targetZIndex;
+      const targetRotation = entry.targetRotation + (dragTilt ?? 0) + entry.pose.rotation;
+      if (dragging && motionEnabled) {
+        s.rotation += (targetRotation - s.rotation) * dragTransformBlend(deltaMs);
+      } else {
+        s.rotation = motionEnabled
+          ? lerp(s.rotation, targetRotation, ROTATION_LERP, SNAP_ROT)
+          : targetRotation;
+      }
+      s.zIndex = dragging ? 1000 : entry.targetZIndex;
 
       // Alpha is owned here (not in updateCard), so a state update mid-combat
       // doesn't snap a dimmed/phased card back to 1 and re-fade it (flicker).
@@ -695,17 +726,27 @@ export class BoardRegion {
       // Landscape cards (split/battle/room) are CARD_H wide, so shrink them to
       // the portrait cell width to sit in the grid without overlapping.
       const fit = s.horizontalFrame ? CARD_W / CARD_H : 1;
-      const targetScale = this.cardScale * fit * (isHovered ? HOVER_SCALE : 1);
-      entry.scaleBase = lerp(entry.scaleBase, targetScale, HOVER_SCALE_LERP, SNAP_SCALE);
+      const targetScale =
+        this.cardScale *
+        fit *
+        (dragging ? HOVER_SCALE * DRAG_LIFT_SCALE : isHovered ? HOVER_SCALE : 1) *
+        entry.pose.scale;
+      if (dragging && motionEnabled) {
+        entry.scaleBase += (targetScale - entry.scaleBase) * dragTransformBlend(deltaMs);
+      } else {
+        entry.scaleBase = lerp(entry.scaleBase, targetScale, HOVER_SCALE_LERP, SNAP_SCALE);
+      }
       const fx = s.fxScale;
       s.scale.set(entry.scaleBase * fx.x, entry.scaleBase * fx.y);
       s.setElevation(
-        isHovered
-          ? Math.min(
-              1,
-              Math.max(0, (entry.scaleBase / (this.cardScale * fit) - 1) / (HOVER_SCALE - 1)),
-            )
-          : 0,
+        dragging
+          ? 1
+          : isHovered
+            ? Math.min(
+                1,
+                Math.max(0, (entry.scaleBase / (this.cardScale * fit) - 1) / (HOVER_SCALE - 1)),
+              )
+            : 0,
       );
 
       if (entry.overlay) {
@@ -891,6 +932,9 @@ export class BoardRegion {
         const fx = animationsEnabled();
         if (fx && (card.power !== prev.power || card.toughness !== prev.toughness)) {
           entry.sprite.playStatPop(now);
+        }
+        if (fx && !!card.tapped !== !!prev.tapped) {
+          this.playTapFx(entry, !!card.tapped);
         }
         const delta = (card.damage ?? 0) - (prev.damage ?? 0);
         if (delta > 0) {
@@ -1359,6 +1403,8 @@ export class BoardRegion {
     for (const [id, entry] of this.entries) {
       if (currentIds.has(id) || entry.exiting) continue;
       entry.exiting = true;
+      gsap.killTweensOf(entry.pose);
+      entry.exitDirection = id.charCodeAt(id.length - 1) % 2 === 0 ? 1 : -1;
       const c = this.localToCanvas(entry.sprite.x, entry.sprite.y);
       this.host.recordCardExit(id, {
         x: c.x,
@@ -1395,6 +1441,9 @@ export class BoardRegion {
     if (entry.exiting) {
       entry.exiting = false;
       entry.sprite.alpha = 1;
+      entry.pose.y = 0;
+      entry.pose.rotation = 0;
+      entry.pose.scale = 1;
     }
     if (guest) {
       const gl = this.host.getCombatGuestLayer();
@@ -1463,6 +1512,8 @@ export class BoardRegion {
       etbGlowAlpha: 0,
       scaleBase: sprite.scale.x,
       shakeFrames: 0,
+      pose: { y: 0, rotation: 0, scale: 1 },
+      exitDirection: 1,
       pendingEntrance: false,
       gliding: seed.glide ?? false,
       overlay: null,
@@ -1602,10 +1653,40 @@ export class BoardRegion {
   }
 
   private playEntranceFx(entry: SpriteEntry, card: CardDto): void {
-    if (!animationsEnabled()) return;
-    if (!card.types?.some((t) => t.toLowerCase() === "creature")) return;
-    playStomp({
-      fxScale: entry.sprite.fxScale,
+    gsap.killTweensOf(entry.pose);
+    if (!animationsEnabled()) {
+      entry.pose.y = 0;
+      entry.pose.rotation = 0;
+      entry.pose.scale = 1;
+      return;
+    }
+    const creature = card.types?.some((type) => type.toLowerCase() === "creature") ?? false;
+    const direction = this.mirrored ? -1 : 1;
+    entry.pose.y = direction * (creature ? 8 : 5);
+    entry.pose.rotation = direction * (creature ? 0.025 : 0.045);
+    entry.pose.scale = creature ? 0.98 : 0.965;
+    gsap.to(entry.pose, {
+      y: 0,
+      rotation: 0,
+      scale: 1,
+      duration: creature ? 0.28 : 0.24,
+      ease: "back.out(1.7)",
+    });
+    playStomp({ fxScale: entry.sprite.fxScale });
+  }
+
+  private playTapFx(entry: SpriteEntry, tapped: boolean): void {
+    gsap.killTweensOf(entry.pose);
+    const direction = this.mirrored ? -1 : 1;
+    entry.pose.y = (tapped ? 3 : -2) * direction;
+    entry.pose.rotation = (tapped ? 0.16 : -0.12) * direction;
+    entry.pose.scale = 0.985;
+    gsap.to(entry.pose, {
+      y: 0,
+      rotation: 0,
+      scale: 1,
+      duration: tapped ? 0.34 : 0.3,
+      ease: "back.out(2.1)",
     });
   }
 
@@ -1665,8 +1746,6 @@ export class BoardRegion {
     const parentEntry = this.entries.get(parentId);
     if (parentEntry) {
       parentEntry.targetY = parentCenter.y;
-      parentEntry.sprite.y = parentCenter.y;
-      if (parentEntry.overlay?.visible) parentEntry.overlay.y = parentCenter.y;
     }
     let attachIdx = 0;
     for (let i = 0; i < children.length; i++) {
@@ -1680,12 +1759,6 @@ export class BoardRegion {
       const cy = parentCenter.y - step * this.cardScale;
       child.targetX = parentCenter.x;
       child.targetY = cy;
-      child.sprite.x = parentCenter.x;
-      child.sprite.y = cy;
-      if (child.overlay?.visible) {
-        child.overlay.x = parentCenter.x;
-        child.overlay.y = cy;
-      }
     }
   }
 
@@ -1960,6 +2033,7 @@ export class BoardRegion {
 
   destroy(): void {
     for (const entry of this.entries.values()) {
+      gsap.killTweensOf(entry.pose);
       entry.sprite.parent?.removeChild(entry.sprite);
       safeDestroy(entry.sprite);
     }

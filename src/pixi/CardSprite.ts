@@ -379,6 +379,7 @@ export class CardSprite extends Container {
   private glowPulsing = false;
   private hitFlashGfx: Graphics;
   private statPopFx: OneShot | null = null;
+  private counterPopFx: OneShot | null = null;
   private hitFlashFx: OneShot | null = null;
   /** Squash multiplier driven by GSAP (entrance stomp); the region multiplies
    *  it into the base/hover scale each frame so the two don't fight. */
@@ -1117,7 +1118,12 @@ export class CardSprite extends Container {
     }
     if (badgeChanged || frameChanged) this.updateBadge();
     this.updateChoice();
-    if (countersChanged || railChanged || frameChanged) this.updateCounters();
+    if (countersChanged || railChanged || frameChanged) {
+      this.updateCounters();
+      if (countersChanged && animationsEnabled()) {
+        this.counterPopFx = oneShot(performance.now(), STAT_POP.durationMs);
+      }
+    }
     if (keywordsChanged || card.id !== previous.id) this.updateKeywords();
     if (card.foil !== previous.foil) this.updateFoil();
     if (card.isRingBearer !== previous.isRingBearer) this.updateRingBearer();
@@ -1187,6 +1193,16 @@ export class CardSprite extends Container {
     else if (this.statPopFx) {
       this.statPopFx = null;
       this.ptContainer.scale.set(1);
+    }
+
+    const cp = oneShotProgress(this.counterPopFx, now);
+    if (cp != null) {
+      this.counterContainer.scale.set(1 + STAT_POP.bumpScale * 0.65 * bump(cp));
+      this.counterContainer.alpha = 0.7 + 0.3 * Math.min(1, cp * 4);
+    } else if (this.counterPopFx) {
+      this.counterPopFx = null;
+      this.counterContainer.scale.set(1);
+      this.counterContainer.alpha = 1;
     }
 
     const fp = oneShotProgress(this.hitFlashFx, now);
@@ -1710,6 +1726,8 @@ export class CardSprite extends Container {
 
   private updateCounters(): void {
     this.counterContainer.removeChildren().forEach((c) => c.destroy({ children: true }));
+    this.counterContainer.scale.set(1);
+    this.counterContainer.alpha = 1;
     const counters = this.card.counters;
     if (!counters) return;
 
@@ -1801,6 +1819,11 @@ export class CardSprite extends Container {
       badge.y = counterY;
       this.counterContainer.addChild(badge);
     }
+    const bounds = this.counterContainer.getLocalBounds().rectangle;
+    const centerX = bounds.x + bounds.width / 2;
+    const centerY = bounds.y + bounds.height / 2;
+    this.counterContainer.pivot.set(centerX, centerY);
+    this.counterContainer.position.set(centerX, centerY);
   }
 
   private updateDamage(): void {

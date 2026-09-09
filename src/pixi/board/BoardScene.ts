@@ -564,22 +564,25 @@ export class BoardScene {
     if (!locked) this.recomputeDelimTarget();
   }
 
+  private focusedOpponentIds(): string[] {
+    return this.combatFocusIds.length > 0
+      ? this.combatFocusIds
+      : this.manualFocusId
+        ? [this.manualFocusId]
+        : !this.focusLocked && this.hoveredOpponentId
+          ? [this.hoveredOpponentId]
+          : this.focusPlayerId
+            ? [this.focusPlayerId]
+            : [];
+  }
+
   private recomputeDelimTarget(): void {
     const n = this.opponentIds.length;
     if (this.overview) {
       this.delimTarget = evenDelimiters(n);
       return;
     }
-    const focusIds =
-      this.combatFocusIds.length > 0
-        ? this.combatFocusIds
-        : this.manualFocusId
-          ? [this.manualFocusId]
-          : !this.focusLocked && this.hoveredOpponentId
-            ? [this.hoveredOpponentId]
-            : this.focusPlayerId
-              ? [this.focusPlayerId]
-              : [];
+    const focusIds = this.focusedOpponentIds();
     const focused = new Set<number>();
     for (const id of focusIds) {
       const i = this.opponentIds.indexOf(id);
@@ -729,7 +732,8 @@ export class BoardScene {
     this.playerBars.container.visible = enabled;
     this.playerBars.setBars(enabled ? specs : []);
     for (const spec of specs) {
-      this.regions.get(spec.playerId)?.region.setSeatState(spec.color, spec.name);
+      const region = this.regions.get(spec.playerId)?.region;
+      region?.setSeatState(spec.color, spec.name);
     }
     if (reserveChanged) {
       for (const rec of this.regions.values()) {
@@ -774,6 +778,7 @@ export class BoardScene {
     const span = width - n * collapsedWidth;
     const collapseAmount = (index: number) =>
       span <= 0 ? 0 : Math.min(1, Math.max(0, 1 - (widthOf(index) - collapsedWidth) / span));
+    const focusedIds = new Set(this.focusedOpponentIds());
     const gradients = this.fogGradients();
     this.layoutFogParticleGroups(n - 1, height);
     for (let index = 0; index < n - 1; index += 1) {
@@ -784,10 +789,15 @@ export class BoardScene {
         DIVIDER.baseFadeWidthPx + DIVIDER.collapseFadeWidthPx * collapseAmount(index + 1);
       const leftAuraWidth = leftWidth * DIVIDER.auraWidthRatio;
       const rightAuraWidth = rightWidth * DIVIDER.auraWidthRatio;
+      const focusAdjacent =
+        focusedIds.has(this.opponentIds[index]!) || focusedIds.has(this.opponentIds[index + 1]!);
       const particleGroup = this.fogParticleGroups[index]!;
       particleGroup.container.position.x = x;
       particleGroup.container.alpha =
-        0.62 + 0.24 * Math.max(collapseAmount(index), collapseAmount(index + 1));
+        0.62 +
+        0.24 * Math.max(collapseAmount(index), collapseAmount(index + 1)) +
+        (focusAdjacent ? 0.12 : 0);
+      particleGroup.container.scale.x = focusAdjacent ? 1.28 : 1;
       shadow.rect(x - leftWidth, 0, leftWidth, height).fill(gradients.shadowLeft);
       shadow.rect(x, 0, rightWidth, height).fill(gradients.shadowRight);
       aura.rect(x - leftAuraWidth, 0, leftAuraWidth, height).fill(gradients.auraLeft);
@@ -797,7 +807,7 @@ export class BoardScene {
         .fill({ color: hexToNum(this.theme.gameTheme.canvas.shadow), alpha: 0.9 });
       aura.rect(x - 0.5, 0, 1, height).fill({
         color: hexToNum(this.theme.appTheme.primary),
-        alpha: 0.24,
+        alpha: focusAdjacent ? 0.52 : 0.24,
       });
     }
   }
@@ -1519,6 +1529,7 @@ export class BoardScene {
       getCombatGuestLayer: () => this.combatGuestLayer,
       recordCardExit: (cardId, seed) => this.lastCardPositions.set(cardId, seed),
       isSelected: (cardId) => (isLocal ? (this.selection?.has(cardId) ?? false) : false),
+      getDragTilt: (cardId) => (isLocal ? this.dragHandler.getDragTilt(cardId) : null),
       rebuildOverlay: (entry, state) => {
         if (isLocal) this.overlay?.rebuild(entry, state);
       },
@@ -2008,12 +2019,6 @@ export class BoardScene {
       if (!entry) continue;
       entry.targetX = p.x;
       entry.targetY = p.y;
-      entry.sprite.x = p.x;
-      entry.sprite.y = p.y;
-      if (entry.overlay?.visible) {
-        entry.overlay.x = p.x;
-        entry.overlay.y = p.y;
-      }
       if (id === primaryId || (!primaryPos && !primaryId)) primaryPos = p;
       local.followAttachmentsDuringDrag(id, p);
     }
@@ -2140,7 +2145,8 @@ export class BoardScene {
     const delimitersWereSettling = this.delimitersSettling();
     this.easeDelimiters();
     if (delimitersWereSettling && this.arrowSpecs.length > 0) this.overlayInvalidation?.();
-    for (const rec of this.regions.values()) rec.region.animate();
+    for (const rec of this.regions.values()) rec.region.animate(this.app.ticker.deltaMS);
+    this.dragHandler.dampenTilt(this.app.ticker.deltaMS);
     this.hand?.animate();
     this.playerBars.tick();
     this.phaseStrip.tick();

@@ -19,6 +19,7 @@ import { getInitials } from "@/components/game/game.utils";
 import { hexToNum } from "../colorUtils";
 import { gameIconTexture } from "../gameIconCache";
 import { getManaSymbolTextureSync, loadManaSymbolTexture } from "../manaSymbolCache";
+import { manaColorFor } from "../manaColors";
 import { loadAvatarTexture } from "./avatarTextureCache";
 import type { PlayerHudSpec, PlayerHudTooltipContent } from "./playerHud.types";
 import type { ScreenBounds, ScreenPos } from "@/pixi/types";
@@ -84,7 +85,6 @@ interface ManaPip {
   sprite: Sprite;
   count: Text;
   value?: number;
-  flash: Graphics;
 }
 
 interface BadgeChip {
@@ -432,10 +432,6 @@ export class PlayerHudCapsule {
       chip.sprite.alpha = 1;
       chip.hit.alpha = 1;
     }
-    for (const pip of this.pips) {
-      gsap.killTweensOf(pip.flash);
-      pip.flash.alpha = 0;
-    }
     for (const dot of this.sparkles.removeChildren()) {
       gsap.killTweensOf(dot);
       dot.destroy();
@@ -570,12 +566,9 @@ export class PlayerHudCapsule {
     while (this.pips.length < MANA_LETTERS.length) {
       const sprite = new Sprite();
       const count = new Text({ text: "", style: this.textStyle(12) });
-      const flash = new Graphics();
-      flash.eventMode = "none";
-      flash.alpha = 0;
       count.anchor.set(0, 0.5);
-      this.manaLayer.addChild(flash, sprite, count);
-      this.pips.push({ sprite, count, flash });
+      this.manaLayer.addChild(sprite, count);
+      this.pips.push({ sprite, count });
     }
   }
 
@@ -639,8 +632,6 @@ export class PlayerHudCapsule {
     for (const pip of this.pips) {
       pip.sprite.visible = false;
       pip.count.visible = false;
-      pip.flash.clear();
-      pip.flash.alpha = 0;
     }
     if (this.column) this.renderColumn(w, h);
     else this.renderCapsule(w, h);
@@ -712,6 +703,41 @@ export class PlayerHudCapsule {
         duration: 0.7,
         ease: "power2.out",
         onComplete: () => dot.destroy(),
+      });
+    }
+  }
+
+  private burstManaSplash(cx: number, cy: number, color: number, amount: number): void {
+    const ring = new Graphics().circle(0, 0, 5).stroke({ color, width: 1.5, alpha: 0.9 });
+    ring.eventMode = "none";
+    ring.position.set(cx, cy);
+    ring.scale.set(0.6);
+    this.sparkles.addChild(ring);
+    gsap.to(ring, {
+      alpha: 0,
+      pixi: { scale: Math.min(3, 2.1 + amount * 0.16) },
+      duration: 0.46,
+      ease: "power2.out",
+      onComplete: () => ring.destroy(),
+    });
+
+    const count = Math.min(10, 6 + amount);
+    for (let i = 0; i < count; i++) {
+      const radius = 1.25 + (i % 3) * 0.35;
+      const drop = new Graphics().circle(0, 0, radius).fill({ color, alpha: 0.95 });
+      const angle = -Math.PI * (0.15 + (i / Math.max(1, count - 1)) * 0.7);
+      const distance = 15 + (i % 4) * 4 + Math.min(amount, 4);
+      drop.eventMode = "none";
+      drop.position.set(cx, cy);
+      this.sparkles.addChild(drop);
+      gsap.to(drop, {
+        x: cx + Math.cos(angle) * distance,
+        y: cy + Math.sin(angle) * distance,
+        alpha: 0,
+        pixi: { scale: 0.25 },
+        duration: 0.42 + (i % 3) * 0.06,
+        ease: "power2.out",
+        onComplete: () => drop.destroy(),
       });
     }
   }
@@ -932,12 +958,13 @@ export class PlayerHudCapsule {
       pip.count.alpha = 1;
       pip.count.scale.set(1);
       pip.count.position.set(left + size + 3, cy);
-      pip.flash
-        .roundRect(left - 3, cy - size / 2 - 3, slotWidth - 2, size + 6, 6)
-        .fill({ color: hexToNum(gt.activeAction.priority) });
-      if (previous !== undefined && previous !== value && this.motionEnabled) {
-        gsap.killTweensOf(pip.flash);
-        gsap.fromTo(pip.flash, { alpha: 0.35 }, { alpha: 0, duration: 0.55, ease: "power1.out" });
+      if (previous !== undefined && value > previous && this.motionEnabled) {
+        this.burstManaSplash(
+          left + size / 2,
+          cy,
+          manaColorFor(letter, this.theme, hexToNum(gt.activeAction.priority)),
+          value - previous,
+        );
       }
       slot++;
     }
@@ -984,13 +1011,13 @@ export class PlayerHudCapsule {
       pip.count.scale.set(1);
       pip.count.scale.x = Math.min(1, Math.max(1, cellWidth - size - 6) / pip.count.width);
       pip.count.position.set(left + size + 4, cy);
-      pip.flash
-        .clear()
-        .roundRect(left - 2, cy - rowHeight / 2, cellWidth - 2, rowHeight, 4)
-        .fill({ color: hexToNum(gt.activeAction.priority) });
-      if (pip.value !== undefined && pip.value !== value && this.motionEnabled) {
-        gsap.killTweensOf(pip.flash);
-        gsap.fromTo(pip.flash, { alpha: 0.35 }, { alpha: 0, duration: 0.55, ease: "power1.out" });
+      if (pip.value !== undefined && value > pip.value && this.motionEnabled) {
+        this.burstManaSplash(
+          left + size / 2,
+          cy,
+          manaColorFor(letter, this.theme, hexToNum(gt.activeAction.priority)),
+          value - pip.value,
+        );
       }
       pip.value = value;
     }
@@ -1467,7 +1494,6 @@ export class PlayerHudCapsule {
     gsap.killTweensOf(this.life.scale);
     gsap.killTweensOf(this.lifeFloat);
     gsap.killTweensOf(this.damageWash);
-    for (const pip of this.pips) gsap.killTweensOf(pip.flash);
     for (const chip of this.chips) gsap.killTweensOf(chip.sprite);
     for (const dot of this.sparkles.children) gsap.killTweensOf(dot);
     this.onHover(null);

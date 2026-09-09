@@ -57,6 +57,12 @@ import { PromptGlow } from "./PromptGlow";
 import { LongPressGesture } from "@/pixi/LongPressGesture";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
+import {
+  DRAG_LIFT_SCALE,
+  dragPositionBlend,
+  dragTiltForMovement,
+  dragTransformBlend,
+} from "@/pixi/dragMotion";
 import type { PromptLayerCallbacks, PromptOverlaySpec } from "./prompt.types";
 
 const MODAL_TYPES = new Set([
@@ -101,11 +107,6 @@ const DRAG_DROP_MAX_SECONDS = 0.22;
 const DRAG_DROP_PIXELS_PER_SECOND = 1800;
 const DROP_ZONE_DIM_ALPHA = 0.62;
 const DROP_ZONE_TWEEN_SECONDS = 0.12;
-const DRAG_LIFT_SCALE = 1.035;
-const DRAG_POSITION_HALF_LIFE_MS = 18;
-const DRAG_TRANSFORM_HALF_LIFE_MS = 36;
-const DRAG_MAX_TILT_RADIANS = (10 * Math.PI) / 180;
-const DRAG_TILT_RADIANS_PER_PIXEL = 0.017;
 const REORDER_PREVIEW_SECONDS = 0.14;
 const FILTER_CARET_PERIOD_MS = 1000;
 const SCRY_LAYOUT_SETTLE_SECONDS = 0.2;
@@ -5154,12 +5155,7 @@ export class PromptLayer {
     drag.targetY = parentPoint.y - drag.offsetY;
     const movementX = event.global.x - drag.lastGlobalX;
     drag.lastGlobalX = event.global.x;
-    drag.targetRotation =
-      drag.restRotation +
-      Math.max(
-        -DRAG_MAX_TILT_RADIANS,
-        Math.min(DRAG_MAX_TILT_RADIANS, movementX * DRAG_TILT_RADIANS_PER_PIXEL),
-      );
+    drag.targetRotation = drag.restRotation + dragTiltForMovement(movementX);
     if (!animationsEnabled()) {
       drag.item.position.set(drag.targetX, drag.targetY);
       drag.item.rotation = drag.targetRotation;
@@ -5173,9 +5169,8 @@ export class PromptLayer {
   private updateDragMotion(deltaMs: number): void {
     const drag = this.drag;
     if (!drag?.hasMoved || drag.settling || !animationsEnabled()) return;
-    const clampedDelta = Math.min(deltaMs, 50);
-    const positionBlend = 1 - Math.pow(0.5, clampedDelta / DRAG_POSITION_HALF_LIFE_MS);
-    const transformBlend = 1 - Math.pow(0.5, clampedDelta / DRAG_TRANSFORM_HALF_LIFE_MS);
+    const positionBlend = dragPositionBlend(deltaMs);
+    const transformBlend = dragTransformBlend(deltaMs);
     drag.item.position.set(
       drag.item.x + (drag.targetX - drag.item.x) * positionBlend,
       drag.item.y + (drag.targetY - drag.item.y) * positionBlend,

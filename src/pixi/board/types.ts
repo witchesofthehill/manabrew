@@ -66,6 +66,8 @@ export interface SpriteEntry {
    *  sprite's live scale so the entrance squash multiplier can compose with it. */
   scaleBase: number;
   shakeFrames: number;
+  pose: { y: number; rotation: number; scale: number };
+  exitDirection: number;
   /** A freshly-entered card awaiting its landing stomp — fired once it lerps
    *  onto its battlefield slot (not at spawn, while it's still sliding in). */
   pendingEntrance: boolean;
@@ -129,6 +131,7 @@ export interface RegionHost {
     seed: { x: number; y: number; scaleX: number; scaleY: number },
   ): void;
   isSelected(cardId: string): boolean;
+  getDragTilt(cardId: string): number | null;
   rebuildOverlay(entry: SpriteEntry, state: BattlefieldState): void;
   wireSprite(sprite: CardSprite): void;
   screenXToLocalX(screenX: number): number;

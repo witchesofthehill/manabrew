@@ -5,6 +5,7 @@ import { hexToNum } from "../colorUtils";
 import { loadAvatarTexture } from "../hud/avatarTextureCache";
 import { applyIcon } from "../panelIcons";
 import { Z_COMBAT_STAGED } from "../constants";
+import { pulse } from "../effects/animation";
 
 const AVATAR_DIAMETER = 24;
 const BOT_ICON = "robot-antennas";
@@ -55,6 +56,7 @@ interface RenderSnapshot {
 
 export class CombatRowRenderer {
   private graphics = new Graphics();
+  private pressure = new Graphics();
   private labels: Text[] = [];
   private avatars: AvatarEntry[] = [];
   private snapshot: RenderSnapshot | null = null;
@@ -65,12 +67,19 @@ export class CombatRowRenderer {
     this.graphics.eventMode = "none";
     this.graphics.zIndex = Z_COMBAT_STAGED - 5;
     this.container.addChild(this.graphics);
+    this.pressure.eventMode = "none";
+    this.pressure.zIndex = Z_COMBAT_STAGED - 4;
+    this.pressure.blendMode = "screen";
+    this.pressure.visible = false;
+    this.container.addChild(this.pressure);
   }
 
   hide(): void {
     if (this.snapshot === null) return;
     this.snapshot = null;
     this.graphics.clear();
+    this.pressure.clear();
+    this.pressure.visible = false;
     for (const label of this.labels) label.visible = false;
     for (const avatar of this.avatars) avatar.sprite.visible = false;
   }
@@ -85,6 +94,8 @@ export class CombatRowRenderer {
       priorSnapshot.shadowColor !== colors.canvas.shadow;
     this.captureSnapshot(spec, theme);
     this.graphics.clear();
+    this.pressure.clear();
+    this.pressure.visible = true;
     for (const label of this.labels) label.visible = false;
     for (const avatar of this.avatars) avatar.sprite.visible = false;
 
@@ -104,7 +115,22 @@ export class CombatRowRenderer {
         width: 2,
         alpha: 0.55,
       });
+      for (const connector of spec.connectors) {
+        this.pressure.moveTo(connector.ax, spec.y);
+        this.pressure.lineTo(connector.bx, connector.by);
+      }
+      this.pressure.stroke({ color: attackColor, width: 5, alpha: 0.28 });
     }
+
+    this.pressure
+      .roundRect(
+        spec.stripLeft + 1,
+        spec.stripTop + 1,
+        spec.stripWidth - 2,
+        spec.stripHeight - 2,
+        9,
+      )
+      .stroke({ color: attackColor, width: 4, alpha: 0.34 });
 
     const avatarDiameter = Math.min(AVATAR_DIAMETER, spec.stripHeight - 6);
     for (let index = 0; index < spec.groups.length; index++) {
@@ -149,6 +175,11 @@ export class CombatRowRenderer {
       label.position.set(avatarX + avatarDiameter / 2 + 6, avatarY);
       label.visible = true;
     }
+  }
+
+  tick(now: number, motionEnabled: boolean): void {
+    if (!this.pressure.visible) return;
+    this.pressure.alpha = motionEnabled ? pulse(now, 1250, 0.28, 0.9) : 0.58;
   }
 
   private matchesSnapshot(spec: CombatRowRenderSpec, theme: Theme): boolean {

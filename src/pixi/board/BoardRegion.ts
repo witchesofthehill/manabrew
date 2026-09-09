@@ -31,6 +31,7 @@ import {
   BATTLEFIELD_LERP,
   BG_ALPHA_DROP,
   BG_ALPHA_IDLE,
+  FELT_HIT_ALPHA,
   CARD_RADIUS,
   COMBAT_DIM_ALPHA,
   COMBAT_DIM_TINT_LEVEL,
@@ -70,7 +71,7 @@ import {
 } from "../constants";
 import type { BlockingRect, RegionHost, SceneCombatStaging, SpriteEntry } from "./types";
 import { COLLAPSED_OPPONENT_WIDTH_PX, type RegionOrientation } from "./boardLayout";
-import { PlaymatLayer } from "./PlaymatLayer";
+import { PlaymatLayer, playmatInset } from "./PlaymatLayer";
 import { CombatRowRenderer } from "./CombatRowRenderer";
 import { isCoarsePointer } from "@/lib/responsive";
 
@@ -1497,11 +1498,11 @@ export class BoardRegion {
     return { ...zone, height: Math.max(0, zone.height - bottom) };
   }
 
-  /** The felt fills the FIXED `usableZone` — it is drawn once over the full play
-   *  area and the delimiter mask (`updateClip`) clips it, so the felt and cards
-   *  never move when a delimiter is dragged. */
+  /** The felt fills the FIXED `zone` — it is drawn once over the full play
+   *  area, under the hand reserve too, and the delimiter mask (`updateClip`)
+   *  clips it, so the felt and cards never move when a delimiter is dragged. */
   private feltZone(): PlayZoneRect {
-    return this.usableZone();
+    return this.zone;
   }
 
   /** The playmat's rect: the visible band horizontally (usable width ∩ clip),
@@ -1520,7 +1521,7 @@ export class BoardRegion {
   }
 
   private playmatRect(): PlayZoneRect {
-    return this.bandZone();
+    return playmatInset(this.bandZone());
   }
 
   private playArea(): PlayZoneRect {
@@ -1541,10 +1542,11 @@ export class BoardRegion {
   private drawBackground(): void {
     const felt = this.feltZone();
     this.backgroundGfx.clear();
+    const alpha = this.dropActive ? BG_ALPHA_DROP : BG_ALPHA_IDLE;
     this.backgroundGfx.roundRect(felt.x, felt.y, felt.width, felt.height, TABLE_RADIUS);
     this.backgroundGfx.fill({
       color: hexToNum(this.host.getTheme().gameTheme.canvas.background),
-      alpha: this.dropActive ? BG_ALPHA_DROP : BG_ALPHA_IDLE,
+      alpha: Math.max(alpha, FELT_HIT_ALPHA),
     });
     this.playmat.layout(this.bandZone(), { dropActive: this.dropActive });
   }

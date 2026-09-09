@@ -1,7 +1,7 @@
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::protocol::{EngineKind, GameFormat};
+use crate::protocol::{EngineKind, GameFormat, SeatTransportReport};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -86,6 +86,36 @@ pub enum AnalyticsEvent {
         reported: bool,
         #[serde(skip_serializing_if = "Option::is_none")]
         turns: Option<u32>,
+    },
+    /// Which seats left the relay's data plane, as reported by the host.
+    TransportUsed {
+        ts: String,
+        room_id: String,
+        game_id: String,
+        host: String,
+        seats: Vec<SeatTransportReport>,
+    },
+    /// One end's account of one direct-plane attempt, whether or not it worked.
+    PlaneQuality {
+        ts: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        room_id: Option<String>,
+        /// Relay-attested; never client supplied.
+        username: String,
+        /// The other end, as the reporter named it.
+        peer: String,
+        plane: String,
+        outcome: String,
+        /// `settled` or `measured`; a connected peer reports both.
+        phase: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connect_ms: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        rtt_ms: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        relay_rtt_ms: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        candidate_pair: Option<String>,
     },
     EngineStats {
         ts: String,

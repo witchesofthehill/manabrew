@@ -191,7 +191,14 @@ http://docs.manabrew.app {
     }
 
     handle {
-        try_files {path} {path}/ /404.html
+        try_files {path} {path}/
+        file_server
+    }
+
+    # Serve Starlight's 404 page with a 404 status. A try_files fallback
+    # returns it as 200, which Google reads as a soft 404 on every miss.
+    handle_errors 404 {
+        rewrite * /404.html
         file_server
     }
 }

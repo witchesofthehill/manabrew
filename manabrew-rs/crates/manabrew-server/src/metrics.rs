@@ -20,6 +20,13 @@ const ANALYTICS_DROPPED: &str = "manabrew_relay_analytics_dropped_total";
 const ANALYTICS_DELIVERED: &str = "manabrew_relay_analytics_delivered_total";
 const STATE_PATCH_DOWNGRADES: &str = "manabrew_relay_state_patch_downgrades_total";
 const ENGINE_REPORTS: &str = "manabrew_relay_engine_reports_total";
+const TRANSPORT_ANNOUNCEMENTS: &str = "manabrew_relay_transport_announcements_total";
+const TRANSPORT_ROSTERS: &str = "manabrew_relay_transport_rosters_total";
+const PEER_SIGNALS: &str = "manabrew_relay_peer_signals_total";
+const PLANE_ATTEMPTS: &str = "manabrew_relay_plane_attempts_total";
+const PLANE_RTT: &str = "manabrew_relay_plane_rtt_ms";
+const PLANE_RELAY_RTT: &str = "manabrew_relay_plane_relay_rtt_ms";
+const PLANE_CONNECT: &str = "manabrew_relay_plane_connect_ms";
 const GAME_OUTCOME_REPORTS: &str = "manabrew_relay_game_outcome_reports_total";
 const CLIENT_RTT: &str = "manabrew_relay_client_rtt_ms";
 const STATE_HANDLING: &str = "manabrew_relay_state_handling_seconds";
@@ -34,6 +41,8 @@ const LABEL_ENGINE: &str = "engine";
 const LABEL_REASON: &str = "reason";
 const LABEL_SEATS: &str = "seats";
 const LABEL_OUTCOME: &str = "outcome";
+const LABEL_PLANE: &str = "plane";
+const LABEL_PAIR: &str = "pair";
 const LABEL_DIRECTION: &str = "direction";
 
 pub const REJECTION_OUTDATED_WIRE: &str = "outdated_wire";
@@ -177,6 +186,39 @@ pub fn record_game_outcome_report(kind: &'static str) {
 /// own clock and needs nothing from the client.
 pub fn record_client_rtt(ms: f64) {
     histogram!(CLIENT_RTT).record(ms);
+}
+
+/// `kind` is announce, withdraw or rejected.
+pub fn record_transport_announcement(kind: &'static str) {
+    counter!(TRANSPORT_ANNOUNCEMENTS, LABEL_KIND => kind).increment(1);
+}
+
+/// `kind` is sent or withheld.
+pub fn record_transport_roster(kind: &'static str) {
+    counter!(TRANSPORT_ROSTERS, LABEL_KIND => kind).increment(1);
+}
+
+/// `kind` is forwarded, disabled, oversize, no_sender, no_target, self or offline.
+pub fn record_peer_signal(kind: &'static str) {
+    counter!(PEER_SIGNALS, LABEL_KIND => kind).increment(1);
+}
+
+/// `pair` must already be bounded to a known set by the caller.
+pub fn record_plane_attempt(plane: &'static str, outcome: &'static str, pair: &'static str) {
+    counter!(PLANE_ATTEMPTS, LABEL_PLANE => plane, LABEL_OUTCOME => outcome, LABEL_PAIR => pair)
+        .increment(1);
+}
+
+/// Client-measured, unlike [`record_client_rtt`].
+pub fn record_plane_rtt(plane: &'static str, rtt_ms: u32, relay_rtt_ms: Option<u32>) {
+    histogram!(PLANE_RTT, LABEL_PLANE => plane).record(rtt_ms as f64);
+    if let Some(relay) = relay_rtt_ms {
+        histogram!(PLANE_RELAY_RTT, LABEL_PLANE => plane).record(relay as f64);
+    }
+}
+
+pub fn record_plane_connect(plane: &'static str, connect_ms: u32) {
+    histogram!(PLANE_CONNECT, LABEL_PLANE => plane).record(connect_ms as f64);
 }
 
 pub fn record_resync() {

@@ -9,6 +9,9 @@
 
     encode zstd gzip
 
+    # Staging mirrors prod; without this Google indexes it as a duplicate.
+    header X-Robots-Tag "noindex"
+
     @worker path_regexp \.worker[.-][^/]+\.js$
     handle @worker {
         header {

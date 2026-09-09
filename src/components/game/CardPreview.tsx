@@ -189,6 +189,7 @@ export function CardPreview({
   const resolveImageUrl = resolvedGameCard.imageUrl;
   const front = cardFaces.faces[0];
   const back = cardFaces.faces[1];
+  const previewFaceIndex = showBackFace ? 1 : 0;
   const railEffects = rail ? deriveCardRailEffects(card, rail) : [];
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelHeight, setPanelHeight] = useState(0);
@@ -245,26 +246,25 @@ export function CardPreview({
 
   const horizontalCard = isDebugCard
     ? false
-    : isHorizontalGameCard(card, deckCard.layout, showBackFace ? 1 : 0);
+    : isHorizontalGameCard(
+        card,
+        deckCard.layout,
+        previewFaceIndex,
+        cardFaces.faces[previewFaceIndex]?.typeLine,
+      );
   const fallbackCounters =
     rail?.kind === "saga" && card.counters
       ? Object.fromEntries(
           Object.entries(card.counters).filter(([type, count]) => count > 0 && type !== "Lore"),
         )
       : card.counters;
-  const [orientationFlipped, setOrientationFlipped] = useState(false);
-  const [prevCardId, setPrevCardId] = useState(card.id);
-  if (prevCardId !== card.id) {
-    setPrevCardId(card.id);
-    setOrientationFlipped(false);
-  }
-
-  useKeybindings({
-    "flip-card": () => {
-      if (horizontalCard) setOrientationFlipped((prev) => !prev);
-      else if (onFlip && hasFlippableFaces) onFlip();
-    },
-  });
+  useKeybindings(
+    onFlip && hasFlippableFaces
+      ? {
+          "flip-card": onFlip,
+        }
+      : {},
+  );
 
   useEffect(() => {
     if (!onDismiss) return;
@@ -315,7 +315,7 @@ export function CardPreview({
     nextClassLevel,
   ]);
 
-  const horizontal = horizontalCard && !orientationFlipped;
+  const horizontal = horizontalCard;
   const layout = computePreviewLayout({
     placement,
     anchorRect: anchorRect ?? null,
@@ -352,6 +352,7 @@ export function CardPreview({
           : doubleFacedData.frontImageUrlLow
         : resolveImageUrl(0, "normal");
   const cardLookupPending = !isDebugCard && cardFaces.faces.length === 0;
+  const hasPreviewControls = Boolean(onToggleView || (hasDoubleFace && onFlip));
 
   return createPortal(
     <>
@@ -370,7 +371,7 @@ export function CardPreview({
             ? "relative w-full h-full flex items-start justify-start pointer-events-none"
             : cn(
                 "fixed z-[9999]",
-                showSidePanel && placement !== "pinned" && interactive
+                placement !== "pinned" && interactive && (showSidePanel || hasPreviewControls)
                   ? "pointer-events-auto"
                   : "pointer-events-none",
               ),
@@ -430,7 +431,7 @@ export function CardPreview({
                     style={{ backgroundColor: withAlpha(themeColors.success, 0.28) }}
                   />
                 )}
-                {(onToggleView || (hasDoubleFace && onFlip) || horizontalCard) && (
+                {hasPreviewControls && (
                   <div className="absolute top-[12%] right-2 z-20 flex items-center gap-1">
                     {onToggleView && (
                       <button
@@ -464,23 +465,6 @@ export function CardPreview({
                       >
                         <RotateCw className="h-3 w-3" />
                         {showBackFace ? "Front" : "Back"}
-                      </button>
-                    )}
-                    {horizontalCard && (
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setOrientationFlipped((prev) => !prev);
-                        }}
-                        className={cn(
-                          "inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:px-3 pointer-coarse:py-2",
-                          interactive ? "pointer-events-auto" : "pointer-events-none",
-                        )}
-                        title="Rotate the card to read it (F)"
-                      >
-                        <RotateCw className="h-3 w-3" />
-                        {orientationFlipped ? "Read" : "Rotate"}
                       </button>
                     )}
                   </div>

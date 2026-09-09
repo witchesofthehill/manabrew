@@ -1053,9 +1053,6 @@ export class BoardScene {
     this.hand?.setHoveredPreviewFace(face);
   }
 
-  setHandFlippedHorizontal(flipped: boolean): void {
-    this.hand?.setHoveredHorizontalFlipped(flipped);
-  }
   setHandCardStyle(style: InlineCardStyle): void {
     this.handRulesViewDefault = style === "rules";
     this.hand?.setRulesViewDefault(this.handRulesViewDefault);

@@ -80,6 +80,9 @@ services:
       MANABREW_EVENTS_DIR: "/var/manabrew/events"
       MANABREW_GAME_CAPTURE_DIR: "/var/manabrew/captures"
       MANABREW_GAME_CAPTURE_MAX_GB: "${MANABREW_GAME_CAPTURE_MAX_GB:-20}"
+      # Peer-to-peer game traffic, see docs/TRANSPORT.md. Unset = fail closed.
+      MANABREW_DIRECT_TRANSPORT: "${MANABREW_DIRECT_TRANSPORT:-1}"
+      MANABREW_ICE_SERVERS: "${MANABREW_ICE_SERVERS:-stun:relay.manabrew.app:3478}"
     volumes:
       - ./ops/observability/data/events:/var/manabrew/events
       - ./ops/observability/data/captures:/var/manabrew/captures
@@ -145,6 +148,27 @@ services:
       timeout: 3s
       retries: 3
       start_period: 5s
+
+  # STUN only, no TURN. Host networking: the docker proxy would rewrite the
+  # observed source address. Staging's coturn is on 3479.
+  coturn:
+    image: coturn/coturn:4.6-alpine
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - --listening-port=${MANABREW_STUN_PORT:-3478}
+      - --listening-ip=0.0.0.0
+      - --stun-only
+      - --no-cli
+      - --no-tls
+      - --no-dtls
+      - --no-multicast-peers
+      - --fingerprint
+      - --log-file=stdout
+      - --simple-log
+    mem_limit: 96m
+    cpus: 0.25
+    cpu_shares: 128
 
   # Headless engine node hosting a room for web "Play vs AI". Opt-in: the
   # default deploy doesn't build/run it (Play-vs-AI works client-side). Start

@@ -97,6 +97,10 @@ interface PreferencesState {
   ironsmithRuntimeEnabled: boolean;
   setIronsmithRuntimeEnabled: (value: boolean) => void;
 
+  // P2P game traffic. Every player must opt in or the room stays on the relay.
+  directTransport: boolean;
+  setDirectTransport: (value: boolean) => void;
+
   hideAccountSaveNudge: boolean;
   setHideAccountSaveNudge: (value: boolean) => void;
 
@@ -155,6 +159,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "inGameAnimations",
   "chooseOrderOnMultipleTriggers",
   "ironsmithRuntimeEnabled",
+  "directTransport",
   "hideAccountSaveNudge",
   "cardPreviewMode",
   "cardHoverDelayMs",
@@ -271,6 +276,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           ironsmithRuntimeEnabled: false,
           setIronsmithRuntimeEnabled: (ironsmithRuntimeEnabled) => set({ ironsmithRuntimeEnabled }),
+
+          directTransport: false,
+          setDirectTransport: (directTransport) => set({ directTransport }),
 
           hideAccountSaveNudge: false,
           setHideAccountSaveNudge: (hideAccountSaveNudge) => set({ hideAccountSaveNudge }),

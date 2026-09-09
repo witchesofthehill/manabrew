@@ -220,7 +220,7 @@ export default function Lobby() {
     void findOrHostLanRelay().then((target) => {
       if (!target) return;
       setLanTarget(target);
-      connect(target.host, target.port, name, target.password);
+      connect(target.host, target.port, name, target.password, true);
     });
   }, [connected, connecting, error, connect]);
 
@@ -245,7 +245,7 @@ export default function Lobby() {
         return;
       }
       setLanTarget(target);
-      connect(target.host, target.port, name, target.password);
+      connect(target.host, target.port, name, target.password, true);
     });
   }, [
     connect,

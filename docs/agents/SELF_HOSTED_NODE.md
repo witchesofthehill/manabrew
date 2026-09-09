@@ -18,6 +18,11 @@ Under the `java-forge` backend, `SubprocessBridge::spawn` sizes the engine JVM e
 
 A background `updater` monitor (`updater.rs`) polls the version manifest (default `play.manabrew.app/manifest.json`) and compares its own `CARGO_PKG_VERSION` against `packages["self-hosted-node"]`; when behind it logs a warning, or — with `--shutdown-on-stale` / `SELF_HOSTED_NODE_SHUTDOWN_ON_STALE` — gracefully cancels its rooms (relay sockets get a proper WebSocket close) and `exit(0)`s once idle (no `engine_session` active in any room) so a pull-on-restart supervisor respawns it updated. SIGTERM/SIGINT trigger the same graceful room shutdown. Do not enable the flag under plain `restart: unless-stopped` (re-runs the same image → crash loop); it needs a supervisor that pulls latest on restart.
 
+## The direct data plane
+
+A headless node offers no plane; its rooms stay on the relay. Under `forge-room` a desktop host
+installs a `ShellBridge` that serves WebRTC seats through the webview. See `docs/TRANSPORT.md`.
+
 ## Game outcome
 
 The relay no longer reads how a game ended off the state stream (`docs/agents/RELAY.md`, `ReportGameOutcome`); the node files it. `spawn_game_over_forwarder` builds the report from the final `State` in the game-over batch, or, when the backend sends none (the Rust engine), from the last state the node cached in `HostSnapshot`, and only if that one says the game is over. It goes out after the final envelopes and before `EndGame`, so the relay still holds the replay cache when it lands. An engine panic or error files `fatal_message` instead, ahead of the `Fatal` envelope.

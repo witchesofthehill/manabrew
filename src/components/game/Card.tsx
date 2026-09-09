@@ -65,7 +65,7 @@ function CardComponent({
   resolution = "border_crop",
 }: CardProps) {
   const [hasError, setHasError] = useState(false);
-  const { deckCard, imageUrl: resolveImageUrl } = useResolvedGameCard(card);
+  const { deckCard, cardFaces, imageUrl: resolveImageUrl } = useResolvedGameCard(card);
   const faceIndex = showBackFace ? 1 : 0;
 
   const faceless = isFacelessCard(card);
@@ -107,7 +107,12 @@ function CardComponent({
     };
   }, [lethal, card.basePower, card.power, card.toughness, card.baseToughness, themeColors]);
 
-  const horizontal = isHorizontalGameCard(card, deckCard.layout, faceIndex);
+  const horizontal = isHorizontalGameCard(
+    card,
+    deckCard.layout,
+    faceIndex,
+    cardFaces.faces[faceIndex]?.typeLine,
+  );
 
   return (
     <div

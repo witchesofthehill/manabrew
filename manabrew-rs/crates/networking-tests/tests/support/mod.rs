@@ -23,7 +23,7 @@ use manabrew_agent_interface::ids_codec::player_slot;
 use manabrew_agent_interface::prompt::AgentPrompt;
 use manabrew_agent_interface::protocol::{
     ClientMessage, ClientPlatform, EngineKind, GameFormat, IdentityProof, PlayerInfo, RoomInfo,
-    RoomStatus, ServerMessage, StateEnvelope, PROTOCOL_VERSION,
+    RoomStatus, ServerMessage, StateEnvelope, TransportEndpoint, PROTOCOL_VERSION,
 };
 use serde_json::{json, Value};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -93,6 +93,9 @@ pub struct Sim {
     pub port: u16,
     pub relay_url: String,
     pub room_id: String,
+    /// Sets `MANABREW_DIRECT_TRANSPORT` on the relay.
+    direct: bool,
+    events_dir: Option<PathBuf>,
     _relay: Option<Proc>,
     node: Option<Proc>,
 }
@@ -110,13 +113,15 @@ impl Sim {
 
     async fn spawn_node_sim(port: u16, manifest: Option<&str>) -> Sim {
         let relay_url = format!("ws://127.0.0.1:{port}");
-        let relay = spawn_relay(port);
+        let relay = spawn_relay(port, false, None);
         wait_for_port(port).await;
         let node = spawn_node(&relay_url, manifest);
         let mut sim = Sim {
             port,
             relay_url,
             room_id: String::new(),
+            direct: false,
+            events_dir: None,
             _relay: Some(relay),
             node: Some(node),
         };
@@ -129,13 +134,24 @@ impl Sim {
 
     /// Relay only — for scenarios about player-created rooms.
     pub async fn spawn_relay_only(port: u16) -> Sim {
+        Sim::spawn_relay_only_with(port, false).await
+    }
+
+    /// Relay only, with the direct transport on.
+    pub async fn spawn_relay_only_direct(port: u16) -> Sim {
+        Sim::spawn_relay_only_with(port, true).await
+    }
+
+    async fn spawn_relay_only_with(port: u16, direct: bool) -> Sim {
         let relay_url = format!("ws://127.0.0.1:{port}");
-        let relay = spawn_relay(port);
+        let relay = spawn_relay(port, direct, None);
         wait_for_port(port).await;
         Sim {
             port,
             relay_url,
             room_id: String::new(),
+            direct,
+            events_dir: None,
             _relay: Some(relay),
             node: None,
         }
@@ -145,9 +161,41 @@ impl Sim {
     pub async fn restart_relay(&mut self) {
         self._relay = None;
         tokio::time::sleep(Duration::from_millis(300)).await;
-        self._relay = Some(spawn_relay(self.port));
+        self._relay = Some(spawn_relay(
+            self.port,
+            self.direct,
+            self.events_dir.as_deref(),
+        ));
         wait_for_port(self.port).await;
         step("relay killed and restarted — memory wiped");
+    }
+
+    pub async fn metrics(&self) -> String {
+        let Ok(mut stream) = TcpStream::connect(("127.0.0.1", self.port + 1)).await else {
+            return String::new();
+        };
+        let request = b"GET /metrics HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n";
+        if stream.write_all(request).await.is_err() {
+            return String::new();
+        }
+        let mut body = Vec::new();
+        let _ = stream.read_to_end(&mut body).await;
+        let text = String::from_utf8_lossy(&body).into_owned();
+        text.split_once("\r\n\r\n")
+            .map(|(_, body)| body.to_string())
+            .unwrap_or_default()
+    }
+
+    /// One series by its exact `name{labels}` text; 0 when unrecorded.
+    pub async fn metric(&self, series: &str) -> f64 {
+        self.metrics()
+            .await
+            .lines()
+            .find_map(|line| {
+                let (name, value) = line.rsplit_once(' ')?;
+                (name == series).then(|| value.parse().ok()).flatten()
+            })
+            .unwrap_or(0.0)
     }
 
     pub fn node_running(&mut self) -> bool {
@@ -258,6 +306,7 @@ pub struct Client {
     pub username: String,
     pub slot: Option<String>,
     pub game_id: Option<String>,
+    pub features: Vec<String>,
     write: WsWrite,
     read: WsRead,
     ai: SimpleAi,
@@ -335,11 +384,16 @@ impl Client {
         .await?;
         for _ in 0..20 {
             match recv(&mut write, &mut read).await {
-                Some(ServerMessage::AuthResult { success: true, .. }) => {
+                Some(ServerMessage::AuthResult {
+                    success: true,
+                    features,
+                    ..
+                }) => {
                     return Ok(Client {
                         username: session_username.to_string(),
                         slot: None,
                         game_id: None,
+                        features,
                         write,
                         read,
                         ai: SimpleAi::default(),
@@ -526,6 +580,10 @@ impl Client {
         let ServerMessage::StateUpdate { state, .. } = message else {
             return Ok(None);
         };
+        self.envelope_response(state)
+    }
+
+    fn envelope_response(&mut self, state: Value) -> Result<Option<StateEnvelope>, String> {
         if let Some(kind) = state.get("kind").and_then(serde_json::Value::as_str) {
             self.envelope_kinds.insert(kind.to_string());
         }
@@ -555,6 +613,95 @@ impl Client {
             prompt_id,
             action: serde_json::to_value(&action).map_err(|e| e.to_string())?,
         }))
+    }
+
+    /// Publishes this seat's endpoint; `None` withdraws it.
+    pub async fn announce(&mut self, endpoint: Option<TransportEndpoint>) -> Result<(), String> {
+        let what = if endpoint.is_some() {
+            "announced a direct endpoint"
+        } else {
+            "withdrew its endpoint"
+        };
+        send(
+            &mut self.write,
+            &ClientMessage::AnnounceTransport { endpoint },
+        )
+        .await?;
+        step(format!("'{}' {what}", self.username));
+        Ok(())
+    }
+
+    /// The host named by every roster received within `window`.
+    pub async fn roster_hosts_within(&mut self, window: Duration) -> Vec<Option<String>> {
+        let mut hosts = Vec::new();
+        let _ = tokio::time::timeout(window, async {
+            loop {
+                match recv(&mut self.write, &mut self.read).await {
+                    Some(ServerMessage::RoomTransport { host, .. }) => {
+                        hosts.push(host.map(|h| h.username))
+                    }
+                    Some(_) => continue,
+                    None => return,
+                }
+            }
+        })
+        .await;
+        hosts
+    }
+
+    pub async fn signal_peer(&mut self, to: &str, payload: Value) -> Result<(), String> {
+        send(
+            &mut self.write,
+            &ClientMessage::SignalPeer {
+                to: to.to_string(),
+                payload,
+            },
+        )
+        .await
+    }
+
+    pub async fn expect_peer_signal(
+        &mut self,
+        deadline: Duration,
+    ) -> Result<(String, Value), String> {
+        let started = tokio::time::Instant::now();
+        while started.elapsed() < deadline {
+            match recv(&mut self.write, &mut self.read).await {
+                Some(ServerMessage::PeerSignal { from, payload }) => {
+                    check(format!(
+                        "'{}' received signalling from '{from}'",
+                        self.username
+                    ));
+                    return Ok((from, payload));
+                }
+                Some(_) => continue,
+                None => return Err("connection closed awaiting signalling".into()),
+            }
+        }
+        Err(format!("'{}' received no signalling", self.username))
+    }
+
+    pub async fn expect_no_peer_signal(&mut self, window: Duration) -> Result<(), String> {
+        let got = tokio::time::timeout(window, async {
+            loop {
+                match recv(&mut self.write, &mut self.read).await {
+                    Some(ServerMessage::PeerSignal { from, .. }) => return Some(from),
+                    Some(_) => continue,
+                    None => return None,
+                }
+            }
+        })
+        .await;
+        match got {
+            Ok(Some(from)) => Err(format!(
+                "'{}' was sent signalling from '{from}' that the relay should have dropped",
+                self.username
+            )),
+            _ => {
+                check(format!("'{}' received nothing", self.username));
+                Ok(())
+            }
+        }
     }
 
     pub async fn create_room(&mut self, name: &str) -> Result<(), String> {
@@ -765,16 +912,30 @@ fn bin(name: &str, env_override: &str) -> PathBuf {
     workspace_root().join("target").join(profile).join(name)
 }
 
-fn spawn_relay(port: u16) -> Proc {
-    Proc(
-        Command::new(bin("manabrew-server", "REGRESSION_RELAY_BIN"))
-            .env("FORGE_PORT", port.to_string())
-            .env("FORGE_HEALTH_PORT", (port + 1).to_string())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .expect("spawn manabrew-server"),
-    )
+fn spawn_relay(port: u16, direct: bool, events_dir: Option<&std::path::Path>) -> Proc {
+    let mut command = Command::new(bin("manabrew-server", "REGRESSION_RELAY_BIN"));
+    command
+        .env("FORGE_PORT", port.to_string())
+        .env("FORGE_HEALTH_PORT", (port + 1).to_string())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    if direct {
+        command.env("MANABREW_DIRECT_TRANSPORT", "1");
+    }
+    if let Some(dir) = events_dir {
+        command.env("MANABREW_EVENTS_DIR", dir);
+    }
+    Proc(command.spawn().expect("spawn manabrew-server"))
+}
+
+/// A WebRTC-only endpoint; the relay never reads `endpoint_id`.
+pub fn webrtc_endpoint(name: &str) -> TransportEndpoint {
+    TransportEndpoint {
+        endpoint_id: format!("webrtc:{name}"),
+        relay_url: None,
+        direct_addrs: Vec::new(),
+        kinds: vec!["webrtc".to_string()],
+    }
 }
 
 fn spawn_node(relay_url: &str, manifest: Option<&str>) -> Proc {

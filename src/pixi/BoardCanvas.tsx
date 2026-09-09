@@ -29,7 +29,6 @@ import {
 } from "./constants";
 import { HandCardActions } from "@/components/game/zones/HandCardActions";
 import { useCardFaces } from "@/hooks/useCardFaces";
-import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { setAnimationsEnabled } from "./effects/enabled";
@@ -556,21 +555,18 @@ export function BoardCanvas({
     setCode: handHover?.card.identity.setCode,
     cardNumber: handHover?.card.identity.cardNumber,
   });
-  const hoverHorizontal = !!handHover && isHorizontalGameCard(handHover.card);
   const [handFlipBack, setHandFlipBack] = useState(false);
-  const [handFlippedHorizontal, setHandFlippedHorizontal] = useState(false);
   const [handRulesView, setHandRulesView] = useState(false);
   const handCardStyle = usePreferencesStore((state) => state.handCardStyle);
   const hoverCardId = handHover?.card.id ?? null;
   useEffect(() => {
     scene?.setHandCardStyle(handCardStyle);
     setHandFlipBack(false);
-    setHandFlippedHorizontal(false);
     setHandRulesView(
       hoverCardId ? (sceneRef.current?.handUsesRulesView(hoverCardId) ?? false) : false,
     );
   }, [handCardStyle, hoverCardId, scene]);
-  const showHandFlip = !!handHover && (hoverFaces.isFlippable || hoverHorizontal);
+  const showHandFlip = !!handHover && hoverFaces.isFlippable;
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
 
   useEffect(() => {
@@ -600,20 +596,12 @@ export function BoardCanvas({
   }, [scene, etbPreviewVersion]);
 
   const toggleHandFlip = useCallback(() => {
-    if (hoverHorizontal) {
-      setHandFlippedHorizontal((prev) => {
-        const next = !prev;
-        sceneRef.current?.setHandFlippedHorizontal(next);
-        return next;
-      });
-      return;
-    }
     setHandFlipBack((prev) => {
       const next = !prev;
       sceneRef.current?.setHandPreviewFace(next ? 1 : 0);
       return next;
     });
-  }, [sceneRef, hoverHorizontal]);
+  }, [sceneRef]);
   const toggleHandRulesView = useCallback(() => {
     const active = sceneRef.current?.toggleHoveredHandRulesView();
     if (active != null) setHandRulesView(active);
@@ -632,8 +620,8 @@ export function BoardCanvas({
     if (!scene || !handHover) return;
     scene.setHoveredHandControls({
       rulesView: handRulesView,
-      horizontal: hoverHorizontal,
-      alternateFace: hoverHorizontal ? handFlippedHorizontal : handFlipBack,
+      horizontal: false,
+      alternateFace: handFlipBack,
       showFaceControl: showHandFlip,
       onToggleRules: toggleHandRulesView,
       onToggleFace: toggleHandFlip,
@@ -641,10 +629,8 @@ export function BoardCanvas({
     return () => scene.setHoveredHandControls(null);
   }, [
     handFlipBack,
-    handFlippedHorizontal,
     handHover,
     handRulesView,
-    hoverHorizontal,
     scene,
     showHandFlip,
     toggleHandFlip,

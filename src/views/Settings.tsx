@@ -1053,6 +1053,28 @@ export default function Settings() {
             )}
 
             <PreferenceCard
+              title="Peer to Peer"
+              description="Skip manabrew servers and connect directly to the other players at the table. This shares your IP address with the people you play with, and only activates if every player in the game has it enabled."
+            >
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={prefs.directTransport ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setDirectTransport(true)}
+                >
+                  On
+                </Button>
+                <Button
+                  variant={!prefs.directTransport ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setDirectTransport(false)}
+                >
+                  Off
+                </Button>
+              </div>
+            </PreferenceCard>
+
+            <PreferenceCard
               title="Hand Card Style"
               description="Printed card shows the card image. Dynamic view uses the card's current rules and game state; each card can still be switched."
             >

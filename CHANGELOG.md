@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.39.0](https://github.com/witchesofthehill/manabrew/compare/v3.38.2...v3.39.0) (2026-09-09)
+
+### Features
+
+* **net:** peer-to-peer game traffic over WebRTC, opt-in per player ([#871](https://github.com/witchesofthehill/manabrew/issues/871)) ([6e8ff2b](https://github.com/witchesofthehill/manabrew/commit/6e8ff2ba0934283d6943bb56f921022ecb63187f))
+
 ## [3.38.2](https://github.com/witchesofthehill/manabrew/compare/v3.38.1...v3.38.2) (2026-09-09)
 
 ### Fixes

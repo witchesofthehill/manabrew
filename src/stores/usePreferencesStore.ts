@@ -29,12 +29,22 @@ export const CARD_SIZE_MULTIPLIER_MIN = 0.75;
 // (the old 300% top was one: everything saturated around 150%).
 export const CARD_SIZE_MULTIPLIER_MAX = 1.5;
 
+export const SOUND_VOLUME_MIN = 0;
+export const SOUND_VOLUME_MAX = 1;
+export const SOUND_VOLUME_STEP = 0.05;
+const DEFAULT_SOUND_VOLUME = 1;
+
 interface PreferencesState {
   appThemePreset: string;
   setAppThemePreset: (id: string) => void;
 
   flashDurationMs: number;
   setFlashDurationMs: (ms: number) => void;
+
+  soundMuted: boolean;
+  soundVolume: number;
+  toggleSoundMuted: () => void;
+  setSoundVolume: (volume: number) => void;
 
   serverHost: string;
   serverPort: number;
@@ -141,6 +151,8 @@ interface PreferencesState {
 const PERSISTED_PREFERENCE_KEYS = [
   "appThemePreset",
   "flashDurationMs",
+  "soundMuted",
+  "soundVolume",
   "serverHost",
   "serverPort",
   "serverUsername",
@@ -193,6 +205,17 @@ function pickPersistedPreferences(persistedState: unknown): Partial<PreferencesS
       Math.min(CARD_SIZE_MULTIPLIER_MAX, next.cardSizeMultiplier),
     );
   }
+  if (typeof next.soundVolume === "number" && Number.isFinite(next.soundVolume)) {
+    if (next.soundVolume <= SOUND_VOLUME_MIN) {
+      next.soundMuted = true;
+      next.soundVolume = DEFAULT_SOUND_VOLUME;
+    } else {
+      next.soundVolume = Math.max(SOUND_VOLUME_STEP, Math.min(SOUND_VOLUME_MAX, next.soundVolume));
+    }
+  } else {
+    delete next.soundVolume;
+  }
+  if (typeof next.soundMuted !== "boolean") delete next.soundMuted;
   if (next.cardPreviewMode !== "hover" && next.cardPreviewMode !== "right-click") {
     next.cardPreviewMode = "hover";
   }
@@ -215,6 +238,19 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           flashDurationMs: 1000,
           setFlashDurationMs: (ms) => set({ flashDurationMs: ms }),
+
+          soundMuted: false,
+          soundVolume: DEFAULT_SOUND_VOLUME,
+          toggleSoundMuted: () => set((state) => ({ soundMuted: !state.soundMuted })),
+          setSoundVolume: (volume) =>
+            set(
+              volume <= SOUND_VOLUME_MIN
+                ? { soundMuted: true }
+                : {
+                    soundMuted: false,
+                    soundVolume: Math.max(SOUND_VOLUME_STEP, Math.min(SOUND_VOLUME_MAX, volume)),
+                  },
+            ),
 
           serverHost: serverDefaults.host,
           serverPort: serverDefaults.port,

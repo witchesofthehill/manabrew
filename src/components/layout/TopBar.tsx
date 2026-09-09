@@ -9,6 +9,7 @@ import { AccountMenu } from "./AccountMenu";
 import { ManaBrewLogo } from "./ManaBrewLogo";
 import { NavSheet } from "./NavSheet";
 import { TopBarNav } from "./TopBarNav";
+import { TopBarSoundMenu } from "./TopBarSoundMenu";
 import type { TopBarOverride } from "./TopBarOverride";
 
 interface RouteChrome {
@@ -128,7 +129,7 @@ export function TopBar({ override }: TopBarProps) {
   }
 
   return (
-    <header className="flex min-w-0 items-center gap-2 border-b border-border/70 bg-background/80 py-2 pl-[calc(var(--safe-area-inset-left)+1rem)] pr-[calc(var(--safe-area-inset-right)+1rem)] pt-[calc(var(--safe-area-inset-top)+0.5rem)] backdrop-blur-md sm:pl-[calc(var(--safe-area-inset-left)+1.5rem)] sm:pr-[calc(var(--safe-area-inset-right)+1.5rem)] lg:pl-[calc(var(--safe-area-inset-left)+2rem)] lg:pr-[calc(var(--safe-area-inset-right)+2rem)]">
+    <header className="relative z-40 flex min-w-0 items-center gap-2 border-b border-border/70 bg-background/80 py-2 pl-[calc(var(--safe-area-inset-left)+1rem)] pr-[calc(var(--safe-area-inset-right)+1rem)] pt-[calc(var(--safe-area-inset-top)+0.5rem)] backdrop-blur-md sm:pl-[calc(var(--safe-area-inset-left)+1.5rem)] sm:pr-[calc(var(--safe-area-inset-right)+1.5rem)] lg:pl-[calc(var(--safe-area-inset-left)+2rem)] lg:pr-[calc(var(--safe-area-inset-right)+2rem)]">
       {!isPlayHome && (
         <Button
           size="icon"
@@ -171,6 +172,7 @@ export function TopBar({ override }: TopBarProps) {
           key={navigationDisabled ? "disabled-sheet" : "primary-sheet"}
           disabled={navigationDisabled}
         />
+        <TopBarSoundMenu />
         {phase !== "idle" && version && (
           <Button
             size="sm"

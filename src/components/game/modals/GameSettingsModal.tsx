@@ -1,5 +1,6 @@
 import { Modal } from "./Modal";
 import { Button } from "@/components/ui/button";
+import { SoundControls } from "@/components/SoundControls";
 import { Label } from "@/components/ui/label";
 import {
   CARD_SIZE_MULTIPLIER_MAX,
@@ -54,6 +55,10 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
         <h2 className="text-base font-semibold">Board settings</h2>
       </Modal.Header>
       <Modal.Body className="space-y-5">
+        <SettingRow label="Sounds" hint="Mute or adjust the app-wide sound volume.">
+          <SoundControls />
+        </SettingRow>
+
         <SettingRow
           label="Sort hand"
           hint="Manual lets you drag cards sideways. Color and mana value keep new cards sorted automatically."

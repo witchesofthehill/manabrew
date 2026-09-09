@@ -1,14 +1,14 @@
-import "@pixi/sound";
-import { Assets } from "pixi.js";
+import type { Sound } from "@pixi/sound";
+
+import { loadSoundAsset } from "@/lib/soundRuntime";
+import type { DisplayEvent } from "@/protocol/display";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import {
   SOUND_ASSETS,
   SOUND_CUES,
   type SoundAssetKey,
   type SoundCueDefinition,
 } from "./soundCueCatalog";
-
-import type { DisplayEvent } from "@/protocol/display";
-import type { Sound } from "@pixi/sound";
 
 type SoundCueEvent = Extract<DisplayEvent, { kind: "soundCue" }>;
 
@@ -27,12 +27,8 @@ export function initializeSoundCues(): void {
   assetLoadPromise = Promise.all(
     (Object.keys(SOUND_ASSETS) as SoundAssetKey[]).map(async (key) => {
       const asset = SOUND_ASSETS[key];
-      try {
-        const soundAsset = await Assets.load<Sound>({ alias: asset.alias, src: asset.src });
-        loadedAssets.set(key, soundAsset);
-      } catch {
-        return;
-      }
+      const soundAsset = await loadSoundAsset(asset);
+      if (soundAsset) loadedAssets.set(key, soundAsset);
     }),
   ).then(() => undefined);
 }
@@ -49,7 +45,7 @@ async function playSoundCue(
   generation: number,
 ): Promise<void> {
   await assetLoadPromise;
-  if (generation !== sessionGeneration) return;
+  if (generation !== sessionGeneration || usePreferencesStore.getState().soundMuted) return;
 
   const variants = definition.variants.filter((key) => loadedAssets.has(key));
   if (variants.length === 0) return;
@@ -93,6 +89,7 @@ export function dispatchSoundCue(event: SoundCueEvent): void {
   if (!Number.isSafeInteger(event.sequence) || event.sequence < 1) return;
   if (lastSequence !== null && event.sequence <= lastSequence) return;
   lastSequence = event.sequence;
+  if (usePreferencesStore.getState().soundMuted) return;
   const definition = SOUND_CUES[event.soundType];
   if (!definition) return;
 
@@ -113,15 +110,19 @@ export function dispatchSoundCue(event: SoundCueEvent): void {
     .catch(() => undefined);
 }
 
-export function resetSoundCueSession(): void {
+export function stopSoundCuePlayback(): void {
   sessionGeneration += 1;
   for (const soundAsset of loadedAssets.values()) {
     soundAsset.stop();
   }
   playbackQueue = Promise.resolve();
-  lastSequence = null;
   activeVoices.clear();
   lastPlayedAt.clear();
+}
+
+export function resetSoundCueSession(): void {
+  stopSoundCuePlayback();
+  lastSequence = null;
   variantOffsets.clear();
   seenPromptCues.clear();
 }

@@ -1064,7 +1064,7 @@ public final class InteractiveSnapshotExtractor {
         return stackItem;
     }
 
-    private static String sourceAbilityText(final SpellAbility ability) {
+    static String sourceAbilityText(final SpellAbility ability) {
         if (ability == null) {
             return null;
         }

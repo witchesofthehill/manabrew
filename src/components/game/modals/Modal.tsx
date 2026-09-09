@@ -1,17 +1,28 @@
 import { createPortal } from "react-dom";
-import { useContext, useEffect, useRef } from "react";
-import { Minus, X } from "lucide-react";
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
+import type { ComponentProps, ReactNode, RefObject } from "react";
+import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { PromptModalChromeContext } from "./promptModalChrome.context";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { useIsTouch } from "@/hooks/useBreakpoints";
+import { useKeybindings } from "@/hooks/useKeybindings";
 import { GHOST_CLICK_ARM_MS } from "@/lib/responsive";
 import { useGameStore } from "@/stores/useGameStore";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { animationsEnabled } from "@/pixi/effects/enabled";
+import { modalFocusables, registerModal, topModal, MODAL_BASE_Z_INDEX } from "@/lib/modalStack";
+
+const ModalTitleContext = createContext<string | undefined>(undefined);
+const ModalCloseContext = createContext<(callback: () => void) => void>((callback) => callback());
+
+const ModalParentContext = createContext<RefObject<HTMLDivElement | null> | null>(null);
+const ENTER_MS = 180;
+const EXIT_MS = 120;
 
 interface ModalProps {
-  children: React.ReactNode;
-  /** Called when the user clicks the backdrop or presses Escape. If omitted, backdrop click and Escape are disabled. */
+  children: ReactNode;
   onClose?: () => void;
   maxWidth?: string;
   maxHeight?: string;
@@ -19,174 +30,265 @@ interface ModalProps {
   backdropClassName?: string;
 }
 
-/**
- * Reusable modal wrapper. Renders a portal into document.body with:
- * - Dark backdrop with blur
- * - Centered panel with animation
- * - Escape key to close
- * - Click-outside to close
- *
- * Use the compound sub-components (Modal.Header, Modal.Body, etc.) for consistent layout.
- */
 export function Modal({
   children,
   onClose,
   maxWidth = "max-w-2xl",
-  maxHeight = "max-h-[85dvh]",
+  maxHeight = "max-h-[90dvh]",
   className,
   backdropClassName,
 }: ModalProps) {
-  const promptChrome = useContext(PromptModalChromeContext);
   const isTouch = useIsTouch();
   const isGameActive = useGameStore((s) => s.isGameActive);
-  const touchGameSurface = isTouch && isGameActive;
+  const motion = usePreferencesStore((s) => s.inGameAnimations);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const parentPanel = useContext(ModalParentContext);
+  const [previousFocus] = useState(() =>
+    typeof document !== "undefined" && document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null,
+  );
+  const closing = useRef(false);
+  const closeTimer = useRef<number | undefined>(undefined);
+  const animation = useRef<Animation | null>(null);
+  const dismissArmed = useRef(false);
+  const titleId = useId();
+  const close = useCallback(
+    (callback: () => void) => {
+      const panel = panelRef.current;
+      if (!panel || topModal() !== panel || closing.current) return;
+      closing.current = true;
+      panel.dataset.closing = "true";
+      if (!motion || !animationsEnabled()) {
+        callback();
+        return;
+      }
+      panel.parentElement!.inert = true;
+      animation.current?.cancel();
+      animation.current = panel.animate(
+        [{ opacity: 1 }, { opacity: 0, transform: "translateY(4px)" }],
+        { duration: EXIT_MS, fill: "forwards", easing: "ease-in" },
+      );
+      closeTimer.current = window.setTimeout(callback, EXIT_MS);
+    },
+    [motion],
+  );
 
   useEffect(() => {
-    if (!onClose) return;
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose!();
-    }
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [onClose]);
-
-  // Backdrop dismissal is click-based but armed after a short delay: a touch
-  // tap on a Pixi surface that opens a modal fires its synthetic click AFTER
-  // the modal mounts (it would close instantly), while dismissing on
-  // pointerdown unmounts the backdrop before the tap's click dispatches — the
-  // click then retargets to whatever game control sat underneath.
-  const dismissArmedRef = useRef(false);
-  useEffect(() => {
+    const panel = panelRef.current!;
+    const previous = previousFocus;
+    const unregister = registerModal(panel, parentPanel?.current ?? undefined, previous);
+    const frame = requestAnimationFrame(() => {
+      if (topModal() !== panel) return;
+      const focusable = modalFocusables(panel);
+      (
+        focusable.find((node) => node.matches("[autofocus], [data-autofocus]")) ??
+        focusable[0] ??
+        panel
+      ).focus();
+    });
+    const focus = (event: FocusEvent) => {
+      if (topModal() !== panel || closing.current || panel.contains(event.target as Node)) return;
+      (modalFocusables(panel)[0] ?? panel).focus();
+    };
+    document.addEventListener("focusin", focus);
     const timer = setTimeout(() => {
-      dismissArmedRef.current = true;
+      dismissArmed.current = true;
     }, GHOST_CLICK_ARM_MS);
-    return () => clearTimeout(timer);
-  }, []);
+    return () => {
+      const wasTop = topModal() === panel;
+      unregister();
+      document.removeEventListener("focusin", focus);
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+      clearTimeout(closeTimer.current);
+      animation.current?.cancel();
+      if (wasTop && previous?.isConnected && !previous.closest("[inert]")) previous.focus();
+    };
+  }, [parentPanel, previousFocus]);
+
+  useEffect(() => {
+    animation.current?.cancel();
+    if (motion && animationsEnabled() && !closing.current) {
+      animation.current = panelRef.current!.animate(
+        [
+          { opacity: 0, transform: "translateY(8px)" },
+          { opacity: 1, transform: "translateY(0)" },
+        ],
+        { duration: ENTER_MS, easing: "cubic-bezier(0.16,1,0.3,1)" },
+      );
+    }
+  }, [motion]);
+
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      if (
+        topModal() !== panelRef.current ||
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.key !== "Escape"
+      )
+        return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (onClose) close(onClose);
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [close, onClose]);
 
   return createPortal(
     <div
+      style={{ zIndex: MODAL_BASE_Z_INDEX }}
       className={cn(
-        "fixed inset-0 z-[9000] flex items-center justify-center bg-black/60 backdrop-blur-sm",
-        "pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)] pt-[var(--safe-area-inset-top)]",
-        touchGameSurface && "game-touch-surface",
+        "fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)] pt-[var(--safe-area-inset-top)]",
+        isTouch && isGameActive && "game-touch-surface",
         backdropClassName,
       )}
       onClick={() => {
-        if (dismissArmedRef.current) onClose?.();
+        if (dismissArmed.current && onClose) close(onClose);
       }}
     >
       <div
+        ref={panelRef}
         data-modal-panel="true"
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className={cn(
-          "relative bg-card border rounded-xl shadow-2xl flex flex-col w-full mx-4 animate-in fade-in zoom-in-95 duration-200",
+          "relative bg-card border border-border rounded-xl shadow-2xl flex flex-col w-full mx-3 min-h-0",
           maxWidth,
           maxHeight ||
             "max-h-[calc(100dvh-1rem-var(--safe-area-inset-top)-var(--safe-area-inset-bottom))]",
           className,
         )}
-        onClick={(e) => e.stopPropagation()}
-        onKeyDownCapture={(e) => {
-          if (e.code === "Space" && e.target instanceof HTMLButtonElement) {
-            e.preventDefault();
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key !== "Tab" || topModal() !== panelRef.current) return;
+          const panel = panelRef.current!;
+          const focusable = modalFocusables(panel);
+          const first = focusable[0],
+            last = focusable.at(-1);
+          if (!first || !last) {
+            event.preventDefault();
+            panel.focus();
+          } else if (
+            event.shiftKey &&
+            (document.activeElement === first || document.activeElement === panel)
+          ) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
           }
         }}
       >
-        {promptChrome.showMinimize && promptChrome.onMinimize && (
-          <button
-            className="absolute -top-3 -right-3 z-10 rounded-full border border-border bg-card p-1.5 shadow-[0_8px_20px_rgba(0,0,0,0.35)] hover:bg-muted transition-colors before:absolute before:-inset-2.5 before:content-['']"
-            onClick={promptChrome.onMinimize}
-            title="Minimize prompt"
-            type="button"
-          >
-            <Minus className="h-3.5 w-3.5" />
-          </button>
-        )}
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>
+        <ModalTitleContext.Provider value={titleId}>
+          <ModalCloseContext.Provider value={close}>
+            <ModalParentContext.Provider value={panelRef}>
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+            </ModalParentContext.Provider>
+          </ModalCloseContext.Provider>
+        </ModalTitleContext.Provider>
       </div>
     </div>,
     document.body,
   );
 }
 
-interface ModalHeaderProps {
-  children: React.ReactNode;
+function ModalHeader({
+  children,
+  onClose,
+  className,
+}: {
+  children: ReactNode;
   onClose?: () => void;
   className?: string;
-}
-
-function ModalHeader({ children, onClose, className }: ModalHeaderProps) {
+}) {
+  const id = useContext(ModalTitleContext);
+  const close = useContext(ModalCloseContext);
   return (
-    <div className={cn("flex items-center justify-between px-4 py-3 border-b", className)}>
-      <div className="flex-1 min-w-0">{children}</div>
+    <div
+      className={cn(
+        "flex items-center justify-between gap-3 px-4 py-3 border-b shrink-0",
+        className,
+      )}
+    >
+      <div id={id} className="flex-1 min-w-0">
+        {children}
+      </div>
       {onClose && (
-        <button
-          className="relative rounded-md p-1 hover:bg-muted transition-colors shrink-0 ml-2 before:absolute before:-inset-2.5 before:content-['']"
-          onClick={onClose}
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={() => close(onClose)}
           title="Close (Esc)"
-          type="button"
+          aria-label="Close dialog"
         >
           <X className="h-4 w-4" />
-        </button>
+        </Button>
       )}
     </div>
   );
 }
-
-interface ModalInstructionsProps {
-  children: React.ReactNode;
-  className?: string;
-}
-
-function ModalInstructions({ children, className }: ModalInstructionsProps) {
-  const themeColors = useTheme().gameTheme;
-  const infoColor = themeColors.promptAction.defenseAction;
-
+function ModalInstructions({ children, className }: { children: ReactNode; className?: string }) {
+  const color = useTheme().gameTheme.promptAction.defenseAction;
   return (
     <div
-      className={cn("px-4 py-2 border-b", className)}
-      style={{ backgroundColor: withAlpha(infoColor, 0.08) }}
+      className={cn("px-4 py-2 border-b shrink-0", className)}
+      style={{ backgroundColor: withAlpha(color, 0.08) }}
     >
-      <p className="text-sm font-semibold text-center" style={{ color: infoColor }}>
+      <p className="text-sm font-semibold text-center" style={{ color }}>
         {children}
       </p>
     </div>
   );
 }
-
-interface ModalBodyProps {
-  children: React.ReactNode;
-  className?: string;
-}
-
-function ModalBody({ children, className }: ModalBodyProps) {
-  return <div className={cn("overflow-y-auto p-4 flex-1", className)}>{children}</div>;
-}
-
-interface ModalFooterProps {
-  children: React.ReactNode;
-  className?: string;
-}
-
-function ModalFooter({ children, className }: ModalFooterProps) {
+function ModalBody({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn("flex items-center justify-end gap-2 px-4 py-3 border-t", className)}>
+    <div className={cn("min-h-0 overflow-y-auto overscroll-contain p-4 flex-1", className)}>
       {children}
     </div>
   );
 }
-
-interface ModalEmptyStateProps {
-  message?: string;
+function ModalFooter({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div
+      className={cn(
+        "flex flex-wrap items-center justify-end gap-2 px-4 py-3 border-t shrink-0",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
 }
-
-function ModalEmptyState({ message = "No cards" }: ModalEmptyStateProps) {
-  return <p className="text-sm text-muted-foreground italic text-center py-8">{message}</p>;
+function ModalClose({
+  onClose,
+  ...props
+}: Omit<ComponentProps<typeof Button>, "onClick"> & { onClose: () => void }) {
+  const close = useContext(ModalCloseContext);
+  return <Button {...props} onClick={() => close(onClose)} />;
 }
-
+function ModalCloseShortcut({ keybinding, onClose }: { keybinding: string; onClose: () => void }) {
+  const close = useContext(ModalCloseContext);
+  const scope = useContext(ModalParentContext);
+  useKeybindings({ [keybinding]: () => close(onClose) }, scope ?? undefined);
+  return null;
+}
+function ModalEmptyState({ message = "No cards" }: { message?: string }) {
+  return (
+    <p className="text-sm text-muted-foreground text-center py-8" role="status">
+      {message}
+    </p>
+  );
+}
 Modal.Header = ModalHeader;
 Modal.Instructions = ModalInstructions;
 Modal.Body = ModalBody;
 Modal.Footer = ModalFooter;
 Modal.EmptyState = ModalEmptyState;
+Modal.Close = ModalClose;
+Modal.CloseShortcut = ModalCloseShortcut;

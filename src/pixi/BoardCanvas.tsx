@@ -1,3 +1,5 @@
+// @refresh reset
+
 import { useRef, useEffect, useCallback, useMemo, useState } from "react";
 import { Application } from "pixi.js";
 import { destroyPixiApp, installPixiPatches } from "./pixiPatches";
@@ -14,6 +16,7 @@ import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme } from "@/hooks/useTheme";
 import { useHandScale } from "@/hooks/useHandScale";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { useGameStore } from "@/stores/useGameStore";
 import { isCoarsePointer } from "@/lib/responsive";
 import { registerPixiApp } from "./visibility";
 import {
@@ -167,6 +170,12 @@ export function BoardCanvas({
   const cardStyle = usePreferencesStore((s) => s.battlefieldCardStyle);
   const lockZoneTiles = usePreferencesStore((s) => s.lockZoneTiles);
   const handViewportScale = useHandScale();
+  const promptType = useGameStore((s) => s.currentPrompt?.input.type);
+  const cardPromptOpen =
+    promptType === "chooseCards" ||
+    promptType === "revealCards" ||
+    promptType === "reorder" ||
+    promptType === "scry";
 
   const [handHover, setHandHover] = useState<HandHoverState | null>(null);
   const clearTimerRef = useRef<number | null>(null);
@@ -253,6 +262,7 @@ export function BoardCanvas({
         const newScene = new BoardScene(app, {
           onClickCard: (...a) => callbacksRef.current.onClickCard?.(...a),
           onHoverCard: (...a) => callbacksRef.current.onHoverCard?.(...a),
+          onHoverZoneCards: (...a) => callbacksRef.current.onHoverZoneCards?.(...a),
           onRightClickCard: (...a) => callbacksRef.current.onRightClickCard?.(...a),
           onClickAnyCard: (...a) => callbacksRef.current.onClickAnyCard?.(...a),
           onFlipCard: () => callbacksRef.current.onFlipCard?.(),
@@ -642,8 +652,12 @@ export function BoardCanvas({
   }, [handActions, handHover, handRulesView, scene, selectHandAction]);
 
   useKeybindings({
-    ...(!externalPreviewActive && showHandFlip ? { "flip-card": toggleHandFlip } : {}),
-    ...(!externalPreviewActive && handHover ? { "toggle-card-view": toggleHandRulesView } : {}),
+    ...(!externalPreviewActive && !cardPromptOpen && showHandFlip
+      ? { "flip-card": toggleHandFlip }
+      : {}),
+    ...(!externalPreviewActive && !cardPromptOpen && handHover
+      ? { "toggle-card-view": toggleHandRulesView }
+      : {}),
   });
 
   return (

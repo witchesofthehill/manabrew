@@ -661,9 +661,9 @@ export default function Lobby() {
       {confirmLeaveHostedGame && (
         <LeaveGameModal
           onStay={() => setConfirmLeaveHostedGame(false)}
-          onLeave={() => {
+          onLeave={async () => {
+            await leaveRoom();
             setConfirmLeaveHostedGame(false);
-            void leaveRoom();
           }}
         />
       )}

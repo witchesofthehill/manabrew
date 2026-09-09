@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import type { CardDto, DayTime } from "@/protocol/game";
 import type { ClientPlayerDto } from "@/stores/gameStore.types";
@@ -9,16 +9,20 @@ import { stripUsernameTag } from "@/lib/username";
 import { nextHandOrderMode } from "@/lib/handOrder";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
-import { BoardOverlayCanvas, type BoardOverlayPreviewSpec } from "@/pixi/BoardOverlayCanvas";
+import {
+  BoardOverlayCanvas,
+  type BoardOverlayCommandPreviewSpec,
+  type BoardOverlayPreviewSpec,
+} from "@/pixi/BoardOverlayCanvas";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import type { CombatRow } from "@/components/game/combatRows";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { PlayerHudSpec, PlayerHudBadge, PlayerHudFact } from "@/pixi/hud/playerHud.types";
+import type { PromptOverlaySpec } from "@/pixi/prompts/prompt.types";
 import { buildPlayerHudBadges, buildZoneBadges } from "@/components/game/panels/playerHudBadges";
 import { PlayerSheetModal } from "@/components/game/panels/PlayerSheetModal";
 import { GlobalStateRail } from "@/components/game/panels/GlobalStateRail";
 import type { ZoneTileSpec } from "@/pixi/board/BoardZoneTiles";
-import type { BlockingRect } from "@/pixi/board/types";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useAssetUrl } from "@/stores/useAssetStore";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -138,9 +142,11 @@ interface GameBoardProps {
       trigger?: PreviewPointerInput;
     },
   ) => void;
+  onHoverZoneCards: (cards: CardDto[] | null, anchor?: DOMRect) => void;
   onRightClickCard?: (card: CardDto, anchor: DOMRect) => void;
   onDismissHoverPreview?: () => void;
   rulesPreview?: BoardOverlayPreviewSpec | null;
+  commandPreview?: BoardOverlayCommandPreviewSpec | null;
   externalPreviewActive?: boolean;
   onPreviewPointerEnter?: () => void;
   onPreviewPointerLeave?: () => void;
@@ -187,6 +193,7 @@ interface GameBoardProps {
   onTargetSpell: (spellId: string) => void;
   onHoverStack: (stackObjectId: string | null) => void;
   onToggleStack: () => void;
+  promptOverlaySpec?: PromptOverlaySpec | null;
 
   boardSceneRef?: React.MutableRefObject<BoardScene | null>;
 
@@ -241,9 +248,11 @@ export function GameBoard({
   castingCardId,
   onHandCardDragStart,
   onHoverCard,
+  onHoverZoneCards,
   onRightClickCard,
   onDismissHoverPreview,
   rulesPreview,
+  commandPreview,
   externalPreviewActive,
   onPreviewPointerEnter,
   onPreviewPointerLeave,
@@ -262,6 +271,7 @@ export function GameBoard({
   onTargetPlayer,
   onOpenZone,
   onOpenZoneAndCast,
+  onCastSpell,
   onTargetFromZone,
   delveAvailable,
   onOpenDelveZone,
@@ -277,6 +287,7 @@ export function GameBoard({
   onTargetSpell,
   onHoverStack,
   onToggleStack,
+  promptOverlaySpec,
   boardSceneRef,
   battlefieldContainerRef,
   handSelectionMode,
@@ -309,6 +320,14 @@ export function GameBoard({
   const [dragBlockerId, setDragBlockerId] = useState<string | null>(null);
   const [dragAttackerId, setDragAttackerId] = useState<string | null>(null);
   const [sheetPlayerId, setSheetPlayerId] = useState<string | null>(null);
+  const gameOver = useGameStore((state) => state.gameView?.gameOver);
+  useEffect(
+    () =>
+      useGameStore.subscribe((state) => {
+        if (state.gameView?.gameOver) setSheetPlayerId(null);
+      }),
+    [],
+  );
 
   // On our turn, one opponent field stays expanded (sticky) instead of an even
   // split: the last-active opponent by default, or whichever we last hovered.
@@ -564,6 +583,13 @@ export function GameBoard({
           onHoverCard(null);
         }
       },
+      onHoverZoneCards: (cards, bounds) => {
+        if (cards && bounds) {
+          onHoverZoneCards(cards, new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height));
+        } else {
+          onHoverZoneCards(null);
+        }
+      },
       onRightClickCard: onRightClickCard
         ? (card, bounds) =>
             onRightClickCard(card, new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height))
@@ -605,6 +631,7 @@ export function GameBoard({
       promptType,
       onBattlefieldClick,
       onHoverCard,
+      onHoverZoneCards,
       onDismissHoverPreview,
       onRightClickCard,
       onHandCardDragStart,
@@ -708,14 +735,6 @@ export function GameBoard({
       return ids[next]!;
     });
   };
-  useKeybindings({
-    "focus-next-field": () => cycleField(1),
-    "focus-prev-field": () => cycleField(-1),
-    "cycle-hand-order": () => {
-      if (document.querySelector('[role="dialog"]')) return;
-      setHandOrderModeFromBoard(nextHandOrderMode(handOrderMode));
-    },
-  });
 
   // Which opponent's battleground the mouse is over (from the scene's hover
   // detection). Stashed for later use.
@@ -806,9 +825,11 @@ export function GameBoard({
     // to its owner so the badge can take that opponent's seat colour.
     const cardOwner = new Map<string, string>();
     const cardNames = new Map<string, string>();
+    const referenceCards = new Map<string, CardDto>();
     const addCards = (cards?: CardDto[]) =>
       cards?.forEach((card) => {
         cardOwner.set(card.id, card.ownerId);
+        referenceCards.set(card.id, card);
         if (card.identity.name) cardNames.set(card.id, card.identity.name);
       });
     addCards(myPermanents);
@@ -850,6 +871,7 @@ export function GameBoard({
             label: `Commander damage from ${cardNames.get(cardId) ?? `commander ${cardId}`}${ownerId ? ` · ${nameOf(ownerId)}` : ""}`,
             count: dmg,
             lethal: dmg >= 21,
+            referenceCard: referenceCards.get(cardId),
           };
         });
     };
@@ -1281,6 +1303,16 @@ export function GameBoard({
     promptType,
     onOpenZoneAndCast,
   ]);
+  useKeybindings({
+    "focus-next-field": () => cycleField(1),
+    "focus-prev-field": () => cycleField(-1),
+    "cycle-hand-order": () => {
+      if (document.querySelector('[role="dialog"]')) return;
+      setHandOrderModeFromBoard(nextHandOrderMode(handOrderMode));
+    },
+    "open-graveyard": openGraveyard,
+    "open-exile": openExile,
+  });
 
   // On-grid zone tiles (deck / graveyard / exile / command) per player — same
   // data + open/highlight behaviour as the panel, rendered on the battlefield.
@@ -1340,6 +1372,7 @@ export function GameBoard({
         label: "CMD",
         count: myCommandZone!.length,
         topCard: top(myCommandZone!),
+        previewCards: myCommandZone!,
         onOpen: openCommandZone,
         highlightColor: (commandPlayableIds?.length ?? 0) > 0 ? active : undefined,
         commander: playerColors.self,
@@ -1414,6 +1447,7 @@ export function GameBoard({
           label: "CMD",
           count: op.commandZone.length,
           topCard: top(op.commandZone),
+          previewCards: op.commandZone,
           onOpen: () =>
             openOpZone(`${stripUsernameTag(op.name)}'s Command Zone`, op.commandZone, cmdTargets),
           highlightColor: cmdTargets.length > 0 ? targetColor : cmdPlayable ? active : undefined,
@@ -1587,52 +1621,25 @@ export function GameBoard({
     playerColors,
   ]);
 
-  // Keep battlefield cards from laying out under the local action-button
-  // cluster. (Player panels no longer reserve space — the Pixi HUD sits in the
-  // playmat's own margin.)
-  const lastPanelBlockersRef = useRef<string>("");
-  const opponentIdsKey = opponents.map((op) => op.id).join(",");
-  useLayoutEffect(() => {
-    const opponentIds = opponentIdsKey ? opponentIdsKey.split(",") : [];
-    const measure = () => {
-      const board = boardRef.current;
-      const scene = sceneRef.current;
-      if (!board || !scene) return;
-      const b = board.getBoundingClientRect();
-      const actionEl = document.querySelector<HTMLElement>("[data-action-cluster]");
-      const next: Record<string, BlockingRect[]> = {};
-      if (actionEl) {
-        const r = actionEl.getBoundingClientRect();
-        const height = Math.min(r.height, unifiedLayout?.selfClusterMaxHeight ?? r.height);
-        next[me.id] = [
-          { x: r.left - b.left, y: r.bottom - b.top - height, width: r.width, height },
-        ];
-        if (compactBoard) {
-          const full = { x: r.left - b.left, y: r.top - b.top, width: r.width, height: r.height };
-          for (const id of opponentIds) next[id] = [full];
-        }
-      }
-      const json = JSON.stringify(next);
-      if (json === lastPanelBlockersRef.current) return;
-      lastPanelBlockersRef.current = json;
-      scene.setPlayerBlockers(new Map(Object.entries(next)));
-    };
-    measure();
-    const actionEl = document.querySelector<HTMLElement>("[data-action-cluster]");
-    if (!actionEl) return;
-    const ro = new ResizeObserver(measure);
-    ro.observe(actionEl);
-    return () => ro.disconnect();
-  }, [sceneRef, me.id, opponentIdsKey, unifiedLayout, promptType, compactBoard]);
-
-  const baseSheetSpec = sheetPlayerId
-    ? (hudBarSpecs.find((spec) => spec.playerId === sheetPlayerId) ?? null)
-    : null;
+  const sheetPlayer = [me, ...opponents].find((player) => player.id === sheetPlayerId);
+  const baseSheetSpec =
+    sheetPlayerId && !gameOver
+      ? (hudBarSpecs.find((spec) => spec.playerId === sheetPlayerId) ?? null)
+      : null;
   const sheetSpec = baseSheetSpec
     ? {
         ...baseSheetSpec,
         badges: [
-          ...baseSheetSpec.badges.filter((badge) => !badge.zone),
+          ...baseSheetSpec.badges
+            .filter((badge) => !badge.zone)
+            .map((badge) =>
+              badge.id === "hand" && sheetPlayer && sheetPlayer.hand.length > 0
+                ? {
+                    ...badge,
+                    onTap: () => onOpenZone(`${sheetPlayer.name}'s visible hand`, sheetPlayer.hand),
+                  }
+                : badge,
+            ),
           ...buildZoneBadges(zoneTilesByPlayer[baseSheetSpec.playerId] ?? [], gameTheme.textMuted),
         ],
       }
@@ -1823,7 +1830,7 @@ export function GameBoard({
           }}
         />
       </div>
-      <div className="absolute inset-0 z-40 pointer-events-none">
+      <div className="absolute inset-0 z-[9000] pointer-events-none">
         <BoardOverlayCanvas
           scene={overlayScene}
           stackSpec={stackSpec}
@@ -1831,8 +1838,11 @@ export function GameBoard({
           onTargetSpell={onTargetSpell}
           onHoverStack={onHoverStack}
           onToggleStack={onToggleStack}
+          promptSpec={promptOverlaySpec ?? null}
           externalPreviewActive={externalPreviewActive}
           previewSpec={rulesPreview}
+          commandPreviewSpec={commandPreview}
+          onCastCommandCard={onCastSpell}
           onPreviewPointerEnter={onPreviewPointerEnter}
           onPreviewPointerLeave={onPreviewPointerLeave}
           onSelectPreviewAction={onSelectHandAction}

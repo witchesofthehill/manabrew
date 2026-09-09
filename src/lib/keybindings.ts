@@ -14,8 +14,13 @@ export interface KeybindingDef {
   defaultCombo: KeyCombo;
   allowInEditable?: boolean;
 }
+function defineKeybindings<const T extends readonly KeybindingDef[]>(
+  definitions: T,
+): readonly (T[number] & KeybindingDef)[] {
+  return definitions;
+}
 
-export const KEYBINDINGS: KeybindingDef[] = [
+export const KEYBINDINGS = defineKeybindings([
   {
     id: "nav-prev-page",
     label: "Previous page",
@@ -175,7 +180,7 @@ export const KEYBINDINGS: KeybindingDef[] = [
   },
   {
     id: "open-settings",
-    label: "Open preferences",
+    label: "Open preferences / board settings",
     category: "Navigation",
     defaultCombo: { key: ",", mod: true },
   },
@@ -246,6 +251,24 @@ export const KEYBINDINGS: KeybindingDef[] = [
     defaultCombo: { key: "s", mod: true },
   },
   {
+    id: "open-graveyard",
+    label: "Open your graveyard",
+    category: "Battlefield",
+    defaultCombo: { key: "g" },
+  },
+  {
+    id: "open-exile",
+    label: "Open your exile",
+    category: "Battlefield",
+    defaultCombo: { key: "x" },
+  },
+  {
+    id: "toggle-combat-breakdown",
+    label: "Toggle combat breakdown",
+    category: "Battlefield",
+    defaultCombo: { key: "c" },
+  },
+  {
     id: "toggle-priority-mode",
     label: "Toggle autopass / full control",
     category: "Battlefield",
@@ -272,10 +295,11 @@ export const KEYBINDINGS: KeybindingDef[] = [
   ...(import.meta.env.DEV
     ? [
         {
-          id: "open-dev-panel",
-          label: "Open the dev panel",
+          id: "toggle-dev-panel",
+          label: "Toggle the dev panel",
           category: "Battlefield",
           defaultCombo: { key: "d", mod: true, shift: true },
+          allowInEditable: true,
         } satisfies KeybindingDef,
       ]
     : []),
@@ -285,7 +309,9 @@ export const KEYBINDINGS: KeybindingDef[] = [
     category: "Battlefield",
     defaultCombo: { key: "f", mod: true },
   },
-];
+]);
+
+export type KeybindingId = (typeof KEYBINDINGS)[number]["id"];
 
 export const IS_APPLE =
   typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform);

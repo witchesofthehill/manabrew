@@ -596,12 +596,12 @@ public final class ManaBrewInteractiveSession {
             }
             final int roll = rolls.get(p);
             rollEntries.add(new DiceRollEntry(
-                    p.getName(), "player-" + SnapshotExtractor.playerIndex(game, p),
+                    p.getName(), "player-" + SnapshotExtractor.playerIndex(game, p), 0,
                     java.util.List.of(roll), java.util.List.of(roll), java.util.List.of(), p == winner));
         }
         publishAgentPrompt("player-" + playerId, null,
                 new DiceRolledInput(
-                        presentation("Roll for first player", null), sides, rollEntries, null));
+                        presentation("Roll for first player", null), sides, rollEntries, null, null));
     }
 
     private void publishManaPaymentPrompt(
@@ -2605,7 +2605,11 @@ public final class ManaBrewInteractiveSession {
     private void publishAgentPrompt(final String decidingPlayerId, final String sourceCardId, final JsonObject input) {
         promptedPlayerIndex = parsePlayerSlot(decidingPlayerId);
         latestPromptJson = ManabrewProtocolAdapter.agentPrompt(
-                ++promptSeq, decidingPlayerId, sourceCard(sourceCardId), input);
+                ++promptSeq,
+                decidingPlayerId,
+                sourceCard(sourceCardId),
+                sourceAbilityText(sourceCardId),
+                input);
     }
 
     private static int parsePlayerSlot(final String decidingPlayerId) {
@@ -2639,7 +2643,13 @@ public final class ManaBrewInteractiveSession {
 
     private CardDto sourceCard(final String sourceCardId) {
         if (sourceCardId == null) {
-            return null;
+            Card source = null;
+            if (game.getStack().isResolving() && !game.getStack().isEmpty()) {
+                source = game.getStack().peek().getSourceCard();
+            } else if (castingAbility != null) {
+                source = castingAbility.getHostCard();
+            }
+            return source == null ? null : InteractiveSnapshotExtractor.cardDto(game, source, false);
         }
         for (final Card card : game.getCardsInGame()) {
             if (sourceCardId.equals(SnapshotExtractor.javaCardId(card))) {
@@ -2647,6 +2657,26 @@ public final class ManaBrewInteractiveSession {
             }
         }
         return null;
+    }
+
+    private String sourceAbilityText(final String sourceCardId) {
+        if (game.getStack().isResolving() && !game.getStack().isEmpty()) {
+            final SpellAbility resolving = game.getStack().peek().getSpellAbility();
+            if (sourceCardId == null || abilityHasSource(resolving, sourceCardId)) {
+                return InteractiveSnapshotExtractor.sourceAbilityText(resolving);
+            }
+        }
+        if (castingAbility != null
+                && (sourceCardId == null || abilityHasSource(castingAbility, sourceCardId))) {
+            return InteractiveSnapshotExtractor.sourceAbilityText(castingAbility);
+        }
+        return null;
+    }
+
+    private static boolean abilityHasSource(final SpellAbility ability, final String sourceCardId) {
+        return ability != null
+                && ability.getHostCard() != null
+                && sourceCardId.equals(SnapshotExtractor.javaCardId(ability.getHostCard()));
     }
 
     private static PromptPresentation presentation(final String title, final String description) {

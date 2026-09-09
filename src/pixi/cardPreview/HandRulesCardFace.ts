@@ -2,7 +2,6 @@ import {
   Container,
   Graphics,
   Rectangle,
-  Sprite,
   Text,
   TextStyle,
   Texture,
@@ -24,6 +23,7 @@ import type { HandActionOption } from "@/stores/useGameUIStore";
 import { gsap } from "@/pixi/effects/gsap";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { PixiRichText } from "./PixiRichText";
+import { RulesPreviewArtwork } from "./RulesPreviewArtwork";
 import { RulesPreviewIdentity } from "./RulesPreviewIdentity";
 import { RulesPreviewActions } from "./RulesPreviewActions";
 import {
@@ -93,6 +93,7 @@ export class HandRulesCardFace extends Container {
   private deckLayout?: string;
   private theme: Theme;
   private frameGradient: FillGradient | null = null;
+  private artwork: RulesPreviewArtwork | null = null;
   private highlightedEffect = "";
   private rulesScrollOffset: number | null = null;
   private highlightedEffectTween: gsap.core.Tween | null = null;
@@ -224,6 +225,8 @@ export class HandRulesCardFace extends Container {
   private rebuild(): void {
     this.highlightedEffectTween?.kill();
     this.highlightedEffectTween = null;
+    this.artwork?.destroy();
+    this.artwork = null;
     this.root.removeChildren().forEach((child) => child.destroy({ children: true }));
     this.frameGradient?.destroy();
     this.frameGradient = null;
@@ -285,27 +288,21 @@ export class HandRulesCardFace extends Container {
     });
 
     const artWidth = designWidth - ART_INSET * 2;
-    const artwork = new Sprite(this.artTexture);
-    const artMask = new Graphics();
-    artMask
-      .roundRect(ART_INSET, artY, artWidth, artHeight, RULES_TITLE_ART_RADIUS)
-      .rect(ART_INSET, artY, artWidth, RULES_TITLE_ART_RADIUS)
-      .fill(hexToNum(frame.paper));
-    artwork.mask = artMask;
-    artwork.visible =
-      artHeight > 0 &&
-      this.artTexture !== Texture.EMPTY &&
-      this.artTexture.width > 0 &&
-      this.artTexture.height > 0;
-    if (artwork.visible) {
-      const fit = landscape ? Math.min : Math.max;
-      const scale = fit(artWidth / this.artTexture.width, artHeight / this.artTexture.height);
-      artwork.anchor.set(0.5);
-      artwork.position.set(ART_INSET + artWidth / 2, artY + artHeight / 2);
-      artwork.setSize(this.artTexture.width * scale, this.artTexture.height * scale);
-    }
+    const artwork = new RulesPreviewArtwork(this.artTexture);
+    this.artwork = artwork;
+    artwork.layout({
+      x: ART_INSET,
+      y: artY,
+      width: artWidth,
+      height: artHeight,
+      radius: RULES_TITLE_ART_RADIUS,
+      paper: frame.paper,
+      fit: landscape ? "contain" : "cover-top",
+    });
 
-    this.root.addChild(background, artwork, artMask, identity);
+    this.root.addChild(background);
+    artwork.addTo(this.root);
+    this.root.addChild(identity);
 
     const contentWidth = designWidth - CONTENT_PAD * 2;
     const rulesEntries = this.rulesEntries(display);
@@ -676,6 +673,8 @@ export class HandRulesCardFace extends Container {
   override destroy(options?: DestroyOptions): void {
     this.highlightedEffectTween?.kill();
     this.highlightedEffectTween = null;
+    this.artwork?.destroy();
+    this.artwork = null;
     this.frameGradient?.destroy();
     this.frameGradient = null;
     super.destroy(options);

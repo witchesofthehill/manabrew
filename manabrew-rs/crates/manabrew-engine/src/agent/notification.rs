@@ -3,6 +3,23 @@ use crate::agent::ManaCostAction;
 use crate::ids::{CardId, PlayerId};
 use forge_foundation::PhaseType;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlanarDieFace {
+    Planeswalk,
+    Chaos,
+    Blank,
+}
+impl PlanarDieFace {
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "planeswalk" => Some(Self::Planeswalk),
+            "chaos" => Some(Self::Chaos),
+            "blank" => Some(Self::Blank),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum GameNotification {
     Event(GameLogEvent),
@@ -41,23 +58,15 @@ pub enum GameNotification {
     DiceRolled {
         player: PlayerId,
         sides: i32,
-        /// Natural (pre-modifier) values, one per kept die.
         natural_results: Vec<i32>,
-        /// Final values after modifiers/exchanges, one per kept die.
         final_results: Vec<i32>,
-        /// Rolls dropped before modification (ignore-lowest, choose-to-ignore).
         ignored_rolls: Vec<i32>,
-        /// Display name of the card that triggered the roll, if any.
+        source_card_id: Option<CardId>,
         source_card_name: Option<String>,
     },
-    /// Each player rolled a die at the start of the game; the highest
-    /// roller goes first. Sent once with every player's final roll so
-    /// the UI can animate them side-by-side.
     FirstPlayerRoll {
         sides: i32,
-        /// One entry per player in `player_order`, paired with their roll.
-        rolls: Vec<(PlayerId, i32)>,
-        /// The player who won the roll-off (after any tiebreaks).
+        rounds: Vec<Vec<(PlayerId, i32)>>,
         winner: PlayerId,
     },
     GameOver,

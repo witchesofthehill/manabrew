@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
 
 interface DevCounterControlProps {
   label: string;
@@ -8,6 +9,8 @@ interface DevCounterControlProps {
 }
 
 export function DevCounterControl({ label, value, onClear, onBump }: DevCounterControlProps) {
+  const query = useDevPanelSearch();
+  if (!matchesDevPanelSearch(query, label)) return null;
   return (
     <div className="flex min-h-10 items-center gap-1 rounded-lg border border-border/60 bg-background/40 p-1">
       <span className="min-w-0 flex-1 truncate pl-2 text-xs font-medium" title={label}>

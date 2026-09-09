@@ -1,10 +1,12 @@
 import { Container, Graphics, Rectangle, type FederatedPointerEvent } from "pixi.js";
 import { gsap } from "../effects/gsap";
-import { CARD_W, CARD_H } from "@/components/game/game.constants";
+import { CARD_W, CARD_H, CARD_RADIUS } from "@/components/game/game.constants";
 import type { Theme } from "@/hooks/useTheme";
 import { CardSprite } from "../CardSprite";
 import { hexToNum } from "../colorUtils";
 import { LongPressGesture } from "../LongPressGesture";
+import { animationsEnabled } from "../effects/enabled";
+import { rulesCardRadius } from "../cardPreview/rulesPreviewFrame";
 import type { StackCardSpec } from "./stack.types";
 import { HandCardControls } from "../HandCardControls";
 import { getRectBorderAnchor } from "./stackLayout";
@@ -16,7 +18,6 @@ const MOVE_EASE = "cubic-bezier(0.23,0.63,0.32,1)";
 const CASTING_PULSE_MS = 1;
 export const HOVER_SCALE = 1.12;
 const HOVER_LIFT_PX = 2;
-const RING_RADIUS_FRAC = 0.05;
 const GLOW_PAD = 6;
 
 export class StackCardSprite {
@@ -28,6 +29,7 @@ export class StackCardSprite {
   private readonly height: number;
   private readonly faceScale: number;
   private glow = new Graphics();
+  private promptReference = new Graphics();
   private ring = new Graphics();
   private face: CardSprite;
   private hovered = false;
@@ -36,6 +38,8 @@ export class StackCardSprite {
   private moveTween: gsap.core.Tween | null = null;
   private castingTween: gsap.core.Tween | null = null;
   private hoverTween: gsap.core.Tween | null = null;
+  private promptReferenceTween: gsap.core.Tween | null = null;
+  private promptReferenceColor: number | null = null;
   private longPress = new LongPressGesture();
   private touchPointerId: number | null = null;
   private viewControls: HandCardControls;
@@ -63,6 +67,7 @@ export class StackCardSprite {
     this.container = new Container();
     this.glow.eventMode = "none";
     this.ring.eventMode = "none";
+    this.promptReference.eventMode = "none";
     this.face = new CardSprite(spec.card, "hand");
     this.face.scale.set(this.faceScale);
     this.face.setHandRulesView(rulesView);
@@ -124,7 +129,13 @@ export class StackCardSprite {
       onHover(null);
     });
 
-    this.container.addChild(this.glow, this.face, this.ring, this.viewControls);
+    this.container.addChild(
+      this.glow,
+      this.face,
+      this.ring,
+      this.promptReference,
+      this.viewControls,
+    );
     this.syncControls();
     this.redraw();
   }
@@ -152,6 +163,37 @@ export class StackCardSprite {
     if (controlsChanged) this.syncControls();
     if (dimChanged) this.container.alpha = spec.isDimmed ? 0.6 : 1;
     if (ringChanged) this.redraw();
+  }
+
+  setPromptReference(color: number | null): void {
+    this.promptReferenceColor = color;
+    this.promptReferenceTween?.kill();
+    this.promptReferenceTween = null;
+    this.promptReference.clear();
+    this.promptReference.alpha = 1;
+    if (color == null) return;
+    const radius = this.cardRadius();
+    const halfWidth = this.width / 2;
+    const halfHeight = this.height / 2;
+    this.promptReference
+      .roundRect(
+        -halfWidth - GLOW_PAD,
+        -halfHeight - GLOW_PAD,
+        this.width + GLOW_PAD * 2,
+        this.height + GLOW_PAD * 2,
+        radius + GLOW_PAD,
+      )
+      .stroke({ color, width: 8, alpha: 0.2 });
+    this.promptReference
+      .roundRect(-halfWidth - 2, -halfHeight - 2, this.width + 4, this.height + 4, radius + 2)
+      .stroke({ color, width: 3, alpha: 0.95 });
+    if (animationsEnabled()) {
+      this.promptReferenceTween = gsap.fromTo(
+        this.promptReference,
+        { alpha: 0.62 },
+        { alpha: 1, duration: 0.65, ease: "sine.inOut", repeat: -1, yoyo: true },
+      );
+    }
   }
 
   place(
@@ -242,8 +284,11 @@ export class StackCardSprite {
   }
 
   setRulesView(active: boolean): void {
+    if (this.face.usesHandRulesView === active) return;
     this.face.setHandRulesView(active);
     this.syncControls();
+    this.redraw();
+    if (this.promptReferenceColor != null) this.setPromptReference(this.promptReferenceColor);
   }
 
   destroy(): void {
@@ -252,6 +297,7 @@ export class StackCardSprite {
     this.moveTween?.kill();
     this.castingTween?.kill();
     this.hoverTween?.kill();
+    this.promptReferenceTween?.kill();
     this.container.destroy({ children: true });
   }
 
@@ -266,8 +312,14 @@ export class StackCardSprite {
     });
   }
 
+  private cardRadius(): number {
+    return this.face.usesHandRulesView
+      ? rulesCardRadius(this.width, this.height)
+      : CARD_RADIUS * this.faceScale;
+  }
+
   private redraw(): void {
-    const r = this.width * RING_RADIUS_FRAC;
+    const r = this.cardRadius();
     const hw = this.width / 2;
     const hh = this.height / 2;
     this.glow.clear();
@@ -283,7 +335,7 @@ export class StackCardSprite {
           -hh - GLOW_PAD,
           this.width + GLOW_PAD * 2,
           this.height + GLOW_PAD * 2,
-          r,
+          r + GLOW_PAD,
         )
         .fill({ color: seat, alpha: 0.28 });
       this.ring

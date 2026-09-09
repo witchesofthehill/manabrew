@@ -1,0 +1,188 @@
+import { useState, type RefObject } from "react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { MANA_LETTERS } from "@/themes/gameTheme";
+import {
+  CARD_BROWSER_MAX_SIZE,
+  CARD_BROWSER_MIN_SIZE,
+  CARD_BROWSER_SIZE_STEP,
+  type CardBrowserState,
+} from "./cardBrowser";
+
+interface Props {
+  search: RefObject<HTMLInputElement | null>;
+  state: CardBrowserState;
+  types: string[];
+  picker: boolean;
+  visibleCount: number;
+  totalCount: number;
+  selectedCount: number;
+  hasActions: boolean;
+  loading: boolean;
+  incomplete: boolean;
+  onFilter: (patch: Partial<CardBrowserState>) => void;
+  onSize: (size: number) => void;
+  defaultOnlyActions: boolean;
+}
+export function DialogCardBrowserToolbar({
+  search,
+  state,
+  types,
+  picker,
+  visibleCount,
+  totalCount,
+  selectedCount,
+  hasActions,
+  loading,
+  incomplete,
+  onFilter,
+  onSize,
+  defaultOnlyActions,
+}: Props) {
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const activeFilterCount =
+    Number(!!state.type) +
+    Number(!!state.color) +
+    Number(state.sort !== "zone") +
+    Number(hasActions && state.onlyActions !== defaultOnlyActions);
+
+  return (
+    <div className="shrink-0 space-y-2 border-b p-3">
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            ref={search}
+            data-autofocus
+            aria-label="Search cards by name, rules, type or mana"
+            placeholder="Search names, rules, types or mana…"
+            value={state.query}
+            onChange={(event) => onFilter({ query: event.target.value })}
+            className="pl-9 pr-9 focus-visible:ring-card-ring"
+          />
+          {state.query && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="absolute right-0 top-0 h-9 w-9"
+              aria-label="Clear search"
+              onClick={() => {
+                onFilter({ query: "" });
+                search.current?.focus();
+              }}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          aria-expanded={filtersOpen}
+          onClick={() => setFiltersOpen((open) => !open)}
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          Filters
+          {activeFilterCount > 0 && (
+            <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">
+              {activeFilterCount}
+            </span>
+          )}
+        </Button>
+        {!picker && (
+          <span className="shrink-0 text-xs text-muted-foreground" role="status" aria-live="polite">
+            {visibleCount} / {totalCount}
+          </span>
+        )}
+      </div>
+      {filtersOpen && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border p-2 text-xs">
+          <select
+            aria-label="Card type"
+            value={state.type}
+            onChange={(event) => onFilter({ type: event.target.value })}
+            className="h-9 min-w-32 flex-1 rounded-md border bg-background px-2 pointer-coarse:text-base"
+          >
+            <option value="">All types</option>
+            {types.map((type) => (
+              <option key={type}>{type}</option>
+            ))}
+          </select>
+          <select
+            aria-label="Card color"
+            value={state.color}
+            onChange={(event) => onFilter({ color: event.target.value })}
+            className="h-9 min-w-28 flex-1 rounded-md border bg-background px-2 pointer-coarse:text-base"
+          >
+            <option value="">All colors</option>
+            {MANA_LETTERS.map((color) => (
+              <option key={color}>{color}</option>
+            ))}
+          </select>
+          <select
+            aria-label="Card sort order"
+            value={state.sort}
+            onChange={(event) => onFilter({ sort: event.target.value as CardBrowserState["sort"] })}
+            className="h-9 min-w-32 flex-1 rounded-md border bg-background px-2 pointer-coarse:text-base"
+          >
+            <option value="zone">Zone order</option>
+            <option value="name">Name</option>
+            <option value="mana">Mana value</option>
+          </select>
+          {hasActions && (
+            <label className="flex h-9 items-center gap-2 rounded-md border px-3">
+              <input
+                type="checkbox"
+                checked={state.onlyActions}
+                onChange={(event) => onFilter({ onlyActions: event.target.checked })}
+                className="accent-primary"
+              />
+              Available cards only
+            </label>
+          )}
+          {!picker && (
+            <label className="flex h-9 items-center gap-2 rounded-md border px-3">
+              Card size
+              <input
+                aria-label="Card size"
+                type="range"
+                min={CARD_BROWSER_MIN_SIZE}
+                max={CARD_BROWSER_MAX_SIZE}
+                step={CARD_BROWSER_SIZE_STEP}
+                value={state.size}
+                onChange={(event) => onSize(Number(event.target.value))}
+                className="w-20 accent-primary"
+              />
+            </label>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={activeFilterCount === 0}
+            onClick={() =>
+              onFilter({
+                type: "",
+                color: "",
+                sort: "zone",
+                onlyActions: defaultOnlyActions,
+              })
+            }
+          >
+            Reset
+          </Button>
+        </div>
+      )}
+      {!picker && selectedCount > 0 && (
+        <p className="text-xs text-muted-foreground">{selectedCount} selected</p>
+      )}
+      {(loading || incomplete) && (
+        <p className="text-xs text-muted-foreground" role="status">
+          {loading
+            ? "Loading card details for search…"
+            : "Some card details are unavailable. Visible names and game rules remain searchable."}
+        </p>
+      )}
+    </div>
+  );
+}

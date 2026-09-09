@@ -8,6 +8,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Settings2,
+  Swords,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -29,6 +30,7 @@ interface MiddleBarDockProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onOpenSettings: () => void;
+  onOpenCombat?: () => void;
   onConcede: () => void;
   eliminated: boolean;
   onLeave: () => void;
@@ -44,6 +46,7 @@ export function MiddleBarDock({
   open,
   onOpenChange,
   onOpenSettings,
+  onOpenCombat,
   onConcede,
   eliminated,
   onLeave,
@@ -97,6 +100,12 @@ export function MiddleBarDock({
           <Settings2 className="mr-2 h-4 w-4" />
           Board settings
         </DropdownMenuItem>
+        {onOpenCombat && (
+          <DropdownMenuItem onSelect={onOpenCombat}>
+            <Swords className="mr-2 h-4 w-4" />
+            Combat breakdown
+          </DropdownMenuItem>
+        )}
         {players.length > 0 && (
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>

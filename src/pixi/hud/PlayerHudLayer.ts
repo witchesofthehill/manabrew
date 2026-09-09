@@ -107,6 +107,12 @@ export class PlayerHudLayer {
     return this.capsules.get(playerId)?.getAvatarCenter() ?? null;
   }
 
+  setPromptReference(playerId: string | null, color: string | null): void {
+    for (const [id, capsule] of this.capsules) {
+      capsule.setPromptReference(id === playerId ? color : null);
+    }
+  }
+
   tick(): void {
     for (const capsule of this.capsules.values()) capsule.refreshMotion();
   }

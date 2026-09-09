@@ -19,6 +19,7 @@ import { getInitials } from "@/components/game/game.utils";
 import { hexToNum } from "../colorUtils";
 import { gameIconTexture } from "../gameIconCache";
 import { getManaSymbolTextureSync, loadManaSymbolTexture } from "../manaSymbolCache";
+import { manaColorFor } from "../manaColors";
 import { loadAvatarTexture } from "./avatarTextureCache";
 import type { PlayerHudSpec, PlayerHudTooltipContent } from "./playerHud.types";
 import type { ScreenBounds, ScreenPos } from "@/pixi/types";
@@ -84,7 +85,6 @@ interface ManaPip {
   sprite: Sprite;
   count: Text;
   value?: number;
-  flash: Graphics;
 }
 
 interface BadgeChip {
@@ -121,6 +121,7 @@ export class PlayerHudCapsule {
   private damageWash = new Graphics();
   private targetRing = new Graphics();
   private flashRing = new Graphics();
+  private promptReferenceRing = new Graphics();
   private avatarTex: Texture | null = null;
   private avatarPhoto = new Sprite();
   private avatarMask = new Graphics();
@@ -164,6 +165,8 @@ export class PlayerHudCapsule {
   private targetRingMode: "off" | "pulse" | "solid" = "off";
   private targetTween: gsap.core.Tween | null = null;
   private flashTween: gsap.core.Tween | null = null;
+  private promptReferenceTween: gsap.core.Tween | null = null;
+  private promptReferenceColor: string | null = null;
   private lifeTween: gsap.core.Tween | null = null;
   private offlineTween: gsap.core.Tween | null = null;
   private offlineActive = false;
@@ -218,6 +221,8 @@ export class PlayerHudCapsule {
     this.damageWash.eventMode = "none";
     this.targetRing.eventMode = "none";
     this.flashRing.eventMode = "none";
+    this.promptReferenceRing.eventMode = "none";
+    this.promptReferenceRing.visible = false;
     this.manaTray.eventMode = "none";
     this.boundsOutline.eventMode = "none";
     this.stateTray.eventMode = "none";
@@ -279,6 +284,7 @@ export class PlayerHudCapsule {
       this.damageWash,
       this.targetRing,
       this.flashRing,
+      this.promptReferenceRing,
       this.bot,
       this.initial,
       this.skull,
@@ -335,6 +341,12 @@ export class PlayerHudCapsule {
 
   getAvatarCenter(): ScreenPos {
     return this.container.toGlobal(new Point(this.avatarCx, this.avatarCy));
+  }
+
+  setPromptReference(color: string | null): void {
+    if (this.promptReferenceColor === color) return;
+    this.promptReferenceColor = color;
+    this.drawPromptReference();
   }
 
   getZoneAnchor(zoneKey: string): ScreenPos | null {
@@ -398,6 +410,8 @@ export class PlayerHudCapsule {
     this.motionEnabled = enabled;
     this.combatPulse?.kill();
     this.targetTween?.kill();
+    this.promptReferenceTween?.kill();
+    this.promptReferenceTween = null;
     this.offlineTween?.kill();
     this.flashTween?.kill();
     this.lifeTween?.kill();
@@ -417,10 +431,6 @@ export class PlayerHudCapsule {
       gsap.killTweensOf(chip.sprite);
       chip.sprite.alpha = 1;
       chip.hit.alpha = 1;
-    }
-    for (const pip of this.pips) {
-      gsap.killTweensOf(pip.flash);
-      pip.flash.alpha = 0;
     }
     for (const dot of this.sparkles.removeChildren()) {
       gsap.killTweensOf(dot);
@@ -513,8 +523,8 @@ export class PlayerHudCapsule {
         .circle(cx, cy, r)
         .fill({ color: hexToNum(gt.textOnTinted) });
     }
-    this.avatarFx.circle(cx, cy, r - 0.5);
-    this.avatarFx.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
+    this.avatarFx.circle(cx, cy, r - 1);
+    this.avatarFx.stroke({ color: hexToNum(this.spec.color), width: 2, alpha: 0.95 });
     this.bot.visible = visible && !hasImage && this.spec.isBot;
     if (this.bot.visible) {
       const tex = this.iconTexture(BOT_ICON_NAME);
@@ -556,12 +566,9 @@ export class PlayerHudCapsule {
     while (this.pips.length < MANA_LETTERS.length) {
       const sprite = new Sprite();
       const count = new Text({ text: "", style: this.textStyle(12) });
-      const flash = new Graphics();
-      flash.eventMode = "none";
-      flash.alpha = 0;
       count.anchor.set(0, 0.5);
-      this.manaLayer.addChild(flash, sprite, count);
-      this.pips.push({ sprite, count, flash });
+      this.manaLayer.addChild(sprite, count);
+      this.pips.push({ sprite, count });
     }
   }
 
@@ -625,8 +632,6 @@ export class PlayerHudCapsule {
     for (const pip of this.pips) {
       pip.sprite.visible = false;
       pip.count.visible = false;
-      pip.flash.clear();
-      pip.flash.alpha = 0;
     }
     if (this.column) this.renderColumn(w, h);
     else this.renderCapsule(w, h);
@@ -634,6 +639,7 @@ export class PlayerHudCapsule {
     this.applyCombatGlow();
     this.applyTargetable();
     this.applyFlash();
+    this.drawPromptReference();
     this.checkBadgeSparkles();
     this.drawBoundsDebug();
   }
@@ -697,6 +703,41 @@ export class PlayerHudCapsule {
         duration: 0.7,
         ease: "power2.out",
         onComplete: () => dot.destroy(),
+      });
+    }
+  }
+
+  private burstManaSplash(cx: number, cy: number, color: number, amount: number): void {
+    const ring = new Graphics().circle(0, 0, 5).stroke({ color, width: 1.5, alpha: 0.9 });
+    ring.eventMode = "none";
+    ring.position.set(cx, cy);
+    ring.scale.set(0.6);
+    this.sparkles.addChild(ring);
+    gsap.to(ring, {
+      alpha: 0,
+      pixi: { scale: Math.min(3, 2.1 + amount * 0.16) },
+      duration: 0.46,
+      ease: "power2.out",
+      onComplete: () => ring.destroy(),
+    });
+
+    const count = Math.min(10, 6 + amount);
+    for (let i = 0; i < count; i++) {
+      const radius = 1.25 + (i % 3) * 0.35;
+      const drop = new Graphics().circle(0, 0, radius).fill({ color, alpha: 0.95 });
+      const angle = -Math.PI * (0.15 + (i / Math.max(1, count - 1)) * 0.7);
+      const distance = 15 + (i % 4) * 4 + Math.min(amount, 4);
+      drop.eventMode = "none";
+      drop.position.set(cx, cy);
+      this.sparkles.addChild(drop);
+      gsap.to(drop, {
+        x: cx + Math.cos(angle) * distance,
+        y: cy + Math.sin(angle) * distance,
+        alpha: 0,
+        pixi: { scale: 0.25 },
+        duration: 0.42 + (i % 3) * 0.06,
+        ease: "power2.out",
+        onComplete: () => drop.destroy(),
       });
     }
   }
@@ -917,12 +958,13 @@ export class PlayerHudCapsule {
       pip.count.alpha = 1;
       pip.count.scale.set(1);
       pip.count.position.set(left + size + 3, cy);
-      pip.flash
-        .roundRect(left - 3, cy - size / 2 - 3, slotWidth - 2, size + 6, 6)
-        .fill({ color: hexToNum(gt.activeAction.priority) });
-      if (previous !== undefined && previous !== value && this.motionEnabled) {
-        gsap.killTweensOf(pip.flash);
-        gsap.fromTo(pip.flash, { alpha: 0.35 }, { alpha: 0, duration: 0.55, ease: "power1.out" });
+      if (previous !== undefined && value > previous && this.motionEnabled) {
+        this.burstManaSplash(
+          left + size / 2,
+          cy,
+          manaColorFor(letter, this.theme, hexToNum(gt.activeAction.priority)),
+          value - previous,
+        );
       }
       slot++;
     }
@@ -969,13 +1011,13 @@ export class PlayerHudCapsule {
       pip.count.scale.set(1);
       pip.count.scale.x = Math.min(1, Math.max(1, cellWidth - size - 6) / pip.count.width);
       pip.count.position.set(left + size + 4, cy);
-      pip.flash
-        .clear()
-        .roundRect(left - 2, cy - rowHeight / 2, cellWidth - 2, rowHeight, 4)
-        .fill({ color: hexToNum(gt.activeAction.priority) });
-      if (pip.value !== undefined && pip.value !== value && this.motionEnabled) {
-        gsap.killTweensOf(pip.flash);
-        gsap.fromTo(pip.flash, { alpha: 0.35 }, { alpha: 0, duration: 0.55, ease: "power1.out" });
+      if (pip.value !== undefined && value > pip.value && this.motionEnabled) {
+        this.burstManaSplash(
+          left + size / 2,
+          cy,
+          manaColorFor(letter, this.theme, hexToNum(gt.activeAction.priority)),
+          value - pip.value,
+        );
       }
       pip.value = value;
     }
@@ -1417,17 +1459,41 @@ export class PlayerHudCapsule {
     }
   }
 
+  private drawPromptReference(): void {
+    this.promptReferenceTween?.kill();
+    this.promptReferenceTween = null;
+    this.promptReferenceRing.clear();
+    this.promptReferenceRing.alpha = 1;
+    this.promptReferenceRing.visible = this.promptReferenceColor != null;
+    if (!this.promptReferenceColor || this.avatarDia <= 0) return;
+    const color = hexToNum(this.promptReferenceColor);
+    const radius = this.avatarDia / 2;
+    this.promptReferenceRing
+      .circle(this.avatarCx, this.avatarCy, radius + 7)
+      .stroke({ color, width: 8, alpha: 0.2 });
+    this.promptReferenceRing
+      .circle(this.avatarCx, this.avatarCy, radius + 2)
+      .stroke({ color, width: 3, alpha: 0.95 });
+    if (this.motionEnabled) {
+      this.promptReferenceTween = gsap.fromTo(
+        this.promptReferenceRing,
+        { alpha: 0.62 },
+        { alpha: 1, duration: 0.65, ease: "sine.inOut", repeat: -1, yoyo: true },
+      );
+    }
+  }
+
   destroy(): void {
     this.combatPulse?.kill();
     this.targetTween?.kill();
     this.flashTween?.kill();
+    this.promptReferenceTween?.kill();
     this.lifeTween?.kill();
     this.offlineTween?.kill();
     gsap.killTweensOf(this.combatGlow);
     gsap.killTweensOf(this.life.scale);
     gsap.killTweensOf(this.lifeFloat);
     gsap.killTweensOf(this.damageWash);
-    for (const pip of this.pips) gsap.killTweensOf(pip.flash);
     for (const chip of this.chips) gsap.killTweensOf(chip.sprite);
     for (const dot of this.sparkles.children) gsap.killTweensOf(dot);
     this.onHover(null);

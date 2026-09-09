@@ -379,6 +379,7 @@ export class CardSprite extends Container {
   private glowPulsing = false;
   private hitFlashGfx: Graphics;
   private statPopFx: OneShot | null = null;
+  private counterPopFx: OneShot | null = null;
   private hitFlashFx: OneShot | null = null;
   /** Squash multiplier driven by GSAP (entrance stomp); the region multiplies
    *  it into the base/hover scale each frame so the two don't fight. */
@@ -390,6 +391,8 @@ export class CardSprite extends Container {
   private playableRingColor: number | null = null;
   private lastOwnerRing: number | null = null;
   private pulseRing = new PulseRing();
+  private promptReferenceGfx = new Graphics();
+  private promptReferenceColor: number | null = null;
   private ownerRingGfx: Graphics;
   private contentContainer: Container;
   private ptContainer: Container;
@@ -470,6 +473,8 @@ export class CardSprite extends Container {
     this.ringGfx = new Graphics();
     this.addChild(this.ringGfx);
     this.addChild(this.pulseRing.gfx);
+    this.promptReferenceGfx.eventMode = "none";
+    this.addChild(this.promptReferenceGfx);
 
     this.contentContainer = new Container();
     this.addChild(this.contentContainer);
@@ -658,6 +663,7 @@ export class CardSprite extends Container {
         child !== this.shadowGfx &&
         child !== this.ringGfx &&
         child !== this.pulseRing.gfx &&
+        child !== this.promptReferenceGfx &&
         child !== this.contentContainer
       ) {
         this.contentContainer.addChild(child);
@@ -725,6 +731,7 @@ export class CardSprite extends Container {
     this.nameText.position.set(cw / 2, ch / 2);
     this.foilStar.x = cw - 3;
     this.pivot.set(cw / 2, ch / 2);
+    if (this.promptReferenceColor != null) this.setPromptReference(this.promptReferenceColor);
     this.onReorient?.();
     this.updateHandRulesFace();
     this.updateHandControls();
@@ -1111,7 +1118,12 @@ export class CardSprite extends Container {
     }
     if (badgeChanged || frameChanged) this.updateBadge();
     this.updateChoice();
-    if (countersChanged || railChanged || frameChanged) this.updateCounters();
+    if (countersChanged || railChanged || frameChanged) {
+      this.updateCounters();
+      if (countersChanged && animationsEnabled()) {
+        this.counterPopFx = oneShot(performance.now(), STAT_POP.durationMs);
+      }
+    }
     if (keywordsChanged || card.id !== previous.id) this.updateKeywords();
     if (card.foil !== previous.foil) this.updateFoil();
     if (card.isRingBearer !== previous.isRingBearer) this.updateRingBearer();
@@ -1140,6 +1152,7 @@ export class CardSprite extends Container {
     const maxAlpha = attacking ? EDGE_GLOW.attackingMaxAlpha : EDGE_GLOW.sickMaxAlpha;
     const layers = EDGE_GLOW.layers;
     const step = EDGE_GLOW.insetStep;
+    const radius = this.cardRadius();
     for (let i = 0; i < layers; i++) {
       const inset = i * step;
       this.edgeGlowGfx.roundRect(
@@ -1147,7 +1160,7 @@ export class CardSprite extends Container {
         inset,
         this.cw - 2 * inset,
         this.ch - 2 * inset,
-        Math.max(0, CARD_RADIUS - inset),
+        Math.max(0, radius - inset),
       );
       this.edgeGlowGfx.stroke({
         color,
@@ -1182,6 +1195,16 @@ export class CardSprite extends Container {
       this.ptContainer.scale.set(1);
     }
 
+    const cp = oneShotProgress(this.counterPopFx, now);
+    if (cp != null) {
+      this.counterContainer.scale.set(1 + STAT_POP.bumpScale * 0.65 * bump(cp));
+      this.counterContainer.alpha = 0.7 + 0.3 * Math.min(1, cp * 4);
+    } else if (this.counterPopFx) {
+      this.counterPopFx = null;
+      this.counterContainer.scale.set(1);
+      this.counterContainer.alpha = 1;
+    }
+
     const fp = oneShotProgress(this.hitFlashFx, now);
     if (fp != null) {
       this.hitFlashGfx.clear();
@@ -1210,6 +1233,7 @@ export class CardSprite extends Container {
     this.shadowGfx.destroy({ context: false });
     this.foilRing.destroy({ context: false });
     this.pulseRing.destroy();
+    gsap.killTweensOf(this.promptReferenceGfx);
     if (this.sickFilter) {
       this.sickFilter.destroy();
       this.sickFilter = null;
@@ -1702,6 +1726,8 @@ export class CardSprite extends Container {
 
   private updateCounters(): void {
     this.counterContainer.removeChildren().forEach((c) => c.destroy({ children: true }));
+    this.counterContainer.scale.set(1);
+    this.counterContainer.alpha = 1;
     const counters = this.card.counters;
     if (!counters) return;
 
@@ -1793,6 +1819,11 @@ export class CardSprite extends Container {
       badge.y = counterY;
       this.counterContainer.addChild(badge);
     }
+    const bounds = this.counterContainer.getLocalBounds().rectangle;
+    const centerX = bounds.x + bounds.width / 2;
+    const centerY = bounds.y + bounds.height / 2;
+    this.counterContainer.pivot.set(centerX, centerY);
+    this.counterContainer.position.set(centerX, centerY);
   }
 
   private updateDamage(): void {
@@ -1842,6 +1873,7 @@ export class CardSprite extends Container {
     if (this.chromeScale === scale) return;
     this.chromeScale = scale;
     this.refreshCardRadiusChrome();
+    if (this.promptReferenceColor != null) this.setPromptReference(this.promptReferenceColor);
   }
 
   setRing(color: number | null, alpha = 1): void {
@@ -1870,6 +1902,31 @@ export class CardSprite extends Container {
       color,
       PULSE_RING.strokeWidth * this.chromeScale,
     );
+  }
+
+  setPromptReference(color: number | null): void {
+    if (this.promptReferenceColor === color && color == null) return;
+    this.promptReferenceColor = color;
+    gsap.killTweensOf(this.promptReferenceGfx);
+    this.promptReferenceGfx.clear();
+    this.promptReferenceGfx.alpha = 1;
+    if (color == null) return;
+    const radius = this.cardRadius();
+    const outer = 7 * this.chromeScale;
+    const inner = 3 * this.chromeScale;
+    this.promptReferenceGfx
+      .roundRect(-outer, -outer, this.cw + outer * 2, this.ch + outer * 2, radius + outer)
+      .stroke({ color, width: outer * 1.25, alpha: 0.2 });
+    this.promptReferenceGfx
+      .roundRect(-inner, -inner, this.cw + inner * 2, this.ch + inner * 2, radius + inner)
+      .stroke({ color, width: inner, alpha: 0.95 });
+    if (animationsEnabled()) {
+      gsap.fromTo(
+        this.promptReferenceGfx,
+        { alpha: 0.62 },
+        { alpha: 1, duration: 0.65, ease: "sine.inOut", repeat: -1, yoyo: true },
+      );
+    }
   }
 
   setOwnerRing(color: number | null): void {

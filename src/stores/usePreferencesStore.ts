@@ -29,7 +29,7 @@ export const CARD_SIZE_MULTIPLIER_MIN = 0.75;
 // (the old 300% top was one: everything saturated around 150%).
 export const CARD_SIZE_MULTIPLIER_MAX = 1.5;
 
-interface PreferencesState {
+export interface PreferencesState {
   appThemePreset: string;
   setAppThemePreset: (id: string) => void;
 
@@ -113,6 +113,8 @@ interface PreferencesState {
   setHandCardStyle: (style: InlineCardStyle) => void;
   stackCardStyle: InlineCardStyle;
   setStackCardStyle: (style: InlineCardStyle) => void;
+  promptCardStyle: InlineCardStyle;
+  setPromptCardStyle: (style: InlineCardStyle) => void;
   collapsedRulesPreviewSections: RulesPreviewSectionId[];
   setRulesPreviewSectionCollapsed: (section: RulesPreviewSectionId, collapsed: boolean) => void;
 
@@ -164,6 +166,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "inGameCardPreviewStyle",
   "handCardStyle",
   "stackCardStyle",
+  "promptCardStyle",
   "collapsedRulesPreviewSections",
   "appThemeColorOverrides",
   "gameThemeColorOverrides",
@@ -293,6 +296,8 @@ export const usePreferencesStore = create<PreferencesState>()(
           setHandCardStyle: (handCardStyle) => set({ handCardStyle }),
           stackCardStyle: "printed",
           setStackCardStyle: (stackCardStyle) => set({ stackCardStyle }),
+          promptCardStyle: "printed",
+          setPromptCardStyle: (promptCardStyle) => set({ promptCardStyle }),
           collapsedRulesPreviewSections: [],
           setRulesPreviewSectionCollapsed: (section, collapsed) =>
             set((state) => ({

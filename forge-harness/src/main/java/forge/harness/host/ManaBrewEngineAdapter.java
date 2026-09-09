@@ -144,11 +144,15 @@ public final class ManaBrewEngineAdapter {
     public String getDisplayEvents(final String sessionId, final int playerIndex) {
         return getSession(sessionId).drainSoundCuesJson(playerIndex);
     }
+
+    public void flushDisplayEvents(final String sessionId) {
+        getSession(sessionId).flushSoundCuesToBridge();
+    }
+
     public void publishActionRejected(
             final String sessionId, final int playerIndex, final long promptId) {
         getSession(sessionId).publishActionRejected(playerIndex, promptId);
     }
-
 
     public String getSnapshot(final String sessionId, final int viewer) {
         return getSession(sessionId).getSnapshotJson(viewer);

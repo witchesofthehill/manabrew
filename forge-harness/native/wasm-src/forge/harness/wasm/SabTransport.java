@@ -120,8 +120,10 @@ public final class SabTransport implements InteractiveBridge {
 
     @Override
     public void publishDisplay(final int playerIndex, final String displayEventJson) {
-        final int seat = playerIndex < 0 ? 0 : playerIndex;
-        sendTagged(seat, "display", "event", displayEventJson);
+        if (playerIndex < 0 || playerIndex >= seatCount()) {
+            return;
+        }
+        sendTagged(playerIndex, "display", "event", displayEventJson);
     }
 
     @Override

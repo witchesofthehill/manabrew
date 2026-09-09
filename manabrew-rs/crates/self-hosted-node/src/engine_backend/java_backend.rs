@@ -1911,6 +1911,14 @@ fn run_hosted_engine_game_inner(
         if engine.is_game_over(&session_id)? {
             info!("hosted java-forge session reached game over");
             let mut final_messages = Vec::new();
+            for player_index in 0..player_names.len() {
+                let events = engine.get_display_events(&session_id, player_index)?;
+                if remote_response_rxs.contains_key(&player_index) {
+                    for event in events {
+                        final_messages.push((player_index, AgentMessage::Display(event)));
+                    }
+                }
+            }
             for &agent_index in remote_response_rxs.keys() {
                 match state_via_handle(&engine, &session_id, Some(agent_index)) {
                     Ok(state_update) => {

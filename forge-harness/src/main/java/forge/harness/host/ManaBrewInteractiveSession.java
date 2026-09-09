@@ -217,11 +217,24 @@ public final class ManaBrewInteractiveSession {
         final long sequence = ++soundSequences[playerIndex];
         final SoundCueProjector.Cue cue =
                 new SoundCueProjector.Cue(sequence, soundType, origin, count, promptId);
+        soundCuesByPlayer.get(playerIndex).offer(cue);
+    }
+
+    private void flushSoundCuesToBridge(final InteractiveBridge currentBridge) {
+        for (int playerIndex = 0; playerIndex < soundCuesByPlayer.size(); playerIndex++) {
+            final ConcurrentLinkedQueue<SoundCueProjector.Cue> queue =
+                    soundCuesByPlayer.get(playerIndex);
+            SoundCueProjector.Cue cue;
+            while ((cue = queue.poll()) != null) {
+                currentBridge.publishDisplay(playerIndex, GSON.toJson(cue));
+            }
+        }
+    }
+
+    public void flushSoundCuesToBridge() {
         final InteractiveBridge currentBridge = bridge;
-        if (currentBridge == null) {
-            soundCuesByPlayer.get(playerIndex).offer(cue);
-        } else {
-            currentBridge.publishDisplay(playerIndex, GSON.toJson(cue));
+        if (currentBridge != null) {
+            flushSoundCuesToBridge(currentBridge);
         }
     }
 
@@ -1924,8 +1937,10 @@ public final class ManaBrewInteractiveSession {
 
     private JsonObject takeAction() throws InterruptedException {
         while (true) {
-            if (bridge != null && actions.isEmpty() && !closed && !game.isGameOver()) {
-                submitAction(bridge.exchange(promptedPlayerIndex, latestPromptJson));
+            final InteractiveBridge currentBridge = bridge;
+            if (currentBridge != null && actions.isEmpty() && !closed && !game.isGameOver()) {
+                flushSoundCuesToBridge(currentBridge);
+                submitAction(currentBridge.exchange(promptedPlayerIndex, latestPromptJson));
             }
             final JsonObject action = actions.poll(1, java.util.concurrent.TimeUnit.SECONDS);
             if (action == null) {

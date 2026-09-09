@@ -14,11 +14,13 @@ pub mod choose_combat_damage_assignment;
 pub mod choose_damage_assignment_order;
 pub mod choose_from_selection;
 pub mod choose_number;
+pub mod coin_flipped;
 pub mod dice_rolled;
 pub mod game_over;
 pub mod mulligan;
 pub mod mulligan_put_back;
 pub mod pay_mana_cost;
+pub mod planar_die_rolled;
 pub mod reorder;
 pub mod reveal;
 pub mod scry;
@@ -40,6 +42,7 @@ pub use choose_from_selection::{
     ChooseFromSelectionInput, ChooseFromSelectionOutput, SelectionOption,
 };
 pub use choose_number::{ChooseNumberInput, ChooseNumberOutput};
+pub use coin_flipped::{CoinFace, CoinFlipEntry, CoinFlippedInput, CoinFlippedOutput};
 pub use common::{
     ActivatableAbilityInfo, AlternativeCostKind, AvailableAction, AvailableActionKind,
     PaymentAction, PaymentActionKind, PaymentResourceKind, PlayCardMode,
@@ -49,6 +52,9 @@ pub use game_over::GameOverInput;
 pub use mulligan::{MulliganInput, MulliganOutput};
 pub use mulligan_put_back::{MulliganPutBackInput, MulliganPutBackOutput};
 pub use pay_mana_cost::{PayManaCostInput, PayManaCostOutput};
+pub use planar_die_rolled::{
+    PlanarDieFace, PlanarDieRollEntry, PlanarDieRolledInput, PlanarDieRolledOutput,
+};
 pub use reorder::{ReorderInput, ReorderItem, ReorderOutput};
 pub use reveal::{RevealCardsInput, RevealCardsOutput};
 pub use scry::{ScryInput, ScryOutput};
@@ -77,7 +83,9 @@ pub enum PromptInput {
     PayManaCost(pay_mana_cost::PayManaCostInput),
     ChooseCards(choose_cards::ChooseCardsInput),
     Reorder(reorder::ReorderInput),
+    CoinFlipped(coin_flipped::CoinFlippedInput),
     DiceRolled(dice_rolled::DiceRolledInput),
+    PlanarDieRolled(planar_die_rolled::PlanarDieRolledInput),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -103,7 +111,9 @@ pub enum PromptOutput {
     PayManaCost(pay_mana_cost::PayManaCostOutput),
     ChooseCards(choose_cards::ChooseCardsOutput),
     Reorder(reorder::ReorderOutput),
+    CoinFlipped(coin_flipped::CoinFlippedOutput),
     DiceRolled(dice_rolled::DiceRolledOutput),
+    PlanarDieRolled(planar_die_rolled::PlanarDieRolledOutput),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -157,7 +167,9 @@ impl PromptInput {
             | (I::ChooseCombatDamageAssignment(_), O::ChooseCombatDamageAssignment(_))
             | (I::ChooseCards(_), O::ChooseCards(_))
             | (I::Reorder(_), O::Reorder(_))
-            | (I::DiceRolled(_), O::DiceRolled(_)) => Ok(()),
+            | (I::CoinFlipped(_), O::CoinFlipped(_))
+            | (I::DiceRolled(_), O::DiceRolled(_))
+            | (I::PlanarDieRolled(_), O::PlanarDieRolled(_)) => Ok(()),
             _ => Err(ResponseViolation::WrongPromptType),
         }
     }

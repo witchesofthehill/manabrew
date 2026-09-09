@@ -1967,6 +1967,23 @@ pub fn resolve_count_svar_for_sa(
         }
     }
 
+    if let Some(rest) = expr.strip_prefix("Count$MaxSameStoredRolls") {
+        let operators = rest.strip_prefix('/').unwrap_or(rest);
+        let mut max_count = 0;
+        let mut current_count = 0;
+        let mut previous = None;
+        for roll in &game.card(source_id).stored_rolls {
+            if previous == Some(*roll) {
+                current_count += 1;
+            } else {
+                previous = Some(*roll);
+                current_count = 1;
+            }
+            max_count = max_count.max(current_count);
+        }
+        return do_x_math(max_count, operators, game, source_id, controller, sa);
+    }
+
     if let Some(rest) = expr.strip_prefix("Count$RememberedNumber") {
         let operators = rest.strip_prefix('/').unwrap_or(rest);
         let count = game.card(source_id).remembered_cmc.iter().sum();

@@ -426,27 +426,7 @@ fn try_pay_effect_cost(
         match part {
             CostPart::FlipCoin(amount) => {
                 let resolved_amount = amount.resolve(ctx.game, source, payer);
-                for _ in 0..resolved_amount {
-                    let called_heads = ctx.agents[payer.index()].choose_binary(
-                        payer,
-                        "Call the coin flip",
-                        crate::agent::BinaryChoiceKind::HeadsOrTails,
-                        None,
-                        Some(source),
-                        None,
-                    );
-                    let is_heads = ctx.rng.next_int(2) == 0;
-                    let won = called_heads == is_heads;
-                    ctx.trigger_handler.run_trigger(
-                        TriggerType::FlippedCoin,
-                        RunParams {
-                            player: Some(payer),
-                            coin_flip_won: Some(won),
-                            ..Default::default()
-                        },
-                        false,
-                    );
-                }
+                super::flip_coin_effect::flip_coins(ctx, payer, sa, resolved_amount);
             }
             CostPart::DamageYou(amount) => {
                 ctx.game

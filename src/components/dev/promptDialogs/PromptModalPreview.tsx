@@ -221,31 +221,88 @@ function previewInput(preview: DevDialogPreview, fixtures: DevDialogFixtures): P
     case "dice-roll":
       return {
         type: "diceRolled",
-        presentation,
-        sides: 20,
-        rolls: [{ naturalResults: [17], finalResults: [17], ignoredRolls: [], highlighted: false }],
+        presentation: { ...presentation, title: "Roll two dice" },
+        sides: 6,
+        rolls: [
+          {
+            round: 0,
+            playerId: me.id,
+            naturalResults: [4, 2],
+            finalResults: [5, 2],
+            ignoredRolls: [1],
+            highlighted: false,
+          },
+        ],
       };
     case "dice-roll-contest":
       return {
         type: "diceRolled",
-        presentation: { ...presentation, title: "Choose the starting player" },
+        presentation: { ...presentation, title: "Roll for first player" },
         sides: 20,
         rolls: [
           {
             label: me.name,
             playerId: me.id,
+            round: 0,
             naturalResults: [14],
             finalResults: [14],
+            ignoredRolls: [],
+            highlighted: false,
+          },
+          {
+            label: targetPlayer.name,
+            playerId: targetPlayer.id,
+            round: 0,
+            naturalResults: [14],
+            finalResults: [14],
+            ignoredRolls: [],
+            highlighted: false,
+          },
+          {
+            label: me.name,
+            playerId: me.id,
+            round: 1,
+            naturalResults: [18],
+            finalResults: [18],
             ignoredRolls: [],
             highlighted: true,
           },
           {
             label: targetPlayer.name,
             playerId: targetPlayer.id,
-            naturalResults: [9],
-            finalResults: [9],
+            round: 1,
+            naturalResults: [7],
+            finalResults: [7],
             ignoredRolls: [],
             highlighted: false,
+          },
+        ],
+      };
+    case "coin-flip":
+      return {
+        type: "coinFlipped",
+        presentation: { ...presentation, title: "Coin flip" },
+        flips: [
+          {
+            label: me.name,
+            playerId: me.id,
+            results: ["tails", "heads"],
+            keptResult: "heads",
+            calledFace: "heads",
+            won: true,
+          },
+        ],
+      };
+    case "planar-die":
+      return {
+        type: "planarDieRolled",
+        presentation: { ...presentation, title: "Planar die roll" },
+        rolls: [
+          {
+            label: me.name,
+            playerId: me.id,
+            results: ["chaos"],
+            ignoredResults: ["blank"],
           },
         ],
       };

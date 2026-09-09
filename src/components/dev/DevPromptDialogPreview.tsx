@@ -29,6 +29,8 @@ const PROMPT_DIALOG_PREVIEWS = new Set<DevDialogPreview>([
   "damage-order",
   "dice-roll",
   "dice-roll-contest",
+  "coin-flip",
+  "planar-die",
   "game-over",
 ]);
 

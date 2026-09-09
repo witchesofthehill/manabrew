@@ -6,14 +6,19 @@ import {
   type FederatedWheelEvent,
   FederatedPointerEvent,
   Graphics,
+  Particle,
+  ParticleContainer,
   Rectangle,
   Sprite,
   Text,
+  Texture,
   TextStyle,
   type Ticker,
 } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
+import { OPPONENT_SEATS } from "@/components/game/game.types";
+import { darken, readableTextColor } from "@/themes/gameTheme";
 import { hexToNum } from "@/pixi/colorUtils";
 import { CardSprite } from "@/pixi/CardSprite";
 import { gameIconTexture } from "@/pixi/gameIconCache";
@@ -64,6 +69,24 @@ import {
   dragTransformBlend,
 } from "@/pixi/dragMotion";
 import type { PromptLayerCallbacks, PromptOverlaySpec } from "./prompt.types";
+import {
+  createRollToken,
+  setRollTokenValue,
+  type RollTokenKind,
+  type RollTokenVisual,
+} from "./dice/DiceGeometry";
+import {
+  ROLL_FLIGHT_MS,
+  ROLL_IMPACT_MS,
+  ROLL_SETTLE_MS,
+  rollBurst,
+  rollDelayMs,
+  rollDuration,
+  rollingDieValue,
+  rollRandom,
+  rollSeed,
+  rollTrajectory,
+} from "./dice/DiceAnimation";
 
 const MODAL_TYPES = new Set([
   "chooseBoolean",
@@ -76,7 +99,9 @@ const MODAL_TYPES = new Set([
   "chooseDamageAssignmentOrder",
   "chooseCards",
   "reorder",
+  "coinFlipped",
   "diceRolled",
+  "planarDieRolled",
 ]);
 const FONT = "Inter, system-ui, sans-serif";
 const PANEL_PADDING = 20;
@@ -95,8 +120,6 @@ const CARD_MODAL_MAX_WIDTH = 1160;
 const MODAL_MIN_HEIGHT = 160;
 const MODAL_VIEWPORT_MARGIN = 16;
 const MODAL_BODY_BOTTOM_PADDING = 8;
-const DICE_ROLL_MS = 1200;
-const DICE_FINISH_MS = 1450;
 const SOURCE_CARD_GAP = 20;
 const SOURCE_CARD_EXTERNAL_WIDTH = 180;
 const SOURCE_CARD_INTERNAL_WIDTH = 64;
@@ -142,13 +165,36 @@ interface DragState {
   onDragMove?: (x: number, y: number) => void;
 }
 
-interface DiceVisual {
-  die: Graphics;
-  value: Text;
-  finalValue: number;
+interface RollVisual {
+  token: RollTokenVisual;
+  finalValue: number | string;
   index: number;
   sides: number;
+  round: number;
+  seed: number;
+  baseX: number;
+  baseY: number;
+  startX: number;
+  startY: number;
+  restingRotation: number;
+  ignored: boolean;
+  ignoredMark: Graphics | null;
+  aura: Graphics;
+  highlighted: boolean;
+  playerColor: number;
 }
+interface RollDisplayEntry {
+  kind: RollTokenKind;
+  sides: number;
+  value: number | string;
+  label?: string;
+  playerId?: string;
+  detail?: string;
+  round: number;
+  highlighted: boolean;
+  ignored: boolean;
+}
+
 interface DropZone {
   id: string;
   rect: Rectangle;
@@ -316,13 +362,15 @@ export class PromptLayer {
   private promptCardStates = new Map<string, PromptCardDisplayState>();
   private activePromptCard: { card: CardDto; sprite: CardSprite } | null = null;
   private activePromptCardId: string | null = null;
-  private diceElapsedMs = 0;
-  private diceWinnerLabel: string | null = null;
+  private rollElapsedMs = 0;
+  private rollDurationMs = 0;
+  private rollHighlightLabel: string | null = null;
   private autopassRemainingMs: number | null = null;
-  private diceVisuals: DiceVisual[] = [];
-  private diceWinnerText: Text | null = null;
-  private diceConfirm: PromptButton | null = null;
-  private diceSettled = false;
+  private rollVisuals: RollVisual[] = [];
+  private rollHighlightText: Text | null = null;
+  private rollConfirm: PromptButton | null = null;
+  private rollTimeline: gsap.core.Timeline | null = null;
+  private rollSettled = false;
   private autopassTotalMs = 0;
   private autopassFill: Graphics | null = null;
   private actionPromptType: PromptOverlaySpec["action"]["promptType"] = undefined;
@@ -501,7 +549,8 @@ export class PromptLayer {
     this.callbacks.onReferenceChange?.(null);
     this.cancelDrag();
     this.entranceTween?.kill();
-    if (this.diceWinnerText) gsap.killTweensOf(this.diceWinnerText);
+    this.stopRollAnimation();
+    if (this.rollHighlightText) gsap.killTweensOf(this.rollHighlightText);
     this.clearScryCardTiles();
     this.actionGlowTween?.kill();
     gsap.killTweensOf(this.actionFeedback);
@@ -530,12 +579,13 @@ export class PromptLayer {
     this.clearReorderCardVisuals();
     this.reorderPreviousPositions.clear();
     this.reorderPreview = null;
-    if (this.diceWinnerText) gsap.killTweensOf(this.diceWinnerText);
-    this.diceVisuals = [];
-    this.diceWinnerText = null;
-    this.diceConfirm = null;
-    this.diceSettled = false;
-    this.diceElapsedMs = 0;
+    if (this.rollHighlightText) gsap.killTweensOf(this.rollHighlightText);
+    this.stopRollAnimation();
+    this.rollVisuals = [];
+    this.rollHighlightText = null;
+    this.rollConfirm = null;
+    this.rollSettled = false;
+    this.rollElapsedMs = 0;
     this.modalScrollOffset = 0;
     this.modalScrollMax = 0;
     const input = spec?.currentPrompt?.input;
@@ -567,7 +617,8 @@ export class PromptLayer {
     this.callbacks.onReferenceChange?.(null);
     this.cancelDrag();
     this.selectionFilterView = null;
-    if (this.diceWinnerText) gsap.killTweensOf(this.diceWinnerText);
+    if (this.rollHighlightText) gsap.killTweensOf(this.rollHighlightText);
+    this.stopRollAnimation();
     this.dropZones = [];
     this.clearScryCardTiles();
     this.clearReorderCardVisuals();
@@ -2437,8 +2488,14 @@ export class PromptLayer {
       case "chooseDamageAssignmentOrder":
         this.renderDamageOrder();
         break;
+      case "coinFlipped":
+        this.renderCoin(input.presentation, input.flips);
+        break;
       case "diceRolled":
         this.renderDice(input.presentation, input.sides, input.rolls);
+        break;
+      case "planarDieRolled":
+        this.renderPlanarDie(input.presentation, input.rolls);
         break;
     }
     this.finalizeModalScroll();
@@ -4749,214 +4806,567 @@ export class PromptLayer {
     this.normalizeDamage(input, assignees);
   }
 
-  private createDieFace(sides: number, size: number, color: string): Graphics {
-    const half = size / 2;
-    const die = new Graphics();
-    switch (sides) {
-      case 4:
-        die.poly([0, -half, half, half, -half, half]);
-        break;
-      case 6:
-        die.roundRect(-half, -half, size, size, size * 0.16);
-        break;
-      case 8:
-        die.poly([0, -half, half, 0, 0, half, -half, 0]);
-        break;
-      case 10:
-        die.poly([
-          0,
-          -half,
-          half * 0.82,
-          -half * 0.18,
-          half * 0.48,
-          half,
-          -half * 0.48,
-          half,
-          -half * 0.82,
-          -half * 0.18,
-        ]);
-        break;
-      case 12:
-        die.poly([
-          -half * 0.55,
-          -half,
-          half * 0.55,
-          -half,
-          half,
-          -half * 0.25,
-          half * 0.8,
-          half * 0.72,
-          0,
-          half,
-          -half * 0.8,
-          half * 0.72,
-          -half,
-          -half * 0.25,
-        ]);
-        break;
-      case 20:
-        die.poly([
-          -half * 0.42,
-          -half,
-          half * 0.42,
-          -half,
-          half,
-          -half * 0.42,
-          half,
-          half * 0.42,
-          half * 0.42,
-          half,
-          -half * 0.42,
-          half,
-          -half,
-          half * 0.42,
-          -half,
-          -half * 0.42,
-        ]);
-        break;
-      default:
-        die.circle(0, 0, half);
-        break;
-    }
-    die
-      .fill({ color: hexToNum(color), alpha: 0.95 })
-      .stroke({ color: hexToNum(this.theme.appTheme.border), width: 2 });
-    return die;
-  }
-
   private renderDice(
     presentation: PromptPresentation,
     sides: number,
     rolls: Array<{
       label?: string;
+      playerId?: string;
+      round?: number;
+      naturalResults: number[];
       finalResults: number[];
       ignoredRolls: number[];
       highlighted: boolean;
     }>,
   ): void {
-    this.diceVisuals = [];
-    this.diceWinnerText = null;
-    this.diceWinnerLabel = null;
-    this.diceConfirm = null;
-    this.diceSettled = !animationsEnabled() || this.diceElapsedMs >= DICE_ROLL_MS;
-    const entries = rolls.flatMap((roll, rollIndex) =>
-      roll.finalResults.map((value, resultIndex) => ({
+    const maxRound = Math.max(0, ...rolls.map((roll) => roll.round ?? 0));
+    const entries: RollDisplayEntry[] = rolls.flatMap((roll, rollIndex) => {
+      const round = roll.round ?? 0;
+      const label =
+        maxRound > 0 ? `Round ${round + 1} · ${roll.label ?? `Roll ${rollIndex + 1}`}` : roll.label;
+      const kept = roll.finalResults.map((value, resultIndex) => {
+        const natural = roll.naturalResults[resultIndex] ?? value;
+        return {
+          kind: "die" as const,
+          sides,
+          value,
+          playerId: roll.playerId,
+          label:
+            roll.finalResults.length > 1
+              ? `${label ?? `Roll ${rollIndex + 1}`} ${resultIndex + 1}`
+              : label,
+          detail: natural === value ? undefined : `${natural} → ${value}`,
+          round,
+          highlighted: roll.highlighted,
+          ignored: false,
+        };
+      });
+      return [
+        ...kept,
+        ...roll.ignoredRolls.map((value, ignoredIndex) => ({
+          kind: "die" as const,
+          sides,
+          value,
+          playerId: roll.playerId,
+          label: `${label ?? `Roll ${rollIndex + 1}`} ignored ${ignoredIndex + 1}`,
+          round,
+          highlighted: false,
+          ignored: true,
+        })),
+      ];
+    });
+    this.renderRollResults(
+      { ...presentation, title: `${presentation.title || "Dice roll"} · d${sides}` },
+      entries,
+      "Dice roll",
+      () => this.spec!.respond({ type: "diceRolledAcknowledged" }),
+    );
+  }
+
+  private renderCoin(
+    presentation: PromptPresentation,
+    flips: Array<{
+      label?: string;
+      playerId?: string;
+      results: Array<"heads" | "tails">;
+      keptResult: "heads" | "tails";
+      calledFace?: "heads" | "tails";
+      won?: boolean;
+    }>,
+  ): void {
+    const entries = flips.flatMap((flip, flipIndex) => {
+      let kept = false;
+      return flip.results.map((value, resultIndex): RollDisplayEntry => {
+        const isKept = !kept && value === flip.keptResult;
+        kept ||= isKept;
+        const call = flip.calledFace ? `Called ${flip.calledFace}` : undefined;
+        const outcome = flip.won == null ? undefined : flip.won ? "Won" : "Lost";
+        return {
+          kind: "coin",
+          sides: 2,
+          value,
+          playerId: flip.playerId,
+          label:
+            flip.results.length > 1
+              ? `${flip.label ?? `Flip ${flipIndex + 1}`} ${resultIndex + 1}`
+              : flip.label,
+          detail: [call, outcome].filter(Boolean).join(" · ") || undefined,
+          round: 0,
+          highlighted: flip.won === true && isKept,
+          ignored: !isKept,
+        };
+      });
+    });
+    this.renderRollResults(presentation, entries, "Coin flip", () =>
+      this.spec!.respond({ type: "coinFlippedAcknowledged" }),
+    );
+  }
+
+  private renderPlanarDie(
+    presentation: PromptPresentation,
+    rolls: Array<{
+      label?: string;
+      playerId?: string;
+      results: Array<"planeswalk" | "chaos" | "blank">;
+      ignoredResults: Array<"planeswalk" | "chaos" | "blank">;
+    }>,
+  ): void {
+    const entries: RollDisplayEntry[] = rolls.flatMap((roll, rollIndex) => [
+      ...roll.results.map((value, index) => ({
+        kind: "planar" as const,
+        sides: 3,
         value,
+        playerId: roll.playerId,
         label:
-          roll.finalResults.length > 1
-            ? `${roll.label ?? `Roll ${rollIndex + 1}`} ${resultIndex + 1}`
+          roll.results.length > 1
+            ? `${roll.label ?? `Planar roll ${rollIndex + 1}`} ${index + 1}`
             : roll.label,
-        highlighted: roll.highlighted,
+        detail:
+          value === "planeswalk" ? "Planeswalk" : value === "chaos" ? "Chaos ensues" : "Blank",
+        round: 0,
+        highlighted: value !== "blank",
+        ignored: false,
       })),
+      ...roll.ignoredResults.map((value, index) => ({
+        kind: "planar" as const,
+        sides: 3,
+        value,
+        playerId: roll.playerId,
+        label: `${roll.label ?? `Planar roll ${rollIndex + 1}`} ignored ${index + 1}`,
+        round: 0,
+        highlighted: false,
+        ignored: true,
+      })),
+    ]);
+    this.renderRollResults(presentation, entries, "Planar die roll", () =>
+      this.spec!.respond({ type: "planarDieRolledAcknowledged" }),
     );
-    const width = Math.min(520, this.viewportWidth - 24);
-    const columns = Math.max(1, Math.min(5, entries.length));
-    const rows = Math.max(1, Math.ceil(entries.length / columns));
-    const dieSize = Math.min(64, (width - PANEL_PADDING * 2 - ROW_GAP * (columns - 1)) / columns);
-    const rowPitch = dieSize + 34;
-    const hasWinner = rolls.some((roll) => roll.highlighted);
-    const height = Math.min(
-      Math.max(300, 174 + rows * rowPitch + (hasWinner ? 54 : 0)),
-      this.viewportHeight - 24,
+  }
+
+  private renderRollResults(
+    presentation: PromptPresentation,
+    entries: RollDisplayEntry[],
+    fallbackTitle: string,
+    onConfirm: () => void,
+  ): void {
+    this.rollVisuals = [];
+    this.rollHighlightText = null;
+    this.rollHighlightLabel = null;
+    this.rollConfirm = null;
+    const visibleEntries = entries.length
+      ? entries
+      : [
+          {
+            kind: "die" as const,
+            sides: 6,
+            value: "—",
+            round: 0,
+            highlighted: false,
+            ignored: false,
+          },
+        ];
+    const maxRound = Math.max(0, ...visibleEntries.map((entry) => entry.round));
+    this.rollDurationMs = rollDuration(visibleEntries.length, maxRound);
+    this.rollSettled = !animationsEnabled() || this.rollElapsedMs >= this.rollDurationMs;
+    const width = Math.min(620, this.viewportWidth - 24);
+    const landingColumns = Math.max(1, Math.ceil(Math.sqrt(visibleEntries.length)));
+    const landingRows = Math.max(1, Math.ceil(visibleEntries.length / landingColumns));
+    const dieSize = Math.min(
+      72,
+      (width - PANEL_PADDING * 2 - ROW_GAP * (landingColumns - 1)) / landingColumns,
     );
-    const title = presentation.title || `Dice roll · d${sides}`;
-    const { body, footer } = this.createModalShell(
+    const winner = visibleEntries.find((entry) => entry.highlighted && !entry.ignored);
+    const height = Math.min(620, this.viewportHeight - 24);
+    const footerHeight = 60;
+    const title = presentation.title || fallbackTitle;
+    const { panel, body, bodyTop, footer } = this.createModalShell(
       width,
       height,
       { ...presentation, title },
       true,
       false,
-      60,
+      footerHeight,
     );
-    const settled = this.diceSettled;
-    entries.forEach((entry, index) => {
-      const column = index % columns;
-      const row = Math.floor(index / columns);
-      const rowCount = Math.min(columns, entries.length - row * columns);
-      const rowWidth = rowCount * dieSize + (rowCount - 1) * ROW_GAP;
-      const rowStart = (width - PANEL_PADDING * 2 - rowWidth) / 2;
-      const x = rowStart + column * (dieSize + ROW_GAP) + dieSize / 2;
-      const y = 18 + row * rowPitch + dieSize / 2;
-      const shownValue = settled
-        ? entry.value
-        : ((Math.floor(this.diceElapsedMs / 75) + index * 7) % Math.max(1, sides)) + 1;
-      const die = this.createDieFace(
-        sides,
-        dieSize,
-        entry.highlighted ? this.theme.gameTheme.success : this.theme.appTheme.muted,
+    const availableWidth = width - PANEL_PADDING * 2;
+    const bodyHeight = Math.max(0, height - bodyTop - footerHeight - MODAL_BODY_BOTTOM_PADDING);
+    const resultBottom = winner ? Math.max(0, bodyHeight - 58) : bodyHeight;
+    const throwBottom = winner ? resultBottom - 12 : bodyHeight - 12;
+    const arenaTop = 8;
+    const arenaHeight = Math.max(dieSize + 32, throwBottom - arenaTop);
+    const cellWidth = availableWidth / landingColumns;
+    const cellHeight = arenaHeight / landingRows;
+    const layoutSeed = rollSeed(
+      this.spec?.currentPrompt?.promptId,
+      maxRound,
+      visibleEntries.length,
+    );
+    const landingSlots = visibleEntries
+      .map((_, index) => index)
+      .sort(
+        (left, right) => rollRandom(layoutSeed, left + 110) - rollRandom(layoutSeed, right + 110),
       );
-      die.position.set(x, y);
-      body.addChild(die);
-      const valueText = promptText(String(shownValue), 26, this.theme.appTheme.foreground, {
-        weight: "700",
+    body.boundsArea = new Rectangle(0, 0, availableWidth, bodyHeight);
+    const rollLayer = new Container();
+    rollLayer.position.set(PANEL_PADDING, bodyTop);
+    panel.addChildAt(rollLayer, panel.getChildIndex(body) + 1);
+    body.accessible = true;
+    body.accessibleTitle = visibleEntries
+      .map(
+        (entry) =>
+          `${entry.label ? `${entry.label}: ` : ""}${entry.value}${entry.ignored ? ", ignored" : ""}`,
+      )
+      .join(". ");
+    const particleLayer = animationsEnabled()
+      ? new ParticleContainer<Particle>({
+          texture: Texture.WHITE,
+          boundsArea: new Rectangle(0, -120, availableWidth, bodyHeight + 240),
+          blendMode: "add",
+          dynamicProperties: {
+            position: true,
+            rotation: true,
+            vertex: true,
+            color: true,
+          },
+        })
+      : null;
+    if (particleLayer) {
+      particleLayer.eventMode = "none";
+      rollLayer.addChild(particleLayer);
+    }
+    visibleEntries.forEach((entry, index) => {
+      const slot = landingSlots[index] ?? index;
+      const column = slot % landingColumns;
+      const row = Math.floor(slot / landingColumns);
+      const seed = rollSeed(this.spec?.currentPrompt?.promptId, entry.round, index);
+      const horizontalSlack = Math.max(0, cellWidth - dieSize - 24);
+      const verticalSlack = Math.max(0, cellHeight - dieSize - 28);
+      const slotX = (column + 0.5) * cellWidth;
+      const slotY = arenaTop + (row + 0.5) * cellHeight;
+      const x = Math.max(
+        dieSize / 2 + 8,
+        Math.min(
+          availableWidth - dieSize / 2 - 8,
+          slotX + (rollRandom(seed, 90) - 0.5) * horizontalSlack * 0.8,
+        ),
+      );
+      const y = Math.max(
+        dieSize / 2 + 8,
+        Math.min(
+          throwBottom - dieSize / 2 - 24,
+          slotY + (rollRandom(seed, 91) - 0.5) * verticalSlack * 0.8,
+        ),
+      );
+      const playerColor = this.rollPlayerColor(entry.playerId);
+      const playerTint = hexToNum(playerColor);
+      const foreground = readableTextColor(
+        playerColor,
+        this.theme.gameTheme.canvas.shadow,
+        this.theme.gameTheme.textOnTinted,
+      );
+      const aura = new Graphics()
+        .circle(0, 0, dieSize * 0.64)
+        .stroke({ color: playerTint, width: 5, alpha: 0.16 })
+        .star(0, 0, 8, dieSize * 0.61, dieSize * 0.56, Math.PI / 8)
+        .stroke({ color: playerTint, width: 1.5, alpha: 0.76 });
+      aura.position.set(x, y);
+      aura.alpha = this.rollSettled ? (entry.highlighted ? 0.46 : entry.ignored ? 0 : 0.12) : 0;
+      aura.eventMode = "none";
+      const token = createRollToken({
+        kind: entry.kind,
+        sides: entry.sides,
+        size: dieSize,
+        fill: playerColor,
+        border: entry.ignored ? this.theme.appTheme.destructive : darken(playerColor, 0.28),
+        foreground,
+        shadow: this.theme.gameTheme.canvas.shadow,
       });
-      valueText.anchor.set(0.5);
-      valueText.position.set(x, y);
-      body.addChild(valueText);
-      this.diceVisuals.push({
-        die,
-        value: valueText,
+      token.root.position.set(x, y);
+      setRollTokenValue(token, entry.value);
+      rollLayer.addChild(aura, token.root);
+      const ignoredMark = entry.ignored
+        ? new Graphics()
+            .moveTo(-dieSize * 0.42, dieSize * 0.42)
+            .lineTo(dieSize * 0.42, -dieSize * 0.42)
+            .stroke({ color: hexToNum(this.theme.appTheme.destructive), width: 3, alpha: 0.9 })
+        : null;
+      if (ignoredMark) {
+        ignoredMark.alpha = this.rollSettled ? 1 : 0;
+        token.root.addChild(ignoredMark);
+      }
+      this.rollVisuals.push({
+        token,
         finalValue: entry.value,
         index,
-        sides,
+        sides: entry.sides,
+        round: entry.round,
+        seed,
+        baseX: x,
+        baseY: y,
+        startX: dieSize / 2 + 8 + rollRandom(seed, 93) * Math.max(0, availableWidth - dieSize - 16),
+        startY: -bodyTop - dieSize * (0.55 + rollRandom(seed, 94) * 0.75),
+        restingRotation: (rollRandom(seed, 92) - 0.5) * 0.28,
+        ignored: entry.ignored,
+        ignoredMark,
+        aura,
+        highlighted: entry.highlighted,
+        playerColor: playerTint,
       });
-      if (entry.label) {
-        const label = promptText(entry.label, 10, this.theme.appTheme["muted-foreground"], {
-          weight: "600",
-          width: dieSize + ROW_GAP,
-          align: "center",
-        });
+      if (entry.label || entry.detail) {
+        const label = promptText(
+          [entry.label, entry.detail].filter(Boolean).join(" · "),
+          10,
+          this.theme.appTheme["muted-foreground"],
+          { weight: "600", width: dieSize + ROW_GAP, align: "center" },
+        );
         label.anchor.set(0.5, 0);
         label.position.set(x, y + dieSize / 2 + 5);
         body.addChild(label);
       }
     });
-    const resultBottom = 18 + rows * rowPitch;
-    const winner = rolls.find((roll) => roll.highlighted);
     if (winner) {
-      const winnerLabel = winner.label ?? winner.finalResults.join(", ");
+      const winnerLabel = winner.label ?? String(winner.value);
+      const winnerColor = this.rollPlayerColor(winner.playerId);
+      const winnerTint = hexToNum(winnerColor);
       const resultBackground = new Graphics()
         .roundRect(0, resultBottom, width - PANEL_PADDING * 2, 46, 8)
-        .fill({ color: hexToNum(this.theme.gameTheme.success), alpha: 0.12 })
-        .stroke({ color: hexToNum(this.theme.gameTheme.success), width: 1, alpha: 0.7 });
-      const resultLabel = promptText("FIRST PLAYER", 9, this.theme.gameTheme.success, {
+        .fill({ color: winnerTint, alpha: 0.16 })
+        .stroke({ color: winnerTint, width: 1, alpha: 0.82 });
+      const resultLabel = promptText("RESULT", 9, winnerColor, {
         weight: "700",
         letterSpacing: 0.8,
       });
       resultLabel.anchor.set(0.5, 0);
       resultLabel.position.set((width - PANEL_PADDING * 2) / 2, resultBottom + 6);
       const winnerText = promptText(
-        settled ? winnerLabel : "Rolling…",
+        this.rollSettled ? winnerLabel : "Rolling…",
         16,
         this.theme.appTheme.foreground,
         { weight: "700" },
       );
       winnerText.anchor.set(0.5, 0);
       winnerText.position.set((width - PANEL_PADDING * 2) / 2, resultBottom + 21);
-      this.diceWinnerText = winnerText;
-      this.diceWinnerLabel = winnerLabel;
+      this.rollHighlightText = winnerText;
+      this.rollHighlightLabel = winnerLabel;
       body.addChild(resultBackground, resultLabel, winnerText);
     }
-    const ignored = rolls.flatMap((roll) => roll.ignoredRolls);
-    if (ignored.length) {
-      const ignoredText = promptText(
-        `Ignored rolls: ${ignored.map((value) => `×${value}`).join("  ")}`,
-        11,
-        this.theme.appTheme["muted-foreground"],
-      );
-      ignoredText.anchor.set(0.5);
-      ignoredText.position.set((width - PANEL_PADDING * 2) / 2, resultBottom + (winner ? 54 : 4));
-      body.addChild(ignoredText);
-    }
-    const confirm = this.makeButton(
-      "CONTINUE",
-      () => this.spec!.respond({ type: "diceRolledAcknowledged" }),
-      { disabled: !settled, width: 120 },
-    );
-    this.diceConfirm = confirm;
+    const confirm = this.makeButton("CONTINUE", onConfirm, {
+      disabled: !this.rollSettled,
+      width: 120,
+    });
+    this.rollConfirm = confirm;
     confirm.position.set(width - PANEL_PADDING * 2 - confirm.buttonWidth, 0);
     footer.addChild(confirm);
-    this.syncDiceVisuals();
+    this.startRollAnimation(particleLayer);
+  }
+
+  private rollPlayerColor(playerId: string | undefined): string {
+    const colors = this.theme.gameTheme.playerColors;
+    if (!playerId || playerId === this.spec?.localPlayerId) return colors.self;
+    const opponentIndex = this.spec
+      ? this.spec.gameView.players
+          .filter((player) => player.id !== this.spec!.localPlayerId)
+          .findIndex((player) => player.id === playerId)
+      : 0;
+    const seat = OPPONENT_SEATS[Math.max(0, Math.min(OPPONENT_SEATS.length - 1, opponentIndex))]!;
+    return colors[seat];
+  }
+
+  private startRollAnimation(particleLayer: ParticleContainer<Particle> | null): void {
+    if (!animationsEnabled() || this.rollSettled) {
+      this.settleRollVisuals();
+      return;
+    }
+    const timeline = gsap.timeline({ paused: true });
+    this.rollTimeline = timeline;
+    for (const visual of this.rollVisuals) {
+      const delay = rollDelayMs(visual.index, visual.round) / 1000;
+      const trajectory = rollTrajectory(visual.seed);
+      const finalRotation =
+        trajectory.direction * Math.round(trajectory.turns) * Math.PI * 2 + visual.restingRotation;
+      const startX = visual.startX + trajectory.startX;
+      const startY = visual.startY + trajectory.startY;
+      const controlX = (startX + visual.baseX) / 2 + trajectory.controlX;
+      const controlY = Math.min(
+        visual.baseY - 54,
+        startY + (visual.baseY - startY) * 0.38 + trajectory.controlY,
+      );
+      visual.token.root.position.set(startX, startY);
+      visual.token.root.alpha = 0;
+      visual.token.root.rotation = -trajectory.direction * 0.8;
+      visual.token.root.scale.set(0.48);
+      const landingAt = delay + ROLL_FLIGHT_MS / 1000;
+      timeline.to(
+        visual.token.root,
+        {
+          alpha: 1,
+          duration: 0.12,
+          ease: "power2.out",
+        },
+        delay,
+      );
+      timeline.to(
+        visual.token.root,
+        {
+          rotation: finalRotation - trajectory.direction * 0.18,
+          pixi: { scaleX: 1.08, scaleY: 0.92 },
+          motionPath: {
+            path: [
+              { x: startX, y: startY },
+              {
+                x: controlX,
+                y: controlY,
+              },
+              { x: visual.baseX, y: visual.baseY },
+            ],
+            curviness: 1.25,
+          },
+          duration: ROLL_FLIGHT_MS / 1000,
+          ease: "power2.inOut",
+        },
+        delay,
+      );
+      timeline.to(
+        visual.token.root,
+        {
+          y: visual.baseY - 11,
+          rotation: finalRotation + trajectory.direction * 0.1,
+          pixi: { scaleX: 1.14, scaleY: 0.84 },
+          duration: ROLL_IMPACT_MS / 1000,
+          ease: "power2.out",
+        },
+        landingAt,
+      );
+      timeline.to(
+        visual.token.root,
+        {
+          x: visual.baseX,
+          y: visual.baseY,
+          rotation: finalRotation,
+          pixi: { scaleX: 1, scaleY: 1 },
+          duration: ROLL_SETTLE_MS / 1000,
+          ease: "elastic.out(1, 0.42)",
+        },
+        landingAt + ROLL_IMPACT_MS / 1000,
+      );
+      timeline.fromTo(
+        visual.aura,
+        { alpha: 0, rotation: -trajectory.direction * 0.25, pixi: { scale: 0.24 } },
+        {
+          alpha: visual.highlighted ? 0.82 : visual.ignored ? 0.36 : 0.58,
+          rotation: trajectory.direction * 0.16,
+          pixi: { scale: 1.24 },
+          duration: 0.28,
+          ease: "power3.out",
+        },
+        landingAt - 0.04,
+      );
+      timeline.to(
+        visual.aura,
+        {
+          alpha: visual.highlighted ? 0.46 : visual.ignored ? 0 : 0.12,
+          rotation: 0,
+          pixi: { scale: 1 },
+          duration: 0.42,
+          ease: "power2.out",
+        },
+        landingAt + 0.24,
+      );
+      timeline.fromTo(
+        visual.token.glint,
+        { alpha: 0 },
+        { alpha: 0.9, duration: 0.12, repeat: 1, yoyo: true, ease: "power2.out" },
+        landingAt + 0.06,
+      );
+      if (particleLayer) {
+        for (let index = 0; index < 10; index += 1) {
+          const burst = rollBurst(visual.seed, index);
+          const particle = new Particle({
+            texture: Texture.WHITE,
+            x: visual.baseX,
+            y: visual.baseY,
+            anchorX: 0.5,
+            anchorY: 0.5,
+            scaleX: burst.length * 0.52,
+            scaleY: burst.length * 2.2,
+            rotation: burst.angle,
+            tint: visual.playerColor,
+            alpha: 0,
+          });
+          particleLayer.addParticle(particle);
+          const burstAt = landingAt + burst.delay;
+          timeline.set(
+            particle,
+            {
+              x: visual.baseX,
+              y: visual.baseY,
+              alpha: 0.94,
+              rotation: burst.angle,
+            },
+            burstAt,
+          );
+          timeline.to(
+            particle,
+            {
+              x: visual.baseX + Math.cos(burst.angle) * burst.distance,
+              y: visual.baseY + Math.sin(burst.angle) * burst.distance,
+              alpha: 0,
+              rotation: burst.angle + trajectory.direction * 0.7,
+              scaleX: 0.01,
+              scaleY: burst.length * 0.4,
+              duration: 0.52,
+              ease: "power2.out",
+            },
+            burstAt,
+          );
+        }
+      }
+    }
+    particleLayer?.update();
+    timeline.eventCallback("onComplete", () => {
+      if (this.rollTimeline !== timeline) return;
+      this.rollTimeline = null;
+      this.rollElapsedMs = this.rollDurationMs;
+      this.settleRollVisuals();
+    });
+    timeline.seek(Math.min(this.rollElapsedMs / 1000, timeline.duration()), true);
+    timeline.play();
+    this.syncRollVisuals();
+  }
+
+  private settleRollVisuals(): void {
+    this.rollSettled = true;
+    for (const visual of this.rollVisuals) {
+      visual.token.root.position.set(
+        visual.baseX + (visual.ignored ? 10 : 0),
+        visual.baseY + (visual.ignored ? 6 : 0),
+      );
+      visual.token.root.rotation = visual.restingRotation;
+      visual.token.root.scale.set(1);
+      visual.token.root.alpha = visual.ignored ? 0.42 : 1;
+      visual.token.glint.alpha = 0;
+      visual.aura.position.set(visual.baseX, visual.baseY);
+      visual.aura.rotation = 0;
+      visual.aura.scale.set(1);
+      visual.aura.alpha = visual.highlighted ? 0.46 : visual.ignored ? 0 : 0.12;
+      if (visual.ignoredMark) visual.ignoredMark.alpha = 1;
+      setRollTokenValue(visual.token, visual.finalValue);
+    }
+    if (this.rollHighlightText && this.rollHighlightLabel) {
+      this.rollHighlightText.text = this.rollHighlightLabel;
+    }
+    this.rollConfirm?.setDisabled(false);
+    if (animationsEnabled() && this.rollHighlightText) {
+      gsap.fromTo(
+        this.rollHighlightText,
+        { alpha: 0.55 },
+        { alpha: 1, duration: 0.22, ease: "power2.out" },
+      );
+    }
+  }
+
+  private stopRollAnimation(): void {
+    this.rollTimeline?.kill();
+    this.rollTimeline = null;
   }
 
   private renderGameOver(): void {
@@ -5480,9 +5890,20 @@ export class PromptLayer {
         event.preventDefault();
         this.spec.damageOrder.onConfirm();
       }
-    } else if (input.type === "diceRolled" && this.diceElapsedMs >= DICE_ROLL_MS) {
+    } else if (
+      (input.type === "coinFlipped" ||
+        input.type === "diceRolled" ||
+        input.type === "planarDieRolled") &&
+      this.rollElapsedMs >= this.rollDurationMs
+    ) {
       event.preventDefault();
-      this.spec.respond({ type: "diceRolledAcknowledged" });
+      if (input.type === "coinFlipped") {
+        this.spec.respond({ type: "coinFlippedAcknowledged" });
+      } else if (input.type === "diceRolled") {
+        this.spec.respond({ type: "diceRolledAcknowledged" });
+      } else {
+        this.spec.respond({ type: "planarDieRolledAcknowledged" });
+      }
     } else if (input.type === "chooseCombatDamageAssignment") {
       const assignees = [...input.blockerIds, ...(input.defenderId ? [input.defenderId] : [])];
       const remaining =
@@ -5501,37 +5922,35 @@ export class PromptLayer {
     }
   }
 
-  private syncDiceVisuals(): void {
-    const progress = animationsEnabled() ? Math.min(1, this.diceElapsedMs / DICE_ROLL_MS) : 1;
-    const settled = progress === 1;
-    const rollStep = Math.floor((1 - (1 - progress) ** 2) * 18);
-    for (const visual of this.diceVisuals) {
-      const value = String(
-        settled
-          ? visual.finalValue
-          : ((rollStep + visual.index * 7) % Math.max(1, visual.sides)) + 1,
-      );
-      if (visual.value.text !== value) visual.value.text = value;
-      visual.die.rotation =
-        Math.sin(progress * Math.PI * 10 + visual.index) * (1 - progress) * 0.22;
-      visual.die.scale.set(1 - Math.sin(progress * Math.PI) * 0.04);
+  private syncRollVisuals(): void {
+    if (this.rollSettled) return;
+    if (!animationsEnabled()) {
+      this.stopRollAnimation();
+      this.rollElapsedMs = this.rollDurationMs;
+      this.settleRollVisuals();
+      return;
     }
-    if (!settled || this.diceSettled) return;
-    this.diceSettled = true;
-    if (this.diceWinnerText && this.diceWinnerLabel) {
-      this.diceWinnerText.text = this.diceWinnerLabel;
+    if (this.rollTimeline) {
+      this.rollElapsedMs = Math.min(this.rollDurationMs, this.rollTimeline.time() * 1000);
     }
-    this.diceConfirm?.setDisabled(false);
-    if (animationsEnabled() && this.diceWinnerText) {
-      gsap.fromTo(
-        this.diceWinnerText,
-        { alpha: 0.55 },
-        {
-          alpha: 1,
-          duration: 0.22,
-          ease: "power2.out",
-        },
-      );
+    for (const visual of this.rollVisuals) {
+      if (visual.token.kind === "die") {
+        setRollTokenValue(
+          visual.token,
+          rollingDieValue(visual.sides, this.rollElapsedMs, visual.seed),
+        );
+      } else if (visual.token.kind === "coin") {
+        setRollTokenValue(
+          visual.token,
+          Math.floor(this.rollElapsedMs / 62 + visual.index) % 2 === 0 ? "heads" : "tails",
+        );
+      } else {
+        const faces = ["planeswalk", "chaos", "blank"];
+        setRollTokenValue(
+          visual.token,
+          faces[Math.floor(this.rollElapsedMs / 76 + visual.index) % faces.length]!,
+        );
+      }
     }
   }
 
@@ -5593,11 +6012,11 @@ export class PromptLayer {
       }
     }
     const input = this.spec?.currentPrompt?.input;
-    if (!this.modalOpen || input?.type !== "diceRolled" || this.diceElapsedMs >= DICE_FINISH_MS)
-      return;
-    this.diceElapsedMs = animationsEnabled()
-      ? Math.min(DICE_FINISH_MS, this.diceElapsedMs + deltaMs)
-      : DICE_FINISH_MS;
-    this.syncDiceVisuals();
+    const isRollResult =
+      input?.type === "coinFlipped" ||
+      input?.type === "diceRolled" ||
+      input?.type === "planarDieRolled";
+    if (!this.modalOpen || !isRollResult || this.rollSettled) return;
+    this.syncRollVisuals();
   }
 }

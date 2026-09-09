@@ -65,7 +65,9 @@ const PROMPT_HANDLER_OVERRIDES: Partial<{
   ["chooseCards"]: { showByDefault: true, resolve: forced.forcedCardChoice },
   ["reorder"]: { showByDefault: true, resolve: forced.singleCardOrder },
   ["scry"]: { showByDefault: true, resolve: forced.emptyScry },
+  ["coinFlipped"]: { showByDefault: true, resolve: informational.ackCoinFlipped },
   ["diceRolled"]: { showByDefault: true, resolve: informational.ackDiceRolled },
+  ["planarDieRolled"]: { showByDefault: true, resolve: informational.ackPlanarDieRolled },
 };
 
 export function getPromptHandler<TType extends PromptKind>(

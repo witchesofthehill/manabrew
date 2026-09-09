@@ -596,12 +596,12 @@ public final class ManaBrewInteractiveSession {
             }
             final int roll = rolls.get(p);
             rollEntries.add(new DiceRollEntry(
-                    p.getName(), "player-" + SnapshotExtractor.playerIndex(game, p),
+                    p.getName(), "player-" + SnapshotExtractor.playerIndex(game, p), 0,
                     java.util.List.of(roll), java.util.List.of(roll), java.util.List.of(), p == winner));
         }
         publishAgentPrompt("player-" + playerId, null,
                 new DiceRolledInput(
-                        presentation("Roll for first player", null), sides, rollEntries, null));
+                        presentation("Roll for first player", null), sides, rollEntries, null, null));
     }
 
     private void publishManaPaymentPrompt(

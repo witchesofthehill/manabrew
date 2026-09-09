@@ -180,7 +180,7 @@ export const KEYBINDINGS = defineKeybindings([
   },
   {
     id: "open-settings",
-    label: "Open preferences",
+    label: "Open preferences / board settings",
     category: "Navigation",
     defaultCombo: { key: ",", mod: true },
   },
@@ -249,6 +249,18 @@ export const KEYBINDINGS = defineKeybindings([
     label: "Collapse / expand the stack",
     category: "Battlefield",
     defaultCombo: { key: "s", mod: true },
+  },
+  {
+    id: "open-graveyard",
+    label: "Open your graveyard",
+    category: "Battlefield",
+    defaultCombo: { key: "g" },
+  },
+  {
+    id: "open-exile",
+    label: "Open your exile",
+    category: "Battlefield",
+    defaultCombo: { key: "x" },
   },
   {
     id: "toggle-combat-breakdown",

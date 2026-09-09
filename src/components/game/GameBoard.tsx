@@ -735,14 +735,6 @@ export function GameBoard({
       return ids[next]!;
     });
   };
-  useKeybindings({
-    "focus-next-field": () => cycleField(1),
-    "focus-prev-field": () => cycleField(-1),
-    "cycle-hand-order": () => {
-      if (document.querySelector('[role="dialog"]')) return;
-      setHandOrderModeFromBoard(nextHandOrderMode(handOrderMode));
-    },
-  });
 
   // Which opponent's battleground the mouse is over (from the scene's hover
   // detection). Stashed for later use.
@@ -1311,6 +1303,16 @@ export function GameBoard({
     promptType,
     onOpenZoneAndCast,
   ]);
+  useKeybindings({
+    "focus-next-field": () => cycleField(1),
+    "focus-prev-field": () => cycleField(-1),
+    "cycle-hand-order": () => {
+      if (document.querySelector('[role="dialog"]')) return;
+      setHandOrderModeFromBoard(nextHandOrderMode(handOrderMode));
+    },
+    "open-graveyard": openGraveyard,
+    "open-exile": openExile,
+  });
 
   // On-grid zone tiles (deck / graveyard / exile / command) per player — same
   // data + open/highlight behaviour as the panel, rendered on the battlefield.

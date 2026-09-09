@@ -258,6 +258,7 @@ async function initializeGame({
     isWaitingForResponse: false,
     seatAddressedStates: false,
     relinquishedPriority: false,
+    myPlayerSlot: "player-0",
     selfConceded: false,
     gameConfig: { formatId: selectedFormatId, startingLife },
     gameDecks,

@@ -18,7 +18,7 @@ import {
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
-import { darken, readableTextColor } from "@/themes/gameTheme";
+import { darken } from "@/themes/gameTheme";
 import { hexToNum } from "@/pixi/colorUtils";
 import { CardSprite } from "@/pixi/CardSprite";
 import { gameIconTexture } from "@/pixi/gameIconCache";
@@ -5058,11 +5058,7 @@ export class PromptLayer {
       );
       const playerColor = this.rollPlayerColor(entry.playerId);
       const playerTint = hexToNum(playerColor);
-      const foreground = readableTextColor(
-        playerColor,
-        this.theme.gameTheme.canvas.shadow,
-        this.theme.gameTheme.textOnTinted,
-      );
+      const foreground = this.theme.gameTheme.textOnTinted;
       const aura = new Graphics()
         .circle(0, 0, dieSize * 0.64)
         .stroke({ color: playerTint, width: 5, alpha: 0.16 })

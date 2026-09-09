@@ -1119,6 +1119,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   useGamePrefetch();
 
   useKeybindings({
+    "open-settings": () => setGameSettingsOpen(true),
     "toggle-stack": () => useStackUIStore.getState().toggleCollapsed(),
     "toggle-combat-breakdown": () => {
       if (!manualApi) setCombatDetailsOpen((open) => !open);

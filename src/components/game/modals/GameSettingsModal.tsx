@@ -72,6 +72,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
   const id = useId();
   return (
     <Modal onClose={onClose} maxWidth="max-w-xl">
+      <Modal.CloseShortcut keybinding="open-settings" onClose={onClose} />
       <Modal.Header onClose={onClose}>
         <h2 className="text-base font-semibold">Board settings</h2>
         <p className="text-xs text-muted-foreground">

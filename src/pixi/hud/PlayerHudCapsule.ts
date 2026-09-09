@@ -523,8 +523,8 @@ export class PlayerHudCapsule {
         .circle(cx, cy, r)
         .fill({ color: hexToNum(gt.textOnTinted) });
     }
-    this.avatarFx.circle(cx, cy, r - 0.5);
-    this.avatarFx.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
+    this.avatarFx.circle(cx, cy, r - 1);
+    this.avatarFx.stroke({ color: hexToNum(this.spec.color), width: 2, alpha: 0.95 });
     this.bot.visible = visible && !hasImage && this.spec.isBot;
     if (this.bot.visible) {
       const tex = this.iconTexture(BOT_ICON_NAME);

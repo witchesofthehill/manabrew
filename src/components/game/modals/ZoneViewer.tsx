@@ -1,35 +1,41 @@
-import { cn } from "@/lib/utils";
+import { useMemo } from "react";
 import type { CardDto } from "@/protocol/game";
-import { Card } from "@/components/game/Card";
-import { ManaSymbols } from "@/components/game/ManaSymbols";
-import { HAND_CARD } from "../game.styles";
-import { useCardPreview } from "@/hooks/useCardPreview";
-import { useLongPressPreview } from "@/hooks/useLongPressPreview";
-import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { useTheme } from "@/hooks/useTheme";
-import { withAlpha } from "@/themes/gameTheme";
+import { useGameUIStore } from "@/stores/useGameUIStore";
+import { zoneLocationKey, type ZoneLocation, type ZoneViewMode } from "@/lib/zoneView";
 import { Modal } from "./Modal";
-import { ModalCardFilter } from "./ModalCardFilter";
-import { useCardNameFilter } from "./useCardNameFilter";
-import type { CSSProperties } from "react";
+import { DialogCardBrowser } from "./DialogCardBrowser";
 
-interface ZoneViewerProps {
+export interface ZoneViewerProps {
   title: string;
   cards: CardDto[];
+  mode: ZoneViewMode;
+  source?: ZoneLocation;
+  totalCount?: number;
+  pending?: boolean;
   onClose: () => void;
   onClickCard?: (cardId: string) => void;
   clickableCardIds?: string[];
   selectedCardIds?: string[];
   clickLabel?: string;
   selectedLabel?: string;
-  /** When targeting, ring the legal targets in the intent colour (red hostile /
-   *  blue friendly) instead of the neutral card-ring used for browsing. */
   targetHostile?: boolean;
 }
+const ACTION_LABELS: Record<ZoneViewMode, string> = {
+  browse: "Choose action",
+  cast: "Choose action",
+  target: "Choose this target",
+  cost: "Select for cost",
+  manual: "Put onto battlefield",
+};
 
 export function ZoneViewer({
   title,
   cards,
+  mode,
+  source,
+  totalCount,
+  pending,
   onClose,
   onClickCard,
   clickableCardIds,
@@ -38,103 +44,50 @@ export function ZoneViewer({
   selectedLabel,
   targetHostile,
 }: ZoneViewerProps) {
-  const preview = useCardPreview();
-
-  const themeColors = useTheme().gameTheme;
-  const ringColor =
+  const theme = useTheme().gameTheme;
+  const key = zoneLocationKey(source, title);
+  const saveState = useGameUIStore((s) => s.saveZoneBrowserState);
+  const items = useMemo(() => {
+    const legal = new Set(clickableCardIds);
+    const selected = new Set(selectedCardIds);
+    return cards.map((card) => ({
+      id: card.id,
+      card,
+      selected: selected.has(card.id),
+      legal: !!onClickCard && (mode === "manual" || legal.has(card.id) || selected.has(card.id)),
+    }));
+  }, [cards, mode, onClickCard, clickableCardIds, selectedCardIds]);
+  const color =
     targetHostile === undefined
-      ? themeColors.cardRing
+      ? theme.cardRing
       : targetHostile
-        ? themeColors.arrow.hostileTarget
-        : themeColors.arrow.friendlyTarget;
-  const clickableIdSet = clickableCardIds ? new Set(clickableCardIds) : null;
-  const selectedIdSet = selectedCardIds ? new Set(selectedCardIds) : null;
-  const { query, setQuery, filtered, showFilter } = useCardNameFilter(cards);
-  const longPress = useLongPressPreview<CardDto>({
-    resolve: (e) => {
-      const el = (e.target as HTMLElement).closest<HTMLElement>("[data-card-id]");
-      const card = el && filtered.find((c) => c.id === el.dataset.cardId);
-      return card ? { item: card, anchor: el } : null;
-    },
-    show: (card, rect) =>
-      preview.handleMouseEnter(card, undefined, { useAnchor: true, anchorOverride: rect }),
-    hide: preview.dismiss,
-  });
-
+        ? theme.arrow.hostileTarget
+        : theme.arrow.friendlyTarget;
   return (
-    <Modal onClose={onClose}>
+    <Modal onClose={onClose} maxWidth="max-w-[1280px]" className="h-[90dvh]">
       <Modal.Header onClose={onClose}>
-        <h2 className="font-semibold text-base">{title}</h2>
+        <h2 className="text-base font-semibold">{title}</h2>
+        <p className="text-xs text-muted-foreground">
+          {cards.length} visible card{cards.length === 1 ? "" : "s"}
+          {totalCount != null && totalCount > cards.length
+            ? ` · ${totalCount - cards.length} hidden`
+            : ""}
+        </p>
       </Modal.Header>
-
-      {showFilter && <ModalCardFilter value={query} onChange={setQuery} autoFocus />}
-
-      <Modal.Body>
-        {cards.length === 0 ? (
-          <Modal.EmptyState />
-        ) : filtered.length === 0 ? (
-          <Modal.EmptyState message="No matching cards" />
-        ) : (
-          <div className="flex flex-wrap gap-2 content-start" {...longPress}>
-            {filtered.map((card) => {
-              const selected = !!selectedIdSet?.has(card.id);
-              const clickable =
-                !!onClickCard &&
-                (selected || clickableIdSet == null || clickableIdSet.has(card.id));
-              const cardRingColor = selected ? themeColors.activeAction.active : ringColor;
-              const actionLabel = selected ? selectedLabel : clickLabel;
-              return (
-                <div
-                  key={card.id}
-                  data-card-id={card.id}
-                  className="shrink-0 relative flex flex-col gap-1"
-                  onPointerEnter={(e) => {
-                    if (e.pointerType === "touch") return;
-                    preview.handleMouseEnter(card, e, { useDelay: true, useAnchor: true });
-                  }}
-                  onPointerLeave={(e) => {
-                    if (e.pointerType === "touch") return;
-                    preview.handleMouseLeave();
-                  }}
-                >
-                  <Card
-                    card={card}
-                    className={cn(HAND_CARD, clickable && "ring-2", selected && "opacity-60")}
-                    style={
-                      clickable
-                        ? ({ "--tw-ring-color": cardRingColor } as CSSProperties)
-                        : undefined
-                    }
-                    onClick={clickable ? () => onClickCard!(card.id) : undefined}
-                  />
-                  {clickable && actionLabel && (
-                    <div className="flex items-center justify-center">
-                      <span
-                        className="rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide"
-                        style={{
-                          color: cardRingColor,
-                          backgroundColor: withAlpha(cardRingColor, 0.15),
-                        }}
-                      >
-                        [{actionLabel}]
-                      </span>
-                    </div>
-                  )}
-                  {!actionLabel && (card.effectiveManaCost || card.manaCost) && (
-                    <div className="min-h-5 flex items-center justify-center">
-                      <div className="inline-flex items-center rounded bg-muted/70 px-1.5 py-0.5">
-                        <ManaSymbols cost={card.effectiveManaCost ?? card.manaCost} size="sm" />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </Modal.Body>
-
-      <HoverCardPreview preview={preview} />
+      <DialogCardBrowser
+        key={key}
+        items={items}
+        picker
+        pending={pending}
+        intentColor={color}
+        initialState={useGameUIStore.getState().zoneBrowserStates[key]}
+        onStateChange={(state) => saveState(key, state)}
+        onActivate={onClickCard ? (item) => onClickCard(item.id) : undefined}
+        defaultActionLabel={clickLabel ?? ACTION_LABELS[mode]}
+        actionLabel={(item) =>
+          item.selected ? (selectedLabel ?? "Undo selection") : (clickLabel ?? ACTION_LABELS[mode])
+        }
+      />
     </Modal>
   );
 }

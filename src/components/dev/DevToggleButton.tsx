@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 
 import { DEV_CONTROL_ACTIVE, DEV_CONTROL_BUTTON, DEV_CONTROL_INACTIVE } from "./devPanel.styles";
+import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
 
 interface DevToggleButtonProps {
   label: string;
@@ -9,6 +10,8 @@ interface DevToggleButtonProps {
 }
 
 export function DevToggleButton({ label, active, onClick }: DevToggleButtonProps) {
+  const query = useDevPanelSearch();
+  if (!matchesDevPanelSearch(query, label)) return null;
   return (
     <button
       type="button"

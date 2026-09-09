@@ -80,6 +80,70 @@ impl GameLoop {
             .into_iter()
             .next()
     }
+    fn pay_roll_dice_cost(
+        &mut self,
+        game: &mut GameState,
+        agents: &mut [Box<dyn PlayerAgent>],
+        player: PlayerId,
+        card_id: CardId,
+        amount: i32,
+        sides: i32,
+        result_svar: &str,
+        sa: Option<&SpellAbility>,
+    ) -> bool {
+        let Some(sa) = sa else {
+            return false;
+        };
+        let result = {
+            let mut ctx = crate::ability::effects::EffectContext {
+                game,
+                combat: Some(&mut self.combat),
+                agents,
+                trigger_handler: &mut self.trigger_handler,
+                token_templates: &self.token_templates,
+                token_art_variants: &self.token_art_variants,
+                token_fallback: &self.token_fallback,
+                edition_dates: &self.edition_dates,
+                mana_pools: &mut self.mana_pools,
+                parent_target_card: None,
+                rng: &mut *self.game_rng,
+            };
+            crate::ability::effects::roll_dice_effect::roll_for_player(
+                &mut ctx, sa, card_id, player, sides, amount, false,
+            )
+        };
+        game.card_mut(card_id)
+            .svars
+            .insert(result_svar.to_string(), result.to_string());
+        true
+    }
+    fn pay_flip_coin_cost(
+        &mut self,
+        game: &mut GameState,
+        agents: &mut [Box<dyn PlayerAgent>],
+        player: PlayerId,
+        amount: i32,
+        sa: Option<&SpellAbility>,
+    ) -> bool {
+        let Some(sa) = sa else {
+            return false;
+        };
+        let mut ctx = crate::ability::effects::EffectContext {
+            game,
+            combat: Some(&mut self.combat),
+            agents,
+            trigger_handler: &mut self.trigger_handler,
+            token_templates: &self.token_templates,
+            token_art_variants: &self.token_art_variants,
+            token_fallback: &self.token_fallback,
+            edition_dates: &self.edition_dates,
+            mana_pools: &mut self.mana_pools,
+            parent_target_card: None,
+            rng: &mut *self.game_rng,
+        };
+        crate::ability::effects::flip_coin_effect::flip_coins(&mut ctx, player, sa, amount);
+        true
+    }
 
     /// Pay life and fire the LifeLost trigger.
     pub(crate) fn pay_life_cost(
@@ -1103,27 +1167,15 @@ impl GameLoop {
                 }
                 CostPart::FlipCoin(amount) => {
                     let resolved_amount = amount.resolve(game, card_id, player);
-                    for _ in 0..resolved_amount {
-                        let _source_name = game.card(card_id).card_name.clone();
-                        let called_heads = agents[player.index()].choose_binary(
-                            player,
-                            "Call the coin flip",
-                            crate::agent::BinaryChoiceKind::HeadsOrTails,
-                            None,
-                            Some(card_id),
-                            None,
-                        );
-                        let is_heads = self.game_rng.next_int(2) == 0;
-                        let won = called_heads == is_heads;
-                        self.trigger_handler.run_trigger(
-                            TriggerType::FlippedCoin,
-                            RunParams {
-                                player: Some(player),
-                                coin_flip_won: Some(won),
-                                ..Default::default()
-                            },
-                            false,
-                        );
+                    if !self.pay_flip_coin_cost(
+                        game,
+                        agents,
+                        player,
+                        resolved_amount,
+                        sa.as_deref(),
+                    ) {
+                        payment_ok = false;
+                        break;
                     }
                 }
                 CostPart::RollDice {
@@ -1132,40 +1184,19 @@ impl GameLoop {
                     result_svar,
                 } => {
                     let resolved_amount = amount.resolve(game, card_id, player);
-                    let mut results = Vec::new();
-                    let roll_start_number = game.player(player).num_rolls_this_turn;
-                    let mut last_result = 0;
-                    for idx in 0..resolved_amount {
-                        last_result = self.game_rng.next_int(*sides) + 1;
-                        results.push(last_result);
-                        game.player_record_roll(player, None);
-                        self.trigger_handler.run_trigger(
-                            TriggerType::RolledDie,
-                            RunParams {
-                                player: Some(player),
-                                die_result: Some(last_result),
-                                natural_result: Some(last_result),
-                                die_sides: Some(*sides),
-                                number: Some(roll_start_number + idx + 1),
-                                ..Default::default()
-                            },
-                            false,
-                        );
+                    if !self.pay_roll_dice_cost(
+                        game,
+                        agents,
+                        player,
+                        card_id,
+                        resolved_amount,
+                        *sides,
+                        result_svar,
+                        sa.as_deref(),
+                    ) {
+                        payment_ok = false;
+                        break;
                     }
-                    game.card_mut(card_id)
-                        .svars
-                        .insert(result_svar.clone(), last_result.to_string());
-                    self.trigger_handler.run_trigger(
-                        TriggerType::RolledDieOnce,
-                        RunParams {
-                            player: Some(player),
-                            die_result: Some(last_result),
-                            die_results: Some(results),
-                            die_sides: Some(*sides),
-                            ..Default::default()
-                        },
-                        false,
-                    );
                 }
                 CostPart::ExileFromStack {
                     amount,
@@ -1825,27 +1856,15 @@ impl GameLoop {
                 }
                 CostPart::FlipCoin(amount) => {
                     let resolved_amount = amount.resolve(game, card_id, player);
-                    for _ in 0..resolved_amount {
-                        let _source_name = game.card(card_id).card_name.clone();
-                        let called_heads = agents[player.index()].choose_binary(
-                            player,
-                            "Call the coin flip",
-                            crate::agent::BinaryChoiceKind::HeadsOrTails,
-                            None,
-                            Some(card_id),
-                            None,
-                        );
-                        let is_heads = self.game_rng.next_int(2) == 0;
-                        let won = called_heads == is_heads;
-                        self.trigger_handler.run_trigger(
-                            TriggerType::FlippedCoin,
-                            RunParams {
-                                player: Some(player),
-                                coin_flip_won: Some(won),
-                                ..Default::default()
-                            },
-                            false,
-                        );
+                    if !self.pay_flip_coin_cost(
+                        game,
+                        agents,
+                        player,
+                        resolved_amount,
+                        sa.as_deref(),
+                    ) {
+                        payment_ok = false;
+                        break;
                     }
                 }
                 CostPart::RollDice {
@@ -1854,40 +1873,19 @@ impl GameLoop {
                     result_svar,
                 } => {
                     let resolved_amount = amount.resolve(game, card_id, player);
-                    let mut results = Vec::new();
-                    let roll_start_number = game.player(player).num_rolls_this_turn;
-                    let mut last_result = 0;
-                    for idx in 0..resolved_amount {
-                        last_result = self.game_rng.next_int(*sides) + 1;
-                        results.push(last_result);
-                        game.player_record_roll(player, None);
-                        self.trigger_handler.run_trigger(
-                            TriggerType::RolledDie,
-                            RunParams {
-                                player: Some(player),
-                                die_result: Some(last_result),
-                                natural_result: Some(last_result),
-                                die_sides: Some(*sides),
-                                number: Some(roll_start_number + idx + 1),
-                                ..Default::default()
-                            },
-                            false,
-                        );
+                    if !self.pay_roll_dice_cost(
+                        game,
+                        agents,
+                        player,
+                        card_id,
+                        resolved_amount,
+                        *sides,
+                        result_svar,
+                        sa.as_deref(),
+                    ) {
+                        payment_ok = false;
+                        break;
                     }
-                    game.card_mut(card_id)
-                        .svars
-                        .insert(result_svar.clone(), last_result.to_string());
-                    self.trigger_handler.run_trigger(
-                        TriggerType::RolledDieOnce,
-                        RunParams {
-                            player: Some(player),
-                            die_result: Some(last_result),
-                            die_results: Some(results),
-                            die_sides: Some(*sides),
-                            ..Default::default()
-                        },
-                        false,
-                    );
                 }
                 CostPart::ExileFromStack {
                     amount,

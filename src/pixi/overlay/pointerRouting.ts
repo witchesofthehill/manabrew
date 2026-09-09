@@ -92,6 +92,10 @@ export function installOverlayPointerRouting({
 
     if (overlay) {
       setInteractive(true);
+      if (document.elementFromPoint(event.clientX, event.clientY) !== canvas) {
+        refreshInteractivity();
+        return;
+      }
       if (!pathIncludesCanvas) replayTarget = canvas;
       onActivity();
     } else {

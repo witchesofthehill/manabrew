@@ -16,6 +16,7 @@ import {
   DEV_SECTION,
   DEV_SECTION_HEADING,
 } from "./devPanel.styles";
+import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
 
 export function DevCardLayoutControls() {
   const definition = useGameDevStore((s) => s.debugCardDefinition);
@@ -25,8 +26,23 @@ export function DevCardLayoutControls() {
   const setCardOverride = useGameDevStore((s) => s.setCardOverride);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const query = useDevPanelSearch();
+  const showPreviewControls = matchesDevPanelSearch(
+    query,
+    "Card layouts and previews",
+    "Card layouts",
+    "Scryfall layout",
+    "Rules preview",
+    "Printed preview",
+    "Open preview playground",
+  );
+  const visibleLayoutCases = PREVIEW_SCENARIOS.filter((layoutCase) =>
+    matchesDevPanelSearch(query, layoutCase.label, layoutCase.name || "Face-down card"),
+  );
   const previewStyle = usePreferencesStore((s) => s.inGameCardPreviewStyle);
   const setPreviewStyle = usePreferencesStore((s) => s.setInGameCardPreviewStyle);
+
+  if (!showPreviewControls && visibleLayoutCases.length === 0) return null;
 
   const selectLayout = async (scenario: (typeof PREVIEW_SCENARIOS)[number]) => {
     setLoadingId(scenario.label);
@@ -79,55 +95,59 @@ export function DevCardLayoutControls() {
         ) : null}
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          variant={previewStyle === "rules" ? "default" : "outline"}
-          onClick={() => setPreviewStyle("rules")}
-        >
-          Rules preview
-        </Button>
-        <Button
-          size="sm"
-          variant={previewStyle === "printed" ? "default" : "outline"}
-          onClick={() => setPreviewStyle("printed")}
-        >
-          Printed preview
-        </Button>
-        {import.meta.env.DEV && (
-          <Button size="sm" variant="outline" asChild>
-            <a href="/card-mock" target="_blank" rel="noopener noreferrer">
-              Open preview playground
-            </a>
+      {showPreviewControls ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant={previewStyle === "rules" ? "default" : "outline"}
+            onClick={() => setPreviewStyle("rules")}
+          >
+            Rules preview
           </Button>
-        )}
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-1.5">
-        {PREVIEW_SCENARIOS.map((layoutCase) => {
-          const active =
-            definition?.identity.name === layoutCase.name.split(" // ")[0] &&
-            transformed === !!layoutCase.back;
-          return (
-            <button
-              key={layoutCase.label}
-              type="button"
-              className={cn(
-                DEV_CONTROL_BUTTON,
-                "flex items-center justify-center gap-1.5",
-                active ? DEV_CONTROL_ACTIVE : DEV_CONTROL_INACTIVE,
-              )}
-              disabled={loadingId !== null}
-              onClick={() => void selectLayout(layoutCase)}
-              title={layoutCase.name || "Face-down card"}
-            >
-              {loadingId === layoutCase.label ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : null}
-              {layoutCase.label}
-            </button>
-          );
-        })}
-      </div>
+          <Button
+            size="sm"
+            variant={previewStyle === "printed" ? "default" : "outline"}
+            onClick={() => setPreviewStyle("printed")}
+          >
+            Printed preview
+          </Button>
+          {import.meta.env.DEV && (
+            <Button size="sm" variant="outline" asChild>
+              <a href="/card-mock" target="_blank" rel="noopener noreferrer">
+                Open preview playground
+              </a>
+            </Button>
+          )}
+        </div>
+      ) : null}
+      {visibleLayoutCases.length > 0 ? (
+        <div className="mt-3 grid grid-cols-2 gap-1.5">
+          {visibleLayoutCases.map((layoutCase) => {
+            const active =
+              definition?.identity.name === layoutCase.name.split(" // ")[0] &&
+              transformed === !!layoutCase.back;
+            return (
+              <button
+                key={layoutCase.label}
+                type="button"
+                className={cn(
+                  DEV_CONTROL_BUTTON,
+                  "flex items-center justify-center gap-1.5",
+                  active ? DEV_CONTROL_ACTIVE : DEV_CONTROL_INACTIVE,
+                )}
+                disabled={loadingId !== null}
+                onClick={() => void selectLayout(layoutCase)}
+                title={layoutCase.name || "Face-down card"}
+              >
+                {loadingId === layoutCase.label ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : null}
+                {layoutCase.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
       {definition?.backFace ? (
         <div className="mt-3 grid grid-cols-2 gap-1.5 border-t border-border/50 pt-3">

@@ -122,7 +122,8 @@ export function AppShell() {
     "nav-prev-page": () => goToAdjacentPage(-1),
     "nav-next-page": () => goToAdjacentPage(1),
     "open-settings": () => {
-      if (!isGameActive && !activeTopBarOverride?.navigationDisabled) navigate(ROUTES.SETTINGS);
+      if (isGameActive || activeTopBarOverride?.navigationDisabled) return false;
+      navigate(ROUTES.SETTINGS);
     },
     "show-shortcuts": () => setShortcutsOpen((v) => !v),
   });

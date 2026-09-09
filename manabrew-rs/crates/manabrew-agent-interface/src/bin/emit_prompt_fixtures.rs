@@ -26,6 +26,7 @@ fn wrap(inner: PromptInput) -> AgentPrompt {
             controller_id: "player-0".to_string(),
             ..CardDto::default()
         }),
+        source_ability_text: Some("Lightning Bolt deals 3 damage to any target.".to_string()),
         input: inner,
     }
 }
@@ -228,9 +229,18 @@ fn main() {
                 text: None,
                 targets: Vec::new(),
             },
-            sides: 0,
-            rolls: vec![],
-            source_card_name: None,
+            sides: 6,
+            rolls: vec![dice_rolled::DiceRollEntry {
+                label: Some("Player".to_string()),
+                player_id: Some("player-0".to_string()),
+                round: 0,
+                natural_results: vec![4, 2],
+                final_results: vec![5, 2],
+                ignored_rolls: vec![1],
+                highlighted: false,
+            }],
+            source_card_id: Some("card-1".to_string()),
+            source_card_name: Some("Lightning Bolt".to_string()),
         }),
         ChooseCards(choose_cards::ChooseCardsInput {
             presentation: common::PromptPresentation {

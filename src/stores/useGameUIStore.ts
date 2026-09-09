@@ -2,6 +2,9 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
+import type { Prompt } from "@/protocol";
+import type { ZoneLocation, ZoneViewMode } from "@/lib/zoneView";
+import type { CardBrowserState } from "@/components/game/modals/cardBrowser";
 
 export interface HandActionOption {
   kind: "cast" | "ability" | "manual-move" | "manual-tap";
@@ -22,18 +25,25 @@ export interface HandActionOption {
 export interface AbilityPickerState {
   cardId: string;
   card?: DeckCard;
+  promptId: Prompt["promptId"];
+  source: CardDto;
   abilities: HandActionOption[];
 }
 
-interface PlayModePickerState {
+export interface PlayModePickerState {
   cardId: string;
   card: DeckCard;
   options: HandActionOption[];
+  promptId: Prompt["promptId"];
+  source: CardDto;
 }
 
-interface ViewingZoneState {
+export interface ViewingZoneState {
   title: string;
   cards: CardDto[];
+  mode: ZoneViewMode;
+  source?: ZoneLocation;
+  promptId?: number;
   onClickCard?: (cardId: string) => void;
   clickableCardIds?: string[];
   selectedCardIds?: string[];
@@ -54,6 +64,8 @@ interface GameUIState {
   isActionPanelCollapsed: boolean;
   rightPanelTab: "log" | "snapshots" | "dev";
   promptModalHidden: boolean;
+  zoneBrowserStates: Record<string, CardBrowserState>;
+  saveZoneBrowserState: (key: string, state: CardBrowserState) => void;
 
   openAbilityPicker: (state: AbilityPickerState) => void;
   closeAbilityPicker: () => void;
@@ -64,7 +76,7 @@ interface GameUIState {
   toggleActionPanel: () => void;
   setActionPanelCollapsed: (collapsed: boolean) => void;
   setRightPanelTab: (tab: "log" | "snapshots" | "dev") => void;
-  openDevPanel: () => void;
+  toggleDevPanel: () => void;
   hidePromptModal: () => void;
   showPromptModal: () => void;
   resetAll: () => void;
@@ -79,6 +91,9 @@ export const useGameUIStore = create<GameUIState>()(
       isActionPanelCollapsed: true,
       rightPanelTab: "log",
       promptModalHidden: false,
+      zoneBrowserStates: {},
+      saveZoneBrowserState: (key, state) =>
+        set((current) => ({ zoneBrowserStates: { ...current.zoneBrowserStates, [key]: state } })),
 
       openAbilityPicker: (state) => set({ abilityPicker: state }),
       closeAbilityPicker: () => set({ abilityPicker: null }),
@@ -93,8 +108,13 @@ export const useGameUIStore = create<GameUIState>()(
         set((state) => ({ isActionPanelCollapsed: !state.isActionPanelCollapsed })),
       setActionPanelCollapsed: (collapsed) => set({ isActionPanelCollapsed: collapsed }),
       setRightPanelTab: (tab) => set({ rightPanelTab: tab }),
-      openDevPanel: () => {
-        if (import.meta.env.DEV) set({ isActionPanelCollapsed: false, rightPanelTab: "dev" });
+      toggleDevPanel: () => {
+        if (!import.meta.env.DEV) return;
+        set((state) =>
+          state.rightPanelTab === "dev" && !state.isActionPanelCollapsed
+            ? { isActionPanelCollapsed: true }
+            : { isActionPanelCollapsed: false, rightPanelTab: "dev" },
+        );
       },
       hidePromptModal: () => set({ promptModalHidden: true }),
       showPromptModal: () => set({ promptModalHidden: false }),
@@ -106,6 +126,7 @@ export const useGameUIStore = create<GameUIState>()(
           viewingZone: null,
           isActionPanelCollapsed: true,
           promptModalHidden: false,
+          zoneBrowserStates: {},
         }),
     }),
     { name: "gameUI", enabled: import.meta.env.DEV },

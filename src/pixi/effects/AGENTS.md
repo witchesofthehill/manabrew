@@ -4,14 +4,14 @@ In-game board feedback (entrances, glows, pops, flashes, the active-turn cue). L
 
 Two complementary timing systems:
 
-- **GSAP** (`gsap.ts`) for transient, hand-tuned **feel** (anticipation → overshoot → springy settle, sequenced timelines). Import `gsap` from `gsap.ts` (never `"gsap"` directly) so `PixiPlugin` is registered against our Pixi v8 first.
+- **GSAP** (`gsap.ts`) for transient motion and sequenced timelines. Import `gsap` from `gsap.ts` so `PixiPlugin` and `MotionPathPlugin` are registered before creating tweens.
 - **Pure `now`-driven math** (`easing.ts`, `animation.ts`) for simple loops/one-shots advanced from the existing tick — when a full GSAP timeline is overkill.
 
 ## Modules
 
 | File           | What it is                                                                                                                                                                                                                  |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `gsap.ts`      | GSAP + `PixiPlugin` registered for Pixi v8. Re-exports `gsap`.                                                                                                                                                              |
+| `gsap.ts`      | GSAP with `PixiPlugin` and `MotionPathPlugin` registered. Re-exports `gsap`.                                                                                                                                                |
 | `easing.ts`    | Pure easings (`easeOutCubic`, `easeInOutSine`, `easeOutBack`, `bump`). `t` 0..1 → eased value.                                                                                                                              |
 | `animation.ts` | Pure time math: `oneShot`/`oneShotProgress` (transient), `pulse` (loops). Callers pass `now`.                                                                                                                               |
 | `stomp.ts`     | A short creature-entry squash and settle on `fxScale`.                                                                                                                                                                      |
@@ -23,6 +23,8 @@ Two complementary timing systems:
 - **One Pixi tick.** Board animation advances from `BoardScene.tick` through regions, hand, HUD, and phase strip. GSAP mutates plain effect data such as `fxScale`; it never drives the Pixi clock. `animationsEnabled()` combines the user preference with `prefers-reduced-motion`.
 - **Compose, don't fight.** The region owns a sprite's final scale (card + hover, via `entry.scaleBase`). Effects that scale a card write a **multiplier** (`CardSprite.fxScale`) the region multiplies in — they never set `sprite.scale` directly.
 - **No animated render-to-texture filters.** Animating under a filter re-renders it every frame (see the summoning-sick desaturate filter). For motion use particles / GSAP transforms; filters only as cheap static or very short one-shots.
+- Prompt motion lives in `../prompts/`. `PromptGlow` uses a paused MotionPath tween advanced by the prompt tick; its geometry stays fixed. Modal entrances fade only when the displayed prompt changes. Priority windows keep the action panel visible and disable its buttons while awaiting a response.
+- Priority glow and activation feedback belong to `PromptLayer`, not the rebuilt button or glow objects, so spec refreshes preserve active feedback. Pointer activation and keyboard shortcuts dispatch `ACTION_DRAWER_BUMP_EVENT` through the same callbacks in `Game.tsx`.
 
 ## Adding an effect
 

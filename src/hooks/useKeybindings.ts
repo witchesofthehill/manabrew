@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import { useKeybindingsStore, resolveCombo } from "@/stores/useKeybindingsStore";
 import { KEYBINDINGS, comboFromEvent, combosMatch } from "@/lib/keybindings";
+import { topModal } from "@/lib/modalStack";
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -28,7 +29,10 @@ function preservesNativeInteraction(event: KeyboardEvent): boolean {
   );
 }
 
-export function useKeybindings(handlers: Record<string, () => void>) {
+export function useKeybindings(
+  handlers: Record<string, () => boolean | void>,
+  scope?: RefObject<HTMLElement | null>,
+) {
   const overrides = useKeybindingsStore((s) => s.overrides);
   const handlersRef = useRef(handlers);
 
@@ -38,6 +42,7 @@ export function useKeybindings(handlers: Record<string, () => void>) {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      if (e.defaultPrevented || e.isComposing) return;
       if (preservesNativeInteraction(e)) return;
       const editableTarget = isEditableTarget(e.target);
       const pressed = comboFromEvent(e);
@@ -45,17 +50,24 @@ export function useKeybindings(handlers: Record<string, () => void>) {
       for (const def of KEYBINDINGS) {
         const handler = handlersRef.current[def.id];
         if (!handler) continue;
+        const modal = topModal();
+        if (
+          modal &&
+          def.id !== "show-shortcuts" &&
+          (!scope?.current || !modal.contains(scope.current))
+        )
+          continue;
         if (editableTarget && !def.allowInEditable) continue;
         const combo = resolveCombo(def.id, overrides);
         if (combo && combosMatch(pressed, combo)) {
+          if (handler() === false) continue;
           e.preventDefault();
-          e.stopPropagation();
-          handler();
+          e.stopImmediatePropagation();
           return;
         }
       }
     }
     window.addEventListener("keydown", onKeyDown, { capture: true });
     return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
-  }, [overrides]);
+  }, [overrides, scope]);
 }

@@ -63,6 +63,7 @@ export interface GameCanvasCallbacks {
       trigger?: PreviewPointerInput;
     },
   ) => void;
+  onHoverZoneCards?: (cards: CardDto[] | null, screenBounds?: ScreenBounds) => void;
   onRightClickCard?: (card: CardDto, screenBounds: ScreenBounds) => void;
   onFlipCard?: () => void;
   onStartDrag?: (

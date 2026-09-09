@@ -29,6 +29,18 @@ export const DEFAULT_PLAYMAT_SETTINGS: Required<PlaymatSettings> = {
   color: "",
 };
 
+const PLAYMAT_PADDING = 0.04;
+
+export function playmatInset(rect: PlayZoneRect): PlayZoneRect {
+  const pad = Math.min(rect.width, rect.height) * PLAYMAT_PADDING;
+  return {
+    x: rect.x + pad,
+    y: rect.y + pad,
+    width: Math.max(1, rect.width - pad * 2),
+    height: Math.max(1, rect.height - pad * 2),
+  };
+}
+
 export const PLAYMAT_ZOOM_MIN = 1;
 export const PLAYMAT_ZOOM_MAX = 4;
 export const clampPlaymatZoom = (z: number): number =>
@@ -319,10 +331,11 @@ export class PlaymatLayer {
     this.content.alpha = opts.dropActive ? opacity * PLAYMAT_DROP_DIM : opacity;
     this.border.alpha = this.content.alpha;
     const gt = getTheme().gameTheme;
-    const x = rect.x;
-    const y = rect.y;
-    const width = Math.max(1, rect.width);
-    const height = Math.max(1, rect.height);
+    const inset = playmatInset(rect);
+    const x = inset.x;
+    const y = inset.y;
+    const width = inset.width;
+    const height = inset.height;
     const r = this.layoutRect;
     if (
       !this.materialDirty &&

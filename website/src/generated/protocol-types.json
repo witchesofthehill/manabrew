@@ -356,13 +356,13 @@
       "refs": []
     },
     "DiceRollEntry": {
-      "ts": "interface DiceRollEntry {\n  label?: string;\n  playerId?: string;\n  naturalResults: Array<number>;\n  finalResults: Array<number>;\n  ignoredRolls: Array<number>;\n  highlighted: boolean;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DiceRollEntry {\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub label: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub player_id: Option<String>,\n    pub natural_results: Vec<i32>,\n    pub final_results: Vec<i32>,\n    pub ignored_rolls: Vec<i32>,\n    #[serde(default)]\n    pub highlighted: bool,\n}",
+      "ts": "interface DiceRollEntry {\n  label?: string;\n  playerId?: string;\n  round: number;\n  naturalResults: Array<number>;\n  finalResults: Array<number>;\n  ignoredRolls: Array<number>;\n  highlighted: boolean;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DiceRollEntry {\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub label: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub player_id: Option<String>,\n    #[serde(default)]\n    pub round: u32,\n    pub natural_results: Vec<i32>,\n    pub final_results: Vec<i32>,\n    pub ignored_rolls: Vec<i32>,\n    #[serde(default)]\n    pub highlighted: bool,\n}",
       "refs": []
     },
     "DiceRolledInput": {
-      "ts": "interface DiceRolledInput {\n  presentation: PromptPresentation;\n  sides: number;\n  rolls: Array<DiceRollEntry>;\n  sourceCardName?: string;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DiceRolledInput {\n    pub presentation: PromptPresentation,\n    pub sides: i32,\n    pub rolls: Vec<DiceRollEntry>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub source_card_name: Option<String>,\n}",
+      "ts": "interface DiceRolledInput {\n  presentation: PromptPresentation;\n  sides: number;\n  rolls: Array<DiceRollEntry>;\n  sourceCardId?: string;\n  sourceCardName?: string;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DiceRolledInput {\n    pub presentation: PromptPresentation,\n    pub sides: i32,\n    pub rolls: Vec<DiceRollEntry>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub source_card_id: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub source_card_name: Option<String>,\n}",
       "refs": ["DiceRollEntry", "PromptPresentation"]
     },
     "DirectiveInput": {

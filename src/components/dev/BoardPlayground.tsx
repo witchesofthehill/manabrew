@@ -298,6 +298,7 @@ export function BoardPlayground() {
     previewStyle === "rules" && previewCard && preview.phase !== "hidden"
       ? {
           card: previewCard,
+          variant: "field",
           phase: preview.phase === "closing" ? "closing" : "open",
           sticky: preview.isSticky,
           showBackFace: preview.showBackFace,
@@ -682,6 +683,7 @@ export function BoardPlayground() {
             onTargetSpell={() => undefined}
             onHoverStack={() => undefined}
             onToggleStack={() => undefined}
+            promptSpec={null}
             externalPreviewActive={externalPreviewActive}
             previewSpec={rulesPreview}
             onPreviewPointerEnter={preview.onMouseEnterPreview}

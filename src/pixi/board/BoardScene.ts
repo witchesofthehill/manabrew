@@ -3,13 +3,17 @@ import {
   Container,
   FillGradient,
   Graphics,
+  ImageSource,
   Point,
+  Sprite,
   Text,
+  Texture,
   type FederatedPointerEvent,
 } from "pixi.js";
-import { darken, withAlpha } from "@/themes/gameTheme";
+import { boardBackgroundUrl } from "./boardBackgrounds";
+import { withAlpha } from "@/themes/gameTheme";
 import type { CardDto, PlaymatSettings } from "@/protocol/game";
-import type { AttackTargetDto } from "@/protocol/prompts/common";
+import type { AttackTargetDto, TargetRef } from "@/protocol/prompts/common";
 import {
   CardSprite,
   setCardSpriteTheme,
@@ -34,8 +38,10 @@ import { prewarmManaSymbols } from "../manaSymbolCache";
 import { CARD_H } from "@/components/game/game.constants";
 import { lerp, setFrameRatio } from "./pixiHelpers";
 import { animationsEnabled } from "../effects/enabled";
+import { gsap } from "../effects/gsap";
 import { LongPressGesture } from "../LongPressGesture";
 import { PREVIEW_TIMING, type PreviewPointerInput } from "@/lib/cardPreview";
+import { intentIsHostile } from "@/types/promptType";
 import {
   FLOATER_FONT_SIZE,
   FLOATER_LIFETIME_FRAMES,
@@ -113,33 +119,56 @@ const ATTACK_ARROW_LANE_PX = 18;
  *  while dragging an attacker — makes small opponent permanents easy to hit. */
 const ATTACK_TARGET_HIT_PAD = 44;
 
-/* ─────────────────────────────────────────────────────────────────────────
- * DIVIDER + FOG — tweak these. The vertical divider bar and the fog-of-war
- * fade beside it share ONE colour and ONE peak opacity, so the fog merges
- * seamlessly into the bar. The colour is a gently darkened canvas background
- * (see `dividerColor()` / `DIVIDER.darken`) — the field felt is already
- * canvas-background-coloured, so a same-colour separator is invisible against
- * it; the darken is the minimum distinct shade that reads as a seam without
- * going near-black. Tune `DIVIDER.darken` up for a clearer line, down softer.
- *   - alpha       opacity of the bar AND the fog at its darkest (right at the
- *                 divider). The fog is always this dark next to the divider, no
- *                 matter how collapsed the field is.
- *   - fadeWidthPx how far the fog leaks into a fully-collapsed field. Scales
- *                 DOWN with expansion (0 once a field is fully expanded), so it
- *                 controls the spread only — never the darkness at the divider.
- *   - barWidthPx  thickness of the divider bar.
- * ───────────────────────────────────────────────────────────────────────── */
-
 const DIVIDER = {
-  /** How much to darken the canvas background for the bar + fog. The field felt
-   *  is already canvas-background-coloured, so a same-colour separator is
-   *  invisible against it — this is the minimum distinct shade that still
-   *  reads. Tune up for a clearer seam, down for a softer one. */
-  darken: 0.2,
-  alpha: 1,
-  fadeWidthPx: 0,
-  barWidthPx: 4,
+  shadowAlpha: 0.62,
+  baseFadeWidthPx: 14,
+  collapseFadeWidthPx: 38,
+  barWidthPx: 2,
+  auraAlpha: 0.16,
+  auraWidthRatio: 0.62,
 } as const;
+
+const VOID_AURA = {
+  idleAlpha: 0.78,
+  minAlpha: 0.68,
+  maxAlpha: 0.88,
+  durationSeconds: 5.2,
+} as const;
+
+const FOG_PARTICLE_ALPHA = {
+  idle: 0.22,
+  min: 0.16,
+  max: 0.34,
+} as const;
+
+const FOG_PARTICLE_COUNT = 7;
+
+interface FogParticleSpec {
+  x: number;
+  y: number;
+  radius: number;
+  driftX: number;
+  driftY: number;
+  duration: number;
+  delay: number;
+}
+
+function randomBetween(min: number, max: number): number {
+  return min + Math.random() * (max - min);
+}
+
+function randomFogParticleSpec(index: number): FogParticleSpec {
+  const duration = randomBetween(5.4, 8.2);
+  return {
+    x: randomBetween(-14, 14),
+    y: (index + randomBetween(0.3, 0.7)) / FOG_PARTICLE_COUNT,
+    radius: randomBetween(0.9, 1.8),
+    driftX: randomBetween(-5, 5),
+    driftY: randomBetween(7, 13),
+    duration,
+    delay: -Math.random() * duration,
+  };
+}
 
 /** `count - 1` evenly-spaced delimiter positions (fractions of width). */
 function evenDelimiters(count: number): number[] {
@@ -152,12 +181,40 @@ interface RegionRecord {
   isLocal: boolean;
 }
 
+interface FogParticle {
+  anchor: Container;
+  dot: Graphics;
+  spec: FogParticleSpec;
+  animated: boolean | null;
+}
+
+interface FogParticleGroup {
+  container: Container;
+  particles: FogParticle[];
+}
+const boardBackgroundTextures = new Map<string, Promise<Texture>>();
+
+function loadBoardBackground(url: string): Promise<Texture> {
+  const cached = boardBackgroundTextures.get(url);
+  if (cached) return cached;
+  const promise = new Promise<Texture>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(new Texture({ source: new ImageSource({ resource: img }) }));
+    img.onerror = reject;
+    img.src = url;
+  });
+  boardBackgroundTextures.set(url, promise);
+  return promise;
+}
+
 export class BoardScene {
   private app: Application;
   private callbacks: GameCanvasCallbacks;
   private theme: Theme;
   private root: Container;
   private baseBg: Graphics;
+  private baseImage: Sprite;
+  private baseImageUrl: string | null = null;
   private collapseVeil: Graphics;
   private canvasW = 0;
   private canvasH = 0;
@@ -171,6 +228,7 @@ export class BoardScene {
   private regions = new Map<string, RegionRecord>();
   private localPlayerId: string | null = null;
   private cardScale = 1;
+  private promptReference: TargetRef | null = null;
 
   private floaterLayer: Container;
   private floaters: { text: Text; age: number }[] = [];
@@ -258,6 +316,12 @@ export class BoardScene {
   private fogGfx: Graphics;
   private fogGradRight: FillGradient | null = null;
   private fogGradLeft: FillGradient | null = null;
+  private fogAuraGfx: Graphics;
+  private fogAuraGradRight: FillGradient | null = null;
+  private fogAuraGradLeft: FillGradient | null = null;
+  private fogAnimationEnabled: boolean | null = null;
+  private fogParticleLayer: Container;
+  private fogParticleGroups: FogParticleGroup[] = [];
   private playerBars: PlayerHudLayer;
   private barsEnabled = false;
 
@@ -293,19 +357,38 @@ export class BoardScene {
     this.baseBg.zIndex = -1000;
     this.root.addChild(this.baseBg);
 
-    this.dragHandler = new DragHandler();
+    this.baseImage = new Sprite();
+    this.baseImage.eventMode = "none";
+    this.baseImage.zIndex = -999;
+    this.baseImage.anchor.set(0.5);
+    this.baseImage.visible = false;
+    this.root.addChild(this.baseImage);
+    this.setBackground(boardBackgroundUrl(undefined));
 
-    // Delimiter fog veils the field content (cards/zones) but sits BELOW the
-    // player bars, so a collapsed field's avatar stays clear of the fog.
-    this.fogGfx = new Graphics();
-    this.fogGfx.eventMode = "none";
-    this.fogGfx.zIndex = 5550;
-    this.root.addChild(this.fogGfx);
+    this.dragHandler = new DragHandler();
 
     this.collapseVeil = new Graphics();
     this.collapseVeil.eventMode = "none";
-    this.collapseVeil.zIndex = 5560;
+    this.collapseVeil.zIndex = 5550;
     this.root.addChild(this.collapseVeil);
+
+    this.fogGfx = new Graphics();
+    this.fogGfx.eventMode = "none";
+    this.fogGfx.zIndex = 5560;
+    this.root.addChild(this.fogGfx);
+
+    this.fogAuraGfx = new Graphics();
+    this.fogAuraGfx.eventMode = "none";
+    this.fogAuraGfx.zIndex = 5561;
+    this.fogAuraGfx.blendMode = "screen";
+    this.root.addChild(this.fogAuraGfx);
+
+    this.fogParticleLayer = new Container();
+    this.fogParticleLayer.eventMode = "none";
+    this.fogParticleLayer.zIndex = 5562;
+    this.fogParticleLayer.blendMode = "screen";
+    this.root.addChild(this.fogParticleLayer);
+    this.syncDelimiterFogAnimation();
 
     this.playerBars = new PlayerHudLayer(
       this.theme,
@@ -509,22 +592,25 @@ export class BoardScene {
     if (!locked) this.recomputeDelimTarget();
   }
 
+  private focusedOpponentIds(): string[] {
+    return this.combatFocusIds.length > 0
+      ? this.combatFocusIds
+      : this.manualFocusId
+        ? [this.manualFocusId]
+        : !this.focusLocked && this.hoveredOpponentId
+          ? [this.hoveredOpponentId]
+          : this.focusPlayerId
+            ? [this.focusPlayerId]
+            : [];
+  }
+
   private recomputeDelimTarget(): void {
     const n = this.opponentIds.length;
     if (this.overview) {
       this.delimTarget = evenDelimiters(n);
       return;
     }
-    const focusIds =
-      this.combatFocusIds.length > 0
-        ? this.combatFocusIds
-        : this.manualFocusId
-          ? [this.manualFocusId]
-          : !this.focusLocked && this.hoveredOpponentId
-            ? [this.hoveredOpponentId]
-            : this.focusPlayerId
-              ? [this.focusPlayerId]
-              : [];
+    const focusIds = this.focusedOpponentIds();
     const focused = new Set<number>();
     for (const id of focusIds) {
       const i = this.opponentIds.indexOf(id);
@@ -576,6 +662,7 @@ export class BoardScene {
     this.collapseVeil.clear();
     if (this.overview) {
       this.fogGfx.clear();
+      this.fogAuraGfx.clear();
       for (const id of this.opponentIds) {
         const rec = this.regions.get(id);
         if (!rec) continue;
@@ -673,7 +760,8 @@ export class BoardScene {
     this.playerBars.container.visible = enabled;
     this.playerBars.setBars(enabled ? specs : []);
     for (const spec of specs) {
-      this.regions.get(spec.playerId)?.region.setSeatState(spec.color, spec.name);
+      const region = this.regions.get(spec.playerId)?.region;
+      region?.setSeatState(spec.color, spec.name);
     }
     if (reserveChanged) {
       for (const rec of this.regions.values()) {
@@ -697,55 +785,73 @@ export class BoardScene {
     }
   }
 
-  /** The divider + fog colour: a gently darkened canvas background. The field
-   *  felt is canvas-background-coloured, so a same-colour fog is invisible
-   *  against it; a mild darken (`DIVIDER.darken`) is the minimum distinct shade
-   *  that still reads as a seam without going near-black. */
-  private dividerColor(): string {
-    return darken(this.theme.gameTheme.canvas.background, DIVIDER.darken);
-  }
-
   private drawDelimiterFog(): void {
-    const g = this.fogGfx;
-    g.clear();
+    const shadow = this.fogGfx;
+    const aura = this.fogAuraGfx;
+    shadow.clear();
+    aura.clear();
     const n = this.opponentIds.length;
-    const W = this.boardWidth;
-    if (this.overview) return;
-    if (n <= 1 || W <= 0) return;
-    // Reach the middle horizontal line; the phase strip (drawn on top) hides the
-    // end so it tucks under the phase bar.
-    const h = this.topHeight + this.stripBandPx / 2;
-    const C = collapsedOpponentWidth(W, n);
-    const leftEdge = (i: number) => Math.round((i === 0 ? 0 : this.delimCurrent[i - 1]!) * W);
-    const rightEdge = (i: number) => Math.round((i === n - 1 ? 1 : this.delimCurrent[i]!) * W);
-    const widthOf = (i: number) => rightEdge(i) - leftEdge(i);
-
-    // 1 when the field is collapsed to a banner, 0 when fully expanded.
-    const span = W - n * C;
-    const fogOf = (i: number) =>
-      span <= 0 ? 0 : Math.min(1, Math.max(0, 1 - (widthOf(i) - C) / span));
-
-    const grad = this.fogGradients();
-    // Both gradients hit full DIVIDER.alpha at the divider, so the two sides meet
-    // there at the same darkness — no seam — and match the bar. Intensity scales
-    // only the leak width, never the peak.
-    for (let d = 0; d < n - 1; d++) {
-      const x = Math.round(this.delimCurrent[d]! * W);
-      const wL = DIVIDER.fadeWidthPx * fogOf(d);
-      const wR = DIVIDER.fadeWidthPx * fogOf(d + 1);
-      if (wR >= 1) g.rect(x, 0, wR, h).fill(grad.right);
-      if (wL >= 1) g.rect(x - wL, 0, wL, h).fill(grad.left);
+    const width = this.boardWidth;
+    if (this.overview || n <= 1 || width <= 0) {
+      this.layoutFogParticleGroups(0, 0);
+      return;
+    }
+    const height = this.topHeight + this.stripBandPx / 2;
+    const collapsedWidth = collapsedOpponentWidth(width, n);
+    const leftEdge = (index: number) =>
+      Math.round((index === 0 ? 0 : this.delimCurrent[index - 1]!) * width);
+    const rightEdge = (index: number) =>
+      Math.round((index === n - 1 ? 1 : this.delimCurrent[index]!) * width);
+    const widthOf = (index: number) => rightEdge(index) - leftEdge(index);
+    const span = width - n * collapsedWidth;
+    const collapseAmount = (index: number) =>
+      span <= 0 ? 0 : Math.min(1, Math.max(0, 1 - (widthOf(index) - collapsedWidth) / span));
+    const focusedIds = new Set(this.focusedOpponentIds());
+    const gradients = this.fogGradients();
+    this.layoutFogParticleGroups(n - 1, height);
+    for (let index = 0; index < n - 1; index += 1) {
+      const x = Math.round(this.delimCurrent[index]! * width);
+      const leftWidth =
+        DIVIDER.baseFadeWidthPx + DIVIDER.collapseFadeWidthPx * collapseAmount(index);
+      const rightWidth =
+        DIVIDER.baseFadeWidthPx + DIVIDER.collapseFadeWidthPx * collapseAmount(index + 1);
+      const leftAuraWidth = leftWidth * DIVIDER.auraWidthRatio;
+      const rightAuraWidth = rightWidth * DIVIDER.auraWidthRatio;
+      const focusAdjacent =
+        focusedIds.has(this.opponentIds[index]!) || focusedIds.has(this.opponentIds[index + 1]!);
+      const particleGroup = this.fogParticleGroups[index]!;
+      particleGroup.container.position.x = x;
+      particleGroup.container.alpha =
+        0.62 +
+        0.24 * Math.max(collapseAmount(index), collapseAmount(index + 1)) +
+        (focusAdjacent ? 0.12 : 0);
+      particleGroup.container.scale.x = focusAdjacent ? 1.28 : 1;
+      shadow.rect(x - leftWidth, 0, leftWidth, height).fill(gradients.shadowLeft);
+      shadow.rect(x, 0, rightWidth, height).fill(gradients.shadowRight);
+      aura.rect(x - leftAuraWidth, 0, leftAuraWidth, height).fill(gradients.auraLeft);
+      aura.rect(x, 0, rightAuraWidth, height).fill(gradients.auraRight);
+      shadow
+        .rect(x - DIVIDER.barWidthPx / 2, 0, DIVIDER.barWidthPx, height)
+        .fill({ color: hexToNum(this.theme.gameTheme.canvas.shadow), alpha: 0.9 });
+      aura.rect(x - 0.5, 0, 1, height).fill({
+        color: hexToNum(this.theme.appTheme.primary),
+        alpha: focusAdjacent ? 0.52 : 0.24,
+      });
     }
   }
 
-  /** Horizontal gradients (divider colour, full `DIVIDER.alpha` at the divider →
-   *  clear into the field), built once and reused. The `local` texture space maps
-   *  each gradient to its own rect, so one pair works at any position/width. */
-  private fogGradients(): { left: FillGradient; right: FillGradient } {
-    if (!this.fogGradRight || !this.fogGradLeft) {
-      const color = this.dividerColor();
-      const solid = withAlpha(color, DIVIDER.alpha);
-      const clear = withAlpha(color, 0);
+  private fogGradients(): {
+    shadowLeft: FillGradient;
+    shadowRight: FillGradient;
+    auraLeft: FillGradient;
+    auraRight: FillGradient;
+  } {
+    if (
+      !this.fogGradRight ||
+      !this.fogGradLeft ||
+      !this.fogAuraGradRight ||
+      !this.fogAuraGradLeft
+    ) {
       const linear = (stops: { offset: number; color: string }[]) =>
         new FillGradient({
           type: "linear",
@@ -754,16 +860,128 @@ export class BoardScene {
           textureSpace: "local",
           colorStops: stops,
         });
+      const shadow = withAlpha(this.theme.gameTheme.canvas.shadow, DIVIDER.shadowAlpha);
+      const shadowClear = withAlpha(this.theme.gameTheme.canvas.shadow, 0);
+      const aura = withAlpha(this.theme.appTheme.primary, DIVIDER.auraAlpha);
+      const auraClear = withAlpha(this.theme.appTheme.primary, 0);
       this.fogGradRight = linear([
-        { offset: 0, color: solid },
-        { offset: 1, color: clear },
+        { offset: 0, color: shadow },
+        { offset: 1, color: shadowClear },
       ]);
       this.fogGradLeft = linear([
-        { offset: 0, color: clear },
-        { offset: 1, color: solid },
+        { offset: 0, color: shadowClear },
+        { offset: 1, color: shadow },
+      ]);
+      this.fogAuraGradRight = linear([
+        { offset: 0, color: aura },
+        { offset: 1, color: auraClear },
+      ]);
+      this.fogAuraGradLeft = linear([
+        { offset: 0, color: auraClear },
+        { offset: 1, color: aura },
       ]);
     }
-    return { left: this.fogGradLeft, right: this.fogGradRight };
+    return {
+      shadowLeft: this.fogGradLeft,
+      shadowRight: this.fogGradRight,
+      auraLeft: this.fogAuraGradLeft,
+      auraRight: this.fogAuraGradRight,
+    };
+  }
+
+  private layoutFogParticleGroups(count: number, height: number): void {
+    while (this.fogParticleGroups.length < count) {
+      const container = new Container();
+      const particles = Array.from({ length: FOG_PARTICLE_COUNT }, (_, index) => {
+        const spec = randomFogParticleSpec(index);
+        const anchor = new Container();
+        const dot = new Graphics();
+        anchor.position.x = spec.x;
+        anchor.addChild(dot);
+        container.addChild(anchor);
+        const particle: FogParticle = { anchor, dot, spec, animated: null };
+        this.paintFogParticle(particle);
+        this.setFogParticleAnimation(particle, this.fogAnimationEnabled === true);
+        return particle;
+      });
+      this.fogParticleLayer.addChild(container);
+      this.fogParticleGroups.push({ container, particles });
+    }
+    this.fogParticleGroups.forEach((group, groupIndex) => {
+      const visible = groupIndex < count;
+      if (group.container.visible !== visible) {
+        group.container.visible = visible;
+        for (const particle of group.particles) {
+          this.setFogParticleAnimation(particle, visible && this.fogAnimationEnabled === true);
+        }
+      }
+      if (!visible) return;
+      group.particles.forEach((particle) => {
+        particle.anchor.position.y = particle.spec.y * height;
+      });
+    });
+  }
+
+  private paintFogParticle(particle: FogParticle): void {
+    particle.dot
+      .clear()
+      .circle(0, 0, particle.spec.radius)
+      .fill({ color: hexToNum(this.theme.appTheme.primary) });
+  }
+
+  private setFogParticleAnimation(particle: FogParticle, animated: boolean): void {
+    if (particle.animated === animated) return;
+    particle.animated = animated;
+    gsap.killTweensOf(particle.dot);
+    particle.dot.position.set(-particle.spec.driftX / 2, particle.spec.driftY / 2);
+    particle.dot.alpha = FOG_PARTICLE_ALPHA.idle;
+    if (!animated) return;
+    gsap.fromTo(
+      particle.dot,
+      {
+        x: -particle.spec.driftX / 2,
+        y: particle.spec.driftY / 2,
+        alpha: FOG_PARTICLE_ALPHA.min,
+      },
+      {
+        x: particle.spec.driftX / 2,
+        y: -particle.spec.driftY / 2,
+        alpha: FOG_PARTICLE_ALPHA.max,
+        duration: particle.spec.duration,
+        delay: particle.spec.delay,
+        ease: "sine.inOut",
+        repeat: -1,
+        yoyo: true,
+      },
+    );
+  }
+
+  private syncDelimiterFogAnimation(): void {
+    const shouldAnimate =
+      animationsEnabled() && !this.overview && this.opponentIds.length > 1 && this.boardWidth > 0;
+    if (this.fogAnimationEnabled === shouldAnimate) return;
+    this.fogAnimationEnabled = shouldAnimate;
+    gsap.killTweensOf(this.fogAuraGfx);
+    for (const group of this.fogParticleGroups) {
+      for (const particle of group.particles) {
+        this.setFogParticleAnimation(particle, shouldAnimate && group.container.visible);
+      }
+    }
+    if (!shouldAnimate) {
+      this.fogAuraGfx.alpha = VOID_AURA.idleAlpha;
+      return;
+    }
+    gsap.fromTo(
+      this.fogAuraGfx,
+      { alpha: VOID_AURA.minAlpha },
+      {
+        alpha: VOID_AURA.maxAlpha,
+        duration: VOID_AURA.durationSeconds,
+        ease: "sine.inOut",
+        repeat: -1,
+        yoyo: true,
+      },
+    );
   }
 
   private delimitersSettling(): boolean {
@@ -1242,6 +1460,21 @@ export class BoardScene {
     for (const rec of this.regions.values()) rec.region.restyleCards();
   }
 
+  setBackground(url: string | null): void {
+    if (this.destroyed || url === this.baseImageUrl) return;
+    this.baseImageUrl = url;
+    if (!url) {
+      this.baseImage.visible = false;
+      return;
+    }
+    void loadBoardBackground(url).then((texture) => {
+      if (this.destroyed || this.baseImageUrl !== url) return;
+      this.baseImage.texture = texture;
+      this.baseImage.visible = true;
+      this.drawBaseBg();
+    });
+  }
+
   setHoverDebug(on: boolean): void {
     if (this.destroyed) return;
     setCardSpriteHoverDebug(on);
@@ -1268,7 +1501,10 @@ export class BoardScene {
   setTheme(theme: Theme): void {
     if (this.destroyed) return;
     this.theme = theme;
-    this.fogGradRight = this.fogGradLeft = null;
+    this.fogGradRight = this.fogGradLeft = this.fogAuraGradRight = this.fogAuraGradLeft = null;
+    for (const group of this.fogParticleGroups) {
+      for (const particle of group.particles) this.paintFogParticle(particle);
+    }
     setCardSpriteTheme(theme);
     this.hand?.restyle();
     this.phaseStrip.setTheme(theme);
@@ -1276,6 +1512,7 @@ export class BoardScene {
     this.drawBaseBg();
     for (const rec of this.regions.values()) rec.region.redrawTheme();
     this.applyDelimiters(); // repaint the collapse veil in the new theme colour
+    if (this.promptReference) this.setPromptReference(this.promptReference);
   }
 
   resize(width: number, height: number): void {
@@ -1290,11 +1527,41 @@ export class BoardScene {
     this.drawBaseBg();
   }
 
+  setPromptReference(target: TargetRef | null): void {
+    this.promptReference = target;
+    const color =
+      target?.intent != null && intentIsHostile(target.intent)
+        ? this.theme.gameTheme.pointer.hostile
+        : this.theme.gameTheme.pointer.friendly;
+    const cardId = target?.kind === "card" ? target.id : null;
+    for (const rec of this.regions.values()) {
+      rec.region.setPromptReference(cardId, target ? hexToNum(color) : null);
+    }
+    this.playerBars.setPromptReference(
+      target?.kind === "player" ? target.id : null,
+      target ? color : null,
+    );
+  }
+
+  getPromptReferenceAnchor(target: TargetRef): ScreenPos | null {
+    if (target.kind === "player") return this.playerBars.getPlayerAnchor(target.id);
+    if (target.kind !== "card") return null;
+    for (const rec of this.regions.values()) {
+      const position = rec.region.getCardPosition(target.id);
+      if (position) return position;
+    }
+    return null;
+  }
+
   private drawBaseBg(): void {
     this.baseBg.clear();
     if (this.canvasW <= 0 || this.canvasH <= 0) return;
     this.baseBg.rect(0, 0, this.canvasW, this.canvasH);
     this.baseBg.fill({ color: hexToNum(this.theme.gameTheme.canvas.background), alpha: 1 });
+    if (!this.baseImage.visible) return;
+    const texture = this.baseImage.texture;
+    this.baseImage.scale.set(Math.max(this.canvasW / texture.width, this.canvasH / texture.height));
+    this.baseImage.position.set(this.canvasW / 2, this.canvasH / 2);
   }
 
   private makeRegionHost(playerId: string, isLocal: boolean): RegionHost {
@@ -1309,6 +1576,7 @@ export class BoardScene {
       getCombatGuestLayer: () => this.combatGuestLayer,
       recordCardExit: (cardId, seed) => this.lastCardPositions.set(cardId, seed),
       isSelected: (cardId) => (isLocal ? (this.selection?.has(cardId) ?? false) : false),
+      getDragTilt: (cardId) => (isLocal ? this.dragHandler.getDragTilt(cardId) : null),
       rebuildOverlay: (entry, state) => {
         if (isLocal) this.overlay?.rebuild(entry, state);
       },
@@ -1328,6 +1596,19 @@ export class BoardScene {
         this.callbacks.onHoverCard?.(card, bounds && this.toViewportBounds(bounds), {
           useAnchor: true,
         });
+      },
+      previewCards: (cards, bounds) => {
+        if (cards?.length) {
+          this.cancelHoverClear();
+          this.hoveredRegionRef?.setHoveredCard(null);
+          this.hoveredRegionRef = null;
+          this.hoveredCardId = null;
+          if (this.hand?.hasActiveHover()) this.hand.resetHover();
+        }
+        this.callbacks.onHoverZoneCards?.(
+          cards,
+          bounds ? this.toViewportBounds(bounds) : undefined,
+        );
       },
       isPointerTapSuppressed: (pointerId) => this.tapSuppressedPointers.has(pointerId),
       isDestroyed: () => this.destroyed,
@@ -1785,12 +2066,6 @@ export class BoardScene {
       if (!entry) continue;
       entry.targetX = p.x;
       entry.targetY = p.y;
-      entry.sprite.x = p.x;
-      entry.sprite.y = p.y;
-      if (entry.overlay?.visible) {
-        entry.overlay.x = p.x;
-        entry.overlay.y = p.y;
-      }
       if (id === primaryId || (!primaryPos && !primaryId)) primaryPos = p;
       local.followAttachmentsDuringDrag(id, p);
     }
@@ -1911,12 +2186,14 @@ export class BoardScene {
 
   private tick = (): void => {
     if (this.destroyed) return;
+    this.syncDelimiterFogAnimation();
     const frameRatio = setFrameRatio(this.app.ticker.deltaMS);
     if (import.meta.env.DEV) this.samplePerf();
     const delimitersWereSettling = this.delimitersSettling();
     this.easeDelimiters();
     if (delimitersWereSettling && this.arrowSpecs.length > 0) this.overlayInvalidation?.();
-    for (const rec of this.regions.values()) rec.region.animate();
+    for (const rec of this.regions.values()) rec.region.animate(this.app.ticker.deltaMS);
+    this.dragHandler.dampenTilt(this.app.ticker.deltaMS);
     this.hand?.animate();
     this.playerBars.tick();
     this.phaseStrip.tick();
@@ -2199,6 +2476,10 @@ export class BoardScene {
     if (this.destroyed) return;
     this.destroyed = true;
     this.overlayInvalidation = null;
+    gsap.killTweensOf(this.fogAuraGfx);
+    for (const group of this.fogParticleGroups) {
+      for (const particle of group.particles) gsap.killTweensOf(particle.dot);
+    }
     this.overlayHitTest = null;
     if (import.meta.env.DEV) useGameDevStore.getState().setPixiPerfStats(null);
     this.cancelHoverClear();

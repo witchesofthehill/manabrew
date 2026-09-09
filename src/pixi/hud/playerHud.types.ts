@@ -1,3 +1,5 @@
+import type { CardDto } from "@/protocol/game";
+
 export interface PlayerHudTooltipContent {
   title: string;
   lines?: { text: string; active: boolean }[];
@@ -11,6 +13,7 @@ export interface PlayerHudBadge {
   count?: number;
   lethal?: boolean;
   onTap?: () => void;
+  referenceCard?: CardDto;
   /** Compact-mode zone pill (library/graveyard/exile): renders in a vertical
    *  column anchored to the avatar instead of the badge rows. */
   zone?: boolean;

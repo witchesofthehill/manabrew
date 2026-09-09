@@ -34,7 +34,7 @@ export const SOUND_VOLUME_MAX = 1;
 export const SOUND_VOLUME_STEP = 0.05;
 const DEFAULT_SOUND_VOLUME = 1;
 
-interface PreferencesState {
+export interface PreferencesState {
   appThemePreset: string;
   setAppThemePreset: (id: string) => void;
 
@@ -123,6 +123,8 @@ interface PreferencesState {
   setHandCardStyle: (style: InlineCardStyle) => void;
   stackCardStyle: InlineCardStyle;
   setStackCardStyle: (style: InlineCardStyle) => void;
+  promptCardStyle: InlineCardStyle;
+  setPromptCardStyle: (style: InlineCardStyle) => void;
   collapsedRulesPreviewSections: RulesPreviewSectionId[];
   setRulesPreviewSectionCollapsed: (section: RulesPreviewSectionId, collapsed: boolean) => void;
 
@@ -176,6 +178,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "inGameCardPreviewStyle",
   "handCardStyle",
   "stackCardStyle",
+  "promptCardStyle",
   "collapsedRulesPreviewSections",
   "appThemeColorOverrides",
   "gameThemeColorOverrides",
@@ -329,6 +332,8 @@ export const usePreferencesStore = create<PreferencesState>()(
           setHandCardStyle: (handCardStyle) => set({ handCardStyle }),
           stackCardStyle: "printed",
           setStackCardStyle: (stackCardStyle) => set({ stackCardStyle }),
+          promptCardStyle: "printed",
+          setPromptCardStyle: (promptCardStyle) => set({ promptCardStyle }),
           collapsedRulesPreviewSections: [],
           setRulesPreviewSectionCollapsed: (section, collapsed) =>
             set((state) => ({

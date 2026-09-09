@@ -325,10 +325,22 @@ impl<R: Responder> PromptAgent<R> {
 
     fn build_prompt(&mut self, inner: PromptInput, source: Option<CardId>) -> AgentPrompt {
         self.next_prompt_id += 1;
+        let source_card = source.and_then(|card_id| self.source_cards.get(&card_id).cloned());
+        let source_ability_text = source_card.as_ref().and_then(|card| {
+            self.latest_view
+                .as_ref()?
+                .stack
+                .iter()
+                .rev()
+                .find(|entry| entry.source_id == card.id)?
+                .source_ability_text
+                .clone()
+        });
         AgentPrompt {
             prompt_id: self.next_prompt_id,
             deciding_player_id: player_id_str(self.player_id),
-            source_card: source.and_then(|card_id| self.source_cards.get(&card_id).cloned()),
+            source_card,
+            source_ability_text,
             input: inner,
         }
     }
@@ -1648,14 +1660,15 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             }
             GameNotification::FirstPlayerRoll {
                 sides,
-                rolls,
+                rounds,
                 winner,
             } => {
                 let view = self.view();
                 let winner_id = player_id_str(winner);
-                let entries = rolls
-                    .into_iter()
-                    .map(|(pid, value)| {
+                let mut entries = Vec::new();
+                let last_round = rounds.len().saturating_sub(1);
+                for (round_index, round) in rounds.into_iter().enumerate() {
+                    for (pid, value) in round {
                         let id = player_id_str(pid);
                         let name = view
                             .players
@@ -1663,16 +1676,17 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                             .find(|p| p.id == id)
                             .map(|p| p.name.clone())
                             .unwrap_or_else(|| id.clone());
-                        manabrew_protocol::prompts::dice_rolled::DiceRollEntry {
+                        entries.push(manabrew_protocol::prompts::dice_rolled::DiceRollEntry {
                             label: Some(name),
-                            highlighted: id == winner_id,
+                            highlighted: round_index == last_round && id == winner_id,
                             player_id: Some(id),
+                            round: round_index as u32,
                             natural_results: vec![value],
                             final_results: vec![value],
                             ignored_rolls: vec![],
-                        }
-                    })
-                    .collect();
+                        });
+                    }
+                }
                 self.present_prompt(
                     PromptInput::DiceRolled(
                         manabrew_protocol::prompts::dice_rolled::DiceRolledInput {
@@ -1684,13 +1698,12 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                             },
                             sides,
                             rolls: entries,
+                            source_card_id: None,
                             source_card_name: None,
                         },
                     ),
                     None,
                 );
-                // Caller is responsible for `await_display_ack` after the
-                // full broadcast — see `roll_for_first_player`.
             }
             GameNotification::DiceRolled {
                 player,
@@ -1698,13 +1711,9 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 natural_results,
                 final_results,
                 ignored_rolls,
+                source_card_id,
                 source_card_name,
             } => {
-                // Send the prompt to every agent's transport. The caller
-                // is responsible for issuing a parallel `await_display_ack`
-                // pass after broadcasting — that way all clients see the
-                // animation start at the same time and we wait once for
-                // the slowest player rather than serially per-agent.
                 self.present_prompt(
                     PromptInput::DiceRolled(
                         manabrew_protocol::prompts::dice_rolled::DiceRolledInput {
@@ -1718,15 +1727,17 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                             rolls: vec![manabrew_protocol::prompts::dice_rolled::DiceRollEntry {
                                 label: None,
                                 player_id: Some(player_id_str(player)),
+                                round: 0,
                                 natural_results,
                                 final_results,
                                 ignored_rolls,
                                 highlighted: false,
                             }],
+                            source_card_id: source_card_id.map(card_id_str),
                             source_card_name,
                         },
                     ),
-                    None,
+                    source_card_id,
                 );
             }
             GameNotification::SnapshotCreated {

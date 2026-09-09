@@ -7,7 +7,11 @@ import {
   type CardRailEffect,
   type CardRailState,
 } from "@/components/game/cardRailState";
-import { isCreature, isLethalDamage } from "@/components/game/game.utils";
+import {
+  deriveCardChoiceIndicators,
+  isCreature,
+  isLethalDamage,
+} from "@/components/game/game.utils";
 
 export type CardStatusTone =
   | keyof GameThemeColors["cardStatus"]
@@ -147,6 +151,9 @@ function deriveStatuses(card: CardDto): CardStatusPresentation[] {
   }
   if (card.mergedCardIds.length > 0) {
     add("merged", `Merged ×${card.mergedCardIds.length}`, "neutral");
+  }
+  for (const choice of deriveCardChoiceIndicators(card)) {
+    add(`choice-${choice.key}`, choice.description, "choice");
   }
 
   return statuses;

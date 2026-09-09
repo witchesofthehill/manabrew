@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Merged into the bundle by tauri. macOS asks for local network access the
+	     first time the app browses mDNS; without a reason the prompt is bare, and
+	     a "Don't Allow" makes every LAN lookup return nothing, silently. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Manabrew looks for a relay or a table hosted on your network, so you can play with nobody typing an address.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_manabrew._tcp</string>
+	</array>
+</dict>
+</plist>

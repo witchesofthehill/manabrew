@@ -36,6 +36,14 @@ pub struct ServerConfig {
 
 impl ServerConfig {
     pub fn from_env() -> Self {
+        let lan_advertise = std::env::var("MANABREW_LAN_ADVERTISE")
+            .map(|value| {
+                matches!(
+                    value.to_ascii_lowercase().as_str(),
+                    "1" | "true" | "yes" | "on"
+                )
+            })
+            .unwrap_or(false);
         ServerConfig {
             host: std::env::var("FORGE_HOST").unwrap_or_else(|_| "0.0.0.0".into()),
             port: std::env::var("FORGE_PORT")
@@ -50,7 +58,8 @@ impl ServerConfig {
                 .ok()
                 .and_then(|r| r.parse().ok())
                 .unwrap_or(100),
-            server_key: std::env::var("MANABREW_SERVER_KEY").unwrap_or_else(|_| "forge".into()),
+            server_key: std::env::var("MANABREW_SERVER_KEY")
+                .unwrap_or_else(|_| default_server_key(lan_advertise).into()),
             official_key: std::env::var("SECRET_MANABREW_KEY")
                 .ok()
                 .filter(|key| !key.is_empty()),
@@ -89,18 +98,36 @@ impl ServerConfig {
             art_base_url: std::env::var("MANABREW_ART_BASE_URL")
                 .ok()
                 .filter(|url| !url.is_empty()),
-            lan_advertise: std::env::var("MANABREW_LAN_ADVERTISE")
-                .map(|value| {
-                    matches!(
-                        value.to_ascii_lowercase().as_str(),
-                        "1" | "true" | "yes" | "on"
-                    )
-                })
-                .unwrap_or(false),
+            lan_advertise,
         }
     }
 
     pub fn capture_max_bytes(&self) -> u64 {
         self.capture_max_gb.saturating_mul(BYTES_PER_GB)
+    }
+}
+
+/// A desktop that found this relay over mDNS logs in with the LAN key and is
+/// never told another. A relay that advertises and kept the old default turned
+/// every one of them away with "Invalid server key".
+fn default_server_key(lan_advertise: bool) -> &'static str {
+    if lan_advertise {
+        manabrew_lan_discovery::LAN_RELAY_KEY
+    } else {
+        "forge"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_relay_that_advertises_answers_to_the_key_desktops_use() {
+        assert_eq!(
+            default_server_key(true),
+            manabrew_lan_discovery::LAN_RELAY_KEY
+        );
+        assert_eq!(default_server_key(false), "forge");
     }
 }

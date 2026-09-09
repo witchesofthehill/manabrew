@@ -38,7 +38,7 @@ import type { Deck } from "@/protocol/deck";
 import { toast } from "sonner";
 import { Settings, Users } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { findLanRelay, findOrHostLanRelay, isUnreachable, type LanTarget } from "@/lib/lanRelay";
+import { findOrHostLanRelay, isUnreachable } from "@/lib/lanRelay";
 
 const START_GAME_ACK_TIMEOUT_MS = 5000;
 
@@ -109,6 +109,8 @@ export default function Lobby() {
     playerDecks,
     startingLife,
     connect,
+    connectPreferred,
+    lanTarget,
     listRooms,
     listPlayers,
     joinRoom,
@@ -134,9 +136,7 @@ export default function Lobby() {
       ? "connecting"
       : "disconnected";
   const savedDecks = useOwnedDecks();
-  const [lanTarget, setLanTarget] = useState<LanTarget | null>(null);
   const lanTried = useRef(false);
-  const lanPreferred = useRef(false);
   const lanDetail = lanTarget
     ? lanTarget.hosting
       ? "Hosting on your network"
@@ -217,47 +217,21 @@ export default function Lobby() {
     const name = relayUsername();
     if (!name) return;
     lanTried.current = true;
-    void findOrHostLanRelay().then((target) => {
+    void findOrHostLanRelay().then(async (target) => {
       if (!target) return;
-      setLanTarget(target);
-      connect(target.host, target.port, name, target.password);
+      await connect(target.host, target.port, name, target.password);
+      if (!useServerStore.getState().error) useServerStore.setState({ lanTarget: target });
     });
   }, [connected, connecting, error, connect]);
 
-  // A relay answering on this network is this network's lobby, so it wins. Only
-  // a `relay` record counts: that is a machine somebody set up to be the lobby,
-  // where a `room` is one table on a desktop and belongs to the fallback above.
-  // Decided before the first connection rather than corrected after one, so
-  // nobody watches it connect somewhere and move.
+  // Usually already connected by the home screen. When not, the store makes
+  // the same choice it made there: a relay on this network, else the
+  // configured one.
   useEffect(() => {
     const name = relayUsername();
     if (connected || connecting || error || !name) return;
-    const configured = () =>
-      connect(prefs.serverHost, prefs.serverPort, name, prefs.serverPassword);
-    if (lanPreferred.current) {
-      configured();
-      return;
-    }
-    lanPreferred.current = true;
-    void findLanRelay().then((target) => {
-      if (!target) {
-        configured();
-        return;
-      }
-      setLanTarget(target);
-      connect(target.host, target.port, name, target.password);
-    });
-  }, [
-    connect,
-    connected,
-    connecting,
-    error,
-    prefs.serverHost,
-    prefs.serverPort,
-    prefs.serverUsername,
-    prefs.serverPassword,
-    accountHandle,
-  ]);
+    void connectPreferred(name);
+  }, [connectPreferred, connected, connecting, error, prefs.serverUsername, accountHandle]);
 
   // Poll lobby data every 5s while connected
   useEffect(() => {
@@ -507,13 +481,7 @@ export default function Lobby() {
         {(!connected || (!isDesktop && !!myUsername)) && (
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 px-4 py-2 sm:px-6 lg:px-8">
             {!connected && error && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  connect(prefs.serverHost, prefs.serverPort, relayUsername(), prefs.serverPassword)
-                }
-              >
+              <Button size="sm" variant="outline" onClick={() => connectPreferred(relayUsername())}>
                 Retry connection
               </Button>
             )}

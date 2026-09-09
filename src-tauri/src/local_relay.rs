@@ -83,7 +83,11 @@ pub async fn start_local_relay(
         // Bound to the one interface the neighbours are on rather than every
         // interface this machine has, so sharing a room on a home network does
         // not also open a lobby on whatever else the machine is attached to.
-        let lan_host = if share_on_lan { lan_address() } else { None };
+        let lan_host = if share_on_lan {
+            crate::lan_discovery::lan_address().map(|ip| ip.to_string())
+        } else {
+            None
+        };
         let bind_ip = match &lan_host {
             Some(host) => host.parse().unwrap_or(std::net::IpAddr::from([0, 0, 0, 0])),
             None => std::net::IpAddr::from([127, 0, 0, 1]),
@@ -167,18 +171,6 @@ pub async fn start_local_relay(
         });
         Ok(info)
     }
-}
-
-/// This machine's address on the local network. Opening a UDP socket toward a
-/// routable address picks the interface the kernel would use without sending
-/// anything, which is the only portable way to answer "which of my addresses do
-/// my neighbours see".
-#[cfg(feature = "forge-room")]
-fn lan_address() -> Option<String> {
-    let socket = std::net::UdpSocket::bind(("0.0.0.0", 0)).ok()?;
-    socket.connect(("192.168.1.1", 80)).ok()?;
-    let addr = socket.local_addr().ok()?.ip();
-    (!addr.is_loopback() && !addr.is_unspecified()).then(|| addr.to_string())
 }
 
 #[tauri::command]

@@ -3,6 +3,7 @@
 //! enter it: a room's password is not in here.
 
 use serde::{Deserialize, Serialize};
+use std::net::IpAddr;
 
 pub const SERVICE_TYPE: &str = "_manabrew._tcp.local.";
 
@@ -65,12 +66,19 @@ impl Drop for Advertisement {
 }
 
 /// Held for as long as this should be findable; dropping it withdraws.
+///
+/// `host` is where the socket is bound. `0.0.0.0` is every interface to a
+/// socket and no interface to mDNS, which announces a service only where its
+/// address belongs; a relay bound that way said it was advertising and was
+/// found by nobody. So the record carries the address the neighbours reach.
 pub fn advertise(
     role: LanRole,
     host: &str,
     port: u16,
     art_port: Option<u16>,
 ) -> Result<Advertisement, String> {
+    let host = advertised_host(host)
+        .ok_or_else(|| "no address to advertise: this machine is on no network".to_string())?;
     let daemon = mdns_sd::ServiceDaemon::new().map_err(|e| format!("mdns daemon: {e}"))?;
     let label = hostname();
     let instance = format!("{label}-{port}");
@@ -85,7 +93,7 @@ pub fn advertise(
         SERVICE_TYPE,
         &instance,
         &format!("{instance}.local."),
-        host,
+        host.as_str(),
         port,
         &properties[..],
     )
@@ -140,6 +148,46 @@ pub fn discover(timeout: std::time::Duration) -> Result<Vec<LanEndpoint>, String
     Ok(found)
 }
 
+fn advertised_host(bound: &str) -> Option<String> {
+    match bound.parse::<IpAddr>() {
+        Ok(ip) if ip.is_unspecified() => lan_address().map(|ip| ip.to_string()),
+        Ok(_) => Some(bound.to_string()),
+        Err(_) if bound.is_empty() => lan_address().map(|ip| ip.to_string()),
+        Err(_) => Some(bound.to_string()),
+    }
+}
+
+/// The address the neighbours reach this machine on: the interface carrying
+/// the default route, or with no route at all, which is what a network without
+/// internet looks like, the first interface with an address of its own.
+pub fn lan_address() -> Option<IpAddr> {
+    routed_address().or_else(first_interface_address)
+}
+
+fn routed_address() -> Option<IpAddr> {
+    let socket = std::net::UdpSocket::bind(("0.0.0.0", 0)).ok()?;
+    socket.connect(("192.168.1.1", 80)).ok()?;
+    let ip = socket.local_addr().ok()?.ip();
+    reachable(ip).then_some(ip)
+}
+
+fn first_interface_address() -> Option<IpAddr> {
+    if_addrs::get_if_addrs()
+        .ok()?
+        .into_iter()
+        .map(|interface| interface.ip())
+        .find(|ip| reachable(*ip))
+}
+
+/// IPv4 only: a link-local IPv6 address needs a scope id the record cannot
+/// carry, and the desktop dials what the record says.
+fn reachable(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v4) => !v4.is_loopback() && !v4.is_unspecified() && !v4.is_link_local(),
+        IpAddr::V6(_) => false,
+    }
+}
+
 /// `HOSTNAME` is a shell variable that a systemd unit and a macOS GUI app both
 /// run without, so reading only the environment made every machine advertise as
 /// "manabrew" and collide with the next.
@@ -172,6 +220,24 @@ mod tests {
         assert_eq!(LanRole::parse(Some("room")), LanRole::Room);
         assert_eq!(LanRole::parse(Some("relay")), LanRole::Relay);
         assert_eq!(LanRole::parse(Some("something else")), LanRole::Room);
+    }
+
+    /// A relay bound to `0.0.0.0` (the default) registered that as its
+    /// address, and mDNS announced it on no interface: the log said
+    /// "answering mdns" and `dns-sd -B _manabrew._tcp` showed nothing.
+    #[test]
+    fn an_unspecified_bind_address_is_never_the_advertised_one() {
+        assert_ne!(advertised_host("0.0.0.0").as_deref(), Some("0.0.0.0"));
+        assert_ne!(advertised_host("::").as_deref(), Some("::"));
+        assert_ne!(advertised_host("").as_deref(), Some(""));
+        assert_eq!(advertised_host("10.1.2.3").as_deref(), Some("10.1.2.3"));
+        assert_eq!(
+            advertised_host("relay.local").as_deref(),
+            Some("relay.local")
+        );
+        if let Some(ip) = lan_address() {
+            assert!(reachable(ip));
+        }
     }
 
     /// The name is what a player picks a server by. A systemd unit has no

@@ -8,6 +8,7 @@ description = "mDNS advertise and browse, so nobody types an address to find a m
 [dependencies]
 serde = { workspace = true }
 mdns-sd = "0.21"
+if-addrs = "0.15"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }

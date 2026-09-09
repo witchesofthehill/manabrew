@@ -137,6 +137,7 @@ export interface RegionHost {
   getHandReserveBottom(): number;
   spawnFloatingText(canvasX: number, canvasY: number, content: string, color: number): void;
   previewCard(card: CardDto | null, bounds?: ScreenBounds): void;
+  previewCards(cards: CardDto[] | null, bounds?: ScreenBounds): void;
   isPointerTapSuppressed(pointerId: number): boolean;
   isDestroyed(): boolean;
 }

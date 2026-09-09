@@ -24,6 +24,7 @@ export interface ZoneTileSpec {
   label: string;
   count: number;
   topCard?: CardDto;
+  previewCards?: CardDto[];
   back?: boolean;
   highlightColor?: string;
   /** Seat colour for the commander helm badge; absent when the zone holds no
@@ -39,6 +40,10 @@ export interface ZoneTileHost {
   onDragEnd: () => void;
   onPreview: (
     card: CardDto | null,
+    bounds?: { x: number; y: number; width: number; height: number },
+  ) => void;
+  onPreviewCards: (
+    cards: CardDto[] | null,
     bounds?: { x: number; y: number; width: number; height: number },
   ) => void;
   isPointerTapSuppressed: (pointerId: number) => boolean;
@@ -193,6 +198,7 @@ export class BoardZoneTiles {
       if (seen.has(key)) continue;
       gsap.killTweensOf(tile.hoverGlow);
       gsap.killTweensOf(tile.ambient);
+      if (tile.spec.previewCards?.length) this.host.onPreviewCards(null);
       this.container.removeChild(tile.container);
       tile.container.destroy({ children: true });
       this.tiles.delete(key);
@@ -230,6 +236,7 @@ export class BoardZoneTiles {
   private createTile(spec: ZoneTileSpec): Tile {
     const container = new Container();
     container.eventMode = "static";
+    container.interactiveChildren = false;
     container.cursor = spec.onOpen ? "pointer" : this.draggable ? "grab" : "default";
     const outline = new Graphics();
     const stack = new Graphics();
@@ -307,9 +314,14 @@ export class BoardZoneTiles {
     };
 
     container.on("pointerenter", (event: FederatedPointerEvent) => {
-      if (event.pointerType !== "touch" && tile.spec.onOpen) this.setHovered(tile, true);
+      if (event.pointerType === "touch") return;
+      if (tile.spec.onOpen) this.setHovered(tile, true);
+      if (tile.spec.previewCards?.length) this.showPreviewCards(tile);
     });
-    container.on("pointerleave", () => this.setHovered(tile, false));
+    container.on("pointerleave", () => {
+      this.setHovered(tile, false);
+      if (tile.spec.previewCards?.length) this.host.onPreviewCards(null);
+    });
     container.on("pointerdown", (e: FederatedPointerEvent) => {
       if (tile.spec.topCard && !tile.spec.back) {
         this.longPress.start(e, tile.spec.key, () => {
@@ -340,10 +352,12 @@ export class BoardZoneTiles {
       const nx = p.x - this.drag.grabX;
       const ny = p.y - this.drag.grabY;
       if (
-        Math.abs(nx - container.x) > DRAG_THRESHOLD_PX ||
-        Math.abs(ny - container.y) > DRAG_THRESHOLD_PX
+        !this.drag.moved &&
+        (Math.abs(nx - container.x) > DRAG_THRESHOLD_PX ||
+          Math.abs(ny - container.y) > DRAG_THRESHOLD_PX)
       ) {
         this.drag.moved = true;
+        this.host.onPreviewCards(null);
         this.longPress.cancel();
       }
       container.position.set(nx, ny);
@@ -384,6 +398,20 @@ export class BoardZoneTiles {
     container.on("pointerup", end);
     container.on("pointerupoutside", end);
     return tile;
+  }
+  private showPreviewCards(tile: Tile): void {
+    const cards = tile.spec.previewCards;
+    if (!cards?.length) {
+      this.host.onPreviewCards(null);
+      return;
+    }
+    const bounds = tile.container.getBounds();
+    this.host.onPreviewCards(cards, {
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.width,
+      height: bounds.height,
+    });
   }
 
   private setHovered(tile: Tile, hovered: boolean): void {
@@ -776,6 +804,7 @@ export class BoardZoneTiles {
     this.drag.tile.container.zIndex = 0;
     this.drag = null;
     this.host.onPreview(null);
+    this.host.onPreviewCards(null);
     this.longPress.reset();
     this.host.onDragEnd();
   }
@@ -787,6 +816,7 @@ export class BoardZoneTiles {
   destroy(): void {
     this.destroyed = true;
     this.longPress.cancel();
+    this.host.onPreviewCards(null);
     for (const tile of this.tiles.values()) {
       gsap.killTweensOf(tile.hoverGlow);
       gsap.killTweensOf(tile.ambient);

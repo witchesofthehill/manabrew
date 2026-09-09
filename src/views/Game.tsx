@@ -36,7 +36,10 @@ import { useResolveSourceCard } from "@/components/prompts/internal/usePromptSou
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { BoardCanvasLayout } from "@/pixi/BoardCanvas";
 import type { PromptOverlaySpec } from "@/pixi/prompts/prompt.types";
-import type { BoardOverlayPreviewSpec } from "@/pixi/BoardOverlayCanvas";
+import type {
+  BoardOverlayCommandPreviewSpec,
+  BoardOverlayPreviewSpec,
+} from "@/pixi/BoardOverlayCanvas";
 import { buildArrowSpecs } from "@/components/game/arrowSpecs";
 import { getDisplayedManaAbilities } from "@/components/game/manaUtils";
 import { PlayModePicker } from "@/components/game/PlayModePicker";
@@ -1027,7 +1030,20 @@ export default function Game({ exitTo }: GameProps = {}) {
   const preview = useCardPreview([viewingZone, spellStackModalOpen, abilityPickerState], {
     useTriggerPreference: true,
   });
+  const commandZonePreview = useCardPreview(
+    [viewingZone, spellStackModalOpen, abilityPickerState],
+    {
+      useTriggerPreference: true,
+    },
+  );
   const previewViewSwitchCardIdRef = useRef<string | null>(null);
+  const [commandPreviewSource, setCommandPreviewSource] = useState<{
+    cardIds: string[];
+    anchorRect: DOMRect;
+  } | null>(null);
+  useEffect(() => {
+    if (commandZonePreview.phase === "hidden") setCommandPreviewSource(null);
+  }, [commandZonePreview.phase]);
 
   const battlefieldContainerRef = useRef<HTMLDivElement>(null);
   const { draggingHandCard, ghostPos, isOverBattlefield, isOverHand, startHandCardDrag } =
@@ -1720,6 +1736,13 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     return byId;
   }, [gameView?.stack]);
+  const commandPreviewCards = useMemo(
+    () =>
+      commandPreviewSource?.cardIds
+        .map((cardId) => visibleCardsById.get(cardId))
+        .filter((card): card is ClientCardDto => card !== undefined) ?? [],
+    [commandPreviewSource?.cardIds, visibleCardsById],
+  );
 
   const previewCardId = preview.hoveredCard?.id ?? null;
   const livePreviewCard = useMemo(() => {
@@ -1755,6 +1778,48 @@ export default function Game({ exitTo }: GameProps = {}) {
     [getCardActions, livePreviewCard],
   );
 
+  const handleHoverZoneCards = (cards: CardDto[] | null, anchor?: DOMRect) => {
+    if (!cards?.length || !anchor) {
+      commandZonePreview.handleMouseLeave();
+      return;
+    }
+    preview.dismiss();
+    const cardIds = cards.map((card) => card.id);
+    setCommandPreviewSource((current) => {
+      if (
+        current &&
+        current.cardIds.length === cardIds.length &&
+        current.cardIds.every((cardId, index) => cardId === cardIds[index]) &&
+        current.anchorRect.x === anchor.x &&
+        current.anchorRect.y === anchor.y &&
+        current.anchorRect.width === anchor.width &&
+        current.anchorRect.height === anchor.height
+      ) {
+        return current;
+      }
+      return { cardIds, anchorRect: anchor };
+    });
+    commandZonePreview.handleMouseEnter(cards[0]!, undefined, {
+      anchorOverride: anchor,
+      ignoreTriggerPreference: true,
+      useAnchor: true,
+      useDelay: true,
+    });
+  };
+  const dismissInGamePreviews = () => {
+    setCommandPreviewSource(null);
+    commandZonePreview.dismiss();
+    preview.dismiss();
+  };
+  const handlePreviewPointerEnter = () => {
+    commandZonePreview.onMouseEnterPreview();
+    preview.onMouseEnterPreview();
+  };
+  const handlePreviewPointerLeave = () => {
+    commandZonePreview.onMouseLeavePreview();
+    preview.onMouseLeavePreview();
+  };
+
   const promptSourceDeckCard = useResolveSourceCard(activePrompt?.sourceCard);
 
   const handleLogCardHover = (
@@ -1762,6 +1827,10 @@ export default function Game({ exitTo }: GameProps = {}) {
     e?: React.MouseEvent,
     options: LogCardPreviewOptions = {},
   ) => {
+    if (cardId) {
+      setCommandPreviewSource(null);
+      commandZonePreview.dismiss();
+    }
     if (draggingHandCard) {
       preview.dismiss();
       return;
@@ -1802,6 +1871,10 @@ export default function Game({ exitTo }: GameProps = {}) {
       trigger?: PreviewPointerInput;
     } = {},
   ) => {
+    if (card) {
+      setCommandPreviewSource(null);
+      commandZonePreview.dismiss();
+    }
     if (draggingHandCard) {
       preview.dismiss();
       return;
@@ -1902,8 +1975,18 @@ export default function Game({ exitTo }: GameProps = {}) {
     !spellStackModalOpen &&
     !abilityPickerState &&
     preview.phase !== "hidden";
+  const showCommandZonePreview =
+    commandPreviewCards.length > 0 &&
+    !draggingHandCard &&
+    !viewingZone &&
+    !spellStackModalOpen &&
+    !abilityPickerState &&
+    commandZonePreview.phase !== "hidden";
   const previewSuppressed = !!promptType && !HOVER_ALLOWED_PROMPTS.has(promptType);
-  const externalPreviewActive = showInGamePreview && preview.phase === "open" && !previewSuppressed;
+  const externalPreviewActive =
+    !previewSuppressed &&
+    ((showInGamePreview && preview.phase === "open") ||
+      (showCommandZonePreview && commandZonePreview.phase === "open"));
   useEffect(() => {
     if (preview.phase !== "open") previewViewSwitchCardIdRef.current = null;
   }, [preview.phase]);
@@ -1912,13 +1995,13 @@ export default function Game({ exitTo }: GameProps = {}) {
     livePreviewCard != null &&
     previewViewSwitchCardIdRef.current === livePreviewCard.id;
   const togglePreviewView = useCallback(() => {
-    if (!livePreviewCard) return;
-    previewViewSwitchCardIdRef.current = livePreviewCard.id;
+    if (!livePreviewCard && !commandPreviewSource) return;
+    if (livePreviewCard) previewViewSwitchCardIdRef.current = livePreviewCard.id;
     const preferences = usePreferencesStore.getState();
     preferences.setInGameCardPreviewStyle(
       preferences.inGameCardPreviewStyle === "printed" ? "rules" : "printed",
     );
-  }, [livePreviewCard]);
+  }, [commandPreviewSource, livePreviewCard]);
   useKeybindings(
     externalPreviewActive
       ? {
@@ -2064,8 +2147,22 @@ export default function Game({ exitTo }: GameProps = {}) {
     showPreStackFlash: shouldShowPreStackFlash,
     collapsed: debugStackCard === null && stackCollapsed,
   };
+  const commandPreview: BoardOverlayCommandPreviewSpec | null =
+    commandPreviewSource && showCommandZonePreview
+      ? {
+          cards: commandPreviewCards,
+          castableCardIds: commandPreviewCards
+            .filter((card) => playableIds.has(card.id))
+            .map((card) => card.id),
+          style: inGameCardPreviewStyle,
+          phase: commandZonePreview.phase === "closing" ? "closing" : "open",
+          suppressed: previewSuppressed,
+          anchorRect: commandPreviewSource.anchorRect,
+          viewportRight: isActionPanelCollapsed ? undefined : rightPanelLeft,
+        }
+      : null;
   const rulesPreview: BoardOverlayPreviewSpec | null =
-    inGameCardPreviewStyle === "rules" && showInGamePreview && livePreviewCard
+    !commandPreview && inGameCardPreviewStyle === "rules" && showInGamePreview && livePreviewCard
       ? {
           card: livePreviewCard,
           variant: "field",
@@ -2300,26 +2397,33 @@ export default function Game({ exitTo }: GameProps = {}) {
           castingCardId={casting.castingCardId}
           onHandCardDragStart={handleHandCardDragStart}
           onHoverCard={handleHoverCardGuarded}
+          onHoverZoneCards={handleHoverZoneCards}
           onRightClickCard={
             cardPreviewMode === "right-click"
-              ? (card, rect) =>
+              ? (card, rect) => {
+                  setCommandPreviewSource(null);
+                  commandZonePreview.dismiss();
                   preview.showSticky(
                     card,
                     rect.left + rect.width / 2,
                     rect.top + rect.height / 2,
                     rect,
-                  )
+                  );
+                }
               : undefined
           }
-          onDismissHoverPreview={preview.dismiss}
+          onDismissHoverPreview={dismissInGamePreviews}
           rulesPreview={rulesPreview}
+          commandPreview={commandPreview}
           externalPreviewActive={externalPreviewActive}
-          onPreviewPointerEnter={preview.onMouseEnterPreview}
-          onPreviewPointerLeave={preview.onMouseLeavePreview}
+          onPreviewPointerEnter={handlePreviewPointerEnter}
+          onPreviewPointerLeave={handlePreviewPointerLeave}
           onTogglePreviewView={togglePreviewView}
-          onLongPressCard={(card, rect) =>
-            preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2, rect)
-          }
+          onLongPressCard={(card, rect) => {
+            setCommandPreviewSource(null);
+            commandZonePreview.dismiss();
+            preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2, rect);
+          }}
           onHandHoverChange={setHandCardLifted}
           getHandActions={getHandActionOptions}
           onSelectHandAction={handlePreviewAction}
@@ -2587,7 +2691,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           document.body,
         )}
 
-      {inGameCardPreviewStyle === "printed" && showInGamePreview && (
+      {!commandPreview && inGameCardPreviewStyle === "printed" && showInGamePreview && (
         <HoverCardPreview
           preview={{
             ...preview,

@@ -9,7 +9,11 @@ import { stripUsernameTag } from "@/lib/username";
 import { nextHandOrderMode } from "@/lib/handOrder";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
-import { BoardOverlayCanvas, type BoardOverlayPreviewSpec } from "@/pixi/BoardOverlayCanvas";
+import {
+  BoardOverlayCanvas,
+  type BoardOverlayCommandPreviewSpec,
+  type BoardOverlayPreviewSpec,
+} from "@/pixi/BoardOverlayCanvas";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import type { CombatRow } from "@/components/game/combatRows";
 import type { BoardScene } from "@/pixi/board/BoardScene";
@@ -138,9 +142,11 @@ interface GameBoardProps {
       trigger?: PreviewPointerInput;
     },
   ) => void;
+  onHoverZoneCards: (cards: CardDto[] | null, anchor?: DOMRect) => void;
   onRightClickCard?: (card: CardDto, anchor: DOMRect) => void;
   onDismissHoverPreview?: () => void;
   rulesPreview?: BoardOverlayPreviewSpec | null;
+  commandPreview?: BoardOverlayCommandPreviewSpec | null;
   externalPreviewActive?: boolean;
   onPreviewPointerEnter?: () => void;
   onPreviewPointerLeave?: () => void;
@@ -242,9 +248,11 @@ export function GameBoard({
   castingCardId,
   onHandCardDragStart,
   onHoverCard,
+  onHoverZoneCards,
   onRightClickCard,
   onDismissHoverPreview,
   rulesPreview,
+  commandPreview,
   externalPreviewActive,
   onPreviewPointerEnter,
   onPreviewPointerLeave,
@@ -263,6 +271,7 @@ export function GameBoard({
   onTargetPlayer,
   onOpenZone,
   onOpenZoneAndCast,
+  onCastSpell,
   onTargetFromZone,
   delveAvailable,
   onOpenDelveZone,
@@ -574,6 +583,13 @@ export function GameBoard({
           onHoverCard(null);
         }
       },
+      onHoverZoneCards: (cards, bounds) => {
+        if (cards && bounds) {
+          onHoverZoneCards(cards, new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height));
+        } else {
+          onHoverZoneCards(null);
+        }
+      },
       onRightClickCard: onRightClickCard
         ? (card, bounds) =>
             onRightClickCard(card, new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height))
@@ -615,6 +631,7 @@ export function GameBoard({
       promptType,
       onBattlefieldClick,
       onHoverCard,
+      onHoverZoneCards,
       onDismissHoverPreview,
       onRightClickCard,
       onHandCardDragStart,
@@ -1353,6 +1370,7 @@ export function GameBoard({
         label: "CMD",
         count: myCommandZone!.length,
         topCard: top(myCommandZone!),
+        previewCards: myCommandZone!,
         onOpen: openCommandZone,
         highlightColor: (commandPlayableIds?.length ?? 0) > 0 ? active : undefined,
         commander: playerColors.self,
@@ -1427,6 +1445,7 @@ export function GameBoard({
           label: "CMD",
           count: op.commandZone.length,
           topCard: top(op.commandZone),
+          previewCards: op.commandZone,
           onOpen: () =>
             openOpZone(`${stripUsernameTag(op.name)}'s Command Zone`, op.commandZone, cmdTargets),
           highlightColor: cmdTargets.length > 0 ? targetColor : cmdPlayable ? active : undefined,
@@ -1820,6 +1839,8 @@ export function GameBoard({
           promptSpec={promptOverlaySpec ?? null}
           externalPreviewActive={externalPreviewActive}
           previewSpec={rulesPreview}
+          commandPreviewSpec={commandPreview}
+          onCastCommandCard={onCastSpell}
           onPreviewPointerEnter={onPreviewPointerEnter}
           onPreviewPointerLeave={onPreviewPointerLeave}
           onSelectPreviewAction={onSelectHandAction}

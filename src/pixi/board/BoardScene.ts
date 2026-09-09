@@ -1358,6 +1358,19 @@ export class BoardScene {
           useAnchor: true,
         });
       },
+      previewCards: (cards, bounds) => {
+        if (cards?.length) {
+          this.cancelHoverClear();
+          this.hoveredRegionRef?.setHoveredCard(null);
+          this.hoveredRegionRef = null;
+          this.hoveredCardId = null;
+          if (this.hand?.hasActiveHover()) this.hand.resetHover();
+        }
+        this.callbacks.onHoverZoneCards?.(
+          cards,
+          bounds ? this.toViewportBounds(bounds) : undefined,
+        );
+      },
       isPointerTapSuppressed: (pointerId) => this.tapSuppressedPointers.has(pointerId),
       isDestroyed: () => this.destroyed,
     };

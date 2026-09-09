@@ -204,6 +204,7 @@ export class BoardRegion {
       onDrop: (key, cx, cy) => this.onZoneTileMoved(key, cx, cy),
       onDragEnd: () => this.hideGridSkeleton(),
       onPreview: (card, bounds) => this.host.previewCard(card, bounds),
+      onPreviewCards: (cards, bounds) => this.host.previewCards(cards, bounds),
       isPointerTapSuppressed: (pointerId) => this.host.isPointerTapSuppressed(pointerId),
     });
     // The zone tile stays above the combat-row band but below staged cards and

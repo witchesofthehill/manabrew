@@ -260,6 +260,7 @@ export function BoardCanvas({
         const newScene = new BoardScene(app, {
           onClickCard: (...a) => callbacksRef.current.onClickCard?.(...a),
           onHoverCard: (...a) => callbacksRef.current.onHoverCard?.(...a),
+          onHoverZoneCards: (...a) => callbacksRef.current.onHoverZoneCards?.(...a),
           onRightClickCard: (...a) => callbacksRef.current.onRightClickCard?.(...a),
           onClickAnyCard: (...a) => callbacksRef.current.onClickAnyCard?.(...a),
           onFlipCard: () => callbacksRef.current.onFlipCard?.(),

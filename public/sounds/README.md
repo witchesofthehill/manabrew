@@ -22,10 +22,75 @@ These short effects are presentation-only cues. All source packs are dedicated t
 | `chat-message.wav` | Incoming chat message                                  | _Interface Sounds_ 1.0 — `Audio/pluck_001.ogg`                                                                 | [Kenney](https://kenney.nl/assets/interface-sounds)             | [kenney_interface-sounds.zip](https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip) | Kenney          | [CC0 1.0](KENNEY_INTERFACE_SOUNDS_LICENSE.txt)                | Decoded from Ogg Vorbis to signed 16-bit PCM WAV with FFmpeg; 44.1 kHz stereo preserved; metadata removed; no trim, resample, or gain change |  0.112 s |  19,790 B |
 | `room-invite.wav`  | Incoming room invitation                               | _Interface Sounds_ 1.0 — `Audio/question_004.ogg`                                                              | [Kenney](https://kenney.nl/assets/interface-sounds)             | [kenney_interface-sounds.zip](https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip) | Kenney          | [CC0 1.0](KENNEY_INTERFACE_SOUNDS_LICENSE.txt)                | Decoded from Ogg Vorbis to signed 16-bit PCM WAV with FFmpeg; 44.1 kHz mono preserved; metadata removed; no trim, resample, or gain change   |  0.338 s |  29,902 B |
 
+## Forge counterpart palette
+
+Each Forge `SoundEffectType` that was not already represented uses a distinct CC0 source recording. The files below were decoded from Ogg Vorbis to 44.1 kHz signed 16-bit PCM WAV with FFmpeg; metadata was removed and no trim or gain change was applied.
+
+| Bundled file                  | Protocol identifier (Forge type)                            | Original asset and filename                           | Duration |      Size |
+| ----------------------------- | ----------------------------------------------------------- | ----------------------------------------------------- | -------: | --------: |
+| `counter-add.wav`             | `game.card.counter-add` (`AddCounter`)                      | _Casino Audio_ 1.1 — `Audio/chip-lay-1.ogg`           |  0.181 s |  32,078 B |
+| `combat-block.wav`            | `game.combat.block` (`Block`)                               | _Interface Sounds_ 1.0 — `Audio/scratch_001.ogg`      |  0.161 s |  14,286 B |
+| `card-damage.wav`             | `game.card.damage` (`Damage`)                               | _Interface Sounds_ 1.0 — `Audio/scratch_002.ogg`      |  0.161 s |  14,286 B |
+| `daytime.wav`                 | `game.day-night.day` (`Daytime`)                            | _Interface Sounds_ 1.0 — `Audio/open_001.ogg`         |  0.148 s |  13,134 B |
+| `turn-end.wav`                | `game.turn.end` (`EndOfTurn`)                               | _Interface Sounds_ 1.0 — `Audio/close_001.ogg`        |  0.148 s |  13,134 B |
+| `card-attach.wav`             | `game.card.attach` (`Equip`)                                | _Interface Sounds_ 1.0 — `Audio/switch_001.ogg`       |  0.620 s | 109,390 B |
+| `card-transform.wav`          | `game.card.transform` (`FlipCard`)                          | _Casino Audio_ 1.1 — `Audio/card-fan-1.ogg`           |  0.736 s | 129,870 B |
+| `coin-flip.wav`               | `game.random.coin-flip` (`FlipCoin`)                        | _Casino Audio_ 1.1 — `Audio/chips-collide-1.ogg`      |  0.274 s |  48,462 B |
+| `game-loss.wav`               | `game.outcome.loss` (`LoseDuel`)                            | _Interface Sounds_ 1.0 — `Audio/error_002.ogg`        |  0.165 s |  29,262 B |
+| `mana-burn.wav`               | `game.player.mana-burn` (`ManaBurn`)                        | _Interface Sounds_ 1.0 — `Audio/error_003.ogg`        |  0.556 s |  98,126 B |
+| `nighttime.wav`               | `game.day-night.night` (`Nighttime`)                        | _Interface Sounds_ 1.0 — `Audio/close_002.ogg`        |  0.327 s |  28,878 B |
+| `card-phase.wav`              | `game.card.phase` (`Phasing`)                               | _Interface Sounds_ 1.0 — `Audio/glitch_001.ogg`       |  0.025 s |   4,430 B |
+| `poison.wav`                  | `game.player.poison` (`Poison`)                             | _Interface Sounds_ 1.0 — `Audio/error_004.ogg`        |  0.104 s |  18,510 B |
+| `card-regenerate.wav`         | `game.card.regenerate` (`Regen`)                            | _Interface Sounds_ 1.0 — `Audio/confirmation_002.ogg` |  0.562 s |  49,614 B |
+| `counter-remove.wav`          | `game.card.counter-remove` (`RemoveCounter`)                | _Casino Audio_ 1.1 — `Audio/chip-lay-2.ogg`           |  0.237 s |  41,806 B |
+| `card-sacrifice.wav`          | `game.card.sacrifice` (`Sacrifice`)                         | _Interface Sounds_ 1.0 — `Audio/scratch_003.ogg`      |  0.125 s |  11,086 B |
+| `snapshot-restored.wav`       | `game.snapshot.restored` (`SnapshotRestored`)               | _Interface Sounds_ 1.0 — `Audio/back_001.ogg`         |  0.068 s |   6,094 B |
+| `speed-up.wav`                | `game.player.speed-up` (`SpeedUp`)                          | _Interface Sounds_ 1.0 — `Audio/maximize_001.ogg`     |  0.261 s |  23,118 B |
+| `sprocket.wav`                | `game.contraption.sprocket` (`Sprocket`)                    | _Interface Sounds_ 1.0 — `Audio/switch_002.ogg`       |  0.620 s | 109,390 B |
+| `player-shard.wav`            | `game.player.shard` (`TakeShard`)                           | _Interface Sounds_ 1.0 — `Audio/glass_001.ogg`        |  0.292 s |  25,806 B |
+| `token-create.wav`            | `game.token.create` (`Token`)                               | _Interface Sounds_ 1.0 — `Audio/drop_001.ogg`         |  0.132 s |  23,374 B |
+| `game-win.wav`                | `game.outcome.win` (`WinDuel`)                              | _Interface Sounds_ 1.0 — `Audio/confirmation_003.ogg` |  0.324 s |  28,622 B |
+| `spell-artifact.wav`          | `game.spell.resolve.artifact` (`Artifact`)                  | _Interface Sounds_ 1.0 — `Audio/glass_002.ogg`        |  0.129 s |  11,470 B |
+| `spell-artifact-creature.wav` | `game.spell.resolve.artifact-creature` (`ArtifactCreature`) | _Interface Sounds_ 1.0 — `Audio/bong_001.ogg`         |  0.132 s |  11,726 B |
+| `spell-creature.wav`          | `game.spell.resolve.creature` (`Creature`)                  | _Interface Sounds_ 1.0 — `Audio/scratch_005.ogg`      |  0.344 s |  30,414 B |
+| `spell-enchantment.wav`       | `game.spell.resolve.enchantment` (`Enchantment`)            | _Interface Sounds_ 1.0 — `Audio/pluck_002.ogg`        |  0.181 s |  32,078 B |
+| `spell-instant.wav`           | `game.spell.resolve.instant` (`Instant`)                    | _Interface Sounds_ 1.0 — `Audio/select_008.ogg`       |  0.060 s |   5,326 B |
+| `spell-planeswalker.wav`      | `game.spell.resolve.planeswalker` (`Planeswalker`)          | _Interface Sounds_ 1.0 — `Audio/confirmation_004.ogg` |  0.501 s |  44,238 B |
+| `spell-sorcery.wav`           | `game.spell.resolve.sorcery` (`Sorcery`)                    | _Interface Sounds_ 1.0 — `Audio/question_001.ogg`     |  0.501 s |  44,238 B |
+| `land-black.wav`              | `game.land.enter.black` (`BlackLand`)                       | _Interface Sounds_ 1.0 — `Audio/select_001.ogg`       |  0.062 s |  11,086 B |
+| `land-blue.wav`               | `game.land.enter.blue` (`BlueLand`)                         | _Interface Sounds_ 1.0 — `Audio/select_002.ogg`       |  0.062 s |  11,086 B |
+| `land-green.wav`              | `game.land.enter.green` (`GreenLand`)                       | _Interface Sounds_ 1.0 — `Audio/select_003.ogg`       |  0.385 s |  33,998 B |
+| `land-red.wav`                | `game.land.enter.red` (`RedLand`)                           | _Interface Sounds_ 1.0 — `Audio/select_004.ogg`       |  0.385 s |  33,998 B |
+| `land-white.wav`              | `game.land.enter.white` (`WhiteLand`)                       | _Interface Sounds_ 1.0 — `Audio/select_005.ogg`       |  0.385 s |  33,998 B |
+| `land-black-red.wav`          | `game.land.enter.black-red` (`BlackRedLand`)                | _Interface Sounds_ 1.0 — `Audio/select_006.ogg`       |  1.949 s | 171,982 B |
+| `land-black-white.wav`        | `game.land.enter.black-white` (`BlackWhiteLand`)            | _Interface Sounds_ 1.0 — `Audio/select_007.ogg`       |  0.060 s |   5,326 B |
+| `land-blue-black.wav`         | `game.land.enter.blue-black` (`BlueBlackLand`)              | _Interface Sounds_ 1.0 — `Audio/switch_003.ogg`       |  0.504 s |  88,910 B |
+| `land-green-black.wav`        | `game.land.enter.green-black` (`GreenBlackLand`)            | _Interface Sounds_ 1.0 — `Audio/switch_004.ogg`       |  0.504 s |  88,910 B |
+| `land-green-blue.wav`         | `game.land.enter.green-blue` (`GreenBlueLand`)              | _Interface Sounds_ 1.0 — `Audio/switch_005.ogg`       |  0.620 s | 109,390 B |
+| `land-green-red.wav`          | `game.land.enter.green-red` (`GreenRedLand`)                | _Interface Sounds_ 1.0 — `Audio/switch_006.ogg`       |  0.620 s | 109,390 B |
+| `land-red-blue.wav`           | `game.land.enter.red-blue` (`RedBlueLand`)                  | _Interface Sounds_ 1.0 — `Audio/switch_007.ogg`       |  0.620 s | 109,390 B |
+| `land-white-blue.wav`         | `game.land.enter.white-blue` (`WhiteBlueLand`)              | _Interface Sounds_ 1.0 — `Audio/tick_001.ogg`         |  0.045 s |   4,046 B |
+| `land-white-green.wav`        | `game.land.enter.white-green` (`WhiteGreenLand`)            | _Interface Sounds_ 1.0 — `Audio/tick_002.ogg`         |  0.023 s |   2,126 B |
+| `land-white-red.wav`          | `game.land.enter.white-red` (`WhiteRedLand`)                | _Interface Sounds_ 1.0 — `Audio/tick_004.ogg`         |  0.055 s |   4,942 B |
+| `land-black-red-green.wav`    | `game.land.enter.black-red-green` (`BlackRedGreenLand`)     | _Casino Audio_ 1.1 — `Audio/card-place-1.ogg`         |  0.710 s | 125,262 B |
+| `land-black-white-green.wav`  | `game.land.enter.black-white-green` (`BlackWhiteGreenLand`) | _Casino Audio_ 1.1 — `Audio/card-place-2.ogg`         |  0.469 s |  82,766 B |
+| `land-blue-black-red.wav`     | `game.land.enter.blue-black-red` (`BlueBlackRedLand`)       | _Casino Audio_ 1.1 — `Audio/card-place-3.ogg`         |  0.901 s | 159,054 B |
+| `land-green-black-blue.wav`   | `game.land.enter.green-black-blue` (`GreenBlackBlueLand`)   | _Casino Audio_ 1.1 — `Audio/card-place-4.ogg`         |  0.608 s | 107,342 B |
+| `land-green-blue-red.wav`     | `game.land.enter.green-blue-red` (`GreenBlueRedLand`)       | _Casino Audio_ 1.1 — `Audio/card-shove-1.ogg`         |  0.768 s | 135,502 B |
+| `land-green-red-white.wav`    | `game.land.enter.green-red-white` (`GreenRedWhiteLand`)     | _Interface Sounds_ 1.0 — `Audio/minimize_007.ogg`     |  0.186 s |  16,462 B |
+| `land-red-blue-white.wav`     | `game.land.enter.red-blue-white` (`RedBlueWhiteLand`)       | _Interface Sounds_ 1.0 — `Audio/minimize_008.ogg`     |  0.245 s |  21,710 B |
+| `land-white-blue-black.wav`   | `game.land.enter.white-blue-black` (`WhiteBlueBlackLand`)   | _Interface Sounds_ 1.0 — `Audio/minimize_009.ogg`     |  0.242 s |  21,454 B |
+| `land-white-green-blue.wav`   | `game.land.enter.white-green-blue` (`WhiteGreenBlueLand`)   | _Interface Sounds_ 1.0 — `Audio/maximize_007.ogg`     |  0.193 s |  17,102 B |
+| `land-white-red-black.wav`    | `game.land.enter.white-red-black` (`WhiteRedBlackLand`)     | _Interface Sounds_ 1.0 — `Audio/maximize_008.ogg`     |  0.245 s |  21,710 B |
+| `land-other.wav`              | `game.land.enter.other` (`OtherLand`)                       | _Interface Sounds_ 1.0 — `Audio/maximize_009.ogg`     |  0.228 s |  20,174 B |
+| `scripted-effect.wav`         | `game.card.scripted-effect` (`ScriptedEffect`)              | _Interface Sounds_ 1.0 — `Audio/glitch_002.ogg`       |  0.036 s |   6,478 B |
+| `button-press.wav`            | `ui.button.press` (`ButtonPress`)                           | _Interface Sounds_ 1.0 — `Audio/toggle_001.ogg`       |  0.158 s |  14,030 B |
+| `coins-drop.wav`              | `adventure.coins.drop` (`CoinsDrop`)                        | _Casino Audio_ 1.1 — `Audio/chips-collide-2.ogg`      |  0.234 s |  41,294 B |
+
 ## License files
 
 - [`KENNEY_CASINO_AUDIO_LICENSE.txt`](KENNEY_CASINO_AUDIO_LICENSE.txt) is copied verbatim from the root `License.txt` in Kenney’s _Casino Audio_ 1.1 archive.
 - [`KENNEY_INTERFACE_SOUNDS_LICENSE.txt`](KENNEY_INTERFACE_SOUNDS_LICENSE.txt) is copied verbatim from the root `License.txt` in Kenney’s _Interface Sounds_ 1.0 archive.
 - The _Card Game sounds_ archive contains no license file. Its OpenGameArt source page identifies HaelDB as the author and explicitly publishes the pack under CC0 1.0.
 
-All 17 WAV files are 44.1 kHz signed 16-bit PCM. Total audio payload: 995,234 bytes (approximately 972 KiB).
+All 75 WAV files are 44.1 kHz signed 16-bit PCM. Total audio payload: 3,656,398 bytes (approximately 3,571 KiB).

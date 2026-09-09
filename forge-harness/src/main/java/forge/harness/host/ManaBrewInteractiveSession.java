@@ -98,7 +98,7 @@ public final class ManaBrewInteractiveSession {
                     final SoundCueProjector.SoundType soundType,
                     final SoundCueProjector.Origin origin,
                     final int count,
-                    final long promptId
+                    final Long promptId
             ) {
                 enqueueSoundCue(playerIndex, soundType, origin, count, promptId);
             }
@@ -199,7 +199,7 @@ public final class ManaBrewInteractiveSession {
             final SoundCueProjector.SoundType soundType,
             final SoundCueProjector.Origin origin,
             final int count,
-            final long promptId
+            final Long promptId
     ) {
         enqueueSoundCueLocked(playerIndex, soundType, origin, count, promptId);
     }

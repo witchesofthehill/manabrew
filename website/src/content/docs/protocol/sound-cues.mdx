@@ -41,26 +41,118 @@ recipient could not otherwise see.
 
 ## Standard identifiers
 
-| Identifier                 | Meaning                                                   |
-| -------------------------- | --------------------------------------------------------- |
-| `game.start`               | The game has started.                                     |
-| `game.turn.start`          | A player's turn has started.                              |
-| `game.card.draw`           | One or more cards moved from a library to a hand.         |
-| `game.card.play`           | A land was played or a spell was cast.                    |
-| `game.card.tap`            | One or more permanents became tapped.                     |
-| `game.card.untap`          | One or more permanents became untapped.                   |
-| `game.card.discard`        | One or more cards left a hand for a graveyard or library. |
-| `game.card.destroy`        | One or more permanents were destroyed.                    |
-| `game.card.exile`          | One or more cards moved to exile.                         |
-| `game.library.shuffle`     | A player's library was shuffled.                          |
-| `game.player.life-gain`    | A player's life total increased.                          |
-| `game.player.life-loss`    | A player's life total decreased.                          |
-| `game.random.die-roll`     | A die was rolled.                                         |
-| `prompt.decision-required` | The recipient must make a modal decision.                 |
-| `prompt.target-required`   | The recipient must choose board targets.                  |
-| `prompt.payment-required`  | The recipient must make a mana payment.                   |
-| `prompt.combat-required`   | The recipient must make a combat decision.                |
-| `prompt.action-rejected`   | The recipient's submitted action was rejected.            |
+The catalog contains every Forge `SoundEffectType` plus Manabrew's existing
+cast, turn-start, and prompt cues.
+
+### Core game and prompt cues
+
+| Identifier | Forge type | Meaning |
+| --- | --- | --- |
+| `game.start` | `StartDuel` | The game has started. |
+| `game.turn.start` | — | A player's turn has started. |
+| `game.card.draw` | `Draw` | Cards moved from a library to a hand. |
+| `game.card.play` | — | A land was played or a spell was cast. |
+| `game.card.tap` | `Tap` | Permanents became tapped. |
+| `game.card.untap` | `Untap` | Permanents became untapped. |
+| `game.card.discard` | `Discard` | Cards left a hand for a graveyard or library. |
+| `game.card.destroy` | `Destroy` | Permanents were destroyed. |
+| `game.card.exile` | `Exile` | Cards moved to exile. |
+| `game.library.shuffle` | `Shuffle` | A player's library was shuffled. |
+| `game.player.life-gain` | `LifeGain` | A player's life total increased. |
+| `game.player.life-loss` | `LifeLoss` | A player's life total decreased. |
+| `game.random.die-roll` | `RollDie` | A die was rolled. |
+| `prompt.decision-required` | — | The recipient must make a modal decision. |
+| `prompt.target-required` | — | The recipient must choose board targets. |
+| `prompt.payment-required` | — | The recipient must make a mana payment. |
+| `prompt.combat-required` | — | The recipient must make a combat decision. |
+| `prompt.action-rejected` | — | The recipient's submitted action was rejected. |
+
+### Forge game-event cues
+
+| Identifier | Forge type | Meaning |
+| --- | --- | --- |
+| `game.card.counter-add` | `AddCounter` | Counters were added to a card. |
+| `game.combat.block` | `Block` | At least one attacker became blocked. |
+| `game.card.damage` | `Damage` | A card was dealt damage. |
+| `game.day-night.day` | `Daytime` | The game became day. |
+| `game.turn.end` | `EndOfTurn` | A turn ended. |
+| `game.card.attach` | `Equip` | A card became attached. |
+| `game.card.transform` | `FlipCard` | A card transformed. |
+| `game.random.coin-flip` | `FlipCoin` | A coin was flipped. |
+| `game.outcome.loss` | `LoseDuel` | The recipient lost the game. |
+| `game.player.mana-burn` | `ManaBurn` | A player took mana burn. |
+| `game.day-night.night` | `Nighttime` | The game became night. |
+| `game.card.phase` | `Phasing` | A card phased in or out. |
+| `game.player.poison` | `Poison` | A player's poison total changed. |
+| `game.card.regenerate` | `Regen` | A card regenerated. |
+| `game.card.counter-remove` | `RemoveCounter` | Counters were removed from a card. |
+| `game.card.sacrifice` | `Sacrifice` | A card was sacrificed. |
+| `game.snapshot.restored` | `SnapshotRestored` | A snapshot restore completed. |
+| `game.player.speed-up` | `SpeedUp` | A player's speed increased, including “Start your engines!”. |
+| `game.contraption.sprocket` | `Sprocket` | The active sprocket advanced. |
+| `game.player.shard` | `TakeShard` | A player's shard total changed. |
+| `game.token.create` | `Token` | A token was created. |
+| `game.outcome.win` | `WinDuel` | The recipient won the game. |
+
+Game outcomes are recipient-specific: the same Forge outcome event produces
+`game.outcome.win` for winners and `game.outcome.loss` for other seats.
+
+### Forge spell-resolution cues
+
+| Identifier | Forge type |
+| --- | --- |
+| `game.spell.resolve.artifact` | `Artifact` |
+| `game.spell.resolve.artifact-creature` | `ArtifactCreature` |
+| `game.spell.resolve.creature` | `Creature` |
+| `game.spell.resolve.enchantment` | `Enchantment` |
+| `game.spell.resolve.instant` | `Instant` |
+| `game.spell.resolve.planeswalker` | `Planeswalker` |
+| `game.spell.resolve.sorcery` | `Sorcery` |
+
+### Forge land-entry cues
+
+The Forge adapter classifies a land from its original mana-production colors.
+“Any color”, colorless, and unclassified lands use `game.land.enter.other`.
+
+| Identifier | Forge type |
+| --- | --- |
+| `game.land.enter.black` | `BlackLand` |
+| `game.land.enter.blue` | `BlueLand` |
+| `game.land.enter.green` | `GreenLand` |
+| `game.land.enter.red` | `RedLand` |
+| `game.land.enter.white` | `WhiteLand` |
+| `game.land.enter.black-red` | `BlackRedLand` |
+| `game.land.enter.black-white` | `BlackWhiteLand` |
+| `game.land.enter.blue-black` | `BlueBlackLand` |
+| `game.land.enter.green-black` | `GreenBlackLand` |
+| `game.land.enter.green-blue` | `GreenBlueLand` |
+| `game.land.enter.green-red` | `GreenRedLand` |
+| `game.land.enter.red-blue` | `RedBlueLand` |
+| `game.land.enter.white-blue` | `WhiteBlueLand` |
+| `game.land.enter.white-green` | `WhiteGreenLand` |
+| `game.land.enter.white-red` | `WhiteRedLand` |
+| `game.land.enter.black-red-green` | `BlackRedGreenLand` |
+| `game.land.enter.black-white-green` | `BlackWhiteGreenLand` |
+| `game.land.enter.blue-black-red` | `BlueBlackRedLand` |
+| `game.land.enter.green-black-blue` | `GreenBlackBlueLand` |
+| `game.land.enter.green-blue-red` | `GreenBlueRedLand` |
+| `game.land.enter.green-red-white` | `GreenRedWhiteLand` |
+| `game.land.enter.red-blue-white` | `RedBlueWhiteLand` |
+| `game.land.enter.white-blue-black` | `WhiteBlueBlackLand` |
+| `game.land.enter.white-green-blue` | `WhiteGreenBlueLand` |
+| `game.land.enter.white-red-black` | `WhiteRedBlackLand` |
+| `game.land.enter.other` | `OtherLand` |
+
+### Scripted and non-game Forge cues
+
+| Identifier | Forge type | Producer |
+| --- | --- | --- |
+| `game.card.scripted-effect` | `ScriptedEffect` | Spell resolution or land entry when Forge resolves a card-specific sound resource. |
+| `ui.button.press` | `ButtonPress` | Reserved for a protocol-aware Forge UI adapter; the headless game harness has no button events. |
+| `adventure.coins.drop` | `CoinsDrop` | Reserved for a protocol-aware Forge Adventure adapter; the headless game harness has no adventure UI events. |
+
+The client renders `game.card.scripted-effect` with a generic bundled cue. A
+producer never sends filesystem paths or card-provided filenames to the client.
 
 ## Producer requirements
 

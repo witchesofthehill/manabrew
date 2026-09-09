@@ -509,7 +509,7 @@
     },
     "SoundCueOrigin": {
       "ts": "type SoundCueOrigin =\n  | { type: \"player\"; playerId: string }\n  | { type: \"card\"; cardId: string };",
-      "rust": "#[serde(tag = \"type\", rename_all = \"camelCase\", rename_all_fields = \"camelCase\")]\npub enum SoundCueOrigin {\n    Player { player_id: String },\n    Card { card_id: String },\n}",
+      "rust": "#[serde(\n    tag = \"type\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum SoundCueOrigin {\n    Player { player_id: String },\n    Card { card_id: String },\n}",
       "refs": []
     },
     "SoundType": {

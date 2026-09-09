@@ -33,6 +33,82 @@ impl SoundType {
     pub const GAME_TURN_START: Self = Self(Cow::Borrowed("game.turn.start"));
     pub const GAME_RANDOM_DIE_ROLL: Self = Self(Cow::Borrowed("game.random.die-roll"));
     pub const GAME_START: Self = Self(Cow::Borrowed("game.start"));
+    pub const GAME_CARD_COUNTER_ADD: Self = Self(Cow::Borrowed("game.card.counter-add"));
+    pub const GAME_COMBAT_BLOCK: Self = Self(Cow::Borrowed("game.combat.block"));
+    pub const GAME_CARD_DAMAGE: Self = Self(Cow::Borrowed("game.card.damage"));
+    pub const GAME_DAY_NIGHT_DAY: Self = Self(Cow::Borrowed("game.day-night.day"));
+    pub const GAME_TURN_END: Self = Self(Cow::Borrowed("game.turn.end"));
+    pub const GAME_CARD_ATTACH: Self = Self(Cow::Borrowed("game.card.attach"));
+    pub const GAME_CARD_TRANSFORM: Self = Self(Cow::Borrowed("game.card.transform"));
+    pub const GAME_RANDOM_COIN_FLIP: Self = Self(Cow::Borrowed("game.random.coin-flip"));
+    pub const GAME_OUTCOME_LOSS: Self = Self(Cow::Borrowed("game.outcome.loss"));
+    pub const GAME_PLAYER_MANA_BURN: Self = Self(Cow::Borrowed("game.player.mana-burn"));
+    pub const GAME_DAY_NIGHT_NIGHT: Self = Self(Cow::Borrowed("game.day-night.night"));
+    pub const GAME_CARD_PHASE: Self = Self(Cow::Borrowed("game.card.phase"));
+    pub const GAME_PLAYER_POISON: Self = Self(Cow::Borrowed("game.player.poison"));
+    pub const GAME_CARD_REGENERATE: Self = Self(Cow::Borrowed("game.card.regenerate"));
+    pub const GAME_CARD_COUNTER_REMOVE: Self = Self(Cow::Borrowed("game.card.counter-remove"));
+    pub const GAME_CARD_SACRIFICE: Self = Self(Cow::Borrowed("game.card.sacrifice"));
+    pub const GAME_SNAPSHOT_RESTORED: Self = Self(Cow::Borrowed("game.snapshot.restored"));
+    pub const GAME_PLAYER_SPEED_UP: Self = Self(Cow::Borrowed("game.player.speed-up"));
+    pub const GAME_CONTRAPTION_SPROCKET: Self = Self(Cow::Borrowed("game.contraption.sprocket"));
+    pub const GAME_PLAYER_SHARD: Self = Self(Cow::Borrowed("game.player.shard"));
+    pub const GAME_TOKEN_CREATE: Self = Self(Cow::Borrowed("game.token.create"));
+    pub const GAME_OUTCOME_WIN: Self = Self(Cow::Borrowed("game.outcome.win"));
+    pub const GAME_SPELL_RESOLVE_ARTIFACT: Self =
+        Self(Cow::Borrowed("game.spell.resolve.artifact"));
+    pub const GAME_SPELL_RESOLVE_ARTIFACT_CREATURE: Self =
+        Self(Cow::Borrowed("game.spell.resolve.artifact-creature"));
+    pub const GAME_SPELL_RESOLVE_CREATURE: Self =
+        Self(Cow::Borrowed("game.spell.resolve.creature"));
+    pub const GAME_SPELL_RESOLVE_ENCHANTMENT: Self =
+        Self(Cow::Borrowed("game.spell.resolve.enchantment"));
+    pub const GAME_SPELL_RESOLVE_INSTANT: Self = Self(Cow::Borrowed("game.spell.resolve.instant"));
+    pub const GAME_SPELL_RESOLVE_PLANESWALKER: Self =
+        Self(Cow::Borrowed("game.spell.resolve.planeswalker"));
+    pub const GAME_SPELL_RESOLVE_SORCERY: Self = Self(Cow::Borrowed("game.spell.resolve.sorcery"));
+    pub const GAME_LAND_ENTER_BLACK: Self = Self(Cow::Borrowed("game.land.enter.black"));
+    pub const GAME_LAND_ENTER_BLUE: Self = Self(Cow::Borrowed("game.land.enter.blue"));
+    pub const GAME_LAND_ENTER_GREEN: Self = Self(Cow::Borrowed("game.land.enter.green"));
+    pub const GAME_LAND_ENTER_RED: Self = Self(Cow::Borrowed("game.land.enter.red"));
+    pub const GAME_LAND_ENTER_WHITE: Self = Self(Cow::Borrowed("game.land.enter.white"));
+    pub const GAME_LAND_ENTER_BLACK_RED: Self = Self(Cow::Borrowed("game.land.enter.black-red"));
+    pub const GAME_LAND_ENTER_BLACK_WHITE: Self =
+        Self(Cow::Borrowed("game.land.enter.black-white"));
+    pub const GAME_LAND_ENTER_BLUE_BLACK: Self = Self(Cow::Borrowed("game.land.enter.blue-black"));
+    pub const GAME_LAND_ENTER_GREEN_BLACK: Self =
+        Self(Cow::Borrowed("game.land.enter.green-black"));
+    pub const GAME_LAND_ENTER_GREEN_BLUE: Self = Self(Cow::Borrowed("game.land.enter.green-blue"));
+    pub const GAME_LAND_ENTER_GREEN_RED: Self = Self(Cow::Borrowed("game.land.enter.green-red"));
+    pub const GAME_LAND_ENTER_RED_BLUE: Self = Self(Cow::Borrowed("game.land.enter.red-blue"));
+    pub const GAME_LAND_ENTER_WHITE_BLUE: Self = Self(Cow::Borrowed("game.land.enter.white-blue"));
+    pub const GAME_LAND_ENTER_WHITE_GREEN: Self =
+        Self(Cow::Borrowed("game.land.enter.white-green"));
+    pub const GAME_LAND_ENTER_WHITE_RED: Self = Self(Cow::Borrowed("game.land.enter.white-red"));
+    pub const GAME_LAND_ENTER_BLACK_RED_GREEN: Self =
+        Self(Cow::Borrowed("game.land.enter.black-red-green"));
+    pub const GAME_LAND_ENTER_BLACK_WHITE_GREEN: Self =
+        Self(Cow::Borrowed("game.land.enter.black-white-green"));
+    pub const GAME_LAND_ENTER_BLUE_BLACK_RED: Self =
+        Self(Cow::Borrowed("game.land.enter.blue-black-red"));
+    pub const GAME_LAND_ENTER_GREEN_BLACK_BLUE: Self =
+        Self(Cow::Borrowed("game.land.enter.green-black-blue"));
+    pub const GAME_LAND_ENTER_GREEN_BLUE_RED: Self =
+        Self(Cow::Borrowed("game.land.enter.green-blue-red"));
+    pub const GAME_LAND_ENTER_GREEN_RED_WHITE: Self =
+        Self(Cow::Borrowed("game.land.enter.green-red-white"));
+    pub const GAME_LAND_ENTER_RED_BLUE_WHITE: Self =
+        Self(Cow::Borrowed("game.land.enter.red-blue-white"));
+    pub const GAME_LAND_ENTER_WHITE_BLUE_BLACK: Self =
+        Self(Cow::Borrowed("game.land.enter.white-blue-black"));
+    pub const GAME_LAND_ENTER_WHITE_GREEN_BLUE: Self =
+        Self(Cow::Borrowed("game.land.enter.white-green-blue"));
+    pub const GAME_LAND_ENTER_WHITE_RED_BLACK: Self =
+        Self(Cow::Borrowed("game.land.enter.white-red-black"));
+    pub const GAME_LAND_ENTER_OTHER: Self = Self(Cow::Borrowed("game.land.enter.other"));
+    pub const GAME_CARD_SCRIPTED_EFFECT: Self = Self(Cow::Borrowed("game.card.scripted-effect"));
+    pub const UI_BUTTON_PRESS: Self = Self(Cow::Borrowed("ui.button.press"));
+    pub const ADVENTURE_COINS_DROP: Self = Self(Cow::Borrowed("adventure.coins.drop"));
     pub const PROMPT_DECISION_REQUIRED: Self = Self(Cow::Borrowed("prompt.decision-required"));
     pub const PROMPT_TARGET_REQUIRED: Self = Self(Cow::Borrowed("prompt.target-required"));
     pub const PROMPT_PAYMENT_REQUIRED: Self = Self(Cow::Borrowed("prompt.payment-required"));

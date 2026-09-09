@@ -5,13 +5,12 @@ import {
   Graphics,
   ImageSource,
   Point,
-  Rectangle,
   Sprite,
   Text,
   Texture,
   type FederatedPointerEvent,
 } from "pixi.js";
-import boardBackgroundUrl from "@/assets/boardBackground.png";
+import { boardBackgroundUrl } from "./boardBackgrounds";
 import { darken, withAlpha } from "@/themes/gameTheme";
 import type { CardDto, PlaymatSettings } from "@/protocol/game";
 import type { AttackTargetDto } from "@/protocol/prompts/common";
@@ -157,21 +156,19 @@ interface RegionRecord {
   isLocal: boolean;
 }
 
-let boardBackgroundTexture: Texture | null = null;
-let boardBackgroundPromise: Promise<Texture> | null = null;
+const boardBackgroundTextures = new Map<string, Promise<Texture>>();
 
-function loadBoardBackground(): Promise<Texture> {
-  if (boardBackgroundTexture) return Promise.resolve(boardBackgroundTexture);
-  boardBackgroundPromise ??= new Promise<Texture>((resolve, reject) => {
+function loadBoardBackground(url: string): Promise<Texture> {
+  const cached = boardBackgroundTextures.get(url);
+  if (cached) return cached;
+  const promise = new Promise<Texture>((resolve, reject) => {
     const img = new Image();
-    img.onload = () => {
-      boardBackgroundTexture = new Texture({ source: new ImageSource({ resource: img }) });
-      resolve(boardBackgroundTexture);
-    };
+    img.onload = () => resolve(new Texture({ source: new ImageSource({ resource: img }) }));
     img.onerror = reject;
-    img.src = boardBackgroundUrl;
+    img.src = url;
   });
-  return boardBackgroundPromise;
+  boardBackgroundTextures.set(url, promise);
+  return promise;
 }
 
 export class BoardScene {
@@ -181,6 +178,7 @@ export class BoardScene {
   private root: Container;
   private baseBg: Graphics;
   private baseImage: Sprite;
+  private baseImageUrl: string | null = null;
   private collapseVeil: Graphics;
   private canvasW = 0;
   private canvasH = 0;
@@ -322,12 +320,7 @@ export class BoardScene {
     this.baseImage.anchor.set(0.5);
     this.baseImage.visible = false;
     this.root.addChild(this.baseImage);
-    void loadBoardBackground().then((texture) => {
-      if (this.destroyed) return;
-      this.baseImage.texture = texture;
-      this.baseImage.visible = true;
-      this.drawBaseBg();
-    });
+    this.setBackground(boardBackgroundUrl(undefined));
 
     this.dragHandler = new DragHandler();
 
@@ -1279,6 +1272,21 @@ export class BoardScene {
     if (this.destroyed) return;
     setCardSpriteStyle(style);
     for (const rec of this.regions.values()) rec.region.restyleCards();
+  }
+
+  setBackground(url: string | null): void {
+    if (this.destroyed || url === this.baseImageUrl) return;
+    this.baseImageUrl = url;
+    if (!url) {
+      this.baseImage.visible = false;
+      return;
+    }
+    void loadBoardBackground(url).then((texture) => {
+      if (this.destroyed || this.baseImageUrl !== url) return;
+      this.baseImage.texture = texture;
+      this.baseImage.visible = true;
+      this.drawBaseBg();
+    });
   }
 
   setHoverDebug(on: boolean): void {

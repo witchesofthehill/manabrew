@@ -1159,6 +1159,7 @@ fn handle_client_message(
             official_key,
             password,
             reconnect_timeout_s,
+            table_style,
         } => {
             info!(
                 "[lobby] '{}' creating room '{}' (max={}, format={:?}, hosted={}, engine={:?}, draft={}, sealed={})",
@@ -1185,6 +1186,7 @@ fn handle_client_message(
                 official_key,
                 password,
                 reconnect_timeout_s,
+                table_style,
             ) {
                 Ok((info, resume_token)) => {
                     info!(

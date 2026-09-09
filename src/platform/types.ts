@@ -64,6 +64,7 @@ export interface CreateRoomParams {
   sealedConfig?: SealedConfig;
   reconnectTimeoutS?: number;
   password?: string;
+  tableStyle?: string;
 }
 
 export interface JoinRoomParams {

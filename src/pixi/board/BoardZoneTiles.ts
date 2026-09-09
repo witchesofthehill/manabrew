@@ -12,6 +12,8 @@ import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "../colorUtils";
 import { applyIcon } from "../panelIcons";
 import { CardSprite, loadCardBack } from "../CardSprite";
+import { animationsEnabled } from "../effects/enabled";
+import { gsap } from "../effects/gsap";
 
 import { CARD_W, ZONE_BADGES, ZONE_TILE_KEY } from "@/components/game/game.constants";
 import { CARD_RADIUS } from "../constants";
@@ -42,11 +44,21 @@ export interface ZoneTileHost {
   isPointerTapSuppressed: (pointerId: number) => boolean;
 }
 
+interface ZoneParticle {
+  node: Graphics;
+  phase: number;
+  lane: number;
+}
+
 interface Tile {
   spec: ZoneTileSpec;
   container: Container;
   outline: Graphics;
   stack: Graphics;
+  hoverGlow: Graphics;
+  ambient: Container;
+  aura: Graphics;
+  particles: ZoneParticle[];
   face: CardSprite | null;
   renderedTopCard: CardDto | null;
   back: Sprite | null;
@@ -55,6 +67,7 @@ interface Tile {
   iconSprite: Sprite;
   countText: Text;
   taxText: Text;
+  hovered: boolean;
 }
 
 const DRAG_THRESHOLD_PX = 4;
@@ -66,6 +79,9 @@ const ZONE_SKELETON_DOT_SPACING_PX = 7;
 const ZONE_SKELETON_DOT_RADIUS_PX = 1.3;
 const ZONE_SKELETON_MIN_DOTS = 4;
 const ZONE_SKELETON_ALPHA = 0.45;
+const ZONE_PARTICLE_COUNT = 7;
+const ZONE_HOVER_SECONDS = 0.16;
+const TAU = Math.PI * 2;
 function drawDottedRoundRect(
   graphics: Graphics,
   width: number,
@@ -165,6 +181,9 @@ export class BoardZoneTiles {
 
   setDraggable(draggable: boolean): void {
     this.draggable = draggable;
+    for (const tile of this.tiles.values()) {
+      tile.container.cursor = tile.spec.onOpen ? "pointer" : draggable ? "grab" : "default";
+    }
   }
 
   setSpecs(specs: ZoneTileSpec[]): void {
@@ -172,6 +191,8 @@ export class BoardZoneTiles {
     const seen = new Set(specs.map((s) => s.key));
     for (const [key, tile] of [...this.tiles]) {
       if (seen.has(key)) continue;
+      gsap.killTweensOf(tile.hoverGlow);
+      gsap.killTweensOf(tile.ambient);
       this.container.removeChild(tile.container);
       tile.container.destroy({ children: true });
       this.tiles.delete(key);
@@ -180,6 +201,8 @@ export class BoardZoneTiles {
       const tile = this.tiles.get(spec.key) ?? this.createTile(spec);
       this.tiles.set(spec.key, tile);
       tile.spec = spec;
+      tile.container.cursor = spec.onOpen ? "pointer" : this.draggable ? "grab" : "default";
+      if (!spec.onOpen) this.setHovered(tile, false);
       this.applyFace(tile);
     }
     this.redraw();
@@ -207,9 +230,32 @@ export class BoardZoneTiles {
   private createTile(spec: ZoneTileSpec): Tile {
     const container = new Container();
     container.eventMode = "static";
-    container.cursor = "pointer";
+    container.cursor = spec.onOpen ? "pointer" : this.draggable ? "grab" : "default";
     const outline = new Graphics();
     const stack = new Graphics();
+    const hoverGlow = new Graphics();
+    hoverGlow.eventMode = "none";
+    hoverGlow.blendMode = "add";
+    hoverGlow.alpha = 0;
+    const ambient = new Container();
+    ambient.eventMode = "none";
+    ambient.visible = false;
+    ambient.alpha = 0.78;
+    const aura = new Graphics();
+    aura.blendMode = "add";
+    ambient.addChild(aura);
+    const particles: ZoneParticle[] = [];
+    for (let index = 0; index < ZONE_PARTICLE_COUNT; index++) {
+      const node = new Graphics();
+      node.eventMode = "none";
+      node.blendMode = "add";
+      ambient.addChild(node);
+      particles.push({
+        node,
+        phase: index / ZONE_PARTICLE_COUNT,
+        lane: ((index * 3) % ZONE_PARTICLE_COUNT) / (ZONE_PARTICLE_COUNT - 1),
+      });
+    }
     const icon = new Text({
       text: spec.label,
       style: { fontFamily: "system-ui, sans-serif", fontSize: 10, fontWeight: "500" },
@@ -238,13 +284,17 @@ export class BoardZoneTiles {
       },
     });
     taxText.anchor.set(0.5);
-    container.addChild(stack, outline, icon, iconSprite, countText, taxText);
+    container.addChild(stack, ambient, hoverGlow, outline, icon, iconSprite, countText, taxText);
     this.container.addChild(container);
     const tile: Tile = {
       spec,
       container,
       outline,
       stack,
+      hoverGlow,
+      ambient,
+      aura,
+      particles,
       face: null,
       renderedTopCard: null,
       back: null,
@@ -253,8 +303,13 @@ export class BoardZoneTiles {
       iconSprite,
       countText,
       taxText,
+      hovered: false,
     };
 
+    container.on("pointerenter", (event: FederatedPointerEvent) => {
+      if (event.pointerType !== "touch" && tile.spec.onOpen) this.setHovered(tile, true);
+    });
+    container.on("pointerleave", () => this.setHovered(tile, false));
     container.on("pointerdown", (e: FederatedPointerEvent) => {
       if (tile.spec.topCard && !tile.spec.back) {
         this.longPress.start(e, tile.spec.key, () => {
@@ -331,6 +386,196 @@ export class BoardZoneTiles {
     return tile;
   }
 
+  private setHovered(tile: Tile, hovered: boolean): void {
+    if (tile.hovered === hovered) return;
+    tile.hovered = hovered;
+    gsap.killTweensOf(tile.hoverGlow);
+    gsap.killTweensOf(tile.ambient);
+    if (!animationsEnabled()) {
+      tile.hoverGlow.alpha = hovered ? 1 : 0;
+      tile.ambient.alpha = hovered ? 1 : 0.78;
+      return;
+    }
+    gsap.to(tile.hoverGlow, {
+      alpha: hovered ? 1 : 0,
+      duration: ZONE_HOVER_SECONDS,
+      ease: hovered ? "power2.out" : "power1.out",
+    });
+    gsap.to(tile.ambient, {
+      alpha: hovered ? 1 : 0.78,
+      duration: ZONE_HOVER_SECONDS,
+      ease: "power1.out",
+    });
+  }
+
+  private ambientColor(tile: Tile): number {
+    const gt = this.theme.gameTheme;
+    switch (tile.spec.key) {
+      case ZONE_TILE_KEY.library:
+        return hexToNum(gt.counter.page);
+      case ZONE_TILE_KEY.graveyard:
+        return hexToNum(gt.canvas.neutral);
+      case ZONE_TILE_KEY.exile:
+        return hexToNum(gt.cardStatus.transformed);
+      case ZONE_TILE_KEY.command:
+        return hexToNum(tile.spec.commander ?? gt.badges.monarch);
+      default:
+        return hexToNum(gt.cardRing);
+    }
+  }
+
+  private drawTileEffects(
+    tile: Tile,
+    scale: number,
+    radius: number,
+    highlightColor: number | null,
+  ): void {
+    const width = this.cardW;
+    const height = this.cardH;
+    const hoverColor = highlightColor ?? hexToNum(this.theme.gameTheme.cardRing);
+    const ambientColor = this.ambientColor(tile);
+    tile.hoverGlow
+      .clear()
+      .roundRect(-3 * scale, -3 * scale, width + 6 * scale, height + 6 * scale, radius)
+      .stroke({ color: hoverColor, width: Math.max(3, 4 * scale), alpha: 0.22 })
+      .roundRect(-scale, -scale, width + 2 * scale, height + 2 * scale, radius)
+      .stroke({ color: hoverColor, width: Math.max(1, 1.4 * scale), alpha: 0.9 });
+
+    tile.aura.clear();
+    tile.aura.position.set(width / 2, height / 2);
+    if (tile.face || tile.back) {
+      const gap = Math.max(2.5, 3 * scale);
+      tile.aura
+        .roundRect(
+          -width / 2 - gap * 1.7,
+          -height / 2 - gap * 1.7,
+          width + gap * 3.4,
+          height + gap * 3.4,
+          radius + gap * 1.7,
+        )
+        .stroke({ color: ambientColor, width: Math.max(5, 7 * scale), alpha: 0.1 })
+        .roundRect(
+          -width / 2 - gap,
+          -height / 2 - gap,
+          width + gap * 2,
+          height + gap * 2,
+          radius + gap,
+        )
+        .stroke({ color: ambientColor, width: Math.max(1, 1.5 * scale), alpha: 0.58 });
+    } else {
+      switch (tile.spec.key) {
+        case ZONE_TILE_KEY.library:
+          tile.aura
+            .moveTo(-width * 0.22, -height * 0.08)
+            .bezierCurveTo(
+              -width * 0.08,
+              -height * 0.13,
+              width * 0.08,
+              -height * 0.03,
+              width * 0.22,
+              -height * 0.08,
+            )
+            .stroke({ color: ambientColor, width: Math.max(1.25, 1.5 * scale), alpha: 0.48 })
+            .moveTo(-width * 0.18, 0)
+            .bezierCurveTo(
+              -width * 0.06,
+              -height * 0.04,
+              width * 0.06,
+              height * 0.04,
+              width * 0.18,
+              0,
+            )
+            .stroke({ color: ambientColor, width: Math.max(1, 1.25 * scale), alpha: 0.36 });
+          break;
+        case ZONE_TILE_KEY.graveyard:
+          tile.aura
+            .arc(0, height * 0.08, width * 0.22, Math.PI * 1.08, Math.PI * 1.92)
+            .stroke({ color: ambientColor, width: Math.max(1.25, 1.5 * scale), alpha: 0.42 });
+          break;
+        case ZONE_TILE_KEY.exile:
+          tile.aura
+            .ellipse(0, 0, width * 0.3, height * 0.18)
+            .stroke({ color: ambientColor, width: Math.max(1.25, 1.5 * scale), alpha: 0.52 })
+            .ellipse(0, 0, width * 0.18, height * 0.1)
+            .stroke({ color: ambientColor, width: Math.max(1, 1.25 * scale), alpha: 0.38 });
+          break;
+        case ZONE_TILE_KEY.command:
+          tile.aura
+            .circle(0, 0, width * 0.27)
+            .stroke({ color: ambientColor, width: Math.max(1.25, 1.5 * scale), alpha: 0.48 })
+            .star(0, 0, 4, width * 0.31, width * 0.27, Math.PI / 4)
+            .stroke({ color: ambientColor, width: Math.max(1, 1.25 * scale), alpha: 0.32 });
+          break;
+      }
+    }
+    tile.particles.forEach(({ node }, index) => {
+      const particleRadius = Math.max(1.35, scale * (1.35 + (index % 3) * 0.45));
+      node
+        .clear()
+        .circle(0, 0, particleRadius * 2.4)
+        .fill({ color: ambientColor, alpha: 0.2 })
+        .circle(0, 0, particleRadius)
+        .fill({ color: ambientColor, alpha: 0.95 });
+    });
+  }
+
+  animate(now: number, motionEnabled: boolean): void {
+    if (this.cardW <= 0 || this.cardH <= 0) return;
+    const seconds = now / 1000;
+    for (const tile of this.tiles.values()) {
+      tile.ambient.visible = motionEnabled;
+      if (!motionEnabled) continue;
+      const hasCard = tile.face !== null || tile.back !== null;
+      if (hasCard) {
+        const pulse = (Math.sin(seconds * 2.2 + tile.particles[0]!.phase * TAU) + 1) / 2;
+        tile.aura.alpha = 0.55 + pulse * 0.35;
+        tile.aura.rotation = 0;
+        tile.aura.scale.set(0.99 + pulse * 0.025);
+        for (const particle of tile.particles) particle.node.visible = false;
+        continue;
+      }
+      tile.aura.alpha = 0.78 + Math.sin(seconds * 1.1 + tile.particles[0]!.phase * TAU) * 0.18;
+      tile.aura.rotation =
+        tile.spec.key === ZONE_TILE_KEY.exile
+          ? seconds * 0.14
+          : tile.spec.key === ZONE_TILE_KEY.command
+            ? -seconds * 0.08
+            : 0;
+      tile.aura.scale.set(1);
+      tile.particles.forEach((particle, index) => {
+        particle.node.visible = true;
+        const phase = particle.phase * TAU;
+        if (tile.spec.key === ZONE_TILE_KEY.library) {
+          const progress = (seconds * 0.12 + particle.phase) % 1;
+          particle.node.position.set(
+            this.cardW * (0.16 + particle.lane * 0.68) + Math.sin(seconds * 1.4 + phase) * 3,
+            this.cardH * (0.9 - progress * 0.8),
+          );
+          particle.node.alpha = 0.12 + Math.sin(Math.PI * progress) * 0.38;
+          particle.node.scale.set(0.78 + progress * 0.42);
+        } else if (tile.spec.key === ZONE_TILE_KEY.graveyard) {
+          const progress = (seconds * 0.085 + particle.phase) % 1;
+          particle.node.position.set(
+            this.cardW * (0.16 + particle.lane * 0.68) + Math.sin(seconds + phase) * 4,
+            this.cardH * (0.1 + progress * 0.78),
+          );
+          particle.node.alpha = 0.1 + Math.sin(Math.PI * progress) * 0.3;
+          particle.node.scale.set(1.2 - progress * 0.42);
+        } else {
+          const speed = tile.spec.key === ZONE_TILE_KEY.exile ? 0.6 : -0.42;
+          const angle = seconds * speed + phase;
+          const orbitX = this.cardW * (tile.spec.key === ZONE_TILE_KEY.exile ? 0.3 : 0.27);
+          const orbitY = this.cardH * (tile.spec.key === ZONE_TILE_KEY.exile ? 0.2 : 0.16);
+          particle.node.position.set(
+            this.cardW / 2 + Math.cos(angle) * orbitX,
+            this.cardH / 2 + Math.sin(angle) * orbitY,
+          );
+          particle.node.alpha = 0.18 + (Math.sin(angle * 2 + index) + 1) * 0.14;
+          particle.node.scale.set(0.82 + (Math.sin(angle + index) + 1) * 0.16);
+        }
+      });
+    }
+  }
   private applyFace(tile: Tile): void {
     const { spec } = tile;
     if (spec.back) {
@@ -345,8 +590,8 @@ export class BoardZoneTiles {
         tile.backMask = new Graphics();
         tile.backMask.eventMode = "none";
         tile.back.mask = tile.backMask;
-        tile.container.addChildAt(tile.back, 1);
-        tile.container.addChildAt(tile.backMask, 2);
+        tile.container.addChildAt(tile.back, 3);
+        tile.container.addChildAt(tile.backMask, 4);
       }
       if (tile.back.texture === Texture.EMPTY) this.ensureCardBack();
       return;
@@ -366,7 +611,7 @@ export class BoardZoneTiles {
       const faceCard = { ...spec.topCard, summoningSick: false };
       if (!tile.face) {
         tile.face = new CardSprite(faceCard, "zone");
-        tile.container.addChildAt(tile.face, 1);
+        tile.container.addChildAt(tile.face, 3);
       } else {
         tile.face.updateCardContent(faceCard);
       }
@@ -416,6 +661,7 @@ export class BoardZoneTiles {
       const iconSize = Math.round(cardW * (hasContent ? 0.2 : 0.32));
       tile.outline.clear();
       tile.stack.clear();
+      this.drawTileEffects(tile, k, radius, hl);
 
       if (hasContent && isLibrary) {
         const layers = Math.min(4, Math.ceil(spec.count / 20));
@@ -541,7 +787,11 @@ export class BoardZoneTiles {
   destroy(): void {
     this.destroyed = true;
     this.longPress.cancel();
-    for (const tile of this.tiles.values()) tile.container.destroy({ children: true });
+    for (const tile of this.tiles.values()) {
+      gsap.killTweensOf(tile.hoverGlow);
+      gsap.killTweensOf(tile.ambient);
+      tile.container.destroy({ children: true });
+    }
     this.tiles.clear();
     this.container.destroy({ children: true });
   }

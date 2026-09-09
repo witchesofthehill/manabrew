@@ -605,6 +605,7 @@ export class BoardRegion {
     const now = performance.now();
     const frameRatio = getFrameRatio();
     const motionEnabled = animationsEnabled();
+    this.zoneTiles.animate(now, motionEnabled);
     for (const [id, entry] of this.entries) {
       const s = entry.sprite;
       if (entry.exiting) {

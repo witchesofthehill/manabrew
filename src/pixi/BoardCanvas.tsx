@@ -32,6 +32,8 @@ import { HandCardActions } from "@/components/game/zones/HandCardActions";
 import { useCardFaces } from "@/hooks/useCardFaces";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { useGameDevStore } from "@/stores/useGameDevStore";
+import { useServerStore } from "@/stores/useServerStore";
+import { boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
 import { setAnimationsEnabled } from "./effects/enabled";
 import { withAlpha } from "@/themes/gameTheme";
 
@@ -582,6 +584,12 @@ export function BoardCanvas({
   useEffect(() => {
     scene?.setAttackRowDebug(showAttackRows);
   }, [scene, showAttackRows]);
+
+  const tableStyle = useServerStore((s) => s.currentRoom?.table_style);
+
+  useEffect(() => {
+    scene?.setBackground(boardBackgroundUrl(tableStyle));
+  }, [scene, tableStyle]);
 
   const inGameAnimations = usePreferencesStore((s) => s.inGameAnimations);
   useEffect(() => {

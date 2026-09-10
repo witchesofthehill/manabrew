@@ -159,7 +159,7 @@ The Forge adapter classifies a land from its original mana-production colors.
 
 | Identifier | Forge type | Producer |
 | --- | --- | --- |
-| `game.card.scripted-effect` | `ScriptedEffect` | Spell resolution or land entry when Forge resolves a card-specific sound resource. |
+| `game.card.scripted-effect` | `ScriptedEffect` | Spell resolution or land entry for a card with a non-empty `SoundEffect` SVar. |
 
 The client maps `game.card.scripted-effect` to a generic bundled cue. A producer
 never sends filesystem paths or card-provided filenames to the client.

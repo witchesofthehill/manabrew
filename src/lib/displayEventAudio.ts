@@ -15,20 +15,8 @@ const activeVoices = new Map<string, number>();
 const lastPlayedAt = new Map<string, number>();
 const variantOffsets = new Map<string, number>();
 const seenPromptEvents = new Set<string>();
-let assetLoadPromise: Promise<void> | null = null;
 let playbackQueue = Promise.resolve();
 let sessionGeneration = 0;
-
-export function initializeDisplayEventAudio(): void {
-  if (assetLoadPromise) return;
-  assetLoadPromise = Promise.all(
-    (Object.keys(DISPLAY_EVENT_AUDIO_ASSETS) as DisplayEventAudioAssetKey[]).map(async (key) => {
-      const asset = DISPLAY_EVENT_AUDIO_ASSETS[key];
-      const soundAsset = await loadSoundAsset(asset);
-      if (soundAsset) loadedAssets.set(key, soundAsset);
-    }),
-  ).then(() => undefined);
-}
 
 function releaseVoice(voiceKey: string, generation: number): void {
   if (generation !== sessionGeneration) return;
@@ -41,10 +29,19 @@ async function playDisplayEventAudio(
   definition: DisplayEventAudioDefinition,
   generation: number,
 ): Promise<void> {
-  await assetLoadPromise;
+  const variants = (
+    await Promise.all(
+      definition.variants.map(async (key) => {
+        const loaded = loadedAssets.get(key);
+        if (loaded) return key;
+        const soundAsset = await loadSoundAsset(DISPLAY_EVENT_AUDIO_ASSETS[key]);
+        if (!soundAsset) return null;
+        loadedAssets.set(key, soundAsset);
+        return key;
+      }),
+    )
+  ).filter((key): key is DisplayEventAudioAssetKey => key !== null);
   if (generation !== sessionGeneration || usePreferencesStore.getState().soundMuted) return;
-
-  const variants = definition.variants.filter((key) => loadedAssets.has(key));
   if (variants.length === 0) return;
 
   const voiceKey = definition.variants.join("\u0000");
@@ -98,7 +95,6 @@ export function presentDisplayEventAudio(event: DisplayEvent): void {
     seenPromptEvents.add(promptEventKey);
   }
 
-  initializeDisplayEventAudio();
   const generation = sessionGeneration;
   playbackQueue = playbackQueue
     .then(() => playDisplayEventAudio(event, definition, generation))

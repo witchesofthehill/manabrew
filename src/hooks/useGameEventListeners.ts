@@ -22,7 +22,6 @@ import { SELF_RECONNECT_WINDOW_S } from "@/hooks/useMultiplayerInterruption";
 import { clearActiveGameSession, peekActiveGameSession } from "@/lib/activeGameSession";
 import { FORETELL_LOG_PREFIX, normalizeGameLogPayload, type GameLogEntry } from "@/types/gameLog";
 import { normalizeSnapshotPayload } from "@/types/gameSnapshot";
-import { initializeDisplayEventAudio } from "@/lib/displayEventAudio";
 import { resetDisplayEventSession } from "@/lib/displayEvents";
 import {
   applyDisplay,
@@ -221,7 +220,6 @@ export function useGameEventListeners() {
 
   useEffect(() => {
     resetDisplayEventSession();
-    initializeDisplayEventAudio();
     const platform = getPlatform();
     const runtime = getSelectedGameRuntime();
     const unsubscribers: (() => void)[] = [];

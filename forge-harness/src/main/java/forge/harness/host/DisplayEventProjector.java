@@ -44,8 +44,6 @@ import forge.game.player.PlayerView;
 import forge.game.zone.ZoneType;
 import forge.harness.common.SnapshotExtractor;
 import forge.item.IPaperCard;
-import forge.sound.SoundSystem;
-import forge.util.TextUtil;
 
 import java.util.Objects;
 
@@ -564,27 +562,23 @@ final class DisplayEventProjector extends IGameEventVisitor.Base<DisplayEventPro
             return null;
         }
         final IPaperCard paper = card.getPaperCard();
+        final Context context = card.isFaceDown()
+                ? null
+                : Context.card(
+                        card.getName(),
+                        paper == null ? card.getSetCode() : paper.getEdition(),
+                        "player-" + SnapshotExtractor.playerIndex(game, player));
         return event(
                 EventType.CARD_PLAY,
                 Origin.card(SnapshotExtractor.javaCardId(card)),
-                Context.card(
-                        card.getName(),
-                        paper == null ? card.getSetCode() : paper.getEdition(),
-                        "player-" + SnapshotExtractor.playerIndex(game, player)));
+                context);
     }
 
     private boolean hasScriptedEffect(final CardView view) {
         final Card card = game.findByView(view);
-        final String effect = card != null && card.hasSVar("SoundEffect")
-                ? card.getSVar("SoundEffect")
-                : TextUtil.fastReplace(
-                        TextUtil.fastReplace(
-                                TextUtil.fastReplace(view.getName(), ",", ""),
-                                " ",
-                                "_"),
-                        "'",
-                        "").toLowerCase();
-        return !effect.isEmpty() && SoundSystem.instance.getSoundResource(effect) != null;
+        return card != null
+                && card.hasSVar("SoundEffect")
+                && !card.getSVar("SoundEffect").isEmpty();
     }
 
     private static EventType landEventType(final CardStateView state) {
@@ -644,7 +638,6 @@ final class DisplayEventProjector extends IGameEventVisitor.Base<DisplayEventPro
 
     private static EventType promptEventType(final String promptType) {
         if (promptType == null
-                || "chooseAction".equals(promptType)
                 || "gameOver".equals(promptType)
                 || "diceRolled".equals(promptType)) {
             return null;

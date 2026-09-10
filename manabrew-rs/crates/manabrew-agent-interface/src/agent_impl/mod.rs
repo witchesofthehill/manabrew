@@ -108,12 +108,13 @@ fn project_display(source: DisplayProjection<'_>) -> Option<ProjectedDisplayEven
                 card_id,
                 card_name,
                 set_code,
+                identity_hidden,
             } => (
                 DisplayEventType::GAME_CARD_PLAY.clone(),
                 Some(DisplayEventOrigin::Card {
                     card_id: card_id_str(*card_id),
                 }),
-                Some(DisplayEventContext::Card {
+                (!*identity_hidden).then(|| DisplayEventContext::Card {
                     card_name: card_name.clone(),
                     set_code: set_code.clone(),
                     player_id: player_id_str(*player),
@@ -255,7 +256,8 @@ fn project_display(source: DisplayProjection<'_>) -> Option<ProjectedDisplayEven
                 | PromptInput::ChooseCombatDamageAssignment(_) => {
                     DisplayEventType::PROMPT_COMBAT_REQUIRED.clone()
                 }
-                PromptInput::Mulligan(_)
+                PromptInput::ChooseAction(_)
+                | PromptInput::Mulligan(_)
                 | PromptInput::MulliganPutBack(_)
                 | PromptInput::ChooseBoolean(_)
                 | PromptInput::ChooseFromSelection(_)
@@ -265,9 +267,7 @@ fn project_display(source: DisplayProjection<'_>) -> Option<ProjectedDisplayEven
                 | PromptInput::ChooseNumber(_)
                 | PromptInput::ChooseCards(_)
                 | PromptInput::Reorder(_) => DisplayEventType::PROMPT_DECISION_REQUIRED.clone(),
-                PromptInput::ChooseAction(_)
-                | PromptInput::DiceRolled(_)
-                | PromptInput::GameOver(_) => return None,
+                PromptInput::DiceRolled(_) | PromptInput::GameOver(_) => return None,
             };
             (
                 event_type,

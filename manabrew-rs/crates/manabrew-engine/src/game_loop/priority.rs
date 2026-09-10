@@ -316,6 +316,10 @@ impl GameLoop {
                     }
 
                     let origin_zone = game.card_current_zone(play.card_id);
+                    let identity_hidden = matches!(
+                        play.mode,
+                        crate::agent::PlayCardMode::Alternative(cost) if cost.is_morph()
+                    );
                     let played =
                         self.with_shared_state_mutation(game, agents, |this, game, agents| {
                             let card_name = game.card(play.card_id).card_name.clone();
@@ -368,6 +372,7 @@ impl GameLoop {
                                     card_id: played_id,
                                     card_name: played_name.clone(),
                                     set_code: set_code.clone(),
+                                    identity_hidden,
                                 },
                             );
                         }

@@ -28,6 +28,7 @@ pub enum GameNotification {
         card_id: CardId,
         card_name: String,
         set_code: String,
+        identity_hidden: bool,
     },
     GameStarted,
     CardMoved {

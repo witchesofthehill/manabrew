@@ -308,13 +308,15 @@ export class PromptButton extends Container {
         fontFamily: FONT,
         fontSize: 9,
         fontWeight: "700",
-        fill: 0xffffff,
+        fill: hexToNum(this.theme.gameTheme.textOnTinted),
       }),
     });
     label.anchor.set(0.5);
     const width = Math.max(16, label.width + 8);
     badge.addChild(
-      new Graphics().roundRect(-width / 2, -8, width, 16, 8).fill({ color: 0x000000, alpha: 0.8 }),
+      new Graphics()
+        .roundRect(-width / 2, -8, width, 16, 8)
+        .fill({ color: hexToNum(this.theme.gameTheme.canvas.shadow), alpha: 0.8 }),
       label,
     );
     badge.eventMode = "none";
@@ -329,13 +331,15 @@ export class PromptButton extends Container {
         fontFamily: FONT,
         fontSize: 10,
         fontWeight: "600",
-        fill: 0xffffff,
+        fill: hexToNum(this.theme.appTheme["popover-foreground"]),
       }),
     });
     label.anchor.set(0.5);
     const width = label.width + 16;
     tooltip.addChild(
-      new Graphics().roundRect(-width / 2, -10, width, 20, 4).fill({ color: 0x000000, alpha: 0.8 }),
+      new Graphics()
+        .roundRect(-width / 2, -10, width, 20, 4)
+        .fill({ color: hexToNum(this.theme.appTheme.popover), alpha: 0.95 }),
       label,
     );
     tooltip.eventMode = "none";

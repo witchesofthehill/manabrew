@@ -671,18 +671,28 @@ export const useCard = (lookup: ScryfallCardLookup | null | undefined) => {
 
   useEffect(() => {
     if (!hasLookup || cached) return;
-    void getCard({ id, name, setCode, collectorNumber });
+    void getCard({ id, name, setCode, collectorNumber }).catch(() => undefined);
   }, [getCard, id, name, setCode, collectorNumber, cached, key, hasLookup]);
   return cached;
 };
 export const useCardRulings = (card: { rulings_uri?: string }) => {
   const getRulings = useScryfallStore((s) => s.getRulings);
+  const rulingsUri = card.rulings_uri;
   const [out, setOut] = useState<ScryfallRulingsResponse | null>(null);
   useEffect(() => {
-    if (!card.rulings_uri) return;
-    getRulings({ rulings_uri: card.rulings_uri }).then(setOut);
-  }, [getRulings, card]);
-  if (!card.rulings_uri) return EMPTY_RULINGS;
+    if (!rulingsUri) return;
+    let active = true;
+    void getRulings({ rulings_uri: rulingsUri }).then(
+      (rulings) => {
+        if (active) setOut(rulings);
+      },
+      () => undefined,
+    );
+    return () => {
+      active = false;
+    };
+  }, [getRulings, rulingsUri]);
+  if (!rulingsUri) return EMPTY_RULINGS;
   return out;
 };
 

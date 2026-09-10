@@ -17,7 +17,7 @@ import { deriveCardPresentation } from "@/components/game/cardPresentation";
 import { isFacelessCard } from "@/lib/gameCard";
 import { hexToNum } from "@/pixi/colorUtils";
 import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
-import { asDeckCard } from "@/lib/decks";
+import { asGameDeckCard } from "@/lib/decks";
 import { useGameStore } from "@/stores/useGameStore";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { gsap } from "@/pixi/effects/gsap";
@@ -207,7 +207,7 @@ export class HandRulesCardFace extends Container {
       this.artTexture = Texture.EMPTY;
       return;
     }
-    const deckCard = asDeckCard(useGameStore.getState().gameDecks[this.card.ownerId], this.card);
+    const deckCard = asGameDeckCard(useGameStore.getState().gameDecks, this.card);
     try {
       const texture = await useScryfallStore
         .getState()
@@ -236,7 +236,7 @@ export class HandRulesCardFace extends Container {
     this.root.scale.set(this.slotWidth / designWidth, this.slotHeight / designHeight);
 
     const presentation = deriveCardPresentation({ ...this.card, zoneId: "hand" });
-    const deckCard = asDeckCard(useGameStore.getState().gameDecks[this.card.ownerId], this.card);
+    const deckCard = asGameDeckCard(useGameStore.getState().gameDecks, this.card);
     const display = resolveRulesPreviewDisplay({
       card: this.card,
       presentation,

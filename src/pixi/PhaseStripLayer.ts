@@ -570,7 +570,10 @@ export class PhaseStripLayer {
     const hoverPad = INDICATOR_HIT_H + INDICATOR_MARGIN + 2;
     this.stripHitArea.clear();
     this.stripHitArea.rect(stripLeft, y - hoverPad, stripRight - stripLeft, CELL_H + hoverPad * 2);
-    this.stripHitArea.fill({ color: 0x000000, alpha: 0.001 });
+    this.stripHitArea.fill({
+      color: hexToNum(this.theme.gameTheme.canvas.neutral),
+      alpha: 0.001,
+    });
 
     const turnJustStarted = state.isActiveTurn && !this.prevIsActiveTurn;
     this.prevIsActiveTurn = state.isActiveTurn;
@@ -607,7 +610,10 @@ export class PhaseStripLayer {
         pillW + COMPACT_PILL_HIT_PAD * 2,
         COMPACT_PILL_H + COMPACT_PILL_HIT_PAD * 2,
       );
-      this.pillHit.fill({ color: 0x000000, alpha: 0.001 });
+      this.pillHit.fill({
+        color: hexToNum(this.theme.gameTheme.canvas.neutral),
+        alpha: 0.001,
+      });
       this.lineGfx.moveTo(0, lineY);
       this.lineGfx.lineTo(pillX - CELL_GAP, lineY);
       this.lineGfx.moveTo(pillX + pillW + CELL_GAP, lineY);
@@ -703,7 +709,10 @@ export class PhaseStripLayer {
 
       cell.hitArea.clear();
       cell.hitArea.rect(cx, y, cellW, CELL_H);
-      cell.hitArea.fill({ color: 0x000000, alpha: 0.001 });
+      cell.hitArea.fill({
+        color: hexToNum(this.theme.gameTheme.canvas.neutral),
+        alpha: 0.001,
+      });
 
       cell.bg.clear();
       cell.bg.roundRect(cx, y, cellW, CELL_H, CELL_R);
@@ -742,7 +751,10 @@ export class PhaseStripLayer {
       // Hit areas (static positions, always present)
       cell.selfHitArea.clear();
       cell.selfHitArea.rect(cx, y + CELL_H, cellW, INDICATOR_HIT_H);
-      cell.selfHitArea.fill({ color: 0x000000, alpha: 0.001 });
+      cell.selfHitArea.fill({
+        color: hexToNum(this.theme.gameTheme.canvas.neutral),
+        alpha: 0.001,
+      });
 
       const oppCount = state.opponents.length;
       const oppSegW = (cellW - Math.max(0, oppCount - 1) * INDICATOR_GAP) / Math.max(1, oppCount);
@@ -760,7 +772,10 @@ export class PhaseStripLayer {
           oppSegW,
           INDICATOR_HIT_H,
         );
-        oha.fill({ color: 0x000000, alpha: 0.001 });
+        oha.fill({
+          color: hexToNum(this.theme.gameTheme.canvas.neutral),
+          alpha: 0.001,
+        });
       }
 
       cell._fx = cx;

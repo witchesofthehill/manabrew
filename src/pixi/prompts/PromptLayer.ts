@@ -1708,13 +1708,17 @@ export class PromptLayer {
     const strip = new Container();
     const stripBackground = new Graphics()
       .roundRect(0, 0, stripWidth, 36, 8)
-      .fill({ color: 0xffffff, alpha: 0.05 })
-      .stroke({ color: 0xffffff, width: 1, alpha: 0.2 });
-    const crosshair = this.makeIcon("lucide-crosshair", 14, "#ffffff");
+      .fill({ color: hexToNum(this.theme.gameTheme.textOnTinted), alpha: 0.05 })
+      .stroke({
+        color: hexToNum(this.theme.gameTheme.textOnTinted),
+        width: 1,
+        alpha: 0.2,
+      });
+    const crosshair = this.makeIcon("lucide-crosshair", 14, this.theme.gameTheme.textOnTinted);
     crosshair.position.set(14, 18);
     crosshair.alpha = 0.8;
     this.actionPulseNodes.push({ node: crosshair, maxAlpha: 0.8 });
-    const text = promptText(label, 12, "#ffffff", {
+    const text = promptText(label, 12, this.theme.gameTheme.textOnTinted, {
       weight: "600",
       width: stripWidth - 38,
       truncate: true,
@@ -1991,7 +1995,7 @@ export class PromptLayer {
     const surface = new Graphics();
     surface
       .roundRect(0, 4, width, height, radius)
-      .fill({ color: 0x000000, alpha: 0.18 })
+      .fill({ color: hexToNum(this.theme.gameTheme.canvas.shadow), alpha: 0.18 })
       .roundRect(0, 0, width, height, radius)
       .fill({ color: hexToNum(this.theme.appTheme.card), alpha: 0.95 });
     if (squareBottom) {
@@ -2063,11 +2067,11 @@ export class PromptLayer {
           : `Autopass: dead priority windows pass automatically${hint}`,
         icon: fullControl ? "lucide-hand" : "lucide-zap",
         iconSize: 12,
-        color: fullControl ? "#ffffff" : this.theme.appTheme.border,
+        color: fullControl ? this.theme.gameTheme.textOnTinted : this.theme.appTheme.border,
         outline: true,
-        backgroundColor: "#ffffff",
+        backgroundColor: this.theme.gameTheme.textOnTinted,
         backgroundAlpha: fullControl ? 0.15 : 0.05,
-        borderColor: fullControl ? "#ffffff" : this.theme.appTheme.border,
+        borderColor: fullControl ? this.theme.gameTheme.textOnTinted : this.theme.appTheme.border,
         hoverBackgroundAlpha: fullControl ? 0.2 : 0.1,
         hoverBorderAlpha: fullControl ? 0.3 : 1,
         pressOffsetY: 1,
@@ -2422,7 +2426,9 @@ export class PromptLayer {
     const height = Math.min(contentHeight, this.viewportHeight * 0.55, Math.max(48, panelY - 16));
     popover.addChildAt(this.makeActionPanelSurface(width, height, 8, false), 0);
     if (height < contentHeight) {
-      const mask = new Graphics().rect(0, 0, width, height).fill({ color: 0xffffff });
+      const mask = new Graphics()
+        .rect(0, 0, width, height)
+        .fill({ color: hexToNum(this.theme.appTheme.foreground) });
       popover.addChild(mask);
       popover.mask = mask;
     }

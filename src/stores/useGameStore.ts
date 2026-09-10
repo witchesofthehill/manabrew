@@ -683,16 +683,17 @@ export const useGameStore = create<GameState>()(
         });
         stopActiveManualRoomSync();
         resetSelectedGameRuntime();
-        const withTimeout = <T>(p: Promise<T>, label: string) =>
-          Promise.race([
-            p,
-            new Promise<void>((resolve) =>
-              setTimeout(() => {
-                console.warn(`${label} timed out after 2s`);
-                resolve();
-              }, 2000),
-            ),
-          ]);
+        const withTimeout = <T>(promise: Promise<T>, label: string): Promise<T | void> => {
+          let clearTimer: () => void = () => undefined;
+          const timeout = new Promise<void>((resolve) => {
+            const timer = setTimeout(() => {
+              console.warn(`${label} timed out after 2s`);
+              resolve();
+            }, 2000);
+            clearTimer = () => clearTimeout(timer);
+          });
+          return Promise.race([promise, timeout]).finally(clearTimer);
+        };
         if (wasMultiplayer) {
           try {
             await withTimeout(useServerStore.getState().leaveRoom(), "leaveRoom()");

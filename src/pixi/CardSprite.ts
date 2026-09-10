@@ -29,7 +29,7 @@ import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore, type BattlefieldCardStyle } from "@/stores/usePreferencesStore";
 import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
 import { applyManaSymbol, parseManaCost } from "./manaSymbols";
-import { asDeckCard } from "@/lib/decks";
+import { asGameDeckCard } from "@/lib/decks";
 import { isFacelessCard } from "@/lib/gameCard";
 import { fetchImageElement } from "@/api/scryfall";
 import { DEBUG_KEYWORD_CARD_ID, useGameDevStore } from "@/stores/useGameDevStore";
@@ -689,7 +689,7 @@ export class CardSprite extends Container {
       const definition = useGameDevStore.getState().debugCardDefinition;
       if (definition) return definition;
     }
-    return asDeckCard(useGameStore.getState().gameDecks[this.card.ownerId], this.card);
+    return asGameDeckCard(useGameStore.getState().gameDecks, this.card);
   }
 
   // Scryfall serves horizontal-frame cards as upright 5:7 PNGs — rotate

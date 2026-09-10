@@ -21,6 +21,7 @@ export const SCRYFALL_API = "https://api.scryfall.com";
 export const COLLECTION_BATCH_SIZE = 75;
 const SCRYFALL_REQUEST_INTERVAL_MS = 300;
 const SCRYFALL_DEFAULT_RATE_LIMIT_COOLDOWN_MS = 60_000;
+const SCRYFALL_MIN_RATE_LIMIT_COOLDOWN_MS = 1_000;
 
 let nextScryfallRequestAt = 0;
 let scryfallCooldownUntil = 0;
@@ -66,9 +67,11 @@ async function waitForScryfallSlot(signal?: AbortSignal | null): Promise<void> {
 }
 
 function applyScryfallCooldown(response: Response): number {
-  const retryAfterMs =
+  const retryAfterMs = Math.max(
     parseRetryAfterMs(response.headers.get("retry-after")) ??
-    SCRYFALL_DEFAULT_RATE_LIMIT_COOLDOWN_MS;
+      SCRYFALL_DEFAULT_RATE_LIMIT_COOLDOWN_MS,
+    SCRYFALL_MIN_RATE_LIMIT_COOLDOWN_MS,
+  );
   scryfallCooldownUntil = Math.max(scryfallCooldownUntil, Date.now() + retryAfterMs);
   nextScryfallRequestAt = Math.max(nextScryfallRequestAt, scryfallCooldownUntil);
   return retryAfterMs;
@@ -279,9 +282,9 @@ function scryfallImageProxyUrl(url: string): string | null {
   return `/scryfall-img/${url.slice(SCRYFALL_IMAGE_CDN_PREFIX.length)}`;
 }
 
-async function fetchImageBlob(url: string): Promise<string> {
+async function fetchImageBlob(url: string, cache: RequestCache): Promise<string> {
   const response = await fetch(url, {
-    cache: "no-store",
+    cache,
     credentials: "omit",
     mode: "cors",
   });
@@ -289,17 +292,17 @@ async function fetchImageBlob(url: string): Promise<string> {
   return URL.createObjectURL(await response.blob());
 }
 
-async function fetchImageBlobNoCache(url: string): Promise<string> {
+async function fetchCardImageBlob(url: string): Promise<string> {
   const proxied = scryfallImageProxyUrl(url);
   if (proxied) {
     try {
-      return await fetchImageBlob(proxied);
+      return await fetchImageBlob(proxied, "force-cache");
     } catch {
       // Proxy route missing or down — the direct CDN works whenever
       // scryfall's CORS headers are healthy.
     }
   }
-  return await fetchImageBlob(url);
+  return await fetchImageBlob(url, "reload");
 }
 
 function loadImageElement(
@@ -331,7 +334,7 @@ export async function fetchImageElement(url: string): Promise<HTMLImageElement> 
   let lastError: unknown;
   for (let attempt = 0; attempt <= SCRYFALL_IMAGE_MAX_RETRIES; attempt += 1) {
     try {
-      const objectUrl = await fetchImageBlobNoCache(url);
+      const objectUrl = await fetchCardImageBlob(url);
       return await loadImageElement(objectUrl, url, true);
     } catch (err) {
       lastError = err;

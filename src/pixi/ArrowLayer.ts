@@ -479,8 +479,16 @@ export class ArrowLayer {
     if (entry.gradKey !== gradKey || !entry.underGrad || !entry.coreGrad) {
       entry.underGrad?.destroy();
       entry.coreGrad?.destroy();
-      entry.underGrad = new FillGradient(ax1, ay1, ax2, ay2);
-      entry.coreGrad = new FillGradient(ax1, ay1, ax2, ay2);
+      entry.underGrad = new FillGradient({
+        type: "linear",
+        start: { x: ax1, y: ay1 },
+        end: { x: ax2, y: ay2 },
+      });
+      entry.coreGrad = new FillGradient({
+        type: "linear",
+        start: { x: ax1, y: ay1 },
+        end: { x: ax2, y: ay2 },
+      });
       for (const [stop, alpha] of PAINTERLY_GRADIENT_STOPS) {
         const color = hueWithAlpha(hue, alpha);
         entry.underGrad.addColorStop(stop, color);

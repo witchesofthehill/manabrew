@@ -43,7 +43,7 @@ import {
 import { loadCardBack } from "@/pixi/CardSprite";
 import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { useGameStore } from "@/stores/useGameStore";
-import { asDeckCard } from "@/lib/decks";
+import { asGameDeckCard } from "@/lib/decks";
 import { isFacelessCard } from "@/lib/gameCard";
 import { gsap } from "@/pixi/effects/gsap";
 import { animationsEnabled } from "@/pixi/effects/enabled";
@@ -529,7 +529,7 @@ export class RulesCardPreviewLayer {
     this.footer.removeChildren().forEach((child) => child.destroy({ children: true }));
 
     const presentation = deriveCardPresentation(spec.card);
-    const deckCard = asDeckCard(useGameStore.getState().gameDecks[spec.card.ownerId], spec.card);
+    const deckCard = asGameDeckCard(useGameStore.getState().gameDecks, spec.card);
     const display = resolveRulesPreviewDisplay({
       card: spec.card,
       presentation,
@@ -1352,7 +1352,7 @@ export class RulesCardPreviewLayer {
     const spec = this.spec;
     if (!spec) return;
     const generation = ++this.artGeneration;
-    const deckCard = asDeckCard(useGameStore.getState().gameDecks[spec.card.ownerId], spec.card);
+    const deckCard = asGameDeckCard(useGameStore.getState().gameDecks, spec.card);
     try {
       const faces = resolveCardFaces(this.scryfallInfo ?? undefined);
       const faceIndex: 0 | 1 = spec.showBackFace && faces.isFlippable ? 1 : 0;

@@ -7,7 +7,7 @@ import { OverlayRenderScheduler, overlayResolution } from "@/pixi/overlay/overla
 import { useTheme } from "@/hooks/useTheme";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useGameStore } from "@/stores/useGameStore";
-import { asDeckCard } from "@/lib/decks";
+import { asGameDeckCard } from "@/lib/decks";
 import { isFacelessCard } from "@/lib/gameCard";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import { animationsEnabled } from "@/pixi/effects/enabled";
@@ -96,7 +96,7 @@ export function DialogCardCanvas(props: Props) {
       );
       layout();
       if (!isFacelessCard(card)) {
-        const deck = asDeckCard(useGameStore.getState().gameDecks[card.ownerId], card);
+        const deck = asGameDeckCard(useGameStore.getState().gameDecks, card);
         void useScryfallStore
           .getState()
           .getCardTexture(deck, state.rules ? "art" : "full", state.face)

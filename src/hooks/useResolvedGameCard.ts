@@ -1,12 +1,12 @@
 import { useCardFaces } from "@/hooks/useCardFaces";
-import { asDeckCard } from "@/lib/decks";
+import { asGameDeckCard } from "@/lib/decks";
 import { useGameStore } from "@/stores/useGameStore";
 import type { CardDto } from "@/protocol/game";
 import type { ScryfallImageSize } from "@/components/game/game.utils";
 
 export function useResolvedGameCard(card: CardDto) {
-  const deck = useGameStore((state) => state.gameDecks[card.ownerId]);
-  const deckCard = asDeckCard(deck, card);
+  const gameDecks = useGameStore((state) => state.gameDecks);
+  const deckCard = asGameDeckCard(gameDecks, card);
   const cardFaces = useCardFaces({
     name: deckCard.identity.name || card.identity.name,
     setCode: deckCard.identity.setCode || undefined,

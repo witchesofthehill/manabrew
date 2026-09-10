@@ -1,7 +1,11 @@
+import { messages as englishMessages } from "@/i18n/locales/en/messages.po";
 import { setupI18n } from "@lingui/core";
 import { APP_LOCALES, type AppLocale } from "@/i18n/locales";
 
-export const i18n = setupI18n();
+export const i18n = setupI18n({
+  locale: "en",
+  messages: { en: englishMessages },
+});
 
 let activationSequence = 0;
 
@@ -28,7 +32,7 @@ async function loadMessages(locale: AppLocale) {
     case "zh-Hant":
       return import("@/i18n/locales/zh-Hant/messages.po");
     case "en":
-      return import("@/i18n/locales/en/messages.po");
+      return { messages: englishMessages };
   }
 }
 

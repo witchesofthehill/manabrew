@@ -1,7 +1,7 @@
 import { RouterProvider } from "react-router-dom";
 import { msg } from "@lingui/core/macro";
 import { ThemeProvider } from "next-themes";
-import { I18nProvider } from "@lingui/react";
+import { I18nProvider, useLingui } from "@lingui/react";
 import { router } from "@/router";
 import { Toaster } from "@/components/ui/sonner";
 import { DebugLogOverlay } from "@/components/dev/DebugLogOverlay";
@@ -86,6 +86,29 @@ function PlatformRuntimeChecks() {
 
   return null;
 }
+function LocalizedApplication({ devToolsEnabled }: { devToolsEnabled: boolean }) {
+  useLingui();
+
+  return (
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+      <ThemeApplicator>
+        <TooltipProvider delayDuration={120} skipDelayDuration={300}>
+          <PlatformRuntimeChecks />
+          <AppInitGate>
+            <RouterProvider router={router} />
+          </AppInitGate>
+          <Toaster />
+          {import.meta.env.VITE_STAGING_TOOLS === "1" && <DebugLogOverlay />}
+          {import.meta.env.DEV && devToolsEnabled && (
+            <Suspense>
+              <DevToolsPanel />
+            </Suspense>
+          )}
+        </TooltipProvider>
+      </ThemeApplicator>
+    </ThemeProvider>
+  );
+}
 
 function App() {
   const devToolsEnabled = useGameDevStore((s) => s.devToolsEnabled);
@@ -95,23 +118,7 @@ function App() {
 
   return (
     <I18nProvider i18n={i18n}>
-      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-        <ThemeApplicator>
-          <TooltipProvider delayDuration={120} skipDelayDuration={300}>
-            <PlatformRuntimeChecks />
-            <AppInitGate>
-              <RouterProvider router={router} />
-            </AppInitGate>
-            <Toaster />
-            {import.meta.env.VITE_STAGING_TOOLS === "1" && <DebugLogOverlay />}
-            {import.meta.env.DEV && devToolsEnabled && (
-              <Suspense>
-                <DevToolsPanel />
-              </Suspense>
-            )}
-          </TooltipProvider>
-        </ThemeApplicator>
-      </ThemeProvider>
+      <LocalizedApplication devToolsEnabled={devToolsEnabled} />
     </I18nProvider>
   );
 }

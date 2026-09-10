@@ -26,7 +26,9 @@ import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
 import { useHubStore } from "@/stores/useHubStore";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface SelectedDeck {
   id: string;
   sourceId: string;
@@ -39,7 +41,6 @@ interface SelectedDeck {
   commanderName?: string;
   coverCardName?: string;
 }
-
 interface DeckVsSelectorProps {
   preSelectedDeckId?: string;
   preSelectedHubDeckId?: string;
@@ -50,10 +51,8 @@ interface DeckVsSelectorProps {
     commanderName?: string,
   ) => Promise<boolean>;
 }
-
 type PickingSide = "player" | "opponent" | null;
 type PlayFormatId = string;
-
 export function DeckVsSelector({
   preSelectedDeckId,
   preSelectedHubDeckId,
@@ -130,7 +129,6 @@ export function DeckVsSelector({
   const restoredHubDeckRef = useRef<string | null>(null);
   const hubSelectionRequestIdRef = useRef(0);
   const [hubRestoreAttempt, setHubRestoreAttempt] = useState(0);
-
   useEffect(() => {
     if (
       !hubDecks.enabled ||
@@ -162,7 +160,9 @@ export function DeckVsSelector({
         restoredHubDeckRef.current = null;
         toast.error(err instanceof Error ? err.message : "Failed to load Community deck", {
           action: {
-            label: "Retry",
+            get label() {
+              return i18n._(msg`Retry`);
+            },
             onClick: () => setHubRestoreAttempt((attempt) => attempt + 1),
           },
         });
@@ -171,7 +171,6 @@ export function DeckVsSelector({
         if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
       });
   }, [hubDecks.enabled, hubRestoreAttempt, loadHubDeck, preSelectedHubDeckId]);
-
   const searchLower = deckSearch.toLowerCase();
   const formatFilteredPresets = presetDecks.filter(
     (deck) => selectedFormat === null || (deck.format ?? "standard") === selectedFormat,
@@ -183,16 +182,13 @@ export function DeckVsSelector({
           (deck.description ?? "").toLowerCase().includes(searchLower),
       )
     : formatFilteredPresets;
-
   const currentDeckFingerprint = getDeckFingerprint(currentDeck);
   const distinctSavedDecks = savedDecks.filter(
     (saved) =>
       saved.id === preSelectedDeckId || getDeckFingerprint(saved.deck) !== currentDeckFingerprint,
   );
-
   const currentDeckIsPlayable =
     currentDeck.cards.length > 0 || (currentDeck.commanders?.length ?? 0) > 0;
-
   const userDeckEntries: SelectedDeck[] = [
     ...(currentDeckIsPlayable ? [currentDeck] : []),
     ...distinctSavedDecks.map((saved) => saved.deck),
@@ -211,9 +207,14 @@ export function DeckVsSelector({
       commanderName: deck.commanders?.[0]?.identity.name,
     };
   });
-
   const deckValidations = useMemo(() => {
-    const map = new Map<string, { legal: boolean; errors: string[] }>();
+    const map = new Map<
+      string,
+      {
+        legal: boolean;
+        errors: string[];
+      }
+    >();
     for (const entry of userDeckEntries) {
       const format = getFormat(entry.formatId ?? "standard");
       if (!format) continue;
@@ -228,14 +229,12 @@ export function DeckVsSelector({
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedDecks, currentDeck]);
-
   const formatFilteredUserDecks = userDeckEntries.filter(
     (deck) => selectedFormat === null || deck.formatId === selectedFormat,
   );
   const filteredUserDecks = searchLower
     ? formatFilteredUserDecks.filter((deck) => deck.name.toLowerCase().includes(searchLower))
     : formatFilteredUserDecks;
-
   useEffect(() => {
     if (!selectedFormat || opponentDeck || opponentTouchedRef.current) return;
     const resolved = resolveAiOpponent({
@@ -259,12 +258,10 @@ export function DeckVsSelector({
       coverCardName: resolved.deck.coverCardName,
     });
   }, [selectedFormat, opponentDeck, presetDecks, savedDecks, lastAiOpponent]);
-
   function invalidateHubSelection() {
     hubSelectionRequestIdRef.current += 1;
     setLoadingHubDeckId(null);
   }
-
   function changeFormat(formatId: PlayFormatId | null) {
     if (formatId === selectedFormat) return;
     invalidateHubSelection();
@@ -275,7 +272,6 @@ export function DeckVsSelector({
     setPickingSide("player");
     setSelectedFormat(formatId);
   }
-
   function assignDeck(selected: SelectedDeck, hubRequestId?: number) {
     if (hubRequestId === undefined) {
       invalidateHubSelection();
@@ -287,14 +283,12 @@ export function DeckVsSelector({
       setPickingSide("opponent");
       return;
     }
-
     if (pickingSide !== "opponent") return;
     opponentTouchedRef.current = true;
     setOpponentDeck(selected);
     setOpponentConfirmed(true);
     setPickingSide(playerDeck ? null : "player");
   }
-
   function selectDeck(deck: Deck) {
     const formatId = deck.format ?? "standard";
     if (!selectedFormat) setSelectedFormat(formatId);
@@ -312,7 +306,6 @@ export function DeckVsSelector({
       coverCardName: deck.coverCardName,
     });
   }
-
   async function selectHubDeck(summary: DeckHubEntrySummary) {
     const requestId = ++hubSelectionRequestIdRef.current;
     setLoadingHubDeckId(summary.id);
@@ -324,7 +317,9 @@ export function DeckVsSelector({
       const currentFormat = selectedFormatRef.current;
       if (currentFormat && formatId !== currentFormat) {
         toast.error(
-          `"${detail.title}" is not a ${getFormat(currentFormat)?.name ?? currentFormat} deck`,
+          i18n._(
+            msg`"${detail.title}" is not a ${getFormat(currentFormat)?.name ?? currentFormat} deck`,
+          ),
         );
         return;
       }
@@ -348,12 +343,10 @@ export function DeckVsSelector({
       if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
     }
   }
-
   function selectUserDeck(entry: SelectedDeck) {
     if (!selectedFormat && entry.formatId) setSelectedFormat(entry.formatId);
     assignDeck(entry);
   }
-
   function handleRandomOpponent() {
     if (!selectedFormat) return;
     const random = pickRandom(formatFilteredPresets);
@@ -376,7 +369,6 @@ export function DeckVsSelector({
     setOpponentConfirmed(true);
     setPickingSide(playerDeck ? null : "player");
   }
-
   function handleFight() {
     if (!playerDeck || !opponentDeck || starting) return;
     if (playerDeck.formatId === "commander") {
@@ -385,14 +377,13 @@ export function DeckVsSelector({
     }
     void startFight(1);
   }
-
   async function startFight(opponentCount: number) {
     if (!playerDeck || !opponentDeck || starting) return;
     const empty = [playerDeck, opponentDeck].find(
       (d) => d.sourceDeck.cards.length === 0 && (d.sourceDeck.commanders?.length ?? 0) === 0,
     );
     if (empty) {
-      toast.error(`"${empty.name}" has no cards`);
+      toast.error(i18n._(msg`"${empty.name}" has no cards`));
       return;
     }
     for (const selected of [playerDeck, opponentDeck]) {
@@ -408,7 +399,6 @@ export function DeckVsSelector({
         return;
       }
     }
-
     const excluded = new Set([
       getDeckFingerprint(playerDeck.sourceDeck),
       getDeckFingerprint(opponentDeck.sourceDeck),
@@ -422,10 +412,11 @@ export function DeckVsSelector({
       opponentCount - 1,
     );
     if (additionalOpponents.length !== opponentCount - 1) {
-      toast.error("Not enough distinct Commander decks are available for a 4-player game.");
+      toast.error(
+        i18n._(msg`Not enough distinct Commander decks are available for a 4-player game.`),
+      );
       return;
     }
-
     setStarting(true);
     const started = await onStart(
       playerDeck.sourceDeck,
@@ -454,7 +445,6 @@ export function DeckVsSelector({
       prefs.setLastAiOpponent({ kind: "saved", id: opponentDeck.sourceId });
     }
   }
-
   const hubSelectionIsLegal = (selected: SelectedDeck | null) => {
     if (!selected || selected.source !== "hub") return true;
     const format = getFormat(selected.formatId ?? "standard");
@@ -472,13 +462,12 @@ export function DeckVsSelector({
     opponentConfirmed &&
     hubSelectionIsLegal(playerDeck) &&
     hubSelectionIsLegal(opponentDeck);
-
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex flex-shrink-0 items-center gap-3 border-b bg-muted/5 px-4 py-2 sm:px-6 lg:px-8">
         <div
           role="group"
-          aria-label="Filter decks by format"
+          aria-label={i18n._(msg`Filter decks by format`)}
           className="-mx-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto px-1 py-1 no-scrollbar"
         >
           {[{ id: null, name: "All" }, ...GAME_FORMATS].map((format) => (
@@ -504,13 +493,13 @@ export function DeckVsSelector({
         >
           {pickingSide === "player"
             ? isReady
-              ? "Choose your deck or fight"
-              : "Choose your deck"
+              ? i18n._(msg`Choose your deck or fight`)
+              : i18n._(msg`Choose your deck`)
             : pickingSide === "opponent"
               ? isReady
-                ? "Choose the AI deck or fight"
-                : "Choose the AI deck"
-              : "Matchup ready"}
+                ? i18n._(msg`Choose the AI deck or fight`)
+                : i18n._(msg`Choose the AI deck`)
+              : i18n._(msg`Matchup ready`)}
         </p>
       </div>
 
@@ -519,8 +508,8 @@ export function DeckVsSelector({
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <input
             type="text"
-            aria-label="Filter decks"
-            placeholder="Filter decks..."
+            aria-label={i18n._(msg`Filter decks`)}
+            placeholder={i18n._(msg`Filter decks...`)}
             value={deckSearch}
             onChange={(e) => setDeckSearch(e.target.value)}
             className="w-full pl-8 pr-3 py-1.5 rounded-md border bg-background text-sm pointer-coarse:h-10 pointer-coarse:text-base focus:outline-none focus:ring-1 focus:ring-primary"
@@ -535,18 +524,20 @@ export function DeckVsSelector({
       <div className="flex-1 space-y-6 overflow-y-auto px-4 pb-4 sm:px-6 lg:px-8">
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold pt-2 pb-1">
-            Your Decks
+            <Trans>Your Decks</Trans>
           </p>
           {filteredUserDecks.length === 0 ? (
             <p className="text-xs text-muted-foreground italic py-2">
-              No decks yet — build one in{" "}
-              <Link
-                to={ROUTES.DECK_EDITOR}
-                className="text-primary underline-offset-2 hover:underline not-italic"
-              >
-                My Decks
-              </Link>
-              .
+              <Trans>
+                No decks yet — build one in{" "}
+                <Link
+                  to={ROUTES.DECK_EDITOR}
+                  className="text-primary underline-offset-2 hover:underline not-italic"
+                >
+                  My Decks
+                </Link>
+                .
+              </Trans>
             </p>
           ) : (
             <div
@@ -600,22 +591,22 @@ export function DeckVsSelector({
             hubDeckEntries.length > 0) && (
             <div>
               <p className="pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Community
+                <Trans>Community</Trans>
               </p>
               {hubDecks.error ? (
                 <div className="flex flex-wrap items-center gap-2 py-2 text-xs text-destructive">
                   <span className="min-w-0 break-words">{hubDecks.error}</span>
                   <Button variant="outline" size="sm" onClick={hubDecks.retry}>
-                    Retry
+                    <Trans>Retry</Trans>
                   </Button>
                 </div>
               ) : hubDecks.loading && hubDeckEntries.length === 0 ? (
                 <p className="py-2 text-xs italic text-muted-foreground">
-                  Loading Community decks…
+                  <Trans>Loading Community decks…</Trans>
                 </p>
               ) : hubDeckEntries.length === 0 ? (
                 <p className="py-2 text-xs italic text-muted-foreground">
-                  No Community decks match this format and search.
+                  <Trans>No Community decks match this format and search.</Trans>
                 </p>
               ) : (
                 <div
@@ -671,11 +662,11 @@ export function DeckVsSelector({
 
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold pb-1">
-            Starter Decks
+            <Trans>Starter Decks</Trans>
           </p>
           {filteredDecks.length === 0 ? (
             <p className="text-xs text-muted-foreground italic py-2">
-              No starter decks for this format.
+              <Trans>No starter decks for this format.</Trans>
             </p>
           ) : (
             <div
@@ -713,7 +704,7 @@ export function DeckVsSelector({
       <div className="grid flex-shrink-0 gap-2 border-t bg-muted/10 px-4 py-2 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:px-6 sm:py-3 lg:px-8">
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:flex sm:gap-2">
           <DeckSlot
-            label="YOU"
+            label={i18n._(msg`YOU`)}
             icon={<User className="h-3 w-3" />}
             deck={playerDeck}
             sideColor="var(--player-colors-self)"
@@ -729,9 +720,11 @@ export function DeckVsSelector({
               setPickingSide("player");
             }}
           />
-          <span className="text-xs font-bold tracking-wider text-muted-foreground/60">VS</span>
+          <span className="text-xs font-bold tracking-wider text-muted-foreground/60">
+            <Trans>VS</Trans>
+          </span>
           <DeckSlot
-            label="AI"
+            label={i18n._(msg`AI`)}
             icon={<Bot className="h-3 w-3" />}
             deck={opponentDeck}
             sideColor="var(--player-colors-opponent1)"
@@ -758,7 +751,7 @@ export function DeckVsSelector({
                     handleRandomOpponent();
                   }}
                   className="inline-flex w-8 shrink-0 items-center justify-center gap-0.5 rounded-r-md text-[10px] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground pointer-coarse:w-10"
-                  title="Random AI deck"
+                  title={i18n._(msg`Random AI deck`)}
                 >
                   <Shuffle className="h-3 w-3" />
                 </button>
@@ -768,8 +761,10 @@ export function DeckVsSelector({
         </div>
         <div className="grid grid-flow-col auto-cols-fr gap-2 sm:flex sm:flex-shrink-0 sm:items-center">
           <div className="flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm sm:w-auto">
-            <EngineMark engine="Forge" className="h-3.5 w-3.5" />
-            Forge
+            <Trans>
+              <EngineMark engine="Forge" className="h-3.5 w-3.5" />
+              Forge
+            </Trans>
           </div>
           <Button
             size="sm"
@@ -783,7 +778,7 @@ export function DeckVsSelector({
             ) : (
               <Swords className="h-3.5 w-3.5" />
             )}
-            {starting ? "Starting…" : "Fight!"}
+            {starting ? i18n._(msg`Starting\u2026`) : i18n._(msg`Fight!`)}
           </Button>
         </div>
       </div>
@@ -798,7 +793,6 @@ export function DeckVsSelector({
     </div>
   );
 }
-
 interface DeckSlotProps {
   label: string;
   icon: ReactNode;
@@ -810,7 +804,6 @@ interface DeckSlotProps {
   onClear: () => void;
   placeholderExtra?: ReactNode;
 }
-
 function DeckSlot({
   label,
   icon,
@@ -853,18 +846,18 @@ function DeckSlot({
             deck ? "font-medium text-foreground/90" : "italic text-muted-foreground",
           )}
         >
-          {deck?.name ?? "pick a deck"}
+          {deck?.name ?? i18n._(msg`pick a deck`)}
         </span>
         {isActive ? (
           <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-primary">
-            Selecting
+            <Trans>Selecting</Trans>
           </span>
         ) : isConfirmed ? (
           <Check className="h-3 w-3 shrink-0 text-primary" />
         ) : (
           deck && (
             <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Suggested
+              <Trans>Suggested</Trans>
             </span>
           )
         )}
@@ -874,7 +867,7 @@ function DeckSlot({
           type="button"
           onClick={onClear}
           className="inline-flex w-8 shrink-0 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-destructive pointer-coarse:w-10"
-          title="Clear"
+          title={i18n._(msg`Clear`)}
         >
           <X className="h-2.5 w-2.5" />
         </button>

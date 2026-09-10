@@ -7,7 +7,9 @@ import {
 } from "@/components/prompts/internal/promptActionTheme";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { cn } from "@/lib/utils";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export function PromptRequired({
   isWaitingForResponse,
   hidden,
@@ -16,7 +18,6 @@ export function PromptRequired({
   const promptActionColors = usePromptActionColors();
   const themedStyle = getPromptActionButtonStyle(promptActionColors.cancel);
   const minimal = useIsMobileGame();
-
   if (minimal) {
     return (
       <Button
@@ -31,12 +32,13 @@ export function PromptRequired({
         disabled={isWaitingForResponse}
         title={hidden ? "Prompt required. Click to reopen." : "Prompt is open."}
       >
-        <AlertCircle className="h-3.5 w-3.5" />
-        PROMPT
+        <Trans>
+          <AlertCircle className="h-3.5 w-3.5" />
+          PROMPT
+        </Trans>
       </Button>
     );
   }
-
   return (
     <div className="flex w-50 flex-col gap-1.5">
       <Button
@@ -49,7 +51,7 @@ export function PromptRequired({
         title={hidden ? "Prompt required. Click to reopen." : "Prompt is open."}
       >
         <AlertCircle className="h-3.5 w-3.5" />
-        {hidden ? "PROMPT REQUIRED" : "PROMPT OPEN"}
+        {hidden ? i18n._(msg`PROMPT REQUIRED`) : i18n._(msg`PROMPT OPEN`)}
       </Button>
     </div>
   );

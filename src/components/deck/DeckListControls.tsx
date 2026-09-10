@@ -13,27 +13,55 @@ import type { SortBy } from "@/views/myDecks.utils";
 import { MANA_LETTERS, type ManaLetter } from "@/themes/gameTheme";
 import { manaSymbolUrl } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 type Color = ManaLetter;
-
 const COLOR_LABEL: Record<Color, string> = {
-  W: "White",
-  U: "Blue",
-  B: "Black",
-  R: "Red",
-  G: "Green",
-  C: "Colorless",
+  get W() {
+    return i18n._(msg`White`);
+  },
+  get U() {
+    return i18n._(msg`Blue`);
+  },
+  get B() {
+    return i18n._(msg`Black`);
+  },
+  get R() {
+    return i18n._(msg`Red`);
+  },
+  get G() {
+    return i18n._(msg`Green`);
+  },
+  get C() {
+    return i18n._(msg`Colorless`);
+  },
 };
-
-const SORT_OPTIONS: { value: SortBy; label: string }[] = [
-  { value: "name", label: "A→Z" },
-  { value: "color", label: "Color" },
-  { value: "updated", label: "Date" },
+const SORT_OPTIONS: {
+  value: SortBy;
+  label: string;
+}[] = [
+  {
+    value: "name",
+    get label() {
+      return i18n._(msg`A\u2192Z`);
+    },
+  },
+  {
+    value: "color",
+    get label() {
+      return i18n._(msg`Color`);
+    },
+  },
+  {
+    value: "updated",
+    get label() {
+      return i18n._(msg`Date`);
+    },
+  },
 ];
-
 const SELECT_CLS =
   "h-6 text-xs pointer-coarse:h-9 pointer-coarse:text-base rounded border bg-background px-1 cursor-pointer flex-1 min-w-0";
-
 interface DeckListControlsProps {
   search: string;
   onSearchChange: (v: string) => void;
@@ -44,7 +72,6 @@ interface DeckListControlsProps {
   sortBy: SortBy;
   onSortChange: (v: SortBy) => void;
 }
-
 export function DeckListControls({
   search,
   onSearchChange,
@@ -56,20 +83,18 @@ export function DeckListControls({
   onSortChange,
 }: DeckListControlsProps) {
   const hasActiveFilters = search || formatFilter || colorFilter.length > 0;
-
   function clearAll() {
     onSearchChange("");
     onFormatChange("");
     colorFilter.forEach(onColorToggle);
   }
-
   return (
     <div className="mt-2 flex shrink-0 items-center gap-1 px-4 py-1.5 sm:px-6 lg:px-8">
       <div className="relative flex-[2] min-w-0">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
         <Input
-          aria-label="Search decks"
-          placeholder="Search…"
+          aria-label={i18n._(msg`Search decks`)}
+          placeholder={i18n._(msg`Search\u2026`)}
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           className="h-6 pl-6 pr-5 text-xs"
@@ -77,7 +102,7 @@ export function DeckListControls({
         {search && (
           <button
             type="button"
-            aria-label="Clear deck search"
+            aria-label={i18n._(msg`Clear deck search`)}
             className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             onClick={() => onSearchChange("")}
           >
@@ -91,8 +116,8 @@ export function DeckListControls({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              aria-label="Filter by format"
-              title="Filter by format"
+              aria-label={i18n._(msg`Filter by format`)}
+              title={i18n._(msg`Filter by format`)}
               className={cn(
                 SELECT_CLS,
                 "flex items-center gap-1 justify-between hover:bg-muted/40",
@@ -101,14 +126,18 @@ export function DeckListControls({
               {formatFilter ? (
                 <FormatBadge formatId={formatFilter} />
               ) : (
-                <span className="text-muted-foreground">All</span>
+                <span className="text-muted-foreground">
+                  <Trans>All</Trans>
+                </span>
               )}
               <ChevronDown className="h-2.5 w-2.5 opacity-60 shrink-0" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             <DropdownMenuItem onSelect={() => onFormatChange("")} className="gap-2">
-              <span className="text-xs">All formats</span>
+              <span className="text-xs">
+                <Trans>All formats</Trans>
+              </span>
               {!formatFilter && <Check className="h-3 w-3 ml-auto text-primary" />}
             </DropdownMenuItem>
             {GAME_FORMATS.map((f) => (
@@ -123,9 +152,9 @@ export function DeckListControls({
 
         <select
           value={sortBy}
-          aria-label="Sort decks"
+          aria-label={i18n._(msg`Sort decks`)}
           onChange={(e) => onSortChange(e.target.value as SortBy)}
-          title="Sort order"
+          title={i18n._(msg`Sort order`)}
           className={SELECT_CLS}
         >
           {SORT_OPTIONS.map((o) => (
@@ -159,8 +188,8 @@ export function DeckListControls({
         {hasActiveFilters && (
           <button
             type="button"
-            aria-label="Clear all filters"
-            title="Clear all filters"
+            aria-label={i18n._(msg`Clear all filters`)}
+            title={i18n._(msg`Clear all filters`)}
             onClick={clearAll}
             className="shrink-0 text-muted-foreground hover:text-foreground"
           >

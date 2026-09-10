@@ -1,8 +1,9 @@
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export interface TermsSection {
   heading: string;
   body: string;
 }
-
 export interface TermsContent {
   version: string;
   title: string;
@@ -10,10 +11,11 @@ export interface TermsContent {
   lastUpdated: string;
   sections: TermsSection[];
 }
-
 export const TERMS_AND_CONDITIONS: TermsContent = {
   version: "1.5.0",
-  title: "Terms & Conditions",
+  get title() {
+    return i18n._(msg`Terms & Conditions`);
+  },
   lastUpdated: "2026-08-09",
   intro:
     "Welcome to Manabrew. Please read and accept these terms before using the app. Manabrew is free, open-source software licensed under GPL-3.0-or-later; the full licence and third-party notices ship with the source at github.com/witchesofthehill/manabrew.",

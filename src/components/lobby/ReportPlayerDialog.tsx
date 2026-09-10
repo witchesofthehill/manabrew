@@ -16,27 +16,53 @@ import { useChatStore, type ChatEntry } from "@/stores/useChatStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { stripUsernameTag } from "@/lib/username";
 import { cn } from "@/lib/utils";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export interface ReportTarget {
   username: string;
   seal?: string;
 }
-
 interface ReportPlayerDialogProps {
   player: ReportTarget | null;
   onClose: () => void;
 }
-
-const REASONS: Array<{ value: ChatReportReason; label: string }> = [
-  { value: "harassment", label: "Harassment or bullying" },
-  { value: "hate", label: "Hate speech" },
-  { value: "inappropriate_content", label: "Inappropriate name or content" },
-  { value: "spam", label: "Spam" },
-  { value: "other", label: "Something else" },
+const REASONS: Array<{
+  value: ChatReportReason;
+  label: string;
+}> = [
+  {
+    value: "harassment",
+    get label() {
+      return i18n._(msg`Harassment or bullying`);
+    },
+  },
+  {
+    value: "hate",
+    get label() {
+      return i18n._(msg`Hate speech`);
+    },
+  },
+  {
+    value: "inappropriate_content",
+    get label() {
+      return i18n._(msg`Inappropriate name or content`);
+    },
+  },
+  {
+    value: "spam",
+    get label() {
+      return i18n._(msg`Spam`);
+    },
+  },
+  {
+    value: "other",
+    get label() {
+      return i18n._(msg`Something else`);
+    },
+  },
 ];
-
 const DETAILS_MAX_CHARS = 500;
-
 function toReportMessage(entry: ChatEntry, roomId: string | undefined): ChatReportMessage {
   return {
     from: entry.from,
@@ -46,13 +72,11 @@ function toReportMessage(entry: ChatEntry, roomId: string | undefined): ChatRepo
     seal: entry.seal,
   };
 }
-
 export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps) {
   const [reason, setReason] = useState<ChatReportReason | null>(null);
   const [details, setDetails] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
-
   function close() {
     setReason(null);
     setDetails("");
@@ -60,7 +84,6 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
     setSent(false);
     onClose();
   }
-
   async function submit() {
     if (!player || !reason || submitting) return;
     setSubmitting(true);
@@ -85,41 +108,53 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
       toast.error(error instanceof Error ? error.message : "Couldn't send the report.");
     }
   }
-
   if (sent) {
     return (
       <Dialog open={player != null} onOpenChange={(open) => !open && close()}>
         <DialogContent className="max-w-sm">
           <DialogTitle className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-success" />
-            Thank you
+            <Trans>
+              <ShieldCheck className="h-4 w-4 text-success" />
+              Thank you
+            </Trans>
           </DialogTitle>
-          <DialogDescription>Your report has been sent.</DialogDescription>
+          <DialogDescription>
+            <Trans>Your report has been sent.</Trans>
+          </DialogDescription>
           <p className="text-sm text-foreground/90">
-            Your help is valuable in keeping Manabrew safe for everyone. A maintainer will look at
-            this promptly and take action where it is warranted.
+            <Trans>
+              Your help is valuable in keeping Manabrew safe for everyone. A maintainer will look at
+              this promptly and take action where it is warranted.
+            </Trans>
           </p>
           <p className="text-sm text-muted-foreground">
-            You won&apos;t hear back about the outcome, but every report is read by a person.
+            <Trans>
+              You won&apos;t hear back about the outcome, but every report is read by a person.
+            </Trans>
           </p>
           <DialogFooter>
-            <Button onClick={close}>Done</Button>
+            <Button onClick={close}>
+              <Trans>Done</Trans>
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     );
   }
-
   return (
     <Dialog open={player != null} onOpenChange={(open) => !open && close()}>
       <DialogContent className="max-w-sm">
         <DialogTitle className="flex items-center gap-2">
-          <Flag className="h-4 w-4" />
-          Report {player ? stripUsernameTag(player.username) : ""}
+          <Trans>
+            <Flag className="h-4 w-4" />
+            Report {player ? stripUsernameTag(player.username) : ""}
+          </Trans>
         </DialogTitle>
         <DialogDescription>
-          We take reports extremely seriously. Please do not proceed unless there is a clear
-          violation of Terms of Service.
+          <Trans>
+            We take reports extremely seriously. Please do not proceed unless there is a clear
+            violation of Terms of Service.
+          </Trans>
         </DialogDescription>
         <div className="space-y-1">
           {REASONS.map((option) => (
@@ -144,7 +179,7 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="report-details" className="text-xs text-muted-foreground">
-            Anything else? (optional)
+            <Trans>Anything else? (optional)</Trans>
           </Label>
           <textarea
             id="report-details"
@@ -157,14 +192,14 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={close}>
-            Cancel
+            <Trans>Cancel</Trans>
           </Button>
           <Button
             variant="destructive"
             disabled={!reason || submitting}
             onClick={() => void submit()}
           >
-            {submitting ? "Sending…" : "Send report"}
+            {submitting ? i18n._(msg`Sending\u2026`) : i18n._(msg`Send report`)}
           </Button>
         </DialogFooter>
       </DialogContent>

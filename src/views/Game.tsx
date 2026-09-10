@@ -57,7 +57,6 @@ import { buildCombatRows } from "@/components/game/combatRows";
 import { readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-
 import { useLimitedStore } from "@/stores/useLimitedStore";
 import { peek as peekGauntletMatch, tryConsumeGauntletMatch } from "@/lib/gauntletReturn";
 import { intentPrefersArrow } from "@/types/promptType";
@@ -89,7 +88,9 @@ import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
 import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const HOVER_ALLOWED_PROMPTS = new Set<PromptType>([
   "chooseAction",
   "chooseAttackers",
@@ -98,10 +99,9 @@ const HOVER_ALLOWED_PROMPTS = new Set<PromptType>([
   "payManaCost",
   "gameOver",
 ]);
-
-function isManualTabletopApi(
-  runtime: GameRuntime,
-): runtime is GameRuntime & { api: ManualTabletopApi } {
+function isManualTabletopApi(runtime: GameRuntime): runtime is GameRuntime & {
+  api: ManualTabletopApi;
+} {
   return runtime.capabilities.manualTabletop && "applyManualAction" in runtime.api;
 }
 function numericPrintedStat(value: string | undefined): number | undefined {
@@ -109,7 +109,6 @@ function numericPrintedStat(value: string | undefined): number | undefined {
   const numericValue = Number(value);
   return Number.isFinite(numericValue) ? numericValue : undefined;
 }
-
 function buildDebugKeywordCard(
   controllerId: string,
   name: string,
@@ -195,7 +194,6 @@ function buildDebugKeywordCard(
     };
   }
   if (!railEnabled) return base;
-
   if (mode === "saga") {
     return {
       ...base,
@@ -209,7 +207,6 @@ function buildDebugKeywordCard(
       })),
     };
   }
-
   if (mode === "class") {
     return {
       ...base,
@@ -223,7 +220,6 @@ function buildDebugKeywordCard(
       })),
     };
   }
-
   return {
     ...base,
     types: ["Artifact"],
@@ -231,11 +227,9 @@ function buildDebugKeywordCard(
     counters: { ...base.counters, Page: current },
   };
 }
-
 interface GameProps {
   exitTo?: string;
 }
-
 export default function Game({ exitTo }: GameProps = {}) {
   const interruption = useMultiplayerInterruption();
   useAutoResolvePrompt(interruption.waiting);
@@ -295,11 +289,18 @@ export default function Game({ exitTo }: GameProps = {}) {
   const themeColors = useTheme().gameTheme;
   const location = useLocation();
   const devExtraOpponents =
-    (location.state as { devExtraOpponents?: number } | null)?.devExtraOpponents ?? 0;
+    (
+      location.state as {
+        devExtraOpponents?: number;
+      } | null
+    )?.devExtraOpponents ?? 0;
   const containerRef = useRef<HTMLDivElement>(null);
   const [rightPanelLeft, setRightPanelLeft] = useState<number>();
   const boardSceneRef = useRef<BoardScene | null>(null);
-  const placementIntentRef = useRef<{ cardId: string; castStarted: boolean } | null>(null);
+  const placementIntentRef = useRef<{
+    cardId: string;
+    castStarted: boolean;
+  } | null>(null);
   const [boardLayout, setBoardLayout] = useState<BoardCanvasLayout | null>(null);
   const [handCardLifted, setHandCardLifted] = useState(false);
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
@@ -311,7 +312,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   const [introDone, setIntroDone] = useState(false);
   const handleLoadingComplete = useCallback(() => setIntroDone(true), []);
   const [boardSurfaceEl, setBoardSurfaceEl] = useState<HTMLDivElement | null>(null);
-
   const activePrompt = manualApi ? null : currentPrompt;
   const promptType = activePrompt?.input.type;
   const chooseActionInput = activePrompt?.input.type === "chooseAction" ? activePrompt.input : null;
@@ -364,16 +364,13 @@ export default function Game({ exitTo }: GameProps = {}) {
     () => [...unwaterbendActionIdByCardId.keys()],
     [unwaterbendActionIdByCardId],
   );
-
   const mulliganPutBack = useMulliganSelection(activePrompt, (cardIds) =>
     respond({ type: "mulliganPutBackDecision", cardIds }),
   );
-
   const casting = useCastingState({
     currentPrompt: activePrompt,
     respond,
   });
-
   const boardTargets = useMemo(
     () =>
       activePrompt?.input.type === "chooseBoardTargets"
@@ -381,7 +378,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         : null,
     [activePrompt, gameView],
   );
-
   const {
     abilityPicker: abilityPickerState,
     playModePicker,
@@ -407,7 +403,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       toggleActionPanel: s.toggleActionPanel,
     })),
   );
-
   const toAbilityOption = (
     a: {
       cardId: string;
@@ -432,7 +427,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     colorChoice: a.colorChoice,
     actionId,
   });
-
   const castOptionsByCardId = useMemo(() => {
     const map = new Map<string, HandActionOption[]>();
     for (const a of chooseActionInput?.actions ?? []) {
@@ -449,7 +443,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     return map;
   }, [chooseActionInput?.actions]);
-
   const abilitiesByCardId = useMemo(() => {
     const map = new Map<string, HandActionOption[]>();
     for (const a of chooseActionInput?.actions ?? []) {
@@ -460,7 +453,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     return map;
   }, [chooseActionInput?.actions]);
-
   const manaAbilitiesByCardId = useMemo(() => {
     const map = new Map<string, HandActionOption[]>();
     for (const a of promptActions) {
@@ -485,9 +477,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     return map;
   }, [promptActions]);
-
   const tappableLandIdSet = useMemo(() => new Set(tappableLandIds), [tappableLandIds]);
-
   const applyManualAction = useCallback(
     async (action: Parameters<typeof applyManualTabletopAction>[1]) => {
       if (!manualApi) return;
@@ -496,9 +486,12 @@ export default function Game({ exitTo }: GameProps = {}) {
     },
     [manualApi],
   );
-
   const getManualCardActions = useCallback(
-    (card: CardDto & { zoneId?: string }): HandActionOption[] => {
+    (
+      card: CardDto & {
+        zoneId?: string;
+      },
+    ): HandActionOption[] => {
       if (!manualApi) return [];
       const humanPlayerId = gameView?.players[0]?.id;
       const ownsHumanZone = card.controllerId === humanPlayerId || card.ownerId === humanPlayerId;
@@ -511,7 +504,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         label,
         toZoneId,
       });
-
       if (card.zoneId === "battlefield") {
         return [
           {
@@ -526,7 +518,6 @@ export default function Game({ exitTo }: GameProps = {}) {
           move("Move to Command", commandZone),
         ];
       }
-
       return [
         move("Put onto Battlefield", "battlefield"),
         move("Move to Graveyard", graveyardZone),
@@ -536,12 +527,10 @@ export default function Game({ exitTo }: GameProps = {}) {
     },
     [manualApi, gameView?.players],
   );
-
   const castOptions = useCallback(
     (card: CardDto): HandActionOption[] => castOptionsByCardId.get(card.id) ?? [],
     [castOptionsByCardId],
   );
-
   const getHandActionOptions = useCallback(
     (card: CardDto): HandActionOption[] =>
       manualApi
@@ -549,12 +538,10 @@ export default function Game({ exitTo }: GameProps = {}) {
         : [...castOptions(card), ...(abilitiesByCardId.get(card.id) ?? [])],
     [manualApi, getManualCardActions, castOptions, abilitiesByCardId],
   );
-
   const getBattlefieldAbilityOptions = useCallback(
     (card: CardDto): HandActionOption[] => abilitiesByCardId.get(card.id) ?? [],
     [abilitiesByCardId],
   );
-
   const getCardActions = useCallback(
     (card: CardDto): HandActionOption[] => {
       if (manualApi) return getManualCardActions(card);
@@ -565,18 +552,18 @@ export default function Game({ exitTo }: GameProps = {}) {
           options.push({
             kind: "ability",
             cardId: card.id,
-            label: "Waterbend (pays {1})",
+            get label() {
+              return i18n._(msg`Waterbend (pays {1})`);
+            },
             actionId: waterbend,
           });
         }
         return options;
       }
       if (promptType !== "chooseAction") return [];
-
       const abilities = [...(abilitiesByCardId.get(card.id) ?? [])];
       const manaAbilities = manaAbilitiesByCardId.get(card.id) ?? [];
       const isManaSource = tappableLandIdSet.has(card.id);
-
       if (isManaSource && manaAbilities.length > 0) {
         abilities.unshift(...manaAbilities);
       }
@@ -593,7 +580,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       tappableLandIdSet,
     ],
   );
-
   const respondHandAction = (option: HandActionOption): boolean => {
     if (option.actionId != null) {
       respond({ type: "act", actionId: option.actionId });
@@ -601,7 +587,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     return false;
   };
-
   const handleCastSpell = (cardId: string) => {
     const castActions = castOptionsByCardId.get(cardId) ?? [];
     if (castActions.length > 1) {
@@ -624,8 +609,13 @@ export default function Game({ exitTo }: GameProps = {}) {
     const single = castActions[0];
     if (single) respondHandAction(single);
   };
-
-  const handleHandCardAction = (card: CardDto, e?: { clientX: number; clientY: number }) => {
+  const handleHandCardAction = (
+    card: CardDto,
+    e?: {
+      clientX: number;
+      clientY: number;
+    },
+  ) => {
     if (manualApi) {
       preview.showSticky(card, e?.clientX, e?.clientY);
       return;
@@ -637,12 +627,10 @@ export default function Game({ exitTo }: GameProps = {}) {
       }
       return;
     }
-
     if (actions.length === 1) {
       respondHandAction(actions[0]);
       return;
     }
-
     if (e) {
       preview.showSticky(card, e.clientX, e.clientY);
       return;
@@ -655,7 +643,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       options: actions,
     });
   };
-
   const handleHandCardDragStart = (card: CardDto, e: HandDragStart) => {
     const actions = getHandActionOptions(card);
     const canCast =
@@ -665,19 +652,15 @@ export default function Game({ exitTo }: GameProps = {}) {
       !actions.some((action) => action.kind === "ability");
     startHandCardDrag(card, e, { canCast });
   };
-
   const handleBattlefieldCardAction = (card: CardDto, e?: React.MouseEvent) => {
     const abilities = getBattlefieldAbilityOptions(card);
     if (abilities.length === 0) return false;
-
     if (abilities.length === 1 && !abilities[0].isClassLevelUp) {
       return respondHandAction(abilities[0]);
     }
-
     preview.showSticky(card, e?.clientX, e?.clientY);
     return true;
   };
-
   const {
     pendingAttackers,
     attackAssignments,
@@ -718,15 +701,19 @@ export default function Game({ exitTo }: GameProps = {}) {
       "This attacker";
     const creatures = (n: number) => `${n} ${n === 1 ? "creature" : "creatures"}`;
     return blockRequirement.kind === "min"
-      ? `${name} must be blocked by ${creatures(blockRequirement.count)} (${blockRequirement.assigned} assigned).`
-      : `${name} can be blocked by at most ${creatures(blockRequirement.count)} (${blockRequirement.assigned} assigned).`;
+      ? i18n._(
+          msg`${name} must be blocked by ${creatures(blockRequirement.count)} (${blockRequirement.assigned} assigned).`,
+        )
+      : i18n._(
+          msg`${name} can be blocked by at most ${creatures(blockRequirement.count)} (${blockRequirement.assigned} assigned).`,
+        );
   }, [blockRequirement, gameView?.battlefield]);
   const mustAttackHint = useMemo<string | null>(() => {
     const must = chooseAttackersInput?.attackers.filter((a) => a.mustAttack) ?? [];
     if (must.length === 0) return null;
     const nameOf = (id: string) =>
       gameView?.battlefield.find((c) => c.id === id)?.identity.name ?? "A creature";
-    return `Must attack if able — ${must.map((a) => nameOf(a.attackerId)).join(", ")}`;
+    return i18n._(msg`Must attack if able — ${must.map((a) => nameOf(a.attackerId)).join(", ")}`);
   }, [chooseAttackersInput, gameView?.battlefield]);
   const blockRestrictionHint = useMemo<string | null>(() => {
     const attackers = chooseBlockersInput?.attackers ?? [];
@@ -755,7 +742,13 @@ export default function Game({ exitTo }: GameProps = {}) {
     const input = activePrompt.input;
     if (input.chosenTargets < input.minTargets) {
       return input.cancellable
-        ? { label: "Cancel", kind: "cancel" as const, onComplete: cancelTargeting }
+        ? {
+            get label() {
+              return i18n._(msg`Cancel`);
+            },
+            kind: "cancel" as const,
+            onComplete: cancelTargeting,
+          }
         : null;
     }
     if (input.maxTargets <= input.minTargets) {
@@ -767,7 +760,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       onComplete: declineTargets,
     };
   }, [activePrompt, declineTargets, cancelTargeting]);
-
   function openZone(
     title: string,
     cards: CardDto[],
@@ -824,7 +816,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       },
     });
   }
-
   const handleTapLand = (card: CardDto) => {
     const manaAbilities = manaAbilitiesByCardId.get(card.id) ?? [];
     const waterbend = waterbendActionIdByCardId.get(card.id);
@@ -841,7 +832,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       respond({ type: "act", actionId: waterbend });
       return;
     }
-
     const cardActions = promptActions.filter(
       (a) => a.type === "activateAbility" && a.cardId === card.id,
     );
@@ -851,7 +841,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       respond({ type: "act", actionId: cardActions[0].id });
     }
   };
-
   const handleUntapLand = (card: CardDto) => {
     const release = unwaterbendActionIdByCardId.get(card.id);
     if (release) {
@@ -861,10 +850,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     const undo = promptActions.find((a) => a.type === "undoMana" && a.cardId === card.id);
     if (undo) respond({ type: "act", actionId: undo.id });
   };
-
   const pendingTapQueueRef = useRef<string[]>([]);
   const pendingUntapQueueRef = useRef<string[]>([]);
-
   const startBatchLandAction = (
     cardIds: string[],
     queueRef: React.MutableRefObject<string[]>,
@@ -875,7 +862,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     queueRef.current = rest;
     action(first);
   };
-
   const tapResponse = (id: string) => {
     const option = manaAbilitiesByCardId.get(id)?.[0];
     if (option?.actionId) {
@@ -896,13 +882,10 @@ export default function Game({ exitTo }: GameProps = {}) {
     const a = promptActions.find((x) => x.type === "undoMana" && x.cardId === id);
     if (a) respond({ type: "act", actionId: a.id });
   };
-
   const handleTapLands = (cardIds: string[]) =>
     startBatchLandAction(cardIds, pendingTapQueueRef, tapResponse);
-
   const handleUntapLands = (cardIds: string[]) =>
     startBatchLandAction(cardIds, pendingUntapQueueRef, untapResponse);
-
   const drainQueue = (
     queueRef: React.MutableRefObject<string[]>,
     validIds: string[],
@@ -920,7 +903,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     action(nextId);
     return true;
   };
-
   useEffect(() => {
     if (isWaitingForResponse) return;
     if (!promptType) return;
@@ -933,7 +915,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     drainQueue(pendingUntapQueueRef, untappableLandIds, untapResponse);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePrompt, isWaitingForResponse, promptType, tappableLandIds, untappableLandIds]);
-
   const _earlyMyPlayerId =
     gameView?.players?.find((p) => p.isHuman)?.id ?? gameView?.players?.[0]?.id ?? "";
   const { unifiedPass, unifiedPassEndTurn, spellStackModalOpen, setSpellStackModalOpen } =
@@ -944,7 +925,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       respond,
       myPlayerId: _earlyMyPlayerId,
     });
-
   const passPriority = useCallback(() => {
     window.dispatchEvent(new Event(ACTION_DRAWER_BUMP_EVENT));
     unifiedPass();
@@ -1000,12 +980,10 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     return false;
   };
-
   const preview = useCardPreview([viewingZone, spellStackModalOpen, abilityPickerState], {
     useTriggerPreference: true,
   });
   const previewViewSwitchCardIdRef = useRef<string | null>(null);
-
   const battlefieldContainerRef = useRef<HTMLDivElement>(null);
   const { draggingHandCard, ghostPos, isOverBattlefield, isOverHand, startHandCardDrag } =
     useHandDrag({
@@ -1025,11 +1003,9 @@ export default function Game({ exitTo }: GameProps = {}) {
       dismissHover: preview.dismiss,
       onLongPress: (card, pos) => preview.showSticky(card, pos.x, pos.y),
     });
-
   const draggingIsPermanent = draggingHandCard ? isPermanentSpellCard(draggingHandCard) : false;
   const ghostCardW = Math.round(HAND_CARD_BASE.cardW * vScale);
   const ghostCardH = Math.round(HAND_CARD_BASE.cardH * vScale);
-
   const handlePreviewAction = (action: HandActionOption) => {
     preview.dismiss();
     if (action.kind === "manual-move" && action.toZoneId) {
@@ -1059,9 +1035,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     respondHandAction(action);
   };
-
   const activeFlash = useFlashQueue(flashDurationMs);
-
   const [priorityHighlightPlayerId, setPriorityHighlightPlayerId] = useState<string | null>(null);
   useEffect(() => {
     const next = gameView?.priorityPlayerId ?? null;
@@ -1075,10 +1049,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     }, 160);
     return () => clearTimeout(timer);
   }, [gameView?.priorityPlayerId, priorityHighlightPlayerId]);
-
   useGameEventListeners();
   useGamePrefetch();
-
   useKeybindings({
     "toggle-stack": () => useStackUIStore.getState().toggleCollapsed(),
     "open-dev-panel": () => useGameUIStore.getState().openDevPanel(),
@@ -1100,7 +1072,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       prefs.setFullControl(!prefs.fullControl);
     },
   });
-
   const me =
     gameView?.players?.find((p) => p.id === myPlayerSlot) ??
     gameView?.players?.find((p) => p.isHuman) ??
@@ -1112,14 +1083,12 @@ export default function Game({ exitTo }: GameProps = {}) {
       placementIntentRef.current = null;
       return;
     }
-
     const onStack = gameView.stack.some((item) => item.sourceId === intent.cardId);
     const promptingForCard =
       casting.castingCardId === intent.cardId || activePrompt?.sourceCard?.id === intent.cardId;
     const inHand = me.hand.some((card) => card.id === intent.cardId);
     if (onStack || promptingForCard || !inHand) intent.castStarted = true;
     if (!intent.castStarted || onStack || promptingForCard) return;
-
     boardSceneRef.current?.clearPendingDrop(intent.cardId);
     placementIntentRef.current = null;
   }, [activePrompt, casting.castingCardId, gameView, me]);
@@ -1127,7 +1096,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     () => gameView?.players?.filter((p) => p.id !== me?.id) ?? [],
     [gameView?.players, me?.id],
   );
-
   const iAmEliminated = selfConceded || (me != null && me.status !== "playing");
   const ownsEngine = isHost || hostingForgeRoom;
   // With fewer than two other players left, my elimination ends the game —
@@ -1143,7 +1111,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     if (ownsEngine) setLeaveGameModalOpen(true);
     else void endGame();
   }, [ownsEngine, endGame]);
-
   const myStatus = me?.status;
   const gameOverNow = gameView?.gameOver ?? false;
   useEffect(() => {
@@ -1153,7 +1120,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       setEliminatedModalOpen(true);
     }
   }, [myStatus, gameOverNow, manualApi, gameContinuesWithoutMe]);
-
   const payManaCostPrompt =
     currentPrompt?.input.type === "payManaCost" ? currentPrompt.input : null;
   const delveActionIdByCardId = useMemo(() => {
@@ -1174,7 +1140,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     [payManaCostPrompt],
   );
   const payLifeAction = payManaCostPrompt?.actions.find((action) => action.type === "payLife");
-
   const handleDelveCard = useCallback(
     (cardId: string) => {
       if (useGameStore.getState().isWaitingForResponse) return;
@@ -1183,10 +1148,11 @@ export default function Game({ exitTo }: GameProps = {}) {
     },
     [respond, delveActionIdByCardId],
   );
-
   const openDelveZone = useCallback(() => {
     openZoneViewer({
-      title: "Delve — Your Graveyard",
+      get title() {
+        return i18n._(msg`Delve \u2014 Your Graveyard`);
+      },
       cards: me?.graveyard ?? [],
       onClickCard: handleDelveCard,
       clickableCardIds: delveSourceIds,
@@ -1196,13 +1162,11 @@ export default function Game({ exitTo }: GameProps = {}) {
       stickyPromptType: "payManaCost",
     });
   }, [openZoneViewer, me?.graveyard, handleDelveCard, delveSourceIds, delvedCardIds]);
-
   useEffect(() => {
     const vz = useGameUIStore.getState().viewingZone;
     if (vz?.selectedCardIds === undefined) return;
     openZoneViewer({ ...vz, clickableCardIds: delveSourceIds, selectedCardIds: delvedCardIds });
   }, [delveSourceIds, delvedCardIds, openZoneViewer]);
-
   // Keep an open zone-target viewer in sync with the live valid set as each
   // target is picked (the engine re-prompts with the remaining candidates).
   // `boardTargets` is null while a response is in flight — leave the viewer be;
@@ -1221,7 +1185,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     openZoneViewer({ ...vz, clickableCardIds });
   }, [boardTargets, openZoneViewer, closeZoneViewer]);
-
   // Generic sticky-viewer close: a viewer bound to a prompt type stays open
   // across same-type re-prompts and only closes once the prompt changes type
   // or ends. Keyed on currentPrompt (not activePrompt) so it survives the null
@@ -1233,7 +1196,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
   }, [currentPrompt, viewingZone, closeZoneViewer]);
   const opponent = opponents[0];
-
   const playerColorMap = useMemo(() => {
     const map = new Map<string, string>();
     if (me) map.set(me.id, themeColors.playerColors.self);
@@ -1289,7 +1251,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [gameView?.combatAssignments?.map((a) => `${a.blockerId}:${a.attackerId}`).join(",")],
   );
-
   const combatRows = useMemo(
     () =>
       gameView
@@ -1311,7 +1272,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     () => new Set(combatRows.flatMap((r) => r.attackerIds)),
     [combatRows],
   );
-
   const hoveredStackObjectIdForSpecs = useStackUIStore((s) => s.hoveredStackObjectId);
   const setHoveredStackObjectId = useStackUIStore((s) => s.setHoveredStackObjectId);
   const stackCollapsed = useStackUIStore((s) => s.collapsed);
@@ -1323,7 +1283,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         .map((c) => ({ attackerId: c.id, defenderId: c.attackingPlayerId! })),
     [gameView?.battlefield],
   );
-
   const combatPairings = useMemo<CombatPairing[]>(() => {
     const nameOf = (id: string) =>
       id === myPlayerSlot
@@ -1345,9 +1304,14 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     return [...pairs.values()];
   }, [gameView?.battlefield, gameView?.players, myPlayerSlot]);
-
   const cardZoneTiles = useMemo(() => {
-    const map = new Map<string, { playerId: string; key: string }>();
+    const map = new Map<
+      string,
+      {
+        playerId: string;
+        key: string;
+      }
+    >();
     for (const p of gameView?.players ?? []) {
       for (const c of p.graveyard) map.set(c.id, { playerId: p.id, key: ZONE_TILE_KEY.graveyard });
       for (const c of p.exile) map.set(c.id, { playerId: p.id, key: ZONE_TILE_KEY.exile });
@@ -1355,7 +1319,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     return map;
   }, [gameView?.players]);
-
   const attackTargetKindById = useMemo(() => {
     const m = new Map<string, string>();
     for (const t of chooseAttackersInput?.attackTargets ?? []) m.set(t.id, t.kind);
@@ -1392,7 +1355,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     () => combatAssignments.filter((a) => !oppCombatAttackerIds.has(a.attackerId)),
     [combatAssignments, oppCombatAttackerIds],
   );
-
   const liveArrowSpecs = useMemo(
     () =>
       buildArrowSpecs({
@@ -1417,7 +1379,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       cardZoneTiles,
     ],
   );
-
   const debugArrowType = useGameDevStore((s) => s.debugArrowType);
   const arrowSpecs = useMemo(() => {
     if (!debugArrowType || !me?.id || !opponent?.id) return liveArrowSpecs;
@@ -1430,7 +1391,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       },
     ];
   }, [liveArrowSpecs, debugArrowType, me?.id, opponent?.id]);
-
   const debugBattlefieldKeywords = useGameDevStore((s) => s.debugBattlefieldKeywords);
   const debugCardChoices = useGameDevStore((s) => s.debugCardChoices);
   const debugCardEnabled = useGameDevStore((s) => s.debugCardEnabled);
@@ -1443,7 +1403,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   const debugCardFinal = useGameDevStore((s) => s.debugCardFinal);
   const debugCardOverrides = useGameDevStore((s) => s.cardOverrides);
   const debugCardTransformed = debugCardOverrides.forceTransformed;
-
   const visibleCardsById = useMemo(() => {
     if (!gameView) return new Map<string, ClientCardDto>();
     const cards: ClientCardDto[] = [
@@ -1489,7 +1448,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     debugCardChoices,
     me?.id,
   ]);
-
   const regionOwnerOf = useCallback((card: CardDto, byId: Map<string, CardDto>): string => {
     let cur = card;
     const seen = new Set<string>();
@@ -1499,13 +1457,11 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     return cur.controllerId;
   }, []);
-
   const battlefieldById = useMemo(() => {
     const m = new Map<string, CardDto>();
     for (const c of gameView?.battlefield ?? []) m.set(c.id, c);
     return m;
   }, [gameView?.battlefield]);
-
   const myPermanents = useMemo<CardDto[]>(() => {
     if (!gameView || !me) return [];
     const pendingSet = new Set([
@@ -1552,7 +1508,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     regionOwnerOf,
     battlefieldById,
   ]);
-
   const opponentPermanentsByPlayer = useMemo(() => {
     const map = new Map<string, CardDto[]>();
     if (!gameView) return map;
@@ -1564,7 +1519,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     return map;
   }, [gameView, opponents, regionOwnerOf, battlefieldById]);
-
   const stackCardsBySourceId = useMemo(() => {
     const byId = new Map<string, ClientCardDto>();
     for (const s of gameView?.stack ?? []) {
@@ -1573,7 +1527,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     return byId;
   }, [gameView?.stack]);
-
   const previewCardId = preview.hoveredCard?.id ?? null;
   const livePreviewCard = previewCardId
     ? (visibleCardsById.get(previewCardId) ?? stackCardsBySourceId.get(previewCardId) ?? null)
@@ -1602,9 +1555,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     () => (livePreviewCard ? getCardActions(livePreviewCard) : []),
     [getCardActions, livePreviewCard],
   );
-
   const promptSourceDeckCard = useResolveSourceCard(activePrompt?.sourceCard);
-
   const handleLogCardHover = (
     cardId: string | null,
     e?: React.MouseEvent,
@@ -1639,7 +1590,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     preview.handleMouseEnter(card, e, { useDelay: true, ...options });
   };
-
   const handleHoverCardGuarded = (
     card: CardDto | null,
     e?: React.MouseEvent,
@@ -1660,7 +1610,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       preview.handleMouseEnter(card, e, { ...options, useDelay: true });
     }
   };
-
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -1698,22 +1647,18 @@ export default function Game({ exitTo }: GameProps = {}) {
     });
     return () => observer.disconnect();
   }, []);
-
   const { dismiss: dismissPreview, hoveredCard: previewedCard } = preview;
-
   useEffect(() => {
     if (draggingHandCard) {
       dismissPreview();
     }
   }, [draggingHandCard, dismissPreview]);
-
   useEffect(() => {
     if (!previewedCard) return;
     if (!livePreviewCard) {
       dismissPreview();
     }
   }, [previewedCard, dismissPreview, livePreviewCard]);
-
   const cardNameById = useMemo(() => {
     const byId = new Map<string, string>();
     for (const c of visibleCardsById.values()) {
@@ -1724,15 +1669,12 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     return byId;
   }, [visibleCardsById, stackCardsBySourceId]);
-
   const playerNameById = useMemo(
     () => new Map((gameView?.players ?? []).map((p) => [p.id, p.name] as const)),
     [gameView?.players],
   );
-
   const resolveStackCard = (stackItem: StackObjectDto): CardDto =>
     visibleCardsById.get(stackItem.sourceId) ?? stackCardsBySourceId.get(stackItem.sourceId)!;
-
   const activeFlashCard: CardDto | null = useMemo(() => {
     if (!activeFlash || activeFlash.kind !== "card") return null;
     return (
@@ -1741,7 +1683,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       null
     );
   }, [activeFlash, visibleCardsById, stackCardsBySourceId]);
-
   const showInGamePreview =
     livePreviewCard != null &&
     (livePreviewCard.zoneId !== "hand" || preview.isSticky) &&
@@ -1780,7 +1721,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     const timer = setTimeout(() => endGame(), 3000);
     return () => clearTimeout(timer);
   }, [gameView?.gameOver, activePrompt?.input.type, endGame]);
-
   const navigate = useNavigate();
   useEffect(() => {
     if (!gameView?.gameOver) return;
@@ -1796,17 +1736,13 @@ export default function Game({ exitTo }: GameProps = {}) {
       navigate(`/gauntlet/${pending.gauntletId}`);
     })();
   }, [gameView?.gameOver, gameView?.winnerId, myPlayerSlot, navigate, endGame]);
-
   if (!isGameActive) return <Navigate to={exitTo ?? "/lobby"} replace />;
-
   if (fatalError) {
     return <GameFailedScreen message={fatalError} onLeave={endGame} />;
   }
-
   if (!gameView || isPrefetchingCards || !me || !introDone) {
     return <GameLoadingScreen debugInfo={debugInfo} onComplete={handleLoadingComplete} />;
   }
-
   const playableIds = new Set<string>(
     promptType === "chooseAction"
       ? (chooseActionInput?.actions ?? []).flatMap((a) =>
@@ -1814,7 +1750,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         )
       : [],
   );
-
   if (import.meta.env.DEV && typeof document !== "undefined") {
     document.documentElement.dataset.manabrewGameDebug = JSON.stringify({
       promptType,
@@ -1835,7 +1770,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       priorityPlayerId: gameView.priorityPlayerId,
     });
   }
-
   if (gameView.gameOver || promptType === "gameOver") {
     return (
       <GameOverScreen
@@ -1847,15 +1781,12 @@ export default function Game({ exitTo }: GameProps = {}) {
       />
     );
   }
-
   const turnFlashPlayerId = activeFlash?.kind === "turn" ? activeFlash.playerId : null;
   const effectivePriorityHighlightPlayerId = priorityHighlightPlayerId ?? gameView.priorityPlayerId;
   const shouldRenderStackFlashCard = activeFlash?.kind === "card";
   const shouldShowPreStackFlash = activeFlashCard?.types.includes("Land") ?? false;
-
   const targetingCursorActive =
     casting.showArrow && !casting.targetId && !intentPrefersArrow(casting.arrowIntent);
-
   const castingArrow =
     casting.showArrow &&
     casting.castingCardId &&
@@ -1863,7 +1794,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     intentPrefersArrow(casting.arrowIntent)
       ? { sourceCardId: casting.castingCardId, hostile: casting.arrowHostile }
       : null;
-
   const stackValidTargetSet = new Set(boardTargets?.spellIds ?? []);
   const stackTargetingActive = stackValidTargetSet.size > 0;
   const debugStackCard =
@@ -1939,7 +1869,6 @@ export default function Game({ exitTo }: GameProps = {}) {
           viewportRight: isActionPanelCollapsed ? undefined : rightPanelLeft,
         }
       : null;
-
   return (
     <div
       ref={containerRef}
@@ -2294,13 +2223,13 @@ export default function Game({ exitTo }: GameProps = {}) {
           <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
             <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
               <span className="text-sm font-semibold tracking-wide">
-                Click a glowing spell on the stack to counter it
+                <Trans>Click a glowing spell on the stack to counter it</Trans>
               </span>
               <button
                 className="text-xs font-medium uppercase text-muted-foreground hover:text-foreground"
                 onClick={() => setSpellStackModalOpen(true)}
               >
-                Expand
+                <Trans>Expand</Trans>
               </button>
             </div>
           </div>
@@ -2309,9 +2238,11 @@ export default function Game({ exitTo }: GameProps = {}) {
       {gameView.step === "combatFirstStrikeDamage" && (
         <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
           <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
-            <span className="text-sm font-semibold tracking-wide">First Strike Damage</span>
+            <span className="text-sm font-semibold tracking-wide">
+              <Trans>First Strike Damage</Trans>
+            </span>
             <span className="text-xs text-muted-foreground">
-              only first &amp; double strikers deal damage now
+              <Trans>only first &amp; double strikers deal damage now</Trans>
             </span>
           </div>
         </div>

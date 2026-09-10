@@ -19,7 +19,9 @@ import {
 } from "@/components/ui/dialog";
 import type { EngineKind } from "@/protocol";
 import type { SavedDeck } from "@/stores/useDeckStore";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface DeckGridCardProps {
   deck: SavedDeck;
   onOpen: () => void;
@@ -36,7 +38,6 @@ interface DeckGridCardProps {
   playDisabled?: boolean;
   readOnly?: boolean;
 }
-
 export function DeckGridCard({
   deck,
   onOpen,
@@ -59,7 +60,6 @@ export function DeckGridCard({
   const titleColorClass = getDeckNameColorClass(displayCards);
   const cover = resolveCoverCard(deck.deck);
   const actionsVisible = onPlaytest || onViewInHub || !readOnly;
-
   return (
     <>
       <DeckCardSurface
@@ -80,8 +80,8 @@ export function DeckGridCard({
                 <Button
                   size="icon"
                   className="h-6 w-6"
-                  aria-label="Playtest vs AI"
-                  title="Playtest vs AI"
+                  aria-label={i18n._(msg`Playtest vs AI`)}
+                  title={i18n._(msg`Playtest vs AI`)}
                   onClick={onPlaytest}
                 >
                   <Swords className="h-3 w-3" />
@@ -92,8 +92,8 @@ export function DeckGridCard({
                   size="icon"
                   variant="secondary"
                   className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
-                  aria-label="View in Community"
-                  title="View in Community"
+                  aria-label={i18n._(msg`View in Community`)}
+                  title={i18n._(msg`View in Community`)}
                   onClick={onViewInHub}
                 >
                   <LibraryBig className="h-3 w-3" />
@@ -104,8 +104,8 @@ export function DeckGridCard({
                   size="icon"
                   variant="secondary"
                   className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
-                  aria-label="Publish to Community"
-                  title="Publish to Community"
+                  aria-label={i18n._(msg`Publish to Community`)}
+                  title={i18n._(msg`Publish to Community`)}
                   onClick={onPublish}
                 >
                   <Share2 className="h-3 w-3" />
@@ -116,8 +116,8 @@ export function DeckGridCard({
                   size="icon"
                   variant="secondary"
                   className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
-                  aria-label="Save to account"
-                  title="Save to account"
+                  aria-label={i18n._(msg`Save to account`)}
+                  title={i18n._(msg`Save to account`)}
                   onClick={onSaveToAccount}
                 >
                   <CloudUpload className="h-3 w-3" />
@@ -128,8 +128,8 @@ export function DeckGridCard({
                   size="icon"
                   variant="secondary"
                   className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
-                  aria-label="Rename"
-                  title="Rename"
+                  aria-label={i18n._(msg`Rename`)}
+                  title={i18n._(msg`Rename`)}
                   onClick={onRename}
                 >
                   <Pencil className="h-3 w-3" />
@@ -140,8 +140,8 @@ export function DeckGridCard({
                   size="icon"
                   variant="secondary"
                   className="h-6 w-6 bg-background/80 text-destructive backdrop-blur-sm hover:bg-background hover:text-destructive"
-                  aria-label="Delete"
-                  title="Delete"
+                  aria-label={i18n._(msg`Delete`)}
+                  title={i18n._(msg`Delete`)}
                   onClick={() => setConfirmDelete(true)}
                 >
                   <Trash2 className="h-3 w-3" />
@@ -167,11 +167,11 @@ export function DeckGridCard({
                 key={engine}
                 className="rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-[9px] font-medium text-foreground backdrop-blur-sm"
               >
-                {engine} engine
+                <Trans>{engine} engine</Trans>
               </span>
             ))}
             <span className="ml-auto text-[10px] text-text-on-tinted/85">
-              {displayCards.length} cards
+              <Trans>{displayCards.length} cards</Trans>
             </span>
           </>
         }
@@ -180,15 +180,19 @@ export function DeckGridCard({
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Delete Deck</DialogTitle>
+            <DialogTitle>
+              <Trans>Delete Deck</Trans>
+            </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete &ldquo;{deck.deck.name}&rdquo;? This action cannot be
-              undone.
+              <Trans>
+                Are you sure you want to delete &ldquo;{deck.deck.name}&rdquo;? This action cannot
+                be undone.
+              </Trans>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)}>
-              Cancel
+              <Trans>Cancel</Trans>
             </Button>
             <Button
               variant="destructive"
@@ -198,7 +202,7 @@ export function DeckGridCard({
                 onDelete?.();
               }}
             >
-              Delete
+              <Trans>Delete</Trans>
             </Button>
           </DialogFooter>
         </DialogContent>

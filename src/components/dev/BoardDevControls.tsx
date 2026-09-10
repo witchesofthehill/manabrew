@@ -1,11 +1,11 @@
 import { Eye, Grid3X3, Layers3, MousePointer2, Sparkles } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
-
 import { DEV_SECTION, DEV_SECTION_HEADING } from "./devPanel.styles";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export function BoardDevControls() {
   const stats = useGameDevStore((s) => s.pixiPerfStats);
   const devToolsEnabled = useGameDevStore((s) => s.devToolsEnabled);
@@ -19,7 +19,6 @@ export function BoardDevControls() {
   const setShowAttackRows = useGameDevStore((s) => s.setShowAttackRows);
   const setDebugStackCardEnabled = useGameDevStore((s) => s.setDebugStackCardEnabled);
   const triggerEtbGlow = useGameDevStore((s) => s.triggerEtbGlow);
-
   const fps = stats?.fps.toFixed(1) ?? "—";
   const frameMs = stats?.deltaMs.toFixed(1) ?? "—";
   const range = stats ? `${stats.minFps.toFixed(0)}–${stats.maxFps.toFixed(0)}` : "—";
@@ -31,49 +30,54 @@ export function BoardDevControls() {
         : stats.fps >= 40
           ? "text-warning"
           : "text-destructive";
-
   return (
     <>
       <section className={DEV_SECTION}>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className={DEV_SECTION_HEADING}>Renderer</p>
+            <p className={DEV_SECTION_HEADING}>
+              <Trans>Renderer</Trans>
+            </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Live Pixi performance for the current battlefield.
+              <Trans>Live Pixi performance for the current battlefield.</Trans>
             </p>
           </div>
           <div className="text-right">
             <p className={cn("font-mono text-2xl font-semibold tabular-nums", fpsColor)}>{fps}</p>
-            <p className="font-mono text-[10px] text-muted-foreground">FPS</p>
+            <p className="font-mono text-[10px] text-muted-foreground">
+              <Trans>FPS</Trans>
+            </p>
           </div>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <Metric label="Frame" value={`${frameMs} ms`} />
-          <Metric label="Observed range" value={range} />
+          <Metric label={i18n._(msg`Frame`)} value={`${frameMs} ms`} />
+          <Metric label={i18n._(msg`Observed range`)} value={range} />
         </div>
       </section>
 
       <section className={DEV_SECTION}>
-        <p className={DEV_SECTION_HEADING}>Board guides</p>
+        <p className={DEV_SECTION_HEADING}>
+          <Trans>Board guides</Trans>
+        </p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <GuideToggle
             icon={MousePointer2}
-            label="Hover targets"
-            description="Hand, battlefield, and preview hit areas"
+            label={i18n._(msg`Hover targets`)}
+            description={i18n._(msg`Hand, battlefield, and preview hit areas`)}
             checked={showHoverAreas}
             onChange={setShowHoverAreas}
           />
           <GuideToggle
             icon={Grid3X3}
-            label="Layout skeleton"
-            description="Rows and card slots for every player"
+            label={i18n._(msg`Layout skeleton`)}
+            description={i18n._(msg`Rows and card slots for every player`)}
             checked={showGridSkeleton}
             onChange={setShowGridSkeleton}
           />
           <GuideToggle
             icon={Eye}
-            label="Attack rows"
-            description="Combat drop areas for every player"
+            label={i18n._(msg`Attack rows`)}
+            description={i18n._(msg`Combat drop areas for every player`)}
             checked={showAttackRows}
             onChange={setShowAttackRows}
           />
@@ -81,7 +85,9 @@ export function BoardDevControls() {
       </section>
 
       <section className={DEV_SECTION}>
-        <p className={DEV_SECTION_HEADING}>Tools</p>
+        <p className={DEV_SECTION_HEADING}>
+          <Trans>Tools</Trans>
+        </p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <Button
             type="button"
@@ -89,19 +95,21 @@ export function BoardDevControls() {
             className="justify-start"
             onClick={triggerEtbGlow}
           >
-            <Sparkles />
-            Replay ETB glow
+            <Trans>
+              <Sparkles />
+              Replay ETB glow
+            </Trans>
           </Button>
           <GuideToggle
             icon={Layers3}
-            label="Debug stack card"
-            description="Add the staged card to the live stack"
+            label={i18n._(msg`Debug stack card`)}
+            description={i18n._(msg`Add the staged card to the live stack`)}
             checked={debugStackCardEnabled}
             onChange={setDebugStackCardEnabled}
           />
           <GuideToggle
-            label="Zustand DevTools"
-            description="Mount the state inspector"
+            label={i18n._(msg`Zustand DevTools`)}
+            description={i18n._(msg`Mount the state inspector`)}
             checked={devToolsEnabled}
             onChange={setDevToolsEnabled}
           />
@@ -110,7 +118,6 @@ export function BoardDevControls() {
     </>
   );
 }
-
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border/60 bg-background/50 px-3 py-2">
@@ -119,7 +126,6 @@ function Metric({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
 function GuideToggle({
   icon: Icon,
   label,

@@ -23,18 +23,18 @@ import {
   Sword,
   Trash2,
 } from "lucide-react";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface ManualTabletopControlsProps {
   gameView: ClientGameView;
   api: ManualTabletopApi;
 }
-
 function parseStat(value: string | undefined): number | undefined {
   if (value == null) return undefined;
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
-
 function createManualCard(
   name: string,
   controllerId: string,
@@ -42,7 +42,6 @@ function createManualCard(
   scryfallCard?: ScryfallCard,
 ): ClientCardDto {
   const base = scryfallCard ? scryfallToDeckCard(scryfallCard) : null;
-
   return {
     ...GAME_CARD_DEFAULTS,
     ...(base ?? {}),
@@ -71,7 +70,6 @@ function createManualCard(
     isDoubleFaced: base?.isDoubleFaced ?? false,
   };
 }
-
 export function ManualTabletopControls({ gameView, api }: ManualTabletopControlsProps) {
   const [cardName, setCardName] = useState("");
   const [searchResults, setSearchResults] = useState<ScryfallCard[]>([]);
@@ -81,7 +79,6 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
   const [controllerId, setControllerId] = useState(gameView.players[0]?.id ?? "");
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
-
   // Snap controllerId back to a valid player whenever the player list changes.
   if (!gameView.players.some((player) => player.id === controllerId)) {
     const fallback = gameView.players[0]?.id ?? "";
@@ -89,17 +86,14 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
       setControllerId(fallback);
     }
   }
-
   const selectedPlayer = useMemo(
     () => gameView.players.find((player) => player.id === controllerId),
     [controllerId, gameView.players],
   );
-
   const applyAction = async (action: Parameters<typeof applyManualTabletopAction>[1]) => {
     const nextView = await applyManualTabletopAction(api, action);
     if (nextView) useGameStore.setState({ gameView: nextView });
   };
-
   const searchScryfall = useCallback((query: string) => {
     const trimmed = query.trim();
     setSelectedCard(null);
@@ -108,7 +102,6 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
       setSearchOpen(false);
       return;
     }
-
     setSearching(true);
     useScryfallStore
       .getState()
@@ -123,7 +116,6 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
       })
       .finally(() => setSearching(false));
   }, []);
-
   useEffect(() => {
     function handlePointerDown(event: PointerEvent) {
       if (searchContainerRef.current?.contains(event.target as Node)) return;
@@ -135,19 +127,16 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
   }, []);
-
   function handleCardNameChange(value: string) {
     setCardName(value);
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(() => searchScryfall(value), 300);
   }
-
   function selectSearchResult(card: ScryfallCard) {
     setSelectedCard(card);
     setCardName(card.name);
     setSearchOpen(false);
   }
-
   const addPermanent = async (isToken: boolean) => {
     const trimmedName = selectedCard?.name ?? cardName.trim();
     if (!trimmedName || !selectedPlayer) return;
@@ -160,7 +149,6 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
     setSelectedCard(null);
     setSearchResults([]);
   };
-
   const moveCard = (card: ClientCardDto, zoneId: string) =>
     applyAction({
       type: "moveCard",
@@ -168,29 +156,29 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
       fromZoneId: card.zoneId,
       toZoneId: zoneId,
     });
-
   const permanents = gameView.battlefield
     .filter((card) => card.controllerId === controllerId)
     .slice(0, 8);
   const humanPlayerId = gameView.players[0]?.id;
-
   return (
     <div className="absolute right-[calc(0.5rem+var(--safe-area-inset-right))] bottom-[calc(0.5rem+var(--safe-area-inset-bottom))] z-30 w-[320px] max-h-[60%] overflow-y-auto rounded-md border bg-background/95 shadow-sm backdrop-blur">
       <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
         <Badge variant="outline" className="gap-1.5">
-          <Sparkles className="h-3 w-3" />
-          Tabletop
+          <Trans>
+            <Sparkles className="h-3 w-3" />
+            Tabletop
+          </Trans>
         </Badge>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground">
-            {gameView.battlefield.length} permanents
+            <Trans>{gameView.battlefield.length} permanents</Trans>
           </span>
           <Button
             type="button"
             variant="ghost"
             size="icon"
             className="h-6 w-6 text-destructive hover:text-destructive"
-            title="Exit tabletop"
+            title={i18n._(msg`Exit tabletop`)}
             onClick={() => void useGameStore.getState().endGame()}
           >
             <LogOut className="h-3.5 w-3.5" />
@@ -291,7 +279,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                   size="sm"
                   className="h-7 gap-1 px-1.5 text-[10px]"
                   disabled={player.libraryCount <= 0}
-                  title="Draw a card"
+                  title={i18n._(msg`Draw a card`)}
                   onClick={() =>
                     void applyAction({
                       type: "drawLibraryCard",
@@ -308,7 +296,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                   size="icon"
                   className="h-7 w-full"
                   disabled={player.libraryCount <= 0}
-                  title="Put top library card onto battlefield"
+                  title={i18n._(msg`Put top library card onto battlefield`)}
                   onClick={() =>
                     void applyAction({
                       type: "putLibraryCardOntoBattlefield",
@@ -324,7 +312,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                   size="icon"
                   className="h-7 w-full"
                   disabled={player.libraryCount < 2}
-                  title="Shuffle library"
+                  title={i18n._(msg`Shuffle library`)}
                   onClick={() =>
                     void applyAction({
                       type: "shuffleLibrary",
@@ -346,15 +334,19 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
               value={cardName}
               onChange={(event) => handleCardNameChange(event.target.value)}
               onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
-              placeholder="Search Scryfall"
+              placeholder={i18n._(msg`Search Scryfall`)}
               className="h-8 pl-7 text-xs"
             />
             {searchOpen && (
               <div className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-50 max-h-56 overflow-y-auto rounded-md border bg-popover p-1 shadow-lg">
                 {searching && searchResults.length === 0 ? (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">Searching...</div>
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                    <Trans>Searching...</Trans>
+                  </div>
                 ) : searchResults.length === 0 ? (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No cards found</div>
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                    <Trans>No cards found</Trans>
+                  </div>
                 ) : (
                   searchResults.map((card) => (
                     <button
@@ -381,8 +373,10 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
             disabled={!cardName.trim() || !selectedPlayer}
             onClick={() => void addPermanent(false)}
           >
-            <Plus className="h-3.5 w-3.5" />
-            CardDto
+            <Trans>
+              <Plus className="h-3.5 w-3.5" />
+              CardDto
+            </Trans>
           </Button>
           <Button
             type="button"
@@ -391,15 +385,19 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
             disabled={!cardName.trim() || !selectedPlayer}
             onClick={() => void addPermanent(true)}
           >
-            <Plus className="h-3.5 w-3.5" />
-            Token
+            <Trans>
+              <Plus className="h-3.5 w-3.5" />
+              Token
+            </Trans>
           </Button>
         </div>
 
         {permanents.length > 0 && (
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-muted-foreground">
-              <span>Battlefield</span>
+              <span>
+                <Trans>Battlefield</Trans>
+              </span>
               <span>{permanents.length}</span>
             </div>
             <div className="max-h-48 space-y-1 overflow-y-auto pr-1">
@@ -431,8 +429,8 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                     variant="outline"
                     size="icon"
                     className="h-6 w-6"
-                    title="Move to hand"
-                    aria-label="Move to hand"
+                    title={i18n._(msg`Move to hand`)}
+                    aria-label={i18n._(msg`Move to hand`)}
                     onClick={() => void moveCard(card, "hand")}
                   >
                     <Hand className="h-3 w-3" />
@@ -442,8 +440,8 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                     variant="outline"
                     size="icon"
                     className="h-6 w-6"
-                    title="Move to exile"
-                    aria-label="Move to exile"
+                    title={i18n._(msg`Move to exile`)}
+                    aria-label={i18n._(msg`Move to exile`)}
                     onClick={() =>
                       void moveCard(
                         card,
@@ -458,8 +456,8 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                     variant="outline"
                     size="icon"
                     className="h-6 w-6"
-                    title="Move to graveyard"
-                    aria-label="Move to graveyard"
+                    title={i18n._(msg`Move to graveyard`)}
+                    aria-label={i18n._(msg`Move to graveyard`)}
                     onClick={() =>
                       void moveCard(
                         card,

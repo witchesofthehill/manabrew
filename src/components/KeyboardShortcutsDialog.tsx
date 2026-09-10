@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { KEYBINDINGS, formatCombo } from "@/lib/keybindings";
 import { useKeybindingsStore, resolveCombo } from "@/stores/useKeybindingsStore";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export function KeyboardShortcutsDialog({
   open,
   onOpenChange,
@@ -24,7 +25,6 @@ export function KeyboardShortcutsDialog({
     );
   }, [query]);
   const categories = [...new Set(filtered.map((binding) => binding.category))];
-
   return (
     <Dialog
       open={open}
@@ -35,7 +35,9 @@ export function KeyboardShortcutsDialog({
     >
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Keyboard shortcuts</DialogTitle>
+          <DialogTitle>
+            <Trans>Keyboard shortcuts</Trans>
+          </DialogTitle>
         </DialogHeader>
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -43,7 +45,7 @@ export function KeyboardShortcutsDialog({
             autoFocus
             value={query}
             className="pl-9"
-            placeholder="Search shortcuts…"
+            placeholder={i18n._(msg`Search shortcuts\u2026`)}
             onChange={(event) => setQuery(event.target.value)}
           />
         </div>
@@ -75,11 +77,13 @@ export function KeyboardShortcutsDialog({
           ))}
           {filtered.length === 0 && (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              No shortcuts match “{query}”.
+              <Trans>No shortcuts match “{query}”.</Trans>
             </p>
           )}
         </div>
-        <p className="text-xs text-muted-foreground">Customize these in Preferences → Shortcuts.</p>
+        <p className="text-xs text-muted-foreground">
+          <Trans>Customize these in Preferences → Shortcuts.</Trans>
+        </p>
       </DialogContent>
     </Dialog>
   );

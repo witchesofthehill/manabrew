@@ -3,7 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/game/modals/Modal";
 import { cn } from "@/lib/utils";
 import type { CardDto } from "@/protocol/game";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface DamageOrderModalProps {
   attackerName: string;
   blockerCards: CardDto[];
@@ -14,7 +16,6 @@ interface DamageOrderModalProps {
   onAuto: () => void;
   onConfirm: () => void;
 }
-
 export function DamageOrderModal({
   attackerName,
   blockerCards,
@@ -26,24 +27,27 @@ export function DamageOrderModal({
   onConfirm,
 }: DamageOrderModalProps) {
   const isComplete = order.length >= blockerCards.length && blockerCards.length > 0;
-
   return (
     <Modal maxWidth="max-w-md" className="outline-none">
       <Modal.Header>
-        <h2 className="text-base font-semibold">Order Combat Damage</h2>
+        <h2 className="text-base font-semibold">
+          <Trans>Order Combat Damage</Trans>
+        </h2>
         <p className="text-xs text-muted-foreground">
-          {attackerName} is blocked by {blockerCards.length} creatures — choose the order it assigns
-          damage.
+          <Trans>
+            {attackerName} is blocked by {blockerCards.length} creatures — choose the order it
+            assigns damage.
+          </Trans>
         </p>
       </Modal.Header>
 
       <div className="mt-4 flex flex-col gap-3 px-4 pb-4">
         <p className="text-xs italic text-muted-foreground">
           {order.length === 0
-            ? "Click blockers in the order damage is dealt."
+            ? i18n._(msg`Click blockers in the order damage is dealt.`)
             : isComplete
-              ? "Order set — confirm to deal damage."
-              : `Click the next blocker (${order.length}/${blockerCards.length}).`}
+              ? i18n._(msg`Order set \u2014 confirm to deal damage.`)
+              : i18n._(msg`Click the next blocker (${order.length}/${blockerCards.length}).`)}
         </p>
         <div className="flex flex-wrap gap-2">
           {blockerCards.map((c) => {
@@ -74,12 +78,12 @@ export function DamageOrderModal({
         </div>
         <div className="flex justify-between pt-1">
           <Button size="sm" variant="ghost" onClick={onAuto} disabled={isWaiting}>
-            Auto
+            <Trans>Auto</Trans>
           </Button>
           <div className="flex gap-2">
             {order.length > 0 && (
               <Button size="sm" variant="outline" onClick={onUndo} disabled={isWaiting}>
-                Undo
+                <Trans>Undo</Trans>
               </Button>
             )}
             <Button
@@ -88,8 +92,10 @@ export function DamageOrderModal({
               disabled={isWaiting || !isComplete}
               className="gap-1.5"
             >
-              <Swords className="h-3.5 w-3.5" />
-              Confirm
+              <Trans>
+                <Swords className="h-3.5 w-3.5" />
+                Confirm
+              </Trans>
             </Button>
           </div>
         </div>

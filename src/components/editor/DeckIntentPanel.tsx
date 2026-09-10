@@ -1,15 +1,13 @@
 import { Compass } from "lucide-react";
-
 import { isLand } from "@/lib/mana";
 import { useCardRolesStore, CARD_ROLE_LABELS } from "@/stores/useCardRolesStore";
 import type { EditorDeck } from "@/types/manabrew";
 import { EDITOR_PANEL_CLASS } from "./deckEditor.styles";
-
+import { Trans } from "@lingui/react/macro";
 export function DeckIntentPanel({ deck }: { deck: EditorDeck }) {
   const roles = useCardRolesStore((state) => state.roles);
   const spells = deck.cards.filter((card) => !isLand(card.types));
   if (spells.length === 0) return null;
-
   const roleCounts = new Map<string, number>();
   const typeCounts = new Map<string, number>();
   for (const card of spells) {
@@ -37,13 +35,16 @@ export function DeckIntentPanel({ deck }: { deck: EditorDeck }) {
       ? `${leadingType[0]} cards form the main permanent package (${leadingType[1]} cards).`
       : null,
   ].filter(Boolean);
-
   return (
     <section className={EDITOR_PANEL_CLASS}>
       <div className="flex items-center gap-2">
         <Compass className="h-4 w-4 text-primary" />
-        <h3 className="text-sm font-semibold">Deck intent</h3>
-        <span className="text-[10px] text-muted-foreground">local analysis</span>
+        <h3 className="text-sm font-semibold">
+          <Trans>Deck intent</Trans>
+        </h3>
+        <span className="text-[10px] text-muted-foreground">
+          <Trans>local analysis</Trans>
+        </span>
       </div>
       <p className="mt-3 max-w-4xl text-sm leading-relaxed text-muted-foreground">
         {sentences.join(" ")}

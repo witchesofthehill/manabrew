@@ -5,7 +5,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import type { LogCardPreviewOptions } from "@/components/game/game.types";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-
+import { Trans } from "@lingui/react/macro";
 interface ActionLogProps {
   gameLog: GameLogEntry[];
   resolveCardName: (cardId: string) => string;
@@ -16,7 +16,6 @@ interface ActionLogProps {
     options?: LogCardPreviewOptions,
   ) => void;
 }
-
 export function ActionLog({
   gameLog,
   resolveCardName,
@@ -59,7 +58,6 @@ export function ActionLog({
   };
   const priorityColor = themeColors.activeAction.priority;
   const infoColor = themeColors.promptAction.defenseAction;
-
   const typeLabel: Record<GameLogEntryType, string> = {
     info: "INFO",
     action: "ACTION",
@@ -68,15 +66,19 @@ export function ActionLog({
     rule: "RULE",
     warning: "WARN",
   };
-
-  const getStyleForType = (type: GameLogEntryType, message: string): { bg: string; fg: string } => {
+  const getStyleForType = (
+    type: GameLogEntryType,
+    message: string,
+  ): {
+    bg: string;
+    fg: string;
+  } => {
     if (type === "stack" && /\bresolved?\b/i.test(message)) {
       return { bg: withAlpha(priorityColor, 0.12), fg: priorityColor };
     }
     if (/^TURN\b/i.test(message)) {
       return { bg: withAlpha(priorityColor, 0.12), fg: priorityColor };
     }
-
     switch (type) {
       case "action":
         return {
@@ -96,26 +98,29 @@ export function ActionLog({
         return { bg: withAlpha(themeColors.textMuted, 0.12), fg: themeColors.textMuted };
     }
   };
-
   const formatTs = (timestampMs: number) =>
     new Date(timestampMs).toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
     });
-
   if (visibleLog.length === 0) {
     return (
       <div className="rounded-lg p-2.5 min-h-0 flex-1 flex flex-col bg-muted/20">
-        <p className="text-xs font-semibold text-muted-foreground mb-2">Game Log</p>
-        <p className="text-xs text-muted-foreground italic">No log entries yet.</p>
+        <p className="text-xs font-semibold text-muted-foreground mb-2">
+          <Trans>Game Log</Trans>
+        </p>
+        <p className="text-xs text-muted-foreground italic">
+          <Trans>No log entries yet.</Trans>
+        </p>
       </div>
     );
   }
-
   return (
     <div className="rounded-lg p-2.5 min-h-0 flex-1 flex flex-col bg-muted/20">
-      <p className="text-xs font-semibold text-muted-foreground mb-2">Game Log</p>
+      <p className="text-xs font-semibold text-muted-foreground mb-2">
+        <Trans>Game Log</Trans>
+      </p>
       <div
         className="min-h-0 flex-1 overflow-y-auto text-xs text-muted-foreground flex flex-col-reverse pr-1"
         {...longPress}

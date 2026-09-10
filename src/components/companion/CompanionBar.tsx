@@ -23,7 +23,9 @@ import { FocusModeButton } from "./FocusModeButton";
 import { GameLog } from "./GameLog";
 import { SetupMenu } from "./SetupMenu";
 import { TurnTimer } from "./TurnTimer";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface CompanionBarProps {
   session: CompanionSession;
   onOpenNewSession: () => void;
@@ -34,7 +36,6 @@ interface CompanionBarProps {
    *  the chrome back down without exiting focus mode. */
   onHidePeek?: () => void;
 }
-
 export function CompanionBar({
   session,
   onOpenNewSession,
@@ -48,24 +49,23 @@ export function CompanionBar({
   const canRedo = useCompanionStore((s) => (s.session?.redoStack.length ?? 0) > 0);
   const advanceTurn = useCompanionStore((s) => s.advanceTurn);
   const cycleDayNight = useCompanionStore((s) => s.cycleDayNight);
-
   const activePlayer = session.players.find((p) => p.id === session.activePlayerId) ?? null;
   const [logOpen, setLogOpen] = useState(false);
   const DayNightIcon =
     session.dayNight === "night" ? Moon : session.dayNight === "day" ? Sun : SunMoon;
-
   const layoutChoices = COMPANION_LAYOUT_OPTIONS[session.players.length] ?? ["free"];
-
   return (
     <div className="flex flex-wrap items-center gap-0.5 border-b border-border bg-card/70 px-1.5 py-1 backdrop-blur sm:gap-2 sm:px-3 sm:py-2">
       <Button
         size="sm"
         onClick={onOpenNewSession}
         className="h-8 px-2 text-xs sm:h-9 sm:px-4 sm:text-sm"
-        aria-label="New game"
-        title="New game"
+        aria-label={i18n._(msg`New game`)}
+        title={i18n._(msg`New game`)}
       >
-        <span className="hidden sm:inline">New game</span>
+        <span className="hidden sm:inline">
+          <Trans>New game</Trans>
+        </span>
         <span className="sm:hidden">+</span>
       </Button>
 
@@ -85,7 +85,9 @@ export function CompanionBar({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          <DropdownMenuLabel>Layout</DropdownMenuLabel>
+          <DropdownMenuLabel>
+            <Trans>Layout</Trans>
+          </DropdownMenuLabel>
           <DropdownMenuSeparator />
           {layoutChoices.map((option) => (
             <DropdownMenuItem
@@ -116,9 +118,13 @@ export function CompanionBar({
         >
           <ChevronRight className="size-3.5" />
           <span className="hidden tabular-nums sm:inline">
-            {activePlayer ? `T${session.turn} · ${activePlayer.name}` : "Start"}
+            {activePlayer
+              ? i18n._(msg`T${session.turn} · ${activePlayer.name}`)
+              : i18n._(msg`Start`)}
           </span>
-          <span className="tabular-nums sm:hidden">T{session.turn || 1}</span>
+          <span className="tabular-nums sm:hidden">
+            <Trans>T{session.turn || 1}</Trans>
+          </span>
         </Button>
 
         <Button
@@ -126,7 +132,7 @@ export function CompanionBar({
           variant={session.dayNight ? "default" : "ghost"}
           className="size-8"
           onClick={cycleDayNight}
-          aria-label="Cycle day / night"
+          aria-label={i18n._(msg`Cycle day / night`)}
           title={
             session.dayNight === null
               ? "Day/Night: off"
@@ -147,8 +153,8 @@ export function CompanionBar({
           variant="ghost"
           className="size-8"
           onClick={undo}
-          aria-label="Undo last action"
-          title="Undo last action"
+          aria-label={i18n._(msg`Undo last action`)}
+          title={i18n._(msg`Undo last action`)}
         >
           <Undo2 className="size-4" />
         </Button>
@@ -158,8 +164,8 @@ export function CompanionBar({
           className="size-8"
           onClick={redo}
           disabled={!canRedo}
-          aria-label="Redo"
-          title="Redo"
+          aria-label={i18n._(msg`Redo`)}
+          title={i18n._(msg`Redo`)}
         >
           <Redo2 className="size-4" />
         </Button>
@@ -170,8 +176,8 @@ export function CompanionBar({
             variant="ghost"
             className="size-8"
             onClick={onHidePeek}
-            aria-label="Hide controls"
-            title="Hide bar and phase strip"
+            aria-label={i18n._(msg`Hide controls`)}
+            title={i18n._(msg`Hide bar and phase strip`)}
           >
             <EyeOff className="size-4" />
           </Button>

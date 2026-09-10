@@ -1,6 +1,7 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const palette: BasePalette = {
   foreground: "#cdd6f4", // text
   labelMuted: "#6c7086", // overlay0
@@ -35,11 +36,12 @@ const palette: BasePalette = {
   manaG: "#a6e3a1",
   manaC: "#bac2de",
 };
-
 const preset: ThemePreset = {
   id: "catppuccin",
   name: "Catppuccin",
-  description: "Pastel, soothing warm tones",
+  get description() {
+    return i18n._(msg`Pastel, soothing warm tones`);
+  },
   light: {
     background: "#eff1f5",
     foreground: "#404359",
@@ -94,5 +96,4 @@ const preset: ThemePreset = {
   },
   gameColors: buildGameColors(palette),
 };
-
 export default preset;

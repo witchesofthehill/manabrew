@@ -4,37 +4,31 @@ import type { CardRailState } from "./cardRailState";
 import { getCardRailNotchAttributes, getCardRailRootAttributes } from "./cardRailState";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { cn } from "@/lib/utils";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export const CARD_RAIL_WIDTH = "clamp(14px, 7cqw, 22px)";
-
 const RAIL_TRANSITION =
   "transition-transform duration-[300ms] ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none";
-
 const RAIL_KIND_CLASSES: Record<CardRailState["kind"], string> = {
   saga: "border-counter-lore/70",
   class: "border-counter-level/70",
 };
-
 const RAIL_ACCENT_CLASSES: Record<CardRailState["kind"], string> = {
   saga: "bg-counter-lore",
   class: "bg-counter-level",
 };
-
 const RAIL_ACCENT_TEXT_CLASSES: Record<CardRailState["kind"], string> = {
   saga: "text-counter-lore",
   class: "text-counter-level",
 };
-
 interface CardRailProps {
   state: CardRailState;
   className?: string;
 }
-
 type CardRailSnapshot = {
   state: CardRailState;
   signature: string;
 };
-
 export function CardRail({ state, className }: CardRailProps) {
   const [previousSnapshot, setPreviousSnapshot] = useState<CardRailSnapshot | null>(null);
   const railInstanceId = useId();
@@ -50,14 +44,12 @@ export function CardRail({ state, className }: CardRailProps) {
     previousSnapshot.signature !== signature &&
     adjacent &&
     animationsEnabled();
-
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setPreviousSnapshot({ state, signature });
     }, 0);
     return () => window.clearTimeout(timer);
   }, [signature, state]);
-
   const connectorInset = 50 / state.max;
   const connectorHeight = 100 - connectorInset * 2;
   const progressHeight =
@@ -70,10 +62,13 @@ export function CardRail({ state, className }: CardRailProps) {
   const accessibleLabel =
     state.kind === "saga"
       ? state.current > 0
-        ? `${state.current} lore counters. Current chapter ${currentNotch?.label ?? state.current} of ${finalNotch.label}.`
-        : `No lore counters. Awaiting chapter ${firstNotch.label} of ${finalNotch.label}.`
-      : `Class level ${state.current} of ${state.max}.`;
-
+        ? i18n._(
+            msg`${state.current} lore counters. Current chapter ${currentNotch?.label ?? state.current} of ${finalNotch.label}.`,
+          )
+        : i18n._(
+            msg`No lore counters. Awaiting chapter ${firstNotch.label} of ${finalNotch.label}.`,
+          )
+      : i18n._(msg`Class level ${state.current} of ${state.max}.`);
   return (
     <div
       {...getCardRailRootAttributes(state, railInstanceId)}

@@ -9,23 +9,28 @@ import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
 import { getPlatformType } from "@/platform";
 import { openExternal } from "@/lib/openExternal";
 import type { AuthIdentity } from "@/api/authTypes";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const PROVIDER_LABELS: Record<string, string> = {
-  github: "GitHub",
-  discord: "Discord",
-  email: "Email",
+  get github() {
+    return i18n._(msg`GitHub`);
+  },
+  get discord() {
+    return i18n._(msg`Discord`);
+  },
+  get email() {
+    return i18n._(msg`Email`);
+  },
 };
-
 function providerIcon(provider: string) {
   if (provider === "github") return <Github className="h-4 w-4" />;
   if (provider === "discord") return <DiscordIcon className="h-4 w-4" />;
   return <Mail className="h-4 w-4" />;
 }
-
 interface SignInMethodsCardProps {
   identities: AuthIdentity[];
 }
-
 export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
   const refresh = useAuthStore((s) => s.refresh);
   const [busy, setBusy] = useState(false);
@@ -33,7 +38,6 @@ export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
   const linkableProviders = (["github", "discord"] as const).filter(
     (provider) => !linkedProviders.has(provider),
   );
-
   async function handleLink(provider: OAuthProvider) {
     const token = await getAccessToken();
     if (!token) return;
@@ -57,7 +61,6 @@ export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
       setBusy(false);
     }
   }
-
   async function handleUnlink(provider: string) {
     const token = await getAccessToken();
     if (!token) return;
@@ -65,10 +68,10 @@ export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
     try {
       await unlinkIdentity(token, provider);
       await refresh();
-      toast.success(`${PROVIDER_LABELS[provider] ?? provider} unlinked`);
+      toast.success(i18n._(msg`${PROVIDER_LABELS[provider] ?? provider} unlinked`));
     } catch (err) {
       if (err instanceof AuthRequestError && err.status === 409) {
-        toast.error("You can't unlink your only sign-in method");
+        toast.error(i18n._(msg`You can't unlink your only sign-in method`));
       } else {
         toast.error(err instanceof Error ? err.message : "Unlinking failed");
       }
@@ -76,10 +79,11 @@ export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
       setBusy(false);
     }
   }
-
   return (
     <section className="rounded-lg border bg-card/40 p-4 sm:p-5 space-y-3">
-      <Label>Sign-in methods</Label>
+      <Label>
+        <Trans>Sign-in methods</Trans>
+      </Label>
       <div className="space-y-2">
         {identities.map((identity) => {
           const label = PROVIDER_LABELS[identity.provider] ?? identity.provider;
@@ -121,8 +125,10 @@ export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
               disabled={busy}
               onClick={() => void handleLink(provider)}
             >
-              {providerIcon(provider)}
-              Link {PROVIDER_LABELS[provider]}
+              <Trans>
+                {providerIcon(provider)}
+                Link {PROVIDER_LABELS[provider]}
+              </Trans>
             </Button>
           ))}
         </div>

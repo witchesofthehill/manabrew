@@ -11,7 +11,7 @@ import { isLiveEngineGameRouteState } from "@/game/engineGameLaunch";
 import { ROUTES } from "@/lib/constants";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import Limited from "./Limited";
-
+import { Trans } from "@lingui/react/macro";
 export default function Play() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -21,7 +21,6 @@ export default function Play() {
   const gameWasActive = useRef(false);
   const pathname =
     location.pathname.length > 1 ? location.pathname.replace(/\/+$/, "") : location.pathname;
-
   const routeState = location.state;
   const deckRoute = matchPath(`${ROUTES.PLAY_DECK}/:localSavedDeckId`, pathname);
   const preSelectedDeckId =
@@ -42,9 +41,7 @@ export default function Play() {
     () => (isLiveEngineGameRouteState(routeState) ? routeState : null),
     [routeState],
   );
-
   useEffect(() => cancelPendingGameLaunch, []);
-
   // Route state outlives the game; without this, ending a multiplayer game
   // falls back to the "Starting multiplayer game..." waiting screen.
   useEffect(() => {
@@ -79,11 +76,9 @@ export default function Play() {
       navigate(ROUTES.PLAY, { replace: true });
     }
   }, [isGameActive, gameView, mpState, navigate]);
-
   useEffect(() => {
     if (!mpState?.multiplayer || multiplayerStarted.current) return;
     multiplayerStarted.current = true;
-
     const {
       playerOrder,
       playerDecks,
@@ -139,7 +134,6 @@ export default function Play() {
       if (!started) void recoverFromFailedStart();
     });
   }, [mpState, navigate, setMultiplayerState, startMultiplayerGame]);
-
   if (isGameActive) {
     return (
       <div className="h-full min-h-0 no-scrollbar">
@@ -147,22 +141,23 @@ export default function Play() {
       </div>
     );
   }
-
   if (mpState?.multiplayer) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold">Starting multiplayer game...</h1>
-          <p className="text-muted-foreground">Waiting for game synchronization...</p>
+          <h1 className="text-2xl font-bold">
+            <Trans>Starting multiplayer game...</Trans>
+          </h1>
+          <p className="text-muted-foreground">
+            <Trans>Waiting for game synchronization...</Trans>
+          </p>
         </div>
       </div>
     );
   }
-
   if (pathname === ROUTES.PLAY_OFFLINE) {
     return <Navigate to={ROUTES.PLAY_OFFLINE_CONSTRUCTED} replace />;
   }
-
   if (deckRoute?.params.localSavedDeckId) {
     let savedDeckId = deckRoute.params.localSavedDeckId;
     try {
@@ -172,11 +167,9 @@ export default function Play() {
     }
     return <DeckPlayActions savedDeckId={savedDeckId} />;
   }
-
   if (pathname === ROUTES.PLAY) {
     return <PlayHome />;
   }
-
   if (pathname === ROUTES.PLAY_OFFLINE_LIMITED) {
     return (
       <OfflinePlayShell>
@@ -184,11 +177,9 @@ export default function Play() {
       </OfflinePlayShell>
     );
   }
-
   if (pathname !== ROUTES.PLAY_OFFLINE_CONSTRUCTED) {
     return <Navigate to={ROUTES.PLAY} replace />;
   }
-
   return (
     <OfflinePlayShell>
       <OfflinePlaySetup

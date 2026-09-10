@@ -11,14 +11,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { CompanionIcon } from "./icons";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface CustomCounterDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   availableIcons: string[];
   onConfirm: (input: { label: string; iconKey: string; value: number }) => void;
 }
-
 export function CustomCounterDialog({
   open,
   onOpenChange,
@@ -29,7 +30,9 @@ export function CustomCounterDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Custom counter</DialogTitle>
+          <DialogTitle>
+            <Trans>Custom counter</Trans>
+          </DialogTitle>
         </DialogHeader>
         {open && (
           <CustomCounterForm
@@ -42,7 +45,6 @@ export function CustomCounterDialog({
     </Dialog>
   );
 }
-
 function CustomCounterForm({
   availableIcons,
   onCancel,
@@ -55,22 +57,25 @@ function CustomCounterForm({
   const [label, setLabel] = useState("");
   const [value, setValue] = useState(0);
   const [iconKey, setIconKey] = useState<string>(availableIcons[0] ?? "Star");
-
   return (
     <>
       <div className="space-y-3">
         <div className="space-y-1">
-          <Label htmlFor="companion-counter-label">Label</Label>
+          <Label htmlFor="companion-counter-label">
+            <Trans>Label</Trans>
+          </Label>
           <Input
             id="companion-counter-label"
             value={label}
             autoFocus
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="e.g. Quest, Lore, Shield…"
+            placeholder={i18n._(msg`e.g. Quest, Lore, Shield\u2026`)}
           />
         </div>
         <div className="space-y-1">
-          <Label htmlFor="companion-counter-value">Starting value</Label>
+          <Label htmlFor="companion-counter-value">
+            <Trans>Starting value</Trans>
+          </Label>
           <Input
             id="companion-counter-value"
             type="number"
@@ -79,7 +84,9 @@ function CustomCounterForm({
           />
         </div>
         <div className="space-y-1">
-          <Label>Icon</Label>
+          <Label>
+            <Trans>Icon</Trans>
+          </Label>
           <div className="grid grid-cols-8 gap-1">
             {availableIcons.map((key) => (
               <button
@@ -102,13 +109,13 @@ function CustomCounterForm({
       </div>
       <DialogFooter>
         <Button variant="ghost" onClick={onCancel}>
-          Cancel
+          <Trans>Cancel</Trans>
         </Button>
         <Button
           disabled={!label.trim()}
           onClick={() => onConfirm({ label: label.trim(), iconKey, value })}
         >
-          Add counter
+          <Trans>Add counter</Trans>
         </Button>
       </DialogFooter>
     </>

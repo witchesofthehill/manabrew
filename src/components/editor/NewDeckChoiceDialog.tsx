@@ -7,21 +7,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface NewDeckChoiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImport: () => void;
   onFromScratch: () => void;
 }
-
 function ChoiceCard({
   icon: Icon,
   title,
   desc,
   onClick,
 }: {
-  icon: ComponentType<{ className?: string }>;
+  icon: ComponentType<{
+    className?: string;
+  }>;
   title: string;
   desc: string;
   onClick: () => void;
@@ -42,7 +45,6 @@ function ChoiceCard({
     </button>
   );
 }
-
 export function NewDeckChoiceDialog({
   open,
   onOpenChange,
@@ -53,19 +55,23 @@ export function NewDeckChoiceDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add a deck</DialogTitle>
-          <DialogDescription>How would you like to start?</DialogDescription>
+          <DialogTitle>
+            <Trans>Add a deck</Trans>
+          </DialogTitle>
+          <DialogDescription>
+            <Trans>How would you like to start?</Trans>
+          </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           <ChoiceCard
             icon={ClipboardPaste}
-            title="Import from text"
+            title={i18n._(msg`Import from text`)}
             desc="Paste a decklist copied from Moxfield or elsewhere."
             onClick={onImport}
           />
           <ChoiceCard
             icon={Sparkles}
-            title="From scratch"
+            title={i18n._(msg`From scratch`)}
             desc="Start with an empty deck and add cards yourself."
             onClick={onFromScratch}
           />

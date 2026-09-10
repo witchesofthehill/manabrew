@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { useTopBarOverride } from "@/components/layout/TopBarOverride";
 import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
@@ -17,7 +16,7 @@ import {
   useMultiplayerDraftStore,
 } from "@/stores/useMultiplayerDraftStore";
 import type { DraftCard } from "@/types/limited";
-
+import { Trans } from "@lingui/react/macro";
 export default function MultiplayerDraft() {
   const navigate = useNavigate();
   const mode = useMultiplayerDraftStore((s) => s.mode);
@@ -32,15 +31,12 @@ export default function MultiplayerDraft() {
   const conspiracyHooks = useLimitedStore((s) => s.conspiracyHooks);
   const fetchConspiracyHooks = useLimitedStore((s) => s.fetchConspiracyHooks);
   const leavingHome = useRef(false);
-
   useEffect(() => {
     if (conspiracyHooks.length === 0) fetchConspiracyHooks();
   }, [conspiracyHooks.length, fetchConspiracyHooks]);
-
   useEffect(() => {
     if (mode === "idle" && !leavingHome.current) navigate(ROUTES.LOBBY, { replace: true });
   }, [mode, navigate]);
-
   useEffect(() => {
     // Relies on StrictMode staying disabled in main.tsx — a dev double-mount
     // would run this cleanup mid-draft and tear down the live session.
@@ -49,13 +45,11 @@ export default function MultiplayerDraft() {
       useMultiplayerDraftStore.getState().clear();
     };
   }, []);
-
   function leave(destination: string) {
     if (amHost) teardownHost(mode !== "complete");
     clear();
     navigate(destination);
   }
-
   async function leaveHome() {
     leavingHome.current = true;
     if (amHost) teardownHost(mode !== "complete");
@@ -63,14 +57,12 @@ export default function MultiplayerDraft() {
     await useServerStore.getState().leaveRoom();
     navigate(ROUTES.PLAY);
   }
-
   useTopBarOverride({
     title: mode === "complete" ? "Build Draft Deck" : undefined,
     onBack: () => leave(ROUTES.LOBBY),
     onHome: () => void leaveHome(),
     navigationDisabled: true,
   });
-
   const handlePick = async (card: DraftCard) => {
     if (!state?.awaitingHuman || pickPending) return;
     if (amHost) {
@@ -79,11 +71,9 @@ export default function MultiplayerDraft() {
       await submitPeerPick(card);
     }
   };
-
   if (mode === "idle") {
     return null;
   }
-
   if (mode === "complete") {
     const myPool = finalPools.find((p) => p.seat === mySeat);
     return (
@@ -94,18 +84,17 @@ export default function MultiplayerDraft() {
       />
     );
   }
-
   if (!state) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Waiting for the host to deal the first pack…
+        <Trans>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Waiting for the host to deal the first pack…
+        </Trans>
       </div>
     );
   }
-
   const mySeatAssignment = seats.find((s) => s.seat === mySeat);
-
   return (
     <div className="flex h-full flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
       <DraftStatusBar
@@ -135,32 +124,32 @@ export default function MultiplayerDraft() {
     </div>
   );
 }
-
 interface CompletionViewProps {
   pools: MpDraftPlayerPool[];
   myPool: DraftCard[];
   onExit: () => void;
 }
-
 function CompletionView({ pools, myPool, onExit }: CompletionViewProps) {
   return (
     <div className="flex h-full flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex items-center justify-between gap-3">
         <div className="max-w-3xl">
           <p className="text-sm text-muted-foreground">
-            Drag from your picks into Main / Sideboard. Use "Save to My Decks" when you're happy
-            with the 40 — saved decks open from the Decks view like any other.
+            <Trans>
+              Drag from your picks into Main / Sideboard. Use "Save to My Decks" when you're happy
+              with the 40 — saved decks open from the Decks view like any other.
+            </Trans>
           </p>
         </div>
         <Button variant="outline" onClick={onExit}>
-          Exit
+          <Trans>Exit</Trans>
         </Button>
       </header>
 
       {myPool.length === 0 ? (
         <section>
           <p className="mb-3 text-sm text-muted-foreground">
-            You weren't seated in this draft. Pod final pools:
+            <Trans>You weren't seated in this draft. Pod final pools:</Trans>
           </p>
           <ul className="grid grid-cols-1 gap-1.5 text-sm sm:grid-cols-2 md:grid-cols-3">
             {pools.map((p) => (
@@ -171,7 +160,9 @@ function CompletionView({ pools, myPool, onExit }: CompletionViewProps) {
                 <span className={p.isHuman ? "font-semibold" : "text-muted-foreground"}>
                   {p.seat}. {p.displayName}
                 </span>
-                <span className="text-xs text-muted-foreground">{p.pool.length} cards</span>
+                <span className="text-xs text-muted-foreground">
+                  <Trans>{p.pool.length} cards</Trans>
+                </span>
               </li>
             ))}
           </ul>

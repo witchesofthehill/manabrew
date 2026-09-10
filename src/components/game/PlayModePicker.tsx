@@ -5,14 +5,13 @@ import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { MODAL_CARD_THUMBNAIL } from "./game.styles";
 import type { DeckCard } from "@/protocol/deck";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-
+import { Trans } from "@lingui/react/macro";
 interface PlayModePickerProps {
   card: DeckCard;
   options: HandActionOption[];
   onSelect: (option: HandActionOption) => void;
   onCancel: () => void;
 }
-
 export function PlayModePicker({ card, options, onSelect, onCancel }: PlayModePickerProps) {
   return (
     <Modal onClose={onCancel} maxWidth="max-w-sm" maxHeight="">
@@ -20,7 +19,9 @@ export function PlayModePicker({ card, options, onSelect, onCancel }: PlayModePi
         <div className="flex items-center gap-3">
           <CardImageThumbnail card={card} className={MODAL_CARD_THUMBNAIL} />
           <div>
-            <h2 className="font-semibold text-base">Choose an action</h2>
+            <h2 className="font-semibold text-base">
+              <Trans>Choose an action</Trans>
+            </h2>
             <p className="text-xs text-muted-foreground font-medium">{card.identity.name}</p>
           </div>
         </div>
@@ -42,7 +43,7 @@ export function PlayModePicker({ card, options, onSelect, onCancel }: PlayModePi
 
       <div className="px-4 pb-4">
         <Button size="sm" variant="ghost" onClick={onCancel} className="w-full">
-          Cancel
+          <Trans>Cancel</Trans>
         </Button>
       </div>
     </Modal>

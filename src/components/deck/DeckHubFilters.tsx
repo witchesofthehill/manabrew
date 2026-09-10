@@ -5,7 +5,9 @@ import { DeckHubFilterSheet } from "@/components/deck/DeckHubFilterSheet";
 import type { DeckHubDiscoveryFilters } from "@/components/deck/deckHub.types";
 import type { DeckHubFacets } from "@/api/hubTypes";
 import { cn } from "@/lib/utils";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface DeckHubFiltersProps {
   filters: DeckHubDiscoveryFilters;
   facets: DeckHubFacets | null;
@@ -14,19 +16,16 @@ interface DeckHubFiltersProps {
   onChange: (patch: Partial<DeckHubDiscoveryFilters>) => void;
   onClear: () => void;
 }
-
 export function DeckHubFilters(props: DeckHubFiltersProps) {
   const [expanded, setExpanded] = useState(
     () => sessionStorage.getItem("manabrew:community-filters-expanded") !== "false",
   );
-
   function toggleExpanded() {
     setExpanded((current) => {
       sessionStorage.setItem("manabrew:community-filters-expanded", String(!current));
       return !current;
     });
   }
-
   return (
     <div
       className={cn(
@@ -37,7 +36,10 @@ export function DeckHubFilters(props: DeckHubFiltersProps) {
       <div className="flex justify-end border-b px-4 py-3 sm:px-6 lg:hidden">
         <DeckHubFilterSheet {...props} />
       </div>
-      <aside className="hidden h-full overflow-y-auto p-5 lg:block" aria-label="Community filters">
+      <aside
+        className="hidden h-full overflow-y-auto p-5 lg:block"
+        aria-label={i18n._(msg`Community filters`)}
+      >
         <div
           className={cn(
             "flex items-start",
@@ -46,8 +48,12 @@ export function DeckHubFilters(props: DeckHubFiltersProps) {
         >
           {expanded && (
             <div>
-              <h2 className="font-serif text-xl font-semibold">Filters</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Refine published deck results.</p>
+              <h2 className="font-serif text-xl font-semibold">
+                <Trans>Filters</Trans>
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                <Trans>Refine published deck results.</Trans>
+              </p>
             </div>
           )}
           <button

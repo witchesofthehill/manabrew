@@ -1,6 +1,7 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 /** Dracula canonical palette. `comment` (#6272a4) doubles as the muted
  *  label / slate; dracula has no distinct teal so cyan covers both. */
 const palette: BasePalette = {
@@ -37,11 +38,12 @@ const palette: BasePalette = {
   manaG: "#50fa7b",
   manaC: "#6272a4",
 };
-
 const preset: ThemePreset = {
   id: "dracula",
   name: "Dracula",
-  description: "Dark theme with vibrant pastel accents",
+  get description() {
+    return i18n._(msg`Dark theme with vibrant pastel accents`);
+  },
   light: {
     background: "#f0f1f4",
     foreground: "#272935",
@@ -96,5 +98,4 @@ const preset: ThemePreset = {
   },
   gameColors: buildGameColors(palette),
 };
-
 export default preset;

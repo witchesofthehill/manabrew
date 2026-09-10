@@ -21,21 +21,20 @@ import {
 import { ROUTES } from "@/lib/constants";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useServerStore } from "@/stores/useServerStore";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface RejoinMatchCardProps {
   session: ActiveGameSession;
   onAbandoned: () => void;
 }
-
 const ABANDON_CONNECT_TIMEOUT_MS = 7000;
-
 export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) {
   const navigate = useNavigate();
   const currentRoom = useServerStore((state) => state.currentRoom);
   const [confirmAbandon, setConfirmAbandon] = useState(false);
   const [abandoning, setAbandoning] = useState(false);
   const [abandonFailed, setAbandonFailed] = useState(false);
-
   function forgetMatch() {
     clearActiveGameSession();
     endActiveGameSessionAbandonment();
@@ -47,7 +46,6 @@ export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) 
       });
     }
   }
-
   async function abandon() {
     if (abandoning) return;
     setAbandoning(true);
@@ -93,10 +91,9 @@ export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) 
       endActiveGameSessionAbandonment();
       setAbandoning(false);
       setAbandonFailed(true);
-      toast.error("Couldn't reach the previous match relay.");
+      toast.error(i18n._(msg`Couldn't reach the previous match relay.`));
     }
   }
-
   return (
     <>
       <section className="flex min-w-0 flex-wrap items-center gap-3 rounded-2xl border border-primary/40 bg-primary/10 p-4 shadow-xl backdrop-blur-md sm:gap-4 sm:p-5">
@@ -104,11 +101,13 @@ export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) 
           <Swords className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-medium">Match in progress</p>
+          <p className="font-medium">
+            <Trans>Match in progress</Trans>
+          </p>
           <p className="truncate text-sm text-muted-foreground">
             {currentRoom?.room_id === session.roomId
-              ? `You're still seated at ${currentRoom.room_name}.`
-              : "You're still seated in an online match."}
+              ? i18n._(msg`You're still seated at ${currentRoom.room_name}.`)
+              : i18n._(msg`You're still seated in an online match.`)}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -122,8 +121,10 @@ export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) 
               setConfirmAbandon(true);
             }}
           >
-            <X className="h-3.5 w-3.5" />
-            Abandon match
+            <Trans>
+              <X className="h-3.5 w-3.5" />
+              Abandon match
+            </Trans>
           </Button>
           <Button
             size="sm"
@@ -131,8 +132,10 @@ export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) 
             disabled={abandoning}
             onClick={() => navigate(ROUTES.LOBBY)}
           >
-            <Swords className="h-3.5 w-3.5" />
-            Rejoin
+            <Trans>
+              <Swords className="h-3.5 w-3.5" />
+              Rejoin
+            </Trans>
           </Button>
         </div>
       </section>
@@ -145,11 +148,15 @@ export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) 
       >
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Abandon match?</DialogTitle>
+            <DialogTitle>
+              <Trans>Abandon match?</Trans>
+            </DialogTitle>
             <DialogDescription>
               {abandonFailed
-                ? "The relay could not be reached. You can remove this match from this device, but your seat may remain until the relay times it out."
-                : "You will leave your seat and will not be able to rejoin this match."}
+                ? i18n._(
+                    msg`The relay could not be reached. You can remove this match from this device, but your seat may remain until the relay times it out.`,
+                  )
+                : i18n._(msg`You will leave your seat and will not be able to rejoin this match.`)}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -159,7 +166,7 @@ export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) 
               disabled={abandoning}
               onClick={() => setConfirmAbandon(false)}
             >
-              Keep playing
+              <Trans>Keep playing</Trans>
             </Button>
             <Button
               variant="destructive"
@@ -172,10 +179,10 @@ export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) 
             >
               {abandoning && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {abandoning
-                ? "Abandoning…"
+                ? i18n._(msg`Abandoning\u2026`)
                 : abandonFailed
-                  ? "Remove from this device"
-                  : "Abandon match"}
+                  ? i18n._(msg`Remove from this device`)
+                  : i18n._(msg`Abandon match`)}
             </Button>
           </DialogFooter>
         </DialogContent>

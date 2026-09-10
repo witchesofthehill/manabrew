@@ -15,7 +15,6 @@ import {
 } from "@dnd-kit/core";
 import { GoStack } from "react-icons/go";
 import { GiArrowDunk, GiCardPickup, GiTombstone } from "react-icons/gi";
-
 import { VortexCircleIcon } from "@/components/icons/VortexCircleIcon";
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
@@ -28,10 +27,11 @@ import { useModalSourceCard } from "./internal/ModalSourceCard";
 import type { PromptProps } from "./internal/promptProps";
 import type { CardDto } from "@/protocol/game";
 import type { ScryInput, ScryOutput, ScryDestination } from "@/protocol";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const POOL = "pool";
 const CARD_W = "w-[84px]";
-
 const hideActiveDuringDrop = defaultDropAnimationSideEffects({
   styles: { active: { opacity: "0" } },
 });
@@ -47,7 +47,6 @@ const DROP_ANIMATION: DropAnimation = {
     return hideActiveDuringDrop(params);
   },
 };
-
 function DraggableCard({
   id,
   card,
@@ -78,7 +77,6 @@ function DraggableCard({
     </div>
   );
 }
-
 function TopDeckIcon() {
   return (
     <div className="flex flex-col items-center">
@@ -87,7 +85,6 @@ function TopDeckIcon() {
     </div>
   );
 }
-
 function BottomDeckIcon() {
   return (
     <div className="flex flex-col items-center gap-1">
@@ -96,20 +93,50 @@ function BottomDeckIcon() {
     </div>
   );
 }
-
-const DESTINATION_META: Record<ScryDestination, { label: string; verb: string; icon: ReactNode }> =
+const DESTINATION_META: Record<
+  ScryDestination,
   {
-    libraryTop: { label: "Top of Library", verb: "Put on top", icon: <TopDeckIcon /> },
-    libraryBottom: { label: "Bottom of Library", verb: "Send to bottom", icon: <BottomDeckIcon /> },
-    graveyard: {
-      label: "Graveyard",
-      verb: "To graveyard",
-      icon: <GiTombstone className="h-11 w-11" />,
+    label: string;
+    verb: string;
+    icon: ReactNode;
+  }
+> = {
+  libraryTop: {
+    get label() {
+      return i18n._(msg`Top of Library`);
     },
-    exile: { label: "Exile", verb: "Exile", icon: <VortexCircleIcon className="h-11 w-11" /> },
-    hand: { label: "Hand", verb: "To hand", icon: <GiCardPickup className="h-11 w-11" /> },
-  };
-
+    verb: "Put on top",
+    icon: <TopDeckIcon />,
+  },
+  libraryBottom: {
+    get label() {
+      return i18n._(msg`Bottom of Library`);
+    },
+    verb: "Send to bottom",
+    icon: <BottomDeckIcon />,
+  },
+  graveyard: {
+    get label() {
+      return i18n._(msg`Graveyard`);
+    },
+    verb: "To graveyard",
+    icon: <GiTombstone className="h-11 w-11" />,
+  },
+  exile: {
+    get label() {
+      return i18n._(msg`Exile`);
+    },
+    verb: "Exile",
+    icon: <VortexCircleIcon className="h-11 w-11" />,
+  },
+  hand: {
+    get label() {
+      return i18n._(msg`Hand`);
+    },
+    verb: "To hand",
+    icon: <GiCardPickup className="h-11 w-11" />,
+  },
+};
 function ZoneHint({ destination }: { destination: ScryDestination }) {
   const { icon, verb } = DESTINATION_META[destination];
   return (
@@ -119,7 +146,6 @@ function ZoneHint({ destination }: { destination: ScryDestination }) {
     </div>
   );
 }
-
 function Zone({
   id,
   destination,
@@ -177,7 +203,6 @@ function Zone({
     </div>
   );
 }
-
 function PoolRow({
   id,
   ids,
@@ -203,7 +228,6 @@ function PoolRow({
     </div>
   );
 }
-
 export function ScryModal({ input, respond, sourceCard }: PromptProps<ScryInput, ScryOutput>) {
   const { zones } = input;
   const {
@@ -214,7 +238,6 @@ export function ScryModal({ input, respond, sourceCard }: PromptProps<ScryInput,
   const cards = input.cards as CardDto[];
   const cardsById = useMemo(() => new Map(cards.map((c) => [c.id, c])), [cards]);
   const zoneIds = useMemo(() => zones.map((_, i) => `z${i}`), [zones]);
-
   const [items, setItems] = useState<Record<string, string[]>>(() => ({
     [POOL]: cards.map((c) => c.id),
     ...Object.fromEntries(zoneIds.map((z) => [z, [] as string[]])),
@@ -227,7 +250,6 @@ export function ScryModal({ input, respond, sourceCard }: PromptProps<ScryInput,
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
   );
-
   // Re-seed when the card set changes (e.g. preview cards arrive after mount).
   const cardKey = useMemo(() => cards.map((c) => c.id).join("|"), [cards]);
   useEffect(() => {
@@ -237,9 +259,7 @@ export function ScryModal({ input, respond, sourceCard }: PromptProps<ScryInput,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardKey]);
-
   const findContainer = (id: string) => Object.keys(items).find((k) => items[k].includes(id));
-
   function onDragEnd({ active, over }: DragEndEvent) {
     if (!over) return;
     const from = findContainer(active.id as string);
@@ -251,9 +271,7 @@ export function ScryModal({ input, respond, sourceCard }: PromptProps<ScryInput,
       [to]: [...prev[to], active.id as string], // dropped card lands on top of the stack
     }));
   }
-
   const allPlaced = items[POOL].length === 0;
-
   return (
     <Modal maxWidth="max-w-4xl" maxHeight="">
       {sourcePreview}
@@ -291,7 +309,7 @@ export function ScryModal({ input, respond, sourceCard }: PromptProps<ScryInput,
           }}
         >
           <p className="px-5 pb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-            Cards to place
+            <Trans>Cards to place</Trans>
           </p>
           <PoolRow id={POOL} ids={items[POOL]} cardsById={cardsById} />
 
@@ -319,7 +337,9 @@ export function ScryModal({ input, respond, sourceCard }: PromptProps<ScryInput,
 
       <Modal.Footer className="justify-end gap-3">
         <span className="text-sm tabular-nums text-muted-foreground">
-          {cards.length - items[POOL].length}/{cards.length} placed
+          <Trans>
+            {cards.length - items[POOL].length}/{cards.length} placed
+          </Trans>
         </span>
         <Button
           size="sm"
@@ -333,7 +353,7 @@ export function ScryModal({ input, respond, sourceCard }: PromptProps<ScryInput,
             })
           }
         >
-          Confirm
+          <Trans>Confirm</Trans>
         </Button>
       </Modal.Footer>
       <HoverCardPreview preview={preview} />

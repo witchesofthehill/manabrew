@@ -3,33 +3,42 @@ import { Boxes, Swords } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface OfflinePlayShellProps {
   children: ReactNode;
 }
-
 const TABS = [
   {
     to: ROUTES.PLAY_OFFLINE_CONSTRUCTED,
-    label: "Constructed",
-    hint: "Deck vs AI",
+    get label() {
+      return i18n._(msg`Constructed`);
+    },
+    get hint() {
+      return i18n._(msg`Deck vs AI`);
+    },
     icon: Swords,
   },
   {
     to: ROUTES.PLAY_OFFLINE_LIMITED,
-    label: "Limited",
-    hint: "Draft & sealed",
+    get label() {
+      return i18n._(msg`Limited`);
+    },
+    get hint() {
+      return i18n._(msg`Draft & sealed`);
+    },
     icon: Boxes,
   },
 ];
-
 export function OfflinePlayShell({ children }: OfflinePlayShellProps) {
   const location = useLocation();
-
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
       <div className="relative z-10 flex h-full min-h-0 flex-col">
-        <nav aria-label="Offline play type" className="shrink-0 px-4 pt-4 sm:px-6 lg:px-8">
+        <nav
+          aria-label={i18n._(msg`Offline play type`)}
+          className="shrink-0 px-4 pt-4 sm:px-6 lg:px-8"
+        >
           <div className="mx-auto grid w-full max-w-xl grid-cols-2 rounded-2xl border border-border/70 bg-background/80 p-1.5 shadow-xl backdrop-blur-md">
             {TABS.map(({ to, label, hint, icon: Icon }) => {
               const active = location.pathname === to;

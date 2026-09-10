@@ -1,6 +1,7 @@
 import { Github, Layers, Swords } from "lucide-react";
 import { GITHUB_REPO_URL } from "@/lib/constants";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const GUIDE_SECTIONS = [
   {
     heading: "Play with friends",
@@ -17,12 +18,13 @@ const GUIDE_SECTIONS = [
     icon: Github,
     body: "Want to run a private server for your playgroup?",
     link: {
-      label: "Find out how on GitHub",
+      get label() {
+        return i18n._(msg`Find out how on GitHub`);
+      },
       href: GITHUB_REPO_URL,
     },
   },
 ];
-
 export function OnboardingGuide() {
   return (
     <div className="space-y-3">

@@ -1,25 +1,36 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export type LimitedWorkspaceTab = "pack" | "picks" | "preview";
-
 interface LimitedWorkspaceTabsProps {
   value: LimitedWorkspaceTab;
   onChange: (value: LimitedWorkspaceTab) => void;
   packLabel?: string;
 }
-
 export function LimitedWorkspaceTabs({
   value,
   onChange,
   packLabel = "Pack",
 }: LimitedWorkspaceTabsProps) {
-  const tabs: Array<{ value: LimitedWorkspaceTab; label: string }> = [
+  const tabs: Array<{
+    value: LimitedWorkspaceTab;
+    label: string;
+  }> = [
     { value: "pack", label: packLabel },
-    { value: "picks", label: "Picks" },
-    { value: "preview", label: "Preview" },
+    {
+      value: "picks",
+      get label() {
+        return i18n._(msg`Picks`);
+      },
+    },
+    {
+      value: "preview",
+      get label() {
+        return i18n._(msg`Preview`);
+      },
+    },
   ];
-
   return (
     <div className="grid shrink-0 grid-cols-3 rounded-md border border-border/70 bg-card/40 p-1 lg:hidden">
       {tabs.map((tab) => (

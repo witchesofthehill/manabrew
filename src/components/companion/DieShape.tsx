@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface DieShapeProps {
   sides: number;
   value: number;
@@ -10,11 +11,9 @@ interface DieShapeProps {
   accentColor?: string;
   className?: string;
 }
-
 const VIEW_BOX = 100;
 const CENTER = VIEW_BOX / 2;
 const RADIUS = 46;
-
 /**
  * Visual silhouette per die type. Vertex count follows physical-die
  * conventions: d4 triangle, d6 square, d8 hexagon (octahedron projection),
@@ -30,7 +29,6 @@ const VERTICES_FOR: Record<number, number> = {
   20: 8,
   100: 12,
 };
-
 function polygonPath(vertexCount: number, rotationDeg: number): string {
   const points: string[] = [];
   const angleOffset = (rotationDeg * Math.PI) / 180;
@@ -42,7 +40,6 @@ function polygonPath(vertexCount: number, rotationDeg: number): string {
   }
   return points.join(" ");
 }
-
 export function DieShape({
   sides,
   value,
@@ -56,7 +53,7 @@ export function DieShape({
   // flat-top for even-vertex shapes (square, hexagon, octagon).
   const rotation = vertexCount % 2 === 1 ? -90 : -90 + 180 / vertexCount;
   const points = polygonPath(vertexCount, rotation);
-  const label = sides === 100 ? `${value}%` : `${value}`;
+  const label = sides === 100 ? i18n._(msg`${value}%`) : i18n._(msg`${value}`);
   const stroke = accentColor ?? "var(--primary)";
   return (
     <div

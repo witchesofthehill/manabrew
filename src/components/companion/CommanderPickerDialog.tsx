@@ -17,21 +17,20 @@ import type { ScryfallCard } from "@/types/scryfall";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { CompanionCommanderRef } from "@/stores/useCompanionStore.types";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface CommanderPickerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   playerId: string;
   initial: [CompanionCommanderRef | null, CompanionCommanderRef | null];
 }
-
 interface SlotState {
   query: string;
   pick: CompanionCommanderRef | null;
 }
-
 const SEARCH_DEBOUNCE_MS = 220;
-
 export function CommanderPickerDialog({
   open,
   onOpenChange,
@@ -42,7 +41,9 @@ export function CommanderPickerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Choose commander</DialogTitle>
+          <DialogTitle>
+            <Trans>Choose commander</Trans>
+          </DialogTitle>
         </DialogHeader>
         {open && (
           <CommanderPickerForm
@@ -55,7 +56,6 @@ export function CommanderPickerDialog({
     </Dialog>
   );
 }
-
 function CommanderPickerForm({
   playerId,
   initial,
@@ -67,13 +67,14 @@ function CommanderPickerForm({
 }) {
   const setCommander = useCompanionStore((s) => s.setCommander);
   const oathbreaker = useCompanionStore((s) => s.session?.oathbreaker ?? false);
-  const partnerLabel = oathbreaker ? "Signature spell" : "Partner / Background";
+  const partnerLabel = oathbreaker
+    ? i18n._(msg`Signature spell`)
+    : i18n._(msg`Partner / Background`);
   const [partnerEnabled, setPartnerEnabled] = useState(Boolean(initial[1]));
   const [slots, setSlots] = useState<[SlotState, SlotState]>([
     { query: initial[0]?.name ?? "", pick: initial[0] },
     { query: initial[1]?.name ?? "", pick: initial[1] },
   ]);
-
   const updateSlot = useCallback((index: 0 | 1, patch: Partial<SlotState>) => {
     setSlots((prev) => {
       const next: [SlotState, SlotState] = [prev[0], prev[1]];
@@ -81,19 +82,16 @@ function CommanderPickerForm({
       return next;
     });
   }, []);
-
   const confirm = () => {
     setCommander(playerId, 0, slots[0].pick);
     setCommander(playerId, 1, partnerEnabled ? slots[1].pick : null);
     onClose();
   };
-
   const clearAll = () => {
     setCommander(playerId, 0, null);
     setCommander(playerId, 1, null);
     onClose();
   };
-
   return (
     <>
       <div className="space-y-4">
@@ -105,13 +103,15 @@ function CommanderPickerForm({
           onPick={(pick) => updateSlot(0, { pick })}
         />
         <label className="flex cursor-pointer items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={partnerEnabled}
-            onChange={(e) => setPartnerEnabled(e.target.checked)}
-            className="size-4 accent-primary"
-          />
-          {partnerLabel} slot
+          <Trans>
+            <input
+              type="checkbox"
+              checked={partnerEnabled}
+              onChange={(e) => setPartnerEnabled(e.target.checked)}
+              className="size-4 accent-primary"
+            />
+            {partnerLabel} slot
+          </Trans>
         </label>
         {partnerEnabled && (
           <CommanderSlot
@@ -125,16 +125,15 @@ function CommanderPickerForm({
       </div>
       <DialogFooter className="gap-2">
         <Button variant="ghost" onClick={clearAll}>
-          Clear
+          <Trans>Clear</Trans>
         </Button>
         <Button onClick={confirm} disabled={!slots[0].pick && !(partnerEnabled && slots[1].pick)}>
-          Save
+          <Trans>Save</Trans>
         </Button>
       </DialogFooter>
     </>
   );
 }
-
 interface CommanderSlotProps {
   slotLabel: string;
   query: string;
@@ -142,13 +141,11 @@ interface CommanderSlotProps {
   onQueryChange: (q: string) => void;
   onPick: (ref: CompanionCommanderRef | null) => void;
 }
-
 function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: CommanderSlotProps) {
   const [results, setResults] = useState<ScryfallCard[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   useEffect(() => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -156,7 +153,6 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
     }
     const trimmed = query.trim();
     if (!trimmed || pick) return;
-
     debounceRef.current = setTimeout(() => {
       setLoading(true);
       setError(null);
@@ -173,12 +169,10 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
           setError(err instanceof Error ? err.message : "No matches");
         });
     }, SEARCH_DEBOUNCE_MS);
-
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [query, pick]);
-
   if (pick) {
     return (
       <div className="space-y-1">
@@ -200,7 +194,7 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
               onPick(null);
               onQueryChange("");
             }}
-            aria-label="Clear"
+            aria-label={i18n._(msg`Clear`)}
           >
             <X className="size-4" />
           </Button>
@@ -208,9 +202,7 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
       </div>
     );
   }
-
   const showResults = Boolean(query.trim()) && results.length > 0;
-
   return (
     <div className="space-y-1">
       <Label>{slotLabel}</Label>
@@ -219,7 +211,7 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
         <Input
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
-          placeholder="Search Scryfall…"
+          placeholder={i18n._(msg`Search Scryfall\u2026`)}
           className="pl-8"
         />
         {loading && (

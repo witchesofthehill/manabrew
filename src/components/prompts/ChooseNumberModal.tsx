@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Minus, Plus } from "lucide-react";
-
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { MODAL_INPUT } from "@/components/game/game.styles";
@@ -10,7 +9,9 @@ import { PromptPresentation } from "./internal/PromptPresentation";
 import { useModalSourceCard } from "./internal/ModalSourceCard";
 import type { PromptProps } from "./internal/promptProps";
 import type { ChooseNumberInput, ChooseNumberOutput } from "@/protocol";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export function ChooseNumberModal({
   input,
   respond,
@@ -25,41 +26,37 @@ export function ChooseNumberModal({
   const useButtons = range <= 10;
   const [inputValue, setInputValue] = useState(String(min));
   const inputRef = useRef<HTMLInputElement>(null);
-
   const parsed = parseInt(inputValue, 10);
   const isValid = !isNaN(parsed) && parsed >= min && parsed <= max;
   const showError = inputValue.trim() !== "" && !isValid;
-
   const confirm = useCallback(
     (chosenNumber: number) => respond({ type: "numberDecision", chosenNumber }),
     [respond],
   );
-
   useEffect(() => {
     if (!useButtons) {
       inputRef.current?.focus();
     }
   }, [min, max, useButtons]);
-
   const handleInputConfirm = useCallback(() => {
     if (isValid) {
       confirm(parsed);
     }
   }, [isValid, parsed, confirm]);
-
   const current = isNaN(parsed) ? min : Math.min(max, Math.max(min, parsed));
   const step = (delta: number) =>
     setInputValue(String(Math.min(max, Math.max(min, current + delta))));
-
   useModalKeyboard({ onEnter: !useButtons ? handleInputConfirm : undefined }, [
     useButtons,
     handleInputConfirm,
   ]);
-
   const numbers = useButtons ? Array.from({ length: range }, (_, i) => min + i) : [];
-
   const controls = useButtons ? (
-    <div className="flex flex-wrap justify-center gap-2" role="group" aria-label="Number choices">
+    <div
+      className="flex flex-wrap justify-center gap-2"
+      role="group"
+      aria-label={i18n._(msg`Number choices`)}
+    >
       {numbers.map((num) => (
         <button
           key={num}
@@ -79,7 +76,7 @@ export function ChooseNumberModal({
       <div className="flex items-stretch gap-2">
         <button
           type="button"
-          aria-label="Decrease"
+          aria-label={i18n._(msg`Decrease`)}
           onClick={() => step(-1)}
           disabled={current <= min}
           className={cn(
@@ -107,7 +104,7 @@ export function ChooseNumberModal({
         />
         <button
           type="button"
-          aria-label="Increase"
+          aria-label={i18n._(msg`Increase`)}
           onClick={() => step(1)}
           disabled={current >= max}
           className={cn(
@@ -119,7 +116,7 @@ export function ChooseNumberModal({
           <Plus className="h-6 w-6" />
         </button>
         <Button
-          aria-label="Confirm"
+          aria-label={i18n._(msg`Confirm`)}
           onClick={handleInputConfirm}
           disabled={!isValid}
           className="h-20 w-20"
@@ -133,11 +130,12 @@ export function ChooseNumberModal({
           showError ? "text-destructive" : "text-muted-foreground",
         )}
       >
-        Enter a number between {min} and {max}.
+        <Trans>
+          Enter a number between {min} and {max}.
+        </Trans>
       </p>
     </div>
   );
-
   return (
     <Modal maxWidth="" maxHeight="" className="w-auto max-w-[min(90vw,32rem)]">
       {preview}

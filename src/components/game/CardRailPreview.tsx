@@ -4,47 +4,42 @@ import { GameIcon } from "@/components/game/GameIcon";
 import type { CardRailEffect, CardRailState } from "./cardRailState";
 import { getCardRailNotchAttributes, getCardRailRootAttributes } from "./cardRailState";
 import { cn } from "@/lib/utils";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
+import { Trans } from "@lingui/react/macro";
 const RAIL_KIND_CLASSES: Record<CardRailState["kind"], string> = {
   saga: "border-counter-lore/70",
   class: "border-counter-level/70",
 };
-
 const RAIL_ACCENT_CLASSES: Record<CardRailState["kind"], string> = {
   saga: "bg-counter-lore",
   class: "bg-counter-level",
 };
-
 const RAIL_ACCENT_TEXT_CLASSES: Record<CardRailState["kind"], string> = {
   saga: "text-counter-lore",
   class: "text-counter-level",
 };
-
 const RAIL_ACTIVE_ROW_CLASSES: Record<CardRailState["kind"], string> = {
   saga: "bg-counter-lore/15",
   class: "bg-counter-level/15",
 };
-
 const RAIL_INTERACTIVE_ROW_CLASSES: Record<CardRailState["kind"], string> = {
   saga: "bg-counter-lore/10 ring-1 ring-inset ring-counter-lore/70 hover:bg-counter-lore/20 focus-visible:ring-2 focus-visible:ring-counter-lore",
   class:
     "bg-counter-level/10 ring-1 ring-inset ring-counter-level/70 hover:bg-counter-level/20 focus-visible:ring-2 focus-visible:ring-counter-level",
 };
-
 interface CardRailPreviewInteraction {
   position: number;
   shortcut: number;
   label: string;
   onActivate: () => void;
 }
-
 interface CardRailPreviewProps {
   state: CardRailState;
   effects: CardRailEffect[];
   interactions?: CardRailPreviewInteraction[];
   className?: string;
 }
-
 export function CardRailPreview({
   state,
   effects,
@@ -56,9 +51,8 @@ export function CardRailPreview({
   const interactionByPosition = new Map(
     interactions.map((interaction) => [interaction.position, interaction]),
   );
-  const title = state.kind === "saga" ? "Lore chapters" : "Class levels";
+  const title = state.kind === "saga" ? i18n._(msg`Lore chapters`) : i18n._(msg`Class levels`);
   const summary = state.kind === "saga" ? "Chapter" : "Level";
-
   return (
     <section
       {...getCardRailRootAttributes(state, railInstanceId)}
@@ -85,8 +79,8 @@ export function CardRailPreview({
           </span>
           <span className="block text-xs font-semibold">
             {state.current > 0
-              ? `${summary} ${state.current} of ${state.max}`
-              : `Awaiting first ${summary.toLowerCase()}`}
+              ? i18n._(msg`${summary} ${state.current} of ${state.max}`)
+              : i18n._(msg`Awaiting first ${summary.toLowerCase()}`)}
           </span>
         </span>
       </header>
@@ -111,7 +105,6 @@ export function CardRailPreview({
               RAIL_INTERACTIVE_ROW_CLASSES[state.kind],
             ],
           );
-
           return (
             <Row
               key={notch.id}
@@ -193,7 +186,9 @@ export function CardRailPreview({
                   {effect?.text ? (
                     <DynamicTextRender text={effect.text} />
                   ) : (
-                    <span>Effect text unavailable</span>
+                    <span>
+                      <Trans>Effect text unavailable</Trans>
+                    </span>
                   )}
                 </div>
               </div>

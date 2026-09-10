@@ -1,6 +1,7 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const palette: BasePalette = {
   foreground: "#93a1a1", // base1
   labelMuted: "#586e75", // base01
@@ -35,11 +36,12 @@ const palette: BasePalette = {
   manaG: "#859900",
   manaC: "#839496",
 };
-
 const preset: ThemePreset = {
   id: "solarized",
   name: "Solarized",
-  description: "Ethan Schoonover's precision color scheme",
+  get description() {
+    return i18n._(msg`Ethan Schoonover's precision color scheme`);
+  },
   light: {
     background: "#fdf6e2",
     foreground: "#073541",
@@ -94,5 +96,4 @@ const preset: ThemePreset = {
   },
   gameColors: buildGameColors(palette),
 };
-
 export default preset;

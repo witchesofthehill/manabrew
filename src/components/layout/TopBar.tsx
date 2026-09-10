@@ -13,16 +13,13 @@ import { NavSheet } from "./NavSheet";
 import { TopBarNav } from "./TopBarNav";
 import type { TopBarOverride } from "./TopBarOverride";
 import { i18n } from "@/i18n/i18n";
-
 interface RouteChrome {
   title: string | null;
   fallback: string;
 }
-
 function normalizePathname(pathname: string) {
   return pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
 }
-
 function getRouteChrome(pathname: string, search: string): RouteChrome {
   pathname = normalizePathname(pathname);
   if (pathname === ROUTES.PLAY) return { title: null, fallback: ROUTES.PLAY };
@@ -93,11 +90,9 @@ function getRouteChrome(pathname: string, search: string): RouteChrome {
   }
   return { title: null, fallback: ROUTES.PLAY };
 }
-
 interface TopBarProps {
   override?: TopBarOverride;
 }
-
 export function TopBar({ override }: TopBarProps) {
   const { _ } = useLingui();
   const navigate = useNavigate();
@@ -110,7 +105,6 @@ export function TopBar({ override }: TopBarProps) {
   const title = override?.title ?? routeChrome.title;
   const isPlayHome = normalizePathname(location.pathname) === ROUTES.PLAY;
   const navigationDisabled = isGameActive || override?.navigationDisabled === true;
-
   const downloading = phase === "downloading";
   const updateLabel = downloading
     ? progress == null
@@ -119,7 +113,6 @@ export function TopBar({ override }: TopBarProps) {
     : version
       ? _(msg`Update to ${version}`)
       : "";
-
   function goBack() {
     if (isGameActive) return;
     if (override?.onBack) {
@@ -143,7 +136,6 @@ export function TopBar({ override }: TopBarProps) {
       navigate(routeChrome.fallback);
     }
   }
-
   function goHome() {
     if (isGameActive) return;
     if (override?.onHome) {
@@ -152,7 +144,6 @@ export function TopBar({ override }: TopBarProps) {
       navigate(ROUTES.PLAY);
     }
   }
-
   return (
     <header className="flex min-w-0 items-center gap-2 border-b border-border/70 bg-background/80 py-2 pl-[calc(var(--safe-area-inset-left)+1rem)] pr-[calc(var(--safe-area-inset-right)+1rem)] pt-[calc(var(--safe-area-inset-top)+0.5rem)] backdrop-blur-md sm:pl-[calc(var(--safe-area-inset-left)+1.5rem)] sm:pr-[calc(var(--safe-area-inset-right)+1.5rem)] lg:pl-[calc(var(--safe-area-inset-left)+2rem)] lg:pr-[calc(var(--safe-area-inset-right)+2rem)]">
       {!isPlayHome && (
@@ -211,7 +202,7 @@ export function TopBar({ override }: TopBarProps) {
             )}
             <span className="hidden min-[400px]:inline">{updateLabel}</span>
             <span className="min-[400px]:hidden">
-              {downloading && progress != null ? `${progress}%` : "Update"}
+              {downloading && progress != null ? i18n._(msg`${progress}%`) : i18n._(msg`Update`)}
             </span>
           </Button>
         )}

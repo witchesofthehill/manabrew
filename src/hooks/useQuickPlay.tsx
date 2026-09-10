@@ -17,24 +17,36 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { prefetchPresetDecks, usePresetDecksStore } from "@/stores/usePresetDecksStore";
 import type { Deck } from "@/protocol/deck";
 import type { EngineKind } from "@/protocol";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 type PendingPod =
-  | { kind: "saved"; savedDeckId: string }
-  | { kind: "preset"; preset: PresetDeck }
-  | { kind: "community"; entryId: string; deck: Deck };
-
+  | {
+      kind: "saved";
+      savedDeckId: string;
+    }
+  | {
+      kind: "preset";
+      preset: PresetDeck;
+    }
+  | {
+      kind: "community";
+      entryId: string;
+      deck: Deck;
+    };
 async function ensurePresets(engine: EngineKind): Promise<PresetDeck[]> {
   if (usePresetDecksStore.getState().decks.length === 0) {
     await prefetchPresetDecks();
   }
   return usePresetDecksStore.getState().decks.filter((deck) => presetSupportsEngine(deck, engine));
 }
-
 async function resolveOpponents(
   engine: EngineKind,
   formatId: string,
   opponentCount: number,
-): Promise<{ decks: Deck[]; remember: ReturnType<typeof resolveAiOpponent> }> {
+): Promise<{
+  decks: Deck[];
+  remember: ReturnType<typeof resolveAiOpponent>;
+}> {
   const presets = await ensurePresets(engine);
   if (opponentCount === 1) {
     const opponent = resolveAiOpponent({
@@ -52,21 +64,18 @@ async function resolveOpponents(
   );
   return { decks: pickRandomDistinct(pool, opponentCount), remember: null };
 }
-
 export function useQuickPlay() {
   const navigate = useNavigate();
   const [pendingDeckId, setPendingDeckId] = useState<string | null>(null);
   const [pendingPod, setPendingPod] = useState<PendingPod | null>(null);
   const pendingRef = useRef(false);
   const mountedRef = useRef(true);
-
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };
   }, []);
-
   const startSaved = useCallback(
     async (savedDeckId: string, opponentCount: number) => {
       if (pendingRef.current) return;
@@ -79,7 +88,7 @@ export function useQuickPlay() {
         const formatId = deck.format ?? "standard";
         const format = getFormat(formatId);
         if (!format) {
-          toast.error("This deck uses an unsupported format.");
+          toast.error(i18n._(msg`This deck uses an unsupported format.`));
           navigate(`${ROUTES.DECK_EDITOR}?deck=${encodeURIComponent(savedDeckId)}`, {
             state: { deckEditorFromList: true },
           });
@@ -89,7 +98,7 @@ export function useQuickPlay() {
         const opponents = await resolveOpponents(engine, formatId, opponentCount);
         if (!mountedRef.current) return;
         if (opponents.decks.length === 0) {
-          toast.error("No AI deck available for this format — pick one yourself.");
+          toast.error(i18n._(msg`No AI deck available for this format \u2014 pick one yourself.`));
           navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, {
             state: { preSelectedDeckId: savedDeckId },
           });
@@ -116,7 +125,6 @@ export function useQuickPlay() {
     },
     [navigate],
   );
-
   const startPreset = useCallback(async (preset: PresetDeck, opponentCount: number) => {
     if (pendingRef.current) return;
     const presetId = preset.id ?? preset.name;
@@ -128,7 +136,7 @@ export function useQuickPlay() {
       const opponents = await resolveOpponents(engine, formatId, opponentCount);
       if (!mountedRef.current) return;
       if (opponents.decks.length === 0) {
-        toast.error("No AI deck available for this format — pick one yourself.");
+        toast.error(i18n._(msg`No AI deck available for this format \u2014 pick one yourself.`));
         return;
       }
       const started = await useGameStore
@@ -157,7 +165,6 @@ export function useQuickPlay() {
       if (mountedRef.current) setPendingDeckId(null);
     }
   }, []);
-
   const startCommunity = useCallback(async (entryId: string, deck: Deck, opponentCount: number) => {
     if (pendingRef.current) return;
     pendingRef.current = true;
@@ -168,7 +175,7 @@ export function useQuickPlay() {
       const opponents = await resolveOpponents(engine, formatId, opponentCount);
       if (!mountedRef.current) return;
       if (opponents.decks.length === 0) {
-        toast.error("No AI deck available for this format — pick one yourself.");
+        toast.error(i18n._(msg`No AI deck available for this format \u2014 pick one yourself.`));
         return;
       }
       const started = await useGameStore
@@ -190,7 +197,6 @@ export function useQuickPlay() {
       if (mountedRef.current) setPendingDeckId(null);
     }
   }, []);
-
   const quickPlay = useCallback(
     async (savedDeckId: string) => {
       if (pendingRef.current) return;
@@ -204,18 +210,19 @@ export function useQuickPlay() {
     },
     [startSaved],
   );
-
   const quickPlayPreset = useCallback(
     async (preset: PresetDeck) => {
       if (pendingRef.current) return;
       const formatId = preset.format ?? "standard";
       if (formatId === "oathbreaker" || getFormat(formatId) === undefined) {
-        toast.error("This starter deck uses an unsupported format.");
+        toast.error(i18n._(msg`This starter deck uses an unsupported format.`));
         return;
       }
       if (!presetSupportsEngine(preset, resolveOfflineEngine())) {
         toast.error(
-          `This deck is built for the ${preset.engines?.[0] ?? "Ironsmith"} engine — start a table with that engine from Multiplayer.`,
+          i18n._(
+            msg`This deck is built for the ${preset.engines?.[0] ?? "Ironsmith"} engine — start a table with that engine from Multiplayer.`,
+          ),
         );
         return;
       }
@@ -227,7 +234,6 @@ export function useQuickPlay() {
     },
     [startPreset],
   );
-
   const quickPlayCommunity = useCallback(
     async (entryId: string) => {
       if (pendingRef.current) return;
@@ -237,13 +243,15 @@ export function useQuickPlay() {
         const entry = await useHubStore.getState().loadEntry(entryId);
         const formatId = entry.deck.format ?? entry.format ?? "standard";
         if (getFormat(formatId) === undefined) {
-          toast.error("This Community deck uses an unsupported format.");
+          toast.error(i18n._(msg`This Community deck uses an unsupported format.`));
           return;
         }
         const engine = resolveOfflineEngine();
         if (entry.engines?.length && !entry.engines.includes(engine)) {
           toast.error(
-            `This deck is built for the ${entry.engines[0]} engine — start a table with that engine from Multiplayer.`,
+            i18n._(
+              msg`This deck is built for the ${entry.engines[0]} engine — start a table with that engine from Multiplayer.`,
+            ),
           );
           return;
         }
@@ -262,7 +270,6 @@ export function useQuickPlay() {
     },
     [startCommunity],
   );
-
   const playersDialog: ReactNode = pendingPod ? (
     <PlaytestPlayersDialog
       open
@@ -276,6 +283,5 @@ export function useQuickPlay() {
       onCancel={() => setPendingPod(null)}
     />
   ) : null;
-
   return { quickPlay, quickPlayPreset, quickPlayCommunity, pendingDeckId, playersDialog };
 }

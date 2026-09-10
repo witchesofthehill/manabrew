@@ -3,12 +3,12 @@ import { TableSeatChip } from "@/components/lobby/TableSeatChip";
 import { stripUsernameTag } from "@/lib/username";
 import type { RoomPlayerInfo } from "@/types/server";
 import { cn } from "@/lib/utils";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const SEAT_CENTER_PERCENT = 50;
 const SEAT_X_RADIUS_PERCENT = 40;
 const SEAT_Y_RADIUS_PERCENT = 34;
 const SEAT_START_ANGLE = Math.PI / 2;
-
 function seatStyle(index: number, total: number): CSSProperties {
   const angle = SEAT_START_ANGLE + (index * 2 * Math.PI) / total;
   return {
@@ -16,7 +16,6 @@ function seatStyle(index: number, total: number): CSSProperties {
     top: `${SEAT_CENTER_PERCENT + SEAT_Y_RADIUS_PERCENT * Math.sin(angle)}%`,
   };
 }
-
 interface OpenTableSeatsProps {
   players: readonly RoomPlayerInfo[];
   maxPlayers: number;
@@ -31,7 +30,6 @@ interface OpenTableSeatsProps {
   size?: "card" | "room";
   className?: string;
 }
-
 export function OpenTableSeats({
   players,
   maxPlayers,
@@ -47,7 +45,6 @@ export function OpenTableSeats({
   className,
 }: OpenTableSeatsProps) {
   const controllerName = players.find((player) => !player.is_bot)?.username ?? players[0]?.username;
-
   return (
     <div
       role="group"
@@ -64,14 +61,14 @@ export function OpenTableSeats({
         const statusLabel =
           showSeatLabels && player
             ? isControllerSeat
-              ? "Host"
+              ? i18n._(msg`Host`)
               : openFormat
                 ? player.ready
-                  ? "Ready"
-                  : "Waiting"
+                  ? i18n._(msg`Ready`)
+                  : i18n._(msg`Waiting`)
                 : player.ready
-                  ? "Ready"
-                  : (player.selected_deck_name ?? "No deck")
+                  ? i18n._(msg`Ready`)
+                  : (player.selected_deck_name ?? i18n._(msg`No deck`))
             : undefined;
         return (
           <TableSeatChip

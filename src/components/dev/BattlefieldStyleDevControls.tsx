@@ -1,7 +1,6 @@
 import { BATTLEFIELD_CARD_STYLE_OPTIONS } from "@/components/game/battlefieldCardStyles";
 import { cn } from "@/lib/utils";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-
 import {
   DEV_CONTROL_ACTIVE,
   DEV_CONTROL_BUTTON,
@@ -9,16 +8,19 @@ import {
   DEV_SECTION,
   DEV_SECTION_HEADING,
 } from "./devPanel.styles";
-
+import { Trans } from "@lingui/react/macro";
 export function BattlefieldStyleDevControls() {
   const style = usePreferencesStore((s) => s.battlefieldCardStyle);
   const setStyle = usePreferencesStore((s) => s.setBattlefieldCardStyle);
-
   return (
     <section className={DEV_SECTION}>
-      <p className={DEV_SECTION_HEADING}>Battlefield card style</p>
+      <p className={DEV_SECTION_HEADING}>
+        <Trans>Battlefield card style</Trans>
+      </p>
       <p className="mt-1 text-xs text-muted-foreground">
-        Switch every battlefield card live. This also updates the saved app preference.
+        <Trans>
+          Switch every battlefield card live. This also updates the saved app preference.
+        </Trans>
       </p>
       <div className="mt-3 grid grid-cols-3 gap-1.5">
         {BATTLEFIELD_CARD_STYLE_OPTIONS.map((option) => (

@@ -15,14 +15,15 @@ import { HorizontalCardImage } from "@/components/game/HorizontalCardImage";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { cn } from "@/lib/utils";
 import type { DeckCard } from "@/protocol/deck";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface PrintPickerModalProps {
   cardName: string | null;
   onClose: () => void;
   onSelect?: (print: ScryfallCard) => void;
   token?: DeckCard;
 }
-
 export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPickerModalProps) {
   const [prints, setPrints] = useState<ScryfallCard[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -30,16 +31,13 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
   const updatePrint = useDeckStore((s) => s.updatePrint);
   const setLookup = useSetLookup();
   const resolvedName = token?.identity.name ?? cardName;
-
   useEffect(() => {
     if (!resolvedName) {
       setPrints([]);
       return;
     }
     const name = resolvedName;
-
     let mounted = true;
-
     async function fetchPrints() {
       setIsLoading(true);
       setError(null);
@@ -53,7 +51,7 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
         if (mounted) setPrints(prints.get(cardKey({ name })) ?? []);
       } catch {
         if (mounted) {
-          setError("Failed to fetch printings.");
+          setError(i18n._(msg`Failed to fetch printings.`));
         }
       } finally {
         if (mounted) {
@@ -61,15 +59,12 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
         }
       }
     }
-
     fetchPrints();
     return () => {
       mounted = false;
     };
   }, [resolvedName, token]);
-
   if (!resolvedName) return null;
-
   return (
     <Modal
       onClose={onClose}
@@ -78,7 +73,9 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
       backdropClassName="z-[9100]"
     >
       <Modal.Header onClose={onClose}>
-        <h2 className="text-lg font-bold">Select Printing: {resolvedName}</h2>
+        <h2 className="text-lg font-bold">
+          <Trans>Select Printing: {resolvedName}</Trans>
+        </h2>
       </Modal.Header>
 
       <Modal.Body>
@@ -104,7 +101,6 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
                   face?.image_uris?.large ||
                   p.image_uris?.normal ||
                   p.image_uris?.large;
-
                 return (
                   <div
                     key={p.id}
@@ -144,7 +140,9 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
                           />
                         )
                       ) : (
-                        <span className="text-xs text-muted-foreground text-center">No Image</span>
+                        <span className="text-xs text-muted-foreground text-center">
+                          <Trans>No Image</Trans>
+                        </span>
                       )}
                     </div>
                     <div className="text-center w-full">

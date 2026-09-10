@@ -2,7 +2,8 @@ import { Ban, Check, Layers } from "lucide-react";
 import { PromptActionButton } from "@/components/prompts/PromptActionButton";
 import { usePromptActionColors } from "./internal/promptActionTheme";
 import type { ChooseTargetSpellProps } from "./internal/types";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export function ChooseTargetSpell({
   isWaitingForResponse,
   onOpenStack,
@@ -15,8 +16,8 @@ export function ChooseTargetSpell({
   return (
     <div className="flex items-center gap-1.5">
       <PromptActionButton
-        label="View Stack"
-        title="Click a glowing spell on the stack to counter it"
+        label={i18n._(msg`View Stack`)}
+        title={i18n._(msg`Click a glowing spell on the stack to counter it`)}
         icon={<Layers className="h-3.5 w-3.5" />}
         onClick={onOpenStack}
         disabled={isWaitingForResponse}

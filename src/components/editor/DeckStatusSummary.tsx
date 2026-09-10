@@ -1,6 +1,5 @@
 import { AlertTriangle, CheckCircle2, CircleDollarSign, LibraryBig, Wrench } from "lucide-react";
 import type { ReactNode } from "react";
-
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,7 +8,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface DeckStatusSummaryProps {
   legalityErrors: number;
   unsupportedCards: number;
@@ -17,7 +17,6 @@ interface DeckStatusSummaryProps {
   budgetTracked: boolean;
   onNavigate: (target: "validation" | "collection" | "budget") => void;
 }
-
 export function DeckStatusSummary({
   legalityErrors,
   unsupportedCards,
@@ -26,7 +25,6 @@ export function DeckStatusSummary({
   onNavigate,
 }: DeckStatusSummaryProps) {
   const issueCount = legalityErrors + unsupportedCards;
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -43,33 +41,33 @@ export function DeckStatusSummary({
           ) : (
             <CheckCircle2 className="h-3.5 w-3.5" />
           )}
-          {issueCount > 0 ? `${issueCount} to review` : "Deck healthy"}
+          {issueCount > 0 ? i18n._(msg`${issueCount} to review`) : i18n._(msg`Deck healthy`)}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <StatusItem
           icon={<AlertTriangle className="h-3.5 w-3.5" />}
-          label="Format legality"
+          label={i18n._(msg`Format legality`)}
           value={legalityErrors > 0 ? `${legalityErrors} issues` : "Legal"}
           warning={legalityErrors > 0}
           onSelect={() => onNavigate("validation")}
         />
         <StatusItem
           icon={<Wrench className="h-3.5 w-3.5" />}
-          label="Engine support"
+          label={i18n._(msg`Engine support`)}
           value={unsupportedCards > 0 ? `${unsupportedCards} unsupported` : "Supported"}
           warning={unsupportedCards > 0}
           onSelect={() => onNavigate("validation")}
         />
         <StatusItem
           icon={<LibraryBig className="h-3.5 w-3.5" />}
-          label="Collection"
+          label={i18n._(msg`Collection`)}
           value={collectionGaps > 0 ? `${collectionGaps} gaps` : "Complete"}
           onSelect={() => onNavigate("collection")}
         />
         <StatusItem
           icon={<CircleDollarSign className="h-3.5 w-3.5" />}
-          label="Budget"
+          label={i18n._(msg`Budget`)}
           value={budgetTracked ? "Tracked" : "Not set"}
           onSelect={() => onNavigate("budget")}
         />
@@ -77,7 +75,6 @@ export function DeckStatusSummary({
     </DropdownMenu>
   );
 }
-
 function StatusItem({
   icon,
   label,

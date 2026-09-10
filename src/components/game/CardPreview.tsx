@@ -30,7 +30,9 @@ import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { deriveCardRailEffects, deriveCardRailState } from "@/components/game/cardRailState";
 import { cardTypeLine } from "@/components/game/cardPresentation";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface CardPreviewProps {
   card: CardDto;
   mouseX: number;
@@ -52,11 +54,9 @@ interface CardPreviewProps {
   slot?: HTMLElement | null;
   imageSize?: "normal" | "large";
 }
-
 const IMG_VERTICAL = "absolute inset-0 w-full h-full object-cover";
 const IMG_HORIZONTAL =
   "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center h-[calc(100%*7/5)] aspect-[5/7] object-cover";
-
 /**
  * Monotonic image display: pixels already on screen are never removed until
  * the replacement has finished loading. Swapping an `<img>` src blanks it
@@ -74,7 +74,10 @@ function PreviewImageStack({
   horizontal: boolean;
   cardName: string;
 }) {
-  const [displayed, setDisplayed] = useState<{ src: string; horizontal: boolean } | null>(null);
+  const [displayed, setDisplayed] = useState<{
+    src: string;
+    horizontal: boolean;
+  } | null>(null);
   const targetShown = displayed?.src === targetUrl;
   const showLowRes = !!lowResUrl && !targetShown && displayed?.src !== lowResUrl;
   return (
@@ -114,7 +117,6 @@ function PreviewImageStack({
     </>
   );
 }
-
 export function CardPreview({
   card,
   mouseX,
@@ -199,13 +201,11 @@ export function CardPreview({
   // the sprite's hover state. Stay pointer-transparent until the enter lands.
   const [entered, setEntered] = useState(skipEnterAnimation);
   const interactive = entered && phase === "open" && !suppressed;
-
   useEffect(() => {
     if (skipEnterAnimation) return;
     const timer = setTimeout(() => setEntered(true), PREVIEW_TIMING.enterMs + 80);
     return () => clearTimeout(timer);
   }, [skipEnterAnimation]);
-
   useLayoutEffect(() => {
     const update = () => setLayoutVersion((version) => version + 1);
     const observer = new ResizeObserver(update);
@@ -216,7 +216,6 @@ export function CardPreview({
       window.removeEventListener("resize", update);
     };
   }, [slot]);
-
   useLayoutEffect(() => {
     const measure = () => setPanelHeight(panelRef.current?.offsetHeight ?? 0);
     const observer = new ResizeObserver(measure);
@@ -227,7 +226,6 @@ export function CardPreview({
       observer.disconnect();
     };
   }, [showSidePanel, card.id]);
-
   const faceless = isFacelessCard(card);
   const imageUrl = faceless ? CARD_BACK_IMAGE_URL : resolveImageUrl(0, imageSize);
   const frontImageUrl = resolveImageUrl(0, imageSize);
@@ -243,7 +241,6 @@ export function CardPreview({
         backName: back!.name,
       }
     : null;
-
   const horizontalCard = isDebugCard
     ? false
     : isHorizontalGameCard(
@@ -265,7 +262,6 @@ export function CardPreview({
         }
       : {},
   );
-
   useEffect(() => {
     if (!onDismiss) return;
     function handleKey(e: KeyboardEvent) {
@@ -314,7 +310,6 @@ export function CardPreview({
     integratedClassLevelUpIndex,
     nextClassLevel,
   ]);
-
   const horizontal = horizontalCard;
   const layout = computePreviewLayout({
     placement,
@@ -328,7 +323,6 @@ export function CardPreview({
   });
   const { cardLeft, top, cardWidth, cardHeight, sidePanelWidth, panelSide } = layout;
   const cardCornerRadius = (Math.min(cardWidth, cardHeight) * CARD_RADIUS) / CARD_W;
-
   const anchorCenterX = anchorRect ? anchorRect.left + anchorRect.width / 2 : mouseX;
   const anchorCenterY = anchorRect ? anchorRect.top + anchorRect.height / 2 : mouseY;
   const heroShiftX = slot ? 0 : anchorCenterX - (cardLeft + cardWidth / 2);
@@ -338,7 +332,6 @@ export function CardPreview({
     : anchorRect
       ? Math.max(0.25, Math.min(0.85, anchorRect.width / Math.max(1, cardWidth)))
       : 0.5;
-
   const hasDoubleFace = !!doubleFacedData;
   const currentImageUrl = hasDoubleFace && showBackFace ? doubleFacedData.backImageUrl : imageUrl;
   const currentCardName =
@@ -353,7 +346,6 @@ export function CardPreview({
         : resolveImageUrl(0, "normal");
   const cardLookupPending = !isDebugCard && cardFaces.faces.length === 0;
   const hasPreviewControls = Boolean(onToggleView || (hasDoubleFace && onFlip));
-
   return createPortal(
     <>
       {hasActions && isSticky && !suppressed && (
@@ -444,8 +436,8 @@ export function CardPreview({
                           "inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/65 text-white shadow hover:bg-black/85 pointer-coarse:h-9 pointer-coarse:w-9",
                           interactive ? "pointer-events-auto" : "pointer-events-none",
                         )}
-                        aria-label="Show rules"
-                        title="Show rules (R)"
+                        aria-label={i18n._(msg`Show rules`)}
+                        title={i18n._(msg`Show rules (R)`)}
                       >
                         <GameIcon name="spell-book" className="h-3.5 w-3.5" />
                       </button>
@@ -464,7 +456,7 @@ export function CardPreview({
                         title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
                       >
                         <RotateCw className="h-3 w-3" />
-                        {showBackFace ? "Front" : "Back"}
+                        {showBackFace ? i18n._(msg`Front`) : i18n._(msg`Back`)}
                       </button>
                     )}
                   </div>
@@ -502,9 +494,9 @@ export function CardPreview({
                   )}
                   <div className="flex-1 text-xs text-foreground/80 whitespace-pre-wrap">
                     {hasDoubleFace && showBackFace
-                      ? `Back face: ${doubleFacedData!.backName}`
+                      ? i18n._(msg`Back face: ${doubleFacedData!.backName}`)
                       : hasDoubleFace && !showBackFace
-                        ? `Front face: ${doubleFacedData!.frontName}`
+                        ? i18n._(msg`Front face: ${doubleFacedData!.frontName}`)
                         : card.text}
                   </div>
                   {fallbackCounters && <CounterDisplay counters={fallbackCounters} size="md" />}
@@ -572,10 +564,12 @@ export function CardPreview({
               {!hasActions && hasFlippableFaces && (
                 <div className="px-1 text-[10px] text-muted-foreground">
                   <span>
-                    <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
-                      F
-                    </kbd>{" "}
-                    flip
+                    <Trans>
+                      <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+                        F
+                      </kbd>{" "}
+                      flip
+                    </Trans>
                   </span>
                 </div>
               )}

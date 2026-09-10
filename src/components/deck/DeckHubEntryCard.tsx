@@ -7,7 +7,9 @@ import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { cn } from "@/lib/utils";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
 import { ScryfallImg } from "@/components/ScryfallImg";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface DeckHubEntryCardProps {
   entry: DeckHubEntrySummary;
   onOpen: () => void;
@@ -21,9 +23,7 @@ interface DeckHubEntryCardProps {
   playing?: boolean;
   playDisabled?: boolean;
 }
-
 const NO_AUTHOR = "Deleted user";
-
 export function DeckHubEntryCard({
   entry,
   onOpen,
@@ -45,7 +45,6 @@ export function DeckHubEntryCard({
   const discoveryTags = entry.tags.filter(
     (tag) => tag.slug !== "official" && tag.slug !== "preset",
   );
-
   const favorite = onFavorite ? (
     <Button
       type="button"
@@ -90,7 +89,7 @@ export function DeckHubEntryCard({
       ) : rank === 3 ? (
         <Award className="h-4 w-4" aria-hidden="true" />
       ) : (
-        `#${rank}`
+        i18n._(msg`#${rank}`)
       )}
     </span>
   ) : null;
@@ -99,7 +98,7 @@ export function DeckHubEntryCard({
       {rankMarker}
       {entry.sourceKind === "preset" && (
         <span className="shrink-0 whitespace-nowrap rounded-full border bg-background/90 px-2 py-1 text-[10px] font-medium backdrop-blur-sm">
-          Official preset
+          <Trans>Official preset</Trans>
         </span>
       )}
       {variant !== "list" && discoveryTags.length > 0 && (
@@ -124,7 +123,6 @@ export function DeckHubEntryCard({
   ) : (
     labels
   );
-
   return (
     <DeckCardSurface
       title={entry.title}
@@ -169,7 +167,7 @@ export function DeckHubEntryCard({
               key={engine}
               className="rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-[9px] font-medium text-foreground backdrop-blur-sm"
             >
-              {engine} engine
+              <Trans>{engine} engine</Trans>
             </span>
           ))}
           <span
@@ -178,7 +176,7 @@ export function DeckHubEntryCard({
               variant === "list" && "text-muted-foreground",
             )}
           >
-            {entry.cardCount} cards
+            <Trans>{entry.cardCount} cards</Trans>
           </span>
         </>
       }

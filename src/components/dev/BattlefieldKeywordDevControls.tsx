@@ -1,15 +1,12 @@
 import { useState } from "react";
 import { Loader2, Search } from "lucide-react";
-
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
-
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { BattlefieldChoiceDevControls } from "./BattlefieldChoiceDevControls";
 import { DevCardSearch } from "./DevCardSearch";
-
 import {
   DEV_CONTROL_ACTIVE,
   DEV_CONTROL_BUTTON,
@@ -17,7 +14,9 @@ import {
   DEV_SECTION,
   DEV_SECTION_HEADING,
 } from "./devPanel.styles";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const DEV_BATTLEFIELD_KEYWORDS: string[] = [
   "Flying",
   "First strike",
@@ -68,7 +67,6 @@ const DEV_BATTLEFIELD_KEYWORDS: string[] = [
   "Bushido",
   "Exalted",
 ];
-
 export function BattlefieldKeywordDevControls() {
   const selected = useGameDevStore((s) => s.debugBattlefieldKeywords);
   const toggle = useGameDevStore((s) => s.toggleDebugBattlefieldKeyword);
@@ -81,7 +79,6 @@ export function BattlefieldKeywordDevControls() {
   const [keywordQuery, setKeywordQuery] = useState("");
   const [loadingCard, setLoadingCard] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
-
   const normalizedQuery = keywordQuery.trim().toLocaleLowerCase();
   const visibleKeywords = normalizedQuery
     ? DEV_BATTLEFIELD_KEYWORDS.filter((keyword) =>
@@ -97,7 +94,6 @@ export function BattlefieldKeywordDevControls() {
       setDebugCardEnabled(true);
       return;
     }
-
     const requestedName = debugCardName;
     setLoadingCard(true);
     setCardError(null);
@@ -108,19 +104,20 @@ export function BattlefieldKeywordDevControls() {
       setDebugCard(scryfallToDeckCard(card.info));
       setDebugCardEnabled(true);
     } catch {
-      setCardError(`Could not load ${requestedName} from Scryfall.`);
+      setCardError(i18n._(msg`Could not load ${requestedName} from Scryfall.`));
     } finally {
       setLoadingCard(false);
     }
   };
-
   return (
     <section className={DEV_SECTION}>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className={DEV_SECTION_HEADING}>Card under test</p>
+          <p className={DEV_SECTION_HEADING}>
+            <Trans>Card under test</Trans>
+          </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Resolve a real print, then layer debug-only visuals over it.
+            <Trans>Resolve a real print, then layer debug-only visuals over it.</Trans>
           </p>
         </div>
         <button
@@ -131,7 +128,11 @@ export function BattlefieldKeywordDevControls() {
           disabled={loadingCard}
           onClick={() => void toggleDebugCard()}
         >
-          {loadingCard ? "Loading" : debugCardEnabled ? "On board" : "Hidden"}
+          {loadingCard
+            ? i18n._(msg`Loading`)
+            : debugCardEnabled
+              ? i18n._(msg`On board`)
+              : i18n._(msg`Hidden`)}
           {loadingCard ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
           <span
             className={cn(
@@ -152,7 +153,7 @@ export function BattlefieldKeywordDevControls() {
 
       <div className="mt-3">
         <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          Scryfall card name
+          <Trans>Scryfall card name</Trans>
         </span>
         <DevCardSearch
           key={debugCardName}
@@ -165,9 +166,13 @@ export function BattlefieldKeywordDevControls() {
 
       <div className="mt-4 flex items-center justify-between gap-3">
         <div>
-          <p className={DEV_SECTION_HEADING}>Keyword chips</p>
+          <p className={DEV_SECTION_HEADING}>
+            <Trans>Keyword chips</Trans>
+          </p>
           <p className="mt-1 text-[10px] text-muted-foreground">
-            {selected.length === 0 ? "No forced keywords" : `${selected.length} forced`}
+            {selected.length === 0
+              ? i18n._(msg`No forced keywords`)
+              : i18n._(msg`${selected.length} forced`)}
           </p>
         </div>
         {selected.length > 0 ? (
@@ -176,7 +181,7 @@ export function BattlefieldKeywordDevControls() {
             className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground hover:text-destructive"
             onClick={clear}
           >
-            Clear all
+            <Trans>Clear all</Trans>
           </button>
         ) : null}
       </div>
@@ -203,7 +208,7 @@ export function BattlefieldKeywordDevControls() {
           type="search"
           value={keywordQuery}
           onChange={(event) => setKeywordQuery(event.target.value)}
-          placeholder="Filter keywords"
+          placeholder={i18n._(msg`Filter keywords`)}
           className="pl-9"
         />
       </div>
@@ -229,7 +234,9 @@ export function BattlefieldKeywordDevControls() {
         })}
       </div>
       {visibleKeywords.length === 0 ? (
-        <p className="mt-3 text-center text-xs text-muted-foreground">No keyword matches.</p>
+        <p className="mt-3 text-center text-xs text-muted-foreground">
+          <Trans>No keyword matches.</Trans>
+        </p>
       ) : null}
     </section>
   );

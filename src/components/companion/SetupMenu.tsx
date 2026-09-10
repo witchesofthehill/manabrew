@@ -18,12 +18,13 @@ import {
 } from "@/stores/useCompanionStore.constants";
 import type { CompanionSession } from "@/stores/useCompanionStore.types";
 import { GameIcon } from "./GameIcon";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface SetupMenuProps {
   session: CompanionSession;
   onOpenLog: () => void;
 }
-
 export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
   const setPlayerCount = useCompanionStore((s) => s.setPlayerCount);
   const setStartingLife = useCompanionStore((s) => s.setStartingLife);
@@ -34,7 +35,6 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
   const resetCounters = useCompanionStore((s) => s.resetCounters);
   const resetGame = useCompanionStore((s) => s.resetGame);
   const endSession = useCompanionStore((s) => s.endSession);
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -42,14 +42,16 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
           size="icon"
           variant="outline"
           className="size-8 sm:size-9"
-          aria-label="Game setup"
-          title="Game setup"
+          aria-label={i18n._(msg`Game setup`)}
+          title={i18n._(msg`Game setup`)}
         >
           <Settings className="size-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel>Players</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          <Trans>Players</Trans>
+        </DropdownMenuLabel>
         <div className="flex items-center justify-between gap-2 px-2 pb-2">
           <Button
             size="icon"
@@ -57,7 +59,7 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
             className="size-7"
             onClick={() => setPlayerCount(session.players.length - 1)}
             disabled={session.players.length <= COMPANION_MIN_PLAYERS}
-            aria-label="Fewer players"
+            aria-label={i18n._(msg`Fewer players`)}
           >
             <Minus className="size-3.5" />
           </Button>
@@ -68,13 +70,15 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
             className="size-7"
             onClick={() => setPlayerCount(session.players.length + 1)}
             disabled={session.players.length >= COMPANION_MAX_PLAYERS}
-            aria-label="More players"
+            aria-label={i18n._(msg`More players`)}
           >
             <Plus className="size-3.5" />
           </Button>
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>Starting life</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          <Trans>Starting life</Trans>
+        </DropdownMenuLabel>
         <div className="flex flex-wrap gap-1 px-2 pb-2">
           {COMPANION_STARTING_LIFE_PRESETS.map((value) => (
             <button
@@ -100,8 +104,10 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
           }}
           className={cn(session.commanderRules && "bg-accent")}
         >
-          <GameIcon icon="crown" className="mr-2 size-4" /> Commander rules
-          {session.commanderRules && <span className="ml-auto text-xs">on</span>}
+          <Trans>
+            <GameIcon icon="crown" className="mr-2 size-4" /> Commander rules
+            {session.commanderRules && <span className="ml-auto text-xs">on</span>}
+          </Trans>
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={(e) => {
@@ -110,11 +116,15 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
           }}
           className={cn(session.phasesEnabled && "bg-accent")}
         >
-          <ListOrdered className="mr-2 size-4" /> Phase tracking
-          {session.phasesEnabled && <span className="ml-auto text-xs">on</span>}
+          <Trans>
+            <ListOrdered className="mr-2 size-4" /> Phase tracking
+            {session.phasesEnabled && <span className="ml-auto text-xs">on</span>}
+          </Trans>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>Timer mode</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          <Trans>Timer mode</Trans>
+        </DropdownMenuLabel>
         <DropdownMenuItem
           onSelect={(e) => {
             e.preventDefault();
@@ -122,7 +132,7 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
           }}
           className={cn(session.timerMode === "shared" && "bg-accent")}
         >
-          Shared game clock
+          <Trans>Shared game clock</Trans>
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={(e) => {
@@ -131,10 +141,12 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
           }}
           className={cn(session.timerMode === "chess" && "bg-accent")}
         >
-          Per-player chess clock
+          <Trans>Per-player chess clock</Trans>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>Game title</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          <Trans>Game title</Trans>
+        </DropdownMenuLabel>
         <div className="px-2 pb-2">
           <Input
             key={session.id}
@@ -143,37 +155,51 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
             onKeyDown={(e) => {
               if (e.key === "Enter") (e.target as HTMLInputElement).blur();
             }}
-            placeholder="Untitled game"
+            placeholder={i18n._(msg`Untitled game`)}
             className="h-8 text-xs"
           />
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={onOpenLog}>
-          <ListOrdered className="mr-2 size-4" /> Game log
-          <span className="ml-auto tabular-nums text-xs text-muted-foreground">
-            {session.history.length}
-          </span>
+          <Trans>
+            <ListOrdered className="mr-2 size-4" /> Game log
+            <span className="ml-auto tabular-nums text-xs text-muted-foreground">
+              {session.history.length}
+            </span>
+          </Trans>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>Reset</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          <Trans>Reset</Trans>
+        </DropdownMenuLabel>
         <DropdownMenuItem onSelect={() => resetCounters("life")}>
-          <RotateCcw className="mr-2 size-4" /> Life only
+          <Trans>
+            <RotateCcw className="mr-2 size-4" /> Life only
+          </Trans>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => resetCounters("counters")}>
-          <RotateCcw className="mr-2 size-4" /> Counters only
+          <Trans>
+            <RotateCcw className="mr-2 size-4" /> Counters only
+          </Trans>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => resetCounters("commander-damage")}>
-          <RotateCcw className="mr-2 size-4" /> Commander damage
+          <Trans>
+            <RotateCcw className="mr-2 size-4" /> Commander damage
+          </Trans>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => resetGame()}>
-          <RotateCcw className="mr-2 size-4" /> Reset everything
+          <Trans>
+            <RotateCcw className="mr-2 size-4" /> Reset everything
+          </Trans>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onSelect={() => endSession()}
           className="text-destructive focus:text-destructive"
         >
-          <XOctagon className="mr-2 size-4" /> End game
+          <Trans>
+            <XOctagon className="mr-2 size-4" /> End game
+          </Trans>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -24,7 +24,9 @@ import {
 import { useGameStore } from "@/stores/useGameStore";
 import { getPlatformType } from "@/platform";
 import { useKeybindings } from "@/hooks/useKeybindings";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface MiddleBarDockProps {
   /** Controlled open state — the trigger is the Pixi gear in the self panel. */
   open: boolean;
@@ -38,9 +40,13 @@ interface MiddleBarDockProps {
   /** Every seat, for the per-player playmat show/hide toggles. `color` is the
    *  player's seat colour (full opacity, matching their Pixi avatar ring) used as
    *  the row's hover background; `textColor` is the readable text over it. */
-  players: { id: string; name: string; color: string; textColor: string }[];
+  players: {
+    id: string;
+    name: string;
+    color: string;
+    textColor: string;
+  }[];
 }
-
 /** Board menu opened by the self panel's Pixi gear — fullscreen, the dev/side
  *  panel toggle, and concede. Controlled; the trigger is just a positioning
  *  anchor near the gear. */
@@ -61,13 +67,11 @@ export function MiddleBarDock({
   const [isFullscreen, setIsFullscreen] = useState(
     typeof document !== "undefined" && document.fullscreenElement !== null,
   );
-
   useEffect(() => {
     const sync = () => setIsFullscreen(document.fullscreenElement !== null);
     document.addEventListener("fullscreenchange", sync);
     return () => document.removeEventListener("fullscreenchange", sync);
   }, []);
-
   const toggleFullscreen = useCallback(() => {
     if (document.fullscreenElement) {
       void document.exitFullscreen().catch(() => undefined);
@@ -75,16 +79,13 @@ export function MiddleBarDock({
       void document.documentElement.requestFullscreen().catch(() => undefined);
     }
   }, []);
-
   useKeybindings({ "toggle-fullscreen": toggleFullscreen });
-
   const FullscreenIcon = isFullscreen ? Minimize2 : Maximize2;
   const PanelIcon = sidePanelCollapsed ? PanelRightOpen : PanelRightClose;
-
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
       {/* The visible trigger is the Pixi gear in the self panel; this is just a
-          zero-size anchor near it for the menu to position against. */}
+            zero-size anchor near it for the menu to position against. */}
       <DropdownMenuTrigger asChild>
         <span aria-hidden className="pointer-events-none absolute bottom-14 left-6 h-0 w-0" />
       </DropdownMenuTrigger>
@@ -92,25 +93,31 @@ export function MiddleBarDock({
         {isWeb && (
           <DropdownMenuItem onSelect={() => toggleFullscreen()}>
             <FullscreenIcon className="mr-2 h-4 w-4" />
-            {isFullscreen ? "Exit full screen" : "Full screen"}
+            {isFullscreen ? i18n._(msg`Exit full screen`) : i18n._(msg`Full screen`)}
           </DropdownMenuItem>
         )}
         <DropdownMenuItem onSelect={() => onToggleSidePanel()}>
           <PanelIcon className="mr-2 h-4 w-4" />
-          {sidePanelCollapsed ? "Show side panel" : "Hide side panel"}
+          {sidePanelCollapsed ? i18n._(msg`Show side panel`) : i18n._(msg`Hide side panel`)}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onOpenSettings()}>
-          <Settings2 className="mr-2 h-4 w-4" />
-          Board settings
+          <Trans>
+            <Settings2 className="mr-2 h-4 w-4" />
+            Board settings
+          </Trans>
         </DropdownMenuItem>
         {players.length > 0 && (
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
-              <ImageIcon className="mr-2 h-4 w-4" />
-              Playmats
+              <Trans>
+                <ImageIcon className="mr-2 h-4 w-4" />
+                Playmats
+              </Trans>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
-              <DropdownMenuLabel>Hide playmat</DropdownMenuLabel>
+              <DropdownMenuLabel>
+                <Trans>Hide playmat</Trans>
+              </DropdownMenuLabel>
               {players.map((p) => (
                 <DropdownMenuCheckboxItem
                   key={p.id}
@@ -135,7 +142,7 @@ export function MiddleBarDock({
           }}
         >
           {eliminated ? <LogOut className="mr-2 h-4 w-4" /> : <Flag className="mr-2 h-4 w-4" />}
-          {eliminated ? "Leave" : "Concede"}
+          {eliminated ? i18n._(msg`Leave`) : i18n._(msg`Concede`)}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

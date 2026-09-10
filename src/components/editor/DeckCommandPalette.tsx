@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
-
 import {
   Dialog,
   DialogContent,
@@ -11,13 +10,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { DeckEditorCommand } from "./deckEditor.commands";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface DeckCommandPaletteProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   commands: DeckEditorCommand[];
 }
-
 export function DeckCommandPalette({ open, onOpenChange, commands }: DeckCommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -29,14 +29,12 @@ export function DeckCommandPalette({ open, onOpenChange, commands }: DeckCommand
       return terms.every((term) => haystack.includes(term));
     });
   }, [commands, query]);
-
   function run(command: DeckEditorCommand) {
     if (command.disabled) return;
     command.run();
     setQuery("");
     onOpenChange(false);
   }
-
   return (
     <Dialog
       open={open}
@@ -50,8 +48,12 @@ export function DeckCommandPalette({ open, onOpenChange, commands }: DeckCommand
     >
       <DialogContent className="max-w-lg gap-2 p-3">
         <DialogHeader className="sr-only">
-          <DialogTitle>Deck commands</DialogTitle>
-          <DialogDescription>Search for an action to run in the deck editor.</DialogDescription>
+          <DialogTitle>
+            <Trans>Deck commands</Trans>
+          </DialogTitle>
+          <DialogDescription>
+            <Trans>Search for an action to run in the deck editor.</Trans>
+          </DialogDescription>
         </DialogHeader>
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -66,7 +68,7 @@ export function DeckCommandPalette({ open, onOpenChange, commands }: DeckCommand
             }
             value={query}
             className="h-11 pl-9"
-            placeholder="Type a deck command…"
+            placeholder={i18n._(msg`Type a deck command\u2026`)}
             onChange={(event) => {
               setQuery(event.target.value);
               setActiveIndex(0);
@@ -117,7 +119,7 @@ export function DeckCommandPalette({ open, onOpenChange, commands }: DeckCommand
             ))
           ) : (
             <p className="px-3 py-8 text-center text-sm text-muted-foreground">
-              No matching commands
+              <Trans>No matching commands</Trans>
             </p>
           )}
         </div>

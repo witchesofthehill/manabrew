@@ -1,7 +1,6 @@
 import { cn } from "@/lib/utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-
 import {
   DEV_CONTROL_ACTIVE,
   DEV_CONTROL_BUTTON,
@@ -10,24 +9,24 @@ import {
   DEV_SECTION_HEADING,
 } from "./devPanel.styles";
 import { DEV_VIEWPORT_OPTIONS } from "./devViewportPresets";
-
+import { Trans } from "@lingui/react/macro";
 const CARD_SIZE_PRESETS = [0.75, 1, 1.25, 1.5] as const;
-
 export function DevSizingControls() {
   const cardSize = usePreferencesStore((s) => s.cardSizeMultiplier);
   const setCardSize = usePreferencesStore((s) => s.setCardSizeMultiplier);
   const viewport = useGameDevStore((s) => s.debugViewportPreset);
   const setViewport = useGameDevStore((s) => s.setDebugViewportPreset);
-
   return (
     <section className={DEV_SECTION}>
-      <p className={DEV_SECTION_HEADING}>Size and viewport</p>
+      <p className={DEV_SECTION_HEADING}>
+        <Trans>Size and viewport</Trans>
+      </p>
       <p className="mt-1 text-xs text-muted-foreground">
-        Reflow the real Pixi board at fixed dimensions without opening browser tools.
+        <Trans>Reflow the real Pixi board at fixed dimensions without opening browser tools.</Trans>
       </p>
 
       <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        Card size
+        <Trans>Card size</Trans>
       </p>
       <div className="grid grid-cols-4 gap-1.5">
         {CARD_SIZE_PRESETS.map((size) => (
@@ -46,7 +45,7 @@ export function DevSizingControls() {
       </div>
 
       <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        Board viewport
+        <Trans>Board viewport</Trans>
       </p>
       <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
         {DEV_VIEWPORT_OPTIONS.map((option) => (

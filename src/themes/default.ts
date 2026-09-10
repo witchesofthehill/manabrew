@@ -1,6 +1,7 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const palette: BasePalette = {
   foreground: "#ffffff",
   labelMuted: "#666666",
@@ -35,11 +36,12 @@ const palette: BasePalette = {
   manaG: "#c4d3ca",
   manaC: "#cccac7",
 };
-
 const preset: ThemePreset = {
   id: "default",
   name: "Default",
-  description: "Clean slate-tinted material design",
+  get description() {
+    return i18n._(msg`Clean slate-tinted material design`);
+  },
   light: {
     background: "#f3f5f7",
     foreground: "#1d222a",
@@ -104,5 +106,4 @@ const preset: ThemePreset = {
     avatarInitials: "16px",
   },
 };
-
 export default preset;

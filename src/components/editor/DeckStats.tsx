@@ -5,7 +5,9 @@ import { isLand } from "@/lib/mana";
 import type { DeckCard } from "@/protocol/deck";
 import { CMC_BUCKET_LABELS, cmcBucketIndex } from "./deckBuilder.utils";
 import { EDITOR_PANEL_CLASS } from "./deckEditor.styles";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 // CMC 1–7+ bucket bars — cool→warm progression using theme counter / signal
 // tokens so the curve retones with the active preset.
 const BUCKET_BARS = [
@@ -17,24 +19,22 @@ const BUCKET_BARS = [
   "bg-counter-level", // orange
   "bg-pt-lethal", // red
 ];
-
 const BAR_MAX_PX = 140;
 const TOOLTIP_MAX_NAMES = 10;
-
 interface DeckStatsProps {
   activeBucket?: number | null;
   onBucketClick?: (bucket: number | null) => void;
 }
-
 export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps) {
   const { currentDeck } = useDeckStore();
   const cards = currentDeck.cards;
   const [hoveredBucket, setHoveredBucket] = useState<number | null>(null);
-
   const lands: DeckCard[] = [];
   const unknown: DeckCard[] = [];
-  const spells: { card: DeckCard; bucket: number }[] = [];
-
+  const spells: {
+    card: DeckCard;
+    bucket: number;
+  }[] = [];
   for (const card of cards) {
     if (isLand(card.types)) {
       lands.push(card);
@@ -44,7 +44,6 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
     if (bucket === null) unknown.push(card);
     else spells.push({ card, bucket });
   }
-
   const bucketCards: Map<string, number>[] = Array.from({ length: 7 }, () => new Map());
   for (const { card, bucket } of spells) {
     bucketCards[bucket].set(
@@ -53,19 +52,21 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
     );
   }
   const counts = bucketCards.map((m) => [...m.values()].reduce((a, b) => a + b, 0));
-
   const max = Math.max(...counts, 1);
   const hasAnything = spells.length > 0;
-
   return (
     <section className={EDITOR_PANEL_CLASS}>
       <div className="mb-5 flex items-baseline gap-2.5">
-        <h3 className="text-base font-semibold">Mana Curve</h3>
+        <h3 className="text-base font-semibold">
+          <Trans>Mana Curve</Trans>
+        </h3>
         <span className="text-xs text-muted-foreground/70">
-          {spells.length} spells &middot; {lands.length} lands
+          <Trans>
+            {spells.length} spells &middot; {lands.length} lands
+          </Trans>
         </span>
         {unknown.length > 0 && (
-          <span className="text-xs text-warning" title="CMC unknown">
+          <span className="text-xs text-warning" title={i18n._(msg`CMC unknown`)}>
             {unknown.length} ?
           </span>
         )}
@@ -129,7 +130,9 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
                   {hoveredBucket === i && (
                     <div className="absolute bottom-full left-1/2 z-20 mb-2 w-max max-w-60 -translate-x-1/2 rounded-md border bg-popover p-3 shadow-xl">
                       <p className="mb-1.5 text-xs font-semibold">
-                        {count} card{count === 1 ? "" : "s"} at {CMC_BUCKET_LABELS[i]} mana
+                        <Trans>
+                          {count} card{count === 1 ? "" : "s"} at {CMC_BUCKET_LABELS[i]} mana
+                        </Trans>
                       </p>
                       <ul className="space-y-0.5">
                         {entries.slice(0, TOOLTIP_MAX_NAMES).map(([name, n]) => (
@@ -145,7 +148,7 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
                         ))}
                         {entries.length > TOOLTIP_MAX_NAMES && (
                           <li className="pt-0.5 text-[10px] text-muted-foreground/60">
-                            +{entries.length - TOOLTIP_MAX_NAMES} more
+                            <Trans>+{entries.length - TOOLTIP_MAX_NAMES} more</Trans>
                           </li>
                         )}
                       </ul>
@@ -180,7 +183,9 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
         </>
       ) : (
         <p className="text-xs text-muted-foreground italic text-center py-6">
-          {cards.length === 0 ? "No cards in deck." : "Add non-land cards to see the curve."}
+          {cards.length === 0
+            ? i18n._(msg`No cards in deck.`)
+            : i18n._(msg`Add non-land cards to see the curve.`)}
         </p>
       )}
     </section>

@@ -16,7 +16,9 @@ import { Button } from "@/components/ui/button";
 import { RotateCw } from "lucide-react";
 import { useState } from "react";
 import { useKeybindings } from "@/hooks/useKeybindings";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface SpellStackModalProps {
   stack: StackObjectDto[];
   /** Stack entry IDs the player may target (counter). Empty means view-only. */
@@ -26,7 +28,6 @@ interface SpellStackModalProps {
   /** Maps controllerId → player seat color for per-player glow. */
   playerColorMap?: Map<string, string>;
 }
-
 export function SpellStackModal({
   stack,
   validSpellIds,
@@ -37,12 +38,9 @@ export function SpellStackModal({
   const preview = useCardPreview();
   const [flippedIds, setFlippedIds] = useState<Set<string>>(() => new Set());
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-
   const themeColors = useTheme().gameTheme;
   const ringColor = themeColors.cardRing;
-
   const isTargeting = validSpellIds.length > 0;
-
   // Display newest (top of stack) first — stack[last] = top, stack[0] = bottom
   const displayStack = [...stack].reverse();
   const hoveredObject = displayStack.find((obj) => obj.id === hoveredId);
@@ -53,11 +51,9 @@ export function SpellStackModal({
       else next.add(id);
       return next;
     });
-
   useKeybindings(
     hoveredObject?.isDoubleFaced ? { "flip-card": () => toggleFace(hoveredObject.id) } : {},
   );
-
   const longPress = useLongPressPreview<CardDto>({
     resolve: (e) => {
       const el = (e.target as HTMLElement).closest<HTMLElement>("[data-stack-id]");
@@ -68,27 +64,36 @@ export function SpellStackModal({
       preview.handleMouseEnter(card, undefined, { useAnchor: true, anchorOverride: rect }),
     hide: preview.dismiss,
   });
-
   return (
     <Modal onClose={onCancel} maxWidth="max-w-3xl">
       <Modal.Header>
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-semibold text-base">
-              {isTargeting ? "Choose a Spell to Counter" : "Spells on the Stack"}
+              {isTargeting
+                ? i18n._(msg`Choose a Spell to Counter`)
+                : i18n._(msg`Spells on the Stack`)}
             </h2>
             <p className="text-xs text-muted-foreground">
-              {stack.length} spell{stack.length !== 1 ? "s" : ""} on the stack
-              {" · "}
-              Top of stack is shown first
+              <Trans>
+                {stack.length} spell{stack.length !== 1 ? "s" : ""} on the stack
+                {" · "}
+                Top of stack is shown first
+              </Trans>
             </p>
           </div>
-          {isTargeting && <Badge variant="secondary">{validSpellIds.length} targetable</Badge>}
+          {isTargeting && (
+            <Badge variant="secondary">
+              <Trans>{validSpellIds.length} targetable</Trans>
+            </Badge>
+          )}
         </div>
       </Modal.Header>
 
       {isTargeting && (
-        <Modal.Instructions>Click a highlighted spell to counter it.</Modal.Instructions>
+        <Modal.Instructions>
+          <Trans>Click a highlighted spell to counter it.</Trans>
+        </Modal.Instructions>
       )}
 
       <Modal.Body>
@@ -150,7 +155,7 @@ export function SpellStackModal({
                       <button
                         type="button"
                         className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-background/80 text-foreground shadow hover:bg-background"
-                        title="Flip card to view the other face (F)"
+                        title={i18n._(msg`Flip card to view the other face (F)`)}
                         onClick={(event) => {
                           event.stopPropagation();
                           toggleFace(obj.id);
@@ -166,7 +171,7 @@ export function SpellStackModal({
                     </Badge>
                     {obj.isCasting && (
                       <Badge variant="outline" className="text-[10px] h-4 px-1">
-                        Casting
+                        <Trans>Casting</Trans>
                       </Badge>
                     )}
                     {isValid && (
@@ -175,7 +180,7 @@ export function SpellStackModal({
                         className="text-[10px] h-4 px-1"
                         style={{ color: ringColor }}
                       >
-                        ← Counter
+                        <Trans>← Counter</Trans>
                       </Badge>
                     )}
                   </div>
@@ -193,7 +198,7 @@ export function SpellStackModal({
 
       <Modal.Footer>
         <Button variant="outline" size="sm" onClick={onCancel}>
-          {isTargeting ? "Cancel" : "Close"}
+          {isTargeting ? i18n._(msg`Cancel`) : i18n._(msg`Close`)}
         </Button>
       </Modal.Footer>
 

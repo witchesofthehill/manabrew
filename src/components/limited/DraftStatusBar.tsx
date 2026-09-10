@@ -1,10 +1,11 @@
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { DraftPodButton } from "@/components/limited/DraftPodButton";
 import { LimitedModeToggle, type LimitedDraftMode } from "@/components/limited/LimitedModeToggle";
 import type { DraftState } from "@/types/limited";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface DraftStatusBarProps {
   draft: DraftState;
   mode?: LimitedDraftMode;
@@ -16,7 +17,6 @@ interface DraftStatusBarProps {
   waitingLabel?: string;
   viewerSeat?: number;
 }
-
 export function DraftStatusBar({
   draft,
   mode,
@@ -31,22 +31,25 @@ export function DraftStatusBar({
   const PassIcon = draft.passDirection === "right" ? ArrowRight : ArrowLeft;
   const packsWaiting =
     draft.seatSummaries.find((seat) => seat.seat === viewerSeat)?.packsWaiting ?? 0;
-
   return (
     <header className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-md border border-border/70 bg-background/95 px-3 py-2 shadow-sm backdrop-blur">
       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <span className="font-medium text-foreground">
-          Round {draft.round}/{draft.totalRounds} · Pick {draft.pickNumber}
+          <Trans>
+            Round {draft.round}/{draft.totalRounds} · Pick {draft.pickNumber}
+          </Trans>
         </span>
         <span className="inline-flex items-center gap-1 rounded bg-muted/60 px-1.5 py-0.5 text-[11px]">
-          <PassIcon className="h-3 w-3" /> Pass {draft.passDirection ?? "left"}
+          <Trans>
+            <PassIcon className="h-3 w-3" /> Pass {draft.passDirection ?? "left"}
+          </Trans>
         </span>
         <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[11px]">
-          {draft.currentPack.length} in pack
+          <Trans>{draft.currentPack.length} in pack</Trans>
         </span>
         {packsWaiting > 0 && (
           <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[11px]">
-            {packsWaiting} waiting
+            <Trans>{packsWaiting} waiting</Trans>
           </span>
         )}
         {seatLabel && (
@@ -54,18 +57,18 @@ export function DraftStatusBar({
         )}
         {isHost && (
           <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
-            Host
+            <Trans>Host</Trans>
           </span>
         )}
         {draft.isComplete ? (
           <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
-            Draft complete
+            <Trans>Draft complete</Trans>
           </span>
         ) : draft.awaitingHuman ? (
           <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
             {draft.picksPerPass > 1 && draft.picksRemainingInPack > 0
-              ? `Your pick · ${draft.picksRemainingInPack} remaining`
-              : "Your pick"}
+              ? i18n._(msg`Your pick · ${draft.picksRemainingInPack} remaining`)
+              : i18n._(msg`Your pick`)}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 rounded bg-muted/60 px-1.5 py-0.5 text-[11px] font-medium">
@@ -79,7 +82,7 @@ export function DraftStatusBar({
         <DraftPodButton seats={draft.seatSummaries} />
         {canBuild && onUndo && (
           <Button size="sm" variant="ghost" onClick={onUndo} className="h-8 px-2 text-xs">
-            Undo pick
+            <Trans>Undo pick</Trans>
           </Button>
         )}
         {canBuild && mode && onModeChange && (

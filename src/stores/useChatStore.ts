@@ -12,7 +12,8 @@ import type {
   ServerErrorCode,
   ServerErrorPayload,
 } from "@/types/server";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export interface ChatEntry {
   id: number;
   from: string;
@@ -23,23 +24,18 @@ export interface ChatEntry {
   system?: boolean;
   seal?: string;
 }
-
 const MAX_ENTRIES_PER_SCOPE = 200;
-
 interface ChatState {
   lobby: ChatEntry[];
   room: ChatEntry[];
   roomId: string | null;
   unread: Record<ChatScope, number>;
   lastSentScope: ChatScope;
-
   send(scope: ChatScope, text: string): Promise<void>;
   markRead(scope: ChatScope): void;
   setupListeners(): () => void;
 }
-
 let nextEntryId = 1;
-
 function toEntry(payload: ChatMessagePayload): ChatEntry {
   return {
     id: nextEntryId++,
@@ -51,12 +47,10 @@ function toEntry(payload: ChatMessagePayload): ChatEntry {
     seal: payload.seal,
   };
 }
-
 function append(entries: ChatEntry[], entry: ChatEntry): ChatEntry[] {
   const next = [...entries, entry];
   return next.length > MAX_ENTRIES_PER_SCOPE ? next.slice(-MAX_ENTRIES_PER_SCOPE) : next;
 }
-
 export const useChatStore = create<ChatState>()(
   devtools(
     (set, get) => ({
@@ -65,31 +59,26 @@ export const useChatStore = create<ChatState>()(
       roomId: null,
       unread: { Lobby: 0, Room: 0 },
       lastSentScope: "Lobby",
-
       async send(scope, text) {
         const trimmed = text.trim();
         if (!trimmed) return;
         const server = getPlatform().server;
         if (!server) return;
         if (!useServerStore.getState().hasRelayFeature(RELAY_FEATURE.Chat)) {
-          toast.error("This relay doesn't support chat");
+          toast.error(i18n._(msg`This relay doesn't support chat`));
           return;
         }
         set({ lastSentScope: scope });
         await server.sendChat({ scope, text: trimmed });
       },
-
       markRead(scope) {
         if (get().unread[scope] === 0) return;
         set({ unread: { ...get().unread, [scope]: 0 } });
       },
-
       setupListeners() {
         const platform = getPlatform();
         if (!platform.server) return () => {};
-
         const unsubscribers: (() => void)[] = [];
-
         unsubscribers.push(
           platform.events.on<ChatHistoryPayload>("server:chat_history", (payload) => {
             const entries = payload.messages.map(toEntry);
@@ -101,7 +90,6 @@ export const useChatStore = create<ChatState>()(
             set({ room: entries });
           }),
         );
-
         unsubscribers.push(
           platform.events.on<ChatMessagePayload>("server:chat_message", (payload) => {
             const entry = toEntry(payload);
@@ -121,7 +109,6 @@ export const useChatStore = create<ChatState>()(
             });
           }),
         );
-
         unsubscribers.push(
           platform.events.on<ServerErrorPayload>("server:error", (payload) => {
             const code = payload.code as ServerErrorCode;
@@ -137,7 +124,6 @@ export const useChatStore = create<ChatState>()(
             else set({ room: append(get().room, entry) });
           }),
         );
-
         unsubscribers.push(
           useServerStore.subscribe((state, prev) => {
             const roomId = state.currentRoom?.room_id ?? null;
@@ -145,14 +131,12 @@ export const useChatStore = create<ChatState>()(
             set({ roomId, room: [], unread: { ...get().unread, Room: 0 } });
           }),
         );
-
         unsubscribers.push(
           platform.events.on<DisconnectedPayload>("server:disconnected", (payload) => {
             if (!payload?.terminal) return;
             set({ lobby: [], room: [], roomId: null, unread: { Lobby: 0, Room: 0 } });
           }),
         );
-
         return () => unsubscribers.forEach((fn) => fn());
       },
     }),

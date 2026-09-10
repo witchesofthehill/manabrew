@@ -38,13 +38,14 @@ import type {
   SealedConfig,
 } from "@/types/server";
 import type { CubeImportResult } from "@/types/limited";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface TableSetupProps {
   username: string | null;
   onClose: () => void;
   onCreatingChange: (label: string | null) => void;
 }
-
 export function TableSetup({ username, onClose, onCreatingChange }: TableSetupProps) {
   const { connected, createRoom } = useServerStore();
   const isTauri = getPlatformType() === "tauri";
@@ -55,7 +56,6 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
   const forgeWasm = isForgeWasmHostingEnabled();
   const hostedNode = !isTauri && !forgeWasm;
   const canHostForge = (isTauri && forgeRoomAvailable) || forgeWasm || hostedNode;
-
   const [engine, setEngine] = useState<EngineKind>(canHostForge ? "Forge" : "Manabrew");
   const [kind, setKind] = useState<RoomKind>(
     () => usePreferencesStore.getState().lastRoomSetup?.kind ?? "match",
@@ -77,25 +77,20 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
   const [roomName, setRoomName] = useState("");
   const [roomPassword, setRoomPassword] = useState("");
   const [reconnectTimeoutS, setReconnectTimeoutS] = useState<number>(DEFAULT_RECONNECT_TIMEOUT_S);
-
   const [draftSet, setDraftSet] = useState("");
   const [draftRounds, setDraftRounds] = useState(3);
   const [draftPicksPerPass, setDraftPicksPerPass] = useState(1);
   const [draftSeed, setDraftSeed] = useState("");
   const [draftFillWithBots, setDraftFillWithBots] = useState(true);
-
   const [sealedSet, setSealedSet] = useState("");
   const [sealedNumBoosters, setSealedNumBoosters] = useState(6);
   const [sealedSeed, setSealedSeed] = useState("");
   const [sealedUseCube, setSealedUseCube] = useState(false);
-
   const [importedCube, setImportedCube] = useState<CubeImportResult | null>(null);
   const [creating, setCreating] = useState(false);
-
   const draftPool = useSetPoolStatus(draftSet);
   const sealedPool = useSetPoolStatus(sealedSet);
   const allSets = useScryfallStore((s) => s.sets);
-
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -103,7 +98,6 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-
   const draftableSets = useMemo(
     () =>
       [...(allSets ?? [])]
@@ -111,7 +105,6 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
         .sort((a, b) => (b.released_at ?? "").localeCompare(a.released_at ?? "")),
     [allSets],
   );
-
   const isBoosterDraft = kind === "limited" && limitedKind === "draft";
   const isCube = kind === "limited" && limitedKind === "cube";
   const isSealed = kind === "limited" && limitedKind === "sealed";
@@ -128,18 +121,16 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
     (!isSealed ||
       (sealedUseCube ? !!importedCube : !!sealedSet && sealedPool.unsupported !== sealedSet));
   const canSubmit = connected && limitedKindEnabled && draftConfigReady;
-
   const playerOptions = kind === "limited" ? PLAYER_OPTIONS_LIMITED : PLAYER_OPTIONS_MATCH;
   const matchPlayers = matchPlayersOverride ?? defaultMatchPlayers(format);
   const maxPlayers = kind === "limited" ? limitedPlayers : matchPlayers;
   const handleMaxPlayersChange = kind === "limited" ? setLimitedPlayers : setMatchPlayersOverride;
-
   const defaultName = `${username ?? "Player"}'s Table`;
   const submittedEngine: EngineKind =
     kind === "match" && (engine !== "Forge" || canHostForge) ? engine : "Manabrew";
   const modeLabel =
     kind === "limited"
-      ? (LIMITED_KINDS.find((k) => k.value === limitedKind)?.label ?? "Limited")
+      ? (LIMITED_KINDS.find((k) => k.value === limitedKind)?.label ?? i18n._(msg`Limited`))
       : format;
   const poolLabel = isBoosterDraft
     ? draftSet
@@ -152,7 +143,6 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
           ? sealedSet.toUpperCase()
           : null
         : null;
-
   const disabledReason = !connected
     ? "Connect to multiplayer to open a table."
     : !limitedKindEnabled
@@ -165,16 +155,18 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
             ? "Pick a set for sealed below."
             : null;
   const onNode = submittedEngine === "Forge" && hostedNode;
-  const splashLabel = onNode ? "Finding you a table\u2026" : "Setting the table\u2026";
+  const splashLabel = onNode
+    ? i18n._(msg`Finding you a table\u2026`)
+    : i18n._(msg`Setting the table\u2026`);
   const openTableHint = onNode
-    ? "A Manabrew node hosts this table, under its own name. Anyone in the lobby can take a seat."
+    ? i18n._(
+        msg`A Manabrew node hosts this table, under its own name. Anyone in the lobby can take a seat.`,
+      )
     : roomPassword.trim()
-      ? "People with the password can join."
-      : "Anyone in the lobby can take a seat.";
-
+      ? i18n._(msg`People with the password can join.`)
+      : i18n._(msg`Anyone in the lobby can take a seat.`);
   const hostUsername = username ?? "You";
   const hostPlayer: RoomPlayerInfo = { username: hostUsername, ready: true, connected: true };
-
   async function handleCreate() {
     if (!canSubmit) return;
     setCreating(true);
@@ -236,9 +228,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
       onCreatingChange(null);
     }
   }
-
   if (creating) return <TableCreatingSplash label={splashLabel} />;
-
   return (
     <div className="h-full overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
       <div className="flex min-h-full flex-col gap-5">
@@ -247,7 +237,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
             <div className={cn("border-b border-border/60 px-5 py-4", onNode && "hidden")}>
               <input
                 id="table-name"
-                aria-label="Table name"
+                aria-label={i18n._(msg`Table name`)}
                 value={roomName}
                 onChange={(e) => setRoomName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
@@ -259,17 +249,17 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
               <div className="mt-3 flex max-w-64 items-center gap-1.5">
                 {roomPassword.trim() && (
                   <LockKeyhole
-                    aria-label="Password protected"
+                    aria-label={i18n._(msg`Password protected`)}
                     className="h-3 w-3 shrink-0 text-muted-foreground"
                   />
                 )}
                 <input
-                  aria-label="Password (optional)"
+                  aria-label={i18n._(msg`Password (optional)`)}
                   type="text"
                   value={roomPassword}
                   onChange={(e) => setRoomPassword(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-                  placeholder="Password (optional)"
+                  placeholder={i18n._(msg`Password (optional)`)}
                   autoComplete="off"
                   className="w-full bg-transparent text-xs text-foreground/80 outline-none placeholder:text-foreground/80"
                 />
@@ -304,7 +294,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
               </p>
               <div className="flex shrink-0 gap-2">
                 <Button variant="ghost" onClick={onClose}>
-                  Cancel
+                  <Trans>Cancel</Trans>
                 </Button>
                 <Button
                   onClick={handleCreate}
@@ -317,7 +307,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
                   ) : (
                     <Swords className="h-4 w-4" />
                   )}
-                  {creating ? "Creating…" : "Create table"}
+                  {creating ? i18n._(msg`Creating\u2026`) : i18n._(msg`Create table`)}
                 </Button>
               </div>
             </div>
@@ -373,7 +363,9 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
           <div className="space-y-2">
             {draftableSets.length === 0 ? (
               <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="h-3 w-3 animate-spin" /> Loading sets from Scryfall…
+                <Trans>
+                  <Loader2 className="h-3 w-3 animate-spin" /> Loading sets from Scryfall…
+                </Trans>
               </p>
             ) : (
               <SetPicker
@@ -386,8 +378,10 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
             )}
             {!!pickerSet && pickerUnsupported === pickerSet && (
               <p className="text-[11px] text-destructive">
-                Your game data doesn't include {pickerSet.toUpperCase()}. Update the app to use this
-                set.
+                <Trans>
+                  Your game data doesn't include {pickerSet.toUpperCase()}. Update the app to use
+                  this set.
+                </Trans>
               </p>
             )}
           </div>
@@ -396,12 +390,10 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
     </div>
   );
 }
-
 function useSetPoolStatus(setCode: string) {
   const prefetchSet = useScryfallStore((s) => s.prefetchSet);
   const [prefetching, setPrefetching] = useState<string | null>(null);
   const [unsupported, setUnsupported] = useState<string | null>(null);
-
   useEffect(() => {
     if (!setCode) return;
     let cancelled = false;
@@ -414,7 +406,6 @@ function useSetPoolStatus(setCode: string) {
       cancelled = true;
     };
   }, [setCode, prefetchSet]);
-
   useEffect(() => {
     if (!setCode) return;
     let cancelled = false;
@@ -430,6 +421,5 @@ function useSetPoolStatus(setCode: string) {
       cancelled = true;
     };
   }, [setCode]);
-
   return { prefetching, unsupported };
 }

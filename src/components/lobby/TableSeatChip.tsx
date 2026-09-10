@@ -4,11 +4,11 @@ import { usePlayerAvatar } from "@/hooks/usePlayerAvatar";
 import { stripUsernameTag } from "@/lib/username";
 import { cn } from "@/lib/utils";
 import type { RoomPlayerInfo } from "@/types/server";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 function seatInitials(username: string) {
   return stripUsernameTag(username).slice(0, 2).toUpperCase();
 }
-
 interface TableSeatChipProps {
   seatIndex: number;
   player?: RoomPlayerInfo;
@@ -24,7 +24,6 @@ interface TableSeatChipProps {
   style?: CSSProperties;
   className?: string;
 }
-
 export function TableSeatChip({
   seatIndex,
   player,
@@ -46,7 +45,7 @@ export function TableSeatChip({
       return (
         <div
           role="img"
-          title="Open seat"
+          title={i18n._(msg`Open seat`)}
           aria-label={`Seat ${seatIndex + 1}: open`}
           style={style}
           className={cn(
@@ -65,7 +64,7 @@ export function TableSeatChip({
     return (
       <button
         type="button"
-        title="Take this seat"
+        title={i18n._(msg`Take this seat`)}
         aria-label={`Take seat ${seatIndex + 1}`}
         onClick={onTakeSeat}
         style={style}
@@ -82,10 +81,13 @@ export function TableSeatChip({
       </button>
     );
   }
-
   const name = stripUsernameTag(player.username);
-  const label = player.is_bot ? `${name} (bot)` : isHost ? `${name} (table host)` : name;
-  const accessibleLabel = statusLabel ? `${label}, ${statusLabel}` : label;
+  const label = player.is_bot
+    ? i18n._(msg`${name} (bot)`)
+    : isHost
+      ? i18n._(msg`${name} (table host)`)
+      : name;
+  const accessibleLabel = statusLabel ? i18n._(msg`${label}, ${statusLabel}`) : label;
   return (
     <div
       role="group"
@@ -137,7 +139,7 @@ export function TableSeatChip({
         {onRemove && (
           <button
             type="button"
-            title="Remove bot"
+            title={i18n._(msg`Remove bot`)}
             aria-label={`Remove ${name}`}
             onClick={(event) => {
               event.stopPropagation();

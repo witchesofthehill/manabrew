@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { FormatPicker } from "@/components/lobby/FormatPicker";
 import { GAME_FORMATS } from "@/lib/formats";
 import type { GameFormat, RoomInfo } from "@/types/server";
-
+import { Trans } from "@lingui/react/macro";
 const SELECTABLE_FORMATS: GameFormat[] = [
   "Standard",
   "Pioneer",
@@ -17,17 +17,14 @@ const SELECTABLE_FORMATS: GameFormat[] = [
   "Draft",
   "Sealed",
 ];
-
 const PICKER_FORMATS = GAME_FORMATS.filter((f) =>
   SELECTABLE_FORMATS.some((s) => s.toLowerCase() === f.id),
 );
-
 interface ChooseFormatDialogProps {
   room: RoomInfo | null;
   onClose: () => void;
   onSelect: (room: RoomInfo, format: GameFormat) => void;
 }
-
 export function ChooseFormatDialog({ room, onClose, onSelect }: ChooseFormatDialogProps) {
   function handleSelect(formatId: string) {
     if (!room) return;
@@ -36,11 +33,12 @@ export function ChooseFormatDialog({ room, onClose, onSelect }: ChooseFormatDial
     onClose();
     onSelect(room, format);
   }
-
   return (
     <Dialog open={room != null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl p-0 overflow-hidden">
-        <DialogTitle className="sr-only">Choose a format</DialogTitle>
+        <DialogTitle className="sr-only">
+          <Trans>Choose a format</Trans>
+        </DialogTitle>
         <div className="h-[min(42rem,85dvh)]">
           <FormatPicker formats={PICKER_FORMATS} onSelect={handleSelect} />
         </div>

@@ -6,13 +6,12 @@ import { SignInMethodsCard } from "@/components/settings/SignInMethodsCard";
 import { AccountActionsCard } from "@/components/settings/AccountActionsCard";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { useAuthStore } from "@/stores/useAuthStore";
-
+import { Trans } from "@lingui/react/macro";
 export function AccountSection() {
   const account = useAuthStore((s) => s.account);
   const identities = useAuthStore((s) => s.identities);
   const status = useAuthStore((s) => s.status);
   const showSignIn = useSignInDialog((s) => s.show);
-
   if (status !== "signedIn" || !account) {
     return (
       <section className="mx-auto w-full max-w-2xl space-y-4">
@@ -26,14 +25,18 @@ export function AccountSection() {
           <div className="mt-5 border-t border-border/70 pt-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
-                <p className="text-sm font-medium">Sync your decks on every device</p>
+                <p className="text-sm font-medium">
+                  <Trans>Sync your decks on every device</Trans>
+                </p>
                 <p className="text-sm text-muted-foreground">
-                  An account keeps your decks and Community publications yours wherever you play.
-                  Playing never requires one.
+                  <Trans>
+                    An account keeps your decks and Community publications yours wherever you play.
+                    Playing never requires one.
+                  </Trans>
                 </p>
               </div>
               <Button className="shrink-0 self-start sm:self-center" onClick={() => showSignIn()}>
-                Sign in
+                <Trans>Sign in</Trans>
               </Button>
             </div>
           </div>
@@ -41,7 +44,6 @@ export function AccountSection() {
       </section>
     );
   }
-
   return (
     <section className="mx-auto w-full max-w-2xl space-y-4">
       <AccountProfileCard account={account} identities={identities} />

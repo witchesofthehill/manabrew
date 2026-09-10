@@ -46,7 +46,8 @@ import {
   RULES_TITLE_ART_RADIUS,
   type RulesPreviewFrameStyle,
 } from "./rulesPreviewFrame";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const PORTRAIT_WIDTH = RULES_CARD_CONSTRAINTS.width;
 const PORTRAIT_HEIGHT = RULES_CARD_CONSTRAINTS.height;
 const LANDSCAPE_WIDTH = PORTRAIT_HEIGHT;
@@ -74,7 +75,6 @@ const RULES_ENTRY_PAD = 6;
 const RULES_SCROLL_GUTTER = 8;
 const STACK_RULES_PULSE_S = 0.9;
 type HandRulesSectionId = "actions" | "rules" | "flavor";
-
 export class HandRulesCardFace extends Container {
   private root = new Container();
   private info: ScryfallCard | null = null;
@@ -96,7 +96,6 @@ export class HandRulesCardFace extends Container {
   private highlightedEffect = "";
   private rulesScrollOffset: number | null = null;
   private highlightedEffectTween: gsap.core.Tween | null = null;
-
   constructor(
     card: CardDto,
     faceIndex: 0 | 1,
@@ -118,12 +117,10 @@ export class HandRulesCardFace extends Container {
     this.rebuild();
     void this.loadArt();
   }
-
   get artworkTop(): number {
     const designHeight = this.slotWidth > this.slotHeight ? LANDSCAPE_HEIGHT : PORTRAIT_HEIGHT;
     return (HEADER_HEIGHT - 4) * (this.slotHeight / designHeight);
   }
-
   setContent(
     card: CardDto,
     faceIndex: 0 | 1,
@@ -149,7 +146,6 @@ export class HandRulesCardFace extends Container {
     }
     this.rebuild();
   }
-
   setTheme(theme: Theme): void {
     this.theme = theme;
     this.rebuild();
@@ -173,14 +169,12 @@ export class HandRulesCardFace extends Container {
     }
     this.rebuild();
   }
-
   setHighlightedEffect(text: string): void {
     if (this.highlightedEffect === text) return;
     this.highlightedEffect = text;
     this.rulesScrollOffset = null;
     this.rebuild();
   }
-
   private resolveInfo(): void {
     const generation = ++this.lookupGeneration;
     const lookup = {
@@ -220,7 +214,6 @@ export class HandRulesCardFace extends Container {
       this.rebuild();
     }
   }
-
   private rebuild(): void {
     this.highlightedEffectTween?.kill();
     this.highlightedEffectTween = null;
@@ -231,7 +224,6 @@ export class HandRulesCardFace extends Container {
     const designWidth = landscape ? LANDSCAPE_WIDTH : PORTRAIT_WIDTH;
     const designHeight = landscape ? LANDSCAPE_HEIGHT : PORTRAIT_HEIGHT;
     this.root.scale.set(this.slotWidth / designWidth, this.slotHeight / designHeight);
-
     const presentation = deriveCardPresentation({ ...this.card, zoneId: "hand" });
     const deckCard = asDeckCard(useGameStore.getState().gameDecks[this.card.ownerId], this.card);
     const display = resolveRulesPreviewDisplay({
@@ -283,7 +275,6 @@ export class HandRulesCardFace extends Container {
       typeHeight: identity.typeHeight,
       footerHeight,
     });
-
     const artWidth = designWidth - ART_INSET * 2;
     const artwork = new Sprite(this.artTexture);
     const artMask = new Graphics();
@@ -304,9 +295,7 @@ export class HandRulesCardFace extends Container {
       artwork.position.set(ART_INSET + artWidth / 2, artY + artHeight / 2);
       artwork.setSize(this.artTexture.width * scale, this.artTexture.height * scale);
     }
-
     this.root.addChild(background, artwork, artMask, identity);
-
     const contentWidth = designWidth - CONTENT_PAD * 2;
     const rulesEntries = this.rulesEntries(display);
     const flavorContent = this.flavorContent(display);
@@ -326,7 +315,6 @@ export class HandRulesCardFace extends Container {
       expandedCount > 0
         ? Math.max(1, (remainingBodyHeight - headersHeight - expandedGaps) / expandedCount)
         : 0;
-
     if (hasActions) {
       y = this.addSectionHeader(
         "actions",
@@ -357,7 +345,6 @@ export class HandRulesCardFace extends Container {
         y += actionPanel.panelHeight * ACTIONS_CONTENT_SCALE + SECTION_GAP;
       }
     }
-
     if (rulesEntries.length > 0) {
       y = this.addSectionHeader("rules", "Rules text", y, contentWidth, frame);
       if (!this.rulesCollapsed) {
@@ -371,7 +358,6 @@ export class HandRulesCardFace extends Container {
         );
       }
     }
-
     if (flavorContent) {
       y = this.addSectionHeader("flavor", "Flavor text", y, contentWidth, frame);
       if (!this.flavorCollapsed) {
@@ -380,20 +366,17 @@ export class HandRulesCardFace extends Container {
     }
     this.drawFooter(display, designWidth, designHeight, footerHeight, frame);
   }
-
   private isCollapsed(id: HandRulesSectionId): boolean {
     if (id === "actions") return this.actionsCollapsed;
     if (id === "rules") return this.rulesCollapsed;
     return this.flavorCollapsed;
   }
-
   private toggleSection(id: HandRulesSectionId): void {
     if (id === "actions") this.actionsCollapsed = !this.actionsCollapsed;
     else if (id === "rules") this.rulesCollapsed = !this.rulesCollapsed;
     else this.flavorCollapsed = !this.flavorCollapsed;
     this.rebuild();
   }
-
   private addRulesText(
     entries: string[],
     highlightedEffect: string,
@@ -540,7 +523,6 @@ export class HandRulesCardFace extends Container {
     }
     return y + viewportHeight + SECTION_GAP;
   }
-
   private addSectionHeader(
     id: HandRulesSectionId,
     title: string,
@@ -563,7 +545,6 @@ export class HandRulesCardFace extends Container {
     this.root.addChild(header);
     return y + PREVIEW_SECTION_HEADER_HEIGHT + 4;
   }
-
   private addFlavorTextBlock(
     content: string,
     y: number,
@@ -604,7 +585,6 @@ export class HandRulesCardFace extends Container {
     }
     return y + visibleHeight + SECTION_GAP;
   }
-
   private flavorContent(display: RulesPreviewDisplay): string {
     return display.sections
       .flatMap((section) => {
@@ -614,7 +594,6 @@ export class HandRulesCardFace extends Container {
       })
       .join("\n\n");
   }
-
   private rulesEntries(display: RulesPreviewDisplay): string[] {
     if (display.faceless) return ["Card identity and rules are hidden."];
     return display.sections.flatMap((section) => {
@@ -623,7 +602,6 @@ export class HandRulesCardFace extends Container {
       return [`${section.name} — ${section.typeLine}`, ...entries];
     });
   }
-
   private drawFooter(
     display: RulesPreviewDisplay,
     designWidth: number,
@@ -644,7 +622,7 @@ export class HandRulesCardFace extends Container {
       );
       return;
     }
-    const label = display.loyalty != null ? "LOYALTY" : "DEFENSE";
+    const label = display.loyalty != null ? i18n._(msg`LOYALTY`) : i18n._(msg`DEFENSE`);
     const value = display.loyalty ?? display.defense;
     if (value == null) return;
     const labelText = new Text({
@@ -672,7 +650,6 @@ export class HandRulesCardFace extends Container {
     valueText.position.set(designWidth - CONTENT_PAD, y + footerHeight / 2);
     this.root.addChild(labelText, valueText);
   }
-
   override destroy(options?: DestroyOptions): void {
     this.highlightedEffectTween?.kill();
     this.highlightedEffectTween = null;

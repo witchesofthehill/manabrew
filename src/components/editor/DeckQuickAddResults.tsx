@@ -1,10 +1,9 @@
 import { MoreHorizontal, Plus } from "lucide-react";
-
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { cn } from "@/lib/utils";
 import { scryfallDisplayName } from "@/lib/scryfall.utils";
 import type { ScryfallCard } from "@/types/scryfall";
-
+import { Trans } from "@lingui/react/macro";
 interface DeckQuickAddResultsProps {
   results: ScryfallCard[];
   activeIndex: number;
@@ -14,7 +13,6 @@ interface DeckQuickAddResultsProps {
   onOptions: (card: ScryfallCard) => void;
   getCount: (cardName: string) => number;
 }
-
 export function DeckQuickAddResults({
   results,
   activeIndex,
@@ -27,7 +25,7 @@ export function DeckQuickAddResults({
   return (
     <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 min-w-[300px] overflow-y-auto rounded-md border bg-popover shadow-lg">
       <div className="sticky top-0 z-10 border-b bg-popover px-2 py-1 text-[10px] text-muted-foreground">
-        Click or press Enter to add one to the main deck
+        <Trans>Click or press Enter to add one to the main deck</Trans>
       </div>
       {results.map((card, index) => {
         const thumbnail = card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small;
@@ -57,7 +55,7 @@ export function DeckQuickAddResults({
               )}
               <span className="min-w-0 flex-1 truncate text-xs font-medium">{displayName}</span>
               <span className="shrink-0 text-[10px] text-muted-foreground">
-                {getCount(card.name)} in deck
+                <Trans>{getCount(card.name)} in deck</Trans>
               </span>
               <Plus className="h-3.5 w-3.5 shrink-0 text-primary" />
             </button>

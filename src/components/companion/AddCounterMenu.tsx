@@ -17,15 +17,15 @@ import {
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
 import { CompanionIcon } from "./icons";
 import { CustomCounterDialog } from "./CustomCounterDialog";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface AddCounterMenuProps {
   player: CompanionPlayer;
 }
-
 export function AddCounterMenu({ player }: AddCounterMenuProps) {
   const addCounter = useCompanionStore((s) => s.addCounter);
   const [customOpen, setCustomOpen] = useState(false);
-
   return (
     <>
       <DropdownMenu>
@@ -34,13 +34,15 @@ export function AddCounterMenu({ player }: AddCounterMenuProps) {
             size="icon"
             variant="ghost"
             className="size-7 rounded-full bg-black/40 text-white hover:bg-black/55 hover:text-white @md:size-8"
-            aria-label="Add counter"
+            aria-label={i18n._(msg`Add counter`)}
           >
             <Plus className="size-4 @md:size-5" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>Add counter</DropdownMenuLabel>
+          <DropdownMenuLabel>
+            <Trans>Add counter</Trans>
+          </DropdownMenuLabel>
           <DropdownMenuSeparator />
           {COMPANION_COUNTER_PRESETS.map((preset) => {
             const already = player.counters.some(
@@ -66,8 +68,10 @@ export function AddCounterMenu({ player }: AddCounterMenuProps) {
           })}
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => setCustomOpen(true)}>
-            <Plus className="mr-2 size-4" aria-hidden />
-            Custom counter…
+            <Trans>
+              <Plus className="mr-2 size-4" aria-hidden />
+              Custom counter…
+            </Trans>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState, type MouseEvent } from "react";
 import { ArrowRightLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { Button } from "@/components/ui/button";
 import { useScryfallStore } from "@/stores/useScryfallStore";
@@ -17,7 +16,9 @@ import { executeDeckEdit } from "./deckEditor.history";
 import { collectionQuantityForName } from "@/lib/collection";
 import { useCollectionStore } from "@/stores/useCollectionStore";
 import { EDITOR_PANEL_CLASS } from "./deckEditor.styles";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export function ReplacementSuggestionsPanel({
   cardSize,
   onHover,
@@ -65,7 +66,6 @@ export function ReplacementSuggestionsPanel({
     [suggestions],
   );
   const cardWidth = CARD_WIDTH_MAP[cardSize] ?? CARD_WIDTH_MAP[DEFAULT_CARD_SIZE];
-
   async function findSuggestions() {
     if (!target) return;
     const requestId = ++requestIdRef.current;
@@ -102,38 +102,40 @@ export function ReplacementSuggestionsPanel({
       if (requestId === requestIdRef.current) setLoading(false);
     }
   }
-
   if (!target) return null;
-
   return (
     <section className={EDITOR_PANEL_CLASS}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <ArrowRightLeft className="h-4 w-4 text-primary" />
           <div>
-            <h3 className="text-sm font-semibold">Explainable replacements</h3>
+            <h3 className="text-sm font-semibold">
+              <Trans>Explainable replacements</Trans>
+            </h3>
             <p className="text-[10px] text-muted-foreground">
-              Same colour identity, mana value, and primary card type.
+              <Trans>Same colour identity, mana value, and primary card type.</Trans>
             </p>
           </div>
         </div>
         <div className="flex gap-2">
           <label className="flex h-8 items-center gap-1.5 rounded-md border px-2 text-xs text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={ownedOnly}
-              onChange={(event) => {
-                setOwnedOnly(event.target.checked);
-                setSuggestions([]);
-              }}
-            />
-            Owned only
+            <Trans>
+              <input
+                type="checkbox"
+                checked={ownedOnly}
+                onChange={(event) => {
+                  setOwnedOnly(event.target.checked);
+                  setSuggestions([]);
+                }}
+              />
+              Owned only
+            </Trans>
           </label>
           <div className="relative">
             <input
               type="text"
               role="combobox"
-              aria-label="Card to replace"
+              aria-label={i18n._(msg`Card to replace`)}
               aria-autocomplete="list"
               aria-expanded={targetMenuOpen}
               aria-controls="replacement-target-suggestions"
@@ -182,7 +184,7 @@ export function ReplacementSuggestionsPanel({
                 className="absolute left-0 top-full z-30 mt-1 max-h-80 min-w-[300px] overflow-y-auto rounded-md border bg-popover shadow-lg"
               >
                 <div className="sticky top-0 z-10 border-b bg-popover px-2 py-1 text-[10px] text-muted-foreground">
-                  Choose a card from your deck to replace
+                  <Trans>Choose a card from your deck to replace</Trans>
                 </div>
                 {filteredCandidates.map((card, index) => (
                   <button
@@ -218,13 +220,13 @@ export function ReplacementSuggestionsPanel({
                       {card.identity.name}
                     </span>
                     <span className="shrink-0 text-[10px] text-muted-foreground">
-                      MV {card.cmc}
+                      <Trans>MV {card.cmc}</Trans>
                     </span>
                   </button>
                 ))}
                 {filteredCandidates.length === 0 && (
                   <p className="px-2 py-3 text-xs text-muted-foreground">
-                    No cards in this deck match your search.
+                    <Trans>No cards in this deck match your search.</Trans>
                   </p>
                 )}
               </div>
@@ -237,8 +239,10 @@ export function ReplacementSuggestionsPanel({
             disabled={loading}
             onClick={() => void findSuggestions()}
           >
-            {loading && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-            Find swaps
+            <Trans>
+              {loading && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              Find swaps
+            </Trans>
           </Button>
         </div>
       </div>
@@ -261,10 +265,12 @@ export function ReplacementSuggestionsPanel({
                 draggable={false}
               />
               <div className="mt-1 text-[10px] text-muted-foreground">
-                Same {target.types[0]?.toLowerCase() ?? "card type"} · MV {suggestion.cmc}
-                {collectionQuantityForName(quantities, suggestion.name) > 0
-                  ? ` · ${collectionQuantityForName(quantities, suggestion.name)} owned`
-                  : " · not owned"}
+                <Trans>
+                  Same {target.types[0]?.toLowerCase() ?? "card type"} · MV {suggestion.cmc}
+                  {collectionQuantityForName(quantities, suggestion.name) > 0
+                    ? ` · ${collectionQuantityForName(quantities, suggestion.name)} owned`
+                    : " · not owned"}
+                </Trans>
               </div>
               <button
                 type="button"
@@ -278,7 +284,9 @@ export function ReplacementSuggestionsPanel({
                     addToMain(card);
                     for (const tag of tags) tagCard(card.identity.name, tag);
                   });
-                  toast.success(`Replaced ${target.identity.name} with ${suggestion.name}`);
+                  toast.success(
+                    i18n._(msg`Replaced ${target.identity.name} with ${suggestion.name}`),
+                  );
                 }}
               >
                 <ArrowRightLeft className="h-3.5 w-3.5" />

@@ -9,25 +9,31 @@ import {
 } from "@/components/ui/dialog";
 import { clampOffset, coverScale, renderCroppedAvatar } from "@/lib/avatarCrop";
 import { cn } from "@/lib/utils";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const VIEWPORT = 280;
 const OUT_PX = 512;
 const MAX_ZOOM = 4;
-
 interface AvatarCropDialogProps {
   file: Blob | null;
   onCancel: () => void;
   onConfirm: (cropped: Blob) => Promise<void>;
 }
-
 export function AvatarCropDialog({ file, onCancel, onConfirm }: AvatarCropDialogProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
+  const [imageSize, setImageSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [saving, setSaving] = useState(false);
-  const dragRef = useRef<{ pointerId: number; startX: number; startY: number } | null>(null);
-
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+  } | null>(null);
   useEffect(() => {
     if (!file) return;
     const url = URL.createObjectURL(file);
@@ -37,10 +43,8 @@ export function AvatarCropDialog({ file, onCancel, onConfirm }: AvatarCropDialog
     setOffset({ x: 0, y: 0 });
     return () => URL.revokeObjectURL(url);
   }, [file]);
-
   const minScale = imageSize ? coverScale(imageSize.width, imageSize.height, VIEWPORT) : 1;
   const scale = minScale * zoom;
-
   function clampAll(x: number, y: number, nextScale: number) {
     if (!imageSize) return { x: 0, y: 0 };
     return {
@@ -48,12 +52,10 @@ export function AvatarCropDialog({ file, onCancel, onConfirm }: AvatarCropDialog
       y: clampOffset(y, nextScale, imageSize.height, VIEWPORT),
     };
   }
-
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     e.currentTarget.setPointerCapture(e.pointerId);
     dragRef.current = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY };
   }
-
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== e.pointerId) return;
@@ -66,17 +68,14 @@ export function AvatarCropDialog({ file, onCancel, onConfirm }: AvatarCropDialog
       return next;
     });
   }
-
   function onPointerUp(e: React.PointerEvent<HTMLDivElement>) {
     if (dragRef.current?.pointerId === e.pointerId) dragRef.current = null;
   }
-
   function onZoomChange(value: number) {
     const nextScale = minScale * value;
     setZoom(value);
     setOffset((prev) => clampAll(prev.x, prev.y, nextScale));
   }
-
   async function confirm() {
     if (!file || saving) return;
     setSaving(true);
@@ -92,15 +91,17 @@ export function AvatarCropDialog({ file, onCancel, onConfirm }: AvatarCropDialog
       setSaving(false);
     }
   }
-
   const displayedWidth = imageSize ? imageSize.width * scale : 0;
   const displayedHeight = imageSize ? imageSize.height * scale : 0;
-
   return (
     <Dialog open={file != null} onOpenChange={(open) => !open && onCancel()}>
       <DialogContent className="max-w-sm">
-        <DialogTitle>Crop avatar</DialogTitle>
-        <DialogDescription>Drag to position, use the slider to zoom.</DialogDescription>
+        <DialogTitle>
+          <Trans>Crop avatar</Trans>
+        </DialogTitle>
+        <DialogDescription>
+          <Trans>Drag to position, use the slider to zoom.</Trans>
+        </DialogDescription>
 
         <div className="flex flex-col items-center gap-4">
           <div
@@ -146,17 +147,17 @@ export function AvatarCropDialog({ file, onCancel, onConfirm }: AvatarCropDialog
             step={0.01}
             value={zoom}
             onChange={(e) => onZoomChange(Number(e.target.value))}
-            aria-label="Zoom"
+            aria-label={i18n._(msg`Zoom`)}
             className="w-full accent-primary"
           />
         </div>
 
         <DialogFooter>
           <Button variant="ghost" onClick={onCancel} disabled={saving}>
-            Cancel
+            <Trans>Cancel</Trans>
           </Button>
           <Button onClick={() => void confirm()} disabled={!imageSize || saving}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? i18n._(msg`Saving\u2026`) : i18n._(msg`Save`)}
           </Button>
         </DialogFooter>
       </DialogContent>

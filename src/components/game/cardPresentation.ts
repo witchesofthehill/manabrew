@@ -8,7 +8,8 @@ import {
   type CardRailState,
 } from "@/components/game/cardRailState";
 import { isCreature, isLethalDamage } from "@/components/game/game.utils";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export type CardStatusTone =
   | keyof GameThemeColors["cardStatus"]
   | "neutral"
@@ -16,20 +17,17 @@ export type CardStatusTone =
   | "danger"
   | "positive"
   | "ring";
-
 export interface CardStatusPresentation {
   id: string;
   label: string;
   tone: CardStatusTone;
 }
-
 export interface CardCounterPresentation {
   type: string;
   count: number;
   colorKey: keyof GameThemeColors["counter"];
   iconName?: string;
 }
-
 export interface CardStatPresentation {
   power: string;
   toughness: string;
@@ -38,18 +36,15 @@ export interface CardStatPresentation {
   state: "neutral" | "buffed" | "debuffed" | "lethal";
   damage: number;
 }
-
 export interface CardCostPresentation {
   id: string;
   label: string;
   cost: string;
 }
-
 export interface CardProgressionPresentation {
   rail: CardRailState;
   effects: CardRailEffect[];
 }
-
 export interface CardPresentation {
   name: string;
   manaCost: string;
@@ -67,7 +62,6 @@ export interface CardPresentation {
 }
 const LOYALTY_COUNTER_TYPE = "Loyalty";
 const DEFENSE_COUNTER_TYPE = "Defense";
-
 const COUNTER_COLOR_KEYS: Record<string, keyof GameThemeColors["counter"]> = {
   P1P1: "p1p1",
   M1M1: "m1m1",
@@ -87,7 +81,6 @@ const COUNTER_COLOR_KEYS: Record<string, keyof GameThemeColors["counter"]> = {
   Page: "page",
   Shield: "shield",
 };
-
 const COUNTER_ICON_NAMES: Record<string, string> = {
   [LOYALTY_COUNTER_TYPE]: "vibrating-shield",
   Charge: "lightning-trio",
@@ -105,25 +98,20 @@ const COUNTER_ICON_NAMES: Record<string, string> = {
   Page: "scroll-unfurled",
   Shield: "shield",
 };
-
 export function cardTypeLine(card: CardDto): string {
   const cardTypes = [...card.supertypes, ...card.types].join(" ");
   return card.subtypes.length > 0 ? `${cardTypes} — ${card.subtypes.join(" ")}` : cardTypes;
 }
-
 export function counterColorKey(type: string): keyof GameThemeColors["counter"] {
   return COUNTER_COLOR_KEYS[type] ?? "default";
 }
-
 export function counterIconName(type: string): string | undefined {
   return COUNTER_ICON_NAMES[type];
 }
-
 function deriveStatuses(card: CardDto): CardStatusPresentation[] {
   const statuses: CardStatusPresentation[] = [];
   const add = (id: string, label: string, tone: CardStatusTone) =>
     statuses.push({ id, label, tone });
-
   if (card.wouldDieInCombat) add("doomed", "Dies in combat", "danger");
   if (card.isAttacking) add("attacking", "Attacking", "danger");
   if (card.summoningSick && isCreature(card)) add("summoning-sick", "Summoning sick", "accent");
@@ -148,10 +136,8 @@ function deriveStatuses(card: CardDto): CardStatusPresentation[] {
   if (card.mergedCardIds.length > 0) {
     add("merged", `Merged ×${card.mergedCardIds.length}`, "neutral");
   }
-
   return statuses;
 }
-
 function deriveStats(card: CardDto): CardStatPresentation | null {
   if (!isCreature(card) || card.power == null || card.toughness == null) return null;
   const lethal = isLethalDamage(card);
@@ -163,7 +149,6 @@ function deriveStats(card: CardDto): CardStatPresentation | null {
   const debuffed =
     (card.basePower != null && power < card.basePower) ||
     (card.baseToughness != null && toughness < card.baseToughness);
-
   return {
     power: card.power,
     toughness: card.toughness,
@@ -173,16 +158,34 @@ function deriveStats(card: CardDto): CardStatPresentation | null {
     damage: card.damage,
   };
 }
-
 function deriveCosts(card: CardDto): CardCostPresentation[] {
   const costs: CardCostPresentation[] = [];
   if (card.flashbackCost)
-    costs.push({ id: "flashback", label: "Flashback", cost: card.flashbackCost });
-  if (card.kickerCost) costs.push({ id: "kicker", label: "Kicker", cost: card.kickerCost });
-  if (card.madnessCost) costs.push({ id: "madness", label: "Madness", cost: card.madnessCost });
+    costs.push({
+      id: "flashback",
+      get label() {
+        return i18n._(msg`Flashback`);
+      },
+      cost: card.flashbackCost,
+    });
+  if (card.kickerCost)
+    costs.push({
+      id: "kicker",
+      get label() {
+        return i18n._(msg`Kicker`);
+      },
+      cost: card.kickerCost,
+    });
+  if (card.madnessCost)
+    costs.push({
+      id: "madness",
+      get label() {
+        return i18n._(msg`Madness`);
+      },
+      cost: card.madnessCost,
+    });
   return costs;
 }
-
 export function deriveCardPresentation(card: ClientCardDto): CardPresentation {
   const rail = deriveCardRailState(card);
   const isPlaneswalker = card.types.some((type) => type.toLowerCase() === "planeswalker");
@@ -192,7 +195,6 @@ export function deriveCardPresentation(card: ClientCardDto): CardPresentation {
     ? (card.counters[LOYALTY_COUNTER_TYPE] ?? emptyCounterValue)
     : null;
   const defense = isBattle ? (card.counters[DEFENSE_COUNTER_TYPE] ?? emptyCounterValue) : null;
-
   return {
     name: card.identity.name,
     manaCost: card.manaCost,

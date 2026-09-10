@@ -4,20 +4,19 @@ import { getPlatform } from "@/platform";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { DEFAULT_RECONNECT_TIMEOUT_S } from "@/types/server";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 // When it's our own connection that dropped (relay restart/deploy included),
 // give the full 120s the engine allows before auto-passing prompts, instead of
 // the room's opponent-facing reconnect window. The post-restart rejoin loop
 // shares this deadline.
 export const SELF_RECONNECT_WINDOW_S = 120;
-
 export interface MultiplayerInterruption {
   waiting: boolean;
   reason: "self" | "opponent";
   secondsLeft: number | null;
   disconnectedNames: string[];
 }
-
 export function useMultiplayerInterruption(): MultiplayerInterruption {
   const isMultiplayer = useGameStore((s) => s.isMultiplayer);
   const isGameActive = useGameStore((s) => s.isGameActive);
@@ -28,7 +27,6 @@ export function useMultiplayerInterruption(): MultiplayerInterruption {
   const currentRoom = useServerStore((s) => s.currentRoom);
   const username = useServerStore((s) => s.username);
   const gamePlayers = useGameStore((s) => s.gameView?.players);
-
   // An eliminated player is a spectator: the game never needs them again, so
   // their absence is not an interruption. The room host is the exception —
   // when the host plays, their connection carries the engine, so their
@@ -39,7 +37,6 @@ export function useMultiplayerInterruption(): MultiplayerInterruption {
   const disconnectedNames = (currentRoom?.status === "InGame" ? currentRoom.players : [])
     .filter((p) => !p.is_bot && !p.connected && p.username !== username && stillNeeded(p))
     .map((p) => p.username);
-
   const roomSeats = currentRoom?.status === "InGame" ? currentRoom.players : null;
   const concededSlots = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -56,10 +53,9 @@ export function useMultiplayerInterruption(): MultiplayerInterruption {
       }
       concededSlots.current.add(gp.id);
       void platform.game.sendDirective({ playerSlot: gp.id, directive: { type: "concede" } });
-      toast.info(`${gp.name}'s seat was forfeited — conceded.`);
+      toast.info(i18n._(msg`${gp.name}'s seat was forfeited — conceded.`));
     }
   }, [isEngineHost, isMultiplayer, isGameActive, gameOver, roomSeats, gamePlayers]);
-
   const selfDisconnected = reconnectPhase === "reconnecting";
   const waiting =
     isMultiplayer &&
@@ -70,11 +66,9 @@ export function useMultiplayerInterruption(): MultiplayerInterruption {
   const timeoutS = selfDisconnected
     ? SELF_RECONNECT_WINDOW_S
     : (currentRoom?.reconnect_timeout_s ?? DEFAULT_RECONNECT_TIMEOUT_S);
-
   const deadlineRef = useRef<number | null>(null);
   const expiredRef = useRef(false);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
-
   useEffect(() => {
     if (!waiting) {
       deadlineRef.current = null;
@@ -92,7 +86,7 @@ export function useMultiplayerInterruption(): MultiplayerInterruption {
         expiredRef.current = true;
         if (selfDisconnected) {
           // Our own socket never came back — nothing left to wait for.
-          toast.error("Game aborted — connection could not be restored.");
+          toast.error(i18n._(msg`Game aborted \u2014 connection could not be restored.`));
           void useGameStore.getState().endGame();
           return;
         }
@@ -103,7 +97,7 @@ export function useMultiplayerInterruption(): MultiplayerInterruption {
         );
         if (room && gone.some((p) => p.username === room.host)) {
           // The engine host itself is gone: the game cannot continue.
-          toast.error("Game aborted — the host did not reconnect in time.");
+          toast.error(i18n._(msg`Game aborted \u2014 the host did not reconnect in time.`));
           void useGameStore.getState().endGame();
         }
       }
@@ -112,7 +106,6 @@ export function useMultiplayerInterruption(): MultiplayerInterruption {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [waiting, timeoutS, selfDisconnected]);
-
   return {
     waiting,
     reason: selfDisconnected ? "self" : "opponent",

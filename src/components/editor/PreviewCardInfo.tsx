@@ -4,41 +4,43 @@ import type { PreviewCard } from "@/lib/cardPreview";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useIsComboCard, useIsGameChangerCard } from "@/stores/useDeckAnalysisStore";
 import { CARD_ROLE_LABELS, useCardRoles } from "@/stores/useCardRolesStore";
-
+import { Trans } from "@lingui/react/macro";
 export function PreviewCardInfo({ card }: { card: PreviewCard }) {
   const currentDeck = useDeckStore((s) => s.currentDeck);
   const { name } = card.identity;
   const isCombo = useIsComboCard(name);
   const isGameChanger = useIsGameChangerCard(name);
   const roles = useCardRoles(name);
-
   const mainCopies =
     currentDeck.cards.filter((c) => c.identity.name === name).length +
     (currentDeck.commanders?.filter((c) => c.identity.name === name).length ?? 0);
   const sideCopies = currentDeck.sideboard.filter((c) => c.identity.name === name).length;
   const tags = currentDeck.cardTags?.[name.toLowerCase()] ?? [];
-
   return (
     <CardPreviewDetails card={card}>
       <div className="flex flex-wrap items-center gap-1.5">
         {mainCopies > 0 && (
           <span className="rounded-full border bg-background/60 px-2 py-0.5 text-[10px] text-muted-foreground">
-            {mainCopies} in deck
+            <Trans>{mainCopies} in deck</Trans>
           </span>
         )}
         {sideCopies > 0 && (
           <span className="rounded-full border bg-background/60 px-2 py-0.5 text-[10px] text-muted-foreground">
-            {sideCopies} sideboard
+            <Trans>{sideCopies} sideboard</Trans>
           </span>
         )}
         {isGameChanger && (
           <span className="flex items-center gap-1 rounded-full bg-pt-lethal/15 px-2 py-0.5 text-[10px] font-medium text-pt-lethal">
-            <Gem className="h-3 w-3" /> Game Changer
+            <Trans>
+              <Gem className="h-3 w-3" /> Game Changer
+            </Trans>
           </span>
         )}
         {isCombo && (
           <span className="flex items-center gap-1 rounded-full bg-counter-charge/15 px-2 py-0.5 text-[10px] font-medium text-counter-charge">
-            <Sparkles className="h-3 w-3" /> Combo piece
+            <Trans>
+              <Sparkles className="h-3 w-3" /> Combo piece
+            </Trans>
           </span>
         )}
         {tags.map((tag) => (

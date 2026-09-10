@@ -1,13 +1,13 @@
 import { AlertTriangle } from "lucide-react";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { getFormat, validateDeckSections } from "@/lib/formats";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export function DeckValidationPanel({ unsupportedNames }: { unsupportedNames?: Set<string> }) {
   const { currentDeck } = useDeckStore();
-
   const format = getFormat(currentDeck.format ?? "standard");
   if (!format) return null;
-
   const validation = validateDeckSections(
     {
       deck: currentDeck,
@@ -15,10 +15,8 @@ export function DeckValidationPanel({ unsupportedNames }: { unsupportedNames?: S
     },
     format,
   );
-
   const unsupportedList = unsupportedNames ? [...unsupportedNames].sort() : [];
   if (validation.legal && unsupportedList.length === 0) return null;
-
   const compatibilityErrors =
     unsupportedList.length > 0
       ? [
@@ -27,7 +25,6 @@ export function DeckValidationPanel({ unsupportedNames }: { unsupportedNames?: S
       : [];
   const errors = [...compatibilityErrors, ...validation.errors];
   const count = errors.length;
-
   return (
     <div
       data-editor-validation
@@ -36,14 +33,18 @@ export function DeckValidationPanel({ unsupportedNames }: { unsupportedNames?: S
       <div className="flex items-center gap-2">
         <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
         <span className="text-sm font-semibold text-destructive">
-          {count} {count === 1 ? "issue" : "issues"}
+          {count} {count === 1 ? i18n._(msg`issue`) : i18n._(msg`issues`)}
         </span>
-        <span className="text-xs text-destructive/60">for {format.name}</span>
+        <span className="text-xs text-destructive/60">
+          <Trans>for {format.name}</Trans>
+        </span>
       </div>
       <ul className="mt-1.5 space-y-0.5 pl-6">
         {errors.map((err, i) => (
           <li key={i} className="text-xs text-destructive/80 flex items-start gap-1.5">
-            <span className="shrink-0 mt-0.5">&#x2022;</span>
+            <span className="shrink-0 mt-0.5">
+              <Trans>&#x2022;</Trans>
+            </span>
             <span>{err}</span>
           </li>
         ))}

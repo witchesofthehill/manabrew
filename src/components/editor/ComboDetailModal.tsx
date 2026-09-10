@@ -5,21 +5,21 @@ import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { ExternalLink, Sparkles } from "lucide-react";
 import type { SpellbookCombo } from "@/api/commanderSpellbook";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 function steps(combo: SpellbookCombo): string[] {
   return combo.description
     .split("\n")
     .map((s) => s.trim())
     .filter(Boolean);
 }
-
 function prerequisites(combo: SpellbookCombo): string[] {
   return [combo.notablePrerequisites, combo.easyPrerequisites]
     .flatMap((block) => block.split("\n"))
     .map((s) => s.trim())
     .filter(Boolean);
 }
-
 export function ComboDetailModal({
   combo,
   onClose,
@@ -29,13 +29,14 @@ export function ComboDetailModal({
 }) {
   const produces = combo.produces.map((p) => p.feature.name);
   const prereqs = prerequisites(combo);
-
   return (
     <Modal onClose={onClose} maxWidth="max-w-3xl" maxHeight="max-h-[90dvh]">
       <Modal.Header onClose={onClose}>
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-counter-charge shrink-0" />
-          <h2 className="text-lg font-bold truncate">{produces.join(", ") || "Combo"}</h2>
+          <h2 className="text-lg font-bold truncate">
+            {produces.join(", ") || i18n._(msg`Combo`)}
+          </h2>
         </div>
       </Modal.Header>
 
@@ -65,7 +66,9 @@ export function ComboDetailModal({
 
             {produces.length > 0 && (
               <div>
-                <div className="text-sm font-semibold text-muted-foreground mb-1">Produces</div>
+                <div className="text-sm font-semibold text-muted-foreground mb-1">
+                  <Trans>Produces</Trans>
+                </div>
                 <div className="flex flex-wrap gap-1">
                   {produces.map((name) => (
                     <span
@@ -82,18 +85,22 @@ export function ComboDetailModal({
             {(prereqs.length > 0 || combo.manaNeeded) && (
               <div>
                 <div className="text-sm font-semibold text-muted-foreground mb-1">
-                  Prerequisites
+                  <Trans>Prerequisites</Trans>
                 </div>
                 {combo.manaNeeded && (
                   <div className="flex items-center gap-1.5 text-sm mb-1">
-                    <span className="text-muted-foreground">Mana:</span>
+                    <span className="text-muted-foreground">
+                      <Trans>Mana:</Trans>
+                    </span>
                     <ManaSymbols cost={combo.manaNeeded} size="sm" />
                   </div>
                 )}
                 <ul className="space-y-0.5">
                   {prereqs.map((req, i) => (
                     <li key={i} className="text-sm text-muted-foreground flex items-start gap-1.5">
-                      <span className="shrink-0 mt-0.5">&#x2022;</span>
+                      <span className="shrink-0 mt-0.5">
+                        <Trans>&#x2022;</Trans>
+                      </span>
                       <span>{req}</span>
                     </li>
                   ))}
@@ -102,7 +109,9 @@ export function ComboDetailModal({
             )}
 
             <div>
-              <div className="text-sm font-semibold text-muted-foreground mb-1">Steps</div>
+              <div className="text-sm font-semibold text-muted-foreground mb-1">
+                <Trans>Steps</Trans>
+              </div>
               <ol className="space-y-1.5">
                 {steps(combo).map((step, i) => (
                   <li key={i} className="text-sm flex gap-2">
@@ -126,12 +135,14 @@ export function ComboDetailModal({
             rel="noreferrer noopener"
           >
             <Button size="sm" variant="outline" className="gap-1.5">
-              <ExternalLink className="h-3.5 w-3.5" />
-              View on Commander Spellbook
+              <Trans>
+                <ExternalLink className="h-3.5 w-3.5" />
+                View on Commander Spellbook
+              </Trans>
             </Button>
           </a>
           <Button size="sm" variant="ghost" onClick={onClose}>
-            Close
+            <Trans>Close</Trans>
           </Button>
         </div>
       </Modal.Footer>

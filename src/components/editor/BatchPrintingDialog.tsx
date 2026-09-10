@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
-
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +15,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useDeckStore } from "@/stores/useDeckStore";
 import type { ScryfallSet } from "@/types/scryfall";
 import { executeDeckEdit } from "./deckEditor.history";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export function BatchPrintingDialog({
   open,
   onOpenChange,
@@ -31,7 +32,6 @@ export function BatchPrintingDialog({
   const [loadingSets, setLoadingSets] = useState(false);
   const [applyingSet, setApplyingSet] = useState<string | null>(null);
   const operationRef = useRef(0);
-
   useEffect(() => {
     if (!open || sets.length > 0) return;
     setLoadingSets(true);
@@ -39,10 +39,9 @@ export function BatchPrintingDialog({
       .getState()
       .fetchSets()
       .then(setSets)
-      .catch(() => toast.error("Could not load Magic sets"))
+      .catch(() => toast.error(i18n._(msg`Could not load Magic sets`)))
       .finally(() => setLoadingSets(false));
   }, [open, sets.length]);
-
   const filteredSets = useMemo(() => {
     const term = query.trim().toLowerCase();
     return sets
@@ -53,7 +52,6 @@ export function BatchPrintingDialog({
       .sort((a, b) => (b.released_at ?? "").localeCompare(a.released_at ?? ""))
       .slice(0, 100);
   }, [query, sets]);
-
   async function applySet(set: ScryfallSet) {
     const operation = ++operationRef.current;
     const startingState = useDeckStore.getState();
@@ -79,7 +77,6 @@ export function BatchPrintingDialog({
           }
         }
       }
-
       const deck = useDeckStore.getState().currentDeck;
       const names = new Set(
         [
@@ -98,9 +95,13 @@ export function BatchPrintingDialog({
       const matches = [...names]
         .map((name) => ({ name, print: printsByName.get(name.toLowerCase()) }))
         .filter(
-          (match): match is { name: string; print: (typeof prints)[number] } => !!match.print,
+          (
+            match,
+          ): match is {
+            name: string;
+            print: (typeof prints)[number];
+          } => !!match.print,
         );
-
       executeDeckEdit(`Use ${set.name} printings`, () => {
         for (const match of matches) {
           useDeckStore.getState().updatePrint(match.name, match.print);
@@ -114,13 +115,12 @@ export function BatchPrintingDialog({
       onOpenChange(false);
     } catch {
       if (operation === operationRef.current) {
-        toast.error(`Could not load printings from ${set.name}`);
+        toast.error(i18n._(msg`Could not load printings from ${set.name}`));
       }
     } finally {
       if (operation === operationRef.current) setApplyingSet(null);
     }
   }
-
   return (
     <Dialog
       open={open}
@@ -131,10 +131,14 @@ export function BatchPrintingDialog({
     >
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Change {cardNames ? "selected" : "deck"} printings</DialogTitle>
+          <DialogTitle>
+            <Trans>Change {cardNames ? "selected" : "deck"} printings</Trans>
+          </DialogTitle>
           <DialogDescription>
-            Choose a set to update every matching card. Cards without a printing in that set stay
-            unchanged.
+            <Trans>
+              Choose a set to update every matching card. Cards without a printing in that set stay
+              unchanged.
+            </Trans>
           </DialogDescription>
         </DialogHeader>
         <div className="relative">
@@ -143,7 +147,7 @@ export function BatchPrintingDialog({
             autoFocus
             value={query}
             className="pl-9"
-            placeholder="Search by set name or code…"
+            placeholder={i18n._(msg`Search by set name or code\u2026`)}
             onChange={(event) => setQuery(event.target.value)}
           />
         </div>

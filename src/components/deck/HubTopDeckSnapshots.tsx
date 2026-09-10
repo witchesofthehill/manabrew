@@ -11,28 +11,29 @@ import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { isFeatureEnabled } from "@/featureFlags";
 import { cn } from "@/lib/utils";
 import type { TopDeckSnapshotEntry } from "@/api/hubTypes";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const DEFAULT_BUCKET = "trending";
 const INITIAL_RANK_COUNT = 10;
-
 interface HubTopDeckSnapshotsProps {
   onOpenDeck: (id: string) => void;
 }
-
 function snapshotCaption(key: string, scope: string, snapshotDate: string): string {
-  if (scope === "editorial") return `Curated snapshot dated ${snapshotDate}.`;
+  if (scope === "editorial") return i18n._(msg`Curated snapshot dated ${snapshotDate}.`);
   if (key === "rising") {
-    return `Compared with the previous week using online and offline play through ${snapshotDate}.`;
+    return i18n._(
+      msg`Compared with the previous week using online and offline play through ${snapshotDate}.`,
+    );
   }
   if (scope === "online") {
-    return `Based on completed online matches from the 30 days ending ${snapshotDate}.`;
+    return i18n._(msg`Based on completed online matches from the 30 days ending ${snapshotDate}.`);
   }
   if (scope === "community") {
-    return `Based on recent Community activity through ${snapshotDate}.`;
+    return i18n._(msg`Based on recent Community activity through ${snapshotDate}.`);
   }
-  return `Based on online and offline play from the 30 days ending ${snapshotDate}.`;
+  return i18n._(msg`Based on online and offline play from the 30 days ending ${snapshotDate}.`);
 }
-
 export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
   const accountsEnabled = isFeatureEnabled("accounts");
   const viewerAccountId = useAuthStore((state) =>
@@ -57,22 +58,18 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
       ? visibleBuckets[0].key
       : bucket;
   const showAll = showAllBucket === activeBucket;
-
   useEffect(() => {
     void fetchBuckets();
   }, [fetchBuckets]);
-
   useEffect(() => {
     if (bucketsLoaded) void fetchSnapshot(activeBucket);
   }, [bucketsLoaded, activeBucket, fetchSnapshot, viewerAccountId]);
-
   function selectBucket(key: string) {
     const next = new URLSearchParams(searchParams);
     if (key === DEFAULT_BUCKET) next.delete("bucket");
     else next.set("bucket", key);
     if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true });
   }
-
   const displayedEntries = snapshot
     ? showAll
       ? snapshot.entries
@@ -80,7 +77,6 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
     : [];
   const stageEntries = displayedEntries.slice(0, 6);
   const remainingEntries = displayedEntries.slice(6);
-
   function favorite(ranked: TopDeckSnapshotEntry) {
     if (!signedIn) {
       showSignIn();
@@ -90,7 +86,6 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
       toast.error(error instanceof Error ? error.message : "Failed to update favorite"),
     );
   }
-
   function rankedDeck(ranked: TopDeckSnapshotEntry, variant: "card" | "hero" | "stage" = "card") {
     const staged = variant === "stage";
     return (
@@ -112,7 +107,6 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
       </div>
     );
   }
-
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 items-center border-b px-4 py-2 sm:px-6 lg:px-8">
@@ -145,7 +139,9 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
       <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:px-6 lg:px-8">
         {error ? (
           <div className="rounded-lg border border-dashed p-8 text-center">
-            <p className="text-sm font-medium">This ranking is unavailable</p>
+            <p className="text-sm font-medium">
+              <Trans>This ranking is unavailable</Trans>
+            </p>
             <p className="mt-1 text-xs text-muted-foreground">{error}</p>
             <Button
               variant="outline"
@@ -153,7 +149,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
               className="mt-4"
               onClick={() => void fetchSnapshot(activeBucket)}
             >
-              Retry
+              <Trans>Retry</Trans>
             </Button>
           </div>
         ) : snapshot === null ? (
@@ -165,9 +161,13 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
         ) : snapshot.entries.length === 0 ? (
           <div className="rounded-lg border border-dashed p-8 text-center">
             <Trophy className="mx-auto h-8 w-8 text-muted-foreground/50" />
-            <p className="mt-3 text-sm font-medium">No snapshot published yet</p>
+            <p className="mt-3 text-sm font-medium">
+              <Trans>No snapshot published yet</Trans>
+            </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              This ranking appears after its first evidence-backed snapshot is available.
+              <Trans>
+                This ranking appears after its first evidence-backed snapshot is available.
+              </Trans>
             </p>
           </div>
         ) : (
@@ -204,7 +204,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
             {!showAll && snapshot.entries.length > INITIAL_RANK_COUNT && (
               <div className="mt-4 flex justify-center">
                 <Button variant="outline" size="sm" onClick={() => setShowAllBucket(activeBucket)}>
-                  Show all {snapshot.entries.length} ranked decks
+                  <Trans>Show all {snapshot.entries.length} ranked decks</Trans>
                 </Button>
               </div>
             )}

@@ -4,22 +4,18 @@ import type { StackObjectDto } from "@/protocol/game";
 import type { PromptActionType } from "./game.types";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
-
+import { Trans } from "@lingui/react/macro";
 interface StackSectionProps {
   stack: StackObjectDto[];
   promptType?: PromptActionType;
   onOpenStack: () => void;
 }
-
 export function StackSection({ stack, promptType, onOpenStack }: StackSectionProps) {
   const isCounterPrompt = promptType === "chooseBoardTargets";
   const show = stack.length > 0 || isCounterPrompt;
-
   const themeColors = useTheme().gameTheme;
   const accentColor = themeColors.cardRing;
-
   if (!show) return null;
-
   return (
     <div
       className={cn("rounded-lg p-2", !isCounterPrompt && "bg-muted/20")}
@@ -30,10 +26,10 @@ export function StackSection({ stack, promptType, onOpenStack }: StackSectionPro
           className={cn("text-xs font-semibold", !isCounterPrompt && "text-muted-foreground")}
           style={isCounterPrompt ? { color: accentColor } : undefined}
         >
-          Stack ({stack.length})
+          <Trans>Stack ({stack.length})</Trans>
         </p>
         <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={onOpenStack}>
-          View
+          <Trans>View</Trans>
         </Button>
       </div>
       {stack.length > 0 && (

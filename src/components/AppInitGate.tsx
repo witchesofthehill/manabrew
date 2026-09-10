@@ -7,17 +7,17 @@ import { useAcknowledgement } from "@/hooks/useAcknowledgement";
 import { OnboardingWelcome, ONBOARDING_GUIDE_VERSION } from "@/components/OnboardingWelcome";
 import { BreweryBackdrop } from "@/components/BreweryBackdrop";
 import { TERMS_AND_CONDITIONS } from "@/lib/termsContent";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const TERMS_STORAGE_KEY = "manabrew.termsAcceptance";
 const ONBOARDING_STORAGE_KEY = "manabrew.onboarding";
-
 const BAR_FILL_MS = 200;
 // Minimum dwell at the initial `idle` stage. Without it, a cache hit can
 // flash through every milestone in a single frame; a brief hold gives the
 // progress bar a chance to *start* at a recognizable position before the
 // first real stage event yanks it forward.
 const INITIAL_HOLD_MS = 300;
-
 /**
  * Each stage maps to a milestone on the progress bar so the fill keeps
  * moving forward visibly even on a warm load, where the app flashes through
@@ -29,16 +29,21 @@ const STAGE_PROGRESS: Record<string, number> = {
   decks: 80,
   ready: 100,
 };
-
 const STAGE_TITLE: Record<string, string> = {
-  idle: "Starting",
-  assets: "Loading card data",
-  decks: "Loading decks",
-  ready: "Ready",
+  get idle() {
+    return i18n._(msg`Starting`);
+  },
+  get assets() {
+    return i18n._(msg`Loading card data`);
+  },
+  get decks() {
+    return i18n._(msg`Loading decks`);
+  },
+  get ready() {
+    return i18n._(msg`Ready`);
+  },
 };
-
 const TERMS_LINK = /((?:github\.com|docs\.manabrew\.app|scryfall\.com)(?:[^\s,)]*[^\s,).])?)/g;
-
 function linkifyTerms(body: string) {
   return body.split(TERMS_LINK).map((part, index) =>
     index % 2 === 1 ? (
@@ -56,10 +61,8 @@ function linkifyTerms(body: string) {
     ),
   );
 }
-
 // Prevents reanimating on re-mount
 let hasReleasedOnce = false;
-
 export function AppInitGate({ children }: { children: ReactNode }) {
   const rawStage = useAppInitStore((s) => s.stage);
   const { accepted: termsAccepted, accept: acceptTerms } = useAcknowledgement(
@@ -71,18 +74,14 @@ export function AppInitGate({ children }: { children: ReactNode }) {
     ONBOARDING_GUIDE_VERSION,
   );
   const [consent, setConsent] = useState(false);
-
   const [minHoldPassed, setMinHoldPassed] = useState(hasReleasedOnce);
   useEffect(() => {
     if (minHoldPassed) return;
     const t = window.setTimeout(() => setMinHoldPassed(true), INITIAL_HOLD_MS);
     return () => window.clearTimeout(t);
   }, [minHoldPassed]);
-
   const stage = minHoldPassed ? rawStage : "idle";
-
   const target = useMemo(() => STAGE_PROGRESS[stage] ?? 0, [stage]);
-
   type Phase = "gating" | "releasing" | "done";
   const [phase, setPhase] = useState<Phase>(() => (hasReleasedOnce ? "done" : "gating"));
   const HOLD_MS = 300;
@@ -105,7 +104,6 @@ export function AppInitGate({ children }: { children: ReactNode }) {
       window.clearTimeout(done);
     };
   }, [stage, phase, termsAccepted, onboardingDone, RELEASE_DELAY_MS, EXIT_MS]);
-
   // The companion is pure UI with no engine dependency, so never block it behind
   // the worker boot — which can't initialise without cross-origin isolation
   // (e.g. an iOS PWA served over plain http). Render it immediately when it's
@@ -113,12 +111,10 @@ export function AppInitGate({ children }: { children: ReactNode }) {
   if (typeof window !== "undefined" && window.location.pathname.startsWith("/companion")) {
     return <>{children}</>;
   }
-
-  const title = STAGE_TITLE[stage] ?? "Loading";
+  const title = STAGE_TITLE[stage] ?? i18n._(msg`Loading`);
   const pct = Math.round(target);
   const showTerms = stage === "ready" && !termsAccepted;
   const showOnboarding = stage === "ready" && termsAccepted && !onboardingDone;
-
   const exiting = phase === "releasing";
   const showChildren = phase !== "gating";
   const childWrapper = (
@@ -135,9 +131,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
       {showChildren ? children : null}
     </div>
   );
-
   if (phase === "done") return childWrapper;
-
   return (
     <>
       {childWrapper}
@@ -159,10 +153,10 @@ export function AppInitGate({ children }: { children: ReactNode }) {
             <div className="flex w-full max-w-2xl flex-col items-center gap-10 drop-shadow-2xl">
               <div className="flex flex-col items-center gap-2 text-center">
                 <p className="font-mono text-[0.65rem] uppercase tracking-[0.55em] text-muted-foreground">
-                  Welcome to
+                  <Trans>Welcome to</Trans>
                 </p>
                 <h1 className="font-serif text-5xl font-light tracking-[0.08em] text-foreground md:text-6xl">
-                  Manabrew
+                  <Trans>Manabrew</Trans>
                 </h1>
                 <div
                   aria-hidden
@@ -202,16 +196,20 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                       onCheckedChange={(value) => setConsent(value === true)}
                       className="mt-0.5"
                     />
-                    <span className="text-foreground">I have read and agree to these terms</span>
+                    <span className="text-foreground">
+                      <Trans>I have read and agree to these terms</Trans>
+                    </span>
                   </label>
 
                   <div className="flex flex-col items-center gap-3">
                     <Button disabled={!consent} onClick={acceptTerms} className="min-w-[200px]">
-                      Accept and continue
+                      <Trans>Accept and continue</Trans>
                     </Button>
                     <p className="font-mono text-[0.55rem] uppercase tracking-[0.4em] text-muted-foreground/70">
-                      Version {TERMS_AND_CONDITIONS.version} · Updated{" "}
-                      {TERMS_AND_CONDITIONS.lastUpdated}
+                      <Trans>
+                        Version {TERMS_AND_CONDITIONS.version} · Updated{" "}
+                        {TERMS_AND_CONDITIONS.lastUpdated}
+                      </Trans>
                     </p>
                   </div>
                 </div>
@@ -243,7 +241,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                   </div>
 
                   <p className="text-center font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
-                    Connecting
+                    <Trans>Connecting</Trans>
                   </p>
                 </div>
               )}

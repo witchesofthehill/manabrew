@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { GitCompareArrows } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,7 +13,7 @@ import type { EditorDeck } from "@/types/manabrew";
 import { cn } from "@/lib/utils";
 import { deckOwnershipByName } from "@/lib/collection";
 import { useCollectionStore } from "@/stores/useCollectionStore";
-
+import { Trans } from "@lingui/react/macro";
 function coverageShortage(deck: EditorDeck, quantities: Record<string, number>): number {
   return [
     ...deckOwnershipByName(quantities, [
@@ -24,7 +23,6 @@ function coverageShortage(deck: EditorDeck, quantities: Record<string, number>):
     ]).values(),
   ].reduce((total, ownership) => total + ownership.shortage, 0);
 }
-
 function cardCounts(deck: EditorDeck): Map<string, number> {
   const counts = new Map<string, number>();
   const cards: DeckCard[] = [
@@ -42,7 +40,6 @@ function cardCounts(deck: EditorDeck): Map<string, number> {
   }
   return counts;
 }
-
 function cardLocations(deck: EditorDeck): Map<string, string> {
   const locations = new Map<string, string>();
   for (const [zone, cards] of [
@@ -55,7 +52,6 @@ function cardLocations(deck: EditorDeck): Map<string, string> {
   }
   return locations;
 }
-
 function printingKeys(deck: EditorDeck): Map<string, string> {
   return new Map(
     [...deck.cards, ...deck.sideboard, ...(deck.maybeboard ?? []), ...(deck.commanders ?? [])].map(
@@ -66,7 +62,6 @@ function printingKeys(deck: EditorDeck): Map<string, string> {
     ),
   );
 }
-
 export function DeckChangeSummary({
   currentDeck,
   savedDeck,
@@ -108,34 +103,40 @@ export function DeckChangeSummary({
     changes.moves.length +
     changes.printings.length +
     Number(changes.coverageDelta !== 0);
-
   if (changeCount === 0) return null;
-
   return (
     <>
       <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setOpen(true)}>
-        <GitCompareArrows className="h-3.5 w-3.5" />
-        {changeCount} changes
+        <Trans>
+          <GitCompareArrows className="h-3.5 w-3.5" />
+          {changeCount} changes
+        </Trans>
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Changes since last save</DialogTitle>
-            <DialogDescription>Card quantity changes across the open deck.</DialogDescription>
+            <DialogTitle>
+              <Trans>Changes since last save</Trans>
+            </DialogTitle>
+            <DialogDescription>
+              <Trans>Card quantity changes across the open deck.</Trans>
+            </DialogDescription>
           </DialogHeader>
           <div className="max-h-80 space-y-1 overflow-y-auto">
             {changes.coverageDelta !== 0 && (
               <div className="mb-2 rounded-md border px-2 py-2 text-sm">
-                Collection shortage
-                <span
-                  className={cn(
-                    "ml-2 font-mono",
-                    changes.coverageDelta < 0 ? "text-legality-legal" : "text-warning",
-                  )}
-                >
-                  {changes.coverageDelta > 0 ? "+" : ""}
-                  {changes.coverageDelta}
-                </span>
+                <Trans>
+                  Collection shortage
+                  <span
+                    className={cn(
+                      "ml-2 font-mono",
+                      changes.coverageDelta < 0 ? "text-legality-legal" : "text-warning",
+                    )}
+                  >
+                    {changes.coverageDelta > 0 ? "+" : ""}
+                    {changes.coverageDelta}
+                  </span>
+                </Trans>
               </div>
             )}
             {changes.moves.map((change) => (
@@ -155,7 +156,9 @@ export function DeckChangeSummary({
                 className="rounded-md px-2 py-1.5 text-sm odd:bg-muted/40"
               >
                 <span className="font-medium">{change.name}</span>
-                <span className="ml-2 text-xs text-muted-foreground">printing changed</span>
+                <span className="ml-2 text-xs text-muted-foreground">
+                  <Trans>printing changed</Trans>
+                </span>
               </div>
             ))}
             {changes.quantityChanges.map((change) => (

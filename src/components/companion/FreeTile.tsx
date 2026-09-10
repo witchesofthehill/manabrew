@@ -4,7 +4,8 @@ import { cn } from "@/lib/utils";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
 import { PlayerTile } from "./PlayerTile";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const TAP_MAX_DURATION_MS = 220;
 const TAP_MAX_MOTION_PX = 4;
 const HOLD_DELAY_MS = 320;
@@ -17,25 +18,25 @@ const SCALE_SNAP = 0.05;
 const SCALE_DRAG_THRESHOLD_PX = 6;
 const BASE_TILE_WIDTH = 360;
 const BASE_TILE_HEIGHT = 220;
-
 export interface FreeTilePosition {
   x: number;
   y: number;
   rotation: number;
   scale: number;
 }
-
 interface FreeTileProps {
   player: CompanionPlayer;
   opponents: CompanionPlayer[];
   commanderRules: boolean;
   isActive: boolean;
   position: FreeTilePosition;
-  bounds: { w: number; h: number } | null;
+  bounds: {
+    w: number;
+    h: number;
+  } | null;
   containerRef: React.RefObject<HTMLDivElement | null>;
   onMove: (pos: FreeTilePosition) => void;
 }
-
 export function FreeTile({
   player,
   opponents,
@@ -79,7 +80,15 @@ export function FreeTile({
     tickTimer: ReturnType<typeof setInterval> | null;
     holding: boolean;
   } | null>(null);
-  const activePointers = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const activePointers = useRef<
+    Map<
+      number,
+      {
+        x: number;
+        y: number;
+      }
+    >
+  >(new Map());
   const pinch = useRef<{
     origDist: number;
     origAngle: number;
@@ -89,12 +98,10 @@ export function FreeTile({
   const adjustLifeStore = useCompanionStore((s) => s.adjustLife);
   const [decTick, setDecTick] = useState(0);
   const [incTick, setIncTick] = useState(0);
-
   const baseWidth = bounds ? Math.min(BASE_TILE_WIDTH, bounds.w * 0.45) : BASE_TILE_WIDTH - 40;
   const baseHeight = bounds ? Math.min(BASE_TILE_HEIGHT, bounds.h * 0.45) : BASE_TILE_HEIGHT - 20;
   const tileWidth = baseWidth * position.scale;
   const tileHeight = baseHeight * position.scale;
-
   const onMovePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -107,7 +114,6 @@ export function FreeTile({
     },
     [position],
   );
-
   const onMovePointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (!dragStart.current || !bounds) return;
@@ -119,12 +125,10 @@ export function FreeTile({
     },
     [bounds, onMove, position.rotation, position.scale, tileHeight, tileWidth],
   );
-
   const onMovePointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     event.currentTarget.releasePointerCapture(event.pointerId);
     dragStart.current = null;
   }, []);
-
   const onRotatePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       event.stopPropagation();
@@ -145,7 +149,6 @@ export function FreeTile({
     },
     [containerRef, position, tileHeight, tileWidth],
   );
-
   const onRotatePointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       const start = rotateStart.current;
@@ -162,7 +165,6 @@ export function FreeTile({
     },
     [onMove, position.scale, position.x, position.y],
   );
-
   const onRotatePointerUp = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       event.stopPropagation();
@@ -176,7 +178,6 @@ export function FreeTile({
     },
     [onMove, position.rotation, position.scale, position.x, position.y],
   );
-
   const onScalePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       event.stopPropagation();
@@ -199,7 +200,6 @@ export function FreeTile({
     },
     [containerRef, position.scale, position.x, position.y, tileHeight, tileWidth],
   );
-
   const onScalePointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       const start = scaleStart.current;
@@ -218,7 +218,6 @@ export function FreeTile({
     },
     [onMove, position.rotation, position.x, position.y],
   );
-
   const onScalePointerUp = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       event.stopPropagation();
@@ -231,7 +230,6 @@ export function FreeTile({
     },
     [onMove, position.rotation, position.x, position.y],
   );
-
   const cleanupBodyTimers = useCallback((state: NonNullable<typeof bodyPress.current>) => {
     if (state.holdTimer) {
       clearTimeout(state.holdTimer);
@@ -242,7 +240,6 @@ export function FreeTile({
       state.tickTimer = null;
     }
   }, []);
-
   const onBodyPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (event.pointerType === "mouse" && event.button !== 0) return;
@@ -309,7 +306,6 @@ export function FreeTile({
       position.rotation,
     ],
   );
-
   const onBodyPointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (activePointers.current.has(event.pointerId)) {
@@ -352,7 +348,6 @@ export function FreeTile({
       tileWidth,
     ],
   );
-
   const onBodyPointerUp = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       const wasPinch = pinch.current != null;
@@ -394,13 +389,11 @@ export function FreeTile({
     },
     [adjustLifeStore, cleanupBodyTimers, onMove, player.id, position.rotation, position.scale],
   );
-
   useEffect(() => {
     return () => {
       if (bodyPress.current) cleanupBodyTimers(bodyPress.current);
     };
   }, [cleanupBodyTimers]);
-
   const onBodyKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (event.target !== event.currentTarget) return;
@@ -417,11 +410,9 @@ export function FreeTile({
     },
     [adjustLifeStore, player.id],
   );
-
   const isPerpendicular = Math.abs(position.rotation) === 90;
   const cardWidth = isPerpendicular ? tileHeight : tileWidth;
   const cardHeight = isPerpendicular ? tileWidth : tileHeight;
-
   return (
     <div
       className="absolute touch-none select-none rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-white"
@@ -459,8 +450,8 @@ export function FreeTile({
           <div className="pointer-events-auto absolute bottom-1 left-1/2 flex -translate-x-1/2 gap-1 opacity-70 transition-opacity hover:opacity-100">
             <div
               role="button"
-              aria-label="Rotate tile"
-              title="Tap to rotate 90° · drag to free-rotate"
+              aria-label={i18n._(msg`Rotate tile`)}
+              title={i18n._(msg`Tap to rotate 90\u00B0 \u00B7 drag to free-rotate`)}
               data-companion-handle
               className={cn(
                 "grid size-7 cursor-grab touch-none place-items-center rounded-md bg-black/60 text-white",
@@ -475,8 +466,8 @@ export function FreeTile({
             </div>
             <div
               role="button"
-              aria-label="Scale tile"
-              title="Drag to resize · tap to reset"
+              aria-label={i18n._(msg`Scale tile`)}
+              title={i18n._(msg`Drag to resize \u00B7 tap to reset`)}
               data-companion-handle
               className="grid size-7 cursor-grab touch-none place-items-center rounded-md bg-black/60 text-white active:cursor-grabbing"
               onPointerDown={onScalePointerDown}
@@ -488,7 +479,7 @@ export function FreeTile({
             </div>
             <div
               role="button"
-              aria-label="Drag tile"
+              aria-label={i18n._(msg`Drag tile`)}
               data-companion-handle
               className="grid size-7 cursor-grab touch-none place-items-center rounded-md bg-black/60 text-white active:cursor-grabbing"
               onPointerDown={onMovePointerDown}
@@ -504,19 +495,16 @@ export function FreeTile({
     </div>
   );
 }
-
 function clamp(value: number, min: number, max: number): number {
   if (Number.isNaN(value)) return min;
   return Math.min(max, Math.max(min, value));
 }
-
 function normaliseDegrees(deg: number): number {
   let value = deg % 360;
   if (value > 180) value -= 360;
   if (value <= -180) value += 360;
   return value;
 }
-
 function nextQuarterTurn(current: number): number {
   const normalised = normaliseDegrees(Math.round(current / 90) * 90);
   if (normalised === 0) return 90;

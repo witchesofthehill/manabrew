@@ -3,13 +3,13 @@ import { cn } from "@/lib/utils";
 import { ChevronDown, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
 import { MAIN_SET_TYPES } from "@/lib/constants";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { ScryfallImg } from "@/components/ScryfallImg";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const SET_ICON_CLASS = "brightness-0 dark:invert";
-
 interface SetSelectProps {
   value: string;
   onChange: (code: string) => void;
@@ -17,7 +17,6 @@ interface SetSelectProps {
   placeholder?: string;
   showAll?: boolean;
 }
-
 export function SetSelect({
   value,
   onChange,
@@ -30,7 +29,6 @@ export function SetSelect({
   const [search, setSearch] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
   const sorted = useMemo(() => {
     if (!sets) return [];
     const filtered = showAll
@@ -38,7 +36,6 @@ export function SetSelect({
       : sets.filter((s) => MAIN_SET_TYPES.has(s.set_type) && !s.digital && !s.parent_set_code);
     return [...filtered].sort((a, b) => (b.released_at ?? "").localeCompare(a.released_at ?? ""));
   }, [sets, showAll]);
-
   const filtered = useMemo(() => {
     if (!search.trim()) return sorted;
     const q = search.toLowerCase();
@@ -46,9 +43,7 @@ export function SetSelect({
       (s) => s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q),
     );
   }, [sorted, search]);
-
   const selected = value ? sorted.find((s) => s.code === value) : null;
-
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -58,7 +53,6 @@ export function SetSelect({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
-
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
   if (prevIsOpen !== isOpen) {
     setPrevIsOpen(isOpen);
@@ -71,7 +65,6 @@ export function SetSelect({
       setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [isOpen]);
-
   return (
     <div ref={containerRef} className={cn("relative", className)}>
       <button
@@ -115,7 +108,7 @@ export function SetSelect({
             <Input
               ref={inputRef}
               className="h-6 text-xs"
-              placeholder="Search sets…"
+              placeholder={i18n._(msg`Search sets\u2026`)}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -124,7 +117,7 @@ export function SetSelect({
             <div className="py-1">
               {filtered.length === 0 && (
                 <div className="px-3 py-2 text-xs text-muted-foreground text-center">
-                  No sets found
+                  <Trans>No sets found</Trans>
                 </div>
               )}
               {filtered.map((s) => (

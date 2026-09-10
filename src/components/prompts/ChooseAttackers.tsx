@@ -4,7 +4,9 @@ import { usePromptActionColors } from "@/components/prompts/internal/promptActio
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { ATTACK_DRAG_HINT } from "@/components/game/panels/promptContextHints";
 import type { ChooseAttackersProps } from "./internal/types";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export function ChooseAttackers({
   isWaitingForResponse,
   availableAttackerIds,
@@ -20,13 +22,11 @@ export function ChooseAttackers({
 }: ChooseAttackersProps) {
   const promptActionColors = usePromptActionColors();
   const minimal = useIsMobileGame();
-
   const attackAllClick = multipleDefenders
     ? () => onBeginAttackTargetPick(availableAttackerIds)
     : () => onDeclareAttackers(availableAttackerIds, selectedDefenderId ?? undefined);
   const attackCount = attackAssignmentCount + pendingAttackers.length;
   const attackClick = onSubmitAttack;
-
   return (
     <div className="flex flex-col items-center gap-1.5">
       {!minimal && mustAttackHint && (
@@ -37,15 +37,17 @@ export function ChooseAttackers({
       {!minimal &&
         (pendingAttackers.length > 0 ? (
           <p className="flex animate-pulse items-center justify-center gap-1.5 text-center text-[11px] font-bold text-foreground">
-            <Crosshair className="h-3.5 w-3.5 shrink-0" />
-            Pick a target — click an opponent or planeswalker
+            <Trans>
+              <Crosshair className="h-3.5 w-3.5 shrink-0" />
+              Pick a target — click an opponent or planeswalker
+            </Trans>
           </p>
         ) : (
           <p className="text-center text-[11px] text-muted-foreground/70">{ATTACK_DRAG_HINT}</p>
         ))}
       <div className="flex flex-row items-center justify-center gap-1.5">
         <PromptActionButton
-          label="Attack All"
+          label={i18n._(msg`Attack All`)}
           icon={<Swords className="h-3.5 w-3.5" />}
           baseColor={promptActionColors.attackAction}
           onClick={attackAllClick}
@@ -60,7 +62,7 @@ export function ChooseAttackers({
           disabled={isWaitingForResponse || attackCount === 0}
         />
         <PromptActionButton
-          label="Pass"
+          label={i18n._(msg`Pass`)}
           icon={<Ban className="h-3.5 w-3.5" />}
           variant="outline"
           baseColor={promptActionColors.passAction}

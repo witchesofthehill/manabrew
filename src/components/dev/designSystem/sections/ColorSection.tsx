@@ -1,8 +1,13 @@
 import { THEME_PRESETS } from "@/themes";
 import type { ThemePreset, ThemeColors } from "@/themes";
 import { Section, Subhead, Swatch, SwatchGrid } from "../kit";
-
-function groupGameColors(preset: ThemePreset): { name: string; entries: [string, string][] }[] {
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
+function groupGameColors(preset: ThemePreset): {
+  name: string;
+  entries: [string, string][];
+}[] {
   const groups = new Map<string, [string, string][]>();
   for (const [key, value] of Object.entries(preset.gameColors)) {
     const dot = key.indexOf(".");
@@ -13,7 +18,6 @@ function groupGameColors(preset: ThemePreset): { name: string; entries: [string,
   }
   return [...groups.entries()].map(([name, entries]) => ({ name, entries }));
 }
-
 function AppChrome({ colors, mode }: { colors: ThemeColors; mode: string }) {
   const g = (k: keyof ThemeColors) => colors[k];
   return (
@@ -26,28 +30,30 @@ function AppChrome({ colors, mode }: { colors: ThemeColors; mode: string }) {
           className="flex flex-col gap-2 rounded-lg border p-3"
           style={{ background: g("card"), borderColor: g("border"), color: g("card-foreground") }}
         >
-          <div className="text-sm font-semibold">Card surface</div>
+          <div className="text-sm font-semibold">
+            <Trans>Card surface</Trans>
+          </div>
           <div className="text-xs" style={{ color: g("muted-foreground") }}>
-            Muted secondary text
+            <Trans>Muted secondary text</Trans>
           </div>
           <div className="flex flex-wrap gap-1.5">
             <span
               className="rounded px-2 py-1 text-[11px] font-semibold"
               style={{ background: g("primary"), color: g("primary-foreground") }}
             >
-              Primary
+              <Trans>Primary</Trans>
             </span>
             <span
               className="rounded px-2 py-1 text-[11px] font-semibold"
               style={{ background: g("secondary"), color: g("secondary-foreground") }}
             >
-              Secondary
+              <Trans>Secondary</Trans>
             </span>
             <span
               className="rounded px-2 py-1 text-[11px] font-semibold"
               style={{ background: g("destructive"), color: g("destructive-foreground") }}
             >
-              Delete
+              <Trans>Delete</Trans>
             </span>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -55,19 +61,19 @@ function AppChrome({ colors, mode }: { colors: ThemeColors; mode: string }) {
               className="rounded-full border px-2 py-0.5 text-[10px]"
               style={{ borderColor: g("commander"), color: g("commander") }}
             >
-              Commander
+              <Trans>Commander</Trans>
             </span>
             <span
               className="rounded-full border px-2 py-0.5 text-[10px]"
               style={{ borderColor: g("warning"), color: g("warning") }}
             >
-              Warning
+              <Trans>Warning</Trans>
             </span>
             <span
               className="rounded-full px-2 py-0.5 text-[10px]"
               style={{ background: g("selection"), color: g("selection-foreground") }}
             >
-              Selected
+              <Trans>Selected</Trans>
             </span>
           </div>
         </div>
@@ -75,7 +81,6 @@ function AppChrome({ colors, mode }: { colors: ThemeColors; mode: string }) {
     </div>
   );
 }
-
 function PresetCard({ preset }: { preset: ThemePreset }) {
   return (
     <div className="space-y-4 rounded-xl border border-border bg-card/40 p-4">
@@ -85,13 +90,17 @@ function PresetCard({ preset }: { preset: ThemePreset }) {
       </div>
       <p className="text-xs text-muted-foreground">{preset.description}</p>
 
-      <Subhead>App chrome</Subhead>
+      <Subhead>
+        <Trans>App chrome</Trans>
+      </Subhead>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <AppChrome colors={preset.light} mode="Light" />
         <AppChrome colors={preset.dark} mode="Dark" />
       </div>
 
-      <Subhead>Game tokens</Subhead>
+      <Subhead>
+        <Trans>Game tokens</Trans>
+      </Subhead>
       <div className="space-y-3">
         {groupGameColors(preset).map((grp) => (
           <div key={grp.name} className="space-y-1.5">
@@ -107,13 +116,12 @@ function PresetCard({ preset }: { preset: ThemePreset }) {
     </div>
   );
 }
-
 export function ColorSection({ presetId }: { presetId: string }) {
   const preset = THEME_PRESETS.find((p) => p.id === presetId) ?? THEME_PRESETS[0]!;
   return (
     <Section
       id="color"
-      title="Color"
+      title={i18n._(msg`Color`)}
       intro={`The active theme — “${preset.name}”. Switch it from the selector at the top right to recolor the whole app and this page. 24 app-chrome tokens (light + dark) plus ~90 semantic game-surface tokens, straight from src/themes/*.`}
     >
       <PresetCard preset={preset} />

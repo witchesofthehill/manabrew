@@ -21,26 +21,25 @@ import { chooseImageUrisForCard, tokenIdentityKey } from "@/stores/useScryfallSt
 import { collectProducedTokenKeys } from "@/lib/decks";
 import { resolveDeckName } from "@/lib/deckName";
 import { mergeDeckImportIntoDeck } from "@/lib/deckImport";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 /** Migrate legacy "constructed" format id to "standard". */
 function migrateFormatId(id: string): DeckFormat {
   if (id === "constructed") return "standard";
   return id as DeckFormat;
 }
-
 function getCardUpdateKey(name: string, setCode?: string): string {
   return setCode ? `${name.toLowerCase()}::${setCode.toLowerCase()}` : name.toLowerCase();
 }
-
 /** A card patch may carry a partial `identity` (e.g. a reprint changes only
  *  `setCode`/`cardNumber`), deep-merged onto the card's existing identity. */
-type CardPatch = Partial<Omit<DeckCard, "identity">> & { identity?: Partial<DeckCardIdentity> };
-
+type CardPatch = Partial<Omit<DeckCard, "identity">> & {
+  identity?: Partial<DeckCardIdentity>;
+};
 function applyPatch(card: DeckCard, patch: CardPatch | undefined): DeckCard {
   if (!patch) return card;
   return { ...card, ...patch, identity: { ...card.identity, ...patch.identity } };
 }
-
 function patchCardsByName(cards: DeckCard[], updates: Map<string, CardPatch>): DeckCard[] {
   return cards.map((c) =>
     applyPatch(
@@ -50,7 +49,6 @@ function patchCardsByName(cards: DeckCard[], updates: Map<string, CardPatch>): D
     ),
   );
 }
-
 /** Drop entries from `deck.tokens` whose identity isn't produced by any remaining
  *  card's `allParts`. Called after every card removal so that a customized
  *  token print auto-cleans when its source leaves the deck. */
@@ -65,23 +63,18 @@ function pruneOrphanedTokens(deck: EditorDeck): EditorDeck {
   if (tokens.length === deck.tokens.length) return deck;
   return { ...deck, tokens: tokens.length > 0 ? tokens : undefined };
 }
-
 function isAttractionCard(card: DeckCard): boolean {
   return card.subtypes?.some((subtype) => subtype.toLowerCase() === "attraction") ?? false;
 }
-
 function isContraptionCard(card: DeckCard): boolean {
   return card.subtypes?.some((subtype) => subtype.toLowerCase() === "contraption") ?? false;
 }
-
 function isSchemeCard(card: DeckCard): boolean {
   return card.types?.some((type) => type.toLowerCase() === "scheme") ?? false;
 }
-
 function isPlaneCard(card: DeckCard): boolean {
   return card.types?.some((type) => type.toLowerCase() === "plane") ?? false;
 }
-
 function normalizeDeck(deck: EditorDeck): EditorDeck {
   const main = [...(deck.cards ?? [])];
   const sideboard = [...(deck.sideboard ?? [])];
@@ -91,16 +84,18 @@ function normalizeDeck(deck: EditorDeck): EditorDeck {
   const planes = [...(deck.planes ?? [])];
   // Migrate legacy single-commander to commanders array
   const commanders = [...(deck.commanders ?? [])];
-  const legacy = (deck as { commander?: DeckCard }).commander;
+  const legacy = (
+    deck as {
+      commander?: DeckCard;
+    }
+  ).commander;
   if (legacy && !commanders.some((c) => c.identity.name === legacy.identity.name)) {
     commanders.push(legacy);
   }
-
   for (const cmd of commanders) {
     const idx = main.findIndex((card) => card.identity.name === cmd.identity.name);
     if (idx !== -1) main.splice(idx, 1);
   }
-
   const remainingSideboard: DeckCard[] = [];
   for (const card of sideboard) {
     if (isAttractionCard(card)) {
@@ -115,7 +110,6 @@ function normalizeDeck(deck: EditorDeck): EditorDeck {
       remainingSideboard.push(card);
     }
   }
-
   const normalized: EditorDeck = {
     ...deck,
     name: resolveDeckName(deck.name, commanders),
@@ -129,10 +123,13 @@ function normalizeDeck(deck: EditorDeck): EditorDeck {
     commanders: commanders.length > 0 ? commanders : undefined,
     editor: normalizeEditorMetadata(deck),
   };
-  delete (normalized as { commander?: DeckCard }).commander;
+  delete (
+    normalized as {
+      commander?: DeckCard;
+    }
+  ).commander;
   return normalized;
 }
-
 function normalizeEditorMetadata(deck: EditorDeck): DeckEditorMetadata {
   if (deck.editor?.version === 1) return deck.editor;
   return {
@@ -144,7 +141,6 @@ function normalizeEditorMetadata(deck: EditorDeck): DeckEditorMetadata {
     layouts: [],
   };
 }
-
 function mergeLocalEditorState(deck: EditorDeck, localDeck: EditorDeck | undefined): EditorDeck {
   if (!localDeck) return deck;
   return {
@@ -158,7 +154,6 @@ function mergeLocalEditorState(deck: EditorDeck, localDeck: EditorDeck | undefin
     stackPositions: deck.stackPositions ?? localDeck.stackPositions,
   };
 }
-
 function patchDeckCards(deck: EditorDeck, updates: Map<string, CardPatch>): EditorDeck {
   const normalized = normalizeDeck(deck);
   return {
@@ -189,7 +184,6 @@ function patchDeckCards(deck: EditorDeck, updates: Map<string, CardPatch>): Edit
     tokens: normalized.tokens,
   };
 }
-
 function patchDeckCardById(deck: EditorDeck, cardId: string, patch: CardPatch): EditorDeck {
   const normalized = normalizeDeck(deck);
   const patchCards = (cards: DeckCard[]) =>
@@ -210,7 +204,6 @@ function patchDeckCardById(deck: EditorDeck, cardId: string, patch: CardPatch): 
         : normalized.companion,
   };
 }
-
 function patchDeckPrintingVariant(
   deck: EditorDeck,
   printing: DeckCardIdentity,
@@ -240,7 +233,6 @@ function patchDeckPrintingVariant(
         : normalized.companion,
   };
 }
-
 function availablePrintingFoil(printing: DeckCardIdentity, scryfallCard: ScryfallCard): boolean {
   const finishes = scryfallCard.finishes ?? [];
   if (finishes.length === 0) return !!printing.foil;
@@ -250,7 +242,6 @@ function availablePrintingFoil(printing: DeckCardIdentity, scryfallCard: Scryfal
   if (!printing.foil && !hasNonfoil && hasFoil) return true;
   return !!printing.foil;
 }
-
 export interface SavedDeck {
   id: string;
   deck: EditorDeck;
@@ -258,20 +249,19 @@ export interface SavedDeck {
   accountDeckId?: string;
   accountVersionNo?: number;
 }
-
 // Playmats used to be an inline `data:` blob under `playmat`. That field is gone,
 // but a spread would still carry a stored blob back onto the wire, so persisted
 // decks are stripped of it on the way in — which is also what reclaims the
 // localStorage the blobs were occupying.
 function dropInlinePlaymat<T extends object>(deck: T): T {
-  const { playmat: _playmat, ...rest } = deck as T & { playmat?: string };
+  const { playmat: _playmat, ...rest } = deck as T & {
+    playmat?: string;
+  };
   return rest as T;
 }
-
 // False until hydration succeeds, so a failed migration can't persist over the
 // stored decks — writes are dropped and the on-disk data survives untouched.
 let deckPersistReady = false;
-
 const deckStorage = createJSONStorage(() => ({
   getItem: (name) => localStorage.getItem(name),
   setItem: (name, value) => {
@@ -280,14 +270,15 @@ const deckStorage = createJSONStorage(() => ({
       localStorage.setItem(name, value);
     } catch {
       toast.error(
-        "Seems like you reached the limit of your browser storage — contact us on Discord for more info.",
+        i18n._(
+          msg`Seems like you reached the limit of your browser storage \u2014 contact us on Discord for more info.`,
+        ),
         { id: "deck-storage-full" },
       );
     }
   },
   removeItem: (name) => localStorage.removeItem(name),
 }));
-
 interface DeckState {
   currentDeck: EditorDeck;
   currentDeckId: string | null;
@@ -353,13 +344,25 @@ interface DeckState {
   setPlaymat: (url: string | undefined, assetId: string | undefined) => void;
   replacePlaymatAsset: (
     previousAssetId: string,
-    next: { assetId: string; url: string } | undefined,
+    next:
+      | {
+          assetId: string;
+          url: string;
+        }
+      | undefined,
   ) => void;
   setPlaymatSettings: (settings: PlaymatSettings | undefined) => void;
-  setStackPositions: (positions: Record<string, { x: number; y: number }>) => void;
+  setStackPositions: (
+    positions: Record<
+      string,
+      {
+        x: number;
+        y: number;
+      }
+    >,
+  ) => void;
   setEditorMetadata: (metadata: DeckEditorMetadata) => void;
 }
-
 const initialDeck: EditorDeck = {
   name: DEFAULT_DECK_NAME,
   format: "standard",
@@ -370,7 +373,6 @@ const initialDeck: EditorDeck = {
   schemes: [],
   planes: [],
 };
-
 export const useDeckStore = create<DeckState>()(
   devtools(
     persist(
@@ -599,15 +601,12 @@ export const useDeckStore = create<DeckState>()(
             );
             const selectedCard =
               selectedIndex !== -1 ? nextMain.splice(selectedIndex, 1)[0] : { ...card };
-
             let commanders = [...(deck.commanders ?? [])];
             const returnToMain = (c: DeckCard) =>
               nextMain.push({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
-
             if (deck.format === "oathbreaker") {
               const oathbreakers = commanders.filter((c) => canBeOathbreaker(c));
               const spells = commanders.filter((c) => canBeSignatureSpell(c));
-
               if (canBeSignatureSpell(selectedCard)) {
                 while (spells.length >= Math.max(1, oathbreakers.length)) {
                   returnToMain(spells.shift()!);
@@ -623,7 +622,6 @@ export const useDeckStore = create<DeckState>()(
                 oathbreakers.push(selectedCard);
                 while (spells.length > 1) returnToMain(spells.shift()!);
               }
-
               commanders = oathbreakers.flatMap((o, i) => (spells[i] ? [o, spells[i]] : [o]));
               commanders.push(...spells.slice(oathbreakers.length));
             } else {
@@ -636,7 +634,6 @@ export const useDeckStore = create<DeckState>()(
               }
               commanders.push(selectedCard);
             }
-
             const autoRename = deck.name === DEFAULT_IMPORT_NAME || deck.name === DEFAULT_DECK_NAME;
             return {
               currentDeck: {
@@ -653,12 +650,10 @@ export const useDeckStore = create<DeckState>()(
             const deck = normalizeDeck(state.currentDeck);
             const commanders = deck.commanders ?? [];
             if (commanders.length === 0) return state;
-
             const toRemove = card
               ? commanders.find((c) => c.identity.name === card.identity.name)
               : commanders[commanders.length - 1];
             if (!toRemove) return state;
-
             return {
               currentDeck: {
                 ...deck,

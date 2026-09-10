@@ -16,7 +16,6 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/game/Card";
@@ -28,9 +27,8 @@ import { useModalSourceCard } from "./internal/ModalSourceCard";
 import type { PromptProps } from "./internal/promptProps";
 import type { CardDto } from "@/protocol/game";
 import type { ReorderInput, ReorderItem, ReorderOutput } from "@/protocol";
-
+import { Trans } from "@lingui/react/macro";
 const CARD_W = "w-[120px]";
-
 function RankBadge({ position }: { position: number }) {
   const isFirst = position === 1;
   return (
@@ -44,7 +42,6 @@ function RankBadge({ position }: { position: number }) {
     </div>
   );
 }
-
 function SortableCard({
   id,
   card,
@@ -91,7 +88,6 @@ function SortableCard({
     </div>
   );
 }
-
 export function ReorderCardsModal({
   input,
   respond,
@@ -107,7 +103,6 @@ export function ReorderCardsModal({
   const ids = order ?? items.map((i) => i.id);
   const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-
   function onDragEnd({ active, over }: DragEndEvent) {
     setActiveId(null);
     if (!over || active.id === over.id) return;
@@ -115,7 +110,6 @@ export function ReorderCardsModal({
     const to = ids.indexOf(over.id as string);
     if (from >= 0 && to >= 0) setOrder(arrayMove(ids, from, to));
   }
-
   return (
     <Modal maxWidth="max-w-3xl" maxHeight="">
       {preview}
@@ -128,7 +122,7 @@ export function ReorderCardsModal({
       </div>
 
       <Modal.Instructions>
-        Drag to arrange — number 1 goes first, the rest follow in order
+        <Trans>Drag to arrange — number 1 goes first, the rest follow in order</Trans>
       </Modal.Instructions>
 
       <TooltipProvider delayDuration={150}>
@@ -167,7 +161,7 @@ export function ReorderCardsModal({
 
       <Modal.Footer className="justify-end">
         <Button size="sm" onClick={() => respond({ type: "reorderDecision", orderedIds: ids })}>
-          Confirm Order
+          <Trans>Confirm Order</Trans>
         </Button>
       </Modal.Footer>
     </Modal>

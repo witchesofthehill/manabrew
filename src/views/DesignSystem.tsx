@@ -11,37 +11,37 @@ import { ComponentsSection } from "@/components/dev/designSystem/sections/Compon
 import { CardsSection } from "@/components/dev/designSystem/sections/CardsSection";
 import { SpacingSection } from "@/components/dev/designSystem/sections/SpacingSection";
 import { AssetsSection } from "@/components/dev/designSystem/sections/AssetsSection";
-
+import { Trans } from "@lingui/react/macro";
 type Mode = "light" | "dark";
-
 export default function DesignSystem() {
   const presetId = usePreferencesStore((s) => s.appThemePreset);
   const setAppThemePreset = usePreferencesStore((s) => s.setAppThemePreset);
   const { resolvedTheme, setTheme } = useColorMode();
   const mode: Mode = resolvedTheme === "light" ? "light" : "dark";
-
   return (
     <div className="h-full overflow-auto">
       <div className="px-4 pt-6 sm:px-6 lg:px-8">
         <div className="rounded-xl border border-border bg-card/60 p-3 backdrop-blur">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              dev
+              <Trans>dev</Trans>
             </span>
             <div className="flex-1" />
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              Theme
-              <select
-                value={presetId}
-                onChange={(e) => setAppThemePreset(e.target.value)}
-                className="rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground pointer-coarse:text-base"
-              >
-                {THEME_PRESETS.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+              <Trans>
+                Theme
+                <select
+                  value={presetId}
+                  onChange={(e) => setAppThemePreset(e.target.value)}
+                  className="rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground pointer-coarse:text-base"
+                >
+                  {THEME_PRESETS.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </Trans>
             </label>
             <div className="inline-flex overflow-hidden rounded-md border border-border">
               {(["light", "dark"] as Mode[]).map((m) => (

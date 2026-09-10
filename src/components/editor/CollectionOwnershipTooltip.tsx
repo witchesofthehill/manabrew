@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import { CheckCircle2, ExternalLink, Layers3 } from "lucide-react";
-
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ROUTES } from "@/lib/constants";
 import { collectionCardKey } from "@/lib/collection";
@@ -11,7 +10,9 @@ import {
   useCardCollectionPrintings,
   useDeckCardOwnership,
 } from "./useCardCollectionOwnership";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export function CollectionOwnershipTooltip({
   card,
   surface,
@@ -25,7 +26,6 @@ export function CollectionOwnershipTooltip({
   const summary = useDeckCardOwnership(card);
   const printings = useCardCollectionPrintings(card);
   if (ownership === "none" || !summary) return null;
-
   const requiredPrinting = printingLabel(
     card.identity.setCode,
     card.identity.cardNumber,
@@ -42,7 +42,6 @@ export function CollectionOwnershipTooltip({
       ? [collectionCardKey(card.identity.name, card.identity.setCode, card.identity.cardNumber)]
       : []),
   ]);
-
   return (
     <Tooltip delayDuration={180}>
       <TooltipTrigger asChild>
@@ -83,9 +82,13 @@ export function CollectionOwnershipTooltip({
             <Layers3 className="h-4 w-4 text-primary" />
           )}
           <div className="min-w-0">
-            <p className="font-semibold">Collection tracker</p>
+            <p className="font-semibold">
+              <Trans>Collection tracker</Trans>
+            </p>
             <p className="text-[11px] text-muted-foreground">
-              {ownership === "exact" ? "Exact printing owned" : "Owned in another printing"}
+              {ownership === "exact"
+                ? i18n._(msg`Exact printing owned`)
+                : i18n._(msg`Owned in another printing`)}
             </p>
           </div>
           <span className="ml-auto font-mono text-xs tabular-nums">
@@ -95,14 +98,14 @@ export function CollectionOwnershipTooltip({
 
         <div className="space-y-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Needed for deck
+            <Trans>Needed for deck</Trans>
           </p>
           <PrintingRow quantity={summary.required} label={requiredPrinting} exact />
         </div>
 
         <div className="space-y-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Found in collection
+            <Trans>Found in collection</Trans>
           </p>
           {printings.map((printing, index) => {
             const key = collectionCardKey(
@@ -127,13 +130,14 @@ export function CollectionOwnershipTooltip({
           className="flex items-center justify-center gap-1.5 rounded-md bg-muted/60 px-2 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           onClick={(event) => event.stopPropagation()}
         >
-          View in My Collection <ExternalLink className="h-3 w-3" />
+          <Trans>
+            View in My Collection <ExternalLink className="h-3 w-3" />
+          </Trans>
         </Link>
       </TooltipContent>
     </Tooltip>
   );
 }
-
 function PrintingRow({
   quantity,
   label,
@@ -148,13 +152,14 @@ function PrintingRow({
       <span className="w-5 shrink-0 text-right font-mono text-xs tabular-nums">{quantity}</span>
       <span className="min-w-0 flex-1 truncate text-xs">{label}</span>
       <span className={cn("text-[10px]", exact ? "text-legality-legal" : "text-muted-foreground")}>
-        {exact ? "exact" : "other"}
+        {exact ? i18n._(msg`exact`) : i18n._(msg`other`)}
       </span>
     </div>
   );
 }
-
 function printingLabel(setCode?: string, collectorNumber?: string, foil?: boolean): string {
-  if (!setCode || !collectorNumber) return "Unspecified printing";
-  return `${setCode.toUpperCase()} #${collectorNumber} · ${foil ? "foil" : "nonfoil"}`;
+  if (!setCode || !collectorNumber) return i18n._(msg`Unspecified printing`);
+  return i18n._(
+    msg`${setCode.toUpperCase()} #${collectorNumber} · ${foil ? i18n._(msg`foil`) : i18n._(msg`nonfoil`)}`,
+  );
 }

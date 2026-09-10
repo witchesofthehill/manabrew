@@ -1,6 +1,7 @@
 import { activateLocale } from "@/i18n/i18n";
-import { resolveLanguagePreference } from "@/i18n/locales";
+import { APP_LOCALES, resolveLanguagePreference } from "@/i18n/locales";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 
 let initialized = false;
 let appliedPreference = usePreferencesStore.getState().appLanguage;
@@ -8,6 +9,7 @@ let appliedPreference = usePreferencesStore.getState().appLanguage;
 async function applyPreference(): Promise<void> {
   const preference = usePreferencesStore.getState().appLanguage;
   const locale = resolveLanguagePreference(preference);
+  useScryfallStore.getState().setLocale(APP_LOCALES[locale].scryfallLanguage);
   await activateLocale(locale);
 }
 

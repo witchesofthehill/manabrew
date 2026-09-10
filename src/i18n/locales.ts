@@ -16,6 +16,8 @@ export type AppLanguagePreference = "system" | AppLocale;
 export type ScryfallLanguage = (typeof APP_LOCALES)[AppLocale]["scryfallLanguage"];
 
 export const DEFAULT_LOCALE: AppLocale = "en";
+export const DEFAULT_SCRYFALL_LANGUAGE: ScryfallLanguage =
+  APP_LOCALES[DEFAULT_LOCALE].scryfallLanguage;
 
 export function resolveAppLocale(languages: readonly string[]): AppLocale {
   for (const language of languages) {

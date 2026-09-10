@@ -100,6 +100,12 @@ const MODAL_TYPES = new Set([
 ]);
 const FONT = "Inter, system-ui, sans-serif";
 const PANEL_PADDING = 20;
+const PROMPT_CHROME_GAP = 12;
+const PROMPT_CHROME_RADIUS = 16;
+const PROMPT_CHROME_ALPHA = 0.98;
+const PROMPT_CHROME_SHADOW_ALPHA = 0.42;
+const PROMPT_BACKDROP_ALPHA = 0.76;
+const PROMPT_BOARD_CONTEXT_BACKDROP_ALPHA = 0.46;
 const ROW_GAP = 10;
 const CARD_HOVER_Z_INDEX = 600;
 const CARD_TILE_EDGE_INSET = 8;
@@ -109,13 +115,12 @@ const REORDER_CARD_INSET = 18;
 const REORDER_LAYOUT_SETTLE_SECONDS = 0.24;
 const CARD_ASPECT_RATIO = CARD_H / CARD_W;
 const CARD_VERTICAL_RESERVE = 288;
-const SCRY_BODY_VERTICAL_RESERVE = 176;
+const SCRY_CONTENT_VERTICAL_SPACING = 102;
 const CARD_MODAL_MAX_WIDTH = 1160;
 const MODAL_MIN_HEIGHT = 160;
 const MODAL_VIEWPORT_MARGIN = 16;
 const MODAL_BODY_BOTTOM_PADDING = 8;
 const SOURCE_CARD_GAP = 20;
-const SOURCE_CARD_INTERNAL_WIDTH = 64;
 const SOURCE_LABEL_HEIGHT = 18;
 const DRAG_START_THRESHOLD = 4;
 const DRAG_DROP_MIN_SECONDS = 0.1;
@@ -593,10 +598,12 @@ export class PromptLayer {
     panelBackground: Graphics;
     body: Container;
     bodyTop: number;
+    headerHeight: number;
     width: number;
     height: number;
     hitWidth: number;
     externalSourceHeight: number;
+    sourceRail: Container | null;
     footerHeight: number;
     footerContentHeight: number;
     footer: Container;
@@ -907,6 +914,33 @@ export class PromptLayer {
       x += (button.buttonWidth + ROW_GAP) * scale;
     }
     return buttons.reduce((height, button) => Math.max(height, button.buttonHeight * scale), 0);
+  }
+
+  private addModalFooterActions(
+    parent: Container,
+    buttons: PromptButton[],
+    availableWidth: number,
+  ): number {
+    return this.addButtonRow(parent, buttons, 0, availableWidth, "right");
+  }
+
+  private drawModalChromeSurface(
+    surface: Graphics,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ): void {
+    surface
+      .clear()
+      .roundRect(x - 3, y + 4, width + 6, height + 2, PROMPT_CHROME_RADIUS + 3)
+      .fill({
+        color: hexToNum(this.theme.gameTheme.canvas.shadow),
+        alpha: PROMPT_CHROME_SHADOW_ALPHA,
+      })
+      .roundRect(x, y, width, height, PROMPT_CHROME_RADIUS)
+      .fill({ color: hexToNum(this.theme.appTheme.card), alpha: PROMPT_CHROME_ALPHA })
+      .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1.5, alpha: 1 });
   }
 
   private makeButton(
@@ -1801,11 +1835,11 @@ export class PromptLayer {
     width: number;
     height: number;
   } {
-    const availableCardHeight = Math.max(112, (this.viewportHeight - CARD_VERTICAL_RESERVE) / 2);
+    const promptHeight = this.viewportHeight - CARD_VERTICAL_RESERVE;
+    const availableCardHeight = Math.max(112, Math.min(maxHeight, promptHeight));
     const width = Math.min(
       GAME_CARD_SIZES.preview.width,
       (availableCardHeight * CARD_W) / CARD_H,
-      (maxHeight * CARD_W) / CARD_H,
       Math.max(80, this.viewportWidth - PANEL_PADDING * 2 - 24),
     );
     return { width, height: width * CARD_ASPECT_RATIO };
@@ -2711,8 +2745,8 @@ export class PromptLayer {
       input.type === "chooseDamageAssignmentOrder" ||
       (input.type === "chooseBoolean" && input.presentation.targets.length > 0);
     const backdrop = new Graphics().rect(0, 0, this.viewportWidth, this.viewportHeight).fill({
-      color: hexToNum(this.theme.appTheme.overlay),
-      alpha: boardContext ? 0.38 : 0.76,
+      color: hexToNum(this.theme.appTheme.background),
+      alpha: boardContext ? PROMPT_BOARD_CONTEXT_BACKDROP_ALPHA : PROMPT_BACKDROP_ALPHA,
     });
     backdrop.eventMode = "static";
     backdrop.on("pointerdown", () => this.setSelectionFilterFocused(false));
@@ -2758,12 +2792,21 @@ export class PromptLayer {
     this.animateScryLayout();
   }
 
+  private modalPromptWidth(maxWidth: number): number {
+    const viewportWidth = this.viewportWidth - 24;
+    if (!this.promptSourceCard()) return Math.min(maxWidth, viewportWidth);
+    const sourceWidth = this.promptCardDimensions().width;
+    const widthWithSourceRail = viewportWidth - sourceWidth - SOURCE_CARD_GAP;
+    return widthWithSourceRail >= 320
+      ? Math.min(maxWidth, widthWithSourceRail)
+      : Math.min(maxWidth, viewportWidth);
+  }
+
   private createModalShell(
     width: number,
     height: number,
     presentation: PromptPresentation,
     minimizable = true,
-    boardContext = false,
     footerHeight = 0,
     footerContentHeight = 36,
   ): {
@@ -2773,18 +2816,23 @@ export class PromptLayer {
     footer: Container;
   } {
     const sourceCard = this.promptSourceCard();
-    const preferredSourceCardWidth = this.promptCardDimensions().width;
-    const x = (this.viewportWidth - width) / 2;
-    const y = (this.viewportHeight - height) / 2;
-    const externalSourceCardWidth = GAME_CARD_SIZES.preview.width;
+    const preferredSourceWidth = this.promptCardDimensions().width;
+    const preferredSourceHeight = preferredSourceWidth * CARD_ASPECT_RATIO;
+    const clusterWidth = width + SOURCE_CARD_GAP + preferredSourceWidth;
     const externalSource =
       !!sourceCard &&
-      !boardContext &&
-      (this.viewportWidth - width) / 2 - SOURCE_CARD_GAP - 12 >= externalSourceCardWidth &&
-      y + SOURCE_LABEL_HEIGHT + externalSourceCardWidth * CARD_ASPECT_RATIO <=
-        this.viewportHeight - 12;
-    const panel = this.panel(width, height, x, y, 12);
-    const panelBackground = panel.children[0] as Graphics;
+      clusterWidth <= this.viewportWidth - 24 &&
+      SOURCE_LABEL_HEIGHT + preferredSourceHeight <= this.viewportHeight - 24;
+    const x = externalSource
+      ? (this.viewportWidth - clusterWidth) / 2
+      : (this.viewportWidth - width) / 2;
+    const sourceRailX = x + width + SOURCE_CARD_GAP;
+    const y = (this.viewportHeight - height) / 2;
+    const panel = new Container();
+    panel.position.set(x, y);
+    const panelBackground = new Graphics();
+    panelBackground.eventMode = "none";
+    panel.addChild(panelBackground);
     panel.eventMode = "static";
     panel.on("pointerdowncapture", (event: FederatedPointerEvent) => {
       const filter = this.selectionFilterView;
@@ -2798,20 +2846,21 @@ export class PromptLayer {
     panel.accessibleTitle = presentation.title;
     panel.tabIndex = -1;
     const sourceSprite = sourceCard ? new CardSprite(sourceCard, "hand") : null;
-    const sourceLeft = width + SOURCE_CARD_GAP;
+    const sourceRail = externalSource ? new Container() : null;
     let sourceWidth = 0;
-    if (externalSource) {
-      panel.hitArea = new Rectangle(0, 0, sourceLeft + externalSourceCardWidth, height);
-    }
+    let sourceHeight = 0;
+    let sourceX = 0;
+    let sourceY = 0;
+    let sourceLabel: Text | null = null;
+    let placeSourceSprite: (() => void) | null = null;
     if (sourceSprite && sourceCard) {
       this.configurePromptCardSprite(sourceSprite, sourceCard);
       sourceSprite.setHandRulesHighlight(this.spec?.currentPrompt?.sourceAbilityText ?? "");
       sourceWidth = externalSource
-        ? externalSourceCardWidth
-        : Math.min(SOURCE_CARD_INTERNAL_WIDTH, preferredSourceCardWidth, width - PANEL_PADDING * 2);
-      const left = externalSource ? sourceLeft : PANEL_PADDING;
-      const top = externalSource ? SOURCE_LABEL_HEIGHT : 16;
-      const placeSourceSprite = () => {
+        ? preferredSourceWidth
+        : Math.min(preferredSourceWidth, width - PANEL_PADDING * 2);
+      sourceHeight = sourceWidth * CARD_ASPECT_RATIO;
+      placeSourceSprite = () => {
         const rotated =
           sourceSprite.horizontalFrame && !this.promptCardState(sourceCard).horizontalFlipped;
         sourceSprite.rotation = rotated ? -Math.PI / 2 : 0;
@@ -2821,27 +2870,33 @@ export class PromptLayer {
         const scale = sourceWidth / cardWidth;
         sourceSprite.scale.set(scale);
         sourceSprite.syncHandControlsScale();
-        sourceSprite.position.set(left + (cardWidth * scale) / 2, top + (cardHeight * scale) / 2);
+        sourceSprite.position.set(
+          sourceX + (cardWidth * scale) / 2,
+          sourceY + (cardHeight * scale) / 2,
+        );
       };
       sourceSprite.onReorient = placeSourceSprite;
-      placeSourceSprite();
       sourceSprite.cursor = "pointer";
       sourceSprite.accessible = true;
       sourceSprite.accessibleTitle = `${sourceCard.identity.name}, source card`;
       sourceSprite.accessibleHint = "Focus or hover, then change view or flip face";
       sourceSprite.tabIndex = 0;
       this.bindPromptCardActivation(sourceSprite, sourceCard, sourceSprite);
-      panel.addChild(sourceSprite);
-      if (externalSource) {
-        const label = promptText("SOURCE", 10, this.theme.appTheme["muted-foreground"], {
-          weight: "700",
-        });
-        label.position.set(sourceLeft, 0);
-        panel.addChild(label);
-      }
+      sourceLabel = promptText("SOURCE", 10, this.theme.appTheme["muted-foreground"], {
+        weight: "700",
+        letterSpacing: 0.8,
+      });
+      (sourceRail ?? panel).addChild(sourceSprite, sourceLabel);
+      if (sourceRail) panel.addChild(sourceRail);
     }
+    const stackSource =
+      !!sourceSprite &&
+      !externalSource &&
+      width - PANEL_PADDING * 2 - sourceWidth < GAME_CARD_SIZES.hand.width;
     const titleX =
-      sourceSprite && !externalSource ? PANEL_PADDING + sourceWidth + 16 : PANEL_PADDING;
+      sourceSprite && !externalSource && !stackSource
+        ? PANEL_PADDING + sourceWidth + 16
+        : PANEL_PADDING;
     const title = promptRichText(
       presentation.title,
       this.viewportWidth < 760 ? 18 : 22,
@@ -2851,8 +2906,32 @@ export class PromptLayer {
     );
     title.position.set(titleX, 16);
     panel.addChild(title);
-    let bodyTop = 16 + title.height + 8;
-    if (sourceSprite && !externalSource) bodyTop = Math.max(bodyTop, 16 + sourceSprite.height + 8);
+    let bodyTop = Math.max(56, 16 + title.height + 8);
+    if (sourceSprite && sourceLabel && placeSourceSprite) {
+      if (externalSource) {
+        sourceX = 0;
+        sourceY = SOURCE_LABEL_HEIGHT;
+        sourceLabel.position.set(0, 0);
+        sourceRail!.position.x = sourceRailX - x;
+        panel.hitArea = new Rectangle(
+          0,
+          0,
+          sourceRail!.position.x + sourceWidth,
+          Math.max(height, SOURCE_LABEL_HEIGHT + sourceHeight),
+        );
+      } else if (stackSource) {
+        sourceX = (width - sourceWidth) / 2;
+        sourceY = bodyTop + SOURCE_LABEL_HEIGHT + 4;
+        sourceLabel.position.set(sourceX, bodyTop + 4);
+        bodyTop = sourceY + sourceHeight + 8;
+      } else {
+        sourceX = PANEL_PADDING;
+        sourceY = SOURCE_LABEL_HEIGHT + 8;
+        sourceLabel.position.set(sourceX, 8);
+        bodyTop = Math.max(bodyTop, sourceY + sourceHeight + 8);
+      }
+      placeSourceSprite();
+    }
     if (presentation.description) {
       const description = promptRichText(
         presentation.description,
@@ -2860,7 +2939,7 @@ export class PromptLayer {
         this.theme.appTheme.foreground,
         width - PANEL_PADDING * 2,
       );
-      description.alpha = 0.9;
+      description.alpha = 1;
       description.position.set(PANEL_PADDING, bodyTop);
       panel.addChild(description);
       bodyTop += description.height + 6;
@@ -2869,13 +2948,15 @@ export class PromptLayer {
       const rules = promptRichText(
         presentation.text,
         12,
-        this.theme.appTheme["muted-foreground"],
+        this.theme.appTheme.foreground,
         width - PANEL_PADDING * 2,
       );
       rules.position.set(PANEL_PADDING, bodyTop);
       panel.addChild(rules);
       bodyTop += rules.height + 8;
     }
+    const headerHeight = bodyTop;
+    this.drawModalChromeSurface(panelBackground, 0, 0, width, headerHeight);
     if (minimizable) {
       const minimize = this.makeButton("", this.spec!.onHideModal, {
         title: "Minimize prompt",
@@ -2884,11 +2965,16 @@ export class PromptLayer {
         compact: true,
         width: 32,
       });
-      minimize.position.set(width - 18, -14);
+      minimize.position.set(width - PANEL_PADDING - 32, 12);
       panel.addChild(minimize);
     }
+    bodyTop = headerHeight + PROMPT_CHROME_GAP;
 
-    const viewportHeight = Math.max(0, height - bodyTop - footerHeight - MODAL_BODY_BOTTOM_PADDING);
+    const footerGap = footerHeight > 0 ? PROMPT_CHROME_GAP : 0;
+    const viewportHeight = Math.max(
+      0,
+      height - bodyTop - footerHeight - footerGap - MODAL_BODY_BOTTOM_PADDING,
+    );
     const mask = new Graphics()
       .rect(PANEL_PADDING, bodyTop, width - PANEL_PADDING * 2, viewportHeight)
       .fill({ color: hexToNum(this.theme.appTheme.foreground) });
@@ -2910,12 +2996,8 @@ export class PromptLayer {
     let footerBackground: Graphics | null = null;
     if (footerHeight > 0) {
       const footerTop = height - footerHeight;
-      footerBackground = new Graphics()
-        .rect(0, footerTop, width, footerHeight)
-        .fill({ color: hexToNum(this.theme.appTheme.card), alpha: 0.98 })
-        .moveTo(0, footerTop)
-        .lineTo(width, footerTop)
-        .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.8 });
+      footerBackground = new Graphics();
+      this.drawModalChromeSurface(footerBackground, 0, footerTop, width, footerHeight);
       footer.position.set(
         PANEL_PADDING,
         footerTop + Math.max(8, (footerHeight - footerContentHeight) / 2),
@@ -2929,11 +3011,12 @@ export class PromptLayer {
       panelBackground,
       body,
       bodyTop,
+      headerHeight,
       width,
       height,
-      hitWidth: externalSource ? sourceLeft + externalSourceCardWidth : width,
-      externalSourceHeight:
-        externalSource && sourceSprite ? SOURCE_LABEL_HEIGHT + sourceSprite.height : 0,
+      hitWidth: externalSource ? sourceRail!.position.x + sourceWidth : width,
+      externalSourceHeight: externalSource ? SOURCE_LABEL_HEIGHT + sourceHeight : 0,
+      sourceRail,
       footerHeight,
       footerContentHeight,
       footer,
@@ -2949,18 +3032,15 @@ export class PromptLayer {
 
   private resizeModalShell(state: NonNullable<PromptLayer["modalBody"]>, height: number): void {
     state.height = height;
+    const footerGap = state.footerHeight > 0 ? PROMPT_CHROME_GAP : 0;
     state.viewportHeight = Math.max(
       0,
-      height - state.bodyTop - state.footerHeight - MODAL_BODY_BOTTOM_PADDING,
+      height - state.bodyTop - state.footerHeight - footerGap - MODAL_BODY_BOTTOM_PADDING,
     );
     const layoutHeight = Math.max(height, state.externalSourceHeight);
     state.panel.position.y = (this.viewportHeight - layoutHeight) / 2;
     state.panel.hitArea = new Rectangle(0, 0, state.hitWidth, layoutHeight);
-    state.panelBackground
-      .clear()
-      .roundRect(0, 0, state.width, height, 12)
-      .fill({ color: hexToNum(this.theme.appTheme.card), alpha: 0.97 })
-      .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.9 });
+    this.drawModalChromeSurface(state.panelBackground, 0, 0, state.width, state.headerHeight);
     state.mask
       .clear()
       .rect(PANEL_PADDING, state.bodyTop, state.width - PANEL_PADDING * 2, state.viewportHeight)
@@ -2971,13 +3051,13 @@ export class PromptLayer {
       .fill({ color: hexToNum(this.theme.appTheme.border), alpha: 0.5 });
     if (state.footerBackground) {
       const footerTop = height - state.footerHeight;
-      state.footerBackground
-        .clear()
-        .rect(0, footerTop, state.width, state.footerHeight)
-        .fill({ color: hexToNum(this.theme.appTheme.card), alpha: 0.98 })
-        .moveTo(0, footerTop)
-        .lineTo(state.width, footerTop)
-        .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.8 });
+      this.drawModalChromeSurface(
+        state.footerBackground,
+        0,
+        footerTop,
+        state.width,
+        state.footerHeight,
+      );
       state.footer.position.set(
         PANEL_PADDING,
         footerTop + Math.max(8, (state.footerHeight - state.footerContentHeight) / 2),
@@ -3016,7 +3096,11 @@ export class PromptLayer {
     state.body.mask = mask;
     const contentHeight = Math.max(0, bounds.y + bounds.height);
     const requiredHeight = Math.ceil(
-      state.bodyTop + contentHeight + state.footerHeight + MODAL_BODY_BOTTOM_PADDING,
+      state.bodyTop +
+        contentHeight +
+        state.footerHeight +
+        (state.footerHeight > 0 ? PROMPT_CHROME_GAP : 0) +
+        MODAL_BODY_BOTTOM_PADDING,
     );
     const fittedHeight = Math.min(
       this.viewportHeight - MODAL_VIEWPORT_MARGIN,
@@ -3058,7 +3142,7 @@ export class PromptLayer {
     denyLabel: string,
     confirmLabel: string,
   ): void {
-    const width = Math.min(520, this.viewportWidth - 24);
+    const width = this.modalPromptWidth(520);
     const height = Math.min(280, this.viewportHeight - 24);
     const footerHeight = 64;
     const buttonHeight = 44;
@@ -3069,7 +3153,6 @@ export class PromptLayer {
       height,
       presentation,
       true,
-      false,
       footerHeight,
       buttonHeight,
     );
@@ -3084,7 +3167,7 @@ export class PromptLayer {
         height: buttonHeight,
       }),
     ];
-    this.addButtonRow(footer, buttons, 0, availableWidth);
+    this.addModalFooterActions(footer, buttons, availableWidth);
   }
 
   private renderSelection(
@@ -3103,7 +3186,7 @@ export class PromptLayer {
       : indexedOptions;
     const autoConfirm = minTotal === 1 && maxTotal === 1;
     const visibleRowCount = Math.max(1, Math.min(visibleOptions.length, 7));
-    const width = Math.min(560, this.viewportWidth - 24);
+    const width = this.modalPromptWidth(560);
     const height = Math.min(
       Math.max(260, 132 + visibleRowCount * 66 + (showFilter ? 48 : 0) + (autoConfirm ? 0 : 52)),
       this.viewportHeight - 24,
@@ -3113,7 +3196,6 @@ export class PromptLayer {
       height,
       presentation,
       true,
-      false,
       autoConfirm ? 0 : 60,
     );
     const availableWidth = width - PANEL_PADDING * 2;
@@ -3376,8 +3458,7 @@ export class PromptLayer {
         },
         { disabled: !canConfirm, width: 130 },
       );
-      confirm.position.set(availableWidth - confirm.buttonWidth, 0);
-      footer.addChild(confirm);
+      this.addModalFooterActions(footer, [confirm], availableWidth);
     }
   }
 
@@ -3396,7 +3477,7 @@ export class PromptLayer {
     max: number,
     reveal: boolean,
   ): void {
-    const width = Math.min(CARD_MODAL_MAX_WIDTH, this.viewportWidth - 24);
+    const width = this.modalPromptWidth(CARD_MODAL_MAX_WIDTH);
     const cardAreaWidth = width - PANEL_PADDING * 2 - CARD_TILE_EDGE_INSET * 2;
     const { width: preferredCardWidth } = this.promptCardDimensions();
     const cardWidth = Math.min(preferredCardWidth, cardAreaWidth);
@@ -3418,7 +3499,6 @@ export class PromptLayer {
           }
         : presentation,
       true,
-      false,
       60,
     );
     const shortcuts = this.promptCardShortcutHint();
@@ -3479,8 +3559,7 @@ export class PromptLayer {
       },
       { disabled: !canConfirm, width: 136 },
     );
-    confirm.position.set(width - PANEL_PADDING * 2 - confirm.buttonWidth, 0);
-    footer.addChild(confirm);
+    this.addModalFooterActions(footer, [confirm], width - PANEL_PADDING * 2);
   }
 
   private createCardTile(
@@ -3562,7 +3641,7 @@ export class PromptLayer {
     amount: number,
     repeatAllowed: boolean,
   ): void {
-    const width = Math.min(620, this.viewportWidth - 24);
+    const width = this.modalPromptWidth(620);
     const height = Math.min(
       this.viewportHeight - 24,
       amount <= 1 ? 230 : 190 + validColors.length * 64,
@@ -3572,7 +3651,6 @@ export class PromptLayer {
       height,
       presentation,
       true,
-      false,
       amount <= 1 ? 0 : 60,
     );
     const availableWidth = width - PANEL_PADDING * 2;
@@ -3728,20 +3806,18 @@ export class PromptLayer {
       },
       { disabled: !ready, width: 120 },
     );
-    confirm.position.set(availableWidth - confirm.buttonWidth, 0);
-    footer.addChild(confirm);
+    this.addModalFooterActions(footer, [confirm], availableWidth);
   }
 
   private renderNumber(presentation: PromptPresentation, min: number, max: number): void {
     const range = max - min + 1;
-    const width = Math.min(520, this.viewportWidth - 24);
+    const width = this.modalPromptWidth(520);
     const height = Math.min(range <= 10 ? 250 : 275, this.viewportHeight - 24);
     const { body, footer } = this.createModalShell(
       width,
       height,
       presentation,
       true,
-      false,
       range <= 10 ? 0 : 60,
     );
     const availableWidth = width - PANEL_PADDING * 2;
@@ -3873,12 +3949,11 @@ export class PromptLayer {
       () => this.spec!.respond({ type: "numberDecision", chosenNumber: parsedValue }),
       { disabled: !isValid, width: 126 },
     );
-    confirm.position.set(availableWidth - confirm.buttonWidth, 0);
-    footer.addChild(confirm);
+    this.addModalFooterActions(footer, [confirm], availableWidth);
   }
 
   private renderReorder(presentation: PromptPresentation, items: ReorderItem[]): void {
-    const width = Math.min(CARD_MODAL_MAX_WIDTH, this.viewportWidth - 24);
+    const width = this.modalPromptWidth(CARD_MODAL_MAX_WIDTH);
     const contentWidth = width - PANEL_PADDING * 2;
     const zoneWidth = contentWidth - CARD_TILE_EDGE_INSET * 2;
     const { width: preferredCardWidth } = this.promptCardDimensions();
@@ -3894,15 +3969,14 @@ export class PromptLayer {
     const cardHeight = cardWidth * CARD_ASPECT_RATIO;
     const hasSourceCard = !!(this.spec?.currentPrompt?.sourceCard ?? this.spec?.sourceDeckCard);
     const sourceIsInternal =
-      hasSourceCard &&
-      (this.viewportWidth - width) / 2 - SOURCE_CARD_GAP - 12 < GAME_CARD_SIZES.preview.width;
+      hasSourceCard && width > this.viewportWidth - 24 - preferredCardWidth - SOURCE_CARD_GAP;
     const height = Math.min(
       this.viewportHeight - 24,
       cardHeight +
         REORDER_MODAL_VERTICAL_RESERVE +
         (sourceIsInternal ? preferredCardWidth * CARD_ASPECT_RATIO : 0),
     );
-    const { body, footer } = this.createModalShell(width, height, presentation, true, false, 60);
+    const { body, footer } = this.createModalShell(width, height, presentation, true, 60);
     const byId = new Map(items.map((item) => [item.id, item]));
     const shortcuts = this.promptCardShortcutHint();
     const instruction = promptText(
@@ -4037,8 +4111,7 @@ export class PromptLayer {
       () => this.spec!.respond({ type: "reorderDecision", orderedIds: [...this.order] }),
       { width: 150 },
     );
-    confirm.position.set(contentWidth - confirm.buttonWidth, 0);
-    footer.addChild(confirm);
+    this.addModalFooterActions(footer, [confirm], contentWidth);
   }
 
   private reorderCardX(zone: Rectangle, cardWidth: number, index: number, count: number): number {
@@ -4219,19 +4292,20 @@ export class PromptLayer {
     cards: CardDto[],
     zones: ScryDestination[],
   ): void {
-    const width = Math.min(CARD_MODAL_MAX_WIDTH, this.viewportWidth - 24);
+    const width = this.modalPromptWidth(Number.POSITIVE_INFINITY);
     const poolWidth = width - PANEL_PADDING * 2;
     const zoneGap = 12;
     const zoneWidth = (poolWidth - zoneGap * (zones.length - 1)) / Math.max(1, zones.length);
-    const preferredCardWidth = Math.min(180, this.promptCardDimensions().width);
+    const stackDepth = Math.min(64, Math.max(0, cards.length - 1) * 16);
+    const height = this.viewportHeight - MODAL_VIEWPORT_MARGIN;
+    const { body, footer } = this.createModalShell(width, height, presentation, true, 64);
+    const maxCardHeight = Math.max(
+      112,
+      (this.modalBody!.viewportHeight - SCRY_CONTENT_VERTICAL_SPACING - stackDepth) / 2,
+    );
+    const preferredCardWidth = this.promptCardDimensions(maxCardHeight).width;
     const cardWidth = Math.min(preferredCardWidth, Math.max(92, zoneWidth - 20));
     const cardHeight = cardWidth * CARD_ASPECT_RATIO;
-    const stackDepth = Math.min(64, Math.max(0, cards.length - 1) * 16);
-    const height = Math.min(
-      this.viewportHeight - 24,
-      Math.max(500, cardHeight * 2 + SCRY_BODY_VERTICAL_RESERVE + stackDepth),
-    );
-    const { body, footer } = this.createModalShell(width, height, presentation, true, false, 64);
     body.sortableChildren = true;
     const byId = new Map(cards.map((card) => [card.id, card]));
     const poolLabel = promptText("CARDS TO PLACE", 11, this.theme.appTheme["muted-foreground"], {
@@ -4415,8 +4489,7 @@ export class PromptLayer {
       },
       { disabled: !allPlaced, width: 120 },
     );
-    confirm.position.set(poolWidth - confirm.buttonWidth, 0);
-    footer.addChild(confirm);
+    this.addModalFooterActions(footer, [confirm], poolWidth);
   }
 
   private findDropZone(x: number, y: number): DropZone | undefined {
@@ -4580,7 +4653,7 @@ export class PromptLayer {
   private renderDamageOrder(): void {
     const damageOrder = this.spec!.damageOrder;
     if (!damageOrder) return;
-    const width = Math.min(540, this.viewportWidth - 24);
+    const width = this.modalPromptWidth(540);
     const height = Math.min(this.viewportHeight - 24, 270 + damageOrder.blockerCards.length * 72);
     const input = this.spec!.currentPrompt?.input;
     const targets: TargetRef[] =
@@ -4603,7 +4676,7 @@ export class PromptLayer {
       description: `${damageOrder.attackerName} is blocked by ${damageOrder.blockerCards.length} creatures. Choose which blocker receives damage first.`,
       targets,
     };
-    const { body, footer } = this.createModalShell(width, height, presentation, true, true, 60);
+    const { body, footer } = this.createModalShell(width, height, presentation, true, 60);
     const availableWidth = width - PANEL_PADDING * 2;
     const selectedCount = damageOrder.order.length;
     const complete =
@@ -4733,12 +4806,11 @@ export class PromptLayer {
       icon: "lucide-swords",
       width: 156,
     });
-    confirm.position.set(availableWidth - confirm.buttonWidth, 0);
-    footer.addChild(confirm);
+    this.addModalFooterActions(footer, [confirm], availableWidth);
   }
 
   private renderCombatDamage(input: ChooseCombatDamageAssignmentInput): void {
-    const width = Math.min(600, this.viewportWidth - 24);
+    const width = this.modalPromptWidth(600);
     const availableWidth = width - PANEL_PADDING * 2;
     const assignees = [...input.blockerIds, ...(input.defenderId ? [input.defenderId] : [])];
     const height = Math.min(this.viewportHeight - 24, 330 + assignees.length * 74);
@@ -4761,7 +4833,7 @@ export class PromptLayer {
         : undefined,
       targets,
     };
-    const { body, footer } = this.createModalShell(width, height, presentation, true, true, 60);
+    const { body, footer } = this.createModalShell(width, height, presentation, true, 60);
     const assigned = Object.values(this.damageAssigned).reduce((sum, damage) => sum + damage, 0);
     const remaining = input.totalDamage - assigned;
     const metricWidth = (availableWidth - 16) / 3;
@@ -4994,8 +5066,8 @@ export class PromptLayer {
         }),
       { disabled: !legal, width: 126 },
     );
-    confirm.position.set(availableWidth - confirm.buttonWidth, 0);
-    footer.addChild(reset, auto, confirm);
+    footer.addChild(reset, auto);
+    this.addModalFooterActions(footer, [confirm], availableWidth);
   }
 
   private combatLabel(id: string): string {
@@ -5146,7 +5218,7 @@ export class PromptLayer {
     const maxRound = Math.max(0, ...visibleEntries.map((entry) => entry.round));
     this.rollDurationMs = rollDuration(visibleEntries.length, maxRound);
     this.rollSettled = !animationsEnabled() || this.rollElapsedMs >= this.rollDurationMs;
-    const width = Math.min(620, this.viewportWidth - 24);
+    const width = this.modalPromptWidth(620);
     const landingColumns = Math.max(1, Math.ceil(Math.sqrt(visibleEntries.length)));
     const landingRows = Math.max(1, Math.ceil(visibleEntries.length / landingColumns));
     const dieSize = Math.min(
@@ -5162,11 +5234,13 @@ export class PromptLayer {
       height,
       { ...presentation, title },
       true,
-      false,
       footerHeight,
     );
     const availableWidth = width - PANEL_PADDING * 2;
-    const bodyHeight = Math.max(0, height - bodyTop - footerHeight - MODAL_BODY_BOTTOM_PADDING);
+    const bodyHeight = Math.max(
+      0,
+      height - bodyTop - footerHeight - PROMPT_CHROME_GAP - MODAL_BODY_BOTTOM_PADDING,
+    );
     const resultBottom = winner ? Math.max(0, bodyHeight - 58) : bodyHeight;
     const throwBottom = winner ? resultBottom - 12 : bodyHeight - 12;
     const arenaTop = 8;
@@ -5327,8 +5401,7 @@ export class PromptLayer {
       width: 120,
     });
     this.rollConfirm = confirm;
-    confirm.position.set(width - PANEL_PADDING * 2 - confirm.buttonWidth, 0);
-    footer.addChild(confirm);
+    this.addModalFooterActions(footer, [confirm], width - PANEL_PADDING * 2);
     this.startRollAnimation(particleLayer);
   }
 

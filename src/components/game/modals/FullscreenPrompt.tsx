@@ -69,7 +69,7 @@ function FullscreenPromptHeader({
     >
       <div
         className={cn(
-          "pointer-events-auto mx-auto flex max-w-5xl flex-wrap items-center gap-2 rounded-2xl border bg-card/90 p-2 shadow-2xl backdrop-blur-xl sm:flex-nowrap sm:gap-3",
+          "pointer-events-auto mx-auto flex max-w-5xl flex-wrap items-center gap-2 rounded-2xl border bg-card/95 p-2 shadow-2xl backdrop-blur-xl sm:flex-nowrap sm:gap-3",
           panelClassName,
         )}
       >
@@ -121,13 +121,25 @@ function FullscreenPromptFooter({
     >
       <div
         className={cn(
-          "pointer-events-auto mx-auto flex max-w-3xl flex-wrap items-center gap-3 rounded-2xl border bg-card/90 p-3 shadow-2xl backdrop-blur-xl sm:flex-nowrap",
+          "pointer-events-auto mx-auto flex max-w-3xl flex-wrap items-center gap-3 rounded-2xl border bg-card/95 p-3 shadow-2xl backdrop-blur-xl sm:flex-nowrap",
           panelClassName,
         )}
       >
         {children}
       </div>
     </footer>
+  );
+}
+
+function FullscreenPromptActions({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("ml-auto flex shrink-0 items-center gap-2", className)}>{children}</div>
   );
 }
 
@@ -155,4 +167,5 @@ FullscreenPrompt.Header = FullscreenPromptHeader;
 FullscreenPrompt.Title = FullscreenPromptTitle;
 FullscreenPrompt.Stage = FullscreenPromptStage;
 FullscreenPrompt.Footer = FullscreenPromptFooter;
+FullscreenPrompt.Actions = FullscreenPromptActions;
 FullscreenPrompt.Close = FullscreenPromptClose;

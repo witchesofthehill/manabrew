@@ -286,14 +286,16 @@ function ZoneViewerContent({
           Scroll or drag · Arrow keys browse · R changes view · F flips
         </p>
         {onClickCard && (
-          <Button
-            className="min-w-44"
-            disabled={pending || !active || (!active.legal && !active.selected)}
-            onClick={activate}
-          >
-            {pending && <LoaderCircle className={cn(animationsEnabled() && "animate-spin")} />}
-            {pending ? "Waiting for response…" : actionText}
-          </Button>
+          <FullscreenPrompt.Actions>
+            <Button
+              className="min-w-44"
+              disabled={pending || !active || (!active.legal && !active.selected)}
+              onClick={activate}
+            >
+              {pending && <LoaderCircle className={cn(animationsEnabled() && "animate-spin")} />}
+              {pending ? "Waiting for response…" : actionText}
+            </Button>
+          </FullscreenPrompt.Actions>
         )}
       </FullscreenPrompt.Footer>
     </FullscreenPrompt>

@@ -46,7 +46,7 @@ export function TableSeatChip({
         <div
           role="img"
           title={i18n._(msg`Open seat`)}
-          aria-label={`Seat ${seatIndex + 1}: open`}
+          aria-label={i18n._(msg`Seat ${seatIndex + 1}: open`)}
           style={style}
           className={cn(
             "flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-border/70 bg-card text-muted-foreground/40",
@@ -65,7 +65,7 @@ export function TableSeatChip({
       <button
         type="button"
         title={i18n._(msg`Take this seat`)}
-        aria-label={`Take seat ${seatIndex + 1}`}
+        aria-label={i18n._(msg`Take seat ${seatIndex + 1}`)}
         onClick={onTakeSeat}
         style={style}
         className={cn(
@@ -92,7 +92,7 @@ export function TableSeatChip({
     <div
       role="group"
       title={label}
-      aria-label={`Seat ${seatIndex + 1}: ${accessibleLabel}`}
+      aria-label={i18n._(msg`Seat ${seatIndex + 1}: ${accessibleLabel}`)}
       style={style}
       className={cn("flex flex-col items-center gap-0.5", className)}
     >
@@ -140,7 +140,7 @@ export function TableSeatChip({
           <button
             type="button"
             title={i18n._(msg`Remove bot`)}
-            aria-label={`Remove ${name}`}
+            aria-label={i18n._(msg`Remove ${name}`)}
             onClick={(event) => {
               event.stopPropagation();
               onRemove();

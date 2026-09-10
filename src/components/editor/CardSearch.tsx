@@ -1287,7 +1287,7 @@ export function CardSearch({
                     symbol={f.id}
                     active={advanced.colorIdentity.has(f.id)}
                     onClick={() => toggleAdvSet("colorIdentity", f.id)}
-                    title={`Color Identity: ${f.title}`}
+                    title={i18n._(msg`Color Identity: ${f.title}`)}
                   />
                 ))}
               </div>
@@ -1304,7 +1304,7 @@ export function CardSearch({
                     symbol={f.id}
                     active={advanced.produces.has(f.id)}
                     onClick={() => toggleAdvSet("produces", f.id)}
-                    title={`Produces ${f.title} mana`}
+                    title={i18n._(msg`Produces ${f.title} mana`)}
                   />
                 ))}
               </div>

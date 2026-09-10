@@ -119,7 +119,7 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
               key={color}
               onClick={() => adjustMana(player.id, color, 1)}
               className="grid size-7 place-items-center rounded-md hover:bg-accent pointer-coarse:size-9"
-              aria-label={`Add ${color} mana`}
+              aria-label={i18n._(msg`Add ${color} mana`)}
             >
               <ScryfallImg src={manaSymbolUrl(color)} alt="" className="size-4" draggable={false} />
             </button>
@@ -143,7 +143,7 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
                 key === player.accentKey ? "border-foreground" : "border-transparent",
               )}
               style={{ backgroundColor: COMPANION_ACCENT_COLORS[key] }}
-              aria-label={`Accent ${key}`}
+              aria-label={i18n._(msg`Accent ${key}`)}
             />
           ))}
         </div>

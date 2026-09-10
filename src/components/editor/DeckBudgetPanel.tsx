@@ -50,7 +50,7 @@ export function DeckBudgetPanel() {
   const setEditorMetadata = useDeckStore((state) => state.setEditorMetadata);
   const [prices, setPrices] = useState<Record<string, CardPrices>>({});
   const provider: PriceProvider = deck.editor?.priceProvider ?? "tcgplayer";
-  const budgetEdit = useDeckEditTransaction("Update deck budget");
+  const budgetEdit = useDeckEditTransaction(i18n._(msg`Update deck budget`));
   const providerConfig = PRICE_PROVIDERS[provider];
   const printings = useMemo(
     () =>
@@ -129,7 +129,7 @@ export function DeckBudgetPanel() {
                 value={provider}
                 className="h-8 rounded-md border bg-background px-2 text-xs"
                 onChange={(event) =>
-                  executeDeckEdit("Change price provider", () =>
+                  executeDeckEdit(i18n._(msg`Change price provider`), () =>
                     updateEditorMetadata({ priceProvider: event.target.value as PriceProvider }),
                   )
                 }
@@ -174,9 +174,9 @@ export function DeckBudgetPanel() {
             )}
             {unavailable > 0 && (
               <p className="text-[10px] text-muted-foreground">
-                <Trans>
-                  {unavailable} {unavailable === 1 ? "card" : "cards"} unavailable
-                </Trans>
+                {unavailable === 1
+                  ? i18n._(msg`One card unavailable`)
+                  : i18n._(msg`${unavailable} cards unavailable`)}
               </p>
             )}
           </div>

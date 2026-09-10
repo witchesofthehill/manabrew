@@ -141,7 +141,7 @@ export function UserList({
       if (password) throw error;
       const code = error instanceof Error ? error.message : "";
       const message = USER_FACING_ERROR_MESSAGES[code as ServerErrorCode];
-      toast.error(message ?? "Couldn't join the table.");
+      toast.error(message ?? i18n._(msg`Couldn't join the table.`));
     } finally {
       setJoiningRoomId(null);
     }
@@ -187,7 +187,7 @@ export function UserList({
         className={PLAYER_ROW_ACTION_CLASS}
         disabled={joiningRoomId === room.room_id}
         onClick={() => requestJoin(room)}
-        title={`Join ${room.room_name}`}
+        title={i18n._(msg`Join ${room.room_name}`)}
       >
         {joiningRoomId === room.room_id ? i18n._(msg`Joining\u2026`) : i18n._(msg`Join`)}
       </Button>

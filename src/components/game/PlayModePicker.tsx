@@ -6,6 +6,8 @@ import { MODAL_CARD_THUMBNAIL } from "./game.styles";
 import type { DeckCard } from "@/protocol/deck";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { Trans } from "@lingui/react/macro";
+import { useCard } from "@/stores/useScryfallStore";
+import { localizeRulesPreviewText } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
 interface PlayModePickerProps {
   card: DeckCard;
   options: HandActionOption[];
@@ -13,6 +15,11 @@ interface PlayModePickerProps {
   onCancel: () => void;
 }
 export function PlayModePicker({ card, options, onSelect, onCancel }: PlayModePickerProps) {
+  const info = useCard({
+    name: card.identity.name,
+    setCode: card.identity.setCode,
+    cardNumber: card.identity.cardNumber,
+  })?.info;
   return (
     <Modal onClose={onCancel} maxWidth="max-w-sm" maxHeight="">
       <Modal.Header>
@@ -35,7 +42,7 @@ export function PlayModePicker({ card, options, onSelect, onCancel }: PlayModePi
             className="w-full justify-between gap-2 text-sm"
             onClick={() => onSelect(opt)}
           >
-            <DynamicTextRender text={opt.label} />
+            <DynamicTextRender text={localizeRulesPreviewText(opt.label, info ?? null, 0)} />
             {opt.cost && <DynamicTextRender className="opacity-90" text={opt.cost} />}
           </Button>
         ))}

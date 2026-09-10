@@ -75,7 +75,9 @@ export default function Sealed() {
             disabled={isStarting || !id || activeSealed.aiDecks.length === 0 || mainShortBy > 0}
             title={
               mainShortBy > 0
-                ? `Main deck needs ${mainShortBy} more card${mainShortBy === 1 ? "" : "s"} to start`
+                ? mainShortBy === 1
+                  ? i18n._(msg`Main deck needs one more card to start`)
+                  : i18n._(msg`Main deck needs ${mainShortBy} more cards to start`)
                 : undefined
             }
             onClick={async () => {

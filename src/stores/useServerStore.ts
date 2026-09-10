@@ -156,7 +156,9 @@ async function handleDuplicateRejection() {
   if (!username) return;
   if ((await probeTabSession(username)) === "held") {
     await stopReconnectAsDuplicate(
-      "You are signed in in another tab of this browser. Close it, or connect here to take over.",
+      i18n._(
+        msg`You are signed in in another tab of this browser. Close it, or connect here to take over.`,
+      ),
     );
     return;
   }
@@ -210,9 +212,8 @@ export const useServerStore = create<ServerState>()(
         if (claim.outcome === "refused") {
           set({
             connecting: false,
-            error: "You are hosting a game in another tab. Finish or close it first.",
+            error: i18n._(msg`You are hosting a game in another tab. Finish or close it first.`),
           });
-          return;
         }
         try {
           await platform.server.connect({ host, port, username, password, lan });
@@ -579,7 +580,7 @@ export const useServerStore = create<ServerState>()(
               return;
             }
             const message = USER_FACING_ERROR_MESSAGES[payload.code as ServerErrorCode];
-            toast.error(message ?? payload.message ?? `Server error: ${payload.code}`);
+            toast.error(message ?? i18n._(msg`Server error: ${payload.code}`));
           }),
         );
         unsubscribers.push(

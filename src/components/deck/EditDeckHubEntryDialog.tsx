@@ -82,7 +82,9 @@ export function EditDeckHubEntryDialog({
       onOpenChange(false);
       toast.success(i18n._(msg`Publication details updated`));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update publication");
+      toast.error(
+        error instanceof Error ? error.message : i18n._(msg`Failed to update publication`),
+      );
     } finally {
       setBusy(false);
     }

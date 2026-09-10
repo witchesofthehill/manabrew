@@ -142,7 +142,9 @@ export function CreateGameDialog({
       .catch((err) => {
         if (hubSelectionRequestIdRef.current !== requestId) return;
         restoredHubDeckRef.current = null;
-        toast.error(err instanceof Error ? err.message : "Failed to load Community deck");
+        toast.error(
+          err instanceof Error ? err.message : i18n._(msg`Failed to load Community deck`),
+        );
       })
       .finally(() => {
         if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
@@ -330,7 +332,7 @@ export function CreateGameDialog({
       if (activate) handleCreate(entry, entry.commanderName);
     } catch (err) {
       if (hubSelectionRequestIdRef.current !== requestId) return;
-      toast.error(err instanceof Error ? err.message : "Failed to load Community deck");
+      toast.error(err instanceof Error ? err.message : i18n._(msg`Failed to load Community deck`));
     } finally {
       if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
     }
@@ -363,7 +365,7 @@ export function CreateGameDialog({
           selectedFormat,
         );
     if (!validation.legal && !allowIllegalDecks) {
-      toast.warning(validation.errors[0] ?? "Deck is not legal in this format");
+      toast.warning(validation.errors[0] ?? i18n._(msg`Deck is not legal in this format`));
       return;
     }
     if (needsCommander && !(commander || entry.commanderName)) {

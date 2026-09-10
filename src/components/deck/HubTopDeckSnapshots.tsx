@@ -83,7 +83,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
       return;
     }
     void setFavorite(ranked.entry.id, !ranked.entry.favorited).catch((error) =>
-      toast.error(error instanceof Error ? error.message : "Failed to update favorite"),
+      toast.error(error instanceof Error ? error.message : i18n._(msg`Failed to update favorite`)),
     );
   }
   function rankedDeck(ranked: TopDeckSnapshotEntry, variant: "card" | "hero" | "stage" = "card") {

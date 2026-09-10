@@ -103,7 +103,7 @@ export function ImportDeckTextDialog({
       if (applied !== false) onOpenChange(false);
       else setImporting(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Import failed");
+      toast.error(e instanceof Error ? e.message : i18n._(msg`Import failed`));
       setImporting(false);
     }
   }, [valid, importing, entries, name, formatId, onImport, onOpenChange]);
@@ -191,19 +191,19 @@ export function ImportDeckTextDialog({
                         <td className="px-3 py-2 font-medium">{entry.name}</td>
                         <td className="px-3 py-2 text-muted-foreground">
                           {isDetectedCommander(entry)
-                            ? "Command zone"
+                            ? i18n._(msg`Command zone`)
                             : entry.side
-                              ? "Sideboard"
+                              ? i18n._(msg`Sideboard`)
                               : entry.maybe
-                                ? "Maybeboard"
-                                : "Main deck"}
+                                ? i18n._(msg`Maybeboard`)
+                                : i18n._(msg`Main deck`)}
                         </td>
                         <td className="px-3 py-2 text-muted-foreground">
                           {entry.setCode
-                            ? `${entry.setCode.toUpperCase()}${entry.collectorNumber ? ` #${entry.collectorNumber}` : ""}${entry.foil ? " · foil" : ""}`
+                            ? `${entry.setCode.toUpperCase()}${entry.collectorNumber ? ` #${entry.collectorNumber}` : ""}${entry.foil ? i18n._(msg` · foil`) : ""}`
                             : entry.foil
-                              ? "Foil · default printing"
-                              : "Default printing"}
+                              ? i18n._(msg`Foil · default printing`)
+                              : i18n._(msg`Default printing`)}
                         </td>
                       </tr>
                     ))}
@@ -212,11 +212,11 @@ export function ImportDeckTextDialog({
               </div>
               {unrecognizedLines.length > 0 && (
                 <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-                  <Trans>
-                    {unrecognizedLines.length} card line
-                    {unrecognizedLines.length === 1 ? " was" : "s were"} not recognized and will be
-                    skipped.
-                  </Trans>
+                  {unrecognizedLines.length === 1
+                    ? i18n._(msg`One card line was not recognized and will be skipped.`)
+                    : i18n._(
+                        msg`${unrecognizedLines.length} card lines were not recognized and will be skipped.`,
+                      )}
                 </div>
               )}
               <p className="text-xs text-muted-foreground">
@@ -231,10 +231,8 @@ export function ImportDeckTextDialog({
                 <Trans>Cancel</Trans>
               </Button>
               <Button size="sm" className="gap-1" onClick={() => void handleImportClick()}>
-                <Trans>
-                  <Download className="h-3.5 w-3.5" />
-                  Confirm {mode === "add" ? "addition" : "import"}
-                </Trans>
+                <Download className="h-3.5 w-3.5" />
+                {mode === "add" ? i18n._(msg`Confirm addition`) : i18n._(msg`Confirm import`)}
               </Button>
             </div>
           </>
@@ -369,11 +367,11 @@ export function ImportDeckTextDialog({
                 disabled={!valid}
                 className={cn("gap-1 transition-all", valid && "ring-2 ring-primary/40")}
               >
-                <Trans>
-                  <Download className="h-3.5 w-3.5" />
-                  Review {mode === "add" ? "addition" : "import"}
-                  {valid ? ` ${mainCount + sideCount + maybeCount + commanderCount} cards` : ""}
-                </Trans>
+                <Download className="h-3.5 w-3.5" />
+                {mode === "add" ? i18n._(msg`Review addition`) : i18n._(msg`Review import`)}
+                {valid
+                  ? i18n._(msg` ${mainCount + sideCount + maybeCount + commanderCount} cards`)
+                  : ""}
               </Button>
             </div>
           </>

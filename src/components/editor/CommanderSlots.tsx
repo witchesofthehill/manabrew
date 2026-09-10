@@ -102,7 +102,7 @@ function CommandZoneCard({
               type="button"
               className="rounded-full bg-overlay/70 p-0.5 text-muted-foreground shadow transition-colors hover:text-foreground"
               title={i18n._(msg`Change printing`)}
-              aria-label={`Change printing for ${card.identity.name}`}
+              aria-label={i18n._(msg`Change printing for ${card.identity.name}`)}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation();
@@ -115,7 +115,7 @@ function CommandZoneCard({
           <button
             type="button"
             className="rounded-full bg-overlay/70 p-0.5 text-muted-foreground shadow transition-colors hover:text-destructive"
-            title={`Remove ${card.identity.name} from the command zone`}
+            title={i18n._(msg`Remove ${card.identity.name} from the command zone`)}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
@@ -231,7 +231,7 @@ export function CommanderSlots({
               card={card}
               label={
                 commanderSlotBadge(commanders, format, index)?.label ??
-                (format === "oathbreaker" ? "Oathbreaker" : "Commander")
+                (format === "oathbreaker" ? i18n._(msg`Oathbreaker`) : i18n._(msg`Commander`))
               }
               cardWidth={cardWidth}
               readOnly={readOnly}

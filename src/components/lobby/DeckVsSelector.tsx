@@ -158,14 +158,17 @@ export function DeckVsSelector({
       .catch((err) => {
         if (hubSelectionRequestIdRef.current !== requestId) return;
         restoredHubDeckRef.current = null;
-        toast.error(err instanceof Error ? err.message : "Failed to load Community deck", {
-          action: {
-            get label() {
-              return i18n._(msg`Retry`);
+        toast.error(
+          err instanceof Error ? err.message : i18n._(msg`Failed to load Community deck`),
+          {
+            action: {
+              get label() {
+                return i18n._(msg`Retry`);
+              },
+              onClick: () => setHubRestoreAttempt((attempt) => attempt + 1),
             },
-            onClick: () => setHubRestoreAttempt((attempt) => attempt + 1),
           },
-        });
+        );
       })
       .finally(() => {
         if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
@@ -338,7 +341,7 @@ export function DeckVsSelector({
       );
     } catch (err) {
       if (hubSelectionRequestIdRef.current !== requestId) return;
-      toast.error(err instanceof Error ? err.message : "Failed to load Community deck");
+      toast.error(err instanceof Error ? err.message : i18n._(msg`Failed to load Community deck`));
     } finally {
       if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
     }
@@ -395,7 +398,7 @@ export function DeckVsSelector({
         format,
       );
       if (!validation.legal) {
-        toast.warning(validation.errors[0] ?? `"${selected.name}" is not legal`);
+        toast.warning(validation.errors[0] ?? i18n._(msg`"${selected.name}" is not legal`));
         return;
       }
     }

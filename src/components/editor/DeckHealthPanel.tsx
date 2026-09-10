@@ -79,10 +79,9 @@ export function DeckHealthPanel({
             </span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            <Trans>
-              Engine-derived roles compared with a practical{" "}
-              {commanderDeck ? "Commander" : "60-card"} baseline.
-            </Trans>
+            {commanderDeck
+              ? i18n._(msg`Engine-derived roles compared with a practical Commander baseline.`)
+              : i18n._(msg`Engine-derived roles compared with a practical 60-card baseline.`)}
           </p>
         </div>
         {pending.size > 0 && (

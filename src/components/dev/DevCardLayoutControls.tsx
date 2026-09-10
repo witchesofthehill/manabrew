@@ -120,7 +120,7 @@ export function DevCardLayoutControls() {
               )}
               disabled={loadingId !== null}
               onClick={() => void selectLayout(layoutCase)}
-              title={layoutCase.name || "Face-down card"}
+              title={layoutCase.name || i18n._(msg`Face-down card`)}
             >
               {loadingId === layoutCase.label ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />

@@ -96,7 +96,9 @@ export function ReplacementSuggestionsPanel({
       void useCardRolesStore.getState().ensureAnalyzed(nextSuggestions.map(scryfallToDeckCard));
     } catch (error) {
       if (requestId === requestIdRef.current) {
-        toast.error(error instanceof Error ? error.message : "Could not find replacements");
+        toast.error(
+          error instanceof Error ? error.message : i18n._(msg`Could not find replacements`),
+        );
       }
     } finally {
       if (requestId === requestIdRef.current) setLoading(false);
@@ -265,25 +267,31 @@ export function ReplacementSuggestionsPanel({
                 draggable={false}
               />
               <div className="mt-1 text-[10px] text-muted-foreground">
-                <Trans>
-                  Same {target.types[0]?.toLowerCase() ?? "card type"} · MV {suggestion.cmc}
-                  {collectionQuantityForName(quantities, suggestion.name) > 0
-                    ? ` · ${collectionQuantityForName(quantities, suggestion.name)} owned`
-                    : " · not owned"}
-                </Trans>
+                {collectionQuantityForName(quantities, suggestion.name) > 0
+                  ? i18n._(
+                      msg`Same ${target.types[0]?.toLowerCase() ?? i18n._(msg`card type`)} · MV ${suggestion.cmc} · ${collectionQuantityForName(quantities, suggestion.name)} owned`,
+                    )
+                  : i18n._(
+                      msg`Same ${target.types[0]?.toLowerCase() ?? i18n._(msg`card type`)} · MV ${suggestion.cmc} · not owned`,
+                    )}
               </div>
               <button
                 type="button"
                 className="absolute right-1 top-1 z-20 rounded-full bg-overlay/80 p-1 text-foreground opacity-0 shadow transition-opacity hover:bg-primary hover:text-primary-foreground group-hover:opacity-100 pointer-coarse:opacity-100"
-                title={`Replace one ${target.identity.name} with ${suggestion.name}`}
-                aria-label={`Replace one ${target.identity.name} with ${suggestion.name}`}
+                title={i18n._(msg`Replace one ${target.identity.name} with ${suggestion.name}`)}
+                aria-label={i18n._(
+                  msg`Replace one ${target.identity.name} with ${suggestion.name}`,
+                )}
                 onClick={() => {
                   const tags = deck.cardTags?.[target.identity.name.toLowerCase()] ?? [];
-                  executeDeckEdit(`Replace ${target.identity.name} with ${suggestion.name}`, () => {
-                    removeFromMain(target.identity.id);
-                    addToMain(card);
-                    for (const tag of tags) tagCard(card.identity.name, tag);
-                  });
+                  executeDeckEdit(
+                    i18n._(msg`Replace ${target.identity.name} with ${suggestion.name}`),
+                    () => {
+                      removeFromMain(target.identity.id);
+                      addToMain(card);
+                      for (const tag of tags) tagCard(card.identity.name, tag);
+                    },
+                  );
                   toast.success(
                     i18n._(msg`Replaced ${target.identity.name} with ${suggestion.name}`),
                   );

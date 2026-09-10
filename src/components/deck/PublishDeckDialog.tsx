@@ -81,20 +81,27 @@ export function PublishDeckDialog({
       if (!useHubStore.getState().capabilitiesLoaded) {
         throw new Error(
           useHubStore.getState().capabilitiesError ??
-            "Could not determine whether Community publishing is available",
+            i18n._(msg`Could not determine whether Community publishing is available`),
         );
       }
       const localSaved = savedDecks.find((saved) => saved.id === localDeckId);
       let accountDeck;
       if (localSaved?.accountDeckId) {
         if (!localSaved.accountVersionNo) {
-          throw new Error("Reload this account deck before publishing it.");
+          throw new Error(i18n._(msg`Reload this account deck before publishing it.`));
         }
         accountDeck = await useAccountDecksStore
           .getState()
-          .save(localSaved.accountDeckId, localSaved.accountVersionNo, deck, "Published update");
+          .save(
+            localSaved.accountDeckId,
+            localSaved.accountVersionNo,
+            deck,
+            i18n._(msg`Published update`),
+          );
       } else {
-        accountDeck = await useAccountDecksStore.getState().create(deck, "Initial version");
+        accountDeck = await useAccountDecksStore
+          .getState()
+          .create(deck, i18n._(msg`Initial version`));
       }
       linkSavedDeckToAccount(
         localDeckId,
@@ -120,7 +127,7 @@ export function PublishDeckDialog({
       toast.success(i18n._(msg`"${title.trim()}" published to Community`));
       handleOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Publishing failed");
+      toast.error(err instanceof Error ? err.message : i18n._(msg`Publishing failed`));
     } finally {
       setBusy(false);
     }

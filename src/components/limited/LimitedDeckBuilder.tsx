@@ -495,7 +495,7 @@ export default function LimitedDeckBuilder({
         <div className="grid flex-1 grid-cols-1 gap-3 overflow-hidden md:grid-cols-2 md:grid-rows-2 lg:grid-cols-[1.4fr_1fr_0.7fr_minmax(0,326px)] lg:grid-rows-1">
           <Zone
             className="md:row-span-2 lg:row-span-1"
-            title={`Pool (${unused.length})`}
+            title={i18n._(msg`Pool (${unused.length})`)}
             entries={pickEntries(entries, unused).filter((e) =>
               passesColorFilter(e.card, poolColorFilter, scryfallCache),
             )}
@@ -503,29 +503,29 @@ export default function LimitedDeckBuilder({
             zone="pool"
             emptyMessage={
               poolColorFilter.size > 0
-                ? "No cards match the colour filter."
-                : "Every card is in the deck or sideboard."
+                ? i18n._(msg`No cards match the colour filter.`)
+                : i18n._(msg`Every card is in the deck or sideboard.`)
             }
             onCardClick={(idx) => cycleZone(idx, "pool")}
             preview={preview}
           />
           <Zone
-            title={`Main (${main.length}/${targetMainSize})`}
+            title={i18n._(msg`Main (${main.length}/${targetMainSize})`)}
             entries={pickEntries(entries, main)}
             groupMode={groupMode}
             zone="main"
-            emptyMessage="Drag cards here, or click pool cards to add."
+            emptyMessage={i18n._(msg`Drag cards here, or click pool cards to add.`)}
             highlight={main.length >= targetMainSize ? "border-primary" : "border-border/70"}
             warnOnDrop={null}
             onCardClick={(idx) => cycleZone(idx, "main")}
             preview={preview}
           />
           <Zone
-            title={`Sideboard (${sideboard.length})`}
+            title={i18n._(msg`Sideboard (${sideboard.length})`)}
             entries={pickEntries(entries, sideboard)}
             groupMode={groupMode}
             zone="sideboard"
-            emptyMessage="Cards parked here aren't in the main deck."
+            emptyMessage={i18n._(msg`Cards parked here aren't in the main deck.`)}
             onCardClick={(idx) => cycleZone(idx, "sideboard")}
             preview={preview}
           />
@@ -596,15 +596,13 @@ export default function LimitedDeckBuilder({
                     : "border-warning/40 bg-warning/10 text-warning",
                 )}
               >
-                <Trans>
-                  {requireCompleteToSave ? "✗" : "⚠"} Main deck is {targetMainSize - main.length}{" "}
-                  card
-                  {targetMainSize - main.length === 1 ? "" : "s"} short of the {targetMainSize}-card
-                  target.
-                  {requireCompleteToSave
-                    ? " Saving is blocked until the deck is legal."
-                    : " Saving will flag the deck as a draft."}
-                </Trans>
+                {requireCompleteToSave
+                  ? i18n._(
+                      msg`✗ Main deck is ${targetMainSize - main.length} cards short of the ${targetMainSize}-card target. Saving is blocked until the deck is legal.`,
+                    )
+                  : i18n._(
+                      msg`⚠ Main deck is ${targetMainSize - main.length} cards short of the ${targetMainSize}-card target. Saving will flag the deck as a draft.`,
+                    )}
               </p>
             )}
           </div>
@@ -737,7 +735,7 @@ function Toolbar({
             variant="outline"
             onClick={() => onAddBasic(name)}
             title={name}
-            aria-label={`Add ${name}`}
+            aria-label={i18n._(msg`Add ${name}`)}
             className="h-7 px-2"
           >
             <ManaSymbols cost={`{${BASIC_LAND_MANA[name]}}`} size="sm" />
@@ -1031,22 +1029,30 @@ function renderByColor(
   entries: PoolEntry[],
   cache: Record<string, ScryfallEntry>,
 ): RenderedGroup[] {
+  const white = i18n._(msg`White`);
+  const blue = i18n._(msg`Blue`);
+  const black = i18n._(msg`Black`);
+  const red = i18n._(msg`Red`);
+  const green = i18n._(msg`Green`);
+  const multicolour = i18n._(msg`Multicolour`);
+  const colourless = i18n._(msg`Colourless`);
+  const lands = i18n._(msg`Lands`);
   const buckets: Record<string, PoolEntry[]> = {
-    White: [],
-    Blue: [],
-    Black: [],
-    Red: [],
-    Green: [],
-    Multicolour: [],
-    Colourless: [],
-    Lands: [],
+    [white]: [],
+    [blue]: [],
+    [black]: [],
+    [red]: [],
+    [green]: [],
+    [multicolour]: [],
+    [colourless]: [],
+    [lands]: [],
   };
   const colorLabel: Record<string, string> = {
-    W: "White",
-    U: "Blue",
-    B: "Black",
-    R: "Red",
-    G: "Green",
+    W: white,
+    U: blue,
+    B: black,
+    R: red,
+    G: green,
   };
   for (const entry of entries) {
     const scry = peekCard(cache, {
@@ -1055,13 +1061,13 @@ function renderByColor(
       cardNumber: entry.card.cardNumber,
     });
     if (effectiveRarity(scry) === "land") {
-      buckets.Lands.push(entry);
+      buckets[lands]!.push(entry);
       continue;
     }
     const cs = (scry?.colors ?? []).map((c) => c.toUpperCase());
-    if (cs.length === 0) buckets.Colourless.push(entry);
-    else if (cs.length >= 2) buckets.Multicolour.push(entry);
-    else buckets[colorLabel[cs[0]] ?? "Colourless"].push(entry);
+    if (cs.length === 0) buckets[colourless]!.push(entry);
+    else if (cs.length >= 2) buckets[multicolour]!.push(entry);
+    else buckets[colorLabel[cs[0]] ?? colourless]!.push(entry);
   }
   return Object.entries(buckets)
     .filter(([, list]) => list.length > 0)

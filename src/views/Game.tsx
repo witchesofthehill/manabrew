@@ -509,20 +509,20 @@ export default function Game({ exitTo }: GameProps = {}) {
           {
             kind: "manual-tap",
             cardId: card.id,
-            label: card.tapped ? "Untap" : "Tap",
+            label: card.tapped ? i18n._(msg`Untap`) : i18n._(msg`Tap`),
             tapped: !card.tapped,
           },
-          move("Move to Hand", "hand"),
-          move("Move to Graveyard", graveyardZone),
-          move("Move to Exile", exileZone),
-          move("Move to Command", commandZone),
+          move(i18n._(msg`Move to Hand`), "hand"),
+          move(i18n._(msg`Move to Graveyard`), graveyardZone),
+          move(i18n._(msg`Move to Exile`), exileZone),
+          move(i18n._(msg`Move to Command`), commandZone),
         ];
       }
       return [
-        move("Put onto Battlefield", "battlefield"),
-        move("Move to Graveyard", graveyardZone),
-        move("Move to Exile", exileZone),
-        move("Move to Command", commandZone),
+        move(i18n._(msg`Put onto Battlefield`), "battlefield"),
+        move(i18n._(msg`Move to Graveyard`), graveyardZone),
+        move(i18n._(msg`Move to Exile`), exileZone),
+        move(i18n._(msg`Move to Command`), commandZone),
       ];
     },
     [manualApi, gameView?.players],
@@ -698,8 +698,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     if (!blockRequirement) return null;
     const name =
       gameView?.battlefield.find((c) => c.id === blockRequirement.attackerId)?.identity.name ??
-      "This attacker";
-    const creatures = (n: number) => `${n} ${n === 1 ? "creature" : "creatures"}`;
+      i18n._(msg`This attacker`);
+    const creatures = (count: number) =>
+      count === 1 ? i18n._(msg`one creature`) : i18n._(msg`${count} creatures`);
     return blockRequirement.kind === "min"
       ? i18n._(
           msg`${name} must be blocked by ${creatures(blockRequirement.count)} (${blockRequirement.assigned} assigned).`,
@@ -712,27 +713,28 @@ export default function Game({ exitTo }: GameProps = {}) {
     const must = chooseAttackersInput?.attackers.filter((a) => a.mustAttack) ?? [];
     if (must.length === 0) return null;
     const nameOf = (id: string) =>
-      gameView?.battlefield.find((c) => c.id === id)?.identity.name ?? "A creature";
+      gameView?.battlefield.find((c) => c.id === id)?.identity.name ?? i18n._(msg`A creature`);
     return i18n._(msg`Must attack if able — ${must.map((a) => nameOf(a.attackerId)).join(", ")}`);
   }, [chooseAttackersInput, gameView?.battlefield]);
   const blockRestrictionHint = useMemo<string | null>(() => {
     const attackers = chooseBlockersInput?.attackers ?? [];
     const nameOf = (id: string) =>
-      gameView?.battlefield.find((c) => c.id === id)?.identity.name ?? "An attacker";
+      gameView?.battlefield.find((c) => c.id === id)?.identity.name ?? i18n._(msg`An attacker`);
     const parts: string[] = [];
     const menace = attackers.filter(
       (a) => a.minBlockers > 1 && a.validBlockerIds.length >= a.minBlockers,
     );
     if (menace.length > 0) {
-      parts.push(
-        `Requires multiple blockers — ${menace
-          .map((a) => `${nameOf(a.attackerId)} (needs ${a.minBlockers})`)
-          .join(", ")}`,
-      );
+      const requirements = menace
+        .map((a) => i18n._(msg`${nameOf(a.attackerId)} (needs ${a.minBlockers})`))
+        .join(", ");
+      parts.push(i18n._(msg`Requires multiple blockers — ${requirements}`));
     }
     const mustBlock = attackers.filter((a) => a.mustBeBlocked && a.validBlockerIds.length > 0);
     if (mustBlock.length > 0) {
-      parts.push(`Must be blocked — ${mustBlock.map((a) => nameOf(a.attackerId)).join(", ")}`);
+      parts.push(
+        i18n._(msg`Must be blocked — ${mustBlock.map((a) => nameOf(a.attackerId)).join(", ")}`),
+      );
     }
     return parts.length > 0 ? parts.join(" · ") : null;
   }, [chooseBlockersInput, gameView?.battlefield]);
@@ -755,7 +757,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       return null;
     }
     return {
-      label: input.chosenTargets === 0 ? "Skip" : "Done",
+      label: input.chosenTargets === 0 ? i18n._(msg`Skip`) : i18n._(msg`Done`),
       kind: "done" as const,
       onComplete: declineTargets,
     };
@@ -1286,8 +1288,8 @@ export default function Game({ exitTo }: GameProps = {}) {
   const combatPairings = useMemo<CombatPairing[]>(() => {
     const nameOf = (id: string) =>
       id === myPlayerSlot
-        ? "You"
-        : (gameView?.players?.find((p) => p.id === id)?.name ?? "A player");
+        ? i18n._(msg`You`)
+        : (gameView?.players?.find((p) => p.id === id)?.name ?? i18n._(msg`A player`));
     const pairs = new Map<string, CombatPairing>();
     for (const c of gameView?.battlefield ?? []) {
       if (!c.isAttacking || !c.attackingPlayerId) continue;
@@ -2192,7 +2194,11 @@ export default function Game({ exitTo }: GameProps = {}) {
       {gameSettingsOpen && <GameSettingsModal onClose={() => setGameSettingsOpen(false)} />}
       {eliminatedModalOpen && (
         <EliminatedModal
-          heading={selfConceded || me?.status === "conceded" ? "You conceded" : "You lost"}
+          heading={
+            selfConceded || me?.status === "conceded"
+              ? i18n._(msg`You conceded`)
+              : i18n._(msg`You lost`)
+          }
           hosting={ownsEngine}
           onObserve={() => setEliminatedModalOpen(false)}
           onLeave={() => {

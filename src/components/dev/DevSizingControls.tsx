@@ -10,6 +10,8 @@ import {
 } from "./devPanel.styles";
 import { DEV_VIEWPORT_OPTIONS } from "./devViewportPresets";
 import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const CARD_SIZE_PRESETS = [0.75, 1, 1.25, 1.5] as const;
 export function DevSizingControls() {
   const cardSize = usePreferencesStore((s) => s.cardSizeMultiplier);
@@ -59,7 +61,9 @@ export function DevSizingControls() {
             )}
             onClick={() => setViewport(option.value)}
             title={
-              option.width == null ? "Use the current window" : `${option.width}×${option.height}`
+              option.width == null
+                ? i18n._(msg`Use the current window`)
+                : `${option.width}×${option.height}`
             }
           >
             <span className="block truncate">{option.label}</span>

@@ -1,6 +1,8 @@
 import { CombatSummarySection } from "../CombatSummarySection";
 import type { CardDto } from "@/protocol/game";
 import type { PromptActionType, CombatAssignment, CombatPairing } from "../game.types";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 
 interface CombatInfoProps {
   promptType?: PromptActionType;
@@ -29,7 +31,7 @@ export function CombatInfo({
             <div key={p.key} className="flex items-center gap-1.5 text-xs">
               <span className="min-w-0 truncate font-semibold">{p.attacker}</span>
               <span className="shrink-0 text-muted-foreground">
-                {p.attacker === "You" ? "attack" : "attacks"}
+                {p.attacker === i18n._(msg`You`) ? i18n._(msg`attack`) : i18n._(msg`attacks`)}
               </span>
               <span className="min-w-0 truncate font-semibold text-destructive">{p.defender}</span>
               {p.count > 1 && (

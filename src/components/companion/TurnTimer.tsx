@@ -84,8 +84,14 @@ export function TurnTimer({ className }: { className?: string }) {
             size="icon"
             variant="ghost"
             className="size-6"
-            aria-label={`Timer mode: ${session.timerMode === "chess" ? "chess clock" : "shared"}`}
-            title={session.timerMode === "chess" ? "Chess clock" : "Shared clock"}
+            aria-label={
+              session.timerMode === "chess"
+                ? i18n._(msg`Timer mode: chess clock`)
+                : i18n._(msg`Timer mode: shared`)
+            }
+            title={
+              session.timerMode === "chess" ? i18n._(msg`Chess clock`) : i18n._(msg`Shared clock`)
+            }
           >
             <GameIcon icon="sands-of-time" className="size-3.5 text-muted-foreground" />
           </Button>
@@ -117,7 +123,7 @@ export function TurnTimer({ className }: { className?: string }) {
         variant="ghost"
         className="size-6"
         onClick={() => (running ? pauseTimer() : startTimer())}
-        aria-label={running ? "Pause timer" : "Resume timer"}
+        aria-label={running ? i18n._(msg`Pause timer`) : i18n._(msg`Resume timer`)}
       >
         {running ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
       </Button>

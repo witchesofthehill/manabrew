@@ -24,7 +24,7 @@ export function ChooseTargetSpell({
       />
       {onCompleteTargets && (
         <PromptActionButton
-          label={completionLabel ?? "Done"}
+          label={completionLabel ?? i18n._(msg`Done`)}
           icon={isCancel ? <Ban className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
           variant={isCancel ? "outline" : "default"}
           baseColor={isCancel ? promptActionColors.cancel : undefined}

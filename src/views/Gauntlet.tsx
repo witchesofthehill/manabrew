@@ -152,14 +152,16 @@ export default function Gauntlet() {
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm">
           <p className="font-semibold text-foreground">
-            <Trans>{activeGauntlet.kind === "sealed" ? "Sealed" : "Draft"} gauntlet</Trans>
+            {activeGauntlet.kind === "sealed"
+              ? i18n._(msg`Sealed gauntlet`)
+              : i18n._(msg`Draft gauntlet`)}
           </p>
           <p className="text-muted-foreground">
             <Trans>
               Round {activeGauntlet.currentRound} / {activeGauntlet.rounds} · Wins{" "}
-              {activeGauntlet.wins} · Losses {activeGauntlet.losses}{" "}
-              {activeGauntlet.completed ? "· Complete" : ""}
+              {activeGauntlet.wins} · Losses {activeGauntlet.losses}
             </Trans>
+            {activeGauntlet.completed ? i18n._(msg` · Complete`) : null}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -326,7 +328,7 @@ export default function Gauntlet() {
                 defaultDeckName={matchDecks.humanDeckName}
                 format={activeGauntlet.kind === "sealed" ? "sealed" : "draft"}
                 requireCompleteToSave
-                confirmLabel="Save sideboard"
+                confirmLabel={i18n._(msg`Save sideboard`)}
                 onConfirm={handleSaveSideboard}
               />
             </div>

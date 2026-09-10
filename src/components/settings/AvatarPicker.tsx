@@ -28,7 +28,7 @@ export function AvatarPicker() {
         type="button"
         disabled={busy || !available}
         onClick={() => inputRef.current?.click()}
-        title={avatarSrc ? "Replace avatar" : "Upload avatar"}
+        title={avatarSrc ? i18n._(msg`Replace avatar`) : i18n._(msg`Upload avatar`)}
         className="relative flex size-20 shrink-0 items-center justify-center rounded-full border bg-muted motion-safe:transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {avatarSrc ? (

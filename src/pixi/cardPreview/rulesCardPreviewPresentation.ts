@@ -3,6 +3,8 @@ import type { CardDto } from "@/protocol/game";
 import { resolveCardFaces, type CardFace } from "@/lib/cardFaces";
 import { isHorizontalCard, isTwoHalfLayout } from "@/lib/cardLayout";
 import type { ScryfallCard } from "@/types/scryfall";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 
 export interface RulesPreviewSection {
   name: string;
@@ -302,9 +304,9 @@ export function resolveRulesPreviewDisplay(options: {
 
   if (faceless) {
     return {
-      name: "Face-down card",
+      name: i18n._(msg`Face-down card`),
       manaCost: "",
-      typeLine: "Face-down permanent",
+      typeLine: i18n._(msg`Face-down permanent`),
       faceIndex: 0,
       liveFaceIndex: 0,
       currentFace: true,

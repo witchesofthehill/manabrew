@@ -33,6 +33,7 @@ import { cardTypeLine } from "@/components/game/cardPresentation";
 import { Trans } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/i18n/i18n";
+import { localizeRulesPreviewText } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
 interface CardPreviewProps {
   card: CardDto;
   mouseX: number;
@@ -138,6 +139,7 @@ export function CardPreview({
   slot,
   imageSize = "large",
 }: CardPreviewProps) {
+  const resolvedGameCard = useResolvedGameCard(card);
   const hasActions = Boolean(actions?.length && onSelectAction);
   const themeColors = useTheme().gameTheme;
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
@@ -158,6 +160,11 @@ export function CardPreview({
       integratedClassLevelUpIndex,
       integratedClassLevelUpIndex === null ? null : nextClassLevel,
     ),
+    displayLabel: localizeRulesPreviewText(
+      action.label,
+      resolvedGameCard.info,
+      card.isTransformed ? 1 : 0,
+    ),
   }));
   const classLevelUpActions = indexedActions.filter(({ action }) => action.isClassLevelUp);
   const railClassLevelUpAction =
@@ -172,7 +179,7 @@ export function CardPreview({
           {
             position: nextClassLevel,
             shortcut: railClassLevelUpAction.shortcut,
-            label: railClassLevelUpAction.action.label,
+            label: railClassLevelUpAction.displayLabel,
             onActivate: () => onSelectAction!(railClassLevelUpAction.action),
           },
         ]
@@ -180,7 +187,6 @@ export function CardPreview({
   const hasMainActions = mainActions.length > 0;
   const showSidePanel = hasMainActions || Boolean(rail || extraClassActions.length);
   const isDebugCard = card.id === DEBUG_KEYWORD_CARD_ID;
-  const resolvedGameCard = useResolvedGameCard(card);
   const deckCard: DeckCard = isDebugCard
     ? ({
         identity: { id: "", name: card.identity.name, setCode: "", cardNumber: "" },
@@ -453,7 +459,9 @@ export function CardPreview({
                           "inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:px-3 pointer-coarse:py-2",
                           interactive ? "pointer-events-auto" : "pointer-events-none",
                         )}
-                        title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
+                        title={i18n._(
+                          msg`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`,
+                        )}
                       >
                         <RotateCw className="h-3 w-3" />
                         {showBackFace ? i18n._(msg`Front`) : i18n._(msg`Back`)}

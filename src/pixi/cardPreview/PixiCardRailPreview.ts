@@ -6,6 +6,8 @@ import { hexToNum } from "@/pixi/colorUtils";
 import { PixiRichText } from "@/pixi/cardPreview/PixiRichText";
 import { readableTextColor } from "@/themes/gameTheme";
 import { RULES_BODY_FONT, type RulesPreviewFrameStyle } from "./rulesPreviewFrame";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 
 interface PixiCardRailPreviewOptions {
   state: CardRailState;
@@ -64,17 +66,20 @@ export class PixiCardRailPreview extends Container {
       })
       .catch(() => undefined);
     const title = new Text({
-      text: state.kind === "saga" ? "LORE CHAPTERS" : "CLASS LEVELS",
+      text: state.kind === "saga" ? i18n._(msg`LORE CHAPTERS`) : i18n._(msg`CLASS LEVELS`),
       style: style(muted, 10, "700"),
     });
     title.resolution = 2;
     title.position.set(39, 2);
-    const summary = state.kind === "saga" ? "Chapter" : "Level";
     const summaryText = new Text({
       text:
-        state.current > 0
-          ? `${summary} ${state.current} of ${state.max}`
-          : `Awaiting first ${summary.toLowerCase()}`,
+        state.kind === "saga"
+          ? state.current > 0
+            ? i18n._(msg`Chapter ${state.current} of ${state.max}`)
+            : i18n._(msg`Awaiting first chapter`)
+          : state.current > 0
+            ? i18n._(msg`Level ${state.current} of ${state.max}`)
+            : i18n._(msg`Awaiting first level`),
       style: style(foreground, 12, "600"),
     });
     summaryText.resolution = 2;
@@ -92,7 +97,10 @@ export class PixiCardRailPreview extends Container {
       row.addChild(rowBackground);
 
       const meta = new Text({
-        text: state.kind === "saga" ? `CHAPTER ${notch.label}` : `LEVEL ${notch.label}`,
+        text:
+          state.kind === "saga"
+            ? i18n._(msg`CHAPTER ${notch.label}`)
+            : i18n._(msg`LEVEL ${notch.label}`),
         style: style(muted, 10, "700"),
       });
       meta.resolution = 2;
@@ -125,7 +133,7 @@ export class PixiCardRailPreview extends Container {
       const reminderStyle = style(muted, 14);
       reminderStyle.fontStyle = "italic";
       const effectHeight = effectText.setContent(
-        effect?.text || "Effect text unavailable",
+        effect?.text || i18n._(msg`Effect text unavailable`),
         style(foreground, 14),
         width - CONTENT_LEFT - CONTENT_RIGHT,
         16,

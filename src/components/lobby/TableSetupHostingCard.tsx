@@ -84,15 +84,25 @@ export function TableSetupHostingCard({
                   label={i18n._(msg`Forge`)}
                   badge={
                     <Badge variant="outline" className="text-[9px]">
-                      {isTauri ? "on this device" : hostedNode ? "on a node" : "in this browser"}
+                      {isTauri
+                        ? i18n._(msg`on this device`)
+                        : hostedNode
+                          ? i18n._(msg`on a node`)
+                          : i18n._(msg`in this browser`)}
                     </Badge>
                   }
                   description={
                     isTauri
-                      ? "Full card support, hosted in-app on this device. Others join from the lobby."
+                      ? i18n._(
+                          msg`Full card support, hosted in-app on this device. Others join from the lobby.`,
+                        )
                       : hostedNode
-                        ? "Full card support, hosted on a Manabrew node. Others join from the lobby."
-                        : "Full card support, hosted in this browser tab. Others join from the lobby."
+                        ? i18n._(
+                            msg`Full card support, hosted on a Manabrew node. Others join from the lobby.`,
+                          )
+                        : i18n._(
+                            msg`Full card support, hosted in this browser tab. Others join from the lobby.`,
+                          )
                   }
                 />
               )}

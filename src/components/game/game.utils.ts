@@ -120,7 +120,7 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
           key: `color-${index}`,
           kind: choice.kind,
           label,
-          description: `Chosen color: ${label}`,
+          description: i18n._(msg`Chosen color: ${label}`),
           colors: choice.colors,
         };
       }
@@ -130,7 +130,7 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
           key: `type-${index}`,
           kind: choice.kind,
           label,
-          description: `Chosen type: ${label}`,
+          description: i18n._(msg`Chosen type: ${label}`),
           colors: [],
         };
       }
@@ -140,19 +140,18 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
           key: `named-card-${index}`,
           kind: choice.kind,
           label,
-          description: `Named card: ${label}`,
+          description: i18n._(msg`Named card: ${label}`),
           colors: [],
         };
       }
       case "chosenCard": {
-        const label = i18n._(
-          msg`${choice.count} ${choice.count === 1 ? i18n._(msg`card`) : i18n._(msg`cards`)}`,
-        );
+        const label =
+          choice.count === 1 ? i18n._(msg`one card`) : i18n._(msg`${choice.count} cards`);
         return {
           key: `chosen-card-${index}`,
           kind: choice.kind,
           label,
-          description: `Chosen cards: ${choice.count}`,
+          description: i18n._(msg`Chosen cards: ${choice.count}`),
           colors: [],
         };
       }
@@ -161,7 +160,7 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
           key: `number-${index}`,
           kind: choice.kind,
           label: `#${choice.value}`,
-          description: `Chosen number: ${choice.value}`,
+          description: i18n._(msg`Chosen number: ${choice.value}`),
           colors: [],
         };
       case "mode":
@@ -169,7 +168,7 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
           key: `mode-${index}`,
           kind: choice.kind,
           label: choice.value,
-          description: `Chosen mode: ${choice.value}`,
+          description: i18n._(msg`Chosen mode: ${choice.value}`),
           colors: [],
         };
       case "player":
@@ -177,7 +176,7 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
           key: `player-${choice.playerId}`,
           kind: choice.kind,
           label: choice.name,
-          description: `Chosen player: ${choice.name}`,
+          description: i18n._(msg`Chosen player: ${choice.name}`),
           colors: [],
         };
     }

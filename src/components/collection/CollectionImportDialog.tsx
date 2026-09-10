@@ -344,7 +344,7 @@ export function CollectionImportDialog({
                 label={i18n._(msg`Quantity`)}
                 headers={parsed.headers}
                 value={mapping.quantityColumn}
-                noneLabel="Use 1 for every row"
+                noneLabel={i18n._(msg`Use 1 for every row`)}
                 onChange={(quantityColumn) =>
                   setMapping((current) => ({ ...current, quantityColumn }))
                 }
@@ -450,10 +450,14 @@ export function CollectionImportDialog({
                         <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
                           {row.setCode && row.collectorNumber
                             ? `${row.setCode.toUpperCase()} #${row.collectorNumber}`
-                            : "Any printing"}
+                            : i18n._(msg`Any printing`)}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
-                          {row.foil === true ? "Foil" : row.foil === false ? "Non-foil" : "—"}
+                          {row.foil === true
+                            ? i18n._(msg`Foil`)
+                            : row.foil === false
+                              ? i18n._(msg`Non-foil`)
+                              : "—"}
                         </td>
                         <td className="px-3 py-2 text-right font-mono">
                           {row.valid ? row.quantity : "—"}
@@ -465,16 +469,18 @@ export function CollectionImportDialog({
                               : "px-3 py-2 text-destructive"
                           }
                         >
-                          {row.valid ? "Ready" : row.reason}
+                          {row.valid ? i18n._(msg`Ready`) : row.reason}
                         </td>
                       </tr>
                     ))}
                     {filteredPreview.length === 0 && (
                       <tr>
                         <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
-                          <Trans>
-                            No {previewFilter === "all" ? "" : `${previewFilter} `}rows to show.
-                          </Trans>
+                          {previewFilter === "all"
+                            ? i18n._(msg`No rows to show.`)
+                            : previewFilter === "ready"
+                              ? i18n._(msg`No ready rows to show.`)
+                              : i18n._(msg`No skipped rows to show.`)}
                         </td>
                       </tr>
                     )}

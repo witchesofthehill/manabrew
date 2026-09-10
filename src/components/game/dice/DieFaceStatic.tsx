@@ -1,6 +1,8 @@
 import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 import { getDiePoints } from "./dieShapes";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 
 const SIZE_CLASSES = {
   sm: "w-10 h-10 text-base",
@@ -41,7 +43,7 @@ export function DieFaceStatic({
     <Element
       type={onClick ? "button" : undefined}
       onClick={onClick}
-      aria-label={ariaLabel ?? `Die: ${value}`}
+      aria-label={ariaLabel ?? i18n._(msg`Die: ${value}`)}
       className={cn(
         "relative flex items-center justify-center select-none rounded-md transition-all",
         SIZE_CLASSES[size],

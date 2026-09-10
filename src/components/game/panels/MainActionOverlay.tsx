@@ -69,8 +69,8 @@ function PriorityModePill() {
       aria-pressed={fullControl}
       title={
         fullControl
-          ? `Full control — you stop at every priority window${hint}`
-          : `Autopass: dead priority windows pass automatically${hint}`
+          ? i18n._(msg`Full control — you stop at every priority window${hint}`)
+          : i18n._(msg`Autopass: dead priority windows pass automatically${hint}`)
       }
       className={cn(
         "relative z-10 flex h-[22px] shrink-0 cursor-pointer items-center gap-1 rounded-full border px-2 text-[9px] leading-none font-bold tracking-[0.12em] shadow-sm transition-[color,background-color,border-color,transform] active:translate-y-px",
@@ -283,8 +283,12 @@ export function MainActionOverlay({
                     "relative rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0 before:absolute before:-inset-2.5 before:content-['']",
                     !hasAction && "invisible",
                   )}
-                  title={collapsed ? "Expand" : "Collapse"}
-                  aria-label={collapsed ? "Expand action panel" : "Collapse action panel"}
+                  title={collapsed ? i18n._(msg`Expand`) : i18n._(msg`Collapse`)}
+                  aria-label={
+                    collapsed
+                      ? i18n._(msg`Expand action panel`)
+                      : i18n._(msg`Collapse action panel`)
+                  }
                   aria-expanded={!collapsed}
                   tabIndex={hasAction ? 0 : -1}
                 >

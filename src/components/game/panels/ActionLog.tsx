@@ -6,6 +6,8 @@ import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import type { LogCardPreviewOptions } from "@/components/game/game.types";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface ActionLogProps {
   gameLog: GameLogEntry[];
   resolveCardName: (cardId: string) => string;
@@ -59,12 +61,24 @@ export function ActionLog({
   const priorityColor = themeColors.activeAction.priority;
   const infoColor = themeColors.promptAction.defenseAction;
   const typeLabel: Record<GameLogEntryType, string> = {
-    info: "INFO",
-    action: "ACTION",
-    stack: "STACK",
-    priority: "PRIO",
-    rule: "RULE",
-    warning: "WARN",
+    get info() {
+      return i18n._(msg`INFO`);
+    },
+    get action() {
+      return i18n._(msg`ACTION`);
+    },
+    get stack() {
+      return i18n._(msg`STACK`);
+    },
+    get priority() {
+      return i18n._(msg`PRIO`);
+    },
+    get rule() {
+      return i18n._(msg`RULE`);
+    },
+    get warning() {
+      return i18n._(msg`WARN`);
+    },
   };
   const getStyleForType = (
     type: GameLogEntryType,
@@ -154,9 +168,9 @@ export function ActionLog({
                     style={{ backgroundColor: style.bg, color: style.fg }}
                   >
                     {entry.entryType === "stack" && /\bresolved?\b/i.test(entry.message)
-                      ? "RESOLVE"
+                      ? i18n._(msg`RESOLVE`)
                       : /^TURN\b/i.test(entry.message)
-                        ? "TURN"
+                        ? i18n._(msg`TURN`)
                         : typeLabel[entry.entryType]}
                   </span>
                   <span className="text-[10px] text-muted-foreground/80">

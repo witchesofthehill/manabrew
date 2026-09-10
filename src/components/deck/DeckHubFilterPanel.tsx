@@ -164,7 +164,11 @@ export function DeckHubFilterPanel({
               aria-pressed={filters.source === source}
               onClick={() => onChange({ source })}
             >
-              {source === "all" ? "All" : source === "community" ? "Community" : "Presets"}
+              {source === "all"
+                ? i18n._(msg`All`)
+                : source === "community"
+                  ? i18n._(msg`Community`)
+                  : i18n._(msg`Presets`)}
             </Button>
           ))}
         </div>

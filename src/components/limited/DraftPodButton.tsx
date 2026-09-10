@@ -1,4 +1,6 @@
 import { Users } from "lucide-react";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -37,13 +39,11 @@ export function DraftPodButton({ seats }: DraftPodButtonProps) {
               </span>
               <span className="shrink-0 text-right text-[11px] text-muted-foreground">
                 <span className="block">
-                  <Trans>
-                    {s.currentPackSize ?? 0} cards
-                    {(s.packsWaiting ?? 0) > 0 ? ` · ${s.packsWaiting} waiting` : ""}
-                  </Trans>
+                  <Trans>{s.currentPackSize ?? 0} cards</Trans>
+                  {(s.packsWaiting ?? 0) > 0 ? i18n._(msg` · ${s.packsWaiting ?? 0} waiting`) : ""}
                 </span>
                 <span className="block">
-                  {s.awaitingPick ? "Picking" : `${s.picksMade} picked`}
+                  {s.awaitingPick ? i18n._(msg`Picking`) : i18n._(msg`${s.picksMade} picked`)}
                 </span>
               </span>
             </li>

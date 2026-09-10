@@ -27,7 +27,7 @@ export function SideboardPlansDialog({
   const setEditorMetadata = useDeckStore((state) => state.setEditorMetadata);
   const [matchup, setMatchup] = useState("");
   const plans = metadata?.sideboardPlans ?? [];
-  const planEdit = useDeckEditTransaction("Edit sideboard plan");
+  const planEdit = useDeckEditTransaction(i18n._(msg`Edit sideboard plan`));
   function updatePlans(next: DeckSideboardPlan[]) {
     setEditorMetadata({
       ...metadata,
@@ -40,7 +40,7 @@ export function SideboardPlansDialog({
   function addPlan() {
     const name = matchup.trim();
     if (!name) return;
-    executeDeckEdit("Add sideboard plan", () =>
+    executeDeckEdit(i18n._(msg`Add sideboard plan`), () =>
       updatePlans([
         ...plans,
         { id: crypto.randomUUID(), matchup: name, bringIn: "", takeOut: "", notes: "" },
@@ -98,9 +98,9 @@ export function SideboardPlansDialog({
                   size="icon"
                   variant="ghost"
                   className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                  aria-label={`Delete ${plan.matchup}`}
+                  aria-label={i18n._(msg`Delete ${plan.matchup}`)}
                   onClick={() =>
-                    executeDeckEdit("Delete sideboard plan", () =>
+                    executeDeckEdit(i18n._(msg`Delete sideboard plan`), () =>
                       updatePlans(plans.filter((candidate) => candidate.id !== plan.id)),
                     )
                   }

@@ -1,4 +1,6 @@
 import { AlertCircle, Bot, Check, User } from "lucide-react";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 import { DeckCardSurface } from "@/components/deck/DeckCardSurface";
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { FormatBadge } from "@/components/game/FormatBadge";
@@ -223,10 +225,10 @@ export function DeckSelectionCard({
           {!dense && (
             <span className="text-[10px] text-text-on-tinted/85">
               {isHub
-                ? `Community · ${cardCount ?? cards.length} cards`
+                ? i18n._(msg`Community · ${cardCount ?? cards.length} cards`)
                 : isPreset
-                  ? "Preset deck"
-                  : `${cards.length} cards`}
+                  ? i18n._(msg`Preset deck`)
+                  : i18n._(msg`${cards.length} cards`)}
             </span>
           )}
           {badge && (

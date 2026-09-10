@@ -154,7 +154,9 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
                       </ul>
                       {onBucketClick && (
                         <p className="mt-1.5 border-t border-border/40 pt-1.5 text-[10px] text-muted-foreground/60">
-                          {isActive ? "Click to clear the filter" : "Click to filter the deck"}
+                          {isActive
+                            ? i18n._(msg`Click to clear the filter`)
+                            : i18n._(msg`Click to filter the deck`)}
                         </p>
                       )}
                     </div>

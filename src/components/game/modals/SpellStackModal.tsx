@@ -98,7 +98,7 @@ export function SpellStackModal({
 
       <Modal.Body>
         {stack.length === 0 ? (
-          <Modal.EmptyState message="The stack is empty." />
+          <Modal.EmptyState message={i18n._(msg`The stack is empty.`)} />
         ) : (
           <div
             className="flex flex-wrap gap-2 sm:gap-6 content-start justify-center"
@@ -167,7 +167,7 @@ export function SpellStackModal({
                   </div>
                   <div className="flex items-center gap-1">
                     <Badge variant={isTop ? "default" : "outline"} className="text-[10px] h-4 px-1">
-                      {isTop ? "TOP" : `+${idx}`}
+                      {isTop ? i18n._(msg`TOP`) : `+${idx}`}
                     </Badge>
                     {obj.isCasting && (
                       <Badge variant="outline" className="text-[10px] h-4 px-1">

@@ -190,7 +190,7 @@ export function CollectionQuickAdd({
                 <button
                   type="button"
                   className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left"
-                  title={`Add one ${displayName}`}
+                  title={i18n._(msg`Add one ${displayName}`)}
                   onClick={() => add(card)}
                 >
                   {thumbnail && (
@@ -209,7 +209,7 @@ export function CollectionQuickAdd({
                 <button
                   type="button"
                   className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground"
-                  title={`Add multiple ${displayName}`}
+                  title={i18n._(msg`Add multiple ${displayName}`)}
                   onClick={() => {
                     setQuantity(1);
                     setQuantityCard(card);

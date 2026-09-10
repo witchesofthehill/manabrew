@@ -13,6 +13,8 @@ import { FLASH_CARD_SIZE } from "@/components/game/game.styles";
 import type { useCardPreview } from "@/hooks/useCardPreview";
 import type { PreviewCard } from "@/lib/cardPreview";
 import { cn } from "@/lib/utils";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 
 const RAIL_CHROME_PX = 25;
 const DEFAULT_MIN_WIDTH = FLASH_CARD_SIZE.w + RAIL_CHROME_PX;
@@ -111,8 +113,8 @@ export function CardPreviewRail({
           className,
         )}
         onClick={() => setCollapsed(false)}
-        title={`Show ${title.toLowerCase()}`}
-        aria-label={`Show ${title.toLowerCase()}`}
+        title={i18n._(msg`Show ${title.toLowerCase()}`)}
+        aria-label={i18n._(msg`Show ${title.toLowerCase()}`)}
       >
         <ChevronLeft className="h-4 w-4" />
         <span className="mt-2 rotate-180 text-[10px] tracking-wider [writing-mode:vertical-rl]">
@@ -134,7 +136,7 @@ export function CardPreviewRail({
       <div
         role="separator"
         aria-orientation="vertical"
-        aria-label={`Resize ${title.toLowerCase()}`}
+        aria-label={i18n._(msg`Resize ${title.toLowerCase()}`)}
         className="group/handle absolute left-0 top-0 z-20 h-full w-1.5 cursor-col-resize transition-colors hover:bg-primary/30 active:bg-primary/40"
         onPointerDown={(event) => {
           event.preventDefault();
@@ -171,8 +173,8 @@ export function CardPreviewRail({
             type="button"
             className="rounded p-0.5 text-muted-foreground hover:bg-muted"
             onClick={() => setCollapsed(true)}
-            title={`Hide ${title.toLowerCase()}`}
-            aria-label={`Hide ${title.toLowerCase()}`}
+            title={i18n._(msg`Hide ${title.toLowerCase()}`)}
+            aria-label={i18n._(msg`Hide ${title.toLowerCase()}`)}
           >
             <ChevronRight className="h-3.5 w-3.5" />
           </button>

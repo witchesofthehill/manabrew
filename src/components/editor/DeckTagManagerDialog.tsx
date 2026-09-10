@@ -34,7 +34,9 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
       return;
     }
     if (nextName && nextName !== tag) {
-      executeDeckEdit(`Rename ${tag} to ${nextName}`, () => renameCustomTag(tag, nextName));
+      executeDeckEdit(i18n._(msg`Rename ${tag} to ${nextName}`), () =>
+        renameCustomTag(tag, nextName),
+      );
     }
     setEditing(false);
   }
@@ -63,8 +65,10 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
         variant="ghost"
         className="h-7 w-7"
         disabled={first}
-        title={`Move ${tag} up`}
-        onClick={() => executeDeckEdit(`Move ${tag} up`, () => reorderCustomTag(tag, -1))}
+        title={i18n._(msg`Move ${tag} up`)}
+        onClick={() =>
+          executeDeckEdit(i18n._(msg`Move ${tag} up`), () => reorderCustomTag(tag, -1))
+        }
       >
         <ArrowUp className="h-3.5 w-3.5" />
       </Button>
@@ -73,8 +77,10 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
         variant="ghost"
         className="h-7 w-7"
         disabled={last}
-        title={`Move ${tag} down`}
-        onClick={() => executeDeckEdit(`Move ${tag} down`, () => reorderCustomTag(tag, 1))}
+        title={i18n._(msg`Move ${tag} down`)}
+        onClick={() =>
+          executeDeckEdit(i18n._(msg`Move ${tag} down`), () => reorderCustomTag(tag, 1))
+        }
       >
         <ArrowDown className="h-3.5 w-3.5" />
       </Button>
@@ -82,7 +88,7 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
         size="icon"
         variant="ghost"
         className="h-7 w-7"
-        title={editing ? "Finish renaming" : `Rename ${tag}`}
+        title={editing ? i18n._(msg`Finish renaming`) : i18n._(msg`Rename ${tag}`)}
         onClick={() => (editing ? finishRename() : setEditing(true))}
       >
         {editing ? <Check className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
@@ -91,8 +97,8 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
         size="icon"
         variant="ghost"
         className="h-7 w-7 text-destructive"
-        title={`Delete ${tag}`}
-        onClick={() => executeDeckEdit(`Delete ${tag}`, () => removeCustomTag(tag))}
+        title={i18n._(msg`Delete ${tag}`)}
+        onClick={() => executeDeckEdit(i18n._(msg`Delete ${tag}`), () => removeCustomTag(tag))}
       >
         <Trash2 className="h-3.5 w-3.5" />
       </Button>

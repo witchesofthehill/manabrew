@@ -9,6 +9,8 @@ import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import { manaSymbolUrl } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const MANA_BUTTON_ALPHA = 0.45;
 const MANA_BUTTON_FALLBACK_ALPHA = 0.4;
 export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
@@ -46,7 +48,7 @@ export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
         onClick();
       }}
       onMouseDown={(e) => e.preventDefault()}
-      title={`Tap: ${description}`}
+      title={i18n._(msg`Tap: ${description}`)}
       {...longPress}
     >
       <div
@@ -70,7 +72,7 @@ export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
       </div>
       {hintRect && (
         <TouchHintPopover anchorRect={hintRect} className="whitespace-nowrap text-[11px]">
-          <DynamicTextRender className="align-middle" text={`Tap: ${description}`} />
+          <DynamicTextRender className="align-middle" text={i18n._(msg`Tap: ${description}`)} />
         </TouchHintPopover>
       )}
     </button>

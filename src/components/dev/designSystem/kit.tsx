@@ -75,7 +75,7 @@ export function CopyChip({ value, className }: { value: string; className?: stri
         "rounded font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground",
         className,
       )}
-      title={`Copy ${value}`}
+      title={i18n._(msg`Copy ${value}`)}
     >
       {copied ? i18n._(msg`copied`) : value}
     </button>

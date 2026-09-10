@@ -151,7 +151,7 @@ export function DeckCollectionPanel({
     const next = { ...acquisition };
     if (status) next[key] = status;
     else delete next[key];
-    executeDeckEdit(`Mark ${key} as ${status ?? "needed"}`, () =>
+    executeDeckEdit(i18n._(msg`Mark ${key} as ${status ?? i18n._(msg`needed`)}`), () =>
       setEditorMetadata({
         ...deck.editor,
         version: 1,
@@ -183,9 +183,9 @@ export function DeckCollectionPanel({
               ? i18n._(msg`Syncing\u2026`)
               : missing.length === 0
                 ? otherPrintingCount > 0
-                  ? i18n._(
-                      msg`Complete · ${otherPrintingCount} other ${otherPrintingCount === 1 ? "printing" : "printings"}`,
-                    )
+                  ? otherPrintingCount === 1
+                    ? i18n._(msg`Complete · one other printing`)
+                    : i18n._(msg`Complete · ${otherPrintingCount} other printings`)
                   : i18n._(msg`Deck complete`)
                 : i18n._(msg`${missing.length} cards missing`)}
           </span>
@@ -194,8 +194,8 @@ export function DeckCollectionPanel({
               <Trans>
                 est. {provider === "cardmarket" ? "€" : provider === "cardhoarder" ? "" : "$"}
                 {estimatedTotal.toFixed(2)}
-                {provider === "cardhoarder" ? " tix" : ""}
               </Trans>
+              {provider === "cardhoarder" ? " tix" : ""}
             </span>
           )}
           {(missing.length > 0 || otherPrintingCount > 0) && onOptimizeOwnedPrintings && (
@@ -259,16 +259,19 @@ export function DeckCollectionPanel({
               <span className={cn("flex flex-wrap items-center gap-2", view === "grid" && "mt-2")}>
                 <span className="min-w-0 flex-1 truncate text-xs">{entry.name}</span>
                 <span className="text-[10px] text-muted-foreground">
-                  <Trans>
-                    {ownership.get(key)?.status === "partial" ? "partially owned" : "not owned"} ·
-                    need {ownership.get(key)?.shortage ?? entry.quantity}
-                  </Trans>
+                  {ownership.get(key)?.status === "partial"
+                    ? i18n._(
+                        msg`partially owned · need ${ownership.get(key)?.shortage ?? entry.quantity}`,
+                      )
+                    : i18n._(
+                        msg`not owned · need ${ownership.get(key)?.shortage ?? entry.quantity}`,
+                      )}
                 </span>
                 <Input
                   type="number"
                   min="0"
                   className="h-7 w-16 text-right font-mono text-xs"
-                  aria-label={`Owned copies of ${entry.name}`}
+                  aria-label={i18n._(msg`Owned copies of ${entry.name}`)}
                   value={collectionQuantityForName(quantities, entry.name)}
                   onChange={(event) =>
                     setOwnedQuantity(key, entry.name, Number(event.target.value))

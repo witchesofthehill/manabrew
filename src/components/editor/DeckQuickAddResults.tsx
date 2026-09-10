@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 import { scryfallDisplayName } from "@/lib/scryfall.utils";
 import type { ScryfallCard } from "@/types/scryfall";
 import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface DeckQuickAddResultsProps {
   results: ScryfallCard[];
   activeIndex: number;
@@ -43,7 +45,7 @@ export function DeckQuickAddResults({
             <button
               type="button"
               className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left"
-              title={`Add one ${displayName} to main deck`}
+              title={i18n._(msg`Add one ${displayName} to main deck`)}
               onClick={() => onQuickAdd(card)}
             >
               {thumbnail && (
@@ -62,7 +64,7 @@ export function DeckQuickAddResults({
             <button
               type="button"
               className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground"
-              title={`More ways to add ${displayName}`}
+              title={i18n._(msg`More ways to add ${displayName}`)}
               onClick={() => onOptions(card)}
             >
               <MoreHorizontal className="h-3.5 w-3.5" />

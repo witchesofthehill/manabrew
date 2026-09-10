@@ -412,8 +412,8 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                     variant={card.tapped ? "secondary" : "outline"}
                     size="icon"
                     className="h-6 w-6"
-                    title={card.tapped ? "Untap" : "Tap"}
-                    aria-label={card.tapped ? "Untap" : "Tap"}
+                    title={card.tapped ? i18n._(msg`Untap`) : i18n._(msg`Tap`)}
+                    aria-label={card.tapped ? i18n._(msg`Untap`) : i18n._(msg`Tap`)}
                     onClick={() =>
                       void applyAction({
                         type: "tapCard",

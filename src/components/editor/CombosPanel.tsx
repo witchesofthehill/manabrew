@@ -59,7 +59,7 @@ function ComboRow({
       </button>
       <span
         className="flex shrink-0 items-center gap-0.5 rounded bg-counter-charge/15 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-counter-charge"
-        title={`${combo.uses.length}-card combo`}
+        title={i18n._(msg`${combo.uses.length}-card combo`)}
       >
         <Layers className="h-3 w-3" />
         {combo.uses.length}
@@ -203,9 +203,9 @@ export function CombosPanel() {
                         onOpen={setOpenCombo}
                         icon={<Sparkles className="h-3.5 w-3.5" />}
                         title={producesLabel(combo)}
-                        subtitle={`Needs ${missing[0]}`}
+                        subtitle={i18n._(msg`Needs ${missing[0]}`)}
                         onAdd={() => handleAdd(missing[0])}
-                        addLabel={`Add ${missing[0]} to deck`}
+                        addLabel={i18n._(msg`Add ${missing[0]} to deck`)}
                       />
                     ))}
                   </div>

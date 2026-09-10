@@ -91,7 +91,7 @@ export function InvitePlayersDialog({ open, onClose }: InvitePlayersDialogProps)
                       title={i18n._(msg`Invite to your table`)}
                     >
                       <UserPlus className="h-3 w-3" />
-                      {sent ? "Invited" : "Invite"}
+                      {sent ? i18n._(msg`Invited`) : i18n._(msg`Invite`)}
                     </Button>
                   }
                 />

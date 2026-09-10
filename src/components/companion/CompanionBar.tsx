@@ -77,8 +77,8 @@ export function CompanionBar({
             size="sm"
             variant="outline"
             className="h-8 gap-1.5 px-2 text-xs sm:h-9 sm:px-3 sm:text-sm"
-            aria-label={`Layout: ${COMPANION_LAYOUT_LABELS[session.layout]}`}
-            title={`Layout: ${COMPANION_LAYOUT_LABELS[session.layout]}`}
+            aria-label={i18n._(msg`Layout: ${COMPANION_LAYOUT_LABELS[session.layout]}`)}
+            title={i18n._(msg`Layout: ${COMPANION_LAYOUT_LABELS[session.layout]}`)}
           >
             <LayoutIcon layout={session.layout} className="size-4" />
             <span className="hidden sm:inline">{COMPANION_LAYOUT_LABELS[session.layout]}</span>
@@ -113,8 +113,16 @@ export function CompanionBar({
               ? { backgroundColor: COMPANION_ACCENT_COLORS[activePlayer.accentKey] }
               : undefined
           }
-          aria-label={activePlayer ? `Turn ${session.turn} · ${activePlayer.name}` : "Start turn"}
-          title={activePlayer ? `Turn ${session.turn} · ${activePlayer.name}` : "Start turn"}
+          aria-label={
+            activePlayer
+              ? i18n._(msg`Turn ${session.turn} · ${activePlayer.name}`)
+              : i18n._(msg`Start turn`)
+          }
+          title={
+            activePlayer
+              ? i18n._(msg`Turn ${session.turn} · ${activePlayer.name}`)
+              : i18n._(msg`Start turn`)
+          }
         >
           <ChevronRight className="size-3.5" />
           <span className="hidden tabular-nums sm:inline">
@@ -135,10 +143,10 @@ export function CompanionBar({
           aria-label={i18n._(msg`Cycle day / night`)}
           title={
             session.dayNight === null
-              ? "Day/Night: off"
+              ? i18n._(msg`Day/Night: off`)
               : session.dayNight === "day"
-                ? "It is day"
-                : "It is night"
+                ? i18n._(msg`It is day`)
+                : i18n._(msg`It is night`)
           }
         >
           <DayNightIcon className="size-4" />

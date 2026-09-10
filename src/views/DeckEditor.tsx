@@ -390,7 +390,9 @@ export default function DeckEditor() {
       toast.success(i18n._(msg`"${saved.deck.name}" removed from your account`));
       setDeletingAccountDeck(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to remove account deck");
+      toast.error(
+        error instanceof Error ? error.message : i18n._(msg`Failed to remove account deck`),
+      );
     } finally {
       setDeletingAccountBusy(false);
     }
@@ -555,7 +557,7 @@ export default function DeckEditor() {
         toast.error(i18n._(msg`${card.identity.name} is not eligible for the command zone`));
         return;
       }
-      executeDeckEdit(`Set ${card.identity.name} in the command zone`, () => {
+      executeDeckEdit(i18n._(msg`Set ${card.identity.name} in the command zone`), () => {
         setCommander(card);
         if (activeId.startsWith("deck-sideboard-")) removeFromSide(card.identity.id);
         else if (activeId.startsWith("deck-maybeboard-")) removeFromMaybe(card.identity.id);
@@ -581,7 +583,7 @@ export default function DeckEditor() {
       : null;
     if (overId.startsWith(DROP_ZONE.TAG_PREFIX) || trayTag) {
       const destTag = trayTag ?? overId.slice(DROP_ZONE.TAG_PREFIX.length);
-      executeDeckEdit(`Tag ${draggedNames.length} cards with ${destTag}`, () => {
+      executeDeckEdit(i18n._(msg`Tag ${draggedNames.length} cards with ${destTag}`), () => {
         for (const name of draggedNames) {
           if (sourceTag && sourceTag !== destTag) {
             untagCard(name, sourceTag);
@@ -626,12 +628,14 @@ export default function DeckEditor() {
       if (draggedNames.length === 1 && sourceZone === dest) return;
       if (source === "commander") {
         if (dest === "main") {
-          executeDeckEdit(`Return ${card.identity.name} to main deck`, () => removeCommander(card));
+          executeDeckEdit(i18n._(msg`Return ${card.identity.name} to main deck`), () =>
+            removeCommander(card),
+          );
         }
         return;
       }
       if (draggedNames.length > 1) {
-        executeDeckEdit(`Move ${draggedNames.length} cards to ${dest}`, () => {
+        executeDeckEdit(i18n._(msg`Move ${draggedNames.length} cards to ${dest}`), () => {
           if (sourceTag) {
             for (const name of draggedNames) untagCard(name, sourceTag);
           }
@@ -647,7 +651,7 @@ export default function DeckEditor() {
         });
         return;
       }
-      executeDeckEdit(`Move ${cardName} to ${dest}`, () => {
+      executeDeckEdit(i18n._(msg`Move ${cardName} to ${dest}`), () => {
         if (sourceTag) untagCard(cardName, sourceTag);
         moveCardCopies(cardName, source as DeckSourceZone, dest, "one");
       });
@@ -664,7 +668,7 @@ export default function DeckEditor() {
   function createDroppedTag() {
     const tag = newTagName.trim();
     if (!tag) return;
-    executeDeckEdit(`Create ${tag} and tag ${pendingTagCards.length} cards`, () => {
+    executeDeckEdit(i18n._(msg`Create ${tag} and tag ${pendingTagCards.length} cards`), () => {
       addCustomTag(tag);
       for (const name of pendingTagCards) tagCard(name, tag);
     });

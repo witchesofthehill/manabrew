@@ -4,19 +4,35 @@ import { msg } from "@lingui/core/macro";
 import { i18n } from "@/i18n/i18n";
 const GUIDE_SECTIONS = [
   {
-    heading: "Play with friends",
+    get heading() {
+      return i18n._(msg`Play with friends`);
+    },
     icon: Swords,
-    body: "Connect to a server from the Lobby, then join a room — or create your own — to battle other players in real time.",
+    get body() {
+      return i18n._(
+        msg`Connect to a server from the Lobby, then join a room — or create your own — to battle other players in real time.`,
+      );
+    },
   },
   {
-    heading: "Customize your deck",
+    get heading() {
+      return i18n._(msg`Customize your deck`);
+    },
     icon: Layers,
-    body: "Open the Deck Editor to build decks from scratch, import existing lists, and fine-tune every card before you sit down at the table.",
+    get body() {
+      return i18n._(
+        msg`Open the Deck Editor to build decks from scratch, import existing lists, and fine-tune every card before you sit down at the table.`,
+      );
+    },
   },
   {
-    heading: "Host your own Manabrew rooms",
+    get heading() {
+      return i18n._(msg`Host your own Manabrew rooms`);
+    },
     icon: Github,
-    body: "Want to run a private server for your playgroup?",
+    get body() {
+      return i18n._(msg`Want to run a private server for your playgroup?`);
+    },
     link: {
       get label() {
         return i18n._(msg`Find out how on GitHub`);

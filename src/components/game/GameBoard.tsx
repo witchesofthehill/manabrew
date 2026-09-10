@@ -812,7 +812,9 @@ export function GameBoard({
             id: `cmd-${cardId}`,
             icon: "crossed-swords",
             color: ownerId ? seatColorOf(ownerId) : gameTheme.badges.commanderDamage,
-            label: `Commander Damage from ${ownerId ? nameOf(ownerId) : "a commander"}`,
+            label: ownerId
+              ? i18n._(msg`Commander Damage from ${nameOf(ownerId)}`)
+              : i18n._(msg`Commander Damage from a commander`),
             count: dmg,
             lethal: dmg >= 21,
           };
@@ -827,7 +829,9 @@ export function GameBoard({
           id: "incoming-damage",
           icon: "bleeding-wound",
           color: gameTheme.pt.lethal,
-          label: lethal ? "Lethal combat damage incoming" : "Combat damage incoming",
+          label: lethal
+            ? i18n._(msg`Lethal combat damage incoming`)
+            : i18n._(msg`Combat damage incoming`),
           count: incoming,
           lethal,
         },

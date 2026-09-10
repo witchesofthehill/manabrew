@@ -170,8 +170,8 @@ export function DeckListControls({
             <button
               key={color}
               type="button"
-              aria-label={`Filter by ${COLOR_LABEL[color]}`}
-              title={`Filter by ${COLOR_LABEL[color]}`}
+              aria-label={i18n._(msg`Filter by ${COLOR_LABEL[color]}`)}
+              title={i18n._(msg`Filter by ${COLOR_LABEL[color]}`)}
               onClick={() => onColorToggle(color)}
               className={cn(
                 "h-4 w-4 rounded-full border-2 transition-all overflow-hidden shrink-0 focus:outline-none pointer-coarse:h-6 pointer-coarse:w-6",

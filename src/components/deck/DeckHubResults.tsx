@@ -155,7 +155,9 @@ export function DeckHubResults({
                         {group === "color" && label !== "Unknown" ? (
                           <>
                             <span className="sr-only">
-                              {label === "C" ? "Colorless" : `${label} color identity`}
+                              {label === "C"
+                                ? i18n._(msg`Colorless`)
+                                : i18n._(msg`${label} color identity`)}
                             </span>
                             <span aria-hidden="true">
                               <ManaSymbols

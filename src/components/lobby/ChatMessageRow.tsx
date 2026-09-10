@@ -51,7 +51,11 @@ export function ChatMessageRow({ entry, mine, player, continued, onReport }: Cha
           player={player}
           status={
             <span>
-              {player.room_id ? "At a table" : player.local_game ? "Playing solo" : "Available"}
+              {player.room_id
+                ? i18n._(msg`At a table`)
+                : player.local_game
+                  ? i18n._(msg`Playing solo`)
+                  : i18n._(msg`Available`)}
             </span>
           }
           side="left"
@@ -90,7 +94,7 @@ export function ChatMessageRow({ entry, mine, player, continued, onReport }: Cha
           variant="ghost"
           className="h-6 w-6 shrink-0 self-center text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
           onClick={() => onReport(entry)}
-          aria-label={`Report ${name}`}
+          aria-label={i18n._(msg`Report ${name}`)}
           title={i18n._(msg`Report this message`)}
         >
           <Flag className="h-3 w-3" />

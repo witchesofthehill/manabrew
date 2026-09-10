@@ -14,6 +14,8 @@ import type { DeckVersionSummary } from "@/api/hubTypes";
 import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
 import type { EditorDeck } from "@/types/manabrew";
 import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const EMPTY_VERSIONS: DeckVersionSummary[] = [];
 interface DeckVersionHistoryDialogProps {
   open: boolean;
@@ -41,7 +43,9 @@ export function DeckVersionHistoryDialog({
     setLoadError(null);
     setConfirmingVersion(null);
     void loadVersions(deckId).catch((error) => {
-      setLoadError(error instanceof Error ? error.message : "Failed to load version history");
+      setLoadError(
+        error instanceof Error ? error.message : i18n._(msg`Failed to load version history`),
+      );
     });
   }, [deckId, loadVersions, open]);
   async function restore(versionNo: number) {
@@ -51,7 +55,9 @@ export function DeckVersionHistoryDialog({
       onRestore(version.deck as EditorDeck, versionNo);
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to load this deck version");
+      toast.error(
+        error instanceof Error ? error.message : i18n._(msg`Failed to load this deck version`),
+      );
     } finally {
       setLoadingVersion(null);
       setConfirmingVersion(null);
@@ -114,14 +120,12 @@ export function DeckVersionHistoryDialog({
                 <History className="h-4 w-4 text-muted-foreground" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">
-                    <Trans>
-                      Version {version.versionNo}
-                      {version.versionNo === currentVersionNo ? " · Current" : ""}
-                    </Trans>
+                    <Trans>Version {version.versionNo}</Trans>
+                    {version.versionNo === currentVersionNo ? i18n._(msg` · Current`) : ""}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
                     {version.notes || new Date(version.createdAt).toLocaleString()}
-                    {version.published ? " · Published" : ""}
+                    {version.published ? i18n._(msg` · Published`) : ""}
                   </p>
                 </div>
                 {version.versionNo !== currentVersionNo &&
@@ -144,7 +148,9 @@ export function DeckVersionHistoryDialog({
                         disabled={loadingVersion !== null}
                         onClick={() => void restore(version.versionNo)}
                       >
-                        {loadingVersion === version.versionNo ? "Loading…" : "Restore"}
+                        {loadingVersion === version.versionNo
+                          ? i18n._(msg`Loading…`)
+                          : i18n._(msg`Restore`)}
                       </Button>
                     </span>
                   ) : (
@@ -154,7 +160,9 @@ export function DeckVersionHistoryDialog({
                       disabled={loadingVersion !== null}
                       onClick={() => requestRestore(version.versionNo)}
                     >
-                      {loadingVersion === version.versionNo ? "Loading…" : "Restore"}
+                      {loadingVersion === version.versionNo
+                        ? i18n._(msg`Loading…`)
+                        : i18n._(msg`Restore`)}
                     </Button>
                   ))}
               </div>

@@ -347,7 +347,7 @@ export const useGameStore = create<GameState>()(
           if (e instanceof IronsmithUnsupportedDeckError) {
             set({ ironsmithDeckError: e.issues });
           } else {
-            toast.error(e instanceof Error ? e.message : "Failed to start game");
+            toast.error(e instanceof Error ? e.message : i18n._(msg`Failed to start game`));
           }
           return false;
         } finally {
@@ -547,7 +547,9 @@ export const useGameStore = create<GameState>()(
           if (e instanceof IronsmithUnsupportedDeckError) {
             set({ ironsmithDeckError: e.issues });
           } else {
-            toast.error(e instanceof Error ? e.message : "Failed to start multiplayer game");
+            toast.error(
+              e instanceof Error ? e.message : i18n._(msg`Failed to start multiplayer game`),
+            );
           }
           return false;
         } finally {

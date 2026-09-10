@@ -102,15 +102,17 @@ export function BatchPrintingDialog({
             print: (typeof prints)[number];
           } => !!match.print,
         );
-      executeDeckEdit(`Use ${set.name} printings`, () => {
+      executeDeckEdit(i18n._(msg`Use ${set.name} printings`), () => {
         for (const match of matches) {
           useDeckStore.getState().updatePrint(match.name, match.print);
         }
       });
       toast.success(
-        matches.length > 0
-          ? `Changed ${matches.length} card ${matches.length === 1 ? "printing" : "printings"} to ${set.name}`
-          : `No cards in this deck have a ${set.name} printing`,
+        matches.length === 0
+          ? i18n._(msg`No cards in this deck have a ${set.name} printing`)
+          : matches.length === 1
+            ? i18n._(msg`Changed one card printing to ${set.name}`)
+            : i18n._(msg`Changed ${matches.length} card printings to ${set.name}`),
       );
       onOpenChange(false);
     } catch {
@@ -132,7 +134,9 @@ export function BatchPrintingDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            <Trans>Change {cardNames ? "selected" : "deck"} printings</Trans>
+            {cardNames
+              ? i18n._(msg`Change selected printings`)
+              : i18n._(msg`Change deck printings`)}
           </DialogTitle>
           <DialogDescription>
             <Trans>

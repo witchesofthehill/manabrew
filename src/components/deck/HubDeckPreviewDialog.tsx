@@ -149,7 +149,7 @@ export function HubDeckPreviewDialog({
         toast.success(i18n._(msg`"${detail.name}" added to your account decks`));
         onClose();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to save preset");
+        toast.error(error instanceof Error ? error.message : i18n._(msg`Failed to save preset`));
       } finally {
         setBusy(false);
       }
@@ -216,11 +216,12 @@ export function HubDeckPreviewDialog({
       setConfirmingUnpublish(false);
       removeEntry(deckId);
       void refresh();
-      toast.success(i18n._(msg`"${detail?.name ?? "Deck"}" removed from Community`));
+      const deckName = detail?.name ?? i18n._(msg`Deck`);
+      toast.success(i18n._(msg`"${deckName}" removed from Community`));
       onClose();
       onUnpublished?.();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Removing failed");
+      toast.error(err instanceof Error ? err.message : i18n._(msg`Removing failed`));
     } finally {
       setBusy(false);
     }

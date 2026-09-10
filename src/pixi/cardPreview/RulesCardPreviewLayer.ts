@@ -51,6 +51,8 @@ import { PREVIEW_TIMING } from "@/lib/cardPreview";
 import { HandCardControls } from "@/pixi/HandCardControls";
 import { containsPreviewHoverBridge } from "@/pixi/cardPreview/previewHoverArea";
 import { usePreferencesStore, type RulesPreviewSectionId } from "@/stores/usePreferencesStore";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 import {
   RulesPreviewSectionHeader,
   PREVIEW_SECTION_HEADER_HEIGHT,
@@ -642,7 +644,10 @@ export class RulesCardPreviewLayer {
       actions: indexedActions,
       controls: [],
       statuses: [],
-      hint: spec.sticky && indexedActions.length > 0 ? "↑↓ select · Enter activate · 1–9" : "",
+      hint:
+        spec.sticky && indexedActions.length > 0
+          ? i18n._(msg`↑↓ select · Enter activate · 1–9`)
+          : "",
       label: "",
       onSelectAction: (action) => this.callbacks.onSelectAction(action),
       embedded: true,
@@ -652,9 +657,12 @@ export class RulesCardPreviewLayer {
         ? presentation.counters.filter((counter) => counter.type !== "Lore")
         : presentation.counters;
     if (indexedActions.length > 0) {
+      const actionsHeading = display.otherFace
+        ? i18n._(msg`Available on current face · ${indexedActions.length}`)
+        : i18n._(msg`Available actions · ${indexedActions.length}`);
       y = this.addSectionHeader(
         "actions",
-        `${display.otherFace ? "Available on current face" : "Available actions"} · ${indexedActions.length}`,
+        actionsHeading,
         y,
         this.bodyContent,
         this.theme.gameTheme.cardRing,
@@ -669,7 +677,7 @@ export class RulesCardPreviewLayer {
     if (display.keywords.length > 0 || display.costs.length > 0 || visibleCounters.length > 0) {
       y = this.addSectionHeader(
         "details",
-        "Keywords, costs & counters",
+        i18n._(msg`Keywords, costs & counters`),
         y,
         this.bodyContent,
         display.keywords.length > 0 ? this.theme.gameTheme.cardRing : undefined,
@@ -692,7 +700,7 @@ export class RulesCardPreviewLayer {
       }
     }
     if (progression) {
-      y = this.addSectionHeader("progression", "Progression", y);
+      y = this.addSectionHeader("progression", i18n._(msg`Progression`), y);
       if (!this.isCollapsed("progression")) {
         const rail = new PixiCardRailPreview({
           state: progression.rail,
@@ -710,9 +718,9 @@ export class RulesCardPreviewLayer {
       rulesTextEntries(section.rulesText, progression, section.canonicalRulesText),
     );
     if (display.faceless) {
-      y = this.addStaticAbilityRow("Card identity and rules are hidden.", y);
+      y = this.addStaticAbilityRow(i18n._(msg`Card identity and rules are hidden.`), y);
     } else if (rulesEntries.some((entries) => entries.length > 0)) {
-      y = this.addSectionHeader("rules", "Rules text", y);
+      y = this.addSectionHeader("rules", i18n._(msg`Rules text`), y);
       if (!this.isCollapsed("rules")) {
         const startY = y;
         for (const [sectionIndex, section] of display.sections.entries()) {
@@ -737,7 +745,7 @@ export class RulesCardPreviewLayer {
       }
     }
     if (display.sections.some((section) => section.flavorText)) {
-      y = this.addSectionHeader("flavor", "Flavor text", y);
+      y = this.addSectionHeader("flavor", i18n._(msg`Flavor text`), y);
       if (!this.isCollapsed("flavor")) {
         const startY = y;
         for (const [sectionIndex, section] of display.sections.entries()) {
@@ -766,7 +774,7 @@ export class RulesCardPreviewLayer {
     const controls: Array<{ label: string; activate: () => void }> = [];
     if (display.flippable) {
       controls.push({
-        label: `Flip ${display.faceIndex === 0 ? "back" : "front"} · F`,
+        label: display.faceIndex === 0 ? i18n._(msg`Flip back · F`) : i18n._(msg`Flip front · F`),
         activate: () => this.callbacks.onFlip(),
       });
     }
@@ -777,7 +785,9 @@ export class RulesCardPreviewLayer {
       actions: [],
       controls,
       statuses: presentation.statuses,
-      hint: display.otherFace ? "Printed face · live state belongs to the other face" : "",
+      hint: display.otherFace
+        ? i18n._(msg`Printed face · live state belongs to the other face`)
+        : "",
       label: "",
       onSelectAction: (action) => this.callbacks.onSelectAction(action),
     });
@@ -1034,11 +1044,11 @@ export class RulesCardPreviewLayer {
     if (stats) {
       right = drawRulesStatBadge(this.footer, stats, right, 3, this.frame, this.theme);
     }
-    if (loyalty != null) this.drawShieldValue(loyalty, "Loyalty", right);
-    else if (defense != null) this.drawShieldValue(defense, "Defense", right);
+    if (loyalty != null) this.drawShieldValue(loyalty, i18n._(msg`Loyalty`), right);
+    else if (defense != null) this.drawShieldValue(defense, i18n._(msg`Defense`), right);
     if (stats?.damage) {
       const damage = new Text({
-        text: `${stats.damage} damage`,
+        text: i18n._(msg`${stats.damage} damage`),
         style: textStyle(this.frame.ink, 11, "700"),
       });
       damage.resolution = 2;

@@ -9,12 +9,14 @@ export function showAccountSaveNudge() {
   if (!isFeatureEnabled("accounts")) return;
   if (useAuthStore.getState().status === "signedIn") return;
   if (usePreferencesStore.getState().hideAccountSaveNudge) return;
-  toast("Saved in this browser only", {
+  toast(i18n._(msg`Saved in this browser only`), {
     id: "account-save-nudge",
     duration: 15000,
     description: isFeatureEnabled("deckHub")
-      ? "Sign in to save decks across devices or publish them. Playing stays account-free."
-      : "Sign in to save decks across devices. Playing stays account-free.",
+      ? i18n._(
+          msg`Sign in to save decks across devices or publish them. Playing stays account-free.`,
+        )
+      : i18n._(msg`Sign in to save decks across devices. Playing stays account-free.`),
     action: {
       get label() {
         return i18n._(msg`Sign in`);

@@ -68,10 +68,15 @@ export function CardArtDownloadSection() {
         return;
       }
       const result = await preseedCardArt(urls);
+      const downloaded = result.fetched + result.alreadyCached;
+      const summary =
+        downloaded === 1
+          ? i18n._(msg`Art ready for one image`)
+          : i18n._(msg`Art ready for ${downloaded} images`);
       toast.success(
-        i18n._(
-          msg`Art ready for ${result.fetched + result.alreadyCached} image${result.fetched + result.alreadyCached === 1 ? "" : "s"}${result.failed > 0 ? `, ${result.failed} could not be fetched` : ""}`,
-        ),
+        result.failed > 0
+          ? i18n._(msg`${summary}, ${result.failed} could not be fetched`)
+          : summary,
       );
       refresh();
     } catch (error) {
@@ -85,10 +90,10 @@ export function CardArtDownloadSection() {
     setProgress(null);
     try {
       const result = await downloadAllCardArt(variants);
-      toast.success(
-        `Downloaded ${result.fetched}, already had ${result.alreadyCached}` +
-          (result.failed > 0 ? `, ${result.failed} failed` : ""),
+      const summary = i18n._(
+        msg`Downloaded ${result.fetched}, already had ${result.alreadyCached}`,
       );
+      toast.success(result.failed > 0 ? i18n._(msg`${summary}, ${result.failed} failed`) : summary);
       refresh();
     } catch (error) {
       toast.error(i18n._(msg`Could not download every card: ${String(error)}`));

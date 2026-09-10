@@ -1,4 +1,6 @@
 import type { CSSProperties } from "react";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 import type { CardDto } from "@/protocol/game";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { deriveCardChoiceIndicators } from "./game.utils";
@@ -46,7 +48,7 @@ export function CardChoiceIndicators({
           {expanded && (
             <span className="whitespace-nowrap">
               {indicator.kind === "color"
-                ? "Chosen color"
+                ? i18n._(msg`Chosen color`)
                 : indicator.description.slice(0, indicator.description.indexOf(":"))}
             </span>
           )}

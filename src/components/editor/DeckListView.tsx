@@ -148,7 +148,7 @@ function CardSelectionButton({
         "absolute bottom-1 left-1 z-40 flex h-7 w-7 items-center justify-center rounded-full border bg-background/90 opacity-0 shadow transition-opacity group-hover:opacity-100 pointer-coarse:h-9 pointer-coarse:w-9 pointer-coarse:opacity-100",
         selected && "border-selection bg-selection text-white opacity-100",
       )}
-      aria-label={`${selected ? "Deselect" : "Select"} ${name}`}
+      aria-label={selected ? i18n._(msg`Deselect ${name}`) : i18n._(msg`Select ${name}`)}
       aria-pressed={selected}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => {
@@ -201,7 +201,11 @@ function CardCornerActions({
               ? "bg-commander/90 text-white"
               : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
           )}
-          title={isCommander ? `Remove ${commanderSlot.noun}` : `Set as ${commanderSlot.noun}`}
+          title={
+            isCommander
+              ? i18n._(msg`Remove ${commanderSlot.noun}`)
+              : i18n._(msg`Set as ${commanderSlot.noun}`)
+          }
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation();
@@ -220,7 +224,9 @@ function CardCornerActions({
               ? "bg-primary/90 text-white"
               : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
           )}
-          title={isCover ? "Remove as deck art cover" : "Set as deck art cover"}
+          title={
+            isCover ? i18n._(msg`Remove as deck art cover`) : i18n._(msg`Set as deck art cover`)
+          }
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation();
@@ -240,7 +246,9 @@ function CardCornerActions({
               : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
           )}
           title={
-            isCoverBack ? "Remove back face as deck art cover" : "Set back face as deck art cover"
+            isCoverBack
+              ? i18n._(msg`Remove back face as deck art cover`)
+              : i18n._(msg`Set back face as deck art cover`)
           }
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
@@ -377,7 +385,7 @@ function TagsSubmenu({
                   <button
                     type="button"
                     className="ml-2 rounded p-0.5 text-destructive hover:bg-muted shrink-0"
-                    title={`Remove "${tag}" from deck`}
+                    title={i18n._(msg`Remove "${tag}" from deck`)}
                     onClick={(e) => {
                       e.stopPropagation();
                       onRemoveCustomTag(tag);
@@ -670,7 +678,11 @@ function DraggableStackCard({
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
       data-card-ownership={ownership}
-      aria-label={`${name}, ${group.count} cop${group.count === 1 ? "y" : "ies"}`}
+      aria-label={
+        group.count === 1
+          ? i18n._(msg`${name}, one copy`)
+          : i18n._(msg`${name}, ${group.count} copies`)
+      }
       aria-pressed={isSelected}
       onMouseEnter={() => onCardHover(index)}
       onMouseLeave={onCardLeave}
@@ -947,7 +959,11 @@ function CardVisual({
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
       data-card-ownership={ownership}
-      aria-label={`${name}, ${group.count} cop${group.count === 1 ? "y" : "ies"}`}
+      aria-label={
+        group.count === 1
+          ? i18n._(msg`${name}, one copy`)
+          : i18n._(msg`${name}, ${group.count} copies`)
+      }
       aria-pressed={isSelected}
       onClick={(e) => handleCardClick(e, name, onSelect, onShowInfo)}
       onKeyDown={(event) => {
@@ -1079,7 +1095,11 @@ function CardRow({
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
       data-card-ownership={ownership}
-      aria-label={`${name}, ${group.count} cop${group.count === 1 ? "y" : "ies"}`}
+      aria-label={
+        group.count === 1
+          ? i18n._(msg`${name}, one copy`)
+          : i18n._(msg`${name}, ${group.count} copies`)
+      }
       aria-pressed={isSelected}
       onClick={(e) => {
         e.stopPropagation();
@@ -1124,7 +1144,9 @@ function CardRow({
       )}
       <span
         className={cn("text-sm flex-1 truncate", unsupported && "text-warning")}
-        title={unsupported ? `${name} - unsupported by the Manabrew and Forge engines` : name}
+        title={
+          unsupported ? i18n._(msg`${name} - unsupported by the Manabrew and Forge engines`) : name
+        }
       >
         {name}
       </span>
@@ -1278,7 +1300,7 @@ function CardSection({
         size="icon"
         variant="ghost"
         className="h-5 w-5 text-destructive opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity shrink-0"
-        title={`Remove "${tag}" tag`}
+        title={i18n._(msg`Remove "${tag}" tag`)}
         onClick={onRemoveTag}
       >
         <X className="h-3 w-3" />
@@ -1302,7 +1324,7 @@ function CardSection({
       />
 
       {!open ? null : groups.length === 0 ? (
-        <EmptyDropZone message="Drag cards here" />
+        <EmptyDropZone message={i18n._(msg`Drag cards here`)} />
       ) : viewMode === "list" ? (
         <div className="space-y-0.5">
           {groups.map((g) => {

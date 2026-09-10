@@ -48,7 +48,7 @@ export function OpenTableSeats({
   return (
     <div
       role="group"
-      aria-label={`Table seats: ${players.length} of ${maxPlayers} occupied`}
+      aria-label={i18n._(msg`Table seats: ${players.length} of ${maxPlayers} occupied`)}
       className={cn("relative mx-auto aspect-[8/5] w-full max-w-64", className)}
     >
       <div className="absolute left-1/2 top-1/2 h-[68%] w-[80%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary/25 bg-primary/[0.07] shadow-inner" />

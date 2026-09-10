@@ -30,7 +30,9 @@ export function PromptRequired({
         style={themedStyle}
         onClick={onOpenPrompt}
         disabled={isWaitingForResponse}
-        title={hidden ? "Prompt required. Click to reopen." : "Prompt is open."}
+        title={
+          hidden ? i18n._(msg`Prompt required. Click to reopen.`) : i18n._(msg`Prompt is open.`)
+        }
       >
         <Trans>
           <AlertCircle className="h-3.5 w-3.5" />
@@ -48,7 +50,9 @@ export function PromptRequired({
         style={themedStyle}
         onClick={onOpenPrompt}
         disabled={isWaitingForResponse}
-        title={hidden ? "Prompt required. Click to reopen." : "Prompt is open."}
+        title={
+          hidden ? i18n._(msg`Prompt required. Click to reopen.`) : i18n._(msg`Prompt is open.`)
+        }
       >
         <AlertCircle className="h-3.5 w-3.5" />
         {hidden ? i18n._(msg`PROMPT REQUIRED`) : i18n._(msg`PROMPT OPEN`)}

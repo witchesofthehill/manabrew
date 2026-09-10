@@ -52,7 +52,6 @@ export function CardRailPreview({
     interactions.map((interaction) => [interaction.position, interaction]),
   );
   const title = state.kind === "saga" ? i18n._(msg`Lore chapters`) : i18n._(msg`Class levels`);
-  const summary = state.kind === "saga" ? "Chapter" : "Level";
   return (
     <section
       {...getCardRailRootAttributes(state, railInstanceId)}
@@ -78,9 +77,13 @@ export function CardRailPreview({
             {title}
           </span>
           <span className="block text-xs font-semibold">
-            {state.current > 0
-              ? i18n._(msg`${summary} ${state.current} of ${state.max}`)
-              : i18n._(msg`Awaiting first ${summary.toLowerCase()}`)}
+            {state.kind === "saga"
+              ? state.current > 0
+                ? i18n._(msg`Chapter ${state.current} of ${state.max}`)
+                : i18n._(msg`Awaiting first chapter`)
+              : state.current > 0
+                ? i18n._(msg`Level ${state.current} of ${state.max}`)
+                : i18n._(msg`Awaiting first level`)}
           </span>
         </span>
       </header>
@@ -93,7 +96,7 @@ export function CardRailPreview({
             ? {
                 type: "button" as const,
                 onClick: interaction.onActivate,
-                "aria-label": `${interaction.label} (${interaction.shortcut})`,
+                "aria-label": i18n._(msg`${interaction.label} (${interaction.shortcut})`),
                 "aria-keyshortcuts": String(interaction.shortcut),
               }
             : {};

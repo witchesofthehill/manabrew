@@ -115,14 +115,14 @@ export function PrintingOptimizerDialog({
               cardId: card.identity.id,
               name: card.identity.name,
               printing,
-              reason: "Printing could not be resolved",
+              reason: i18n._(msg`Printing could not be resolved`),
             });
           } else if (!supportsPrintingFinish(print, false)) {
             unresolved.push({
               cardId: card.identity.id,
               name: card.identity.name,
               printing,
-              reason: "This printing is foil-only",
+              reason: i18n._(msg`This printing is foil-only`),
             });
           } else {
             proposal.push({
@@ -207,7 +207,7 @@ export function PrintingOptimizerDialog({
         }
       }
       if (useDeckStore.getState().editorSessionId !== sessionId) {
-        throw new Error("The open deck changed while printings were being checked");
+        throw new Error(i18n._(msg`The open deck changed while printings were being checked`));
       }
       setChanges(proposal);
       setSkipped(unresolved);
@@ -216,7 +216,9 @@ export function PrintingOptimizerDialog({
       }
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
-        toast.error(error instanceof Error ? error.message : "Could not optimize deck printings");
+        toast.error(
+          error instanceof Error ? error.message : i18n._(msg`Could not optimize deck printings`),
+        );
       }
     } finally {
       if (abortControllerRef.current === abortController) {
@@ -233,7 +235,7 @@ export function PrintingOptimizerDialog({
       setSkipped([]);
       return;
     }
-    executeDeckEdit(`Optimize ${changes.length} deck printings`, () => {
+    executeDeckEdit(i18n._(msg`Optimize ${changes.length} deck printings`), () => {
       for (const change of changes) {
         if (change.print) {
           useDeckStore.getState().updateCardPrint(change.cardId, change.print, change.targetFoil);
@@ -243,9 +245,9 @@ export function PrintingOptimizerDialog({
       }
     });
     toast.success(
-      i18n._(
-        msg`Updated ${changes.length} card ${changes.length === 1 ? "printing" : "printings"}`,
-      ),
+      changes.length === 1
+        ? i18n._(msg`Updated one card printing`)
+        : i18n._(msg`Updated ${changes.length} card printings`),
     );
     setChanges([]);
     setSkipped([]);
@@ -373,10 +375,9 @@ export function PrintingOptimizerDialog({
                   <Trans>Proposal ready</Trans>
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  <Trans>
-                    {changes.length} {changes.length === 1 ? "copy" : "copies"} will change · one
-                    undoable edit
-                  </Trans>
+                  {changes.length === 1
+                    ? i18n._(msg`One copy will change · one undoable edit`)
+                    : i18n._(msg`${changes.length} copies will change · one undoable edit`)}
                 </p>
               </div>
               <Button
@@ -419,10 +420,10 @@ export function PrintingOptimizerDialog({
           <div className="space-y-2 rounded-lg border border-warning/40 bg-warning/5 p-3">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm font-medium text-warning">
-                <Trans>
-                  <TriangleAlert className="h-4 w-4" /> Could not convert {skipped.length}{" "}
-                  {skipped.length === 1 ? "copy" : "copies"}
-                </Trans>
+                <TriangleAlert className="h-4 w-4" />
+                {skipped.length === 1
+                  ? i18n._(msg`Could not convert one copy`)
+                  : i18n._(msg`Could not convert ${skipped.length} copies`)}
               </div>
               {changes.length === 0 && (
                 <Button variant="ghost" size="sm" onClick={() => setSkipped([])}>

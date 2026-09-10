@@ -37,7 +37,7 @@ function TaxPip({ playerId, slot, casts }: { playerId: string; slot: 0 | 1; cast
     <button
       type="button"
       className="flex items-center gap-0.5 rounded-full px-1.5 py-1 text-xs font-semibold hover:bg-white/15"
-      aria-label={`Commander tax: pay ${tax} generic (tap +1 cast, hold -1)`}
+      aria-label={i18n._(msg`Commander tax: pay ${tax} generic (tap +1 cast, hold -1)`)}
       title={i18n._(msg`Commander tax \u2014 tap +1 cast, hold -1`)}
       {...bindings}
     >

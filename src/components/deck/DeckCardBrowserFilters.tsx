@@ -181,8 +181,8 @@ function ViewControl({
           <button
             key={option.value}
             type="button"
-            title={`${option.label} view`}
-            aria-label={`${option.label} view`}
+            title={i18n._(msg`${option.label} view`)}
+            aria-label={i18n._(msg`${option.label} view`)}
             aria-pressed={value === option.value}
             className={cn(
               "flex h-8 w-8 items-center justify-center border-r text-muted-foreground transition-colors last:border-r-0 pointer-coarse:h-10 pointer-coarse:w-10",
@@ -211,7 +211,7 @@ function ColorControl({
           key={color}
           type="button"
           title={COLOR_LABELS[color]}
-          aria-label={`Filter by ${COLOR_LABELS[color]} identity`}
+          aria-label={i18n._(msg`Filter by ${COLOR_LABELS[color]} identity`)}
           aria-pressed={colors.includes(color)}
           className={cn(
             "flex h-8 w-8 items-center justify-center rounded opacity-45 transition-opacity hover:opacity-80 pointer-coarse:h-10 pointer-coarse:w-10",
@@ -303,7 +303,7 @@ export function DeckCardBrowserFilters({
     >
       {MANA_VALUE_OPTIONS.map((value) => (
         <option key={value} value={value}>
-          {value === "all" ? "Any mana value" : `Mana value: ${value}`}
+          {value === "all" ? i18n._(msg`Any mana value`) : i18n._(msg`Mana value: ${value}`)}
         </option>
       ))}
     </select>

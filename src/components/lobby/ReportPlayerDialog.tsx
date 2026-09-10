@@ -105,7 +105,7 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
       setSent(true);
     } catch (error) {
       setSubmitting(false);
-      toast.error(error instanceof Error ? error.message : "Couldn't send the report.");
+      toast.error(error instanceof Error ? error.message : i18n._(msg`Couldn't send the report.`));
     }
   }
   if (sent) {

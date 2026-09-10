@@ -242,7 +242,12 @@ export default function Limited() {
             icon={<Boxes className="h-5 w-5" />}
             title={i18n._(msg`Sealed`)}
             description={i18n._(msg`Open packs, build a 40-card deck, run an AI gauntlet.`)}
-            ctaLabel={ctaLabel(fetchingPool, isStarting, "Open packs", "Start Sealed")}
+            ctaLabel={ctaLabel(
+              fetchingPool,
+              isStarting,
+              i18n._(msg`Open packs`),
+              i18n._(msg`Start Sealed`),
+            )}
             disabled={startBlocked}
             onStart={handleStartSealed}
           >
@@ -260,7 +265,12 @@ export default function Limited() {
             icon={<Swords className="h-5 w-5" />}
             title={i18n._(msg`Booster Draft`)}
             description={i18n._(msg`Pod draft against AI seats \u2014 3 packs each.`)}
-            ctaLabel={ctaLabel(fetchingPool, isStarting, "Open packs", "Start Draft")}
+            ctaLabel={ctaLabel(
+              fetchingPool,
+              isStarting,
+              i18n._(msg`Open packs`),
+              i18n._(msg`Start Draft`),
+            )}
             disabled={startBlocked}
             onStart={handleStartDraft}
           >
@@ -278,7 +288,12 @@ export default function Limited() {
             icon={<Layers className="h-5 w-5" />}
             title={i18n._(msg`Winston Draft`)}
             description={i18n._(msg`2-player pile draft against the AI.`)}
-            ctaLabel={ctaLabel(fetchingPool, isStarting, "Shuffle", "Start Winston")}
+            ctaLabel={ctaLabel(
+              fetchingPool,
+              isStarting,
+              i18n._(msg`Shuffle`),
+              i18n._(msg`Start Winston`),
+            )}
             disabled={startBlocked}
             onStart={handleStartWinston}
           >
@@ -296,7 +311,7 @@ export default function Limited() {
             icon={<Wand2 className="h-5 w-5" />}
             title={i18n._(msg`CubeCobra Import`)}
             description={i18n._(msg`Paste a cube id or url, or load a saved pool .json file.`)}
-            ctaLabel={isStarting ? "Importing…" : "Import Cube"}
+            ctaLabel={isStarting ? i18n._(msg`Importing…`) : i18n._(msg`Import Cube`)}
             disabled={isStarting || !cubeInput.trim()}
             onStart={handleImportCube}
             footnote={
@@ -305,9 +320,9 @@ export default function Limited() {
                   <Trans>
                     Loaded: <span className="text-foreground/90">{lastImportedCube.name}</span> —{" "}
                     {lastImportedCube.cardCount} cards
-                    {lastImportedCube.rejectedCardCount > 0 &&
-                      ` · ${lastImportedCube.rejectedCardCount} without local engine data`}
                   </Trans>
+                  {lastImportedCube.rejectedCardCount > 0 &&
+                    i18n._(msg` · ${lastImportedCube.rejectedCardCount} without local engine data`)}
                 </>
               ) : null
             }
@@ -458,11 +473,13 @@ export default function Limited() {
                   className="group flex w-full items-center justify-between gap-2 rounded border border-border/40 bg-card/30 px-3 py-2 text-left transition hover:border-primary/50 hover:bg-card/60 disabled:cursor-not-allowed disabled:opacity-60"
                   title={
                     matched.length === 0
-                      ? "No matching sets in the Scryfall list yet"
-                      : `${matched.length} sets · ${matched
-                          .slice(0, 6)
-                          .map((s) => s.code.toUpperCase())
-                          .join(", ")}${matched.length > 6 ? "…" : ""}`
+                      ? i18n._(msg`No matching sets in the Scryfall list yet`)
+                      : i18n._(
+                          msg`${matched.length} sets · ${matched
+                            .slice(0, 6)
+                            .map((s) => s.code.toUpperCase())
+                            .join(", ")}${matched.length > 6 ? "…" : ""}`,
+                        )
                   }
                 >
                   <div className="min-w-0">

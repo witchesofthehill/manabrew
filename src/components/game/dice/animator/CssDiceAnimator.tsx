@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { DiceRollAnimationProps } from "../types";
 import { DieFaceStatic } from "../DieFaceStatic";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 
 const DWELL_AFTER_ANIMATION_MS = 350;
 /** Must match the `--animate-dice-roll` duration in `src/index.css`. */
@@ -45,7 +47,7 @@ export function CssDiceAnimator({
     <div
       className={cn("flex items-center justify-center gap-3 flex-wrap", className)}
       role="img"
-      aria-label={`Rolled ${finals.join(", ")} on a d${spec.sides}`}
+      aria-label={i18n._(msg`Rolled ${finals.join(", ")} on a d${spec.sides}`)}
     >
       {finals.map((value, index) => (
         <AnimatedDie

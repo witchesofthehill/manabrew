@@ -102,7 +102,7 @@ export function PayManaCost({
         )}
         {payManaCostInfo?.lifeToPay != null && payManaCostInfo.onPayLife && (
           <PromptActionButton
-            label={`${payManaCostInfo.lifeToPay} Life`}
+            label={i18n._(msg`${payManaCostInfo.lifeToPay} Life`)}
             icon={<HeartCrack className="h-3.5 w-3.5" />}
             variant="outline"
             baseColor={promptActionColors.attackAction}

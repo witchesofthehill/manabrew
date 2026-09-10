@@ -54,7 +54,7 @@ function SummaryBody({
               <li key={p.id} className="flex justify-between gap-2">
                 <span className="truncate">
                   {p.name}
-                  {p.isDead ? " (eliminated)" : ""}
+                  {p.isDead ? i18n._(msg` (eliminated)`) : ""}
                 </span>
                 <span className="tabular-nums">{p.life}</span>
               </li>

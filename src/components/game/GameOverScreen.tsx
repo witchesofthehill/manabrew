@@ -2,6 +2,8 @@ import type { PlayerDto } from "@/protocol/game";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface GameOverScreenProps {
   winnerId: string | null | undefined;
   me: PlayerDto;
@@ -16,22 +18,22 @@ export function GameOverScreen({ winnerId, me, opponents, turn, onEndGame }: Gam
   const anyConceded = iConceded || otherConcedeNames.length > 0;
   const { heading, tone } = (() => {
     if (winnerId == null && !anyConceded) {
-      return { heading: "Draw!", tone: "neutral" as const };
+      return { heading: i18n._(msg`Draw!`), tone: "neutral" as const };
     }
     if (iConceded) {
-      return { heading: "You conceded", tone: "loss" as const };
+      return { heading: i18n._(msg`You conceded`), tone: "loss" as const };
     }
     if (didWin) {
-      return { heading: "You Win!", tone: "win" as const };
+      return { heading: i18n._(msg`You Win!`), tone: "win" as const };
     }
     if (winnerId != null) {
-      return { heading: "You Lose!", tone: "loss" as const };
+      return { heading: i18n._(msg`You Lose!`), tone: "loss" as const };
     }
-    const sentence =
-      otherConcedeNames.length === 1
-        ? `${otherConcedeNames[0]} conceded`
-        : `${otherConcedeNames.slice(0, -1).join(", ")} and ${otherConcedeNames[otherConcedeNames.length - 1]} conceded`;
-    return { heading: sentence, tone: "neutral" as const };
+    const names = new Intl.ListFormat(i18n.locale, {
+      style: "long",
+      type: "conjunction",
+    }).format(otherConcedeNames);
+    return { heading: i18n._(msg`${names} conceded`), tone: "neutral" as const };
   })();
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4">

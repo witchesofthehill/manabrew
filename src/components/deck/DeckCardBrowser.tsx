@@ -104,7 +104,11 @@ function BrowserVisualCard({
   return (
     <button
       type="button"
-      aria-label={`${group.card.identity.name}, ${group.count} ${group.count === 1 ? "copy" : "copies"}`}
+      aria-label={
+        group.count === 1
+          ? i18n._(msg`${group.card.identity.name}, one copy`)
+          : i18n._(msg`${group.card.identity.name}, ${group.count} copies`)
+      }
       data-card-name={group.card.identity.name}
       className="group relative shrink-0 rounded-lg text-left transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:hover:translate-y-0"
       style={{ width }}
@@ -152,7 +156,11 @@ function BrowserStackColumn({
           <button
             key={group.card.identity.name}
             type="button"
-            aria-label={`${group.card.identity.name}, ${group.count} ${group.count === 1 ? "copy" : "copies"}`}
+            aria-label={
+              group.count === 1
+                ? i18n._(msg`${group.card.identity.name}, one copy`)
+                : i18n._(msg`${group.card.identity.name}, ${group.count} copies`)
+            }
             data-card-name={group.card.identity.name}
             className="absolute left-0 rounded-lg text-left transition-[top,transform] duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
             style={{ top: topFor(index), width, zIndex: index + 1 }}
@@ -482,7 +490,9 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
       setDetailCard(entry.info);
     } catch (error) {
       if (cardDetailRequestIdRef.current !== requestId) return;
-      toast.error(error instanceof Error ? error.message : "Card details are unavailable");
+      toast.error(
+        error instanceof Error ? error.message : i18n._(msg`Card details are unavailable`),
+      );
     } finally {
       if (cardDetailRequestIdRef.current === requestId) setLoadingCardName(null);
     }
@@ -556,7 +566,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
             <div className="flex flex-wrap items-start gap-5">
               {commanders.length > 0 && (
                 <BrowserStackColumn
-                  label={commanders.length > 1 ? "Commanders" : "Commander"}
+                  label={commanders.length > 1 ? i18n._(msg`Commanders`) : i18n._(msg`Commander`)}
                   groups={groupCards(commanders)}
                   width={cardWidth}
                   onOpen={(card) => void openCard(card)}
@@ -626,7 +636,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
             >
               {commanders.length > 0 && (
                 <BrowserSection
-                  label={commanders.length > 1 ? "Commanders" : "Commander"}
+                  label={commanders.length > 1 ? i18n._(msg`Commanders`) : i18n._(msg`Commander`)}
                   groups={groupCards(commanders)}
                   viewMode={viewMode}
                   cardWidth={cardWidth}

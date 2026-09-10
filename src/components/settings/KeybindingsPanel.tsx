@@ -102,7 +102,11 @@ export function KeybindingsPanel() {
                         style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}
                         onClick={() => setCapturingId(isCapturing ? null : b.id)}
                       >
-                        {isCapturing ? "Press keys…" : combo ? formatCombo(combo) : "Unbound"}
+                        {isCapturing
+                          ? i18n._(msg`Press keys…`)
+                          : combo
+                            ? formatCombo(combo)
+                            : i18n._(msg`Unbound`)}
                       </Button>
                       {isCustom && (
                         <Button

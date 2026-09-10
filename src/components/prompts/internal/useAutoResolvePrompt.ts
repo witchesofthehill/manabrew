@@ -2,6 +2,8 @@ import { useLayoutEffect } from "react";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { resolvePrompt } from "./promptHandlers";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 
 export function useAutoResolvePrompt(paused = false): void {
   const currentPrompt = useGameStore((s) => s.currentPrompt);
@@ -30,7 +32,7 @@ export function useAutoResolvePrompt(paused = false): void {
 
 function appendAutoResolutionLog(promptType: string, reason: string): void {
   const entry = {
-    message: `Auto-resolved ${promptType}: ${reason}`,
+    message: i18n._(msg`Auto-resolved ${promptType}: ${reason}`),
     entryType: "info" as const,
     timestampMs: Date.now(),
   };

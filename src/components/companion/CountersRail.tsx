@@ -4,6 +4,8 @@ import { useCompanionStore } from "@/stores/useCompanionStore";
 import type { CompanionCounter } from "@/stores/useCompanionStore.types";
 import { CompanionIcon } from "./icons";
 import { usePressHold } from "./usePressHold";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 
 interface CountersRailProps {
   playerId: string;
@@ -44,7 +46,7 @@ function CounterChip({ playerId, counter }: { playerId: string; counter: Compani
       <button
         type="button"
         className="grid size-6 place-items-center rounded-full hover:bg-white/15 @sm:size-7 pointer-coarse:size-8"
-        aria-label={`Decrease ${counter.label}`}
+        aria-label={i18n._(msg`Decrease ${counter.label}`)}
         {...decBindings}
       >
         −
@@ -57,7 +59,7 @@ function CounterChip({ playerId, counter }: { playerId: string; counter: Compani
       <button
         type="button"
         className="grid size-6 place-items-center rounded-full hover:bg-white/15 @sm:size-7 pointer-coarse:size-8"
-        aria-label={`Increase ${counter.label}`}
+        aria-label={i18n._(msg`Increase ${counter.label}`)}
         {...incBindings}
       >
         +
@@ -65,7 +67,7 @@ function CounterChip({ playerId, counter }: { playerId: string; counter: Compani
       <button
         type="button"
         className="ml-0.5 hidden size-6 place-items-center rounded-full text-white/60 hover:bg-white/15 hover:text-white group-hover:grid pointer-coarse:grid"
-        aria-label={`Remove ${counter.label}`}
+        aria-label={i18n._(msg`Remove ${counter.label}`)}
         onClick={() => remove(playerId, counter.id)}
       >
         <X className="size-3.5" />

@@ -42,7 +42,7 @@ export function CollectionCard({
       min="0"
       className="h-8 w-20 text-right font-mono"
       value={quantity}
-      aria-label={`Owned copies of ${displayName}`}
+      aria-label={i18n._(msg`Owned copies of ${displayName}`)}
       onChange={(event) => onQuantityChange(Number(event.target.value))}
     />
   );

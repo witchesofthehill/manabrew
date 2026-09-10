@@ -7,6 +7,8 @@ import { SET_TYPE_LABELS } from "@/components/limited/setFilters";
 import { cn } from "@/lib/utils";
 import type { ScryfallSet } from "@/types/scryfall";
 import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface SetPickerProps {
   sets: ScryfallSet[];
   selectedCode: string;
@@ -87,7 +89,7 @@ export function SetPicker({
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={`Search ${sets.length} sets…`}
+              placeholder={i18n._(msg`Search ${sets.length} sets…`)}
               className={cn("h-8 pl-7 text-xs", variant === "column" ? "w-full" : "w-64")}
             />
           </div>
@@ -146,7 +148,9 @@ export function SetPicker({
         <div className="grid grid-cols-1 gap-1.5 @lg:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4">
           {filtered.length === 0 ? (
             <div className="col-span-full py-6 text-center text-sm text-muted-foreground">
-              <Trans>No sets match {query ? `"${query}"` : "the current filter"}.</Trans>
+              {query
+                ? i18n._(msg`No sets match "${query}".`)
+                : i18n._(msg`No sets match the current filter.`)}
             </div>
           ) : (
             filtered

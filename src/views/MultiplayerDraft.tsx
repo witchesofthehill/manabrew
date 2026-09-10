@@ -17,6 +17,8 @@ import {
 } from "@/stores/useMultiplayerDraftStore";
 import type { DraftCard } from "@/types/limited";
 import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export default function MultiplayerDraft() {
   const navigate = useNavigate();
   const mode = useMultiplayerDraftStore((s) => s.mode);
@@ -58,7 +60,7 @@ export default function MultiplayerDraft() {
     navigate(ROUTES.PLAY);
   }
   useTopBarOverride({
-    title: mode === "complete" ? "Build Draft Deck" : undefined,
+    title: mode === "complete" ? i18n._(msg`Build Draft Deck`) : undefined,
     onBack: () => leave(ROUTES.LOBBY),
     onHome: () => void leaveHome(),
     navigationDisabled: true,

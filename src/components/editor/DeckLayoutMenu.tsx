@@ -143,7 +143,7 @@ export function DeckLayoutMenu({
             variant="outline"
             size="sm"
             className="h-7 gap-1 text-xs"
-            title={compact ? "Saved views" : undefined}
+            title={compact ? i18n._(msg`Saved views`) : undefined}
           >
             <LayoutTemplate className="h-3.5 w-3.5" />
             {compact ? (
@@ -187,7 +187,7 @@ export function DeckLayoutMenu({
               <button
                 type="button"
                 className="rounded p-1 text-muted-foreground hover:text-destructive"
-                title={`Delete ${layout.name}`}
+                title={i18n._(msg`Delete ${layout.name}`)}
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();

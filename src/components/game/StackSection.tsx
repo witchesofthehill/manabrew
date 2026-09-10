@@ -5,6 +5,8 @@ import type { PromptActionType } from "./game.types";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface StackSectionProps {
   stack: StackObjectDto[];
   promptType?: PromptActionType;
@@ -39,9 +41,9 @@ export function StackSection({ stack, promptType, onOpenStack }: StackSectionPro
             .slice(0, 5)
             .map((obj, idx) => (
               <span key={obj.id} className="text-[11px] text-muted-foreground truncate">
-                {idx === 0 ? "[TOP] " : ""}
+                {idx === 0 ? i18n._(msg`[TOP] `) : ""}
                 {obj.identity.name}
-                {obj.isCasting ? " (casting)" : ""}
+                {obj.isCasting ? i18n._(msg` (casting)`) : ""}
               </span>
             ))}
         </div>

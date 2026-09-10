@@ -16,7 +16,7 @@ export function DeckGoalsPanel() {
   const setEditorMetadata = useDeckStore((state) => state.setEditorMetadata);
   const quantities = useCollectionStore((state) => state.quantities);
   const goals = deck.editor?.goals ?? {};
-  const goalEdit = useDeckEditTransaction("Update deck goals");
+  const goalEdit = useDeckEditTransaction(i18n._(msg`Update deck goals`));
   const lands = deck.cards.filter((card) => isLand(card.types)).length;
   const nonlands = deck.cards.filter((card) => !isLand(card.types));
   const averageManaValue = nonlands.length

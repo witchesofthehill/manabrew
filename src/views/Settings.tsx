@@ -448,7 +448,9 @@ const APP_THEME_GROUPS: {
   keys: AppThemeKey[];
 }[] = [
   {
-    heading: "Surfaces & Foregrounds",
+    get heading() {
+      return i18n._(msg`Surfaces & Foregrounds`);
+    },
     get description() {
       return i18n._(
         msg`Neutral page, card, and popover backgrounds plus their paired text colours.`,
@@ -457,7 +459,9 @@ const APP_THEME_GROUPS: {
     keys: ["background", "foreground", "card", "card-foreground", "popover", "popover-foreground"],
   },
   {
-    heading: "Brand & Accent",
+    get heading() {
+      return i18n._(msg`Brand & Accent`);
+    },
     get description() {
       return i18n._(msg`Primary action colour and the softer accent / secondary tints.`);
     },
@@ -471,7 +475,9 @@ const APP_THEME_GROUPS: {
     ],
   },
   {
-    heading: "State Signals",
+    get heading() {
+      return i18n._(msg`State Signals`);
+    },
     get description() {
       return i18n._(msg`Destructive, warning, commander, and selection highlights.`);
     },
@@ -485,7 +491,9 @@ const APP_THEME_GROUPS: {
     ],
   },
   {
-    heading: "Muted & Structure",
+    get heading() {
+      return i18n._(msg`Muted & Structure`);
+    },
     get description() {
       return i18n._(msg`Subdued surfaces, borders, input fields, focus ring, and overlay dim.`);
     },
@@ -499,28 +507,36 @@ const GAME_THEME_GROUPS: {
   exactKeys?: string[];
 }[] = [
   {
-    heading: "Active Action",
+    get heading() {
+      return i18n._(msg`Active Action`);
+    },
     get description() {
       return i18n._(msg`Priority ring, turn glow, and related active-state cues.`);
     },
     prefixes: ["activeAction."],
   },
   {
-    heading: "Prompt Buttons",
+    get heading() {
+      return i18n._(msg`Prompt Buttons`);
+    },
     get description() {
       return i18n._(msg`Pass, attack, defense, cancel, and related prompt action buttons.`);
     },
     prefixes: ["promptAction."],
   },
   {
-    heading: "Combat & Placement Arrows",
+    get heading() {
+      return i18n._(msg`Combat & Placement Arrows`);
+    },
     get description() {
       return i18n._(msg`Curved arrows for attack / block declarations and the placement ghost.`);
     },
     prefixes: ["arrow."],
   },
   {
-    heading: "Targeting Pointers",
+    get heading() {
+      return i18n._(msg`Targeting Pointers`);
+    },
     get description() {
       return i18n._(
         msg`Per-intent pointer icon glow (sacrifice, destroy, exile, bounce, tap \u2026).`,
@@ -529,35 +545,45 @@ const GAME_THEME_GROUPS: {
     prefixes: ["pointer."],
   },
   {
-    heading: "Mana Symbols",
+    get heading() {
+      return i18n._(msg`Mana Symbols`);
+    },
     get description() {
       return i18n._(msg`W / U / B / R / G / C pip and tap-button tints.`);
     },
     prefixes: ["mana."],
   },
   {
-    heading: "Card Status Badges",
+    get heading() {
+      return i18n._(msg`Card Status Badges`);
+    },
     get description() {
       return i18n._(msg`Exerted, morph, bestow, token, transformed, plotted, madness, warped.`);
     },
     prefixes: ["cardStatus."],
   },
   {
-    heading: "Counters",
+    get heading() {
+      return i18n._(msg`Counters`);
+    },
     get description() {
       return i18n._(msg`Per-counter-type chip colour (P1P1, M1M1, Loyalty, Charge \u2026).`);
     },
     prefixes: ["counter."],
   },
   {
-    heading: "P / T Badge",
+    get heading() {
+      return i18n._(msg`P / T Badge`);
+    },
     get description() {
       return i18n._(msg`Neutral / lethal / buffed / debuffed stat-badge backgrounds.`);
     },
     prefixes: ["pt."],
   },
   {
-    heading: "Status Signals",
+    get heading() {
+      return i18n._(msg`Status Signals`);
+    },
     get description() {
       return i18n._(
         msg`Generic UI states: success (connected / win), poison counter, life / heart.`,
@@ -566,21 +592,27 @@ const GAME_THEME_GROUPS: {
     exactKeys: ["success", "poison", "life"],
   },
   {
-    heading: "Canvas",
+    get heading() {
+      return i18n._(msg`Canvas`);
+    },
     get description() {
       return i18n._(msg`Pixi table background, shadow ink, and high-contrast neutral.`);
     },
     prefixes: ["canvas."],
   },
   {
-    heading: "Card Placeholder",
+    get heading() {
+      return i18n._(msg`Card Placeholder`);
+    },
     get description() {
       return i18n._(msg`Sprite fill / stroke used while a card's image is loading.`);
     },
     prefixes: ["cardPlaceholder."],
   },
   {
-    heading: "Text Roles",
+    get heading() {
+      return i18n._(msg`Text Roles`);
+    },
     get description() {
       return i18n._(
         msg`Generic text colours on tinted chips, empty zones, and ghost placeholders.`,
@@ -589,21 +621,27 @@ const GAME_THEME_GROUPS: {
     exactKeys: ["textOnTinted", "textMuted", "textGhost"],
   },
   {
-    heading: "Player Colours",
+    get heading() {
+      return i18n._(msg`Player Colours`);
+    },
     get description() {
       return i18n._(msg`Per-seat colours for phase strip indicators and turn tint.`);
     },
     prefixes: ["playerColors."],
   },
   {
-    heading: "Badges",
+    get heading() {
+      return i18n._(msg`Badges`);
+    },
     get description() {
       return i18n._(msg`Status chip icon colours rendered next to the mana pool.`);
     },
     prefixes: ["badges."],
   },
   {
-    heading: "Card Ring",
+    get heading() {
+      return i18n._(msg`Card Ring`);
+    },
     get description() {
       return i18n._(msg`Fallback ring / selection halo colour.`);
     },
@@ -969,7 +1007,7 @@ export default function Settings() {
                         </div>
                         <button
                           type="button"
-                          aria-label={`Remove ${relay.name}`}
+                          aria-label={i18n._(msg`Remove ${relay.name}`)}
                           className="shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                           onPointerDown={(e) => e.stopPropagation()}
                           onClick={(e) => {
@@ -1060,7 +1098,9 @@ export default function Settings() {
                 <button
                   type="button"
                   onClick={() => setPlaymatEditorOpen(true)}
-                  title={hasDefaultPlaymat ? "Customize playmat" : "Set playmat"}
+                  title={
+                    hasDefaultPlaymat ? i18n._(msg`Customize playmat`) : i18n._(msg`Set playmat`)
+                  }
                   className={cn(
                     "flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg border bg-muted",
                     "motion-safe:transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm",
@@ -1222,9 +1262,9 @@ export default function Settings() {
 
             <PreferenceCard
               title={i18n._(msg`Battlefield Layout`)}
-              description={
-                '"Free placement" lets you drag cards anywhere. "Auto-arrange" keeps the battlefield tidy in rows (creatures, then others, then lands) and ignores manual placement.'
-              }
+              description={i18n._(
+                msg`"Free placement" lets you drag cards anywhere. "Auto-arrange" keeps the battlefield tidy in rows (creatures, then others, then lands) and ignores manual placement.`,
+              )}
             >
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -1246,9 +1286,9 @@ export default function Settings() {
 
             <PreferenceCard
               title={i18n._(msg`Zone Piles`)}
-              description={
-                '"Locked" keeps the deck, graveyard, exile, and command piles fixed on the battlefield so a drag can\'t move them. Tapping to open still works.'
-              }
+              description={i18n._(
+                msg`"Locked" keeps the deck, graveyard, exile, and command piles fixed on the battlefield so a drag can't move them. Tapping to open still works.`,
+              )}
             >
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -1270,9 +1310,9 @@ export default function Settings() {
 
             <PreferenceCard
               title={i18n._(msg`Battlefield Card Style`)}
-              description={
-                '"Realistic" uses the full printed card image. "Art-forward" shows the art with a crisp name/type overlay. "Mini-frame" frames the art with name and type bars. This setting only affects battlefield cards.'
-              }
+              description={i18n._(
+                msg`"Realistic" uses the full printed card image. "Art-forward" shows the art with a crisp name/type overlay. "Mini-frame" frames the art with name and type bars. This setting only affects battlefield cards.`,
+              )}
             >
               <div className="flex items-start gap-4">
                 <div className="flex-1 flex flex-wrap content-start gap-2">
@@ -1734,7 +1774,7 @@ export default function Settings() {
                 const miscKeys = allPaths.filter((p) => !grouped.has(p));
                 if (miscKeys.length > 0) {
                   groups.push({
-                    heading: "Other",
+                    heading: i18n._(msg`Other`),
                     get description() {
                       return i18n._(msg`Tokens not covered by the groups above.`);
                     },

@@ -127,14 +127,14 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
                         isHorizontalCard({ layout: p.layout, typeLine: p.type_line }) ? (
                           <HorizontalCardImage
                             src={imageUrl}
-                            alt={`${p.set_name} printing`}
+                            alt={i18n._(msg`${p.set_name} printing`)}
                             className="absolute inset-0"
                             loading="lazy"
                           />
                         ) : (
                           <ScryfallImg
                             src={imageUrl}
-                            alt={`${p.set_name} printing`}
+                            alt={i18n._(msg`${p.set_name} printing`)}
                             className="w-full h-full object-contain"
                             loading="lazy"
                           />

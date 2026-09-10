@@ -216,7 +216,7 @@ function AssetTile({
       <div className="h-[72px] w-[72px] shrink-0 bg-muted">
         <img
           src={asset.url}
-          alt={`${KIND_LABELS[asset.kind]} image`}
+          alt={i18n._(msg`${KIND_LABELS[asset.kind]} image`)}
           crossOrigin="anonymous"
           loading="lazy"
           className="size-full object-cover"

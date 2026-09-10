@@ -21,8 +21,9 @@ export function EliminatedModal({ heading, hosting, onObserve, onLeave }: Elimin
       </Modal.Header>
       <Modal.Instructions>
         {hosting
-          ? "Your seat is out of the game, but you can't exit quite yet — this app is hosting " +
-            "the game engine, so leaving would end the game for everyone still playing."
+          ? i18n._(
+              msg`Your seat is out of the game, but you can't exit quite yet — this app is hosting the game engine, so leaving would end the game for everyone still playing.`,
+            )
           : i18n._(
               msg`Your seat is out of the game. You can keep watching the table, or leave the game for good.`,
             )}

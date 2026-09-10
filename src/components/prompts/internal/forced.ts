@@ -1,6 +1,8 @@
 import type { PromptResolver } from "./promptHandlers";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { TRIGGER_ORDER_PROMPT_TITLE } from "@/components/game/game.constants";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 
 function shuffled<T>(items: readonly T[]): T[] {
   const out = [...items];
@@ -28,7 +30,7 @@ export const singleLegalBoardTarget: PromptResolver<"chooseBoardTargets"> = (pro
   return {
     kind: "auto",
     respond: { type: "boardTargets", chosen: [only] },
-    reason: `single legal target: ${only.id}`,
+    reason: i18n._(msg`single legal target: ${only.id}`),
   };
 };
 
@@ -42,7 +44,7 @@ export const forcedAllSelections: PromptResolver<"chooseFromSelection"> = (promp
   return {
     kind: "auto",
     respond: { type: "selectionDecision", chosenIndices: opts.map((_, i) => i) },
-    reason: `must pick all ${opts.length} options`,
+    reason: i18n._(msg`must pick all ${opts.length} options`),
   };
 };
 
@@ -53,7 +55,7 @@ export const singleLegalColor: PromptResolver<"chooseColor"> = (prompt) => {
   return {
     kind: "auto",
     respond: { type: "colorDecision", chosenColors: { [validColors[0]]: 1 } },
-    reason: `only legal colour: ${validColors[0]}`,
+    reason: i18n._(msg`only legal colour: ${validColors[0]}`),
   };
 };
 
@@ -64,7 +66,7 @@ export const singleLegalNumber: PromptResolver<"chooseNumber"> = (prompt) => {
   return {
     kind: "auto",
     respond: { type: "numberDecision", chosenNumber: min },
-    reason: `only legal number: ${min}`,
+    reason: i18n._(msg`only legal number: ${min}`),
   };
 };
 
@@ -75,14 +77,14 @@ export const forcedCardChoice: PromptResolver<"chooseCards"> = (prompt) => {
     return {
       kind: "auto",
       respond: { type: "chooseCardsDecision", chosenCardIds: [] },
-      reason: "no cards to choose",
+      reason: i18n._(msg`no cards to choose`),
     };
   }
   if (min >= ids.length) {
     return {
       kind: "auto",
       respond: { type: "chooseCardsDecision", chosenCardIds: ids },
-      reason: `must pick all ${ids.length} cards`,
+      reason: i18n._(msg`must pick all ${ids.length} cards`),
     };
   }
   return { kind: "force-show" };
@@ -94,7 +96,7 @@ export const singleBlockerOrder: PromptResolver<"chooseDamageAssignmentOrder"> =
   return {
     kind: "auto",
     respond: { type: "damageAssignmentOrderDecision", orderedBlockerIds: blockers },
-    reason: `≤1 blocker (${blockers.length})`,
+    reason: i18n._(msg`≤1 blocker (${blockers.length})`),
   };
 };
 
@@ -111,7 +113,7 @@ export const singleAssigneeDamage: PromptResolver<"chooseCombatDamageAssignment"
       type: "combatDamageAssignmentDecision",
       assignments: [{ assigneeId: target, damage: total }],
     },
-    reason: `single assignee (${target}) gets all ${total} damage`,
+    reason: i18n._(msg`single assignee (${target}) gets all ${total} damage`),
   };
 };
 
@@ -120,7 +122,7 @@ export const emptyScry: PromptResolver<"scry"> = (prompt) => {
   return {
     kind: "auto",
     respond: { type: "scryDecision", zoneCardIds: prompt.input.zones.map(() => []) },
-    reason: "scry with 0 revealed cards",
+    reason: i18n._(msg`scry with 0 revealed cards`),
   };
 };
 
@@ -130,7 +132,7 @@ export const singleCardOrder: PromptResolver<"reorder"> = (prompt) => {
     return {
       kind: "auto",
       respond: { type: "reorderDecision", orderedIds: ids },
-      reason: `≤1 card to order (${ids.length})`,
+      reason: i18n._(msg`≤1 card to order (${ids.length})`),
     };
   }
   const isTriggerOrder = prompt.input.presentation.title === TRIGGER_ORDER_PROMPT_TITLE;
@@ -138,7 +140,7 @@ export const singleCardOrder: PromptResolver<"reorder"> = (prompt) => {
     return {
       kind: "auto",
       respond: { type: "reorderDecision", orderedIds: shuffled(ids) },
-      reason: "trigger ordering disabled — random order",
+      reason: i18n._(msg`trigger ordering disabled — random order`),
     };
   }
   return { kind: "force-show" };

@@ -154,7 +154,7 @@ export function DeckCheckpointsDialog({
                 size="icon"
                 variant="ghost"
                 className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                aria-label={`Delete ${checkpoint.name}`}
+                aria-label={i18n._(msg`Delete ${checkpoint.name}`)}
                 onClick={() => removeCheckpoint(checkpoint.id)}
               >
                 <Trash2 className="h-3.5 w-3.5" />

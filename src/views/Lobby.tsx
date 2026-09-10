@@ -461,7 +461,7 @@ export default function Lobby() {
       });
       setMySpawnedBots((prev) => [...prev, botName]);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to spawn bot.");
+      toast.error(error instanceof Error ? error.message : i18n._(msg`Failed to spawn bot.`));
     }
   }
   async function handleRemoveBot(botName: string) {
@@ -469,14 +469,16 @@ export default function Lobby() {
       await getPlatform().server!.removeAiBot(botName);
       setMySpawnedBots((prev) => prev.filter((u) => u !== botName));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to remove bot.");
+      toast.error(error instanceof Error ? error.message : i18n._(msg`Failed to remove bot.`));
     }
   }
   async function handleSetMaxPlayers(maxPlayers: number) {
     try {
       await setMaxPlayers(maxPlayers);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to change player count.");
+      toast.error(
+        error instanceof Error ? error.message : i18n._(msg`Failed to change player count.`),
+      );
     }
   }
   return (

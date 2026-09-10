@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Application, Graphics } from "pixi.js";
+import { useLingui } from "@lingui/react";
 import { destroyPixiApp, installPixiPatches } from "./pixiPatches";
 
 installPixiPatches();
@@ -177,6 +178,8 @@ export function BoardOverlayCanvas({
   onTogglePreviewView,
 }: BoardOverlayCanvasProps) {
   const theme = useTheme();
+  const { i18n } = useLingui();
+  const locale = i18n.locale;
   const stackCardStyle = usePreferencesStore((state) => state.stackCardStyle);
   const themeRef = useRef(theme);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -380,7 +383,7 @@ export function BoardOverlayCanvas({
   useEffect(() => {
     stackSpecRef.current = stackSpec;
     stackRef.current?.setSpec(stackSpec);
-  }, [stackSpec]);
+  }, [stackSpec, locale]);
   useEffect(() => {
     stackCardStyleRef.current = stackCardStyle;
     stackRef.current?.setRulesViewDefault(stackCardStyle === "rules");
@@ -400,7 +403,7 @@ export function BoardOverlayCanvas({
     if (!previewSpec || previewSpec.phase !== "open" || previewSpec.suppressed) {
       canvas.style.pointerEvents = "none";
     }
-  }, [previewSpec]);
+  }, [previewSpec, locale]);
 
   useEffect(() => {
     const parent = canvasRef.current?.parentElement;

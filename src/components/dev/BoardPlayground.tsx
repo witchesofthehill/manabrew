@@ -278,7 +278,7 @@ export function BoardPlayground() {
       kind: "ability",
       cardId: previewCard.id,
       actionId: index === 0 ? DEV_MANA_ACTION_ID : `dev-action-${index}`,
-      label: index === 0 ? "Add {G}." : `Preview test action ${index + 1}.`,
+      label: index === 0 ? i18n._(msg`Add {G}.`) : i18n._(msg`Preview test action ${index + 1}.`),
       cost: index === 0 ? "{T}" : `{${index + 1}}`,
       isManaAbility: index === 0,
       abilityIndex: index,

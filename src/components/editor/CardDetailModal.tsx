@@ -218,7 +218,7 @@ export function CardDetailModal({
             <h2 className="text-lg font-bold truncate">{displayName}</h2>
             {isDoubleFaced && (
               <span className="text-xs text-muted-foreground shrink-0">
-                <Trans>{faceIndex === 0 ? "Front" : "Back"} face</Trans>
+                {faceIndex === 0 ? i18n._(msg`Front face`) : i18n._(msg`Back face`)}
               </span>
             )}
             {manaCost && <ManaSymbols cost={manaCost} size="sm" className="shrink-0" />}
@@ -588,8 +588,8 @@ export function CardDetailModal({
                       className="h-7 w-7"
                       title={
                         faceIndex === 0
-                          ? `Flip to back: ${card.card_faces![1].name}`
-                          : `Flip to front: ${card.card_faces![0].name}`
+                          ? i18n._(msg`Flip to back: ${card.card_faces![1].name}`)
+                          : i18n._(msg`Flip to front: ${card.card_faces![0].name}`)
                       }
                       onClick={() => setFaceIndex(faceIndex === 0 ? 1 : 0)}
                     >
@@ -603,15 +603,15 @@ export function CardDetailModal({
                       className={cn("h-7 w-7", deckEditorActions.isCommander && "text-commander")}
                       title={
                         deckEditorActions.isCommander
-                          ? `Remove as ${commanderSlot.noun}`
-                          : `Set as ${commanderSlot.noun}`
+                          ? i18n._(msg`Remove as ${commanderSlot.noun}`)
+                          : i18n._(msg`Set as ${commanderSlot.noun}`)
                       }
                       onClick={() => {
                         deckEditorActions.onSetCommander(deckCardName);
                         toast.success(
                           deckEditorActions.isCommander
-                            ? `Removed ${deckCardName} as ${commanderSlot.noun}`
-                            : `Set ${deckCardName} as ${commanderSlot.noun}`,
+                            ? i18n._(msg`Removed ${deckCardName} as ${commanderSlot.noun}`)
+                            : i18n._(msg`Set ${deckCardName} as ${commanderSlot.noun}`),
                         );
                       }}
                     >
@@ -623,7 +623,11 @@ export function CardDetailModal({
                       size="icon"
                       variant="ghost"
                       className={cn("h-7 w-7", matchingDeckCard?.identity.foil && "text-warning")}
-                      title={matchingDeckCard?.identity.foil ? "Remove foil" : "Make foil"}
+                      title={
+                        matchingDeckCard?.identity.foil
+                          ? i18n._(msg`Remove foil`)
+                          : i18n._(msg`Make foil`)
+                      }
                       onClick={() => deckEditorActions.onToggleFoil?.(deckCardName)}
                     >
                       <Sparkles className="h-3.5 w-3.5" />
@@ -639,8 +643,8 @@ export function CardDetailModal({
                       )}
                       title={
                         currentDeck.coverCardName === deckCardName
-                          ? "Remove deck cover"
-                          : "Set as deck cover"
+                          ? i18n._(msg`Remove deck cover`)
+                          : i18n._(msg`Set as deck cover`)
                       }
                       onClick={() => deckEditorActions.onSetCover?.(deckCardName, faceIndex)}
                     >

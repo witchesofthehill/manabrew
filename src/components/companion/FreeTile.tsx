@@ -418,7 +418,7 @@ export function FreeTile({
       className="absolute touch-none select-none rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-white"
       style={{ left: position.x, top: position.y, width: tileWidth, height: tileHeight }}
       role="group"
-      aria-label={`${player.name} tile — left/right arrows or +/- to adjust life`}
+      aria-label={i18n._(msg`${player.name} tile — left/right arrows or +/- to adjust life`)}
       tabIndex={0}
       onPointerDown={onBodyPointerDown}
       onPointerMove={onBodyPointerMove}

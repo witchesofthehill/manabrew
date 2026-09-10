@@ -343,10 +343,12 @@ export function validateDeck(
   const errors: string[] = [];
   const { minDeckSize, maxDeckSize, maxCopies } = format.deckRules;
   if (cardNames.length < minDeckSize) {
-    errors.push(`Deck must have at least ${minDeckSize} cards (has ${cardNames.length})`);
+    errors.push(
+      i18n._(msg`Deck must have at least ${minDeckSize} cards (has ${cardNames.length})`),
+    );
   }
   if (maxDeckSize !== null && cardNames.length > maxDeckSize) {
-    errors.push(`Deck must have at most ${maxDeckSize} cards (has ${cardNames.length})`);
+    errors.push(i18n._(msg`Deck must have at most ${maxDeckSize} cards (has ${cardNames.length})`));
   }
   const counts = new Map<string, number>();
   for (const name of cardNames) {
@@ -356,13 +358,13 @@ export function validateDeck(
     if (BASIC_LAND_NAMES.has(name)) continue;
     const limit = copyLimits?.get(name) ?? maxCopies;
     if (count > limit) {
-      errors.push(`Too many copies of "${name}": ${count} (max ${limit})`);
+      errors.push(i18n._(msg`Too many copies of "${name}": ${count} (max ${limit})`));
     }
   }
   const seenBanned = new Set<string>();
   for (const name of cardNames) {
     if (format.bannedCards.includes(name) && !seenBanned.has(name)) {
-      errors.push(`"${name}" is banned in ${format.name}`);
+      errors.push(i18n._(msg`"${name}" is banned in ${format.name}`));
       seenBanned.add(name);
     }
   }
@@ -562,14 +564,18 @@ export function validateDeckSections(
   errors.push(...baseValidation.errors);
   if (sideboard.length > format.deckRules.sideboardMax) {
     errors.push(
-      `Sideboard must have at most ${format.deckRules.sideboardMax} cards (has ${sideboard.length})`,
+      i18n._(
+        msg`Sideboard must have at most ${format.deckRules.sideboardMax} cards (has ${sideboard.length})`,
+      ),
     );
   }
   if (format.deckRules.requiresCommander) {
     const expectedMainSize = format.deckRules.minDeckSize - commanders.length;
     if (mainDeck.length !== expectedMainSize) {
       errors.push(
-        `${format.name} deck must have exactly ${expectedMainSize} non-commander cards (has ${mainDeck.length})`,
+        i18n._(
+          msg`${format.name} deck must have exactly ${expectedMainSize} non-commander cards (has ${mainDeck.length})`,
+        ),
       );
     }
     let identitySource = commanders;
@@ -578,38 +584,46 @@ export function validateDeckSections(
       const spells = commanders.filter((c) => canBeSignatureSpell(c));
       for (const cmd of commanders) {
         if (!canBeOathbreaker(cmd) && !canBeSignatureSpell(cmd)) {
-          errors.push(`"${cmd.identity.name}" is not a legal oathbreaker or signature spell`);
+          errors.push(
+            i18n._(msg`"${cmd.identity.name}" is not a legal oathbreaker or signature spell`),
+          );
         }
       }
-      if (oathbreakers.length === 0) errors.push("Deck is missing an oathbreaker");
-      if (spells.length === 0) errors.push("Deck is missing a signature spell");
+      if (oathbreakers.length === 0) errors.push(i18n._(msg`Deck is missing an oathbreaker`));
+      if (spells.length === 0) errors.push(i18n._(msg`Deck is missing a signature spell`));
       if (oathbreakers.length > 2) {
-        errors.push(`Deck can have at most 2 oathbreakers (has ${oathbreakers.length})`);
+        errors.push(i18n._(msg`Deck can have at most 2 oathbreakers (has ${oathbreakers.length})`));
       } else if (oathbreakers.length === 2 && !canBePartners(oathbreakers[0], oathbreakers[1])) {
         errors.push(
-          `"${oathbreakers[0].identity.name}" and "${oathbreakers[1].identity.name}" cannot be paired — two oathbreakers must have a compatible partner ability`,
+          i18n._(
+            msg`"${oathbreakers[0].identity.name}" and "${oathbreakers[1].identity.name}" cannot be paired — two oathbreakers must have a compatible partner ability`,
+          ),
         );
       }
       if (spells.length > Math.max(1, oathbreakers.length)) {
         errors.push(
-          `Deck can have one signature spell per oathbreaker (has ${spells.length} for ${oathbreakers.length})`,
+          i18n._(
+            msg`Deck can have one signature spell per oathbreaker (has ${spells.length} for ${oathbreakers.length})`,
+          ),
         );
       }
       identitySource = oathbreakers;
     } else {
       if (commanders.length === 0) {
-        errors.push("Deck must have at least 1 commander");
+        errors.push(i18n._(msg`Deck must have at least 1 commander`));
       } else if (commanders.length > 2) {
-        errors.push(`Deck can have at most 2 commanders (has ${commanders.length})`);
+        errors.push(i18n._(msg`Deck can have at most 2 commanders (has ${commanders.length})`));
       }
       for (const cmd of commanders) {
         if (!isCommanderEligible(cmd)) {
-          errors.push(`"${cmd.identity.name}" is not a legal commander`);
+          errors.push(i18n._(msg`"${cmd.identity.name}" is not a legal commander`));
         }
       }
       if (commanders.length === 2 && !canBePartners(commanders[0], commanders[1])) {
         errors.push(
-          `"${commanders[0].identity.name}" and "${commanders[1].identity.name}" cannot be paired — both commanders must have a compatible partner ability`,
+          i18n._(
+            msg`"${commanders[0].identity.name}" and "${commanders[1].identity.name}" cannot be paired — both commanders must have a compatible partner ability`,
+          ),
         );
       }
     }
@@ -620,7 +634,9 @@ export function validateDeckSections(
       );
       if (invalid) {
         errors.push(
-          `Deck contains cards outside commander color identity: ${invalid.identity.name}`,
+          i18n._(
+            msg`Deck contains cards outside commander color identity: ${invalid.identity.name}`,
+          ),
         );
       }
     }

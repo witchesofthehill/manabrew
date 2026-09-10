@@ -232,7 +232,7 @@ export function DeckEditorWelcome({ readOnly }: { readOnly: boolean }) {
             ))}
           </ul>
         </div>
-        <div className="flex gap-1.5" aria-label={`Step ${step + 1} of ${STEPS.length}`}>
+        <div className="flex gap-1.5" aria-label={i18n._(msg`Step ${step + 1} of ${STEPS.length}`)}>
           {STEPS.map((item, index) => (
             <div
               key={item.title}

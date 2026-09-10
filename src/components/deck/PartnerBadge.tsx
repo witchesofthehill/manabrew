@@ -11,7 +11,7 @@ export function PartnerBadge({ label, className }: { label: string | null; class
         label ? "border-commander/50 text-commander" : "border-warning/50 text-warning",
         className,
       )}
-      title={label ?? "Not partners"}
+      title={label ?? i18n._(msg`Not partners`)}
     >
       {label ?? i18n._(msg`Not partners`)}
     </Badge>

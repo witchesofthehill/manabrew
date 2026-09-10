@@ -83,7 +83,7 @@ export function TablesList({
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
       const message = USER_FACING_ERROR_MESSAGES[code as ServerErrorCode];
-      toast.error(message ?? "Couldn't join the table.");
+      toast.error(message ?? i18n._(msg`Couldn't join the table.`));
     } finally {
       setJoiningRoomId(null);
     }

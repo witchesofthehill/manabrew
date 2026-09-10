@@ -17,6 +17,8 @@ import { useGameUIStore } from "@/stores/useGameUIStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePromptSourceCard } from "./internal/usePromptSourceCard";
 import { PromptRequired } from "./PromptRequired";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 
 function viewKeyForPrompt(promptType: PromptTypeValue | undefined): PromptActionViewKey {
   switch (promptType) {
@@ -230,13 +232,19 @@ export function PromptActionController({
     ),
     promptLabel: () => {
       const labels: Record<string, string> = {
-        ["chooseBoardTargets"]: "Choose a target",
-        ["scry"]: "Scry",
-        ["chooseCards"]: "Choose cards",
+        get chooseBoardTargets() {
+          return i18n._(msg`Choose a target`);
+        },
+        get scry() {
+          return i18n._(msg`Scry`);
+        },
+        get chooseCards() {
+          return i18n._(msg`Choose cards`);
+        },
       };
       return (
         <PromptLabel
-          label={boardTargetLabel || (promptType && labels[promptType]) || "Waiting..."}
+          label={boardTargetLabel || (promptType && labels[promptType]) || i18n._(msg`Waiting...`)}
           sourceCard={boardTargetSourceCard}
           isWaitingForResponse={isWaitingForResponse}
           completionLabel={targetCompletionLabel ?? undefined}

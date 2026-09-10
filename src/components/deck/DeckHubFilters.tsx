@@ -59,7 +59,7 @@ export function DeckHubFilters(props: DeckHubFiltersProps) {
           <button
             type="button"
             className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label={expanded ? "Collapse filters" : "Expand filters"}
+            aria-label={expanded ? i18n._(msg`Collapse filters`) : i18n._(msg`Expand filters`)}
             onClick={toggleExpanded}
           >
             {expanded ? (

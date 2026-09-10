@@ -125,7 +125,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
   const matchPlayers = matchPlayersOverride ?? defaultMatchPlayers(format);
   const maxPlayers = kind === "limited" ? limitedPlayers : matchPlayers;
   const handleMaxPlayersChange = kind === "limited" ? setLimitedPlayers : setMatchPlayersOverride;
-  const defaultName = `${username ?? "Player"}'s Table`;
+  const defaultName = i18n._(msg`${username ?? i18n._(msg`Player`)}'s Table`);
   const submittedEngine: EngineKind =
     kind === "match" && (engine !== "Forge" || canHostForge) ? engine : "Manabrew";
   const modeLabel =
@@ -222,7 +222,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
       await new Promise((resolve) => setTimeout(resolve, splashUntil - Date.now()));
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't create the table.");
+      toast.error(error instanceof Error ? error.message : i18n._(msg`Couldn't create the table.`));
     } finally {
       setCreating(false);
       onCreatingChange(null);

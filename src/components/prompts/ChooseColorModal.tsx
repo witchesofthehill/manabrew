@@ -115,7 +115,7 @@ function SingleColor({
               <button
                 key={color}
                 onClick={() => respond({ type: "colorDecision", chosenColors: { [color]: 1 } })}
-                aria-label={`Choose ${m.label}`}
+                aria-label={i18n._(msg`Choose ${m.label}`)}
                 className={cn(
                   "group flex h-16 w-16 items-center justify-center rounded-full border bg-card",
                   "transition-transform hover:scale-110 hover:ring-2 hover:ring-ring",

@@ -56,7 +56,7 @@ export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
         window.location.assign(url);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Linking failed");
+      toast.error(err instanceof Error ? err.message : i18n._(msg`Linking failed`));
     } finally {
       setBusy(false);
     }
@@ -73,7 +73,7 @@ export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
       if (err instanceof AuthRequestError && err.status === 409) {
         toast.error(i18n._(msg`You can't unlink your only sign-in method`));
       } else {
-        toast.error(err instanceof Error ? err.message : "Unlinking failed");
+        toast.error(err instanceof Error ? err.message : i18n._(msg`Unlinking failed`));
       }
     } finally {
       setBusy(false);
@@ -105,7 +105,7 @@ export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
                 variant="ghost"
                 size="icon"
                 className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
-                title={`Unlink ${label}`}
+                title={i18n._(msg`Unlink ${label}`)}
                 disabled={busy || identities.length <= 1}
                 onClick={() => void handleUnlink(identity.provider)}
               >

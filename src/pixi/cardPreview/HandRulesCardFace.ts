@@ -323,7 +323,7 @@ export class HandRulesCardFace extends Container {
     if (hasActions) {
       y = this.addSectionHeader(
         "actions",
-        `Available actions · ${this.actions.length}`,
+        i18n._(msg`Available actions · ${this.actions.length}`),
         y,
         contentWidth,
         frame,
@@ -355,7 +355,7 @@ export class HandRulesCardFace extends Container {
       }
     }
     if (rulesEntries.length > 0) {
-      y = this.addSectionHeader("rules", "Rules text", y, contentWidth, frame);
+      y = this.addSectionHeader("rules", i18n._(msg`Rules text`), y, contentWidth, frame);
       if (!this.rulesCollapsed) {
         y = this.addRulesText(
           rulesEntries,
@@ -368,7 +368,7 @@ export class HandRulesCardFace extends Container {
       }
     }
     if (flavorContent) {
-      y = this.addSectionHeader("flavor", "Flavor text", y, contentWidth, frame);
+      y = this.addSectionHeader("flavor", i18n._(msg`Flavor text`), y, contentWidth, frame);
       if (!this.flavorCollapsed) {
         this.addFlavorTextBlock(flavorContent, y, contentBudget, contentWidth, frame);
       }
@@ -604,7 +604,7 @@ export class HandRulesCardFace extends Container {
       .join("\n\n");
   }
   private rulesEntries(display: RulesPreviewDisplay): string[] {
-    if (display.faceless) return ["Card identity and rules are hidden."];
+    if (display.faceless) return [i18n._(msg`Card identity and rules are hidden.`)];
     return display.sections.flatMap((section) => {
       const entries = rulesTextEntries(section.rulesText, null, section.canonicalRulesText);
       if (!display.multipart) return entries;

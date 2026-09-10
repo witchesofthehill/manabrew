@@ -23,7 +23,6 @@ interface DeckHubEntryCardProps {
   playing?: boolean;
   playDisabled?: boolean;
 }
-const NO_AUTHOR = "Deleted user";
 export function DeckHubEntryCard({
   entry,
   onOpen,
@@ -51,7 +50,9 @@ export function DeckHubEntryCard({
       size="sm"
       variant="secondary"
       className="h-8 gap-1 bg-background/90 px-2 shadow-sm backdrop-blur-sm"
-      aria-label={entry.favorited ? "Remove from favorites" : "Add to favorites"}
+      aria-label={
+        entry.favorited ? i18n._(msg`Remove from favorites`) : i18n._(msg`Add to favorites`)
+      }
       aria-pressed={entry.favorited}
       aria-busy={favoritePending}
       disabled={favoritePending}
@@ -74,11 +75,11 @@ export function DeckHubEntryCard({
       role={rank <= 3 ? "img" : undefined}
       aria-label={
         rank === 1
-          ? "First place"
+          ? i18n._(msg`First place`)
           : rank === 2
-            ? "Second place"
+            ? i18n._(msg`Second place`)
             : rank === 3
-              ? "Third place"
+              ? i18n._(msg`Third place`)
               : undefined
       }
     >
@@ -123,16 +124,17 @@ export function DeckHubEntryCard({
   ) : (
     labels
   );
+  const authorName = author ?? i18n._(msg`Deleted user`);
   return (
     <DeckCardSurface
+      onOpen={onOpen}
       title={entry.title}
-      subtitle={`by ${author ?? NO_AUTHOR}`}
+      subtitle={i18n._(msg`by ${authorName}`)}
       onSubtitleClick={author && onAuthorClick ? () => onAuthorClick(author) : undefined}
-      subtitleAriaLabel={author ? `Show decks by ${author}` : undefined}
+      subtitleAriaLabel={author ? i18n._(msg`Show decks by ${author}`) : undefined}
       description={entry.summary}
       supportingText={reason}
-      ariaLabel={`Open ${entry.title} by ${author ?? NO_AUTHOR}`}
-      onOpen={onOpen}
+      ariaLabel={i18n._(msg`Open ${entry.title} by ${authorName}`)}
       variant={variant}
       cover={
         entry.coverImageUrl ? (

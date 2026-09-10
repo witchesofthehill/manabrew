@@ -58,7 +58,7 @@ export default function AuthCallback() {
           }
         : undefined;
     if (error) {
-      toast.error(ERROR_MESSAGES[error] ?? "Sign-in failed. Try again.");
+      toast.error(ERROR_MESSAGES[error] ?? i18n._(msg`Sign-in failed. Try again.`));
       navigate(returnIntent.returnTo, { replace: true });
       return;
     }

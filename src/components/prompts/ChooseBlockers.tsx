@@ -48,7 +48,7 @@ export function ChooseBlockers({
       <div className="flex flex-row items-center justify-center gap-1.5">
         {blockAssignments.length > 0 && (
           <PromptActionButton
-            label={`Block ${blockAssignments.length}`}
+            label={i18n._(msg`Block ${blockAssignments.length}`)}
             icon={<Shield className="h-3.5 w-3.5" />}
             baseColor={promptActionColors.defenseAction}
             badge={minimal ? String(blockAssignments.length) : undefined}

@@ -45,7 +45,7 @@ export function AccountActionsCard() {
       link.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Export failed");
+      toast.error(err instanceof Error ? err.message : i18n._(msg`Export failed`));
     } finally {
       setBusy(false);
     }

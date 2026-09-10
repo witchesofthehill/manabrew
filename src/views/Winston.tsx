@@ -23,6 +23,8 @@ import {
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { cn } from "@/lib/utils";
 import { useLimitedStore } from "@/stores/useLimitedStore";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { Trans } from "@lingui/react/macro";
 type WinstonMode = LimitedDraftMode;
@@ -313,7 +315,11 @@ function FaceDownStack({ count, compact = false }: { count: number; compact?: bo
     <div className={cn("relative aspect-[5/7] w-full", compact && "mx-auto max-w-24")}>
       <ScryfallImg
         src={CARD_BACK_IMAGE_URL}
-        alt={`Face-down pile of ${count} card${count === 1 ? "" : "s"}`}
+        alt={
+          count === 1
+            ? i18n._(msg`Face-down pile of one card`)
+            : i18n._(msg`Face-down pile of ${count} cards`)
+        }
         loading="lazy"
         className="absolute inset-0 h-full w-full rounded-md border border-border/40 object-cover shadow-sm"
       />

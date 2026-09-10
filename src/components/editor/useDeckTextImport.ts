@@ -163,9 +163,11 @@ export function useDeckTextImport() {
         toast.warning(i18n._(msg`Imported "${deckName}" — couldn't find: ${shown}${extra}`));
       } else if (substitutedPrintings.length > 0) {
         toast.warning(
-          i18n._(
-            msg`Imported "${deckName}" with ${substitutedPrintings.length} default printing ${substitutedPrintings.length === 1 ? "substitution" : "substitutions"}`,
-          ),
+          substitutedPrintings.length === 1
+            ? i18n._(msg`Imported "${deckName}" with one default printing substitution`)
+            : i18n._(
+                msg`Imported "${deckName}" with ${substitutedPrintings.length} default printing substitutions`,
+              ),
         );
       } else {
         toast.success(i18n._(msg`Imported "${deckName}"`));
@@ -188,7 +190,7 @@ export function useDeckTextImportIntoCurrent() {
       if (useDeckStore.getState().editorSessionId !== startingSessionId) {
         return false;
       }
-      executeDeckEdit("Import card list", () =>
+      executeDeckEdit(i18n._(msg`Import card list`), () =>
         useDeckStore.getState().mergeIntoCurrentDeck(result),
       );
       onProgress(1);
@@ -203,9 +205,11 @@ export function useDeckTextImportIntoCurrent() {
         toast.warning(i18n._(msg`Added ${count} cards — couldn't find: ${shown}${extra}`));
       } else if (result.substitutedPrintings.length > 0) {
         toast.warning(
-          i18n._(
-            msg`Added ${count} cards with ${result.substitutedPrintings.length} default printing ${result.substitutedPrintings.length === 1 ? "substitution" : "substitutions"}`,
-          ),
+          result.substitutedPrintings.length === 1
+            ? i18n._(msg`Added ${count} cards with one default printing substitution`)
+            : i18n._(
+                msg`Added ${count} cards with ${result.substitutedPrintings.length} default printing substitutions`,
+              ),
         );
       } else {
         toast.success(i18n._(msg`Added ${count} cards to this deck`));

@@ -148,7 +148,11 @@ export function ChatPanel({
           <Input
             className="h-9 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
             placeholder={
-              locked ? "" : scope === "Room" ? "Message your table…" : "Message everyone…"
+              locked
+                ? ""
+                : scope === "Room"
+                  ? i18n._(msg`Message your table…`)
+                  : i18n._(msg`Message everyone…`)
             }
             value={input}
             maxLength={CHAT_MESSAGE_MAX_CHARS}

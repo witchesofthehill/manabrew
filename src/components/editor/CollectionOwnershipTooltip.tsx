@@ -57,8 +57,8 @@ export function CollectionOwnershipTooltip({
           )}
           aria-label={
             ownership === "exact"
-              ? `Exact printing of ${card.identity.name} owned`
-              : `Another printing of ${card.identity.name} owned`
+              ? i18n._(msg`Exact printing of ${card.identity.name} owned`)
+              : i18n._(msg`Another printing of ${card.identity.name} owned`)
           }
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => event.stopPropagation()}

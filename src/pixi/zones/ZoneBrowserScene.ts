@@ -46,11 +46,24 @@ interface CardEntry {
   };
 }
 
-const CARD_REVEAL = 78;
-const HOVER_SPREAD = 48;
-const HOVER_LIFT = 20;
+export const ZONE_BROWSER_RIBBON_MOTION = {
+  reveal: 78,
+  minReveal: 54,
+  focusSpread: 48,
+  focusLift: 20,
+  focusScale: 0.035,
+  dragThreshold: 6,
+  wheelPixelsPerCard: 150,
+  wheelSnapMs: 90,
+  wheelDuration: 0.22,
+  snapDuration: 0.32,
+  layoutDuration: 0.38,
+  entryDuration: 0.22,
+  feedbackDuration: 0.16,
+  elevationDuration: 0.18,
+} as const;
+
 const VIEWPORT_PADDING = 24;
-const WHEEL_SNAP_MS = 90;
 
 export class ZoneBrowserScene {
   private readonly app = new Application();
@@ -208,15 +221,17 @@ export class ZoneBrowserScene {
           ? this.props.width
           : 1;
     this.hoveredId = null;
-    this.scrollTarget = this.clampScroll(this.scrollTarget + (delta * multiplier) / 150);
-    this.animateScroll(this.scrollTarget, 0.22);
+    this.scrollTarget = this.clampScroll(
+      this.scrollTarget + (delta * multiplier) / ZONE_BROWSER_RIBBON_MOTION.wheelPixelsPerCard,
+    );
+    this.animateScroll(this.scrollTarget, ZONE_BROWSER_RIBBON_MOTION.wheelDuration);
     this.publishNearestActive();
     clearTimeout(this.wheelTimer);
     this.wheelTimer = window.setTimeout(() => {
       const index = Math.round(this.scrollTarget);
       this.scrollTo(index);
       this.publishActive(index);
-    }, WHEEL_SNAP_MS);
+    }, ZONE_BROWSER_RIBBON_MOTION.wheelSnapMs);
   };
 
   private readonly onPointerDown = (event: PointerEvent) => {
@@ -234,7 +249,7 @@ export class ZoneBrowserScene {
     this.request();
     if (this.dragPointerId !== event.pointerId) return;
     const delta = this.dragStartX - event.clientX;
-    if (Math.abs(delta) > 6) this.dragged = true;
+    if (Math.abs(delta) > ZONE_BROWSER_RIBBON_MOTION.dragThreshold) this.dragged = true;
     if (!this.dragged) return;
     this.suppressTapUntil = performance.now() + 200;
     this.scrolling = true;
@@ -259,7 +274,10 @@ export class ZoneBrowserScene {
   };
 
   private cardReveal(): number {
-    return Math.max(54, Math.min(CARD_REVEAL, this.props.width / 8));
+    return Math.max(
+      ZONE_BROWSER_RIBBON_MOTION.minReveal,
+      Math.min(ZONE_BROWSER_RIBBON_MOTION.reveal, this.props.width / 8),
+    );
   }
 
   private cardDimensions(): { width: number; height: number } {
@@ -274,7 +292,7 @@ export class ZoneBrowserScene {
 
   private scrollTo(index: number): void {
     this.scrollTarget = this.clampScroll(index);
-    this.animateScroll(this.scrollTarget, 0.32);
+    this.animateScroll(this.scrollTarget, ZONE_BROWSER_RIBBON_MOTION.snapDuration);
   }
 
   private animateScroll(value: number, duration: number): void {
@@ -397,17 +415,25 @@ export class ZoneBrowserScene {
       const displayWidth = baseWidth * scale;
       const displayHeight = baseHeight * scale;
       const lowerSpread =
-        index === lowerFocus ? 0 : index < lowerFocus ? -HOVER_SPREAD : HOVER_SPREAD;
+        index === lowerFocus
+          ? 0
+          : index < lowerFocus
+            ? -ZONE_BROWSER_RIBBON_MOTION.focusSpread
+            : ZONE_BROWSER_RIBBON_MOTION.focusSpread;
       const upperSpread =
-        index === upperFocus ? 0 : index < upperFocus ? -HOVER_SPREAD : HOVER_SPREAD;
+        index === upperFocus
+          ? 0
+          : index < upperFocus
+            ? -ZONE_BROWSER_RIBBON_MOTION.focusSpread
+            : ZONE_BROWSER_RIBBON_MOTION.focusSpread;
       const spread = lowerSpread + (upperSpread - lowerSpread) * easedFocusMix;
       const rawFocus = Math.max(0, 1 - Math.abs(index - focusPosition));
       const focusAmount = rawFocus * rawFocus * (3 - 2 * rawFocus);
       const active = item.id === this.props.activeId;
       const selected = !!item.selected;
       const x = this.props.width / 2 + (index - center) * reveal + spread;
-      const y = this.props.height / 2 - HOVER_LIFT * focusAmount;
-      const containerScale = 1 + 0.035 * focusAmount;
+      const y = this.props.height / 2 - ZONE_BROWSER_RIBBON_MOTION.focusLift * focusAmount;
+      const containerScale = 1 + ZONE_BROWSER_RIBBON_MOTION.focusScale * focusAmount;
       const elevation = Math.max(focusAmount, selected ? 0.45 : 0);
       const ringAlpha = selected ? 1 : Math.max(active ? 0.78 : 0, focusAmount);
       entry.sprite.alpha = 1;
@@ -595,7 +621,7 @@ export class ZoneBrowserScene {
       entry.container.alpha = 0;
       entry.fresh = false;
     }
-    const duration = 0.38;
+    const duration = ZONE_BROWSER_RIBBON_MOTION.layoutDuration;
     const tween = {
       duration,
       ease: "power3.out",
@@ -606,19 +632,19 @@ export class ZoneBrowserScene {
     gsap.to(entry.container.scale, { x: scale, y: scale, ...tween });
     gsap.to(entry.container, {
       alpha: 1,
-      duration: 0.22,
+      duration: ZONE_BROWSER_RIBBON_MOTION.entryDuration,
       ease: "power2.out",
       onUpdate: this.request,
     });
     gsap.to(entry.feedback, {
       alpha: ringAlpha,
-      duration: 0.16,
+      duration: ZONE_BROWSER_RIBBON_MOTION.feedbackDuration,
       ease: "power2.out",
       onUpdate: this.request,
     });
     gsap.to(entry.motion, {
       elevation,
-      duration: 0.18,
+      duration: ZONE_BROWSER_RIBBON_MOTION.elevationDuration,
       ease: "power2.out",
       onUpdate: () => {
         entry.sprite.setElevation(entry.motion.elevation);

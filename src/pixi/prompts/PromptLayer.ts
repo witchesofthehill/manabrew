@@ -64,6 +64,7 @@ import { PromptGlow } from "./PromptGlow";
 import { LongPressGesture } from "@/pixi/LongPressGesture";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
+import { ZONE_BROWSER_RIBBON_MOTION } from "@/pixi/zones/ZoneBrowserScene";
 import {
   DRAG_LIFT_SCALE,
   dragPositionBlend,
@@ -206,6 +207,29 @@ interface PromptCardDisplayState {
   rulesView: boolean;
   face: 0 | 1;
   horizontalFlipped: boolean;
+}
+interface CardPromptEntry {
+  index: number;
+  tile: Container;
+  sprite: CardSprite;
+  feedback: Graphics;
+  selected: boolean;
+  restAlpha: number;
+  fresh: boolean;
+  motion: {
+    x: number;
+    y: number;
+    scale: number;
+    elevation: number;
+    ringAlpha: number;
+  };
+}
+
+interface CardPromptSwipe {
+  pointerId: number;
+  startX: number;
+  startScroll: number;
+  moved: boolean;
 }
 
 function promptText(
@@ -553,6 +577,19 @@ export class PromptLayer {
   private promptCardStates = new Map<string, PromptCardDisplayState>();
   private activePromptCard: { card: CardDto; sprite: CardSprite } | null = null;
   private activePromptCardId: string | null = null;
+  private cardPromptIndex = 0;
+  private cardPromptTarget = 0;
+  private cardPromptHoveredIndex: number | null = null;
+  private readonly cardPromptMotion = { value: 0 };
+  private cardPromptEntries: CardPromptEntry[] = [];
+  private cardPromptSwipe: CardPromptSwipe | null = null;
+  private cardPromptReveal: number = ZONE_BROWSER_RIBBON_MOTION.reveal;
+  private cardPromptViewportWidth = 0;
+  private cardPromptCount = 0;
+  private cardPromptViewportHeight = 0;
+  private cardPromptSuppressTapUntil = 0;
+  private cardPromptWheelTimer: number | undefined;
+  private cardPromptScrolling = false;
   private rollElapsedMs = 0;
   private rollDurationMs = 0;
   private rollHighlightLabel: string | null = null;
@@ -614,9 +651,18 @@ export class PromptLayer {
     scrollThumb: Graphics;
   } | null = null;
   private keyListener: (event: KeyboardEvent) => void;
-  private onStageMove = (event: FederatedPointerEvent): void => this.moveDrag(event);
-  private onStageUp = (event: FederatedPointerEvent): void => this.finishDrag(event);
-  private onStageCancel = (event: FederatedPointerEvent): void => this.cancelPointerDrag(event);
+  private onStageMove = (event: FederatedPointerEvent): void => {
+    this.moveDrag(event);
+    this.moveCardPromptSwipe(event);
+  };
+  private onStageUp = (event: FederatedPointerEvent): void => {
+    this.finishDrag(event);
+    this.finishCardPromptSwipe(event);
+  };
+  private onStageCancel = (event: FederatedPointerEvent): void => {
+    this.cancelPointerDrag(event);
+    this.finishCardPromptSwipe(event);
+  };
   private onModifierEvent = (event: KeyboardEvent | PointerEvent): void =>
     this.updateEndTurnModifiers(event);
   private onModifierReset = (): void => {
@@ -719,6 +765,18 @@ export class PromptLayer {
     if (this.modalOpen) return true;
     return this.actionBounds?.contains(x, y) ?? false;
   }
+  handleCardPromptWheel(event: WheelEvent): boolean {
+    const inputType = this.spec?.currentPrompt?.input.type;
+    if (!this.modalOpen || (inputType !== "chooseCards" && inputType !== "revealCards")) {
+      return false;
+    }
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (!event.ctrlKey) {
+      this.scrollCardPromptBy(event.deltaX, event.deltaY, event.deltaMode, this.cardPromptCount);
+    }
+    return true;
+  }
 
   getActionBounds(): Rectangle | null {
     return this.actionBounds?.clone() ?? null;
@@ -748,6 +806,9 @@ export class PromptLayer {
     this.actionLongPress.reset();
     this.callbacks.onReferenceChange?.(null);
     this.cancelDrag();
+    clearTimeout(this.cardPromptWheelTimer);
+    gsap.killTweensOf(this.cardPromptMotion);
+    this.clearCardPromptEntries();
     this.entranceTween?.kill();
     this.stopRollAnimation();
     if (this.rollHighlightText) gsap.killTweensOf(this.rollHighlightText);
@@ -789,6 +850,16 @@ export class PromptLayer {
     this.rollElapsedMs = 0;
     this.modalScrollOffset = 0;
     this.modalScrollMax = 0;
+    clearTimeout(this.cardPromptWheelTimer);
+    gsap.killTweensOf(this.cardPromptMotion);
+    this.cardPromptIndex = 0;
+    this.cardPromptTarget = 0;
+    this.cardPromptHoveredIndex = null;
+    this.cardPromptMotion.value = 0;
+    this.clearCardPromptEntries();
+    this.cardPromptCount = 0;
+    this.cardPromptSwipe = null;
+    this.cardPromptSuppressTapUntil = 0;
     const input = spec?.currentPrompt?.input;
     if (!input) return;
     if (input.type === "chooseNumber") {
@@ -813,6 +884,13 @@ export class PromptLayer {
     this.activePromptCard = null;
     this.callbacks.onReferenceChange?.(null);
     this.cancelDrag();
+    clearTimeout(this.cardPromptWheelTimer);
+    gsap.killTweensOf(this.cardPromptMotion);
+    this.cardPromptHoveredIndex = null;
+    this.cardPromptSwipe = null;
+    this.clearCardPromptEntries();
+    this.cardPromptMotion.value = this.cardPromptIndex;
+    this.cardPromptTarget = this.cardPromptIndex;
     this.selectionFilterView = null;
     if (this.rollHighlightText) gsap.killTweensOf(this.rollHighlightText);
     this.stopRollAnimation();
@@ -3477,17 +3555,12 @@ export class PromptLayer {
     max: number,
     reveal: boolean,
   ): void {
-    const width = this.modalPromptWidth(CARD_MODAL_MAX_WIDTH);
-    const cardAreaWidth = width - PANEL_PADDING * 2 - CARD_TILE_EDGE_INSET * 2;
+    const width = this.modalPromptWidth(Number.POSITIVE_INFINITY);
+    const viewportWidth = width - PANEL_PADDING * 2;
     const { width: preferredCardWidth } = this.promptCardDimensions();
-    const cardWidth = Math.min(preferredCardWidth, cardAreaWidth);
+    const cardWidth = Math.min(preferredCardWidth, viewportWidth - CARD_TILE_EDGE_INSET * 2);
     const cardHeight = cardWidth * CARD_ASPECT_RATIO;
-    const columns = Math.max(
-      1,
-      Math.min(cards.length, Math.floor((cardAreaWidth + 10) / (cardWidth + 10))),
-    );
-    const rows = Math.ceil(cards.length / columns);
-    const height = Math.min(this.viewportHeight - 24, 244 + rows * (cardHeight + 12));
+    const height = this.viewportHeight - MODAL_VIEWPORT_MARGIN;
     const { body, footer } = this.createModalShell(
       width,
       height,
@@ -3501,6 +3574,7 @@ export class PromptLayer {
       true,
       60,
     );
+    body.sortableChildren = true;
     const shortcuts = this.promptCardShortcutHint();
     const startY = shortcuts ? 28 : 4;
     if (shortcuts) {
@@ -3508,6 +3582,31 @@ export class PromptLayer {
       shortcutText.position.set(CARD_TILE_EDGE_INSET, 5);
       body.addChild(shortcutText);
     }
+    this.cardPromptCount = cards.length;
+    this.cardPromptIndex = Math.max(0, Math.min(cards.length - 1, this.cardPromptIndex));
+    this.cardPromptTarget = this.cardPromptIndex;
+    this.cardPromptMotion.value = this.cardPromptIndex;
+    this.cardPromptReveal = Math.max(
+      ZONE_BROWSER_RIBBON_MOTION.minReveal,
+      Math.min(ZONE_BROWSER_RIBBON_MOTION.reveal, viewportWidth / 8),
+    );
+    this.cardPromptViewportWidth = viewportWidth;
+    this.cardPromptViewportHeight = Math.max(1, this.modalBody!.viewportHeight - startY);
+    const ribbon = new Container();
+    ribbon.position.y = startY;
+    ribbon.eventMode = "static";
+    ribbon.sortableChildren = true;
+    ribbon.hitArea = new Rectangle(0, 0, viewportWidth, this.cardPromptViewportHeight);
+    const ribbonBounds = new Graphics()
+      .rect(0, 0, viewportWidth, this.cardPromptViewportHeight)
+      .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0 });
+    ribbonBounds.eventMode = "none";
+    ribbon.addChild(ribbonBounds);
+    ribbon.on("pointerdown", (event: FederatedPointerEvent) =>
+      this.beginCardPromptSwipe(event, cards.length),
+    );
+    ribbon.on("wheel", (event: FederatedWheelEvent) => this.scrollCardPrompt(event, cards.length));
+    body.addChild(ribbon);
     cards.forEach((card, index) => {
       const selected = this.selectedIds.has(card.id);
       const disabled = !reveal && max !== 1 && this.selectedIds.size >= max && !selected;
@@ -3517,27 +3616,55 @@ export class PromptLayer {
         disabled,
         cardWidth,
         cardHeight,
-        reveal
-          ? undefined
-          : () => {
-              if (disabled) return;
-              if (selected) {
-                this.selectedIds.delete(card.id);
-              } else {
-                if (max === 1) this.selectedIds.clear();
-                this.selectedIds.add(card.id);
-              }
-              this.rebuild();
-            },
+        () => {
+          if (performance.now() < this.cardPromptSuppressTapUntil) return;
+          this.focusCardPrompt(index, true);
+          if (reveal || disabled) return;
+          if (selected) {
+            this.selectedIds.delete(card.id);
+          } else {
+            if (max === 1) this.selectedIds.clear();
+            this.selectedIds.add(card.id);
+          }
+          this.rebuild();
+        },
+        false,
       );
-      const row = Math.floor(index / columns);
-      const column = index % columns;
-      tile.position.set(
-        CARD_TILE_EDGE_INSET + column * (cardWidth + 10),
-        startY + row * (cardHeight + 12),
-      );
-      body.addChild(tile);
+      const sprite = tile.children[0] as CardSprite;
+      const restAlpha = tile.alpha;
+      tile.pivot.set(cardWidth / 2, cardHeight / 2);
+      const feedback = new Graphics()
+        .roundRect(0, 0, cardWidth, cardHeight, (CARD_RADIUS * cardWidth) / CARD_W)
+        .stroke({ color: hexToNum(this.theme.gameTheme.cardRing), width: 3 });
+      feedback.eventMode = "none";
+      feedback.alpha = 0;
+      tile.addChild(feedback);
+      tile.on("pointerenter", () => {
+        if (this.cardPromptSwipe) return;
+        this.cardPromptHoveredIndex = index;
+        this.cardPromptIndex = index;
+        this.activateCardPrompt(index);
+        this.layoutCardPromptRibbon(false);
+      });
+      tile.on("pointerleave", () => {
+        if (this.cardPromptHoveredIndex !== index) return;
+        this.cardPromptHoveredIndex = null;
+        this.layoutCardPromptRibbon(false);
+      });
+      ribbon.addChild(tile);
+      this.cardPromptEntries.push({
+        index,
+        tile,
+        sprite,
+        feedback,
+        selected,
+        restAlpha,
+        fresh: true,
+        motion: { x: 0, y: 0, scale: 1, elevation: 0, ringAlpha: 0 },
+      });
     });
+    this.activateCardPrompt(this.cardPromptIndex);
+    this.layoutCardPromptRibbon(false);
     const chosen = [...this.selectedIds];
     const canConfirm = reveal || (chosen.length >= min && chosen.length <= max);
     const status = promptText(
@@ -3548,8 +3675,17 @@ export class PromptLayer {
       canConfirm ? this.theme.gameTheme.success : this.theme.appTheme["muted-foreground"],
       { weight: "600" },
     );
-    status.position.set(0, 10);
+    status.position.set(0, 3);
     footer.addChild(status);
+    if (cards.length > 1) {
+      const browseHint = promptText(
+        "Scroll or swipe · Left and right arrows browse",
+        10,
+        this.theme.appTheme["muted-foreground"],
+      );
+      browseHint.position.set(0, 20);
+      footer.addChild(browseHint);
+    }
     const label = reveal ? "CONTINUE" : chosen.length === 0 && min === 0 ? "SKIP" : "CONFIRM";
     const confirm = this.makeButton(
       label,
@@ -3559,7 +3695,258 @@ export class PromptLayer {
       },
       { disabled: !canConfirm, width: 136 },
     );
-    this.addModalFooterActions(footer, [confirm], width - PANEL_PADDING * 2);
+    this.addModalFooterActions(footer, [confirm], viewportWidth);
+  }
+  private clampCardPromptScroll(value: number): number {
+    return Math.max(0, Math.min(Math.max(0, this.cardPromptCount - 1), value));
+  }
+  private activateCardPrompt(index: number): void {
+    const entry = this.cardPromptEntries[index];
+    if (!entry) return;
+    this.activePromptCardId = entry.sprite.card.id;
+    this.activePromptCard = { card: entry.sprite.card, sprite: entry.sprite };
+  }
+
+  private layoutCardPromptRibbon(immediate = false): void {
+    if (!this.cardPromptEntries.length) return;
+    const center = this.cardPromptMotion.value;
+    const focusPosition =
+      this.cardPromptHoveredIndex ?? (this.cardPromptScrolling ? center : this.cardPromptIndex);
+    const lowerFocus = Math.floor(focusPosition);
+    const upperFocus = Math.ceil(focusPosition);
+    const focusMix = focusPosition - lowerFocus;
+    const easedFocusMix = focusMix * focusMix * (3 - 2 * focusMix);
+    for (const entry of this.cardPromptEntries) {
+      const lowerSpread =
+        entry.index === lowerFocus
+          ? 0
+          : entry.index < lowerFocus
+            ? -ZONE_BROWSER_RIBBON_MOTION.focusSpread
+            : ZONE_BROWSER_RIBBON_MOTION.focusSpread;
+      const upperSpread =
+        entry.index === upperFocus
+          ? 0
+          : entry.index < upperFocus
+            ? -ZONE_BROWSER_RIBBON_MOTION.focusSpread
+            : ZONE_BROWSER_RIBBON_MOTION.focusSpread;
+      const spread = lowerSpread + (upperSpread - lowerSpread) * easedFocusMix;
+      const rawFocus = Math.max(0, 1 - Math.abs(entry.index - focusPosition));
+      const focusAmount = rawFocus * rawFocus * (3 - 2 * rawFocus);
+      const scale = 1 + ZONE_BROWSER_RIBBON_MOTION.focusScale * focusAmount;
+      const x =
+        this.cardPromptViewportWidth / 2 + (entry.index - center) * this.cardPromptReveal + spread;
+      const y =
+        this.cardPromptViewportHeight / 2 - ZONE_BROWSER_RIBBON_MOTION.focusLift * focusAmount;
+      const elevation = Math.max(focusAmount, entry.selected ? 0.45 : 0);
+      const ringAlpha = entry.selected
+        ? 0
+        : Math.max(entry.index === this.cardPromptIndex ? 0.78 : 0, focusAmount);
+      entry.tile.zIndex = 1_000 - Math.abs(entry.index - focusPosition) * 10 + focusAmount * 5;
+      this.placeCardPromptEntry(entry, x, y, scale, elevation, ringAlpha, immediate);
+    }
+  }
+
+  private placeCardPromptEntry(
+    entry: CardPromptEntry,
+    x: number,
+    y: number,
+    scale: number,
+    elevation: number,
+    ringAlpha: number,
+    immediate: boolean,
+  ): void {
+    const unchanged =
+      !entry.fresh &&
+      entry.motion.x === x &&
+      entry.motion.y === y &&
+      entry.motion.scale === scale &&
+      entry.motion.elevation === elevation &&
+      entry.motion.ringAlpha === ringAlpha;
+    if (unchanged) return;
+    entry.motion.x = x;
+    entry.motion.y = y;
+    entry.motion.scale = scale;
+    entry.motion.elevation = elevation;
+    entry.motion.ringAlpha = ringAlpha;
+    gsap.killTweensOf(entry.tile.position);
+    gsap.killTweensOf(entry.tile.scale);
+    gsap.killTweensOf(entry.tile);
+    gsap.killTweensOf(entry.feedback);
+    gsap.killTweensOf(entry.motion);
+    if (immediate || !animationsEnabled()) {
+      entry.tile.position.set(x, y);
+      entry.tile.scale.set(scale);
+      entry.tile.alpha = entry.restAlpha;
+      entry.feedback.alpha = ringAlpha;
+      entry.sprite.setElevation(elevation);
+      entry.fresh = false;
+      return;
+    }
+    if (entry.fresh) {
+      entry.tile.position.set(x, y + 36);
+      entry.tile.scale.set(scale * 0.9);
+      entry.tile.alpha = 0;
+      entry.fresh = false;
+    }
+    const tween = {
+      duration: ZONE_BROWSER_RIBBON_MOTION.layoutDuration,
+      ease: "power3.out",
+      overwrite: true,
+    };
+    gsap.to(entry.tile.position, { x, y, ...tween });
+    gsap.to(entry.tile.scale, { x: scale, y: scale, ...tween });
+    gsap.to(entry.tile, {
+      alpha: entry.restAlpha,
+      duration: ZONE_BROWSER_RIBBON_MOTION.entryDuration,
+      ease: "power2.out",
+    });
+    gsap.to(entry.feedback, {
+      alpha: ringAlpha,
+      duration: ZONE_BROWSER_RIBBON_MOTION.feedbackDuration,
+      ease: "power2.out",
+    });
+    gsap.to(entry.motion, {
+      elevation,
+      duration: ZONE_BROWSER_RIBBON_MOTION.elevationDuration,
+      ease: "power2.out",
+      onUpdate: () => entry.sprite.setElevation(entry.motion.elevation),
+    });
+  }
+
+  private clearCardPromptEntries(): void {
+    for (const entry of this.cardPromptEntries) {
+      gsap.killTweensOf(entry.tile.position);
+      gsap.killTweensOf(entry.tile.scale);
+      gsap.killTweensOf(entry.tile);
+      gsap.killTweensOf(entry.feedback);
+      gsap.killTweensOf(entry.motion);
+    }
+    this.cardPromptEntries = [];
+    this.cardPromptScrolling = false;
+  }
+
+  private animateCardPromptScroll(value: number, duration: number): void {
+    this.cardPromptTarget = this.clampCardPromptScroll(value);
+    gsap.killTweensOf(this.cardPromptMotion);
+    if (!animationsEnabled()) {
+      this.cardPromptScrolling = false;
+      this.cardPromptMotion.value = this.cardPromptTarget;
+      this.cardPromptIndex = Math.round(this.cardPromptMotion.value);
+      this.activateCardPrompt(this.cardPromptIndex);
+      this.layoutCardPromptRibbon(false);
+      return;
+    }
+    this.cardPromptScrolling = true;
+    gsap.to(this.cardPromptMotion, {
+      value: this.cardPromptTarget,
+      duration,
+      ease: "power3.out",
+      overwrite: true,
+      onUpdate: () => {
+        this.cardPromptIndex = Math.round(this.cardPromptMotion.value);
+        this.activateCardPrompt(this.cardPromptIndex);
+        this.layoutCardPromptRibbon(true);
+      },
+      onComplete: () => {
+        this.cardPromptScrolling = false;
+        this.layoutCardPromptRibbon(false);
+      },
+    });
+  }
+
+  private focusCardPrompt(index: number, animate: boolean): void {
+    if (!this.cardPromptCount) return;
+    const next = Math.max(0, Math.min(this.cardPromptCount - 1, index));
+    this.cardPromptHoveredIndex = null;
+    this.activateCardPrompt(next);
+    this.cardPromptIndex = next;
+    if (animate) {
+      this.animateCardPromptScroll(next, ZONE_BROWSER_RIBBON_MOTION.snapDuration);
+    } else {
+      this.layoutCardPromptRibbon(false);
+    }
+  }
+
+  private beginCardPromptSwipe(event: FederatedPointerEvent, count: number): void {
+    if (event.pointerType === "mouse" || event.button !== 0 || count < 2) return;
+    event.preventDefault();
+    event.stopPropagation();
+    clearTimeout(this.cardPromptWheelTimer);
+    gsap.killTweensOf(this.cardPromptMotion);
+    this.cardPromptScrolling = false;
+    this.cardPromptSwipe = {
+      pointerId: event.pointerId,
+      startX: event.global.x,
+      startScroll: this.cardPromptMotion.value,
+      moved: false,
+    };
+  }
+
+  private moveCardPromptSwipe(event: FederatedPointerEvent): void {
+    const swipe = this.cardPromptSwipe;
+    if (!swipe || swipe.pointerId !== event.pointerId) return;
+    const delta = swipe.startX - event.global.x;
+    if (Math.abs(delta) > ZONE_BROWSER_RIBBON_MOTION.dragThreshold) swipe.moved = true;
+    if (!swipe.moved) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.cardPromptSuppressTapUntil = performance.now() + 200;
+    this.cardPromptHoveredIndex = null;
+    this.cardPromptScrolling = true;
+    this.cardPromptTarget = this.clampCardPromptScroll(
+      swipe.startScroll + delta / this.cardPromptReveal,
+    );
+    this.cardPromptMotion.value = this.cardPromptTarget;
+    this.cardPromptIndex = Math.round(this.cardPromptMotion.value);
+    this.activateCardPrompt(this.cardPromptIndex);
+    this.layoutCardPromptRibbon(true);
+  }
+
+  private finishCardPromptSwipe(event: FederatedPointerEvent): void {
+    const swipe = this.cardPromptSwipe;
+    if (!swipe || swipe.pointerId !== event.pointerId) return;
+    this.cardPromptSwipe = null;
+    if (!swipe.moved) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.cardPromptSuppressTapUntil = performance.now() + 100;
+    this.focusCardPrompt(Math.round(this.cardPromptTarget), true);
+  }
+
+  private scrollCardPrompt(event: FederatedWheelEvent, count: number): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.ctrlKey) return;
+    this.scrollCardPromptBy(event.deltaX, event.deltaY, event.deltaMode, count);
+  }
+
+  private scrollCardPromptBy(
+    deltaX: number,
+    deltaY: number,
+    deltaMode: number,
+    count: number,
+  ): void {
+    if (count < 2) return;
+    if (this.activePromptCard?.sprite.usesHandRulesView && Math.abs(deltaY) >= Math.abs(deltaX)) {
+      this.activePromptCard.sprite.scrollHandRules(deltaY, deltaMode);
+      return;
+    }
+    const delta = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
+    const multiplier =
+      deltaMode === WheelEvent.DOM_DELTA_LINE
+        ? 16
+        : deltaMode === WheelEvent.DOM_DELTA_PAGE
+          ? this.cardPromptViewportWidth
+          : 1;
+    this.cardPromptHoveredIndex = null;
+    const target = this.clampCardPromptScroll(
+      this.cardPromptTarget + (delta * multiplier) / ZONE_BROWSER_RIBBON_MOTION.wheelPixelsPerCard,
+    );
+    this.animateCardPromptScroll(target, ZONE_BROWSER_RIBBON_MOTION.wheelDuration);
+    clearTimeout(this.cardPromptWheelTimer);
+    this.cardPromptWheelTimer = window.setTimeout(() => {
+      this.focusCardPrompt(Math.round(this.cardPromptTarget), true);
+    }, ZONE_BROWSER_RIBBON_MOTION.wheelSnapMs);
   }
 
   private createCardTile(
@@ -3569,6 +3956,7 @@ export class PromptLayer {
     width: number,
     height: number,
     onPress?: () => void,
+    bindActivation = true,
   ): Container {
     const tile = new Container();
     const radius = (CARD_RADIUS * width) / CARD_W;
@@ -3604,7 +3992,7 @@ export class PromptLayer {
     placeSprite();
     sprite.eventMode = "passive";
     tile.addChild(sprite);
-    this.bindPromptCardActivation(tile, card, sprite);
+    if (bindActivation) this.bindPromptCardActivation(tile, card, sprite);
     if (disabled) {
       const unavailable = new Graphics()
         .roundRect(0, 0, width, height, radius)
@@ -6042,6 +6430,15 @@ export class PromptLayer {
       return;
     }
     if (!input) return;
+    if (
+      (input.type === "chooseCards" || input.type === "revealCards") &&
+      (event.key === "ArrowLeft" || event.key === "ArrowRight")
+    ) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      this.focusCardPrompt(this.cardPromptIndex + (event.key === "ArrowLeft" ? -1 : 1), true);
+      return;
+    }
     if (input.type === "chooseNumber" && input.max - input.min + 1 > 10) {
       const parsed = Number(this.numberBuffer);
       if (event.key === "ArrowLeft" || event.key === "ArrowDown") {

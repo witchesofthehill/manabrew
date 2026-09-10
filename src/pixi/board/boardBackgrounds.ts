@@ -1,15 +1,15 @@
-import darkOak from "@/assets/boards/dark_oak.png";
-import darkStone from "@/assets/boards/dark_stone.png";
-import darkTable from "@/assets/boards/dark_table.png";
-import darkWood from "@/assets/boards/dark_wood.png";
-import glacier from "@/assets/boards/glacier.png";
-import magicCloth from "@/assets/boards/magic_cloth.png";
-import refinedRedwood from "@/assets/boards/refined_redwood.png";
-import refinedStone from "@/assets/boards/refined_stone.png";
-import refinedWood from "@/assets/boards/refined_wood.png";
-import stoneSlate from "@/assets/boards/stone_slate.png";
-import tavernTable from "@/assets/boards/tavern_table.png";
-import volcanicStone from "@/assets/boards/volcanic_stone.png";
+import darkOak from "@/assets/boards/dark_oak.webp";
+import darkStone from "@/assets/boards/dark_stone.webp";
+import darkTable from "@/assets/boards/dark_table.webp";
+import darkWood from "@/assets/boards/dark_wood.webp";
+import glacier from "@/assets/boards/glacier.webp";
+import magicCloth from "@/assets/boards/magic_cloth.webp";
+import refinedRedwood from "@/assets/boards/refined_redwood.webp";
+import refinedStone from "@/assets/boards/refined_stone.webp";
+import refinedWood from "@/assets/boards/refined_wood.webp";
+import stoneSlate from "@/assets/boards/stone_slate.webp";
+import tavernTable from "@/assets/boards/tavern_table.webp";
+import volcanicStone from "@/assets/boards/volcanic_stone.webp";
 
 export type BoardBackgroundId =
   | "none"

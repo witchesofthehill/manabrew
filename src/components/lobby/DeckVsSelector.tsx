@@ -4,6 +4,7 @@ import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { Button } from "@/components/ui/button";
 import { EngineMark } from "@/components/lobby/EngineMark";
 import { PlaytestPlayersDialog } from "@/components/lobby/PlaytestPlayersDialog";
+import { TablePickerDialog } from "@/components/lobby/TablePickerDialog";
 import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { cn, pickRandom, pickRandomDistinct } from "@/lib/utils";
@@ -86,6 +87,8 @@ export function DeckVsSelector({
       : null;
   const lastOfflineFormatId = usePreferencesStore((state) => state.lastOfflineFormatId);
   const lastAiOpponent = usePreferencesStore((state) => state.lastAiOpponent);
+  const boardBackground = usePreferencesStore((state) => state.boardBackgroundId);
+  const setBoardBackground = usePreferencesStore((state) => state.setBoardBackgroundId);
   const rememberedFormatId =
     !preSelectedDeckEntry && lastOfflineFormatId && getFormat(lastOfflineFormatId)
       ? lastOfflineFormatId
@@ -102,6 +105,7 @@ export function DeckVsSelector({
   const [deckSearch, setDeckSearch] = useState("");
   const [starting, setStarting] = useState(false);
   const [playersDialogOpen, setPlayersDialogOpen] = useState(false);
+  const [tableDialogOpen, setTableDialogOpen] = useState(false);
   const [loadingHubDeckId, setLoadingHubDeckId] = useState<string | null>(null);
   const selectedFormatRef = useRef(selectedFormat);
   selectedFormatRef.current = selectedFormat;
@@ -379,7 +383,12 @@ export function DeckVsSelector({
 
   function handleFight() {
     if (!playerDeck || !opponentDeck || starting) return;
-    if (playerDeck.formatId === "commander") {
+    setTableDialogOpen(true);
+  }
+
+  function handleTableChosen() {
+    setTableDialogOpen(false);
+    if (playerDeck?.formatId === "commander") {
       setPlayersDialogOpen(true);
       return;
     }
@@ -794,6 +803,20 @@ export function DeckVsSelector({
           void startFight(opponentCount);
         }}
         onCancel={() => setPlayersDialogOpen(false)}
+      />
+      <TablePickerDialog
+        open={tableDialogOpen}
+        background={boardBackground}
+        onBackgroundChange={setBoardBackground}
+        onStart={handleTableChosen}
+        onCancel={() => setTableDialogOpen(false)}
+        centerContent={
+          selectedFormat ? (
+            <span className="font-serif text-lg font-light text-foreground/90">
+              {getFormat(selectedFormat)?.name ?? selectedFormat}
+            </span>
+          ) : undefined
+        }
       />
     </div>
   );

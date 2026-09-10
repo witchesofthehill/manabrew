@@ -19,6 +19,7 @@ import {
 } from "@/components/game/cardPreviewStyles";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { HAND_ORDER_OPTIONS } from "@/lib/handOrder";
+import { TableSetupTableCard } from "@/components/lobby/TableSetupTableCard";
 
 const PREVIEW_MODES: { value: CardPreviewMode; label: string }[] = [
   { value: "hover", label: "Hover" },
@@ -201,6 +202,18 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
               Auto-arrange
             </Button>
           </div>
+        </SettingRow>
+
+        <SettingRow
+          label="Table background"
+          hint="Felt under the cards for games without a chosen table, like offline play. Multiplayer tables pick their own when created."
+        >
+          <TableSetupTableCard
+            background={prefs.boardBackgroundId}
+            onBackgroundChange={prefs.setBoardBackgroundId}
+            columns={4}
+            className=""
+          />
         </SettingRow>
 
         <SettingRow

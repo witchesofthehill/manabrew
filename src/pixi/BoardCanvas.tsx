@@ -587,11 +587,12 @@ export function BoardCanvas({
     scene?.setAttackRowDebug(showAttackRows);
   }, [scene, showAttackRows]);
 
-  const tableStyle = useServerStore((s) => s.currentRoom?.table_style);
+  const roomTableStyle = useServerStore((s) => s.currentRoom?.table_style);
+  const preferredBackground = usePreferencesStore((s) => s.boardBackgroundId);
 
   useEffect(() => {
-    scene?.setBackground(boardBackgroundUrl(tableStyle));
-  }, [scene, tableStyle]);
+    scene?.setBackground(boardBackgroundUrl(roomTableStyle ?? preferredBackground));
+  }, [scene, roomTableStyle, preferredBackground]);
 
   const inGameAnimations = usePreferencesStore((s) => s.inGameAnimations);
   useEffect(() => {

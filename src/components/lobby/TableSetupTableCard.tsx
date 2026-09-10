@@ -4,14 +4,21 @@ import { cn } from "@/lib/utils";
 interface TableSetupTableCardProps {
   background: BoardBackgroundId;
   onBackgroundChange: (id: BoardBackgroundId) => void;
+  columns?: number;
+  className?: string;
 }
 
-export function TableSetupTableCard({ background, onBackgroundChange }: TableSetupTableCardProps) {
-  const columns = Math.ceil(BOARD_BACKGROUNDS.length / 2);
+export function TableSetupTableCard({
+  background,
+  onBackgroundChange,
+  columns,
+  className = "border-b border-border/60 px-5 py-3",
+}: TableSetupTableCardProps) {
+  const cols = columns ?? Math.ceil(BOARD_BACKGROUNDS.length / 2);
   return (
     <div
-      className="grid gap-2 border-b border-border/60 px-5 py-3"
-      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+      className={cn("grid gap-2", className)}
+      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
     >
       {BOARD_BACKGROUNDS.map((option) => {
         const selected = option.id === background;

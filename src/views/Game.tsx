@@ -52,6 +52,7 @@ import { useCombatState } from "@/hooks/useCombatState";
 import { useGameEventListeners } from "@/hooks/useGameEventListeners";
 import { useGamePrefetch } from "@/hooks/useGamePrefetch";
 import { useMultiplayerInterruption } from "@/hooks/useMultiplayerInterruption";
+import { useLiveGameNavigationGuard } from "@/hooks/useLiveGameNavigationGuard";
 import { GameBoard } from "@/components/game/GameBoard";
 import { buildCombatRows } from "@/components/game/combatRows";
 import { readableTextColor, withAlpha } from "@/themes/gameTheme";
@@ -1146,6 +1147,22 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const myStatus = me?.status;
   const gameOverNow = gameView?.gameOver ?? false;
+  const leaveGameMode = ownsEngine ? "engineOwner" : isMultiplayer ? "seat" : "solo";
+  // Browser back/forward mid-game asks the same question as the Leave button.
+  const navigationBlocker = useLiveGameNavigationGuard(isGameActive && !gameOverNow && !fatalError);
+  const navigationBlocked = navigationBlocker.state === "blocked";
+  useEffect(() => {
+    if (navigationBlocked) setLeaveGameModalOpen(true);
+  }, [navigationBlocked]);
+  const handleStay = useCallback(() => {
+    setLeaveGameModalOpen(false);
+    if (navigationBlocker.state === "blocked") navigationBlocker.reset();
+  }, [navigationBlocker]);
+  const handleLeaveConfirm = useCallback(() => {
+    setLeaveGameModalOpen(false);
+    if (navigationBlocker.state === "blocked") navigationBlocker.reset();
+    void endGame();
+  }, [navigationBlocker, endGame]);
   useEffect(() => {
     if (gameOverNow || manualApi || !gameContinuesWithoutMe) return;
     if (myStatus && myStatus !== "playing" && !eliminatedModalShownRef.current) {
@@ -2273,13 +2290,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         />
       )}
       {leaveGameModalOpen && (
-        <LeaveGameModal
-          onStay={() => setLeaveGameModalOpen(false)}
-          onLeave={() => {
-            setLeaveGameModalOpen(false);
-            void endGame();
-          }}
-        />
+        <LeaveGameModal mode={leaveGameMode} onStay={handleStay} onLeave={handleLeaveConfirm} />
       )}
       {concedeModalOpen && (
         <ConcedeGameModal

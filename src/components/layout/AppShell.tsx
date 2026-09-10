@@ -48,7 +48,10 @@ export function AppShell() {
   const isGameActive = useGameStore((s) => s.isGameActive);
   const pathname =
     location.pathname.length > 1 ? location.pathname.replace(/\/+$/, "") : location.pathname;
-  const isGameRoute = pathname.startsWith(ROUTES.GAME) || isGameActive;
+  // The board renders under /play; a live game on any other route must keep
+  // the nav chrome, or there is no way back to the table.
+  const isGameRoute =
+    pathname.startsWith(ROUTES.GAME) || (isGameActive && pathname.startsWith(ROUTES.PLAY));
   const isCompanionRoute = pathname.startsWith(ROUTES.COMPANION);
   const isImmersiveRoute = isGameRoute || isCompanionRoute;
   const isPlayHome = pathname === ROUTES.PLAY;
@@ -109,7 +112,7 @@ export function AppShell() {
   useLocalDeckAccountSync();
 
   function goToAdjacentPage(delta: number) {
-    if (isGameActive || hideNavChrome || activeTopBarOverride?.navigationDisabled) return;
+    if (hideNavChrome || activeTopBarOverride?.navigationDisabled) return;
     const current = NAV_ROUTES.findIndex((r) => location.pathname.startsWith(r));
     const base = current === -1 ? 0 : current;
     const next = (base + delta + NAV_ROUTES.length) % NAV_ROUTES.length;
@@ -120,7 +123,7 @@ export function AppShell() {
     "nav-prev-page": () => goToAdjacentPage(-1),
     "nav-next-page": () => goToAdjacentPage(1),
     "open-settings": () => {
-      if (!isGameActive && !activeTopBarOverride?.navigationDisabled) navigate(ROUTES.SETTINGS);
+      if (!hideNavChrome && !activeTopBarOverride?.navigationDisabled) navigate(ROUTES.SETTINGS);
     },
     "show-shortcuts": () => setShortcutsOpen((v) => !v),
   });

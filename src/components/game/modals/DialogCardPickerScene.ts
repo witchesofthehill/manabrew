@@ -83,7 +83,9 @@ export class DialogCardPickerScene {
         autoDensity: true,
         autoStart: false,
         resolution: overlayResolution(this.props.width, this.props.height),
+        eventFeatures: { wheel: false },
       });
+      this.app.renderer.events.autoPreventDefault = false;
       this.initialized = true;
       if (this.disposed) {
         destroyPixiApp(this.app);
@@ -200,7 +202,11 @@ export class DialogCardPickerScene {
       feedback.eventMode = "none";
       sprite.eventMode = "static";
       sprite.cursor = "pointer";
-      sprite.on("pointertap", () => this.props.onSelect(item.id));
+      sprite.on("pointertap", (event) => {
+        event.stopPropagation();
+        this.props.onSelect(item.id);
+      });
+      sprite.on("pointerdown", (event) => event.stopPropagation());
       sprite.on("pointerenter", () => this.setHovered(item.id, true));
       sprite.on("pointerleave", () => this.setHovered(item.id, false));
       sprite.on("pointerdowncapture", () => this.setHovered(item.id, true));

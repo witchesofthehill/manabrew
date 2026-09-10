@@ -73,7 +73,7 @@ All game modals use the `Modal` compound:
 
 Use `Modal.Close` for buttons and `Modal.CloseShortcut` for remappable keybindings that dismiss a dialog so both paths finish the exit transition before unmounting. `Modal` owns the nested-dialog stack, focus containment, topmost Escape handling, backdrop dismissal, and reduced-motion-aware entry and exit transitions.
 
-Card browsers use `DialogCardBrowser`. It keeps search, collapsed type and color filters, sorting, card size, scroll position, keyboard navigation, and per-card view state together. Zone pickers default to available cards, render large inline `CardSprite`s in one `DialogCardPickerScene`, and require an explicit action from the bottom tray; they do not open a separate inspector. Their Realistic/Rules and face controls are the same `HandRulesCardFace` and `HandCardControls` used by the hand, engine prompts, and stack. The current candidate retains the shared `cardRing` glow; pointer hover uses that same glow plus the standard card elevation. Preserve `CARD_BROWSER_VERTICAL_PADDING` in both virtual layout and Pixi coordinates so card chrome clears the browser edges. Stack browsing retains `DialogCardInspector`. `DialogCardGrid` virtualizes the stack browser. Never add a parallel DOM rules-card presentation.
+Card browsers use `DialogCardBrowser`. It keeps search, collapsed type and color filters, sorting, scroll position, keyboard navigation, and per-card view state together. Zone pickers show every card in the zone, dim unavailable cards, render preview-sized inline `CardSprite`s in one `DialogCardPickerScene`, and require an explicit action from the bottom tray. They do not open a separate inspector. Their Realistic/Rules and face controls use the same `HandRulesCardFace` and `HandCardControls` as the hand, engine prompts, and stack. The current candidate retains the shared `cardRing` glow; pointer hover uses that glow plus the standard card elevation. Preserve `CARD_BROWSER_VERTICAL_PADDING` in both virtual layout and Pixi coordinates so card chrome clears the browser edge. The picker canvas leaves wheel and touch-pan defaults to the browser and stops card-target pointer events inside its Pixi scene so the scroll host retains control.
 
 ## Mana text
 
@@ -87,18 +87,15 @@ Pixi text uses `PixiRichText` so it shares the mana-symbol cache and wrapping be
 
 ## Sizing
 
-Use the standard size constants. Don't invent pixel values.
+`GAME_CARD_SIZES` in `game.constants.ts` is the single source of truth. Use one of its three base dimensions and scale responsively when the viewport requires it.
 
-| Constant                                      | Usage                                                                                                                                       |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BATTLEFIELD_CARD`                            | `w-[70px] h-[98px]` — battlefield (where React is involved)                                                                                 |
-| `HAND_CARD`                                   | `w-[80px] h-[112px]` — hand / zone viewer                                                                                                   |
-| `HAND_CARD_BASE`                              | Hand-card base pixel dims, scaled at runtime by `useHandScale` (`HAND_FAN_PARAMS` in `pixi/HandLayout.ts` holds the fan spread/lift params) |
-| `MODAL_CARD_SIZE`                             | `w-[100px] h-[140px]` — cards inside modal grids                                                                                            |
-| `MULLIGAN_CARD_SIZE`                          | `w-[160px] h-[222px]` — cards inside mulligan modals                                                                                        |
-| `FLASH_CARD_SIZE`                             | `{ w: 360, h: 504 }` — battlefield hover previews                                                                                           |
-| `CARD_WIDTH` / `MAX_CARD_HEIGHT_FRAC`         | `300` / `0.55` — stack card rules-view width and viewport-height cap                                                                        |
-| Prompt `CARD_WIDTH` / `CARD_VERTICAL_RESERVE` | `250` / `288` — prompt rules-view width and viewport-fit reserve                                                                            |
+| Size          | Dimensions  | Usage                                                                                                       |
+| ------------- | ----------- | ----------------------------------------------------------------------------------------------------------- |
+| `battlefield` | `70 × 98`   | Battlefield cards and zone tiles; battlefield preferences and grid fitting may scale this base size         |
+| `hand`        | `130 × 182` | Hand cards and non-actionable zone browser cards; `useHandScale` may scale this base size                   |
+| `preview`     | `300 × 420` | Prompt choices and sources, actionable zone pickers, stack cards, command-zone previews, and hover previews |
+
+Preview cards may shrink to fit the viewport. Keep `RulesCardPreviewLayer` as the shared rules renderer and do not add context-specific preview dimensions.
 
 ## Card rendering ownership
 
@@ -182,7 +179,7 @@ The engine sends a `Prompt` (from `@/protocol`) → `Game.tsx` builds a `PromptO
 
 Engine modals, including damage order, can minimize and reopen without clearing their pending choices. A collapsed damage-order prompt routes to `promptRequired`, not `noAction`, so its reopen control remains available.
 
-Card-bearing prompts use hand-style cards inline. `chooseCards`, `revealCards`, `reorder`, and `scry` all build those cards through `PromptLayer.createCardTile`; selection and drag/drop stay on the tile, not the rules face. Prompt cards cap at 240px wide and shrink against the viewport height so a Scry pool, destination row, and footer fit without scrolling at standard desktop sizes. New prompts use the persisted **Prompt default preview** preference and default to the realistic face. Hover or focus a prompt card before using the configured change-view and flip-face shortcuts; use the same thin interaction ring as battlefield sprites for active-card feedback. Background hand-card shortcuts must yield while one of these card modals is open so the prompt owns its card controls. Do not add a separate hover-preview rail.
+Card-bearing prompts use hand-style cards inline. `chooseCards`, `revealCards`, `reorder`, and `scry` all build those cards through `PromptLayer.createCardTile`; selection and drag/drop stay on the tile, not the rules face. Prompt cards use `GAME_CARD_SIZES.preview` and shrink against the viewport height so a Scry pool, destination row, and footer fit without scrolling at standard desktop sizes. New prompts use the persisted **Prompt default preview** preference and default to the realistic face. Hover or focus a prompt card before using the configured change-view and flip-face shortcuts; use the same thin interaction ring as battlefield sprites for active-card feedback. Background hand-card shortcuts must yield while one of these card modals is open so the prompt owns its card controls. Do not add a separate hover-preview rail.
 
 Prompt tiles and source previews reuse `HandCardControls` for printed/rules view changes and eligible face flips or landscape rotation. Controls and keyboard shortcuts share per-card state. Control presses stop before tile selection or dragging; hovered cards rise above overlapping neighbors so their controls remain reachable, while dragged cards retain the higher drag layer.
 
@@ -198,7 +195,7 @@ Modal prompt wheel scrolling preserves pixel deltas, converts line/page deltas, 
 
 `reorder` keeps every card in one **Resolution order** strip whose height hugs the card row and its controls; size the modal to that strip plus its header and confirmation footer rather than the viewport. The leftmost card resolves first, and horizontal drop position chooses the insertion index. While dragging, close the source gap and glide neighboring cards aside to expose the pending destination before release; do not mutate the submitted order until drop. Initialize the strip from the engine-provided order, center the earlier/later controls beneath each card, and use `gameTheme.cardRing` for their hover/focus accent. After either a drag or button move, preserve each card's previous global position so displaced cards glide into their new slots without replaying a scale pulse. Inset both the strip and its cards far enough that rank badges, rings, and rounded borders remain inside the modal mask.
 
-Center every prompt modal on the viewport, independent of source-card presence and board targets. When the complete `SOURCE_CARD_EXTERNAL_WIDTH` footprint fits beside a centered modal, render the source in the right-side gutter at that fixed width for every prompt; never scale it from the modal width or offset the modal to center the combined group. Live prompts use `currentPrompt.sourceCard` directly; fixtures may fall back to `sourceDeckCard`. Apply `currentPrompt.sourceAbilityText` through `CardSprite.setHandRulesHighlight` so the resolving rules entry receives the same pulse used by stack rules cards. When the fixed source preview does not fit, keep the compact source thumbnail inside the modal and let the body scroll.
+Center every prompt modal on the viewport, independent of source-card presence and board targets. When the complete `GAME_CARD_SIZES.preview.width` footprint fits beside a centered modal, render the source in the right-side gutter at that width for every prompt; never scale it from the modal width or offset the modal to center the combined group. Live prompts use `currentPrompt.sourceCard` directly; fixtures may fall back to `sourceDeckCard`. Apply `currentPrompt.sourceAbilityText` through `CardSprite.setHandRulesHighlight` so the resolving rules entry receives the same pulse used by stack rules cards. When the source preview does not fit, keep the compact source thumbnail inside the modal and let the body scroll.
 
 `PromptModalPreview` must portal `BoardOverlayCanvas` directly to `document.body`. `RightActionPanel` uses `backdrop-filter`, which creates a containing block for fixed descendants; an inline full-screen preview canvas is then constrained to the panel while retaining a viewport-sized Pixi coordinate system, leaving the prompt off-screen and capturing input.
 

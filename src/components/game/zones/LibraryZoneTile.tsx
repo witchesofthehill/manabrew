@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { withAlpha } from "@/themes/gameTheme";
-import { CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
+import { CARD_BACK_IMAGE_URL, GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { useTheme } from "@/hooks/useTheme";
 import { ScryfallImg } from "@/components/ScryfallImg";
 
@@ -21,11 +21,13 @@ export function LibraryZoneTile({ count, onClick, label = "Lib" }: LibraryZoneTi
       <button
         type="button"
         className={cn(
-          "relative h-[100px] w-[72px] overflow-hidden rounded-md transition-colors",
+          "relative overflow-hidden rounded-md transition-colors",
           "border-2",
           onClick ? "hover:brightness-110 cursor-pointer" : "opacity-95",
         )}
         style={{
+          width: GAME_CARD_SIZES.battlefield.width,
+          height: GAME_CARD_SIZES.battlefield.height,
           borderColor: ringColor,
           boxShadow: `0 1px 4px ${withAlpha(ringColor, 0.25)}`,
         }}

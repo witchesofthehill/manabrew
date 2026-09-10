@@ -63,6 +63,7 @@ import {
   CARD_PREVIEW_ANCHOR_GAP as PANEL_GAP,
   CARD_PREVIEW_EDGE_PAD as EDGE_PAD,
 } from "@/components/game/cardPreviewLayout";
+import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 
 export interface RulesCardPreviewSpec {
   card: CardDto;
@@ -102,6 +103,7 @@ const PORTRAIT_WIDTH: number = RULES_CARD_CONSTRAINTS.width;
 const PORTRAIT_HEIGHT: number = RULES_CARD_CONSTRAINTS.height;
 const LANDSCAPE_WIDTH = PORTRAIT_HEIGHT;
 const LANDSCAPE_HEIGHT = PORTRAIT_WIDTH;
+const MAX_PREVIEW_SCALE = GAME_CARD_SIZES.preview.width / PORTRAIT_WIDTH;
 const PORTRAIT_HEADER_HEIGHT = 52;
 const LANDSCAPE_HEADER_HEIGHT = 48;
 const PORTRAIT_ART_HEIGHT = 184;
@@ -1142,9 +1144,13 @@ export class RulesCardPreviewLayer {
     const spec = this.spec;
     if (!spec || this.viewportWidth <= 0 || this.viewportHeight <= 0) return;
     const scale = spec.slot
-      ? Math.min(1, spec.slot.width / this.panelWidth, spec.slot.height / this.widgetHeight)
+      ? Math.min(
+          MAX_PREVIEW_SCALE,
+          spec.slot.width / this.panelWidth,
+          spec.slot.height / this.widgetHeight,
+        )
       : Math.min(
-          1,
+          MAX_PREVIEW_SCALE,
           (this.viewportWidth - EDGE_PAD * 2) / this.panelWidth,
           (this.viewportHeight - EDGE_PAD * 2) / this.widgetHeight,
         );

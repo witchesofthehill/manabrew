@@ -34,12 +34,12 @@ If the same Tailwind string appears in **2+ files**, extract it to `game.styles.
 
 ```ts
 // game.styles.ts
-export const BATTLEFIELD_CARD = "w-[70px] h-[98px] shrink-0" as const;
+export const ZONE_LABEL =
+  "text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1" as const;
 ```
 
 ```tsx
-// BattlefieldZone.tsx
-<Card className={cn(BATTLEFIELD_CARD, "hover:z-10")} />
+<span className={cn(ZONE_LABEL, "text-center")} />
 ```
 
 ### Always use `cn()` for conditional classes
@@ -69,16 +69,15 @@ className={`ring-${color}-400`}
 
 ### Card sizing constants
 
-Use the standard size constants — don't invent new pixel values:
+Use `GAME_CARD_SIZES` from `game.constants.ts`. These are the only base card dimensions:
 
-| Constant           | Value                 | Usage                         |
-| ------------------ | --------------------- | ----------------------------- |
-| `BATTLEFIELD_CARD` | `w-[70px] h-[98px]`   | Cards on the battlefield      |
-| `HAND_CARD`        | `w-[80px] h-[112px]`  | Cards in hand / zone viewer   |
-| `MODAL_CARD_SIZE`  | `w-[100px] h-[140px]` | Cards inside modal grids      |
-| `FLASH_CARD_SIZE`  | `w-[240px] h-[336px]` | Flash overlay / large preview |
+| Size          | Value       | Usage                                                            |
+| ------------- | ----------- | ---------------------------------------------------------------- |
+| `battlefield` | `70 × 98`   | Battlefield cards and zone tiles                                 |
+| `hand`        | `130 × 182` | Hand cards and non-actionable zone browser cards                 |
+| `preview`     | `300 × 420` | Prompt, actionable zone, stack, command-zone, and hover previews |
 
----
+## Responsive layout may scale a base size to fit available space. Do not add a context-specific card size.
 
 ## 3. Component Patterns
 
@@ -303,7 +302,7 @@ and add a semantic theme key instead.
 | Component files     | PascalCase              | `PlayerPanel.tsx`     |
 | Shared module files | camelCase               | `game.styles.ts`      |
 | Hook files          | camelCase, `use` prefix | `useCardSelection.ts` |
-| Style constants     | UPPER_SNAKE_CASE        | `BATTLEFIELD_CARD`    |
+| Style constants     | UPPER_SNAKE_CASE        | `ZONE_LABEL`          |
 | Type/Interface      | PascalCase              | `CombatAssignment`    |
 | Utility functions   | camelCase               | `getPromptLabel`      |
 
@@ -319,7 +318,7 @@ The app targets smartphones/tablets (touch, small landscape screens) through hug
 - **Hover handlers on card tiles use `onPointerEnter`/`onPointerLeave` with an `e.pointerType === "touch"` early-return** — plain `onMouseEnter` fires on tap and strands the preview (no mouseleave ever comes on touch).
 - **Tap targets**: interactive elements get ≥40px on coarse pointers — either `pointer-coarse:h-10`-style bumps or an invisible hit expander (`relative … before:absolute before:-inset-2.5 before:content-['']`). The `Button` primitive already bumps its sizes under `pointer-coarse:`.
 - **Native `<select>`/`<input>` need ≥16px font on touch** (`pointer-coarse:text-base`) or iOS zooms the page on focus. The `Input` primitive handles this; raw elements must add it.
-- **rem for chrome, px for card art.** Panels/text/spacing use rem-based Tailwind tokens so the `:root` font-size steps at 2000px/3000px (in `index.css`) scale them on big monitors. Card-size constants (`BATTLEFIELD_CARD`, `CARD_WIDTH_MAP`, …) stay px — card art has a native resolution and scaling is handled per-surface (`useHandScale`, battlefield fill scale, size tiers).
+- **rem for chrome, px for card art.** Panels, text, and spacing use rem-based Tailwind tokens so the `:root` font-size steps at 2000px and 3000px in `index.css` scale them on large monitors. `GAME_CARD_SIZES` stays in pixels; `useHandScale`, battlefield grid fitting, and preview viewport fitting apply runtime scale.
 - **Drag gestures use pointer events, never mouse events** (`pointermove`/`pointerup`/`pointercancel`), filtered by `pointerId` so a second finger can't hijack, with `pointercancel` treated as abort.
 
 ---

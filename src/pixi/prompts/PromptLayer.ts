@@ -32,6 +32,7 @@ import {
   CARD_H,
   CARD_RADIUS,
   CARD_W,
+  GAME_CARD_SIZES,
 } from "@/components/game/game.constants";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -100,7 +101,6 @@ const MODAL_TYPES = new Set([
 const FONT = "Inter, system-ui, sans-serif";
 const PANEL_PADDING = 20;
 const ROW_GAP = 10;
-const CARD_WIDTH = 240;
 const CARD_HOVER_Z_INDEX = 600;
 const CARD_TILE_EDGE_INSET = 8;
 const REORDER_MODAL_VERTICAL_RESERVE = 280;
@@ -115,7 +115,6 @@ const MODAL_MIN_HEIGHT = 160;
 const MODAL_VIEWPORT_MARGIN = 16;
 const MODAL_BODY_BOTTOM_PADDING = 8;
 const SOURCE_CARD_GAP = 20;
-const SOURCE_CARD_EXTERNAL_WIDTH = 180;
 const SOURCE_CARD_INTERNAL_WIDTH = 64;
 const SOURCE_LABEL_HEIGHT = 18;
 const DRAG_START_THRESHOLD = 4;
@@ -1804,7 +1803,7 @@ export class PromptLayer {
   } {
     const availableCardHeight = Math.max(112, (this.viewportHeight - CARD_VERTICAL_RESERVE) / 2);
     const width = Math.min(
-      CARD_WIDTH,
+      GAME_CARD_SIZES.preview.width,
       (availableCardHeight * CARD_W) / CARD_H,
       (maxHeight * CARD_W) / CARD_H,
       Math.max(80, this.viewportWidth - PANEL_PADDING * 2 - 24),
@@ -2777,7 +2776,7 @@ export class PromptLayer {
     const preferredSourceCardWidth = this.promptCardDimensions().width;
     const x = (this.viewportWidth - width) / 2;
     const y = (this.viewportHeight - height) / 2;
-    const externalSourceCardWidth = SOURCE_CARD_EXTERNAL_WIDTH;
+    const externalSourceCardWidth = GAME_CARD_SIZES.preview.width;
     const externalSource =
       !!sourceCard &&
       !boardContext &&
@@ -3896,7 +3895,7 @@ export class PromptLayer {
     const hasSourceCard = !!(this.spec?.currentPrompt?.sourceCard ?? this.spec?.sourceDeckCard);
     const sourceIsInternal =
       hasSourceCard &&
-      (this.viewportWidth - width) / 2 - SOURCE_CARD_GAP - 12 < SOURCE_CARD_EXTERNAL_WIDTH;
+      (this.viewportWidth - width) / 2 - SOURCE_CARD_GAP - 12 < GAME_CARD_SIZES.preview.width;
     const height = Math.min(
       this.viewportHeight - 24,
       cardHeight +

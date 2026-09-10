@@ -10,7 +10,7 @@ import {
 import type { Theme } from "@/hooks/useTheme";
 import type { ClientCardDto } from "@/stores/gameStore.types";
 import type { InGameCardPreviewStyle } from "@/stores/usePreferencesStore";
-import { CARD_H, CARD_W } from "@/components/game/game.constants";
+import { CARD_H, CARD_W, GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { CardSprite } from "@/pixi/CardSprite";
 import { hexToNum } from "@/pixi/colorUtils";
 import { gsap } from "@/pixi/effects/gsap";
@@ -44,7 +44,6 @@ interface CommandZonePreviewLayerCallbacks {
   onCastCard: (cardId: string) => void;
 }
 
-const PREVIEW_WIDTH = 220;
 const PREVIEW_GAP = 12;
 const EDGE_PAD = 8;
 const ANCHOR_GAP = 12;
@@ -250,7 +249,7 @@ export class CommandZonePreviewLayer {
     );
     const maxBaseHeight = Math.max(...baseHeights);
     const idealScale = Math.min(
-      PREVIEW_WIDTH / CARD_W,
+      GAME_CARD_SIZES.preview.width / CARD_W,
       (this.viewportHeight - EDGE_PAD * 2) / maxBaseHeight,
     );
     const widthWithoutGaps = baseWidths.reduce((sum, width) => sum + width, 0);

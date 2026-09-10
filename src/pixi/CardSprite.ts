@@ -375,6 +375,7 @@ export class CardSprite extends Container {
   private promptReferenceColor: number | null = null;
   private ownerRingGfx: Graphics;
   private contentContainer: Container;
+  private printedFaceContainer: Container;
   private ptContainer: Container;
   private ptBg: Graphics;
   private ptText: Text;
@@ -457,6 +458,8 @@ export class CardSprite extends Container {
     this.addChild(this.promptReferenceGfx);
 
     this.contentContainer = new Container();
+    this.printedFaceContainer = new Container();
+    this.contentContainer.addChild(this.printedFaceContainer);
     this.addChild(this.contentContainer);
 
     this.placeholderGfx = new Graphics();
@@ -635,9 +638,6 @@ export class CardSprite extends Container {
         y <= this.ch + this.hitPad,
     };
 
-    // Everything except the selection/target ring lives under contentContainer so
-    // the summoning-sick / phased desaturate filter greys the card body but leaves
-    // the interaction ring at full color.
     for (const child of [...this.children]) {
       if (
         child !== this.shadowGfx &&
@@ -646,7 +646,7 @@ export class CardSprite extends Container {
         child !== this.promptReferenceGfx &&
         child !== this.contentContainer
       ) {
-        this.contentContainer.addChild(child);
+        this.printedFaceContainer.addChild(child);
       }
     }
     this.addChild(this.pulseRing.gfx);
@@ -807,6 +807,7 @@ export class CardSprite extends Container {
       this.handRulesFace.visible = active;
       if (active) this.updateHandRulesFace();
     }
+    this.printedFaceContainer.visible = !active;
     this.updateHandControls();
     this.refreshCardRadiusChrome();
   }

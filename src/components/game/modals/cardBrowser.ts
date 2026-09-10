@@ -16,25 +16,17 @@ export interface CardBrowserState {
   type: string;
   color: string;
   sort: "zone" | "name" | "mana";
-  onlyActions: boolean;
-  size: number;
   activeId: string | null;
   scrollTop: number;
   inspection: Record<string, CardInspectionState>;
 }
 export const CARD_BROWSER_GAP = 12;
 export const CARD_BROWSER_VERTICAL_PADDING = 16;
-export const CARD_BROWSER_MIN_SIZE = 104;
-export const CARD_BROWSER_MAX_SIZE = 220;
-export const CARD_BROWSER_SIZE_STEP = 8;
-export const CARD_BROWSER_PICKER_SIZE = 200;
 export const INITIAL_CARD_BROWSER_STATE: CardBrowserState = {
   query: "",
   type: "",
   color: "",
   sort: "zone",
-  onlyActions: false,
-  size: 132,
   activeId: null,
   scrollTop: 0,
   inspection: {},
@@ -42,13 +34,10 @@ export const INITIAL_CARD_BROWSER_STATE: CardBrowserState = {
 export function createCardBrowserState(
   initial: CardBrowserState | undefined,
   picker: boolean,
-  onlyActions: boolean,
 ): CardBrowserState {
   const state = initial ?? INITIAL_CARD_BROWSER_STATE;
   return {
     ...state,
-    onlyActions,
-    size: picker ? CARD_BROWSER_PICKER_SIZE : state.size,
     activeId: picker ? null : state.activeId,
   };
 }
@@ -93,7 +82,6 @@ export function filterBrowserItems(
 ): CardBrowserItem[] {
   const terms = state.query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
   const filtered = items.filter((item) => {
-    if (state.onlyActions && !item.legal && !item.selected) return false;
     if (state.type && !item.card.types.includes(state.type)) return false;
     if (
       state.color &&

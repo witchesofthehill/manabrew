@@ -2,7 +2,6 @@ import { FillGradient, Graphics, Text, TextStyle, type Container } from "pixi.js
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "@/pixi/colorUtils";
 import { cardFrameTints, contrastRatio, ensureTextContrast } from "@/themes/gameTheme";
-import { FLASH_CARD_SIZE } from "@/components/game/game.styles";
 import type { CardStatPresentation } from "@/components/game/cardPresentation";
 
 export const RULES_BODY_FONT = "Georgia, Cambria, Times New Roman, serif";
@@ -10,8 +9,8 @@ export const RULES_TITLE_FONT = "Cormorant Garamond, Georgia, serif";
 export const RULES_TITLE_ART_RADIUS = 7;
 
 export const RULES_CARD_CONSTRAINTS = {
-  width: FLASH_CARD_SIZE.w,
-  height: FLASH_CARD_SIZE.h,
+  width: 360,
+  height: 504,
   radius: 13,
 } as const;
 const RULES_TEXT_MIN_CONTRAST = 4.5;

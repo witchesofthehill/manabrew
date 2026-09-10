@@ -1,7 +1,7 @@
 import { Container, Graphics, Rectangle } from "pixi.js";
 import { isCoarsePointer } from "@/lib/responsive";
 import gsap from "gsap";
-import { CARD_H, CARD_W } from "@/components/game/game.constants";
+import { CARD_H, CARD_W, GAME_CARD_SIZES } from "@/components/game/game.constants";
 import type { Theme } from "@/hooks/useTheme";
 import { CardSprite } from "../CardSprite";
 import { hexToNum } from "../colorUtils";
@@ -10,7 +10,6 @@ import { HOVER_SCALE, StackCardSprite } from "./StackCardSprite";
 import { computeStackLayout, reconcileStackHover } from "./stackLayout";
 import type { StackAnchorProvider, StackCallbacks, StackSpec } from "./stack.types";
 
-const CARD_WIDTH = 300;
 const MAX_CARD_HEIGHT_FRAC = 0.55;
 const HOVER_MOVE_MS = 0.16;
 const HOVER_EASE = "power2.out";
@@ -61,13 +60,13 @@ export class StackLayer implements StackAnchorProvider {
   private peeking = false;
   private peekTimer: gsap.core.Tween | null = null;
   private prevCardIds = new Set<string>();
-  private builtCardWidth = CARD_WIDTH;
+  private builtCardWidth: number = GAME_CARD_SIZES.preview.width;
   private prevFanOut: boolean | null = null;
 
   private cardWidth(): number {
-    if (this.viewH <= 0) return CARD_WIDTH;
+    if (this.viewH <= 0) return GAME_CARD_SIZES.preview.width;
     const maxW = (this.viewH * MAX_CARD_HEIGHT_FRAC * CARD_W) / CARD_H;
-    return Math.min(CARD_WIDTH, maxW);
+    return Math.min(GAME_CARD_SIZES.preview.width, maxW);
   }
 
   private faceScale(): number {

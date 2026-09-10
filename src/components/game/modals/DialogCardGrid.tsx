@@ -4,6 +4,7 @@ import { Card } from "@/components/game/Card";
 import { useTheme } from "@/hooks/useTheme";
 import { isFacelessCard } from "@/lib/gameCard";
 import { cn } from "@/lib/utils";
+import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import type { CardBrowserItem, CardBrowserState } from "./cardBrowser";
 
 interface Props {
@@ -31,9 +32,12 @@ export function DialogCardGrid({ items, state, onInspect, onScroll, intentColor 
     observer.observe(node);
     return () => observer.disconnect();
   }, [initialScrollTop]);
-  const columns = Math.max(1, Math.floor((viewport.width + GAP) / (state.size + GAP)));
+  const columns = Math.max(
+    1,
+    Math.floor((viewport.width + GAP) / (GAME_CARD_SIZES.hand.width + GAP)),
+  );
   const cellWidth = (viewport.width - GAP * (columns - 1)) / columns;
-  const rowHeight = (state.size * 100) / 72 + 48;
+  const rowHeight = GAME_CARD_SIZES.hand.height + 48;
   const rows = Math.ceil(items.length / columns);
   const top = Math.min(state.scrollTop, Math.max(0, rows * rowHeight - viewport.height));
   const start = Math.max(0, Math.floor(top / rowHeight) - 1) * columns;
@@ -127,7 +131,10 @@ export function DialogCardGrid({ items, state, onInspect, onScroll, intentColor 
               }}
               onClick={() => onInspect(item.id, true)}
             >
-              <div className="flex w-full flex-1 items-center" style={{ maxWidth: state.size }}>
+              <div
+                className="flex w-full flex-1 items-center"
+                style={{ maxWidth: GAME_CARD_SIZES.hand.width }}
+              >
                 <Card
                   card={item.card}
                   bare

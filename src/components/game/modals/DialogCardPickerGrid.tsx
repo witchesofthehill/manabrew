@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { isFacelessCard } from "@/lib/gameCard";
 import { cn } from "@/lib/utils";
-import { CARD_H, CARD_W } from "@/components/game/game.constants";
+import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import type { CardInspectionState } from "./cardInspection";
 import {
   CARD_BROWSER_GAP,
@@ -53,10 +53,12 @@ export function DialogCardPickerGrid({
 
   const columns = Math.max(
     1,
-    Math.floor((viewport.width + CARD_BROWSER_GAP) / (state.size + CARD_BROWSER_GAP)),
+    Math.floor(
+      (viewport.width + CARD_BROWSER_GAP) / (GAME_CARD_SIZES.preview.width + CARD_BROWSER_GAP),
+    ),
   );
   const cellWidth = (viewport.width - CARD_BROWSER_GAP * (columns - 1)) / columns;
-  const cardHeight = (state.size * CARD_H) / CARD_W;
+  const cardHeight = GAME_CARD_SIZES.preview.height;
   const rowHeight = cardHeight + LABEL_HEIGHT;
   const rows = Math.ceil(items.length / columns);
   const contentHeight = Math.max(
@@ -143,7 +145,7 @@ export function DialogCardPickerGrid({
           cellWidth={cellWidth}
           rowHeight={rowHeight}
           scrollTop={top}
-          cardSize={state.size}
+          cardSize={GAME_CARD_SIZES.preview.width}
           width={viewport.width}
           height={viewport.height}
           actionable={actionable}
@@ -155,7 +157,7 @@ export function DialogCardPickerGrid({
           const index = start + offset;
           const rowTop = CARD_BROWSER_VERTICAL_PADDING + Math.floor(index / columns) * rowHeight;
           const cellLeft = (index % columns) * (cellWidth + CARD_BROWSER_GAP);
-          const cardLeft = cellLeft + (cellWidth - state.size) / 2;
+          const cardLeft = cellLeft + (cellWidth - GAME_CARD_SIZES.preview.width) / 2;
           const name = isFacelessCard(item.card) ? "Face-down card" : item.card.identity.name;
           return (
             <div key={item.id}>
@@ -170,7 +172,12 @@ export function DialogCardPickerGrid({
                 tabIndex={item.id === autofocusId ? 0 : -1}
                 data-autofocus={item.id === autofocusId ? true : undefined}
                 className="pointer-events-none absolute z-10 opacity-0"
-                style={{ left: cardLeft, top: rowTop, width: state.size, height: cardHeight }}
+                style={{
+                  left: cardLeft,
+                  top: rowTop,
+                  width: GAME_CARD_SIZES.preview.width,
+                  height: cardHeight,
+                }}
                 onFocus={() => onSelect(item.id)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {

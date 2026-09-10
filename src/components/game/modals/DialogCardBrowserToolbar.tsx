@@ -3,12 +3,7 @@ import { Search, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MANA_LETTERS } from "@/themes/gameTheme";
-import {
-  CARD_BROWSER_MAX_SIZE,
-  CARD_BROWSER_MIN_SIZE,
-  CARD_BROWSER_SIZE_STEP,
-  type CardBrowserState,
-} from "./cardBrowser";
+import type { CardBrowserState } from "./cardBrowser";
 
 interface Props {
   search: RefObject<HTMLInputElement | null>;
@@ -18,12 +13,9 @@ interface Props {
   visibleCount: number;
   totalCount: number;
   selectedCount: number;
-  hasActions: boolean;
   loading: boolean;
   incomplete: boolean;
   onFilter: (patch: Partial<CardBrowserState>) => void;
-  onSize: (size: number) => void;
-  defaultOnlyActions: boolean;
 }
 export function DialogCardBrowserToolbar({
   search,
@@ -33,19 +25,13 @@ export function DialogCardBrowserToolbar({
   visibleCount,
   totalCount,
   selectedCount,
-  hasActions,
   loading,
   incomplete,
   onFilter,
-  onSize,
-  defaultOnlyActions,
 }: Props) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const activeFilterCount =
-    Number(!!state.type) +
-    Number(!!state.color) +
-    Number(state.sort !== "zone") +
-    Number(hasActions && state.onlyActions !== defaultOnlyActions);
+    Number(!!state.type) + Number(!!state.color) + Number(state.sort !== "zone");
 
   return (
     <div className="shrink-0 space-y-2 border-b p-3">
@@ -136,32 +122,6 @@ export function DialogCardBrowserToolbar({
             <option value="name">Name</option>
             <option value="mana">Mana value</option>
           </select>
-          {hasActions && (
-            <label className="flex h-9 items-center gap-2 rounded-md border px-3">
-              <input
-                type="checkbox"
-                checked={state.onlyActions}
-                onChange={(event) => onFilter({ onlyActions: event.target.checked })}
-                className="accent-primary"
-              />
-              Available cards only
-            </label>
-          )}
-          {!picker && (
-            <label className="flex h-9 items-center gap-2 rounded-md border px-3">
-              Card size
-              <input
-                aria-label="Card size"
-                type="range"
-                min={CARD_BROWSER_MIN_SIZE}
-                max={CARD_BROWSER_MAX_SIZE}
-                step={CARD_BROWSER_SIZE_STEP}
-                value={state.size}
-                onChange={(event) => onSize(Number(event.target.value))}
-                className="w-20 accent-primary"
-              />
-            </label>
-          )}
           <Button
             variant="ghost"
             size="sm"
@@ -171,7 +131,6 @@ export function DialogCardBrowserToolbar({
                 type: "",
                 color: "",
                 sort: "zone",
-                onlyActions: defaultOnlyActions,
               })
             }
           >

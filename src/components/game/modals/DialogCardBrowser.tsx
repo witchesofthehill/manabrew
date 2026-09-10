@@ -49,9 +49,8 @@ export function DialogCardBrowser({
   initialState,
   onStateChange,
 }: Props) {
-  const defaultOnlyActions = picker && !!onActivate;
   const [state, setState] = useState<CardBrowserState>(() =>
-    createCardBrowserState(initialState, picker, defaultOnlyActions),
+    createCardBrowserState(initialState, picker),
   );
   const [inspectionOpen, setInspectionOpen] = useState(false);
   const desktop = useIsDesktop();
@@ -78,9 +77,8 @@ export function DialogCardBrowser({
         type: state.type,
         color: state.color,
         sort: state.sort,
-        onlyActions: state.onlyActions,
       }),
-    [searchable, state.type, state.color, state.sort, state.onlyActions, query],
+    [searchable, state.type, state.color, state.sort, query],
   );
   const types = useMemo(
     () => [...new Set(items.flatMap((item) => item.card.types))].sort(),
@@ -171,12 +169,9 @@ export function DialogCardBrowser({
         visibleCount={visible.length}
         totalCount={items.length}
         selectedCount={selectedCount}
-        hasActions={!!onActivate}
         loading={loading}
         incomplete={incomplete}
         onFilter={changeFilter}
-        onSize={(size) => setState((current) => ({ ...current, size }))}
-        defaultOnlyActions={defaultOnlyActions}
       />
       <div
         className={cn(

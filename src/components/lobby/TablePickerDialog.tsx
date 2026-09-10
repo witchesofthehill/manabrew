@@ -63,9 +63,9 @@ export function TablePickerDialog({
               centerContent={centerContent}
             />
           </div>
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 content-start">
+          <div className="grid grid-cols-3 gap-2 content-start sm:grid-cols-4">
             {BOARD_BACKGROUNDS.map((option) => {
-              const selected = option.id === background;
+              const isSelected = option.id === background;
               return (
                 <button
                   key={option.id}
@@ -74,7 +74,7 @@ export function TablePickerDialog({
                   onClick={() => onBackgroundChange(option.id)}
                   className={cn(
                     "overflow-hidden rounded-md border text-left transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                    selected
+                    isSelected
                       ? "border-primary ring-1 ring-primary"
                       : "border-border/70 hover:border-primary/50",
                   )}

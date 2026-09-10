@@ -20,6 +20,7 @@ import {
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { HAND_ORDER_OPTIONS } from "@/lib/handOrder";
 import { TableSetupTableCard } from "@/components/lobby/TableSetupTableCard";
+import { useServerStore } from "@/stores/useServerStore";
 
 const PREVIEW_MODES: { value: CardPreviewMode; label: string }[] = [
   { value: "hover", label: "Hover" },
@@ -48,6 +49,8 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
   const prefs = usePreferencesStore();
   const fullControl = usePromptPreferencesStore((s) => s.fullControl);
   const setFullControl = usePromptPreferencesStore((s) => s.setFullControl);
+  const roomTableStyle = useServerStore((s) => s.currentRoom?.table_style);
+  const tableBackgroundLocked = roomTableStyle != null;
 
   return (
     <Modal onClose={onClose} maxWidth="max-w-md">
@@ -206,13 +209,18 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
 
         <SettingRow
           label="Table background"
-          hint="Felt under the cards for games without a chosen table, like offline play. Multiplayer tables pick their own when created."
+          hint={
+            tableBackgroundLocked
+              ? "The host picked this table's background when creating it."
+              : "Felt under the cards in games without a chosen table, like offline play. Multiplayer tables pick their own when created."
+          }
         >
           <TableSetupTableCard
             background={prefs.boardBackgroundId}
             onBackgroundChange={prefs.setBoardBackgroundId}
             columns={4}
             className=""
+            disabled={tableBackgroundLocked}
           />
         </SettingRow>
 

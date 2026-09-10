@@ -588,11 +588,11 @@ export function BoardCanvas({
   }, [scene, showAttackRows]);
 
   const roomTableStyle = useServerStore((s) => s.currentRoom?.table_style);
-  const preferredBackground = usePreferencesStore((s) => s.boardBackgroundId);
+  const boardBackground = usePreferencesStore((s) => s.boardBackgroundId);
 
   useEffect(() => {
-    scene?.setBackground(boardBackgroundUrl(roomTableStyle ?? preferredBackground));
-  }, [scene, roomTableStyle, preferredBackground]);
+    scene?.setBackground(boardBackgroundUrl(roomTableStyle ?? boardBackground));
+  }, [scene, roomTableStyle, boardBackground]);
 
   const inGameAnimations = usePreferencesStore((s) => s.inGameAnimations);
   useEffect(() => {

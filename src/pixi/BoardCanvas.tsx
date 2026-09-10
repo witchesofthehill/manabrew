@@ -180,6 +180,7 @@ export function BoardCanvas({
 
   const [handHover, setHandHover] = useState<HandHoverState | null>(null);
   const clearTimerRef = useRef<number | null>(null);
+  const handActionHoverHeldRef = useRef(false);
   const cancelHandHoverClear = useCallback(() => {
     if (clearTimerRef.current != null) {
       window.clearTimeout(clearTimerRef.current);
@@ -193,6 +194,16 @@ export function BoardCanvas({
       clearTimerRef.current = null;
     }, HAND_ACTIONS_CLEAR_DELAY_MS);
   }, [cancelHandHoverClear]);
+  const holdHandActionHover = useCallback(() => {
+    handActionHoverHeldRef.current = true;
+    cancelHandHoverClear();
+    sceneRef.current?.holdHandHover();
+  }, [cancelHandHoverClear]);
+  const releaseHandActionHover = useCallback(() => {
+    handActionHoverHeldRef.current = false;
+    scheduleHandHoverClear();
+    sceneRef.current?.releaseHandHover();
+  }, [scheduleHandHoverClear]);
 
   useEffect(() => {
     if (externalSceneRef) externalSceneRef.current = scene;
@@ -578,6 +589,13 @@ export function BoardCanvas({
     );
   }, [handCardStyle, hoverCardId, scene]);
   const showHandFlip = !!handHover && hoverFaces.isFlippable;
+  const handActionPanelVisible = Boolean(showActionPanel && !handRulesView);
+  useEffect(() => {
+    if (handActionPanelVisible || !handActionHoverHeldRef.current) return;
+    handActionHoverHeldRef.current = false;
+    cancelHandHoverClear();
+    scene?.releaseHandHover();
+  }, [cancelHandHoverClear, handActionPanelVisible, scene]);
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
 
   useEffect(() => {
@@ -701,14 +719,8 @@ export function BoardCanvas({
                 : "transparent",
               zIndex: Z_HAND_ACTIONS_MENU - 1,
             }}
-            onMouseEnter={() => {
-              cancelHandHoverClear();
-              sceneRef.current?.holdHandHover();
-            }}
-            onMouseLeave={() => {
-              scheduleHandHoverClear();
-              sceneRef.current?.releaseHandHover();
-            }}
+            onMouseEnter={holdHandActionHover}
+            onMouseLeave={releaseHandActionHover}
           />
           <div
             style={{
@@ -723,14 +735,8 @@ export function BoardCanvas({
               top: handHover.bounds.y,
               zIndex: Z_HAND_ACTIONS_MENU,
             }}
-            onMouseEnter={() => {
-              cancelHandHoverClear();
-              sceneRef.current?.holdHandHover();
-            }}
-            onMouseLeave={() => {
-              scheduleHandHoverClear();
-              sceneRef.current?.releaseHandHover();
-            }}
+            onMouseEnter={holdHandActionHover}
+            onMouseLeave={releaseHandActionHover}
           >
             <HandCardActions actions={handActions} onSelectAction={selectHandAction} />
           </div>

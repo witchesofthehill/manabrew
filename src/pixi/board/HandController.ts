@@ -387,6 +387,10 @@ export class HandController {
     this.setHovered(hit, trigger);
   }
 
+  clearHoverOutside(x: number, y: number): void {
+    if (this.hitAt(x, y) === null) this.clearHover();
+  }
+
   resetHover(): void {
     this.cancelHoverHoldTimer();
     this.hoverHeld = false;

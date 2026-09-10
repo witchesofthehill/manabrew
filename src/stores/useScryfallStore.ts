@@ -43,6 +43,8 @@ type CardEntry = {
   uris: ScryfallImageUris;
 };
 
+type CardTextureVariant = "full" | "art";
+
 interface TokenArchive {
   schemaVersion: number;
   cardTokenScripts?: Record<string, string[]>;
@@ -73,7 +75,11 @@ interface ScryfallState {
   sets: ScryfallSet[];
   hydratedSets: Record<string, true>;
   getCard: (lookup: ScryfallCardLookup) => Promise<CardEntry>;
-  getCardTexture: (card: DeckCard, variant?: "full" | "art", faceIndex?: 0 | 1) => Promise<Texture>;
+  getCardTexture: (
+    card: DeckCard,
+    variant?: CardTextureVariant,
+    faceIndex?: 0 | 1,
+  ) => Promise<Texture>;
   updatePrinting: (card: ScryfallCard) => CardEntry;
   invalidateCard: (name: string) => void;
   clearImageCaches: () => void;
@@ -692,12 +698,15 @@ export const useCardRulings = (card: { rulings_uri?: string }) => {
 
 const EMPTY_RULINGS: ScryfallRulingsResponse = { object: "list", has_more: false, data: [] };
 
-export async function prefetchCards(cards: DeckCard[]): Promise<void> {
+export async function prefetchCards(
+  cards: DeckCard[],
+  variant: CardTextureVariant = "full",
+): Promise<void> {
   const state = useScryfallStore.getState();
   await Promise.all(
     cards.map((c) =>
-      state.getCardTexture(c).catch((err) => {
-        console.warn(`[scryfall] prefetch failed for ${c.identity.name}:`, err);
+      state.getCardTexture(c, variant).catch((err) => {
+        console.warn(`[scryfall] ${variant} prefetch failed for ${c.identity.name}:`, err);
       }),
     ),
   );

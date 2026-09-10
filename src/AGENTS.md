@@ -97,7 +97,7 @@ Use the exported hook helpers, not the raw store:
 | Pixi `Texture` for a card image            | `useCardTexture(...)`                              |
 | Card rulings                               | `useCardRulings(card)`                             |
 | Set list as a `Map`                        | `useSetLookup()`                                   |
-| Bulk warm the cache before a view loads    | `prefetchCards([...])`                             |
+| Bulk warm the cache before a view loads    | `prefetchCards([...], "full" \| "art")`            |
 | Force a refresh of a single card           | `useScryfallStore.getState().invalidateCard(name)` |
 | Promote a chosen printing                  | `useScryfallStore.getState().updatePrinting(card)` |
 

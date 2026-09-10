@@ -421,13 +421,24 @@ export class BoardScene {
 
     this.cursorListener = (e: MouseEvent) => {
       if (topModal()) {
+        if (this.hand?.hasActiveHover()) this.hand.resetHover();
         this.updateHoveredOpponent(-1, -1);
         return;
       }
       this.cursorViewportX = e.clientX;
       this.cursorViewportY = e.clientY;
       const rect = this.app.canvas.getBoundingClientRect();
-      this.updateHoveredOpponent(e.clientX - rect.left, e.clientY - rect.top);
+      const canvasX = e.clientX - rect.left;
+      const canvasY = e.clientY - rect.top;
+      this.updateHoveredOpponent(canvasX, canvasY);
+      if (this.hand?.hasActiveHover()) {
+        const point = this.root.toLocal(
+          RECT_SCRATCH_A.set(canvasX, canvasY),
+          undefined,
+          RECT_SCRATCH_A,
+        );
+        this.hand.clearHoverOutside(point.x, point.y);
+      }
     };
     window.addEventListener("pointermove", this.cursorListener);
     this.canvasLeaveListener = () => this.hand?.clearHover();

@@ -9,6 +9,7 @@ export interface RulesPreviewSection {
   manaCost: string;
   typeLine: string;
   rulesText: string;
+  canonicalRulesText: string;
   flavorText: string;
   planeswalker: boolean;
 }
@@ -18,6 +19,7 @@ export interface RulesPreviewDisplay {
   manaCost: string;
   typeLine: string;
   faceIndex: 0 | 1;
+  liveFaceIndex: 0 | 1;
   currentFace: boolean;
   otherFace: boolean;
   horizontal: boolean;
@@ -48,14 +50,142 @@ function printedStats(face: CardFace | undefined): CardStatPresentation | null {
   };
 }
 
-function sectionFromFace(face: CardFace): RulesPreviewSection {
+type ScryfallCardFace = NonNullable<ScryfallCard["card_faces"]>[number];
+
+interface LocalizedFaceText {
+  canonicalName: string;
+  canonicalTypeLine: string;
+  canonicalRulesText: string;
+  displayName: string;
+  displayTypeLine: string;
+  displayRulesText: string;
+}
+
+interface TranslationLine {
+  canonical: string;
+  localized: string;
+}
+
+const translationLinesByCard = new WeakMap<ScryfallCard, Map<number, TranslationLine[]>>();
+const FACE_SEPARATOR = " // ";
+
+function scryfallFace(info: ScryfallCard, faceIndex: number): ScryfallCard | ScryfallCardFace {
+  return info.card_faces?.[faceIndex] ?? info;
+}
+
+function localizedFaceText(info: ScryfallCard | null, faceIndex: number): LocalizedFaceText | null {
+  if (!info) return null;
+  const face = scryfallFace(info, faceIndex);
+  const canonicalName = face.name;
+  const canonicalTypeLine = face.type_line ?? info.type_line;
+  const canonicalRulesText = face.oracle_text ?? info.oracle_text ?? "";
   return {
-    name: face.name,
+    canonicalName,
+    canonicalTypeLine,
+    canonicalRulesText,
+    displayName: face.printed_name ?? canonicalName,
+    displayTypeLine: face.printed_type_line ?? canonicalTypeLine,
+    displayRulesText: face.printed_text ?? canonicalRulesText,
+  };
+}
+
+function comparableText(text: string): string {
+  return text.toLowerCase().replace(/[—–-]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function localizedLiveValue(live: string, canonical: string, localized: string): string {
+  if (!live) return localized || canonical;
+  if (localized && comparableText(live) === comparableText(canonical)) return localized;
+  return live;
+}
+
+function translationComparisonText(text: string): string {
+  const trimmed = text.trim();
+  return trimmed.startsWith("(") ? trimmed : trimmed.replace(/\(.*\)/g, "").trim();
+}
+
+function editDistanceWithin(left: string, right: string, threshold: number): number | null {
+  if (Math.abs(left.length - right.length) > threshold) return null;
+  const previous = new Uint16Array(right.length + 1);
+  const current = new Uint16Array(right.length + 1);
+  for (let column = 0; column <= right.length; column += 1) previous[column] = column;
+  for (let row = 1; row <= left.length; row += 1) {
+    current[0] = row;
+    let rowMinimum = row;
+    for (let column = 1; column <= right.length; column += 1) {
+      current[column] = Math.min(
+        previous[column]! + 1,
+        current[column - 1]! + 1,
+        previous[column - 1]! + (left[row - 1] === right[column - 1] ? 0 : 1),
+      );
+      rowMinimum = Math.min(rowMinimum, current[column]!);
+    }
+    if (rowMinimum > threshold) return null;
+    previous.set(current);
+  }
+  const distance = previous[right.length]!;
+  return distance <= threshold ? distance : null;
+}
+
+function translationLines(info: ScryfallCard, faceIndex: number): TranslationLine[] {
+  let cardEntries = translationLinesByCard.get(info);
+  if (!cardEntries) {
+    cardEntries = new Map();
+    translationLinesByCard.set(info, cardEntries);
+  }
+  const cached = cardEntries.get(faceIndex);
+  if (cached) return cached;
+  const face = localizedFaceText(info, faceIndex);
+  const canonicalLines = face?.canonicalRulesText.split("\n") ?? [];
+  const localizedLines = face?.displayRulesText.split("\n") ?? [];
+  const entries = canonicalLines.slice(0, localizedLines.length).map((canonical, index) => ({
+    canonical: translationComparisonText(canonical),
+    localized: localizedLines[index]!.trim(),
+  }));
+  cardEntries.set(faceIndex, entries);
+  return entries;
+}
+
+export function localizeRulesPreviewText(
+  text: string,
+  info: ScryfallCard | null,
+  faceIndex: number,
+): string {
+  if (!text || !info) return text;
+  const face = localizedFaceText(info, faceIndex);
+  if (!face || face.displayRulesText === face.canonicalRulesText) return text;
+  if (text.trim() === face.canonicalRulesText.trim()) return face.displayRulesText;
+  const mappings = translationLines(info, faceIndex);
+  return text
+    .split("\n")
+    .map((line) => {
+      const comparison = translationComparisonText(line);
+      if (!comparison) return line;
+      let match: TranslationLine | null = null;
+      let minimumDistance = comparison.length;
+      for (const candidate of mappings) {
+        const threshold = Math.floor(Math.min(candidate.canonical.length, comparison.length) / 3);
+        const distance = editDistanceWithin(candidate.canonical, comparison, threshold);
+        if (distance !== null && distance < minimumDistance) {
+          minimumDistance = distance;
+          match = candidate;
+        }
+      }
+      return match?.localized ?? line;
+    })
+    .join("\n");
+}
+
+function sectionFromFace(face: CardFace, localized: LocalizedFaceText | null): RulesPreviewSection {
+  const typeLine = localized?.displayTypeLine ?? face.typeLine ?? "";
+  return {
+    name: localized?.displayName ?? face.name,
     manaCost: face.manaCost ?? "",
-    typeLine: face.typeLine ?? "",
-    rulesText: face.oracleText ?? "",
+    typeLine,
+    rulesText: localized?.displayRulesText ?? face.oracleText ?? "",
+    canonicalRulesText: localized?.canonicalRulesText ?? face.oracleText ?? "",
     flavorText: face.flavorText ?? "",
-    planeswalker: /\bPlaneswalker\b/i.test(face.typeLine ?? ""),
+    planeswalker: /\bPlaneswalker\b/i.test(localized?.canonicalTypeLine ?? face.typeLine ?? ""),
   };
 }
 
@@ -120,27 +250,32 @@ export function rulesEntryMatchesStackAbility(entry: string, ability: string): b
 export function rulesTextEntries(
   rulesText: string,
   progression: CardPresentation["progression"],
+  canonicalRulesText = rulesText,
 ): string[] {
   const progressionEffects = new Set(
     (progression?.effects ?? []).flatMap((effect) =>
       effect.text.split("\n").map(normalizeAbilityText).filter(Boolean),
     ),
   );
+  const canonicalLines = canonicalRulesText.split("\n").map((line) => line.trim());
   return rulesText
     .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((line) => {
+    .map((line, index) => ({ line: line.trim(), canonical: canonicalLines[index]?.trim() ?? "" }))
+    .filter(({ line }) => Boolean(line))
+    .filter(({ line, canonical }) => {
       if (
         progression?.rail.kind === "saga" &&
-        /^(?:[IVXLCDM]+(?:,\s*[IVXLCDM]+)*)\s+[—–-]\s+/.test(line)
+        /^(?:[IVXLCDM]+(?:,\s*[IVXLCDM]+)*)\s+[—–-]\s+/.test(canonical || line)
       ) {
         return false;
       }
       if (progressionEffects.has(normalizeAbilityText(line))) return false;
-      if (progression?.rail.kind === "class" && /^.*:\s*Level\s+\d+$/.test(line)) return false;
+      if (progression?.rail.kind === "class" && /^.*:\s*Level\s+\d+$/.test(canonical || line)) {
+        return false;
+      }
       return true;
-    });
+    })
+    .map(({ line }) => line);
 }
 
 export function resolveRulesPreviewDisplay(options: {
@@ -171,6 +306,7 @@ export function resolveRulesPreviewDisplay(options: {
       manaCost: "",
       typeLine: "Face-down permanent",
       faceIndex: 0,
+      liveFaceIndex: 0,
       currentFace: true,
       otherFace: false,
       horizontal: false,
@@ -187,21 +323,35 @@ export function resolveRulesPreviewDisplay(options: {
   }
 
   if (!flippable && resolved.isMultiFaced) {
+    const sections = resolved.faces.map((part, index) =>
+      sectionFromFace(part, localizedFaceText(info, index)),
+    );
+    const name =
+      info?.printed_name ??
+      (sections.map((section) => section.name).join(FACE_SEPARATOR) ||
+        info?.name ||
+        presentation.name);
+    const typeLine =
+      info?.printed_type_line ??
+      (sections.map((section) => section.typeLine).join(FACE_SEPARATOR) ||
+        info?.type_line ||
+        presentation.typeLine);
     return {
-      name: info?.name ?? presentation.name,
+      name,
       manaCost: "",
-      typeLine: info?.type_line ?? presentation.typeLine,
+      typeLine,
       faceIndex: 0,
+      liveFaceIndex: 0,
       currentFace: true,
       otherFace: false,
       horizontal,
       multipart: true,
       flippable: false,
       faceless: false,
-      sections: resolved.faces.map(sectionFromFace),
+      sections,
       ...additionalRulesDetails(
         presentation,
-        resolved.faces.map((part) => part.oracleText ?? "").join("\n"),
+        sections.map((part) => part.canonicalRulesText).join("\n"),
       ),
       stats: presentation.stats ?? printedStats(resolved.faces[0]),
       loyalty: presentation.loyalty,
@@ -209,24 +359,43 @@ export function resolveRulesPreviewDisplay(options: {
     };
   }
 
+  const localized = localizedFaceText(info, faceIndex);
+  const canonicalRulesText = localized?.canonicalRulesText ?? face?.oracleText ?? "";
+  const liveRulesText = currentFace
+    ? presentation.rulesText || canonicalRulesText
+    : canonicalRulesText;
   const rulesText = currentFace
-    ? presentation.rulesText || face?.oracleText || ""
-    : (face?.oracleText ?? "");
+    ? localizeRulesPreviewText(liveRulesText, info, faceIndex)
+    : (localized?.displayRulesText ?? liveRulesText);
   const typeLine = currentFace
-    ? presentation.typeLine || face?.typeLine || ""
-    : (face?.typeLine ?? presentation.typeLine);
+    ? localizedLiveValue(
+        presentation.typeLine,
+        localized?.canonicalTypeLine ?? face?.typeLine ?? "",
+        localized?.displayTypeLine ?? face?.typeLine ?? "",
+      )
+    : (localized?.displayTypeLine ?? face?.typeLine ?? presentation.typeLine);
+  const name = currentFace
+    ? localizedLiveValue(
+        presentation.name,
+        localized?.canonicalName ?? face?.name ?? "",
+        localized?.displayName ?? face?.name ?? "",
+      )
+    : (localized?.displayName ?? face?.name ?? presentation.name);
   const manaCost = currentFace
     ? presentation.effectiveManaCost !== undefined
       ? presentation.effectiveManaCost
       : presentation.manaCost || face?.manaCost || ""
     : (face?.manaCost ?? "");
   const section: RulesPreviewSection = {
-    name: face?.name ?? presentation.name,
+    name,
     manaCost,
     typeLine,
     rulesText,
+    canonicalRulesText: liveRulesText,
     flavorText: face?.flavorText ?? "",
-    planeswalker: /\bPlaneswalker\b/i.test(typeLine),
+    planeswalker: /\bPlaneswalker\b/i.test(
+      currentFace ? presentation.typeLine : (localized?.canonicalTypeLine ?? face?.typeLine ?? ""),
+    ),
   };
   const stats = currentFace ? (presentation.stats ?? printedStats(face)) : printedStats(face);
   const loyalty = currentFace
@@ -237,10 +406,11 @@ export function resolveRulesPreviewDisplay(options: {
     : numericValue(face?.defense);
 
   return {
-    name: face?.name ?? presentation.name,
+    name,
     manaCost,
     typeLine,
     faceIndex,
+    liveFaceIndex: currentFaceIndex,
     currentFace,
     otherFace: flippable && !currentFace,
     horizontal,
@@ -249,7 +419,7 @@ export function resolveRulesPreviewDisplay(options: {
     faceless: false,
     sections: [section],
     ...(currentFace
-      ? additionalRulesDetails(presentation, rulesText)
+      ? additionalRulesDetails(presentation, liveRulesText)
       : { keywords: [], costs: [] }),
     stats,
     loyalty,

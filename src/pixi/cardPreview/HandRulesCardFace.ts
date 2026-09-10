@@ -31,6 +31,7 @@ import {
   RulesPreviewSectionHeader,
 } from "./RulesPreviewSectionHeader";
 import {
+  localizeRulesPreviewText,
   resolveRulesPreviewDisplay,
   rulesEntryMatchesStackAbility,
   rulesTextEntries,
@@ -306,7 +307,11 @@ export class HandRulesCardFace extends Container {
       ...(flavorContent ? (["flavor"] as const) : []),
     ];
     let y = bodyTop;
-    const highlightedEffect = this.highlightedEffect.trim();
+    const highlightedEffect = localizeRulesPreviewText(
+      this.highlightedEffect.trim(),
+      this.info,
+      display.liveFaceIndex,
+    );
     const expandedCount = sections.filter((section) => !this.isCollapsed(section)).length;
     const headersHeight = sections.length * (PREVIEW_SECTION_HEADER_HEIGHT + 4);
     const expandedGaps = expandedCount * SECTION_GAP;
@@ -330,7 +335,11 @@ export class HandRulesCardFace extends Container {
           width: contentWidth / ACTIONS_CONTENT_SCALE,
           maxHeight: Math.min(ACTIONS_MAX_HEIGHT, contentBudget) / ACTIONS_CONTENT_SCALE,
           theme: this.theme,
-          actions: this.actions.map((action, index) => ({ action, shortcut: index + 1 })),
+          actions: this.actions.map((action, index) => ({
+            action,
+            shortcut: index + 1,
+            displayLabel: localizeRulesPreviewText(action.label, this.info, display.liveFaceIndex),
+          })),
           controls: [],
           statuses: [],
           hint: "",
@@ -597,7 +606,7 @@ export class HandRulesCardFace extends Container {
   private rulesEntries(display: RulesPreviewDisplay): string[] {
     if (display.faceless) return ["Card identity and rules are hidden."];
     return display.sections.flatMap((section) => {
-      const entries = rulesTextEntries(section.rulesText, null);
+      const entries = rulesTextEntries(section.rulesText, null, section.canonicalRulesText);
       if (!display.multipart) return entries;
       return [`${section.name} — ${section.typeLine}`, ...entries];
     });

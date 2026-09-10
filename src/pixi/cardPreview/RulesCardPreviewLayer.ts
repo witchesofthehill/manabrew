@@ -23,6 +23,7 @@ import { hexToNum } from "@/pixi/colorUtils";
 import { PixiRichText } from "@/pixi/cardPreview/PixiRichText";
 import { PixiCardRailPreview } from "@/pixi/cardPreview/PixiCardRailPreview";
 import {
+  localizeRulesPreviewText,
   resolveRulesPreviewDisplay,
   rulesTextEntries,
 } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
@@ -523,8 +524,14 @@ export class RulesCardPreviewLayer {
       faceless: isFacelessCard(spec.card),
     });
     const progression =
-      display.currentFace && !display.multipart && !display.faceless
-        ? presentation.progression
+      display.currentFace && !display.multipart && !display.faceless && presentation.progression
+        ? {
+            ...presentation.progression,
+            effects: presentation.progression.effects.map((effect) => ({
+              ...effect,
+              text: localizeRulesPreviewText(effect.text, this.scryfallInfo, display.liveFaceIndex),
+            })),
+          }
         : null;
     const nextClassLevel =
       progression?.rail.kind === "class" && progression.rail.current < progression.rail.max
@@ -540,6 +547,11 @@ export class RulesCardPreviewLayer {
         index,
         classActionIndex,
         classActionIndex === null ? null : nextClassLevel,
+      ),
+      displayLabel: localizeRulesPreviewText(
+        action.label,
+        this.scryfallInfo,
+        display.liveFaceIndex,
       ),
     }));
     this.canFlip = display.flippable;
@@ -695,7 +707,7 @@ export class RulesCardPreviewLayer {
       }
     }
     const rulesEntries = display.sections.map((section) =>
-      rulesTextEntries(section.rulesText, progression),
+      rulesTextEntries(section.rulesText, progression, section.canonicalRulesText),
     );
     if (display.faceless) {
       y = this.addStaticAbilityRow("Card identity and rules are hidden.", y);

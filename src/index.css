@@ -533,7 +533,6 @@
   body,
   #root {
     height: 100%;
-    overscroll-behavior-x: none;
   }
   @media (min-width: 2000px) {
     :root {

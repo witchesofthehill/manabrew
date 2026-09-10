@@ -285,7 +285,6 @@ export class BoardScene {
   private stackProvider: StackAnchorProvider | null = null;
   private overlayInvalidation: (() => void) | null = null;
   private overlayHitTest: ((x: number, y: number) => boolean) | null = null;
-  private modalInteractionBlocked = false;
 
   private hoveredCell: GridCell | null = null;
   private stackTargetId: string | null = null;
@@ -421,8 +420,7 @@ export class BoardScene {
     app.stage.on("pointerupoutside", this.onStageUp);
 
     this.cursorListener = (e: MouseEvent) => {
-      if (this.modalInteractionBlocked || topModal()) {
-        if (this.hand?.hasActiveHover()) this.hand.resetHover();
+      if (topModal()) {
         this.updateHoveredOpponent(-1, -1);
         return;
       }
@@ -1120,7 +1118,6 @@ export class BoardScene {
     this.hand = new HandController(this.makeHandHost(), this.root);
     this.hand.setRulesViewDefault(this.handRulesViewDefault);
     this.hand.setCompact(this.compactMode);
-    this.hand.setInteractionBlocked(this.modalInteractionBlocked);
     this.selection = new SelectionController(this.makeSelectionHost(region), this.root);
     this.overlay = new BattlefieldOverlay(this.makeOverlayHost(region));
     region.enableFeltMarquee((e) => this.onFeltDown(e));
@@ -1431,12 +1428,6 @@ export class BoardScene {
 
   setOverlayHitTest(hitTest: ((x: number, y: number) => boolean) | null): void {
     this.overlayHitTest = hitTest;
-  }
-  setModalInteractionBlocked(blocked: boolean): void {
-    if (this.modalInteractionBlocked === blocked) return;
-    this.modalInteractionBlocked = blocked;
-    this.hand?.setInteractionBlocked(blocked);
-    if (blocked) this.updateHoveredOpponent(-1, -1);
   }
 
   setPlayerBlockers(blockers: Map<string, BlockingRect[]>): void {
@@ -2035,7 +2026,7 @@ export class BoardScene {
 
   private onGlobalMove(e: FederatedPointerEvent): void {
     if (this.destroyed) return;
-    if (this.modalInteractionBlocked || topModal()) {
+    if (topModal()) {
       if (this.hand?.hasActiveHover()) this.hand.resetHover();
       this.updateHoveredOpponent(-1, -1);
       return;

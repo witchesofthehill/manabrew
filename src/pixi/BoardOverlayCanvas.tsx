@@ -315,10 +315,7 @@ export function BoardOverlayCanvas({
   }, [commandPreviewSpec]);
 
   useEffect(() => {
-    const previousScene = sceneRef.current;
-    if (previousScene !== scene) previousScene?.setModalInteractionBlocked(false);
     sceneRef.current = scene;
-    scene?.setModalInteractionBlocked(promptRef.current?.blocksBoard ?? false);
     schedulerRef.current?.request();
   }, [scene]);
 
@@ -362,10 +359,6 @@ export function BoardOverlayCanvas({
       if (destroyed) return;
       destroyed = true;
       scheduler?.dispose();
-      registeredScene?.setModalInteractionBlocked(false);
-      if (sceneRef.current !== registeredScene) {
-        sceneRef.current?.setModalInteractionBlocked(false);
-      }
       registeredScene?.setStackAnchorProvider(null);
       registeredScene?.setOverlayInvalidation(null);
       registeredScene?.setOverlayHitTest(null);
@@ -452,7 +445,6 @@ export function BoardOverlayCanvas({
         promptRef.current = promptLayer;
         promptLayer.setViewport(width, height);
         promptLayer.setSpec(promptSpecRef.current);
-        sceneRef.current?.setModalInteractionBlocked(promptLayer.blocksBoard);
 
         const backdrop = new Graphics();
         backdrop.eventMode = "none";
@@ -523,7 +515,6 @@ export function BoardOverlayCanvas({
             registeredScene?.setOverlayHitTest(null);
             registeredScene?.setPromptReference(null);
             registeredScene?.setPlayerBlockers(new Map());
-            registeredScene?.setModalInteractionBlocked(false);
             registeredScene = currentScene;
             lastPromptBlockers = "";
             registeredScene?.setStackAnchorProvider(stack);
@@ -536,7 +527,6 @@ export function BoardOverlayCanvas({
                 promptLayer.hitTest(x, y) ||
                 stack?.hitTest(x, y) === true,
             );
-            registeredScene?.setModalInteractionBlocked(promptLayer.blocksBoard);
           }
 
           promptLayer.update(deltaMs);
@@ -634,12 +624,10 @@ export function BoardOverlayCanvas({
   useEffect(() => {
     const prompt = promptRef.current;
     prompt?.setSpec(promptSpec);
-    const blocksBoard = prompt?.blocksBoard ?? false;
-    sceneRef.current?.setModalInteractionBlocked(blocksBoard);
     const canvas = canvasRef.current;
     if (canvas && prompt) {
-      canvas.style.pointerEvents = blocksBoard ? "auto" : "none";
-      if (!blocksBoard) syncPreviewPointerRef.current?.();
+      canvas.style.pointerEvents = prompt.blocksBoard ? "auto" : "none";
+      if (!prompt.blocksBoard) syncPreviewPointerRef.current?.();
     }
     schedulerRef.current?.request();
   }, [promptSpec]);
@@ -704,11 +692,6 @@ export function BoardOverlayCanvas({
         preview: rulesPreview || commandPreview,
       };
     };
-    const onCardPromptWheel = (event: WheelEvent) => {
-      if (!promptRef.current?.handleCardPromptWheel(event)) return;
-      schedulerRef.current?.request();
-    };
-    window.addEventListener("wheel", onCardPromptWheel, { capture: true, passive: false });
     const unbindPreviewScroll = bindPreviewScroll(
       window,
       (clientX, clientY) => {
@@ -833,7 +816,6 @@ export function BoardOverlayCanvas({
     });
     return () => {
       syncPreviewPointerRef.current = null;
-      window.removeEventListener("wheel", onCardPromptWheel, { capture: true });
       unbindPreviewScroll();
       uninstallPointerRouting();
       window.removeEventListener("pointermove", onMove);
@@ -938,7 +920,6 @@ export function BoardOverlayCanvas({
           display: "block",
           pointerEvents: "none",
           touchAction: "none",
-          overscrollBehavior: "none",
         }}
         onContextMenu={(e) => e.preventDefault()}
       />

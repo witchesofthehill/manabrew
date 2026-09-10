@@ -45,7 +45,6 @@ export class HandController {
   private hoverHoldTimer: number | null = null;
   private hoverHeld = false;
   private pendingLeaveIndex: number | null = null;
-  private interactionBlocked = false;
   private lastState: HandState | null = null;
   private vScale = 1;
   private compact = false;
@@ -60,7 +59,6 @@ export class HandController {
     this.host = host;
     this.container = new Container();
     this.container.label = "hand";
-    this.container.eventMode = "passive";
     this.container.sortableChildren = true;
     this.container.zIndex = Z_HAND_CONTAINER;
     parent.addChild(this.container);
@@ -125,13 +123,6 @@ export class HandController {
     if (this.dropActive === active) return;
     this.dropActive = active;
     this.relayout();
-  }
-
-  setInteractionBlocked(blocked: boolean): void {
-    if (this.interactionBlocked === blocked) return;
-    this.interactionBlocked = blocked;
-    this.container.eventMode = blocked ? "none" : "passive";
-    if (blocked) this.resetHover();
   }
 
   isDraggingPermanent(): boolean {
@@ -388,10 +379,6 @@ export class HandController {
   }
 
   updateHoverAt(x: number, y: number, trigger?: PreviewPointerInput): void {
-    if (this.interactionBlocked) {
-      this.resetHover();
-      return;
-    }
     const hit = this.hitAt(x, y);
     if (!hit) {
       this.clearHover();
@@ -438,7 +425,6 @@ export class HandController {
   }
 
   private rulesSpriteAt(x: number, y: number): CardSprite | null {
-    if (this.interactionBlocked) return null;
     let result: CardSprite | null = null;
     let topZIndex = -Infinity;
     for (const sprite of this.sprites.values()) {
@@ -610,7 +596,6 @@ export class HandController {
 
     sprite.on("pointerdown", (e: FederatedPointerEvent) => {
       e.stopPropagation();
-      if (this.interactionBlocked) return;
       if (e.button !== 0) return;
       if (this.lastState?.selectionMode) {
         this.host.getCallbacks().onClickCard_Hand?.(sprite.card);
@@ -629,7 +614,6 @@ export class HandController {
     });
     sprite.on("rightclick", (e: FederatedPointerEvent) => {
       e.stopPropagation();
-      if (this.interactionBlocked) return;
       this.host.getCallbacks().onRightClickCard?.(sprite.card, this.hoveredSpriteBounds(sprite));
     });
 

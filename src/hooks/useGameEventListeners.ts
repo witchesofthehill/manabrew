@@ -41,6 +41,9 @@ type SelfHostedNodeRoomPayload = {
 
 const GAME_OVER_PROMPT = { input: { type: "gameOver" } } as Prompt;
 
+/** Sent by the Forge harness ahead of its final board when the engine crashed. */
+const ENGINE_CRASH_CODE = "engineCrash";
+
 function isGameOverPrompt(prompt: Prompt | null): boolean {
   return prompt?.input.type === "gameOver";
 }
@@ -206,6 +209,7 @@ function reportEngineGame(): void {
       gameOver: isOver(state),
       winner: players.find((player) => player.id === winnerId)?.name ?? null,
       seats: offlineSeats(state),
+      engineError: state.engineCrash,
     });
   }
   reportEngineStats({
@@ -215,7 +219,7 @@ function reportEngineGame(): void {
     // Must be the same test that decides a game is over: on the hosted path the
     // engine sends a gameOver prompt and `gameView` never gets the flag, so
     // reading the flag alone filed finished games as quits.
-    endReason: isOver(state) ? "gameOver" : "left",
+    endReason: state.engineCrash ? "error" : isOver(state) ? "gameOver" : "left",
     gameId: useServerStore.getState().gameId ?? offlineGameId,
     send: state.isMultiplayer
       ? async (stats, gameId) => {
@@ -312,6 +316,13 @@ export function useGameEventListeners() {
       );
 
       const handleProtocolError = (error: ProtocolError | undefined, source: string) => {
+        if ((error?.code as string) === ENGINE_CRASH_CODE) {
+          // Not a rejected action: the engine threw out of the game. A gameOver
+          // prompt follows; keeping the message is what turns a silent "Draw!"
+          // into a crash the player sees and the hub records.
+          setState({ engineCrash: error?.message || "engine crashed" });
+          return;
+        }
         if (!error?.code) return;
         applyProtocolError(error, source, setState);
         toast.error(`Action rejected (${error.code}) — try again`);

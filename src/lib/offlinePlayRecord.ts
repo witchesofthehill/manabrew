@@ -46,9 +46,11 @@ export interface OfflinePlayGame {
   format?: string;
   engine: string;
   startingLife: number;
-  /** The relay's vocabulary, not the client's: `game_over` or `abandoned`. */
+  /** The relay's vocabulary, not the client's: `game_over`, `abandoned` or `engine_error`. */
   endReason: string;
   gameOver: boolean;
+  /** The engine's description of the crash that ended the game, when one did. */
+  engineError?: string;
   winner?: string;
   conceded: string[];
   clientVersion: string;
@@ -220,6 +222,7 @@ export function reportOfflineGame(meta: {
   gameOver: boolean;
   winner: string | null;
   seats: OfflineSeatOutcome[];
+  engineError?: string | null;
 }): void {
   const game = open;
   if (!game) return;
@@ -235,9 +238,10 @@ export function reportOfflineGame(meta: {
       format: game.format ?? undefined,
       engine: game.engine,
       startingLife: game.startingLife,
-      endReason: meta.gameOver ? "game_over" : "abandoned",
+      endReason: meta.engineError ? "engine_error" : meta.gameOver ? "game_over" : "abandoned",
       gameOver: meta.gameOver,
       winner: meta.winner ?? undefined,
+      engineError: meta.engineError ?? undefined,
       conceded: meta.seats.filter((seat) => seat.conceded).map((seat) => seat.username),
       clientVersion: APP_VERSION,
       platform: getPlatform().type,

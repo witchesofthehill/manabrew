@@ -56,6 +56,7 @@ public final class ManaBrewInteractiveSession {
     private volatile Thread gameThread;
     private static volatile InteractiveBridge bridge;
     private volatile SpellAbility castingAbility;
+    private volatile String engineError;
     private final InteractiveSnapshotExtractor.SecretChoiceVisibility secretChoiceVisibility =
             new InteractiveSnapshotExtractor.SecretChoiceVisibility();
 
@@ -88,9 +89,8 @@ public final class ManaBrewInteractiveSession {
             forge.util.MyRandom.setRandom(rng);
             try {
                 match.startGame(game);
-            } catch (RuntimeException error) {
-                System.err.println("[mana-brew] interactive game error: " + error.getMessage());
-                error.printStackTrace(System.err);
+            } catch (RuntimeException | Error error) {
+                recordEngineError(error);
             }
             return;
         }
@@ -98,9 +98,8 @@ public final class ManaBrewInteractiveSession {
             forge.util.MyRandom.setRandom(rng);
             try {
                 match.startGame(game);
-            } catch (RuntimeException error) {
-                System.err.println("[mana-brew] interactive game error: " + error.getMessage());
-                error.printStackTrace(System.err);
+            } catch (RuntimeException | Error error) {
+                recordEngineError(error);
             }
         }, "mana-brew-forge-" + sessionId);
         gameThread.setDaemon(true);
@@ -123,6 +122,37 @@ public final class ManaBrewInteractiveSession {
                 Thread.currentThread().interrupt();
             }
         }
+    }
+
+    private void recordEngineError(final Throwable error) {
+        engineError = describeEngineError(error);
+        System.err.println("[mana-brew] interactive game error: " + error.getMessage());
+        error.printStackTrace(System.err);
+    }
+
+    /** The crash that ended the game, or {@code null} when the engine finished it. */
+    public String getEngineError() {
+        return engineError;
+    }
+
+    /** One line a report can carry: the exception and the top of its stack. */
+    static String describeEngineError(final Throwable error) {
+        final StringBuilder out = new StringBuilder(error.getClass().getName());
+        if (error.getMessage() != null) {
+            out.append(": ").append(error.getMessage());
+        }
+        final StackTraceElement[] frames = error.getStackTrace();
+        for (int i = 0; i < Math.min(frames.length, 12); i++) {
+            out.append("\n  at ").append(frames[i]);
+        }
+        Throwable cause = error.getCause();
+        if (cause != null && cause != error) {
+            out.append("\nCaused by: ").append(cause.getClass().getName());
+            if (cause.getMessage() != null) {
+                out.append(": ").append(cause.getMessage());
+            }
+        }
+        return out.toString();
     }
 
     public String getLatestPromptJson() {

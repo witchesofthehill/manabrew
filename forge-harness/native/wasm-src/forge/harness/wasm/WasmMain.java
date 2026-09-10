@@ -164,8 +164,11 @@ public final class WasmMain {
                 // startGameJson blocks for the whole game, so reaching this
                 // line means the game is over and every seat is still waiting
                 // on an answer that will never come.
-                System.out.println("[wasm] game over, publishing the final board");
-                transport.publishGameOver();
+                final String engineError = adapter.getEngineError(gameId);
+                System.out.println(engineError.isEmpty()
+                        ? "[wasm] game over, publishing the final board"
+                        : "[wasm] engine crashed, publishing the final board");
+                transport.publishGameOver(engineError);
                 return org.graalvm.webimage.api.JSString.of(result);
             } catch (RuntimeException error) {
                 error.printStackTrace(System.err);

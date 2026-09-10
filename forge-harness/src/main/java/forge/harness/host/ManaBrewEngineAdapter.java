@@ -149,6 +149,12 @@ public final class ManaBrewEngineAdapter {
         return String.valueOf(getSession(sessionId).isGameOver());
     }
 
+    /** Empty unless the engine crashed out of the game. */
+    public String getEngineError(final String sessionId) {
+        final String error = getSession(sessionId).getEngineError();
+        return error == null ? "" : error;
+    }
+
     public String endGameJson(final String sessionId) {
         endGame(sessionId);
         JsonObject response = new JsonObject();

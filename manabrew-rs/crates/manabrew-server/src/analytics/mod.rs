@@ -156,6 +156,7 @@ pub fn game_started_event(started: &StartedGame) -> AnalyticsEvent {
         engine: started.room_info.engine,
         hosted: started.room_info.hosted,
         official: started.room_info.official,
+        table_style: started.room_info.table_style.clone(),
         starting_life: started.starting_life,
         players,
     }

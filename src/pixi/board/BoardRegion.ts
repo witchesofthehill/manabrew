@@ -724,12 +724,8 @@ export class BoardRegion {
       s.setEntryGlowAlpha(entry.etbGlowAlpha);
 
       const isHovered = this.hoveredCardId === s.card.id;
-      // Landscape cards (split/battle/room) are CARD_H wide, so shrink them to
-      // the portrait cell width to sit in the grid without overlapping.
-      const fit = s.horizontalFrame ? CARD_W / CARD_H : 1;
       const targetScale =
         this.cardScale *
-        fit *
         (dragging ? HOVER_SCALE * DRAG_LIFT_SCALE : isHovered ? HOVER_SCALE : 1) *
         entry.pose.scale;
       if (dragging && motionEnabled) {
@@ -743,10 +739,7 @@ export class BoardRegion {
         dragging
           ? 1
           : isHovered
-            ? Math.min(
-                1,
-                Math.max(0, (entry.scaleBase / (this.cardScale * fit) - 1) / (HOVER_SCALE - 1)),
-              )
+            ? Math.min(1, Math.max(0, (entry.scaleBase / this.cardScale - 1) / (HOVER_SCALE - 1)))
             : 0,
       );
 

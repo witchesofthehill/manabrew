@@ -97,7 +97,7 @@ Pixi text uses `PixiRichText` so it shares the mana-symbol cache and wrapping be
 | `hand`        | `130 × 182` | Hand cards and non-actionable zone browser cards; `useHandScale` may scale this base size                   |
 | `preview`     | `300 × 420` | Prompt choices and sources, actionable zone pickers, stack cards, command-zone previews, and hover previews |
 
-Preview cards may shrink to fit the viewport. Keep `RulesCardPreviewLayer` as the shared rules renderer and do not add context-specific preview dimensions.
+Preview cards may shrink to fit the viewport. Landscape cards use the same uniform scale as portrait cards, swapping the shared dimensions from `300 × 420` to `420 × 300`; never fit a landscape long edge into the portrait short-edge slot. Keep `RulesCardPreviewLayer` as the shared rules renderer and do not add context-specific preview dimensions.
 
 ## Card rendering ownership
 

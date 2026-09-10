@@ -46,6 +46,7 @@ import {
   normalizeCombo,
 } from "@/lib/keybindings";
 import { isCoarsePointer } from "@/lib/responsive";
+import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import {
   ATTACK_DRAG_HINT,
   getPromptContextLines,
@@ -529,12 +530,15 @@ export class PromptLayer {
   private drag: DragState | null = null;
   private suppressedTapItems = new WeakSet<Container>();
   private scryCardTiles = new Map<string, Container>();
+  private scryCardOffsets = new Map<string, { x: number; y: number }>();
   private scryPreviousPositions = new Map<string, { x: number; y: number }>();
   private reorderCardVisuals = new Map<
     string,
     {
       tile: Container;
       controls: Container;
+      slotOffsetX: number;
+      slotOffsetY: number;
       controlsOffsetX: number;
       controlsOffsetY: number;
       rank: Graphics;
@@ -1810,6 +1814,19 @@ export class PromptLayer {
     return { width, height: width * CARD_ASPECT_RATIO };
   }
 
+  private promptCardDisplayDimensions(
+    card: CardDto,
+    portraitWidth: number,
+  ): { width: number; height: number } {
+    const state = this.promptCardState(card);
+    const horizontal = isHorizontalGameCard(card, undefined, state.face);
+    const landscape = horizontal && (card.isDoubleFaced || state.horizontalFlipped);
+    const scale = portraitWidth / CARD_W;
+    return landscape
+      ? { width: CARD_H * scale, height: CARD_W * scale }
+      : { width: CARD_W * scale, height: CARD_H * scale };
+  }
+
   private promptSourceCardDimensions(): {
     width: number;
     height: number;
@@ -1825,8 +1842,12 @@ export class PromptLayer {
 
   private modalPromptWidth(maxWidth: number): number {
     const viewportWidth = this.viewportWidth - 24;
-    if (!this.promptSourceCard()) return Math.min(maxWidth, viewportWidth);
-    const sourceWidth = this.promptSourceCardDimensions().width;
+    const sourceCard = this.promptSourceCard();
+    if (!sourceCard) return Math.min(maxWidth, viewportWidth);
+    const sourceWidth = this.promptCardDisplayDimensions(
+      sourceCard,
+      this.promptSourceCardDimensions().width,
+    ).width;
     const widthWithSourceCard = viewportWidth - sourceWidth - SOURCE_CARD_GAP;
     return widthWithSourceCard >= 320
       ? Math.min(maxWidth, widthWithSourceCard)
@@ -1874,7 +1895,7 @@ export class PromptLayer {
     if (card.isDoubleFaced) state.face = state.face === 0 ? 1 : 0;
     else if (sprite.horizontalFrame) state.horizontalFlipped = !state.horizontalFlipped;
     else return;
-    this.configurePromptCardSprite(sprite, card);
+    this.rebuild();
   }
 
   private bindPromptCardActivation(target: Container, card: CardDto, sprite: CardSprite): void {
@@ -2795,13 +2816,15 @@ export class PromptLayer {
     footer: Container;
   } {
     const sourceCard = this.promptSourceCard();
-    const { width: preferredSourceWidth, height: preferredSourceHeight } =
-      this.promptSourceCardDimensions();
-    const clusterWidth = width + SOURCE_CARD_GAP + preferredSourceWidth;
+    const { width: preferredSourceWidth } = this.promptSourceCardDimensions();
+    const preferredSourceSize = sourceCard
+      ? this.promptCardDisplayDimensions(sourceCard, preferredSourceWidth)
+      : { width: 0, height: 0 };
+    const clusterWidth = width + SOURCE_CARD_GAP + preferredSourceSize.width;
     const externalSource =
       !!sourceCard &&
       clusterWidth <= this.viewportWidth - 24 &&
-      SOURCE_LABEL_HEIGHT + preferredSourceHeight <= this.viewportHeight - 24;
+      SOURCE_LABEL_HEIGHT + preferredSourceSize.height <= this.viewportHeight - 24;
     const x = externalSource
       ? (this.viewportWidth - clusterWidth) / 2
       : (this.viewportWidth - width) / 2;
@@ -2831,8 +2854,17 @@ export class PromptLayer {
     if (sourceSprite && sourceCard) {
       this.configurePromptCardSprite(sourceSprite, sourceCard);
       sourceSprite.setHandRulesHighlight(this.spec?.currentPrompt?.sourceAbilityText ?? "");
-      sourceWidth = Math.min(preferredSourceWidth, width - PANEL_PADDING * 2);
-      sourceHeight = sourceWidth * CARD_ASPECT_RATIO;
+      const availableSourceWidth = width - PANEL_PADDING * 2;
+      const preferredLandscape =
+        this.promptCardDisplayDimensions(sourceCard, preferredSourceWidth).width >
+        preferredSourceWidth;
+      const portraitSourceWidth = Math.min(
+        preferredSourceWidth,
+        preferredLandscape ? availableSourceWidth / CARD_ASPECT_RATIO : availableSourceWidth,
+      );
+      const sourceSize = this.promptCardDisplayDimensions(sourceCard, portraitSourceWidth);
+      sourceWidth = sourceSize.width;
+      sourceHeight = sourceSize.height;
       placeSourceSprite = () => {
         const rotated =
           sourceSprite.horizontalFrame && !this.promptCardState(sourceCard).horizontalFlipped;
@@ -2840,7 +2872,7 @@ export class PromptLayer {
         const horizontal = sourceSprite.horizontalFrame && !rotated;
         const cardWidth = horizontal ? CARD_H : CARD_W;
         const cardHeight = horizontal ? CARD_W : CARD_H;
-        const scale = sourceWidth / cardWidth;
+        const scale = Math.min(sourceWidth / cardWidth, sourceHeight / cardHeight);
         sourceSprite.scale.set(scale);
         sourceSprite.syncHandControlsScale();
         sourceSprite.position.set(
@@ -3445,8 +3477,15 @@ export class PromptLayer {
     const width = this.modalPromptWidth(CARD_MODAL_MAX_WIDTH);
     const cardAreaWidth = width - PANEL_PADDING * 2 - CARD_TILE_EDGE_INSET * 2;
     const { width: preferredCardWidth } = this.promptCardDimensions();
-    const cardWidth = Math.min(preferredCardWidth, cardAreaWidth);
-    const cardHeight = cardWidth * CARD_ASPECT_RATIO;
+    const maxCardWidthRatio = Math.max(
+      ...cards.map((card) => this.promptCardDisplayDimensions(card, CARD_W).width / CARD_W),
+    );
+    const portraitCardWidth = Math.min(preferredCardWidth, cardAreaWidth / maxCardWidthRatio);
+    const cardSizes = cards.map((card) =>
+      this.promptCardDisplayDimensions(card, portraitCardWidth),
+    );
+    const cardWidth = Math.max(...cardSizes.map((size) => size.width));
+    const cardHeight = Math.max(...cardSizes.map((size) => size.height));
     const columns = Math.max(
       1,
       Math.min(cards.length, Math.floor((cardAreaWidth + 10) / (cardWidth + 10))),
@@ -3476,12 +3515,13 @@ export class PromptLayer {
     cards.forEach((card, index) => {
       const selected = this.selectedIds.has(card.id);
       const disabled = !reveal && max !== 1 && this.selectedIds.size >= max && !selected;
+      const cardSize = cardSizes[index]!;
       const tile = this.createCardTile(
         card,
         selected,
         disabled,
-        cardWidth,
-        cardHeight,
+        cardSize.width,
+        cardSize.height,
         reveal
           ? undefined
           : () => {
@@ -3498,8 +3538,8 @@ export class PromptLayer {
       const row = Math.floor(index / columns);
       const column = index % columns;
       tile.position.set(
-        CARD_TILE_EDGE_INSET + column * (cardWidth + 10),
-        startY + row * (cardHeight + 12),
+        CARD_TILE_EDGE_INSET + column * (cardWidth + 10) + (cardWidth - cardSize.width) / 2,
+        startY + row * (cardHeight + 12) + (cardHeight - cardSize.height) / 2,
       );
       body.addChild(tile);
     });
@@ -3925,19 +3965,36 @@ export class PromptLayer {
     const contentWidth = width - PANEL_PADDING * 2;
     const zoneWidth = contentWidth - CARD_TILE_EDGE_INSET * 2;
     const { width: preferredCardWidth } = this.promptCardDimensions();
+    const maxCardWidthRatio = Math.max(
+      ...items.map((item) => this.promptCardDisplayDimensions(item.card, CARD_W).width / CARD_W),
+    );
     const denseCardWidth =
       items.length <= 1
         ? preferredCardWidth
-        : (zoneWidth - REORDER_CARD_INSET * 2 - 12 * (items.length - 1)) / items.length;
-    const cardWidth = Math.min(
+        : (zoneWidth - REORDER_CARD_INSET * 2 - 12 * (items.length - 1)) /
+          items.length /
+          maxCardWidthRatio;
+    const portraitCardWidth = Math.min(
       preferredCardWidth,
-      zoneWidth - REORDER_CARD_INSET * 2,
+      (zoneWidth - REORDER_CARD_INSET * 2) / maxCardWidthRatio,
       Math.max(112, denseCardWidth),
     );
-    const cardHeight = cardWidth * CARD_ASPECT_RATIO;
+    const cardSizes = new Map(
+      items.map((item) => [
+        item.id,
+        this.promptCardDisplayDimensions(item.card, portraitCardWidth),
+      ]),
+    );
+    const cardWidth = Math.max(...[...cardSizes.values()].map((size) => size.width));
+    const cardHeight = Math.max(...[...cardSizes.values()].map((size) => size.height));
+    const sourceCard = this.promptSourceCard();
     const sourceIsInternal =
-      !!this.promptSourceCard() &&
-      width + SOURCE_CARD_GAP + this.promptSourceCardDimensions().width > this.viewportWidth - 24;
+      !!sourceCard &&
+      width +
+        SOURCE_CARD_GAP +
+        this.promptCardDisplayDimensions(sourceCard, this.promptSourceCardDimensions().width)
+          .width >
+        this.viewportWidth - 24;
     const height = Math.min(
       this.viewportHeight - 24,
       cardHeight +
@@ -3985,13 +4042,16 @@ export class PromptLayer {
 
     this.order.forEach((id, index) => {
       const item = byId.get(id);
-      if (!item) return;
-      const tile = this.createCardTile(item.card, false, false, cardWidth, cardHeight);
+      const cardSize = cardSizes.get(id);
+      if (!item || !cardSize) return;
+      const tile = this.createCardTile(item.card, false, false, cardSize.width, cardSize.height);
       tile.accessibleTitle = `${item.card.identity.name}, position ${index + 1}`;
       tile.accessibleHint = "Drag to reorder or use the earlier and later controls";
       tile.zIndex = index + 1;
-      const x = this.reorderCardX(orderZone, cardWidth, index, this.order.length);
-      const y = orderZone.y + REORDER_CARD_INSET;
+      const slotX = this.reorderCardX(orderZone, cardWidth, index, this.order.length);
+      const slotY = orderZone.y + REORDER_CARD_INSET;
+      const x = slotX + (cardWidth - cardSize.width) / 2;
+      const y = slotY + (cardHeight - cardSize.height) / 2;
       tile.position.set(x, y);
       this.makeDraggable(
         tile,
@@ -4052,8 +4112,8 @@ export class PromptLayer {
       const controlScale = 0.76;
       const controlGap = 10;
       const controlRowWidth = (previous.buttonWidth + next.buttonWidth) * controlScale + controlGap;
-      const controlX = x + (cardWidth - controlRowWidth) / 2;
-      const controlY = y + cardHeight + 8;
+      const controlX = slotX + (cardWidth - controlRowWidth) / 2;
+      const controlY = slotY + cardHeight + 8;
       const controls = new Container();
       controls.position.set(controlX, controlY);
       controls.zIndex = 100 + index;
@@ -4066,6 +4126,8 @@ export class PromptLayer {
       this.reorderCardVisuals.set(id, {
         tile,
         controls,
+        slotOffsetX: x - slotX,
+        slotOffsetY: y - slotY,
         controlsOffsetX: controlX - x,
         controlsOffsetY: controlY - y,
         rank,
@@ -4144,13 +4206,10 @@ export class PromptLayer {
         continue;
       }
 
-      const targetX = this.reorderCardX(
-        orderZone.rect,
-        cardWidth,
-        previewIndex,
-        previewOrder.length,
-      );
-      const targetY = orderZone.rect.y + REORDER_CARD_INSET;
+      const slotX = this.reorderCardX(orderZone.rect, cardWidth, previewIndex, previewOrder.length);
+      const slotY = orderZone.rect.y + REORDER_CARD_INSET;
+      const targetX = slotX + visual.slotOffsetX;
+      const targetY = slotY + visual.slotOffsetY;
       const controlsX = targetX + visual.controlsOffsetX;
       const controlsY = targetY + visual.controlsOffsetY;
       if (!animationsEnabled()) {
@@ -4201,9 +4260,12 @@ export class PromptLayer {
     const nextOrder = this.order.filter((id) => id !== cardId);
     const point = target.container.toLocal({ x, y });
     const index = this.reorderInsertIndex(target.rect, cardWidth, nextOrder.length, point.x);
+    const visual = this.reorderCardVisuals.get(cardId);
     return {
-      x: this.reorderCardX(target.rect, cardWidth, index, nextOrder.length + 1),
-      y: target.rect.y + REORDER_CARD_INSET,
+      x:
+        this.reorderCardX(target.rect, cardWidth, index, nextOrder.length + 1) +
+        (visual?.slotOffsetX ?? 0),
+      y: target.rect.y + REORDER_CARD_INSET + (visual?.slotOffsetY ?? 0),
     };
   }
 
@@ -4266,8 +4328,18 @@ export class PromptLayer {
     const zoneGap = 12;
     const zoneWidth = (poolWidth - zoneGap * (zones.length - 1)) / Math.max(1, zones.length);
     const preferredCardWidth = Math.min(180, this.promptCardDimensions().width);
-    const cardWidth = Math.min(preferredCardWidth, Math.max(92, zoneWidth - 20));
-    const cardHeight = cardWidth * CARD_ASPECT_RATIO;
+    const maxCardWidthRatio = Math.max(
+      ...cards.map((card) => this.promptCardDisplayDimensions(card, CARD_W).width / CARD_W),
+    );
+    const portraitCardWidth = Math.min(
+      preferredCardWidth,
+      Math.max(92, (zoneWidth - 20) / maxCardWidthRatio),
+    );
+    const cardSizes = new Map(
+      cards.map((card) => [card.id, this.promptCardDisplayDimensions(card, portraitCardWidth)]),
+    );
+    const cardWidth = Math.max(...[...cardSizes.values()].map((size) => size.width));
+    const cardHeight = Math.max(...[...cardSizes.values()].map((size) => size.height));
     const stackDepth = Math.min(64, Math.max(0, cards.length - 1) * 16);
     const height = Math.min(
       this.viewportHeight - 24,
@@ -4313,23 +4385,28 @@ export class PromptLayer {
     });
     poolIds.forEach((id, index) => {
       const card = byId.get(id);
-      if (!card) return;
+      const cardSize = cardSizes.get(id);
+      if (!card || !cardSize) return;
       const tile = this.createCardTile(
         card,
         this.scrySelectedId === id,
         false,
-        cardWidth,
-        cardHeight,
+        cardSize.width,
+        cardSize.height,
         () => {
           this.scrySelectedId = this.scrySelectedId === id ? null : id;
           this.rebuild();
         },
       );
+      const offsetX = (cardWidth - cardSize.width) / 2;
+      const offsetY = (cardHeight - cardSize.height) / 2;
       const tileX =
         10 +
         index *
-          Math.min(cardWidth + 8, (poolWidth - cardWidth - 20) / Math.max(1, poolIds.length - 1));
-      const tileY = pool.y + 10;
+          Math.min(cardWidth + 8, (poolWidth - cardWidth - 20) / Math.max(1, poolIds.length - 1)) +
+        offsetX;
+      const tileY = pool.y + 10 + offsetY;
+      this.scryCardOffsets.set(id, { x: offsetX, y: offsetY });
       this.makeDraggable(
         tile,
         (x, y) => this.dropScryCard(id, x, y),
@@ -4402,13 +4479,14 @@ export class PromptLayer {
       });
       ids.forEach((id, cardIndex) => {
         const card = byId.get(id);
-        if (!card) return;
+        const cardSize = cardSizes.get(id);
+        if (!card || !cardSize) return;
         const tile = this.createCardTile(
           card,
           this.scrySelectedId === id,
           cardIndex !== ids.length - 1,
-          cardWidth,
-          cardHeight,
+          cardSize.width,
+          cardSize.height,
           cardIndex === ids.length - 1
             ? () => {
                 this.scrySelectedId = this.scrySelectedId === id ? null : id;
@@ -4416,8 +4494,11 @@ export class PromptLayer {
               }
             : undefined,
         );
-        const tileX = rect.x + (rect.width - cardWidth) / 2;
-        const tileY = rect.y + 10 + cardIndex * 16;
+        const offsetX = (cardWidth - cardSize.width) / 2;
+        const offsetY = (cardHeight - cardSize.height) / 2;
+        const tileX = rect.x + (rect.width - cardWidth) / 2 + offsetX;
+        const tileY = rect.y + 10 + cardIndex * 16 + offsetY;
+        this.scryCardOffsets.set(id, { x: offsetX, y: offsetY });
         if (cardIndex === ids.length - 1) {
           this.makeDraggable(
             tile,
@@ -4497,7 +4578,11 @@ export class PromptLayer {
   private scryDropPosition(cardId: string, x: number, y: number): { x: number; y: number } | null {
     const target = this.findDropZone(x, y);
     if (!target || target.id === this.scryCardSource(cardId)) return null;
-    return { x: target.dropX, y: target.dropY };
+    const offset = this.scryCardOffsets.get(cardId);
+    return {
+      x: target.dropX + (offset?.x ?? 0),
+      y: target.dropY + (offset?.y ?? 0),
+    };
   }
 
   private captureScryCardPositions(): void {
@@ -4544,6 +4629,7 @@ export class PromptLayer {
   private clearScryCardTiles(): void {
     for (const tile of this.scryCardTiles.values()) gsap.killTweensOf(tile.position);
     this.scryCardTiles.clear();
+    this.scryCardOffsets.clear();
   }
 
   private scryDestinationLabel(destination: ScryDestination): string {

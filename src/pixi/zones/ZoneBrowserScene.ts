@@ -373,7 +373,7 @@ export class ZoneBrowserScene {
       return;
     }
     const reveal = this.cardReveal();
-    const { width: cardWidth, height: cardHeight } = this.cardDimensions();
+    const { width: cardWidth } = this.cardDimensions();
     const radius = Math.ceil(this.props.width / (reveal * 2)) + 3;
     const center = this.scrollMotion.value;
     const start = Math.max(0, Math.floor(center) - radius);
@@ -408,7 +408,7 @@ export class ZoneBrowserScene {
       const horizontal = entry.sprite.horizontalFrame && !rotated;
       const baseWidth = horizontal ? CARD_H : CARD_W;
       const baseHeight = horizontal ? CARD_W : CARD_H;
-      const scale = Math.min(cardWidth / baseWidth, cardHeight / baseHeight);
+      const scale = cardWidth / CARD_W;
       entry.sprite.rotation = rotated ? -Math.PI / 2 : 0;
       entry.sprite.scale.set(scale);
       entry.sprite.syncHandControlsScale();

@@ -33,6 +33,7 @@ import { RulesPreviewActions } from "@/pixi/cardPreview/RulesPreviewActions";
 import {
   drawRulesPreviewFrame,
   drawRulesStatBadge,
+  drawTopSquareBottomRoundedRect,
   resolveRulesPreviewFrame,
   rulesCardRadius,
   RULES_BODY_FONT,
@@ -649,9 +650,14 @@ export class RulesCardPreviewLayer {
         typeHeight,
         footerHeight: this.footerHeight,
       });
-      this.artMask
-        .roundRect(x + this.artX, this.artY, this.artWidth, this.artHeight, RULES_TITLE_ART_RADIUS)
-        .rect(x + this.artX, this.artY, this.artWidth, RULES_TITLE_ART_RADIUS);
+      drawTopSquareBottomRoundedRect(
+        this.artMask,
+        x + this.artX,
+        this.artY,
+        this.artWidth,
+        this.artHeight,
+        RULES_TITLE_ART_RADIUS,
+      );
       this.bodyMask.rect(x + this.contentX, this.bodyTop, this.contentWidth, this.bodyHeight);
     }
     this.artMask.fill(hexToNum(this.frame.paper));

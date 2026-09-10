@@ -22,6 +22,27 @@ export function rulesCardRadius(width: number, height: number): number {
     Math.min(RULES_CARD_CONSTRAINTS.width, RULES_CARD_CONSTRAINTS.height)
   );
 }
+export function drawTopSquareBottomRoundedRect(
+  target: Graphics,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+): void {
+  const right = x + width;
+  const bottom = y + height;
+  const cornerY = bottom - radius;
+  target
+    .moveTo(x, y)
+    .lineTo(right, y)
+    .lineTo(right, cornerY)
+    .arc(right - radius, cornerY, radius, 0, Math.PI / 2)
+    .lineTo(x + radius, bottom)
+    .arc(x + radius, cornerY, radius, Math.PI / 2, Math.PI)
+    .lineTo(x, y)
+    .closePath();
+}
 
 const GRAIN_POINTS = (() => {
   const points = new Float32Array(1024);

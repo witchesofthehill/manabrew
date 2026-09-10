@@ -1,6 +1,7 @@
 import { Container, FillGradient, Graphics, Rectangle, Sprite, Texture } from "pixi.js";
 import { hexToNum } from "@/pixi/colorUtils";
 import { withAlpha } from "@/themes/gameTheme";
+import { drawTopSquareBottomRoundedRect } from "@/pixi/cardPreview/rulesPreviewFrame";
 
 const ART_FADE_START = 0.85;
 const ART_FADE_END_ALPHA = 0.8;
@@ -104,10 +105,8 @@ export class RulesPreviewArtwork {
       this.fadeGradientColor = paper;
     }
     this.fade.visible = true;
-    this.fade
-      .roundRect(x, y, width, height, radius)
-      .rect(x, y, width, radius)
-      .fill(this.fadeGradient);
+    drawTopSquareBottomRoundedRect(this.fade, x, y, width, height, radius);
+    this.fade.fill(this.fadeGradient);
     this.cornerCover.visible = radius > 0;
     if (radius > 0) {
       const bottom = y + height;

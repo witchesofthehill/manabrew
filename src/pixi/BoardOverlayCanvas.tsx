@@ -417,6 +417,7 @@ export function BoardOverlayCanvas({
             cbRef.current.onHoverStack(id);
           },
           onToggleCollapsed: () => cbRef.current.onToggleStack(),
+          onRenderRequested: () => scheduler?.request(),
         });
         stackRef.current = stack;
         stack.setViewport(width, height);
@@ -440,6 +441,7 @@ export function BoardOverlayCanvas({
             target.kind === "spell"
               ? (stackRef.current?.getAnchor(target.id) ?? null)
               : (sceneRef.current?.getPromptReferenceAnchor(target) ?? null),
+          onRenderRequested: () => scheduler?.request(),
         });
         prompt = promptLayer;
         promptRef.current = promptLayer;
@@ -458,6 +460,7 @@ export function BoardOverlayCanvas({
             syncPreviewPointerRef.current?.();
             scheduler?.request();
           },
+          onRenderRequested: () => scheduler?.request(),
           onSelectAction: (action) => cbRef.current.onSelectPreviewAction?.(action),
           onDismiss: () => cbRef.current.onDismissPreview?.(),
           onFlip: () => cbRef.current.onFlipPreview?.(),
@@ -477,6 +480,7 @@ export function BoardOverlayCanvas({
             cbRef.current.onDismissPreview?.();
             cbRef.current.onCastCommandCard?.(cardId);
           },
+          onRenderRequested: () => scheduler?.request(),
         });
         commandPreviewLayer.container.zIndex = 10_001;
         commandPreview = commandPreviewLayer;

@@ -31,6 +31,7 @@ export interface StackCallbacks {
   onTargetSpell: (spellId: string) => void;
   onHover: (stackObjectId: string | null) => void;
   onToggleCollapsed: () => void;
+  onRenderRequested?: () => void;
 }
 
 export interface StackAnchorProvider {

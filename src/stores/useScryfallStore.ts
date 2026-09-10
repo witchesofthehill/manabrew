@@ -430,27 +430,21 @@ const createTextureFromImage = (img: HTMLImageElement): Texture => {
   return tex;
 };
 
-const MAX_CACHED_CARD_ART_TEXTURES = 64;
-
 const textureCache = new Map<string, Texture>();
 const pendingTexturePromises = new Map<string, Promise<Texture>>();
 let textureCacheGeneration = 0;
 
 const getCachedTexture = (url: string): Texture | undefined => {
   const texture = textureCache.get(url);
-  if (!texture) return undefined;
-  textureCache.delete(url);
-  textureCache.set(url, texture);
+  if (!texture || texture.destroyed || texture.source.destroyed) {
+    if (texture) textureCache.delete(url);
+    return undefined;
+  }
   return texture;
 };
 
 const cacheTexture = (url: string, texture: Texture): void => {
-  textureCache.delete(url);
   textureCache.set(url, texture);
-  if (textureCache.size <= MAX_CACHED_CARD_ART_TEXTURES) return;
-
-  const oldestUrl = textureCache.keys().next().value;
-  if (oldestUrl !== undefined) textureCache.delete(oldestUrl);
 };
 
 export const useScryfallStore = create<ScryfallState>()(

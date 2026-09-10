@@ -43,16 +43,6 @@ export function drawTopSquareBottomRoundedRect(
     .closePath();
 }
 
-const GRAIN_POINTS = (() => {
-  const points = new Float32Array(1024);
-  let seed = 17;
-  for (let index = 0; index < points.length; index += 1) {
-    seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
-    points[index] = (seed >>> 0) / 4294967296;
-  }
-  return points;
-})();
-
 export interface RulesPreviewFrameStyle {
   paper: string;
   raised: string;
@@ -75,7 +65,6 @@ interface RulesPreviewFrameGeometry {
   artHeight: number;
   typeY: number;
   typeHeight: number;
-  footerHeight: number;
 }
 
 export function resolveRulesPreviewFrame(
@@ -191,26 +180,13 @@ export function drawRulesPreviewFrame(
   style: RulesPreviewFrameStyle,
   geometry: RulesPreviewFrameGeometry,
 ): void {
-  const {
-    x,
-    y,
-    width,
-    height,
-    headerHeight,
-    artInset,
-    artY,
-    artHeight,
-    typeY,
-    typeHeight,
-    footerHeight,
-  } = geometry;
+  const { x, y, width, height, headerHeight, artInset, artY, artHeight, typeY, typeHeight } =
+    geometry;
   const insetX = x + artInset;
   const innerWidth = width - artInset * 2;
   const titleTopInset = 11;
   const titleY = y + titleTopInset;
   const titleHeight = headerHeight - titleTopInset - 4;
-  const rulesY = y + typeY + typeHeight + 4;
-  const rulesHeight = height - typeY - typeHeight - footerHeight - 4;
   const border = hexToNum(style.border);
   const surface = hexToNum(style.paper);
   const raised = hexToNum(style.raised);
@@ -229,13 +205,4 @@ export function drawRulesPreviewFrame(
     )
     .fill(style.titleGradient ?? hexToNum(style.title));
   graphics.roundRect(insetX, y + typeY, innerWidth, typeHeight, 5).fill(raised);
-
-  for (let index = 0; index < GRAIN_POINTS.length; index += 2) {
-    graphics.circle(
-      insetX + 4 + GRAIN_POINTS[index]! * (innerWidth - 8),
-      rulesY + 4 + GRAIN_POINTS[index + 1]! * (rulesHeight - 8),
-      index % 4 === 0 ? 0.35 : 0.55,
-    );
-  }
-  graphics.fill({ color: hexToNum(style.ink), alpha: 0.025 });
 }

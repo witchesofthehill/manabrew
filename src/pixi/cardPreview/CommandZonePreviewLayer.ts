@@ -42,6 +42,7 @@ interface CommandZonePreviewLayerCallbacks {
   onPointerLeave: () => void;
   onInteractionReady: () => void;
   onCastCard: (cardId: string) => void;
+  onRenderRequested: () => void;
 }
 
 const PREVIEW_GAP = 12;
@@ -184,6 +185,7 @@ export class CommandZonePreviewLayer {
     }
     this.entries = cards.map((card) => {
       const sprite = new CardSprite(card, "hand");
+      sprite.onVisualChange = this.callbacks.onRenderRequested;
       const castButton = new Container();
       const castButtonBackground = new Graphics();
       const castButtonIcon = new Sprite(Texture.EMPTY);

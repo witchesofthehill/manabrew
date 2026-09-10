@@ -25,6 +25,7 @@ export class HandRulesCardFace extends Container {
       onPointerEnter: () => undefined,
       onPointerLeave: () => undefined,
       onInteractionReady: () => undefined,
+      onRenderRequested: () => this.onRenderRequested?.(),
       onDismiss: () => undefined,
       onToggleView: () => undefined,
       onFlip: () => undefined,
@@ -37,6 +38,8 @@ export class HandRulesCardFace extends Container {
   get artworkTop(): number {
     return this.preview.artworkTop;
   }
+
+  onRenderRequested?: () => void;
 
   setContent(card: CardDto, faceIndex: 0 | 1, width: number, height: number): void {
     this.card = card;

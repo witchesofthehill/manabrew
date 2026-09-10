@@ -490,6 +490,7 @@ export class ZoneBrowserScene {
     const container = new Container();
     const feedback = new Graphics();
     const sprite = new CardSprite(item.card, "hand");
+    sprite.onVisualChange = this.request;
     feedback.eventMode = "none";
     feedback.alpha = 0;
     sprite.eventMode = "static";

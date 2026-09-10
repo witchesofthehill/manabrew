@@ -182,6 +182,7 @@ export class StackLayer implements StackAnchorProvider {
           displayCard,
           this.builtCardWidth,
           this.rulesViewOverrides.get(card.id) ?? this.rulesViewDefault,
+          this.callbacks.onRenderRequested,
           () => this.callbacks.onOpen(),
           (id) => this.callbacks.onTargetSpell(id),
           (id) => this.setHovered(id),
@@ -590,6 +591,7 @@ export class StackLayer implements StackAnchorProvider {
     this.flashSprite?.destroy();
     this.flashToken = flash.token;
     const sprite = new CardSprite(flash.card, "hand");
+    sprite.onVisualChange = this.callbacks.onRenderRequested;
     const scale = this.faceScale();
     sprite.scale.set(scale);
     sprite.zIndex = 300;

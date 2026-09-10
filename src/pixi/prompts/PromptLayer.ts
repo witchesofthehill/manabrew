@@ -1847,6 +1847,7 @@ export class PromptLayer {
   }
 
   private configurePromptCardSprite(sprite: CardSprite, card: CardDto): void {
+    sprite.onVisualChange = this.callbacks.onRenderRequested;
     const state = this.promptCardState(card);
     sprite.setPreviewFace(state.face);
     sprite.setHandRulesView(state.rulesView);

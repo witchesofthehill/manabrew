@@ -420,6 +420,7 @@ export class CardSprite extends Container {
   private cw: number;
   private ch: number;
   onReorient?: () => void;
+  onVisualChange?: () => void;
   private previewFace: 0 | 1 | null = null;
   private loadGeneration = 0;
   private readonly kind: "battlefield" | "hand" | "zone";
@@ -760,7 +761,10 @@ export class CardSprite extends Container {
     }
     if (this.destroyed || generation !== this.loadGeneration) return;
     this._imageSettled = true;
-    if (texture === Texture.EMPTY) return;
+    if (texture === Texture.EMPTY) {
+      this.onVisualChange?.();
+      return;
+    }
 
     this.imageSpr.texture = texture;
     this.imageSpr.visible = true;
@@ -769,6 +773,7 @@ export class CardSprite extends Container {
     this.placeholderGfx.visible = false;
     this.nameText.visible = false;
     this._imageLoaded = true;
+    this.onVisualChange?.();
   }
 
   setPreviewFace(face: 0 | 1 | null): void {
@@ -801,6 +806,7 @@ export class CardSprite extends Container {
         activeTheme,
       );
       this.contentContainer.addChild(this.handRulesFace);
+      this.handRulesFace.onRenderRequested = () => this.onVisualChange?.();
       this.handRulesFace.setActions(this.handRulesActions, this.onSelectHandRulesAction);
       this.handRulesFace.setHighlightedEffect(this.handRulesHighlight);
     } else {

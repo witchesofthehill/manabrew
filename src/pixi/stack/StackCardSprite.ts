@@ -51,6 +51,7 @@ export class StackCardSprite {
     spec: StackCardSpec,
     cardWidth: number,
     rulesView: boolean,
+    onRenderRequested: (() => void) | undefined,
     onOpen: () => void,
     onTarget: (id: string) => void,
     onHover: (id: string | null) => void,
@@ -69,6 +70,7 @@ export class StackCardSprite {
     this.ring.eventMode = "none";
     this.promptReference.eventMode = "none";
     this.face = new CardSprite(spec.card, "hand");
+    this.face.onVisualChange = onRenderRequested;
     this.face.scale.set(this.faceScale);
     this.face.setHandRulesView(rulesView);
     this.face.setHandRulesHighlight(spec.sourceAbilityText ?? "");

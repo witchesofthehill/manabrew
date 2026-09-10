@@ -79,6 +79,7 @@ export function DialogCardCanvas(props: Props) {
       if (!sprite || sprite.card.id !== card.id) {
         sprite?.destroy({ children: true });
         sprite = new CardSprite(card, "hand");
+        sprite.onVisualChange = request;
         sprite.onReorient = layout;
         app.stage.addChild(sprite);
       } else sprite.updateCardContent(card);

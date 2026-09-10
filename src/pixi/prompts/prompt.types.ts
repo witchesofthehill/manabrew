@@ -27,6 +27,7 @@ export interface GameOverPromptSpec {
 export interface PromptLayerCallbacks {
   onReferenceChange?: (target: TargetRef | null) => void;
   getReferenceAnchor?: (target: TargetRef) => ScreenPos | null;
+  onRenderRequested?: () => void;
 }
 
 export interface PromptOverlaySpec {

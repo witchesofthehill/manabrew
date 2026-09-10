@@ -93,6 +93,7 @@ export interface RulesCardPreviewCallbacks {
   onPointerEnter: () => void;
   onPointerLeave: () => void;
   onInteractionReady: () => void;
+  onRenderRequested: () => void;
   onSelectAction: (action: HandActionOption) => void;
   onDismiss: () => void;
   onFlip: () => void;
@@ -160,7 +161,7 @@ function flavorTextStyle(fill: string): TextStyle {
 }
 
 export class RulesCardPreviewLayer {
-  readonly container = new Container();
+  readonly container = new Container({ isRenderGroup: true });
   private cardContainer = new Container();
   private fieldFace = new Container();
   private cardBounds = new Rectangle();
@@ -650,7 +651,6 @@ export class RulesCardPreviewLayer {
         artHeight: this.artHeight,
         typeY: this.typeBandY,
         typeHeight,
-        footerHeight: this.footerHeight,
       });
       drawTopSquareBottomRoundedRect(
         this.artMask,
@@ -1367,6 +1367,7 @@ export class RulesCardPreviewLayer {
       this.artwork.texture = Texture.EMPTY;
       this.scrollOffset = 0;
       this.rebuild();
+      this.callbacks.onRenderRequested();
       void this.loadArt();
     } catch {
       if (generation === this.cardInfoGeneration) this.scryfallInfo = null;
@@ -1388,11 +1389,13 @@ export class RulesCardPreviewLayer {
       this.artwork.texture = texture;
       this.displayedBackFace = faceIndex === 1;
       this.rebuild();
+      this.callbacks.onRenderRequested();
     } catch {
       if (generation === this.artGeneration && !this.artwork.destroyed) {
         this.artwork.texture = Texture.EMPTY;
         this.displayedBackFace = spec.showBackFace;
         this.rebuild();
+        this.callbacks.onRenderRequested();
       }
     }
   }

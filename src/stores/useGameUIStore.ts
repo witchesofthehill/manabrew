@@ -117,7 +117,7 @@ export const useGameUIStore = create<GameUIState>()(
         );
       },
       hidePromptModal: () => set({ promptModalHidden: true }),
-      showPromptModal: () => set({ promptModalHidden: false }),
+      showPromptModal: () => set({ promptModalHidden: false, viewingZone: null }),
 
       resetAll: () =>
         set({

@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react";
 import { CircleUserRound, LogIn, Maximize2, Minimize2, Settings } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -25,6 +27,7 @@ interface AccountMenuProps {
 const MENU_ITEM_CLASS = "gap-2.5 rounded-md px-2.5 py-2 text-[13px] pointer-coarse:py-2.5";
 
 export function AccountMenu({ disabled = false }: AccountMenuProps) {
+  const { _ } = useLingui();
   const navigate = useNavigate();
   const location = useLocation();
   const account = useAuthStore((s) => s.account);
@@ -95,8 +98,10 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
         <button
           type="button"
           disabled={disabled}
-          aria-label={signedInAccount ? `Account: @${signedInAccount.handle}` : "Account menu"}
-          title={signedInAccount ? `@${signedInAccount.handle}` : displayName || "Account"}
+          aria-label={
+            signedInAccount ? _(msg`Account: @${signedInAccount.handle}`) : _(msg`Account menu`)
+          }
+          title={signedInAccount ? `@${signedInAccount.handle}` : displayName || _(msg`Account`)}
           className={cn(
             "relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/70 bg-muted",
             "motion-safe:transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm",
@@ -119,9 +124,11 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
             {renderAvatar("h-11 w-11", "text-base")}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold leading-tight">{displayName || "Guest"}</p>
+            <p className="truncate text-sm font-semibold leading-tight">
+              {displayName || _(msg`Guest`)}
+            </p>
             <p className="truncate text-xs text-muted-foreground">
-              {signedInAccount ? "Signed in" : "Playing as a guest"}
+              {signedInAccount ? _(msg`Signed in`) : _(msg`Playing as a guest`)}
             </p>
           </div>
           <Button
@@ -129,8 +136,8 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
             variant="ghost"
             className="size-8 shrink-0"
             onClick={toggleFullscreen}
-            aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-            title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            aria-label={isFullscreen ? _(msg`Exit fullscreen`) : _(msg`Fullscreen`)}
+            title={isFullscreen ? _(msg`Exit fullscreen`) : _(msg`Fullscreen`)}
           >
             {isFullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
           </Button>
@@ -143,7 +150,7 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
             onSelect={() => navigate(ROUTES.SETTINGS, { state: { settingsTab: "account" } })}
           >
             <CircleUserRound />
-            Account
+            {_(msg`Account`)}
           </DropdownMenuItem>
         )}
         {accountsEnabled && !signedInAccount && (
@@ -153,7 +160,7 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
             onSelect={() => showSignIn()}
           >
             <LogIn />
-            Sign in
+            {_(msg`Sign in`)}
           </DropdownMenuItem>
         )}
         <DropdownMenuItem
@@ -162,7 +169,7 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
           onSelect={() => navigate(ROUTES.SETTINGS)}
         >
           <Settings />
-          Preferences
+          {_(msg`Preferences`)}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         {getMoreDestinations().map(({ to, label, icon: ItemIcon, external }) =>

@@ -27,6 +27,7 @@ import { AccountSection } from "@/components/settings/AccountSection";
 import { MyAssetsSection } from "@/components/settings/MyAssetsSection";
 import { CardArtDownloadSection } from "@/components/settings/CardArtDownloadSection";
 import { PreferenceCard } from "@/components/settings/PreferenceCard";
+import { LanguagePreferenceCard } from "@/components/settings/LanguagePreferenceCard";
 import { toPickerHexColor } from "@/themes/gameTheme";
 import type { GameThemeColors } from "@/themes/gameTheme";
 import { getDefaultGameThemeColorMap } from "@/hooks/useTheme";
@@ -768,6 +769,8 @@ export default function Settings() {
       {activeTab === "preferences" && (
         <section>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <LanguagePreferenceCard />
+
             <PreferenceCard
               title="Default Playmat"
               description="Used in games when the deck you're playing has no custom playmat of its own."

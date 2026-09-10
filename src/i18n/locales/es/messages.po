@@ -1,0 +1,260 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-09-10 12:02+0100\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: es\n"
+
+#: src/components/layout/navDestinations.ts:80
+msgid "About"
+msgstr "Acerca de"
+
+#: src/components/layout/TopBar.tsx:86
+msgid "About Manabrew"
+msgstr "Acerca de Manabrew"
+
+#: src/components/layout/AccountMenu.tsx:107
+#: src/components/layout/AccountMenu.tsx:157
+msgid "Account"
+msgstr "Cuenta"
+
+#: src/components/layout/AccountMenu.tsx:104
+msgid "Account menu"
+msgstr "Menú de cuenta"
+
+#. placeholder {0}: signedInAccount.handle
+#: src/components/layout/AccountMenu.tsx:103
+msgid "Account: @{0}"
+msgstr "Cuenta: @{0}"
+
+#: src/components/ErrorBoundary.tsx:41
+msgid "An unexpected error occurred."
+msgstr "Se produjo un error inesperado."
+
+#: src/components/settings/LanguagePreferenceCard.tsx:27
+msgid "Application language"
+msgstr "Idioma de la aplicación"
+
+#: src/components/layout/TopBar.tsx:163
+#: src/components/layout/TopBar.tsx:166
+msgid "Back"
+msgstr "Atrás"
+
+#: src/components/layout/TopBar.tsx:65
+msgid "Booster Draft"
+msgstr "Draft de sobres"
+
+#: src/components/layout/TopBar.tsx:92
+msgid "Card Face Gallery"
+msgstr "Galería de cartas"
+
+#: src/components/layout/navDestinations.ts:72
+#: src/components/layout/TopBar.tsx:42
+msgid "Card Search"
+msgstr "Buscar cartas"
+
+#: src/components/settings/LanguagePreferenceCard.tsx:21
+msgid "Changes menus and card printings when a translation is available."
+msgstr "Cambia los menús y las impresiones de las cartas cuando hay una traducción disponible."
+
+#: src/components/layout/navDestinations.ts:60
+#: src/components/layout/TopBar.tsx:59
+msgid "Community"
+msgstr "Comunidad"
+
+#: src/App.tsx:81
+msgid "Couldn't load your saved decks — they're left untouched on disk. Please contact the developer."
+msgstr "No se pudieron cargar tus mazos guardados. Permanecen intactos en el disco. Contacta con el desarrollador."
+
+#: src/App.tsx:73
+msgid "Cross-origin isolation is enabled."
+msgstr "El aislamiento entre orígenes está activado."
+
+#. placeholder {0}: APP_LOCALES[activeLocale].label
+#: src/components/settings/LanguagePreferenceCard.tsx:39
+msgid "Currently using {0}"
+msgstr "Actualmente se usa {0}"
+
+#: src/components/layout/TopBar.tsx:47
+msgid "Deck Editor"
+msgstr "Editor de mazos"
+
+#: src/App.tsx:56
+msgid "Deployment is missing cross-origin isolation. SharedArrayBuffer game flow will fail."
+msgstr "Falta el aislamiento entre orígenes. El flujo de juego de SharedArrayBuffer fallará."
+
+#: src/components/layout/navDestinations.ts:83
+#: src/components/layout/TopBar.tsx:89
+msgid "Design System"
+msgstr "Sistema de diseño"
+
+#: src/components/layout/TopBar.tsx:117
+msgid "Downloading…"
+msgstr "Descargando…"
+
+#: src/components/layout/TopBar.tsx:118
+msgid "Downloading… {progress}%"
+msgstr "Descargando… {progress}%"
+
+#: src/components/layout/AccountMenu.tsx:143
+#: src/components/layout/AccountMenu.tsx:144
+msgid "Exit fullscreen"
+msgstr "Salir de pantalla completa"
+
+#: src/components/layout/AccountMenu.tsx:143
+#: src/components/layout/AccountMenu.tsx:144
+msgid "Fullscreen"
+msgstr "Pantalla completa"
+
+#: src/components/layout/TopBar.tsx:77
+msgid "Gauntlet"
+msgstr "Desafío"
+
+#: src/components/ErrorBoundary.tsx:59
+#: src/router.tsx:44
+msgid "Go Home"
+msgstr "Ir al inicio"
+
+#: src/components/layout/AccountMenu.tsx:132
+msgid "Guest"
+msgstr "Invitado"
+
+#. placeholder {0}: this.props.context
+#: src/components/ErrorBoundary.tsx:37
+msgid "in {0}"
+msgstr "en {0}"
+
+#: src/App.tsx:49
+msgid "In-browser engines are unavailable. Forge games will use a hosted engine."
+msgstr "Los motores del navegador no están disponibles. Las partidas de Forge usarán un motor alojado."
+
+#: src/components/settings/LanguagePreferenceCard.tsx:20
+msgid "Language"
+msgstr "Idioma"
+
+#: src/components/layout/navDestinations.ts:73
+#: src/components/layout/TopBar.tsx:80
+msgid "Life Tracker"
+msgstr "Contador de vidas"
+
+#: src/components/layout/TopBar.tsx:173
+msgid "Manabrew Home"
+msgstr "Inicio de Manabrew"
+
+#: src/components/layout/NavSheet.tsx:87
+#: src/components/layout/NavSheet.tsx:90
+#: src/components/layout/NavSheet.tsx:93
+msgid "Menu"
+msgstr "Menú"
+
+#: src/components/layout/NavSheet.tsx:99
+msgid "More"
+msgstr "Más"
+
+#: src/components/layout/navDestinations.ts:55
+#: src/components/layout/TopBar.tsx:39
+msgid "Multiplayer"
+msgstr "Multijugador"
+
+#: src/components/layout/TopBar.tsx:62
+msgid "Multiplayer Draft"
+msgstr "Draft multijugador"
+
+#: src/components/layout/navDestinations.ts:66
+#: src/components/layout/TopBar.tsx:53
+msgid "My Collection"
+msgstr "Mi colección"
+
+#: src/components/layout/navDestinations.ts:56
+#: src/components/layout/TopBar.tsx:48
+msgid "My Decks"
+msgstr "Mis mazos"
+
+#: src/router.tsx:38
+msgid "Page Not Found"
+msgstr "Página no encontrada"
+
+#: src/components/layout/NavSheet.tsx:95
+msgid "Play"
+msgstr "Jugar"
+
+#: src/components/layout/TopBar.tsx:36
+msgid "Play Deck"
+msgstr "Jugar con un mazo"
+
+#: src/components/layout/navDestinations.ts:54
+#: src/components/layout/TopBar.tsx:30
+#: src/components/layout/TopBar.tsx:33
+msgid "Play Offline"
+msgstr "Jugar sin conexión"
+
+#: src/components/layout/AccountMenu.tsx:135
+msgid "Playing as a guest"
+msgstr "Jugando como invitado"
+
+#: src/components/layout/AccountMenu.tsx:176
+#: src/components/layout/TopBar.tsx:83
+msgid "Preferences"
+msgstr "Preferencias"
+
+#: src/components/layout/TopBarNav.tsx:24
+msgid "Primary"
+msgstr "Principal"
+
+#: src/components/layout/TopBar.tsx:71
+msgid "Sealed"
+msgstr "Sellado"
+
+#: src/components/layout/TopBar.tsx:68
+msgid "Sealed Deck Build"
+msgstr "Construcción de mazo sellado"
+
+#: src/components/layout/AccountMenu.tsx:167
+msgid "Sign in"
+msgstr "Iniciar sesión"
+
+#: src/components/layout/AccountMenu.tsx:135
+msgid "Signed in"
+msgstr "Sesión iniciada"
+
+#: src/components/ErrorBoundary.tsx:33
+msgid "Something went wrong"
+msgstr "Algo salió mal"
+
+#: src/components/ErrorBoundary.tsx:65
+msgid "Stack trace"
+msgstr "Traza de pila"
+
+#: src/router.tsx:41
+msgid "The page you're looking for doesn't exist."
+msgstr "La página que buscas no existe."
+
+#: src/App.tsx:63
+msgid "This desktop build is missing required isolation headers (COOP/COEP). The game engine cannot start."
+msgstr "Esta versión de escritorio no incluye los encabezados de aislamiento necesarios (COOP/COEP). El motor de juego no puede iniciarse."
+
+#: src/components/layout/TopBar.tsx:56
+msgid "Top Decks"
+msgstr "Mazos destacados"
+
+#: src/components/ErrorBoundary.tsx:50
+msgid "Try Again"
+msgstr "Intentar de nuevo"
+
+#: src/components/layout/TopBar.tsx:119
+msgid "Update to {version}"
+msgstr "Actualizar a {version}"
+
+#: src/components/settings/LanguagePreferenceCard.tsx:30
+msgid "Use system language"
+msgstr "Usar el idioma del sistema"
+
+#: src/App.tsx:66
+msgid "Web deployment is missing required isolation headers. Ask infra to enable COOP/COEP through the Twingate/SSO path."
+msgstr "Faltan los encabezados de aislamiento necesarios. Pide al equipo de infraestructura que active COOP/COEP en la ruta de Twingate/SSO."
+
+#: src/components/layout/TopBar.tsx:74
+msgid "Winston Draft"
+msgstr "Draft Winston"

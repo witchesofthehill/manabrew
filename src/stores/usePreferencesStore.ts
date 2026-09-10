@@ -8,6 +8,7 @@ import type { KnownRelay } from "@/config/knownRelays";
 import type { PlaymatSettings } from "@/protocol/game";
 import type { GameFormat } from "@/types/server";
 import type { HandOrderMode } from "@/lib/handOrder";
+import { APP_LOCALES, type AppLanguagePreference } from "@/i18n/locales";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
 export type CardPreviewMode = "hover" | "right-click";
@@ -32,6 +33,8 @@ export const CARD_SIZE_MULTIPLIER_MAX = 1.5;
 interface PreferencesState {
   appThemePreset: string;
   setAppThemePreset: (id: string) => void;
+  appLanguage: AppLanguagePreference;
+  setAppLanguage: (language: AppLanguagePreference) => void;
 
   flashDurationMs: number;
   setFlashDurationMs: (ms: number) => void;
@@ -142,6 +145,7 @@ interface PreferencesState {
 
 const PERSISTED_PREFERENCE_KEYS = [
   "appThemePreset",
+  "appLanguage",
   "flashDurationMs",
   "serverHost",
   "serverPort",
@@ -197,6 +201,12 @@ function pickPersistedPreferences(persistedState: unknown): Partial<PreferencesS
   if (next.cardPreviewMode !== "hover" && next.cardPreviewMode !== "right-click") {
     next.cardPreviewMode = "hover";
   }
+  if (
+    next.appLanguage !== "system" &&
+    (typeof next.appLanguage !== "string" || !(next.appLanguage in APP_LOCALES))
+  ) {
+    delete next.appLanguage;
+  }
   return next as Partial<PreferencesState>;
 }
 
@@ -213,6 +223,8 @@ export const usePreferencesStore = create<PreferencesState>()(
           appThemePreset: "default",
           setAppThemePreset: (appThemePreset) =>
             set({ appThemePreset, appThemeColorOverrides: {}, gameThemeColorOverrides: {} }),
+          appLanguage: "system",
+          setAppLanguage: (appLanguage) => set({ appLanguage }),
 
           flashDurationMs: 1000,
           setFlashDurationMs: (ms) => set({ flashDurationMs: ms }),

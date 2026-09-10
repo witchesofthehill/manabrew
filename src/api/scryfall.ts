@@ -20,7 +20,7 @@ import { DEFAULT_SCRYFALL_LANGUAGE, type ScryfallLanguage } from "@/i18n/locales
 
 export const SCRYFALL_API = "https://api.scryfall.com";
 export const COLLECTION_BATCH_SIZE = 75;
-const SCRYFALL_REQUEST_INTERVAL_MS = 300;
+const SCRYFALL_REQUEST_INTERVAL_MS = 500;
 const SCRYFALL_DEFAULT_RATE_LIMIT_COOLDOWN_MS = 60_000;
 
 let nextScryfallRequestAt = 0;

@@ -40,7 +40,7 @@ Schema lives in `migrations/N_*.sql`; `build.rs` scans that directory, orders fi
 
 ## DTOs and misc
 
-The crate owns its REST DTOs in `src/dto.rs`, exported to `src/api/hubTypes.ts` + `src/api/authTypes.ts` by `cargo xtask gen-types` (`yarn gen:types`). It also owns the daily Scryfall `default_cards` JSONL bulk index used by collection verification and the process-wide throttled relay for permitted interactive Scryfall API routes.
+The crate owns its REST DTOs in `src/dto.rs`, exported to `src/api/hubTypes.ts` + `src/api/authTypes.ts` by `cargo xtask gen-types` (`yarn gen:types`). It also owns the daily Scryfall `default_cards` JSONL bulk index used by collection verification and the process-wide Scryfall relay. The relay accepts the interactive card routes used by the client, including the optional language segment on collector-number lookups, and spaces upstream requests by Scryfall's documented 500 ms interval.
 
 ## Deck Hub flag
 

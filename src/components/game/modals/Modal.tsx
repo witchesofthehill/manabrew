@@ -24,6 +24,7 @@ const EXIT_MS = 120;
 interface ModalProps {
   children: ReactNode;
   onClose?: () => void;
+  ariaLabel?: string;
   maxWidth?: string;
   maxHeight?: string;
   className?: string;
@@ -33,6 +34,7 @@ interface ModalProps {
 export function Modal({
   children,
   onClose,
+  ariaLabel,
   maxWidth = "max-w-2xl",
   maxHeight = "max-h-[90dvh]",
   className,
@@ -154,7 +156,8 @@ export function Modal({
         data-modal-panel="true"
         role="dialog"
         aria-modal="true"
-        aria-labelledby={titleId}
+        aria-label={ariaLabel}
+        aria-labelledby={ariaLabel ? undefined : titleId}
         tabIndex={-1}
         className={cn(
           "relative bg-card border border-border rounded-xl shadow-2xl flex flex-col w-full mx-3 min-h-0",
@@ -233,6 +236,7 @@ function ModalHeader({
     </div>
   );
 }
+
 function ModalInstructions({ children, className }: { children: ReactNode; className?: string }) {
   const color = useTheme().gameTheme.promptAction.defenseAction;
   return (

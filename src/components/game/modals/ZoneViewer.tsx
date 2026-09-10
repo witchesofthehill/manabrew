@@ -18,7 +18,7 @@ import {
   type CardBrowserItem,
   type CardBrowserState,
 } from "./cardBrowser";
-import { Modal } from "./Modal";
+import { FullscreenPrompt } from "./FullscreenPrompt";
 import { ZoneBrowserCanvas, type ZoneBrowserCanvasHandle } from "./ZoneBrowserCanvas";
 import { useBrowserSearchItems } from "./useBrowserSearchItems";
 
@@ -208,121 +208,94 @@ function ZoneViewerContent({
   const hiddenCount = totalCount != null ? Math.max(0, totalCount - cards.length) : 0;
 
   return (
-    <Modal
-      onClose={onClose}
-      maxWidth="max-w-none"
-      maxHeight="max-h-none"
-      backdropClassName="bg-background/70 backdrop-blur-[2px]"
-      className="m-0 h-full w-full rounded-none border-0 bg-transparent shadow-none"
-    >
-      <div
-        ref={scopeRef}
-        data-autofocus
-        tabIndex={0}
-        className="relative flex min-h-0 flex-1 flex-col overflow-hidden outline-none"
-        onKeyDown={onKeyDown}
-        onPointerDown={(event) => event.stopPropagation()}
-        onPointerMove={(event) => event.stopPropagation()}
-        onPointerUp={(event) => event.stopPropagation()}
-        onPointerCancel={(event) => event.stopPropagation()}
-        onWheel={(event) => event.stopPropagation()}
-      >
-        <header className="pointer-events-none absolute inset-x-0 top-0 z-20 px-3 pt-3 sm:px-6 sm:pt-5">
-          <div className="pointer-events-auto mx-auto flex max-w-5xl flex-wrap items-center gap-2 rounded-2xl border bg-card/90 p-2 shadow-2xl backdrop-blur-xl sm:flex-nowrap sm:gap-3">
-            <div className="min-w-0 flex-1 px-2">
-              <h2 className="truncate text-sm font-semibold sm:text-base">{title}</h2>
-              <p className="truncate text-[11px] text-muted-foreground sm:text-xs">
-                {cards.length} visible card{cards.length === 1 ? "" : "s"}
-                {hiddenCount > 0 ? ` · ${hiddenCount} hidden` : ""}
-              </p>
-            </div>
-            <div className="relative order-3 w-full sm:order-none sm:w-[min(38vw,28rem)]">
-              <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                ref={searchRef}
-                aria-label="Search cards by name, rules, type or mana"
-                placeholder="Search this zone"
-                value={state.query}
-                onChange={(event) =>
-                  setState((current) => ({ ...current, query: event.target.value }))
-                }
-                className="bg-background/80 pl-9 pr-9 focus-visible:ring-card-ring"
-              />
-              {state.query && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="absolute right-0 top-0 h-9 w-9"
-                  aria-label="Clear search"
-                  onClick={() => {
-                    setState((current) => ({ ...current, query: "" }));
-                    searchRef.current?.focus();
-                  }}
-                >
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              )}
-            </div>
-            <span className="min-w-14 text-center text-xs tabular-nums text-muted-foreground">
-              {activeIndex >= 0 ? `${activeIndex + 1} / ${visible.length}` : `${visible.length}`}
-            </span>
-            <Modal.Close onClose={onClose} size="icon" variant="ghost" aria-label="Close zone">
-              <X className="h-4 w-4" />
-            </Modal.Close>
-            {(loading || incomplete) && (
-              <p className="order-4 w-full px-2 text-[11px] text-muted-foreground" role="status">
-                {loading
-                  ? "Loading card details for search…"
-                  : "Some card details are unavailable. Visible names and game rules remain searchable."}
-              </p>
-            )}
-          </div>
-        </header>
-
-        <div className="relative min-h-0 flex-1 pb-24 pt-24 sm:pb-28 sm:pt-24">
-          <ZoneBrowserCanvas
-            actionsRef={canvasRef}
-            items={visible}
-            activeId={active?.id ?? null}
-            inspection={state.inspection}
-            defaultRules={defaultRules}
-            pending={pending}
-            ringColor={color}
-            onActive={setActive}
-            onChange={changeInspection}
+    <FullscreenPrompt label={title} onClose={onClose} scopeRef={scopeRef} onKeyDown={onKeyDown}>
+      <FullscreenPrompt.Header>
+        <FullscreenPrompt.Title>
+          <h2 className="truncate text-sm font-semibold sm:text-base">{title}</h2>
+          <p className="truncate text-[11px] text-muted-foreground sm:text-xs">
+            {cards.length} visible card{cards.length === 1 ? "" : "s"}
+            {hiddenCount > 0 ? ` · ${hiddenCount} hidden` : ""}
+          </p>
+        </FullscreenPrompt.Title>
+        <div className="relative order-3 w-full sm:order-none sm:w-[min(38vw,28rem)]">
+          <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            ref={searchRef}
+            aria-label="Search cards by name, rules, type or mana"
+            placeholder="Search this zone"
+            value={state.query}
+            onChange={(event) => setState((current) => ({ ...current, query: event.target.value }))}
+            className="bg-background/80 pl-9 pr-9 focus-visible:ring-card-ring"
           />
-          {!visible.length && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-muted-foreground">
-              {state.query ? "No cards match this search." : "No cards are visible in this zone."}
-            </div>
+          {state.query && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="absolute right-0 top-0 h-9 w-9"
+              aria-label="Clear search"
+              onClick={() => {
+                setState((current) => ({ ...current, query: "" }));
+                searchRef.current?.focus();
+              }}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
           )}
         </div>
+        <span className="min-w-14 text-center text-xs tabular-nums text-muted-foreground">
+          {activeIndex >= 0 ? `${activeIndex + 1} / ${visible.length}` : `${visible.length}`}
+        </span>
+        <FullscreenPrompt.Close onClose={onClose} label="Close zone" />
+        {(loading || incomplete) && (
+          <p className="order-4 w-full px-2 text-[11px] text-muted-foreground" role="status">
+            {loading
+              ? "Loading card details for search…"
+              : "Some card details are unavailable. Visible names and game rules remain searchable."}
+          </p>
+        )}
+      </FullscreenPrompt.Header>
 
-        <footer className="pointer-events-none absolute inset-x-0 bottom-0 z-20 px-3 pb-3 sm:px-6 sm:pb-5">
-          <div className="pointer-events-auto mx-auto flex max-w-3xl flex-wrap items-center gap-3 rounded-2xl border bg-card/90 p-3 shadow-2xl backdrop-blur-xl sm:flex-nowrap">
-            <div className="min-w-0 flex-1" aria-live="polite">
-              <p className="truncate text-sm font-semibold">{activeName}</p>
-              <p className="truncate text-xs text-muted-foreground">
-                {selectedCount > 0 ? `${selectedCount} selected · ` : ""}
-                {activeStatus}
-              </p>
-            </div>
-            <p className="hidden shrink-0 text-[11px] text-muted-foreground md:block">
-              Scroll or drag · Arrow keys browse · R changes view · F flips
-            </p>
-            {onClickCard && (
-              <Button
-                className="min-w-44"
-                disabled={pending || !active || (!active.legal && !active.selected)}
-                onClick={activate}
-              >
-                {pending && <LoaderCircle className={cn(animationsEnabled() && "animate-spin")} />}
-                {pending ? "Waiting for response…" : actionText}
-              </Button>
-            )}
+      <FullscreenPrompt.Stage>
+        <ZoneBrowserCanvas
+          actionsRef={canvasRef}
+          items={visible}
+          activeId={active?.id ?? null}
+          inspection={state.inspection}
+          defaultRules={defaultRules}
+          pending={pending}
+          ringColor={color}
+          onActive={setActive}
+          onChange={changeInspection}
+        />
+        {!visible.length && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-muted-foreground">
+            {state.query ? "No cards match this search." : "No cards are visible in this zone."}
           </div>
-        </footer>
-      </div>
-    </Modal>
+        )}
+      </FullscreenPrompt.Stage>
+
+      <FullscreenPrompt.Footer>
+        <div className="min-w-0 flex-1" aria-live="polite">
+          <p className="truncate text-sm font-semibold">{activeName}</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {selectedCount > 0 ? `${selectedCount} selected · ` : ""}
+            {activeStatus}
+          </p>
+        </div>
+        <p className="hidden shrink-0 text-[11px] text-muted-foreground md:block">
+          Scroll or drag · Arrow keys browse · R changes view · F flips
+        </p>
+        {onClickCard && (
+          <Button
+            className="min-w-44"
+            disabled={pending || !active || (!active.legal && !active.selected)}
+            onClick={activate}
+          >
+            {pending && <LoaderCircle className={cn(animationsEnabled() && "animate-spin")} />}
+            {pending ? "Waiting for response…" : actionText}
+          </Button>
+        )}
+      </FullscreenPrompt.Footer>
+    </FullscreenPrompt>
   );
 }

@@ -121,11 +121,11 @@ When showing a source card thumbnail alongside a modal title:
 
 ### Mana text rendering
 
-Use the shared `TextWithMana` component for any text that may contain `{W}`, `{2}{R}`, etc.:
+Use `DynamicTextRender` for React text that may contain `{W}`, `{2}{R}`, etc. Pixi text uses `PixiRichText`, which shares the mana-symbol texture cache.
 
 ```tsx
-import { TextWithMana } from "@/components/game/TextWithMana";
-<TextWithMana text={description} manaSize="sm" />;
+import { DynamicTextRender } from "@/components/game/DynamicTextRender";
+<DynamicTextRender text={description} />;
 ```
 
 ---

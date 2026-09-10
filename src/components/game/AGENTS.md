@@ -77,13 +77,13 @@ Card browsers use `DialogCardBrowser`. It keeps search, collapsed type and color
 
 ## Mana text
 
-Any text that may contain `{W}`, `{2}{R}`, etc. renders through `DynamicTextRender` (`TextWithMana` no longer exists):
+React text that may contain `{W}`, `{2}{R}`, etc. renders through `DynamicTextRender`:
 
 ```tsx
 <DynamicTextRender className="align-middle" text={description} />
 ```
 
-Don't roll your own symbol parsing.
+Pixi text uses `PixiRichText` so it shares the mana-symbol cache and wrapping behavior. Reuse these renderers instead of parsing symbols in each caller.
 
 ## Sizing
 

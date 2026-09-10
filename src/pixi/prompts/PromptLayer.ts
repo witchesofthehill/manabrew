@@ -23,6 +23,7 @@ import { hexToNum } from "@/pixi/colorUtils";
 import { CardSprite } from "@/pixi/CardSprite";
 import { gameIconTexture } from "@/pixi/gameIconCache";
 import { loadManaSymbolTexture } from "@/pixi/manaSymbolCache";
+import { PixiRichText } from "@/pixi/cardPreview/PixiRichText";
 import { deckCardToPreviewDto } from "@/lib/scryfall.utils";
 import {
   ACTION_DRAWER_BUMP_EVENT,
@@ -246,6 +247,40 @@ function promptText(
   text.eventMode = "none";
   return text;
 }
+function promptRichText(
+  value: string,
+  size: number,
+  color: string,
+  width: number,
+  options: {
+    weight?: "400" | "500" | "600" | "700" | "800" | "900";
+    align?: "left" | "center";
+    style?: "normal" | "italic";
+    letterSpacing?: number;
+    lineHeight?: number;
+    maxLines?: number;
+  } = {},
+): PixiRichText {
+  const text = new PixiRichText();
+  text.setContent(
+    value,
+    new TextStyle({
+      fontFamily: FONT,
+      fontSize: size,
+      fontWeight: options.weight ?? "400",
+      fontStyle: options.style ?? "normal",
+      letterSpacing: options.letterSpacing ?? 0,
+      fill: hexToNum(color),
+      lineHeight: options.lineHeight ?? Math.ceil(size * 1.35),
+    }),
+    width,
+    Math.ceil(size * 1.15),
+    2,
+    { align: options.align, maxLines: options.maxLines },
+  );
+  text.eventMode = "none";
+  return text;
+}
 
 function parseCombatNumber(value?: string | null): number {
   if (!value) return 0;
@@ -257,6 +292,12 @@ interface ActionViewLayout {
   container: Container;
   width: number;
   height: number;
+}
+interface WaitingHourglassVisual {
+  container: Container;
+  topSand: Graphics;
+  bottomSand: Graphics;
+  stream: Graphics;
 }
 
 function runtimeActionView(
@@ -278,6 +319,10 @@ function runtimeActionView(
     default:
       return "promptRequired";
   }
+}
+function actionViewKey(action: PromptOverlaySpec["action"]): PromptActionViewKey {
+  if (action.promptActionOverride != null) return action.promptActionOverride;
+  return action.isWaitingForOthers ? "noAction" : runtimeActionView(action.promptType);
 }
 
 function promptTypeForView(
@@ -312,6 +357,157 @@ function actionTitle(promptType: PromptOverlaySpec["action"]["promptType"]): str
       return "Action Required";
   }
 }
+function isAutopassWindow(spec: PromptOverlaySpec | null): boolean {
+  const input = spec?.currentPrompt?.input;
+  return (
+    spec != null &&
+    input?.type === "chooseAction" &&
+    spec.action.promptActionOverride == null &&
+    !spec.action.isWaitingForResponse &&
+    !usePromptPreferencesStore.getState().fullControl &&
+    input.actions.every((action) => action.type === "activateAbility" && action.isManaAbility)
+  );
+}
+
+function sameArray<T>(
+  left: readonly T[],
+  right: readonly T[],
+  equal: (leftValue: T, rightValue: T) => boolean = Object.is,
+): boolean {
+  return (
+    left === right ||
+    (left.length === right.length && left.every((value, index) => equal(value, right[index]!)))
+  );
+}
+
+function sameRecord(left: Record<string, number>, right: Record<string, number>): boolean {
+  if (left === right) return true;
+  const leftKeys = Object.keys(left);
+  return (
+    leftKeys.length === Object.keys(right).length &&
+    leftKeys.every((key) => left[key] === right[key])
+  );
+}
+
+function samePayManaInfo(
+  left: PromptOverlaySpec["action"]["payManaCostInfo"],
+  right: PromptOverlaySpec["action"]["payManaCostInfo"],
+): boolean {
+  if (left === right) return true;
+  if (!left || !right) return false;
+  return (
+    left.cardName === right.cardName &&
+    left.sourceCard === right.sourceCard &&
+    left.manaCost === right.manaCost &&
+    left.description === right.description &&
+    sameRecord(left.manaPool, right.manaPool) &&
+    left.canConfirmFromPool === right.canConfirmFromPool &&
+    left.delveCount === right.delveCount &&
+    left.delveAvailable === right.delveAvailable &&
+    !!left.onOpenDelve === !!right.onOpenDelve &&
+    left.lifeToPay === right.lifeToPay &&
+    !!left.onPayLife === !!right.onPayLife
+  );
+}
+
+function sameActionPresentation(
+  left: PromptOverlaySpec["action"],
+  right: PromptOverlaySpec["action"],
+): boolean {
+  return (
+    left === right ||
+    (left.promptType === right.promptType &&
+      left.promptActionOverride === right.promptActionOverride &&
+      left.isWaitingForResponse === right.isWaitingForResponse &&
+      left.isWaitingForOthers === right.isWaitingForOthers &&
+      sameArray(left.availableAttackerIds, right.availableAttackerIds) &&
+      sameArray(left.pendingAttackers, right.pendingAttackers) &&
+      left.selectedAttackDefenderId === right.selectedAttackDefenderId &&
+      left.multipleAttackDefenders === right.multipleAttackDefenders &&
+      left.attackAssignmentCount === right.attackAssignmentCount &&
+      left.mustAttackHint === right.mustAttackHint &&
+      left.pendingAttacker === right.pendingAttacker &&
+      left.pendingBlocker === right.pendingBlocker &&
+      left.blockError === right.blockError &&
+      left.blockRequirementError === right.blockRequirementError &&
+      left.blockRestrictionHint === right.blockRestrictionHint &&
+      sameArray(left.attackerIds, right.attackerIds) &&
+      sameArray(
+        left.blockAssignments,
+        right.blockAssignments,
+        (a, b) => a.blockerId === b.blockerId && a.attackerId === b.attackerId,
+      ) &&
+      sameArray(
+        left.combatPairings,
+        right.combatPairings,
+        (a, b) =>
+          a.key === b.key &&
+          a.attacker === b.attacker &&
+          a.defender === b.defender &&
+          a.count === b.count,
+      ) &&
+      left.combatDefenderLife === right.combatDefenderLife &&
+      left.damageOrderCount === right.damageOrderCount &&
+      left.damageOrderTotal === right.damageOrderTotal &&
+      left.targetCompletionLabel === right.targetCompletionLabel &&
+      left.targetCompletionKind === right.targetCompletionKind &&
+      !!left.onCompleteTargets === !!right.onCompleteTargets &&
+      !!left.onOpenCombat === !!right.onOpenCombat &&
+      left.isMyTurn === right.isMyTurn &&
+      samePayManaInfo(left.payManaCostInfo, right.payManaCostInfo) &&
+      left.mulliganCount === right.mulliganCount &&
+      !!left.onMulliganKeep === !!right.onMulliganKeep &&
+      !!left.onMulliganDraw === !!right.onMulliganDraw &&
+      left.mulliganPutBackCount === right.mulliganPutBackCount &&
+      left.mulliganSelectedCount === right.mulliganSelectedCount &&
+      !!left.onMulliganPutBackConfirm === !!right.onMulliganPutBackConfirm &&
+      left.selfClusterMaxHeight === right.selfClusterMaxHeight &&
+      left.dividerY === right.dividerY &&
+      left.dimmed === right.dimmed)
+  );
+}
+function sameGameOverPresentation(
+  left: PromptOverlaySpec["gameOver"] | undefined,
+  right: PromptOverlaySpec["gameOver"] | undefined,
+): boolean {
+  if (left === right) return true;
+  if (!left || !right) return false;
+  return (
+    left.winnerId === right.winnerId &&
+    left.me === right.me &&
+    sameArray(left.opponents, right.opponents) &&
+    left.turn === right.turn
+  );
+}
+
+function samePromptPresentation(
+  left: PromptOverlaySpec | null,
+  right: PromptOverlaySpec | null,
+): boolean {
+  if (left === right) return true;
+  if (!left || !right) return false;
+  if (
+    left.currentPrompt !== right.currentPrompt ||
+    left.gameView !== right.gameView ||
+    left.sourceDeckCard !== right.sourceDeckCard ||
+    left.modalHidden !== right.modalHidden ||
+    !sameActionPresentation(left.action, right.action)
+  ) {
+    return false;
+  }
+  if (left.damageOrder !== right.damageOrder) {
+    if (!left.damageOrder || !right.damageOrder) return false;
+    if (
+      left.damageOrder.attackerName !== right.damageOrder.attackerName ||
+      !sameArray(left.damageOrder.blockerCards, right.damageOrder.blockerCards) ||
+      !sameArray(left.damageOrder.order, right.damageOrder.order)
+    ) {
+      return false;
+    }
+  }
+  if (!sameGameOverPresentation(left.gameOver, right.gameOver)) return false;
+  return true;
+}
 
 export class PromptLayer {
   readonly container = new Container();
@@ -319,7 +515,6 @@ export class PromptLayer {
   private theme: Theme;
   private readonly callbacks: PromptLayerCallbacks;
   private spec: PromptOverlaySpec | null = null;
-  private promptKey: unknown = null;
   private viewportWidth = 0;
   private viewportHeight = 0;
   private actionBounds: Rectangle | null = null;
@@ -377,7 +572,8 @@ export class PromptLayer {
   private actionFeedbackEndTurn = false;
   private priorityButtons: { pass: PromptButton; end: PromptButton | null } | null = null;
   private actionPulseNodes: Array<{ node: Container; maxAlpha: number }> = [];
-  private actionHourglass: Sprite | null = null;
+  private waitingTimeline: gsap.core.Timeline | null = null;
+  private waitingAnimationActive = false;
   private entranceKey: object | string | null = null;
   private entranceTween: gsap.core.Tween | null = null;
   private actionLongPress = new LongPressGesture();
@@ -472,10 +668,11 @@ export class PromptLayer {
   }
 
   setSpec(spec: PromptOverlaySpec | null): void {
+    const previousSpec = this.spec;
     const hadPriority =
-      this.spec?.action.promptType === "chooseAction" &&
-      !this.spec.action.isWaitingForResponse &&
-      !this.spec.action.isWaitingForOthers;
+      previousSpec?.action.promptType === "chooseAction" &&
+      !previousSpec.action.isWaitingForResponse &&
+      !previousSpec.action.isWaitingForOthers;
     const hasPriority =
       spec?.action.promptType === "chooseAction" &&
       !spec.action.isWaitingForResponse &&
@@ -485,19 +682,24 @@ export class PromptLayer {
       this.actionPromptType = nextActionPromptType;
       this.actionContextOpen = false;
     }
-    const nextKey = spec?.currentPrompt ?? spec?.gameOver ?? null;
-    const promptChanged = nextKey !== this.promptKey;
+    const promptChanged =
+      previousSpec?.currentPrompt !== spec?.currentPrompt ||
+      !sameGameOverPresentation(previousSpec?.gameOver, spec?.gameOver);
+    const overrideChanged =
+      previousSpec?.action.promptActionOverride !== spec?.action.promptActionOverride;
+    const presentationChanged = promptChanged || !samePromptPresentation(previousSpec, spec);
     if (promptChanged) {
-      this.promptKey = nextKey;
       this.resetLocalState(spec);
       if (spec?.currentPrompt && MODAL_TYPES.has(spec.currentPrompt.input.type)) {
         spec.onShowModal();
       }
     }
     this.spec = spec;
+    if (!promptChanged && overrideChanged) this.resetAutopassState();
     const modalUnavailable = !!spec?.modalHidden || !!spec?.action.isWaitingForResponse;
     if (modalUnavailable) this.selectionFilterFocused = false;
     if (this.drag && !promptChanged && !modalUnavailable) return;
+    if (!presentationChanged) return;
     this.rebuild();
     if (hasPriority && (promptChanged || !hadPriority)) this.flashActionGlow();
   }
@@ -545,6 +747,7 @@ export class PromptLayer {
     if (this.rollHighlightText) gsap.killTweensOf(this.rollHighlightText);
     this.clearScryCardTiles();
     this.actionGlowTween?.kill();
+    this.stopWaitingAnimation();
     gsap.killTweensOf(this.actionFeedback);
     this.clearReorderCardVisuals();
     this.container.destroy({ children: true });
@@ -593,18 +796,14 @@ export class PromptLayer {
         ...Object.fromEntries(input.zones.map((_, index) => [`zone-${index}`, []])),
       };
     }
-    if (
-      input.type === "chooseAction" &&
-      spec.gameView.stack.length === 0 &&
-      !usePromptPreferencesStore.getState().fullControl &&
-      input.actions.every((action) => action.type === "activateAbility" && action.isManaAbility)
-    ) {
+    if (isAutopassWindow(spec)) {
       this.autopassTotalMs =
         AUTOPASS_DELAY_MIN_MS + Math.random() * (AUTOPASS_DELAY_MAX_MS - AUTOPASS_DELAY_MIN_MS);
       this.autopassRemainingMs = this.autopassTotalMs;
     }
   }
   private rebuild(): void {
+    this.stopWaitingAnimation();
     this.activePromptCard = null;
     this.callbacks.onReferenceChange?.(null);
     this.cancelDrag();
@@ -619,7 +818,6 @@ export class PromptLayer {
     this.priorityButtons = null;
     this.actionGlow = null;
     this.actionPulseNodes = [];
-    this.actionHourglass = null;
     this.modalOpen = false;
     this.modalBody = null;
     this.container.removeChildren().forEach((child) => child.destroy({ children: true }));
@@ -788,23 +986,16 @@ export class PromptLayer {
     if (
       action.promptType === "gameOver" ||
       !action.selfClusterMaxHeight ||
-      action.selfClusterMaxHeight <= 0 ||
-      (minimal && action.dimmed)
+      action.selfClusterMaxHeight <= 0
     ) {
       this.container.visible = false;
       return;
     }
 
-    const runtimeView =
-      action.isWaitingForOthers && action.promptType !== "chooseAction"
-        ? "noAction"
-        : runtimeActionView(action.promptType);
-    const viewKey = action.promptActionOverride ?? runtimeView;
+    const viewKey = actionViewKey(action);
     const effectivePromptType = promptTypeForView(action.promptType, action.promptActionOverride);
     const preview = action.promptActionOverride != null;
-    const isNoActionView = action.promptActionOverride
-      ? viewKey === "noAction"
-      : !action.promptType || action.isWaitingForOthers;
+    const isNoActionView = viewKey === "noAction";
     const hasAction = !isNoActionView;
     const showPriorityMode = action.promptActionOverride
       ? viewKey === "chooseAction" || viewKey === "noAction"
@@ -958,6 +1149,7 @@ export class PromptLayer {
 
     this.container.addChild(panel);
     this.actionBounds = new Rectangle(x, y, width, panelHeight);
+    if (minimal && action.dimmed) this.container.visible = false;
   }
 
   private buildActionView(
@@ -1503,24 +1695,101 @@ export class PromptLayer {
     const container = new Container();
     const width = minimal ? 30 : availableWidth;
     const height = minimal ? 40 : 48;
-    const hourglass = this.makeIcon(
-      "lucide-hourglass",
-      14,
-      this.theme.appTheme["muted-foreground"],
-    );
-    hourglass.position.set(minimal ? width / 2 : width / 2 - 69, height / 2);
-    container.addChild(hourglass);
-    this.actionHourglass = hourglass;
-    if (!minimal) {
-      const label = promptText("WAITING FOR OTHERS", 11, this.theme.appTheme["muted-foreground"], {
+    const color = this.theme.appTheme["muted-foreground"];
+    const hourglassWidth = 21;
+    const labelGap = 11;
+    const hourglass = this.makeWaitingHourglass(color);
+    if (minimal) {
+      hourglass.container.position.set(width / 2, height / 2);
+      container.addChild(hourglass.container);
+    } else {
+      const label = promptText("WAITING FOR OTHERS", 11, color, {
         weight: "600",
         letterSpacing: 1.54,
       });
-      label.anchor.set(0.5);
-      label.position.set(width / 2 + 10, height / 2);
-      container.addChild(label);
+      label.anchor.set(0, 0.5);
+      label.alpha = 0.9;
+      const groupWidth = hourglassWidth + labelGap + label.width;
+      const groupX = Math.max(0, (width - groupWidth) / 2);
+      hourglass.container.position.set(groupX + hourglassWidth / 2, height / 2);
+      label.position.set(groupX + hourglassWidth + labelGap, height / 2);
+      container.addChild(hourglass.container, label);
     }
+    this.startWaitingAnimation(hourglass);
     return { container, width, height };
+  }
+
+  private makeWaitingHourglass(color: string): WaitingHourglassVisual {
+    const colorValue = hexToNum(color);
+    const container = new Container();
+    container.eventMode = "none";
+    const topSand = new Graphics()
+      .moveTo(-5.45, -7)
+      .quadraticCurveTo(-5.7, -7, -5.7, -6.75)
+      .bezierCurveTo(-5.2, -5.2, -1.65, -1.3, -1.25, 0)
+      .lineTo(1.25, 0)
+      .bezierCurveTo(1.65, -1.3, 5.2, -5.2, 5.7, -6.75)
+      .quadraticCurveTo(5.7, -7, 5.45, -7)
+      .closePath()
+      .fill({ color: colorValue, alpha: 0.92 });
+    topSand.position.y = -1;
+    const bottomSand = new Graphics()
+      .moveTo(-5.45, 0)
+      .quadraticCurveTo(-5.7, 0, -5.7, -0.25)
+      .bezierCurveTo(-5.2, -1.8, -1.65, -5.7, -1.25, -7)
+      .lineTo(1.25, -7)
+      .bezierCurveTo(1.65, -5.7, 5.2, -1.8, 5.7, -0.25)
+      .quadraticCurveTo(5.7, 0, 5.45, 0)
+      .closePath()
+      .fill({ color: colorValue, alpha: 0.92 });
+    bottomSand.position.y = 8;
+    const stream = new Graphics()
+      .roundRect(-0.7, -1, 1.4, 9, 0.7)
+      .fill({ color: colorValue, alpha: 0.92 });
+    const glass = new Graphics()
+      .moveTo(-7.1, -9)
+      .bezierCurveTo(-7, -4.7, -2.35, -2.3, -1.5, 0)
+      .bezierCurveTo(-2.35, 2.3, -7, 4.7, -7.1, 9)
+      .moveTo(7.1, -9)
+      .bezierCurveTo(7, -4.7, 2.35, -2.3, 1.5, 0)
+      .bezierCurveTo(2.35, 2.3, 7, 4.7, 7.1, 9)
+      .stroke({ color: colorValue, width: 1.2, alpha: 0.58, cap: "round" });
+    const frame = new Graphics()
+      .roundRect(-9.6, -10.7, 19.2, 2.6, 1.3)
+      .roundRect(-9.6, 8.1, 19.2, 2.6, 1.3)
+      .fill({ color: colorValue, alpha: 0.92 });
+    container.addChild(topSand, bottomSand, stream, glass, frame);
+    return { container, topSand, bottomSand, stream };
+  }
+
+  private startWaitingAnimation(hourglass: WaitingHourglassVisual): void {
+    const enabled = animationsEnabled();
+    hourglass.container.rotation = 0;
+    hourglass.container.scale.set(1);
+    hourglass.topSand.scale.y = 1;
+    hourglass.bottomSand.scale.y = 0.04;
+    hourglass.bottomSand.alpha = 0.22;
+    hourglass.stream.scale.y = 0.1;
+    hourglass.stream.alpha = 0;
+    const timeline = gsap.timeline({ paused: !enabled, repeat: -1, repeatDelay: 0.35 });
+    timeline
+      .to(hourglass.stream, { alpha: 0.92, duration: 0.12, ease: "power2.out" }, 0.12)
+      .to(hourglass.stream.scale, { y: 1, duration: 0.18, ease: "power2.out" }, 0.12)
+      .to(hourglass.topSand.scale, { y: 0.08, duration: 1.35, ease: "power1.in" }, 0.18)
+      .to(hourglass.bottomSand, { alpha: 0.92, duration: 0.3, ease: "sine.out" }, 0.18)
+      .to(hourglass.bottomSand.scale, { y: 1, duration: 1.35, ease: "power1.out" }, 0.18)
+      .to(hourglass.stream, { alpha: 0, duration: 0.18, ease: "power2.in" }, 1.38)
+      .to(hourglass.container.scale, { x: 1.06, y: 0.9, duration: 0.1, ease: "power2.in" }, 1.73)
+      .to(hourglass.container, { rotation: Math.PI, duration: 0.44, ease: "power3.inOut" }, 1.81)
+      .to(hourglass.container.scale, { x: 1, y: 1, duration: 0.2, ease: "back.out(1.8)" }, 2.08);
+    this.waitingTimeline = timeline;
+    this.waitingAnimationActive = enabled;
+  }
+
+  private stopWaitingAnimation(): void {
+    this.waitingTimeline?.kill();
+    this.waitingTimeline = null;
+    this.waitingAnimationActive = false;
   }
 
   private promptSourceCard(): CardDto | null {
@@ -1718,14 +1987,13 @@ export class PromptLayer {
     crosshair.position.set(14, 18);
     crosshair.alpha = 0.8;
     this.actionPulseNodes.push({ node: crosshair, maxAlpha: 0.8 });
-    const text = promptText(label, 12, this.theme.gameTheme.textOnTinted, {
+    const text = promptRichText(label, 12, this.theme.gameTheme.textOnTinted, stripWidth - 38, {
       weight: "600",
-      width: stripWidth - 38,
-      truncate: true,
+      align: "center",
       letterSpacing: 0.3,
+      maxLines: 1,
     });
-    text.anchor.set(0.5);
-    text.position.set(stripWidth / 2 + 6, 18);
+    text.position.set(32, (36 - text.height) / 2);
     text.alpha = 0.8;
     strip.addChild(stripBackground, crosshair, text);
     if (minimal) {
@@ -1793,16 +2061,20 @@ export class PromptLayer {
         source.position.set(0, 0);
         container.addChild(source);
         const description = info.description || `Cast ${info.cardName} for ${info.manaCost}`;
-        const text = promptText(description, 12, this.theme.appTheme["muted-foreground"], {
-          width: availableWidth - 68,
-        });
+        const text = promptRichText(
+          description,
+          12,
+          this.theme.appTheme["muted-foreground"],
+          availableWidth - 68,
+        );
         text.position.set(68, 4);
         container.addChild(text);
         if (info.delveCount) {
-          const delved = promptText(
+          const delved = promptRichText(
             `Delved for {${info.delveCount}}`,
             12,
             this.theme.appTheme["muted-foreground"],
+            availableWidth - 68,
           );
           delved.position.set(68, 8 + text.height);
           container.addChild(delved);
@@ -1812,12 +2084,14 @@ export class PromptLayer {
       }
     } else if (!minimal && info) {
       const description = info.description || `Cast ${info.cardName} for ${info.manaCost}`;
-      const text = promptText(description, 12, this.theme.appTheme["muted-foreground"], {
-        width: availableWidth,
-        align: "center",
-      });
-      text.anchor.set(0.5, 0);
-      text.position.set(availableWidth / 2, 0);
+      const text = promptRichText(
+        description,
+        12,
+        this.theme.appTheme["muted-foreground"],
+        availableWidth,
+        { align: "center" },
+      );
+      text.position.set(0, 0);
       container.addChild(text);
       y = text.height + 8;
       width = availableWidth;
@@ -2173,15 +2447,7 @@ export class PromptLayer {
   private resetAutopassState(): void {
     this.autopassRemainingMs = null;
     this.autopassTotalMs = 0;
-    const input = this.spec?.currentPrompt?.input;
-    if (
-      input?.type !== "chooseAction" ||
-      this.spec?.gameView.stack.length !== 0 ||
-      usePromptPreferencesStore.getState().fullControl ||
-      !input.actions.every((action) => action.type === "activateAbility" && action.isManaAbility)
-    ) {
-      return;
-    }
+    if (!isAutopassWindow(this.spec)) return;
     this.autopassTotalMs =
       AUTOPASS_DELAY_MIN_MS + Math.random() * (AUTOPASS_DELAY_MAX_MS - AUTOPASS_DELAY_MIN_MS);
     this.autopassRemainingMs = this.autopassTotalMs;
@@ -2409,9 +2675,7 @@ export class PromptLayer {
     popover.addChild(title);
     let y = 8 + title.height + 6;
     for (const line of lines) {
-      const text = promptText(line, 11, this.theme.appTheme["muted-foreground"], {
-        width: width - 24,
-      });
+      const text = promptRichText(line, 11, this.theme.appTheme["muted-foreground"], width - 24);
       text.position.set(12, y);
       popover.addChild(text);
       y += text.height + 4;
@@ -2579,32 +2843,36 @@ export class PromptLayer {
     }
     const titleX =
       sourceSprite && !externalSource ? PANEL_PADDING + sourceWidth + 16 : PANEL_PADDING;
-    const title = promptText(
+    const title = promptRichText(
       presentation.title,
       this.viewportWidth < 760 ? 18 : 22,
       this.theme.appTheme.foreground,
-      {
-        weight: "700",
-        width: width - titleX - 50,
-      },
+      width - titleX - 50,
+      { weight: "700" },
     );
     title.position.set(titleX, 16);
     panel.addChild(title);
     let bodyTop = 16 + title.height + 8;
     if (sourceSprite && !externalSource) bodyTop = Math.max(bodyTop, 16 + sourceSprite.height + 8);
     if (presentation.description) {
-      const description = promptText(presentation.description, 14, this.theme.appTheme.foreground, {
-        width: width - PANEL_PADDING * 2,
-      });
+      const description = promptRichText(
+        presentation.description,
+        14,
+        this.theme.appTheme.foreground,
+        width - PANEL_PADDING * 2,
+      );
       description.alpha = 0.9;
       description.position.set(PANEL_PADDING, bodyTop);
       panel.addChild(description);
       bodyTop += description.height + 6;
     }
     if (presentation.text) {
-      const rules = promptText(presentation.text, 12, this.theme.appTheme["muted-foreground"], {
-        width: width - PANEL_PADDING * 2,
-      });
+      const rules = promptRichText(
+        presentation.text,
+        12,
+        this.theme.appTheme["muted-foreground"],
+        width - PANEL_PADDING * 2,
+      );
       rules.position.set(PANEL_PADDING, bodyTop);
       panel.addChild(rules);
       bodyTop += rules.height + 8;
@@ -2993,11 +3261,13 @@ export class PromptLayer {
       }
 
       const quantityWidth = option.canRepeat ? 102 : 0;
-      const label = promptText(option.label, 13, this.theme.appTheme.foreground, {
-        weight: "600",
-        width: availableWidth - 58 - quantityWidth,
-        truncate: true,
-      });
+      const label = promptRichText(
+        option.label,
+        13,
+        this.theme.appTheme.foreground,
+        availableWidth - 58 - quantityWidth,
+        { weight: "600", maxLines: 1 },
+      );
       label.position.set(42, showWeights ? 10 : 19);
       row.addChild(label);
       if (showWeights) {
@@ -5836,47 +6106,33 @@ export class PromptLayer {
 
   update(deltaMs: number): void {
     const elapsed = performance.now();
+    const motionEnabled = animationsEnabled();
     this.updateDragMotion(deltaMs);
     this.syncActionFeedback(elapsed);
     if (this.selectionFilterView) {
       this.selectionFilterView.caret.visible =
         this.selectionFilterFocused &&
-        (!animationsEnabled() ||
+        (!motionEnabled ||
           (elapsed - this.selectionFilterBlinkAt) % FILTER_CARET_PERIOD_MS <
             FILTER_CARET_PERIOD_MS / 2);
     }
-    if (!animationsEnabled() && this.entranceTween) this.entranceTween.progress(1);
-    if (animationsEnabled()) {
+    if (!motionEnabled && this.entranceTween) this.entranceTween.progress(1);
+    if (this.waitingTimeline && motionEnabled !== this.waitingAnimationActive) {
+      this.waitingAnimationActive = motionEnabled;
+      if (motionEnabled) this.waitingTimeline.restart();
+      else this.waitingTimeline.pause(0);
+    }
+    if (motionEnabled) {
       const actionPulse = (1 - Math.cos((elapsed / 3600) * Math.PI * 2)) / 2;
       for (const { node, maxAlpha } of this.actionPulseNodes) {
         node.alpha = maxAlpha * (0.8 + actionPulse * 0.2);
       }
-      if (this.actionHourglass) {
-        const phase = (elapsed % 2400) / 2400;
-        this.actionHourglass.rotation =
-          phase < 0.4
-            ? 0
-            : phase < 0.5
-              ? ((1 - Math.cos(((phase - 0.4) / 0.1) * Math.PI)) / 2) * Math.PI
-              : phase < 0.9
-                ? Math.PI
-                : Math.PI + ((1 - Math.cos(((phase - 0.9) / 0.1) * Math.PI)) / 2) * Math.PI;
-      }
     } else {
       for (const { node, maxAlpha } of this.actionPulseNodes) node.alpha = maxAlpha;
-      if (this.actionHourglass) this.actionHourglass.rotation = 0;
     }
 
     if (this.autopassRemainingMs != null) {
-      const input = this.spec?.currentPrompt?.input;
-      const canAutopass =
-        input?.type === "chooseAction" &&
-        this.spec?.gameView.stack.length === 0 &&
-        input.actions.every(
-          (action) => action.type === "activateAbility" && action.isManaAbility,
-        ) &&
-        !this.spec.action.isWaitingForResponse &&
-        !usePromptPreferencesStore.getState().fullControl;
+      const canAutopass = isAutopassWindow(this.spec);
       if (!canAutopass) {
         this.autopassRemainingMs = null;
         this.autopassTotalMs = 0;

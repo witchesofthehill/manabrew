@@ -7,8 +7,26 @@ let activationSequence = 0;
 
 async function loadMessages(locale: AppLocale) {
   switch (locale) {
+    case "de":
+      return import("@/i18n/locales/de/messages.po");
     case "es":
       return import("@/i18n/locales/es/messages.po");
+    case "fr":
+      return import("@/i18n/locales/fr/messages.po");
+    case "it":
+      return import("@/i18n/locales/it/messages.po");
+    case "ja":
+      return import("@/i18n/locales/ja/messages.po");
+    case "ko":
+      return import("@/i18n/locales/ko/messages.po");
+    case "pt":
+      return import("@/i18n/locales/pt/messages.po");
+    case "ru":
+      return import("@/i18n/locales/ru/messages.po");
+    case "zh-Hans":
+      return import("@/i18n/locales/zh-Hans/messages.po");
+    case "zh-Hant":
+      return import("@/i18n/locales/zh-Hant/messages.po");
     case "en":
       return import("@/i18n/locales/en/messages.po");
   }

@@ -1,4 +1,4 @@
-import { searchCards } from "@/api/scryfall";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import { frontFaceName } from "@/lib/scryfall.utils";
 
 /** Normalize a card name for cross-source matching: front face only, lowercased.
@@ -18,7 +18,9 @@ export function fetchGameChangers(): Promise<Set<string>> {
       const names = new Set<string>();
       let page = 1;
       for (;;) {
-        const result = await searchCards("is:gamechanger", page, "name");
+        const result = await useScryfallStore
+          .getState()
+          .searchCards("is:gamechanger lang:en", page, "name");
         for (const card of result.data) names.add(normalizeCardName(card.name));
         if (!result.has_more) break;
         page += 1;

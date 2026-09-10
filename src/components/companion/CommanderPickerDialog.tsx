@@ -12,9 +12,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { searchCards } from "@/api/scryfall";
+import { scryfallDisplayName, scryfallDisplayTypeLine } from "@/lib/scryfall.utils";
 import type { ScryfallCard } from "@/types/scryfall";
 import { useCompanionStore } from "@/stores/useCompanionStore";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { CompanionCommanderRef } from "@/stores/useCompanionStore.types";
 
 interface CommanderPickerDialogProps {
@@ -159,7 +160,9 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
     debounceRef.current = setTimeout(() => {
       setLoading(true);
       setError(null);
-      searchCards(`${trimmed} -is:digital`, 1, "name", "asc")
+      useScryfallStore
+        .getState()
+        .searchCards(`${trimmed} -is:digital`, 1, "name", "asc")
         .then((response) => {
           setResults(response.data.slice(0, 12));
           setLoading(false);
@@ -232,6 +235,7 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
               card.card_faces?.[0]?.image_uris?.art_crop ??
               card.image_uris?.small ??
               card.card_faces?.[0]?.image_uris?.small;
+            const displayName = scryfallDisplayName(card);
             return (
               <li key={card.id}>
                 <button
@@ -256,9 +260,9 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
                     />
                   )}
                   <div className="flex flex-col">
-                    <span className="font-medium">{card.name}</span>
+                    <span className="font-medium">{displayName}</span>
                     <span className="text-xs text-muted-foreground">
-                      {card.type_line} · {card.set.toUpperCase()}
+                      {scryfallDisplayTypeLine(card)} · {card.set.toUpperCase()}
                     </span>
                   </div>
                 </button>

@@ -1,11 +1,12 @@
 import { Loader2, Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 
-import { searchCards } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { scryfallDisplayName } from "@/lib/scryfall.utils";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { ScryfallCard } from "@/types/scryfall";
 
 interface CollectionQuickAddProps {
@@ -48,7 +49,9 @@ export function CollectionQuickAdd({
       return;
     }
     setLoading(true);
-    searchCards(`${query} -is:digital -is:funny`, 1)
+    useScryfallStore
+      .getState()
+      .searchCards(`${query} -is:digital -is:funny`, 1)
       .then((response) => {
         if (searchId !== searchIdRef.current) return;
         setResults(response.data.slice(0, 20));
@@ -176,6 +179,7 @@ export function CollectionQuickAdd({
           </div>
           {results.map((card, index) => {
             const thumbnail = card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small;
+            const displayName = scryfallDisplayName(card);
             return (
               <div
                 key={card.id}
@@ -192,7 +196,7 @@ export function CollectionQuickAdd({
                 <button
                   type="button"
                   className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left"
-                  title={`Add one ${card.name}`}
+                  title={`Add one ${displayName}`}
                   onClick={() => add(card)}
                 >
                   {thumbnail && (
@@ -202,7 +206,7 @@ export function CollectionQuickAdd({
                       className="h-11 w-8 shrink-0 rounded object-cover object-top"
                     />
                   )}
-                  <span className="min-w-0 flex-1 truncate text-xs font-medium">{card.name}</span>
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium">{displayName}</span>
                   <span className="shrink-0 text-[10px] text-muted-foreground">
                     {getCount(card.name)} owned
                   </span>
@@ -211,7 +215,7 @@ export function CollectionQuickAdd({
                 <button
                   type="button"
                   className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground"
-                  title={`Add multiple ${card.name}`}
+                  title={`Add multiple ${displayName}`}
                   onClick={() => {
                     setQuantity(1);
                     setQuantityCard(card);

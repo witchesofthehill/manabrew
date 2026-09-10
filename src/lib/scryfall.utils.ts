@@ -31,6 +31,14 @@ export function frontFaceName(name: string): string {
   return i >= 0 ? name.slice(0, i) : name;
 }
 
+export function scryfallDisplayName(card: ScryfallCard): string {
+  return card.printed_name ?? card.name;
+}
+
+export function scryfallDisplayTypeLine(card: ScryfallCard): string {
+  return card.printed_type_line ?? card.type_line;
+}
+
 function getFrontTypeLine(sc: ScryfallCard): string {
   if (sc.type_line) return sc.type_line.split("//")[0].trim();
   return sc.card_faces?.[0]?.type_line ?? "";

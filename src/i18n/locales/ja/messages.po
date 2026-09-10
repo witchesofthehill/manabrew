@@ -1,11 +1,11 @@
 msgid ""
 msgstr ""
-"POT-Creation-Date: 2026-09-10 12:02+0100\n"
+"POT-Creation-Date: 2026-09-10 12:38+0100\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: @lingui/cli\n"
-"Language: en\n"
+"Language: ja\n"
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "PO-Revision-Date: \n"
@@ -15,252 +15,252 @@ msgstr ""
 
 #: src/components/layout/navDestinations.ts:79
 msgid "About"
-msgstr "About"
+msgstr "概要"
 
 #: src/components/layout/TopBar.tsx:86
 msgid "About Manabrew"
-msgstr "About Manabrew"
+msgstr "Manabrew について"
 
 #: src/components/layout/AccountMenu.tsx:104
 #: src/components/layout/AccountMenu.tsx:153
 msgid "Account"
-msgstr "Account"
+msgstr "アカウント"
 
 #: src/components/layout/AccountMenu.tsx:102
 msgid "Account menu"
-msgstr "Account menu"
+msgstr "アカウントメニュー"
 
 #. placeholder {0}: signedInAccount.handle
 #: src/components/layout/AccountMenu.tsx:102
 msgid "Account: @{0}"
-msgstr "Account: @{0}"
+msgstr "アカウント：@{0}"
 
 #: src/components/ErrorBoundary.tsx:39
 msgid "An unexpected error occurred."
-msgstr "An unexpected error occurred."
+msgstr "予期しないエラーが発生しました。"
 
 #: src/components/settings/LanguagePreferenceCard.tsx:23
 msgid "Application language"
-msgstr "Application language"
+msgstr "アプリケーションの言語"
 
 #: src/components/layout/TopBar.tsx:165
 #: src/components/layout/TopBar.tsx:168
 msgid "Back"
-msgstr "Back"
+msgstr "戻る"
 
 #: src/components/layout/TopBar.tsx:65
 msgid "Booster Draft"
-msgstr "Booster Draft"
+msgstr "ブースター・ドラフト"
 
 #: src/components/layout/TopBar.tsx:92
 msgid "Card Face Gallery"
-msgstr "Card Face Gallery"
+msgstr "カード画像ギャラリー"
 
 #: src/components/layout/navDestinations.ts:72
 #: src/components/layout/TopBar.tsx:42
 msgid "Card Search"
-msgstr "Card Search"
+msgstr "カード検索"
 
 #: src/components/settings/LanguagePreferenceCard.tsx:17
 msgid "Changes menus and card printings when a translation is available."
-msgstr "Changes menus and card printings when a translation is available."
+msgstr "翻訳が利用可能な場合、メニューとカードの表示言語を変更します。"
 
 #: src/components/layout/navDestinations.ts:60
 #: src/components/layout/TopBar.tsx:59
 msgid "Community"
-msgstr "Community"
+msgstr "コミュニティ"
 
 #: src/App.tsx:81
 msgid "Couldn't load your saved decks — they're left untouched on disk. Please contact the developer."
-msgstr "Couldn't load your saved decks — they're left untouched on disk. Please contact the developer."
+msgstr "保存済みのデッキを読み込めませんでした。ディスク上のデータは変更されていません。開発者にお問い合わせください。"
 
 #: src/App.tsx:73
 msgid "Cross-origin isolation is enabled."
-msgstr "Cross-origin isolation is enabled."
+msgstr "クロスオリジン分離が有効です。"
 
 #. placeholder {0}: APP_LOCALES[activeLocale].label
 #: src/components/settings/LanguagePreferenceCard.tsx:35
 msgid "Currently using {0}"
-msgstr "Currently using {0}"
+msgstr "現在 {0} を使用中"
 
 #: src/components/layout/TopBar.tsx:47
 msgid "Deck Editor"
-msgstr "Deck Editor"
+msgstr "デッキエディター"
 
 #: src/App.tsx:56
 msgid "Deployment is missing cross-origin isolation. SharedArrayBuffer game flow will fail."
-msgstr "Deployment is missing cross-origin isolation. SharedArrayBuffer game flow will fail."
+msgstr "デプロイ環境でクロスオリジン分離が有効になっていません。SharedArrayBuffer を使用するゲーム進行は動作しません。"
 
 #: src/components/layout/navDestinations.ts:81
 #: src/components/layout/TopBar.tsx:89
 msgid "Design System"
-msgstr "Design System"
+msgstr "デザインシステム"
 
 #: src/components/layout/TopBar.tsx:117
 msgid "Downloading…"
-msgstr "Downloading…"
+msgstr "ダウンロード中…"
 
 #: src/components/layout/TopBar.tsx:118
 msgid "Downloading… {progress}%"
-msgstr "Downloading… {progress}%"
+msgstr "ダウンロード中… {progress}%"
 
 #: src/components/layout/AccountMenu.tsx:139
 #: src/components/layout/AccountMenu.tsx:140
 msgid "Exit fullscreen"
-msgstr "Exit fullscreen"
+msgstr "フルスクリーンを終了"
 
 #: src/components/layout/AccountMenu.tsx:139
 #: src/components/layout/AccountMenu.tsx:140
 msgid "Fullscreen"
-msgstr "Fullscreen"
+msgstr "フルスクリーン"
 
 #: src/components/layout/TopBar.tsx:77
 msgid "Gauntlet"
-msgstr "Gauntlet"
+msgstr "ガントレット"
 
 #: src/components/ErrorBoundary.tsx:57
 #: src/router.tsx:44
 msgid "Go Home"
-msgstr "Go Home"
+msgstr "ホームへ"
 
 #: src/components/layout/AccountMenu.tsx:128
 msgid "Guest"
-msgstr "Guest"
+msgstr "ゲスト"
 
 #. placeholder {0}: this.props.context
 #: src/components/ErrorBoundary.tsx:36
 msgid "in {0}"
-msgstr "in {0}"
+msgstr "{0}で"
 
 #: src/App.tsx:49
 msgid "In-browser engines are unavailable. Forge games will use a hosted engine."
-msgstr "In-browser engines are unavailable. Forge games will use a hosted engine."
+msgstr "ブラウザ内エンジンは利用できません。Forge のゲームではホスト型エンジンが使用されます。"
 
 #: src/components/settings/LanguagePreferenceCard.tsx:16
 msgid "Language"
-msgstr "Language"
+msgstr "言語"
 
 #: src/components/layout/navDestinations.ts:73
 #: src/components/layout/TopBar.tsx:80
 msgid "Life Tracker"
-msgstr "Life Tracker"
+msgstr "ライフカウンター"
 
 #: src/components/layout/TopBar.tsx:175
 msgid "Manabrew Home"
-msgstr "Manabrew Home"
+msgstr "Manabrew ホーム"
 
 #: src/components/layout/NavSheet.tsx:87
 #: src/components/layout/NavSheet.tsx:90
 #: src/components/layout/NavSheet.tsx:93
 msgid "Menu"
-msgstr "Menu"
+msgstr "メニュー"
 
 #: src/components/layout/NavSheet.tsx:99
 msgid "More"
-msgstr "More"
+msgstr "その他"
 
 #: src/components/layout/navDestinations.ts:55
 #: src/components/layout/TopBar.tsx:39
 msgid "Multiplayer"
-msgstr "Multiplayer"
+msgstr "マルチプレイヤー"
 
 #: src/components/layout/TopBar.tsx:62
 msgid "Multiplayer Draft"
-msgstr "Multiplayer Draft"
+msgstr "マルチプレイヤー・ドラフト"
 
 #: src/components/layout/navDestinations.ts:66
 #: src/components/layout/TopBar.tsx:53
 msgid "My Collection"
-msgstr "My Collection"
+msgstr "マイコレクション"
 
 #: src/components/layout/navDestinations.ts:56
 #: src/components/layout/TopBar.tsx:48
 msgid "My Decks"
-msgstr "My Decks"
+msgstr "マイデッキ"
 
 #: src/router.tsx:38
 msgid "Page Not Found"
-msgstr "Page Not Found"
+msgstr "ページが見つかりません"
 
 #: src/components/layout/NavSheet.tsx:95
 msgid "Play"
-msgstr "Play"
+msgstr "プレイ"
 
 #: src/components/layout/TopBar.tsx:36
 msgid "Play Deck"
-msgstr "Play Deck"
+msgstr "デッキをプレイ"
 
 #: src/components/layout/navDestinations.ts:54
 #: src/components/layout/TopBar.tsx:30
 #: src/components/layout/TopBar.tsx:33
 msgid "Play Offline"
-msgstr "Play Offline"
+msgstr "オフラインでプレイ"
 
 #: src/components/layout/AccountMenu.tsx:131
 msgid "Playing as a guest"
-msgstr "Playing as a guest"
+msgstr "ゲストとしてプレイ中"
 
 #: src/components/layout/AccountMenu.tsx:172
 #: src/components/layout/TopBar.tsx:83
 msgid "Preferences"
-msgstr "Preferences"
+msgstr "環境設定"
 
 #: src/components/layout/TopBarNav.tsx:24
 msgid "Primary"
-msgstr "Primary"
+msgstr "メイン"
 
 #: src/components/layout/TopBar.tsx:71
 msgid "Sealed"
-msgstr "Sealed"
+msgstr "シールド"
 
 #: src/components/layout/TopBar.tsx:68
 msgid "Sealed Deck Build"
-msgstr "Sealed Deck Build"
+msgstr "シールドデッキ構築"
 
 #: src/components/layout/AccountMenu.tsx:163
 msgid "Sign in"
-msgstr "Sign in"
+msgstr "サインイン"
 
 #: src/components/layout/AccountMenu.tsx:131
 msgid "Signed in"
-msgstr "Signed in"
+msgstr "サインイン済み"
 
 #: src/components/ErrorBoundary.tsx:33
 msgid "Something went wrong"
-msgstr "Something went wrong"
+msgstr "問題が発生しました"
 
 #: src/components/ErrorBoundary.tsx:63
 msgid "Stack trace"
-msgstr "Stack trace"
+msgstr "スタックトレース"
 
 #: src/router.tsx:41
 msgid "The page you're looking for doesn't exist."
-msgstr "The page you're looking for doesn't exist."
+msgstr "お探しのページは存在しません。"
 
 #: src/App.tsx:63
 msgid "This desktop build is missing required isolation headers (COOP/COEP). The game engine cannot start."
-msgstr "This desktop build is missing required isolation headers (COOP/COEP). The game engine cannot start."
+msgstr "このデスクトップビルドには、必要な分離ヘッダー（COOP/COEP）がありません。ゲームエンジンを起動できません。"
 
 #: src/components/layout/TopBar.tsx:56
 msgid "Top Decks"
-msgstr "Top Decks"
+msgstr "人気のデッキ"
 
 #: src/components/ErrorBoundary.tsx:48
 msgid "Try Again"
-msgstr "Try Again"
+msgstr "再試行"
 
 #: src/components/layout/TopBar.tsx:120
 msgid "Update to {version}"
-msgstr "Update to {version}"
+msgstr "{version} にアップデート"
 
 #: src/components/settings/LanguagePreferenceCard.tsx:26
 msgid "Use system language"
-msgstr "Use system language"
+msgstr "システム言語を使用"
 
 #: src/App.tsx:66
 msgid "Web deployment is missing required isolation headers. Ask infra to enable COOP/COEP through the Twingate/SSO path."
-msgstr "Web deployment is missing required isolation headers. Ask infra to enable COOP/COEP through the Twingate/SSO path."
+msgstr "Web デプロイ環境に必要な分離ヘッダーがありません。インフラ担当者に、Twingate/SSO 経由のパスで COOP/COEP を有効にするよう依頼してください。"
 
 #: src/components/layout/TopBar.tsx:74
 msgid "Winston Draft"
-msgstr "Winston Draft"
+msgstr "ウィンストン・ドラフト"

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { searchCards } from "@/api/scryfall";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
-import { scryfallToDeckCard } from "@/lib/scryfall.utils";
+import { scryfallDisplayName, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { applyManualTabletopAction, type ManualTabletopApi } from "@/game";
 import { useGameStore } from "@/stores/useGameStore";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { ClientCardDto, ClientGameView } from "@/stores/gameStore.types";
 import type { ScryfallCard } from "@/types/scryfall";
 import {
@@ -110,7 +110,9 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
     }
 
     setSearching(true);
-    searchCards(`${trimmed} -is:digital`, 1, "name")
+    useScryfallStore
+      .getState()
+      .searchCards(`${trimmed} -is:digital`, 1, "name")
       .then((result) => {
         setSearchResults(result.data.slice(0, 8));
         setSearchOpen(true);
@@ -361,7 +363,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                       className="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-muted"
                       onClick={() => selectSearchResult(card)}
                     >
-                      <span className="truncate font-medium">{card.name}</span>
+                      <span className="truncate font-medium">{scryfallDisplayName(card)}</span>
                       <span className="shrink-0 text-[10px] uppercase text-muted-foreground">
                         {card.set}
                       </span>

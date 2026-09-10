@@ -148,9 +148,15 @@ export function CardDetailModal({
   const faceUris = cardFaceImageUris(card, storeCard?.uris, faceIndex);
   const imageUrl = faceUris?.large ?? faceUris?.normal;
   const manaCost = activeFace?.mana_cost ?? getScryfallManaCost(card);
-  const displayName = activeFace?.name ?? card.name;
-  const typeLine = activeFace?.type_line ?? card.type_line;
-  const oracleText = activeFace?.oracle_text ?? card.oracle_text;
+  const displayName = activeFace
+    ? (activeFace.printed_name ?? activeFace.name)
+    : (card.printed_name ?? card.name);
+  const typeLine = activeFace
+    ? (activeFace.printed_type_line ?? activeFace.type_line)
+    : (card.printed_type_line ?? card.type_line);
+  const oracleText = activeFace
+    ? (activeFace.printed_text ?? activeFace.oracle_text)
+    : (card.printed_text ?? card.oracle_text);
   const power = (activeFace as { power?: string } | null)?.power ?? card.power;
   const toughness = (activeFace as { toughness?: string } | null)?.toughness ?? card.toughness;
 

@@ -1,11 +1,11 @@
 msgid ""
 msgstr ""
-"POT-Creation-Date: 2026-09-10 12:02+0100\n"
+"POT-Creation-Date: 2026-09-10 12:38+0100\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: @lingui/cli\n"
-"Language: en\n"
+"Language: ko\n"
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "PO-Revision-Date: \n"
@@ -15,252 +15,252 @@ msgstr ""
 
 #: src/components/layout/navDestinations.ts:79
 msgid "About"
-msgstr "About"
+msgstr "정보"
 
 #: src/components/layout/TopBar.tsx:86
 msgid "About Manabrew"
-msgstr "About Manabrew"
+msgstr "Manabrew 정보"
 
 #: src/components/layout/AccountMenu.tsx:104
 #: src/components/layout/AccountMenu.tsx:153
 msgid "Account"
-msgstr "Account"
+msgstr "계정"
 
 #: src/components/layout/AccountMenu.tsx:102
 msgid "Account menu"
-msgstr "Account menu"
+msgstr "계정 메뉴"
 
 #. placeholder {0}: signedInAccount.handle
 #: src/components/layout/AccountMenu.tsx:102
 msgid "Account: @{0}"
-msgstr "Account: @{0}"
+msgstr "계정: @{0}"
 
 #: src/components/ErrorBoundary.tsx:39
 msgid "An unexpected error occurred."
-msgstr "An unexpected error occurred."
+msgstr "예기치 않은 오류가 발생했습니다."
 
 #: src/components/settings/LanguagePreferenceCard.tsx:23
 msgid "Application language"
-msgstr "Application language"
+msgstr "애플리케이션 언어"
 
 #: src/components/layout/TopBar.tsx:165
 #: src/components/layout/TopBar.tsx:168
 msgid "Back"
-msgstr "Back"
+msgstr "뒤로"
 
 #: src/components/layout/TopBar.tsx:65
 msgid "Booster Draft"
-msgstr "Booster Draft"
+msgstr "부스터 드래프트"
 
 #: src/components/layout/TopBar.tsx:92
 msgid "Card Face Gallery"
-msgstr "Card Face Gallery"
+msgstr "카드 면 갤러리"
 
 #: src/components/layout/navDestinations.ts:72
 #: src/components/layout/TopBar.tsx:42
 msgid "Card Search"
-msgstr "Card Search"
+msgstr "카드 검색"
 
 #: src/components/settings/LanguagePreferenceCard.tsx:17
 msgid "Changes menus and card printings when a translation is available."
-msgstr "Changes menus and card printings when a translation is available."
+msgstr "번역이 제공되는 경우 메뉴와 카드 판본의 언어를 변경합니다."
 
 #: src/components/layout/navDestinations.ts:60
 #: src/components/layout/TopBar.tsx:59
 msgid "Community"
-msgstr "Community"
+msgstr "커뮤니티"
 
 #: src/App.tsx:81
 msgid "Couldn't load your saved decks — they're left untouched on disk. Please contact the developer."
-msgstr "Couldn't load your saved decks — they're left untouched on disk. Please contact the developer."
+msgstr "저장된 덱을 불러오지 못했습니다. 디스크의 덱은 변경되지 않았습니다. 개발자에게 문의해 주세요."
 
 #: src/App.tsx:73
 msgid "Cross-origin isolation is enabled."
-msgstr "Cross-origin isolation is enabled."
+msgstr "교차 출처 격리가 활성화되어 있습니다."
 
 #. placeholder {0}: APP_LOCALES[activeLocale].label
 #: src/components/settings/LanguagePreferenceCard.tsx:35
 msgid "Currently using {0}"
-msgstr "Currently using {0}"
+msgstr "현재 {0} 사용 중"
 
 #: src/components/layout/TopBar.tsx:47
 msgid "Deck Editor"
-msgstr "Deck Editor"
+msgstr "덱 편집기"
 
 #: src/App.tsx:56
 msgid "Deployment is missing cross-origin isolation. SharedArrayBuffer game flow will fail."
-msgstr "Deployment is missing cross-origin isolation. SharedArrayBuffer game flow will fail."
+msgstr "배포 환경에 교차 출처 격리가 설정되어 있지 않습니다. SharedArrayBuffer 게임 흐름이 작동하지 않습니다."
 
 #: src/components/layout/navDestinations.ts:81
 #: src/components/layout/TopBar.tsx:89
 msgid "Design System"
-msgstr "Design System"
+msgstr "디자인 시스템"
 
 #: src/components/layout/TopBar.tsx:117
 msgid "Downloading…"
-msgstr "Downloading…"
+msgstr "다운로드 중…"
 
 #: src/components/layout/TopBar.tsx:118
 msgid "Downloading… {progress}%"
-msgstr "Downloading… {progress}%"
+msgstr "다운로드 중… {progress}%"
 
 #: src/components/layout/AccountMenu.tsx:139
 #: src/components/layout/AccountMenu.tsx:140
 msgid "Exit fullscreen"
-msgstr "Exit fullscreen"
+msgstr "전체 화면 종료"
 
 #: src/components/layout/AccountMenu.tsx:139
 #: src/components/layout/AccountMenu.tsx:140
 msgid "Fullscreen"
-msgstr "Fullscreen"
+msgstr "전체 화면"
 
 #: src/components/layout/TopBar.tsx:77
 msgid "Gauntlet"
-msgstr "Gauntlet"
+msgstr "건틀릿"
 
 #: src/components/ErrorBoundary.tsx:57
 #: src/router.tsx:44
 msgid "Go Home"
-msgstr "Go Home"
+msgstr "홈으로 이동"
 
 #: src/components/layout/AccountMenu.tsx:128
 msgid "Guest"
-msgstr "Guest"
+msgstr "게스트"
 
 #. placeholder {0}: this.props.context
 #: src/components/ErrorBoundary.tsx:36
 msgid "in {0}"
-msgstr "in {0}"
+msgstr "{0}에서"
 
 #: src/App.tsx:49
 msgid "In-browser engines are unavailable. Forge games will use a hosted engine."
-msgstr "In-browser engines are unavailable. Forge games will use a hosted engine."
+msgstr "브라우저 내 엔진을 사용할 수 없습니다. Forge 게임에서는 호스팅된 엔진을 사용합니다."
 
 #: src/components/settings/LanguagePreferenceCard.tsx:16
 msgid "Language"
-msgstr "Language"
+msgstr "언어"
 
 #: src/components/layout/navDestinations.ts:73
 #: src/components/layout/TopBar.tsx:80
 msgid "Life Tracker"
-msgstr "Life Tracker"
+msgstr "생명점 추적기"
 
 #: src/components/layout/TopBar.tsx:175
 msgid "Manabrew Home"
-msgstr "Manabrew Home"
+msgstr "Manabrew 홈"
 
 #: src/components/layout/NavSheet.tsx:87
 #: src/components/layout/NavSheet.tsx:90
 #: src/components/layout/NavSheet.tsx:93
 msgid "Menu"
-msgstr "Menu"
+msgstr "메뉴"
 
 #: src/components/layout/NavSheet.tsx:99
 msgid "More"
-msgstr "More"
+msgstr "더 보기"
 
 #: src/components/layout/navDestinations.ts:55
 #: src/components/layout/TopBar.tsx:39
 msgid "Multiplayer"
-msgstr "Multiplayer"
+msgstr "멀티플레이어"
 
 #: src/components/layout/TopBar.tsx:62
 msgid "Multiplayer Draft"
-msgstr "Multiplayer Draft"
+msgstr "멀티플레이어 드래프트"
 
 #: src/components/layout/navDestinations.ts:66
 #: src/components/layout/TopBar.tsx:53
 msgid "My Collection"
-msgstr "My Collection"
+msgstr "내 컬렉션"
 
 #: src/components/layout/navDestinations.ts:56
 #: src/components/layout/TopBar.tsx:48
 msgid "My Decks"
-msgstr "My Decks"
+msgstr "내 덱"
 
 #: src/router.tsx:38
 msgid "Page Not Found"
-msgstr "Page Not Found"
+msgstr "페이지를 찾을 수 없음"
 
 #: src/components/layout/NavSheet.tsx:95
 msgid "Play"
-msgstr "Play"
+msgstr "플레이"
 
 #: src/components/layout/TopBar.tsx:36
 msgid "Play Deck"
-msgstr "Play Deck"
+msgstr "덱 플레이"
 
 #: src/components/layout/navDestinations.ts:54
 #: src/components/layout/TopBar.tsx:30
 #: src/components/layout/TopBar.tsx:33
 msgid "Play Offline"
-msgstr "Play Offline"
+msgstr "오프라인 플레이"
 
 #: src/components/layout/AccountMenu.tsx:131
 msgid "Playing as a guest"
-msgstr "Playing as a guest"
+msgstr "게스트로 플레이 중"
 
 #: src/components/layout/AccountMenu.tsx:172
 #: src/components/layout/TopBar.tsx:83
 msgid "Preferences"
-msgstr "Preferences"
+msgstr "환경설정"
 
 #: src/components/layout/TopBarNav.tsx:24
 msgid "Primary"
-msgstr "Primary"
+msgstr "기본"
 
 #: src/components/layout/TopBar.tsx:71
 msgid "Sealed"
-msgstr "Sealed"
+msgstr "실드"
 
 #: src/components/layout/TopBar.tsx:68
 msgid "Sealed Deck Build"
-msgstr "Sealed Deck Build"
+msgstr "실드 덱 구성"
 
 #: src/components/layout/AccountMenu.tsx:163
 msgid "Sign in"
-msgstr "Sign in"
+msgstr "로그인"
 
 #: src/components/layout/AccountMenu.tsx:131
 msgid "Signed in"
-msgstr "Signed in"
+msgstr "로그인됨"
 
 #: src/components/ErrorBoundary.tsx:33
 msgid "Something went wrong"
-msgstr "Something went wrong"
+msgstr "문제가 발생했습니다."
 
 #: src/components/ErrorBoundary.tsx:63
 msgid "Stack trace"
-msgstr "Stack trace"
+msgstr "스택 추적"
 
 #: src/router.tsx:41
 msgid "The page you're looking for doesn't exist."
-msgstr "The page you're looking for doesn't exist."
+msgstr "찾으시는 페이지가 존재하지 않습니다."
 
 #: src/App.tsx:63
 msgid "This desktop build is missing required isolation headers (COOP/COEP). The game engine cannot start."
-msgstr "This desktop build is missing required isolation headers (COOP/COEP). The game engine cannot start."
+msgstr "이 데스크톱 빌드에 필수 격리 헤더(COOP/COEP)가 없습니다. 게임 엔진을 시작할 수 없습니다."
 
 #: src/components/layout/TopBar.tsx:56
 msgid "Top Decks"
-msgstr "Top Decks"
+msgstr "인기 덱"
 
 #: src/components/ErrorBoundary.tsx:48
 msgid "Try Again"
-msgstr "Try Again"
+msgstr "다시 시도"
 
 #: src/components/layout/TopBar.tsx:120
 msgid "Update to {version}"
-msgstr "Update to {version}"
+msgstr "{version} 버전으로 업데이트"
 
 #: src/components/settings/LanguagePreferenceCard.tsx:26
 msgid "Use system language"
-msgstr "Use system language"
+msgstr "시스템 언어 사용"
 
 #: src/App.tsx:66
 msgid "Web deployment is missing required isolation headers. Ask infra to enable COOP/COEP through the Twingate/SSO path."
-msgstr "Web deployment is missing required isolation headers. Ask infra to enable COOP/COEP through the Twingate/SSO path."
+msgstr "웹 배포 환경에 필수 격리 헤더가 없습니다. 인프라 담당자에게 Twingate/SSO 경로에서 COOP/COEP를 활성화하도록 요청하세요."
 
 #: src/components/layout/TopBar.tsx:74
 msgid "Winston Draft"
-msgstr "Winston Draft"
+msgstr "윈스턴 드래프트"

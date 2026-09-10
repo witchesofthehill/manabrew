@@ -8,6 +8,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { scryfallDisplayName } from "@/lib/scryfall.utils";
 import type { ScryfallCard } from "@/types/scryfall";
 
 import type { DeckQuickAddRequest } from "./deckQuickAdd.parser";
@@ -38,6 +39,7 @@ export function DeckQuickAddOptions({
   onClose,
 }: DeckQuickAddOptionsProps) {
   const thumbnail = card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small;
+  const displayName = scryfallDisplayName(card);
   const availableTags = [...tags, ...customTags].filter(
     (tag, index, all) =>
       all.findIndex((candidate) => candidate.toLowerCase() === tag.toLowerCase()) === index,
@@ -63,7 +65,7 @@ export function DeckQuickAddOptions({
           />
         )}
         <div className="min-w-0 flex-1">
-          <div className="truncate text-xs font-medium">{card.name}</div>
+          <div className="truncate text-xs font-medium">{displayName}</div>
           <div className="text-[10px] text-muted-foreground">Configure addition</div>
         </div>
         <Button

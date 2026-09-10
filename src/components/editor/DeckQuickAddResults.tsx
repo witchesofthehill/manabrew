@@ -2,6 +2,7 @@ import { MoreHorizontal, Plus } from "lucide-react";
 
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { cn } from "@/lib/utils";
+import { scryfallDisplayName } from "@/lib/scryfall.utils";
 import type { ScryfallCard } from "@/types/scryfall";
 
 interface DeckQuickAddResultsProps {
@@ -30,6 +31,7 @@ export function DeckQuickAddResults({
       </div>
       {results.map((card, index) => {
         const thumbnail = card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small;
+        const displayName = scryfallDisplayName(card);
         return (
           <div
             key={card.id}
@@ -43,7 +45,7 @@ export function DeckQuickAddResults({
             <button
               type="button"
               className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left"
-              title={`Add one ${card.name} to main deck`}
+              title={`Add one ${displayName} to main deck`}
               onClick={() => onQuickAdd(card)}
             >
               {thumbnail && (
@@ -53,7 +55,7 @@ export function DeckQuickAddResults({
                   className="h-11 w-8 shrink-0 rounded object-cover object-top"
                 />
               )}
-              <span className="min-w-0 flex-1 truncate text-xs font-medium">{card.name}</span>
+              <span className="min-w-0 flex-1 truncate text-xs font-medium">{displayName}</span>
               <span className="shrink-0 text-[10px] text-muted-foreground">
                 {getCount(card.name)} in deck
               </span>
@@ -62,7 +64,7 @@ export function DeckQuickAddResults({
             <button
               type="button"
               className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground"
-              title={`More ways to add ${card.name}`}
+              title={`More ways to add ${displayName}`}
               onClick={() => onOptions(card)}
             >
               <MoreHorizontal className="h-3.5 w-3.5" />

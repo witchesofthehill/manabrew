@@ -763,6 +763,9 @@ export function BoardOverlayCanvas({
       if (event.pointerType === "touch") hasPointer = false;
       dismissedClickPointerId = null;
       const hit = hitAt(event.clientX, event.clientY);
+      if (hit.stack || hit.prompt || hit.preview) {
+        sceneRef.current?.suppressPointerTap(event.pointerId);
+      }
       const currentPreview = previewSpecRef.current;
       const stickyOpen =
         currentPreview?.sticky &&

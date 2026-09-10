@@ -1441,6 +1441,10 @@ export class BoardScene {
     this.overlayHitTest = hitTest;
   }
 
+  suppressPointerTap(pointerId: number): void {
+    this.tapSuppressedPointers.add(pointerId);
+  }
+
   setPlayerBlockers(blockers: Map<string, BlockingRect[]>): void {
     this.playerBlockers = blockers;
     this.layoutSelfBar();

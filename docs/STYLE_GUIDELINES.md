@@ -100,27 +100,6 @@ All game modals should use the `Modal` compound component:
 - Use `MODAL_CARD_IMAGE` for larger card images in bodies.
 - Use `MODAL_FOOTER_BETWEEN` for footers with left info + right buttons.
 
-### Full-screen prompt structure
-
-Use `FullscreenPrompt` when a decision needs the viewport rather than a centered dialog. It preserves the zone browser's floating header and footer while leaving prompt-specific state and content in the caller.
-
-```tsx
-<FullscreenPrompt label={title} onClose={onClose} scopeRef={scopeRef} onKeyDown={onKeyDown}>
-  <FullscreenPrompt.Header>
-    <FullscreenPrompt.Title>
-      <h2>{title}</h2>
-      <p>{description}</p>
-    </FullscreenPrompt.Title>
-    {controls}
-    <FullscreenPrompt.Close onClose={onClose} />
-  </FullscreenPrompt.Header>
-  <FullscreenPrompt.Stage>{content}</FullscreenPrompt.Stage>
-  <FullscreenPrompt.Footer>{footer}</FullscreenPrompt.Footer>
-</FullscreenPrompt>
-```
-
-The root owns modal stacking, the accessible dialog label, autofocus, the themed backdrop, and input isolation from the board. The prompt owns its selection model, keyboard commands, renderer, status, and actions. Override `Stage` padding only when the floating chrome is taller than the default header or footer.
-
 ### Card image in modal headers
 
 When showing a source card thumbnail alongside a modal title:

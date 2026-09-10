@@ -2,13 +2,16 @@ import { useState, type RefObject } from "react";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MANA_LETTERS } from "@/themes/gameTheme";
+import { ManaSymbols } from "@/components/game/ManaSymbols";
+import { ANY_COLOR_LETTERS } from "@/components/game/manaUtils";
+import { cn } from "@/lib/utils";
 import type { CardBrowserState } from "./cardBrowser";
 
 interface Props {
   search: RefObject<HTMLInputElement | null>;
   state: CardBrowserState;
   types: string[];
+  picker: boolean;
   visibleCount: number;
   totalCount: number;
   selectedCount: number;
@@ -16,10 +19,19 @@ interface Props {
   incomplete: boolean;
   onFilter: (patch: Partial<CardBrowserState>) => void;
 }
+
+const COLOR_LABELS: Record<(typeof ANY_COLOR_LETTERS)[number], string> = {
+  W: "White",
+  U: "Blue",
+  B: "Black",
+  R: "Red",
+  G: "Green",
+};
 export function DialogCardBrowserToolbar({
   search,
   state,
   types,
+  picker,
   visibleCount,
   totalCount,
   selectedCount,
@@ -99,17 +111,31 @@ export function DialogCardBrowserToolbar({
               <option key={type}>{type}</option>
             ))}
           </select>
-          <select
+          <div
+            role="group"
             aria-label="Card color"
-            value={state.color}
-            onChange={(event) => onFilter({ color: event.target.value })}
-            className="h-9 min-w-28 flex-1 rounded-md border bg-background px-2 pointer-coarse:text-base"
+            className="flex flex-wrap items-center gap-1 rounded-md border bg-background p-1"
           >
-            <option value="">All colors</option>
-            {MANA_LETTERS.map((color) => (
-              <option key={color}>{color}</option>
-            ))}
-          </select>
+            {ANY_COLOR_LETTERS.map((color) => {
+              const active = state.color === color;
+              return (
+                <button
+                  key={color}
+                  type="button"
+                  title={COLOR_LABELS[color]}
+                  aria-label={`Filter by ${COLOR_LABELS[color]} identity`}
+                  aria-pressed={active}
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded opacity-45 transition-opacity hover:opacity-80 pointer-coarse:h-10 pointer-coarse:w-10",
+                    active && "bg-primary/15 opacity-100 ring-1 ring-primary",
+                  )}
+                  onClick={() => onFilter({ color: active ? "" : color })}
+                >
+                  <ManaSymbols cost={`{${color}}`} size="sm" className="m-0" />
+                </button>
+              );
+            })}
+          </div>
           <select
             aria-label="Card sort order"
             value={state.sort}
@@ -136,7 +162,7 @@ export function DialogCardBrowserToolbar({
           </Button>
         </div>
       )}
-      {selectedCount > 0 && (
+      {!picker && selectedCount > 0 && (
         <p className="text-xs text-muted-foreground">{selectedCount} selected</p>
       )}
       {(loading || incomplete) && (

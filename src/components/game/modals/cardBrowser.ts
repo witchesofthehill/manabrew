@@ -1,5 +1,6 @@
 import type { CardDto } from "@/protocol/game";
 import { isFacelessCard } from "@/lib/gameCard";
+import { ANY_COLOR_LETTERS } from "@/components/game/manaUtils";
 import type { CardInspectionState } from "./cardInspection";
 
 export interface CardBrowserItem {
@@ -20,6 +21,9 @@ export interface CardBrowserState {
   scrollTop: number;
   inspection: Record<string, CardInspectionState>;
 }
+export const CARD_BROWSER_GAP = 12;
+export const CARD_BROWSER_HORIZONTAL_PADDING = 16;
+export const CARD_BROWSER_VERTICAL_PADDING = 16;
 export const INITIAL_CARD_BROWSER_STATE: CardBrowserState = {
   query: "",
   type: "",
@@ -29,6 +33,35 @@ export const INITIAL_CARD_BROWSER_STATE: CardBrowserState = {
   scrollTop: 0,
   inspection: {},
 };
+export function createCardBrowserState(
+  initial: CardBrowserState | undefined,
+  picker: boolean,
+): CardBrowserState {
+  const state = initial ?? INITIAL_CARD_BROWSER_STATE;
+  return {
+    ...state,
+    color: ANY_COLOR_LETTERS.some((color) => color === state.color) ? state.color : "",
+    activeId: picker ? null : state.activeId,
+  };
+}
+export function toggleCardBrowserRulesView(
+  state: CardBrowserState,
+  item: CardBrowserItem,
+  defaultRules: boolean,
+): CardBrowserState {
+  const inspection = state.inspection[item.id] ?? {
+    rules: defaultRules,
+    face: item.card.isTransformed ? (1 as const) : (0 as const),
+    rotated: false,
+  };
+  return {
+    ...state,
+    inspection: {
+      ...state.inspection,
+      [item.id]: { ...inspection, rules: !inspection.rules },
+    },
+  };
+}
 export function cardSearchText(item: CardBrowserItem): string {
   if (isFacelessCard(item.card)) return "face-down card";
   const card = item.card;

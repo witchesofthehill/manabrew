@@ -11,13 +11,13 @@ interface SoundAssetDefinition {
 const APP_SOUNDS = {
   chatMessage: {
     alias: "sound.app.chat-message",
-    src: "/sounds/chat-message.wav",
+    src: "/sounds/card-contact-soft.wav",
     volume: 0.55,
     cooldownMs: 250,
   },
   roomInvite: {
     alias: "sound.app.room-invite",
-    src: "/sounds/room-invite.wav",
+    src: "/sounds/gem-light.wav",
     volume: 0.75,
     cooldownMs: 1_000,
   },

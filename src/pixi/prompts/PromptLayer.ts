@@ -110,7 +110,7 @@ const REORDER_CARD_INSET = 18;
 const REORDER_LAYOUT_SETTLE_SECONDS = 0.24;
 const CARD_ASPECT_RATIO = CARD_H / CARD_W;
 const CARD_VERTICAL_RESERVE = 288;
-const SCRY_BODY_VERTICAL_RESERVE = 176;
+const SCRY_BODY_FIXED_HEIGHT = 102;
 const CARD_MODAL_MAX_WIDTH = 1160;
 const MODAL_MIN_HEIGHT = 160;
 const MODAL_VIEWPORT_MARGIN = 16;
@@ -4327,25 +4327,37 @@ export class PromptLayer {
     const poolWidth = width - PANEL_PADDING * 2;
     const zoneGap = 12;
     const zoneWidth = (poolWidth - zoneGap * (zones.length - 1)) / Math.max(1, zones.length);
-    const preferredCardWidth = Math.min(180, this.promptCardDimensions().width);
-    const maxCardWidthRatio = Math.max(
-      ...cards.map((card) => this.promptCardDisplayDimensions(card, CARD_W).width / CARD_W),
+    const { width: preferredCardWidth } = this.promptCardDimensions();
+    const baseCardSizes = cards.map((card) => this.promptCardDisplayDimensions(card, CARD_W));
+    const maxCardWidthRatio = Math.max(...baseCardSizes.map((size) => size.width / CARD_W));
+    const maxCardHeightRatio = Math.max(...baseCardSizes.map((size) => size.height / CARD_W));
+    const stackDepth = Math.min(64, Math.max(0, cards.length - 1) * 16);
+    const height = this.viewportHeight - 24;
+    const footerHeight = 64;
+    const { body, bodyTop, footer } = this.createModalShell(
+      width,
+      height,
+      presentation,
+      true,
+      footerHeight,
     );
+    const availableCardRowsHeight =
+      height -
+      bodyTop -
+      footerHeight -
+      MODAL_BODY_BOTTOM_PADDING -
+      SCRY_BODY_FIXED_HEIGHT -
+      stackDepth;
     const portraitCardWidth = Math.min(
       preferredCardWidth,
       Math.max(92, (zoneWidth - 20) / maxCardWidthRatio),
+      Math.max(1, availableCardRowsHeight / 2 / maxCardHeightRatio),
     );
     const cardSizes = new Map(
       cards.map((card) => [card.id, this.promptCardDisplayDimensions(card, portraitCardWidth)]),
     );
     const cardWidth = Math.max(...[...cardSizes.values()].map((size) => size.width));
     const cardHeight = Math.max(...[...cardSizes.values()].map((size) => size.height));
-    const stackDepth = Math.min(64, Math.max(0, cards.length - 1) * 16);
-    const height = Math.min(
-      this.viewportHeight - 24,
-      Math.max(500, cardHeight * 2 + SCRY_BODY_VERTICAL_RESERVE + stackDepth),
-    );
-    const { body, footer } = this.createModalShell(width, height, presentation, true, 64);
     body.sortableChildren = true;
     const byId = new Map(cards.map((card) => [card.id, card]));
     const poolLabel = promptText("CARDS TO PLACE", 11, this.theme.appTheme["muted-foreground"], {

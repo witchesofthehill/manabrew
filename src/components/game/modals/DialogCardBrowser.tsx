@@ -105,9 +105,16 @@ export function DialogCardBrowser({
     setState((current) => (current.activeId === id ? current : { ...current, activeId: id }));
     if (!picker && open && !desktop) setInspectionOpen(true);
   };
-  const focusPickerCard = (id: string) => {
-    const option = scope.current?.querySelector<HTMLElement>(`[data-card-key="${CSS.escape(id)}"]`);
-    (option ?? scope.current)?.focus({ preventScroll: true });
+  const focusPickerCard = (id?: string | null) => {
+    const option = id
+      ? scope.current?.querySelector<HTMLElement>(`[data-card-key="${CSS.escape(id)}"]`)
+      : null;
+    const fallback =
+      scope.current?.querySelector<HTMLElement>('[data-card-key][tabindex="0"]') ?? scope.current;
+    (option ?? fallback)?.focus({ preventScroll: true });
+  };
+  const returnFocusToCards = () => {
+    requestAnimationFrame(() => focusPickerCard(state.activeId));
   };
   const toggleView = (item: CardBrowserItem) => {
     if (!isFacelessCard(item.card)) {
@@ -148,7 +155,11 @@ export function DialogCardBrowser({
           event.preventDefault();
           event.stopPropagation();
           changeFilter({ query: "" });
-          search.current?.focus();
+          returnFocusToCards();
+        } else if (event.key === "Escape" && document.activeElement === search.current) {
+          event.preventDefault();
+          event.stopPropagation();
+          returnFocusToCards();
         }
       }}
     >
@@ -180,6 +191,7 @@ export function DialogCardBrowser({
             defaultRules={defaultView === "rules"}
             actionable={!!onActivate}
             onSelect={(id) => inspect(id, false)}
+            onHover={(id) => inspect(id, false)}
             onScroll={scroll}
             onChange={changeInspection}
           />

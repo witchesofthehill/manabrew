@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { isFacelessCard } from "@/lib/gameCard";
+import { cn } from "@/lib/utils";
 import { CARD_H, CARD_W } from "@/components/game/game.constants";
 import type { CardInspectionState } from "./cardInspection";
 import {
@@ -17,6 +18,7 @@ interface DialogCardPickerGridProps {
   defaultRules: boolean;
   actionable: boolean;
   onSelect: (id: string) => void;
+  onHover: (id: string) => void;
   onScroll: (top: number) => void;
   onChange: (item: CardBrowserItem, state: CardInspectionState) => void;
 }
@@ -29,6 +31,7 @@ export function DialogCardPickerGrid({
   defaultRules,
   actionable,
   onSelect,
+  onHover,
   onScroll,
   onChange,
 }: DialogCardPickerGridProps) {
@@ -69,6 +72,10 @@ export function DialogCardPickerGrid({
     Math.ceil((top + viewport.height - CARD_BROWSER_VERTICAL_PADDING) / rowHeight + 1) * columns,
   );
   const visible = useMemo(() => items.slice(start, end), [items, start, end]);
+  const autofocusId =
+    (state.activeId && visible.some((item) => item.id === state.activeId)
+      ? state.activeId
+      : visible.find((item) => item.legal || item.selected)?.id) ?? visible[0]?.id;
 
   useEffect(() => {
     if (host.current && host.current.scrollTop !== top) host.current.scrollTop = top;
@@ -141,6 +148,7 @@ export function DialogCardPickerGrid({
           height={viewport.height}
           actionable={actionable}
           onSelect={onSelect}
+          onHover={onHover}
           onChange={onChange}
         />
         {visible.map((item, offset) => {
@@ -159,7 +167,8 @@ export function DialogCardPickerGrid({
                 aria-setsize={items.length}
                 aria-label={`${name}${item.selected ? ", selected" : item.legal ? ", action available" : ""}`}
                 data-card-key={item.id}
-                tabIndex={state.activeId === item.id || (!state.activeId && index === 0) ? 0 : -1}
+                tabIndex={item.id === autofocusId ? 0 : -1}
+                data-autofocus={item.id === autofocusId ? true : undefined}
                 className="pointer-events-none absolute z-10 opacity-0"
                 style={{ left: cardLeft, top: rowTop, width: state.size, height: cardHeight }}
                 onFocus={() => onSelect(item.id)}
@@ -179,7 +188,12 @@ export function DialogCardPickerGrid({
                 </span>
               )}
               <span
-                className="pointer-events-none absolute z-10 line-clamp-1 text-center text-xs font-medium"
+                className={cn(
+                  "pointer-events-none absolute z-10 line-clamp-1 text-center text-xs font-medium transition-colors",
+                  state.activeId === item.id || item.selected
+                    ? "text-card-ring"
+                    : "text-foreground",
+                )}
                 style={{ left: cellLeft, top: rowTop + cardHeight + 4, width: cellWidth }}
               >
                 {name}

@@ -1,10 +1,11 @@
-import { Application } from "pixi.js";
+import { Application, Graphics } from "pixi.js";
 import type { CardDto } from "@/protocol/game";
-import { CARD_H, CARD_W } from "@/components/game/game.constants";
+import { CARD_H, CARD_RADIUS, CARD_W } from "@/components/game/game.constants";
 import { CardSprite } from "@/pixi/CardSprite";
 import { hexToNum } from "@/pixi/colorUtils";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { OverlayRenderScheduler, overlayResolution } from "@/pixi/overlay/overlayRuntime";
+import { gsap } from "@/pixi/effects/gsap";
 import { destroyPixiApp } from "@/pixi/pixiPatches";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { isFacelessCard } from "@/lib/gameCard";
@@ -31,12 +32,19 @@ export interface DialogCardPickerSceneProps {
   actionable: boolean;
   ringColor: string;
   onSelect: (id: string) => void;
+  onHover: (id: string) => void;
   onChange: (item: CardBrowserItem, state: CardInspectionState) => void;
 }
 
 interface CardEntry {
   card: CardDto;
   sprite: CardSprite;
+  feedback: Graphics;
+  motion: {
+    elevation: number;
+    targetAlpha: number;
+    targetElevation: number;
+  };
   viewKey: string;
 }
 
@@ -47,6 +55,7 @@ export class DialogCardPickerScene {
   private readonly canvas: HTMLCanvasElement;
   private readonly onError: (error: string) => void;
   private initialized = false;
+  private motionEnabled = animationsEnabled();
   private disposed = false;
   private scheduler: OverlayRenderScheduler | null = null;
   private unsubscribe: (() => void) | null = null;
@@ -111,8 +120,11 @@ export class DialogCardPickerScene {
     for (const [id, entry] of this.entries) {
       if (visibleIds.has(id)) continue;
       if (this.hoveredId === id) this.hoveredId = null;
-      this.app.stage.removeChild(entry.sprite);
+      gsap.killTweensOf(entry.feedback);
+      gsap.killTweensOf(entry.motion);
+      this.app.stage.removeChild(entry.sprite, entry.feedback);
       entry.sprite.destroy({ children: true });
+      entry.feedback.destroy();
       this.entries.delete(id);
     }
     const portraitHeight = (props.cardSize * CARD_H) / CARD_W;
@@ -128,16 +140,29 @@ export class DialogCardPickerScene {
       const scale = Math.min(props.cardSize / cardWidth, portraitHeight / cardHeight);
       entry.sprite.rotation = rotated ? -Math.PI / 2 : 0;
       entry.sprite.scale.set(scale);
-      entry.sprite.position.set(
+      const x =
         (absoluteIndex % props.columns) * (props.cellWidth + CARD_BROWSER_GAP) +
-          props.cellWidth / 2,
+        props.cellWidth / 2;
+      const y =
         CARD_BROWSER_VERTICAL_PADDING +
-          Math.floor(absoluteIndex / props.columns) * props.rowHeight -
-          props.scrollTop +
-          portraitHeight / 2,
-      );
-      entry.sprite.alpha = props.actionable && !item.legal && !item.selected ? 0.58 : 1;
-      entry.sprite.syncHandControlsScale();
+        Math.floor(absoluteIndex / props.columns) * props.rowHeight -
+        props.scrollTop +
+        portraitHeight / 2;
+      entry.sprite.position.set(x, y);
+      const displayWidth = cardWidth * scale;
+      const displayHeight = cardHeight * scale;
+      entry.feedback
+        .clear()
+        .roundRect(
+          -displayWidth / 2 - 2,
+          -displayHeight / 2 - 2,
+          displayWidth + 4,
+          displayHeight + 4,
+          Math.max(6, CARD_RADIUS * scale + 2),
+        )
+        .stroke({ color: hexToNum(props.ringColor), width: 2 });
+      entry.feedback.position.set(x, y);
+      entry.sprite.alpha = props.actionable && !item.legal && !item.selected ? 0.7 : 1;
     });
     this.updateFeedback();
     this.request();
@@ -150,9 +175,12 @@ export class DialogCardPickerScene {
     this.canvas.removeEventListener("pointermove", this.request);
     this.canvas.removeEventListener("pointerdown", this.request);
     this.canvas.removeEventListener("wheel", this.request);
-    for (const { sprite } of this.entries.values()) {
-      this.app.stage.removeChild(sprite);
+    for (const { sprite, feedback, motion } of this.entries.values()) {
+      gsap.killTweensOf(feedback);
+      gsap.killTweensOf(motion);
+      this.app.stage.removeChild(sprite, feedback);
       sprite.destroy({ children: true });
+      feedback.destroy();
     }
     this.entries.clear();
     if (this.initialized) destroyPixiApp(this.app);
@@ -167,6 +195,9 @@ export class DialogCardPickerScene {
     let entry = this.entries.get(item.id);
     if (!entry) {
       const sprite = new CardSprite(item.card, "hand");
+      const feedback = new Graphics();
+      feedback.alpha = 0;
+      feedback.eventMode = "none";
       sprite.eventMode = "static";
       sprite.cursor = "pointer";
       sprite.on("pointertap", () => this.props.onSelect(item.id));
@@ -174,8 +205,14 @@ export class DialogCardPickerScene {
       sprite.on("pointerleave", () => this.setHovered(item.id, false));
       sprite.on("pointerdowncapture", () => this.setHovered(item.id, true));
       sprite.onReorient = () => this.update(this.props);
-      this.app.stage.addChild(sprite);
-      entry = { card: item.card, sprite, viewKey: "" };
+      this.app.stage.addChild(sprite, feedback);
+      entry = {
+        card: item.card,
+        sprite,
+        feedback,
+        motion: { elevation: 0, targetAlpha: 0, targetElevation: 0 },
+        viewKey: "",
+      };
       this.entries.set(item.id, entry);
     } else if (entry.card !== item.card) {
       entry.card = item.card;
@@ -218,20 +255,58 @@ export class DialogCardPickerScene {
 
   private setHovered(id: string, hovered: boolean): void {
     if (hovered) {
+      if (this.hoveredId === id) return;
       this.hoveredId = id;
+      this.props.onHover(id);
     } else if (this.hoveredId === id) {
       this.hoveredId = null;
+    } else {
+      return;
     }
     this.updateFeedback();
     this.request();
   }
 
   private updateFeedback(): void {
-    const ringColor = hexToNum(this.props.ringColor);
-    for (const [id, { sprite }] of this.entries) {
+    const selectedIds = new Set(
+      this.props.items.filter((item) => item.selected).map((item) => item.id),
+    );
+    const motionEnabled = animationsEnabled();
+    const motionChanged = motionEnabled !== this.motionEnabled;
+    this.motionEnabled = motionEnabled;
+    for (const [id, entry] of this.entries) {
       const hovered = this.hoveredId === id;
-      sprite.setElevation(hovered ? 1 : 0);
-      sprite.setRing(this.props.state.activeId === id || hovered ? ringColor : null);
+      const active = this.props.state.activeId === id;
+      const selected = selectedIds.has(id);
+      const alpha = selected || hovered ? 1 : active ? 0.72 : 0;
+      const elevation = hovered ? 1 : active || selected ? 0.35 : 0;
+      if (
+        !motionChanged &&
+        entry.motion.targetAlpha === alpha &&
+        entry.motion.targetElevation === elevation
+      )
+        continue;
+      entry.motion.targetAlpha = alpha;
+      entry.motion.targetElevation = elevation;
+      gsap.killTweensOf(entry.feedback);
+      gsap.killTweensOf(entry.motion);
+      if (!motionEnabled) {
+        entry.feedback.alpha = alpha;
+        entry.motion.elevation = elevation;
+        entry.sprite.setElevation(elevation);
+        continue;
+      }
+      gsap.to(entry.feedback, {
+        alpha,
+        duration: 0.12,
+        ease: "power2.out",
+      });
+      gsap.to(entry.motion, {
+        elevation,
+        duration: 0.12,
+        ease: "power2.out",
+        onUpdate: () => entry.sprite.setElevation(entry.motion.elevation),
+      });
     }
   }
 

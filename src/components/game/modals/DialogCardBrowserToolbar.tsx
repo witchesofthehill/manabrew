@@ -49,14 +49,13 @@ export function DialogCardBrowserToolbar({
 
   return (
     <div className="shrink-0 space-y-2 border-b p-3">
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative w-full sm:max-w-md sm:flex-1">
           <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             ref={search}
-            data-autofocus
             aria-label="Search cards by name, rules, type or mana"
-            placeholder="Search names, rules, types or mana…"
+            placeholder="Search cards"
             value={state.query}
             onChange={(event) => onFilter({ query: event.target.value })}
             className="pl-9 pr-9 focus-visible:ring-card-ring"
@@ -76,25 +75,32 @@ export function DialogCardBrowserToolbar({
             </Button>
           )}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          aria-expanded={filtersOpen}
-          onClick={() => setFiltersOpen((open) => !open)}
-        >
-          <SlidersHorizontal className="h-3.5 w-3.5" />
-          Filters
-          {activeFilterCount > 0 && (
-            <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">
-              {activeFilterCount}
-            </span>
-          )}
-        </Button>
-        {!picker && (
-          <span className="shrink-0 text-xs text-muted-foreground" role="status" aria-live="polite">
-            {visibleCount} / {totalCount}
+        <div className="flex items-center gap-2 sm:ml-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            aria-expanded={filtersOpen}
+            onClick={() => setFiltersOpen((open) => !open)}
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">
+                {activeFilterCount}
+              </span>
+            )}
+          </Button>
+          <span
+            className="ml-auto shrink-0 text-xs text-muted-foreground"
+            role="status"
+            aria-live="polite"
+          >
+            {visibleCount === totalCount
+              ? `${totalCount} card${totalCount === 1 ? "" : "s"}`
+              : `${visibleCount} of ${totalCount} cards`}
           </span>
-        )}
+        </div>
       </div>
       {filtersOpen && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border p-2 text-xs">

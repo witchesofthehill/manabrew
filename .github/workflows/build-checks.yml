@@ -312,6 +312,9 @@ jobs:
         if: steps.wasm-cache.outputs.cache-hit != 'true'
         run: yarn build:wasm
 
+      - name: Compile translation catalogs
+        run: yarn i18n:compile
+
       - name: Type-check
         run: yarn typecheck
 

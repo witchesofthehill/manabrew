@@ -30,7 +30,7 @@
     "check:docs-drift": "node scripts/check-docs-drift.mjs",
     "check:tauri-permissions": "node scripts/check-tauri-permissions.mjs",
     "i18n:extract": "lingui extract --clean",
-    "i18n:compile": "lingui compile",
+    "i18n:compile": "lingui compile --strict",
     "vite:dev": "yarn gen:types && vite",
     "vite:build": "yarn gen:types && tsc -b && vite build",
     "tauri:before-build": "yarn build:harness && yarn vite:build",

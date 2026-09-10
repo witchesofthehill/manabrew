@@ -83,6 +83,7 @@ A cosmetic field always holds something an `<img>` can load: the hub joins `Deck
 ## Card data — Scryfall store
 
 Scryfall card lookups, image textures, set lists, and rulings flow through `src/stores/useScryfallStore.ts` (Zustand + immer). It is the **only** sanctioned path for card data; do not introduce TanStack Query, `useQuery`, or one-off `fetch` calls for card or set lookups.
+The active app locale maps to Scryfall's language code in `i18n/locales.ts`. The store prefers the matching localized printing, then another localized printing for the same Oracle card, and falls back to English per card. `setLocale` invalidates card, hydrated-set, and printing caches; locale-sensitive consumers must stay on the store so a language change cannot reuse stale English data.
 
 App initialization continues when set metadata cannot load. Keep `useScryfallStore.sets` initialized to an empty array; card previews must render before or without that download.
 

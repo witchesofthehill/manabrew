@@ -628,6 +628,7 @@ async fn authenticate(
             identity: None,
             client_platform: ClientPlatform::Web,
             client_version: Some(var("CLIENT_VERSION", "3.17.3")),
+            features: Vec::new(),
         },
     )
     .await?;

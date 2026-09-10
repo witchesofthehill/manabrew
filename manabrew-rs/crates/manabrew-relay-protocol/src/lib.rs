@@ -194,6 +194,10 @@ pub enum ClientMessage {
         /// how the relay decides what wire features that seat can handle.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         client_version: Option<String>,
+        /// What this client understands beyond the base protocol, named like
+        /// `AuthResult::features`. Empty from clients that predate the field.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        features: Vec<String>,
     },
 
     Ping,
@@ -293,6 +297,16 @@ pub enum ClientMessage {
 
     RequestResync,
 
+    /// The host's latest turn-start checkpoint. Hidden information for every
+    /// seat: the relay keeps the newest one per game for a host handoff and
+    /// never forwards it to a player.
+    ReportCheckpoint {
+        game_id: String,
+        seq: u64,
+        turn: u32,
+        checkpoint: String,
+    },
+
     BroadcastState {
         state: serde_json::Value,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -379,6 +393,22 @@ pub enum ServerMessage {
 
     RoomResumed {
         room: RoomInfo,
+    },
+    /// The relay asks this session to continue a game whose host is gone.
+    /// `request` is the `ResumeRoom` it must send once its engine holds the
+    /// checkpoint; the token in it is the only authorisation.
+    HostHandoff {
+        request: ResumeRoomRequest,
+        turn: u32,
+        checkpoint: String,
+    },
+    /// A different session now runs the engine. Every earlier engine id is
+    /// void; the next `state` from `host` is a whole board.
+    HostChanged {
+        room_id: String,
+        game_id: String,
+        host: String,
+        turn: u32,
     },
 
     PlayerJoined {
@@ -660,6 +690,11 @@ pub const FEATURE_PEER_SIGNAL: &str = "peer_signal";
 /// Names [`ClientMessage::ReportPlaneQuality`] in `AuthResult::features`.
 pub const FEATURE_PLANE_QUALITY: &str = "plane_quality";
 
+/// Names [`ClientMessage::ReportCheckpoint`] and [`ServerMessage::HostHandoff`]
+/// in both directions: a relay that keeps checkpoints, a session that can
+/// take a game over.
+pub const FEATURE_HOST_HANDOFF: &str = "host_handoff";
+
 pub const FEATURES: &[&str] = &[
     FEATURE_LOCAL_GAME,
     FEATURE_ROOM_TRANSPORT,
@@ -668,6 +703,7 @@ pub const FEATURES: &[&str] = &[
     FEATURE_CHAT,
     FEATURE_ROOM_INVITES,
     FEATURE_GAME_OUTCOME,
+    FEATURE_HOST_HANDOFF,
 ];
 
 /// Largest signalling blob the relay forwards.

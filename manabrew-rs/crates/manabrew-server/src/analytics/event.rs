@@ -87,6 +87,16 @@ pub enum AnalyticsEvent {
         #[serde(skip_serializing_if = "Option::is_none")]
         turns: Option<u32>,
     },
+    /// The engine moved to another session mid-game, resuming from the
+    /// start of `turn`.
+    HostChanged {
+        ts: String,
+        room_id: String,
+        game_id: String,
+        previous_host: String,
+        host: String,
+        turn: u32,
+    },
     /// Which seats left the relay's data plane, as reported by the host.
     TransportUsed {
         ts: String,

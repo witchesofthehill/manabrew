@@ -17,6 +17,10 @@ use crate::error::ServerError;
 use crate::identity::{self, SessionIdentity};
 use crate::lobby;
 use crate::metrics;
+
+/// A four-seat Commander board is tens of kilobytes of state text. Anything
+/// near this is not a checkpoint.
+const MAX_CHECKPOINT_BYTES: usize = 2 * 1024 * 1024;
 use crate::protocol::{
     ChatMessage, ChatScope, ClientMessage, RoomStatus, ServerMessage, CHAT_MESSAGE_MAX_CHARS,
     CHAT_MIN_INTERVAL_MS,
@@ -822,8 +826,9 @@ async fn authenticate(
             identity,
             client_platform,
             client_version,
+            features,
         } => {
-            let client = ClientBuild::new(client_platform, client_version);
+            let client = ClientBuild::with_features(client_platform, client_version, features);
             if password != state.server_key {
                 let reply = ServerMessage::AuthResult {
                     success: false,
@@ -1321,6 +1326,35 @@ fn handle_client_message(
                             room: resumed.room_info,
                         },
                     );
+                    if let Some(change) = resumed.host_change {
+                        info!(
+                            "[handoff] room {} now hosted by '{}' (was '{}', turn {})",
+                            &room_id[..8],
+                            username,
+                            change.previous_host,
+                            change.turn
+                        );
+                        metrics::record_host_handoff(metrics::HANDOFF_CLAIMED);
+                        broadcast_to_room_except(
+                            state,
+                            player_id,
+                            &room_id,
+                            &ServerMessage::HostChanged {
+                                room_id: room_id.clone(),
+                                game_id: change.game_id.clone(),
+                                host: username.to_string(),
+                                turn: change.turn,
+                            },
+                        );
+                        state.analytics.emit(AnalyticsEvent::HostChanged {
+                            ts: analytics::now_ts(),
+                            room_id: room_id.clone(),
+                            game_id: change.game_id,
+                            previous_host: change.previous_host,
+                            host: username.to_string(),
+                            turn: change.turn,
+                        });
+                    }
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' resume room failed: {}", username, e);
@@ -1642,6 +1676,39 @@ fn handle_client_message(
             if !recorded {
                 debug!(
                     "[analytics] '{}' filed an outcome for a game it does not host",
+                    username
+                );
+            }
+        }
+
+        ClientMessage::ReportCheckpoint {
+            game_id,
+            seq,
+            turn,
+            checkpoint,
+        } => {
+            let room_id = state.players.get(player_id).and_then(|p| p.room_id.clone());
+            let recorded = checkpoint.len() <= MAX_CHECKPOINT_BYTES
+                && room_id
+                    .and_then(|room_id| state.rooms.get_mut(&room_id))
+                    .filter(|room| room.is_host(player_id))
+                    .and_then(|mut room| {
+                        room.replay
+                            .as_mut()
+                            .filter(|replay| replay.game_id == game_id)
+                            .map(|replay| {
+                                replay.record_checkpoint(player_id, seq, turn, checkpoint)
+                            })
+                    })
+                    .unwrap_or(false);
+            metrics::record_checkpoint(if recorded {
+                metrics::CHECKPOINT_ACCEPTED
+            } else {
+                metrics::CHECKPOINT_REJECTED
+            });
+            if !recorded {
+                debug!(
+                    "[handoff] '{}' filed a checkpoint for a game it does not host",
                     username
                 );
             }
@@ -2037,6 +2104,8 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
         ServerMessage::PlayerList { .. } => "PlayerList",
         ServerMessage::RoomCreated { .. } => "RoomCreated",
         ServerMessage::RoomResumed { .. } => "RoomResumed",
+        ServerMessage::HostHandoff { .. } => "HostHandoff",
+        ServerMessage::HostChanged { .. } => "HostChanged",
         ServerMessage::PlayerJoined { .. } => "PlayerJoined",
         ServerMessage::PlayerLeft { .. } => "PlayerLeft",
         ServerMessage::PlayerConnected { .. } => "PlayerConnected",
@@ -2075,6 +2144,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::StartGame { .. } => "StartGame",
         ClientMessage::EndGame { .. } => "EndGame",
         ClientMessage::ReportGameOutcome { .. } => "ReportGameOutcome",
+        ClientMessage::ReportCheckpoint { .. } => "ReportCheckpoint",
         ClientMessage::ReportEngineStats { .. } => "ReportEngineStats",
         ClientMessage::RequestResync => "RequestResync",
         ClientMessage::BroadcastState { .. } => "BroadcastState",

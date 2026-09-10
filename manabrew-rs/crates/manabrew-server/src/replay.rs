@@ -22,6 +22,17 @@ pub struct ReportedOutcome {
     pub turns: Option<u32>,
 }
 
+/// The host's newest turn-start checkpoint, kept for a handoff. Hidden
+/// information: never leaves the relay except to the session that takes the
+/// game over.
+#[derive(Debug)]
+pub struct HostCheckpoint {
+    pub host_player_id: String,
+    pub seq: u64,
+    pub turn: u32,
+    pub checkpoint: String,
+}
+
 #[derive(Debug)]
 pub struct GameReplayCache {
     pub game_id: String,
@@ -34,6 +45,7 @@ pub struct GameReplayCache {
     pub pending_prompts: HashMap<String, Value>,
     pub queued_inputs: HashMap<String, Vec<QueuedEngineInput>>,
     pub outcome: ReportedOutcome,
+    pub checkpoint: Option<HostCheckpoint>,
 }
 
 impl GameReplayCache {
@@ -54,7 +66,40 @@ impl GameReplayCache {
             pending_prompts: HashMap::new(),
             queued_inputs: HashMap::new(),
             outcome: ReportedOutcome::default(),
+            checkpoint: None,
         }
+    }
+
+    /// A new host starts its own sequence, so only a repeat from the same
+    /// host is refused.
+    pub fn record_checkpoint(
+        &mut self,
+        host_player_id: &str,
+        seq: u64,
+        turn: u32,
+        checkpoint: String,
+    ) -> bool {
+        if self
+            .checkpoint
+            .as_ref()
+            .is_some_and(|held| held.host_player_id == host_player_id && held.seq >= seq)
+        {
+            return false;
+        }
+        self.checkpoint = Some(HostCheckpoint {
+            host_player_id: host_player_id.to_string(),
+            seq,
+            turn,
+            checkpoint,
+        });
+        true
+    }
+
+    /// The old host's prompts and the answers waiting for it name engine ids
+    /// the new host never issued.
+    pub fn host_changed(&mut self) {
+        self.pending_prompts.clear();
+        self.queued_inputs.clear();
     }
 
     pub fn observe(&mut self, envelope: &Value) {

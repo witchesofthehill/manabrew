@@ -97,11 +97,18 @@ public final class ManaBrewEngineAdapter {
         }
         final ManaBrewInteractiveSession session =
                 new ManaBrewInteractiveSession(request.getGameId());
+        final GameCheckpoint.Restore restore = request.getCheckpoint() == null
+                ? null
+                : GameCheckpoint.parse(request.getCheckpoint(), playerCount);
+        session.setRestore(restore);
         final List<RegisteredPlayer> registeredPlayers = new ArrayList<>();
         for (PlayerConfig playerConfig : request.getPlayers()) {
             Deck deck = buildDeck(playerConfig);
             RegisteredPlayer registeredPlayer = RegisteredPlayer.forVariants(
                     playerCount, variants, deck, null, false, null, null);
+            if (restore != null) {
+                registeredPlayer.setStartingHand(0);
+            }
             if (playerConfig.isAi()) {
                 registeredPlayer.setPlayer(new LobbyPlayerAi(playerConfig.getName(), null));
             } else {
@@ -147,6 +154,11 @@ public final class ManaBrewEngineAdapter {
 
     public String getGameOver(final String sessionId) {
         return String.valueOf(getSession(sessionId).isGameOver());
+    }
+
+    public String getCheckpoint(final String sessionId) {
+        final String checkpoint = getSession(sessionId).getLatestCheckpointJson();
+        return checkpoint == null ? "" : checkpoint;
     }
 
     public String endGameJson(final String sessionId) {
@@ -381,7 +393,8 @@ public final class ManaBrewEngineAdapter {
                     && playerObject.get("ai").getAsBoolean();
             players.add(new PlayerConfig(name, deck, commanderNames, ai));
         }
-        return new StartGameRequest(gameId, variant, startingLife, seed, players);
+        return new StartGameRequest(
+                gameId, variant, startingLife, seed, players, optionalString(root, "checkpoint"));
     }
 
     private static String requiredString(final JsonObject object, final String key) {
@@ -405,6 +418,7 @@ public final class ManaBrewEngineAdapter {
         private final int startingLife;
         private final long seed;
         private final List<PlayerConfig> players;
+        private final String checkpoint;
 
         public StartGameRequest(
                 final String gameId,
@@ -412,6 +426,17 @@ public final class ManaBrewEngineAdapter {
                 final int startingLife,
                 final long seed,
                 final List<PlayerConfig> players
+        ) {
+            this(gameId, variant, startingLife, seed, players, null);
+        }
+
+        public StartGameRequest(
+                final String gameId,
+                final String variant,
+                final int startingLife,
+                final long seed,
+                final List<PlayerConfig> players,
+                final String checkpoint
         ) {
             if (gameId == null || gameId.isBlank()) {
                 throw new IllegalArgumentException("gameId is required");
@@ -424,6 +449,11 @@ public final class ManaBrewEngineAdapter {
             this.startingLife = startingLife;
             this.seed = seed;
             this.players = List.copyOf(players);
+            this.checkpoint = checkpoint;
+        }
+
+        public String getCheckpoint() {
+            return checkpoint;
         }
 
         public String getGameId() {

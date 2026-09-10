@@ -133,6 +133,13 @@ export interface GameAbortedPayload {
   room_id: string;
 }
 
+export interface HostChangedPayload {
+  room_id: string;
+  game_id: string;
+  host: string;
+  turn: number;
+}
+
 export const ROOM_RELAY_KIND = "roomRelay" as const;
 
 export interface RoomRelayEnvelope<TPayload = unknown> {

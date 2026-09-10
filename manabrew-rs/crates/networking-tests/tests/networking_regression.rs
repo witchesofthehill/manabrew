@@ -13,7 +13,9 @@ use std::time::{Duration, Instant};
 const CURRENT_CLIENT_VERSION: &str = "3.17.0";
 
 use libtest_mimic::Arguments;
-use manabrew_agent_interface::protocol::{identity_token, IdentityProof};
+use manabrew_agent_interface::protocol::{
+    identity_token, ClientMessage, IdentityProof, RoomStatus,
+};
 use serde_json::json;
 use support::{
     case, execute, list, scenario, spawn_guest_bot, step, summary, webrtc_endpoint, Case, Client,
@@ -300,6 +302,101 @@ async fn dead_node_room_is_reclaimed() {
         room.is_none()
     })
     .await;
+}
+
+async fn dead_host_game_is_handed_to_an_idle_pod() {
+    scenario(
+        "a hosted game whose host filed a turn-start checkpoint, and an idle pod that can take games over.",
+        "the host's socket dies and never comes back.",
+        "the relay hands the pod the checkpoint, the pod claims the room with the fresh token, and every seat is told the host changed.",
+    );
+    let sim = Sim::spawn_relay_only(9680).await;
+    let handoff = vec!["host_handoff".to_string()];
+    let mut host_a = Client::connect_service(&sim.relay_url, "node-a", handoff.clone())
+        .await
+        .unwrap();
+    assert!(
+        host_a.features.iter().any(|f| f == "host_handoff"),
+        "the relay keeps checkpoints: {:?}",
+        host_a.features
+    );
+    let room_a = host_a.create_hosted_room("Pod A").await.unwrap();
+    let mut pod_b = Client::connect_service(&sim.relay_url, "node-b", handoff.clone())
+        .await
+        .unwrap();
+    pod_b.create_hosted_room("Pod B").await.unwrap();
+
+    let mut alice = Client::connect(&sim.relay_url, "alice").await.unwrap();
+    alice.join(&room_a.room_id, false).await.unwrap();
+    alice.select_deck_and_ready().await.unwrap();
+    let mut bob = Client::connect(&sim.relay_url, "bob").await.unwrap();
+    bob.join(&room_a.room_id, false).await.unwrap();
+    bob.select_deck_and_ready().await.unwrap();
+    alice.start_game(2).await.unwrap();
+    let game_id = alice.game_id.clone().unwrap();
+
+    let checkpoint = json!({ "version": 1, "turn": 3 }).to_string();
+    host_a
+        .send_message(&ClientMessage::ReportCheckpoint {
+            game_id: game_id.clone(),
+            seq: 1,
+            turn: 3,
+            checkpoint: checkpoint.clone(),
+        })
+        .await
+        .unwrap();
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert_eq!(
+        sim.metric(r#"manabrew_relay_checkpoints_total{kind="accepted"}"#)
+            .await,
+        1.0
+    );
+    host_a.vanish();
+
+    let (request, turn, offered) = pod_b.expect_host_handoff(GRACE_DEADLINE).await.unwrap();
+    assert_eq!(request.room_id, room_a.room_id);
+    assert_eq!(request.game_id, game_id);
+    assert_eq!(request.player_order, vec!["alice", "bob"]);
+    assert_eq!((turn, offered), (3, checkpoint));
+
+    step("node-b claims the room from a fresh session, the way a takeover runs");
+    let mut host_b = Client::connect_service(&sim.relay_url, "node-b-takeover", handoff)
+        .await
+        .unwrap();
+    host_b
+        .send_message(&ClientMessage::ResumeRoom(request))
+        .await
+        .unwrap();
+    let room = host_b
+        .wait_room_resumed(Duration::from_secs(10))
+        .await
+        .unwrap();
+    assert_eq!(room.host, "node-b-takeover");
+    let (host, turn) = alice
+        .expect_host_changed(Duration::from_secs(10))
+        .await
+        .unwrap();
+    assert_eq!((host.as_str(), turn), ("node-b-takeover", 3));
+
+    host_b
+        .broadcast_value(json!({ "kind": "state", "state": { "gameView": null } }))
+        .await
+        .unwrap();
+    alice
+        .expect_state_from("node-b-takeover", Duration::from_secs(5))
+        .await
+        .unwrap();
+    assert_eq!(
+        sim.metric(r#"manabrew_relay_host_handoffs_total{result="claimed"}"#)
+            .await,
+        1.0
+    );
+    let rooms = sim.rooms().await;
+    let room = rooms.iter().find(|room| room.room_id == room_a.room_id);
+    assert!(
+        room.is_some_and(|room| room.status == RoomStatus::InGame),
+        "the game is still running: {room:?}"
+    );
 }
 
 async fn creating_a_room_seats_the_creator() {
@@ -737,6 +834,10 @@ fn main() {
             relay_restart_forfeits_unreturned_seat,
         ),
         case("dead_node_room_is_reclaimed", dead_node_room_is_reclaimed),
+        case(
+            "dead_host_game_is_handed_to_an_idle_pod",
+            dead_host_game_is_handed_to_an_idle_pod,
+        ),
         case("empty_lobby_room_is_removed", empty_lobby_room_is_removed),
         case(
             "current_clients_are_sent_state_patches",

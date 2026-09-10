@@ -32,7 +32,14 @@ import type { Prompt, StateUpdate, ProtocolError } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 import type { GameViewDto } from "@/protocol/game";
 import { RELAY_FEATURE, SERVER_ERROR_CODE } from "@/types/server";
-import type { AuthResultPayload, GameAbortedPayload, RoomMessagePayload } from "@/types/server";
+import type {
+  AuthResultPayload,
+  GameAbortedPayload,
+  HostChangedPayload,
+  RoomMessagePayload,
+} from "@/types/server";
+import { useGameUIStore } from "@/stores/useGameUIStore";
+import { useStackUIStore } from "@/stores/useStackUIStore";
 
 type SelfHostedNodeRoomPayload = {
   type?: unknown;
@@ -459,6 +466,31 @@ export function useGameEventListeners() {
           if (state.gameView?.gameOver || isGameOverPrompt(state.currentPrompt)) return;
           toast.error("Game aborted — a player did not reconnect.");
           void useGameStore.getState().endGame();
+        }),
+      );
+
+      unsubscribers.push(
+        platform.events.on<HostChangedPayload>("server:host_changed", (payload) => {
+          const state = getState();
+          if (!state.isMultiplayer || !state.isGameActive) return;
+          const roomId =
+            peekActiveGameSession()?.roomId ?? useServerStore.getState().currentRoom?.room_id;
+          if (roomId && payload.room_id !== roomId) return;
+          setState({
+            currentPrompt: null,
+            deferredQueue: [],
+            isFlashing: false,
+            isWaitingForResponse: false,
+            relinquishedPriority: false,
+            seatAddressedStates: false,
+            snapshots: [],
+            debugInfo: `Host changed to ${payload.host}; resuming from turn ${payload.turn}`,
+          });
+          useGameUIStore.getState().resetAll();
+          useStackUIStore.getState().reset();
+          toast.info(
+            `The table moved to a new host. Play resumes from the start of turn ${payload.turn}.`,
+          );
         }),
       );
 

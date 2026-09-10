@@ -18,6 +18,29 @@ Under the `java-forge` backend, `SubprocessBridge::spawn` sizes the engine JVM e
 
 A background `updater` monitor (`updater.rs`) polls the version manifest (default `play.manabrew.app/manifest.json`) and compares its own `CARGO_PKG_VERSION` against `packages["self-hosted-node"]`; when behind it logs a warning, or — with `--shutdown-on-stale` / `SELF_HOSTED_NODE_SHUTDOWN_ON_STALE` — gracefully cancels its rooms (relay sockets get a proper WebSocket close) and `exit(0)`s once idle (no `engine_session` active in any room) so a pull-on-restart supervisor respawns it updated. SIGTERM/SIGINT trigger the same graceful room shutdown. Do not enable the flag under plain `restart: unless-stopped` (re-runs the same image → crash loop); it needs a supervisor that pulls latest on restart.
 
+## Checkpoints and takeovers
+
+Under Forge the harness exports a `GameCheckpoint` at the first empty-stack priority window of
+each turn's first main phase (`ManaBrewInteractiveSession.maybeCheckpoint`, called from
+`chooseSpellAbilityToPlay`, so it runs on the game thread and never in combat or under a
+stack). The node reads it through `forge_get_checkpoint` after each new prompt, forwards a new
+`seq` as `ReportCheckpoint`, and only when the relay advertised `host_handoff`. The node names
+the same feature in `Authenticate`, which is what makes it a takeover candidate.
+
+A `HostHandoff` from the relay spawns `host_taken_over_room`: a fresh relay session named
+`<node>-h<room>`, `ResumeRoom` with the relay's token first (engine output from a session that
+is not the host is dropped silently), then the bots the old host ran, seated by name from
+`bot_players`, then `maybe_start_hosted_engine` with the checkpoint. The harness restores from a
+`startGameHook` before the first priority window: eliminated seats are conceded first so the
+in-game player count matches the dump, then `applyGameOnThread` (never `applyToGame`, whose
+deferred form runs off-thread here), then commander stats, monarch, initiative and day/night from
+the sidecar. Mulligans are skipped and starting hands are empty because the dump replaces every
+zone. The takeover counts in `manabrew_node_rooms_hosted{pool="takeover"}`, sits outside
+`max_games`, and leaves the relay when its game ends. The Rust engine cannot restore and refuses
+the checkpoint. `checkpoint_round_trip` in `java_backend.rs` plays a game to turn 3 on the
+subprocess JVM, restores it into a second session and plays on; the relay side is
+`dead_host_game_is_handed_to_an_idle_pod` in `networking-tests`.
+
 ## The direct data plane
 
 A headless node offers no plane; its rooms stay on the relay. Under `forge-room` a desktop host

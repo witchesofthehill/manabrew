@@ -1655,7 +1655,7 @@ class WebServerApi implements IServerApi {
       this.announceTransport(roomId);
     }
 
-    if (type === "GameStarted") {
+    if (type === "GameStarted" || type === "HostChanged") {
       this.lastRelayStates.clear();
       this.lastRelayDisplay = null;
       this.pendingRelayPrompts.clear();
@@ -1747,6 +1747,10 @@ class WebServerApi implements IServerApi {
         },
       ],
       GameAborted: ["server:game_aborted", { room_id: msg.room_id }],
+      HostChanged: [
+        "server:host_changed",
+        { room_id: msg.room_id, game_id: msg.game_id, host: msg.host, turn: msg.turn },
+      ],
       ChatMessage: [
         "server:chat_message",
         {

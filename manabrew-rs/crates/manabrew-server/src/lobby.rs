@@ -124,6 +124,46 @@ pub fn create_room_sync(
 pub struct ResumedRoom {
     pub room_info: RoomInfo,
     pub awaiting_rejoin: Vec<String>,
+    pub host_change: Option<HostChange>,
+}
+
+pub struct HostChange {
+    pub game_id: String,
+    pub previous_host: String,
+    pub turn: u32,
+}
+
+/// The `ResumeRoom` a session must send to take this game over.
+pub fn handoff_request(
+    room: &Room,
+    replay: &GameReplayCache,
+    resume_token: String,
+    official_key: Option<String>,
+) -> ResumeRoomRequest {
+    ResumeRoomRequest {
+        room_id: room.room_id.clone(),
+        resume_token,
+        room_name: room.room_name.clone(),
+        max_players: room.max_players,
+        format: room.format.clone(),
+        hosted: room.hosted,
+        engine: room.engine,
+        official_key: room.official.then_some(official_key).flatten(),
+        password: room.password.clone(),
+        reconnect_timeout_s: Some(room.reconnect_timeout_s),
+        draft_config: room.draft_config.clone(),
+        sealed_config: room.sealed_config.clone(),
+        player_order: replay.player_order.clone(),
+        player_decks: replay.player_decks.clone(),
+        starting_life: replay.starting_life,
+        bot_players: room
+            .players
+            .iter()
+            .filter(|slot| slot.is_bot)
+            .map(|slot| slot.username.clone())
+            .collect(),
+        game_id: replay.game_id.clone(),
+    }
 }
 
 pub fn resume_room_sync(
@@ -150,8 +190,20 @@ pub fn resume_room_sync(
         }
 
         let old_host_pid = room.host_player_id.clone();
+        let old_host_username = std::mem::replace(&mut room.host_username, username.clone());
         room.host_player_id = player_id.to_string();
-        room.host_username = username.clone();
+        let host_change = if room.status == RoomStatus::InGame && old_host_username != username {
+            room.replay.as_mut().map(|replay| {
+                replay.host_changed();
+                HostChange {
+                    game_id: replay.game_id.clone(),
+                    previous_host: old_host_username,
+                    turn: replay.checkpoint.as_ref().map_or(0, |held| held.turn),
+                }
+            })
+        } else {
+            None
+        };
         if room.hosted {
             room.remove_observer(&old_host_pid);
             let _ = room.add_observer(player_id.to_string(), username.clone());
@@ -167,6 +219,7 @@ pub fn resume_room_sync(
         let resumed = ResumedRoom {
             room_info: room.to_room_info(),
             awaiting_rejoin: awaiting_rejoin(&room),
+            host_change,
         };
         drop(room);
 
@@ -251,6 +304,7 @@ pub fn resume_room_sync(
     let resumed = ResumedRoom {
         room_info: room.to_room_info(),
         awaiting_rejoin: awaiting_rejoin(&room),
+        host_change: None,
     };
     let pending_seats: Vec<String> = room
         .players

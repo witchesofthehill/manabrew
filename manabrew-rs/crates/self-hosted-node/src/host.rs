@@ -6,7 +6,9 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::config::{Config, DeckSelection, SelfPlayConfig};
-use crate::engine_backend::{java_backend, rust_backend, EngineBackendKind, HostedGameOver};
+use crate::engine_backend::{
+    java_backend, rust_backend, EngineBackendKind, HostedCheckpoint, HostedGameOver,
+};
 use crate::shell_bridge::{ShellBridge, ShellCommand};
 use crate::updater::{run_stale_monitor, StaleConfig};
 use futures_util::stream::{SplitSink, SplitStream};
@@ -17,7 +19,7 @@ use manabrew_agent_interface::prompt::{AgentMessage, ClientToServerMessage, Prom
 use manabrew_agent_interface::protocol::{
     identity_token, ClientMessage, ClientPlatform, EngineKind, GameFormat, GameOutcomeReport,
     IdentityProof, PlayerDeckInfo, ResumeRoomRequest, RoomInfo, RoomStatus, ServerMessage,
-    StateEnvelope, PROTOCOL_VERSION,
+    StateEnvelope, FEATURE_HOST_HANDOFF, PROTOCOL_VERSION,
 };
 use manabrew_protocol::deck_dto::Deck;
 use manabrew_protocol::game::{GameViewDto, PlayerStatus};
@@ -46,6 +48,7 @@ struct RelayClient {
     outbound: tokio_mpsc::UnboundedSender<Message>,
     read: WsRead,
     writer: JoinHandle<()>,
+    relay_features: Vec<String>,
 }
 
 enum EngineSession {
@@ -104,6 +107,39 @@ struct SpawnBotDeckPayload {
 
 type SharedEngineSession = Arc<Mutex<Option<EngineSession>>>;
 type SessionRegistry = Arc<Mutex<Vec<SharedEngineSession>>>;
+
+/// Lets a room host accept games the relay hands over from a dead host. Each
+/// takeover is one more room on this process, outside the pool it was sized
+/// for, and it leaves the relay when its game ends.
+#[derive(Clone)]
+struct TakeoverHost {
+    sessions: SessionRegistry,
+    cancels: Arc<Mutex<Vec<RoomCancel>>>,
+}
+
+impl TakeoverHost {
+    fn spawn(&self, config: Config, request: ResumeRoomRequest, turn: u32, checkpoint: String) {
+        let cancel: RoomCancel = Arc::new(tokio::sync::Notify::new());
+        if let Ok(mut cancels) = self.cancels.lock() {
+            cancels.push(cancel.clone());
+        }
+        let sessions = self.sessions.clone();
+        tokio::spawn(async move {
+            let room_id = request.room_id.clone();
+            if let Err(error) =
+                host_taken_over_room(config, request, turn, checkpoint, cancel, sessions).await
+            {
+                warn!(%error, room_id, "takeover ended with an error");
+            }
+        });
+    }
+
+    fn cancel_all(&self) {
+        if let Ok(cancels) = self.cancels.lock() {
+            notify_all(&cancels);
+        }
+    }
+}
 
 fn registry_idle(registry: &SessionRegistry) -> bool {
     registry
@@ -305,7 +341,7 @@ pub async fn host_room(
     ready: tokio::sync::oneshot::Sender<String>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     ensure_engine_ready(&config)?;
-    host_one_room(config, None, cancel, Some(ready), None, None).await
+    host_one_room(config, None, cancel, Some(ready), None, None, None).await
 }
 
 /// The webview's half of the data plane, handed in by a desktop shell.
@@ -321,7 +357,7 @@ pub async fn host_room_bridged(
     bridge: ShellBridgeHandle,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     ensure_engine_ready(&config)?;
-    host_one_room(config, None, cancel, Some(ready), None, Some(bridge)).await
+    host_one_room(config, None, cancel, Some(ready), None, Some(bridge), None).await
 }
 
 async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -344,11 +380,17 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
         move || notify_all(&stale_cancels),
     ));
 
+    let takeovers = TakeoverHost {
+        sessions: registry.clone(),
+        cancels: Arc::new(Mutex::new(Vec::new())),
+    };
     let signal_cancels = cancels.clone();
+    let signal_takeovers = takeovers.clone();
     tokio::spawn(async move {
         wait_for_shutdown_signal().await;
         info!("shutdown signal received; closing rooms");
         notify_all(&signal_cancels);
+        signal_takeovers.cancel_all();
     });
 
     #[cfg(unix)]
@@ -400,7 +442,16 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
     });
 
     if single {
-        return host_one_room(config, None, cancels[0].clone(), None, Some(registry), None).await;
+        return host_one_room(
+            config,
+            None,
+            cancels[0].clone(),
+            None,
+            Some(registry),
+            None,
+            Some(takeovers),
+        )
+        .await;
     }
 
     config.format = GameFormat::Any;
@@ -412,9 +463,18 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
     let mut handles = Vec::with_capacity(hosts.len());
     for ((cfg, label), cancel) in hosts.into_iter().zip(cancels) {
         let registry = registry.clone();
+        let takeovers = takeovers.clone();
         handles.push(tokio::spawn(async move {
-            if let Err(error) =
-                host_one_room(cfg, Some(label.clone()), cancel, None, Some(registry), None).await
+            if let Err(error) = host_one_room(
+                cfg,
+                Some(label.clone()),
+                cancel,
+                None,
+                Some(registry),
+                None,
+                Some(takeovers),
+            )
+            .await
             {
                 error!(%error, label, "room host exited");
             }
@@ -462,6 +522,7 @@ async fn host_one_room(
     ready: Option<tokio::sync::oneshot::Sender<String>>,
     sessions: Option<SessionRegistry>,
     shell: Option<ShellBridgeHandle>,
+    takeovers: Option<TakeoverHost>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if let Some(label) = &label {
         config.username = format!("{}-{label}", config.username);
@@ -546,6 +607,8 @@ async fn host_one_room(
             &cancel,
             bridge.as_ref(),
             &mut bridge_rx,
+            takeovers.as_ref(),
+            false,
         )
         .await;
         if matches!(exit, LoopExit::Cancelled) {
@@ -605,6 +668,189 @@ async fn host_one_room(
         }
         info!(username = %config.username, room_id, "relay connection re-established");
     }
+}
+
+/// Continues a game another host left behind: claims the room with the
+/// relay's fresh token, seats the bots the old host ran, boots the engine
+/// from the checkpoint, then serves the room until the game ends.
+async fn host_taken_over_room(
+    mut config: Config,
+    request: ResumeRoomRequest,
+    turn: u32,
+    checkpoint: String,
+    cancel: RoomCancel,
+    sessions: SessionRegistry,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let room_id = request.room_id.clone();
+    config.username = format!("{}-h{}", config.username, &room_id[..8.min(room_id.len())]);
+    config.room_id = Some(room_id.clone());
+    config.room_name = request.room_name.clone();
+    config.max_players = request.max_players;
+    config.format = request.format.clone();
+    config.reconnect_timeout_s = request.reconnect_timeout_s;
+    config.room_password = request.password.clone();
+    config.official_key = request.official_key.clone();
+    config.auto_start = false;
+    config.bot_enabled = false;
+    config.host_plays = false;
+
+    let _rooms_hosted = crate::metrics::RoomHostedGuard::new(crate::metrics::PoolKind::Takeover);
+    let snapshot: SharedHostSnapshot = Arc::new(Mutex::new(HostSnapshot {
+        resume_token: Some(request.resume_token.clone()),
+        game: Some(GameStart {
+            game_id: request.game_id.clone(),
+            player_order: request.player_order.clone(),
+            player_decks: request.player_decks.clone(),
+            starting_life: request.starting_life,
+        }),
+        ..HostSnapshot::default()
+    }));
+    let engine_session: SharedEngineSession = Arc::new(Mutex::new(None));
+    if let Ok(mut registered) = sessions.lock() {
+        registered.push(engine_session.clone());
+    }
+    let bot_state: SharedBotState = Arc::new(Mutex::new(Vec::new()));
+    let (outbound_tx, mut outbound_rx) = tokio_mpsc::unbounded_channel::<ClientMessage>();
+
+    let mut host =
+        RelayClient::connect(&config.relay_url, &config.username, &config.password).await?;
+    host.send(&ClientMessage::ResumeRoom(request.clone()))
+        .await?;
+    let Some(room) = wait_for_room_resumed(&mut host, &engine_session, &snapshot).await? else {
+        return Err("relay refused the takeover".into());
+    };
+    if room.status != RoomStatus::InGame {
+        return Err("the game ended before the takeover".into());
+    }
+    if let Ok(mut snap) = snapshot.lock() {
+        snap.room_info = Some(room);
+    }
+    info!(room_id, game_id = %request.game_id, turn, username = %config.username, "took over the room");
+
+    let bot_seats: Vec<(String, DeckSelection)> = request
+        .player_decks
+        .iter()
+        .filter(|deck| request.bot_players.contains(&deck.username))
+        .map(|deck| {
+            (
+                deck.username.clone(),
+                DeckSelection {
+                    name: deck.deck_name.clone(),
+                    deck: deck.deck.clone(),
+                    commander_name: deck.commander_name.clone(),
+                },
+            )
+        })
+        .collect();
+    if !bot_seats.is_empty() {
+        spawn_bot_seats(&config, &bot_seats, &room_id, &bot_state);
+    }
+    let bot_usernames: HashSet<String> = request.bot_players.iter().cloned().collect();
+    maybe_start_hosted_engine(
+        &config,
+        &engine_session,
+        &snapshot,
+        &outbound_tx,
+        request.game_id.clone(),
+        request.player_order.clone(),
+        request.player_decks.clone(),
+        request.starting_life,
+        &bot_usernames,
+        Some(checkpoint),
+        true,
+    );
+
+    let (_idle_bridge_tx, mut bridge_rx) = tokio_mpsc::unbounded_channel::<ShellCommand>();
+    loop {
+        let exit = run_client_loop(
+            &mut host,
+            &config,
+            &room_id,
+            &engine_session,
+            &snapshot,
+            &bot_state,
+            &outbound_tx,
+            &mut outbound_rx,
+            &cancel,
+            None,
+            &mut bridge_rx,
+            None,
+            true,
+        )
+        .await;
+        if matches!(exit, LoopExit::Cancelled) {
+            stop_bots(&bot_state);
+            host.close().await;
+            return Ok(());
+        }
+        crate::metrics::record_relay_reconnect();
+        let mut attempt: usize = 0;
+        host = loop {
+            let delay = RECONNECT_BACKOFF_SECS[attempt.min(RECONNECT_BACKOFF_SECS.len() - 1)];
+            tokio::select! {
+                _ = cancel.notified() => {
+                    cancel_engine(&engine_session);
+                    stop_bots(&bot_state);
+                    return Ok(());
+                }
+                _ = time::sleep(Duration::from_secs(delay)) => {}
+            }
+            attempt += 1;
+            let mut client =
+                match RelayClient::connect(&config.relay_url, &config.username, &config.password)
+                    .await
+                {
+                    Ok(client) => client,
+                    Err(error) => {
+                        warn!(%error, attempt, "relay reconnect failed");
+                        continue;
+                    }
+                };
+            match reestablish_room(&mut client, &config, &engine_session, &snapshot).await {
+                Ok(_) => break client,
+                Err(error) => warn!(%error, attempt, "failed to re-establish room; retrying"),
+            }
+        };
+    }
+}
+
+fn backend_cannot_restore(backend: EngineBackendKind) -> bool {
+    !matches!(backend, EngineBackendKind::Forge)
+}
+
+fn spawn_checkpoint_forwarder(
+    outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
+    checkpoint_rx: std_mpsc::Receiver<HostedCheckpoint>,
+    engine_session: SharedEngineSession,
+    game_id: String,
+) {
+    std::thread::spawn(move || {
+        while let Ok(checkpoint) = checkpoint_rx.recv() {
+            let current = engine_session
+                .lock()
+                .map(|guard| {
+                    guard
+                        .as_ref()
+                        .is_some_and(|session| session.game_id() == game_id)
+                })
+                .unwrap_or(false);
+            if !current {
+                return;
+            }
+            debug!(
+                game_id,
+                seq = checkpoint.seq,
+                turn = checkpoint.turn,
+                "reporting checkpoint"
+            );
+            let _ = outbound_tx.send(ClientMessage::ReportCheckpoint {
+                game_id: checkpoint.game_id,
+                seq: checkpoint.seq,
+                turn: checkpoint.turn,
+                checkpoint: checkpoint.checkpoint,
+            });
+        }
+    });
 }
 
 /// Re-primes the relay's replay cache for a seat leaving the plane.
@@ -968,6 +1214,29 @@ fn end_game_without_humans(
 }
 
 fn spawn_bots(config: &Config, decks: &[DeckSelection], room_id: &str, bot_state: &SharedBotState) {
+    let open_seats = config.max_players.saturating_sub(1) as usize;
+    let seats: Vec<(String, DeckSelection)> = decks
+        .iter()
+        .take(open_seats)
+        .enumerate()
+        .map(|(index, deck)| {
+            let username = if index == 0 {
+                config.bot_username.clone()
+            } else {
+                format!("{} {}", config.bot_username, index + 1)
+            };
+            (username, deck.clone())
+        })
+        .collect();
+    spawn_bot_seats(config, &seats, room_id, bot_state);
+}
+
+fn spawn_bot_seats(
+    config: &Config,
+    seats: &[(String, DeckSelection)],
+    room_id: &str,
+    bot_state: &SharedBotState,
+) {
     stop_bots(bot_state);
     let mut guard = match bot_state.lock() {
         Ok(guard) => guard,
@@ -976,13 +1245,8 @@ fn spawn_bots(config: &Config, decks: &[DeckSelection], room_id: &str, bot_state
             return;
         }
     };
-    let open_seats = config.max_players.saturating_sub(1) as usize;
-    for (index, deck) in decks.iter().take(open_seats).enumerate() {
-        let username = if index == 0 {
-            config.bot_username.clone()
-        } else {
-            format!("{} {}", config.bot_username, index + 1)
-        };
+    for (username, deck) in seats {
+        let username = username.clone();
         let relay_url = config.relay_url.clone();
         let bot_config = BotConfig {
             username,
@@ -1098,6 +1362,8 @@ async fn run_client_loop(
     cancel: &RoomCancel,
     bridge: Option<&Arc<ShellBridge>>,
     bridge_rx: &mut tokio_mpsc::UnboundedReceiver<ShellCommand>,
+    takeovers: Option<&TakeoverHost>,
+    leave_when_idle: bool,
 ) -> LoopExit {
     let mut heartbeat = time::interval(Duration::from_secs(30));
     heartbeat.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
@@ -1117,8 +1383,8 @@ async fn run_client_loop(
                     .lock()
                     .map(|guard| guard.is_none())
                     .unwrap_or(false);
-                if draining() && idle {
-                    info!(username = %client.username, "draining and no active game; closing room");
+                if (draining() || leave_when_idle) && idle {
+                    info!(username = %client.username, "no active game; closing room");
                     return LoopExit::Cancelled;
                 }
             }
@@ -1192,6 +1458,7 @@ async fn run_client_loop(
                     outbound_tx,
                     &mut bot_usernames,
                     bridge,
+                    takeovers,
                     message,
                 ).await {
                     warn!(%error, username = %client.username, "relay send failed");
@@ -1212,9 +1479,23 @@ async fn handle_server_message(
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
     bot_usernames: &mut HashSet<String>,
     bridge: Option<&Arc<ShellBridge>>,
+    takeovers: Option<&TakeoverHost>,
     message: ServerMessage,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match message {
+        ServerMessage::HostHandoff {
+            request,
+            turn,
+            checkpoint,
+        } => match takeovers {
+            Some(takeovers) => {
+                info!(room_id = %request.room_id, game_id = %request.game_id, turn, "taking over a game");
+                takeovers.spawn(config.clone(), request, turn, checkpoint);
+            }
+            None => {
+                warn!(room_id = %request.room_id, "handoff offered to a host that cannot take games over")
+            }
+        },
         ServerMessage::RoomUpdate { room } => {
             if let Ok(mut snap) = snapshot.lock() {
                 snap.room_info = Some(room.clone());
@@ -1322,6 +1603,8 @@ async fn handle_server_message(
                 player_decks,
                 starting_life,
                 bot_usernames,
+                None,
+                client.relay_supports(FEATURE_HOST_HANDOFF),
             );
         }
         ServerMessage::RoomTransport { members, .. } => {
@@ -1546,9 +1829,19 @@ fn maybe_start_hosted_engine(
     player_decks: Vec<PlayerDeckInfo>,
     starting_life: i32,
     bot_usernames: &HashSet<String>,
+    restore: Option<String>,
+    report_checkpoints: bool,
 ) {
     if !config.engine_enabled {
         debug!("hosted engine disabled for this node");
+        return;
+    }
+    if restore.is_some() && backend_cannot_restore(config.backend) {
+        warn!(
+            game_id,
+            backend = config.backend.label(),
+            "this engine cannot continue from a checkpoint"
+        );
         return;
     }
     let backend = config.backend;
@@ -1756,6 +2049,15 @@ fn maybe_start_hosted_engine(
                 game_id.clone(),
                 Some(player_names.clone()),
             );
+            let (checkpoint_tx, checkpoint_rx) = std_mpsc::channel::<HostedCheckpoint>();
+            if report_checkpoints {
+                spawn_checkpoint_forwarder(
+                    outbound_tx.clone(),
+                    checkpoint_rx,
+                    engine_session.clone(),
+                    game_id.clone(),
+                );
+            }
             let outbound_tx = outbound_tx.clone();
             let snapshot = snapshot.clone();
             spawn_engine_thread(move || {
@@ -1764,6 +2066,7 @@ fn maybe_start_hosted_engine(
                     backend = backend.label(),
                     players = num_players,
                     local_player_index,
+                    restored = restore.is_some(),
                     "starting hosted engine thread"
                 );
                 crate::metrics::record_engine_session_started();
@@ -1779,9 +2082,11 @@ fn maybe_start_hosted_engine(
                         local_player_index,
                         ai_player_indices,
                         starting_life,
+                        restore,
                         remote_prompt_tx,
                         remote_response_rxs,
                         game_over_tx,
+                        checkpoint_tx,
                         cancel,
                     )
                 }));
@@ -2548,6 +2853,7 @@ impl RelayClient {
             outbound,
             read,
             writer,
+            relay_features: Vec::new(),
         };
         client
             .send(&ClientMessage::Authenticate {
@@ -2560,18 +2866,29 @@ impl RelayClient {
                 }),
                 client_platform: ClientPlatform::Unknown,
                 client_version: None,
+                features: vec![FEATURE_HOST_HANDOFF.to_string()],
             })
             .await?;
         client.wait_for_auth().await?;
         Ok(client)
     }
 
+    fn relay_supports(&self, feature: &str) -> bool {
+        self.relay_features.iter().any(|named| named == feature)
+    }
+
     async fn wait_for_auth(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         loop {
             match self.recv().await? {
-                Some(ServerMessage::AuthResult { success, error, .. }) => {
+                Some(ServerMessage::AuthResult {
+                    success,
+                    error,
+                    features,
+                    ..
+                }) => {
                     if success {
                         info!(username = %self.username, "authenticated");
+                        self.relay_features = features;
                         return Ok(());
                     }
                     return Err(format!("authentication failed: {error:?}").into());

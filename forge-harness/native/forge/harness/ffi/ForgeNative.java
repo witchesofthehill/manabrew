@@ -68,6 +68,15 @@ public final class ForgeNative {
         }
     }
 
+    @CEntryPoint(name = "forge_get_checkpoint")
+    static CCharPointer getCheckpoint(IsolateThread thread, CCharPointer sessionId) {
+        try {
+            return ok(ADAPTER.getCheckpoint(str(sessionId)));
+        } catch (Throwable t) {
+            return err(t);
+        }
+    }
+
     @CEntryPoint(name = "forge_get_game_over")
     static CCharPointer getGameOver(IsolateThread thread, CCharPointer sessionId) {
         try {

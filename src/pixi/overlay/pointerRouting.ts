@@ -79,8 +79,12 @@ export function installOverlayPointerRouting({
       refreshInteractivity();
       return;
     }
+    const wasMouseInteractive = mouseInteractive;
     mouseInteractive = hitTest(event.clientX, event.clientY);
     refreshInteractivity();
+    if (mouseInteractive && !wasMouseInteractive && !event.composedPath().includes(canvas)) {
+      dispatchReplay(canvas, "pointermove", eventInit(event));
+    }
     onActivity();
   };
 

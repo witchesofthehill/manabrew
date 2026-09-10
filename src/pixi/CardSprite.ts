@@ -2,7 +2,6 @@ import {
   Container,
   Sprite,
   Texture,
-  ImageSource,
   Graphics,
   GraphicsContext,
   Text,
@@ -15,7 +14,7 @@ import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { deriveCardRailState, type CardRailState } from "@/components/game/cardRailState";
 import { cardTypeLine, counterColorKey, counterIconName } from "@/components/game/cardPresentation";
-import { CARD_W, CARD_H, CARD_RADIUS, CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
+import { CARD_W, CARD_H, CARD_RADIUS } from "@/components/game/game.constants";
 import { deriveCardChoiceIndicators } from "@/components/game/game.utils";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import type { Theme } from "@/hooks/useTheme";
@@ -31,7 +30,7 @@ import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
 import { applyManaSymbol, parseManaCost } from "./manaSymbols";
 import { asGameDeckCard } from "@/lib/decks";
 import { isFacelessCard } from "@/lib/gameCard";
-import { fetchImageElement } from "@/api/scryfall";
+import { loadCardBack } from "./cardBackTexture";
 import { DEBUG_KEYWORD_CARD_ID, useGameDevStore } from "@/stores/useGameDevStore";
 import { applyIcon } from "./panelIcons";
 import { type OneShot, oneShot, oneShotProgress, pulse } from "./effects/animation";
@@ -327,25 +326,6 @@ const resolvePTBgColor = (card: CardDto): number => {
   if (debuffed) return hexToNum(pt.debuffed);
   return hexToNum(pt.neutral);
 };
-
-let cardBackTexture: Texture | null = null;
-let cardBackPromise: Promise<Texture> | null = null;
-
-export function loadCardBack(): Promise<Texture> {
-  if (cardBackTexture) return Promise.resolve(cardBackTexture);
-  if (!cardBackPromise) {
-    cardBackPromise = fetchImageElement(CARD_BACK_IMAGE_URL)
-      .then((img) => {
-        cardBackTexture = new Texture({ source: new ImageSource({ resource: img }) });
-        return cardBackTexture;
-      })
-      .catch((error: unknown) => {
-        cardBackPromise = null;
-        throw error;
-      });
-  }
-  return cardBackPromise;
-}
 
 export class CardSprite extends Container {
   private static readonly instances = new Set<CardSprite>();
@@ -813,13 +793,11 @@ export class CardSprite extends Container {
     if (this.kind !== "hand" || this.usesHandRulesView === active) return;
     if (!this.handRulesFace) {
       const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
-      const deckCard = this.deckCard();
       this.handRulesFace = new HandRulesCardFace(
         this.card,
         faceIndex,
         this.cw,
         this.ch,
-        deckCard.layout,
         activeTheme,
       );
       this.contentContainer.addChild(this.handRulesFace);
@@ -883,11 +861,16 @@ export class CardSprite extends Container {
     this.handRulesHighlight = text;
     this.handRulesFace?.setHighlightedEffect(text);
   }
+  scrollHandRules(delta: number, mode: number): boolean {
+    if (!this.handRulesFace?.visible) return false;
+    this.handRulesFace.scrollBy(delta, mode);
+    return true;
+  }
 
   private updateHandRulesFace(): void {
     if (!this.handRulesFace?.visible) return;
     const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
-    this.handRulesFace.setContent(this.card, faceIndex, this.cw, this.ch, this.deckCard().layout);
+    this.handRulesFace.setContent(this.card, faceIndex, this.cw, this.ch);
   }
 
   private fitArtCover(): void {

@@ -6,6 +6,7 @@ import { hexToNum } from "@/pixi/colorUtils";
 import { PixiRichText } from "@/pixi/cardPreview/PixiRichText";
 import { readableTextColor } from "@/themes/gameTheme";
 import { RULES_BODY_FONT, type RulesPreviewFrameStyle } from "./rulesPreviewFrame";
+import { rulesEntryMatchesStackAbility } from "./rulesCardPreviewPresentation";
 
 interface PixiCardRailPreviewOptions {
   state: CardRailState;
@@ -13,6 +14,7 @@ interface PixiCardRailPreviewOptions {
   width: number;
   theme: Theme;
   frame: RulesPreviewFrameStyle;
+  highlightedEffect?: string;
 }
 
 const HEADER_HEIGHT = 54;
@@ -39,14 +41,23 @@ function style(
 
 export class PixiCardRailPreview extends Container {
   readonly contentHeight: number;
-
-  constructor({ state, effects, width, theme, frame }: PixiCardRailPreviewOptions) {
+  readonly highlightedRows: Container[] = [];
+  readonly highlightedRowTop: number | null;
+  constructor({
+    state,
+    effects,
+    width,
+    theme,
+    frame,
+    highlightedEffect,
+  }: PixiCardRailPreviewOptions) {
     super();
     const { gameTheme } = theme;
     const accent = state.kind === "saga" ? gameTheme.counter.lore : gameTheme.counter.level;
     const foreground = frame.ink;
     const muted = frame.mutedInk;
     const effectByPosition = new Map(effects.map((effect) => [effect.position, effect]));
+    let highlightedRowTop: number | null = null;
 
     const header = new Container();
     const iconBackground = new Graphics();
@@ -88,6 +99,10 @@ export class PixiCardRailPreview extends Container {
       const effect = effectByPosition.get(notch.position);
       const row = new Container();
       row.position.set(0, y);
+      const highlighted =
+        !!effect &&
+        !!highlightedEffect &&
+        rulesEntryMatchesStackAbility(effect.text, highlightedEffect);
       const rowBackground = new Graphics();
       row.addChild(rowBackground);
 
@@ -173,15 +188,27 @@ export class PixiCardRailPreview extends Container {
       row.addChildAt(timeline, 1);
       row.addChild(node, nodeLabel);
 
-      if (notch.active) {
+      if (notch.active || highlighted) {
         rowBackground.rect(0, 0, width, rowHeight);
-        rowBackground.fill({ color: hexToNum(accent), alpha: 0.08 });
+        rowBackground.fill({
+          color: hexToNum(highlighted ? gameTheme.activeAction.active : accent),
+          alpha: highlighted ? 0.28 : 0.08,
+        });
+      }
+      if (highlighted) {
+        const marker = new Graphics()
+          .roundRect(0, 0, 4, rowHeight, 2)
+          .fill(hexToNum(gameTheme.activeAction.active));
+        row.addChild(marker);
+        this.highlightedRows.push(row);
+        highlightedRowTop ??= y;
       }
 
       this.addChild(row);
       y += rowHeight;
     });
 
+    this.highlightedRowTop = highlightedRowTop;
     this.contentHeight = y;
   }
 }

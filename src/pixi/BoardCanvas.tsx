@@ -36,6 +36,7 @@ import { useServerStore } from "@/stores/useServerStore";
 import { boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
 import { setAnimationsEnabled } from "./effects/enabled";
 import { withAlpha } from "@/themes/gameTheme";
+import { bindPreviewScroll } from "./cardPreview/previewScroll";
 
 /** Matches HandCardActions `w-[220px]`. */
 const HAND_ACTIONS_PANEL_W = 220;
@@ -333,6 +334,21 @@ export function BoardCanvas({
       if (initSettled) release();
     };
   }, [cancelHandHoverClear]);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !scene) return;
+    return bindPreviewScroll(
+      canvas,
+      (clientX, clientY) => {
+        const rect = canvas.getBoundingClientRect();
+        return scene.hitTestHandRules(clientX - rect.left, clientY - rect.top);
+      },
+      (delta, mode, clientX, clientY) => {
+        const rect = canvas.getBoundingClientRect();
+        scene.scrollHandRulesAt(clientX - rect.left, clientY - rect.top, delta, mode);
+      },
+    );
+  }, [scene]);
 
   const players: BoardPlayerSpec[] = regions.map((r) => ({
     playerId: r.playerId,

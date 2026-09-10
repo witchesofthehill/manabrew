@@ -72,6 +72,12 @@ export class StackCardSprite {
     this.face.scale.set(this.faceScale);
     this.face.setHandRulesView(rulesView);
     this.face.setHandRulesHighlight(spec.sourceAbilityText ?? "");
+    this.face.on("pointerdown", (event: FederatedPointerEvent) => {
+      if (this.face.usesHandRulesView) event.stopPropagation();
+    });
+    this.face.on("pointertap", (event: FederatedPointerEvent) => {
+      if (this.face.usesHandRulesView) event.stopPropagation();
+    });
     this.viewControls = new HandCardControls(theme);
     this.face.position.set(0, 0);
 
@@ -79,7 +85,7 @@ export class StackCardSprite {
     this.width = (horiz ? CARD_H : CARD_W) * this.faceScale;
     this.height = (horiz ? CARD_W : CARD_H) * this.faceScale;
 
-    this.container.eventMode = "static";
+    this.container.eventMode = "dynamic";
     this.container.cursor = "pointer";
     this.container.hitArea = new Rectangle(
       -this.width / 2,
@@ -138,6 +144,10 @@ export class StackCardSprite {
     );
     this.syncControls();
     this.redraw();
+  }
+
+  scrollRules(delta: number, mode: number): boolean {
+    return this.face.scrollHandRules(delta, mode);
   }
 
   setTheme(theme: Theme): void {

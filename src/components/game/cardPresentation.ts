@@ -1,5 +1,4 @@
 import type { CardDto } from "@/protocol/game";
-import type { ClientCardDto } from "@/stores/gameStore.types";
 import type { GameThemeColors } from "@/themes/gameTheme";
 import {
   deriveCardRailEffects,
@@ -190,7 +189,7 @@ function deriveCosts(card: CardDto): CardCostPresentation[] {
   return costs;
 }
 
-export function deriveCardPresentation(card: ClientCardDto): CardPresentation {
+export function deriveCardPresentation(card: CardDto & { zoneId?: string }): CardPresentation {
   const rail = deriveCardRailState(card);
   const isPlaneswalker = card.types.some((type) => type.toLowerCase() === "planeswalker");
   const isBattle = card.types.some((type) => type.toLowerCase() === "battle");

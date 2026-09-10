@@ -23,7 +23,7 @@ import { manaColorFor } from "../manaColors";
 import { loadAvatarTexture } from "./avatarTextureCache";
 import type { PlayerHudSpec, PlayerHudTooltipContent } from "./playerHud.types";
 import type { ScreenBounds, ScreenPos } from "@/pixi/types";
-import { loadCardBack } from "@/pixi/CardSprite";
+import { loadCardBack } from "@/pixi/cardBackTexture";
 import { RING_ABILITIES, zoneBadgeId } from "@/components/game/game.constants";
 
 const BOT_ICON_NAME = "robot-antennas";

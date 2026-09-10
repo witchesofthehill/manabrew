@@ -53,7 +53,6 @@ export interface BoardOverlayPreviewSpec {
   anchorRect: DOMRect | null;
   viewportRight?: number;
   slotRect?: DOMRect | null;
-  variant: "field" | "hand";
 }
 
 export interface BoardOverlayCommandPreviewSpec {
@@ -115,7 +114,6 @@ function toRulesPreviewSpec(
   canvasRect: DOMRect,
 ): RulesCardPreviewSpec {
   return {
-    variant: spec.variant,
     card: spec.card,
     phase: spec.phase,
     sticky: spec.sticky,
@@ -696,10 +694,24 @@ export function BoardOverlayCanvas({
     };
     const unbindPreviewScroll = bindPreviewScroll(
       window,
-      (x, y) => hitAt(x, y).rulesPreview,
+      (clientX, clientY) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        return (
+          (previewRef.current?.hitTest(x, y) ?? false) ||
+          (stackRef.current?.hitTestRules(x, y) ?? false)
+        );
+      },
       (delta, mode, clientX, clientY) => {
         const rect = canvas.getBoundingClientRect();
-        previewRef.current?.scrollBy(delta, mode, clientX - rect.left, clientY - rect.top);
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        if (previewRef.current?.hitTest(x, y)) {
+          previewRef.current.scrollBy(delta, mode, x, y);
+        } else {
+          stackRef.current?.scrollRulesAt(x, y, delta, mode);
+        }
         schedulerRef.current?.request();
       },
     );

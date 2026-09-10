@@ -11,7 +11,8 @@ import type { CardDto } from "@/protocol/game";
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "../colorUtils";
 import { applyIcon } from "../panelIcons";
-import { CardSprite, loadCardBack } from "../CardSprite";
+import { CardSprite } from "../CardSprite";
+import { loadCardBack } from "../cardBackTexture";
 import { animationsEnabled } from "../effects/enabled";
 import { gsap } from "../effects/gsap";
 

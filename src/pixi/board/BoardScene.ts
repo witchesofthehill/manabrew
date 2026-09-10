@@ -1201,6 +1201,13 @@ export class BoardScene {
   handUsesRulesView(cardId: string): boolean {
     return this.hand?.usesRulesView(cardId) === true;
   }
+  hitTestHandRules(x: number, y: number): boolean {
+    return this.hand?.hitTestRules(x, y) === true;
+  }
+
+  scrollHandRulesAt(x: number, y: number, delta: number, mode: number): boolean {
+    return this.hand?.scrollRulesAt(x, y, delta, mode) ?? false;
+  }
 
   toggleHoveredHandRulesView(): boolean | null {
     return this.hand?.toggleHoveredRulesView() ?? null;

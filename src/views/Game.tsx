@@ -2166,7 +2166,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     !commandPreview && inGameCardPreviewStyle === "rules" && showInGamePreview && livePreviewCard
       ? {
           card: livePreviewCard,
-          variant: "field",
           phase: preview.phase === "closing" ? "closing" : "open",
           sticky: preview.isSticky,
           showBackFace: previewShowBackFace,

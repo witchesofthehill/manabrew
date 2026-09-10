@@ -290,6 +290,31 @@ export class StackLayer implements StackAnchorProvider {
     }
     return false;
   }
+  hitTestRules(x: number, y: number): boolean {
+    return this.rulesSpriteAt(x, y) !== null;
+  }
+
+  scrollRulesAt(x: number, y: number, delta: number, mode: number): boolean {
+    return this.rulesSpriteAt(x, y)?.scrollRules(delta, mode) ?? false;
+  }
+
+  private rulesSpriteAt(x: number, y: number): StackCardSprite | null {
+    let result: StackCardSprite | null = null;
+    let topZIndex = -Infinity;
+    for (const sprite of this.sprites.values()) {
+      if (!sprite.usesRulesView || !sprite.container.visible) continue;
+      const bounds = sprite.container.getBounds();
+      const contains =
+        x >= bounds.x &&
+        x <= bounds.x + bounds.width &&
+        y >= bounds.y &&
+        y <= bounds.y + bounds.height;
+      if (!contains || sprite.container.zIndex < topZIndex) continue;
+      result = sprite;
+      topZIndex = sprite.container.zIndex;
+    }
+    return result;
+  }
 
   cancelPointer(pointerId: number): void {
     for (const sprite of this.sprites.values()) sprite.cancelPointer(pointerId);

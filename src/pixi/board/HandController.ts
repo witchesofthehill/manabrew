@@ -416,6 +416,31 @@ export class HandController {
   usesRulesView(cardId: string): boolean {
     return this.sprites.get(cardId)?.usesHandRulesView === true;
   }
+  hitTestRules(x: number, y: number): boolean {
+    return this.rulesSpriteAt(x, y) !== null;
+  }
+
+  scrollRulesAt(x: number, y: number, delta: number, mode: number): boolean {
+    return this.rulesSpriteAt(x, y)?.scrollHandRules(delta, mode) ?? false;
+  }
+
+  private rulesSpriteAt(x: number, y: number): CardSprite | null {
+    let result: CardSprite | null = null;
+    let topZIndex = -Infinity;
+    for (const sprite of this.sprites.values()) {
+      if (!sprite.usesHandRulesView || !sprite.visible || sprite.alpha === 0) continue;
+      const bounds = sprite.getBounds();
+      const contains =
+        x >= bounds.x &&
+        x <= bounds.x + bounds.width &&
+        y >= bounds.y &&
+        y <= bounds.y + bounds.height;
+      if (!contains || sprite.zIndex < topZIndex) continue;
+      result = sprite;
+      topZIndex = sprite.zIndex;
+    }
+    return result;
+  }
 
   toggleHoveredRulesView(): boolean | null {
     if (this.hoveredCardId === null) return null;

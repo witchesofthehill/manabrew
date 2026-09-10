@@ -141,35 +141,19 @@ export function peekCard(
   }
 }
 
-async function fetchScryfallCard(
-  lookup: ScryfallCardLookup,
-  language: ScryfallLanguage,
-): Promise<ScryfallCard> {
-  let card: ScryfallCard;
-  if (lookup.id) {
-    card = await getCardById(lookup.id);
-  } else {
-    const cn = lookup.collectorNumber ?? lookup.cardNumber;
-    if (lookup.setCode && cn) {
-      card = await getCardBySetAndNumber(lookup.setCode, cn);
-    } else {
-      if (!lookup.name) {
-        throw new Error("Scryfall lookup requires a name or id");
-      }
-      if (lookup.setCode) {
-        try {
-          card = await getCardByName(lookup.name, lookup.setCode);
-        } catch {
-          card = await getCardByName(lookup.name);
-        }
-      } else {
-        card = await getCardByName(lookup.name);
-      }
-    }
-  }
+type LocalizedPrintingFallback = "same-printing" | "any-printing";
 
+async function localizeScryfallCard(
+  card: ScryfallCard,
+  language: ScryfallLanguage,
+  fallback: LocalizedPrintingFallback,
+): Promise<ScryfallCard> {
   const matchingPrinting = await getLocalizedCardPrinting(card, language);
-  if (matchingPrinting.lang === language || language === DEFAULT_SCRYFALL_LANGUAGE) {
+  if (
+    matchingPrinting.lang === language ||
+    language === DEFAULT_SCRYFALL_LANGUAGE ||
+    fallback === "same-printing"
+  ) {
     return matchingPrinting;
   }
 
@@ -184,6 +168,40 @@ async function fetchScryfallCard(
   } catch {
     return card;
   }
+}
+
+async function fetchScryfallCard(
+  lookup: ScryfallCardLookup,
+  language: ScryfallLanguage,
+): Promise<ScryfallCard> {
+  let card: ScryfallCard;
+  let fallback: LocalizedPrintingFallback = "any-printing";
+  if (lookup.id) {
+    card = await getCardById(lookup.id);
+    fallback = "same-printing";
+  } else {
+    const cn = lookup.collectorNumber ?? lookup.cardNumber;
+    if (lookup.setCode && cn) {
+      card = await getCardBySetAndNumber(lookup.setCode, cn);
+      fallback = "same-printing";
+    } else {
+      if (!lookup.name) {
+        throw new Error("Scryfall lookup requires a name or id");
+      }
+      if (lookup.setCode) {
+        try {
+          card = await getCardByName(lookup.name, lookup.setCode);
+          fallback = "same-printing";
+        } catch {
+          card = await getCardByName(lookup.name);
+        }
+      } else {
+        card = await getCardByName(lookup.name);
+      }
+    }
+  }
+
+  return localizeScryfallCard(card, language, fallback);
 }
 
 async function localizeScryfallCards(
@@ -657,7 +675,7 @@ export const useScryfallStore = create<ScryfallState>()(
       fetchCardByFuzzyName: async (name) => {
         const locale = get().locale;
         const card = await fetchCardByFuzzyName(name);
-        const localized = await fetchScryfallCard({ id: card.id }, locale);
+        const localized = await localizeScryfallCard(card, locale, "any-printing");
         return get().locale === locale ? localized : get().fetchCardByFuzzyName(name);
       },
       searchCards: async (query, page, order, dir) => {

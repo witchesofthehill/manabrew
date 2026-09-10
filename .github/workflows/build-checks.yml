@@ -312,8 +312,12 @@ jobs:
         if: steps.wasm-cache.outputs.cache-hit != 'true'
         run: yarn build:wasm
 
-      - name: Compile translation catalogs
-        run: yarn i18n:compile
+      - name: Check translation catalogs
+        run: |
+          yarn i18n:extract
+          git diff --exit-code -- src/i18n/locales
+          test -z "$(git status --porcelain --untracked-files=all -- src/i18n/locales)"
+          yarn i18n:compile
 
       - name: Type-check
         run: yarn typecheck

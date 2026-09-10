@@ -83,20 +83,24 @@ A cosmetic field always holds something an `<img>` can load: the hub joins `Deck
 ## Card data — Scryfall store
 
 Scryfall card lookups, image textures, set lists, and rulings flow through `src/stores/useScryfallStore.ts` (Zustand + immer). It is the **only** sanctioned path for card data; do not introduce TanStack Query, `useQuery`, or one-off `fetch` calls for card or set lookups.
-The active app locale maps to Scryfall's language code in `i18n/locales.ts`. The store prefers the matching localized printing, then another localized printing for the same Oracle card, and falls back to English per card. `setLocale` invalidates card, hydrated-set, and printing caches; locale-sensitive consumers must stay on the store so a language change cannot reuse stale English data.
+The active app locale maps to Scryfall's language code in `i18n/locales.ts`. Exact-printing lookups request the same set and collector number and preserve the original English printing when that translation is unavailable. Name-only lookups may use another localized printing for the same Oracle card before falling back to English. `setLocale` invalidates card, hydrated-set, and printing caches; locale-sensitive consumers must stay on the store so a language change cannot reuse stale English data.
+
+Render localized Scryfall labels through `scryfallDisplayName` and `scryfallDisplayTypeLine`. Keep `card.name` as the canonical engine, deck, collection, and cache identity.
 
 App initialization continues when set metadata cannot load. Keep `useScryfallStore.sets` initialized to an empty array; card previews must render before or without that download.
 
 Large collection imports are the exception: exact-printing verification goes through `POST /api/cards/verify`, backed by the Hub's daily Scryfall `default_cards` bulk index. Never verify a collection by issuing live Scryfall requests per row or per 75-row batch.
 
-Use the exported hook helpers, not the raw store:
+Use these store APIs rather than importing card-data fetchers from `api/scryfall.ts`:
 
 | Need                                       | Use                                                |
 | ------------------------------------------ | -------------------------------------------------- |
 | Card metadata by name / set+collector / id | `useCard({ name, setCode?, collectorNumber? })`    |
+| Imperative card search                     | `useScryfallStore.getState().searchCards(...)`     |
 | Pixi `Texture` for a card image            | `useCardTexture(...)`                              |
 | Card rulings                               | `useCardRulings(card)`                             |
 | Set list as a `Map`                        | `useSetLookup()`                                   |
+| Initial set-list load                      | `useScryfallStore.getState().fetchSets()`          |
 | Bulk warm the cache before a view loads    | `prefetchCards([...])`                             |
 | Force a refresh of a single card           | `useScryfallStore.getState().invalidateCard(name)` |
 | Promote a chosen printing                  | `useScryfallStore.getState().updatePrinting(card)` |

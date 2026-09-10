@@ -27,7 +27,7 @@ export function FullscreenPrompt({
       onClose={onClose}
       maxWidth="max-w-none"
       maxHeight="max-h-none"
-      backdropClassName="bg-background/70 backdrop-blur-[2px]"
+      backdropClassName="bg-background/70 backdrop-blur-[4px]"
       className="m-0 h-full w-full rounded-none border-0 bg-transparent shadow-none"
     >
       <div

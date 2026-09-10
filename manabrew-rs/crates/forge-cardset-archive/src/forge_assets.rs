@@ -143,49 +143,78 @@ fn json_string_field(tail: &str, field: &str) -> Option<String> {
     Some(value[..end].to_string())
 }
 
+/// The lowercased names of the cards a game needs for `wanted`: the names
+/// themselves, the cards behind any flavor names among them, and the cards
+/// those scripts name through `ChooseFromList`.
+///
+/// A deck can name an alt-art printing by its Scryfall flavor name — FCA #40
+/// is a Lightning Bolt called "Thrum of the Vestige" — and that name matches
+/// no card script. The engine resolves the name at deck build (see
+/// ManaBrewEngineAdapter.resolveFlavorName), so the script it then asks for
+/// has to be in the bundle: without this the browser hands Forge a deck it
+/// cannot build even though the JVM path is fine.
+fn select_card_names(
+    archive: &ArchivedCardArchive,
+    wanted: &[String],
+) -> std::collections::HashSet<String> {
+    let mut keep: std::collections::HashSet<String> =
+        wanted.iter().map(|n| n.to_ascii_lowercase()).collect();
+    let known: std::collections::HashSet<&str> = archive
+        .cards
+        .iter()
+        .map(|card| card.name_lower.as_str())
+        .collect();
+    let unknown: Vec<String> = keep
+        .iter()
+        .filter(|name| !known.contains(name.as_str()))
+        .cloned()
+        .collect();
+    if !unknown.is_empty() {
+        let flavors = flavor_name_index(archive.editions.iter().map(|e| e.raw.as_str()));
+        for name in unknown {
+            if let Some(real) = flavors.get(&name) {
+                keep.insert(real.clone());
+            }
+        }
+    }
+    add_named_card_dependencies(archive, &mut keep);
+    keep
+}
+
+/// The scripts of `names` and of the cards they name, framed
+/// `name_lower\0script\0…`, for a card Forge reaches for at play time that
+/// its boot bundle left out (`Conjure`, `Spellbook`, `NamedCard`, meld). A name
+/// the archive does not know is absent, so a miss reads apart from an empty script.
+pub fn forge_card_scripts(bytes: &[u8], names: Vec<String>) -> Result<String, String> {
+    let archive = load_checked(bytes)?;
+    if names.is_empty() {
+        return Ok(String::new());
+    }
+    let keep = select_card_names(archive, &names);
+    let mut out = String::new();
+    for card in archive.cards.iter() {
+        if keep.contains(card.name_lower.as_str()) {
+            push(&mut out, card.name_lower.as_str(), card.raw.as_str());
+        }
+    }
+    Ok(out)
+}
+
 /// Build the NUL-framed asset bundle the Wasm Forge build unpacks at boot.
 ///
 /// `wanted` restricts the card scripts to the names actually in play and the
 /// cards those scripts name through `ChooseFromList`. Forge reads its whole
 /// cardsfolder at init, so shipping all 33k scripts costs seconds of boot for
-/// cards no game will touch. An empty list means every card.
+/// cards no game will touch. An empty list means every card. Whatever this
+/// leaves out, Forge asks for at play time through [`forge_card_scripts`].
 pub fn forge_asset_bundle(bytes: &[u8], wanted: Vec<String>) -> Result<String, String> {
     let archive = load_checked(bytes)?;
 
-    let mut filter: Option<std::collections::HashSet<String>> = if wanted.is_empty() {
+    let filter: Option<std::collections::HashSet<String>> = if wanted.is_empty() {
         None
     } else {
-        Some(wanted.iter().map(|n| n.to_ascii_lowercase()).collect())
+        Some(select_card_names(archive, &wanted))
     };
-
-    // A deck can name an alt-art printing by its Scryfall flavor name — FCA #40
-    // is a Lightning Bolt called "Thrum of the Vestige" — and that name matches
-    // no card script. The engine resolves the name at deck build (see
-    // ManaBrewEngineAdapter.resolveFlavorName), so the script it then asks for
-    // has to be in the bundle: without this the browser hands Forge a deck it
-    // cannot build even though the JVM path is fine.
-    if let Some(keep) = filter.as_mut() {
-        let known: std::collections::HashSet<&str> = archive
-            .cards
-            .iter()
-            .map(|card| card.name_lower.as_str())
-            .collect();
-        let unknown: Vec<String> = keep
-            .iter()
-            .filter(|name| !known.contains(name.as_str()))
-            .cloned()
-            .collect();
-        if !unknown.is_empty() {
-            let flavors = flavor_name_index(archive.editions.iter().map(|e| e.raw.as_str()));
-            for name in unknown {
-                if let Some(real) = flavors.get(&name) {
-                    keep.insert(real.clone());
-                }
-            }
-        }
-        add_named_card_dependencies(archive, keep);
-    }
-    let filter = filter;
 
     let mut out = String::with_capacity(if filter.is_some() {
         1 << 20

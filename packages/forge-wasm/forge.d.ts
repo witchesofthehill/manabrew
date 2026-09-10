@@ -62,6 +62,8 @@ export interface ForgeStartMultiplayerGameOptions {
  * The four message families the engine emits, and the whole of them. `state`
  * carries the game view, `prompt` a call to action that carries no view,
  * `display` an animation hint, and `error` a rejection of the last response.
+ * The engine's own `asset` lookups are answered inside `ForgeEngine` and never
+ * reach `onMessage`.
  */
 export type ForgeEngineMessage =
   | { kind: "state"; state: StateUpdate }
@@ -76,6 +78,12 @@ export interface ForgeEngineOptions {
   cardsetUrl?: string | URL;
   assetWasmUrl?: string | URL;
   assets?: string | ((decks: ForgeDeck[]) => string | Promise<string>);
+  /**
+   * Raw card scripts keyed by card name, for a card the engine reaches for
+   * that the boot bundle left out. Read from the cardset by default; a host
+   * that supplies its own `assets` will want to supply these from the same place.
+   */
+  cardScripts?: (names: string[]) => Record<string, string> | Promise<Record<string, string>>;
   onMessage?: (message: ForgeEngineMessage, playerSlot?: string) => void;
   onState?: (state: StateUpdate, playerSlot?: string) => void;
   onPrompt?: (prompt: Prompt, playerSlot?: string) => void;
@@ -89,6 +97,7 @@ export declare class ForgeEngine {
   constructor(options?: ForgeEngineOptions);
   init(): Promise<void>;
   buildAssets(decks: ForgeDeck[]): Promise<string>;
+  cardScripts(names: string[]): Promise<Record<string, string>>;
   startGame(options: ForgeStartGameOptions): Promise<"game-started">;
   startMultiplayerGame(options: ForgeStartMultiplayerGameOptions): Promise<"multiplayer-started">;
   respond(promptId: number, action: PromptOutput, playerSlot?: string): void;

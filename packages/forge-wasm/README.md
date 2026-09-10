@@ -135,6 +135,15 @@ await createForgeEngine({
 });
 ```
 
+The bundle holds the decks' scripts and the cards they name outright, not the whole cardsfolder. A card the game reaches for beyond that (a `Conjure`, a `Spellbook`, a meld) is asked for while the game runs: the engine writes an `asset` message on the host seat and the engine answers it from the cardset. A host which overrides `assets` will usually want to answer those lookups from the same place, with raw scripts keyed by card name:
+
+```js
+await createForgeEngine({
+  assets: async (decks) => buildExistingForgeAssetBundle(decks),
+  cardScripts: async (names) => lookUpExistingCardScripts(names),
+});
+```
+
 The launcher, worker, engine WASM, asset-selector WASM and cardset URLs can all be overridden. Their defaults are module-relative URLs that Vite and other modern bundlers emit as static assets. On Node they default to the installed files, and an override may be a path or a `file:` URL.
 
 ## Which build is this
@@ -152,7 +161,7 @@ import { VERSION, CARDSET_ARCHIVE_VERSION, BUILD_COMMIT } from "@manabrew/forge-
 Two internals are exported because a host that overrides `assets` still needs them, and because Manabrew's own client imports them rather than keeping a second copy:
 
 - `@manabrew/forge-wasm/deckCards` — `deckCardNames(decks)`, the names to ask the archive selector for.
-- `@manabrew/forge-wasm/seat` — the SharedArrayBuffer seat protocol: `createSeat`, `pollSeat`, `writeSeatMessage`, `deliverSeatDirective` and the signal constants.
+- `@manabrew/forge-wasm/seat` — the SharedArrayBuffer seat protocol: `createSeat`, `pollSeat`, `writeSeatMessage`, `deliverSeatDirective`, `answerSeatAssets` and the signal constants.
 
 ## Licence
 

@@ -134,6 +134,7 @@ async function startGame(requestId, args) {
 
   const sab = new SharedArrayBuffer(SAB_SIZE);
   self.__forgeSab = sab;
+  self.__forgeHostSeat = 0;
   gameRunning = true;
 
   postEvent("game:sab", { buffer: sab });
@@ -221,6 +222,8 @@ async function startMultiplayerGame(requestId, args) {
   const seatBuffers = decks.map(() => new SharedArrayBuffer(SAB_SIZE));
   self.__forgeSeatSabs = seatBuffers;
   self.__forgeSab = seatBuffers[localPlayerIndex];
+  // Card script lookups must never land on a buffer relayed to a guest.
+  self.__forgeHostSeat = localPlayerIndex;
   gameRunning = true;
 
   postEvent("game:sab", { buffer: seatBuffers[localPlayerIndex] });

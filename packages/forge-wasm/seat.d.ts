@@ -20,6 +20,19 @@ export declare function createSeat(buffer: SharedArrayBuffer): ForgeSeat;
 export declare function readSeatMessage(seat: ForgeSeat): string | null;
 export declare function writeSeatMessage(seat: ForgeSeat, message: unknown): void;
 export declare function deliverSeatDirective(seat: ForgeSeat, directive: unknown): void;
+/** The engine asking for card scripts its boot bundle left out. */
+export interface ForgeAssetRequest {
+  cards: string[];
+}
+/**
+ * Answers an `asset` request with raw card scripts keyed by card name, trimmed
+ * to what fits the buffer; extras beyond the requested cards go first.
+ */
+export declare function answerSeatAssets(
+  seat: ForgeSeat,
+  request: ForgeAssetRequest,
+  scripts: Record<string, string>,
+): void;
 export declare function noteSeatMessage(seat: ForgeSeat, message: unknown): void;
 export declare function pollSeat<T = unknown>(
   seat: ForgeSeat,

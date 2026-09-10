@@ -142,6 +142,7 @@ public final class WasmMain {
     private static void serve() throws Exception {
         forge.harness.host.ManaBrewEngineAdapter adapter = new forge.harness.host.ManaBrewEngineAdapter();
         adapter.initialize("/forge-gui/");
+        forge.StaticData.instance().setMissingCardSource(SabTransport::fetchMissingCard);
         System.out.println("[wasm] forge initialized, waiting for a game");
 
         exportStartGame((request) -> {

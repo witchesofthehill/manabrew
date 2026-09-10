@@ -67,15 +67,17 @@ import {
 import { ForgeHostBridge } from "@/game/forgeHostBridge";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { isForgeWasmHostingEnabled, setForgeWasmActive } from "@/lib/forgeWasm";
-import { buildForgeAssetBundle } from "@/lib/forgeAssets";
+import { buildForgeAssetBundle, resolveForgeCardScripts } from "@/lib/forgeAssets";
 import type { Deck } from "@/protocol/deck";
 // The seat protocol lives with @manabrew/forge-wasm, which drives the same
 // worker, so there is one implementation rather than one per consumer.
 import {
+  answerSeatAssets,
   createSeat,
   deliverSeatDirective,
   pollSeat,
   writeSeatMessage,
+  type ForgeAssetRequest,
   type ForgeSeat,
 } from "@forge-wasm/seat.js";
 
@@ -138,6 +140,7 @@ type EngineMessage = {
   event?: unknown;
   prompt?: unknown;
   error?: unknown;
+  asset?: ForgeAssetRequest;
 };
 
 // One such message awaiting relay to the seat that owes an answer.
@@ -244,6 +247,19 @@ class WorkerBridge {
       case "error":
         this.eventBus.emit("game:error", msg.error);
         break;
+      case "asset": {
+        const seat = this.localSeat;
+        const request = msg.asset ?? { cards: [] };
+        if (!seat) break;
+        resolveForgeCardScripts(request.cards ?? []).then(
+          (scripts) => answerSeatAssets(seat, request, scripts),
+          (error) => {
+            console.error("[WorkerBridge] card script lookup failed:", error);
+            answerSeatAssets(seat, request, {});
+          },
+        );
+        break;
+      }
       case "prompt": {
         const w = window as unknown as {
           __respondedAt?: number;

@@ -91,6 +91,49 @@ public final class SabTransport implements InteractiveBridge {
     @JS("return (globalThis.__mbSeats || []).length;")
     static native int seatCount();
 
+    /** The seat whose buffer the hosting page reads itself, never a relayed one. */
+    @JS.Coerce
+    @JS("return globalThis.__forgeHostSeat | 0;")
+    static native int hostSeat();
+
+    /**
+     * A card script the boot bundle left out, asked of the page over the host
+     * seat like a prompt: the engine is parked inside the ability that needs
+     * the card until {@code {kind:"asset", scripts}} comes back. With no seat
+     * bound there is nobody to ask, and the card stays missing.
+     */
+    static java.util.Map<String, String> fetchMissingCard(final String cardName) {
+        if (seatCount() == 0) {
+            return java.util.Collections.emptyMap();
+        }
+        final int seat = hostSeat();
+        final JsonObject request = new JsonObject();
+        final com.google.gson.JsonArray cards = new com.google.gson.JsonArray();
+        cards.add(cardName);
+        request.add("cards", cards);
+        sendTagged(seat, "asset", "asset", request.toString());
+        final JsonObject reply = JsonParser.parseString(recv(seat)).getAsJsonObject();
+        final java.util.Map<String, String> scripts = new java.util.HashMap<>();
+        if (!reply.has("scripts") || !reply.get("scripts").isJsonObject()) {
+            System.err.println("[wasm] the host answered the lookup of \"" + cardName
+                    + "\" with " + reply + ", treating the card as missing");
+            return scripts;
+        }
+        for (final java.util.Map.Entry<String, com.google.gson.JsonElement> entry
+                : reply.getAsJsonObject("scripts").entrySet()) {
+            if (entry.getValue().isJsonPrimitive()) {
+                scripts.put(entry.getKey(), entry.getValue().getAsString());
+            }
+        }
+        if (scripts.containsKey(cardName.toLowerCase(java.util.Locale.ROOT))) {
+            System.out.println("[wasm] fetched the script of \"" + cardName + "\" from the host, "
+                    + scripts.size() + " in the answer");
+        } else {
+            System.err.println("[wasm] the host has no script for \"" + cardName + "\"");
+        }
+        return scripts;
+    }
+
     private final java.util.function.IntFunction<String> snapshots;
     private long checkpoint;
     private long lastRecvAt;

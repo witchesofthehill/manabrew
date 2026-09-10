@@ -1,6 +1,12 @@
-import initAssetBuilder, { forge_asset_bundle } from "./forge-assets.js";
+import initAssetBuilder, { forge_asset_bundle, forge_card_scripts } from "./forge-assets.js";
 import { deckCardNames } from "./deckCards.js";
-import { createSeat, deliverSeatDirective, pollSeat, writeSeatMessage } from "./seat.js";
+import {
+  answerSeatAssets,
+  createSeat,
+  deliverSeatDirective,
+  pollSeat,
+  writeSeatMessage,
+} from "./seat.js";
 
 const LOCAL_SEAT = "local";
 
@@ -58,6 +64,11 @@ export class ForgeEngine {
   async buildAssets(decks) {
     if (typeof this.options.assets === "string") return this.options.assets;
     if (typeof this.options.assets === "function") return this.options.assets(decks);
+    await this.loadCardset();
+    return forge_asset_bundle(this.cardsetBytes, deckCardNames(decks));
+  }
+
+  async loadCardset() {
     if (!assetBuilderPromise) {
       assetBuilderPromise = this.platform
         .assetModule(this.locations.assetWasm)
@@ -67,7 +78,18 @@ export class ForgeEngine {
     if (!this.cardsetBytes) {
       this.cardsetBytes = await this.platform.readCardset(this.locations.cardset);
     }
-    return forge_asset_bundle(this.cardsetBytes, deckCardNames(decks));
+    return this.cardsetBytes;
+  }
+
+  async cardScripts(names) {
+    if (typeof this.options.cardScripts === "function") {
+      return (await this.options.cardScripts(names)) ?? {};
+    }
+    const cardset = await this.loadCardset();
+    const scripts = {};
+    const fields = forge_card_scripts(cardset, names).split("\0");
+    for (let i = 0; i + 1 < fields.length; i += 2) scripts[fields[i]] = fields[i + 1];
+    return scripts;
   }
 
   async startGame(args) {
@@ -115,6 +137,20 @@ export class ForgeEngine {
 
   dispatchMessage(message, seatSlot) {
     const playerSlot = seatSlot === LOCAL_SEAT ? undefined : seatSlot;
+    // The engine's own lookup, not a player message; it is parked until answered.
+    if (message?.kind === "asset") {
+      const seat = this.seats.get(seatSlot);
+      if (!seat) return;
+      const names = Array.isArray(message.asset?.cards) ? message.asset.cards : [];
+      this.cardScripts(names).then(
+        (scripts) => answerSeatAssets(seat, message.asset, scripts),
+        (error) => {
+          this.options.onError?.(error, playerSlot);
+          answerSeatAssets(seat, message.asset, {});
+        },
+      );
+      return;
+    }
     this.options.onMessage?.(message, playerSlot);
     if (message?.kind === "state") this.options.onState?.(message.state, playerSlot);
     if (message?.kind === "prompt") this.options.onPrompt?.(message.prompt, playerSlot);

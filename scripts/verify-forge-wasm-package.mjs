@@ -100,6 +100,27 @@ if (!heronScripts.has("res/cardsfolder/e/emrakul_the_promised_end.txt")) {
   throw new Error("ChooseFromList does not restore commas escaped as semicolons.");
 }
 
+function cardScripts(names) {
+  const fields = assetModule.forge_card_scripts(cardset, names).split("\0");
+  return new Map(
+    fields
+      .filter((value, index) => index % 2 === 0 && value)
+      .map((name, i) => [name, fields[i * 2 + 1]]),
+  );
+}
+
+const lazyGarth = cardScripts(["Garth One-Eye"]);
+for (const name of ["garth one-eye", "black lotus", "shivan dragon"]) {
+  if (!lazyGarth.get(name)?.startsWith("Name:"))
+    throw new Error(`The play-time lookup of Garth is missing ${name}.`);
+}
+if (lazyGarth.has("lightning bolt")) {
+  throw new Error("The play-time lookup of Garth includes an unrelated card script.");
+}
+if (cardScripts(["No Such Card"]).size !== 0) {
+  throw new Error("The play-time lookup of an unknown card is not empty.");
+}
+
 // A mismatch means the stamp did not run, and consumers would read stale
 // numbers.
 const stamps = readFileSync(join(packageDir, "stamp.js"), "utf8");
@@ -185,6 +206,7 @@ writeFileSync(
     // annotations do not compile if the package types them as unknown.
     "const engine = new ForgeEngine({",
     '  assets: "",',
+    '  cardScripts: async (names) => Object.fromEntries(names.map((name) => [name, ""])),',
     "  onState: (state) => { const view: GameViewDto = state.gameView; void view; },",
     "  onPrompt: (prompt) => { const p: Prompt = prompt; void p; },",
     '  onDisplay: (event) => { void (event.kind === "cardPlayed" ? event.cardName : ""); },',

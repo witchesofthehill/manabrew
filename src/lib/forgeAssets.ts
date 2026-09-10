@@ -15,13 +15,35 @@ const CARD_ARCHIVE_MANIFEST = "/wasm/cardset.manifest.json";
  */
 export async function buildForgeAssetBundle(decks: Array<Deck | undefined>): Promise<string> {
   const names = deckCardNames(decks);
+  const { wasm, bytes } = await loadCardArchive();
+  return wasm.forge_asset_bundle(bytes, names);
+}
 
-  const wasm = await import("@/wasm/wasm");
-  await wasm.default();
+/** Raw scripts keyed by lowercased card name, for a card the running game reaches for that its bundle left out. */
+export async function resolveForgeCardScripts(names: string[]): Promise<Record<string, string>> {
+  const { wasm, bytes } = await loadCardArchive();
+  const scripts: Record<string, string> = {};
+  const fields = wasm.forge_card_scripts(bytes, names).split("\0");
+  for (let i = 0; i + 1 < fields.length; i += 2) scripts[fields[i]] = fields[i + 1];
+  return scripts;
+}
 
+type CardArchive = { wasm: typeof import("@/wasm/wasm"); archive: string; bytes: Uint8Array };
+
+let cardArchive: Promise<CardArchive> | null = null;
+
+/** Kept for the session so a lookup mid-game costs no second fetch; refetched when a deploy renames the archive. */
+async function loadCardArchive(): Promise<CardArchive> {
   const manifest = await (await fetch(CARD_ARCHIVE_MANIFEST, { cache: "no-cache" })).json();
-  const response = await fetch(`/wasm/${manifest.archive}`);
-  if (!response.ok) throw new Error(`card archive fetch failed: ${response.status}`);
-
-  return wasm.forge_asset_bundle(new Uint8Array(await response.arrayBuffer()), names);
+  const archive = String(manifest.archive);
+  const cached = cardArchive ? await cardArchive.catch(() => null) : null;
+  if (cached && cached.archive === archive) return cached;
+  cardArchive = (async () => {
+    const wasm = await import("@/wasm/wasm");
+    await wasm.default();
+    const response = await fetch(`/wasm/${archive}`);
+    if (!response.ok) throw new Error(`card archive fetch failed: ${response.status}`);
+    return { wasm, archive, bytes: new Uint8Array(await response.arrayBuffer()) };
+  })();
+  return cardArchive;
 }

@@ -71,6 +71,26 @@ export function writeSeatMessage(seat, message) {
 }
 
 /**
+ * Answers an `asset` request (the engine asking for card scripts its boot
+ * bundle left out) with raw scripts keyed by card name. The engine is parked
+ * until this is written, so the answer must fit the buffer: cards beyond the
+ * requested ones go first, then the requested ones, and empty means missing.
+ */
+export function answerSeatAssets(seat, request, scripts) {
+  const requested = Array.isArray(request?.cards) ? request.cards.map(String) : [];
+  const wanted = new Set(requested.map((name) => name.toLowerCase()));
+  const extras = Object.keys(scripts).filter((name) => !wanted.has(name.toLowerCase()));
+  const kept = { ...scripts };
+  const fits = () =>
+    new TextEncoder().encode(JSON.stringify({ kind: "asset", scripts: kept })).length <=
+    seat.data.length;
+  while (!fits() && extras.length) delete kept[extras.pop()];
+  const names = Object.keys(kept);
+  while (!fits() && names.length) delete kept[names.pop()];
+  writeSeatMessage(seat, { kind: "asset", scripts: kept });
+}
+
+/**
  * The seat holds one message slot, so a directive written while the engine is
  * not waiting would be overwritten before it read it. Hold it until it blocks.
  */

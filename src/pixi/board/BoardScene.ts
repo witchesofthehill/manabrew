@@ -41,6 +41,7 @@ import { animationsEnabled } from "../effects/enabled";
 import { gsap } from "../effects/gsap";
 import { LongPressGesture } from "../LongPressGesture";
 import { PREVIEW_TIMING, type PreviewPointerInput } from "@/lib/cardPreview";
+import { topModal } from "@/lib/modalStack";
 import { intentIsHostile } from "@/types/promptType";
 import {
   FLOATER_FONT_SIZE,
@@ -419,6 +420,10 @@ export class BoardScene {
     app.stage.on("pointerupoutside", this.onStageUp);
 
     this.cursorListener = (e: MouseEvent) => {
+      if (topModal()) {
+        this.updateHoveredOpponent(-1, -1);
+        return;
+      }
       this.cursorViewportX = e.clientX;
       this.cursorViewportY = e.clientY;
       const rect = this.app.canvas.getBoundingClientRect();
@@ -2021,6 +2026,11 @@ export class BoardScene {
 
   private onGlobalMove(e: FederatedPointerEvent): void {
     if (this.destroyed) return;
+    if (topModal()) {
+      if (this.hand?.hasActiveHover()) this.hand.resetHover();
+      this.updateHoveredOpponent(-1, -1);
+      return;
+    }
     if (this.pinchStart) return;
     if (this.activeGesturePointerId !== null && e.pointerId !== this.activeGesturePointerId) {
       return;

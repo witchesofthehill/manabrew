@@ -3,15 +3,11 @@ import { useTheme } from "@/hooks/useTheme";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { cn } from "@/lib/utils";
 import { DialogCardGrid } from "./DialogCardGrid";
-import { DialogCardPickerGrid } from "./DialogCardPickerGrid";
 import { DialogCardBrowserToolbar } from "./DialogCardBrowserToolbar";
-import { DialogCardBrowserActionTray } from "./DialogCardBrowserActionTray";
 import { DialogCardBrowserInspectorPane } from "./DialogCardBrowserInspectorPane";
 import {
-  createCardBrowserState,
   filterBrowserItems,
   INITIAL_CARD_BROWSER_STATE,
-  toggleCardBrowserRulesView,
   type CardBrowserItem,
   type CardBrowserState,
 } from "./cardBrowser";
@@ -20,11 +16,9 @@ import { useKeybindings } from "@/hooks/useKeybindings";
 import { useKeybindingsStore, resolveCombo } from "@/stores/useKeybindingsStore";
 import { formatCombo } from "@/lib/keybindings";
 import { useIsDesktop } from "@/hooks/useBreakpoints";
-import { isFacelessCard } from "@/lib/gameCard";
 
 interface Props {
   items: CardBrowserItem[];
-  picker?: boolean;
   pending?: boolean;
   intentColor?: string;
   onActivate?: (item: CardBrowserItem) => void;
@@ -38,7 +32,6 @@ interface Props {
 
 export function DialogCardBrowser({
   items,
-  picker = false,
   pending = false,
   intentColor,
   onActivate,
@@ -49,8 +42,8 @@ export function DialogCardBrowser({
   initialState,
   onStateChange,
 }: Props) {
-  const [state, setState] = useState<CardBrowserState>(() =>
-    createCardBrowserState(initialState, picker),
+  const [state, setState] = useState<CardBrowserState>(
+    () => initialState ?? INITIAL_CARD_BROWSER_STATE,
   );
   const [inspectionOpen, setInspectionOpen] = useState(false);
   const desktop = useIsDesktop();
@@ -101,9 +94,9 @@ export function DialogCardBrowser({
     setState((current) => (current.scrollTop === scrollTop ? current : { ...current, scrollTop }));
   const inspect = (id: string, open: boolean) => {
     setState((current) => (current.activeId === id ? current : { ...current, activeId: id }));
-    if (!picker && open && !desktop) setInspectionOpen(true);
+    if (open && !desktop) setInspectionOpen(true);
   };
-  const focusPickerCard = (id?: string | null) => {
+  const focusCard = (id?: string | null) => {
     const option = id
       ? scope.current?.querySelector<HTMLElement>(`[data-card-key="${CSS.escape(id)}"]`)
       : null;
@@ -112,32 +105,14 @@ export function DialogCardBrowser({
     (option ?? fallback)?.focus({ preventScroll: true });
   };
   const returnFocusToCards = () => {
-    requestAnimationFrame(() => focusPickerCard(state.activeId));
-  };
-  const toggleView = (item: CardBrowserItem) => {
-    if (!isFacelessCard(item.card)) {
-      setState((current) => toggleCardBrowserRulesView(current, item, defaultView === "rules"));
-    }
+    requestAnimationFrame(() => focusCard(state.activeId));
   };
   const changeInspection = (item: CardBrowserItem, next: CardBrowserState["inspection"][string]) =>
     setState((current) => ({
       ...current,
       inspection: { ...current.inspection, [item.id]: next },
     }));
-  useKeybindings(
-    {
-      "card-search-focus": () => search.current?.focus(),
-      ...(picker && active
-        ? {
-            "toggle-card-view": () => {
-              focusPickerCard(active.id);
-              toggleView(active);
-            },
-          }
-        : {}),
-    },
-    scope,
-  );
+  useKeybindings({ "card-search-focus": () => search.current?.focus() }, scope);
   return (
     <div
       ref={scope}
@@ -145,7 +120,7 @@ export function DialogCardBrowser({
       className="flex min-h-0 flex-1 flex-col outline-none"
       onKeyDown={(event) => {
         if (event.isDefaultPrevented() || event.nativeEvent.isComposing) return;
-        if (event.key === "Escape" && inspectionOpen && !picker && !desktop) {
+        if (event.key === "Escape" && inspectionOpen && !desktop) {
           event.preventDefault();
           event.stopPropagation();
           setInspectionOpen(false);
@@ -165,7 +140,6 @@ export function DialogCardBrowser({
         search={search}
         state={state}
         types={types}
-        picker={picker}
         visibleCount={visible.length}
         totalCount={items.length}
         selectedCount={selectedCount}
@@ -173,69 +147,38 @@ export function DialogCardBrowser({
         incomplete={incomplete}
         onFilter={changeFilter}
       />
-      <div
-        className={cn(
-          "grid min-h-0 flex-1 gap-3 p-3",
-          !picker && "md:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]",
-        )}
-      >
-        {picker ? (
-          <DialogCardPickerGrid
-            items={visible}
-            state={state}
-            defaultRules={defaultView === "rules"}
-            actionable={!!onActivate}
-            onSelect={(id) => inspect(id, false)}
-            onHover={(id) => inspect(id, false)}
-            onScroll={scroll}
-            onChange={changeInspection}
-          />
-        ) : (
-          <>
-            <div
-              className={cn(
-                "min-h-0 flex-col",
-                inspectionOpen && active ? "hidden md:flex" : "flex",
-              )}
-            >
-              <DialogCardGrid
-                items={visible}
-                state={state}
-                onInspect={inspect}
-                onScroll={scroll}
-                intentColor={intentColor ?? theme.cardRing}
-              />
-            </div>
-            <DialogCardBrowserInspectorPane
-              active={active}
-              inspection={inspection}
-              open={inspectionOpen}
-              desktop={desktop}
-              pending={pending}
-              defaultActionLabel={defaultActionLabel}
-              searchHint={searchKey ? `; ${formatCombo(searchKey)} focuses search` : ""}
-              actionLabel={actionLabel}
-              details={details}
-              highlight={highlight}
-              onClose={() => setInspectionOpen(false)}
-              onInspectionChange={(next) => {
-                if (active) changeInspection(active, next);
-              }}
-              onActivate={onActivate}
+      <div className="grid min-h-0 flex-1 gap-3 p-3 md:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
+        <>
+          <div
+            className={cn("min-h-0 flex-col", inspectionOpen && active ? "hidden md:flex" : "flex")}
+          >
+            <DialogCardGrid
+              items={visible}
+              state={state}
+              onInspect={inspect}
+              onScroll={scroll}
+              intentColor={intentColor ?? theme.cardRing}
             />
-          </>
-        )}
+          </div>
+          <DialogCardBrowserInspectorPane
+            active={active}
+            inspection={inspection}
+            open={inspectionOpen}
+            desktop={desktop}
+            pending={pending}
+            defaultActionLabel={defaultActionLabel}
+            searchHint={searchKey ? `; ${formatCombo(searchKey)} focuses search` : ""}
+            actionLabel={actionLabel}
+            details={details}
+            highlight={highlight}
+            onClose={() => setInspectionOpen(false)}
+            onInspectionChange={(next) => {
+              if (active) changeInspection(active, next);
+            }}
+            onActivate={onActivate}
+          />
+        </>
       </div>
-      {picker && onActivate && (
-        <DialogCardBrowserActionTray
-          active={active}
-          selectedCount={selectedCount}
-          pending={pending}
-          defaultActionLabel={defaultActionLabel}
-          actionLabel={actionLabel}
-          onActivate={onActivate}
-        />
-      )}
     </div>
   );
 }

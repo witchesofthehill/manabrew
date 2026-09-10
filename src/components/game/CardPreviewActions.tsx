@@ -1,13 +1,13 @@
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { cn } from "@/lib/utils";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-
+import { Trans } from "@lingui/react/macro";
 export interface IndexedPreviewAction {
   action: HandActionOption;
   index: number;
   shortcut: number;
+  displayLabel: string;
 }
-
 export function CardPreviewActions({
   actions,
   onSelect,
@@ -24,7 +24,7 @@ export function CardPreviewActions({
   return (
     <>
       <div className="flex flex-col gap-1.5">
-        {actions.map(({ action, index, shortcut }) => (
+        {actions.map(({ action, index, shortcut, displayLabel }) => (
           <button
             key={index}
             onClick={() => onSelect(action)}
@@ -51,7 +51,7 @@ export function CardPreviewActions({
               )}
             </span>
             <span className="text-[13px] font-semibold leading-snug">
-              <DynamicTextRender text={action.label} />
+              <DynamicTextRender text={displayLabel} />
             </span>
           </button>
         ))}
@@ -59,23 +59,33 @@ export function CardPreviewActions({
       {showHelp && (
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 px-1 text-[10px] text-muted-foreground">
           <span>
-            <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">1</kbd>
-            -
-            <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">9</kbd>{" "}
-            select
+            <Trans>
+              <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+                1
+              </kbd>
+              -
+              <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+                9
+              </kbd>{" "}
+              select
+            </Trans>
           </span>
           <span>
-            <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
-              Esc
-            </kbd>{" "}
-            close
+            <Trans>
+              <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+                Esc
+              </kbd>{" "}
+              close
+            </Trans>
           </span>
           {hasFlippableFaces && (
             <span>
-              <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
-                F
-              </kbd>{" "}
-              flip
+              <Trans>
+                <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+                  F
+                </kbd>{" "}
+                flip
+              </Trans>
             </span>
           )}
         </div>

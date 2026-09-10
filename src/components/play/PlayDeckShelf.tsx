@@ -18,14 +18,13 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import type { SavedDeck } from "@/stores/useDeckStore";
-
+import { Trans } from "@lingui/react/macro";
 interface PlayDeckShelfProps {
   onPlay: (savedDeckId: string) => void;
   onPlayPreset: (preset: PresetDeck) => void;
   onPlayCommunity: (entryId: string) => void;
   pendingDeckId: string | null;
 }
-
 export function PlayDeckShelf({
   onPlay,
   onPlayPreset,
@@ -53,7 +52,6 @@ export function PlayDeckShelf({
     resolved: accountDecksResolved,
     refresh: refreshAccountDecks,
   } = useAccountDecks();
-
   const ownedDecks = allOwnedDecks
     .filter((savedDeck) => !savedDeck.deck.draft)
     .sort(
@@ -78,13 +76,11 @@ export function PlayDeckShelf({
     ]),
   );
   const presetsOpen = presetsOpenOverride ?? (accountDecksResolved && ownedDecks.length === 0);
-
   function materializeDeck(saved: SavedDeck) {
     return saved.accountDeckId
       ? loadAccountDeck(saved.accountDeckId, saved.accountVersionNo ?? 1, saved.deck)
       : saved.id;
   }
-
   function openDeck(saved: SavedDeck) {
     const id = materializeDeck(saved);
     navigate(
@@ -92,7 +88,6 @@ export function PlayDeckShelf({
       { state: { deckEditorFromList: true } },
     );
   }
-
   function buildFromScratch() {
     setChoiceOpen(false);
     const store = useDeckStore.getState();
@@ -100,7 +95,6 @@ export function PlayDeckShelf({
     store.setDeckName(DEFAULT_DECK_NAME);
     navigate(ROUTES.DECK_EDITOR, { state: { directToEditor: true } });
   }
-
   async function importDeck(
     ...args: Parameters<ReturnType<typeof useDeckTextImport>>
   ): Promise<void> {
@@ -110,7 +104,6 @@ export function PlayDeckShelf({
       { state: { deckEditorFromList: true } },
     );
   }
-
   function openPreset(preset: PresetDeck) {
     const presetId = preset.id ?? preset.name;
     if (hubEnabled) {
@@ -119,26 +112,27 @@ export function PlayDeckShelf({
       onPlayPreset(preset);
     }
   }
-
   function openCommunityDeck(id: string) {
     navigate(`${ROUTES.HUB}?deck=${encodeURIComponent(id)}&source=community`);
   }
-
   function openCommunityAuthor(author: string) {
     navigate(`${ROUTES.HUB}?q=${encodeURIComponent(author)}&source=community`);
   }
-
   return (
     <section className="min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-background/80 p-5 shadow-xl backdrop-blur-md sm:p-6">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <h2 className="font-serif text-2xl font-light tracking-tight sm:text-3xl">My Decks</h2>
+        <h2 className="font-serif text-2xl font-light tracking-tight sm:text-3xl">
+          <Trans>My Decks</Trans>
+        </h2>
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" onClick={() => setChoiceOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Build / Import
+            <Trans>
+              <Plus className="h-4 w-4" />
+              Build / Import
+            </Trans>
           </Button>
           <Button variant="ghost" size="sm" onClick={() => navigate(ROUTES.DECK_EDITOR)}>
-            View All
+            <Trans>View All</Trans>
           </Button>
         </div>
       </div>
@@ -147,7 +141,7 @@ export function PlayDeckShelf({
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
           <span className="min-w-0 flex-1">{accountDecksError}</span>
           <Button variant="outline" size="sm" onClick={() => void refreshAccountDecks()}>
-            Retry
+            <Trans>Retry</Trans>
           </Button>
         </div>
       )}

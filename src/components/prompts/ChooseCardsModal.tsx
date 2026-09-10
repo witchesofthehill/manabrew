@@ -1,5 +1,4 @@
 import { useState } from "react";
-
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/game/Card";
@@ -14,7 +13,9 @@ import { useModalSourceCard } from "./internal/ModalSourceCard";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import type { ChooseCardsInput } from "@/protocol";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 function SelectableCard({
   card,
   selected,
@@ -41,7 +42,6 @@ function SelectableCard({
     </div>
   );
 }
-
 interface ChooseCardsModalProps {
   cards: ChooseCardsInput["cards"];
   presentation: ChooseCardsInput["presentation"];
@@ -51,7 +51,6 @@ interface ChooseCardsModalProps {
   reveal?: boolean;
   onConfirm: (chosenCardIds: string[]) => void;
 }
-
 export function ChooseCardsModal({
   cards: rawCards,
   presentation,
@@ -67,15 +66,12 @@ export function ChooseCardsModal({
     presentation: display,
     inlineSourceCard,
   } = useModalSourceCard(presentation, sourceCard);
-
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const chosen = [...selected];
   const canConfirm = chosen.length >= min && chosen.length <= max;
   const atMax = selected.size >= max;
-
   const acknowledge = () => onConfirm([]);
   useModalKeyboard({ onEnter: reveal ? acknowledge : undefined }, [reveal]);
-
   const preview = useCardPreview();
   const longPress = useLongPressPreview<CardDto>({
     resolve: (e) => {
@@ -87,7 +83,6 @@ export function ChooseCardsModal({
       preview.handleMouseEnter(card, undefined, { useAnchor: true, anchorOverride: rect }),
     hide: preview.dismiss,
   });
-
   return (
     <Modal maxWidth="max-w-3xl" maxHeight="">
       {sourcePreview}
@@ -131,7 +126,7 @@ export function ChooseCardsModal({
       <Modal.Footer className="justify-end gap-3">
         {reveal ? (
           <Button size="sm" onClick={acknowledge}>
-            Continue
+            <Trans>Continue</Trans>
           </Button>
         ) : (
           <>
@@ -139,7 +134,7 @@ export function ChooseCardsModal({
               {chosen.length}/{max}
             </span>
             <Button size="sm" disabled={!canConfirm} onClick={() => onConfirm(chosen)}>
-              {chosen.length === 0 && min === 0 ? "Skip" : "Confirm"}
+              {chosen.length === 0 && min === 0 ? i18n._(msg`Skip`) : i18n._(msg`Confirm`)}
             </Button>
           </>
         )}

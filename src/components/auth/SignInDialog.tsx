@@ -31,21 +31,20 @@ import { clearAuthReturnIntent, storeAuthReturnIntent } from "@/lib/authReturn";
 import { DOCS_URL } from "@/lib/constants";
 import type { AuthProviders, AuthSessionResponse } from "@/api/authTypes";
 import { openExternal } from "@/lib/openExternal";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 type Step = "start" | "email-code" | "desktop-code" | "handle";
-
 function isValidEmail(value: string): boolean {
   const email = value.trim();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
-
 export function SignInDialog() {
   const open = useSignInDialog((s) => s.open);
   const prefill = useSignInDialog((s) => s.prefill);
   const hide = useSignInDialog((s) => s.hide);
   const signIn = useAuthStore((s) => s.signIn);
   const setAccount = useAuthStore((s) => s.setAccount);
-
   const [step, setStep] = useState<Step>("start");
   const [providers, setProviders] = useState<AuthProviders | null>(null);
   const [email, setEmail] = useState("");
@@ -55,7 +54,6 @@ export function SignInDialog() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [providersError, setProvidersError] = useState(false);
-
   function loadProviders() {
     setProviders(null);
     setProvidersError(false);
@@ -63,7 +61,6 @@ export function SignInDialog() {
       .then(setProviders)
       .catch(() => setProvidersError(true));
   }
-
   useEffect(() => {
     if (!open) return;
     setBusy(false);
@@ -85,7 +82,6 @@ export function SignInDialog() {
       .then(setProviders)
       .catch(() => setProvidersError(true));
   }, [open, prefill]);
-
   function completeSignIn(session: AuthSessionResponse) {
     clearAuthReturnIntent();
     signIn(session);
@@ -95,10 +91,9 @@ export function SignInDialog() {
       setStep("handle");
       return;
     }
-    toast.success(`Signed in as @${session.account.handle}`);
+    toast.success(i18n._(msg`Signed in as @${session.account.handle}`));
     hide();
   }
-
   async function run(action: () => Promise<void>) {
     setBusy(true);
     setError(null);
@@ -110,7 +105,6 @@ export function SignInDialog() {
       setBusy(false);
     }
   }
-
   function handleOAuth(provider: OAuthProvider) {
     void run(async () => {
       const desktop = getPlatformType() === "tauri";
@@ -124,7 +118,6 @@ export function SignInDialog() {
       }
     });
   }
-
   function handleSendCode() {
     void run(async () => {
       await requestMagicLink(email.trim());
@@ -133,19 +126,16 @@ export function SignInDialog() {
       setStep("email-code");
     });
   }
-
   function handleVerifyEmail() {
     void run(async () => {
       completeSignIn(await verifyEmailCode(email.trim(), code.trim()));
     });
   }
-
   function handleExchange() {
     void run(async () => {
       completeSignIn(await exchangeCode(code.trim()));
     });
   }
-
   function handleClaimHandle() {
     void run(async () => {
       const refreshToken = useAuthStore.getState().refreshToken;
@@ -155,7 +145,7 @@ export function SignInDialog() {
         const account = await updateHandle(token, handle.trim());
         if (useAuthStore.getState().refreshToken !== refreshToken) return;
         setAccount(account);
-        toast.success(`Signed in as @${account.handle}`);
+        toast.success(i18n._(msg`Signed in as @${account.handle}`));
         hide();
       } catch (err) {
         if (err instanceof AuthRequestError && err.status === 409) {
@@ -165,24 +155,26 @@ export function SignInDialog() {
       }
     });
   }
-
   function handleSkipHandle() {
     const account = useAuthStore.getState().account;
-    if (account) toast.success(`Signed in as @${account.handle}`);
+    if (account) toast.success(i18n._(msg`Signed in as @${account.handle}`));
     hide();
   }
-
   return (
     <Dialog open={open} onOpenChange={(next) => (next ? undefined : hide())}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {step === "handle" ? "Pick your handle" : "Sign in to Manabrew"}
+            {step === "handle" ? i18n._(msg`Pick your handle`) : i18n._(msg`Sign in to Manabrew`)}
           </DialogTitle>
           <DialogDescription>
             {step === "handle"
-              ? "Your handle is the public name other players see in Community. You can change it later in Preferences."
-              : "Your account syncs your decks and keeps publications yours on any device."}
+              ? i18n._(
+                  msg`Your handle is the public name other players see in Community. You can change it later in Preferences.`,
+                )
+              : i18n._(
+                  msg`Your account syncs your decks and keeps publications yours on any device.`,
+                )}
           </DialogDescription>
         </DialogHeader>
 
@@ -190,9 +182,11 @@ export function SignInDialog() {
           <div className="space-y-4">
             {providersError && (
               <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
-                <p>Sign-in methods could not be loaded.</p>
+                <p>
+                  <Trans>Sign-in methods could not be loaded.</Trans>
+                </p>
                 <Button variant="outline" size="sm" className="mt-2" onClick={loadProviders}>
-                  Try again
+                  <Trans>Try again</Trans>
                 </Button>
               </div>
             )}
@@ -204,8 +198,10 @@ export function SignInDialog() {
                   disabled={busy || !providers?.github}
                   onClick={() => handleOAuth("github")}
                 >
-                  <Github className="mr-2 h-4 w-4" />
-                  Continue with GitHub
+                  <Trans>
+                    <Github className="mr-2 h-4 w-4" />
+                    Continue with GitHub
+                  </Trans>
                 </Button>
               )}
               {!providersError && providers?.discord !== false && (
@@ -215,8 +211,10 @@ export function SignInDialog() {
                   disabled={busy || !providers?.discord}
                   onClick={() => handleOAuth("discord")}
                 >
-                  <DiscordIcon className="mr-2 h-4 w-4" />
-                  Continue with Discord
+                  <Trans>
+                    <DiscordIcon className="mr-2 h-4 w-4" />
+                    Continue with Discord
+                  </Trans>
                 </Button>
               )}
             </div>
@@ -224,16 +222,20 @@ export function SignInDialog() {
               <>
                 <div className="flex items-center gap-3">
                   <div className="h-px flex-1 bg-border" />
-                  <span className="text-xs uppercase text-muted-foreground">or</span>
+                  <span className="text-xs uppercase text-muted-foreground">
+                    <Trans>or</Trans>
+                  </span>
                   <div className="h-px flex-1 bg-border" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signin-email">Email</Label>
+                  <Label htmlFor="signin-email">
+                    <Trans>Email</Trans>
+                  </Label>
                   <Input
                     id="signin-email"
                     type="email"
                     value={email}
-                    placeholder="you@example.com"
+                    placeholder={i18n._(msg`you@example.com`)}
                     onChange={(e) => setEmail(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && isValidEmail(email)) handleSendCode();
@@ -244,7 +246,7 @@ export function SignInDialog() {
                     disabled={busy || !isValidEmail(email)}
                     onClick={handleSendCode}
                   >
-                    {busy ? "Sending…" : "Send sign-in code"}
+                    {busy ? i18n._(msg`Sending\u2026`) : i18n._(msg`Send sign-in code`)}
                   </Button>
                 </div>
               </>
@@ -255,16 +257,20 @@ export function SignInDialog() {
         {step === "email-code" && (
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              We sent a code to <span className="font-medium text-foreground">{email}</span>. Enter
-              it here, or click the link in the email.
+              <Trans>
+                We sent a code to <span className="font-medium text-foreground">{email}</span>.
+                Enter it here, or click the link in the email.
+              </Trans>
             </p>
-            <Label htmlFor="signin-code">Code</Label>
+            <Label htmlFor="signin-code">
+              <Trans>Code</Trans>
+            </Label>
             <Input
               id="signin-code"
               value={code}
               autoFocus
               autoComplete="one-time-code"
-              placeholder="ABCD2345"
+              placeholder={i18n._(msg`ABCD2345`)}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && code.trim().length >= 8) handleVerifyEmail();
@@ -275,7 +281,7 @@ export function SignInDialog() {
               disabled={busy || code.trim().length < 8}
               onClick={handleVerifyEmail}
             >
-              {busy ? "Checking…" : "Continue"}
+              {busy ? i18n._(msg`Checking\u2026`) : i18n._(msg`Continue`)}
             </Button>
             <Button
               variant="ghost"
@@ -284,7 +290,7 @@ export function SignInDialog() {
               disabled={busy}
               onClick={() => setStep("start")}
             >
-              Use another method
+              <Trans>Use another method</Trans>
             </Button>
           </div>
         )}
@@ -292,14 +298,16 @@ export function SignInDialog() {
         {step === "desktop-code" && (
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              Finish signing in with your browser, then enter the code it shows you.
+              <Trans>Finish signing in with your browser, then enter the code it shows you.</Trans>
             </p>
-            <Label htmlFor="desktop-code">Code</Label>
+            <Label htmlFor="desktop-code">
+              <Trans>Code</Trans>
+            </Label>
             <Input
               id="desktop-code"
               value={code}
               autoFocus
-              placeholder="ABCD2345"
+              placeholder={i18n._(msg`ABCD2345`)}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && code.trim().length >= 8) handleExchange();
@@ -310,7 +318,7 @@ export function SignInDialog() {
               disabled={busy || code.trim().length < 8}
               onClick={handleExchange}
             >
-              {busy ? "Checking…" : "Continue"}
+              {busy ? i18n._(msg`Checking\u2026`) : i18n._(msg`Continue`)}
             </Button>
             <Button
               variant="ghost"
@@ -319,7 +327,7 @@ export function SignInDialog() {
               disabled={busy}
               onClick={() => setStep("start")}
             >
-              Use another method
+              <Trans>Use another method</Trans>
             </Button>
           </div>
         )}
@@ -327,13 +335,15 @@ export function SignInDialog() {
         {step === "handle" && (
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label htmlFor="claim-handle">Handle</Label>
+              <Label htmlFor="claim-handle">
+                <Trans>Handle</Trans>
+              </Label>
               <Input
                 id="claim-handle"
                 value={handle}
                 autoFocus
                 maxLength={24}
-                placeholder="your-handle"
+                placeholder={i18n._(msg`your-handle`)}
                 onChange={(e) => setHandle(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && termsAgreed && handle.trim().length >= 3)
@@ -349,26 +359,28 @@ export function SignInDialog() {
                 className="mt-0.5"
               />
               <span>
-                I agree to the{" "}
-                <a
-                  href={`${DOCS_URL}/terms`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline underline-offset-2"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  terms
-                </a>{" "}
-                and the{" "}
-                <a
-                  href={`${DOCS_URL}/privacy`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline underline-offset-2"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  privacy policy
-                </a>
+                <Trans>
+                  I agree to the{" "}
+                  <a
+                    href={`${DOCS_URL}/terms`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline underline-offset-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    terms
+                  </a>{" "}
+                  and the{" "}
+                  <a
+                    href={`${DOCS_URL}/privacy`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline underline-offset-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    privacy policy
+                  </a>
+                </Trans>
               </span>
             </label>
 
@@ -378,10 +390,10 @@ export function SignInDialog() {
                 disabled={busy || !termsAgreed || handle.trim().length < 3}
                 onClick={handleClaimHandle}
               >
-                {busy ? "Saving…" : "Claim handle"}
+                {busy ? i18n._(msg`Saving\u2026`) : i18n._(msg`Claim handle`)}
               </Button>
               <Button variant="ghost" disabled={busy || !termsAgreed} onClick={handleSkipHandle}>
-                Later
+                <Trans>Later</Trans>
               </Button>
             </div>
           </div>

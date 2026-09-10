@@ -27,6 +27,7 @@ import { AccountSection } from "@/components/settings/AccountSection";
 import { MyAssetsSection } from "@/components/settings/MyAssetsSection";
 import { CardArtDownloadSection } from "@/components/settings/CardArtDownloadSection";
 import { PreferenceCard } from "@/components/settings/PreferenceCard";
+import { LanguagePreferenceCard } from "@/components/settings/LanguagePreferenceCard";
 import { toPickerHexColor } from "@/themes/gameTheme";
 import type { GameThemeColors } from "@/themes/gameTheme";
 import { getDefaultGameThemeColorMap } from "@/hooks/useTheme";
@@ -46,7 +47,9 @@ import { Navigate, useLocation } from "react-router-dom";
 import { HelpCircle, Minus, Pencil, Plus, Server, Trash2 } from "lucide-react";
 import { KNOWN_RELAYS, type KnownRelay } from "@/config/knownRelays";
 import { cn } from "@/lib/utils";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 /**
  * Canonical key unions. These drive the typed colour-description maps
  * below so a typo in a description key fails at compile time and adding
@@ -55,7 +58,6 @@ import { cn } from "@/lib/utils";
  * `Partial<Record<…>>` — so exhaustiveness is enforced).
  */
 type AppThemeKey = keyof ThemeColors;
-
 /**
  * Dot-notation string keys for every leaf in `GameThemeColors`.
  * Produces `"pointer.hostile" | "mana.W" | "textOnTinted" | …` at the
@@ -71,99 +73,268 @@ type GameThemePath = {
       ? `${K}.${keyof GameThemeColors[K] & string}`
       : never;
 }[keyof GameThemeColors & string];
-
 const APP_THEME_COLOR_DESCRIPTIONS: Record<AppThemeKey, string> = {
-  background: "Page / window background fill.",
-  foreground: "Default body text colour.",
-  card: "Surface colour for cards, panels, and solid containers.",
-  "card-foreground": "Text colour placed on `card` surfaces.",
-  popover: "Background of popovers, menus, and floating panels.",
-  "popover-foreground": "Text colour inside popovers.",
-  primary: "Primary action colour — main call-to-action buttons, links, active chip fills.",
-  "primary-foreground": "Text / icons placed on a `primary` background.",
-  secondary: "Secondary / subtle button background.",
-  "secondary-foreground": "Text on secondary-style buttons.",
-  muted: "Muted surface for low-priority regions.",
-  "muted-foreground": "Captions, hints, and secondary text colour.",
-  accent: "Hover / active highlight surface.",
-  "accent-foreground": "Text on accent surfaces.",
-  destructive: "Destructive actions, errors, and deny states.",
-  "destructive-foreground": "Text placed on `destructive` buttons.",
-  border: "Default border and divider lines.",
-  input: "Form input borders and backgrounds.",
-  ring: "Focus ring around interactive elements.",
-  selection: "Background of selected text.",
-  "selection-foreground": "Colour of selected text itself.",
-  commander: "Commander indicator (crown icon, commander panel accent).",
-  warning: "Warning states and soft cautions.",
-  overlay: "Modal / dialog backdrop dim.",
+  get background() {
+    return i18n._(msg`Page / window background fill.`);
+  },
+  get foreground() {
+    return i18n._(msg`Default body text colour.`);
+  },
+  get card() {
+    return i18n._(msg`Surface colour for cards, panels, and solid containers.`);
+  },
+  get "card-foreground"() {
+    return i18n._(msg`Text colour placed on \`card\` surfaces.`);
+  },
+  get popover() {
+    return i18n._(msg`Background of popovers, menus, and floating panels.`);
+  },
+  get "popover-foreground"() {
+    return i18n._(msg`Text colour inside popovers.`);
+  },
+  get primary() {
+    return i18n._(
+      msg`Primary action colour \u2014 main call-to-action buttons, links, active chip fills.`,
+    );
+  },
+  get "primary-foreground"() {
+    return i18n._(msg`Text / icons placed on a \`primary\` background.`);
+  },
+  get secondary() {
+    return i18n._(msg`Secondary / subtle button background.`);
+  },
+  get "secondary-foreground"() {
+    return i18n._(msg`Text on secondary-style buttons.`);
+  },
+  get muted() {
+    return i18n._(msg`Muted surface for low-priority regions.`);
+  },
+  get "muted-foreground"() {
+    return i18n._(msg`Captions, hints, and secondary text colour.`);
+  },
+  get accent() {
+    return i18n._(msg`Hover / active highlight surface.`);
+  },
+  get "accent-foreground"() {
+    return i18n._(msg`Text on accent surfaces.`);
+  },
+  get destructive() {
+    return i18n._(msg`Destructive actions, errors, and deny states.`);
+  },
+  get "destructive-foreground"() {
+    return i18n._(msg`Text placed on \`destructive\` buttons.`);
+  },
+  get border() {
+    return i18n._(msg`Default border and divider lines.`);
+  },
+  get input() {
+    return i18n._(msg`Form input borders and backgrounds.`);
+  },
+  get ring() {
+    return i18n._(msg`Focus ring around interactive elements.`);
+  },
+  get selection() {
+    return i18n._(msg`Background of selected text.`);
+  },
+  get "selection-foreground"() {
+    return i18n._(msg`Colour of selected text itself.`);
+  },
+  get commander() {
+    return i18n._(msg`Commander indicator (crown icon, commander panel accent).`);
+  },
+  get warning() {
+    return i18n._(msg`Warning states and soft cautions.`);
+  },
+  get overlay() {
+    return i18n._(msg`Modal / dialog backdrop dim.`);
+  },
 };
-
 const GAME_THEME_COLOR_DESCRIPTIONS: Partial<Record<GameThemePath, string>> = {
-  "activeAction.priority": "Highlight surrounding the player who currently has priority.",
-  "activeAction.active": "Active-turn ring, turn-text colour, and general 'your turn' cue.",
-  "promptAction.passAction": "Pass priority / pass turn button fill.",
-  "promptAction.attackAction": "Declare-attackers button fill.",
-  "promptAction.defenseAction": "Defense / declare-blockers button fill.",
-  "promptAction.cancel": "Cancel / decline button fill.",
-  "arrow.attack": "Attacker arrow from attacker to defender.",
-  "arrow.block": "Blocker arrow from blocker to attacker.",
-  "arrow.hostileTarget": "Legacy hostile-target arrow (Pixi fallback).",
-  "arrow.friendlyTarget": "Legacy friendly-target arrow (Pixi fallback).",
-  "pointer.hostile":
-    "Glow around the cursor for hostile targeting — damage, destroy, sacrifice, exile, counter, etc. Also used for the mulligan-reject ring.",
-  "pointer.friendly":
-    "Glow around the cursor for friendly / supportive targeting — buff, heal, draw, reveal, untap, attach, copy.",
-  "mana.W": "White mana pip and dual-land tap-button tint.",
-  "mana.U": "Blue mana pip and dual-land tap-button tint.",
-  "mana.B": "Black mana pip and dual-land tap-button tint.",
-  "mana.R": "Red mana pip and dual-land tap-button tint.",
-  "mana.G": "Green mana pip and dual-land tap-button tint.",
-  "mana.C": "Colorless mana pip and tap-button tint.",
-  "cardStatus.exerted": "Badge colour for exerted creatures (won't untap).",
-  "cardStatus.morph": "Badge for face-down / morph creatures.",
-  "cardStatus.bestow": "Badge for bestowed auras.",
-  "cardStatus.token": "Badge for token creatures.",
-  "cardStatus.transformed": "Badge for transformed double-faced cards.",
-  "cardStatus.plotted": "Badge for plotted cards in exile.",
-  "cardStatus.madness": "Badge for madness-exiled cards.",
-  "cardStatus.warped": "Badge for warp-exiled cards.",
-  "cardStatus.copy": "Badge for permanents that are copies of another card.",
-  "counter.default": "Fallback chip colour for unknown counter types.",
-  "counter.p1p1": "+1/+1 counter chip.",
-  "counter.m1m1": "-1/-1 counter chip.",
-  "counter.loyalty": "Loyalty counter chip (planeswalkers).",
-  "counter.charge": "Charge counter chip.",
-  "counter.quest": "Quest counter chip.",
-  "counter.study": "Study counter chip.",
-  "counter.lore": "Lore counter chip (sagas).",
-  "counter.age": "Age counter chip.",
-  "counter.time": "Time counter chip (suspend, etc.).",
-  "counter.fade": "Fade counter chip.",
-  "counter.level": "Level counter chip (level-up creatures).",
-  "counter.storage": "Storage counter chip.",
-  "counter.mining": "Mining counter chip.",
-  "counter.brick": "Brick counter chip.",
-  "counter.depletion": "Depletion counter chip.",
-  "counter.page": "Page counter chip (book rooms).",
-  "pt.neutral": "P/T badge when stats match the printed base.",
-  "pt.lethal": "P/T badge when incoming damage would be lethal.",
-  "pt.buffed": "P/T badge when stats are above the printed base.",
-  "pt.debuffed": "P/T badge when stats are below the printed base.",
-  success: "Positive states — connected, saved, victory banner, good FPS.",
-  poison: "Poison counter / skull icon — MTG infect-green.",
-  life: "Life total / heart icon.",
-  "canvas.background": "Pixi canvas table background fill.",
-  "canvas.shadow": "Drop-shadow ink (almost always black).",
-  "canvas.neutral": "High-contrast stroke / outline colour for arrows and icons.",
-  "cardPlaceholder.fill": "Loading-state card sprite fill.",
-  "cardPlaceholder.stroke": "Loading-state card sprite border.",
-  textOnTinted: "Text colour placed on tinted chips and badges.",
-  textMuted: "Subdued label colour on empty-zone placeholders.",
-  textGhost: "Ghost card-name colour shown while art loads.",
-  cardRing: "Default card selection / focus ring.",
+  get "activeAction.priority"() {
+    return i18n._(msg`Highlight surrounding the player who currently has priority.`);
+  },
+  get "activeAction.active"() {
+    return i18n._(msg`Active-turn ring, turn-text colour, and general 'your turn' cue.`);
+  },
+  get "promptAction.passAction"() {
+    return i18n._(msg`Pass priority / pass turn button fill.`);
+  },
+  get "promptAction.attackAction"() {
+    return i18n._(msg`Declare-attackers button fill.`);
+  },
+  get "promptAction.defenseAction"() {
+    return i18n._(msg`Defense / declare-blockers button fill.`);
+  },
+  get "promptAction.cancel"() {
+    return i18n._(msg`Cancel / decline button fill.`);
+  },
+  get "arrow.attack"() {
+    return i18n._(msg`Attacker arrow from attacker to defender.`);
+  },
+  get "arrow.block"() {
+    return i18n._(msg`Blocker arrow from blocker to attacker.`);
+  },
+  get "arrow.hostileTarget"() {
+    return i18n._(msg`Legacy hostile-target arrow (Pixi fallback).`);
+  },
+  get "arrow.friendlyTarget"() {
+    return i18n._(msg`Legacy friendly-target arrow (Pixi fallback).`);
+  },
+  get "pointer.hostile"() {
+    return i18n._(
+      msg`Glow around the cursor for hostile targeting \u2014 damage, destroy, sacrifice, exile, counter, etc. Also used for the mulligan-reject ring.`,
+    );
+  },
+  get "pointer.friendly"() {
+    return i18n._(
+      msg`Glow around the cursor for friendly / supportive targeting \u2014 buff, heal, draw, reveal, untap, attach, copy.`,
+    );
+  },
+  get "mana.W"() {
+    return i18n._(msg`White mana pip and dual-land tap-button tint.`);
+  },
+  get "mana.U"() {
+    return i18n._(msg`Blue mana pip and dual-land tap-button tint.`);
+  },
+  get "mana.B"() {
+    return i18n._(msg`Black mana pip and dual-land tap-button tint.`);
+  },
+  get "mana.R"() {
+    return i18n._(msg`Red mana pip and dual-land tap-button tint.`);
+  },
+  get "mana.G"() {
+    return i18n._(msg`Green mana pip and dual-land tap-button tint.`);
+  },
+  get "mana.C"() {
+    return i18n._(msg`Colorless mana pip and tap-button tint.`);
+  },
+  get "cardStatus.exerted"() {
+    return i18n._(msg`Badge colour for exerted creatures (won't untap).`);
+  },
+  get "cardStatus.morph"() {
+    return i18n._(msg`Badge for face-down / morph creatures.`);
+  },
+  get "cardStatus.bestow"() {
+    return i18n._(msg`Badge for bestowed auras.`);
+  },
+  get "cardStatus.token"() {
+    return i18n._(msg`Badge for token creatures.`);
+  },
+  get "cardStatus.transformed"() {
+    return i18n._(msg`Badge for transformed double-faced cards.`);
+  },
+  get "cardStatus.plotted"() {
+    return i18n._(msg`Badge for plotted cards in exile.`);
+  },
+  get "cardStatus.madness"() {
+    return i18n._(msg`Badge for madness-exiled cards.`);
+  },
+  get "cardStatus.warped"() {
+    return i18n._(msg`Badge for warp-exiled cards.`);
+  },
+  get "cardStatus.copy"() {
+    return i18n._(msg`Badge for permanents that are copies of another card.`);
+  },
+  get "counter.default"() {
+    return i18n._(msg`Fallback chip colour for unknown counter types.`);
+  },
+  get "counter.p1p1"() {
+    return i18n._(msg`+1/+1 counter chip.`);
+  },
+  get "counter.m1m1"() {
+    return i18n._(msg`-1/-1 counter chip.`);
+  },
+  get "counter.loyalty"() {
+    return i18n._(msg`Loyalty counter chip (planeswalkers).`);
+  },
+  get "counter.charge"() {
+    return i18n._(msg`Charge counter chip.`);
+  },
+  get "counter.quest"() {
+    return i18n._(msg`Quest counter chip.`);
+  },
+  get "counter.study"() {
+    return i18n._(msg`Study counter chip.`);
+  },
+  get "counter.lore"() {
+    return i18n._(msg`Lore counter chip (sagas).`);
+  },
+  get "counter.age"() {
+    return i18n._(msg`Age counter chip.`);
+  },
+  get "counter.time"() {
+    return i18n._(msg`Time counter chip (suspend, etc.).`);
+  },
+  get "counter.fade"() {
+    return i18n._(msg`Fade counter chip.`);
+  },
+  get "counter.level"() {
+    return i18n._(msg`Level counter chip (level-up creatures).`);
+  },
+  get "counter.storage"() {
+    return i18n._(msg`Storage counter chip.`);
+  },
+  get "counter.mining"() {
+    return i18n._(msg`Mining counter chip.`);
+  },
+  get "counter.brick"() {
+    return i18n._(msg`Brick counter chip.`);
+  },
+  get "counter.depletion"() {
+    return i18n._(msg`Depletion counter chip.`);
+  },
+  get "counter.page"() {
+    return i18n._(msg`Page counter chip (book rooms).`);
+  },
+  get "pt.neutral"() {
+    return i18n._(msg`P/T badge when stats match the printed base.`);
+  },
+  get "pt.lethal"() {
+    return i18n._(msg`P/T badge when incoming damage would be lethal.`);
+  },
+  get "pt.buffed"() {
+    return i18n._(msg`P/T badge when stats are above the printed base.`);
+  },
+  get "pt.debuffed"() {
+    return i18n._(msg`P/T badge when stats are below the printed base.`);
+  },
+  get success() {
+    return i18n._(msg`Positive states \u2014 connected, saved, victory banner, good FPS.`);
+  },
+  get poison() {
+    return i18n._(msg`Poison counter / skull icon \u2014 MTG infect-green.`);
+  },
+  get life() {
+    return i18n._(msg`Life total / heart icon.`);
+  },
+  get "canvas.background"() {
+    return i18n._(msg`Pixi canvas table background fill.`);
+  },
+  get "canvas.shadow"() {
+    return i18n._(msg`Drop-shadow ink (almost always black).`);
+  },
+  get "canvas.neutral"() {
+    return i18n._(msg`High-contrast stroke / outline colour for arrows and icons.`);
+  },
+  get "cardPlaceholder.fill"() {
+    return i18n._(msg`Loading-state card sprite fill.`);
+  },
+  get "cardPlaceholder.stroke"() {
+    return i18n._(msg`Loading-state card sprite border.`);
+  },
+  get textOnTinted() {
+    return i18n._(msg`Text colour placed on tinted chips and badges.`);
+  },
+  get textMuted() {
+    return i18n._(msg`Subdued label colour on empty-zone placeholders.`);
+  },
+  get textGhost() {
+    return i18n._(msg`Ghost card-name colour shown while art loads.`);
+  },
+  get cardRing() {
+    return i18n._(msg`Default card selection / focus ring.`);
+  },
 };
-
 /**
  * Small `?` hover-help icon shown next to a picker label. Renders a
  * custom CSS tooltip below the icon on hover / focus — native `title`
@@ -197,43 +368,103 @@ function HelpMark({ description }: { description: string | undefined }) {
     </span>
   );
 }
-
 const APP_THEME_COLOR_LABELS: Record<AppThemeKey, string> = {
-  background: "Background",
-  foreground: "Text",
-  card: "Card Surface",
-  "card-foreground": "Card Text",
-  popover: "Popover Surface",
-  "popover-foreground": "Popover Text",
-  primary: "Primary",
-  "primary-foreground": "Primary Text",
-  secondary: "Secondary",
-  "secondary-foreground": "Secondary Text",
-  muted: "Muted Surface",
-  "muted-foreground": "Muted Text",
-  accent: "Accent",
-  "accent-foreground": "Accent Text",
-  destructive: "Destructive",
-  "destructive-foreground": "Destructive Text",
-  border: "Border",
-  input: "Input",
-  ring: "Focus Ring",
-  selection: "Selection",
-  "selection-foreground": "Selection Text",
-  commander: "Commander",
-  warning: "Warning",
-  overlay: "Overlay",
+  get background() {
+    return i18n._(msg`Background`);
+  },
+  get foreground() {
+    return i18n._(msg`Text`);
+  },
+  get card() {
+    return i18n._(msg`Card Surface`);
+  },
+  get "card-foreground"() {
+    return i18n._(msg`Card Text`);
+  },
+  get popover() {
+    return i18n._(msg`Popover Surface`);
+  },
+  get "popover-foreground"() {
+    return i18n._(msg`Popover Text`);
+  },
+  get primary() {
+    return i18n._(msg`Primary`);
+  },
+  get "primary-foreground"() {
+    return i18n._(msg`Primary Text`);
+  },
+  get secondary() {
+    return i18n._(msg`Secondary`);
+  },
+  get "secondary-foreground"() {
+    return i18n._(msg`Secondary Text`);
+  },
+  get muted() {
+    return i18n._(msg`Muted Surface`);
+  },
+  get "muted-foreground"() {
+    return i18n._(msg`Muted Text`);
+  },
+  get accent() {
+    return i18n._(msg`Accent`);
+  },
+  get "accent-foreground"() {
+    return i18n._(msg`Accent Text`);
+  },
+  get destructive() {
+    return i18n._(msg`Destructive`);
+  },
+  get "destructive-foreground"() {
+    return i18n._(msg`Destructive Text`);
+  },
+  get border() {
+    return i18n._(msg`Border`);
+  },
+  get input() {
+    return i18n._(msg`Input`);
+  },
+  get ring() {
+    return i18n._(msg`Focus Ring`);
+  },
+  get selection() {
+    return i18n._(msg`Selection`);
+  },
+  get "selection-foreground"() {
+    return i18n._(msg`Selection Text`);
+  },
+  get commander() {
+    return i18n._(msg`Commander`);
+  },
+  get warning() {
+    return i18n._(msg`Warning`);
+  },
+  get overlay() {
+    return i18n._(msg`Overlay`);
+  },
 };
-
-const APP_THEME_GROUPS: { heading: string; description: string; keys: AppThemeKey[] }[] = [
+const APP_THEME_GROUPS: {
+  heading: string;
+  description: string;
+  keys: AppThemeKey[];
+}[] = [
   {
-    heading: "Surfaces & Foregrounds",
-    description: "Neutral page, card, and popover backgrounds plus their paired text colours.",
+    get heading() {
+      return i18n._(msg`Surfaces & Foregrounds`);
+    },
+    get description() {
+      return i18n._(
+        msg`Neutral page, card, and popover backgrounds plus their paired text colours.`,
+      );
+    },
     keys: ["background", "foreground", "card", "card-foreground", "popover", "popover-foreground"],
   },
   {
-    heading: "Brand & Accent",
-    description: "Primary action colour and the softer accent / secondary tints.",
+    get heading() {
+      return i18n._(msg`Brand & Accent`);
+    },
+    get description() {
+      return i18n._(msg`Primary action colour and the softer accent / secondary tints.`);
+    },
     keys: [
       "primary",
       "primary-foreground",
@@ -244,8 +475,12 @@ const APP_THEME_GROUPS: { heading: string; description: string; keys: AppThemeKe
     ],
   },
   {
-    heading: "State Signals",
-    description: "Destructive, warning, commander, and selection highlights.",
+    get heading() {
+      return i18n._(msg`State Signals`);
+    },
+    get description() {
+      return i18n._(msg`Destructive, warning, commander, and selection highlights.`);
+    },
     keys: [
       "destructive",
       "destructive-foreground",
@@ -256,12 +491,15 @@ const APP_THEME_GROUPS: { heading: string; description: string; keys: AppThemeKe
     ],
   },
   {
-    heading: "Muted & Structure",
-    description: "Subdued surfaces, borders, input fields, focus ring, and overlay dim.",
+    get heading() {
+      return i18n._(msg`Muted & Structure`);
+    },
+    get description() {
+      return i18n._(msg`Subdued surfaces, borders, input fields, focus ring, and overlay dim.`);
+    },
     keys: ["muted", "muted-foreground", "border", "input", "ring", "overlay"],
   },
 ];
-
 const GAME_THEME_GROUPS: {
   heading: string;
   description: string;
@@ -269,82 +507,147 @@ const GAME_THEME_GROUPS: {
   exactKeys?: string[];
 }[] = [
   {
-    heading: "Active Action",
-    description: "Priority ring, turn glow, and related active-state cues.",
+    get heading() {
+      return i18n._(msg`Active Action`);
+    },
+    get description() {
+      return i18n._(msg`Priority ring, turn glow, and related active-state cues.`);
+    },
     prefixes: ["activeAction."],
   },
   {
-    heading: "Prompt Buttons",
-    description: "Pass, attack, defense, cancel, and related prompt action buttons.",
+    get heading() {
+      return i18n._(msg`Prompt Buttons`);
+    },
+    get description() {
+      return i18n._(msg`Pass, attack, defense, cancel, and related prompt action buttons.`);
+    },
     prefixes: ["promptAction."],
   },
   {
-    heading: "Combat & Placement Arrows",
-    description: "Curved arrows for attack / block declarations and the placement ghost.",
+    get heading() {
+      return i18n._(msg`Combat & Placement Arrows`);
+    },
+    get description() {
+      return i18n._(msg`Curved arrows for attack / block declarations and the placement ghost.`);
+    },
     prefixes: ["arrow."],
   },
   {
-    heading: "Targeting Pointers",
-    description: "Per-intent pointer icon glow (sacrifice, destroy, exile, bounce, tap …).",
+    get heading() {
+      return i18n._(msg`Targeting Pointers`);
+    },
+    get description() {
+      return i18n._(
+        msg`Per-intent pointer icon glow (sacrifice, destroy, exile, bounce, tap \u2026).`,
+      );
+    },
     prefixes: ["pointer."],
   },
   {
-    heading: "Mana Symbols",
-    description: "W / U / B / R / G / C pip and tap-button tints.",
+    get heading() {
+      return i18n._(msg`Mana Symbols`);
+    },
+    get description() {
+      return i18n._(msg`W / U / B / R / G / C pip and tap-button tints.`);
+    },
     prefixes: ["mana."],
   },
   {
-    heading: "Card Status Badges",
-    description: "Exerted, morph, bestow, token, transformed, plotted, madness, warped.",
+    get heading() {
+      return i18n._(msg`Card Status Badges`);
+    },
+    get description() {
+      return i18n._(msg`Exerted, morph, bestow, token, transformed, plotted, madness, warped.`);
+    },
     prefixes: ["cardStatus."],
   },
   {
-    heading: "Counters",
-    description: "Per-counter-type chip colour (P1P1, M1M1, Loyalty, Charge …).",
+    get heading() {
+      return i18n._(msg`Counters`);
+    },
+    get description() {
+      return i18n._(msg`Per-counter-type chip colour (P1P1, M1M1, Loyalty, Charge \u2026).`);
+    },
     prefixes: ["counter."],
   },
   {
-    heading: "P / T Badge",
-    description: "Neutral / lethal / buffed / debuffed stat-badge backgrounds.",
+    get heading() {
+      return i18n._(msg`P / T Badge`);
+    },
+    get description() {
+      return i18n._(msg`Neutral / lethal / buffed / debuffed stat-badge backgrounds.`);
+    },
     prefixes: ["pt."],
   },
   {
-    heading: "Status Signals",
-    description: "Generic UI states: success (connected / win), poison counter, life / heart.",
+    get heading() {
+      return i18n._(msg`Status Signals`);
+    },
+    get description() {
+      return i18n._(
+        msg`Generic UI states: success (connected / win), poison counter, life / heart.`,
+      );
+    },
     exactKeys: ["success", "poison", "life"],
   },
   {
-    heading: "Canvas",
-    description: "Pixi table background, shadow ink, and high-contrast neutral.",
+    get heading() {
+      return i18n._(msg`Canvas`);
+    },
+    get description() {
+      return i18n._(msg`Pixi table background, shadow ink, and high-contrast neutral.`);
+    },
     prefixes: ["canvas."],
   },
   {
-    heading: "Card Placeholder",
-    description: "Sprite fill / stroke used while a card's image is loading.",
+    get heading() {
+      return i18n._(msg`Card Placeholder`);
+    },
+    get description() {
+      return i18n._(msg`Sprite fill / stroke used while a card's image is loading.`);
+    },
     prefixes: ["cardPlaceholder."],
   },
   {
-    heading: "Text Roles",
-    description: "Generic text colours on tinted chips, empty zones, and ghost placeholders.",
+    get heading() {
+      return i18n._(msg`Text Roles`);
+    },
+    get description() {
+      return i18n._(
+        msg`Generic text colours on tinted chips, empty zones, and ghost placeholders.`,
+      );
+    },
     exactKeys: ["textOnTinted", "textMuted", "textGhost"],
   },
   {
-    heading: "Player Colours",
-    description: "Per-seat colours for phase strip indicators and turn tint.",
+    get heading() {
+      return i18n._(msg`Player Colours`);
+    },
+    get description() {
+      return i18n._(msg`Per-seat colours for phase strip indicators and turn tint.`);
+    },
     prefixes: ["playerColors."],
   },
   {
-    heading: "Badges",
-    description: "Status chip icon colours rendered next to the mana pool.",
+    get heading() {
+      return i18n._(msg`Badges`);
+    },
+    get description() {
+      return i18n._(msg`Status chip icon colours rendered next to the mana pool.`);
+    },
     prefixes: ["badges."],
   },
   {
-    heading: "Card Ring",
-    description: "Fallback ring / selection halo colour.",
+    get heading() {
+      return i18n._(msg`Card Ring`);
+    },
+    get description() {
+      return i18n._(msg`Fallback ring / selection halo colour.`);
+    },
     exactKeys: ["cardRing"],
   },
 ];
-
 const FLASH_MIN = 200;
 const FLASH_MAX = 2000;
 const FLASH_STEP = 100;
@@ -376,12 +679,10 @@ export default function Settings() {
   const [editingThemeColorValue, setEditingThemeColorValue] = useState("");
   const [themeColorFilter, setThemeColorFilter] = useState("");
   const DEFAULT_GAME_THEME_COLOR_MAP = getDefaultGameThemeColorMap();
-
   const zoneOrder = prefs.zonePanelOrder;
   const [playmatEditorOpen, setPlaymatEditorOpen] = useState(false);
   const defaultPlaymat = useAssetUrl(prefs.defaultPlaymatAssetId);
   const hasDefaultPlaymat = !!defaultPlaymat || !!prefs.defaultPlaymatSettings?.color;
-
   function setZoneSlot(index: number, value: ZonePanelItem) {
     const next = [...zoneOrder] as ZonePanelItem[];
     const existingIndex = next.indexOf(value);
@@ -394,44 +695,36 @@ export default function Settings() {
     }
     prefs.setZonePanelOrder(next);
   }
-
   const [host, setHost] = useState(prefs.serverHost);
   const [port, setPort] = useState(String(prefs.serverPort));
   const [password, setPassword] = useState(prefs.serverPassword);
   const [savingServer, setSavingServer] = useState(false);
   const [newServerName, setNewServerName] = useState("");
-
   const hasChanges =
     host !== prefs.serverHost ||
     port !== String(prefs.serverPort) ||
     password !== prefs.serverPassword;
-
   function beginThemeColorEdit(path: string, value: string) {
     setEditingThemeColorPath(path);
     setEditingThemeColorValue(value);
   }
-
   function commitThemeColorEdit(path: string, fallbackValue: string) {
     const next = editingThemeColorValue.trim() || fallbackValue;
     prefs.setGameThemeColorOverride(path, next);
     setEditingThemeColorPath(null);
     setEditingThemeColorValue("");
   }
-
   async function handleSave() {
     prefs.setServerHost(host);
     prefs.setServerPort(Number(port));
     prefs.setServerPassword(password);
-
     // Always disconnect first (kills any existing WS connection)
     await server.disconnect();
-
     const name = relayUsername();
     if (name) {
       await server.connect(host, Number(port), name, password);
     }
   }
-
   async function applyKnownRelay(relay: KnownRelay) {
     setHost(relay.host);
     setPort(String(relay.port));
@@ -439,27 +732,24 @@ export default function Settings() {
     prefs.setServerHost(relay.host);
     prefs.setServerPort(relay.port);
     prefs.setServerPassword(relay.password);
-
     await server.disconnect();
     const name = relayUsername();
     if (name) {
       await server.connect(relay.host, relay.port, name, relay.password);
     }
   }
-
   function saveCurrentServer() {
     const name = newServerName.trim();
     if (!name) return;
     if (KNOWN_RELAYS.some((r) => r.name === name)) {
-      toast.error("That name is reserved for a built-in server");
+      toast.error(i18n._(msg`That name is reserved for a built-in server`));
       return;
     }
     prefs.addSavedServer({ name, host, port: Number(port), password });
     setNewServerName("");
     setSavingServer(false);
-    toast.success(`Saved "${name}"`);
+    toast.success(i18n._(msg`Saved "${name}"`));
   }
-
   async function handleClearImageCache() {
     setClearingCache(true);
     try {
@@ -468,18 +758,16 @@ export default function Settings() {
         const keys = await caches.keys();
         await Promise.all(keys.map((k) => caches.delete(k)));
       }
-      toast.success("Image cache cleared — reloading…");
+      toast.success(i18n._(msg`Image cache cleared \u2014 reloading\u2026`));
       window.location.reload();
     } catch {
       setClearingCache(false);
-      toast.error("Couldn't clear the image cache");
+      toast.error(i18n._(msg`Couldn't clear the image cache`));
     }
   }
-
   if (isGameActive) {
     return <Navigate to="/play" replace />;
   }
-
   return (
     <div className="h-full space-y-8 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8">
       <section className="space-y-4">
@@ -495,7 +783,7 @@ export default function Settings() {
                   : "border-transparent text-muted-foreground hover:text-foreground")
               }
             >
-              Account
+              <Trans>Account</Trans>
             </button>
           )}
           {assetsTabAvailable && (
@@ -509,7 +797,7 @@ export default function Settings() {
                   : "border-transparent text-muted-foreground hover:text-foreground")
               }
             >
-              My assets
+              <Trans>My assets</Trans>
             </button>
           )}
           <button
@@ -522,7 +810,7 @@ export default function Settings() {
                 : "border-transparent text-muted-foreground hover:text-foreground")
             }
           >
-            Preferences
+            <Trans>Preferences</Trans>
           </button>
           <button
             type="button"
@@ -534,7 +822,7 @@ export default function Settings() {
                 : "border-transparent text-muted-foreground hover:text-foreground")
             }
           >
-            Theme
+            <Trans>Theme</Trans>
           </button>
           <button
             type="button"
@@ -546,7 +834,7 @@ export default function Settings() {
                 : "border-transparent text-muted-foreground hover:text-foreground")
             }
           >
-            Prompts
+            <Trans>Prompts</Trans>
           </button>
           <button
             type="button"
@@ -558,7 +846,7 @@ export default function Settings() {
                 : "border-transparent text-muted-foreground hover:text-foreground")
             }
           >
-            Shortcuts
+            <Trans>Shortcuts</Trans>
           </button>
           <button
             type="button"
@@ -570,7 +858,7 @@ export default function Settings() {
                 : "border-transparent text-muted-foreground hover:text-foreground")
             }
           >
-            Server
+            <Trans>Server</Trans>
           </button>
           <button
             type="button"
@@ -582,7 +870,7 @@ export default function Settings() {
                 : "border-transparent text-muted-foreground hover:text-foreground")
             }
           >
-            Cache
+            <Trans>Cache</Trans>
           </button>
         </div>
       </section>
@@ -597,22 +885,30 @@ export default function Settings() {
 
       {activeTab === "cache" && (
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Cache</h2>
+          <h2 className="text-lg font-semibold">
+            <Trans>Cache</Trans>
+          </h2>
           <div className="rounded-lg border bg-card/40 p-4 space-y-3 max-w-xl">
-            <Label>Card Image Cache</Label>
+            <Label>
+              <Trans>Card Image Cache</Trans>
+            </Label>
             <p className="text-xs text-muted-foreground">
-              Drops Manabrew&apos;s in-memory card textures and image object URLs, clears the
-              CacheStorage API, then reloads so every card image is fetched fresh. Use this if
-              battlefield card art fails to appear. For a full browser HTTP cache wipe, use the
-              browser&apos;s &quot;Empty Cache and Hard Reload&quot; (DevTools open → right-click
-              reload).
+              <Trans>
+                Drops Manabrew&apos;s in-memory card textures and image object URLs, clears the
+                CacheStorage API, then reloads so every card image is fetched fresh. Use this if
+                battlefield card art fails to appear. For a full browser HTTP cache wipe, use the
+                browser&apos;s &quot;Empty Cache and Hard Reload&quot; (DevTools open → right-click
+                reload).
+              </Trans>
             </p>
             <Button
               variant="destructive"
               onClick={() => void handleClearImageCache()}
               disabled={clearingCache}
             >
-              {clearingCache ? "Clearing…" : "Clear image cache & reload"}
+              {clearingCache
+                ? i18n._(msg`Clearing\u2026`)
+                : i18n._(msg`Clear image cache & reload`)}
             </Button>
           </div>
         </section>
@@ -622,20 +918,26 @@ export default function Settings() {
 
       {activeTab === "server" && (
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Server</h2>
+          <h2 className="text-lg font-semibold">
+            <Trans>Server</Trans>
+          </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <Label htmlFor="server-host">Host</Label>
+              <Label htmlFor="server-host">
+                <Trans>Host</Trans>
+              </Label>
               <Input
                 id="server-host"
                 value={host}
                 onChange={(e) => setHost(e.target.value)}
-                placeholder="localhost"
+                placeholder={i18n._(msg`localhost`)}
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="server-port">Port</Label>
+              <Label htmlFor="server-port">
+                <Trans>Port</Trans>
+              </Label>
               <Input
                 id="server-port"
                 type="number"
@@ -645,29 +947,35 @@ export default function Settings() {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="server-password">Password</Label>
+              <Label htmlFor="server-password">
+                <Trans>Password</Trans>
+              </Label>
               <Input
                 id="server-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="forge"
+                placeholder={i18n._(msg`forge`)}
               />
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Button onClick={handleSave} disabled={!hasChanges && !server.error}>
-              Save & Reconnect
+              <Trans>Save & Reconnect</Trans>
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">
-                  <Server className="h-4 w-4" />
-                  Saved servers
+                  <Trans>
+                    <Server className="h-4 w-4" />
+                    Saved servers
+                  </Trans>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="min-w-56">
-                <DropdownMenuLabel>Built-in</DropdownMenuLabel>
+                <DropdownMenuLabel>
+                  <Trans>Built-in</Trans>
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {KNOWN_RELAYS.map((relay) => (
                   <DropdownMenuItem key={relay.name} onSelect={() => void applyKnownRelay(relay)}>
@@ -681,7 +989,9 @@ export default function Settings() {
                 ))}
                 {prefs.savedServers.length > 0 && (
                   <>
-                    <DropdownMenuLabel>Your servers</DropdownMenuLabel>
+                    <DropdownMenuLabel>
+                      <Trans>Your servers</Trans>
+                    </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {prefs.savedServers.map((relay) => (
                       <DropdownMenuItem
@@ -697,7 +1007,7 @@ export default function Settings() {
                         </div>
                         <button
                           type="button"
-                          aria-label={`Remove ${relay.name}`}
+                          aria-label={i18n._(msg`Remove ${relay.name}`)}
                           className="shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                           onPointerDown={(e) => e.stopPropagation()}
                           onClick={(e) => {
@@ -721,16 +1031,20 @@ export default function Settings() {
                 setSavingServer((v) => !v);
               }}
             >
-              Save current server…
+              <Trans>Save current server…</Trans>
             </Button>
             {server.connected && (
               <span className="text-xs text-success flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-success" />
-                Connected as {server.username}
+                <Trans>
+                  <span className="h-2 w-2 rounded-full bg-success" />
+                  Connected as {server.username}
+                </Trans>
               </span>
             )}
             {server.connecting && (
-              <span className="text-xs text-muted-foreground">Connecting...</span>
+              <span className="text-xs text-muted-foreground">
+                <Trans>Connecting...</Trans>
+              </span>
             )}
             {server.error && <span className="text-xs text-destructive">{server.error}</span>}
           </div>
@@ -744,23 +1058,27 @@ export default function Settings() {
                   if (e.key === "Enter") saveCurrentServer();
                   if (e.key === "Escape") setSavingServer(false);
                 }}
-                placeholder="Name this server"
+                placeholder={i18n._(msg`Name this server`)}
                 className="max-w-xs"
               />
               <Button size="sm" onClick={saveCurrentServer} disabled={!newServerName.trim()}>
-                Save
+                <Trans>Save</Trans>
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setSavingServer(false)}>
-                Cancel
+                <Trans>Cancel</Trans>
               </Button>
               <span className="text-xs text-muted-foreground">
-                Saves the current host, port, and password so you can switch back later.
+                <Trans>
+                  Saves the current host, port, and password so you can switch back later.
+                </Trans>
               </span>
             </div>
           )}
           <p className="text-xs text-muted-foreground">
-            Server connection settings. Saving will disconnect and reconnect with the new
-            credentials.
+            <Trans>
+              Server connection settings. Saving will disconnect and reconnect with the new
+              credentials.
+            </Trans>
           </p>
         </section>
       )}
@@ -768,15 +1086,21 @@ export default function Settings() {
       {activeTab === "preferences" && (
         <section>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <LanguagePreferenceCard />
+
             <PreferenceCard
-              title="Default Playmat"
-              description="Used in games when the deck you're playing has no custom playmat of its own."
+              title={i18n._(msg`Default Playmat`)}
+              description={i18n._(
+                msg`Used in games when the deck you're playing has no custom playmat of its own.`,
+              )}
             >
               <div className="group relative">
                 <button
                   type="button"
                   onClick={() => setPlaymatEditorOpen(true)}
-                  title={hasDefaultPlaymat ? "Customize playmat" : "Set playmat"}
+                  title={
+                    hasDefaultPlaymat ? i18n._(msg`Customize playmat`) : i18n._(msg`Set playmat`)
+                  }
                   className={cn(
                     "flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg border bg-muted",
                     "motion-safe:transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm",
@@ -787,7 +1111,7 @@ export default function Settings() {
                   {defaultPlaymat ? (
                     <img
                       src={defaultPlaymat}
-                      alt="Your default playmat"
+                      alt={i18n._(msg`Your default playmat`)}
                       crossOrigin="anonymous"
                       className="size-full object-cover"
                     />
@@ -811,7 +1135,7 @@ export default function Settings() {
                 {hasDefaultPlaymat && (
                   <button
                     type="button"
-                    title="Remove playmat"
+                    title={i18n._(msg`Remove playmat`)}
                     onClick={() => {
                       void useAssetStore.getState().remove(prefs.defaultPlaymatAssetId);
                       prefs.setDefaultPlaymatAssetId(undefined);
@@ -826,8 +1150,10 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title="Battlefield Zone Column Order"
-              description="Controls placement of Library / Graveyard / Exile in the in-field zone column."
+              title={i18n._(msg`Battlefield Zone Column Order`)}
+              description={i18n._(
+                msg`Controls placement of Library / Graveyard / Exile in the in-field zone column.`,
+              )}
             >
               <div className="grid grid-cols-3 gap-2">
                 {(["Top", "Middle", "Bottom"] as const).map((slot, index) => (
@@ -844,9 +1170,15 @@ export default function Settings() {
                       onChange={(e) => setZoneSlot(index, e.target.value as ZonePanelItem)}
                       className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
                     >
-                      <option value="library">Library</option>
-                      <option value="graveyard">Graveyard</option>
-                      <option value="exile">Exile</option>
+                      <option value="library">
+                        <Trans>Library</Trans>
+                      </option>
+                      <option value="graveyard">
+                        <Trans>Graveyard</Trans>
+                      </option>
+                      <option value="exile">
+                        <Trans>Exile</Trans>
+                      </option>
                     </select>
                   </div>
                 ))}
@@ -854,9 +1186,11 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title="Card Size"
+              title={i18n._(msg`Card Size`)}
               value={`${Math.round(prefs.cardSizeMultiplier * 100)}%`}
-              description="Scales cards on every battlefield and your hand fan. 100% is the classic 3-row board; battlefield cards cap at a 2-row fill so the board stays playable, while the hand keeps growing past them."
+              description={i18n._(
+                msg`Scales cards on every battlefield and your hand fan. 100% is the classic 3-row board; battlefield cards cap at a 2-row fill so the board stays playable, while the hand keeps growing past them.`,
+              )}
             >
               <div className="flex items-start gap-4">
                 <div className="flex-1 space-y-3">
@@ -907,8 +1241,10 @@ export default function Settings() {
               </div>
             </PreferenceCard>
             <PreferenceCard
-              title="Hand Ordering"
-              description="Drag cards sideways for a custom order, or keep every hand sorted automatically by color or mana value."
+              title={i18n._(msg`Hand Ordering`)}
+              description={i18n._(
+                msg`Drag cards sideways for a custom order, or keep every hand sorted automatically by color or mana value.`,
+              )}
             >
               <div className="flex flex-wrap gap-2">
                 {HAND_ORDER_OPTIONS.map((option) => (
@@ -925,10 +1261,10 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title="Battlefield Layout"
-              description={
-                '"Free placement" lets you drag cards anywhere. "Auto-arrange" keeps the battlefield tidy in rows (creatures, then others, then lands) and ignores manual placement.'
-              }
+              title={i18n._(msg`Battlefield Layout`)}
+              description={i18n._(
+                msg`"Free placement" lets you drag cards anywhere. "Auto-arrange" keeps the battlefield tidy in rows (creatures, then others, then lands) and ignores manual placement.`,
+              )}
             >
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -936,23 +1272,23 @@ export default function Settings() {
                   size="sm"
                   onClick={() => prefs.setBattlefieldAutoSort(false)}
                 >
-                  Free placement
+                  <Trans>Free placement</Trans>
                 </Button>
                 <Button
                   variant={prefs.battlefieldAutoSort ? "default" : "outline"}
                   size="sm"
                   onClick={() => prefs.setBattlefieldAutoSort(true)}
                 >
-                  Auto-arrange
+                  <Trans>Auto-arrange</Trans>
                 </Button>
               </div>
             </PreferenceCard>
 
             <PreferenceCard
-              title="Zone Piles"
-              description={
-                '"Locked" keeps the deck, graveyard, exile, and command piles fixed on the battlefield so a drag can\'t move them. Tapping to open still works.'
-              }
+              title={i18n._(msg`Zone Piles`)}
+              description={i18n._(
+                msg`"Locked" keeps the deck, graveyard, exile, and command piles fixed on the battlefield so a drag can't move them. Tapping to open still works.`,
+              )}
             >
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -960,23 +1296,23 @@ export default function Settings() {
                   size="sm"
                   onClick={() => prefs.setLockZoneTiles(false)}
                 >
-                  Movable
+                  <Trans>Movable</Trans>
                 </Button>
                 <Button
                   variant={prefs.lockZoneTiles ? "default" : "outline"}
                   size="sm"
                   onClick={() => prefs.setLockZoneTiles(true)}
                 >
-                  Locked
+                  <Trans>Locked</Trans>
                 </Button>
               </div>
             </PreferenceCard>
 
             <PreferenceCard
-              title="Battlefield Card Style"
-              description={
-                '"Realistic" uses the full printed card image. "Art-forward" shows the art with a crisp name/type overlay. "Mini-frame" frames the art with name and type bars. This setting only affects battlefield cards.'
-              }
+              title={i18n._(msg`Battlefield Card Style`)}
+              description={i18n._(
+                msg`"Realistic" uses the full printed card image. "Art-forward" shows the art with a crisp name/type overlay. "Mini-frame" frames the art with name and type bars. This setting only affects battlefield cards.`,
+              )}
             >
               <div className="flex items-start gap-4">
                 <div className="flex-1 flex flex-wrap content-start gap-2">
@@ -985,21 +1321,21 @@ export default function Settings() {
                     size="sm"
                     onClick={() => prefs.setBattlefieldCardStyle("realistic")}
                   >
-                    Realistic
+                    <Trans>Realistic</Trans>
                   </Button>
                   <Button
                     variant={prefs.battlefieldCardStyle === "art" ? "default" : "outline"}
                     size="sm"
                     onClick={() => prefs.setBattlefieldCardStyle("art")}
                   >
-                    Art-forward
+                    <Trans>Art-forward</Trans>
                   </Button>
                   <Button
                     variant={prefs.battlefieldCardStyle === "frame" ? "default" : "outline"}
                     size="sm"
                     onClick={() => prefs.setBattlefieldCardStyle("frame")}
                   >
-                    Mini-frame
+                    <Trans>Mini-frame</Trans>
                   </Button>
                 </div>
                 <BattlefieldStylePreview style={prefs.battlefieldCardStyle} />
@@ -1007,8 +1343,10 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title="In-game Animations"
-              description="Decorative board effects — creature entrance stomp + dust, stat and damage pops, glow pulses. Turn these off to save performance on weaker hardware; the board still works (cards move, state indicators and damage numbers stay)."
+              title={i18n._(msg`In-game Animations`)}
+              description={i18n._(
+                msg`Decorative board effects \u2014 creature entrance stomp + dust, stat and damage pops, glow pulses. Turn these off to save performance on weaker hardware; the board still works (cards move, state indicators and damage numbers stay).`,
+              )}
             >
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -1016,22 +1354,24 @@ export default function Settings() {
                   size="sm"
                   onClick={() => prefs.setInGameAnimations(true)}
                 >
-                  On
+                  <Trans>On</Trans>
                 </Button>
                 <Button
                   variant={!prefs.inGameAnimations ? "default" : "outline"}
                   size="sm"
                   onClick={() => prefs.setInGameAnimations(false)}
                 >
-                  Off
+                  <Trans>Off</Trans>
                 </Button>
               </div>
             </PreferenceCard>
 
             {isFeatureEnabled("ironsmithRuntime") && IRONSMITH_WASM_AVAILABLE && (
               <PreferenceCard
-                title="Ironsmith engine (experimental)"
-                description="Adds the experimental Ironsmith trusted engine as a Create Room option. Card support is partial and games may be rough — off by default. Leave this off unless you're testing Ironsmith."
+                title={i18n._(msg`Ironsmith engine (experimental)`)}
+                description={i18n._(
+                  msg`Adds the experimental Ironsmith trusted engine as a Create Room option. Card support is partial and games may be rough \u2014 off by default. Leave this off unless you're testing Ironsmith.`,
+                )}
               >
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -1039,22 +1379,24 @@ export default function Settings() {
                     size="sm"
                     onClick={() => prefs.setIronsmithRuntimeEnabled(true)}
                   >
-                    On
+                    <Trans>On</Trans>
                   </Button>
                   <Button
                     variant={!prefs.ironsmithRuntimeEnabled ? "default" : "outline"}
                     size="sm"
                     onClick={() => prefs.setIronsmithRuntimeEnabled(false)}
                   >
-                    Off
+                    <Trans>Off</Trans>
                   </Button>
                 </div>
               </PreferenceCard>
             )}
 
             <PreferenceCard
-              title="Peer to Peer"
-              description="Skip manabrew servers and connect directly to the other players at the table. This shares your IP address with the people you play with, and only activates if every player in the game has it enabled."
+              title={i18n._(msg`Peer to Peer`)}
+              description={i18n._(
+                msg`Skip manabrew servers and connect directly to the other players at the table. This shares your IP address with the people you play with, and only activates if every player in the game has it enabled.`,
+              )}
             >
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -1062,21 +1404,23 @@ export default function Settings() {
                   size="sm"
                   onClick={() => prefs.setDirectTransport(true)}
                 >
-                  On
+                  <Trans>On</Trans>
                 </Button>
                 <Button
                   variant={!prefs.directTransport ? "default" : "outline"}
                   size="sm"
                   onClick={() => prefs.setDirectTransport(false)}
                 >
-                  Off
+                  <Trans>Off</Trans>
                 </Button>
               </div>
             </PreferenceCard>
 
             <PreferenceCard
-              title="Hand Card Style"
-              description="Printed card shows the card image. Dynamic view uses the card's current rules and game state; each card can still be switched."
+              title={i18n._(msg`Hand Card Style`)}
+              description={i18n._(
+                msg`Printed card shows the card image. Dynamic view uses the card's current rules and game state; each card can still be switched.`,
+              )}
             >
               <div className="flex flex-wrap gap-2">
                 {INLINE_CARD_STYLE_OPTIONS.map((option) => (
@@ -1093,8 +1437,10 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title="Default Stack Card View"
-              description="Choose which face stack cards show when they appear. You can still switch individual cards."
+              title={i18n._(msg`Default Stack Card View`)}
+              description={i18n._(
+                msg`Choose which face stack cards show when they appear. You can still switch individual cards.`,
+              )}
             >
               <div className="flex flex-wrap gap-2">
                 {INLINE_CARD_STYLE_OPTIONS.map((option) => (
@@ -1111,8 +1457,10 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title="Card Preview Style"
-              description="Printed card shows the full card image. Dynamic view prioritizes current rules, actions, costs, counters, and other game state."
+              title={i18n._(msg`Card Preview Style`)}
+              description={i18n._(
+                msg`Printed card shows the full card image. Dynamic view prioritizes current rules, actions, costs, counters, and other game state.`,
+              )}
             >
               <div className="flex flex-wrap gap-2">
                 {IN_GAME_CARD_PREVIEW_STYLE_OPTIONS.map((option) => (
@@ -1129,9 +1477,9 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title="Flash duration"
+              title={i18n._(msg`Flash duration`)}
               value={`${flashDurationMs}ms`}
-              description="Card-play and turn-start flash duration."
+              description={i18n._(msg`Card-play and turn-start flash duration.`)}
             >
               <input
                 type="range"
@@ -1147,7 +1495,7 @@ export default function Settings() {
           {playmatEditorOpen && (
             <PlaymatEditorModal
               onClose={() => setPlaymatEditorOpen(false)}
-              title="Default Playmat"
+              title={i18n._(msg`Default Playmat`)}
               playmat={defaultPlaymat}
               storedSettings={prefs.defaultPlaymatSettings}
               playmatAssetId={prefs.defaultPlaymatAssetId}
@@ -1160,39 +1508,47 @@ export default function Settings() {
 
       {activeTab === "theme" && (
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Theme</h2>
+          <h2 className="text-lg font-semibold">
+            <Trans>Theme</Trans>
+          </h2>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <Label>App Theme</Label>
+              <Label>
+                <Trans>App Theme</Trans>
+              </Label>
               <div className="flex items-center gap-2">
                 <Button
                   variant={theme === "light" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setTheme("light")}
                 >
-                  Light
+                  <Trans>Light</Trans>
                 </Button>
                 <Button
                   variant={theme === "dark" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setTheme("dark")}
                 >
-                  Dark
+                  <Trans>Dark</Trans>
                 </Button>
                 <Button
                   variant={theme === "system" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setTheme("system")}
                 >
-                  System
+                  <Trans>System</Trans>
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">Controls app theme preference.</p>
+              <p className="text-xs text-muted-foreground">
+                <Trans>Controls app theme preference.</Trans>
+              </p>
             </div>
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <Label>Color Preset</Label>
+              <Label>
+                <Trans>Color Preset</Trans>
+              </Label>
               {(() => {
                 const active = THEME_PRESETS.find((p) => p.id === prefs.appThemePreset);
                 const mode = resolvedTheme === "dark" ? "dark" : "light";
@@ -1273,7 +1629,7 @@ export default function Settings() {
                             </div>
                             {prefs.appThemePreset === preset.id && (
                               <div className="text-[10px] text-primary font-medium shrink-0">
-                                Active
+                                <Trans>Active</Trans>
                               </div>
                             )}
                           </button>
@@ -1284,14 +1640,14 @@ export default function Settings() {
                 );
               })()}
               <p className="text-xs text-muted-foreground">
-                Choose a color preset. Works with both light and dark modes.
+                <Trans>Choose a color preset. Works with both light and dark modes.</Trans>
               </p>
             </div>
           </div>
 
           <div className="pt-2">
             <Input
-              placeholder="Filter colors... (e.g. primary, counter, arrow)"
+              placeholder={i18n._(msg`Filter colors... (e.g. primary, counter, arrow)`)}
               value={themeColorFilter}
               onChange={(e) => setThemeColorFilter(e.target.value)}
               className="max-w-sm"
@@ -1300,14 +1656,16 @@ export default function Settings() {
 
           <div className="space-y-3 pt-2">
             <div className="flex items-center justify-between gap-2">
-              <Label>App Theme Colors</Label>
+              <Label>
+                <Trans>App Theme Colors</Trans>
+              </Label>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={prefs.resetAppThemeColorOverrides}
                 disabled={Object.keys(prefs.appThemeColorOverrides).length === 0}
               >
-                Reset Colors
+                <Trans>Reset Colors</Trans>
               </Button>
             </div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -1360,7 +1718,7 @@ export default function Settings() {
                                 type="button"
                                 className="flex-1 min-w-0 text-right text-[11px] font-mono text-muted-foreground hover:text-foreground underline-offset-2 hover:underline truncate"
                                 onClick={() => beginThemeColorEdit(`app.${key}`, activeValue)}
-                                title="Click to edit color value"
+                                title={i18n._(msg`Click to edit color value`)}
                               >
                                 {activeValue}
                               </button>
@@ -1374,15 +1732,17 @@ export default function Settings() {
               })}
             </div>
             <p className="text-xs text-muted-foreground">
-              Override individual colors from the active preset.
+              <Trans>Override individual colors from the active preset.</Trans>
             </p>
           </div>
 
           <div className="space-y-3 pt-2">
             <div className="flex items-center justify-between gap-2">
-              <Label>Game Theme Colors</Label>
+              <Label>
+                <Trans>Game Theme Colors</Trans>
+              </Label>
               <Button size="sm" variant="outline" onClick={prefs.resetGameThemeColorOverrides}>
-                Reset Colors
+                <Trans>Reset Colors</Trans>
               </Button>
             </div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -1414,8 +1774,10 @@ export default function Settings() {
                 const miscKeys = allPaths.filter((p) => !grouped.has(p));
                 if (miscKeys.length > 0) {
                   groups.push({
-                    heading: "Other",
-                    description: "Tokens not covered by the groups above.",
+                    heading: i18n._(msg`Other`),
+                    get description() {
+                      return i18n._(msg`Tokens not covered by the groups above.`);
+                    },
                     keys: miscKeys,
                   });
                 }
@@ -1497,7 +1859,7 @@ export default function Settings() {
                                     type="button"
                                     className="flex-1 min-w-0 text-right text-[11px] font-mono text-muted-foreground hover:text-foreground underline-offset-2 hover:underline truncate"
                                     onClick={() => beginThemeColorEdit(path, activeColor)}
-                                    title="Click to edit color value"
+                                    title={i18n._(msg`Click to edit color value`)}
                                   >
                                     {activeColor}
                                   </button>
@@ -1512,7 +1874,7 @@ export default function Settings() {
               })()}
             </div>
             <p className="text-xs text-muted-foreground">
-              Generated from game theme keys. Defaults come from the active preset.
+              <Trans>Generated from game theme keys. Defaults come from the active preset.</Trans>
             </p>
           </div>
         </section>

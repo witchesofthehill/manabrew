@@ -1,4 +1,6 @@
 import { collectionCardKey } from "@/lib/collection";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 
 export type CollectionImportSource = "manabox" | "moxfield" | "archidekt" | "generic";
 
@@ -167,9 +169,22 @@ export function previewCollectionImport(
     const rawQuantity =
       mapping.quantityColumn === null ? "1" : (row[mapping.quantityColumn]?.trim() ?? "");
     const quantity = Number(rawQuantity);
-    if (!name) return { rowNumber: index + 2, name, quantity: 0, valid: false, reason: "No name" };
+    if (!name)
+      return {
+        rowNumber: index + 2,
+        name,
+        quantity: 0,
+        valid: false,
+        reason: i18n._(msg`No name`),
+      };
     if (!Number.isFinite(quantity) || quantity <= 0) {
-      return { rowNumber: index + 2, name, quantity: 0, valid: false, reason: "Invalid quantity" };
+      return {
+        rowNumber: index + 2,
+        name,
+        quantity: 0,
+        valid: false,
+        reason: i18n._(msg`Invalid quantity`),
+      };
     }
     if (Boolean(setCode) !== Boolean(collectorNumber)) {
       return {
@@ -177,7 +192,7 @@ export function previewCollectionImport(
         name,
         quantity: Math.floor(quantity),
         valid: false,
-        reason: "Set and collector number must be provided together",
+        reason: i18n._(msg`Set and collector number must be provided together`),
       };
     }
     if (foil !== undefined && !setCode) {
@@ -186,7 +201,7 @@ export function previewCollectionImport(
         name,
         quantity: Math.floor(quantity),
         valid: false,
-        reason: "Set and collector number are required for card finish",
+        reason: i18n._(msg`Set and collector number are required for card finish`),
       };
     }
     return {

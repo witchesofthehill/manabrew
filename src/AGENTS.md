@@ -38,6 +38,7 @@ Read first: `/AGENTS.md`, `docs/STYLE_GUIDELINES.md`, `docs/agents/UI_THEME_RULE
 - **No Tailwind animation plugin.** Neither `tailwindcss-animate` nor `tw-animate-css` is installed, so `animate-in` / `fade-in` / `zoom-in-*` / `slide-in-from-*` classes are silent no-ops — including the ones baked into the shadcn `components/ui/*` files. Real animations are custom `--animate-*` keyframes in `index.css` (`@theme`); add one there and use the generated `animate-<name>` utility.
 - **Always `import type` for type-only imports.**
 - **Path aliases (`@/`) only.** Never `../../` that escapes the current directory.
+- **All interface copy is localized.** Wrap rendered JSX copy with Lingui `Trans`; use `i18n._(msg\`...\`)` for attributes, toasts, derived labels, and imperative surfaces. Module-level label maps use getter properties so translation happens when the value is read rather than before locale activation. Canonical card names, rules text, protocol values, identifiers, query syntax, and CSS class strings are data, not interface copy.
 - **State lives close to where it's used.** Hoist to a Zustand store only when state needs to persist across unmounts or be read from non-React code.
 - **Responsive & touch.** Breakpoint / coarse-pointer / long-press constants live in `lib/responsive.ts`; JS gates use `hooks/useBreakpoints.ts` (`useIsTouch`, `useIsDesktop`, `useIsShortScreen`, and `useIsMobileGame` = short screen AND coarse pointer — the gate for all in-game mobile-minimal UI) over `useMediaQuery` — never inline `matchMedia` query strings. Long-press = preview is the app-wide touch convention: the timing/slop core is `lib/longPress.ts` (`LongPressTimer`), wrapped by `hooks/useLongPressPreview.ts` for DOM surfaces and `pixi/LongPressGesture.ts` for Pixi (and used by `hooks/useHandDrag.ts`) — change press semantics in the core, not per surface. Full rules in `docs/STYLE_GUIDELINES.md` §11.
 - **The page never scrolls.** `body` is `overflow:hidden; overscroll-behavior:none` and `html/body/#root` are `height:100%` (`index.css` base layer); `AppShell` is `h-[100dvh]` and owns scrolling via its inner `<main overflow-auto>`. Views must fit the viewport and scroll their own content — don't rely on body scroll. Immersive routes (`isImmersiveRoute` in `AppShell`: game + companion) get `!p-0 !overflow-hidden`. Use `100dvh`, not `100vh`/`h-screen`, for full-height on mobile. **Safe-area padding always goes through `var(--safe-area-inset-*)`, never `env(safe-area-inset-*)` directly** — `index.css` defines those four vars from `env(...)` (the web/iOS default, with `viewport-fit=cover`), and the Tauri Android shell overrides them at runtime because Android's WebView doesn't surface insets to `env()` (`gen/android/.../MainActivity.kt` measures `WindowInsets` and pushes them via a JS bridge that `platform/androidSafeArea.ts` mirrors onto the vars). iOS uses `apple-mobile-web-app-status-bar-style=black-translucent` so the status-bar inset is reported. **Insets are applied at the layout roots, not per view:** `AppShell`'s `<main>` pads non-immersive routes (bottom/left/right always), the `TopBar` pads top/left/right across the full width (`ui/sheet`/`ui/dialog`/`ui/sonner` each inset their own docked edges), and immersive roots self-apply the rest: `Game.tsx` applies all four (game routes render no `TopBar`), while `Companion.tsx` applies bottom/left/right in normal mode (the `TopBar` owns top) and all four in fullscreen focus mode. So a standard view added under `<main>` needs **no** inset of its own — only genuinely `fixed`-positioned or immersive-root-anchored chrome does (e.g. `RightActionPanel`, the Game prompt toasts).
@@ -83,19 +84,24 @@ A cosmetic field always holds something an `<img>` can load: the hub joins `Deck
 ## Card data — Scryfall store
 
 Scryfall card lookups, image textures, set lists, and rulings flow through `src/stores/useScryfallStore.ts` (Zustand + immer). It is the **only** sanctioned path for card data; do not introduce TanStack Query, `useQuery`, or one-off `fetch` calls for card or set lookups.
+The active app locale maps to Scryfall's language code in `i18n/locales.ts`. Exact-printing lookups request the same set and collector number and preserve the original English printing when that translation is unavailable. Name-only lookups may use another localized printing for the same Oracle card before falling back to English. `setLocale` invalidates card, hydrated-set, and printing caches; locale-sensitive consumers must stay on the store so a language change cannot reuse stale English data.
+
+Render localized Scryfall labels through `scryfallDisplayName` and `scryfallDisplayTypeLine`. Keep `card.name` as the canonical engine, deck, collection, and cache identity.
 
 App initialization continues when set metadata cannot load. Keep `useScryfallStore.sets` initialized to an empty array; card previews must render before or without that download.
 
 Large collection imports are the exception: exact-printing verification goes through `POST /api/cards/verify`, backed by the Hub's daily Scryfall `default_cards` bulk index. Never verify a collection by issuing live Scryfall requests per row or per 75-row batch.
 
-Use the exported hook helpers, not the raw store:
+Use these store APIs rather than importing card-data fetchers from `api/scryfall.ts`:
 
 | Need                                       | Use                                                |
 | ------------------------------------------ | -------------------------------------------------- |
 | Card metadata by name / set+collector / id | `useCard({ name, setCode?, collectorNumber? })`    |
+| Imperative card search                     | `useScryfallStore.getState().searchCards(...)`     |
 | Pixi `Texture` for a card image            | `useCardTexture(...)`                              |
 | Card rulings                               | `useCardRulings(card)`                             |
 | Set list as a `Map`                        | `useSetLookup()`                                   |
+| Initial set-list load                      | `useScryfallStore.getState().fetchSets()`          |
 | Bulk warm the cache before a view loads    | `prefetchCards([...])`                             |
 | Force a refresh of a single card           | `useScryfallStore.getState().invalidateCard(name)` |
 | Promote a chosen printing                  | `useScryfallStore.getState().updatePrinting(card)` |

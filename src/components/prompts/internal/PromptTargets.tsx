@@ -1,5 +1,4 @@
 import { Heart, Skull } from "lucide-react";
-
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -12,16 +11,16 @@ import { useResolveDeckCard } from "./usePromptSourceCard";
 import type { CardDto } from "@/protocol/game";
 import type { ClientGameView } from "@/stores/gameStore.types";
 import type { TargetRef } from "@/protocol";
-
+import { Trans } from "@lingui/react/macro";
 const SEAT_KEYS = ["self", "opponent1", "opponent2", "opponent3"] as const;
 const TARGET_TILE = "h-[123px] w-[88px] shrink-0";
-
 export function PromptTargets({ targets }: { targets: TargetRef[] }) {
   if (targets.length === 0) return null;
-
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Affects</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <Trans>Affects</Trans>
+      </p>
       <div className="flex flex-wrap items-end gap-2">
         {targets.map((target, index) =>
           target.kind === "player" ? (
@@ -34,11 +33,9 @@ export function PromptTargets({ targets }: { targets: TargetRef[] }) {
     </div>
   );
 }
-
 function PromptTargetCard({ cardId }: { cardId: string }) {
   const deckCard = useResolveDeckCard(cardId);
   const gameView = useGameStore((s) => s.gameView);
-
   if (deckCard) {
     return (
       <ScryfallImg
@@ -48,7 +45,6 @@ function PromptTargetCard({ cardId }: { cardId: string }) {
       />
     );
   }
-
   const name = findCardName(gameView, cardId);
   if (!name) return null;
   return (
@@ -62,11 +58,9 @@ function PromptTargetCard({ cardId }: { cardId: string }) {
     </span>
   );
 }
-
 function PromptTargetPlayer({ playerId }: { playerId: string }) {
   const gameView = useGameStore((s) => s.gameView);
   const themeColors = useTheme().gameTheme;
-
   const index = gameView?.players.findIndex((p) => p.id === playerId) ?? -1;
   const player = index >= 0 ? gameView?.players[index] : undefined;
   const avatarUrl = usePlayerAvatar(player?.name);
@@ -78,11 +72,10 @@ function PromptTargetPlayer({ playerId }: { playerId: string }) {
           TARGET_TILE,
         )}
       >
-        PlayerDto
+        <Trans>PlayerDto</Trans>
       </span>
     );
   }
-
   const seatColor = themeColors.playerColors[SEAT_KEYS[index % SEAT_KEYS.length]];
   return (
     <div
@@ -121,7 +114,6 @@ function PromptTargetPlayer({ playerId }: { playerId: string }) {
     </div>
   );
 }
-
 function findCardName(
   gameView: ClientGameView | null | undefined,
   cardId: string,

@@ -1,13 +1,14 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SetTile } from "@/components/limited/SetTile";
 import { SET_TYPE_LABELS } from "@/components/limited/setFilters";
 import { cn } from "@/lib/utils";
 import type { ScryfallSet } from "@/types/scryfall";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface SetPickerProps {
   sets: ScryfallSet[];
   selectedCode: string;
@@ -15,7 +16,6 @@ interface SetPickerProps {
   onSelect: (code: string) => void;
   variant?: "inline" | "column";
 }
-
 export function SetPicker({
   sets,
   selectedCode,
@@ -26,9 +26,7 @@ export function SetPicker({
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [changing, setChanging] = useState(false);
-
   const filtered = useMemo(() => filterSets(sets, query, typeFilter), [sets, query, typeFilter]);
-
   const counts = useMemo(() => {
     const out: Record<string, number> = { all: sets.length };
     for (const s of sets) {
@@ -36,16 +34,12 @@ export function SetPicker({
     }
     return out;
   }, [sets]);
-
   const recents = useMemo(() => sets.slice(0, 12), [sets]);
-
   const selected = selectedCode ? sets.find((s) => s.code === selectedCode) : undefined;
-
   const handleSelect = (code: string) => {
     onSelect(code === selectedCode ? "" : code);
     setChanging(false);
   };
-
   if (variant === "inline" && selected && !changing) {
     return (
       <section className="flex items-center gap-2 rounded-lg border border-border/70 bg-card/40 p-2">
@@ -64,12 +58,11 @@ export function SetPicker({
           className="h-8 shrink-0 text-xs"
           onClick={() => setChanging(true)}
         >
-          Change set
+          <Trans>Change set</Trans>
         </Button>
       </section>
     );
   }
-
   return (
     <section
       className={cn(
@@ -86,7 +79,7 @@ export function SetPicker({
       >
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <h2 className="mr-auto text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Pick a set
+            <Trans>Pick a set</Trans>
           </h2>
           <div
             className={cn("relative flex items-center", variant === "column" && "min-w-0 flex-1")}
@@ -96,7 +89,7 @@ export function SetPicker({
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={`Search ${sets.length} sets…`}
+              placeholder={i18n._(msg`Search ${sets.length} sets…`)}
               className={cn("h-8 pl-7 text-xs", variant === "column" ? "w-full" : "w-64")}
             />
           </div>
@@ -135,7 +128,7 @@ export function SetPicker({
         {!query && typeFilter === "all" && (
           <div className="mb-3">
             <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Latest
+              <Trans>Latest</Trans>
             </h3>
             <div className="flex flex-wrap gap-1.5">
               {recents.map((s) => (
@@ -155,7 +148,9 @@ export function SetPicker({
         <div className="grid grid-cols-1 gap-1.5 @lg:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4">
           {filtered.length === 0 ? (
             <div className="col-span-full py-6 text-center text-sm text-muted-foreground">
-              No sets match {query ? `"${query}"` : "the current filter"}.
+              {query
+                ? i18n._(msg`No sets match "${query}".`)
+                : i18n._(msg`No sets match the current filter.`)}
             </div>
           ) : (
             filtered
@@ -175,7 +170,6 @@ export function SetPicker({
     </section>
   );
 }
-
 function filterSets(sets: ScryfallSet[], q: string, typeKey: string): ScryfallSet[] {
   const needle = q.trim().toLowerCase();
   return sets.filter((s) => {

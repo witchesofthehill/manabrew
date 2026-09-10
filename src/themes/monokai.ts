@@ -1,6 +1,7 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const palette: BasePalette = {
   foreground: "#f8f8f2",
   labelMuted: "#75715e", // comment
@@ -35,11 +36,12 @@ const palette: BasePalette = {
   manaG: "#a6e22e",
   manaC: "#75715e",
 };
-
 const preset: ThemePreset = {
   id: "monokai",
   name: "Monokai",
-  description: "Classic high-contrast with vivid highlights",
+  get description() {
+    return i18n._(msg`Classic high-contrast with vivid highlights`);
+  },
   light: {
     background: "#f3f3f1",
     foreground: "#2f2f2d",
@@ -94,5 +96,4 @@ const preset: ThemePreset = {
   },
   gameColors: buildGameColors(palette),
 };
-
 export default preset;

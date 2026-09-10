@@ -8,7 +8,9 @@ import { usePromptActionColors } from "@/components/prompts/internal/promptActio
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { cn } from "@/lib/utils";
 import type { PayManaCostProps } from "./internal/types";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export function PayManaCost({
   isWaitingForResponse,
   payManaCostInfo,
@@ -23,7 +25,7 @@ export function PayManaCost({
   // mark so the state is obvious. Otherwise it's the classic auto-tap
   // button that asks the engine to finish the job.
   const canConfirmFromPool = payManaCostInfo?.canConfirmFromPool ?? false;
-  const primaryLabel = canConfirmFromPool ? "Confirm" : "Auto";
+  const primaryLabel = canConfirmFromPool ? i18n._(msg`Confirm`) : i18n._(msg`Auto`);
   const primaryAction = canConfirmFromPool ? onPayManaCost : onAutoManaCost;
   const primaryIcon = canConfirmFromPool ? (
     <Check className="h-3.5 w-3.5" strokeWidth={3} />
@@ -51,18 +53,22 @@ export function PayManaCost({
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">
-                Cast{" "}
-                <span className="font-semibold text-foreground">{payManaCostInfo.cardName}</span>{" "}
-                for <DynamicTextRender className="align-middle" text={payManaCostInfo.manaCost} />
+                <Trans>
+                  Cast{" "}
+                  <span className="font-semibold text-foreground">{payManaCostInfo.cardName}</span>{" "}
+                  for <DynamicTextRender className="align-middle" text={payManaCostInfo.manaCost} />
+                </Trans>
               </p>
             )}
             {!!payManaCostInfo.delveCount && (
               <p className="text-xs text-muted-foreground">
-                Delved for{" "}
-                <DynamicTextRender
-                  className="align-middle"
-                  text={`{${payManaCostInfo.delveCount}}`}
-                />
+                <Trans>
+                  Delved for{" "}
+                  <DynamicTextRender
+                    className="align-middle"
+                    text={`{${payManaCostInfo.delveCount}}`}
+                  />
+                </Trans>
               </p>
             )}
           </div>
@@ -86,7 +92,7 @@ export function PayManaCost({
         />
         {payManaCostInfo?.delveAvailable && payManaCostInfo.onOpenDelve && (
           <PromptActionButton
-            label="Delve"
+            label={i18n._(msg`Delve`)}
             icon={<VortexCircleIcon className="h-3.5 w-3.5" />}
             variant="outline"
             baseColor={promptActionColors.defenseAction}
@@ -96,7 +102,7 @@ export function PayManaCost({
         )}
         {payManaCostInfo?.lifeToPay != null && payManaCostInfo.onPayLife && (
           <PromptActionButton
-            label={`${payManaCostInfo.lifeToPay} Life`}
+            label={i18n._(msg`${payManaCostInfo.lifeToPay} Life`)}
             icon={<HeartCrack className="h-3.5 w-3.5" />}
             variant="outline"
             baseColor={promptActionColors.attackAction}
@@ -105,7 +111,7 @@ export function PayManaCost({
           />
         )}
         <PromptActionButton
-          label="Cancel"
+          label={i18n._(msg`Cancel`)}
           icon={<Ban className="h-3.5 w-3.5" />}
           variant="outline"
           baseColor={promptActionColors.cancel}

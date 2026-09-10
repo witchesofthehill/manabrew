@@ -1,4 +1,3 @@
-import { fetchSets } from "@/api/scryfall";
 import { prefetchCards, prefetchTokenArchive, useScryfallStore } from "@/stores/useScryfallStore";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
@@ -16,7 +15,7 @@ function postStage(stage: AppInitStage): void {
 
 async function initScryfallSets(): Promise<void> {
   if (useScryfallStore.getState().sets?.length) return;
-  const sets = await fetchSets();
+  const sets = await useScryfallStore.getState().fetchSets();
   useScryfallStore.setState({ sets });
 }
 

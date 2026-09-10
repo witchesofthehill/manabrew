@@ -1,6 +1,7 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const palette: BasePalette = {
   foreground: "#c0caf5",
   labelMuted: "#565f89",
@@ -35,11 +36,12 @@ const palette: BasePalette = {
   manaG: "#9ece6a",
   manaC: "#a9b1d6",
 };
-
 const preset: ThemePreset = {
   id: "tokyo-night",
   name: "Tokyo Night",
-  description: "Neon-tinged dark cityscape palette",
+  get description() {
+    return i18n._(msg`Neon-tinged dark cityscape palette`);
+  },
   light: {
     background: "#f3f4f7",
     foreground: "#353846",
@@ -94,5 +96,4 @@ const preset: ThemePreset = {
   },
   gameColors: buildGameColors(palette),
 };
-
 export default preset;

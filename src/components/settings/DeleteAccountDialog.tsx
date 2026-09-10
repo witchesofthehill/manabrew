@@ -13,18 +13,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { deleteAccount } from "@/api/auth";
 import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface DeleteAccountDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
 export function DeleteAccountDialog({ open, onOpenChange }: DeleteAccountDialogProps) {
   const account = useAuthStore((s) => s.account);
   const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   function handleOpenChange(next: boolean) {
     if (!next) {
       setConfirmation("");
@@ -33,10 +33,8 @@ export function DeleteAccountDialog({ open, onOpenChange }: DeleteAccountDialogP
     }
     onOpenChange(next);
   }
-
   const handle = account?.handle ?? "";
   const confirmed = confirmation.trim().toLowerCase() === handle.toLowerCase();
-
   async function handleDelete() {
     const token = await getAccessToken();
     if (!token) return;
@@ -46,26 +44,31 @@ export function DeleteAccountDialog({ open, onOpenChange }: DeleteAccountDialogP
       await deleteAccount(token);
       await useAuthStore.getState().signOut();
       onOpenChange(false);
-      toast.success("Your account has been deleted");
+      toast.success(i18n._(msg`Your account has been deleted`));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setBusy(false);
     }
   }
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Delete account</DialogTitle>
+          <DialogTitle>
+            <Trans>Delete account</Trans>
+          </DialogTitle>
           <DialogDescription>
-            This erases your account, sign-in methods, saved decks and version history. Decks you
-            published to Community stay up without your name on them. This cannot be undone — export
-            your data first if you want a copy.
+            <Trans>
+              This erases your account, sign-in methods, saved decks and version history. Decks you
+              published to Community stay up without your name on them. This cannot be undone —
+              export your data first if you want a copy.
+            </Trans>
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
-          <Label htmlFor="delete-account-confirm">Type {handle} to confirm</Label>
+          <Label htmlFor="delete-account-confirm">
+            <Trans>Type {handle} to confirm</Trans>
+          </Label>
           <Input
             id="delete-account-confirm"
             value={confirmation}
@@ -84,7 +87,7 @@ export function DeleteAccountDialog({ open, onOpenChange }: DeleteAccountDialogP
             disabled={busy}
             onClick={() => handleOpenChange(false)}
           >
-            Cancel
+            <Trans>Cancel</Trans>
           </Button>
           <Button
             variant="destructive"
@@ -92,7 +95,7 @@ export function DeleteAccountDialog({ open, onOpenChange }: DeleteAccountDialogP
             disabled={busy || !confirmed}
             onClick={() => void handleDelete()}
           >
-            {busy ? "Deleting…" : "Delete account"}
+            {busy ? i18n._(msg`Deleting\u2026`) : i18n._(msg`Delete account`)}
           </Button>
         </DialogFooter>
       </DialogContent>

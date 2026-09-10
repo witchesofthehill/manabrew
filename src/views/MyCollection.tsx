@@ -22,7 +22,9 @@ import { cn } from "@/lib/utils";
 import { deckCardToPreviewDto, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useCollectionStore } from "@/stores/useCollectionStore";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export default function MyCollection() {
   useCardCollection();
   const authStatus = useAuthStore((state) => state.status);
@@ -55,10 +57,8 @@ export default function MyCollection() {
     [collectionRows, query],
   );
   const visibleRows = rows.slice(0, visibleRowCount);
-
   if (authStatus === "unknown") return null;
   if (authStatus !== "signedIn") return <Navigate to={ROUTES.SETTINGS} replace />;
-
   function exportCollection() {
     const csv = [
       "Quantity,Card Name,Set Code,Collector Number,Foil",
@@ -74,24 +74,23 @@ export default function MyCollection() {
     anchor.click();
     URL.revokeObjectURL(url);
   }
-
   function updateQuantity(cardKey: string, quantity: number) {
     void setQuantity(cardKey, quantity).catch(() => {
-      toast.error("Account sync failed. This change is preserved locally.");
+      toast.error(i18n._(msg`Account sync failed. This change is preserved locally.`));
     });
   }
-
   async function deleteCollection() {
     try {
       await replaceQuantities({});
       setQuery("");
-      toast.success("Collection deleted");
+      toast.success(i18n._(msg`Collection deleted`));
     } catch (error) {
-      toast.error("Account sync failed. The deletion is preserved locally and will retry.");
+      toast.error(
+        i18n._(msg`Account sync failed. The deletion is preserved locally and will retry.`),
+      );
       throw error;
     }
   }
-
   return (
     <div className="flex h-full min-h-0 w-full">
       <div className="min-w-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8">
@@ -100,37 +99,47 @@ export default function MyCollection() {
             <div>
               <div className="flex items-center gap-2">
                 <LibraryBig className="h-5 w-5 text-primary" />
-                <h1 className="text-2xl font-semibold">My Collection</h1>
+                <h1 className="text-2xl font-semibold">
+                  <Trans>My Collection</Trans>
+                </h1>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
                 {loading
-                  ? "Syncing with your account…"
-                  : `${Object.keys(quantities).length} collection entries`}
+                  ? i18n._(msg`Syncing with your account\u2026`)
+                  : i18n._(msg`${Object.keys(quantities).length} collection entries`)}
               </p>
               {syncError && (
                 <p className="mt-1 text-sm text-destructive">
-                  Account sync failed. Changes are preserved locally and will retry on the next
-                  edit.
+                  <Trans>
+                    Account sync failed. Changes are preserved locally and will retry on the next
+                    edit.
+                  </Trans>
                 </p>
               )}
             </div>
             <div className="flex gap-2">
               <Button variant="outline" disabled={loading} onClick={() => setImportOpen(true)}>
-                <Upload className="mr-1.5 h-4 w-4" /> Import
+                <Trans>
+                  <Upload className="mr-1.5 h-4 w-4" /> Import
+                </Trans>
               </Button>
               <Button
                 variant="outline"
                 disabled={Object.keys(quantities).length === 0}
                 onClick={exportCollection}
               >
-                <Download className="mr-1.5 h-4 w-4" /> Export CSV
+                <Trans>
+                  <Download className="mr-1.5 h-4 w-4" /> Export CSV
+                </Trans>
               </Button>
               <Button
                 variant="destructive"
                 disabled={loading || collectionRows.length === 0}
                 onClick={() => setDeleteOpen(true)}
               >
-                <Trash2 className="mr-1.5 h-4 w-4" /> Delete collection
+                <Trans>
+                  <Trash2 className="mr-1.5 h-4 w-4" /> Delete collection
+                </Trans>
               </Button>
             </div>
           </div>
@@ -141,7 +150,7 @@ export default function MyCollection() {
               <Input
                 className="pl-9"
                 value={query}
-                placeholder="Search your collection"
+                placeholder={i18n._(msg`Search your collection`)}
                 onChange={(event) => {
                   setQuery(event.target.value);
                   setVisibleRowCount(100);
@@ -165,8 +174,8 @@ export default function MyCollection() {
             <div className="flex shrink-0 overflow-hidden rounded-md border">
               <button
                 type="button"
-                title="Grid view"
-                aria-label="Grid view"
+                title={i18n._(msg`Grid view`)}
+                aria-label={i18n._(msg`Grid view`)}
                 aria-pressed={view === "grid"}
                 onClick={() => {
                   setView("grid");
@@ -183,8 +192,8 @@ export default function MyCollection() {
               </button>
               <button
                 type="button"
-                title="Text view"
-                aria-label="Text view"
+                title={i18n._(msg`Text view`)}
+                aria-label={i18n._(msg`Text view`)}
                 aria-pressed={view === "text"}
                 onClick={() => {
                   setView("text");
@@ -236,15 +245,15 @@ export default function MyCollection() {
                 )}
               >
                 {query
-                  ? "No cards match your search."
-                  : "Import a CSV or text list to start your collection."}
+                  ? i18n._(msg`No cards match your search.`)
+                  : i18n._(msg`Import a CSV or text list to start your collection.`)}
               </div>
             )}
           </div>
           {visibleRows.length < rows.length && (
             <div className="mt-6 flex justify-center">
               <Button variant="outline" onClick={() => setVisibleRowCount((count) => count + 100)}>
-                Show 100 more · {rows.length - visibleRows.length} remaining
+                <Trans>Show 100 more · {rows.length - visibleRows.length} remaining</Trans>
               </Button>
             </div>
           )}

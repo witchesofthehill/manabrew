@@ -2,16 +2,16 @@ import { cn } from "@/lib/utils";
 import type { GameThemeColors } from "@/themes/gameTheme";
 import { GameIcon, type GameIconName } from "./GameIcon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
+import { Trans } from "@lingui/react/macro";
 type CounterColorKey = keyof GameThemeColors["counter"];
-
 interface CounterConfig {
   iconName?: GameIconName;
   label: string;
   colorKey: CounterColorKey;
   title: string;
 }
-
 /**
  * Known counter types and their visual identity.
  *
@@ -27,31 +27,155 @@ const COUNTER_CONFIG: Record<string, CounterConfig> = {
   M1M1: { label: "−1/−1", colorKey: "m1m1", title: "−1/−1" },
   Loyalty: {
     iconName: "vibrating-shield",
-    label: "Loyalty",
+    get label() {
+      return i18n._(msg`Loyalty`);
+    },
     colorKey: "loyalty",
-    title: "Loyalty",
+    get title() {
+      return i18n._(msg`Loyalty`);
+    },
   },
-  Charge: { iconName: "lightning-trio", label: "Charge", colorKey: "charge", title: "Charge" },
-  Quest: { iconName: "scroll-quill", label: "Quest", colorKey: "quest", title: "Quest" },
-  Study: { iconName: "book-aura", label: "Study", colorKey: "study", title: "Study" },
-  Lore: { iconName: "spell-book", label: "Lore", colorKey: "lore", title: "Lore" },
-  Age: { iconName: "hourglass", label: "Age", colorKey: "age", title: "Age" },
-  Time: { iconName: "stopwatch", label: "Time", colorKey: "time", title: "Time" },
-  Fade: { iconName: "ghost", label: "Fade", colorKey: "fade", title: "Fade" },
-  Level: { iconName: "rank-3", label: "Level", colorKey: "level", title: "Level" },
-  Storage: { iconName: "stack", label: "Storage", colorKey: "storage", title: "Storage" },
-  Mining: { iconName: "mining", label: "Mining", colorKey: "mining", title: "Mining" },
-  Brick: { iconName: "brick-wall", label: "Brick", colorKey: "brick", title: "Brick" },
+  Charge: {
+    iconName: "lightning-trio",
+    get label() {
+      return i18n._(msg`Charge`);
+    },
+    colorKey: "charge",
+    get title() {
+      return i18n._(msg`Charge`);
+    },
+  },
+  Quest: {
+    iconName: "scroll-quill",
+    get label() {
+      return i18n._(msg`Quest`);
+    },
+    colorKey: "quest",
+    get title() {
+      return i18n._(msg`Quest`);
+    },
+  },
+  Study: {
+    iconName: "book-aura",
+    get label() {
+      return i18n._(msg`Study`);
+    },
+    colorKey: "study",
+    get title() {
+      return i18n._(msg`Study`);
+    },
+  },
+  Lore: {
+    iconName: "spell-book",
+    get label() {
+      return i18n._(msg`Lore`);
+    },
+    colorKey: "lore",
+    get title() {
+      return i18n._(msg`Lore`);
+    },
+  },
+  Age: {
+    iconName: "hourglass",
+    get label() {
+      return i18n._(msg`Age`);
+    },
+    colorKey: "age",
+    get title() {
+      return i18n._(msg`Age`);
+    },
+  },
+  Time: {
+    iconName: "stopwatch",
+    get label() {
+      return i18n._(msg`Time`);
+    },
+    colorKey: "time",
+    get title() {
+      return i18n._(msg`Time`);
+    },
+  },
+  Fade: {
+    iconName: "ghost",
+    get label() {
+      return i18n._(msg`Fade`);
+    },
+    colorKey: "fade",
+    get title() {
+      return i18n._(msg`Fade`);
+    },
+  },
+  Level: {
+    iconName: "rank-3",
+    get label() {
+      return i18n._(msg`Level`);
+    },
+    colorKey: "level",
+    get title() {
+      return i18n._(msg`Level`);
+    },
+  },
+  Storage: {
+    iconName: "stack",
+    get label() {
+      return i18n._(msg`Storage`);
+    },
+    colorKey: "storage",
+    get title() {
+      return i18n._(msg`Storage`);
+    },
+  },
+  Mining: {
+    iconName: "mining",
+    get label() {
+      return i18n._(msg`Mining`);
+    },
+    colorKey: "mining",
+    get title() {
+      return i18n._(msg`Mining`);
+    },
+  },
+  Brick: {
+    iconName: "brick-wall",
+    get label() {
+      return i18n._(msg`Brick`);
+    },
+    colorKey: "brick",
+    get title() {
+      return i18n._(msg`Brick`);
+    },
+  },
   Depletion: {
     iconName: "battery-pack-alt",
-    label: "Depletion",
+    get label() {
+      return i18n._(msg`Depletion`);
+    },
     colorKey: "depletion",
-    title: "Depletion",
+    get title() {
+      return i18n._(msg`Depletion`);
+    },
   },
-  Page: { iconName: "scroll-unfurled", label: "Page", colorKey: "page", title: "Page" },
-  Shield: { iconName: "round-shield", label: "Shield", colorKey: "shield", title: "Shield" },
+  Page: {
+    iconName: "scroll-unfurled",
+    get label() {
+      return i18n._(msg`Page`);
+    },
+    colorKey: "page",
+    get title() {
+      return i18n._(msg`Page`);
+    },
+  },
+  Shield: {
+    iconName: "round-shield",
+    get label() {
+      return i18n._(msg`Shield`);
+    },
+    colorKey: "shield",
+    get title() {
+      return i18n._(msg`Shield`);
+    },
+  },
 };
-
 function getCounterConfig(type: string): CounterConfig {
   return (
     COUNTER_CONFIG[type] ?? {
@@ -61,7 +185,6 @@ function getCounterConfig(type: string): CounterConfig {
     }
   );
 }
-
 /** Static `bg-counter-*` class per counter colour key — Tailwind JIT
  *  needs the full class name in source, so we can't string-build it. */
 const COUNTER_BG_CLASS: Record<CounterColorKey, string> = {
@@ -84,16 +207,13 @@ const COUNTER_BG_CLASS: Record<CounterColorKey, string> = {
   page: "bg-counter-page",
   shield: "bg-counter-shield",
 };
-
 export type CounterSize = "sm" | "md" | "lg";
-
 interface SizeTokens {
   pill: string; // outer element classes
   symbol: string; // icon box size
   text: string; // text-label font size
   count: string; // count text size
 }
-
 const SIZE_TOKENS: Record<CounterSize, SizeTokens> = {
   sm: {
     pill: "h-4 min-w-[1rem] px-1 gap-px",
@@ -114,27 +234,23 @@ const SIZE_TOKENS: Record<CounterSize, SizeTokens> = {
     count: "text-[10px]",
   },
 };
-
 export interface CounterBadgeProps {
   type: string;
   count: number;
   size?: CounterSize;
   className?: string;
 }
-
 export function CounterBadge({ type, count, size = "sm", className }: CounterBadgeProps) {
   if (count <= 0) return null;
-
   const cfg = getCounterConfig(type);
   const sz = SIZE_TOKENS[size];
-
   // +1/+1 and -1/-1 counters read as their aggregate stat delta (e.g. three
   // +1/+1 counters → "+3/+3") rather than a "+1/+1 ×3" label-plus-count.
   const ptSign = type === "P1P1" ? "+" : type === "M1M1" ? "−" : null;
-  const aggregateLabel = ptSign ? `${ptSign}${count}/${ptSign}${count}` : null;
-
-  const tooltipText = `${count} ${cfg.title} counter${count !== 1 ? "s" : ""}`;
-
+  const aggregateLabel = ptSign ? i18n._(msg`${ptSign}${count}/${ptSign}${count}`) : null;
+  const tooltipText = i18n._(
+    msg`${count} ${cfg.title} counter${count !== 1 ? i18n._(msg`s`) : ""}`,
+  );
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -162,17 +278,14 @@ export function CounterBadge({ type, count, size = "sm", className }: CounterBad
     </Tooltip>
   );
 }
-
 export interface CounterDisplayProps {
   counters: Record<string, number>;
   size?: CounterSize;
   className?: string;
 }
-
 export function CounterDisplay({ counters, size = "sm", className }: CounterDisplayProps) {
   const entries = Object.entries(counters).filter(([, n]) => n > 0);
   if (entries.length === 0) return null;
-
   return (
     <div className={cn("flex flex-wrap gap-0.5", className)}>
       {entries.map(([type, count]) => (
@@ -181,18 +294,15 @@ export function CounterDisplay({ counters, size = "sm", className }: CounterDisp
     </div>
   );
 }
-
 export interface CounterSummaryProps {
   counters: Record<string, number>;
   className?: string;
 }
-
 export function CounterSummary({ counters, className }: CounterSummaryProps) {
   const entries = Object.entries(counters)
     .filter(([, n]) => n > 0)
     .sort((a, b) => b[1] - a[1]);
   if (entries.length === 0) return null;
-
   return (
     <div className={cn("flex flex-wrap items-center gap-1.5 text-sm", className)}>
       {entries.map(([type, count]) => {
@@ -224,7 +334,9 @@ export function CounterSummary({ counters, className }: CounterSummaryProps) {
               </span>
             </TooltipTrigger>
             <TooltipContent>
-              {count} {cfg.title} counter{count !== 1 ? "s" : ""}
+              <Trans>
+                {count} {cfg.title} counter{count !== 1 ? "s" : ""}
+              </Trans>
             </TooltipContent>
           </Tooltip>
         );

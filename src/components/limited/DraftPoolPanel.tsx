@@ -3,23 +3,22 @@ import { DraftCardTile } from "@/components/limited/DraftCardTile";
 import { LimitedDeckStats } from "@/components/limited/LimitedDeckStats";
 import type { useCardPreview } from "@/hooks/useCardPreview";
 import type { DraftCard } from "@/types/limited";
-
+import { Trans } from "@lingui/react/macro";
 interface DraftPoolPanelProps {
   cards: DraftCard[];
   preview: ReturnType<typeof useCardPreview>;
   onBuild?: () => void;
 }
-
 export function DraftPoolPanel({ cards, preview, onBuild }: DraftPoolPanelProps) {
   return (
     <section className="flex min-h-0 flex-1 flex-col rounded-md border border-border/70 bg-card/20">
       <div className="flex items-center justify-between border-b border-border/40 px-3 py-2">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Picks ({cards.length})
+          <Trans>Picks ({cards.length})</Trans>
         </h2>
         {onBuild && cards.length > 0 && (
           <Button size="sm" variant="outline" onClick={onBuild} className="h-7 text-xs">
-            Build
+            <Trans>Build</Trans>
           </Button>
         )}
       </div>
@@ -27,7 +26,7 @@ export function DraftPoolPanel({ cards, preview, onBuild }: DraftPoolPanelProps)
         <LimitedDeckStats cards={cards} compact />
         {cards.length === 0 ? (
           <p className="text-xs text-muted-foreground">
-            Your picks and live deck analysis appear here.
+            <Trans>Your picks and live deck analysis appear here.</Trans>
           </p>
         ) : (
           <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-3">

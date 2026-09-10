@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { KEYBINDINGS, comboFromEvent, formatCombo } from "@/lib/keybindings";
 import { useKeybindingsStore, resolveCombo } from "@/stores/useKeybindingsStore";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export function KeybindingsPanel() {
   const overrides = useKeybindingsStore((s) => s.overrides);
   const setBinding = useKeybindingsStore((s) => s.setBinding);
@@ -13,7 +15,6 @@ export function KeybindingsPanel() {
   const resetAll = useKeybindingsStore((s) => s.resetAll);
   const [capturingId, setCapturingId] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
-
   useEffect(() => {
     if (!capturingId) return;
     const id = capturingId;
@@ -32,7 +33,6 @@ export function KeybindingsPanel() {
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [capturingId, setBinding]);
-
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
     if (!q) return KEYBINDINGS;
@@ -46,20 +46,20 @@ export function KeybindingsPanel() {
       );
     });
   }, [filter, overrides]);
-
   const categories = [...new Set(filtered.map((b) => b.category))];
-
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Keyboard shortcuts</h2>
+          <h2 className="text-lg font-semibold">
+            <Trans>Keyboard shortcuts</Trans>
+          </h2>
           <p className="text-xs text-muted-foreground">
-            Click a shortcut, then press the key combination you want.
+            <Trans>Click a shortcut, then press the key combination you want.</Trans>
           </p>
         </div>
         <Button size="sm" variant="ghost" onClick={resetAll}>
-          Reset all
+          <Trans>Reset all</Trans>
         </Button>
       </div>
 
@@ -68,13 +68,15 @@ export function KeybindingsPanel() {
         <Input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Filter shortcuts…"
+          placeholder={i18n._(msg`Filter shortcuts\u2026`)}
           className="pl-8"
         />
       </div>
 
       {categories.length === 0 && (
-        <p className="text-sm text-muted-foreground">No shortcuts match “{filter}”.</p>
+        <p className="text-sm text-muted-foreground">
+          <Trans>No shortcuts match “{filter}”.</Trans>
+        </p>
       )}
 
       {categories.map((category) => (
@@ -100,14 +102,18 @@ export function KeybindingsPanel() {
                         style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}
                         onClick={() => setCapturingId(isCapturing ? null : b.id)}
                       >
-                        {isCapturing ? "Press keys…" : combo ? formatCombo(combo) : "Unbound"}
+                        {isCapturing
+                          ? i18n._(msg`Press keys…`)
+                          : combo
+                            ? formatCombo(combo)
+                            : i18n._(msg`Unbound`)}
                       </Button>
                       {isCustom && (
                         <Button
                           size="icon"
                           variant="ghost"
                           className="h-7 w-7"
-                          title="Reset to default"
+                          title={i18n._(msg`Reset to default`)}
                           onClick={() => resetBinding(b.id)}
                         >
                           <RotateCcw className="h-3.5 w-3.5" />

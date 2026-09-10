@@ -14,9 +14,17 @@ import type { AccountAsset, AssetKind } from "@/api/hubTypes";
 import { formatBytes, useAssetStore, useAssetsAvailable } from "@/stores/useAssetStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { cn } from "@/lib/utils";
-
-const KIND_LABELS: Record<AssetKind, string> = { avatar: "Avatar", playmat: "Playmat" };
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
+const KIND_LABELS: Record<AssetKind, string> = {
+  get avatar() {
+    return i18n._(msg`Avatar`);
+  },
+  get playmat() {
+    return i18n._(msg`Playmat`);
+  },
+};
 export function MyAssetsSection() {
   const assets = useAssetStore((s) => s.assets);
   const usedBytes = useAssetStore((s) => s.usedBytes);
@@ -29,7 +37,6 @@ export function MyAssetsSection() {
   const [editing, setEditing] = useState<AccountAsset | null>(null);
   const [deleting, setDeleting] = useState<AccountAsset | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     if (!available || !accountId) return;
     let cancelled = false;
@@ -46,16 +53,12 @@ export function MyAssetsSection() {
       cancelled = true;
     };
   }, [available, accountId]);
-
   if (!available) return null;
-
   const usedPercent = quotaBytes > 0 ? Math.round(Math.min(1, usedBytes / quotaBytes) * 100) : 0;
-
   function beginReplace(asset: AccountAsset) {
     setEditing(asset);
     inputRef.current?.click();
   }
-
   async function onReplacePicked(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -68,7 +71,6 @@ export function MyAssetsSection() {
     }
     await useAssetStore.getState().replace(target.kind, file, target.id);
   }
-
   async function handleDelete() {
     const target = deleting;
     setDeleting(null);
@@ -79,24 +81,29 @@ export function MyAssetsSection() {
     }
     await useAssetStore.getState().remove(target.id);
   }
-
   return (
     <section className="space-y-4">
-      <h2 className="text-lg font-semibold">Manage uploaded assets here</h2>
+      <h2 className="text-lg font-semibold">
+        <Trans>Manage uploaded assets here</Trans>
+      </h2>
       <div className="max-w-2xl space-y-4 rounded-lg border bg-card/40 p-5">
         <div className="space-y-2">
           <div className="flex items-baseline justify-between gap-3">
-            <Label>Storage</Label>
+            <Label>
+              <Trans>Storage</Trans>
+            </Label>
             {loaded && (
               <span className="text-xs text-muted-foreground">
-                {formatBytes(usedBytes)} of {formatBytes(quotaBytes)} used
+                <Trans>
+                  {formatBytes(usedBytes)} of {formatBytes(quotaBytes)} used
+                </Trans>
               </span>
             )}
           </div>
           {loaded && (
             <div
               role="progressbar"
-              aria-label="Image storage used"
+              aria-label={i18n._(msg`Image storage used`)}
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={usedPercent}
@@ -115,7 +122,9 @@ export function MyAssetsSection() {
 
         {loadError ? (
           <div className="flex items-center gap-3">
-            <p className="text-sm text-destructive">Couldn&apos;t load your images.</p>
+            <p className="text-sm text-destructive">
+              <Trans>Couldn&apos;t load your images.</Trans>
+            </p>
             <Button
               variant="outline"
               size="sm"
@@ -127,14 +136,16 @@ export function MyAssetsSection() {
                   .catch(() => setLoadError(true));
               }}
             >
-              Retry
+              <Trans>Retry</Trans>
             </Button>
           </div>
         ) : !loaded ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <p className="text-sm text-muted-foreground">
+            <Trans>Loading…</Trans>
+          </p>
         ) : assets.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No images yet. Upload an avatar or a playmat and it will show up here.
+            <Trans>No images yet. Upload an avatar or a playmat and it will show up here.</Trans>
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -160,15 +171,20 @@ export function MyAssetsSection() {
       <Dialog open={!!deleting} onOpenChange={(open) => !open && setDeleting(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Delete image</DialogTitle>
+            <DialogTitle>
+              <Trans>Delete image</Trans>
+            </DialogTitle>
             <DialogDescription>
-              This permanently removes the image from your storage and frees its space. If it&apos;s
-              your current avatar or a deck&apos;s playmat, that falls back to the default.
+              <Trans>
+                This permanently removes the image from your storage and frees its space. If
+                it&apos;s your current avatar or a deck&apos;s playmat, that falls back to the
+                default.
+              </Trans>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" size="sm" disabled={busy} onClick={() => setDeleting(null)}>
-              Cancel
+              <Trans>Cancel</Trans>
             </Button>
             <Button
               variant="destructive"
@@ -176,7 +192,7 @@ export function MyAssetsSection() {
               disabled={busy}
               onClick={() => void handleDelete()}
             >
-              {busy ? "Deleting…" : "Delete"}
+              {busy ? i18n._(msg`Deleting\u2026`) : i18n._(msg`Delete`)}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -184,7 +200,6 @@ export function MyAssetsSection() {
     </section>
   );
 }
-
 function AssetTile({
   asset,
   busy,
@@ -201,7 +216,7 @@ function AssetTile({
       <div className="h-[72px] w-[72px] shrink-0 bg-muted">
         <img
           src={asset.url}
-          alt={`${KIND_LABELS[asset.kind]} image`}
+          alt={i18n._(msg`${KIND_LABELS[asset.kind]} image`)}
           crossOrigin="anonymous"
           loading="lazy"
           className="size-full object-cover"
@@ -218,7 +233,7 @@ function AssetTile({
           variant="ghost"
           size="icon"
           className="h-7 w-7 shrink-0"
-          title="Replace image"
+          title={i18n._(msg`Replace image`)}
           disabled={busy}
           onClick={onReplace}
         >
@@ -228,7 +243,7 @@ function AssetTile({
           variant="ghost"
           size="icon"
           className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
-          title="Delete image"
+          title={i18n._(msg`Delete image`)}
           disabled={busy}
           onClick={onDelete}
         >

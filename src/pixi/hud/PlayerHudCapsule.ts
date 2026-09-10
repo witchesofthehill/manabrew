@@ -21,6 +21,8 @@ import { loadAvatarTexture } from "./avatarTextureCache";
 import type { PlayerHudSpec, PlayerHudTooltipContent } from "./playerHud.types";
 import type { ScreenBounds, ScreenPos } from "@/pixi/types";
 import { RING_ABILITIES, zoneBadgeId } from "@/components/game/game.constants";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 
 const BOT_ICON_NAME = "robot-antennas";
 const SKULL_ICON_NAME = "skull-crossed-bones";
@@ -266,7 +268,9 @@ export class PlayerHudCapsule {
   }
 
   private avatarHover(): PlayerHudTooltipContent {
-    return { title: this.spec.isTargetable ? `Target ${this.spec.name}` : this.spec.name };
+    return {
+      title: this.spec.isTargetable ? i18n._(msg`Target ${this.spec.name}`) : this.spec.name,
+    };
   }
 
   private badgeTooltip(badge: PlayerHudSpec["badges"][number]): PlayerHudTooltipContent {

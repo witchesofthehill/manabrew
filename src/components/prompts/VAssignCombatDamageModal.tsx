@@ -9,13 +9,12 @@ import type {
   ChooseCombatDamageAssignmentInput,
   ChooseCombatDamageAssignmentOutput,
 } from "@/protocol";
-
+import { Trans } from "@lingui/react/macro";
 function parseCombatNumber(value?: string | null): number {
   if (!value) return 0;
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
 }
-
 export function VAssignCombatDamageModal({
   input,
   respond,
@@ -23,26 +22,20 @@ export function VAssignCombatDamageModal({
   const { attackerId, blockerIds, defenderId, totalDamage, attackerHasDeathtouch } = input;
   const gameView = useGameStore((s) => s.gameView)!;
   const [assigned, setAssigned] = useState<Record<string, number>>({});
-
   const attacker = gameView.battlefield.find((c) => c.id === attackerId);
-
   const assignees = useMemo(() => {
     const ordered = [...blockerIds];
     if (defenderId) ordered.push(defenderId);
     return ordered;
   }, [blockerIds, defenderId]);
-
   const remaining = assignees.reduce((acc, id) => acc - (assigned[id] ?? 0), totalDamage);
-
   const defendingPlayer = defenderId
     ? gameView.players.find((p) => p.id === defenderId)
     : undefined;
   const defenderDamage = defenderId ? (assigned[defenderId] ?? 0) : 0;
-
   function normalizeAssignments(input: Record<string, number>): Record<string, number> {
     const next: Record<string, number> = {};
     let foundNotLethalEarlier = false;
-
     for (const id of assignees) {
       const amount = Math.max(0, input[id] ?? 0);
       if (id !== defenderId) {
@@ -60,7 +53,6 @@ export function VAssignCombatDamageModal({
     }
     return next;
   }
-
   function isLegallyOrderedState(state: Record<string, number>): boolean {
     let foundNotLethalEarlier = false;
     for (const id of assignees) {
@@ -74,7 +66,6 @@ export function VAssignCombatDamageModal({
     }
     return true;
   }
-
   function getLabel(id: string): string {
     const card = gameView.battlefield.find((c) => c.id === id);
     if (card) return card.identity.name;
@@ -82,7 +73,6 @@ export function VAssignCombatDamageModal({
     if (player) return player.name;
     return id;
   }
-
   function getLethal(id: string): number {
     if (id === defenderId) return Number.MAX_SAFE_INTEGER;
     const card = gameView.battlefield.find((c) => c.id === id);
@@ -96,7 +86,6 @@ export function VAssignCombatDamageModal({
     const markedDamage = card.damage ?? 0;
     return Math.max(0, toughness - markedDamage);
   }
-
   function canAssignToIndex(index: number): boolean {
     for (let i = 0; i < index; i += 1) {
       const prevId = assignees[i];
@@ -105,11 +94,9 @@ export function VAssignCombatDamageModal({
     }
     return true;
   }
-
   function addDamage(id: string, index: number, delta: number) {
     if (delta > 0 && !canAssignToIndex(index)) return;
     if (delta > 0 && remaining <= 0) return;
-
     setAssigned((prev) => {
       const next = { ...prev };
       const current = next[id] ?? 0;
@@ -118,11 +105,9 @@ export function VAssignCombatDamageModal({
       return normalizeAssignments(next);
     });
   }
-
   function autoAssign() {
     const next: Record<string, number> = {};
     let dmgLeft = totalDamage;
-
     for (const id of assignees) {
       if (dmgLeft <= 0) break;
       if (id === defenderId) continue;
@@ -131,7 +116,6 @@ export function VAssignCombatDamageModal({
       next[id] = dmg;
       dmgLeft -= dmg;
     }
-
     if (dmgLeft > 0) {
       if (defenderId) {
         next[defenderId] = (next[defenderId] ?? 0) + dmgLeft;
@@ -140,10 +124,8 @@ export function VAssignCombatDamageModal({
         next[last] = (next[last] ?? 0) + dmgLeft;
       }
     }
-
     setAssigned(normalizeAssignments(next));
   }
-
   function confirm() {
     if (remaining !== 0 || !isLegallyOrderedState(assigned)) return;
     respond({
@@ -158,14 +140,17 @@ export function VAssignCombatDamageModal({
     { onSpace: remaining === 0 && isLegallyOrderedState(assigned) ? confirm : undefined },
     [remaining, assigned],
   );
-
   return (
     <Modal maxWidth="max-w-md" className="outline-none">
       <Modal.Header>
-        <h2 className="font-semibold text-base">Assign Combat Damage</h2>
+        <h2 className="font-semibold text-base">
+          <Trans>Assign Combat Damage</Trans>
+        </h2>
         {attacker && (
           <p className="text-xs text-muted-foreground">
-            {attacker.identity.name} must assign {totalDamage} damage.
+            <Trans>
+              {attacker.identity.name} must assign {totalDamage} damage.
+            </Trans>
           </p>
         )}
       </Modal.Header>
@@ -204,12 +189,14 @@ export function VAssignCombatDamageModal({
                   {getLabel(id)}
                   {willDie && (
                     <span className="text-[10px] font-bold text-destructive uppercase tracking-wide">
-                      💀 lethal
+                      <Trans>💀 lethal</Trans>
                     </span>
                   )}
                 </div>
                 {lethal != null && (
-                  <div className="text-xs text-muted-foreground">Lethal: {lethal}</div>
+                  <div className="text-xs text-muted-foreground">
+                    <Trans>Lethal: {lethal}</Trans>
+                  </div>
                 )}
               </div>
               <Button size="sm" variant="outline" onClick={() => addDamage(id, index, -1)}>
@@ -228,22 +215,24 @@ export function VAssignCombatDamageModal({
           );
         })}
 
-        <div className="text-xs text-muted-foreground pt-1">Remaining damage: {remaining}</div>
+        <div className="text-xs text-muted-foreground pt-1">
+          <Trans>Remaining damage: {remaining}</Trans>
+        </div>
 
         <div className="flex justify-between pt-2">
           <Button size="sm" variant="ghost" onClick={() => setAssigned({})}>
-            Reset
+            <Trans>Reset</Trans>
           </Button>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={autoAssign}>
-              Auto
+              <Trans>Auto</Trans>
             </Button>
             <Button
               size="sm"
               onClick={confirm}
               disabled={remaining !== 0 || !isLegallyOrderedState(assigned)}
             >
-              Confirm
+              <Trans>Confirm</Trans>
             </Button>
           </div>
         </div>

@@ -6,7 +6,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import { COMPANION_ACCENT_COLORS } from "@/stores/useCompanionStore.constants";
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 function useActiveAccent(): string | null {
   return useCompanionStore((s) => {
     const session = s.session;
@@ -16,10 +18,8 @@ function useActiveAccent(): string | null {
     return active ? COMPANION_ACCENT_COLORS[active.accentKey] : null;
   });
 }
-
 const ANIMATION_TICKS = 14;
 const ANIMATION_INTERVAL_MS = 90;
-
 type DiceRollerProps =
   | {
       mode?: "first-player";
@@ -39,7 +39,6 @@ type DiceRollerProps =
       open: boolean;
       onOpenChange: (open: boolean) => void;
     };
-
 export function DiceRoller(props: DiceRollerProps) {
   const title = describeTitle(props);
   return (
@@ -55,13 +54,12 @@ export function DiceRoller(props: DiceRollerProps) {
     </Dialog>
   );
 }
-
 function describeTitle(props: DiceRollerProps): string {
-  if (!("mode" in props) || props.mode === "first-player") return "Randomising first player…";
-  if (props.mode === "die") return `Rolling a d${props.sides}…`;
-  return "Flipping a coin…";
+  if (!("mode" in props) || props.mode === "first-player")
+    return i18n._(msg`Randomising first player\u2026`);
+  if (props.mode === "die") return i18n._(msg`Rolling a d${props.sides}…`);
+  return i18n._(msg`Flipping a coin\u2026`);
 }
-
 function RollBody(props: DiceRollerProps) {
   if (!("mode" in props) || props.mode === "first-player") {
     return <FirstPlayerAnimation players={props.players} pickWinner={props.pickWinner} />;
@@ -71,7 +69,6 @@ function RollBody(props: DiceRollerProps) {
   }
   return <CoinFlip />;
 }
-
 function FirstPlayerAnimation({
   players,
   pickWinner,
@@ -81,10 +78,8 @@ function FirstPlayerAnimation({
 }) {
   const [highlight, setHighlight] = useState<string | null>(null);
   const [settled, setSettled] = useState(false);
-
   useEffect(() => {
     if (players.length === 0) return;
-
     let ticks = 0;
     const interval = setInterval(() => {
       ticks += 1;
@@ -99,10 +94,8 @@ function FirstPlayerAnimation({
         }
       }
     }, ANIMATION_INTERVAL_MS);
-
     return () => clearInterval(interval);
   }, [players, pickWinner]);
-
   return (
     <>
       <div className="grid grid-cols-2 gap-2">
@@ -125,21 +118,21 @@ function FirstPlayerAnimation({
       </div>
       {settled && highlight && (
         <p className="text-center text-sm text-muted-foreground">
-          <span className="font-semibold text-foreground">
-            {players.find((p) => p.id === highlight)?.name}
-          </span>{" "}
-          goes first.
+          <Trans>
+            <span className="font-semibold text-foreground">
+              {players.find((p) => p.id === highlight)?.name}
+            </span>{" "}
+            goes first.
+          </Trans>
         </p>
       )}
     </>
   );
 }
-
 function NumericRoll({ sides }: { sides: number }) {
   const [value, setValue] = useState(1);
   const [settled, setSettled] = useState(false);
   const accent = useActiveAccent();
-
   useEffect(() => {
     let ticks = 0;
     const interval = setInterval(() => {
@@ -152,7 +145,6 @@ function NumericRoll({ sides }: { sides: number }) {
     }, ANIMATION_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [sides]);
-
   return (
     <div className="flex flex-col items-center gap-3 py-2">
       <DieShape
@@ -165,22 +157,22 @@ function NumericRoll({ sides }: { sides: number }) {
       <p className="text-sm text-muted-foreground">
         {settled ? (
           <>
-            <span className="font-semibold text-foreground">d{sides}</span> →{" "}
-            <span className="font-semibold text-foreground">{value}</span>
+            <span className="font-semibold text-foreground">
+              <Trans>d{sides}</Trans>
+            </span>{" "}
+            → <span className="font-semibold text-foreground">{value}</span>
           </>
         ) : (
-          `d${sides}`
+          i18n._(msg`d${sides}`)
         )}
       </p>
     </div>
   );
 }
-
 function CoinFlip() {
   const [value, setValue] = useState<"Heads" | "Tails">("Heads");
   const [settled, setSettled] = useState(false);
   const accent = useActiveAccent();
-
   useEffect(() => {
     let ticks = 0;
     const interval = setInterval(() => {
@@ -193,10 +185,8 @@ function CoinFlip() {
     }, ANIMATION_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
-
   const borderColor = settled ? (accent ?? "var(--primary)") : "var(--border)";
   const fillColor = settled ? (accent ?? "var(--primary)") : "transparent";
-
   return (
     <div className="flex flex-col items-center gap-3 py-2">
       <div className={cn(!settled && "animate-companion-die-tumble")}>
@@ -220,17 +210,19 @@ function CoinFlip() {
               settled ? "bg-card/70 text-foreground" : "text-muted-foreground",
             )}
           >
-            {value === "Heads" ? "H" : "T"}
+            {value === "Heads" ? i18n._(msg`H`) : i18n._(msg`T`)}
           </span>
         </div>
       </div>
       <p className="text-sm text-muted-foreground">
         {settled ? (
           <>
-            Coin → <span className="font-semibold text-foreground">{value}</span>
+            <Trans>
+              Coin → <span className="font-semibold text-foreground">{value}</span>
+            </Trans>
           </>
         ) : (
-          "Coin"
+          i18n._(msg`Coin`)
         )}
       </p>
     </div>

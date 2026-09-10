@@ -1,13 +1,15 @@
 import { Loader2, Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
-
-import { searchCards } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { scryfallDisplayName } from "@/lib/scryfall.utils";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { ScryfallCard } from "@/types/scryfall";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface CollectionQuickAddProps {
   disabled?: boolean;
   getCount: (name: string) => number;
@@ -21,7 +23,6 @@ interface CollectionQuickAddProps {
   onHover: (card: ScryfallCard, event: MouseEvent) => void;
   onLeave: () => void;
 }
-
 export function CollectionQuickAdd({
   disabled = false,
   getCount,
@@ -39,7 +40,6 @@ export function CollectionQuickAdd({
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchIdRef = useRef(0);
-
   const runSearch = useCallback((query: string) => {
     const searchId = ++searchIdRef.current;
     if (query.trim().length < 2) {
@@ -48,7 +48,9 @@ export function CollectionQuickAdd({
       return;
     }
     setLoading(true);
-    searchCards(`${query} -is:digital -is:funny`, 1)
+    useScryfallStore
+      .getState()
+      .searchCards(`${query} -is:digital -is:funny`, 1)
       .then((response) => {
         if (searchId !== searchIdRef.current) return;
         setResults(response.data.slice(0, 20));
@@ -62,20 +64,17 @@ export function CollectionQuickAdd({
         if (searchId === searchIdRef.current) setLoading(false);
       });
   }, []);
-
   function updateSearch(nextValue: string) {
     setValue(nextValue);
     setQuantityCard(null);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => runSearch(nextValue), 400);
   }
-
   function add(card: ScryfallCard, count = 1) {
     onAdd(card.name, count, card.set, card.collector_number, !card.finishes?.includes("nonfoil"));
     setQuantityCard(null);
     setOpen(true);
   }
-
   useEffect(() => {
     function dismiss(event: globalThis.MouseEvent) {
       if (!containerRef.current?.contains(event.target as Node)) {
@@ -86,14 +85,12 @@ export function CollectionQuickAdd({
     document.addEventListener("mousedown", dismiss);
     return () => document.removeEventListener("mousedown", dismiss);
   }, []);
-
   useEffect(
     () => () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     },
     [],
   );
-
   return (
     <div ref={containerRef} className="relative min-w-56 flex-1 sm:max-w-xs">
       <div className="relative">
@@ -101,7 +98,7 @@ export function CollectionQuickAdd({
         <Input
           value={value}
           className="pl-9 pr-8"
-          placeholder="Quick add card…"
+          placeholder={i18n._(msg`Quick add card\u2026`)}
           disabled={disabled}
           onChange={(event) => updateSearch(event.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
@@ -126,7 +123,7 @@ export function CollectionQuickAdd({
           <button
             type="button"
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            title="Clear card search"
+            title={i18n._(msg`Clear card search`)}
             onClick={() => updateSearch("")}
           >
             <X className="h-4 w-4" />
@@ -138,7 +135,7 @@ export function CollectionQuickAdd({
         <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-md border bg-popover p-3 shadow-lg">
           <p className="truncate text-sm font-medium">{quantityCard.name}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {getCount(quantityCard.name)} currently owned
+            <Trans>{getCount(quantityCard.name)} currently owned</Trans>
           </p>
           <div className="mt-3 flex items-center gap-2">
             <Button
@@ -165,17 +162,18 @@ export function CollectionQuickAdd({
               <Plus className="h-3.5 w-3.5" />
             </Button>
             <Button size="sm" className="ml-auto" onClick={() => add(quantityCard, quantity)}>
-              Add {quantity}
+              <Trans>Add {quantity}</Trans>
             </Button>
           </div>
         </div>
       ) : open && results.length > 0 ? (
         <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 min-w-72 overflow-y-auto rounded-md border bg-popover shadow-lg">
           <div className="sticky top-0 z-10 border-b bg-popover px-2 py-1 text-[10px] text-muted-foreground">
-            Click or press Enter to add one to your collection
+            <Trans>Click or press Enter to add one to your collection</Trans>
           </div>
           {results.map((card, index) => {
             const thumbnail = card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small;
+            const displayName = scryfallDisplayName(card);
             return (
               <div
                 key={card.id}
@@ -192,7 +190,7 @@ export function CollectionQuickAdd({
                 <button
                   type="button"
                   className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left"
-                  title={`Add one ${card.name}`}
+                  title={i18n._(msg`Add one ${displayName}`)}
                   onClick={() => add(card)}
                 >
                   {thumbnail && (
@@ -202,23 +200,25 @@ export function CollectionQuickAdd({
                       className="h-11 w-8 shrink-0 rounded object-cover object-top"
                     />
                   )}
-                  <span className="min-w-0 flex-1 truncate text-xs font-medium">{card.name}</span>
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium">{displayName}</span>
                   <span className="shrink-0 text-[10px] text-muted-foreground">
-                    {getCount(card.name)} owned
+                    <Trans>{getCount(card.name)} owned</Trans>
                   </span>
                   <Plus className="h-3.5 w-3.5 shrink-0 text-primary" />
                 </button>
                 <button
                   type="button"
                   className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground"
-                  title={`Add multiple ${card.name}`}
+                  title={i18n._(msg`Add multiple ${displayName}`)}
                   onClick={() => {
                     setQuantity(1);
                     setQuantityCard(card);
                     setOpen(false);
                   }}
                 >
-                  <span className="text-xs font-semibold">×N</span>
+                  <span className="text-xs font-semibold">
+                    <Trans>×N</Trans>
+                  </span>
                 </button>
               </div>
             );

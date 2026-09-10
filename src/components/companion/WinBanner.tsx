@@ -4,11 +4,10 @@ import { useCompanionStore } from "@/stores/useCompanionStore";
 import { COMPANION_ACCENT_COLORS } from "@/stores/useCompanionStore.constants";
 import type { CompanionPlayer, CompanionSession } from "@/stores/useCompanionStore.types";
 import { GameIcon } from "./GameIcon";
-
+import { Trans } from "@lingui/react/macro";
 interface WinBannerProps {
   session: CompanionSession;
 }
-
 export function WinBanner({ session }: WinBannerProps) {
   const living = session.players.filter((p) => !p.isDead);
   const winner = session.players.length > 1 && living.length === 1 ? living[0]! : null;
@@ -18,7 +17,6 @@ export function WinBanner({ session }: WinBannerProps) {
   // even when the same player wins both times in a single session.
   return <WinBannerInner key={`${winner.id}-${session.history.length}`} winner={winner} />;
 }
-
 function WinBannerInner({ winner }: { winner: CompanionPlayer }) {
   const endSession = useCompanionStore((s) => s.endSession);
   const [dismissed, setDismissed] = useState(false);
@@ -34,14 +32,18 @@ function WinBannerInner({ winner }: { winner: CompanionPlayer }) {
           <GameIcon icon="trophy-cup" className="size-8" />
         </div>
         <div>
-          <p className="text-sm uppercase tracking-wide text-muted-foreground">Last standing</p>
+          <p className="text-sm uppercase tracking-wide text-muted-foreground">
+            <Trans>Last standing</Trans>
+          </p>
           <h2 className="text-2xl font-bold">{winner.name}</h2>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setDismissed(true)}>
-            Keep playing
+            <Trans>Keep playing</Trans>
           </Button>
-          <Button onClick={() => endSession(winner.id)}>Archive game</Button>
+          <Button onClick={() => endSession(winner.id)}>
+            <Trans>Archive game</Trans>
+          </Button>
         </div>
       </div>
     </div>

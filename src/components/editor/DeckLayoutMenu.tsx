@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronDown, LayoutTemplate, Plus, Trash2 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,7 +19,9 @@ import { cn } from "@/lib/utils";
 import { useDeckStore } from "@/stores/useDeckStore";
 import type { GroupByMode, SortMode, ViewMode } from "./deckBuilder.utils";
 import type { DeckOwnershipStatus } from "@/lib/collection";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface DeckLayoutMenuProps {
   compact?: boolean;
   groupBy: GroupByMode;
@@ -38,7 +39,6 @@ interface DeckLayoutMenuProps {
     collectionFilter: "all" | DeckOwnershipStatus,
   ) => void;
 }
-
 export function DeckLayoutMenu({
   compact = false,
   groupBy,
@@ -63,7 +63,6 @@ export function DeckLayoutMenu({
     (activeLayout.viewMode ?? viewMode) === viewMode;
   const activeCollectionFilterMatches =
     (activeLayout?.collectionFilter ?? "all") === collectionFilter;
-
   useEffect(() => {
     if (!activeLayout || (activeLayoutMatches && activeCollectionFilterMatches)) return;
     setEditorMetadata({
@@ -81,7 +80,6 @@ export function DeckLayoutMenu({
     metadata,
     setEditorMetadata,
   ]);
-
   function saveLayout() {
     const layoutName = name.trim();
     if (!layoutName) return;
@@ -109,7 +107,6 @@ export function DeckLayoutMenu({
     setName("");
     setCreateOpen(false);
   }
-
   function selectLayout(id: string) {
     const layout = layouts.find((candidate) => candidate.id === id);
     if (!layout) return;
@@ -129,7 +126,6 @@ export function DeckLayoutMenu({
       layout.collectionFilter ?? "all",
     );
   }
-
   function removeLayout(id: string) {
     setEditorMetadata({
       ...metadata,
@@ -139,7 +135,6 @@ export function DeckLayoutMenu({
       activeLayoutId: metadata?.activeLayoutId === id ? undefined : metadata?.activeLayoutId,
     });
   }
-
   return (
     <>
       <DropdownMenu>
@@ -148,14 +143,16 @@ export function DeckLayoutMenu({
             variant="outline"
             size="sm"
             className="h-7 gap-1 text-xs"
-            title={compact ? "Saved views" : undefined}
+            title={compact ? i18n._(msg`Saved views`) : undefined}
           >
             <LayoutTemplate className="h-3.5 w-3.5" />
             {compact ? (
-              <span className="sr-only">Saved views</span>
+              <span className="sr-only">
+                <Trans>Saved views</Trans>
+              </span>
             ) : (
               <>
-                {activeLayout?.name ?? "View"}
+                {activeLayout?.name ?? i18n._(msg`View`)}
                 <ChevronDown className="h-3 w-3 opacity-60" />
               </>
             )}
@@ -165,17 +162,17 @@ export function DeckLayoutMenu({
           <DropdownMenuItem
             onSelect={() => onApply("type", "not-owned", cardSize, "", viewMode, "missing")}
           >
-            Collection gaps
+            <Trans>Collection gaps</Trans>
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => onApply("custom", "name", cardSize, "", viewMode, "all")}
           >
-            Tags workspace
+            <Trans>Tags workspace</Trans>
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => onApply("cmc", "mana-value", cardSize, "", "stack", "all")}
           >
-            Mana review
+            <Trans>Mana review</Trans>
           </DropdownMenuItem>
           {layouts.map((layout) => (
             <DropdownMenuItem
@@ -190,7 +187,7 @@ export function DeckLayoutMenu({
               <button
                 type="button"
                 className="rounded p-1 text-muted-foreground hover:text-destructive"
-                title={`Delete ${layout.name}`}
+                title={i18n._(msg`Delete ${layout.name}`)}
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
@@ -202,7 +199,9 @@ export function DeckLayoutMenu({
             </DropdownMenuItem>
           ))}
           <DropdownMenuItem onSelect={() => setCreateOpen(true)}>
-            <Plus className="mr-2 h-3.5 w-3.5" /> Save current view
+            <Trans>
+              <Plus className="mr-2 h-3.5 w-3.5" /> Save current view
+            </Trans>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -210,15 +209,17 @@ export function DeckLayoutMenu({
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Save deck view</DialogTitle>
+            <DialogTitle>
+              <Trans>Save deck view</Trans>
+            </DialogTitle>
             <DialogDescription>
-              Keep the current grouping, sorting, and card size.
+              <Trans>Keep the current grouping, sorting, and card size.</Trans>
             </DialogDescription>
           </DialogHeader>
           <Input
             autoFocus
             value={name}
-            placeholder="Combo layout"
+            placeholder={i18n._(msg`Combo layout`)}
             onChange={(event) => setName(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") saveLayout();
@@ -226,10 +227,10 @@ export function DeckLayoutMenu({
           />
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
-              Cancel
+              <Trans>Cancel</Trans>
             </Button>
             <Button disabled={!name.trim()} onClick={saveLayout}>
-              Save view
+              <Trans>Save view</Trans>
             </Button>
           </div>
         </DialogContent>

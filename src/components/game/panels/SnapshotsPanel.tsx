@@ -1,12 +1,11 @@
 import { Button } from "@/components/ui/button";
 import type { GameSnapshotEntry } from "@/types/gameSnapshot";
-
+import { Trans } from "@lingui/react/macro";
 interface SnapshotsPanelProps {
   snapshots: GameSnapshotEntry[];
   canRestoreSnapshots: boolean;
   onRestoreSnapshot: (checkpointId: number) => void;
 }
-
 export function SnapshotsPanel({
   snapshots,
   canRestoreSnapshots,
@@ -18,19 +17,23 @@ export function SnapshotsPanel({
       minute: "2-digit",
       second: "2-digit",
     });
-
   if (snapshots.length === 0) {
     return (
       <div className="rounded-lg p-2.5 min-h-0 flex-1 flex flex-col bg-muted/20">
-        <p className="text-xs font-semibold text-muted-foreground mb-2">Snapshots</p>
-        <p className="text-xs text-muted-foreground italic">No snapshots yet.</p>
+        <p className="text-xs font-semibold text-muted-foreground mb-2">
+          <Trans>Snapshots</Trans>
+        </p>
+        <p className="text-xs text-muted-foreground italic">
+          <Trans>No snapshots yet.</Trans>
+        </p>
       </div>
     );
   }
-
   return (
     <div className="rounded-lg p-2.5 min-h-0 flex-1 flex flex-col bg-muted/20">
-      <p className="text-xs font-semibold text-muted-foreground mb-2">Snapshots</p>
+      <p className="text-xs font-semibold text-muted-foreground mb-2">
+        <Trans>Snapshots</Trans>
+      </p>
       <div className="min-h-0 flex-1 overflow-y-auto text-xs text-muted-foreground pr-1">
         {snapshots
           .slice(-200)
@@ -51,7 +54,7 @@ export function SnapshotsPanel({
                   disabled={!canRestoreSnapshots}
                   onClick={() => onRestoreSnapshot(s.checkpointId)}
                 >
-                  Restore
+                  <Trans>Restore</Trans>
                 </Button>
               </div>
             </div>

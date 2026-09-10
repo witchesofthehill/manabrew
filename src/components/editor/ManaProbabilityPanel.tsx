@@ -1,22 +1,18 @@
 import { Gauge } from "lucide-react";
-
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { isLand } from "@/lib/mana";
 import { probabilityAtLeast, probabilityAtLeastOne } from "@/lib/deckProbability";
 import type { EditorDeck } from "@/types/manabrew";
 import { EDITOR_PANEL_CLASS, EDITOR_SUBTLE_BLOCK_CLASS } from "./deckEditor.styles";
 import { MANA_BG_CLASS } from "@/themes/gameTheme";
-
+import { Trans } from "@lingui/react/macro";
 const COLORS = ["W", "U", "B", "R", "G"] as const;
-
 function percentage(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
-
 export function ManaProbabilityPanel({ deck }: { deck: EditorDeck }) {
   const population = deck.cards.length;
   if (population === 0) return null;
-
   const lands = deck.cards.filter((card) => isLand(card.types));
   const openingTwoLands = probabilityAtLeast(population, lands.length, 7, 2);
   const colorRows = COLORS.flatMap((color) => {
@@ -41,22 +37,29 @@ export function ManaProbabilityPanel({ deck }: { deck: EditorDeck }) {
       },
     ];
   });
-
   return (
     <section className={EDITOR_PANEL_CLASS}>
       <div className="flex items-center gap-2">
         <Gauge className="h-4 w-4 text-primary" />
-        <h3 className="text-sm font-semibold">Mana consistency</h3>
-        <span className="text-xs text-muted-foreground">on the play</span>
+        <h3 className="text-sm font-semibold">
+          <Trans>Mana consistency</Trans>
+        </h3>
+        <span className="text-xs text-muted-foreground">
+          <Trans>on the play</Trans>
+        </span>
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-[minmax(10rem,0.7fr)_minmax(0,2fr)]">
         <div className={EDITOR_SUBTLE_BLOCK_CLASS}>
-          <p className="text-xs text-muted-foreground">Two or more lands in your opener</p>
+          <p className="text-xs text-muted-foreground">
+            <Trans>Two or more lands in your opener</Trans>
+          </p>
           <p className="mt-1 font-mono text-2xl font-semibold tabular-nums">
             {percentage(openingTwoLands)}
           </p>
           <p className="text-[10px] text-muted-foreground">
-            {lands.length} lands in {population} cards
+            <Trans>
+              {lands.length} lands in {population} cards
+            </Trans>
           </p>
         </div>
         <div className="space-y-2">
@@ -71,7 +74,9 @@ export function ManaProbabilityPanel({ deck }: { deck: EditorDeck }) {
                   />
                 </div>
                 <p className="mt-1 text-[10px] text-muted-foreground">
-                  {sourceCount} sources · needed by turn {earliestTurn}
+                  <Trans>
+                    {sourceCount} sources · needed by turn {earliestTurn}
+                  </Trans>
                 </p>
               </div>
               <span className="w-10 text-right font-mono text-xs tabular-nums">
@@ -81,7 +86,7 @@ export function ManaProbabilityPanel({ deck }: { deck: EditorDeck }) {
           ))}
           {colorRows.length === 0 && (
             <p className="py-3 text-xs text-muted-foreground">
-              Add coloured spells to see source odds.
+              <Trans>Add coloured spells to see source odds.</Trans>
             </p>
           )}
         </div>

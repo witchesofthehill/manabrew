@@ -17,7 +17,9 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { PlaymatEditorModal } from "./PlaymatEditorModal";
 import { cn } from "@/lib/utils";
 import type { DeckFormat } from "@/protocol/deck";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => void }) {
   const currentDeck = useDeckStore((s) => s.currentDeck);
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
@@ -25,16 +27,13 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
   const setDeckFormat = useDeckStore((s) => s.setDeckFormat);
   const setPlaymat = useDeckStore((s) => s.setPlaymat);
   const setPlaymatSettings = useDeckStore((s) => s.setPlaymatSettings);
-
   const [editingName, setEditingName] = useState(false);
   const [nameBeforeEdit, setNameBeforeEdit] = useState(currentDeck.name);
   const [editorOpen, setEditorOpen] = useState(false);
   const cancelNameEditRef = useRef(false);
-
   const playmat = currentDeck.playmatUrl;
   const playmatColor = currentDeck.playmatSettings?.color;
   const coverArt = resolveCoverCard(currentDeck)?.uris?.art_crop;
-
   const commanders = currentDeck.commanders ?? [];
   const slotBadges = commanders.map((_, i) =>
     commanderSlotBadge(commanders, currentDeck.format, i),
@@ -42,7 +41,6 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
   const mainCount = currentDeck.cards.length + commanders.length;
   const sideCount = currentDeck.sideboard.length;
   const maybeCount = currentDeck.maybeboard?.length ?? 0;
-
   function finishNameEdit() {
     if (cancelNameEditRef.current) {
       cancelNameEditRef.current = false;
@@ -58,7 +56,6 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
     setEditingName(false);
     if (name !== nameBeforeEdit) onNameCommit(name);
   }
-
   return (
     <div className="relative isolate overflow-hidden border-b">
       {coverArt && (
@@ -84,7 +81,7 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
         <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
           <button
             type="button"
-            title="Customize playmat"
+            title={i18n._(msg`Customize playmat`)}
             onClick={() => setEditorOpen(true)}
             className={cn(
               "inline-flex h-8 items-center gap-2 rounded-md border bg-background/60 text-xs font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background/80 hover:text-foreground",
@@ -95,7 +92,7 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
               <img
                 src={playmat}
                 crossOrigin="anonymous"
-                alt="Deck playmat"
+                alt={i18n._(msg`Deck playmat`)}
                 className="h-6 w-10 rounded object-cover"
               />
             ) : playmatColor ? (
@@ -107,7 +104,9 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
             ) : (
               <ImagePlus className="h-4 w-4" />
             )}
-            <span>{playmat || playmatColor ? "Edit playmat" : "Playmat"}</span>
+            <span>
+              {playmat || playmatColor ? i18n._(msg`Edit playmat`) : i18n._(msg`Playmat`)}
+            </span>
           </button>
         </div>
       )}
@@ -133,7 +132,7 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
                 <button
                   type="button"
                   className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border bg-background/60 px-2 py-0.5 text-xs backdrop-blur-sm transition-colors hover:bg-background/80"
-                  title="Change format"
+                  title={i18n._(msg`Change format`)}
                 >
                   <FormatBadge formatId={currentDeck.format ?? "standard"} />
                   <span className="font-medium">
@@ -188,7 +187,7 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
           <button
             type="button"
             className="group -ml-1.5 flex w-fit max-w-full items-center gap-2 rounded-md px-1.5 py-0.5 transition-colors hover:bg-background/50"
-            title="Rename deck"
+            title={i18n._(msg`Rename deck`)}
             onClick={() => {
               cancelNameEditRef.current = false;
               setNameBeforeEdit(currentDeck.name);
@@ -213,16 +212,18 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
             </span>
           )}
           <span className="rounded-full border bg-background/60 px-2 py-0.5 backdrop-blur-sm">
-            {mainCount} card{mainCount !== 1 ? "s" : ""}
+            <Trans>
+              {mainCount} card{mainCount !== 1 ? "s" : ""}
+            </Trans>
           </span>
           {sideCount > 0 && (
             <span className="rounded-full border bg-background/60 px-2 py-0.5 backdrop-blur-sm">
-              {sideCount} sideboard
+              <Trans>{sideCount} sideboard</Trans>
             </span>
           )}
           {maybeCount > 0 && (
             <span className="rounded-full border bg-background/60 px-2 py-0.5 backdrop-blur-sm">
-              {maybeCount} maybeboard
+              <Trans>{maybeCount} maybeboard</Trans>
             </span>
           )}
         </div>

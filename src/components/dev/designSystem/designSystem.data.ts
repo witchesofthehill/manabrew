@@ -1,24 +1,66 @@
 import type { GameIconName } from "@/components/game/GameIcon";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export interface NavEntry {
   id: string;
   label: string;
 }
-
 export const SECTIONS: NavEntry[] = [
-  { id: "brand", label: "Brand" },
-  { id: "color", label: "Color" },
-  { id: "typography", label: "Typography" },
-  { id: "icons", label: "Iconography" },
-  { id: "components", label: "Components" },
-  { id: "cards", label: "Card faces" },
-  { id: "spacing", label: "Spacing & radius" },
-  { id: "assets", label: "Assets" },
+  {
+    id: "brand",
+    get label() {
+      return i18n._(msg`Brand`);
+    },
+  },
+  {
+    id: "color",
+    get label() {
+      return i18n._(msg`Color`);
+    },
+  },
+  {
+    id: "typography",
+    get label() {
+      return i18n._(msg`Typography`);
+    },
+  },
+  {
+    id: "icons",
+    get label() {
+      return i18n._(msg`Iconography`);
+    },
+  },
+  {
+    id: "components",
+    get label() {
+      return i18n._(msg`Components`);
+    },
+  },
+  {
+    id: "cards",
+    get label() {
+      return i18n._(msg`Card faces`);
+    },
+  },
+  {
+    id: "spacing",
+    get label() {
+      return i18n._(msg`Spacing & radius`);
+    },
+  },
+  {
+    id: "assets",
+    get label() {
+      return i18n._(msg`Assets`);
+    },
+  },
 ];
-
 // Curated from an app-wide `lucide-react` import audit, grouped by where the
 // icon actually appears. Not exhaustive — a representative reference set.
-export const LUCIDE_GROUPS: { group: string; names: string[] }[] = [
+export const LUCIDE_GROUPS: {
+  group: string;
+  names: string[];
+}[] = [
   {
     group: "Navigation",
     names: [
@@ -98,7 +140,6 @@ export const LUCIDE_GROUPS: { group: string; names: string[] }[] = [
     ],
   },
 ];
-
 export const GAME_ICONS: GameIconName[] = [
   "crown",
   "rolled-cloth",
@@ -135,7 +176,6 @@ export const GAME_ICONS: GameIconName[] = [
   "graveyard",
   "exile",
 ];
-
 // Mirrors `COUNTER_CONFIG` in CounterBadge.tsx (not exported there).
 export const COUNTER_TYPES: string[] = [
   "P1P1",
@@ -156,16 +196,48 @@ export const COUNTER_TYPES: string[] = [
   "Page",
   "Shield",
 ];
-
-export const MANA_COSTS: { label: string; cost: string }[] = [
-  { label: "Mono", cost: "{W}{U}{B}{R}{G}{C}" },
-  { label: "Generic", cost: "{X}{2}{1}{0}" },
-  { label: "Hybrid", cost: "{W/U}{B/R}{2/W}" },
-  { label: "Phyrexian", cost: "{W/P}{U/P}{G/P}" },
-  { label: "Typical spell", cost: "{3}{W}{W}" },
+export const MANA_COSTS: {
+  label: string;
+  cost: string;
+}[] = [
+  {
+    get label() {
+      return i18n._(msg`Mono`);
+    },
+    cost: "{W}{U}{B}{R}{G}{C}",
+  },
+  {
+    get label() {
+      return i18n._(msg`Generic`);
+    },
+    cost: "{X}{2}{1}{0}",
+  },
+  {
+    get label() {
+      return i18n._(msg`Hybrid`);
+    },
+    cost: "{W/U}{B/R}{2/W}",
+  },
+  {
+    get label() {
+      return i18n._(msg`Phyrexian`);
+    },
+    cost: "{W/P}{U/P}{G/P}",
+  },
+  {
+    get label() {
+      return i18n._(msg`Typical spell`);
+    },
+    cost: "{3}{W}{W}",
+  },
 ];
-
-export const FONTS: { role: string; stack: string; cls: string; weights: string; use: string }[] = [
+export const FONTS: {
+  role: string;
+  stack: string;
+  cls: string;
+  weights: string;
+  use: string;
+}[] = [
   {
     role: "Sans — body / UI",
     stack: "Alegreya Sans",
@@ -188,8 +260,11 @@ export const FONTS: { role: string; stack: string; cls: string; weights: string;
     use: "In-game surface + Pixi canvas text",
   },
 ];
-
-export const GAME_FONT_SIZES: { token: string; value: string; use: string }[] = [
+export const GAME_FONT_SIZES: {
+  token: string;
+  value: string;
+  use: string;
+}[] = [
   { token: "badgeCount", value: "13px", use: "Count next to row badges (monarch, poison…)" },
   { token: "life", value: "14px", use: "Life total in the avatar heart chip" },
   { token: "manaCount", value: "11px", use: "Per-color count before each mana pip" },
@@ -197,15 +272,21 @@ export const GAME_FONT_SIZES: { token: string; value: string; use: string }[] = 
   { token: "zoneLabel", value: "10px", use: "Uppercase zone label under each tile" },
   { token: "avatarInitials", value: "16px", use: "Initials when a player has no avatar" },
 ];
-
-export const RADIUS_TOKENS: { token: string; value: string; cls: string }[] = [
+export const RADIUS_TOKENS: {
+  token: string;
+  value: string;
+  cls: string;
+}[] = [
   { token: "--radius-sm", value: "calc(0.5rem − 4px)", cls: "rounded-sm" },
   { token: "--radius-md", value: "calc(0.5rem − 2px)", cls: "rounded-md" },
   { token: "--radius-lg", value: "0.5rem", cls: "rounded-lg" },
   { token: "--radius (base)", value: "0.5rem", cls: "rounded-[--radius]" },
 ];
-
-export const CARD_SIZES: { token: string; dims: string; where: string }[] = [
+export const CARD_SIZES: {
+  token: string;
+  dims: string;
+  where: string;
+}[] = [
   { token: "Battlefield (DOM)", dims: "70 × 98", where: "BATTLEFIELD_CARD" },
   { token: "Battlefield (Pixi grid)", dims: "72 × 100", where: "CARD_W × CARD_H" },
   { token: "Hand", dims: "80 × 112", where: "HAND_CARD" },
@@ -213,8 +294,12 @@ export const CARD_SIZES: { token: string; dims: string; where: string }[] = [
   { token: "Mulligan", dims: "160 × 222", where: "MULLIGAN_CARD_SIZE" },
   { token: "Thumbnail", dims: "60 × 84", where: "MODAL_CARD_THUMBNAIL" },
 ];
-
-export const ASSETS: { file: string; kind: string; use: string; preview?: string }[] = [
+export const ASSETS: {
+  file: string;
+  kind: string;
+  use: string;
+  preview?: string;
+}[] = [
   {
     file: "public/manabrew_brewery_1.png",
     kind: "Backdrop",
@@ -258,8 +343,10 @@ export const ASSETS: { file: string; kind: string; use: string; preview?: string
     preview: "/favicon.ico",
   },
 ];
-
-export const DATA_ASSETS: { file: string; use: string }[] = [
+export const DATA_ASSETS: {
+  file: string;
+  use: string;
+}[] = [
   { file: "public/token_archive.json", use: "MTG token card archive (3.3 MB) — token lookups" },
   { file: "public/wasm/cardset.*.rkyv", use: "rkyv-serialized card set for the engine" },
   { file: "public/preset_decks/*.json", use: "~50 starter / commander decks + index.json" },

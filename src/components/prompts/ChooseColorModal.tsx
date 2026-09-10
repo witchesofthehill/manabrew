@@ -11,7 +11,9 @@ import { useModalSourceCard } from "./internal/ModalSourceCard";
 import type { PromptProps } from "./internal/promptProps";
 import type { ChooseColorInput, ChooseColorOutput } from "@/protocol";
 import type { DeckCard } from "@/protocol/deck";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const LETTER_BY_NAME: Record<string, string> = {
   White: "W",
   Blue: "U",
@@ -28,8 +30,11 @@ const NAME_BY_LETTER: Record<string, string> = {
   G: "Green",
   C: "Colorless",
 };
-
-function colorMeta(color: string): { symbol: ManaCode; label: string; bg: string } {
+function colorMeta(color: string): {
+  symbol: ManaCode;
+  label: string;
+  bg: string;
+} {
   const letter =
     LETTER_BY_NAME[color] ??
     (color.length === 1 ? color.toUpperCase() : (normalizeManaCode(color[0] ?? "") ?? "C"));
@@ -40,7 +45,6 @@ function colorMeta(color: string): { symbol: ManaCode; label: string; bg: string
     bg: MANA_BG_CLASS[letter as keyof typeof MANA_BG_CLASS] ?? "bg-muted",
   };
 }
-
 export function ChooseColorModal({
   input,
   respond,
@@ -68,7 +72,6 @@ export function ChooseColorModal({
     />
   );
 }
-
 function SingleColor({
   validColors,
   respond,
@@ -84,7 +87,6 @@ function SingleColor({
   useEffect(() => {
     dialogRef.current?.focus();
   }, []);
-
   return (
     <Modal maxWidth="max-w-sm" maxHeight="" className="outline-none">
       {sourcePreview}
@@ -98,10 +100,14 @@ function SingleColor({
                 className={MODAL_CARD_THUMBNAIL}
               />
             )}
-            <h2 className="font-semibold text-base">Choose a Color</h2>
+            <h2 className="font-semibold text-base">
+              <Trans>Choose a Color</Trans>
+            </h2>
           </div>
         </Modal.Header>
-        <Modal.Instructions>Click a color to choose it.</Modal.Instructions>
+        <Modal.Instructions>
+          <Trans>Click a color to choose it.</Trans>
+        </Modal.Instructions>
         <div className="p-4 flex flex-wrap gap-3 justify-center">
           {validColors.map((color) => {
             const m = colorMeta(color);
@@ -109,7 +115,7 @@ function SingleColor({
               <button
                 key={color}
                 onClick={() => respond({ type: "colorDecision", chosenColors: { [color]: 1 } })}
-                aria-label={`Choose ${m.label}`}
+                aria-label={i18n._(msg`Choose ${m.label}`)}
                 className={cn(
                   "group flex h-16 w-16 items-center justify-center rounded-full border bg-card",
                   "transition-transform hover:scale-110 hover:ring-2 hover:ring-ring",
@@ -130,7 +136,6 @@ function SingleColor({
     </Modal>
   );
 }
-
 function ColorCombo({
   validColors,
   amount,
@@ -149,29 +154,24 @@ function ColorCombo({
   const [counts, setCounts] = useState<Record<string, number>>(() =>
     Object.fromEntries(validColors.map((c) => [c, 0])),
   );
-
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const remaining = amount - total;
   const perColorMax = repeatAllowed ? amount : 1;
-
   const increment = (color: string) =>
     setCounts((prev) =>
       remaining <= 0 ? prev : { ...prev, [color]: Math.min((prev[color] ?? 0) + 1, perColorMax) },
     );
   const decrement = (color: string) =>
     setCounts((prev) => ({ ...prev, [color]: Math.max((prev[color] ?? 0) - 1, 0) }));
-
   const confirm = () => {
     const chosen: Record<string, number> = {};
     for (const [color, n] of Object.entries(counts)) if (n > 0) chosen[color] = n;
     respond({ type: "colorDecision", chosenColors: chosen });
   };
   useModalKeyboard({ onSpace: remaining === 0 ? confirm : undefined }, [remaining, confirm]);
-
   const preview = Object.entries(counts).flatMap(([color, n]) =>
     Array.from({ length: n }, (_, i) => ({ color, key: `${color}-${i}` })),
   );
-
   return (
     <Modal maxWidth="max-w-sm" maxHeight="">
       {sourcePreview}
@@ -184,19 +184,23 @@ function ColorCombo({
               className={MODAL_CARD_THUMBNAIL}
             />
           )}
-          <h2 className="font-semibold text-base">Choose Colors</h2>
+          <h2 className="font-semibold text-base">
+            <Trans>Choose Colors</Trans>
+          </h2>
         </div>
       </Modal.Header>
       <Modal.Instructions>
         {repeatAllowed
-          ? `Add ${amount} mana in any combination of colors.`
-          : `Choose ${amount} different colors.`}
+          ? i18n._(msg`Add ${amount} mana in any combination of colors.`)
+          : i18n._(msg`Choose ${amount} different colors.`)}
       </Modal.Instructions>
 
       <div className="px-4 pt-3 flex items-center justify-between">
         <div className="flex items-center gap-1 min-h-8">
           {preview.length === 0 ? (
-            <span className="text-xs text-muted-foreground">Nothing selected yet</span>
+            <span className="text-xs text-muted-foreground">
+              <Trans>Nothing selected yet</Trans>
+            </span>
           ) : (
             preview.map(({ color, key }) => {
               const m = colorMeta(color);
@@ -217,7 +221,7 @@ function ColorCombo({
             remaining === 0 ? "text-success" : "text-muted-foreground",
           )}
         >
-          {remaining === 0 ? "Ready" : `${remaining} left`}
+          {remaining === 0 ? i18n._(msg`Ready`) : i18n._(msg`${remaining} left`)}
         </span>
       </div>
 
@@ -270,7 +274,7 @@ function ColorCombo({
               : "bg-primary text-primary-foreground hover:bg-primary/90",
           )}
         >
-          Confirm
+          <Trans>Confirm</Trans>
         </button>
       </div>
     </Modal>

@@ -12,14 +12,15 @@ import {
 } from "@/components/ui/dialog";
 import { useHubStore } from "@/stores/useHubStore";
 import type { DeckHubEntryDetail } from "@/api/hubTypes";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface EditDeckHubEntryDialogProps {
   entry: DeckHubEntryDetail;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: (entry: DeckHubEntryDetail) => void;
 }
-
 export function EditDeckHubEntryDialog({
   entry,
   open,
@@ -32,7 +33,6 @@ export function EditDeckHubEntryDialog({
   const [tagInput, setTagInput] = useState(entry.tags.map((tag) => tag.name).join(", "));
   const [coverCardName, setCoverCardName] = useState(entry.coverCardName ?? "");
   const [busy, setBusy] = useState(false);
-
   useEffect(() => {
     if (!open) return;
     setTitle(entry.title);
@@ -40,7 +40,6 @@ export function EditDeckHubEntryDialog({
     setTagInput(entry.tags.map((tag) => tag.name).join(", "));
     setCoverCardName(entry.coverCardName ?? "");
   }, [entry, open]);
-
   const coverCards = useMemo(() => {
     const cards = [
       ...entry.deck.cards,
@@ -57,7 +56,6 @@ export function EditDeckHubEntryDialog({
       a.identity.name.localeCompare(b.identity.name),
     );
   }, [entry.deck]);
-
   const tags = tagInput
     .split(",")
     .map((tag) => tag.trim())
@@ -68,7 +66,6 @@ export function EditDeckHubEntryDialog({
     summary.length > 500 ||
     tags.length > 10 ||
     tags.some((tag) => tag.length > 32);
-
   async function save() {
     if (invalid) return;
     const coverCard = coverCards.find((card) => card.identity.name === coverCardName);
@@ -83,27 +80,32 @@ export function EditDeckHubEntryDialog({
       });
       onSaved(updated);
       onOpenChange(false);
-      toast.success("Publication details updated");
+      toast.success(i18n._(msg`Publication details updated`));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update publication");
+      toast.error(
+        error instanceof Error ? error.message : i18n._(msg`Failed to update publication`),
+      );
     } finally {
       setBusy(false);
     }
   }
-
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !busy && onOpenChange(nextOpen)}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit publication</DialogTitle>
+          <DialogTitle>
+            <Trans>Edit publication</Trans>
+          </DialogTitle>
           <DialogDescription>
-            Update how this exact deck version appears in Community discovery and Top Decks.
+            <Trans>
+              Update how this exact deck version appears in Community discovery and Top Decks.
+            </Trans>
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
             <label htmlFor="deckhub-entry-title" className="text-sm font-medium">
-              Title
+              <Trans>Title</Trans>
             </label>
             <Input
               id="deckhub-entry-title"
@@ -115,7 +117,7 @@ export function EditDeckHubEntryDialog({
           </div>
           <div className="space-y-1.5">
             <label htmlFor="deckhub-entry-summary" className="text-sm font-medium">
-              Summary
+              <Trans>Summary</Trans>
             </label>
             <textarea
               id="deckhub-entry-summary"
@@ -129,22 +131,22 @@ export function EditDeckHubEntryDialog({
           </div>
           <div className="space-y-1.5">
             <label htmlFor="deckhub-entry-tags" className="text-sm font-medium">
-              Discovery tags
+              <Trans>Discovery tags</Trans>
             </label>
             <Input
               id="deckhub-entry-tags"
               value={tagInput}
               maxLength={329}
-              placeholder="control, budget, tokens"
+              placeholder={i18n._(msg`control, budget, tokens`)}
               onChange={(event) => setTagInput(event.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              {tags.length}/10 tags. Each tag can contain up to 32 characters.
+              <Trans>{tags.length}/10 tags. Each tag can contain up to 32 characters.</Trans>
             </p>
           </div>
           <div className="space-y-1.5">
             <label htmlFor="deckhub-entry-cover" className="text-sm font-medium">
-              Cover card
+              <Trans>Cover card</Trans>
             </label>
             <select
               id="deckhub-entry-cover"
@@ -152,7 +154,9 @@ export function EditDeckHubEntryDialog({
               className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm pointer-coarse:text-base"
               onChange={(event) => setCoverCardName(event.target.value)}
             >
-              <option value="">Automatic cover</option>
+              <option value="">
+                <Trans>Automatic cover</Trans>
+              </option>
               {coverCards.map((card) => (
                 <option key={card.identity.name} value={card.identity.name}>
                   {card.identity.name}
@@ -163,10 +167,10 @@ export function EditDeckHubEntryDialog({
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
-            Cancel
+            <Trans>Cancel</Trans>
           </Button>
           <Button disabled={busy || invalid} onClick={() => void save()}>
-            {busy ? "Saving…" : "Save changes"}
+            {busy ? i18n._(msg`Saving\u2026`) : i18n._(msg`Save changes`)}
           </Button>
         </DialogFooter>
       </DialogContent>

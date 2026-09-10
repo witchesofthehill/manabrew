@@ -1,12 +1,13 @@
 import type { MouseEvent } from "react";
 import { ImageIcon } from "lucide-react";
-
 import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
 import { Input } from "@/components/ui/input";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import type { DeckCard } from "@/protocol/deck";
 import { useCard } from "@/stores/useScryfallStore";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface CollectionCardProps {
   name: string;
   setCode?: string;
@@ -18,7 +19,6 @@ interface CollectionCardProps {
   onHover: (card: DeckCard, event: MouseEvent) => void;
   onLeave: () => void;
 }
-
 export function CollectionCard({
   name,
   setCode,
@@ -42,11 +42,10 @@ export function CollectionCard({
       min="0"
       className="h-8 w-20 text-right font-mono"
       value={quantity}
-      aria-label={`Owned copies of ${displayName}`}
+      aria-label={i18n._(msg`Owned copies of ${displayName}`)}
       onChange={(event) => onQuantityChange(Number(event.target.value))}
     />
   );
-
   if (view === "text") {
     return (
       <div
@@ -62,15 +61,16 @@ export function CollectionCard({
         )}
         {foil !== undefined && (
           <span className="text-[10px] font-medium text-muted-foreground">
-            {foil ? "Foil" : "Non-foil"}
+            {foil ? i18n._(msg`Foil`) : i18n._(msg`Non-foil`)}
           </span>
         )}
-        <span className="text-xs text-muted-foreground">Owned</span>
+        <span className="text-xs text-muted-foreground">
+          <Trans>Owned</Trans>
+        </span>
         {quantityInput}
       </div>
     );
   }
-
   return (
     <article
       className="group min-w-0"
@@ -83,7 +83,9 @@ export function CollectionCard({
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 p-3 text-center text-muted-foreground">
             <ImageIcon className="h-8 w-8 opacity-40" />
-            <span className="text-xs">Loading {name}…</span>
+            <span className="text-xs">
+              <Trans>Loading {name}…</Trans>
+            </span>
           </div>
         )}
       </div>
@@ -97,7 +99,7 @@ export function CollectionCard({
           )}
           {foil !== undefined && (
             <span className="block text-[10px] text-muted-foreground">
-              {foil ? "Foil" : "Non-foil"}
+              {foil ? i18n._(msg`Foil`) : i18n._(msg`Non-foil`)}
             </span>
           )}
         </span>

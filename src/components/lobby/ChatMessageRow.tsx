@@ -7,7 +7,8 @@ import type { ChatEntry } from "@/stores/useChatStore";
 import type { PlayerInfo } from "@/types/server";
 import { cn } from "@/lib/utils";
 import { stripUsernameTag } from "@/lib/username";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface ChatMessageRowProps {
   entry: ChatEntry;
   mine: boolean;
@@ -15,7 +16,6 @@ interface ChatMessageRowProps {
   continued: boolean;
   onReport?: (entry: ChatEntry) => void;
 }
-
 function formatTime(sentAtMs: number): string {
   return new Date(sentAtMs).toLocaleTimeString([], {
     hour: "2-digit",
@@ -23,7 +23,6 @@ function formatTime(sentAtMs: number): string {
     hour12: false,
   });
 }
-
 export function ChatMessageRow({ entry, mine, player, continued, onReport }: ChatMessageRowProps) {
   if (entry.system) {
     return <p className="py-0.5 text-center text-sm italic text-muted-foreground">{entry.text}</p>;
@@ -52,7 +51,11 @@ export function ChatMessageRow({ entry, mine, player, continued, onReport }: Cha
           player={player}
           status={
             <span>
-              {player.room_id ? "At a table" : player.local_game ? "Playing solo" : "Available"}
+              {player.room_id
+                ? i18n._(msg`At a table`)
+                : player.local_game
+                  ? i18n._(msg`Playing solo`)
+                  : i18n._(msg`Available`)}
             </span>
           }
           side="left"
@@ -91,8 +94,8 @@ export function ChatMessageRow({ entry, mine, player, continued, onReport }: Cha
           variant="ghost"
           className="h-6 w-6 shrink-0 self-center text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
           onClick={() => onReport(entry)}
-          aria-label={`Report ${name}`}
-          title="Report this message"
+          aria-label={i18n._(msg`Report ${name}`)}
+          title={i18n._(msg`Report this message`)}
         >
           <Flag className="h-3 w-3" />
         </Button>

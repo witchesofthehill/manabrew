@@ -1,4 +1,6 @@
 import { AlertCircle, Bot, Check, User } from "lucide-react";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 import { DeckCardSurface } from "@/components/deck/DeckCardSurface";
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { FormatBadge } from "@/components/game/FormatBadge";
@@ -13,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { DeckCard, DeckLabel } from "@/protocol/deck";
 import { ScryfallImg } from "@/components/ScryfallImg";
-
+import { Trans } from "@lingui/react/macro";
 interface DeckSelectionCardProps {
   name: string;
   desc?: string;
@@ -41,8 +43,11 @@ interface DeckSelectionCardProps {
   onSelect: () => void;
   onActivate?: () => void;
 }
-
-function getDeckTypeBreakdown(cards: { types?: string[] }[]): string {
+function getDeckTypeBreakdown(
+  cards: {
+    types?: string[];
+  }[],
+): string {
   if (cards.length === 0) return "Empty deck";
   const creatures = cards.filter((card) => card.types?.includes("Creature")).length;
   const lands = cards.filter((card) => card.types?.includes("Land")).length;
@@ -53,7 +58,6 @@ function getDeckTypeBreakdown(cards: { types?: string[] }[]): string {
   if (lands > 0) parts.push(`${lands} land${lands === 1 ? "" : "s"}`);
   return parts.join(" · ");
 }
-
 export function DeckSelectionCard({
   name,
   desc,
@@ -108,7 +112,6 @@ export function DeckSelectionCard({
           : isSelected
             ? ", selected"
             : "";
-
   // Derive side-specific inline styles from theme CSS vars
   const sideStyle: React.CSSProperties | undefined = hasVsSide
     ? (() => {
@@ -124,7 +127,6 @@ export function DeckSelectionCard({
         };
       })()
     : undefined;
-
   return (
     <DeckCardSurface
       title={name}
@@ -212,7 +214,7 @@ export function DeckSelectionCard({
                     cover ? "text-text-on-tinted/85" : "text-muted-foreground",
                   )}
                 >
-                  Colorless
+                  <Trans>Colorless</Trans>
                 </span>
               ) : null}
             </>
@@ -223,10 +225,10 @@ export function DeckSelectionCard({
           {!dense && (
             <span className="text-[10px] text-text-on-tinted/85">
               {isHub
-                ? `Community · ${cardCount ?? cards.length} cards`
+                ? i18n._(msg`Community · ${cardCount ?? cards.length} cards`)
                 : isPreset
-                  ? "Preset deck"
-                  : `${cards.length} cards`}
+                  ? i18n._(msg`Preset deck`)
+                  : i18n._(msg`${cards.length} cards`)}
             </span>
           )}
           {badge && (

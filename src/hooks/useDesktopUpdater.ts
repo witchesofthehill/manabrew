@@ -6,13 +6,12 @@ import { useDesktopUpdateStore } from "@/stores/useDesktopUpdateStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { useMultiplayerSealedStore } from "@/stores/useMultiplayerSealedStore";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const CHECK_INTERVAL_MS = 60 * 60 * 1000;
-
 let pendingUpdate: Update | null = null;
 let installInFlight = false;
 let updateInstalled = false;
-
 function sessionPreventsUpdate() {
   return (
     useGameStore.getState().isGameActive ||
@@ -20,7 +19,6 @@ function sessionPreventsUpdate() {
     useMultiplayerSealedStore.getState().mode !== "idle"
   );
 }
-
 export async function installDesktopUpdate() {
   if (sessionPreventsUpdate() || installInFlight) return;
   const { phase, setDownloading, setFailed } = useDesktopUpdateStore.getState();
@@ -52,13 +50,12 @@ export async function installDesktopUpdate() {
     await relaunch();
   } catch (err) {
     console.error("[Updater] install failed", err);
-    toast.error("Update failed to install. You can retry from the home page.");
+    toast.error(i18n._(msg`Update failed to install. You can retry from the home page.`));
     setFailed();
   } finally {
     installInFlight = false;
   }
 }
-
 export async function checkForDesktopUpdate(): Promise<boolean> {
   if (pendingUpdate) return true;
   const updater = await import("@tauri-apps/plugin-updater");
@@ -70,14 +67,11 @@ export async function checkForDesktopUpdate(): Promise<boolean> {
   }
   return true;
 }
-
 export function useDesktopUpdater() {
   useEffect(() => {
     if (getPlatformType() !== "tauri") return;
-
     const check = () =>
       checkForDesktopUpdate().catch((err) => console.warn("[Updater] check failed", err));
-
     void check();
     const timer = setInterval(() => void check(), CHECK_INTERVAL_MS);
     return () => clearInterval(timer);

@@ -19,12 +19,26 @@ import {
 } from "@/components/game/cardPreviewStyles";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { HAND_ORDER_OPTIONS } from "@/lib/handOrder";
-
-const PREVIEW_MODES: { value: CardPreviewMode; label: string }[] = [
-  { value: "hover", label: "Hover" },
-  { value: "right-click", label: "Right click" },
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
+const PREVIEW_MODES: {
+  value: CardPreviewMode;
+  label: string;
+}[] = [
+  {
+    value: "hover",
+    get label() {
+      return i18n._(msg`Hover`);
+    },
+  },
+  {
+    value: "right-click",
+    get label() {
+      return i18n._(msg`Right click`);
+    },
+  },
 ];
-
 function SettingRow({
   label,
   hint,
@@ -42,21 +56,23 @@ function SettingRow({
     </div>
   );
 }
-
 export function GameSettingsModal({ onClose }: { onClose: () => void }) {
   const prefs = usePreferencesStore();
   const fullControl = usePromptPreferencesStore((s) => s.fullControl);
   const setFullControl = usePromptPreferencesStore((s) => s.setFullControl);
-
   return (
     <Modal onClose={onClose} maxWidth="max-w-md">
       <Modal.Header onClose={onClose}>
-        <h2 className="text-base font-semibold">Board settings</h2>
+        <h2 className="text-base font-semibold">
+          <Trans>Board settings</Trans>
+        </h2>
       </Modal.Header>
       <Modal.Body className="space-y-5">
         <SettingRow
-          label="Sort hand"
-          hint="Manual lets you drag cards sideways. Color and mana value keep new cards sorted automatically."
+          label={i18n._(msg`Sort hand`)}
+          hint={i18n._(
+            msg`Manual lets you drag cards sideways. Color and mana value keep new cards sorted automatically.`,
+          )}
         >
           <div className="flex flex-wrap items-center gap-2">
             {HAND_ORDER_OPTIONS.map((option) => (
@@ -73,8 +89,10 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
         </SettingRow>
 
         <SettingRow
-          label="Hand card style"
-          hint="Printed card shows the card image. Dynamic view uses the card's current rules and game state; each card can still be switched."
+          label={i18n._(msg`Hand card style`)}
+          hint={i18n._(
+            msg`Printed card shows the card image. Dynamic view uses the card's current rules and game state; each card can still be switched.`,
+          )}
         >
           <div className="flex items-center gap-2">
             {INLINE_CARD_STYLE_OPTIONS.map((option) => (
@@ -91,8 +109,10 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
         </SettingRow>
 
         <SettingRow
-          label="Default stack card view"
-          hint="Choose which face stack cards show when they appear. You can still switch individual cards."
+          label={i18n._(msg`Default stack card view`)}
+          hint={i18n._(
+            msg`Choose which face stack cards show when they appear. You can still switch individual cards.`,
+          )}
         >
           <div className="flex items-center gap-2">
             {INLINE_CARD_STYLE_OPTIONS.map((option) => (
@@ -109,8 +129,10 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
         </SettingRow>
 
         <SettingRow
-          label="Card preview style"
-          hint="Printed card shows the full card image. Dynamic view prioritizes current rules, actions, costs, counters, and other game state."
+          label={i18n._(msg`Card preview style`)}
+          hint={i18n._(
+            msg`Printed card shows the full card image. Dynamic view prioritizes current rules, actions, costs, counters, and other game state.`,
+          )}
         >
           <div className="flex items-center gap-2">
             {IN_GAME_CARD_PREVIEW_STYLE_OPTIONS.map((option) => (
@@ -127,8 +149,10 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
         </SettingRow>
 
         <SettingRow
-          label="Priority windows"
-          hint="Autopass skips windows where you can only tap for mana, after a short delay. Full control stops at every window."
+          label={i18n._(msg`Priority windows`)}
+          hint={i18n._(
+            msg`Autopass skips windows where you can only tap for mana, after a short delay. Full control stops at every window.`,
+          )}
         >
           <div className="flex items-center gap-2">
             <Button
@@ -136,21 +160,23 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
               size="sm"
               onClick={() => setFullControl(false)}
             >
-              Autopass
+              <Trans>Autopass</Trans>
             </Button>
             <Button
               variant={fullControl ? "default" : "outline"}
               size="sm"
               onClick={() => setFullControl(true)}
             >
-              Full control
+              <Trans>Full control</Trans>
             </Button>
           </div>
         </SettingRow>
 
         <SettingRow
-          label={`Card size (${Math.round(prefs.cardSizeMultiplier * 100)}%)`}
-          hint="Scales cards on every battlefield and your hand fan. 100% is the classic 3-row board; battlefield cards cap at a 2-row fill, the hand keeps growing past them."
+          label={i18n._(msg`Card size (${Math.round(prefs.cardSizeMultiplier * 100)}%)`)}
+          hint={i18n._(
+            msg`Scales cards on every battlefield and your hand fan. 100% is the classic 3-row board; battlefield cards cap at a 2-row fill, the hand keeps growing past them.`,
+          )}
         >
           <input
             type="range"
@@ -164,8 +190,10 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
         </SettingRow>
 
         <SettingRow
-          label="Card style"
-          hint="How battlefield cards are drawn. Hand, stack, and previews always use the full card image."
+          label={i18n._(msg`Card style`)}
+          hint={i18n._(
+            msg`How battlefield cards are drawn. Hand, stack, and previews always use the full card image.`,
+          )}
         >
           <div className="flex items-center gap-2">
             {BATTLEFIELD_CARD_STYLE_OPTIONS.map((s) => (
@@ -182,8 +210,8 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
         </SettingRow>
 
         <SettingRow
-          label="Battlefield layout"
-          hint={'"Auto-arrange" keeps cards tidy in rows and ignores manual placement.'}
+          label={i18n._(msg`Battlefield layout`)}
+          hint={i18n._(msg`"Auto-arrange" keeps cards tidy in rows and ignores manual placement.`)}
         >
           <div className="flex items-center gap-2">
             <Button
@@ -191,21 +219,23 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
               size="sm"
               onClick={() => prefs.setBattlefieldAutoSort(false)}
             >
-              Free placement
+              <Trans>Free placement</Trans>
             </Button>
             <Button
               variant={prefs.battlefieldAutoSort ? "default" : "outline"}
               size="sm"
               onClick={() => prefs.setBattlefieldAutoSort(true)}
             >
-              Auto-arrange
+              <Trans>Auto-arrange</Trans>
             </Button>
           </div>
         </SettingRow>
 
         <SettingRow
-          label="Lock zone piles"
-          hint="Keeps the deck, graveyard, exile, and command piles fixed in place so a drag can't move them. Tapping to open still works."
+          label={i18n._(msg`Lock zone piles`)}
+          hint={i18n._(
+            msg`Keeps the deck, graveyard, exile, and command piles fixed in place so a drag can't move them. Tapping to open still works.`,
+          )}
         >
           <div className="flex items-center gap-2">
             <Button
@@ -213,21 +243,23 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
               size="sm"
               onClick={() => prefs.setLockZoneTiles(false)}
             >
-              Movable
+              <Trans>Movable</Trans>
             </Button>
             <Button
               variant={prefs.lockZoneTiles ? "default" : "outline"}
               size="sm"
               onClick={() => prefs.setLockZoneTiles(true)}
             >
-              Locked
+              <Trans>Locked</Trans>
             </Button>
           </div>
         </SettingRow>
 
         <SettingRow
-          label="Animations"
-          hint="Decorative board effects. Turn off to save performance on weaker hardware."
+          label={i18n._(msg`Animations`)}
+          hint={i18n._(
+            msg`Decorative board effects. Turn off to save performance on weaker hardware.`,
+          )}
         >
           <div className="flex items-center gap-2">
             <Button
@@ -235,21 +267,23 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
               size="sm"
               onClick={() => prefs.setInGameAnimations(true)}
             >
-              On
+              <Trans>On</Trans>
             </Button>
             <Button
               variant={!prefs.inGameAnimations ? "default" : "outline"}
               size="sm"
               onClick={() => prefs.setInGameAnimations(false)}
             >
-              Off
+              <Trans>Off</Trans>
             </Button>
           </div>
         </SettingRow>
 
         <SettingRow
-          label="Order triggers"
-          hint="Prompt to choose the order when several of your triggers happen at once. Off orders them randomly."
+          label={i18n._(msg`Order triggers`)}
+          hint={i18n._(
+            msg`Prompt to choose the order when several of your triggers happen at once. Off orders them randomly.`,
+          )}
         >
           <div className="flex items-center gap-2">
             <Button
@@ -257,21 +291,23 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
               size="sm"
               onClick={() => prefs.setChooseOrderOnMultipleTriggers(true)}
             >
-              On
+              <Trans>On</Trans>
             </Button>
             <Button
               variant={!prefs.chooseOrderOnMultipleTriggers ? "default" : "outline"}
               size="sm"
               onClick={() => prefs.setChooseOrderOnMultipleTriggers(false)}
             >
-              Off
+              <Trans>Off</Trans>
             </Button>
           </div>
         </SettingRow>
 
         <SettingRow
-          label="Card preview trigger"
-          hint="Hover opens automatically. Right click opens a preview that stays until dismissed."
+          label={i18n._(msg`Card preview trigger`)}
+          hint={i18n._(
+            msg`Hover opens automatically. Right click opens a preview that stays until dismissed.`,
+          )}
         >
           <div className="flex flex-wrap items-center gap-2">
             {PREVIEW_MODES.map((m) => (
@@ -288,8 +324,8 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
         </SettingRow>
 
         <SettingRow
-          label={`Card preview delay (${prefs.cardHoverDelayMs}ms)`}
-          hint="How long hover previews wait before appearing."
+          label={i18n._(msg`Card preview delay (${prefs.cardHoverDelayMs}ms)`)}
+          hint={i18n._(msg`How long hover previews wait before appearing.`)}
         >
           <input
             type="range"
@@ -304,7 +340,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
       </Modal.Body>
       <Modal.Footer>
         <Button size="sm" onClick={onClose}>
-          Done
+          <Trans>Done</Trans>
         </Button>
       </Modal.Footer>
     </Modal>

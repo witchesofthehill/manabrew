@@ -1,11 +1,12 @@
 import { Loader2 } from "lucide-react";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface WaitingForPlayerScreenProps {
   reason: "self" | "opponent";
   secondsLeft: number | null;
   disconnectedNames: string[];
 }
-
 export function WaitingForPlayerScreen({
   reason,
   secondsLeft,
@@ -18,9 +19,10 @@ export function WaitingForPlayerScreen({
       : disconnectedNames.length > 0
         ? `${disconnectedNames.join(", ")} disconnected. Waiting for them to reconnect…`
         : "An opponent disconnected. Waiting for them to reconnect…";
-
-  const subtext = reason === "self" ? "We might be updating our servers, hang on tight 😬" : "";
-
+  const subtext =
+    reason === "self"
+      ? i18n._(msg`We might be updating our servers, hang on tight \uD83D\uDE2C`)
+      : "";
   return (
     <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/90">
       <Loader2 className="h-10 w-10 animate-spin text-warning" />
@@ -29,7 +31,10 @@ export function WaitingForPlayerScreen({
       <p className="text-muted-foreground text-sm">{subtext}</p>
       {secondsLeft !== null && (
         <p className="text-sm text-muted-foreground">
-          Game will be aborted in <span className="font-semibold text-warning">{secondsLeft}s</span>
+          <Trans>
+            Game will be aborted in{" "}
+            <span className="font-semibold text-warning">{secondsLeft}s</span>
+          </Trans>
         </p>
       )}
     </div>

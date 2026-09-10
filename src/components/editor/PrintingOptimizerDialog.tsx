@@ -9,7 +9,6 @@ import {
   WalletCards,
 } from "lucide-react";
 import { toast } from "sonner";
-
 import { scryfallCardKey } from "@/api/scryfall";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,9 +29,10 @@ import {
   cheapestCompatiblePrinting,
   supportsPrintingFinish,
 } from "./printingOptimizer";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 type OptimizerPolicy = "owned" | "cheapest" | "nonfoil";
-
 interface PrintingChange {
   cardId: string;
   name: string;
@@ -41,14 +41,12 @@ interface PrintingChange {
   print?: ScryfallCard;
   targetFoil?: boolean;
 }
-
 interface PrintingSkip {
   cardId: string;
   name: string;
   printing: string;
   reason: string;
 }
-
 export function PrintingOptimizerDialog({
   open,
   onOpenChange,
@@ -65,7 +63,6 @@ export function PrintingOptimizerDialog({
   const abortControllerRef = useRef<AbortController | null>(null);
   const deck = useDeckStore((state) => state.currentDeck);
   const quantities = useCollectionStore((state) => state.quantities);
-
   const allCards = [
     ...deck.cards,
     ...deck.sideboard,
@@ -85,7 +82,6 @@ export function PrintingOptimizerDialog({
       ]),
     ).values(),
   ];
-
   async function buildProposal(policy: OptimizerPolicy) {
     const sessionId = useDeckStore.getState().editorSessionId;
     setProposalSessionId(sessionId);
@@ -119,14 +115,14 @@ export function PrintingOptimizerDialog({
               cardId: card.identity.id,
               name: card.identity.name,
               printing,
-              reason: "Printing could not be resolved",
+              reason: i18n._(msg`Printing could not be resolved`),
             });
           } else if (!supportsPrintingFinish(print, false)) {
             unresolved.push({
               cardId: card.identity.id,
               name: card.identity.name,
               printing,
-              reason: "This printing is foil-only",
+              reason: i18n._(msg`This printing is foil-only`),
             });
           } else {
             proposal.push({
@@ -211,16 +207,18 @@ export function PrintingOptimizerDialog({
         }
       }
       if (useDeckStore.getState().editorSessionId !== sessionId) {
-        throw new Error("The open deck changed while printings were being checked");
+        throw new Error(i18n._(msg`The open deck changed while printings were being checked`));
       }
       setChanges(proposal);
       setSkipped(unresolved);
       if (proposal.length === 0 && unresolved.length === 0) {
-        toast.info("The selected policy would not change this deck");
+        toast.info(i18n._(msg`The selected policy would not change this deck`));
       }
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
-        toast.error(error instanceof Error ? error.message : "Could not optimize deck printings");
+        toast.error(
+          error instanceof Error ? error.message : i18n._(msg`Could not optimize deck printings`),
+        );
       }
     } finally {
       if (abortControllerRef.current === abortController) {
@@ -230,15 +228,14 @@ export function PrintingOptimizerDialog({
       }
     }
   }
-
   function applyProposal() {
     if (proposalSessionId !== useDeckStore.getState().editorSessionId) {
-      toast.error("The open deck changed. Build the printing proposal again.");
+      toast.error(i18n._(msg`The open deck changed. Build the printing proposal again.`));
       setChanges([]);
       setSkipped([]);
       return;
     }
-    executeDeckEdit(`Optimize ${changes.length} deck printings`, () => {
+    executeDeckEdit(i18n._(msg`Optimize ${changes.length} deck printings`), () => {
       for (const change of changes) {
         if (change.print) {
           useDeckStore.getState().updateCardPrint(change.cardId, change.print, change.targetFoil);
@@ -248,13 +245,14 @@ export function PrintingOptimizerDialog({
       }
     });
     toast.success(
-      `Updated ${changes.length} card ${changes.length === 1 ? "printing" : "printings"}`,
+      changes.length === 1
+        ? i18n._(msg`Updated one card printing`)
+        : i18n._(msg`Updated ${changes.length} card printings`),
     );
     setChanges([]);
     setSkipped([]);
     onOpenChange(false);
   }
-
   return (
     <Dialog
       open={open}
@@ -272,15 +270,19 @@ export function PrintingOptimizerDialog({
     >
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Optimize deck printings</DialogTitle>
+          <DialogTitle>
+            <Trans>Optimize deck printings</Trans>
+          </DialogTitle>
           <DialogDescription>
-            Choose a policy, review every proposed change, then apply it as one undoable edit.
+            <Trans>
+              Choose a policy, review every proposed change, then apply it as one undoable edit.
+            </Trans>
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-3">
           <PolicyButton
             icon={WalletCards}
-            label="Owned printings"
+            label={i18n._(msg`Owned printings`)}
             detail="Match the exact copies and finishes you own"
             selected={selectedPolicy === "owned"}
             busy={loading === "owned"}
@@ -289,7 +291,7 @@ export function PrintingOptimizerDialog({
           />
           <PolicyButton
             icon={BadgeDollarSign}
-            label="Cheapest printings"
+            label={i18n._(msg`Cheapest printings`)}
             detail="Minimize the deck price using your chosen provider"
             selected={selectedPolicy === "cheapest"}
             busy={loading === "cheapest"}
@@ -298,7 +300,7 @@ export function PrintingOptimizerDialog({
           />
           <PolicyButton
             icon={Layers3}
-            label="All non-foil"
+            label={i18n._(msg`All non-foil`)}
             detail="Keep every printing and normalize the finish"
             selected={selectedPolicy === "nonfoil"}
             busy={loading === "nonfoil"}
@@ -309,9 +311,11 @@ export function PrintingOptimizerDialog({
         {changes.length === 0 && skipped.length === 0 && !loading && (
           <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/30 p-3">
             <div>
-              <p className="text-sm font-medium">Ready to scan {allCards.length} cards</p>
+              <p className="text-sm font-medium">
+                <Trans>Ready to scan {allCards.length} cards</Trans>
+              </p>
               <p className="text-xs text-muted-foreground">
-                Nothing changes until you review and apply the proposal.
+                <Trans>Nothing changes until you review and apply the proposal.</Trans>
               </p>
             </div>
             <Button
@@ -319,7 +323,9 @@ export function PrintingOptimizerDialog({
               disabled={allCards.length === 0}
               onClick={() => void buildProposal(selectedPolicy)}
             >
-              <Sparkles className="h-4 w-4" /> Build proposal
+              <Trans>
+                <Sparkles className="h-4 w-4" /> Build proposal
+              </Trans>
             </Button>
           </div>
         )}
@@ -327,7 +333,9 @@ export function PrintingOptimizerDialog({
           <div className="space-y-2 rounded-lg border bg-muted/30 p-4">
             <div className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-2 font-medium">
-                <Loader2 className="h-4 w-4 animate-spin" /> Scanning available printings
+                <Trans>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Scanning available printings
+                </Trans>
               </span>
               <span className="tabular-nums text-muted-foreground">
                 {Math.round(progress * 100)}%
@@ -340,8 +348,10 @@ export function PrintingOptimizerDialog({
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Large decks can take a moment. Requests are grouped and safely paced through the
-              shared card-data service.
+              <Trans>
+                Large decks can take a moment. Requests are grouped and safely paced through the
+                shared card-data service.
+              </Trans>
             </p>
             <Button
               variant="outline"
@@ -353,7 +363,7 @@ export function PrintingOptimizerDialog({
                 setProgress(0);
               }}
             >
-              Cancel scan
+              <Trans>Cancel scan</Trans>
             </Button>
           </div>
         )}
@@ -361,10 +371,13 @@ export function PrintingOptimizerDialog({
           <div className="space-y-3">
             <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
               <div>
-                <p className="font-medium">Proposal ready</p>
+                <p className="font-medium">
+                  <Trans>Proposal ready</Trans>
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  {changes.length} {changes.length === 1 ? "copy" : "copies"} will change · one
-                  undoable edit
+                  {changes.length === 1
+                    ? i18n._(msg`One copy will change · one undoable edit`)
+                    : i18n._(msg`${changes.length} copies will change · one undoable edit`)}
                 </p>
               </div>
               <Button
@@ -375,7 +388,7 @@ export function PrintingOptimizerDialog({
                   setSkipped([]);
                 }}
               >
-                Change goal
+                <Trans>Change goal</Trans>
               </Button>
             </div>
             <div className="max-h-72 overflow-y-auto rounded-lg border divide-y">
@@ -393,10 +406,12 @@ export function PrintingOptimizerDialog({
             </div>
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs text-muted-foreground">
-                Review the exact before and after printing.
+                <Trans>Review the exact before and after printing.</Trans>
               </p>
               <Button className="gap-1" onClick={applyProposal}>
-                <Check className="h-3.5 w-3.5" /> Apply {changes.length} changes
+                <Trans>
+                  <Check className="h-3.5 w-3.5" /> Apply {changes.length} changes
+                </Trans>
               </Button>
             </div>
           </div>
@@ -405,12 +420,14 @@ export function PrintingOptimizerDialog({
           <div className="space-y-2 rounded-lg border border-warning/40 bg-warning/5 p-3">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm font-medium text-warning">
-                <TriangleAlert className="h-4 w-4" /> Could not convert {skipped.length}{" "}
-                {skipped.length === 1 ? "copy" : "copies"}
+                <TriangleAlert className="h-4 w-4" />
+                {skipped.length === 1
+                  ? i18n._(msg`Could not convert one copy`)
+                  : i18n._(msg`Could not convert ${skipped.length} copies`)}
               </div>
               {changes.length === 0 && (
                 <Button variant="ghost" size="sm" onClick={() => setSkipped([])}>
-                  Change goal
+                  <Trans>Change goal</Trans>
                 </Button>
               )}
             </div>
@@ -433,7 +450,6 @@ export function PrintingOptimizerDialog({
     </Dialog>
   );
 }
-
 function PolicyButton({
   icon: Icon,
   label,

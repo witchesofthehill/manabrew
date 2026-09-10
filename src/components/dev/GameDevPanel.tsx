@@ -9,11 +9,9 @@ import {
   UserRound,
   type LucideIcon,
 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
-
 import { BattlefieldKeywordDevControls } from "./BattlefieldKeywordDevControls";
 import { BattlefieldStyleDevControls } from "./BattlefieldStyleDevControls";
 import { DevCardLayoutControls } from "./DevCardLayoutControls";
@@ -24,23 +22,52 @@ import { DevSizingControls } from "./DevSizingControls";
 import { DevStressPresets } from "./DevStressPresets";
 import { PlayerBadgeDevControls } from "./PlayerBadgeDevControls";
 import { PromptDevControls } from "./PromptDevControls";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 type DevWorkspace = "card" | "player" | "board" | "prompt" | "stress";
-
 interface WorkspaceTab {
   id: DevWorkspace;
   label: string;
   icon: LucideIcon;
 }
-
 const WORKSPACES: WorkspaceTab[] = [
-  { id: "card", label: "Card", icon: CreditCard },
-  { id: "player", label: "Player", icon: UserRound },
-  { id: "board", label: "Board", icon: LayoutGrid },
-  { id: "prompt", label: "Prompt", icon: MessageSquareText },
-  { id: "stress", label: "Stress", icon: Gauge },
+  {
+    id: "card",
+    get label() {
+      return i18n._(msg`Card`);
+    },
+    icon: CreditCard,
+  },
+  {
+    id: "player",
+    get label() {
+      return i18n._(msg`Player`);
+    },
+    icon: UserRound,
+  },
+  {
+    id: "board",
+    get label() {
+      return i18n._(msg`Board`);
+    },
+    icon: LayoutGrid,
+  },
+  {
+    id: "prompt",
+    get label() {
+      return i18n._(msg`Prompt`);
+    },
+    icon: MessageSquareText,
+  },
+  {
+    id: "stress",
+    get label() {
+      return i18n._(msg`Stress`);
+    },
+    icon: Gauge,
+  },
 ];
-
 function activeValueCount(values: object): number {
   let count = 0;
   for (const key in values) {
@@ -49,7 +76,6 @@ function activeValueCount(values: object): number {
   }
   return count;
 }
-
 export function GameDevPanel() {
   const [workspace, setWorkspace] = useState<DevWorkspace>("card");
   const cardOverrides = useGameDevStore((s) => s.cardOverrides);
@@ -65,7 +91,6 @@ export function GameDevPanel() {
   const showAttackRows = useGameDevStore((s) => s.showAttackRows);
   const devToolsEnabled = useGameDevStore((s) => s.devToolsEnabled);
   const resetDevSettings = useGameDevStore((s) => s.resetDevSettings);
-
   const counts: Record<DevWorkspace, number> = {
     card:
       activeValueCount(cardOverrides) +
@@ -84,7 +109,6 @@ export function GameDevPanel() {
     stress: 0,
   };
   const activeCount = counts.card + counts.player + counts.board + counts.prompt + counts.stress;
-
   return (
     <div className="flex min-h-0 flex-col gap-3">
       <div className="rounded-xl border border-border/70 bg-muted/20 p-3 shadow-sm">
@@ -92,15 +116,19 @@ export function GameDevPanel() {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <FlaskConical className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-semibold">Battlefield lab</h2>
+              <h2 className="text-sm font-semibold">
+                <Trans>Battlefield lab</Trans>
+              </h2>
               {activeCount > 0 ? (
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-primary">
-                  {activeCount} active
+                  <Trans>{activeCount} active</Trans>
                 </span>
               ) : null}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Stage card, player, board, and prompt visuals without changing the game.
+              <Trans>
+                Stage card, player, board, and prompt visuals without changing the game.
+              </Trans>
             </p>
           </div>
           <Button
@@ -110,8 +138,10 @@ export function GameDevPanel() {
             className="shrink-0 text-muted-foreground"
             onClick={resetDevSettings}
           >
-            <RotateCcw />
-            Reset lab
+            <Trans>
+              <RotateCcw />
+              Reset lab
+            </Trans>
           </Button>
         </div>
 

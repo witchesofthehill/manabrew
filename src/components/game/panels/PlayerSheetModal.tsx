@@ -5,19 +5,19 @@ import { Modal } from "@/components/game/modals/Modal";
 import { ManaPool } from "./ManaPool";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface PlayerSheetModalProps {
   spec: PlayerHudSpec;
   onClose: () => void;
 }
-
 /** Full detail sheet for a player — opened by tapping a non-targetable avatar.
  *  Reuses the HUD's already-resolved badge list (labels, counts, per-source
  *  commander-damage colours) so it can't drift from the capsule. */
 export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
   const theme = useTheme().gameTheme;
   const hasMana = Object.values(spec.manaPool).some((v) => v > 0);
-
   return (
     <Modal onClose={onClose} maxWidth="max-w-sm">
       <Modal.Header onClose={onClose}>
@@ -38,9 +38,11 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
             )}
           </span>
           <div className="min-w-0">
-            <div className="truncate text-lg font-semibold">{spec.isSelf ? "You" : spec.name}</div>
+            <div className="truncate text-lg font-semibold">
+              {spec.isSelf ? i18n._(msg`You`) : spec.name}
+            </div>
             <div className="text-sm font-medium" style={{ color: theme.life }}>
-              ♥ {spec.life} life
+              <Trans>♥ {spec.life} life</Trans>
             </div>
           </div>
         </div>
@@ -48,7 +50,9 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
       <Modal.Body>
         {hasMana && (
           <div className="mb-3 flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Mana pool</span>
+            <span className="text-sm text-muted-foreground">
+              <Trans>Mana pool</Trans>
+            </span>
             <ManaPool pool={spec.manaPool} />
           </div>
         )}
@@ -74,7 +78,7 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
         </ul>
         {spec.isEliminated && (
           <div className={cn("mt-3 text-sm font-semibold")} style={{ color: theme.pt.lethal }}>
-            Eliminated
+            <Trans>Eliminated</Trans>
           </div>
         )}
       </Modal.Body>

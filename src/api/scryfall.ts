@@ -16,10 +16,11 @@ import {
   normalizeIdentifierForRequest,
   type CardIdentifier,
 } from "./scryfallBatch";
+import { DEFAULT_SCRYFALL_LANGUAGE, type ScryfallLanguage } from "@/i18n/locales";
 
 export const SCRYFALL_API = "https://api.scryfall.com";
 export const COLLECTION_BATCH_SIZE = 75;
-const SCRYFALL_REQUEST_INTERVAL_MS = 300;
+const SCRYFALL_REQUEST_INTERVAL_MS = 500;
 const SCRYFALL_DEFAULT_RATE_LIMIT_COOLDOWN_MS = 60_000;
 
 let nextScryfallRequestAt = 0;
@@ -134,6 +135,7 @@ export async function fetchPrintsByOracleIds(
   oracleIds: string[],
   onProgress?: (completed: number, total: number) => void,
   signal?: AbortSignal,
+  language?: ScryfallLanguage,
 ): Promise<Map<string, ScryfallCard[]>> {
   const unique = [...new Set(oracleIds)];
   const result = new Map<string, ScryfallCard[]>();
@@ -142,9 +144,11 @@ export async function fetchPrintsByOracleIds(
 
   for (let index = 0; index < unique.length; index += PRINT_SEARCH_ORACLE_BATCH_SIZE) {
     const ids = unique.slice(index, index + PRINT_SEARCH_ORACLE_BATCH_SIZE);
-    const query = ids.map((id) => `oracleid:${id}`).join(" or ");
+    const query = `(${ids.map((id) => `oracleid:${id}`).join(" or ")})${
+      language ? ` lang:${language}` : ""
+    }`;
     let url: string | undefined =
-      `${SCRYFALL_API}/cards/search?q=${encodeURIComponent(`(${query})`)}` +
+      `${SCRYFALL_API}/cards/search?q=${encodeURIComponent(query)}` +
       "&unique=prints&order=released&dir=desc&include_extras=true";
     while (url) {
       const page: ScryfallListResponse = await scryfallFetch<ScryfallListResponse>(
@@ -183,6 +187,21 @@ export async function getCardBySetAndNumber(
   collectorNumber: string,
 ): Promise<ScryfallCard> {
   return enqueueCardLookup({ set: setCode.toLowerCase(), collector_number: collectorNumber });
+}
+
+export async function getLocalizedCardPrinting(
+  card: ScryfallCard,
+  language: ScryfallLanguage,
+): Promise<ScryfallCard> {
+  if (language === DEFAULT_SCRYFALL_LANGUAGE || card.lang === language) return card;
+  try {
+    return await scryfallFetch<ScryfallCard>(
+      `${SCRYFALL_API}/cards/${encodeURIComponent(card.set)}/${encodeURIComponent(card.collector_number)}/${language}`,
+      `No ${language} printing exists for ${card.name}`,
+    );
+  } catch {
+    return card;
+  }
 }
 export async function fetchCardCollection(
   cards: { name: string; setCode?: string; collectorNumber?: string }[],

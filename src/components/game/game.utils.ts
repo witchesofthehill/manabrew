@@ -5,20 +5,31 @@ import type { ClientCardDto } from "@/stores/gameStore.types";
 import type { ManaAbilityActionInfo } from "@/components/game/manaUtils";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { PROMPT_LABELS } from "./game.constants";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const MANA_COLOR_LABEL: Record<ManaColor, string> = {
-  W: "White",
-  U: "Blue",
-  B: "Black",
-  R: "Red",
-  G: "Green",
-  C: "Colorless",
+  get W() {
+    return i18n._(msg`White`);
+  },
+  get U() {
+    return i18n._(msg`Blue`);
+  },
+  get B() {
+    return i18n._(msg`Black`);
+  },
+  get R() {
+    return i18n._(msg`Red`);
+  },
+  get G() {
+    return i18n._(msg`Green`);
+  },
+  get C() {
+    return i18n._(msg`Colorless`);
+  },
 };
-
 export function isPermanentSpellCard(card: Pick<CardDto, "types">): boolean {
   return !card.types.includes("Instant") && !card.types.includes("Sorcery");
 }
-
 export function manaAbilityInfos(
   actions: Array<AvailableAction | PaymentAction>,
 ): ManaAbilityActionInfo[] {
@@ -39,7 +50,6 @@ export function manaAbilityInfos(
       : [],
   );
 }
-
 export function getInitials(name: string): string {
   return name
     .split(" ")
@@ -48,16 +58,13 @@ export function getInitials(name: string): string {
     .toUpperCase()
     .slice(0, 2);
 }
-
 export function getPromptLabel(promptType?: string): string {
-  if (!promptType) return "Waiting for your next decision";
+  if (!promptType) return i18n._(msg`Waiting for your next decision`);
   return PROMPT_LABELS[promptType] ?? promptType;
 }
-
 export function isCreature(card: Pick<CardRulesSummary, "types">): boolean {
   return card.types?.some((t) => t.toLowerCase() === "creature") ?? false;
 }
-
 export function isLethalDamage(card: CardDto, queuedDamage = 0): boolean {
   if (!card.toughness) return false;
   const total = (card.damage ?? 0) + queuedDamage;
@@ -65,9 +72,7 @@ export function isLethalDamage(card: CardDto, queuedDamage = 0): boolean {
   const toughness = parseInt(card.toughness, 10);
   return !isNaN(toughness) && total >= toughness;
 }
-
 export type ScryfallImageSize = "small" | "normal" | "large" | "png" | "border_crop" | "art_crop";
-
 /** CardDto view of a stack-resident source for rendering. `StackObjectDto.text`
  *  is a stack label rather than Oracle text, so the rules renderer hydrates
  *  rules and printed characteristics from the printing identity. */
@@ -84,13 +89,11 @@ export function stackObjectToCardStub(obj: StackObjectDto): ClientCardDto {
     isTransformed: obj.faceIndex === 1,
   };
 }
-
 export function stackObjectAbilityText(obj: StackObjectDto): string {
   const sourceAbilityText = obj.sourceAbilityText?.trim();
   if (sourceAbilityText) return sourceAbilityText;
   return obj.isPermanentSpell ? "" : obj.text.trim();
 }
-
 export function getPreviewActionShortcut(
   index: number,
   classLevelUpIndex: number | null,
@@ -101,7 +104,6 @@ export function getPreviewActionShortcut(
     index - (classLevelUpIndex !== null && classLevelUpIndex < index ? 1 : 0) + 1;
   return classLevel !== null && actionPosition >= classLevel ? actionPosition + 1 : actionPosition;
 }
-
 export interface CardChoiceIndicator {
   key: string;
   kind: CardChoiceDto["kind"];
@@ -109,7 +111,6 @@ export interface CardChoiceIndicator {
   description: string;
   colors: ManaColor[];
 }
-
 export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): CardChoiceIndicator[] {
   return (card.choices ?? []).map((choice, index) => {
     switch (choice.kind) {
@@ -119,7 +120,7 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
           key: `color-${index}`,
           kind: choice.kind,
           label,
-          description: `Chosen color: ${label}`,
+          description: i18n._(msg`Chosen color: ${label}`),
           colors: choice.colors,
         };
       }
@@ -129,7 +130,7 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
           key: `type-${index}`,
           kind: choice.kind,
           label,
-          description: `Chosen type: ${label}`,
+          description: i18n._(msg`Chosen type: ${label}`),
           colors: [],
         };
       }
@@ -139,17 +140,18 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
           key: `named-card-${index}`,
           kind: choice.kind,
           label,
-          description: `Named card: ${label}`,
+          description: i18n._(msg`Named card: ${label}`),
           colors: [],
         };
       }
       case "chosenCard": {
-        const label = `${choice.count} ${choice.count === 1 ? "card" : "cards"}`;
+        const label =
+          choice.count === 1 ? i18n._(msg`one card`) : i18n._(msg`${choice.count} cards`);
         return {
           key: `chosen-card-${index}`,
           kind: choice.kind,
           label,
-          description: `Chosen cards: ${choice.count}`,
+          description: i18n._(msg`Chosen cards: ${choice.count}`),
           colors: [],
         };
       }
@@ -158,7 +160,7 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
           key: `number-${index}`,
           kind: choice.kind,
           label: `#${choice.value}`,
-          description: `Chosen number: ${choice.value}`,
+          description: i18n._(msg`Chosen number: ${choice.value}`),
           colors: [],
         };
       case "mode":
@@ -166,7 +168,7 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
           key: `mode-${index}`,
           kind: choice.kind,
           label: choice.value,
-          description: `Chosen mode: ${choice.value}`,
+          description: i18n._(msg`Chosen mode: ${choice.value}`),
           colors: [],
         };
       case "player":
@@ -174,7 +176,7 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
           key: `player-${choice.playerId}`,
           kind: choice.kind,
           label: choice.name,
-          description: `Chosen player: ${choice.name}`,
+          description: i18n._(msg`Chosen player: ${choice.name}`),
           colors: [],
         };
     }

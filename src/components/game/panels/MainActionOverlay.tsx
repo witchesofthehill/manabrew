@@ -16,38 +16,51 @@ import { formatCombo } from "@/lib/keybindings";
 import { useIsMobileGame, useIsShortScreen } from "@/hooks/useBreakpoints";
 import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import { cn } from "@/lib/utils";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const NO_ACTION_VIEWS: PromptActionViewKey[] = ["noAction"];
-
 const PROMPT_TITLES: Partial<Record<string, string>> = {
-  chooseAction: "Priority",
-  chooseAttackers: "Declare Attackers",
-  chooseBlockers: "Declare Blockers",
-  chooseBoardTargets: "Choose Targets",
-  chooseDamageAssignmentOrder: "Damage Order",
-  payManaCost: "Pay Mana",
-  mulligan: "Mulligan",
-  mulliganPutBack: "Mulligan",
+  get chooseAction() {
+    return i18n._(msg`Priority`);
+  },
+  get chooseAttackers() {
+    return i18n._(msg`Declare Attackers`);
+  },
+  get chooseBlockers() {
+    return i18n._(msg`Declare Blockers`);
+  },
+  get chooseBoardTargets() {
+    return i18n._(msg`Choose Targets`);
+  },
+  get chooseDamageAssignmentOrder() {
+    return i18n._(msg`Damage Order`);
+  },
+  get payManaCost() {
+    return i18n._(msg`Pay Mana`);
+  },
+  get mulligan() {
+    return i18n._(msg`Mulligan`);
+  },
+  get mulliganPutBack() {
+    return i18n._(msg`Mulligan`);
+  },
 };
-
 const BUMP = {
   heightPx: 12,
   durationMs: 280,
   peak: 0.4,
   easing: "cubic-bezier(0.34, 1.56, 0.64, 1)",
 };
-
 const BUMP_OPTIONS: KeyframeAnimationOptions = {
   duration: BUMP.durationMs,
   easing: BUMP.easing,
 };
-
 function PriorityModePill() {
   const fullControl = usePromptPreferencesStore((s) => s.fullControl);
   const setFullControl = usePromptPreferencesStore((s) => s.setFullControl);
   const keyOverrides = useKeybindingsStore((s) => s.overrides);
   const toggleCombo = resolveCombo("toggle-priority-mode", keyOverrides);
-  const hint = toggleCombo ? ` (${formatCombo(toggleCombo)})` : "";
+  const hint = toggleCombo ? i18n._(msg` (${formatCombo(toggleCombo)})`) : "";
   const Icon = fullControl ? Hand : Zap;
   return (
     <button
@@ -56,8 +69,8 @@ function PriorityModePill() {
       aria-pressed={fullControl}
       title={
         fullControl
-          ? `Full control — you stop at every priority window${hint}`
-          : `Autopass: dead priority windows pass automatically${hint}`
+          ? i18n._(msg`Full control — you stop at every priority window${hint}`)
+          : i18n._(msg`Autopass: dead priority windows pass automatically${hint}`)
       }
       className={cn(
         "relative z-10 flex h-[22px] shrink-0 cursor-pointer items-center gap-1 rounded-full border px-2 text-[9px] leading-none font-bold tracking-[0.12em] shadow-sm transition-[color,background-color,border-color,transform] active:translate-y-px",
@@ -67,11 +80,10 @@ function PriorityModePill() {
       )}
     >
       <Icon className="h-3 w-3" strokeWidth={2.5} />
-      {fullControl ? "FULL CTRL" : "AUTOPASS"}
+      {fullControl ? i18n._(msg`FULL CTRL`) : i18n._(msg`AUTOPASS`)}
     </button>
   );
 }
-
 export function MainActionOverlay({
   promptType,
   isWaitingForResponse,
@@ -133,12 +145,10 @@ export function MainActionOverlay({
   const headerRef = useRef<HTMLDivElement>(null);
   const animRef = useRef<Animation | null>(null);
   const bumpRef = useRef<Animation | null>(null);
-
   if (promptType !== prevPromptType) {
     setPrevPromptType(promptType);
     setCollapsed(false);
   }
-
   const minimal = useIsMobileGame();
   const [contextRect, setContextRect] = useState<DOMRect | null>(null);
   const contextKey = `${promptType ?? ""}:${minimal}`;
@@ -155,7 +165,6 @@ export function MainActionOverlay({
     show: (_item, anchorRect) => setContextRect(anchorRect),
     hide: () => setContextRect(null),
   });
-
   const isNoActionView = promptActionOverride
     ? NO_ACTION_VIEWS.includes(promptActionOverride)
     : !promptType || isWaitingForOthers;
@@ -163,11 +172,12 @@ export function MainActionOverlay({
     ? promptActionOverride === "chooseAction" || promptActionOverride === "noAction"
     : isNoActionView || promptType === "chooseAction";
   const hasAction = !isNoActionView;
-  const title = hasAction ? (PROMPT_TITLES[promptType ?? ""] ?? "Action Required") : "Waiting";
+  const title = hasAction
+    ? (PROMPT_TITLES[promptType ?? ""] ?? i18n._(msg`Action Required`))
+    : i18n._(msg`Waiting`);
   const effectiveCollapsed = !minimal && hasAction && collapsed;
   const isRenderable =
     promptType !== "gameOver" && !!selfClusterMaxHeight && selfClusterMaxHeight > 0;
-
   const applyHeight = useCallback(() => {
     const body = bodyRef.current;
     const content = contentRef.current;
@@ -184,7 +194,6 @@ export function MainActionOverlay({
       easing: "cubic-bezier(0.33, 1, 0.68, 1)",
     });
   }, [effectiveCollapsed]);
-
   useEffect(() => {
     const content = contentRef.current;
     if (!content) return;
@@ -193,7 +202,6 @@ export function MainActionOverlay({
     ro.observe(content);
     return () => ro.disconnect();
   }, [applyHeight, isRenderable]);
-
   useEffect(() => {
     const bump = () => {
       const el = containerRef.current;
@@ -213,11 +221,8 @@ export function MainActionOverlay({
     window.addEventListener(ACTION_DRAWER_BUMP_EVENT, bump);
     return () => window.removeEventListener(ACTION_DRAWER_BUMP_EVENT, bump);
   }, []);
-
   const compact = useIsShortScreen();
-
   if (!isRenderable) return null;
-
   const currentPhaseIndex = PHASES.findIndex((phase) => phase.id === step);
   const passToPhaseShort =
     currentPhaseIndex >= 0
@@ -227,7 +232,6 @@ export function MainActionOverlay({
   const glow = awaitingTarget
     ? themeColors.promptAction.attackAction
     : themeColors.activeAction.priority;
-
   return (
     <div
       ref={containerRef}
@@ -279,8 +283,12 @@ export function MainActionOverlay({
                     "relative rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0 before:absolute before:-inset-2.5 before:content-['']",
                     !hasAction && "invisible",
                   )}
-                  title={collapsed ? "Expand" : "Collapse"}
-                  aria-label={collapsed ? "Expand action panel" : "Collapse action panel"}
+                  title={collapsed ? i18n._(msg`Expand`) : i18n._(msg`Collapse`)}
+                  aria-label={
+                    collapsed
+                      ? i18n._(msg`Expand action panel`)
+                      : i18n._(msg`Collapse action panel`)
+                  }
                   aria-expanded={!collapsed}
                   tabIndex={hasAction ? 0 : -1}
                 >

@@ -20,10 +20,11 @@ import { resolveCardFaces } from "@/lib/cardFaces";
 import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
 import { Input } from "@/components/ui/input";
 import { PREVIEW_SCENARIOS } from "./devPreviewScenarios";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const PLAYER_ID = "dev-playground";
 const DEV_MANA_ACTION_ID = "dev-mana";
-
 interface CardSpec {
   name: string;
   color: string;
@@ -37,7 +38,6 @@ interface CardSpec {
   supertypes?: string[];
   choices?: ClientCardDto["choices"];
 }
-
 const CREATURES: CardSpec[] = [
   {
     name: "Roaming Throne",
@@ -77,7 +77,6 @@ const CREATURES: CardSpec[] = [
     toughness: "6",
   },
 ];
-
 const LANDS: CardSpec[] = [
   {
     name: "Temple of the Dragon Queen",
@@ -88,15 +87,30 @@ const LANDS: CardSpec[] = [
   { name: "Steam Vents", color: "", types: ["Land"] },
   { name: "Forest", color: "", types: ["Land"], supertypes: ["Basic"], subtypes: ["Forest"] },
 ];
-
 const PREVIEW_VIEWPORTS = [
-  { label: "Desktop", width: undefined, height: "85dvh" },
-  { label: "Phone portrait", width: 390, height: 640 },
-  { label: "Phone landscape", width: 740, height: 340 },
+  {
+    get label() {
+      return i18n._(msg`Desktop`);
+    },
+    width: undefined,
+    height: "85dvh",
+  },
+  {
+    get label() {
+      return i18n._(msg`Phone portrait`);
+    },
+    width: 390,
+    height: 640,
+  },
+  {
+    get label() {
+      return i18n._(msg`Phone landscape`);
+    },
+    width: 740,
+    height: 340,
+  },
 ] as const;
-
 let seq = 0;
-
 function makeCard(spec: CardSpec): ClientCardDto {
   seq += 1;
   return {
@@ -121,7 +135,6 @@ function makeCard(spec: CardSpec): ClientCardDto {
     choices: spec.choices ?? [],
   };
 }
-
 const PHASE_STRIP_STUB: PhaseStripState = {
   currentStep: "Main",
   isActiveTurn: true,
@@ -138,7 +151,6 @@ const EMPTY_STACK: StackSpec = {
   showPreStackFlash: false,
   collapsed: true,
 };
-
 export function BoardPlayground() {
   const [cards, setCards] = useState<ClientCardDto[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -161,7 +173,6 @@ export function BoardPlayground() {
   const previewCard = cards.find((card) => card.id === preview.hoveredCard?.id) ?? null;
   const previewViewSwitchCardIdRef = useRef<string | null>(null);
   const viewport = PREVIEW_VIEWPORTS[viewportIndex]!;
-
   const openScenario = async (index: number, nameOverride?: string) => {
     const generation = ++loadGeneration.current;
     const scenario = PREVIEW_SCENARIOS[index]!;
@@ -233,14 +244,11 @@ export function BoardPlayground() {
       if (generation === loadGeneration.current) setLoadingScenario(false);
     }
   };
-
   const update = (id: string | null, fn: (c: ClientCardDto) => ClientCardDto) => {
     if (!id) return;
     setCards((cs) => cs.map((c) => (c.id === id ? fn(c) : c)));
   };
-
   const targetId = selectedId ?? cards[cards.length - 1]?.id ?? null;
-
   const addCreature = () =>
     setCards((cs) => [...cs, makeCard(CREATURES[cs.length % CREATURES.length]!)]);
   const addLand = () => setCards((cs) => [...cs, makeCard(LANDS[cs.length % LANDS.length]!)]);
@@ -264,20 +272,18 @@ export function BoardPlayground() {
     const card = cards.find((candidate) => candidate.id === targetId);
     if (card) preview.showSticky(card, window.innerWidth / 2, window.innerHeight / 2);
   };
-
   const previewActions = useMemo<HandActionOption[]>(() => {
     if (!previewCard) return [];
     return Array.from({ length: actionCount }, (_, index) => ({
       kind: "ability",
       cardId: previewCard.id,
       actionId: index === 0 ? DEV_MANA_ACTION_ID : `dev-action-${index}`,
-      label: index === 0 ? "Add {G}." : `Preview test action ${index + 1}.`,
+      label: index === 0 ? i18n._(msg`Add {G}.`) : i18n._(msg`Preview test action ${index + 1}.`),
       cost: index === 0 ? "{T}" : `{${index + 1}}`,
       isManaAbility: index === 0,
       abilityIndex: index,
     }));
   }, [previewCard, actionCount]);
-
   useEffect(() => {
     if (preview.phase !== "open") previewViewSwitchCardIdRef.current = null;
   }, [preview.phase]);
@@ -293,7 +299,6 @@ export function BoardPlayground() {
       preferences.inGameCardPreviewStyle === "printed" ? "rules" : "printed",
     );
   };
-
   const rulesPreview: BoardOverlayPreviewSpec | null =
     previewStyle === "rules" && previewCard && preview.phase !== "hidden"
       ? {
@@ -316,7 +321,6 @@ export function BoardPlayground() {
         }
       : {},
   );
-
   const handlePreviewAction = (action: HandActionOption) => {
     setLastAction(`Selected ${action.label} (${action.actionId})`);
     if (action.actionId === DEV_MANA_ACTION_ID) {
@@ -330,18 +334,16 @@ export function BoardPlayground() {
       counters: { ...(card.counters ?? {}), P1P1: (card.counters?.P1P1 ?? 0) + 1 },
     }));
   };
-
   const regions = useMemo(
     () => [{ playerId: PLAYER_ID, isLocal: true, state: { cards } }],
     [cards],
   );
-
   return (
     <div className="space-y-3">
       <div className="space-y-2 rounded-lg bg-muted p-3">
         <div className="flex flex-wrap items-center gap-2">
           <label className="text-sm font-medium" htmlFor="preview-scenario">
-            Preview scenario
+            <Trans>Preview scenario</Trans>
           </label>
           <select
             id="preview-scenario"
@@ -365,14 +367,14 @@ export function BoardPlayground() {
               )
             }
           >
-            Previous
+            <Trans>Previous</Trans>
           </Button>
           <Button
             size="sm"
             disabled={loadingScenario}
             onClick={() => void openScenario(scenarioIndex)}
           >
-            {loadingScenario ? "Loading card…" : "Open scenario"}
+            {loadingScenario ? i18n._(msg`Loading card\u2026`) : i18n._(msg`Open scenario`)}
           </Button>
           <Button
             size="sm"
@@ -380,7 +382,7 @@ export function BoardPlayground() {
             disabled={loadingScenario}
             onClick={() => void openScenario((scenarioIndex + 1) % PREVIEW_SCENARIOS.length)}
           >
-            Next
+            <Trans>Next</Trans>
           </Button>
         </div>
         <form
@@ -391,8 +393,8 @@ export function BoardPlayground() {
           }}
         >
           <Input
-            aria-label="Custom preview card name"
-            placeholder="Any card name"
+            aria-label={i18n._(msg`Custom preview card name`)}
+            placeholder={i18n._(msg`Any card name`)}
             value={customName}
             onChange={(event) => setCustomName(event.target.value)}
             className="max-w-72"
@@ -403,43 +405,49 @@ export function BoardPlayground() {
             type="submit"
             disabled={loadingScenario || !customName.trim()}
           >
-            Open card
+            <Trans>Open card</Trans>
           </Button>
           <label className="flex items-center gap-2 text-sm">
-            Test actions
-            <select
-              aria-label="Test action count"
-              className="h-9 rounded-md border border-input bg-background px-2"
-              value={actionCount}
-              onChange={(event) => setActionCount(Number(event.target.value))}
-            >
-              {[0, 2, 9].map((count) => (
-                <option key={count} value={count}>
-                  {count}
-                </option>
-              ))}
-            </select>
+            <Trans>
+              Test actions
+              <select
+                aria-label={i18n._(msg`Test action count`)}
+                className="h-9 rounded-md border border-input bg-background px-2"
+                value={actionCount}
+                onChange={(event) => setActionCount(Number(event.target.value))}
+              >
+                {[0, 2, 9].map((count) => (
+                  <option key={count} value={count}>
+                    {count}
+                  </option>
+                ))}
+              </select>
+            </Trans>
           </label>
           <label className="flex items-center gap-2 text-sm">
-            Viewport
-            <select
-              aria-label="Preview viewport"
-              className="h-9 rounded-md border border-input bg-background px-2"
-              value={viewportIndex}
-              onChange={(event) => setViewportIndex(Number(event.target.value))}
-            >
-              {PREVIEW_VIEWPORTS.map((size, index) => (
-                <option key={size.label} value={index}>
-                  {size.label}
-                </option>
-              ))}
-            </select>
+            <Trans>
+              Viewport
+              <select
+                aria-label={i18n._(msg`Preview viewport`)}
+                className="h-9 rounded-md border border-input bg-background px-2"
+                value={viewportIndex}
+                onChange={(event) => setViewportIndex(Number(event.target.value))}
+              >
+                {PREVIEW_VIEWPORTS.map((size, index) => (
+                  <option key={size.label} value={index}>
+                    {size.label}
+                  </option>
+                ))}
+              </select>
+            </Trans>
           </label>
         </form>
         <p className="text-xs text-muted-foreground">
-          Each scenario opens a real Scryfall card. Flip changes the displayed face; rotate switches
-          portrait and landscape without rotating rules text. Test actions are local playground
-          controls.
+          <Trans>
+            Each scenario opens a real Scryfall card. Flip changes the displayed face; rotate
+            switches portrait and landscape without rotating rules text. Test actions are local
+            playground controls.
+          </Trans>
         </p>
         {scenarioError && (
           <p role="alert" className="text-sm text-destructive">
@@ -454,30 +462,30 @@ export function BoardPlayground() {
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" onClick={addCreature}>
-          + Creature
+          <Trans>+ Creature</Trans>
         </Button>
         <Button size="sm" variant="outline" onClick={addLand}>
-          + Land
+          <Trans>+ Land</Trans>
         </Button>
         <span className="mx-1 h-5 w-px bg-border" />
         <Button size="sm" variant="outline" onClick={tap} disabled={!targetId}>
-          Tap
+          <Trans>Tap</Trans>
         </Button>
         <Button size="sm" variant="outline" onClick={damage} disabled={!targetId}>
-          Damage
+          <Trans>Damage</Trans>
         </Button>
         <Button size="sm" variant="outline" onClick={pump} disabled={!targetId}>
           +1/+1
         </Button>
         <Button size="sm" variant="outline" onClick={attack} disabled={!targetId}>
-          Attack
+          <Trans>Attack</Trans>
         </Button>
         <Button size="sm" variant="outline" onClick={removeTarget} disabled={!targetId}>
-          Remove
+          <Trans>Remove</Trans>
         </Button>
         <span className="mx-1 h-5 w-px bg-border" />
         <Button size="sm" variant="outline" onClick={triggerEtbGlow}>
-          Re-stomp all
+          <Trans>Re-stomp all</Trans>
         </Button>
         <Button
           size="sm"
@@ -489,7 +497,7 @@ export function BoardPlayground() {
           }}
           disabled={cards.length === 0}
         >
-          Clear
+          <Trans>Clear</Trans>
         </Button>
         <span className="mx-1 h-5 w-px bg-border" />
         <Button
@@ -497,23 +505,25 @@ export function BoardPlayground() {
           variant={previewStyle === "printed" ? "default" : "outline"}
           onClick={() => setPreviewStyle("printed")}
         >
-          Printed preview
+          <Trans>Printed preview</Trans>
         </Button>
         <Button
           size="sm"
           variant={previewStyle === "rules" ? "default" : "outline"}
           onClick={() => setPreviewStyle("rules")}
         >
-          Rules preview
+          <Trans>Rules preview</Trans>
         </Button>
         <Button size="sm" variant="outline" onClick={showSelectedPreview} disabled={!targetId}>
-          Open selected preview
+          <Trans>Open selected preview</Trans>
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        Click a card to select it (the action buttons target the selection, else the last card).
-        Card style follows the Realistic / Art-forward / Mini-frame toggle above; the In-game
-        Animations toggle lives in Settings.
+        <Trans>
+          Click a card to select it (the action buttons target the selection, else the last card).
+          Card style follows the Realistic / Art-forward / Mini-frame toggle above; the In-game
+          Animations toggle lives in Settings.
+        </Trans>
       </p>
       <div
         ref={boardRef}

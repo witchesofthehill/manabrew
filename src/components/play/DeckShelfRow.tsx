@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 
 interface DeckShelfRowProps {
   label: string;
@@ -56,7 +58,7 @@ export function DeckShelfRow({ label, children }: DeckShelfRowProps) {
         <Button
           size="icon"
           variant="secondary"
-          aria-label={`Scroll ${label} left`}
+          aria-label={i18n._(msg`Scroll ${label} left`)}
           onClick={() => scrollByPage(-1)}
           className="absolute -left-2 top-1/2 z-10 hidden h-8 w-8 -translate-y-1/2 rounded-full shadow-lg sm:inline-flex"
         >
@@ -67,7 +69,7 @@ export function DeckShelfRow({ label, children }: DeckShelfRowProps) {
         <Button
           size="icon"
           variant="secondary"
-          aria-label={`Scroll ${label} right`}
+          aria-label={i18n._(msg`Scroll ${label} right`)}
           onClick={() => scrollByPage(1)}
           className="absolute -right-2 top-1/2 z-10 hidden h-8 w-8 -translate-y-1/2 rounded-full shadow-lg sm:inline-flex"
         >

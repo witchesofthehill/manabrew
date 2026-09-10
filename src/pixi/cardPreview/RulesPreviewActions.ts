@@ -10,7 +10,7 @@ interface ActionsContent {
   width: number;
   maxHeight: number;
   theme: Theme;
-  actions: Array<{ action: HandActionOption; shortcut: number }>;
+  actions: Array<{ action: HandActionOption; shortcut: number; displayLabel?: string }>;
   controls: Array<{ label: string; activate: () => void }>;
   statuses: CardStatusPresentation[];
   hint: string;
@@ -58,10 +58,11 @@ function sameAction(left: HandActionOption, right: HandActionOption): boolean {
   );
 }
 
-function actionText(action: HandActionOption): string {
+function actionText(action: HandActionOption, displayLabel?: string): string {
+  const label = displayLabel ?? action.label;
   const cost = action.cost?.trim();
-  if (!cost || action.label.toLowerCase().startsWith(cost.toLowerCase())) return action.label;
-  return `${cost}: ${action.label}`;
+  if (!cost || label.toLowerCase().startsWith(cost.toLowerCase())) return label;
+  return `${cost}: ${label}`;
 }
 
 export class RulesPreviewActions extends Container {
@@ -175,7 +176,7 @@ export class RulesPreviewActions extends Container {
         key.position.set(12, 18);
         const label = new PixiRichText();
         const labelHeight = label.setContent(
-          actionText(entry.action),
+          actionText(entry.action, entry.displayLabel),
           textStyle(spec.theme.appTheme["popover-foreground"]),
           Math.max(1, this.contentWidth - 32),
           15,

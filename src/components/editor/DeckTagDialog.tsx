@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Check, Plus, Tag } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,7 +9,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface DeckTagDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -19,7 +20,6 @@ interface DeckTagDialogProps {
   onApply: (tag: string) => void;
   onCreateAndApply: (tag: string) => void;
 }
-
 export function DeckTagDialog({
   open,
   onOpenChange,
@@ -34,13 +34,11 @@ export function DeckTagDialog({
     [query, tags],
   );
   const exactMatch = tags.some((tag) => tag.toLowerCase() === query.trim().toLowerCase());
-
   function apply(tag: string) {
     onApply(tag);
     setQuery("");
     onOpenChange(false);
   }
-
   function createAndApply() {
     const tag = query.trim();
     if (!tag) return;
@@ -48,7 +46,6 @@ export function DeckTagDialog({
     setQuery("");
     onOpenChange(false);
   }
-
   return (
     <Dialog
       open={open}
@@ -59,10 +56,14 @@ export function DeckTagDialog({
     >
       <DialogContent className="max-w-sm gap-3">
         <DialogHeader>
-          <DialogTitle>Tag selected cards</DialogTitle>
+          <DialogTitle>
+            <Trans>Tag selected cards</Trans>
+          </DialogTitle>
           <DialogDescription>
-            Apply a role or custom group to {selectedCount} selected card
-            {selectedCount === 1 ? "" : "s"}.
+            <Trans>
+              Apply a role or custom group to {selectedCount} selected card
+              {selectedCount === 1 ? "" : "s"}.
+            </Trans>
           </DialogDescription>
         </DialogHeader>
         <div className="relative">
@@ -71,7 +72,7 @@ export function DeckTagDialog({
             autoFocus
             value={query}
             className="pl-9"
-            placeholder="Ramp, removal, combo…"
+            placeholder={i18n._(msg`Ramp, removal, combo\u2026`)}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
               if (event.key !== "Enter") return;
@@ -94,7 +95,9 @@ export function DeckTagDialog({
           ))}
           {query.trim() && !exactMatch && (
             <Button variant="ghost" className="w-full justify-start" onClick={createAndApply}>
-              <Plus className="mr-2 h-3.5 w-3.5" /> Create “{query.trim()}”
+              <Trans>
+                <Plus className="mr-2 h-3.5 w-3.5" /> Create “{query.trim()}”
+              </Trans>
             </Button>
           )}
         </div>

@@ -11,13 +11,14 @@ import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { JOIN_REJECTED_INCORRECT_PASSWORD } from "@/stores/useServerStore";
 import type { RoomInfo } from "@/types/server";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface JoinPasswordDialogProps {
   room: RoomInfo | null;
   onClose: () => void;
   onJoin: (room: RoomInfo, password: string) => Promise<void>;
 }
-
 export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialogProps) {
   const [password, setPassword] = useState("");
   const [focused, setFocused] = useState(false);
@@ -25,11 +26,9 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
   const [error, setError] = useState<string | null>(null);
   const [selection, setSelection] = useState({ start: 0, end: 0 });
   const inputRef = useRef<HTMLInputElement>(null);
-
   function syncSelection(el: HTMLInputElement) {
     setSelection({ start: el.selectionStart ?? 0, end: el.selectionEnd ?? 0 });
   }
-
   function close() {
     setPassword("");
     setError(null);
@@ -37,7 +36,6 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
     setSelection({ start: 0, end: 0 });
     onClose();
   }
-
   async function submit() {
     if (!room || password.length === 0 || submitting) return;
     setError(null);
@@ -57,15 +55,18 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
       setSubmitting(false);
     }
   }
-
   return (
     <Dialog open={room != null} onOpenChange={(open) => !open && close()}>
       <DialogContent className="max-w-sm">
         <DialogTitle className="flex items-center gap-2">
-          <Lock className="h-4 w-4" />
-          Password-Protected Table
+          <Trans>
+            <Lock className="h-4 w-4" />
+            Password-Protected Table
+          </Trans>
         </DialogTitle>
-        <DialogDescription>Enter the password to join {room?.room_name}.</DialogDescription>
+        <DialogDescription>
+          <Trans>Enter the password to join {room?.room_name}.</Trans>
+        </DialogDescription>
 
         <div className="space-y-1.5">
           <div
@@ -91,11 +92,13 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
               onKeyDown={(e) => {
                 if (e.key === "Enter") void submit();
               }}
-              aria-label="Password"
+              aria-label={i18n._(msg`Password`)}
               className="absolute inset-0 h-full w-full cursor-text opacity-0"
             />
             {password.length === 0 && !focused && (
-              <span className="text-sm text-muted-foreground">Enter password</span>
+              <span className="text-sm text-muted-foreground">
+                <Trans>Enter password</Trans>
+              </span>
             )}
             {password.split("").map((_, i) => {
               const isSelected = focused && i >= selection.start && i < selection.end;
@@ -122,10 +125,10 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
 
         <DialogFooter>
           <Button variant="ghost" onClick={close} disabled={submitting}>
-            Cancel
+            <Trans>Cancel</Trans>
           </Button>
           <Button onClick={() => void submit()} disabled={password.length === 0 || submitting}>
-            {submitting ? "Joining…" : "Join"}
+            {submitting ? i18n._(msg`Joining\u2026`) : i18n._(msg`Join`)}
           </Button>
         </DialogFooter>
       </DialogContent>

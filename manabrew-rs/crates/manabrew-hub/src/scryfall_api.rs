@@ -11,7 +11,7 @@ use axum::response::{IntoResponse, Response};
 
 use crate::routes::AppState;
 
-const REQUEST_INTERVAL: Duration = Duration::from_millis(300);
+const REQUEST_INTERVAL: Duration = Duration::from_millis(500);
 const CACHE_TTL: Duration = Duration::from_secs(5 * 60);
 const CACHE_CAPACITY: usize = 512;
 const CLIENT_WINDOW: Duration = Duration::from_secs(60);
@@ -185,6 +185,20 @@ impl IntoResponse for CachedResponse {
     }
 }
 
+fn valid_collector_path(set: &str, collector_number: &str) -> bool {
+    !set.is_empty()
+        && set.len() <= 20
+        && !collector_number.is_empty()
+        && collector_number.len() <= 30
+}
+
+fn valid_language(language: &str) -> bool {
+    (2..=3).contains(&language.len())
+        && language
+            .chars()
+            .all(|character| character.is_ascii_lowercase())
+}
+
 fn allowed(method: &Method, path: &str) -> bool {
     if method == Method::POST {
         return path == "cards/collection";
@@ -195,11 +209,9 @@ fn allowed(method: &Method, path: &str) -> bool {
     let segments = path.split('/').collect::<Vec<_>>();
     let exact_card = match segments.as_slice() {
         ["cards", id] => is_scryfall_id(id),
-        ["cards", set, collector_number] => {
-            !set.is_empty()
-                && set.len() <= 20
-                && !collector_number.is_empty()
-                && collector_number.len() <= 30
+        ["cards", set, collector_number] => valid_collector_path(set, collector_number),
+        ["cards", set, collector_number, language] => {
+            valid_collector_path(set, collector_number) && valid_language(language)
         }
         _ => false,
     };

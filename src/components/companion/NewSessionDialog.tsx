@@ -23,7 +23,7 @@ import {
 } from "@/stores/useCompanionStore.constants";
 import type { CompanionLayout } from "@/stores/useCompanionStore.types";
 import { LayoutIcon } from "./LayoutIcon";
-
+import { Trans } from "@lingui/react/macro";
 interface NewSessionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -37,7 +37,6 @@ interface NewSessionDialogProps {
     oathbreaker?: boolean;
   }) => void;
 }
-
 export function NewSessionDialog({
   open,
   onOpenChange,
@@ -48,7 +47,9 @@ export function NewSessionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>New game</DialogTitle>
+          <DialogTitle>
+            <Trans>New game</Trans>
+          </DialogTitle>
         </DialogHeader>
         {open && (
           <NewSessionForm
@@ -61,7 +62,6 @@ export function NewSessionDialog({
     </Dialog>
   );
 }
-
 function NewSessionForm({
   hasExistingSession,
   onCancel,
@@ -79,21 +79,17 @@ function NewSessionForm({
   );
   const [carryRoster, setCarryRoster] = useState(hasExistingSession);
   const [oathbreaker, setOathbreaker] = useState(false);
-
   const updatePlayerCount = (n: number) => {
     setPlayerCount(n);
     setLayout(COMPANION_DEFAULT_LAYOUT_BY_COUNT[n] ?? "free");
   };
-
   const updateCommanderRules = (enabled: boolean) => {
     setCommanderRules(enabled);
     if (enabled && startingLife < COMPANION_COMMANDER_STARTING_LIFE) {
       setStartingLife(COMPANION_COMMANDER_STARTING_LIFE);
     }
   };
-
   const layoutChoices = COMPANION_LAYOUT_OPTIONS[playerCount] ?? ["free"];
-
   const applyPreset = (preset: "standard" | "commander" | "brawl") => {
     if (preset === "standard") {
       setStartingLife(20);
@@ -114,30 +110,33 @@ function NewSessionForm({
         : commanderRules && startingLife === 30
           ? "brawl"
           : null;
-
   return (
     <>
       <div className="space-y-4">
         <div className="space-y-1">
-          <Label>Format preset</Label>
+          <Label>
+            <Trans>Format preset</Trans>
+          </Label>
           <div className="flex flex-wrap gap-1.5">
             <PillButton active={presetMatch === "standard"} onClick={() => applyPreset("standard")}>
-              Standard (20)
+              <Trans>Standard (20)</Trans>
             </PillButton>
             <PillButton
               active={presetMatch === "commander"}
               onClick={() => applyPreset("commander")}
             >
-              Commander (40)
+              <Trans>Commander (40)</Trans>
             </PillButton>
             <PillButton active={presetMatch === "brawl"} onClick={() => applyPreset("brawl")}>
-              Brawl (30)
+              <Trans>Brawl (30)</Trans>
             </PillButton>
           </div>
         </div>
 
         <div className="space-y-1">
-          <Label>Players</Label>
+          <Label>
+            <Trans>Players</Trans>
+          </Label>
           <div className="flex flex-wrap gap-1.5">
             {Array.from(
               { length: COMPANION_MAX_PLAYERS - COMPANION_MIN_PLAYERS + 1 },
@@ -151,7 +150,9 @@ function NewSessionForm({
         </div>
 
         <div className="space-y-1">
-          <Label>Starting life</Label>
+          <Label>
+            <Trans>Starting life</Trans>
+          </Label>
           <div className="flex flex-wrap items-center gap-1.5">
             {COMPANION_STARTING_LIFE_PRESETS.map((value) => (
               <PillButton
@@ -174,27 +175,33 @@ function NewSessionForm({
         </div>
 
         <label className="flex cursor-pointer items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={commanderRules}
-            onChange={(e) => updateCommanderRules(e.target.checked)}
-            className="size-4 accent-primary"
-          />
-          Commander rules (40 life, 21 cmd damage lethal)
+          <Trans>
+            <input
+              type="checkbox"
+              checked={commanderRules}
+              onChange={(e) => updateCommanderRules(e.target.checked)}
+              className="size-4 accent-primary"
+            />
+            Commander rules (40 life, 21 cmd damage lethal)
+          </Trans>
         </label>
 
         <label className="flex cursor-pointer items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={oathbreaker}
-            onChange={(e) => setOathbreaker(e.target.checked)}
-            className="size-4 accent-primary"
-          />
-          Oathbreaker (partner slot becomes Signature Spell)
+          <Trans>
+            <input
+              type="checkbox"
+              checked={oathbreaker}
+              onChange={(e) => setOathbreaker(e.target.checked)}
+              className="size-4 accent-primary"
+            />
+            Oathbreaker (partner slot becomes Signature Spell)
+          </Trans>
         </label>
 
         <div className="space-y-1">
-          <Label>Layout</Label>
+          <Label>
+            <Trans>Layout</Trans>
+          </Label>
           <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
             {layoutChoices.map((option) => (
               <LayoutCard
@@ -210,19 +217,21 @@ function NewSessionForm({
 
         {hasExistingSession && (
           <label className="flex cursor-pointer items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={carryRoster}
-              onChange={(e) => setCarryRoster(e.target.checked)}
-              className="size-4 accent-primary"
-            />
-            Keep names, colors and commanders from current game
+            <Trans>
+              <input
+                type="checkbox"
+                checked={carryRoster}
+                onChange={(e) => setCarryRoster(e.target.checked)}
+                className="size-4 accent-primary"
+              />
+              Keep names, colors and commanders from current game
+            </Trans>
           </label>
         )}
       </div>
       <DialogFooter>
         <Button variant="ghost" onClick={onCancel}>
-          Cancel
+          <Trans>Cancel</Trans>
         </Button>
         <Button
           onClick={() =>
@@ -236,13 +245,12 @@ function NewSessionForm({
             })
           }
         >
-          Start game
+          <Trans>Start game</Trans>
         </Button>
       </DialogFooter>
     </>
   );
 }
-
 function LayoutCard({
   active,
   onClick,
@@ -273,7 +281,6 @@ function LayoutCard({
     </button>
   );
 }
-
 function PillButton({
   active,
   onClick,

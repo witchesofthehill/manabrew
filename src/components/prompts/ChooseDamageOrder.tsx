@@ -5,7 +5,9 @@ import {
   usePromptActionColors,
 } from "@/components/prompts/internal/promptActionTheme";
 import type { ChooseDamageOrderProps } from "./internal/types";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export function ChooseDamageOrder({
   isWaitingForResponse,
   orderedCount,
@@ -17,15 +19,14 @@ export function ChooseDamageOrder({
   const promptActionColors = usePromptActionColors();
   const actionStyle = getPromptActionButtonStyle(promptActionColors.attackAction);
   const isComplete = orderedCount >= totalCount && totalCount > 0;
-
   return (
     <div className="flex w-3/5 flex-col gap-1.5">
       <p className="text-xs italic text-muted-foreground text-center">
         {orderedCount === 0
-          ? "Click blockers in the order damage is dealt."
+          ? i18n._(msg`Click blockers in the order damage is dealt.`)
           : isComplete
-            ? "Order set — confirm to deal damage."
-            : `Click the next blocker (${orderedCount}/${totalCount}).`}
+            ? i18n._(msg`Order set \u2014 confirm to deal damage.`)
+            : i18n._(msg`Click the next blocker (${orderedCount}/${totalCount}).`)}
       </p>
       <div className="flex gap-1.5">
         <Button
@@ -36,7 +37,7 @@ export function ChooseDamageOrder({
           disabled={isWaitingForResponse}
           style={actionStyle}
         >
-          AUTO
+          <Trans>AUTO</Trans>
         </Button>
         {orderedCount > 0 && (
           <Button
@@ -47,7 +48,7 @@ export function ChooseDamageOrder({
             disabled={isWaitingForResponse}
             style={actionStyle}
           >
-            UNDO
+            <Trans>UNDO</Trans>
           </Button>
         )}
       </div>
@@ -60,8 +61,10 @@ export function ChooseDamageOrder({
           disabled={isWaitingForResponse}
           style={actionStyle}
         >
-          <Swords className="h-3.5 w-3.5" />
-          CONFIRM ORDER
+          <Trans>
+            <Swords className="h-3.5 w-3.5" />
+            CONFIRM ORDER
+          </Trans>
         </Button>
       )}
     </div>

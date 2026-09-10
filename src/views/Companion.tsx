@@ -11,7 +11,7 @@ import { PhaseStrip } from "@/components/companion/PhaseStrip";
 import { StatsDialog } from "@/components/companion/StatsDialog";
 import { WinBanner } from "@/components/companion/WinBanner";
 import { useCompanionStore } from "@/stores/useCompanionStore";
-
+import { Trans } from "@lingui/react/macro";
 export default function Companion() {
   const session = useCompanionStore((s) => s.session);
   const newSession = useCompanionStore((s) => s.newSession);
@@ -20,7 +20,6 @@ export default function Companion() {
   const [newOpen, setNewOpen] = useState(false);
   const [focus, setFocus] = useState(false);
   const [chromeInFocus, setChromeInFocus] = useState(false);
-
   // Wrap the focus setter so leaving focus mode also clears the peek flag,
   // without needing an effect that calls setState (which the React-hooks
   // lint rules don't allow).
@@ -28,7 +27,6 @@ export default function Companion() {
     setFocus(next);
     if (!next) setChromeInFocus(false);
   };
-
   // Keep focus state in sync with the browser's fullscreen state so Esc /
   // the system gesture drops us back into the chrome'd view automatically.
   useEffect(() => {
@@ -39,26 +37,31 @@ export default function Companion() {
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, [focus]);
-
   if (!session) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
         <GameIcon icon="healing" className="size-14 text-muted-foreground" />
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold">Start tracking</h2>
+          <h2 className="text-xl font-semibold">
+            <Trans>Start tracking</Trans>
+          </h2>
           <p className="max-w-sm text-sm text-muted-foreground">
-            Track life, counters, commander damage and table layout for paper play. One device
-            passes around the table.
+            <Trans>
+              Track life, counters, commander damage and table layout for paper play. One device
+              passes around the table.
+            </Trans>
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setNewOpen(true)}>Start a game</Button>
+          <Button onClick={() => setNewOpen(true)}>
+            <Trans>Start a game</Trans>
+          </Button>
           <StatsDialog />
         </div>
         {archive.length > 0 && (
           <div className="mt-4 w-full max-w-sm space-y-1 text-left">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Recent games
+              <Trans>Recent games</Trans>
             </p>
             <ul className="divide-y divide-border rounded-md border border-border">
               {archive.slice(0, 5).map((archived) => (
@@ -66,7 +69,9 @@ export default function Companion() {
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm">{archived.tag || "Untitled game"}</div>
                     <div className="text-[10px] text-muted-foreground">
-                      {new Date(archived.createdAt).toLocaleString()} · {archived.players.length}p
+                      <Trans>
+                        {new Date(archived.createdAt).toLocaleString()} · {archived.players.length}p
+                      </Trans>
                     </div>
                   </div>
                   <Button
@@ -74,7 +79,7 @@ export default function Companion() {
                     variant="outline"
                     onClick={() => restoreFromArchive(archived.id)}
                   >
-                    Resume
+                    <Trans>Resume</Trans>
                   </Button>
                 </li>
               ))}
@@ -94,9 +99,7 @@ export default function Companion() {
       </div>
     );
   }
-
   const showChrome = !focus || chromeInFocus;
-
   return (
     <div
       className={cn(

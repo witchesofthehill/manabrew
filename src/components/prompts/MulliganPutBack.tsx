@@ -8,14 +8,15 @@ import { usePromptActionColors } from "@/components/prompts/internal/promptActio
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { PromptActionButton } from "./PromptActionButton";
 import { MulliganButton } from "./MulliganButton";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export interface MulliganPutBackProps {
   isWaitingForResponse: boolean;
   count: number;
   selectedCount: number;
   onConfirm: () => void;
 }
-
 export function MulliganPutBack({
   isWaitingForResponse,
   count,
@@ -25,7 +26,6 @@ export function MulliganPutBack({
   const colors = usePromptActionColors();
   const minimal = useIsMobileGame();
   const canConfirm = selectedCount === count && !isWaitingForResponse;
-
   if (minimal) {
     return (
       <div className="flex flex-row items-center justify-center gap-1.5">
@@ -33,7 +33,7 @@ export function MulliganPutBack({
           {selectedCount}/{count}
         </span>
         <PromptActionButton
-          label="Confirm"
+          label={i18n._(msg`Confirm`)}
           icon={<Check className="h-3.5 w-3.5" />}
           baseColor={colors.defenseAction}
           onClick={onConfirm}
@@ -42,16 +42,17 @@ export function MulliganPutBack({
       </div>
     );
   }
-
   return (
     <div className="flex w-3/5 flex-col gap-1.5">
       <p className="text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {selectedCount}/{count} to library bottom
+        <Trans>
+          {selectedCount}/{count} to library bottom
+        </Trans>
       </p>
       <MulliganButton
         className="w-full"
         color={colors.defenseAction}
-        label="CONFIRM"
+        label={i18n._(msg`CONFIRM`)}
         icon={<Check className="h-3.5 w-3.5" />}
         onClick={onConfirm}
         disabled={!canConfirm}

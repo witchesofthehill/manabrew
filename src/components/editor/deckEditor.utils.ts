@@ -4,14 +4,13 @@ import type React from "react";
 import type { GameIconName } from "@/components/game/GameIcon";
 import type { DeckCard } from "@/protocol/deck";
 import { canBeSignatureSpell } from "@/lib/formats";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export interface CommanderSlot {
   noun: string;
   icon: GameIconName;
 }
-
 export const DEFAULT_COMMANDER_SLOT: CommanderSlot = { noun: "commander", icon: "overlord-helm" };
-
 /** What a card's command-zone action is called in this format — Oathbreaker
  *  splits it into the oathbreaker and the signature spell. */
 export function commanderSlotFor(card: DeckCard | undefined, deckFormat?: string): CommanderSlot {
@@ -20,30 +19,46 @@ export function commanderSlotFor(card: DeckCard | undefined, deckFormat?: string
     ? { noun: "signature spell", icon: "scroll-quill" }
     : { noun: "oathbreaker", icon: "overlord-helm" };
 }
-
 export interface OverlayAction {
   label: string;
   icon: LucideIcon;
   onClick: () => void;
   variant?: "primary" | "ghost";
 }
-
 export function buildCardActions(
   onAddOne: () => void,
   onRemoveOne: () => void,
   onUntag?: () => void,
 ): OverlayAction[] {
   const actions: OverlayAction[] = [
-    { label: "Add", icon: Plus, onClick: onAddOne, variant: "primary" },
+    {
+      get label() {
+        return i18n._(msg`Add`);
+      },
+      icon: Plus,
+      onClick: onAddOne,
+      variant: "primary",
+    },
   ];
   if (onUntag) {
-    actions.push({ label: "Untag", icon: Tag, onClick: onUntag });
+    actions.push({
+      get label() {
+        return i18n._(msg`Untag`);
+      },
+      icon: Tag,
+      onClick: onUntag,
+    });
   } else {
-    actions.push({ label: "Remove", icon: Minus, onClick: onRemoveOne });
+    actions.push({
+      get label() {
+        return i18n._(msg`Remove`);
+      },
+      icon: Minus,
+      onClick: onRemoveOne,
+    });
   }
   return actions;
 }
-
 export function handleCardClick(
   e: React.MouseEvent,
   cardName: string,
@@ -59,7 +74,6 @@ export function handleCardClick(
     onShowInfo();
   }
 }
-
 export function handleCardContextClick(
   e: React.MouseEvent,
   cardName: string,

@@ -4,7 +4,8 @@ import { usePromptActionColors } from "@/components/prompts/internal/promptActio
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { cn } from "@/lib/utils";
 import type { ChooseBlockersProps } from "./internal/types";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export function ChooseBlockers({
   isWaitingForResponse,
   pendingAttacker,
@@ -17,13 +18,12 @@ export function ChooseBlockers({
   onDeclareBlockers,
 }: ChooseBlockersProps) {
   const hint = pendingAttacker
-    ? "Attacker selected — click your blocker."
+    ? i18n._(msg`Attacker selected \u2014 click your blocker.`)
     : pendingBlocker
-      ? "Blocker selected — click the attacker to block."
+      ? i18n._(msg`Blocker selected \u2014 click the attacker to block.`)
       : null;
   const promptActionColors = usePromptActionColors();
   const minimal = useIsMobileGame();
-
   return (
     <div className="flex flex-col items-center gap-1.5">
       {(blockError || blockRequirementError) && (
@@ -48,7 +48,7 @@ export function ChooseBlockers({
       <div className="flex flex-row items-center justify-center gap-1.5">
         {blockAssignments.length > 0 && (
           <PromptActionButton
-            label={`Block ${blockAssignments.length}`}
+            label={i18n._(msg`Block ${blockAssignments.length}`)}
             icon={<Shield className="h-3.5 w-3.5" />}
             baseColor={promptActionColors.defenseAction}
             badge={minimal ? String(blockAssignments.length) : undefined}
@@ -57,7 +57,7 @@ export function ChooseBlockers({
           />
         )}
         <PromptActionButton
-          label="No Blocks"
+          label={i18n._(msg`No Blocks`)}
           icon={<Ban className="h-3.5 w-3.5" />}
           variant="outline"
           baseColor={promptActionColors.cancel}

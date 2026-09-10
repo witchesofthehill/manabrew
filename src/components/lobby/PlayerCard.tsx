@@ -14,9 +14,14 @@ import { useHubAvailable } from "@/hooks/useHubAvailable";
 import { cn } from "@/lib/utils";
 import { stripUsernameTag } from "@/lib/username";
 import type { PlayerInfo } from "@/types/server";
-
-const QUALIFICATION_LABEL: Record<string, string> = { maintainer: "Maintainer" };
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
+const QUALIFICATION_LABEL: Record<string, string> = {
+  get maintainer() {
+    return i18n._(msg`Maintainer`);
+  },
+};
 interface PlayerCardProps {
   player: PlayerInfo;
   status: ReactNode;
@@ -24,7 +29,6 @@ interface PlayerCardProps {
   side?: "left" | "right" | "top" | "bottom";
   children: ReactNode;
 }
-
 export function PlayerCard({ player, status, action, side = "left", children }: PlayerCardProps) {
   const name = stripUsernameTag(player.username);
   const tag = player.username.slice(name.length);
@@ -79,7 +83,9 @@ export function PlayerCard({ player, status, action, side = "left", children }: 
                     className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
                     onClick={() => setReporting(true)}
                   >
-                    <Flag className="h-3.5 w-3.5" /> Report
+                    <Trans>
+                      <Flag className="h-3.5 w-3.5" /> Report
+                    </Trans>
                   </Button>
                 )}
                 {action}

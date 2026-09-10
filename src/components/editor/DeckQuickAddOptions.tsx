@@ -1,5 +1,4 @@
 import { Bookmark, Plus, X } from "lucide-react";
-
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,10 +7,12 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { scryfallDisplayName } from "@/lib/scryfall.utils";
 import type { ScryfallCard } from "@/types/scryfall";
-
 import type { DeckQuickAddRequest } from "./deckQuickAdd.parser";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface DeckQuickAddOptionsProps {
   card: ScryfallCard;
   quantity: number;
@@ -24,7 +25,6 @@ interface DeckQuickAddOptionsProps {
   onAdd: () => void;
   onClose: () => void;
 }
-
 export function DeckQuickAddOptions({
   card,
   quantity,
@@ -38,11 +38,11 @@ export function DeckQuickAddOptions({
   onClose,
 }: DeckQuickAddOptionsProps) {
   const thumbnail = card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small;
+  const displayName = scryfallDisplayName(card);
   const availableTags = [...tags, ...customTags].filter(
     (tag, index, all) =>
       all.findIndex((candidate) => candidate.toLowerCase() === tag.toLowerCase()) === index,
   );
-
   function toggleTag(tag: string) {
     const selected = tags.some((candidate) => candidate.toLowerCase() === tag.toLowerCase());
     onTagsChange(
@@ -51,7 +51,6 @@ export function DeckQuickAddOptions({
         : [...tags, tag],
     );
   }
-
   return (
     <div className="absolute left-0 top-full z-50 mt-1 min-w-80 rounded-md border bg-popover p-2 text-popover-foreground shadow-lg">
       <div className="mb-2 flex items-center gap-2">
@@ -63,15 +62,17 @@ export function DeckQuickAddOptions({
           />
         )}
         <div className="min-w-0 flex-1">
-          <div className="truncate text-xs font-medium">{card.name}</div>
-          <div className="text-[10px] text-muted-foreground">Configure addition</div>
+          <div className="truncate text-xs font-medium">{displayName}</div>
+          <div className="text-[10px] text-muted-foreground">
+            <Trans>Configure addition</Trans>
+          </div>
         </div>
         <Button
           type="button"
           size="icon"
           variant="ghost"
           className="h-7 w-7"
-          title="Close options"
+          title={i18n._(msg`Close options`)}
           onClick={onClose}
         >
           <X className="h-3 w-3" />
@@ -86,7 +87,7 @@ export function DeckQuickAddOptions({
             max={99}
             value={quantity}
             className="w-8 bg-transparent text-center text-xs font-medium text-foreground outline-none"
-            title="Quantity"
+            title={i18n._(msg`Quantity`)}
             onChange={(event) =>
               onQuantityChange(Math.max(1, Math.min(99, Number(event.target.value) || 1)))
             }
@@ -99,14 +100,20 @@ export function DeckQuickAddOptions({
         <select
           value={destination}
           className="h-7 shrink-0 rounded border bg-background px-1 text-xs outline-none focus:ring-1 focus:ring-ring"
-          title="Deck section"
+          title={i18n._(msg`Deck section`)}
           onChange={(event) =>
             onDestinationChange(event.target.value as DeckQuickAddRequest["destination"])
           }
         >
-          <option value="main">Main</option>
-          <option value="side">Side</option>
-          <option value="maybe">Maybe</option>
+          <option value="main">
+            <Trans>Main</Trans>
+          </option>
+          <option value="side">
+            <Trans>Side</Trans>
+          </option>
+          <option value="maybe">
+            <Trans>Maybe</Trans>
+          </option>
         </select>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -115,10 +122,10 @@ export function DeckQuickAddOptions({
               size="sm"
               variant="outline"
               className="h-7 shrink-0 gap-1 px-2"
-              title="Choose deck tags"
+              title={i18n._(msg`Choose deck tags`)}
             >
               <Bookmark className="h-3 w-3" />
-              {tags.length > 0 ? tags.length : "Tag"}
+              {tags.length > 0 ? tags.length : i18n._(msg`Tag`)}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-44">
@@ -134,13 +141,17 @@ export function DeckQuickAddOptions({
                 </DropdownMenuCheckboxItem>
               ))
             ) : (
-              <div className="px-2 py-1.5 text-xs text-muted-foreground">No deck tags yet</div>
+              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                <Trans>No deck tags yet</Trans>
+              </div>
             )}
           </DropdownMenuContent>
         </DropdownMenu>
         <Button type="button" size="sm" className="h-7 shrink-0 gap-1 px-2" onClick={onAdd}>
-          <Plus className="h-3 w-3" />
-          Add {quantity}
+          <Trans>
+            <Plus className="h-3 w-3" />
+            Add {quantity}
+          </Trans>
         </Button>
       </div>
     </div>

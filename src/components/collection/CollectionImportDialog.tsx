@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, ClipboardPaste, FileUp, Loader2, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
-
 import { verifyCardPrintings } from "@/api/hub";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,20 +18,28 @@ import {
   previewCollectionImport,
   type CollectionImportMapping,
 } from "@/lib/collectionImport";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface CollectionImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImport: (quantities: Record<string, number>, mode: "merge" | "replace") => Promise<void>;
 }
-
 const SOURCE_LABELS = {
-  manabox: "ManaBox",
-  moxfield: "Moxfield",
-  archidekt: "Archidekt",
-  generic: "Custom CSV",
+  get manabox() {
+    return i18n._(msg`ManaBox`);
+  },
+  get moxfield() {
+    return i18n._(msg`Moxfield`);
+  },
+  get archidekt() {
+    return i18n._(msg`Archidekt`);
+  },
+  get generic() {
+    return i18n._(msg`Custom CSV`);
+  },
 };
-
 function printingValidationKey(
   name: string,
   setCode: string,
@@ -41,7 +48,6 @@ function printingValidationKey(
 ): string {
   return collectionCardKey(name, setCode, collectorNumber, foil);
 }
-
 export function CollectionImportDialog({
   open,
   onOpenChange,
@@ -91,7 +97,6 @@ export function CollectionImportDialog({
       ),
     [exactRows],
   );
-
   useEffect(() => {
     let active = true;
     if (uniqueExactRows.length === 0) {
@@ -151,7 +156,6 @@ export function CollectionImportDialog({
       active = false;
     };
   }, [printingValidationAttempt, uniqueExactRows]);
-
   const validatedPreview = useMemo(
     () =>
       preview.map((row) => {
@@ -185,7 +189,6 @@ export function CollectionImportDialog({
     () => collectionQuantitiesFromPreview(validatedPreview),
     [validatedPreview],
   );
-
   function loadText(nextText: string, nextFileName = "Pasted data") {
     const nextParsed = parseCollectionFile(nextText);
     setText(nextText);
@@ -193,30 +196,27 @@ export function CollectionImportDialog({
     setMapping(nextParsed.mapping);
     setPreviewFilter("all");
   }
-
   async function pasteFromClipboard() {
     try {
       const clipboard = await navigator.clipboard.readText();
       if (clipboard.trim()) loadText(clipboard);
     } catch {
-      toast.error("Couldn't read the clipboard — paste into a file instead");
+      toast.error(i18n._(msg`Couldn't read the clipboard \u2014 paste into a file instead`));
     }
   }
-
   async function applyImport() {
     if (Object.keys(imported).length === 0 || saving) return;
     setSaving(true);
     try {
       await onImport(imported, mode);
-      toast.success(`Imported ${Object.keys(imported).length} collection entries`);
+      toast.success(i18n._(msg`Imported ${Object.keys(imported).length} collection entries`));
       resetAndClose();
     } catch {
-      toast.error("Collection import failed");
+      toast.error(i18n._(msg`Collection import failed`));
     } finally {
       setSaving(false);
     }
   }
-
   function resetAndClose() {
     setText("");
     setFileName("");
@@ -231,11 +231,9 @@ export function CollectionImportDialog({
     setPreviewFilter("all");
     onOpenChange(false);
   }
-
   function closeDialog() {
     if (!saving) resetAndClose();
   }
-
   return (
     <Dialog
       open={open}
@@ -246,10 +244,14 @@ export function CollectionImportDialog({
     >
       <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Import collection</DialogTitle>
+          <DialogTitle>
+            <Trans>Import collection</Trans>
+          </DialogTitle>
           <DialogDescription>
-            Import ManaBox, Moxfield, Archidekt, or any CSV/TSV file. Review and customize the
-            columns before saving. Set and collector number preserve each exact printing.
+            <Trans>
+              Import ManaBox, Moxfield, Archidekt, or any CSV/TSV file. Review and customize the
+              columns before saving. Set and collector number preserve each exact printing.
+            </Trans>
           </DialogDescription>
         </DialogHeader>
 
@@ -273,8 +275,12 @@ export function CollectionImportDialog({
               onClick={() => fileInput.current?.click()}
             >
               <FileUp className="h-8 w-8 text-primary" />
-              <span className="font-medium">Choose an export file</span>
-              <span className="text-xs text-muted-foreground">CSV, TSV, or text</span>
+              <span className="font-medium">
+                <Trans>Choose an export file</Trans>
+              </span>
+              <span className="text-xs text-muted-foreground">
+                <Trans>CSV, TSV, or text</Trans>
+              </span>
             </button>
             <button
               type="button"
@@ -282,8 +288,12 @@ export function CollectionImportDialog({
               onClick={() => void pasteFromClipboard()}
             >
               <ClipboardPaste className="h-8 w-8 text-primary" />
-              <span className="font-medium">Paste from clipboard</span>
-              <span className="text-xs text-muted-foreground">Copy rows from a spreadsheet</span>
+              <span className="font-medium">
+                <Trans>Paste from clipboard</Trans>
+              </span>
+              <span className="text-xs text-muted-foreground">
+                <Trans>Copy rows from a spreadsheet</Trans>
+              </span>
             </button>
           </div>
         ) : (
@@ -292,30 +302,32 @@ export function CollectionImportDialog({
               <div>
                 <p className="text-sm font-medium">{fileName}</p>
                 <p className="text-xs text-muted-foreground">
-                  {SOURCE_LABELS[parsed.source]} · {parsed.rows.length} rows detected
+                  <Trans>
+                    {SOURCE_LABELS[parsed.source]} · {parsed.rows.length} rows detected
+                  </Trans>
                 </p>
               </div>
               <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
-                Choose another file
+                <Trans>Choose another file</Trans>
               </Button>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <ColumnPicker
-                label="Card name"
+                label={i18n._(msg`Card name`)}
                 required
                 headers={parsed.headers}
                 value={mapping.nameColumn}
                 onChange={(nameColumn) => setMapping((current) => ({ ...current, nameColumn }))}
               />
               <ColumnPicker
-                label="Set code"
+                label={i18n._(msg`Set code`)}
                 headers={parsed.headers}
                 value={mapping.setColumn}
                 onChange={(setColumn) => setMapping((current) => ({ ...current, setColumn }))}
               />
               <ColumnPicker
-                label="Collector number"
+                label={i18n._(msg`Collector number`)}
                 headers={parsed.headers}
                 value={mapping.collectorNumberColumn}
                 onChange={(collectorNumberColumn) =>
@@ -323,16 +335,16 @@ export function CollectionImportDialog({
                 }
               />
               <ColumnPicker
-                label="Foil"
+                label={i18n._(msg`Foil`)}
                 headers={parsed.headers}
                 value={mapping.foilColumn}
                 onChange={(foilColumn) => setMapping((current) => ({ ...current, foilColumn }))}
               />
               <ColumnPicker
-                label="Quantity"
+                label={i18n._(msg`Quantity`)}
                 headers={parsed.headers}
                 value={mapping.quantityColumn}
-                noneLabel="Use 1 for every row"
+                noneLabel={i18n._(msg`Use 1 for every row`)}
                 onChange={(quantityColumn) =>
                   setMapping((current) => ({ ...current, quantityColumn }))
                 }
@@ -341,7 +353,9 @@ export function CollectionImportDialog({
 
             <div className="space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold">Import preview</h3>
+                <h3 className="text-sm font-semibold">
+                  <Trans>Import preview</Trans>
+                </h3>
                 <div className="flex items-center gap-3 text-xs">
                   {printingValidationError && (
                     <Button
@@ -350,36 +364,42 @@ export function CollectionImportDialog({
                       className="h-6 px-2 text-xs"
                       onClick={() => setPrintingValidationAttempt((attempt) => attempt + 1)}
                     >
-                      Retry verification
+                      <Trans>Retry verification</Trans>
                     </Button>
                   )}
                   <span className="flex items-center gap-1 text-legality-legal">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> {validRows.length} ready
+                    <Trans>
+                      <CheckCircle2 className="h-3.5 w-3.5" /> {validRows.length} ready
+                    </Trans>
                   </span>
                   {invalidRows > 0 && (
                     <span className="flex items-center gap-1 text-destructive">
-                      <TriangleAlert className="h-3.5 w-3.5" /> {invalidRows} skipped
+                      <Trans>
+                        <TriangleAlert className="h-3.5 w-3.5" /> {invalidRows} skipped
+                      </Trans>
                     </span>
                   )}
                 </div>
               </div>
               {exactRows.length > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Exact printings are verified with Scryfall before import. Large collections may
-                  take a while to finish checking.
-                  {validatingPrintings && printingValidationProgress.total > 0
-                    ? ` ${printingValidationProgress.completed.toLocaleString()}/${printingValidationProgress.total.toLocaleString()} checked.`
-                    : ""}
+                  <Trans>
+                    Exact printings are verified with Scryfall before import. Large collections may
+                    take a while to finish checking.
+                    {validatingPrintings && printingValidationProgress.total > 0
+                      ? ` ${printingValidationProgress.completed.toLocaleString()}/${printingValidationProgress.total.toLocaleString()} checked.`
+                      : ""}
+                  </Trans>
                 </p>
               )}
-              <div className="flex flex-wrap gap-1" aria-label="Filter import preview">
+              <div className="flex flex-wrap gap-1" aria-label={i18n._(msg`Filter import preview`)}>
                 <Button
                   size="sm"
                   variant={previewFilter === "all" ? "secondary" : "ghost"}
                   className="h-7 px-2.5 text-xs"
                   onClick={() => setPreviewFilter("all")}
                 >
-                  All {validatedPreview.length}
+                  <Trans>All {validatedPreview.length}</Trans>
                 </Button>
                 <Button
                   size="sm"
@@ -387,7 +407,7 @@ export function CollectionImportDialog({
                   className="h-7 px-2.5 text-xs text-legality-legal"
                   onClick={() => setPreviewFilter("ready")}
                 >
-                  Ready {validRows.length}
+                  <Trans>Ready {validRows.length}</Trans>
                 </Button>
                 <Button
                   size="sm"
@@ -395,19 +415,31 @@ export function CollectionImportDialog({
                   className="h-7 px-2.5 text-xs text-destructive"
                   onClick={() => setPreviewFilter("skipped")}
                 >
-                  Skipped {invalidRows}
+                  <Trans>Skipped {invalidRows}</Trans>
                 </Button>
               </div>
               <div className="max-h-64 overflow-auto rounded-lg border">
                 <table className="w-full text-left text-xs">
                   <thead className="sticky top-0 bg-background">
                     <tr className="border-b text-muted-foreground">
-                      <th className="px-3 py-2 font-medium">Row</th>
-                      <th className="px-3 py-2 font-medium">Card name</th>
-                      <th className="px-3 py-2 font-medium">Printing</th>
-                      <th className="px-3 py-2 font-medium">Finish</th>
-                      <th className="px-3 py-2 text-right font-medium">Quantity</th>
-                      <th className="px-3 py-2 font-medium">Status</th>
+                      <th className="px-3 py-2 font-medium">
+                        <Trans>Row</Trans>
+                      </th>
+                      <th className="px-3 py-2 font-medium">
+                        <Trans>Card name</Trans>
+                      </th>
+                      <th className="px-3 py-2 font-medium">
+                        <Trans>Printing</Trans>
+                      </th>
+                      <th className="px-3 py-2 font-medium">
+                        <Trans>Finish</Trans>
+                      </th>
+                      <th className="px-3 py-2 text-right font-medium">
+                        <Trans>Quantity</Trans>
+                      </th>
+                      <th className="px-3 py-2 font-medium">
+                        <Trans>Status</Trans>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -418,10 +450,14 @@ export function CollectionImportDialog({
                         <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
                           {row.setCode && row.collectorNumber
                             ? `${row.setCode.toUpperCase()} #${row.collectorNumber}`
-                            : "Any printing"}
+                            : i18n._(msg`Any printing`)}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
-                          {row.foil === true ? "Foil" : row.foil === false ? "Non-foil" : "—"}
+                          {row.foil === true
+                            ? i18n._(msg`Foil`)
+                            : row.foil === false
+                              ? i18n._(msg`Non-foil`)
+                              : "—"}
                         </td>
                         <td className="px-3 py-2 text-right font-mono">
                           {row.valid ? row.quantity : "—"}
@@ -433,14 +469,18 @@ export function CollectionImportDialog({
                               : "px-3 py-2 text-destructive"
                           }
                         >
-                          {row.valid ? "Ready" : row.reason}
+                          {row.valid ? i18n._(msg`Ready`) : row.reason}
                         </td>
                       </tr>
                     ))}
                     {filteredPreview.length === 0 && (
                       <tr>
                         <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
-                          No {previewFilter === "all" ? "" : `${previewFilter} `}rows to show.
+                          {previewFilter === "all"
+                            ? i18n._(msg`No rows to show.`)
+                            : previewFilter === "ready"
+                              ? i18n._(msg`No ready rows to show.`)
+                              : i18n._(msg`No skipped rows to show.`)}
                         </td>
                       </tr>
                     )}
@@ -449,25 +489,29 @@ export function CollectionImportDialog({
               </div>
               {filteredPreview.length > 100 && (
                 <p className="text-xs text-muted-foreground">
-                  Showing the first 100 of {filteredPreview.length} {previewFilter} rows. All valid
-                  rows will be imported.
+                  <Trans>
+                    Showing the first 100 of {filteredPreview.length} {previewFilter} rows. All
+                    valid rows will be imported.
+                  </Trans>
                 </p>
               )}
             </div>
 
             <fieldset className="space-y-2">
-              <legend className="text-sm font-semibold">Import behavior</legend>
+              <legend className="text-sm font-semibold">
+                <Trans>Import behavior</Trans>
+              </legend>
               <div className="grid gap-2 sm:grid-cols-2">
                 <ImportMode
                   checked={mode === "merge"}
-                  title="Add to collection"
-                  description="Add imported quantities to cards you already own."
+                  title={i18n._(msg`Add to collection`)}
+                  description={i18n._(msg`Add imported quantities to cards you already own.`)}
                   onChange={() => setMode("merge")}
                 />
                 <ImportMode
                   checked={mode === "replace"}
-                  title="Replace collection"
-                  description="Remove current entries and use only this import."
+                  title={i18n._(msg`Replace collection`)}
+                  description={i18n._(msg`Remove current entries and use only this import.`)}
                   onChange={() => setMode("replace")}
                 />
               </div>
@@ -477,7 +521,7 @@ export function CollectionImportDialog({
 
         <DialogFooter>
           <Button variant="ghost" onClick={closeDialog} disabled={saving}>
-            Cancel
+            <Trans>Cancel</Trans>
           </Button>
           {parsed && (
             <Button
@@ -491,10 +535,10 @@ export function CollectionImportDialog({
             >
               {(saving || validatingPrintings) && <Loader2 className="h-4 w-4 animate-spin" />}
               {saving
-                ? "Importing…"
+                ? i18n._(msg`Importing\u2026`)
                 : validatingPrintings
-                  ? "Checking printings…"
-                  : `Import ${Object.keys(imported).length} entries`}
+                  ? i18n._(msg`Checking printings\u2026`)
+                  : i18n._(msg`Import ${Object.keys(imported).length} entries`)}
             </Button>
           )}
         </DialogFooter>
@@ -502,7 +546,6 @@ export function CollectionImportDialog({
     </Dialog>
   );
 }
-
 function ColumnPicker({
   label,
   required = false,
@@ -538,7 +581,6 @@ function ColumnPicker({
     </label>
   );
 }
-
 function ImportMode({
   checked,
   title,

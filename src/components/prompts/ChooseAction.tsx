@@ -13,7 +13,8 @@ import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { cn } from "@/lib/utils";
 import { AUTOPASS_DELAY_MIN_MS, AUTOPASS_DELAY_MAX_MS } from "@/components/game/game.constants";
 import type { ChooseActionProps } from "./internal/types";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 function AutopassFill({ onDone }: { onDone: () => void }) {
   const fillRef = useRef<HTMLDivElement>(null);
   const onDoneRef = useRef(onDone);
@@ -40,7 +41,6 @@ function AutopassFill({ onDone }: { onDone: () => void }) {
     />
   );
 }
-
 function useComboModifiersHeld(combo: KeyCombo | null): boolean {
   const [held, setHeld] = useState(false);
   const c = combo ? normalizeCombo(combo) : undefined;
@@ -72,7 +72,6 @@ function useComboModifiersHeld(combo: KeyCombo | null): boolean {
   }, [modsKey]);
   return modsKey ? held : false;
 }
-
 export function ChooseAction({
   isWaitingForResponse,
   onPassPriority,
@@ -85,23 +84,24 @@ export function ChooseAction({
   const { counting } = useAutopass();
   const stackEmpty = useGameStore((s) => (s.gameView?.stack?.length ?? 0) === 0);
   const keyOverrides = useKeybindingsStore((s) => s.overrides);
-
   const passCombo = resolveCombo("pass-priority", keyOverrides);
   const endTurnCombo = resolveCombo("pass-end-of-turn", keyOverrides);
-
-  const endTurnLabel = stackEmpty ? (isMyTurn ? "END TURN" : "NEXT TURN") : "RESOLVE STACK";
+  const endTurnLabel = stackEmpty
+    ? isMyTurn
+      ? i18n._(msg`END TURN`)
+      : i18n._(msg`NEXT TURN`)
+    : i18n._(msg`RESOLVE STACK`);
   const endTurnTitle = stackEmpty
     ? isMyTurn
-      ? "Pass until end of turn"
-      : "Pass until the next turn"
-    : "Pass until the stack is empty";
+      ? i18n._(msg`Pass until end of turn`)
+      : i18n._(msg`Pass until the next turn`)
+    : i18n._(msg`Pass until the stack is empty`);
   const endTurnHeld = useComboModifiersHeld(endTurnCombo);
   const morphed = endTurnHeld;
-  const label = morphed ? endTurnLabel : counting ? "PASSING" : "PASS";
+  const label = morphed ? endTurnLabel : counting ? i18n._(msg`PASSING`) : i18n._(msg`PASS`);
   const onClick = morphed ? onPassEndTurn : onPassPriority;
   const title = morphed ? endTurnTitle : undefined;
   const chip = morphed ? endTurnCombo : passCombo;
-
   if (minimal) {
     return (
       <div className="flex items-center gap-1">
@@ -129,7 +129,6 @@ export function ChooseAction({
       </div>
     );
   }
-
   return (
     <div className="flex w-full flex-col py-1">
       <div

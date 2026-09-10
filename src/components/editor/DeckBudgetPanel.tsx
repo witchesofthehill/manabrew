@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { CircleDollarSign } from "lucide-react";
-
 import { Input } from "@/components/ui/input";
 import { scryfallCardKey } from "@/api/scryfall";
 import { useDeckStore } from "@/stores/useDeckStore";
@@ -9,10 +8,11 @@ import { executeDeckEdit } from "./deckEditor.history";
 import { useDeckEditTransaction } from "./useDeckEditTransaction";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { ScryfallCard } from "@/types/scryfall";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 type PriceProvider = "tcgplayer" | "cardmarket" | "cardhoarder";
 type CardPrices = ScryfallCard["prices"];
-
 const PRICE_PROVIDERS: Record<
   PriceProvider,
   {
@@ -23,29 +23,34 @@ const PRICE_PROVIDERS: Record<
   }
 > = {
   tcgplayer: {
-    label: "TCGplayer",
+    get label() {
+      return i18n._(msg`TCGplayer`);
+    },
     unit: "$",
     getPrice: (prices, foil) => (foil ? prices.usd_foil : prices.usd),
   },
   cardmarket: {
-    label: "Cardmarket",
+    get label() {
+      return i18n._(msg`Cardmarket`);
+    },
     unit: "€",
     getPrice: (prices, foil) => (foil ? prices.eur_foil : prices.eur),
   },
   cardhoarder: {
-    label: "Cardhoarder",
+    get label() {
+      return i18n._(msg`Cardhoarder`);
+    },
     unit: "",
     suffix: " tix",
     getPrice: (prices) => prices.tix,
   },
 };
-
 export function DeckBudgetPanel() {
   const deck = useDeckStore((state) => state.currentDeck);
   const setEditorMetadata = useDeckStore((state) => state.setEditorMetadata);
   const [prices, setPrices] = useState<Record<string, CardPrices>>({});
   const provider: PriceProvider = deck.editor?.priceProvider ?? "tcgplayer";
-  const budgetEdit = useDeckEditTransaction("Update deck budget");
+  const budgetEdit = useDeckEditTransaction(i18n._(msg`Update deck budget`));
   const providerConfig = PRICE_PROVIDERS[provider];
   const printings = useMemo(
     () =>
@@ -57,7 +62,6 @@ export function DeckBudgetPanel() {
       })),
     [deck.cards, deck.commanders, deck.sideboard],
   );
-
   useEffect(() => {
     if (printings.length === 0) return;
     let active = true;
@@ -80,7 +84,6 @@ export function DeckBudgetPanel() {
       active = false;
     };
   }, [printings]);
-
   const { total, unavailable } = printings.reduce(
     (result, card) => {
       const cardPrices = prices[scryfallCardKey(card.name, card.setCode, card.collectorNumber)];
@@ -95,7 +98,6 @@ export function DeckBudgetPanel() {
   const overBudget = budget !== undefined && total > budget;
   const formatPrice = (value: number) =>
     `${providerConfig.unit}${value.toFixed(2)}${providerConfig.suffix ?? ""}`;
-
   function updateEditorMetadata(updates: { budgetAmount?: number; priceProvider?: PriceProvider }) {
     setEditorMetadata({
       ...deck.editor,
@@ -105,54 +107,59 @@ export function DeckBudgetPanel() {
       ...updates,
     });
   }
-
   return (
     <section className={EDITOR_PANEL_CLASS}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <CircleDollarSign className="h-4 w-4 text-primary" />
           <div>
-            <h3 className="text-sm font-semibold">Deck budget</h3>
+            <h3 className="text-sm font-semibold">
+              <Trans>Deck budget</Trans>
+            </h3>
             <p className="text-[10px] text-muted-foreground">
-              Current selected printings · {PRICE_PROVIDERS[provider].label}
+              <Trans>Current selected printings · {PRICE_PROVIDERS[provider].label}</Trans>
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            Provider
-            <select
-              value={provider}
-              className="h-8 rounded-md border bg-background px-2 text-xs"
-              onChange={(event) =>
-                executeDeckEdit("Change price provider", () =>
-                  updateEditorMetadata({ priceProvider: event.target.value as PriceProvider }),
-                )
-              }
-            >
-              {Object.entries(PRICE_PROVIDERS).map(([id, option]) => (
-                <option key={id} value={id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <Trans>
+              Provider
+              <select
+                value={provider}
+                className="h-8 rounded-md border bg-background px-2 text-xs"
+                onChange={(event) =>
+                  executeDeckEdit(i18n._(msg`Change price provider`), () =>
+                    updateEditorMetadata({ priceProvider: event.target.value as PriceProvider }),
+                  )
+                }
+              >
+                {Object.entries(PRICE_PROVIDERS).map(([id, option]) => (
+                  <option key={id} value={id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </Trans>
           </label>
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            Limit
-            <Input
-              type="number"
-              min="0"
-              step="5"
-              className="h-8 w-24 text-right font-mono"
-              value={budget ?? ""}
-              placeholder="None"
-              onFocus={budgetEdit.begin}
-              onChange={(event) => {
-                const value = event.target.value ? Number(event.target.value) : undefined;
-                updateEditorMetadata({ budgetAmount: value });
-              }}
-              onBlur={budgetEdit.commit}
-            />
+            <Trans>
+              Limit
+              <Input
+                type="number"
+                min="0"
+                step="5"
+                className="h-8 w-24 text-right font-mono"
+                value={budget ?? ""}
+                placeholder={i18n._(msg`None`)}
+                onFocus={budgetEdit.begin}
+                onChange={(event) => {
+                  const value = event.target.value ? Number(event.target.value) : undefined;
+                  updateEditorMetadata({ budgetAmount: value });
+                }}
+                onBlur={budgetEdit.commit}
+              />
+            </Trans>
           </label>
           <div className="text-right">
             <p className={`font-mono text-xl font-semibold ${overBudget ? "text-warning" : ""}`}>
@@ -161,13 +168,15 @@ export function DeckBudgetPanel() {
             {budget !== undefined && (
               <p className="text-[10px] text-muted-foreground">
                 {overBudget
-                  ? `${formatPrice(total - budget)} over`
-                  : `${formatPrice(budget - total)} left`}
+                  ? i18n._(msg`${formatPrice(total - budget)} over`)
+                  : i18n._(msg`${formatPrice(budget - total)} left`)}
               </p>
             )}
             {unavailable > 0 && (
               <p className="text-[10px] text-muted-foreground">
-                {unavailable} {unavailable === 1 ? "card" : "cards"} unavailable
+                {unavailable === 1
+                  ? i18n._(msg`One card unavailable`)
+                  : i18n._(msg`${unavailable} cards unavailable`)}
               </p>
             )}
           </div>

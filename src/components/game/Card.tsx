@@ -17,20 +17,31 @@ import { deriveCardRailState } from "@/components/game/cardRailState";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const TOKEN_LABELS: Record<string, string> = {
-  "Blood Token": "BLOOD",
-  "Treasure Token": "TREASURE",
-  "Food Token": "FOOD",
-  "Clue Token": "CLUE",
-  "Map Token": "MAP",
-  "Powerstone Token": "PWRSTONE",
+  get "Blood Token"() {
+    return i18n._(msg`BLOOD`);
+  },
+  get "Treasure Token"() {
+    return i18n._(msg`TREASURE`);
+  },
+  get "Food Token"() {
+    return i18n._(msg`FOOD`);
+  },
+  get "Clue Token"() {
+    return i18n._(msg`CLUE`);
+  },
+  get "Map Token"() {
+    return i18n._(msg`MAP`);
+  },
+  get "Powerstone Token"() {
+    return i18n._(msg`PWRSTONE`);
+  },
 };
-
 function getTokenLabel(name: string): string {
-  return TOKEN_LABELS[name] ?? "TOKEN";
+  return TOKEN_LABELS[name] ?? i18n._(msg`TOKEN`);
 }
-
 function CardBadge({ label, style }: { label: string; style: string }) {
   return (
     <div className={CARD_BANNER_CONTAINER}>
@@ -38,9 +49,10 @@ function CardBadge({ label, style }: { label: string; style: string }) {
     </div>
   );
 }
-
 interface CardProps {
-  card: CardDto & { zoneId?: string };
+  card: CardDto & {
+    zoneId?: string;
+  };
   className?: string;
   style?: CSSProperties;
   isTapped?: boolean;
@@ -53,7 +65,6 @@ interface CardProps {
    * counters, badges, P/T). For pickers showing library/hidden-zone cards. */
   bare?: boolean;
 }
-
 function CardComponent({
   card,
   className,
@@ -67,12 +78,10 @@ function CardComponent({
   const [hasError, setHasError] = useState(false);
   const { deckCard, cardFaces, imageUrl: resolveImageUrl } = useResolvedGameCard(card);
   const faceIndex = showBackFace ? 1 : 0;
-
   const faceless = isFacelessCard(card);
   const imageUrl = faceless ? CARD_BACK_IMAGE_URL : resolveImageUrl(faceIndex, resolution);
   const displayName = faceless ? "Face-down card" : card.identity.name;
   const themeColors = useTheme().gameTheme;
-
   const creature = isCreature(card);
   const lethal = isLethalDamage(card);
   const onBattlefield = card.zoneId === "battlefield";
@@ -84,7 +93,6 @@ function CardComponent({
           Object.entries(card.counters).filter(([type, count]) => count > 0 && type !== "Lore"),
         )
       : card.counters;
-
   const ptStyle = useMemo(() => {
     const fg = themeColors.textOnTinted;
     if (lethal) return { backgroundColor: themeColors.pt.lethal, color: fg };
@@ -106,14 +114,12 @@ function CardComponent({
       color: fg,
     };
   }, [lethal, card.basePower, card.power, card.toughness, card.baseToughness, themeColors]);
-
   const horizontal = isHorizontalGameCard(
     card,
     deckCard.layout,
     faceIndex,
     cardFaces.faces[faceIndex]?.typeLine,
   );
-
   return (
     <div
       className={cn(
@@ -296,7 +302,6 @@ function CardComponent({
     </div>
   );
 }
-
 function shallowStyleEqual(a: CSSProperties | undefined, b: CSSProperties | undefined): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
@@ -308,7 +313,6 @@ function shallowStyleEqual(a: CSSProperties | undefined, b: CSSProperties | unde
   }
   return true;
 }
-
 function arraysEqual(a: string[] | undefined, b: string[] | undefined): boolean {
   if (a === b) return true;
   if (!a || !b || a.length !== b.length) return false;
@@ -317,7 +321,6 @@ function arraysEqual(a: string[] | undefined, b: string[] | undefined): boolean 
   }
   return true;
 }
-
 export const Card = memo(CardComponent, (prev, next) => {
   if (
     prev.className !== next.className ||

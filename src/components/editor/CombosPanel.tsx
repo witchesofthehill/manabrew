@@ -10,20 +10,18 @@ import { scryfallToDeckCard, frontFaceName } from "@/lib/scryfall.utils";
 import { ComboDetailModal } from "./ComboDetailModal";
 import type { SpellbookCombo } from "@/api/commanderSpellbook";
 import { EDITOR_PANEL_CLASS } from "./deckEditor.styles";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const SUGGESTION_LIMIT = 12;
-
 const WIN_PATTERN =
   /win the game|wins the game|lose the game|loses the game|each opponent loses|infinite damage/i;
-
 function isWinCombo(combo: SpellbookCombo): boolean {
   return combo.produces.some((p) => WIN_PATTERN.test(p.feature.name));
 }
-
 function producesLabel(combo: SpellbookCombo): string {
-  return combo.produces.map((p) => p.feature.name).join(", ") || "combo";
+  return combo.produces.map((p) => p.feature.name).join(", ") || i18n._(msg`combo`);
 }
-
 function ComboRow({
   combo,
   onOpen,
@@ -61,7 +59,7 @@ function ComboRow({
       </button>
       <span
         className="flex shrink-0 items-center gap-0.5 rounded bg-counter-charge/15 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-counter-charge"
-        title={`${combo.uses.length}-card combo`}
+        title={i18n._(msg`${combo.uses.length}-card combo`)}
       >
         <Layers className="h-3 w-3" />
         {combo.uses.length}
@@ -84,7 +82,6 @@ function ComboRow({
     </div>
   );
 }
-
 export function CombosPanel() {
   const [openCombo, setOpenCombo] = useState<SpellbookCombo | null>(null);
   const currentDeck = useDeckStore((s) => s.currentDeck);
@@ -92,17 +89,14 @@ export function CombosPanel() {
   const included = useDeckAnalysisStore((s) => s.included);
   const almostIncluded = useDeckAnalysisStore((s) => s.almostIncluded);
   const loading = useDeckAnalysisStore((s) => s.loading);
-
   const winCombos = useMemo(() => included.filter(isWinCombo), [included]);
   const otherCombos = useMemo(() => included.filter((c) => !isWinCombo(c)), [included]);
-
   const deckNames = useMemo(() => {
     const set = new Set<string>();
     for (const c of currentDeck.cards) set.add(normalizeCardName(c.identity.name));
     for (const c of currentDeck.commanders ?? []) set.add(normalizeCardName(c.identity.name));
     return set;
   }, [currentDeck.cards, currentDeck.commanders]);
-
   const suggestions = useMemo(() => {
     return almostIncluded
       .map((combo) => ({
@@ -115,29 +109,32 @@ export function CombosPanel() {
       .sort((a, b) => (b.combo.popularity ?? 0) - (a.combo.popularity ?? 0))
       .slice(0, SUGGESTION_LIMIT);
   }, [almostIncluded, deckNames]);
-
   async function handleAdd(name: string) {
     try {
       const sc = await useScryfallStore.getState().getCard({ name: frontFaceName(name) });
       const base = scryfallToDeckCard(sc.info);
       addToMain({ ...base, identity: { ...base.identity, id: crypto.randomUUID() } });
-      toast.success(`Added ${name}`);
+      toast.success(i18n._(msg`Added ${name}`));
     } catch {
-      toast.error(`Couldn't add ${name}`);
+      toast.error(i18n._(msg`Couldn't add ${name}`));
     }
   }
-
   if (!loading && included.length === 0 && suggestions.length === 0) return null;
-
   return (
     <>
       <section className={EDITOR_PANEL_CLASS}>
         <div className="flex items-center gap-2.5">
           <Sparkles className="h-4 w-4 text-counter-charge shrink-0" />
-          <h3 className="text-base font-semibold">Combos</h3>
+          <h3 className="text-base font-semibold">
+            <Trans>Combos</Trans>
+          </h3>
           <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground/70">
             {loading && <Loader2 className="h-3 w-3 animate-spin" />}
-            {included.length > 0 && <span>{included.length} in deck</span>}
+            {included.length > 0 && (
+              <span>
+                <Trans>{included.length} in deck</Trans>
+              </span>
+            )}
           </div>
         </div>
 
@@ -145,7 +142,7 @@ export function CombosPanel() {
           {winCombos.length > 0 && (
             <div className="space-y-2">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-warning/80">
-                Win lines
+                <Trans>Win lines</Trans>
               </span>
               <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                 {winCombos.map((combo) => (
@@ -176,7 +173,7 @@ export function CombosPanel() {
               {otherCombos.length > 0 && (
                 <div className="min-w-0 space-y-2">
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-counter-charge/80">
-                    In your deck
+                    <Trans>In your deck</Trans>
                   </span>
                   <div className="space-y-2">
                     {otherCombos.map((combo) => (
@@ -196,7 +193,7 @@ export function CombosPanel() {
               {suggestions.length > 0 && (
                 <div className="min-w-0 space-y-2">
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                    One card away
+                    <Trans>One card away</Trans>
                   </span>
                   <div className="space-y-2">
                     {suggestions.map(({ combo, missing }) => (
@@ -206,9 +203,9 @@ export function CombosPanel() {
                         onOpen={setOpenCombo}
                         icon={<Sparkles className="h-3.5 w-3.5" />}
                         title={producesLabel(combo)}
-                        subtitle={`Needs ${missing[0]}`}
+                        subtitle={i18n._(msg`Needs ${missing[0]}`)}
                         onAdd={() => handleAdd(missing[0])}
-                        addLabel={`Add ${missing[0]} to deck`}
+                        addLabel={i18n._(msg`Add ${missing[0]} to deck`)}
                       />
                     ))}
                   </div>
@@ -218,11 +215,13 @@ export function CombosPanel() {
           )}
 
           {!loading && included.length === 0 && suggestions.length === 0 && (
-            <p className="text-xs text-muted-foreground italic">No combos detected yet.</p>
+            <p className="text-xs text-muted-foreground italic">
+              <Trans>No combos detected yet.</Trans>
+            </p>
           )}
 
           <p className="text-[10px] text-muted-foreground/50">
-            Combo data from Commander Spellbook.
+            <Trans>Combo data from Commander Spellbook.</Trans>
           </p>
         </div>
       </section>

@@ -36,25 +36,24 @@ import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { CardDto } from "@/protocol/game";
 import type { Deck, DeckCard } from "@/protocol/deck";
 import type { ScryfallCard } from "@/types/scryfall";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 function matchesManaValue(card: DeckCard, filter: BrowserManaValueFilter): boolean {
   if (filter === "all") return true;
   if (filter === "7+") return card.cmc >= 7;
   return Math.round(card.cmc) === Number(filter);
 }
-
 function matchesColorIdentity(card: DeckCard, colors: string[]): boolean {
   if (colors.length === 0) return true;
   return colors.some((color) =>
     color === "C" ? card.colorIdentity.length === 0 : card.colorIdentity.includes(color),
   );
 }
-
 function matchesCardType(card: DeckCard, cardType: BrowserCardTypeFilter): boolean {
   if (cardType === "all") return true;
   return card.types.some((type) => type.toLowerCase() === cardType);
 }
-
 function BrowserCardRow({
   group,
   onOpen,
@@ -89,7 +88,6 @@ function BrowserCardRow({
     </button>
   );
 }
-
 function BrowserVisualCard({
   group,
   width,
@@ -106,7 +104,11 @@ function BrowserVisualCard({
   return (
     <button
       type="button"
-      aria-label={`${group.card.identity.name}, ${group.count} ${group.count === 1 ? "copy" : "copies"}`}
+      aria-label={
+        group.count === 1
+          ? i18n._(msg`${group.card.identity.name}, one copy`)
+          : i18n._(msg`${group.card.identity.name}, ${group.count} copies`)
+      }
       data-card-name={group.card.identity.name}
       className="group relative shrink-0 rounded-lg text-left transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:hover:translate-y-0"
       style={{ width }}
@@ -123,7 +125,6 @@ function BrowserVisualCard({
     </button>
   );
 }
-
 function BrowserStackColumn({
   label,
   groups,
@@ -147,7 +148,6 @@ function BrowserStackColumn({
     index * peek + (hoveredIndex !== null && index > hoveredIndex ? spread : 0);
   const height = groups.length === 0 ? 0 : topFor(groups.length - 1) + Math.round(width * 1.4);
   const count = groups.reduce((total, group) => total + group.count, 0);
-
   return (
     <div className="shrink-0" style={{ width }}>
       <SectionHeader label={label} count={count} />
@@ -156,7 +156,11 @@ function BrowserStackColumn({
           <button
             key={group.card.identity.name}
             type="button"
-            aria-label={`${group.card.identity.name}, ${group.count} ${group.count === 1 ? "copy" : "copies"}`}
+            aria-label={
+              group.count === 1
+                ? i18n._(msg`${group.card.identity.name}, one copy`)
+                : i18n._(msg`${group.card.identity.name}, ${group.count} copies`)
+            }
             data-card-name={group.card.identity.name}
             className="absolute left-0 rounded-lg text-left transition-[top,transform] duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
             style={{ top: topFor(index), width, zIndex: index + 1 }}
@@ -182,7 +186,6 @@ function BrowserStackColumn({
     </div>
   );
 }
-
 function BrowserSection({
   label,
   groups,
@@ -246,7 +249,6 @@ function BrowserSection({
     </section>
   );
 }
-
 export function DeckCardBrowser({ deck }: { deck: Deck }) {
   const [search, setSearch] = useState("");
   const [zone, setZone] = useState<BrowserZoneFilter>("all");
@@ -308,13 +310,41 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
   const maybeboardZoneCount = deck.maybeboard?.length ?? 0;
   const totalCount = mainZoneCount + sideboardZoneCount + maybeboardZoneCount;
   const zoneOptions = [
-    { value: "all" as const, label: "All", count: totalCount },
-    { value: "main" as const, label: "Main", count: mainZoneCount },
+    {
+      value: "all" as const,
+      get label() {
+        return i18n._(msg`All`);
+      },
+      count: totalCount,
+    },
+    {
+      value: "main" as const,
+      get label() {
+        return i18n._(msg`Main`);
+      },
+      count: mainZoneCount,
+    },
     ...(sideboardZoneCount > 0
-      ? [{ value: "side" as const, label: "Sideboard", count: sideboardZoneCount }]
+      ? [
+          {
+            value: "side" as const,
+            get label() {
+              return i18n._(msg`Sideboard`);
+            },
+            count: sideboardZoneCount,
+          },
+        ]
       : []),
     ...(maybeboardZoneCount > 0
-      ? [{ value: "maybe" as const, label: "Maybe", count: maybeboardZoneCount }]
+      ? [
+          {
+            value: "maybe" as const,
+            get label() {
+              return i18n._(msg`Maybe`);
+            },
+            count: maybeboardZoneCount,
+          },
+        ]
       : []),
   ];
   const hasFilters =
@@ -323,7 +353,6 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
     colorFilters.length > 0 ||
     cardTypeFilter !== "all" ||
     manaValueFilter !== "all";
-
   const {
     commanders,
     companion,
@@ -361,10 +390,30 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
       zone === "all" || zone === "maybe" ? (deck.maybeboard ?? []).filter(matches) : [];
     const filteredSpecialSections = showMain
       ? [
-          { label: "Attractions", cards: deck.attractions ?? [] },
-          { label: "Contraptions", cards: deck.contraptions ?? [] },
-          { label: "Schemes", cards: deck.schemes ?? [] },
-          { label: "Planes", cards: deck.planes ?? [] },
+          {
+            get label() {
+              return i18n._(msg`Attractions`);
+            },
+            cards: deck.attractions ?? [],
+          },
+          {
+            get label() {
+              return i18n._(msg`Contraptions`);
+            },
+            cards: deck.contraptions ?? [],
+          },
+          {
+            get label() {
+              return i18n._(msg`Schemes`);
+            },
+            cards: deck.schemes ?? [],
+          },
+          {
+            get label() {
+              return i18n._(msg`Planes`);
+            },
+            cards: deck.planes ?? [],
+          },
         ]
           .map((section) => ({ ...section, groups: groupCards(section.cards.filter(matches)) }))
           .filter((section) => section.groups.length > 0)
@@ -377,7 +426,16 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
         : [
             ...sections,
             ...(otherGroups.length
-              ? [{ id: "other", label: "Other", groups: otherGroups, filter: () => false }]
+              ? [
+                  {
+                    id: "other",
+                    get label() {
+                      return i18n._(msg`Other`);
+                    },
+                    groups: otherGroups,
+                    filter: () => false,
+                  },
+                ]
               : []),
           ];
     const filteredCount =
@@ -401,7 +459,6 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
       shownCount: filteredCount,
     };
   }, [cardTypeFilter, colorFilters, deck, groupBy, manaValueFilter, terms, viewMode, zone]);
-
   function clearFilters() {
     setSearch("");
     setZone("all");
@@ -409,20 +466,17 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
     setCardTypeFilter("all");
     setManaValueFilter("all");
   }
-
   function toggleColorFilter(color: string) {
     setColorFilters((current) =>
       current.includes(color) ? current.filter((value) => value !== color) : [...current, color],
     );
   }
-
   function handlePointerEnter(card: DeckCard, event: ReactPointerEvent<HTMLElement>) {
     if (event.pointerType === "touch") return;
     preview.handleMouseEnter(card as unknown as CardDto, event as unknown as React.MouseEvent, {
       useDelay: true,
     });
   }
-
   async function openCard(card: DeckCard) {
     const requestId = ++cardDetailRequestIdRef.current;
     setLoadingCardName(card.identity.name);
@@ -436,12 +490,13 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
       setDetailCard(entry.info);
     } catch (error) {
       if (cardDetailRequestIdRef.current !== requestId) return;
-      toast.error(error instanceof Error ? error.message : "Card details are unavailable");
+      toast.error(
+        error instanceof Error ? error.message : i18n._(msg`Card details are unavailable`),
+      );
     } finally {
       if (cardDetailRequestIdRef.current === requestId) setLoadingCardName(null);
     }
   }
-
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 space-y-2 border-b bg-background/95 px-3 py-2 backdrop-blur sm:px-4">
@@ -451,14 +506,14 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              aria-label="Search card names, types, and rules text"
-              placeholder="Search cards…"
+              aria-label={i18n._(msg`Search card names, types, and rules text`)}
+              placeholder={i18n._(msg`Search cards\u2026`)}
               className="h-8 pl-8 pr-8 text-xs pointer-coarse:h-10 pointer-coarse:text-base"
             />
             {search && (
               <button
                 type="button"
-                aria-label="Clear card search"
+                aria-label={i18n._(msg`Clear card search`)}
                 className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground pointer-coarse:p-2"
                 onClick={() => setSearch("")}
               >
@@ -467,7 +522,9 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
             )}
           </div>
           <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-            {shownCount === totalCount ? totalCount : `${shownCount} / ${totalCount}`} cards
+            <Trans>
+              {shownCount === totalCount ? totalCount : `${shownCount} / ${totalCount}`} cards
+            </Trans>
           </span>
         </div>
 
@@ -497,9 +554,11 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
           {shownCount === 0 ? (
             <div className="grid min-h-48 place-items-center text-center">
               <div>
-                <p className="text-sm font-medium">No cards match these filters</p>
+                <p className="text-sm font-medium">
+                  <Trans>No cards match these filters</Trans>
+                </p>
                 <Button variant="ghost" size="sm" className="mt-2" onClick={clearFilters}>
-                  Clear filters
+                  <Trans>Clear filters</Trans>
                 </Button>
               </div>
             </div>
@@ -507,7 +566,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
             <div className="flex flex-wrap items-start gap-5">
               {commanders.length > 0 && (
                 <BrowserStackColumn
-                  label={commanders.length > 1 ? "Commanders" : "Commander"}
+                  label={commanders.length > 1 ? i18n._(msg`Commanders`) : i18n._(msg`Commander`)}
                   groups={groupCards(commanders)}
                   width={cardWidth}
                   onOpen={(card) => void openCard(card)}
@@ -517,7 +576,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
               )}
               {companion.length > 0 && (
                 <BrowserStackColumn
-                  label="Companion"
+                  label={i18n._(msg`Companion`)}
                   groups={groupCards(companion)}
                   width={cardWidth}
                   onOpen={(card) => void openCard(card)}
@@ -539,7 +598,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
               ))}
               {sideboard.length > 0 && (
                 <BrowserStackColumn
-                  label="Sideboard"
+                  label={i18n._(msg`Sideboard`)}
                   groups={groupCards(sideboard)}
                   width={cardWidth}
                   onOpen={(card) => void openCard(card)}
@@ -549,7 +608,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
               )}
               {maybeboard.length > 0 && (
                 <BrowserStackColumn
-                  label="Maybeboard"
+                  label={i18n._(msg`Maybeboard`)}
                   groups={groupCards(maybeboard)}
                   width={cardWidth}
                   onOpen={(card) => void openCard(card)}
@@ -577,7 +636,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
             >
               {commanders.length > 0 && (
                 <BrowserSection
-                  label={commanders.length > 1 ? "Commanders" : "Commander"}
+                  label={commanders.length > 1 ? i18n._(msg`Commanders`) : i18n._(msg`Commander`)}
                   groups={groupCards(commanders)}
                   viewMode={viewMode}
                   cardWidth={cardWidth}
@@ -588,7 +647,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
               )}
               {companion.length > 0 && (
                 <BrowserSection
-                  label="Companion"
+                  label={i18n._(msg`Companion`)}
                   groups={groupCards(companion)}
                   viewMode={viewMode}
                   cardWidth={cardWidth}
@@ -611,7 +670,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
               ))}
               {sideboard.length > 0 && (
                 <BrowserSection
-                  label="Sideboard"
+                  label={i18n._(msg`Sideboard`)}
                   groups={groupCards(sideboard)}
                   viewMode={viewMode}
                   cardWidth={cardWidth}
@@ -622,7 +681,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
               )}
               {maybeboard.length > 0 && (
                 <BrowserSection
-                  label="Maybeboard"
+                  label={i18n._(msg`Maybeboard`)}
                   groups={groupCards(maybeboard)}
                   viewMode={viewMode}
                   cardWidth={cardWidth}
@@ -649,7 +708,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
         <div className="hidden min-h-0 lg:contents">
           <CardPreviewRail
             preview={preview}
-            title="Card preview"
+            title={i18n._(msg`Card preview`)}
             renderDetails={(card) => <CardPreviewDetails card={card} />}
           />
         </div>
@@ -658,8 +717,10 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
       {loadingCardName && (
         <div className="pointer-events-none absolute inset-x-0 bottom-20 z-40 flex justify-center">
           <span className="flex items-center gap-2 rounded-full border bg-background/95 px-3 py-1.5 text-xs shadow-lg">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Loading {loadingCardName}…
+            <Trans>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Loading {loadingCardName}…
+            </Trans>
           </span>
         </div>
       )}

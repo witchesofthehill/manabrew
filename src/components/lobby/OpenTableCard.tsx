@@ -8,14 +8,15 @@ import { stripUsernameTag } from "@/lib/username";
 import { cn } from "@/lib/utils";
 import { PROTOCOL_VERSION } from "@/protocol";
 import type { RoomInfo } from "@/types/server";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface OpenTableCardProps {
   room: RoomInfo;
   currentRoomId: string | null;
   joining: boolean;
   onJoin: (room: RoomInfo) => void;
 }
-
 export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTableCardProps) {
   const isMyRoom = room.room_id === currentRoomId;
   const isCompatible = room.protocol_version === PROTOCOL_VERSION;
@@ -29,7 +30,6 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
       ? room.sealed_config.set_code
       : null;
   const showHost = !room.official && !room.hosted;
-
   return (
     <article
       className={cn(
@@ -46,8 +46,8 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
         {room.official && (
           <span
             role="img"
-            aria-label="Official table"
-            title="Official table"
+            aria-label={i18n._(msg`Official table`)}
+            title={i18n._(msg`Official table`)}
             className="inline-flex shrink-0"
           >
             <BadgeCheck aria-hidden="true" className="h-4 w-4 text-primary" />
@@ -56,8 +56,8 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
         {room.password_protected && (
           <span
             role="img"
-            aria-label="Password-protected table"
-            title="Password-protected table"
+            aria-label={i18n._(msg`Password-protected table`)}
+            title={i18n._(msg`Password-protected table`)}
             className="inline-flex shrink-0"
           >
             <LockKeyhole aria-hidden="true" className="h-3.5 w-3.5 text-format-badge-amber" />
@@ -65,13 +65,13 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
         )}
         {!isCompatible && (
           <span className="inline-flex items-center rounded bg-format-badge-rose/15 px-2 py-0.5 text-xs font-semibold leading-tight text-format-badge-rose">
-            Incompatible
+            <Trans>Incompatible</Trans>
           </span>
         )}
       </div>
       {/* Rendered even with no host so the seat ring lines up across the row. */}
       <p className="-mt-1.5 truncate text-[11px] text-muted-foreground">
-        {showHost ? `Hosted by ${stripUsernameTag(room.host)}` : " "}
+        {showHost ? i18n._(msg`Hosted by ${stripUsernameTag(room.host)}`) : " "}
       </p>
 
       <OpenTableSeats
@@ -93,12 +93,14 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
 
       <div className="mt-auto flex items-center justify-between gap-2 pt-1">
         <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Users aria-hidden="true" className="h-3.5 w-3.5" />
-          {room.players.length}/{room.max_players} seated
+          <Trans>
+            <Users aria-hidden="true" className="h-3.5 w-3.5" />
+            {room.players.length}/{room.max_players} seated
+          </Trans>
         </span>
         {isMyRoom ? (
           <Badge variant="secondary" className="text-[10px]">
-            Seated
+            <Trans>Seated</Trans>
           </Badge>
         ) : canJoin ? (
           <Button
@@ -109,12 +111,16 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
             onClick={() => onJoin(room)}
           >
             <UserRoundPlus aria-hidden="true" className="h-3.5 w-3.5" />
-            {joining ? "Joining…" : "Join table"}
+            {joining ? i18n._(msg`Joining\u2026`) : i18n._(msg`Join table`)}
           </Button>
         ) : room.status === "InGame" ? (
-          <span className="text-xs text-muted-foreground">Playing</span>
+          <span className="text-xs text-muted-foreground">
+            <Trans>Playing</Trans>
+          </span>
         ) : isFull ? (
-          <span className="text-xs text-muted-foreground">Full</span>
+          <span className="text-xs text-muted-foreground">
+            <Trans>Full</Trans>
+          </span>
         ) : null}
       </div>
     </article>

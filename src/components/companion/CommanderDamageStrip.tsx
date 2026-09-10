@@ -8,6 +8,8 @@ import {
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
 import { CommanderArt } from "./CommanderArt";
 import { CommanderDamageDialog } from "./CommanderDamageDialog";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 
 interface CommanderDamageStripProps {
   target: CompanionPlayer;
@@ -50,7 +52,7 @@ function CommanderDamageButton({
           boxShadow: `0 0 0 2.5px ${accentColor}, 0 0 0 4px rgba(0,0,0,0.5)`,
         }}
         onClick={() => setOpen(true)}
-        aria-label={`Commander damage from ${source.name}: ${totalDamage}`}
+        aria-label={i18n._(msg`Commander damage from ${source.name}: ${totalDamage}`)}
       >
         {source.commanders[0]?.imageUrl ? (
           <CommanderArt

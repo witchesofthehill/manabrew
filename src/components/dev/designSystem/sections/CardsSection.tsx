@@ -9,34 +9,90 @@ import {
 } from "@/components/game/BattlefieldCardFace";
 import { cn } from "@/lib/utils";
 import { Section } from "../kit";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 type Variant = BattlefieldCardFaceVariant | "realistic";
-
-const VARIANTS: { id: Variant; label: string }[] = [
-  { id: "realistic", label: "Realistic" },
-  { id: "art", label: "Art-forward" },
-  { id: "frame", label: "Mini-frame" },
+const VARIANTS: {
+  id: Variant;
+  label: string;
+}[] = [
+  {
+    id: "realistic",
+    get label() {
+      return i18n._(msg`Realistic`);
+    },
+  },
+  {
+    id: "art",
+    get label() {
+      return i18n._(msg`Art-forward`);
+    },
+  },
+  {
+    id: "frame",
+    get label() {
+      return i18n._(msg`Mini-frame`);
+    },
+  },
 ];
-
-const SPECS: { name: string; label: string; overrides?: Partial<CardDto> }[] = [
-  { name: "Serra Angel", label: "White · flyer" },
-  { name: "Snapcaster Mage", label: "Blue" },
-  { name: "Goblin Guide", label: "Red · attacking", overrides: { isAttacking: true, damage: 1 } },
-  { name: "Llanowar Elves", label: "Green · tapped", overrides: { tapped: true } },
+const SPECS: {
+  name: string;
+  label: string;
+  overrides?: Partial<CardDto>;
+}[] = [
+  {
+    name: "Serra Angel",
+    get label() {
+      return i18n._(msg`White \u00B7 flyer`);
+    },
+  },
+  {
+    name: "Snapcaster Mage",
+    get label() {
+      return i18n._(msg`Blue`);
+    },
+  },
+  {
+    name: "Goblin Guide",
+    get label() {
+      return i18n._(msg`Red \u00B7 attacking`);
+    },
+    overrides: { isAttacking: true, damage: 1 },
+  },
+  {
+    name: "Llanowar Elves",
+    get label() {
+      return i18n._(msg`Green \u00B7 tapped`);
+    },
+    overrides: { tapped: true },
+  },
   {
     name: "Dragonlord Atarka",
-    label: "R/G · +1/+1",
+    get label() {
+      return i18n._(msg`R/G \u00B7 +1/+1`);
+    },
     overrides: { counters: { P1P1: 2 }, power: "10", toughness: "10" },
   },
-  { name: "Wurmcoil Engine", label: "Colorless artifact" },
+  {
+    name: "Wurmcoil Engine",
+    get label() {
+      return i18n._(msg`Colorless artifact`);
+    },
+  },
   {
     name: "Liliana of the Veil",
-    label: "Planeswalker",
+    get label() {
+      return i18n._(msg`Planeswalker`);
+    },
     overrides: { counters: { Loyalty: 6 } },
   },
-  { name: "Steam Vents", label: "Land (U/R)" },
+  {
+    name: "Steam Vents",
+    get label() {
+      return i18n._(msg`Land (U/R)`);
+    },
+  },
 ];
-
 function CardTile({
   spec,
   variant,
@@ -76,13 +132,12 @@ function CardTile({
     />
   );
 }
-
 export function CardsSection() {
   const [variant, setVariant] = useState<Variant>("art");
   return (
     <Section
       id="cards"
-      title="Card faces"
+      title={i18n._(msg`Card faces`)}
       intro="The battlefield card renderer used in-game (DOM path). Three styles — realistic Scryfall image, art-forward, and mini-frame — across representative card types and states."
     >
       <div className="inline-flex overflow-hidden rounded-md border border-border">

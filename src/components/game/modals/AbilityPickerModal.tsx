@@ -5,14 +5,15 @@ import { cn } from "@/lib/utils";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { MODAL_CARD_THUMBNAIL } from "../game.styles";
 import type { DeckCard } from "@/protocol/deck";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface AbilityPickerModalProps {
   sourceCard: DeckCard;
   abilities: HandActionOption[];
   onSelect: (ability: HandActionOption) => void;
   onCancel: () => void;
 }
-
 export function AbilityPickerModal({
   sourceCard,
   abilities,
@@ -20,7 +21,6 @@ export function AbilityPickerModal({
   onCancel,
 }: AbilityPickerModalProps) {
   const hasCastOption = abilities.some((ability) => ability.kind === "cast");
-
   return (
     <Modal maxWidth="max-w-md" maxHeight="" onClose={onCancel}>
       <Modal.Header>
@@ -28,19 +28,21 @@ export function AbilityPickerModal({
           <CardImageThumbnail card={sourceCard} className={MODAL_CARD_THUMBNAIL} />
           <div>
             <h2 className="font-semibold text-base">
-              {hasCastOption ? "Choose Action" : "Activate Ability"}
+              {hasCastOption ? i18n._(msg`Choose Action`) : i18n._(msg`Activate Ability`)}
             </h2>
             <p className="text-xs text-muted-foreground font-medium">{sourceCard.identity.name}</p>
           </div>
         </div>
       </Modal.Header>
 
-      <Modal.Instructions>Click an option to continue.</Modal.Instructions>
+      <Modal.Instructions>
+        <Trans>Click an option to continue.</Trans>
+      </Modal.Instructions>
 
       <div
         className="p-4 flex flex-col gap-2 max-h-[60dvh] overflow-y-auto"
         role="group"
-        aria-label="Available abilities"
+        aria-label={i18n._(msg`Available abilities`)}
       >
         {abilities.map((ability, idx) => (
           <button

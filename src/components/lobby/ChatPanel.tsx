@@ -12,16 +12,23 @@ import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { useHubAvailable } from "@/hooks/useHubAvailable";
 import { CHAT_MESSAGE_MAX_CHARS, type ChatScope, type RoomInfo } from "@/types/server";
 import { cn } from "@/lib/utils";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface ChatPanelProps {
   currentRoom: RoomInfo | null;
   currentUsername: string | null;
   disabled?: boolean;
   className?: string;
 }
-
-const SCOPE_LABEL: Record<ChatScope, string> = { Room: "Table", Lobby: "General" };
-
+const SCOPE_LABEL: Record<ChatScope, string> = {
+  get Room() {
+    return i18n._(msg`Table`);
+  },
+  get Lobby() {
+    return i18n._(msg`General`);
+  },
+};
 export function ChatPanel({
   currentRoom,
   currentUsername,
@@ -43,30 +50,24 @@ export function ChatPanel({
   const [input, setInput] = useState("");
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
-
   if (inRoom !== prevInRoom) {
     setPrevInRoom(inRoom);
     setScope(inRoom ? "Room" : "Lobby");
   }
-
   const entries: ChatEntry[] = scope === "Room" ? room : lobby;
   const locked = scope === "Lobby" && !signedIn;
-
   useEffect(() => {
     markRead(scope);
   }, [scope, entries.length, markRead]);
-
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [entries.length, scope]);
-
   async function handleSend() {
     const text = input.trim();
     if (!text || disabled) return;
     setInput("");
     await send(scope, text);
   }
-
   function renderTab(tab: ChatScope) {
     const count = unread[tab];
     return (
@@ -90,7 +91,6 @@ export function ChatPanel({
       </button>
     );
   }
-
   return (
     <div className={cn("flex min-h-0 flex-col", className)}>
       <div className="flex h-10 shrink-0 items-center gap-1 border-b px-2">
@@ -101,7 +101,7 @@ export function ChatPanel({
           </>
         ) : (
           <span className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            General
+            <Trans>General</Trans>
           </span>
         )}
       </div>
@@ -109,7 +109,9 @@ export function ChatPanel({
         <div className="space-y-2">
           {entries.length === 0 && (
             <p className="py-4 text-center text-sm italic text-muted-foreground">
-              {scope === "Room" ? "Say hello to your table." : "No messages yet."}
+              {scope === "Room"
+                ? i18n._(msg`Say hello to your table.`)
+                : i18n._(msg`No messages yet.`)}
             </p>
           )}
           {entries.map((entry, index) => {
@@ -146,7 +148,11 @@ export function ChatPanel({
           <Input
             className="h-9 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
             placeholder={
-              locked ? "" : scope === "Room" ? "Message your table…" : "Message everyone…"
+              locked
+                ? ""
+                : scope === "Room"
+                  ? i18n._(msg`Message your table…`)
+                  : i18n._(msg`Message everyone…`)
             }
             value={input}
             maxLength={CHAT_MESSAGE_MAX_CHARS}
@@ -160,9 +166,11 @@ export function ChatPanel({
                 onClick={() => showSignIn()}
                 className="pointer-events-auto font-medium text-primary hover:underline"
               >
-                Sign in
+                <Trans>Sign in</Trans>
               </button>
-              <span className="ml-1">to chat in General</span>
+              <span className="ml-1">
+                <Trans>to chat in General</Trans>
+              </span>
             </span>
           )}
         </div>
@@ -171,7 +179,7 @@ export function ChatPanel({
           size="icon"
           className="h-9 w-9 shrink-0"
           disabled={disabled || locked || !input.trim()}
-          aria-label="Send message"
+          aria-label={i18n._(msg`Send message`)}
         >
           <Send className="h-4 w-4" />
         </Button>

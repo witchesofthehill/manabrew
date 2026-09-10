@@ -13,28 +13,36 @@ import { useGameStore } from "@/stores/useGameStore";
 import type { Prompt, PromptOutput, PromptType } from "@/protocol";
 import type { GameViewDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
-
-export type PromptOf<T extends PromptType> = Extract<Prompt, { input: { type: T } }>;
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
+export type PromptOf<T extends PromptType> = Extract<
+  Prompt,
+  {
+    input: {
+      type: T;
+    };
+  }
+>;
 export interface PromptModalContext {
   sourceDeckCard?: DeckCard;
   gameView?: GameViewDto | null;
 }
-
 export interface PromptComponentProps<T extends PromptType> {
   prompt: PromptOf<T>;
   respond: (output: PromptOutput["output"]) => void;
   ctx: PromptModalContext;
 }
-
 type PromptComponent<T extends PromptType> = (props: PromptComponentProps<T>) => ReactNode;
-
-const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
+const PROMPT_MODALS: {
+  [T in PromptType]?: PromptComponent<T>;
+} = {
   revealCards: ({ prompt, respond, ctx }) => (
     <ChooseCardsModal
       cards={prompt.input.cards}
       presentation={{
-        title: "Revealed cards",
+        get title() {
+          return i18n._(msg`Revealed cards`);
+        },
         description: prompt.input.presentation.title,
         targets: [],
       }}
@@ -45,20 +53,16 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
       onConfirm={() => respond({ type: "revealCardsAcknowledged" })}
     />
   ),
-
   chooseColor: ({ prompt, respond, ctx }) => (
     <ChooseColorModal input={prompt.input} respond={respond} sourceCard={ctx.sourceDeckCard} />
   ),
-
   // $PROMPT_SHARED
   chooseNumber: ({ prompt, respond, ctx }) => (
     <ChooseNumberModal input={prompt.input} respond={respond} sourceCard={ctx.sourceDeckCard} />
   ),
-
   scry: ({ prompt, respond, ctx }) => (
     <ScryModal input={prompt.input} respond={respond} sourceCard={ctx.sourceDeckCard} />
   ),
-
   chooseCards: ({ prompt, respond, ctx }) => (
     <ChooseCardsModal
       cards={prompt.input.cards}
@@ -69,15 +73,12 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
       onConfirm={(chosenCardIds) => respond({ type: "chooseCardsDecision", chosenCardIds })}
     />
   ),
-
   chooseCombatDamageAssignment: ({ prompt, respond }) => (
     <VAssignCombatDamageModal input={prompt.input} respond={respond} />
   ),
-
   reorder: ({ prompt, respond, ctx }) => (
     <ReorderCardsModal input={prompt.input} respond={respond} sourceCard={ctx.sourceDeckCard} />
   ),
-
   // $PROMPT_SHARED
   diceRolled: ({ prompt, respond, ctx }) => (
     <DiceRollFeedback
@@ -89,11 +90,9 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
       onAcknowledge={() => respond({ type: "diceRolledAcknowledged" })}
     />
   ),
-
   chooseBoolean: ({ prompt, respond, ctx }) => (
     <ChooseBooleanModal input={prompt.input} respond={respond} sourceCard={ctx.sourceDeckCard} />
   ),
-
   chooseFromSelection: ({ prompt, respond, ctx }) => (
     <ChooseFromSelectionModal
       input={prompt.input}
@@ -102,7 +101,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
     />
   ),
 };
-
 export function PromptModalHost({
   currentPrompt,
   ctx,
@@ -116,14 +114,12 @@ export function PromptModalHost({
   const entry = (input ? PROMPT_MODALS[input.type] : undefined) as
     | PromptComponent<PromptType>
     | undefined;
-
   const [promptSeq, setPromptSeq] = useState(0);
   const [prevPrompt, setPrevPrompt] = useState(currentPrompt);
   if (prevPrompt !== currentPrompt) {
     setPrevPrompt(currentPrompt);
     setPromptSeq(promptSeq + 1);
   }
-
   return (
     <PromptModalController isActive={!!entry} promptStateKey={currentPrompt}>
       {entry && currentPrompt ? (

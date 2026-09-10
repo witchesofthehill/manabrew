@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Minus, Plus } from "lucide-react";
-
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
@@ -11,10 +10,11 @@ import { PromptPresentation } from "./internal/PromptPresentation";
 import { useModalSourceCard } from "./internal/ModalSourceCard";
 import type { PromptProps } from "./internal/promptProps";
 import type { ChooseFromSelectionInput, ChooseFromSelectionOutput } from "@/protocol";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 // Past this many options the button list becomes a type-to-filter field.
 const FILTER_THRESHOLD = 5;
-
 export function ChooseFromSelectionModal({
   input,
   respond,
@@ -28,21 +28,17 @@ export function ChooseFromSelectionModal({
   const [counts, setCounts] = useState<Map<number, number>>(new Map());
   const [filter, setFilter] = useState("");
   const filterRef = useRef<HTMLInputElement>(null);
-
   const showFilter = options.length > FILTER_THRESHOLD;
   const visibleOptions = options
     .map((option, idx) => ({ option, idx }))
     .filter(({ option }) => !filter || option.label.toLowerCase().includes(filter.toLowerCase()));
-
   useEffect(() => {
     if (showFilter) filterRef.current?.focus();
   }, [showFilter]);
-
   const total = [...counts].reduce((sum, [idx, count]) => sum + count * options[idx].weight, 0);
   const isAutoConfirm = minTotal === 1 && maxTotal === 1;
   const showCheckboxes = maxTotal > 1;
   const canConfirm = total >= minTotal && total <= maxTotal;
-
   const confirm = useCallback(
     (indices: number[]) => respond({ type: "selectionDecision", chosenIndices: indices }),
     [respond],
@@ -53,7 +49,6 @@ export function ChooseFromSelectionModal({
       .flatMap(([idx, count]) => Array.from({ length: count }, () => idx));
     confirm(indices);
   }, [confirm, counts]);
-
   function adjustCount(idx: number, delta: number) {
     setCounts((prev) => {
       const next = new Map(prev);
@@ -63,7 +58,6 @@ export function ChooseFromSelectionModal({
       return next;
     });
   }
-
   function selectOption(idx: number) {
     if (isAutoConfirm) {
       confirm([idx]);
@@ -78,7 +72,6 @@ export function ChooseFromSelectionModal({
       adjustCount(idx, 1);
     }
   }
-
   const spaceConfirms = canConfirm && !isAutoConfirm && !(minTotal === 0 && total === 0);
   useModalKeyboard(
     {
@@ -87,7 +80,6 @@ export function ChooseFromSelectionModal({
     },
     [canConfirm, isAutoConfirm, spaceConfirms, handleConfirm],
   );
-
   return (
     <Modal maxWidth="max-w-lg" maxHeight="max-h-[75dvh]">
       {preview}
@@ -99,7 +91,7 @@ export function ChooseFromSelectionModal({
           <input
             ref={filterRef}
             type="text"
-            placeholder="Type to filter…"
+            placeholder={i18n._(msg`Type to filter\u2026`)}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             className={MODAL_INPUT}
@@ -122,7 +114,6 @@ export function ChooseFromSelectionModal({
               : "border-border bg-background",
             neverAffordable && "opacity-40",
           );
-
           if (option.canRepeat) {
             const canAdd = !neverAffordable && total + option.weight <= maxTotal;
             return (
@@ -135,7 +126,7 @@ export function ChooseFromSelectionModal({
                     <Button
                       size="icon"
                       variant="outline"
-                      aria-label="Remove one"
+                      aria-label={i18n._(msg`Remove one`)}
                       disabled={count === 0}
                       onClick={() => adjustCount(idx, -1)}
                       className="h-7 w-7"
@@ -154,7 +145,7 @@ export function ChooseFromSelectionModal({
                     <Button
                       size="icon"
                       variant="outline"
-                      aria-label="Add one"
+                      aria-label={i18n._(msg`Add one`)}
                       disabled={!canAdd}
                       onClick={() => adjustCount(idx, 1)}
                       className="h-7 w-7"
@@ -166,7 +157,6 @@ export function ChooseFromSelectionModal({
               </div>
             );
           }
-
           const swapsSelection = maxTotal === 1;
           const isDisabled =
             neverAffordable ||
@@ -217,12 +207,14 @@ export function ChooseFromSelectionModal({
           );
         })}
         {visibleOptions.length === 0 && (
-          <p className="px-1 text-sm text-muted-foreground">No matching options.</p>
+          <p className="px-1 text-sm text-muted-foreground">
+            <Trans>No matching options.</Trans>
+          </p>
         )}
       </div>
       {isAutoConfirm ? (
         <div className="px-5 pb-4 pt-2 text-center text-xs text-muted-foreground">
-          Click an option to choose it.
+          <Trans>Click an option to choose it.</Trans>
         </div>
       ) : (
         <Modal.Footer className="justify-end gap-3">
@@ -237,7 +229,9 @@ export function ChooseFromSelectionModal({
             onClick={handleConfirm}
             className="min-w-[100px]"
           >
-            {minTotal === 0 && total === 0 ? "Skip" : `Confirm${total > 0 ? ` (${total})` : ""}`}
+            {minTotal === 0 && total === 0
+              ? i18n._(msg`Skip`)
+              : i18n._(msg`Confirm${total > 0 ? ` (${total})` : ""}`)}
           </Button>
         </Modal.Footer>
       )}

@@ -3,7 +3,9 @@ import { Info } from "lucide-react";
 import type { CardDto } from "@/protocol/game";
 import type { PromptActionType, CombatAssignment } from "./game.types";
 import { Modal } from "./modals/Modal";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface CombatSummarySectionProps {
   promptType?: PromptActionType;
   attackerIds: string[];
@@ -12,13 +14,11 @@ interface CombatSummarySectionProps {
   resolveCardName: (cardId: string) => string;
   resolveCard: (cardId: string) => CardDto | undefined;
 }
-
 function powerOf(card: CardDto | undefined): number {
   if (!card?.power) return 0;
   const n = parseInt(card.power, 10);
   return Number.isFinite(n) ? Math.max(0, n) : 0;
 }
-
 function unblockedDamageOf(card: CardDto | undefined): number {
   const damage = powerOf(card);
   const hasDoubleStrike = card?.keywords?.some((keyword) =>
@@ -26,18 +26,15 @@ function unblockedDamageOf(card: CardDto | undefined): number {
   );
   return hasDoubleStrike ? damage * 2 : damage;
 }
-
 function toughnessOf(card: CardDto | undefined): number {
   if (!card?.toughness) return 0;
   const n = parseInt(card.toughness, 10);
   return Number.isFinite(n) ? n : 0;
 }
-
 function ptLabel(card: CardDto | undefined): string {
   if (!card?.power || !card?.toughness) return "";
   return `${card.power}/${card.toughness}`;
 }
-
 export function CombatSummarySection({
   promptType,
   attackerIds,
@@ -49,10 +46,8 @@ export function CombatSummarySection({
   const isAttackDecl = promptType === "chooseAttackers";
   const isBlockDecl = promptType === "chooseBlockers";
   if (!isAttackDecl && !isBlockDecl) return null;
-
   const activeAttackers = isAttackDecl ? pendingAttackers : attackerIds;
   if (activeAttackers.length === 0) return null;
-
   const attackerPower = activeAttackers.reduce((sum, id) => sum + powerOf(resolveCard(id)), 0);
   const blockerToughness = isBlockDecl
     ? blockAssignments.reduce((sum, a) => sum + toughnessOf(resolveCard(a.blockerId)), 0)
@@ -63,7 +58,6 @@ export function CombatSummarySection({
         return blocked ? sum : sum + unblockedDamageOf(resolveCard(id));
       }, 0)
     : activeAttackers.reduce((sum, id) => sum + unblockedDamageOf(resolveCard(id)), 0);
-
   if (isBlockDecl) {
     return (
       <BlockerCombatSummary
@@ -77,19 +71,21 @@ export function CombatSummarySection({
       />
     );
   }
-
   return (
     <div className="rounded-lg p-2 bg-destructive/10">
-      <p className="text-xs font-semibold text-destructive mb-1">Combat</p>
+      <p className="text-xs font-semibold text-destructive mb-1">
+        <Trans>Combat</Trans>
+      </p>
       <div className="flex items-center gap-2 text-xs">
         <span className="font-semibold">⚔ {attackerPower}</span>
         <span className="text-muted-foreground">·</span>
-        <span className="font-semibold text-destructive">Through {unblockedDamage}</span>
+        <span className="font-semibold text-destructive">
+          <Trans>Through {unblockedDamage}</Trans>
+        </span>
       </div>
     </div>
   );
 }
-
 interface BlockerCombatSummaryProps {
   unblockedDamage: number;
   attackerPower: number;
@@ -99,7 +95,6 @@ interface BlockerCombatSummaryProps {
   resolveCardName: (cardId: string) => string;
   resolveCard: (cardId: string) => CardDto | undefined;
 }
-
 function BlockerCombatSummary({
   unblockedDamage,
   attackerPower,
@@ -110,33 +105,40 @@ function BlockerCombatSummary({
   resolveCard,
 }: BlockerCombatSummaryProps) {
   const [open, setOpen] = useState(false);
-
   return (
     <div className="rounded-lg px-2 py-1.5 bg-destructive/10 flex items-center justify-between gap-2">
       <div className="flex items-center gap-1.5 text-xs">
-        <span className="font-semibold text-destructive">Through {unblockedDamage}</span>
+        <span className="font-semibold text-destructive">
+          <Trans>Through {unblockedDamage}</Trans>
+        </span>
       </div>
       <button
         type="button"
         className="relative rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors before:absolute before:-inset-2.5 before:content-['']"
         onClick={() => setOpen(true)}
-        title="Combat breakdown"
-        aria-label="Combat breakdown"
+        title={i18n._(msg`Combat breakdown`)}
+        aria-label={i18n._(msg`Combat breakdown`)}
       >
         <Info className="h-3.5 w-3.5" />
       </button>
       {open && (
         <Modal onClose={() => setOpen(false)} maxWidth="max-w-md">
           <Modal.Header>
-            <h2 className="text-sm font-bold uppercase tracking-wide text-foreground">Combat</h2>
+            <h2 className="text-sm font-bold uppercase tracking-wide text-foreground">
+              <Trans>Combat</Trans>
+            </h2>
           </Modal.Header>
           <Modal.Body>
             <div className="flex items-center justify-center gap-3 text-sm mb-3">
               <span className="font-semibold">⚔ {attackerPower}</span>
-              <span className="text-muted-foreground">vs</span>
+              <span className="text-muted-foreground">
+                <Trans>vs</Trans>
+              </span>
               <span className="font-semibold">🛡 {blockerToughness}</span>
               <span className="text-muted-foreground">·</span>
-              <span className="font-semibold text-destructive">Through {unblockedDamage}</span>
+              <span className="font-semibold text-destructive">
+                <Trans>Through {unblockedDamage}</Trans>
+              </span>
             </div>
             <div className="flex flex-col gap-1">
               {attackerIds.map((attackerId) => {
@@ -161,7 +163,7 @@ function BlockerCombatSummary({
                     <div className="flex flex-wrap items-center gap-1 min-w-0">
                       {blockers.length === 0 ? (
                         <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-semibold italic text-destructive">
-                          unblocked
+                          <Trans>unblocked</Trans>
                         </span>
                       ) : (
                         blockers.map((b) => {

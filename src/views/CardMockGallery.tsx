@@ -10,59 +10,125 @@ import {
 } from "@/components/game/BattlefieldCardFace";
 import { BoardPlayground } from "@/components/dev/BoardPlayground";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 type GalleryVariant = BattlefieldCardFaceVariant | "realistic";
-
 const VARIANT_LABELS: Record<GalleryVariant, string> = {
-  realistic: "Realistic",
-  art: "Art-forward",
-  frame: "Mini-frame",
+  get realistic() {
+    return i18n._(msg`Realistic`);
+  },
+  get art() {
+    return i18n._(msg`Art-forward`);
+  },
+  get frame() {
+    return i18n._(msg`Mini-frame`);
+  },
 };
-
 interface Spec {
   name: string;
   label: string;
   overrides?: Partial<CardDto>;
 }
-
 const SPECS: Spec[] = [
-  { name: "Serra Angel", label: "White · flyer" },
-  { name: "Snapcaster Mage", label: "Blue" },
-  { name: "Gravecrawler", label: "Black" },
-  { name: "Goblin Guide", label: "Red · haste" },
-  { name: "Llanowar Elves", label: "Green · tapped", overrides: { tapped: true } },
-  { name: "Tarmogoyf", label: "Green · summoning sick", overrides: { summoningSick: true } },
+  {
+    name: "Serra Angel",
+    get label() {
+      return i18n._(msg`White \u00B7 flyer`);
+    },
+  },
+  {
+    name: "Snapcaster Mage",
+    get label() {
+      return i18n._(msg`Blue`);
+    },
+  },
+  {
+    name: "Gravecrawler",
+    get label() {
+      return i18n._(msg`Black`);
+    },
+  },
+  {
+    name: "Goblin Guide",
+    get label() {
+      return i18n._(msg`Red \u00B7 haste`);
+    },
+  },
+  {
+    name: "Llanowar Elves",
+    get label() {
+      return i18n._(msg`Green \u00B7 tapped`);
+    },
+    overrides: { tapped: true },
+  },
+  {
+    name: "Tarmogoyf",
+    get label() {
+      return i18n._(msg`Green \u00B7 summoning sick`);
+    },
+    overrides: { summoningSick: true },
+  },
   {
     name: "Dragonlord Atarka",
-    label: "Multicolor (R/G)",
+    get label() {
+      return i18n._(msg`Multicolor (R/G)`);
+    },
     overrides: { counters: { P1P1: 2 }, power: "10", toughness: "10" },
   },
-  { name: "Kitchen Finks", label: "Hybrid (G/W)" },
-  { name: "Wurmcoil Engine", label: "Colorless · artifact" },
-  { name: "Thought-Knot Seer", label: "Colorless · Eldrazi" },
+  {
+    name: "Kitchen Finks",
+    get label() {
+      return i18n._(msg`Hybrid (G/W)`);
+    },
+  },
+  {
+    name: "Wurmcoil Engine",
+    get label() {
+      return i18n._(msg`Colorless \u00B7 artifact`);
+    },
+  },
+  {
+    name: "Thought-Knot Seer",
+    get label() {
+      return i18n._(msg`Colorless \u00B7 Eldrazi`);
+    },
+  },
   {
     name: "Liliana of the Veil",
-    label: "Planeswalker · loyalty",
+    get label() {
+      return i18n._(msg`Planeswalker \u00B7 loyalty`);
+    },
     overrides: { counters: { Loyalty: 6 } },
   },
   {
     name: "Goblin Guide",
-    label: "Attacking · damaged",
+    get label() {
+      return i18n._(msg`Attacking \u00B7 damaged`);
+    },
     overrides: { isAttacking: true, damage: 1 },
   },
-  { name: "Steam Vents", label: "Land (U/R)" },
+  {
+    name: "Steam Vents",
+    get label() {
+      return i18n._(msg`Land (U/R)`);
+    },
+  },
   {
     name: "Temple of the Dragon Queen",
-    label: "Chosen color",
+    get label() {
+      return i18n._(msg`Chosen color`);
+    },
     overrides: { choices: [{ kind: "color", colors: ["U"] }] },
   },
   {
     name: "Roaming Throne",
-    label: "Chosen type",
+    get label() {
+      return i18n._(msg`Chosen type`);
+    },
     overrides: { choices: [{ kind: "type", values: ["Dragon"] }] },
   },
 ];
-
 function GalleryRow({
   spec,
   variant,
@@ -116,14 +182,12 @@ function GalleryRow({
     </div>
   );
 }
-
 export default function CardMockGallery() {
   // Bound to the real preference so the one toggle drives both the DOM previews
   // and the live Pixi board playground below (which reads the same pref).
   const variant = usePreferencesStore((s) => s.battlefieldCardStyle) as GalleryVariant;
   const setVariant = usePreferencesStore((s) => s.setBattlefieldCardStyle);
   const [showReal, setShowReal] = useState(false);
-
   return (
     <div className="h-full space-y-6 overflow-auto px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex items-center gap-4 flex-wrap">
@@ -142,24 +206,28 @@ export default function CardMockGallery() {
           ))}
         </div>
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={showReal}
-            onChange={(e) => setShowReal(e.target.checked)}
-          />
-          show real Scryfall card beside
+          <Trans>
+            <input
+              type="checkbox"
+              checked={showReal}
+              onChange={(e) => setShowReal(e.target.checked)}
+            />
+            show real Scryfall card beside
+          </Trans>
         </label>
       </header>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground">
-          Pixi board playground — spawn cards + poke them to test in-game effects
+          <Trans>Pixi board playground — spawn cards + poke them to test in-game effects</Trans>
         </h2>
         <BoardPlayground />
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-muted-foreground">Battlefield size (70×98)</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground">
+          <Trans>Battlefield size (70×98)</Trans>
+        </h2>
         <div className="flex flex-wrap gap-4">
           {SPECS.map((spec, i) => (
             <div
@@ -178,7 +246,7 @@ export default function CardMockGallery() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground">
-          3× preview (210×294) — same component, crisp text
+          <Trans>3× preview (210×294) — same component, crisp text</Trans>
         </h2>
         <div className="flex flex-wrap gap-6">
           {SPECS.map((spec, i) => (

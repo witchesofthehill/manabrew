@@ -11,7 +11,6 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,35 +21,56 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DECK_EDITOR_WELCOME_EVENT } from "./deckEditorWelcome.actions";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const STORAGE_KEY = "manabrew-deck-editor-welcome-v1";
-
 const STEPS = [
   {
-    title: "Add cards quickly",
-    description:
-      "Quick Add adds the first result in one click. Open Card Search for richer discovery, then use its add controls or drag results directly into your deck.",
+    get title() {
+      return i18n._(msg`Add cards quickly`);
+    },
+    get description() {
+      return i18n._(
+        msg`Quick Add adds the first result in one click. Open Card Search for richer discovery, then use its add controls or drag results directly into your deck.`,
+      );
+    },
     icon: Command,
     tips: ["Option/Alt+A focuses Quick Add", "Option/Alt+S toggles Card Search"],
   },
   {
-    title: "Search with Scryfall syntax",
-    description:
-      "Card Search accepts normal card names and Scryfall filters. Combine filters to narrow results by color, type, rules text, set, price, and more.",
+    get title() {
+      return i18n._(msg`Search with Scryfall syntax`);
+    },
+    get description() {
+      return i18n._(
+        msg`Card Search accepts normal card names and Scryfall filters. Combine filters to narrow results by color, type, rules text, set, price, and more.`,
+      );
+    },
     icon: Search,
     tips: ["c:ur t:instant", 'o:"draw a card" mv<=2', "set:mh3 usd<5"],
   },
   {
-    title: "Select and move together",
-    description:
-      "Shift-click ranges, Cmd/Ctrl-click individual cards, then drag or use M, S, and B to move the selection.",
+    get title() {
+      return i18n._(msg`Select and move together`);
+    },
+    get description() {
+      return i18n._(
+        msg`Shift-click ranges, Cmd/Ctrl-click individual cards, then drag or use M, S, and B to move the selection.`,
+      );
+    },
     icon: MousePointer2,
     tips: ["Right-click any card for all card actions", "Drag a selection to sections or tags"],
   },
   {
-    title: "Organize your way",
-    description:
-      "Choose text, grid, or stack view. Sort cards, group by card properties or your own tags, and save useful combinations as custom views.",
+    get title() {
+      return i18n._(msg`Organize your way`);
+    },
+    get description() {
+      return i18n._(
+        msg`Choose text, grid, or stack view. Sort cards, group by card properties or your own tags, and save useful combinations as custom views.`,
+      );
+    },
     icon: Layers,
     tips: [
       "Collapse sections you do not need",
@@ -58,9 +78,14 @@ const STEPS = [
     ],
   },
   {
-    title: "Use every action in every view",
-    description:
-      "Text, grid, and stack views expose the same card actions. Adjust quantities, set commanders, change printings and foil treatment, choose the deck cover, move cards, or open full card details.",
+    get title() {
+      return i18n._(msg`Use every action in every view`);
+    },
+    get description() {
+      return i18n._(
+        msg`Text, grid, and stack views expose the same card actions. Adjust quantities, set commanders, change printings and foil treatment, choose the deck cover, move cards, or open full card details.`,
+      );
+    },
     icon: MousePointer2,
     tips: [
       "Right-click a card to open the complete action menu",
@@ -68,9 +93,14 @@ const STEPS = [
     ],
   },
   {
-    title: "Preview cards from anywhere",
-    description:
-      "The Preview rail is the editor's shared card inspector. Hover a card anywhere in the workspace and its image and details appear there without interrupting what you are doing.",
+    get title() {
+      return i18n._(msg`Preview cards from anywhere`);
+    },
+    get description() {
+      return i18n._(
+        msg`The Preview rail is the editor's shared card inspector. Hover a card anywhere in the workspace and its image and details appear there without interrupting what you are doing.`,
+      );
+    },
     icon: Eye,
     tips: [
       "Works with deck cards, Card Search, replacements, tokens, the command zone, and collection coverage",
@@ -78,9 +108,14 @@ const STEPS = [
     ],
   },
   {
-    title: "Track cards and printings",
-    description:
-      "Collection highlights distinguish an exact printing from another printing you own. Hover the ownership pill when you want printing and quantity details without covering the card during normal browsing.",
+    get title() {
+      return i18n._(msg`Track cards and printings`);
+    },
+    get description() {
+      return i18n._(
+        msg`Collection highlights distinguish an exact printing from another printing you own. Hover the ownership pill when you want printing and quantity details without covering the card during normal browsing.`,
+      );
+    },
     icon: LibraryBig,
     tips: [
       "Solid border and check pill: exact printing owned",
@@ -90,9 +125,14 @@ const STEPS = [
     ],
   },
   {
-    title: "Save deliberately",
-    description:
-      "Deck edits remain unsaved until you use Save. The editor marks pending changes so you can experiment, undo, or create a local checkpoint before committing a version.",
+    get title() {
+      return i18n._(msg`Save deliberately`);
+    },
+    get description() {
+      return i18n._(
+        msg`Deck edits remain unsaved until you use Save. The editor marks pending changes so you can experiment, undo, or create a local checkpoint before committing a version.`,
+      );
+    },
     icon: Save,
     tips: [
       "Cmd/Ctrl+S saves the deck",
@@ -101,9 +141,14 @@ const STEPS = [
     ],
   },
   {
-    title: "Review and refine",
-    description:
-      "Deck Analysis brings legality, roles, goals, mana, collection coverage, budget, tokens, combos, and replacements together. Every section can be collapsed when you want a quieter workspace.",
+    get title() {
+      return i18n._(msg`Review and refine`);
+    },
+    get description() {
+      return i18n._(
+        msg`Deck Analysis brings legality, roles, goals, mana, collection coverage, budget, tokens, combos, and replacements together. Every section can be collapsed when you want a quieter workspace.`,
+      );
+    },
     icon: BarChart3,
     tips: [
       "Hover cards to inspect them in Preview",
@@ -112,9 +157,14 @@ const STEPS = [
     ],
   },
   {
-    title: "Check engine support",
-    description:
-      "Validation checks legality and whether every card is supported by both the Manabrew and Forge engines. Warning markers identify unsupported cards and can be filtered or selected together.",
+    get title() {
+      return i18n._(msg`Check engine support`);
+    },
+    get description() {
+      return i18n._(
+        msg`Validation checks legality and whether every card is supported by both the Manabrew and Forge engines. Warning markers identify unsupported cards and can be filtered or selected together.`,
+      );
+    },
     icon: ShieldCheck,
     tips: [
       "Collection gaps do not affect online deck legality",
@@ -122,9 +172,14 @@ const STEPS = [
     ],
   },
   {
-    title: "Work from the keyboard",
-    description:
-      "Open the command palette with Cmd/Ctrl+Shift+P to find editor actions. Undo, redo, save, search, section navigation, and bulk edits all have shortcuts.",
+    get title() {
+      return i18n._(msg`Work from the keyboard`);
+    },
+    get description() {
+      return i18n._(
+        msg`Open the command palette with Cmd/Ctrl+Shift+P to find editor actions. Undo, redo, save, search, section navigation, and bulk edits all have shortcuts.`,
+      );
+    },
     icon: Sparkles,
     tips: [
       "Alt+3 jumps to the next editor section",
@@ -134,7 +189,6 @@ const STEPS = [
     ],
   },
 ];
-
 export function DeckEditorWelcome({ readOnly }: { readOnly: boolean }) {
   const [open, setOpen] = useState(
     () => !readOnly && localStorage.getItem(STORAGE_KEY) !== "dismissed",
@@ -142,7 +196,6 @@ export function DeckEditorWelcome({ readOnly }: { readOnly: boolean }) {
   const [step, setStep] = useState(0);
   const current = STEPS[step];
   const Icon = current.icon;
-
   useEffect(() => {
     const openWelcome = () => {
       if (!readOnly) {
@@ -153,12 +206,10 @@ export function DeckEditorWelcome({ readOnly }: { readOnly: boolean }) {
     window.addEventListener(DECK_EDITOR_WELCOME_EVENT, openWelcome);
     return () => window.removeEventListener(DECK_EDITOR_WELCOME_EVENT, openWelcome);
   }, [readOnly]);
-
   function dismiss() {
     localStorage.setItem(STORAGE_KEY, "dismissed");
     setOpen(false);
   }
-
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && dismiss()}>
       <DialogContent className="max-w-lg">
@@ -181,7 +232,7 @@ export function DeckEditorWelcome({ readOnly }: { readOnly: boolean }) {
             ))}
           </ul>
         </div>
-        <div className="flex gap-1.5" aria-label={`Step ${step + 1} of ${STEPS.length}`}>
+        <div className="flex gap-1.5" aria-label={i18n._(msg`Step ${step + 1} of ${STEPS.length}`)}>
           {STEPS.map((item, index) => (
             <div
               key={item.title}
@@ -193,10 +244,10 @@ export function DeckEditorWelcome({ readOnly }: { readOnly: boolean }) {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={dismiss}>
-            Skip
+            <Trans>Skip</Trans>
           </Button>
           <Button onClick={() => (step === STEPS.length - 1 ? dismiss() : setStep(step + 1))}>
-            {step === STEPS.length - 1 ? "Start building" : "Next"}
+            {step === STEPS.length - 1 ? i18n._(msg`Start building`) : i18n._(msg`Next`)}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -21,12 +21,13 @@ import {
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
 import { MANA_COLORS } from "@/stores/useCompanionStore.types";
 import { GameIcon } from "./GameIcon";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface PlayerMenuProps {
   player: CompanionPlayer;
   onPickCommander: () => void;
 }
-
 export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
   const toggleMonarch = useCompanionStore((s) => s.toggleMonarch);
   const toggleInitiative = useCompanionStore((s) => s.toggleInitiative);
@@ -60,7 +61,6 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
     setPendingConcede(false);
     markDead(player.id, true);
   };
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -68,40 +68,50 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
           variant="ghost"
           size="icon"
           className="size-7 rounded-full bg-black/40 text-white hover:bg-black/55 hover:text-white @md:size-8"
-          aria-label="Player menu"
+          aria-label={i18n._(msg`Player menu`)}
         >
           <MoreVertical className="size-4 @md:size-5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
         <DropdownMenuItem onSelect={onPickCommander}>
-          <GameIcon icon="crossed-swords" className="mr-2 size-4" /> Choose commander…
+          <Trans>
+            <GameIcon icon="crossed-swords" className="mr-2 size-4" /> Choose commander…
+          </Trans>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => setFirstPlayer(player.id)} disabled={isFirstPlayer}>
           <PlayCircle className="mr-2 size-4" />{" "}
-          {isFirstPlayer ? "Goes first" : "Set as first player"}
+          {isFirstPlayer ? i18n._(msg`Goes first`) : i18n._(msg`Set as first player`)}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => toggleMonarch(player.id)}>
           <GameIcon icon="crown" className="mr-2 size-4" />{" "}
-          {player.isMonarch ? "Remove monarch" : "Mark monarch"}
+          {player.isMonarch ? i18n._(msg`Remove monarch`) : i18n._(msg`Mark monarch`)}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => toggleInitiative(player.id)}>
           <GameIcon icon="checkered-flag" className="mr-2 size-4" />{" "}
-          {player.hasInitiative ? "Remove initiative" : "Take initiative"}
+          {player.hasInitiative ? i18n._(msg`Remove initiative`) : i18n._(msg`Take initiative`)}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => toggleCityBlessing(player.id)}>
           <GameIcon icon="fairy-wand" className="mr-2 size-4" />{" "}
-          {player.hasCityBlessing ? "Lose city's blessing" : "Gain city's blessing"}
+          {player.hasCityBlessing
+            ? i18n._(msg`Lose city's blessing`)
+            : i18n._(msg`Gain city's blessing`)}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => cycleRing(player.id)}>
-          <GameIcon icon="magic-portal" className="mr-2 size-4" /> The Ring tempts you (
-          {player.ringLevel ?? 0}/4)
+          <Trans>
+            <GameIcon icon="magic-portal" className="mr-2 size-4" /> The Ring tempts you (
+            {player.ringLevel ?? 0}/4)
+          </Trans>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => cycleSpeed(player.id)}>
-          <GameIcon icon="lightning-trio" className="mr-2 size-4" /> Speed ({player.speed ?? 0}/4)
+          <Trans>
+            <GameIcon icon="lightning-trio" className="mr-2 size-4" /> Speed ({player.speed ?? 0}/4)
+          </Trans>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-xs">Floating mana</DropdownMenuLabel>
+        <DropdownMenuLabel className="text-xs">
+          <Trans>Floating mana</Trans>
+        </DropdownMenuLabel>
         <div className="grid grid-cols-6 gap-1 px-2 pb-2">
           {MANA_COLORS.map((color) => (
             <button
@@ -109,15 +119,19 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
               key={color}
               onClick={() => adjustMana(player.id, color, 1)}
               className="grid size-7 place-items-center rounded-md hover:bg-accent pointer-coarse:size-9"
-              aria-label={`Add ${color} mana`}
+              aria-label={i18n._(msg`Add ${color} mana`)}
             >
               <ScryfallImg src={manaSymbolUrl(color)} alt="" className="size-4" draggable={false} />
             </button>
           ))}
         </div>
-        <DropdownMenuItem onSelect={() => clearMana(player.id)}>Empty mana pool</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => clearMana(player.id)}>
+          <Trans>Empty mana pool</Trans>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-xs">Accent</DropdownMenuLabel>
+        <DropdownMenuLabel className="text-xs">
+          <Trans>Accent</Trans>
+        </DropdownMenuLabel>
         <div className="grid grid-cols-8 gap-1 px-2 pb-2">
           {COMPANION_ACCENT_KEYS.map((key) => (
             <button
@@ -129,21 +143,25 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
                 key === player.accentKey ? "border-foreground" : "border-transparent",
               )}
               style={{ backgroundColor: COMPANION_ACCENT_COLORS[key] }}
-              aria-label={`Accent ${key}`}
+              aria-label={i18n._(msg`Accent ${key}`)}
             />
           ))}
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => setNotesOpen(true)}>
-          <NotebookPen className="mr-2 size-4" /> Notes
-          {player.notes ? "…" : ""}
+          <Trans>
+            <NotebookPen className="mr-2 size-4" /> Notes
+            {player.notes ? "…" : ""}
+          </Trans>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => resetCounters("all", player.id)}>
-          Reset this player
+          <Trans>Reset this player</Trans>
         </DropdownMenuItem>
         {player.isDead ? (
           <DropdownMenuItem onSelect={() => markDead(player.id, false)}>
-            <UserPlus className="mr-2 size-4" /> Revive
+            <Trans>
+              <UserPlus className="mr-2 size-4" /> Revive
+            </Trans>
           </DropdownMenuItem>
         ) : (
           <>
@@ -151,10 +169,13 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
               onSelect={handleConcede}
               className={pendingConcede ? "text-destructive" : undefined}
             >
-              <Flag className="mr-2 size-4" /> {pendingConcede ? "Tap again to concede" : "Concede"}
+              <Flag className="mr-2 size-4" />{" "}
+              {pendingConcede ? i18n._(msg`Tap again to concede`) : i18n._(msg`Concede`)}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => markDead(player.id, true)}>
-              <UserMinus className="mr-2 size-4" /> Eliminate
+              <Trans>
+                <UserMinus className="mr-2 size-4" /> Eliminate
+              </Trans>
             </DropdownMenuItem>
           </>
         )}

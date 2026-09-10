@@ -12,6 +12,8 @@ import { Modal } from "./Modal";
 import { ModalCardFilter } from "./ModalCardFilter";
 import { useCardNameFilter } from "./useCardNameFilter";
 import type { CSSProperties } from "react";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 
 interface ZoneViewerProps {
   title: string;
@@ -73,7 +75,7 @@ export function ZoneViewer({
         {cards.length === 0 ? (
           <Modal.EmptyState />
         ) : filtered.length === 0 ? (
-          <Modal.EmptyState message="No matching cards" />
+          <Modal.EmptyState message={i18n._(msg`No matching cards`)} />
         ) : (
           <div className="flex flex-wrap gap-2 content-start" {...longPress}>
             {filtered.map((card) => {

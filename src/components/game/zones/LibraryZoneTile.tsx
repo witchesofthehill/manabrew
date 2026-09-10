@@ -3,19 +3,18 @@ import { withAlpha } from "@/themes/gameTheme";
 import { CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
 import { useTheme } from "@/hooks/useTheme";
 import { ScryfallImg } from "@/components/ScryfallImg";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface LibraryZoneTileProps {
   count: number;
   onClick?: () => void;
   label?: string;
 }
-
 export function LibraryZoneTile({ count, onClick, label = "Lib" }: LibraryZoneTileProps) {
   const themeColors = useTheme().gameTheme;
   const fontSizes = useTheme().gameTheme.fontSizes;
   const ringColor = themeColors.activeAction.active;
   const empty = count === 0;
-
   return (
     <div className="flex flex-col items-center gap-0.5">
       <button
@@ -31,7 +30,7 @@ export function LibraryZoneTile({ count, onClick, label = "Lib" }: LibraryZoneTi
         }}
         onClick={onClick}
         disabled={!onClick}
-        title="Library"
+        title={i18n._(msg`Library`)}
       >
         {!empty && (
           <ScryfallImg

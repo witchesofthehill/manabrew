@@ -1,8 +1,8 @@
 // Mirrors Forge's DeckFormat (structural rules) + GameFormat (card legality).
 // For our limited card pool, we combine both into a single GameFormat interface.
-
 import type { Deck, DeckCard, DeckFormat } from "@/protocol/deck";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export interface GameFormat {
   id: DeckFormat;
   name: string;
@@ -19,10 +19,8 @@ export interface GameFormat {
   };
   bannedCards: string[];
 }
-
 /** Name-only fallback for callers without card data; prefer canHaveAnyNumberOf. */
 export const BASIC_LAND_NAMES = new Set(["Plains", "Island", "Swamp", "Mountain", "Forest"]);
-
 /**
  * Returns true when a card's oracle text explicitly declares that a deck may
  * contain any number of copies (e.g. Relentless Rats, Shadowborn Apostle,
@@ -46,7 +44,6 @@ const COPY_LIMIT_WORDS: Record<string, number> = {
   eleven: 11,
   twelve: 12,
 };
-
 export function copyLimitFromText(oracleText: string | undefined): number | null {
   if (!oracleText) return null;
   if (/any number of cards named/i.test(oracleText)) return Infinity;
@@ -58,22 +55,21 @@ export function copyLimitFromText(oracleText: string | undefined): number | null
   }
   return null;
 }
-
 export function isBasicLand(card: DeckCard): boolean {
   return (card.supertypes?.includes("Basic") ?? false) && (card.types?.includes("Land") ?? false);
 }
-
 /** Mirrors Forge's DeckFormat.canHaveAnyNumberOf. */
 export function canHaveAnyNumberOf(card: DeckCard): boolean {
   return isBasicLand(card) || copyLimitFromText(card.text) === Infinity;
 }
-
 export const GAME_FORMATS: GameFormat[] = [
   {
     id: "standard",
     name: "Standard",
     shortName: "STD",
-    description: "60+ cards, max 4 copies, 20 life, rotating sets",
+    get description() {
+      return i18n._(msg`60+ cards, max 4 copies, 20 life, rotating sets`);
+    },
     badgeColor: "blue",
     deckRules: {
       minDeckSize: 60,
@@ -89,7 +85,9 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "pioneer",
     name: "Pioneer",
     shortName: "PIO",
-    description: "60+ cards, max 4 copies, 20 life, Return to Ravnica forward",
+    get description() {
+      return i18n._(msg`60+ cards, max 4 copies, 20 life, Return to Ravnica forward`);
+    },
     badgeColor: "amber",
     deckRules: {
       minDeckSize: 60,
@@ -105,7 +103,9 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "modern",
     name: "Modern",
     shortName: "MOD",
-    description: "60+ cards, max 4 copies, 20 life, 8th Edition forward",
+    get description() {
+      return i18n._(msg`60+ cards, max 4 copies, 20 life, 8th Edition forward`);
+    },
     badgeColor: "emerald",
     deckRules: {
       minDeckSize: 60,
@@ -121,7 +121,9 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "legacy",
     name: "Legacy",
     shortName: "LEG",
-    description: "60+ cards, max 4 copies, 20 life, all sets, banned list",
+    get description() {
+      return i18n._(msg`60+ cards, max 4 copies, 20 life, all sets, banned list`);
+    },
     badgeColor: "rose",
     deckRules: {
       minDeckSize: 60,
@@ -137,7 +139,9 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "vintage",
     name: "Vintage",
     shortName: "VIN",
-    description: "60+ cards, max 4 copies, 20 life, all sets, restricted list",
+    get description() {
+      return i18n._(msg`60+ cards, max 4 copies, 20 life, all sets, restricted list`);
+    },
     badgeColor: "slate",
     deckRules: {
       minDeckSize: 60,
@@ -153,7 +157,9 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "pauper",
     name: "Pauper",
     shortName: "PAU",
-    description: "60+ cards, max 4 copies, 20 life, commons only",
+    get description() {
+      return i18n._(msg`60+ cards, max 4 copies, 20 life, commons only`);
+    },
     badgeColor: "zinc",
     deckRules: {
       minDeckSize: 60,
@@ -169,7 +175,9 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "premodern",
     name: "Premodern",
     shortName: "PRE",
-    description: "60+ cards, max 4 copies, Fourth Edition through Scourge",
+    get description() {
+      return i18n._(msg`60+ cards, max 4 copies, Fourth Edition through Scourge`);
+    },
     badgeColor: "amber",
     deckRules: {
       minDeckSize: 60,
@@ -218,7 +226,9 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "commander",
     name: "Commander",
     shortName: "CMD",
-    description: "100 cards, singleton, 40 life, requires commander",
+    get description() {
+      return i18n._(msg`100 cards, singleton, 40 life, requires commander`);
+    },
     badgeColor: "purple",
     deckRules: {
       minDeckSize: 100,
@@ -234,7 +244,9 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "brawl",
     name: "Brawl",
     shortName: "BRL",
-    description: "60 cards, singleton, 25 life, Standard-legal commander",
+    get description() {
+      return i18n._(msg`60 cards, singleton, 25 life, Standard-legal commander`);
+    },
     badgeColor: "teal",
     deckRules: {
       minDeckSize: 60,
@@ -250,7 +262,9 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "oathbreaker",
     name: "Oathbreaker",
     shortName: "OAT",
-    description: "60 cards, singleton, 20 life, planeswalker + signature spell",
+    get description() {
+      return i18n._(msg`60 cards, singleton, 20 life, planeswalker + signature spell`);
+    },
     badgeColor: "orange",
     deckRules: {
       minDeckSize: 60,
@@ -266,7 +280,9 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "draft",
     name: "Draft",
     shortName: "DFT",
-    description: "40+ cards, no copy limit, 20 life",
+    get description() {
+      return i18n._(msg`40+ cards, no copy limit, 20 life`);
+    },
     badgeColor: "sky",
     deckRules: {
       minDeckSize: 40,
@@ -282,7 +298,9 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "sealed",
     name: "Sealed",
     shortName: "SLD",
-    description: "40+ cards, no copy limit, 20 life",
+    get description() {
+      return i18n._(msg`40+ cards, no copy limit, 20 life`);
+    },
     badgeColor: "indigo",
     deckRules: {
       minDeckSize: 40,
@@ -295,12 +313,10 @@ export const GAME_FORMATS: GameFormat[] = [
     bannedCards: [],
   },
 ];
-
 export interface DeckValidation {
   legal: boolean;
   errors: string[];
 }
-
 export interface DeckValidationInput {
   deck: Deck;
   /** Optional override of the commander used for validation; when set and not
@@ -308,11 +324,9 @@ export interface DeckValidationInput {
    *  pulled out of the main deck for legality purposes. */
   commanderName?: string;
 }
-
 export function getFormat(id: string): GameFormat | undefined {
   return GAME_FORMATS.find((f) => f.id === id);
 }
-
 /**
  * Validate a deck (as an array of card names, one per copy) against a format.
  * Basic lands and cards whose text explicitly allows any number of copies are
@@ -328,14 +342,14 @@ export function validateDeck(
 ): DeckValidation {
   const errors: string[] = [];
   const { minDeckSize, maxDeckSize, maxCopies } = format.deckRules;
-
   if (cardNames.length < minDeckSize) {
-    errors.push(`Deck must have at least ${minDeckSize} cards (has ${cardNames.length})`);
+    errors.push(
+      i18n._(msg`Deck must have at least ${minDeckSize} cards (has ${cardNames.length})`),
+    );
   }
   if (maxDeckSize !== null && cardNames.length > maxDeckSize) {
-    errors.push(`Deck must have at most ${maxDeckSize} cards (has ${cardNames.length})`);
+    errors.push(i18n._(msg`Deck must have at most ${maxDeckSize} cards (has ${cardNames.length})`));
   }
-
   const counts = new Map<string, number>();
   for (const name of cardNames) {
     counts.set(name, (counts.get(name) ?? 0) + 1);
@@ -344,21 +358,18 @@ export function validateDeck(
     if (BASIC_LAND_NAMES.has(name)) continue;
     const limit = copyLimits?.get(name) ?? maxCopies;
     if (count > limit) {
-      errors.push(`Too many copies of "${name}": ${count} (max ${limit})`);
+      errors.push(i18n._(msg`Too many copies of "${name}": ${count} (max ${limit})`));
     }
   }
-
   const seenBanned = new Set<string>();
   for (const name of cardNames) {
     if (format.bannedCards.includes(name) && !seenBanned.has(name)) {
-      errors.push(`"${name}" is banned in ${format.name}`);
+      errors.push(i18n._(msg`"${name}" is banned in ${format.name}`));
       seenBanned.add(name);
     }
   }
-
   return { legal: errors.length === 0, errors };
 }
-
 function getCardIdentity(card?: DeckCard): string[] {
   if (!card) return [];
   if (card.colorIdentity && card.colorIdentity.length > 0) {
@@ -366,13 +377,11 @@ function getCardIdentity(card?: DeckCard): string[] {
   }
   return [...new Set((card.color ?? "").split("").filter(Boolean))];
 }
-
 function hasPartner(card?: DeckCard): boolean {
   if (!card) return false;
   if (card.keywords?.some((k) => /^partner$/i.test(k.trim()))) return true;
   return /(?:^|\n)partner(?!\s+with)(?!\s*—)/im.test(card.text);
 }
-
 /**
  * Returns the specific partner name this card must pair with ("Partner with Xxx"),
  * or null if it doesn't have the specific-partner ability.
@@ -384,35 +393,29 @@ function getPartnerWithName(card?: DeckCard): string | null {
   const match = card.text.match(/partner with ([^\n(]+)/i);
   return match ? match[1].trim() : null;
 }
-
 function partnerType(card?: DeckCard): string | null {
   const fromKeywords = card?.keywords?.find((k) => /^partner:/i.test(k));
   if (fromKeywords) return fromKeywords.slice(fromKeywords.indexOf(":") + 1).trim();
   const match = card?.text.match(/partner\s*—\s*([^\n(]+)/i);
   return match ? match[1].trim() : null;
 }
-
 function hasChooseBackground(card?: DeckCard): boolean {
   if (!card) return false;
   return card.text.toLowerCase().includes("choose a background");
 }
-
 function isBackgroundCard(card?: DeckCard): boolean {
   if (!card) return false;
   return card.subtypes?.some((s) => s.toLowerCase() === "background") ?? false;
 }
-
 function hasDoctorsCompanion(card?: DeckCard): boolean {
   if (!card) return false;
   if (card.keywords?.some((k) => /^doctor's companion$/i.test(k.trim()))) return true;
   return /doctor's companion/i.test(card.text);
 }
-
 function isTimeLordDoctor(card?: DeckCard): boolean {
   const subtypes = card?.subtypes?.join(" ").toLowerCase() ?? "";
   return subtypes.includes("time lord") && subtypes.includes("doctor");
 }
-
 export function partnerPairLabel(a: DeckCard, b: DeckCard): string | null {
   if (hasPartner(a) && hasPartner(b)) return "Partner";
   const typeA = partnerType(a);
@@ -432,7 +435,6 @@ export function partnerPairLabel(a: DeckCard, b: DeckCard): string | null {
   if (hasDoctorsCompanion(b) && isTimeLordDoctor(a)) return "Doctor's companion";
   return null;
 }
-
 /**
  * Returns true if two cards are a legal pair of partner commanders.
  * Handles: generic Partner, "Partner with [Name]", the restricted "Partner—Xxx"
@@ -441,7 +443,6 @@ export function partnerPairLabel(a: DeckCard, b: DeckCard): string | null {
 export function canBePartners(a: DeckCard, b: DeckCard): boolean {
   return partnerPairLabel(a, b) !== null;
 }
-
 export function canBePartnerCommander(card?: DeckCard): boolean {
   if (isBackgroundCard(card)) return true;
   if (!isCommanderEligible(card)) return false;
@@ -454,7 +455,6 @@ export function canBePartnerCommander(card?: DeckCard): boolean {
     isTimeLordDoctor(card)
   );
 }
-
 export function isCommanderEligible(card?: DeckCard): boolean {
   if (!card) return false;
   const isLegendary = card.supertypes.includes("Legendary");
@@ -472,7 +472,6 @@ export function isCommanderEligible(card?: DeckCard): boolean {
   if (isBackground) return true;
   return false;
 }
-
 export function commanderPairLabel(commanders: DeckCard[], formatId?: string): string | null {
   if (commanders.length !== 2) return null;
   if (formatId === "oathbreaker") {
@@ -483,19 +482,18 @@ export function commanderPairLabel(commanders: DeckCard[], formatId?: string): s
   }
   return partnerPairLabel(commanders[0], commanders[1]);
 }
-
 export function commanderSlotBadge(
   commanders: DeckCard[],
   formatId: string | undefined,
   index: number,
-): { label: string | null } | null {
+): {
+  label: string | null;
+} | null {
   const card = commanders[index];
   if (!card) return null;
-
   if (formatId !== "oathbreaker") {
     return index === 1 ? { label: partnerPairLabel(commanders[0], card) } : null;
   }
-
   const oathbreakers = commanders.filter((c) => canBeOathbreaker(c));
   if (canBeSignatureSpell(card)) {
     const paired = oathbreakers[commanders.filter((c) => canBeSignatureSpell(c)).indexOf(card)];
@@ -509,29 +507,24 @@ export function commanderSlotBadge(
   if (oathbreakers.length !== 2 || oathbreakers.indexOf(card) !== 1) return null;
   return { label: partnerPairLabel(oathbreakers[0], oathbreakers[1]) };
 }
-
 export function canBeOathbreaker(card?: DeckCard): boolean {
   if (!card) return false;
   if (card.text.toLowerCase().includes("can be your commander")) return true;
   return card.types.includes("Planeswalker");
 }
-
 export function canBeSignatureSpell(card?: DeckCard): boolean {
   if (!card) return false;
   return card.types.includes("Instant") || card.types.includes("Sorcery");
 }
-
 export function formatRequiresCommander(formatId?: string): boolean {
   return getFormat(formatId ?? "")?.deckRules.requiresCommander ?? false;
 }
-
 export function validateDeckSections(
   input: DeckValidationInput,
   format: GameFormat,
 ): DeckValidation {
   const { deck } = input;
   const errors: string[] = [];
-
   // Resolve commanders: deck.commanders takes precedence; otherwise the
   // override name (if present) pulls one card out of deck.cards for
   // legality checking.
@@ -545,7 +538,6 @@ export function validateDeckSections(
     }
   }
   const sideboard = deck.sideboard;
-
   const availableCards: DeckCard[] = [
     ...deck.cards,
     ...sideboard,
@@ -555,7 +547,6 @@ export function validateDeckSections(
     ...(deck.planes ?? []),
     ...commanders,
   ];
-
   const copyLimits = new Map<string, number>();
   for (const c of availableCards) {
     if (canHaveAnyNumberOf(c)) {
@@ -565,75 +556,77 @@ export function validateDeckSections(
     const limit = copyLimitFromText(c.text);
     if (limit !== null) copyLimits.set(c.identity.name, limit);
   }
-
   const baseValidation = validateDeck(
     [...mainDeck, ...commanders].map((c) => c.identity.name),
     format,
     copyLimits,
   );
   errors.push(...baseValidation.errors);
-
   if (sideboard.length > format.deckRules.sideboardMax) {
     errors.push(
-      `Sideboard must have at most ${format.deckRules.sideboardMax} cards (has ${sideboard.length})`,
+      i18n._(
+        msg`Sideboard must have at most ${format.deckRules.sideboardMax} cards (has ${sideboard.length})`,
+      ),
     );
   }
-
   if (format.deckRules.requiresCommander) {
     const expectedMainSize = format.deckRules.minDeckSize - commanders.length;
     if (mainDeck.length !== expectedMainSize) {
       errors.push(
-        `${format.name} deck must have exactly ${expectedMainSize} non-commander cards (has ${mainDeck.length})`,
+        i18n._(
+          msg`${format.name} deck must have exactly ${expectedMainSize} non-commander cards (has ${mainDeck.length})`,
+        ),
       );
     }
-
     let identitySource = commanders;
     if (format.id === "oathbreaker") {
       const oathbreakers = commanders.filter((c) => canBeOathbreaker(c));
       const spells = commanders.filter((c) => canBeSignatureSpell(c));
-
       for (const cmd of commanders) {
         if (!canBeOathbreaker(cmd) && !canBeSignatureSpell(cmd)) {
-          errors.push(`"${cmd.identity.name}" is not a legal oathbreaker or signature spell`);
+          errors.push(
+            i18n._(msg`"${cmd.identity.name}" is not a legal oathbreaker or signature spell`),
+          );
         }
       }
-
-      if (oathbreakers.length === 0) errors.push("Deck is missing an oathbreaker");
-      if (spells.length === 0) errors.push("Deck is missing a signature spell");
+      if (oathbreakers.length === 0) errors.push(i18n._(msg`Deck is missing an oathbreaker`));
+      if (spells.length === 0) errors.push(i18n._(msg`Deck is missing a signature spell`));
       if (oathbreakers.length > 2) {
-        errors.push(`Deck can have at most 2 oathbreakers (has ${oathbreakers.length})`);
+        errors.push(i18n._(msg`Deck can have at most 2 oathbreakers (has ${oathbreakers.length})`));
       } else if (oathbreakers.length === 2 && !canBePartners(oathbreakers[0], oathbreakers[1])) {
         errors.push(
-          `"${oathbreakers[0].identity.name}" and "${oathbreakers[1].identity.name}" cannot be paired — two oathbreakers must have a compatible partner ability`,
+          i18n._(
+            msg`"${oathbreakers[0].identity.name}" and "${oathbreakers[1].identity.name}" cannot be paired — two oathbreakers must have a compatible partner ability`,
+          ),
         );
       }
       if (spells.length > Math.max(1, oathbreakers.length)) {
         errors.push(
-          `Deck can have one signature spell per oathbreaker (has ${spells.length} for ${oathbreakers.length})`,
+          i18n._(
+            msg`Deck can have one signature spell per oathbreaker (has ${spells.length} for ${oathbreakers.length})`,
+          ),
         );
       }
-
       identitySource = oathbreakers;
     } else {
       if (commanders.length === 0) {
-        errors.push("Deck must have at least 1 commander");
+        errors.push(i18n._(msg`Deck must have at least 1 commander`));
       } else if (commanders.length > 2) {
-        errors.push(`Deck can have at most 2 commanders (has ${commanders.length})`);
+        errors.push(i18n._(msg`Deck can have at most 2 commanders (has ${commanders.length})`));
       }
-
       for (const cmd of commanders) {
         if (!isCommanderEligible(cmd)) {
-          errors.push(`"${cmd.identity.name}" is not a legal commander`);
+          errors.push(i18n._(msg`"${cmd.identity.name}" is not a legal commander`));
         }
       }
-
       if (commanders.length === 2 && !canBePartners(commanders[0], commanders[1])) {
         errors.push(
-          `"${commanders[0].identity.name}" and "${commanders[1].identity.name}" cannot be paired — both commanders must have a compatible partner ability`,
+          i18n._(
+            msg`"${commanders[0].identity.name}" and "${commanders[1].identity.name}" cannot be paired — both commanders must have a compatible partner ability`,
+          ),
         );
       }
     }
-
     const commanderIdentity = new Set(identitySource.flatMap((cmd) => getCardIdentity(cmd)));
     if (commanderIdentity.size > 0) {
       const invalid = [...mainDeck, ...commanders].find((card) =>
@@ -641,15 +634,15 @@ export function validateDeckSections(
       );
       if (invalid) {
         errors.push(
-          `Deck contains cards outside commander color identity: ${invalid.identity.name}`,
+          i18n._(
+            msg`Deck contains cards outside commander color identity: ${invalid.identity.name}`,
+          ),
         );
       }
     }
   }
-
   return { legal: errors.length === 0, errors };
 }
-
 /**
  * Returns all formats the deck is legal in.
  * Mirrors Forge's GameFormat.Collection.getAllFormatsOfDeck().
@@ -657,11 +650,9 @@ export function validateDeckSections(
 export function inferFormats(cardNames: string[]): GameFormat[] {
   return GAME_FORMATS.filter((f) => validateDeck(cardNames, f).legal);
 }
-
 export function inferFormatsFromDeck(deck: Deck): GameFormat[] {
   return GAME_FORMATS.filter((format) => validateDeckSections({ deck }, format).legal);
 }
-
 /** Whether a deck should be analyzed as Commander (combos, bracket). The stored
  *  format is the primary signal, but legacy/imported decks often land as
  *  "standard" with no commander, so a ~100-card singleton shape is accepted as

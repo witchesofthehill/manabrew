@@ -7,6 +7,8 @@ import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { cn } from "@/lib/utils";
 import type { DeckCard } from "@/protocol/deck";
 import { usePromptActionColors } from "./internal/promptActionTheme";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 
 interface PromptLabelProps {
   label: string;
@@ -30,7 +32,7 @@ export function PromptLabel({
   const isCancel = completionKind === "cancel";
   const completionButton = onCompleteTargets ? (
     <PromptActionButton
-      label={completionLabel ?? "Done"}
+      label={completionLabel ?? i18n._(msg`Done`)}
       icon={isCancel ? <Ban className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
       variant={isCancel ? "outline" : "default"}
       baseColor={isCancel ? promptActionColors.cancel : undefined}

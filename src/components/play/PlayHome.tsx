@@ -14,24 +14,29 @@ import { relayUsername } from "@/lib/relayUsername";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useServerStore } from "@/stores/useServerStore";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const MODES = [
   {
     to: ROUTES.PLAY_OFFLINE_CONSTRUCTED,
-    label: "Play Offline",
+    get label() {
+      return i18n._(msg`Play Offline`);
+    },
     desc: "Choose your decks and play against the AI at your own pace.",
     icon: Swords,
     tone: "primary",
   },
   {
     to: ROUTES.LOBBY,
-    label: "Multiplayer",
+    get label() {
+      return i18n._(msg`Multiplayer`);
+    },
     desc: "Join an open table or create a room for your group.",
     icon: Users,
     tone: "sky",
   },
 ];
-
 export function PlayHome() {
   const { quickPlay, quickPlayPreset, quickPlayCommunity, pendingDeckId, playersDialog } =
     useQuickPlay();
@@ -58,7 +63,6 @@ export function PlayHome() {
       ? `${openTables} ${openTables === 1 ? "table" : "tables"} open · ${players.length} online`
       : null;
   const communityEnabled = isFeatureEnabled("deckHub");
-
   useEffect(() => {
     const name = relayUsername();
     if (!resumePending && !connected && !connecting && !connectionError && name) {
@@ -76,7 +80,6 @@ export function PlayHome() {
     serverPassword,
     accountHandle,
   ]);
-
   useEffect(() => {
     if (!connected || resumePending) return;
     listRooms();
@@ -87,17 +90,16 @@ export function PlayHome() {
     }, 5000);
     return () => clearInterval(id);
   }, [connected, listPlayers, listRooms, resumePending]);
-
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
       <div className="relative z-10 h-full overflow-y-auto">
         <div className="flex min-h-full w-full flex-col gap-6 px-4 py-6 sm:gap-7 sm:px-6 sm:py-9 lg:px-8">
           <header className="max-w-xl sm:pt-2">
             <h1 className="font-serif text-3xl font-light tracking-[0.02em] text-foreground sm:text-4xl">
-              Ready to play?
+              <Trans>Ready to play?</Trans>
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Start a match your way, or open a deck from your collection.
+              <Trans>Start a match your way, or open a deck from your collection.</Trans>
             </p>
           </header>
 
@@ -113,7 +115,7 @@ export function PlayHome() {
               resumePending && "hidden",
             )}
           >
-            <section aria-label="Play modes" className="grid gap-4 md:grid-cols-2">
+            <section aria-label={i18n._(msg`Play modes`)} className="grid gap-4 md:grid-cols-2">
               {MODES.map(({ to, label, desc, icon, tone }) => (
                 <FeatureTile
                   key={to}
@@ -158,7 +160,7 @@ export function PlayHome() {
             >
               <FeatureTile
                 to={ROUTES.HUB}
-                label="Explore community decks"
+                label={i18n._(msg`Explore community decks`)}
                 desc="Browse complete decklists, discover popular builds, and save a version to your collection."
                 icon={LibraryBig}
                 tone="community"

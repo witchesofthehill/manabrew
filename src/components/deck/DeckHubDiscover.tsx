@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 import { DeckHubFilters } from "@/components/deck/DeckHubFilters";
 import { DeckHubResults } from "@/components/deck/DeckHubResults";
 import { availableEngines, hubEntryEngines, supportsAvailableEngine } from "@/lib/engines";
@@ -210,7 +212,9 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
         if (filters.favorites) setRefreshKey((value) => value + 1);
       })
       .catch((error) =>
-        toast.error(error instanceof Error ? error.message : "Failed to update favorite"),
+        toast.error(
+          error instanceof Error ? error.message : i18n._(msg`Failed to update favorite`),
+        ),
       );
   }
 

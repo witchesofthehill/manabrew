@@ -29,29 +29,132 @@ import { ScryfallImg } from "@/components/ScryfallImg";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import type { ManaCode } from "@/types/scryfall";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const COLOR_FILTERS = [
-  { id: "W", label: "W", scryfall: "c:w", title: "White" },
-  { id: "U", label: "U", scryfall: "c:u", title: "Blue" },
-  { id: "B", label: "B", scryfall: "c:b", title: "Black" },
-  { id: "R", label: "R", scryfall: "c:r", title: "Red" },
-  { id: "G", label: "G", scryfall: "c:g", title: "Green" },
-  { id: "C", label: "C", scryfall: "c:c", title: "Colorless" },
-  { id: "M", label: "M", scryfall: "c:m", title: "Multicolor" },
+  {
+    id: "W",
+    get label() {
+      return i18n._(msg`W`);
+    },
+    scryfall: "c:w",
+    get title() {
+      return i18n._(msg`White`);
+    },
+  },
+  {
+    id: "U",
+    get label() {
+      return i18n._(msg`U`);
+    },
+    scryfall: "c:u",
+    get title() {
+      return i18n._(msg`Blue`);
+    },
+  },
+  {
+    id: "B",
+    get label() {
+      return i18n._(msg`B`);
+    },
+    scryfall: "c:b",
+    get title() {
+      return i18n._(msg`Black`);
+    },
+  },
+  {
+    id: "R",
+    get label() {
+      return i18n._(msg`R`);
+    },
+    scryfall: "c:r",
+    get title() {
+      return i18n._(msg`Red`);
+    },
+  },
+  {
+    id: "G",
+    get label() {
+      return i18n._(msg`G`);
+    },
+    scryfall: "c:g",
+    get title() {
+      return i18n._(msg`Green`);
+    },
+  },
+  {
+    id: "C",
+    get label() {
+      return i18n._(msg`C`);
+    },
+    scryfall: "c:c",
+    get title() {
+      return i18n._(msg`Colorless`);
+    },
+  },
+  {
+    id: "M",
+    get label() {
+      return i18n._(msg`M`);
+    },
+    scryfall: "c:m",
+    get title() {
+      return i18n._(msg`Multicolor`);
+    },
+  },
 ] as const;
-
 const TYPE_FILTERS = [
-  { id: "Creature", label: "Creature" },
-  { id: "Land", label: "Land" },
-  { id: "Instant", label: "Instant" },
-  { id: "Sorcery", label: "Sorcery" },
-  { id: "Enchantment", label: "Enchant." },
-  { id: "Artifact", label: "Artifact" },
-  { id: "Planeswalker", label: "PW" },
+  {
+    id: "Creature",
+    get label() {
+      return i18n._(msg`Creature`);
+    },
+  },
+  {
+    id: "Land",
+    get label() {
+      return i18n._(msg`Land`);
+    },
+  },
+  {
+    id: "Instant",
+    get label() {
+      return i18n._(msg`Instant`);
+    },
+  },
+  {
+    id: "Sorcery",
+    get label() {
+      return i18n._(msg`Sorcery`);
+    },
+  },
+  {
+    id: "Enchantment",
+    get label() {
+      return i18n._(msg`Enchant.`);
+    },
+  },
+  {
+    id: "Artifact",
+    get label() {
+      return i18n._(msg`Artifact`);
+    },
+  },
+  {
+    id: "Planeswalker",
+    get label() {
+      return i18n._(msg`PW`);
+    },
+  },
 ] as const;
-
 const CMC_FILTERS = [
-  { id: "any", label: "Any" },
+  {
+    id: "any",
+    get label() {
+      return i18n._(msg`Any`);
+    },
+  },
   { id: "0", label: "0" },
   { id: "1", label: "1" },
   { id: "2", label: "2" },
@@ -60,84 +163,379 @@ const CMC_FILTERS = [
   { id: "5", label: "5" },
   { id: "6", label: "6+" },
 ] as const;
-
 const RARITY_FILTERS = [
-  { id: "common", label: "C", title: "Common" },
-  { id: "uncommon", label: "U", title: "Uncommon" },
-  { id: "rare", label: "R", title: "Rare" },
-  { id: "mythic", label: "M", title: "Mythic" },
+  {
+    id: "common",
+    get label() {
+      return i18n._(msg`C`);
+    },
+    get title() {
+      return i18n._(msg`Common`);
+    },
+  },
+  {
+    id: "uncommon",
+    get label() {
+      return i18n._(msg`U`);
+    },
+    get title() {
+      return i18n._(msg`Uncommon`);
+    },
+  },
+  {
+    id: "rare",
+    get label() {
+      return i18n._(msg`R`);
+    },
+    get title() {
+      return i18n._(msg`Rare`);
+    },
+  },
+  {
+    id: "mythic",
+    get label() {
+      return i18n._(msg`M`);
+    },
+    get title() {
+      return i18n._(msg`Mythic`);
+    },
+  },
 ] as const;
-
 const FORMAT_FILTERS = [
-  { id: "standard", label: "Standard" },
-  { id: "pioneer", label: "Pioneer" },
-  { id: "modern", label: "Modern" },
-  { id: "legacy", label: "Legacy" },
-  { id: "vintage", label: "Vintage" },
-  { id: "commander", label: "Commander" },
-  { id: "pauper", label: "Pauper" },
-  { id: "premodern", label: "Premodern" },
-  { id: "historic", label: "Historic" },
-  { id: "brawl", label: "Brawl" },
-  { id: "alchemy", label: "Alchemy" },
-  { id: "explorer", label: "Explorer" },
-  { id: "penny", label: "Penny" },
-  { id: "oathbreaker", label: "Oathbreaker" },
+  {
+    id: "standard",
+    get label() {
+      return i18n._(msg`Standard`);
+    },
+  },
+  {
+    id: "pioneer",
+    get label() {
+      return i18n._(msg`Pioneer`);
+    },
+  },
+  {
+    id: "modern",
+    get label() {
+      return i18n._(msg`Modern`);
+    },
+  },
+  {
+    id: "legacy",
+    get label() {
+      return i18n._(msg`Legacy`);
+    },
+  },
+  {
+    id: "vintage",
+    get label() {
+      return i18n._(msg`Vintage`);
+    },
+  },
+  {
+    id: "commander",
+    get label() {
+      return i18n._(msg`Commander`);
+    },
+  },
+  {
+    id: "pauper",
+    get label() {
+      return i18n._(msg`Pauper`);
+    },
+  },
+  {
+    id: "premodern",
+    get label() {
+      return i18n._(msg`Premodern`);
+    },
+  },
+  {
+    id: "historic",
+    get label() {
+      return i18n._(msg`Historic`);
+    },
+  },
+  {
+    id: "brawl",
+    get label() {
+      return i18n._(msg`Brawl`);
+    },
+  },
+  {
+    id: "alchemy",
+    get label() {
+      return i18n._(msg`Alchemy`);
+    },
+  },
+  {
+    id: "explorer",
+    get label() {
+      return i18n._(msg`Explorer`);
+    },
+  },
+  {
+    id: "penny",
+    get label() {
+      return i18n._(msg`Penny`);
+    },
+  },
+  {
+    id: "oathbreaker",
+    get label() {
+      return i18n._(msg`Oathbreaker`);
+    },
+  },
 ] as const;
-
 const COLOR_IDENTITY_FILTERS = [
-  { id: "W", label: "W", scryfall: "id:w", title: "White" },
-  { id: "U", label: "U", scryfall: "id:u", title: "Blue" },
-  { id: "B", label: "B", scryfall: "id:b", title: "Black" },
-  { id: "R", label: "R", scryfall: "id:r", title: "Red" },
-  { id: "G", label: "G", scryfall: "id:g", title: "Green" },
+  {
+    id: "W",
+    get label() {
+      return i18n._(msg`W`);
+    },
+    scryfall: "id:w",
+    get title() {
+      return i18n._(msg`White`);
+    },
+  },
+  {
+    id: "U",
+    get label() {
+      return i18n._(msg`U`);
+    },
+    scryfall: "id:u",
+    get title() {
+      return i18n._(msg`Blue`);
+    },
+  },
+  {
+    id: "B",
+    get label() {
+      return i18n._(msg`B`);
+    },
+    scryfall: "id:b",
+    get title() {
+      return i18n._(msg`Black`);
+    },
+  },
+  {
+    id: "R",
+    get label() {
+      return i18n._(msg`R`);
+    },
+    scryfall: "id:r",
+    get title() {
+      return i18n._(msg`Red`);
+    },
+  },
+  {
+    id: "G",
+    get label() {
+      return i18n._(msg`G`);
+    },
+    scryfall: "id:g",
+    get title() {
+      return i18n._(msg`Green`);
+    },
+  },
 ] as const;
-
 const PRODUCES_FILTERS = [
-  { id: "W", label: "W", title: "White" },
-  { id: "U", label: "U", title: "Blue" },
-  { id: "B", label: "B", title: "Black" },
-  { id: "R", label: "R", title: "Red" },
-  { id: "G", label: "G", title: "Green" },
-  { id: "C", label: "C", title: "Colorless" },
+  {
+    id: "W",
+    get label() {
+      return i18n._(msg`W`);
+    },
+    get title() {
+      return i18n._(msg`White`);
+    },
+  },
+  {
+    id: "U",
+    get label() {
+      return i18n._(msg`U`);
+    },
+    get title() {
+      return i18n._(msg`Blue`);
+    },
+  },
+  {
+    id: "B",
+    get label() {
+      return i18n._(msg`B`);
+    },
+    get title() {
+      return i18n._(msg`Black`);
+    },
+  },
+  {
+    id: "R",
+    get label() {
+      return i18n._(msg`R`);
+    },
+    get title() {
+      return i18n._(msg`Red`);
+    },
+  },
+  {
+    id: "G",
+    get label() {
+      return i18n._(msg`G`);
+    },
+    get title() {
+      return i18n._(msg`Green`);
+    },
+  },
+  {
+    id: "C",
+    get label() {
+      return i18n._(msg`C`);
+    },
+    get title() {
+      return i18n._(msg`Colorless`);
+    },
+  },
 ] as const;
-
 const FRAME_FILTERS = [
-  { id: "old", label: "Old" },
-  { id: "modern", label: "Modern" },
-  { id: "future", label: "Future" },
+  {
+    id: "old",
+    get label() {
+      return i18n._(msg`Old`);
+    },
+  },
+  {
+    id: "modern",
+    get label() {
+      return i18n._(msg`Modern`);
+    },
+  },
+  {
+    id: "future",
+    get label() {
+      return i18n._(msg`Future`);
+    },
+  },
 ] as const;
-
 const BORDER_FILTERS = [
-  { id: "black", label: "Black" },
-  { id: "white", label: "White" },
-  { id: "borderless", label: "Borderless" },
-  { id: "gold", label: "Gold" },
+  {
+    id: "black",
+    get label() {
+      return i18n._(msg`Black`);
+    },
+  },
+  {
+    id: "white",
+    get label() {
+      return i18n._(msg`White`);
+    },
+  },
+  {
+    id: "borderless",
+    get label() {
+      return i18n._(msg`Borderless`);
+    },
+  },
+  {
+    id: "gold",
+    get label() {
+      return i18n._(msg`Gold`);
+    },
+  },
 ] as const;
-
 const GAME_FILTERS = [
-  { id: "paper", label: "Paper" },
-  { id: "arena", label: "Arena" },
-  { id: "mtgo", label: "MTGO" },
+  {
+    id: "paper",
+    get label() {
+      return i18n._(msg`Paper`);
+    },
+  },
+  {
+    id: "arena",
+    get label() {
+      return i18n._(msg`Arena`);
+    },
+  },
+  {
+    id: "mtgo",
+    get label() {
+      return i18n._(msg`MTGO`);
+    },
+  },
 ] as const;
-
 const SORT_OPTIONS = [
-  { id: "cmc", label: "Mana Value" },
-  { id: "name", label: "Name" },
-  { id: "set", label: "Set" },
-  { id: "released", label: "Release Date" },
-  { id: "rarity", label: "Rarity" },
-  { id: "color", label: "Color" },
-  { id: "power", label: "Power" },
-  { id: "toughness", label: "Toughness" },
-  { id: "edhrec", label: "EDHREC Rank" },
-  { id: "usd", label: "Price (USD)" },
-  { id: "eur", label: "Price (EUR)" },
-  { id: "artist", label: "Artist" },
+  {
+    id: "cmc",
+    get label() {
+      return i18n._(msg`Mana Value`);
+    },
+  },
+  {
+    id: "name",
+    get label() {
+      return i18n._(msg`Name`);
+    },
+  },
+  {
+    id: "set",
+    get label() {
+      return i18n._(msg`Set`);
+    },
+  },
+  {
+    id: "released",
+    get label() {
+      return i18n._(msg`Release Date`);
+    },
+  },
+  {
+    id: "rarity",
+    get label() {
+      return i18n._(msg`Rarity`);
+    },
+  },
+  {
+    id: "color",
+    get label() {
+      return i18n._(msg`Color`);
+    },
+  },
+  {
+    id: "power",
+    get label() {
+      return i18n._(msg`Power`);
+    },
+  },
+  {
+    id: "toughness",
+    get label() {
+      return i18n._(msg`Toughness`);
+    },
+  },
+  {
+    id: "edhrec",
+    get label() {
+      return i18n._(msg`EDHREC Rank`);
+    },
+  },
+  {
+    id: "usd",
+    get label() {
+      return i18n._(msg`Price (USD)`);
+    },
+  },
+  {
+    id: "eur",
+    get label() {
+      return i18n._(msg`Price (EUR)`);
+    },
+  },
+  {
+    id: "artist",
+    get label() {
+      return i18n._(msg`Artist`);
+    },
+  },
 ] as const;
-
 type CmcId = (typeof CMC_FILTERS)[number]["id"];
-
 interface AdvancedFilters {
   rarity: Set<string>;
   format: string;
@@ -164,7 +562,6 @@ interface AdvancedFilters {
   sort: string;
   sortDir: string;
 }
-
 const INITIAL_ADVANCED: AdvancedFilters = {
   rarity: new Set(),
   format: "",
@@ -191,46 +588,182 @@ const INITIAL_ADVANCED: AdvancedFilters = {
   sort: "",
   sortDir: "auto",
 };
-
 const IS_FILTERS = [
-  { id: "transform", label: "Transform" },
-  { id: "modal", label: "Modal DFC" },
-  { id: "split", label: "Split" },
-  { id: "flip", label: "Flip" },
-  { id: "adventure", label: "Adventure" },
-  { id: "meld", label: "Meld" },
-  { id: "saga", label: "Saga" },
-  { id: "leveler", label: "Level Up" },
-  { id: "vanilla", label: "Vanilla" },
-  { id: "token", label: "Token" },
-  { id: "spell", label: "Spell" },
-  { id: "permanent", label: "Permanent" },
-  { id: "foil", label: "Foil" },
-  { id: "nonfoil", label: "Non-Foil" },
-  { id: "promo", label: "Promo" },
-  { id: "digital", label: "Digital Only" },
-  { id: "textless", label: "Textless" },
-  { id: "fullart", label: "Full Art" },
-  { id: "funny", label: "Un-cards" },
-  { id: "booster", label: "In Boosters" },
-  { id: "commander", label: "Commander" },
-  { id: "reserved", label: "Reserved List" },
-  { id: "reprint", label: "Reprint" },
-  { id: "firstprint", label: "First Print" },
-  { id: "unique", label: "Unique Art" },
-  { id: "fetchland", label: "Fetchland" },
-  { id: "dualland", label: "Dual Land" },
-  { id: "shockland", label: "Shockland" },
+  {
+    id: "transform",
+    get label() {
+      return i18n._(msg`Transform`);
+    },
+  },
+  {
+    id: "modal",
+    get label() {
+      return i18n._(msg`Modal DFC`);
+    },
+  },
+  {
+    id: "split",
+    get label() {
+      return i18n._(msg`Split`);
+    },
+  },
+  {
+    id: "flip",
+    get label() {
+      return i18n._(msg`Flip`);
+    },
+  },
+  {
+    id: "adventure",
+    get label() {
+      return i18n._(msg`Adventure`);
+    },
+  },
+  {
+    id: "meld",
+    get label() {
+      return i18n._(msg`Meld`);
+    },
+  },
+  {
+    id: "saga",
+    get label() {
+      return i18n._(msg`Saga`);
+    },
+  },
+  {
+    id: "leveler",
+    get label() {
+      return i18n._(msg`Level Up`);
+    },
+  },
+  {
+    id: "vanilla",
+    get label() {
+      return i18n._(msg`Vanilla`);
+    },
+  },
+  {
+    id: "token",
+    get label() {
+      return i18n._(msg`Token`);
+    },
+  },
+  {
+    id: "spell",
+    get label() {
+      return i18n._(msg`Spell`);
+    },
+  },
+  {
+    id: "permanent",
+    get label() {
+      return i18n._(msg`Permanent`);
+    },
+  },
+  {
+    id: "foil",
+    get label() {
+      return i18n._(msg`Foil`);
+    },
+  },
+  {
+    id: "nonfoil",
+    get label() {
+      return i18n._(msg`Non-Foil`);
+    },
+  },
+  {
+    id: "promo",
+    get label() {
+      return i18n._(msg`Promo`);
+    },
+  },
+  {
+    id: "digital",
+    get label() {
+      return i18n._(msg`Digital Only`);
+    },
+  },
+  {
+    id: "textless",
+    get label() {
+      return i18n._(msg`Textless`);
+    },
+  },
+  {
+    id: "fullart",
+    get label() {
+      return i18n._(msg`Full Art`);
+    },
+  },
+  {
+    id: "funny",
+    get label() {
+      return i18n._(msg`Un-cards`);
+    },
+  },
+  {
+    id: "booster",
+    get label() {
+      return i18n._(msg`In Boosters`);
+    },
+  },
+  {
+    id: "commander",
+    get label() {
+      return i18n._(msg`Commander`);
+    },
+  },
+  {
+    id: "reserved",
+    get label() {
+      return i18n._(msg`Reserved List`);
+    },
+  },
+  {
+    id: "reprint",
+    get label() {
+      return i18n._(msg`Reprint`);
+    },
+  },
+  {
+    id: "firstprint",
+    get label() {
+      return i18n._(msg`First Print`);
+    },
+  },
+  {
+    id: "unique",
+    get label() {
+      return i18n._(msg`Unique Art`);
+    },
+  },
+  {
+    id: "fetchland",
+    get label() {
+      return i18n._(msg`Fetchland`);
+    },
+  },
+  {
+    id: "dualland",
+    get label() {
+      return i18n._(msg`Dual Land`);
+    },
+  },
+  {
+    id: "shockland",
+    get label() {
+      return i18n._(msg`Shockland`);
+    },
+  },
 ] as const;
-
 const COMPARISON_OPS = ["=", ">", "<", ">=", "<="] as const;
-
 function pushOrGroup(parts: string[], items: Set<string>, prefix: string) {
   if (items.size === 0) return;
   const clauses = [...items].map((v) => `${prefix}${v}`);
   parts.push(clauses.length === 1 ? clauses[0] : `(${clauses.join(" or ")})`);
 }
-
 function buildScryfallQuery(
   text: string,
   colors: Set<string>,
@@ -277,7 +810,6 @@ function buildScryfallQuery(
   for (const modifier of adv.is) parts.push(`is:${modifier}`);
   return parts.join(" ");
 }
-
 function countAdvancedFilters(adv: AdvancedFilters): number {
   let count = adv.rarity.size > 0 ? 1 : 0;
   if (adv.format) count++;
@@ -300,7 +832,6 @@ function countAdvancedFilters(adv: AdvancedFilters): number {
   count += adv.is.size;
   return count;
 }
-
 function FilterBtn({
   active,
   onClick,
@@ -331,7 +862,6 @@ function FilterBtn({
     </button>
   );
 }
-
 function ManaFilterBtn({
   symbol,
   active,
@@ -359,17 +889,14 @@ function ManaFilterBtn({
     </button>
   );
 }
-
 function FilterLabel({ children }: { children: React.ReactNode }) {
   return (
     <span className="text-xs font-medium text-muted-foreground w-12 shrink-0">{children}</span>
   );
 }
-
 function FilterRow({ children, className }: { children: React.ReactNode; className?: string }) {
   return <div className={cn("flex items-center gap-1.5", className)}>{children}</div>;
 }
-
 function FilterSeparator({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-2 pt-2 pb-1">
@@ -380,7 +907,6 @@ function FilterSeparator({ label }: { label: string }) {
     </div>
   );
 }
-
 function DraggableCardGrid({
   card,
   onMoreInfo,
@@ -402,7 +928,6 @@ function DraggableCardGrid({
     data: { card },
     disabled: dragDisabled,
   });
-
   return (
     <div
       ref={dragDisabled ? undefined : setNodeRef}
@@ -427,8 +952,10 @@ function DraggableCardGrid({
               onAdd();
             }}
           >
-            <Plus className="h-3 w-3" />
-            Add
+            <Trans>
+              <Plus className="h-3 w-3" />
+              Add
+            </Trans>
           </Button>
         )}
         <Button
@@ -440,14 +967,15 @@ function DraggableCardGrid({
             onMoreInfo();
           }}
         >
-          <Info className="h-3 w-3" />
-          More Info
+          <Trans>
+            <Info className="h-3 w-3" />
+            More Info
+          </Trans>
         </Button>
       </div>
     </div>
   );
 }
-
 function DraggableCardRow({
   card,
   onMoreInfo,
@@ -469,9 +997,7 @@ function DraggableCardRow({
     data: { card },
     disabled: dragDisabled,
   });
-
   const typeStr = [...(card.supertypes ?? []), ...(card.types ?? [])].join(" ");
-
   return (
     <div
       ref={dragDisabled ? undefined : setNodeRef}
@@ -511,8 +1037,10 @@ function DraggableCardRow({
             onAdd();
           }}
         >
-          <Plus className="h-3 w-3" />
-          Add
+          <Trans>
+            <Plus className="h-3 w-3" />
+            Add
+          </Trans>
         </Button>
       )}
       <Button
@@ -524,13 +1052,14 @@ function DraggableCardRow({
           onMoreInfo();
         }}
       >
-        <Info className="h-3 w-3" />
-        Info
+        <Trans>
+          <Info className="h-3 w-3" />
+          Info
+        </Trans>
       </Button>
     </div>
   );
 }
-
 interface CardSearchProps {
   standalone?: boolean;
   onClose?: () => void;
@@ -541,7 +1070,6 @@ interface CardSearchProps {
   /** Bump to focus the search box (used by the deck editor's `/` shortcut). */
   focusSignal?: number;
 }
-
 export function CardSearch({
   standalone,
   onClose,
@@ -554,7 +1082,7 @@ export function CardSearch({
   const addToMain = useDeckStore((s) => s.addToMain);
   const addCard = (card: DeckCard) => {
     addToMain({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
-    toast.success(`Added ${card.identity.name}`);
+    toast.success(i18n._(msg`Added ${card.identity.name}`));
   };
   const [text, setText] = useState("");
   const [debouncedText, setDebouncedText] = useState("");
@@ -565,28 +1093,22 @@ export function CardSearch({
   const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [advanced, setAdvanced] = useState<AdvancedFilters>(INITIAL_ADVANCED);
-
   const advCount = countAdvancedFilters(advanced);
   const basicCount = activeColors.size + activeTypes.size + (activeCmc !== "any" ? 1 : 0);
   const hasActiveFilters = basicCount > 0 || advCount > 0;
-
   const observerTarget = useRef(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-
   const focusSearchInput = () => {
     searchInputRef.current?.focus();
     searchInputRef.current?.select();
   };
-
   // On the standalone search page CardSearch owns the `/` shortcut. As the
   // deck-editor panel the editor owns it (so it can open the panel first)
   // and drives focus through `focusSignal`.
   useKeybindings(standalone ? { "card-search-focus": focusSearchInput } : {});
-
   useEffect(() => {
     if (focusSignal) focusSearchInput();
   }, [focusSignal]);
-
   const effectiveQuery = buildScryfallQuery(
     debouncedText,
     activeColors,
@@ -599,12 +1121,10 @@ export function CardSearch({
     advanced.sort || undefined,
     advanced.sortDir !== "auto" ? advanced.sortDir : undefined,
   );
-
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedText(text), 500);
     return () => clearTimeout(handler);
   }, [text]);
-
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -615,7 +1135,6 @@ export function CardSearch({
     if (observerTarget.current) observer.observe(observerTarget.current);
     return () => observer.disconnect();
   }, [hasNextPage, fetchNextPage]);
-
   function toggleColor(id: string) {
     setActiveColors((prev) => {
       const n = new Set(prev);
@@ -646,11 +1165,9 @@ export function CardSearch({
   function toggleAdvString(key: keyof AdvancedFilters, value: string) {
     setAdvanced((prev) => ({ ...prev, [key]: prev[key] === value ? "" : value }));
   }
-
   // Keep both DeckCard and raw ScryfallCard arrays in sync
   const rawCards: ScryfallCard[] = data?.pages.flatMap((p) => p.data) ?? [];
   const allCards: DeckCard[] = rawCards.map(scryfallToDeckCard);
-
   return (
     <div className="flex flex-col h-full w-full">
       <div
@@ -665,7 +1182,7 @@ export function CardSearch({
               size="icon"
               variant="ghost"
               className="h-8 w-8 shrink-0"
-              title="Close search panel"
+              title={i18n._(msg`Close search panel`)}
               onClick={onClose}
             >
               <PanelRightClose className="h-4 w-4" />
@@ -673,7 +1190,7 @@ export function CardSearch({
           )}
           <Input
             ref={searchInputRef}
-            placeholder="Search cards…"
+            placeholder={i18n._(msg`Search cards\u2026`)}
             value={text}
             onChange={(e) => setText(e.target.value)}
             className="flex-1"
@@ -688,7 +1205,9 @@ export function CardSearch({
             onClick={() => setShowFilters((v) => !v)}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
-            <span className="text-xs">Filters</span>
+            <span className="text-xs">
+              <Trans>Filters</Trans>
+            </span>
             {hasActiveFilters && (
               <span className="bg-primary text-primary-foreground text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
                 {basicCount + advCount}
@@ -698,7 +1217,7 @@ export function CardSearch({
           <div className="flex border rounded-md overflow-hidden shrink-0">
             <button
               type="button"
-              title="Grid view"
+              title={i18n._(msg`Grid view`)}
               onClick={() => setViewMode("grid")}
               className={cn(
                 "px-2 py-1 text-xs transition-colors",
@@ -711,7 +1230,7 @@ export function CardSearch({
             </button>
             <button
               type="button"
-              title="List view"
+              title={i18n._(msg`List view`)}
               onClick={() => setViewMode("list")}
               className={cn(
                 "px-2 py-1 text-xs transition-colors border-l",
@@ -727,10 +1246,12 @@ export function CardSearch({
 
         {showFilters && (
           <div className="space-y-1 pt-1">
-            <FilterSeparator label="Colors & Mana" />
+            <FilterSeparator label={i18n._(msg`Colors & Mana`)} />
 
             <FilterRow>
-              <FilterLabel>Color</FilterLabel>
+              <FilterLabel>
+                <Trans>Color</Trans>
+              </FilterLabel>
               <div className="flex items-center gap-0.5">
                 {COLOR_FILTERS.map((f) =>
                   f.id === "M" ? (
@@ -740,7 +1261,7 @@ export function CardSearch({
                       onClick={() => toggleColor(f.id)}
                       title={f.title}
                     >
-                      M
+                      <Trans>M</Trans>
                     </FilterBtn>
                   ) : (
                     <ManaFilterBtn
@@ -756,7 +1277,9 @@ export function CardSearch({
             </FilterRow>
 
             <FilterRow>
-              <FilterLabel>Identity</FilterLabel>
+              <FilterLabel>
+                <Trans>Identity</Trans>
+              </FilterLabel>
               <div className="flex items-center gap-0.5">
                 {COLOR_IDENTITY_FILTERS.map((f) => (
                   <ManaFilterBtn
@@ -764,14 +1287,16 @@ export function CardSearch({
                     symbol={f.id}
                     active={advanced.colorIdentity.has(f.id)}
                     onClick={() => toggleAdvSet("colorIdentity", f.id)}
-                    title={`Color Identity: ${f.title}`}
+                    title={i18n._(msg`Color Identity: ${f.title}`)}
                   />
                 ))}
               </div>
             </FilterRow>
 
             <FilterRow>
-              <FilterLabel>Produces</FilterLabel>
+              <FilterLabel>
+                <Trans>Produces</Trans>
+              </FilterLabel>
               <div className="flex items-center gap-0.5">
                 {PRODUCES_FILTERS.map((f) => (
                   <ManaFilterBtn
@@ -779,26 +1304,30 @@ export function CardSearch({
                     symbol={f.id}
                     active={advanced.produces.has(f.id)}
                     onClick={() => toggleAdvSet("produces", f.id)}
-                    title={`Produces ${f.title} mana`}
+                    title={i18n._(msg`Produces ${f.title} mana`)}
                   />
                 ))}
               </div>
             </FilterRow>
 
             <FilterRow>
-              <FilterLabel>Mana</FilterLabel>
+              <FilterLabel>
+                <Trans>Mana</Trans>
+              </FilterLabel>
               <Input
                 className="h-7 text-xs w-40"
-                placeholder="e.g. {2}{W}{W}"
+                placeholder={i18n._(msg`e.g. {2}{W}{W}`)}
                 value={advanced.manaCost}
                 onChange={(e) => setAdv("manaCost", e.target.value)}
               />
             </FilterRow>
 
-            <FilterSeparator label="Card Properties" />
+            <FilterSeparator label={i18n._(msg`Card Properties`)} />
 
             <FilterRow className="flex-wrap">
-              <FilterLabel>Type</FilterLabel>
+              <FilterLabel>
+                <Trans>Type</Trans>
+              </FilterLabel>
               {TYPE_FILTERS.map((f) => (
                 <FilterBtn
                   key={f.id}
@@ -811,7 +1340,9 @@ export function CardSearch({
             </FilterRow>
 
             <FilterRow className="flex-wrap">
-              <FilterLabel>CMC</FilterLabel>
+              <FilterLabel>
+                <Trans>CMC</Trans>
+              </FilterLabel>
               {CMC_FILTERS.map((f) => (
                 <FilterBtn
                   key={f.id}
@@ -824,7 +1355,9 @@ export function CardSearch({
             </FilterRow>
 
             <FilterRow className="flex-wrap">
-              <FilterLabel>Rarity</FilterLabel>
+              <FilterLabel>
+                <Trans>Rarity</Trans>
+              </FilterLabel>
               {RARITY_FILTERS.map((f) => (
                 <FilterBtn
                   key={f.id}
@@ -838,9 +1371,13 @@ export function CardSearch({
             </FilterRow>
 
             <FilterRow className="flex-wrap">
-              <FilterLabel>Stats</FilterLabel>
+              <FilterLabel>
+                <Trans>Stats</Trans>
+              </FilterLabel>
               <div className="flex items-center gap-1">
-                <span className="text-[10px] text-muted-foreground/60 uppercase">pow</span>
+                <span className="text-[10px] text-muted-foreground/60 uppercase">
+                  <Trans>pow</Trans>
+                </span>
                 <select
                   className="h-6 text-xs pointer-coarse:h-9 pointer-coarse:text-base bg-background border rounded px-1"
                   value={advanced.powerOp}
@@ -860,7 +1397,9 @@ export function CardSearch({
                 />
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-[10px] text-muted-foreground/60 uppercase">tou</span>
+                <span className="text-[10px] text-muted-foreground/60 uppercase">
+                  <Trans>tou</Trans>
+                </span>
                 <select
                   className="h-6 text-xs pointer-coarse:h-9 pointer-coarse:text-base bg-background border rounded px-1"
                   value={advanced.toughnessOp}
@@ -880,7 +1419,9 @@ export function CardSearch({
                 />
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-[10px] text-muted-foreground/60 uppercase">loy</span>
+                <span className="text-[10px] text-muted-foreground/60 uppercase">
+                  <Trans>loy</Trans>
+                </span>
                 <select
                   className="h-6 text-xs pointer-coarse:h-9 pointer-coarse:text-base bg-background border rounded px-1"
                   value={advanced.loyaltyOp}
@@ -901,42 +1442,50 @@ export function CardSearch({
               </div>
             </FilterRow>
 
-            <FilterSeparator label="Text Search" />
+            <FilterSeparator label={i18n._(msg`Text Search`)} />
 
             <FilterRow>
-              <FilterLabel>Oracle</FilterLabel>
+              <FilterLabel>
+                <Trans>Oracle</Trans>
+              </FilterLabel>
               <Input
                 className="h-7 text-xs flex-1"
-                placeholder="Card text contains…"
+                placeholder={i18n._(msg`Card text contains\u2026`)}
                 value={advanced.oracleText}
                 onChange={(e) => setAdv("oracleText", e.target.value)}
               />
             </FilterRow>
 
             <FilterRow>
-              <FilterLabel>Flavor</FilterLabel>
+              <FilterLabel>
+                <Trans>Flavor</Trans>
+              </FilterLabel>
               <Input
                 className="h-7 text-xs flex-1"
-                placeholder="Flavor text contains…"
+                placeholder={i18n._(msg`Flavor text contains\u2026`)}
                 value={advanced.flavorText}
                 onChange={(e) => setAdv("flavorText", e.target.value)}
               />
             </FilterRow>
 
             <FilterRow>
-              <FilterLabel>Keyword</FilterLabel>
+              <FilterLabel>
+                <Trans>Keyword</Trans>
+              </FilterLabel>
               <Input
                 className="h-7 text-xs flex-1"
-                placeholder="e.g. flying, haste, deathtouch"
+                placeholder={i18n._(msg`e.g. flying, haste, deathtouch`)}
                 value={advanced.keyword}
                 onChange={(e) => setAdv("keyword", e.target.value)}
               />
             </FilterRow>
 
-            <FilterSeparator label="Format & Legality" />
+            <FilterSeparator label={i18n._(msg`Format & Legality`)} />
 
             <FilterRow className="flex-wrap">
-              <FilterLabel>Format</FilterLabel>
+              <FilterLabel>
+                <Trans>Format</Trans>
+              </FilterLabel>
               {FORMAT_FILTERS.map((f) => (
                 <FilterBtn
                   key={f.id}
@@ -948,19 +1497,25 @@ export function CardSearch({
               ))}
             </FilterRow>
 
-            <FilterSeparator label="Printing & Availability" />
+            <FilterSeparator label={i18n._(msg`Printing & Availability`)} />
 
             <FilterRow className="flex-wrap">
-              <FilterLabel>Set</FilterLabel>
+              <FilterLabel>
+                <Trans>Set</Trans>
+              </FilterLabel>
               <SetSelect value={advanced.set} onChange={(v) => setAdv("set", v)} className="w-48" />
-              <FilterLabel>Artist</FilterLabel>
+              <FilterLabel>
+                <Trans>Artist</Trans>
+              </FilterLabel>
               <Input
                 className="h-7 text-xs flex-1"
-                placeholder="Artist name…"
+                placeholder={i18n._(msg`Artist name\u2026`)}
                 value={advanced.artist}
                 onChange={(e) => setAdv("artist", e.target.value)}
               />
-              <FilterLabel>Year</FilterLabel>
+              <FilterLabel>
+                <Trans>Year</Trans>
+              </FilterLabel>
               <Input
                 className="h-7 text-xs w-16"
                 placeholder="2024"
@@ -972,7 +1527,7 @@ export function CardSearch({
             <FilterRow className="flex-wrap gap-3">
               <div className="flex items-center gap-1">
                 <span className="text-[10px] text-muted-foreground/60 uppercase shrink-0">
-                  Frame
+                  <Trans>Frame</Trans>
                 </span>
                 {FRAME_FILTERS.map((f) => (
                   <FilterBtn
@@ -986,7 +1541,7 @@ export function CardSearch({
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-[10px] text-muted-foreground/60 uppercase shrink-0">
-                  Border
+                  <Trans>Border</Trans>
                 </span>
                 {BORDER_FILTERS.map((f) => (
                   <FilterBtn
@@ -1000,7 +1555,7 @@ export function CardSearch({
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-[10px] text-muted-foreground/60 uppercase shrink-0">
-                  Game
+                  <Trans>Game</Trans>
                 </span>
                 {GAME_FILTERS.map((f) => (
                   <FilterBtn
@@ -1014,21 +1569,23 @@ export function CardSearch({
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-[10px] text-muted-foreground/60 uppercase shrink-0">
-                  Lang
+                  <Trans>Lang</Trans>
                 </span>
                 <Input
                   className="h-6 text-xs w-14"
-                  placeholder="en"
+                  placeholder={i18n._(msg`en`)}
                   value={advanced.language}
                   onChange={(e) => setAdv("language", e.target.value)}
                 />
               </div>
             </FilterRow>
 
-            <FilterSeparator label="Card Modifiers" />
+            <FilterSeparator label={i18n._(msg`Card Modifiers`)} />
 
             <FilterRow className="flex-wrap">
-              <FilterLabel>Is</FilterLabel>
+              <FilterLabel>
+                <Trans>Is</Trans>
+              </FilterLabel>
               {IS_FILTERS.map((f) => (
                 <FilterBtn
                   key={f.id}
@@ -1040,16 +1597,20 @@ export function CardSearch({
               ))}
             </FilterRow>
 
-            <FilterSeparator label="Sort & Order" />
+            <FilterSeparator label={i18n._(msg`Sort & Order`)} />
 
             <FilterRow>
-              <FilterLabel>Sort by</FilterLabel>
+              <FilterLabel>
+                <Trans>Sort by</Trans>
+              </FilterLabel>
               <select
                 className="h-7 text-xs pointer-coarse:h-9 pointer-coarse:text-base bg-background border rounded px-2"
                 value={advanced.sort}
                 onChange={(e) => setAdv("sort", e.target.value)}
               >
-                <option value="">Default (CMC)</option>
+                <option value="">
+                  <Trans>Default (CMC)</Trans>
+                </option>
                 {SORT_OPTIONS.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.label}
@@ -1061,9 +1622,15 @@ export function CardSearch({
                 value={advanced.sortDir}
                 onChange={(e) => setAdv("sortDir", e.target.value)}
               >
-                <option value="auto">Auto</option>
-                <option value="asc">Ascending</option>
-                <option value="desc">Descending</option>
+                <option value="auto">
+                  <Trans>Auto</Trans>
+                </option>
+                <option value="asc">
+                  <Trans>Ascending</Trans>
+                </option>
+                <option value="desc">
+                  <Trans>Descending</Trans>
+                </option>
               </select>
             </FilterRow>
           </div>
@@ -1079,12 +1646,12 @@ export function CardSearch({
           )}
           {status === "error" && (
             <div className="text-center p-8 text-destructive">
-              Error fetching cards. Please try again.
+              <Trans>Error fetching cards. Please try again.</Trans>
             </div>
           )}
           {!effectiveQuery && (
             <p className="text-center text-sm text-muted-foreground py-12">
-              Enter a card name or select filters to search.
+              <Trans>Enter a card name or select filters to search.</Trans>
             </p>
           )}
 

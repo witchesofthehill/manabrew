@@ -1,6 +1,5 @@
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
-
 import { cn } from "@/lib/utils";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
@@ -8,7 +7,6 @@ import { useScryfallStore } from "@/stores/useScryfallStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { PREVIEW_SCENARIOS } from "./devPreviewScenarios";
 import { Button } from "@/components/ui/button";
-
 import {
   DEV_CONTROL_ACTIVE,
   DEV_CONTROL_BUTTON,
@@ -16,7 +14,9 @@ import {
   DEV_SECTION,
   DEV_SECTION_HEADING,
 } from "./devPanel.styles";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export function DevCardLayoutControls() {
   const definition = useGameDevStore((s) => s.debugCardDefinition);
   const transformed = useGameDevStore((s) => s.cardOverrides.forceTransformed);
@@ -27,7 +27,6 @@ export function DevCardLayoutControls() {
   const [error, setError] = useState<string | null>(null);
   const previewStyle = usePreferencesStore((s) => s.inGameCardPreviewStyle);
   const setPreviewStyle = usePreferencesStore((s) => s.setInGameCardPreviewStyle);
-
   const selectLayout = async (scenario: (typeof PREVIEW_SCENARIOS)[number]) => {
     setLoadingId(scenario.label);
     setError(null);
@@ -56,20 +55,23 @@ export function DevCardLayoutControls() {
       setCardOverride("forceFaceDown", !scenario.name);
       setDebugCardEnabled(true);
     } catch {
-      setError(`Could not load ${scenario.label}.`);
+      setError(i18n._(msg`Could not load ${scenario.label}.`));
     } finally {
       setLoadingId(null);
     }
   };
-
   return (
     <section className={DEV_SECTION}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className={DEV_SECTION_HEADING}>Card layouts and previews</p>
+          <p className={DEV_SECTION_HEADING}>
+            <Trans>Card layouts and previews</Trans>
+          </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Stage a scenario, then hover the staged card. Use its flip and rotate buttons to inspect
-            each face.
+            <Trans>
+              Stage a scenario, then hover the staged card. Use its flip and rotate buttons to
+              inspect each face.
+            </Trans>
           </p>
         </div>
         {definition?.layout ? (
@@ -85,19 +87,19 @@ export function DevCardLayoutControls() {
           variant={previewStyle === "rules" ? "default" : "outline"}
           onClick={() => setPreviewStyle("rules")}
         >
-          Rules preview
+          <Trans>Rules preview</Trans>
         </Button>
         <Button
           size="sm"
           variant={previewStyle === "printed" ? "default" : "outline"}
           onClick={() => setPreviewStyle("printed")}
         >
-          Printed preview
+          <Trans>Printed preview</Trans>
         </Button>
         {import.meta.env.DEV && (
           <Button size="sm" variant="outline" asChild>
             <a href="/card-mock" target="_blank" rel="noopener noreferrer">
-              Open preview playground
+              <Trans>Open preview playground</Trans>
             </a>
           </Button>
         )}
@@ -118,7 +120,7 @@ export function DevCardLayoutControls() {
               )}
               disabled={loadingId !== null}
               onClick={() => void selectLayout(layoutCase)}
-              title={layoutCase.name || "Face-down card"}
+              title={layoutCase.name || i18n._(msg`Face-down card`)}
             >
               {loadingId === layoutCase.label ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -139,7 +141,7 @@ export function DevCardLayoutControls() {
             )}
             onClick={() => setCardOverride("forceTransformed", false)}
           >
-            Front: {definition.identity.name}
+            <Trans>Front: {definition.identity.name}</Trans>
           </button>
           <button
             type="button"
@@ -149,7 +151,7 @@ export function DevCardLayoutControls() {
             )}
             onClick={() => setCardOverride("forceTransformed", true)}
           >
-            Back: {definition.backFace.name}
+            <Trans>Back: {definition.backFace.name}</Trans>
           </button>
         </div>
       ) : null}

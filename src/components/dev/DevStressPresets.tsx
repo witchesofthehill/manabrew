@@ -1,5 +1,4 @@
 import { RotateCcw } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   DEFAULT_DEV_CARD_OVERRIDES,
@@ -8,9 +7,10 @@ import {
   type DevCardOverrides,
   type DevPlayerOverrides,
 } from "@/stores/useGameDevStore";
-
 import { DEV_SECTION, DEV_SECTION_HEADING } from "./devPanel.styles";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const LONG_KEYWORDS = [
   "Flying",
   "First strike",
@@ -33,7 +33,6 @@ const LONG_KEYWORDS = [
   "Kicker:{R}",
   "Flashback:{2}{R}",
 ] as const;
-
 const BADGE_OVERFLOW: DevCardOverrides = {
   ...DEFAULT_DEV_CARD_OVERRIDES,
   forceExerted: true,
@@ -48,7 +47,6 @@ const BADGE_OVERFLOW: DevCardOverrides = {
   charge: 9,
   damage: 5,
 };
-
 const COUNTER_OVERFLOW: DevCardOverrides = {
   ...DEFAULT_DEV_CARD_OVERRIDES,
   p1p1: 999,
@@ -69,7 +67,6 @@ const COUNTER_OVERFLOW: DevCardOverrides = {
   page: 999,
   damage: 999,
 };
-
 const COMBAT_STATE: DevCardOverrides = {
   ...DEFAULT_DEV_CARD_OVERRIDES,
   forceTapped: true,
@@ -80,7 +77,6 @@ const COMBAT_STATE: DevCardOverrides = {
   p1p1: 3,
   damage: 4,
 };
-
 const PLAYER_HUD_OVERFLOW: DevPlayerOverrides = {
   ...DEFAULT_DEV_PLAYER_OVERRIDES,
   forceMonarch: true,
@@ -104,7 +100,6 @@ const PLAYER_HUD_OVERFLOW: DevPlayerOverrides = {
   life: 123,
   handCount: 27,
 };
-
 export function DevStressPresets() {
   const applyCardPreset = (cardOverrides: DevCardOverrides, keywords: readonly string[] = []) =>
     useGameDevStore.setState({
@@ -112,14 +107,17 @@ export function DevStressPresets() {
       cardOverrides,
       debugBattlefieldKeywords: [...keywords],
     });
-
   return (
     <section className={DEV_SECTION}>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className={DEV_SECTION_HEADING}>Stress scenarios</p>
+          <p className={DEV_SECTION_HEADING}>
+            <Trans>Stress scenarios</Trans>
+          </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Deterministic high-pressure states for the current staged card and player HUD.
+            <Trans>
+              Deterministic high-pressure states for the current staged card and player HUD.
+            </Trans>
           </p>
         </div>
         <Button
@@ -135,42 +133,43 @@ export function DevStressPresets() {
             })
           }
         >
-          <RotateCcw />
-          Clear
+          <Trans>
+            <RotateCcw />
+            Clear
+          </Trans>
         </Button>
       </div>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <PresetButton
-          label="All badges"
-          description="Foil, status, interaction rings, counters, and damage"
+          label={i18n._(msg`All badges`)}
+          description={i18n._(msg`Foil, status, interaction rings, counters, and damage`)}
           onClick={() => applyCardPreset(BADGE_OVERFLOW)}
         />
         <PresetButton
-          label="Long keyword stack"
-          description="Twenty keyword chips with mana-bearing reminder labels"
+          label={i18n._(msg`Long keyword stack`)}
+          description={i18n._(msg`Twenty keyword chips with mana-bearing reminder labels`)}
           onClick={() => applyCardPreset(DEFAULT_DEV_CARD_OVERRIDES, LONG_KEYWORDS)}
         />
         <PresetButton
-          label="Counter overflow"
-          description="Every supported counter at three digits"
+          label={i18n._(msg`Counter overflow`)}
+          description={i18n._(msg`Every supported counter at three digits`)}
           onClick={() => applyCardPreset(COUNTER_OVERFLOW)}
         />
         <PresetButton
-          label="Combat state"
-          description="Tapped, attacking, selected, playable, damaged, and pumped"
+          label={i18n._(msg`Combat state`)}
+          description={i18n._(msg`Tapped, attacking, selected, playable, damaged, and pumped`)}
           onClick={() => applyCardPreset(COMBAT_STATE)}
         />
         <PresetButton
-          label="Player HUD overflow"
-          description="Every game badge and numeric player value"
+          label={i18n._(msg`Player HUD overflow`)}
+          description={i18n._(msg`Every game badge and numeric player value`)}
           onClick={() => useGameDevStore.setState({ playerOverrides: PLAYER_HUD_OVERFLOW })}
         />
       </div>
     </section>
   );
 }
-
 function PresetButton({
   label,
   description,

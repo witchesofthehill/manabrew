@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import { MANA_COLORS, type ManaColor } from "@/stores/useCompanionStore.types";
 import { usePressHold } from "./usePressHold";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 
 interface ManaPoolRailProps {
   playerId: string;
@@ -44,7 +46,7 @@ function ManaPip({
       className={cn(
         "flex items-center gap-0.5 rounded-full px-1.5 py-1 text-xs font-semibold hover:bg-white/15",
       )}
-      aria-label={`Mana ${color}: ${value} (tap +1, hold -1)`}
+      aria-label={i18n._(msg`Mana ${color}: ${value} (tap +1, hold -1)`)}
       {...bindings}
     >
       <ScryfallImg src={manaSymbolUrl(color)} alt="" className="size-3.5" draggable={false} />

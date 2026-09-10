@@ -3,8 +3,11 @@ import { Button } from "@/components/ui/button";
 import { GameIcon } from "@/components/game/GameIcon";
 import { useGameStore } from "@/stores/useGameStore";
 import type { IronsmithDeckIssue } from "@/game";
-
-function groupByPlayer(issues: IronsmithDeckIssue[]): Array<{ player: string; cards: string[] }> {
+import { Trans } from "@lingui/react/macro";
+function groupByPlayer(issues: IronsmithDeckIssue[]): Array<{
+  player: string;
+  cards: string[];
+}> {
   const order: string[] = [];
   const byPlayer = new Map<string, string[]>();
   for (const issue of issues) {
@@ -17,26 +20,28 @@ function groupByPlayer(issues: IronsmithDeckIssue[]): Array<{ player: string; ca
   }
   return order.map((player) => ({ player, cards: byPlayer.get(player)! }));
 }
-
 export function IronsmithUnsupportedDeckModal() {
   const issues = useGameStore((s) => s.ironsmithDeckError);
   const dismiss = useGameStore((s) => s.dismissIronsmithDeckError);
-
   const groups = issues ? groupByPlayer(issues) : [];
   const multiPlayer = groups.length > 1;
-
   return (
     <Dialog open={issues !== null} onOpenChange={(open) => !open && dismiss()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <GameIcon name="anvil" className="h-4 w-4 text-warning" />
-            Ironsmith can&apos;t run this deck yet
+            <Trans>
+              <GameIcon name="anvil" className="h-4 w-4 text-warning" />
+              Ironsmith can&apos;t run this deck yet
+            </Trans>
           </DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Ironsmith is an experimental engine with partial card support. These cards aren&apos;t
-          implemented yet, so the match can&apos;t start. Swap them out, or pick a different engine.
+          <Trans>
+            Ironsmith is an experimental engine with partial card support. These cards aren&apos;t
+            implemented yet, so the match can&apos;t start. Swap them out, or pick a different
+            engine.
+          </Trans>
         </p>
         <div className="max-h-[45dvh] space-y-3 overflow-y-auto pr-1">
           {groups.map(({ player, cards }) => (
@@ -58,7 +63,7 @@ export function IronsmithUnsupportedDeckModal() {
         </div>
         <div className="flex justify-end">
           <Button variant="outline" size="sm" onClick={dismiss}>
-            Got it
+            <Trans>Got it</Trans>
           </Button>
         </div>
       </DialogContent>

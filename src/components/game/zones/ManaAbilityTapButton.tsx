@@ -8,10 +8,11 @@ import { useTheme } from "@/hooks/useTheme";
 import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import { manaSymbolUrl } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 const MANA_BUTTON_ALPHA = 0.45;
 const MANA_BUTTON_FALLBACK_ALPHA = 0.4;
-
 export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
   description,
   onClick,
@@ -29,14 +30,12 @@ export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
   const bgColor = letter
     ? withAlpha(themeColors.mana[letter], MANA_BUTTON_ALPHA)
     : withAlpha(themeColors.promptAction.cancel, MANA_BUTTON_FALLBACK_ALPHA);
-
   const [hintRect, setHintRect] = useState<DOMRect | null>(null);
   const longPress = useLongPressPreview<string>({
     resolve: (e) => ({ item: description, anchor: e.currentTarget as HTMLElement }),
     show: (_item, anchorRect) => setHintRect(anchorRect),
     hide: () => setHintRect(null),
   });
-
   return (
     <button
       className={cn(
@@ -49,7 +48,7 @@ export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
         onClick();
       }}
       onMouseDown={(e) => e.preventDefault()}
-      title={`Tap: ${description}`}
+      title={i18n._(msg`Tap: ${description}`)}
       {...longPress}
     >
       <div
@@ -67,13 +66,13 @@ export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
           />
         ) : (
           <span className={cn("font-bold text-white", small ? "text-[7px]" : "text-[9px]")}>
-            TAP
+            <Trans>TAP</Trans>
           </span>
         )}
       </div>
       {hintRect && (
         <TouchHintPopover anchorRect={hintRect} className="whitespace-nowrap text-[11px]">
-          <DynamicTextRender className="align-middle" text={`Tap: ${description}`} />
+          <DynamicTextRender className="align-middle" text={i18n._(msg`Tap: ${description}`)} />
         </TouchHintPopover>
       )}
     </button>

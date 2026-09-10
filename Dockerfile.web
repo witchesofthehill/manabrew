@@ -125,7 +125,7 @@ RUN yarn build:web
 
 # --- Website: landing page (manabrew.app) + docs (docs.manabrew.app),
 # Astro + Starlight, two builds out of one package ---
-FROM node:20-slim AS website
+FROM node:24-slim AS website
 
 # The site imports assets and theme data via relative paths that escape
 # website/ (../images, ../public, ../src) — keep the same directory layout here.

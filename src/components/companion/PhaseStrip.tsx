@@ -2,17 +2,63 @@ import { cn } from "@/lib/utils";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import { COMPANION_ACCENT_COLORS } from "@/stores/useCompanionStore.constants";
 import type { CompanionPhase } from "@/stores/useCompanionStore.types";
-
-const PHASES: { id: CompanionPhase; short: string; label: string }[] = [
-  { id: "untap", short: "UN", label: "Untap" },
-  { id: "upkeep", short: "UP", label: "Upkeep" },
-  { id: "draw", short: "DR", label: "Draw" },
-  { id: "main1", short: "M1", label: "Main 1" },
-  { id: "combat", short: "CB", label: "Combat" },
-  { id: "main2", short: "M2", label: "Main 2" },
-  { id: "end", short: "EN", label: "End" },
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
+const PHASES: {
+  id: CompanionPhase;
+  short: string;
+  label: string;
+}[] = [
+  {
+    id: "untap",
+    short: "UN",
+    get label() {
+      return i18n._(msg`Untap`);
+    },
+  },
+  {
+    id: "upkeep",
+    short: "UP",
+    get label() {
+      return i18n._(msg`Upkeep`);
+    },
+  },
+  {
+    id: "draw",
+    short: "DR",
+    get label() {
+      return i18n._(msg`Draw`);
+    },
+  },
+  {
+    id: "main1",
+    short: "M1",
+    get label() {
+      return i18n._(msg`Main 1`);
+    },
+  },
+  {
+    id: "combat",
+    short: "CB",
+    get label() {
+      return i18n._(msg`Combat`);
+    },
+  },
+  {
+    id: "main2",
+    short: "M2",
+    get label() {
+      return i18n._(msg`Main 2`);
+    },
+  },
+  {
+    id: "end",
+    short: "EN",
+    get label() {
+      return i18n._(msg`End`);
+    },
+  },
 ];
-
 export function PhaseStrip() {
   const phase = useCompanionStore((s) => s.session?.phase ?? "main1");
   const setPhase = useCompanionStore((s) => s.setPhase);

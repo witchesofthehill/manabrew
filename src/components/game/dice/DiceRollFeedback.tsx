@@ -11,10 +11,11 @@ import { buildPlayerColorMap, resolvePlayerColor, type PlayerSeatInfo } from "./
 import type { DiceRollSpec } from "./types";
 import type { DiceRollEntry } from "@/protocol";
 import type { DeckCard } from "@/protocol/deck";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 /** Must match the `--animate-dice-roll` duration in `src/index.css`. */
 const ANIMATION_DURATION_MS = 2000;
-
 interface DiceRollFeedbackProps {
   sides: number;
   rolls: DiceRollEntry[];
@@ -23,7 +24,6 @@ interface DiceRollFeedbackProps {
   sourceCard?: DeckCard;
   onAcknowledge: () => void;
 }
-
 export function DiceRollFeedback({
   sides,
   rolls,
@@ -33,7 +33,6 @@ export function DiceRollFeedback({
   onAcknowledge,
 }: DiceRollFeedbackProps) {
   const labeled = rolls.length > 1 || rolls.some((r) => r.label != null || r.highlighted);
-
   return (
     <Modal maxWidth="max-w-md" maxHeight="">
       <div role="dialog" aria-modal="true" aria-labelledby="dice-roll-title">
@@ -44,14 +43,13 @@ export function DiceRollFeedback({
         )}
         <Modal.Footer>
           <Button size="sm" onClick={onAcknowledge}>
-            Continue
+            <Trans>Continue</Trans>
           </Button>
         </Modal.Footer>
       </div>
     </Modal>
   );
 }
-
 function SingleRoll({
   sides,
   roll,
@@ -69,7 +67,6 @@ function SingleRoll({
     players,
     themeColors.playerColors,
   );
-
   const spec = useMemo<DiceRollSpec>(
     () => ({
       sides,
@@ -82,7 +79,6 @@ function SingleRoll({
   const finalResults = roll?.finalResults ?? [];
   const ignoredRolls = roll?.ignoredRolls ?? [];
   const summary = finalResults.join(", ");
-
   return (
     <>
       <Modal.Header>
@@ -90,7 +86,9 @@ function SingleRoll({
           {sourceCard && <CardImageThumbnail card={sourceCard} className={MODAL_CARD_THUMBNAIL} />}
           <div>
             <h2 id="dice-roll-title" className="font-semibold text-base">
-              Rolled {summary} (d{sides})
+              <Trans>
+                Rolled {summary} (d{sides})
+              </Trans>
             </h2>
             <p className="text-xs text-muted-foreground font-medium">{sourceCard?.identity.name}</p>
           </div>
@@ -103,18 +101,16 @@ function SingleRoll({
 
       {ignoredRolls.length > 0 && (
         <div className="px-4 pb-3 text-xs text-muted-foreground text-center">
-          Ignored: {ignoredRolls.join(", ")}
+          <Trans>Ignored: {ignoredRolls.join(", ")}</Trans>
         </div>
       )}
     </>
   );
 }
-
 interface DieAnimationParams {
   spinDeg: number;
   delayMs: number;
 }
-
 function LabeledRolls({
   sides,
   rolls,
@@ -136,15 +132,16 @@ function LabeledRolls({
     Array.from({ length: rolls.length }, generateParams),
   );
   const winner = rolls.find((r) => r.highlighted);
-
   return (
     <>
       <Modal.Header>
         <div>
           <h2 id="dice-roll-title" className="font-semibold text-base">
-            {title ?? "Dice roll"}
+            {title ?? i18n._(msg`Dice roll`)}
           </h2>
-          <p className="text-xs text-muted-foreground">Highest d{sides} goes first</p>
+          <p className="text-xs text-muted-foreground">
+            <Trans>Highest d{sides} goes first</Trans>
+          </p>
         </div>
       </Modal.Header>
 
@@ -190,7 +187,9 @@ function LabeledRolls({
           )}
           style={{ animationDelay: `${ANIMATION_DURATION_MS}ms`, animationFillMode: "both" }}
         >
-          <span className="text-muted-foreground">First player: </span>
+          <span className="text-muted-foreground">
+            <Trans>First player: </Trans>
+          </span>
           <span
             style={{ color: winner.playerId ? colorByPlayerId.get(winner.playerId) : undefined }}
           >
@@ -201,7 +200,6 @@ function LabeledRolls({
     </>
   );
 }
-
 function generateParams(): DieAnimationParams {
   const turns = 2 + Math.random();
   const sign = Math.random() < 0.5 ? -1 : 1;

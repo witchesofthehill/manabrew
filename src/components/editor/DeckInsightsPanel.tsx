@@ -1,6 +1,5 @@
 import { useState, type MouseEvent, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
-
 import { cn } from "@/lib/utils";
 import type { DeckCard } from "@/protocol/deck";
 import type { EditorDeck } from "@/types/manabrew";
@@ -12,17 +11,44 @@ import { DeckIntentPanel } from "./DeckIntentPanel";
 import { DeckStats } from "./DeckStats";
 import { ManaProbabilityPanel } from "./ManaProbabilityPanel";
 import { ReplacementSuggestionsPanel } from "./ReplacementSuggestionsPanel";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 type InsightSection = "overview" | "mana" | "collection" | "budget" | "replacements";
-
-const SECTIONS: { id: InsightSection; label: string }[] = [
-  { id: "overview", label: "Overview" },
-  { id: "mana", label: "Mana" },
-  { id: "collection", label: "Collection" },
-  { id: "budget", label: "Budget" },
-  { id: "replacements", label: "Replacements" },
+const SECTIONS: {
+  id: InsightSection;
+  label: string;
+}[] = [
+  {
+    id: "overview",
+    get label() {
+      return i18n._(msg`Overview`);
+    },
+  },
+  {
+    id: "mana",
+    get label() {
+      return i18n._(msg`Mana`);
+    },
+  },
+  {
+    id: "collection",
+    get label() {
+      return i18n._(msg`Collection`);
+    },
+  },
+  {
+    id: "budget",
+    get label() {
+      return i18n._(msg`Budget`);
+    },
+  },
+  {
+    id: "replacements",
+    get label() {
+      return i18n._(msg`Replacements`);
+    },
+  },
 ];
-
 export function DeckInsightsPanel({
   mode = "all",
   deck,
@@ -57,14 +83,12 @@ export function DeckInsightsPanel({
     budget: true,
     replacements: true,
   });
-
   function toggleSection(section: InsightSection) {
     setOpenSections((current) => ({ ...current, [section]: !current[section] }));
   }
-
   return (
     <section
-      aria-label="Deck insights"
+      aria-label={i18n._(msg`Deck insights`)}
       className="min-w-0 overflow-hidden rounded-2xl bg-muted/10 px-4 sm:px-5"
     >
       {SECTIONS.filter(({ id }) =>
@@ -121,7 +145,6 @@ export function DeckInsightsPanel({
     </section>
   );
 }
-
 function InsightSectionPanel({
   id,
   label,

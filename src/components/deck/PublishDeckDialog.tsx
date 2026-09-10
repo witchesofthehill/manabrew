@@ -20,7 +20,9 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import type { EditorDeck } from "@/types/manabrew";
 import { isFeatureEnabled } from "@/featureFlags";
 import { resolveDeckName } from "@/lib/deckName";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 interface PublishDeckDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -28,7 +30,6 @@ interface PublishDeckDialogProps {
   localDeckId: string | null;
   resumeInEditor?: boolean;
 }
-
 function toPublishableDeck(deck: EditorDeck): EditorDeck {
   const { customTags: _customTags, cardTags: _cardTags, ...wireDeck } = deck;
   return {
@@ -42,7 +43,6 @@ function toPublishableDeck(deck: EditorDeck): EditorDeck {
     stackPositions: undefined,
   };
 }
-
 export function PublishDeckDialog({
   open,
   onOpenChange,
@@ -65,17 +65,14 @@ export function PublishDeckDialog({
   const [busy, setBusy] = useState(false);
   const [title, setTitle] = useState(resolvedDeckName);
   const [tagInput, setTagInput] = useState("");
-
   useEffect(() => {
     if (publishEnabled && open) {
       setTitle(resolvedDeckName);
       void loadCapabilities();
     }
   }, [loadCapabilities, open, publishEnabled, resolvedDeckName]);
-
   const cardCount = deck.cards.length + (deck.commanders?.length ?? 0);
   const signedIn = authStatus === "signedIn" && account !== null;
-
   async function handlePublish() {
     if (!publishEnabled || !account) return;
     setBusy(true);
@@ -84,20 +81,27 @@ export function PublishDeckDialog({
       if (!useHubStore.getState().capabilitiesLoaded) {
         throw new Error(
           useHubStore.getState().capabilitiesError ??
-            "Could not determine whether Community publishing is available",
+            i18n._(msg`Could not determine whether Community publishing is available`),
         );
       }
       const localSaved = savedDecks.find((saved) => saved.id === localDeckId);
       let accountDeck;
       if (localSaved?.accountDeckId) {
         if (!localSaved.accountVersionNo) {
-          throw new Error("Reload this account deck before publishing it.");
+          throw new Error(i18n._(msg`Reload this account deck before publishing it.`));
         }
         accountDeck = await useAccountDecksStore
           .getState()
-          .save(localSaved.accountDeckId, localSaved.accountVersionNo, deck, "Published update");
+          .save(
+            localSaved.accountDeckId,
+            localSaved.accountVersionNo,
+            deck,
+            i18n._(msg`Published update`),
+          );
       } else {
-        accountDeck = await useAccountDecksStore.getState().create(deck, "Initial version");
+        accountDeck = await useAccountDecksStore
+          .getState()
+          .create(deck, i18n._(msg`Initial version`));
       }
       linkSavedDeckToAccount(
         localDeckId,
@@ -120,15 +124,14 @@ export function PublishDeckDialog({
         coverCardName: deck.coverCardName,
       });
       void refresh();
-      toast.success(`"${title.trim()}" published to Community`);
+      toast.success(i18n._(msg`"${title.trim()}" published to Community`));
       handleOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Publishing failed");
+      toast.error(err instanceof Error ? err.message : i18n._(msg`Publishing failed`));
     } finally {
       setBusy(false);
     }
   }
-
   function handleSignIn() {
     if (!publishEnabled) return;
     showSignIn({
@@ -137,37 +140,43 @@ export function PublishDeckDialog({
       resumeCurrentPublish: resumeInEditor,
     });
   }
-
   function handleOpenChange(open: boolean) {
     if (busy) return;
     onOpenChange(open);
   }
-
   return (
     <Dialog open={publishEnabled && open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Publish to Community</DialogTitle>
+          <DialogTitle>
+            <Trans>Publish to Community</Trans>
+          </DialogTitle>
           <DialogDescription>
             {!capabilitiesLoaded
-              ? `Checking Community support before publishing "${resolvedDeckName}".`
-              : `Publish the current version of "${resolvedDeckName}" (${cardCount} cards) as a new public entry. You can publish the same deck more than once.`}
+              ? i18n._(msg`Checking Community support before publishing "${resolvedDeckName}".`)
+              : i18n._(
+                  msg`Publish the current version of "${resolvedDeckName}" (${cardCount} cards) as a new public entry. You can publish the same deck more than once.`,
+                )}
           </DialogDescription>
         </DialogHeader>
         {signedIn ? (
           <p className="text-sm text-muted-foreground">
-            Publishing as <span className="font-medium text-foreground">@{account.handle}</span>
+            <Trans>
+              Publishing as <span className="font-medium text-foreground">@{account.handle}</span>
+            </Trans>
           </p>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Publishing needs a Manabrew account, so the deck stays yours and you can remove it from
-            any device.
+            <Trans>
+              Publishing needs a Manabrew account, so the deck stays yours and you can remove it
+              from any device.
+            </Trans>
           </p>
         )}
         {signedIn && (
           <div className="space-y-1.5">
             <label htmlFor="deckhub-title" className="text-sm font-medium">
-              Title
+              <Trans>Title</Trans>
             </label>
             <Input
               id="deckhub-title"
@@ -176,23 +185,25 @@ export function PublishDeckDialog({
               maxLength={100}
             />
             <p className="text-xs text-muted-foreground">
-              How the deck appears in Community. Defaults to the deck name.
+              <Trans>How the deck appears in Community. Defaults to the deck name.</Trans>
             </p>
           </div>
         )}
         {capabilities?.tags && signedIn && (
           <div className="space-y-1.5">
             <label htmlFor="deckhub-tags" className="text-sm font-medium">
-              Discovery tags
+              <Trans>Discovery tags</Trans>
             </label>
             <Input
               id="deckhub-tags"
               value={tagInput}
               onChange={(event) => setTagInput(event.target.value)}
-              placeholder="control, budget, tokens"
+              placeholder={i18n._(msg`control, budget, tokens`)}
               maxLength={200}
             />
-            <p className="text-xs text-muted-foreground">Up to 10 tags, separated by commas.</p>
+            <p className="text-xs text-muted-foreground">
+              <Trans>Up to 10 tags, separated by commas.</Trans>
+            </p>
           </div>
         )}
         {!capabilitiesLoaded && capabilitiesError && (
@@ -205,7 +216,7 @@ export function PublishDeckDialog({
             disabled={busy}
             onClick={() => handleOpenChange(false)}
           >
-            Cancel
+            <Trans>Cancel</Trans>
           </Button>
           {signedIn ? (
             <Button
@@ -213,11 +224,11 @@ export function PublishDeckDialog({
               disabled={busy || deck.cards.length === 0 || title.trim().length === 0}
               onClick={handlePublish}
             >
-              {busy ? "Publishing…" : "Publish"}
+              {busy ? i18n._(msg`Publishing\u2026`) : i18n._(msg`Publish`)}
             </Button>
           ) : (
             <Button size="sm" onClick={handleSignIn}>
-              Sign in
+              <Trans>Sign in</Trans>
             </Button>
           )}
         </DialogFooter>

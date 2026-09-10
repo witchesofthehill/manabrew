@@ -17,7 +17,9 @@ import {
 } from "@/components/editor/deckBuilder.utils";
 import { cn } from "@/lib/utils";
 import { MANA_LETTERS } from "@/themes/gameTheme";
-
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export type BrowserZoneFilter = "all" | "main" | "side" | "maybe";
 export type BrowserManaValueFilter = "all" | "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7+";
 export type BrowserCardTypeFilter =
@@ -29,13 +31,11 @@ export type BrowserCardTypeFilter =
   | "artifact"
   | "enchantment"
   | "planeswalker";
-
 interface ZoneOption {
   value: BrowserZoneFilter;
   label: string;
   count: number;
 }
-
 interface DeckCardBrowserFiltersProps {
   zone: BrowserZoneFilter;
   zoneOptions: ZoneOption[];
@@ -55,13 +55,33 @@ interface DeckCardBrowserFiltersProps {
   hasFilters: boolean;
   onClear: () => void;
 }
-
-const VIEW_OPTIONS: Array<{ value: ViewMode; label: string; icon: typeof List }> = [
-  { value: "list", label: "List", icon: List },
-  { value: "visual", label: "Visual", icon: Grid3X3 },
-  { value: "stack", label: "Stack", icon: Layers3 },
+const VIEW_OPTIONS: Array<{
+  value: ViewMode;
+  label: string;
+  icon: typeof List;
+}> = [
+  {
+    value: "list",
+    get label() {
+      return i18n._(msg`List`);
+    },
+    icon: List,
+  },
+  {
+    value: "visual",
+    get label() {
+      return i18n._(msg`Visual`);
+    },
+    icon: Grid3X3,
+  },
+  {
+    value: "stack",
+    get label() {
+      return i18n._(msg`Stack`);
+    },
+    icon: Layers3,
+  },
 ];
-
 const MANA_VALUE_OPTIONS: BrowserManaValueFilter[] = [
   "all",
   "0",
@@ -73,27 +93,79 @@ const MANA_VALUE_OPTIONS: BrowserManaValueFilter[] = [
   "6",
   "7+",
 ];
-
-const CARD_TYPE_OPTIONS: Array<{ value: BrowserCardTypeFilter; label: string }> = [
-  { value: "all", label: "Any type" },
-  { value: "creature", label: "Creature" },
-  { value: "land", label: "Land" },
-  { value: "instant", label: "Instant" },
-  { value: "sorcery", label: "Sorcery" },
-  { value: "artifact", label: "Artifact" },
-  { value: "enchantment", label: "Enchantment" },
-  { value: "planeswalker", label: "Planeswalker" },
+const CARD_TYPE_OPTIONS: Array<{
+  value: BrowserCardTypeFilter;
+  label: string;
+}> = [
+  {
+    value: "all",
+    get label() {
+      return i18n._(msg`Any type`);
+    },
+  },
+  {
+    value: "creature",
+    get label() {
+      return i18n._(msg`Creature`);
+    },
+  },
+  {
+    value: "land",
+    get label() {
+      return i18n._(msg`Land`);
+    },
+  },
+  {
+    value: "instant",
+    get label() {
+      return i18n._(msg`Instant`);
+    },
+  },
+  {
+    value: "sorcery",
+    get label() {
+      return i18n._(msg`Sorcery`);
+    },
+  },
+  {
+    value: "artifact",
+    get label() {
+      return i18n._(msg`Artifact`);
+    },
+  },
+  {
+    value: "enchantment",
+    get label() {
+      return i18n._(msg`Enchantment`);
+    },
+  },
+  {
+    value: "planeswalker",
+    get label() {
+      return i18n._(msg`Planeswalker`);
+    },
+  },
 ];
-
 const COLOR_LABELS: Record<string, string> = {
-  W: "White",
-  U: "Blue",
-  B: "Black",
-  R: "Red",
-  G: "Green",
-  C: "Colorless",
+  get W() {
+    return i18n._(msg`White`);
+  },
+  get U() {
+    return i18n._(msg`Blue`);
+  },
+  get B() {
+    return i18n._(msg`Black`);
+  },
+  get R() {
+    return i18n._(msg`Red`);
+  },
+  get G() {
+    return i18n._(msg`Green`);
+  },
+  get C() {
+    return i18n._(msg`Colorless`);
+  },
 };
-
 function ViewControl({
   value,
   onChange,
@@ -109,8 +181,8 @@ function ViewControl({
           <button
             key={option.value}
             type="button"
-            title={`${option.label} view`}
-            aria-label={`${option.label} view`}
+            title={i18n._(msg`${option.label} view`)}
+            aria-label={i18n._(msg`${option.label} view`)}
             aria-pressed={value === option.value}
             className={cn(
               "flex h-8 w-8 items-center justify-center border-r text-muted-foreground transition-colors last:border-r-0 pointer-coarse:h-10 pointer-coarse:w-10",
@@ -125,7 +197,6 @@ function ViewControl({
     </div>
   );
 }
-
 function ColorControl({
   colors,
   onToggle,
@@ -140,7 +211,7 @@ function ColorControl({
           key={color}
           type="button"
           title={COLOR_LABELS[color]}
-          aria-label={`Filter by ${COLOR_LABELS[color]} identity`}
+          aria-label={i18n._(msg`Filter by ${COLOR_LABELS[color]} identity`)}
           aria-pressed={colors.includes(color)}
           className={cn(
             "flex h-8 w-8 items-center justify-center rounded opacity-45 transition-opacity hover:opacity-80 pointer-coarse:h-10 pointer-coarse:w-10",
@@ -154,7 +225,6 @@ function ColorControl({
     </div>
   );
 }
-
 export function DeckCardBrowserFilters({
   zone,
   zoneOptions,
@@ -179,7 +249,6 @@ export function DeckCardBrowserFilters({
     Number(cardType !== "all") +
     Number(manaValue !== "all") +
     colors.length;
-
   const zoneControl = (
     <div className="flex flex-wrap items-center gap-1">
       {zoneOptions.map((option) => (
@@ -197,26 +266,24 @@ export function DeckCardBrowserFilters({
       ))}
     </div>
   );
-
   const groupControl = (
     <select
       value={groupBy}
-      aria-label="Group cards by"
+      aria-label={i18n._(msg`Group cards by`)}
       className="h-9 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
       onChange={(event) => onGroupByChange(event.target.value as GroupByMode)}
     >
       {GROUP_BY_OPTIONS.filter((option) => option.value !== "custom").map((option) => (
         <option key={option.value} value={option.value}>
-          Group: {option.label}
+          <Trans>Group: {option.label}</Trans>
         </option>
       ))}
     </select>
   );
-
   const typeControl = (
     <select
       value={cardType}
-      aria-label="Filter by card type"
+      aria-label={i18n._(msg`Filter by card type`)}
       className="h-9 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
       onChange={(event) => onCardTypeChange(event.target.value as BrowserCardTypeFilter)}
     >
@@ -227,22 +294,20 @@ export function DeckCardBrowserFilters({
       ))}
     </select>
   );
-
   const manaControl = (
     <select
       value={manaValue}
-      aria-label="Filter by mana value"
+      aria-label={i18n._(msg`Filter by mana value`)}
       className="h-9 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
       onChange={(event) => onManaValueChange(event.target.value as BrowserManaValueFilter)}
     >
       {MANA_VALUE_OPTIONS.map((value) => (
         <option key={value} value={value}>
-          {value === "all" ? "Any mana value" : `Mana value: ${value}`}
+          {value === "all" ? i18n._(msg`Any mana value`) : i18n._(msg`Mana value: ${value}`)}
         </option>
       ))}
     </select>
   );
-
   return (
     <>
       <div className="flex items-center justify-between gap-2 sm:hidden">
@@ -250,25 +315,33 @@ export function DeckCardBrowserFilters({
         <Sheet>
           <SheetTrigger asChild>
             <Button variant="outline" size="sm">
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              Filters
-              {activeFilterCount > 0 && (
-                <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">
-                  {activeFilterCount}
-                </span>
-              )}
+              <Trans>
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Filters
+                {activeFilterCount > 0 && (
+                  <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </Trans>
             </Button>
           </SheetTrigger>
           <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto rounded-t-xl">
             <SheetHeader className="pr-8 text-left">
-              <SheetTitle>Card filters</SheetTitle>
+              <SheetTitle>
+                <Trans>Card filters</Trans>
+              </SheetTitle>
               <SheetDescription>
-                Colors match any selected color identity. Search also matches type and rules text.
+                <Trans>
+                  Colors match any selected color identity. Search also matches type and rules text.
+                </Trans>
               </SheetDescription>
             </SheetHeader>
             <div className="mt-5 space-y-5">
               <div>
-                <p className="mb-2 text-xs font-medium text-muted-foreground">Deck section</p>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">
+                  <Trans>Deck section</Trans>
+                </p>
                 {zoneControl}
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -277,30 +350,36 @@ export function DeckCardBrowserFilters({
                 <div className="col-span-2">{manaControl}</div>
               </div>
               <div>
-                <p className="mb-2 text-xs font-medium text-muted-foreground">Color identity</p>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">
+                  <Trans>Color identity</Trans>
+                </p>
                 <ColorControl colors={colors} onToggle={onColorToggle} />
               </div>
               {viewMode !== "list" && (
                 <label className="block text-xs font-medium text-muted-foreground">
-                  Card size
-                  <input
-                    type="range"
-                    min={1}
-                    max={6}
-                    step={1}
-                    value={cardSize}
-                    className="mt-3 block h-2 w-full cursor-pointer accent-primary"
-                    onChange={(event) => onCardSizeChange(Number(event.target.value))}
-                  />
+                  <Trans>
+                    Card size
+                    <input
+                      type="range"
+                      min={1}
+                      max={6}
+                      step={1}
+                      value={cardSize}
+                      className="mt-3 block h-2 w-full cursor-pointer accent-primary"
+                      onChange={(event) => onCardSizeChange(Number(event.target.value))}
+                    />
+                  </Trans>
                 </label>
               )}
             </div>
             <div className="mt-6 grid grid-cols-2 gap-2">
               <Button variant="outline" disabled={!hasFilters} onClick={onClear}>
-                Clear filters
+                <Trans>Clear filters</Trans>
               </Button>
               <SheetClose asChild>
-                <Button>Show cards</Button>
+                <Button>
+                  <Trans>Show cards</Trans>
+                </Button>
               </SheetClose>
             </div>
           </SheetContent>
@@ -323,14 +402,14 @@ export function DeckCardBrowserFilters({
             max={6}
             step={1}
             value={cardSize}
-            aria-label="Card size"
+            aria-label={i18n._(msg`Card size`)}
             className="h-1 w-24 shrink-0 cursor-pointer accent-primary sm:w-32"
             onChange={(event) => onCardSizeChange(Number(event.target.value))}
           />
         )}
         {hasFilters && (
           <Button variant="ghost" size="sm" className="shrink-0" onClick={onClear}>
-            Clear
+            <Trans>Clear</Trans>
           </Button>
         )}
       </div>

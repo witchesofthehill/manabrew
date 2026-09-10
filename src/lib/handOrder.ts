@@ -1,15 +1,31 @@
 import type { CardDto } from "@/protocol/game";
-
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/i18n/i18n";
 export type HandOrderMode = "manual" | "color" | "mana-value";
-
-export const HAND_ORDER_OPTIONS: readonly { value: HandOrderMode; label: string }[] = [
-  { value: "manual", label: "Manual" },
-  { value: "color", label: "Color" },
-  { value: "mana-value", label: "Mana value" },
+export const HAND_ORDER_OPTIONS: readonly {
+  value: HandOrderMode;
+  label: string;
+}[] = [
+  {
+    value: "manual",
+    get label() {
+      return i18n._(msg`Manual`);
+    },
+  },
+  {
+    value: "color",
+    get label() {
+      return i18n._(msg`Color`);
+    },
+  },
+  {
+    value: "mana-value",
+    get label() {
+      return i18n._(msg`Mana value`);
+    },
+  },
 ];
-
 const COLOR_ORDER = "WUBRG";
-
 function colorRank(color: string): number {
   if (color.length === 1) {
     const rank = COLOR_ORDER.indexOf(color);
@@ -17,7 +33,6 @@ function colorRank(color: string): number {
   }
   return color.length > 1 ? COLOR_ORDER.length : COLOR_ORDER.length + 1;
 }
-
 export function reconcileHandOrder(order: readonly string[], cards: readonly CardDto[]): string[] {
   const present = new Set(cards.map((card) => card.id));
   const next = order.filter((id) => present.has(id));
@@ -30,7 +45,6 @@ export function reconcileHandOrder(order: readonly string[], cards: readonly Car
   }
   return next;
 }
-
 export function orderHandCards(
   cards: readonly CardDto[],
   mode: HandOrderMode,
@@ -40,7 +54,6 @@ export function orderHandCards(
   const indexById = new Map(order.map((id, index) => [id, index]));
   const sorted = [...cards];
   const stableIndex = (card: CardDto) => indexById.get(card.id) ?? sorted.length;
-
   if (mode === "manual") {
     sorted.sort((left, right) => stableIndex(left) - stableIndex(right));
   } else if (mode === "color") {
@@ -51,10 +64,8 @@ export function orderHandCards(
   } else {
     sorted.sort((left, right) => left.cmc - right.cmc || stableIndex(left) - stableIndex(right));
   }
-
   return sorted;
 }
-
 export function nextHandOrderMode(mode: HandOrderMode): HandOrderMode {
   const index = HAND_ORDER_OPTIONS.findIndex((option) => option.value === mode);
   return HAND_ORDER_OPTIONS[(index + 1) % HAND_ORDER_OPTIONS.length]!.value;

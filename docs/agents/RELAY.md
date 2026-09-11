@@ -24,6 +24,28 @@ Rooms survive relay restarts: `RoomCreated` returns a random `resume_token` (gua
 
 The relay is the single owner of the reconnect window: a disconnected in-game seat is forfeited (removed + broadcast like a leave) once its grace expires (`schedule_seat_forfeit`), so hosts never time disconnects themselves. A non-playing host disconnect gets the same reconnect grace as players instead of killing the room. The cleanup sweep resets any in-game room that has had no connected human participant (bot seats and the hosted node's observer don't count) for `reconnect_timeout_s` + margin back to Lobby — otherwise abandoned hosted games would sit `InGame` forever and skew the live-ops gauges. Room teardown funnels through exactly two primitives — `reset_room_to_lobby` (room survives) and `remove_room_and_clear_sessions` (room dies) — sharing one session rule: disconnected sessions are removed with the room, connected ones return to the lobby; never inline a third copy.
 
+## Host handoff
+
+A hosted game need not die with its host. The host files `ReportCheckpoint` at the start of each
+turn (`GameCheckpoint` in the harness: Forge's dev-mode state text plus commander tax and damage,
+monarch, initiative, day/night and eliminated seats), the relay keeps only the newest per game on
+the replay cache (`HostCheckpoint`, host-only, `game_id` must match, capped at
+`MAX_CHECKPOINT_BYTES`) and never forwards it to a seat: it is every library in order and every
+hand. When a non-playing host drops, `schedule_host_resume_abort` waits `HOST_HANDOFF_GRACE`
+for it to come back, then `offer_host_handoff` picks an idle pod (`handoff_candidate`: a
+connected service session hosting an empty lobby table that named `host_handoff` in
+`Authenticate.features`), mints a fresh `resume_token` on the room and sends that session
+`HostHandoff { request, turn, checkpoint }`. The token is the whole authorisation: the taker
+claims the room with an ordinary `ResumeRoom` from a new session, `resume_room_sync` rotates the
+host, clears the old host's pending prompts and queued inputs (`GameReplayCache::host_changed`),
+and the handler broadcasts `HostChanged { host, turn }` to the seats so they drop every engine id
+they hold and wait for a whole board. The same node reconnecting after a socket blip goes through
+the same rotation with the same username and is not a host change. Nothing claims the room
+within `HOST_HANDOFF_WINDOW` and it dies as `host_lost` as before.
+`manabrew_relay_host_handoffs_total{result}` counts every step; `manabrew_relay_checkpoints_total`
+what the host filed. Playing hosts (browser, desktop) file no checkpoint yet and are not offered
+a handoff.
+
 ## Identity and usernames
 
 `Authenticate` carries an optional identity proof (`identity.rs`): a hub-minted EdDSA token verified against `MANABREW_HUB_JWKS_URL`, and/or an opaque client device secret stored as its sha256. The session keeps every identity it resolves; a connection proving one of them takes its own live session over (the displaced socket gets `SessionTakenOver`, then a close; the `generation` guard makes its later cleanup a no-op), and a session that has an identity can only be reclaimed by that owner.

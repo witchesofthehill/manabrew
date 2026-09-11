@@ -120,6 +120,7 @@ impl BotState {
             }),
             client_platform: ClientPlatform::Unknown,
             client_version: None,
+            features: Vec::new(),
         }]
     }
 

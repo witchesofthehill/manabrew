@@ -39,10 +39,19 @@ pub struct ClientBuild {
     pub platform: ClientPlatform,
     version: Option<Version>,
     raw_version: Option<String>,
+    features: Vec<String>,
 }
 
 impl ClientBuild {
     pub fn new(platform: ClientPlatform, raw_version: Option<String>) -> Self {
+        Self::with_features(platform, raw_version, Vec::new())
+    }
+
+    pub fn with_features(
+        platform: ClientPlatform,
+        raw_version: Option<String>,
+        features: Vec<String>,
+    ) -> Self {
         let raw_version = raw_version.map(|raw| {
             if raw.chars().count() > MAX_VERSION_CHARS {
                 raw.chars().take(MAX_VERSION_CHARS).collect()
@@ -54,7 +63,13 @@ impl ClientBuild {
             platform,
             version: raw_version.as_deref().and_then(Version::parse),
             raw_version,
+            features,
         }
+    }
+
+    /// Whether the client named a feature at authentication.
+    pub fn supports(&self, feature: &str) -> bool {
+        self.features.iter().any(|named| named == feature)
     }
 
     /// What goes in the analytics event. `None` for a client that reported

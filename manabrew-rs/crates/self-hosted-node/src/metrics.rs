@@ -52,6 +52,7 @@ const DECISION_BUCKETS: &[f64] = &[
 pub enum PoolKind {
     Solo,
     Pod,
+    Takeover,
 }
 
 impl PoolKind {
@@ -59,6 +60,7 @@ impl PoolKind {
         match self {
             Self::Solo => "solo",
             Self::Pod => "pod",
+            Self::Takeover => "takeover",
         }
     }
 }

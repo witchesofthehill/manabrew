@@ -356,6 +356,9 @@ public final class Main {
                                 requireString(request, "sessionId"),
                                 request.has("viewer") ? request.get("viewer").getAsInt() : -1));
                             break;
+                        case "getCheckpoint":
+                            sendOk(adapter.getCheckpoint(requireString(request, "sessionId")));
+                            break;
                         case "getGameOver":
                             sendOk(adapter.getGameOver(requireString(request, "sessionId")));
                             break;

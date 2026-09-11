@@ -6,7 +6,8 @@ use tracing::{info, warn};
 use crate::analytics::{self, GameEndReason};
 use crate::connection::{broadcast_room_transport, broadcast_to_room, emit_to};
 use crate::lobby;
-use crate::protocol::{RoomStatus, ServerMessage};
+use crate::metrics;
+use crate::protocol::{RoomStatus, ServerMessage, FEATURE_HOST_HANDOFF};
 use crate::room::Room;
 use crate::state::ServerState;
 
@@ -14,6 +15,13 @@ const CLEANUP_INTERVAL: Duration = Duration::from_secs(60);
 const STALE_CONNECTED_TIMEOUT: Duration = Duration::from_secs(180);
 const IN_GAME_DISCONNECTED_GRACE: Duration = Duration::from_secs(3600);
 const RECONNECT_ABORT_MARGIN: Duration = Duration::from_secs(5);
+/// How long a hosted room waits for its own host before another session is
+/// asked to continue the game. A node that only lost its socket is back well
+/// inside this; one that died never is, and every seat's own reconnect timer
+/// is still running.
+const HOST_HANDOFF_GRACE: Duration = Duration::from_secs(20);
+/// Time for the asked session to load the checkpoint and claim the room.
+const HOST_HANDOFF_WINDOW: Duration = Duration::from_secs(45);
 
 pub async fn cleanup_loop(state: Arc<ServerState>) {
     let mut ticker = tokio::time::interval(CLEANUP_INTERVAL);
@@ -127,25 +135,26 @@ pub fn schedule_host_resume_abort(
     else {
         return;
     };
-    let timeout = Duration::from_secs(timeout_s as u64);
+    let timeout = Duration::from_secs(timeout_s as u64) + RECONNECT_ABORT_MARGIN;
 
     tokio::spawn(async move {
-        tokio::time::sleep(timeout + RECONNECT_ABORT_MARGIN).await;
-
-        // ResumeRoom rotates host_player_id and session reclaim flips the
-        // player back to connected; either one disarms this abort.
-        let host_still_gone = state
-            .rooms
-            .get(&room_id)
-            .map(|room| room.status == RoomStatus::InGame && room.host_player_id == host_player_id)
-            .unwrap_or(false)
-            && state
-                .players
-                .get(&host_player_id)
-                .map(|player| !player.connected)
-                .unwrap_or(true);
-        if !host_still_gone {
+        let handoff_after = HOST_HANDOFF_GRACE.min(timeout);
+        tokio::time::sleep(handoff_after).await;
+        if !host_still_gone(&state, &room_id, &host_player_id) {
             return;
+        }
+        let offered = offer_host_handoff(&state, &room_id, &host_player_id);
+        tokio::time::sleep(if offered {
+            HOST_HANDOFF_WINDOW
+        } else {
+            timeout.saturating_sub(handoff_after)
+        })
+        .await;
+        if !host_still_gone(&state, &room_id, &host_player_id) {
+            return;
+        }
+        if offered {
+            metrics::record_host_handoff(metrics::HANDOFF_UNCLAIMED);
         }
 
         info!(
@@ -161,6 +170,93 @@ pub fn schedule_host_resume_abort(
         );
         remove_room_and_clear_sessions(&state, &room_id, GameEndReason::HostLost);
     });
+}
+
+/// ResumeRoom rotates host_player_id and session reclaim flips the player
+/// back to connected; either one means the game has a host again.
+fn host_still_gone(state: &Arc<ServerState>, room_id: &str, host_player_id: &str) -> bool {
+    state
+        .rooms
+        .get(room_id)
+        .map(|room| room.status == RoomStatus::InGame && room.host_player_id == host_player_id)
+        .unwrap_or(false)
+        && state
+            .players
+            .get(host_player_id)
+            .map(|player| !player.connected)
+            .unwrap_or(true)
+}
+
+/// Asks an idle pod to continue the game from the host's last checkpoint. The
+/// fresh resume token in the request is the only authorisation it gets.
+fn offer_host_handoff(state: &Arc<ServerState>, room_id: &str, old_host_pid: &str) -> bool {
+    let Some(candidate) = handoff_candidate(state, room_id, old_host_pid) else {
+        metrics::record_host_handoff(metrics::HANDOFF_NO_CANDIDATE);
+        return false;
+    };
+    let offer = {
+        let Some(mut room) = state.rooms.get_mut(room_id) else {
+            return false;
+        };
+        let token = uuid::Uuid::new_v4().to_string();
+        let Some(replay) = room.replay.as_ref() else {
+            return false;
+        };
+        let Some(held) = replay.checkpoint.as_ref() else {
+            metrics::record_host_handoff(metrics::HANDOFF_NO_CHECKPOINT);
+            return false;
+        };
+        let offer = ServerMessage::HostHandoff {
+            request: lobby::handoff_request(
+                &room,
+                replay,
+                token.clone(),
+                state.official_key.clone(),
+            ),
+            turn: held.turn,
+            checkpoint: held.checkpoint.clone(),
+        };
+        room.resume_token = token;
+        offer
+    };
+    let Ok(json) = serde_json::to_string(&offer) else {
+        return false;
+    };
+    let ServerMessage::HostHandoff { turn, .. } = &offer else {
+        return false;
+    };
+    info!(
+        "[handoff] room {} offered to session {} from turn {}",
+        &room_id[..8.min(room_id.len())],
+        &candidate[..8.min(candidate.len())],
+        turn
+    );
+    emit_to(state, &candidate, &offer, &json);
+    metrics::record_host_handoff(metrics::HANDOFF_OFFERED);
+    true
+}
+
+/// A connected service session hosting an empty lobby table that said it can
+/// take a game over.
+fn handoff_candidate(
+    state: &Arc<ServerState>,
+    room_id: &str,
+    old_host_pid: &str,
+) -> Option<String> {
+    state.rooms.iter().find_map(|entry| {
+        let room = entry.value();
+        if entry.key() == room_id
+            || !room.hosted
+            || room.status != RoomStatus::Lobby
+            || !room.players.is_empty()
+            || room.host_player_id == old_host_pid
+        {
+            return None;
+        }
+        let host = state.players.get(&room.host_player_id)?;
+        (host.connected && host.is_service && host.client.supports(FEATURE_HOST_HANDOFF))
+            .then(|| host.player_id.clone())
+    })
 }
 
 pub fn schedule_seat_forfeit(state: Arc<ServerState>, room_id: String, player_id: String) {

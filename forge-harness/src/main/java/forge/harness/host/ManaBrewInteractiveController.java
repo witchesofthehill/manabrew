@@ -123,6 +123,9 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public boolean mulliganKeepHand(final Player mulliganingPlayer, final int cardsToReturn) {
+        if (session.isRestoring()) {
+            return true;
+        }
         final boolean keep = session.awaitMulliganDecision(me(), cardsToReturn);
         if (keep && cardsToReturn > 0) {
             final CardCollection hand = new CardCollection(player.getCardsIn(ZoneType.Hand));
@@ -182,6 +185,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             }
         }
         while (true) {
+            session.maybeCheckpoint();
             final List<SpellAbility> all;
             probingPayability = true;
             try {

@@ -22,8 +22,9 @@ use manabot::{BotAgent, SimpleAi};
 use manabrew_agent_interface::ids_codec::player_slot;
 use manabrew_agent_interface::prompt::AgentPrompt;
 use manabrew_agent_interface::protocol::{
-    ClientMessage, ClientPlatform, EngineKind, GameFormat, IdentityProof, PlayerInfo, RoomInfo,
-    RoomStatus, ServerMessage, StateEnvelope, TransportEndpoint, PROTOCOL_VERSION,
+    ClientMessage, ClientPlatform, EngineKind, GameFormat, IdentityProof, PlayerInfo,
+    ResumeRoomRequest, RoomInfo, RoomStatus, ServerMessage, StateEnvelope, TransportEndpoint,
+    PROTOCOL_VERSION,
 };
 use serde_json::{json, Value};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -366,6 +367,36 @@ impl Client {
         identity: Option<IdentityProof>,
         version: Option<&str>,
     ) -> Result<Client, String> {
+        Client::connect_session(
+            relay_url,
+            legacy_username,
+            session_username,
+            identity,
+            version,
+            false,
+            Vec::new(),
+        )
+        .await
+    }
+
+    /// A service session, the way a node authenticates, naming what it can do.
+    pub async fn connect_service(
+        relay_url: &str,
+        username: &str,
+        features: Vec<String>,
+    ) -> Result<Client, String> {
+        Client::connect_session(relay_url, username, username, None, None, true, features).await
+    }
+
+    async fn connect_session(
+        relay_url: &str,
+        legacy_username: &str,
+        session_username: &str,
+        identity: Option<IdentityProof>,
+        version: Option<&str>,
+        service: bool,
+        client_features: Vec<String>,
+    ) -> Result<Client, String> {
         let (socket, _) = connect_async(relay_url)
             .await
             .map_err(|error| format!("connect {relay_url}: {error}"))?;
@@ -375,10 +406,11 @@ impl Client {
             &ClientMessage::Authenticate {
                 username: legacy_username.to_string(),
                 password: "forge".to_string(),
-                service: false,
+                service,
                 identity,
                 client_platform: ClientPlatform::Unknown,
                 client_version: version.map(str::to_string),
+                features: client_features,
             },
         )
         .await?;
@@ -720,6 +752,138 @@ impl Client {
                 password: None,
                 reconnect_timeout_s: Some(RECONNECT_TIMEOUT_S),
                 table_style: None,
+            },
+        )
+        .await
+    }
+
+    /// A table the way a fleet node opens one: the creator hosts the engine
+    /// and takes no seat.
+    pub async fn create_hosted_room(&mut self, name: &str) -> Result<RoomInfo, String> {
+        send(
+            &mut self.write,
+            &ClientMessage::CreateRoom {
+                room_name: name.to_string(),
+                max_players: 4,
+                format: GameFormat::Commander,
+                protocol_version: PROTOCOL_VERSION,
+                hosted: true,
+                engine: EngineKind::Forge,
+                draft_config: None,
+                sealed_config: None,
+                official_key: None,
+                password: None,
+                reconnect_timeout_s: Some(RECONNECT_TIMEOUT_S),
+            },
+        )
+        .await?;
+        self.wait_own_room().await
+    }
+
+    pub async fn send_message(&mut self, message: &ClientMessage) -> Result<(), String> {
+        send(&mut self.write, message).await
+    }
+
+    /// The relay's request to continue somebody else's game.
+    pub async fn expect_host_handoff(
+        &mut self,
+        deadline: Duration,
+    ) -> Result<(ResumeRoomRequest, u32, String), String> {
+        let started = tokio::time::Instant::now();
+        while started.elapsed() < deadline {
+            match recv(&mut self.write, &mut self.read).await {
+                Some(ServerMessage::HostHandoff {
+                    request,
+                    turn,
+                    checkpoint,
+                }) => {
+                    check(format!(
+                        "'{}' was asked to continue room {} from turn {turn}",
+                        self.username,
+                        &request.room_id[..8]
+                    ));
+                    return Ok((request, turn, checkpoint));
+                }
+                Some(_) => continue,
+                None => return Err("connection closed awaiting a handoff".into()),
+            }
+        }
+        Err(format!("'{}' was not offered a handoff", self.username))
+    }
+
+    pub async fn wait_room_resumed(&mut self, deadline: Duration) -> Result<RoomInfo, String> {
+        let started = tokio::time::Instant::now();
+        while started.elapsed() < deadline {
+            match recv(&mut self.write, &mut self.read).await {
+                Some(ServerMessage::RoomResumed { room }) => return Ok(room),
+                Some(ServerMessage::Error { code, message }) => {
+                    return Err(format!("resume refused: {code}: {message}"))
+                }
+                Some(_) => continue,
+                None => return Err("connection closed awaiting RoomResumed".into()),
+            }
+        }
+        Err("no RoomResumed".into())
+    }
+
+    pub async fn expect_host_changed(
+        &mut self,
+        deadline: Duration,
+    ) -> Result<(String, u32), String> {
+        let started = tokio::time::Instant::now();
+        while started.elapsed() < deadline {
+            match recv(&mut self.write, &mut self.read).await {
+                Some(ServerMessage::HostChanged { host, turn, .. }) => {
+                    check(format!(
+                        "'{}' was told the host is now '{host}', from turn {turn}",
+                        self.username
+                    ));
+                    return Ok((host, turn));
+                }
+                Some(_) => continue,
+                None => return Err("connection closed awaiting HostChanged".into()),
+            }
+        }
+        Err(format!(
+            "'{}' was never told the host changed",
+            self.username
+        ))
+    }
+
+    /// Whether the next engine envelope for this seat comes from `host`.
+    pub async fn expect_state_from(
+        &mut self,
+        host: &str,
+        deadline: Duration,
+    ) -> Result<(), String> {
+        let started = tokio::time::Instant::now();
+        while started.elapsed() < deadline {
+            match recv(&mut self.write, &mut self.read).await {
+                Some(ServerMessage::StateUpdate { from_player, .. }) => {
+                    if from_player == host {
+                        check(format!(
+                            "'{}' received engine output from '{host}'",
+                            self.username
+                        ));
+                        return Ok(());
+                    }
+                }
+                Some(_) => continue,
+                None => return Err("connection closed awaiting state".into()),
+            }
+        }
+        Err(format!(
+            "'{}' received nothing from '{host}'",
+            self.username
+        ))
+    }
+
+    pub async fn broadcast_value(&mut self, state: Value) -> Result<(), String> {
+        send(
+            &mut self.write,
+            &ClientMessage::BroadcastState {
+                state,
+                target_player: None,
             },
         )
         .await

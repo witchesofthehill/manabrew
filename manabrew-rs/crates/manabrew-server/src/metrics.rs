@@ -28,6 +28,8 @@ const PLANE_RTT: &str = "manabrew_relay_plane_rtt_ms";
 const PLANE_RELAY_RTT: &str = "manabrew_relay_plane_relay_rtt_ms";
 const PLANE_CONNECT: &str = "manabrew_relay_plane_connect_ms";
 const GAME_OUTCOME_REPORTS: &str = "manabrew_relay_game_outcome_reports_total";
+const CHECKPOINTS: &str = "manabrew_relay_checkpoints_total";
+const HOST_HANDOFFS: &str = "manabrew_relay_host_handoffs_total";
 const CLIENT_RTT: &str = "manabrew_relay_client_rtt_ms";
 const STATE_HANDLING: &str = "manabrew_relay_state_handling_seconds";
 const SOCKET_WRITE: &str = "manabrew_relay_socket_write_seconds";
@@ -44,8 +46,18 @@ const LABEL_OUTCOME: &str = "outcome";
 const LABEL_PLANE: &str = "plane";
 const LABEL_PAIR: &str = "pair";
 const LABEL_DIRECTION: &str = "direction";
+const LABEL_RESULT: &str = "result";
 
 pub const REJECTION_OUTDATED_WIRE: &str = "outdated_wire";
+
+pub const CHECKPOINT_ACCEPTED: &str = "accepted";
+pub const CHECKPOINT_REJECTED: &str = "rejected";
+
+pub const HANDOFF_NO_CHECKPOINT: &str = "no_checkpoint";
+pub const HANDOFF_NO_CANDIDATE: &str = "no_candidate";
+pub const HANDOFF_OFFERED: &str = "offered";
+pub const HANDOFF_CLAIMED: &str = "claimed";
+pub const HANDOFF_UNCLAIMED: &str = "unclaimed";
 
 pub const ENGINE_REPORT_ACCEPTED: &str = "accepted";
 /// Accepted, but the seat had already left the room it played in. Normal at
@@ -184,6 +196,16 @@ pub fn record_game_outcome_report(kind: &'static str) {
 /// heartbeat. The heartbeat carries the send time and RFC 6455 requires the
 /// peer to echo a ping's payload, so this is measured entirely on the relay's
 /// own clock and needs nothing from the client.
+pub fn record_checkpoint(kind: &'static str) {
+    counter!(CHECKPOINTS, LABEL_KIND => kind).increment(1);
+}
+
+/// One count per step of a handoff, so `offered` minus `claimed` is the
+/// number of games a pod was asked for and never took.
+pub fn record_host_handoff(result: &'static str) {
+    counter!(HOST_HANDOFFS, LABEL_RESULT => result).increment(1);
+}
+
 pub fn record_client_rtt(ms: f64) {
     histogram!(CLIENT_RTT).record(ms);
 }

@@ -9,8 +9,7 @@
  * Plain JS and a classic worker on purpose: the generated launcher is an IIFE
  * loaded with importScripts, which module workers forbid.
  *
- * Expects forge-harness/build-wasm.sh output plus the packed assets in
- * public/forge/.
+ * Expects forge-harness/build-wasm.sh output in public/forge/.
  */
 const SAB_SIZE = 256 * 1024;
 let launcherUrl = "/forge/forgeharness.js";
@@ -116,16 +115,9 @@ async function startGame(requestId, args) {
     return postError(requestId, "start_game requires a deck and opponent deck");
   }
 
-  // Framed by the host from cardset.rkyv and handed over with the game: this
-  // worker is plain JS served from public/, so it cannot resolve the bundled
-  // module that reads the archive. It has to exist before boot, because the
-  // engine reads its assets while importScripts runs main().
-  if (!args.forgeAssets) {
-    return postError(requestId, "start_game arrived without the framed Forge assets");
-  }
-  self.__forgeAssets = args.forgeAssets;
-  console.log(`[assets] received ${(self.__forgeAssets.length / 1024) | 0} KiB from the host`);
-
+  // The engine's whole asset tree — every card script, tokens, editions — is
+  // embedded in forgeharness.js.wasm at build time, so boot needs nothing from
+  // the host and the lazy card index comes up complete.
   try {
     await boot();
   } catch (e) {
@@ -204,11 +196,6 @@ async function startMultiplayerGame(requestId, args) {
   if (localPlayerIndex < 0 || localPlayerIndex >= decks.length) {
     return postError(requestId, "enginePlayerIndex out of range");
   }
-  if (!args.forgeAssets) {
-    return postError(requestId, "start_multiplayer_game arrived without the framed Forge assets");
-  }
-  self.__forgeAssets = args.forgeAssets;
-  console.log(`[assets] received ${(self.__forgeAssets.length / 1024) | 0} KiB from the host`);
 
   try {
     await boot();

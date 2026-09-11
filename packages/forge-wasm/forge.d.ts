@@ -46,7 +46,6 @@ export interface ForgeStartGameOptions {
   opponentDecks?: ForgeDeck[];
   startingLife?: number;
   commanderName?: string;
-  forgeAssets?: string;
 }
 
 export interface ForgeStartMultiplayerGameOptions {
@@ -55,7 +54,6 @@ export interface ForgeStartMultiplayerGameOptions {
   enginePlayerIndex: number;
   commanderNames?: Array<string | null>;
   startingLife?: number;
-  forgeAssets?: string;
 }
 
 /**
@@ -73,9 +71,6 @@ export interface ForgeEngineOptions {
   workerUrl?: string | URL;
   launcherUrl?: string | URL;
   wasmUrl?: string | URL;
-  cardsetUrl?: string | URL;
-  assetWasmUrl?: string | URL;
-  assets?: string | ((decks: ForgeDeck[]) => string | Promise<string>);
   onMessage?: (message: ForgeEngineMessage, playerSlot?: string) => void;
   onState?: (state: StateUpdate, playerSlot?: string) => void;
   onPrompt?: (prompt: Prompt, playerSlot?: string) => void;
@@ -88,7 +83,6 @@ export interface ForgeEngineOptions {
 export declare class ForgeEngine {
   constructor(options?: ForgeEngineOptions);
   init(): Promise<void>;
-  buildAssets(decks: ForgeDeck[]): Promise<string>;
   startGame(options: ForgeStartGameOptions): Promise<"game-started">;
   startMultiplayerGame(options: ForgeStartMultiplayerGameOptions): Promise<"multiplayer-started">;
   respond(promptId: number, action: PromptOutput, playerSlot?: string): void;
@@ -98,5 +92,4 @@ export declare class ForgeEngine {
 
 export declare function createForgeEngine(options?: ForgeEngineOptions): Promise<ForgeEngine>;
 export declare const VERSION: string;
-export declare const CARDSET_ARCHIVE_VERSION: string;
 export declare const BUILD_COMMIT: string;

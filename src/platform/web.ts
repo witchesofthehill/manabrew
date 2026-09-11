@@ -67,8 +67,6 @@ import {
 import { ForgeHostBridge } from "@/game/forgeHostBridge";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { isForgeWasmHostingEnabled, setForgeWasmActive } from "@/lib/forgeWasm";
-import { buildForgeAssetBundle } from "@/lib/forgeAssets";
-import type { Deck } from "@/protocol/deck";
 // The seat protocol lives with @manabrew/forge-wasm, which drives the same
 // worker, so there is one implementation rather than one per consumer.
 import {
@@ -473,14 +471,6 @@ class WorkerBridge {
       this.terminate();
     }
     await this.init(forgeWasm);
-
-    if (startsGame && this.workerIsForgeWasm) {
-      const decks =
-        command === "start_game"
-          ? [args?.deck as Deck | undefined, ...((args?.opponentDecks as Deck[] | undefined) ?? [])]
-          : ((args?.decks as Deck[] | undefined) ?? []);
-      args = { ...args, forgeAssets: await buildForgeAssetBundle(decks) };
-    }
 
     if (!this.worker) {
       throw new Error("Worker not initialized");

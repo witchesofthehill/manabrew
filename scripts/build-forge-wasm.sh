@@ -14,7 +14,15 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 cd "$REPO_ROOT"
 node scripts/harness.mjs build
-forge-harness/build-wasm.sh "$@"
+
+RES=forge/forge-gui/res
+BUNDLE="$REPO_ROOT/target/forge-assets-framed.txt"
+cargo run --release -p forge-cardset-archive --features build --bin build-cardset-archive -- \
+  "$RES/cardsfolder" "$RES/tokenscripts" "$RES/editions" "$RES/blockdata" \
+  "$RES/lists/TypeLists.txt" "$REPO_ROOT/target/forge-cardset.rkyv"
+cargo run --release -p forge-cardset-archive --bin emit-forge-assets -- \
+  "$REPO_ROOT/target/forge-cardset.rkyv" "$BUNDLE"
+FORGE_ASSETS="$BUNDLE" forge-harness/build-wasm.sh "$@"
 
 mkdir -p public/forge
 cp forge-harness/native/wasm/forgeharness.js \

@@ -6,19 +6,15 @@ import {
   type FederatedWheelEvent,
   FederatedPointerEvent,
   Graphics,
-  Particle,
-  ParticleContainer,
   Rectangle,
   Sprite,
   Text,
-  Texture,
   TextStyle,
   type Ticker,
 } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
-import { darken } from "@/themes/gameTheme";
 import { hexToNum } from "@/pixi/colorUtils";
 import { CardSprite } from "@/pixi/CardSprite";
 import { gameIconTexture } from "@/pixi/gameIconCache";
@@ -74,16 +70,12 @@ import {
 import type { PromptLayerCallbacks, PromptOverlaySpec } from "./prompt.types";
 import { createRollToken, setRollTokenValue, type RollTokenVisual } from "./dice/DiceGeometry";
 import {
-  ROLL_FLIGHT_MS,
   ROLL_IMPACT_MS,
   ROLL_SETTLE_MS,
-  rollBurst,
-  rollDelayMs,
-  rollDuration,
   rollingDieValue,
-  rollRandom,
   rollSeed,
   rollTrajectory,
+  type RollTrajectory,
 } from "./dice/DiceAnimation";
 
 const MODAL_TYPES = new Set([
@@ -161,10 +153,9 @@ interface DragState {
 interface RollVisual {
   token: RollTokenVisual;
   finalValue: number | string;
-  index: number;
   sides: number;
-  round: number;
   seed: number;
+  trajectory: RollTrajectory;
   baseX: number;
   baseY: number;
   startX: number;
@@ -172,9 +163,6 @@ interface RollVisual {
   restingRotation: number;
   ignored: boolean;
   ignoredMark: Graphics | null;
-  aura: Graphics;
-  highlighted: boolean;
-  playerColor: number;
 }
 interface RollDisplayEntry {
   sides: number;
@@ -5283,8 +5271,13 @@ export class PromptLayer {
             ignored: false,
           },
         ];
-    const maxRound = Math.max(0, ...visibleEntries.map((entry) => entry.round));
-    this.rollDurationMs = rollDuration(visibleEntries.length, maxRound);
+    const rollEntries = visibleEntries.map((entry, index) => {
+      const seed = rollSeed(this.spec?.currentPrompt?.promptId, entry.round, index);
+      return { entry, index, seed, trajectory: rollTrajectory(seed) };
+    });
+    this.rollDurationMs = Math.max(
+      ...rollEntries.map(({ trajectory }) => trajectory.flightMs + ROLL_IMPACT_MS + ROLL_SETTLE_MS),
+    );
     this.rollSettled = !animationsEnabled() || this.rollElapsedMs >= this.rollDurationMs;
     const width = this.modalPromptWidth(620);
     const landingColumns = Math.max(1, Math.ceil(Math.sqrt(visibleEntries.length)));
@@ -5306,22 +5299,12 @@ export class PromptLayer {
     );
     const availableWidth = width - PANEL_PADDING * 2;
     const bodyHeight = Math.max(0, height - bodyTop - footerHeight - MODAL_BODY_BOTTOM_PADDING);
-    const resultBottom = winner ? Math.max(0, bodyHeight - 58) : bodyHeight;
-    const throwBottom = winner ? resultBottom - 12 : bodyHeight - 12;
+    const resultBottom = winner ? Math.max(0, bodyHeight - 46) : bodyHeight;
+    const throwBottom = winner ? resultBottom - 10 : bodyHeight - 12;
     const arenaTop = 8;
     const arenaHeight = Math.max(dieSize + 32, throwBottom - arenaTop);
     const cellWidth = availableWidth / landingColumns;
     const cellHeight = arenaHeight / landingRows;
-    const layoutSeed = rollSeed(
-      this.spec?.currentPrompt?.promptId,
-      maxRound,
-      visibleEntries.length,
-    );
-    const landingSlots = visibleEntries
-      .map((_, index) => index)
-      .sort(
-        (left, right) => rollRandom(layoutSeed, left + 110) - rollRandom(layoutSeed, right + 110),
-      );
     body.boundsArea = new Rectangle(0, 0, availableWidth, bodyHeight);
     const rollLayer = new Container();
     rollLayer.position.set(PANEL_PADDING, bodyTop);
@@ -5333,68 +5316,31 @@ export class PromptLayer {
           `${entry.label ? `${entry.label}: ` : ""}${entry.value}${entry.ignored ? ", ignored" : ""}`,
       )
       .join(". ");
-    const particleLayer = animationsEnabled()
-      ? new ParticleContainer<Particle>({
-          texture: Texture.WHITE,
-          boundsArea: new Rectangle(0, -120, availableWidth, bodyHeight + 240),
-          blendMode: "add",
-          dynamicProperties: {
-            position: true,
-            rotation: true,
-            vertex: true,
-            color: true,
-          },
-        })
-      : null;
-    if (particleLayer) {
-      particleLayer.eventMode = "none";
-      rollLayer.addChild(particleLayer);
-    }
-    visibleEntries.forEach((entry, index) => {
-      const slot = landingSlots[index] ?? index;
-      const column = slot % landingColumns;
-      const row = Math.floor(slot / landingColumns);
-      const seed = rollSeed(this.spec?.currentPrompt?.promptId, entry.round, index);
-      const horizontalSlack = Math.max(0, cellWidth - dieSize - 24);
-      const verticalSlack = Math.max(0, cellHeight - dieSize - 28);
-      const slotX = (column + 0.5) * cellWidth;
+    rollEntries.forEach(({ entry, index, seed, trajectory }) => {
+      const column = index % landingColumns;
+      const row = Math.floor(index / landingColumns);
+      const rowItemCount = Math.min(landingColumns, visibleEntries.length - row * landingColumns);
+      const rowStartX = (availableWidth - rowItemCount * cellWidth) / 2;
+      const x = rowStartX + (column + 0.5) * cellWidth;
       const slotY = arenaTop + (row + 0.5) * cellHeight;
-      const x = Math.max(
-        dieSize / 2 + 8,
-        Math.min(
-          availableWidth - dieSize / 2 - 8,
-          slotX + (rollRandom(seed, 90) - 0.5) * horizontalSlack * 0.8,
-        ),
-      );
-      const y = Math.max(
-        dieSize / 2 + 8,
-        Math.min(
-          throwBottom - dieSize / 2 - 24,
-          slotY + (rollRandom(seed, 91) - 0.5) * verticalSlack * 0.8,
-        ),
-      );
+      const y = Math.max(dieSize / 2 + 8, Math.min(throwBottom - dieSize / 2 - 24, slotY));
+      const minX = dieSize / 2 + 8;
+      const maxX = availableWidth - dieSize / 2 - 8;
+      const minY = arenaTop + dieSize / 2;
+      const maxY = Math.max(minY, throwBottom - dieSize / 2 - 12);
+      const startX = Math.max(minX, Math.min(maxX, x + trajectory.startX));
+      const startY = Math.max(minY, Math.min(maxY, y + trajectory.startY));
       const playerColor = this.rollPlayerColor(entry.playerId);
-      const playerTint = hexToNum(playerColor);
-      const foreground = this.theme.gameTheme.textOnTinted;
-      const aura = new Graphics()
-        .circle(0, 0, dieSize * 0.64)
-        .stroke({ color: playerTint, width: 5, alpha: 0.16 })
-        .star(0, 0, 8, dieSize * 0.61, dieSize * 0.56, Math.PI / 8)
-        .stroke({ color: playerTint, width: 1.5, alpha: 0.76 });
-      aura.position.set(x, y);
-      aura.alpha = this.rollSettled ? (entry.highlighted ? 0.46 : entry.ignored ? 0 : 0.12) : 0;
-      aura.eventMode = "none";
       const token = createRollToken({
         sides: entry.sides,
         size: dieSize,
-        fill: playerColor,
-        border: entry.ignored ? this.theme.appTheme.destructive : darken(playerColor, 0.28),
-        foreground,
-        shadow: this.theme.gameTheme.canvas.shadow,
+        fill: this.theme.appTheme.card,
+        border: entry.ignored ? this.theme.appTheme.destructive : playerColor,
+        foreground: this.theme.appTheme.foreground,
       });
       token.root.position.set(x, y);
       setRollTokenValue(token, entry.value);
-      rollLayer.addChild(aura, token.root);
+      rollLayer.addChild(token.root);
       const ignoredMark = entry.ignored
         ? new Graphics()
             .moveTo(-dieSize * 0.42, dieSize * 0.42)
@@ -5408,20 +5354,16 @@ export class PromptLayer {
       this.rollVisuals.push({
         token,
         finalValue: entry.value,
-        index,
         sides: entry.sides,
-        round: entry.round,
         seed,
+        trajectory,
         baseX: x,
         baseY: y,
-        startX: dieSize / 2 + 8 + rollRandom(seed, 93) * Math.max(0, availableWidth - dieSize - 16),
-        startY: -bodyTop - dieSize * (0.55 + rollRandom(seed, 94) * 0.75),
-        restingRotation: (rollRandom(seed, 92) - 0.5) * 0.28,
+        startX,
+        startY,
+        restingRotation: 0,
         ignored: entry.ignored,
         ignoredMark,
-        aura,
-        highlighted: entry.highlighted,
-        playerColor: playerTint,
       });
       if (entry.label || entry.detail) {
         const label = promptText(
@@ -5438,17 +5380,12 @@ export class PromptLayer {
     if (winner) {
       const winnerLabel = winner.label ?? String(winner.value);
       const winnerColor = this.rollPlayerColor(winner.playerId);
-      const winnerTint = hexToNum(winnerColor);
-      const resultBackground = new Graphics()
-        .roundRect(0, resultBottom, width - PANEL_PADDING * 2, 46, 8)
-        .fill({ color: winnerTint, alpha: 0.16 })
-        .stroke({ color: winnerTint, width: 1, alpha: 0.82 });
       const resultLabel = promptText("RESULT", 9, winnerColor, {
         weight: "700",
         letterSpacing: 0.8,
       });
       resultLabel.anchor.set(0.5, 0);
-      resultLabel.position.set((width - PANEL_PADDING * 2) / 2, resultBottom + 6);
+      resultLabel.position.set((width - PANEL_PADDING * 2) / 2, resultBottom + 2);
       const winnerText = promptText(
         this.rollSettled ? winnerLabel : "Rolling…",
         16,
@@ -5456,10 +5393,10 @@ export class PromptLayer {
         { weight: "700" },
       );
       winnerText.anchor.set(0.5, 0);
-      winnerText.position.set((width - PANEL_PADDING * 2) / 2, resultBottom + 21);
+      winnerText.position.set((width - PANEL_PADDING * 2) / 2, resultBottom + 17);
       this.rollHighlightText = winnerText;
       this.rollHighlightLabel = winnerLabel;
-      body.addChild(resultBackground, resultLabel, winnerText);
+      body.addChild(resultLabel, winnerText);
     }
     const confirm = this.makeButton("CONTINUE", onConfirm, {
       disabled: !this.rollSettled,
@@ -5468,7 +5405,7 @@ export class PromptLayer {
     this.rollConfirm = confirm;
     confirm.position.set(width - PANEL_PADDING * 2 - confirm.buttonWidth, 0);
     footer.addChild(confirm);
-    this.startRollAnimation(particleLayer);
+    this.startRollAnimation();
   }
 
   private rollPlayerColor(playerId: string | undefined): string {
@@ -5483,7 +5420,7 @@ export class PromptLayer {
     return colors[seat];
   }
 
-  private startRollAnimation(particleLayer: ParticleContainer<Particle> | null): void {
+  private startRollAnimation(): void {
     if (!animationsEnabled() || this.rollSettled) {
       this.settleRollVisuals();
       return;
@@ -5491,60 +5428,42 @@ export class PromptLayer {
     const timeline = gsap.timeline({ paused: true });
     this.rollTimeline = timeline;
     for (const visual of this.rollVisuals) {
-      const delay = rollDelayMs(visual.index, visual.round) / 1000;
-      const trajectory = rollTrajectory(visual.seed);
+      const trajectory = visual.trajectory;
       const finalRotation =
-        trajectory.direction * Math.round(trajectory.turns) * Math.PI * 2 + visual.restingRotation;
-      const startX = visual.startX + trajectory.startX;
-      const startY = visual.startY + trajectory.startY;
-      const controlX = (startX + visual.baseX) / 2 + trajectory.controlX;
-      const controlY = Math.min(
-        visual.baseY - 54,
-        startY + (visual.baseY - startY) * 0.38 + trajectory.controlY,
-      );
-      visual.token.root.position.set(startX, startY);
-      visual.token.root.alpha = 0;
-      visual.token.root.rotation = -trajectory.direction * 0.8;
-      visual.token.root.scale.set(0.48);
-      const landingAt = delay + ROLL_FLIGHT_MS / 1000;
+        trajectory.spinDirection * trajectory.turns * Math.PI * 2 + visual.restingRotation;
+      const controlX = (visual.startX + visual.baseX) / 2 + trajectory.controlX;
+      const controlY = Math.min(visual.startY, visual.baseY) + trajectory.controlY;
+      visual.token.root.position.set(visual.startX, visual.startY);
+      visual.token.root.alpha = 1;
+      visual.token.root.rotation = visual.restingRotation - trajectory.spinDirection * 0.45;
+      visual.token.root.scale.set(0.92);
+      const landingAt = trajectory.flightMs / 1000;
       timeline.to(
         visual.token.root,
         {
-          alpha: 1,
-          duration: 0.12,
-          ease: "power2.out",
-        },
-        delay,
-      );
-      timeline.to(
-        visual.token.root,
-        {
-          rotation: finalRotation - trajectory.direction * 0.18,
-          pixi: { scaleX: 1.08, scaleY: 0.92 },
+          rotation: finalRotation,
+          pixi: { scaleX: 1, scaleY: 1 },
           motionPath: {
             path: [
-              { x: startX, y: startY },
-              {
-                x: controlX,
-                y: controlY,
-              },
+              { x: visual.startX, y: visual.startY },
+              { x: controlX, y: controlY },
               { x: visual.baseX, y: visual.baseY },
             ],
-            curviness: 1.25,
+            curviness: 1,
           },
-          duration: ROLL_FLIGHT_MS / 1000,
-          ease: "power2.inOut",
+          duration: trajectory.flightMs / 1000,
+          ease: "power2.out",
         },
-        delay,
+        0,
       );
       timeline.to(
         visual.token.root,
         {
-          y: visual.baseY - 11,
-          rotation: finalRotation + trajectory.direction * 0.1,
-          pixi: { scaleX: 1.14, scaleY: 0.84 },
+          y: visual.baseY + 2,
+          rotation: finalRotation + trajectory.spinDirection * 0.04,
+          pixi: { scaleX: 1.04, scaleY: 0.96 },
           duration: ROLL_IMPACT_MS / 1000,
-          ease: "power2.out",
+          ease: "power1.out",
         },
         landingAt,
       );
@@ -5554,86 +5473,21 @@ export class PromptLayer {
           x: visual.baseX,
           y: visual.baseY,
           rotation: finalRotation,
+          alpha: visual.ignored ? 0.42 : 1,
           pixi: { scaleX: 1, scaleY: 1 },
           duration: ROLL_SETTLE_MS / 1000,
-          ease: "elastic.out(1, 0.42)",
+          ease: "back.out(1.3)",
         },
         landingAt + ROLL_IMPACT_MS / 1000,
       );
-      timeline.fromTo(
-        visual.aura,
-        { alpha: 0, rotation: -trajectory.direction * 0.25, pixi: { scale: 0.24 } },
-        {
-          alpha: visual.highlighted ? 0.82 : visual.ignored ? 0.36 : 0.58,
-          rotation: trajectory.direction * 0.16,
-          pixi: { scale: 1.24 },
-          duration: 0.28,
-          ease: "power3.out",
-        },
-        landingAt - 0.04,
-      );
-      timeline.to(
-        visual.aura,
-        {
-          alpha: visual.highlighted ? 0.46 : visual.ignored ? 0 : 0.12,
-          rotation: 0,
-          pixi: { scale: 1 },
-          duration: 0.42,
-          ease: "power2.out",
-        },
-        landingAt + 0.24,
-      );
-      timeline.fromTo(
-        visual.token.glint,
-        { alpha: 0 },
-        { alpha: 0.9, duration: 0.12, repeat: 1, yoyo: true, ease: "power2.out" },
-        landingAt + 0.06,
-      );
-      if (particleLayer) {
-        for (let index = 0; index < 10; index += 1) {
-          const burst = rollBurst(visual.seed, index);
-          const particle = new Particle({
-            texture: Texture.WHITE,
-            x: visual.baseX,
-            y: visual.baseY,
-            anchorX: 0.5,
-            anchorY: 0.5,
-            scaleX: burst.length * 0.52,
-            scaleY: burst.length * 2.2,
-            rotation: burst.angle,
-            tint: visual.playerColor,
-            alpha: 0,
-          });
-          particleLayer.addParticle(particle);
-          const burstAt = landingAt + burst.delay;
-          timeline.set(
-            particle,
-            {
-              x: visual.baseX,
-              y: visual.baseY,
-              alpha: 0.94,
-              rotation: burst.angle,
-            },
-            burstAt,
-          );
-          timeline.to(
-            particle,
-            {
-              x: visual.baseX + Math.cos(burst.angle) * burst.distance,
-              y: visual.baseY + Math.sin(burst.angle) * burst.distance,
-              alpha: 0,
-              rotation: burst.angle + trajectory.direction * 0.7,
-              scaleX: 0.01,
-              scaleY: burst.length * 0.4,
-              duration: 0.52,
-              ease: "power2.out",
-            },
-            burstAt,
-          );
-        }
+      if (visual.ignoredMark) {
+        timeline.to(
+          visual.ignoredMark,
+          { alpha: 1, duration: 0.12, ease: "power2.out" },
+          landingAt + ROLL_IMPACT_MS / 1000,
+        );
       }
     }
-    particleLayer?.update();
     timeline.eventCallback("onComplete", () => {
       if (this.rollTimeline !== timeline) return;
       this.rollTimeline = null;
@@ -5648,18 +5502,10 @@ export class PromptLayer {
   private settleRollVisuals(): void {
     this.rollSettled = true;
     for (const visual of this.rollVisuals) {
-      visual.token.root.position.set(
-        visual.baseX + (visual.ignored ? 10 : 0),
-        visual.baseY + (visual.ignored ? 6 : 0),
-      );
+      visual.token.root.position.set(visual.baseX, visual.baseY);
       visual.token.root.rotation = visual.restingRotation;
       visual.token.root.scale.set(1);
       visual.token.root.alpha = visual.ignored ? 0.42 : 1;
-      visual.token.glint.alpha = 0;
-      visual.aura.position.set(visual.baseX, visual.baseY);
-      visual.aura.rotation = 0;
-      visual.aura.scale.set(1);
-      visual.aura.alpha = visual.highlighted ? 0.46 : visual.ignored ? 0 : 0.12;
       if (visual.ignoredMark) visual.ignoredMark.alpha = 1;
       setRollTokenValue(visual.token, visual.finalValue);
     }
@@ -6235,9 +6081,12 @@ export class PromptLayer {
       this.rollElapsedMs = Math.min(this.rollDurationMs, this.rollTimeline.time() * 1000);
     }
     for (const visual of this.rollVisuals) {
+      const elapsedMs = this.rollElapsedMs;
       setRollTokenValue(
         visual.token,
-        rollingDieValue(visual.sides, this.rollElapsedMs, visual.seed),
+        elapsedMs >= visual.trajectory.flightMs
+          ? visual.finalValue
+          : rollingDieValue(visual.sides, Math.max(0, elapsedMs), visual.seed),
       );
     }
   }

@@ -191,6 +191,8 @@ Prompt tiles and source previews reuse `HandCardControls` for printed/rules view
 
 Every draggable prompt card lifts with a stronger `gameTheme.cardRing` outline and tilts slightly with horizontal pointer movement. Return scale, rotation, origin, and ring state during both successful and cancelled drag settlement; respect reduced-motion preferences.
 
+Dice prompts use flat cached face and pip geometry with the player's color on the border. Arrange results in stable centered rows and start every displayed die together through short deterministic `@/pixi/effects/gsap` motion paths with per-die direction, distance, curvature, duration, and spin. Endpoints remain ordered even though the rolls vary; do not reintroduce shuffled placement, top-of-modal drops, particles, auras, glints, shadows, or decorative facets. Drive transient values from shared elapsed time and lock each result when its die lands. Reduced motion settles every die immediately.
+
 Scry drag targets highlight the full rounded zone border, including the source pool. Highlight graphics remain pointer-transparent and clear when the drag leaves or ends.
 
 Choice-search focus is independent of the query text. Show the themed focus border and a typing caret while focused, preserve focus across filter-result rebuilds, and use a steady caret under reduced motion.

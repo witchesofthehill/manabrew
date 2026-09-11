@@ -1,22 +1,20 @@
-export const ROLL_FLIGHT_MS = 720;
-export const ROLL_IMPACT_MS = 140;
-export const ROLL_SETTLE_MS = 420;
-export const ROLL_FINISH_MS = 1400;
+export const ROLL_IMPACT_MS = 70;
+export const ROLL_SETTLE_MS = 180;
 
-interface RollTrajectory {
+const ROLL_MIN_DISTANCE = 26;
+const ROLL_MAX_DISTANCE = 58;
+const ROLL_MIN_FLIGHT_MS = 420;
+const ROLL_MAX_FLIGHT_MS = 600;
+const ROLL_VALUE_FRAME_MS = 70;
+
+export interface RollTrajectory {
   startX: number;
   startY: number;
   controlX: number;
   controlY: number;
-  direction: number;
+  spinDirection: number;
   turns: number;
-}
-
-interface RollBurst {
-  angle: number;
-  distance: number;
-  length: number;
-  delay: number;
+  flightMs: number;
 }
 
 export function rollSeed(
@@ -46,36 +44,26 @@ export function rollRandom(seed: number, salt: number): number {
   return (value >>> 0) / 0x1_0000_0000;
 }
 
-export function rollDelayMs(index: number, round: number): number {
-  return index * 55 + round * 180;
-}
-
-export function rollDuration(count: number, maxRound: number): number {
-  return ROLL_FINISH_MS + Math.max(0, count - 1) * 55 + maxRound * 180;
-}
-
 export function rollingDieValue(sides: number, elapsedMs: number, seed: number): number {
-  const frame = Math.max(0, Math.floor(elapsedMs / 62));
+  const frame = Math.max(0, Math.floor(elapsedMs / ROLL_VALUE_FRAME_MS));
   return 1 + Math.floor(rollRandom(seed, frame) * Math.max(1, sides));
 }
 
 export function rollTrajectory(seed: number): RollTrajectory {
-  const direction = rollRandom(seed, 1) > 0.5 ? 1 : -1;
+  const angle = rollRandom(seed, 1) * Math.PI * 2;
+  const distanceProgress = rollRandom(seed, 2);
+  const distance = ROLL_MIN_DISTANCE + (ROLL_MAX_DISTANCE - ROLL_MIN_DISTANCE) * distanceProgress;
+  const bendDirection = rollRandom(seed, 3) > 0.5 ? 1 : -1;
+  const bend = bendDirection * (6 + rollRandom(seed, 4) * 10);
   return {
-    startX: direction * (8 + rollRandom(seed, 2) * 18),
-    startY: (rollRandom(seed, 3) - 0.5) * 14,
-    controlX: direction * (18 + rollRandom(seed, 4) * 34),
-    controlY: 18 + rollRandom(seed, 5) * 14,
-    direction,
-    turns: 2.3 + rollRandom(seed, 6) * 1.5,
-  };
-}
-
-export function rollBurst(seed: number, index: number): RollBurst {
-  return {
-    angle: (index / 10) * Math.PI * 2 + rollRandom(seed, index + 20) * 0.55,
-    distance: 58 + rollRandom(seed, index + 40) * 50,
-    length: 0.42 + rollRandom(seed, index + 60) * 0.28,
-    delay: rollRandom(seed, index + 80) * 0.08,
+    startX: Math.cos(angle) * distance,
+    startY: Math.sin(angle) * distance * 0.65,
+    controlX: -Math.sin(angle) * bend,
+    controlY: Math.cos(angle) * bend - 6,
+    spinDirection: rollRandom(seed, 5) > 0.5 ? 1 : -1,
+    turns: 1 + Math.floor(distanceProgress * 2 + rollRandom(seed, 6)),
+    flightMs: Math.round(
+      ROLL_MIN_FLIGHT_MS + (ROLL_MAX_FLIGHT_MS - ROLL_MIN_FLIGHT_MS) * distanceProgress,
+    ),
   };
 }

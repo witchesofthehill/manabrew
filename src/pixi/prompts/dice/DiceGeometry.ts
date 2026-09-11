@@ -2,11 +2,9 @@ import { Container, Graphics, GraphicsContext, Text, TextStyle } from "pixi.js";
 
 export interface RollTokenVisual {
   root: Container;
-  face: Graphics;
-  shadow: Graphics;
+  pips: Graphics;
+  pipFaces: GraphicsContext[];
   value: Text;
-  pips: Graphics[];
-  glint: Graphics;
   sides: number;
 }
 
@@ -16,10 +14,10 @@ interface RollTokenOptions {
   fill: string;
   border: string;
   foreground: string;
-  shadow: string;
 }
 
 const contexts = new Map<string, GraphicsContext>();
+const pipContexts = new Map<string, GraphicsContext>();
 
 function polygonForSides(sides: number, half: number): number[] | null {
   switch (sides) {
@@ -83,7 +81,7 @@ function polygonForSides(sides: number, half: number): number[] | null {
 
 function faceContext(options: RollTokenOptions): GraphicsContext {
   const sides = options.sides;
-  const key = [sides, options.size, options.fill, options.border, options.foreground].join(":");
+  const key = [sides, options.size, options.fill, options.border].join(":");
   const cached = contexts.get(key);
   if (cached) return cached;
   const context = new GraphicsContext();
@@ -98,17 +96,7 @@ function faceContext(options: RollTokenOptions): GraphicsContext {
     if (polygon) context.poly(polygon);
     else context.circle(0, 0, half);
     context.fill(options.fill).stroke({ color: options.border, width: 2 });
-    context
-      .moveTo(0, -half * 0.78)
-      .lineTo(0, half * 0.78)
-      .moveTo(-half * 0.68, 0)
-      .lineTo(half * 0.68, 0)
-      .stroke({ color: options.border, width: 1, alpha: 0.24 });
   }
-  context
-    .moveTo(-half * 0.62, -half * 0.48)
-    .quadraticCurveTo(0, -half * 0.78, half * 0.58, -half * 0.38)
-    .stroke({ color: options.foreground, width: 1.4, alpha: 0.2 });
   contexts.set(key, context);
   return context;
 }
@@ -145,11 +133,20 @@ function pipPositions(value: number): Array<[number, number]> {
   return positions[value] ?? [];
 }
 
+function pipContext(size: number, foreground: string, value: number): GraphicsContext {
+  const key = [size, foreground, value].join(":");
+  const cached = pipContexts.get(key);
+  if (cached) return cached;
+  const context = new GraphicsContext();
+  for (const [x, y] of pipPositions(value)) {
+    context.circle(x * size, y * size, size * 0.055).fill(foreground);
+  }
+  pipContexts.set(key, context);
+  return context;
+}
+
 export function createRollToken(options: RollTokenOptions): RollTokenVisual {
   const root = new Container();
-  const shadow = new Graphics()
-    .ellipse(0, options.size * 0.46, options.size * 0.42, options.size * 0.12)
-    .fill({ color: options.shadow, alpha: 0.28 });
   const face = new Graphics(faceContext(options));
   const value = new Text({
     text: "",
@@ -162,38 +159,28 @@ export function createRollToken(options: RollTokenOptions): RollTokenVisual {
     }),
   });
   value.anchor.set(0.5);
-  const pips = Array.from({ length: 6 }, (_, index) => {
-    const pipsForValue = new Graphics();
-    for (const [x, y] of pipPositions(index + 1)) {
-      pipsForValue
-        .circle(x * options.size, y * options.size, options.size * 0.055)
-        .fill(options.foreground);
-    }
-    pipsForValue.visible = false;
-    return pipsForValue;
-  });
-  const glint = new Graphics()
-    .arc(0, 0, options.size * 0.37, -2.45, -1.05)
-    .stroke({ color: options.foreground, width: 2, alpha: 0.72 });
-  glint.alpha = 0;
-  root.addChild(shadow, face, ...pips, value, glint);
+  const pipFaces = Array.from({ length: 6 }, (_, index) =>
+    pipContext(options.size, options.foreground, index + 1),
+  );
+  const pips = new Graphics(pipFaces[0]);
+  pips.visible = false;
+  root.addChild(face, pips, value);
   return {
     root,
-    face,
-    shadow,
-    value,
     pips,
-    glint,
+    pipFaces,
+    value,
     sides: options.sides,
   };
 }
 
 export function setRollTokenValue(visual: RollTokenVisual, value: number | string): void {
-  for (const pip of visual.pips) pip.visible = false;
+  visual.pips.visible = false;
   if (visual.sides === 6 && typeof value === "number") {
-    const pip = visual.pips[value - 1];
-    if (pip) {
-      pip.visible = true;
+    const face = visual.pipFaces[value - 1];
+    if (face) {
+      visual.pips.context = face;
+      visual.pips.visible = true;
       visual.value.visible = false;
       return;
     }

@@ -100,6 +100,26 @@ if (!heronScripts.has("res/cardsfolder/e/emrakul_the_promised_end.txt")) {
   throw new Error("ChooseFromList does not restore commas escaped as semicolons.");
 }
 
+const studiousScripts = cardScriptPaths(["Studious First-Year"]);
+for (const path of [
+  "res/cardsfolder/s/studious_first_year.txt",
+  "res/cardsfolder/r/rampant_growth.txt",
+]) {
+  if (!studiousScripts.has(path)) {
+    throw new Error(`Studious First-Year's asset bundle is missing ${path}.`);
+  }
+}
+
+const brunaScripts = cardScriptPaths(["Bruna, the Fading Light"]);
+for (const path of [
+  "res/cardsfolder/b/bruna_the_fading_light.txt",
+  "res/cardsfolder/g/gisela_the_broken_blade.txt",
+]) {
+  if (!brunaScripts.has(path)) {
+    throw new Error(`Bruna's asset bundle is missing ${path}.`);
+  }
+}
+
 function cardScripts(names) {
   const fields = assetModule.forge_card_scripts(cardset, names).split("\0");
   return new Map(
@@ -116,6 +136,20 @@ for (const name of ["garth one-eye", "black lotus", "shivan dragon"]) {
 }
 if (lazyGarth.has("lightning bolt")) {
   throw new Error("The play-time lookup of Garth includes an unrelated card script.");
+}
+
+const lazyStudious = cardScripts(["Studious First-Year"]);
+for (const name of ["studious first-year", "rampant growth"]) {
+  if (!lazyStudious.get(name)?.startsWith("Name:")) {
+    throw new Error(`The play-time lookup of Studious First-Year is missing ${name}.`);
+  }
+}
+
+const lazyBruna = cardScripts(["Bruna, the Fading Light"]);
+for (const name of ["bruna, the fading light", "gisela, the broken blade"]) {
+  if (!lazyBruna.get(name)?.startsWith("Name:")) {
+    throw new Error(`The play-time lookup of Bruna is missing ${name}.`);
+  }
 }
 if (cardScripts(["No Such Card"]).size !== 0) {
   throw new Error("The play-time lookup of an unknown card is not empty.");

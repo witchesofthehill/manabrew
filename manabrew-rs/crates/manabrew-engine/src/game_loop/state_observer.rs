@@ -37,12 +37,25 @@ impl GameLoop {
 
     pub(crate) fn notify_state_changed(
         &mut self,
-        game: &GameState,
+        game: &mut GameState,
         agents: &mut [Box<dyn PlayerAgent>],
     ) {
+        self.dispatch_pending_notifications(game, agents);
         for agent in agents.iter_mut() {
             agent.snapshot_state(game, &self.mana_pools);
             agent.notify(GameNotification::StateChanged);
+        }
+    }
+    pub(crate) fn dispatch_pending_notifications(
+        &mut self,
+        game: &mut GameState,
+        agents: &mut [Box<dyn PlayerAgent>],
+    ) {
+        for notification in game.take_notifications() {
+            crate::agent::game_log::broadcast_notification(agents, notification);
+        }
+        for notification in self.trigger_handler.take_notifications() {
+            crate::agent::game_log::broadcast_notification(agents, notification);
         }
     }
 
@@ -161,6 +174,7 @@ impl GameLoop {
     ) -> R {
         let before = self.state_fingerprint(game);
         let out = f(self, game, agents);
+        self.dispatch_pending_notifications(game, agents);
         let after = self.state_fingerprint(game);
         if before != after {
             self.notify_state_changed(game, agents);
@@ -189,6 +203,7 @@ impl GameLoop {
             }
         }
         game.turn.phase = phase;
+        self.dispatch_pending_notifications(game, agents);
         self.log_phase_begin(phase);
         self.notify_phase_changed(game, agents);
     }

@@ -14,7 +14,7 @@ that implements it can host a Manabrew compatible engine.
 > What we hope to achieve by putting effort and love into the spec, is that more people and projects start adopting it.
 > We see huge potential in a truly open-standard for online card gaming, and we dream of a day where UIs and Engines for all sorts of games will be able to be inter-changed for a superior community driven ecosystem.
 >
-> *- Witches of the Hill*
+> _- Witches of the Hill_
 
 ## The protocol ensures:
 
@@ -35,9 +35,9 @@ The engine → client channel carries **four separate kinds of message**:
     game state. The client re-renders the board from it.
   </Card>
   <Card title="display" icon="sparkles">
-    [**⚠️ Work in Progress**] A `DisplayEvent` - a transient, potentially very frequent UI display
-    information. Carries no authoritative state. This could be used to sync up the fields, as well
-    as the cursors positions of the players for multiplayer "livelyness".
+    A [`DisplayEvent`](/protocol/display-events/) - a transient semantic event carrying no
+    authoritative state. One event can independently drive client audio, animation, haptics, or
+    accessibility feedback without prescribing presentation assets.
   </Card>
   <Card title="prompt" icon="comment">
     An `AgentPrompt` - a **call to action**. The engine has paused and needs a decision from a

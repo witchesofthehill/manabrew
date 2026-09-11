@@ -156,7 +156,7 @@ export type StateEnvelope =
       fingerprint: string;
       patch: unknown;
     }
-  | { kind: "display"; event: DisplayEvent }
+  | { kind: "display"; forPlayer?: string; event: DisplayEvent }
   | { kind: "prompt"; forPlayer: string; prompt: Prompt }
   | { kind: "error"; forPlayer: string; error: ProtocolError }
   | { kind: "response"; fromPlayer: string; promptId: number; action: PromptOutput }

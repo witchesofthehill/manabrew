@@ -10,6 +10,7 @@ import { isFeatureEnabled } from "@/featureFlags";
 import { IRONSMITH_WASM_AVAILABLE } from "@/game/ironsmithWasmAvailable";
 import { relayUsername } from "@/lib/relayUsername";
 import { BattlefieldStylePreview } from "@/components/game/BattlefieldStylePreview";
+import { SoundControls } from "@/components/SoundControls";
 import {
   INLINE_CARD_STYLE_OPTIONS,
   IN_GAME_CARD_PREVIEW_STYLE_OPTIONS,
@@ -769,6 +770,10 @@ export default function Settings() {
       {activeTab === "preferences" && (
         <section>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <PreferenceCard title="Sounds" description="Mute or set the volume for all app sounds.">
+              <SoundControls />
+            </PreferenceCard>
+
             <PreferenceCard
               title="Default Playmat"
               description="Used in games when the deck you're playing has no custom playmat of its own."

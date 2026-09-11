@@ -69,6 +69,7 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { isForgeWasmHostingEnabled, setForgeWasmActive } from "@/lib/forgeWasm";
 import { buildForgeAssetBundle } from "@/lib/forgeAssets";
 import type { Deck } from "@/protocol/deck";
+import type { DisplayEvent } from "@/protocol/display";
 // The seat protocol lives with @manabrew/forge-wasm, which drives the same
 // worker, so there is one implementation rather than one per consumer.
 import {
@@ -762,7 +763,6 @@ class WebServerApi implements IServerApi {
   >();
   private relayStateSequence = 0;
   private deltaBases = new Map<string, { state: StateUpdate; fingerprint: string }>();
-  private lastRelayDisplay: string | null = null;
   private resumeToken: string | null = null;
   private pendingRelayPrompts = new Map<string, Record<string, unknown>>();
   private enginePlayerNames: string[] = [];
@@ -809,10 +809,13 @@ class WebServerApi implements IServerApi {
           targetPlayer,
         );
       } else if (msg.kind === "display") {
-        const json = JSON.stringify(msg.event);
-        if (json === this.lastRelayDisplay) return;
-        this.lastRelayDisplay = json;
-        this.broadcastState({ kind: "display", event: msg.event });
+        const targetPlayer = this.enginePlayerName(forPlayer);
+        if (targetPlayer) {
+          void this.broadcastState(
+            { kind: "display", forPlayer, event: msg.event as DisplayEvent },
+            targetPlayer,
+          );
+        }
       } else if (msg.kind === "prompt") {
         const envelope = { kind: "prompt", forPlayer, prompt: msg.prompt };
         this.pendingRelayPrompts.set(forPlayer, envelope);
@@ -1658,7 +1661,6 @@ class WebServerApi implements IServerApi {
 
     if (type === "GameStarted") {
       this.lastRelayStates.clear();
-      this.lastRelayDisplay = null;
       this.pendingRelayPrompts.clear();
       this.deltaBases.clear();
     }

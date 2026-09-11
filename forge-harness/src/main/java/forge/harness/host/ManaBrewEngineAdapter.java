@@ -141,6 +141,19 @@ public final class ManaBrewEngineAdapter {
         return prompt == null ? "" : prompt;
     }
 
+    public String getDisplayEvents(final String sessionId, final int playerIndex) {
+        return getSession(sessionId).drainDisplayEventsJson(playerIndex);
+    }
+
+    public void flushDisplayEvents(final String sessionId) {
+        getSession(sessionId).flushDisplayEventsToBridge();
+    }
+
+    public void publishActionRejected(
+            final String sessionId, final int playerIndex, final long promptId) {
+        getSession(sessionId).publishActionRejected(playerIndex, promptId);
+    }
+
     public String getSnapshot(final String sessionId, final int viewer) {
         return getSession(sessionId).getSnapshotJson(viewer);
     }

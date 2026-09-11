@@ -79,6 +79,214 @@ pub trait Responder {
     fn send_log(&mut self, _entry: GameLogEntryDto) {}
     fn send_snapshot(&mut self, _snapshot: GameSnapshotEventDto) {}
 }
+enum DisplayProjection<'a> {
+    Notification {
+        notification: &'a GameNotification,
+        view: Option<&'a GameViewDto>,
+    },
+    Prompt {
+        input: &'a PromptInput,
+        prompt_id: u32,
+    },
+    Rejection {
+        prompt_id: u32,
+    },
+}
+
+struct ProjectedDisplayEvent {
+    event_type: DisplayEventType,
+    origin: Option<DisplayEventOrigin>,
+    context: Option<DisplayEventContext>,
+}
+
+fn project_display(source: DisplayProjection<'_>) -> Option<ProjectedDisplayEvent> {
+    let (event_type, origin, context) = match source {
+        DisplayProjection::Notification { notification, view } => match notification {
+            GameNotification::GameStarted => (DisplayEventType::GAME_START.clone(), None, None),
+            GameNotification::CardPlayed {
+                player,
+                card_id,
+                card_name,
+                set_code,
+                identity_hidden,
+            } => (
+                DisplayEventType::GAME_CARD_PLAY.clone(),
+                Some(DisplayEventOrigin::Card {
+                    card_id: card_id_str(*card_id),
+                }),
+                (!*identity_hidden).then(|| DisplayEventContext::Card {
+                    card_name: card_name.clone(),
+                    set_code: set_code.clone(),
+                    player_id: player_id_str(*player),
+                }),
+            ),
+            GameNotification::TurnChanged {
+                active_player,
+                turn_number,
+            } => {
+                let player_id = player_id_str(*active_player);
+                let active_player_name = view
+                    .and_then(|current| {
+                        current.players.iter().find(|player| player.id == player_id)
+                    })
+                    .map(|player| player.name.clone())
+                    .unwrap_or_else(|| format!("Player {}", active_player.0));
+                (
+                    DisplayEventType::GAME_TURN_START.clone(),
+                    Some(DisplayEventOrigin::Player { player_id }),
+                    Some(DisplayEventContext::Turn {
+                        active_player_name,
+                        turn_number: *turn_number,
+                    }),
+                )
+            }
+            GameNotification::FirstPlayerRoll { winner, .. } => (
+                DisplayEventType::GAME_RANDOM_DIE_ROLL.clone(),
+                Some(DisplayEventOrigin::Player {
+                    player_id: player_id_str(*winner),
+                }),
+                None,
+            ),
+            GameNotification::DiceRolled { player, .. } => (
+                DisplayEventType::GAME_RANDOM_DIE_ROLL.clone(),
+                Some(DisplayEventOrigin::Player {
+                    player_id: player_id_str(*player),
+                }),
+                None,
+            ),
+            GameNotification::CardMoved {
+                player,
+                origin,
+                destination,
+                ..
+            } if *origin == ZoneType::Library && *destination == ZoneType::Hand => (
+                DisplayEventType::GAME_CARD_DRAW.clone(),
+                Some(DisplayEventOrigin::Player {
+                    player_id: player_id_str(*player),
+                }),
+                None,
+            ),
+            GameNotification::CardMoved {
+                player,
+                origin,
+                destination,
+                ..
+            } if *origin == ZoneType::Hand
+                && matches!(*destination, ZoneType::Graveyard | ZoneType::Library) =>
+            {
+                (
+                    DisplayEventType::GAME_CARD_DISCARD.clone(),
+                    Some(DisplayEventOrigin::Player {
+                        player_id: player_id_str(*player),
+                    }),
+                    None,
+                )
+            }
+            GameNotification::CardMoved {
+                player,
+                destination: ZoneType::Exile,
+                ..
+            } => (
+                DisplayEventType::GAME_CARD_EXILE.clone(),
+                Some(DisplayEventOrigin::Player {
+                    player_id: player_id_str(*player),
+                }),
+                None,
+            ),
+            GameNotification::CardDestroyed { card_id } => (
+                DisplayEventType::GAME_CARD_DESTROY.clone(),
+                Some(DisplayEventOrigin::Card {
+                    card_id: card_id_str(*card_id),
+                }),
+                None,
+            ),
+            GameNotification::CardTapped {
+                card_id,
+                tapped: true,
+            } => (
+                DisplayEventType::GAME_CARD_TAP.clone(),
+                Some(DisplayEventOrigin::Card {
+                    card_id: card_id_str(*card_id),
+                }),
+                None,
+            ),
+            GameNotification::CardTapped {
+                card_id,
+                tapped: false,
+            } => (
+                DisplayEventType::GAME_CARD_UNTAP.clone(),
+                Some(DisplayEventOrigin::Card {
+                    card_id: card_id_str(*card_id),
+                }),
+                None,
+            ),
+            GameNotification::LibraryShuffled { player } => (
+                DisplayEventType::GAME_LIBRARY_SHUFFLE.clone(),
+                Some(DisplayEventOrigin::Player {
+                    player_id: player_id_str(*player),
+                }),
+                None,
+            ),
+            GameNotification::PlayerLifeChanged {
+                player,
+                old_life,
+                new_life,
+            } => (
+                if new_life > old_life {
+                    DisplayEventType::GAME_PLAYER_LIFE_GAIN.clone()
+                } else {
+                    DisplayEventType::GAME_PLAYER_LIFE_LOSS.clone()
+                },
+                Some(DisplayEventOrigin::Player {
+                    player_id: player_id_str(*player),
+                }),
+                None,
+            ),
+            _ => return None,
+        },
+        DisplayProjection::Prompt { input, prompt_id } => {
+            let event_type = match input {
+                PromptInput::ChooseBoardTargets(_) => {
+                    DisplayEventType::PROMPT_TARGET_REQUIRED.clone()
+                }
+                PromptInput::PayManaCost(_) => DisplayEventType::PROMPT_PAYMENT_REQUIRED.clone(),
+                PromptInput::ChooseAttackers(_)
+                | PromptInput::ChooseBlockers(_)
+                | PromptInput::ChooseDamageAssignmentOrder(_)
+                | PromptInput::ChooseCombatDamageAssignment(_) => {
+                    DisplayEventType::PROMPT_COMBAT_REQUIRED.clone()
+                }
+                PromptInput::ChooseAction(_)
+                | PromptInput::Mulligan(_)
+                | PromptInput::MulliganPutBack(_)
+                | PromptInput::ChooseBoolean(_)
+                | PromptInput::ChooseFromSelection(_)
+                | PromptInput::RevealCards(_)
+                | PromptInput::Scry(_)
+                | PromptInput::ChooseColor(_)
+                | PromptInput::ChooseNumber(_)
+                | PromptInput::ChooseCards(_)
+                | PromptInput::Reorder(_) => DisplayEventType::PROMPT_DECISION_REQUIRED.clone(),
+                PromptInput::DiceRolled(_) | PromptInput::GameOver(_) => return None,
+            };
+            (
+                event_type,
+                None,
+                Some(DisplayEventContext::Prompt { prompt_id }),
+            )
+        }
+        DisplayProjection::Rejection { prompt_id } => (
+            DisplayEventType::PROMPT_ACTION_REJECTED.clone(),
+            None,
+            Some(DisplayEventContext::Prompt { prompt_id }),
+        ),
+    };
+    Some(ProjectedDisplayEvent {
+        event_type,
+        origin,
+        context,
+    })
+}
 
 pub struct PromptAgent<R: Responder> {
     pub player_id: PlayerId,
@@ -91,6 +299,7 @@ pub struct PromptAgent<R: Responder> {
     pub pass_until: Option<manabrew_engine::agent::PassUntilTarget>,
     conceded: bool,
     next_prompt_id: u32,
+    next_display_sequence: u64,
     pub(crate) targeting_cancellable: bool,
     pub(crate) targeting_cancelled: bool,
 }
@@ -108,6 +317,7 @@ impl<R: Responder> PromptAgent<R> {
             pass_until: None,
             conceded: false,
             next_prompt_id: 0,
+            next_display_sequence: 0,
             targeting_cancellable: false,
             targeting_cancelled: false,
         }
@@ -134,10 +344,30 @@ impl<R: Responder> PromptAgent<R> {
             input: inner,
         }
     }
+    fn emit_projected_display(&mut self, projected: Option<ProjectedDisplayEvent>) {
+        let Some(event) = projected else {
+            return;
+        };
+        self.next_display_sequence = self
+            .next_display_sequence
+            .checked_add(1)
+            .expect("display event sequence exhausted");
+        self.emit_display(DisplayEvent {
+            sequence: self.next_display_sequence,
+            event_type: event.event_type,
+            origin: event.origin,
+            count: 1,
+            context: event.context,
+        });
+    }
 
     pub(crate) fn send_prompt(&mut self, inner: PromptInput, source: Option<CardId>) {
         let prompt = self.build_prompt(inner, source);
         self.emit_state();
+        self.emit_projected_display(project_display(DisplayProjection::Prompt {
+            input: &prompt.input,
+            prompt_id: prompt.prompt_id,
+        }));
         self.responder
             .present(&AgentMessage::Prompt(prompt.clone()));
         self.pending_prompt = Some(prompt);
@@ -214,6 +444,9 @@ impl<R: Responder> PromptAgent<R> {
             message,
             prompt_id: Some(prompt.prompt_id),
         }));
+        self.emit_projected_display(project_display(DisplayProjection::Rejection {
+            prompt_id: prompt.prompt_id,
+        }));
         self.responder
             .present(&AgentMessage::Prompt(prompt.clone()));
     }
@@ -227,6 +460,10 @@ impl<R: Responder> PromptAgent<R> {
     pub(crate) fn present_prompt(&mut self, inner: PromptInput, source: Option<CardId>) {
         let prompt = self.build_prompt(inner, source);
         self.emit_state();
+        self.emit_projected_display(project_display(DisplayProjection::Prompt {
+            input: &prompt.input,
+            prompt_id: prompt.prompt_id,
+        }));
         self.responder.present(&AgentMessage::Prompt(prompt));
     }
 
@@ -1378,47 +1615,41 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
     }
 
     fn notify(&mut self, event: GameNotification) {
+        let projected = project_display(DisplayProjection::Notification {
+            notification: &event,
+            view: self.latest_view.as_ref(),
+        });
+        if let (
+            GameNotification::TurnChanged {
+                active_player,
+                turn_number,
+            },
+            Some(ProjectedDisplayEvent {
+                context:
+                    Some(DisplayEventContext::Turn {
+                        active_player_name, ..
+                    }),
+                ..
+            }),
+        ) = (&event, projected.as_ref())
+        {
+            self.responder.send_log(GameLogEntryDto::from_event(
+                manabrew_engine::agent::GameLogEvent::rule(format!(
+                    "TURN {turn_number} — {active_player_name}"
+                ))
+                .with_player(*active_player),
+            ));
+        }
+        self.emit_projected_display(projected);
         match event {
             GameNotification::Event(log_event) => {
                 self.responder
                     .send_log(GameLogEntryDto::from_event(log_event));
             }
-            GameNotification::CardPlayed {
-                player,
-                card_id,
-                card_name,
-                set_code,
-            } => {
-                self.emit_display(DisplayEvent::CardPlayed {
-                    card_id: card_id_str(card_id),
-                    card_name,
-                    set_code,
-                    player_id: player_id_str(player),
-                });
+            GameNotification::CardPlayed { .. } => {
                 self.emit_state();
             }
-            GameNotification::TurnChanged {
-                active_player,
-                turn_number,
-            } => {
-                let player_id = player_id_str(active_player);
-                let active_player_name = self
-                    .latest_view
-                    .as_ref()
-                    .and_then(|v| v.players.iter().find(|p| p.id == player_id))
-                    .map(|p| p.name.clone())
-                    .unwrap_or_else(|| format!("Player {}", active_player.0));
-                self.responder.send_log(GameLogEntryDto::from_event(
-                    manabrew_engine::agent::GameLogEvent::rule(format!(
-                        "TURN {turn_number} — {active_player_name}"
-                    ))
-                    .with_player(active_player),
-                ));
-                self.emit_display(DisplayEvent::TurnChanged {
-                    active_player_id: player_id,
-                    active_player_name,
-                    turn_number,
-                });
+            GameNotification::TurnChanged { .. } => {
                 self.emit_state();
             }
             GameNotification::PhaseChanged { .. } | GameNotification::StateChanged => {
@@ -1528,6 +1759,12 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     None,
                 );
             }
+            GameNotification::GameStarted
+            | GameNotification::CardMoved { .. }
+            | GameNotification::CardDestroyed { .. }
+            | GameNotification::CardTapped { .. }
+            | GameNotification::LibraryShuffled { .. }
+            | GameNotification::PlayerLifeChanged { .. } => {}
             GameNotification::ManaPaymentResolved { .. } => {}
             GameNotification::ActivatedAbilityPaymentFailed { .. } => {
                 self.emit_state();

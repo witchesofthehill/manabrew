@@ -66,6 +66,12 @@
     "ZoneDto",
     "ZoneKind"
   ],
+  "display": [
+    "DisplayEvent",
+    "DisplayEventContext",
+    "DisplayEventOrigin",
+    "DisplayEventType"
+  ],
   "deck": [
     "CardBackFaceSummary",
     "CardImageUris",
@@ -362,6 +368,26 @@
     "DirectiveInput": {
       "ts": "interface DirectiveInput {\n  type: \"concede\";\n}",
       "rust": "#[serde(tag = \"type\", rename_all = \"camelCase\")]\npub enum DirectiveInput {\n    Concede,\n}",
+      "refs": []
+    },
+    "DisplayEvent": {
+      "ts": "interface DisplayEvent {\n  sequence: number;\n  eventType: DisplayEventType;\n  origin?: DisplayEventOrigin;\n  count: number;\n  context?: DisplayEventContext;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DisplayEvent {\n    pub sequence: u64,\n    pub event_type: DisplayEventType,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub origin: Option<DisplayEventOrigin>,\n    #[serde(\n        default = \"default_display_event_count\",\n        deserialize_with = \"deserialize_display_event_count\"\n    )]\n    pub count: u32,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub context: Option<DisplayEventContext>,\n}",
+      "refs": ["DisplayEventContext", "DisplayEventOrigin", "DisplayEventType"]
+    },
+    "DisplayEventContext": {
+      "ts": "type DisplayEventContext =\n  | { kind: \"card\"; cardName: string; setCode: string; playerId: string }\n  | { kind: \"turn\"; activePlayerName: string; turnNumber: number }\n  | { kind: \"prompt\"; promptId: number };",
+      "rust": "#[serde(\n    tag = \"kind\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum DisplayEventContext {\n    Card {\n        card_name: String,\n        set_code: String,\n        player_id: String,\n    },\n    Turn {\n        active_player_name: String,\n        turn_number: u32,\n    },\n    Prompt {\n        prompt_id: u32,\n    },\n}",
+      "refs": []
+    },
+    "DisplayEventOrigin": {
+      "ts": "type DisplayEventOrigin =\n  | { type: \"player\"; playerId: string }\n  | { type: \"card\"; cardId: string };",
+      "rust": "#[serde(\n    tag = \"type\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum DisplayEventOrigin {\n    Player { player_id: String },\n    Card { card_id: String },\n}",
+      "refs": []
+    },
+    "DisplayEventType": {
+      "ts": "type DisplayEventType = string;",
+      "rust": "/// A semantic transient-event identifier. Standard constants keep producers typed,\n/// while the transparent string representation lets newer identifiers pass\n/// through older protocol clients.\n#[serde(transparent)]\npub struct DisplayEventType(#[ts(type = \"string\")] Cow<'static, str>);",
       "refs": []
     },
     "DungeonStateDto": {

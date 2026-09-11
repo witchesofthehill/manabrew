@@ -1,0 +1,193 @@
+---
+title: Display events
+description: Engine-authored semantic presentation events for Manabrew protocol clients.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Display events are transient semantic facts. The engine decides **what happened**;
+the client independently decides whether to render audio, animation, haptics,
+accessibility feedback, or nothing. An event never changes authoritative game
+state.
+
+## DisplayEvent
+
+`DisplayEvent` is the protocol envelope for transient presentation events. Every
+event belongs to a recipient-specific ordered stream outside `GameViewDto`.
+Relay envelopes set `forPlayer` and deliver each event only to that seat.
+
+<ProtocolType type="DisplayEvent" />
+
+`sequence` starts at `1` per recipient and increases across every display event.
+`count` is a positive semantic quantity. `eventType` identifies what happened;
+`origin` and `context` carry optional presentation data.
+
+The same semantic event may drive several independent presenters. For example,
+`game.card.play` can trigger both a card flash and an audio cue. Producers do not
+emit separate audio and visual variants for the same action.
+
+## DisplayEventType
+
+`DisplayEventType` is an extensible string, not a closed enum. Producers should
+use the standard identifiers below. Private extensions should use a reverse-DNS
+or other collision-resistant namespace. Consumers must ignore identifiers they
+do not recognize.
+
+<ProtocolType type="DisplayEventType" />
+
+## DisplayEventOrigin
+
+`origin` optionally identifies the player or card most closely associated with
+an event. It supports spatial audio and local emphasis without exposing
+information the recipient could not otherwise see.
+
+<ProtocolType type="DisplayEventOrigin" />
+
+## DisplayEventContext
+
+`context` optionally carries recipient-visible card, turn, or prompt details.
+Card and turn contexts drive visual presentation. Prompt context carries the
+`promptId` used to suppress repeated presentation of the same open prompt.
+
+<ProtocolType type="DisplayEventContext" />
+
+## Standard identifiers
+
+The catalog contains semantic mappings for every Forge `SoundEffectType` plus
+Manabrew's card-play, turn-start, and prompt events.
+
+### Core game and prompt events
+
+| Identifier | Forge type | Meaning |
+| --- | --- | --- |
+| `game.start` | `StartDuel` | The game has started. |
+| `game.turn.start` | — | A player's turn has started. |
+| `game.card.draw` | `Draw` | Cards moved from a library to a hand. |
+| `game.card.play` | — | A land was played or a spell was cast. |
+| `game.card.tap` | `Tap` | Permanents became tapped. |
+| `game.card.untap` | `Untap` | Permanents became untapped. |
+| `game.card.discard` | `Discard` | Cards left a hand for a graveyard or library. |
+| `game.card.destroy` | `Destroy` | Permanents were destroyed. |
+| `game.card.exile` | `Exile` | Cards moved to exile. |
+| `game.library.shuffle` | `Shuffle` | A player's library was shuffled. |
+| `game.player.life-gain` | `LifeGain` | A player's life total increased. |
+| `game.player.life-loss` | `LifeLoss` | A player's life total decreased. |
+| `game.random.die-roll` | `RollDie` | A die was rolled. |
+| `prompt.decision-required` | — | The recipient must make a modal decision. |
+| `prompt.target-required` | — | The recipient must choose board targets. |
+| `prompt.payment-required` | — | The recipient must make a mana payment. |
+| `prompt.combat-required` | — | The recipient must make a combat decision. |
+| `prompt.action-rejected` | — | The recipient's submitted action was rejected. |
+
+### Forge game events
+
+| Identifier | Forge type | Meaning |
+| --- | --- | --- |
+| `game.card.counter-add` | `AddCounter` | Counters were added to a card. |
+| `game.combat.block` | `Block` | At least one attacker became blocked. |
+| `game.card.damage` | `Damage` | A card was dealt damage. |
+| `game.day-night.day` | `Daytime` | The game became day. |
+| `game.turn.end` | `EndOfTurn` | A turn ended. |
+| `game.card.attach` | `Equip` | A card became attached. |
+| `game.card.transform` | `FlipCard` | A card transformed. |
+| `game.random.coin-flip` | `FlipCoin` | A coin was flipped. |
+| `game.outcome.loss` | `LoseDuel` | The recipient lost the game. |
+| `game.player.mana-burn` | `ManaBurn` | A player took mana burn. |
+| `game.day-night.night` | `Nighttime` | The game became night. |
+| `game.card.phase` | `Phasing` | A card phased in or out. |
+| `game.player.poison` | `Poison` | A player's poison total changed. |
+| `game.card.regenerate` | `Regen` | A card regenerated. |
+| `game.card.counter-remove` | `RemoveCounter` | Counters were removed from a card. |
+| `game.card.sacrifice` | `Sacrifice` | A card was sacrificed. |
+| `game.snapshot.restored` | `SnapshotRestored` | A snapshot restore completed. |
+| `game.player.speed-up` | `SpeedUp` | A player's speed increased, including “Start your engines!”. |
+| `game.contraption.sprocket` | `Sprocket` | The active sprocket advanced. |
+| `game.player.shard` | `TakeShard` | A player's shard total changed. |
+| `game.token.create` | `Token` | A token was created. |
+| `game.outcome.win` | `WinDuel` | The recipient won the game. |
+
+Game outcomes are recipient-specific: the same Forge outcome event produces
+`game.outcome.win` for winners and `game.outcome.loss` for other seats.
+
+### Forge spell-resolution events
+
+| Identifier | Forge type |
+| --- | --- |
+| `game.spell.resolve.artifact` | `Artifact` |
+| `game.spell.resolve.artifact-creature` | `ArtifactCreature` |
+| `game.spell.resolve.creature` | `Creature` |
+| `game.spell.resolve.enchantment` | `Enchantment` |
+| `game.spell.resolve.instant` | `Instant` |
+| `game.spell.resolve.planeswalker` | `Planeswalker` |
+| `game.spell.resolve.sorcery` | `Sorcery` |
+
+### Forge land-entry events
+
+The Forge adapter classifies a land from its original mana-production colors.
+“Any color”, colorless, and unclassified lands use `game.land.enter.other`.
+
+| Identifier | Forge type |
+| --- | --- |
+| `game.land.enter.black` | `BlackLand` |
+| `game.land.enter.blue` | `BlueLand` |
+| `game.land.enter.green` | `GreenLand` |
+| `game.land.enter.red` | `RedLand` |
+| `game.land.enter.white` | `WhiteLand` |
+| `game.land.enter.black-red` | `BlackRedLand` |
+| `game.land.enter.black-white` | `BlackWhiteLand` |
+| `game.land.enter.blue-black` | `BlueBlackLand` |
+| `game.land.enter.green-black` | `GreenBlackLand` |
+| `game.land.enter.green-blue` | `GreenBlueLand` |
+| `game.land.enter.green-red` | `GreenRedLand` |
+| `game.land.enter.red-blue` | `RedBlueLand` |
+| `game.land.enter.white-blue` | `WhiteBlueLand` |
+| `game.land.enter.white-green` | `WhiteGreenLand` |
+| `game.land.enter.white-red` | `WhiteRedLand` |
+| `game.land.enter.black-red-green` | `BlackRedGreenLand` |
+| `game.land.enter.black-white-green` | `BlackWhiteGreenLand` |
+| `game.land.enter.blue-black-red` | `BlueBlackRedLand` |
+| `game.land.enter.green-black-blue` | `GreenBlackBlueLand` |
+| `game.land.enter.green-blue-red` | `GreenBlueRedLand` |
+| `game.land.enter.green-red-white` | `GreenRedWhiteLand` |
+| `game.land.enter.red-blue-white` | `RedBlueWhiteLand` |
+| `game.land.enter.white-blue-black` | `WhiteBlueBlackLand` |
+| `game.land.enter.white-green-blue` | `WhiteGreenBlueLand` |
+| `game.land.enter.white-red-black` | `WhiteRedBlackLand` |
+| `game.land.enter.other` | `OtherLand` |
+
+### Scripted effects
+
+| Identifier | Forge type | Producer |
+| --- | --- | --- |
+| `game.card.scripted-effect` | `ScriptedEffect` | Spell resolution or land entry for a card with a non-empty `SoundEffect` SVar. |
+
+The client maps `game.card.scripted-effect` to a generic bundled cue. A producer
+never sends filesystem paths or card-provided filenames to the client.
+
+## Producer requirements
+
+- Emit events from authoritative engine events, in recipient-visible emission order.
+- Start `sequence` at `1` for each recipient and increase it for every delivered
+  display event.
+- Set `count` to a positive integer. It may aggregate equivalent events that
+  happen together.
+- Send prompt events only to the player who must respond. Use prompt context so
+  clients can suppress repeated delivery of the same open prompt. Emit
+  `prompt.action-rejected` for every rejected submission, including repeated
+  submissions for the same prompt.
+- Do not emit display events while reconstructing or replaying a state snapshot.
+- Omit `origin` and `context` when either would reveal hidden information.
+
+## Consumer requirements
+
+- Treat display events as optional presentation. Never infer or mutate game state
+  from them.
+- Ignore unknown `eventType` values without failing the display stream.
+- Ignore an event whose `sequence` is not greater than the last sequence already
+  handled for that recipient.
+- Use `eventType` and prompt context together to avoid notifying twice for the
+  same open prompt. Do not suppress a later `prompt.action-rejected` event for
+  that prompt.
+- Apply audio and visual presentation independently. Local audio policy includes
+  muting, cooldowns, voice limits, and asset selection. `count` is a semantic
+  quantity, not a playback command.

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { toast } from "sonner";
 import { getPlatform } from "@/platform";
+import { playAppSound } from "@/lib/soundRuntime";
 import { useServerStore } from "@/stores/useServerStore";
 import { CHAT_ERROR_CODES, RELAY_FEATURE, USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type {
@@ -32,9 +33,11 @@ interface ChatState {
   roomId: string | null;
   unread: Record<ChatScope, number>;
   lastSentScope: ChatScope;
+  activeScope: ChatScope | null;
 
   send(scope: ChatScope, text: string): Promise<void>;
   markRead(scope: ChatScope): void;
+  setActiveScope(scope: ChatScope | null): void;
   setupListeners(): () => void;
 }
 
@@ -65,6 +68,7 @@ export const useChatStore = create<ChatState>()(
       roomId: null,
       unread: { Lobby: 0, Room: 0 },
       lastSentScope: "Lobby",
+      activeScope: null,
 
       async send(scope, text) {
         const trimmed = text.trim();
@@ -82,6 +86,10 @@ export const useChatStore = create<ChatState>()(
       markRead(scope) {
         if (get().unread[scope] === 0) return;
         set({ unread: { ...get().unread, [scope]: 0 } });
+      },
+
+      setActiveScope(scope) {
+        set({ activeScope: scope });
       },
 
       setupListeners() {
@@ -106,12 +114,18 @@ export const useChatStore = create<ChatState>()(
           platform.events.on<ChatMessagePayload>("server:chat_message", (payload) => {
             const entry = toEntry(payload);
             const mine = payload.from === useServerStore.getState().username;
-            const { unread } = get();
+            const { activeScope, unread } = get();
+            const activeChatVisible =
+              activeScope === payload.scope &&
+              document.visibilityState === "visible" &&
+              document.hasFocus();
+            const notify = !mine && !activeChatVisible;
             if (payload.scope === "Lobby") {
               set({
                 lobby: append(get().lobby, entry),
                 unread: mine ? unread : { ...unread, Lobby: unread.Lobby + 1 },
               });
+              if (notify) playAppSound("chatMessage");
               return;
             }
             if (payload.room_id !== get().roomId) return;
@@ -119,6 +133,7 @@ export const useChatStore = create<ChatState>()(
               room: append(get().room, entry),
               unread: mine ? unread : { ...unread, Room: unread.Room + 1 },
             });
+            if (notify) playAppSound("chatMessage");
           }),
         );
 

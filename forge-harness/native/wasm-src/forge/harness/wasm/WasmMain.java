@@ -161,6 +161,7 @@ public final class WasmMain {
                         new SabTransport(viewer -> adapter.getSnapshot(gameId, viewer));
                 ManaBrewInteractiveSession.setBridge(transport);
                 final String result = adapter.startGameJson(requestJson);
+                adapter.flushDisplayEvents(gameId);
                 // startGameJson blocks for the whole game, so reaching this
                 // line means the game is over and every seat is still waiting
                 // on an answer that will never come.

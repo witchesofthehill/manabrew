@@ -1621,6 +1621,12 @@ fn handle_client_message(
                 engine_cross_p90: stats.engine_think_cross_turn.as_ref().map(|t| t.p90),
                 engine_cross_max: stats.engine_think_cross_turn.as_ref().map(|t| t.max),
                 think_hidden: stats.think_samples_hidden,
+                reply_wait_p50: stats.reply_wait.as_ref().map(|t| t.p50),
+                reply_wait_p90: stats.reply_wait.as_ref().map(|t| t.p90),
+                reply_wait_max: stats.reply_wait.as_ref().map(|t| t.max),
+                client_work_p50: stats.client_work.as_ref().map(|t| t.p50),
+                client_work_p90: stats.client_work.as_ref().map(|t| t.p90),
+                client_work_max: stats.client_work.as_ref().map(|t| t.max),
             });
         }
 

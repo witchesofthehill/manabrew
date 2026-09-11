@@ -126,7 +126,13 @@ CREATE TABLE IF NOT EXISTS engine_stats (
   engine_cross_p50 INTEGER,
   engine_cross_p90 INTEGER,
   engine_cross_max INTEGER,
-  think_hidden INTEGER NOT NULL DEFAULT 0
+  think_hidden INTEGER NOT NULL DEFAULT 0,
+  reply_wait_p50 INTEGER,
+  reply_wait_p90 INTEGER,
+  reply_wait_max INTEGER,
+  client_work_p50 INTEGER,
+  client_work_p90 INTEGER,
+  client_work_max INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_engine_stats_ts ON engine_stats(ts);
 CREATE INDEX IF NOT EXISTS idx_engine_stats_engine ON engine_stats(engine, ts);
@@ -190,6 +196,17 @@ def open_db(path: Path) -> sqlite3.Connection:
     ):
         ensure_column(db, "engine_stats", column, "INTEGER")
     ensure_column(db, "engine_stats", "think_hidden", "INTEGER NOT NULL DEFAULT 0")
+    # The turnaround split: server, wire and transfer on one side of the first
+    # reply frame, parse, apply and render on the other.
+    for column in (
+        "reply_wait_p50",
+        "reply_wait_p90",
+        "reply_wait_max",
+        "client_work_p50",
+        "client_work_p90",
+        "client_work_max",
+    ):
+        ensure_column(db, "engine_stats", column, "INTEGER")
     ensure_column(db, "games", "source", "TEXT")
     ensure_column(db, "games", "reported_at", "TEXT")
     # Whether the engine host filed the outcome. Relay rows from before the
@@ -361,14 +378,16 @@ ENGINE_STATS_COLUMNS = (
     "seats, multiplayer, duration_s, end_reason, decisions, turnaround_p50, "
     "turnaround_p90, turnaround_max, engine_p50, engine_p90, engine_max, "
     "engine_same_p50, engine_same_p90, engine_same_max, "
-    "engine_cross_p50, engine_cross_p90, engine_cross_max, think_hidden"
+    "engine_cross_p50, engine_cross_p90, engine_cross_max, think_hidden, "
+    "reply_wait_p50, reply_wait_p90, reply_wait_max, "
+    "client_work_p50, client_work_p90, client_work_max"
 )
 
 
 def ingest_engine_stats(db, ev):
     db.execute(
         f"""INSERT OR IGNORE INTO engine_stats ({ENGINE_STATS_COLUMNS})
-           VALUES ({", ".join("?" * 26)})""",
+           VALUES ({", ".join("?" * 32)})""",
         (
             # A relay from before the report id was forwarded still identifies a
             # report well enough to keep re-ingestion idempotent. The room is
@@ -400,6 +419,12 @@ def ingest_engine_stats(db, ev):
             ev.get("engine_cross_p90"),
             ev.get("engine_cross_max"),
             ev.get("think_hidden") or 0,
+            ev.get("reply_wait_p50"),
+            ev.get("reply_wait_p90"),
+            ev.get("reply_wait_max"),
+            ev.get("client_work_p50"),
+            ev.get("client_work_p90"),
+            ev.get("client_work_max"),
         ),
     )
 
@@ -744,7 +769,9 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
                       engine_p50, engine_p90, engine_max,
                       engine_same_p50, engine_same_p90, engine_same_max,
                       engine_cross_p50, engine_cross_p90, engine_cross_max,
-                      coalesce(think_hidden, 0)
+                      coalesce(think_hidden, 0),
+                      reply_wait_p50, reply_wait_p90, reply_wait_max,
+                      client_work_p50, client_work_p90, client_work_max
                FROM engine_play_stats
                WHERE reported_at > ?""",
             (mirrored_through,),
@@ -789,7 +816,7 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
         )
         db.executemany(
             f"""INSERT OR IGNORE INTO engine_stats ({ENGINE_STATS_COLUMNS})
-                VALUES (?, ?, 'hub', {", ".join("?" * 23)})""",
+                VALUES (?, ?, 'hub', {", ".join("?" * 29)})""",
             engine_reports,
         )
         db.execute("DELETE FROM hub_collection_cards")

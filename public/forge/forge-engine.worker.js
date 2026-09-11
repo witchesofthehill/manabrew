@@ -115,9 +115,6 @@ async function startGame(requestId, args) {
     return postError(requestId, "start_game requires a deck and opponent deck");
   }
 
-  // The engine's whole asset tree — every card script, tokens, editions — is
-  // embedded in forgeharness.js.wasm at build time, so boot needs nothing from
-  // the host and the lazy card index comes up complete.
   try {
     await boot();
   } catch (e) {

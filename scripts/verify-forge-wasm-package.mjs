@@ -52,8 +52,6 @@ const stubEngine = existsSync(join(packageDir, ".stub-engine"));
 if (stubEngine) {
   console.log("Engine stubbed: skipping the engine size and launcher-pin checks.");
 } else {
-  // The cardset is embedded in the module, so an engine without it is a
-  // no-asset build that would fail Forge's boot outright.
   if (statSync(join(packageDir, "forgeharness.js.wasm")).size < 60_000_000) {
     throw new Error("Forge engine WASM has no embedded cardset.");
   }

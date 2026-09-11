@@ -16,9 +16,8 @@ use libtest_mimic::Arguments;
 use manabrew_agent_interface::protocol::{identity_token, IdentityProof};
 use serde_json::json;
 use support::{
-    case, execute, list, play_pair, scenario, spawn_guest_bot, step, summary, webrtc_endpoint, Case,
-    Client,
-    Manifest, Sim, GRACE_DEADLINE,
+    case, execute, list, play_pair, scenario, spawn_guest_bot, step, summary, webrtc_endpoint,
+    Case, Client, Manifest, Sim, GRACE_DEADLINE,
 };
 
 async fn brief_disconnect_reclaims_seat() {

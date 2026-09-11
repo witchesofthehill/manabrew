@@ -512,9 +512,10 @@ fn seats_needing_full_state(
     target_username: Option<&str>,
 ) -> Vec<String> {
     let needs_full = |player_id: &str| {
-        state.players.get(player_id).is_some_and(|player| {
-            !player.is_service && !player.client.applies_state_patches()
-        })
+        state
+            .players
+            .get(player_id)
+            .is_some_and(|player| !player.is_service && !player.client.applies_state_patches())
     };
     match target_username {
         // An unresolvable target means the send is about to be dropped anyway.
@@ -544,7 +545,8 @@ fn broadcast_state_split(
         broadcast_to_room_except(state, sender_player_id, room_id, patch);
         return;
     };
-    let (Ok(patch_json), Ok(full_json)) = (serde_json::to_string(patch), serde_json::to_string(full))
+    let (Ok(patch_json), Ok(full_json)) =
+        (serde_json::to_string(patch), serde_json::to_string(full))
     else {
         return;
     };
@@ -552,7 +554,10 @@ fn broadcast_state_split(
         Some(room) => room.connected_player_ids(),
         None => return,
     };
-    for pid in player_ids.iter().filter(|pid| pid.as_str() != sender_player_id) {
+    for pid in player_ids
+        .iter()
+        .filter(|pid| pid.as_str() != sender_player_id)
+    {
         if needs_full.contains(pid) {
             metrics::record_state_patch_downgrade();
             emit_to(state, pid, full, &full_json);

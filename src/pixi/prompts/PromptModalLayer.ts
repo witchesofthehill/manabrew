@@ -1690,34 +1690,71 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     body.addChild(poolLabel);
     const poolHeight = cardHeight + 20;
     const pool = new Rectangle(0, 24, poolWidth, poolHeight);
+    const poolSpacing = cardWidth + 12;
+    const poolIds = this.scryItems.pool ?? [];
+    const poolContentWidth = 20 + poolIds.length * poolSpacing + cardWidth;
+    this.scryPoolScrollMax = Math.max(0, poolContentWidth - poolWidth);
+    if (this.scryPoolScrollToEnd) {
+      this.scryPoolScrollOffset = this.scryPoolScrollMax;
+      this.scryPoolScrollToEnd = false;
+    }
+    this.scryPoolScrollOffset = Math.min(this.scryPoolScrollOffset, this.scryPoolScrollMax);
+    const poolLayer = new Container();
+    poolLayer.eventMode = "static";
+    poolLayer.sortableChildren = true;
+    const poolMask = new Graphics()
+      .rect(pool.x, pool.y, pool.width, pool.height)
+      .fill({ color: hexToNum(this.theme.appTheme.foreground) });
+    body.addChild(poolMask);
+    poolLayer.mask = poolMask;
+    body.addChild(poolLayer);
     const poolBg = new Graphics()
       .roundRect(pool.x, pool.y, pool.width, pool.height, 8)
       .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.6 })
       .stroke({ color: hexToNum(this.theme.appTheme["muted-foreground"]), width: 2, alpha: 0.45 });
-    body.addChild(poolBg);
+    poolLayer.addChild(poolBg);
     const poolMarker = new Graphics()
       .roundRect(pool.x, pool.y, pool.width, pool.height, 8)
       .stroke({ color: hexToNum(this.theme.gameTheme.cardRing), width: 2.5 });
     poolMarker.eventMode = "none";
     poolMarker.visible = false;
     poolMarker.zIndex = 500;
-    body.addChild(poolMarker);
-    const poolIds = this.scryItems.pool ?? [];
-    const poolDropCount = poolIds.length + 1;
-    const poolDropSpacing = Math.min(
-      cardWidth + 8,
-      (poolWidth - cardWidth - 20) / Math.max(1, poolDropCount - 1),
+    poolLayer.addChild(poolMarker);
+    const poolScrollThumb = new Graphics();
+    poolScrollThumb.eventMode = "none";
+    poolScrollThumb.zIndex = 501;
+    poolLayer.addChild(poolScrollThumb);
+    poolLayer.on("wheel", (event: FederatedWheelEvent) => this.scrollScryPool(event));
+    const contentDropX = 10 + poolIds.length * poolSpacing;
+    const visibleDropX = Math.max(
+      pool.x + 4,
+      Math.min(contentDropX - this.scryPoolScrollOffset, pool.x + pool.width - cardWidth - 4),
     );
     this.dropZones.push({
       id: "pool",
       rect: pool,
       container: body,
       visual: poolBg,
-      dropX: 10 + (poolDropCount - 1) * poolDropSpacing,
+      dropX: visibleDropX,
       dropY: pool.y + 10,
       targetAlpha: 1,
       marker: poolMarker,
     });
+    if (this.scryPoolScrollMax > 0) {
+      const trackWidth = pool.width - 24;
+      const thumbWidth = Math.max(24, trackWidth * (poolWidth / poolContentWidth));
+      const travel = trackWidth - thumbWidth;
+      poolScrollThumb
+        .clear()
+        .roundRect(
+          pool.x + 12 + travel * (this.scryPoolScrollOffset / this.scryPoolScrollMax),
+          pool.y + pool.height - 6,
+          thumbWidth,
+          3,
+          2,
+        )
+        .fill({ color: hexToNum(this.theme.appTheme["muted-foreground"]), alpha: 0.85 });
+    }
     poolIds.forEach((id, index) => {
       const card = byId.get(id);
       const cardSize = cardSizes.get(id);
@@ -1735,19 +1772,21 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       );
       const offsetX = (cardWidth - cardSize.width) / 2;
       const offsetY = (cardHeight - cardSize.height) / 2;
-      const tileX =
-        10 +
-        index *
-          Math.min(cardWidth + 8, (poolWidth - cardWidth - 20) / Math.max(1, poolIds.length - 1)) +
-        offsetX;
-      const tileY = pool.y + 10 + offsetY;
+      const contentX = 10 + index * poolSpacing + offsetX;
       this.scryCardOffsets.set(id, { x: offsetX, y: offsetY });
+      this.scryPoolSlotX.set(id, contentX);
       this.makeDraggable(
         tile,
         (x, y) => this.dropScryCard(id, x, y),
         (x, y) => this.scryDropPosition(id, x, y),
       );
-      this.placeScryCardTile(body, tile, id, tileX, tileY);
+      this.placeScryCardTile(
+        poolLayer,
+        tile,
+        id,
+        contentX - this.scryPoolScrollOffset,
+        pool.y + 10 + offsetY,
+      );
     });
 
     const zoneY = pool.y + pool.height + 38;
@@ -1877,6 +1916,31 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     footer.addChild(confirm);
   }
 
+  protected scrollScryPool(event: FederatedWheelEvent): void {
+    if (this.scryPoolScrollMax <= 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const dominant = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    const rawDelta = event.deltaMode === 1 ? dominant * MODAL_SCROLL_LINE_HEIGHT : dominant;
+    const delta = Math.max(
+      -MODAL_SCROLL_MAX_STEP,
+      Math.min(MODAL_SCROLL_MAX_STEP, rawDelta * MODAL_SCROLL_SCALE),
+    );
+    this.setScryPoolScrollOffset(this.scryPoolScrollOffset + delta);
+  }
+
+  protected setScryPoolScrollOffset(offset: number): void {
+    this.scryPoolScrollOffset = Math.max(0, Math.min(this.scryPoolScrollMax, offset));
+    for (const [cardId, tile] of this.scryCardTiles) {
+      if (this.drag?.item === tile) continue;
+      if (this.scryCardSource(cardId) !== "pool") continue;
+      const contentX = this.scryPoolSlotX.get(cardId);
+      if (contentX === undefined) continue;
+      gsap.killTweensOf(tile.position);
+      tile.x = contentX - this.scryPoolScrollOffset;
+    }
+  }
+
   protected dropScryCard(cardId: string, x: number, y: number): void {
     const target = this.findDropZone(x, y);
     if (!target) {
@@ -1895,6 +1959,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     this.captureScryCardPositions();
     this.scryItems[source] = this.scryItems[source]!.filter((id) => id !== cardId);
     this.scryItems[targetId] = [...(this.scryItems[targetId] ?? []), cardId];
+    if (targetId === "pool") this.scryPoolScrollToEnd = true;
     this.scrySelectedId = null;
     this.rebuild();
   }
@@ -1962,6 +2027,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     for (const tile of this.scryCardTiles.values()) gsap.killTweensOf(tile.position);
     this.scryCardTiles.clear();
     this.scryCardOffsets.clear();
+    this.scryPoolSlotX.clear();
   }
 
   protected scryDestinationLabel(destination: ScryDestination): string {

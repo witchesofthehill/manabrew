@@ -373,7 +373,7 @@ impl ReplacementHandler {
                 return ReplacementResult::NotReplaced;
             }
 
-            let chosen_idx = if !eligible.is_empty() && layer != ReplacementLayer::CantHappen {
+            let chosen_idx = if eligible.len() > 1 && layer != ReplacementLayer::CantHappen {
                 if let Some(agents) = agents.as_deref_mut() {
                     let descriptions: Vec<String> = eligible
                         .iter()

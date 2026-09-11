@@ -222,6 +222,9 @@ export class PromptLayer extends PromptModalLayer {
     this.rollElapsedMs = 0;
     this.modalScrollOffset = 0;
     this.modalScrollMax = 0;
+    this.scryPoolScrollOffset = 0;
+    this.scryPoolScrollMax = 0;
+    this.scryPoolScrollToEnd = false;
     const input = spec?.currentPrompt?.input;
     if (!input) return;
     if (input.type === "chooseNumber") {

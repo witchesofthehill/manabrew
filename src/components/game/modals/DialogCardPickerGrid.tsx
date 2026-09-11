@@ -12,7 +12,6 @@ import {
   type CardBrowserState,
 } from "./cardBrowser";
 import { DialogCardPickerCanvas } from "./DialogCardPickerCanvas";
-
 interface DialogCardPickerGridProps {
   items: CardBrowserItem[];
   state: CardBrowserState;
@@ -189,7 +188,6 @@ export function DialogCardPickerGrid({
                 className="pointer-events-none absolute z-10 opacity-0"
                 style={{
                   left: cardLeft,
-                  top: rowTop,
                   width: GAME_CARD_SIZES.preview.width,
                   height: cardHeight,
                 }}

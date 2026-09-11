@@ -298,9 +298,7 @@ export function GameBoardAccessibility({
         {players.flatMap((player) =>
           (zonesByPlayer[player.id] ?? []).map((zone) => {
             const zoneName =
-              zone.key === ZONE_TILE_KEY.command
-                ? "Command zone"
-                : (ZONE_BADGES[zone.key]?.label ?? zone.label);
+              zone.key === ZONE_TILE_KEY.command ? "Command zone" : ZONE_BADGES[zone.key]?.label;
             return zone.onOpen ? (
               <button
                 key={`${player.id}:${zone.key}`}

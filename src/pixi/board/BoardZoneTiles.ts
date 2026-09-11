@@ -22,7 +22,6 @@ import { LongPressGesture } from "../LongPressGesture";
 
 export interface ZoneTileSpec {
   key: string;
-  label: string;
   count: number;
   topCard?: CardDto;
   previewCards?: CardDto[];
@@ -69,7 +68,6 @@ interface Tile {
   renderedTopCard: CardDto | null;
   back: Sprite | null;
   backMask: Graphics | null;
-  icon: Text;
   iconSprite: Sprite;
   countText: Text;
   taxText: Text;
@@ -264,11 +262,6 @@ export class BoardZoneTiles {
         lane: ((index * 3) % ZONE_PARTICLE_COUNT) / (ZONE_PARTICLE_COUNT - 1),
       });
     }
-    const icon = new Text({
-      text: spec.label,
-      style: { fontFamily: "system-ui, sans-serif", fontSize: 10, fontWeight: "500" },
-    });
-    icon.anchor.set(0.5);
     const iconSprite = new Sprite(Texture.EMPTY);
     iconSprite.anchor.set(0.5);
     iconSprite.visible = false;
@@ -292,7 +285,7 @@ export class BoardZoneTiles {
       },
     });
     taxText.anchor.set(0.5);
-    container.addChild(stack, ambient, hoverGlow, outline, icon, iconSprite, countText, taxText);
+    container.addChild(stack, ambient, hoverGlow, outline, iconSprite, countText, taxText);
     this.container.addChild(container);
     const tile: Tile = {
       spec,
@@ -307,7 +300,6 @@ export class BoardZoneTiles {
       renderedTopCard: null,
       back: null,
       backMask: null,
-      icon,
       iconSprite,
       countText,
       taxText,
@@ -717,12 +709,6 @@ export class BoardZoneTiles {
         tile.face.scale.set(cardW / CARD_W);
         tile.face.position.set(cardW / 2, cardH / 2);
       }
-      tile.icon.visible = !hasContent;
-      tile.icon.text = spec.label;
-      tile.icon.style.fontSize = Math.max(9, Math.round(10 * k));
-      tile.icon.style.fill = color;
-      tile.icon.alpha = hl !== null ? 1 : 0.75;
-      tile.icon.position.set(cardW / 2, cardH / 2 + iconSize * 0.8);
       tile.iconSprite.visible = !!iconKey && (!hasContent || !isLibrary);
       if (iconKey) {
         applyIcon(
@@ -750,12 +736,7 @@ export class BoardZoneTiles {
       } else if (hasEmptySkeleton) {
         drawDottedRoundRect(tile.outline, cardW, cardH, radius, neutral);
       }
-      if (!hasContent) {
-        const etchY = cardH / 2 + iconSize * 1.2;
-        tile.outline.moveTo(cardW * 0.35, etchY);
-        tile.outline.lineTo(cardW * 0.65, etchY);
-        tile.outline.stroke({ color, width: 1, alpha: 0.3 });
-      } else if (tile.iconSprite.visible) {
+      if (hasContent && tile.iconSprite.visible) {
         const badgeRadius = iconSize / 2 + 3 * k;
         tile.outline.circle(tile.iconSprite.x, tile.iconSprite.y, badgeRadius);
         tile.outline.fill({ color: shadow, alpha: 0.9 });

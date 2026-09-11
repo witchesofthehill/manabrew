@@ -163,6 +163,14 @@ export class DialogCardPickerScene {
       entry.feedback
         .clear()
         .roundRect(
+          -displayWidth / 2 - 7,
+          -displayHeight / 2 - 7,
+          displayWidth + 14,
+          displayHeight + 14,
+          Math.max(6, CARD_RADIUS * scale + 7),
+        )
+        .stroke({ color: hexToNum(props.ringColor), width: 8, alpha: 0.2 })
+        .roundRect(
           -displayWidth / 2 - 2,
           -displayHeight / 2 - 2,
           displayWidth + 4,
@@ -315,7 +323,12 @@ export class DialogCardPickerScene {
       const hovered = !this.props.pending && available && this.hoveredId === id;
       const active = !this.props.pending && available && this.props.state.activeId === id;
       const selected = selectedIds.has(id);
-      const alpha = selected || hovered || active ? 1 : 0;
+      const alpha =
+        selected || hovered || active
+          ? 1
+          : available && this.props.actionable && !this.props.pending
+            ? 0.45
+            : 0;
       if (!motionChanged && entry.targetAlpha === alpha) continue;
       entry.targetAlpha = alpha;
       gsap.killTweensOf(entry.feedback);

@@ -87,14 +87,6 @@ export function buildPlaygroundSpecs(
       const topCard = cards[cards.length - 1];
       tiles.push({
         key: ZONE_TILE_KEY[zone],
-        label:
-          zone === "library"
-            ? "Lib"
-            : zone === "graveyard"
-              ? "GY"
-              : zone === "exile"
-                ? "EX"
-                : "CMD",
         count,
         topCard,
         back: zone === "library",

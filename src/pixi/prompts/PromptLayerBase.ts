@@ -474,6 +474,10 @@ export abstract class PromptLayerBase {
   protected order: string[] = [];
   protected scryItems: Record<string, string[]> = {};
   protected scrySelectedId: string | null = null;
+  protected scryPoolScrollOffset = 0;
+  protected scryPoolScrollMax = 0;
+  protected scryPoolScrollToEnd = false;
+  protected scryPoolSlotX = new Map<string, number>();
   protected damageAssigned: Record<string, number> = {};
   protected dropZones: DropZone[] = [];
   protected drag: DragState | null = null;

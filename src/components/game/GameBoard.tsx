@@ -1332,7 +1332,6 @@ export function GameBoard({
     const self: ZoneTileSpec[] = [
       {
         key: ZONE_TILE_KEY.library,
-        label: "Lib",
         count: me.libraryCount,
         topCard: top(library),
         back: library.length === 0,
@@ -1341,7 +1340,6 @@ export function GameBoard({
       },
       {
         key: ZONE_TILE_KEY.graveyard,
-        label: "GY",
         count: graveyard.length,
         topCard: top(graveyard),
         onOpen: openGraveyard,
@@ -1354,7 +1352,6 @@ export function GameBoard({
       },
       {
         key: ZONE_TILE_KEY.exile,
-        label: "EX",
         count: exile.length,
         topCard: top(exile),
         onOpen: openExile,
@@ -1369,7 +1366,6 @@ export function GameBoard({
     if ((myCommandZone?.length ?? 0) > 0) {
       self.push({
         key: ZONE_TILE_KEY.command,
-        label: "CMD",
         count: myCommandZone!.length,
         topCard: top(myCommandZone!),
         previewCards: myCommandZone!,
@@ -1414,7 +1410,6 @@ export function GameBoard({
       const tiles: ZoneTileSpec[] = [
         {
           key: ZONE_TILE_KEY.library,
-          label: "Lib",
           count: op.libraryCount,
           topCard: top(op.library),
           back: op.library.length === 0,
@@ -1425,7 +1420,6 @@ export function GameBoard({
         },
         {
           key: ZONE_TILE_KEY.graveyard,
-          label: "GY",
           count: op.graveyard.length,
           topCard: top(op.graveyard),
           onOpen: () =>
@@ -1434,7 +1428,6 @@ export function GameBoard({
         },
         {
           key: ZONE_TILE_KEY.exile,
-          label: "EX",
           count: op.exile.length,
           topCard: top(op.exile),
           onOpen: () => openOpZone(`${stripUsernameTag(op.name)}'s Exile`, op.exile, exTargets),
@@ -1444,7 +1437,6 @@ export function GameBoard({
       if ((op.commandZone?.length ?? 0) > 0) {
         tiles.push({
           key: ZONE_TILE_KEY.command,
-          label: "CMD",
           count: op.commandZone.length,
           topCard: top(op.commandZone),
           previewCards: op.commandZone,

@@ -189,6 +189,10 @@ function deriveCosts(card: CardDto): CardCostPresentation[] {
   return costs;
 }
 
+export function replaceCardName(text: string, name: string): string {
+  return text.includes("CARDNAME") ? text.replace(/CARDNAME/g, name) : text;
+}
+
 export function deriveCardPresentation(card: CardDto & { zoneId?: string }): CardPresentation {
   const rail = deriveCardRailState(card);
   const isPlaneswalker = card.types.some((type) => type.toLowerCase() === "planeswalker");
@@ -204,7 +208,7 @@ export function deriveCardPresentation(card: CardDto & { zoneId?: string }): Car
     manaCost: card.manaCost,
     effectiveManaCost: card.effectiveManaCost,
     typeLine: cardTypeLine(card),
-    rulesText: card.text,
+    rulesText: replaceCardName(card.text, card.identity.name),
     keywords: card.keywords,
     statuses: deriveStatuses(card),
     counters: Object.entries(card.counters)

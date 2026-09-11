@@ -2670,6 +2670,7 @@ dependencies = [
 name = "forge-cardset-archive"
 version = "0.4.1"
 dependencies = [
+ "base64 0.22.1",
  "forge-card-script",
  "memmap2",
  "rkyv",

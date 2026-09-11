@@ -76,9 +76,12 @@ pub fn build_archive_from_sources(
                 if !entry.file_type().is_file() {
                     continue;
                 }
-                let Ok(raw) = std::fs::read_to_string(entry.path()) else {
-                    stats.skipped += 1;
-                    continue;
+                let raw = match std::fs::read(entry.path()) {
+                    Ok(raw) => raw,
+                    Err(_) => {
+                        stats.skipped += 1;
+                        continue;
+                    }
                 };
                 let Ok(rel) = entry.path().strip_prefix(res_root) else {
                     continue;

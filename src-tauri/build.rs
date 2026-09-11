@@ -43,10 +43,8 @@ fn ensure_forge_runtime_resource_dir() {
     }
 }
 
-/// Regenerate `resources/cardset.rkyv` whenever the cardsfolder, tokenscripts,
-/// or editions are newer than the existing archive (or the archive is
-/// missing). The archive is bundled as a Tauri resource and mmap'd at runtime
-/// by `card_db.rs`.
+/// Regenerate `resources/cardset.rkyv` whenever a bundled Forge resource is
+/// newer than the existing archive, or the archive is missing.
 fn build_cardset_archive_if_stale() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let cardsfolder = manifest_dir.join("../forge/forge-gui/res/cardsfolder");
@@ -54,16 +52,25 @@ fn build_cardset_archive_if_stale() {
     let editions = manifest_dir.join("../forge/forge-gui/res/editions");
     let block_data = manifest_dir.join("../forge/forge-gui/res/blockdata");
     let type_lists = manifest_dir.join("../forge/forge-gui/res/lists/TypeLists.txt");
-    // Carried verbatim into the archive's `extras`; consumers with no
-    // filesystem read these too.
     let res_root = manifest_dir.join("../forge/forge-gui/res");
+    let extra_dirs: Vec<PathBuf> = forge_cardset_archive::DEFAULT_EXTRA_DIRS
+        .iter()
+        .map(|dir| res_root.join(dir))
+        .collect();
     let archive_path = manifest_dir.join("resources/cardset.rkyv");
 
-    println!("cargo:rerun-if-changed={}", cardsfolder.display());
-    println!("cargo:rerun-if-changed={}", tokenscripts.display());
-    println!("cargo:rerun-if-changed={}", editions.display());
-    println!("cargo:rerun-if-changed={}", block_data.display());
-    println!("cargo:rerun-if-changed={}", type_lists.display());
+    for input in [
+        &cardsfolder,
+        &tokenscripts,
+        &editions,
+        &block_data,
+        &type_lists,
+    ]
+    .into_iter()
+    .chain(extra_dirs.iter())
+    {
+        println!("cargo:rerun-if-changed={}", input.display());
+    }
     println!("cargo:rerun-if-env-changed=FORCE_CARDSET_REBUILD");
 
     if !cardsfolder.exists() {
@@ -82,13 +89,14 @@ fn build_cardset_archive_if_stale() {
         return;
     }
 
-    let inputs = [
+    let mut inputs = vec![
         &cardsfolder,
         &tokenscripts,
         &editions,
         &block_data,
         &type_lists,
     ];
+    inputs.extend(extra_dirs.iter());
     if !needs_rebuild(&inputs, &archive_path) {
         return;
     }

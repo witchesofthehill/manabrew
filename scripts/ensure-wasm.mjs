@@ -43,7 +43,16 @@ const MANIFEST_HASH_DIRS = [
   "forge/forge-gui/res/cardsfolder",
   "forge/forge-gui/res/tokenscripts",
   "forge/forge-gui/res/editions",
+  "forge/forge-gui/res/formats",
+  "forge/forge-gui/res/lists",
+  "forge/forge-gui/res/draft",
+  "forge/forge-gui/res/effects",
+  "forge/forge-gui/res/cube",
+  "forge/forge-gui/res/defaults",
   "forge/forge-gui/res/blockdata",
+  "forge/forge-gui/res/setlookup",
+  "forge/forge-gui/res/ai",
+  "forge/forge-gui/res/sealed",
 ];
 
 function walk(root, predicate, out = []) {

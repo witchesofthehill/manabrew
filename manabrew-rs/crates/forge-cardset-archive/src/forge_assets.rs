@@ -1,10 +1,12 @@
 //! Selects Forge's asset tree from the shared rkyv card archive.
 //!
-//! The framing is `path\0body\0…`, which is what `WasmMain.writeFramed`
-//! unpacks into the in-memory filesystem.
+//! The framing is `path\0body\0…`. A `base64:` path carries a binary body.
+//! `WasmMain.writeFramed` unpacks both forms into the in-memory filesystem.
 
 use crate::{load_checked, ArchivedCardArchive};
+use base64::prelude::{Engine, BASE64_STANDARD};
 use forge_card_script::ParsedCardScript;
+const BASE64_PATH_PREFIX: &str = "base64:";
 
 /// Name a card script the way Forge does, because with lazily loaded card
 /// scripts the *filename* is how Forge finds a card: it strips the accents and
@@ -281,14 +283,18 @@ pub fn forge_asset_bundle(bytes: &[u8], wanted: Vec<String>) -> Result<String, S
         archive.type_lists.as_str(),
     );
 
-    // formats/, defaults/, effects/ and the rest of lists/ — FModel.initialize
-    // reads all of them and throws without them.
     for extra in archive.extras.iter() {
-        push(
-            &mut out,
-            &format!("res/{}", extra.path.as_str()),
-            extra.raw.as_str(),
-        );
+        let path = format!("res/{}", extra.path.as_str());
+        let raw = extra.raw.as_slice();
+        if let Ok(body) = std::str::from_utf8(raw) {
+            push(&mut out, &path, body);
+        } else {
+            push(
+                &mut out,
+                &format!("{BASE64_PATH_PREFIX}{path}"),
+                &BASE64_STANDARD.encode(raw),
+            );
+        }
     }
 
     Ok(out)

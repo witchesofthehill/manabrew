@@ -11,6 +11,7 @@ build = ["dep:walkdir", "dep:memmap2"]
 
 [dependencies]
 rkyv = { version = "0.7", features = ["validation"] }
+base64 = "0.22"
 forge-card-script = { path = "../forge-card-script", version = "0.1.1" }
 memmap2 = { version = "0.9", optional = true }
 walkdir = { version = "2", optional = true }

@@ -2,7 +2,7 @@
 
 Forge compiled to WebAssembly with GraalVM Web Image. The package runs Forge on a worker and exposes its state, display and prompt messages on the main thread.
 
-It runs in a browser and on Node. The entry point differs, the API does not. It includes the Forge launcher, the WebAssembly engine and a static `cardset.rkyv` archive. Card scripts for the decks in play and cards named by those scripts are selected from the archive before Forge boots, so the Java boundary only receives the files needed by that game.
+It runs in a browser and on Node. The entry point differs, the API does not. It includes the Forge launcher, the WebAssembly engine and a static `cardset.rkyv` archive containing every Forge card script and every rules/card-data resource staged by the native headless runtime. Card scripts for the decks in play and cards named by those scripts are selected from the archive before Forge boots, so the Java boundary only receives the files needed by that game; any later card lookup is served from the same complete archive.
 
 ## Install
 
@@ -127,7 +127,7 @@ await createForgeEngine({
 });
 ```
 
-A host which already has the Manabrew cardset pipeline can avoid loading the packaged archive by supplying a framed asset string. The framing is `path\0body\0…` and paths are relative to Forge's resource root.
+A host which already has the Manabrew cardset pipeline can avoid loading the packaged archive by supplying a framed asset string. The framing is `path\0body\0…` and paths are relative to Forge's resource root. For a binary file, prefix its path with `base64:` and encode its body with standard Base64.
 
 ```js
 await createForgeEngine({

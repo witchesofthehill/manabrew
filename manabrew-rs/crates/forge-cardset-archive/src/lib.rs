@@ -17,9 +17,19 @@ mod build;
 #[cfg(feature = "build")]
 pub use build::{build_archive_from_sources, ArchiveSources, BuildStats};
 
-pub const ARCHIVE_FORMAT_VERSION: u32 = 6;
+pub const ARCHIVE_FORMAT_VERSION: u32 = 7;
 
-pub const DEFAULT_EXTRA_DIRS: &[&str] = &["formats", "lists", "defaults", "effects", "ai"];
+pub const DEFAULT_EXTRA_DIRS: &[&str] = &[
+    "formats",
+    "lists",
+    "draft",
+    "effects",
+    "cube",
+    "defaults",
+    "setlookup",
+    "ai",
+    "sealed",
+];
 
 #[derive(Archive, Serialize, Deserialize, Debug, Clone)]
 #[archive(check_bytes)]
@@ -37,15 +47,12 @@ pub struct Edition {
     pub raw: String,
 }
 
-/// Free-form text resource — e.g. files from `forge/forge-gui/res/blockdata/`
-/// such as `boosters-special.txt`. Same shape as `Edition` but separated for
-/// clarity and to keep schema growth obvious in diffs.
 /// A file carried verbatim, addressed by its path relative to `res/`.
 #[derive(Archive, Serialize, Deserialize, Debug, Clone)]
 #[archive(check_bytes)]
 pub struct AssetFile {
     pub path: String,
-    pub raw: String,
+    pub raw: Vec<u8>,
 }
 
 #[derive(Archive, Serialize, Deserialize, Debug, Clone)]

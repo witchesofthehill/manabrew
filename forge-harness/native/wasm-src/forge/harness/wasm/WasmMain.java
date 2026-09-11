@@ -15,6 +15,7 @@ import forge.harness.host.ManaBrewInteractiveSession;
 public final class WasmMain {
 
     private static final int TAR_BLOCK = 512;
+    private static final String BASE64_PATH_PREFIX = "base64:";
 
     private WasmMain() {
     }
@@ -25,7 +26,7 @@ public final class WasmMain {
     static native String hostReadGunzippedBase64(String path);
 
     /**
-     * Assets as one NUL-framed "path\0body\0..." string.
+     * Assets as one NUL-framed "path\0body\0..." string. A "base64:" path carries binary data.
      */
     @JS.Coerce
     @JS(// The browser host builds the bundle from cardset.rkyv and leaves it
@@ -59,9 +60,18 @@ public final class WasmMain {
             if (end < 0) {
                 end = framed.length();
             }
+            boolean base64 = name.startsWith(BASE64_PATH_PREFIX);
+            if (base64) {
+                name = name.substring(BASE64_PATH_PREFIX.length());
+            }
             Path target = root.resolve(name);
             Files.createDirectories(target.getParent());
-            Files.writeString(target, framed.substring(sep + 1, end));
+            String body = framed.substring(sep + 1, end);
+            if (base64) {
+                Files.write(target, Base64.getDecoder().decode(body));
+            } else {
+                Files.writeString(target, body);
+            }
             files++;
             i = end + 1;
         }

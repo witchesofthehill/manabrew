@@ -10,12 +10,13 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageDir = join(root, "target", "npm", "forge-wasm");
 const temporary = mkdtempSync(join(tmpdir(), "forge-wasm-package-"));
+const BASE64_PATH_PREFIX = "base64:";
 
 function run(command, args, cwd = root) {
   const result = spawnSync(command, args, { cwd, encoding: "utf8" });
@@ -25,6 +26,12 @@ function run(command, args, cwd = root) {
     process.exit(result.status ?? 1);
   }
   return result.stdout;
+}
+function walkFiles(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    return entry.isDirectory() ? walkFiles(path) : [path];
+  });
 }
 
 const required = [
@@ -74,10 +81,99 @@ await assetModule.default({
 });
 const cardset = readFileSync(join(packageDir, "cardset.rkyv"));
 
-function cardScriptPaths(wanted) {
-  const assets = assetModule.forge_asset_bundle(cardset, wanted).split("\0");
-  return new Set(assets.filter((value, index) => index % 2 === 0));
+function assetFields(wanted) {
+  return assetModule.forge_asset_bundle(cardset, wanted).split("\0");
 }
+
+function assetPath(path) {
+  return path.startsWith(BASE64_PATH_PREFIX) ? path.slice(BASE64_PATH_PREFIX.length) : path;
+}
+
+function cardScriptPaths(wanted) {
+  const assets = assetFields(wanted);
+  return new Set(assets.filter((value, index) => index % 2 === 0 && value).map(assetPath));
+}
+
+function assetEntries(wanted) {
+  const fields = assetFields(wanted);
+  const entries = new Map();
+  for (let index = 0; index + 1 < fields.length; index += 2) {
+    const encoded = fields[index].startsWith(BASE64_PATH_PREFIX);
+    entries.set(
+      assetPath(fields[index]),
+      Buffer.from(fields[index + 1], encoded ? "base64" : "utf8"),
+    );
+  }
+  return entries;
+}
+
+function cardKey(script, path) {
+  return (
+    script
+      .toString("utf8")
+      .match(/^Name:(.*)$/m)?.[1]
+      .trim()
+      .toLowerCase() ?? basename(path, ".txt").toLowerCase()
+  );
+}
+
+const fullAssets = assetEntries([]);
+const sourceRes = join(root, "forge", "forge-gui", "res");
+const sourceCards = walkFiles(join(sourceRes, "cardsfolder")).filter((path) =>
+  path.endsWith(".txt"),
+);
+const bundledCards = new Map(
+  [...fullAssets]
+    .filter(([path]) => path.startsWith("res/cardsfolder/"))
+    .map(([path, body]) => [cardKey(body, path), body]),
+);
+if (bundledCards.size !== sourceCards.length) {
+  throw new Error(
+    `The full card bundle has ${bundledCards.size} scripts; Forge has ${sourceCards.length}.`,
+  );
+}
+for (const path of sourceCards) {
+  const source = readFileSync(path);
+  const name = cardKey(source, path);
+  const bundled = bundledCards.get(name);
+  if (!bundled || !source.equals(bundled)) {
+    throw new Error(`The full card bundle is missing or changed ${name} from ${path}.`);
+  }
+}
+
+const nativeAssetDirs = [
+  "editions",
+  "formats",
+  "lists",
+  "tokenscripts",
+  "draft",
+  "effects",
+  "cube",
+  "defaults",
+  "blockdata",
+  "setlookup",
+  "ai",
+  "sealed",
+];
+const sourceAssets = nativeAssetDirs.flatMap((dir) => walkFiles(join(sourceRes, dir)));
+const bundledAssetPaths = new Set(
+  [...fullAssets.keys()].filter((path) => !path.startsWith("res/cardsfolder/")),
+);
+if (bundledAssetPaths.size !== sourceAssets.length) {
+  throw new Error(
+    `The full asset bundle has ${bundledAssetPaths.size} non-card files; native Forge has ${sourceAssets.length}.`,
+  );
+}
+for (const path of sourceAssets) {
+  const bundlePath = `res/${relative(sourceRes, path).replaceAll("\\", "/")}`;
+  const bundled = fullAssets.get(bundlePath);
+  if (!bundled || !readFileSync(path).equals(bundled)) {
+    throw new Error(`The full asset bundle is missing or changed ${bundlePath}.`);
+  }
+}
+console.log(
+  `Verified complete Forge inventory: ${sourceCards.length} card scripts, ${sourceAssets.length} runtime assets.`,
+);
 
 const garthScripts = cardScriptPaths(["Garth One-Eye"]);
 for (const path of [

@@ -66,7 +66,7 @@ fn push(out: &mut String, path: &str, body: &str) {
     out.push('\0');
 }
 
-fn choose_from_list_dependencies(raw: &str) -> Vec<String> {
+fn named_card_dependencies(raw: &str) -> Vec<String> {
     let parsed = ParsedCardScript::parse(raw);
     let mut names = Vec::new();
     for ability in parsed.abilities() {
@@ -78,6 +78,10 @@ fn choose_from_list_dependencies(raw: &str) -> Vec<String> {
             (!name.is_empty()).then(|| name.to_ascii_lowercase())
         }));
     }
+    names.extend(raw.lines().filter_map(|line| {
+        let name = line.strip_prefix("CopyFaceFrom:")?.trim();
+        (!name.is_empty()).then(|| name.to_ascii_lowercase())
+    }));
     names
 }
 
@@ -90,7 +94,7 @@ fn add_named_card_dependencies(
         let Some(card) = archive.lookup(&name) else {
             continue;
         };
-        for dependency in choose_from_list_dependencies(card.raw.as_str()) {
+        for dependency in named_card_dependencies(card.raw.as_str()) {
             if keep.insert(dependency.clone()) {
                 pending.push(dependency);
             }
@@ -146,9 +150,9 @@ fn json_string_field(tail: &str, field: &str) -> Option<String> {
 /// Build the NUL-framed asset bundle the Wasm Forge build unpacks at boot.
 ///
 /// `wanted` restricts the card scripts to the names actually in play and the
-/// cards those scripts name through `ChooseFromList`. Forge reads its whole
-/// cardsfolder at init, so shipping all 33k scripts costs seconds of boot for
-/// cards no game will touch. An empty list means every card.
+/// cards those scripts name through `ChooseFromList` or `CopyFaceFrom`. Forge
+/// reads its whole cardsfolder at init, so shipping all 33k scripts costs seconds
+/// of boot for cards no game will touch. An empty list means every card.
 pub fn forge_asset_bundle(bytes: &[u8], wanted: Vec<String>) -> Result<String, String> {
     let archive = load_checked(bytes)?;
 

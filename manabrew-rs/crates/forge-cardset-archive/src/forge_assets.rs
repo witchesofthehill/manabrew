@@ -79,7 +79,10 @@ fn named_card_dependencies(raw: &str) -> Vec<String> {
         }));
     }
     names.extend(raw.lines().filter_map(|line| {
-        let name = line.strip_prefix("CopyFaceFrom:")?.trim();
+        let name = line
+            .strip_prefix("CopyFaceFrom:")
+            .or_else(|| line.strip_prefix("MeldPair:"))?
+            .trim();
         (!name.is_empty()).then(|| name.to_ascii_lowercase())
     }));
     names
@@ -150,7 +153,7 @@ fn json_string_field(tail: &str, field: &str) -> Option<String> {
 /// Build the NUL-framed asset bundle the Wasm Forge build unpacks at boot.
 ///
 /// `wanted` restricts the card scripts to the names actually in play and the
-/// cards those scripts name through `ChooseFromList` or `CopyFaceFrom`. Forge
+/// cards those scripts name through `ChooseFromList`, `CopyFaceFrom`, or `MeldPair`. Forge
 /// reads its whole cardsfolder at init, so shipping all 33k scripts costs seconds
 /// of boot for cards no game will touch. An empty list means every card.
 pub fn forge_asset_bundle(bytes: &[u8], wanted: Vec<String>) -> Result<String, String> {

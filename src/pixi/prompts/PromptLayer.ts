@@ -3486,8 +3486,9 @@ export class PromptLayer {
       reveal
         ? {
             ...presentation,
-            title: "Cards Revealed",
-            description: `${cards.length} card${cards.length === 1 ? "" : "s"} shown`,
+            description:
+              presentation.description ??
+              `${cards.length} card${cards.length === 1 ? "" : "s"} shown`,
           }
         : presentation,
       true,

@@ -615,6 +615,38 @@ public final class InteractiveSnapshotExtractor {
         return choices;
     }
 
+    static CardDto paperCardDto(
+            final IPaperCard paper,
+            final String id,
+            final String ownerPlayerId
+    ) {
+        final CardDto dto = new CardDto();
+        dto.id = id;
+        dto.identity = new CardIdentity(
+                normalizeCardName(paper.getName()),
+                paper.getEdition(),
+                paper.getCollectorNumber(),
+                paper.isToken(),
+                null);
+        dto.color = "";
+        dto.manaCost = "";
+        dto.types = Collections.emptyList();
+        dto.subtypes = Collections.emptyList();
+        dto.supertypes = Collections.emptyList();
+        dto.classLevels = Collections.emptyList();
+        dto.sagaChapters = Collections.emptyList();
+        dto.text = "";
+        dto.choices = Collections.emptyList();
+        dto.controllerId = ownerPlayerId;
+        dto.ownerId = ownerPlayerId;
+        dto.keywords = Collections.emptyList();
+        dto.counters = Collections.emptyMap();
+        dto.attachmentIds = Collections.emptyList();
+        dto.mergedCardIds = Collections.emptyList();
+        dto.foil = paper.isFoil();
+        return dto;
+    }
+
     private static CardDto toCard(
             final Game game,
             final Card card,

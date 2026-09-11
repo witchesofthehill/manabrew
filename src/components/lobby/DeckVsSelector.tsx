@@ -619,9 +619,24 @@ export function DeckVsSelector({
                   </Button>
                 </div>
               ) : hubDecks.loading && hubDeckEntries.length === 0 ? (
-                <p className="py-2 text-xs italic text-muted-foreground">
-                  Loading Community decks…
-                </p>
+                <div
+                  className={cn(
+                    "grid gap-3 pt-1",
+                    denseDecks
+                      ? "grid-cols-2 md:grid-cols-3"
+                      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
+                  )}
+                >
+                  {Array.from({ length: 10 }, (_, index) => (
+                    <div
+                      key={index}
+                      className={cn(
+                        "animate-pulse rounded-lg bg-muted",
+                        denseDecks ? "h-24" : "aspect-[4/3] sm:min-h-[172px]",
+                      )}
+                    />
+                  ))}
+                </div>
               ) : hubDeckEntries.length === 0 ? (
                 <p className="py-2 text-xs italic text-muted-foreground">
                   No Community decks match this format and search.

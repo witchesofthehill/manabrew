@@ -662,6 +662,7 @@ export function CreateGameDialog({
 
               {hubDecks.enabled &&
                 (deckSearch.trim() !== "" ||
+                  hubDecks.loading ||
                   hubDecks.error !== null ||
                   hubSearchResults.length > 0) && (
                   <div className="p-4">
@@ -677,9 +678,24 @@ export function CreateGameDialog({
                         </Button>
                       </div>
                     ) : hubDecks.loading && hubSearchResults.length === 0 ? (
-                      <p className="text-xs text-muted-foreground italic">
-                        Loading Community decks…
-                      </p>
+                      <div
+                        className={cn(
+                          "grid gap-3",
+                          denseDecks
+                            ? "grid-cols-2 md:grid-cols-3"
+                            : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+                        )}
+                      >
+                        {Array.from({ length: 10 }, (_, index) => (
+                          <div
+                            key={index}
+                            className={cn(
+                              "animate-pulse rounded-lg bg-muted",
+                              denseDecks ? "h-24" : "aspect-[4/3] sm:min-h-[172px]",
+                            )}
+                          />
+                        ))}
+                      </div>
                     ) : hubSearchResults.length === 0 ? (
                       <p className="text-xs text-muted-foreground italic">
                         No Community decks match your search.

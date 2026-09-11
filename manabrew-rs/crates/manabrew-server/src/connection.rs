@@ -493,29 +493,72 @@ fn room_player_id_in(room: &Room, target_username: &str) -> Option<String> {
     }
 }
 
-/// Whether every client that would receive this envelope ships the `stateDelta`
-/// applier. One seat that does not is enough to fall back to a full state: a
-/// dropped patch leaves that player's board frozen for the rest of the game.
-fn state_patch_audience_ready(
+/// The seats that would receive this envelope and cannot take a `stateDelta`,
+/// so must be sent the whole board instead: a dropped patch leaves that
+/// player's board frozen for the rest of the game.
+///
+/// Per seat, not per envelope. Until 2026-09-11 one such seat folded the patch
+/// for everyone, and every hosted room has one: the node's bot seats and the
+/// node itself authenticate as services with no client version. So every
+/// broadcast patch went out as a full state to every human, ~40 KB per
+/// decision on a four-seat board that the seated client then discarded, and
+/// the node was sent its own bot seats' boards back. A service is our own
+/// code, never a stale install, and either applies patches or ignores states
+/// altogether; it is never the reason to fold.
+fn seats_needing_full_state(
     state: &Arc<ServerState>,
     room: &Room,
     sender_player_id: &str,
     target_username: Option<&str>,
-) -> bool {
-    let applies = |player_id: &str| {
-        state
-            .players
-            .get(player_id)
-            .is_some_and(|player| player.client.applies_state_patches())
+) -> Vec<String> {
+    let needs_full = |player_id: &str| {
+        state.players.get(player_id).is_some_and(|player| {
+            !player.is_service && !player.client.applies_state_patches()
+        })
     };
     match target_username {
         // An unresolvable target means the send is about to be dropped anyway.
-        Some(target) => room_player_id_in(room, target).is_none_or(|pid| applies(&pid)),
+        Some(target) => room_player_id_in(room, target)
+            .filter(|pid| needs_full(pid))
+            .into_iter()
+            .collect(),
         None => room
             .connected_player_ids()
-            .iter()
-            .filter(|pid| pid.as_str() != sender_player_id)
-            .all(|pid| applies(pid)),
+            .into_iter()
+            .filter(|pid| pid.as_str() != sender_player_id && needs_full(pid))
+            .collect(),
+    }
+}
+
+/// Broadcast a board update, sending each seat the shape it can take: the
+/// patch to seats that apply patches, the whole board to the rest.
+fn broadcast_state_split(
+    state: &Arc<ServerState>,
+    sender_player_id: &str,
+    room_id: &str,
+    patch: &ServerMessage,
+    full: Option<&ServerMessage>,
+    needs_full: &[String],
+) {
+    let Some(full) = full else {
+        broadcast_to_room_except(state, sender_player_id, room_id, patch);
+        return;
+    };
+    let (Ok(patch_json), Ok(full_json)) = (serde_json::to_string(patch), serde_json::to_string(full))
+    else {
+        return;
+    };
+    let player_ids = match state.rooms.get(room_id) {
+        Some(room) => room.connected_player_ids(),
+        None => return,
+    };
+    for pid in player_ids.iter().filter(|pid| pid.as_str() != sender_player_id) {
+        if needs_full.contains(pid) {
+            metrics::record_state_patch_downgrade();
+            emit_to(state, pid, full, &full_json);
+        } else {
+            emit_to(state, pid, patch, &patch_json);
+        }
     }
 }
 
@@ -1739,19 +1782,18 @@ fn handle_client_message(
                         .then(|| replay.game_id.clone())
                 });
                 let seats = room.players.len();
-                let folded_state = (is_state_patch(&game_state)
-                    && !state_patch_audience_ready(
-                        state,
-                        &room,
-                        player_id,
-                        canonical_target.as_deref(),
-                    ))
-                .then(|| {
-                    room.replay
-                        .as_ref()
-                        .and_then(|replay| replay.state_after(&game_state).cloned())
-                })
-                .flatten();
+                let needs_full = if is_state_patch(&game_state) {
+                    seats_needing_full_state(state, &room, player_id, canonical_target.as_deref())
+                } else {
+                    Vec::new()
+                };
+                let folded_state = (!needs_full.is_empty())
+                    .then(|| {
+                        room.replay
+                            .as_ref()
+                            .and_then(|replay| replay.state_after(&game_state).cloned())
+                    })
+                    .flatten();
                 drop(room);
                 if let Some(game_id) = capture_game_id {
                     // Only a player's own envelope carries a link that is theirs.
@@ -1775,17 +1817,14 @@ fn handle_client_message(
                     metrics::record_state_handling(seats, handling_started.elapsed());
                     return;
                 }
-                let game_state = match folded_state {
-                    Some(full) => {
-                        metrics::record_state_patch_downgrade();
-                        full
-                    }
-                    None => game_state,
-                };
                 let msg = ServerMessage::StateUpdate {
                     from_player: username.to_string(),
                     state: game_state,
                 };
+                let full_msg = folded_state.map(|full| ServerMessage::StateUpdate {
+                    from_player: username.to_string(),
+                    state: full,
+                });
                 match canonical_target {
                     Some(target) => {
                         debug!(
@@ -1794,7 +1833,15 @@ fn handle_client_message(
                             target,
                             &rid[..8]
                         );
-                        send_to_room_player(state, &rid, &target, &msg);
+                        // A patch the relay could not expand still goes out:
+                        // the seat drops it, which is no worse than silence.
+                        match &full_msg {
+                            Some(full) => {
+                                metrics::record_state_patch_downgrade();
+                                send_to_room_player(state, &rid, &target, full);
+                            }
+                            None => send_to_room_player(state, &rid, &target, &msg),
+                        }
                     }
                     None => {
                         debug!(
@@ -1802,7 +1849,14 @@ fn handle_client_message(
                             username,
                             &rid[..8]
                         );
-                        broadcast_to_room_except(state, player_id, &rid, &msg);
+                        broadcast_state_split(
+                            state,
+                            player_id,
+                            &rid,
+                            &msg,
+                            full_msg.as_ref(),
+                            &needs_full,
+                        );
                     }
                 }
                 metrics::record_state_handling(seats, handling_started.elapsed());

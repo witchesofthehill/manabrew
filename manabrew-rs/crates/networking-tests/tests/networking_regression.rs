@@ -16,7 +16,8 @@ use libtest_mimic::Arguments;
 use manabrew_agent_interface::protocol::{identity_token, IdentityProof};
 use serde_json::json;
 use support::{
-    case, execute, list, scenario, spawn_guest_bot, step, summary, webrtc_endpoint, Case, Client,
+    case, execute, list, play_pair, scenario, spawn_guest_bot, step, summary, webrtc_endpoint, Case,
+    Client,
     Manifest, Sim, GRACE_DEADLINE,
 };
 
@@ -522,6 +523,76 @@ async fn old_clients_are_sent_whole_boards() {
     );
 }
 
+async fn bot_seats_never_make_the_relay_fold_a_patch() {
+    scenario(
+        "a hosted 2-player game: a current human, and the node's bot seat, which authenticates as a service with no client version.",
+        "the node sends its patched board updates, per seat and to the bot.",
+        "the relay expands none of them. Until 2026-09-11 the bot seat failed the version check like a stale install, so every patch addressed to it and every broadcast in its room went out as a full board: ~40 KB per decision to each human on a four-seat table, and the node sent its own bots' boards back.",
+    );
+    let sim = Sim::spawn(9680).await;
+    let mut alice = Client::connect_versioned(&sim.relay_url, "alice", CURRENT_CLIENT_VERSION)
+        .await
+        .unwrap();
+    alice.join(&sim.room_id, false).await.unwrap();
+    alice.spawn_node_bot(&sim.room_id).await.unwrap();
+    alice.select_deck_and_ready().await.unwrap();
+    alice.start_game(2).await.unwrap();
+    alice.answer_prompts(6).await.unwrap();
+
+    assert!(
+        alice.saw_envelope_kind("stateDelta"),
+        "the human was sent no patch at all, so the counter below proves nothing",
+    );
+    let folded = sim
+        .metric("manabrew_relay_state_patch_downgrades_total")
+        .await;
+    assert_eq!(
+        folded, 0.0,
+        "the relay expanded {folded} patches into full boards in a room whose only non-current seat is a bot",
+    );
+}
+
+async fn old_clients_get_whole_boards_without_costing_the_current_ones_theirs() {
+    scenario(
+        "a hosted game with two humans: one current, one old enough to report no version.",
+        "the node sends patched board updates to both.",
+        "each seat is sent the shape it can take: the old client whole boards and never a patch, the current one patches, and the relay's fold counter moves only for the old seat.",
+    );
+    let sim = Sim::spawn(9684).await;
+    let mut alice = Client::connect_versioned(&sim.relay_url, "alice", CURRENT_CLIENT_VERSION)
+        .await
+        .unwrap();
+    let mut bob = Client::connect(&sim.relay_url, "bob").await.unwrap();
+    alice.join(&sim.room_id, false).await.unwrap();
+    bob.join(&sim.room_id, false).await.unwrap();
+    alice.spawn_node_bot(&sim.room_id).await.unwrap();
+    alice.select_deck_and_ready().await.unwrap();
+    bob.select_deck_and_ready().await.unwrap();
+    alice.start_game(3).await.unwrap();
+    bob.await_game_started().await.unwrap();
+    play_pair(&mut alice, &mut bob, 8).await.unwrap();
+
+    assert!(
+        !bob.saw_envelope_kind("stateDelta"),
+        "the old client was sent a patch it cannot apply; its board would have frozen here",
+    );
+    assert!(
+        bob.saw_envelope_kind("state"),
+        "the old client received no board at all, so the test proves nothing",
+    );
+    assert!(
+        alice.saw_envelope_kind("stateDelta"),
+        "the current client lost its patches to the old seat in the same room",
+    );
+    let folded = sim
+        .metric("manabrew_relay_state_patch_downgrades_total")
+        .await;
+    assert!(
+        folded > 0.0,
+        "the old seat was sent boards the relay never counted as folded",
+    );
+}
+
 async fn publishing_a_release_never_ends_a_live_game() {
     scenario(
         "a node armed to auto-update, hosting a game between a human and its bot.",
@@ -761,6 +832,14 @@ fn main() {
         case(
             "ghost_session_reaped_on_room_teardown",
             ghost_session_reaped_on_room_teardown,
+        ),
+        case(
+            "bot_seats_never_make_the_relay_fold_a_patch",
+            bot_seats_never_make_the_relay_fold_a_patch,
+        ),
+        case(
+            "old_clients_get_whole_boards_without_costing_the_current_ones_theirs",
+            old_clients_get_whole_boards_without_costing_the_current_ones_theirs,
         ),
         case(
             "publishing_a_release_never_ends_a_live_game",

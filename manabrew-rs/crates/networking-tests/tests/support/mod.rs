@@ -719,6 +719,7 @@ impl Client {
                 official_key: None,
                 password: None,
                 reconnect_timeout_s: Some(RECONNECT_TIMEOUT_S),
+                table_style: None,
             },
         )
         .await

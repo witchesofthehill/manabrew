@@ -1,3 +1,4 @@
+import type { BoardBackgroundId } from "@/pixi/board/boardBackgrounds";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { toast } from "sonner";
@@ -101,6 +102,7 @@ interface ServerState {
     sealedConfig?: SealedConfig,
     reconnectTimeoutS?: number,
     password?: string,
+    tableStyle?: BoardBackgroundId,
   ): Promise<void>;
   joinRoom(roomId: string, password?: string): Promise<void>;
   resumeRoomAfterRestart(): Promise<void>;
@@ -297,6 +299,7 @@ export const useServerStore = create<ServerState>()(
         sealedConfig,
         reconnectTimeoutS,
         password,
+        tableStyle,
       ) {
         const platform = getPlatform();
         if (!platform.server) return;
@@ -310,6 +313,7 @@ export const useServerStore = create<ServerState>()(
           sealedConfig,
           reconnectTimeoutS,
           password,
+          tableStyle,
         });
         if (roomId) {
           if (engine === "Forge") set({ hostingForgeRoom: true });
@@ -350,6 +354,7 @@ export const useServerStore = create<ServerState>()(
           engine: "Manabrew",
           password: roomPassword ?? undefined,
           reconnect_timeout_s: currentRoom.reconnect_timeout_s,
+          table_style: currentRoom.table_style,
           draft_config: currentRoom.draft_config,
           sealed_config: currentRoom.sealed_config,
           player_order: playerOrder,

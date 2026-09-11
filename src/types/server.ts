@@ -42,6 +42,7 @@ export interface RoomInfo {
   status: "Lobby" | "InGame";
   engine: EngineKind;
   reconnect_timeout_s: number;
+  table_style?: string;
   draft_config?: DraftConfig;
   sealed_config?: SealedConfig;
 }

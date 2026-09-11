@@ -680,6 +680,7 @@ async fn establish_room(
                 official_key: config.official_key.clone(),
                 password: config.room_password.clone(),
                 reconnect_timeout_s: config.reconnect_timeout_s,
+                table_style: config.table_style.clone(),
             })
             .await?;
         info!(room_name = %config.room_name, "creating room");
@@ -813,6 +814,7 @@ fn resume_room_request(
         official_key: config.official_key.clone(),
         password: config.room_password.clone(),
         reconnect_timeout_s: Some(room_info.reconnect_timeout_s),
+        table_style: room_info.table_style.clone(),
         draft_config: room_info.draft_config.clone(),
         sealed_config: room_info.sealed_config.clone(),
         player_order: game.player_order.clone(),

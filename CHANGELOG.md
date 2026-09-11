@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.41.1](https://github.com/witchesofthehill/manabrew/compare/v3.41.0...v3.41.1) (2026-09-11)
+
+### Fixes
+
+* **telemetry:** file solo engine reports under the offline game ([#905](https://github.com/witchesofthehill/manabrew/issues/905)) ([400031b](https://github.com/witchesofthehill/manabrew/commit/400031bccc40d88868a5430253b5db9b167695dd))
+
+## [3.41.0](https://github.com/witchesofthehill/manabrew/compare/v3.40.1...v3.41.0) (2026-09-10)
+
+### Features
+
+* backgrounds ([#903](https://github.com/witchesofthehill/manabrew/issues/903)) ([067eab1](https://github.com/witchesofthehill/manabrew/commit/067eab1deec20b1b50a899b8aaf2ed377ad28c49))
+
 ## [3.40.1](https://github.com/witchesofthehill/manabrew/compare/v3.40.0...v3.40.1) (2026-09-09)
 
 ### Fixes

@@ -28,6 +28,18 @@ export const DEFAULT_PLAYMAT_SETTINGS: Required<PlaymatSettings> = {
   color: "",
 };
 
+const PLAYMAT_PADDING = 0.04;
+
+export function playmatInset(rect: PlayZoneRect): PlayZoneRect {
+  const pad = Math.min(rect.width, rect.height) * PLAYMAT_PADDING;
+  return {
+    x: rect.x + pad,
+    y: rect.y + pad,
+    width: Math.max(1, rect.width - pad * 2),
+    height: Math.max(1, rect.height - pad * 2),
+  };
+}
+
 export const PLAYMAT_ZOOM_MIN = 1;
 export const PLAYMAT_ZOOM_MAX = 4;
 export const clampPlaymatZoom = (z: number): number =>
@@ -42,7 +54,6 @@ export const clampPlaymatBrightness = (b: number): number =>
   Math.max(PLAYMAT_BRIGHTNESS_MIN, Math.min(PLAYMAT_BRIGHTNESS_MAX, Number.isFinite(b) ? b : 1));
 
 const PLAYMAT_DROP_DIM = 0.29;
-const PLAYMAT_PADDING = 0.04;
 export const playmatPad = (width: number, height: number): number =>
   Math.min(width, height) * PLAYMAT_PADDING;
 const PLAYMAT_VIGNETTE_ALPHA = 0.7;
@@ -278,14 +289,7 @@ export class PlaymatLayer {
   layout(rect: PlayZoneRect, opts: { dropActive: boolean }): void {
     this.rect = rect;
     this.dropActive = opts.dropActive;
-
-    const pad = playmatPad(rect.width, rect.height);
-    const r = {
-      x: rect.x + pad,
-      y: rect.y + pad,
-      width: Math.max(1, rect.width - pad * 2),
-      height: Math.max(1, rect.height - pad * 2),
-    };
+    const r = playmatInset(rect);
 
     this.colorFill.clear();
     if (this.settings.color) {

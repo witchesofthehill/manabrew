@@ -37,6 +37,7 @@ Filtered diagnosis for player behavior and game friction. Global variables apply
 | Behavior over time | games/players, completion, seven-day return cohorts, anonymous player frequency |
 | Where is friction? | duration distribution, human participation, non-game-over ending reasons        |
 | Platform usage     | distinct users and daily users across web, PWA, desktop, and mobile             |
+| Tables             | table background mix — `table_style` on `game_started`, relay games only        |
 
 The retention panel uses first relay appearance as the cohort date. Recent cohorts have not had a full seven-day observation window and are explicitly labelled incomplete.
 

@@ -64,6 +64,7 @@ class TauriServerApi implements IServerApi {
         password: params.password ?? null,
         reconnectTimeoutS: params.reconnectTimeoutS ?? null,
         directTransport: usePreferencesStore.getState().directTransport && !this.connection.lan,
+        tableStyle: params.tableStyle ?? null,
       });
     }
     return this.inner.createRoom(params);

@@ -68,6 +68,8 @@ pub enum AnalyticsEvent {
         engine: EngineKind,
         hosted: bool,
         official: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        table_style: Option<String>,
         starting_life: i32,
         players: Vec<SeatInfo>,
     },

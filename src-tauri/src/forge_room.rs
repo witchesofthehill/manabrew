@@ -75,6 +75,7 @@ pub async fn start_forge_host(
     password: Option<String>,
     reconnect_timeout_s: Option<u32>,
     direct_transport: Option<bool>,
+    table_style: Option<String>,
 ) -> Result<String, String> {
     #[cfg(not(feature = "forge-room"))]
     {
@@ -90,6 +91,7 @@ pub async fn start_forge_host(
             password,
             reconnect_timeout_s,
             direct_transport,
+            table_style,
         );
         Err("this desktop build was not compiled with the forge-room feature".to_string())
     }
@@ -111,6 +113,7 @@ pub async fn start_forge_host(
             max_players,
             password.filter(|value| !value.is_empty()),
             reconnect_timeout_s,
+            table_style,
         );
 
         let cancel: Arc<Notify> = Arc::new(Notify::new());

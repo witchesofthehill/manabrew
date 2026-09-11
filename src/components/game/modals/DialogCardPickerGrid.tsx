@@ -18,7 +18,10 @@ interface DialogCardPickerGridProps {
   state: CardBrowserState;
   defaultRules: boolean;
   actionable: boolean;
+  pending: boolean;
   onSelect: (id: string) => void;
+  onActivate?: (item: CardBrowserItem) => void;
+  onHover: (id: string | null) => void;
   onScroll: (top: number) => void;
   onChange: (item: CardBrowserItem, state: CardInspectionState) => void;
 }
@@ -30,13 +33,17 @@ export function DialogCardPickerGrid({
   state,
   defaultRules,
   actionable,
+  pending,
   onSelect,
+  onActivate,
+  onHover,
   onScroll,
   onChange,
 }: DialogCardPickerGridProps) {
   const host = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState({ width: 600, height: 500 });
   const [initialScrollTop] = useState(state.scrollTop);
+  const isAvailable = (item: CardBrowserItem) => !actionable || item.legal || item.selected;
 
   useEffect(() => {
     const node = host.current!;
@@ -72,21 +79,25 @@ export function DialogCardPickerGrid({
     Math.ceil((top + viewport.height - CARD_BROWSER_VERTICAL_PADDING) / rowHeight + 1) * columns,
   );
   const visible = useMemo(() => items.slice(start, end), [items, start, end]);
-  const autofocusId =
-    (state.activeId && visible.some((item) => item.id === state.activeId)
+  const tabStopId =
+    (state.activeId && visible.some((item) => item.id === state.activeId && isAvailable(item))
       ? state.activeId
-      : visible.find((item) => item.legal || item.selected)?.id) ?? visible[0]?.id;
+      : visible.find(isAvailable)?.id) ?? visible[0]?.id;
 
   useEffect(() => {
     if (host.current && host.current.scrollTop !== top) host.current.scrollTop = top;
   }, [top]);
 
-  const focus = (index: number) => {
-    const item = items[index];
+  const focus = (index: number, direction: 1 | -1) => {
+    let next = index;
+    while (next >= 0 && next < items.length && !isAvailable(items[next])) {
+      next += direction;
+    }
+    const item = items[next];
     if (!item) return;
     onSelect(item.id);
     const node = host.current!;
-    const rowTop = CARD_BROWSER_VERTICAL_PADDING + Math.floor(index / columns) * rowHeight;
+    const rowTop = CARD_BROWSER_VERTICAL_PADDING + Math.floor(next / columns) * rowHeight;
     const nextTop =
       rowTop < node.scrollTop
         ? rowTop
@@ -130,7 +141,9 @@ export function DialogCardPickerGrid({
         if (next === null) return;
         event.preventDefault();
         event.stopPropagation();
-        focus(Math.max(0, Math.min(items.length - 1, next)));
+        const direction =
+          event.key === "ArrowLeft" || event.key === "ArrowUp" || event.key === "End" ? -1 : 1;
+        focus(Math.max(0, Math.min(items.length - 1, next)), direction);
       }}
     >
       <div className="relative" style={{ height: contentHeight }}>
@@ -147,7 +160,10 @@ export function DialogCardPickerGrid({
           width={viewport.width}
           height={viewport.height}
           actionable={actionable}
+          pending={pending}
           onSelect={onSelect}
+          onActivate={onActivate}
+          onHover={onHover}
           onChange={onChange}
         />
         {visible.map((item, offset) => {
@@ -157,18 +173,19 @@ export function DialogCardPickerGrid({
             CARD_BROWSER_HORIZONTAL_PADDING + (index % columns) * (cellWidth + CARD_BROWSER_GAP);
           const cardLeft = cellLeft + (cellWidth - GAME_CARD_SIZES.preview.width) / 2;
           const name = isFacelessCard(item.card) ? "Face-down card" : item.card.identity.name;
+          const unavailable = pending || !isAvailable(item);
           return (
             <div key={item.id}>
               <button
                 type="button"
                 role="option"
-                aria-selected={state.activeId === item.id}
+                aria-selected={item.selected}
                 aria-posinset={index + 1}
                 aria-setsize={items.length}
                 aria-label={`${name}${item.selected ? ", selected" : item.legal ? ", action available" : ""}`}
+                aria-disabled={unavailable}
                 data-card-key={item.id}
-                tabIndex={item.id === autofocusId ? 0 : -1}
-                data-autofocus={item.id === autofocusId ? true : undefined}
+                tabIndex={item.id === tabStopId ? 0 : -1}
                 className="pointer-events-none absolute z-10 opacity-0"
                 style={{
                   left: cardLeft,
@@ -176,11 +193,14 @@ export function DialogCardPickerGrid({
                   width: GAME_CARD_SIZES.preview.width,
                   height: cardHeight,
                 }}
-                onFocus={() => onSelect(item.id)}
+                onFocus={() => {
+                  if (!unavailable) onSelect(item.id);
+                }}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
+                  if ((event.key === "Enter" || event.key === " ") && !unavailable && actionable) {
                     event.preventDefault();
                     onSelect(item.id);
+                    onActivate?.(item);
                   }
                 }}
               />
@@ -195,11 +215,13 @@ export function DialogCardPickerGrid({
               <span
                 className={cn(
                   "pointer-events-none absolute z-10 line-clamp-1 text-center text-xs font-medium transition-colors",
-                  state.activeId === item.id
-                    ? "text-selection"
-                    : item.selected
+                  item.selected
+                    ? "text-card-ring"
+                    : state.activeId === item.id && !unavailable
                       ? "text-card-ring"
-                      : "text-foreground",
+                      : unavailable
+                        ? "text-muted-foreground"
+                        : "text-foreground",
                 )}
                 style={{ left: cellLeft, top: rowTop + cardHeight + 4, width: cellWidth }}
               >

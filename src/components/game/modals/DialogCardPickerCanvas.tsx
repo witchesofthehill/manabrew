@@ -6,7 +6,7 @@ import { DialogCardPickerScene, type DialogCardPickerSceneProps } from "./Dialog
 
 installPixiPatches();
 
-type DialogCardPickerCanvasProps = Omit<DialogCardPickerSceneProps, "ringColor" | "selectionColor">;
+type DialogCardPickerCanvasProps = Omit<DialogCardPickerSceneProps, "ringColor">;
 
 export function DialogCardPickerCanvas(props: DialogCardPickerCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -16,18 +16,16 @@ export function DialogCardPickerCanvas(props: DialogCardPickerCanvasProps) {
   const latestProps = useRef<DialogCardPickerSceneProps>({
     ...props,
     ringColor: theme.gameTheme.cardRing,
-    selectionColor: theme.appTheme.selection,
   });
 
   useLayoutEffect(() => {
     const nextProps = {
       ...props,
       ringColor: theme.gameTheme.cardRing,
-      selectionColor: theme.appTheme.selection,
     };
     latestProps.current = nextProps;
     sceneRef.current?.update(nextProps);
-  }, [props, theme.appTheme.selection, theme.gameTheme.cardRing]);
+  }, [props, theme.gameTheme.cardRing]);
 
   useEffect(() => {
     setCardSpriteTheme(theme);

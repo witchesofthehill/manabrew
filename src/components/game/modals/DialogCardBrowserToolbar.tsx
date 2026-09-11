@@ -11,7 +11,6 @@ interface Props {
   search: RefObject<HTMLInputElement | null>;
   state: CardBrowserState;
   types: string[];
-  picker: boolean;
   visibleCount: number;
   totalCount: number;
   selectedCount: number;
@@ -31,7 +30,6 @@ export function DialogCardBrowserToolbar({
   search,
   state,
   types,
-  picker,
   visibleCount,
   totalCount,
   selectedCount,
@@ -162,7 +160,7 @@ export function DialogCardBrowserToolbar({
           </Button>
         </div>
       )}
-      {!picker && selectedCount > 0 && (
+      {selectedCount > 0 && (
         <p className="text-xs text-muted-foreground">{selectedCount} selected</p>
       )}
       {(loading || incomplete) && (

@@ -31,9 +31,11 @@ export interface DialogCardPickerSceneProps {
   width: number;
   height: number;
   actionable: boolean;
+  pending: boolean;
   ringColor: string;
-  selectionColor: string;
   onSelect: (id: string) => void;
+  onActivate?: (item: CardBrowserItem) => void;
+  onHover: (id: string | null) => void;
   onChange: (item: CardBrowserItem, state: CardInspectionState) => void;
 }
 
@@ -41,11 +43,7 @@ interface CardEntry {
   card: CardDto;
   sprite: CardSprite;
   feedback: Graphics;
-  motion: {
-    elevation: number;
-    targetAlpha: number;
-    targetElevation: number;
-  };
+  targetAlpha: number;
   viewKey: string;
 }
 
@@ -113,6 +111,10 @@ export class DialogCardPickerScene {
 
   update(props: DialogCardPickerSceneProps): void {
     this.props = props;
+    if (this.hoveredId && !this.canActivate(this.hoveredId)) {
+      this.hoveredId = null;
+      this.props.onHover(null);
+    }
     if (!this.initialized || this.disposed) return;
     const width = Math.max(1, props.width);
     const height = Math.max(1, props.height);
@@ -124,7 +126,6 @@ export class DialogCardPickerScene {
       if (visibleIds.has(id)) continue;
       if (this.hoveredId === id) this.hoveredId = null;
       gsap.killTweensOf(entry.feedback);
-      gsap.killTweensOf(entry.motion);
       this.app.stage.removeChild(entry.sprite, entry.feedback);
       entry.sprite.destroy({ children: true });
       entry.feedback.destroy();
@@ -157,6 +158,8 @@ export class DialogCardPickerScene {
       const displayWidth = cardWidth * scale;
       const displayHeight = cardHeight * scale;
       const active = props.state.activeId === item.id;
+      const selected = !!item.selected;
+      const available = !props.actionable || item.legal || selected;
       entry.feedback
         .clear()
         .roundRect(
@@ -167,11 +170,12 @@ export class DialogCardPickerScene {
           Math.max(6, CARD_RADIUS * scale + 2),
         )
         .stroke({
-          color: hexToNum(active ? props.selectionColor : props.ringColor),
-          width: active ? 4 : 2,
+          color: hexToNum(props.ringColor),
+          width: active || selected ? 3 : 2,
         });
       entry.feedback.position.set(x, y);
-      entry.sprite.alpha = props.actionable && !item.legal && !item.selected ? 0.7 : 1;
+      entry.sprite.cursor = !props.pending && props.actionable && available ? "pointer" : "default";
+      entry.sprite.alpha = 1;
     });
     this.updateFeedback();
     this.request();
@@ -184,9 +188,8 @@ export class DialogCardPickerScene {
     this.canvas.removeEventListener("pointermove", this.request);
     this.canvas.removeEventListener("pointerdown", this.request);
     this.canvas.removeEventListener("wheel", this.request);
-    for (const { sprite, feedback, motion } of this.entries.values()) {
+    for (const { sprite, feedback } of this.entries.values()) {
       gsap.killTweensOf(feedback);
-      gsap.killTweensOf(motion);
       this.app.stage.removeChild(sprite, feedback);
       sprite.destroy({ children: true });
       feedback.destroy();
@@ -208,10 +211,9 @@ export class DialogCardPickerScene {
       feedback.alpha = 0;
       feedback.eventMode = "none";
       sprite.eventMode = "static";
-      sprite.cursor = "pointer";
       sprite.on("pointertap", (event) => {
         event.stopPropagation();
-        this.props.onSelect(item.id);
+        this.activate(item.id);
       });
       sprite.on("pointerdown", (event) => event.stopPropagation());
       sprite.on("pointerenter", () => this.setHovered(item.id, true));
@@ -223,7 +225,7 @@ export class DialogCardPickerScene {
         card: item.card,
         sprite,
         feedback,
-        motion: { elevation: 0, targetAlpha: 0, targetElevation: 0 },
+        targetAlpha: 0,
         viewKey: "",
       };
       this.entries.set(item.id, entry);
@@ -266,7 +268,23 @@ export class DialogCardPickerScene {
     );
   }
 
+  private canActivate(id: string): boolean {
+    const item = this.props.items.find((candidate) => candidate.id === id);
+    return (
+      !!item && !this.props.pending && (!this.props.actionable || !!item.legal || !!item.selected)
+    );
+  }
+
+  private activate(id: string): void {
+    const item = this.props.items.find((candidate) => candidate.id === id);
+    if (!this.props.actionable) return;
+    if (!item || !this.canActivate(id)) return;
+    this.props.onSelect(id);
+    this.props.onActivate?.(item);
+  }
+
   private setHovered(id: string, hovered: boolean): void {
+    if (hovered && !this.canActivate(id)) return;
     if (hovered) {
       if (this.hoveredId === id) return;
       this.hoveredId = id;
@@ -275,6 +293,7 @@ export class DialogCardPickerScene {
     } else {
       return;
     }
+    this.props.onHover(this.hoveredId);
     this.updateFeedback();
     this.request();
   }
@@ -283,41 +302,31 @@ export class DialogCardPickerScene {
     const selectedIds = new Set(
       this.props.items.filter((item) => item.selected).map((item) => item.id),
     );
+    const availableIds = new Set(
+      this.props.items
+        .filter((item) => !this.props.actionable || item.legal || item.selected)
+        .map((item) => item.id),
+    );
     const motionEnabled = animationsEnabled();
     const motionChanged = motionEnabled !== this.motionEnabled;
     this.motionEnabled = motionEnabled;
     for (const [id, entry] of this.entries) {
-      const hovered = this.hoveredId === id;
-      const active = this.props.state.activeId === id;
+      const available = availableIds.has(id);
+      const hovered = !this.props.pending && available && this.hoveredId === id;
+      const active = !this.props.pending && available && this.props.state.activeId === id;
       const selected = selectedIds.has(id);
       const alpha = selected || hovered || active ? 1 : 0;
-      const elevation = hovered ? 1 : active || selected ? 0.35 : 0;
-      if (
-        !motionChanged &&
-        entry.motion.targetAlpha === alpha &&
-        entry.motion.targetElevation === elevation
-      )
-        continue;
-      entry.motion.targetAlpha = alpha;
-      entry.motion.targetElevation = elevation;
+      if (!motionChanged && entry.targetAlpha === alpha) continue;
+      entry.targetAlpha = alpha;
       gsap.killTweensOf(entry.feedback);
-      gsap.killTweensOf(entry.motion);
       if (!motionEnabled) {
         entry.feedback.alpha = alpha;
-        entry.motion.elevation = elevation;
-        entry.sprite.setElevation(elevation);
         continue;
       }
       gsap.to(entry.feedback, {
         alpha,
-        duration: 0.12,
+        duration: 0.1,
         ease: "power2.out",
-      });
-      gsap.to(entry.motion, {
-        elevation,
-        duration: 0.12,
-        ease: "power2.out",
-        onUpdate: () => entry.sprite.setElevation(entry.motion.elevation),
       });
     }
   }

@@ -27,6 +27,7 @@ interface Props {
   picker?: boolean;
   pending?: boolean;
   intentColor?: string;
+  activateOnClick?: boolean;
   onActivate?: (item: CardBrowserItem) => void;
   actionLabel?: (item: CardBrowserItem) => string;
   defaultActionLabel?: string;
@@ -41,6 +42,7 @@ export function DialogCardBrowser({
   picker = false,
   pending = false,
   intentColor,
+  activateOnClick = false,
   onActivate,
   actionLabel,
   defaultActionLabel = "Choose card",
@@ -53,6 +55,7 @@ export function DialogCardBrowser({
     createCardBrowserState(initialState, picker),
   );
   const [inspectionOpen, setInspectionOpen] = useState(false);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const desktop = useIsDesktop();
   const search = useRef<HTMLInputElement>(null);
   const scope = useRef<HTMLDivElement>(null);
@@ -84,7 +87,14 @@ export function DialogCardBrowser({
     () => [...new Set(items.flatMap((item) => item.card.types))].sort(),
     [items],
   );
-  const active = visible.find((item) => item.id === state.activeId);
+  const hovered = visible.find((item) => item.id === hoveredId);
+  const hoveredAvailable =
+    !!hovered && !pending && (!onActivate || !!hovered.legal || !!hovered.selected);
+  const active = !pending
+    ? hoveredAvailable
+      ? hovered
+      : visible.find((item) => item.id === state.activeId)
+    : undefined;
   const inspection = active
     ? (state.inspection[active.id] ?? {
         rules: defaultView === "rules",
@@ -94,6 +104,7 @@ export function DialogCardBrowser({
     : null;
   const changeFilter = (patch: Partial<CardBrowserState>) => {
     setInspectionOpen(false);
+    setHoveredId(null);
     setState((current) => ({ ...current, ...patch, scrollTop: 0 }));
   };
   const selectedCount = items.filter((item) => item.selected).length;
@@ -130,7 +141,7 @@ export function DialogCardBrowser({
       ...(picker && active
         ? {
             "toggle-card-view": () => {
-              focusPickerCard(active.id);
+              if (!hoveredId) focusPickerCard(active.id);
               toggleView(active);
             },
           }
@@ -165,7 +176,6 @@ export function DialogCardBrowser({
         search={search}
         state={state}
         types={types}
-        picker={picker}
         visibleCount={visible.length}
         totalCount={items.length}
         selectedCount={selectedCount}
@@ -185,7 +195,10 @@ export function DialogCardBrowser({
             state={state}
             defaultRules={defaultView === "rules"}
             actionable={!!onActivate}
+            pending={pending}
             onSelect={(id) => inspect(id, false)}
+            onHover={setHoveredId}
+            onActivate={activateOnClick ? onActivate : undefined}
             onScroll={scroll}
             onChange={changeInspection}
           />
@@ -225,7 +238,7 @@ export function DialogCardBrowser({
           </>
         )}
       </div>
-      {picker && onActivate && (
+      {picker && onActivate && !activateOnClick && (
         <DialogCardBrowserActionTray
           active={active}
           selectedCount={selectedCount}

@@ -78,6 +78,7 @@ export function ZoneViewer({
         key={key}
         items={items}
         picker
+        activateOnClick={mode !== "manual"}
         pending={pending}
         intentColor={color}
         initialState={useGameUIStore.getState().zoneBrowserStates[key]}

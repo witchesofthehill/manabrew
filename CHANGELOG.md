@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.42.0](https://github.com/witchesofthehill/manabrew/compare/v3.41.1...v3.42.0) (2026-09-11)
+
+### Features
+
+* **telemetry:** cut the client turnaround at the first reply frame ([#907](https://github.com/witchesofthehill/manabrew/issues/907)) ([e381e2f](https://github.com/witchesofthehill/manabrew/commit/e381e2f7518386e5695f28a268b6f1196cf26b35))
+
 ## [3.41.1](https://github.com/witchesofthehill/manabrew/compare/v3.41.0...v3.41.1) (2026-09-11)
 
 ### Fixes

@@ -57,32 +57,34 @@ export function GameLoadingTip() {
   }, [tips.length]);
 
   return (
-    <div className="flex min-h-24 overflow-hidden border-t border-card-ring/30 bg-card/70 px-6 py-4 text-left">
-      <div className="mr-3 mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-card-ring/30 bg-card-ring/10 text-card-ring">
-        <Sparkles className="size-4" />
+    <div className="flex min-h-28 overflow-hidden border-t border-card-ring/30 bg-card/70 px-6 py-5 text-left sm:min-h-36 sm:px-7 sm:py-6">
+      <div className="mr-4 mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl border border-card-ring/40 bg-card-ring/10 text-card-ring">
+        <Sparkles className="size-5" />
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
         <p className="text-xs font-semibold uppercase tracking-wide text-card-ring">Table tip</p>
         <div
           className={cn(
-            "flex min-h-12 flex-1 flex-col justify-center gap-2 transition-[opacity,transform] ease-out motion-reduce:transition-none",
+            "flex min-h-16 flex-1 items-center gap-3 transition-[opacity,transform] ease-out motion-reduce:transition-none",
             tipVisible ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0",
           )}
           style={{ transitionDuration: `${GAME_LOADING_TIP_TRANSITION_MS}ms` }}
         >
           {shortcuts.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex shrink-0 flex-wrap gap-2">
               {shortcuts.map((shortcut) => (
                 <kbd
                   key={shortcut.id}
-                  className="rounded border bg-muted px-1.5 py-0.5 font-mono text-xs font-semibold text-foreground shadow-sm"
+                  className="rounded-md border border-card-ring/40 bg-card-ring/10 px-3 py-1.5 font-mono text-base font-bold text-foreground shadow-sm"
                 >
                   {shortcut.label}
                 </kbd>
               ))}
             </div>
           )}
-          <p className="text-sm leading-relaxed text-foreground">{tip.text}</p>
+          <p className="min-w-0 flex-1 text-base leading-relaxed text-foreground sm:text-lg">
+            {tip.text}
+          </p>
         </div>
       </div>
     </div>

@@ -276,7 +276,10 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         compact: true,
         width: 32,
       });
-      minimize.position.set(width - 18, -14);
+      minimize.position.set(
+        Math.min(width - 18, this.viewportWidth - x - minimize.buttonWidth),
+        Math.max(-14, -y),
+      );
       panel.addChild(minimize);
     }
 
@@ -2198,7 +2201,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const width = this.modalPromptWidth(600);
     const availableWidth = width - PANEL_PADDING * 2;
     const assignees = [...input.blockerIds, ...(input.defenderId ? [input.defenderId] : [])];
-    const height = Math.min(this.viewportHeight - 24, 330 + assignees.length * 74);
+    const height = Math.min(this.viewportHeight - 24, 284 + assignees.length * 70);
     const attacker = this.spec!.gameView.battlefield.find((card) => card.id === input.attackerId);
     const targets: TargetRef[] = [
       { kind: "card", id: input.attackerId, intent: "damage" },
@@ -2218,57 +2221,53 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         : undefined,
       targets,
     };
-    const { body, footer } = this.createModalShell(width, height, presentation, true, 60);
+    const { body, footer } = this.createModalShell(width, height, presentation, true, 64, 38);
     const assigned = Object.values(this.damageAssigned).reduce((sum, damage) => sum + damage, 0);
     const remaining = input.totalDamage - assigned;
-    const metricWidth = (availableWidth - 16) / 3;
-    const metrics: Array<{ label: string; value: number; color: string }> = [
-      { label: "TOTAL", value: input.totalDamage, color: this.theme.appTheme.foreground },
-      { label: "ASSIGNED", value: assigned, color: this.theme.gameTheme.cardRing },
-      {
-        label: "REMAINING",
-        value: remaining,
-        color: remaining === 0 ? this.theme.gameTheme.success : this.theme.appTheme.foreground,
-      },
-    ];
-    metrics.forEach((metric, index) => {
-      const x = index * (metricWidth + 8);
-      const background = new Graphics()
-        .roundRect(x, 4, metricWidth, 48, 8)
-        .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.62 })
-        .stroke({ color: hexToNum(metric.color), width: 1, alpha: 0.55 });
-      const value = promptText(String(metric.value), 18, metric.color, { weight: "700" });
-      value.anchor.set(0.5);
-      value.position.set(x + metricWidth / 2, 21);
-      const label = promptText(metric.label, 9, this.theme.appTheme["muted-foreground"], {
-        weight: "700",
-        letterSpacing: 0.7,
-      });
-      label.anchor.set(0.5);
-      label.position.set(x + metricWidth / 2, 40);
-      body.addChild(background, value, label);
-    });
+    const waiting = this.spec!.action.isWaitingForResponse;
+    const statusColor =
+      remaining === 0 ? this.theme.gameTheme.success : this.theme.appTheme.foreground;
+    const status = promptText(
+      remaining === 0 ? "Ready to assign" : `${remaining} damage left`,
+      14,
+      statusColor,
+      { weight: "700" },
+    );
+    status.position.set(0, 2);
+    const allocation = promptText(
+      `${assigned} of ${input.totalDamage} assigned`,
+      10,
+      this.theme.appTheme["muted-foreground"],
+      { weight: "600" },
+    );
+    allocation.anchor.set(1, 0);
+    allocation.position.set(availableWidth, 6);
+    const progressTrack = new Graphics()
+      .roundRect(0, 28, availableWidth, 6, 3)
+      .fill({ color: hexToNum(this.theme.appTheme.muted), alpha: 0.72 });
+    body.addChild(status, allocation, progressTrack);
+    if (assigned > 0) {
+      const progressWidth = Math.min(
+        availableWidth,
+        (availableWidth * assigned) / input.totalDamage,
+      );
+      const progress = new Graphics()
+        .roundRect(0, 28, progressWidth, 6, 3)
+        .fill({ color: hexToNum(statusColor), alpha: 0.92 });
+      body.addChild(progress);
+    }
+    const guidance = promptText(
+      input.defenderId
+        ? "Assign lethal damage in order, then send the rest to the defender."
+        : "Assign lethal damage to each blocker in order.",
+      10,
+      this.theme.appTheme["muted-foreground"],
+      { weight: "500", width: availableWidth, truncate: true },
+    );
+    guidance.position.set(0, 43);
+    body.addChild(guidance);
 
-    const targetHeader = promptText("TARGET", 9, this.theme.appTheme["muted-foreground"], {
-      weight: "700",
-      letterSpacing: 0.7,
-    });
-    targetHeader.position.set(10, 66);
-    const lethalHeader = promptText("LETHAL", 9, this.theme.appTheme["muted-foreground"], {
-      weight: "700",
-      letterSpacing: 0.7,
-    });
-    lethalHeader.anchor.set(0.5, 0);
-    lethalHeader.position.set(availableWidth - 150, 66);
-    const assignedHeader = promptText("ASSIGNED", 9, this.theme.appTheme["muted-foreground"], {
-      weight: "700",
-      letterSpacing: 0.7,
-    });
-    assignedHeader.anchor.set(0.5, 0);
-    assignedHeader.position.set(availableWidth - 52, 66);
-    body.addChild(targetHeader, lethalHeader, assignedHeader);
-
-    let y = 82;
+    let y = 66;
     assignees.forEach((id, index) => {
       const damage = this.damageAssigned[id] ?? 0;
       const lethal =
@@ -2283,30 +2282,34 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         );
       const label = this.combatLabel(id);
       const lethalReached = lethal != null && damage >= lethal;
+      const complete = id === input.defenderId ? remaining === 0 : lethalReached;
+      const rowColor = lethalReached
+        ? this.theme.gameTheme.promptAction.attackAction
+        : complete
+          ? this.theme.gameTheme.success
+          : damage > 0
+            ? this.theme.gameTheme.cardRing
+            : this.theme.appTheme.border;
       const rowBg = new Graphics()
-        .roundRect(0, y, availableWidth, 62, 7)
+        .roundRect(0, y, availableWidth, 62, 9)
         .fill({
-          color: hexToNum(
-            lethalReached
-              ? this.theme.gameTheme.promptAction.attackAction
-              : this.theme.appTheme.background,
-          ),
-          alpha: lethalReached ? 0.1 : 0.55,
+          color: hexToNum(complete ? rowColor : this.theme.appTheme.background),
+          alpha: complete ? 0.09 : 0.56,
         })
         .stroke({
-          color: hexToNum(
-            lethalReached
-              ? this.theme.gameTheme.promptAction.attackAction
-              : this.theme.appTheme.border,
-          ),
-          width: lethalReached ? 2 : 1,
-          alpha: lethalReached ? 0.8 : 1,
+          color: hexToNum(rowColor),
+          width: 1,
+          alpha: blocked ? 0.5 : complete || damage > 0 ? 0.86 : 1,
         });
       rowBg.eventMode = "static";
       rowBg.cursor = "default";
       rowBg.accessible = true;
       rowBg.accessibleTitle = `Damage assigned to ${label}: ${damage}${
-        lethal == null ? "" : `, lethal damage ${lethal}`
+        lethalReached
+          ? ", lethal damage assigned"
+          : lethal == null
+            ? ""
+            : `, lethal damage ${lethal}`
       }${blocked ? ", unavailable until the previous target has lethal damage" : ""}`;
       rowBg.tabIndex = 0;
       const target: TargetRef =
@@ -2319,33 +2322,54 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       rowBg.on("focusout", () => this.callbacks.onReferenceChange?.(null));
       body.addChild(rowBg);
 
+      const orderBadge = new Graphics()
+        .roundRect(10, y + 19, 24, 24, 12)
+        .fill({
+          color: hexToNum(complete || damage > 0 ? rowColor : this.theme.appTheme.muted),
+          alpha: complete || damage > 0 ? 0.24 : 0.72,
+        })
+        .stroke({
+          color: hexToNum(rowColor),
+          width: 1,
+          alpha: complete || damage > 0 ? 0.75 : 0.55,
+        });
+      const order = promptText(String(index + 1), 10, this.theme.appTheme.foreground, {
+        weight: "700",
+      });
+      order.anchor.set(0.5);
+      order.position.set(22, y + 31);
       const defender = this.spec!.gameView.players.find((player) => player.id === id);
       const card = this.spec!.gameView.battlefield.find((candidate) => candidate.id === id);
       const name = promptText(label, 12, this.theme.appTheme.foreground, {
         weight: "600",
-        width: availableWidth - 226,
+        width: availableWidth - 260,
         truncate: true,
       });
-      name.position.set(10, y + 10);
-      const detail = blocked
-        ? "Assign lethal to the previous target first"
-        : defender
-          ? `${defender.life} → ${defender.life - damage} life`
-          : `${card?.power ?? "?"}/${card?.toughness ?? "?"}${card?.damage ? ` · ${card.damage} marked` : ""}`;
+      name.position.set(44, y + 10);
+      const detail = defender
+        ? `DEFENDER · ${defender.life} → ${defender.life - damage} life`
+        : `${card?.power ?? "?"}/${card?.toughness ?? "?"}${card?.damage ? ` · ${card.damage} marked` : ""}${
+            lethalReached ? " · LETHAL ASSIGNED" : ""
+          }`;
       const detailText = promptText(
         detail,
         10,
-        blocked
+        lethalReached
           ? this.theme.gameTheme.promptAction.attackAction
           : this.theme.appTheme["muted-foreground"],
-        { weight: blocked ? "600" : "500", width: availableWidth - 226, truncate: true },
+        {
+          weight: lethalReached ? "700" : "500",
+          width: availableWidth - 260,
+          truncate: true,
+        },
       );
-      detailText.position.set(10, y + 36);
-      body.addChild(name, detailText);
+      detailText.position.set(44, y + 36);
+      body.addChild(orderBadge, order, name, detailText);
 
+      const lethalDisabled = waiting || blocked || lethalReached || remaining <= 0;
       if (lethal != null) {
         const lethalButton = this.makeButton(
-          lethalReached ? `${lethal} ✓` : String(lethal),
+          `LETHAL ${lethal}${lethalReached ? " ✓" : ""}`,
           () => {
             this.damageAssigned[id] = Math.min(
               input.totalDamage,
@@ -2357,21 +2381,23 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           {
             title: `Assign lethal damage to ${label}`,
             outline: true,
-            disabled: blocked || lethalReached || remaining <= 0,
+            disabled: lethalDisabled,
             compact: true,
-            width: 58,
+            width: 80,
             height: 36,
+            fontSize: 9,
+            letterSpacing: 0.3,
+            borderColor: lethalReached
+              ? this.theme.gameTheme.promptAction.attackAction
+              : this.theme.appTheme.border,
           },
         );
-        lethalButton.position.set(availableWidth - 180, y + 13);
+        lethalButton.alpha = lethalDisabled ? 0.46 : 1;
+        lethalButton.position.set(availableWidth - 204, y + 13);
         body.addChild(lethalButton);
-      } else {
-        const dash = promptText("—", 14, this.theme.appTheme["muted-foreground"]);
-        dash.anchor.set(0.5);
-        dash.position.set(availableWidth - 150, y + 31);
-        body.addChild(dash);
       }
 
+      const minusDisabled = waiting || damage <= 0;
       const minus = this.makeButton(
         "",
         () => {
@@ -2383,19 +2409,21 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           title: `Remove one damage from ${label}`,
           icon: "lucide-minus",
           outline: true,
-          disabled: damage <= 0,
+          disabled: minusDisabled,
           compact: true,
           width: 32,
           height: 36,
         },
       );
+      minus.alpha = minusDisabled ? 0.46 : 1;
       const amountBackground = new Graphics()
-        .roundRect(availableWidth - 106, y + 13, 34, 36, 7)
-        .fill({ color: hexToNum(this.theme.appTheme.muted), alpha: 0.55 });
+        .roundRect(availableWidth - 78, y + 13, 34, 36, 7)
+        .fill({ color: hexToNum(this.theme.appTheme.muted), alpha: 0.68 });
       const amount = promptText(String(damage), 14, this.theme.appTheme.foreground, {
         weight: "700",
       });
       amount.anchor.set(0.5);
+      const plusDisabled = waiting || blocked || remaining <= 0;
       const plus = this.makeButton(
         "",
         () => {
@@ -2407,28 +2435,35 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           title: `Assign one damage to ${label}`,
           icon: "lucide-plus",
           outline: true,
-          disabled: blocked || remaining <= 0,
+          disabled: plusDisabled,
           compact: true,
           width: 32,
           height: 36,
         },
       );
-      minus.position.set(availableWidth - 142, y + 13);
-      amount.position.set(availableWidth - 89, y + 31);
-      plus.position.set(availableWidth - 68, y + 13);
+      plus.alpha = plusDisabled ? 0.46 : 1;
+      minus.position.set(availableWidth - 114, y + 13);
+      amount.position.set(availableWidth - 61, y + 31);
+      plus.position.set(availableWidth - 42, y + 13);
       body.addChild(minus, amountBackground, amount, plus);
-      y += 70;
+      y += 68;
     });
 
     const legal = remaining === 0 && this.damageLegallyOrdered(input, assignees);
+    const resetDisabled = waiting || assigned === 0;
     const reset = this.makeButton(
-      "RESET",
+      "CLEAR",
       () => {
         this.damageAssigned = {};
         this.rebuild();
       },
-      { outline: true },
+      {
+        title: "Clear damage assignments",
+        outline: true,
+        disabled: resetDisabled,
+      },
     );
+    reset.alpha = resetDisabled ? 0.46 : 1;
     reset.position.set(0, 0);
     const auto = this.makeButton(
       "AUTO",
@@ -2436,11 +2471,17 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         this.autoAssignDamage(input, assignees);
         this.rebuild();
       },
-      { outline: true },
+      {
+        title: "Assign lethal damage in order, then assign the rest",
+        outline: true,
+        disabled: waiting,
+      },
     );
+    auto.alpha = waiting ? 0.46 : 1;
     auto.position.set(reset.buttonWidth + 8, 0);
+    const confirmDisabled = waiting || !legal;
     const confirm = this.makeButton(
-      "CONFIRM",
+      "ASSIGN DAMAGE",
       () =>
         this.spec!.respond({
           type: "combatDamageAssignmentDecision",
@@ -2449,8 +2490,9 @@ export abstract class PromptModalLayer extends PromptLayerBase {
             damage: this.damageAssigned[assigneeId] ?? 0,
           })),
         }),
-      { disabled: !legal, width: 126 },
+      { disabled: confirmDisabled, width: 142 },
     );
+    confirm.alpha = confirmDisabled ? 0.56 : 1;
     confirm.position.set(availableWidth - confirm.buttonWidth, 0);
     footer.addChild(reset, auto, confirm);
   }

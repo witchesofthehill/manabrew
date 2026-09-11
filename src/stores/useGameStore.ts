@@ -1,5 +1,6 @@
 import { beginGame, noteAnswerSent } from "@/lib/engineTelemetry";
 import {
+  engineReportGameId,
   forgeHostLabel,
   localEngineLabel,
   reportEngineStats,
@@ -654,7 +655,11 @@ export const useGameStore = create<GameState>()(
           seats: Object.keys(get().gameDecks).length || 2,
           format: get().gameConfig?.formatId ?? null,
           endReason: get().gameView?.gameOver ? "gameOver" : "left",
-          gameId: useServerStore.getState().gameId ?? currentOfflineGameId(),
+          gameId: engineReportGameId(
+            wasMultiplayer,
+            useServerStore.getState().gameId,
+            currentOfflineGameId(),
+          ),
           send: wasMultiplayer
             ? async (stats, gameId) => {
                 await getPlatform().server?.reportEngineStats(stats, gameId);

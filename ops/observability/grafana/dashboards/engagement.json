@@ -1,16 +1,31 @@
 {
   "uid": "manabrew-engagement",
-  "title": "Manabrew — Engagement & Gameplay",
+  "title": "Manabrew \u2014 Engagement & Gameplay",
   "tags": ["manabrew", "product", "gameplay"],
   "schemaVersion": 39,
   "editable": true,
   "timezone": "utc",
-  "time": { "from": "now-30d", "to": "now" },
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
   "refresh": "5m",
   "links": [
-    { "title": "Executive Health", "type": "link", "url": "/d/manabrew-executive" },
-    { "title": "Decks & Collections", "type": "link", "url": "/d/manabrew-decks-collections" },
-    { "title": "Live Ops", "type": "link", "url": "/d/manabrew-live-ops" }
+    {
+      "title": "Executive Health",
+      "type": "link",
+      "url": "/d/manabrew-executive"
+    },
+    {
+      "title": "Decks & Collections",
+      "type": "link",
+      "url": "/d/manabrew-decks-collections"
+    },
+    {
+      "title": "Live Ops",
+      "type": "link",
+      "url": "/d/manabrew-live-ops"
+    }
   ],
   "templating": {
     "list": [
@@ -18,18 +33,30 @@
         "name": "format",
         "label": "Format",
         "type": "query",
-        "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "events-sqlite"
+        },
         "query": "SELECT 'all' UNION SELECT DISTINCT coalesce(format, 'unknown') FROM games ORDER BY 1",
-        "current": { "text": "all", "value": "all" },
+        "current": {
+          "text": "all",
+          "value": "all"
+        },
         "refresh": 1
       },
       {
         "name": "engine",
         "label": "Engine",
         "type": "query",
-        "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "events-sqlite"
+        },
         "query": "SELECT 'all' UNION SELECT DISTINCT coalesce(engine, 'unknown') FROM games ORDER BY 1",
-        "current": { "text": "all", "value": "all" },
+        "current": {
+          "text": "all",
+          "value": "all"
+        },
         "refresh": 1
       },
       {
@@ -37,14 +64,20 @@
         "label": "Hosted",
         "type": "custom",
         "query": "all,0,1",
-        "current": { "text": "all", "value": "all" }
+        "current": {
+          "text": "all",
+          "value": "all"
+        }
       },
       {
         "name": "official",
         "label": "Official",
         "type": "custom",
         "query": "all,0,1",
-        "current": { "text": "all", "value": "all" }
+        "current": {
+          "text": "all",
+          "value": "all"
+        }
       }
     ]
   },
@@ -54,7 +87,12 @@
       "type": "row",
       "title": "Selected segment",
       "collapsed": false,
-      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
       "panels": []
     },
     {
@@ -62,8 +100,16 @@
       "type": "stat",
       "title": "Players",
       "description": "distinct human relay identities matching the filters",
-      "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
-      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
       "targets": [
         {
           "refId": "A",
@@ -73,7 +119,10 @@
           "timeColumns": []
         }
       ],
-      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
       "options": {}
     },
     {
@@ -81,8 +130,16 @@
       "type": "stat",
       "title": "Games",
       "description": "games matching the filters",
-      "gridPos": { "x": 4, "y": 1, "w": 4, "h": 4 },
-      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "gridPos": {
+        "x": 4,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
       "targets": [
         {
           "refId": "A",
@@ -92,7 +149,10 @@
           "timeColumns": []
         }
       ],
-      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
       "options": {}
     },
     {
@@ -100,8 +160,16 @@
       "type": "stat",
       "title": "Games / player",
       "description": "average games per active human identity",
-      "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
-      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "gridPos": {
+        "x": 8,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
       "targets": [
         {
           "refId": "A",
@@ -111,7 +179,12 @@
           "timeColumns": []
         }
       ],
-      "fieldConfig": { "defaults": { "decimals": 2 }, "overrides": [] },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2
+        },
+        "overrides": []
+      },
       "options": {}
     },
     {
@@ -119,8 +192,16 @@
       "type": "stat",
       "title": "Median game",
       "description": "median duration of ended games",
-      "gridPos": { "x": 12, "y": 1, "w": 4, "h": 4 },
-      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
       "targets": [
         {
           "refId": "A",
@@ -130,7 +211,12 @@
           "timeColumns": []
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "m" }, "overrides": [] },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m"
+        },
+        "overrides": []
+      },
       "options": {}
     },
     {
@@ -138,8 +224,16 @@
       "type": "stat",
       "title": "p90 game",
       "description": "90% of ended games are shorter",
-      "gridPos": { "x": 16, "y": 1, "w": 4, "h": 4 },
-      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "gridPos": {
+        "x": 16,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
       "targets": [
         {
           "refId": "A",
@@ -149,7 +243,12 @@
           "timeColumns": []
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "m" }, "overrides": [] },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m"
+        },
+        "overrides": []
+      },
       "options": {}
     },
     {
@@ -157,8 +256,16 @@
       "type": "stat",
       "title": "Completion",
       "description": "ended games reaching game over",
-      "gridPos": { "x": 20, "y": 1, "w": 4, "h": 4 },
-      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "gridPos": {
+        "x": 20,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
       "targets": [
         {
           "refId": "A",
@@ -174,22 +281,38 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "orange", "value": 70 },
-              { "color": "green", "value": 85 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "green",
+                "value": 85
+              }
             ]
           }
         },
         "overrides": []
       },
-      "options": { "colorMode": "value" }
+      "options": {
+        "colorMode": "value"
+      }
     },
     {
       "id": 8,
       "type": "row",
       "title": "Behavior over time",
       "collapsed": false,
-      "gridPos": { "x": 0, "y": 5, "w": 24, "h": 1 },
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 1
+      },
       "panels": []
     },
     {
@@ -197,8 +320,16 @@
       "type": "timeseries",
       "title": "Games and players",
       "description": "daily games and distinct human players matching the filters",
-      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 8 },
-      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
       "targets": [
         {
           "refId": "A",
@@ -208,7 +339,10 @@
           "timeColumns": ["t"]
         }
       ],
-      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
       "options": {}
     },
     {
@@ -216,8 +350,16 @@
       "type": "timeseries",
       "title": "Completion trend",
       "description": "daily completion percentage for matching ended games",
-      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 8 },
-      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "gridPos": {
+        "x": 12,
+        "y": 6,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
       "targets": [
         {
           "refId": "A",
@@ -227,16 +369,29 @@
           "timeColumns": ["t"]
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
       "options": {}
     },
     {
       "id": 11,
       "type": "timeseries",
       "title": "Seven-day return rate by first-play cohort",
-      "description": "share of new players who play again 1–7 days after first appearance; recent cohorts are incomplete",
-      "gridPos": { "x": 0, "y": 14, "w": 12, "h": 8 },
-      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "description": "share of new players who play again 1\u20137 days after first appearance; recent cohorts are incomplete",
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
       "targets": [
         {
           "refId": "A",
@@ -246,7 +401,12 @@
           "timeColumns": ["t"]
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
       "options": {}
     },
     {
@@ -254,8 +414,16 @@
       "type": "barchart",
       "title": "Player frequency",
       "description": "anonymous distribution of games per human identity",
-      "gridPos": { "x": 12, "y": 14, "w": 12, "h": 8 },
-      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "gridPos": {
+        "x": 12,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
       "targets": [
         {
           "refId": "A",
@@ -265,15 +433,28 @@
           "timeColumns": []
         }
       ],
-      "fieldConfig": { "defaults": {}, "overrides": [] },
-      "options": { "legend": { "showLegend": false }, "showValue": "always" }
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": false
+        },
+        "showValue": "always"
+      }
     },
     {
       "id": 13,
       "type": "row",
       "title": "Where is friction?",
       "collapsed": false,
-      "gridPos": { "x": 0, "y": 22, "w": 24, "h": 1 },
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 24,
+        "h": 1
+      },
       "panels": []
     },
     {
@@ -281,27 +462,51 @@
       "type": "barchart",
       "title": "Game duration distribution",
       "description": "duration buckets for matching ended games",
-      "gridPos": { "x": 0, "y": 23, "w": 8, "h": 8 },
-      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
       "targets": [
         {
           "refId": "A",
-          "queryText": "SELECT CASE WHEN duration_s < 180 THEN '<3m' WHEN duration_s < 600 THEN '3–10m' WHEN duration_s < 1200 THEN '10–20m' WHEN duration_s < 1800 THEN '20–30m' WHEN duration_s < 3600 THEN '30–60m' ELSE '60m+' END AS duration, count(*) AS games, min(duration_s) AS ord FROM games g WHERE duration_s IS NOT NULL AND CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000 AND ('$format' = 'all' OR coalesce(g.format, 'unknown') = '$format') AND ('$engine' = 'all' OR coalesce(g.engine, 'unknown') = '$engine') AND ('$hosted' = 'all' OR g.hosted = CAST('$hosted' AS INTEGER)) AND ('$official' = 'all' OR g.official = CAST('$official' AS INTEGER)) GROUP BY duration ORDER BY ord",
-          "rawQueryText": "SELECT CASE WHEN duration_s < 180 THEN '<3m' WHEN duration_s < 600 THEN '3–10m' WHEN duration_s < 1200 THEN '10–20m' WHEN duration_s < 1800 THEN '20–30m' WHEN duration_s < 3600 THEN '30–60m' ELSE '60m+' END AS duration, count(*) AS games, min(duration_s) AS ord FROM games g WHERE duration_s IS NOT NULL AND CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000 AND ('$format' = 'all' OR coalesce(g.format, 'unknown') = '$format') AND ('$engine' = 'all' OR coalesce(g.engine, 'unknown') = '$engine') AND ('$hosted' = 'all' OR g.hosted = CAST('$hosted' AS INTEGER)) AND ('$official' = 'all' OR g.official = CAST('$official' AS INTEGER)) GROUP BY duration ORDER BY ord",
+          "queryText": "SELECT CASE WHEN duration_s < 180 THEN '<3m' WHEN duration_s < 600 THEN '3\u201310m' WHEN duration_s < 1200 THEN '10\u201320m' WHEN duration_s < 1800 THEN '20\u201330m' WHEN duration_s < 3600 THEN '30\u201360m' ELSE '60m+' END AS duration, count(*) AS games, min(duration_s) AS ord FROM games g WHERE duration_s IS NOT NULL AND CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000 AND ('$format' = 'all' OR coalesce(g.format, 'unknown') = '$format') AND ('$engine' = 'all' OR coalesce(g.engine, 'unknown') = '$engine') AND ('$hosted' = 'all' OR g.hosted = CAST('$hosted' AS INTEGER)) AND ('$official' = 'all' OR g.official = CAST('$official' AS INTEGER)) GROUP BY duration ORDER BY ord",
+          "rawQueryText": "SELECT CASE WHEN duration_s < 180 THEN '<3m' WHEN duration_s < 600 THEN '3\u201310m' WHEN duration_s < 1200 THEN '10\u201320m' WHEN duration_s < 1800 THEN '20\u201330m' WHEN duration_s < 3600 THEN '30\u201360m' ELSE '60m+' END AS duration, count(*) AS games, min(duration_s) AS ord FROM games g WHERE duration_s IS NOT NULL AND CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000 AND ('$format' = 'all' OR coalesce(g.format, 'unknown') = '$format') AND ('$engine' = 'all' OR coalesce(g.engine, 'unknown') = '$engine') AND ('$hosted' = 'all' OR g.hosted = CAST('$hosted' AS INTEGER)) AND ('$official' = 'all' OR g.official = CAST('$official' AS INTEGER)) GROUP BY duration ORDER BY ord",
           "queryType": "table",
           "timeColumns": []
         }
       ],
-      "fieldConfig": { "defaults": {}, "overrides": [] },
-      "options": { "legend": { "showLegend": false }, "showValue": "always" }
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": false
+        },
+        "showValue": "always"
+      }
     },
     {
       "id": 15,
       "type": "barchart",
       "title": "Human participation",
       "description": "number of human seats in matching games",
-      "gridPos": { "x": 8, "y": 23, "w": 8, "h": 8 },
-      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "gridPos": {
+        "x": 8,
+        "y": 23,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
       "targets": [
         {
           "refId": "A",
@@ -311,16 +516,32 @@
           "timeColumns": []
         }
       ],
-      "fieldConfig": { "defaults": {}, "overrides": [] },
-      "options": { "legend": { "showLegend": false }, "showValue": "always" }
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": false
+        },
+        "showValue": "always"
+      }
     },
     {
       "id": 16,
       "type": "table",
       "title": "Non-game-over endings",
       "description": "reasons matching games did not reach game over",
-      "gridPos": { "x": 16, "y": 23, "w": 8, "h": 8 },
-      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "gridPos": {
+        "x": 16,
+        "y": 23,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
       "targets": [
         {
           "refId": "A",
@@ -334,8 +555,16 @@
         "defaults": {},
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "pct" },
-            "properties": [{ "id": "unit", "value": "percent" }]
+            "matcher": {
+              "id": "byName",
+              "options": "pct"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              }
+            ]
           }
         ]
       },
@@ -346,7 +575,12 @@
       "type": "row",
       "title": "Which platforms do people use?",
       "collapsed": false,
-      "gridPos": { "x": 0, "y": 31, "w": 24, "h": 1 },
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 24,
+        "h": 1
+      },
       "panels": []
     },
     {
@@ -354,8 +588,16 @@
       "type": "barchart",
       "title": "Users by platform",
       "description": "distinct relay identities per platform; multi-platform users appear in each platform they used",
-      "gridPos": { "x": 0, "y": 32, "w": 10, "h": 8 },
-      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 10,
+        "h": 8
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
       "targets": [
         {
           "refId": "A",
@@ -365,16 +607,32 @@
           "timeColumns": []
         }
       ],
-      "fieldConfig": { "defaults": {}, "overrides": [] },
-      "options": { "legend": { "showLegend": false }, "showValue": "always" }
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": false
+        },
+        "showValue": "always"
+      }
     },
     {
       "id": 19,
       "type": "timeseries",
       "title": "Daily users by platform",
       "description": "distinct relay identities connecting each day; history begins with client-platform rollout",
-      "gridPos": { "x": 10, "y": 32, "w": 14, "h": 8 },
-      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "gridPos": {
+        "x": 10,
+        "y": 32,
+        "w": 14,
+        "h": 8
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
       "targets": [
         {
           "refId": "A",
@@ -384,8 +642,59 @@
           "timeColumns": ["t"]
         }
       ],
-      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
       "options": {}
+    },
+    {
+      "id": 20,
+      "type": "row",
+      "title": "Tables",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 21,
+      "type": "barchart",
+      "title": "Table background",
+      "description": "table_style carried on game_started events \u2014 relay games only, absent means none or a client predating the field",
+      "gridPos": {
+        "x": 0,
+        "y": 41,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT coalesce(json_extract(payload, '$.table_style'), 'none / legacy') AS background, count(*) AS games FROM events WHERE event = 'game_started' AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 AND ('$format' = 'all' OR coalesce(json_extract(payload, '$.format'), 'unknown') = '$format') AND ('$engine' = 'all' OR coalesce(json_extract(payload, '$.engine'), 'unknown') = '$engine') AND ('$hosted' = 'all' OR json_extract(payload, '$.hosted') = CAST('$hosted' AS INTEGER)) AND ('$official' = 'all' OR json_extract(payload, '$.official') = CAST('$official' AS INTEGER)) GROUP BY background ORDER BY games DESC",
+          "rawQueryText": "SELECT coalesce(json_extract(payload, '$.table_style'), 'none / legacy') AS background, count(*) AS games FROM events WHERE event = 'game_started' AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 AND ('$format' = 'all' OR coalesce(json_extract(payload, '$.format'), 'unknown') = '$format') AND ('$engine' = 'all' OR coalesce(json_extract(payload, '$.engine'), 'unknown') = '$engine') AND ('$hosted' = 'all' OR json_extract(payload, '$.hosted') = CAST('$hosted' AS INTEGER)) AND ('$official' = 'all' OR json_extract(payload, '$.official') = CAST('$official' AS INTEGER)) GROUP BY background ORDER BY games DESC",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": false
+        },
+        "showValue": "always"
+      }
     }
   ]
 }

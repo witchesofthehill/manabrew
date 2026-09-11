@@ -83,7 +83,13 @@ interface ServerState {
   playerDecks: PlayerDeckInfo[];
   startingLife: number;
 
-  connect(host: string, port: number, username: string, password: string): Promise<void>;
+  connect(
+    host: string,
+    port: number,
+    username: string,
+    password: string,
+    lan?: boolean,
+  ): Promise<void>;
   disconnect(): Promise<void>;
   listRooms(): Promise<void>;
   listPlayers(): Promise<void>;
@@ -210,7 +216,7 @@ export const useServerStore = create<ServerState>()(
       playerDecks: [],
       startingLife: DEFAULT_STARTING_LIFE,
 
-      async connect(host, port, username, password) {
+      async connect(host, port, username, password, lan) {
         const platform = getPlatform();
         if (!platform.server) {
           set({ connecting: false, error: "Multiplayer not supported on this platform" });
@@ -228,7 +234,7 @@ export const useServerStore = create<ServerState>()(
           return;
         }
         try {
-          await platform.server.connect({ host, port, username, password });
+          await platform.server.connect({ host, port, username, password, lan });
           tabSession = holdTabSession(username, {
             refusal: () =>
               get().gameStarted && get().currentRoom?.host === get().username ? "hosting" : null,

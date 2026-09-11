@@ -592,6 +592,13 @@ fn deploy(root: &Path, opts: &Opts) -> Result<()> {
             "up -d --no-deps --no-recreate ingress",
         ),
     )?;
+    // STUN for peer-to-peer games. Stateless and not tagged, so it is
+    // started here rather than rolled with the app images.
+    ssh_streamed(
+        root,
+        &opts.host,
+        &compose(&opts.path, &opts.tag, "up -d --no-deps coturn"),
+    )?;
     let mut services = vec!["manabrew"];
     let mut relay_note = String::new();
     if !web_only {

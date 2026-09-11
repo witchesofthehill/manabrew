@@ -500,6 +500,10 @@ jobs:
         with:
           node-version: "20"
 
+      # A command missing from the permission manifest fails silently in release builds.
+      - name: Tauri commands match their permission manifest
+        run: node scripts/check-tauri-permissions.mjs
+
       - name: Validate preset deck JSON files
         run: |
           EXIT=0

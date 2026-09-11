@@ -26,7 +26,8 @@ import type {
   SendChatParams,
   InviteToRoomParams,
 } from "./types";
-import type { LocalGameKind, RoomRelayEnvelope } from "@/types/server";
+import type { GameOutcomeReport, LocalGameKind, RoomRelayEnvelope } from "@/types/server";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 // Tauri Server API — delegates to the web relay client, except Forge hosting
 
@@ -62,6 +63,7 @@ class TauriServerApi implements IServerApi {
         maxPlayers: params.maxPlayers,
         password: params.password ?? null,
         reconnectTimeoutS: params.reconnectTimeoutS ?? null,
+        directTransport: usePreferencesStore.getState().directTransport && !this.connection.lan,
         tableStyle: params.tableStyle ?? null,
       });
     }
@@ -112,6 +114,9 @@ class TauriServerApi implements IServerApi {
   }
   reportEngineStats(stats: EngineGameStats, gameId?: string | null): Promise<void> {
     return this.inner.reportEngineStats(stats, gameId);
+  }
+  reportGameOutcome(gameId: string, outcome: GameOutcomeReport): Promise<void> {
+    return this.inner.reportGameOutcome(gameId, outcome);
   }
 
   endGame(gameId: string): Promise<void> {

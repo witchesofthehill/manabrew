@@ -399,7 +399,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(manabrew_relay_analytics_dropped_total) + sum(manabrew_relay_deck_play_events_dropped_total)",
+          "expr": "sum(manabrew_relay_analytics_dropped_total)",
           "datasource": { "type": "prometheus", "uid": "prometheus" }
         }
       ],

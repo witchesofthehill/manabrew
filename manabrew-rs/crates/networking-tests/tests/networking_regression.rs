@@ -14,9 +14,10 @@ const CURRENT_CLIENT_VERSION: &str = "3.17.0";
 
 use libtest_mimic::Arguments;
 use manabrew_agent_interface::protocol::{identity_token, IdentityProof};
+use serde_json::json;
 use support::{
-    case, execute, list, scenario, spawn_guest_bot, summary, Case, Client, Manifest, Sim,
-    GRACE_DEADLINE,
+    case, execute, list, scenario, spawn_guest_bot, step, summary, webrtc_endpoint, Case, Client,
+    Manifest, Sim, GRACE_DEADLINE,
 };
 
 async fn brief_disconnect_reclaims_seat() {
@@ -549,6 +550,158 @@ async fn publishing_a_release_never_ends_a_live_game() {
     sim.wait_node_exit(Duration::from_secs(60)).await;
 }
 
+async fn direct_transport_fails_closed_without_the_flag() {
+    scenario(
+        "a relay started without MANABREW_DIRECT_TRANSPORT, and a seat that opted in.",
+        "the seat announces an endpoint and signals a room-mate.",
+        "the relay advertises neither feature, names no host, and forwards nothing.",
+    );
+    let sim = Sim::spawn_relay_only(9660).await;
+    let mut alice = Client::connect(&sim.relay_url, "alice").await.unwrap();
+    assert!(
+        !alice
+            .features
+            .iter()
+            .any(|f| f == "room_transport" || f == "peer_signal"),
+        "an opt-out relay must not advertise the plane: {:?}",
+        alice.features
+    );
+    alice.create_room("Relay only").await.unwrap();
+    let room = alice.wait_own_room().await.unwrap();
+    let mut bob = Client::connect(&sim.relay_url, "bob").await.unwrap();
+    bob.join(&room.room_id, false).await.unwrap();
+
+    alice
+        .announce(Some(webrtc_endpoint("alice")))
+        .await
+        .unwrap();
+    alice
+        .signal_peer("bob", json!({ "sdp": { "type": "offer", "sdp": "v=0" } }))
+        .await
+        .unwrap();
+
+    let hosts = alice.roster_hosts_within(Duration::from_secs(3)).await;
+    assert!(
+        hosts.is_empty(),
+        "no roster at all off this relay, got {hosts:?}"
+    );
+    bob.expect_no_peer_signal(Duration::from_secs(2))
+        .await
+        .unwrap();
+    assert_eq!(
+        sim.metric(r#"manabrew_relay_transport_announcements_total{kind="rejected"}"#)
+            .await,
+        1.0,
+        "the announcement is refused, silently"
+    );
+    assert_eq!(
+        sim.metric(r#"manabrew_relay_peer_signals_total{kind="disabled"}"#)
+            .await,
+        1.0,
+        "the signal is dropped, and the counter is where it shows"
+    );
+}
+
+async fn signalling_is_routed_by_the_relay_and_stamped_with_the_sender() {
+    scenario(
+        "a relay with the direct transport on, and two seats in one room.",
+        "each signals the other by name; one signals a stranger; one sends a blob too big.",
+        "each blob reaches the named peer stamped `from` the relay's own record; the rest reach nobody.",
+    );
+    let sim = Sim::spawn_relay_only_direct(9664).await;
+    let mut alice = Client::connect(&sim.relay_url, "alice").await.unwrap();
+    assert!(
+        alice.features.iter().any(|f| f == "peer_signal"),
+        "the relay advertises signalling: {:?}",
+        alice.features
+    );
+    alice.create_room("Signalling").await.unwrap();
+    let room = alice.wait_own_room().await.unwrap();
+    let mut bob = Client::connect(&sim.relay_url, "bob").await.unwrap();
+    // A signal sent before the relay registers bob is dropped as `no_target`.
+    bob.join_retry(&room.room_id).await.unwrap();
+
+    let offer = json!({ "sdp": { "type": "offer", "sdp": "v=0 alice" } });
+    alice.signal_peer("bob", offer.clone()).await.unwrap();
+    let (from, payload) = bob
+        .expect_peer_signal(Duration::from_secs(5))
+        .await
+        .unwrap();
+    assert_eq!(
+        from, "alice",
+        "the sender is the relay's word, not the message's"
+    );
+    assert_eq!(payload, offer, "the relay does not read or alter the blob");
+
+    let answer = json!({ "sdp": { "type": "answer", "sdp": "v=0 bob" } });
+    bob.signal_peer("alice", answer.clone()).await.unwrap();
+    let (from, payload) = alice
+        .expect_peer_signal(Duration::from_secs(5))
+        .await
+        .unwrap();
+    assert_eq!((from.as_str(), payload), ("bob", answer));
+
+    step("alice signals somebody who is not in the room, then sends bob 20kB");
+    alice
+        .signal_peer("nobody", json!({ "ice": {} }))
+        .await
+        .unwrap();
+    alice
+        .signal_peer("bob", json!({ "sdp": "x".repeat(20 * 1024) }))
+        .await
+        .unwrap();
+    bob.expect_no_peer_signal(Duration::from_secs(2))
+        .await
+        .unwrap();
+
+    assert_eq!(
+        sim.metric(r#"manabrew_relay_peer_signals_total{kind="forwarded"}"#)
+            .await,
+        2.0
+    );
+    assert_eq!(
+        sim.metric(r#"manabrew_relay_peer_signals_total{kind="no_target"}"#)
+            .await,
+        1.0
+    );
+    assert_eq!(
+        sim.metric(r#"manabrew_relay_peer_signals_total{kind="oversize"}"#)
+            .await,
+        1.0
+    );
+}
+
+async fn a_room_stays_on_the_relay_until_every_seat_opts_in() {
+    scenario(
+        "a relay with the direct transport on and two human seats: one opted in, one not.",
+        "the opted-in seat announces its endpoint.",
+        "the relay broadcasts a roster but names no host to dial, so the whole room stays on the relay.",
+    );
+    let sim = Sim::spawn_relay_only_direct(9676).await;
+    let mut alice = Client::connect(&sim.relay_url, "alice").await.unwrap();
+    alice.create_room("Consent").await.unwrap();
+    let room = alice.wait_own_room().await.unwrap();
+    // bob never announces; the relay must register him before alice announces.
+    let mut bob = Client::connect(&sim.relay_url, "bob").await.unwrap();
+    bob.join_retry(&room.room_id).await.unwrap();
+
+    alice
+        .announce(Some(webrtc_endpoint("alice")))
+        .await
+        .unwrap();
+    let hosts = alice.roster_hosts_within(Duration::from_secs(3)).await;
+    assert!(
+        !hosts.is_empty() && hosts.iter().all(Option::is_none),
+        "the roster went out, and named nobody to dial: {hosts:?}"
+    );
+    assert!(
+        sim.metric(r#"manabrew_relay_transport_rosters_total{kind="withheld"}"#)
+            .await
+            >= 1.0,
+        "the withheld roster is where consent enforcement shows"
+    );
+}
+
 fn main() {
     let args = Arguments::from_args();
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -612,6 +765,18 @@ fn main() {
         case(
             "publishing_a_release_never_ends_a_live_game",
             publishing_a_release_never_ends_a_live_game,
+        ),
+        case(
+            "direct_transport_fails_closed_without_the_flag",
+            direct_transport_fails_closed_without_the_flag,
+        ),
+        case(
+            "signalling_is_routed_by_the_relay_and_stamped_with_the_sender",
+            signalling_is_routed_by_the_relay_and_stamped_with_the_sender,
+        ),
+        case(
+            "a_room_stays_on_the_relay_until_every_seat_opts_in",
+            a_room_stays_on_the_relay_until_every_seat_opts_in,
         ),
     ];
 

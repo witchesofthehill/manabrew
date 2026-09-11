@@ -8,7 +8,7 @@ use std::time::{Duration, Instant, SystemTime};
 use tracing::warn;
 use zstd::Encoder;
 
-use super::writer::{today, warn_rate_limited};
+use super::sink::{today, warn_rate_limited};
 
 const COMPRESSION_LEVEL: i32 = 3;
 const FILE_EXTENSION: &str = "jsonl.zst";

@@ -1,5 +1,35 @@
 # Changelog
 
+## [3.41.0](https://github.com/witchesofthehill/manabrew/compare/v3.40.1...v3.41.0) (2026-09-10)
+
+### Features
+
+* backgrounds ([#903](https://github.com/witchesofthehill/manabrew/issues/903)) ([067eab1](https://github.com/witchesofthehill/manabrew/commit/067eab1deec20b1b50a899b8aaf2ed377ad28c49))
+
+## [3.40.1](https://github.com/witchesofthehill/manabrew/compare/v3.40.0...v3.40.1) (2026-09-09)
+
+### Fixes
+
+* **desktop:** local relay builds after the deck-play handle removal ([#897](https://github.com/witchesofthehill/manabrew/issues/897)) ([c56b49d](https://github.com/witchesofthehill/manabrew/commit/c56b49d0287807e02bb20b98a01b4f1f055c4ef1))
+
+## [3.40.0](https://github.com/witchesofthehill/manabrew/compare/v3.39.0...v3.40.0) (2026-09-09)
+
+### Features
+
+* **analytics:** the engine host reports how a game ended + the hub is the store for relay events ([#883](https://github.com/witchesofthehill/manabrew/issues/883)) ([d2b1271](https://github.com/witchesofthehill/manabrew/commit/d2b12717b4618443e3ca970398c038a2cda80f7f))
+
+## [3.39.0](https://github.com/witchesofthehill/manabrew/compare/v3.38.2...v3.39.0) (2026-09-09)
+
+### Features
+
+* **net:** peer-to-peer game traffic over WebRTC, opt-in per player ([#871](https://github.com/witchesofthehill/manabrew/issues/871)) ([6e8ff2b](https://github.com/witchesofthehill/manabrew/commit/6e8ff2ba0934283d6943bb56f921022ecb63187f))
+
+## [3.38.2](https://github.com/witchesofthehill/manabrew/compare/v3.38.1...v3.38.2) (2026-09-09)
+
+### Fixes
+
+* **website:** sitemap and robots for the apex, real 404s on docs, noindex staging ([#890](https://github.com/witchesofthehill/manabrew/issues/890)) ([58a7851](https://github.com/witchesofthehill/manabrew/commit/58a785171be0ec87842ec5a53b098f53eb754ab6))
+
 ## [3.38.1](https://github.com/witchesofthehill/manabrew/compare/v3.38.0...v3.38.1) (2026-09-07)
 
 ### Fixes

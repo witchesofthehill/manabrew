@@ -126,6 +126,7 @@ export const Z_HAND_ACTIONS_MENU = 200;
 
 export const BG_ALPHA_IDLE = 0;
 export const FELT_HIT_ALPHA = 0.001;
+
 export const BG_ALPHA_DROP = 0.15;
 export const DROP_STROKE_ALPHA = 0.8;
 export const DROP_TINT_ALPHA = 0.06;

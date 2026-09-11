@@ -8,6 +8,7 @@ import type { KnownRelay } from "@/config/knownRelays";
 import type { PlaymatSettings } from "@/protocol/game";
 import type { GameFormat } from "@/types/server";
 import type { HandOrderMode } from "@/lib/handOrder";
+import { DEFAULT_BOARD_BACKGROUND_ID, type BoardBackgroundId } from "@/pixi/board/boardBackgrounds";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
 export type CardPreviewMode = "hover" | "right-click";
@@ -84,6 +85,9 @@ export interface PreferencesState {
   battlefieldCardStyle: BattlefieldCardStyle;
   setBattlefieldCardStyle: (style: BattlefieldCardStyle) => void;
 
+  boardBackgroundId: BoardBackgroundId;
+  setBoardBackgroundId: (id: BoardBackgroundId) => void;
+
   // Perf escape hatch for weaker hardware; the board still functions when off
   // (cards move, state indicators stay).
   inGameAnimations: boolean;
@@ -98,6 +102,10 @@ export interface PreferencesState {
   // where the real wasm is bundled.
   ironsmithRuntimeEnabled: boolean;
   setIronsmithRuntimeEnabled: (value: boolean) => void;
+
+  // P2P game traffic. Every player must opt in or the room stays on the relay.
+  directTransport: boolean;
+  setDirectTransport: (value: boolean) => void;
 
   hideAccountSaveNudge: boolean;
   setHideAccountSaveNudge: (value: boolean) => void;
@@ -157,9 +165,11 @@ const PERSISTED_PREFERENCE_KEYS = [
   "cardSizeMultiplier",
   "lockZoneTiles",
   "battlefieldCardStyle",
+  "boardBackgroundId",
   "inGameAnimations",
   "chooseOrderOnMultipleTriggers",
   "ironsmithRuntimeEnabled",
+  "directTransport",
   "hideAccountSaveNudge",
   "cardPreviewMode",
   "cardHoverDelayMs",
@@ -269,6 +279,9 @@ export const usePreferencesStore = create<PreferencesState>()(
           battlefieldCardStyle: "realistic",
           setBattlefieldCardStyle: (battlefieldCardStyle) => set({ battlefieldCardStyle }),
 
+          boardBackgroundId: DEFAULT_BOARD_BACKGROUND_ID,
+          setBoardBackgroundId: (boardBackgroundId) => set({ boardBackgroundId }),
+
           inGameAnimations: true,
           setInGameAnimations: (inGameAnimations) => set({ inGameAnimations }),
 
@@ -278,6 +291,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           ironsmithRuntimeEnabled: false,
           setIronsmithRuntimeEnabled: (ironsmithRuntimeEnabled) => set({ ironsmithRuntimeEnabled }),
+
+          directTransport: false,
+          setDirectTransport: (directTransport) => set({ directTransport }),
 
           hideAccountSaveNudge: false,
           setHideAccountSaveNudge: (hideAccountSaveNudge) => set({ hideAccountSaveNudge }),

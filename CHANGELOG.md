@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.42.1](https://github.com/witchesofthehill/manabrew/compare/v3.42.0...v3.42.1) (2026-09-11)
+
+### Fixes
+
+* **play:** hold the back button during a live game ([#900](https://github.com/witchesofthehill/manabrew/issues/900)) ([feeb1cf](https://github.com/witchesofthehill/manabrew/commit/feeb1cfad985a5c2d32c90a30baa940abdf45bd3))
+
+## [3.42.0](https://github.com/witchesofthehill/manabrew/compare/v3.41.1...v3.42.0) (2026-09-11)
+
+### Features
+
+* **telemetry:** cut the client turnaround at the first reply frame ([#907](https://github.com/witchesofthehill/manabrew/issues/907)) ([e381e2f](https://github.com/witchesofthehill/manabrew/commit/e381e2f7518386e5695f28a268b6f1196cf26b35))
+
+## [3.41.1](https://github.com/witchesofthehill/manabrew/compare/v3.41.0...v3.41.1) (2026-09-11)
+
+### Fixes
+
+* **telemetry:** file solo engine reports under the offline game ([#905](https://github.com/witchesofthehill/manabrew/issues/905)) ([400031b](https://github.com/witchesofthehill/manabrew/commit/400031bccc40d88868a5430253b5db9b167695dd))
+
 ## [3.41.0](https://github.com/witchesofthehill/manabrew/compare/v3.40.1...v3.41.0) (2026-09-10)
 
 ### Features

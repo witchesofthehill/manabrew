@@ -1053,6 +1053,113 @@
         "overrides": []
       },
       "options": {}
+    },
+    {
+      "id": 244,
+      "type": "table",
+      "title": "Turnaround, split at the first reply frame",
+      "description": "reply_wait is answer sent to first reply frame: the server, the hop, the player's link and the transfer of the reply. client_work is first frame to prompt handled: parsing, applying the state, rendering. A high client_work with a normal reply_wait is the player's machine; the reverse is their link. For forge-wasm the frame is the seat read, so reply_wait there is engine time plus the seat drain, not a wire.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 86,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT engine, platform, seats, count(*) AS games, round(avg(turnaround_p50)) AS turnaround_p50, round(avg(reply_wait_p50)) AS reply_wait_p50, round(avg(client_work_p50)) AS client_work_p50, round(avg(client_work_p90)) AS client_work_p90, max(client_work_max) AS worst_client_ms FROM engine_stats WHERE reply_wait_p50 IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY engine, platform, seats ORDER BY engine, platform, seats",
+          "rawQueryText": "SELECT engine, platform, seats, count(*) AS games, round(avg(turnaround_p50)) AS turnaround_p50, round(avg(reply_wait_p50)) AS reply_wait_p50, round(avg(client_work_p50)) AS client_work_p50, round(avg(client_work_p90)) AS client_work_p90, max(client_work_max) AS worst_client_ms FROM engine_stats WHERE reply_wait_p50 IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY engine, platform, seats ORDER BY engine, platform, seats",
+          "rawQuerySql": "SELECT engine, platform, seats, count(*) AS games, round(avg(turnaround_p50)) AS turnaround_p50, round(avg(reply_wait_p50)) AS reply_wait_p50, round(avg(client_work_p50)) AS client_work_p50, round(avg(client_work_p90)) AS client_work_p90, max(client_work_max) AS worst_client_ms FROM engine_stats WHERE reply_wait_p50 IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY engine, platform, seats ORDER BY engine, platform, seats",
+          "queryType": "table",
+          "timeColumns": [],
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 245,
+      "type": "timeseries",
+      "title": "forge-hosted: reply wait against client work (daily median)",
+      "description": "The two halves of a hosted game's turnaround, one point per day. Reply wait moves with the fleet and the network; client work moves with the players' machines and the board. Multi-human games are in here too, and the other human's think lands in reply wait, so cut by seats before reading a spike.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 94,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "WITH r AS (SELECT CAST(strftime('%s', date(ts)) AS INTEGER) AS t, reply_wait_p50, client_work_p50, row_number() OVER (PARTITION BY date(ts) ORDER BY reply_wait_p50) AS rn_wait, row_number() OVER (PARTITION BY date(ts) ORDER BY client_work_p50) AS rn_work, count(*) OVER (PARTITION BY date(ts)) AS n FROM engine_stats WHERE engine = 'forge-hosted' AND reply_wait_p50 IS NOT NULL AND multiplayer = 1 AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000) SELECT t, round(avg(CASE WHEN rn_wait IN ((n + 1) / 2, (n + 2) / 2) THEN reply_wait_p50 END)) AS reply_wait_p50, round(avg(CASE WHEN rn_work IN ((n + 1) / 2, (n + 2) / 2) THEN client_work_p50 END)) AS client_work_p50 FROM r GROUP BY t ORDER BY t",
+          "rawQueryText": "WITH r AS (SELECT CAST(strftime('%s', date(ts)) AS INTEGER) AS t, reply_wait_p50, client_work_p50, row_number() OVER (PARTITION BY date(ts) ORDER BY reply_wait_p50) AS rn_wait, row_number() OVER (PARTITION BY date(ts) ORDER BY client_work_p50) AS rn_work, count(*) OVER (PARTITION BY date(ts)) AS n FROM engine_stats WHERE engine = 'forge-hosted' AND reply_wait_p50 IS NOT NULL AND multiplayer = 1 AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000) SELECT t, round(avg(CASE WHEN rn_wait IN ((n + 1) / 2, (n + 2) / 2) THEN reply_wait_p50 END)) AS reply_wait_p50, round(avg(CASE WHEN rn_work IN ((n + 1) / 2, (n + 2) / 2) THEN client_work_p50 END)) AS client_work_p50 FROM r GROUP BY t ORDER BY t",
+          "rawQuerySql": "WITH r AS (SELECT CAST(strftime('%s', date(ts)) AS INTEGER) AS t, reply_wait_p50, client_work_p50, row_number() OVER (PARTITION BY date(ts) ORDER BY reply_wait_p50) AS rn_wait, row_number() OVER (PARTITION BY date(ts) ORDER BY client_work_p50) AS rn_work, count(*) OVER (PARTITION BY date(ts)) AS n FROM engine_stats WHERE engine = 'forge-hosted' AND reply_wait_p50 IS NOT NULL AND multiplayer = 1 AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000) SELECT t, round(avg(CASE WHEN rn_wait IN ((n + 1) / 2, (n + 2) / 2) THEN reply_wait_p50 END)) AS reply_wait_p50, round(avg(CASE WHEN rn_work IN ((n + 1) / 2, (n + 2) / 2) THEN client_work_p50 END)) AS client_work_p50 FROM r GROUP BY t ORDER BY t",
+          "queryType": "table",
+          "timeColumns": ["t"],
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 246,
+      "type": "table",
+      "title": "forge-hosted: client work by platform and seats",
+      "description": "Where a slow hosted game is spent on the player's own machine. games_over_500ms counts games whose median client work exceeded half a second; on 2026-09-10 two desktop players sat at 1.1 to 1.7 s per decision with a normal reply wait.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 94,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT platform, seats, count(*) AS games, round(avg(client_work_p50)) AS client_work_p50, round(avg(client_work_p90)) AS client_work_p90, sum(CASE WHEN client_work_p50 > 500 THEN 1 ELSE 0 END) AS games_over_500ms FROM engine_stats WHERE engine = 'forge-hosted' AND client_work_p50 IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY platform, seats ORDER BY platform, seats",
+          "rawQueryText": "SELECT platform, seats, count(*) AS games, round(avg(client_work_p50)) AS client_work_p50, round(avg(client_work_p90)) AS client_work_p90, sum(CASE WHEN client_work_p50 > 500 THEN 1 ELSE 0 END) AS games_over_500ms FROM engine_stats WHERE engine = 'forge-hosted' AND client_work_p50 IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY platform, seats ORDER BY platform, seats",
+          "rawQuerySql": "SELECT platform, seats, count(*) AS games, round(avg(client_work_p50)) AS client_work_p50, round(avg(client_work_p90)) AS client_work_p90, sum(CASE WHEN client_work_p50 > 500 THEN 1 ELSE 0 END) AS games_over_500ms FROM engine_stats WHERE engine = 'forge-hosted' AND client_work_p50 IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY platform, seats ORDER BY platform, seats",
+          "queryType": "table",
+          "timeColumns": [],
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
     }
   ]
 }

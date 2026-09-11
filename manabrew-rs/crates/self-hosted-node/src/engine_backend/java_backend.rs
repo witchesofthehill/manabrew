@@ -1430,6 +1430,24 @@ pub fn run_hosted_engine_game(
 #[cfg(forge_backend)]
 const SLOW_DECISION: Duration = Duration::from_millis(1500);
 
+/// How often the host loop looks for a player's answer and for the engine's
+/// next prompt.
+///
+/// It polled every 50ms flat, and that was the floor under every decision:
+/// over seven days of production the node-side histogram had no decision
+/// under 50ms and 92% of them between 50 and 100ms, one poll cycle, with the
+/// answer itself waiting up to a further 50ms in the channel before the loop
+/// saw it. Now the loop runs hot for a moment after anything happens, which
+/// is when the engine's reply is due, and idles at a fifth of the old
+/// interval the rest of the time. A poll is a channel check per seat and one
+/// call across the bridge, cheap enough at either rate.
+#[cfg(forge_backend)]
+const POLL_HOT: Duration = Duration::from_millis(2);
+#[cfg(forge_backend)]
+const POLL_IDLE: Duration = Duration::from_millis(10);
+#[cfg(forge_backend)]
+const POLL_HOT_FOR: Duration = Duration::from_millis(500);
+
 /// Serde tag of the prompt variant, for the slow-decision log. `PromptInput` is
 /// internally tagged, so this is the same string the captures carry. Only called
 /// on the rare slow path, so the trip through a `Value` is not worth avoiding.
@@ -1520,6 +1538,9 @@ fn run_hosted_engine_game_inner(
     let mut pending_roll_acks: usize = 0;
     let mut decision_received: Option<Instant> = None;
     let mut decision_submitted: Option<Instant> = None;
+    // The last time an answer went in or a prompt came out. The loop polls
+    // hot for a moment after either, which is when the next is due.
+    let mut last_activity = Instant::now();
 
     loop {
         if cancel.load(std::sync::atomic::Ordering::Relaxed) {
@@ -1624,6 +1645,7 @@ fn run_hosted_engine_game_inner(
                         debug!(player_index, %action_json, "submitting remote response to java");
                         engine.submit_action(&session_id, &action_json)?;
                         decision_submitted = Some(Instant::now());
+                        last_activity = Instant::now();
                     }
                     Ok(ClientToServerMessage::Directive {
                         directive: DirectiveInput::Concede,
@@ -1634,6 +1656,7 @@ fn run_hosted_engine_game_inner(
                         let directive_json = directive_concede_json(*player_index);
                         debug!(player_index, %directive_json, "submitting concede directive to java");
                         engine.submit_action(&session_id, &directive_json)?;
+                        last_activity = Instant::now();
                     }
                     Err(TryRecvError::Empty) => break,
                     Err(TryRecvError::Disconnected) => {
@@ -1648,6 +1671,7 @@ fn run_hosted_engine_game_inner(
             let prompt: AgentPrompt = serde_json::from_str(&prompt_json)
                 .map_err(|err| format!("failed to parse java prompt: {err}"))?;
             if last_prompt.as_ref().map(|p| p.prompt_id) != Some(prompt.prompt_id) {
+                last_activity = Instant::now();
                 if let Some(started) = decision_submitted.take() {
                     crate::metrics::record_forge_decision_stage("next_prompt", started.elapsed());
                 }
@@ -1762,7 +1786,11 @@ fn run_hosted_engine_game_inner(
             return Ok(());
         }
 
-        std::thread::sleep(Duration::from_millis(50));
+        std::thread::sleep(if last_activity.elapsed() < POLL_HOT_FOR {
+            POLL_HOT
+        } else {
+            POLL_IDLE
+        });
     }
 }
 

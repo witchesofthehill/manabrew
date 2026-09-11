@@ -543,6 +543,48 @@ impl Client {
         }
     }
 
+    /// Wait for the game another seat started. `start_game` only returns on
+    /// the socket that sent `StartGame`; every other human waits here.
+    pub async fn await_game_started(&mut self) -> Result<(), String> {
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
+        loop {
+            if tokio::time::Instant::now() > deadline {
+                return Err(format!("'{}' never saw the game start", self.username));
+            }
+            match recv(&mut self.write, &mut self.read).await {
+                Some(ServerMessage::GameStarted {
+                    game_id,
+                    player_order,
+                    ..
+                }) => {
+                    self.slot = player_order
+                        .iter()
+                        .position(|name| name == &self.username)
+                        .map(player_slot);
+                    self.game_id = Some(game_id);
+                    return Ok(());
+                }
+                Some(_) => continue,
+                None => return Err("connection closed before game start".into()),
+            }
+        }
+    }
+
+    /// Receive one message and answer it if it is our prompt. `Ok(true)` when
+    /// a prompt was answered.
+    async fn step(&mut self) -> Result<bool, String> {
+        let Some(message) = recv(&mut self.write, &mut self.read).await else {
+            return Err(format!("'{}' connection closed mid-game", self.username));
+        };
+        match self.prompt_response(message)? {
+            Some(response) => {
+                self.broadcast(&response).await?;
+                Ok(true)
+            }
+            None => Ok(false),
+        }
+    }
+
     /// Answer `n` prompts addressed to this seat — proves the engine is live
     /// and serving us.
     pub async fn answer_prompts(&mut self, n: usize) -> Result<(), String> {
@@ -829,6 +871,28 @@ impl Client {
         )
         .await
     }
+}
+
+/// Two humans at one table answering whichever of them the engine asks,
+/// until `n` prompts have been answered between them. Neither can be driven
+/// alone: each blocks on its own socket while the engine waits on the other.
+pub async fn play_pair(a: &mut Client, b: &mut Client, n: usize) -> Result<(), String> {
+    let mut answered = 0;
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(120);
+    while answered < n {
+        let step = tokio::select! {
+            r = a.step() => r?,
+            r = b.step() => r?,
+            _ = tokio::time::sleep_until(deadline) => {
+                return Err(format!("the pair answered {answered}/{n} prompts before timing out"));
+            }
+        };
+        if step {
+            answered += 1;
+        }
+    }
+    check(format!("the pair answered {n} prompt(s) between them"));
+    Ok(())
 }
 
 /// A guest seat that answers its prompts (slowly, so games outlive

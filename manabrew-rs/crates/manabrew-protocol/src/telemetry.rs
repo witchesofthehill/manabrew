@@ -50,6 +50,18 @@ pub struct EnginePlayStats {
     /// Client-side turnaround: answer sent to next prompt landing. This is the
     /// interval the player feels, and the one comparable across engines.
     pub turnaround: EngineTurnaround,
+    /// `turnaround` cut at the first reply frame reaching the client.
+    /// `reply_wait` is everything outside the player's machine: the server,
+    /// the wire, and the transfer of the reply. `client_work` is everything on
+    /// it: parsing, applying the state, rendering, until the prompt is
+    /// handled. Absent from clients that predate the cut and from engines with
+    /// no frame boundary to stamp.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub reply_wait: Option<EngineTurnaround>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub client_work: Option<EngineTurnaround>,
     /// The engine's own think time, when it reports one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -269,6 +281,8 @@ mod tests {
                 p90: 78,
                 max: 320,
             },
+            reply_wait: None,
+            client_work: None,
             engine_think: None,
             engine_think_same_turn: None,
             engine_think_cross_turn: None,

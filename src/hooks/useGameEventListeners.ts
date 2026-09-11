@@ -7,7 +7,7 @@ import {
   SELF_HOSTED_NODE_RELAY_PROTOCOL,
 } from "@/game";
 import { teardownForgeAiSession } from "@/game/hostedAiPlay";
-import { reportEngineStats } from "@/lib/engineStatsReport";
+import { engineReportGameId, reportEngineStats } from "@/lib/engineStatsReport";
 import {
   currentOfflineGameId,
   reportOfflineGame,
@@ -216,7 +216,11 @@ function reportEngineGame(): void {
     // engine sends a gameOver prompt and `gameView` never gets the flag, so
     // reading the flag alone filed finished games as quits.
     endReason: isOver(state) ? "gameOver" : "left",
-    gameId: useServerStore.getState().gameId ?? offlineGameId,
+    gameId: engineReportGameId(
+      state.isMultiplayer,
+      useServerStore.getState().gameId,
+      offlineGameId,
+    ),
     send: state.isMultiplayer
       ? async (stats, gameId) => {
           await getPlatform().server?.reportEngineStats(stats, gameId);

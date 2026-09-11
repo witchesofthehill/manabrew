@@ -6,7 +6,7 @@
  */
 
 import type { EngineGameStats } from "@/lib/engineTelemetry";
-import { noteEngineThinkTime } from "@/lib/engineTelemetry";
+import { noteEngineThinkTime, noteReplyFrameArrived } from "@/lib/engineTelemetry";
 import type {
   IPlatformApi,
   IGameApi,
@@ -226,6 +226,11 @@ class WorkerBridge {
   }
 
   private dispatchEngineMessage(msg: EngineMessage): void {
+    // The seat reader has already parsed, so a hair of client work lands on
+    // the far side of the cut here; there is no wire on this path anyway.
+    if (msg?.kind === "state" || msg?.kind === "prompt" || msg?.kind === "display") {
+      noteReplyFrameArrived();
+    }
     logComms("engine", msg);
     if (this.workerIsForgeWasm) {
       const w = window as unknown as { __forgeFrames?: string[] };
@@ -896,9 +901,12 @@ class WebServerApi implements IServerApi {
         if (this.ws !== socket) return;
         this.lastInboundAt = Date.now();
         if (typeof e.data !== "string") return;
+        // Before the parse: a state frame is tens of kilobytes, and parsing
+        // it is this machine's work, not the wire's.
+        const frameAt = performance.now();
         try {
           const msg = JSON.parse(e.data);
-          this.handleServerMessage(msg);
+          this.handleServerMessage(msg, frameAt);
         } catch {
           // Ignore malformed messages
         }
@@ -1417,11 +1425,14 @@ class WebServerApi implements IServerApi {
         username: this.authedUsername!,
         signal: (to, payload) => this.send({ type: "SignalPeer", to, payload }),
         deliver: (envelope, fromPlayer) =>
-          this.handleServerMessage({
-            type: "StateUpdate",
-            from_player: fromPlayer,
-            state: envelope,
-          }),
+          this.handleServerMessage(
+            {
+              type: "StateUpdate",
+              from_player: fromPlayer,
+              state: envelope,
+            },
+            performance.now(),
+          ),
         onMeasurement: (m) => this.onPlaneMeasurement(m),
       });
     }
@@ -1468,7 +1479,12 @@ class WebServerApi implements IServerApi {
     this.ws.send(JSON.stringify(msg));
   }
 
-  private handleServerMessage(msg: Record<string, unknown>): void {
+  /**
+   * @param frameAt when the frame carrying `msg` reached this client, for the
+   *   turnaround split. Omitted for synthesised messages, which are not a
+   *   reply arriving.
+   */
+  private handleServerMessage(msg: Record<string, unknown>, frameAt?: number): void {
     const type = msg.type as string;
     // The heartbeat would evict real traffic from the bug-report ring buffer.
     if (type === "Pong") {
@@ -1546,6 +1562,15 @@ class WebServerApi implements IServerApi {
     if (type === "StateUpdate" && msg.state) {
       const envelope = msg.state as StateEnvelope;
       const forPlayer = (envelope as { forPlayer?: string }).forPlayer;
+      if (
+        frameAt !== undefined &&
+        (envelope.kind === "state" ||
+          envelope.kind === "stateDelta" ||
+          envelope.kind === "prompt" ||
+          envelope.kind === "display")
+      ) {
+        noteReplyFrameArrived(frameAt);
+      }
       const promptType =
         envelope.kind === "prompt"
           ? ((envelope as { prompt?: { input?: { type?: string } } }).prompt?.input?.type ?? "?")

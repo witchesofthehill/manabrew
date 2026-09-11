@@ -83,6 +83,10 @@ export default function Play() {
   useEffect(() => {
     if (!mpState?.multiplayer || multiplayerStarted.current) return;
     multiplayerStarted.current = true;
+    // A re-mount on a live game (browser forward back onto this entry) must
+    // not relaunch it: the store refuses the duplicate, and that refusal used
+    // to read as a failed start, which ended the table for everyone.
+    if (useGameStore.getState().isGameActive) return;
 
     const {
       playerOrder,

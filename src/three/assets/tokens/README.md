@@ -17,3 +17,19 @@ Shared direction: one original fantasy card game token illustration; painterly p
 - treasure-relic: A luminous sapphire in an ornate golden reliquary surrounded by pearl strands and coins in an ancient fantasy ruin.
 
 Artwork is selected once per page session and controller/token kind; identical tokens share the same variant. Named cards and unsupported token kinds retain their existing image source. New token kinds can be added to tokenArtwork.ts with matching assets.
+
+## Additional artifact tokens
+
+Generated on 2026-09-12 using the same portrait composition and warm fantasy still-life direction:
+
+- blood-chalice: An ornate silver vampire chalice of crimson blood on burgundy velvet in a candlelit gothic banquet hall; non-graphic.
+- blood-vial: Crystal vials of crimson blood in a brass alchemist stand; non-graphic.
+- blood-decanter: A cut crystal decanter of crimson blood beside a red rose on dark wood; non-graphic.
+- map-compass: A parchment coastal map and brass compass on an explorer's desk.
+- map-island: A nautical chart, blue crystal, and bronze astrolabe.
+- powerstone-crystal: A glowing blue arcane crystal in a bronze mechanical cradle.
+- powerstone-relic: A violet powerstone in an ancient brass sphere with concentric rings.
+- gold-ingots: Gold ingots and a merchant's balance on a medieval counting table.
+- gold-nuggets: A leather pouch spilling gold nuggets beside goldsmith tools.
+
+Gold is a separate, less frequently used token kind, not a substitute for Treasure. These additions affect artwork only; token abilities remain supplied by the engine.

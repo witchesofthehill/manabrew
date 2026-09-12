@@ -11,10 +11,12 @@ const sessionSeed = Math.floor(Math.random() * 0xffffffff);
 export function tokenArtwork(card: CardDto) {
   if (!card.identity.isToken || card.isFaceDown) return undefined;
   const kind = card.identity.name.toLowerCase().replace(/ token$/, "");
-  if (!["food", "clue", "treasure"].includes(kind)) return undefined;
+  if (!["food", "clue", "treasure", "blood", "map", "powerstone", "gold"].includes(kind))
+    return undefined;
   const options = Object.entries(assets)
     .filter(([path]) => path.includes(`/${kind}-`))
     .sort(([a], [b]) => a.localeCompare(b));
+  if (!options.length) return undefined;
   let hash = sessionSeed;
   for (const letter of `${card.controllerId}:${kind}`) {
     hash = Math.imul(hash ^ letter.charCodeAt(0), 16777619) >>> 0;

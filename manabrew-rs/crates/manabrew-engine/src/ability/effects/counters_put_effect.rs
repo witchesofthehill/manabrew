@@ -9,6 +9,18 @@ use crate::parsing::keys;
 use crate::spellability::SpellAbility;
 use crate::trigger::TriggerType;
 
+pub fn build_spell_ability(sa: &mut crate::spellability::SpellAbility) {
+    let Some(n) = sa.ir.adapt.clone().or_else(|| sa.ir.monstrosity.clone()) else {
+        return;
+    };
+    sa.ir.counter_type_text = Some("P1P1".to_string());
+    sa.ir.counter_type = Some(crate::card::CounterType::P1P1);
+    sa.ir.semantic_numeric_params.insert(
+        keys::COUNTER_NUM.to_string(),
+        crate::ability::ability_ir::NumericParamIr::Raw(n),
+    );
+}
+
 /// Struct form of this effect so it can participate in the
 /// `SpellAbilityEffect` trait hierarchy — mirrors Java's
 /// `CountersPutEffect` class extending `SpellAbilityEffect`.
@@ -129,20 +141,24 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         return;
     };
 
-    // Adapt gate: if Adapt$ True, only place counters if creature has no +1/+1 counters.
-    // Mirrors Java CountersPutEffect lines 498-501.
-    let is_adapt = sa.ir.adapt;
+    let is_adapt = sa.ir.adapt.is_some();
     if is_adapt {
         let current = ctx
             .game
             .card(card_id)
             .counter_count(&crate::card::CounterType::P1P1);
-        if current > 0 {
+        if current > 0
+            && !crate::staticability::static_ability_adapt::any_with_adapt(
+                &ctx.game.cards,
+                sa,
+                ctx.game.card(card_id),
+            )
+        {
             return;
         }
     }
 
-    let is_monstrosity = sa.ir.monstrosity;
+    let is_monstrosity = sa.ir.monstrosity.is_some();
     if is_monstrosity && ctx.game.card(card_id).monstrous {
         return;
     }
@@ -182,6 +198,17 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 
     if sa.ir.renown && count > 0 {
         ctx.game.card_mut(card_id).set_renowned(true);
+    }
+
+    if is_adapt {
+        ctx.trigger_handler.run_trigger(
+            TriggerType::Adapt,
+            RunParams {
+                card: Some(card_id),
+                ..Default::default()
+            },
+            false,
+        );
     }
 
     if is_monstrosity {

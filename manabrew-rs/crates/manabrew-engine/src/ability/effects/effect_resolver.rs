@@ -72,7 +72,7 @@ effect_dispatch! {
     ApiType::Branch => branch_effect::BranchEffect,
     ApiType::GainLife => life_gain_effect::LifeGainEffect,
     ApiType::LoseLife => life_lose_effect::LifeLoseEffect,
-    ApiType::PutCounter => counters_put_effect::CountersPutEffect,
+    ApiType::PutCounter => counters_put_effect::CountersPutEffect [build = counters_put_effect::build_spell_ability],
     ApiType::RemoveCounter => counters_remove_effect::CountersRemoveEffect,
     ApiType::Poison => poison_effect::PoisonEffect,
     ApiType::Pump => pump_effect::PumpEffect,

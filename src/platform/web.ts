@@ -66,7 +66,12 @@ import {
 } from "@/game/webrtcPlane";
 import { ForgeHostBridge } from "@/game/forgeHostBridge";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { isForgeWasmHostingEnabled, setForgeWasmActive } from "@/lib/forgeWasm";
+import {
+  FORGE_LAUNCHER_URL,
+  FORGE_WASM_URL,
+  isForgeWasmHostingEnabled,
+  setForgeWasmActive,
+} from "@/lib/forgeWasm";
 import forgeWorkerUrl from "@forge-wasm/forge-engine.worker.js?url";
 // The seat protocol lives with @manabrew/forge-wasm, which drives the same
 // worker, so there is one implementation rather than one per consumer.
@@ -161,13 +166,6 @@ const FORGE_ENGINE_COMMANDS = new Set([
   "ping",
   "echo",
 ]);
-
-const forgeEngineUrls = import.meta.glob(
-  ["../../packages/forge-wasm/forgeharness.js", "../../packages/forge-wasm/forgeharness.js.wasm"],
-  { query: "?url", import: "default", eager: true },
-) as Record<string, string>;
-const FORGE_LAUNCHER_URL = forgeEngineUrls["../../packages/forge-wasm/forgeharness.js"];
-const FORGE_WASM_URL = forgeEngineUrls["../../packages/forge-wasm/forgeharness.js.wasm"];
 
 class WorkerBridge {
   private worker: Worker | null = null;

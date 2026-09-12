@@ -36,7 +36,7 @@ import {
   stopLocalHostedAiRelay,
 } from "@/game/hostedAiPlay";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
-import { isForgeWasmSupported } from "@/lib/forgeWasm";
+import { hasForgeWasmVerdict, isForgeWasmSupported, recordForgeWasmVerdict } from "@/lib/forgeWasm";
 import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
 import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
@@ -130,6 +130,7 @@ async function initializeGame({
   opponentDecks,
   formatId,
   set,
+  get,
   commanderName,
   engine,
   isLaunchCurrent,
@@ -288,10 +289,32 @@ async function initializeGame({
       throw new GameLaunchCancelledError();
     }
     set({ debugInfo: `Game started: ${result}.` });
+    if (engine === "Forge" && platformType === "web" && !hasForgeWasmVerdict()) {
+      recordForgeWasmVerdict(true);
+    }
   } catch (error) {
     // A launch that never became a game must not be reported as the next one.
     abandonOfflineGame();
     clearLocalGame();
+    if (
+      engine === "Forge" &&
+      platformType === "web" &&
+      !hasForgeWasmVerdict() &&
+      isHostedEngineAvailable() &&
+      !(error instanceof GameLaunchCancelledError)
+    ) {
+      recordForgeWasmVerdict(false, error instanceof Error ? error.message : String(error));
+      return initializeGame({
+        deck,
+        opponentDecks,
+        formatId,
+        set,
+        get,
+        commanderName,
+        engine,
+        isLaunchCurrent,
+      });
+    }
     throw error;
   }
 }

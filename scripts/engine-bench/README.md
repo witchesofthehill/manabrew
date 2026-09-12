@@ -31,6 +31,32 @@ is what tells a GC pause from a slow AI search. The engine's Java heap is the
 host's, because the Web Image build targets WasmGC and declares no linear
 memory, so there is no engine-side heap cap to raise.
 
+## A/B on the wasm engine
+
+Building the wasm engine locally takes about 100 seconds, not the hour the
+module size suggests:
+
+```sh
+export WEBIMAGE_GRAALVM_HOME=~/.local/graalvm/graalvm-25.3.4.1-dev+0.1/Contents/Home
+./scripts/build-forge-wasm.sh
+cp public/forge/forgeharness.js{,.wasm} node_modules/@manabrew/forge-wasm/
+node scripts/engine-bench/forge-wasm-game.mjs --seats 4 --out arm.jsonl
+```
+
+Dropping the two build outputs straight into the installed package is what makes
+an A/B cheap: the JS wrapper, the worker and the card data stay fixed, and only
+the engine module changes. Keep a copy of each arm's pair of files and swap them
+between runs.
+
+The build also leaves a `forgeharness.js.wat` next to them, about 750MB, which
+is the only way to put names on a wasm profile. It only matches the `.wasm` from
+the same build.
+
+Two limits. `forge-wasm-game.mjs` has no seed option, so the arms cannot replay
+the same game the way the JVM pairs can, and wasm has no system properties, so
+the AI's deadline cannot be pinned there either. Pool several games per arm and
+bin by turn, and treat the result as indicative rather than controlled.
+
 ## The JVM driver
 
 ```sh

@@ -740,6 +740,7 @@ export class CardSprite extends Container {
     this._imageLoaded = false;
     this._imageSettled = false;
     this.imageSpr.visible = false;
+    this.imageMask.visible = false;
     this.imageSpr.texture = Texture.EMPTY;
     this.placeholderGfx.visible = true;
     this.nameText.visible = true;
@@ -768,6 +769,7 @@ export class CardSprite extends Container {
 
     this.imageSpr.texture = texture;
     this.imageSpr.visible = true;
+    this.imageMask.visible = true;
     if (custom) this.fitArtCover();
     else this.fitImageToSlot();
     this.placeholderGfx.visible = false;

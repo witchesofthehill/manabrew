@@ -1,8 +1,9 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
 
-const primary = "#f27633";
-const secondary = "#ffe7d5";
+const primary = "#fb7728";
+const secondary = "#ffc377";
+const accent = "#777979";
 
 const palette: BasePalette = {
   foreground: "#ffffff",
@@ -55,7 +56,7 @@ const preset: ThemePreset = {
     "secondary-foreground": "#111214",
     muted: "#efe5dc",
     "muted-foreground": "#665d61",
-    accent: secondary,
+    accent,
     "accent-foreground": "#111214",
     destructive: "#c93d50",
     "destructive-foreground": "#fffdf7",
@@ -81,7 +82,7 @@ const preset: ThemePreset = {
     "secondary-foreground": "#111214",
     muted: "#2d282e",
     "muted-foreground": "#bbaeb2",
-    accent: secondary,
+    accent,
     "accent-foreground": "#111214",
     destructive: "#c93d50",
     "destructive-foreground": "#fffaf5",

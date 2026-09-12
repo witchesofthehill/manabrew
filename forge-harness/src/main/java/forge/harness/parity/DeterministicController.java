@@ -3,6 +3,7 @@ package forge.harness.parity;
 import forge.harness.common.ActionSpace;
 import forge.harness.common.AutoPay;
 import forge.harness.common.ChoiceSpace;
+import forge.harness.common.GameStateInjector;
 import forge.harness.common.CombatChoiceSpace;
 import forge.harness.common.CountingRandom;
 import forge.harness.common.EngineHandler;
@@ -339,6 +340,8 @@ public class DeterministicController extends PlayerController implements Harness
             return null;
         }
         captureDeepCheckpoint("main_action");
+        GameStateInjector.maybeApply(player.getGame(), player);
+        GameStateInjector.maybeDump(player.getGame(), player);
         final List<SpellAbility> possible;
         probingPayability = true;
         try {

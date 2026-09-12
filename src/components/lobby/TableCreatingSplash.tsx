@@ -1,18 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Cog } from "lucide-react";
 
-const STEP_OUT_MS = 260;
+const ROW_REM = 3.5;
 
 export function TableCreatingSplash({ label }: { label: string }) {
-  const [leaving, setLeaving] = useState<string | null>(null);
-  const shown = useRef(label);
-  useEffect(() => {
-    if (shown.current === label) return;
-    setLeaving(shown.current);
-    shown.current = label;
-    const timer = setTimeout(() => setLeaving(null), STEP_OUT_MS);
-    return () => clearTimeout(timer);
-  }, [label]);
+  const [labels, setLabels] = useState([label]);
+  if (labels[labels.length - 1] !== label) setLabels([...labels, label]);
 
   return (
     <div className="flex h-full min-h-[30rem] items-center justify-center px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
@@ -22,15 +15,20 @@ export function TableCreatingSplash({ label }: { label: string }) {
           <span className="absolute inset-2 rounded-full bg-primary/10" />
           <Cog className="h-7 w-7 animate-[spin_3s_linear_infinite] text-primary" />
         </span>
-        <span className="grid min-h-7 w-full font-serif text-lg font-light text-foreground/90 sm:text-xl">
-          {leaving && (
-            <p key={leaving} className="animate-splash-step-out [grid-area:1/1]">
-              {leaving}
-            </p>
-          )}
-          <p key={label} className="animate-splash-step-in [grid-area:1/1]">
-            {label}
-          </p>
+        <span className="block h-14 w-full overflow-hidden [mask-image:linear-gradient(transparent,black_25%,black_75%,transparent)]">
+          <span
+            className="block transition-transform duration-700 ease-in-out"
+            style={{ transform: `translateY(-${(labels.length - 1) * ROW_REM}rem)` }}
+          >
+            {labels.map((text, index) => (
+              <span
+                key={index}
+                className="flex h-14 items-center justify-center font-serif text-lg font-light text-foreground/90 sm:text-xl"
+              >
+                {text}
+              </span>
+            ))}
+          </span>
         </span>
       </div>
     </div>

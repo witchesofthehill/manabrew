@@ -193,7 +193,8 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
   async function handleCreate() {
     if (!canSubmit) return;
     setCreating(true);
-    showSplash(splashLabel);
+    const checking = submittedEngine === "Forge" && forgeWasm && forgeWasmNeedsValidation();
+    showSplash(checking ? "Checking browser engine support\u2026" : splashLabel);
     let splashUntil = Date.now() + CREATE_SPLASH_MIN_MS;
     try {
       const submittedFormat: GameFormat = kind === "limited" ? "Any" : format;
@@ -222,8 +223,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
         };
       }
       let useNode = onNode;
-      if (submittedEngine === "Forge" && forgeWasm && forgeWasmNeedsValidation()) {
-        showSplash("Checking browser engine support\u2026");
+      if (checking) {
         useNode = !(await validateForgeWasm());
         showSplash(useNode ? "Finding you a table\u2026" : splashLabel);
         splashUntil = Date.now() + CREATE_SPLASH_MIN_MS;

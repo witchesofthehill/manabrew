@@ -13,7 +13,7 @@ export const FORGE_WASM_URL = forgeEngineUrls["../../packages/forge-wasm/forgeha
 
 interface ForgeWasmVerdict {
   url: string;
-  ok: boolean;
+  ok: boolean | null;
   error?: string;
 }
 
@@ -22,7 +22,11 @@ function storedVerdict(): ForgeWasmVerdict | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.FORGE_WASM_VALIDATION);
     const verdict = raw ? (JSON.parse(raw) as ForgeWasmVerdict) : null;
-    return verdict?.url === FORGE_WASM_URL ? verdict : null;
+    if (verdict?.url !== FORGE_WASM_URL) return null;
+    // A trial that began and never recorded an outcome took the page with it.
+    return verdict.ok === null
+      ? { ...verdict, ok: false, error: "the previous attempt did not complete" }
+      : verdict;
   } catch {
     return null;
   }
@@ -40,6 +44,11 @@ export function recordForgeWasmVerdict(ok: boolean, error?: string): void {
   const verdict: ForgeWasmVerdict = { url: FORGE_WASM_URL, ok, error };
   localStorage.setItem(STORAGE_KEYS.FORGE_WASM_VALIDATION, JSON.stringify(verdict));
   useForgeWasmVerdictStore.setState({ verdict });
+}
+
+export function beginForgeWasmTrial(): void {
+  const pending: ForgeWasmVerdict = { url: FORGE_WASM_URL, ok: null };
+  localStorage.setItem(STORAGE_KEYS.FORGE_WASM_VALIDATION, JSON.stringify(pending));
 }
 
 export function isForgeWasmSupported(): boolean {

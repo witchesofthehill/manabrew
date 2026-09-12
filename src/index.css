@@ -155,8 +155,8 @@
   --animate-preview-fade-in: preview-fade-in 150ms ease-out both;
   --animate-draft-pack-arrive: draft-pack-arrive 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-draft-card-pick: draft-card-pick 280ms cubic-bezier(0.4, 0, 0.2, 1) both;
-  --animate-splash-step-in: splash-step-in 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  --animate-splash-step-out: splash-step-out 260ms cubic-bezier(0.4, 0, 1, 1) both;
+  --animate-splash-step-in: splash-step-in 760ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-splash-step-out: splash-step-out 600ms cubic-bezier(0.4, 0, 0.6, 1) both;
 
   @keyframes draft-pack-arrive {
     from {
@@ -341,22 +341,22 @@
   @keyframes splash-step-in {
     from {
       opacity: 0;
-      transform: translateY(6px) scale(0.96);
+      transform: translateY(-10px);
     }
     to {
       opacity: 1;
-      transform: translateY(0) scale(1);
+      transform: translateY(0);
     }
   }
 
   @keyframes splash-step-out {
     from {
       opacity: 1;
-      transform: translateY(0) scale(1);
+      transform: translateY(0);
     }
     to {
       opacity: 0;
-      transform: translateY(-6px) scale(0.98);
+      transform: translateY(12px);
     }
   }
 

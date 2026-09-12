@@ -414,7 +414,10 @@ class WorkerBridge {
         this.worker.onmessage = this.handleMessage.bind(this);
         this.worker.onerror = (e) => {
           console.error("[WorkerBridge] Worker error:", e);
-          reject(new Error(`Worker error: ${e.message}`));
+          const error = new Error(`Worker error: ${e.message}`);
+          reject(error);
+          for (const pending of this.pendingRequests.values()) pending.reject(error);
+          this.pendingRequests.clear();
         };
 
         const unsubscribe = this.eventBus.on<{ stage?: string; message?: string }>(

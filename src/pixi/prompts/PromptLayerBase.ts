@@ -17,7 +17,14 @@ import { gameIconTexture } from "@/pixi/gameIconCache";
 import { loadManaSymbolTexture } from "@/pixi/manaSymbolCache";
 import { PixiRichText } from "@/pixi/cardPreview/PixiRichText";
 import { deckCardToPreviewDto } from "@/lib/scryfall.utils";
-import { CARD_H, CARD_RADIUS, CARD_W, GAME_CARD_SIZES } from "@/components/game/game.constants";
+import {
+  CARD_H,
+  CARD_HOVER_TRANSITION_SECONDS,
+  CARD_RADIUS,
+  CARD_W,
+  GAME_CARD_SIZES,
+  PASSIVE_CARD_HOVER_SCALE,
+} from "@/components/game/game.constants";
 import {
   fitPromptCardDimensions,
   promptCardDisplayDimensions as getPromptCardDisplayDimensions,
@@ -780,16 +787,70 @@ export abstract class PromptLayerBase {
     this.rebuild();
   }
 
-  protected bindPromptCardActivation(target: Container, card: CardDto, sprite: CardSprite): void {
+  protected bindPromptCardActivation(
+    target: Container,
+    card: CardDto,
+    sprite: CardSprite,
+    actionable: boolean,
+  ): void {
     let restingZIndex: number | null = null;
+    const hoverTarget = actionable ? sprite : target;
+    if (!actionable && target !== sprite && target.hitArea instanceof Rectangle) {
+      target.origin.set(
+        target.hitArea.x + target.hitArea.width / 2,
+        target.hitArea.y + target.hitArea.height / 2,
+      );
+    }
+    const scale = hoverTarget.scale;
+    let restingScaleX = scale.x;
+    let restingScaleY = scale.y;
+    let passiveHovered = false;
+    const syncPassiveScale = (hovered: boolean, animate = true) => {
+      const scaleX = restingScaleX * (hovered ? PASSIVE_CARD_HOVER_SCALE : 1);
+      const scaleY = restingScaleY * (hovered ? PASSIVE_CARD_HOVER_SCALE : 1);
+      gsap.killTweensOf(scale);
+      if (!animate || !animationsEnabled()) {
+        scale.set(scaleX, scaleY);
+        return;
+      }
+      gsap.to(scale, {
+        x: scaleX,
+        y: scaleY,
+        duration: CARD_HOVER_TRANSITION_SECONDS,
+        ease: "power2.out",
+        overwrite: true,
+      });
+    };
+    if (!actionable && hoverTarget === sprite && sprite.onReorient) {
+      const placeSprite = sprite.onReorient;
+      sprite.onReorient = () => {
+        placeSprite();
+        restingScaleX = scale.x;
+        restingScaleY = scale.y;
+        if (passiveHovered) syncPassiveScale(true, false);
+      };
+    }
+    sprite.once("destroyed", () => gsap.killTweensOf(scale));
     const showFeedback = () => {
-      sprite.setElevation(1);
-      sprite.setRing(hexToNum(this.theme.gameTheme.cardRing));
+      if (actionable) {
+        sprite.setElevation(1);
+        sprite.setRing(hexToNum(this.theme.gameTheme.cardRing));
+      } else if (!passiveHovered) {
+        restingScaleX = scale.x;
+        restingScaleY = scale.y;
+        passiveHovered = true;
+        syncPassiveScale(true);
+      }
       this.callbacks.onRenderRequested?.();
     };
     const hideFeedback = () => {
-      sprite.setElevation(0);
-      sprite.setRing(null);
+      if (actionable) {
+        sprite.setElevation(0);
+        sprite.setRing(null);
+      } else if (passiveHovered) {
+        passiveHovered = false;
+        syncPassiveScale(false);
+      }
       this.callbacks.onRenderRequested?.();
     };
     const activate = () => {

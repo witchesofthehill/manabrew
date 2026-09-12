@@ -207,7 +207,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       sourceSprite.accessibleTitle = `${sourceCard.identity.name}, source card`;
       sourceSprite.accessibleHint = "Focus or hover, then change view or flip face";
       sourceSprite.tabIndex = 0;
-      this.bindPromptCardActivation(sourceSprite, sourceCard, sourceSprite);
+      this.bindPromptCardActivation(sourceSprite, sourceCard, sourceSprite, false);
       sourceLabel = promptText("SOURCE", 10, this.theme.appTheme["muted-foreground"], {
         weight: "700",
       });
@@ -253,7 +253,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         sourceLabel.position.set(sourceX, 8);
         bodyTop = Math.max(bodyTop, sourceY + sourceHeight + 8);
       }
-      placeSourceSprite();
+      sourceSprite.onReorient?.();
     }
     if (presentation.description) {
       const description = promptRichText(
@@ -921,6 +921,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     width: number,
     height: number,
     onPress?: () => void,
+    actionable = !!onPress,
   ): Container {
     const tile = new Container();
     const radius = (CARD_RADIUS * width) / CARD_W;
@@ -956,7 +957,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     placeSprite();
     sprite.eventMode = "passive";
     tile.addChild(sprite);
-    this.bindPromptCardActivation(tile, card, sprite);
+    this.bindPromptCardActivation(tile, card, sprite, actionable && !disabled);
     if (disabled) {
       const unavailable = new Graphics()
         .roundRect(0, 0, width, height, radius)
@@ -1395,7 +1396,15 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       const item = byId.get(id);
       const cardSize = cardSizes.get(id);
       if (!item || !cardSize) return;
-      const tile = this.createCardTile(item.card, false, false, cardSize.width, cardSize.height);
+      const tile = this.createCardTile(
+        item.card,
+        false,
+        false,
+        cardSize.width,
+        cardSize.height,
+        undefined,
+        true,
+      );
       tile.accessibleTitle = `${item.card.identity.name}, position ${index + 1}`;
       tile.accessibleHint = "Drag to reorder or use the earlier and later controls";
       tile.zIndex = index + 1;

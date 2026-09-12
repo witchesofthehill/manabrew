@@ -1,6 +1,13 @@
 import { Application, Graphics } from "pixi.js";
 import type { CardDto } from "@/protocol/game";
-import { CARD_H, CARD_RADIUS, CARD_W, PROMPT_CARD_GAP } from "@/components/game/game.constants";
+import {
+  CARD_H,
+  CARD_HOVER_TRANSITION_SECONDS,
+  CARD_RADIUS,
+  CARD_W,
+  PASSIVE_CARD_HOVER_SCALE,
+  PROMPT_CARD_GAP,
+} from "@/components/game/game.constants";
 import { CardSprite } from "@/pixi/CardSprite";
 import { bindPreviewScroll } from "@/pixi/cardPreview/previewScroll";
 import { hexToNum } from "@/pixi/colorUtils";
@@ -45,6 +52,8 @@ interface CardEntry {
   card: CardDto;
   sprite: CardSprite;
   feedback: Graphics;
+  baseScale: number;
+  targetScale: number;
   targetAlpha: number;
   viewKey: string;
 }
@@ -122,7 +131,7 @@ export class DialogCardPickerScene {
 
   update(props: DialogCardPickerSceneProps): void {
     this.props = props;
-    if (this.hoveredId && !this.canActivate(this.hoveredId)) {
+    if (this.hoveredId && props.pending) {
       this.hoveredId = null;
       this.props.onHover(null);
     }
@@ -135,7 +144,11 @@ export class DialogCardPickerScene {
     const visibleIds = new Set(props.items.map((item) => item.id));
     for (const [id, entry] of this.entries) {
       if (visibleIds.has(id)) continue;
-      if (this.hoveredId === id) this.hoveredId = null;
+      if (this.hoveredId === id) {
+        this.hoveredId = null;
+        this.props.onHover(null);
+      }
+      gsap.killTweensOf(entry.sprite.scale);
       gsap.killTweensOf(entry.feedback);
       this.app.stage.removeChild(entry.sprite, entry.feedback);
       entry.sprite.destroy({ children: true });
@@ -152,8 +165,17 @@ export class DialogCardPickerScene {
       const cardWidth = horizontal ? CARD_H : CARD_W;
       const cardHeight = horizontal ? CARD_W : CARD_H;
       const scale = props.cardSize / CARD_W;
+      const active = props.state.activeId === item.id;
+      const selected = !!item.selected;
+      const clickable = this.canActivateItem(item);
+      const passiveFocused =
+        !props.pending && (this.hoveredId === item.id || active) && !clickable && !selected;
+      const displayScale = scale * (passiveFocused ? PASSIVE_CARD_HOVER_SCALE : 1);
+      entry.baseScale = scale;
+      entry.targetScale = displayScale;
+      gsap.killTweensOf(entry.sprite.scale);
       entry.sprite.rotation = rotated ? -Math.PI / 2 : 0;
-      entry.sprite.scale.set(scale);
+      entry.sprite.scale.set(displayScale);
       entry.sprite.setChromeScale(1 / scale);
       entry.sprite.syncHandControlsScale();
       const x =
@@ -168,9 +190,6 @@ export class DialogCardPickerScene {
       entry.sprite.position.set(x, y);
       const displayWidth = cardWidth * scale;
       const displayHeight = cardHeight * scale;
-      const active = props.state.activeId === item.id;
-      const selected = !!item.selected;
-      const available = !props.actionable || item.legal || selected;
       const feedbackColor = hexToNum(
         selected ? getTheme().gameTheme.cardSelection : props.ringColor,
       );
@@ -196,7 +215,7 @@ export class DialogCardPickerScene {
           width: active || selected ? 3 : 2,
         });
       entry.feedback.position.set(x, y);
-      entry.sprite.cursor = !props.pending && props.actionable && available ? "pointer" : "default";
+      entry.sprite.cursor = clickable ? "pointer" : "default";
       entry.sprite.alpha = 1;
     });
     this.updateFeedback();
@@ -213,6 +232,7 @@ export class DialogCardPickerScene {
     this.canvas.removeEventListener("pointerdown", this.request);
     this.canvas.removeEventListener("wheel", this.request);
     for (const { sprite, feedback } of this.entries.values()) {
+      gsap.killTweensOf(sprite.scale);
       gsap.killTweensOf(feedback);
       this.app.stage.removeChild(sprite, feedback);
       sprite.destroy({ children: true });
@@ -270,6 +290,8 @@ export class DialogCardPickerScene {
         card: item.card,
         sprite,
         feedback,
+        baseScale: 1,
+        targetScale: 1,
         targetAlpha: 0,
         viewKey: "",
       };
@@ -313,11 +335,14 @@ export class DialogCardPickerScene {
     );
   }
 
-  private canActivate(id: string): boolean {
-    const item = this.props.items.find((candidate) => candidate.id === id);
+  private canActivateItem(item: CardBrowserItem | undefined): boolean {
     return (
-      !!item && !this.props.pending && (!this.props.actionable || !!item.legal || !!item.selected)
+      !!item && this.props.actionable && !this.props.pending && (!!item.legal || !!item.selected)
     );
+  }
+
+  private canActivate(id: string): boolean {
+    return this.canActivateItem(this.props.items.find((candidate) => candidate.id === id));
   }
 
   private activate(id: string): void {
@@ -329,7 +354,7 @@ export class DialogCardPickerScene {
   }
 
   private setHovered(id: string, hovered: boolean): void {
-    if (hovered && !this.canActivate(id)) return;
+    if (hovered && this.props.pending) return;
     if (hovered) {
       if (this.hoveredId === id) return;
       this.hoveredId = id;
@@ -347,23 +372,38 @@ export class DialogCardPickerScene {
     const selectedIds = new Set(
       this.props.items.filter((item) => item.selected).map((item) => item.id),
     );
-    const availableIds = new Set(
-      this.props.items
-        .filter((item) => !this.props.actionable || item.legal || item.selected)
-        .map((item) => item.id),
+    const clickableIds = new Set(
+      this.props.items.filter((item) => this.canActivateItem(item)).map((item) => item.id),
     );
     const motionEnabled = animationsEnabled();
     const motionChanged = motionEnabled !== this.motionEnabled;
     this.motionEnabled = motionEnabled;
     const ringColor = hexToNum(this.props.ringColor);
     for (const [id, entry] of this.entries) {
-      const available = availableIds.has(id);
-      const hovered = !this.props.pending && available && this.hoveredId === id;
-      const active = !this.props.pending && available && this.props.state.activeId === id;
+      const clickable = clickableIds.has(id);
+      const hovered = !this.props.pending && this.hoveredId === id;
+      const active = !this.props.pending && this.props.state.activeId === id;
       const selected = selectedIds.has(id);
-      const emphasized = selected || hovered || active;
-      const playable = available && this.props.actionable && !this.props.pending;
-      entry.sprite.setPlayableRing(playable && !emphasized ? ringColor : null);
+      const focused = hovered || active;
+      const emphasized = selected || (clickable && focused);
+      const zoomed = focused && !clickable && !selected;
+      entry.sprite.setPlayableRing(clickable && !emphasized ? ringColor : null);
+      const targetScale = entry.baseScale * (zoomed ? PASSIVE_CARD_HOVER_SCALE : 1);
+      if (motionChanged || entry.targetScale !== targetScale) {
+        entry.targetScale = targetScale;
+        gsap.killTweensOf(entry.sprite.scale);
+        if (!motionEnabled) {
+          entry.sprite.scale.set(targetScale);
+        } else {
+          gsap.to(entry.sprite.scale, {
+            x: targetScale,
+            y: targetScale,
+            duration: CARD_HOVER_TRANSITION_SECONDS,
+            ease: "power2.out",
+          });
+        }
+      }
+
       const alpha = emphasized ? 1 : 0;
       if (!motionChanged && entry.targetAlpha === alpha) continue;
       entry.targetAlpha = alpha;
@@ -374,7 +414,7 @@ export class DialogCardPickerScene {
       }
       gsap.to(entry.feedback, {
         alpha,
-        duration: 0.1,
+        duration: CARD_HOVER_TRANSITION_SECONDS,
         ease: "power2.out",
       });
     }

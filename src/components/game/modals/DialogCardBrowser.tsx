@@ -90,12 +90,8 @@ export function DialogCardBrowser({
     [items],
   );
   const hovered = visible.find((item) => item.id === hoveredId);
-  const hoveredAvailable =
-    !!hovered && !pending && (!onActivate || !!hovered.legal || !!hovered.selected);
   const active = !pending
-    ? hoveredAvailable
-      ? hovered
-      : visible.find((item) => item.id === state.activeId)
+    ? (hovered ?? visible.find((item) => item.id === state.activeId))
     : undefined;
   const inspection = active
     ? (state.inspection[active.id] ?? {
@@ -143,7 +139,7 @@ export function DialogCardBrowser({
       ...(picker && active
         ? {
             "toggle-card-view": () => {
-              if (!hoveredId) focusPickerCard(active.id);
+              if (!hovered) focusPickerCard(active.id);
               toggleView(active);
             },
           }

@@ -1,5 +1,7 @@
 import { THEME_PRESETS } from "@/themes";
 import type { ThemePreset, ThemeColors } from "@/themes";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { APP_THEME_COLOR_LABELS } from "@/themes/themeMetadata";
 import { Section, Subhead, Swatch, SwatchGrid } from "../kit";
 
 function groupGameColors(preset: ThemePreset): { name: string; entries: [string, string][] }[] {
@@ -75,6 +77,18 @@ function AppChrome({ colors, mode }: { colors: ThemeColors; mode: string }) {
     </div>
   );
 }
+function AppTokens({ colors, mode }: { colors: ThemeColors; mode: string }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="font-mono text-[11px] text-muted-foreground">{mode}</div>
+      <SwatchGrid>
+        {(Object.entries(colors) as [keyof ThemeColors, string][]).map(([key, value]) => (
+          <Swatch key={key} value={value} label={key} sub={APP_THEME_COLOR_LABELS[key]} />
+        ))}
+      </SwatchGrid>
+    </div>
+  );
+}
 
 function PresetCard({ preset }: { preset: ThemePreset }) {
   return (
@@ -89,6 +103,12 @@ function PresetCard({ preset }: { preset: ThemePreset }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <AppChrome colors={preset.light} mode="Light" />
         <AppChrome colors={preset.dark} mode="Dark" />
+      </div>
+
+      <Subhead>App tokens</Subhead>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <AppTokens colors={preset.light} mode="Light" />
+        <AppTokens colors={preset.dark} mode="Dark" />
       </div>
 
       <Subhead>Game tokens</Subhead>
@@ -110,13 +130,23 @@ function PresetCard({ preset }: { preset: ThemePreset }) {
 
 export function ColorSection({ presetId }: { presetId: string }) {
   const preset = THEME_PRESETS.find((p) => p.id === presetId) ?? THEME_PRESETS[0]!;
+  const appOverrides = usePreferencesStore((state) => state.appThemeColorOverrides);
+  const gameOverrides = usePreferencesStore((state) => state.gameThemeColorOverrides);
+  const personalName = usePreferencesStore((state) => state.personalThemeName);
+  const resolvedPreset: ThemePreset = {
+    ...preset,
+    name: personalName ?? preset.name,
+    light: { ...preset.light, ...appOverrides.light },
+    dark: { ...preset.dark, ...appOverrides.dark },
+    gameColors: { ...preset.gameColors, ...gameOverrides },
+  };
   return (
     <Section
       id="color"
       title="Color"
-      intro={`The active theme — “${preset.name}”. Switch it from the selector at the top right to recolor the whole app and this page. 24 app-chrome tokens (light + dark) plus ~90 semantic game-surface tokens, straight from src/themes/*.`}
+      intro="Your current theme, including personal color overrides. Light and dark app colors are shown together."
     >
-      <PresetCard preset={preset} />
+      <PresetCard preset={resolvedPreset} />
     </Section>
   );
 }

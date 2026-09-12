@@ -101,8 +101,13 @@ export function DialogCardGrid({ items, state, onInspect, onScroll, intentColor 
           const index = start + offset;
           const active = state.activeId === item.id;
           const name = isFacelessCard(item.card) ? "Face-down card" : item.card.identity.name;
-          const color =
-            item.selected || active ? theme.cardRing : item.legal ? intentColor : undefined;
+          const color = item.selected
+            ? theme.cardSelection
+            : active
+              ? theme.cardRing
+              : item.legal
+                ? intentColor
+                : undefined;
           return (
             <button
               key={item.id}
@@ -151,7 +156,7 @@ export function DialogCardGrid({ items, state, onInspect, onScroll, intentColor 
                 {name}
               </span>
               <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                {item.selected && <Check className="h-3 w-3 text-card-ring" />}
+                {item.selected && <Check className="h-3 w-3 text-card-selection" />}
                 {item.position ??
                   (item.selected ? "Selected" : item.legal ? "Action available" : "Inspect")}
               </span>

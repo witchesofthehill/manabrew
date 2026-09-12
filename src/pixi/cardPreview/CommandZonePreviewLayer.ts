@@ -407,7 +407,7 @@ export class CommandZonePreviewLayer {
 
   private paintCastButton(entry: PreviewEntry, hovered: boolean): void {
     const foreground = hovered
-      ? this.theme.gameTheme.textOnTinted
+      ? this.theme.appTheme["primary-foreground"]
       : this.theme.appTheme["popover-foreground"];
     entry.castButtonBackground
       .clear()

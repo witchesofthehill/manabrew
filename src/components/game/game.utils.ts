@@ -4,7 +4,13 @@ import type { AvailableAction, PaymentAction } from "@/protocol/prompts/common";
 import type { ClientCardDto } from "@/stores/gameStore.types";
 import type { ManaAbilityActionInfo } from "@/components/game/manaUtils";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
-import { CARD_H, CARD_W, GAME_CARD_SIZES, PROMPT_LABELS } from "./game.constants";
+import {
+  CARD_H,
+  CARD_W,
+  GAME_CARD_SIZES,
+  PROMPT_LABELS,
+  PROMPT_MODAL_VIEWPORT_MARGIN,
+} from "./game.constants";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 
 const MANA_COLOR_LABEL: Record<ManaColor, string> = {
@@ -16,21 +22,30 @@ const MANA_COLOR_LABEL: Record<ManaColor, string> = {
   C: "Colorless",
 };
 
-const PROMPT_CARD_VERTICAL_RESERVE = 288;
-
 export function fitPromptCardDimensions(
   availableWidth: number,
   viewportHeight: number,
   maxHeight = Number.POSITIVE_INFINITY,
+  maxWidth: number = GAME_CARD_SIZES.preview.width,
 ): { width: number; height: number } {
-  const availableCardHeight = Math.max(112, (viewportHeight - PROMPT_CARD_VERTICAL_RESERVE) / 2);
+  const availableCardHeight = Math.max(112, viewportHeight - PROMPT_MODAL_VIEWPORT_MARGIN);
   const width = Math.min(
-    GAME_CARD_SIZES.preview.width,
+    maxWidth,
     (availableCardHeight * CARD_W) / CARD_H,
     (maxHeight * CARD_W) / CARD_H,
     Math.max(80, availableWidth),
   );
   return { width, height: (width * CARD_H) / CARD_W };
+}
+
+export function centeredCardRowOffset(
+  availableWidth: number,
+  cardCount: number,
+  cardWidth: number,
+  gap: number,
+): number {
+  const rowWidth = cardCount * cardWidth + Math.max(0, cardCount - 1) * gap;
+  return Math.max(0, (availableWidth - rowWidth) / 2);
 }
 
 export function promptCardDisplayDimensions(

@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { DebugLogOverlay } from "@/components/dev/DebugLogOverlay";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppInitGate } from "@/components/AppInitGate";
-import { useTheme } from "@/hooks/useTheme";
+import { useApplyTheme, useThemePreviewMode } from "@/hooks/useTheme";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { lazy, Suspense, useEffect } from "react";
@@ -24,7 +24,7 @@ const DevToolsPanel = import.meta.env.DEV
   : () => null;
 
 function ThemeApplicator({ children }: { children: React.ReactNode }) {
-  useTheme();
+  useApplyTheme();
   return <>{children}</>;
 }
 
@@ -80,9 +80,10 @@ function PlatformRuntimeChecks() {
 
 function App() {
   const devToolsEnabled = useGameDevStore((s) => s.devToolsEnabled);
+  const previewMode = useThemePreviewMode();
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem forcedTheme={previewMode}>
       <ThemeApplicator>
         <TooltipProvider delayDuration={120} skipDelayDuration={300}>
           <PlatformRuntimeChecks />

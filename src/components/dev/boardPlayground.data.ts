@@ -13,6 +13,7 @@ export const PLAYGROUND_PLAYERS = [
 ];
 export const LOCAL_PLAYER_ID = PLAYGROUND_PLAYERS[0]!.id;
 export const PLAYGROUND_SCENARIOS = [
+  { id: "theme", label: "Theme colors · card states and graveyard" },
   { id: "opening", label: "Seven-card opening hand" },
   { id: "sparse", label: "Sparse · two players" },
   { id: "crowded", label: "Crowded · Commander pod" },
@@ -216,14 +217,15 @@ export interface PlaygroundTable {
   step: StepKind;
   turn: number;
   blocks: CombatAssignmentDto[];
+  actionableGraveyardIds: string[];
 }
 
 export function createPlaygroundTable(scenario: PlaygroundScenarioId): PlaygroundTable {
   const crowded = scenario === "crowded" || scenario === "combat";
   const playerPanels = scenario === "player-panels";
   const players = PLAYGROUND_PLAYERS.slice(0, crowded || playerPanels ? 4 : 2);
-  const cards = HAND.slice(0, scenario === "opening" ? 7 : 5).map((spec, i) =>
-    makePlaygroundCard(spec, `lab-hand-${i}`, LOCAL_PLAYER_ID, "hand"),
+  const cards = HAND.slice(0, scenario === "opening" || scenario === "theme" ? 7 : 5).map(
+    (spec, i) => makePlaygroundCard(spec, `lab-hand-${i}`, LOCAL_PLAYER_ID, "hand"),
   );
   const opening = scenario === "opening";
   for (const [seat, player] of players.entries()) {
@@ -239,7 +241,7 @@ export function createPlaygroundTable(scenario: PlaygroundScenarioId): Playgroun
       ),
     );
     if (opening) continue;
-    for (let i = 0; i < (crowded ? 8 : 2); i++) {
+    for (let i = 0; i < (crowded ? 8 : scenario === "theme" && seat === 0 ? 3 : 2); i++) {
       const card = makePlaygroundCard(
         PLAYGROUND_CREATURES[(i + seat) % PLAYGROUND_CREATURES.length]!,
         `${player.id}-creature-${i}`,
@@ -251,6 +253,16 @@ export function createPlaygroundTable(scenario: PlaygroundScenarioId): Playgroun
         card.counters = { P1P1: 2 };
         card.power = String(Number(card.power) + 2);
         card.toughness = String(Number(card.toughness) + 2);
+      }
+      if (scenario === "theme" && seat === 0) {
+        card.summoningSick = i === 0;
+        card.tapped = i === 1;
+        card.damage = i === 1 ? 1 : 0;
+        if (i === 2) {
+          card.counters = { P1P1: 2 };
+          card.power = String(Number(card.power) + 2);
+          card.toughness = String(Number(card.toughness) + 2);
+        }
       }
       cards.push(card);
     }
@@ -290,6 +302,38 @@ export function createPlaygroundTable(scenario: PlaygroundScenarioId): Playgroun
       cards.push(attachment);
     });
   }
+  const actionableGraveyardIds: string[] = [];
+  if (scenario === "theme") {
+    const graveyard = [
+      {
+        name: "Faithless Looting",
+        types: ["Sorcery"],
+        color: "R",
+        manaCost: "{R}",
+        keywords: ["Flashback {2}{R}"],
+      },
+      {
+        name: "Reassembling Skeleton",
+        types: ["Creature"],
+        subtypes: ["Skeleton", "Warrior"],
+        color: "B",
+        manaCost: "{1}{B}",
+        power: "1",
+        toughness: "1",
+      },
+      PLAYGROUND_LANDS[0]!,
+    ];
+    graveyard.forEach((spec, index) => {
+      const card = makePlaygroundCard(
+        spec,
+        `${LOCAL_PLAYER_ID}-graveyard-${index + 1}`,
+        LOCAL_PLAYER_ID,
+        "graveyard",
+      );
+      cards.push(card);
+      if (index < 2) actionableGraveyardIds.push(card.id);
+    });
+  }
   const blocks: CombatAssignmentDto[] = [];
   if (scenario === "combat") {
     for (let i = 0; i < 6; i++) {
@@ -307,6 +351,7 @@ export function createPlaygroundTable(scenario: PlaygroundScenarioId): Playgroun
     players,
     cards,
     blocks,
+    actionableGraveyardIds,
     life: Object.fromEntries(
       players.map((player, i) => [player.id, crowded ? [36, 27, 18, 32][i]! : 40]),
     ),

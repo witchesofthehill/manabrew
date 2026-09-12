@@ -26,7 +26,6 @@ const palette: BasePalette = {
   brown: "#bdae93",
   paper: "#ebdbb2",
   poison: "#98971a", // gruvbox dark-yellow — classic infect olive
-  promptPass: "#83a598", // blue
   promptDefense: "#8ec07c", // teal
   manaW: "#ebdbb2",
   manaU: "#83a598",

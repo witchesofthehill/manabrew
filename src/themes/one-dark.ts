@@ -26,7 +26,6 @@ const palette: BasePalette = {
   brown: "#d19a66",
   paper: "#abb2bf",
   poison: "#7a9c61", // darker / mossier one-dark green
-  promptPass: "#61afef", // blue
   promptDefense: "#56b6c2", // teal
   manaW: "#abb2bf",
   manaU: "#61afef",

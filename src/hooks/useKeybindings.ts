@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import { useKeybindingsStore, resolveCombo } from "@/stores/useKeybindingsStore";
 import { KEYBINDINGS, comboFromEvent, combosMatch } from "@/lib/keybindings";
 import { topModal } from "@/lib/modalStack";
@@ -36,7 +36,7 @@ export function useKeybindings(
   const overrides = useKeybindingsStore((s) => s.overrides);
   const handlersRef = useRef(handlers);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     handlersRef.current = handlers;
   });
 

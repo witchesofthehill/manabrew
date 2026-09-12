@@ -17,7 +17,14 @@ import { gameIconTexture } from "@/pixi/gameIconCache";
 import { loadManaSymbolTexture } from "@/pixi/manaSymbolCache";
 import { PixiRichText } from "@/pixi/cardPreview/PixiRichText";
 import { deckCardToPreviewDto } from "@/lib/scryfall.utils";
-import { CARD_H, CARD_RADIUS, CARD_W, GAME_CARD_SIZES } from "@/components/game/game.constants";
+import {
+  CARD_H,
+  CARD_HOVER_TRANSITION_SECONDS,
+  CARD_RADIUS,
+  CARD_W,
+  GAME_CARD_SIZES,
+  PASSIVE_CARD_HOVER_SCALE,
+} from "@/components/game/game.constants";
 import {
   fitPromptCardDimensions,
   promptCardDisplayDimensions as getPromptCardDisplayDimensions,
@@ -57,7 +64,7 @@ export const MODAL_TYPES = new Set([
   "diceRolled",
 ]);
 const FONT = "Inter, system-ui, sans-serif";
-export const PANEL_PADDING = 20;
+export const PANEL_PADDING = 8;
 export const ROW_GAP = 10;
 const CARD_HOVER_Z_INDEX = 600;
 export const CARD_TILE_EDGE_INSET = 8;
@@ -66,7 +73,6 @@ export const REORDER_ORDER_ZONE_ID = "reorder-order";
 export const REORDER_CARD_INSET = 18;
 export const REORDER_LAYOUT_SETTLE_SECONDS = 0.24;
 export const CARD_ASPECT_RATIO = CARD_H / CARD_W;
-export const SCRY_BODY_FIXED_HEIGHT = 102;
 export const MODAL_MIN_HEIGHT = 160;
 export const MODAL_BODY_BOTTOM_PADDING = 8;
 export const SOURCE_CARD_GAP = 20;
@@ -77,6 +83,7 @@ const DRAG_DROP_MIN_SECONDS = 0.1;
 const DRAG_DROP_MAX_SECONDS = 0.22;
 const DRAG_DROP_PIXELS_PER_SECOND = 1800;
 const DROP_ZONE_DIM_ALPHA = 0.62;
+const DRAG_SCALE_TWEEN_SECONDS = 0.14;
 const DROP_ZONE_TWEEN_SECONDS = 0.12;
 export const REORDER_PREVIEW_SECONDS = 0.14;
 export const FILTER_CARET_PERIOD_MS = 1000;
@@ -101,6 +108,8 @@ interface DragState {
   restRotation: number;
   restScaleX: number;
   restScaleY: number;
+  dragScale: number;
+  preserveScaleOnDrop: boolean;
   restOriginX: number;
   restOriginY: number;
   lastGlobalX: number;
@@ -486,8 +495,16 @@ export abstract class PromptLayerBase {
   protected drag: DragState | null = null;
   protected suppressedTapItems = new WeakSet<Container>();
   protected scryCardTiles = new Map<string, Container>();
-  protected scryCardOffsets = new Map<string, { x: number; y: number }>();
+  protected scryCardOffsets = new Map<
+    string,
+    { x: number; y: number; width: number; height: number }
+  >();
+  protected scryDestinationCardOffsets = new Map<
+    string,
+    { x: number; y: number; width: number; height: number }
+  >();
   protected scryPreviousPositions = new Map<string, { x: number; y: number }>();
+  protected scryPreviousCardSizes = new Map<string, { width: number; height: number }>();
   protected reorderCardVisuals = new Map<
     string,
     {
@@ -693,6 +710,7 @@ export abstract class PromptLayerBase {
       this.viewportWidth - PANEL_PADDING * 2 - 24,
       this.viewportHeight,
       maxHeight,
+      GAME_CARD_SIZES.prompt.width,
     );
   }
 
@@ -713,13 +731,10 @@ export abstract class PromptLayerBase {
     width: number;
     height: number;
   } {
-    const availableHeight = Math.max(112, this.viewportHeight - 24 - SOURCE_LABEL_HEIGHT);
-    const width = Math.min(
-      GAME_CARD_SIZES.preview.width,
-      (availableHeight * CARD_W) / CARD_H,
-      Math.max(80, this.viewportWidth - PANEL_PADDING * 2 - 24),
+    return fitPromptCardDimensions(
+      this.viewportWidth - PANEL_PADDING * 2 - 24,
+      this.viewportHeight,
     );
-    return { width, height: width * CARD_ASPECT_RATIO };
   }
 
   protected modalPromptWidth(maxWidth: number): number {
@@ -780,16 +795,70 @@ export abstract class PromptLayerBase {
     this.rebuild();
   }
 
-  protected bindPromptCardActivation(target: Container, card: CardDto, sprite: CardSprite): void {
+  protected bindPromptCardActivation(
+    target: Container,
+    card: CardDto,
+    sprite: CardSprite,
+    actionable: boolean,
+  ): void {
     let restingZIndex: number | null = null;
+    const hoverTarget = actionable ? sprite : target;
+    if (!actionable && target !== sprite && target.hitArea instanceof Rectangle) {
+      target.origin.set(
+        target.hitArea.x + target.hitArea.width / 2,
+        target.hitArea.y + target.hitArea.height / 2,
+      );
+    }
+    const scale = hoverTarget.scale;
+    let restingScaleX = scale.x;
+    let restingScaleY = scale.y;
+    let passiveHovered = false;
+    const syncPassiveScale = (hovered: boolean, animate = true) => {
+      const scaleX = restingScaleX * (hovered ? PASSIVE_CARD_HOVER_SCALE : 1);
+      const scaleY = restingScaleY * (hovered ? PASSIVE_CARD_HOVER_SCALE : 1);
+      gsap.killTweensOf(scale);
+      if (!animate || !animationsEnabled()) {
+        scale.set(scaleX, scaleY);
+        return;
+      }
+      gsap.to(scale, {
+        x: scaleX,
+        y: scaleY,
+        duration: CARD_HOVER_TRANSITION_SECONDS,
+        ease: "power2.out",
+        overwrite: true,
+      });
+    };
+    if (!actionable && hoverTarget === sprite && sprite.onReorient) {
+      const placeSprite = sprite.onReorient;
+      sprite.onReorient = () => {
+        placeSprite();
+        restingScaleX = scale.x;
+        restingScaleY = scale.y;
+        if (passiveHovered) syncPassiveScale(true, false);
+      };
+    }
+    sprite.once("destroyed", () => gsap.killTweensOf(scale));
     const showFeedback = () => {
-      sprite.setElevation(1);
-      sprite.setRing(hexToNum(this.theme.gameTheme.cardRing));
+      if (actionable) {
+        sprite.setElevation(1);
+        sprite.setRing(hexToNum(this.theme.gameTheme.cardRing));
+      } else if (!passiveHovered) {
+        restingScaleX = scale.x;
+        restingScaleY = scale.y;
+        passiveHovered = true;
+        syncPassiveScale(true);
+      }
       this.callbacks.onRenderRequested?.();
     };
     const hideFeedback = () => {
-      sprite.setElevation(0);
-      sprite.setRing(null);
+      if (actionable) {
+        sprite.setElevation(0);
+        sprite.setRing(null);
+      } else if (passiveHovered) {
+        passiveHovered = false;
+        syncPassiveScale(false);
+      }
       this.callbacks.onRenderRequested?.();
     };
     const activate = () => {
@@ -887,6 +956,8 @@ export abstract class PromptLayerBase {
     onDrop: (x: number, y: number) => void,
     resolveDropPosition?: (x: number, y: number) => { x: number; y: number } | null,
     onDragMove?: (x: number, y: number) => void,
+    dragScale = DRAG_LIFT_SCALE,
+    preserveScaleOnDrop = false,
   ): void {
     item.eventMode = "static";
     item.cursor = "grab";
@@ -927,6 +998,8 @@ export abstract class PromptLayerBase {
         restRotation: item.rotation,
         restScaleX: item.scale.x,
         restScaleY: item.scale.y,
+        dragScale,
+        preserveScaleOnDrop,
         restOriginX: item.origin.x,
         restOriginY: item.origin.y,
         lastGlobalX: event.global.x,
@@ -948,6 +1021,19 @@ export abstract class PromptLayerBase {
     drag.hasMoved = true;
     drag.item.cursor = "grabbing";
     drag.item.alpha = 1;
+    if (drag.dragScale !== DRAG_LIFT_SCALE) {
+      gsap.killTweensOf(drag.item.scale);
+      if (animationsEnabled()) {
+        gsap.to(drag.item.scale, {
+          x: drag.restScaleX * drag.dragScale,
+          y: drag.restScaleY * drag.dragScale,
+          duration: DRAG_SCALE_TWEEN_SECONDS,
+          ease: "power2.out",
+        });
+      } else {
+        drag.item.scale.set(drag.restScaleX * drag.dragScale, drag.restScaleY * drag.dragScale);
+      }
+    }
     const renderLayer = new RenderLayer();
     renderLayer.zIndex = DRAG_LAYER_Z_INDEX;
     renderLayer.eventMode = "none";
@@ -977,7 +1063,7 @@ export abstract class PromptLayerBase {
     if (!animationsEnabled()) {
       drag.item.position.set(drag.targetX, drag.targetY);
       drag.item.rotation = drag.targetRotation;
-      drag.item.scale.set(drag.restScaleX * DRAG_LIFT_SCALE, drag.restScaleY * DRAG_LIFT_SCALE);
+      drag.item.scale.set(drag.restScaleX * drag.dragScale, drag.restScaleY * drag.dragScale);
       drag.ring.alpha = 1;
     }
     this.setDropZoneHighlight(event.global.x, event.global.y);
@@ -993,10 +1079,12 @@ export abstract class PromptLayerBase {
       drag.item.x + (drag.targetX - drag.item.x) * positionBlend,
       drag.item.y + (drag.targetY - drag.item.y) * positionBlend,
     );
-    drag.item.scale.set(
-      drag.item.scale.x + (drag.restScaleX * DRAG_LIFT_SCALE - drag.item.scale.x) * transformBlend,
-      drag.item.scale.y + (drag.restScaleY * DRAG_LIFT_SCALE - drag.item.scale.y) * transformBlend,
-    );
+    if (drag.dragScale === DRAG_LIFT_SCALE) {
+      drag.item.scale.set(
+        drag.item.scale.x + (drag.restScaleX * drag.dragScale - drag.item.scale.x) * transformBlend,
+        drag.item.scale.y + (drag.restScaleY * drag.dragScale - drag.item.scale.y) * transformBlend,
+      );
+    }
     drag.item.rotation += (drag.targetRotation - drag.item.rotation) * transformBlend;
     drag.ring.alpha += (1 - drag.ring.alpha) * transformBlend;
     drag.targetRotation =
@@ -1013,13 +1101,22 @@ export abstract class PromptLayerBase {
     }
     this.suppressedTapItems.add(drag.item);
     const dropPosition = drag.resolveDropPosition?.(event.global.x, event.global.y);
+    const preserveScale = drag.preserveScaleOnDrop && dropPosition !== null;
+    gsap.killTweensOf(drag.item.scale);
     const destination = drag.resolveDropPosition
       ? (dropPosition ?? { x: drag.originX, y: drag.originY })
       : { x: drag.item.x, y: drag.item.y };
     const releaseX = event.global.x;
     const releaseY = event.global.y;
+    if (preserveScale) {
+      this.completeDragVisual(drag, { x: drag.item.x, y: drag.item.y }, true);
+      this.resetDropZones();
+      this.drag = null;
+      drag.onDrop(releaseX, releaseY);
+      return;
+    }
     if (!animationsEnabled()) {
-      this.completeDragVisual(drag, destination);
+      this.completeDragVisual(drag, destination, preserveScale);
       this.resetDropZones();
       this.drag = null;
       drag.onDrop(releaseX, releaseY);
@@ -1034,7 +1131,7 @@ export abstract class PromptLayerBase {
     drag.item.cursor = "default";
     drag.item.eventMode = "none";
     this.setDropZoneHighlight(releaseX, releaseY);
-    this.animateDragRelease(drag, destination, duration, () => {
+    this.animateDragRelease(drag, destination, duration, preserveScale, () => {
       if (this.drag !== drag) return;
       this.resetDropZones();
       this.drag = null;
@@ -1046,6 +1143,7 @@ export abstract class PromptLayerBase {
     drag: DragState,
     destination: { x: number; y: number },
     duration: number,
+    preserveScale: boolean,
     onComplete: () => void,
   ): void {
     const startX = drag.item.x;
@@ -1054,6 +1152,8 @@ export abstract class PromptLayerBase {
     const startScaleY = drag.item.scale.y;
     const startRotation = drag.item.rotation;
     const startRingAlpha = drag.ring.alpha;
+    const endScaleX = preserveScale ? drag.restScaleX * drag.dragScale : drag.restScaleX;
+    const endScaleY = preserveScale ? drag.restScaleY * drag.dragScale : drag.restScaleY;
     drag.settleProgress = 0;
     drag.settleTween = gsap.to(drag, {
       settleProgress: 1,
@@ -1066,27 +1166,34 @@ export abstract class PromptLayerBase {
           startY + (destination.y - startY) * progress,
         );
         drag.item.scale.set(
-          startScaleX + (drag.restScaleX - startScaleX) * progress,
-          startScaleY + (drag.restScaleY - startScaleY) * progress,
+          startScaleX + (endScaleX - startScaleX) * progress,
+          startScaleY + (endScaleY - startScaleY) * progress,
         );
         drag.item.rotation = startRotation + (drag.restRotation - startRotation) * progress;
         drag.ring.alpha = startRingAlpha * (1 - progress);
       },
       onComplete: () => {
         drag.settleTween = null;
-        this.completeDragVisual(drag, destination);
+        this.completeDragVisual(drag, destination, preserveScale);
         onComplete();
       },
     });
   }
 
-  protected completeDragVisual(drag: DragState, destination: { x: number; y: number }): void {
+  protected completeDragVisual(
+    drag: DragState,
+    destination: { x: number; y: number },
+    preserveScale = false,
+  ): void {
     drag.settleTween?.kill();
     drag.settleTween = null;
+    gsap.killTweensOf(drag.item.scale);
     drag.item.position.set(destination.x, destination.y);
     drag.item.rotation = drag.restRotation;
-    drag.item.scale.set(drag.restScaleX, drag.restScaleY);
-    drag.item.origin.set(drag.restOriginX, drag.restOriginY);
+    if (!preserveScale) {
+      drag.item.scale.set(drag.restScaleX, drag.restScaleY);
+      drag.item.origin.set(drag.restOriginX, drag.restOriginY);
+    }
     drag.item.cursor = "grab";
     drag.item.eventMode = "static";
     drag.item.alpha = 1;

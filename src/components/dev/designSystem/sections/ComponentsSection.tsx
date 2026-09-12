@@ -6,7 +6,7 @@ import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { GAME_FORMATS } from "@/lib/formats";
 import { LEGALITY_STYLES } from "@/lib/constants";
-import { resolveGameThemeColors } from "@/themes/gameTheme";
+import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 import { Section, Subhead, Panel } from "../kit";
 
@@ -22,8 +22,8 @@ const BUTTON_SIZES = ["sm", "default", "lg", "icon"] as const;
 const BADGE_VARIANTS = ["default", "secondary", "destructive", "outline"] as const;
 const RARITIES = ["common", "uncommon", "rare", "mythic", "special", "land"] as const;
 
-export function ComponentsSection({ presetId }: { presetId: string }) {
-  const g = resolveGameThemeColors({}, presetId);
+export function ComponentsSection() {
+  const g = useTheme().gameTheme;
   const sampleLabels = [
     { name: "Aggro", color: g.formatBadge.rose },
     { name: "Control", color: g.formatBadge.blue },
@@ -35,7 +35,7 @@ export function ComponentsSection({ presetId }: { presetId: string }) {
     <Section
       id="components"
       title="Components"
-      intro="Live shadcn primitives and domain badges, rendered under the selected preset. Change the preset in the header to re-skin everything below."
+      intro="App controls and game badges rendered with your current theme."
     >
       <Subhead>Button — variants × sizes</Subhead>
       <Panel className="space-y-3">

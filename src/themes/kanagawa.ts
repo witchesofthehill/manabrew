@@ -26,7 +26,6 @@ const palette: BasePalette = {
   brown: "#dca561",
   paper: "#b8b4d0", // waveAqua2
   poison: "#5a7250", // darker moss sibling of kanagawa green
-  promptPass: "#7e9cd8", // crystalBlue
   promptDefense: "#7fb4ca", // springBlue
   manaW: "#dcd7ba",
   manaU: "#7e9cd8",

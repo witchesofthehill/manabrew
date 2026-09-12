@@ -32,6 +32,8 @@ Helpers used by `yarn` commands and CI. Read first: `/AGENTS.md`.
 
 The **runtime** client-half prompt check is a vitest test (`src/stores/gameStore.constants.test.ts`, `yarn test`), not a script: it runs the rust `manabrew-agent-interface --bin emit_prompt_fixtures` bin on demand for one example of every `AgentPromptInner` variant, then replays them through the UI's `applyPrompt`, asserting every type is known/handled and ingests without throwing. No committed fixture — can't drift from the engine types.
 
+`generate-theme-css.mjs` parses the returned token object in `buildGameColors.ts` with TypeScript's AST. Keep quoted dot paths and unquoted root keys in that same flat object. A quoted-key-only regex silently omitted root tokens such as `cardRing` and `textOnTinted`; all game aliases now belong to the generated block.
+
 The **Java harness-half** is primarily checked at compile time: `gen-harness-prompts.mjs` generates typed Java prompt classes from the protocol, and the harness builds every prompt from them — so a protocol change the harness no longer matches fails `yarn build:harness`. After Maven succeeds, `harness.mjs` also runs the dependency-free regression executables compiled under `forge-harness/src/test/java`.
 
 Docker images that build the harness directly must perform the same generation step before Maven runs. The generated `forge.harness.protocol.*` sources are gitignored, so any Dockerfile that copies `forge-harness/` and invokes `mvn -pl forge-harness ...` without first running `gen-protocol` + `gen-harness-prompts.mjs` will fail with missing classes such as `ChooseCardsInput` or `CardDto`.

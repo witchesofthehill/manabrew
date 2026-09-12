@@ -129,7 +129,8 @@ function deriveStatuses(card: CardDto): CardStatusPresentation[] {
 
   if (card.wouldDieInCombat) add("doomed", "Dies in combat", "danger");
   if (card.isAttacking) add("attacking", "Attacking", "danger");
-  if (card.summoningSick && isCreature(card)) add("summoning-sick", "Summoning sick", "accent");
+  if (card.summoningSick && isCreature(card))
+    add("summoning-sick", "Summoning sick", "summoningSick");
   if (card.tapped) add("tapped", "Tapped", "neutral");
   if (card.isCrewed) add("crewed", "Crewed", "positive");
   if (card.phasedOut) add("phased-out", "Phased out", "neutral");

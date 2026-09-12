@@ -35,9 +35,6 @@ export interface BasePalette {
    *  an infect pip reads as "ill" rather than a straight buff. */
   poison: string;
 
-  /** Pass-priority / pass-turn prompt button colour. Typically the
-   *  preset's primary cool accent (blue, violet, or green). */
-  promptPass: string;
   /** Declare-blockers / defense prompt button colour. Typically a
    *  lighter cool tone (cyan, blue, or teal). Also used for the
    *  friendly-target arrow colour. */
@@ -53,26 +50,34 @@ export interface BasePalette {
 }
 
 import type { GameThemeColorMap } from "./gameTheme";
+import { contrastRatio, withAlpha } from "./themeColor";
 
 export function buildGameColors(p: BasePalette): GameThemeColorMap {
+  const promptForeground = (background: string): string =>
+    contrastRatio(p.foreground, background) >= contrastRatio(p.canvasBackground, background)
+      ? p.foreground
+      : p.canvasBackground;
   return {
-    "activeAction.priority": p.violet,
     "activeAction.active": p.amber,
 
-    "promptAction.passAction": p.promptPass,
     "promptAction.attackAction": p.red,
     "promptAction.defenseAction": p.promptDefense,
     "promptAction.cancel": p.slate,
+    "promptForeground.attackAction": promptForeground(p.red),
+    "promptForeground.defenseAction": promptForeground(p.promptDefense),
+    "promptForeground.cancel": promptForeground(p.slate),
 
-    "arrow.attack": rgbaFromHex(p.orange, 0.88),
-    "arrow.block": rgbaFromHex(p.red, 0.88),
-    "arrow.hostileTarget": rgbaFromHex(p.red, 0.88),
-    "arrow.friendlyTarget": rgbaFromHex(p.promptDefense, 0.88),
+    "targeting.hostile": withAlpha(p.red, 0.88),
+    "targeting.friendly": withAlpha(p.promptDefense, 0.88),
 
     cardRing: p.amber,
-
-    "pointer.hostile": rgbaFromHex(p.red, 0.88),
-    "pointer.friendly": rgbaFromHex(p.blue, 0.88),
+    cardSelection: p.violet,
+    "interaction.untap": p.slate,
+    "connection.disconnected": p.slate,
+    "zone.library": p.paper,
+    "zone.graveyard": p.slate,
+    "zone.exile": p.purple,
+    "zone.command": p.amber,
 
     "mana.W": p.manaW,
     "mana.U": p.manaU,
@@ -91,6 +96,7 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "cardStatus.warped": p.cyan,
     "cardStatus.copy": p.sky,
     "cardStatus.choice": p.amber,
+    "cardStatus.summoningSick": p.labelGhost,
 
     textOnTinted: p.foreground,
     textMuted: p.labelMuted,
@@ -137,10 +143,8 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "counter.page": p.paper,
     "counter.shield": p.amber,
 
-    // Phase strip indicator + turn tint. Seat-to-hue mapping is fixed
-    // across presets: self = green, opponents cycle amber → blue →
-    // purple. Each preset's palette-native version of those hues keeps
-    // the strip visually cohesive with the rest of its theme.
+    // Base seat mapping for presets without explicit overrides. Each
+    // preset can replace individual values while retaining palette-native hues.
     "playerColors.self": p.green,
     "playerColors.opponent1": p.amber,
     "playerColors.opponent2": p.blue,
@@ -191,19 +195,4 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "rarity.special": p.purple,
     "rarity.land": p.amber,
   };
-}
-
-function rgbaFromHex(hex: string, alpha: number): string {
-  const clean = hex.replace("#", "");
-  const full =
-    clean.length === 3
-      ? clean
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : clean;
-  const r = parseInt(full.slice(0, 2), 16);
-  const g = parseInt(full.slice(2, 4), 16);
-  const b = parseInt(full.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }

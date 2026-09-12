@@ -1,3 +1,5 @@
+import { parseThemeColor } from "@/themes/gameTheme";
+
 function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   s /= 100;
   l /= 100;
@@ -12,25 +14,8 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
 export function hexToNum(color: string): number {
   const trimmed = color.trim();
 
-  const bare = trimmed.replace("#", "");
-  if (/^[\da-fA-F]{3}$/.test(bare)) {
-    return parseInt(
-      bare
-        .split("")
-        .map((c) => c + c)
-        .join(""),
-      16,
-    );
-  }
-  if (/^[\da-fA-F]{6}$/.test(bare)) return parseInt(bare, 16);
-
-  const rgbaMatch = trimmed.match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
-  if (rgbaMatch) {
-    const r = Math.min(255, parseInt(rgbaMatch[1]!, 10));
-    const g = Math.min(255, parseInt(rgbaMatch[2]!, 10));
-    const b = Math.min(255, parseInt(rgbaMatch[3]!, 10));
-    return (r << 16) | (g << 8) | b;
-  }
+  const parsed = parseThemeColor(trimmed);
+  if (parsed) return Number.parseInt(parsed.hex.slice(1), 16);
 
   const hslMatch =
     trimmed.match(/^(?:hsl\(\s*)?(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)%\s+(\d+(?:\.\d+)?)%\s*\)?$/i) ??
@@ -48,7 +33,5 @@ export function hexToNum(color: string): number {
 }
 
 export function colorAlpha(hex: string): number {
-  const rgbaMatch = hex.match(/^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*([\d.]+))?\s*\)$/i);
-  if (rgbaMatch && rgbaMatch[1] != null) return parseFloat(rgbaMatch[1]);
-  return 1;
+  return parseThemeColor(hex)?.alpha ?? 1;
 }

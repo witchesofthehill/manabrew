@@ -433,13 +433,13 @@ export class BoardZoneTiles {
     const gt = this.theme.gameTheme;
     switch (tile.spec.key) {
       case ZONE_TILE_KEY.library:
-        return hexToNum(gt.counter.page);
+        return hexToNum(gt.zone.library);
       case ZONE_TILE_KEY.graveyard:
-        return hexToNum(gt.canvas.neutral);
+        return hexToNum(gt.zone.graveyard);
       case ZONE_TILE_KEY.exile:
-        return hexToNum(gt.cardStatus.transformed);
+        return hexToNum(gt.zone.exile);
       case ZONE_TILE_KEY.command:
-        return hexToNum(tile.spec.commander ?? gt.badges.monarch);
+        return hexToNum(gt.zone.command);
       default:
         return hexToNum(gt.cardRing);
     }

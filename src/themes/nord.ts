@@ -30,7 +30,6 @@ const palette: BasePalette = {
   brown: "#d08770",
   paper: "#d8dee9", // snow storm 0
   poison: "#8b9d6f", // darker olive sibling of aurora green
-  promptPass: "#5e81ac", // frost 3 — pass priority
   promptDefense: "#88c0d0", // frost 1 — declare blockers
   manaW: "#eceff4",
   manaU: "#81a1c1",

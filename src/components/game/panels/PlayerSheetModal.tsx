@@ -7,7 +7,7 @@ import { Modal } from "@/components/game/modals/Modal";
 import { CARD_BACK_IMAGE_URL, RING_ABILITIES } from "@/components/game/game.constants";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
-import { MANA_LETTERS } from "@/themes/gameTheme";
+import { MANA_LETTERS, readableTextColor } from "@/themes/gameTheme";
 import type { GameIconName } from "@/components/game/GameIcon";
 import { PlayerRuleFacts } from "@/components/game/panels/PlayerRuleFacts";
 import type { PlayerHudBadge, PlayerHudSpec } from "@/pixi/hud/playerHud.types";
@@ -20,6 +20,7 @@ interface PlayerSheetModalProps {
 
 export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
   const theme = useTheme().gameTheme;
+  const playerTextColor = readableTextColor(spec.color, theme.canvas.shadow, theme.textOnTinted);
   const [inspectedId, setInspectedId] = useState<string | null>(null);
   const inspection = useCardInspection();
   const inspected = spec.badges.find((badge) => badge.id === inspectedId)?.referenceCard;
@@ -36,8 +37,8 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
         <div className="flex items-center gap-3">
           <span
             aria-hidden="true"
-            className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full font-bold text-text-on-tinted"
-            style={{ backgroundColor: spec.color }}
+            className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full font-bold"
+            style={{ backgroundColor: spec.color, color: playerTextColor }}
           >
             {spec.avatarUrl ? (
               <img
@@ -68,7 +69,7 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
             </span>
           )}
           {spec.isPriorityPlayer && (
-            <span className="rounded-full border border-active-action-priority/30 bg-active-action-priority/10 px-2 py-1 text-active-action-priority">
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-primary">
               Has priority
             </span>
           )}

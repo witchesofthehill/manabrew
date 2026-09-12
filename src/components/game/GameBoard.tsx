@@ -701,7 +701,7 @@ export function GameBoard({
   const localSceneRef = useRef<BoardScene | null>(null);
   const sceneRef = boardSceneRef ?? localSceneRef;
   const [overlayScene, setOverlayScene] = useState<BoardScene | null>(null);
-  const gameTheme = useTheme().gameTheme;
+  const { appTheme, gameTheme } = useTheme();
   const playerColors = gameTheme.playerColors;
 
   // The opponent whose field auto-expands: the active one on their turn,
@@ -939,7 +939,7 @@ export function GameBoard({
               {
                 id: "controlled-player",
                 icon: "overlord-helm",
-                color: gameTheme.activeAction.priority,
+                color: appTheme.primary,
                 label: `Controlled by ${controlledByName}`,
               },
             ]
@@ -1011,7 +1011,7 @@ export function GameBoard({
               {
                 id: "player-keyword",
                 icon: "round-shield",
-                color: gameTheme.activeAction.priority,
+                color: appTheme.primary,
                 label: playerKeywords.join(" · "),
               },
             ]
@@ -1154,6 +1154,8 @@ export function GameBoard({
         isPriorityPlayer: dev.forcePriority ? true : priorityPlayerId === player.id,
         isTargetable: dev.forceTargetable ? true : playerIsTargetable(player.id),
         isSelectedTarget: dev.forceSelectedTarget ? true : selectedAttackDefenderId === player.id,
+        targetingIntent:
+          promptType === "chooseAttackers" ? "attack" : boardTargetsPrompt?.input.intent,
         isFlashing: dev.forceFlashing ? true : turnFlashPlayerId === player.id,
         isEliminated: dev.forceEliminated ? true : player.status !== "playing",
         isDisconnected: dev.forceDisconnected
@@ -1192,13 +1194,15 @@ export function GameBoard({
     priorityPlayerId,
     playerIsTargetable,
     selectedAttackDefenderId,
+    promptType,
+    boardTargetsPrompt,
     turnFlashPlayerId,
     monarchId,
     initiativeHolderId,
     gameTheme.badges,
     gameTheme.pt,
     gameTheme.activeAction.active,
-    gameTheme.activeAction.priority,
+    appTheme.primary,
     gameTheme.promptAction.defenseAction,
     gameTheme.textMuted,
     devOverrides,
@@ -1319,8 +1323,8 @@ export function GameBoard({
   const zoneTilesByPlayer = useMemo<Record<string, ZoneTileSpec[]>>(() => {
     const active = gameTheme.activeAction.active;
     const targetColor = hostileTargeting
-      ? gameTheme.arrow.hostileTarget
-      : gameTheme.arrow.friendlyTarget;
+      ? gameTheme.targeting.hostile
+      : gameTheme.targeting.friendly;
     const top = (cards: CardDto[]) => (cards.length > 0 ? cards[cards.length - 1] : undefined);
 
     const gyPlayable =

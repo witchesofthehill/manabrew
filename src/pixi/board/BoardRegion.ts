@@ -542,7 +542,7 @@ export class BoardRegion {
     }
     if (mine) {
       const e = this.entries.get(mine);
-      if (e) e.sprite.setRing(hexToNum(this.host.getTheme().gameTheme.pointer.hostile));
+      if (e) e.sprite.setRing(hexToNum(this.host.getTheme().gameTheme.targeting.hostile));
     }
   }
 
@@ -1519,7 +1519,7 @@ export class BoardRegion {
     const card = sprite.card;
     sprite.setDoomed(card.wouldDieInCombat ?? false);
     if (this.attackTargetRingId === card.id) {
-      sprite.setRing(hexToNum(theme.gameTheme.pointer.hostile));
+      sprite.setRing(hexToNum(theme.gameTheme.targeting.hostile));
       return;
     }
     if (this.isDeclaredBlocker(card.id)) {
@@ -1527,7 +1527,7 @@ export class BoardRegion {
       return;
     }
     if (this.host.isSelected(card.id)) {
-      sprite.setRing(hexToNum(theme.gameTheme.cardRing));
+      sprite.setRing(hexToNum(theme.gameTheme.cardSelection));
       return;
     }
     // Attacking and summoning-sickness are shown by the card's own edge glow
@@ -1535,17 +1535,17 @@ export class BoardRegion {
     if (card.wouldDieInCombat) {
       sprite.setRing(hexToNum(theme.gameTheme.pt.lethal));
     } else if (state.pendingCardIds?.includes(card.id)) {
-      sprite.setRing(hexToNum(theme.gameTheme.promptAction.passAction));
+      sprite.setRing(hexToNum(theme.appTheme.primary));
     } else if (state.tappableLandIds?.includes(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.cardRing));
     } else if (state.untappableLandIds?.includes(card.id)) {
-      sprite.setRing(hexToNum(theme.gameTheme.promptAction.cancel));
+      sprite.setRing(hexToNum(theme.gameTheme.interaction.untap));
     } else if (state.hostileTargetCardIds?.includes(card.id)) {
-      sprite.setRing(hexToNum(theme.gameTheme.pointer.hostile));
+      sprite.setRing(hexToNum(theme.gameTheme.targeting.hostile));
     } else if (state.selectableCardIds?.includes(card.id)) {
       sprite.setRing(
         state.hostileTargeting
-          ? hexToNum(theme.gameTheme.arrow.hostileTarget)
+          ? hexToNum(theme.gameTheme.targeting.hostile)
           : hexToNum(theme.gameTheme.cardRing),
       );
     } else {
@@ -2010,7 +2010,7 @@ export class BoardRegion {
     // Instants/sorceries go to the stack, not a cell — no drop slot to capture.
     this.lastDropCell = null;
     const zone = this.playArea();
-    const color = hexToNum(this.host.getTheme().gameTheme.arrow.friendlyTarget);
+    const color = hexToNum(this.host.getTheme().gameTheme.targeting.friendly);
     const pad = GAP * 2;
     const gfx = this.gridSkeletonGfx;
     gfx.clear();

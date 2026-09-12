@@ -26,7 +26,6 @@ const palette: BasePalette = {
   brown: "#fd971f",
   paper: "#f8f8f2",
   poison: "#8bb82a", // deeper olive version of monokai neon green
-  promptPass: "#a6e22e", // green
   promptDefense: "#66d9ef", // cyan
   manaW: "#f8f8f2",
   manaU: "#66d9ef",

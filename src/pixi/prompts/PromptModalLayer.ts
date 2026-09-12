@@ -10,6 +10,7 @@ import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { hexToNum } from "@/pixi/colorUtils";
 import { CardSprite } from "@/pixi/CardSprite";
 import { loadManaSymbolTexture } from "@/pixi/manaSymbolCache";
+import { readableTextColor } from "@/themes/gameTheme";
 import {
   CARD_H,
   CARD_RADIUS,
@@ -20,6 +21,7 @@ import {
   PROMPT_CARD_ROW_GAP,
   PROMPT_MODAL_VIEWPORT_MARGIN,
 } from "@/components/game/game.constants";
+import { centeredCardRowOffset } from "@/components/game/game.utils";
 import type {
   CardDto,
   ChooseCombatDamageAssignmentInput,
@@ -55,7 +57,6 @@ import {
   REORDER_PREVIEW_SECONDS,
   ROW_GAP,
   type RollDisplayEntry,
-  SCRY_BODY_FIXED_HEIGHT,
   SCRY_LAYOUT_SETTLE_SECONDS,
   SOURCE_CARD_GAP,
   SOURCE_LABEL_HEIGHT,
@@ -66,6 +67,9 @@ import {
 } from "./PromptLayerBase";
 
 const CHOICE_MODAL_WIDTH = 560;
+const CARD_PROMPT_MIN_WIDTH = 360;
+const SCRY_DESTINATION_VERTICAL_PADDING = 48;
+const SCRY_POOL_DRAG_SCALE = 0.5;
 
 export abstract class PromptModalLayer extends PromptLayerBase {
   protected renderModal(): void {
@@ -122,6 +126,19 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     this.animateScryLayout();
   }
 
+  protected promptSourceCardPortraitWidth(panelWidth: number): number {
+    const sourceCard = this.promptSourceCard();
+    const { width: preferredWidth } = this.promptSourceCardDimensions();
+    if (!sourceCard) return preferredWidth;
+    const availableWidth = panelWidth - PANEL_PADDING * 2;
+    const landscape =
+      this.promptCardDisplayDimensions(sourceCard, preferredWidth).width > preferredWidth;
+    return Math.min(
+      preferredWidth,
+      landscape ? availableWidth / CARD_ASPECT_RATIO : availableWidth,
+    );
+  }
+
   protected createModalShell(
     width: number,
     height: number,
@@ -136,9 +153,9 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     footer: Container;
   } {
     const sourceCard = this.promptSourceCard();
-    const { width: preferredSourceWidth } = this.promptSourceCardDimensions();
+    const sourcePortraitWidth = this.promptSourceCardPortraitWidth(width);
     const preferredSourceSize = sourceCard
-      ? this.promptCardDisplayDimensions(sourceCard, preferredSourceWidth)
+      ? this.promptCardDisplayDimensions(sourceCard, sourcePortraitWidth)
       : { width: 0, height: 0 };
     const clusterWidth = width + SOURCE_CARD_GAP + preferredSourceSize.width;
     const externalSource =
@@ -174,15 +191,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     if (sourceSprite && sourceCard) {
       this.configurePromptCardSprite(sourceSprite, sourceCard);
       sourceSprite.setHandRulesHighlight(this.spec?.currentPrompt?.sourceAbilityText ?? "");
-      const availableSourceWidth = width - PANEL_PADDING * 2;
-      const preferredLandscape =
-        this.promptCardDisplayDimensions(sourceCard, preferredSourceWidth).width >
-        preferredSourceWidth;
-      const portraitSourceWidth = Math.min(
-        preferredSourceWidth,
-        preferredLandscape ? availableSourceWidth / CARD_ASPECT_RATIO : availableSourceWidth,
-      );
-      const sourceSize = this.promptCardDisplayDimensions(sourceCard, portraitSourceWidth);
+      const sourceSize = this.promptCardDisplayDimensions(sourceCard, sourcePortraitWidth);
       sourceWidth = sourceSize.width;
       sourceHeight = sourceSize.height;
       placeSourceSprite = () => {
@@ -206,7 +215,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       sourceSprite.accessibleTitle = `${sourceCard.identity.name}, source card`;
       sourceSprite.accessibleHint = "Focus or hover, then change view or flip face";
       sourceSprite.tabIndex = 0;
-      this.bindPromptCardActivation(sourceSprite, sourceCard, sourceSprite);
+      this.bindPromptCardActivation(sourceSprite, sourceCard, sourceSprite, false);
       sourceLabel = promptText("SOURCE", 10, this.theme.appTheme["muted-foreground"], {
         weight: "700",
       });
@@ -252,7 +261,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         sourceLabel.position.set(sourceX, 8);
         bodyTop = Math.max(bodyTop, sourceY + sourceHeight + 8);
       }
-      placeSourceSprite();
+      sourceSprite.onReorient?.();
     }
     if (presentation.description) {
       const description = promptRichText(
@@ -630,12 +639,14 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         .roundRect(0, 0, availableWidth, rowHeight, 9)
         .fill({
           color: hexToNum(
-            selected ? this.theme.gameTheme.cardRing : this.theme.appTheme.background,
+            selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme.background,
           ),
           alpha: selected ? 0.12 : 0.55,
         })
         .stroke({
-          color: hexToNum(selected ? this.theme.gameTheme.cardRing : this.theme.appTheme.border),
+          color: hexToNum(
+            selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme.border,
+          ),
           width: selected ? 2 : 1,
           alpha: selected ? 0.9 : 0.8,
         });
@@ -645,13 +656,13 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         .circle(22, rowHeight / 2, 10)
         .fill({
           color: hexToNum(
-            selected ? this.theme.gameTheme.cardRing : this.theme.appTheme.background,
+            selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme.background,
           ),
           alpha: selected ? 1 : 0.55,
         })
         .stroke({
           color: hexToNum(
-            selected ? this.theme.gameTheme.cardRing : this.theme.appTheme["muted-foreground"],
+            selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme["muted-foreground"],
           ),
           width: 2,
           alpha: selected ? 1 : 0.7,
@@ -677,7 +688,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         const weight = promptText(
           `${option.weight} point${option.weight === 1 ? "" : "s"}`,
           10,
-          selected ? this.theme.gameTheme.cardRing : this.theme.appTheme["muted-foreground"],
+          selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme["muted-foreground"],
           { weight: "600" },
         );
         weight.position.set(42, 32);
@@ -811,7 +822,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       PANEL_PADDING * 2 +
       CARD_TILE_EDGE_INSET * 2;
     const width = this.modalPromptWidth(
-      Math.min(PROMPT_CARD_MODAL_MAX_WIDTH, Math.max(CHOICE_MODAL_WIDTH, preferredRowWidth)),
+      Math.min(PROMPT_CARD_MODAL_MAX_WIDTH, Math.max(CARD_PROMPT_MIN_WIDTH, preferredRowWidth)),
     );
     const cardAreaWidth = width - PANEL_PADDING * 2 - CARD_TILE_EDGE_INSET * 2;
     const portraitCardWidth = Math.min(preferredCardWidth, cardAreaWidth / maxCardWidthRatio);
@@ -847,7 +858,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       60,
     );
     const shortcuts = this.promptCardShortcutHint();
-    const startY = shortcuts ? 28 : 4;
+    const startY = shortcuts ? 28 : CARD_TILE_EDGE_INSET;
     if (shortcuts) {
       const shortcutText = promptText(shortcuts, 10, this.theme.appTheme["muted-foreground"]);
       shortcutText.position.set(CARD_TILE_EDGE_INSET, 5);
@@ -878,10 +889,12 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       );
       const row = Math.floor(index / columns);
       const column = index % columns;
-      tile.position.set(
+      const cardsInRow = Math.min(columns, cards.length - row * columns);
+      const rowX =
         CARD_TILE_EDGE_INSET +
-          column * (cardWidth + PROMPT_CARD_GAP) +
-          (cardWidth - cardSize.width) / 2,
+        centeredCardRowOffset(cardAreaWidth, cardsInRow, cardWidth, PROMPT_CARD_GAP);
+      tile.position.set(
+        rowX + column * (cardWidth + PROMPT_CARD_GAP) + (cardWidth - cardSize.width) / 2,
         startY + row * (cardHeight + PROMPT_CARD_ROW_GAP) + (cardHeight - cardSize.height) / 2,
       );
       body.addChild(tile);
@@ -918,6 +931,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     width: number,
     height: number,
     onPress?: () => void,
+    actionable = !!onPress,
   ): Container {
     const tile = new Container();
     const radius = (CARD_RADIUS * width) / CARD_W;
@@ -953,7 +967,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     placeSprite();
     sprite.eventMode = "passive";
     tile.addChild(sprite);
-    this.bindPromptCardActivation(tile, card, sprite);
+    this.bindPromptCardActivation(tile, card, sprite, actionable && !disabled);
     if (disabled) {
       const unavailable = new Graphics()
         .roundRect(0, 0, width, height, radius)
@@ -964,11 +978,11 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     if (selected) {
       const ring = new Graphics()
         .roundRect(0, 0, width, height, radius)
-        .stroke({ color: hexToNum(this.theme.gameTheme.cardRing), width: 4 });
+        .stroke({ color: hexToNum(this.theme.gameTheme.cardSelection), width: 4 });
       ring.eventMode = "none";
       const badge = new Graphics()
         .circle(width - 14, 14, 12)
-        .fill({ color: hexToNum(this.theme.gameTheme.cardRing) })
+        .fill({ color: hexToNum(this.theme.gameTheme.cardSelection) })
         .stroke({ color: hexToNum(this.theme.appTheme.card), width: 2 });
       badge.eventMode = "none";
       const check = this.makeIcon("lucide-check", 13, this.theme.appTheme.background);
@@ -980,6 +994,58 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       if (this.suppressedTapItems.delete(tile)) return;
       if (disabled) return;
       onPress?.();
+    });
+    return tile;
+  }
+
+  protected createScryDestinationTile(
+    card: CardDto,
+    selected: boolean,
+    disabled: boolean,
+    width: number,
+    height: number,
+    onPress?: () => void,
+  ): Container {
+    const tile = new Container();
+    tile.eventMode = disabled ? "none" : "static";
+    tile.cursor = disabled ? "default" : "pointer";
+    tile.hitArea = new Rectangle(0, 0, width, height);
+    tile.accessible = !disabled;
+    tile.accessibleTitle = `${card.identity.name}${selected ? ", selected" : ""}`;
+    tile.accessibleHint = selected
+      ? "Activate to deselect this card"
+      : "Activate to select this card";
+    tile.tabIndex = disabled ? -1 : 0;
+    const sprite = new CardSprite(card, "zone");
+    const state = this.promptCardState(card);
+    sprite.onVisualChange = this.callbacks.onRenderRequested;
+    sprite.setPreviewFace(state.face);
+    const placeSprite = () => {
+      const rotated = sprite.horizontalFrame && !state.horizontalFlipped;
+      sprite.rotation = rotated ? -Math.PI / 2 : 0;
+      const horizontal = sprite.horizontalFrame && !rotated;
+      const cardWidth = horizontal ? CARD_H : CARD_W;
+      const cardHeight = horizontal ? CARD_W : CARD_H;
+      const scale = Math.min(width / cardWidth, height / cardHeight);
+      sprite.scale.set(scale);
+      sprite.position.set((cardWidth * scale) / 2, (cardHeight * scale) / 2);
+    };
+    sprite.onReorient = placeSprite;
+    placeSprite();
+    sprite.eventMode = "none";
+    tile.addChild(sprite);
+    if (!disabled) this.bindPromptCardActivation(tile, card, sprite, true);
+    if (selected) {
+      const ring = new Graphics()
+        .roundRect(0, 0, width, height, CARD_RADIUS)
+        .stroke({ color: hexToNum(this.theme.gameTheme.cardSelection), width: 3 });
+      ring.eventMode = "none";
+      tile.addChild(ring);
+    }
+    tile.alpha = disabled ? 0.72 : 1;
+    tile.on("pointertap", () => {
+      if (this.suppressedTapItems.delete(tile)) return;
+      if (!disabled) onPress?.();
     });
     return tile;
   }
@@ -1024,6 +1090,11 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           () => this.spec!.respond({ type: "colorDecision", chosenColors: { [color]: 1 } }),
           {
             color: colors[color] ?? this.theme.appTheme.muted,
+            foreground: readableTextColor(
+              colors[color] ?? this.theme.appTheme.muted,
+              this.theme.gameTheme.canvas.background,
+              this.theme.gameTheme.textOnTinted,
+            ),
             width: 112,
             height: 64,
             iconTexture: loadManaSymbolTexture(this.manaSymbol(color)),
@@ -1311,16 +1382,9 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const maxCardWidthRatio = Math.max(
       ...items.map((item) => this.promptCardDisplayDimensions(item.card, CARD_W).width / CARD_W),
     );
-    const denseCardWidth =
-      items.length <= 1
-        ? preferredCardWidth
-        : (zoneWidth - REORDER_CARD_INSET * 2 - 12 * (items.length - 1)) /
-          items.length /
-          maxCardWidthRatio;
     const portraitCardWidth = Math.min(
       preferredCardWidth,
       (zoneWidth - REORDER_CARD_INSET * 2) / maxCardWidthRatio,
-      Math.max(112, denseCardWidth),
     );
     const cardSizes = new Map(
       items.map((item) => [
@@ -1387,7 +1451,15 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       const item = byId.get(id);
       const cardSize = cardSizes.get(id);
       if (!item || !cardSize) return;
-      const tile = this.createCardTile(item.card, false, false, cardSize.width, cardSize.height);
+      const tile = this.createCardTile(
+        item.card,
+        false,
+        false,
+        cardSize.width,
+        cardSize.height,
+        undefined,
+        true,
+      );
       tile.accessibleTitle = `${item.card.identity.name}, position ${index + 1}`;
       tile.accessibleHint = "Drag to reorder or use the earlier and later controls";
       tile.zIndex = index + 1;
@@ -1675,37 +1747,52 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const poolWidth = width - PANEL_PADDING * 2;
     const zoneGap = 12;
     const zoneWidth = (poolWidth - zoneGap * (zones.length - 1)) / Math.max(1, zones.length);
-    const { width: preferredCardWidth } = this.promptCardDimensions();
-    const baseCardSizes = cards.map((card) => this.promptCardDisplayDimensions(card, CARD_W));
-    const maxCardWidthRatio = Math.max(...baseCardSizes.map((size) => size.width / CARD_W));
-    const maxCardHeightRatio = Math.max(...baseCardSizes.map((size) => size.height / CARD_W));
     const stackDepth = Math.min(64, Math.max(0, cards.length - 1) * 16);
     const height = this.viewportHeight - 24;
     const footerHeight = 64;
-    const { body, bodyTop, footer } = this.createModalShell(
-      width,
-      height,
-      presentation,
-      true,
-      footerHeight,
+    const { body, footer } = this.createModalShell(width, height, presentation, true, footerHeight);
+    const { width: preferredCardWidth } = this.promptCardDimensions();
+    const maxCardWidthRatio = Math.max(
+      1,
+      ...cards.map((card) => this.promptCardDisplayDimensions(card, CARD_W).width / CARD_W),
     );
-    const availableCardRowsHeight =
-      height -
-      bodyTop -
-      footerHeight -
-      MODAL_BODY_BOTTOM_PADDING -
-      SCRY_BODY_FIXED_HEIGHT -
-      stackDepth;
     const portraitCardWidth = Math.min(
       preferredCardWidth,
-      Math.max(92, (zoneWidth - 20) / maxCardWidthRatio),
-      Math.max(1, availableCardRowsHeight / 2 / maxCardHeightRatio),
+      (poolWidth - CARD_TILE_EDGE_INSET * 2) / maxCardWidthRatio,
     );
     const cardSizes = new Map(
       cards.map((card) => [card.id, this.promptCardDisplayDimensions(card, portraitCardWidth)]),
     );
     const cardWidth = Math.max(...[...cardSizes.values()].map((size) => size.width));
     const cardHeight = Math.max(...[...cardSizes.values()].map((size) => size.height));
+    const destinationCardSizes = new Map(
+      cards.map((card) => [
+        card.id,
+        this.promptCardDisplayDimensions(card, GAME_CARD_SIZES.battlefield.width),
+      ]),
+    );
+    const destinationCardWidth = Math.max(
+      ...[...destinationCardSizes.values()].map((size) => size.width),
+    );
+    const destinationCardHeight = Math.max(
+      ...[...destinationCardSizes.values()].map((size) => size.height),
+    );
+    cards.forEach((card) => {
+      const cardSize = cardSizes.get(card.id)!;
+      const destinationCardSize = destinationCardSizes.get(card.id)!;
+      this.scryCardOffsets.set(card.id, {
+        x: (cardWidth - cardSize.width) / 2,
+        y: (cardHeight - cardSize.height) / 2,
+        width: cardSize.width,
+        height: cardSize.height,
+      });
+      this.scryDestinationCardOffsets.set(card.id, {
+        x: (destinationCardWidth - destinationCardSize.width) / 2,
+        y: (destinationCardHeight - destinationCardSize.height) / 2,
+        width: destinationCardSize.width,
+        height: destinationCardSize.height,
+      });
+    });
     body.sortableChildren = true;
     const byId = new Map(cards.map((card) => [card.id, card]));
     const poolLabel = promptText("CARDS TO PLACE", 11, this.theme.appTheme["muted-foreground"], {
@@ -1798,12 +1885,14 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       const offsetX = (cardWidth - cardSize.width) / 2;
       const offsetY = (cardHeight - cardSize.height) / 2;
       const contentX = CARD_TILE_EDGE_INSET + index * poolSpacing + offsetX;
-      this.scryCardOffsets.set(id, { x: offsetX, y: offsetY });
       this.scryPoolSlotX.set(id, contentX);
       this.makeDraggable(
         tile,
         (x, y) => this.dropScryCard(id, x, y),
         (x, y) => this.scryDropPosition(id, x, y),
+        undefined,
+        SCRY_POOL_DRAG_SCALE,
+        true,
       );
       this.placeScryCardTile(
         poolLayer,
@@ -1815,7 +1904,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     });
 
     const zoneY = pool.y + pool.height + 38;
-    const zoneHeight = cardHeight + 20 + stackDepth;
+    const zoneHeight = destinationCardHeight + SCRY_DESTINATION_VERTICAL_PADDING + stackDepth;
     zones.forEach((destination, index) => {
       const key = `zone-${index}`;
       const ids = this.scryItems[key] ?? [];
@@ -1857,8 +1946,8 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       );
       label.position.set(rect.x + 4, rect.y - 22);
       body.addChild(label);
-      const dropX = rect.x + (rect.width - cardWidth) / 2;
-      const dropY = rect.y + 10 + ids.length * 16;
+      const dropX = rect.x + (rect.width - destinationCardWidth) / 2;
+      const dropY = rect.y + (rect.height - destinationCardHeight) / 2;
       const marker = new Graphics()
         .roundRect(rect.x, rect.y, rect.width, rect.height, 8)
         .stroke({ color: hexToNum(this.theme.gameTheme.cardRing), width: 2.5 });
@@ -1878,9 +1967,9 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       });
       ids.forEach((id, cardIndex) => {
         const card = byId.get(id);
-        const cardSize = cardSizes.get(id);
+        const cardSize = destinationCardSizes.get(id);
         if (!card || !cardSize) return;
-        const tile = this.createCardTile(
+        const tile = this.createScryDestinationTile(
           card,
           this.scrySelectedId === id,
           cardIndex !== ids.length - 1,
@@ -1893,11 +1982,10 @@ export abstract class PromptModalLayer extends PromptLayerBase {
               }
             : undefined,
         );
-        const offsetX = (cardWidth - cardSize.width) / 2;
-        const offsetY = (cardHeight - cardSize.height) / 2;
-        const tileX = rect.x + (rect.width - cardWidth) / 2 + offsetX;
-        const tileY = rect.y + 10 + cardIndex * 16 + offsetY;
-        this.scryCardOffsets.set(id, { x: offsetX, y: offsetY });
+        const offsetX = (destinationCardWidth - cardSize.width) / 2;
+        const offsetY = (destinationCardHeight - cardSize.height) / 2;
+        const tileX = rect.x + (rect.width - destinationCardWidth) / 2 + offsetX;
+        const tileY = dropY + (cardIndex - (ids.length - 1)) * 16 + offsetY;
         if (cardIndex === ids.length - 1) {
           this.makeDraggable(
             tile,
@@ -2000,18 +2088,35 @@ export abstract class PromptModalLayer extends PromptLayerBase {
   ): { x: number; y: number } | null {
     const target = this.findDropZone(x, y);
     if (!target || target.id === this.scryCardSource(cardId)) return null;
-    const offset = this.scryCardOffsets.get(cardId);
+    const layout =
+      target.id === "pool"
+        ? this.scryCardOffsets.get(cardId)
+        : this.scryDestinationCardOffsets.get(cardId);
+    const tile = this.scryCardTiles.get(cardId);
+    if (!layout || !tile) return null;
+    const bounds =
+      tile.hitArea instanceof Rectangle ? tile.hitArea : tile.getLocalBounds().rectangle;
     return {
-      x: target.dropX + (offset?.x ?? 0),
-      y: target.dropY + (offset?.y ?? 0),
+      x: target.dropX + layout.x + layout.width / 2 - (bounds.x + bounds.width / 2),
+      y: target.dropY + layout.y + layout.height / 2 - (bounds.y + bounds.height / 2),
     };
   }
 
   protected captureScryCardPositions(): void {
     this.scryPreviousPositions.clear();
+    this.scryPreviousCardSizes.clear();
     for (const [cardId, tile] of this.scryCardTiles) {
-      const position = tile.toGlobal({ x: 0, y: 0 });
-      this.scryPreviousPositions.set(cardId, { x: position.x, y: position.y });
+      const bounds =
+        tile.hitArea instanceof Rectangle ? tile.hitArea : tile.getLocalBounds().rectangle;
+      const center = tile.toGlobal({
+        x: bounds.x + bounds.width / 2,
+        y: bounds.y + bounds.height / 2,
+      });
+      this.scryPreviousPositions.set(cardId, { x: center.x, y: center.y });
+      this.scryPreviousCardSizes.set(cardId, {
+        width: bounds.width * Math.abs(tile.scale.x),
+        height: bounds.height * Math.abs(tile.scale.y),
+      });
     }
   }
 
@@ -2032,26 +2137,66 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       for (const [cardId, tile] of this.scryCardTiles) {
         const previous = this.scryPreviousPositions.get(cardId);
         if (!previous) continue;
-        const start = tile.parent!.toLocal(previous);
+        const bounds =
+          tile.hitArea instanceof Rectangle ? tile.hitArea : tile.getLocalBounds().rectangle;
+        const previousSize = this.scryPreviousCardSizes.get(cardId);
+        const startCenter = tile.parent!.toLocal(previous);
         const x = tile.x;
         const y = tile.y;
-        if (Math.hypot(x - start.x, y - start.y) < 0.5) continue;
-        tile.position.copyFrom(start);
-        gsap.to(tile.position, {
-          x,
-          y,
-          duration: SCRY_LAYOUT_SETTLE_SECONDS,
-          ease: "power3.out",
-        });
+        const centerX = bounds.x + bounds.width / 2;
+        const centerY = bounds.y + bounds.height / 2;
+        const targetCenterX = x + centerX;
+        const targetCenterY = y + centerY;
+        const startScale = previousSize
+          ? Math.min(previousSize.width / bounds.width, previousSize.height / bounds.height)
+          : 1;
+        const resized = Math.abs(startScale - 1) > 0.001;
+        if (
+          Math.hypot(targetCenterX - startCenter.x, targetCenterY - startCenter.y) < 0.5 &&
+          !resized
+        )
+          continue;
+        tile.position.set(x + startCenter.x - targetCenterX, y + startCenter.y - targetCenterY);
+        const timeline = gsap.timeline();
+        timeline.to(
+          tile.position,
+          {
+            x,
+            y,
+            duration: SCRY_LAYOUT_SETTLE_SECONDS,
+            ease: "power3.out",
+          },
+          0,
+        );
+        if (resized) {
+          tile.origin.set(centerX, centerY);
+          tile.scale.set(startScale);
+          timeline.to(
+            tile.scale,
+            {
+              x: 1,
+              y: 1,
+              duration: SCRY_LAYOUT_SETTLE_SECONDS,
+              ease: "power2.inOut",
+              onComplete: () => tile.origin.set(0, 0),
+            },
+            0,
+          );
+        }
       }
     }
     this.scryPreviousPositions.clear();
+    this.scryPreviousCardSizes.clear();
   }
 
   protected clearScryCardTiles(): void {
-    for (const tile of this.scryCardTiles.values()) gsap.killTweensOf(tile.position);
+    for (const tile of this.scryCardTiles.values()) {
+      gsap.killTweensOf(tile.position);
+      gsap.killTweensOf(tile.scale);
+    }
     this.scryCardTiles.clear();
     this.scryCardOffsets.clear();
+    this.scryDestinationCardOffsets.clear();
     this.scryPoolSlotX.clear();
   }
 
@@ -2210,23 +2355,31 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         .roundRect(0, 0, availableWidth, 62, 8)
         .fill({
           color: hexToNum(
-            selected ? this.theme.gameTheme.cardRing : this.theme.appTheme.background,
+            selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme.background,
           ),
           alpha: selected ? 0.11 : 0.58,
         })
         .stroke({
-          color: hexToNum(selected ? this.theme.gameTheme.cardRing : this.theme.appTheme.border),
+          color: hexToNum(
+            selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme.border,
+          ),
           width: selected ? 2 : 1,
           alpha: selected ? 0.9 : 0.8,
         });
       const rankBackground = new Graphics().circle(25, 31, 14).fill({
-        color: hexToNum(selected ? this.theme.gameTheme.cardRing : this.theme.appTheme.muted),
+        color: hexToNum(selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme.muted),
         alpha: selected ? 1 : 0.72,
       });
       const rank = promptText(
         selected ? String(index + 1) : "—",
         14,
-        this.theme.appTheme.foreground,
+        selected
+          ? readableTextColor(
+              this.theme.gameTheme.cardSelection,
+              this.theme.appTheme.background,
+              this.theme.appTheme.foreground,
+            )
+          : this.theme.appTheme.foreground,
         {
           weight: "700",
         },
@@ -2249,7 +2402,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       const state = promptText(
         selected ? `ORDER ${index + 1}` : "SELECT",
         10,
-        selected ? this.theme.gameTheme.cardRing : this.theme.appTheme["muted-foreground"],
+        selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme["muted-foreground"],
         { weight: "700", letterSpacing: 0.7 },
       );
       state.anchor.set(1, 0.5);

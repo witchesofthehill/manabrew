@@ -74,7 +74,7 @@ export function SpellStackModal({
         <DialogCardBrowser
           items={items}
           pending={pending}
-          intentColor={prompt?.hostile ? theme.arrow.hostileTarget : theme.arrow.friendlyTarget}
+          intentColor={prompt?.hostile ? theme.targeting.hostile : theme.targeting.friendly}
           onActivate={
             mode === "target"
               ? (item) => {

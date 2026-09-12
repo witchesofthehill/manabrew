@@ -2338,14 +2338,14 @@ export default function Game({ exitTo }: GameProps = {}) {
           "--playable-glow-color": withAlpha(themeColors.cardRing, 0.3),
           "--playable-ring-color-strong": themeColors.cardRing,
           "--playable-glow-color-strong": withAlpha(themeColors.cardRing, 0.6),
-          "--casting-ring-color": withAlpha(themeColors.arrow.friendlyTarget, 0.7),
-          "--casting-ring-color-strong": themeColors.arrow.friendlyTarget,
-          "--casting-glow-color": withAlpha(themeColors.arrow.friendlyTarget, 0.3),
-          "--casting-glow-color-strong": withAlpha(themeColors.arrow.friendlyTarget, 0.6),
-          "--rejecting-ring-color": withAlpha(themeColors.pointer.hostile, 0.9),
-          "--rejecting-ring-color-strong": themeColors.pointer.hostile,
-          "--rejecting-glow-color": withAlpha(themeColors.pointer.hostile, 0.5),
-          "--rejecting-glow-color-strong": withAlpha(themeColors.pointer.hostile, 0.7),
+          "--casting-ring-color": withAlpha(themeColors.targeting.friendly, 0.7),
+          "--casting-ring-color-strong": themeColors.targeting.friendly,
+          "--casting-glow-color": withAlpha(themeColors.targeting.friendly, 0.3),
+          "--casting-glow-color-strong": withAlpha(themeColors.targeting.friendly, 0.6),
+          "--rejecting-ring-color": withAlpha(themeColors.targeting.hostile, 0.9),
+          "--rejecting-ring-color-strong": themeColors.targeting.hostile,
+          "--rejecting-glow-color": withAlpha(themeColors.targeting.hostile, 0.5),
+          "--rejecting-glow-color-strong": withAlpha(themeColors.targeting.hostile, 0.7),
         } as React.CSSProperties
       }
     >

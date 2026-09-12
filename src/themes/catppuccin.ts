@@ -26,7 +26,6 @@ const palette: BasePalette = {
   brown: "#fab387",
   paper: "#bac2de", // subtext1
   poison: "#8cc58a", // muted sibling of Catppuccin green
-  promptPass: "#cba6f7", // mauve
   promptDefense: "#89b4fa", // blue
   manaW: "#f5e0dc", // rosewater
   manaU: "#89b4fa",

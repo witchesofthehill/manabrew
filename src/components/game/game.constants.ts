@@ -85,18 +85,27 @@ export const CARD_BADGES = {
 
 export const ACTION_DRAWER_BUMP_EVENT = "actiondrawer:bump";
 
+const PREVIEW_CARD_SIZE = { width: 300, height: 420 } as const;
+const PROMPT_CARD_LINEAR_SCALE = Math.sqrt(0.7);
+
 export const GAME_CARD_SIZES = {
   battlefield: { width: 70, height: 98 },
   hand: { width: 130, height: 182 },
-  preview: { width: 300, height: 420 },
+  prompt: {
+    width: PREVIEW_CARD_SIZE.width * PROMPT_CARD_LINEAR_SCALE,
+    height: PREVIEW_CARD_SIZE.height * PROMPT_CARD_LINEAR_SCALE,
+  },
+  preview: PREVIEW_CARD_SIZE,
 } as const;
 export const CARD_W = GAME_CARD_SIZES.battlefield.width;
 export const CARD_H = GAME_CARD_SIZES.battlefield.height;
 export const CARD_GAP = 8;
 export const PROMPT_CARD_GAP = 10;
 export const PROMPT_CARD_ROW_GAP = 12;
-export const PROMPT_CARD_MODAL_MAX_WIDTH = 1160;
-export const PROMPT_CARD_MODAL_MAX_WIDTH_CLASS = "max-w-[1160px]";
+export const PASSIVE_CARD_HOVER_SCALE = 1.025;
+export const CARD_HOVER_TRANSITION_SECONDS = 0.1;
+export const PROMPT_CARD_MODAL_MAX_WIDTH = 964;
+export const PROMPT_CARD_MODAL_MAX_WIDTH_CLASS = "max-w-[964px]";
 export const PROMPT_MODAL_VIEWPORT_MARGIN = 16;
 export const PROMPT_MODAL_MAX_HEIGHT_CLASS = "max-h-[calc(100dvh-16px)]";
 /** Corner radius at CARD_W scale — renderers drawing at other sizes must scale

@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { isFacelessCard } from "@/lib/gameCard";
+import { cn } from "@/lib/utils";
 import {
   CARD_H,
   CARD_W,
   PROMPT_CARD_GAP,
   PROMPT_CARD_ROW_GAP,
 } from "@/components/game/game.constants";
-import { fitPromptCardDimensions, promptCardDisplayDimensions } from "@/components/game/game.utils";
+import {
+  centeredCardRowOffset,
+  fitPromptCardDimensions,
+  promptCardDisplayDimensions,
+} from "@/components/game/game.utils";
 import type { CardInspectionState } from "./cardInspection";
 import {
   CARD_BROWSER_HORIZONTAL_PADDING,
@@ -18,6 +23,7 @@ import {
 import { DialogCardPickerCanvas } from "./DialogCardPickerCanvas";
 interface DialogCardPickerGridProps {
   items: CardBrowserItem[];
+  fitToContainer?: boolean;
   state: CardBrowserState;
   defaultRules: boolean;
   actionable: boolean;
@@ -31,6 +37,7 @@ interface DialogCardPickerGridProps {
 
 export function DialogCardPickerGrid({
   items,
+  fitToContainer = false,
   state,
   defaultRules,
   actionable,
@@ -91,7 +98,21 @@ export function DialogCardPickerGrid({
             .width / CARD_W,
       ),
     );
-    const width = Math.min(preferredWidth, gridWidth / maxWidthRatio);
+    const maxHeightRatio = Math.max(
+      CARD_H / CARD_W,
+      ...states.map(
+        ({ item, inspection }) =>
+          promptCardDisplayDimensions(item.card, CARD_W, inspection.face, inspection.rotated)
+            .height / CARD_W,
+      ),
+    );
+    const width = Math.min(
+      preferredWidth,
+      gridWidth / maxWidthRatio,
+      fitToContainer
+        ? Math.max(1, viewport.height - CARD_BROWSER_VERTICAL_PADDING * 2) / maxHeightRatio
+        : preferredWidth,
+    );
     const sizes = new Map(
       states.map(({ item, inspection }) => [
         item.id,
@@ -107,7 +128,15 @@ export function DialogCardPickerGrid({
         ? Math.max(...displaySizes.map((size) => size.height))
         : (width * CARD_H) / CARD_W,
     };
-  }, [defaultRules, gridWidth, items, state.inspection, viewport.screenHeight]);
+  }, [
+    defaultRules,
+    fitToContainer,
+    gridWidth,
+    items,
+    state.inspection,
+    viewport.height,
+    viewport.screenHeight,
+  ]);
   const columns = Math.max(
     1,
     Math.floor((gridWidth + PROMPT_CARD_GAP) / (cellWidth + PROMPT_CARD_GAP)),
@@ -164,7 +193,10 @@ export function DialogCardPickerGrid({
       ref={host}
       role="listbox"
       aria-label="Cards in this view"
-      className="min-h-56 flex-1 overflow-auto overscroll-contain"
+      className={cn(
+        "flex-1 overflow-auto overscroll-contain",
+        fitToContainer ? "min-h-0" : "min-h-56",
+      )}
       onScroll={(event) => onScroll(event.currentTarget.scrollTop)}
       onKeyDown={(event) => {
         if (event.altKey || event.ctrlKey || event.metaKey) return;
@@ -197,6 +229,7 @@ export function DialogCardPickerGrid({
       <div className="relative" style={{ height: contentHeight }}>
         <DialogCardPickerCanvas
           items={visible}
+          itemCount={items.length}
           startIndex={start}
           state={state}
           defaultRules={defaultRules}
@@ -217,9 +250,13 @@ export function DialogCardPickerGrid({
         />
         {visible.map((item, offset) => {
           const index = start + offset;
-          const rowTop = CARD_BROWSER_VERTICAL_PADDING + Math.floor(index / columns) * rowHeight;
-          const cellLeft =
-            CARD_BROWSER_HORIZONTAL_PADDING + (index % columns) * (cellWidth + PROMPT_CARD_GAP);
+          const row = Math.floor(index / columns);
+          const rowTop = CARD_BROWSER_VERTICAL_PADDING + row * rowHeight;
+          const cardsInRow = Math.min(columns, items.length - row * columns);
+          const rowX =
+            CARD_BROWSER_HORIZONTAL_PADDING +
+            centeredCardRowOffset(gridWidth, cardsInRow, cellWidth, PROMPT_CARD_GAP);
+          const cellLeft = rowX + (index % columns) * (cellWidth + PROMPT_CARD_GAP);
           const cardSize = cardSizes.get(item.id) ?? {
             width: portraitCardWidth,
             height: (portraitCardWidth * CARD_H) / CARD_W,
@@ -260,7 +297,7 @@ export function DialogCardPickerGrid({
               />
               {item.selected && (
                 <span
-                  className="pointer-events-none absolute z-10 rounded-full border bg-card p-1 text-card-ring"
+                  className="pointer-events-none absolute z-10 rounded-full border bg-card p-1 text-card-selection"
                   style={{ left: cardLeft + 8, top: cardTop + 8 }}
                 >
                   <Check className="h-3 w-3" />

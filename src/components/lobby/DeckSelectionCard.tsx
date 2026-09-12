@@ -11,6 +11,8 @@ import {
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/hooks/useTheme";
+import { readableTextColor } from "@/themes/gameTheme";
 import type { DeckCard, DeckLabel } from "@/protocol/deck";
 import { ScryfallImg } from "@/components/ScryfallImg";
 
@@ -81,6 +83,15 @@ export function DeckSelectionCard({
   onSelect,
   onActivate,
 }: DeckSelectionCardProps) {
+  const theme = useTheme().gameTheme;
+  const selfPlayerChipStyle: React.CSSProperties = {
+    backgroundColor: theme.playerColors.self,
+    color: readableTextColor(theme.playerColors.self, theme.canvas.shadow, theme.textOnTinted),
+  };
+  const opponentPlayerChipStyle: React.CSSProperties = {
+    backgroundColor: theme.playerColors.opponent1,
+    color: readableTextColor(theme.playerColors.opponent1, theme.canvas.shadow, theme.textOnTinted),
+  };
   const colorCost = isHub
     ? (color ?? "")
         .split("")
@@ -162,16 +173,16 @@ export function DeckSelectionCard({
         <div className="pointer-events-none flex items-center gap-1">
           {isPlayerDeck && (
             <span
-              className="flex h-5 w-5 items-center justify-center rounded-full text-text-on-tinted"
-              style={{ backgroundColor: "var(--player-colors-self)" }}
+              className="flex h-5 w-5 items-center justify-center rounded-full"
+              style={selfPlayerChipStyle}
             >
               <User aria-hidden="true" className="h-3 w-3" />
             </span>
           )}
           {isOpponentDeck && (
             <span
-              className="flex h-5 w-5 items-center justify-center rounded-full text-text-on-tinted"
-              style={{ backgroundColor: "var(--player-colors-opponent1)" }}
+              className="flex h-5 w-5 items-center justify-center rounded-full"
+              style={opponentPlayerChipStyle}
             >
               <Bot aria-hidden="true" className="h-3 w-3" />
             </span>

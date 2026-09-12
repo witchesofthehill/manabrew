@@ -15,14 +15,14 @@ export function PlayerRuleFacts({ facts }: PlayerRuleFactsProps) {
             key={fact.id}
             className={cn(
               "flex min-h-10 items-center justify-between gap-3 rounded-md bg-muted/25 px-2.5 py-2 text-sm",
-              fact.emphasized && "bg-active-action-priority/10",
+              fact.emphasized && "bg-primary/10",
             )}
           >
             <dt className="text-muted-foreground">{fact.label}</dt>
             <dd
               className={cn(
                 "text-right font-semibold tabular-nums",
-                fact.emphasized && "text-active-action-priority",
+                fact.emphasized && "text-primary",
               )}
             >
               {fact.value}

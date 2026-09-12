@@ -9,6 +9,8 @@ import type { PlaymatSettings } from "@/protocol/game";
 import type { GameFormat } from "@/types/server";
 import type { HandOrderMode } from "@/lib/handOrder";
 import { DEFAULT_BOARD_BACKGROUND_ID, type BoardBackgroundId } from "@/pixi/board/boardBackgrounds";
+import type { ThemeColors } from "@/themes/appTheme";
+import type { ThemeMode } from "@/themes/themeDocument";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
 export type CardPreviewMode = "hover" | "right-click";
@@ -33,6 +35,7 @@ export const CARD_SIZE_MULTIPLIER_MAX = 1.5;
 export interface PreferencesState {
   appThemePreset: string;
   setAppThemePreset: (id: string) => void;
+  personalThemeName: string | null;
 
   flashDurationMs: number;
   setFlashDurationMs: (ms: number) => void;
@@ -126,9 +129,9 @@ export interface PreferencesState {
   collapsedRulesPreviewSections: RulesPreviewSectionId[];
   setRulesPreviewSectionCollapsed: (section: RulesPreviewSectionId, collapsed: boolean) => void;
 
-  appThemeColorOverrides: Record<string, string>;
-  setAppThemeColorOverride: (key: string, hsl: string) => void;
-  resetAppThemeColorOverrides: () => void;
+  appThemeColorOverrides: Record<ThemeMode, Partial<ThemeColors>>;
+  setAppThemeColorOverride: (mode: ThemeMode, key: keyof ThemeColors, color: string) => void;
+  resetAppThemeColorOverrides: (mode: ThemeMode) => void;
 
   gameThemeColorOverrides: Record<string, string>;
   setGameThemeColorOverride: (path: string, color: string) => void;
@@ -152,6 +155,7 @@ export interface PreferencesState {
 
 const PERSISTED_PREFERENCE_KEYS = [
   "appThemePreset",
+  "personalThemeName",
   "flashDurationMs",
   "serverHost",
   "serverPort",
@@ -197,6 +201,20 @@ function pickPersistedPreferences(persistedState: unknown): Partial<PreferencesS
   for (const key of PERSISTED_PREFERENCE_KEYS) {
     if (key in persisted) next[key] = persisted[key];
   }
+  const appOverrides = next.appThemeColorOverrides;
+  if (appOverrides && typeof appOverrides === "object" && !Array.isArray(appOverrides)) {
+    const overrides = appOverrides as Record<string, unknown>;
+    if (!("light" in overrides) && !("dark" in overrides)) {
+      next.appThemeColorOverrides = { light: { ...overrides }, dark: { ...overrides } };
+    } else {
+      next.appThemeColorOverrides = {
+        light: overrides.light ?? {},
+        dark: overrides.dark ?? {},
+      };
+    }
+  } else {
+    delete next.appThemeColorOverrides;
+  }
   // Treat a persisted empty username as "unset" so the auto-generated default
   // wins on rehydrate. Without this, users who once had the empty default
   // saved would never get a generated name.
@@ -227,7 +245,13 @@ export const usePreferencesStore = create<PreferencesState>()(
         return {
           appThemePreset: "default",
           setAppThemePreset: (appThemePreset) =>
-            set({ appThemePreset, appThemeColorOverrides: {}, gameThemeColorOverrides: {} }),
+            set({
+              appThemePreset,
+              personalThemeName: null,
+              appThemeColorOverrides: { light: {}, dark: {} },
+              gameThemeColorOverrides: {},
+            }),
+          personalThemeName: null,
 
           flashDurationMs: 1000,
           setFlashDurationMs: (ms) => set({ flashDurationMs: ms }),
@@ -327,12 +351,18 @@ export const usePreferencesStore = create<PreferencesState>()(
                 : state.collapsedRulesPreviewSections.filter((id) => id !== section),
             })),
 
-          appThemeColorOverrides: {},
-          setAppThemeColorOverride: (key, hsl) =>
+          appThemeColorOverrides: { light: {}, dark: {} },
+          setAppThemeColorOverride: (mode, key, color) =>
             set((state) => ({
-              appThemeColorOverrides: { ...state.appThemeColorOverrides, [key]: hsl },
+              appThemeColorOverrides: {
+                ...state.appThemeColorOverrides,
+                [mode]: { ...state.appThemeColorOverrides[mode], [key]: color },
+              },
             })),
-          resetAppThemeColorOverrides: () => set({ appThemeColorOverrides: {} }),
+          resetAppThemeColorOverrides: (mode) =>
+            set((state) => ({
+              appThemeColorOverrides: { ...state.appThemeColorOverrides, [mode]: {} },
+            })),
 
           gameThemeColorOverrides: {},
           setGameThemeColorOverride: (path, color) =>

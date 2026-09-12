@@ -71,13 +71,14 @@ className={`ring-${color}-400`}
 
 Use `GAME_CARD_SIZES` from `game.constants.ts`. These are the only base card dimensions:
 
-| Size          | Value       | Usage                                                            |
-| ------------- | ----------- | ---------------------------------------------------------------- |
-| `battlefield` | `70 × 98`   | Battlefield cards and zone tiles                                 |
-| `hand`        | `130 × 182` | Hand cards and non-actionable zone browser cards                 |
-| `preview`     | `300 × 420` | Prompt, actionable zone, stack, command-zone, and hover previews |
+| Size          | Value                               | Usage                                                                 |
+| ------------- | ----------------------------------- | --------------------------------------------------------------------- |
+| `battlefield` | `70 × 98`                           | Battlefield cards and zone tiles                                      |
+| `hand`        | `130 × 182`                         | Hand cards and non-actionable zone browser cards                      |
+| `prompt`      | `300√0.7 × 420√0.7` (`≈251 × ≈351`) | Choice cards rendered inside prompts; exactly 70% of the preview area |
+| `preview`     | `300 × 420`                         | Source cards, actionable zones, stack, command zone, hover previews   |
 
-## Responsive layout may scale a base size to fit available space. Do not add a context-specific card size.
+Responsive layout may scale a base size to fit available space. Do not add a context-specific card size without a distinct semantic role.
 
 ## 3. Component Patterns
 
@@ -221,13 +222,13 @@ BasePalette (~30 raw hues per preset)
     → resolveGameThemeColors():  default preset → active preset → user overrides
       → flatToGameTheme():       nested GameThemeColors object
         → flattenGameThemeToCssVars():  --kebab-case CSS vars on :root
-          → Tailwind @theme block:       bg-pointer-hostile, text-mana-w, …
+          → Tailwind @theme block:       bg-targeting-hostile, text-mana-w, …
 ```
 
-| Surface                   | Source of truth                             | Accessor                                                       |
-| ------------------------- | ------------------------------------------- | -------------------------------------------------------------- |
-| App chrome (Radix/shadcn) | `ThemePreset.light` / `.dark` HSL maps      | `useTheme()`                                                   |
-| Game board / Pixi canvas  | `ThemePreset.gameColors: GameThemeColorMap` | `useTheme().gameTheme` (React) / `getTheme().gameTheme` (Pixi) |
+| Surface                   | Source of truth                                          | Accessor                                                       |
+| ------------------------- | -------------------------------------------------------- | -------------------------------------------------------------- |
+| App chrome (Radix/shadcn) | `ThemePreset.light` / `.dark` with mode-scoped overrides | `useTheme()`                                                   |
+| Game board / Pixi canvas  | `ThemePreset.gameColors: GameThemeColorMap`              | `useTheme().gameTheme` (React) / `getTheme().gameTheme` (Pixi) |
 
 ### Where colours live
 
@@ -238,8 +239,11 @@ BasePalette (~30 raw hues per preset)
 | `src/themes/default.ts`         | Default palette + preset (fallback for every token)                                                                                               |
 | `src/themes/<name>.ts`          | Per-preset palette overrides (nord, dracula, catppuccin, …)                                                                                       |
 | `src/themes/presets.ts`         | `ThemePreset` interface, preset registry                                                                                                          |
-| `src/hooks/useTheme.ts`         | React hook `useTheme()`, imperative `getTheme()`, CSS var injection                                                                               |
+| `src/hooks/useTheme.ts`         | Shared resolved snapshot for React/CSS/Pixi; root-only CSS application and transient editor preview                                               |
 | `src/index.css`                 | `@theme` block mapping CSS vars to Tailwind utilities (auto-generated)                                                                            |
+| `src/themes/themeColor.ts`      | Shared parsing, compositing, and contrast math, without preset dependencies                                                                       |
+| `src/themes/themeDocument.ts`   | Version 1 theme documents, mode-scoped app overrides, and validated imports                                                                       |
+| `src/themes/themeMetadata.ts`   | Semantic labels and groups shared by Settings and the `/card-mock` editor                                                                         |
 
 ### Type safety
 
@@ -257,14 +261,14 @@ This means:
 1. **No `#RRGGBB`, `rgba(…)`, `hsl(…)`, or `0xRRGGBB` literals in
    source files.** Pull every colour from the theme.
 2. **No Tailwind palette classes** (e.g. `ring-red-500`, `bg-blue-400`).
-   Use theme-token utilities instead: `bg-pointer-hostile`,
+   Use theme-token utilities instead: `bg-targeting-hostile`,
    `text-counter-p1p1`, `ring-card-ring`, `bg-pt-buffed`,
    `text-format-badge-blue`, `text-legality-legal`, etc. Every key in
    `GameThemeColors` has matching `bg-*` / `text-*` / `ring-*` /
    `border-*` utilities via the `@theme` block in `src/index.css`.
 3. **No colour fallbacks in components or Pixi layers.** The resolution
    chain guarantees every token is a non-empty string. Never write
-   `theme.pointer.hostile ?? "#ff0000"` or `safeColor(raw, fallback)`.
+   `theme.targeting.hostile ?? "#ff0000"` or `safeColor(raw, fallback)`.
 4. **Pixi code reads theme directly** via `getTheme().gameTheme.*` or
    the `theme` field set by `setTheme()`. No optional chaining needed.
 5. **The one narrow exception**: pure `rgba(0, 0, 0, X)` shadow idioms

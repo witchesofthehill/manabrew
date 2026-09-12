@@ -436,8 +436,8 @@ export function BoardOverlayCanvas({
             sceneRef.current?.setPromptReference(sceneTarget);
             const color =
               target?.intent != null && intentIsHostile(target.intent)
-                ? themeRef.current.gameTheme.pointer.hostile
-                : themeRef.current.gameTheme.pointer.friendly;
+                ? themeRef.current.gameTheme.targeting.hostile
+                : themeRef.current.gameTheme.targeting.friendly;
             stackRef.current?.setPromptReference(
               target?.kind === "spell" ? target.id : null,
               target ? hexToNum(color) : null,

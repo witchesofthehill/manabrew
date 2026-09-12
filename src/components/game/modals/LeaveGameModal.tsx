@@ -1,3 +1,4 @@
+import { useRef, useState } from "react";
 import { Modal } from "./Modal";
 import { Button } from "@/components/ui/button";
 
@@ -10,7 +11,7 @@ interface LeaveGameModalProps {
    *  local game with nobody else in it. */
   mode?: LeaveGameMode;
   onStay: () => void;
-  onLeave: () => void;
+  onLeave: () => void | Promise<void>;
 }
 
 const COPY: Record<LeaveGameMode, { heading: string; body: string; leave: string }> = {
@@ -35,17 +36,44 @@ const COPY: Record<LeaveGameMode, { heading: string; body: string; leave: string
 
 export function LeaveGameModal({ mode = "engineOwner", onStay, onLeave }: LeaveGameModalProps) {
   const copy = COPY[mode];
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submitting = useRef(false);
+  const leave = async () => {
+    if (submitting.current) return;
+    submitting.current = true;
+    setPending(true);
+    setError(null);
+    try {
+      await onLeave();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      submitting.current = false;
+      setPending(false);
+    }
+  };
   return (
-    <Modal maxWidth="max-w-md" maxHeight="" onClose={onStay}>
+    <Modal maxWidth="max-w-md" onClose={pending ? undefined : onStay}>
       <Modal.Header>
         <h2 className="font-semibold text-base">{copy.heading}</h2>
       </Modal.Header>
       <Modal.Instructions>{copy.body}</Modal.Instructions>
+      {(pending || error) && (
+        <Modal.Body className="space-y-3 text-sm">
+          {pending && <p role="status">Leaving…</p>}
+          {error && (
+            <p role="alert" className="text-destructive">
+              Could not leave: {error}
+            </p>
+          )}
+        </Modal.Body>
+      )}
       <Modal.Footer className="justify-between">
-        <Button variant="outline" onClick={onStay}>
+        <Modal.Close data-autofocus variant="outline" disabled={pending} onClose={onStay}>
           Stay
-        </Button>
-        <Button variant="destructive" onClick={onLeave}>
+        </Modal.Close>
+        <Button variant="destructive" disabled={pending} onClick={() => void leave()}>
           {copy.leave}
         </Button>
       </Modal.Footer>

@@ -34,4 +34,3 @@ aws-lc-rs = "1"
 base64 = "0.22"
 minisign-verify = "0.2"
 sha2 = "0.10"
-

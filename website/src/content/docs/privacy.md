@@ -103,12 +103,11 @@ The client talks to two third-party services:
 
 - **[Scryfall](https://scryfall.com/)**: card data, fetched anonymously at
   runtime ([their privacy policy](https://scryfall.com/docs/privacy)). Card
-  lookups and searches go from your device straight to `api.scryfall.com`, and
-  mana symbols straight to `svgs.scryfall.io`, so Scryfall sees those requests
-  and your IP address. Card **images** are the exception in the browser: they
-  are proxied through our own server, because Scryfall's image CDN does not
-  reliably allow direct browser fetches. Those image requests reach our server,
-  which forwards them to Scryfall. The desktop app fetches images directly.
+  lookups and searches go from your device to `api.scryfall.com`. In the
+  browser, card images and mana symbols go through our server, which forwards
+  them to Scryfall. The desktop app fetches images and mana symbols directly
+  from Scryfall. Requests sent directly from your device expose your IP address
+  to Scryfall; proxied requests expose it to our server instead.
 - **[Commander Spellbook](https://commanderspellbook.com/)**: when you use
   combo analysis in the deck editor, the card names in your deck are sent to
   their API to find combos.

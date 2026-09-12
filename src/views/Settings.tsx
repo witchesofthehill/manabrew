@@ -156,6 +156,7 @@ const GAME_THEME_COLOR_DESCRIPTIONS: Partial<Record<GameThemePath, string>> = {
   "canvas.background": "Pixi canvas table background fill.",
   "canvas.shadow": "Drop-shadow ink (almost always black).",
   "canvas.neutral": "High-contrast stroke / outline colour for arrows and icons.",
+  "phaseStrip.background": "Raised charcoal surface behind phase-strip cells.",
   "cardPlaceholder.fill": "Loading-state card sprite fill.",
   "cardPlaceholder.stroke": "Loading-state card sprite border.",
   textOnTinted: "Text colour placed on tinted chips and badges.",
@@ -1051,6 +1052,28 @@ export default function Settings() {
                 </div>
               </PreferenceCard>
             )}
+
+            <PreferenceCard
+              title="Opponent layout"
+              description="Focus on one opponent, or keep every opponent field equally visible."
+            >
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={prefs.opponentLayout === "focused" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setOpponentLayout("focused")}
+                >
+                  Focused
+                </Button>
+                <Button
+                  variant={prefs.opponentLayout === "overview" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setOpponentLayout("overview")}
+                >
+                  Overview
+                </Button>
+              </div>
+            </PreferenceCard>
 
             <PreferenceCard
               title="Peer to Peer"

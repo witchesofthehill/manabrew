@@ -9,13 +9,13 @@ import {
 import { ChevronLeft, ChevronRight, GripVertical, Image as ImageIcon } from "lucide-react";
 
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
-import { FLASH_CARD_SIZE } from "@/components/game/game.styles";
+import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import type { useCardPreview } from "@/hooks/useCardPreview";
 import type { PreviewCard } from "@/lib/cardPreview";
 import { cn } from "@/lib/utils";
 
 const RAIL_CHROME_PX = 25;
-const DEFAULT_MIN_WIDTH = FLASH_CARD_SIZE.w + RAIL_CHROME_PX;
+const DEFAULT_MIN_WIDTH = GAME_CARD_SIZES.preview.width + RAIL_CHROME_PX;
 const DEFAULT_MAX_WIDTH = 600;
 const DEFAULT_WIDTH = Math.max(DEFAULT_MIN_WIDTH + 80, 360);
 
@@ -122,8 +122,11 @@ export function CardPreviewRail({
     );
   }
 
-  const cardWidth = Math.min(FLASH_CARD_SIZE.w, width - 24);
-  const cardHeight = Math.min(FLASH_CARD_SIZE.h, (width - 24) * 1.4);
+  const cardWidth = Math.min(GAME_CARD_SIZES.preview.width, width - 24);
+  const cardHeight = Math.min(
+    GAME_CARD_SIZES.preview.height,
+    (cardWidth * GAME_CARD_SIZES.preview.height) / GAME_CARD_SIZES.preview.width,
+  );
 
   return (
     <aside

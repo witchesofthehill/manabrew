@@ -1,7 +1,7 @@
 import { Container, Graphics, Rectangle } from "pixi.js";
 import { isCoarsePointer } from "@/lib/responsive";
 import gsap from "gsap";
-import { CARD_W, CARD_H } from "@/components/game/game.constants";
+import { CARD_H, CARD_W, GAME_CARD_SIZES } from "@/components/game/game.constants";
 import type { Theme } from "@/hooks/useTheme";
 import { CardSprite } from "../CardSprite";
 import { hexToNum } from "../colorUtils";
@@ -10,7 +10,6 @@ import { HOVER_SCALE, StackCardSprite } from "./StackCardSprite";
 import { computeStackLayout, reconcileStackHover } from "./stackLayout";
 import type { StackAnchorProvider, StackCallbacks, StackSpec } from "./stack.types";
 
-const CARD_WIDTH = 300;
 const MAX_CARD_HEIGHT_FRAC = 0.55;
 const HOVER_MOVE_MS = 0.16;
 const HOVER_EASE = "power2.out";
@@ -46,6 +45,8 @@ export class StackLayer implements StackAnchorProvider {
   private bounds: ScreenBounds | null = null;
   private flashSprite: CardSprite | null = null;
   private flashToken: string | null = null;
+  private promptReferenceId: string | null = null;
+  private promptReferenceColor: number | null = null;
 
   private btn = new Container();
   private btnGlow = new Graphics();
@@ -59,13 +60,13 @@ export class StackLayer implements StackAnchorProvider {
   private peeking = false;
   private peekTimer: gsap.core.Tween | null = null;
   private prevCardIds = new Set<string>();
-  private builtCardWidth = CARD_WIDTH;
+  private builtCardWidth: number = GAME_CARD_SIZES.preview.width;
   private prevFanOut: boolean | null = null;
 
   private cardWidth(): number {
-    if (this.viewH <= 0) return CARD_WIDTH;
+    if (this.viewH <= 0) return GAME_CARD_SIZES.preview.width;
     const maxW = (this.viewH * MAX_CARD_HEIGHT_FRAC * CARD_W) / CARD_H;
-    return Math.min(CARD_WIDTH, maxW);
+    return Math.min(GAME_CARD_SIZES.preview.width, maxW);
   }
 
   private faceScale(): number {
@@ -181,6 +182,7 @@ export class StackLayer implements StackAnchorProvider {
           displayCard,
           this.builtCardWidth,
           this.rulesViewOverrides.get(card.id) ?? this.rulesViewDefault,
+          this.callbacks.onRenderRequested,
           () => this.callbacks.onOpen(),
           (id) => this.callbacks.onTargetSpell(id),
           (id) => this.setHovered(id),
@@ -216,6 +218,7 @@ export class StackLayer implements StackAnchorProvider {
     if (spec.collapsed && hasNewCard && spec.cards.length > 0) this.triggerPeek();
 
     this.syncFlash();
+    this.setPromptReference(this.promptReferenceId, this.promptReferenceColor);
     this.layout();
   }
 
@@ -247,6 +250,14 @@ export class StackLayer implements StackAnchorProvider {
     return null;
   }
 
+  setPromptReference(stackObjectId: string | null, color: number | null): void {
+    this.promptReferenceId = stackObjectId;
+    this.promptReferenceColor = color;
+    for (const [id, sprite] of this.sprites) {
+      sprite.setPromptReference(id === stackObjectId ? color : null);
+    }
+  }
+
   getSeeds(): Array<{ cardId: string; x: number; y: number; scale: number }> {
     const seeds: Array<{ cardId: string; x: number; y: number; scale: number }> = [];
     for (const sprite of this.sprites.values()) {
@@ -276,6 +287,61 @@ export class StackLayer implements StackAnchorProvider {
     if (this.flashSprite && over(this.flashSprite.getBounds())) return true;
     for (const sprite of this.sprites.values()) {
       if (over(sprite.container.getBounds())) return true;
+    }
+    return false;
+  }
+  hitTestRules(x: number, y: number): boolean {
+    return this.rulesSpriteAt(x, y) !== null;
+  }
+
+  scrollRulesAt(x: number, y: number, delta: number, mode: number): boolean {
+    return this.rulesSpriteAt(x, y)?.scrollRules(delta, mode) ?? false;
+  }
+
+  private rulesSpriteAt(x: number, y: number): StackCardSprite | null {
+    let result: StackCardSprite | null = null;
+    let topZIndex = -Infinity;
+    for (const sprite of this.sprites.values()) {
+      if (!sprite.usesRulesView || !sprite.container.visible) continue;
+      const bounds = sprite.container.getBounds();
+      const contains =
+        x >= bounds.x &&
+        x <= bounds.x + bounds.width &&
+        y >= bounds.y &&
+        y <= bounds.y + bounds.height;
+      if (!contains || sprite.container.zIndex < topZIndex) continue;
+      result = sprite;
+      topZIndex = sprite.container.zIndex;
+    }
+    return result;
+  }
+
+  cancelPointer(pointerId: number): void {
+    for (const sprite of this.sprites.values()) sprite.cancelPointer(pointerId);
+  }
+
+  isAnimating(): boolean {
+    if (
+      this.peeking ||
+      this.btnPulsing ||
+      gsap.isTweening(this.btn) ||
+      gsap.isTweening(this.btn.position) ||
+      gsap.isTweening(this.btn.scale) ||
+      gsap.isTweening(this.btnGlow) ||
+      gsap.isTweening(this.btnGlow.scale)
+    ) {
+      return true;
+    }
+    if (
+      this.flashSprite &&
+      (!this.flashSprite.imageSettled ||
+        gsap.isTweening(this.flashSprite) ||
+        gsap.isTweening(this.flashSprite.scale))
+    ) {
+      return true;
+    }
+    for (const sprite of this.sprites.values()) {
+      if (sprite.isAnimating()) return true;
     }
     return false;
   }
@@ -525,6 +591,7 @@ export class StackLayer implements StackAnchorProvider {
     this.flashSprite?.destroy();
     this.flashToken = flash.token;
     const sprite = new CardSprite(flash.card, "hand");
+    sprite.onVisualChange = this.callbacks.onRenderRequested;
     const scale = this.faceScale();
     sprite.scale.set(scale);
     sprite.zIndex = 300;

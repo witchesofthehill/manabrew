@@ -13,6 +13,8 @@ pub struct DiceRollEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub player_id: Option<String>,
+    #[serde(default)]
+    pub round: u32,
     pub natural_results: Vec<i32>,
     pub final_results: Vec<i32>,
     pub ignored_rolls: Vec<i32>,
@@ -27,6 +29,9 @@ pub struct DiceRolledInput {
     pub presentation: PromptPresentation,
     pub sides: i32,
     pub rolls: Vec<DiceRollEntry>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub source_card_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub source_card_name: Option<String>,

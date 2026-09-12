@@ -1,137 +1,46 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ClientCardDto } from "@/stores/gameStore.types";
-import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
+import type { CardDto, ZoneKind } from "@/protocol/game";
+import { GAME_CARD_DEFAULTS, isFacelessCard } from "@/lib/gameCard";
 import { BoardCanvas } from "@/pixi/BoardCanvas";
 import { BoardOverlayCanvas, type BoardOverlayPreviewSpec } from "@/pixi/BoardOverlayCanvas";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { PhaseStripState } from "@/pixi/PhaseStripLayer";
+import type { GameCanvasCallbacks } from "@/pixi/types";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { useCardPreview } from "@/hooks/useCardPreview";
+import { useTheme } from "@/hooks/useTheme";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { Button } from "@/components/ui/button";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import type { HandActionOption } from "@/stores/useGameUIStore";
-import { useScryfallStore } from "@/stores/useScryfallStore";
-import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
-import { resolveCardFaces } from "@/lib/cardFaces";
-import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
 import { Input } from "@/components/ui/input";
+import { PlayerSheetModal } from "@/components/game/panels/PlayerSheetModal";
+import { BoardPlaygroundControls } from "@/components/dev/BoardPlaygroundControls";
+import { buildPlaygroundSpecs } from "@/components/dev/boardPlayground.specs";
+import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
+import { resolveCardFaces } from "@/lib/cardFaces";
+import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { useScryfallStore } from "@/stores/useScryfallStore";
+import type { HandActionOption } from "@/stores/useGameUIStore";
+import {
+  createPlaygroundTable,
+  LOCAL_PLAYER_ID,
+  makePlaygroundCard,
+  PLAYGROUND_CREATURES,
+  PLAYGROUND_LANDS,
+  type PlaygroundScenarioId,
+} from "@/components/dev/boardPlayground.data";
 import { PREVIEW_SCENARIOS } from "./devPreviewScenarios";
 
-const PLAYER_ID = "dev-playground";
 const DEV_MANA_ACTION_ID = "dev-mana";
-
-interface CardSpec {
-  name: string;
-  color: string;
-  types: string[];
-  manaCost?: string;
-  text?: string;
-  keywords?: string[];
-  power?: string;
-  toughness?: string;
-  subtypes?: string[];
-  supertypes?: string[];
-  choices?: ClientCardDto["choices"];
-}
-
-const CREATURES: CardSpec[] = [
-  {
-    name: "Roaming Throne",
-    color: "",
-    types: ["Artifact", "Creature"],
-    power: "4",
-    toughness: "4",
-    subtypes: ["Golem"],
-    choices: [{ kind: "type", values: ["Dragon"] }],
-  },
-  {
-    name: "Serra Angel",
-    color: "W",
-    manaCost: "{3}{W}{W}",
-    types: ["Creature"],
-    subtypes: ["Angel"],
-    power: "4",
-    toughness: "4",
-    text: [
-      "Flying, vigilance",
-      "Other creatures you control get +1/+1.",
-      "{T}: Add {G}.",
-      "{2}{G}: Put a +1/+1 counter on this creature.",
-      "{4}: Draw a card.",
-    ].join("\n"),
-    keywords: ["Flying", "Vigilance"],
-  },
-  { name: "Goblin Guide", color: "R", types: ["Creature"], power: "2", toughness: "2" },
-  { name: "Tarmogoyf", color: "G", types: ["Creature"], power: "4", toughness: "5" },
-  { name: "Snapcaster Mage", color: "U", types: ["Creature"], power: "2", toughness: "1" },
-  { name: "Gravecrawler", color: "B", types: ["Creature"], power: "2", toughness: "1" },
-  {
-    name: "Wurmcoil Engine",
-    color: "",
-    types: ["Artifact", "Creature"],
-    power: "6",
-    toughness: "6",
-  },
-];
-
-const LANDS: CardSpec[] = [
-  {
-    name: "Temple of the Dragon Queen",
-    color: "",
-    types: ["Land"],
-    choices: [{ kind: "color", colors: ["U"] }],
-  },
-  { name: "Steam Vents", color: "", types: ["Land"] },
-  { name: "Forest", color: "", types: ["Land"], supertypes: ["Basic"], subtypes: ["Forest"] },
-];
-
 const PREVIEW_VIEWPORTS = [
   { label: "Desktop", width: undefined, height: "85dvh" },
   { label: "Phone portrait", width: 390, height: 640 },
   { label: "Phone landscape", width: 740, height: 340 },
 ] as const;
-
-let seq = 0;
-
-function makeCard(spec: CardSpec): ClientCardDto {
-  seq += 1;
-  return {
-    ...GAME_CARD_DEFAULTS,
-    id: `pg-${seq}`,
-    identity: { name: spec.name, setCode: "", cardNumber: "", isToken: false },
-    color: spec.color,
-    manaCost: spec.manaCost ?? "",
-    cmc: 0,
-    types: spec.types,
-    subtypes: spec.subtypes ?? [],
-    supertypes: spec.supertypes ?? [],
-    power: spec.power ?? null,
-    toughness: spec.toughness ?? null,
-    basePower: spec.power != null ? parseInt(spec.power, 10) : undefined,
-    baseToughness: spec.toughness != null ? parseInt(spec.toughness, 10) : undefined,
-    text: spec.text ?? "Dev playground card.",
-    controllerId: PLAYER_ID,
-    ownerId: PLAYER_ID,
-    zoneId: "battlefield",
-    keywords: spec.keywords ?? [],
-    choices: spec.choices ?? [],
-  };
-}
-
-const PHASE_STRIP_STUB: PhaseStripState = {
-  currentStep: "Main",
-  isActiveTurn: true,
-  activePlayerId: PLAYER_ID,
-  myPlayerId: PLAYER_ID,
-  selfEnabledPhases: new Set(),
-  opponentEnabledPhases: new Map(),
-  opponents: [],
-  isInteractive: false,
-};
 const EMPTY_STACK: StackSpec = {
   cards: [],
   flash: null,
@@ -139,12 +48,16 @@ const EMPTY_STACK: StackSpec = {
   collapsed: true,
 };
 
+let previewCardSequence = 0;
+
 export function BoardPlayground() {
-  const [cards, setCards] = useState<ClientCardDto[]>([]);
+  const [table, setTable] = useState(() => createPlaygroundTable("opening"));
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const sceneRef = useRef<BoardScene | null>(null);
-  const boardRef = useRef<HTMLDivElement>(null);
-  const loadGeneration = useRef(0);
+  const [sheetPlayerId, setSheetPlayerId] = useState<string | null>(null);
+  const [overview, setOverview] = useState(false);
+  const [focusedPlayerId, setFocusedPlayerId] = useState(table.players[1]!.id);
+  const [selfStops, setSelfStops] = useState(new Set<string>(["main1", "combatDeclareAttackers"]));
+  const [opponentStops, setOpponentStops] = useState(new Map<string, Set<string>>());
   const [scenarioIndex, setScenarioIndex] = useState(0);
   const [customName, setCustomName] = useState("");
   const [loadingScenario, setLoadingScenario] = useState(false);
@@ -152,17 +65,124 @@ export function BoardPlayground() {
   const [actionCount, setActionCount] = useState(0);
   const [lastAction, setLastAction] = useState("");
   const [viewportIndex, setViewportIndex] = useState(0);
-  const triggerEtbGlow = useGameDevStore((s) => s.triggerEtbGlow);
-  const preview = useCardPreview([], { useTriggerPreference: true });
-  const compactBoard = useIsMobileGame();
-  const previewStyle = usePreferencesStore((s) => s.inGameCardPreviewStyle);
-  const setPreviewStyle = usePreferencesStore((s) => s.setInGameCardPreviewStyle);
-  const previewMode = usePreferencesStore((s) => s.cardPreviewMode);
-  const previewCard = cards.find((card) => card.id === preview.hoveredCard?.id) ?? null;
+  const nextId = useRef(0);
+  const sceneRef = useRef<BoardScene | null>(null);
+  const [overlayScene, setOverlayScene] = useState<BoardScene | null>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const loadGeneration = useRef(0);
+  const previewScenarioCardId = useRef<string | null>(null);
   const previewViewSwitchCardIdRef = useRef<string | null>(null);
+  const triggerEtbGlow = useGameDevStore((state) => state.triggerEtbGlow);
+  const preview = useCardPreview([], { useTriggerPreference: true });
+  const compact = useIsMobileGame();
+  const theme = useTheme().gameTheme;
+  const previewStyle = usePreferencesStore((state) => state.inGameCardPreviewStyle);
+  const setPreviewStyle = usePreferencesStore((state) => state.setInGameCardPreviewStyle);
+  const previewMode = usePreferencesStore((state) => state.cardPreviewMode);
   const viewport = PREVIEW_VIEWPORTS[viewportIndex]!;
+  const showSticky = preview.showSticky;
+  const inspect = useCallback(
+    (card: CardDto, bounds?: { x: number; y: number; width: number; height: number }) => {
+      if (isFacelessCard(card)) return;
+      setSelectedId(card.id);
+      if (bounds) {
+        const rect = new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height);
+        showSticky(card, bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, rect);
+      } else {
+        showSticky(card);
+      }
+    },
+    [showSticky],
+  );
+  const specs = useMemo(
+    () => buildPlaygroundSpecs(table, theme, compact, inspect),
+    [table, theme, compact, inspect],
+  );
+  const sheetSpec = specs.playerBars.find((spec) => spec.playerId === sheetPlayerId);
+  const hand = useMemo(
+    () => table.cards.filter((card) => card.zoneId === "hand" && card.ownerId === LOCAL_PLAYER_ID),
+    [table.cards],
+  );
+  const target =
+    table.cards.find((card) => card.id === selectedId) ??
+    table.cards.filter((card) => card.zoneId === "battlefield").at(-1);
+  const targetId = target?.id ?? null;
+  const previewCard = table.cards.find((card) => card.id === preview.hoveredCard?.id) ?? null;
 
-  const openScenario = async (index: number, nameOverride?: string) => {
+  const loadScenario = (scenario: PlaygroundScenarioId) => {
+    const next = createPlaygroundTable(scenario);
+    setTable(next);
+    setSelectedId(null);
+    setSheetPlayerId(null);
+    setFocusedPlayerId(next.players[1]!.id);
+    setOverview(scenario === "combat" || scenario === "player-panels");
+    setSelfStops(new Set(["main1", "combatDeclareAttackers"]));
+    setOpponentStops(new Map());
+    nextId.current = 0;
+    previewScenarioCardId.current = null;
+    preview.dismiss();
+  };
+  const updateCard = (cardId: string | null, update: (card: ClientCardDto) => ClientCardDto) => {
+    if (!cardId) return;
+    setTable((current) => ({
+      ...current,
+      cards: current.cards.map((card) => (card.id === cardId ? update(card) : card)),
+    }));
+  };
+  const update = (fn: (card: ClientCardDto) => ClientCardDto) => updateCard(targetId, fn);
+  const add = (land: boolean) => {
+    const pool = land ? PLAYGROUND_LANDS : PLAYGROUND_CREATURES;
+    const id = nextId.current++;
+    const card = makePlaygroundCard(pool[id % pool.length]!, `lab-added-${id}`);
+    setTable((current) => ({ ...current, cards: [...current.cards, card] }));
+    setSelectedId(card.id);
+  };
+  const move = (zone: ZoneKind | null) => {
+    if (!target) return;
+    const ids = new Set([target.id, ...target.attachmentIds]);
+    if (preview.hoveredCard && ids.has(preview.hoveredCard.id)) preview.dismiss();
+    if (!zone && previewScenarioCardId.current && ids.has(previewScenarioCardId.current)) {
+      previewScenarioCardId.current = null;
+    }
+    setTable((current) => ({
+      ...current,
+      blocks: current.blocks.filter(
+        (block) => !ids.has(block.attackerId) && !ids.has(block.blockerId),
+      ),
+      cards: current.cards.flatMap((card) => {
+        if (!ids.has(card.id))
+          return [{ ...card, attachmentIds: card.attachmentIds.filter((id) => !ids.has(id)) }];
+        if (!zone) return [];
+        return [
+          {
+            ...card,
+            zoneId: card.id === target.id ? zone : "graveyard",
+            controllerId: card.ownerId,
+            tapped: false,
+            isAttacking: false,
+            attackingPlayerId: undefined,
+            attackTargetId: undefined,
+            attachedTo: undefined,
+            attachmentIds: [],
+          },
+        ];
+      }),
+    }));
+    if (!zone) setSelectedId(null);
+  };
+  const hover: GameCanvasCallbacks["onHoverCard"] = (card, bounds, options) => {
+    if (!card || !bounds || isFacelessCard(card)) {
+      preview.handleMouseLeave();
+      return;
+    }
+    preview.handleMouseEnter(card, undefined, {
+      ...options,
+      useAnchor: true,
+      anchorOverride: new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height),
+    });
+  };
+
+  const openPreviewScenario = async (index: number, nameOverride?: string) => {
     const generation = ++loadGeneration.current;
     const scenario = PREVIEW_SCENARIOS[index]!;
     const name = nameOverride ?? scenario.name;
@@ -175,9 +195,9 @@ export function BoardPlayground() {
       if (!name) {
         card = {
           ...GAME_CARD_DEFAULTS,
-          id: `pg-${++seq}`,
-          ownerId: PLAYER_ID,
-          controllerId: PLAYER_ID,
+          id: `preview-${++previewCardSequence}`,
+          ownerId: LOCAL_PLAYER_ID,
+          controllerId: LOCAL_PLAYER_ID,
           zoneId: "battlefield",
           isFaceDown: true,
           types: ["Creature"],
@@ -193,7 +213,7 @@ export function BoardPlayground() {
         card = scryfallToSampleGameCard(
           face ? { ...info, ...face, type_line: face.type_line ?? info.type_line } : info,
           {
-            id: `pg-${++seq}`,
+            id: `preview-${++previewCardSequence}`,
             identity: {
               name: info.name,
               setCode: info.set,
@@ -202,8 +222,8 @@ export function BoardPlayground() {
             },
             isDoubleFaced: faces.isFlippable,
             isTransformed: back,
-            ownerId: PLAYER_ID,
-            controllerId: PLAYER_ID,
+            ownerId: LOCAL_PLAYER_ID,
+            controllerId: LOCAL_PLAYER_ID,
           },
         );
         const loyalty = face?.loyalty ?? info.loyalty;
@@ -220,8 +240,18 @@ export function BoardPlayground() {
         }
       }
       if (generation !== loadGeneration.current) return;
+      const previousId = previewScenarioCardId.current;
+      previewScenarioCardId.current = card.id;
       preview.dismiss();
-      setCards([card]);
+      setTable((current) => ({
+        ...current,
+        blocks: previousId
+          ? current.blocks.filter(
+              (block) => block.attackerId !== previousId && block.blockerId !== previousId,
+            )
+          : current.blocks,
+        cards: [...current.cards.filter((candidate) => candidate.id !== previousId), card],
+      }));
       setSelectedId(card.id);
       boardRef.current?.scrollIntoView({ block: "nearest" });
       preview.showSticky(card);
@@ -234,37 +264,9 @@ export function BoardPlayground() {
     }
   };
 
-  const update = (id: string | null, fn: (c: ClientCardDto) => ClientCardDto) => {
-    if (!id) return;
-    setCards((cs) => cs.map((c) => (c.id === id ? fn(c) : c)));
-  };
-
-  const targetId = selectedId ?? cards[cards.length - 1]?.id ?? null;
-
-  const addCreature = () =>
-    setCards((cs) => [...cs, makeCard(CREATURES[cs.length % CREATURES.length]!)]);
-  const addLand = () => setCards((cs) => [...cs, makeCard(LANDS[cs.length % LANDS.length]!)]);
-  const removeTarget = () => {
-    if (!targetId) return;
-    if (preview.hoveredCard?.id === targetId) preview.dismiss();
-    setCards((cs) => cs.filter((c) => c.id !== targetId));
-    setSelectedId(null);
-  };
-  const tap = () => update(targetId, (c) => ({ ...c, tapped: !c.tapped }));
-  const damage = () => update(targetId, (c) => ({ ...c, damage: (c.damage ?? 0) + 1 }));
-  const pump = () =>
-    update(targetId, (c) => ({
-      ...c,
-      power: String((c.power ? parseInt(c.power, 10) : 0) + 1),
-      toughness: String((c.toughness ? parseInt(c.toughness, 10) : 0) + 1),
-      counters: { ...(c.counters ?? {}), P1P1: (c.counters?.P1P1 ?? 0) + 1 },
-    }));
-  const attack = () => update(targetId, (c) => ({ ...c, isAttacking: !c.isAttacking }));
   const showSelectedPreview = () => {
-    const card = cards.find((candidate) => candidate.id === targetId);
-    if (card) preview.showSticky(card, window.innerWidth / 2, window.innerHeight / 2);
+    if (target) preview.showSticky(target, window.innerWidth / 2, window.innerHeight / 2);
   };
-
   const previewActions = useMemo<HandActionOption[]>(() => {
     if (!previewCard) return [];
     return Array.from({ length: actionCount }, (_, index) => ({
@@ -277,7 +279,6 @@ export function BoardPlayground() {
       abilityIndex: index,
     }));
   }, [previewCard, actionCount]);
-
   useEffect(() => {
     if (preview.phase !== "open") previewViewSwitchCardIdRef.current = null;
   }, [preview.phase]);
@@ -293,7 +294,6 @@ export function BoardPlayground() {
       preferences.inGameCardPreviewStyle === "printed" ? "rules" : "printed",
     );
   };
-
   const rulesPreview: BoardOverlayPreviewSpec | null =
     previewStyle === "rules" && previewCard && preview.phase !== "hidden"
       ? {
@@ -316,28 +316,55 @@ export function BoardPlayground() {
         }
       : {},
   );
-
   const handlePreviewAction = (action: HandActionOption) => {
     setLastAction(`Selected ${action.label} (${action.actionId})`);
     if (action.actionId === DEV_MANA_ACTION_ID) {
-      update(action.cardId, (card) => ({ ...card, tapped: true }));
+      updateCard(action.cardId, (card) => ({ ...card, tapped: true }));
       return;
     }
-    update(action.cardId, (card) => ({
+    updateCard(action.cardId, (card) => ({
       ...card,
       power: String((card.power ? parseInt(card.power, 10) : 0) + 1),
       toughness: String((card.toughness ? parseInt(card.toughness, 10) : 0) + 1),
       counters: { ...(card.counters ?? {}), P1P1: (card.counters?.P1P1 ?? 0) + 1 },
     }));
   };
-
-  const regions = useMemo(
-    () => [{ playerId: PLAYER_ID, isLocal: true, state: { cards } }],
-    [cards],
+  const phaseStrip = useMemo<PhaseStripState>(
+    () => ({
+      currentStep: table.step,
+      isActiveTurn: table.activePlayerId === LOCAL_PLAYER_ID,
+      activePlayerId: table.activePlayerId,
+      priorityPlayerId: table.priorityPlayerId,
+      activePlayerName: table.players.find((player) => player.id === table.activePlayerId)!.name,
+      priorityPlayerName: table.players.find((player) => player.id === table.priorityPlayerId)!
+        .name,
+      myPlayerId: LOCAL_PLAYER_ID,
+      selfEnabledPhases: selfStops,
+      opponentEnabledPhases: opponentStops,
+      opponents: table.players.slice(1).map((player, index) => ({ id: player.id, index })),
+      isInteractive: true,
+    }),
+    [
+      table.step,
+      table.activePlayerId,
+      table.priorityPlayerId,
+      table.players,
+      selfStops,
+      opponentStops,
+    ],
   );
-
   return (
     <div className="space-y-3">
+      <BoardPlaygroundControls
+        key={table.scenario}
+        table={table}
+        setTable={setTable}
+        loadScenario={loadScenario}
+        overview={overview}
+        setOverview={setOverview}
+        focusedPlayerId={focusedPlayerId}
+        setFocusedPlayerId={setFocusedPlayerId}
+      />
       <div className="space-y-2 rounded-lg bg-muted p-3">
         <div className="flex flex-wrap items-center gap-2">
           <label className="text-sm font-medium" htmlFor="preview-scenario">
@@ -347,7 +374,7 @@ export function BoardPlayground() {
             id="preview-scenario"
             className="h-9 max-w-full rounded-md border border-input bg-background px-2 text-sm"
             value={scenarioIndex}
-            onChange={(event) => void openScenario(Number(event.target.value))}
+            onChange={(event) => void openPreviewScenario(Number(event.target.value))}
           >
             {PREVIEW_SCENARIOS.map((scenario, index) => (
               <option key={scenario.label} value={index}>
@@ -360,7 +387,7 @@ export function BoardPlayground() {
             variant="outline"
             disabled={loadingScenario}
             onClick={() =>
-              void openScenario(
+              void openPreviewScenario(
                 (scenarioIndex + PREVIEW_SCENARIOS.length - 1) % PREVIEW_SCENARIOS.length,
               )
             }
@@ -370,7 +397,7 @@ export function BoardPlayground() {
           <Button
             size="sm"
             disabled={loadingScenario}
-            onClick={() => void openScenario(scenarioIndex)}
+            onClick={() => void openPreviewScenario(scenarioIndex)}
           >
             {loadingScenario ? "Loading card…" : "Open scenario"}
           </Button>
@@ -378,7 +405,7 @@ export function BoardPlayground() {
             size="sm"
             variant="outline"
             disabled={loadingScenario}
-            onClick={() => void openScenario((scenarioIndex + 1) % PREVIEW_SCENARIOS.length)}
+            onClick={() => void openPreviewScenario((scenarioIndex + 1) % PREVIEW_SCENARIOS.length)}
           >
             Next
           </Button>
@@ -387,7 +414,7 @@ export function BoardPlayground() {
           className="flex flex-wrap items-center gap-2"
           onSubmit={(event) => {
             event.preventDefault();
-            if (customName.trim()) void openScenario(scenarioIndex, customName.trim());
+            if (customName.trim()) void openPreviewScenario(scenarioIndex, customName.trim());
           }}
         >
           <Input
@@ -437,9 +464,9 @@ export function BoardPlayground() {
           </label>
         </form>
         <p className="text-xs text-muted-foreground">
-          Each scenario opens a real Scryfall card. Flip changes the displayed face; rotate switches
-          portrait and landscape without rotating rules text. Test actions are local playground
-          controls.
+          Each scenario opens a real Scryfall card on the living table. Flip changes the displayed
+          face; rotate switches portrait and landscape without rotating rules text. Test actions
+          stay local to the playground.
         </p>
         {scenarioError && (
           <p role="alert" className="text-sm text-destructive">
@@ -453,43 +480,105 @@ export function BoardPlayground() {
         )}
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={addCreature}>
+        <Button size="sm" onClick={() => add(false)}>
           + Creature
         </Button>
-        <Button size="sm" variant="outline" onClick={addLand}>
+        <Button size="sm" variant="outline" onClick={() => add(true)}>
           + Land
         </Button>
-        <span className="mx-1 h-5 w-px bg-border" />
-        <Button size="sm" variant="outline" onClick={tap} disabled={!targetId}>
-          Tap
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => update((card) => ({ ...card, tapped: !card.tapped }))}
+          disabled={!target}
+        >
+          Tap / untap
         </Button>
-        <Button size="sm" variant="outline" onClick={damage} disabled={!targetId}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => update((card) => ({ ...card, damage: card.damage + 1 }))}
+          disabled={!target}
+        >
           Damage
         </Button>
-        <Button size="sm" variant="outline" onClick={pump} disabled={!targetId}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() =>
+            update((card) => ({
+              ...card,
+              power: String(Number(card.power) + 1),
+              toughness: String(Number(card.toughness) + 1),
+              counters: { ...card.counters, P1P1: (card.counters.P1P1 ?? 0) + 1 },
+            }))
+          }
+          disabled={!target?.types.includes("Creature")}
+        >
           +1/+1
         </Button>
-        <Button size="sm" variant="outline" onClick={attack} disabled={!targetId}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() =>
+            update((card) => {
+              const defender =
+                card.controllerId === focusedPlayerId ? LOCAL_PLAYER_ID : focusedPlayerId;
+              return {
+                ...card,
+                isAttacking: !card.isAttacking,
+                attackingPlayerId: card.isAttacking ? undefined : defender,
+                attackTargetId: card.isAttacking ? undefined : defender,
+              };
+            })
+          }
+          disabled={!target?.types.includes("Creature") || target.zoneId !== "battlefield"}
+        >
           Attack
         </Button>
-        <Button size="sm" variant="outline" onClick={removeTarget} disabled={!targetId}>
+        <Button size="sm" variant="outline" onClick={() => move("graveyard")} disabled={!target}>
+          To graveyard
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => move("exile")} disabled={!target}>
+          To exile
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => move("battlefield")}
+          disabled={!target || target.zoneId === "battlefield"}
+        >
+          To battlefield
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => move(null)} disabled={!target}>
           Remove
         </Button>
-        <span className="mx-1 h-5 w-px bg-border" />
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => target && inspect(target)}
+          disabled={!target}
+        >
+          Inspect
+        </Button>
         <Button size="sm" variant="outline" onClick={triggerEtbGlow}>
-          Re-stomp all
+          Replay entry effect
         </Button>
         <Button
           size="sm"
           variant="ghost"
           onClick={() => {
             preview.dismiss();
+            previewScenarioCardId.current = null;
+            setTable((current) => ({
+              ...current,
+              cards: current.cards.filter((card) => card.zoneId !== "battlefield"),
+              blocks: [],
+            }));
             setSelectedId(null);
-            setCards([]);
           }}
-          disabled={cards.length === 0}
         >
-          Clear
+          Clear battlefield
         </Button>
         <span className="mx-1 h-5 w-px bg-border" />
         <Button
@@ -510,39 +599,61 @@ export function BoardPlayground() {
           Open selected preview
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Click a card to select it (the action buttons target the selection, else the last card).
-        Card style follows the Realistic / Art-forward / Mini-frame toggle above; the In-game
-        Animations toggle lives in Settings.
+      <p className="text-xs text-muted-foreground" aria-live="polite">
+        {target
+          ? `Selected: ${target.identity.name} · ${table.players.find((player) => player.id === target.controllerId)?.name} · ${target.zoneId}. `
+          : "Select a card to use the controls. "}
+        Click selects; hover or long-press inspects. Phase-strip stops are interactive. No game
+        actions reach a backend.
       </p>
       <div
         ref={boardRef}
         style={{ width: viewport.width, height: viewport.height }}
-        className="relative max-w-full overflow-hidden rounded-lg border border-border bg-background"
+        className="relative min-h-80 max-w-full overflow-hidden rounded-lg border border-border bg-background"
       >
         <BoardCanvas
-          regions={regions}
-          hand={{ cards: [] }}
+          regions={specs.regions}
+          hand={{ cards: hand }}
           arrowSpecs={[]}
-          phaseStrip={PHASE_STRIP_STUB}
-          compact={compactBoard}
+          focusLocked={!!sheetPlayerId || preview.isSticky}
           sceneRef={sceneRef}
+          onSceneChange={setOverlayScene}
           externalPreviewActive={externalPreviewActive}
+          combatBlocks={specs.blocks}
+          combatFocusIds={specs.combatFocusIds}
+          phaseStrip={phaseStrip}
+          phaseStripCallbacks={{
+            onToggleSelfPhase: (id) =>
+              setSelfStops((current) => {
+                const next = new Set(current);
+                if (next.has(id)) next.delete(id);
+                else next.add(id);
+                return next;
+              }),
+            onToggleOpponentPhase: (playerId, id) =>
+              setOpponentStops((current) => {
+                const next = new Map(current);
+                const stops = new Set(next.get(playerId));
+                if (stops.has(id)) stops.delete(id);
+                else stops.add(id);
+                next.set(playerId, stops);
+                return next;
+              }),
+          }}
+          compact={compact}
+          opponentLayout={overview ? "overview" : "focused"}
+          focusedOpponentId={focusedPlayerId}
+          manualFocusId={focusedPlayerId}
+          playerBars={specs.playerBars}
+          showPlayerBars
+          zoneTiles={specs.zoneTiles}
           callbacks={{
-            onClickCard: (c) => setSelectedId((id) => (id === c.id ? null : c.id)),
-            onClickAnyCard: (c) => setSelectedId((id) => (id === c.id ? null : c.id)),
-            onHoverCard: (card, bounds, options) => {
-              if (card && bounds) {
-                const rect = new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height);
-                preview.handleMouseEnter(card, undefined, {
-                  ...options,
-                  useAnchor: true,
-                  anchorOverride: rect,
-                });
-              } else {
-                preview.handleMouseLeave();
-              }
-            },
+            onClickCard: (card) => setSelectedId(card.id),
+            onClickAnyCard: (card) => setSelectedId(card.id),
+            onClickCard_Hand: (card) => setSelectedId(card.id),
+            onHoverCard: hover,
+            onHoverHandCard: hover,
+            onLongPressCard: (card, bounds) => inspect(card, bounds),
             onRightClickCard:
               previewMode === "right-click"
                 ? (card, bounds) => {
@@ -555,17 +666,23 @@ export function BoardPlayground() {
                     );
                   }
                 : undefined,
+            onShowPlayerSheet: (playerId) => {
+              preview.dismiss();
+              setSheetPlayerId(playerId);
+            },
+            onFlipCard: preview.flipCard,
             onDismissHoverPreview: preview.dismiss,
           }}
         />
         <div className="pointer-events-none absolute inset-0 z-40">
           <BoardOverlayCanvas
             onOpenStack={() => undefined}
-            sceneRef={sceneRef}
+            scene={overlayScene}
             stackSpec={EMPTY_STACK}
             onTargetSpell={() => undefined}
             onHoverStack={() => undefined}
             onToggleStack={() => undefined}
+            promptSpec={null}
             externalPreviewActive={externalPreviewActive}
             previewSpec={rulesPreview}
             onPreviewPointerEnter={preview.onMouseEnterPreview}
@@ -586,6 +703,7 @@ export function BoardPlayground() {
           onToggleView={togglePreviewView}
         />
       )}
+      {sheetSpec && <PlayerSheetModal spec={sheetSpec} onClose={() => setSheetPlayerId(null)} />}
     </div>
   );
 }

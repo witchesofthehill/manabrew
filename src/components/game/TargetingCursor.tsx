@@ -12,10 +12,10 @@ interface TargetingCursorProps {
 
 /**
  * DOM targeting cursor: a main arrow glyph plus a small intent glyph that
- * follow the pointer. Rendered in a body portal above every modal so the
- * targeting affordance survives zone viewers — unlike the Pixi pointer layer,
- * which is trapped below the modal stacking context. While active it hides the
- * OS cursor everywhere via `targeting-cursor-hidden` on `document.body`.
+ * follows the pointer. Rendered in a body portal above zone viewers so the
+ * targeting affordance survives them. Pointer movement is captured before
+ * full-screen prompts stop propagation. While active it hides the OS cursor
+ * everywhere via `targeting-cursor-hidden` on `document.body`.
  */
 export function TargetingCursor({ active, intent, hostile }: TargetingCursorProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -29,10 +29,10 @@ export function TargetingCursor({ active, intent, hostile }: TargetingCursorProp
       el.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
       el.style.opacity = "1";
     };
-    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointermove", onMove, true);
     document.body.classList.add("targeting-cursor-hidden");
     return () => {
-      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointermove", onMove, true);
       document.body.classList.remove("targeting-cursor-hidden");
     };
   }, [active]);

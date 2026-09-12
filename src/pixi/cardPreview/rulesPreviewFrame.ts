@@ -2,7 +2,6 @@ import { FillGradient, Graphics, Text, TextStyle, type Container } from "pixi.js
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "@/pixi/colorUtils";
 import { cardFrameTints, contrastRatio, ensureTextContrast } from "@/themes/gameTheme";
-import { FLASH_CARD_SIZE } from "@/components/game/game.styles";
 import type { CardStatPresentation } from "@/components/game/cardPresentation";
 
 export const RULES_BODY_FONT = "Georgia, Cambria, Times New Roman, serif";
@@ -10,8 +9,8 @@ export const RULES_TITLE_FONT = "Cormorant Garamond, Georgia, serif";
 export const RULES_TITLE_ART_RADIUS = 7;
 
 export const RULES_CARD_CONSTRAINTS = {
-  width: FLASH_CARD_SIZE.w,
-  height: FLASH_CARD_SIZE.h,
+  width: 360,
+  height: 504,
   radius: 13,
 } as const;
 const RULES_TEXT_MIN_CONTRAST = 4.5;
@@ -22,16 +21,27 @@ export function rulesCardRadius(width: number, height: number): number {
     Math.min(RULES_CARD_CONSTRAINTS.width, RULES_CARD_CONSTRAINTS.height)
   );
 }
-
-const GRAIN_POINTS = (() => {
-  const points = new Float32Array(1024);
-  let seed = 17;
-  for (let index = 0; index < points.length; index += 1) {
-    seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
-    points[index] = (seed >>> 0) / 4294967296;
-  }
-  return points;
-})();
+export function drawTopSquareBottomRoundedRect(
+  target: Graphics,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+): void {
+  const right = x + width;
+  const bottom = y + height;
+  const cornerY = bottom - radius;
+  target
+    .moveTo(x, y)
+    .lineTo(right, y)
+    .lineTo(right, cornerY)
+    .arc(right - radius, cornerY, radius, 0, Math.PI / 2)
+    .lineTo(x + radius, bottom)
+    .arc(x + radius, cornerY, radius, Math.PI / 2, Math.PI)
+    .lineTo(x, y)
+    .closePath();
+}
 
 export interface RulesPreviewFrameStyle {
   paper: string;
@@ -55,7 +65,6 @@ interface RulesPreviewFrameGeometry {
   artHeight: number;
   typeY: number;
   typeHeight: number;
-  footerHeight: number;
 }
 
 export function resolveRulesPreviewFrame(
@@ -171,26 +180,13 @@ export function drawRulesPreviewFrame(
   style: RulesPreviewFrameStyle,
   geometry: RulesPreviewFrameGeometry,
 ): void {
-  const {
-    x,
-    y,
-    width,
-    height,
-    headerHeight,
-    artInset,
-    artY,
-    artHeight,
-    typeY,
-    typeHeight,
-    footerHeight,
-  } = geometry;
+  const { x, y, width, height, headerHeight, artInset, artY, artHeight, typeY, typeHeight } =
+    geometry;
   const insetX = x + artInset;
   const innerWidth = width - artInset * 2;
   const titleTopInset = 11;
   const titleY = y + titleTopInset;
   const titleHeight = headerHeight - titleTopInset - 4;
-  const rulesY = y + typeY + typeHeight + 4;
-  const rulesHeight = height - typeY - typeHeight - footerHeight - 4;
   const border = hexToNum(style.border);
   const surface = hexToNum(style.paper);
   const raised = hexToNum(style.raised);
@@ -209,13 +205,4 @@ export function drawRulesPreviewFrame(
     )
     .fill(style.titleGradient ?? hexToNum(style.title));
   graphics.roundRect(insetX, y + typeY, innerWidth, typeHeight, 5).fill(raised);
-
-  for (let index = 0; index < GRAIN_POINTS.length; index += 2) {
-    graphics.circle(
-      insetX + 4 + GRAIN_POINTS[index]! * (innerWidth - 8),
-      rulesY + 4 + GRAIN_POINTS[index + 1]! * (rulesHeight - 8),
-      index % 4 === 0 ? 0.35 : 0.55,
-    );
-  }
-  graphics.fill({ color: hexToNum(style.ink), alpha: 0.025 });
 }

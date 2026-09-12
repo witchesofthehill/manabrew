@@ -43,6 +43,8 @@ type CardEntry = {
   uris: ScryfallImageUris;
 };
 
+type CardTextureVariant = "full" | "art";
+
 interface TokenArchive {
   schemaVersion: number;
   cardTokenScripts?: Record<string, string[]>;
@@ -73,7 +75,11 @@ interface ScryfallState {
   sets: ScryfallSet[];
   hydratedSets: Record<string, true>;
   getCard: (lookup: ScryfallCardLookup) => Promise<CardEntry>;
-  getCardTexture: (card: DeckCard, variant?: "full" | "art", faceIndex?: 0 | 1) => Promise<Texture>;
+  getCardTexture: (
+    card: DeckCard,
+    variant?: CardTextureVariant,
+    faceIndex?: 0 | 1,
+  ) => Promise<Texture>;
   updatePrinting: (card: ScryfallCard) => CardEntry;
   invalidateCard: (name: string) => void;
   clearImageCaches: () => void;
@@ -432,6 +438,20 @@ const createTextureFromImage = (img: HTMLImageElement): Texture => {
 
 const textureCache = new Map<string, Texture>();
 const pendingTexturePromises = new Map<string, Promise<Texture>>();
+let textureCacheGeneration = 0;
+
+const getCachedTexture = (url: string): Texture | undefined => {
+  const texture = textureCache.get(url);
+  if (!texture || texture.destroyed || texture.source.destroyed) {
+    if (texture) textureCache.delete(url);
+    return undefined;
+  }
+  return texture;
+};
+
+const cacheTexture = (url: string, texture: Texture): void => {
+  textureCache.set(url, texture);
+};
 
 export const useScryfallStore = create<ScryfallState>()(
   devtools(
@@ -498,21 +518,26 @@ export const useScryfallStore = create<ScryfallState>()(
         }
         if (!url) return Texture.EMPTY;
 
-        const cached = textureCache.get(url);
+        const cached = getCachedTexture(url);
         if (cached) return cached;
         const pending = pendingTexturePromises.get(url);
         if (pending) return pending;
 
         const resolvedUrl = url;
+        const generation = textureCacheGeneration;
         const promise = (async () => {
           const htmlImage = await fetchImageElement(resolvedUrl);
           const texture = createTextureFromImage(htmlImage);
-          textureCache.set(resolvedUrl, texture);
+          if (generation === textureCacheGeneration) cacheTexture(resolvedUrl, texture);
           return texture;
-        })().finally(() => {
-          pendingTexturePromises.delete(resolvedUrl);
-        });
+        })();
+        const clearPending = () => {
+          if (pendingTexturePromises.get(resolvedUrl) === promise) {
+            pendingTexturePromises.delete(resolvedUrl);
+          }
+        };
         pendingTexturePromises.set(resolvedUrl, promise);
+        void promise.then(clearPending, clearPending);
         return promise;
       },
       getRulings: async (c) => {
@@ -618,6 +643,7 @@ export const useScryfallStore = create<ScryfallState>()(
         });
       },
       clearImageCaches: () => {
+        textureCacheGeneration += 1;
         for (const tex of textureCache.values()) tex.destroy(true);
         textureCache.clear();
         pendingTexturePromises.clear();
@@ -646,29 +672,42 @@ export const useCard = (lookup: ScryfallCardLookup | null | undefined) => {
 
   useEffect(() => {
     if (!hasLookup || cached) return;
-    void getCard({ id, name, setCode, collectorNumber });
+    void getCard({ id, name, setCode, collectorNumber }).catch(() => undefined);
   }, [getCard, id, name, setCode, collectorNumber, cached, key, hasLookup]);
   return cached;
 };
 export const useCardRulings = (card: { rulings_uri?: string }) => {
   const getRulings = useScryfallStore((s) => s.getRulings);
+  const rulingsUri = card.rulings_uri;
   const [out, setOut] = useState<ScryfallRulingsResponse | null>(null);
   useEffect(() => {
-    if (!card.rulings_uri) return;
-    getRulings({ rulings_uri: card.rulings_uri }).then(setOut);
-  }, [getRulings, card]);
-  if (!card.rulings_uri) return EMPTY_RULINGS;
+    if (!rulingsUri) return;
+    let active = true;
+    void getRulings({ rulings_uri: rulingsUri }).then(
+      (rulings) => {
+        if (active) setOut(rulings);
+      },
+      () => undefined,
+    );
+    return () => {
+      active = false;
+    };
+  }, [getRulings, rulingsUri]);
+  if (!rulingsUri) return EMPTY_RULINGS;
   return out;
 };
 
 const EMPTY_RULINGS: ScryfallRulingsResponse = { object: "list", has_more: false, data: [] };
 
-export async function prefetchCards(cards: DeckCard[]): Promise<void> {
+export async function prefetchCards(
+  cards: DeckCard[],
+  variant: CardTextureVariant = "full",
+): Promise<void> {
   const state = useScryfallStore.getState();
   await Promise.all(
     cards.map((c) =>
-      state.getCardTexture(c).catch((err) => {
-        console.warn(`[scryfall] prefetch failed for ${c.identity.name}:`, err);
+      state.getCardTexture(c, variant).catch((err) => {
+        console.warn(`[scryfall] ${variant} prefetch failed for ${c.identity.name}:`, err);
       }),
     ),
   );

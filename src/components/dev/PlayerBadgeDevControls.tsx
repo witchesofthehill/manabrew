@@ -7,6 +7,8 @@ import {
 import { DevCounterControl } from "./DevCounterControl";
 import { DevToggleButton } from "./DevToggleButton";
 import { DEV_SECTION, DEV_SECTION_HEADING } from "./devPanel.styles";
+import { DevPanelSearchProvider, DevSearchable } from "./DevPanelSearch";
+import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
 
 type BoolOverrideKey = {
   [K in keyof DevPlayerOverrides]: DevPlayerOverrides[K] extends boolean ? K : never;
@@ -24,6 +26,11 @@ interface ToggleRow {
   label: string;
 }
 
+const PLAYER_IDENTITY_ROWS: ToggleRow[] = [
+  { key: "forceBot", label: "Bot" },
+  { key: "forceNoAvatar", label: "Initials avatar" },
+];
+
 const PLAYER_BADGE_ROWS: ToggleRow[] = [
   { key: "forceMonarch", label: "Monarch" },
   { key: "forceInitiative", label: "Initiative" },
@@ -34,6 +41,8 @@ const PLAYER_BADGE_ROWS: ToggleRow[] = [
 const PLAYER_STATE_ROWS: ToggleRow[] = [
   { key: "forceActiveTurn", label: "Active turn" },
   { key: "forcePriority", label: "Priority" },
+  { key: "forceInCombat", label: "In combat" },
+  { key: "forceCombatLethal", label: "Combat lethal" },
   { key: "forceTargetable", label: "Targetable" },
   { key: "forceSelectedTarget", label: "Selected" },
   { key: "forceFlashing", label: "Turn flash" },
@@ -41,16 +50,33 @@ const PLAYER_STATE_ROWS: ToggleRow[] = [
   { key: "forceDisconnected", label: "Disconnected" },
 ];
 
+const PLAYER_RULE_ROWS: ToggleRow[] = [
+  { key: "forceUnlimitedHand", label: "Unlimited hand" },
+  { key: "forceUnlimitedLands", label: "Unlimited lands" },
+  { key: "forceExtraTurn", label: "Extra turn" },
+  { key: "forceControlledBy", label: "Controlled player" },
+  { key: "forcePlayerKeyword", label: "Player keyword" },
+];
+
 interface CounterRow {
   key: NumericOverrideKey;
   label: string;
   base: number;
 }
+const MANA_POOL_ROWS: CounterRow[] = [
+  { key: "manaWhite", label: "White (W)", base: NUMERIC_BUMP_BASE },
+  { key: "manaBlue", label: "Blue (U)", base: NUMERIC_BUMP_BASE },
+  { key: "manaBlack", label: "Black (B)", base: NUMERIC_BUMP_BASE },
+  { key: "manaRed", label: "Red (R)", base: NUMERIC_BUMP_BASE },
+  { key: "manaGreen", label: "Green (G)", base: NUMERIC_BUMP_BASE },
+  { key: "manaColorless", label: "Colorless (C)", base: NUMERIC_BUMP_BASE },
+];
 
 const COUNTER_ROWS: CounterRow[] = [
   { key: "poison", label: "Poison", base: NUMERIC_BUMP_BASE },
   { key: "energy", label: "Energy", base: NUMERIC_BUMP_BASE },
   { key: "cmdDamage", label: "Commander damage", base: NUMERIC_BUMP_BASE },
+  { key: "incomingDamage", label: "Incoming damage", base: NUMERIC_BUMP_BASE },
   { key: "radiation", label: "Radiation", base: NUMERIC_BUMP_BASE },
   { key: "experience", label: "Experience", base: NUMERIC_BUMP_BASE },
   { key: "ticket", label: "Ticket", base: NUMERIC_BUMP_BASE },
@@ -58,11 +84,36 @@ const COUNTER_ROWS: CounterRow[] = [
   { key: "speed", label: "Speed", base: NUMERIC_BUMP_BASE },
   { key: "handCount", label: "Hand", base: NUMERIC_BUMP_BASE },
   { key: "life", label: "Life", base: LIFE_BUMP_BASE },
+  { key: "maxHandSize", label: "Max hand", base: 7 },
+  { key: "landsPlayed", label: "Lands played", base: NUMERIC_BUMP_BASE },
+  { key: "maxLandPlays", label: "Max land plays", base: 1 },
+  { key: "cardsDrawn", label: "Cards drawn", base: NUMERIC_BUMP_BASE },
+  { key: "damagePrevention", label: "Damage prevention", base: NUMERIC_BUMP_BASE },
+  { key: "extraTurnCount", label: "Queued extra turns", base: NUMERIC_BUMP_BASE },
+  { key: "commanderCasts", label: "Commander casts", base: NUMERIC_BUMP_BASE },
+  { key: "graveyardCardTypes", label: "Graveyard types", base: NUMERIC_BUMP_BASE },
 ];
 export function PlayerBadgeDevControls() {
   const overrides = useGameDevStore((s) => s.playerOverrides);
   const setOverride = useGameDevStore((s) => s.setPlayerOverride);
   const reset = useGameDevStore((s) => s.resetPlayerOverrides);
+  const query = useDevPanelSearch();
+  const sectionMatch = matchesDevPanelSearch(
+    query,
+    "Player HUD",
+    "Override every player's HUD",
+    "Reset players",
+  );
+  const hasMatchingControl = [
+    ...PLAYER_IDENTITY_ROWS,
+    ...PLAYER_BADGE_ROWS,
+    ...PLAYER_STATE_ROWS,
+    ...PLAYER_RULE_ROWS,
+    ...MANA_POOL_ROWS,
+    ...COUNTER_ROWS,
+  ].some((row) => matchesDevPanelSearch(query, row.label));
+
+  if (!sectionMatch && !hasMatchingControl) return null;
   const toggleBool = (key: BoolOverrideKey) => setOverride(key, !overrides[key]);
 
   const bumpNumeric = (key: NumericOverrideKey, base: number, delta: number) => {
@@ -75,67 +126,114 @@ export function PlayerBadgeDevControls() {
   );
 
   return (
-    <section className={DEV_SECTION}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className={DEV_SECTION_HEADING}>Player HUD</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Apply the same badge and status checks to every player.
-          </p>
+    <DevPanelSearchProvider query={sectionMatch ? "" : query}>
+      <section className={DEV_SECTION}>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className={DEV_SECTION_HEADING}>Player HUD</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Override every player's HUD with the same values.
+            </p>
+          </div>
+          <DevSearchable terms={["Reset players"]}>
+            {dirty ? (
+              <button
+                type="button"
+                className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground hover:text-destructive"
+                onClick={reset}
+              >
+                Reset players
+              </button>
+            ) : null}
+          </DevSearchable>
         </div>
-        {dirty ? (
-          <button
-            type="button"
-            className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground hover:text-destructive"
-            onClick={reset}
-          >
-            Reset players
-          </button>
-        ) : null}
-      </div>
 
-      <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        Game badges
-      </p>
-      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-        {PLAYER_BADGE_ROWS.map((row) => (
-          <DevToggleButton
-            key={row.key}
-            label={row.label}
-            active={overrides[row.key]}
-            onClick={() => toggleBool(row.key)}
-          />
-        ))}
-      </div>
+        <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          Identity
+        </p>
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+          {PLAYER_IDENTITY_ROWS.map((row) => (
+            <DevToggleButton
+              key={row.key}
+              label={row.label}
+              active={overrides[row.key]}
+              onClick={() => toggleBool(row.key)}
+            />
+          ))}
+        </div>
 
-      <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        States
-      </p>
-      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-        {PLAYER_STATE_ROWS.map((row) => (
-          <DevToggleButton
-            key={row.key}
-            label={row.label}
-            active={overrides[row.key]}
-            onClick={() => toggleBool(row.key)}
-          />
-        ))}
-      </div>
+        <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          Game badges
+        </p>
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+          {PLAYER_BADGE_ROWS.map((row) => (
+            <DevToggleButton
+              key={row.key}
+              label={row.label}
+              active={overrides[row.key]}
+              onClick={() => toggleBool(row.key)}
+            />
+          ))}
+        </div>
 
-      <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        Values
-      </p>
-      <div className="grid gap-1.5 sm:grid-cols-2">
-        {COUNTER_ROWS.map((row) => (
-          <DevCounterControl
-            key={row.key}
-            label={row.label}
-            value={overrides[row.key]}
-            onClear={() => setOverride(row.key, null)}
-            onBump={(delta) => bumpNumeric(row.key, row.base, delta)}
-          />
-        ))}
-      </div>
-    </section>
+        <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          States
+        </p>
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+          {PLAYER_STATE_ROWS.map((row) => (
+            <DevToggleButton
+              key={row.key}
+              label={row.label}
+              active={overrides[row.key]}
+              onClick={() => toggleBool(row.key)}
+            />
+          ))}
+        </div>
+
+        <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          Player rules
+        </p>
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+          {PLAYER_RULE_ROWS.map((row) => (
+            <DevToggleButton
+              key={row.key}
+              label={row.label}
+              active={overrides[row.key]}
+              onClick={() => toggleBool(row.key)}
+            />
+          ))}
+        </div>
+
+        <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          Mana pool
+        </p>
+        <div className="grid gap-1.5 sm:grid-cols-2">
+          {MANA_POOL_ROWS.map((row) => (
+            <DevCounterControl
+              key={row.key}
+              label={row.label}
+              value={overrides[row.key]}
+              onClear={() => setOverride(row.key, null)}
+              onBump={(delta) => bumpNumeric(row.key, row.base, delta)}
+            />
+          ))}
+        </div>
+
+        <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          Values
+        </p>
+        <div className="grid gap-1.5 sm:grid-cols-2">
+          {COUNTER_ROWS.map((row) => (
+            <DevCounterControl
+              key={row.key}
+              label={row.label}
+              value={overrides[row.key]}
+              onClear={() => setOverride(row.key, null)}
+              onBump={(delta) => bumpNumeric(row.key, row.base, delta)}
+            />
+          ))}
+        </div>
+      </section>
+    </DevPanelSearchProvider>
   );
 }

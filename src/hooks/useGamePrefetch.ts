@@ -5,11 +5,11 @@ import { asDeckCard, getDeckCardPool } from "@/lib/decks";
 import type { ClientGameView } from "@/stores/gameStore.types";
 import type { Deck, DeckCard } from "@/protocol/deck";
 
-/** Cards whose textures must be decoded before the game UI flips on:
+/** Cards whose printed textures must be decoded before the game UI flips on:
  *  hand, both command zones, and a small head-start of each deck list for
  *  early draws. The full deck pool gets fired-and-forgotten in the same
- *  pass — `getCardTexture` is idempotent so the critical entries aren't
- *  re-fetched. */
+ *  pass, then its art crops warm after the printed textures settle.
+ *  `getCardTexture` is idempotent so duplicate entries aren't re-fetched. */
 function cardsToPrefetchImmediately(
   view: ClientGameView,
   gameDecks: Record<string, Deck>,
@@ -45,9 +45,10 @@ export function useGamePrefetch(): void {
     startedRef.current = true;
 
     const decks = useGameStore.getState().gameDecks;
+    const deckCards = Object.values(decks).flatMap(getDeckCardPool);
     void prefetchCards(cardsToPrefetchImmediately(gameView, decks)).finally(() => {
       useGameStore.setState({ isPrefetchingCards: false });
     });
-    void prefetchCards(Object.values(decks).flatMap(getDeckCardPool));
+    void prefetchCards(deckCards).then(() => prefetchCards(deckCards, "art"));
   }, [gameView, isPrefetchingCards]);
 }

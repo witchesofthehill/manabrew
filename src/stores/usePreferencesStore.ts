@@ -30,7 +30,7 @@ export const CARD_SIZE_MULTIPLIER_MIN = 0.75;
 // (the old 300% top was one: everything saturated around 150%).
 export const CARD_SIZE_MULTIPLIER_MAX = 1.5;
 
-interface PreferencesState {
+export interface PreferencesState {
   appThemePreset: string;
   setAppThemePreset: (id: string) => void;
 
@@ -62,6 +62,8 @@ interface PreferencesState {
   setBattlefieldAutoSort: (value: boolean) => void;
   handOrderMode: HandOrderMode;
   setHandOrderMode: (mode: HandOrderMode) => void;
+  opponentLayout: "focused" | "overview";
+  setOpponentLayout: (layout: "focused" | "overview") => void;
 
   // One knob for card size: battlefield cards on ALL fields plus the hand
   // fan. 1 = the classic 3-row board; 1.5 = the 2-row fill that is the
@@ -119,6 +121,8 @@ interface PreferencesState {
   setHandCardStyle: (style: InlineCardStyle) => void;
   stackCardStyle: InlineCardStyle;
   setStackCardStyle: (style: InlineCardStyle) => void;
+  promptCardStyle: InlineCardStyle;
+  setPromptCardStyle: (style: InlineCardStyle) => void;
   collapsedRulesPreviewSections: RulesPreviewSectionId[];
   setRulesPreviewSectionCollapsed: (section: RulesPreviewSectionId, collapsed: boolean) => void;
 
@@ -159,6 +163,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "zonePanelOrder",
   "battlefieldAutoSort",
   "handOrderMode",
+  "opponentLayout",
   "cardSizeMultiplier",
   "lockZoneTiles",
   "battlefieldCardStyle",
@@ -173,6 +178,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "inGameCardPreviewStyle",
   "handCardStyle",
   "stackCardStyle",
+  "promptCardStyle",
   "collapsedRulesPreviewSections",
   "appThemeColorOverrides",
   "gameThemeColorOverrides",
@@ -195,6 +201,7 @@ function pickPersistedPreferences(persistedState: unknown): Partial<PreferencesS
   // wins on rehydrate. Without this, users who once had the empty default
   // saved would never get a generated name.
   if (next.serverUsername === "") delete next.serverUsername;
+  if (next.cardPreviewMode === "click") delete next.cardPreviewMode;
   // Values saved while the slider still went to 300% clamp to the new max.
   if (typeof next.cardSizeMultiplier === "number") {
     next.cardSizeMultiplier = Math.max(
@@ -297,6 +304,9 @@ export const usePreferencesStore = create<PreferencesState>()(
           cardPreviewMode: "hover",
           setCardPreviewMode: (cardPreviewMode) => set({ cardPreviewMode }),
 
+          opponentLayout: "focused",
+          setOpponentLayout: (opponentLayout) => set({ opponentLayout }),
+
           cardHoverDelayMs: 350,
           setCardHoverDelayMs: (ms) => set({ cardHoverDelayMs: ms }),
           inGameCardPreviewStyle: "printed",
@@ -305,6 +315,8 @@ export const usePreferencesStore = create<PreferencesState>()(
           setHandCardStyle: (handCardStyle) => set({ handCardStyle }),
           stackCardStyle: "printed",
           setStackCardStyle: (stackCardStyle) => set({ stackCardStyle }),
+          promptCardStyle: "printed",
+          setPromptCardStyle: (promptCardStyle) => set({ promptCardStyle }),
           collapsedRulesPreviewSections: [],
           setRulesPreviewSectionCollapsed: (section, collapsed) =>
             set((state) => ({

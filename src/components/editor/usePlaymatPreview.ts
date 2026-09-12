@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Application, Graphics } from "pixi.js";
-import { useCard } from "@/stores/useScryfallStore";
+import { destroyPixiApp, installPixiPatches } from "@/pixi/pixiPatches";
+
+installPixiPatches();
+
+import { useCard, useScryfallStore } from "@/stores/useScryfallStore";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
-import { CardSprite } from "@/pixi/CardSprite";
+import { asDeckCard } from "@/lib/decks";
+import { CardSprite, setCardSpriteStyle, setCardSpriteTheme } from "@/pixi/CardSprite";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import { safeDestroy } from "@/pixi/board/pixiHelpers";
 import { useTheme } from "@/hooks/useTheme";
@@ -10,6 +16,8 @@ import { PlaymatLayer, clampPlaymatZoom } from "@/pixi/board/PlaymatLayer";
 import { computeBoardLayout } from "@/pixi/board/boardLayout";
 import { BG_ALPHA_IDLE, TABLE_RADIUS } from "@/pixi/constants";
 import { hexToNum } from "@/pixi/colorUtils";
+import { loadManaSymbolTexture } from "@/pixi/manaSymbolCache";
+import { parseManaCost } from "@/pixi/manaSymbols";
 import type { PlaymatSettings } from "@/protocol/game";
 
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
@@ -41,6 +49,7 @@ export function usePlaymatPreview({
   showSampleCards,
 }: PlaymatPreviewArgs) {
   const theme = useTheme();
+  const cardStyle = usePreferencesStore((state) => state.battlefieldCardStyle);
   const { aspect, feltWidth } = useBattlefieldMetrics();
   const previewRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -73,6 +82,7 @@ export function usePlaymatPreview({
   const appRef = useRef<Application | null>(null);
   const layerRef = useRef<PlaymatLayer | null>(null);
   const feltRef = useRef<Graphics | null>(null);
+  const requestRenderRef = useRef<() => void>(() => undefined);
   const naturalRef = useRef<{ w: number; h: number }>({ w: 1, h: 1 });
   const gestureRef = useRef({
     fit: settings.fit,
@@ -87,23 +97,45 @@ export function usePlaymatPreview({
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    naturalRef.current = { w: 1, h: 1 };
     if (!playmat) return;
+    let active = true;
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
+      if (!active) return;
       naturalRef.current = { w: img.naturalWidth || 1, h: img.naturalHeight || 1 };
     };
+    img.onerror = () => {
+      if (active) naturalRef.current = { w: 1, h: 1 };
+    };
     img.src = playmat;
+    return () => {
+      active = false;
+      img.onload = null;
+      img.onerror = null;
+    };
   }, [playmat]);
 
   useEffect(() => {
     let disposed = false;
+    let initSettled = false;
+    let appDestroyed = false;
     const app = new Application();
-    const felt = new Graphics();
-    const layer = new PlaymatLayer();
+    const destroyApp = () => {
+      if (appDestroyed) return;
+      appDestroyed = true;
+      destroyPixiApp(app);
+    };
+    appRef.current = app;
     (async () => {
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas) {
+        initSettled = true;
+        if (appRef.current === app) appRef.current = null;
+        destroyApp();
+        return;
+      }
       try {
         await app.init({
           canvas,
@@ -113,29 +145,42 @@ export function usePlaymatPreview({
           antialias: true,
           autoDensity: true,
           resolution: Math.min(2, window.devicePixelRatio || 1),
+          autoStart: false,
         });
       } catch (err) {
-        console.error("[pixi] playmat preview init failed:", err);
+        initSettled = true;
+        if (!disposed) console.error("[pixi] playmat preview init failed:", err);
+        if (appRef.current === app) appRef.current = null;
+        destroyApp();
         return;
       }
-      if (disposed) {
-        app.destroy(true);
+      initSettled = true;
+      if (disposed || !app.renderer) {
+        if (appRef.current === app) appRef.current = null;
+        destroyApp();
         return;
       }
+      app.stop();
+      const render = () => {
+        if (!disposed && app.renderer) app.render();
+      };
+      requestRenderRef.current = render;
+      const felt = new Graphics();
+      const layer = new PlaymatLayer(render);
       app.stage.addChild(felt, layer.container);
-      appRef.current = app;
       layerRef.current = layer;
       feltRef.current = felt;
       setReady(true);
+      render();
     })();
     return () => {
       disposed = true;
-      setReady(false);
-      layer.destroy();
-      if (appRef.current) appRef.current.destroy(true);
-      appRef.current = null;
+      requestRenderRef.current = () => undefined;
+      layerRef.current?.destroy();
       layerRef.current = null;
       feltRef.current = null;
+      if (appRef.current === app) appRef.current = null;
+      if (initSettled) destroyApp();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -152,11 +197,19 @@ export function usePlaymatPreview({
     layer.setImage(playmat);
     layer.setSettings(settings);
     layer.layout({ x: 0, y: 0, width: previewWidth, height: previewHeight }, { dropActive: false });
-  }, [ready, playmat, settings, previewWidth, previewHeight, theme.gameTheme.canvas.background]);
+    requestRenderRef.current();
+  }, [ready, playmat, settings, previewWidth, previewHeight, theme]);
 
   useEffect(() => {
     const app = appRef.current;
-    if (!ready || !app || previewCards.length === 0 || !showSampleCards) return;
+    if (!ready || !app) return;
+    setCardSpriteTheme(theme);
+    setCardSpriteStyle(cardStyle);
+    if (previewCards.length === 0 || !showSampleCards) {
+      requestRenderRef.current();
+      return;
+    }
+    let active = true;
     const scale = (previewHeight * 0.62) / CARD_H;
     const cardW = CARD_W * scale;
     const gap = cardW * 0.16;
@@ -174,10 +227,41 @@ export function usePlaymatPreview({
       app.stage.addChild(sprite);
       return sprite;
     });
+    requestRenderRef.current();
+    for (const card of previewCards) {
+      void useScryfallStore
+        .getState()
+        .getCardTexture(
+          asDeckCard(undefined, card),
+          cardStyle === "realistic" ? "full" : "art",
+          card.isTransformed ? 1 : 0,
+        )
+        .then(
+          () => {
+            if (active) requestRenderRef.current();
+          },
+          () => {
+            if (active) requestRenderRef.current();
+          },
+        );
+    }
+    const manaCodes = new Set(previewCards.flatMap((card) => parseManaCost(card.manaCost)));
+    for (const code of manaCodes) {
+      void loadManaSymbolTexture(code).then(
+        () => {
+          if (active) requestRenderRef.current();
+        },
+        () => {
+          if (active) requestRenderRef.current();
+        },
+      );
+    }
     return () => {
+      active = false;
       for (const sprite of sprites) safeDestroy(sprite);
+      requestRenderRef.current();
     };
-  }, [ready, previewCards, previewWidth, previewHeight, showSampleCards]);
+  }, [ready, previewCards, previewWidth, previewHeight, showSampleCards, theme, cardStyle]);
 
   gestureRef.current = {
     fit: settings.fit,

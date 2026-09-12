@@ -266,6 +266,7 @@ async function initializeGame({
     isWaitingForResponse: false,
     seatAddressedStates: false,
     relinquishedPriority: false,
+    myPlayerSlot: "player-0",
     selfConceded: false,
     gameConfig: { formatId: selectedFormatId, startingLife },
     gameDecks,
@@ -653,19 +654,20 @@ export const useGameStore = create<GameState>()(
       concede: async () => {
         const runtime = getSelectedGameRuntime();
         if (runtime.capabilities.concedeBehavior === "end-session") {
-          void get().endGame();
+          await get().endGame();
           return;
         }
         const { myPlayerSlot } = get();
-        set({ selfConceded: true, currentPrompt: null, isWaitingForResponse: false });
-        if (!myPlayerSlot) return;
+        if (!myPlayerSlot) throw new Error("No local player is available to concede.");
         try {
           await runtime.api.sendDirective({
             playerSlot: myPlayerSlot,
             directive: { type: "concede" },
           });
+          set({ selfConceded: true, currentPrompt: null, isWaitingForResponse: false });
         } catch (e) {
           console.warn("[store] concede directive failed:", e);
+          throw e;
         }
       },
 
@@ -714,16 +716,17 @@ export const useGameStore = create<GameState>()(
         });
         stopActiveManualRoomSync();
         resetSelectedGameRuntime();
-        const withTimeout = <T>(p: Promise<T>, label: string) =>
-          Promise.race([
-            p,
-            new Promise<void>((resolve) =>
-              setTimeout(() => {
-                console.warn(`${label} timed out after 2s`);
-                resolve();
-              }, 2000),
-            ),
-          ]);
+        const withTimeout = <T>(promise: Promise<T>, label: string): Promise<T | void> => {
+          let clearTimer: () => void = () => undefined;
+          const timeout = new Promise<void>((resolve) => {
+            const timer = setTimeout(() => {
+              console.warn(`${label} timed out after 2s`);
+              resolve();
+            }, 2000);
+            clearTimer = () => clearTimeout(timer);
+          });
+          return Promise.race([promise, timeout]).finally(clearTimer);
+        };
         if (wasMultiplayer) {
           try {
             await withTimeout(useServerStore.getState().leaveRoom(), "leaveRoom()");

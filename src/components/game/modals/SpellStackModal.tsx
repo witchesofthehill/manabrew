@@ -1,203 +1,131 @@
-import { Card } from "@/components/game/Card";
-import { Badge } from "@/components/ui/badge";
-import { Modal } from "./Modal";
+import { useMemo } from "react";
 import type { StackObjectDto } from "@/protocol/game";
-import { cn } from "@/lib/utils";
-import { stackObjectToCardStub } from "../game.utils";
-import { useCardPreview } from "@/hooks/useCardPreview";
-import { useLongPressPreview } from "@/hooks/useLongPressPreview";
-import type { CardDto } from "@/protocol/game";
-import { HoverCardPreview } from "@/components/game/HoverCardPreview";
-import { MODAL_CARD_SIZE } from "../game.styles";
-import { useTheme } from "@/hooks/useTheme";
-import { withAlpha } from "@/themes/gameTheme";
-import type { CSSProperties } from "react";
+import type { ChooseBoardTargetsInput } from "@/protocol";
+import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { Button } from "@/components/ui/button";
-import { RotateCw } from "lucide-react";
-import { useState } from "react";
-import { useKeybindings } from "@/hooks/useKeybindings";
+import { useTheme } from "@/hooks/useTheme";
+import { stackObjectAbilityText, stackObjectToCardStub } from "../game.utils";
+import { Modal } from "./Modal";
+import { DialogCardBrowser } from "./DialogCardBrowser";
 
-interface SpellStackModalProps {
+export interface StackDialogContext {
+  mode: "browse" | "target";
+  prompt?: ChooseBoardTargetsInput;
+  pending?: boolean;
+  onCancelTarget?: () => void;
+  resolveName?: (id: string) => string;
+}
+interface SpellStackModalProps extends StackDialogContext {
   stack: StackObjectDto[];
-  /** Stack entry IDs the player may target (counter). Empty means view-only. */
   validSpellIds: string[];
   onTarget: (spellId: string) => void;
   onCancel: () => void;
-  /** Maps controllerId → player seat color for per-player glow. */
   playerColorMap?: Map<string, string>;
 }
-
 export function SpellStackModal({
   stack,
   validSpellIds,
   onTarget,
   onCancel,
   playerColorMap,
+  mode,
+  prompt,
+  pending,
+  onCancelTarget,
+  resolveName = (id) => id,
 }: SpellStackModalProps) {
-  const preview = useCardPreview();
-  const [flippedIds, setFlippedIds] = useState<Set<string>>(() => new Set());
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
-
-  const themeColors = useTheme().gameTheme;
-  const ringColor = themeColors.cardRing;
-
-  const isTargeting = validSpellIds.length > 0;
-
-  // Display newest (top of stack) first — stack[last] = top, stack[0] = bottom
-  const displayStack = [...stack].reverse();
-  const hoveredObject = displayStack.find((obj) => obj.id === hoveredId);
-  const toggleFace = (id: string) =>
-    setFlippedIds((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
-  useKeybindings(
-    hoveredObject?.isDoubleFaced ? { "flip-card": () => toggleFace(hoveredObject.id) } : {},
+  const theme = useTheme().gameTheme;
+  const legal = useMemo(() => new Set(validSpellIds), [validSpellIds]);
+  const entries = useMemo(() => [...stack].reverse(), [stack]);
+  const byId = useMemo(() => new Map(stack.map((entry) => [entry.id, entry])), [stack]);
+  const items = useMemo(
+    () =>
+      entries.map((entry, index) => ({
+        id: entry.id,
+        card: stackObjectToCardStub(entry),
+        description: entry.text,
+        position: index === 0 ? "Top · resolves next" : `Resolution ${index + 1}`,
+        legal: mode === "target" && legal.has(entry.id),
+      })),
+    [entries, mode, legal],
   );
-
-  const longPress = useLongPressPreview<CardDto>({
-    resolve: (e) => {
-      const el = (e.target as HTMLElement).closest<HTMLElement>("[data-stack-id]");
-      const obj = el && displayStack.find((o) => o.id === el.dataset.stackId);
-      return obj ? { item: stackObjectToCardStub(obj), anchor: el } : null;
-    },
-    show: (card, rect) =>
-      preview.handleMouseEnter(card, undefined, { useAnchor: true, anchorOverride: rect }),
-    hide: preview.dismiss,
-  });
-
+  const targetCount = items.filter((item) => item.legal).length;
   return (
-    <Modal onClose={onCancel} maxWidth="max-w-3xl">
-      <Modal.Header>
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-semibold text-base">
-              {isTargeting ? "Choose a Spell to Counter" : "Spells on the Stack"}
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              {stack.length} spell{stack.length !== 1 ? "s" : ""} on the stack
-              {" · "}
-              Top of stack is shown first
-            </p>
-          </div>
-          {isTargeting && <Badge variant="secondary">{validSpellIds.length} targetable</Badge>}
-        </div>
+    <Modal onClose={onCancel} maxWidth="max-w-[1280px]" className="h-[90dvh]">
+      <Modal.Header onClose={onCancel}>
+        <h2 className="text-base font-semibold">
+          {mode === "target"
+            ? prompt?.presentation.title || "Choose a stack target"
+            : "Spell stack"}
+        </h2>
+        <p className="text-xs text-muted-foreground">
+          {stack.length} entries · Top resolves first
+          {mode === "target" ? ` · ${targetCount} legal targets` : ""}
+        </p>
       </Modal.Header>
-
-      {isTargeting && (
-        <Modal.Instructions>Click a highlighted spell to counter it.</Modal.Instructions>
+      {mode === "target" && (
+        <Modal.Instructions>
+          {prompt?.presentation.description || "Inspect any entry, then choose a legal target."}
+          {prompt && ` ${prompt.chosenTargets} / ${prompt.maxTargets} targets chosen.`}
+          {targetCount === 0 && " No legal stack targets are currently available."}
+        </Modal.Instructions>
       )}
-
-      <Modal.Body>
-        {stack.length === 0 ? (
-          <Modal.EmptyState message="The stack is empty." />
-        ) : (
-          <div
-            className="flex flex-wrap gap-2 sm:gap-6 content-start justify-center"
-            {...longPress}
-          >
-            {displayStack.map((obj, idx) => {
-              const isValid = validSpellIds.includes(obj.id);
-              const cardStub = stackObjectToCardStub(obj);
-              const isTop = idx === 0;
-              const seatColor = playerColorMap?.get(obj.controllerId);
-              const glowStyle: CSSProperties = {
-                ...(seatColor
-                  ? {
-                      boxShadow: `0 0 0 2px ${seatColor}, 0 0 14px ${withAlpha(seatColor, 0.45)}`,
-                    }
-                  : {}),
-                ...(isValid ? ({ "--tw-ring-color": ringColor } as CSSProperties) : {}),
-              };
-              return (
-                <div
-                  key={obj.id}
-                  data-stack-id={obj.id}
-                  className={cn(
-                    "shrink-0 flex flex-col items-center gap-1 group",
-                    isValid ? "cursor-pointer" : "cursor-default",
-                    !isValid && isTargeting && "opacity-50",
-                  )}
-                  onPointerEnter={(e) => {
-                    if (e.pointerType === "touch") return;
-                    setHoveredId(obj.id);
-                    preview.handleMouseEnter(cardStub, e);
-                  }}
-                  onPointerLeave={(e) => {
-                    if (e.pointerType === "touch") return;
-                    setHoveredId(null);
-                    preview.handleMouseLeave();
-                  }}
-                  onClick={isValid ? () => onTarget(obj.id) : undefined}
-                >
-                  <div className="relative">
-                    <Card
-                      card={cardStub}
-                      showBackFace={
-                        flippedIds.has(obj.id) ? obj.faceIndex !== 0 : obj.faceIndex === 1
-                      }
-                      className={cn(
-                        MODAL_CARD_SIZE,
-                        "transition-transform",
-                        isValid && "ring-2 group-hover:scale-105 group-hover:-translate-y-2",
-                      )}
-                      style={Object.keys(glowStyle).length > 0 ? glowStyle : undefined}
-                    />
-                    {obj.isDoubleFaced && (
-                      <button
-                        type="button"
-                        className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-background/80 text-foreground shadow hover:bg-background"
-                        title="Flip card to view the other face (F)"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          toggleFace(obj.id);
-                        }}
-                      >
-                        <RotateCw className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+      {stack.length ? (
+        <DialogCardBrowser
+          items={items}
+          pending={pending}
+          intentColor={prompt?.hostile ? theme.arrow.hostileTarget : theme.arrow.friendlyTarget}
+          onActivate={
+            mode === "target"
+              ? (item) => {
+                  if (!pending && legal.has(item.id)) onTarget(item.id);
+                }
+              : undefined
+          }
+          actionLabel={() => "Choose this stack target"}
+          highlight={(item) => stackObjectAbilityText(byId.get(item.id)!)}
+          details={(item) => {
+            const entry = byId.get(item.id)!;
+            return (
+              <div className="space-y-2 text-xs">
+                <p className="flex items-center gap-2">
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{
+                      backgroundColor: playerColorMap?.get(entry.controllerId) ?? theme.cardRing,
+                    }}
+                  />
+                  {resolveName(entry.controllerId)}
+                  {entry.isCasting ? " · Casting" : ""}
+                </p>
+                <DynamicTextRender text={entry.text} />
+                {entry.targets.length > 0 && (
+                  <div>
+                    <p className="font-semibold">Targets</p>
+                    {entry.targets.map((target, index) => (
+                      <p key={`${target.kind}:${target.id}:${index}`}>{resolveName(target.id)}</p>
+                    ))}
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Badge variant={isTop ? "default" : "outline"} className="text-[10px] h-4 px-1">
-                      {isTop ? "TOP" : `+${idx}`}
-                    </Badge>
-                    {obj.isCasting && (
-                      <Badge variant="outline" className="text-[10px] h-4 px-1">
-                        Casting
-                      </Badge>
-                    )}
-                    {isValid && (
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px] h-4 px-1"
-                        style={{ color: ringColor }}
-                      >
-                        ← Counter
-                      </Badge>
-                    )}
-                  </div>
-                  {obj.text && (
-                    <p className="text-[10px] text-muted-foreground text-center max-w-[100px] line-clamp-3 leading-tight">
-                      {obj.text}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </Modal.Body>
-
+                )}
+              </div>
+            );
+          }}
+        />
+      ) : (
+        <Modal.Body>
+          <Modal.EmptyState message="The stack is empty. New entries will appear here while this browser stays open." />
+        </Modal.Body>
+      )}
       <Modal.Footer>
-        <Button variant="outline" size="sm" onClick={onCancel}>
-          {isTargeting ? "Cancel" : "Close"}
-        </Button>
+        {mode === "target" && prompt?.cancellable && onCancelTarget && (
+          <Button variant="outline" disabled={pending} onClick={onCancelTarget}>
+            Cancel targeting
+          </Button>
+        )}
+        <Modal.Close onClose={onCancel} variant="outline">
+          Close browser
+        </Modal.Close>
       </Modal.Footer>
-
-      <HoverCardPreview preview={preview} />
     </Modal>
   );
 }

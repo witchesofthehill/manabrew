@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Modal } from "@/components/game/modals/Modal";
 import { Input } from "@/components/ui/input";
 import { KEYBINDINGS, formatCombo } from "@/lib/keybindings";
 import { useKeybindingsStore, resolveCombo } from "@/stores/useKeybindingsStore";
@@ -24,23 +24,23 @@ export function KeyboardShortcutsDialog({
     );
   }, [query]);
   const categories = [...new Set(filtered.map((binding) => binding.category))];
+  const close = () => {
+    setQuery("");
+    onOpenChange(false);
+  };
+  if (!open) return null;
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) setQuery("");
-        onOpenChange(next);
-      }}
-    >
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Keyboard shortcuts</DialogTitle>
-        </DialogHeader>
+    <Modal onClose={close} maxWidth="max-w-lg">
+      <Modal.Header onClose={close}>
+        <h2 className="text-base font-semibold">Keyboard shortcuts</h2>
+      </Modal.Header>
+      <Modal.Body className="space-y-4">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             autoFocus
+            data-autofocus
             value={query}
             className="pl-9"
             placeholder="Search shortcuts…"
@@ -79,8 +79,15 @@ export function KeyboardShortcutsDialog({
             </p>
           )}
         </div>
-        <p className="text-xs text-muted-foreground">Customize these in Preferences → Shortcuts.</p>
-      </DialogContent>
-    </Dialog>
+      </Modal.Body>
+      <Modal.Footer>
+        <p className="mr-auto text-xs text-muted-foreground">
+          Customize these in Preferences → Shortcuts.
+        </p>
+        <Modal.Close onClose={close} variant="outline">
+          Close
+        </Modal.Close>
+      </Modal.Footer>
+    </Modal>
   );
 }

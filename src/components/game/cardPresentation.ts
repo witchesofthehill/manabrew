@@ -1,5 +1,4 @@
 import type { CardDto } from "@/protocol/game";
-import type { ClientCardDto } from "@/stores/gameStore.types";
 import type { GameThemeColors } from "@/themes/gameTheme";
 import {
   deriveCardRailEffects,
@@ -7,7 +6,11 @@ import {
   type CardRailEffect,
   type CardRailState,
 } from "@/components/game/cardRailState";
-import { isCreature, isLethalDamage } from "@/components/game/game.utils";
+import {
+  deriveCardChoiceIndicators,
+  isCreature,
+  isLethalDamage,
+} from "@/components/game/game.utils";
 
 export type CardStatusTone =
   | keyof GameThemeColors["cardStatus"]
@@ -148,6 +151,9 @@ function deriveStatuses(card: CardDto): CardStatusPresentation[] {
   if (card.mergedCardIds.length > 0) {
     add("merged", `Merged ×${card.mergedCardIds.length}`, "neutral");
   }
+  for (const choice of deriveCardChoiceIndicators(card)) {
+    add(`choice-${choice.key}`, choice.description, "choice");
+  }
 
   return statuses;
 }
@@ -183,7 +189,11 @@ function deriveCosts(card: CardDto): CardCostPresentation[] {
   return costs;
 }
 
-export function deriveCardPresentation(card: ClientCardDto): CardPresentation {
+export function replaceCardName(text: string, name: string): string {
+  return text.includes("CARDNAME") ? text.replace(/CARDNAME/g, name) : text;
+}
+
+export function deriveCardPresentation(card: CardDto & { zoneId?: string }): CardPresentation {
   const rail = deriveCardRailState(card);
   const isPlaneswalker = card.types.some((type) => type.toLowerCase() === "planeswalker");
   const isBattle = card.types.some((type) => type.toLowerCase() === "battle");
@@ -198,7 +208,7 @@ export function deriveCardPresentation(card: ClientCardDto): CardPresentation {
     manaCost: card.manaCost,
     effectiveManaCost: card.effectiveManaCost,
     typeLine: cardTypeLine(card),
-    rulesText: card.text,
+    rulesText: replaceCardName(card.text, card.identity.name),
     keywords: card.keywords,
     statuses: deriveStatuses(card),
     counters: Object.entries(card.counters)

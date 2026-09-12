@@ -2,6 +2,7 @@ import { Sprite, Texture } from "pixi.js";
 import type { GameThemeColors } from "@/themes/gameTheme";
 import { icons as gameIconsPack } from "@iconify-json/game-icons";
 import { VORTEX_PATH } from "@/components/icons/VortexCircleIcon";
+import { rasterizeSvgTexture } from "./assets/rasterizeSvgTexture";
 
 export const SVG: Record<string, string> = {
   hearts:
@@ -19,6 +20,55 @@ export const SVG: Record<string, string> = {
     '<path fill="currentColor" d="M255.406 17.75C189.313 39.42 124.536 85.124 79.03 150.344c21.238 57.44 32.72 94.314 32.72 131.375c0 36.493-11.52 73.723-32.125 129.655c49.72 36.73 100.08 58.95 150.313 64.938c-5.052-60.378-9.83-120.748 1.593-181.125c-30.644-3.28-61.384-13.286-92.03-30.72v-71.312c80.67 42.255 158.908 41.547 242.063 0v71.313c-30.06 14.376-60.192 24.722-90.25 29.28c8.684 60.46 7.723 120.915 2.03 181.375c46.386-7.335 92.89-28.824 139.032-64.312c-33.966-112.954-34.03-145.933.594-260.47C391.162 84.844 317.924 39.89 255.405 17.75zm-75.125 212c-11.16-.13-19.646 3.174-21.25 9.156c-2.33 8.7 10.778 19.76 29.282 24.72c18.505 4.957 35.388 1.92 37.72-6.782c2.33-8.7-10.775-19.76-29.282-24.72c-5.783-1.55-11.396-2.315-16.47-2.374m160.69 0c-5.074.06-10.687.825-16.47 2.375c-18.507 4.96-31.613 16.018-29.28 24.72c2.33 8.7 19.213 11.738 37.717 6.78c18.505-4.958 31.613-16.018 29.282-24.72c-1.604-5.98-10.09-9.286-21.25-9.155z"/>',
   cmdsword:
     '<path fill="currentColor" d="M19.75 14.438c59.538 112.29 142.51 202.35 232.28 292.718l3.626 3.75l.063-.062c21.827 21.93 44.04 43.923 66.405 66.25c-18.856 14.813-38.974 28.2-59.938 40.312l28.532 28.53l68.717-68.717c42.337 27.636 76.286 63.646 104.094 105.81l28.064-28.06c-42.47-27.493-79.74-60.206-106.03-103.876l68.936-68.938l-28.53-28.53c-11.115 21.853-24.413 42.015-39.47 60.593c-43.852-43.8-86.462-85.842-130.125-125.47c-.224-.203-.432-.422-.656-.625C183.624 122.75 108.515 63.91 19.75 14.437zm471.875 0c-83.038 46.28-154.122 100.78-221.97 161.156l22.814 21.562l56.81-56.812l13.22 13.187l-56.438 56.44l24.594 23.186c61.802-66.92 117.6-136.92 160.97-218.72zm-329.53 125.906l200.56 200.53a403 403 0 0 1-13.405 13.032L148.875 153.53zm-76.69 113.28l-28.5 28.532l68.907 68.906c-26.29 43.673-63.53 76.414-106 103.907l28.063 28.06c27.807-42.164 61.758-78.174 104.094-105.81l68.718 68.717l28.53-28.53c-20.962-12.113-41.08-25.5-59.937-40.313c17.865-17.83 35.61-35.433 53.157-52.97l-24.843-25.655l-55.47 55.467c-4.565-4.238-9.014-8.62-13.374-13.062l55.844-55.844l-24.53-25.374c-18.28 17.856-36.602 36.06-55.158 54.594c-15.068-18.587-28.38-38.758-39.5-60.625z"/>',
+};
+
+const LUCIDE_SVG: Record<string, string> = {
+  "lucide-alert-circle":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></g>',
+  "lucide-chevron-left":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></g>',
+  "lucide-chevron-right":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></g>',
+  "lucide-ban":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M4.929 4.929 19.07 19.071"/></g>',
+  "lucide-check":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></g>',
+  "lucide-crosshair":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="22" x2="18" y1="12" y2="12"/><line x1="6" x2="2" y1="12" y2="12"/><line x1="12" x2="12" y1="6" y2="2"/><line x1="12" x2="12" y1="22" y2="18"/></g>',
+  "lucide-hand":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></g>',
+  "lucide-heart-crack":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.409 5.824c-.702.792-1.15 1.496-1.415 2.166l2.153 2.156a.5.5 0 0 1 0 .707l-2.293 2.293a.5.5 0 0 0 0 .707L12 15"/><path d="M13.508 20.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5a5.5 5.5 0 0 1 9.591-3.677.6.6 0 0 0 .818.001A5.5 5.5 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5z"/></g>',
+  "lucide-hourglass":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></g>',
+  "lucide-info":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></g>',
+  "lucide-layers":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></g>',
+  "lucide-log-out":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></g>',
+  "lucide-minus":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></g>',
+  "lucide-plus":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></g>',
+  "lucide-rotate-cw":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></g>',
+  "lucide-settings":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></g>',
+  "lucide-shield":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></g>',
+  "lucide-skull":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.5 17-.5-1-.5 1h1z"/><path d="M15 22a1 1 0 0 0 1-1v-1a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20v1a1 1 0 0 0 1 1z"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="12" r="1"/></g>',
+  "lucide-sword":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m11 19-6-6"/><path d="m5 21-2-2"/><path d="m8 16-4 4"/><path d="M9.5 17.5 21 6V3h-3L6.5 14.5"/></g>',
+  "lucide-swords":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" x2="9" y1="14" y2="18"/><line x1="7" x2="4" y1="17" y2="20"/><line x1="3" x2="5" y1="19" y2="21"/></g>',
+  "lucide-wand-sparkles":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></g>',
+  "lucide-x":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></g>',
+  "lucide-zap":
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></g>',
 };
 
 export function getIconColor(key: string, theme: GameThemeColors): string {
@@ -43,13 +93,32 @@ export function getIconColor(key: string, theme: GameThemeColors): string {
 }
 
 interface PendingSprite {
-  sprite: Sprite;
   displayWidth?: number;
   displayHeight?: number;
 }
 
 const iconCache = new Map<string, Texture>();
-const pendingSprites = new Map<string, Set<PendingSprite>>();
+const pendingSprites = new Map<string, Map<Sprite, PendingSprite>>();
+const pendingKeyBySprite = new WeakMap<Sprite, string>();
+const loadingIcons = new Set<string>();
+
+function detachPendingSprite(sprite: Sprite): void {
+  const cacheKey = pendingKeyBySprite.get(sprite);
+  if (!cacheKey) return;
+  const pending = pendingSprites.get(cacheKey);
+  pending?.delete(sprite);
+  if (pending?.size === 0) pendingSprites.delete(cacheKey);
+  pendingKeyBySprite.delete(sprite);
+}
+
+function takePendingSprites(cacheKey: string): Map<Sprite, PendingSprite> | undefined {
+  const pending = pendingSprites.get(cacheKey);
+  pendingSprites.delete(cacheKey);
+  for (const sprite of pending?.keys() ?? []) {
+    if (pendingKeyBySprite.get(sprite) === cacheKey) pendingKeyBySprite.delete(sprite);
+  }
+  return pending;
+}
 
 export const ICON_RASTER = 64;
 export const PANEL_ICON_VIEWBOX = 512;
@@ -60,6 +129,8 @@ export const PANEL_ICON_VIEWBOX = 512;
 export function resolveIconBody(
   name: string,
 ): { body: string; width: number; height: number } | null {
+  const lucide = LUCIDE_SVG[name];
+  if (lucide) return { body: lucide, width: 24, height: 24 };
   const body = SVG[name];
   if (body) return { body, width: PANEL_ICON_VIEWBOX, height: PANEL_ICON_VIEWBOX };
   const icon = gameIconsPack.icons[name];
@@ -71,42 +142,45 @@ export function resolveIconBody(
   };
 }
 
-function getIconBody(key: string): string | undefined {
-  if (SVG[key]) return SVG[key];
-  const icon = gameIconsPack.icons[key];
-  if (!icon) return undefined;
-  return icon.body;
-}
-
 export function rasterIcon(key: string, hex: string, size: number): void {
   const cacheKey = `${key}:${hex}:${size}`;
-  if (iconCache.has(cacheKey)) return;
-  const body = getIconBody(key);
-  if (!body) return;
-  const coloured = body.replaceAll("currentColor", hex);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}">${coloured}</svg>`;
-  const blob = new Blob([svg], { type: "image/svg+xml" });
-  const url = URL.createObjectURL(blob);
-  const img = new Image();
-  img.width = size;
-  img.height = size;
-  img.src = url;
-  img.onload = () => {
-    const c = document.createElement("canvas");
-    c.width = size;
-    c.height = size;
-    c.getContext("2d")!.drawImage(img, 0, 0, size, size);
-    URL.revokeObjectURL(url);
-    const tex = Texture.from(c);
-    iconCache.set(cacheKey, tex);
-    pendingSprites.get(cacheKey)?.forEach((entry) => {
-      if (entry.sprite.destroyed) return;
-      entry.sprite.texture = tex;
-      if (entry.displayWidth != null) entry.sprite.width = entry.displayWidth;
-      if (entry.displayHeight != null) entry.sprite.height = entry.displayHeight;
+  const cached = iconCache.get(cacheKey);
+  if (cached && !cached.destroyed) return;
+  if (cached) iconCache.delete(cacheKey);
+  if (loadingIcons.has(cacheKey)) return;
+
+  const icon = resolveIconBody(key);
+  if (!icon) {
+    takePendingSprites(cacheKey);
+    return;
+  }
+
+  const coloured = icon.body.replaceAll("currentColor", hex);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${icon.width} ${icon.height}" width="${size}" height="${size}">${coloured}</svg>`;
+  loadingIcons.add(cacheKey);
+  const completion = rasterizeSvgTexture(svg, size)
+    .then(
+      (texture) => {
+        loadingIcons.delete(cacheKey);
+        iconCache.set(cacheKey, texture);
+        const pending = takePendingSprites(cacheKey);
+        pending?.forEach((entry, sprite) => {
+          if (sprite.destroyed) return;
+          sprite.texture = texture;
+          if (entry.displayWidth != null) sprite.width = entry.displayWidth;
+          if (entry.displayHeight != null) sprite.height = entry.displayHeight;
+        });
+      },
+      () => {
+        loadingIcons.delete(cacheKey);
+        takePendingSprites(cacheKey);
+      },
+    )
+    .catch(() => {
+      loadingIcons.delete(cacheKey);
+      takePendingSprites(cacheKey);
     });
-    pendingSprites.delete(cacheKey);
-  };
+  void completion;
 }
 
 export function applyIcon(
@@ -117,15 +191,24 @@ export function applyIcon(
   displayWidth?: number,
   displayHeight?: number,
 ): void {
+  if (sprite.destroyed) return;
+  detachPendingSprite(sprite);
   const cacheKey = `${key}:${hex}:${size}`;
   const cached = iconCache.get(cacheKey);
-  if (cached) {
+  if (cached && !cached.destroyed) {
     sprite.texture = cached;
     if (displayWidth != null) sprite.width = displayWidth;
     if (displayHeight != null) sprite.height = displayHeight;
     return;
   }
+  if (cached) iconCache.delete(cacheKey);
+
+  let pending = pendingSprites.get(cacheKey);
+  if (!pending) {
+    pending = new Map();
+    pendingSprites.set(cacheKey, pending);
+  }
+  pending.set(sprite, { displayWidth, displayHeight });
+  pendingKeyBySprite.set(sprite, cacheKey);
   rasterIcon(key, hex, size);
-  if (!pendingSprites.has(cacheKey)) pendingSprites.set(cacheKey, new Set());
-  pendingSprites.get(cacheKey)!.add({ sprite, displayWidth, displayHeight });
 }

@@ -12,18 +12,42 @@ function normalizeTokenName(name: string): string {
 }
 
 export function asDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard {
-  return resolveDeckCard(deck, gameCard);
+  return resolveDeckCard(deck, gameCard) ?? missingDeckCard(gameCard);
 }
 
-function resolveDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard {
+export function asGameDeckCard(gameDecks: Record<string, Deck>, gameCard: CardDto): DeckCard {
+  const ownerMatch = resolveDeckCard(gameDecks[gameCard.ownerId], gameCard);
+  if (ownerMatch) return ownerMatch;
+  for (const [playerId, deck] of Object.entries(gameDecks)) {
+    if (playerId === gameCard.ownerId) continue;
+    const match = resolveDeckCard(deck, gameCard);
+    if (match) return match;
+  }
+  return missingDeckCard(gameCard);
+}
+
+function missingDeckCard(gameCard: CardDto): DeckCard {
+  const { name, setCode, cardNumber } = gameCard.identity;
+  console.warn(
+    `asDeckCard: no deck match for "${name}" (${setCode}#${cardNumber}), falling back to Scryfall`,
+  );
+  return {
+    identity: { id: "", name, setCode, cardNumber },
+    uris: {},
+  } as DeckCard;
+}
+
+function resolveDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard | null {
   const { name, setCode, cardNumber, isToken, tokenScript } = gameCard.identity;
   const pool = deck ? getDeckCardPool(deck) : [];
-  const exact = pool.find(
-    (c) =>
-      c.identity.name === name &&
-      c.identity.setCode === setCode &&
-      c.identity.cardNumber === cardNumber,
-  );
+  const exact =
+    setCode && cardNumber
+      ? pool.find(
+          (card) =>
+            card.identity.setCode.toLowerCase() === setCode.toLowerCase() &&
+            card.identity.cardNumber.toLowerCase() === cardNumber.toLowerCase(),
+        )
+      : undefined;
   if (exact) return exact;
   if (isToken) {
     const exactToken = gameCard.isCopy ? null : peekArchivedToken({ setCode, cardNumber });
@@ -42,23 +66,13 @@ function resolveDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard {
     if (byName) return byName;
     const token = peekArchivedToken({ name });
     if (token) return token;
-    // Not a real token: a copy of a nontoken card (e.g. Prepare's copied
-    // spell, Spark Double) is flagged isToken but keeps the source card's
-    // identity, so it resolves by name via Scryfall like any other card.
   }
   // Mirrors the engine's `get_by_card_name`, which splits on " // ".
   const matchesName = (deckName: string) =>
     deckName === name || deckName.split(" // ").includes(name);
   const byName = pool.find((c) => matchesName(c.identity.name));
   if (byName) return byName;
-  console.warn(
-    `asDeckCard: no deck match for "${name}" (${setCode}#${cardNumber}), rendering by name`,
-  );
-  return {
-    identity: { id: "", name, setCode, cardNumber },
-    // `uris` must be present — renderers index `deckCard.uris[resolution]` directly.
-    uris: {},
-  } as DeckCard;
+  return null;
 }
 
 export function getDeckCardPool(deck: Deck): DeckCard[] {
@@ -70,6 +84,7 @@ export function getDeckCardPool(deck: Deck): DeckCard[] {
     ...(deck.schemes ?? []),
     ...(deck.planes ?? []),
     ...(deck.commanders ?? []),
+    ...(deck.companion ? [deck.companion] : []),
     ...(deck.tokens ?? []),
   ];
 }

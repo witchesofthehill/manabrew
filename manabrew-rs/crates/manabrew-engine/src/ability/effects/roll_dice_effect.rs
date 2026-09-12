@@ -27,7 +27,7 @@ pub fn make_formated_description(game: &GameState, sa: &SpellAbility) -> String 
         None => return "Roll a die.".to_string(),
     };
 
-    let sides = sa.ir.sides.unwrap_or(6);
+    let sides = resolve_numeric_svar(game, sa, "Sides", 6);
     let card_name = game.card(source_id).card_name.clone();
 
     let mut desc = format!("{card_name} — Roll a d{sides}.");
@@ -122,7 +122,7 @@ pub fn roll_dice_for_player(
     sides: i32,
     amount: i32,
 ) -> i32 {
-    roll_for_player(ctx, sa, source_id, player, sides, amount)
+    roll_for_player(ctx, sa, source_id, player, sides, amount, true)
 }
 
 /// Roll dice for a player specifically to visit attractions.
@@ -163,7 +163,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         Some(id) => id,
         None => return,
     };
-    let sides = sa.ir.sides.unwrap_or(6);
+    let sides = resolve_numeric_svar(ctx.game, sa, "Sides", 6);
     let amount = resolve_numeric_svar(ctx.game, sa, "Amount", 1).max(0);
     let players = if let Some(player) = sa.target_chosen.target_player {
         vec![player]
@@ -180,11 +180,15 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 
     let mut results = Vec::new();
     for player in players.iter().copied() {
-        let final_result = roll_for_player(ctx, sa, source_id, player, sides, amount);
-        if sa.param_is_true("ToVisitYourAttractions") {
-            visit_attractions(ctx.game, ctx.trigger_handler, player, final_result);
+        if sa.param_is_true("RerollResults") {
+            reroll_stored_results(ctx, sa, source_id, player, sides);
+        } else {
+            let final_result = roll_for_player(ctx, sa, source_id, player, sides, amount, true);
+            if sa.param_is_true("ToVisitYourAttractions") {
+                visit_attractions(ctx.game, ctx.trigger_handler, player, final_result);
+            }
+            results.push((player, final_result));
         }
-        results.push((player, final_result));
     }
 
     if sa.param_is_true("RememberHighestPlayer") {
@@ -206,13 +210,14 @@ pub struct DieRollResult {
     pub modified_value: i32,
 }
 
-fn roll_for_player(
+pub(crate) fn roll_for_player(
     ctx: &mut EffectContext,
     sa: &SpellAbility,
     source_id: crate::ids::CardId,
     player: PlayerId,
     sides: i32,
     amount: i32,
+    process_effect_results: bool,
 ) -> i32 {
     let modifier = resolve_numeric_svar(ctx.game, sa, "Modifier", 0);
     let rolled_to_visit_attractions = sa.param_is_true("ToVisitYourAttractions");
@@ -279,64 +284,71 @@ fn roll_for_player(
         kept_rolls.iter().sum()
     };
 
-    if let Some(result_svar) = sa.ir.result_svar_text.as_deref() {
-        ctx.game
-            .card_mut(source_id)
-            .set_s_var(result_svar, format!("Number${final_result}"));
-    }
-    if sa.param_is_true("StoreResults") {
-        for roll in &kept_rolls {
-            ctx.game.card_mut(source_id).add_stored_rolls(*roll);
-        }
-    }
-    if sa.param_is_true("EvenOddResults") {
-        let even = kept_rolls.iter().filter(|roll| **roll % 2 == 0).count();
-        let odd = kept_rolls.len().saturating_sub(even);
-        let source = ctx.game.card_mut(source_id);
-        source.set_s_var("EvenResults", format!("Number${even}"));
-        source.set_s_var("OddResults", format!("Number${odd}"));
-    }
-    if sa.param_is_true("DifferentResults") {
-        let mut distinct = kept_rolls.clone();
-        distinct.sort();
-        distinct.dedup();
-        ctx.game
-            .card_mut(source_id)
-            .set_s_var("DifferentResults", format!("Number${}", distinct.len()));
-    }
-    if sa.param_is_true("MaxRollsResults") {
-        let max_rolls = kept_natural_rolls
-            .iter()
-            .filter(|roll| **roll == sides)
-            .count();
-        ctx.game
-            .card_mut(source_id)
-            .set_s_var("MaxRolls", format!("Number${max_rolls}"));
-    }
-    if let Some(chosen_svar) = sa.ir.chosen_svar_text.as_deref() {
-        if !kept_rolls.is_empty() {
-            let chosen = ctx.agents[player.index()]
-                .choose_number_from_list(player, &kept_rolls, "Choose a result", Some(source_id))
-                .unwrap_or(kept_rolls[0]);
+    if process_effect_results {
+        if let Some(result_svar) = sa.ir.result_svar_text.as_deref() {
             ctx.game
                 .card_mut(source_id)
-                .set_s_var(chosen_svar, format!("Number${chosen}"));
-            if let Some(other_svar) = sa.ir.other_svar_text.as_deref() {
-                let other = kept_rolls
-                    .iter()
-                    .copied()
-                    .find(|roll| *roll != chosen)
-                    .unwrap_or(chosen);
-                ctx.game
-                    .card_mut(source_id)
-                    .set_s_var(other_svar, format!("Number${other}"));
+                .set_s_var(result_svar, format!("Number${final_result}"));
+        }
+        if sa.param_is_true("StoreResults") {
+            for roll in &kept_rolls {
+                ctx.game.card_mut(source_id).add_stored_rolls(*roll);
             }
         }
-    }
-    if sa.param_is_true("NoteDoubles") {
-        let mut unique = std::collections::HashSet::new();
-        if kept_rolls.iter().any(|roll| !unique.insert(*roll)) {
-            ctx.game.card_mut(source_id).set_s_var("Doubles", "1");
+        if sa.param_is_true("EvenOddResults") {
+            let even = kept_rolls.iter().filter(|roll| **roll % 2 == 0).count();
+            let odd = kept_rolls.len().saturating_sub(even);
+            let source = ctx.game.card_mut(source_id);
+            source.set_s_var("EvenResults", format!("Number${even}"));
+            source.set_s_var("OddResults", format!("Number${odd}"));
+        }
+        if sa.param_is_true("DifferentResults") {
+            let mut distinct = kept_rolls.clone();
+            distinct.sort();
+            distinct.dedup();
+            ctx.game
+                .card_mut(source_id)
+                .set_s_var("DifferentResults", format!("Number${}", distinct.len()));
+        }
+        if sa.param_is_true("MaxRollsResults") {
+            let max_rolls = kept_natural_rolls
+                .iter()
+                .filter(|roll| **roll == sides)
+                .count();
+            ctx.game
+                .card_mut(source_id)
+                .set_s_var("MaxRolls", format!("Number${max_rolls}"));
+        }
+        if let Some(chosen_svar) = sa.ir.chosen_svar_text.as_deref() {
+            if !kept_rolls.is_empty() {
+                let chosen = ctx.agents[player.index()]
+                    .choose_number_from_list(
+                        player,
+                        &kept_rolls,
+                        "Choose a result",
+                        Some(source_id),
+                    )
+                    .unwrap_or(kept_rolls[0]);
+                ctx.game
+                    .card_mut(source_id)
+                    .set_s_var(chosen_svar, format!("Number${chosen}"));
+                if let Some(other_svar) = sa.ir.other_svar_text.as_deref() {
+                    let other = kept_rolls
+                        .iter()
+                        .copied()
+                        .find(|roll| *roll != chosen)
+                        .unwrap_or(chosen);
+                    ctx.game
+                        .card_mut(source_id)
+                        .set_s_var(other_svar, format!("Number${other}"));
+                }
+            }
+        }
+        if sa.param_is_true("NoteDoubles") {
+            let mut unique = std::collections::HashSet::new();
+            if kept_rolls.iter().any(|roll| !unique.insert(*roll)) {
+                ctx.game.card_mut(source_id).set_s_var("Doubles", "1");
+            }
         }
     }
 
@@ -400,6 +412,7 @@ fn roll_for_player(
             natural_results: kept_natural_rolls.clone(),
             final_results: kept_rolls.clone(),
             ignored_rolls: ignored_rolls.clone(),
+            source_card_id: Some(source_id),
             source_card_name: Some(source_name.clone()),
         },
     );
@@ -407,41 +420,48 @@ fn roll_for_player(
         agent.await_display_ack();
     }
 
-    if sa.param_is_true("SubsForEach") {
-        if let Some(result_str) = sa.ir.result_sub_abilities_text.as_deref() {
-            for roll in &kept_rolls {
-                resolve_result_sub_ability(ctx, sa, source_id, player, *roll, result_str);
+    if process_effect_results {
+        if sa.param_is_true("SubsForEach") {
+            if let Some(result_str) = sa.ir.result_sub_abilities_text.as_deref() {
+                for roll in &kept_rolls {
+                    resolve_result_sub_ability(ctx, sa, source_id, player, *roll, result_str);
+                }
             }
-        }
-    } else if let Some(result_str) = sa.ir.result_sub_abilities_text.as_deref() {
-        resolve_result_sub_ability(ctx, sa, source_id, player, final_result, result_str);
-    }
-
-    if sa.param_is_true("RerollResults") {
-        let stored_rolls = ctx.game.card(source_id).remembered_cmc.clone();
-        let mut replacements = Vec::new();
-        for old_roll in stored_rolls {
-            if ctx.agents[player.index()].confirm_action(
-                player,
-                Some("RerollResult"),
-                &format!("Reroll result {old_roll}?"),
-                &[],
-                Some(source_id),
-                sa.api,
-            ) {
-                let new_roll = roll_for_player(ctx, sa, source_id, player, sides, 1);
-                replacements.push((old_roll, new_roll));
-            }
-        }
-        for (old_roll, new_roll) in replacements {
-            ctx.game
-                .card_mut(source_id)
-                .replace_stored_roll(old_roll, new_roll);
+        } else if let Some(result_str) = sa.ir.result_sub_abilities_text.as_deref() {
+            resolve_result_sub_ability(ctx, sa, source_id, player, final_result, result_str);
         }
     }
 
     // Parse ResultSubAbilities$ and find the matching threshold
     final_result
+}
+fn reroll_stored_results(
+    ctx: &mut EffectContext,
+    sa: &SpellAbility,
+    source_id: crate::ids::CardId,
+    player: PlayerId,
+    sides: i32,
+) {
+    let stored_rolls = ctx.game.card(source_id).stored_rolls.clone();
+    let mut replacements = Vec::new();
+    for old_roll in stored_rolls {
+        if ctx.agents[player.index()].confirm_action(
+            player,
+            Some("RerollResult"),
+            &format!("Reroll result {old_roll}?"),
+            &[],
+            Some(source_id),
+            sa.api,
+        ) {
+            let new_roll = roll_for_player(ctx, sa, source_id, player, sides, 1, true);
+            replacements.push((old_roll, new_roll));
+        }
+    }
+    for (old_roll, new_roll) in replacements {
+        ctx.game
+            .card_mut(source_id)
+            .replace_stored_roll(old_roll, new_roll);
+    }
 }
 
 pub fn roll_to_visit_attractions(
@@ -580,6 +600,7 @@ pub fn roll_to_visit_attractions(
             natural_results,
             final_results: kept_rolls.clone(),
             ignored_rolls: ignored_rolls.clone(),
+            source_card_id: None,
             source_card_name: Some("Attraction roll".to_string()),
         },
     );
@@ -1868,7 +1889,7 @@ mod tests {
             rng: &mut rng,
         };
 
-        let result = roll_for_player(&mut ctx, &sa, source_id, player, 6, 1);
+        let result = roll_for_player(&mut ctx, &sa, source_id, player, 6, 1, true);
 
         assert_eq!(result, 6);
         assert_eq!(
@@ -1927,7 +1948,7 @@ mod tests {
             rng: &mut rng,
         };
 
-        let result = roll_for_player(&mut ctx, &sa, source_id, player, 6, 2);
+        let result = roll_for_player(&mut ctx, &sa, source_id, player, 6, 2, true);
 
         assert_eq!(result, 7);
         assert_eq!(ctx.game.player(player).num_rolls_this_turn, 2);

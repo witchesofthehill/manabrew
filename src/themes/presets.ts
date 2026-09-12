@@ -42,6 +42,10 @@ export interface ThemePreset {
 }
 
 import defaultPreset from "./default";
+import darkMinimalPreset from "./dark-minimal";
+import candle8Preset from "./candle8";
+import hauntedHuesPreset from "./haunted-hues";
+import darkberryPreset from "./darkberry";
 import rosePinePreset from "./rose-pine";
 import nordPreset from "./nord";
 import catppuccinPreset from "./catppuccin";
@@ -56,6 +60,10 @@ import kanagawaPreset from "./kanagawa";
 
 export const THEME_PRESETS: ThemePreset[] = [
   defaultPreset,
+  darkMinimalPreset,
+  candle8Preset,
+  hauntedHuesPreset,
+  darkberryPreset,
   nordPreset,
   rosePinePreset,
   catppuccinPreset,

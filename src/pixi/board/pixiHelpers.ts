@@ -14,6 +14,8 @@ export const setFrameRatio = (deltaMS: number): number => {
   return frameRatio;
 };
 
+export const getFrameRatio = (): number => frameRatio;
+
 /**
  * Linear-interpolate `current` toward `target` by `speed`, snapping to the
  * target once within `snap` to avoid endless sub-pixel easing. `speed` is the

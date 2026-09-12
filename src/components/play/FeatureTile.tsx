@@ -6,7 +6,6 @@ interface TileAccent {
   chip: string;
   hoverBorder: string;
   watermark: string;
-  surface?: string;
 }
 
 const TILE_ACCENTS: Record<string, TileAccent> = {
@@ -39,8 +38,6 @@ const TILE_ACCENTS: Record<string, TileAccent> = {
     chip: "border-community-accent/45 bg-community-accent/15 text-community-accent",
     hoverBorder: "hover:border-community-accent/70",
     watermark: "text-community-accent opacity-[0.09]",
-    surface:
-      "border-community-accent/35 bg-community-accent/[0.08] hover:bg-community-accent/[0.12]",
   },
 };
 
@@ -93,7 +90,6 @@ export function FeatureTile({
         "group relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl border border-border/70 bg-card/85 backdrop-blur-md motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         sizing.tile,
         accent.hoverBorder,
-        accent.surface,
         className,
       )}
     >

@@ -98,6 +98,7 @@ pub struct ReplacementEffectIr {
     pub valid_counter_type_text: Option<String>,
     pub valid_lose_reason_text: Option<String>,
     pub valid_sides_text: Option<String>,
+    pub valid_roll_text: Option<String>,
     pub active_phases: Vec<PhaseType>,
     pub amount_text: Option<String>,
     pub damage_amount_text: Option<String>,
@@ -578,8 +579,8 @@ impl ReplacementEffect {
                 ReplacementEvent::BeginTurn { player }
                 | ReplacementEvent::BeginPhase { player, .. }
                 | ReplacementEvent::DeclareBlocker { player }
-                | ReplacementEvent::RollPlanarDice { player }
-                | ReplacementEvent::PlanarDiceResult { player }
+                | ReplacementEvent::RollPlanarDice { player, .. }
+                | ReplacementEvent::PlanarDiceResult { player, .. }
                 | ReplacementEvent::LoseMana { player }
                 | ReplacementEvent::GameLoss { player, .. }
                 | ReplacementEvent::GameWin { player }
@@ -723,6 +724,7 @@ impl ReplacementEffectIr {
             valid_counter_type_text: params.get(keys::VALID_COUNTER_TYPE).map(str::to_string),
             valid_lose_reason_text: params.get(keys::VALID_LOSE_REASON).map(str::to_string),
             valid_sides_text: params.get(keys::VALID_SIDES).map(str::to_string),
+            valid_roll_text: params.get("ValidRoll").map(str::to_string),
             active_phases: parsed_phase_types(
                 params
                     .get(keys::PHASE)

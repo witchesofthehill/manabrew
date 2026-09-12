@@ -1,3 +1,5 @@
+// @refresh reset
+
 import { useRef, useEffect, useCallback, useMemo, useState } from "react";
 import { Application } from "pixi.js";
 import { destroyPixiApp, installPixiPatches } from "./pixiPatches";
@@ -9,18 +11,17 @@ import { BoardScene, type BoardPlayerSpec } from "./board/BoardScene";
 import { computeBoardLayout, type RegionOrientation } from "./board/boardLayout";
 import type { PlayerHudSpec as PlayerBarSpec } from "./hud/playerHud.types";
 import type { ZoneTileSpec } from "./board/BoardZoneTiles";
-import { battlefieldScaleForMultiplier, combatRowReserve, maxScaleForRows } from "./GridLayout";
-import { playmatPad } from "./board/PlaymatLayer";
+import { battlefieldScaleForMultiplier, scaleForRowsWithCombatRow } from "./GridLayout";
 import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme } from "@/hooks/useTheme";
 import { useHandScale } from "@/hooks/useHandScale";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { useGameStore } from "@/stores/useGameStore";
 import { isCoarsePointer } from "@/lib/responsive";
 import { registerPixiApp } from "./visibility";
 import {
-  BATTLEFIELD_CARD_SCALE_FLOOR,
-  BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT,
   BATTLEFIELD_MIN_ROWS,
+  BATTLEFIELD_MIN_ROWS_LARGEST,
   FIELD_INNER_EDGE_PAD_PX,
   HAND_ACTIONS_CLEAR_DELAY_MS,
   HAND_ACTIONS_GAP_PX,
@@ -35,6 +36,7 @@ import { useServerStore } from "@/stores/useServerStore";
 import { boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
 import { setAnimationsEnabled } from "./effects/enabled";
 import { withAlpha } from "@/themes/gameTheme";
+import { bindPreviewScroll } from "./cardPreview/previewScroll";
 
 /** Matches HandCardActions `w-[220px]`. */
 const HAND_ACTIONS_PANEL_W = 220;
@@ -91,17 +93,11 @@ interface BoardCanvasProps {
   phaseStrip: PhaseStripState;
   phaseStripCallbacks?: PhaseStripCallbacks;
   compact?: boolean;
-  /** The opponent whose field auto-expands (their turn), or `null` for an even
-   *  split (our turn). The scene owns + eases the delimiters; this sets the
-   *  target. */
+  opponentLayout?: "focused" | "overview";
+  focusLocked?: boolean;
   focusedOpponentId?: string | null;
-  /** Opponents under attack this combat — expanded (even-split when several)
-   *  over the turn focus so combat stays visible. */
   combatFocusIds?: string[];
-  /** Keyboard-cycled single-opponent focus; wins over combat/turn focus. */
   manualFocusId?: string | null;
-  /** Thin Pixi player bars over each opponent's field. `showPlayerBars` toggles
-   *  them; `playerBars` carries the per-opponent name/life/colour/state. */
   playerBars?: PlayerBarSpec[];
   showPlayerBars?: boolean;
   zoneTiles?: Record<string, ZoneTileSpec[]>;
@@ -114,6 +110,7 @@ interface BoardCanvasProps {
   isDropActive?: boolean;
   autoSort?: boolean;
   sceneRef?: React.MutableRefObject<BoardScene | null>;
+  onSceneChange?: (scene: BoardScene | null) => void;
   getHandActions?: (card: CardDto) => HandActionOption[];
   onSelectHandAction?: (card: CardDto, action: HandActionOption) => void;
   externalPreviewActive?: boolean;
@@ -139,6 +136,8 @@ export function BoardCanvas({
   phaseStrip,
   phaseStripCallbacks,
   compact,
+  opponentLayout = "focused",
+  focusLocked = false,
   focusedOpponentId,
   combatFocusIds,
   manualFocusId,
@@ -151,6 +150,7 @@ export function BoardCanvas({
   isDropActive,
   autoSort,
   sceneRef: externalSceneRef,
+  onSceneChange,
   getHandActions,
   onSelectHandAction,
   externalPreviewActive,
@@ -159,7 +159,6 @@ export function BoardCanvas({
 }: BoardCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const appRef = useRef<Application | null>(null);
-  const unregisterVisibilityRef = useRef<(() => void) | null>(null);
   const [scene, setScene] = useState<BoardScene | null>(null);
   const sceneRef = useRef<BoardScene | null>(null);
   const callbacksRef = useRef(callbacks);
@@ -172,9 +171,16 @@ export function BoardCanvas({
   const cardStyle = usePreferencesStore((s) => s.battlefieldCardStyle);
   const lockZoneTiles = usePreferencesStore((s) => s.lockZoneTiles);
   const handViewportScale = useHandScale();
+  const promptType = useGameStore((s) => s.currentPrompt?.input.type);
+  const cardPromptOpen =
+    promptType === "chooseCards" ||
+    promptType === "revealCards" ||
+    promptType === "reorder" ||
+    promptType === "scry";
 
   const [handHover, setHandHover] = useState<HandHoverState | null>(null);
   const clearTimerRef = useRef<number | null>(null);
+  const handActionHoverHeldRef = useRef(false);
   const cancelHandHoverClear = useCallback(() => {
     if (clearTimerRef.current != null) {
       window.clearTimeout(clearTimerRef.current);
@@ -188,11 +194,25 @@ export function BoardCanvas({
       clearTimerRef.current = null;
     }, HAND_ACTIONS_CLEAR_DELAY_MS);
   }, [cancelHandHoverClear]);
+  const holdHandActionHover = useCallback(() => {
+    handActionHoverHeldRef.current = true;
+    cancelHandHoverClear();
+    sceneRef.current?.holdHandHover();
+  }, [cancelHandHoverClear]);
+  const releaseHandActionHover = useCallback(() => {
+    handActionHoverHeldRef.current = false;
+    scheduleHandHoverClear();
+    sceneRef.current?.releaseHandHover();
+  }, [scheduleHandHoverClear]);
 
   useEffect(() => {
-    sceneRef.current = scene;
     if (externalSceneRef) externalSceneRef.current = scene;
-  }, [scene, externalSceneRef]);
+    onSceneChange?.(scene);
+    return () => {
+      if (externalSceneRef?.current === scene) externalSceneRef.current = null;
+      onSceneChange?.(null);
+    };
+  }, [scene, externalSceneRef, onSceneChange]);
   useEffect(() => {
     callbacksRef.current = callbacks;
   }, [callbacks]);
@@ -203,117 +223,143 @@ export function BoardCanvas({
     selfBottomReserveRef.current = selfBottomReserve ?? 0;
   }, [selfBottomReserve]);
 
-  const initApp = useCallback(async () => {
-    if (!canvasRef.current || appRef.current) return;
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let disposed = false;
+    let initSettled = false;
+    let released = false;
+    let localScene: BoardScene | null = null;
+    let unregisterVisibility: (() => void) | null = null;
     const app = new Application();
     appRef.current = app;
-    try {
-      await app.init({
-        canvas: canvasRef.current,
-        preference: "webgl",
-        backgroundAlpha: 0,
-        antialias: true,
-        autoDensity: true,
-        resolution: Math.min(2, window.devicePixelRatio || 1),
-      });
-    } catch (err) {
-      console.error("[pixi] BoardCanvas init failed:", err);
-      appRef.current = null;
-      return;
-    }
-    if (!app.renderer) {
-      appRef.current = null;
-      return;
-    }
-    app.ticker.maxFPS = PIXI_MAX_FPS;
-    unregisterVisibilityRef.current = registerPixiApp(app);
 
-    const newScene = new BoardScene(app, {
-      onClickCard: (...a) => callbacksRef.current.onClickCard?.(...a),
-      onHoverCard: (...a) => callbacksRef.current.onHoverCard?.(...a),
-      onRightClickCard: (...a) => callbacksRef.current.onRightClickCard?.(...a),
-      onClickAnyCard: (...a) => callbacksRef.current.onClickAnyCard?.(...a),
-      onFlipCard: () => callbacksRef.current.onFlipCard?.(),
-      onTapLand: (...a) => callbacksRef.current.onTapLand?.(...a),
-      onTapLands: (...a) => callbacksRef.current.onTapLands?.(...a),
-      onUntapLand: (...a) => callbacksRef.current.onUntapLand?.(...a),
-      onUntapLands: (...a) => callbacksRef.current.onUntapLands?.(...a),
-      onTapLandAbility: (...a) => callbacksRef.current.onTapLandAbility?.(...a),
-      onAttackerClick: (...a) => callbacksRef.current.onAttackerClick?.(...a),
-      onAssignBlock: (...a) => callbacksRef.current.onAssignBlock?.(...a),
-      onUnassignBlock: (...a) => callbacksRef.current.onUnassignBlock?.(...a),
-      onBlockDragChange: (...a) => callbacksRef.current.onBlockDragChange?.(...a),
-      onAssignAttacker: (...a) => callbacksRef.current.onAssignAttacker?.(...a),
-      onUnassignAttacker: (...a) => callbacksRef.current.onUnassignAttacker?.(...a),
-      onAttackDragChange: (...a) => callbacksRef.current.onAttackDragChange?.(...a),
-      onTargetPlayer: (...a) => callbacksRef.current.onTargetPlayer?.(...a),
-      onShowPlayerSheet: (...a) => callbacksRef.current.onShowPlayerSheet?.(...a),
-      onShowBoardMenu: (...a) => callbacksRef.current.onShowBoardMenu?.(...a),
-      onHoverOpponent: (...a) => callbacksRef.current.onHoverOpponent?.(...a),
-      onStartDrag: (...a) => callbacksRef.current.onStartDrag?.(...a),
-      onReorderHand: (...a) => callbacksRef.current.onReorderHand?.(...a),
-      onClickCard_Hand: (...a) => callbacksRef.current.onClickCard_Hand?.(...a),
-      onCastSpell: (...a) => callbacksRef.current.onCastSpell?.(...a),
-      onDismissHoverPreview: () => callbacksRef.current.onDismissHoverPreview?.(),
-      onHoverHandCard: (card, bounds) => {
-        callbacksRef.current.onHoverHandCard?.(card, bounds);
-        if (card && bounds) {
-          cancelHandHoverClear();
-          setHandHover({ card, bounds });
-        } else {
-          // Pixi already held the card for HAND_HOVER_HOLD_MS (moving onto the flip
-          // button / panel cancels it), so a null here means the cursor truly left —
-          // clear in sync with the card instead of adding a second grace.
-          cancelHandHoverClear();
-          setHandHover(null);
-        }
-      },
-    });
-
-    const theme = getTheme();
-    setPixiTextStyleTheme(theme);
-    newScene.setTheme(theme);
-
-    const parent = canvasRef.current.parentElement;
-    if (parent) newScene.resize(parent.clientWidth, parent.clientHeight);
-    newScene.setOnHandReserveChange((px) => {
-      reserveRef.current = px;
-      const base = latestLayoutRef.current;
-      if (!base) return;
-      const updated = {
-        ...base,
-        selfClusterMaxHeight: Math.max(px, selfBottomReserveRef.current),
-      };
-      latestLayoutRef.current = updated;
-      onLayoutRef.current?.(updated);
-    });
-    setScene(newScene);
-  }, [cancelHandHoverClear]);
-
-  useEffect(() => {
-    let active = true;
-    initApp().then(() => {
-      if (!active) {
-        sceneRef.current?.destroy();
-        sceneRef.current = null;
-        unregisterVisibilityRef.current?.();
-        unregisterVisibilityRef.current = null;
-        destroyPixiApp(appRef.current);
-        appRef.current = null;
-        setScene(null);
-      }
-    });
-    return () => {
-      active = false;
-      sceneRef.current?.destroy();
-      sceneRef.current = null;
-      unregisterVisibilityRef.current?.();
-      unregisterVisibilityRef.current = null;
-      destroyPixiApp(appRef.current);
-      appRef.current = null;
-      setScene(null);
+    const release = () => {
+      if (released) return;
+      released = true;
+      const sceneToRelease = localScene;
+      localScene = null;
+      sceneToRelease?.destroy();
+      if (sceneRef.current === sceneToRelease) sceneRef.current = null;
+      unregisterVisibility?.();
+      unregisterVisibility = null;
+      destroyPixiApp(app);
+      if (appRef.current === app) appRef.current = null;
     };
-  }, [initApp]);
+
+    void (async () => {
+      try {
+        await app.init({
+          canvas,
+          preference: "webgl",
+          backgroundAlpha: 0,
+          antialias: true,
+          autoDensity: true,
+          resolution: Math.min(2, window.devicePixelRatio || 1),
+        });
+        initSettled = true;
+        if (disposed || appRef.current !== app) {
+          release();
+          return;
+        }
+        if (!app.renderer) {
+          release();
+          return;
+        }
+
+        app.ticker.maxFPS = PIXI_MAX_FPS;
+        unregisterVisibility = registerPixiApp(app);
+
+        const newScene = new BoardScene(app, {
+          onClickCard: (...a) => callbacksRef.current.onClickCard?.(...a),
+          onHoverCard: (...a) => callbacksRef.current.onHoverCard?.(...a),
+          onHoverZoneCards: (...a) => callbacksRef.current.onHoverZoneCards?.(...a),
+          onRightClickCard: (...a) => callbacksRef.current.onRightClickCard?.(...a),
+          onClickAnyCard: (...a) => callbacksRef.current.onClickAnyCard?.(...a),
+          onFlipCard: () => callbacksRef.current.onFlipCard?.(),
+          onTapLand: (...a) => callbacksRef.current.onTapLand?.(...a),
+          onTapLands: (...a) => callbacksRef.current.onTapLands?.(...a),
+          onUntapLand: (...a) => callbacksRef.current.onUntapLand?.(...a),
+          onUntapLands: (...a) => callbacksRef.current.onUntapLands?.(...a),
+          onTapLandAbility: (...a) => callbacksRef.current.onTapLandAbility?.(...a),
+          onAttackerClick: (...a) => callbacksRef.current.onAttackerClick?.(...a),
+          onAssignBlock: (...a) => callbacksRef.current.onAssignBlock?.(...a),
+          onUnassignBlock: (...a) => callbacksRef.current.onUnassignBlock?.(...a),
+          onLongPressCard: (...a) => callbacksRef.current.onLongPressCard?.(...a),
+          onBlockDragChange: (...a) => callbacksRef.current.onBlockDragChange?.(...a),
+          onAssignAttacker: (...a) => callbacksRef.current.onAssignAttacker?.(...a),
+          onUnassignAttacker: (...a) => callbacksRef.current.onUnassignAttacker?.(...a),
+          onAttackDragChange: (...a) => callbacksRef.current.onAttackDragChange?.(...a),
+          onTargetPlayer: (...a) => callbacksRef.current.onTargetPlayer?.(...a),
+          onShowPlayerSheet: (...a) => callbacksRef.current.onShowPlayerSheet?.(...a),
+          onHoverOpponent: (...a) => callbacksRef.current.onHoverOpponent?.(...a),
+          onStartDrag: (...a) => callbacksRef.current.onStartDrag?.(...a),
+          onReorderHand: (...a) => callbacksRef.current.onReorderHand?.(...a),
+          onClickCard_Hand: (...a) => callbacksRef.current.onClickCard_Hand?.(...a),
+          onCastSpell: (...a) => callbacksRef.current.onCastSpell?.(...a),
+          onDismissHoverPreview: () => callbacksRef.current.onDismissHoverPreview?.(),
+          onHoverHandCard: (card, bounds) => {
+            callbacksRef.current.onHoverHandCard?.(card, bounds);
+            if (card && bounds) {
+              cancelHandHoverClear();
+              setHandHover({ card, bounds });
+            } else {
+              cancelHandHoverClear();
+              setHandHover(null);
+            }
+          },
+        });
+        localScene = newScene;
+
+        const theme = getTheme();
+        setPixiTextStyleTheme(theme);
+        newScene.setTheme(theme);
+
+        const parent = canvas.parentElement;
+        if (parent) newScene.resize(parent.clientWidth, parent.clientHeight);
+        newScene.setOnHandReserveChange((px) => {
+          reserveRef.current = px;
+          const base = latestLayoutRef.current;
+          if (!base) return;
+          const updated = {
+            ...base,
+            selfClusterMaxHeight: Math.max(px, selfBottomReserveRef.current),
+          };
+          latestLayoutRef.current = updated;
+          onLayoutRef.current?.(updated);
+        });
+        sceneRef.current = newScene;
+        setScene(newScene);
+      } catch (err) {
+        initSettled = true;
+        release();
+        if (!disposed) console.error("[pixi] BoardCanvas init failed:", err);
+      }
+    })();
+
+    return () => {
+      disposed = true;
+      if (sceneRef.current === localScene) sceneRef.current = null;
+      if (appRef.current === app) appRef.current = null;
+      if (initSettled) release();
+    };
+  }, [cancelHandHoverClear]);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !scene) return;
+    return bindPreviewScroll(
+      canvas,
+      (clientX, clientY) => {
+        const rect = canvas.getBoundingClientRect();
+        return scene.hitTestHandRules(clientX - rect.left, clientY - rect.top);
+      },
+      (delta, mode, clientX, clientY) => {
+        const rect = canvas.getBoundingClientRect();
+        scene.scrollHandRulesAt(clientX - rect.left, clientY - rect.top, delta, mode);
+      },
+    );
+  }, [scene]);
 
   const players: BoardPlayerSpec[] = regions.map((r) => ({
     playerId: r.playerId,
@@ -322,12 +368,7 @@ export function BoardCanvas({
     playmatSettings: r.playmatSettings,
     color: r.color,
   }));
-  const playersKey = players
-    .map(
-      (p) =>
-        `${p.playerId}:${p.isLocal ? 1 : 0}:${p.playmat ? 1 : 0}:${p.color ?? ""}:${JSON.stringify(p.playmatSettings ?? {})}`,
-    )
-    .join(",");
+  const playersKey = JSON.stringify(players);
   const opponentIds = regions.filter((r) => !r.isLocal).map((r) => r.playerId);
 
   const reconfigure = useCallback(() => {
@@ -343,58 +384,35 @@ export function BoardCanvas({
       opponentCount,
       selfBottomReserve ?? 0,
       compact ?? false,
+      opponentLayout,
     );
     s.setCompactMode(compact ?? false);
-    // Each region is scaled to fill its OWN height — a single shared scale let
-    // the tightest field (self, after the hand-fan reserve) shrink everyone, so
-    // the roomier opponent fields wasted space. Every field follows the card
-    // size multiplier (100% = 3-row board), clamped per field to a 2-row
-    // fill; compact locks to 3 rows regardless.
-    const scaleFloor = compact
-      ? BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT
-      : BATTLEFIELD_CARD_SCALE_FLOOR;
-    // The region's playArea insets the usable zone by the playmat pad on every
-    // edge before laying rows, so the pad must come off before picking the
-    // scale on EVERY platform — the exact joint solve fills the height it is
-    // given, and an un-trimmed height makes the real grid floor a row short
-    // (a 2-row fill rendered as a single row). The old desktop path only
-    // survived without the trim because its two-pass band estimate under-sized
-    // cards enough to leave slack.
-    const playmatTrim = (usable: number, width: number) =>
-      Math.max(1, usable - playmatPad(width, usable) - FIELD_INNER_EDGE_PAD_PX);
-    const selfUsable = playmatTrim(
-      Math.max(1, layout.self.height - (selfBottomReserve ?? 0)),
-      layout.self.width,
+    s.setFocusLocked(focusLocked);
+    const playmatTrim = (usable: number) => Math.max(1, usable - FIELD_INNER_EDGE_PAD_PX);
+    const selfUsable = playmatTrim(Math.max(1, layout.self.height - (selfBottomReserve ?? 0)));
+    const selfScale = Math.max(
+      Number.EPSILON,
+      compact
+        ? scaleForRowsWithCombatRow(selfUsable, BATTLEFIELD_MIN_ROWS)
+        : Math.min(
+            battlefieldScaleForMultiplier(selfUsable, cardSizeMultiplier),
+            scaleForRowsWithCombatRow(selfUsable, BATTLEFIELD_MIN_ROWS_LARGEST),
+          ),
     );
-    const compactSelfBand = combatRowReserve(maxScaleForRows(selfUsable, BATTLEFIELD_MIN_ROWS));
-    const selfScale = compact
-      ? Math.max(
-          scaleFloor,
-          maxScaleForRows(Math.max(1, selfUsable - compactSelfBand), BATTLEFIELD_MIN_ROWS),
-        )
-      : battlefieldScaleForMultiplier(selfUsable, cardSizeMultiplier);
-    // No top reserve: the opponent HUD is a keep-out blocker, so the grid uses
-    // the full field height (the avatar's top-left cells are blocked instead).
-    const oppUsables = layout.opponents.map((o) =>
-      playmatTrim(Math.max(1, o.rect.height), o.rect.width),
-    );
+    const oppUsables = layout.opponents.map((o) => playmatTrim(Math.max(1, o.rect.height)));
     const oppUsable = oppUsables.length ? Math.min(...oppUsables) : selfUsable;
-    const compactOppBand = combatRowReserve(maxScaleForRows(oppUsable, BATTLEFIELD_MIN_ROWS));
-    const oppScale = compact
-      ? Math.max(
-          scaleFloor,
-          maxScaleForRows(Math.max(1, oppUsable - compactOppBand), BATTLEFIELD_MIN_ROWS),
-        )
-      : battlefieldScaleForMultiplier(oppUsable, cardSizeMultiplier);
+    const oppScale = Math.max(
+      Number.EPSILON,
+      layout.opponentLayout === "overview"
+        ? scaleForRowsWithCombatRow(oppUsable, 1)
+        : compact
+          ? scaleForRowsWithCombatRow(oppUsable, BATTLEFIELD_MIN_ROWS)
+          : Math.min(
+              battlefieldScaleForMultiplier(oppUsable, cardSizeMultiplier),
+              scaleForRowsWithCombatRow(oppUsable, BATTLEFIELD_MIN_ROWS_LARGEST),
+            ),
+    );
     s.configure(players, layout, { self: selfScale, opponent: oppScale });
-    // The hand fan gets `useHandScale` — viewport factor times the DAMPED
-    // card-size multiplier — the exact number the hand reserve (GameBoard)
-    // and drag ghosts are computed from, so the fan and the grid can never
-    // disagree (a fan bigger than its reserve swallows the bottom battlefield
-    // row through its cell blocker). Growth is additionally capped at a
-    // fraction of the field height in HandController.setScale. Compact keeps
-    // the fixed fan its mobile layout was tuned for. Applied after configure
-    // so a rebuilt HandController picks it up and the cap re-evaluates.
     s.setHandScale(compact ? 1 : handViewportScale);
     const next: BoardCanvasLayout = {
       self: layout.self,
@@ -414,6 +432,8 @@ export function BoardCanvas({
     cardSizeMultiplier,
     handViewportScale,
     compact,
+    opponentLayout,
+    focusLocked,
     selfBottomReserve,
     showPlayerBars,
   ]);
@@ -450,13 +470,13 @@ export function BoardCanvas({
       lastRegionStateRef.current.clear();
       lastRegionSceneRef.current = scene;
     }
+    const liveIds = new Set<string>();
+    for (const r of regions) for (const c of r.state.cards) liveIds.add(c.id);
     for (const r of regions) {
       if (!seeding && lastRegionStateRef.current.get(r.playerId) === r.state) continue;
       lastRegionStateRef.current.set(r.playerId, r.state);
       scene.updateRegionState(r.playerId, r.state);
     }
-    const liveIds = new Set<string>();
-    for (const r of regions) for (const c of r.state.cards) liveIds.add(c.id);
     scene.pruneCardPositions(liveIds);
   }, [scene, regions]);
 
@@ -569,11 +589,23 @@ export function BoardCanvas({
     );
   }, [handCardStyle, hoverCardId, scene]);
   const showHandFlip = !!handHover && hoverFaces.isFlippable;
+  const handActionPanelVisible = Boolean(showActionPanel && !handRulesView);
+  useEffect(() => {
+    if (handActionPanelVisible || !handActionHoverHeldRef.current) return;
+    handActionHoverHeldRef.current = false;
+    cancelHandHoverClear();
+    scene?.releaseHandHover();
+  }, [cancelHandHoverClear, handActionPanelVisible, scene]);
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
 
   useEffect(() => {
     scene?.setHoverDebug(showHoverAreas);
   }, [scene, showHoverAreas]);
+  const showPlayerPanelBounds = useGameDevStore((s) => s.showPlayerPanelBounds);
+
+  useEffect(() => {
+    scene?.setPlayerPanelBoundsDebug(showPlayerPanelBounds);
+  }, [scene, showPlayerPanelBounds]);
 
   const showGridSkeleton = useGameDevStore((s) => s.showGridSkeleton);
 
@@ -655,8 +687,12 @@ export function BoardCanvas({
   }, [handActions, handHover, handRulesView, scene, selectHandAction]);
 
   useKeybindings({
-    ...(!externalPreviewActive && showHandFlip ? { "flip-card": toggleHandFlip } : {}),
-    ...(!externalPreviewActive && handHover ? { "toggle-card-view": toggleHandRulesView } : {}),
+    ...(!externalPreviewActive && !cardPromptOpen && showHandFlip
+      ? { "flip-card": toggleHandFlip }
+      : {}),
+    ...(!externalPreviewActive && !cardPromptOpen && handHover
+      ? { "toggle-card-view": toggleHandRulesView }
+      : {}),
   });
 
   return (
@@ -684,14 +720,8 @@ export function BoardCanvas({
                 : "transparent",
               zIndex: Z_HAND_ACTIONS_MENU - 1,
             }}
-            onMouseEnter={() => {
-              cancelHandHoverClear();
-              sceneRef.current?.holdHandHover();
-            }}
-            onMouseLeave={() => {
-              scheduleHandHoverClear();
-              sceneRef.current?.releaseHandHover();
-            }}
+            onMouseEnter={holdHandActionHover}
+            onMouseLeave={releaseHandActionHover}
           />
           <div
             style={{
@@ -706,14 +736,8 @@ export function BoardCanvas({
               top: handHover.bounds.y,
               zIndex: Z_HAND_ACTIONS_MENU,
             }}
-            onMouseEnter={() => {
-              cancelHandHoverClear();
-              sceneRef.current?.holdHandHover();
-            }}
-            onMouseLeave={() => {
-              scheduleHandHoverClear();
-              sceneRef.current?.releaseHandHover();
-            }}
+            onMouseEnter={holdHandActionHover}
+            onMouseLeave={releaseHandActionHover}
           >
             <HandCardActions actions={handActions} onSelectAction={selectHandAction} />
           </div>

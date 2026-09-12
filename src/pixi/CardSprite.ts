@@ -2,8 +2,8 @@ import {
   Container,
   Sprite,
   Texture,
-  ImageSource,
   Graphics,
+  GraphicsContext,
   Text,
   TextStyle,
   FillGradient,
@@ -14,7 +14,7 @@ import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { deriveCardRailState, type CardRailState } from "@/components/game/cardRailState";
 import { cardTypeLine, counterColorKey, counterIconName } from "@/components/game/cardPresentation";
-import { CARD_W, CARD_H, CARD_RADIUS, CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
+import { CARD_W, CARD_H, CARD_RADIUS } from "@/components/game/game.constants";
 import { deriveCardChoiceIndicators } from "@/components/game/game.utils";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import type { Theme } from "@/hooks/useTheme";
@@ -28,16 +28,23 @@ import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore, type BattlefieldCardStyle } from "@/stores/usePreferencesStore";
 import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
 import { applyManaSymbol, parseManaCost } from "./manaSymbols";
-import { asDeckCard } from "@/lib/decks";
+import { asGameDeckCard } from "@/lib/decks";
 import { isFacelessCard } from "@/lib/gameCard";
-import { fetchImageElement } from "@/api/scryfall";
+import { loadCardBack } from "./cardBackTexture";
 import { DEBUG_KEYWORD_CARD_ID, useGameDevStore } from "@/stores/useGameDevStore";
 import { applyIcon } from "./panelIcons";
 import { type OneShot, oneShot, oneShotProgress, pulse } from "./effects/animation";
 import { gsap } from "./effects/gsap";
 import { bump } from "./effects/easing";
 import { animationsEnabled } from "./effects/enabled";
-import { DAMAGE_HIT, EDGE_GLOW, PULSE_RING, STAT_POP, SUMMONING_FILTER } from "./effects/config";
+import {
+  CARD_SHADOW,
+  DAMAGE_HIT,
+  EDGE_GLOW,
+  PULSE_RING,
+  STAT_POP,
+  SUMMONING_FILTER,
+} from "./effects/config";
 import { HandRulesCardFace } from "./cardPreview/HandRulesCardFace";
 import { rulesCardRadius } from "./cardPreview/rulesPreviewFrame";
 import { HandCardControls, type HandCardControlsSpec } from "./HandCardControls";
@@ -45,12 +52,42 @@ import { HandCardControls, type HandCardControlsSpec } from "./HandCardControls"
 let activeTheme: Theme = getTheme();
 
 const TINTED_TEXT_STYLES: TextStyle[] = [];
+const SHADOW_CONTEXTS: { width: number; height: number; context: GraphicsContext }[] = [];
+
+function drawShadowContext(context: GraphicsContext, width: number, height: number): void {
+  context.clear();
+  const color = hexToNum(activeTheme.gameTheme.canvas.shadow);
+  for (let layer = CARD_SHADOW.layers; layer > 0; layer--) {
+    const spread = (layer / CARD_SHADOW.layers) * CARD_SHADOW.spreadPx;
+    const alpha = (CARD_SHADOW.layerAlpha * (CARD_SHADOW.layers - layer + 1)) / CARD_SHADOW.layers;
+    context
+      .roundRect(-spread, -spread, width + spread * 2, height + spread * 2, CARD_RADIUS + spread)
+      .fill({ color, alpha });
+  }
+}
+
+function shadowContext(width: number, height: number): GraphicsContext {
+  const cached = SHADOW_CONTEXTS.find((entry) => entry.width === width && entry.height === height);
+  if (cached) return cached.context;
+  const context = new GraphicsContext();
+  drawShadowContext(context, width, height);
+  SHADOW_CONTEXTS.push({ width, height, context });
+  return context;
+}
 
 export function setCardSpriteTheme(theme: Theme): void {
+  const shadowChanged = activeTheme.gameTheme.canvas.shadow !== theme.gameTheme.canvas.shadow;
   activeTheme = theme;
   for (const style of TINTED_TEXT_STYLES) {
     style.fill = theme.gameTheme.textOnTinted;
   }
+  updateFoilTheme(theme);
+  if (shadowChanged) {
+    for (const { context, width, height } of SHADOW_CONTEXTS) {
+      drawShadowContext(context, width, height);
+    }
+  }
+  CardSprite.refreshTheme();
 }
 
 let activeStyle: BattlefieldCardStyle = usePreferencesStore.getState().battlefieldCardStyle;
@@ -71,7 +108,6 @@ function registerTintedTextStyle(style: TextStyle): TextStyle {
 }
 
 const TEXT_RASTER_RESOLUTION = 5;
-
 function prefersReducedMotion(): boolean {
   return (
     typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -144,12 +180,37 @@ const FOIL_STAR_STYLE = new TextStyle({
   fontFamily: "Inter, system-ui, -apple-system, sans-serif",
   fontSize: 10,
   fontWeight: "bold",
-  fill: 0xffe27a,
+  fill: activeTheme.gameTheme.rarity.rare,
 });
 
-/** Hard-coded rather than themed because foil treatment reads "metallic gold"
- *  across every preset; the surrounding card art carries the theme. */
-const FOIL_RING_COLOR = 0xffd87a;
+const FOIL_CONTEXTS: { width: number; height: number; context: GraphicsContext }[] = [];
+
+function drawFoilContext(
+  context: GraphicsContext,
+  width: number,
+  height: number,
+  theme: Theme,
+): void {
+  context.clear();
+  context.roundRect(1, 1, width - 2, height - 2, CARD_RADIUS - 1);
+  context.stroke({ color: hexToNum(theme.gameTheme.rarity.rare), width: 1.5, alpha: 0.85 });
+}
+
+function foilContext(width: number, height: number): GraphicsContext {
+  const cached = FOIL_CONTEXTS.find((entry) => entry.width === width && entry.height === height);
+  if (cached) return cached.context;
+  const context = new GraphicsContext();
+  drawFoilContext(context, width, height, activeTheme);
+  FOIL_CONTEXTS.push({ width, height, context });
+  return context;
+}
+
+function updateFoilTheme(theme: Theme): void {
+  FOIL_STAR_STYLE.fill = theme.gameTheme.rarity.rare;
+  for (const { context, width, height } of FOIL_CONTEXTS) {
+    drawFoilContext(context, width, height, theme);
+  }
+}
 
 const RING_INSET = 2;
 const CHIP_RADIUS = 3;
@@ -192,6 +253,27 @@ const PRINTED_ART_TOP_FRAC = 0.12;
 
 const MAX_VISIBLE_COUNTERS = 4;
 
+function sameStrings(left: readonly string[], right: readonly string[]): boolean {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index++) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
+}
+
+function sameCounters(left: Record<string, number>, right: Record<string, number>): boolean {
+  if (left === right) return true;
+  let leftCount = 0;
+  let rightCount = 0;
+  for (const key in left) {
+    leftCount++;
+    if (left[key] !== right[key]) return false;
+  }
+  for (const _key in right) rightCount++;
+  return leftCount === rightCount;
+}
+
 type CardStatusKey = keyof Theme["gameTheme"]["cardStatus"];
 
 interface BadgeRule {
@@ -211,6 +293,10 @@ const BADGE_RULES: BadgeRule[] = [
   { label: "COPY", test: (c) => !!c.isCopy, colorKey: "copy" },
   { label: "TOKEN", test: (c) => !!c.identity.isToken, colorKey: "token" },
 ];
+
+function badgeRule(card: CardDto): BadgeRule | undefined {
+  return BADGE_RULES.find((rule) => rule.test(card));
+}
 
 function badgeColor(key: CardStatusKey): number {
   return hexToNum(activeTheme.gameTheme.cardStatus[key]);
@@ -241,21 +327,17 @@ const resolvePTBgColor = (card: CardDto): number => {
   return hexToNum(pt.neutral);
 };
 
-let cardBackTexture: Texture | null = null;
-let cardBackPromise: Promise<Texture> | null = null;
-
-export function loadCardBack(): Promise<Texture> {
-  if (cardBackTexture) return Promise.resolve(cardBackTexture);
-  cardBackPromise ??= fetchImageElement(CARD_BACK_IMAGE_URL).then((img) => {
-    cardBackTexture = new Texture({ source: new ImageSource({ resource: img }) });
-    return cardBackTexture;
-  });
-  return cardBackPromise;
-}
-
 export class CardSprite extends Container {
+  private static readonly instances = new Set<CardSprite>();
+
+  static refreshTheme(): void {
+    for (const sprite of CardSprite.instances) sprite.redrawTheme();
+  }
+
   card: CardDto;
 
+  private shadowGfx: Graphics;
+  private elevation = 0;
   private imageSpr: Sprite;
   private imageMask: Graphics;
   private frameContainer: Container;
@@ -277,6 +359,7 @@ export class CardSprite extends Container {
   private glowPulsing = false;
   private hitFlashGfx: Graphics;
   private statPopFx: OneShot | null = null;
+  private counterPopFx: OneShot | null = null;
   private hitFlashFx: OneShot | null = null;
   /** Squash multiplier driven by GSAP (entrance stomp); the region multiplies
    *  it into the base/hover scale each frame so the two don't fight. */
@@ -288,8 +371,11 @@ export class CardSprite extends Container {
   private playableRingColor: number | null = null;
   private lastOwnerRing: number | null = null;
   private pulseRing = new PulseRing();
+  private promptReferenceGfx = new Graphics();
+  private promptReferenceColor: number | null = null;
   private ownerRingGfx: Graphics;
   private contentContainer: Container;
+  private printedFaceContainer: Container;
   private ptContainer: Container;
   private ptBg: Graphics;
   private ptText: Text;
@@ -328,11 +414,13 @@ export class CardSprite extends Container {
   private etbGlow: Graphics;
   private hoverDebugGfx: Graphics;
   private _imageLoaded = false;
+  private _imageSettled = false;
   private readonly isBattlefield: boolean;
   private readonly showsBattlefieldRail: boolean;
   private cw: number;
   private ch: number;
   onReorient?: () => void;
+  onVisualChange?: () => void;
   private previewFace: 0 | 1 | null = null;
   private loadGeneration = 0;
   private readonly kind: "battlefield" | "hand" | "zone";
@@ -355,14 +443,24 @@ export class CardSprite extends Container {
     this.eventMode = "static";
     this.cursor = "pointer";
 
+    this.shadowGfx = new Graphics({ context: shadowContext(this.cw, this.ch) });
+    this.shadowGfx.eventMode = "none";
+    this.shadowGfx.visible = this.isBattlefield;
+    this.addChild(this.shadowGfx);
+    this.updateShadow();
+
     this.ownerRingGfx = new Graphics();
     this.addChild(this.ownerRingGfx);
 
     this.ringGfx = new Graphics();
     this.addChild(this.ringGfx);
     this.addChild(this.pulseRing.gfx);
+    this.promptReferenceGfx.eventMode = "none";
+    this.addChild(this.promptReferenceGfx);
 
     this.contentContainer = new Container();
+    this.printedFaceContainer = new Container();
+    this.contentContainer.addChild(this.printedFaceContainer);
     this.addChild(this.contentContainer);
 
     this.placeholderGfx = new Graphics();
@@ -476,7 +574,7 @@ export class CardSprite extends Container {
     this.ptContainer.visible = false;
     this.addChild(this.ptContainer);
 
-    this.foilRing = new Graphics();
+    this.foilRing = new Graphics({ context: foilContext(this.cw, this.ch) });
     this.foilRing.visible = false;
     this.addChild(this.foilRing);
 
@@ -541,21 +639,22 @@ export class CardSprite extends Container {
         y <= this.ch + this.hitPad,
     };
 
-    // Everything except the selection/target ring lives under contentContainer so
-    // the summoning-sick / phased desaturate filter greys the card body but leaves
-    // the interaction ring at full color.
     for (const child of [...this.children]) {
       if (
+        child !== this.shadowGfx &&
         child !== this.ringGfx &&
         child !== this.pulseRing.gfx &&
+        child !== this.promptReferenceGfx &&
         child !== this.contentContainer
       ) {
-        this.contentContainer.addChild(child);
+        this.printedFaceContainer.addChild(child);
       }
     }
     this.addChild(this.pulseRing.gfx);
 
     this.pivot.set(this.cw / 2, this.ch / 2);
+    CardSprite.instances.add(this);
+    this.rebuildDecorations(true);
     this.loadImage();
   }
 
@@ -571,7 +670,7 @@ export class CardSprite extends Container {
       const definition = useGameDevStore.getState().debugCardDefinition;
       if (definition) return definition;
     }
-    return asDeckCard(useGameStore.getState().gameDecks[this.card.ownerId], this.card);
+    return asGameDeckCard(useGameStore.getState().gameDecks, this.card);
   }
 
   // Scryfall serves horizontal-frame cards as upright 5:7 PNGs — rotate
@@ -585,14 +684,16 @@ export class CardSprite extends Container {
     return this.cw > this.ch;
   }
 
-  // Image fit + frame are left for the caller (`loadImage`) to repaint.
-  private reapplyOrientation(): void {
+  private reapplyOrientation(): boolean {
     const horizontal = this.isHorizontal();
     const cw = horizontal ? CARD_H : CARD_W;
     const ch = horizontal ? CARD_W : CARD_H;
-    if (cw === this.cw && ch === this.ch) return;
+    if (cw === this.cw && ch === this.ch) return false;
     this.cw = cw;
     this.ch = ch;
+    this.shadowGfx.context = shadowContext(cw, ch);
+    this.foilRing.context = foilContext(cw, ch);
+    this.updateShadow();
     this.placeholderGfx.clear();
     this.placeholderGfx.roundRect(0, 0, cw, ch, CARD_RADIUS);
     this.placeholderGfx.fill({
@@ -604,16 +705,18 @@ export class CardSprite extends Container {
       width: 1,
     });
     const neutral = hexToNum(activeTheme.gameTheme.canvas.neutral);
-    for (const m of [this.imageMask, this.frameMask, this.edgeGlowMask]) {
-      m.clear();
-      m.roundRect(0, 0, cw, ch, CARD_RADIUS).fill(neutral);
+    for (const mask of [this.imageMask, this.frameMask, this.edgeGlowMask]) {
+      mask.clear();
+      mask.roundRect(0, 0, cw, ch, CARD_RADIUS).fill(neutral);
     }
     this.nameText.position.set(cw / 2, ch / 2);
     this.foilStar.x = cw - 3;
     this.pivot.set(cw / 2, ch / 2);
+    if (this.promptReferenceColor != null) this.setPromptReference(this.promptReferenceColor);
     this.onReorient?.();
     this.updateHandRulesFace();
     this.updateHandControls();
+    return true;
   }
 
   private fitImageToSlot(): void {
@@ -634,30 +737,45 @@ export class CardSprite extends Container {
 
   private async loadImage(): Promise<void> {
     const generation = ++this.loadGeneration;
+    this._imageLoaded = false;
+    this._imageSettled = false;
+    this.imageSpr.visible = false;
+    this.imageMask.visible = false;
+    this.imageSpr.texture = Texture.EMPTY;
+    this.placeholderGfx.visible = true;
+    this.nameText.visible = true;
+    this.nameText.text = this.card.identity.name;
+    if (this.reapplyOrientation()) this.rebuildDecorations(true);
+
     const deckCard = this.deckCard();
     const custom = this.isBattlefield && activeStyle !== "realistic";
     const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
-    let tex: Texture;
+    let texture: Texture;
     try {
-      tex = isFacelessCard(this.card)
+      texture = isFacelessCard(this.card)
         ? await loadCardBack()
         : await useScryfallStore
             .getState()
             .getCardTexture(deckCard, custom ? "art" : "full", faceIndex);
     } catch {
-      tex = Texture.EMPTY;
+      texture = Texture.EMPTY;
     }
     if (this.destroyed || generation !== this.loadGeneration) return;
-    this.reapplyOrientation();
-    if (tex !== Texture.EMPTY) {
-      this.imageSpr.texture = tex;
-      if (custom) this.fitArtCover();
-      else this.fitImageToSlot();
-      this.placeholderGfx.visible = false;
-      this.nameText.visible = false;
-      this._imageLoaded = true;
+    this._imageSettled = true;
+    if (texture === Texture.EMPTY) {
+      this.onVisualChange?.();
+      return;
     }
-    this.renderFrame();
+
+    this.imageSpr.texture = texture;
+    this.imageSpr.visible = true;
+    this.imageMask.visible = true;
+    if (custom) this.fitArtCover();
+    else this.fitImageToSlot();
+    this.placeholderGfx.visible = false;
+    this.nameText.visible = false;
+    this._imageLoaded = true;
+    this.onVisualChange?.();
   }
 
   setPreviewFace(face: 0 | 1 | null): void {
@@ -682,22 +800,22 @@ export class CardSprite extends Container {
     if (this.kind !== "hand" || this.usesHandRulesView === active) return;
     if (!this.handRulesFace) {
       const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
-      const deckCard = this.deckCard();
       this.handRulesFace = new HandRulesCardFace(
         this.card,
         faceIndex,
         this.cw,
         this.ch,
-        deckCard.layout,
         activeTheme,
       );
       this.contentContainer.addChild(this.handRulesFace);
+      this.handRulesFace.onRenderRequested = () => this.onVisualChange?.();
       this.handRulesFace.setActions(this.handRulesActions, this.onSelectHandRulesAction);
       this.handRulesFace.setHighlightedEffect(this.handRulesHighlight);
     } else {
       this.handRulesFace.visible = active;
       if (active) this.updateHandRulesFace();
     }
+    this.printedFaceContainer.visible = !active;
     this.updateHandControls();
     this.refreshCardRadiusChrome();
   }
@@ -752,11 +870,16 @@ export class CardSprite extends Container {
     this.handRulesHighlight = text;
     this.handRulesFace?.setHighlightedEffect(text);
   }
+  scrollHandRules(delta: number, mode: number): boolean {
+    if (!this.handRulesFace?.visible) return false;
+    this.handRulesFace.scrollBy(delta, mode);
+    return true;
+  }
 
   private updateHandRulesFace(): void {
     if (!this.handRulesFace?.visible) return;
     const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
-    this.handRulesFace.setContent(this.card, faceIndex, this.cw, this.ch, this.deckCard().layout);
+    this.handRulesFace.setContent(this.card, faceIndex, this.cw, this.ch);
   }
 
   private fitArtCover(): void {
@@ -772,18 +895,47 @@ export class CardSprite extends Container {
     else this.imageSpr.setSize(this.cw, this.cw / ar);
   }
 
-  restyle(): void {
-    // Repaint synchronously so the frame switches style in the same frame as the
-    // keyword/mana strips; loadImage repaints again after the texture resolves.
-    // Otherwise the strips lead the bars/border by one async gap.
+  private rebuildDecorations(forceRail: boolean): void {
     this.renderFrame();
-    this.loadImage();
-    this.updateRail(true);
+    this.updateRail(forceRail);
+    this.updatePT();
+    this.updateDamage();
+    this.updateBadge();
+    this.updateCounters();
     this.updateKeywords();
+    this.updateFoil();
+    this.updateRingBearer();
     this.updateMana();
+    this.updateCardFilter();
+    this.updateEdgeGlow();
     this.updateChoice(true);
     this.handRulesFace?.setTheme(activeTheme);
     this.handControls?.setTheme(activeTheme);
+  }
+
+  private redrawTheme(): void {
+    this.placeholderGfx.clear();
+    this.placeholderGfx.roundRect(0, 0, this.cw, this.ch, CARD_RADIUS);
+    this.placeholderGfx.fill({
+      color: hexToNum(activeTheme.gameTheme.cardPlaceholder.fill),
+      alpha: 0.8,
+    });
+    this.placeholderGfx.stroke({
+      color: hexToNum(activeTheme.gameTheme.cardPlaceholder.stroke),
+      width: 1,
+    });
+    const neutral = hexToNum(activeTheme.gameTheme.canvas.neutral);
+    for (const mask of [this.imageMask, this.frameMask, this.edgeGlowMask]) {
+      mask.clear();
+      mask.roundRect(0, 0, this.cw, this.ch, CARD_RADIUS).fill(neutral);
+    }
+    this.rebuildDecorations(true);
+    this.redrawHoverDebug();
+  }
+
+  restyle(): void {
+    this.rebuildDecorations(true);
+    this.loadImage();
   }
 
   private updateMana(): void {
@@ -879,6 +1031,7 @@ export class CardSprite extends Container {
   private scrimGradient(top: number, shadowHex: string): FillGradient {
     const key = `${top.toFixed(2)}|${shadowHex}`;
     if (this.frameScrimKey !== key || !this.frameScrimGrad) {
+      this.frameScrimGrad?.destroy();
       this.frameScrimGrad = new FillGradient({
         type: "linear",
         start: { x: 0, y: top },
@@ -899,6 +1052,10 @@ export class CardSprite extends Container {
     return this._imageLoaded;
   }
 
+  get imageSettled(): boolean {
+    return this._imageSettled;
+  }
+
   /**
    * Updates the card's visible content (art, P/T, badges, counters, keywords)
    * but does NOT touch `rotation` or `alpha` — the board/hand animation ticks
@@ -907,35 +1064,64 @@ export class CardSprite extends Container {
    * them back to defaults on every state update, causing a re-lerp flicker.
    */
   updateCardContent(card: CardDto): void {
-    const nameChanged =
-      card.identity.name !== this.card.identity.name ||
-      card.identity.setCode !== this.card.identity.setCode ||
-      card.identity.cardNumber !== this.card.identity.cardNumber ||
-      card.isFaceDown !== this.card.isFaceDown ||
-      card.isTransformed !== this.card.isTransformed;
+    const previous = this.card;
+    if (card === previous) return;
+
+    const imageChanged =
+      card.id !== previous.id ||
+      card.ownerId !== previous.ownerId ||
+      card.identity.name !== previous.identity.name ||
+      card.identity.setCode !== previous.identity.setCode ||
+      card.identity.cardNumber !== previous.identity.cardNumber ||
+      card.isFaceDown !== previous.isFaceDown ||
+      card.isTransformed !== previous.isTransformed;
+    const typesChanged = !sameStrings(card.types, previous.types);
+    const subtypesChanged = !sameStrings(card.subtypes, previous.subtypes);
+    const supertypesChanged = !sameStrings(card.supertypes, previous.supertypes);
+    const frameChanged = imageChanged || typesChanged || subtypesChanged || supertypesChanged;
+    const statsChanged =
+      typesChanged ||
+      card.power !== previous.power ||
+      card.toughness !== previous.toughness ||
+      card.basePower !== previous.basePower ||
+      card.baseToughness !== previous.baseToughness ||
+      card.damage !== previous.damage;
+    const badgeChanged = badgeRule(card) !== badgeRule(previous);
+    const countersChanged = !sameCounters(card.counters, previous.counters);
+    const keywordsChanged = !sameStrings(card.keywords, previous.keywords);
+    const filterChanged =
+      typesChanged ||
+      card.summoningSick !== previous.summoningSick ||
+      card.phasedOut !== previous.phasedOut;
+    const edgeGlowChanged =
+      typesChanged ||
+      card.summoningSick !== previous.summoningSick ||
+      card.isAttacking !== previous.isAttacking;
+
     this.card = card;
-
-    if (nameChanged) {
-      this._imageLoaded = false;
-      this.placeholderGfx.visible = true;
-      this.nameText.visible = true;
-      this.nameText.text = card.identity.name;
-      this.loadImage();
-    }
-
-    this.renderFrame();
+    if (imageChanged) this.loadImage();
+    if (frameChanged) this.renderFrame();
+    const previousRail = this.railState;
     this.updateRail();
-    this.updatePT();
-    this.updateDamage();
-    this.updateBadge();
+    const railChanged = previousRail !== this.railState;
+    if (statsChanged || frameChanged || railChanged) this.updatePT();
+    if (card.damage !== previous.damage || card.toughness !== previous.toughness || frameChanged) {
+      this.updateDamage();
+    }
+    if (badgeChanged || frameChanged) this.updateBadge();
     this.updateChoice();
-    this.updateCounters();
-    this.updateKeywords();
-    this.updateFoil();
-    this.updateRingBearer();
-    this.updateMana();
-    this.updateCardFilter();
-    this.updateEdgeGlow();
+    if (countersChanged || railChanged || frameChanged) {
+      this.updateCounters();
+      if (countersChanged && animationsEnabled()) {
+        this.counterPopFx = oneShot(performance.now(), STAT_POP.durationMs);
+      }
+    }
+    if (keywordsChanged || card.id !== previous.id) this.updateKeywords();
+    if (card.foil !== previous.foil) this.updateFoil();
+    if (card.isRingBearer !== previous.isRingBearer) this.updateRingBearer();
+    if (card.manaCost !== previous.manaCost || frameChanged) this.updateMana();
+    if (filterChanged) this.updateCardFilter();
+    if (edgeGlowChanged) this.updateEdgeGlow();
     this.updateHandRulesFace();
   }
 
@@ -958,6 +1144,7 @@ export class CardSprite extends Container {
     const maxAlpha = attacking ? EDGE_GLOW.attackingMaxAlpha : EDGE_GLOW.sickMaxAlpha;
     const layers = EDGE_GLOW.layers;
     const step = EDGE_GLOW.insetStep;
+    const radius = this.cardRadius();
     for (let i = 0; i < layers; i++) {
       const inset = i * step;
       this.edgeGlowGfx.roundRect(
@@ -965,7 +1152,7 @@ export class CardSprite extends Container {
         inset,
         this.cw - 2 * inset,
         this.ch - 2 * inset,
-        Math.max(0, CARD_RADIUS - inset),
+        Math.max(0, radius - inset),
       );
       this.edgeGlowGfx.stroke({
         color,
@@ -1000,6 +1187,16 @@ export class CardSprite extends Container {
       this.ptContainer.scale.set(1);
     }
 
+    const cp = oneShotProgress(this.counterPopFx, now);
+    if (cp != null) {
+      this.counterContainer.scale.set(1 + STAT_POP.bumpScale * 0.65 * bump(cp));
+      this.counterContainer.alpha = 0.7 + 0.3 * Math.min(1, cp * 4);
+    } else if (this.counterPopFx) {
+      this.counterPopFx = null;
+      this.counterContainer.scale.set(1);
+      this.counterContainer.alpha = 1;
+    }
+
     const fp = oneShotProgress(this.hitFlashFx, now);
     if (fp != null) {
       this.hitFlashGfx.clear();
@@ -1024,11 +1221,17 @@ export class CardSprite extends Container {
     gsap.killTweensOf(this.railMarkerGfx);
     gsap.killTweensOf(this.railMarkerGfx.position);
     gsap.killTweensOf(this.railMarkerGfx.scale);
+    CardSprite.instances.delete(this);
+    this.shadowGfx.destroy({ context: false });
+    this.foilRing.destroy({ context: false });
     this.pulseRing.destroy();
+    gsap.killTweensOf(this.promptReferenceGfx);
     if (this.sickFilter) {
       this.sickFilter.destroy();
       this.sickFilter = null;
     }
+    this.frameScrimGrad?.destroy();
+    this.frameScrimGrad = null;
     const frameNameStyle = this.frameNameText.style;
     const frameTypeStyle = this.frameTypeText.style;
     super.destroy(options);
@@ -1224,14 +1427,7 @@ export class CardSprite extends Container {
   private updateFoil(): void {
     const isFoil = !!this.card.foil;
     this.foilStar.visible = isFoil;
-    this.foilRing.clear();
-    if (!isFoil) {
-      this.foilRing.visible = false;
-      return;
-    }
-    this.foilRing.visible = true;
-    this.foilRing.roundRect(1, 1, this.cw - 2, this.ch - 2, CARD_RADIUS - 1);
-    this.foilRing.stroke({ color: FOIL_RING_COLOR, width: 1.5, alpha: 0.85 });
+    this.foilRing.visible = isFoil;
   }
 
   private updatePT(): void {
@@ -1265,7 +1461,7 @@ export class CardSprite extends Container {
   }
 
   private updateBadge(): void {
-    const rule = BADGE_RULES.find((r) => r.test(this.card));
+    const rule = badgeRule(this.card);
     if (!rule) {
       this.badgeContainer.visible = false;
       return;
@@ -1522,6 +1718,8 @@ export class CardSprite extends Container {
 
   private updateCounters(): void {
     this.counterContainer.removeChildren().forEach((c) => c.destroy({ children: true }));
+    this.counterContainer.scale.set(1);
+    this.counterContainer.alpha = 1;
     const counters = this.card.counters;
     if (!counters) return;
 
@@ -1613,6 +1811,11 @@ export class CardSprite extends Container {
       badge.y = counterY;
       this.counterContainer.addChild(badge);
     }
+    const bounds = this.counterContainer.getLocalBounds().rectangle;
+    const centerX = bounds.x + bounds.width / 2;
+    const centerY = bounds.y + bounds.height / 2;
+    this.counterContainer.pivot.set(centerX, centerY);
+    this.counterContainer.position.set(centerX, centerY);
   }
 
   private updateDamage(): void {
@@ -1637,6 +1840,23 @@ export class CardSprite extends Container {
     this.damageGfx.fill({ color: hexToNum(activeTheme.gameTheme.pt.lethal), alpha });
   }
 
+  setElevation(amount: number): void {
+    const elevation = Math.max(0, Math.min(1, amount));
+    if (elevation === this.elevation) return;
+    this.elevation = elevation;
+    this.updateShadow();
+  }
+
+  private updateShadow(): void {
+    this.shadowGfx.position.set(
+      CARD_SHADOW.restingOffsetX + this.elevation * CARD_SHADOW.liftOffsetX,
+      CARD_SHADOW.restingOffsetY + this.elevation * CARD_SHADOW.liftOffsetY,
+    );
+    this.shadowGfx.alpha =
+      CARD_SHADOW.restingAlpha +
+      this.elevation * (CARD_SHADOW.liftedAlpha - CARD_SHADOW.restingAlpha);
+  }
+
   setHitPad(pad: number): void {
     this.hitPad = pad;
   }
@@ -1645,6 +1865,7 @@ export class CardSprite extends Container {
     if (this.chromeScale === scale) return;
     this.chromeScale = scale;
     this.refreshCardRadiusChrome();
+    if (this.promptReferenceColor != null) this.setPromptReference(this.promptReferenceColor);
   }
 
   setRing(color: number | null, alpha = 1): void {
@@ -1673,6 +1894,31 @@ export class CardSprite extends Container {
       color,
       PULSE_RING.strokeWidth * this.chromeScale,
     );
+  }
+
+  setPromptReference(color: number | null): void {
+    if (this.promptReferenceColor === color && color == null) return;
+    this.promptReferenceColor = color;
+    gsap.killTweensOf(this.promptReferenceGfx);
+    this.promptReferenceGfx.clear();
+    this.promptReferenceGfx.alpha = 1;
+    if (color == null) return;
+    const radius = this.cardRadius();
+    const outer = 7 * this.chromeScale;
+    const inner = 3 * this.chromeScale;
+    this.promptReferenceGfx
+      .roundRect(-outer, -outer, this.cw + outer * 2, this.ch + outer * 2, radius + outer)
+      .stroke({ color, width: outer * 1.25, alpha: 0.2 });
+    this.promptReferenceGfx
+      .roundRect(-inner, -inner, this.cw + inner * 2, this.ch + inner * 2, radius + inner)
+      .stroke({ color, width: inner, alpha: 0.95 });
+    if (animationsEnabled()) {
+      gsap.fromTo(
+        this.promptReferenceGfx,
+        { alpha: 0.62 },
+        { alpha: 1, duration: 0.65, ease: "sine.inOut", repeat: -1, yoyo: true },
+      );
+    }
   }
 
   setOwnerRing(color: number | null): void {

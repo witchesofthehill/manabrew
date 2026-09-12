@@ -63,6 +63,7 @@ export interface GameCanvasCallbacks {
       trigger?: PreviewPointerInput;
     },
   ) => void;
+  onHoverZoneCards?: (cards: CardDto[] | null, screenBounds?: ScreenBounds) => void;
   onRightClickCard?: (card: CardDto, screenBounds: ScreenBounds) => void;
   onFlipCard?: () => void;
   onStartDrag?: (
@@ -75,9 +76,7 @@ export interface GameCanvasCallbacks {
   onHoverHandCard?: (card: CardDto | null, screenBounds?: ScreenBounds) => void;
   onTargetPlayer?: (playerId: string) => void;
   onShowPlayerSheet?: (playerId: string) => void;
-  onFocusOpponentField?: (playerId: string) => void;
   onLongPressCard?: (card: CardDto, screenBounds: ScreenBounds) => void;
-  onShowBoardMenu?: () => void;
   onHoverOpponent?: (playerId: string | null) => void;
   onTapLand?: (card: CardDto) => void;
   onTapLands?: (cardIds: string[]) => void;

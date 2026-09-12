@@ -705,9 +705,18 @@ export function BoardOverlayCanvas({
     const unbindPreviewScroll = bindPreviewScroll(
       window,
       (clientX, clientY) => {
+        const modal = topModal();
+        if (
+          (modal && !modal.contains(canvas)) ||
+          document.elementFromPoint(clientX, clientY) !== canvas
+        ) {
+          return false;
+        }
         const rect = canvas.getBoundingClientRect();
         const x = clientX - rect.left;
         const y = clientY - rect.top;
+        const prompt = promptRef.current;
+        if (prompt?.hitTest(x, y)) return prompt.hitTestRules(x, y);
         return (
           (previewRef.current?.hitTest(x, y) ?? false) ||
           (stackRef.current?.hitTestRules(x, y) ?? false)
@@ -717,7 +726,10 @@ export function BoardOverlayCanvas({
         const rect = canvas.getBoundingClientRect();
         const x = clientX - rect.left;
         const y = clientY - rect.top;
-        if (previewRef.current?.hitTest(x, y)) {
+        const prompt = promptRef.current;
+        if (prompt?.hitTest(x, y)) {
+          prompt.scrollRulesAt(x, y, delta, mode);
+        } else if (previewRef.current?.hitTest(x, y)) {
           previewRef.current.scrollBy(delta, mode, x, y);
         } else {
           stackRef.current?.scrollRulesAt(x, y, delta, mode);

@@ -14,6 +14,7 @@ interface SectionHeaderOptions {
   collapsedAccent?: string;
   fontSize?: number;
   onToggle: () => void;
+  onRenderRequested: () => void;
 }
 
 export class RulesPreviewSectionHeader extends Container {
@@ -57,8 +58,14 @@ export class RulesPreviewSectionHeader extends Container {
       this.addChild(cue);
     }
     this.drawBackground(false);
-    this.on("pointerenter", () => this.drawBackground(true));
-    this.on("pointerleave", () => this.drawBackground(false));
+    this.on("pointerenter", () => {
+      this.drawBackground(true);
+      this.options.onRenderRequested();
+    });
+    this.on("pointerleave", () => {
+      this.drawBackground(false);
+      this.options.onRenderRequested();
+    });
     this.on("pointerdown", (event: FederatedPointerEvent) => {
       this.pointerId = event.pointerId;
       this.pressX = event.global.x;

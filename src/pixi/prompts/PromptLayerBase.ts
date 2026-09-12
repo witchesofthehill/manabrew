@@ -785,10 +785,12 @@ export abstract class PromptLayerBase {
     const showFeedback = () => {
       sprite.setElevation(1);
       sprite.setRing(hexToNum(this.theme.gameTheme.cardRing));
+      this.callbacks.onRenderRequested?.();
     };
     const hideFeedback = () => {
       sprite.setElevation(0);
       sprite.setRing(null);
+      this.callbacks.onRenderRequested?.();
     };
     const activate = () => {
       restingZIndex ??= target.zIndex;
@@ -816,6 +818,25 @@ export abstract class PromptLayerBase {
     target.on("pointerdowncapture", activate);
     target.on("focusin", activate);
     target.on("focusout", deactivate);
+  }
+
+  hitTestRules(x: number, y: number): boolean {
+    return this.rulesSpriteAt(x, y) !== null;
+  }
+
+  scrollRulesAt(x: number, y: number, delta: number, mode: number): boolean {
+    return this.rulesSpriteAt(x, y)?.scrollHandRules(delta, mode) ?? false;
+  }
+
+  private rulesSpriteAt(x: number, y: number): CardSprite | null {
+    if (!this.modalOpen || !this.container.visible || this.drag?.hasMoved) return null;
+    let target: Container | null = this.app.renderer.events.rootBoundary.hitTest(x, y);
+    let sprite: CardSprite | null = null;
+    while (target && target !== this.container) {
+      if (target instanceof CardSprite && target.usesHandRulesView) sprite = target;
+      target = target.parent;
+    }
+    return target === this.container ? sprite : null;
   }
 
   protected handlePromptCardShortcut(event: KeyboardEvent): boolean {

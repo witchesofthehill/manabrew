@@ -247,8 +247,8 @@ export class RulesCardPreviewLayer {
     this.bodyScroller.addChild(this.bodyContent);
     this.bodyScroller.eventMode = "static";
     this.bodyScroller.on("pointerdown", (event: FederatedPointerEvent) => {
-      if (event.pointerType !== "touch" || this.dragPointerId !== null) return;
       event.stopPropagation();
+      if (event.pointerType !== "touch" || this.dragPointerId !== null) return;
       this.dragPointerId = event.pointerId;
       this.dragStartY = event.global.y;
       this.dragStartScroll = this.scrollOffset;
@@ -269,6 +269,11 @@ export class RulesCardPreviewLayer {
     this.bodyScroller.on("pointertap", (event: FederatedPointerEvent) => {
       event.stopPropagation();
     });
+    const requestRender = () => this.callbacks.onRenderRequested();
+    this.actions.on("pointerover", requestRender);
+    this.actions.on("pointerout", requestRender);
+    this.controls.on("pointerover", requestRender);
+    this.controls.on("pointerout", requestRender);
 
     this.fieldFace.addChild(this.background);
     this.artwork.addTo(this.fieldFace);
@@ -484,6 +489,7 @@ export class RulesCardPreviewLayer {
     this.actions.focusAction(delta);
     const row = this.actions.focusedActionBounds;
     if (row) this.scrollIntoView(this.actions.y + row.top, row.height);
+    this.callbacks.onRenderRequested();
   }
 
   activateFocusedAction(): void {
@@ -492,6 +498,7 @@ export class RulesCardPreviewLayer {
       return;
     }
     this.actions.activateFocusedAction();
+    this.callbacks.onRenderRequested();
   }
 
   activateShortcut(shortcut: number): boolean {
@@ -527,6 +534,7 @@ export class RulesCardPreviewLayer {
       )
     ) {
       this.controls.scrollBy(delta, mode, this.container.scale.y);
+      this.callbacks.onRenderRequested();
       return;
     }
     const unit =
@@ -848,6 +856,7 @@ export class RulesCardPreviewLayer {
   private toggleSection(id: RulesPreviewSectionId): void {
     usePreferencesStore.getState().setRulesPreviewSectionCollapsed(id, !this.isCollapsed(id));
     this.rebuild();
+    this.callbacks.onRenderRequested();
   }
 
   private addSectionHeader(
@@ -864,6 +873,7 @@ export class RulesCardPreviewLayer {
       frame: this.frame,
       collapsedAccent,
       onToggle: () => this.toggleSection(id),
+      onRenderRequested: () => this.callbacks.onRenderRequested(),
     });
     header.label = id;
     header.position.set(0, y);
@@ -1301,9 +1311,11 @@ export class RulesCardPreviewLayer {
 
   private setScroll(offset: number): void {
     const maxScroll = Math.max(0, this.contentHeight - this.bodyHeight);
+    const previousOffset = this.scrollOffset;
     this.scrollOffset = Math.max(0, Math.min(offset, maxScroll));
     this.bodyContent.y = -this.scrollOffset;
     this.drawScrollAffordance(maxScroll);
+    if (this.scrollOffset !== previousOffset) this.callbacks.onRenderRequested();
   }
 
   private drawScrollAffordance(maxScroll: number): void {

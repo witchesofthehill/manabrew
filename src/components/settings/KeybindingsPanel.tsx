@@ -104,9 +104,8 @@ export function KeybindingsPanel() {
                       </Button>
                       {isCustom && (
                         <Button
-                          size="icon"
+                          size="icon-sm"
                           variant="ghost"
-                          className="h-7 w-7"
                           title="Reset to default"
                           onClick={() => resetBinding(b.id)}
                         >

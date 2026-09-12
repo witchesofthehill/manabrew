@@ -18,7 +18,7 @@ export function DraftPoolPanel({ cards, preview, onBuild }: DraftPoolPanelProps)
           Picks ({cards.length})
         </h2>
         {onBuild && cards.length > 0 && (
-          <Button size="sm" variant="outline" onClick={onBuild} className="h-7 text-xs">
+          <Button size="xs" variant="outline" onClick={onBuild}>
             Build
           </Button>
         )}

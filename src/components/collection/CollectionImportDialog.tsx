@@ -374,9 +374,9 @@ export function CollectionImportDialog({
               )}
               <div className="flex flex-wrap gap-1" aria-label="Filter import preview">
                 <Button
-                  size="sm"
+                  size="xs"
                   variant={previewFilter === "all" ? "secondary" : "ghost"}
-                  className="h-7 px-2.5 text-xs"
+                  className="px-2.5"
                   onClick={() => setPreviewFilter("all")}
                 >
                   All {validatedPreview.length}

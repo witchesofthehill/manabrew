@@ -481,9 +481,8 @@ export function CardDetailModal({
               <div className="flex items-center gap-1">
                 <div className="flex items-center rounded-md border bg-muted/30 p-0.5">
                   <Button
-                    size="icon"
+                    size="icon-sm"
                     variant="ghost"
-                    className="h-7 w-7"
                     title="Remove one copy"
                     onClick={() => {
                       deckEditorActions.onRemoveOne(deckCardName);
@@ -496,9 +495,8 @@ export function CardDetailModal({
                     {currentDeck.cards.filter((c) => c.identity.name === deckCardName).length}
                   </span>
                   <Button
-                    size="icon"
+                    size="icon-sm"
                     variant="ghost"
-                    className="h-7 w-7"
                     title="Add one copy"
                     onClick={() => {
                       deckEditorActions.onAddOne(deckCardName);
@@ -511,9 +509,8 @@ export function CardDetailModal({
 
                 <div className="flex items-center rounded-md border bg-muted/30 p-0.5">
                   <Button
-                    size="icon"
+                    size="icon-sm"
                     variant="ghost"
-                    className="h-7 w-7"
                     title="Change printing"
                     onClick={() => setShowPrints(true)}
                   >
@@ -521,9 +518,8 @@ export function CardDetailModal({
                   </Button>
                   {isDoubleFaced && (
                     <Button
-                      size="icon"
+                      size="icon-sm"
                       variant="ghost"
-                      className="h-7 w-7"
                       title={
                         faceIndex === 0
                           ? `Flip to back: ${card.card_faces![1].name}`

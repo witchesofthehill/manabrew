@@ -61,9 +61,8 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
         <span className="flex-1 truncate text-sm">{tag}</span>
       )}
       <Button
-        size="icon"
+        size="icon-sm"
         variant="ghost"
-        className="h-7 w-7"
         disabled={first}
         title={`Move ${tag} up`}
         onClick={() => executeDeckEdit(`Move ${tag} up`, () => reorderCustomTag(tag, -1))}
@@ -71,9 +70,8 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
         <ArrowUp className="h-3.5 w-3.5" />
       </Button>
       <Button
-        size="icon"
+        size="icon-sm"
         variant="ghost"
-        className="h-7 w-7"
         disabled={last}
         title={`Move ${tag} down`}
         onClick={() => executeDeckEdit(`Move ${tag} down`, () => reorderCustomTag(tag, 1))}
@@ -81,9 +79,8 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
         <ArrowDown className="h-3.5 w-3.5" />
       </Button>
       <Button
-        size="icon"
+        size="icon-sm"
         variant="ghost"
-        className="h-7 w-7"
         title={editing ? "Finish renaming" : `Rename ${tag}`}
         onClick={() => (editing ? finishRename() : setEditing(true))}
       >

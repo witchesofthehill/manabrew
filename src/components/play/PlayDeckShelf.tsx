@@ -133,10 +133,12 @@ export function PlayDeckShelf({
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <h2 className="font-serif text-2xl font-light tracking-tight sm:text-3xl">My Decks</h2>
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" onClick={() => setChoiceOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Build / Import
-          </Button>
+          {ownedDecks.length > 0 && (
+            <Button size="sm" onClick={() => setChoiceOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Build / Import
+            </Button>
+          )}
           <Button variant="ghost" size="sm" onClick={() => navigate(ROUTES.DECK_EDITOR)}>
             View All
           </Button>

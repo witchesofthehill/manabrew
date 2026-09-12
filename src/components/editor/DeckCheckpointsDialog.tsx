@@ -129,9 +129,8 @@ export function DeckCheckpointsDialog({
                 </p>
               </div>
               <Button
-                size="sm"
+                size="xs"
                 variant="outline"
-                className="h-7 text-xs"
                 onClick={() =>
                   onRestore(
                     {

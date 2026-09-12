@@ -146,8 +146,8 @@ export function DeckLayoutMenu({
         <DropdownMenuTrigger asChild>
           <Button
             variant="outline"
-            size="sm"
-            className="h-7 gap-1 text-xs"
+            size="xs"
+            className="gap-1"
             title={compact ? "Saved views" : undefined}
           >
             <LayoutTemplate className="h-3.5 w-3.5" />

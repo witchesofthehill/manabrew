@@ -192,17 +192,12 @@ export function DeckCollectionPanel({
             </span>
           )}
           {(missing.length > 0 || otherPrintingCount > 0) && onOptimizeOwnedPrintings && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 text-xs"
-              onClick={onOptimizeOwnedPrintings}
-            >
+            <Button size="xs" variant="ghost" onClick={onOptimizeOwnedPrintings}>
               <Sparkles className="h-3.5 w-3.5" /> Use owned printings
             </Button>
           )}
           {missing.length > 0 && (
-            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={exportMissing}>
+            <Button size="xs" variant="ghost" onClick={exportMissing}>
               <Download className="h-3.5 w-3.5" /> Missing CSV
             </Button>
           )}
@@ -259,9 +254,8 @@ export function DeckCollectionPanel({
                 />
                 <Button
                   type="button"
-                  size="icon"
+                  size="icon-sm"
                   variant={acquisition[key] === "ordered" ? "secondary" : "ghost"}
-                  className="h-7 w-7"
                   title="Mark as ordered"
                   aria-pressed={acquisition[key] === "ordered"}
                   onClick={() =>
@@ -275,9 +269,8 @@ export function DeckCollectionPanel({
                 </Button>
                 <Button
                   type="button"
-                  size="icon"
+                  size="icon-sm"
                   variant={acquisition[key] === "proxy" ? "secondary" : "ghost"}
-                  className="h-7 w-7"
                   title="Mark as proxied"
                   aria-pressed={acquisition[key] === "proxy"}
                   onClick={() =>
@@ -309,19 +302,17 @@ function ViewButton({
   children: ReactNode;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      size="icon-sm"
+      variant={active ? "default" : "ghost"}
       title={label}
       aria-label={label}
       aria-pressed={active}
-      className={cn(
-        "p-1.5 transition-colors",
-        bordered && "border-l",
-        active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted",
-      )}
+      className={cn("rounded-none shadow-none", bordered && "border-l")}
       onClick={onClick}
     >
       {children}
-    </button>
+    </Button>
   );
 }

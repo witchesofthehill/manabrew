@@ -68,9 +68,8 @@ export function DeckQuickAddOptions({
         </div>
         <Button
           type="button"
-          size="icon"
+          size="icon-sm"
           variant="ghost"
-          className="h-7 w-7"
           title="Close options"
           onClick={onClose}
         >

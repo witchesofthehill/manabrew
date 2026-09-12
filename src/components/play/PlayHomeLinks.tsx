@@ -118,19 +118,19 @@ export function PlayHomeLinks() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs text-muted-foreground">Manabrew v{APP_VERSION}</span>
           <div className="flex items-center gap-1">
-            <Button asChild variant="ghost" size="icon" className="h-7 w-7" title="Discord">
+            <Button asChild variant="ghost" size="icon-sm" title="Discord">
               <a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer">
                 <DiscordIcon className="h-4 w-4" />
                 <span className="sr-only">Discord</span>
               </a>
             </Button>
-            <Button asChild variant="ghost" size="icon" className="h-7 w-7" title="GitHub">
+            <Button asChild variant="ghost" size="icon-sm" title="GitHub">
               <a href={GITHUB_REPO_URL} target="_blank" rel="noreferrer">
                 <Github className="h-4 w-4" />
                 <span className="sr-only">GitHub</span>
               </a>
             </Button>
-            <Button asChild variant="ghost" size="icon" className="h-7 w-7" title="Website">
+            <Button asChild variant="ghost" size="icon-sm" title="Website">
               <a href={WEBSITE_URL} target="_blank" rel="noreferrer">
                 <Globe className="h-4 w-4" />
                 <span className="sr-only">Website</span>

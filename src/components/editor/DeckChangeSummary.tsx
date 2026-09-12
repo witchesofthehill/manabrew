@@ -113,7 +113,7 @@ export function DeckChangeSummary({
 
   return (
     <>
-      <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setOpen(true)}>
+      <Button size="xs" variant="ghost" className="gap-1" onClick={() => setOpen(true)}>
         <GitCompareArrows className="h-3.5 w-3.5" />
         {changeCount} changes
       </Button>

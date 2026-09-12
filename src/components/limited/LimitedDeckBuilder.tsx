@@ -699,10 +699,9 @@ function Toolbar({
         ))}
         {onFixManaBase && (
           <Button
-            size="sm"
+            size="xs"
             variant="ghost"
             onClick={onFixManaBase}
-            className="h-7 px-2 text-xs"
             title="Auto-fill basics proportional to your colour pips"
           >
             Fix mana base
@@ -718,23 +717,16 @@ function Toolbar({
         <span className="text-muted-foreground">Pool {unusedCount}</span>
         {onReset && (
           <Button
-            size="sm"
+            size="xs"
             variant="ghost"
             onClick={onReset}
-            className="h-7 px-2 text-xs"
             title="Reset main + sideboard to the suggested deck"
           >
             Reset
           </Button>
         )}
         {onCompare && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onCompare}
-            className="h-7 px-2 text-xs"
-            title="Compare with a saved deck"
-          >
+          <Button size="xs" variant="ghost" onClick={onCompare} title="Compare with a saved deck">
             Compare
           </Button>
         )}

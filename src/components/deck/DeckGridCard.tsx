@@ -78,8 +78,7 @@ export function DeckGridCard({
             <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100">
               {onPlaytest && (
                 <Button
-                  size="icon"
-                  className="h-6 w-6"
+                  size="icon-xs"
                   aria-label="Playtest vs AI"
                   title="Playtest vs AI"
                   onClick={onPlaytest}

@@ -14,10 +14,10 @@ const TILE_ACCENTS: Record<string, TileAccent> = {
     hoverBorder: "hover:border-primary/70",
     watermark: "text-primary opacity-[0.07]",
   },
-  sky: {
-    chip: "border-format-badge-sky/40 bg-format-badge-sky/15 text-format-badge-sky",
-    hoverBorder: "hover:border-format-badge-sky/60",
-    watermark: "text-format-badge-sky opacity-[0.07]",
+  secondary: {
+    chip: "border-secondary/40 bg-secondary/15 text-secondary",
+    hoverBorder: "hover:border-secondary",
+    watermark: "text-secondary opacity-[0.07]",
   },
   blue: {
     chip: "border-format-badge-blue/40 bg-format-badge-blue/15 text-format-badge-blue",

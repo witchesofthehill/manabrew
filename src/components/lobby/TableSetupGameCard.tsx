@@ -373,18 +373,16 @@ function ModeButton({
   children: React.ReactNode;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      size="sm"
+      variant={active ? "default" : "ghost"}
       aria-pressed={active}
-      className={cn(
-        "flex flex-1 items-center justify-center gap-1.5 p-2 text-xs font-medium transition-colors pointer-coarse:p-3",
-        bordered && "border-l",
-        active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted",
-      )}
+      className={cn("flex-1 rounded-none shadow-none", bordered && "border-l")}
       onClick={onClick}
     >
       {children}
-    </button>
+    </Button>
   );
 }
 

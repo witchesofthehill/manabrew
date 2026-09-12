@@ -18,7 +18,7 @@ const BUTTON_VARIANTS = [
   "destructive",
   "link",
 ] as const;
-const BUTTON_SIZES = ["sm", "default", "lg", "icon"] as const;
+const BUTTON_SIZES = ["xs", "sm", "default", "lg", "icon-xs", "icon-sm", "icon"] as const;
 const BADGE_VARIANTS = ["default", "secondary", "destructive", "outline"] as const;
 const RARITIES = ["common", "uncommon", "rare", "mythic", "special", "land"] as const;
 
@@ -46,11 +46,17 @@ export function ComponentsSection() {
             </span>
             {BUTTON_SIZES.map((size) => (
               <Button key={size} variant={variant} size={size}>
-                {size === "icon" ? "★" : size}
+                {size.startsWith("icon") ? "★" : size}
               </Button>
             ))}
           </div>
         ))}
+      </Panel>
+
+      <Subhead>Button states</Subhead>
+      <Panel className="flex flex-wrap gap-2">
+        <Button aria-pressed>Pressed</Button>
+        <Button disabled>Disabled</Button>
       </Panel>
 
       <Subhead>Badge — variants</Subhead>

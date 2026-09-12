@@ -1751,7 +1751,15 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const height = this.viewportHeight - 24;
     const footerHeight = 64;
     const { body, footer } = this.createModalShell(width, height, presentation, true, footerHeight);
-    const portraitCardWidth = this.promptSourceCardPortraitWidth(width);
+    const { width: preferredCardWidth } = this.promptCardDimensions();
+    const maxCardWidthRatio = Math.max(
+      1,
+      ...cards.map((card) => this.promptCardDisplayDimensions(card, CARD_W).width / CARD_W),
+    );
+    const portraitCardWidth = Math.min(
+      preferredCardWidth,
+      (poolWidth - CARD_TILE_EDGE_INSET * 2) / maxCardWidthRatio,
+    );
     const cardSizes = new Map(
       cards.map((card) => [card.id, this.promptCardDisplayDimensions(card, portraitCardWidth)]),
     );

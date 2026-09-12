@@ -71,13 +71,14 @@ className={`ring-${color}-400`}
 
 Use `GAME_CARD_SIZES` from `game.constants.ts`. These are the only base card dimensions:
 
-| Size          | Value       | Usage                                                            |
-| ------------- | ----------- | ---------------------------------------------------------------- |
-| `battlefield` | `70 × 98`   | Battlefield cards and zone tiles                                 |
-| `hand`        | `130 × 182` | Hand cards and non-actionable zone browser cards                 |
-| `preview`     | `300 × 420` | Prompt, actionable zone, stack, command-zone, and hover previews |
+| Size          | Value                               | Usage                                                                 |
+| ------------- | ----------------------------------- | --------------------------------------------------------------------- |
+| `battlefield` | `70 × 98`                           | Battlefield cards and zone tiles                                      |
+| `hand`        | `130 × 182`                         | Hand cards and non-actionable zone browser cards                      |
+| `prompt`      | `300√0.7 × 420√0.7` (`≈251 × ≈351`) | Choice cards rendered inside prompts; exactly 70% of the preview area |
+| `preview`     | `300 × 420`                         | Source cards, actionable zones, stack, command zone, hover previews   |
 
-## Responsive layout may scale a base size to fit available space. Do not add a context-specific card size.
+Responsive layout may scale a base size to fit available space. Do not add a context-specific card size without a distinct semantic role.
 
 ## 3. Component Patterns
 

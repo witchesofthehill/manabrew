@@ -22,6 +22,7 @@ import {
   CARD_HOVER_TRANSITION_SECONDS,
   CARD_RADIUS,
   CARD_W,
+  GAME_CARD_SIZES,
   PASSIVE_CARD_HOVER_SCALE,
 } from "@/components/game/game.constants";
 import {
@@ -709,6 +710,7 @@ export abstract class PromptLayerBase {
       this.viewportWidth - PANEL_PADDING * 2 - 24,
       this.viewportHeight,
       maxHeight,
+      GAME_CARD_SIZES.prompt.width,
     );
   }
 
@@ -729,7 +731,10 @@ export abstract class PromptLayerBase {
     width: number;
     height: number;
   } {
-    return this.promptCardDimensions();
+    return fitPromptCardDimensions(
+      this.viewportWidth - PANEL_PADDING * 2 - 24,
+      this.viewportHeight,
+    );
   }
 
   protected modalPromptWidth(maxWidth: number): number {

@@ -76,6 +76,7 @@ jobs:
             dockerfile: Dockerfile.web
             build-args: |
               VITE_SCRYFALL_SYMBOL_BASE=/scryfall-symbols/
+              VITE_SCRYFALL_ASSET_BASE=${{ vars.STAGING_SCRYFALL_ASSET_BASE }}
               VITE_HUB_API_URL=${{ vars.STAGING_HUB_API_URL }}
           - image: manabrew-node
             dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile

@@ -3,7 +3,6 @@ export function forgeWasm() {
     name: "manabrew-forge-wasm",
     config() {
       return {
-        assetsInclude: ["**/*.rkyv"],
         optimizeDeps: { exclude: ["@manabrew/forge-wasm"] },
       };
     },

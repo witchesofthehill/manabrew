@@ -2,14 +2,12 @@
 
 import { spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { homedir, platform } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const source = join(root, "packages", "forge-wasm");
 const output = join(root, "target", "npm", "forge-wasm");
-const generated = join(root, "target", "forge-wasm-assets");
 const skipEngine = process.argv.includes("--skip-engine");
 // The GraalVM engine takes a Web Image toolchain and the better part of an
 // hour, and the packaging never looks inside it. `--stub-engine` fakes the two
@@ -19,20 +17,10 @@ const skipEngine = process.argv.includes("--skip-engine");
 const stubEngine = process.argv.includes("--stub-engine");
 const GRAALVM_OUTPUTS = ["forgeharness.js", "forgeharness.js.wasm"];
 const STUB_MARKER = ".stub-engine";
-const executable = platform() === "win32" ? ".exe" : "";
 
 function run(command, args) {
   const result = spawnSync(command, args, { cwd: root, stdio: "inherit" });
   if (result.status !== 0) process.exit(result.status ?? 1);
-}
-
-function findWasmPack() {
-  const probe = spawnSync(platform() === "win32" ? "where" : "which", ["wasm-pack"], {
-    stdio: "ignore",
-  });
-  if (probe.status === 0) return "wasm-pack";
-  const cargoBinary = join(homedir(), ".cargo", "bin", `wasm-pack${executable}`);
-  return existsSync(cargoBinary) ? cargoBinary : null;
 }
 
 if (!skipEngine && !stubEngine) run("bash", ["scripts/build-forge-wasm.sh"]);
@@ -43,52 +31,15 @@ const staged = stubEngine
   ? ["forge-engine.worker.js"]
   : [...GRAALVM_OUTPUTS, "forge-engine.worker.js"];
 for (const file of staged) {
-  if (!existsSync(join(root, "public", "forge", file))) {
-    throw new Error(`Missing public/forge/${file}; build the Forge WebAssembly engine first.`);
+  if (!existsSync(join(source, file))) {
+    throw new Error(
+      `Missing packages/forge-wasm/${file}; build the Forge WebAssembly engine first.`,
+    );
   }
 }
 
-let wasmPack = findWasmPack();
-if (!wasmPack) {
-  run("cargo", ["install", "wasm-pack"]);
-  wasmPack = findWasmPack();
-}
-if (!wasmPack) throw new Error("wasm-pack is unavailable after installation.");
-
 rmSync(output, { recursive: true, force: true });
-rmSync(generated, { recursive: true, force: true });
 mkdirSync(output, { recursive: true });
-mkdirSync(generated, { recursive: true });
-
-run(wasmPack, [
-  "build",
-  "--release",
-  "--target",
-  "web",
-  "--out-dir",
-  generated,
-  "--out-name",
-  "forge-assets",
-  "manabrew-rs/crates/forge-wasm-assets",
-]);
-
-run("cargo", [
-  "run",
-  "--release",
-  "-p",
-  "forge-cardset-archive",
-  "--bin",
-  "build-cardset-archive",
-  "--features",
-  "build",
-  "--",
-  "forge/forge-gui/res/cardsfolder",
-  "forge/forge-gui/res/tokenscripts",
-  "forge/forge-gui/res/editions",
-  "forge/forge-gui/res/blockdata",
-  "forge/forge-gui/res/lists/TypeLists.txt",
-  join(output, "cardset.rkyv"),
-]);
 
 for (const file of [
   "package.json",
@@ -97,9 +48,8 @@ for (const file of [
   "engine.js",
   "node.js",
   "node-worker.cjs",
+  "forge-engine.worker.js",
   "stamp.js",
-  "deckCards.js",
-  "deckCards.d.ts",
   "seat.js",
   "seat.d.ts",
   "vite.js",
@@ -109,10 +59,6 @@ for (const file of [
 ]) {
   cpSync(join(source, file), join(output, file));
 }
-cpSync(
-  join(root, "public", "forge", "forge-engine.worker.js"),
-  join(output, "forge-engine.worker.js"),
-);
 if (stubEngine) {
   // Past a bundler's inline threshold, or Vite emits the stub as a data URI
   // and the "was it emitted as an asset?" check stops meaning anything.
@@ -127,11 +73,9 @@ if (stubEngine) {
   writeFileSync(join(output, "forgeharness.js.wasm"), stubWasm);
 } else {
   for (const file of GRAALVM_OUTPUTS) {
-    cpSync(join(root, "public", "forge", file), join(output, file));
+    cpSync(join(source, file), join(output, file));
   }
 }
-cpSync(join(generated, "forge-assets.js"), join(output, "forge-assets.js"));
-cpSync(join(generated, "forge-assets_bg.wasm"), join(output, "forge-assets_bg.wasm"));
 
 const manifestPath = join(output, "package.json");
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
@@ -144,12 +88,6 @@ writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 // package.json is the only version written by hand; the rest are stamped from
 // it and the tree, rather than asking a release to keep several files in step
 // (which is how @manabrew/protocol shipped a stale one).
-const cardsetArchiveVersion = readFileSync(
-  join(root, "manabrew-rs", "crates", "forge-cardset-archive", "Cargo.toml"),
-  "utf8",
-).match(/^version\s*=\s*"(.+)"$/m)?.[1];
-if (!cardsetArchiveVersion) throw new Error("forge-cardset-archive has no version to stamp.");
-
 const head = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" });
 const buildCommit = head.status === 0 ? head.stdout.trim() : "unknown";
 
@@ -157,7 +95,6 @@ const stampPath = join(output, "stamp.js");
 let stamps = readFileSync(stampPath, "utf8");
 for (const [name, value] of [
   ["VERSION", manifest.version],
-  ["CARDSET_ARCHIVE_VERSION", cardsetArchiveVersion],
   ["BUILD_COMMIT", buildCommit],
 ]) {
   const declaration = new RegExp(`^export const ${name} = ".*";$`, "m");

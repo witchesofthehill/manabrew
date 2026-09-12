@@ -9,7 +9,7 @@ For the browser/WASM client, the critical requirement is not public internet exp
 
 ```http
 Cross-Origin-Opener-Policy: same-origin
-Cross-Origin-Embedder-Policy: credentialless
+Cross-Origin-Embedder-Policy: require-corp
 ```
 
 If your Twingate or SSO layer strips or overrides those headers, browser gameplay will fail even if the app shell loads.
@@ -52,7 +52,7 @@ You should see:
 
 ```http
 Cross-Origin-Opener-Policy: same-origin
-Cross-Origin-Embedder-Policy: credentialless
+Cross-Origin-Embedder-Policy: require-corp
 ```
 
 ### Nginx example
@@ -60,7 +60,7 @@ Cross-Origin-Embedder-Policy: credentialless
 ```nginx
 location / {
   add_header Cross-Origin-Opener-Policy same-origin always;
-  add_header Cross-Origin-Embedder-Policy credentialless always;
+  add_header Cross-Origin-Embedder-Policy require-corp always;
   try_files $uri /index.html;
 }
 ```
@@ -70,7 +70,7 @@ location / {
 ```caddy
 header {
   Cross-Origin-Opener-Policy same-origin
-  Cross-Origin-Embedder-Policy credentialless
+  Cross-Origin-Embedder-Policy require-corp
 }
 ```
 
@@ -79,7 +79,7 @@ header {
 - The browser card bundle currently covers preset-deck cards, not the full Forge card pool
 - The generated bundle still reports two missing preset scripts: `Thrum of the Vestige` and `Leonardo, Big Brother`
 - The web path is not offline-capable today
-- Scryfall metadata/images are still fetched remotely from the browser
+- Scryfall metadata/images are fetched by the browser directly from Scryfall or the asset bucket. Never put a proxy in front of image data; see `src/AGENTS.md`.
 
 ## Prerequisites
 

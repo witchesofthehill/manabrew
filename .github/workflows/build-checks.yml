@@ -67,8 +67,6 @@ jobs:
               'packages/forge-wasm/',
               'scripts/build-forge-wasm-package.mjs',
               'scripts/verify-forge-wasm-package.mjs',
-              'public/forge/forge-engine.worker.js',
-              'manabrew-rs/crates/forge-wasm-assets/',
               'manabrew-rs/crates/forge-cardset-archive/',
               'forge',
               '.github/workflows/build-checks.yml',

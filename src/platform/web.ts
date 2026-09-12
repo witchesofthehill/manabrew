@@ -66,9 +66,13 @@ import {
 } from "@/game/webrtcPlane";
 import { ForgeHostBridge } from "@/game/forgeHostBridge";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { isForgeWasmHostingEnabled, setForgeWasmActive } from "@/lib/forgeWasm";
-import { buildForgeAssetBundle } from "@/lib/forgeAssets";
-import type { Deck } from "@/protocol/deck";
+import {
+  FORGE_LAUNCHER_URL,
+  FORGE_WASM_URL,
+  isForgeWasmHostingEnabled,
+  setForgeWasmActive,
+} from "@/lib/forgeWasm";
+import forgeWorkerUrl from "@forge-wasm/forge-engine.worker.js?url";
 // The seat protocol lives with @manabrew/forge-wasm, which drives the same
 // worker, so there is one implementation rather than one per consumer.
 import {
@@ -367,7 +371,7 @@ class WorkerBridge {
         this.workerIsForgeWasm = forgeWasm;
         setForgeWasmActive(forgeWasm);
         this.worker = this.workerIsForgeWasm
-          ? new Worker("/forge/forge-engine.worker.js")
+          ? new Worker(forgeWorkerUrl)
           : new Worker(new URL("../workers/game-engine.worker.ts", import.meta.url), {
               type: "module",
             });
@@ -410,7 +414,10 @@ class WorkerBridge {
         this.worker.onmessage = this.handleMessage.bind(this);
         this.worker.onerror = (e) => {
           console.error("[WorkerBridge] Worker error:", e);
-          reject(new Error(`Worker error: ${e.message}`));
+          const error = new Error(`Worker error: ${e.message}`);
+          reject(error);
+          for (const pending of this.pendingRequests.values()) pending.reject(error);
+          this.pendingRequests.clear();
         };
 
         const unsubscribe = this.eventBus.on<{ stage?: string; message?: string }>(
@@ -475,11 +482,7 @@ class WorkerBridge {
     await this.init(forgeWasm);
 
     if (startsGame && this.workerIsForgeWasm) {
-      const decks =
-        command === "start_game"
-          ? [args?.deck as Deck | undefined, ...((args?.opponentDecks as Deck[] | undefined) ?? [])]
-          : ((args?.decks as Deck[] | undefined) ?? []);
-      args = { ...args, forgeAssets: await buildForgeAssetBundle(decks) };
+      args = { ...args, forgeLauncherUrl: FORGE_LAUNCHER_URL, forgeWasmUrl: FORGE_WASM_URL };
     }
 
     if (!this.worker) {

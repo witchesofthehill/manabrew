@@ -2,6 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_SCRYFALL_SYMBOL_BASE?: string;
+  readonly VITE_SCRYFALL_ASSET_BASE?: string;
   readonly VITE_HOSTED_AI_ENABLED?: string;
   readonly VITE_STATUS_BANNER_URL?: string;
   readonly VITE_RELAY_HOST?: string;

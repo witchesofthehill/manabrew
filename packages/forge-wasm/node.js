@@ -1,11 +1,10 @@
-import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 import { ForgeEngine as Engine } from "./engine.js";
 
 const sibling = (name) => fileURLToPath(new URL(name, import.meta.url));
 
-/** The launcher and the cardset are read with `fs`, which wants a path. */
+/** The launcher is read with `fs`, which wants a path. */
 function asPath(value, fallback) {
   if (!value) return fallback;
   if (value instanceof URL) return fileURLToPath(value);
@@ -17,8 +16,6 @@ const node = {
     worker: asPath(options.workerUrl, sibling("./forge-engine.worker.js")),
     launcher: asPath(options.launcherUrl, sibling("./forgeharness.js")),
     wasm: asPath(options.wasmUrl, sibling("./forgeharness.js.wasm")),
-    cardset: asPath(options.cardsetUrl, sibling("./cardset.rkyv")),
-    assetWasm: asPath(options.assetWasmUrl, sibling("./forge-assets_bg.wasm")),
   }),
 
   // Node has SharedArrayBuffer unconditionally, so there is no cross-origin
@@ -39,10 +36,6 @@ const node = {
       onError: (handler) => worker.on("error", handler),
     };
   },
-
-  assetModule: (location) => readFile(location),
-
-  readCardset: async (location) => new Uint8Array(await readFile(location)),
 };
 
 export class ForgeEngine extends Engine {
@@ -57,4 +50,4 @@ export async function createForgeEngine(options = {}) {
   return engine;
 }
 
-export { VERSION, CARDSET_ARCHIVE_VERSION, BUILD_COMMIT } from "./stamp.js";
+export { VERSION, BUILD_COMMIT } from "./stamp.js";

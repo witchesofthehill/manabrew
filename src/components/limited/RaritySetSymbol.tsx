@@ -1,6 +1,7 @@
 import { useSetLookup } from "@/stores/useScryfallStore";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
+import { useSvgMaskUrl } from "@/hooks/useSvgMaskUrl";
 import { rarityToken, type UIRarity } from "@/lib/cardRarity";
 
 interface RaritySetSymbolProps {
@@ -12,13 +13,13 @@ interface RaritySetSymbolProps {
 export function RaritySetSymbol({ rarity, setCode, className }: RaritySetSymbolProps) {
   const setLookup = useSetLookup();
   const theme = useTheme();
+  const svgUri = setCode ? setLookup.get(setCode.toLowerCase())?.icon_svg_uri : undefined;
+  const maskUrl = useSvgMaskUrl(svgUri);
   const token = rarityToken(rarity);
   if (!token) return null;
   const color = theme.gameTheme.rarity[token];
 
-  const svgUri = setCode ? setLookup.get(setCode.toLowerCase())?.icon_svg_uri : undefined;
-
-  if (!svgUri) {
+  if (!maskUrl) {
     return (
       <span
         className={cn("text-[10px] font-bold uppercase leading-none", className)}
@@ -34,11 +35,11 @@ export function RaritySetSymbol({ rarity, setCode, className }: RaritySetSymbolP
       className={cn("inline-block", className)}
       style={{
         backgroundColor: color,
-        WebkitMaskImage: `url(${svgUri})`,
+        WebkitMaskImage: `url(${maskUrl})`,
         WebkitMaskRepeat: "no-repeat",
         WebkitMaskSize: "contain",
         WebkitMaskPosition: "center",
-        maskImage: `url(${svgUri})`,
+        maskImage: `url(${maskUrl})`,
         maskRepeat: "no-repeat",
         maskSize: "contain",
         maskPosition: "center",

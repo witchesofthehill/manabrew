@@ -4,6 +4,7 @@ import {
   FederatedPointerEvent,
   Graphics,
   Rectangle,
+  RenderLayer,
   Sprite,
   Text,
   TextStyle,
@@ -71,6 +72,7 @@ export const MODAL_BODY_BOTTOM_PADDING = 8;
 export const SOURCE_CARD_GAP = 20;
 export const SOURCE_LABEL_HEIGHT = 18;
 const DRAG_START_THRESHOLD = 4;
+const DRAG_LAYER_Z_INDEX = 1000;
 const DRAG_DROP_MIN_SECONDS = 0.1;
 const DRAG_DROP_MAX_SECONDS = 0.22;
 const DRAG_DROP_PIXELS_PER_SECOND = 1800;
@@ -106,6 +108,7 @@ interface DragState {
   settleProgress: number;
   settleTween: gsap.core.Tween | null;
   ring: Graphics;
+  renderLayer: RenderLayer | null;
   onDrop: (x: number, y: number) => void;
   resolveDropPosition?: (x: number, y: number) => { x: number; y: number } | null;
   onDragMove?: (x: number, y: number) => void;
@@ -910,6 +913,7 @@ export abstract class PromptLayerBase {
         settleProgress: 0,
         settleTween: null,
         ring,
+        renderLayer: null,
         onDrop,
         resolveDropPosition,
         onDragMove,
@@ -923,7 +927,12 @@ export abstract class PromptLayerBase {
     drag.hasMoved = true;
     drag.item.cursor = "grabbing";
     drag.item.alpha = 1;
-    drag.item.zIndex = 1000;
+    const renderLayer = new RenderLayer();
+    renderLayer.zIndex = DRAG_LAYER_Z_INDEX;
+    renderLayer.eventMode = "none";
+    this.container.addChild(renderLayer);
+    renderLayer.attach(drag.item);
+    drag.renderLayer = renderLayer;
   }
 
   protected moveDrag(event: FederatedPointerEvent): void {
@@ -1060,6 +1069,11 @@ export abstract class PromptLayerBase {
     drag.item.cursor = "grab";
     drag.item.eventMode = "static";
     drag.item.alpha = 1;
+    if (drag.renderLayer) {
+      drag.renderLayer.detach(drag.item);
+      drag.renderLayer.destroy();
+      drag.renderLayer = null;
+    }
     if (!drag.ring.destroyed) drag.ring.destroy();
   }
 

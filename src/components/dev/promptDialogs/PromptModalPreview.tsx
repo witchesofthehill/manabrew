@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { PromptActionSpec } from "@/components/game/game.types";
+import { registerModal } from "@/lib/modalStack";
 import { BoardOverlayCanvas } from "@/pixi/BoardOverlayCanvas";
 import type { PromptOverlaySpec } from "@/pixi/prompts/prompt.types";
 import type { StackSpec } from "@/pixi/stack/stack.types";
@@ -26,6 +27,8 @@ const EMPTY_STACK: StackSpec = {
 };
 
 export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPreviewProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => registerModal(panelRef.current!), []);
   const [damageOrder, setDamageOrder] = useState<string[]>([]);
   const input = useMemo(() => previewInput(preview, fixtures), [preview, fixtures]);
   const prompt = useMemo<Prompt>(() => ({ input }) as Prompt, [input]);
@@ -116,15 +119,17 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
   return createPortal(
     <>
       <div className="pointer-events-none fixed inset-0 z-[9998]">
-        <BoardOverlayCanvas
-          scene={null}
-          stackSpec={EMPTY_STACK}
-          onOpenStack={noAction}
-          onTargetSpell={noAction}
-          onHoverStack={noAction}
-          onToggleStack={noAction}
-          promptSpec={spec}
-        />
+        <div ref={panelRef} className="h-full" role="dialog" aria-label="Prompt preview">
+          <BoardOverlayCanvas
+            scene={null}
+            stackSpec={EMPTY_STACK}
+            onOpenStack={noAction}
+            onTargetSpell={noAction}
+            onHoverStack={noAction}
+            onToggleStack={noAction}
+            promptSpec={spec}
+          />
+        </div>
       </div>
     </>,
     document.body,

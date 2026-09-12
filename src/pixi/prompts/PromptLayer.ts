@@ -1909,7 +1909,9 @@ export class PromptLayer extends PromptModalLayer {
   }
 
   private handleKey(event: KeyboardEvent): void {
-    if (topModal() || event.defaultPrevented || event.isComposing) return;
+    const modal = topModal();
+    if ((modal && !modal.contains(this.app.canvas)) || event.defaultPrevented || event.isComposing)
+      return;
     if (!this.spec || !this.modalOpen) return;
     const primaryActionKey = event.key === "Enter" || event.code === "Space";
     if (

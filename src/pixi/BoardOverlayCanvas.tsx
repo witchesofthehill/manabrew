@@ -403,6 +403,12 @@ export function BoardOverlayCanvas({
 
         app.stage.eventMode = "static";
         app.stage.sortableChildren = true;
+        app.stage.hitArea = {
+          contains: (x, y) => {
+            const modal = topModal();
+            return app.screen.contains(x, y) && (!modal || modal.contains(canvas));
+          },
+        };
 
         arrow = new ArrowLayer();
         arrow.setTheme(themeRef.current);
@@ -724,6 +730,14 @@ export function BoardOverlayCanvas({
     let hasPointer = false;
     const syncPointer = () => {
       if (!hasPointer) return;
+      const modal = topModal();
+      if (modal && !modal.contains(canvas)) {
+        previewRef.current?.clearHover();
+        commandPreviewRef.current?.clearHover();
+        canvas.style.pointerEvents = "none";
+        schedulerRef.current?.request();
+        return;
+      }
       const rect = canvas.getBoundingClientRect();
       const x = pointerX - rect.left;
       const y = pointerY - rect.top;

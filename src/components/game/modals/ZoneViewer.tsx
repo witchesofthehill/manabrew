@@ -91,7 +91,14 @@ export function ZoneViewer({
         intentColor={color}
         initialState={useGameUIStore.getState().zoneBrowserStates[key]}
         onStateChange={(state) => saveState(key, state)}
-        onActivate={onClickCard ? (item) => onClickCard(item.id) : undefined}
+        onActivate={
+          onClickCard
+            ? (item) => {
+                onClickCard(item.id);
+                if (mode === "browse" || mode === "cast") onClose();
+              }
+            : undefined
+        }
         defaultActionLabel={clickLabel ?? ACTION_LABELS[mode]}
         actionLabel={(item) =>
           item.selected ? (selectedLabel ?? "Undo selection") : (clickLabel ?? ACTION_LABELS[mode])

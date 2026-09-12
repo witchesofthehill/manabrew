@@ -65,6 +65,8 @@ import {
   PromptLayerBase,
 } from "./PromptLayerBase";
 
+const CHOICE_MODAL_WIDTH = 560;
+
 export abstract class PromptModalLayer extends PromptLayerBase {
   protected renderModal(): void {
     const input = this.spec!.currentPrompt!.input;
@@ -506,7 +508,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       : indexedOptions;
     const autoConfirm = minTotal === 1 && maxTotal === 1;
     const visibleRowCount = Math.max(1, Math.min(visibleOptions.length, 7));
-    const width = this.modalPromptWidth(560);
+    const width = this.modalPromptWidth(CHOICE_MODAL_WIDTH);
     const height = Math.min(
       Math.max(260, 132 + visibleRowCount * 66 + (showFilter ? 48 : 0) + (autoConfirm ? 0 : 52)),
       this.viewportHeight - 24,
@@ -798,18 +800,26 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     max: number,
     reveal: boolean,
   ): void {
-    const width = this.modalPromptWidth(PROMPT_CARD_MODAL_MAX_WIDTH);
-    const cardAreaWidth = width - PANEL_PADDING * 2 - CARD_TILE_EDGE_INSET * 2;
     const { width: preferredCardWidth } = this.promptCardDimensions();
     const maxCardWidthRatio = Math.max(
+      1,
       ...cards.map((card) => this.promptCardDisplayDimensions(card, CARD_W).width / CARD_W),
     );
+    const preferredRowWidth =
+      cards.length * preferredCardWidth * maxCardWidthRatio +
+      Math.max(0, cards.length - 1) * PROMPT_CARD_GAP +
+      PANEL_PADDING * 2 +
+      CARD_TILE_EDGE_INSET * 2;
+    const width = this.modalPromptWidth(
+      Math.min(PROMPT_CARD_MODAL_MAX_WIDTH, Math.max(CHOICE_MODAL_WIDTH, preferredRowWidth)),
+    );
+    const cardAreaWidth = width - PANEL_PADDING * 2 - CARD_TILE_EDGE_INSET * 2;
     const portraitCardWidth = Math.min(preferredCardWidth, cardAreaWidth / maxCardWidthRatio);
     const cardSizes = cards.map((card) =>
       this.promptCardDisplayDimensions(card, portraitCardWidth),
     );
-    const cardWidth = Math.max(...cardSizes.map((size) => size.width));
-    const cardHeight = Math.max(...cardSizes.map((size) => size.height));
+    const cardWidth = Math.max(0, ...cardSizes.map((size) => size.width));
+    const cardHeight = Math.max(0, ...cardSizes.map((size) => size.height));
     const columns = Math.max(
       1,
       Math.min(

@@ -143,6 +143,7 @@ export class DialogCardPickerScene {
       const scale = props.cardSize / CARD_W;
       entry.sprite.rotation = rotated ? -Math.PI / 2 : 0;
       entry.sprite.scale.set(scale);
+      entry.sprite.setChromeScale(1 / scale);
       entry.sprite.syncHandControlsScale();
       const x =
         CARD_BROWSER_HORIZONTAL_PADDING +
@@ -317,17 +318,16 @@ export class DialogCardPickerScene {
     const motionEnabled = animationsEnabled();
     const motionChanged = motionEnabled !== this.motionEnabled;
     this.motionEnabled = motionEnabled;
+    const ringColor = hexToNum(this.props.ringColor);
     for (const [id, entry] of this.entries) {
       const available = availableIds.has(id);
       const hovered = !this.props.pending && available && this.hoveredId === id;
       const active = !this.props.pending && available && this.props.state.activeId === id;
       const selected = selectedIds.has(id);
-      const alpha =
-        selected || hovered || active
-          ? 1
-          : available && this.props.actionable && !this.props.pending
-            ? 0.45
-            : 0;
+      const emphasized = selected || hovered || active;
+      const playable = available && this.props.actionable && !this.props.pending;
+      entry.sprite.setPlayableRing(playable && !emphasized ? ringColor : null);
+      const alpha = emphasized ? 1 : 0;
       if (!motionChanged && entry.targetAlpha === alpha) continue;
       entry.targetAlpha = alpha;
       gsap.killTweensOf(entry.feedback);

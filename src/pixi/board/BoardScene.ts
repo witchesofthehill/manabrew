@@ -344,6 +344,7 @@ export class BoardScene {
     app.stage.eventMode = "static";
     app.stage.hitArea = {
       contains: (x, y) =>
+        !topModal() &&
         x >= 0 &&
         x <= this.canvasW &&
         y >= 0 &&
@@ -430,6 +431,15 @@ export class BoardScene {
       const rect = this.app.canvas.getBoundingClientRect();
       const canvasX = e.clientX - rect.left;
       const canvasY = e.clientY - rect.top;
+      if (
+        this.activeGesturePointerId === null &&
+        !this.hand?.isDraggingFromHand() &&
+        this.overlayHitTest?.(canvasX, canvasY)
+      ) {
+        if (this.hand?.hasActiveHover()) this.hand.resetHover();
+        this.updateHoveredOpponent(-1, -1);
+        return;
+      }
       this.updateHoveredOpponent(canvasX, canvasY);
       if (this.hand?.hasActiveHover()) {
         const point = this.root.toLocal(

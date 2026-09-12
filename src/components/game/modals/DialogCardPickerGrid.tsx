@@ -260,7 +260,7 @@ export function DialogCardPickerGrid({
               />
               {item.selected && (
                 <span
-                  className="pointer-events-none absolute z-10 rounded-full border bg-card p-1 text-card-ring"
+                  className="pointer-events-none absolute z-10 rounded-full border bg-card p-1 text-card-selection"
                   style={{ left: cardLeft + 8, top: cardTop + 8 }}
                 >
                   <Check className="h-3 w-3" />

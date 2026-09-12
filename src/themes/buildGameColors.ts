@@ -53,8 +53,13 @@ export interface BasePalette {
 }
 
 import type { GameThemeColorMap } from "./gameTheme";
+import { contrastRatio, withAlpha } from "./themeColor";
 
 export function buildGameColors(p: BasePalette): GameThemeColorMap {
+  const promptForeground = (background: string): string =>
+    contrastRatio(p.foreground, background) >= contrastRatio(p.canvasBackground, background)
+      ? p.foreground
+      : p.canvasBackground;
   return {
     "activeAction.priority": p.violet,
     "activeAction.active": p.amber,
@@ -63,16 +68,27 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "promptAction.attackAction": p.red,
     "promptAction.defenseAction": p.promptDefense,
     "promptAction.cancel": p.slate,
+    "promptForeground.passAction": promptForeground(p.promptPass),
+    "promptForeground.attackAction": promptForeground(p.red),
+    "promptForeground.defenseAction": promptForeground(p.promptDefense),
+    "promptForeground.cancel": promptForeground(p.slate),
 
-    "arrow.attack": rgbaFromHex(p.orange, 0.88),
-    "arrow.block": rgbaFromHex(p.red, 0.88),
-    "arrow.hostileTarget": rgbaFromHex(p.red, 0.88),
-    "arrow.friendlyTarget": rgbaFromHex(p.promptDefense, 0.88),
+    "arrow.attack": withAlpha(p.red, 0.88),
+    "arrow.block": withAlpha(p.promptDefense, 0.88),
+    "arrow.hostileTarget": withAlpha(p.red, 0.88),
+    "arrow.friendlyTarget": withAlpha(p.promptDefense, 0.88),
 
     cardRing: p.amber,
+    cardSelection: p.violet,
+    "interaction.untap": p.slate,
+    "connection.disconnected": p.slate,
+    "zone.library": p.paper,
+    "zone.graveyard": p.foreground,
+    "zone.exile": p.purple,
+    "zone.command": p.amber,
 
-    "pointer.hostile": rgbaFromHex(p.red, 0.88),
-    "pointer.friendly": rgbaFromHex(p.blue, 0.88),
+    "pointer.hostile": withAlpha(p.red, 0.88),
+    "pointer.friendly": withAlpha(p.promptDefense, 0.88),
 
     "mana.W": p.manaW,
     "mana.U": p.manaU,
@@ -91,6 +107,7 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "cardStatus.warped": p.cyan,
     "cardStatus.copy": p.sky,
     "cardStatus.choice": p.amber,
+    "cardStatus.summoningSick": p.labelGhost,
 
     textOnTinted: p.foreground,
     textMuted: p.labelMuted,
@@ -191,19 +208,4 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "rarity.special": p.purple,
     "rarity.land": p.amber,
   };
-}
-
-function rgbaFromHex(hex: string, alpha: number): string {
-  const clean = hex.replace("#", "");
-  const full =
-    clean.length === 3
-      ? clean
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : clean;
-  const r = parseInt(full.slice(0, 2), 16);
-  const g = parseInt(full.slice(2, 4), 16);
-  const b = parseInt(full.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }

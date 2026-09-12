@@ -25,6 +25,7 @@ import type { PlayerHudSpec, PlayerHudTooltipContent } from "./playerHud.types";
 import type { ScreenBounds, ScreenPos } from "@/pixi/types";
 import { loadCardBack } from "@/pixi/cardBackTexture";
 import { RING_ABILITIES, zoneBadgeId } from "@/components/game/game.constants";
+import { intentIsHostile } from "@/types/promptType";
 
 const BOT_ICON_NAME = "robot-antennas";
 const SKULL_ICON_NAME = "skull-crossed-bones";
@@ -379,6 +380,7 @@ export class PlayerHudCapsule {
       s.isPriorityPlayer,
       s.isTargetable,
       s.isSelectedTarget,
+      s.targetingIntent,
       s.isFlashing,
       s.isEliminated,
       s.isDisconnected,
@@ -551,7 +553,7 @@ export class PlayerHudCapsule {
     if (this.offline.visible) {
       const tex = this.iconTexture(OFFLINE_ICON_NAME);
       if (tex) this.offline.texture = tex;
-      this.offline.tint = hexToNum(gt.promptAction.cancel);
+      this.offline.tint = hexToNum(gt.connection.disconnected);
       this.offline.width = this.offline.height = diameter * 0.35;
       this.offline.position.set(cx + r * 0.6, cy + r * 0.6);
     }
@@ -1342,10 +1344,22 @@ export class PlayerHudCapsule {
   }
 
   private drawTargetRing(): void {
+    const intent = this.spec.targetingIntent;
+    const game = this.theme.gameTheme;
+    const color =
+      intent === "attack"
+        ? game.promptAction.attackAction
+        : intent === "block"
+          ? game.promptAction.defenseAction
+          : intent
+            ? intentIsHostile(intent)
+              ? game.pointer.hostile
+              : game.pointer.friendly
+            : game.cardSelection;
     this.targetRing.clear();
     this.targetRing.circle(this.avatarCx, this.avatarCy, this.avatarDia / 2 + 1);
     this.targetRing.stroke({
-      color: hexToNum(this.theme.gameTheme.promptAction.attackAction),
+      color: hexToNum(color),
       width: 2,
       alpha: 1,
     });

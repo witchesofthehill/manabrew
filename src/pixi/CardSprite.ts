@@ -1140,7 +1140,7 @@ export class CardSprite extends Container {
     }
     const color = attacking
       ? hexToNum(activeTheme.gameTheme.pt.lethal)
-      : hexToNum(activeTheme.gameTheme.textOnTinted);
+      : hexToNum(activeTheme.gameTheme.cardStatus.summoningSick);
     const maxAlpha = attacking ? EDGE_GLOW.attackingMaxAlpha : EDGE_GLOW.sickMaxAlpha;
     const layers = EDGE_GLOW.layers;
     const step = EDGE_GLOW.insetStep;

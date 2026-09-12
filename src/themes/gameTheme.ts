@@ -1,5 +1,20 @@
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { THEME_PRESETS, DEFAULT_GAME_FONT_SIZES, type GameFontSizes } from "./presets";
+import { darken, relativeLuminance } from "./themeColor";
+
+export {
+  parseThemeColor,
+  formatThemeColor,
+  compositeThemeColor,
+  toPickerHexColor,
+  hexToRgb,
+  withAlpha,
+  relativeLuminance,
+  contrastRatio,
+  ensureTextContrast,
+  readableTextColor,
+  darken,
+} from "./themeColor";
 
 export type ManaLetter = "W" | "U" | "B" | "R" | "G" | "C";
 
@@ -25,6 +40,25 @@ export interface GameThemeColors {
     defenseAction: string;
     cancel: string;
   };
+  promptForeground: {
+    passAction: string;
+    attackAction: string;
+    defenseAction: string;
+    cancel: string;
+  };
+  cardSelection: string;
+  interaction: {
+    untap: string;
+  };
+  connection: {
+    disconnected: string;
+  };
+  zone: {
+    library: string;
+    graveyard: string;
+    exile: string;
+    command: string;
+  };
   arrow: {
     attack: string;
     block: string;
@@ -47,6 +81,7 @@ export interface GameThemeColors {
     warped: string;
     copy: string;
     choice: string;
+    summoningSick: string;
   };
   textOnTinted: string;
   textMuted: string;
@@ -239,118 +274,6 @@ export function resolveGameFontSizes(presetId?: string): GameFontSizes {
     ...(fallback?.gameFontSizes ?? {}),
     ...(active?.gameFontSizes ?? {}),
   };
-}
-
-function normalizeHexColor(hex: string): string {
-  const value = hex.trim().replace("#", "");
-  if (/^[\da-fA-F]{3}$/.test(value)) {
-    return `#${value
-      .split("")
-      .map((char) => `${char}${char}`)
-      .join("")
-      .toLowerCase()}`;
-  }
-  if (/^[\da-fA-F]{6}$/.test(value)) {
-    return `#${value.toLowerCase()}`;
-  }
-  return "#000000";
-}
-
-export function toPickerHexColor(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed.startsWith("#")) return normalizeHexColor(trimmed);
-  const rgbaMatch = trimmed.match(
-    /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*(0|1|0?\.\d+))?\s*\)$/i,
-  );
-  if (rgbaMatch) {
-    const r = Math.min(255, Number.parseInt(rgbaMatch[1]!, 10));
-    const g = Math.min(255, Number.parseInt(rgbaMatch[2]!, 10));
-    const b = Math.min(255, Number.parseInt(rgbaMatch[3]!, 10));
-    return `#${[r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
-  }
-  return "#000000";
-}
-
-export function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const normalized = normalizeHexColor(hex);
-  const raw = normalized.slice(1);
-  return {
-    r: Number.parseInt(raw.slice(0, 2), 16),
-    g: Number.parseInt(raw.slice(2, 4), 16),
-    b: Number.parseInt(raw.slice(4, 6), 16),
-  };
-}
-
-export function withAlpha(hex: string, alpha: number): string {
-  const { r, g, b } = hexToRgb(hex);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-export function relativeLuminance(hex: string): number {
-  const { r, g, b } = hexToRgb(hex);
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-}
-
-function contrastLuminance(hex: string): number {
-  const toLinear = (channel: number): number => {
-    const value = channel / 255;
-    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-  };
-  const { r, g, b } = hexToRgb(hex);
-  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
-}
-
-export function contrastRatio(foreground: string, background: string): number {
-  const foregroundLuminance = contrastLuminance(foreground);
-  const backgroundLuminance = contrastLuminance(background);
-  const lighter = Math.max(foregroundLuminance, backgroundLuminance);
-  const darker = Math.min(foregroundLuminance, backgroundLuminance);
-  return (lighter + 0.05) / (darker + 0.05);
-}
-
-function mixHexColors(from: string, to: string, amount: number): string {
-  const start = hexToRgb(from);
-  const end = hexToRgb(to);
-  const channel = (left: number, right: number): string =>
-    Math.round(left + (right - left) * amount)
-      .toString(16)
-      .padStart(2, "0");
-  return `#${channel(start.r, end.r)}${channel(start.g, end.g)}${channel(start.b, end.b)}`;
-}
-
-export function ensureTextContrast(
-  color: string,
-  background: string,
-  fallback: string,
-  minimumRatio: number,
-): string {
-  if (contrastRatio(color, background) >= minimumRatio) return color;
-  if (contrastRatio(fallback, background) < minimumRatio) return fallback;
-  let low = 0;
-  let high = 1;
-  for (let iteration = 0; iteration < 12; iteration += 1) {
-    const amount = (low + high) / 2;
-    if (contrastRatio(mixHexColors(color, fallback, amount), background) >= minimumRatio) {
-      high = amount;
-    } else {
-      low = amount;
-    }
-  }
-  return mixHexColors(color, fallback, high);
-}
-
-export function readableTextColor(background: string, dark: string, light: string): string {
-  return relativeLuminance(background) > 0.6 ? dark : light;
-}
-
-export function darken(hex: string, factor: number): string {
-  const { r, g, b } = hexToRgb(hex);
-  const k = Math.max(0, Math.min(1, 1 - factor));
-  const to = (n: number) =>
-    Math.round(n * k)
-      .toString(16)
-      .padStart(2, "0");
-  return `#${to(r)}${to(g)}${to(b)}`;
 }
 
 const FRAME_TINT_DARKEN = 0.3;

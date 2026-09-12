@@ -2337,9 +2337,13 @@ export class BoardScene {
       }
       const pointer = this.theme.gameTheme.pointer;
       const color =
-        spec.hostile == null
-          ? undefined
-          : hexToNum(spec.hostile ? pointer.hostile : pointer.friendly);
+        spec.type === "attack"
+          ? hexToNum(this.theme.gameTheme.arrow.attack)
+          : spec.type === "block"
+            ? hexToNum(this.theme.gameTheme.arrow.block)
+            : spec.hostile == null
+              ? undefined
+              : hexToNum(spec.hostile ? pointer.hostile : pointer.friendly);
       // Placement arrows landing in a visible field also outline the target slot.
       let slot: { width: number; height: number } | undefined;
       if (spec.type === "placement" && spec.to.kind === "placement-ghost" && !to.hint) {
@@ -2426,7 +2430,7 @@ export class BoardScene {
           toX,
           toY,
           type: "attack",
-          color: hexToNum(this.theme.gameTheme.pointer.hostile),
+          color: hexToNum(this.theme.gameTheme.arrow.attack),
         });
       }
     }

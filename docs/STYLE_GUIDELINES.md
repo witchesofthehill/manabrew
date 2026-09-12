@@ -224,10 +224,10 @@ BasePalette (~30 raw hues per preset)
           → Tailwind @theme block:       bg-pointer-hostile, text-mana-w, …
 ```
 
-| Surface                   | Source of truth                             | Accessor                                                       |
-| ------------------------- | ------------------------------------------- | -------------------------------------------------------------- |
-| App chrome (Radix/shadcn) | `ThemePreset.light` / `.dark` HSL maps      | `useTheme()`                                                   |
-| Game board / Pixi canvas  | `ThemePreset.gameColors: GameThemeColorMap` | `useTheme().gameTheme` (React) / `getTheme().gameTheme` (Pixi) |
+| Surface                   | Source of truth                                          | Accessor                                                       |
+| ------------------------- | -------------------------------------------------------- | -------------------------------------------------------------- |
+| App chrome (Radix/shadcn) | `ThemePreset.light` / `.dark` with mode-scoped overrides | `useTheme()`                                                   |
+| Game board / Pixi canvas  | `ThemePreset.gameColors: GameThemeColorMap`              | `useTheme().gameTheme` (React) / `getTheme().gameTheme` (Pixi) |
 
 ### Where colours live
 
@@ -238,8 +238,11 @@ BasePalette (~30 raw hues per preset)
 | `src/themes/default.ts`         | Default palette + preset (fallback for every token)                                                                                               |
 | `src/themes/<name>.ts`          | Per-preset palette overrides (nord, dracula, catppuccin, …)                                                                                       |
 | `src/themes/presets.ts`         | `ThemePreset` interface, preset registry                                                                                                          |
-| `src/hooks/useTheme.ts`         | React hook `useTheme()`, imperative `getTheme()`, CSS var injection                                                                               |
+| `src/hooks/useTheme.ts`         | Shared resolved snapshot for React/CSS/Pixi; root-only CSS application and transient editor preview                                               |
 | `src/index.css`                 | `@theme` block mapping CSS vars to Tailwind utilities (auto-generated)                                                                            |
+| `src/themes/themeColor.ts`      | Shared parsing, compositing, and contrast math, without preset dependencies                                                                       |
+| `src/themes/themeDocument.ts`   | Version 1 theme documents, mode-scoped app overrides, and validated imports                                                                       |
+| `src/themes/themeMetadata.ts`   | Semantic labels and groups shared by Settings and the `/card-mock` editor                                                                         |
 
 ### Type safety
 

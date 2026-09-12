@@ -10,6 +10,7 @@ import { gsap } from "@/pixi/effects/gsap";
 import { destroyPixiApp } from "@/pixi/pixiPatches";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { isFacelessCard } from "@/lib/gameCard";
+import { getTheme } from "@/hooks/useTheme";
 import type { CardInspectionState } from "./cardInspection";
 import {
   CARD_BROWSER_HORIZONTAL_PADDING,
@@ -170,6 +171,9 @@ export class DialogCardPickerScene {
       const active = props.state.activeId === item.id;
       const selected = !!item.selected;
       const available = !props.actionable || item.legal || selected;
+      const feedbackColor = hexToNum(
+        selected ? getTheme().gameTheme.cardSelection : props.ringColor,
+      );
       entry.feedback
         .clear()
         .roundRect(
@@ -179,7 +183,7 @@ export class DialogCardPickerScene {
           displayHeight + 14,
           Math.max(6, CARD_RADIUS * scale + 7),
         )
-        .stroke({ color: hexToNum(props.ringColor), width: 8, alpha: 0.2 })
+        .stroke({ color: feedbackColor, width: 8, alpha: 0.2 })
         .roundRect(
           -displayWidth / 2 - 2,
           -displayHeight / 2 - 2,
@@ -188,7 +192,7 @@ export class DialogCardPickerScene {
           Math.max(6, CARD_RADIUS * scale + 2),
         )
         .stroke({
-          color: hexToNum(props.ringColor),
+          color: feedbackColor,
           width: active || selected ? 3 : 2,
         });
       entry.feedback.position.set(x, y);

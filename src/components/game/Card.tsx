@@ -123,7 +123,7 @@ function CardComponent({
         creature &&
           card.summoningSick &&
           onBattlefield &&
-          "outline-2 outline-dashed outline-prompt-action-cancel -outline-offset-2",
+          "outline-2 outline-dashed outline-card-status-summoning-sick -outline-offset-2",
         card.phasedOut && "opacity-30 grayscale",
         card.foil && "draft-tile-foil",
         className,

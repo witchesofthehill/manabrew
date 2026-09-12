@@ -471,8 +471,8 @@ export class ArrowLayer {
       arrow.color ??
       hexToNum(
         arrow.type === "attack"
-          ? this.theme.gameTheme.pointer.hostile
-          : this.theme.gameTheme.pointer.friendly,
+          ? this.theme.gameTheme.arrow.attack
+          : this.theme.gameTheme.arrow.block,
       );
 
     const gradKey = `${ax1.toFixed(1)},${ay1.toFixed(1)},${ax2.toFixed(1)},${ay2.toFixed(1)},${hue}`;

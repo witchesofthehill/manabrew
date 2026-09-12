@@ -497,10 +497,7 @@ export class PromptLayer extends PromptModalLayer {
   ): ActionViewLayout {
     const action = this.spec!.action;
     const disabled = action.isWaitingForResponse || action.isWaitingForOthers || preview;
-    const passColor = this.theme.gameTheme.promptAction.passAction;
     const attackColor = this.theme.gameTheme.promptAction.attackAction;
-    const defenseColor = this.theme.gameTheme.promptAction.defenseAction;
-    const cancelColor = this.theme.gameTheme.promptAction.cancel;
     const muted = this.theme.appTheme["muted-foreground"];
 
     switch (viewKey) {
@@ -565,7 +562,7 @@ export class PromptLayer extends PromptModalLayer {
             "Attack All",
             "lucide-swords",
             attackAll,
-            attackColor,
+            "attackAction",
             disabled,
             minimal,
             touch,
@@ -574,7 +571,7 @@ export class PromptLayer extends PromptModalLayer {
             !minimal && attackCount > 0 ? `Attack (${attackCount})` : "Attack",
             "lucide-sword",
             action.onSubmitAttack,
-            attackColor,
+            "attackAction",
             disabled || attackCount === 0,
             minimal,
             touch,
@@ -584,7 +581,7 @@ export class PromptLayer extends PromptModalLayer {
             "Pass",
             "lucide-ban",
             action.onPassPriority,
-            passColor,
+            "passAction",
             disabled,
             minimal,
             touch,
@@ -654,7 +651,7 @@ export class PromptLayer extends PromptModalLayer {
               `Block ${action.blockAssignments.length}`,
               "lucide-shield",
               () => action.onDeclareBlockers(action.blockAssignments),
-              defenseColor,
+              "defenseAction",
               disabled || !!action.blockRequirementError,
               minimal,
               touch,
@@ -669,7 +666,7 @@ export class PromptLayer extends PromptModalLayer {
             "No Blocks",
             "lucide-ban",
             action.onPassPriority,
-            cancelColor,
+            "cancel",
             disabled,
             minimal,
             touch,
@@ -709,7 +706,7 @@ export class PromptLayer extends PromptModalLayer {
         let y = instruction.height + 6;
         const controls = [
           this.makeButton("AUTO", action.onDefaultDamageOrder, {
-            color: attackColor,
+            action: "attackAction",
             flat: true,
             shadow: true,
             radius: 8,
@@ -723,7 +720,7 @@ export class PromptLayer extends PromptModalLayer {
         if (action.damageOrderCount > 0) {
           controls.push(
             this.makeButton("UNDO", action.onUndoDamageOrder, {
-              color: attackColor,
+              action: "attackAction",
               flat: true,
               shadow: true,
               radius: 8,
@@ -742,7 +739,7 @@ export class PromptLayer extends PromptModalLayer {
         if (complete) {
           y += 6;
           const confirm = this.makeButton("CONFIRM ORDER", action.onConfirmDamageOrder, {
-            color: attackColor,
+            action: "attackAction",
             flat: true,
             shadow: true,
             radius: 8,
@@ -767,7 +764,7 @@ export class PromptLayer extends PromptModalLayer {
             "View Stack",
             "lucide-layers",
             action.onOpenStack,
-            passColor,
+            "passAction",
             disabled,
             minimal,
             touch,
@@ -781,7 +778,7 @@ export class PromptLayer extends PromptModalLayer {
               action.targetCompletionLabel ?? "Done",
               cancel ? "lucide-ban" : "lucide-check",
               action.onCompleteTargets,
-              cancel ? cancelColor : passColor,
+              cancel ? "cancel" : "passAction",
               disabled,
               minimal,
               touch,
@@ -799,7 +796,7 @@ export class PromptLayer extends PromptModalLayer {
           this.spec!.onShowModal,
           {
             title: hidden ? "Prompt required. Click to reopen." : "Prompt is open.",
-            color: cancelColor,
+            action: "cancel",
             flat: true,
             radius: minimal ? 20 : 8,
             shadow: true,
@@ -827,7 +824,7 @@ export class PromptLayer extends PromptModalLayer {
                 "Keep",
                 "lucide-check",
                 action.onMulliganKeep,
-                passColor,
+                "passAction",
                 disabled,
                 true,
                 touch,
@@ -836,7 +833,7 @@ export class PromptLayer extends PromptModalLayer {
                 "Mulligan",
                 "lucide-rotate-cw",
                 action.onMulliganDraw,
-                this.theme.appTheme.secondary,
+                "secondary",
                 disabled,
                 true,
                 touch,
@@ -868,7 +865,7 @@ export class PromptLayer extends PromptModalLayer {
         const row = this.layoutActionRow(
           [
             this.makeButton("Keep", action.onMulliganKeep, {
-              color: passColor,
+              action: "passAction",
               flat: true,
               shadow: true,
               radius: 8,
@@ -882,7 +879,7 @@ export class PromptLayer extends PromptModalLayer {
               letterSpacing: 1.12,
             }),
             this.makeButton("Mulligan", action.onMulliganDraw, {
-              color: this.theme.appTheme.secondary,
+              variant: "secondary",
               flat: true,
               shadow: true,
               radius: 8,
@@ -919,7 +916,7 @@ export class PromptLayer extends PromptModalLayer {
     label: string,
     icon: string,
     onPress: (() => void) | undefined,
-    color: string,
+    role: keyof Theme["gameTheme"]["promptAction"] | "primary" | "secondary",
     disabled: boolean,
     minimal: boolean,
     touch: boolean,
@@ -927,7 +924,7 @@ export class PromptLayer extends PromptModalLayer {
   ): PromptButton {
     const showLabel = minimal || touch;
     return this.makeButton(label, onPress, {
-      color,
+      ...(role === "primary" || role === "secondary" ? { variant: role } : { action: role }),
       flat: true,
       shadow: true,
       radius: 8,
@@ -986,7 +983,7 @@ export class PromptLayer extends PromptModalLayer {
     const end = morphed
       ? null
       : this.makeButton(endLabel, action.onPassEndTurn, {
-          color: this.theme.appTheme.secondary,
+          variant: "secondary",
           flat: true,
           radius: minimal ? 20 : 8,
           disabled,
@@ -1001,7 +998,7 @@ export class PromptLayer extends PromptModalLayer {
       !minimal && combo ? `${passLabel}  ${comboSymbols(combo)}` : passLabel,
       morphed ? action.onPassEndTurn : action.onPassPriority,
       {
-        color: this.theme.gameTheme.promptAction.passAction,
+        action: "passAction",
         flat: true,
         radius: minimal ? 20 : 8,
         disabled,
@@ -1020,7 +1017,7 @@ export class PromptLayer extends PromptModalLayer {
         pass.buttonWidth,
         height,
         minimal ? 20 : 8,
-        this.theme.gameTheme.textOnTinted,
+        this.theme.gameTheme.promptForeground.passAction,
       );
     }
     this.priorityButtons = { pass, end };
@@ -1154,9 +1151,7 @@ export class PromptLayer extends PromptModalLayer {
           action.targetCompletionLabel ?? "Done",
           action.targetCompletionKind === "cancel" ? "lucide-ban" : "lucide-check",
           action.onCompleteTargets,
-          action.targetCompletionKind === "cancel"
-            ? this.theme.gameTheme.promptAction.cancel
-            : this.theme.gameTheme.promptAction.passAction,
+          action.targetCompletionKind === "cancel" ? "cancel" : "passAction",
           disabled,
           minimal,
           touch,
@@ -1323,7 +1318,7 @@ export class PromptLayer extends PromptModalLayer {
         info?.canConfirmFromPool ? "Confirm" : "Auto",
         info?.canConfirmFromPool ? "lucide-check" : "lucide-wand-sparkles",
         info?.canConfirmFromPool ? action.onPayManaCost : action.onAutoManaCost,
-        this.theme.gameTheme.promptAction.passAction,
+        "passAction",
         disabled,
         minimal,
         touch,
@@ -1335,7 +1330,7 @@ export class PromptLayer extends PromptModalLayer {
           "Delve",
           "exile",
           info.onOpenDelve,
-          this.theme.gameTheme.promptAction.defenseAction,
+          "defenseAction",
           disabled,
           minimal,
           touch,
@@ -1348,7 +1343,7 @@ export class PromptLayer extends PromptModalLayer {
           `${info.lifeToPay} Life`,
           "lucide-heart-crack",
           info.onPayLife,
-          this.theme.gameTheme.promptAction.attackAction,
+          "attackAction",
           disabled,
           minimal,
           touch,
@@ -1360,7 +1355,7 @@ export class PromptLayer extends PromptModalLayer {
         "Cancel",
         "lucide-ban",
         action.onCancelManaCost,
-        this.theme.gameTheme.promptAction.cancel,
+        "cancel",
         disabled,
         minimal,
         touch,
@@ -1394,7 +1389,6 @@ export class PromptLayer extends PromptModalLayer {
     const selected = action.mulliganSelectedCount ?? 0;
     const count = action.mulliganPutBackCount ?? 0;
     const canConfirm = !disabled && selected === count;
-    const color = this.theme.appTheme.primary;
     if (minimal) {
       const label = promptText(
         `${selected}/${count} selected`,
@@ -1410,7 +1404,7 @@ export class PromptLayer extends PromptModalLayer {
         "Confirm",
         "lucide-check",
         action.onMulliganPutBackConfirm,
-        color,
+        "primary",
         !canConfirm,
         true,
         touch,
@@ -1439,7 +1433,6 @@ export class PromptLayer extends PromptModalLayer {
     label.anchor.set(0.5, 0);
     label.position.set(width / 2, 0);
     const button = this.makeButton("CONFIRM", action.onMulliganPutBackConfirm, {
-      color,
       flat: true,
       shadow: true,
       radius: 8,
@@ -1538,7 +1531,6 @@ export class PromptLayer extends PromptModalLayer {
           : `Autopass: dead priority windows pass automatically${hint}`,
         icon: fullControl ? "lucide-hand" : "lucide-zap",
         iconSize: 12,
-        color: fullControl ? this.theme.gameTheme.textOnTinted : this.theme.appTheme.border,
         outline: true,
         backgroundColor: this.theme.gameTheme.textOnTinted,
         backgroundAlpha: fullControl ? 0.15 : 0.05,

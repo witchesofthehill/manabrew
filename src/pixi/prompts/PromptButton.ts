@@ -1,6 +1,6 @@
 import { Container, Graphics, Rectangle, Sprite, Text, TextStyle, type Texture } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
-import { hexToNum } from "@/pixi/colorUtils";
+import { colorAlpha, hexToNum } from "@/pixi/colorUtils";
 import { gameIconTexture } from "@/pixi/gameIconCache";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
@@ -19,6 +19,9 @@ export interface PromptButtonOptions {
   width?: number;
   height?: number;
   color?: string;
+  variant?: "primary" | "secondary" | "destructive";
+  action?: keyof Theme["gameTheme"]["promptAction"];
+  foreground?: string;
   outline?: boolean;
   disabled?: boolean;
   compact?: boolean;
@@ -209,8 +212,24 @@ export class PromptButton extends Container {
   private redraw(): void {
     const width = this.buttonWidth;
     const height = this.buttonHeight;
-    const color = hexToNum(this.options.color ?? this.theme.appTheme.primary);
-    const foreground = hexToNum(this.theme.gameTheme.textOnTinted);
+    const app = this.theme.appTheme;
+    const action = this.options.action;
+    const variant = this.options.variant ?? "primary";
+    const fill =
+      this.options.color ?? (action ? this.theme.gameTheme.promptAction[action] : app[variant]);
+    const color = hexToNum(fill);
+    const active = !this.options.disabled && (this.pressed || this.hovered || this.focused);
+    const foregroundColor =
+      this.options.foreground ??
+      (this.options.outline
+        ? active && !this.options.backgroundColor
+          ? app["accent-foreground"]
+          : app["card-foreground"]
+        : action
+          ? this.theme.gameTheme.promptForeground[action]
+          : app[`${variant}-foreground`]);
+    const foreground = hexToNum(foregroundColor);
+    const foregroundAlpha = colorAlpha(foregroundColor);
     const border = hexToNum(this.options.borderColor ?? this.theme.appTheme.border);
     const disabled = this.options.disabled ?? false;
     const placement = this.options.labelPlacement ?? "inline";
@@ -225,8 +244,8 @@ export class PromptButton extends Container {
     }
     this.background.clear().roundRect(0, 0, width, height, radius);
     if (this.options.flat) {
-      this.background.fill({ color });
-      if (this.pressed || this.hovered || this.focused) {
+      this.background.fill({ color, alpha: colorAlpha(fill) });
+      if (active) {
         this.background.roundRect(0, 0, width, height, radius).fill({
           color: foreground,
           alpha: this.pressed ? 0.2 : 0.12,
@@ -237,11 +256,11 @@ export class PromptButton extends Container {
       this.visual.alpha = disabled ? 0.5 : 1;
     } else if (this.options.outline) {
       this.background.fill({
-        color: hexToNum(this.options.backgroundColor ?? this.theme.appTheme.card),
+        color: hexToNum(this.options.backgroundColor ?? (active ? app.accent : app.card)),
         alpha:
           this.hovered || this.focused
             ? (this.options.hoverBackgroundAlpha ?? this.options.backgroundAlpha ?? 0.94)
-            : (this.options.backgroundAlpha ?? (disabled ? 0.45 : 0.94)),
+            : (this.options.backgroundAlpha ?? 0.94),
       });
       this.background.stroke({
         color: border,
@@ -249,20 +268,25 @@ export class PromptButton extends Container {
         alpha:
           this.hovered || this.focused
             ? (this.options.hoverBorderAlpha ?? this.options.borderAlpha ?? 0.9)
-            : (this.options.borderAlpha ?? (disabled ? 0.35 : 0.9)),
+            : (this.options.borderAlpha ?? 0.9),
       });
       this.labelText.style.fill = foreground;
       if (this.iconSprite && this.options.iconTint !== false) this.iconSprite.tint = foreground;
-      this.visual.alpha = 1;
+      this.visual.alpha = disabled ? 0.5 : 1;
     } else {
       this.background.fill({
         color,
-        alpha: disabled ? 0.35 : this.pressed ? 0.78 : this.hovered || this.focused ? 1 : 0.9,
+        alpha: colorAlpha(fill) * (this.pressed ? 0.78 : active ? 1 : 0.9),
       });
       this.background.stroke({ color: border, width: 1, alpha: 0.35 });
       this.labelText.style.fill = foreground;
       if (this.iconSprite && this.options.iconTint !== false) this.iconSprite.tint = foreground;
-      this.visual.alpha = 1;
+      this.visual.alpha = disabled ? 0.5 : 1;
+    }
+    if (this.focused && !disabled) {
+      this.background
+        .roundRect(-2, -2, width + 4, height + 4, radius + 2)
+        .stroke({ color: hexToNum(app.ring), width: 2 });
     }
     this.feedback
       .clear()
@@ -284,8 +308,9 @@ export class PromptButton extends Container {
         height / 2,
       );
     }
-    if (this.iconSprite) this.iconSprite.alpha = 1;
-    this.labelText.alpha = 1;
+    if (this.iconSprite)
+      this.iconSprite.alpha = this.options.iconTint === false ? 1 : foregroundAlpha;
+    this.labelText.alpha = foregroundAlpha;
     this.hitArea = new Rectangle(0, 0, width, height);
     const offsetY = this.visual.y - this.visual.pivot.y;
     this.visual.pivot.set(width / 2, height / 2);

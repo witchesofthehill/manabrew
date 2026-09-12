@@ -1527,7 +1527,7 @@ export class BoardRegion {
       return;
     }
     if (this.host.isSelected(card.id)) {
-      sprite.setRing(hexToNum(theme.gameTheme.cardRing));
+      sprite.setRing(hexToNum(theme.gameTheme.cardSelection));
       return;
     }
     // Attacking and summoning-sickness are shown by the card's own edge glow
@@ -1539,7 +1539,7 @@ export class BoardRegion {
     } else if (state.tappableLandIds?.includes(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.cardRing));
     } else if (state.untappableLandIds?.includes(card.id)) {
-      sprite.setRing(hexToNum(theme.gameTheme.promptAction.cancel));
+      sprite.setRing(hexToNum(theme.gameTheme.interaction.untap));
     } else if (state.hostileTargetCardIds?.includes(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.pointer.hostile));
     } else if (state.selectableCardIds?.includes(card.id)) {

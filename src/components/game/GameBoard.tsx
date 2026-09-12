@@ -1154,6 +1154,8 @@ export function GameBoard({
         isPriorityPlayer: dev.forcePriority ? true : priorityPlayerId === player.id,
         isTargetable: dev.forceTargetable ? true : playerIsTargetable(player.id),
         isSelectedTarget: dev.forceSelectedTarget ? true : selectedAttackDefenderId === player.id,
+        targetingIntent:
+          promptType === "chooseAttackers" ? "attack" : boardTargetsPrompt?.input.intent,
         isFlashing: dev.forceFlashing ? true : turnFlashPlayerId === player.id,
         isEliminated: dev.forceEliminated ? true : player.status !== "playing",
         isDisconnected: dev.forceDisconnected
@@ -1192,6 +1194,8 @@ export function GameBoard({
     priorityPlayerId,
     playerIsTargetable,
     selectedAttackDefenderId,
+    promptType,
+    boardTargetsPrompt,
     turnFlashPlayerId,
     monarchId,
     initiativeHolderId,

@@ -729,7 +729,7 @@ export class HandController {
   ): void {
     if (selectionMode) {
       const color = isSelected
-        ? hexToNum(this.host.getTheme().gameTheme.pointer.hostile)
+        ? hexToNum(this.host.getTheme().gameTheme.cardSelection)
         : hexToNum(this.host.getTheme().gameTheme.cardRing);
       sprite.setRing(color, isSelected ? 1 : PLAYABLE_RING_ALPHA);
       return;

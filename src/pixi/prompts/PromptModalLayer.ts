@@ -10,6 +10,7 @@ import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { hexToNum } from "@/pixi/colorUtils";
 import { CardSprite } from "@/pixi/CardSprite";
 import { loadManaSymbolTexture } from "@/pixi/manaSymbolCache";
+import { readableTextColor } from "@/themes/gameTheme";
 import {
   CARD_H,
   CARD_RADIUS,
@@ -630,12 +631,14 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         .roundRect(0, 0, availableWidth, rowHeight, 9)
         .fill({
           color: hexToNum(
-            selected ? this.theme.gameTheme.cardRing : this.theme.appTheme.background,
+            selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme.background,
           ),
           alpha: selected ? 0.12 : 0.55,
         })
         .stroke({
-          color: hexToNum(selected ? this.theme.gameTheme.cardRing : this.theme.appTheme.border),
+          color: hexToNum(
+            selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme.border,
+          ),
           width: selected ? 2 : 1,
           alpha: selected ? 0.9 : 0.8,
         });
@@ -645,13 +648,13 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         .circle(22, rowHeight / 2, 10)
         .fill({
           color: hexToNum(
-            selected ? this.theme.gameTheme.cardRing : this.theme.appTheme.background,
+            selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme.background,
           ),
           alpha: selected ? 1 : 0.55,
         })
         .stroke({
           color: hexToNum(
-            selected ? this.theme.gameTheme.cardRing : this.theme.appTheme["muted-foreground"],
+            selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme["muted-foreground"],
           ),
           width: 2,
           alpha: selected ? 1 : 0.7,
@@ -677,7 +680,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         const weight = promptText(
           `${option.weight} point${option.weight === 1 ? "" : "s"}`,
           10,
-          selected ? this.theme.gameTheme.cardRing : this.theme.appTheme["muted-foreground"],
+          selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme["muted-foreground"],
           { weight: "600" },
         );
         weight.position.set(42, 32);
@@ -964,11 +967,11 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     if (selected) {
       const ring = new Graphics()
         .roundRect(0, 0, width, height, radius)
-        .stroke({ color: hexToNum(this.theme.gameTheme.cardRing), width: 4 });
+        .stroke({ color: hexToNum(this.theme.gameTheme.cardSelection), width: 4 });
       ring.eventMode = "none";
       const badge = new Graphics()
         .circle(width - 14, 14, 12)
-        .fill({ color: hexToNum(this.theme.gameTheme.cardRing) })
+        .fill({ color: hexToNum(this.theme.gameTheme.cardSelection) })
         .stroke({ color: hexToNum(this.theme.appTheme.card), width: 2 });
       badge.eventMode = "none";
       const check = this.makeIcon("lucide-check", 13, this.theme.appTheme.background);
@@ -1024,6 +1027,11 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           () => this.spec!.respond({ type: "colorDecision", chosenColors: { [color]: 1 } }),
           {
             color: colors[color] ?? this.theme.appTheme.muted,
+            foreground: readableTextColor(
+              colors[color] ?? this.theme.appTheme.muted,
+              this.theme.gameTheme.canvas.background,
+              this.theme.gameTheme.textOnTinted,
+            ),
             width: 112,
             height: 64,
             iconTexture: loadManaSymbolTexture(this.manaSymbol(color)),
@@ -2210,23 +2218,31 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         .roundRect(0, 0, availableWidth, 62, 8)
         .fill({
           color: hexToNum(
-            selected ? this.theme.gameTheme.cardRing : this.theme.appTheme.background,
+            selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme.background,
           ),
           alpha: selected ? 0.11 : 0.58,
         })
         .stroke({
-          color: hexToNum(selected ? this.theme.gameTheme.cardRing : this.theme.appTheme.border),
+          color: hexToNum(
+            selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme.border,
+          ),
           width: selected ? 2 : 1,
           alpha: selected ? 0.9 : 0.8,
         });
       const rankBackground = new Graphics().circle(25, 31, 14).fill({
-        color: hexToNum(selected ? this.theme.gameTheme.cardRing : this.theme.appTheme.muted),
+        color: hexToNum(selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme.muted),
         alpha: selected ? 1 : 0.72,
       });
       const rank = promptText(
         selected ? String(index + 1) : "—",
         14,
-        this.theme.appTheme.foreground,
+        selected
+          ? readableTextColor(
+              this.theme.gameTheme.cardSelection,
+              this.theme.appTheme.background,
+              this.theme.appTheme.foreground,
+            )
+          : this.theme.appTheme.foreground,
         {
           weight: "700",
         },
@@ -2249,7 +2265,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       const state = promptText(
         selected ? `ORDER ${index + 1}` : "SELECT",
         10,
-        selected ? this.theme.gameTheme.cardRing : this.theme.appTheme["muted-foreground"],
+        selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme["muted-foreground"],
         { weight: "700", letterSpacing: 0.7 },
       );
       state.anchor.set(1, 0.5);

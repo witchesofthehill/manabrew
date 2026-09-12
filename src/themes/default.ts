@@ -74,7 +74,7 @@ const preset: ThemePreset = {
     popover: "#221f24",
     "popover-foreground": "#fffaf5",
     primary: "#f3a33a",
-    "primary-foreground": "#ffffff",
+    "primary-foreground": "#29262a",
     secondary: "#744c7f",
     "secondary-foreground": "#fffaf5",
     muted: "#2d282e",

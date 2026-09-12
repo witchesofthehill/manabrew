@@ -1,4 +1,5 @@
 import type { CardDto } from "@/protocol/game";
+import type { TargetingIntent } from "@/types/promptType";
 
 export interface PlayerHudTooltipContent {
   title: string;
@@ -38,6 +39,7 @@ export interface PlayerHudSpec {
   isPriorityPlayer: boolean;
   isTargetable: boolean;
   isSelectedTarget: boolean;
+  targetingIntent?: TargetingIntent;
   isFlashing: boolean;
   isEliminated: boolean;
   isDisconnected: boolean;

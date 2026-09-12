@@ -10,11 +10,7 @@ import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
 import { TableSetupGameCard } from "@/components/lobby/TableSetupGameCard";
 import { TableSetupHostingCard } from "@/components/lobby/TableSetupHostingCard";
 import { TableSetupTableCard } from "@/components/lobby/TableSetupTableCard";
-import {
-  DEFAULT_BOARD_BACKGROUND_ID,
-  boardBackgroundUrl,
-  type BoardBackgroundId,
-} from "@/pixi/board/boardBackgrounds";
+import { boardBackgroundUrl, type BoardBackgroundId } from "@/pixi/board/boardBackgrounds";
 import { TableCreatingSplash } from "@/components/lobby/TableCreatingSplash";
 import {
   CREATE_SPLASH_MIN_MS,
@@ -103,7 +99,13 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
     setCreatingLabel(label);
     onCreatingChange(label);
   };
-  const [background, setBackground] = useState<BoardBackgroundId>(DEFAULT_BOARD_BACKGROUND_ID);
+  const [background, setBackground] = useState<BoardBackgroundId>(
+    () => usePreferencesStore.getState().tableBackground,
+  );
+  const chooseBackground = (id: BoardBackgroundId) => {
+    setBackground(id);
+    usePreferencesStore.getState().setTableBackground(id);
+  };
 
   const draftPool = useSetPoolStatus(draftSet);
   const sealedPool = useSetPoolStatus(sealedSet);
@@ -298,7 +300,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
                 />
               </div>
             </div>
-            <TableSetupTableCard background={background} onBackgroundChange={setBackground} />
+            <TableSetupTableCard background={background} onBackgroundChange={chooseBackground} />
             <div className="flex flex-1 items-center justify-center p-3 sm:p-4">
               <OpenTableSeats
                 players={[hostPlayer]}

@@ -142,6 +142,8 @@ interface PreferencesState {
 
   lastRoomSetup: LastRoomSetup | null;
   setLastRoomSetup: (setup: LastRoomSetup) => void;
+  tableBackground: BoardBackgroundId;
+  setTableBackground: (background: BoardBackgroundId) => void;
 }
 
 const PERSISTED_PREFERENCE_KEYS = [
@@ -179,6 +181,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "lastOfflineFormatId",
   "lastAiOpponent",
   "lastRoomSetup",
+  "tableBackground",
 ] as const satisfies readonly (keyof PreferencesState)[];
 
 function pickPersistedPreferences(persistedState: unknown): Partial<PreferencesState> {
@@ -347,6 +350,8 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           lastRoomSetup: null,
           setLastRoomSetup: (lastRoomSetup) => set({ lastRoomSetup }),
+          tableBackground: DEFAULT_BOARD_BACKGROUND_ID,
+          setTableBackground: (tableBackground) => set({ tableBackground }),
         };
       },
       {

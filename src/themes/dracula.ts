@@ -28,7 +28,6 @@ const palette: BasePalette = {
   brown: "#ffb86c",
   paper: "#f8f8f2",
   poison: "#3fc562", // deeper / less neon than dracula green
-  promptPass: "#bd93f9", // purple
   promptDefense: "#8be9fd", // cyan
   manaW: "#f8f8f2",
   manaU: "#bd93f9",

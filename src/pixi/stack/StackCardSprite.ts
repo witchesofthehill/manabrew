@@ -361,7 +361,7 @@ export class StackCardSprite {
         .roundRect(-hw, -hh, this.width, this.height, r)
         .stroke({ color: ring, width: 4, alpha: 0.95 });
     } else if (this.spec.isCasting) {
-      const c = seat ?? hexToNum(this.theme.gameTheme.pointer.friendly);
+      const c = seat ?? hexToNum(this.theme.gameTheme.targeting.friendly);
       this.ring
         .roundRect(-hw, -hh, this.width, this.height, r)
         .stroke({ color: c, width: 3, alpha: 0.9 });

@@ -29,7 +29,6 @@ const palette: BasePalette = {
   brown: "#f6c177",
   paper: "#e0def4",
   poison: "#70978a", // darker mint sibling of rose-pine green
-  promptPass: "#c4a7e7", // iris
   promptDefense: "#9ccfd8", // foam
   manaW: "#ebbcba",
   manaU: "#31748f",

@@ -403,7 +403,7 @@ export class ArrowLayer {
         break;
       case "casting":
         this.setupPlacement(entry, arrow, {
-          color: arrow.color ?? hexToNum(this.theme.gameTheme.arrow.friendlyTarget),
+          color: arrow.color ?? hexToNum(this.theme.gameTheme.targeting.friendly),
           strokeWidth: CAST_STROKE_WIDTH,
           alpha: CAST_ALPHA,
           dash: CAST_DASH,
@@ -471,8 +471,8 @@ export class ArrowLayer {
       arrow.color ??
       hexToNum(
         arrow.type === "attack"
-          ? this.theme.gameTheme.arrow.attack
-          : this.theme.gameTheme.arrow.block,
+          ? this.theme.gameTheme.targeting.hostile
+          : this.theme.gameTheme.targeting.friendly,
       );
 
     const gradKey = `${ax1.toFixed(1)},${ay1.toFixed(1)},${ax2.toFixed(1)},${ay2.toFixed(1)},${hue}`;

@@ -33,8 +33,11 @@ export function BoardPlaygroundZone({
         <div>
           <h3 className="text-sm font-medium capitalize">{zone.zone}</h3>
           <p className="text-xs text-muted-foreground">
-            {actionableCount} actionable · {items.length - actionableCount} browse-only. Click an
-            actionable card to toggle its selection.
+            {actionableCount} actionable · {items.length - actionableCount} browse-only.
+            <span className="hidden md:inline">
+              {" "}
+              Click an actionable card to toggle its selection.
+            </span>
           </p>
         </div>
         <Button size="sm" variant="outline" onClick={onClose}>
@@ -44,6 +47,7 @@ export function BoardPlaygroundZone({
       <DialogCardBrowser
         items={items}
         picker
+        compact
         activateOnClick
         onActivate={(item) => setSelectedId((current) => (current === item.id ? null : item.id))}
         defaultActionLabel="Select card"

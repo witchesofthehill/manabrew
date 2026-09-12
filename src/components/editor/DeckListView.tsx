@@ -687,7 +687,7 @@ function DraggableStackCard({
       />
       {unsupported && (
         <div
-          className="absolute top-1 right-1 z-30 rounded-full bg-warning/90 text-white p-0.5 shadow"
+          className="absolute top-1 right-1 z-30 rounded-full bg-warning/90 p-0.5 text-background shadow"
           title="Unsupported by the Manabrew and Forge engines"
         >
           <AlertTriangle className="h-3 w-3" />
@@ -968,7 +968,7 @@ function CardVisual({
       />
       {unsupported && (
         <div
-          className="absolute top-1 right-1 z-30 rounded-full bg-warning/90 text-white p-0.5 shadow"
+          className="absolute top-1 right-1 z-30 rounded-full bg-warning/90 p-0.5 text-background shadow"
           title="Unsupported by the Manabrew and Forge engines"
         >
           <AlertTriangle className="h-3 w-3" />

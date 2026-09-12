@@ -60,11 +60,11 @@ Read first: `/AGENTS.md`, `docs/STYLE_GUIDELINES.md`, `docs/agents/UI_THEME_RULE
 
 ## Dev reference routes
 
-`/card-mock` (`views/CardMockGallery.tsx`) is the development-only theme editor and card playground. Keep its Pixi board mounted in a bounded pane while color controls scroll independently. Draft changes use `setThemePreview`; only Save writes preferences. Leaving the editor restores the saved theme. `components/dev/themeEditor/` owns the editor controls; `BoardPlayground` owns local gameplay previews.
+`/card-mock` (`views/CardMockGallery.tsx`) is the development-only theme editor and card playground. Keep its Pixi board mounted in a bounded pane while color controls scroll independently. Draft changes use `setThemePreview`; only Save writes preferences. Leaving the editor restores the saved theme. `components/dev/themeEditor/` owns the editor controls and the always-visible app-element preview strip at the bottom; `BoardPlayground` owns local gameplay previews.
 
 The editor's `theme` table scenario includes summoning sickness, tapped/damaged and counter-buffed creatures, plus mixed graveyard action availability. `BoardPlaygroundZone` embeds the real `DialogCardBrowser` picker beside the theme controls without a modal focus trap. Its action clicks toggle local selection for color comparison; they do not cast spells or change zones.
 
-`/design-system` (`views/DesignSystem.tsx`) is a gallery of real components and resolved theme colors, including personal overrides. It has no global theme-editing controls. It ships in development and when `DESIGN_SYSTEM_ENABLED` permits it: `config/designSystem.ts` reads the runtime `designSystem` flag, populated by `ops/web-entrypoint.sh` from `DESIGN_SYSTEM`. Staging and self-hosted deployments can enable it; the navigation link shares the route gate. Its collapsible, hash-linked sections live in `components/dev/designSystem/`.
+`/design-system` (`views/DesignSystem.tsx`) is a gallery of real components and resolved theme colors, including personal overrides. Its color section lists every app token for both light and dark modes, followed by every game token. It has no global theme-editing controls. It ships in development and when `DESIGN_SYSTEM_ENABLED` permits it: `config/designSystem.ts` reads the runtime `designSystem` flag, populated by `ops/web-entrypoint.sh` from `DESIGN_SYSTEM`. Staging and self-hosted deployments can enable it; the navigation link shares the route gate. Its collapsible, hash-linked sections live in `components/dev/designSystem/`.
 
 ## Feature flags
 

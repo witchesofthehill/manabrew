@@ -4,6 +4,7 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { THEME_PRESETS } from "@/themes";
 import type { ThemeColors, GameFontSizes } from "@/themes";
 import {
+  filterGameThemeColorOverrides,
   resolveGameThemeColors,
   flattenGameThemeToCssVars,
   resolveGameFontSizes,
@@ -36,7 +37,7 @@ export function getThemeDocument(mode: ThemeMode = savedMode): ThemeDocument {
     presetId: preset.id,
     mode,
     appOverrides: state.appThemeColorOverrides,
-    gameOverrides: state.gameThemeColorOverrides,
+    gameOverrides: filterGameThemeColorOverrides(state.gameThemeColorOverrides),
   };
 }
 

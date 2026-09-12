@@ -24,7 +24,7 @@ export function ActionLog({
   onHoverLogCard,
 }: ActionLogProps) {
   const visibleLog = gameLog.filter((entry) => entry.entryType !== "rule");
-  const themeColors = useTheme().gameTheme;
+  const { appTheme, gameTheme: themeColors } = useTheme();
   const cardPreviewMode = usePreferencesStore((state) => state.cardPreviewMode);
   const longPress = useLongPressPreview<string>({
     resolve: (e) => {
@@ -57,7 +57,7 @@ export function ActionLog({
       sticky: true,
     });
   };
-  const priorityColor = themeColors.activeAction.priority;
+  const priorityColor = appTheme.primary;
   const infoColor = themeColors.promptAction.defenseAction;
 
   const typeLabel: Record<GameLogEntryType, string> = {
@@ -80,8 +80,8 @@ export function ActionLog({
     switch (type) {
       case "action":
         return {
-          bg: withAlpha(themeColors.promptAction.passAction, 0.12),
-          fg: themeColors.promptAction.passAction,
+          bg: withAlpha(priorityColor, 0.12),
+          fg: priorityColor,
         };
       case "stack":
         return { bg: withAlpha(priorityColor, 0.12), fg: priorityColor };

@@ -1,6 +1,7 @@
 import { THEME_PRESETS } from "@/themes";
 import type { ThemePreset, ThemeColors } from "@/themes";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { APP_THEME_COLOR_LABELS } from "@/themes/themeMetadata";
 import { Section, Subhead, Swatch, SwatchGrid } from "../kit";
 
 function groupGameColors(preset: ThemePreset): { name: string; entries: [string, string][] }[] {
@@ -76,6 +77,18 @@ function AppChrome({ colors, mode }: { colors: ThemeColors; mode: string }) {
     </div>
   );
 }
+function AppTokens({ colors, mode }: { colors: ThemeColors; mode: string }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="font-mono text-[11px] text-muted-foreground">{mode}</div>
+      <SwatchGrid>
+        {(Object.entries(colors) as [keyof ThemeColors, string][]).map(([key, value]) => (
+          <Swatch key={key} value={value} label={key} sub={APP_THEME_COLOR_LABELS[key]} />
+        ))}
+      </SwatchGrid>
+    </div>
+  );
+}
 
 function PresetCard({ preset }: { preset: ThemePreset }) {
   return (
@@ -90,6 +103,12 @@ function PresetCard({ preset }: { preset: ThemePreset }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <AppChrome colors={preset.light} mode="Light" />
         <AppChrome colors={preset.dark} mode="Dark" />
+      </div>
+
+      <Subhead>App tokens</Subhead>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <AppTokens colors={preset.light} mode="Light" />
+        <AppTokens colors={preset.dark} mode="Dark" />
       </div>
 
       <Subhead>Game tokens</Subhead>

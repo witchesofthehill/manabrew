@@ -382,7 +382,7 @@ export class PromptLayer extends PromptModalLayer {
       const glowColor =
         effectivePromptType === "chooseAttackers" && action.pendingAttackers.length > 0
           ? this.theme.gameTheme.promptAction.attackAction
-          : this.theme.gameTheme.activeAction.priority;
+          : this.theme.appTheme.primary;
       this.actionGlow = new PromptGlow({
         width,
         height: panelHeight,
@@ -581,7 +581,7 @@ export class PromptLayer extends PromptModalLayer {
             "Pass",
             "lucide-ban",
             action.onPassPriority,
-            "passAction",
+            "priority",
             disabled,
             minimal,
             touch,
@@ -764,7 +764,7 @@ export class PromptLayer extends PromptModalLayer {
             "View Stack",
             "lucide-layers",
             action.onOpenStack,
-            "passAction",
+            "priority",
             disabled,
             minimal,
             touch,
@@ -778,7 +778,7 @@ export class PromptLayer extends PromptModalLayer {
               action.targetCompletionLabel ?? "Done",
               cancel ? "lucide-ban" : "lucide-check",
               action.onCompleteTargets,
-              cancel ? "cancel" : "passAction",
+              cancel ? "cancel" : "priority",
               disabled,
               minimal,
               touch,
@@ -824,7 +824,7 @@ export class PromptLayer extends PromptModalLayer {
                 "Keep",
                 "lucide-check",
                 action.onMulliganKeep,
-                "passAction",
+                "priority",
                 disabled,
                 true,
                 touch,
@@ -865,7 +865,7 @@ export class PromptLayer extends PromptModalLayer {
         const row = this.layoutActionRow(
           [
             this.makeButton("Keep", action.onMulliganKeep, {
-              action: "passAction",
+              action: "priority",
               flat: true,
               shadow: true,
               radius: 8,
@@ -916,7 +916,7 @@ export class PromptLayer extends PromptModalLayer {
     label: string,
     icon: string,
     onPress: (() => void) | undefined,
-    role: keyof Theme["gameTheme"]["promptAction"] | "primary" | "secondary",
+    role: keyof Theme["gameTheme"]["promptAction"] | "priority" | "primary" | "secondary",
     disabled: boolean,
     minimal: boolean,
     touch: boolean,
@@ -998,7 +998,7 @@ export class PromptLayer extends PromptModalLayer {
       !minimal && combo ? `${passLabel}  ${comboSymbols(combo)}` : passLabel,
       morphed ? action.onPassEndTurn : action.onPassPriority,
       {
-        action: "passAction",
+        action: "priority",
         flat: true,
         radius: minimal ? 20 : 8,
         disabled,
@@ -1017,7 +1017,7 @@ export class PromptLayer extends PromptModalLayer {
         pass.buttonWidth,
         height,
         minimal ? 20 : 8,
-        this.theme.gameTheme.promptForeground.passAction,
+        this.theme.appTheme["primary-foreground"],
       );
     }
     this.priorityButtons = { pass, end };
@@ -1151,7 +1151,7 @@ export class PromptLayer extends PromptModalLayer {
           action.targetCompletionLabel ?? "Done",
           action.targetCompletionKind === "cancel" ? "lucide-ban" : "lucide-check",
           action.onCompleteTargets,
-          action.targetCompletionKind === "cancel" ? "cancel" : "passAction",
+          action.targetCompletionKind === "cancel" ? "cancel" : "priority",
           disabled,
           minimal,
           touch,
@@ -1298,7 +1298,7 @@ export class PromptLayer extends PromptModalLayer {
             : "CHOOSE HOW TO PAY",
         10,
         info.canConfirmFromPool
-          ? this.theme.gameTheme.promptAction.passAction
+          ? this.theme.appTheme.primary
           : this.theme.appTheme["muted-foreground"],
         {
           weight: "700",
@@ -1318,7 +1318,7 @@ export class PromptLayer extends PromptModalLayer {
         info?.canConfirmFromPool ? "Confirm" : "Auto",
         info?.canConfirmFromPool ? "lucide-check" : "lucide-wand-sparkles",
         info?.canConfirmFromPool ? action.onPayManaCost : action.onAutoManaCost,
-        "passAction",
+        "priority",
         disabled,
         minimal,
         touch,

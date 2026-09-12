@@ -86,7 +86,7 @@ function CommandZoneCard({
       <CollectionOwnershipTooltip card={card} surface="visual" className="left-1 top-7" />
       {unsupported && (
         <div
-          className="absolute bottom-1 right-1 z-30 rounded-full bg-warning/90 p-0.5 text-white shadow"
+          className="absolute bottom-1 right-1 z-30 rounded-full bg-warning/90 p-0.5 text-background shadow"
           title="Unsupported by the Manabrew and Forge engines"
         >
           <AlertTriangle className="h-3 w-3" />

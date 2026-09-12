@@ -65,8 +65,8 @@ export function ZoneViewer({
     targetHostile === undefined
       ? theme.cardRing
       : targetHostile
-        ? theme.arrow.hostileTarget
-        : theme.arrow.friendlyTarget;
+        ? theme.targeting.hostile
+        : theme.targeting.friendly;
   return (
     <Modal
       onClose={onClose}

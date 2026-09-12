@@ -12,7 +12,11 @@ const APP_PAIRS: { label: string; foreground: keyof ThemeColors; background: key
     { label: "Page text", foreground: "foreground", background: "background" },
     { label: "Card text", foreground: "card-foreground", background: "card" },
     { label: "Popover text", foreground: "popover-foreground", background: "popover" },
-    { label: "Primary action", foreground: "primary-foreground", background: "primary" },
+    {
+      label: "Primary and priority action",
+      foreground: "primary-foreground",
+      background: "primary",
+    },
     { label: "Secondary action", foreground: "secondary-foreground", background: "secondary" },
     { label: "Accent text", foreground: "accent-foreground", background: "accent" },
     {
@@ -79,7 +83,7 @@ export function ThemeContrastPreview({
   }[] = [
     { label: "Empty-zone label", foreground: "textMuted", background: "canvas.background" },
     { label: "Loading card name", foreground: "textGhost", background: "cardPlaceholder.fill" },
-    ...(["passAction", "attackAction", "defenseAction", "cancel"] as const).map((action) => ({
+    ...(["attackAction", "defenseAction", "cancel"] as const).map((action) => ({
       label: `Prompt ${action}`,
       foreground: `promptForeground.${action}` as const,
       background: `promptAction.${action}` as const,

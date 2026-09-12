@@ -126,7 +126,7 @@ export function ensureTextContrast(
 }
 
 export function readableTextColor(background: string, dark: string, light: string): string {
-  return relativeLuminance(background) > 0.6 ? dark : light;
+  return contrastRatio(dark, background) >= contrastRatio(light, background) ? dark : light;
 }
 
 export function darken(hex: string, factor: number): string {

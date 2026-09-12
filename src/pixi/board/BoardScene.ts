@@ -1568,8 +1568,8 @@ export class BoardScene {
     this.promptReference = target;
     const color =
       target?.intent != null && intentIsHostile(target.intent)
-        ? this.theme.gameTheme.pointer.hostile
-        : this.theme.gameTheme.pointer.friendly;
+        ? this.theme.gameTheme.targeting.hostile
+        : this.theme.gameTheme.targeting.friendly;
     const cardId = target?.kind === "card" ? target.id : null;
     for (const rec of this.regions.values()) {
       rec.region.setPromptReference(cardId, target ? hexToNum(color) : null);
@@ -2335,15 +2335,15 @@ export class BoardScene {
           to.pos.x += (idx - (total - 1) / 2) * ATTACK_ARROW_LANE_PX;
         }
       }
-      const pointer = this.theme.gameTheme.pointer;
+      const targeting = this.theme.gameTheme.targeting;
       const color =
         spec.type === "attack"
-          ? hexToNum(this.theme.gameTheme.arrow.attack)
+          ? hexToNum(targeting.hostile)
           : spec.type === "block"
-            ? hexToNum(this.theme.gameTheme.arrow.block)
+            ? hexToNum(targeting.friendly)
             : spec.hostile == null
               ? undefined
-              : hexToNum(spec.hostile ? pointer.hostile : pointer.friendly);
+              : hexToNum(spec.hostile ? targeting.hostile : targeting.friendly);
       // Placement arrows landing in a visible field also outline the target slot.
       let slot: { width: number; height: number } | undefined;
       if (spec.type === "placement" && spec.to.kind === "placement-ghost" && !to.hint) {
@@ -2377,14 +2377,14 @@ export class BoardScene {
         this.stackProvider?.getCastingAnchor(id, target) ??
         this.resolveArrowEndpoint({ kind: "card", id }, canvasRect);
       if (from) {
-        const t = this.theme.gameTheme.pointer;
+        const targeting = this.theme.gameTheme.targeting;
         resolved.push({
           fromX: from.x,
           fromY: from.y,
           toX: target.x,
           toY: target.y,
           type: "casting",
-          color: hexToNum(this.castingArrow.hostile ? t.hostile : t.friendly),
+          color: hexToNum(this.castingArrow.hostile ? targeting.hostile : targeting.friendly),
         });
       }
     }
@@ -2430,7 +2430,7 @@ export class BoardScene {
           toX,
           toY,
           type: "attack",
-          color: hexToNum(this.theme.gameTheme.arrow.attack),
+          color: hexToNum(this.theme.gameTheme.targeting.hostile),
         });
       }
     }

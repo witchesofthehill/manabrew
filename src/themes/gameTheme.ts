@@ -31,17 +31,14 @@ export const MANA_BG_CLASS: Record<ManaLetter, string> = {
 
 export interface GameThemeColors {
   activeAction: {
-    priority: string;
     active: string;
   };
   promptAction: {
-    passAction: string;
     attackAction: string;
     defenseAction: string;
     cancel: string;
   };
   promptForeground: {
-    passAction: string;
     attackAction: string;
     defenseAction: string;
     cancel: string;
@@ -59,13 +56,7 @@ export interface GameThemeColors {
     exile: string;
     command: string;
   };
-  arrow: {
-    attack: string;
-    block: string;
-    hostileTarget: string;
-    friendlyTarget: string;
-  };
-  pointer: {
+  targeting: {
     hostile: string;
     friendly: string;
   };
@@ -214,6 +205,14 @@ function cleanFlatMap(raw: Record<string, string>): Record<string, string> {
       .map(([k, v]) => [k, v.trim()]),
   );
 }
+function filterFlatMap(
+  raw: Record<string, string>,
+  allowedKeys: ReadonlySet<string>,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(cleanFlatMap(raw)).filter(([key]) => allowedKeys.has(key)),
+  );
+}
 
 const DEFAULT_PRESET_GAME_COLORS: GameThemeColorMap = (() => {
   const defaultPreset = THEME_PRESETS.find((p) => p.id === "default");
@@ -223,6 +222,14 @@ const DEFAULT_PRESET_GAME_COLORS: GameThemeColorMap = (() => {
 
 export function getGameThemeColorPaths(): GameThemeColorKey[] {
   return Object.keys(DEFAULT_PRESET_GAME_COLORS) as GameThemeColorKey[];
+}
+
+const GAME_THEME_COLOR_PATHS = new Set<string>(getGameThemeColorPaths());
+
+export function filterGameThemeColorOverrides(
+  overrides: Partial<GameThemeColorMap>,
+): Partial<GameThemeColorMap> {
+  return filterFlatMap(overrides as Record<string, string>, GAME_THEME_COLOR_PATHS);
 }
 
 export function resolveGameThemeColors(
@@ -235,7 +242,7 @@ export function resolveGameThemeColors(
   const merged = {
     ...DEFAULT_PRESET_GAME_COLORS,
     ...cleanFlatMap(preset.gameColors),
-    ...cleanFlatMap(overrides as Record<string, string>),
+    ...filterFlatMap(overrides as Record<string, string>, GAME_THEME_COLOR_PATHS),
   } as GameThemeColorMap;
 
   return flatToGameTheme(merged);

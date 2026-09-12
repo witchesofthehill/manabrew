@@ -35,9 +35,6 @@ export interface BasePalette {
    *  an infect pip reads as "ill" rather than a straight buff. */
   poison: string;
 
-  /** Pass-priority / pass-turn prompt button colour. Typically the
-   *  preset's primary cool accent (blue, violet, or green). */
-  promptPass: string;
   /** Declare-blockers / defense prompt button colour. Typically a
    *  lighter cool tone (cyan, blue, or teal). Also used for the
    *  friendly-target arrow colour. */
@@ -61,34 +58,26 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
       ? p.foreground
       : p.canvasBackground;
   return {
-    "activeAction.priority": p.violet,
     "activeAction.active": p.amber,
 
-    "promptAction.passAction": p.promptPass,
     "promptAction.attackAction": p.red,
     "promptAction.defenseAction": p.promptDefense,
     "promptAction.cancel": p.slate,
-    "promptForeground.passAction": promptForeground(p.promptPass),
     "promptForeground.attackAction": promptForeground(p.red),
     "promptForeground.defenseAction": promptForeground(p.promptDefense),
     "promptForeground.cancel": promptForeground(p.slate),
 
-    "arrow.attack": withAlpha(p.red, 0.88),
-    "arrow.block": withAlpha(p.promptDefense, 0.88),
-    "arrow.hostileTarget": withAlpha(p.red, 0.88),
-    "arrow.friendlyTarget": withAlpha(p.promptDefense, 0.88),
+    "targeting.hostile": withAlpha(p.red, 0.88),
+    "targeting.friendly": withAlpha(p.promptDefense, 0.88),
 
     cardRing: p.amber,
     cardSelection: p.violet,
     "interaction.untap": p.slate,
     "connection.disconnected": p.slate,
     "zone.library": p.paper,
-    "zone.graveyard": p.foreground,
+    "zone.graveyard": p.slate,
     "zone.exile": p.purple,
     "zone.command": p.amber,
-
-    "pointer.hostile": withAlpha(p.red, 0.88),
-    "pointer.friendly": withAlpha(p.promptDefense, 0.88),
 
     "mana.W": p.manaW,
     "mana.U": p.manaU,
@@ -154,10 +143,8 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "counter.page": p.paper,
     "counter.shield": p.amber,
 
-    // Phase strip indicator + turn tint. Seat-to-hue mapping is fixed
-    // across presets: self = green, opponents cycle amber → blue →
-    // purple. Each preset's palette-native version of those hues keeps
-    // the strip visually cohesive with the rest of its theme.
+    // Base seat mapping for presets without explicit overrides. Each
+    // preset can replace individual values while retaining palette-native hues.
     "playerColors.self": p.green,
     "playerColors.opponent1": p.amber,
     "playerColors.opponent2": p.blue,

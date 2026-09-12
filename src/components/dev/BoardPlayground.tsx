@@ -402,6 +402,7 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
         onToggle={(event) => setControlsOpen(event.currentTarget.open)}
         className={cn(
           themeEditor && "max-h-[30%] shrink-0 overflow-y-auto rounded-lg border border-border",
+          visibleZone && "hidden md:block",
         )}
       >
         <summary
@@ -675,7 +676,12 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
           </p>
         </div>
       </details>
-      <div className="flex max-h-[20%] shrink-0 items-start gap-2 overflow-y-auto">
+      <div
+        className={cn(
+          "flex max-h-[20%] shrink-0 items-start gap-2 overflow-y-auto",
+          visibleZone && "hidden md:flex",
+        )}
+      >
         <BoardGameplayPreviewControls
           mode={gameplay.mode}
           onModeChange={gameplay.chooseMode}

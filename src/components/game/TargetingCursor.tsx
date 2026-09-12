@@ -40,7 +40,7 @@ export function TargetingCursor({ active, intent, hostile }: TargetingCursorProp
   if (!active) return null;
 
   const glyph = INTENT_GLYPH_SVG[intent];
-  const glyphColor = hostile ? themeColors.pointer.hostile : themeColors.pointer.friendly;
+  const glyphColor = hostile ? themeColors.targeting.hostile : themeColors.targeting.friendly;
 
   return createPortal(
     <div

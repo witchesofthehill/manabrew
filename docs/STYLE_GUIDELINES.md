@@ -221,7 +221,7 @@ BasePalette (~30 raw hues per preset)
     → resolveGameThemeColors():  default preset → active preset → user overrides
       → flatToGameTheme():       nested GameThemeColors object
         → flattenGameThemeToCssVars():  --kebab-case CSS vars on :root
-          → Tailwind @theme block:       bg-pointer-hostile, text-mana-w, …
+          → Tailwind @theme block:       bg-targeting-hostile, text-mana-w, …
 ```
 
 | Surface                   | Source of truth                                          | Accessor                                                       |
@@ -260,14 +260,14 @@ This means:
 1. **No `#RRGGBB`, `rgba(…)`, `hsl(…)`, or `0xRRGGBB` literals in
    source files.** Pull every colour from the theme.
 2. **No Tailwind palette classes** (e.g. `ring-red-500`, `bg-blue-400`).
-   Use theme-token utilities instead: `bg-pointer-hostile`,
+   Use theme-token utilities instead: `bg-targeting-hostile`,
    `text-counter-p1p1`, `ring-card-ring`, `bg-pt-buffed`,
    `text-format-badge-blue`, `text-legality-legal`, etc. Every key in
    `GameThemeColors` has matching `bg-*` / `text-*` / `ring-*` /
    `border-*` utilities via the `@theme` block in `src/index.css`.
 3. **No colour fallbacks in components or Pixi layers.** The resolution
    chain guarantees every token is a non-empty string. Never write
-   `theme.pointer.hostile ?? "#ff0000"` or `safeColor(raw, fallback)`.
+   `theme.targeting.hostile ?? "#ff0000"` or `safeColor(raw, fallback)`.
 4. **Pixi code reads theme directly** via `getTheme().gameTheme.*` or
    the `theme` field set by `setTheme()`. No optional chaining needed.
 5. **The one narrow exception**: pure `rgba(0, 0, 0, X)` shadow idioms

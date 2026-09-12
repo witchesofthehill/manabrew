@@ -20,7 +20,7 @@ export interface PromptButtonOptions {
   height?: number;
   color?: string;
   variant?: "primary" | "secondary" | "destructive";
-  action?: keyof Theme["gameTheme"]["promptAction"];
+  action?: keyof Theme["gameTheme"]["promptAction"] | "priority";
   foreground?: string;
   outline?: boolean;
   disabled?: boolean;
@@ -216,7 +216,12 @@ export class PromptButton extends Container {
     const action = this.options.action;
     const variant = this.options.variant ?? "primary";
     const fill =
-      this.options.color ?? (action ? this.theme.gameTheme.promptAction[action] : app[variant]);
+      this.options.color ??
+      (action === "priority"
+        ? app.primary
+        : action
+          ? this.theme.gameTheme.promptAction[action]
+          : app[variant]);
     const color = hexToNum(fill);
     const active = !this.options.disabled && (this.pressed || this.hovered || this.focused);
     const foregroundColor =
@@ -225,9 +230,11 @@ export class PromptButton extends Container {
         ? active && !this.options.backgroundColor
           ? app["accent-foreground"]
           : app["card-foreground"]
-        : action
-          ? this.theme.gameTheme.promptForeground[action]
-          : app[`${variant}-foreground`]);
+        : action === "priority"
+          ? app["primary-foreground"]
+          : action
+            ? this.theme.gameTheme.promptForeground[action]
+            : app[`${variant}-foreground`]);
     const foreground = hexToNum(foregroundColor);
     const foregroundAlpha = colorAlpha(foregroundColor);
     const border = hexToNum(this.options.borderColor ?? this.theme.appTheme.border);

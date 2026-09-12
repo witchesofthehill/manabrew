@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { isFacelessCard } from "@/lib/gameCard";
+import { cn } from "@/lib/utils";
 import {
   CARD_H,
   CARD_W,
@@ -18,6 +19,7 @@ import {
 import { DialogCardPickerCanvas } from "./DialogCardPickerCanvas";
 interface DialogCardPickerGridProps {
   items: CardBrowserItem[];
+  fitToContainer?: boolean;
   state: CardBrowserState;
   defaultRules: boolean;
   actionable: boolean;
@@ -31,6 +33,7 @@ interface DialogCardPickerGridProps {
 
 export function DialogCardPickerGrid({
   items,
+  fitToContainer = false,
   state,
   defaultRules,
   actionable,
@@ -91,7 +94,21 @@ export function DialogCardPickerGrid({
             .width / CARD_W,
       ),
     );
-    const width = Math.min(preferredWidth, gridWidth / maxWidthRatio);
+    const maxHeightRatio = Math.max(
+      CARD_H / CARD_W,
+      ...states.map(
+        ({ item, inspection }) =>
+          promptCardDisplayDimensions(item.card, CARD_W, inspection.face, inspection.rotated)
+            .height / CARD_W,
+      ),
+    );
+    const width = Math.min(
+      preferredWidth,
+      gridWidth / maxWidthRatio,
+      fitToContainer
+        ? Math.max(1, viewport.height - CARD_BROWSER_VERTICAL_PADDING * 2) / maxHeightRatio
+        : preferredWidth,
+    );
     const sizes = new Map(
       states.map(({ item, inspection }) => [
         item.id,
@@ -107,7 +124,15 @@ export function DialogCardPickerGrid({
         ? Math.max(...displaySizes.map((size) => size.height))
         : (width * CARD_H) / CARD_W,
     };
-  }, [defaultRules, gridWidth, items, state.inspection, viewport.screenHeight]);
+  }, [
+    defaultRules,
+    fitToContainer,
+    gridWidth,
+    items,
+    state.inspection,
+    viewport.height,
+    viewport.screenHeight,
+  ]);
   const columns = Math.max(
     1,
     Math.floor((gridWidth + PROMPT_CARD_GAP) / (cellWidth + PROMPT_CARD_GAP)),
@@ -164,7 +189,10 @@ export function DialogCardPickerGrid({
       ref={host}
       role="listbox"
       aria-label="Cards in this view"
-      className="min-h-56 flex-1 overflow-auto overscroll-contain"
+      className={cn(
+        "flex-1 overflow-auto overscroll-contain",
+        fitToContainer ? "min-h-0" : "min-h-56",
+      )}
       onScroll={(event) => onScroll(event.currentTarget.scrollTop)}
       onKeyDown={(event) => {
         if (event.altKey || event.ctrlKey || event.metaKey) return;

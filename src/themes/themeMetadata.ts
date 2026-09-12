@@ -30,31 +30,23 @@ export const APP_THEME_COLOR_DESCRIPTIONS: Record<AppThemeKey, string> = {
 };
 
 export const GAME_THEME_COLOR_DESCRIPTIONS: Partial<Record<GameThemeColorKey, string>> = {
-  "activeAction.priority": "Highlight surrounding the player who currently has priority.",
   "activeAction.active": "Active-turn ring, turn-text colour, and general 'your turn' cue.",
-  "promptAction.passAction": "Pass priority / pass turn button fill.",
   "promptAction.attackAction": "Declare-attackers button fill.",
   "promptAction.defenseAction": "Defense / declare-blockers button fill.",
   "promptAction.cancel": "Cancel / decline button fill.",
-  "promptForeground.passAction": "Text and icons on pass and continue actions.",
   "promptForeground.attackAction": "Text and icons on attack actions.",
   "promptForeground.defenseAction": "Text and icons on defense actions.",
   "promptForeground.cancel": "Text and icons on cancel actions.",
   "interaction.untap": "An available untap action, separate from cancellation.",
   "connection.disconnected": "A disconnected player's connection indicator.",
   "zone.library": "Library zone accent.",
-  "zone.graveyard": "Graveyard zone accent.",
+  "zone.graveyard": "Muted grey graveyard zone accent.",
   "zone.exile": "Exile zone accent.",
   "zone.command": "Command zone accent.",
   "cardStatus.summoningSick": "A creature that cannot attack or use tap abilities yet.",
   cardSelection: "Persistent card selection, distinct from availability or hostile targeting.",
-  "arrow.attack": "Attacker arrow from attacker to defender.",
-  "arrow.block": "Blocker arrow from blocker to attacker.",
-  "arrow.hostileTarget": "A hostile spell or ability targeting a card or player.",
-  "arrow.friendlyTarget": "A supportive spell or ability targeting a card or player.",
-  "pointer.hostile": "Hostile targeting, such as damage, destruction, exile, or countering.",
-  "pointer.friendly":
-    "Glow around the cursor for friendly / supportive targeting — buff, heal, draw, reveal, untap, attach, copy.",
+  "targeting.hostile": "Hostile arrows, pointers, rings, and target actions.",
+  "targeting.friendly": "Friendly arrows, pointers, rings, and target actions.",
   "mana.W": "White mana pip and dual-land tap-button tint.",
   "mana.U": "Blue mana pip and dual-land tap-button tint.",
   "mana.B": "Black mana pip and dual-land tap-button tint.",
@@ -176,24 +168,19 @@ export const GAME_THEME_GROUPS: {
   exactKeys?: string[];
 }[] = [
   {
-    heading: "Active Action",
-    description: "Priority ring, turn glow, and related active-state cues.",
+    heading: "Active action",
+    description: "Priority, pass actions, active-turn rings, and related active-state cues.",
     prefixes: ["activeAction."],
   },
   {
-    heading: "Prompt Buttons",
-    description: "Pass, attack, defense, cancel, and related prompt action buttons.",
+    heading: "Prompt buttons",
+    description: "Attack, defense, cancel, and related prompt action buttons.",
     prefixes: ["promptAction.", "promptForeground."],
   },
   {
-    heading: "Combat & Placement Arrows",
-    description: "Curved arrows for attack / block declarations and the placement ghost.",
-    prefixes: ["arrow."],
-  },
-  {
-    heading: "Targeting Pointers",
-    description: "Per-intent pointer icon glow (sacrifice, destroy, exile, bounce, tap …).",
-    prefixes: ["pointer."],
+    heading: "Targeting",
+    description: "Hostile and friendly colors shared by arrows, pointers, rings, and actions.",
+    prefixes: ["targeting."],
   },
   {
     heading: "Selection & interaction",

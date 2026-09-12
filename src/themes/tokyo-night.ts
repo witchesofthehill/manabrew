@@ -26,7 +26,6 @@ const palette: BasePalette = {
   brown: "#ff9e64",
   paper: "#c0caf5",
   poison: "#7fb055", // deeper olive version of tokyo-night green
-  promptPass: "#7aa2f7", // blue
   promptDefense: "#7dcfff", // sky
   manaW: "#c0caf5",
   manaU: "#7aa2f7",

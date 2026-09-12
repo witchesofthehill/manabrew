@@ -25,6 +25,7 @@ import { isFacelessCard } from "@/lib/gameCard";
 interface Props {
   items: CardBrowserItem[];
   picker?: boolean;
+  compact?: boolean;
   pending?: boolean;
   intentColor?: string;
   activateOnClick?: boolean;
@@ -41,6 +42,7 @@ export function DialogCardBrowser({
   items,
   picker = false,
   pending = false,
+  compact = false,
   intentColor,
   activateOnClick = false,
   onActivate,
@@ -172,26 +174,30 @@ export function DialogCardBrowser({
         }
       }}
     >
-      <DialogCardBrowserToolbar
-        search={search}
-        state={state}
-        types={types}
-        visibleCount={visible.length}
-        totalCount={items.length}
-        selectedCount={selectedCount}
-        loading={loading}
-        incomplete={incomplete}
-        onFilter={changeFilter}
-      />
+      {!compact && (
+        <DialogCardBrowserToolbar
+          search={search}
+          state={state}
+          types={types}
+          visibleCount={visible.length}
+          totalCount={items.length}
+          selectedCount={selectedCount}
+          loading={loading}
+          incomplete={incomplete}
+          onFilter={changeFilter}
+        />
+      )}
       <div
         className={cn(
-          "grid min-h-0 flex-1 gap-3 p-3",
+          "grid min-h-0 flex-1 gap-3",
+          compact ? "p-1" : "p-3",
           !picker && "md:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]",
         )}
       >
         {picker ? (
           <DialogCardPickerGrid
             items={visible}
+            fitToContainer={compact}
             state={state}
             defaultRules={defaultView === "rules"}
             actionable={!!onActivate}

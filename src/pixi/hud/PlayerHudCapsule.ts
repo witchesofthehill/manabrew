@@ -964,7 +964,7 @@ export class PlayerHudCapsule {
         this.burstManaSplash(
           left + size / 2,
           cy,
-          manaColorFor(letter, this.theme, hexToNum(gt.activeAction.priority)),
+          manaColorFor(letter, this.theme, hexToNum(this.theme.appTheme.primary)),
           value - previous,
         );
       }
@@ -1017,7 +1017,7 @@ export class PlayerHudCapsule {
         this.burstManaSplash(
           left + size / 2,
           cy,
-          manaColorFor(letter, this.theme, hexToNum(gt.activeAction.priority)),
+          manaColorFor(letter, this.theme, hexToNum(this.theme.appTheme.primary)),
           value - pip.value,
         );
       }
@@ -1353,8 +1353,8 @@ export class PlayerHudCapsule {
           ? game.promptAction.defenseAction
           : intent
             ? intentIsHostile(intent)
-              ? game.pointer.hostile
-              : game.pointer.friendly
+              ? game.targeting.hostile
+              : game.targeting.friendly
             : game.cardSelection;
     this.targetRing.clear();
     this.targetRing.circle(this.avatarCx, this.avatarCy, this.avatarDia / 2 + 1);

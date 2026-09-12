@@ -245,7 +245,7 @@ export const usePreferencesStore = create<PreferencesState>()(
           setLockZoneTiles: (lockZoneTiles) => set({ lockZoneTiles }),
 
           battlefieldCardStyle: "realistic",
-          battlefieldRenderer: "3d",
+          battlefieldRenderer: "classic",
           setBattlefieldRenderer: (battlefieldRenderer) => set({ battlefieldRenderer }),
           setBattlefieldCardStyle: (battlefieldCardStyle) => set({ battlefieldCardStyle }),
 

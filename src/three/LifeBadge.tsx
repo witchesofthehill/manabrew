@@ -18,7 +18,11 @@ export function LifeBadge({
 }) {
   const identity = MANA_LETTERS.filter((symbol) => symbol !== "C" && symbols.includes(symbol));
   const ring = identity.length >= 4;
-  const displayed = ring ? MANA_LETTERS.filter((symbol) => symbol !== "C") : identity.length ? identity : ["C"];
+  const displayed = ring
+    ? MANA_LETTERS.filter((symbol) => symbol !== "C")
+    : identity.length
+      ? identity
+      : ["C"];
   const previous = useRef(life);
   const [change, setChange] = useState<{ delta: number; key: number }>();
   useEffect(() => {
@@ -44,7 +48,11 @@ export function LifeBadge({
     >
       <span className="duel-avatar-sigil" data-ring={ring} data-count={displayed.length}>
         {displayed.map((symbol) => (
-          <span key={symbol} className="duel-identity-pip" data-dim={ring && !identity.includes(symbol as typeof identity[number])}>
+          <span
+            key={symbol}
+            className="duel-identity-pip"
+            data-dim={ring && !identity.includes(symbol as (typeof identity)[number])}
+          >
             <ManaSymbol symbol={symbol} />
           </span>
         ))}

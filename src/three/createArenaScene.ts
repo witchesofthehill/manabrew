@@ -1,3 +1,6 @@
+import { handManaCost } from "@/three/handManaCost";
+import { arenaTable } from "@/three/arenaTable";
+import { battlefieldDice } from "@/three/battlefieldDice";
 import * as THREE from "three";
 import { targetingOverlay } from "@/three/targetingOverlay";
 import { blockShield } from "@/three/blockShield";
@@ -22,6 +25,7 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
   renderer.shadowMap.type = THREE.PCFShadowMap;
   element.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
+  const dice = battlefieldDice(scene, colors);
   scene.background = new THREE.Color(colors.background);
   const camera = new THREE.PerspectiveCamera(43, 1, 0.5, 80);
   let sceneWidth = 1;
@@ -51,11 +55,13 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
   const observer = new ResizeObserver(resize);
   observer.observe(element);
   resize();
-  scene.add(new THREE.HemisphereLight(colors.foreground, colors.background, 2.4));
-  const sun = new THREE.DirectionalLight(colors.foreground, 3);
+  scene.add(new THREE.HemisphereLight(colors.foreground, colors.background, 1.7));
+  const sun = new THREE.DirectionalLight(colors.foreground, 1.9);
   sun.position.set(-5, 13, 5);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.radius = 4;
+  sun.shadow.intensity = 0.55;
   Object.assign(sun.shadow.camera, { left: -15, right: 15, top: 15, bottom: -15 });
   scene.add(sun);
   const stone = tableTexture(colors);
@@ -66,47 +72,17 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
   table.position.y = -0.5;
   table.receiveShadow = true;
   scene.add(table);
-  for (let i = 0; i < 4; i++) {
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(3.3 + i * 0.2, 3.32 + i * 0.2, 96),
-      new THREE.MeshBasicMaterial({ color: colors.border, transparent: true, opacity: 0.3 }),
-    );
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = -0.16 + i * 0.001;
-    scene.add(ring);
-  }
-  for (const x of [-11.4, 11.4])
-    for (const z of [-10, 0, 9]) {
-      const crystal = new THREE.Mesh(
-        new THREE.SphereGeometry(0.22, 12, 8),
-        new THREE.MeshStandardMaterial({
-          color: colors.accent,
-          emissive: colors.accent,
-          emissiveIntensity: 0.35,
-          metalness: 0.5,
-          roughness: 0.2,
-        }),
-      );
-      crystal.position.set(x, 0.35, z);
-      const plinth = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.52, 0.68, 0.24, 6),
-        new THREE.MeshStandardMaterial({ color: colors.border, metalness: 0.75, roughness: 0.4 }),
-      );
-      plinth.position.set(x, -0.02, z);
-      scene.add(plinth);
-      crystal.scale.y = 0.75;
-      scene.add(crystal);
-      const light = new THREE.PointLight(colors.accent, 8, 7);
-      light.position.set(x, 2, z);
-      scene.add(light);
-    }
+  const tableDetails = arenaTable(scene, colors);
   type Tile = {
     mesh: THREE.Mesh<THREE.ExtrudeGeometry, [THREE.MeshBasicMaterial, THREE.MeshStandardMaterial]>;
     hitMesh: THREE.Mesh;
     glow: ReturnType<typeof cardGlow>;
     signature: string;
+    mana?: ReturnType<typeof handManaCost>;
     side: string;
     born: number;
+    landing?: number;
+    landed?: boolean;
     departing?: number;
     departureDelay?: number;
     rest?: { position: THREE.Vector3; rotation: THREE.Euler; scale: THREE.Vector3 };
@@ -349,6 +325,7 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
     handOrder = handOrder.filter((id) => handIds.has(id));
     const known = new Set(handOrder);
     for (const card of hand) if (!known.has(card.id)) handOrder.push(card.id);
+    const focusedHandIndex = handOrder.indexOf(hovered ?? "");
     const byId = new Map(hand.map((card) => [card.id, card]));
     const layout = arenaLayout([
       ...current.cards.filter((card) => card.side !== "hand"),
@@ -357,7 +334,11 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
     for (const card of current.cards)
       if (card.side === "hand") {
         const position = layout.get(card.id)!;
-        position.z = handZ + Math.abs(position.x) * 0.05;
+        if (focusedHandIndex >= 0 && !dragPosition) {
+          const offset = handOrder.indexOf(card.id) - focusedHandIndex;
+          position.x += Math.sign(offset) * Math.min(1.3, Math.abs(offset) * 1.1);
+        }
+        position.z = handZ + Math.abs(position.x) * 0.035;
       }
     for (const card of current.cards)
       if (card.side === "opponentHand") {
@@ -426,6 +407,7 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
         card.name,
         card.type,
         card.cost,
+        card.effectiveCost,
         card.text,
         card.stats,
         card.statsChanged,
@@ -479,10 +461,16 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
           glow,
           side: card.side,
           born: hadCards ? time : time - 500,
+          landing:
+            hadCards && (card.side === "self" || card.side === "opponent") ? time : undefined,
           signature: "",
           dispose: () => {},
         };
         tiles.set(card.id, tile);
+      }
+      if (tile.side === "hand" && card.side === "self") {
+        tile.landing = time;
+        tile.landed = false;
       }
       tile.side = card.side;
       tile.departing = undefined;
@@ -508,7 +496,20 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
         art.texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
         tile.mesh.material[0].map = art.texture;
         tile.mesh.material[0].needsUpdate = true;
-        tile.dispose = art.dispose;
+        tile.mana =
+          card.side === "hand" && !card.hidden
+            ? handManaCost(card.effectiveCost ?? card.cost, colors)
+            : undefined;
+        const mana = tile.mana;
+        const mesh = tile.mesh;
+        if (mana) mesh.add(mana.mesh);
+        tile.dispose = () => {
+          art.dispose();
+          if (mana) {
+            mesh.remove(mana.mesh);
+            mana.dispose();
+          }
+        };
         tile.signature = signature;
       }
       const target = layout.get(card.id)!;
@@ -619,6 +620,19 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
         }
       } else {
         tile.glow.visible = true;
+        if (tile.landing !== undefined && (reduced.matches || time - tile.landing > 900))
+          tile.landed = true;
+        if (tile.landing !== undefined && !reduced.matches) {
+          const t = Math.min(1, (time - tile.landing) / 430);
+          if (t < 0.65) tile.mesh.position.y += 0.9 * (1 - (t / 0.65) ** 2);
+          else {
+            tile.mesh.position.y += Math.sin(((t - 0.65) / 0.35) * Math.PI) * 0.055;
+            if (!tile.landed) {
+              atmosphere.impact(tile.mesh.position, time);
+              tile.landed = true;
+            }
+          }
+        }
         const arrival = reduced.matches ? 1 : THREE.MathUtils.clamp((time - tile.born) / 320, 0, 1);
         if (arrival < 1) {
           tile.mesh.material.forEach((m) => {
@@ -629,6 +643,8 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
         }
       }
     }
+    for (const tile of tiles.values())
+      if (tile.mana) tile.mana.mesh.material.opacity = tile.mesh.material[0].opacity;
     blockArrow.visible = Boolean(blocking() && dragPosition);
     dragShield.forEach((mesh) => {
       mesh.visible = blockArrow.visible;
@@ -736,6 +752,7 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
       linkKey = nextLinkKey;
     }
     atmosphere.update(time, reduced.matches);
+    tableDetails.update(time, reduced.matches);
     const root = element.closest(".arena-root");
     if (root)
       for (const card of current.cards.filter((c) => c.side === "hand")) {
@@ -772,6 +789,7 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
       ),
       hovered,
     );
+    dice.update(live.current.diceRoll, time);
     renderer.render(scene, camera);
   };
   frame = requestAnimationFrame(render);
@@ -779,9 +797,11 @@ export function createArenaScene(element: HTMLDivElement, live: { current: Arena
     cancelAnimationFrame(frame);
     clearTimeout(hold);
     observer.disconnect();
+    dice.dispose();
     targets.dispose();
     zonePiles.dispose();
     atmosphere.dispose();
+    tableDetails.dispose();
     window.removeEventListener("keydown", escape);
     playArea.geometry.dispose();
     playArea.material.dispose();

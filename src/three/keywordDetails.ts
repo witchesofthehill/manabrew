@@ -82,8 +82,8 @@ export function keywordDetails(raw: string) {
 }
 
 export function counterLabel(raw: string) {
-  return (
-    ({ P1P1: "+1/+1", M1M1: "−1/−1" } as Record<string, string>)[raw] ??
-    raw.replace(/_/g, " ").toLowerCase()
-  );
+  const stats = raw.match(/^([PM])(\d+)([PM])(\d+)$/i);
+  if (stats)
+    return `${stats[1].toUpperCase() === "P" ? "+" : "−"}${stats[2]}/${stats[3].toUpperCase() === "P" ? "+" : "−"}${stats[4]}`;
+  return raw.replace(/_/g, " ").toLowerCase();
 }

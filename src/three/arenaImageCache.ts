@@ -1,3 +1,5 @@
+import { persistentArenaImage } from "@/three/persistentArenaImages";
+
 type ImageJob = {
   url: string;
   priority: boolean;
@@ -9,6 +11,27 @@ const images = new Map<string, HTMLImageElement>();
 const jobs = new Map<string, ImageJob>();
 const queue: ImageJob[] = [];
 let running = 0;
+const listeners = new Map<string, Set<(image: HTMLImageElement) => void>>();
+const recovery = new Map<string, number>();
+const deckImages = new Set<string>();
+const backgroundRetries = new Map<string, number>();
+
+export function watchArenaImage(url: string, onImage: (image: HTMLImageElement) => void) {
+  let subscribers = listeners.get(url);
+  if (!subscribers) listeners.set(url, (subscribers = new Set()));
+  subscribers.add(onImage);
+  const cached = images.get(url);
+  if (cached) onImage(cached);
+  else void loadArenaImage(url);
+  return () => {
+    subscribers.delete(onImage);
+    if (!subscribers.size) {
+      listeners.delete(url);
+      if (!deckImages.has(url)) window.clearTimeout(recovery.get(url));
+      if (!deckImages.has(url)) recovery.delete(url);
+    }
+  };
+}
 
 export const arenaCardImageUrl = (name: string, variant: string) =>
   `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(name)}&format=image&version=${variant}`;
@@ -46,20 +69,25 @@ function pump() {
     const job = queue.shift()!;
     running++;
     job.attempts++;
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.fetchPriority = job.priority ? "high" : "low";
+    const controller = new AbortController();
     let finished = false;
-    const finish = (success: boolean) => {
+    const finish = (image: HTMLImageElement | null) => {
       if (finished) return;
       finished = true;
       window.clearTimeout(timeout);
-      image.onload = image.onerror = null;
-      if (success) {
-        if (images.size >= 192) images.delete(images.keys().next().value!);
+      if (image) {
+        if (images.size >= Math.max(192, deckImages.size + 32)) {
+          const evict = [...images.keys()].find(
+            (url) => !deckImages.has(url) && !listeners.has(url),
+          );
+          if (evict) images.delete(evict);
+        }
         images.set(job.url, image);
         jobs.delete(job.url);
         job.resolve(image);
+        window.clearTimeout(recovery.get(job.url));
+        recovery.delete(job.url);
+        listeners.get(job.url)?.forEach((notify) => notify(image));
       } else if (job.attempts < 3) {
         window.setTimeout(() => {
           if (job.priority) queue.unshift(job);
@@ -69,6 +97,23 @@ function pump() {
       } else {
         jobs.delete(job.url);
         job.resolve(null);
+        if (
+          (listeners.has(job.url) ||
+            (deckImages.has(job.url) && (backgroundRetries.get(job.url) ?? 0) < 2)) &&
+          !recovery.has(job.url)
+        ) {
+          recovery.set(
+            job.url,
+            window.setTimeout(() => {
+              recovery.delete(job.url);
+              if (listeners.has(job.url)) void loadArenaImage(job.url);
+              else if (deckImages.has(job.url)) {
+                backgroundRetries.set(job.url, (backgroundRetries.get(job.url) ?? 0) + 1);
+                void loadArenaImage(job.url, false);
+              }
+            }, 30000),
+          );
+        }
       }
       window.setTimeout(() => {
         running--;
@@ -76,19 +121,22 @@ function pump() {
       }, 150);
     };
     const timeout = window.setTimeout(() => {
-      image.src = "";
-      finish(false);
+      controller.abort();
+      finish(null);
     }, 12000);
-    image.onload = () => finish(true);
-    image.onerror = () => finish(false);
-    image.src = job.url;
+    void persistentArenaImage(job.url, controller.signal, job.priority).then(finish, () =>
+      finish(null),
+    );
   }
 }
 
 export function warmArenaDeckImages(names: (string | undefined)[]) {
-  for (const name of new Set(names)) {
-    if (!name || name === "Hidden Card") continue;
-    for (const variant of ["large", "art_crop"])
-      void loadArenaImage(arenaCardImageUrl(name, variant), false);
-  }
+  const cards = [...new Set(names)].filter((name): name is string =>
+    Boolean(name && name !== "Hidden Card"),
+  );
+  deckImages.clear();
+  backgroundRetries.clear();
+  for (const name of cards) deckImages.add(arenaCardImageUrl(name, "large"));
+  for (const url of deckImages) void loadArenaImage(url, false);
+  for (const name of cards) void loadArenaImage(arenaCardImageUrl(name, "art_crop"), false);
 }

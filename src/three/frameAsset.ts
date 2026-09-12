@@ -1,7 +1,12 @@
 import type { ArenaCard, ArenaColors } from "@/three/arena.types";
 import { drawBattlefieldMana } from "@/three/battlefieldMana";
 
-export function drawFrame(ctx: CanvasRenderingContext2D, card: ArenaCard, colors: ArenaColors, mana: HTMLImageElement | null = null) {
+export function drawFrame(
+  ctx: CanvasRenderingContext2D,
+  card: ArenaCard,
+  colors: ArenaColors,
+  mana: HTMLImageElement | null = null,
+) {
   const finish = card.frame ?? "C";
   const bevel = ctx.createLinearGradient(0, 0, 384, 330);
   bevel.addColorStop(0, colors.foreground);

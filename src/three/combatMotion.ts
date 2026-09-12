@@ -1,7 +1,14 @@
 import * as THREE from "three";
 import type { ArenaSceneProps } from "@/three/arena.types";
 
-type Strike = { start: number; direction: THREE.Vector3; defender: boolean; target?: THREE.Vector3; player?: string; flashed?: boolean };
+type Strike = {
+  start: number;
+  direction: THREE.Vector3;
+  defender: boolean;
+  target?: THREE.Vector3;
+  player?: string;
+  flashed?: boolean;
+};
 export function combatMotion() {
   let previous: ArenaSceneProps | undefined;
   let lastDamage = "";
@@ -43,17 +50,23 @@ export function combatMotion() {
             const blockers = (links ?? []).flatMap((l) =>
               l.to === card.id ? [l] : l.from === card.id ? [{ ...l, from: l.to, to: l.from }] : [],
             );
-            const player = blockers.length ? undefined : card.attackingPlayerId ?? (card.side === "self" ? "opponent" : "self");
+            const player = blockers.length
+              ? undefined
+              : (card.attackingPlayerId ?? (card.side === "self" ? "opponent" : "self"));
             const b = positions.get(blockers.length ? blockers[0].from : `player:${player}`);
             const direction = new THREE.Vector3(
               b ? b.x - a.x : 0,
               0,
               b ? b.z - a.z : card.side === "self" ? -4 : 4,
             );
-            if (!player) direction.clampLength(0, b ? Math.max(0.5, direction.length() - 1.4) : 3.1);
+            if (!player)
+              direction.clampLength(0, b ? Math.max(0.5, direction.length() - 1.4) : 3.1);
             const start = time + Math.min(i, 5) * 65;
             strikes.set(card.id, {
-              start, direction, defender: false, player,
+              start,
+              direction,
+              defender: false,
+              player,
               target: new THREE.Vector3(b?.x ?? a.x + direction.x, 0.8, b?.z ?? a.z + direction.z),
             });
             for (const blocker of blockers)
@@ -96,7 +109,9 @@ export function combatMotion() {
       const strike = strikes.get(id);
       if (!strike || strike.defender || strike.flashed || time < strike.start + 340) return false;
       strike.flashed = true;
-      return time < strike.start + 500 ? { position: strike.target!, player: strike.player } : false;
+      return time < strike.start + 500
+        ? { position: strike.target!, player: strike.player }
+        : false;
     },
     remaining(id: string, time: number) {
       return Math.max(0, (strikes.get(id)?.start ?? -Infinity) + 1050 - time);

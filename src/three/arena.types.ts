@@ -1,3 +1,4 @@
+import type { PromptInput } from "@manabrew/protocol";
 export interface ArenaCard {
   attachedTo?: string;
   attachmentNames?: string[];
@@ -14,6 +15,7 @@ export interface ArenaCard {
   name: string;
   type: string;
   cost: string;
+  effectiveCost?: string;
   text: string;
   stats?: string;
   statsChanged?: boolean;
@@ -55,6 +57,7 @@ export interface ArenaLink {
 }
 
 export interface ArenaSceneProps {
+  diceRoll?: { id: string; input: Extract<PromptInput, { type: "diceRolled" }> };
   targeting?: {
     stackId?: string;
     sourceId?: string;

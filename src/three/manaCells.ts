@@ -13,4 +13,3 @@ for (let n = 0; n < 20; n++) manaCells[String(n)] = [n % 10, Math.floor(n / 10)]
 ["T", "Q", "INF", "HALF", "TAP", "UNTAP", "C"].forEach((s, i) => {
   manaCells[s] = [i, 5];
 });
-

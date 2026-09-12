@@ -185,7 +185,7 @@
   position: absolute;
   left: 24px;
   top: 24%;
-  width: min(250px, 21vw);
+  width: min(275px, 23.1vw, 50dvh);
   pointer-events: none;
   z-index: 8;
   perspective: 900px;
@@ -304,7 +304,7 @@
   }
   .arena-preview {
     left: 10px;
-    width: 140px;
+    width: min(154px, 50dvh);
   }
   .arena-footer {
     display: none;

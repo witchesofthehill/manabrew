@@ -71,6 +71,7 @@ export function ArenaBoardCanvas(props: ComponentProps<typeof BoardCanvas>) {
       name: card.isFaceDown ? "Face-down card" : card.identity.name,
       type: card.isFaceDown ? "" : card.types.join(" "),
       cost: card.isFaceDown ? "" : card.manaCost,
+      effectiveCost: card.isFaceDown ? undefined : card.effectiveManaCost,
       text: card.isFaceDown ? "" : card.text,
       stats: card.power != null ? `${card.power}/${card.toughness}` : undefined,
       statsChanged:

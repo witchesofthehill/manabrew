@@ -1,5 +1,5 @@
 .duel-card-actions {
-  left: calc(min(250px, 21vw) + 36px);
+  left: calc(min(275px, 23.1vw, 50dvh) + 36px);
   top: 24%;
   width: min(320px, calc(100vw - 48px));
   max-height: 70vh;
@@ -8,7 +8,7 @@
   border-color: var(--arena-border);
   box-shadow: 0 12px 32px var(--arena-background);
   animation: duel-abilities-enter 180ms ease-out;
-  overflow: auto;
+  overflow: hidden;
   scrollbar-width: none;
 }
 .duel-card-actions::-webkit-scrollbar {
@@ -140,5 +140,31 @@
 @media (max-width: 600px) {
   .duel-card-actions {
     width: calc(100vw - 174px);
+  }
+}
+
+.duel-card-actions .duel-ability-options {
+  max-height: min(42dvh, 360px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 3px;
+}
+.duel-card-actions footer {
+  flex-shrink: 0;
+}
+.duel-card-actions {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.duel-card-actions .duel-ability-options {
+  min-height: 0;
+}
+@media (max-width: 600px) {
+  .duel-card-actions {
+    left: 12px;
+    right: 12px;
+    top: auto;
+    bottom: 12px;
+    width: auto;
+    max-height: calc(100dvh - 24px);
   }
 }

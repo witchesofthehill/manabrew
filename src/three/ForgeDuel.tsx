@@ -1,4 +1,4 @@
-import { arenaCardImageUrl } from "@/three/arenaImageCache";
+import { duelCardImage } from "@/three/tokenArtwork";
 import { CardActionPicker } from "@/three/CardActionPicker";
 import { arenaSurface } from "@/themes/arenaSurface";
 import { GameIcon } from "@/three/GameIcon";
@@ -30,7 +30,7 @@ const style = Object.fromEntries(
   Object.entries(colors).map(([key, value]) => [`--arena-${key}`, value]),
 ) as CSSProperties;
 const imageUrl = (card: CardDto, variant: string) =>
-  card.isFaceDown ? undefined : arenaCardImageUrl(card.identity.name, variant);
+  card.isFaceDown ? undefined : duelCardImage(card, variant);
 
 export function ForgeDuel({
   renderSetup,
@@ -45,6 +45,17 @@ export function ForgeDuel({
   const [localPlayerCount, setPlayerCount] = useState(2);
   const playerCount = session?.view?.players.length ?? localPlayerCount;
   const { view, prompt } = game;
+  const [manaAnchor, setManaAnchor] = useState<{ id: string; rect: DOMRect } | null>(null);
+  const availableActions =
+    prompt?.input.type === "chooseAction"
+      ? prompt.input.actions
+      : prompt?.input.type === "payManaCost"
+        ? prompt.input.actions
+            .filter((a) => a.type === "activateManaAbility" || a.type === "undoMana")
+            .map((a) =>
+              a.type === "activateManaAbility" ? { ...a, type: "activateAbility" as const } : a,
+            )
+        : [];
   const [priorityDisplay, setPriorityDisplay] = useState<{
     prompt: NonNullable<typeof prompt>;
     label: string;
@@ -161,6 +172,7 @@ export function ForgeDuel({
           summoningSick: card.summoningSick,
           attackTargetId: card.attackTargetId,
           cost: card.manaCost,
+          effectiveCost: card.isFaceDown ? undefined : card.effectiveManaCost,
           stats:
             card.power != null && card.toughness != null
               ? `${card.power}/${card.toughness}`
@@ -208,8 +220,8 @@ export function ForgeDuel({
   const choose = (id: string) => {
     if (!prompt) return;
     const input = prompt.input;
-    if (input.type === "chooseAction") {
-      const actions = input.actions.filter((a) => a.cardId === id);
+    if (input.type === "chooseAction" || input.type === "payManaCost") {
+      const actions = availableActions.filter((a) => a.cardId === id);
       if (actions.length === 1)
         game.respond(prompt.promptId, {
           type: input.type,
@@ -260,6 +272,11 @@ export function ForgeDuel({
       <ArenaScene
         colors={colors}
         cards={cards}
+        diceRoll={
+          prompt?.input.type === "diceRolled"
+            ? { id: prompt.promptId ?? JSON.stringify(prompt.input), input: prompt.input }
+            : undefined
+        }
         targeting={
           prompt?.input.type === "chooseBoardTargets"
             ? {
@@ -293,7 +310,10 @@ export function ForgeDuel({
           })}
         onZone={setZone}
         onCard={choose}
-        onHover={setHoverId}
+        onHover={(id, rect) => {
+          setHoverId(id);
+          if (id && rect) setManaAnchor({ id, rect });
+        }}
         onDrag={setDrag}
         blockTargets={
           prompt?.input.type === "chooseBlockers"
@@ -333,7 +353,7 @@ export function ForgeDuel({
           else if (prompt?.input.type !== "chooseBlockers") choose(id);
         }}
       />
-      <div className="duel-hand-aura" aria-hidden="true" />
+
       {hintCard?.side === "hand" && prompt?.input.type === "chooseAction" && (
         <div
           className="duel-play-hint"
@@ -563,21 +583,26 @@ export function ForgeDuel({
             onClose={() => setStackOpen(false)}
           />
           {activeAbilityChoice &&
-            prompt?.input.type === "chooseAction" &&
+            (prompt?.input.type === "chooseAction" || prompt?.input.type === "payManaCost") &&
             !zone &&
             !stackOpen &&
             !confirmConcede && (
               <CardActionPicker
                 key={`${prompt.promptId}:${activeAbilityChoice.cardId}`}
+                manaAnchor={
+                  allCards
+                    .find((c) => c.id === activeAbilityChoice.cardId)
+                    ?.types.includes("Land") && manaAnchor?.id === activeAbilityChoice.cardId
+                    ? manaAnchor.rect
+                    : undefined
+                }
                 name={
                   allCards.find((c) => c.id === activeAbilityChoice.cardId)?.identity.name ?? "Card"
                 }
-                actions={prompt.input.actions.filter(
-                  (a) => a.cardId === activeAbilityChoice.cardId,
-                )}
+                actions={availableActions.filter((a) => a.cardId === activeAbilityChoice.cardId)}
                 onChoose={(action) => {
                   game.respond(prompt.promptId, {
-                    type: "chooseAction",
+                    type: prompt.input.type === "payManaCost" ? "payManaCost" : "chooseAction",
                     output: { type: "act", actionId: action.id },
                   });
                   setAbilityChoice(null);

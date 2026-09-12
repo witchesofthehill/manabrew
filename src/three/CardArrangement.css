@@ -1,0 +1,173 @@
+.duel-root .duel-decision-dock > .duel-prompt:is([data-choice="scry"], [data-choice="reorder"]) {
+  position: fixed;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  width: min(860px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  z-index: 30;
+  padding: 20px;
+}
+.duel-arrangement {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+.duel-arrangement > p {
+  margin: 0;
+  color: var(--arena-muted);
+}
+.duel-arrangement-workspace {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) minmax(0, 1fr);
+  gap: 20px;
+  min-height: 0;
+  height: min(62dvh, 520px);
+  grid-template-rows: minmax(0, 1fr);
+}
+.duel-arrangement-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.duel-arrangement-preview img {
+  width: 100%;
+  max-height: 48dvh;
+  object-fit: contain;
+  border-radius: 9px;
+}
+.duel-arrangement-preview > strong {
+  font-size: 14px;
+}
+.duel-arrangement-zones {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 2px;
+}
+.duel-arrangement-zone {
+  border: 1px solid var(--arena-border);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--arena-background);
+}
+.duel-arrangement-zone[data-zone="libraryTop"] {
+  border-top: 3px solid var(--arena-accent);
+}
+.duel-arrangement-zone[data-zone="libraryBottom"] {
+  border-bottom: 3px solid var(--arena-accent);
+}
+.duel-arrangement-zone header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.duel-root .duel-arrangement-zone header strong {
+  font-size: 16px;
+}
+.duel-arrangement-zone small,
+.duel-arrangement-zone header span {
+  font-size: 12px;
+  color: var(--arena-muted);
+}
+.duel-arrangement-cards {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-top: 10px;
+}
+.duel-arrangement-card {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 130px;
+  gap: 5px;
+  animation: duel-arrangement-enter 160ms ease-out;
+}
+.duel-root .duel-arrangement-card button {
+  font-size: 12px;
+  padding: 5px;
+}
+.duel-arrangement-thumbnail img {
+  height: 104px;
+  width: 100%;
+  aspect-ratio: 63/88;
+  object-fit: contain;
+  border-radius: 5px;
+}
+.duel-arrangement-thumbnail[aria-pressed="true"] {
+  border-color: var(--arena-accent);
+}
+.duel-arrangement-thumbnail span {
+  display: block;
+}
+.duel-arrangement-order {
+  display: flex;
+  gap: 4px;
+}
+.duel-arrangement-order button {
+  flex: 1;
+}
+.duel-arrangement-empty {
+  padding: 12px 0;
+  color: var(--arena-muted);
+}
+.duel-arrangement-placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  border: 1px solid var(--arena-border);
+  color: var(--arena-muted);
+}
+.duel-arrangement footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--arena-border);
+  padding-top: 12px;
+}
+.duel-arrangement footer span {
+  font-size: 12px;
+  color: var(--arena-muted);
+}
+.duel-arrangement footer button {
+  width: auto;
+  min-width: 170px;
+}
+@keyframes duel-arrangement-enter {
+  from {
+    opacity: 0.5;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (max-width: 600px) {
+  .duel-arrangement-workspace {
+    grid-template-columns: 1fr;
+  }
+  .duel-arrangement-preview {
+    display: none;
+  }
+  .duel-arrangement footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .duel-arrangement-card {
+    animation: none;
+  }
+}
+
+.duel-arrangement-order:has(button:disabled + button:disabled) {
+  display: none;
+}
+.duel-root .duel-arrangement-preview > strong {
+  font-size: 14px;
+}

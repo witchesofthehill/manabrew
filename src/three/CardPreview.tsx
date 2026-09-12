@@ -1,9 +1,11 @@
+import { watchArenaImage } from "@/three/arenaImageCache";
 import cardBack from "@/three/assets/card-back.png";
 import { KeywordIcon } from "@/three/KeywordIcon";
 import { useEffect, useRef, useState } from "react";
 import type { ArenaCard } from "@/three/arena.types";
 import { counterLabel, keywordDetails } from "@/three/keywordDetails";
-import { ManaText } from "@/three/ManaSymbols";
+import { ManaSymbol, ManaText } from "@/three/ManaSymbols";
+import { manaCostSymbols } from "@/three/manaCostSymbols";
 
 type Preview = Partial<
   Pick<
@@ -20,6 +22,8 @@ type Preview = Partial<
     | "text"
     | "summoningSick"
     | "tapped"
+    | "cost"
+    | "effectiveCost"
   >
 > & { id: string; name: string };
 
@@ -42,9 +46,8 @@ export function CardPreview({
     name = card?.name;
   useEffect(() => {
     let cancelled = false;
-    let pending: HTMLImageElement | undefined;
-    let retry: number | undefined;
-    let attempts = 0;
+    let stopImage: (() => void) | undefined;
+
     const timer = window.setTimeout(
       () => {
         if (!id || !name || !image) {
@@ -52,29 +55,16 @@ export function CardPreview({
           return;
         }
         setShown({ ...latest.current, id, image: cardBack, name });
-        pending = new Image();
-        pending.crossOrigin = "anonymous";
-        pending.onload = () => {
+        stopImage = watchArenaImage(image, () => {
           if (!cancelled) setShown({ ...latest.current, id, image, name });
-        };
-        pending.onerror = () => {
-          if (!cancelled && attempts++ < 2)
-            retry = window.setTimeout(() => {
-              if (!cancelled && pending) pending.src = image;
-            }, attempts * 1000);
-        };
-        pending.src = image;
+        });
       },
       id ? 90 : 180,
     );
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
-      window.clearTimeout(retry);
-      if (pending) {
-        pending.onload = null;
-        pending.onerror = null;
-      }
+      stopImage?.();
     };
   }, [id, image, name]);
   if (!shown?.image) return null;
@@ -84,6 +74,10 @@ export function CardPreview({
     detail: keywordDetails(raw),
   }));
   const counters = Object.entries(details?.counters ?? {}).filter(([, count]) => count > 0);
+  const printedCost = manaCostSymbols(details?.cost ?? "");
+  const currentCost = manaCostSymbols(details?.effectiveCost ?? details?.cost ?? "");
+  const costModified =
+    details?.effectiveCost != null && printedCost.join(" ") !== currentCost.join(" ");
   return (
     <aside
       className="arena-preview"
@@ -103,6 +97,24 @@ export function CardPreview({
           onMouseEnter={() => onInspect?.(shown.id)}
           onMouseLeave={() => onInspect?.(null)}
         >
+          {costModified && (
+            <section className="arena-detail-state">
+              <strong>Modified mana cost</strong>
+              <p>
+                Printed cost:{" "}
+                {printedCost.map((symbol, index) => (
+                  <ManaSymbol key={index} symbol={symbol} />
+                ))}
+              </p>
+              <p>
+                Current cost:{" "}
+                {currentCost.map((symbol, index) => (
+                  <ManaSymbol key={index} symbol={symbol} />
+                ))}
+                {!currentCost.length && "No mana required"}
+              </p>
+            </section>
+          )}
           {(details.stats || counters.length > 0 || Boolean(details.damage)) && (
             <section className="arena-detail-state">
               {details.stats && (

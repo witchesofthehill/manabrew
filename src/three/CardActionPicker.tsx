@@ -1,33 +1,23 @@
-import { useEffect, useRef, useState } from "react";
+import { ManaWheel } from "@/three/ManaWheel";
+import { useEffect, useRef } from "react";
 import type { AvailableAction } from "@manabrew/protocol";
 import { ManaText } from "@/three/ManaSymbols";
 import "@/three/CardActionPicker.css";
 
 export function CardActionPicker({
   name,
+  manaAnchor,
   actions,
   onChoose,
   onClose,
 }: {
   name: string;
+  manaAnchor?: DOMRect;
   actions: AvailableAction[];
   onChoose: (action: AvailableAction) => void;
   onClose: () => void;
 }) {
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(() =>
-    matchMedia("(max-width: 800px), (max-height: 620px)").matches ? 2 : 3,
-  );
-  useEffect(() => {
-    const media = matchMedia("(max-width: 800px), (max-height: 620px)");
-    const update = () => setPageSize(media.matches ? 2 : 3);
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
-  }, []);
   const sent = useRef(false);
-  const pages = Math.max(1, Math.ceil(actions.length / pageSize));
-  const current = Math.min(page, pages - 1);
-  const visible = actions.slice(current * pageSize, current * pageSize + pageSize);
   const select = (action: AvailableAction) => {
     if (sent.current) return;
     sent.current = true;
@@ -54,16 +44,6 @@ export function CardActionPicker({
         onClose();
         return;
       }
-      if (event.key === "ArrowRight" && current < pages - 1) {
-        event.preventDefault();
-        setPage(current + 1);
-        return;
-      }
-      if (event.key === "ArrowLeft" && current > 0) {
-        event.preventDefault();
-        setPage(current - 1);
-        return;
-      }
       if (!/^[1-9]$/.test(event.key)) return;
       const action = actions[Number(event.key) - 1];
       if (!action || sent.current) return;
@@ -73,7 +53,27 @@ export function CardActionPicker({
     };
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
-  }, [actions, onChoose, onClose, current, pages]);
+  }, [actions, onChoose, onClose]);
+  const manaActions = actions.filter(
+    (a): a is Extract<AvailableAction, { type: "activateAbility" }> =>
+      a.type === "activateAbility" && a.isManaAbility && Boolean(a.producedMana?.length),
+  );
+  if (
+    manaAnchor &&
+    manaActions.length === actions.length &&
+    actions.length >= 2 &&
+    actions.length <= 6 &&
+    manaActions.every((a) => a.cost === manaActions[0].cost)
+  )
+    return (
+      <ManaWheel
+        name={name}
+        actions={manaActions}
+        anchor={manaAnchor}
+        onChoose={select}
+        onClose={onClose}
+      />
+    );
   return (
     <aside className="duel-card-actions" aria-label={`${name} available actions`}>
       <header>
@@ -81,8 +81,8 @@ export function CardActionPicker({
         <strong>{name}</strong>
       </header>
       <div className="duel-ability-options">
-        {visible.map((action, index) => {
-          const number = current * pageSize + index + 1;
+        {actions.map((action, index) => {
+          const number = index + 1;
           return (
             <button key={action.id} onClick={() => select(action)}>
               <span className="duel-ability-heading">
@@ -119,31 +119,8 @@ export function CardActionPicker({
           );
         })}
       </div>
-      {pages > 1 && (
-        <nav className="duel-choice-pages">
-          <button
-            disabled={current === 0}
-            onClick={() => setPage(current - 1)}
-            aria-label="Previous abilities"
-          >
-            ←
-          </button>
-          <span>
-            {current + 1} / {pages}
-          </span>
-          <button
-            disabled={current === pages - 1}
-            onClick={() => setPage(current + 1)}
-            aria-label="Next abilities"
-          >
-            →
-          </button>
-        </nav>
-      )}
       <footer>
-        <small>
-          1–{Math.min(9, actions.length)} select{pages > 1 ? " · ← → pages" : ""}
-        </small>
+        <small>1–{Math.min(9, actions.length)} select · Esc close</small>
         <button onClick={onClose}>
           <kbd>Esc</kbd> Close
         </button>

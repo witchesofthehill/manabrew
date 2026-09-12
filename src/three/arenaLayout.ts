@@ -150,14 +150,14 @@ function baseLayout(
         continue;
       }
       const columns = side === "hand" ? row.length : Math.min(9, row.length);
-      const scale = row.length > 9 ? 0.72 : 1;
+      const scale = side === "hand" ? 1.1 : row.length > 9 ? 0.72 : 1;
       row.forEach((card, i) => {
         const index = side === "hand" ? i : i % 9;
         const x =
           (index - (columns - 1) / 2) *
           Math.min(
-            side === "hand" ? 1.5 : 2.65,
-            (side === "hand" ? 10 : 18) / Math.max(columns, 1),
+            side === "hand" ? 1.85 : 2.65,
+            side === "hand" ? 13 / Math.max(columns - 1, 1) : 18 / Math.max(columns, 1),
           );
         const depth = Math.floor(i / 9) * 1.05;
         const sign = side === "opponent" ? -1 : 1;

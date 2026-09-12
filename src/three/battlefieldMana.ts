@@ -4,15 +4,19 @@ import { manaCells } from "@/three/manaCells";
 let spritePromise: Promise<HTMLImageElement | null> | undefined;
 
 export function loadManaSprite() {
-  return spritePromise ??= new Promise<HTMLImageElement | null>((resolve) => {
+  return (spritePromise ??= new Promise<HTMLImageElement | null>((resolve) => {
     const image = new Image();
     image.onload = () => resolve(image);
     image.onerror = () => resolve(null);
     image.src = sprite;
-  });
+  }));
 }
 
-export function drawBattlefieldMana(ctx: CanvasRenderingContext2D, cost: string, image: HTMLImageElement | null) {
+export function drawBattlefieldMana(
+  ctx: CanvasRenderingContext2D,
+  cost: string,
+  image: HTMLImageElement | null,
+) {
   const symbols = Array.from(cost.matchAll(/\{([^{}]+)\}/g), (match) => match[1].toUpperCase());
   const size = Math.min(23, 160 / Math.max(1, symbols.length));
   const width = symbols.length * (size + 2);

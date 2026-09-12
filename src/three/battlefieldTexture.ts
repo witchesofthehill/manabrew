@@ -1,4 +1,4 @@
-import { cachedArenaImage, loadArenaImage } from "@/three/arenaImageCache";
+import { cachedArenaImage, watchArenaImage } from "@/three/arenaImageCache";
 import { CanvasTexture, SRGBColorSpace } from "three";
 import type { ArenaCard, ArenaColors } from "@/three/arena.types";
 import { drawFrame } from "@/three/frameAsset";
@@ -186,8 +186,9 @@ export function battlefieldTexture(card: ArenaCard, colors: ArenaColors) {
         draw();
       }
     });
+  let stopImage: (() => void) | undefined;
   if (url && !art) {
-    void loadArenaImage(url).then((image) => {
+    stopImage = watchArenaImage(url, (image) => {
       if (!disposed && image) {
         art = image;
         draw();
@@ -198,6 +199,7 @@ export function battlefieldTexture(card: ArenaCard, colors: ArenaColors) {
     texture,
     dispose: () => {
       disposed = true;
+      stopImage?.();
       texture.dispose();
     },
   };

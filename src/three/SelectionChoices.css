@@ -1,0 +1,94 @@
+.duel-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+.duel-selection-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  justify-content: space-between;
+  font: 12px/1.5 system-ui;
+}
+.duel-selection-status span,
+.duel-selection-summary {
+  color: var(--arena-muted);
+}
+.duel-selection-list {
+  display: grid;
+  gap: 6px;
+  max-height: min(32dvh, 280px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 3px;
+}
+.duel-selection-row {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+.duel-selection-row button {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+  text-align: left;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease;
+}
+.duel-selection-row button[aria-pressed="true"] {
+  border-color: var(--arena-accent);
+  background: color-mix(in srgb, var(--arena-accent) 18%, var(--arena-background));
+}
+.duel-selection-row .duel-selection-remove {
+  flex: 0 0 36px;
+  width: 36px;
+  justify-content: center;
+}
+.duel-selection-list[data-colors="true"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.duel-selection-summary {
+  font: 12px/1.4 system-ui;
+  max-height: 36px;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+.duel-selection-footer {
+  display: flex;
+  gap: 8px;
+  border-top: 1px solid var(--arena-border);
+  padding-top: 10px;
+}
+.duel-selection-footer button:first-child {
+  flex: 0 0 auto;
+  width: auto;
+}
+.duel-selection-footer button:last-child {
+  flex: 1;
+  min-width: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .duel-selection-row button {
+    transition: none;
+  }
+}
+.duel-root
+  .duel-decision-dock
+  .duel-prompt[data-choice="chooseFromSelection"]
+  .duel-prompt-options {
+  overflow: hidden;
+}
+.duel-root .duel-prompt-options > .duel-selection {
+  flex: 1 1 auto;
+}
+.duel-selection > :not(.duel-selection-list) {
+  flex-shrink: 0;
+}
+.duel-selection-list {
+  min-height: 0;
+}

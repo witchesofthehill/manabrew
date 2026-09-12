@@ -1,0 +1,98 @@
+.duel-mana-wheel {
+  position: fixed;
+  transform: translateX(-50%);
+  z-index: 40;
+  width: 210px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  pointer-events: auto;
+  color: var(--arena-foreground);
+  animation: duel-mana-wheel-enter 150ms ease-out;
+}
+.duel-mana-wheel > strong {
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--arena-background);
+  font-size: 13px;
+  text-align: center;
+}
+.duel-mana-wheel-disc {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  border: 2px solid var(--arena-accent);
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 6px 24px var(--arena-background);
+}
+.duel-mana-wheel .duel-mana-wheel-segment {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border-radius: 0;
+  background: var(--arena-surface);
+  border: 0;
+}
+.duel-mana-wheel-segment:nth-child(even) {
+  background: var(--arena-background);
+}
+.duel-mana-wheel .duel-mana-wheel-segment:hover,
+.duel-mana-wheel .duel-mana-wheel-segment:focus-visible {
+  background: color-mix(in srgb, var(--arena-accent) 30%, var(--arena-background));
+}
+.duel-mana-wheel-segment > span {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.duel-mana-wheel-segment .duel-mana-symbol {
+  transform: scale(1.35);
+  margin: 4px;
+}
+.duel-mana-wheel-segment small {
+  font-size: 10px;
+  color: var(--arena-muted);
+}
+.duel-mana-wheel-cost {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  background: var(--arena-background);
+  border-radius: 5px;
+  font-size: 12px;
+}
+.duel-mana-wheel .duel-mana-wheel-cancel {
+  width: auto;
+  padding: 5px 12px;
+  background: var(--arena-background);
+}
+@keyframes duel-mana-wheel-enter {
+  from {
+    opacity: 0;
+    scale: 0.92;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .duel-mana-wheel {
+    animation: none;
+  }
+}
+.duel-mana-wheel .duel-mana-wheel-segment {
+  background: color-mix(in srgb, var(--mana-tint) 45%, var(--arena-background));
+}
+.duel-mana-wheel .duel-mana-wheel-segment:hover,
+.duel-mana-wheel .duel-mana-wheel-segment:focus-visible {
+  background: color-mix(in srgb, var(--mana-tint) 75%, var(--arena-background));
+}

@@ -35,6 +35,11 @@ export function BattlefieldViewChoice() {
                 onChange={() => setView(value)}
               />
               {label}
+              {value === "3d" && (
+                <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-muted-foreground">
+                  Experimental
+                </span>
+              )}
             </label>
           ))}
         </div>

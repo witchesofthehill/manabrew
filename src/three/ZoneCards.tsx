@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { AvailableAction, CardDto } from "@manabrew/protocol";
 import back from "@/three/assets/card-back.png";
-import { arenaCardImageUrl } from "@/three/arenaImageCache";
+import { duelCardImage } from "@/three/tokenArtwork";
 import "@/three/ZoneCards.css";
 
 export function ZoneCards({
@@ -87,7 +87,8 @@ export function ZoneCards({
               onClick={() => setIndex(i)}
             >
               <img
-                src={concealed(card) ? back : arenaCardImageUrl(card.identity.name, "large")}
+                src={concealed(card) ? back : duelCardImage(card)}
+                crossOrigin="anonymous"
                 alt={name(card)}
                 draggable={false}
                 onError={(event) => {

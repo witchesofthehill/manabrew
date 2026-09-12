@@ -4,7 +4,8 @@ import type { AvailableAction, PaymentAction } from "@/protocol/prompts/common";
 import type { ClientCardDto } from "@/stores/gameStore.types";
 import type { ManaAbilityActionInfo } from "@/components/game/manaUtils";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
-import { PROMPT_LABELS } from "./game.constants";
+import { CARD_H, CARD_W, GAME_CARD_SIZES, PROMPT_LABELS } from "./game.constants";
+import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 
 const MANA_COLOR_LABEL: Record<ManaColor, string> = {
   W: "White",
@@ -14,6 +15,37 @@ const MANA_COLOR_LABEL: Record<ManaColor, string> = {
   G: "Green",
   C: "Colorless",
 };
+
+const PROMPT_CARD_VERTICAL_RESERVE = 288;
+
+export function fitPromptCardDimensions(
+  availableWidth: number,
+  viewportHeight: number,
+  maxHeight = Number.POSITIVE_INFINITY,
+): { width: number; height: number } {
+  const availableCardHeight = Math.max(112, (viewportHeight - PROMPT_CARD_VERTICAL_RESERVE) / 2);
+  const width = Math.min(
+    GAME_CARD_SIZES.preview.width,
+    (availableCardHeight * CARD_W) / CARD_H,
+    (maxHeight * CARD_W) / CARD_H,
+    Math.max(80, availableWidth),
+  );
+  return { width, height: (width * CARD_H) / CARD_W };
+}
+
+export function promptCardDisplayDimensions(
+  card: CardDto,
+  portraitWidth: number,
+  face: 0 | 1,
+  rotated: boolean,
+): { width: number; height: number } {
+  const horizontal = isHorizontalGameCard(card, undefined, face);
+  const landscape = horizontal && (card.isDoubleFaced || !rotated);
+  const scale = portraitWidth / CARD_W;
+  return landscape
+    ? { width: CARD_H * scale, height: CARD_W * scale }
+    : { width: CARD_W * scale, height: CARD_H * scale };
+}
 
 export function isPermanentSpellCard(card: Pick<CardDto, "types">): boolean {
   return !card.types.includes("Instant") && !card.types.includes("Sorcery");

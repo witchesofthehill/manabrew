@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { isFacelessCard } from "@/lib/gameCard";
-import { cn } from "@/lib/utils";
-import { GAME_CARD_SIZES } from "@/components/game/game.constants";
+import {
+  CARD_H,
+  CARD_W,
+  PROMPT_CARD_GAP,
+  PROMPT_CARD_ROW_GAP,
+} from "@/components/game/game.constants";
+import { fitPromptCardDimensions, promptCardDisplayDimensions } from "@/components/game/game.utils";
 import type { CardInspectionState } from "./cardInspection";
 import {
-  CARD_BROWSER_GAP,
   CARD_BROWSER_HORIZONTAL_PADDING,
   CARD_BROWSER_VERTICAL_PADDING,
   type CardBrowserItem,
@@ -25,8 +29,6 @@ interface DialogCardPickerGridProps {
   onChange: (item: CardBrowserItem, state: CardInspectionState) => void;
 }
 
-const LABEL_HEIGHT = 28;
-
 export function DialogCardPickerGrid({
   items,
   state,
@@ -40,30 +42,77 @@ export function DialogCardPickerGrid({
   onChange,
 }: DialogCardPickerGridProps) {
   const host = useRef<HTMLDivElement>(null);
-  const [viewport, setViewport] = useState({ width: 600, height: 500 });
+  const [viewport, setViewport] = useState(() => ({
+    width: 600,
+    height: 500,
+    screenHeight: typeof window === "undefined" ? 800 : window.innerHeight,
+  }));
   const [initialScrollTop] = useState(state.scrollTop);
   const isAvailable = (item: CardBrowserItem) => !actionable || item.legal || item.selected;
 
   useEffect(() => {
     const node = host.current!;
     node.scrollTop = initialScrollTop;
-    const observer = new ResizeObserver(() => {
+    const measure = () => {
       if (node.clientWidth > 0 && node.clientHeight > 0) {
-        setViewport({ width: node.clientWidth, height: node.clientHeight });
+        setViewport({
+          width: node.clientWidth,
+          height: node.clientHeight,
+          screenHeight: window.innerHeight,
+        });
       }
-    });
+    };
+    const observer = new ResizeObserver(measure);
     observer.observe(node);
-    return () => observer.disconnect();
+    window.addEventListener("resize", measure);
+    measure();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
   }, [initialScrollTop]);
 
   const gridWidth = Math.max(0, viewport.width - CARD_BROWSER_HORIZONTAL_PADDING * 2);
+  const { portraitCardWidth, cardSizes, cellWidth, cellHeight } = useMemo(() => {
+    const preferredWidth = fitPromptCardDimensions(gridWidth, viewport.screenHeight).width;
+    const states = items.map((item) => {
+      const inspection = state.inspection[item.id] ?? {
+        rules: defaultRules,
+        face: item.card.isTransformed ? (1 as const) : (0 as const),
+        rotated: false,
+      };
+      return { item, inspection };
+    });
+    const maxWidthRatio = Math.max(
+      1,
+      ...states.map(
+        ({ item, inspection }) =>
+          promptCardDisplayDimensions(item.card, CARD_W, inspection.face, inspection.rotated)
+            .width / CARD_W,
+      ),
+    );
+    const width = Math.min(preferredWidth, gridWidth / maxWidthRatio);
+    const sizes = new Map(
+      states.map(({ item, inspection }) => [
+        item.id,
+        promptCardDisplayDimensions(item.card, width, inspection.face, inspection.rotated),
+      ]),
+    );
+    const displaySizes = [...sizes.values()];
+    return {
+      portraitCardWidth: width,
+      cardSizes: sizes,
+      cellWidth: displaySizes.length ? Math.max(...displaySizes.map((size) => size.width)) : width,
+      cellHeight: displaySizes.length
+        ? Math.max(...displaySizes.map((size) => size.height))
+        : (width * CARD_H) / CARD_W,
+    };
+  }, [defaultRules, gridWidth, items, state.inspection, viewport.screenHeight]);
   const columns = Math.max(
     1,
-    Math.floor((gridWidth + CARD_BROWSER_GAP) / (GAME_CARD_SIZES.preview.width + CARD_BROWSER_GAP)),
+    Math.floor((gridWidth + PROMPT_CARD_GAP) / (cellWidth + PROMPT_CARD_GAP)),
   );
-  const cellWidth = (gridWidth - CARD_BROWSER_GAP * (columns - 1)) / columns;
-  const cardHeight = GAME_CARD_SIZES.preview.height;
-  const rowHeight = cardHeight + LABEL_HEIGHT;
+  const rowHeight = cellHeight + PROMPT_CARD_ROW_GAP;
   const rows = Math.ceil(items.length / columns);
   const contentHeight = Math.max(
     viewport.height,
@@ -153,9 +202,10 @@ export function DialogCardPickerGrid({
           defaultRules={defaultRules}
           columns={columns}
           cellWidth={cellWidth}
+          cellHeight={cellHeight}
           rowHeight={rowHeight}
           scrollTop={top}
-          cardSize={GAME_CARD_SIZES.preview.width}
+          cardSize={portraitCardWidth}
           width={viewport.width}
           height={viewport.height}
           actionable={actionable}
@@ -169,8 +219,13 @@ export function DialogCardPickerGrid({
           const index = start + offset;
           const rowTop = CARD_BROWSER_VERTICAL_PADDING + Math.floor(index / columns) * rowHeight;
           const cellLeft =
-            CARD_BROWSER_HORIZONTAL_PADDING + (index % columns) * (cellWidth + CARD_BROWSER_GAP);
-          const cardLeft = cellLeft + (cellWidth - GAME_CARD_SIZES.preview.width) / 2;
+            CARD_BROWSER_HORIZONTAL_PADDING + (index % columns) * (cellWidth + PROMPT_CARD_GAP);
+          const cardSize = cardSizes.get(item.id) ?? {
+            width: portraitCardWidth,
+            height: (portraitCardWidth * CARD_H) / CARD_W,
+          };
+          const cardLeft = cellLeft + (cellWidth - cardSize.width) / 2;
+          const cardTop = rowTop + (cellHeight - cardSize.height) / 2;
           const name = isFacelessCard(item.card) ? "Face-down card" : item.card.identity.name;
           const unavailable = pending || !isAvailable(item);
           return (
@@ -188,8 +243,9 @@ export function DialogCardPickerGrid({
                 className="pointer-events-none absolute z-10 opacity-0"
                 style={{
                   left: cardLeft,
-                  width: GAME_CARD_SIZES.preview.width,
-                  height: cardHeight,
+                  top: cardTop,
+                  width: cardSize.width,
+                  height: cardSize.height,
                 }}
                 onFocus={() => {
                   if (!unavailable) onSelect(item.id);
@@ -205,26 +261,11 @@ export function DialogCardPickerGrid({
               {item.selected && (
                 <span
                   className="pointer-events-none absolute z-10 rounded-full border bg-card p-1 text-card-ring"
-                  style={{ left: cardLeft + 8, top: rowTop + 8 }}
+                  style={{ left: cardLeft + 8, top: cardTop + 8 }}
                 >
                   <Check className="h-3 w-3" />
                 </span>
               )}
-              <span
-                className={cn(
-                  "pointer-events-none absolute z-10 line-clamp-1 text-center text-xs font-medium transition-colors",
-                  item.selected
-                    ? "text-card-ring"
-                    : state.activeId === item.id && !unavailable
-                      ? "text-card-ring"
-                      : unavailable
-                        ? "text-muted-foreground"
-                        : "text-foreground",
-                )}
-                style={{ left: cellLeft, top: rowTop + cardHeight + 4, width: cellWidth }}
-              >
-                {name}
-              </span>
             </div>
           );
         })}

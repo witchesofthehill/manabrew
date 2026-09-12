@@ -21,7 +21,6 @@ export interface CardBrowserState {
   scrollTop: number;
   inspection: Record<string, CardInspectionState>;
 }
-export const CARD_BROWSER_GAP = 12;
 export const CARD_BROWSER_HORIZONTAL_PADDING = 16;
 export const CARD_BROWSER_VERTICAL_PADDING = 16;
 export const INITIAL_CARD_BROWSER_STATE: CardBrowserState = {

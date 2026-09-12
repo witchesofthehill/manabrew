@@ -1,6 +1,6 @@
 import { Application, Graphics } from "pixi.js";
 import type { CardDto } from "@/protocol/game";
-import { CARD_H, CARD_RADIUS, CARD_W } from "@/components/game/game.constants";
+import { CARD_H, CARD_RADIUS, CARD_W, PROMPT_CARD_GAP } from "@/components/game/game.constants";
 import { CardSprite } from "@/pixi/CardSprite";
 import { hexToNum } from "@/pixi/colorUtils";
 import { animationsEnabled } from "@/pixi/effects/enabled";
@@ -11,7 +11,6 @@ import { useScryfallStore } from "@/stores/useScryfallStore";
 import { isFacelessCard } from "@/lib/gameCard";
 import type { CardInspectionState } from "./cardInspection";
 import {
-  CARD_BROWSER_GAP,
   CARD_BROWSER_HORIZONTAL_PADDING,
   CARD_BROWSER_VERTICAL_PADDING,
   type CardBrowserItem,
@@ -25,6 +24,7 @@ export interface DialogCardPickerSceneProps {
   defaultRules: boolean;
   columns: number;
   cellWidth: number;
+  cellHeight: number;
   rowHeight: number;
   scrollTop: number;
   cardSize: number;
@@ -131,7 +131,6 @@ export class DialogCardPickerScene {
       entry.feedback.destroy();
       this.entries.delete(id);
     }
-    const portraitHeight = (props.cardSize * CARD_H) / CARD_W;
     props.items.forEach((item, offset) => {
       const entry = this.entryFor(item);
       const state = this.inspectionFor(item);
@@ -141,19 +140,19 @@ export class DialogCardPickerScene {
       const horizontal = entry.sprite.horizontalFrame && !rotated;
       const cardWidth = horizontal ? CARD_H : CARD_W;
       const cardHeight = horizontal ? CARD_W : CARD_H;
-      const scale = Math.min(props.cardSize / cardWidth, portraitHeight / cardHeight);
+      const scale = props.cardSize / CARD_W;
       entry.sprite.rotation = rotated ? -Math.PI / 2 : 0;
       entry.sprite.scale.set(scale);
       entry.sprite.syncHandControlsScale();
       const x =
         CARD_BROWSER_HORIZONTAL_PADDING +
-        (absoluteIndex % props.columns) * (props.cellWidth + CARD_BROWSER_GAP) +
+        (absoluteIndex % props.columns) * (props.cellWidth + PROMPT_CARD_GAP) +
         props.cellWidth / 2;
       const y =
         CARD_BROWSER_VERTICAL_PADDING +
         Math.floor(absoluteIndex / props.columns) * props.rowHeight -
         props.scrollTop +
-        portraitHeight / 2;
+        props.cellHeight / 2;
       entry.sprite.position.set(x, y);
       const displayWidth = cardWidth * scale;
       const displayHeight = cardHeight * scale;

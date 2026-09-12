@@ -17,12 +17,15 @@ import { loadManaSymbolTexture } from "@/pixi/manaSymbolCache";
 import { PixiRichText } from "@/pixi/cardPreview/PixiRichText";
 import { deckCardToPreviewDto } from "@/lib/scryfall.utils";
 import { CARD_H, CARD_RADIUS, CARD_W, GAME_CARD_SIZES } from "@/components/game/game.constants";
+import {
+  fitPromptCardDimensions,
+  promptCardDisplayDimensions as getPromptCardDisplayDimensions,
+} from "@/components/game/game.utils";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { type PromptActionViewKey } from "@/stores/useGameDevStore";
 import { resolveCombo, useKeybindingsStore } from "@/stores/useKeybindingsStore";
 import { comboFromEvent, combosMatch, formatCombo } from "@/lib/keybindings";
-import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import type { CardDto } from "@/protocol";
 import { PromptButton, type PromptButtonOptions } from "./PromptButton";
 import { PromptGlow } from "./PromptGlow";
@@ -62,11 +65,8 @@ export const REORDER_ORDER_ZONE_ID = "reorder-order";
 export const REORDER_CARD_INSET = 18;
 export const REORDER_LAYOUT_SETTLE_SECONDS = 0.24;
 export const CARD_ASPECT_RATIO = CARD_H / CARD_W;
-const CARD_VERTICAL_RESERVE = 288;
 export const SCRY_BODY_FIXED_HEIGHT = 102;
-export const CARD_MODAL_MAX_WIDTH = 1160;
 export const MODAL_MIN_HEIGHT = 160;
-export const MODAL_VIEWPORT_MARGIN = 16;
 export const MODAL_BODY_BOTTOM_PADDING = 8;
 export const SOURCE_CARD_GAP = 20;
 export const SOURCE_LABEL_HEIGHT = 18;
@@ -686,14 +686,11 @@ export abstract class PromptLayerBase {
     width: number;
     height: number;
   } {
-    const availableCardHeight = Math.max(112, (this.viewportHeight - CARD_VERTICAL_RESERVE) / 2);
-    const width = Math.min(
-      GAME_CARD_SIZES.preview.width,
-      (availableCardHeight * CARD_W) / CARD_H,
-      (maxHeight * CARD_W) / CARD_H,
-      Math.max(80, this.viewportWidth - PANEL_PADDING * 2 - 24),
+    return fitPromptCardDimensions(
+      this.viewportWidth - PANEL_PADDING * 2 - 24,
+      this.viewportHeight,
+      maxHeight,
     );
-    return { width, height: width * CARD_ASPECT_RATIO };
   }
 
   protected promptCardDisplayDimensions(
@@ -701,12 +698,12 @@ export abstract class PromptLayerBase {
     portraitWidth: number,
   ): { width: number; height: number } {
     const state = this.promptCardState(card);
-    const horizontal = isHorizontalGameCard(card, undefined, state.face);
-    const landscape = horizontal && (card.isDoubleFaced || state.horizontalFlipped);
-    const scale = portraitWidth / CARD_W;
-    return landscape
-      ? { width: CARD_H * scale, height: CARD_W * scale }
-      : { width: CARD_W * scale, height: CARD_H * scale };
+    return getPromptCardDisplayDimensions(
+      card,
+      portraitWidth,
+      state.face,
+      !state.horizontalFlipped,
+    );
   }
 
   protected promptSourceCardDimensions(): {

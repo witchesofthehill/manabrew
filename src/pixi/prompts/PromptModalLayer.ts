@@ -10,7 +10,16 @@ import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { hexToNum } from "@/pixi/colorUtils";
 import { CardSprite } from "@/pixi/CardSprite";
 import { loadManaSymbolTexture } from "@/pixi/manaSymbolCache";
-import { CARD_H, CARD_RADIUS, CARD_W, GAME_CARD_SIZES } from "@/components/game/game.constants";
+import {
+  CARD_H,
+  CARD_RADIUS,
+  CARD_W,
+  GAME_CARD_SIZES,
+  PROMPT_CARD_GAP,
+  PROMPT_CARD_MODAL_MAX_WIDTH,
+  PROMPT_CARD_ROW_GAP,
+  PROMPT_MODAL_VIEWPORT_MARGIN,
+} from "@/components/game/game.constants";
 import type {
   CardDto,
   ChooseCombatDamageAssignmentInput,
@@ -32,14 +41,12 @@ import {
 } from "./dice/DiceAnimation";
 import {
   CARD_ASPECT_RATIO,
-  CARD_MODAL_MAX_WIDTH,
   CARD_TILE_EDGE_INSET,
   MODAL_BODY_BOTTOM_PADDING,
   MODAL_MIN_HEIGHT,
   MODAL_SCROLL_LINE_HEIGHT,
   MODAL_SCROLL_MAX_STEP,
   MODAL_SCROLL_SCALE,
-  MODAL_VIEWPORT_MARGIN,
   PANEL_PADDING,
   REORDER_CARD_INSET,
   REORDER_LAYOUT_SETTLE_SECONDS,
@@ -416,7 +423,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       state.bodyTop + contentHeight + state.footerHeight + MODAL_BODY_BOTTOM_PADDING,
     );
     const fittedHeight = Math.min(
-      this.viewportHeight - MODAL_VIEWPORT_MARGIN,
+      this.viewportHeight - PROMPT_MODAL_VIEWPORT_MARGIN,
       Math.max(MODAL_MIN_HEIGHT, requiredHeight),
     );
     this.resizeModalShell(state, fittedHeight);
@@ -791,7 +798,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     max: number,
     reveal: boolean,
   ): void {
-    const width = this.modalPromptWidth(CARD_MODAL_MAX_WIDTH);
+    const width = this.modalPromptWidth(PROMPT_CARD_MODAL_MAX_WIDTH);
     const cardAreaWidth = width - PANEL_PADDING * 2 - CARD_TILE_EDGE_INSET * 2;
     const { width: preferredCardWidth } = this.promptCardDimensions();
     const maxCardWidthRatio = Math.max(
@@ -805,10 +812,16 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const cardHeight = Math.max(...cardSizes.map((size) => size.height));
     const columns = Math.max(
       1,
-      Math.min(cards.length, Math.floor((cardAreaWidth + 10) / (cardWidth + 10))),
+      Math.min(
+        cards.length,
+        Math.floor((cardAreaWidth + PROMPT_CARD_GAP) / (cardWidth + PROMPT_CARD_GAP)),
+      ),
     );
     const rows = Math.ceil(cards.length / columns);
-    const height = Math.min(this.viewportHeight - 24, 244 + rows * (cardHeight + 12));
+    const height = Math.min(
+      this.viewportHeight - 24,
+      244 + rows * (cardHeight + PROMPT_CARD_ROW_GAP),
+    );
     const { body, footer } = this.createModalShell(
       width,
       height,
@@ -856,8 +869,10 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       const row = Math.floor(index / columns);
       const column = index % columns;
       tile.position.set(
-        CARD_TILE_EDGE_INSET + column * (cardWidth + 10) + (cardWidth - cardSize.width) / 2,
-        startY + row * (cardHeight + 12) + (cardHeight - cardSize.height) / 2,
+        CARD_TILE_EDGE_INSET +
+          column * (cardWidth + PROMPT_CARD_GAP) +
+          (cardWidth - cardSize.width) / 2,
+        startY + row * (cardHeight + PROMPT_CARD_ROW_GAP) + (cardHeight - cardSize.height) / 2,
       );
       body.addChild(tile);
     });
@@ -1279,7 +1294,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
   }
 
   protected renderReorder(presentation: PromptPresentation, items: ReorderItem[]): void {
-    const width = this.modalPromptWidth(CARD_MODAL_MAX_WIDTH);
+    const width = this.modalPromptWidth(PROMPT_CARD_MODAL_MAX_WIDTH);
     const contentWidth = width - PANEL_PADDING * 2;
     const zoneWidth = contentWidth - CARD_TILE_EDGE_INSET * 2;
     const { width: preferredCardWidth } = this.promptCardDimensions();
@@ -1646,7 +1661,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     cards: CardDto[],
     zones: ScryDestination[],
   ): void {
-    const width = this.modalPromptWidth(CARD_MODAL_MAX_WIDTH);
+    const width = this.modalPromptWidth(PROMPT_CARD_MODAL_MAX_WIDTH);
     const poolWidth = width - PANEL_PADDING * 2;
     const zoneGap = 12;
     const zoneWidth = (poolWidth - zoneGap * (zones.length - 1)) / Math.max(1, zones.length);
@@ -1690,9 +1705,9 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     body.addChild(poolLabel);
     const poolHeight = cardHeight + 20;
     const pool = new Rectangle(0, 24, poolWidth, poolHeight);
-    const poolSpacing = cardWidth + 12;
+    const poolSpacing = cardWidth + PROMPT_CARD_GAP;
     const poolIds = this.scryItems.pool ?? [];
-    const poolContentWidth = 20 + poolIds.length * poolSpacing + cardWidth;
+    const poolContentWidth = CARD_TILE_EDGE_INSET * 2 + poolIds.length * poolSpacing + cardWidth;
     this.scryPoolScrollMax = Math.max(0, poolContentWidth - poolWidth);
     if (this.scryPoolScrollToEnd) {
       this.scryPoolScrollOffset = this.scryPoolScrollMax;
@@ -1725,7 +1740,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     poolScrollThumb.zIndex = 501;
     poolLayer.addChild(poolScrollThumb);
     poolLayer.on("wheel", (event: FederatedWheelEvent) => this.scrollScryPool(event));
-    const contentDropX = 10 + poolIds.length * poolSpacing;
+    const contentDropX = CARD_TILE_EDGE_INSET + poolIds.length * poolSpacing;
     const visibleDropX = Math.max(
       pool.x + 4,
       Math.min(contentDropX - this.scryPoolScrollOffset, pool.x + pool.width - cardWidth - 4),
@@ -1772,7 +1787,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       );
       const offsetX = (cardWidth - cardSize.width) / 2;
       const offsetY = (cardHeight - cardSize.height) / 2;
-      const contentX = 10 + index * poolSpacing + offsetX;
+      const contentX = CARD_TILE_EDGE_INSET + index * poolSpacing + offsetX;
       this.scryCardOffsets.set(id, { x: offsetX, y: offsetY });
       this.scryPoolSlotX.set(id, contentX);
       this.makeDraggable(

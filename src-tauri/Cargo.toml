@@ -1,6 +1,6 @@
 [package]
 name = "manabrew"
-version = "3.42.3"
+version = "3.42.4"
 edition = "2021"
 publish = false
 

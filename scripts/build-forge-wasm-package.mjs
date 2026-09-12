@@ -31,8 +31,10 @@ const staged = stubEngine
   ? ["forge-engine.worker.js"]
   : [...GRAALVM_OUTPUTS, "forge-engine.worker.js"];
 for (const file of staged) {
-  if (!existsSync(join(root, "public", "forge", file))) {
-    throw new Error(`Missing public/forge/${file}; build the Forge WebAssembly engine first.`);
+  if (!existsSync(join(source, file))) {
+    throw new Error(
+      `Missing packages/forge-wasm/${file}; build the Forge WebAssembly engine first.`,
+    );
   }
 }
 
@@ -46,6 +48,7 @@ for (const file of [
   "engine.js",
   "node.js",
   "node-worker.cjs",
+  "forge-engine.worker.js",
   "stamp.js",
   "seat.js",
   "seat.d.ts",
@@ -56,10 +59,6 @@ for (const file of [
 ]) {
   cpSync(join(source, file), join(output, file));
 }
-cpSync(
-  join(root, "public", "forge", "forge-engine.worker.js"),
-  join(output, "forge-engine.worker.js"),
-);
 if (stubEngine) {
   // Past a bundler's inline threshold, or Vite emits the stub as a data URI
   // and the "was it emitted as an asset?" check stops meaning anything.
@@ -74,7 +73,7 @@ if (stubEngine) {
   writeFileSync(join(output, "forgeharness.js.wasm"), stubWasm);
 } else {
   for (const file of GRAALVM_OUTPUTS) {
-    cpSync(join(root, "public", "forge", file), join(output, file));
+    cpSync(join(source, file), join(output, file));
   }
 }
 

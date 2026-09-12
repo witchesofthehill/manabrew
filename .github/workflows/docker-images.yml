@@ -123,7 +123,7 @@ jobs:
           corepack enable
           yarn install --frozen-lockfile
           scripts/build-forge-wasm.sh
-          ls -la public/forge/
+          ls -la packages/forge-wasm/forgeharness*
 
       - name: Build & push
         uses: docker/build-push-action@v6

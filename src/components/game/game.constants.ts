@@ -1,4 +1,5 @@
 import type { StepKind } from "@/protocol";
+import { scryfallAssetUrl } from "@/lib/scryfallAssets";
 
 /** The single UI-side list of turn steps, ordered to match the engine's turn
  *  structure. Ids are protocol `StepKind` values — never restate them elsewhere. */
@@ -45,8 +46,9 @@ export const ZONE_BADGES: Record<string, { icon: string; label: string }> = {
 /** Standard MTG card back image, served by Scryfall's canonical backs CDN.
  *  UUID `0aeebaf5-8c7d-4636-9e82-8c27447861f7` is the default `card_back_id`
  *  every single-faced card references. */
-export const CARD_BACK_IMAGE_URL =
-  "https://backs.scryfall.io/large/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg";
+export const CARD_BACK_IMAGE_URL = scryfallAssetUrl(
+  "https://backs.scryfall.io/large/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg",
+);
 
 export const PROMPT_LABELS: Record<string, string> = {
   ["mulligan"]: "Keep this hand?",

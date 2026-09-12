@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
-"""Ingest relay events and sanitized Hub analytics into SQLite; stdlib only.
-Idempotent via per-file offsets and snapshot timestamps; --watch N loops."""
+"""Materialise the hub's relay_events feed and sanitized Hub analytics into
+SQLite; stdlib only. Idempotent: every relay event is keyed by the SHA-256 of
+its line, offline games by the reported_at watermark; --watch N loops."""
 
 import argparse
 import datetime
+import hashlib
 import json
 import sqlite3
 import sys
 import time
 from pathlib import Path
 
-DB_NAME = "events.db"
-FILE_GLOB = "events-*.jsonl"
+RELAY_EVENTS_WATERMARK = "hub:relay_events"
+RELAY_EVENTS_PAGE = 5000
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS ingest_state (
@@ -75,6 +77,21 @@ CREATE TABLE IF NOT EXISTS client_connections (
   reconnected INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_client_connections_ts ON client_connections(ts);
+CREATE TABLE IF NOT EXISTS plane_attempts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts TEXT NOT NULL,
+  room_id TEXT,
+  username TEXT NOT NULL,
+  peer TEXT NOT NULL,
+  plane TEXT NOT NULL,
+  outcome TEXT NOT NULL,
+  phase TEXT NOT NULL,
+  connect_ms INTEGER,
+  rtt_ms INTEGER,
+  relay_rtt_ms INTEGER,
+  candidate_pair TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_plane_attempts_ts ON plane_attempts(ts);
 CREATE INDEX IF NOT EXISTS idx_games_started ON games(started_at);
 CREATE INDEX IF NOT EXISTS idx_games_ranking ON games(official, format, started_at);
 CREATE INDEX IF NOT EXISTS idx_game_players_user ON game_players(username);
@@ -109,7 +126,13 @@ CREATE TABLE IF NOT EXISTS engine_stats (
   engine_cross_p50 INTEGER,
   engine_cross_p90 INTEGER,
   engine_cross_max INTEGER,
-  think_hidden INTEGER NOT NULL DEFAULT 0
+  think_hidden INTEGER NOT NULL DEFAULT 0,
+  reply_wait_p50 INTEGER,
+  reply_wait_p90 INTEGER,
+  reply_wait_max INTEGER,
+  client_work_p50 INTEGER,
+  client_work_p90 INTEGER,
+  client_work_max INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_engine_stats_ts ON engine_stats(ts);
 CREATE INDEX IF NOT EXISTS idx_engine_stats_engine ON engine_stats(engine, ts);
@@ -173,11 +196,52 @@ def open_db(path: Path) -> sqlite3.Connection:
     ):
         ensure_column(db, "engine_stats", column, "INTEGER")
     ensure_column(db, "engine_stats", "think_hidden", "INTEGER NOT NULL DEFAULT 0")
+    # The turnaround split: server, wire and transfer on one side of the first
+    # reply frame, parse, apply and render on the other.
+    for column in (
+        "reply_wait_p50",
+        "reply_wait_p90",
+        "reply_wait_max",
+        "client_work_p50",
+        "client_work_p90",
+        "client_work_max",
+    ):
+        ensure_column(db, "engine_stats", column, "INTEGER")
     ensure_column(db, "games", "source", "TEXT")
     ensure_column(db, "games", "reported_at", "TEXT")
+    # Whether the engine host filed the outcome. Relay rows from before the
+    # host reported it carry NULL: their outcome was read off the state stream.
+    ensure_column(db, "games", "reported", "INTEGER")
+    ensure_column(db, "games", "turns", "INTEGER")
+    # Seats the host served off the relay, from its transport report; NULL
+    # when none did. Compare with player_count for the room's shape.
+    ensure_column(db, "games", "direct_seats", "INTEGER")
     db.execute("UPDATE games SET source = 'relay' WHERE source IS NULL")
+    ensure_column(db, "events", "event_id", "TEXT")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_events_event_id ON events(event_id)")
+    backfill_event_ids(db)
     db.commit()
     return db
+
+
+def event_id(line: str) -> str:
+    return hashlib.sha256(line.encode("utf-8")).hexdigest()
+
+
+def backfill_event_ids(db):
+    """Rows ingested from the JSONL files predate the key; hash them once so
+    the same lines arriving through the hub are recognised, not duplicated."""
+    while True:
+        rows = db.execute(
+            "SELECT id, payload FROM events WHERE event_id IS NULL LIMIT 10000"
+        ).fetchall()
+        if not rows:
+            return
+        db.executemany(
+            "UPDATE events SET event_id = ? WHERE id = ?",
+            [(event_id(payload), row_id) for row_id, payload in rows],
+        )
+        db.commit()
 
 
 def ensure_column(db, table: str, column: str, declaration: str):
@@ -229,14 +293,16 @@ def ingest_game_started(db, ev):
 
 
 def ingest_game_ended(db, ev):
+    reported = ev.get("reported")
     db.execute(
         """INSERT INTO games (game_id, room_id, ended_at, duration_s, end_reason,
-                              game_over, winner, source)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 'relay')
+                              game_over, winner, reported, turns, source)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'relay')
            ON CONFLICT(game_id) DO UPDATE SET
              ended_at=excluded.ended_at, duration_s=excluded.duration_s,
              end_reason=excluded.end_reason, game_over=excluded.game_over,
-             winner=excluded.winner""",
+             winner=excluded.winner, reported=excluded.reported,
+             turns=excluded.turns""",
         (
             ev.get("game_id"),
             ev.get("room_id"),
@@ -245,6 +311,41 @@ def ingest_game_ended(db, ev):
             ev.get("reason"),
             int(bool(ev.get("game_over"))),
             ev.get("winner"),
+            None if reported is None else int(bool(reported)),
+            ev.get("turns"),
+        ),
+    )
+
+
+def ingest_transport_used(db, ev):
+    seats = ev.get("seats") or []
+    direct = sum(1 for seat in seats if seat.get("transport") == "webrtc")
+    db.execute(
+        """INSERT INTO games (game_id, room_id, direct_seats, source)
+           VALUES (?, ?, ?, 'relay')
+           ON CONFLICT(game_id) DO UPDATE SET direct_seats=excluded.direct_seats""",
+        (ev.get("game_id"), ev.get("room_id"), direct),
+    )
+
+
+def ingest_plane_quality(db, ev):
+    db.execute(
+        """INSERT INTO plane_attempts
+             (ts, room_id, username, peer, plane, outcome, phase,
+              connect_ms, rtt_ms, relay_rtt_ms, candidate_pair)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            ev.get("ts"),
+            ev.get("room_id"),
+            ev.get("username"),
+            ev.get("peer"),
+            ev.get("plane"),
+            ev.get("outcome"),
+            ev.get("phase"),
+            ev.get("connect_ms"),
+            ev.get("rtt_ms"),
+            ev.get("relay_rtt_ms"),
+            ev.get("candidate_pair"),
         ),
     )
 
@@ -277,14 +378,16 @@ ENGINE_STATS_COLUMNS = (
     "seats, multiplayer, duration_s, end_reason, decisions, turnaround_p50, "
     "turnaround_p90, turnaround_max, engine_p50, engine_p90, engine_max, "
     "engine_same_p50, engine_same_p90, engine_same_max, "
-    "engine_cross_p50, engine_cross_p90, engine_cross_max, think_hidden"
+    "engine_cross_p50, engine_cross_p90, engine_cross_max, think_hidden, "
+    "reply_wait_p50, reply_wait_p90, reply_wait_max, "
+    "client_work_p50, client_work_p90, client_work_max"
 )
 
 
 def ingest_engine_stats(db, ev):
     db.execute(
         f"""INSERT OR IGNORE INTO engine_stats ({ENGINE_STATS_COLUMNS})
-           VALUES ({", ".join("?" * 26)})""",
+           VALUES ({", ".join("?" * 32)})""",
         (
             # A relay from before the report id was forwarded still identifies a
             # report well enough to keep re-ingestion idempotent. The room is
@@ -316,6 +419,12 @@ def ingest_engine_stats(db, ev):
             ev.get("engine_cross_p90"),
             ev.get("engine_cross_max"),
             ev.get("think_hidden") or 0,
+            ev.get("reply_wait_p50"),
+            ev.get("reply_wait_p90"),
+            ev.get("reply_wait_max"),
+            ev.get("client_work_p50"),
+            ev.get("client_work_p90"),
+            ev.get("client_work_max"),
         ),
     )
 
@@ -339,55 +448,58 @@ INGESTERS = {
     "game_ended": ingest_game_ended,
     "deck_selected": ingest_deck_selected,
     "engine_stats": ingest_engine_stats,
+    "transport_used": ingest_transport_used,
+    "plane_quality": ingest_plane_quality,
 }
 
 
-def ingest_line(db, line: str):
+def ingest_line(db, line: str, key: str | None = None) -> bool:
     try:
         ev = json.loads(line)
     except json.JSONDecodeError:
-        return
+        return False
+    key = key or event_id(line)
+    if db.execute("SELECT 1 FROM events WHERE event_id = ?", (key,)).fetchone():
+        return False
     kind = ev.get("event")
     db.execute(
-        "INSERT INTO events (ts, event, room_id, payload) VALUES (?, ?, ?, ?)",
-        (ev.get("ts"), kind, ev.get("room_id"), line),
+        "INSERT INTO events (ts, event, room_id, payload, event_id) VALUES (?, ?, ?, ?, ?)",
+        (ev.get("ts"), kind, ev.get("room_id"), line, key),
     )
     handler = INGESTERS.get(kind)
     if handler:
         handler(db, ev)
+    return True
 
 
-def ingest_file(db, path: Path) -> int:
+def ingest_relay_events(db, hub) -> int:
+    """Pull relay_events past the last hub row id seen. The watermark advances
+    per page and a line already present by event_id is skipped, so a restart,
+    a rebuilt events.db or a re-imported history all converge."""
     row = db.execute(
-        "SELECT byte_offset FROM ingest_state WHERE file = ?", (path.name,)
+        "SELECT byte_offset FROM ingest_state WHERE file = ?", (RELAY_EVENTS_WATERMARK,)
     ).fetchone()
-    offset = row[0] if row else 0
-    size = path.stat().st_size
-    if size <= offset:
-        return 0
+    last_id = row[0] if row else 0
     ingested = 0
-    with path.open("rb") as fh:
-        fh.seek(offset)
-        for raw in fh:
-            if not raw.endswith(b"\n"):
-                break
-            ingest_line(db, raw.decode("utf-8", errors="replace").rstrip("\n"))
-            offset += len(raw)
-            ingested += 1
-    db.execute(
-        """INSERT INTO ingest_state (file, byte_offset) VALUES (?, ?)
-           ON CONFLICT(file) DO UPDATE SET byte_offset=excluded.byte_offset""",
-        (path.name, offset),
-    )
+    while True:
+        rows = hub_rows(
+            hub,
+            "SELECT id, event_id, payload FROM relay_events WHERE id > ? ORDER BY id LIMIT ?",
+            (last_id, RELAY_EVENTS_PAGE),
+        )
+        if not rows:
+            break
+        for row_id, key, payload in rows:
+            if ingest_line(db, payload, key):
+                ingested += 1
+            last_id = row_id
+        db.execute(
+            """INSERT INTO ingest_state (file, byte_offset) VALUES (?, ?)
+               ON CONFLICT(file) DO UPDATE SET byte_offset=excluded.byte_offset""",
+            (RELAY_EVENTS_WATERMARK, last_id),
+        )
+        db.commit()
     return ingested
-
-
-def run_once(db, events_dir: Path) -> int:
-    total = 0
-    for path in sorted(events_dir.glob(FILE_GLOB)):
-        total += ingest_file(db, path)
-    db.commit()
-    return total
 
 
 def utc_hour() -> str:
@@ -461,8 +573,8 @@ def sync_offline_games(db, hub) -> int:
                 """INSERT OR IGNORE INTO games
                      (game_id, room_id, started_at, ended_at, duration_s, format,
                       engine, hosted, official, starting_life, player_count,
-                      end_reason, game_over, winner, source, reported_at)
-                   VALUES (?, NULL, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, 'offline', ?)""",
+                      end_reason, game_over, winner, reported, source, reported_at)
+                   VALUES (?, NULL, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, 1, 'offline', ?)""",
                 (
                     game_id,
                     started_at,
@@ -657,7 +769,9 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
                       engine_p50, engine_p90, engine_max,
                       engine_same_p50, engine_same_p90, engine_same_max,
                       engine_cross_p50, engine_cross_p90, engine_cross_max,
-                      coalesce(think_hidden, 0)
+                      coalesce(think_hidden, 0),
+                      reply_wait_p50, reply_wait_p90, reply_wait_max,
+                      client_work_p50, client_work_p90, client_work_max
                FROM engine_play_stats
                WHERE reported_at > ?""",
             (mirrored_through,),
@@ -702,7 +816,7 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
         )
         db.executemany(
             f"""INSERT OR IGNORE INTO engine_stats ({ENGINE_STATS_COLUMNS})
-                VALUES (?, ?, 'hub', {", ".join("?" * 23)})""",
+                VALUES (?, ?, 'hub', {", ".join("?" * 29)})""",
             engine_reports,
         )
         db.execute("DELETE FROM hub_collection_cards")
@@ -731,25 +845,28 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dir", required=True, help="events directory")
-    parser.add_argument("--db", help="database path (default: <dir>/events.db)")
-    parser.add_argument("--hub-db", help="Hub database to export sanitized analytics from")
+    parser.add_argument("--db", required=True, help="analytics database to materialise")
+    parser.add_argument("--hub-db", required=True, help="Hub database to read from")
     parser.add_argument("--hub-refresh", type=int, default=300)
     parser.add_argument("--watch", type=int, help="loop every N seconds")
     args = parser.parse_args()
 
-    events_dir = Path(args.dir)
-    db_path = Path(args.db) if args.db else events_dir / DB_NAME
-    db = open_db(db_path)
+    db = open_db(Path(args.db))
+    hub_path = Path(args.hub_db)
     next_hub_refresh = 0.0
 
     while True:
-        count = run_once(db, events_dir)
-        if count:
-            print(f"ingested {count} events", flush=True)
-        if args.hub_db and time.monotonic() >= next_hub_refresh:
+        if hub_path.is_file():
+            hub = sqlite3.connect(f"file:{hub_path}?mode=ro", uri=True)
             try:
-                refresh_hub_analytics(db, Path(args.hub_db))
+                count = ingest_relay_events(db, hub)
+            finally:
+                hub.close()
+            if count:
+                print(f"ingested {count} events", flush=True)
+        if time.monotonic() >= next_hub_refresh:
+            try:
+                refresh_hub_analytics(db, hub_path)
             except Exception as error:
                 print(f"Hub analytics refresh failed: {error}", file=sys.stderr, flush=True)
             next_hub_refresh = time.monotonic() + args.hub_refresh

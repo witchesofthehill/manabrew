@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use manabrew_server::{analytics, config, deck_play_events, metrics, server, state};
+use manabrew_server::{analytics, config, metrics, seal, server, state};
 
 fn art_cache(dir: &str) -> Arc<manabrew_art_cache::ImageCache> {
     let cache = Arc::new(manabrew_art_cache::ImageCache::new(
@@ -77,17 +77,21 @@ async fn main() {
         .expect("Invalid health address");
 
     let analytics = analytics::AnalyticsHandle::from_config(&config);
-    let deck_play_events = deck_play_events::DeckPlayEventHandle::from_config(&config);
+    let seal = config
+        .official_key
+        .as_deref()
+        .and_then(seal::MessageSealer::from_secret);
     let state = Arc::new(
         state::ServerState::new(
             config.server_key.clone(),
             config.max_rooms,
             config.official_key.clone(),
             analytics,
-            deck_play_events,
             config.hub_jwks_url.clone(),
+            seal,
         )
-        .with_art_base_url(config.art_base_url.clone()),
+        .with_art_base_url(config.art_base_url.clone())
+        .with_direct_transport(config.direct_transport, config.ice_servers.clone()),
     );
 
     // Serving art is the reason to run a relay of your own: one machine holds

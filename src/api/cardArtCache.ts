@@ -1,5 +1,5 @@
-import { getPlatform, getPlatformType } from "@/platform";
-import { cacheKeyForImage } from "@/lib/scryfallImageSource";
+import { getPlatform } from "@/platform";
+import { cacheKeyForImage, localCardArtRouteAvailable } from "@/lib/scryfallImageSource";
 import type { Deck } from "@/protocol";
 import type { BattlefieldCardStyle } from "@/stores/usePreferencesStore";
 
@@ -49,20 +49,9 @@ export interface PreseedResult {
   failed: number;
 }
 
-/**
- * Whether this build actually serves `/scryfall-img/`, asked of the shell
- * rather than inferred from the platform. Windows keeps Tauri's embedded
- * scheme and runs no asset server, and dev hands the path to vite's proxy, so
- * on both the cache is written and never read. Answering from the one place
- * that knows is what stops the offer and the capability drifting apart.
- */
-export async function cardArtCacheAvailable(): Promise<boolean> {
-  if (getPlatformType() !== "tauri") return false;
-  try {
-    return await getPlatform().invoke<boolean>("card_art_route_available");
-  } catch {
-    return false;
-  }
+/** A machine that cannot read the cache back is never offered the download. */
+export function cardArtCacheAvailable(): Promise<boolean> {
+  return localCardArtRouteAvailable();
 }
 
 export function deckArtUrls(deck: Deck, variants: ArtVariant[]): string[] {

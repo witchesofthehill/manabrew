@@ -61,6 +61,9 @@ services:
       # counters. Small cap — this disk is production's too.
       MANABREW_GAME_CAPTURE_DIR: "/var/manabrew/captures"
       MANABREW_GAME_CAPTURE_MAX_GB: "${MANABREW_GAME_CAPTURE_MAX_GB:-2}"
+      # Peer-to-peer game traffic, see docs/TRANSPORT.md. Unset = fail closed.
+      MANABREW_DIRECT_TRANSPORT: "${MANABREW_DIRECT_TRANSPORT:-1}"
+      MANABREW_ICE_SERVERS: "${MANABREW_ICE_SERVERS:-stun:relay-staging.manabrew.app:3479}"
       RUST_LOG: "manabrew_server=info"
     volumes:
       - ./ops/events:/var/manabrew/events
@@ -91,6 +94,7 @@ services:
       HUB_DB_PATH: "/var/manabrew/hub/hub.db"
       HUB_ANALYTICS_IMPORT_DB_PATH: "/var/manabrew/events/events.db"
       HUB_RELAY_DECK_PLAYS_TOKEN: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
+      SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
       HUB_RANKING_REFRESH_SECONDS: "5"
       DECK_HUB: "${DECK_HUB:-1}"
       HUB_S3_ENDPOINT: "${HUB_S3_ENDPOINT:-}"
@@ -132,13 +136,16 @@ services:
     command:
       - python
       - /app/ingest-events.py
-      - --dir
-      - /var/manabrew/events
+      - --db
+      - /var/manabrew/events/events.db
+      - --hub-db
+      - /var/manabrew/hub/hub.db
       - --watch
       - "300"
     volumes:
       - ./scripts/ingest-events.py:/app/ingest-events.py:ro
       - ./ops/events:/var/manabrew/events
+      - ./ops/hub-data:/var/manabrew/hub
     restart: unless-stopped
     mem_limit: 64m
     healthcheck:
@@ -203,6 +210,27 @@ services:
     depends_on:
       - manabrew-server-staging
     restart: unless-stopped
+
+  # STUN only, no TURN. Host networking: the docker proxy would rewrite the
+  # observed source address. 3479 because prod's coturn holds 3478 on this box.
+  coturn-staging:
+    image: coturn/coturn:4.6-alpine
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - --listening-port=${MANABREW_STUN_PORT:-3479}
+      - --listening-ip=0.0.0.0
+      - --stun-only
+      - --no-cli
+      - --no-tls
+      - --no-dtls
+      - --no-multicast-peers
+      - --fingerprint
+      - --log-file=stdout
+      - --simple-log
+    mem_limit: 96m
+    cpus: 0.25
+    cpu_shares: 128
 
 networks:
   default:

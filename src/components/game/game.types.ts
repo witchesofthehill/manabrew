@@ -3,6 +3,7 @@ import type { DeckCard } from "@/protocol/deck";
 import type { GameLogEntry } from "@/types/gameLog";
 import type { GameSnapshotEntry } from "@/types/gameSnapshot";
 import type { PromptType } from "@/protocol";
+import type { HoverOptions } from "@/hooks/useCardPreview";
 
 export type PromptActionType = PromptType;
 
@@ -35,14 +36,19 @@ export const OPPONENT_SEATS: readonly Exclude<PlayerSeat, "self">[] = [
   "opponent3",
 ] as const;
 
+export interface LogCardPreviewOptions extends HoverOptions {
+  sticky?: boolean;
+}
+
 export interface RightActionPanelProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
+  onLeftEdgeChange?: (left: number | undefined) => void;
   gameLog: GameLogEntry[];
   onHoverLogCard: (
     cardId: string | null,
     e?: React.MouseEvent,
-    options?: { useAnchor?: boolean; placement?: "auto" | "top-center"; anchorOverride?: DOMRect },
+    options?: LogCardPreviewOptions,
   ) => void;
   resolveCardName: (cardId: string) => string;
   resolvePlayerName: (playerId: string) => string;

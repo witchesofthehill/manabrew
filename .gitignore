@@ -123,3 +123,7 @@ __pycache__/
 public/forge/forgeharness.js
 public/forge/forgeharness.js.wasm
 /dist-arena/
+packages/forge-wasm/forgeharness.js
+packages/forge-wasm/forgeharness.js.wasm
+
+scripts/sync-scryfall-assets.mjs

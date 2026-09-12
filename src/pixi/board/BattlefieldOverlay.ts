@@ -367,15 +367,15 @@ export class BattlefieldOverlay {
   ): void {
     btn.eventMode = "static";
     btn.cursor = "pointer";
-    btn.on("pointerover", () => {
+    btn.on("pointerover", (e: FederatedPointerEvent) => {
       this.host.cancelHoverClear();
       const entry = this.host.getEntries().get(cardId);
-      if (entry) this.host.setCardHovered(entry.sprite);
+      if (entry) this.host.setCardHovered(entry.sprite, false, e);
       onHoverChange?.(true);
     });
-    btn.on("pointermove", () => {
+    btn.on("pointermove", (e: FederatedPointerEvent) => {
       const entry = this.host.getEntries().get(cardId);
-      if (entry) this.host.setCardHovered(entry.sprite, true);
+      if (entry) this.host.setCardHovered(entry.sprite, true, e);
     });
     btn.on("pointerout", () => {
       onHoverChange?.(false);
@@ -383,13 +383,19 @@ export class BattlefieldOverlay {
     });
     btn.on("pointerdown", (e: FederatedPointerEvent) => {
       e.stopPropagation();
+      if (e.button !== 0) return;
       const entry = this.host.getEntries().get(cardId);
       if (entry) this.host.startCardDrag(entry.sprite, e);
     });
     btn.on("pointertap", (e: FederatedPointerEvent) => {
       e.stopPropagation();
-      if (this.host.isJustDragged(cardId)) return;
+      if (e.button !== 0 || this.host.isJustDragged(cardId)) return;
       onTap();
+    });
+    btn.on("rightclick", (e: FederatedPointerEvent) => {
+      e.stopPropagation();
+      const entry = this.host.getEntries().get(cardId);
+      if (entry) this.host.rightClickCard(entry.sprite);
     });
   }
 

@@ -40,7 +40,10 @@ pub fn init(app: &AppHandle) {
             let appender = tracing_appender::rolling::daily(&dir, "manabrew.log");
             let (writer, guard) = tracing_appender::non_blocking(appender);
             let _ = GUARD.set(guard);
-            eprintln!("[startup] logging to {}", dir.join("manabrew.log").display());
+            eprintln!(
+                "[startup] logging to {}",
+                dir.join("manabrew.log").display()
+            );
             tracing_subscriber::fmt::layer()
                 .with_ansi(false)
                 .with_writer(writer)

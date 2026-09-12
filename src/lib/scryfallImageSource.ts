@@ -1,5 +1,6 @@
 import { platformFetch } from "@/lib/platformFetch";
 import { lanArtUrl } from "@/lib/lanArtHost";
+import { getPlatform, getPlatformType } from "@/platform";
 
 const SCRYFALL_IMAGE_CDN_ORIGIN = "https://cards.scryfall.io/";
 
@@ -50,6 +51,23 @@ export function clearScryfallImageCache(): void {
   pending.clear();
 }
 
+/**
+ * Whether this build serves `/scryfall-img/`, asked of the shell rather than
+ * inferred from the platform. Windows keeps Tauri's embedded scheme and runs no
+ * asset server, and that scheme answers any unknown path with `index.html` and
+ * a 200, so an unguarded fetch of the route "succeeds" with HTML where an image
+ * was expected. Dev hands the path to vite's proxy and serves no cache either.
+ */
+let localCardArtRoute: Promise<boolean> | null = null;
+
+export function localCardArtRouteAvailable(): Promise<boolean> {
+  if (getPlatformType() !== "tauri") return Promise.resolve(false);
+  localCardArtRoute ??= getPlatform()
+    .invoke<boolean>("card_art_route_available")
+    .catch(() => false);
+  return localCardArtRoute;
+}
+
 // Fetches to a same-origin blob object URL. On desktop the webview runs under
 // COEP: require-corp (SAB), which blocks cross-origin <img>; on web this also
 // gives Pixi a WebGL-safe, CORS-clean texture source that can't be poisoned by
@@ -63,7 +81,8 @@ export function clearScryfallImageCache(): void {
 async function fetchImageBytes(url: string): Promise<Blob> {
   const key = cacheKeyForImage(url);
   if (key) {
-    for (const candidate of [`/scryfall-img/${key}`, lanArtUrl(key)]) {
+    const local = (await localCardArtRouteAvailable()) ? `/scryfall-img/${key}` : null;
+    for (const candidate of [local, lanArtUrl(key)]) {
       if (!candidate) continue;
       try {
         const res = await fetch(candidate);

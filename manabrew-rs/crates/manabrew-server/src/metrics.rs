@@ -17,9 +17,17 @@ const CLIENT_REJECTIONS: &str = "manabrew_relay_client_rejections_total";
 const RECONNECT_RESYNCS: &str = "manabrew_relay_reconnect_resyncs_total";
 const SESSION_TAKEOVERS: &str = "manabrew_relay_session_takeovers_total";
 const ANALYTICS_DROPPED: &str = "manabrew_relay_analytics_dropped_total";
-const DECK_PLAY_EVENTS_DROPPED: &str = "manabrew_relay_deck_play_events_dropped_total";
+const ANALYTICS_DELIVERED: &str = "manabrew_relay_analytics_delivered_total";
 const STATE_PATCH_DOWNGRADES: &str = "manabrew_relay_state_patch_downgrades_total";
 const ENGINE_REPORTS: &str = "manabrew_relay_engine_reports_total";
+const TRANSPORT_ANNOUNCEMENTS: &str = "manabrew_relay_transport_announcements_total";
+const TRANSPORT_ROSTERS: &str = "manabrew_relay_transport_rosters_total";
+const PEER_SIGNALS: &str = "manabrew_relay_peer_signals_total";
+const PLANE_ATTEMPTS: &str = "manabrew_relay_plane_attempts_total";
+const PLANE_RTT: &str = "manabrew_relay_plane_rtt_ms";
+const PLANE_RELAY_RTT: &str = "manabrew_relay_plane_relay_rtt_ms";
+const PLANE_CONNECT: &str = "manabrew_relay_plane_connect_ms";
+const GAME_OUTCOME_REPORTS: &str = "manabrew_relay_game_outcome_reports_total";
 const CLIENT_RTT: &str = "manabrew_relay_client_rtt_ms";
 const STATE_HANDLING: &str = "manabrew_relay_state_handling_seconds";
 const SOCKET_WRITE: &str = "manabrew_relay_socket_write_seconds";
@@ -33,6 +41,8 @@ const LABEL_ENGINE: &str = "engine";
 const LABEL_REASON: &str = "reason";
 const LABEL_SEATS: &str = "seats";
 const LABEL_OUTCOME: &str = "outcome";
+const LABEL_PLANE: &str = "plane";
+const LABEL_PAIR: &str = "pair";
 const LABEL_DIRECTION: &str = "direction";
 
 pub const REJECTION_OUTDATED_WIRE: &str = "outdated_wire";
@@ -43,6 +53,13 @@ pub const ENGINE_REPORT_ACCEPTED: &str = "accepted";
 /// rise in it means seats are leaving earlier than they used to.
 pub const ENGINE_REPORT_ROOMLESS: &str = "accepted_roomless";
 pub const ENGINE_REPORT_IMPLAUSIBLE: &str = "implausible";
+
+pub const OUTCOME_REPORT_ACCEPTED: &str = "accepted";
+pub const OUTCOME_REPORT_REJECTED: &str = "rejected";
+
+pub const ANALYTICS_LIVE: &str = "live";
+pub const ANALYTICS_SPOOLED: &str = "spooled";
+pub const ANALYTICS_DRAINED: &str = "drained";
 
 #[derive(Clone, Copy)]
 enum ConnectionKind {
@@ -157,12 +174,51 @@ pub fn record_engine_report(outcome: &'static str) {
     counter!(ENGINE_REPORTS, LABEL_OUTCOME => outcome).increment(1);
 }
 
+/// A rise in `rejected` means a seat other than the host, or a host naming a
+/// game the relay is not running, is filing outcomes.
+pub fn record_game_outcome_report(kind: &'static str) {
+    counter!(GAME_OUTCOME_REPORTS, LABEL_KIND => kind).increment(1);
+}
+
 /// Round trip from the relay to a client and back, taken from the websocket
 /// heartbeat. The heartbeat carries the send time and RFC 6455 requires the
 /// peer to echo a ping's payload, so this is measured entirely on the relay's
 /// own clock and needs nothing from the client.
 pub fn record_client_rtt(ms: f64) {
     histogram!(CLIENT_RTT).record(ms);
+}
+
+/// `kind` is announce, withdraw or rejected.
+pub fn record_transport_announcement(kind: &'static str) {
+    counter!(TRANSPORT_ANNOUNCEMENTS, LABEL_KIND => kind).increment(1);
+}
+
+/// `kind` is sent or withheld.
+pub fn record_transport_roster(kind: &'static str) {
+    counter!(TRANSPORT_ROSTERS, LABEL_KIND => kind).increment(1);
+}
+
+/// `kind` is forwarded, disabled, oversize, no_sender, no_target, self or offline.
+pub fn record_peer_signal(kind: &'static str) {
+    counter!(PEER_SIGNALS, LABEL_KIND => kind).increment(1);
+}
+
+/// `pair` must already be bounded to a known set by the caller.
+pub fn record_plane_attempt(plane: &'static str, outcome: &'static str, pair: &'static str) {
+    counter!(PLANE_ATTEMPTS, LABEL_PLANE => plane, LABEL_OUTCOME => outcome, LABEL_PAIR => pair)
+        .increment(1);
+}
+
+/// Client-measured, unlike [`record_client_rtt`].
+pub fn record_plane_rtt(plane: &'static str, rtt_ms: u32, relay_rtt_ms: Option<u32>) {
+    histogram!(PLANE_RTT, LABEL_PLANE => plane).record(rtt_ms as f64);
+    if let Some(relay) = relay_rtt_ms {
+        histogram!(PLANE_RELAY_RTT, LABEL_PLANE => plane).record(relay as f64);
+    }
+}
+
+pub fn record_plane_connect(plane: &'static str, connect_ms: u32) {
+    histogram!(PLANE_CONNECT, LABEL_PLANE => plane).record(connect_ms as f64);
 }
 
 pub fn record_resync() {
@@ -177,8 +233,10 @@ pub fn record_analytics_dropped() {
     counter!(ANALYTICS_DROPPED).increment(1);
 }
 
-pub fn record_deck_play_event_dropped() {
-    counter!(DECK_PLAY_EVENTS_DROPPED).increment(1);
+/// `spooled` lines wait on disk for the hub; `drained` is what left the disk.
+/// The two should meet, and `spooled` without `drained` means the hub is gone.
+pub fn record_analytics_delivered(path: &'static str, lines: usize) {
+    counter!(ANALYTICS_DELIVERED, "path" => path).increment(lines as u64);
 }
 
 pub fn refresh_gauges(state: &ServerState) {

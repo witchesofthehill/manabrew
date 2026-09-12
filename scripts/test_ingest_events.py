@@ -98,11 +98,11 @@ class HubAnalyticsTest(unittest.TestCase):
                (id, reported_at, game_id, engine, client_version, platform, format,
                 seats, multiplayer, duration_s, end_reason, decisions, turnaround_p50,
                 turnaround_p90, turnaround_max, engine_p50, engine_p90,
-                engine_max, by_type)
+                engine_max, by_type, reply_wait_p50, client_work_p50)
                VALUES ('offline-1', '2026-08-30T04:27:49Z', 'offline-game-1',
                        'forge-wasm', '3.23.0',
                        'web', 'standard', 2, 0, 252, 'gameOver', 91, 74, 279, 727,
-                       40, 90, 300, '[]')"""
+                       40, 90, 300, '[]', 50, 24)"""
         )
         hub.commit()
         hub.close()
@@ -127,6 +127,8 @@ class HubAnalyticsTest(unittest.TestCase):
                 "turnaround_p50": 46,
                 "turnaround_p90": 78,
                 "turnaround_max": 320,
+                "reply_wait_p50": 30,
+                "client_work_p50": 16,
             }
         )
         for _ in range(2):
@@ -136,17 +138,19 @@ class HubAnalyticsTest(unittest.TestCase):
             )
 
         rows = self.events.execute(
-            """SELECT report_id, source, game_id, engine, turnaround_p50
+            """SELECT report_id, source, game_id, engine, turnaround_p50,
+                      reply_wait_p50, client_work_p50
                FROM engine_stats ORDER BY report_id"""
         ).fetchall()
         # The game id is what makes a report joinable to what was played, and
         # both routes have to carry it: the hub one inside the report, the relay
-        # one on the envelope around it.
+        # one on the envelope around it. The turnaround split rides the same
+        # two routes.
         self.assertEqual(
             rows,
             [
-                ("offline-1", "hub", "offline-game-1", "forge-wasm", 74),
-                ("relayed-1", "relay", "game-1", "forge-hosted", 46),
+                ("offline-1", "hub", "offline-game-1", "forge-wasm", 74, 50, 24),
+                ("relayed-1", "relay", "game-1", "forge-hosted", 46, 30, 16),
             ],
         )
 

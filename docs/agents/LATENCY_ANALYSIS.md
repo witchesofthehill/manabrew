@@ -49,6 +49,13 @@ what `emitMs` covers. The hop is
 An envelope carrying `engineMs` but no `emitMs` predates that split, so its
 node-side work is only partly accounted for.
 
+`scripts/latency/client_vs_relay.py` joins these relay-clock numbers, per seat,
+with what the same client reported in its engine report. The difference is the
+client: payload transfer plus on-machine work. Since the `replyWait` /
+`clientWork` split in the engine report the two halves are reported directly;
+the script is how the gap was found and how to check the split against the
+relay's clock.
+
 ## Six traps
 
 Each of these was hit while producing the 40-day analysis, and each moved the

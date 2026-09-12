@@ -13,7 +13,7 @@ vi.mock("@/api/hub", () => ({
 
 vi.mock("@/platform", () => ({ getPlatform: () => ({ type: "web" }) }));
 
-import { reportEngineStats } from "@/lib/engineStatsReport";
+import { engineReportGameId, reportEngineStats } from "@/lib/engineStatsReport";
 import { beginGame, noteAnswerSent, notePromptArrived } from "@/lib/engineTelemetry";
 
 function playSixDecisions(engine: string) {
@@ -73,5 +73,21 @@ describe("engine stats reporting", () => {
     end();
     end();
     expect(send).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("which game a report is filed under", () => {
+  it("files an offline game under the offline record, whatever the server store holds", () => {
+    // The server store keeps "" between rooms, and a finished relay game's id
+    // after it ends; neither is this game.
+    expect(engineReportGameId(false, "", "offline-1")).toBe("offline-1");
+    expect(engineReportGameId(false, "relay-from-last-room", "offline-1")).toBe("offline-1");
+    expect(engineReportGameId(false, "", null)).toBeNull();
+  });
+
+  it("files a relay game under the relay's id, and never under an offline record", () => {
+    expect(engineReportGameId(true, "relay-1", "offline-1")).toBe("relay-1");
+    expect(engineReportGameId(true, "", "offline-1")).toBeNull();
+    expect(engineReportGameId(true, undefined, null)).toBeNull();
   });
 });

@@ -5,9 +5,9 @@ use manabrew_hub::dto::{
     AccountDeckDetail, AccountDeckSummary, AccountExport, AccountExportDeck, AccountExportFavorite,
     AccountExportIdentity, AccountExportProfile, AccountExportPublication, AccountExportSession,
     AdminTopDeckSnapshotEntry, AssetKind, AssetQuota, AssetState, AuthAccount, AuthIdentity,
-    DeckHubEntryDetail, DeckHubEntrySummary, DeckHubFacet, DeckHubFacets, DeckHubTag,
-    DeckVersionDetail, DeckVersionSummary, FavoriteResponse, TopDeckBucket, TopDeckSnapshot,
-    TopDeckSnapshotEntry,
+    ChatReportRequest, DeckHubEntryDetail, DeckHubEntrySummary, DeckHubFacet, DeckHubFacets,
+    DeckHubTag, DeckVersionDetail, DeckVersionSummary, FavoriteResponse, TopDeckBucket,
+    TopDeckSnapshot, TopDeckSnapshotEntry,
 };
 
 use manabrew_protocol::deck_dto::{deck_fingerprint, Deck, DeckCard, DeckFormat};
@@ -15,6 +15,15 @@ use rusqlite::{params, Connection, OptionalExtension, Result as SqlResult, Row, 
 use sha2::{Digest, Sha256};
 
 use crate::preset_decks::PresetDeck;
+
+pub struct ChatReportRow<'a> {
+    pub id: &'a str,
+    pub created_at: &'a str,
+    pub reporter_account_id: Option<&'a str>,
+    pub request_ip: &'a str,
+    pub reported_ip: Option<&'a str>,
+    pub transcript: &'a str,
+}
 
 pub struct DeckHubListParams {
     pub search: Option<String>,
@@ -468,9 +477,10 @@ impl Storage {
                  turnaround_p90, turnaround_max, engine_p50, engine_p90, engine_max, by_type,
                  engine_same_p50, engine_same_p90, engine_same_max,
                  engine_cross_p50, engine_cross_p90, engine_cross_max, think_hidden,
-                 game_id)
+                 game_id, reply_wait_p50, reply_wait_p90, reply_wait_max,
+                 client_work_p50, client_work_p90, client_work_max)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
-                     ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)",
+                     ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32)",
             params![
                 report.report_id,
                 reported_at,
@@ -498,6 +508,12 @@ impl Storage {
                 report.engine_think_cross_turn.as_ref().map(|t| t.max),
                 report.think_samples_hidden,
                 report.linked_game_id(),
+                report.reply_wait.as_ref().map(|t| t.p50),
+                report.reply_wait.as_ref().map(|t| t.p90),
+                report.reply_wait.as_ref().map(|t| t.max),
+                report.client_work.as_ref().map(|t| t.p50),
+                report.client_work.as_ref().map(|t| t.p90),
+                report.client_work.as_ref().map(|t| t.max),
             ],
         )?;
         Ok(inserted > 0)
@@ -505,6 +521,70 @@ impl Storage {
 
     /// Returns false when the report id is already on file, which is a retry
     /// rather than a second game.
+    pub fn record_chat_report(
+        &self,
+        row: &ChatReportRow<'_>,
+        request: &ChatReportRequest,
+    ) -> SqlResult<()> {
+        self.conn.execute(
+            "INSERT INTO chat_reports
+                (id, created_at, reporter_account_id, request_ip, reported_username,
+                 reported_ip, reason, details, room_id, transcript)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![
+                row.id,
+                row.created_at,
+                row.reporter_account_id,
+                row.request_ip,
+                request.reported_username,
+                row.reported_ip,
+                request.reason.as_str(),
+                request.details,
+                request.room_id,
+                row.transcript,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Lines that are not a JSON object with an `event` field are skipped, not
+    /// refused: a truncated tail in a drained spool file must not wedge the
+    /// batch behind it. Returns the lines that were new.
+    pub fn record_relay_events(
+        &self,
+        lines: &[String],
+        received_at: &str,
+    ) -> SqlResult<Vec<String>> {
+        let tx = self.conn.unchecked_transaction()?;
+        let mut inserted = Vec::new();
+        for line in lines {
+            let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+                continue;
+            };
+            let Some(event) = value.get("event").and_then(|event| event.as_str()) else {
+                continue;
+            };
+            let new = tx.execute(
+                "INSERT OR IGNORE INTO relay_events
+                    (event_id, received_at, ts, event, room_id, payload)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![
+                    sha256_hex(line.as_bytes()),
+                    received_at,
+                    value.get("ts").and_then(|ts| ts.as_str()),
+                    event,
+                    value.get("room_id").and_then(|room| room.as_str()),
+                    line,
+                ],
+            )?;
+            if new > 0 {
+                inserted.push(line.clone());
+            }
+        }
+        tx.commit()?;
+        Ok(inserted)
+    }
+
     pub fn record_offline_play_game(
         &self,
         game: &manabrew_protocol::telemetry::OfflinePlayGame,
@@ -2177,6 +2257,18 @@ impl Storage {
             .optional()
     }
 
+    pub fn handle_is_maintainer(&self, handle: &str) -> SqlResult<bool> {
+        self.conn
+            .query_row(
+                "SELECT 1 FROM accounts
+                 WHERE handle = ?1 COLLATE NOCASE AND qualification = 'maintainer' LIMIT 1",
+                params![handle],
+                |_| Ok(()),
+            )
+            .optional()
+            .map(|row| row.is_some())
+    }
+
     pub fn handle_exists(&self, handle: &str) -> SqlResult<bool> {
         self.conn
             .query_row(
@@ -2388,6 +2480,13 @@ impl Storage {
                      WHERE value = ?2
                  )",
                 params![ERASED_USERNAME, handle],
+            )?;
+            let quoted = serde_json::to_string(&handle).unwrap_or_default();
+            let erased = serde_json::to_string(ERASED_USERNAME).unwrap_or_default();
+            tx.execute(
+                "UPDATE relay_events SET payload = replace(payload, ?2, ?1)
+                 WHERE instr(payload, ?2) > 0",
+                params![erased, quoted],
             )?;
         }
         tx.execute("DELETE FROM accounts WHERE id = ?1", params![account_id])?;
@@ -3923,6 +4022,18 @@ mod tests {
                 p90: 18,
                 max: 96,
             }),
+            reply_wait: Some(manabrew_protocol::telemetry::EngineTurnaround {
+                n: 180,
+                p50: 30,
+                p90: 60,
+                max: 250,
+            }),
+            client_work: Some(manabrew_protocol::telemetry::EngineTurnaround {
+                n: 180,
+                p50: 16,
+                p90: 40,
+                max: 120,
+            }),
             engine_think_same_turn: None,
             engine_think_cross_turn: None,
             think_samples_hidden: 0,
@@ -3961,6 +4072,38 @@ mod tests {
         assert_eq!(p50, 46);
         assert_eq!(think, Some(8));
         assert!(by_type.contains("chooseAction"));
+    }
+
+    /// The turnaround split lands beside the whole, and a client that does
+    /// not send it leaves the columns null rather than zero: zero would read
+    /// as "no time at all" in every percentile drawn from the table.
+    #[test]
+    fn engine_play_stats_keep_the_turnaround_split_when_sent() {
+        let storage = Storage::open_memory().unwrap();
+        storage
+            .record_engine_play_stats(
+                &engine_report("11111111-2222-3333-4444-555555555555"),
+                "2026-09-11T00:00:00Z",
+            )
+            .unwrap();
+        let mut unsplit = engine_report("22222222-3333-4444-5555-666666666666");
+        unsplit.reply_wait = None;
+        unsplit.client_work = None;
+        storage
+            .record_engine_play_stats(&unsplit, "2026-09-11T00:00:01Z")
+            .unwrap();
+
+        let rows: Vec<(Option<i64>, Option<i64>)> = storage
+            .conn
+            .prepare(
+                "SELECT reply_wait_p50, client_work_p90 FROM engine_play_stats ORDER BY reported_at",
+            )
+            .unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        assert_eq!(rows, vec![(Some(30), Some(40)), (None, None)]);
     }
 
     /// The whole point of the column: a report the hub receives has to name the

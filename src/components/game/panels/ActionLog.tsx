@@ -3,6 +3,8 @@ import type { GameLogEntryType, GameLogEntry } from "@/types/gameLog";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { useLongPressPreview } from "@/hooks/useLongPressPreview";
+import type { LogCardPreviewOptions } from "@/components/game/game.types";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 interface ActionLogProps {
   gameLog: GameLogEntry[];
@@ -11,12 +13,7 @@ interface ActionLogProps {
   onHoverLogCard: (
     cardId: string | null,
     event?: React.MouseEvent,
-    options?: {
-      useAnchor?: boolean;
-      placement?: "auto" | "top-center";
-      anchorOverride?: DOMRect;
-      useDelay?: boolean;
-    },
+    options?: LogCardPreviewOptions,
   ) => void;
 }
 
@@ -28,15 +25,38 @@ export function ActionLog({
 }: ActionLogProps) {
   const visibleLog = gameLog.filter((entry) => entry.entryType !== "rule");
   const themeColors = useTheme().gameTheme;
+  const cardPreviewMode = usePreferencesStore((state) => state.cardPreviewMode);
   const longPress = useLongPressPreview<string>({
     resolve: (e) => {
       const el = (e.target as HTMLElement).closest<HTMLElement>("[data-log-card-id]");
       return el?.dataset.logCardId ? { item: el.dataset.logCardId, anchor: el } : null;
     },
     show: (cardId, rect) =>
-      onHoverLogCard(cardId, undefined, { useAnchor: true, anchorOverride: rect, useDelay: false }),
+      onHoverLogCard(cardId, undefined, {
+        useAnchor: true,
+        anchorOverride: rect,
+        useDelay: false,
+        ignoreTriggerPreference: true,
+      }),
     hide: () => onHoverLogCard(null),
   });
+  const handleContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
+    longPress.onContextMenu(event);
+    if (cardPreviewMode !== "right-click") return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const cardElement = target.closest<HTMLElement>("[data-log-card-id]");
+    const cardId = cardElement?.dataset.logCardId;
+    if (!cardElement || !cardId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onHoverLogCard(cardId, undefined, {
+      useAnchor: true,
+      anchorOverride: cardElement.getBoundingClientRect(),
+      useDelay: false,
+      sticky: true,
+    });
+  };
   const priorityColor = themeColors.activeAction.priority;
   const infoColor = themeColors.promptAction.defenseAction;
 
@@ -99,6 +119,7 @@ export function ActionLog({
       <div
         className="min-h-0 flex-1 overflow-y-auto text-xs text-muted-foreground flex flex-col-reverse pr-1"
         {...longPress}
+        onContextMenu={handleContextMenu}
       >
         {visibleLog
           .slice(-200)

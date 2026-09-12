@@ -74,6 +74,104 @@ impl ClientPlatform {
     }
 }
 
+/// A peer's addressing information for the direct data plane.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TransportEndpoint {
+    pub endpoint_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub direct_addrs: Vec<String>,
+    /// Data planes this peer speaks, most preferred first. Seats follow the host's.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub kinds: Vec<String>,
+}
+
+impl TransportEndpoint {
+    /// Whether this peer advertises a plane.
+    pub fn speaks(&self, kind: &str) -> bool {
+        self.kinds.iter().any(|k| k == kind)
+    }
+}
+
+/// An ICE server, shaped like the `RTCIceServer` dictionary.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IceServer {
+    pub urls: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub username: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub credential: Option<String>,
+}
+
+/// How one seat's game traffic travelled, reported by the room's engine host.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SeatTransportReport {
+    pub username: String,
+    /// One of the `TRANSPORT_*` constants.
+    pub transport: String,
+}
+
+/// One end's account of one direct-plane attempt. Every field is a client claim.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PlaneQualityReport {
+    /// The other end's relay-attested username.
+    pub peer: String,
+    /// One of [`PLANE_OUTCOMES`]; anything else is dropped.
+    pub outcome: String,
+    /// The plane attempted, a `TRANSPORT_*` constant.
+    pub plane: String,
+    /// [`PLANE_PHASE_SETTLED`] once per attempt, then [`PLANE_PHASE_MEASURED`].
+    pub phase: String,
+    /// First offer to open channel.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub connect_ms: Option<u32>,
+    /// Median round trip measured on the channel itself.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rtt_ms: Option<u32>,
+    /// The same session's relay round trip, sampled at the same time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay_rtt_ms: Option<u32>,
+    /// The winning ICE pair as `local/remote`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_pair: Option<String>,
+}
+
+pub const PLANE_PHASE_SETTLED: &str = "settled";
+pub const PLANE_PHASE_MEASURED: &str = "measured";
+
+pub const PLANE_OUTCOME_CONNECTED: &str = "connected";
+pub const PLANE_OUTCOME_FAILED: &str = "failed";
+pub const PLANE_OUTCOME_TIMEOUT: &str = "timeout";
+
+/// Outcomes the relay records; anything else is dropped.
+pub const PLANE_OUTCOMES: &[&str] = &[
+    PLANE_OUTCOME_CONNECTED,
+    PLANE_OUTCOME_FAILED,
+    PLANE_OUTCOME_TIMEOUT,
+];
+
+/// Longest `candidate_pair` the relay records.
+pub const MAX_CANDIDATE_PAIR_BYTES: usize = 64;
+
+/// Longest duration the relay records; ten minutes.
+pub const MAX_PLANE_MS: u32 = 600_000;
+
+/// A browser pair on an `RTCDataChannel`.
+pub const TRANSPORT_WEBRTC: &str = "webrtc";
+
+/// Names for [`TransportEndpoint::kinds`].
+pub const TRANSPORT_KIND_WEBRTC: &str = "webrtc";
+
+/// One room member's endpoint. `username` is relay-attested, never client supplied.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TransportMember {
+    pub username: String,
+    pub endpoint: TransportEndpoint,
+    #[serde(default)]
+    pub host: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[allow(clippy::large_enum_variant)]
@@ -132,6 +230,8 @@ pub enum ClientMessage {
         password: Option<String>,
         #[serde(default)]
         reconnect_timeout_s: Option<u32>,
+        #[serde(default)]
+        table_style: Option<String>,
     },
 
     JoinRoom {
@@ -185,6 +285,14 @@ pub enum ClientMessage {
         stats: EnginePlayStats,
     },
 
+    /// How the game ended, from the seat that ran the engine. The relay
+    /// stopped reading it out of the state stream, which need not pass
+    /// through it any more.
+    ReportGameOutcome {
+        game_id: String,
+        outcome: GameOutcomeReport,
+    },
+
     RequestResync,
 
     BroadcastState {
@@ -197,6 +305,37 @@ pub enum ClientMessage {
     TurnChange {
         new_active_player: String,
         turn_number: u32,
+    },
+    /// Which transport each seat's traffic took for this game. Analytics only.
+    ReportTransport {
+        game_id: String,
+        seats: Vec<SeatTransportReport>,
+    },
+
+    /// Publishes, or with `None` withdraws, this session's data-plane endpoint.
+    AnnounceTransport {
+        #[serde(default)]
+        endpoint: Option<TransportEndpoint>,
+    },
+
+    /// An opaque signalling blob for a room member, named by username.
+    SignalPeer {
+        to: String,
+        payload: serde_json::Value,
+    },
+
+    /// How one direct-plane attempt turned out, sent by the seat. Analytics only.
+    ReportPlaneQuality {
+        report: PlaneQualityReport,
+    },
+
+    SendChat {
+        scope: ChatScope,
+        text: String,
+    },
+
+    InviteToRoom {
+        username: String,
     },
 }
 
@@ -302,7 +441,66 @@ pub enum ServerMessage {
     ServerShuttingDown {
         reconnect_in_s: u32,
     },
+    /// The room's data-plane roster. Sent only to room members.
+    RoomTransport {
+        room_id: String,
+        /// STUN, and TURN where configured, for the WebRTC plane.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        ice_servers: Vec<IceServer>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        host: Option<TransportMember>,
+        members: Vec<TransportMember>,
+    },
+
+    /// A signalling blob from a room member. `from` is relay-attested.
+    PeerSignal {
+        from: String,
+        payload: serde_json::Value,
+    },
+
+    ChatMessage(ChatMessage),
+
+    ChatHistory {
+        scope: ChatScope,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        room_id: Option<String>,
+        messages: Vec<ChatMessage>,
+    },
+
+    RoomInvite {
+        from: String,
+        room: RoomInfo,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        password: Option<String>,
+    },
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ChatScope {
+    Lobby,
+    Room,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatMessage {
+    pub scope: ChatScope,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub room_id: Option<String>,
+    pub from: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qualification: Option<String>,
+    pub text: String,
+    pub sent_at_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seal: Option<String>,
+}
+
+pub const CHAT_MESSAGE_MAX_CHARS: usize = 500;
+pub const CHAT_HISTORY_MAX_MESSAGES: usize = 100;
+pub const CHAT_HISTORY_MAX_AGE_MS: u64 = 24 * 60 * 60 * 1000;
+pub const CHAT_MIN_INTERVAL_MS: u64 = 400;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "lobby/index.ts")]
@@ -325,6 +523,9 @@ pub struct ResumeRoomRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub reconnect_timeout_s: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub table_style: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub draft_config: Option<DraftConfig>,
@@ -360,6 +561,8 @@ pub struct RoomInfo {
     pub engine: EngineKind,
     #[serde(default = "default_reconnect_timeout_s")]
     pub reconnect_timeout_s: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub table_style: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub draft_config: Option<DraftConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -440,12 +643,60 @@ pub struct PlayerInfo {
     /// at the same time as `room_id`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub local_game: Option<LocalGameKind>,
+    /// Opaque to clients: the session's IP sealed together with its handle,
+    /// which only the hub can open. Carried verbatim into chat reports.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seal: Option<String>,
 }
 
 /// Names [`ClientMessage::SetLocalGame`] in `AuthResult::features`.
 pub const FEATURE_LOCAL_GAME: &str = "local_game";
+/// Names [`ClientMessage::SendChat`] in `AuthResult::features`.
+pub const FEATURE_CHAT: &str = "chat";
+/// Names [`ClientMessage::InviteToRoom`] in `AuthResult::features`.
+pub const FEATURE_ROOM_INVITES: &str = "room_invites";
+/// Names [`ClientMessage::ReportGameOutcome`] in `AuthResult::features`.
+pub const FEATURE_GAME_OUTCOME: &str = "game_outcome";
 
-pub const FEATURES: &[&str] = &[FEATURE_LOCAL_GAME];
+/// Names [`ClientMessage::AnnounceTransport`] in `AuthResult::features`.
+pub const FEATURE_ROOM_TRANSPORT: &str = "room_transport";
+
+/// Names [`ClientMessage::SignalPeer`] in `AuthResult::features`.
+pub const FEATURE_PEER_SIGNAL: &str = "peer_signal";
+
+/// Names [`ClientMessage::ReportPlaneQuality`] in `AuthResult::features`.
+pub const FEATURE_PLANE_QUALITY: &str = "plane_quality";
+
+pub const FEATURES: &[&str] = &[
+    FEATURE_LOCAL_GAME,
+    FEATURE_ROOM_TRANSPORT,
+    FEATURE_PEER_SIGNAL,
+    FEATURE_PLANE_QUALITY,
+    FEATURE_CHAT,
+    FEATURE_ROOM_INVITES,
+    FEATURE_GAME_OUTCOME,
+];
+
+/// Largest signalling blob the relay forwards.
+pub const MAX_SIGNAL_BYTES: usize = 16 * 1024;
+
+/// Longest `fatal_message` the relay keeps.
+pub const MAX_FATAL_MESSAGE_CHARS: usize = 500;
+
+/// Engine slots (`player-N`), never usernames: the relay holds the seat map
+/// and does not take a name from a client.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GameOutcomeReport {
+    pub game_over: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub winner_slot: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub conceded_slots: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fatal_message: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turns: Option<u32>,
+}
 
 /// A game running on the player's own machine, which the relay never sees.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

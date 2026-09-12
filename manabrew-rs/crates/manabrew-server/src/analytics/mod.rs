@@ -1,6 +1,6 @@
 mod capture;
 mod event;
-mod writer;
+mod sink;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -34,9 +34,15 @@ impl AnalyticsHandle {
     }
 
     pub fn from_config(config: &ServerConfig) -> Self {
-        let events = config.events_dir.clone().map(|dir| {
+        let hub = config
+            .hub_url
+            .clone()
+            .zip(config.hub_token.clone())
+            .map(|(url, token)| sink::HubTarget { url, token });
+        let spool = config.events_dir.clone().map(PathBuf::from);
+        let events = (hub.is_some() || spool.is_some()).then(|| {
             let (tx, rx) = mpsc::channel(CHANNEL_CAPACITY);
-            writer::spawn(rx, PathBuf::from(dir));
+            sink::spawn(rx, spool, hub);
             tx
         });
         let capture = config.capture_dir.clone().map(|dir| {
@@ -150,6 +156,7 @@ pub fn game_started_event(started: &StartedGame) -> AnalyticsEvent {
         engine: started.room_info.engine,
         hosted: started.room_info.hosted,
         official: started.room_info.official,
+        table_style: started.room_info.table_style.clone(),
         starting_life: started.starting_life,
         players,
     }
@@ -190,6 +197,8 @@ pub fn emit_game_ended(
         winner,
         conceded,
         fatal_message: replay.outcome.fatal_message.clone(),
+        reported: replay.outcome.reported,
+        turns: replay.outcome.turns,
     });
 }
 

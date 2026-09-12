@@ -3,8 +3,10 @@ import { devtools } from "zustand/middleware";
 import type { CardChoiceDto, CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import type { ArrowType } from "@/pixi/types";
+import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
 
 export const DEBUG_KEYWORD_CARD_ID = "dev-keyword-card";
+export const DEBUG_STACK_OBJECT_ID = "dev-stack-object";
 export const DEFAULT_DEBUG_CARD_NAME = "Raging Goblin";
 
 export const DEV_CARD_CHOICE_KINDS = [
@@ -203,6 +205,7 @@ interface GameDevState {
   debugBattlefieldKeywords: string[];
   debugCardChoices: CardChoiceDto[];
   debugCardEnabled: boolean;
+  debugStackCardEnabled: boolean;
   debugCardName: string;
   debugCardDefinition: DeckCard | null;
   debugCardRailEnabled: boolean;
@@ -235,6 +238,7 @@ interface GameDevState {
   setAllDebugCardChoices: () => void;
   clearDebugCardChoices: () => void;
   setDebugCardEnabled: (value: boolean) => void;
+  setDebugStackCardEnabled: (value: boolean) => void;
   setDebugCard: (card: DeckCard) => void;
   setDebugCardRailEnabled: (value: boolean) => void;
   setDebugCardMode: (mode: DevCardRailMode) => void;
@@ -261,6 +265,7 @@ export const useGameDevStore = create<GameDevState>()(
       debugBattlefieldKeywords: [],
       debugCardChoices: [],
       debugCardEnabled: false,
+      debugStackCardEnabled: false,
       debugCardName: DEFAULT_DEBUG_CARD_NAME,
       debugCardDefinition: null,
       debugCardRailEnabled: false,
@@ -312,7 +317,25 @@ export const useGameDevStore = create<GameDevState>()(
         }),
       clearDebugCardChoices: () => set({ debugCardChoices: [] }),
       setDebugCardEnabled: (value) => set({ debugCardEnabled: value }),
-      setDebugCard: (card) => set({ debugCardName: card.identity.name, debugCardDefinition: card }),
+      setDebugStackCardEnabled: (value) => set({ debugStackCardEnabled: value }),
+      setDebugCard: (card) =>
+        set((state) => {
+          const rail = parsePrintedCardRailMetadata(card);
+          const final =
+            rail?.kind === "saga"
+              ? rail.finalChapter
+              : rail?.kind === "class"
+                ? Math.max(...rail.classLevels.map((level) => level.level))
+                : state.debugCardFinal;
+          return {
+            debugCardName: card.identity.name,
+            debugCardDefinition: card,
+            debugCardRailEnabled: rail != null,
+            debugCardMode: rail?.kind ?? state.debugCardMode,
+            debugCardCurrent: rail ? 1 : state.debugCardCurrent,
+            debugCardFinal: final,
+          };
+        }),
       setDebugCardRailEnabled: (value) => set({ debugCardRailEnabled: value }),
       setDebugCardMode: (mode) => set({ debugCardMode: mode }),
       setDebugCardRail: (current, final) =>
@@ -353,6 +376,7 @@ export const useGameDevStore = create<GameDevState>()(
           debugBattlefieldKeywords: [],
           debugCardChoices: [],
           debugCardEnabled: false,
+          debugStackCardEnabled: false,
           debugCardName: DEFAULT_DEBUG_CARD_NAME,
           debugCardDefinition: null,
           debugCardRailEnabled: false,

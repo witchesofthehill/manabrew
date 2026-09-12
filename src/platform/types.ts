@@ -1,8 +1,10 @@
 import type { EngineGameStats } from "@/lib/engineTelemetry";
 import type {
+  ChatScope,
   DraftConfig,
   EngineKind,
   GameFormat,
+  GameOutcomeReport,
   RoomRelayEnvelope,
   SealedConfig,
   LocalGameKind,
@@ -51,6 +53,8 @@ export interface ServerConnectParams {
   port: number;
   username: string;
   password: string;
+  /** A relay found on the local network. No direct plane there for now. */
+  lan?: boolean;
 }
 
 export interface CreateRoomParams {
@@ -63,6 +67,7 @@ export interface CreateRoomParams {
   sealedConfig?: SealedConfig;
   reconnectTimeoutS?: number;
   password?: string;
+  tableStyle?: string;
 }
 
 export interface JoinRoomParams {
@@ -84,6 +89,15 @@ export interface SetDeckSelectionParams {
   publishedDeckId?: string;
   commanderName: string | null;
   avatarUrl?: string;
+}
+
+export interface SendChatParams {
+  scope: ChatScope;
+  text: string;
+}
+
+export interface InviteToRoomParams {
+  username: string;
 }
 
 export interface StartServerGameParams {
@@ -131,6 +145,8 @@ export interface IServerApi {
   listRooms(): Promise<void>;
   listPlayers(): Promise<void>;
   setLocalGame(kind: LocalGameKind | null): Promise<void>;
+  sendChat(params: SendChatParams): Promise<void>;
+  inviteToRoom(params: InviteToRoomParams): Promise<void>;
   createRoom(params: CreateRoomParams): Promise<string | null>;
   stopRoom(): Promise<void>;
   joinRoom(params: JoinRoomParams): Promise<void>;
@@ -144,6 +160,7 @@ export interface IServerApi {
   startGame(params?: StartServerGameParams): Promise<void>;
   endGame(gameId: string): Promise<void>;
   reportEngineStats(stats: EngineGameStats, gameId?: string | null): Promise<void>;
+  reportGameOutcome(gameId: string, outcome: GameOutcomeReport): Promise<void>;
   requestResync(): Promise<void>;
   broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void>;
   sendRoomMessage(message: RoomRelayEnvelope): Promise<void>;

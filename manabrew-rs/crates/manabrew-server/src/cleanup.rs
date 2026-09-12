@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use tracing::{info, warn};
 
 use crate::analytics::{self, GameEndReason};
-use crate::connection::{broadcast_to_room, emit_to};
+use crate::connection::{broadcast_room_transport, broadcast_to_room, emit_to};
 use crate::lobby;
 use crate::protocol::{RoomStatus, ServerMessage};
 use crate::room::Room;
@@ -399,6 +399,7 @@ fn mark_disconnected_inner(state: &Arc<ServerState>, player_id: &str, our_genera
                             },
                         );
                     }
+                    broadcast_room_transport(state, rid);
                 }
 
                 info!("[cleanup] '{}' removed (disconnected from lobby)", username);
@@ -422,7 +423,6 @@ pub fn remove_room_and_clear_sessions(
 ) {
     if let Some((_, room)) = state.rooms.remove(room_id) {
         if let Some(replay) = room.replay.as_ref() {
-            state.deck_play_events.game_ended(replay);
             analytics::emit_game_ended(&state.analytics, &room, replay, reason);
         }
     }

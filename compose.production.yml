@@ -28,10 +28,8 @@ services:
     # ~1h WASM+Vite build that does not fit the prod host's disk. The published
     # image is relay-agnostic; it is pointed at the relay at RUNTIME via the
     # RELAY_* env below (ops/web-entrypoint.sh writes /srv/manabrew/config.js),
-    # replacing the old VITE_RELAY_* build args. NOTE: the CI image is built
-    # without VITE_SCRYFALL_SYMBOL_BASE, so mana symbols load from
-    # svgs.scryfall.io directly rather than the /scryfall-symbols/ Caddy proxy —
-    # make it runtime-configurable if the proxy is required.
+    # replacing the old VITE_RELAY_* build args. Browser mana symbols use the
+    # same-origin /scryfall-symbols/ Caddy proxy by default.
     image: ghcr.io/witchesofthehill/manabrew-web:${MANABREW_IMAGE_TAG:-latest}
     restart: unless-stopped
     expose:
@@ -82,6 +80,9 @@ services:
       MANABREW_EVENTS_DIR: "/var/manabrew/events"
       MANABREW_GAME_CAPTURE_DIR: "/var/manabrew/captures"
       MANABREW_GAME_CAPTURE_MAX_GB: "${MANABREW_GAME_CAPTURE_MAX_GB:-20}"
+      # Peer-to-peer game traffic, see docs/TRANSPORT.md. Unset = fail closed.
+      MANABREW_DIRECT_TRANSPORT: "${MANABREW_DIRECT_TRANSPORT:-1}"
+      MANABREW_ICE_SERVERS: "${MANABREW_ICE_SERVERS:-stun:relay.manabrew.app:3478}"
     volumes:
       - ./ops/observability/data/events:/var/manabrew/events
       - ./ops/observability/data/captures:/var/manabrew/captures
@@ -109,6 +110,7 @@ services:
       HUB_DB_PATH: "/var/manabrew/hub/hub.db"
       HUB_ANALYTICS_IMPORT_DB_PATH: "/var/manabrew/events/events.db"
       HUB_RELAY_DECK_PLAYS_TOKEN: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
+      SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
       DECK_HUB: "${DECK_HUB:-1}"
       # Player avatars and playmats. All five are required together; with any of
       # them unset the hub reports no asset capability and the upload endpoints
@@ -146,6 +148,27 @@ services:
       timeout: 3s
       retries: 3
       start_period: 5s
+
+  # STUN only, no TURN. Host networking: the docker proxy would rewrite the
+  # observed source address. Staging's coturn is on 3479.
+  coturn:
+    image: coturn/coturn:4.6-alpine
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - --listening-port=${MANABREW_STUN_PORT:-3478}
+      - --listening-ip=0.0.0.0
+      - --stun-only
+      - --no-cli
+      - --no-tls
+      - --no-dtls
+      - --no-multicast-peers
+      - --fingerprint
+      - --log-file=stdout
+      - --simple-log
+    mem_limit: 96m
+    cpus: 0.25
+    cpu_shares: 128
 
   # Headless engine node hosting a room for web "Play vs AI". Opt-in: the
   # default deploy doesn't build/run it (Play-vs-AI works client-side). Start
@@ -247,8 +270,8 @@ services:
     command:
       - python
       - /app/ingest-events.py
-      - --dir
-      - /var/manabrew/events
+      - --db
+      - /var/manabrew/events/events.db
       - --hub-db
       - /var/manabrew/hub/hub.db
       - --watch

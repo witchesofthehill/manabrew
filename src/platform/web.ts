@@ -6,7 +6,7 @@
  */
 
 import type { EngineGameStats } from "@/lib/engineTelemetry";
-import { noteEngineThinkTime } from "@/lib/engineTelemetry";
+import { noteEngineThinkTime, noteReplyFrameArrived } from "@/lib/engineTelemetry";
 import type {
   IPlatformApi,
   IGameApi,
@@ -29,11 +29,14 @@ import type {
   SetFormatParams,
   SetMaxPlayersParams,
   SpawnAiBotParams,
+  SendChatParams,
+  InviteToRoomParams,
 } from "./types";
 import {
   DUPLICATE_USERNAME_ERROR_FRAGMENT,
   SERVER_ERROR_CODE,
   TOKEN_EXPIRED_ERROR_FRAGMENT,
+  type GameOutcomeReport,
   type LocalGameKind,
 } from "@/types/server";
 import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
@@ -52,9 +55,24 @@ import { getClientPlatform } from "./clientPlatform";
 import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 import { applyStateDelta, diffStateDelta } from "@/lib/stateDelta";
-import { isForgeWasmHostingEnabled, setForgeWasmActive } from "@/lib/forgeWasm";
-import { buildForgeAssetBundle } from "@/lib/forgeAssets";
-import type { Deck } from "@/protocol/deck";
+import {
+  WebRtcPlane,
+  iceServersFrom,
+  planeForRoom,
+  webRtcEndpoint,
+  TRANSPORT_KIND_WEBRTC,
+  type PlaneMeasurement,
+  type RosterMember,
+} from "@/game/webrtcPlane";
+import { ForgeHostBridge } from "@/game/forgeHostBridge";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import {
+  FORGE_LAUNCHER_URL,
+  FORGE_WASM_URL,
+  isForgeWasmHostingEnabled,
+  setForgeWasmActive,
+} from "@/lib/forgeWasm";
+import forgeWorkerUrl from "@forge-wasm/forge-engine.worker.js?url";
 // The seat protocol lives with @manabrew/forge-wasm, which drives the same
 // worker, so there is one implementation rather than one per consumer.
 import {
@@ -212,6 +230,11 @@ class WorkerBridge {
   }
 
   private dispatchEngineMessage(msg: EngineMessage): void {
+    // The seat reader has already parsed, so a hair of client work lands on
+    // the far side of the cut here; there is no wire on this path anyway.
+    if (msg?.kind === "state" || msg?.kind === "prompt" || msg?.kind === "display") {
+      noteReplyFrameArrived();
+    }
     logComms("engine", msg);
     if (this.workerIsForgeWasm) {
       const w = window as unknown as { __forgeFrames?: string[] };
@@ -348,7 +371,7 @@ class WorkerBridge {
         this.workerIsForgeWasm = forgeWasm;
         setForgeWasmActive(forgeWasm);
         this.worker = this.workerIsForgeWasm
-          ? new Worker("/forge/forge-engine.worker.js")
+          ? new Worker(forgeWorkerUrl)
           : new Worker(new URL("../workers/game-engine.worker.ts", import.meta.url), {
               type: "module",
             });
@@ -391,7 +414,10 @@ class WorkerBridge {
         this.worker.onmessage = this.handleMessage.bind(this);
         this.worker.onerror = (e) => {
           console.error("[WorkerBridge] Worker error:", e);
-          reject(new Error(`Worker error: ${e.message}`));
+          const error = new Error(`Worker error: ${e.message}`);
+          reject(error);
+          for (const pending of this.pendingRequests.values()) pending.reject(error);
+          this.pendingRequests.clear();
         };
 
         const unsubscribe = this.eventBus.on<{ stage?: string; message?: string }>(
@@ -456,11 +482,7 @@ class WorkerBridge {
     await this.init(forgeWasm);
 
     if (startsGame && this.workerIsForgeWasm) {
-      const decks =
-        command === "start_game"
-          ? [args?.deck as Deck | undefined, ...((args?.opponentDecks as Deck[] | undefined) ?? [])]
-          : ((args?.decks as Deck[] | undefined) ?? []);
-      args = { ...args, forgeAssets: await buildForgeAssetBundle(decks) };
+      args = { ...args, forgeLauncherUrl: FORGE_LAUNCHER_URL, forgeWasmUrl: FORGE_WASM_URL };
     }
 
     if (!this.worker) {
@@ -752,9 +774,25 @@ class WebServerApi implements IServerApi {
   private resumeToken: string | null = null;
   private pendingRelayPrompts = new Map<string, Record<string, unknown>>();
   private enginePlayerNames: string[] = [];
+  private webrtc: WebRtcPlane | null = null;
+  private peerSignalling = false;
+  private forgeHostBridge: ForgeHostBridge | null = null;
+  private announcedRoom: string | null = null;
+  private relayRttMs: number | null = null;
+  private planeQualityReporting = false;
+  private pingSentAt: number | null = null;
+  private directTransportOptIn = usePreferencesStore.getState().directTransport;
+  private roomTransport = false;
+  private currentRoomId: string | null = null;
 
   constructor(eventBus: WebEventBus) {
     this.eventBus = eventBus;
+
+    usePreferencesStore.subscribe((prefs) => {
+      if (prefs.directTransport === this.directTransportOptIn) return;
+      this.directTransportOptIn = prefs.directTransport;
+      this.onDirectTransportPreference();
+    });
 
     // Relay engine messages (state/display/prompt) to remote players via WebSocket.
     eventBus.on<RelayMessage>("game:relay_message", ({ forPlayer, msg }) => {
@@ -866,9 +904,12 @@ class WebServerApi implements IServerApi {
         if (this.ws !== socket) return;
         this.lastInboundAt = Date.now();
         if (typeof e.data !== "string") return;
+        // Before the parse: a state frame is tens of kilobytes, and parsing
+        // it is this machine's work, not the wire's.
+        const frameAt = performance.now();
         try {
           const msg = JSON.parse(e.data);
-          this.handleServerMessage(msg);
+          this.handleServerMessage(msg, frameAt);
         } catch {
           // Ignore malformed messages
         }
@@ -973,6 +1014,7 @@ class WebServerApi implements IServerApi {
         this.failStaleSocket();
         return;
       }
+      this.pingSentAt = now;
       this.send({ type: "Ping" });
     }, KEEPALIVE_INTERVAL_MS);
   }
@@ -1040,6 +1082,14 @@ class WebServerApi implements IServerApi {
     this.send({ type: "SetLocalGame", kind });
   }
 
+  async sendChat(params: SendChatParams): Promise<void> {
+    this.send({ type: "SendChat", scope: params.scope, text: params.text });
+  }
+
+  async inviteToRoom(params: InviteToRoomParams): Promise<void> {
+    this.send({ type: "InviteToRoom", username: params.username });
+  }
+
   async createRoom(params: CreateRoomParams): Promise<string | null> {
     if (params.engine === "Forge" && !isForgeWasmHostingEnabled()) {
       throw new Error("Forge engine is not supported on the web");
@@ -1056,6 +1106,7 @@ class WebServerApi implements IServerApi {
       sealed_config: params.sealedConfig ?? null,
       reconnect_timeout_s: params.reconnectTimeoutS ?? null,
       password: params.password ?? null,
+      table_style: params.tableStyle ?? null,
     });
     return null;
   }
@@ -1087,6 +1138,9 @@ class WebServerApi implements IServerApi {
     }
     this.stopAllBots();
     clearSpawnedBots();
+    this.announcedRoom = null;
+    this.currentRoomId = null;
+    this.dropWebRtcPlane();
     this.send({ type: "LeaveRoom" });
   }
 
@@ -1134,11 +1188,16 @@ class WebServerApi implements IServerApi {
     this.send({ type: "ReportEngineStats", game_id: gameId ?? null, stats });
   }
 
+  async reportGameOutcome(gameId: string, outcome: GameOutcomeReport): Promise<void> {
+    this.send({ type: "ReportGameOutcome", game_id: gameId, outcome });
+  }
+
   async requestResync(): Promise<void> {
     this.send({ type: "RequestResync" });
   }
 
   async broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void> {
+    if (this.webrtc?.trySend(state, targetPlayer)) return;
     this.send({ type: "BroadcastState", state, target_player: targetPlayer });
   }
 
@@ -1272,6 +1331,148 @@ class WebServerApi implements IServerApi {
     return this.wasmReady;
   }
 
+  /** The host's advertised kinds decide the room's plane. */
+  private onRoomTransport(msg: Record<string, unknown>): void {
+    if (!this.authedUsername) return;
+    const members = Array.isArray(msg.members) ? (msg.members as RosterMember[]) : [];
+    if (!this.directTransportEnabled()) {
+      this.dropWebRtcPlane();
+      return;
+    }
+    if (!msg.host) {
+      this.webrtc?.onRoster([], undefined);
+      void this.forgeHostBridge?.onRoster([], undefined);
+      return;
+    }
+    const host = msg.host as RosterMember;
+
+    if (host.username !== this.authedUsername) {
+      void this.maybeProxyForgeHost(members, host, iceServersFrom(msg));
+    }
+
+    if (planeForRoom(host, this.myTransportKinds()) === TRANSPORT_KIND_WEBRTC) {
+      this.onWebRtcRoster(members, host, iceServersFrom(msg));
+    } else {
+      this.dropWebRtcPlane();
+    }
+  }
+
+  /** The player's opt-in, except on a LAN relay, which stays on the relay for now. */
+  private directTransportEnabled(): boolean {
+    return this.directTransportOptIn && !this.connectParams?.lan;
+  }
+
+  private onDirectTransportPreference(): void {
+    if (this.directTransportEnabled()) {
+      if (this.currentRoomId) this.announceTransport(this.currentRoomId);
+      return;
+    }
+    if (this.announcedRoom && this.ws?.readyState === WebSocket.OPEN) {
+      this.send({ type: "AnnounceTransport", endpoint: null });
+    }
+    this.announcedRoom = null;
+    this.dropWebRtcPlane();
+    this.forgeHostBridge?.stop();
+    this.forgeHostBridge = null;
+  }
+
+  private dropWebRtcPlane(): void {
+    if (!this.webrtc) return;
+    this.webrtc.close();
+    this.webrtc = null;
+  }
+
+  /** Announces on entering a room. The relay names a host once all have. */
+  private announceTransport(roomId: string): void {
+    if (!roomId || this.announcedRoom === roomId) return;
+    if (!this.directTransportEnabled() || !this.roomTransport) return;
+    if (!this.peerSignalling || !WebRtcPlane.supported() || !this.authedUsername) return;
+    this.announcedRoom = roomId;
+    this.send({ type: "AnnounceTransport", endpoint: webRtcEndpoint(this.authedUsername) });
+  }
+
+  private myTransportKinds(): string[] {
+    return this.peerSignalling && WebRtcPlane.supported() ? [TRANSPORT_KIND_WEBRTC] : [];
+  }
+
+  private async maybeProxyForgeHost(
+    members: RosterMember[],
+    host: RosterMember,
+    iceServers: RTCIceServer[],
+  ): Promise<void> {
+    if (!this.directTransportEnabled()) return;
+    if (!this.peerSignalling || !WebRtcPlane.supported()) return;
+    if (getClientPlatform() !== "desktop") return;
+    if (!this.forgeHostBridge) {
+      if (!(await ForgeHostBridge.hosting())) return;
+      this.forgeHostBridge = new ForgeHostBridge(host.username, iceServers);
+    }
+    await this.forgeHostBridge.onRoster(members, host);
+  }
+
+  private onWebRtcRoster(
+    members: RosterMember[],
+    host: RosterMember,
+    iceServers: RTCIceServer[],
+  ): void {
+    if (!this.peerSignalling || !WebRtcPlane.supported()) return;
+    if (!this.webrtc) {
+      if (iceServers.length === 0) {
+        console.warn(
+          "[webrtc] this relay published no ICE servers; the direct plane will " +
+            "not reach a peer on another network. Set MANABREW_ICE_SERVERS on the relay.",
+        );
+      }
+      this.webrtc = new WebRtcPlane({
+        iceServers,
+        username: this.authedUsername!,
+        signal: (to, payload) => this.send({ type: "SignalPeer", to, payload }),
+        deliver: (envelope, fromPlayer) =>
+          this.handleServerMessage(
+            {
+              type: "StateUpdate",
+              from_player: fromPlayer,
+              state: envelope,
+            },
+            performance.now(),
+          ),
+        onMeasurement: (m) => this.onPlaneMeasurement(m),
+      });
+    }
+    this.webrtc.onRoster(members, host);
+  }
+
+  private onPlaneMeasurement(m: PlaneMeasurement): void {
+    const parts = [`peer=${m.peer}`, `outcome=${m.outcome}`];
+    if (m.connectMs !== undefined) parts.push(`connect=${Math.round(m.connectMs)}ms`);
+    if (m.rttMs !== undefined) parts.push(`rtt=${Math.round(m.rttMs)}ms`);
+    if (m.candidatePair) parts.push(`pair=${m.candidatePair}`);
+    if (this.relayRttMs !== null) parts.push(`relayRtt=${this.relayRttMs}ms`);
+    console.info(`[webrtc] ${parts.join(" ")}`);
+    this.eventBus.emit("transport:measurement", { transport: "webrtc", ...m });
+    this.reportPlaneQuality("webrtc", m);
+  }
+
+  /** Sends the measurement to the relay, failures included. */
+  private reportPlaneQuality(plane: string, m: PlaneMeasurement): void {
+    if (!this.planeQualityReporting) return;
+    const whole = (value: number | undefined): number | undefined =>
+      value === undefined || !Number.isFinite(value) ? undefined : Math.max(0, Math.round(value));
+    this.send({
+      type: "ReportPlaneQuality",
+      report: {
+        peer: m.peer,
+        outcome: m.outcome,
+        plane,
+        phase: m.phase,
+        connect_ms: whole(m.connectMs),
+        rtt_ms: whole(m.rttMs),
+        relay_rtt_ms: whole(this.relayRttMs ?? undefined),
+        candidate_pair: m.candidatePair,
+      },
+    });
+  }
+
   private send(msg: Record<string, unknown>): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       console.error("[WebServerApi] Not connected");
@@ -1281,11 +1482,30 @@ class WebServerApi implements IServerApi {
     this.ws.send(JSON.stringify(msg));
   }
 
-  private handleServerMessage(msg: Record<string, unknown>): void {
+  /**
+   * @param frameAt when the frame carrying `msg` reached this client, for the
+   *   turnaround split. Omitted for synthesised messages, which are not a
+   *   reply arriving.
+   */
+  private handleServerMessage(msg: Record<string, unknown>, frameAt?: number): void {
     const type = msg.type as string;
     // The heartbeat would evict real traffic from the bug-report ring buffer.
-    if (type === "Pong") return;
+    if (type === "Pong") {
+      if (this.pingSentAt !== null) {
+        this.relayRttMs = Date.now() - this.pingSentAt;
+        this.pingSentAt = null;
+      }
+      return;
+    }
     logComms("recv", msg);
+    if (type === "AuthResult" && msg.success) {
+      this.peerSignalling =
+        Array.isArray(msg.features) && (msg.features as string[]).includes("peer_signal");
+      this.roomTransport =
+        Array.isArray(msg.features) && (msg.features as string[]).includes("room_transport");
+      this.planeQualityReporting =
+        Array.isArray(msg.features) && (msg.features as string[]).includes("plane_quality");
+    }
     if (DEBUG_TRANSPORT) console.log("[transport←ws] received:", JSON.stringify(msg));
     if (isPromptLoggingEnabled()) {
       if (type === "AuthResult") {
@@ -1327,9 +1547,33 @@ class WebServerApi implements IServerApi {
       return;
     }
 
+    if (type === "RoomTransport") {
+      this.onRoomTransport(msg);
+      return;
+    }
+    if (type === "PeerSignal") {
+      void this.webrtc?.onSignal(String(msg.from ?? ""), msg.payload);
+      return;
+    }
+    if (type === "GameStarted") {
+      this.webrtc?.freeze();
+    }
+    if (type === "GameAborted") {
+      this.webrtc?.clear();
+    }
+
     if (type === "StateUpdate" && msg.state) {
       const envelope = msg.state as StateEnvelope;
       const forPlayer = (envelope as { forPlayer?: string }).forPlayer;
+      if (
+        frameAt !== undefined &&
+        (envelope.kind === "state" ||
+          envelope.kind === "stateDelta" ||
+          envelope.kind === "prompt" ||
+          envelope.kind === "display")
+      ) {
+        noteReplyFrameArrived(frameAt);
+      }
       const promptType =
         envelope.kind === "prompt"
           ? ((envelope as { prompt?: { input?: { type?: string } } }).prompt?.input?.type ?? "?")
@@ -1426,6 +1670,18 @@ class WebServerApi implements IServerApi {
 
     if (type === "RoomCreated") {
       this.resumeToken = typeof msg.resume_token === "string" ? msg.resume_token : null;
+      const room = msg.room as { room_id?: string } | undefined;
+      const roomId = String(room?.room_id ?? msg.room_id ?? "");
+      if (roomId) this.currentRoomId = roomId;
+      this.announceTransport(roomId);
+    }
+
+    // RoomUpdate reaches members only, so this never announces into a foreign room.
+    if (type === "RoomUpdate") {
+      const room = msg.room as { room_id?: string } | undefined;
+      const roomId = String(room?.room_id ?? "");
+      if (roomId) this.currentRoomId = roomId;
+      this.announceTransport(roomId);
     }
 
     if (type === "GameStarted") {
@@ -1520,6 +1776,27 @@ class WebServerApi implements IServerApi {
         },
       ],
       GameAborted: ["server:game_aborted", { room_id: msg.room_id }],
+      ChatMessage: [
+        "server:chat_message",
+        {
+          scope: msg.scope,
+          room_id: msg.room_id,
+          from: msg.from,
+          avatar_url: msg.avatar_url,
+          qualification: msg.qualification,
+          text: msg.text,
+          sent_at_ms: msg.sent_at_ms,
+          seal: msg.seal,
+        },
+      ],
+      ChatHistory: [
+        "server:chat_history",
+        { scope: msg.scope, room_id: msg.room_id, messages: msg.messages },
+      ],
+      RoomInvite: [
+        "server:room_invite",
+        { from: msg.from, room: msg.room, password: msg.password },
+      ],
       Error: ["server:error", { code: msg.code, message: msg.message }],
     };
 

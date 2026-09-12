@@ -1,7 +1,7 @@
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::protocol::{EngineKind, GameFormat};
+use crate::protocol::{EngineKind, GameFormat, SeatTransportReport};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -68,6 +68,8 @@ pub enum AnalyticsEvent {
         engine: EngineKind,
         hosted: bool,
         official: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        table_style: Option<String>,
         starting_life: i32,
         players: Vec<SeatInfo>,
     },
@@ -81,6 +83,41 @@ pub enum AnalyticsEvent {
         winner: Option<String>,
         conceded: Vec<String>,
         fatal_message: Option<String>,
+        /// Whether the host filed the outcome; false means the reason is the
+        /// room lifecycle's fallback and `game_over` says nothing.
+        reported: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        turns: Option<u32>,
+    },
+    /// Which seats left the relay's data plane, as reported by the host.
+    TransportUsed {
+        ts: String,
+        room_id: String,
+        game_id: String,
+        host: String,
+        seats: Vec<SeatTransportReport>,
+    },
+    /// One end's account of one direct-plane attempt, whether or not it worked.
+    PlaneQuality {
+        ts: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        room_id: Option<String>,
+        /// Relay-attested; never client supplied.
+        username: String,
+        /// The other end, as the reporter named it.
+        peer: String,
+        plane: String,
+        outcome: String,
+        /// `settled` or `measured`; a connected peer reports both.
+        phase: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connect_ms: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        rtt_ms: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        relay_rtt_ms: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        candidate_pair: Option<String>,
     },
     EngineStats {
         ts: String,
@@ -125,6 +162,21 @@ pub enum AnalyticsEvent {
         #[serde(skip_serializing_if = "Option::is_none")]
         engine_cross_max: Option<u32>,
         think_hidden: u32,
+        /// `turnaround` cut at the first reply frame reaching the client:
+        /// server, wire and transfer on one side, parse, apply and render on
+        /// the other. Absent from clients that predate the cut.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        reply_wait_p50: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        reply_wait_p90: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        reply_wait_max: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        client_work_p50: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        client_work_p90: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        client_work_max: Option<u32>,
     },
 
     DeckSelected {

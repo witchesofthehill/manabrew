@@ -37,6 +37,7 @@ Filtered diagnosis for player behavior and game friction. Global variables apply
 | Behavior over time | games/players, completion, seven-day return cohorts, anonymous player frequency |
 | Where is friction? | duration distribution, human participation, non-game-over ending reasons        |
 | Platform usage     | distinct users and daily users across web, PWA, desktop, and mobile             |
+| Tables             | table background mix — `table_style` on `game_started`, relay games only        |
 
 The retention panel uses first relay appearance as the cohort date. Recent cohorts have not had a full seven-day observation window and are explicitly labelled incomplete.
 
@@ -72,7 +73,7 @@ Datasources: Prometheus (`prometheus`), Loki (`loki`). Engine and decision laten
 | Reconnect resyncs (per hour)              | timeseries | `sum(rate(manabrew_relay_reconnect_resyncs_total[1h])) * 3600` and `sum(rate(manabrew_node_relay_reconnects_total[1h])) * 3600`      |
 | Warnings & errors                         | logs       | Loki warnings/errors from relay, Hub, node, and events ingester                                                                      |
 | Stuck-room signal                         | timeseries | Abandoned game reaps compared with other game endings over two hours                                                                 |
-| Deck-play events dropped                  | stat       | `sum(manabrew_relay_deck_play_events_dropped_total)`                                                                                 |
+| Analytics waiting on the hub              | stat       | `spooled` minus `drained` of `manabrew_relay_analytics_delivered_total`                                                              |
 | Hub analytics age                         | stat       | Seconds since the latest successful sanitized Hub export in `events.db`                                                              |
 | Lobby players record                      | stat       | 30-day maximum of connected human player seats in lobby rooms                                                                        |
 | Concurrent games record                   | stat       | 30-day maximum of the same sum                                                                                                       |
@@ -111,6 +112,8 @@ Everything about how fast an engine answers, in one place. The hosted half was t
 Turnaround is measured on the client: the answer leaving to the next prompt landing. It includes the network for a hosted engine and nothing but the engine for a local one, which is what makes the engines comparable at all. Per-game percentiles are aggregated as medians across games, never as an average of averages. A game reports once, when it ends, and only if it had at least five decisions in it.
 
 **`engine_*` is not per-decision time, and the unsplit number is dominated by seat count.** A think sample is the window from the player's answer landing to the next prompt being ready, so in a game against the AI it contains the opponents' whole turns. On 2026-08-31, two-seat forge-wasm games averaged a 77ms median against 997ms for four-seat ones: 13x for 3x the opponents. The node side already accounts for this, which is why `manabrew_node_forge_decision_stage_seconds` is split by seat count. **Cut by `seats` before comparing anything**, and prefer the split columns: `engine_same_*` is the engine resolving what the player just did, `engine_cross_*` is the opponents playing. `think_hidden` counts windows dropped for being measured across a backgrounded tab, where the wall clock keeps running and the worker does not.
+
+**`turnaround_*` is cut at the first reply frame reaching the client.** `reply_wait_*` is answer sent to first frame arrived: the server, the hop, the player's link and the transfer of the reply. `client_work_*` is first frame to prompt handled: parsing, applying the state, rendering. The two sum to `turnaround_*` per decision. This exists because on 2026-09-10 a per-seat join of relay captures against client reports put everything outside the client at ~300ms p50 for a hosted 2-seat game while the client reported ~550ms on web and 1.5-2s on two desktop machines, and nothing measured could say whether the rest was the link or the machine. Null from clients that predate the cut and from engines with no frame boundary; for the browser Forge engine the "frame" is the seat read, so `reply_wait_*` there is engine time plus the seat drain, not a wire.
 
 `engine` names what ran, not what the room asked for: `forge-hosted` (a node), `forge-desktop` (the desktop build hosting its own room), `forge-wasm` (the browser build in this tab), `forge-remote` (Forge in another player's client), `manabrew`, `ironsmith`. The label is fixed when the game starts, because a hosted game is driven through the Manabrew runtime like any other and cannot be recognised afterwards.
 
@@ -172,18 +175,18 @@ Broad all-in-one inventory retained for ad hoc analysis and schema inspection. T
 
 Defined in `manabrew-rs/crates/manabrew-server/src/metrics.rs`, served on the health port at `/metrics`, scraped per `ops/observability/prometheus/prometheus.yml` (job `relay`).
 
-| Metric                                          | Kind    | Labels                          |
-| ----------------------------------------------- | ------- | ------------------------------- |
-| `manabrew_relay_connections`                    | gauge   | `kind`                          |
-| `manabrew_relay_players`                        | gauge   | `kind`, `status`                |
-| `manabrew_relay_rooms`                          | gauge   | `status`, `hosted`              |
-| `manabrew_relay_games_started_total`            | counter | `engine`                        |
-| `manabrew_relay_engine_reports_total`           | counter | `outcome`                       |
-| `manabrew_relay_games_ended_total`              | counter | `reason`                        |
-| `manabrew_relay_client_rejections_total`        | counter | `reason` (e.g. `outdated_wire`) |
-| `manabrew_relay_reconnect_resyncs_total`        | counter | —                               |
-| `manabrew_relay_analytics_dropped_total`        | counter | —                               |
-| `manabrew_relay_deck_play_events_dropped_total` | counter | —                               |
+| Metric                                     | Kind    | Labels                                |
+| ------------------------------------------ | ------- | ------------------------------------- |
+| `manabrew_relay_connections`               | gauge   | `kind`                                |
+| `manabrew_relay_players`                   | gauge   | `kind`, `status`                      |
+| `manabrew_relay_rooms`                     | gauge   | `status`, `hosted`                    |
+| `manabrew_relay_games_started_total`       | counter | `engine`                              |
+| `manabrew_relay_engine_reports_total`      | counter | `outcome`                             |
+| `manabrew_relay_games_ended_total`         | counter | `reason`                              |
+| `manabrew_relay_client_rejections_total`   | counter | `reason` (e.g. `outdated_wire`)       |
+| `manabrew_relay_reconnect_resyncs_total`   | counter | —                                     |
+| `manabrew_relay_analytics_dropped_total`   | counter | —                                     |
+| `manabrew_relay_analytics_delivered_total` | counter | `path` (`live`, `spooled`, `drained`) |
 
 ### Prometheus — self-hosted-node metrics
 
@@ -212,18 +215,21 @@ variable at a directory instead to write rotating files, for a node that is not 
 
 ### SQLite analytics DB
 
-`scripts/ingest-events.py` tails the relay's analytics JSONL (`MANABREW_EVENTS_DIR`) into SQLite; Grafana reads it via the `events-sqlite` datasource. The same process opens `hub.db` query-only when `--hub-db` is configured and materializes sanitized analytics into `events.db`. Grafana never mounts or queries `hub.db`.
+The hub is the store. The relay posts every analytics event, one JSON line each, to `POST /internal/analytics/events` (bearer `HUB_RELAY_DECK_PLAYS_TOKEN`), and the hub keeps the line verbatim in `relay_events` (migration 23) keyed by the SHA-256 of the line, so a redelivered batch is one row. `MANABREW_EVENTS_DIR` on the relay is now a spool: a batch the hub refuses or cannot be reached for is written there as `spool-*.jsonl` and drained on a timer, along with any `events-*.jsonl` daily file from before the change, which is how the history reached the hub. `manabrew_relay_analytics_delivered_total{path}` counts `live`, `spooled` and `drained` lines; `spooled` running ahead of `drained` means the hub is down. A relay with the directory and no hub URL (self-hosted) keeps writing the daily files.
+
+`scripts/ingest-events.py` opens `hub.db` query-only, pulls `relay_events` past the last row id it saw (`ingest_state`, key `hub:relay_events`) and materialises them into `events.db`; Grafana reads that via the `events-sqlite` datasource and never mounts or queries `hub.db`. `events.event_id` carries the same hash, so a line already present is skipped: the ingester can be pointed at a fresh `events.db` to rebuild it from the hub, or left on the existing one, and neither duplicates. The same process materialises the sanitized Hub analytics below.
 
 | Table                   | Columns                                                                                                                                                                                                                      |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `games`                 | `game_id`, `room_id`, `started_at`, `ended_at`, `duration_s`, `format`, `engine`, `hosted`, `official`, `starting_life`, `player_count`, `end_reason`, `game_over`, `winner`                                                 |
+| `games`                 | `game_id`, `room_id`, `started_at`, `ended_at`, `duration_s`, `format`, `engine`, `hosted`, `official`, `starting_life`, `player_count`, `end_reason`, `game_over`, `winner`, `reported`, `turns`, `direct_seats`, `source`  |
 | `game_players`          | `game_id`, `username`, `is_bot`, `deck_name`, `commander`, `published_deck_id`, `deck_fingerprint`                                                                                                                           |
 | `decks`                 | `deck_id`, `ts`, `room_id`, `username`, `is_bot`, `deck_name`, `commander`, `sideboard_count`                                                                                                                                |
 | `deck_cards`            | `deck_id`, `name`, `set_code`, `count`                                                                                                                                                                                       |
-| `events`                | `id`, `ts`, `event`, `room_id`, `payload` (raw JSON)                                                                                                                                                                         |
+| `events`                | `id`, `ts`, `event`, `room_id`, `payload` (raw JSON), `event_id` (SHA-256 of the payload, the idempotency key)                                                                                                               |
 | `engine_stats`          | `report_id`, `ts`, `source` (`relay` or `hub`), `game_id`, `engine`, `client_version`, `platform`, `format`, `seats`, `multiplayer`, `duration_s`, `end_reason`, `decisions`, `turnaround_p50/p90/max`, `engine_p50/p90/max` |
 | `client_connections`    | `id`, `ts`, `username`, classified `platform`, reconnect flag                                                                                                                                                                |
-| `ingest_state`          | `file`, `byte_offset`                                                                                                                                                                                                        |
+| `plane_attempts`        | one row per `plane_quality` report: `username`, `peer`, `plane`, `outcome`, `phase`, `connect_ms`, `rtt_ms`, `relay_rtt_ms`, `candidate_pair`                                                                                |
+| `ingest_state`          | `file`, `byte_offset`; `hub:relay_events` holds the last `relay_events.id` materialised, older rows are the retired JSONL offsets                                                                                            |
 | `hub_sync_state`        | latest successful export time, Hub schema version, export duration                                                                                                                                                           |
 | `hub_metric_snapshots`  | hourly aggregate Hub metrics with a non-identifying dimension                                                                                                                                                                |
 | `hub_daily_metrics`     | recomputed daily account, identity, deck, publication, favorite, and play-evidence aggregates                                                                                                                                |
@@ -234,9 +240,11 @@ The Hub export covers row counts for `schema_version`, `accounts`, `identities`,
 
 The Hub analytics boundary excludes emails, usernames, account IDs, provider user IDs, session/token/code/state hashes, IP addresses, private deck snapshots, raw per-account collections, and Hub game/player keys. Collection-card rankings suppress cards held by fewer than two accounts, and collection-size distributions export only aggregate buckets. Collection history starts when the exporter is deployed because the source schema stores only current collection state and a version counter. Daily source-derived aggregates are rebuilt on every refresh so late data and corrections converge.
 
-Source events (`manabrew-server/src/analytics/event.rs`, snake_case `event` tag): `client_connected`, `game_started`, `game_ended`, `deck_selected`, `seat_joined`, `seat_left`, `engine_stats`. Clients classify themselves as `web`, `pwa`, `desktop`, or `mobile` during relay authentication; older clients appear as `unknown`. Raw user-agent strings are never sent or stored.
+Source events (`manabrew-server/src/analytics/event.rs`, snake_case `event` tag): `client_connected`, `game_started`, `game_ended`, `deck_selected`, `seat_joined`, `seat_left`, `engine_stats`, `transport_used`, `plane_quality`. Clients classify themselves as `web`, `pwa`, `desktop`, or `mobile` during relay authentication; older clients appear as `unknown`. Raw user-agent strings are never sent or stored.
 
-Migrations 7 and 8 establish the Hub evidence schema, migration 9 adds the expanded Top Deck categories, and migration 10 tracks the latest refresh even when a category is empty. The first Hub startup after migration 8 performs a one-time import of eligible publication-linked analytics rows into `hub.db.deck_play_reports`. Top Decks has no live analytics-database dependency after that import. New managed-relay starts and outcomes use a dedicated Deck Play evidence channel and write directly to the Hub through `/internal/deckhub/relay-games`; offline and hosted-AI clients use the public play-report endpoint. Hosted Relay rooms are excluded from the dedicated channel to avoid counting the same human play twice, and bot seats never contribute. Ranking refreshes read Hub evidence, favorites, publication dates, and snapshot tables. Stored relay game/player keys are hashed, and no username or card list is retained in the Hub.
+The outcome of a game (`game_over`, `winner`, concessions, `turns`, an engine fatal) is filed by the seat that ran the engine, over the lobby socket for relay games (`ReportGameOutcome`, see `docs/agents/RELAY.md`) and over `POST /api/stats/game` for offline ones. The relay no longer reads it off the state stream, which since `docs/TRANSPORT.md` need not pass through it. `games.reported` is 1 when a report arrived, 1 for every offline row, and NULL for relay rows written before the change, whose outcome was observed. A relay row with `reported = 0` has a lifecycle `end_reason` and a `game_over` of 0 that means "nobody said", so completion rate should be read over `reported = 1` or over `reported IS NULL` from before the change, never mixed. `games.direct_seats` counts the seats the host served off the relay, from its `transport_used` report, and is NULL when none did; the report names only those seats, so read it against `player_count`.
+
+Migrations 7 and 8 establish the Hub evidence schema, migration 9 adds the expanded Top Deck categories, and migration 10 tracks the latest refresh even when a category is empty. The first Hub startup after migration 8 performs a one-time import of eligible publication-linked analytics rows into `hub.db.deck_play_reports`. Top Decks has no live analytics-database dependency after that import. Managed-relay starts and outcomes are the `game_started` and `game_ended` lines of the relay's analytics feed (`relay_events`): the hub applies each new line to `deck_play_reports` as it stores it, so the evidence rides the same durable channel as the analytics and a redelivered line cannot count twice. `/internal/deckhub/relay-games` remains for a relay from before the feed. Offline and hosted-AI clients use the public play-report endpoint. Hosted Relay rooms are excluded from the dedicated channel to avoid counting the same human play twice, and bot seats never contribute. Ranking refreshes read Hub evidence, favorites, publication dates, and snapshot tables. Stored relay game/player keys are hashed, and no username or card list is retained in the Hub.
 
 Automated snapshots cover 30-day Most Played, seven-day Rising, confidence-adjusted Highest Win Rate, Commander Most Played, Most Favorited, and New & Notable. Highest Win Rate requires 20 completed managed-relay matches and uses the 95% Wilson lower bound. Staff Picks remains an editorial snapshot.
 

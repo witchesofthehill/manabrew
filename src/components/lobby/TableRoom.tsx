@@ -1,3 +1,4 @@
+import { boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
 import { Shield, Swords } from "lucide-react";
 import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
 import { TableRoomSidebar } from "@/components/lobby/TableRoomSidebar";
@@ -175,6 +176,7 @@ export function TableRoom({
               onRemoveBot={onRemoveBot}
               size="room"
               className="max-w-3xl"
+              backgroundUrl={boardBackgroundUrl(room.table_style)}
               centerContent={
                 <span className="flex flex-col items-center gap-1">
                   <span className="font-serif text-lg font-light text-foreground/90 sm:text-2xl">

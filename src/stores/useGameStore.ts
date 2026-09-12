@@ -1,5 +1,6 @@
 import { beginGame, noteAnswerSent } from "@/lib/engineTelemetry";
 import {
+  engineReportGameId,
   forgeHostLabel,
   localEngineLabel,
   reportEngineStats,
@@ -35,7 +36,13 @@ import {
   stopLocalHostedAiRelay,
 } from "@/game/hostedAiPlay";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
-import { isForgeWasmSupported } from "@/lib/forgeWasm";
+import {
+  beginForgeWasmTrial,
+  hasForgeWasmVerdict,
+  isForgeWasmSupported,
+  recordForgeWasmVerdict,
+} from "@/lib/forgeWasm";
+import { withForgeStartTimeout } from "@/game/forgeWasmValidation";
 import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
 import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
@@ -129,6 +136,7 @@ async function initializeGame({
   opponentDecks,
   formatId,
   set,
+  get,
   commanderName,
   engine,
   isLaunchCurrent,
@@ -274,23 +282,44 @@ async function initializeGame({
     startingLife,
     decks: gameDecks,
   });
+  const firstForgeStart = engine === "Forge" && platformType === "web" && !hasForgeWasmVerdict();
+  if (firstForgeStart) beginForgeWasmTrial();
   try {
-    const result = await runtime.api.startGame({
+    const start = runtime.api.startGame({
       deck,
       startingLife,
       commanderName: commanderName ?? null,
       opponentDecks: opponentDecks ?? null,
       engine,
     });
+    const result = await (firstForgeStart ? withForgeStartTimeout(start) : start);
     if (!isLaunchCurrent()) {
       await runtime.api.endGame();
       throw new GameLaunchCancelledError();
     }
     set({ debugInfo: `Game started: ${result}.` });
+    if (firstForgeStart) recordForgeWasmVerdict(true);
   } catch (error) {
     // A launch that never became a game must not be reported as the next one.
     abandonOfflineGame();
     clearLocalGame();
+    if (
+      firstForgeStart &&
+      isHostedEngineAvailable() &&
+      !(error instanceof GameLaunchCancelledError)
+    ) {
+      recordForgeWasmVerdict(false, error instanceof Error ? error.message : String(error));
+      return initializeGame({
+        deck,
+        opponentDecks,
+        formatId,
+        set,
+        get,
+        commanderName,
+        engine,
+        isLaunchCurrent,
+      });
+    }
     throw error;
   }
 }
@@ -654,7 +683,11 @@ export const useGameStore = create<GameState>()(
           seats: Object.keys(get().gameDecks).length || 2,
           format: get().gameConfig?.formatId ?? null,
           endReason: get().gameView?.gameOver ? "gameOver" : "left",
-          gameId: useServerStore.getState().gameId ?? currentOfflineGameId(),
+          gameId: engineReportGameId(
+            wasMultiplayer,
+            useServerStore.getState().gameId,
+            currentOfflineGameId(),
+          ),
           send: wasMultiplayer
             ? async (stats, gameId) => {
                 await getPlatform().server?.reportEngineStats(stats, gameId);

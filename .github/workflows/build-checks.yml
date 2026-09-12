@@ -67,8 +67,6 @@ jobs:
               'packages/forge-wasm/',
               'scripts/build-forge-wasm-package.mjs',
               'scripts/verify-forge-wasm-package.mjs',
-              'public/forge/forge-engine.worker.js',
-              'manabrew-rs/crates/forge-wasm-assets/',
               'manabrew-rs/crates/forge-cardset-archive/',
               'forge',
               '.github/workflows/build-checks.yml',
@@ -499,6 +497,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+
+      # A command missing from the permission manifest fails silently in release builds.
+      - name: Tauri commands match their permission manifest
+        run: node scripts/check-tauri-permissions.mjs
 
       - name: Validate preset deck JSON files
         run: |

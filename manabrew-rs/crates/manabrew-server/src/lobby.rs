@@ -32,6 +32,7 @@ pub fn create_room_sync(
     official_key: Option<String>,
     password: Option<String>,
     reconnect_timeout_s: Option<u32>,
+    table_style: Option<String>,
 ) -> Result<(RoomInfo, String), ServerError> {
     if let Some(cfg) = &draft_config {
         match (cfg.set_code.as_ref(), cfg.cube_id.as_ref()) {
@@ -107,6 +108,7 @@ pub fn create_room_sync(
         reconnect_timeout_s
             .unwrap_or(DEFAULT_RECONNECT_TIMEOUT_S)
             .clamp(MIN_RECONNECT_TIMEOUT_S, MAX_RECONNECT_TIMEOUT_S),
+        table_style,
     );
     room.resume_token = uuid::Uuid::new_v4().to_string();
     let info = room.to_room_info();
@@ -210,6 +212,7 @@ pub fn resume_room_sync(
         spec.reconnect_timeout_s
             .unwrap_or(DEFAULT_RECONNECT_TIMEOUT_S)
             .clamp(MIN_RECONNECT_TIMEOUT_S, MAX_RECONNECT_TIMEOUT_S),
+        spec.table_style,
     );
     room.resume_token = spec.resume_token;
     room.status = RoomStatus::InGame;
@@ -701,7 +704,6 @@ pub fn reset_room_to_lobby(
     let (info, cleared) = {
         let mut room = state.rooms.get_mut(room_id)?;
         if let Some(replay) = room.replay.take() {
-            state.deck_play_events.game_ended(&replay);
             analytics::emit_game_ended(&state.analytics, &room, &replay, reason);
         }
         let cleared: Vec<String> = room.players.iter().map(|p| p.player_id.clone()).collect();

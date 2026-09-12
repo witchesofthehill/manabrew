@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 
 use crate::config::{Config, DeckSelection, SelfPlayConfig};
 use crate::engine_backend::{java_backend, rust_backend, EngineBackendKind, HostedGameOver};
+use crate::shell_bridge::{ShellBridge, ShellCommand};
 use crate::updater::{run_stale_monitor, StaleConfig};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
@@ -14,12 +15,13 @@ use manabot::{run_bot, AgentKind, BotConfig};
 use manabrew_agent_interface::ids_codec::{parse_player_slot, player_slot};
 use manabrew_agent_interface::prompt::{AgentMessage, ClientToServerMessage, PromptOutput};
 use manabrew_agent_interface::protocol::{
-    identity_token, ClientMessage, ClientPlatform, EngineKind, GameFormat, IdentityProof,
-    PlayerDeckInfo, ResumeRoomRequest, RoomInfo, RoomStatus, ServerMessage, StateEnvelope,
-    PROTOCOL_VERSION,
+    identity_token, ClientMessage, ClientPlatform, EngineKind, GameFormat, GameOutcomeReport,
+    IdentityProof, PlayerDeckInfo, ResumeRoomRequest, RoomInfo, RoomStatus, ServerMessage,
+    StateEnvelope, PROTOCOL_VERSION,
 };
 use manabrew_protocol::deck_dto::Deck;
-use manabrew_protocol::transport::DirectiveInput;
+use manabrew_protocol::game::{GameViewDto, PlayerStatus};
+use manabrew_protocol::transport::{DirectiveInput, StateUpdate};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::net::TcpStream;
@@ -303,7 +305,23 @@ pub async fn host_room(
     ready: tokio::sync::oneshot::Sender<String>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     ensure_engine_ready(&config)?;
-    host_one_room(config, None, cancel, Some(ready), None).await
+    host_one_room(config, None, cancel, Some(ready), None, None).await
+}
+
+/// The webview's half of the data plane, handed in by a desktop shell.
+pub struct ShellBridgeHandle {
+    pub bridge: Arc<ShellBridge>,
+    pub commands: tokio_mpsc::UnboundedReceiver<ShellCommand>,
+}
+
+pub async fn host_room_bridged(
+    config: Config,
+    cancel: RoomCancel,
+    ready: tokio::sync::oneshot::Sender<String>,
+    bridge: ShellBridgeHandle,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ensure_engine_ready(&config)?;
+    host_one_room(config, None, cancel, Some(ready), None, Some(bridge)).await
 }
 
 async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -382,7 +400,7 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
     });
 
     if single {
-        return host_one_room(config, None, cancels[0].clone(), None, Some(registry)).await;
+        return host_one_room(config, None, cancels[0].clone(), None, Some(registry), None).await;
     }
 
     config.format = GameFormat::Any;
@@ -396,7 +414,7 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
         let registry = registry.clone();
         handles.push(tokio::spawn(async move {
             if let Err(error) =
-                host_one_room(cfg, Some(label.clone()), cancel, None, Some(registry)).await
+                host_one_room(cfg, Some(label.clone()), cancel, None, Some(registry), None).await
             {
                 error!(%error, label, "room host exited");
             }
@@ -443,6 +461,7 @@ async fn host_one_room(
     cancel: RoomCancel,
     ready: Option<tokio::sync::oneshot::Sender<String>>,
     sessions: Option<SessionRegistry>,
+    shell: Option<ShellBridgeHandle>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if let Some(label) = &label {
         config.username = format!("{}-{label}", config.username);
@@ -481,6 +500,26 @@ async fn host_one_room(
         RelayClient::connect(&config.relay_url, &config.username, &config.password).await?;
     let mut room_id = establish_room(&mut host, &config, &snapshot).await?;
 
+    // Keep the sender alive without a shell, or `recv()` spins the select.
+    let (bridge, mut bridge_rx, _idle_bridge_tx) = match shell {
+        Some(handle) => (Some(handle.bridge), handle.commands, None),
+        None => {
+            let (tx, rx) = tokio_mpsc::unbounded_channel::<ShellCommand>();
+            (None, rx, Some(tx))
+        }
+    };
+    if let Some(bridge) = &bridge {
+        let reprime_snapshot = snapshot.clone();
+        let reprime_tx = outbound_tx.clone();
+        bridge.set_on_fallback(move |username| {
+            reprime_relay_cache(&reprime_snapshot, &reprime_tx, username);
+        });
+    }
+
+    if bridge.is_some() {
+        announce_webrtc_only(&config, &outbound_tx);
+    }
+
     if let Some(ready) = ready {
         let _ = ready.send(room_id.clone());
     }
@@ -505,6 +544,8 @@ async fn host_one_room(
             &outbound_tx,
             &mut outbound_rx,
             &cancel,
+            bridge.as_ref(),
+            &mut bridge_rx,
         )
         .await;
         if matches!(exit, LoopExit::Cancelled) {
@@ -558,8 +599,55 @@ async fn host_one_room(
                 }
             }
         };
+        if let Some(bridge) = &bridge {
+            bridge.clear_game();
+            announce_webrtc_only(&config, &outbound_tx);
+        }
         info!(username = %config.username, room_id, "relay connection re-established");
     }
+}
+
+/// Re-primes the relay's replay cache for a seat leaving the plane.
+fn reprime_relay_cache(
+    snapshot: &SharedHostSnapshot,
+    outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
+    username: &str,
+) {
+    let Some(index) = seat_index_of(snapshot, username) else {
+        return;
+    };
+    let slot = player_slot(index);
+    let Ok(snap) = snapshot.lock() else {
+        return;
+    };
+    let state = snap.last_state_by_slot.get(&slot).cloned();
+    let prompt = snap.pending_prompts.get(&slot).cloned();
+    drop(snap);
+
+    // Stored before `patch_against_last` runs, so these are full states.
+    for state in [state, prompt].into_iter().flatten() {
+        let _ = outbound_tx.send(ClientMessage::BroadcastState {
+            state,
+            target_player: Some(username.to_string()),
+        });
+    }
+    info!(
+        username,
+        "re-primed the relay cache for a seat that fell back"
+    );
+}
+
+fn announce_webrtc_only(config: &Config, outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>) {
+    let endpoint = manabrew_relay_protocol::TransportEndpoint {
+        endpoint_id: format!("webrtc:{}", config.username),
+        relay_url: None,
+        direct_addrs: Vec::new(),
+        kinds: vec![manabrew_relay_protocol::TRANSPORT_KIND_WEBRTC.to_string()],
+    };
+    info!(endpoint_id = %endpoint.endpoint_id, "announcing a webrtc-only endpoint");
+    let _ = outbound_tx.send(ClientMessage::AnnounceTransport {
+        endpoint: Some(endpoint),
+    });
 }
 
 async fn establish_room(
@@ -592,6 +680,7 @@ async fn establish_room(
                 official_key: config.official_key.clone(),
                 password: config.room_password.clone(),
                 reconnect_timeout_s: config.reconnect_timeout_s,
+                table_style: config.table_style.clone(),
             })
             .await?;
         info!(room_name = %config.room_name, "creating room");
@@ -725,6 +814,7 @@ fn resume_room_request(
         official_key: config.official_key.clone(),
         password: config.room_password.clone(),
         reconnect_timeout_s: Some(room_info.reconnect_timeout_s),
+        table_style: room_info.table_style.clone(),
         draft_config: room_info.draft_config.clone(),
         sealed_config: room_info.sealed_config.clone(),
         player_order: game.player_order.clone(),
@@ -1008,6 +1098,8 @@ async fn run_client_loop(
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
     outbound_rx: &mut tokio_mpsc::UnboundedReceiver<ClientMessage>,
     cancel: &RoomCancel,
+    bridge: Option<&Arc<ShellBridge>>,
+    bridge_rx: &mut tokio_mpsc::UnboundedReceiver<ShellCommand>,
 ) -> LoopExit {
     let mut heartbeat = time::interval(Duration::from_secs(30));
     heartbeat.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
@@ -1047,9 +1139,37 @@ async fn run_client_loop(
                     warn!(username = %client.username, "outbound channel closed");
                     return LoopExit::Cancelled;
                 };
+                if let ClientMessage::BroadcastState { state, target_player: Some(target) } = &outbound {
+                    if bridge.is_some_and(|shell| shell.try_send(target, state)) {
+                        continue;
+                    }
+                }
                 if let Err(error) = client.send(&outbound).await {
                     warn!(%error, username = %client.username, "relay send failed");
                     return LoopExit::Disconnected;
+                }
+            }
+            command = bridge_rx.recv() => {
+                let Some(command) = command else {
+                    warn!(username = %client.username, "shell bridge closed");
+                    return LoopExit::Cancelled;
+                };
+                let Some(shell) = bridge else { continue };
+                match command {
+                    ShellCommand::Serving { seats } => shell.set_serving(seats),
+                    ShellCommand::Signal { to, payload } => {
+                        if let Err(error) = client
+                            .send(&ClientMessage::SignalPeer { to, payload })
+                            .await
+                        {
+                            warn!(%error, username = %client.username, "relay send failed");
+                            return LoopExit::Disconnected;
+                        }
+                    }
+                    ShellCommand::SeatEnvelope { from, envelope } => {
+                        // `from` came from a relay-attested roster.
+                        route_seat_envelope(engine_session, snapshot, &from, &envelope);
+                    }
                 }
             }
             message = client.recv() => {
@@ -1073,6 +1193,7 @@ async fn run_client_loop(
                     bot_state,
                     outbound_tx,
                     &mut bot_usernames,
+                    bridge,
                     message,
                 ).await {
                     warn!(%error, username = %client.username, "relay send failed");
@@ -1092,6 +1213,7 @@ async fn handle_server_message(
     bot_state: &SharedBotState,
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
     bot_usernames: &mut HashSet<String>,
+    bridge: Option<&Arc<ShellBridge>>,
     message: ServerMessage,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match message {
@@ -1114,6 +1236,9 @@ async fn handle_server_message(
             maybe_auto_start_room(client, config, &room).await?;
         }
         ServerMessage::StateUpdate { from_player, state } => {
+            if let Some(shell) = bridge {
+                shell.note_relay_message(&from_player);
+            }
             handle_state_update(
                 client,
                 config,
@@ -1126,6 +1251,10 @@ async fn handle_server_message(
             )
             .await?;
         }
+        ServerMessage::PeerSignal { from, payload } => match bridge {
+            Some(shell) => shell.forward_signal(&from, payload),
+            None => debug!(from, "signalling arrived with no shell to hand it to"),
+        },
         ServerMessage::ReadyStateChanged { username, ready } => {
             info!(username, ready, observer = %client.username, "ready changed");
         }
@@ -1167,6 +1296,24 @@ async fn handle_server_message(
                 snap.pending_prompts.clear();
                 snap.pending_end_game = None;
             }
+            let mut left_the_relay = Vec::new();
+            if let Some(shell) = bridge {
+                let seats = shell.freeze_for_game(&player_order, &[]);
+                if !seats.is_empty() {
+                    info!(
+                        game_id,
+                        ?seats,
+                        "seats playing this game through the webview"
+                    );
+                    left_the_relay.extend(shell.transport_report(&seats));
+                }
+            }
+            if !left_the_relay.is_empty() {
+                let _ = outbound_tx.send(ClientMessage::ReportTransport {
+                    game_id: game_id.clone(),
+                    seats: left_the_relay,
+                });
+            }
             maybe_start_hosted_engine(
                 config,
                 engine_session,
@@ -1178,6 +1325,12 @@ async fn handle_server_message(
                 starting_life,
                 bot_usernames,
             );
+        }
+        ServerMessage::RoomTransport { members, .. } => {
+            if let Some(shell) = bridge {
+                // Empty until every seat has opted in.
+                shell.set_roster(members.iter().map(|member| member.username.clone()));
+            }
         }
         ServerMessage::ServerShuttingDown { reconnect_in_s } => {
             info!(reconnect_in_s, observer = %client.username, "relay is restarting");
@@ -1209,21 +1362,8 @@ async fn handle_state_update(
     };
 
     match envelope {
-        StateEnvelope::Response { .. } => {
-            route_remote_response(engine_session, snapshot, &from_player, &state);
-            Ok(())
-        }
-        StateEnvelope::Directive {
-            from_player: claimed_slot,
-            directive,
-        } => {
-            route_remote_directive(
-                engine_session,
-                snapshot,
-                &from_player,
-                &claimed_slot,
-                &directive,
-            );
+        StateEnvelope::Response { .. } | StateEnvelope::Directive { .. } => {
+            route_seat_envelope(engine_session, snapshot, &from_player, &state);
             Ok(())
         }
         StateEnvelope::RoomRelay {
@@ -1821,6 +1961,13 @@ fn finish_hosted_engine(
                     snap.pending_end_game = Some(game_id.to_string());
                 }
             }
+            let _ = outbound_tx.send(ClientMessage::ReportGameOutcome {
+                game_id: game_id.to_string(),
+                outcome: GameOutcomeReport {
+                    fatal_message: Some(message.clone()),
+                    ..GameOutcomeReport::default()
+                },
+            });
             if let Ok(state) = serde_json::to_value(StateEnvelope::Fatal { message }) {
                 let _ = outbound_tx.send(ClientMessage::BroadcastState {
                     state,
@@ -1833,6 +1980,31 @@ fn finish_hosted_engine(
         } else {
             warn!(game_id, message, "stale engine session finished with error");
         }
+    }
+}
+
+/// `from_player` is relay-attested; never client supplied.
+fn route_seat_envelope(
+    engine_session: &SharedEngineSession,
+    snapshot: &SharedHostSnapshot,
+    from_player: &str,
+    state: &Value,
+) {
+    match serde_json::from_value::<StateEnvelope>(state.clone()) {
+        Ok(StateEnvelope::Response { .. }) => {
+            route_remote_response(engine_session, snapshot, from_player, state)
+        }
+        Ok(StateEnvelope::Directive {
+            from_player: claimed_slot,
+            directive,
+        }) => route_remote_directive(
+            engine_session,
+            snapshot,
+            from_player,
+            &claimed_slot,
+            &directive,
+        ),
+        _ => debug!(from_player, state = %state, "unroutable seat envelope"),
     }
 }
 
@@ -2177,6 +2349,26 @@ fn spawn_remote_prompt_forwarder(
     });
 }
 
+fn outcome_report(view: &GameViewDto) -> GameOutcomeReport {
+    GameOutcomeReport {
+        game_over: view.game_over,
+        winner_slot: view.winner_id.clone(),
+        conceded_slots: view
+            .players
+            .iter()
+            .filter(|player| player.status == PlayerStatus::Conceded)
+            .map(|player| player.id.clone())
+            .collect(),
+        fatal_message: None,
+        turns: Some(view.turn),
+    }
+}
+
+fn cached_outcome_report(envelope: &Value) -> Option<GameOutcomeReport> {
+    let update: StateUpdate = serde_json::from_value(envelope.get("state")?.clone()).ok()?;
+    Some(outcome_report(&update.game_view))
+}
+
 fn spawn_game_over_forwarder(
     outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
     game_over_rx: std_mpsc::Receiver<HostedGameOver>,
@@ -2209,6 +2401,22 @@ fn spawn_game_over_forwarder(
                     snap.pending_end_game = Some(game_id.clone());
                 }
             }
+            let outcome = game_over
+                .messages
+                .iter()
+                .rev()
+                .find_map(|(_, message)| match message {
+                    AgentMessage::State(update) => Some(outcome_report(&update.game_view)),
+                    _ => None,
+                })
+                .or_else(|| {
+                    let snap = snapshot.lock().ok()?;
+                    snap.last_state
+                        .as_ref()
+                        .or_else(|| snap.last_state_by_slot.values().next())
+                        .and_then(cached_outcome_report)
+                        .filter(|outcome| outcome.game_over)
+                });
             let mut last_state_by_seat: HashMap<usize, Value> = HashMap::new();
             let mut last_state: Option<Value> = None;
             for (player_index, message) in game_over.messages {
@@ -2283,6 +2491,12 @@ fn spawn_game_over_forwarder(
                 .is_err()
             {
                 return;
+            }
+            if let Some(outcome) = outcome {
+                let _ = outbound_tx.send(ClientMessage::ReportGameOutcome {
+                    game_id: game_id.clone(),
+                    outcome,
+                });
             }
             if outbound_tx
                 .send(ClientMessage::EndGame {

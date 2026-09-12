@@ -30,6 +30,7 @@ use crate::config::AuthConfig;
 use crate::rate_limit::RateLimiter;
 use crate::scryfall_api::ScryfallApi;
 use crate::scryfall_bulk::ScryfallBulkIndex;
+use crate::seal::{chat_seal_aad, presence_seal_aad, SealOpener};
 use crate::storage::{
     AssetReservation, CreateDeckOutcome, DeckHubColorMatch, DeckHubEntryUpdate, DeckHubListParams,
     DeckHubSortOrder, DeckHubTagMatch, DeleteOutcome, NewDeckHubEntry, RecordDeckPlayOutcome,
@@ -39,6 +40,7 @@ use crate::validate;
 
 const MAX_BODY_BYTES: usize = 1024 * 1024;
 const MAX_COLLECTION_BODY_BYTES: usize = 8 * 1024 * 1024;
+const MAX_RELAY_EVENTS_BODY_BYTES: usize = 8 * 1024 * 1024;
 const MAX_COLLECTION_ENTRIES: usize = 25_000;
 const MAX_VERIFY_BODY_BYTES: usize = 4 * 1024 * 1024;
 const MAX_VERIFY_IDENTIFIERS: usize = 5_000;
@@ -55,6 +57,7 @@ pub struct AppState {
     pub deck_hub_enabled: bool,
     pub publish_per_day: u32,
     pub relay_deck_plays_token: Option<String>,
+    pub seal: Option<SealOpener>,
     pub auth: AuthConfig,
     pub auth_email_limiter: RateLimiter,
     pub auth_code_limiter: RateLimiter,
@@ -161,9 +164,14 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/api/deckhub/plays", post(record_deck_play_handler))
         .route("/api/stats/engine", post(record_engine_stats_handler))
         .route("/api/stats/game", post(record_offline_game_handler))
+        .route("/api/chat/reports", post(report_chat_handler))
         .route(
             "/internal/deckhub/relay-games",
             post(relay_deck_game_handler),
+        )
+        .route(
+            "/internal/analytics/events",
+            post(relay_events_handler).layer(DefaultBodyLimit::max(MAX_RELAY_EVENTS_BODY_BYTES)),
         )
         .route(
             "/admin/deckhub/top/:bucket",
@@ -972,6 +980,114 @@ async fn record_offline_game_handler(
     }
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct VerifiedChatLine {
+    from: String,
+    text: String,
+    sent_at_ms: u64,
+    room_id: Option<String>,
+    seal: Option<String>,
+    verified: bool,
+    ip: Option<String>,
+}
+
+#[derive(serde::Serialize)]
+struct VerifiedTranscript {
+    general: Vec<VerifiedChatLine>,
+    room: Vec<VerifiedChatLine>,
+}
+
+async fn report_chat_handler(
+    State(state): State<Arc<AppState>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    account: Option<auth::SessionAccount>,
+    Json(request): Json<manabrew_hub::dto::ChatReportRequest>,
+) -> Response {
+    if request.reported_username.trim().is_empty() {
+        return StatusCode::UNPROCESSABLE_ENTITY.into_response();
+    }
+    match state
+        .storage
+        .lock()
+        .unwrap()
+        .handle_is_maintainer(&request.reported_username)
+    {
+        Ok(true) => return StatusCode::FORBIDDEN.into_response(),
+        Ok(false) => {}
+        Err(error) => return internal_error(error),
+    }
+    let request_ip = client_ip(&headers, addr);
+    if !state.play_limiter.allow(&request_ip) {
+        return StatusCode::TOO_MANY_REQUESTS.into_response();
+    }
+    let verify = |line: &manabrew_hub::dto::ChatReportMessage| -> VerifiedChatLine {
+        let ip = state
+            .seal
+            .as_ref()
+            .zip(line.seal.as_deref())
+            .and_then(|(opener, seal)| {
+                opener.open(
+                    seal,
+                    &chat_seal_aad(
+                        &line.from,
+                        &line.text,
+                        line.sent_at_ms,
+                        line.room_id.as_deref(),
+                    ),
+                )
+            });
+        VerifiedChatLine {
+            from: line.from.clone(),
+            text: line.text.clone(),
+            sent_at_ms: line.sent_at_ms,
+            room_id: line.room_id.clone(),
+            seal: line.seal.clone(),
+            verified: ip.is_some(),
+            ip,
+        }
+    };
+    let transcript = VerifiedTranscript {
+        general: request.transcript.general.iter().map(verify).collect(),
+        room: request.transcript.room.iter().map(verify).collect(),
+    };
+    let presence_ip =
+        state
+            .seal
+            .as_ref()
+            .zip(request.seal.as_deref())
+            .and_then(|(opener, seal)| {
+                opener.open(seal, &presence_seal_aad(&request.reported_username))
+            });
+    let reported_ip = presence_ip.or_else(|| {
+        transcript
+            .general
+            .iter()
+            .chain(transcript.room.iter())
+            .find(|line| line.verified && line.from == request.reported_username)
+            .and_then(|line| line.ip.clone())
+    });
+    let transcript_json = serde_json::to_string(&transcript).unwrap_or_else(|_| "{}".into());
+    let row = crate::storage::ChatReportRow {
+        id: &uuid::Uuid::new_v4().to_string(),
+        created_at: &now_string(),
+        reporter_account_id: account.as_ref().map(|a| a.0.id.as_str()),
+        request_ip: &request_ip,
+        reported_ip: reported_ip.as_deref(),
+        transcript: &transcript_json,
+    };
+    match state
+        .storage
+        .lock()
+        .unwrap()
+        .record_chat_report(&row, &request)
+    {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
 async fn record_deck_play_handler(
     State(state): State<Arc<AppState>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
@@ -1012,6 +1128,53 @@ async fn record_deck_play_handler(
     }
 }
 
+fn relay_authorized(state: &AppState, headers: &HeaderMap) -> bool {
+    state
+        .relay_deck_plays_token
+        .as_deref()
+        .is_some_and(|expected| {
+            headers
+                .get(AUTHORIZATION)
+                .and_then(|value| value.to_str().ok())
+                .and_then(|value| value.strip_prefix("Bearer "))
+                == Some(expected)
+        })
+}
+
+#[derive(Deserialize)]
+struct RelayEventsBatch {
+    events: Vec<String>,
+}
+
+/// The relay's analytics feed, one JSON line per event, stored verbatim. The
+/// game lines in it are also the deck-play evidence, applied once per new
+/// line so a redelivered batch cannot count a play twice.
+async fn relay_events_handler(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Json(batch): Json<RelayEventsBatch>,
+) -> Response {
+    if !relay_authorized(&state, &headers) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    let storage = state.storage.lock().unwrap();
+    let new_lines = match storage.record_relay_events(&batch.events, &now_string()) {
+        Ok(lines) => lines,
+        Err(error) => return internal_error(error),
+    };
+    if state.deck_hub_enabled {
+        for game in new_lines
+            .iter()
+            .filter_map(|line| serde_json::from_str::<RelayDeckGame>(line).ok())
+        {
+            if let Err(error) = apply_relay_deck_game(&storage, game) {
+                return internal_error(error);
+            }
+        }
+    }
+    StatusCode::NO_CONTENT.into_response()
+}
+
 #[derive(Deserialize)]
 #[serde(tag = "event", rename_all = "snake_case")]
 enum RelayDeckGame {
@@ -1045,19 +1208,16 @@ async fn relay_deck_game_handler(
     if !state.deck_hub_enabled {
         return StatusCode::NOT_FOUND.into_response();
     }
-    let authorized = state
-        .relay_deck_plays_token
-        .as_deref()
-        .is_some_and(|expected| {
-            headers
-                .get(AUTHORIZATION)
-                .and_then(|value| value.to_str().ok())
-                .and_then(|value| value.strip_prefix("Bearer "))
-                == Some(expected)
-        });
-    if !authorized {
+    if !relay_authorized(&state, &headers) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
+    match apply_relay_deck_game(&state.storage.lock().unwrap(), event) {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+fn apply_relay_deck_game(storage: &Storage, event: RelayDeckGame) -> rusqlite::Result<()> {
     match event {
         RelayDeckGame::GameStarted {
             ts,
@@ -1079,29 +1239,17 @@ async fn relay_deck_game_handler(
                     })
                 })
                 .collect::<Vec<_>>();
-            match state
-                .storage
-                .lock()
-                .unwrap()
-                .record_relay_game_started(&game_id, &format, &ts, hosted, &plays)
-            {
-                Ok(_) => StatusCode::NO_CONTENT.into_response(),
-                Err(error) => internal_error(error),
-            }
+            storage.record_relay_game_started(&game_id, &format, &ts, hosted, &plays)?;
         }
         RelayDeckGame::GameEnded {
             game_id,
             game_over,
             winner,
-        } => match state.storage.lock().unwrap().record_relay_game_ended(
-            &game_id,
-            game_over,
-            winner.as_deref(),
-        ) {
-            Ok(_) => StatusCode::NO_CONTENT.into_response(),
-            Err(error) => internal_error(error),
-        },
+        } => {
+            storage.record_relay_game_ended(&game_id, game_over, winner.as_deref())?;
+        }
     }
+    Ok(())
 }
 
 #[derive(Deserialize)]
@@ -1285,6 +1433,7 @@ mod tests {
             deck_hub_enabled: true,
             publish_per_day: per_day,
             relay_deck_plays_token: Some("relay-deck-plays-token".into()),
+            seal: None,
             auth: AuthConfig {
                 public_url: "http://localhost:9500".into(),
                 web_app_url: "http://localhost:5173".into(),

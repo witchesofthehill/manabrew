@@ -1,3 +1,4 @@
+import type { BoardBackgroundId } from "@/pixi/board/boardBackgrounds";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { toast } from "sonner";
@@ -18,7 +19,9 @@ import {
   probeTabSession,
   type TabSessionHolder,
 } from "@/lib/tabSession";
+import { stripUsernameTag } from "@/lib/username";
 import {
+  CHAT_ERROR_CODES,
   DUPLICATE_USERNAME_ERROR_FRAGMENT,
   SERVER_ERROR_CODE,
   USER_FACING_ERROR_MESSAGES,
@@ -45,9 +48,10 @@ import type {
   ServerErrorPayload,
   ReconnectingPayload,
   DisconnectedPayload,
+  RelayFeature,
 } from "@/types/server";
 import type { Deck } from "@/protocol/deck";
-import { resendLocalGame, setRelayFeatures } from "@/lib/localGamePresence";
+import { resendLocalGame } from "@/lib/localGamePresence";
 
 export const DEFAULT_STARTING_LIFE = 20;
 
@@ -64,6 +68,7 @@ interface ServerState {
   playerId: string | null;
   username: string | null;
   reconnect: ReconnectState;
+  relayFeatures: string[];
 
   rooms: RoomInfo[];
   currentRoom: RoomInfo | null;
@@ -78,7 +83,13 @@ interface ServerState {
   playerDecks: PlayerDeckInfo[];
   startingLife: number;
 
-  connect(host: string, port: number, username: string, password: string): Promise<void>;
+  connect(
+    host: string,
+    port: number,
+    username: string,
+    password: string,
+    lan?: boolean,
+  ): Promise<void>;
   disconnect(): Promise<void>;
   listRooms(): Promise<void>;
   listPlayers(): Promise<void>;
@@ -91,6 +102,7 @@ interface ServerState {
     sealedConfig?: SealedConfig,
     reconnectTimeoutS?: number,
     password?: string,
+    tableStyle?: BoardBackgroundId,
   ): Promise<void>;
   joinRoom(roomId: string, password?: string): Promise<void>;
   resumeRoomAfterRestart(): Promise<void>;
@@ -106,6 +118,8 @@ interface ServerState {
   setMaxPlayers(maxPlayers: number): Promise<void>;
   startGame(format?: GameFormat): Promise<void>;
   endGame(): Promise<void>;
+  inviteToRoom(username: string): Promise<void>;
+  hasRelayFeature(feature: RelayFeature): boolean;
 
   setupListeners(): () => void;
 }
@@ -189,6 +203,7 @@ export const useServerStore = create<ServerState>()(
       playerId: null,
       username: null,
       reconnect: { phase: "idle", attempt: 0 },
+      relayFeatures: [],
       rooms: [],
       currentRoom: null,
       roomPassword: null,
@@ -201,7 +216,7 @@ export const useServerStore = create<ServerState>()(
       playerDecks: [],
       startingLife: DEFAULT_STARTING_LIFE,
 
-      async connect(host, port, username, password) {
+      async connect(host, port, username, password, lan) {
         const platform = getPlatform();
         if (!platform.server) {
           set({ connecting: false, error: "Multiplayer not supported on this platform" });
@@ -219,7 +234,7 @@ export const useServerStore = create<ServerState>()(
           return;
         }
         try {
-          await platform.server.connect({ host, port, username, password });
+          await platform.server.connect({ host, port, username, password, lan });
           tabSession = holdTabSession(username, {
             refusal: () =>
               get().gameStarted && get().currentRoom?.host === get().username ? "hosting" : null,
@@ -284,6 +299,7 @@ export const useServerStore = create<ServerState>()(
         sealedConfig,
         reconnectTimeoutS,
         password,
+        tableStyle,
       ) {
         const platform = getPlatform();
         if (!platform.server) return;
@@ -297,6 +313,7 @@ export const useServerStore = create<ServerState>()(
           sealedConfig,
           reconnectTimeoutS,
           password,
+          tableStyle,
         });
         if (roomId) {
           if (engine === "Forge") set({ hostingForgeRoom: true });
@@ -337,6 +354,7 @@ export const useServerStore = create<ServerState>()(
           engine: "Manabrew",
           password: roomPassword ?? undefined,
           reconnect_timeout_s: currentRoom.reconnect_timeout_s,
+          table_style: currentRoom.table_style,
           draft_config: currentRoom.draft_config,
           sealed_config: currentRoom.sealed_config,
           player_order: playerOrder,
@@ -441,6 +459,17 @@ export const useServerStore = create<ServerState>()(
         await platform.server.endGame(get().gameId);
       },
 
+      async inviteToRoom(username) {
+        const platform = getPlatform();
+        if (!platform.server) return;
+        await platform.server.inviteToRoom({ username });
+        toast.success(`Invited ${stripUsernameTag(username)} to your table`);
+      },
+
+      hasRelayFeature(feature) {
+        return get().relayFeatures.includes(feature);
+      },
+
       setupListeners() {
         const platform = getPlatform();
         if (!platform.server) {
@@ -451,7 +480,7 @@ export const useServerStore = create<ServerState>()(
 
         unsubscribers.push(
           platform.events.on<AuthResultPayload>("server:auth_result", (payload) => {
-            setRelayFeatures(payload.features);
+            set({ relayFeatures: payload.features ?? [] });
             if (payload.success) {
               duplicateRejectionSince = null;
               set({
@@ -584,6 +613,7 @@ export const useServerStore = create<ServerState>()(
           platform.events.on<ServerErrorPayload>("server:error", (payload) => {
             console.error("[server] error:", payload.code, payload.message);
             if (payload.code === SERVER_ERROR_CODE.GameNotInProgress) return;
+            if (CHAT_ERROR_CODES.has(payload.code as ServerErrorCode)) return;
             if (
               JOIN_FAILURE_CODES.has(payload.code as ServerErrorCode) &&
               settlePendingJoin(new Error(payload.code))

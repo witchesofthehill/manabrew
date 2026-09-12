@@ -27,6 +27,7 @@ export function isHorizontalGameCard(
   card: CardDto,
   deckLayout?: string,
   faceIndex: 0 | 1 = card.isTransformed ? 1 : 0,
+  resolvedTypeLine?: string,
 ): boolean {
   const scry = peekScryfall(card);
   const layout = deckLayout ?? scry?.layout ?? undefined;
@@ -34,7 +35,7 @@ export function isHorizontalGameCard(
   const face = faces[faceIndex];
   return isHorizontalCard({
     layout: isTwoHalfLayout(layout) ? layout : undefined,
-    types: face ? undefined : card.types,
-    typeLine: face?.typeLine ?? scry?.type_line,
+    types: resolvedTypeLine !== undefined || face !== undefined ? undefined : card.types,
+    typeLine: resolvedTypeLine ?? face?.typeLine ?? scry?.type_line,
   });
 }

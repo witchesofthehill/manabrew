@@ -20,7 +20,7 @@ const appVersion = (
   }
 ).packages["manabrew"];
 
-const COEP = process.env.TAURI_ENV_PLATFORM ? "require-corp" : "credentialless";
+const COEP = "require-corp";
 
 function crossOriginIsolation(): Plugin {
   return {
@@ -106,11 +106,6 @@ export default defineConfig({
         target: "https://svgs.scryfall.io",
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/scryfall-symbols/, "/card-symbols"),
-      },
-      "/scryfall-img": {
-        target: "https://cards.scryfall.io",
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/scryfall-img/, ""),
       },
     },
   },

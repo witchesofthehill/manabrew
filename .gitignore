@@ -122,3 +122,5 @@ __pycache__/
 *.pyc
 packages/forge-wasm/forgeharness.js
 packages/forge-wasm/forgeharness.js.wasm
+
+scripts/sync-scryfall-assets.mjs

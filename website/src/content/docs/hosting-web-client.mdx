@@ -12,7 +12,7 @@ deliver these headers on the HTML, worker JS, and WASM responses:
 
 ```http
 Cross-Origin-Opener-Policy: same-origin
-Cross-Origin-Embedder-Policy: credentialless
+Cross-Origin-Embedder-Policy: require-corp
 ```
 
 If a proxy strips them, the page loads but games won't start. Verify in
@@ -82,7 +82,7 @@ runtime `RELAY_*` overrides a baked default when both are present.
     	handle {
     		header {
     			Cross-Origin-Opener-Policy "same-origin"
-    			Cross-Origin-Embedder-Policy "credentialless"
+    			Cross-Origin-Embedder-Policy "require-corp"
     			Cross-Origin-Resource-Policy "same-origin"
     		}
     		try_files {path} /index.html
@@ -125,7 +125,7 @@ runtime `RELAY_*` overrides a baked default when both are present.
     ```bash
     caddy file-server --root dist --listen :8080 \
       --header "Cross-Origin-Opener-Policy: same-origin" \
-      --header "Cross-Origin-Embedder-Policy: credentialless"
+      --header "Cross-Origin-Embedder-Policy: require-corp"
     ```
 
   </TabItem>

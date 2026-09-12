@@ -186,7 +186,7 @@ export function DialogCardBrowser({
       <div
         className={cn(
           "grid min-h-0 flex-1 gap-3",
-          compact ? "p-1" : "p-3",
+          compact ? "p-1" : "px-1 py-3",
           !picker && "md:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]",
         )}
       >

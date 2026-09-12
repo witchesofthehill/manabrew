@@ -15,6 +15,7 @@ import {
   ACTION_DRAWER_BUMP_EVENT,
   AUTOPASS_DELAY_MAX_MS,
   AUTOPASS_DELAY_MIN_MS,
+  GAME_CARD_SIZES,
 } from "@/components/game/game.constants";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -47,6 +48,9 @@ import {
   samePromptPresentation,
 } from "./PromptLayerBase";
 import { PromptModalLayer } from "./PromptModalLayer";
+
+const ACTION_CARD_SIZE = GAME_CARD_SIZES.battlefield;
+const ACTION_CARD_GAP = 8;
 
 export class PromptLayer extends PromptModalLayer {
   private readonly unsubscribePromptPreferences: () => void;
@@ -1162,7 +1166,9 @@ export class PromptLayer extends PromptModalLayer {
       Math.min(
         minimal
           ? 208
-          : availableWidth - (source ? 68 : 0) - (completion ? completion.buttonWidth + 6 : 0),
+          : availableWidth -
+              (source ? ACTION_CARD_SIZE.width + ACTION_CARD_GAP : 0) -
+              (completion ? completion.buttonWidth + 6 : 0),
         availableWidth,
       ),
     );
@@ -1193,12 +1199,12 @@ export class PromptLayer extends PromptModalLayer {
       if (source) {
         source.position.set(
           (Math.max(stripWidth, completion ? stripWidth + completion.buttonWidth + 6 : stripWidth) -
-            60) /
+            ACTION_CARD_SIZE.width) /
             2,
           0,
         );
         container.addChild(source);
-        y = 90;
+        y = ACTION_CARD_SIZE.height + ACTION_CARD_GAP;
       }
       strip.position.set(0, y);
       container.addChild(strip);
@@ -1214,20 +1220,21 @@ export class PromptLayer extends PromptModalLayer {
     if (source) {
       source.position.set(0, 0);
       container.addChild(source);
-      x = 68;
+      x = ACTION_CARD_SIZE.width + ACTION_CARD_GAP;
     }
-    strip.position.set(x, source ? 24 : 0);
+    const actionRowY = source ? (ACTION_CARD_SIZE.height - 36) / 2 : 0;
+    strip.position.set(x, actionRowY);
     container.addChild(strip);
     x += stripWidth;
     if (completion) {
-      completion.position.set(x + 6, source ? 24 : 0);
+      completion.position.set(x + 6, actionRowY);
       container.addChild(completion);
       x += 6 + completion.buttonWidth;
     }
     return {
       container,
       width: x,
-      height: source ? 84 : Math.max(36, completion?.buttonHeight ?? 0),
+      height: source ? ACTION_CARD_SIZE.height : Math.max(36, completion?.buttonHeight ?? 0),
     };
   }
 
@@ -1247,8 +1254,8 @@ export class PromptLayer extends PromptModalLayer {
       const source = this.makeActionCardThumbnail(sourceCard);
       if (minimal) {
         container.addChild(source);
-        y = 92;
-        width = 60;
+        y = ACTION_CARD_SIZE.height + ACTION_CARD_GAP;
+        width = ACTION_CARD_SIZE.width;
       } else {
         source.position.set(0, 0);
         container.addChild(source);
@@ -1257,21 +1264,21 @@ export class PromptLayer extends PromptModalLayer {
           description,
           12,
           this.theme.appTheme["muted-foreground"],
-          availableWidth - 68,
+          availableWidth - ACTION_CARD_SIZE.width - ACTION_CARD_GAP,
         );
-        text.position.set(68, 4);
+        text.position.set(ACTION_CARD_SIZE.width + ACTION_CARD_GAP, 4);
         container.addChild(text);
         if (info.delveCount) {
           const delved = promptRichText(
             `Delved for {${info.delveCount}}`,
             12,
             this.theme.appTheme["muted-foreground"],
-            availableWidth - 68,
+            availableWidth - ACTION_CARD_SIZE.width - ACTION_CARD_GAP,
           );
-          delved.position.set(68, 8 + text.height);
+          delved.position.set(ACTION_CARD_SIZE.width + ACTION_CARD_GAP, 8 + text.height);
           container.addChild(delved);
         }
-        y = 92;
+        y = ACTION_CARD_SIZE.height + ACTION_CARD_GAP;
         width = availableWidth;
       }
     } else if (!minimal && info) {
@@ -1368,7 +1375,7 @@ export class PromptLayer extends PromptModalLayer {
     );
     if (minimal && info?.sourceCard) {
       const source = container.children[0];
-      if (source) source.x = Math.max(0, (rows.width - 60) / 2);
+      if (source) source.x = Math.max(0, (rows.width - ACTION_CARD_SIZE.width) / 2);
     }
     rows.container.position.set(minimal ? 0 : Math.max(0, (availableWidth - rows.width) / 2), y);
     container.addChild(rows.container);
@@ -1580,7 +1587,10 @@ export class PromptLayer extends PromptModalLayer {
     const sprite = new CardSprite(card, "zone");
     const place = () => {
       sprite.scale.set(1);
-      const scale = 60 / sprite.width;
+      const scale = Math.min(
+        ACTION_CARD_SIZE.width / sprite.width,
+        ACTION_CARD_SIZE.height / sprite.height,
+      );
       sprite.scale.set(scale);
       sprite.position.set(sprite.pivot.x * scale, sprite.pivot.y * scale);
     };
@@ -1588,7 +1598,7 @@ export class PromptLayer extends PromptModalLayer {
     place();
     sprite.eventMode = "none";
     container.addChild(sprite);
-    container.hitArea = new Rectangle(0, 0, 60, 84);
+    container.hitArea = new Rectangle(0, 0, ACTION_CARD_SIZE.width, ACTION_CARD_SIZE.height);
     return container;
   }
 

@@ -8,7 +8,11 @@ import {
   PROMPT_CARD_GAP,
   PROMPT_CARD_ROW_GAP,
 } from "@/components/game/game.constants";
-import { fitPromptCardDimensions, promptCardDisplayDimensions } from "@/components/game/game.utils";
+import {
+  centeredCardRowOffset,
+  fitPromptCardDimensions,
+  promptCardDisplayDimensions,
+} from "@/components/game/game.utils";
 import type { CardInspectionState } from "./cardInspection";
 import {
   CARD_BROWSER_HORIZONTAL_PADDING,
@@ -225,6 +229,7 @@ export function DialogCardPickerGrid({
       <div className="relative" style={{ height: contentHeight }}>
         <DialogCardPickerCanvas
           items={visible}
+          itemCount={items.length}
           startIndex={start}
           state={state}
           defaultRules={defaultRules}
@@ -245,9 +250,13 @@ export function DialogCardPickerGrid({
         />
         {visible.map((item, offset) => {
           const index = start + offset;
-          const rowTop = CARD_BROWSER_VERTICAL_PADDING + Math.floor(index / columns) * rowHeight;
-          const cellLeft =
-            CARD_BROWSER_HORIZONTAL_PADDING + (index % columns) * (cellWidth + PROMPT_CARD_GAP);
+          const row = Math.floor(index / columns);
+          const rowTop = CARD_BROWSER_VERTICAL_PADDING + row * rowHeight;
+          const cardsInRow = Math.min(columns, items.length - row * columns);
+          const rowX =
+            CARD_BROWSER_HORIZONTAL_PADDING +
+            centeredCardRowOffset(gridWidth, cardsInRow, cellWidth, PROMPT_CARD_GAP);
+          const cellLeft = rowX + (index % columns) * (cellWidth + PROMPT_CARD_GAP);
           const cardSize = cardSizes.get(item.id) ?? {
             width: portraitCardWidth,
             height: (portraitCardWidth * CARD_H) / CARD_W,

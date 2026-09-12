@@ -21,6 +21,7 @@ import {
   PROMPT_CARD_ROW_GAP,
   PROMPT_MODAL_VIEWPORT_MARGIN,
 } from "@/components/game/game.constants";
+import { centeredCardRowOffset } from "@/components/game/game.utils";
 import type {
   CardDto,
   ChooseCombatDamageAssignmentInput,
@@ -56,7 +57,6 @@ import {
   REORDER_PREVIEW_SECONDS,
   ROW_GAP,
   type RollDisplayEntry,
-  SCRY_BODY_FIXED_HEIGHT,
   SCRY_LAYOUT_SETTLE_SECONDS,
   SOURCE_CARD_GAP,
   SOURCE_LABEL_HEIGHT,
@@ -67,6 +67,7 @@ import {
 } from "./PromptLayerBase";
 
 const CHOICE_MODAL_WIDTH = 560;
+const CARD_PROMPT_MIN_WIDTH = 360;
 
 export abstract class PromptModalLayer extends PromptLayerBase {
   protected renderModal(): void {
@@ -814,7 +815,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       PANEL_PADDING * 2 +
       CARD_TILE_EDGE_INSET * 2;
     const width = this.modalPromptWidth(
-      Math.min(PROMPT_CARD_MODAL_MAX_WIDTH, Math.max(CHOICE_MODAL_WIDTH, preferredRowWidth)),
+      Math.min(PROMPT_CARD_MODAL_MAX_WIDTH, Math.max(CARD_PROMPT_MIN_WIDTH, preferredRowWidth)),
     );
     const cardAreaWidth = width - PANEL_PADDING * 2 - CARD_TILE_EDGE_INSET * 2;
     const portraitCardWidth = Math.min(preferredCardWidth, cardAreaWidth / maxCardWidthRatio);
@@ -850,7 +851,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       60,
     );
     const shortcuts = this.promptCardShortcutHint();
-    const startY = shortcuts ? 28 : 4;
+    const startY = shortcuts ? 28 : CARD_TILE_EDGE_INSET;
     if (shortcuts) {
       const shortcutText = promptText(shortcuts, 10, this.theme.appTheme["muted-foreground"]);
       shortcutText.position.set(CARD_TILE_EDGE_INSET, 5);
@@ -881,10 +882,12 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       );
       const row = Math.floor(index / columns);
       const column = index % columns;
-      tile.position.set(
+      const cardsInRow = Math.min(columns, cards.length - row * columns);
+      const rowX =
         CARD_TILE_EDGE_INSET +
-          column * (cardWidth + PROMPT_CARD_GAP) +
-          (cardWidth - cardSize.width) / 2,
+        centeredCardRowOffset(cardAreaWidth, cardsInRow, cardWidth, PROMPT_CARD_GAP);
+      tile.position.set(
+        rowX + column * (cardWidth + PROMPT_CARD_GAP) + (cardWidth - cardSize.width) / 2,
         startY + row * (cardHeight + PROMPT_CARD_ROW_GAP) + (cardHeight - cardSize.height) / 2,
       );
       body.addChild(tile);
@@ -1320,16 +1323,9 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const maxCardWidthRatio = Math.max(
       ...items.map((item) => this.promptCardDisplayDimensions(item.card, CARD_W).width / CARD_W),
     );
-    const denseCardWidth =
-      items.length <= 1
-        ? preferredCardWidth
-        : (zoneWidth - REORDER_CARD_INSET * 2 - 12 * (items.length - 1)) /
-          items.length /
-          maxCardWidthRatio;
     const portraitCardWidth = Math.min(
       preferredCardWidth,
       (zoneWidth - REORDER_CARD_INSET * 2) / maxCardWidthRatio,
-      Math.max(112, denseCardWidth),
     );
     const cardSizes = new Map(
       items.map((item) => [
@@ -1695,28 +1691,13 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const { width: preferredCardWidth } = this.promptCardDimensions();
     const baseCardSizes = cards.map((card) => this.promptCardDisplayDimensions(card, CARD_W));
     const maxCardWidthRatio = Math.max(...baseCardSizes.map((size) => size.width / CARD_W));
-    const maxCardHeightRatio = Math.max(...baseCardSizes.map((size) => size.height / CARD_W));
     const stackDepth = Math.min(64, Math.max(0, cards.length - 1) * 16);
     const height = this.viewportHeight - 24;
     const footerHeight = 64;
-    const { body, bodyTop, footer } = this.createModalShell(
-      width,
-      height,
-      presentation,
-      true,
-      footerHeight,
-    );
-    const availableCardRowsHeight =
-      height -
-      bodyTop -
-      footerHeight -
-      MODAL_BODY_BOTTOM_PADDING -
-      SCRY_BODY_FIXED_HEIGHT -
-      stackDepth;
+    const { body, footer } = this.createModalShell(width, height, presentation, true, footerHeight);
     const portraitCardWidth = Math.min(
       preferredCardWidth,
-      Math.max(92, (zoneWidth - 20) / maxCardWidthRatio),
-      Math.max(1, availableCardRowsHeight / 2 / maxCardHeightRatio),
+      Math.max(1, zoneWidth - 20) / maxCardWidthRatio,
     );
     const cardSizes = new Map(
       cards.map((card) => [card.id, this.promptCardDisplayDimensions(card, portraitCardWidth)]),

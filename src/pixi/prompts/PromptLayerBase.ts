@@ -22,7 +22,6 @@ import {
   CARD_HOVER_TRANSITION_SECONDS,
   CARD_RADIUS,
   CARD_W,
-  GAME_CARD_SIZES,
   PASSIVE_CARD_HOVER_SCALE,
 } from "@/components/game/game.constants";
 import {
@@ -64,7 +63,7 @@ export const MODAL_TYPES = new Set([
   "diceRolled",
 ]);
 const FONT = "Inter, system-ui, sans-serif";
-export const PANEL_PADDING = 20;
+export const PANEL_PADDING = 8;
 export const ROW_GAP = 10;
 const CARD_HOVER_Z_INDEX = 600;
 export const CARD_TILE_EDGE_INSET = 8;
@@ -73,7 +72,6 @@ export const REORDER_ORDER_ZONE_ID = "reorder-order";
 export const REORDER_CARD_INSET = 18;
 export const REORDER_LAYOUT_SETTLE_SECONDS = 0.24;
 export const CARD_ASPECT_RATIO = CARD_H / CARD_W;
-export const SCRY_BODY_FIXED_HEIGHT = 102;
 export const MODAL_MIN_HEIGHT = 160;
 export const MODAL_BODY_BOTTOM_PADDING = 8;
 export const SOURCE_CARD_GAP = 20;
@@ -720,13 +718,7 @@ export abstract class PromptLayerBase {
     width: number;
     height: number;
   } {
-    const availableHeight = Math.max(112, this.viewportHeight - 24 - SOURCE_LABEL_HEIGHT);
-    const width = Math.min(
-      GAME_CARD_SIZES.preview.width,
-      (availableHeight * CARD_W) / CARD_H,
-      Math.max(80, this.viewportWidth - PANEL_PADDING * 2 - 24),
-    );
-    return { width, height: width * CARD_ASPECT_RATIO };
+    return this.promptCardDimensions();
   }
 
   protected modalPromptWidth(maxWidth: number): number {

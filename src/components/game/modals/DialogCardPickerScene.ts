@@ -8,6 +8,7 @@ import {
   PASSIVE_CARD_HOVER_SCALE,
   PROMPT_CARD_GAP,
 } from "@/components/game/game.constants";
+import { centeredCardRowOffset } from "@/components/game/game.utils";
 import { CardSprite } from "@/pixi/CardSprite";
 import { bindPreviewScroll } from "@/pixi/cardPreview/previewScroll";
 import { hexToNum } from "@/pixi/colorUtils";
@@ -28,6 +29,7 @@ import {
 
 export interface DialogCardPickerSceneProps {
   items: CardBrowserItem[];
+  itemCount: number;
   startIndex: number;
   state: CardBrowserState;
   defaultRules: boolean;
@@ -178,8 +180,14 @@ export class DialogCardPickerScene {
       entry.sprite.scale.set(displayScale);
       entry.sprite.setChromeScale(1 / scale);
       entry.sprite.syncHandControlsScale();
-      const x =
+      const row = Math.floor(absoluteIndex / props.columns);
+      const cardsInRow = Math.min(props.columns, props.itemCount - row * props.columns);
+      const gridWidth = props.width - CARD_BROWSER_HORIZONTAL_PADDING * 2;
+      const rowX =
         CARD_BROWSER_HORIZONTAL_PADDING +
+        centeredCardRowOffset(gridWidth, cardsInRow, props.cellWidth, PROMPT_CARD_GAP);
+      const x =
+        rowX +
         (absoluteIndex % props.columns) * (props.cellWidth + PROMPT_CARD_GAP) +
         props.cellWidth / 2;
       const y =

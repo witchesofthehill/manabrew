@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Cog } from "lucide-react";
 
-const ROW_REM = 3.5;
-
 export function TableCreatingSplash({ label }: { label: string }) {
-  const [labels, setLabels] = useState([label]);
-  if (labels[labels.length - 1] !== label) setLabels([...labels, label]);
+  const [current, setCurrent] = useState(label);
+  const [leaving, setLeaving] = useState<string | null>(null);
+  if (label !== current) {
+    setLeaving(current);
+    setCurrent(label);
+  }
 
   return (
     <div className="flex h-full min-h-[30rem] items-center justify-center px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
@@ -15,19 +17,21 @@ export function TableCreatingSplash({ label }: { label: string }) {
           <span className="absolute inset-2 rounded-full bg-primary/10" />
           <Cog className="h-7 w-7 animate-[spin_3s_linear_infinite] text-primary" />
         </span>
-        <span className="block h-14 w-full overflow-hidden [mask-image:linear-gradient(transparent,black_25%,black_75%,transparent)]">
+        <span className="relative block h-14 w-full">
+          {leaving && (
+            <span
+              key={`out-${leaving}`}
+              onAnimationEnd={() => setLeaving(null)}
+              className="animate-splash-step-out absolute inset-0 flex items-center justify-center font-serif text-lg font-light text-foreground/90 sm:text-xl"
+            >
+              {leaving}
+            </span>
+          )}
           <span
-            className="block transition-transform duration-700 ease-in-out"
-            style={{ transform: `translateY(-${(labels.length - 1) * ROW_REM}rem)` }}
+            key={`in-${current}`}
+            className="animate-splash-step-in absolute inset-0 flex items-center justify-center font-serif text-lg font-light text-foreground/90 sm:text-xl"
           >
-            {labels.map((text, index) => (
-              <span
-                key={index}
-                className="flex h-14 items-center justify-center font-serif text-lg font-light text-foreground/90 sm:text-xl"
-              >
-                {text}
-              </span>
-            ))}
+            {current}
           </span>
         </span>
       </div>

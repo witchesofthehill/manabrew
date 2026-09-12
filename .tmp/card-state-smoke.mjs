@@ -1,0 +1,68 @@
+import { chromium } from 'playwright';
+import assert from 'node:assert/strict';
+const browser = await chromium.launch({channel:'chrome',headless:true});
+const context = await browser.newContext({viewport:{width:1600,height:1100},reducedMotion:'reduce'});
+await context.addInitScript(()=>{
+  for(const [key,version] of [['manabrew.termsAcceptance','1.5.0'],['manabrew.onboarding','1.0']]) localStorage.setItem(key,JSON.stringify({version,acceptedAt:new Date().toISOString()}));
+  localStorage.setItem('manabrew-preferences',JSON.stringify({version:1,state:{serverHost:'127.0.0.1',serverPort:8080,inGameAnimations:false,cardPreviewDelay:10000}}));
+});
+const page=await context.newPage();
+const errors=[];
+page.on('pageerror',error=>errors.push(error.message));
+try {
+  await page.goto('http://127.0.0.1:1422/card-mock',{waitUntil:'domcontentloaded'});
+  await page.getByRole('textbox',{name:'Search all theme tokens'}).waitFor({timeout:120000});
+  await page.waitForFunction(()=>document.querySelector('canvas')?.width>0);
+  const fixtures=await page.evaluate(async()=>{
+    const {createPlaygroundTable,LOCAL_PLAYER_ID}=await import('/src/components/dev/boardPlayground.data.ts');
+    const table=createPlaygroundTable('theme');
+    return {cards:table.cards.filter(c=>c.ownerId===LOCAL_PLAYER_ID),actionable:table.actionableGraveyardIds,opening:createPlaygroundTable('opening').cards.filter(c=>c.zoneId==='battlefield').length};
+  });
+  const creatures=fixtures.cards.filter(c=>c.zoneId==='battlefield'&&c.types.includes('Creature'));
+  assert.equal(creatures.length,3);
+  assert.equal(creatures[0].summoningSick,true);
+  assert.equal(creatures[1].tapped,true);
+  assert.equal(creatures[1].damage,1);
+  assert.equal(creatures[2].counters.P1P1,2);
+  assert.equal(creatures[2].power,'6');
+  assert.equal(fixtures.opening,0);
+  await page.waitForTimeout(1200);
+  await page.screenshot({path:'.tmp/card-state-board.png'});
+  await page.evaluate(()=>window.cardStateCanvas=document.querySelector('canvas'));
+  await page.getByRole('button',{name:'Graveyard (4)',exact:true}).click();
+  const zone=page.getByRole('region',{name:'graveyard color preview'});
+  await zone.waitFor();
+  const looting=zone.getByRole('option',{name:'Faithless Looting, action available',exact:true});
+  const skeleton=zone.getByRole('option',{name:'Reassembling Skeleton, action available',exact:true});
+  const swords=zone.getByRole('option',{name:'Swords to Plowshares',exact:true});
+  const forest=zone.getByRole('option',{name:'Forest',exact:true});
+  assert.equal(await looting.getAttribute('aria-disabled'),'false');
+  assert.equal(await skeleton.getAttribute('aria-disabled'),'false');
+  assert.equal(await swords.getAttribute('aria-disabled'),'true');
+  assert.equal(await forest.getAttribute('aria-disabled'),'true');
+  await looting.focus();
+  await looting.press('Enter');
+  const selected=zone.getByRole('option',{name:'Faithless Looting, selected',exact:true});
+  assert.equal(await selected.getAttribute('aria-selected'),'true');
+  const search=page.getByRole('textbox',{name:'Search all theme tokens'});
+  await search.fill('cardSelection');
+  const control=page.getByRole('textbox',{name:'cardSelection',exact:true});
+  await control.fill('#61c8a5');
+  await control.press('Enter');
+  await page.waitForFunction(()=>getComputedStyle(document.documentElement).getPropertyValue('--card-selection').trim()==='#61c8a5');
+  assert.equal(await selected.getAttribute('aria-selected'),'true');
+  assert.equal(await page.evaluate(()=>window.cardStateCanvas===document.querySelector('canvas')),true);
+  await swords.focus();
+  await swords.press('Enter');
+  assert.equal(await swords.getAttribute('aria-selected'),'false');
+  await page.mouse.move(1590,10);
+  await page.waitForTimeout(700);
+  await page.screenshot({path:'.tmp/card-state-graveyard.png'});
+  console.log(JSON.stringify({ok:true,creatures:creatures.map(c=>({name:c.identity.name,summoningSick:c.summoningSick,tapped:c.tapped,damage:c.damage,counters:c.counters})),graveyard:4,actionable:fixtures.actionable.length,boardBounds:await page.locator('canvas').first().boundingBox(),zoneBounds:await zone.boundingBox(),errors},null,2));
+  await page.setViewportSize({width:390,height:844});
+  await page.waitForTimeout(700);
+  await page.screenshot({path:'.tmp/card-state-mobile.png'});
+  console.log('mobile',JSON.stringify({board:await page.locator('canvas').first().boundingBox(),zone:await zone.boundingBox(),list:await zone.getByRole('listbox').boundingBox()}));
+  assert.deepEqual(errors,[]);
+} catch(error) { await page.screenshot({path:'.tmp/card-state-failure.png'});throw error; }
+finally {await browser.close();}

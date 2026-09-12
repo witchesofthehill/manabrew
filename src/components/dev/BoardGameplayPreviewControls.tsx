@@ -31,7 +31,7 @@ export function BoardGameplayPreviewControls({
   outcome,
 }: BoardGameplayPreviewControlsProps) {
   return (
-    <div className="max-h-[20%] shrink-0 space-y-1 overflow-y-auto">
+    <div className="min-w-0 space-y-1">
       <div className="flex flex-wrap items-center gap-1.5">
         <select
           aria-label="Gameplay action preview"

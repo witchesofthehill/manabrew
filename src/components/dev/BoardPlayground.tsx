@@ -38,6 +38,7 @@ import {
 import { PREVIEW_SCENARIOS } from "./devPreviewScenarios";
 import { BoardGameplayPreviewControls } from "./BoardGameplayPreviewControls";
 import { useBoardGameplayPreview } from "./useBoardGameplayPreview";
+import { BoardPlaygroundZone } from "./BoardPlaygroundZone";
 
 const DEV_MANA_ACTION_ID = "dev-mana";
 const PREVIEW_VIEWPORTS = [
@@ -49,9 +50,12 @@ const PREVIEW_VIEWPORTS = [
 let previewCardSequence = 0;
 
 export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean }) {
-  const [table, setTable] = useState(() => createPlaygroundTable("opening"));
+  const [table, setTable] = useState(() =>
+    createPlaygroundTable(themeEditor ? "theme" : "opening"),
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sheetPlayerId, setSheetPlayerId] = useState<string | null>(null);
+  const [viewingZone, setViewingZone] = useState<{ ownerId: string; zoneId: string } | null>(null);
   const [overview, setOverview] = useState(false);
   const [focusedPlayerId, setFocusedPlayerId] = useState(table.players[1]!.id);
   const [selfStops, setSelfStops] = useState(new Set<string>(["main1", "combatDeclareAttackers"]));
@@ -93,9 +97,17 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
     },
     [showSticky],
   );
+  const dismissPreview = preview.dismiss;
+  const openZone = useCallback(
+    (ownerId: string, zoneId: string) => {
+      dismissPreview();
+      setViewingZone({ ownerId, zoneId });
+    },
+    [dismissPreview],
+  );
   const specs = useMemo(
-    () => buildPlaygroundSpecs(table, theme, compact, inspect),
-    [table, theme, compact, inspect],
+    () => buildPlaygroundSpecs(table, theme, compact, openZone),
+    [table, theme, compact, openZone],
   );
   const gameplay = useBoardGameplayPreview(table, setTable, specs.zones, theme, themeEditor, () =>
     setControlsOpen((open) => (themeEditor ? !open : true)),
@@ -131,6 +143,9 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
     table.cards.filter((card) => card.zoneId === "battlefield").at(-1);
   const targetId = target?.id ?? null;
   const previewCard = table.cards.find((card) => card.id === preview.hoveredCard?.id) ?? null;
+  const visibleZone = specs.zones.find(
+    (zone) => zone.ownerId === viewingZone?.ownerId && zone.zone === viewingZone.zoneId,
+  );
 
   const loadScenario = (scenario: PlaygroundScenarioId) => {
     const next = createPlaygroundTable(scenario);
@@ -140,6 +155,7 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
     setTable(next);
     setSelectedId(null);
     setSheetPlayerId(null);
+    setViewingZone(null);
     setFocusedPlayerId(next.players[1]!.id);
     setOverview(scenario === "combat" || scenario === "player-panels");
     setSelfStops(new Set(["main1", "combatDeclareAttackers"]));
@@ -659,21 +675,38 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
           </p>
         </div>
       </details>
-      <BoardGameplayPreviewControls
-        mode={gameplay.mode}
-        onModeChange={gameplay.chooseMode}
-        modalOpen={gameplay.modal !== null}
-        modalHidden={gameplay.modalHidden}
-        onOpenModal={(kind) => {
-          preview.dismiss();
-          gameplay.openModal(kind);
-        }}
-        onCloseModal={gameplay.closeModal}
-        onShowModal={() => gameplay.setModalHidden(false)}
-        stackVisible={gameplay.stackVisible}
-        onToggleStack={() => gameplay.setStackVisible((visible) => !visible)}
-        outcome={gameplay.outcome}
-      />
+      <div className="flex max-h-[20%] shrink-0 items-start gap-2 overflow-y-auto">
+        <BoardGameplayPreviewControls
+          mode={gameplay.mode}
+          onModeChange={gameplay.chooseMode}
+          modalOpen={gameplay.modal !== null}
+          modalHidden={gameplay.modalHidden}
+          onOpenModal={(kind) => {
+            preview.dismiss();
+            setViewingZone(null);
+            gameplay.openModal(kind);
+          }}
+          onCloseModal={gameplay.closeModal}
+          onShowModal={() => gameplay.setModalHidden(false)}
+          stackVisible={gameplay.stackVisible}
+          onToggleStack={() => gameplay.setStackVisible((visible) => !visible)}
+          outcome={gameplay.outcome}
+        />
+        <Button
+          size="sm"
+          variant={visibleZone?.zone === "graveyard" ? "secondary" : "outline"}
+          onClick={() =>
+            visibleZone?.zone === "graveyard"
+              ? setViewingZone(null)
+              : openZone(LOCAL_PLAYER_ID, "graveyard")
+          }
+        >
+          Graveyard (
+          {specs.zones.find((zone) => zone.ownerId === LOCAL_PLAYER_ID && zone.zone === "graveyard")
+            ?.count ?? 0}
+          )
+        </Button>
+      </div>
       <div
         ref={boardRef}
         style={{ width: viewport.width, height: themeEditor ? undefined : viewport.height }}
@@ -766,6 +799,14 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
           />
         </div>
       </div>
+      {visibleZone && (
+        <BoardPlaygroundZone
+          key={`${visibleZone.ownerId}-${visibleZone.zone}`}
+          zone={visibleZone}
+          actionableCardIds={table.actionableGraveyardIds}
+          onClose={() => setViewingZone(null)}
+        />
+      )}
       {previewStyle === "printed" && (
         <HoverCardPreview
           preview={{ ...preview, hoveredCard: previewCard }}

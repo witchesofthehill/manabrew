@@ -10,7 +10,7 @@ import {
   Texture,
   type FederatedPointerEvent,
 } from "pixi.js";
-import { boardBackgroundUrl } from "./boardBackgrounds";
+import { boardBackgroundDarken, boardBackgroundUrl } from "./boardBackgrounds";
 import { withAlpha } from "@/themes/gameTheme";
 import type { CardDto, PlaymatSettings } from "@/protocol/game";
 import type { AttackTargetDto, TargetRef } from "@/protocol/prompts/common";
@@ -216,6 +216,7 @@ export class BoardScene {
   private baseBg: Graphics;
   private baseImage: Sprite;
   private baseImageUrl: string | null = null;
+  private baseImageDarken = 0;
   private collapseVeil: Graphics;
   private canvasW = 0;
   private canvasH = 0;
@@ -365,7 +366,7 @@ export class BoardScene {
     this.baseImage.anchor.set(0.5);
     this.baseImage.visible = false;
     this.root.addChild(this.baseImage);
-    this.setBackground(boardBackgroundUrl(undefined));
+    this.setBackground(boardBackgroundUrl(undefined), boardBackgroundDarken(undefined));
 
     this.dragHandler = new DragHandler();
 
@@ -1497,9 +1498,12 @@ export class BoardScene {
     for (const rec of this.regions.values()) rec.region.restyleCards();
   }
 
-  setBackground(url: string | null): void {
-    if (this.destroyed || url === this.baseImageUrl) return;
+  setBackground(url: string | null, darken = 0): void {
+    if (this.destroyed || (url === this.baseImageUrl && darken === this.baseImageDarken)) return;
     this.baseImageUrl = url;
+    this.baseImageDarken = darken;
+    const channel = Math.round(255 * (1 - darken));
+    this.baseImage.tint = (channel << 16) | (channel << 8) | channel;
     if (!url) {
       this.baseImage.visible = false;
       return;

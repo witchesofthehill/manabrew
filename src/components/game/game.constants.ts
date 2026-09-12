@@ -99,6 +99,7 @@ export const PROMPT_CARD_MODAL_MAX_WIDTH = 1160;
 export const PROMPT_CARD_MODAL_MAX_WIDTH_CLASS = "max-w-[1160px]";
 export const PROMPT_MODAL_VIEWPORT_MARGIN = 16;
 export const PROMPT_MODAL_MAX_HEIGHT_CLASS = "max-h-[calc(100dvh-16px)]";
+export const PROMPT_MODAL_HEIGHT_CLASS = "h-[calc(100dvh-16px)]";
 /** Corner radius at CARD_W scale — renderers drawing at other sizes must scale
  *  it proportionally (radius = size * CARD_RADIUS / CARD_W) to match the
  *  printed card corner. */

@@ -47,6 +47,13 @@ export function hexToNum(color: string): number {
   return 0;
 }
 
+export function mixNum(a: number, b: number, amount: number): number {
+  const r = Math.round(((a >> 16) & 0xff) * (1 - amount) + ((b >> 16) & 0xff) * amount);
+  const g = Math.round(((a >> 8) & 0xff) * (1 - amount) + ((b >> 8) & 0xff) * amount);
+  const bl = Math.round((a & 0xff) * (1 - amount) + (b & 0xff) * amount);
+  return (r << 16) | (g << 8) | bl;
+}
+
 export function colorAlpha(hex: string): number {
   const rgbaMatch = hex.match(/^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*([\d.]+))?\s*\)$/i);
   if (rgbaMatch && rgbaMatch[1] != null) return parseFloat(rgbaMatch[1]);

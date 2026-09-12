@@ -17,6 +17,7 @@ import {
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import type { CombatRow } from "@/components/game/combatRows";
 import type { BoardScene } from "@/pixi/board/BoardScene";
+import { boardAmbientColor, boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
 import type { PlayerHudSpec, PlayerHudBadge, PlayerHudFact } from "@/pixi/hud/playerHud.types";
 import type { PromptOverlaySpec } from "@/pixi/prompts/prompt.types";
 import { buildPlayerHudBadges, buildZoneBadges } from "@/components/game/panels/playerHudBadges";
@@ -748,6 +749,20 @@ export function GameBoard({
   const defaultPlaymatSettings = usePreferencesStore((s) => s.defaultPlaymatSettings);
   const playerDecks = useServerStore((s) => s.playerDecks);
   const relayPlayers = useServerStore((s) => s.players);
+
+  const roomTableStyle = useServerStore((s) => s.currentRoom?.table_style);
+  const boardBackgroundId = usePreferencesStore((s) => s.boardBackgroundId);
+  const backgroundId = roomTableStyle ?? boardBackgroundId;
+  const [ambientColor, setAmbientColor] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void boardAmbientColor(boardBackgroundUrl(backgroundId)).then((color) => {
+      if (!cancelled) setAmbientColor(color);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [backgroundId]);
 
   const avatarByPlayerId = useMemo(() => {
     const map = new Map<string, string>();
@@ -1831,6 +1846,7 @@ export function GameBoard({
           onHoverStack={onHoverStack}
           onToggleStack={onToggleStack}
           promptSpec={promptOverlaySpec ?? null}
+          ambientColor={ambientColor}
           externalPreviewActive={externalPreviewActive}
           previewSpec={rulesPreview}
           commandPreviewSpec={commandPreview}

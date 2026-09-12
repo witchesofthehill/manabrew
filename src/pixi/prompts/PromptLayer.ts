@@ -2,6 +2,7 @@ import { topModal } from "@/lib/modalStack";
 import { summarizeCombat } from "@/components/game/combatSummary";
 import {
   Application,
+  BlurFilter,
   Container,
   FederatedPointerEvent,
   Graphics,
@@ -9,7 +10,7 @@ import {
   type Ticker,
 } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
-import { hexToNum } from "@/pixi/colorUtils";
+import { hexToNum, mixNum } from "@/pixi/colorUtils";
 import { CardSprite } from "@/pixi/CardSprite";
 import {
   ACTION_DRAWER_BUMP_EVENT,
@@ -65,6 +66,7 @@ export class PromptLayer extends PromptModalLayer {
   private onActionBump = (event: Event): void =>
     this.bumpActionPanel((event as CustomEvent<boolean>).detail === true);
   private readonly onTick = (ticker: Ticker): void => this.update(ticker.deltaMS);
+  private ambientColor: number | null = null;
 
   constructor(app: Application, callbacks: PromptLayerCallbacks = {}) {
     super(app, callbacks);
@@ -96,6 +98,12 @@ export class PromptLayer extends PromptModalLayer {
   }
   setTheme(theme: Theme): void {
     this.theme = theme;
+    this.rebuild();
+  }
+
+  setAmbientColor(color: number | null): void {
+    if (color === this.ambientColor) return;
+    this.ambientColor = color;
     this.rebuild();
   }
 
@@ -394,6 +402,7 @@ export class PromptLayer extends PromptModalLayer {
     }
 
     const background = this.makeActionPanelSurface(width, panelHeight, radius, squareBottom);
+    if (this.actionGlow) panel.addChild(this.actionGlow.spill);
     panel.addChild(background);
     if (this.actionGlow) panel.addChild(this.actionGlow);
 
@@ -1462,31 +1471,40 @@ export class PromptLayer extends PromptModalLayer {
     height: number,
     radius: number,
     squareBottom: boolean,
-  ): Graphics {
-    const surface = new Graphics();
-    surface
-      .roundRect(0, 4, width, height, radius)
-      .fill({ color: hexToNum(this.theme.gameTheme.canvas.shadow), alpha: 0.18 })
+  ): Container {
+    const baseCard = hexToNum(this.theme.appTheme.card);
+    const card =
+      this.ambientColor == null ? baseCard : mixNum(baseCard, this.ambientColor, 0.35);
+    const shadow = new Graphics()
+      .roundRect(0, 14, width, height, radius)
+      .fill({ color: hexToNum(this.theme.gameTheme.canvas.shadow) });
+    shadow.alpha = 0.5;
+    shadow.filters = [new BlurFilter({ strength: 18 })];
+    shadow.eventMode = "none";
+    const surface = new Graphics()
       .roundRect(0, 0, width, height, radius)
-      .fill({ color: hexToNum(this.theme.appTheme.card), alpha: 0.95 });
+      .fill({ color: card, alpha: 0.75 });
     if (squareBottom) {
       surface
         .rect(0, height - radius, width, radius)
-        .fill({ color: hexToNum(this.theme.appTheme.card), alpha: 0.95 })
+        .fill({ color: card, alpha: 0.75 })
         .moveTo(0, height)
         .lineTo(0, radius)
         .quadraticCurveTo(0, 0, radius, 0)
         .lineTo(width - radius, 0)
         .quadraticCurveTo(width, 0, width, radius)
         .lineTo(width, height)
-        .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.7 });
+        .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.35 });
     } else {
       surface
         .roundRect(0, 0, width, height, radius)
-        .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.7 });
+        .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.35 });
     }
     surface.eventMode = "none";
-    return surface;
+    const container = new Container();
+    container.eventMode = "none";
+    container.addChild(shadow, surface);
+    return container;
   }
 
   private makeActionMenuButton(minimal: boolean): ActionViewLayout {

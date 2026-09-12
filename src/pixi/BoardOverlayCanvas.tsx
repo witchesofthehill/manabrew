@@ -97,6 +97,7 @@ interface BoardOverlayCanvasProps {
   onHoverStack: (stackObjectId: string | null) => void;
   onToggleStack: () => void;
   promptSpec: PromptOverlaySpec | null;
+  ambientColor?: number | null;
   className?: string;
   externalPreviewActive?: boolean;
   previewSpec?: BoardOverlayPreviewSpec | null;
@@ -222,6 +223,7 @@ export function BoardOverlayCanvas({
   onHoverStack,
   onToggleStack,
   promptSpec,
+  ambientColor = null,
   className,
   externalPreviewActive = false,
   previewSpec,
@@ -861,6 +863,10 @@ export function BoardOverlayCanvas({
       window.removeEventListener("click", onClick, true);
     };
   }, []);
+
+  useEffect(() => {
+    promptRef.current?.setAmbientColor(ambientColor);
+  }, [ambientColor]);
 
   useEffect(() => {
     themeRef.current = theme;

@@ -33,7 +33,7 @@ import { useCardFaces } from "@/hooks/useCardFaces";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { useServerStore } from "@/stores/useServerStore";
-import { boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
+import { boardBackgroundDarken, boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
 import { setAnimationsEnabled } from "./effects/enabled";
 import { withAlpha } from "@/themes/gameTheme";
 import { bindPreviewScroll } from "./cardPreview/previewScroll";
@@ -623,7 +623,8 @@ export function BoardCanvas({
   const boardBackground = usePreferencesStore((s) => s.boardBackgroundId);
 
   useEffect(() => {
-    scene?.setBackground(boardBackgroundUrl(roomTableStyle ?? boardBackground));
+    const backgroundId = roomTableStyle ?? boardBackground;
+    scene?.setBackground(boardBackgroundUrl(backgroundId), boardBackgroundDarken(backgroundId));
   }, [scene, roomTableStyle, boardBackground]);
 
   const inGameAnimations = usePreferencesStore((s) => s.inGameAnimations);

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import {
   PROMPT_CARD_MODAL_MAX_WIDTH_CLASS,
-  PROMPT_MODAL_MAX_HEIGHT_CLASS,
+  PROMPT_MODAL_HEIGHT_CLASS,
 } from "@/components/game/game.constants";
 import type { CardDto } from "@/protocol/game";
 import { useTheme } from "@/hooks/useTheme";
@@ -71,7 +71,7 @@ export function ZoneViewer({
     <Modal
       onClose={onClose}
       maxWidth={PROMPT_CARD_MODAL_MAX_WIDTH_CLASS}
-      maxHeight={PROMPT_MODAL_MAX_HEIGHT_CLASS}
+      className={PROMPT_MODAL_HEIGHT_CLASS}
     >
       <Modal.Header onClose={onClose}>
         <h2 className="text-base font-semibold">{title}</h2>

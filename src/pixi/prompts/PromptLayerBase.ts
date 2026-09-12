@@ -1145,12 +1145,12 @@ export abstract class PromptLayerBase {
     if (!filter) return;
     filter.background
       .clear()
-      .roundRect(0, filter.y, filter.width, 40, 8)
-      .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.72 })
+      .roundRect(0.5, filter.y + 0.5, filter.width - 1, 39, 7.5)
+      .fill({ color: hexToNum(this.theme.appTheme.background), alpha: focused ? 0.85 : 0.72 })
       .stroke({
         color: hexToNum(focused ? this.theme.gameTheme.cardRing : this.theme.appTheme.border),
-        width: focused ? 2 : 1,
-        alpha: focused ? 0.9 : 1,
+        width: 1,
+        alpha: 1,
       });
     filter.caret.visible = focused;
   }

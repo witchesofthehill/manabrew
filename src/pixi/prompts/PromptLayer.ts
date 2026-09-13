@@ -826,7 +826,7 @@ export class PromptLayer extends PromptModalLayer {
             [
               this.makeActionButton(
                 "Keep",
-                "lucide-check",
+                "lucide-check-bold",
                 action.onMulliganKeep,
                 "priority",
                 disabled,
@@ -835,7 +835,7 @@ export class PromptLayer extends PromptModalLayer {
               ),
               this.makeActionButton(
                 "Mulligan",
-                "lucide-rotate-cw",
+                "lucide-rotate-cw-bold",
                 action.onMulliganDraw,
                 "secondary",
                 disabled,
@@ -876,7 +876,7 @@ export class PromptLayer extends PromptModalLayer {
               disabled,
               width: (width - 6) / 2,
               height: 36,
-              icon: "lucide-check",
+              icon: "lucide-check-bold",
               iconSize: 14,
               fontSize: 14,
               fontWeight: "900",
@@ -890,7 +890,7 @@ export class PromptLayer extends PromptModalLayer {
               disabled,
               width: (width - 6) / 2,
               height: 36,
-              icon: "lucide-rotate-cw",
+              icon: "lucide-rotate-cw-bold",
               iconSize: 14,
               fontSize: 14,
               fontWeight: "900",

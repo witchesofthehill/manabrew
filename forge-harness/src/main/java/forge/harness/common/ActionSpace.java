@@ -10,6 +10,7 @@ import forge.game.GameEntity;
 import forge.game.GameObject;
 import forge.game.ability.AbilityUtils;
 import forge.game.card.Card;
+import forge.game.card.CardCollection;
 import forge.game.card.CardCollectionView;
 import forge.game.card.CardCopyService;
 import forge.game.card.CardLists;
@@ -21,6 +22,7 @@ import forge.game.spellability.AlternativeCost;
 import forge.game.spellability.SpellAbility;
 import forge.game.spellability.SpellAbilityStackInstance;
 import forge.game.spellability.TargetRestrictions;
+import forge.game.staticability.StaticAbilityLayer;
 import forge.game.cost.Cost;
 import forge.game.cost.CostAdjustment;
 import forge.game.cost.CostPart;
@@ -33,8 +35,10 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -130,58 +134,98 @@ public final class ActionSpace {
         }
 
         final List<SpellAbility> actions = new ArrayList<>();
-        final Map<Integer, Card> restrictionHosts = new HashMap<>();
+        final Map<Card, Card> spellHosts = new IdentityHashMap<>();
         // GameActionUtil.getAlternativeCosts runs the whole CR 613 layer pass twice for
         // every ability with an alternate host (MDFC, adventure, split, bestow), and an
         // enumeration hits that once per candidate. Game state cannot change while we
         // enumerate, so hold the pass and restore once at the end.
         game.getAction().setHoldCheckingStaticAbilities(true);
+        boolean stackStatics = false;
         try {
+        final List<SpellAbility> possible = new ArrayList<>();
         for (final Card c : candidates) {
             for (final SpellAbility sa : c.getAllPossibleAbilities(player, true)) {
                 sa.setActivatingPlayer(player);
-                final Cost payCosts = sa.getPayCosts();
-                if (payCosts != null && payCosts.hasManaCost()) {
-                    // SpellAbility.canPlay() uses Cost.canPay(), and CostPartMana.canPay()
-                    // is permissive in engine core. Add an explicit mana-feasibility check.
-                    final Set<Card> reservedSacrifices = getFixedReservedSacrifices(sa);
-                    final boolean canPayMana = lifePaymentFallback
-                            ? canPayManaCostWithLifeFallback(sa, player, reservedSacrifices)
-                            : (reservedSacrifices.isEmpty()
-                            ? ComputerUtilMana.canPayManaCost(sa, player, 0, false)
-                            : canPayManaCostWithReservedSacrifices(sa, player, reservedSacrifices));
-                    if (!canPayMana) {
-                        continue;
-                    }
-                }
-                if (!includeManaAbilities && sa.isManaAbility()) {
-                    continue;
-                }
-                // Target enumeration scans every card in the target zones, so it stays behind
-                // the payability guards: most candidates are unpayable late in a game.
-                if (!hasValidTargets(sa)) {
-                    continue;
-                }
-                if (!sa.checkRestrictions(restrictionHost(sa, game, restrictionHosts), player)) {
-                    continue;
-                }
-                actions.add(sa);
+                possible.add(sa);
+                spellHost(sa, game, spellHosts);
             }
+        }
+        if (!spellHosts.isEmpty()
+                && game.getAction().hasStaticAbilityAffectingZone(ZoneType.Stack, StaticAbilityLayer.ABILITIES)) {
+            stackStatics = true;
+            applyStackStatics(game, spellHosts.values());
+        }
+        for (final SpellAbility sa : possible) {
+            final Cost payCosts = sa.getPayCosts();
+            if (payCosts != null && payCosts.hasManaCost()) {
+                final Card probeHost = stackStatics ? spellHosts.get(sa.getHostCard()) : null;
+                if (!canPayMana(sa, player, lifePaymentFallback, probeHost)) {
+                    continue;
+                }
+            }
+            if (!includeManaAbilities && sa.isManaAbility()) {
+                continue;
+            }
+            if (!hasValidTargets(sa)) {
+                continue;
+            }
+            if (!sa.checkRestrictions(spellHost(sa, game, spellHosts), player)) {
+                continue;
+            }
+            actions.add(sa);
         }
         } finally {
             game.getAction().setHoldCheckingStaticAbilities(false);
             game.getAction().checkStaticAbilities(false);
+            if (stackStatics) {
+                game.getTracker().clearDelayed();
+                game.getTracker().unfreeze();
+            }
         }
         return actions;
     }
 
-    private static Card restrictionHost(
-            final SpellAbility sa, final Game game, final Map<Integer, Card> cache) {
+    private static boolean canPayMana(
+            final SpellAbility sa,
+            final Player player,
+            final boolean lifePaymentFallback,
+            final Card probeHost
+    ) {
+        final Set<Card> reservedSacrifices = getFixedReservedSacrifices(sa);
+        final Card host = sa.getHostCard();
+        if (probeHost != null) {
+            sa.setHostCard(probeHost);
+        }
+        try {
+            return lifePaymentFallback
+                    ? canPayManaCostWithLifeFallback(sa, player, reservedSacrifices)
+                    : (reservedSacrifices.isEmpty()
+                    ? ComputerUtilMana.canPayManaCost(sa, player, 0, false)
+                    : canPayManaCostWithReservedSacrifices(sa, player, reservedSacrifices));
+        } finally {
+            if (probeHost != null) {
+                sa.setHostCard(host);
+            }
+        }
+    }
+
+    private static void applyStackStatics(final Game game, final Collection<Card> spellHosts) {
+        game.getTracker().freeze();
+        final CardCollection preList = new CardCollection(spellHosts);
+        for (final Card host : preList) {
+            host.clearStaticChangedCardKeywords(false);
+        }
+        game.getAction().setHoldCheckingStaticAbilities(false);
+        game.getAction().checkStaticAbilities(false, new HashSet<>(preList), preList);
+        game.getAction().setHoldCheckingStaticAbilities(true);
+    }
+
+    private static Card spellHost(final SpellAbility sa, final Game game, final Map<Card, Card> cache) {
         final Card card = sa.getHostCard();
         if (!sa.isSpell()) {
             return card;
         }
-        final Card cached = cache.get(card.getId());
+        final Card cached = cache.get(card);
         if (cached != null) {
             return cached;
         }
@@ -191,7 +235,8 @@ public final class ActionSpace {
         spellHost.setLKICMC(-1);
         spellHost.setLastKnownZone(game.getStackZone());
         spellHost.setCastFrom(card.getZone());
-        cache.put(card.getId(), spellHost);
+        spellHost.setCastSA(sa);
+        cache.put(card, spellHost);
         return spellHost;
     }
 

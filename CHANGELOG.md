@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.42.6](https://github.com/witchesofthehill/manabrew/compare/v3.42.5...v3.42.6) (2026-09-13)
+
+### Fixes
+
+* affinity bug on action psace ([#920](https://github.com/witchesofthehill/manabrew/issues/920)) ([feffed0](https://github.com/witchesofthehill/manabrew/commit/feffed0407016ad257a1def10508cf464b326cc7))
+
 ## [3.42.5](https://github.com/witchesofthehill/manabrew/compare/v3.42.4...v3.42.5) (2026-09-13)
 
 ### Fixes

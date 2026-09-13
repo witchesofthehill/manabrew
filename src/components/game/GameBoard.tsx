@@ -190,11 +190,11 @@ interface GameBoardProps {
   onUntapLands?: (cardIds: string[]) => void;
 
   stackSpec: StackSpec;
-  onOpenStack: () => void;
   onTargetSpell: (spellId: string) => void;
   onHoverStack: (stackObjectId: string | null) => void;
   onToggleStack: () => void;
   promptOverlaySpec?: PromptOverlaySpec | null;
+  promptViewportRight?: number;
 
   boardSceneRef?: React.MutableRefObject<BoardScene | null>;
 
@@ -284,11 +284,11 @@ export function GameBoard({
   onUntapLand,
   onUntapLands,
   stackSpec,
-  onOpenStack,
   onTargetSpell,
   onHoverStack,
   onToggleStack,
   promptOverlaySpec,
+  promptViewportRight,
   boardSceneRef,
   battlefieldContainerRef,
   handSelectionMode,
@@ -1782,7 +1782,6 @@ export function GameBoard({
         onBlurCard={() => onHoverCard(null)}
         onInspectPlayer={setSheetPlayerId}
         onTargetPlayer={onTargetPlayer}
-        onOpenStack={onOpenStack}
         onTargetSpell={onTargetSpell}
         onToggleStack={onToggleStack}
         onToggleSelfPhase={toggleSelfStop}
@@ -1841,11 +1840,11 @@ export function GameBoard({
         <BoardOverlayCanvas
           scene={overlayScene}
           stackSpec={stackSpec}
-          onOpenStack={onOpenStack}
           onTargetSpell={onTargetSpell}
           onHoverStack={onHoverStack}
           onToggleStack={onToggleStack}
           promptSpec={promptOverlaySpec ?? null}
+          promptViewportRight={promptViewportRight}
           ambientColor={ambientColor}
           externalPreviewActive={externalPreviewActive}
           previewSpec={rulesPreview}

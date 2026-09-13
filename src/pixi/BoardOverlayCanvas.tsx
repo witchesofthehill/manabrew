@@ -92,11 +92,11 @@ function updateRulesPreviewBackdrop(
 interface BoardOverlayCanvasProps {
   scene: BoardScene | null;
   stackSpec: StackSpec;
-  onOpenStack: () => void;
   onTargetSpell: (spellId: string) => void;
   onHoverStack: (stackObjectId: string | null) => void;
   onToggleStack: () => void;
   promptSpec: PromptOverlaySpec | null;
+  promptViewportRight?: number;
   ambientColor?: number | null;
   className?: string;
   externalPreviewActive?: boolean;
@@ -110,6 +110,20 @@ interface BoardOverlayCanvasProps {
   onFlipPreview?: () => void;
   onTogglePreviewView?: () => void;
 }
+function syncPromptViewport(
+  prompt: PromptLayer,
+  canvas: HTMLCanvasElement,
+  width: number,
+  height: number,
+  viewportRight: number | undefined,
+): void {
+  prompt.setViewport(
+    width,
+    height,
+    viewportRight == null ? null : viewportRight - canvas.getBoundingClientRect().left,
+  );
+}
+
 function toRulesPreviewSpec(
   spec: BoardOverlayPreviewSpec,
   canvasRect: DOMRect,
@@ -218,11 +232,11 @@ function syncRulesPreviewActionGlow(
 export function BoardOverlayCanvas({
   scene,
   stackSpec,
-  onOpenStack,
   onTargetSpell,
   onHoverStack,
   onToggleStack,
   promptSpec,
+  promptViewportRight,
   ambientColor = null,
   className,
   externalPreviewActive = false,
@@ -260,7 +274,6 @@ export function BoardOverlayCanvas({
   const [hoveredStackObjectId, setHoveredStackObjectId] = useState<string | null>(null);
 
   const cbRef = useRef({
-    onOpenStack,
     onTargetSpell,
     onHoverStack,
     onToggleStack,
@@ -273,9 +286,9 @@ export function BoardOverlayCanvas({
     onTogglePreviewView,
   });
   const promptSpecRef = useRef(promptSpec);
+  const promptViewportRightRef = useRef(promptViewportRight);
   useEffect(() => {
     cbRef.current = {
-      onOpenStack,
       onTargetSpell,
       onHoverStack,
       onToggleStack,
@@ -292,7 +305,6 @@ export function BoardOverlayCanvas({
     onDismissPreview,
     onFlipPreview,
     onHoverStack,
-    onOpenStack,
     onPreviewPointerEnter,
     onPreviewPointerLeave,
     onSelectPreviewAction,
@@ -303,6 +315,22 @@ export function BoardOverlayCanvas({
   useEffect(() => {
     promptSpecRef.current = promptSpec;
   }, [promptSpec]);
+
+  useEffect(() => {
+    promptViewportRightRef.current = promptViewportRight;
+    const prompt = promptRef.current;
+    const canvas = canvasRef.current;
+    const parent = canvas?.parentElement;
+    if (!prompt || !canvas || !parent) return;
+    syncPromptViewport(
+      prompt,
+      canvas,
+      parent.clientWidth,
+      parent.clientHeight,
+      promptViewportRight,
+    );
+    schedulerRef.current?.request();
+  }, [promptViewportRight]);
 
   useEffect(() => {
     previewSpecRef.current = previewSpec;
@@ -418,7 +446,6 @@ export function BoardOverlayCanvas({
         arrowRef.current = arrow;
 
         stack = new StackLayer(themeRef.current, {
-          onOpen: () => cbRef.current.onOpenStack(),
           onTargetSpell: (id) => cbRef.current.onTargetSpell(id),
           onHover: (id) => {
             setHoveredStackObjectId(id);
@@ -453,7 +480,7 @@ export function BoardOverlayCanvas({
         });
         prompt = promptLayer;
         promptRef.current = promptLayer;
-        promptLayer.setViewport(width, height);
+        syncPromptViewport(promptLayer, canvas, width, height, promptViewportRightRef.current);
         promptLayer.setSpec(promptSpecRef.current);
 
         const backdrop = new Graphics();
@@ -655,7 +682,15 @@ export function BoardOverlayCanvas({
         renderer.resolution = overlayResolution(width, height);
         renderer.resize(width, height);
         stackRef.current?.setViewport(width, height);
-        promptRef.current?.setViewport(width, height);
+        if (promptRef.current && canvasRef.current) {
+          syncPromptViewport(
+            promptRef.current,
+            canvasRef.current,
+            width,
+            height,
+            promptViewportRightRef.current,
+          );
+        }
         const preview = previewRef.current;
         const canvasRect = canvasRef.current?.getBoundingClientRect();
         if (preview && canvasRect) {

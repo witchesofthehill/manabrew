@@ -89,7 +89,6 @@ export interface PromptActionSpec {
   onConfirmDamageOrder: () => void;
   onUndoDamageOrder: () => void;
   onDefaultDamageOrder: () => void;
-  onOpenStack: () => void;
   onToggleBoardMenu: () => void;
   onOpenCombat?: () => void;
   targetCompletionLabel?: string | null;

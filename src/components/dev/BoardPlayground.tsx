@@ -676,7 +676,6 @@ export function BoardPlayground() {
         />
         <div className="pointer-events-none absolute inset-0 z-40">
           <BoardOverlayCanvas
-            onOpenStack={() => undefined}
             scene={overlayScene}
             stackSpec={EMPTY_STACK}
             onTargetSpell={() => undefined}

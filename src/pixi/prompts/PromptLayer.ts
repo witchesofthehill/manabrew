@@ -107,10 +107,17 @@ export class PromptLayer extends PromptModalLayer {
     this.rebuild();
   }
 
-  setViewport(width: number, height: number): void {
-    if (width === this.viewportWidth && height === this.viewportHeight) return;
+  setViewport(width: number, height: number, viewportRight: number | null = null): void {
+    if (
+      width === this.viewportWidth &&
+      height === this.viewportHeight &&
+      viewportRight === this.viewportRight
+    ) {
+      return;
+    }
     this.viewportWidth = width;
     this.viewportHeight = height;
+    this.viewportRight = viewportRight;
     this.rebuild();
   }
 
@@ -771,18 +778,7 @@ export class PromptLayer extends PromptModalLayer {
         return { container, width, height: y };
       }
       case "chooseTargetSpell": {
-        const buttons = [
-          this.makeActionButton(
-            "View Stack",
-            "lucide-layers",
-            action.onOpenStack,
-            passColor,
-            disabled,
-            minimal,
-            touch,
-            { title: "Click a glowing spell on the stack to counter it" },
-          ),
-        ];
+        const buttons: PromptButton[] = [];
         if (action.onCompleteTargets) {
           const cancel = action.targetCompletionKind === "cancel";
           buttons.push(
@@ -1473,8 +1469,7 @@ export class PromptLayer extends PromptModalLayer {
     squareBottom: boolean,
   ): Container {
     const baseCard = hexToNum(this.theme.appTheme.card);
-    const card =
-      this.ambientColor == null ? baseCard : mixNum(baseCard, this.ambientColor, 0.35);
+    const card = this.ambientColor == null ? baseCard : mixNum(baseCard, this.ambientColor, 0.35);
     const shadow = new Graphics()
       .roundRect(0, 14, width, height, radius)
       .fill({ color: hexToNum(this.theme.gameTheme.canvas.shadow) });

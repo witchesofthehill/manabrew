@@ -58,7 +58,6 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
       onConfirmDamageOrder: onClose,
       onUndoDamageOrder: () => setDamageOrder((current) => current.slice(0, -1)),
       onDefaultDamageOrder: () => setDamageOrder(blockerCards.map((card) => card.id)),
-      onOpenStack: noAction,
       onToggleBoardMenu: noAction,
       resolveCardName: (cardId) => cardId,
       resolveCard: () => undefined,
@@ -123,7 +122,6 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
           <BoardOverlayCanvas
             scene={null}
             stackSpec={EMPTY_STACK}
-            onOpenStack={noAction}
             onTargetSpell={noAction}
             onHoverStack={noAction}
             onToggleStack={noAction}

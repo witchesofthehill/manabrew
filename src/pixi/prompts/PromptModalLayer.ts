@@ -141,11 +141,11 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const clusterWidth = width + SOURCE_CARD_GAP + preferredSourceSize.width;
     const externalSource =
       !!sourceCard &&
-      clusterWidth <= this.viewportWidth - 24 &&
+      clusterWidth <= this.layoutWidth - 24 &&
       preferredSourceSize.height <= this.viewportHeight - 24;
     const x = externalSource
-      ? Math.round((this.viewportWidth - clusterWidth) / 2)
-      : Math.round((this.viewportWidth - width) / 2);
+      ? Math.round((this.layoutWidth - clusterWidth) / 2)
+      : Math.round((this.layoutWidth - width) / 2);
     const y = Math.round((this.viewportHeight - height) / 2);
     const sourceLeft = width + SOURCE_CARD_GAP;
     const panel = this.panel(width, height, x, y, 12);
@@ -646,9 +646,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
             alpha: selected ? (hover ? 0.2 : 0.12) : hover ? 0.78 : 0.55,
           })
           .stroke({
-            color: hexToNum(
-              selected ? this.theme.gameTheme.cardRing : this.theme.appTheme.border,
-            ),
+            color: hexToNum(selected ? this.theme.gameTheme.cardRing : this.theme.appTheme.border),
             width: selected ? 2 : 1,
             alpha: selected ? 0.9 : hover ? 1 : 0.8,
           });
@@ -1346,7 +1344,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         SOURCE_CARD_GAP +
         this.promptCardDisplayDimensions(sourceCard, this.promptSourceCardDimensions().width)
           .width >
-        this.viewportWidth - 24;
+        this.layoutWidth - 24;
     const height = Math.min(
       this.viewportHeight - 24,
       cardHeight +
@@ -3044,7 +3042,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.72 });
     backdrop.eventMode = "static";
     this.container.addChild(backdrop);
-    const panelWidth = Math.min(520, this.viewportWidth - 24);
+    const panelWidth = Math.min(520, this.layoutWidth - 24);
     const panelHeight = Math.min(this.viewportHeight - 24, 206 + players.length * 36);
     const group = this.panel(panelWidth, panelHeight, 0, 0, 12);
     group.accessible = true;
@@ -3119,7 +3117,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     button.position.set((panelWidth - button.buttonWidth) / 2, panelHeight - 56);
     group.addChild(button);
     group.position.set(
-      (this.viewportWidth - panelWidth) / 2,
+      (this.layoutWidth - panelWidth) / 2,
       (this.viewportHeight - panelHeight) / 2,
     );
     this.container.addChild(group);

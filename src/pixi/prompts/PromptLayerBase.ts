@@ -468,6 +468,13 @@ export abstract class PromptLayerBase {
   protected spec: PromptOverlaySpec | null = null;
   protected viewportWidth = 0;
   protected viewportHeight = 0;
+  protected viewportRight: number | null = null;
+
+  protected get layoutWidth(): number {
+    return this.viewportRight == null
+      ? this.viewportWidth
+      : Math.min(this.viewportWidth, this.viewportRight);
+  }
   protected actionBounds: Rectangle | null = null;
   protected modalOpen = false;
   protected selectedIds = new Set<string>();
@@ -690,7 +697,7 @@ export abstract class PromptLayerBase {
     height: number;
   } {
     return fitPromptCardDimensions(
-      this.viewportWidth - PANEL_PADDING * 2 - 24,
+      this.layoutWidth - PANEL_PADDING * 2 - 24,
       this.viewportHeight,
       maxHeight,
     );
@@ -717,13 +724,13 @@ export abstract class PromptLayerBase {
     const width = Math.min(
       GAME_CARD_SIZES.preview.width,
       (availableHeight * CARD_W) / CARD_H,
-      Math.max(80, this.viewportWidth - PANEL_PADDING * 2 - 24),
+      Math.max(80, this.layoutWidth - PANEL_PADDING * 2 - 24),
     );
     return { width, height: width * CARD_ASPECT_RATIO };
   }
 
   protected modalPromptWidth(maxWidth: number): number {
-    const viewportWidth = this.viewportWidth - 24;
+    const viewportWidth = this.layoutWidth - 24;
     const sourceCard = this.promptSourceCard();
     if (!sourceCard) return Math.min(maxWidth, viewportWidth);
     const sourceWidth = this.promptCardDisplayDimensions(

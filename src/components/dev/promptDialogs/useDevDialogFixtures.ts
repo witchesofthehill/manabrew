@@ -5,7 +5,7 @@ import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
 import { useTheme } from "@/hooks/useTheme";
 import { useGameStore } from "@/stores/useGameStore";
 import { useScryfallStore } from "@/stores/useScryfallStore";
-import type { CardDto, StackObjectDto } from "@/protocol/game";
+import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import type { PromptPresentation } from "@/protocol";
 import type { HandActionOption } from "@/stores/useGameUIStore";
@@ -132,7 +132,6 @@ export interface DevDialogFixtures {
   opponents: ClientPlayerDto[];
   targetPlayer: ClientPlayerDto;
   presentation: PromptPresentation;
-  stack: StackObjectDto[];
   cardById: Map<string, CardDto>;
   playerSpec: PlayerHudSpec;
 }
@@ -167,22 +166,6 @@ export function useDevDialogFixtures(previewCards?: CardDto[]): DevDialogFixture
     text: "Representative prompt text with {W} and {G} mana symbols.",
     targets: [{ kind: "player", id: targetPlayer.id, intent: "friendly" }],
   };
-  const stack: StackObjectDto[] =
-    gameView.stack.length > 0
-      ? gameView.stack
-      : cards.slice(0, 2).map((card, index) => ({
-          id: `dev-stack-${index}`,
-          sourceId: card.id,
-          controllerId: index === 0 ? me.id : targetPlayer.id,
-          ownerId: index === 0 ? me.id : targetPlayer.id,
-          identity: card.identity,
-          text: index === 0 ? "Counter target spell." : "Draw two cards.",
-          isPermanentSpell: index === 1,
-          isCasting: index === 0,
-          isDoubleFaced: false,
-          faceIndex: 0,
-          targets: [],
-        }));
   const cardById = new Map(cards.map((card) => [card.id, card]));
   const playerSpec: PlayerHudSpec = {
     playerId: me.id,
@@ -250,7 +233,6 @@ export function useDevDialogFixtures(previewCards?: CardDto[]): DevDialogFixture
     opponents,
     targetPlayer,
     presentation,
-    stack,
     cardById,
     playerSpec,
   };

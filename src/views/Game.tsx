@@ -316,7 +316,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   const eliminatedModalShownRef = useRef(false);
   const [leaveGameModalOpen, setLeaveGameModalOpen] = useState(false);
   const [concedeModalOpen, setConcedeModalOpen] = useState(false);
-  const [stackBrowserMode, setStackBrowserMode] = useState<"browse" | "target">("browse");
   const [combatDetailsOpen, setCombatDetailsOpen] = useState(false);
   const [introDone, setIntroDone] = useState(false);
   const handleLoadingComplete = useCallback(() => setIntroDone(true), []);
@@ -963,14 +962,13 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const _earlyMyPlayerId =
     gameView?.players?.find((p) => p.isHuman)?.id ?? gameView?.players?.[0]?.id ?? "";
-  const { unifiedPass, unifiedPassEndTurn, spellStackModalOpen, setSpellStackModalOpen } =
-    usePromptEffects({
-      currentPrompt: activePrompt,
-      gameView,
-      isWaitingForResponse,
-      respond,
-      myPlayerId: _earlyMyPlayerId,
-    });
+  const { unifiedPass, unifiedPassEndTurn } = usePromptEffects({
+    currentPrompt: activePrompt,
+    gameView,
+    isWaitingForResponse,
+    respond,
+    myPlayerId: _earlyMyPlayerId,
+  });
 
   const passPriority = useCallback(() => {
     window.dispatchEvent(new CustomEvent(ACTION_DRAWER_BUMP_EVENT, { detail: false }));
@@ -1028,15 +1026,12 @@ export default function Game({ exitTo }: GameProps = {}) {
     return false;
   };
 
-  const preview = useCardPreview([viewingZone, spellStackModalOpen, abilityPickerState], {
+  const preview = useCardPreview([viewingZone, abilityPickerState], {
     useTriggerPreference: true,
   });
-  const commandZonePreview = useCardPreview(
-    [viewingZone, spellStackModalOpen, abilityPickerState],
-    {
-      useTriggerPreference: true,
-    },
-  );
+  const commandZonePreview = useCardPreview([viewingZone, abilityPickerState], {
+    useTriggerPreference: true,
+  });
   const previewViewSwitchCardIdRef = useRef<string | null>(null);
   const [commandPreviewSource, setCommandPreviewSource] = useState<{
     cardIds: string[];
@@ -1213,7 +1208,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       closeZoneViewer();
       closePlayModePicker();
       closeAbilityPicker();
-      setSpellStackModalOpen(false);
       return;
     }
     if (manualApi || !gameContinuesWithoutMe) return;
@@ -1233,7 +1227,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     closeZoneViewer,
     closePlayModePicker,
     closeAbilityPicker,
-    setSpellStackModalOpen,
   ]);
 
   const payManaCostPrompt =
@@ -1280,22 +1273,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       stickyPromptType: "payManaCost",
     });
   }, [openZoneViewer, me, handleDelveCard, delveSourceIds, delvedCardIds]);
-
-  useEffect(() => {
-    if (
-      spellStackModalOpen &&
-      stackBrowserMode === "target" &&
-      !isWaitingForResponse &&
-      currentPrompt?.input.type !== "chooseBoardTargets"
-    )
-      setSpellStackModalOpen(false);
-  }, [
-    spellStackModalOpen,
-    stackBrowserMode,
-    isWaitingForResponse,
-    currentPrompt,
-    setSpellStackModalOpen,
-  ]);
 
   useEffect(() => {
     const sticky = viewingZone?.stickyPromptType;
@@ -1989,14 +1966,12 @@ export default function Game({ exitTo }: GameProps = {}) {
     (livePreviewCard.zoneId !== "hand" || preview.isSticky) &&
     !draggingHandCard &&
     !viewingZone &&
-    !spellStackModalOpen &&
     !abilityPickerState &&
     preview.phase !== "hidden";
   const showCommandZonePreview =
     commandPreviewCards.length > 0 &&
     !draggingHandCard &&
     !viewingZone &&
-    !spellStackModalOpen &&
     !abilityPickerState &&
     commandZonePreview.phase !== "hidden";
   const previewSuppressed = !!promptType && !HOVER_ALLOWED_PROMPTS.has(promptType);
@@ -2164,6 +2139,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     showPreStackFlash: shouldShowPreStackFlash,
     collapsed: debugStackCard === null && stackCollapsed,
   };
+  const boardViewportRight = isActionPanelCollapsed ? undefined : rightPanelLeft;
   const commandPreview: BoardOverlayCommandPreviewSpec | null =
     commandPreviewSource && showCommandZonePreview
       ? {
@@ -2175,7 +2151,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           phase: commandZonePreview.phase === "closing" ? "closing" : "open",
           suppressed: previewSuppressed,
           anchorRect: commandPreviewSource.anchorRect,
-          viewportRight: isActionPanelCollapsed ? undefined : rightPanelLeft,
+          viewportRight: boardViewportRight,
         }
       : null;
   const rulesPreview: BoardOverlayPreviewSpec | null =
@@ -2191,7 +2167,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           mousePos: preview.mousePos,
           anchorRect: preview.anchorRect,
           slotRect: null,
-          viewportRight: isActionPanelCollapsed ? undefined : rightPanelLeft,
+          viewportRight: boardViewportRight,
         }
       : null;
 
@@ -2242,12 +2218,6 @@ export default function Game({ exitTo }: GameProps = {}) {
           type: "damageAssignmentOrderDecision",
           orderedBlockerIds: damageOrderInput?.blockerIds ?? [],
         }),
-      onOpenStack: () => {
-        setStackBrowserMode(
-          activePrompt?.input.type === "chooseBoardTargets" ? "target" : "browse",
-        );
-        setSpellStackModalOpen(true);
-      },
       onToggleBoardMenu: () => setBoardMenuOpen((open) => !open),
       onOpenCombat: () => setCombatDetailsOpen(true),
       targetCompletionLabel: targetCompletion?.label,
@@ -2357,13 +2327,9 @@ export default function Game({ exitTo }: GameProps = {}) {
           boardSurfaceRef={setBoardSurfaceEl}
           stackSpec={stackSpec}
           promptOverlaySpec={manualApi ? null : promptOverlaySpec}
-          onOpenStack={() => {
-            setStackBrowserMode("browse");
-            setSpellStackModalOpen(true);
-          }}
+          promptViewportRight={boardViewportRight}
           onTargetSpell={(spellId) => {
             casting.wrappedTargetSpell(spellId);
-            setSpellStackModalOpen(false);
           }}
           onHoverStack={setHoveredStackObjectId}
           onToggleStack={toggleStackCollapsed}
@@ -2621,34 +2587,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       <GameModals
         viewingZone={liveViewingZone}
         onCloseZone={closeZone}
-        spellStackModalOpen={spellStackModalOpen}
-        stackContext={{
-          mode: stackBrowserMode,
-          prompt:
-            activePrompt?.input.type === "chooseBoardTargets" ? activePrompt.input : undefined,
-          pending: isWaitingForResponse,
-          onCancelTarget:
-            activePrompt?.input.type === "chooseBoardTargets" && activePrompt.input.cancellable
-              ? () => {
-                  casting.cancelTargeting();
-                  setSpellStackModalOpen(false);
-                }
-              : undefined,
-          resolveName: (id) =>
-            cardNameById.get(id) ?? gameView.players.find((player) => player.id === id)?.name ?? id,
-        }}
-        stack={gameView.stack}
-        validSpellIds={boardTargets?.spellIds ?? []}
-        onTargetSpell={(spellId) => {
-          if (
-            !isWaitingForResponse &&
-            activePrompt?.input.type === "chooseBoardTargets" &&
-            boardTargets?.spellIds.includes(spellId)
-          )
-            casting.wrappedTargetSpell(spellId);
-        }}
-        onCloseStack={() => setSpellStackModalOpen(false)}
-        playerColorMap={playerColorMap}
         abilityPickerState={liveAbilityPicker}
         onSelectAbility={respondHandAction}
         onCancelAbilityPicker={closeAbilityPicker}

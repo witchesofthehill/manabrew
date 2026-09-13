@@ -1,20 +1,11 @@
-import { ZoneViewer, SpellStackModal, AbilityPickerModal } from "@/components/game/modals";
-import type { StackObjectDto } from "@/protocol/game";
+import { ZoneViewer, AbilityPickerModal } from "@/components/game/modals";
 import type { AbilityPickerState, HandActionOption } from "@/stores/useGameUIStore";
 import type { ZoneViewerProps } from "@/components/game/modals/ZoneViewer";
-import type { StackDialogContext } from "@/components/game/modals/SpellStackModal";
 import { useGameStore } from "@/stores/useGameStore";
 
 interface GameOverlaysProps {
   viewingZone: Omit<ZoneViewerProps, "onClose"> | null;
   onCloseZone: () => void;
-  spellStackModalOpen: boolean;
-  stackContext: StackDialogContext;
-  stack: StackObjectDto[];
-  validSpellIds: string[];
-  onTargetSpell: (spellId: string) => void;
-  onCloseStack: () => void;
-  playerColorMap?: Map<string, string>;
   abilityPickerState: AbilityPickerState | null;
   onSelectAbility: (ability: HandActionOption) => void;
   onCancelAbilityPicker: () => void;
@@ -23,13 +14,6 @@ interface GameOverlaysProps {
 export function GameOverlays({
   viewingZone,
   onCloseZone,
-  spellStackModalOpen,
-  stackContext,
-  stack,
-  validSpellIds,
-  onTargetSpell,
-  onCloseStack,
-  playerColorMap,
   abilityPickerState,
   onSelectAbility,
   onCancelAbilityPicker,
@@ -41,17 +25,6 @@ export function GameOverlays({
   return (
     <>
       {viewingZone && <ZoneViewer {...viewingZone} onClose={onCloseZone} />}
-
-      {spellStackModalOpen && (
-        <SpellStackModal
-          {...stackContext}
-          stack={stack}
-          validSpellIds={validSpellIds}
-          onTarget={onTargetSpell}
-          onCancel={onCloseStack}
-          playerColorMap={playerColorMap}
-        />
-      )}
 
       {abilityPickerState?.card && (
         <AbilityPickerModal

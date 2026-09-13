@@ -11,7 +11,7 @@ export const APP_THEME_COLOR_DESCRIPTIONS: Record<AppThemeKey, string> = {
   "popover-foreground": "Text colour inside popovers.",
   primary: "Primary action colour — main call-to-action buttons, links, active chip fills.",
   "primary-foreground": "Text / icons placed on a `primary` background.",
-  secondary: "Secondary / subtle button background.",
+  secondary: "Secondary action colour — outlined button border and hover fill.",
   "secondary-foreground": "Text on secondary-style buttons.",
   muted: "Muted surface for low-priority regions.",
   "muted-foreground": "Captions, hints, and secondary text colour.",

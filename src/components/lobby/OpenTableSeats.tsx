@@ -29,6 +29,7 @@ interface OpenTableSeatsProps {
   removableBots?: readonly string[];
   onRemoveBot?: (username: string) => void;
   size?: "card" | "room";
+  ornamental?: boolean;
   className?: string;
   backgroundUrl?: string | null;
 }
@@ -45,6 +46,7 @@ export function OpenTableSeats({
   removableBots = [],
   onRemoveBot,
   size = "card",
+  ornamental = false,
   className,
   backgroundUrl,
 }: OpenTableSeatsProps) {
@@ -58,8 +60,9 @@ export function OpenTableSeats({
     >
       <div
         className={cn(
-          "absolute left-1/2 top-1/2 h-[68%] w-[80%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary/25 shadow-inner",
-          backgroundUrl === null ? "bg-canvas-background" : "bg-primary/[0.07]",
+          "absolute left-1/2 top-1/2 h-[68%] w-[80%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 shadow-inner",
+          ornamental ? "border-border bg-card" : "border-primary/25",
+          !ornamental && (backgroundUrl === null ? "bg-canvas-background" : "bg-primary/[0.07]"),
         )}
         style={
           backgroundUrl

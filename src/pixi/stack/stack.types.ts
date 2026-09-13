@@ -27,7 +27,6 @@ export interface StackSpec {
 }
 
 export interface StackCallbacks {
-  onOpen: () => void;
   onTargetSpell: (spellId: string) => void;
   onHover: (stackObjectId: string | null) => void;
   onToggleCollapsed: () => void;

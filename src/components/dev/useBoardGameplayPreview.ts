@@ -32,7 +32,6 @@ export function useBoardGameplayPreview(
   const [modalHidden, setModalHidden] = useState(false);
   const [stackVisible, setStackVisible] = useState(enabled);
   const [stackCollapsed, setStackCollapsed] = useState(false);
-  const [stackDialogOpen, setStackDialogOpen] = useState(false);
   const [hoveredSpell, setHoveredSpell] = useState<string | null>(null);
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
   const [pendingAttacker, setPendingAttacker] = useState<string | null>(null);
@@ -177,11 +176,6 @@ export function useBoardGameplayPreview(
     setModal(null);
     setModalHidden(false);
   };
-  const openStack = () => {
-    setStackVisible(true);
-    setStackCollapsed(false);
-    setStackDialogOpen(true);
-  };
   const action: PromptActionSpec = {
     promptType:
       modal?.input.type ?? (targeting ? "chooseBoardTargets" : mode === "none" ? undefined : mode),
@@ -229,7 +223,6 @@ export function useBoardGameplayPreview(
     onConfirmDamageOrder: () => finish("Confirmed damage order."),
     onUndoDamageOrder: () => setOutcome("Damage order cleared."),
     onDefaultDamageOrder: () => setOutcome("Using battlefield order."),
-    onOpenStack: openStack,
     onToggleBoardMenu: onOpenControls,
     targetCompletionLabel: selectedTarget ? "Confirm target" : "Cancel",
     targetCompletionKind: selectedTarget ? "done" : "cancel",
@@ -371,14 +364,10 @@ export function useBoardGameplayPreview(
     setStackVisible,
     stackCollapsed,
     setStackCollapsed,
-    stackDialogOpen,
-    setStackDialogOpen,
     stack: fixtures.stack,
-    openStack,
     setHoveredSpell,
     selectSpell: (id: string) => {
       setSelectedTarget(id);
-      setStackDialogOpen(false);
       setOutcome(
         `Selected stack spell: ${fixtures.stack.find((spell) => spell.id === id)?.identity.name ?? id}.`,
       );

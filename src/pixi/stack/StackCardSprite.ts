@@ -52,7 +52,6 @@ export class StackCardSprite {
     cardWidth: number,
     rulesView: boolean,
     onRenderRequested: (() => void) | undefined,
-    onOpen: () => void,
     onTarget: (id: string) => void,
     onHover: (id: string | null) => void,
     onToggleRules: (id: string) => void,
@@ -88,7 +87,7 @@ export class StackCardSprite {
     this.height = (horiz ? CARD_W : CARD_H) * this.faceScale;
 
     this.container.eventMode = "dynamic";
-    this.container.cursor = "pointer";
+    this.container.cursor = spec.isValidTarget ? "pointer" : "default";
     this.container.hitArea = new Rectangle(
       -this.width / 2,
       -this.height / 2,
@@ -98,7 +97,6 @@ export class StackCardSprite {
     this.container.on("pointertap", () => {
       if (this.longPress.consumeTap(this.spec.id)) return;
       if (this.spec.isValidTarget) onTarget(this.spec.id);
-      else onOpen();
     });
     this.container.on("pointerdown", (event: FederatedPointerEvent) => {
       if (event.pointerType === "touch") this.touchPointerId = event.pointerId;
@@ -170,6 +168,7 @@ export class StackCardSprite {
       spec.card.isTransformed !== this.spec.card.isTransformed;
     const dimChanged = spec.isDimmed !== this.spec.isDimmed;
     this.spec = spec;
+    this.container.cursor = spec.isValidTarget ? "pointer" : "default";
     this.face.updateCardContent(spec.card);
     this.face.setHandRulesHighlight(spec.sourceAbilityText ?? "");
     if (controlsChanged) this.syncControls();

@@ -1,4 +1,4 @@
-import { Container, Graphics, GraphicsPath } from "pixi.js";
+import { BlurFilter, Container, Graphics, GraphicsPath } from "pixi.js";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
 
@@ -6,6 +6,7 @@ const ORBIT_MS = 8000;
 const BREATH_MS = 3600;
 
 export class PromptGlow extends Container {
+  readonly spill: Graphics;
   private readonly halo: Graphics;
   private readonly edge: Graphics;
   private readonly flare: Graphics;
@@ -29,6 +30,9 @@ export class PromptGlow extends Container {
       H ${bottom} Q 0,${height} 0,${height - bottom}
       V ${radius} Q 0,0 ${radius},0 Z`;
     const path = new GraphicsPath(outline);
+    this.spill = new Graphics().path(path).stroke({ color, width: 20 });
+    this.spill.eventMode = "none";
+    this.spill.filters = [new BlurFilter({ strength: 14 })];
     this.halo = new Graphics()
       .path(path)
       .stroke({ color, width: 6, alpha: 0.12 })
@@ -57,6 +61,7 @@ export class PromptGlow extends Container {
     const animated = animationsEnabled();
     if (!animated) emphasis = 0;
     const breath = animated ? (1 - Math.cos((elapsed / BREATH_MS) * Math.PI * 2)) / 2 : 0;
+    this.spill.alpha = 0.1 + breath * 0.12 + emphasis * 0.15;
     this.halo.alpha = 0.4 + breath * 0.15 + emphasis * 0.8;
     this.edge.alpha = 0.55 + breath * 0.2 + emphasis * 0.25;
     this.flare.alpha = emphasis * 0.85;

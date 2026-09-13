@@ -6,7 +6,6 @@ import {
   EliminatedModal,
   GameSettingsModal,
   LeaveGameModal,
-  SpellStackModal,
   ZoneViewer,
 } from "@/components/game/modals";
 import { PlayerSheetModal } from "@/components/game/panels/PlayerSheetModal";
@@ -25,7 +24,7 @@ export function BattlefieldDialogPreview({
   fixtures,
   onClose,
 }: BattlefieldDialogPreviewProps) {
-  const { cards, sourceCard, stack, cardById, playerSpec } = fixtures;
+  const { cards, sourceCard, cardById, playerSpec } = fixtures;
 
   switch (preview) {
     case "ability-picker":
@@ -59,26 +58,6 @@ export function BattlefieldDialogPreview({
           clickLabel="SELECT"
           selectedLabel="SELECTED"
           targetHostile={false}
-        />
-      );
-    case "spell-stack":
-      return (
-        <SpellStackModal
-          mode="browse"
-          stack={stack}
-          validSpellIds={[]}
-          onTarget={onClose}
-          onCancel={onClose}
-        />
-      );
-    case "target-spell-stack":
-      return (
-        <SpellStackModal
-          mode="target"
-          stack={stack}
-          validSpellIds={[stack[0].id]}
-          onTarget={onClose}
-          onCancel={onClose}
         />
       );
     case "board-settings":

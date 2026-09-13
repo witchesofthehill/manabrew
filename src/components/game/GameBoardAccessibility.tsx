@@ -45,7 +45,6 @@ interface GameBoardAccessibilityProps {
   onBlurCard: () => void;
   onInspectPlayer: (playerId: string) => void;
   onTargetPlayer: (playerId: string) => void;
-  onOpenStack: () => void;
   onTargetSpell: (spellId: string) => void;
   onToggleStack: () => void;
   onToggleSelfPhase: (phaseId: string) => void;
@@ -99,7 +98,6 @@ export function GameBoardAccessibility({
   onBlurCard,
   onInspectPlayer,
   onTargetPlayer,
-  onOpenStack,
   onTargetSpell,
   onToggleStack,
   onToggleSelfPhase,
@@ -277,16 +275,20 @@ export function GameBoardAccessibility({
           const position = item.isTopOfStack
             ? "top of stack"
             : `stack position ${stack.cards.length - index}`;
-          return (
+          return item.isValidTarget ? (
             <button
               key={item.id}
               type="button"
               className={controlClass}
-              aria-label={`${name}, ${position}${item.isValidTarget ? ", valid target" : ""}`}
-              onClick={() => (item.isValidTarget ? onTargetSpell(item.id) : onOpenStack())}
+              aria-label={`${name}, ${position}, valid target`}
+              onClick={() => onTargetSpell(item.id)}
             >
-              {item.isValidTarget ? "Target" : "Inspect"} {name}
+              Target {name}
             </button>
+          ) : (
+            <p key={item.id} className="text-sm text-muted-foreground">
+              {name}, {position}
+            </p>
           );
         })}
       </section>

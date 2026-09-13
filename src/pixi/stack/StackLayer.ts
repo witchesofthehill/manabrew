@@ -183,7 +183,6 @@ export class StackLayer implements StackAnchorProvider {
           this.builtCardWidth,
           this.rulesViewOverrides.get(card.id) ?? this.rulesViewDefault,
           this.callbacks.onRenderRequested,
-          () => this.callbacks.onOpen(),
           (id) => this.callbacks.onTargetSpell(id),
           (id) => this.setHovered(id),
           (id) => this.toggleRulesView(id),

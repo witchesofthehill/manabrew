@@ -157,6 +157,8 @@
   --animate-draft-card-pick: draft-card-pick 280ms cubic-bezier(0.4, 0, 0.2, 1) both;
   --animate-splash-step-in: splash-step-in 760ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   --animate-splash-step-out: splash-step-out 600ms cubic-bezier(0.4, 0, 0.6, 1) both;
+  --animate-hurray-pop: hurray-pop 650ms cubic-bezier(0.2, 1.5, 0.4, 1) both;
+  --animate-hurray-sparkle: hurray-sparkle 1.4s ease-in-out infinite;
 
   @keyframes draft-pack-arrive {
     from {
@@ -368,6 +370,33 @@
     to {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+
+  @keyframes hurray-pop {
+    0% {
+      opacity: 0;
+      transform: scale(0.3) rotate(-16deg);
+    }
+    60% {
+      opacity: 1;
+      transform: scale(1.18) rotate(6deg);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) rotate(0deg);
+    }
+  }
+
+  @keyframes hurray-sparkle {
+    0%,
+    100% {
+      opacity: 0.3;
+      transform: scale(0.8) rotate(0deg);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.1) rotate(20deg);
     }
   }
 

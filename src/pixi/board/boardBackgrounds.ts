@@ -91,7 +91,8 @@ export async function boardAmbientColor(url: string | null): Promise<number | nu
       g += data[i + 1]!;
       b += data[i + 2]!;
     }
-    const color = (Math.round(r / count) << 16) | (Math.round(g / count) << 8) | Math.round(b / count);
+    const color =
+      (Math.round(r / count) << 16) | (Math.round(g / count) << 8) | Math.round(b / count);
     ambientColorCache.set(url, color);
     return color;
   } catch {

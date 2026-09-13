@@ -963,6 +963,7 @@ export function BoardOverlayCanvas({
     if (!rulesPreviewOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (topModal() || event.defaultPrevented || event.isComposing) return;
+      if (promptRef.current?.blocksBoard) return;
       if (event.altKey || event.ctrlKey || event.metaKey) return;
       const target = event.target;
       if (

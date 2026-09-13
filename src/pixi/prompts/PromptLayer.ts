@@ -215,6 +215,7 @@ export class PromptLayer extends PromptModalLayer {
     this.counts.clear();
     this.selectionFilter = "";
     this.selectionFilterFocused = false;
+    this.numberInputFocused = false;
     this.order = [];
     this.autopassRemainingMs = null;
     this.autopassTotalMs = 0;
@@ -245,6 +246,7 @@ export class PromptLayer extends PromptModalLayer {
     if (input.type === "chooseNumber") {
       this.numberValue = input.min;
       this.numberBuffer = String(input.min);
+      this.numberInputFocused = true;
     }
     if (input.type === "reorder") this.order = input.items.map((item) => item.id);
     if (input.type === "scry") {

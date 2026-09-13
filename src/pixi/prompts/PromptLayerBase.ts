@@ -481,6 +481,7 @@ export abstract class PromptLayerBase {
   protected counts = new Map<number | string, number>();
   protected numberValue = 0;
   protected numberBuffer = "";
+  protected numberInputFocused = false;
   protected order: string[] = [];
   protected scryItems: Record<string, string[]> = {};
   protected scrySelectedId: string | null = null;
@@ -787,14 +788,21 @@ export abstract class PromptLayerBase {
     this.rebuild();
   }
 
-  protected bindPromptCardActivation(target: Container, card: CardDto, sprite: CardSprite): void {
+  protected bindPromptCardActivation(
+    target: Container,
+    card: CardDto,
+    sprite: CardSprite,
+    hoverFeedback = true,
+  ): void {
     let restingZIndex: number | null = null;
     const showFeedback = () => {
+      if (!hoverFeedback) return;
       sprite.setElevation(1);
       sprite.setRing(hexToNum(this.theme.gameTheme.cardRing));
       this.callbacks.onRenderRequested?.();
     };
     const hideFeedback = () => {
+      if (!hoverFeedback) return;
       sprite.setElevation(0);
       sprite.setRing(null);
       this.callbacks.onRenderRequested?.();

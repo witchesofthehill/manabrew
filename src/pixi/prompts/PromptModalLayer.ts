@@ -132,6 +132,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     body: Container;
     bodyTop: number;
     footer: Container;
+    footerHintWidth: number;
   } {
     const sourceCard = this.promptSourceCard();
     const { width: preferredSourceWidth } = this.promptSourceCardDimensions();
@@ -203,7 +204,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       sourceSprite.accessibleTitle = `${sourceCard.identity.name}, source card`;
       sourceSprite.accessibleHint = "Focus or hover, then change view or flip face";
       sourceSprite.tabIndex = 0;
-      this.bindPromptCardActivation(sourceSprite, sourceCard, sourceSprite);
+      this.bindPromptCardActivation(sourceSprite, sourceCard, sourceSprite, false);
       panel.addChild(sourceSprite);
     }
     const inlineSource = !!sourceSprite && !externalSource;
@@ -309,6 +310,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
 
     const footer = new Container();
     let footerBackground: Graphics | null = null;
+    let footerHintWidth = 0;
     if (footerHeight > 0) {
       const footerTop = height - footerHeight;
       footerBackground = new Graphics()
@@ -333,6 +335,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           const hint = promptText(shortcuts, 10, this.theme.appTheme["muted-foreground"]);
           hint.position.set(0, footerContentHeight - 12);
           footer.addChild(hint);
+          footerHintWidth = hint.width;
         }
       }
       panel.addChild(footerBackground, footer);
@@ -358,7 +361,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       scrollThumb,
     };
     this.container.addChild(panel);
-    return { panel, body, bodyTop, footer };
+    return { panel, body, bodyTop, footer, footerHintWidth };
   }
 
   protected resizeModalShell(
@@ -719,7 +722,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       row.on("pointertap", increment);
 
       if (option.canRepeat) {
-        const controlX = availableWidth - 98;
+        const controlX = availableWidth - 120;
         const minus = this.makeButton(
           "",
           () => {
@@ -740,13 +743,13 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         minus.position.set(controlX, 12);
         minus.on("pointertap", (event) => event.stopPropagation());
         const countBackground = new Graphics()
-          .roundRect(controlX + 34, 12, 30, 32, 7)
+          .roundRect(controlX + 38, 12, 30, 32, 7)
           .fill({ color: hexToNum(this.theme.appTheme.muted), alpha: 0.55 });
         const countText = promptText(String(count), 13, this.theme.appTheme.foreground, {
           weight: "700",
         });
         countText.anchor.set(0.5);
-        countText.position.set(controlX + 49, 28);
+        countText.position.set(controlX + 53, 28);
         const plus = this.makeButton("", increment, {
           title: `Add one ${option.label}`,
           icon: "lucide-plus",
@@ -756,7 +759,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           width: 30,
           height: 32,
         });
-        plus.position.set(controlX + 68, 12);
+        plus.position.set(controlX + 76, 12);
         plus.on("pointertap", (event) => event.stopPropagation());
         row.addChild(minus, countBackground, countText, plus);
       }
@@ -1027,11 +1030,12 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     if (amount <= 1) {
       const buttons = validColors.map((color) =>
         this.makeButton(
-          color,
+          "",
           () => this.spec!.respond({ type: "colorDecision", chosenColors: { [color]: 1 } }),
           {
+            title: color,
             color: colors[color] ?? this.theme.appTheme.muted,
-            width: 112,
+            width: 72,
             height: 64,
             iconTexture: loadManaSymbolTexture(this.manaSymbol(color)),
             iconTint: false,
@@ -1063,19 +1067,19 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           alpha: selected ? 0.9 : 0.8,
         });
       const manaIcon = this.makeManaIcon(this.manaSymbol(color), 30);
-      manaIcon.position.set(22, 28);
+      manaIcon.position.set(30, 28);
       const colorText = promptText(color, 13, this.theme.appTheme.foreground, { weight: "600" });
-      colorText.position.set(44, 13);
+      colorText.position.set(54, 13);
       const stateText = promptText(
         selected ? `${count} selected` : "Not selected",
         10,
         selected ? colorValue : this.theme.appTheme["muted-foreground"],
         { weight: "600" },
       );
-      stateText.position.set(44, 34);
+      stateText.position.set(54, 34);
       row.addChild(rowBackground, manaIcon, colorText, stateText);
 
-      const controlX = availableWidth - 102;
+      const controlX = availableWidth - 120;
       const minus = this.makeButton(
         "",
         () => {
@@ -1096,13 +1100,13 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       );
       minus.position.set(controlX, 11);
       const countBackground = new Graphics()
-        .roundRect(controlX + 34, 11, 30, 34, 7)
+        .roundRect(controlX + 38, 11, 30, 34, 7)
         .fill({ color: hexToNum(this.theme.appTheme.muted), alpha: 0.55 });
       const countText = promptText(String(count), 14, this.theme.appTheme.foreground, {
         weight: "700",
       });
       countText.anchor.set(0.5);
-      countText.position.set(controlX + 49, 28);
+      countText.position.set(controlX + 53, 28);
       const plus = this.makeButton(
         "",
         () => {
@@ -1120,7 +1124,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           height: 34,
         },
       );
-      plus.position.set(controlX + 68, 11);
+      plus.position.set(controlX + 76, 11);
       row.addChild(minus, countBackground, countText, plus);
       body.addChild(row);
       y += 64;
@@ -1203,6 +1207,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       Number.isInteger(parsedValue) &&
       parsedValue >= min &&
       parsedValue <= max;
+    const showInvalid = this.numberBuffer !== "" && this.numberBuffer !== "-" && !isValid;
     const setValue = (value: number) => {
       this.numberValue = Math.max(min, Math.min(max, value));
       this.numberBuffer = String(this.numberValue);
@@ -1239,13 +1244,20 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     body.addChild(decrease);
     x += stepWidth + controlGap;
 
+    const focused = this.numberInputFocused;
     const valueBackground = new Graphics()
       .roundRect(x, 12, valueWidth, 56, 9)
-      .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.72 })
+      .fill({ color: hexToNum(this.theme.appTheme.background), alpha: focused ? 0.9 : 0.72 })
       .stroke({
-        color: hexToNum(isValid ? this.theme.gameTheme.cardRing : this.theme.appTheme.destructive),
+        color: hexToNum(
+          showInvalid
+            ? this.theme.appTheme.destructive
+            : focused
+              ? this.theme.gameTheme.cardRing
+              : this.theme.appTheme.border,
+        ),
         width: 2,
-        alpha: isValid ? 0.85 : 0.65,
+        alpha: focused || showInvalid ? 1 : 0.75,
       });
     valueBackground.eventMode = "static";
     valueBackground.cursor = "text";
@@ -1254,21 +1266,25 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       ? `Current value ${parsedValue}. Type to replace or edit the value.`
       : `Enter a whole number from ${min} to ${max}.`;
     valueBackground.tabIndex = 0;
-    const valueLabel = promptText("VALUE", 9, this.theme.appTheme["muted-foreground"], {
-      weight: "700",
-      letterSpacing: 0.8,
+    valueBackground.on("pointertap", () => {
+      if (this.numberInputFocused) return;
+      this.numberInputFocused = true;
+      this.rebuild();
     });
-    valueLabel.anchor.set(0.5, 0);
-    valueLabel.position.set(x + valueWidth / 2, 17);
+    valueBackground.on("focusin", () => {
+      if (this.numberInputFocused) return;
+      this.numberInputFocused = true;
+      this.rebuild();
+    });
     const valueText = promptText(
-      this.numberBuffer ? `${this.numberBuffer}│` : "Type…",
+      this.numberBuffer ? `${this.numberBuffer}${focused ? "│" : ""}` : "Type…",
       this.numberBuffer ? 24 : 16,
       this.numberBuffer ? this.theme.appTheme.foreground : this.theme.appTheme["muted-foreground"],
       { weight: this.numberBuffer ? "700" : "500" },
     );
     valueText.anchor.set(0.5);
-    valueText.position.set(x + valueWidth / 2, 44);
-    body.addChild(valueBackground, valueLabel, valueText);
+    valueText.position.set(x + valueWidth / 2, 40);
+    body.addChild(valueBackground, valueText);
     x += valueWidth + controlGap;
 
     const increase = this.makeButton("", () => setValue((isValid ? parsedValue : min) + 1), {
@@ -1294,10 +1310,10 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     body.addChild(maximum);
 
     const rangeText = promptText(
-      isValid ? `Whole number from ${min} to ${max}` : `Enter a whole number from ${min} to ${max}`,
+      `Whole number from ${min} to ${max}`,
       11,
-      isValid ? this.theme.appTheme["muted-foreground"] : this.theme.appTheme.destructive,
-      { weight: isValid ? "500" : "600", width: availableWidth - 140, truncate: true },
+      showInvalid ? this.theme.appTheme.destructive : this.theme.appTheme["muted-foreground"],
+      { weight: showInvalid ? "600" : "500", width: availableWidth - 140, truncate: true },
     );
     rangeText.position.set(0, 11);
     footer.addChild(rangeText);
@@ -2156,7 +2172,15 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       description: `${damageOrder.attackerName} is blocked by ${damageOrder.blockerCards.length} creatures. Choose which blocker receives damage first.`,
       targets,
     };
-    const { body, footer } = this.createModalShell(width, height, presentation, true, 60, 36, true);
+    const { body, footer, footerHintWidth } = this.createModalShell(
+      width,
+      height,
+      presentation,
+      true,
+      60,
+      36,
+      true,
+    );
     const availableWidth = width - PANEL_PADDING * 2;
     const selectedCount = damageOrder.order.length;
     const complete =
@@ -2271,14 +2295,15 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       outline: true,
       disabled: this.spec!.action.isWaitingForResponse,
     });
-    auto.position.set(0, 0);
+    const footerLeft = footerHintWidth > 0 ? footerHintWidth + 12 : 0;
+    auto.position.set(footerLeft, 0);
     footer.addChild(auto);
     if (selectedCount > 0) {
       const undo = this.makeButton("UNDO", damageOrder.onUndo, {
         outline: true,
         disabled: this.spec!.action.isWaitingForResponse,
       });
-      undo.position.set(auto.buttonWidth + 8, 0);
+      undo.position.set(footerLeft + auto.buttonWidth + 8, 0);
       footer.addChild(undo);
     }
     const confirm = this.makeButton("CONFIRM ORDER", damageOrder.onConfirm, {
@@ -2318,15 +2343,6 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const assigned = Object.values(this.damageAssigned).reduce((sum, damage) => sum + damage, 0);
     const remaining = input.totalDamage - assigned;
     const waiting = this.spec!.action.isWaitingForResponse;
-    const statusColor =
-      remaining === 0 ? this.theme.gameTheme.success : this.theme.appTheme.foreground;
-    const status = promptText(
-      remaining === 0 ? "Ready to assign" : `${remaining} damage left`,
-      14,
-      statusColor,
-      { weight: "700" },
-    );
-    status.position.set(0, 2);
     const allocation = promptText(
       `${assigned} of ${input.totalDamage} assigned`,
       10,
@@ -2334,11 +2350,11 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       { weight: "600" },
     );
     allocation.anchor.set(1, 0);
-    allocation.position.set(availableWidth, 6);
+    allocation.position.set(availableWidth, 4);
     const progressTrack = new Graphics()
       .roundRect(0, 28, availableWidth, 6, 3)
       .fill({ color: hexToNum(this.theme.appTheme.muted), alpha: 0.72 });
-    body.addChild(status, allocation, progressTrack);
+    body.addChild(allocation, progressTrack);
     if (assigned > 0) {
       const progressWidth = Math.min(
         availableWidth,
@@ -2346,7 +2362,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       );
       const progress = new Graphics()
         .roundRect(0, 28, progressWidth, 6, 3)
-        .fill({ color: hexToNum(statusColor), alpha: 0.92 });
+        .fill({ color: hexToNum(this.theme.gameTheme.cardRing), alpha: 0.92 });
       body.addChild(progress);
     }
     const guidance = promptText(
@@ -2375,24 +2391,21 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         );
       const label = this.combatLabel(id);
       const lethalReached = lethal != null && damage >= lethal;
-      const complete = id === input.defenderId ? remaining === 0 : lethalReached;
       const rowColor = lethalReached
         ? this.theme.gameTheme.promptAction.attackAction
-        : complete
-          ? this.theme.gameTheme.success
-          : damage > 0
-            ? this.theme.gameTheme.cardRing
-            : this.theme.appTheme.border;
+        : damage > 0
+          ? this.theme.gameTheme.cardRing
+          : this.theme.appTheme.border;
       const rowBg = new Graphics()
-        .roundRect(0, y, availableWidth, 62, 9)
+        .roundRect(0.5, y + 0.5, availableWidth - 1, 61, 9)
         .fill({
-          color: hexToNum(complete ? rowColor : this.theme.appTheme.background),
-          alpha: complete ? 0.09 : 0.56,
+          color: hexToNum(damage > 0 ? rowColor : this.theme.appTheme.background),
+          alpha: damage > 0 ? 0.09 : 0.56,
         })
         .stroke({
           color: hexToNum(rowColor),
           width: 1,
-          alpha: blocked ? 0.5 : complete || damage > 0 ? 0.86 : 1,
+          alpha: blocked ? 0.5 : damage > 0 ? 0.86 : 1,
         });
       rowBg.eventMode = "static";
       rowBg.cursor = "default";
@@ -2416,15 +2429,15 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       body.addChild(rowBg);
 
       const orderBadge = new Graphics()
-        .roundRect(10, y + 19, 24, 24, 12)
+        .roundRect(10.5, y + 19.5, 23, 23, 11.5)
         .fill({
-          color: hexToNum(complete || damage > 0 ? rowColor : this.theme.appTheme.muted),
-          alpha: complete || damage > 0 ? 0.24 : 0.72,
+          color: hexToNum(damage > 0 ? rowColor : this.theme.appTheme.muted),
+          alpha: damage > 0 ? 0.24 : 0.72,
         })
         .stroke({
           color: hexToNum(rowColor),
           width: 1,
-          alpha: complete || damage > 0 ? 0.75 : 0.55,
+          alpha: damage > 0 ? 0.75 : 0.55,
         });
       const order = promptText(String(index + 1), 10, this.theme.appTheme.foreground, {
         weight: "700",
@@ -2435,15 +2448,17 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       const card = this.spec!.gameView.battlefield.find((candidate) => candidate.id === id);
       const name = promptText(label, 12, this.theme.appTheme.foreground, {
         weight: "600",
-        width: availableWidth - 260,
+        width: availableWidth - 300,
         truncate: true,
       });
-      name.position.set(44, y + 10);
+      name.position.set(44, y + 8);
       const detail = defender
-        ? `DEFENDER · ${defender.life} → ${defender.life - damage} life`
-        : `${card?.power ?? "?"}/${card?.toughness ?? "?"}${card?.damage ? ` · ${card.damage} marked` : ""}${
-            lethalReached ? " · LETHAL ASSIGNED" : ""
-          }`;
+        ? `Defender · ${defender.life} → ${defender.life - damage} life`
+        : card
+          ? `${card.power ?? "?"}/${card.toughness ?? "?"}${card.damage ? ` · ${card.damage} marked` : ""}`
+          : lethal != null
+            ? `Lethal ${lethal}`
+            : "";
       const detailText = promptText(
         detail,
         10,
@@ -2452,17 +2467,26 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           : this.theme.appTheme["muted-foreground"],
         {
           weight: lethalReached ? "700" : "500",
-          width: availableWidth - 260,
+          width: availableWidth - 300,
           truncate: true,
         },
       );
       detailText.position.set(44, y + 36);
       body.addChild(orderBadge, order, name, detailText);
+      if (lethalReached) {
+        const skull = this.makeIcon(
+          "lucide-skull",
+          18,
+          this.theme.gameTheme.promptAction.attackAction,
+        );
+        skull.position.set(availableWidth - 220, y + 31);
+        body.addChild(skull);
+      }
 
       const lethalDisabled = waiting || blocked || lethalReached || remaining <= 0;
       if (lethal != null) {
         const lethalButton = this.makeButton(
-          `LETHAL ${lethal}${lethalReached ? " ✓" : ""}`,
+          `LETHAL ${lethal}`,
           () => {
             this.damageAssigned[id] = Math.min(
               input.totalDamage,
@@ -2543,35 +2567,6 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     });
 
     const legal = remaining === 0 && this.damageLegallyOrdered(input, assignees);
-    const resetDisabled = waiting || assigned === 0;
-    const reset = this.makeButton(
-      "CLEAR",
-      () => {
-        this.damageAssigned = {};
-        this.rebuild();
-      },
-      {
-        title: "Clear damage assignments",
-        outline: true,
-        disabled: resetDisabled,
-      },
-    );
-    reset.alpha = resetDisabled ? 0.46 : 1;
-    reset.position.set(0, 0);
-    const auto = this.makeButton(
-      "AUTO",
-      () => {
-        this.autoAssignDamage(input, assignees);
-        this.rebuild();
-      },
-      {
-        title: "Assign lethal damage in order, then assign the rest",
-        outline: true,
-        disabled: waiting,
-      },
-    );
-    auto.alpha = waiting ? 0.46 : 1;
-    auto.position.set(reset.buttonWidth + 8, 0);
     const confirmDisabled = waiting || !legal;
     const confirm = this.makeButton(
       "ASSIGN DAMAGE",
@@ -2587,7 +2582,22 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     );
     confirm.alpha = confirmDisabled ? 0.56 : 1;
     confirm.position.set(availableWidth - confirm.buttonWidth, 0);
-    footer.addChild(reset, auto, confirm);
+    const auto = this.makeButton(
+      "AUTO",
+      () => {
+        this.autoAssignDamage(input, assignees);
+        this.rebuild();
+      },
+      {
+        title: "Assign lethal damage in order, then assign the rest",
+        icon: "lucide-wand-sparkles",
+        outline: true,
+        disabled: waiting,
+      },
+    );
+    auto.alpha = waiting ? 0.46 : 1;
+    auto.position.set(availableWidth - confirm.buttonWidth - 8 - auto.buttonWidth, 0);
+    footer.addChild(auto, confirm);
   }
 
   protected combatLabel(id: string): string {

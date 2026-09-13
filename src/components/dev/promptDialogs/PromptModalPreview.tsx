@@ -9,7 +9,7 @@ import type { StackSpec } from "@/pixi/stack/stack.types";
 import type { Prompt, PromptInput } from "@/protocol";
 
 import type { DevDialogPreview } from "../promptDialogPreviews";
-import type { DevDialogFixtures } from "./useDevDialogFixtures";
+import { FALLBACK_CARDS, type DevDialogFixtures } from "./useDevDialogFixtures";
 
 interface PromptModalPreviewProps {
   preview: DevDialogPreview;
@@ -32,7 +32,7 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
   const [damageOrder, setDamageOrder] = useState<string[]>([]);
   const input = useMemo(() => previewInput(preview, fixtures), [preview, fixtures]);
   const prompt = useMemo<Prompt>(() => ({ input }) as Prompt, [input]);
-  const blockerCards = useMemo(() => fixtures.cards.slice(1, 3), [fixtures.cards]);
+  const blockerCards = useMemo(() => FALLBACK_CARDS.slice(1, 3), []);
   const spec = useMemo<PromptOverlaySpec>(() => {
     const action: PromptActionSpec = {
       promptType: input.type,
@@ -74,7 +74,17 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
     return {
       currentPrompt: prompt,
       localPlayerId: fixtures.me.id,
-      gameView: fixtures.gameView,
+      gameView:
+        input.type === "chooseCombatDamageAssignment" ||
+        input.type === "chooseDamageAssignmentOrder"
+          ? {
+              ...fixtures.gameView,
+              battlefield: FALLBACK_CARDS.map((card) => ({
+                ...card,
+                zoneId: "battlefield",
+              })),
+            }
+          : fixtures.gameView,
       sourceDeckCard:
         input.type === "chooseCombatDamageAssignment" ||
         input.type === "chooseDamageAssignmentOrder"
@@ -84,7 +94,7 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
       damageOrder:
         input.type === "chooseDamageAssignmentOrder"
           ? {
-              attackerName: fixtures.cards[0]!.identity.name,
+              attackerName: FALLBACK_CARDS[0]!.identity.name,
               blockerCards,
               order: damageOrder,
               onToggle: (cardId) =>
@@ -212,18 +222,18 @@ function previewInput(preview: DevDialogPreview, fixtures: DevDialogFixtures): P
     case "assign-combat-damage":
       return {
         type: "chooseCombatDamageAssignment",
-        attackerId: cards[0]!.id,
-        blockerIds: [cards[1]!.id, cards[2]!.id],
+        attackerId: FALLBACK_CARDS[0]!.id,
+        blockerIds: [FALLBACK_CARDS[1]!.id, FALLBACK_CARDS[2]!.id],
         defenderId: targetPlayer.id,
-        totalDamage: 7,
+        totalDamage: 4,
         attackerHasDeathtouch: false,
       };
     case "damage-order":
       return {
         type: "chooseDamageAssignmentOrder",
-        attackerId: cards[0]!.id,
-        blockerIds: [cards[1]!.id, cards[2]!.id],
-        blockerCards: cards.slice(1, 3),
+        attackerId: FALLBACK_CARDS[0]!.id,
+        blockerIds: [FALLBACK_CARDS[1]!.id, FALLBACK_CARDS[2]!.id],
+        blockerCards: FALLBACK_CARDS.slice(1, 3),
       };
     case "dice-roll":
       return {

@@ -27,6 +27,22 @@ The default product entry point. It is organized around four questions: current 
 | Can we trust it?    | relay-event freshness, sanitized Hub-export freshness, dropped analytics/evidence        |
 | Previous period     | player/game percentage change and completion percentage-point change                     |
 
+### Activity (`activity.json`)
+
+Active-user size, growth and retention. Every panel counts distinct handles over a rolling window, so no series on this dashboard is cumulative and none of them change meaning when the time picker moves.
+
+| Section                     | Main signals                                                                                            |
+| --------------------------- | ------------------------------------------------------------------------------------------------------- |
+| How many people are active? | DAU, WAU, MAU, DAU/MAU stickiness, WAU/MAU, new handles in range                                        |
+| Is the active base growing? | rolling 1/7/28-day actives per day, stickiness trend, new/returning/resurrected, days active per player |
+| Do they come back?          | weekly cohort retention grid, share returning within N days of first activity                           |
+
+The `Counts as active` variable picks what activity means: `played` is a game started, relay or offline; `connected` is a relay authentication, which is relay only but catches a session that never reached a game; `any` is either. `played` is the default because it matches the Active players stat on Executive Health.
+
+A player is one relay handle. Guest handles carry a `@NNNN` tag that disambiguates two people choosing the same name, so the whole handle is the identity and stripping the tag would merge them. A handle is not an account: the same person appears twice if they play signed out and signed in, and a guest who reinstalls gets a new tag. Both push the counts the same way — players over-counted, retention under-counted — so read retention as a floor.
+
+The rolling windows are computed against all history, not just the selected range, so the left edge of the DAU/WAU/MAU chart is a true 28-day window rather than a partial one. DAU on the last day of the range is partial whenever the range ends at now. Cohort cells are blank, never zero, until their window has fully elapsed. Bot seats are excluded by handle: a bot reaches `client_connections` like any other client, and only `game_players.is_bot` records which handles are bots.
+
 ### Engagement & Gameplay (`engagement.json`)
 
 Filtered diagnosis for player behavior and game friction. Global variables apply format, engine, hosted, and official-game filters consistently to the selected-period panels.
@@ -249,6 +265,8 @@ Migrations 7 and 8 establish the Hub evidence schema, migration 9 adds the expan
 Automated snapshots cover 30-day Most Played, seven-day Rising, confidence-adjusted Highest Win Rate, Commander Most Played, Most Favorited, and New & Notable. Highest Win Rate requires 20 completed managed-relay matches and uses the 95% Wilson lower bound. Staff Picks remains an editorial snapshot.
 
 Staging additionally applies `ops/staging-migrations/001_top_deck_filler.sql` after Hub is healthy. That environment-only data migration inserts current-dated evidence for five preset publications and records `staging-top-deck-filler-v1` in `data_migrations`; production Compose never mounts or executes it.
+
+Known gap: "Player growth" is cumulative, so it only ever rises, and it is the one panel that keys players on the handle with its `@NNNN` tag stripped, which merges two players who picked the same name. Activity above supersedes it.
 
 Known gap: `game_players.commander` and `decks.commander` hold a single name, so the second partner commander never reaches "Top commanders".
 

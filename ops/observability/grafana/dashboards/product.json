@@ -12,6 +12,11 @@
   "refresh": "5m",
   "links": [
     {
+      "title": "Activity",
+      "type": "link",
+      "url": "/d/manabrew-activity"
+    },
+    {
       "title": "Executive Health",
       "type": "link",
       "url": "/d/manabrew-executive"

@@ -8,6 +8,7 @@
   "time": { "from": "now-90d", "to": "now" },
   "refresh": "5m",
   "links": [
+    { "title": "Activity", "type": "link", "url": "/d/manabrew-activity" },
     { "title": "Executive Health", "type": "link", "url": "/d/manabrew-executive" },
     { "title": "Engagement & Gameplay", "type": "link", "url": "/d/manabrew-engagement" },
     { "title": "Analytics Explorer", "type": "link", "url": "/d/manabrew-product" }

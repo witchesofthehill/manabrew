@@ -87,7 +87,9 @@ export function SignInFlow({ prefill, deferHandleStep = false, onComplete }: Sig
       setStep("handle");
       return;
     }
-    toast.success(`Signed in as @${session.account.handle}`);
+    if (!session.account.handlePending) {
+      toast.success(`Signed in as @${session.account.handle}`);
+    }
     onComplete?.();
   }
 

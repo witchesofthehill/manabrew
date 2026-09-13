@@ -8,6 +8,7 @@
   "time": { "from": "now-30d", "to": "now" },
   "refresh": "5m",
   "links": [
+    { "title": "Activity", "type": "link", "url": "/d/manabrew-activity" },
     { "title": "Engagement & Gameplay", "type": "link", "url": "/d/manabrew-engagement" },
     { "title": "Decks & Collections", "type": "link", "url": "/d/manabrew-decks-collections" },
     { "title": "Live Ops", "type": "link", "url": "/d/manabrew-live-ops" },

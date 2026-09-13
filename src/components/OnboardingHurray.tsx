@@ -10,19 +10,14 @@ const HANDLE_MIN_LENGTH = 3;
 const HANDLE_MAX_LENGTH = 24;
 
 export function OnboardingHurray({ onComplete }: { onComplete: () => void }) {
-  const account = useAuthStore((s) => s.account);
   const setAccount = useAuthStore((s) => s.setAccount);
-  const [handle, setHandle] = useState(account?.handle ?? "");
+  const [handle, setHandle] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const trimmed = handle.trim();
-  const changed = trimmed.length >= HANDLE_MIN_LENGTH && trimmed !== account?.handle;
 
   const start = async () => {
-    if (!changed) {
-      onComplete();
-      return;
-    }
+    if (trimmed.length < HANDLE_MIN_LENGTH) return;
     setBusy(true);
     setError(null);
     try {
@@ -87,7 +82,11 @@ export function OnboardingHurray({ onComplete }: { onComplete: () => void }) {
         onClick={() => void start()}
         className="w-full max-w-xs"
       >
-        {busy ? "Saving…" : changed ? `Start as @${trimmed}` : "Start brewing"}
+        {busy
+          ? "Saving…"
+          : trimmed.length >= HANDLE_MIN_LENGTH
+            ? `Start as @${trimmed}`
+            : "Claim your username"}
       </Button>
     </div>
   );

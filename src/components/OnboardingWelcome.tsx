@@ -5,6 +5,7 @@ import { SignInFlow } from "@/components/auth/SignInFlow";
 import { OnboardingHurray } from "@/components/OnboardingHurray";
 import { isFeatureEnabled } from "@/featureFlags";
 import { isNameClaimedError, reserveGuestName } from "@/lib/guestName";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 export const ONBOARDING_GUIDE_VERSION = "1.0";
 
@@ -46,7 +47,12 @@ export function OnboardingWelcome({ onComplete }: { onComplete: () => void }) {
   if (step === "signin" && isFeatureEnabled("accounts")) {
     return (
       <div className="w-full space-y-4">
-        <SignInFlow deferHandleStep onComplete={() => setStep("hurray")} />
+        <SignInFlow
+          deferHandleStep
+          onComplete={() =>
+            useAuthStore.getState().account?.handlePending ? setStep("hurray") : onComplete()
+          }
+        />
         <Button variant="ghost" size="sm" className="w-full" onClick={() => setStep("nickname")}>
           Use a nickname instead
         </Button>

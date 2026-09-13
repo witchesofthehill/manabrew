@@ -2,27 +2,31 @@ import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
 
 const cream = "#e7e2dc";
-const sage = "#b9c6bf";
-const forest = "#4b5e4f";
-const peach = "#e4af89";
-const brandOrange = "#d85a27";
-const primary = "#c94f20";
-const charcoal = "#2e3231";
+const primary = "#D4632E";
+const secondary = "#713A98";
+const accent = "#7ca982";
+const charcoal = "#131416";
+const cardCharcoal = "#1a1c1d";
+const mutedGraphite = "#232627";
+const popoverGraphite = "#202223";
+const neutralGray = "#343839";
+const lightMutedText = "#59615f";
+const lightBorder = "#b9bfbd";
 const white = "#ffffff";
 
 const palette: BasePalette = {
   foreground: cream,
-  labelMuted: sage,
-  labelGhost: peach,
+  labelMuted: accent,
+  labelGhost: secondary,
   placeholderFill: charcoal,
-  placeholderStroke: forest,
+  placeholderStroke: accent,
   canvasBackground: charcoal,
   red: "#c93d50",
   redDeep: "#a92f46",
-  orange: brandOrange,
-  amber: peach,
+  orange: primary,
+  amber: primary,
   yellow: "#d8d34a",
-  green: forest,
+  green: accent,
   teal: "#3fb6b8",
   cyan: "#4cbfd3",
   blue: "#527fbd",
@@ -31,7 +35,7 @@ const palette: BasePalette = {
   violet: "#a85fc5",
   purple: "#71379b",
   pink: "#ce5d82",
-  slate: sage,
+  slate: "#7a8180",
   brown: "#ad6848",
   paper: cream,
   poison: "#82ad41",
@@ -56,54 +60,54 @@ const preset: ThemePreset = {
     popover: white,
     "popover-foreground": charcoal,
     primary,
-    "primary-foreground": white,
-    secondary: sage,
-    "secondary-foreground": charcoal,
+    "primary-foreground": charcoal,
+    secondary,
+    "secondary-foreground": white,
     muted: cream,
-    "muted-foreground": forest,
-    accent: peach,
+    "muted-foreground": lightMutedText,
+    accent,
     "accent-foreground": charcoal,
     destructive: "#c93d50",
     "destructive-foreground": white,
-    border: sage,
-    input: sage,
-    ring: brandOrange,
-    selection: forest,
-    "selection-foreground": cream,
-    commander: peach,
+    border: lightBorder,
+    input: lightBorder,
+    ring: primary,
+    selection: secondary,
+    "selection-foreground": white,
+    commander: accent,
     warning: "#806000",
     overlay: "#000000",
   },
   dark: {
     background: charcoal,
     foreground: cream,
-    card: charcoal,
+    card: cardCharcoal,
     "card-foreground": cream,
-    popover: forest,
+    popover: popoverGraphite,
     "popover-foreground": cream,
     primary,
-    "primary-foreground": white,
-    secondary: sage,
-    "secondary-foreground": charcoal,
-    muted: forest,
+    "primary-foreground": charcoal,
+    secondary,
+    "secondary-foreground": white,
+    muted: mutedGraphite,
     "muted-foreground": cream,
-    accent: peach,
+    accent,
     "accent-foreground": charcoal,
     destructive: "#c93d50",
     "destructive-foreground": white,
-    border: forest,
-    input: forest,
-    ring: brandOrange,
-    selection: sage,
-    "selection-foreground": charcoal,
-    commander: peach,
-    warning: peach,
+    border: neutralGray,
+    input: neutralGray,
+    ring: primary,
+    selection: secondary,
+    "selection-foreground": white,
+    commander: accent,
+    warning: "#d8a640",
     overlay: "#000000",
   },
   gameColors: {
     ...buildGameColors(palette),
-    cardRing: brandOrange,
-    "activeAction.active": brandOrange,
+    cardRing: primary,
+    "activeAction.active": primary,
     "playerColors.self": palette.green,
     "playerColors.opponent1": palette.blue,
     "playerColors.opponent2": palette.yellow,

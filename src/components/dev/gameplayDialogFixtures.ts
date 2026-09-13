@@ -28,7 +28,7 @@ function makeCard(id: string, name: string, power: string, toughness: string): C
   };
 }
 
-const FALLBACK_CARDS = [
+export const FALLBACK_CARDS = [
   makeCard("dev-card-1", "Serra Angel", "4", "4"),
   makeCard("dev-card-2", "Grizzly Bears", "2", "2"),
   makeCard("dev-card-3", "Llanowar Elves", "1", "1"),

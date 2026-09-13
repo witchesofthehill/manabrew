@@ -1,6 +1,7 @@
 import type { PromptInput } from "@/protocol";
 import type { DevDialogPreview } from "./promptDialogPreviews";
 import type { DevDialogFixtures } from "./promptDialogs/useDevDialogFixtures";
+import { FALLBACK_CARDS } from "./gameplayDialogFixtures";
 
 export function previewInput(preview: DevDialogPreview, fixtures: DevDialogFixtures): PromptInput {
   const { cards, me, targetPlayer, presentation } = fixtures;
@@ -80,18 +81,18 @@ export function previewInput(preview: DevDialogPreview, fixtures: DevDialogFixtu
     case "assign-combat-damage":
       return {
         type: "chooseCombatDamageAssignment",
-        attackerId: cards[0]!.id,
-        blockerIds: [cards[1]!.id, cards[2]!.id],
+        attackerId: FALLBACK_CARDS[0]!.id,
+        blockerIds: [FALLBACK_CARDS[1]!.id, FALLBACK_CARDS[2]!.id],
         defenderId: targetPlayer.id,
-        totalDamage: 7,
+        totalDamage: 4,
         attackerHasDeathtouch: false,
       };
     case "damage-order":
       return {
         type: "chooseDamageAssignmentOrder",
-        attackerId: cards[0]!.id,
-        blockerIds: [cards[1]!.id, cards[2]!.id],
-        blockerCards: cards.slice(1, 3),
+        attackerId: FALLBACK_CARDS[0]!.id,
+        blockerIds: [FALLBACK_CARDS[1]!.id, FALLBACK_CARDS[2]!.id],
+        blockerCards: FALLBACK_CARDS.slice(1, 3),
       };
     case "dice-roll":
       return {

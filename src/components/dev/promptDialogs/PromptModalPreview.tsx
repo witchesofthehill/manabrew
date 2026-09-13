@@ -10,6 +10,7 @@ import type { Prompt } from "@/protocol";
 
 import type { DevDialogPreview } from "../promptDialogPreviews";
 import type { DevDialogFixtures } from "./useDevDialogFixtures";
+import { FALLBACK_CARDS } from "@/components/dev/gameplayDialogFixtures";
 import { previewInput } from "@/components/dev/gameplayPromptFixtures";
 
 interface PromptModalPreviewProps {
@@ -33,7 +34,7 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
   const [damageOrder, setDamageOrder] = useState<string[]>([]);
   const input = useMemo(() => previewInput(preview, fixtures), [preview, fixtures]);
   const prompt = useMemo<Prompt>(() => ({ input }) as Prompt, [input]);
-  const blockerCards = useMemo(() => fixtures.cards.slice(1, 3), [fixtures.cards]);
+  const blockerCards = useMemo(() => FALLBACK_CARDS.slice(1, 3), []);
   const spec = useMemo<PromptOverlaySpec>(() => {
     const action: PromptActionSpec = {
       promptType: input.type,
@@ -59,7 +60,6 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
       onConfirmDamageOrder: onClose,
       onUndoDamageOrder: () => setDamageOrder((current) => current.slice(0, -1)),
       onDefaultDamageOrder: () => setDamageOrder(blockerCards.map((card) => card.id)),
-      onOpenStack: noAction,
       onToggleBoardMenu: noAction,
       resolveCardName: (cardId) => cardId,
       resolveCard: () => undefined,
@@ -76,7 +76,17 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
     return {
       currentPrompt: prompt,
       localPlayerId: fixtures.me.id,
-      gameView: fixtures.gameView,
+      gameView:
+        input.type === "chooseCombatDamageAssignment" ||
+        input.type === "chooseDamageAssignmentOrder"
+          ? {
+              ...fixtures.gameView,
+              battlefield: FALLBACK_CARDS.map((card) => ({
+                ...card,
+                zoneId: "battlefield",
+              })),
+            }
+          : fixtures.gameView,
       sourceDeckCard:
         input.type === "chooseCombatDamageAssignment" ||
         input.type === "chooseDamageAssignmentOrder"
@@ -86,7 +96,7 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
       damageOrder:
         input.type === "chooseDamageAssignmentOrder"
           ? {
-              attackerName: fixtures.cards[0]!.identity.name,
+              attackerName: FALLBACK_CARDS[0]!.identity.name,
               blockerCards,
               order: damageOrder,
               onToggle: (cardId) =>
@@ -124,7 +134,6 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
           <BoardOverlayCanvas
             scene={null}
             stackSpec={EMPTY_STACK}
-            onOpenStack={noAction}
             onTargetSpell={noAction}
             onHoverStack={noAction}
             onToggleStack={noAction}

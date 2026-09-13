@@ -4,7 +4,6 @@ import {
   FederatedPointerEvent,
   Graphics,
   Rectangle,
-  Text,
 } from "pixi.js";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { hexToNum } from "@/pixi/colorUtils";
@@ -59,7 +58,6 @@ import {
   type RollDisplayEntry,
   SCRY_LAYOUT_SETTLE_SECONDS,
   SOURCE_CARD_GAP,
-  SOURCE_LABEL_HEIGHT,
   parseCombatNumber,
   promptRichText,
   promptText,
@@ -146,11 +144,13 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     minimizable = true,
     footerHeight = 0,
     footerContentHeight = 36,
+    cardHints = false,
   ): {
     panel: Container;
     body: Container;
     bodyTop: number;
     footer: Container;
+    footerHintWidth: number;
   } {
     const sourceCard = this.promptSourceCard();
     const sourcePortraitWidth = this.promptSourceCardPortraitWidth(width);
@@ -160,12 +160,12 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const clusterWidth = width + SOURCE_CARD_GAP + preferredSourceSize.width;
     const externalSource =
       !!sourceCard &&
-      clusterWidth <= this.viewportWidth - 24 &&
-      SOURCE_LABEL_HEIGHT + preferredSourceSize.height <= this.viewportHeight - 24;
+      clusterWidth <= this.layoutWidth - 24 &&
+      preferredSourceSize.height <= this.viewportHeight - 24;
     const x = externalSource
-      ? (this.viewportWidth - clusterWidth) / 2
-      : (this.viewportWidth - width) / 2;
-    const y = (this.viewportHeight - height) / 2;
+      ? Math.round((this.layoutWidth - clusterWidth) / 2)
+      : Math.round((this.layoutWidth - width) / 2);
+    const y = Math.round((this.viewportHeight - height) / 2);
     const sourceLeft = width + SOURCE_CARD_GAP;
     const panel = this.panel(width, height, x, y, 12);
     const panelBackground = panel.children[0] as Graphics;
@@ -186,7 +186,6 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     let sourceHeight = 0;
     let sourceX = 0;
     let sourceY = 0;
-    let sourceLabel: Text | null = null;
     let placeSourceSprite: (() => void) | null = null;
     if (sourceSprite && sourceCard) {
       this.configurePromptCardSprite(sourceSprite, sourceCard);
@@ -216,49 +215,36 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       sourceSprite.accessibleHint = "Focus or hover, then change view or flip face";
       sourceSprite.tabIndex = 0;
       this.bindPromptCardActivation(sourceSprite, sourceCard, sourceSprite, false);
-      sourceLabel = promptText("SOURCE", 10, this.theme.appTheme["muted-foreground"], {
-        weight: "700",
-      });
-      panel.addChild(sourceSprite, sourceLabel);
+      panel.addChild(sourceSprite);
     }
-    const stackSource =
-      !!sourceSprite &&
-      !externalSource &&
-      width - PANEL_PADDING * 2 - sourceWidth < GAME_CARD_SIZES.hand.width;
-    const titleX =
-      sourceSprite && !externalSource && !stackSource
-        ? PANEL_PADDING + sourceWidth + 16
-        : PANEL_PADDING;
+    const inlineSource = !!sourceSprite && !externalSource;
+    const titleX = PANEL_PADDING;
+    const titleWidth = inlineSource
+      ? Math.max(120, width - PANEL_PADDING * 2 - sourceWidth - 16)
+      : width - titleX - 50;
     const title = promptRichText(
       presentation.title,
       this.viewportWidth < 760 ? 18 : 22,
       this.theme.appTheme.foreground,
-      width - titleX - 50,
+      titleWidth,
       { weight: "700" },
     );
     title.position.set(titleX, 16);
     panel.addChild(title);
     let bodyTop = 16 + title.height + 8;
-    if (sourceSprite && sourceLabel && placeSourceSprite) {
+    if (sourceSprite && placeSourceSprite) {
       if (externalSource) {
         sourceX = sourceLeft;
-        sourceY = SOURCE_LABEL_HEIGHT;
-        sourceLabel.position.set(sourceLeft, 0);
+        sourceY = 0;
         panel.hitArea = new Rectangle(
           0,
           0,
           sourceLeft + sourceWidth,
-          Math.max(height, SOURCE_LABEL_HEIGHT + sourceHeight),
+          Math.max(height, sourceHeight),
         );
-      } else if (stackSource) {
-        sourceX = (width - sourceWidth) / 2;
-        sourceY = bodyTop + SOURCE_LABEL_HEIGHT + 4;
-        sourceLabel.position.set(sourceX, bodyTop + 4);
-        bodyTop = sourceY + sourceHeight + 8;
       } else {
-        sourceX = PANEL_PADDING;
-        sourceY = SOURCE_LABEL_HEIGHT + 8;
-        sourceLabel.position.set(sourceX, 8);
+        sourceX = Math.max(PANEL_PADDING, width - PANEL_PADDING - sourceWidth);
+        sourceY = 48;
         bodyTop = Math.max(bodyTop, sourceY + sourceHeight + 8);
       }
       sourceSprite.onReorient?.();
@@ -287,20 +273,33 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       bodyTop += rules.height + 8;
     }
     if (minimizable) {
-      const minimize = this.makeButton("", this.spec!.onHideModal, {
-        title: "Minimize prompt",
-        icon: "lucide-minus",
-        outline: true,
-        compact: true,
-        width: 32,
+      const minimizeIcon = this.makeIcon("lucide-minus", 22, this.theme.appTheme.foreground);
+      const minimize = new Container();
+      minimize.addChild(minimizeIcon);
+      minimize.eventMode = "static";
+      minimize.cursor = "pointer";
+      minimize.hitArea = new Rectangle(-16, -16, 32, 32);
+      minimize.on("pointerover", () => {
+        minimizeIcon.alpha = 0.75;
       });
-      minimize.position.set(
-        Math.min(width - 18, this.viewportWidth - x - minimize.buttonWidth),
-        Math.max(-14, -y),
-      );
+      minimize.on("pointerout", () => {
+        minimizeIcon.alpha = 1;
+      });
+      minimize.on("focusin", () => {
+        minimizeIcon.alpha = 0.75;
+      });
+      minimize.on("focusout", () => {
+        minimizeIcon.alpha = 1;
+      });
+      minimize.on("pointertap", () => this.spec!.onHideModal());
+      minimize.accessible = true;
+      minimize.accessibleTitle = "Minimize prompt";
+      minimize.tabIndex = 0;
+      minimize.position.set(width - PANEL_PADDING - 6, 20);
       panel.addChild(minimize);
     }
 
+    bodyTop = Math.round(bodyTop);
     const viewportHeight = Math.max(0, height - bodyTop - footerHeight - MODAL_BODY_BOTTOM_PADDING);
     const mask = new Graphics()
       .rect(PANEL_PADDING, bodyTop, width - PANEL_PADDING * 2, viewportHeight)
@@ -321,10 +320,17 @@ export abstract class PromptModalLayer extends PromptLayerBase {
 
     const footer = new Container();
     let footerBackground: Graphics | null = null;
+    let footerHintWidth = 0;
     if (footerHeight > 0) {
       const footerTop = height - footerHeight;
       footerBackground = new Graphics()
-        .rect(0, footerTop, width, footerHeight)
+        .moveTo(0, footerTop)
+        .lineTo(width, footerTop)
+        .lineTo(width, height - 12)
+        .arc(width - 12, height - 12, 12, 0, Math.PI / 2)
+        .lineTo(12, height)
+        .arc(12, height - 12, 12, Math.PI / 2, Math.PI)
+        .closePath()
         .fill({ color: hexToNum(this.theme.appTheme.card), alpha: 0.98 })
         .moveTo(0, footerTop)
         .lineTo(width, footerTop)
@@ -333,6 +339,15 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         PANEL_PADDING,
         footerTop + Math.max(8, (footerHeight - footerContentHeight) / 2),
       );
+      if (cardHints) {
+        const shortcuts = this.promptCardShortcutHint();
+        if (shortcuts) {
+          const hint = promptText(shortcuts, 10, this.theme.appTheme["muted-foreground"]);
+          hint.position.set(0, footerContentHeight - 12);
+          footer.addChild(hint);
+          footerHintWidth = hint.width;
+        }
+      }
       panel.addChild(footerBackground, footer);
     }
 
@@ -345,7 +360,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       width,
       height,
       hitWidth: externalSource ? sourceLeft + sourceWidth : width,
-      externalSourceHeight: externalSource ? SOURCE_LABEL_HEIGHT + sourceHeight : 0,
+      externalSourceHeight: externalSource ? sourceHeight : 0,
       footerHeight,
       footerContentHeight,
       footer,
@@ -356,7 +371,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       scrollThumb,
     };
     this.container.addChild(panel);
-    return { panel, body, bodyTop, footer };
+    return { panel, body, bodyTop, footer, footerHintWidth };
   }
 
   protected resizeModalShell(
@@ -369,7 +384,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       height - state.bodyTop - state.footerHeight - MODAL_BODY_BOTTOM_PADDING,
     );
     const layoutHeight = Math.max(height, state.externalSourceHeight);
-    state.panel.position.y = (this.viewportHeight - layoutHeight) / 2;
+    state.panel.position.y = Math.round((this.viewportHeight - layoutHeight) / 2);
     state.panel.hitArea = new Rectangle(0, 0, state.hitWidth, layoutHeight);
     state.panelBackground
       .clear()
@@ -388,7 +403,13 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       const footerTop = height - state.footerHeight;
       state.footerBackground
         .clear()
-        .rect(0, footerTop, state.width, state.footerHeight)
+        .moveTo(0, footerTop)
+        .lineTo(state.width, footerTop)
+        .lineTo(state.width, height - 12)
+        .arc(state.width - 12, height - 12, 12, 0, Math.PI / 2)
+        .lineTo(12, height)
+        .arc(12, height - 12, 12, Math.PI / 2, Math.PI)
+        .closePath()
         .fill({ color: hexToNum(this.theme.appTheme.card), alpha: 0.98 })
         .moveTo(0, footerTop)
         .lineTo(state.width, footerTop)
@@ -515,21 +536,14 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           option.label.toLocaleLowerCase().includes(normalizedFilter),
         )
       : indexedOptions;
-    const autoConfirm = minTotal === 1 && maxTotal === 1;
     const visibleRowCount = Math.max(1, Math.min(visibleOptions.length, 7));
     const width = this.modalPromptWidth(CHOICE_MODAL_WIDTH);
     const height = Math.min(
-      Math.max(260, 132 + visibleRowCount * 66 + (showFilter ? 48 : 0) + (autoConfirm ? 0 : 52)),
+      Math.max(260, 132 + visibleRowCount * 66 + (showFilter ? 48 : 0) + 52),
       this.viewportHeight - 24,
     );
-    const { body, footer } = this.createModalShell(
-      width,
-      height,
-      presentation,
-      true,
-      autoConfirm ? 0 : 60,
-    );
-    const availableWidth = width - PANEL_PADDING * 2;
+    const { body, footer } = this.createModalShell(width, height, presentation, true, 60);
+    const availableWidth = Math.round(width - PANEL_PADDING * 2);
     const showWeights = options.some((option) => option.weight !== 1);
     let y = 4;
 
@@ -631,25 +645,32 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       row.accessibleTitle = `${option.label}${showWeights ? `, ${option.weight} point${option.weight === 1 ? "" : "s"}` : ""}${selected ? `, selected ${count} time${count === 1 ? "" : "s"}` : ""}`;
       row.accessibleHint = option.canRepeat
         ? "Activate to add one selection. Use the remove control to decrease the count."
-        : autoConfirm
-          ? "Activate to choose this option."
-          : "Activate to toggle this option.";
+        : "Activate to toggle this option.";
       row.tabIndex = disabled ? -1 : 0;
-      const rowBackground = new Graphics()
-        .roundRect(0, 0, availableWidth, rowHeight, 9)
-        .fill({
-          color: hexToNum(
-            selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme.background,
-          ),
-          alpha: selected ? 0.12 : 0.55,
-        })
-        .stroke({
-          color: hexToNum(
-            selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme.border,
-          ),
-          width: selected ? 2 : 1,
-          alpha: selected ? 0.9 : 0.8,
-        });
+      const rowBackground = new Graphics();
+      const drawRowBackground = (hover: boolean) => {
+        rowBackground
+          .clear()
+          .roundRect(0.5, 0.5, availableWidth - 1, rowHeight - 1, 8.5)
+          .fill({
+            color: hexToNum(
+              selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme.background,
+            ),
+            alpha: selected ? (hover ? 0.2 : 0.12) : hover ? 0.78 : 0.55,
+          })
+          .stroke({
+            color: hexToNum(
+              selected ? this.theme.gameTheme.cardSelection : this.theme.appTheme.border,
+            ),
+            width: selected ? 2 : 1,
+            alpha: selected ? 0.9 : hover ? 1 : 0.8,
+          });
+      };
+      row.on("pointerover", () => drawRowBackground(true));
+      row.on("pointerout", () => drawRowBackground(false));
+      row.on("focusin", () => drawRowBackground(true));
+      row.on("focusout", () => drawRowBackground(false));
+      drawRowBackground(false);
       row.addChild(rowBackground);
 
       const indicator = new Graphics()
@@ -696,16 +717,12 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       }
 
       const increment = () => {
-        if (!option.canRepeat && selected && !autoConfirm) {
+        if (!option.canRepeat && selected) {
           this.counts.delete(index);
           this.rebuild();
           return;
         }
         if (!canIncrement) return;
-        if (autoConfirm) {
-          this.spec!.respond({ type: "selectionDecision", chosenIndices: [index] });
-          return;
-        }
         if (option.canRepeat) {
           this.counts.set(index, count + 1);
         } else {
@@ -717,7 +734,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       row.on("pointertap", increment);
 
       if (option.canRepeat) {
-        const controlX = availableWidth - 98;
+        const controlX = availableWidth - 120;
         const minus = this.makeButton(
           "",
           () => {
@@ -738,13 +755,13 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         minus.position.set(controlX, 12);
         minus.on("pointertap", (event) => event.stopPropagation());
         const countBackground = new Graphics()
-          .roundRect(controlX + 34, 12, 30, 32, 7)
+          .roundRect(controlX + 38, 12, 30, 32, 7)
           .fill({ color: hexToNum(this.theme.appTheme.muted), alpha: 0.55 });
         const countText = promptText(String(count), 13, this.theme.appTheme.foreground, {
           weight: "700",
         });
         countText.anchor.set(0.5);
-        countText.position.set(controlX + 49, 28);
+        countText.position.set(controlX + 53, 28);
         const plus = this.makeButton("", increment, {
           title: `Add one ${option.label}`,
           icon: "lucide-plus",
@@ -754,7 +771,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           width: 30,
           height: 32,
         });
-        plus.position.set(controlX + 68, 12);
+        plus.position.set(controlX + 76, 12);
         plus.on("pointertap", (event) => event.stopPropagation());
         row.addChild(minus, countBackground, countText, plus);
       }
@@ -764,36 +781,34 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       y += 66;
     }
 
-    if (!autoConfirm) {
-      const selectedTotal = this.selectionTotal(options);
-      const canConfirm = selectedTotal >= minTotal && selectedTotal <= maxTotal;
-      const requirement =
-        minTotal === maxTotal
-          ? `${selectedTotal} of ${maxTotal} points selected`
-          : `${selectedTotal} points selected · choose ${minTotal}–${maxTotal}`;
-      const status = promptText(
-        requirement,
-        11,
-        canConfirm ? this.theme.gameTheme.success : this.theme.appTheme["muted-foreground"],
-        { weight: "600", width: availableWidth - 150, truncate: true },
-      );
-      status.position.set(2, 10);
-      footer.addChild(status);
-      const confirm = this.makeButton(
-        minTotal === 0 && selectedTotal === 0 ? "SKIP" : "CONFIRM",
-        () => {
-          const chosenIndices = [...this.counts.entries()]
-            .sort(([left], [right]) => Number(left) - Number(right))
-            .flatMap(([selectedIndex, selectedCount]) =>
-              Array.from({ length: selectedCount }, () => Number(selectedIndex)),
-            );
-          this.spec!.respond({ type: "selectionDecision", chosenIndices });
-        },
-        { disabled: !canConfirm, width: 130 },
-      );
-      confirm.position.set(availableWidth - confirm.buttonWidth, 0);
-      footer.addChild(confirm);
-    }
+    const selectedTotal = this.selectionTotal(options);
+    const canConfirm = selectedTotal >= minTotal && selectedTotal <= maxTotal;
+    const requirement =
+      minTotal === maxTotal
+        ? `${selectedTotal} of ${maxTotal} points selected`
+        : `${selectedTotal} points selected · choose ${minTotal}–${maxTotal}`;
+    const status = promptText(
+      requirement,
+      11,
+      canConfirm ? this.theme.gameTheme.success : this.theme.appTheme["muted-foreground"],
+      { weight: "600", width: availableWidth - 150, truncate: true },
+    );
+    status.position.set(2, 10);
+    footer.addChild(status);
+    const confirm = this.makeButton(
+      minTotal === 0 && selectedTotal === 0 ? "SKIP" : "CONFIRM",
+      () => {
+        const chosenIndices = [...this.counts.entries()]
+          .sort(([left], [right]) => Number(left) - Number(right))
+          .flatMap(([selectedIndex, selectedCount]) =>
+            Array.from({ length: selectedCount }, () => Number(selectedIndex)),
+          );
+        this.spec!.respond({ type: "selectionDecision", chosenIndices });
+      },
+      { disabled: !canConfirm, width: 130 },
+    );
+    confirm.position.set(availableWidth - confirm.buttonWidth, 0);
+    footer.addChild(confirm);
   }
 
   protected selectionTotal(options: SelectionOption[]): number {
@@ -856,14 +871,10 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         : presentation,
       true,
       60,
+      36,
+      true,
     );
-    const shortcuts = this.promptCardShortcutHint();
-    const startY = shortcuts ? 28 : CARD_TILE_EDGE_INSET;
-    if (shortcuts) {
-      const shortcutText = promptText(shortcuts, 10, this.theme.appTheme["muted-foreground"]);
-      shortcutText.position.set(CARD_TILE_EDGE_INSET, 5);
-      body.addChild(shortcutText);
-    }
+    const startY = 4;
     cards.forEach((card, index) => {
       const selected = this.selectedIds.has(card.id);
       const disabled = !reveal && max !== 1 && this.selectedIds.size >= max && !selected;
@@ -1086,16 +1097,17 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     if (amount <= 1) {
       const buttons = validColors.map((color) =>
         this.makeButton(
-          color,
+          "",
           () => this.spec!.respond({ type: "colorDecision", chosenColors: { [color]: 1 } }),
           {
+            title: color,
             color: colors[color] ?? this.theme.appTheme.muted,
             foreground: readableTextColor(
               colors[color] ?? this.theme.appTheme.muted,
               this.theme.gameTheme.canvas.background,
               this.theme.gameTheme.textOnTinted,
             ),
-            width: 112,
+            width: 72,
             height: 64,
             iconTexture: loadManaSymbolTexture(this.manaSymbol(color)),
             iconTint: false,
@@ -1127,19 +1139,19 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           alpha: selected ? 0.9 : 0.8,
         });
       const manaIcon = this.makeManaIcon(this.manaSymbol(color), 30);
-      manaIcon.position.set(22, 28);
+      manaIcon.position.set(30, 28);
       const colorText = promptText(color, 13, this.theme.appTheme.foreground, { weight: "600" });
-      colorText.position.set(44, 13);
+      colorText.position.set(54, 13);
       const stateText = promptText(
         selected ? `${count} selected` : "Not selected",
         10,
         selected ? colorValue : this.theme.appTheme["muted-foreground"],
         { weight: "600" },
       );
-      stateText.position.set(44, 34);
+      stateText.position.set(54, 34);
       row.addChild(rowBackground, manaIcon, colorText, stateText);
 
-      const controlX = availableWidth - 102;
+      const controlX = availableWidth - 120;
       const minus = this.makeButton(
         "",
         () => {
@@ -1160,13 +1172,13 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       );
       minus.position.set(controlX, 11);
       const countBackground = new Graphics()
-        .roundRect(controlX + 34, 11, 30, 34, 7)
+        .roundRect(controlX + 38, 11, 30, 34, 7)
         .fill({ color: hexToNum(this.theme.appTheme.muted), alpha: 0.55 });
       const countText = promptText(String(count), 14, this.theme.appTheme.foreground, {
         weight: "700",
       });
       countText.anchor.set(0.5);
-      countText.position.set(controlX + 49, 28);
+      countText.position.set(controlX + 53, 28);
       const plus = this.makeButton(
         "",
         () => {
@@ -1184,7 +1196,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           height: 34,
         },
       );
-      plus.position.set(controlX + 68, 11);
+      plus.position.set(controlX + 76, 11);
       row.addChild(minus, countBackground, countText, plus);
       body.addChild(row);
       y += 64;
@@ -1267,6 +1279,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       Number.isInteger(parsedValue) &&
       parsedValue >= min &&
       parsedValue <= max;
+    const showInvalid = this.numberBuffer !== "" && this.numberBuffer !== "-" && !isValid;
     const setValue = (value: number) => {
       this.numberValue = Math.max(min, Math.min(max, value));
       this.numberBuffer = String(this.numberValue);
@@ -1303,13 +1316,20 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     body.addChild(decrease);
     x += stepWidth + controlGap;
 
+    const focused = this.numberInputFocused;
     const valueBackground = new Graphics()
       .roundRect(x, 12, valueWidth, 56, 9)
-      .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.72 })
+      .fill({ color: hexToNum(this.theme.appTheme.background), alpha: focused ? 0.9 : 0.72 })
       .stroke({
-        color: hexToNum(isValid ? this.theme.gameTheme.cardRing : this.theme.appTheme.destructive),
+        color: hexToNum(
+          showInvalid
+            ? this.theme.appTheme.destructive
+            : focused
+              ? this.theme.gameTheme.cardRing
+              : this.theme.appTheme.border,
+        ),
         width: 2,
-        alpha: isValid ? 0.85 : 0.65,
+        alpha: focused || showInvalid ? 1 : 0.75,
       });
     valueBackground.eventMode = "static";
     valueBackground.cursor = "text";
@@ -1318,21 +1338,25 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       ? `Current value ${parsedValue}. Type to replace or edit the value.`
       : `Enter a whole number from ${min} to ${max}.`;
     valueBackground.tabIndex = 0;
-    const valueLabel = promptText("VALUE", 9, this.theme.appTheme["muted-foreground"], {
-      weight: "700",
-      letterSpacing: 0.8,
+    valueBackground.on("pointertap", () => {
+      if (this.numberInputFocused) return;
+      this.numberInputFocused = true;
+      this.rebuild();
     });
-    valueLabel.anchor.set(0.5, 0);
-    valueLabel.position.set(x + valueWidth / 2, 17);
+    valueBackground.on("focusin", () => {
+      if (this.numberInputFocused) return;
+      this.numberInputFocused = true;
+      this.rebuild();
+    });
     const valueText = promptText(
-      this.numberBuffer ? `${this.numberBuffer}│` : "Type…",
+      this.numberBuffer ? `${this.numberBuffer}${focused ? "│" : ""}` : "Type…",
       this.numberBuffer ? 24 : 16,
       this.numberBuffer ? this.theme.appTheme.foreground : this.theme.appTheme["muted-foreground"],
       { weight: this.numberBuffer ? "700" : "500" },
     );
     valueText.anchor.set(0.5);
-    valueText.position.set(x + valueWidth / 2, 44);
-    body.addChild(valueBackground, valueLabel, valueText);
+    valueText.position.set(x + valueWidth / 2, 40);
+    body.addChild(valueBackground, valueText);
     x += valueWidth + controlGap;
 
     const increase = this.makeButton("", () => setValue((isValid ? parsedValue : min) + 1), {
@@ -1358,10 +1382,10 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     body.addChild(maximum);
 
     const rangeText = promptText(
-      isValid ? `Whole number from ${min} to ${max}` : `Enter a whole number from ${min} to ${max}`,
+      `Whole number from ${min} to ${max}`,
       11,
-      isValid ? this.theme.appTheme["muted-foreground"] : this.theme.appTheme.destructive,
-      { weight: isValid ? "500" : "600", width: availableWidth - 140, truncate: true },
+      showInvalid ? this.theme.appTheme.destructive : this.theme.appTheme["muted-foreground"],
+      { weight: showInvalid ? "600" : "500", width: availableWidth - 140, truncate: true },
     );
     rangeText.position.set(0, 11);
     footer.addChild(rangeText);
@@ -1401,18 +1425,17 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         SOURCE_CARD_GAP +
         this.promptCardDisplayDimensions(sourceCard, this.promptSourceCardDimensions().width)
           .width >
-        this.viewportWidth - 24;
+        this.layoutWidth - 24;
     const height = Math.min(
       this.viewportHeight - 24,
       cardHeight +
         REORDER_MODAL_VERTICAL_RESERVE +
         (sourceIsInternal ? preferredCardWidth * CARD_ASPECT_RATIO : 0),
     );
-    const { body, footer } = this.createModalShell(width, height, presentation, true, 60);
+    const { body, footer } = this.createModalShell(width, height, presentation, true, 60, 36, true);
     const byId = new Map(items.map((item) => [item.id, item]));
-    const shortcuts = this.promptCardShortcutHint();
     const instruction = promptText(
-      `Drag to reorder · Leftmost resolves first${shortcuts ? ` · ${shortcuts}` : ""}`,
+      "Drag to reorder · Leftmost resolves first",
       12,
       this.theme.gameTheme.promptAction.defenseAction,
       { weight: "600" },
@@ -1750,7 +1773,15 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const stackDepth = Math.min(64, Math.max(0, cards.length - 1) * 16);
     const height = this.viewportHeight - 24;
     const footerHeight = 64;
-    const { body, footer } = this.createModalShell(width, height, presentation, true, footerHeight);
+    const { body, footer } = this.createModalShell(
+      width,
+      height,
+      presentation,
+      true,
+      footerHeight,
+      36,
+      true,
+    );
     const { width: preferredCardWidth } = this.promptCardDimensions();
     const maxCardWidthRatio = Math.max(
       1,
@@ -2007,12 +2038,6 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     );
     status.position.set(0, 3);
     footer.addChild(status);
-    const shortcuts = this.promptCardShortcutHint();
-    if (shortcuts) {
-      const shortcutText = promptText(shortcuts, 10, this.theme.appTheme["muted-foreground"]);
-      shortcutText.position.set(0, 20);
-      footer.addChild(shortcutText);
-    }
     const confirm = this.makeButton(
       "CONFIRM",
       () => {
@@ -2299,7 +2324,15 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       description: `${damageOrder.attackerName} is blocked by ${damageOrder.blockerCards.length} creatures. Choose which blocker receives damage first.`,
       targets,
     };
-    const { body, footer } = this.createModalShell(width, height, presentation, true, 60);
+    const { body, footer, footerHintWidth } = this.createModalShell(
+      width,
+      height,
+      presentation,
+      true,
+      60,
+      36,
+      true,
+    );
     const availableWidth = width - PANEL_PADDING * 2;
     const selectedCount = damageOrder.order.length;
     const complete =
@@ -2422,14 +2455,15 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       outline: true,
       disabled: this.spec!.action.isWaitingForResponse,
     });
-    auto.position.set(0, 0);
+    const footerLeft = footerHintWidth > 0 ? footerHintWidth + 12 : 0;
+    auto.position.set(footerLeft, 0);
     footer.addChild(auto);
     if (selectedCount > 0) {
       const undo = this.makeButton("UNDO", damageOrder.onUndo, {
         outline: true,
         disabled: this.spec!.action.isWaitingForResponse,
       });
-      undo.position.set(auto.buttonWidth + 8, 0);
+      undo.position.set(footerLeft + auto.buttonWidth + 8, 0);
       footer.addChild(undo);
     }
     const confirm = this.makeButton("CONFIRM ORDER", damageOrder.onConfirm, {
@@ -2465,19 +2499,10 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         : undefined,
       targets,
     };
-    const { body, footer } = this.createModalShell(width, height, presentation, true, 64, 38);
+    const { body, footer } = this.createModalShell(width, height, presentation, true, 64, 38, true);
     const assigned = Object.values(this.damageAssigned).reduce((sum, damage) => sum + damage, 0);
     const remaining = input.totalDamage - assigned;
     const waiting = this.spec!.action.isWaitingForResponse;
-    const statusColor =
-      remaining === 0 ? this.theme.gameTheme.success : this.theme.appTheme.foreground;
-    const status = promptText(
-      remaining === 0 ? "Ready to assign" : `${remaining} damage left`,
-      14,
-      statusColor,
-      { weight: "700" },
-    );
-    status.position.set(0, 2);
     const allocation = promptText(
       `${assigned} of ${input.totalDamage} assigned`,
       10,
@@ -2485,11 +2510,11 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       { weight: "600" },
     );
     allocation.anchor.set(1, 0);
-    allocation.position.set(availableWidth, 6);
+    allocation.position.set(availableWidth, 4);
     const progressTrack = new Graphics()
       .roundRect(0, 28, availableWidth, 6, 3)
       .fill({ color: hexToNum(this.theme.appTheme.muted), alpha: 0.72 });
-    body.addChild(status, allocation, progressTrack);
+    body.addChild(allocation, progressTrack);
     if (assigned > 0) {
       const progressWidth = Math.min(
         availableWidth,
@@ -2497,7 +2522,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       );
       const progress = new Graphics()
         .roundRect(0, 28, progressWidth, 6, 3)
-        .fill({ color: hexToNum(statusColor), alpha: 0.92 });
+        .fill({ color: hexToNum(this.theme.gameTheme.cardRing), alpha: 0.92 });
       body.addChild(progress);
     }
     const guidance = promptText(
@@ -2526,24 +2551,21 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         );
       const label = this.combatLabel(id);
       const lethalReached = lethal != null && damage >= lethal;
-      const complete = id === input.defenderId ? remaining === 0 : lethalReached;
       const rowColor = lethalReached
         ? this.theme.gameTheme.promptAction.attackAction
-        : complete
-          ? this.theme.gameTheme.success
-          : damage > 0
-            ? this.theme.gameTheme.cardRing
-            : this.theme.appTheme.border;
+        : damage > 0
+          ? this.theme.gameTheme.cardRing
+          : this.theme.appTheme.border;
       const rowBg = new Graphics()
-        .roundRect(0, y, availableWidth, 62, 9)
+        .roundRect(0.5, y + 0.5, availableWidth - 1, 61, 9)
         .fill({
-          color: hexToNum(complete ? rowColor : this.theme.appTheme.background),
-          alpha: complete ? 0.09 : 0.56,
+          color: hexToNum(damage > 0 ? rowColor : this.theme.appTheme.background),
+          alpha: damage > 0 ? 0.09 : 0.56,
         })
         .stroke({
           color: hexToNum(rowColor),
           width: 1,
-          alpha: blocked ? 0.5 : complete || damage > 0 ? 0.86 : 1,
+          alpha: blocked ? 0.5 : damage > 0 ? 0.86 : 1,
         });
       rowBg.eventMode = "static";
       rowBg.cursor = "default";
@@ -2567,15 +2589,15 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       body.addChild(rowBg);
 
       const orderBadge = new Graphics()
-        .roundRect(10, y + 19, 24, 24, 12)
+        .roundRect(10.5, y + 19.5, 23, 23, 11.5)
         .fill({
-          color: hexToNum(complete || damage > 0 ? rowColor : this.theme.appTheme.muted),
-          alpha: complete || damage > 0 ? 0.24 : 0.72,
+          color: hexToNum(damage > 0 ? rowColor : this.theme.appTheme.muted),
+          alpha: damage > 0 ? 0.24 : 0.72,
         })
         .stroke({
           color: hexToNum(rowColor),
           width: 1,
-          alpha: complete || damage > 0 ? 0.75 : 0.55,
+          alpha: damage > 0 ? 0.75 : 0.55,
         });
       const order = promptText(String(index + 1), 10, this.theme.appTheme.foreground, {
         weight: "700",
@@ -2586,15 +2608,17 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       const card = this.spec!.gameView.battlefield.find((candidate) => candidate.id === id);
       const name = promptText(label, 12, this.theme.appTheme.foreground, {
         weight: "600",
-        width: availableWidth - 260,
+        width: availableWidth - 300,
         truncate: true,
       });
-      name.position.set(44, y + 10);
+      name.position.set(44, y + 8);
       const detail = defender
-        ? `DEFENDER · ${defender.life} → ${defender.life - damage} life`
-        : `${card?.power ?? "?"}/${card?.toughness ?? "?"}${card?.damage ? ` · ${card.damage} marked` : ""}${
-            lethalReached ? " · LETHAL ASSIGNED" : ""
-          }`;
+        ? `Defender · ${defender.life} → ${defender.life - damage} life`
+        : card
+          ? `${card.power ?? "?"}/${card.toughness ?? "?"}${card.damage ? ` · ${card.damage} marked` : ""}`
+          : lethal != null
+            ? `Lethal ${lethal}`
+            : "";
       const detailText = promptText(
         detail,
         10,
@@ -2603,17 +2627,26 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           : this.theme.appTheme["muted-foreground"],
         {
           weight: lethalReached ? "700" : "500",
-          width: availableWidth - 260,
+          width: availableWidth - 300,
           truncate: true,
         },
       );
       detailText.position.set(44, y + 36);
       body.addChild(orderBadge, order, name, detailText);
+      if (lethalReached) {
+        const skull = this.makeIcon(
+          "lucide-skull",
+          18,
+          this.theme.gameTheme.promptAction.attackAction,
+        );
+        skull.position.set(availableWidth - 220, y + 31);
+        body.addChild(skull);
+      }
 
       const lethalDisabled = waiting || blocked || lethalReached || remaining <= 0;
       if (lethal != null) {
         const lethalButton = this.makeButton(
-          `LETHAL ${lethal}${lethalReached ? " ✓" : ""}`,
+          `LETHAL ${lethal}`,
           () => {
             this.damageAssigned[id] = Math.min(
               input.totalDamage,
@@ -2694,35 +2727,6 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     });
 
     const legal = remaining === 0 && this.damageLegallyOrdered(input, assignees);
-    const resetDisabled = waiting || assigned === 0;
-    const reset = this.makeButton(
-      "CLEAR",
-      () => {
-        this.damageAssigned = {};
-        this.rebuild();
-      },
-      {
-        title: "Clear damage assignments",
-        outline: true,
-        disabled: resetDisabled,
-      },
-    );
-    reset.alpha = resetDisabled ? 0.46 : 1;
-    reset.position.set(0, 0);
-    const auto = this.makeButton(
-      "AUTO",
-      () => {
-        this.autoAssignDamage(input, assignees);
-        this.rebuild();
-      },
-      {
-        title: "Assign lethal damage in order, then assign the rest",
-        outline: true,
-        disabled: waiting,
-      },
-    );
-    auto.alpha = waiting ? 0.46 : 1;
-    auto.position.set(reset.buttonWidth + 8, 0);
     const confirmDisabled = waiting || !legal;
     const confirm = this.makeButton(
       "ASSIGN DAMAGE",
@@ -2738,7 +2742,22 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     );
     confirm.alpha = confirmDisabled ? 0.56 : 1;
     confirm.position.set(availableWidth - confirm.buttonWidth, 0);
-    footer.addChild(reset, auto, confirm);
+    const auto = this.makeButton(
+      "AUTO",
+      () => {
+        this.autoAssignDamage(input, assignees);
+        this.rebuild();
+      },
+      {
+        title: "Assign lethal damage in order, then assign the rest",
+        icon: "lucide-wand-sparkles",
+        outline: true,
+        disabled: waiting,
+      },
+    );
+    auto.alpha = waiting ? 0.46 : 1;
+    auto.position.set(availableWidth - confirm.buttonWidth - 8 - auto.buttonWidth, 0);
+    footer.addChild(auto, confirm);
   }
 
   protected combatLabel(id: string): string {
@@ -3193,7 +3212,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.72 });
     backdrop.eventMode = "static";
     this.container.addChild(backdrop);
-    const panelWidth = Math.min(520, this.viewportWidth - 24);
+    const panelWidth = Math.min(520, this.layoutWidth - 24);
     const panelHeight = Math.min(this.viewportHeight - 24, 206 + players.length * 36);
     const group = this.panel(panelWidth, panelHeight, 0, 0, 12);
     group.accessible = true;
@@ -3268,7 +3287,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     button.position.set((panelWidth - button.buttonWidth) / 2, panelHeight - 56);
     group.addChild(button);
     group.position.set(
-      (this.viewportWidth - panelWidth) / 2,
+      (this.layoutWidth - panelWidth) / 2,
       (this.viewportHeight - panelHeight) / 2,
     );
     this.container.addChild(group);

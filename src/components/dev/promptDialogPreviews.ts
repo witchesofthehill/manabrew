@@ -21,8 +21,6 @@ export type DevDialogPreview =
   | "ability-picker"
   | "play-mode-picker"
   | "zone-viewer"
-  | "spell-stack"
-  | "target-spell-stack"
   | "board-settings"
   | "concede-game"
   | "leave-game"
@@ -92,12 +90,6 @@ export const DEV_DIALOG_PREVIEW_GROUPS: DevDialogPreviewGroup[] = [
       { id: "ability-picker", label: "Ability picker", description: "Card ability choices" },
       { id: "play-mode-picker", label: "Play mode", description: "Cast and alternate modes" },
       { id: "zone-viewer", label: "Zone viewer", description: "Cards with target states" },
-      { id: "spell-stack", label: "Spell stack", description: "Read-only stack browser" },
-      {
-        id: "target-spell-stack",
-        label: "Target spell",
-        description: "Targetable stack entries",
-      },
       { id: "board-settings", label: "Board settings", description: "In-game preferences" },
       { id: "concede-game", label: "Concede", description: "Concede confirmation" },
       { id: "leave-game", label: "Host leave", description: "End-game warning" },

@@ -1,5 +1,5 @@
-import { useState, type RefObject } from "react";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { useState, type ReactNode, type RefObject } from "react";
+import { ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
@@ -26,6 +26,32 @@ const COLOR_LABELS: Record<(typeof ANY_COLOR_LETTERS)[number], string> = {
   R: "Red",
   G: "Green",
 };
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="relative min-w-32 flex-1">
+      <select
+        aria-label={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-9 w-full appearance-none rounded-md border bg-background pl-2 pr-7 text-sm pointer-coarse:text-base"
+      >
+        {children}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+    </div>
+  );
+}
 export function DialogCardBrowserToolbar({
   search,
   state,
@@ -97,22 +123,21 @@ export function DialogCardBrowserToolbar({
         </div>
       </div>
       {filtersOpen && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border p-2 text-xs">
-          <select
-            aria-label="Card type"
+        <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+          <FilterSelect
+            label="Card type"
             value={state.type}
-            onChange={(event) => onFilter({ type: event.target.value })}
-            className="h-9 min-w-32 flex-1 rounded-md border bg-background px-2 pointer-coarse:text-base"
+            onChange={(type) => onFilter({ type })}
           >
             <option value="">All types</option>
             {types.map((type) => (
               <option key={type}>{type}</option>
             ))}
-          </select>
+          </FilterSelect>
           <div
             role="group"
             aria-label="Card color"
-            className="flex flex-wrap items-center gap-1 rounded-md border bg-background p-1"
+            className="flex h-9 flex-wrap items-center gap-1 rounded-md border bg-background px-1 pointer-coarse:h-12"
           >
             {ANY_COLOR_LETTERS.map((color) => {
               const active = state.color === color;
@@ -124,26 +149,28 @@ export function DialogCardBrowserToolbar({
                   aria-label={`Filter by ${COLOR_LABELS[color]} identity`}
                   aria-pressed={active}
                   className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded opacity-45 transition-opacity hover:opacity-80 pointer-coarse:h-10 pointer-coarse:w-10",
-                    active && "bg-primary/15 opacity-100 ring-1 ring-primary",
+                    "relative flex h-8 w-8 items-center justify-center rounded opacity-45 transition-opacity hover:opacity-80 pointer-coarse:h-10 pointer-coarse:w-10",
+                    active && "opacity-100",
                   )}
                   onClick={() => onFilter({ color: active ? "" : color })}
                 >
+                  {active && (
+                    <span className="pointer-events-none absolute inset-1 rounded bg-primary/15 ring-1 ring-primary" />
+                  )}
                   <ManaSymbols cost={`{${color}}`} size="sm" className="m-0" />
                 </button>
               );
             })}
           </div>
-          <select
-            aria-label="Card sort order"
+          <FilterSelect
+            label="Card sort order"
             value={state.sort}
-            onChange={(event) => onFilter({ sort: event.target.value as CardBrowserState["sort"] })}
-            className="h-9 min-w-32 flex-1 rounded-md border bg-background px-2 pointer-coarse:text-base"
+            onChange={(sort) => onFilter({ sort: sort as CardBrowserState["sort"] })}
           >
             <option value="zone">Zone order</option>
             <option value="name">Name</option>
             <option value="mana">Mana value</option>
-          </select>
+          </FilterSelect>
           <Button
             variant="ghost"
             size="sm"

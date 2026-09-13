@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { PlayerSheetModal } from "@/components/game/panels/PlayerSheetModal";
-import { SpellStackModal } from "@/components/game/modals/SpellStackModal";
 import { BoardPlaygroundControls } from "@/components/dev/BoardPlaygroundControls";
 import { buildPlaygroundSpecs } from "@/components/dev/boardPlayground.specs";
 import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
@@ -150,7 +149,6 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
   const loadScenario = (scenario: PlaygroundScenarioId) => {
     const next = createPlaygroundTable(scenario);
     gameplay.closeModal();
-    gameplay.setStackDialogOpen(false);
     gameplay.chooseMode("none");
     setTable(next);
     setSelectedId(null);
@@ -787,7 +785,6 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
         />
         <div className="pointer-events-none absolute inset-0 z-40">
           <BoardOverlayCanvas
-            onOpenStack={gameplay.openStack}
             scene={overlayScene}
             stackSpec={gameplay.stackSpec}
             onTargetSpell={gameplay.selectSpell}
@@ -820,15 +817,6 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
           onSelectAction={handlePreviewAction}
           skipEnterAnimation={skipPreviewEnterAnimation}
           onToggleView={togglePreviewView}
-        />
-      )}
-      {gameplay.stackDialogOpen && (
-        <SpellStackModal
-          mode={gameplay.mode === "hostile" || gameplay.mode === "friendly" ? "target" : "browse"}
-          stack={gameplay.stack}
-          validSpellIds={gameplay.stack.map((spell) => spell.id)}
-          onTarget={gameplay.selectSpell}
-          onCancel={() => gameplay.setStackDialogOpen(false)}
         />
       )}
       {sheetSpec && <PlayerSheetModal spec={sheetSpec} onClose={() => setSheetPlayerId(null)} />}

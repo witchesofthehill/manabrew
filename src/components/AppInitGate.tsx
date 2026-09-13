@@ -74,12 +74,14 @@ export function AppInitGate({ children }: { children: ReactNode }) {
     ONBOARDING_GUIDE_VERSION,
   );
   const authStatus = useAuthStore((s) => s.status);
-  const onboardingSatisfied = onboardingDone || authStatus === "signedIn";
+  const handlePending = useAuthStore((s) => s.account?.handlePending ?? false);
+  const claimed = authStatus === "signedIn" && !handlePending;
+  const onboardingSatisfied = onboardingDone || claimed;
   const [consent, setConsent] = useState(false);
 
   useEffect(() => {
-    if (authStatus === "signedIn" && !onboardingDone) completeOnboarding();
-  }, [authStatus, onboardingDone, completeOnboarding]);
+    if (claimed && !onboardingDone) completeOnboarding();
+  }, [claimed, onboardingDone, completeOnboarding]);
 
   const [minHoldPassed, setMinHoldPassed] = useState(hasReleasedOnce);
   useEffect(() => {

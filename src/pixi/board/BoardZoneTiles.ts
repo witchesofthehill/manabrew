@@ -429,19 +429,19 @@ export class BoardZoneTiles {
     });
   }
 
-  private ambientColor(tile: Tile): number {
+  private zoneColor(tile: Tile): string {
     const gt = this.theme.gameTheme;
     switch (tile.spec.key) {
       case ZONE_TILE_KEY.library:
-        return hexToNum(gt.zone.library);
+        return gt.zone.library;
       case ZONE_TILE_KEY.graveyard:
-        return hexToNum(gt.zone.graveyard);
+        return gt.zone.graveyard;
       case ZONE_TILE_KEY.exile:
-        return hexToNum(gt.zone.exile);
+        return gt.zone.exile;
       case ZONE_TILE_KEY.command:
-        return hexToNum(gt.zone.command);
+        return gt.zone.command;
       default:
-        return hexToNum(gt.cardRing);
+        return gt.cardRing;
     }
   }
 
@@ -454,7 +454,7 @@ export class BoardZoneTiles {
     const width = this.cardW;
     const height = this.cardH;
     const hoverColor = highlightColor ?? hexToNum(this.theme.gameTheme.cardRing);
-    const ambientColor = this.ambientColor(tile);
+    const ambientColor = hexToNum(this.zoneColor(tile));
     tile.hoverGlow
       .clear()
       .roundRect(-3 * scale, -3 * scale, width + 6 * scale, height + 6 * scale, radius)
@@ -676,8 +676,11 @@ export class BoardZoneTiles {
       const isCommand = spec.key === ZONE_TILE_KEY.command;
       const hasEmptySkeleton =
         !hasContent && (spec.key === ZONE_TILE_KEY.graveyard || spec.key === ZONE_TILE_KEY.exile);
-      const identity = spec.commander ?? gt.textMuted;
-      const color = hl ?? hexToNum(identity);
+      const iconColor =
+        spec.key === ZONE_TILE_KEY.graveyard || spec.key === ZONE_TILE_KEY.exile
+          ? this.zoneColor(tile)
+          : (spec.commander ?? gt.textMuted);
+      const color = hl ?? hexToNum(iconColor);
       const iconKey = isCommand ? "overlord-helm" : ZONE_BADGES[spec.key]?.icon;
       const iconSize = Math.round(cardW * (hasContent ? 0.2 : 0.32));
       tile.outline.clear();
@@ -711,14 +714,7 @@ export class BoardZoneTiles {
       }
       tile.iconSprite.visible = !!iconKey && (!hasContent || !isLibrary);
       if (iconKey) {
-        applyIcon(
-          tile.iconSprite,
-          iconKey,
-          spec.highlightColor ?? identity,
-          64,
-          iconSize,
-          iconSize,
-        );
+        applyIcon(tile.iconSprite, iconKey, iconColor, 64, iconSize, iconSize);
         tile.iconSprite.alpha = hasContent || hl !== null ? 1 : 0.7;
         tile.iconSprite.position.set(
           hasContent ? iconSize / 2 + 5 * k : cardW / 2,

@@ -42,7 +42,7 @@ function Choice<T extends string | boolean>({
           <Button
             key={String(option.value)}
             size="sm"
-            variant={value === option.value ? "default" : "outline"}
+            variant={value === option.value ? "selected" : "outline"}
             aria-pressed={value === option.value}
             onClick={() => onChange(option.value)}
           >
@@ -239,7 +239,9 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
         </Section>
       </Modal.Body>
       <Modal.Footer>
-        <Modal.Close onClose={onClose}>Done</Modal.Close>
+        <Modal.Close onClose={onClose} variant="ghost">
+          Done
+        </Modal.Close>
       </Modal.Footer>
     </Modal>
   );

@@ -454,6 +454,7 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
                 Previous
               </Button>
               <Button
+                variant="outline"
                 size="sm"
                 disabled={loadingScenario}
                 onClick={() => void openPreviewScenario(scenarioIndex)}
@@ -541,7 +542,7 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" onClick={() => add(false)}>
+            <Button variant="outline" size="sm" onClick={() => add(false)}>
               + Creature
             </Button>
             <Button size="sm" variant="outline" onClick={() => add(true)}>
@@ -649,14 +650,14 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
             <span className="mx-1 h-5 w-px bg-border" />
             <Button
               size="sm"
-              variant={previewStyle === "printed" ? "default" : "outline"}
+              variant={previewStyle === "printed" ? "selected" : "outline"}
               onClick={() => setPreviewStyle("printed")}
             >
               Printed preview
             </Button>
             <Button
               size="sm"
-              variant={previewStyle === "rules" ? "default" : "outline"}
+              variant={previewStyle === "rules" ? "selected" : "outline"}
               onClick={() => setPreviewStyle("rules")}
             >
               Rules preview

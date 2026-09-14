@@ -59,6 +59,7 @@ export function DialogCardBrowserInspectorPane({
           {onActivate && (
             <>
               <Button
+                variant="primary"
                 className="w-full whitespace-normal"
                 disabled={pending || (!active.legal && !active.selected)}
                 onClick={() => {

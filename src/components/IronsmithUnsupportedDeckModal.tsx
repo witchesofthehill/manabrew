@@ -57,7 +57,7 @@ export function IronsmithUnsupportedDeckModal() {
           ))}
         </div>
         <div className="flex justify-end">
-          <Button variant="outline" size="sm" onClick={dismiss}>
+          <Button variant="ghost" size="sm" onClick={dismiss}>
             Got it
           </Button>
         </div>

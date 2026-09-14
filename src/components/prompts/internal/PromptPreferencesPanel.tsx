@@ -53,7 +53,7 @@ export function PromptPreferencesPanel() {
             type="checkbox"
             checked={fullControl}
             onChange={(e) => setFullControl(e.target.checked)}
-            className="mt-1 accent-primary h-4 w-4"
+            className="mt-1 accent-selection h-4 w-4"
           />
           <div className="space-y-1">
             <Label htmlFor="prompt-full-control">Full control</Label>
@@ -81,7 +81,7 @@ export function PromptPreferencesPanel() {
                   type="checkbox"
                   checked={skipped}
                   onChange={(e) => setOptionalCostSkip(row.promptType, e.target.checked)}
-                  className="mt-1 accent-primary h-4 w-4"
+                  className="mt-1 accent-selection h-4 w-4"
                 />
                 <div className="space-y-1">
                   <Label htmlFor={id}>{row.label}</Label>
@@ -104,7 +104,7 @@ export function PromptPreferencesPanel() {
               setPromptLoggingEnabled(e.target.checked);
               setLogPrompts(e.target.checked);
             }}
-            className="mt-1 accent-primary h-4 w-4"
+            className="mt-1 accent-selection h-4 w-4"
           />
           <div className="space-y-1">
             <Label htmlFor="prompt-debug-log">Log prompts to console</Label>

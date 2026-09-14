@@ -765,7 +765,7 @@ function ModeCard({
       <p className="flex-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
       <div className="flex flex-col gap-2">
         {children}
-        <Button onClick={onStart} disabled={disabled} className="w-full">
+        <Button variant="primary" onClick={onStart} disabled={disabled} className="w-full">
           {ctaLabel}
         </Button>
         {footnote && <p className="truncate text-[10px] text-muted-foreground">{footnote}</p>}
@@ -914,7 +914,7 @@ function CubeStartActions({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" disabled={isStarting} onClick={onStartSealed}>
+          <Button variant="primary" size="sm" disabled={isStarting} onClick={onStartSealed}>
             <Boxes className="mr-1.5 h-4 w-4" />
             Sealed ({numBoosters} packs)
           </Button>

@@ -122,6 +122,7 @@ export function DeckLabelsModal({ open, onClose }: DeckLabelsModalProps) {
                 title="Pick color"
               />
               <Button
+                variant="outline"
                 size="sm"
                 className="h-8 gap-1"
                 disabled={!newLabel.trim()}

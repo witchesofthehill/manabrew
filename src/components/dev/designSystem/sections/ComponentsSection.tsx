@@ -11,11 +11,13 @@ import { cn } from "@/lib/utils";
 import { Section, Subhead, Panel } from "../kit";
 
 const BUTTON_VARIANTS = [
-  "default",
+  "primary",
   "secondary",
   "outline",
   "ghost",
+  "destructive-quiet",
   "destructive",
+  "selected",
   "link",
 ] as const;
 const BUTTON_SIZES = ["xs", "sm", "default", "lg", "icon-xs", "icon-sm", "icon"] as const;
@@ -55,8 +57,12 @@ export function ComponentsSection() {
 
       <Subhead>Button states</Subhead>
       <Panel className="flex flex-wrap gap-2">
-        <Button aria-pressed>Pressed</Button>
-        <Button disabled>Disabled</Button>
+        <Button variant="selected" aria-pressed>
+          Pressed
+        </Button>
+        <Button variant="primary" disabled>
+          Disabled
+        </Button>
       </Panel>
 
       <Subhead>Badge — variants</Subhead>

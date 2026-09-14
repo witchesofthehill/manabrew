@@ -221,7 +221,7 @@ function CardCornerActions({
           className={cn(
             "rounded-full p-0.5 shadow transition-colors",
             isCover
-              ? "bg-primary/90 text-white"
+              ? "bg-selection/90 text-selection-foreground"
               : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
           )}
           title={isCover ? "Remove as deck art cover" : "Set as deck art cover"}
@@ -240,7 +240,7 @@ function CardCornerActions({
           className={cn(
             "rounded-full p-0.5 shadow transition-colors",
             isCoverBack
-              ? "bg-primary/90 text-white"
+              ? "bg-selection/90 text-selection-foreground"
               : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
           )}
           title={

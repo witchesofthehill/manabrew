@@ -36,8 +36,8 @@ export function PhaseStrip() {
               isActive
                 ? activeAccent
                   ? "text-white shadow-sm"
-                  : "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                  : "bg-selection text-selection-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
             style={isActive && activeAccent ? { backgroundColor: activeAccent } : undefined}
             aria-label={p.label}

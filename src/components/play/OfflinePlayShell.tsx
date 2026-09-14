@@ -42,7 +42,7 @@ export function OfflinePlayShell({ children }: OfflinePlayShellProps) {
                   className={cn(
                     "group flex min-w-0 items-center gap-2.5 rounded-xl px-3 py-2.5 transition-[background-color,color,box-shadow] motion-reduce:transition-none sm:px-4",
                     active
-                      ? "bg-primary/15 text-primary shadow-sm ring-1 ring-primary/30"
+                      ? "bg-selection/15 text-selection shadow-sm ring-1 ring-selection/30"
                       : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                   )}
                 >
@@ -50,7 +50,7 @@ export function OfflinePlayShell({ children }: OfflinePlayShellProps) {
                     className={cn(
                       "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors motion-reduce:transition-none",
                       active
-                        ? "border-primary/30 bg-primary/15"
+                        ? "border-selection/30 bg-selection/15"
                         : "border-border/60 bg-muted/40 group-hover:border-border",
                     )}
                   >

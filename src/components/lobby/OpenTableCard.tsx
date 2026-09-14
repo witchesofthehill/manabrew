@@ -102,6 +102,7 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
           </Badge>
         ) : canJoin ? (
           <Button
+            variant="outline"
             size="sm"
             className="gap-1.5"
             disabled={joining}

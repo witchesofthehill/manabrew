@@ -206,7 +206,12 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                   </label>
 
                   <div className="flex flex-col items-center gap-3">
-                    <Button disabled={!consent} onClick={acceptTerms} className="min-w-[200px]">
+                    <Button
+                      variant="primary"
+                      disabled={!consent}
+                      onClick={acceptTerms}
+                      className="min-w-[200px]"
+                    >
                       Accept and continue
                     </Button>
                     <p className="font-mono text-[0.55rem] uppercase tracking-[0.4em] text-muted-foreground/70">

@@ -22,7 +22,7 @@ export function MultiplayerStartPanel({ disabled, onSetUp }: MultiplayerStartPan
             <h2 className="font-serif text-xl font-light leading-tight sm:text-4xl">
               Pull up a chair.
             </h2>
-            <Button size="lg" onClick={onSetUp} disabled={disabled}>
+            <Button variant="primary" size="lg" onClick={onSetUp} disabled={disabled}>
               <Plus /> Set up a table
             </Button>
           </div>

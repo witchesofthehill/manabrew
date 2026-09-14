@@ -83,10 +83,11 @@ export function HandleDialog({ open, onOpenChange }: HandleDialogProps) {
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" size="sm" disabled={busy} onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" size="sm" disabled={busy} onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
+            variant="primary"
             size="sm"
             disabled={busy || handle.trim().length < 3 || handle.trim() === account?.handle}
             onClick={() => void handleSave()}

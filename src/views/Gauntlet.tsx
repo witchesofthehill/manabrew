@@ -191,7 +191,7 @@ export default function Gauntlet() {
                 {activeGauntlet.currentOpponent.sideboardCount} sideboard
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button onClick={handlePlayMatch} disabled={launchingMatch}>
+                <Button variant="primary" onClick={handlePlayMatch} disabled={launchingMatch}>
                   {launchingMatch ? "Launching…" : "Play Match"}
                 </Button>
                 <Button variant="outline" onClick={() => handleManualOutcome(true)}>
@@ -218,7 +218,9 @@ export default function Gauntlet() {
                   <Button onClick={handleOpenSideboard} variant="outline">
                     Sideboard before next round
                   </Button>
-                  <Button onClick={handleAdvance}>Next Round</Button>
+                  <Button variant="primary" onClick={handleAdvance}>
+                    Next Round
+                  </Button>
                 </div>
               )}
             </div>
@@ -324,7 +326,7 @@ export default function Gauntlet() {
             <p className="text-sm text-muted-foreground">Loading decks…</p>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSideboardOpen(false)}>
+            <Button variant="ghost" onClick={() => setSideboardOpen(false)}>
               Cancel
             </Button>
           </DialogFooter>

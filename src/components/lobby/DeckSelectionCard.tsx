@@ -151,7 +151,7 @@ export function DeckSelectionCard({
       className={cn(
         dense && "h-24 aspect-auto",
         !dense && "sm:min-h-[172px]",
-        !hasVsSide && isSelected && "border-primary bg-primary/5 ring-1 ring-primary",
+        !hasVsSide && isSelected && "border-selection bg-selection/10 ring-1 ring-selection",
         !hasVsSide && !isSelected && !isLegal && "border-warning/50",
       )}
       style={sideStyle}

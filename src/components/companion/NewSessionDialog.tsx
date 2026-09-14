@@ -178,7 +178,7 @@ function NewSessionForm({
             type="checkbox"
             checked={commanderRules}
             onChange={(e) => updateCommanderRules(e.target.checked)}
-            className="size-4 accent-primary"
+            className="size-4 accent-selection"
           />
           Commander rules (40 life, 21 cmd damage lethal)
         </label>
@@ -188,7 +188,7 @@ function NewSessionForm({
             type="checkbox"
             checked={oathbreaker}
             onChange={(e) => setOathbreaker(e.target.checked)}
-            className="size-4 accent-primary"
+            className="size-4 accent-selection"
           />
           Oathbreaker (partner slot becomes Signature Spell)
         </label>
@@ -214,7 +214,7 @@ function NewSessionForm({
               type="checkbox"
               checked={carryRoster}
               onChange={(e) => setCarryRoster(e.target.checked)}
-              className="size-4 accent-primary"
+              className="size-4 accent-selection"
             />
             Keep names, colors and commanders from current game
           </label>
@@ -225,6 +225,7 @@ function NewSessionForm({
           Cancel
         </Button>
         <Button
+          variant="primary"
           onClick={() =>
             onCreate({
               playerCount,
@@ -261,8 +262,8 @@ function LayoutCard({
       className={cn(
         "flex flex-col items-center gap-1.5 rounded-md border p-2 text-center text-[11px] font-medium transition",
         active
-          ? "border-primary bg-primary/10 text-foreground"
-          : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
+          ? "border-selection bg-selection/15 text-foreground"
+          : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
       aria-pressed={active}
       aria-label={label}
@@ -290,8 +291,8 @@ function PillButton({
       className={cn(
         "rounded-full border px-3 py-1 text-xs font-medium transition",
         active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border bg-background text-foreground hover:bg-accent",
+          ? "border-selection bg-selection/15 text-foreground"
+          : "border-border bg-background text-foreground hover:bg-muted",
       )}
     >
       {children}

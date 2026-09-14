@@ -126,6 +126,7 @@ export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) 
             Abandon match
           </Button>
           <Button
+            variant="primary"
             size="sm"
             className="gap-1.5"
             disabled={abandoning}

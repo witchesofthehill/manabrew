@@ -47,6 +47,7 @@ function PlayerNotesForm({ player, onClose }: { player: CompanionPlayer; onClose
           Cancel
         </Button>
         <Button
+          variant="primary"
           onClick={() => {
             setPlayerNotes(player.id, draft);
             onClose();

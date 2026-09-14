@@ -1561,6 +1561,7 @@ export function DeckBuilder({
               </Button>
             )}
             <Button
+              variant="primary"
               size="sm"
               className="h-7 pointer-coarse:h-10"
               onClick={handleImportReadOnlyDeck}
@@ -1715,7 +1716,7 @@ export function DeckBuilder({
                   className={cn(
                     "p-1 transition-colors border-r last:border-r-0",
                     viewMode === mode
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-selection text-selection-foreground"
                       : "hover:bg-muted text-muted-foreground",
                   )}
                 >
@@ -1834,7 +1835,7 @@ export function DeckBuilder({
                 variant={
                   isDeckLegal
                     ? hasUnsavedChanges || currentDeck.draft
-                      ? "default"
+                      ? "primary"
                       : "secondary"
                     : "outline"
                 }

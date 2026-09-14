@@ -21,7 +21,7 @@ export function EliminatedModal({ heading, hosting, onObserve, onLeave }: Elimin
         </p>
       </Modal.Body>
       <Modal.Footer>
-        <Modal.Close data-autofocus onClose={onObserve}>
+        <Modal.Close data-autofocus variant="primary" onClose={onObserve}>
           Keep observing
         </Modal.Close>
         {!hosting && (

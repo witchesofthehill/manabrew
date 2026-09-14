@@ -413,7 +413,7 @@ export default function Settings() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={handleSave} disabled={!hasChanges && !server.error}>
+            <Button variant="primary" onClick={handleSave} disabled={!hasChanges && !server.error}>
               Save & Reconnect
             </Button>
             <DropdownMenu>
@@ -504,7 +504,12 @@ export default function Settings() {
                 placeholder="Name this server"
                 className="max-w-xs"
               />
-              <Button size="sm" onClick={saveCurrentServer} disabled={!newServerName.trim()}>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={saveCurrentServer}
+                disabled={!newServerName.trim()}
+              >
                 Save
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setSavingServer(false)}>
@@ -671,7 +676,7 @@ export default function Settings() {
                 {HAND_ORDER_OPTIONS.map((option) => (
                   <Button
                     key={option.value}
-                    variant={prefs.handOrderMode === option.value ? "default" : "outline"}
+                    variant={prefs.handOrderMode === option.value ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setHandOrderMode(option.value)}
                   >
@@ -689,14 +694,14 @@ export default function Settings() {
             >
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant={!prefs.battlefieldAutoSort ? "default" : "outline"}
+                  variant={!prefs.battlefieldAutoSort ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setBattlefieldAutoSort(false)}
                 >
                   Free placement
                 </Button>
                 <Button
-                  variant={prefs.battlefieldAutoSort ? "default" : "outline"}
+                  variant={prefs.battlefieldAutoSort ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setBattlefieldAutoSort(true)}
                 >
@@ -713,14 +718,14 @@ export default function Settings() {
             >
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant={!prefs.lockZoneTiles ? "default" : "outline"}
+                  variant={!prefs.lockZoneTiles ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setLockZoneTiles(false)}
                 >
                   Movable
                 </Button>
                 <Button
-                  variant={prefs.lockZoneTiles ? "default" : "outline"}
+                  variant={prefs.lockZoneTiles ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setLockZoneTiles(true)}
                 >
@@ -738,21 +743,21 @@ export default function Settings() {
               <div className="flex items-start gap-4">
                 <div className="flex-1 flex flex-wrap content-start gap-2">
                   <Button
-                    variant={prefs.battlefieldCardStyle === "realistic" ? "default" : "outline"}
+                    variant={prefs.battlefieldCardStyle === "realistic" ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setBattlefieldCardStyle("realistic")}
                   >
                     Realistic
                   </Button>
                   <Button
-                    variant={prefs.battlefieldCardStyle === "art" ? "default" : "outline"}
+                    variant={prefs.battlefieldCardStyle === "art" ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setBattlefieldCardStyle("art")}
                   >
                     Art-forward
                   </Button>
                   <Button
-                    variant={prefs.battlefieldCardStyle === "frame" ? "default" : "outline"}
+                    variant={prefs.battlefieldCardStyle === "frame" ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setBattlefieldCardStyle("frame")}
                   >
@@ -769,14 +774,14 @@ export default function Settings() {
             >
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant={prefs.inGameAnimations ? "default" : "outline"}
+                  variant={prefs.inGameAnimations ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setInGameAnimations(true)}
                 >
                   On
                 </Button>
                 <Button
-                  variant={!prefs.inGameAnimations ? "default" : "outline"}
+                  variant={!prefs.inGameAnimations ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setInGameAnimations(false)}
                 >
@@ -792,14 +797,14 @@ export default function Settings() {
               >
                 <div className="flex flex-wrap gap-2">
                   <Button
-                    variant={prefs.ironsmithRuntimeEnabled ? "default" : "outline"}
+                    variant={prefs.ironsmithRuntimeEnabled ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setIronsmithRuntimeEnabled(true)}
                   >
                     On
                   </Button>
                   <Button
-                    variant={!prefs.ironsmithRuntimeEnabled ? "default" : "outline"}
+                    variant={!prefs.ironsmithRuntimeEnabled ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setIronsmithRuntimeEnabled(false)}
                   >
@@ -815,14 +820,14 @@ export default function Settings() {
             >
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant={prefs.opponentLayout === "focused" ? "default" : "outline"}
+                  variant={prefs.opponentLayout === "focused" ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setOpponentLayout("focused")}
                 >
                   Focused
                 </Button>
                 <Button
-                  variant={prefs.opponentLayout === "overview" ? "default" : "outline"}
+                  variant={prefs.opponentLayout === "overview" ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setOpponentLayout("overview")}
                 >
@@ -837,14 +842,14 @@ export default function Settings() {
             >
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant={prefs.directTransport ? "default" : "outline"}
+                  variant={prefs.directTransport ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setDirectTransport(true)}
                 >
                   On
                 </Button>
                 <Button
-                  variant={!prefs.directTransport ? "default" : "outline"}
+                  variant={!prefs.directTransport ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setDirectTransport(false)}
                 >
@@ -861,7 +866,7 @@ export default function Settings() {
                 {INLINE_CARD_STYLE_OPTIONS.map((option) => (
                   <Button
                     key={option.value}
-                    variant={prefs.handCardStyle === option.value ? "default" : "outline"}
+                    variant={prefs.handCardStyle === option.value ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setHandCardStyle(option.value)}
                   >
@@ -879,7 +884,7 @@ export default function Settings() {
                 {INLINE_CARD_STYLE_OPTIONS.map((option) => (
                   <Button
                     key={option.value}
-                    variant={prefs.stackCardStyle === option.value ? "default" : "outline"}
+                    variant={prefs.stackCardStyle === option.value ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setStackCardStyle(option.value)}
                   >
@@ -897,7 +902,7 @@ export default function Settings() {
                 {IN_GAME_CARD_PREVIEW_STYLE_OPTIONS.map((option) => (
                   <Button
                     key={option.value}
-                    variant={prefs.inGameCardPreviewStyle === option.value ? "default" : "outline"}
+                    variant={prefs.inGameCardPreviewStyle === option.value ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setInGameCardPreviewStyle(option.value)}
                   >
@@ -946,21 +951,21 @@ export default function Settings() {
               <Label>App Theme</Label>
               <div className="flex items-center gap-2">
                 <Button
-                  variant={theme === "light" ? "default" : "outline"}
+                  variant={theme === "light" ? "selected" : "outline"}
                   size="sm"
                   onClick={() => setTheme("light")}
                 >
                   Light
                 </Button>
                 <Button
-                  variant={theme === "dark" ? "default" : "outline"}
+                  variant={theme === "dark" ? "selected" : "outline"}
                   size="sm"
                   onClick={() => setTheme("dark")}
                 >
                   Dark
                 </Button>
                 <Button
-                  variant={theme === "system" ? "default" : "outline"}
+                  variant={theme === "system" ? "selected" : "outline"}
                   size="sm"
                   onClick={() => setTheme("system")}
                 >

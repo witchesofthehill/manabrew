@@ -104,7 +104,7 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
                   key={i}
                   className={cn(
                     "shrink-0 translate-y-[0.5em] select-none rounded px-0.5 leading-none",
-                    isSelected && "bg-primary/30",
+                    isSelected && "bg-selection/30",
                   )}
                 >
                   <span className="animate-password-pip inline-block text-3xl font-black text-primary">
@@ -124,7 +124,11 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
           <Button variant="ghost" onClick={close} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={() => void submit()} disabled={password.length === 0 || submitting}>
+          <Button
+            variant="primary"
+            onClick={() => void submit()}
+            disabled={password.length === 0 || submitting}
+          >
             {submitting ? "Joining…" : "Join"}
           </Button>
         </DialogFooter>

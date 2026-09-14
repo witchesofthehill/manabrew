@@ -162,10 +162,10 @@ export function EditDeckHubEntryDialog({
           </div>
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button disabled={busy || invalid} onClick={() => void save()}>
+          <Button variant="primary" disabled={busy || invalid} onClick={() => void save()}>
             {busy ? "Saving…" : "Save changes"}
           </Button>
         </DialogFooter>

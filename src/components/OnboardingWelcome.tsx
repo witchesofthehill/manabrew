@@ -78,7 +78,12 @@ export function OnboardingWelcome({ onComplete }: { onComplete: () => void }) {
       </div>
 
       <div className="flex justify-center">
-        <Button disabled={!canConfirm} onClick={() => void confirm()} className="min-w-[200px]">
+        <Button
+          variant="primary"
+          disabled={!canConfirm}
+          onClick={() => void confirm()}
+          className="min-w-[200px]"
+        >
           {busy ? "Checking…" : "Let's brew"}
         </Button>
       </div>

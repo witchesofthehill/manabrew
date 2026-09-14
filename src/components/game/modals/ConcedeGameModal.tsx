@@ -50,7 +50,7 @@ export function ConcedeGameModal({ onConfirm, onCancel, hosting = false }: Conce
         )}
       </Modal.Body>
       <Modal.Footer className="justify-between">
-        <Modal.Close data-autofocus variant="outline" disabled={pending} onClose={onCancel}>
+        <Modal.Close data-autofocus variant="ghost" disabled={pending} onClose={onCancel}>
           Cancel
         </Modal.Close>
         <Button variant="destructive" disabled={pending} onClick={() => void confirm()}>

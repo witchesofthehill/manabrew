@@ -137,7 +137,13 @@ export function DeckQuickAddOptions({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button type="button" size="sm" className="h-7 shrink-0 gap-1 px-2" onClick={onAdd}>
+        <Button
+          variant="primary"
+          type="button"
+          size="sm"
+          className="h-7 shrink-0 gap-1 px-2"
+          onClick={onAdd}
+        >
           <Plus className="h-3 w-3" />
           Add {quantity}
         </Button>

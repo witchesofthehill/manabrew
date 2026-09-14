@@ -295,7 +295,7 @@ export function PlaymatEditorModal({
                       className={cn(
                         "flex-1 rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors",
                         settings.fit === mode
-                          ? "bg-primary text-primary-foreground shadow-sm"
+                          ? "bg-selection text-selection-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
@@ -326,7 +326,7 @@ export function PlaymatEditorModal({
                         className={cn(
                           "flex flex-1 items-center justify-center rounded-md px-3 py-1.5 transition-colors",
                           Math.abs(settings.offsetY - oy) < 0.001
-                            ? "bg-primary text-primary-foreground shadow-sm"
+                            ? "bg-selection text-selection-foreground shadow-sm"
                             : "text-muted-foreground hover:text-foreground",
                         )}
                       >
@@ -491,7 +491,7 @@ export function PlaymatEditorModal({
             Remove playmat
           </Button>
         )}
-        <Button size="sm" className="ml-auto" onClick={onClose}>
+        <Button variant="ghost" size="sm" className="ml-auto" onClick={onClose}>
           Done
         </Button>
       </Modal.Footer>

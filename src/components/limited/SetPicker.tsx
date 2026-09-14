@@ -115,7 +115,7 @@ export function SetPicker({
                 className={cn(
                   "rounded-full border px-2.5 py-0.5 text-[11px] transition",
                   active
-                    ? "border-primary bg-primary/10 text-foreground"
+                    ? "border-selection bg-selection/15 text-foreground"
                     : "border-border/50 text-muted-foreground hover:border-border hover:text-foreground/90",
                 )}
               >

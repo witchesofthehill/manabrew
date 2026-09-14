@@ -127,7 +127,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
                 <Button
                   key={item.key}
                   type="button"
-                  variant={activeBucket === item.key ? "secondary" : "ghost"}
+                  variant={activeBucket === item.key ? "selected" : "ghost"}
                   size="sm"
                   className="shrink-0"
                   aria-pressed={activeBucket === item.key}

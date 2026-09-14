@@ -126,7 +126,7 @@ export default function MyCollection() {
                 <Download className="mr-1.5 h-4 w-4" /> Export CSV
               </Button>
               <Button
-                variant="destructive"
+                variant="destructive-quiet"
                 disabled={loading || collectionRows.length === 0}
                 onClick={() => setDeleteOpen(true)}
               >

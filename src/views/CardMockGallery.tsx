@@ -132,7 +132,7 @@ function CardSpecimens() {
               key={v}
               onClick={() => setVariant(v)}
               size="sm"
-              variant={variant === v ? "default" : "ghost"}
+              variant={variant === v ? "selected" : "ghost"}
               aria-pressed={variant === v}
             >
               {VARIANT_LABELS[v]}

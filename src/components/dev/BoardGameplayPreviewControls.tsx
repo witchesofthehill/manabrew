@@ -65,7 +65,7 @@ export function BoardGameplayPreviewControls({
           </Button>
         )}
         {modalHidden && (
-          <Button size="sm" onClick={onShowModal}>
+          <Button variant="outline" size="sm" onClick={onShowModal}>
             Show prompt
           </Button>
         )}

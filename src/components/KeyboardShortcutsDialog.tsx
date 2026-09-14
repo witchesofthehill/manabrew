@@ -84,7 +84,7 @@ export function KeyboardShortcutsDialog({
         <p className="mr-auto text-xs text-muted-foreground">
           Customize these in Preferences → Shortcuts.
         </p>
-        <Modal.Close onClose={close} variant="outline">
+        <Modal.Close onClose={close} variant="ghost">
           Close
         </Modal.Close>
       </Modal.Footer>

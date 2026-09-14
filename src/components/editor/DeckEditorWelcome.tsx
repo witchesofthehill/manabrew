@@ -195,7 +195,10 @@ export function DeckEditorWelcome({ readOnly }: { readOnly: boolean }) {
           <Button variant="ghost" onClick={dismiss}>
             Skip
           </Button>
-          <Button onClick={() => (step === STEPS.length - 1 ? dismiss() : setStep(step + 1))}>
+          <Button
+            variant="primary"
+            onClick={() => (step === STEPS.length - 1 ? dismiss() : setStep(step + 1))}
+          >
             {step === STEPS.length - 1 ? "Start building" : "Next"}
           </Button>
         </DialogFooter>

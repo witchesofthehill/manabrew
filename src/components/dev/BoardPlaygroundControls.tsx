@@ -64,7 +64,7 @@ export function BoardPlaygroundControls({
           Reset scenario
         </Button>
         <Button
-          variant={overview ? "default" : "outline"}
+          variant={overview ? "selected" : "outline"}
           size="sm"
           aria-pressed={overview}
           onClick={() => setOverview(!overview)}

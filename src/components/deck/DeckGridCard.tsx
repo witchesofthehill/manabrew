@@ -78,6 +78,7 @@ export function DeckGridCard({
             <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100">
               {onPlaytest && (
                 <Button
+                  variant="secondary"
                   size="icon-xs"
                   aria-label="Playtest vs AI"
                   title="Playtest vs AI"
@@ -186,7 +187,7 @@ export function DeckGridCard({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)}>
+            <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>
               Cancel
             </Button>
             <Button

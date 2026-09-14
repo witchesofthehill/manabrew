@@ -102,7 +102,9 @@ export function ThemeContrastPreview({
       <div className="space-y-3 pt-3">
         <Panel className="space-y-2 p-3 text-card-foreground">
           <div className="flex flex-wrap gap-1">
-            <Button size="sm">Primary</Button>
+            <Button variant="primary" size="sm">
+              Primary
+            </Button>
             <Button size="sm" variant="secondary">
               Secondary
             </Button>
@@ -112,7 +114,7 @@ export function ThemeContrastPreview({
             <Button size="sm" variant="outline">
               Secondary outline
             </Button>
-            <Button size="sm" disabled>
+            <Button variant="primary" size="sm" disabled>
               Disabled
             </Button>
           </div>

@@ -75,7 +75,9 @@ function SummaryBody({
         <Button variant="outline" onClick={() => copySummary(session, winner)}>
           <Copy className="mr-2 size-4" /> Copy to clipboard
         </Button>
-        <Button onClick={() => useCompanionStore.getState().dismissSummary()}>Close</Button>
+        <Button variant="ghost" onClick={() => useCompanionStore.getState().dismissSummary()}>
+          Close
+        </Button>
       </DialogFooter>
     </>
   );

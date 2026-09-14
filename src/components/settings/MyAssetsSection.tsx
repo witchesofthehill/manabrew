@@ -167,7 +167,7 @@ export function MyAssetsSection() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="outline" size="sm" disabled={busy} onClick={() => setDeleting(null)}>
+            <Button variant="ghost" size="sm" disabled={busy} onClick={() => setDeleting(null)}>
               Cancel
             </Button>
             <Button

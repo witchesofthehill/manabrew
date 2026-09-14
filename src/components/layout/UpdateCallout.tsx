@@ -35,6 +35,7 @@ export function UpdateCallout() {
       </div>
       <div className="mt-2 flex items-center gap-1 sm:mt-0 sm:shrink-0">
         <Button
+          variant="primary"
           size="sm"
           className="w-full sm:w-auto"
           disabled={downloading}

@@ -567,14 +567,11 @@ export default function LimitedDeckBuilder({
             )}
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setSaveDialogOpen(false)}
-              disabled={savingDeck}
-            >
+            <Button variant="ghost" onClick={() => setSaveDialogOpen(false)} disabled={savingDeck}>
               Cancel
             </Button>
             <Button
+              variant="primary"
               onClick={handleSaveToMyDecks}
               disabled={savingDeck || (requireCompleteToSave && main.length < targetMainSize)}
             >
@@ -737,7 +734,7 @@ function Toolbar({
           Copy decklist
         </Button>
         {onConfirm && (
-          <Button onClick={onConfirm} disabled={mainCount < targetMainSize}>
+          <Button variant="primary" onClick={onConfirm} disabled={mainCount < targetMainSize}>
             {confirmLabel}
           </Button>
         )}

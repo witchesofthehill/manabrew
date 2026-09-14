@@ -79,7 +79,7 @@ export function DeckPlayActions({ savedDeckId }: DeckPlayActionsProps) {
               </p>
 
               <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                <Button size="lg" asChild className="w-full justify-start">
+                <Button variant="primary" size="lg" asChild className="w-full justify-start">
                   <Link
                     to={ROUTES.PLAY_OFFLINE_CONSTRUCTED}
                     state={{ preSelectedDeckId: savedDeck.id }}

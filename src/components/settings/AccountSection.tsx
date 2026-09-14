@@ -32,7 +32,11 @@ export function AccountSection() {
                   Playing never requires one.
                 </p>
               </div>
-              <Button className="shrink-0 self-start sm:self-center" onClick={() => showSignIn()}>
+              <Button
+                variant="primary"
+                className="shrink-0 self-start sm:self-center"
+                onClick={() => showSignIn()}
+              >
                 Sign in
               </Button>
             </div>

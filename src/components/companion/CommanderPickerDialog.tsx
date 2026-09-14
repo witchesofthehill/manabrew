@@ -108,7 +108,7 @@ function CommanderPickerForm({
             type="checkbox"
             checked={partnerEnabled}
             onChange={(e) => setPartnerEnabled(e.target.checked)}
-            className="size-4 accent-primary"
+            className="size-4 accent-selection"
           />
           {partnerLabel} slot
         </label>
@@ -126,7 +126,11 @@ function CommanderPickerForm({
         <Button variant="ghost" onClick={clearAll}>
           Clear
         </Button>
-        <Button onClick={confirm} disabled={!slots[0].pick && !(partnerEnabled && slots[1].pick)}>
+        <Button
+          variant="primary"
+          onClick={confirm}
+          disabled={!slots[0].pick && !(partnerEnabled && slots[1].pick)}
+        >
           Save
         </Button>
       </DialogFooter>

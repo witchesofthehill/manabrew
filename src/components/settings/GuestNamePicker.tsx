@@ -52,7 +52,7 @@ export function GuestNamePicker() {
           }}
           placeholder="Player1"
         />
-        <Button size="sm" disabled={busy || !dirty} onClick={() => void save()}>
+        <Button variant="primary" size="sm" disabled={busy || !dirty} onClick={() => void save()}>
           {busy ? "Saving…" : "Save"}
         </Button>
       </div>

@@ -81,7 +81,7 @@ export function RoomInviteCard({
         <Button size="sm" variant="ghost" onClick={onIgnore}>
           Ignore
         </Button>
-        <Button size="sm" onClick={onJoin}>
+        <Button variant="primary" size="sm" onClick={onJoin}>
           Join table
         </Button>
       </div>

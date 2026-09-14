@@ -122,7 +122,7 @@ export function DeckHubResults({
                   Clear filters
                 </Button>
               ) : (
-                <Button asChild size="sm" className="mt-4">
+                <Button variant="primary" asChild size="sm" className="mt-4">
                   <Link to={ROUTES.DECK_EDITOR}>Open My Decks</Link>
                 </Button>
               )}

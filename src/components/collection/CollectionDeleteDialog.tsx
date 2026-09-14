@@ -49,7 +49,7 @@ export function CollectionDeleteDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" disabled={deleting} onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" disabled={deleting} onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button variant="destructive" disabled={deleting} onClick={() => void handleDelete()}>

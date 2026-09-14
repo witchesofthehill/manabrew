@@ -42,6 +42,7 @@ export function VersionInfo() {
       {getPlatformType() === "tauri" &&
         (phase !== "idle" && version ? (
           <Button
+            variant="secondary"
             size="sm"
             disabled={downloading}
             onClick={() => void installDesktopUpdate()}

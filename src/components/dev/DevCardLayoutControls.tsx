@@ -99,14 +99,14 @@ export function DevCardLayoutControls() {
         <div className="mt-3 flex flex-wrap gap-2">
           <Button
             size="sm"
-            variant={previewStyle === "rules" ? "default" : "outline"}
+            variant={previewStyle === "rules" ? "selected" : "outline"}
             onClick={() => setPreviewStyle("rules")}
           >
             Rules preview
           </Button>
           <Button
             size="sm"
-            variant={previewStyle === "printed" ? "default" : "outline"}
+            variant={previewStyle === "printed" ? "selected" : "outline"}
             onClick={() => setPreviewStyle("printed")}
           >
             Printed preview

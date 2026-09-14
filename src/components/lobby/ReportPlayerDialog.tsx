@@ -103,7 +103,9 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
             You won&apos;t hear back about the outcome, but every report is read by a person.
           </p>
           <DialogFooter>
-            <Button onClick={close}>Done</Button>
+            <Button variant="ghost" onClick={close}>
+              Done
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -136,7 +138,7 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
                 value={option.value}
                 checked={reason === option.value}
                 onChange={() => setReason(option.value)}
-                className="accent-primary"
+                className="accent-selection"
               />
               {option.label}
             </label>
@@ -159,11 +161,7 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
           <Button variant="ghost" onClick={close}>
             Cancel
           </Button>
-          <Button
-            variant="destructive"
-            disabled={!reason || submitting}
-            onClick={() => void submit()}
-          >
+          <Button variant="primary" disabled={!reason || submitting} onClick={() => void submit()}>
             {submitting ? "Sending…" : "Send report"}
           </Button>
         </DialogFooter>

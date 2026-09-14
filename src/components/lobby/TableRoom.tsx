@@ -91,14 +91,19 @@ export function TableRoom({
     }
     if (needsDeck) {
       return (
-        <Button size="lg" onClick={onOpenDeckDialog} className="w-full sm:w-auto">
+        <Button variant="primary" size="lg" onClick={onOpenDeckDialog} className="w-full sm:w-auto">
           <Shield /> Choose a deck
         </Button>
       );
     }
     if (!isController && myPlayer && !myPlayer.ready) {
       return (
-        <Button size="lg" onClick={() => onSetReady(true)} className="w-full sm:w-auto">
+        <Button
+          variant="primary"
+          size="lg"
+          onClick={() => onSetReady(true)}
+          className="w-full sm:w-auto"
+        >
           Ready up
         </Button>
       );
@@ -115,6 +120,7 @@ export function TableRoom({
       if (room.draft_config && onStartDraft) {
         return (
           <Button
+            variant="primary"
             size="lg"
             onClick={onStartDraft}
             disabled={startingLimited}
@@ -127,6 +133,7 @@ export function TableRoom({
       if (room.sealed_config && onStartSealed) {
         return (
           <Button
+            variant="primary"
             size="lg"
             onClick={onStartSealed}
             disabled={startingLimited}
@@ -138,6 +145,7 @@ export function TableRoom({
       }
       return (
         <Button
+          variant="primary"
           size="lg"
           onClick={onStartGame}
           disabled={startingGame}

@@ -642,7 +642,12 @@ export function CardDetailModal({
               </div>
             ) : !readOnly ? (
               <div className="relative">
-                <Button size="sm" className="gap-1" onClick={() => setShowDeckPicker((v) => !v)}>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => setShowDeckPicker((v) => !v)}
+                >
                   <Plus className="h-3.5 w-3.5" />
                   Add to Deck
                   <ChevronDown className="h-3 w-3 ml-1" />

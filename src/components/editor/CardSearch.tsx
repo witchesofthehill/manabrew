@@ -322,7 +322,7 @@ function FilterBtn({
       className={cn(
         "h-6 min-w-[1.5rem] px-1.5 rounded text-xs font-semibold border transition-colors select-none pointer-coarse:h-8 pointer-coarse:min-w-8",
         active
-          ? "bg-primary text-primary-foreground border-primary"
+          ? "bg-selection text-selection-foreground border-selection"
           : "bg-background text-muted-foreground border-border hover:bg-muted",
         className,
       )}
@@ -351,7 +351,7 @@ function ManaFilterBtn({
       className={cn(
         "h-7 w-7 rounded-full border-2 transition-all select-none flex items-center justify-center p-0.5 pointer-coarse:h-9 pointer-coarse:w-9",
         active
-          ? "border-primary ring-2 ring-primary/30 scale-110"
+          ? "border-selection ring-2 ring-selection/30 scale-110"
           : "border-transparent opacity-70 hover:opacity-100 hover:scale-105",
       )}
     >
@@ -420,6 +420,7 @@ function DraggableCardGrid({
       <div className="absolute inset-0 bg-overlay/60 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 rounded-lg pointer-events-none group-hover:pointer-events-auto pointer-coarse:pointer-events-auto">
         {onAdd && (
           <Button
+            variant="primary"
             size="sm"
             className="w-4/5 gap-1"
             onClick={(e) => {
@@ -690,7 +691,7 @@ export function CardSearch({
             <SlidersHorizontal className="h-3.5 w-3.5" />
             <span className="text-xs">Filters</span>
             {hasActiveFilters && (
-              <span className="bg-primary text-primary-foreground text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+              <span className="bg-selection text-selection-foreground text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
                 {basicCount + advCount}
               </span>
             )}
@@ -703,7 +704,7 @@ export function CardSearch({
               className={cn(
                 "px-2 py-1 text-xs transition-colors",
                 viewMode === "grid"
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-selection text-selection-foreground"
                   : "hover:bg-muted text-muted-foreground",
               )}
             >
@@ -716,7 +717,7 @@ export function CardSearch({
               className={cn(
                 "px-2 py-1 text-xs transition-colors border-l",
                 viewMode === "list"
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-selection text-selection-foreground"
                   : "hover:bg-muted text-muted-foreground",
               )}
             >

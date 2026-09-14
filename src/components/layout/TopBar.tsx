@@ -169,6 +169,7 @@ export function TopBar({ override }: TopBarProps) {
         />
         {phase !== "idle" && version && (
           <Button
+            variant="secondary"
             size="sm"
             disabled={downloading || navigationDisabled}
             onClick={() => void installDesktopUpdate()}

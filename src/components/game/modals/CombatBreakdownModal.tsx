@@ -117,7 +117,7 @@ export function CombatBreakdownModal({
         </div>
       </Modal.Body>
       <Modal.Footer>
-        <Modal.Close onClose={onClose} variant="outline">
+        <Modal.Close onClose={onClose} variant="ghost">
           Return to combat
         </Modal.Close>
       </Modal.Footer>

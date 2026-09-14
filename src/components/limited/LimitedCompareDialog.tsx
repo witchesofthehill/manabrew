@@ -83,7 +83,7 @@ export function LimitedCompareDialog({ current, open, onOpenChange }: Props) {
         )}
 
         <div className="mt-2 flex justify-end">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Done
           </Button>
         </div>

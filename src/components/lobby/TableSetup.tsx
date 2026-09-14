@@ -334,6 +334,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
                   Cancel
                 </Button>
                 <Button
+                  variant="primary"
                   onClick={handleCreate}
                   disabled={creating || !canSubmit}
                   title={disabledReason ?? undefined}

@@ -202,7 +202,7 @@ function EngineOption({
       onClick={onClick}
       className={cn(
         "flex flex-col items-start gap-0.5 rounded-lg p-2.5 text-left transition-colors",
-        selected ? "bg-primary/10" : "hover:bg-muted/50",
+        selected ? "bg-selection/15" : "hover:bg-muted/50",
       )}
     >
       <span className="flex flex-wrap items-center gap-1.5">

@@ -22,7 +22,7 @@ export function SetTile({ set, active, prefetching, onClick, size = "md" }: SetT
         "group relative flex items-center gap-2 rounded-lg border px-3 text-left transition",
         compact ? "py-1.5" : "py-2",
         active
-          ? "border-primary bg-primary/10 shadow-[0_0_0_1px_var(--color-primary)]/30"
+          ? "border-selection bg-selection/15 shadow-[0_0_0_1px_var(--color-selection)]/30"
           : "border-border/40 bg-card/30 hover:border-primary/50 hover:bg-card/60",
       )}
     >
@@ -30,7 +30,7 @@ export function SetTile({ set, active, prefetching, onClick, size = "md" }: SetT
         setCode={set.code}
         className={cn(
           compact ? "h-5 w-5" : "h-7 w-7",
-          active ? "text-primary" : "text-foreground/80 group-hover:text-foreground",
+          active ? "text-selection" : "text-foreground/80 group-hover:text-foreground",
         )}
       />
       <div className="min-w-0 flex-1">

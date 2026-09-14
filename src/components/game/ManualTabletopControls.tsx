@@ -379,6 +379,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
             CardDto
           </Button>
           <Button
+            variant="outline"
             type="button"
             size="sm"
             className="gap-1"

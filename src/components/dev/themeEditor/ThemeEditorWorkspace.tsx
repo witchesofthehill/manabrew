@@ -28,7 +28,7 @@ function AppElementPreview() {
             Buttons
           </div>
           <div className="flex items-center gap-2">
-            <Button type="button" size="sm">
+            <Button variant="primary" type="button" size="sm">
               Primary
             </Button>
             <Button type="button" size="sm" variant="secondary">
@@ -40,7 +40,7 @@ function AppElementPreview() {
             <Button type="button" size="sm" variant="destructive">
               Delete
             </Button>
-            <Button type="button" size="sm" disabled>
+            <Button variant="primary" type="button" size="sm" disabled>
               Disabled
             </Button>
           </div>

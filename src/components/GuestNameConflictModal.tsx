@@ -121,6 +121,7 @@ export function GuestNameConflictModal() {
 
         <DialogFooter className="flex-col gap-3 sm:flex-col sm:space-x-0">
           <Button
+            variant="primary"
             className="w-full"
             disabled={busy || base.length < NAME_MIN_LENGTH}
             onClick={() => void save()}

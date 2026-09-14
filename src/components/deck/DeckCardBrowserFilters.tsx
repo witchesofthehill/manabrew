@@ -114,7 +114,7 @@ function ViewControl({
             aria-pressed={value === option.value}
             className={cn(
               "flex h-8 w-8 items-center justify-center border-r text-muted-foreground transition-colors last:border-r-0 pointer-coarse:h-10 pointer-coarse:w-10",
-              value === option.value ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+              value === option.value ? "bg-selection text-selection-foreground" : "hover:bg-muted",
             )}
             onClick={() => onChange(option.value)}
           >
@@ -144,7 +144,7 @@ function ColorControl({
           aria-pressed={colors.includes(color)}
           className={cn(
             "flex h-8 w-8 items-center justify-center rounded opacity-45 transition-opacity hover:opacity-80 pointer-coarse:h-10 pointer-coarse:w-10",
-            colors.includes(color) && "bg-primary/15 opacity-100 ring-1 ring-primary",
+            colors.includes(color) && "bg-selection/15 opacity-100 ring-1 ring-selection",
           )}
           onClick={() => onToggle(color)}
         >
@@ -186,7 +186,7 @@ export function DeckCardBrowserFilters({
         <Button
           key={option.value}
           type="button"
-          variant={zone === option.value ? "secondary" : "ghost"}
+          variant={zone === option.value ? "selected" : "ghost"}
           size="sm"
           aria-pressed={zone === option.value}
           onClick={() => onZoneChange(option.value)}
@@ -300,7 +300,7 @@ export function DeckCardBrowserFilters({
                 Clear filters
               </Button>
               <SheetClose asChild>
-                <Button>Show cards</Button>
+                <Button variant="primary">Show cards</Button>
               </SheetClose>
             </div>
           </SheetContent>

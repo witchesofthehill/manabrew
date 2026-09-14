@@ -101,6 +101,23 @@ All game modals should use the `Modal` compound component:
 - Use `MODAL_CARD_IMAGE` for larger card images in bodies.
 - Use `MODAL_FOOTER_BETWEEN` for footers with left info + right buttons.
 
+### Button hierarchy
+
+Every `Button` must declare a `variant`. High emphasis is never an implicit default.
+
+- `primary`: the single action that advances or completes the current decision. Use at most one per visible action group.
+- `secondary`: a visible but deliberately less-preferred alternative to the primary action.
+- `outline`: ordinary utilities and equivalent alternatives such as import, export, copy, edit, and retry.
+- `ghost`: dismissal, back navigation, clearing, and compact toolbar actions.
+- `destructive-quiet`: an entry point to a destructive flow. Reserve solid red for the confirmation step.
+- `destructive`: the final irreversible confirmation, such as delete, concede, or leave.
+- `selected`: persistent selection or toggle state. Selection is state, not action priority.
+- `link`: inline text navigation only.
+
+Filled buttons answer “what should I do now?” Neutral outlines answer “what else can I do?” Multiple equal choices use outline or selected treatments rather than several primary buttons.
+
+Modal footers use ghost for Cancel, Close, Back, and auto-applied Done actions; primary for a commit action; destructive for the final irreversible confirmation.
+
 ### Card image in modal headers
 
 When showing a source card thumbnail alongside a modal title:

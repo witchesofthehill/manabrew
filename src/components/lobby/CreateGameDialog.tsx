@@ -465,7 +465,7 @@ export function CreateGameDialog({
                       className={cn(
                         "w-full rounded-lg border p-2.5 text-left transition-colors",
                         selectedFormat.id === format.id
-                          ? "border-primary bg-primary/5"
+                          ? "border-selection bg-selection/10"
                           : "border-border hover:bg-muted/60",
                       )}
                     >
@@ -829,10 +829,11 @@ export function CreateGameDialog({
             )}
           </div>
           <div className="flex gap-2 shrink-0">
-            <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)}>
+            <Button variant="ghost" size="sm" onClick={() => handleOpenChange(false)}>
               Cancel
             </Button>
             <Button
+              variant="primary"
               size="sm"
               onClick={() => handleCreate()}
               disabled={!isReady || starting}

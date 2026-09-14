@@ -44,6 +44,7 @@ export function DeckSaveConflictDialog({
         )}
         <div className="grid gap-2">
           <Button
+            variant="primary"
             className="h-auto justify-start gap-3 py-3 text-left"
             disabled={busy}
             onClick={onKeepMine}

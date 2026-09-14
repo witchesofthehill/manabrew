@@ -34,7 +34,7 @@ export function OwnedDeckShelf({
         <p className="mt-1 text-sm text-muted-foreground">
           Build from scratch, import a decklist, or start with a preset below.
         </p>
-        <Button size="sm" variant="secondary" className="mt-4" onClick={onAddDeck}>
+        <Button size="sm" variant="primary" className="mt-4" onClick={onAddDeck}>
           <Plus className="h-4 w-4" />
           Build / Import
         </Button>

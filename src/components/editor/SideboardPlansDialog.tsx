@@ -78,7 +78,7 @@ export function SideboardPlansDialog({
               if (event.key === "Enter") addPlan();
             }}
           />
-          <Button disabled={!matchup.trim()} onClick={addPlan}>
+          <Button variant="outline" disabled={!matchup.trim()} onClick={addPlan}>
             <Plus className="mr-1.5 h-4 w-4" /> Matchup
           </Button>
         </div>

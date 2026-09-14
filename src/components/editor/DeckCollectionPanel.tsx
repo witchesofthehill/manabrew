@@ -255,7 +255,7 @@ export function DeckCollectionPanel({
                 <Button
                   type="button"
                   size="icon-sm"
-                  variant={acquisition[key] === "ordered" ? "secondary" : "ghost"}
+                  variant={acquisition[key] === "ordered" ? "selected" : "ghost"}
                   title="Mark as ordered"
                   aria-pressed={acquisition[key] === "ordered"}
                   onClick={() =>
@@ -270,7 +270,7 @@ export function DeckCollectionPanel({
                 <Button
                   type="button"
                   size="icon-sm"
-                  variant={acquisition[key] === "proxy" ? "secondary" : "ghost"}
+                  variant={acquisition[key] === "proxy" ? "selected" : "ghost"}
                   title="Mark as proxied"
                   aria-pressed={acquisition[key] === "proxy"}
                   onClick={() =>
@@ -305,7 +305,7 @@ function ViewButton({
     <Button
       type="button"
       size="icon-sm"
-      variant={active ? "default" : "ghost"}
+      variant={active ? "selected" : "ghost"}
       title={label}
       aria-label={label}
       aria-pressed={active}

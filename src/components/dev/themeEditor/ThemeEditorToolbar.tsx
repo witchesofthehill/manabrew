@@ -106,7 +106,12 @@ export function ThemeEditorToolbar({
         >
           Discard
         </Button>
-        <Button size="sm" onClick={editor.save} disabled={hasInvalidColors || !draft.name.trim()}>
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={editor.save}
+          disabled={hasInvalidColors || !draft.name.trim()}
+        >
           Save personal theme
         </Button>
         <div className="ml-auto flex shrink-0 gap-1 pl-2">

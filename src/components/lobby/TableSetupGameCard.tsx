@@ -165,7 +165,9 @@ export function TableSetupGameCard({
                   >
                     <FormatBadge formatId={option.value.toLowerCase()} />
                     <span className="text-xs">{option.label}</span>
-                    {format === option.value && <Check className="ml-auto h-3 w-3 text-primary" />}
+                    {format === option.value && (
+                      <Check className="ml-auto h-3 w-3 text-selection" />
+                    )}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -376,7 +378,7 @@ function ModeButton({
     <Button
       type="button"
       size="sm"
-      variant={active ? "default" : "ghost"}
+      variant={active ? "selected" : "ghost"}
       aria-pressed={active}
       className={cn("flex-1 rounded-none shadow-none", bordered && "border-l")}
       onClick={onClick}
@@ -404,8 +406,8 @@ function LimitedKindCard({
       className={cn(
         "flex flex-col items-start gap-0.5 rounded-lg border p-3 text-left transition-colors",
         selected && meta.enabled
-          ? "border-primary bg-primary/5"
-          : "border-border enabled:hover:border-primary/30 enabled:hover:bg-muted/30",
+          ? "border-selection bg-selection/10"
+          : "border-border enabled:hover:border-selection/30 enabled:hover:bg-muted/30",
         !meta.enabled && "cursor-not-allowed opacity-50",
       )}
     >
@@ -413,7 +415,7 @@ function LimitedKindCard({
         <Icon
           className={cn(
             "h-4 w-4",
-            selected && meta.enabled ? "text-primary" : "text-muted-foreground",
+            selected && meta.enabled ? "text-selection" : "text-muted-foreground",
           )}
         />
         <span className="text-sm font-medium">{meta.label}</span>

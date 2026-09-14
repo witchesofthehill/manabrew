@@ -155,7 +155,7 @@ export function AvatarCropDialog({ file, onCancel, onConfirm }: AvatarCropDialog
           <Button variant="ghost" onClick={onCancel} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={() => void confirm()} disabled={!imageSize || saving}>
+          <Button variant="primary" onClick={() => void confirm()} disabled={!imageSize || saving}>
             {saving ? "Saving…" : "Save"}
           </Button>
         </DialogFooter>

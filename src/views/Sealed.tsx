@@ -67,6 +67,7 @@ export default function Sealed() {
         </div>
         <div className="flex items-center gap-2">
           <Button
+            variant="primary"
             disabled={isStarting || !id || activeSealed.aiDecks.length === 0 || mainShortBy > 0}
             title={
               mainShortBy > 0

@@ -150,7 +150,7 @@ export function CardArtDownloadSection() {
         </p>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => void downloadDecks()} disabled={busy !== null}>
+        <Button variant="primary" onClick={() => void downloadDecks()} disabled={busy !== null}>
           {busy === "decks"
             ? "Downloading…"
             : `My decks (${decks.length}) · ~${formatBytes(estimateBytes(variants, deckCards.size))}`}
@@ -171,7 +171,11 @@ export function CardArtDownloadSection() {
         <Button variant="outline" onClick={() => void clear(false)} disabled={busy !== null}>
           Trim unused
         </Button>
-        <Button variant="destructive" onClick={() => void clear(true)} disabled={busy !== null}>
+        <Button
+          variant="destructive-quiet"
+          onClick={() => void clear(true)}
+          disabled={busy !== null}
+        >
           Delete all
         </Button>
       </div>

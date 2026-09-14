@@ -138,7 +138,7 @@ export function CardPreviewRail({
         role="separator"
         aria-orientation="vertical"
         aria-label={`Resize ${title.toLowerCase()}`}
-        className="group/handle absolute left-0 top-0 z-20 h-full w-1.5 cursor-col-resize transition-colors hover:bg-primary/30 active:bg-primary/40"
+        className="group/handle absolute left-0 top-0 z-20 h-full w-1.5 cursor-col-resize transition-colors hover:bg-selection/30 active:bg-selection/40"
         onPointerDown={(event) => {
           event.preventDefault();
           event.currentTarget.setPointerCapture(event.pointerId);

@@ -225,10 +225,10 @@ export function DeckLayoutMenu({
             }}
           />
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+            <Button variant="ghost" onClick={() => setCreateOpen(false)}>
               Cancel
             </Button>
-            <Button disabled={!name.trim()} onClick={saveLayout}>
+            <Button variant="primary" disabled={!name.trim()} onClick={saveLayout}>
               Save view
             </Button>
           </div>

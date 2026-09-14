@@ -58,6 +58,7 @@ export function DialogCardBrowserActionTray({
         </p>
       </div>
       <Button
+        variant="primary"
         className="min-w-48"
         disabled={pending || !active || (!active.legal && !active.selected)}
         onClick={() => {

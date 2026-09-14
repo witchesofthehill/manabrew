@@ -75,7 +75,7 @@ export function TablePickerDialog({
                   className={cn(
                     "overflow-hidden rounded-md border text-left transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                     isSelected
-                      ? "border-primary ring-1 ring-primary"
+                      ? "border-selection ring-1 ring-selection"
                       : "border-border/70 hover:border-primary/50",
                   )}
                 >
@@ -100,7 +100,9 @@ export function TablePickerDialog({
           <Button variant="ghost" onClick={onCancel}>
             Back
           </Button>
-          <Button onClick={onStart}>Fight</Button>
+          <Button variant="primary" onClick={onStart}>
+            Fight
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

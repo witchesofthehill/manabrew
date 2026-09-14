@@ -796,6 +796,7 @@ export function DeckVsSelector({
             Forge
           </div>
           <Button
+            variant="primary"
             size="sm"
             onClick={handleFight}
             disabled={!isReady || starting}

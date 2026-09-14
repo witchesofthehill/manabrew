@@ -122,7 +122,7 @@ export function ActionPickerModal({
         </div>
       </Modal.Body>
       <Modal.Footer>
-        <Modal.Close onClose={onCancel} disabled={pending} variant="outline">
+        <Modal.Close onClose={onCancel} disabled={pending} variant="ghost">
           Back
         </Modal.Close>
       </Modal.Footer>

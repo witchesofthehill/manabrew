@@ -70,7 +70,7 @@ export function LeaveGameModal({ mode = "engineOwner", onStay, onLeave }: LeaveG
         </Modal.Body>
       )}
       <Modal.Footer className="justify-between">
-        <Modal.Close data-autofocus variant="outline" disabled={pending} onClose={onStay}>
+        <Modal.Close data-autofocus variant="ghost" disabled={pending} onClose={onStay}>
           Stay
         </Modal.Close>
         <Button variant="destructive" disabled={pending} onClick={() => void leave()}>

@@ -9,15 +9,18 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default:
+        primary:
           "bg-primary text-primary-foreground shadow hover:brightness-110 active:brightness-95",
+        secondary:
+          "border border-secondary/60 bg-secondary/10 text-foreground hover:bg-secondary/20",
+        outline: "border border-input bg-background shadow-sm hover:bg-muted hover:text-foreground",
+        ghost: "hover:bg-muted hover:text-foreground",
         destructive:
           "bg-destructive text-destructive-foreground shadow-sm hover:brightness-110 active:brightness-95",
-        outline:
-          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
-        secondary:
-          "border border-secondary bg-transparent text-foreground hover:bg-secondary hover:text-secondary-foreground",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
+        "destructive-quiet":
+          "border border-destructive/50 bg-transparent text-destructive hover:bg-destructive/10 hover:text-destructive",
+        selected:
+          "border border-selection bg-selection text-selection-foreground shadow-sm hover:brightness-110",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
@@ -31,14 +34,19 @@ const buttonVariants = cva(
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: "outline",
       size: "default",
     },
   },
 );
 
+type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>;
+
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
+  extends
+    React.ButtonHTMLAttributes<HTMLButtonElement>,
+    Omit<VariantProps<typeof buttonVariants>, "variant"> {
+  variant: ButtonVariant;
   asChild?: boolean;
 }
 

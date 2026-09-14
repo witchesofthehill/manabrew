@@ -59,6 +59,7 @@ export function CompanionBar({
   return (
     <div className="flex flex-wrap items-center gap-0.5 border-b border-border bg-card/70 px-1.5 py-1 backdrop-blur sm:gap-2 sm:px-3 sm:py-2">
       <Button
+        variant="outline"
         size="sm"
         onClick={onOpenNewSession}
         className="h-8 px-2 text-xs sm:h-9 sm:px-4 sm:text-sm"
@@ -103,7 +104,7 @@ export function CompanionBar({
       <div className="ml-auto flex flex-wrap items-center gap-0.5 sm:gap-2">
         <Button
           size="sm"
-          variant={activePlayer ? "default" : "outline"}
+          variant="outline"
           onClick={advanceTurn}
           className="h-8 gap-1 px-1.5 text-xs text-white shadow-sm sm:h-9 sm:px-3 sm:text-sm"
           style={
@@ -123,7 +124,7 @@ export function CompanionBar({
 
         <Button
           size="icon"
-          variant={session.dayNight ? "default" : "ghost"}
+          variant={session.dayNight ? "selected" : "ghost"}
           className="size-8"
           onClick={cycleDayNight}
           aria-label="Cycle day / night"

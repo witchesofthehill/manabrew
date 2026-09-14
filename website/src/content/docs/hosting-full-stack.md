@@ -72,7 +72,7 @@ play.example.com {
 	handle {
 		header {
 			Cross-Origin-Opener-Policy "same-origin"
-			Cross-Origin-Embedder-Policy "credentialless"
+			Cross-Origin-Embedder-Policy "require-corp"
 			Cross-Origin-Resource-Policy "same-origin"
 		}
 		try_files {path} /index.html

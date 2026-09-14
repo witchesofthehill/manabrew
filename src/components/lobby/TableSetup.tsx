@@ -10,11 +10,7 @@ import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
 import { TableSetupGameCard } from "@/components/lobby/TableSetupGameCard";
 import { TableSetupHostingCard } from "@/components/lobby/TableSetupHostingCard";
 import { TableSetupTableCard } from "@/components/lobby/TableSetupTableCard";
-import {
-  DEFAULT_BOARD_BACKGROUND_ID,
-  boardBackgroundUrl,
-  type BoardBackgroundId,
-} from "@/pixi/board/boardBackgrounds";
+import { boardBackgroundUrl, type BoardBackgroundId } from "@/pixi/board/boardBackgrounds";
 import { TableCreatingSplash } from "@/components/lobby/TableCreatingSplash";
 import {
   CREATE_SPLASH_MIN_MS,
@@ -32,7 +28,8 @@ import { useForgeRoomAvailabilityStore } from "@/stores/useForgeRoomAvailability
 import { getPlatformType } from "@/platform";
 import { claimHostedTable } from "@/game/hostedAiPlay";
 import { isFeatureEnabled } from "@/featureFlags";
-import { isForgeWasmHostingEnabled } from "@/lib/forgeWasm";
+import { forgeWasmNeedsValidation, useForgeWasmHostingEnabled } from "@/lib/forgeWasm";
+import { validateForgeWasm } from "@/game/forgeWasmValidation";
 import { cn } from "@/lib/utils";
 import { IRONSMITH_WASM_AVAILABLE } from "@/game/ironsmithWasmAvailable";
 import { DEFAULT_RECONNECT_TIMEOUT_S } from "@/types/server";
@@ -58,7 +55,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
   const ironsmithOptedIn = usePreferencesStore((s) => s.ironsmithRuntimeEnabled);
   const ironsmithEnabled =
     isFeatureEnabled("ironsmithRuntime") && IRONSMITH_WASM_AVAILABLE && ironsmithOptedIn;
-  const forgeWasm = isForgeWasmHostingEnabled();
+  const forgeWasm = useForgeWasmHostingEnabled();
   const hostedNode = !isTauri && !forgeWasm;
   const canHostForge = (isTauri && forgeRoomAvailable) || forgeWasm || hostedNode;
 
@@ -97,7 +94,18 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
 
   const [importedCube, setImportedCube] = useState<CubeImportResult | null>(null);
   const [creating, setCreating] = useState(false);
-  const [background, setBackground] = useState<BoardBackgroundId>(DEFAULT_BOARD_BACKGROUND_ID);
+  const [creatingLabel, setCreatingLabel] = useState<string | null>(null);
+  const showSplash = (label: string | null) => {
+    setCreatingLabel(label);
+    onCreatingChange(label);
+  };
+  const [background, setBackground] = useState<BoardBackgroundId>(
+    () => usePreferencesStore.getState().tableBackground,
+  );
+  const chooseBackground = (id: BoardBackgroundId) => {
+    setBackground(id);
+    usePreferencesStore.getState().setTableBackground(id);
+  };
 
   const draftPool = useSetPoolStatus(draftSet);
   const sealedPool = useSetPoolStatus(sealedSet);
@@ -185,8 +193,9 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
   async function handleCreate() {
     if (!canSubmit) return;
     setCreating(true);
-    onCreatingChange(splashLabel);
-    const splashUntil = Date.now() + CREATE_SPLASH_MIN_MS;
+    const checking = submittedEngine === "Forge" && forgeWasm && forgeWasmNeedsValidation();
+    showSplash(checking ? "Checking browser engine support\u2026" : splashLabel);
+    let splashUntil = Date.now() + CREATE_SPLASH_MIN_MS;
     try {
       const submittedFormat: GameFormat = kind === "limited" ? "Any" : format;
       let draftConfig: DraftConfig | undefined;
@@ -213,7 +222,13 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
           base_seed: Number.isFinite(parsedSeed) ? parsedSeed : undefined,
         };
       }
-      if (onNode) {
+      let useNode = onNode;
+      if (checking) {
+        useNode = !(await validateForgeWasm());
+        showSplash(useNode ? "Finding you a table\u2026" : splashLabel);
+        splashUntil = Date.now() + CREATE_SPLASH_MIN_MS;
+      }
+      if (useNode) {
         await claimHostedTable(submittedFormat, maxPlayers);
       } else {
         const password = roomPassword.trim() || undefined;
@@ -241,11 +256,13 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
       toast.error(error instanceof Error ? error.message : "Couldn't create the table.");
     } finally {
       setCreating(false);
-      onCreatingChange(null);
+      showSplash(null);
     }
   }
 
-  if (creating) return <TableCreatingSplash label={splashLabel} />;
+  if (creating) {
+    return <TableCreatingSplash label={creatingLabel ?? splashLabel} />;
+  }
 
   return (
     <div className="h-full overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
@@ -283,7 +300,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
                 />
               </div>
             </div>
-            <TableSetupTableCard background={background} onBackgroundChange={setBackground} />
+            <TableSetupTableCard background={background} onBackgroundChange={chooseBackground} />
             <div className="flex flex-1 items-center justify-center p-3 sm:p-4">
               <OpenTableSeats
                 players={[hostPlayer]}

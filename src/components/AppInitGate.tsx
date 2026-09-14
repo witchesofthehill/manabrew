@@ -5,8 +5,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAcknowledgement } from "@/hooks/useAcknowledgement";
 import { OnboardingWelcome, ONBOARDING_GUIDE_VERSION } from "@/components/OnboardingWelcome";
+import { OnboardingGuide } from "@/components/OnboardingGuide";
 import { BreweryBackdrop } from "@/components/BreweryBackdrop";
 import { TERMS_AND_CONDITIONS } from "@/lib/termsContent";
+import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 const TERMS_STORAGE_KEY = "manabrew.termsAcceptance";
 const ONBOARDING_STORAGE_KEY = "manabrew.onboarding";
@@ -70,7 +73,15 @@ export function AppInitGate({ children }: { children: ReactNode }) {
     ONBOARDING_STORAGE_KEY,
     ONBOARDING_GUIDE_VERSION,
   );
+  const authStatus = useAuthStore((s) => s.status);
+  const handlePending = useAuthStore((s) => s.account?.handlePending ?? false);
+  const claimed = authStatus === "signedIn" && !handlePending;
+  const onboardingSatisfied = onboardingDone || claimed;
   const [consent, setConsent] = useState(false);
+
+  useEffect(() => {
+    if (claimed && !onboardingDone) completeOnboarding();
+  }, [claimed, onboardingDone, completeOnboarding]);
 
   const [minHoldPassed, setMinHoldPassed] = useState(hasReleasedOnce);
   useEffect(() => {
@@ -94,7 +105,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (phase === "done") return;
     if (stage !== "ready") return;
-    if (!termsAccepted || !onboardingDone) return;
+    if (!termsAccepted || !onboardingSatisfied) return;
     const release = window.setTimeout(() => setPhase("releasing"), RELEASE_DELAY_MS);
     const done = window.setTimeout(() => {
       setPhase("done");
@@ -104,20 +115,41 @@ export function AppInitGate({ children }: { children: ReactNode }) {
       window.clearTimeout(release);
       window.clearTimeout(done);
     };
-  }, [stage, phase, termsAccepted, onboardingDone, RELEASE_DELAY_MS, EXIT_MS]);
+  }, [stage, phase, termsAccepted, onboardingSatisfied, RELEASE_DELAY_MS, EXIT_MS]);
 
   // The companion is pure UI with no engine dependency, so never block it behind
   // the worker boot — which can't initialise without cross-origin isolation
   // (e.g. an iOS PWA served over plain http). Render it immediately when it's
-  // the entry route.
-  if (typeof window !== "undefined" && window.location.pathname.startsWith("/companion")) {
+  // the entry route. The auth callback must also never be gated: an OAuth
+  // redirect can return while terms or onboarding are still pending, and the
+  // callback route is what exchanges the code.
+  if (
+    typeof window !== "undefined" &&
+    (window.location.pathname.startsWith("/companion") ||
+      window.location.pathname.startsWith("/auth/callback"))
+  ) {
     return <>{children}</>;
   }
 
   const title = STAGE_TITLE[stage] ?? "Loading";
   const pct = Math.round(target);
   const showTerms = stage === "ready" && !termsAccepted;
-  const showOnboarding = stage === "ready" && termsAccepted && !onboardingDone;
+  const showOnboarding = stage === "ready" && termsAccepted && !onboardingSatisfied;
+
+  const welcomeHeader = (
+    <div className="flex flex-col items-center gap-2 text-center">
+      <p className="font-mono text-[0.65rem] uppercase tracking-[0.55em] text-muted-foreground">
+        Welcome to
+      </p>
+      <h1 className="font-serif text-5xl font-light tracking-[0.08em] text-foreground md:text-6xl">
+        Manabrew
+      </h1>
+      <div
+        aria-hidden
+        className="mt-2 h-px w-24 bg-gradient-to-r from-transparent via-foreground/50 to-transparent"
+      />
+    </div>
+  );
 
   const exiting = phase === "releasing";
   const showChildren = phase !== "gating";
@@ -156,96 +188,109 @@ export function AppInitGate({ children }: { children: ReactNode }) {
 
         <div className="absolute inset-0 z-10 overflow-y-auto">
           <div className="flex min-h-full w-full flex-col items-center justify-center gap-10 px-8 py-10">
-            <div className="flex w-full max-w-2xl flex-col items-center gap-10 drop-shadow-2xl">
-              <div className="flex flex-col items-center gap-2 text-center">
-                <p className="font-mono text-[0.65rem] uppercase tracking-[0.55em] text-muted-foreground">
-                  Welcome to
-                </p>
-                <h1 className="font-serif text-5xl font-light tracking-[0.08em] text-foreground md:text-6xl">
-                  Manabrew
-                </h1>
-                <div
-                  aria-hidden
-                  className="mt-2 h-px w-24 bg-gradient-to-r from-transparent via-foreground/50 to-transparent"
-                />
-              </div>
-
+            <div
+              className={cn(
+                "flex w-full flex-col items-center gap-10 drop-shadow-2xl",
+                showOnboarding ? "max-w-5xl" : "max-w-2xl",
+              )}
+            >
               {showTerms ? (
-                <div className="w-full space-y-5">
-                  <div className="space-y-1 text-center">
-                    <p className="font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
-                      {TERMS_AND_CONDITIONS.title}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {linkifyTerms(TERMS_AND_CONDITIONS.intro)}
-                    </p>
-                  </div>
-
-                  <ScrollArea className="h-[38dvh] max-h-[360px]">
-                    <div className="space-y-4 pr-4 text-sm leading-relaxed">
-                      {TERMS_AND_CONDITIONS.sections.map((section) => (
-                        <section key={section.heading} className="space-y-1.5">
-                          <h3 className="text-sm font-semibold text-foreground">
-                            {section.heading}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {linkifyTerms(section.body)}
-                          </p>
-                        </section>
-                      ))}
+                <>
+                  {welcomeHeader}
+                  <div className="w-full space-y-5">
+                    <div className="space-y-1 text-center">
+                      <p className="font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
+                        {TERMS_AND_CONDITIONS.title}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {linkifyTerms(TERMS_AND_CONDITIONS.intro)}
+                      </p>
                     </div>
-                  </ScrollArea>
 
-                  <label className="flex cursor-pointer select-none items-start justify-center gap-2.5 text-sm">
-                    <Checkbox
-                      checked={consent}
-                      onCheckedChange={(value) => setConsent(value === true)}
-                      className="mt-0.5"
-                    />
-                    <span className="text-foreground">I have read and agree to these terms</span>
-                  </label>
+                    <ScrollArea className="h-[38dvh] max-h-[360px]">
+                      <div className="space-y-4 pr-4 text-sm leading-relaxed">
+                        {TERMS_AND_CONDITIONS.sections.map((section) => (
+                          <section key={section.heading} className="space-y-1.5">
+                            <h3 className="text-sm font-semibold text-foreground">
+                              {section.heading}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              {linkifyTerms(section.body)}
+                            </p>
+                          </section>
+                        ))}
+                      </div>
+                    </ScrollArea>
 
-                  <div className="flex flex-col items-center gap-3">
-                    <Button disabled={!consent} onClick={acceptTerms} className="min-w-[200px]">
-                      Accept and continue
-                    </Button>
-                    <p className="font-mono text-[0.55rem] uppercase tracking-[0.4em] text-muted-foreground/70">
-                      Version {TERMS_AND_CONDITIONS.version} · Updated{" "}
-                      {TERMS_AND_CONDITIONS.lastUpdated}
-                    </p>
+                    <label className="flex cursor-pointer select-none items-start justify-center gap-2.5 text-sm">
+                      <Checkbox
+                        checked={consent}
+                        onCheckedChange={(value) => setConsent(value === true)}
+                        className="mt-0.5"
+                      />
+                      <span className="text-foreground">I have read and agree to these terms</span>
+                    </label>
+
+                    <div className="flex flex-col items-center gap-3">
+                      <Button disabled={!consent} onClick={acceptTerms} className="min-w-[200px]">
+                        Accept and continue
+                      </Button>
+                      <p className="font-mono text-[0.55rem] uppercase tracking-[0.4em] text-muted-foreground/70">
+                        Version {TERMS_AND_CONDITIONS.version} · Updated{" "}
+                        {TERMS_AND_CONDITIONS.lastUpdated}
+                      </p>
+                    </div>
+                  </div>
+                </>
+              ) : showOnboarding ? (
+                <div className="grid w-full gap-10 lg:grid-cols-[1.15fr_1fr] lg:gap-0">
+                  <div className="flex flex-col items-center justify-center gap-8 lg:pr-14">
+                    {welcomeHeader}
+                    <div className="space-y-1 text-center">
+                      <p className="font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
+                        Getting started
+                      </p>
+                    </div>
+                    <OnboardingGuide />
+                  </div>
+                  <div className="flex items-center lg:border-l lg:border-border/60 lg:pl-14">
+                    <div className="w-full rounded-2xl border border-border/60 bg-background/80 p-8 shadow-2xl backdrop-blur-md">
+                      <OnboardingWelcome onComplete={completeOnboarding} />
+                    </div>
                   </div>
                 </div>
-              ) : showOnboarding ? (
-                <OnboardingWelcome onComplete={completeOnboarding} />
               ) : (
-                <div className="w-full space-y-5">
-                  <div className="flex items-baseline justify-between font-mono text-[0.65rem] uppercase tracking-[0.4em] text-muted-foreground">
-                    <span className="truncate text-foreground/80">{title}</span>
-                    <span className="tabular-nums">{pct.toString().padStart(3, "0")}%</span>
-                  </div>
+                <>
+                  {welcomeHeader}
+                  <div className="w-full space-y-5">
+                    <div className="flex items-baseline justify-between font-mono text-[0.65rem] uppercase tracking-[0.4em] text-muted-foreground">
+                      <span className="truncate text-foreground/80">{title}</span>
+                      <span className="tabular-nums">{pct.toString().padStart(3, "0")}%</span>
+                    </div>
 
-                  <div className="relative h-3.5 w-full overflow-hidden rounded-full border border-border/80 bg-muted/40">
-                    <div
-                      className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-primary/70 via-primary to-primary/70 shadow-[inset_0_0_8px] shadow-primary/40 transition-[width] duration-200 ease-out"
-                      style={{ width: `${target}%` }}
-                    >
+                    <div className="relative h-3.5 w-full overflow-hidden rounded-full border border-border/80 bg-muted/40">
+                      <div
+                        className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-primary/70 via-primary to-primary/70 shadow-[inset_0_0_8px] shadow-primary/40 transition-[width] duration-200 ease-out"
+                        style={{ width: `${target}%` }}
+                      >
+                        <div
+                          aria-hidden
+                          className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/45 to-transparent"
+                          style={{ animation: "manabrew-shimmer 2.2s linear infinite" }}
+                        />
+                      </div>
                       <div
                         aria-hidden
-                        className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/45 to-transparent"
-                        style={{ animation: "manabrew-shimmer 2.2s linear infinite" }}
+                        className="pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 rounded-full bg-primary blur-md transition-[left] duration-200 ease-out"
+                        style={{ left: `calc(${target}% - 0.5rem)` }}
                       />
                     </div>
-                    <div
-                      aria-hidden
-                      className="pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 rounded-full bg-primary blur-md transition-[left] duration-200 ease-out"
-                      style={{ left: `calc(${target}% - 0.5rem)` }}
-                    />
-                  </div>
 
-                  <p className="text-center font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
-                    Connecting
-                  </p>
-                </div>
+                    <p className="text-center font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
+                      Connecting
+                    </p>
+                  </div>
+                </>
               )}
             </div>
           </div>

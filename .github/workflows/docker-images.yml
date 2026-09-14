@@ -60,6 +60,7 @@ jobs:
             # every web image, so this is safe for self-hosters too.
             build-args: |
               VITE_SCRYFALL_SYMBOL_BASE=/scryfall-symbols/
+              VITE_SCRYFALL_ASSET_BASE=${{ vars.SCRYFALL_ASSET_BASE }}
           - image: manabrew-node
             dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
           - image: manabrew-hub

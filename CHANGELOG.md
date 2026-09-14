@@ -1,5 +1,35 @@
 # Changelog
 
+## [3.42.7](https://github.com/witchesofthehill/manabrew/compare/v3.42.6...v3.42.7) (2026-09-13)
+
+### Fixes
+
+* claim username ([#922](https://github.com/witchesofthehill/manabrew/issues/922)) ([b2bcb6e](https://github.com/witchesofthehill/manabrew/commit/b2bcb6e107d8ca099d7d8dac7d524e340dbb8760))
+
+## [3.42.6](https://github.com/witchesofthehill/manabrew/compare/v3.42.5...v3.42.6) (2026-09-13)
+
+### Fixes
+
+* affinity bug on action psace ([#920](https://github.com/witchesofthehill/manabrew/issues/920)) ([feffed0](https://github.com/witchesofthehill/manabrew/commit/feffed0407016ad257a1def10508cf464b326cc7))
+
+## [3.42.5](https://github.com/witchesofthehill/manabrew/compare/v3.42.4...v3.42.5) (2026-09-13)
+
+### Fixes
+
+* **telemetry:** file offline games under the player's relay name ([#919](https://github.com/witchesofthehill/manabrew/issues/919)) ([5089cbe](https://github.com/witchesofthehill/manabrew/commit/5089cbed4e98f3b5fa2430c6ffbc4afe4462c227))
+
+## [3.42.4](https://github.com/witchesofthehill/manabrew/compare/v3.42.3...v3.42.4) (2026-09-12)
+
+### Fixes
+
+* update submodule ([#915](https://github.com/witchesofthehill/manabrew/issues/915)) ([39f940b](https://github.com/witchesofthehill/manabrew/commit/39f940b2da972e32374e359e690d5a62c92c2850))
+
+## [3.42.3](https://github.com/witchesofthehill/manabrew/compare/v3.42.2...v3.42.3) (2026-09-12)
+
+### Fixes
+
+* safari-wasm and stop proxying images ([#912](https://github.com/witchesofthehill/manabrew/issues/912)) ([b8bf68c](https://github.com/witchesofthehill/manabrew/commit/b8bf68cbb2497a18880b57609946378a4f8880cd))
+
 ## [3.42.2](https://github.com/witchesofthehill/manabrew/compare/v3.42.1...v3.42.2) (2026-09-12)
 
 ### Fixes

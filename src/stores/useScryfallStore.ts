@@ -576,6 +576,7 @@ export const useScryfallStore = create<ScryfallState>()(
             void loadScryfallImage(uris.normal).catch(() => {});
           } else {
             const img = new Image();
+            img.crossOrigin = "anonymous";
             img.src = uris.normal;
           }
         }

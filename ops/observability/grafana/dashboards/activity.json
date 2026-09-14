@@ -1,0 +1,543 @@
+{
+  "uid": "manabrew-activity",
+  "title": "Manabrew — Activity",
+  "tags": ["manabrew", "product", "activity"],
+  "schemaVersion": 39,
+  "editable": true,
+  "timezone": "utc",
+  "time": {
+    "from": "now-90d",
+    "to": "now"
+  },
+  "refresh": "5m",
+  "links": [
+    {
+      "title": "Executive Health",
+      "type": "link",
+      "url": "/d/manabrew-executive"
+    },
+    {
+      "title": "Engagement & Gameplay",
+      "type": "link",
+      "url": "/d/manabrew-engagement"
+    },
+    {
+      "title": "Decks & Collections",
+      "type": "link",
+      "url": "/d/manabrew-decks-collections"
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "base",
+        "label": "Counts as active",
+        "type": "custom",
+        "query": "played,connected,any",
+        "current": {
+          "text": "played",
+          "value": "played"
+        },
+        "description": "played: started a game, relay or offline. connected: authenticated to the relay, relay only. any: either."
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "How many people are active?",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Daily active",
+      "description": "distinct handles active on the last day of the range; today is partial when the range ends now",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "WITH activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)) SELECT count(DISTINCT username) AS dau FROM activity WHERE day = date($__to / 1000, 'unixepoch')",
+          "rawQueryText": "WITH activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)) SELECT count(DISTINCT username) AS dau FROM activity WHERE day = date($__to / 1000, 'unixepoch')",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Weekly active",
+      "description": "distinct handles active in the 7 days ending at the range end",
+      "gridPos": {
+        "x": 4,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "WITH activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)) SELECT count(DISTINCT username) AS wau FROM activity WHERE day > date(date($__to / 1000, 'unixepoch'), '-7 day') AND day <= date($__to / 1000, 'unixepoch')",
+          "rawQueryText": "WITH activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)) SELECT count(DISTINCT username) AS wau FROM activity WHERE day > date(date($__to / 1000, 'unixepoch'), '-7 day') AND day <= date($__to / 1000, 'unixepoch')",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Monthly active",
+      "description": "distinct handles active in the 28 days ending at the range end",
+      "gridPos": {
+        "x": 8,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "WITH activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)) SELECT count(DISTINCT username) AS mau FROM activity WHERE day > date(date($__to / 1000, 'unixepoch'), '-28 day') AND day <= date($__to / 1000, 'unixepoch')",
+          "rawQueryText": "WITH activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)) SELECT count(DISTINCT username) AS mau FROM activity WHERE day > date(date($__to / 1000, 'unixepoch'), '-28 day') AND day <= date($__to / 1000, 'unixepoch')",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Stickiness (DAU/MAU)",
+      "description": "share of the monthly active base that was active on the last day",
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "WITH activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)) SELECT round(100.0 * (SELECT count(DISTINCT username) FROM activity WHERE day = date($__to / 1000, 'unixepoch')) / nullif((SELECT count(DISTINCT username) FROM activity WHERE day > date(date($__to / 1000, 'unixepoch'), '-28 day') AND day <= date($__to / 1000, 'unixepoch')), 0), 1) AS stickiness",
+          "rawQueryText": "WITH activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)) SELECT round(100.0 * (SELECT count(DISTINCT username) FROM activity WHERE day = date($__to / 1000, 'unixepoch')) / nullif((SELECT count(DISTINCT username) FROM activity WHERE day > date(date($__to / 1000, 'unixepoch'), '-28 day') AND day <= date($__to / 1000, 'unixepoch')), 0), 1) AS stickiness",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "WAU / MAU",
+      "description": "share of the monthly active base that was active in the last 7 days",
+      "gridPos": {
+        "x": 16,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "WITH activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)) SELECT round(100.0 * (SELECT count(DISTINCT username) FROM activity WHERE day > date(date($__to / 1000, 'unixepoch'), '-7 day') AND day <= date($__to / 1000, 'unixepoch')) / nullif((SELECT count(DISTINCT username) FROM activity WHERE day > date(date($__to / 1000, 'unixepoch'), '-28 day') AND day <= date($__to / 1000, 'unixepoch')), 0), 1) AS wau_mau",
+          "rawQueryText": "WITH activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)) SELECT round(100.0 * (SELECT count(DISTINCT username) FROM activity WHERE day > date(date($__to / 1000, 'unixepoch'), '-7 day') AND day <= date($__to / 1000, 'unixepoch')) / nullif((SELECT count(DISTINCT username) FROM activity WHERE day > date(date($__to / 1000, 'unixepoch'), '-28 day') AND day <= date($__to / 1000, 'unixepoch')), 0), 1) AS wau_mau",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "New in range",
+      "description": "handles whose first ever activity falls inside the range",
+      "gridPos": {
+        "x": 20,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "WITH activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)), first_seen AS (SELECT username, min(day) AS first_day FROM activity GROUP BY username) SELECT count(*) AS new_players FROM first_seen WHERE CAST(strftime('%s', first_day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', first_day) AS INTEGER) <= $__to / 1000",
+          "rawQueryText": "WITH activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)), first_seen AS (SELECT username, min(day) AS first_day FROM activity GROUP BY username) SELECT count(*) AS new_players FROM first_seen WHERE CAST(strftime('%s', first_day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', first_day) AS INTEGER) <= $__to / 1000",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 8,
+      "type": "row",
+      "title": "Is the active base growing?",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Daily, weekly and monthly active players",
+      "description": "rolling 1, 7 and 28 day distinct-handle counts, recomputed for every day in the range; the windows reach back before the range start, so the left edge is not truncated",
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "WITH RECURSIVE activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)), spine(day) AS (SELECT date($__from / 1000, 'unixepoch') UNION ALL SELECT date(day, '+1 day') FROM spine WHERE day < date($__to / 1000, 'unixepoch')) SELECT CAST(strftime('%s', s.day) AS INTEGER) AS t, (SELECT count(DISTINCT a.username) FROM activity a WHERE a.day = s.day) AS dau, (SELECT count(DISTINCT a.username) FROM activity a WHERE a.day > date(s.day, '-7 day') AND a.day <= s.day) AS wau, (SELECT count(DISTINCT a.username) FROM activity a WHERE a.day > date(s.day, '-28 day') AND a.day <= s.day) AS mau FROM spine s ORDER BY s.day",
+          "rawQueryText": "WITH RECURSIVE activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)), spine(day) AS (SELECT date($__from / 1000, 'unixepoch') UNION ALL SELECT date(day, '+1 day') FROM spine WHERE day < date($__to / 1000, 'unixepoch')) SELECT CAST(strftime('%s', s.day) AS INTEGER) AS t, (SELECT count(DISTINCT a.username) FROM activity a WHERE a.day = s.day) AS dau, (SELECT count(DISTINCT a.username) FROM activity a WHERE a.day > date(s.day, '-7 day') AND a.day <= s.day) AS wau, (SELECT count(DISTINCT a.username) FROM activity a WHERE a.day > date(s.day, '-28 day') AND a.day <= s.day) AS mau FROM spine s ORDER BY s.day",
+          "queryType": "table",
+          "timeColumns": ["t"]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Stickiness (DAU/MAU)",
+      "description": "share of each day's 28-day active base that was active that day; roughly, how many days a month an active player shows up",
+      "gridPos": {
+        "x": 12,
+        "y": 6,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "WITH RECURSIVE activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)), spine(day) AS (SELECT date($__from / 1000, 'unixepoch') UNION ALL SELECT date(day, '+1 day') FROM spine WHERE day < date($__to / 1000, 'unixepoch')) SELECT CAST(strftime('%s', s.day) AS INTEGER) AS t, round(100.0 * (SELECT count(DISTINCT a.username) FROM activity a WHERE a.day = s.day) / nullif((SELECT count(DISTINCT a.username) FROM activity a WHERE a.day > date(s.day, '-28 day') AND a.day <= s.day), 0), 1) AS dau_mau FROM spine s ORDER BY s.day",
+          "rawQueryText": "WITH RECURSIVE activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)), spine(day) AS (SELECT date($__from / 1000, 'unixepoch') UNION ALL SELECT date(day, '+1 day') FROM spine WHERE day < date($__to / 1000, 'unixepoch')) SELECT CAST(strftime('%s', s.day) AS INTEGER) AS t, round(100.0 * (SELECT count(DISTINCT a.username) FROM activity a WHERE a.day = s.day) / nullif((SELECT count(DISTINCT a.username) FROM activity a WHERE a.day > date(s.day, '-28 day') AND a.day <= s.day), 0), 1) AS dau_mau FROM spine s ORDER BY s.day",
+          "queryType": "table",
+          "timeColumns": ["t"]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "New, returning and resurrected players",
+      "description": "new is a handle's first ever activity; returning was also active in the previous 28 days; resurrected had been away longer than that",
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "WITH activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)), first_seen AS (SELECT username, min(day) AS first_day FROM activity GROUP BY username), ranged AS (SELECT username, day FROM activity WHERE CAST(strftime('%s', day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', day) AS INTEGER) <= $__to / 1000) SELECT CAST(strftime('%s', r.day) AS INTEGER) AS t, count(DISTINCT CASE WHEN f.first_day = r.day THEN r.username END) AS new_players, count(DISTINCT CASE WHEN f.first_day < r.day AND EXISTS (SELECT 1 FROM activity a2 WHERE a2.username = r.username AND a2.day < r.day AND a2.day >= date(r.day, '-28 day')) THEN r.username END) AS returning_players, count(DISTINCT CASE WHEN f.first_day < r.day AND NOT EXISTS (SELECT 1 FROM activity a2 WHERE a2.username = r.username AND a2.day < r.day AND a2.day >= date(r.day, '-28 day')) THEN r.username END) AS resurrected_players FROM ranged r JOIN first_seen f USING(username) GROUP BY r.day ORDER BY r.day",
+          "rawQueryText": "WITH activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)), first_seen AS (SELECT username, min(day) AS first_day FROM activity GROUP BY username), ranged AS (SELECT username, day FROM activity WHERE CAST(strftime('%s', day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', day) AS INTEGER) <= $__to / 1000) SELECT CAST(strftime('%s', r.day) AS INTEGER) AS t, count(DISTINCT CASE WHEN f.first_day = r.day THEN r.username END) AS new_players, count(DISTINCT CASE WHEN f.first_day < r.day AND EXISTS (SELECT 1 FROM activity a2 WHERE a2.username = r.username AND a2.day < r.day AND a2.day >= date(r.day, '-28 day')) THEN r.username END) AS returning_players, count(DISTINCT CASE WHEN f.first_day < r.day AND NOT EXISTS (SELECT 1 FROM activity a2 WHERE a2.username = r.username AND a2.day < r.day AND a2.day >= date(r.day, '-28 day')) THEN r.username END) AS resurrected_players FROM ranged r JOIN first_seen f USING(username) GROUP BY r.day ORDER BY r.day",
+          "queryType": "table",
+          "timeColumns": ["t"]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 85,
+            "lineWidth": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 12,
+      "type": "barchart",
+      "title": "Days active per player",
+      "description": "how many distinct days each handle was active inside the range",
+      "gridPos": {
+        "x": 12,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "WITH activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)), per_player AS (SELECT username, count(DISTINCT day) AS days FROM activity WHERE CAST(strftime('%s', day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', day) AS INTEGER) <= $__to / 1000 GROUP BY username) SELECT CASE WHEN days = 1 THEN '1 day' WHEN days <= 3 THEN '2-3 days' WHEN days <= 7 THEN '4-7 days' WHEN days <= 14 THEN '8-14 days' ELSE '15+ days' END AS active_days, count(*) AS players, min(days) AS ord FROM per_player GROUP BY active_days ORDER BY ord",
+          "rawQueryText": "WITH activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)), per_player AS (SELECT username, count(DISTINCT day) AS days FROM activity WHERE CAST(strftime('%s', day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', day) AS INTEGER) <= $__to / 1000 GROUP BY username) SELECT CASE WHEN days = 1 THEN '1 day' WHEN days <= 3 THEN '2-3 days' WHEN days <= 7 THEN '4-7 days' WHEN days <= 14 THEN '8-14 days' ELSE '15+ days' END AS active_days, count(*) AS players, min(days) AS ord FROM per_player GROUP BY active_days ORDER BY ord",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ord"
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "viz": true,
+                  "legend": true,
+                  "tooltip": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "xField": "active_days",
+        "legend": {
+          "showLegend": false
+        },
+        "showValue": "always"
+      }
+    },
+    {
+      "id": 13,
+      "type": "row",
+      "title": "Do they come back?",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 14,
+      "type": "table",
+      "title": "Weekly cohort retention",
+      "description": "rows are the Monday of the week a handle first appeared; W1 is the share of that cohort active again 7-13 days later, W2 14-20 days, and so on. A cell is blank when the window has not fully elapsed yet, never zero.",
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 24,
+        "h": 10
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "WITH activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)), first_seen AS (SELECT username, min(day) AS first_day FROM activity GROUP BY username), cohorts AS (SELECT f.username, date(f.first_day, '-' || ((CAST(strftime('%w', f.first_day) AS INTEGER) + 6) % 7) || ' day') AS cohort_week FROM first_seen f WHERE CAST(strftime('%s', f.first_day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', f.first_day) AS INTEGER) <= $__to / 1000), weeks AS (SELECT c.cohort_week, c.username, CAST((julianday(a.day) - julianday(c.cohort_week)) / 7 AS INTEGER) AS week_index FROM cohorts c JOIN activity a ON a.username = c.username WHERE a.day >= c.cohort_week) SELECT c.cohort_week AS cohort, count(DISTINCT c.username) AS players, CASE WHEN date(c.cohort_week, '+14 day') > date('now') THEN NULL ELSE round(100.0 * count(DISTINCT CASE WHEN w.week_index = 1 THEN w.username END) / count(DISTINCT c.username), 0) END AS \"W1\", CASE WHEN date(c.cohort_week, '+21 day') > date('now') THEN NULL ELSE round(100.0 * count(DISTINCT CASE WHEN w.week_index = 2 THEN w.username END) / count(DISTINCT c.username), 0) END AS \"W2\", CASE WHEN date(c.cohort_week, '+28 day') > date('now') THEN NULL ELSE round(100.0 * count(DISTINCT CASE WHEN w.week_index = 3 THEN w.username END) / count(DISTINCT c.username), 0) END AS \"W3\", CASE WHEN date(c.cohort_week, '+35 day') > date('now') THEN NULL ELSE round(100.0 * count(DISTINCT CASE WHEN w.week_index = 4 THEN w.username END) / count(DISTINCT c.username), 0) END AS \"W4\", CASE WHEN date(c.cohort_week, '+42 day') > date('now') THEN NULL ELSE round(100.0 * count(DISTINCT CASE WHEN w.week_index = 5 THEN w.username END) / count(DISTINCT c.username), 0) END AS \"W5\", CASE WHEN date(c.cohort_week, '+49 day') > date('now') THEN NULL ELSE round(100.0 * count(DISTINCT CASE WHEN w.week_index = 6 THEN w.username END) / count(DISTINCT c.username), 0) END AS \"W6\", CASE WHEN date(c.cohort_week, '+56 day') > date('now') THEN NULL ELSE round(100.0 * count(DISTINCT CASE WHEN w.week_index = 7 THEN w.username END) / count(DISTINCT c.username), 0) END AS \"W7\", CASE WHEN date(c.cohort_week, '+63 day') > date('now') THEN NULL ELSE round(100.0 * count(DISTINCT CASE WHEN w.week_index = 8 THEN w.username END) / count(DISTINCT c.username), 0) END AS \"W8\" FROM cohorts c LEFT JOIN weeks w ON w.username = c.username GROUP BY c.cohort_week ORDER BY c.cohort_week DESC",
+          "rawQueryText": "WITH activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)), first_seen AS (SELECT username, min(day) AS first_day FROM activity GROUP BY username), cohorts AS (SELECT f.username, date(f.first_day, '-' || ((CAST(strftime('%w', f.first_day) AS INTEGER) + 6) % 7) || ' day') AS cohort_week FROM first_seen f WHERE CAST(strftime('%s', f.first_day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', f.first_day) AS INTEGER) <= $__to / 1000), weeks AS (SELECT c.cohort_week, c.username, CAST((julianday(a.day) - julianday(c.cohort_week)) / 7 AS INTEGER) AS week_index FROM cohorts c JOIN activity a ON a.username = c.username WHERE a.day >= c.cohort_week) SELECT c.cohort_week AS cohort, count(DISTINCT c.username) AS players, CASE WHEN date(c.cohort_week, '+14 day') > date('now') THEN NULL ELSE round(100.0 * count(DISTINCT CASE WHEN w.week_index = 1 THEN w.username END) / count(DISTINCT c.username), 0) END AS \"W1\", CASE WHEN date(c.cohort_week, '+21 day') > date('now') THEN NULL ELSE round(100.0 * count(DISTINCT CASE WHEN w.week_index = 2 THEN w.username END) / count(DISTINCT c.username), 0) END AS \"W2\", CASE WHEN date(c.cohort_week, '+28 day') > date('now') THEN NULL ELSE round(100.0 * count(DISTINCT CASE WHEN w.week_index = 3 THEN w.username END) / count(DISTINCT c.username), 0) END AS \"W3\", CASE WHEN date(c.cohort_week, '+35 day') > date('now') THEN NULL ELSE round(100.0 * count(DISTINCT CASE WHEN w.week_index = 4 THEN w.username END) / count(DISTINCT c.username), 0) END AS \"W4\", CASE WHEN date(c.cohort_week, '+42 day') > date('now') THEN NULL ELSE round(100.0 * count(DISTINCT CASE WHEN w.week_index = 5 THEN w.username END) / count(DISTINCT c.username), 0) END AS \"W5\", CASE WHEN date(c.cohort_week, '+49 day') > date('now') THEN NULL ELSE round(100.0 * count(DISTINCT CASE WHEN w.week_index = 6 THEN w.username END) / count(DISTINCT c.username), 0) END AS \"W6\", CASE WHEN date(c.cohort_week, '+56 day') > date('now') THEN NULL ELSE round(100.0 * count(DISTINCT CASE WHEN w.week_index = 7 THEN w.username END) / count(DISTINCT c.username), 0) END AS \"W7\", CASE WHEN date(c.cohort_week, '+63 day') > date('now') THEN NULL ELSE round(100.0 * count(DISTINCT CASE WHEN w.week_index = 8 THEN w.username END) / count(DISTINCT c.username), 0) END AS \"W8\" FROM cohorts c LEFT JOIN weeks w ON w.username = c.username GROUP BY c.cohort_week ORDER BY c.cohort_week DESC",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "W[1-8]"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 100
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-blues"
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {}
+    },
+    {
+      "id": 15,
+      "type": "trend",
+      "title": "Returned within N days of first activity",
+      "description": "share of new handles that came back at least once within N days. Pooled across cohorts, and each point counts only handles old enough to have had N days to return, so the curve does not sag at the right edge.",
+      "gridPos": {
+        "x": 0,
+        "y": 33,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "WITH RECURSIVE activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)), first_seen AS (SELECT username, min(day) AS first_day FROM activity GROUP BY username), eligible AS (SELECT username, first_day FROM first_seen WHERE CAST(strftime('%s', first_day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', first_day) AS INTEGER) <= $__to / 1000), horizon(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM horizon WHERE n < 30) SELECT h.n AS days_since_first, round(100.0 * (SELECT count(*) FROM eligible e WHERE julianday(date('now')) - julianday(e.first_day) >= h.n AND EXISTS (SELECT 1 FROM activity a WHERE a.username = e.username AND a.day > e.first_day AND a.day <= date(e.first_day, '+' || h.n || ' day'))) / nullif((SELECT count(*) FROM eligible e WHERE julianday(date('now')) - julianday(e.first_day) >= h.n), 0), 1) AS returned_pct FROM horizon h ORDER BY h.n",
+          "rawQueryText": "WITH RECURSIVE activity AS (SELECT DISTINCT p.username AS username, date(g.started_at) AS day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL AND '$base' IN ('played', 'any') UNION SELECT DISTINCT c.username, date(c.ts) FROM client_connections c WHERE '$base' IN ('connected', 'any') AND c.username NOT IN (SELECT username FROM game_players WHERE is_bot = 1)), first_seen AS (SELECT username, min(day) AS first_day FROM activity GROUP BY username), eligible AS (SELECT username, first_day FROM first_seen WHERE CAST(strftime('%s', first_day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', first_day) AS INTEGER) <= $__to / 1000), horizon(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM horizon WHERE n < 30) SELECT h.n AS days_since_first, round(100.0 * (SELECT count(*) FROM eligible e WHERE julianday(date('now')) - julianday(e.first_day) >= h.n AND EXISTS (SELECT 1 FROM activity a WHERE a.username = e.username AND a.day > e.first_day AND a.day <= date(e.first_day, '+' || h.n || ' day'))) / nullif((SELECT count(*) FROM eligible e WHERE julianday(date('now')) - julianday(e.first_day) >= h.n), 0), 1) AS returned_pct FROM horizon h ORDER BY h.n",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "always"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "xField": "days_since_first",
+        "legend": {
+          "showLegend": false
+        }
+      }
+    }
+  ]
+}

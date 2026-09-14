@@ -10,6 +10,7 @@ import {
 import { platformFetch } from "@/lib/platformFetch";
 import { getPlatformType } from "@/platform";
 import { loadScryfallImage } from "@/lib/scryfallImageSource";
+import { scryfallAssetUrl, scryfallAssetsMirrored } from "@/lib/scryfallAssets";
 import {
   enqueueCardLookup,
   matchesIdentifier,
@@ -236,7 +237,7 @@ export async function fetchSets(): Promise<ScryfallSet[]> {
     `${SCRYFALL_API}/sets`,
     "Failed to fetch sets from Scryfall",
   );
-  return data.data;
+  return data.data.map((set) => ({ ...set, icon_svg_uri: scryfallAssetUrl(set.icon_svg_uri) }));
 }
 
 export async function fetchCardsBySet(setCode: string): Promise<ScryfallCard[]> {
@@ -261,24 +262,6 @@ export async function fetchCardsBySet(setCode: string): Promise<ScryfallCard[]> 
 
 const SCRYFALL_IMAGE_MAX_RETRIES = 3;
 
-// cards.scryfall.io intermittently serves cached objects with NO CORS headers
-// (verified 2026-07-15: `access-control-allow-origin` absent even with an
-// Origin header, while svgs.scryfall.io still sends it), which makes every
-// cors-mode fetch fail — and WebGL textures need cors-clean pixels, so a
-// plain-<img> fallback can't save the Pixi board. Cache-busting is not an
-// option either: the CDN 403s any unknown query param (the `mbcors=1`
-// partition attempt turned soft failures into hard ones). Instead, card
-// images are fetched same-origin through the `/scryfall-img/` proxy route
-// (ops/Caddyfile + staging/standalone Caddyfiles in prod, the vite dev proxy
-// locally) — same-origin needs no CORS at all. The direct CDN stays as the
-// fallback for deployments without the route.
-const SCRYFALL_IMAGE_CDN_PREFIX = "https://cards.scryfall.io/";
-
-function scryfallImageProxyUrl(url: string): string | null {
-  if (!url.startsWith(SCRYFALL_IMAGE_CDN_PREFIX)) return null;
-  return `/scryfall-img/${url.slice(SCRYFALL_IMAGE_CDN_PREFIX.length)}`;
-}
-
 async function fetchImageBlob(url: string): Promise<string> {
   const response = await fetch(url, {
     cache: "no-store",
@@ -287,19 +270,6 @@ async function fetchImageBlob(url: string): Promise<string> {
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return URL.createObjectURL(await response.blob());
-}
-
-async function fetchImageBlobNoCache(url: string): Promise<string> {
-  const proxied = scryfallImageProxyUrl(url);
-  if (proxied) {
-    try {
-      return await fetchImageBlob(proxied);
-    } catch {
-      // Proxy route missing or down — the direct CDN works whenever
-      // scryfall's CORS headers are healthy.
-    }
-  }
-  return await fetchImageBlob(url);
 }
 
 function loadImageElement(
@@ -331,7 +301,7 @@ export async function fetchImageElement(url: string): Promise<HTMLImageElement> 
   let lastError: unknown;
   for (let attempt = 0; attempt <= SCRYFALL_IMAGE_MAX_RETRIES; attempt += 1) {
     try {
-      const objectUrl = await fetchImageBlobNoCache(url);
+      const objectUrl = await fetchImageBlob(url);
       return await loadImageElement(objectUrl, url, true);
     } catch (err) {
       lastError = err;
@@ -363,8 +333,10 @@ export function isManaCode(value: string): value is ManaCode {
 
 export const manaSymbolUrl = (code: ManaCode) => {
   const filename = MANA_CODE_FILE_OVERRIDES[code] ?? code.replace(/\//g, "");
+  const file = `${encodeURIComponent(filename)}.svg`;
+  if (scryfallAssetsMirrored)
+    return scryfallAssetUrl(`https://svgs.scryfall.io/card-symbols/${file}`);
   const defaultBase =
     getPlatformType() === "web" ? "/scryfall-symbols/" : "https://svgs.scryfall.io/card-symbols/";
-  const base = import.meta.env.VITE_SCRYFALL_SYMBOL_BASE || defaultBase;
-  return `${base}${encodeURIComponent(filename)}.svg`;
+  return `${import.meta.env.VITE_SCRYFALL_SYMBOL_BASE || defaultBase}${file}`;
 };

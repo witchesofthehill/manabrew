@@ -11,7 +11,8 @@ export const PORTRAIT_QUERY = "(orientation: portrait)";
 export const LANDSCAPE_GATE_MAX_WIDTH_QUERY = "(max-width: 640px)";
 
 export const LONG_PRESS_PREVIEW_MS = 450;
-export const LONG_PRESS_CANCEL_DIST_SQ = 100;
+export const TOUCH_MOVE_SLOP_PX = 10;
+export const LONG_PRESS_CANCEL_DIST_SQ = TOUCH_MOVE_SLOP_PX ** 2;
 
 export function isCoarsePointer(): boolean {
   return typeof window !== "undefined" && window.matchMedia(COARSE_POINTER_QUERY).matches;

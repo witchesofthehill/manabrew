@@ -29,15 +29,19 @@ import {
   fitPromptCardDimensions,
   promptCardDisplayDimensions as getPromptCardDisplayDimensions,
 } from "@/components/game/game.utils";
+import { computePreviewCardDimensions } from "@/components/game/cardPreviewLayout";
+import { getSafeAreaInsets } from "@/lib/safeArea";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { type PromptActionViewKey } from "@/stores/useGameDevStore";
 import { resolveCombo, useKeybindingsStore } from "@/stores/useKeybindingsStore";
 import { comboFromEvent, combosMatch, formatCombo } from "@/lib/keybindings";
+import { isCoarsePointer } from "@/lib/responsive";
 import type { CardDto } from "@/protocol";
 import { PromptButton, type PromptButtonOptions } from "./PromptButton";
 import { PromptGlow } from "./PromptGlow";
 import { LongPressGesture } from "@/pixi/LongPressGesture";
+import type { ScreenBounds } from "@/pixi/types";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
 import {
@@ -413,7 +417,11 @@ function sameActionPresentation(
       left.targetCompletionKind === right.targetCompletionKind &&
       !!left.onCompleteTargets === !!right.onCompleteTargets &&
       !!left.onOpenCombat === !!right.onOpenCombat &&
+      left.compactPhaseControl?.color === right.compactPhaseControl?.color &&
+      !!left.compactPhaseControl?.onOpen === !!right.compactPhaseControl?.onOpen &&
+      !!left.compactPhaseControl?.pulse === !!right.compactPhaseControl?.pulse &&
       left.isMyTurn === right.isMyTurn &&
+      left.step === right.step &&
       samePayManaInfo(left.payManaCostInfo, right.payManaCostInfo) &&
       left.mulliganCount === right.mulliganCount &&
       !!left.onMulliganKeep === !!right.onMulliganKeep &&
@@ -484,6 +492,10 @@ export abstract class PromptLayerBase {
       ? this.viewportWidth
       : Math.min(this.viewportWidth, this.viewportRight);
   }
+  get compactAction(): boolean {
+    return this.viewportHeight <= 520 && isCoarsePointer();
+  }
+
   protected actionBounds: Rectangle | null = null;
   protected modalOpen = false;
   protected selectedIds = new Set<string>();
@@ -557,6 +569,8 @@ export abstract class PromptLayerBase {
   protected entranceKey: object | string | null = null;
   protected entranceTween: gsap.core.Tween | null = null;
   protected actionLongPress = new LongPressGesture();
+  protected promptCardLongPress = new LongPressGesture();
+  protected promptCardPointerId: number | null = null;
   protected selectionFilter = "";
   protected selectionFilterFocused = false;
   protected selectionFilterBlinkAt = 0;
@@ -735,25 +749,35 @@ export abstract class PromptLayerBase {
     );
   }
 
-  protected promptSourceCardDimensions(): {
+  protected promptSourceCardDisplayDimensions(): {
     width: number;
     height: number;
   } {
-    return fitPromptCardDimensions(this.layoutWidth - PANEL_PADDING * 2 - 24, this.viewportHeight);
+    const sourceCard = this.promptSourceCard();
+    if (!sourceCard) return { width: 0, height: 0 };
+    const naturalSize = this.promptCardDisplayDimensions(sourceCard, GAME_CARD_SIZES.preview.width);
+    const safe = getSafeAreaInsets();
+    return computePreviewCardDimensions({
+      usableWidth: this.layoutWidth - safe.left - safe.right,
+      usableHeight: this.viewportHeight - safe.top - safe.bottom,
+      horizontal: naturalSize.width > naturalSize.height,
+    });
   }
 
   protected modalPromptWidth(maxWidth: number): number {
     const viewportWidth = this.layoutWidth - 24;
     const sourceCard = this.promptSourceCard();
+    if (this.compactAction) {
+      if (!sourceCard) return viewportWidth;
+      return Math.max(
+        0,
+        viewportWidth - this.promptSourceCardDisplayDimensions().width - SOURCE_CARD_GAP,
+      );
+    }
     if (!sourceCard) return Math.min(maxWidth, viewportWidth);
-    const sourceWidth = this.promptCardDisplayDimensions(
-      sourceCard,
-      this.promptSourceCardDimensions().width,
-    ).width;
-    const widthWithSourceCard = viewportWidth - sourceWidth - SOURCE_CARD_GAP;
-    return widthWithSourceCard >= 320
-      ? Math.min(maxWidth, widthWithSourceCard)
-      : Math.min(maxWidth, viewportWidth);
+    const widthWithSourceCard =
+      viewportWidth - this.promptSourceCardDisplayDimensions().width - SOURCE_CARD_GAP;
+    return Math.min(maxWidth, Math.max(0, widthWithSourceCard));
   }
 
   protected promptCardState(card: CardDto): PromptCardDisplayState {
@@ -798,6 +822,45 @@ export abstract class PromptLayerBase {
     else if (sprite.horizontalFrame) state.horizontalFlipped = !state.horizontalFlipped;
     else return;
     this.rebuild();
+  }
+  protected bindPromptCardLongPress(
+    target: Container,
+    card: CardDto,
+    sprite: CardSprite,
+    stopPropagation = false,
+  ): void {
+    target.on("pointerdown", (event: FederatedPointerEvent) => {
+      if (event.pointerType !== "touch") return;
+      if (stopPropagation) event.stopPropagation();
+      this.promptCardPointerId = event.pointerId;
+      this.promptCardLongPress.start(event, card.id, () => {
+        const bounds = sprite.getBounds();
+        const screenBounds: ScreenBounds = {
+          x: bounds.x,
+          y: bounds.y,
+          width: bounds.width,
+          height: bounds.height,
+        };
+        this.callbacks.onLongPressCard?.(card, screenBounds);
+      });
+    });
+    target.on("globalpointermove", (event: FederatedPointerEvent) => {
+      if (event.pointerId === this.promptCardPointerId) {
+        this.promptCardLongPress.move(event.global.x, event.global.y);
+      }
+    });
+    const finish = (event: FederatedPointerEvent) => {
+      if (event.pointerId !== this.promptCardPointerId) return;
+      this.promptCardPointerId = null;
+      this.promptCardLongPress.cancel();
+      this.promptCardLongPress.releaseFired();
+    };
+    target.on("pointerup", finish);
+    target.on("pointerupoutside", finish);
+    target.on("pointercancel", finish);
+    target.on("pointertapcapture", (event: FederatedPointerEvent) => {
+      if (this.promptCardLongPress.consumeTap(card.id)) event.stopImmediatePropagation();
+    });
   }
 
   protected bindPromptCardActivation(
@@ -892,6 +955,7 @@ export abstract class PromptLayerBase {
     target.on("pointerdowncapture", activate);
     target.on("focusin", activate);
     target.on("focusout", deactivate);
+    this.bindPromptCardLongPress(target, card, sprite);
   }
 
   hitTestRules(x: number, y: number): boolean {

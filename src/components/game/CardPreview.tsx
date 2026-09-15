@@ -38,6 +38,7 @@ interface CardPreviewProps {
   mouseY: number;
   anchorRect?: DOMRect | null;
   placement?: "auto" | "top-center" | "pinned";
+  viewportRight?: number;
   phase?: "open" | "closing";
   suppressed?: boolean;
   showBackFace?: boolean;
@@ -122,6 +123,7 @@ export function CardPreview({
   mouseY,
   anchorRect,
   placement = "auto",
+  viewportRight,
   phase = "open",
   suppressed = false,
   skipEnterAnimation = false,
@@ -326,6 +328,7 @@ export function CardPreview({
     horizontal,
     hasPanel: showSidePanel,
     panelHeight,
+    viewportRight,
     slot: slot ?? null,
   });
   const { cardLeft, top, cardWidth, cardHeight, sidePanelWidth, panelSide } = layout;
@@ -372,7 +375,7 @@ export function CardPreview({
           slot
             ? "relative w-full h-full flex items-start justify-start pointer-events-none"
             : cn(
-                "fixed z-[9999]",
+                "fixed z-[10001]",
                 placement !== "pinned" && interactive && (showSidePanel || hasPreviewControls)
                   ? "pointer-events-auto"
                   : "pointer-events-none",

@@ -41,6 +41,7 @@ export const ZONE_BADGES: Record<string, { icon: string; label: string }> = {
   [ZONE_TILE_KEY.library]: { icon: "deck", label: "Library" },
   [ZONE_TILE_KEY.graveyard]: { icon: "graveyard", label: "Graveyard" },
   [ZONE_TILE_KEY.exile]: { icon: "exile", label: "Exile" },
+  [ZONE_TILE_KEY.command]: { icon: "overlord-helm", label: "Command zone" },
 };
 
 /** Standard MTG card back image, served by Scryfall's canonical backs CDN.
@@ -86,15 +87,11 @@ export const CARD_BADGES = {
 export const ACTION_DRAWER_BUMP_EVENT = "actiondrawer:bump";
 
 const PREVIEW_CARD_SIZE = { width: 300, height: 420 } as const;
-const PROMPT_CARD_LINEAR_SCALE = Math.sqrt(0.7);
 
 export const GAME_CARD_SIZES = {
   battlefield: { width: 70, height: 98 },
   hand: { width: 130, height: 182 },
-  prompt: {
-    width: PREVIEW_CARD_SIZE.width * PROMPT_CARD_LINEAR_SCALE,
-    height: PREVIEW_CARD_SIZE.height * PROMPT_CARD_LINEAR_SCALE,
-  },
+  prompt: PREVIEW_CARD_SIZE,
   preview: PREVIEW_CARD_SIZE,
 } as const;
 export const CARD_W = GAME_CARD_SIZES.battlefield.width;

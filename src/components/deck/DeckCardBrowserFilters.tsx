@@ -113,7 +113,7 @@ function ViewControl({
             aria-label={`${option.label} view`}
             aria-pressed={value === option.value}
             className={cn(
-              "flex h-8 w-8 items-center justify-center border-r text-muted-foreground transition-colors last:border-r-0 pointer-coarse:h-10 pointer-coarse:w-10",
+              "flex h-8 w-8 items-center justify-center border-r text-muted-foreground transition-colors last:border-r-0 pointer-coarse:h-11 pointer-coarse:w-11",
               value === option.value ? "bg-selection text-selection-foreground" : "hover:bg-muted",
             )}
             onClick={() => onChange(option.value)}
@@ -143,7 +143,7 @@ function ColorControl({
           aria-label={`Filter by ${COLOR_LABELS[color]} identity`}
           aria-pressed={colors.includes(color)}
           className={cn(
-            "flex h-8 w-8 items-center justify-center rounded opacity-45 transition-opacity hover:opacity-80 pointer-coarse:h-10 pointer-coarse:w-10",
+            "flex h-8 w-8 items-center justify-center rounded opacity-45 transition-opacity hover:opacity-80 pointer-coarse:h-11 pointer-coarse:w-11",
             colors.includes(color) && "bg-selection/15 opacity-100 ring-1 ring-selection",
           )}
           onClick={() => onToggle(color)}

@@ -28,6 +28,7 @@ interface DialogCardPickerGridProps {
   defaultRules: boolean;
   actionable: boolean;
   pending: boolean;
+  ringColor: string;
   onSelect: (id: string) => void;
   onActivate?: (item: CardBrowserItem) => void;
   onHover: (id: string | null) => void;
@@ -42,6 +43,7 @@ export function DialogCardPickerGrid({
   defaultRules,
   actionable,
   pending,
+  ringColor,
   onSelect,
   onActivate,
   onHover,
@@ -243,6 +245,7 @@ export function DialogCardPickerGrid({
           height={viewport.height}
           actionable={actionable}
           pending={pending}
+          ringColor={ringColor}
           onSelect={onSelect}
           onActivate={onActivate}
           onHover={onHover}

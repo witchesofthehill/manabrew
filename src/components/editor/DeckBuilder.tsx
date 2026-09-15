@@ -6,6 +6,7 @@ import { useGameDevStore } from "@/stores/useGameDevStore";
 import { PublishDeckDialog } from "@/components/deck/PublishDeckDialog";
 import { DeckVersionHistoryDialog } from "@/components/deck/DeckVersionHistoryDialog";
 import { useKeybindings } from "@/hooks/useKeybindings";
+import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { Button } from "@/components/ui/button";
 import { PrintPickerModal } from "./PrintPickerModal";
 import { Input } from "@/components/ui/input";
@@ -188,6 +189,9 @@ export function DeckBuilder({
   onDeckDeleted?: () => void;
 } = {}) {
   const navigate = useNavigate();
+  const shortScreen = useIsShortScreen();
+  const isTouch = useIsTouch();
+  const shortTouch = shortScreen && isTouch;
   const hubEnabled = isFeatureEnabled("deckHub");
   const accountsEnabled = isFeatureEnabled("accounts");
   const publishEnabled = hubEnabled && accountsEnabled;
@@ -1535,12 +1539,22 @@ export function DeckBuilder({
         <span key={announcement.id}>{announcement.message}</span>
       </div>
       {isReadOnly && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-warning/40 bg-warning/10 px-3 py-2">
+        <div
+          className={cn(
+            "flex shrink-0 flex-wrap items-center gap-2 border-b border-warning/40 bg-warning/10 px-3 py-2",
+            shortTouch && "flex-nowrap px-3 py-1",
+          )}
+        >
           <Bookmark className="h-3.5 w-3.5 text-warning shrink-0" />
           <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-warning">
             {readOnlySource === "hub" ? "Hub snapshot" : "Starter deck"} — read only
           </span>
-          <span className="hidden min-w-0 flex-1 truncate text-xs text-warning/70 sm:block">
+          <span
+            className={cn(
+              "hidden min-w-0 flex-1 truncate text-xs text-warning/70 sm:block",
+              shortTouch && "sm:hidden",
+            )}
+          >
             Browse the cards below. Editing is locked.
           </span>
           <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -1548,7 +1562,7 @@ export function DeckBuilder({
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 pointer-coarse:h-10"
+                className="h-7 pointer-coarse:h-11"
                 onClick={() => {
                   if (!currentDeck.id) return;
                   navigate(
@@ -1563,7 +1577,7 @@ export function DeckBuilder({
             <Button
               variant="primary"
               size="sm"
-              className="h-7 pointer-coarse:h-10"
+              className="h-7 pointer-coarse:h-11"
               onClick={handleImportReadOnlyDeck}
             >
               <Plus className="h-3.5 w-3.5 mr-1" />
@@ -1586,20 +1600,28 @@ export function DeckBuilder({
             }
           />
 
-          <div className="sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b bg-background/85 px-3 py-2 backdrop-blur-md max-sm:flex-nowrap max-sm:overflow-x-auto">
+          <div
+            className={cn(
+              "sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b bg-background/85 px-3 py-2 backdrop-blur-md max-sm:flex-nowrap max-sm:overflow-x-auto",
+              shortTouch &&
+                "flex-nowrap overflow-x-auto py-1.5 pr-8 no-scrollbar touch-scroll-fade",
+            )}
+          >
             {!isReadOnly && <DeckHistoryControls />}
-            <DeckStatusSummary
-              legalityErrors={deckValidation.errors.length}
-              unsupportedCards={unsupportedNames.size}
-              collectionGaps={collectionGapCount}
-              budgetTracked={currentDeck.editor?.budgetAmount !== undefined}
-              onNavigate={navigateToDeckStatus}
-            />
+            {!shortTouch && (
+              <DeckStatusSummary
+                legalityErrors={deckValidation.errors.length}
+                unsupportedCards={unsupportedNames.size}
+                collectionGaps={collectionGapCount}
+                budgetTracked={currentDeck.editor?.budgetAmount !== undefined}
+                onNavigate={navigateToDeckStatus}
+              />
+            )}
             <div className="relative shrink-0 w-32">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
               <Input
                 ref={filterInputRef}
-                className="h-6 text-xs pl-6 pr-6 pointer-coarse:h-9 pointer-coarse:text-base"
+                className="h-6 pl-6 pr-6 text-xs pointer-coarse:h-11 pointer-coarse:text-base"
                 placeholder="Filter…"
                 title="Filter by name or use tag:, type:, color:, section:, mv>=, is:owned, is:missing, is:partial, is:foil, is:combo, and - to negate"
                 value={deckFilter}
@@ -1637,45 +1659,51 @@ export function DeckBuilder({
                 <X className="h-3 w-3" />
               </button>
             )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md border shrink-0 transition-colors">
-                  <Group className="h-3 w-3" />
-                  <span>{GROUP_BY_OPTIONS.find((o) => o.value === groupBy)?.label}</span>
-                  <ChevronDown className="h-2.5 w-2.5 opacity-60" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                {GROUP_BY_OPTIONS.map((opt) => (
-                  <DropdownMenuItem
-                    key={opt.value}
-                    onSelect={() => setGroupBy(opt.value)}
-                    className={cn(groupBy === opt.value && "bg-muted font-medium")}
-                  >
-                    {opt.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
-                  <span>Sort: {SORT_OPTIONS.find((option) => option.value === sortBy)?.label}</span>
-                  <ChevronDown className="h-2.5 w-2.5 opacity-60" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                {SORT_OPTIONS.map((option) => (
-                  <DropdownMenuItem
-                    key={option.value}
-                    onSelect={() => setSortBy(option.value)}
-                    className={cn(sortBy === option.value && "bg-muted font-medium")}
-                  >
-                    {option.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {!shortTouch && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md border shrink-0 transition-colors">
+                    <Group className="h-3 w-3" />
+                    <span>{GROUP_BY_OPTIONS.find((o) => o.value === groupBy)?.label}</span>
+                    <ChevronDown className="h-2.5 w-2.5 opacity-60" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {GROUP_BY_OPTIONS.map((opt) => (
+                    <DropdownMenuItem
+                      key={opt.value}
+                      onSelect={() => setGroupBy(opt.value)}
+                      className={cn(groupBy === opt.value && "bg-muted font-medium")}
+                    >
+                      {opt.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            {!shortTouch && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
+                    <span>
+                      Sort: {SORT_OPTIONS.find((option) => option.value === sortBy)?.label}
+                    </span>
+                    <ChevronDown className="h-2.5 w-2.5 opacity-60" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {SORT_OPTIONS.map((option) => (
+                    <DropdownMenuItem
+                      key={option.value}
+                      onSelect={() => setSortBy(option.value)}
+                      className={cn(sortBy === option.value && "bg-muted font-medium")}
+                    >
+                      {option.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             <DeckLayoutMenu
               compact
               groupBy={groupBy}
@@ -1700,31 +1728,33 @@ export function DeckBuilder({
                 setCollectionFilter(nextCollectionFilter);
               }}
             />
-            <div className="flex rounded-md border overflow-hidden shrink-0">
-              {(
-                [
-                  ["list", List],
-                  ["visual", LayoutGrid],
-                  ["stack", Layers],
-                ] as const
-              ).map(([mode, Icon]) => (
-                <button
-                  key={mode}
-                  type="button"
-                  title={mode.charAt(0).toUpperCase() + mode.slice(1)}
-                  onClick={() => setViewMode(mode)}
-                  className={cn(
-                    "p-1 transition-colors border-r last:border-r-0",
-                    viewMode === mode
-                      ? "bg-selection text-selection-foreground"
-                      : "hover:bg-muted text-muted-foreground",
-                  )}
-                >
-                  <Icon className="h-3 w-3" />
-                </button>
-              ))}
-            </div>
-            {viewMode !== "list" && (
+            {!shortTouch && (
+              <div className="flex rounded-md border overflow-hidden shrink-0">
+                {(
+                  [
+                    ["list", List],
+                    ["visual", LayoutGrid],
+                    ["stack", Layers],
+                  ] as const
+                ).map(([mode, Icon]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    title={mode.charAt(0).toUpperCase() + mode.slice(1)}
+                    onClick={() => setViewMode(mode)}
+                    className={cn(
+                      "p-1 transition-colors border-r last:border-r-0",
+                      viewMode === mode
+                        ? "bg-selection text-selection-foreground"
+                        : "hover:bg-muted text-muted-foreground",
+                    )}
+                  >
+                    <Icon className="h-3 w-3" />
+                  </button>
+                ))}
+              </div>
+            )}
+            {!shortTouch && viewMode !== "list" && (
               <input
                 type="range"
                 min={1}
@@ -1798,7 +1828,7 @@ export function DeckBuilder({
                 }}
               />
             </div>
-            {!isReadOnly && (
+            {!shortTouch && !isReadOnly && (
               <span className="shrink-0 text-[11px] text-muted-foreground" aria-live="polite">
                 {isSaving || syncState === "saving"
                   ? "Saving…"
@@ -1814,22 +1844,11 @@ export function DeckBuilder({
               </span>
             )}
 
-            {!isReadOnly && (
+            {!shortTouch && !isReadOnly && (
               <DeckChangeSummary currentDeck={currentDeck} savedDeck={lastSavedDeck} />
             )}
 
-            {isReadOnly ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled
-                className="h-7 shrink-0 gap-1 text-xs text-muted-foreground/60"
-                title="Make an editable copy to enable saving"
-              >
-                <Save className="h-3.5 w-3.5" />
-                Save
-              </Button>
-            ) : (
+            {!isReadOnly && (
               <Button
                 size="sm"
                 variant={
@@ -1866,153 +1885,155 @@ export function DeckBuilder({
               </Button>
             )}
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-7 w-7 shrink-0"
-                  disabled={isReadOnly}
-                  aria-label="Deck actions"
-                >
-                  <EllipsisVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onSelect={() => setCommandPaletteOpen(true)}>
-                  <CommandIcon className="mr-2 h-3.5 w-3.5" /> Command palette
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={openDeckEditorWelcome}>
-                  <BookOpen className="mr-2 h-3.5 w-3.5" /> Deck editor guide
-                </DropdownMenuItem>
-                {onToggleSearch && (
-                  <DropdownMenuItem onSelect={onToggleSearch}>
-                    <Search className="mr-2 h-3.5 w-3.5" /> Card search
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onSelect={() => setAllDeckSectionsExpanded(false)}>
-                  <FoldVertical className="mr-2 h-3.5 w-3.5" /> Collapse all sections
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setAllDeckSectionsExpanded(true)}>
-                  <UnfoldVertical className="mr-2 h-3.5 w-3.5" /> Expand all sections
-                </DropdownMenuItem>
-                <div className="my-1 border-t" />
-                <DropdownMenuItem onSelect={() => setImportOpen(true)}>
-                  <ListPlus className="mr-2 h-3.5 w-3.5" /> Import list
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={handleExport}
-                  disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
-                >
-                  <ClipboardCopy className="h-3.5 w-3.5 mr-2" /> Export to clipboard
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={handleExactExport}>
-                  <Images className="mr-2 h-3.5 w-3.5" /> Export exact printings
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => {
-                    setBatchPrintingSelectionOnly(false);
-                    setBatchPrintingOpen(true);
-                  }}
-                >
-                  <Images className="mr-2 h-3.5 w-3.5" /> Change deck printings
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setPrintingOptimizerOpen(true)}>
-                  <Sparkles className="mr-2 h-3.5 w-3.5" /> Optimize deck printings
-                </DropdownMenuItem>
-                {publishEnabled && (
-                  <DropdownMenuItem
-                    onSelect={() => setPublishOpen(true)}
-                    disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
+            {!isReadOnly && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 shrink-0"
+                    disabled={isReadOnly}
+                    aria-label="Deck actions"
                   >
-                    <Share2 className="h-3.5 w-3.5 mr-2" /> Publish to Community
+                    <EllipsisVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onSelect={() => setCommandPaletteOpen(true)}>
+                    <CommandIcon className="mr-2 h-3.5 w-3.5" /> Command palette
                   </DropdownMenuItem>
-                )}
-                {accountsEnabled &&
-                  accountSavedDeck?.accountDeckId &&
-                  accountSavedDeck.accountVersionNo && (
-                    <DropdownMenuItem onSelect={() => setHistoryOpen(true)}>
-                      <History className="mr-2 h-3.5 w-3.5" /> Version history
+                  <DropdownMenuItem onSelect={openDeckEditorWelcome}>
+                    <BookOpen className="mr-2 h-3.5 w-3.5" /> Deck editor guide
+                  </DropdownMenuItem>
+                  {onToggleSearch && (
+                    <DropdownMenuItem onSelect={onToggleSearch}>
+                      <Search className="mr-2 h-3.5 w-3.5" /> Card search
                     </DropdownMenuItem>
                   )}
-                <DropdownMenuItem onSelect={handleSaveDraft}>
-                  <FileBox className="h-3.5 w-3.5 mr-2" /> Save as draft
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setCheckpointsOpen(true)}>
-                  <History className="mr-2 h-3.5 w-3.5" /> Local checkpoints
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setSideboardPlansOpen(true)}>
-                  <ListPlus className="mr-2 h-3.5 w-3.5" /> Sideboard plans
-                </DropdownMenuItem>
-                <div className="border-t my-1" />
-                <DropdownMenuItem onSelect={() => setLabelsOpen(true)}>
-                  <Palette className="h-3.5 w-3.5 mr-2" /> Deck labels
-                  {(currentDeck.labels?.length ?? 0) > 0 && (
-                    <span className="ml-auto text-[10px] text-muted-foreground">
-                      {currentDeck.labels!.length}
-                    </span>
-                  )}
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                  <Bookmark className="h-3.5 w-3.5 mr-2" /> Tags
-                  {(currentDeck.customTags?.length ?? 0) > 0 && (
-                    <span className="ml-auto text-[10px] text-muted-foreground">
-                      {currentDeck.customTags!.length}
-                    </span>
-                  )}
-                </DropdownMenuItem>
-                {(currentDeck.customTags ?? []).length > 0 && (
-                  <>
-                    {(currentDeck.customTags ?? []).map((tag) => (
-                      <DropdownMenuItem
-                        key={tag}
-                        className="text-xs pl-8 justify-between"
-                        onSelect={(e) => e.preventDefault()}
-                      >
-                        <span>{tag}</span>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-5 w-5 text-destructive shrink-0"
-                          onClick={() => {
-                            executeDeckEdit(`Remove ${tag} tag`, () => removeCustomTag(tag));
-                            toast.success(`Tag "${tag}" removed`);
-                          }}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </DropdownMenuItem>
-                    ))}
-                  </>
-                )}
-                <div className="px-2 py-1.5">
-                  <Input
-                    className="h-7 text-xs"
-                    placeholder="New tag…"
-                    value={newTagInput}
-                    onChange={(e) => setNewTagInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      e.stopPropagation();
-                      if (e.key === "Enter" && newTagInput.trim()) {
-                        executeDeckEdit(`Create ${newTagInput.trim()} tag`, () =>
-                          addCustomTag(newTagInput.trim()),
-                        );
-                        toast.success(`Tag "${newTagInput.trim()}" added`);
-                        setNewTagInput("");
-                      }
+                  <DropdownMenuItem onSelect={() => setAllDeckSectionsExpanded(false)}>
+                    <FoldVertical className="mr-2 h-3.5 w-3.5" /> Collapse all sections
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setAllDeckSectionsExpanded(true)}>
+                    <UnfoldVertical className="mr-2 h-3.5 w-3.5" /> Expand all sections
+                  </DropdownMenuItem>
+                  <div className="my-1 border-t" />
+                  <DropdownMenuItem onSelect={() => setImportOpen(true)}>
+                    <ListPlus className="mr-2 h-3.5 w-3.5" /> Import list
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={handleExport}
+                    disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
+                  >
+                    <ClipboardCopy className="h-3.5 w-3.5 mr-2" /> Export to clipboard
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={handleExactExport}>
+                    <Images className="mr-2 h-3.5 w-3.5" /> Export exact printings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setBatchPrintingSelectionOnly(false);
+                      setBatchPrintingOpen(true);
                     }}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </div>
-                <div className="border-t my-1" />
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onSelect={() => setConfirmClear(true)}
-                >
-                  <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete deck
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  >
+                    <Images className="mr-2 h-3.5 w-3.5" /> Change deck printings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setPrintingOptimizerOpen(true)}>
+                    <Sparkles className="mr-2 h-3.5 w-3.5" /> Optimize deck printings
+                  </DropdownMenuItem>
+                  {publishEnabled && (
+                    <DropdownMenuItem
+                      onSelect={() => setPublishOpen(true)}
+                      disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
+                    >
+                      <Share2 className="h-3.5 w-3.5 mr-2" /> Publish to Community
+                    </DropdownMenuItem>
+                  )}
+                  {accountsEnabled &&
+                    accountSavedDeck?.accountDeckId &&
+                    accountSavedDeck.accountVersionNo && (
+                      <DropdownMenuItem onSelect={() => setHistoryOpen(true)}>
+                        <History className="mr-2 h-3.5 w-3.5" /> Version history
+                      </DropdownMenuItem>
+                    )}
+                  <DropdownMenuItem onSelect={handleSaveDraft}>
+                    <FileBox className="h-3.5 w-3.5 mr-2" /> Save as draft
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setCheckpointsOpen(true)}>
+                    <History className="mr-2 h-3.5 w-3.5" /> Local checkpoints
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setSideboardPlansOpen(true)}>
+                    <ListPlus className="mr-2 h-3.5 w-3.5" /> Sideboard plans
+                  </DropdownMenuItem>
+                  <div className="border-t my-1" />
+                  <DropdownMenuItem onSelect={() => setLabelsOpen(true)}>
+                    <Palette className="h-3.5 w-3.5 mr-2" /> Deck labels
+                    {(currentDeck.labels?.length ?? 0) > 0 && (
+                      <span className="ml-auto text-[10px] text-muted-foreground">
+                        {currentDeck.labels!.length}
+                      </span>
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    <Bookmark className="h-3.5 w-3.5 mr-2" /> Tags
+                    {(currentDeck.customTags?.length ?? 0) > 0 && (
+                      <span className="ml-auto text-[10px] text-muted-foreground">
+                        {currentDeck.customTags!.length}
+                      </span>
+                    )}
+                  </DropdownMenuItem>
+                  {(currentDeck.customTags ?? []).length > 0 && (
+                    <>
+                      {(currentDeck.customTags ?? []).map((tag) => (
+                        <DropdownMenuItem
+                          key={tag}
+                          className="text-xs pl-8 justify-between"
+                          onSelect={(e) => e.preventDefault()}
+                        >
+                          <span>{tag}</span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-5 w-5 text-destructive shrink-0"
+                            onClick={() => {
+                              executeDeckEdit(`Remove ${tag} tag`, () => removeCustomTag(tag));
+                              toast.success(`Tag "${tag}" removed`);
+                            }}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </DropdownMenuItem>
+                      ))}
+                    </>
+                  )}
+                  <div className="px-2 py-1.5">
+                    <Input
+                      className="h-7 text-xs"
+                      placeholder="New tag…"
+                      value={newTagInput}
+                      onChange={(e) => setNewTagInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        e.stopPropagation();
+                        if (e.key === "Enter" && newTagInput.trim()) {
+                          executeDeckEdit(`Create ${newTagInput.trim()} tag`, () =>
+                            addCustomTag(newTagInput.trim()),
+                          );
+                          toast.success(`Tag "${newTagInput.trim()}" added`);
+                          setNewTagInput("");
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                  <div className="border-t my-1" />
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onSelect={() => setConfirmClear(true)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete deck
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
 
           <CardCollectionOwnershipScope

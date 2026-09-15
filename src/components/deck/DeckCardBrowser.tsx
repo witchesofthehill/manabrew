@@ -453,13 +453,13 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
               onChange={(event) => setSearch(event.target.value)}
               aria-label="Search card names, types, and rules text"
               placeholder="Search cards…"
-              className="h-8 pl-8 pr-8 text-xs pointer-coarse:h-10 pointer-coarse:text-base"
+              className="h-8 pl-8 pr-8 text-xs pointer-coarse:h-11 pointer-coarse:text-base"
             />
             {search && (
               <button
                 type="button"
                 aria-label="Clear card search"
-                className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground pointer-coarse:p-2"
+                className="absolute right-0 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:text-foreground pointer-coarse:h-11 pointer-coarse:w-11"
                 onClick={() => setSearch("")}
               >
                 <X className="h-3 w-3" />

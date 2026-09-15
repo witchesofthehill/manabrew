@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import type { PromptActionSpec } from "@/components/game/game.types";
+import { useCardPreview } from "@/hooks/useCardPreview";
 import { registerModal } from "@/lib/modalStack";
-import { BoardOverlayCanvas } from "@/pixi/BoardOverlayCanvas";
+import { BoardOverlayCanvas, type BoardOverlayPreviewSpec } from "@/pixi/BoardOverlayCanvas";
 import type { PromptOverlaySpec } from "@/pixi/prompts/prompt.types";
 import type { StackSpec } from "@/pixi/stack/stack.types";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { Prompt } from "@/protocol";
 
 import type { DevDialogPreview } from "../promptDialogPreviews";
@@ -35,6 +38,35 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
   const input = useMemo(() => previewInput(preview, fixtures), [preview, fixtures]);
   const prompt = useMemo<Prompt>(() => ({ input }) as Prompt, [input]);
   const blockerCards = useMemo(() => FALLBACK_CARDS.slice(1, 3), []);
+  const cardPreview = useCardPreview([], { useTriggerPreference: true });
+  const previewStyle = usePreferencesStore((state) => state.inGameCardPreviewStyle);
+  const previewCard = cardPreview.hoveredCard;
+  const overlayPreviewCard = previewCard
+    ? { ...previewCard, zoneId: previewCard.zoneId ?? "prompt" }
+    : null;
+  const togglePreviewView = () => {
+    const preferences = usePreferencesStore.getState();
+    preferences.setInGameCardPreviewStyle(
+      preferences.inGameCardPreviewStyle === "printed" ? "rules" : "printed",
+    );
+  };
+  const rulesPreview: BoardOverlayPreviewSpec | null =
+    previewStyle === "rules" && overlayPreviewCard && cardPreview.phase !== "hidden"
+      ? {
+          card: overlayPreviewCard,
+          phase: cardPreview.phase === "closing" ? "closing" : "open",
+          sticky: cardPreview.isSticky,
+          placement: cardPreview.placement,
+          showBackFace: cardPreview.showBackFace,
+          suppressed: false,
+          skipEnterAnimation: false,
+          actions: [],
+          mousePos: cardPreview.mousePos,
+          anchorRect: cardPreview.anchorRect,
+          reserveSidePanel: false,
+        }
+      : null;
+  const externalPreviewActive = previewCard !== null && cardPreview.phase === "open";
   const spec = useMemo<PromptOverlaySpec>(() => {
     const action: PromptActionSpec = {
       promptType: input.type,
@@ -138,9 +170,28 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
             onHoverStack={noAction}
             onToggleStack={noAction}
             promptSpec={spec}
+            externalPreviewActive={externalPreviewActive}
+            previewSpec={rulesPreview}
+            onPreviewPointerEnter={cardPreview.onMouseEnterPreview}
+            onPreviewPointerLeave={cardPreview.onMouseLeavePreview}
+            onDismissPreview={cardPreview.dismiss}
+            onFlipPreview={cardPreview.flipCard}
+            onTogglePreviewView={togglePreviewView}
+            onLongPressCard={(card, anchor) => {
+              cardPreview.showSticky(
+                card,
+                anchor.left + anchor.width / 2,
+                anchor.top + anchor.height / 2,
+                anchor,
+                { allowOverModal: true },
+              );
+            }}
           />
         </div>
       </div>
+      {previewStyle === "printed" && (
+        <HoverCardPreview preview={cardPreview} onToggleView={togglePreviewView} />
+      )}
     </>,
     document.body,
   );

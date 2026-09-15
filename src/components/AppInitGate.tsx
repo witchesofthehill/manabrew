@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAcknowledgement } from "@/hooks/useAcknowledgement";
+import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { OnboardingWelcome, ONBOARDING_GUIDE_VERSION } from "@/components/OnboardingWelcome";
 import { OnboardingGuide } from "@/components/OnboardingGuide";
 import { BreweryBackdrop } from "@/components/BreweryBackdrop";
@@ -78,6 +79,9 @@ export function AppInitGate({ children }: { children: ReactNode }) {
   const claimed = authStatus === "signedIn" && !handlePending;
   const onboardingSatisfied = onboardingDone || claimed;
   const [consent, setConsent] = useState(false);
+  const shortScreen = useIsShortScreen();
+  const isTouch = useIsTouch();
+  const shortTouch = shortScreen && isTouch;
 
   useEffect(() => {
     if (claimed && !onboardingDone) completeOnboarding();
@@ -137,16 +141,29 @@ export function AppInitGate({ children }: { children: ReactNode }) {
   const showOnboarding = stage === "ready" && termsAccepted && !onboardingSatisfied;
 
   const welcomeHeader = (
-    <div className="flex flex-col items-center gap-2 text-center">
-      <p className="font-mono text-[0.65rem] uppercase tracking-[0.55em] text-muted-foreground">
+    <div className={cn("flex flex-col items-center gap-2 text-center", shortTouch && "gap-0.5")}>
+      <p
+        className={cn(
+          "font-mono text-[0.65rem] uppercase tracking-[0.55em] text-muted-foreground",
+          shortTouch && "text-[0.55rem]",
+        )}
+      >
         Welcome to
       </p>
-      <h1 className="font-serif text-5xl font-light tracking-[0.08em] text-foreground md:text-6xl">
+      <h1
+        className={cn(
+          "font-serif text-5xl font-light tracking-[0.08em] text-foreground md:text-6xl",
+          shortTouch && "text-3xl md:text-3xl",
+        )}
+      >
         Manabrew
       </h1>
       <div
         aria-hidden
-        className="mt-2 h-px w-24 bg-gradient-to-r from-transparent via-foreground/50 to-transparent"
+        className={cn(
+          "mt-2 h-px w-24 bg-gradient-to-r from-transparent via-foreground/50 to-transparent",
+          shortTouch && "mt-0.5",
+        )}
       />
     </div>
   );
@@ -187,80 +204,147 @@ export function AppInitGate({ children }: { children: ReactNode }) {
         <BreweryBackdrop />
 
         <div className="absolute inset-0 z-10 overflow-y-auto">
-          <div className="flex min-h-full w-full flex-col items-center justify-center gap-10 px-8 py-10">
+          <div
+            className={cn(
+              "flex min-h-full w-full flex-col items-center justify-center gap-10 px-8 py-10",
+              isTouch && "gap-6 px-4 py-6",
+              shortTouch && "h-full min-h-0 gap-3 py-2",
+            )}
+          >
             <div
               className={cn(
                 "flex w-full flex-col items-center gap-10 drop-shadow-2xl",
                 showOnboarding ? "max-w-5xl" : "max-w-2xl",
+                isTouch && "gap-6",
+                shortTouch && "h-full min-h-0 max-w-5xl gap-3",
               )}
             >
               {showTerms ? (
                 <>
-                  {welcomeHeader}
-                  <div className="w-full space-y-5">
-                    <div className="space-y-1 text-center">
-                      <p className="font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
-                        {TERMS_AND_CONDITIONS.title}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {linkifyTerms(TERMS_AND_CONDITIONS.intro)}
-                      </p>
+                  {!shortTouch && welcomeHeader}
+                  <div
+                    className={cn(
+                      "w-full space-y-5",
+                      shortTouch &&
+                        "grid min-h-0 flex-1 gap-4 space-y-0 min-[600px]:grid-cols-[minmax(0,1fr)_minmax(17rem,0.72fr)]",
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "space-y-5",
+                        shortTouch && "flex min-h-0 flex-col gap-2 space-y-0",
+                      )}
+                    >
+                      <div className={cn("space-y-1 text-center", shortTouch && "text-left")}>
+                        <p className="font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
+                          {TERMS_AND_CONDITIONS.title}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {linkifyTerms(TERMS_AND_CONDITIONS.intro)}
+                        </p>
+                      </div>
+
+                      <ScrollArea
+                        className={cn(
+                          "h-[38dvh] max-h-[360px]",
+                          shortTouch && "h-auto min-h-0 max-h-none flex-1",
+                        )}
+                      >
+                        <div className="space-y-4 pr-4 text-sm leading-relaxed">
+                          {TERMS_AND_CONDITIONS.sections.map((section) => (
+                            <section key={section.heading} className="space-y-1.5">
+                              <h3 className="text-sm font-semibold text-foreground">
+                                {section.heading}
+                              </h3>
+                              <p className="text-sm text-muted-foreground">
+                                {linkifyTerms(section.body)}
+                              </p>
+                            </section>
+                          ))}
+                        </div>
+                      </ScrollArea>
                     </div>
 
-                    <ScrollArea className="h-[38dvh] max-h-[360px]">
-                      <div className="space-y-4 pr-4 text-sm leading-relaxed">
-                        {TERMS_AND_CONDITIONS.sections.map((section) => (
-                          <section key={section.heading} className="space-y-1.5">
-                            <h3 className="text-sm font-semibold text-foreground">
-                              {section.heading}
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              {linkifyTerms(section.body)}
-                            </p>
-                          </section>
-                        ))}
+                    <div
+                      className={cn(
+                        "space-y-5",
+                        shortTouch &&
+                          "flex flex-col justify-center gap-3 rounded-xl border border-border/60 bg-background/80 p-4 space-y-0",
+                      )}
+                    >
+                      <label className="flex min-h-11 cursor-pointer select-none items-center justify-center gap-2.5 text-sm">
+                        <Checkbox
+                          checked={consent}
+                          onCheckedChange={(value) => setConsent(value === true)}
+                        />
+                        <span className="text-foreground">
+                          I have read and agree to these terms
+                        </span>
+                      </label>
+
+                      <div className="flex flex-col items-center gap-3">
+                        <Button
+                          variant="primary"
+                          size="lg"
+                          disabled={!consent}
+                          onClick={acceptTerms}
+                          className="min-w-[200px]"
+                        >
+                          Accept and continue
+                        </Button>
+                        <p className="text-center font-mono text-[0.55rem] uppercase tracking-[0.4em] text-muted-foreground/70">
+                          Version {TERMS_AND_CONDITIONS.version} · Updated{" "}
+                          {TERMS_AND_CONDITIONS.lastUpdated}
+                        </p>
                       </div>
-                    </ScrollArea>
-
-                    <label className="flex cursor-pointer select-none items-start justify-center gap-2.5 text-sm">
-                      <Checkbox
-                        checked={consent}
-                        onCheckedChange={(value) => setConsent(value === true)}
-                        className="mt-0.5"
-                      />
-                      <span className="text-foreground">I have read and agree to these terms</span>
-                    </label>
-
-                    <div className="flex flex-col items-center gap-3">
-                      <Button
-                        variant="primary"
-                        disabled={!consent}
-                        onClick={acceptTerms}
-                        className="min-w-[200px]"
-                      >
-                        Accept and continue
-                      </Button>
-                      <p className="font-mono text-[0.55rem] uppercase tracking-[0.4em] text-muted-foreground/70">
-                        Version {TERMS_AND_CONDITIONS.version} · Updated{" "}
-                        {TERMS_AND_CONDITIONS.lastUpdated}
-                      </p>
                     </div>
                   </div>
                 </>
               ) : showOnboarding ? (
-                <div className="grid w-full gap-10 lg:grid-cols-[1.15fr_1fr] lg:gap-0">
-                  <div className="flex flex-col items-center justify-center gap-8 lg:pr-14">
-                    {welcomeHeader}
-                    <div className="space-y-1 text-center">
-                      <p className="font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
-                        Getting started
-                      </p>
+                <div
+                  className={cn(
+                    "flex w-full flex-col gap-10",
+                    isTouch && "gap-6",
+                    shortTouch && "h-full min-h-0 gap-3",
+                  )}
+                >
+                  {isTouch && !shortTouch && welcomeHeader}
+                  <div
+                    className={cn(
+                      "grid w-full gap-10 lg:grid-cols-[1.15fr_1fr] lg:gap-0",
+                      shortTouch &&
+                        "h-full min-h-0 gap-4 min-[600px]:grid-cols-[minmax(17rem,0.9fr)_minmax(0,1.1fr)]",
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "flex flex-col items-center justify-center gap-8 lg:order-1 lg:pr-14",
+                        isTouch && "order-2 gap-4",
+                        shortTouch && "min-h-0 justify-start gap-2 overflow-y-auto",
+                      )}
+                    >
+                      {!isTouch && welcomeHeader}
+                      <div className="space-y-1 text-center">
+                        <p className="font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
+                          Getting started
+                        </p>
+                      </div>
+                      <OnboardingGuide compact={shortTouch} />
                     </div>
-                    <OnboardingGuide />
-                  </div>
-                  <div className="flex items-center lg:border-l lg:border-border/60 lg:pl-14">
-                    <div className="w-full rounded-2xl border border-border/60 bg-background/80 p-8 shadow-2xl backdrop-blur-md">
-                      <OnboardingWelcome onComplete={completeOnboarding} />
+                    <div
+                      className={cn(
+                        "order-1 flex items-center lg:order-2 lg:border-l lg:border-border/60 lg:pl-14",
+                        shortTouch && "min-h-0",
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "w-full rounded-2xl border border-border/60 bg-background/80 p-8 shadow-2xl backdrop-blur-md",
+                          shortTouch && "p-4",
+                        )}
+                      >
+                        <OnboardingWelcome onComplete={completeOnboarding} />
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -17,6 +17,7 @@ import { GHOST_CLICK_ARM_MS } from "@/lib/responsive";
 import type { TargetRef } from "@/protocol/prompts/common";
 import { intentIsHostile } from "@/types/promptType";
 import type { BoardScene } from "./board/BoardScene";
+import type { ScreenBounds } from "./types";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { PromptLayer } from "./prompts/PromptLayer";
 import type { PromptOverlaySpec } from "./prompts/prompt.types";
@@ -30,6 +31,7 @@ import {
   type CommandZonePreviewLayerSpec,
 } from "./cardPreview/CommandZonePreviewLayer";
 import type { ClientCardDto } from "@/stores/gameStore.types";
+import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { bindPreviewScroll } from "./cardPreview/previewScroll";
 import {
@@ -44,10 +46,12 @@ export interface BoardOverlayPreviewSpec {
   card: ClientCardDto;
   phase: "open" | "closing";
   sticky: boolean;
+  placement: "auto" | "top-center" | "pinned";
   showBackFace: boolean;
   suppressed: boolean;
   skipEnterAnimation: boolean;
   actions: HandActionOption[];
+  reserveSidePanel: boolean;
   mousePos: { x: number; y: number };
   anchorRect: DOMRect | null;
   viewportRight?: number;
@@ -108,6 +112,7 @@ interface BoardOverlayCanvasProps {
   onDismissPreview?: () => void;
   onFlipPreview?: () => void;
   onTogglePreviewView?: () => void;
+  onLongPressCard?: (card: CardDto, anchor: DOMRect) => void;
 }
 function syncPromptViewport(
   prompt: PromptLayer,
@@ -130,9 +135,11 @@ function toRulesPreviewSpec(
   return {
     card: spec.card,
     phase: spec.phase,
+    placement: spec.placement,
     sticky: spec.sticky,
     showBackFace: spec.showBackFace,
     suppressed: spec.suppressed,
+    reserveSidePanel: spec.reserveSidePanel,
     skipEnterAnimation: spec.skipEnterAnimation,
     actions: spec.actions,
     anchor: spec.anchorRect
@@ -248,6 +255,7 @@ export function BoardOverlayCanvas({
   onDismissPreview,
   onFlipPreview,
   onTogglePreviewView,
+  onLongPressCard,
 }: BoardOverlayCanvasProps) {
   const theme = useTheme();
   const stackCardStyle = usePreferencesStore((state) => state.stackCardStyle);
@@ -283,6 +291,7 @@ export function BoardOverlayCanvas({
     onDismissPreview,
     onFlipPreview,
     onTogglePreviewView,
+    onLongPressCard,
   });
   const promptSpecRef = useRef(promptSpec);
   const promptViewportRightRef = useRef(promptViewportRight);
@@ -298,11 +307,13 @@ export function BoardOverlayCanvas({
       onDismissPreview,
       onFlipPreview,
       onTogglePreviewView,
+      onLongPressCard,
     };
   }, [
     onCastCommandCard,
     onDismissPreview,
     onFlipPreview,
+    onLongPressCard,
     onHoverStack,
     onPreviewPointerEnter,
     onPreviewPointerLeave,
@@ -442,6 +453,19 @@ export function BoardOverlayCanvas({
         arrow.graphics.eventMode = "none";
         arrowRef.current = arrow;
 
+        const showLongPressCard = (card: CardDto, bounds: ScreenBounds) => {
+          const canvasBounds = canvas.getBoundingClientRect();
+          cbRef.current.onLongPressCard?.(
+            card,
+            new DOMRect(
+              canvasBounds.left + bounds.x,
+              canvasBounds.top + bounds.y,
+              bounds.width,
+              bounds.height,
+            ),
+          );
+        };
+
         stack = new StackLayer(themeRef.current, {
           onTargetSpell: (id) => cbRef.current.onTargetSpell(id),
           onHover: (id) => {
@@ -450,6 +474,7 @@ export function BoardOverlayCanvas({
           },
           onToggleCollapsed: () => cbRef.current.onToggleStack(),
           onRenderRequested: () => scheduler?.request(),
+          onLongPressCard: showLongPressCard,
         });
         stackRef.current = stack;
         stack.setViewport(width, height);
@@ -474,6 +499,7 @@ export function BoardOverlayCanvas({
               ? (stackRef.current?.getAnchor(target.id) ?? null)
               : (sceneRef.current?.getPromptReferenceAnchor(target) ?? null),
           onRenderRequested: () => scheduler?.request(),
+          onLongPressCard: showLongPressCard,
         });
         prompt = promptLayer;
         promptRef.current = promptLayer;

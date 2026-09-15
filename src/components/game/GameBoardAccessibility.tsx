@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import { PHASES, ZONE_BADGES, ZONE_TILE_KEY } from "@/components/game/game.constants";
+import { PHASES, ZONE_BADGES } from "@/components/game/game.constants";
 import type { ZoneTileSpec } from "@/pixi/board/BoardZoneTiles";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import { DEFAULT_OPPONENT_STOPS } from "@/stores/usePhaseStopStore";
@@ -299,8 +299,7 @@ export function GameBoardAccessibility({
         </h3>
         {players.flatMap((player) =>
           (zonesByPlayer[player.id] ?? []).map((zone) => {
-            const zoneName =
-              zone.key === ZONE_TILE_KEY.command ? "Command zone" : ZONE_BADGES[zone.key]?.label;
+            const zoneName = ZONE_BADGES[zone.key]?.label;
             return zone.onOpen ? (
               <button
                 key={`${player.id}:${zone.key}`}

@@ -44,6 +44,7 @@ interface SelectedDeck {
 interface DeckVsSelectorProps {
   preSelectedDeckId?: string;
   preSelectedHubDeckId?: string;
+  leadingControl?: ReactNode;
   onStart: (
     playerDeck: Deck,
     opponentDecks: Deck[],
@@ -58,10 +59,12 @@ type PlayFormatId = string;
 export function DeckVsSelector({
   preSelectedDeckId,
   preSelectedHubDeckId,
+  leadingControl,
   onStart,
 }: DeckVsSelectorProps) {
   const denseDecks = useIsShortScreen();
   const isTouch = useIsTouch();
+  const shortTouch = denseDecks && isTouch;
   const currentDeck = useDeckStore((state) => state.currentDeck);
   const savedDecks = useOwnedDecks();
   const preSelectedSavedDeck = savedDecks.find((saved) => saved.id === preSelectedDeckId);
@@ -481,67 +484,94 @@ export function DeckVsSelector({
     opponentConfirmed &&
     hubSelectionIsLegal(playerDeck) &&
     hubSelectionIsLegal(opponentDeck);
+  const searchControl = (
+    <div className="relative min-w-0 flex-1">
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <input
+        type="search"
+        aria-label="Filter decks"
+        placeholder={shortTouch ? "Search decks…" : "Filter decks…"}
+        value={deckSearch}
+        onChange={(event) => setDeckSearch(event.target.value)}
+        className="h-9 w-full rounded-md border bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary pointer-coarse:h-11 pointer-coarse:text-base"
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+      />
+    </div>
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-shrink-0 items-center gap-3 border-b bg-muted/5 px-4 py-2 sm:px-6 lg:px-8">
-        <div
-          role="group"
-          aria-label="Filter decks by format"
-          className="-mx-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto px-1 py-1 no-scrollbar"
-        >
-          {[{ id: null, name: "All" }, ...GAME_FORMATS].map((format) => (
-            <button
-              key={format.id ?? "all"}
-              type="button"
-              aria-pressed={selectedFormat === format.id}
-              onClick={() => changeFormat(format.id)}
-              className={cn(
-                "shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors motion-reduce:transition-none pointer-coarse:min-h-10 pointer-coarse:px-3",
-                selectedFormat === format.id
-                  ? "border-primary/50 bg-primary/15 text-primary"
-                  : "border-border/70 text-muted-foreground hover:border-border hover:text-foreground",
-              )}
+      {shortTouch ? (
+        <div className="flex shrink-0 items-center gap-2 border-b bg-muted/5 px-4 py-1.5">
+          {leadingControl}
+          <select
+            aria-label="Filter decks by format"
+            value={selectedFormat ?? ""}
+            onChange={(event) => changeFormat(event.target.value || null)}
+            className="h-11 max-w-44 shrink-0 rounded-md border border-input bg-background px-3 text-base font-medium text-foreground"
+          >
+            <option value="">All formats</option>
+            {GAME_FORMATS.map((format) => (
+              <option key={format.id} value={format.id}>
+                {format.name}
+              </option>
+            ))}
+          </select>
+          {searchControl}
+        </div>
+      ) : (
+        <>
+          <div className="flex shrink-0 items-center gap-3 border-b bg-muted/5 px-4 py-2 sm:px-6 lg:px-8">
+            <div
+              role="group"
+              aria-label="Filter decks by format"
+              className="-mx-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto px-1 py-1 pr-6 no-scrollbar touch-scroll-fade"
             >
-              {format.name}
-            </button>
-          ))}
-        </div>
-        <p
-          className="hidden shrink-0 text-right text-xs font-medium text-muted-foreground lg:block"
-          aria-live="polite"
-        >
-          {pickingSide === "player"
-            ? isReady
-              ? "Choose your deck or fight"
-              : "Choose your deck"
-            : pickingSide === "opponent"
-              ? isReady
-                ? "Choose the AI deck or fight"
-                : "Choose the AI deck"
-              : "Matchup ready"}
-        </p>
-      </div>
+              {[{ id: null, name: "All" }, ...GAME_FORMATS].map((format) => (
+                <button
+                  key={format.id ?? "all"}
+                  type="button"
+                  aria-pressed={selectedFormat === format.id}
+                  onClick={() => changeFormat(format.id)}
+                  className={cn(
+                    "min-h-9 shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors motion-reduce:transition-none pointer-coarse:min-h-11 pointer-coarse:px-3",
+                    selectedFormat === format.id
+                      ? "border-primary/50 bg-primary/15 text-primary"
+                      : "border-border/70 text-muted-foreground hover:border-border hover:text-foreground",
+                  )}
+                >
+                  {format.name}
+                </button>
+              ))}
+            </div>
+            <p
+              className="hidden shrink-0 text-right text-xs font-medium text-muted-foreground lg:block"
+              aria-live="polite"
+            >
+              {pickingSide === "player"
+                ? isReady
+                  ? "Choose your deck or fight"
+                  : "Choose your deck"
+                : pickingSide === "opponent"
+                  ? isReady
+                    ? "Choose the AI deck or fight"
+                    : "Choose the AI deck"
+                  : "Matchup ready"}
+            </p>
+          </div>
+          <div className="shrink-0 px-4 pb-2 pt-3 sm:px-6 lg:px-8">{searchControl}</div>
+        </>
+      )}
 
-      <div className="flex-shrink-0 px-4 pb-2 pt-3 sm:px-6 lg:px-8">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          <input
-            type="text"
-            aria-label="Filter decks"
-            placeholder="Filter decks..."
-            value={deckSearch}
-            onChange={(e) => setDeckSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-md border bg-background text-sm pointer-coarse:h-10 pointer-coarse:text-base focus:outline-none focus:ring-1 focus:ring-primary"
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-          />
-        </div>
-      </div>
-
-      <div className="flex-1 space-y-6 overflow-y-auto px-4 pb-4 sm:px-6 lg:px-8">
+      <div
+        className={cn(
+          "flex-1 space-y-6 overflow-y-auto px-4 pb-4 sm:px-6 lg:px-8",
+          shortTouch && "space-y-3 pb-2",
+        )}
+      >
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold pt-2 pb-1">
             Your Decks
@@ -561,9 +591,11 @@ export function DeckVsSelector({
             <div
               className={cn(
                 "grid gap-3",
-                denseDecks
-                  ? "grid-cols-2 md:grid-cols-3"
-                  : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
+                shortTouch
+                  ? "grid-cols-3"
+                  : denseDecks
+                    ? "grid-cols-2 md:grid-cols-3"
+                    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
               )}
             >
               {filteredUserDecks.map((entry) => {
@@ -622,9 +654,11 @@ export function DeckVsSelector({
                 <div
                   className={cn(
                     "grid gap-3 pt-1",
-                    denseDecks
-                      ? "grid-cols-2 md:grid-cols-3"
-                      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
+                    shortTouch
+                      ? "grid-cols-3"
+                      : denseDecks
+                        ? "grid-cols-2 md:grid-cols-3"
+                        : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
                   )}
                 >
                   {Array.from({ length: 10 }, (_, index) => (
@@ -645,9 +679,11 @@ export function DeckVsSelector({
                 <div
                   className={cn(
                     "grid gap-3 pt-1",
-                    denseDecks
-                      ? "grid-cols-2 md:grid-cols-3"
-                      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
+                    shortTouch
+                      ? "grid-cols-3"
+                      : denseDecks
+                        ? "grid-cols-2 md:grid-cols-3"
+                        : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
                   )}
                 >
                   {hubDeckEntries.map((deck) => {
@@ -705,9 +741,11 @@ export function DeckVsSelector({
             <div
               className={cn(
                 "grid gap-3 pt-1",
-                denseDecks
-                  ? "grid-cols-2 md:grid-cols-3"
-                  : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
+                shortTouch
+                  ? "grid-cols-3"
+                  : denseDecks
+                    ? "grid-cols-2 md:grid-cols-3"
+                    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
               )}
             >
               {filteredDecks.map((deck) => (
@@ -734,7 +772,12 @@ export function DeckVsSelector({
         </div>
       </div>
 
-      <div className="grid flex-shrink-0 gap-2 border-t bg-muted/10 px-4 py-2 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:px-6 sm:py-3 lg:px-8">
+      <div
+        className={cn(
+          "grid shrink-0 gap-2 border-t bg-muted/10 px-4 py-2 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:px-6 sm:py-3 lg:px-8",
+          shortTouch && "sm:px-4 sm:py-1.5",
+        )}
+      >
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:flex sm:gap-2">
           <DeckSlot
             label="YOU"
@@ -781,7 +824,7 @@ export function DeckVsSelector({
                     e.stopPropagation();
                     handleRandomOpponent();
                   }}
-                  className="inline-flex w-8 shrink-0 items-center justify-center gap-0.5 rounded-r-md text-[10px] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground pointer-coarse:w-10"
+                  className="inline-flex w-8 shrink-0 items-center justify-center gap-0.5 rounded-r-md text-[10px] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground pointer-coarse:w-11"
                   title="Random AI deck"
                 >
                   <Shuffle className="h-3 w-3" />
@@ -791,7 +834,7 @@ export function DeckVsSelector({
           />
         </div>
         <div className="grid grid-flow-col auto-cols-fr gap-2 sm:flex sm:flex-shrink-0 sm:items-center">
-          <div className="flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm sm:w-auto">
+          <div className="flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm pointer-coarse:h-11 sm:w-auto">
             <EngineMark engine="Forge" className="h-3.5 w-3.5" />
             Forge
           </div>
@@ -864,7 +907,7 @@ function DeckSlot({
   return (
     <div
       className={cn(
-        "group inline-flex min-h-8 min-w-0 max-w-[14rem] items-stretch rounded-md border text-xs transition-colors pointer-coarse:min-h-10 sm:min-w-24",
+        "group inline-flex min-h-8 min-w-0 max-w-[14rem] items-stretch rounded-md border text-xs transition-colors pointer-coarse:min-h-11 sm:min-w-24",
         isActive ? "ring-1" : "border-border/40 hover:border-border hover:bg-muted/40",
       )}
       style={{
@@ -912,7 +955,7 @@ function DeckSlot({
         <button
           type="button"
           onClick={onClear}
-          className="inline-flex w-8 shrink-0 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-destructive pointer-coarse:w-10"
+          className="inline-flex w-8 shrink-0 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-destructive pointer-coarse:w-11"
           title="Clear"
         >
           <X className="h-2.5 w-2.5" />

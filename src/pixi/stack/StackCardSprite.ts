@@ -10,6 +10,7 @@ import { rulesCardRadius } from "../cardPreview/rulesPreviewFrame";
 import type { StackCardSpec } from "./stack.types";
 import { HandCardControls } from "../HandCardControls";
 import { getRectBorderAnchor } from "./stackLayout";
+import type { ScreenBounds } from "../types";
 
 const ENTER_MS = 0.42;
 const FLASH_MS = 0.56;
@@ -56,6 +57,7 @@ export class StackCardSprite {
     onHover: (id: string | null) => void,
     onToggleRules: (id: string) => void,
     onFlip: (id: string) => void,
+    onLongPressCard?: (card: StackCardSpec["card"], bounds: ScreenBounds) => void,
   ) {
     this.theme = theme;
     this.spec = spec;
@@ -72,9 +74,8 @@ export class StackCardSprite {
     this.face.onVisualChange = onRenderRequested;
     this.face.scale.set(this.faceScale);
     this.face.setHandRulesView(rulesView);
-    this.face.setHandRulesHighlight(spec.sourceAbilityText ?? "");
     this.face.on("pointerdown", (event: FederatedPointerEvent) => {
-      if (this.face.usesHandRulesView) event.stopPropagation();
+      if (this.face.usesHandRulesView && event.pointerType !== "touch") event.stopPropagation();
     });
     this.face.on("pointertap", (event: FederatedPointerEvent) => {
       if (this.face.usesHandRulesView) event.stopPropagation();
@@ -101,6 +102,16 @@ export class StackCardSprite {
     this.container.on("pointerdown", (event: FederatedPointerEvent) => {
       if (event.pointerType === "touch") this.touchPointerId = event.pointerId;
       this.longPress.start(event, this.spec.id, () => {
+        if (onLongPressCard) {
+          const bounds = this.face.getBounds();
+          onLongPressCard(this.spec.card, {
+            x: bounds.x,
+            y: bounds.y,
+            width: bounds.width,
+            height: bounds.height,
+          });
+          return;
+        }
         this.hovered = true;
         this.syncControls();
         this.applyHover();

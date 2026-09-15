@@ -108,7 +108,7 @@ export function DeckCardSurface({
           <button
             type="button"
             className={cn(
-              "pointer-events-auto block max-w-full truncate text-left text-[11px] text-text-on-tinted/85 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "pointer-events-auto relative block max-w-full truncate text-left text-[11px] text-text-on-tinted/85 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:before:absolute pointer-coarse:before:-inset-y-3 pointer-coarse:before:inset-x-0 pointer-coarse:before:content-['']",
               DECK_NAME_SHADOW_CLASS,
               variant === "list" && "mt-1 text-xs text-muted-foreground shadow-none",
             )}

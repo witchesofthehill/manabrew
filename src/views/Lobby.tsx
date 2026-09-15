@@ -8,7 +8,7 @@ import { LeaveGameModal } from "@/components/game/modals";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useIsDesktop } from "@/hooks/useBreakpoints";
+import { useIsDesktop, useIsTouch } from "@/hooks/useBreakpoints";
 import { useServerStore } from "@/stores/useServerStore";
 import { useInviteStore } from "@/stores/useInviteStore";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
@@ -80,6 +80,8 @@ export default function Lobby() {
   const location = useLocation();
   const navigate = useNavigate();
   const isDesktop = useIsDesktop();
+  const isTouch = useIsTouch();
+  const showDesktopPanel = isDesktop && !isTouch;
   const initialRouteState = location.state as {
     preferredSavedDeckId?: unknown;
     preferredHubDeckId?: unknown;
@@ -504,7 +506,7 @@ export default function Lobby() {
   return (
     <div className="flex h-full w-full min-h-0">
       <div className="flex min-w-0 flex-1 flex-col">
-        {(!connected || (!isDesktop && !!myUsername)) && (
+        {(!connected || (!showDesktopPanel && !!myUsername)) && (
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 px-4 py-2 sm:px-6 lg:px-8">
             {!connected && error && (
               <Button
@@ -526,7 +528,7 @@ export default function Lobby() {
               <Button
                 size="sm"
                 variant="ghost"
-                className="md:hidden"
+                className="md:pointer-fine:hidden"
                 onClick={() => setPlayersDrawerOpen(true)}
                 title="Show players and chat"
               >
@@ -586,7 +588,7 @@ export default function Lobby() {
       </div>
 
       {myUsername && (
-        <aside className="hidden w-80 shrink-0 flex-col md:flex lg:w-96">
+        <aside className="hidden w-80 shrink-0 flex-col md:pointer-fine:flex lg:w-96">
           <div className="m-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card/70 shadow-sm backdrop-blur-md">
             <LobbySidePanel
               players={players}

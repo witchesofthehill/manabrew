@@ -15,17 +15,13 @@ export const STACK_MAX_SLIDE_CARDS = 2;
 export const TABLE_RADIUS = 8;
 export const MAX_LAND_SLOTS = 100;
 export const MAX_GRID_SLOTS = 200;
+export const COMPACT_LAND_OVERLAP_MIN = 4;
+export const COMPACT_LAND_STEP_FRAC = 0.64;
 
 export const BATTLEFIELD_CARD_SCALE_DEFAULT = 1.15;
 // Absolute floor so cards never go microscopic on very short displays.
 export const BATTLEFIELD_CARD_SCALE_FLOOR = 0.5;
-// Low enough that 3 rows + the combat band always fit on a landscape phone —
-// the row lock in BoardCanvas.reconfigure is what actually picks the scale.
-export const BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT = 0.2;
 export const BATTLEFIELD_MIN_ROWS = 3;
-// The card-size multiplier's ceiling: a field may drop to 2 rows of big cards,
-// never 1 — a single row makes the game unplayable (PR #450 review). Compact
-// mode keeps the 3-row lock.
 export const BATTLEFIELD_MIN_ROWS_LARGEST = 2;
 // Panel wider than this fraction of the canvas reserves the whole top row.
 export const OPPONENT_PANEL_FULLWIDTH_FRAC = 0.4;
@@ -87,8 +83,6 @@ export const FLOATER_RISE_PER_FRAME = 0.7;
 export const FLOATER_FONT_SIZE = 24;
 
 export const CAST_DRAG_SCALE = 1.25;
-export const CAST_DRAG_CARD_DROP_PX = 16;
-export const CAST_DRAG_HAND_SINK_PX = 200;
 
 export const EXIT_FADE_LERP = 0.2;
 export const EXIT_SHRINK = 0.95;
@@ -96,9 +90,9 @@ export const COMBAT_STAGE_PADDING_PX = 2;
 export const COMBAT_ROW_PAD_Y = 4;
 export const FIELD_INNER_EDGE_PAD_PX = 8;
 export const HAND_RESERVE_TRIM = 0.85;
-export const HAND_RESERVE_TRIM_COMPACT = 0.4;
 export const HAND_BOTTOM_SINK_FRAC = 0.45;
 export const HAND_BOTTOM_SINK_FRAC_COMPACT = 0.68;
+export const HAND_BOTTOM_SINK_FRAC_SHEET = 0.08;
 export const COMBAT_BLOCKER_OVERLAP_FRAC = 0.4;
 export const COMBAT_ROW_STEP_FRAC = 1.12;
 export const Z_STAGED_REGION = 8000;

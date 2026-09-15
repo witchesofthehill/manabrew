@@ -10,6 +10,7 @@ import {
   cellsByDistance,
   combatRowReserve,
   computeGridLayout,
+  dropCellFromPoint,
   type GridCell,
   type GridLayoutInfo,
 } from "../GridLayout";
@@ -37,6 +38,8 @@ import {
   CARD_RADIUS,
   COMBAT_DIM_ALPHA,
   COMBAT_DIM_TINT_LEVEL,
+  COMPACT_LAND_OVERLAP_MIN,
+  COMPACT_LAND_STEP_FRAC,
   DAMAGE_SHAKE_AMP_PX,
   DAMAGE_SHAKE_FRAMES,
   EXIT_FADE_LERP,
@@ -80,9 +83,23 @@ import { isCoarsePointer } from "@/lib/responsive";
 const COARSE_POINTER = isCoarsePointer();
 
 type Point = ScreenPos;
+type BattlefieldCardCategory = "creature" | "land" | "other";
+
+function battlefieldCardCategory(card: CardDto): BattlefieldCardCategory {
+  if (card.types.includes("Creature")) return "creature";
+  if (card.types.includes("Land")) return "land";
+  return "other";
+}
+
+const OVERFLOW_PRIORITY: Record<BattlefieldCardCategory, number> = {
+  creature: 0,
+  other: 1,
+  land: 2,
+};
 
 interface BoardRegionOptions {
   orientation: RegionOrientation;
+  combatRowReserved: boolean;
 }
 
 const ENTRANCE_LAND_PX = 8;
@@ -114,6 +131,7 @@ export class BoardRegion {
   private clipX: number | null = null;
   private clipWidth: number | null = null;
   private cardScale: number;
+  private combatRowReserved: boolean;
   private overview = false;
   private seatColor: string;
   private seatName = "";
@@ -124,7 +142,7 @@ export class BoardRegion {
   private gridSkeletonGfx: Graphics;
   private zoneTiles: BoardZoneTiles;
   private zoneTileKeys: string[] = [];
-  private compactZones = false;
+  private compactMode = false;
   private zoneTilesLocked = false;
   private zoneSlots = new Map<string, { col: number; row: number }>();
 
@@ -134,6 +152,7 @@ export class BoardRegion {
   private userSlots = new Map<string, { col: number; row: number }>();
   private userPlacedCards = new Set<string>();
   private uiParent = new Map<string, string>();
+  private stackPeekAnchorId: string | null = null;
   private stackCounts = new Map<string, number>();
   private nameGroupChildren = new Set<string>();
   private combatStaging: SceneCombatStaging | null = null;
@@ -168,6 +187,7 @@ export class BoardRegion {
     this.host = host;
     this.seatColor = host.getTheme().gameTheme.canvas.neutral;
     this.cardScale = cardScale;
+    this.combatRowReserved = options.combatRowReserved;
     this.mirrored = options.orientation !== "bottom";
 
     this.container = new Container();
@@ -228,9 +248,10 @@ export class BoardRegion {
     else this.placeZoneTiles(this.freshGrid(), new Set());
   }
 
-  setCompactZones(compact: boolean): void {
-    if (this.compactZones === compact) return;
-    this.compactZones = compact;
+  setCompactMode(compact: boolean): void {
+    if (this.compactMode === compact) return;
+    this.compactMode = compact;
+    for (const entry of this.entries.values()) entry.sprite.setCompactSquare(compact);
     this.applyZoneTileDraggable();
     if (this.lastState) this.updateBattlefield(this.lastState);
     else this.placeZoneTiles(this.freshGrid(), new Set());
@@ -243,7 +264,7 @@ export class BoardRegion {
   }
 
   private applyZoneTileDraggable(): void {
-    this.zoneTiles.setDraggable(!this.mirrored && !this.compactZones && !this.zoneTilesLocked);
+    this.zoneTiles.setDraggable(!this.mirrored && !this.compactMode && !this.zoneTilesLocked);
   }
 
   cancelZoneTileDrag(): void {
@@ -254,6 +275,10 @@ export class BoardRegion {
     this.zoneTiles.cancelDragForPointer(pointerId);
   }
 
+  private cardHeight(): number {
+    return this.compactMode ? CARD_W : CARD_H;
+  }
+
   private freshGrid(): GridLayoutInfo {
     return computeGridLayout(
       this.playArea(),
@@ -261,6 +286,7 @@ export class BoardRegion {
       this.collectLocalBlockers(),
       this.cardScale,
       this.zoneTileKeys.length > 0,
+      this.cardHeight(),
     );
   }
 
@@ -274,7 +300,7 @@ export class BoardRegion {
   private placeZoneTiles(grid: GridLayoutInfo, occupied: Set<string>): void {
     const placements = new Map<string, { x: number; y: number }>();
     const taken = new Set<string>();
-    const ignoreBlockers = this.compactZones && !this.mirrored;
+    const ignoreBlockers = this.compactMode && !this.mirrored;
     const isFree = (cell: GridCell | null, ignoreBlocked = ignoreBlockers): cell is GridCell =>
       !!cell &&
       !taken.has(cellKey(cell.col, cell.row)) &&
@@ -292,7 +318,7 @@ export class BoardRegion {
     };
 
     const gridRows =
-      this.mirrored || this.compactZones
+      this.mirrored || this.compactMode
         ? Array.from({ length: grid.rows }, (_, r) => r)
         : Array.from({ length: grid.rows }, (_, r) => grid.rows - 1 - r);
     const rowOrder = this.mirrored ? [...gridRows, attackBandRow] : gridRows;
@@ -307,7 +333,7 @@ export class BoardRegion {
     };
 
     for (const key of this.zoneTileKeys) {
-      const slot = this.compactZones ? undefined : this.zoneSlots.get(key);
+      const slot = this.compactMode ? undefined : this.zoneSlots.get(key);
       let cell = slot ? resolveCell(slot.col, slot.row) : null;
       if (!isFree(cell)) cell = nextDefaultCell();
       // A giant-card grid (few cells, partly covered by the hand fan and
@@ -315,7 +341,7 @@ export class BoardRegion {
       // blocker rather than stranding the tile at its stale geometry.
       if (!cell) cell = nextDefaultCell(true);
       if (!cell) continue;
-      if (!this.compactZones) this.zoneSlots.set(key, { col: cell.col, row: cell.row });
+      if (!this.compactMode) this.zoneSlots.set(key, { col: cell.col, row: cell.row });
       taken.add(cellKey(cell.col, cell.row));
       occupied.add(cellKey(cell.col, cell.row));
       placements.set(key, { x: cell.x, y: cell.y });
@@ -440,6 +466,12 @@ export class BoardRegion {
     if (this.lastState) this.updateBattlefield(this.lastState);
     else this.placeZoneTiles(this.freshGrid(), new Set());
   }
+  setCombatRowReserved(reserved: boolean): void {
+    if (reserved === this.combatRowReserved) return;
+    this.combatRowReserved = reserved;
+    if (this.lastState) this.updateBattlefield(this.lastState);
+    else this.placeZoneTiles(this.freshGrid(), new Set());
+  }
 
   getCardScale(): number {
     return this.cardScale;
@@ -560,11 +592,11 @@ export class BoardRegion {
     const entry = this.entries.get(cardId);
     if (!entry) return false;
     const center = this.localToCanvas(entry.targetX, entry.targetY);
-    // Battles / planes render sideways — match the landscape footprint so their
-    // targeting zone is identical in size to an upright planeswalker's.
     const horizontal = entry.sprite.horizontalFrame;
-    const halfW = ((horizontal ? CARD_H : CARD_W) * this.cardScale) / 2 + pad;
-    const halfH = ((horizontal ? CARD_W : CARD_H) * this.cardScale) / 2 + pad;
+    const cardWidth = horizontal ? CARD_H : CARD_W;
+    const cardHeight = horizontal ? CARD_W : this.cardHeight();
+    const halfW = (cardWidth * this.cardScale) / 2 + pad;
+    const halfH = (cardHeight * this.cardScale) / 2 + pad;
     return Math.abs(canvasX - center.x) <= halfW && Math.abs(canvasY - center.y) <= halfH;
   }
 
@@ -752,7 +784,7 @@ export class BoardRegion {
           entry.overlay.zIndex = entry.targetZIndex + Z_OVERLAY_OFFSET;
           entry.overlay.alpha = lerp(
             entry.overlay.alpha,
-            isHovered && overlayActive ? 1 : 0,
+            overlayActive ? 1 : 0,
             OVERLAY_FADE_LERP,
             SNAP_ALPHA,
           );
@@ -767,6 +799,12 @@ export class BoardRegion {
 
   updateBattlefield(state: BattlefieldState): void {
     if (this.host.isDestroyed() || !state || !Array.isArray(state.cards)) return;
+    if (
+      this.stackPeekAnchorId !== null &&
+      !state.cards.some((c) => this.uiParent.get(c.id) === this.stackPeekAnchorId)
+    ) {
+      this.collapseStackPeek();
+    }
     const prevCards = new Map<string, CardDto>();
     for (const c of this.lastState?.cards ?? []) prevCards.set(c.id, c);
     const isFirstState = this.lastState === null;
@@ -905,7 +943,7 @@ export class BoardRegion {
     this.applyAttackLunge(state);
     if (!isFirstState) {
       const lethal = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
-      const cardHalfH = (CARD_H * this.cardScale) / 2;
+      const cardHalfH = (this.cardHeight() * this.cardScale) / 2;
       const now = performance.now();
       for (const card of state.cards) {
         const entry = this.entries.get(card.id);
@@ -972,7 +1010,7 @@ export class BoardRegion {
       this.stackAttachments(id, entry.targetX, frontY, Z_COMBAT_STAGED);
     }
 
-    const onAttacker = CARD_H * this.cardScale * COMBAT_BLOCKER_OVERLAP_FRAC;
+    const onAttacker = this.cardHeight() * this.cardScale * COMBAT_BLOCKER_OVERLAP_FRAC;
     for (const b of staging.blockers) {
       const entry = this.entries.get(b.id);
       if (!entry) continue;
@@ -1036,7 +1074,7 @@ export class BoardRegion {
       if (list) list.push(block.blockerId);
       else byAttacker.set(block.attackerId, [block.blockerId]);
     }
-    const onAttacker = CARD_H * this.cardScale * COMBAT_BLOCKER_OVERLAP_FRAC;
+    const onAttacker = this.cardHeight() * this.cardScale * COMBAT_BLOCKER_OVERLAP_FRAC;
     const fanStep = cardW * COMBAT_STAGE_FAN_FRAC;
     const connectors: { ax: number; bx: number; by: number }[] = [];
     for (const [attackerId, blockerIds] of byAttacker) {
@@ -1055,7 +1093,7 @@ export class BoardRegion {
       });
     }
 
-    const halfH = (CARD_H * this.cardScale) / 2;
+    const halfH = (this.cardHeight() * this.cardScale) / 2;
     const stripTop = y - halfH - COMBAT_ROW_PAD_Y;
     this.combatRow.render(
       {
@@ -1064,6 +1102,9 @@ export class BoardRegion {
         stripTop,
         stripWidth: bandW,
         stripHeight: halfH * 2 + COMBAT_ROW_PAD_Y * 2,
+        cardWidth: cardW,
+        direction: this.mirrored ? 1 : -1,
+        attackerXs: [...attackerX.values()],
         connectors,
       },
       this.host.getTheme(),
@@ -1072,7 +1113,8 @@ export class BoardRegion {
 
   private frontEdgeY(): number {
     const zone = this.usableZone();
-    const halfCard = (CARD_H * this.cardScale) / 2;
+    if (this.compactMode) return this.mirrored ? zone.y + zone.height : zone.y;
+    const halfCard = (this.cardHeight() * this.cardScale) / 2;
     if (this.mirrored) {
       return zone.y + zone.height - COMBAT_ROW_PAD_Y - halfCard;
     }
@@ -1124,6 +1166,7 @@ export class BoardRegion {
       this.collectLocalBlockers(),
       this.cardScale,
       this.zoneTileKeys.length > 0,
+      this.cardHeight(),
     );
     let freeCellCount = 0;
     for (const cell of grid.cells) {
@@ -1131,20 +1174,33 @@ export class BoardRegion {
     }
     if (topLevelCandidates.length <= freeCellCount) return;
 
-    const prioritized = topLevelCandidates.map((card, i) => ({ card, i }));
+    const anchorIds = new Set<string>();
+    const anchoredCategories = new Set<BattlefieldCardCategory>();
+    for (const card of topLevelCandidates) {
+      const category = battlefieldCardCategory(card);
+      if (anchoredCategories.has(category)) continue;
+      anchoredCategories.add(category);
+      anchorIds.add(card.id);
+    }
+    const prioritized = topLevelCandidates.map((card, index) => ({
+      card,
+      index,
+      protected:
+        card.id === this.pendingDrop?.cardId ||
+        this.userPlacedCards.has(card.id) ||
+        anchorIds.has(card.id),
+    }));
     prioritized.sort((a, b) => {
-      const aPending = a.card.id === this.pendingDrop?.cardId ? 0 : 1;
-      const bPending = b.card.id === this.pendingDrop?.cardId ? 0 : 1;
-      if (aPending !== bPending) return aPending - bPending;
-      const aHas = this.userSlots.has(a.card.id) ? 1 : 0;
-      const bHas = this.userSlots.has(b.card.id) ? 1 : 0;
-      if (aHas !== bHas) return aHas - bHas;
-      return a.i - b.i;
+      if (a.protected !== b.protected) return a.protected ? -1 : 1;
+      const category =
+        OVERFLOW_PRIORITY[battlefieldCardCategory(a.card)] -
+        OVERFLOW_PRIORITY[battlefieldCardCategory(b.card)];
+      return category || a.index - b.index;
     });
     const overflowCount = topLevelCandidates.length - freeCellCount;
-    const overflow = prioritized.slice(-overflowCount).map((p) => p.card);
-    const overflowIds = new Set(overflow.map((c) => c.id));
-    const keepers = topLevelCandidates.filter((c) => !overflowIds.has(c.id));
+    const overflow = prioritized.slice(-overflowCount).map(({ card }) => card);
+    const overflowIds = new Set(overflow.map((card) => card.id));
+    const keepers = topLevelCandidates.filter((card) => !overflowIds.has(card.id));
     if (keepers.length === 0) return;
 
     const centerX = zone.x + zone.width / 2;
@@ -1162,24 +1218,42 @@ export class BoardRegion {
       return { x: centerX, y: fallbackY };
     };
 
-    for (const oc of overflow) {
-      const isLand = oc.types.includes("Land");
-      const anchorY = isLand ? landAnchorY : nonLandAnchorY;
+    for (const overflowCard of overflow) {
+      const category = battlefieldCardCategory(overflowCard);
+      const anchorY = category === "land" ? landAnchorY : nonLandAnchorY;
       let bestId: string | null = null;
       let bestDist = Infinity;
-      for (const k of keepers) {
-        if (k.id === oc.id) continue;
-        const kp = keeperPos(k.id, anchorY);
-        const d = (kp.x - centerX) ** 2 + (kp.y - anchorY) ** 2;
-        if (d < bestDist) {
-          bestDist = d;
-          bestId = k.id;
+      for (const keeper of keepers) {
+        if (battlefieldCardCategory(keeper) !== category) continue;
+        const position = keeperPos(keeper.id, anchorY);
+        const distance = (position.x - centerX) ** 2 + (position.y - anchorY) ** 2;
+        if (distance < bestDist) {
+          bestDist = distance;
+          bestId = keeper.id;
         }
       }
       if (bestId) {
-        this.uiParent.set(oc.id, bestId);
-        this.userSlots.delete(oc.id);
+        this.uiParent.set(overflowCard.id, bestId);
+        this.userSlots.delete(overflowCard.id);
+        this.stackCounts.set(bestId, (this.stackCounts.get(bestId) ?? 1) + 1);
       }
+    }
+  }
+  private compressCompactLands(cards: CardDto[], positions: Map<string, Point>, cardWidth: number) {
+    if (!this.compactMode) return;
+    const lands = cards
+      .filter((card) => battlefieldCardCategory(card) === "land" && positions.has(card.id))
+      .sort((a, b) => positions.get(a.id)!.x - positions.get(b.id)!.x);
+    if (
+      lands.length < COMPACT_LAND_OVERLAP_MIN ||
+      lands.some((card) => this.userPlacedCards.has(card.id))
+    ) {
+      return;
+    }
+    const step = cardWidth * COMPACT_LAND_STEP_FRAC;
+    const startX = this.zoneCenterX() - (step * (lands.length - 1)) / 2;
+    for (let index = 0; index < lands.length; index++) {
+      positions.get(lands[index]!.id)!.x = startX + step * index;
     }
   }
 
@@ -1192,6 +1266,7 @@ export class BoardRegion {
       this.collectLocalBlockers(),
       this.cardScale,
       this.zoneTileKeys.length > 0,
+      this.cardHeight(),
     );
     this.gridInfo = grid;
 
@@ -1278,20 +1353,16 @@ export class BoardRegion {
       landRows = flip(landRows);
     }
 
-    type CardCategory = "creature" | "land" | "other";
-    const classify = (c: CardDto): CardCategory => {
-      if (c.types.includes("Creature")) return "creature";
-      if (c.types.includes("Land")) return "land";
-      return "other";
-    };
+    const classify = battlefieldCardCategory;
 
-    const categoryConfig: Record<CardCategory, { rows: number[]; anchorTop: boolean }> = {
-      creature: { rows: creatureRows, anchorTop: !this.mirrored },
-      other: { rows: otherRows, anchorTop: !this.mirrored },
-      land: { rows: landRows, anchorTop: this.mirrored },
-    };
+    const categoryConfig: Record<BattlefieldCardCategory, { rows: number[]; anchorTop: boolean }> =
+      {
+        creature: { rows: creatureRows, anchorTop: !this.mirrored },
+        other: { rows: otherRows, anchorTop: !this.mirrored },
+        land: { rows: landRows, anchorTop: this.mirrored },
+      };
 
-    const catOrder: CardCategory[] = ["creature", "other", "land"];
+    const catOrder: BattlefieldCardCategory[] = ["creature", "other", "land"];
     const sortedUnplaced = [...unplaced].sort(
       (a, b) => catOrder.indexOf(classify(a)) - catOrder.indexOf(classify(b)),
     );
@@ -1334,6 +1405,7 @@ export class BoardRegion {
         positions.set(c.id, { x: centerX, y: anchorY });
       }
     }
+    this.compressCompactLands(cards, positions, grid.cardW);
 
     return positions;
   }
@@ -1344,7 +1416,7 @@ export class BoardRegion {
       x: slot.x,
       y: slot.y,
       width: CARD_W * this.cardScale,
-      height: CARD_H * this.cardScale,
+      height: this.cardHeight() * this.cardScale,
     };
   }
 
@@ -1363,6 +1435,7 @@ export class BoardRegion {
         this.collectLocalBlockers(),
         this.cardScale,
         this.zoneTileKeys.length > 0,
+        this.cardHeight(),
       );
     const occupied = new Set<string>();
     for (const pos of this.gridTargets.values()) {
@@ -1446,7 +1519,11 @@ export class BoardRegion {
         ? applyCardOverrides(card, useGameDevStore.getState().cardOverrides)
         : card;
     if (entry.sprite.card !== overriddenCard) entry.sprite.updateCardContent(overriddenCard);
-    entry.sprite.setStackCount(this.stackCounts.get(card.id) ?? 1);
+    const stackCount = this.stackCounts.get(card.id) ?? 1;
+    entry.sprite.setStackCount(stackCount);
+    entry.sprite.setStackBadgeInteractive(
+      stackCount > 1 ? () => this.toggleStackPeek(card.id) : null,
+    );
     const orderIdx = state.orderedCardIds?.indexOf(card.id) ?? -1;
     entry.sprite.setOrderBadge(orderIdx >= 0 ? orderIdx + 1 : null);
     entry.targetRotation = overriddenCard.tapped ? (this.mirrored ? -Math.PI / 2 : Math.PI / 2) : 0;
@@ -1479,6 +1556,7 @@ export class BoardRegion {
   private ensureBattlefieldEntry(card: CardDto): void {
     if (this.entries.has(card.id)) return;
     const sprite = new CardSprite(card);
+    sprite.setCompactSquare(this.compactMode);
     this.host.wireSprite(sprite);
     this.applyTouchChrome(sprite);
     this.container.addChild(sprite);
@@ -1532,17 +1610,19 @@ export class BoardRegion {
     } else if (state.pendingCardIds?.includes(card.id)) {
       sprite.setRing(hexToNum(theme.appTheme.primary));
     } else if (state.tappableLandIds?.includes(card.id)) {
-      sprite.setRing(hexToNum(theme.gameTheme.cardRing));
+      sprite.setRing(null);
+      sprite.setPlayableRing(hexToNum(theme.gameTheme.cardRing));
     } else if (state.untappableLandIds?.includes(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.interaction.untap));
     } else if (state.hostileTargetCardIds?.includes(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.targeting.hostile));
     } else if (state.selectableCardIds?.includes(card.id)) {
-      sprite.setRing(
-        state.hostileTargeting
-          ? hexToNum(theme.gameTheme.targeting.hostile)
-          : hexToNum(theme.gameTheme.cardRing),
-      );
+      if (state.hostileTargeting) {
+        sprite.setRing(hexToNum(theme.gameTheme.targeting.hostile));
+      } else {
+        sprite.setRing(null);
+        sprite.setPlayableRing(hexToNum(theme.gameTheme.cardRing));
+      }
     } else {
       sprite.setRing(null);
     }
@@ -1583,7 +1663,9 @@ export class BoardRegion {
 
   private playArea(): PlayZoneRect {
     const z = this.usableZone();
-    const reserve = combatRowReserve(this.cardScale);
+    const reserve = this.combatRowReserved
+      ? combatRowReserve(this.cardScale, this.cardHeight())
+      : 0;
     return {
       x: z.x,
       y: z.y + (this.mirrored ? 0 : FIELD_INNER_EDGE_PAD_PX + reserve),
@@ -1726,7 +1808,29 @@ export class BoardRegion {
       seen.add(childId);
       result.push(childId);
     }
+
     return result;
+  }
+
+  toggleStackPeek(anchorId: string): void {
+    if (this.stackPeekAnchorId === anchorId) {
+      this.collapseStackPeek();
+      return;
+    }
+    const state = this.lastState;
+    const anchor = state?.cards.find((c) => c.id === anchorId);
+    const entry = this.entries.get(anchorId);
+    if (!state || !anchor || !entry) return;
+    const pile = [anchor, ...state.cards.filter((c) => this.uiParent.get(c.id) === anchorId)];
+    const b = entry.sprite.getBounds();
+    this.stackPeekAnchorId = anchorId;
+    this.host.previewCards(pile, { x: b.x, y: b.y, width: b.width, height: b.height });
+  }
+
+  collapseStackPeek(): void {
+    if (this.stackPeekAnchorId === null) return;
+    this.stackPeekAnchorId = null;
+    this.host.previewCards(null);
   }
 
   followAttachmentsDuringDrag(parentId: string, parentCenter: Point): void {
@@ -1875,7 +1979,7 @@ export class BoardRegion {
       gfx.visible = false;
       return;
     }
-    const halfH = (CARD_H * this.cardScale) / 2;
+    const halfH = (this.cardHeight() * this.cardScale) / 2;
     const mat = this.playmatRect();
     const stripLeft = mat.x;
     const stripW = mat.width;
@@ -1889,10 +1993,33 @@ export class BoardRegion {
     gfx.visible = true;
   }
 
+  private drawInvalidDropMarker(
+    gfx: Graphics,
+    centerX: number,
+    centerY: number,
+    cardW: number,
+    cardH: number,
+  ): void {
+    const color = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
+    const x = centerX - cardW / 2;
+    const y = centerY - cardH / 2;
+    const inset = Math.min(GAP * 2, cardW / 4, cardH / 4);
+    gfx.roundRect(x, y, cardW, cardH, CARD_RADIUS);
+    gfx.fill({ color, alpha: GRID_SKELETON_FILL_ALPHA * 4 });
+    gfx.roundRect(x, y, cardW, cardH, CARD_RADIUS);
+    gfx.stroke({ color, width: 3, alpha: GRID_SKELETON_HOVER_ALPHA });
+    gfx.moveTo(x + inset, y + inset);
+    gfx.lineTo(x + cardW - inset, y + cardH - inset);
+    gfx.moveTo(x + cardW - inset, y + inset);
+    gfx.lineTo(x + inset, y + cardH - inset);
+    gfx.stroke({ color, width: 3, alpha: GRID_SKELETON_HOVER_ALPHA });
+  }
+
   drawGridSkeleton(
     draggingIds: Set<string>,
     hoveredCell: GridCell | null,
     stackTargetId: string | null,
+    invalidDropPoint: ScreenPos | null = null,
   ): void {
     const gfx = this.gridSkeletonGfx;
     gfx.clear();
@@ -1904,6 +2031,7 @@ export class BoardRegion {
     const theme = this.host.getTheme();
     const color = hexToNum(theme.gameTheme.activeAction.active);
     const blockedColor = hexToNum(theme.gameTheme.pt.lethal);
+    const stackColor = hexToNum(theme.gameTheme.targeting.friendly);
     const occupied = new Map<string, string>();
     for (const [id, pos] of this.gridTargets) {
       if (draggingIds.has(id)) continue;
@@ -1924,10 +2052,10 @@ export class BoardRegion {
       const isStack = key === stackKey;
       const isHover = key === hoveredKey && !isStack;
       const isOccupied = occupied.has(key) && !isStack;
-      const baseStroke = this.compactZones
+      const baseStroke = this.compactMode
         ? GRID_SKELETON_STROKE_ALPHA_COMPACT
         : GRID_SKELETON_STROKE_ALPHA;
-      const baseFill = this.compactZones
+      const baseFill = this.compactMode
         ? GRID_SKELETON_FILL_ALPHA_COMPACT
         : GRID_SKELETON_FILL_ALPHA;
       const strokeAlpha = isStack
@@ -1942,9 +2070,24 @@ export class BoardRegion {
           : isOccupied
             ? 0
             : baseFill;
+      const cellColor = isStack ? stackColor : color;
       gfx.roundRect(cell.x, cell.y, grid.cardW, grid.cardH, CARD_RADIUS);
-      if (fillAlpha > 0) gfx.fill({ color, alpha: fillAlpha });
-      gfx.stroke({ color, width: isStack || isHover ? 2 : 1, alpha: strokeAlpha });
+      if (fillAlpha > 0) gfx.fill({ color: cellColor, alpha: fillAlpha });
+      gfx.stroke({ color: cellColor, width: isStack || isHover ? 2 : 1, alpha: strokeAlpha });
+      if (isStack) {
+        const offset = GAP / 2;
+        gfx.roundRect(cell.x + offset, cell.y - offset, grid.cardW, grid.cardH, CARD_RADIUS);
+        gfx.stroke({ color: stackColor, width: 2, alpha: GRID_SKELETON_STACK_ALPHA });
+      }
+    }
+    if (invalidDropPoint) {
+      this.drawInvalidDropMarker(
+        gfx,
+        invalidDropPoint.x,
+        invalidDropPoint.y,
+        grid.cardW,
+        grid.cardH,
+      );
     }
     if (this.skeletonDebug) {
       for (const b of this.collectLocalBlockers()) {
@@ -1964,16 +2107,15 @@ export class BoardRegion {
       this.collectLocalBlockers(),
       this.cardScale,
       this.zoneTileKeys.length > 0,
+      this.cardHeight(),
     );
     const color = hexToNum(this.host.getTheme().gameTheme.activeAction.active);
     const gfx = this.gridSkeletonGfx;
     gfx.clear();
 
-    const hoveredCell = cellFromPoint(grid, localX, localY);
-    this.lastDropCell =
-      hoveredCell && !hoveredCell.blocked ? { col: hoveredCell.col, row: hoveredCell.row } : null;
-    const hoveredKey =
-      hoveredCell && !hoveredCell.blocked ? cellKey(hoveredCell.col, hoveredCell.row) : null;
+    const hoveredCell = dropCellFromPoint(grid, localX, localY);
+    this.lastDropCell = hoveredCell ? { col: hoveredCell.col, row: hoveredCell.row } : null;
+    const hoveredKey = hoveredCell ? cellKey(hoveredCell.col, hoveredCell.row) : null;
 
     for (const cell of grid.cells) {
       if (cell.blocked) continue;
@@ -1984,7 +2126,7 @@ export class BoardRegion {
         color,
         alpha: isHover
           ? GRID_SKELETON_FILL_ALPHA * 5
-          : this.compactZones
+          : this.compactMode
             ? GRID_SKELETON_FILL_ALPHA_COMPACT
             : GRID_SKELETON_FILL_ALPHA,
       });
@@ -1993,10 +2135,13 @@ export class BoardRegion {
         width: isHover ? 2 : 1,
         alpha: isHover
           ? GRID_SKELETON_HOVER_ALPHA
-          : this.compactZones
+          : this.compactMode
             ? GRID_SKELETON_STROKE_ALPHA_COMPACT
             : GRID_SKELETON_STROKE_ALPHA,
       });
+    }
+    if (!hoveredCell) {
+      this.drawInvalidDropMarker(gfx, localX, localY, grid.cardW, grid.cardH);
     }
     gfx.visible = true;
   }

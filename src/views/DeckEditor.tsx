@@ -7,6 +7,7 @@ import { CardSearch } from "@/components/editor/CardSearch";
 import { useTopBarOverride } from "@/components/layout/TopBarOverride";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { useCardPreview } from "@/hooks/useCardPreview";
+import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import {
   DndContext,
   DragOverlay,
@@ -103,6 +104,9 @@ function DragTrayTarget({
 
 export default function DeckEditor() {
   const previewController = useCardPreview([], { subscribe: false });
+  const shortScreen = useIsShortScreen();
+  const isTouch = useIsTouch();
+  const shortTouch = shortScreen && isTouch;
   const {
     removeFromSide,
     removeFromMaybe,
@@ -364,6 +368,8 @@ export default function DeckEditor() {
     collectionDecks,
     deckFilterArgs,
   );
+  const compactAddDeck =
+    isTouch && filteredCollectionDecks.length === 0 && filteredCollectionDrafts.length === 0;
   const filteredPublishedDecks = publishedDecks
     .filter((deck) => {
       if (search && !deck.title.toLowerCase().includes(search.toLowerCase())) return false;
@@ -705,7 +711,7 @@ export default function DeckEditor() {
           />
 
           <ScrollArea className="flex-1">
-            <div className="p-4 sm:px-6 lg:px-8">
+            <div className={cn("p-4 sm:px-6 lg:px-8", shortTouch && "py-2 sm:py-2")}>
               <div className="mb-3 flex items-center gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   My decks
@@ -748,7 +754,7 @@ export default function DeckEditor() {
               )}
               {!deckCatalogPending && (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                  <div className="group relative">
+                  <div className={cn("group relative", compactAddDeck && "col-span-full")}>
                     <button
                       type="button"
                       onClick={() => setChoiceDialogOpen(true)}
@@ -757,9 +763,13 @@ export default function DeckEditor() {
                         "flex flex-col items-center justify-center gap-1.5",
                         "cursor-pointer bg-muted/30 text-muted-foreground transition-all",
                         "group-hover:border-primary group-hover:bg-muted/60 group-hover:text-foreground",
+                        compactAddDeck &&
+                          (shortTouch
+                            ? "h-12 flex-row gap-3 aspect-auto"
+                            : "h-16 flex-row gap-3 aspect-auto"),
                       )}
                     >
-                      <Plus className="h-6 w-6" />
+                      <Plus className={cn("h-6 w-6", compactAddDeck && "h-5 w-5")} />
                       <span className="text-xs font-medium">Add deck</span>
                     </button>
                   </div>
@@ -840,19 +850,20 @@ export default function DeckEditor() {
                 <div
                   className={cn(
                     "mt-4",
+                    shortTouch && "mt-2",
                     (filteredCollectionDecks.length > 0 || filteredCollectionDrafts.length > 0) &&
                       "border-t pt-4",
                   )}
                 >
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  <div className={cn("mb-3 flex items-center gap-2", shortTouch && "mb-2")}>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Starter Decks
                     </span>
                     <span className="text-[10px] text-muted-foreground">
                       ({presetSavedDecks.length})
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                     {presetSavedDecks.map((s) => (
                       <DeckGridCard
                         key={s.id}
@@ -1018,7 +1029,12 @@ export default function DeckEditor() {
         onDragCancel={() => setDraggedCards([])}
       >
         <div className="h-full w-full overflow-hidden flex flex-col lg:flex-row">
-          <div className="overflow-hidden flex-1 min-h-0 min-w-0">
+          <div
+            className={cn(
+              "min-h-0 min-w-0 flex-1 overflow-hidden",
+              showSearch && isTouch && "hidden",
+            )}
+          >
             <DeckBuilder
               key={editorSessionId}
               onSelectionChange={(selectedCards) => {
@@ -1051,7 +1067,12 @@ export default function DeckEditor() {
             />
           </div>
           {showSearch && (
-            <div className="flex-1 min-h-0 min-w-0 border-t lg:border-t-0 lg:border-l overflow-hidden">
+            <div
+              className={cn(
+                "min-h-0 min-w-0 flex-1 overflow-hidden border-t lg:border-l lg:border-t-0",
+                isTouch && "border-0",
+              )}
+            >
               <CardSearch
                 onClose={() => setShowSearch(false)}
                 previewSlot={previewSlot}

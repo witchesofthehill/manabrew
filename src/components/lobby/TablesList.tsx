@@ -14,6 +14,7 @@ import { USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type { ServerErrorCode } from "@/types/server";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 
 const HIDDEN_ROOM_NAMES = new Set(["free room", "free pod"]);
 
@@ -75,6 +76,9 @@ export function TablesList({
   const [formatRoom, setFormatRoom] = useState<RoomInfo | null>(null);
   const [formatAfterJoin, setFormatAfterJoin] = useState(false);
   const [search, setSearch] = useState("");
+  const shortScreen = useIsShortScreen();
+  const isTouch = useIsTouch();
+  const shortTouch = shortScreen && isTouch;
 
   async function handleJoinRoom(roomId: string, password?: string, format?: GameFormat) {
     if (joiningRoomId) return;
@@ -165,15 +169,25 @@ export function TablesList({
   return (
     <div className="flex h-full flex-col">
       <ScrollArea className="flex-1">
-        <div className="space-y-6 px-4 pb-6 pt-3 sm:px-6 lg:px-8">
+        <div
+          className={cn(
+            "space-y-6 px-4 pb-6 pt-3 sm:px-6 lg:px-8",
+            shortTouch && "space-y-3 py-2 sm:py-2",
+          )}
+        >
           <MultiplayerStartPanel disabled={disabled} onSetUp={onNewGame} />
 
-          <section className="space-y-3">
+          <section className={cn("space-y-3", shortTouch && "space-y-2")}>
             <div>
-              <h2 className="font-serif text-3xl font-light sm:text-4xl">
+              <h2
+                className={cn(
+                  "font-serif text-3xl font-light sm:text-4xl",
+                  shortTouch && "text-2xl sm:text-2xl",
+                )}
+              >
                 Tables from other players
               </h2>
-              <p className="ml-2 mt-2 text-xs text-muted-foreground">
+              <p className={cn("ml-2 mt-2 text-xs text-muted-foreground", shortTouch && "hidden")}>
                 Join a table that is already waiting for players.
               </p>
             </div>
@@ -186,7 +200,7 @@ export function TablesList({
                   onChange={(e) => setSearch(e.target.value)}
                   aria-label="Search tables"
                   placeholder="Search tables…"
-                  className="h-8 pl-8 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
+                  className="h-8 pl-8 text-sm pointer-coarse:h-11 pointer-coarse:text-base"
                 />
               </div>
               <Button
@@ -194,7 +208,7 @@ export function TablesList({
                 onClick={onRefresh}
                 disabled={refreshDisabled || refreshing}
                 title="Refresh tables"
-                className="h-8 w-8 shrink-0 pointer-coarse:h-10 pointer-coarse:w-10"
+                className="h-8 w-8 shrink-0 pointer-coarse:h-11 pointer-coarse:w-11"
               >
                 <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
               </Button>
@@ -217,11 +231,16 @@ export function TablesList({
                 ))}
               </div>
             ) : (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                {hasTables
-                  ? "No tables match your search."
-                  : "No player tables waiting. Set one up above."}
-              </p>
+              <div className="flex flex-col items-center gap-3 py-5 text-center">
+                <p className="text-sm text-muted-foreground">
+                  {hasTables ? "No tables match your search." : "No player tables are waiting."}
+                </p>
+                {!hasTables && (
+                  <Button variant="primary" size="sm" onClick={onNewGame} disabled={disabled}>
+                    Set up a table
+                  </Button>
+                )}
+              </div>
             )}
           </section>
         </div>

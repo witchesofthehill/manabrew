@@ -197,6 +197,7 @@ export function DialogCardBrowser({
             state={state}
             defaultRules={defaultView === "rules"}
             actionable={!!onActivate}
+            ringColor={intentColor ?? theme.cardRing}
             pending={pending}
             onSelect={(id) => inspect(id, false)}
             onHover={setHoveredId}

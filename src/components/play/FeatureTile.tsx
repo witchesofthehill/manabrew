@@ -69,6 +69,7 @@ interface FeatureTileProps {
   size?: keyof typeof TILE_SIZES;
   footer?: ReactNode;
   className?: string;
+  compact?: boolean;
 }
 
 export function FeatureTile({
@@ -80,6 +81,7 @@ export function FeatureTile({
   size = "sm",
   footer,
   className,
+  compact = false,
 }: FeatureTileProps) {
   const accent = TILE_ACCENTS[tone] ?? TILE_ACCENTS.primary;
   const sizing = TILE_SIZES[size];
@@ -89,26 +91,37 @@ export function FeatureTile({
       className={cn(
         "group relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl border border-border/70 bg-card/85 backdrop-blur-md motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         sizing.tile,
+        compact && "min-h-28 flex-row items-center gap-4 p-4 sm:min-h-28 sm:p-4 lg:min-h-28",
         accent.hoverBorder,
         className,
       )}
     >
       <Icon
         aria-hidden="true"
-        className={cn("absolute rotate-12", sizing.watermark, accent.watermark)}
+        className={cn(
+          "absolute rotate-12",
+          sizing.watermark,
+          compact && "-bottom-6 -right-4 h-28 w-28 sm:h-28 sm:w-28",
+          accent.watermark,
+        )}
       />
       <span
         className={cn(
           "flex shrink-0 items-center justify-center rounded-full border",
           sizing.chip,
+          compact && "h-11 w-11",
           accent.chip,
         )}
       >
         <Icon className={sizing.chipIcon} />
       </span>
       <span className="relative">
-        <span className={cn("block min-w-0", sizing.label)}>{label}</span>
-        <span className={cn("block text-muted-foreground", sizing.desc)}>{desc}</span>
+        <span className={cn("block min-w-0", sizing.label, compact && "text-xl sm:text-xl")}>
+          {label}
+        </span>
+        <span className={cn("block text-muted-foreground", sizing.desc, compact && "line-clamp-2")}>
+          {desc}
+        </span>
         {footer}
       </span>
     </Link>

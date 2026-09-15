@@ -19,7 +19,7 @@ export function SetTile({ set, active, prefetching, onClick, size = "md" }: SetT
       onClick={onClick}
       title={`${set.name} (${set.code.toUpperCase()}) · ${set.set_type} · ${set.released_at ?? "—"} · ${set.card_count} cards`}
       className={cn(
-        "group relative flex items-center gap-2 rounded-lg border px-3 text-left transition",
+        "group relative flex min-h-9 items-center gap-2 rounded-lg border px-3 text-left transition pointer-coarse:min-h-11 pointer-coarse:min-w-0 pointer-coarse:w-full",
         compact ? "py-1.5" : "py-2",
         active
           ? "border-selection bg-selection/15 shadow-[0_0_0_1px_var(--color-selection)]/30"

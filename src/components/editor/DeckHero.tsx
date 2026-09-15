@@ -16,11 +16,15 @@ import { PartnerBadge } from "@/components/deck/PartnerBadge";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { PlaymatEditorModal } from "./PlaymatEditorModal";
 import { cn } from "@/lib/utils";
+import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import type { DeckFormat } from "@/protocol/deck";
 
 export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => void }) {
   const currentDeck = useDeckStore((s) => s.currentDeck);
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
+  const shortScreen = useIsShortScreen();
+  const isTouch = useIsTouch();
+  const shortTouch = shortScreen && isTouch;
   const setDeckName = useDeckStore((s) => s.setDeckName);
   const setDeckFormat = useDeckStore((s) => s.setDeckFormat);
   const setPlaymat = useDeckStore((s) => s.setPlaymat);
@@ -60,7 +64,7 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
   }
 
   return (
-    <div className="relative isolate overflow-hidden border-b">
+    <div className={cn("relative isolate overflow-hidden border-b", shortTouch && "min-h-20")}>
       {coverArt && (
         <ScryfallImg
           src={coverArt}
@@ -81,14 +85,20 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
       />
 
       {!isReadOnly && (
-        <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
+        <div
+          className={cn(
+            "absolute right-3 top-3 z-10 flex items-center gap-2",
+            shortTouch && "right-2 top-1",
+          )}
+        >
           <button
             type="button"
             title="Customize playmat"
             onClick={() => setEditorOpen(true)}
             className={cn(
-              "inline-flex h-8 items-center gap-2 rounded-md border bg-background/60 text-xs font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background/80 hover:text-foreground",
+              "inline-flex h-8 items-center gap-2 rounded-md border bg-background/60 text-xs font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background/80 hover:text-foreground pointer-coarse:h-11",
               playmat || playmatColor ? "p-1 pr-2.5" : "px-2.5",
+              shortTouch && "px-2 pr-2",
             )}
           >
             {playmat ? (
@@ -107,7 +117,9 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
             ) : (
               <ImagePlus className="h-4 w-4" />
             )}
-            <span>{playmat || playmatColor ? "Edit playmat" : "Playmat"}</span>
+            <span className={cn(shortTouch && "hidden")}>
+              {playmat || playmatColor ? "Edit playmat" : "Playmat"}
+            </span>
           </button>
         </div>
       )}
@@ -123,7 +135,12 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
         />
       )}
 
-      <div className="relative flex flex-col gap-1.5 px-5 pb-4 pt-10">
+      <div
+        className={cn(
+          "relative flex flex-col gap-1.5 px-5 pb-4 pt-10",
+          shortTouch && "min-h-20 flex-row items-center gap-3 px-3 py-2 pr-16",
+        )}
+      >
         <div className="flex flex-wrap items-center gap-1.5">
           {isReadOnly ? (
             <FormatBadge formatId={currentDeck.format ?? "standard"} />
@@ -132,7 +149,7 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border bg-background/60 px-2 py-0.5 text-xs backdrop-blur-sm transition-colors hover:bg-background/80"
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border bg-background/60 px-2 py-0.5 text-xs backdrop-blur-sm transition-colors hover:bg-background/80 pointer-coarse:min-h-11"
                   title="Change format"
                 >
                   <FormatBadge formatId={currentDeck.format ?? "standard"} />
@@ -165,11 +182,16 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
         </div>
 
         {isReadOnly ? (
-          <h2 className="text-2xl font-bold tracking-tight">{currentDeck.name}</h2>
+          <h2 className={cn("text-2xl font-bold tracking-tight", shortTouch && "text-lg")}>
+            {currentDeck.name}
+          </h2>
         ) : editingName ? (
           <div className="flex items-center gap-1.5">
             <Input
-              className="h-10 w-80 max-w-full !text-xl font-bold"
+              className={cn(
+                "h-10 w-80 max-w-full !text-xl font-bold",
+                shortTouch && "h-11 w-56 !text-lg",
+              )}
               value={currentDeck.name}
               onChange={(e) => setDeckName(e.target.value)}
               onBlur={finishNameEdit}
@@ -187,7 +209,10 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
         ) : (
           <button
             type="button"
-            className="group -ml-1.5 flex w-fit max-w-full items-center gap-2 rounded-md px-1.5 py-0.5 transition-colors hover:bg-background/50"
+            className={cn(
+              "group -ml-1.5 flex min-h-9 w-fit max-w-full items-center gap-2 rounded-md px-1.5 py-0.5 transition-colors hover:bg-background/50 pointer-coarse:min-h-11",
+              shortTouch && "min-w-0",
+            )}
             title="Rename deck"
             onClick={() => {
               cancelNameEditRef.current = false;
@@ -195,13 +220,22 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
               setEditingName(true);
             }}
           >
-            <h2 className="truncate text-2xl font-bold tracking-tight">{currentDeck.name}</h2>
+            <h2
+              className={cn("truncate text-2xl font-bold tracking-tight", shortTouch && "text-lg")}
+            >
+              {currentDeck.name}
+            </h2>
             <Pencil className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 pointer-coarse:opacity-100" />
           </button>
         )}
 
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          {commanders.length > 0 && (
+        <div
+          className={cn(
+            "flex flex-wrap items-center gap-2 text-xs text-muted-foreground",
+            shortTouch && "ml-auto flex-nowrap",
+          )}
+        >
+          {commanders.length > 0 && !shortTouch && (
             <span className="flex min-w-0 items-center gap-1.5 font-medium text-foreground/80">
               {commanders.map((c, index) => (
                 <span key={c.identity.id} className="flex min-w-0 items-center gap-1.5">

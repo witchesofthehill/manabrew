@@ -14,6 +14,9 @@ export interface HoverOptions {
   trigger?: PreviewPointerInput;
   ignoreTriggerPreference?: boolean;
 }
+export interface StickyPreviewOptions {
+  allowOverModal?: boolean;
+}
 
 export function useCardPreview(
   dismissDeps: unknown[] = [],
@@ -70,8 +73,14 @@ export function useCardPreview(
   const flipCard = useCallback(() => machine.flip(), [machine]);
 
   const showSticky = useCallback(
-    (card: CardDto, x?: number, y?: number, anchor?: HTMLElement | DOMRect) => {
-      if (hookOptions.useTriggerPreference && topModal()) return;
+    (
+      card: CardDto,
+      x?: number,
+      y?: number,
+      anchor?: HTMLElement | DOMRect,
+      options: StickyPreviewOptions = {},
+    ) => {
+      if (hookOptions.useTriggerPreference && topModal() && !options.allowOverModal) return;
       machine.stick(card, {
         pointer: x != null && y != null ? { x, y } : undefined,
         anchorRect:

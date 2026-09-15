@@ -5,6 +5,7 @@ import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
 import { DeckHubPodiumFrame } from "@/components/deck/DeckHubPodiumFrame";
 import { ROUTES } from "@/lib/constants";
 import { useHubStore } from "@/stores/useHubStore";
+import { useIsTouch } from "@/hooks/useBreakpoints";
 
 interface DeckHubTopDeckPreviewProps {
   onOpen: (id: string) => void;
@@ -12,6 +13,7 @@ interface DeckHubTopDeckPreviewProps {
 }
 
 export function DeckHubTopDeckPreview({ onOpen, onAuthor }: DeckHubTopDeckPreviewProps) {
+  const isTouch = useIsTouch();
   const buckets = useHubStore((state) => state.topBuckets);
   const bucketsLoaded = useHubStore((state) => state.topBucketsLoaded);
   const snapshot = useHubStore((state) => state.topSnapshot);
@@ -43,36 +45,63 @@ export function DeckHubTopDeckPreview({ onOpen, onAuthor }: DeckHubTopDeckPrevie
         </div>
         <Link
           to={ROUTES.HUB_TOP}
-          className="flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline"
+          className="flex min-h-8 shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline pointer-coarse:min-h-11"
         >
           See rankings
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>
       {entries.length > 0 ? (
-        <div className="grid grid-cols-12 gap-3 md:aspect-[12/5] md:grid-rows-3">
-          {entries.map((ranked, index) => (
+        isTouch ? (
+          <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-1 pr-8 no-scrollbar touch-scroll-fade">
+            {entries.map((ranked) => (
+              <div key={ranked.entry.id} className="w-[78vw] max-w-72 shrink-0 snap-start">
+                <DeckHubPodiumFrame rank={ranked.rank}>
+                  <DeckHubEntryCard
+                    entry={ranked.entry}
+                    rank={ranked.rank}
+                    reason={ranked.reason}
+                    onOpen={() => onOpen(ranked.entry.id)}
+                    onAuthorClick={onAuthor}
+                  />
+                </DeckHubPodiumFrame>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-12 gap-3 md:aspect-[12/5] md:grid-rows-3">
+            {entries.map((ranked, index) => (
+              <div
+                key={ranked.entry.id}
+                className={
+                  index === 0
+                    ? "col-span-12 md:col-span-7 md:row-span-3"
+                    : index === 1
+                      ? "col-span-7 row-start-2 md:col-span-5 md:col-start-8 md:row-span-2 md:row-start-1"
+                      : "col-span-5 col-start-1 row-start-3 md:col-span-5 md:col-start-8 md:row-start-3"
+                }
+              >
+                <DeckHubPodiumFrame rank={ranked.rank} className="flex h-full min-h-0 flex-col">
+                  <DeckHubEntryCard
+                    entry={ranked.entry}
+                    rank={ranked.rank}
+                    reason={ranked.reason}
+                    variant="stage"
+                    onOpen={() => onOpen(ranked.entry.id)}
+                    onAuthorClick={onAuthor}
+                  />
+                </DeckHubPodiumFrame>
+              </div>
+            ))}
+          </div>
+        )
+      ) : isTouch ? (
+        <div className="-mx-1 flex gap-3 overflow-hidden px-1">
+          {Array.from({ length: 2 }, (_, index) => (
             <div
-              key={ranked.entry.id}
-              className={
-                index === 0
-                  ? "col-span-12 md:col-span-7 md:row-span-3"
-                  : index === 1
-                    ? "col-span-7 row-start-2 md:col-span-5 md:col-start-8 md:row-span-2 md:row-start-1"
-                    : "col-span-5 col-start-1 row-start-3 md:col-span-5 md:col-start-8 md:row-start-3"
-              }
-            >
-              <DeckHubPodiumFrame rank={ranked.rank} className="flex h-full min-h-0 flex-col">
-                <DeckHubEntryCard
-                  entry={ranked.entry}
-                  rank={ranked.rank}
-                  reason={ranked.reason}
-                  variant="stage"
-                  onOpen={() => onOpen(ranked.entry.id)}
-                  onAuthorClick={onAuthor}
-                />
-              </DeckHubPodiumFrame>
-            </div>
+              key={index}
+              className="aspect-[4/3] w-[78vw] max-w-72 shrink-0 animate-pulse rounded-lg bg-muted"
+            />
           ))}
         </div>
       ) : (

@@ -768,16 +768,22 @@ export class PlayerHudCapsule {
   }
 
   private renderCompactCapsule(w: number, h: number): void {
-    const pad = PANEL_PADDING;
+    const pad = this.compact ? 5 : PANEL_PADDING;
     this.panelHeight = h;
     this.identityHeight = h;
     this.identityWidth = w;
     this.drawPlate(w, h);
-    const avatarDia = Math.min(AVATAR_DIAMETER, h - 14);
+    const avatarDia = Math.min(this.compact ? 32 : AVATAR_DIAMETER, h - (this.compact ? 8 : 14));
     this.avatarCx = pad + avatarDia / 2;
     this.avatarCy = h / 2;
     this.avatarDia = avatarDia;
     this.drawAvatar(this.avatarCx, this.avatarCy, avatarDia, true);
+    if (this.compact) {
+      const lifeX = pad + avatarDia + (w - pad - avatarDia) / 2;
+      this.layoutLife(lifeX, h / 2, true);
+      this.heart.visible = false;
+      return;
+    }
     const lifeX = pad + avatarDia + 54;
     this.layoutLife(lifeX, 29, false);
     this.heart.visible = true;
@@ -806,7 +812,7 @@ export class PlayerHudCapsule {
   }
 
   private renderCapsule(w: number, h: number): void {
-    if (!this.compact && !this.column) {
+    if (!this.column) {
       this.renderCompactCapsule(w, h);
       return;
     }
@@ -901,7 +907,7 @@ export class PlayerHudCapsule {
   }
 
   private layoutLife(x: number, y: number, centered: boolean): void {
-    this.lifeFontSize = this.compact ? 28 : 32;
+    this.lifeFontSize = this.compact ? 24 : 32;
     this.life.style = this.textStyle(this.lifeFontSize, "800");
     this.life.anchor.set(centered ? 0.5 : 1, 0.5);
     this.life.position.set(x, y);
@@ -1311,9 +1317,11 @@ export class PlayerHudCapsule {
   }
 
   private applyTargetable(): void {
+    const actionableZone =
+      this.compact && this.spec.badges.some((badge) => badge.zone && badge.actionable);
     const mode = this.spec.isSelectedTarget
       ? "solid"
-      : this.spec.isTargetable
+      : this.spec.isTargetable || actionableZone
         ? this.motionEnabled
           ? "pulse"
           : "solid"
@@ -1344,10 +1352,16 @@ export class PlayerHudCapsule {
   }
 
   private drawTargetRing(): void {
+    const actionableZone =
+      this.compact &&
+      !this.spec.isTargetable &&
+      !this.spec.isSelectedTarget &&
+      this.spec.badges.some((badge) => badge.zone && badge.actionable);
     const intent = this.spec.targetingIntent;
     const game = this.theme.gameTheme;
-    const color =
-      intent === "attack"
+    const color = actionableZone
+      ? game.cardRing
+      : intent === "attack"
         ? game.promptAction.attackAction
         : intent === "block"
           ? game.promptAction.defenseAction
@@ -1357,6 +1371,14 @@ export class PlayerHudCapsule {
               : game.targeting.friendly
             : game.cardSelection;
     this.targetRing.clear();
+    if (actionableZone) {
+      this.targetRing.circle(this.avatarCx, this.avatarCy, this.avatarDia / 2 + 4);
+      this.targetRing.stroke({
+        color: hexToNum(color),
+        width: 6,
+        alpha: 0.2,
+      });
+    }
     this.targetRing.circle(this.avatarCx, this.avatarCy, this.avatarDia / 2 + 1);
     this.targetRing.stroke({
       color: hexToNum(color),

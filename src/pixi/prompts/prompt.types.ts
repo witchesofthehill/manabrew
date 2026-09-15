@@ -4,7 +4,7 @@ import type { CardDto, PlayerDto } from "@/protocol/game";
 import type { ClientGameView } from "@/stores/gameStore.types";
 import type { Prompt, PromptOutput } from "@/protocol";
 import type { TargetRef } from "@/protocol/prompts/common";
-import type { ScreenPos } from "@/pixi/types";
+import type { ScreenBounds, ScreenPos } from "@/pixi/types";
 
 export interface DamageOrderPromptSpec {
   attackerName: string;
@@ -28,6 +28,7 @@ export interface PromptLayerCallbacks {
   onReferenceChange?: (target: TargetRef | null) => void;
   getReferenceAnchor?: (target: TargetRef) => ScreenPos | null;
   onRenderRequested?: () => void;
+  onLongPressCard?: (card: CardDto, bounds: ScreenBounds) => void;
 }
 
 export interface PromptOverlaySpec {

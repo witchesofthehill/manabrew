@@ -9,6 +9,8 @@ import type { DeckHubGroup } from "@/components/deck/deckHub.types";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
 import { FORMAT_DISPLAY, ROUTES } from "@/lib/constants";
 import { useHubStore } from "@/stores/useHubStore";
+import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
+import { cn } from "@/lib/utils";
 
 interface DeckHubResultsProps {
   entries: DeckHubEntrySummary[];
@@ -61,6 +63,9 @@ export function DeckHubResults({
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const favoritePending = useHubStore((state) => state.favoritePending);
   const hasMore = entries.length < total;
+  const shortScreen = useIsShortScreen();
+  const isTouch = useIsTouch();
+  const shortTouch = shortScreen && isTouch;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
@@ -83,15 +88,17 @@ export function DeckHubResults({
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:order-1">
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-        <div className="p-4 sm:px-6 lg:px-8">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">
-              {loaded
-                ? `${total.toLocaleString()} ${total === 1 ? "publication" : "publications"}`
-                : "Loading publications…"}
-            </p>
-            {loading && loaded && <p className="text-xs text-muted-foreground">Updating…</p>}
-          </div>
+        <div className={cn("p-4 sm:px-6 lg:px-8", shortTouch && "p-2 sm:px-4")}>
+          {!isTouch && (
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">
+                {loaded
+                  ? `${total.toLocaleString()} ${total === 1 ? "publication" : "publications"}`
+                  : "Loading publications…"}
+              </p>
+              {loading && loaded && <p className="text-xs text-muted-foreground">Updating…</p>}
+            </div>
+          )}
           {error ? (
             <div className="rounded-lg border border-dashed p-8 text-center">
               <p className="text-sm font-medium">Community could not be loaded</p>
@@ -101,9 +108,18 @@ export function DeckHubResults({
               </Button>
             </div>
           ) : !loaded ? (
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            <div
+              className={cn(
+                "grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
+                shortTouch && "grid-cols-3 gap-2 md:grid-cols-3",
+              )}
+            >
               {Array.from({ length: 10 }, (_, index) => (
-                <div key={index} className="aspect-[4/3] animate-pulse rounded-lg bg-muted" />
+                <div key={index} className="animate-pulse rounded-lg border bg-card p-2">
+                  <div className="aspect-[16/9] rounded-md bg-muted" />
+                  <div className="mt-2 h-3 w-3/4 rounded bg-muted" />
+                  <div className="mt-2 h-2.5 w-1/2 rounded bg-muted" />
+                </div>
               ))}
             </div>
           ) : entries.length === 0 ? (
@@ -128,10 +144,12 @@ export function DeckHubResults({
               )}
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className={cn("space-y-6", shortTouch && "space-y-3")}>
               {!hasFilters && <DeckHubCuratedSections onOpen={onOpen} onAuthor={onAuthor} />}
               {!hasFilters && (
-                <h2 className="font-serif text-xl font-semibold">Explore all decks</h2>
+                <h2 className={cn("font-serif text-xl font-semibold", shortTouch && "text-lg")}>
+                  Explore all decks
+                </h2>
               )}
               {[...groups.entries()].map(([label, groupedEntries]) => (
                 <section key={label}>
@@ -161,7 +179,12 @@ export function DeckHubResults({
                       <span className="text-xs text-muted-foreground">{groupedEntries.length}</span>
                     </div>
                   )}
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                  <div
+                    className={cn(
+                      "grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
+                      shortTouch && "grid-cols-3 gap-2 md:grid-cols-3",
+                    )}
+                  >
                     {groupedEntries.map((entry) => (
                       <DeckHubEntryCard
                         key={entry.id}

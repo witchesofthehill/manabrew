@@ -320,7 +320,7 @@ function FilterBtn({
       title={title}
       onClick={onClick}
       className={cn(
-        "h-6 min-w-[1.5rem] px-1.5 rounded text-xs font-semibold border transition-colors select-none pointer-coarse:h-8 pointer-coarse:min-w-8",
+        "h-6 min-w-[1.5rem] select-none rounded border px-1.5 text-xs font-semibold transition-colors pointer-coarse:h-11 pointer-coarse:min-w-11",
         active
           ? "bg-selection text-selection-foreground border-selection"
           : "bg-background text-muted-foreground border-border hover:bg-muted",
@@ -702,7 +702,7 @@ export function CardSearch({
               title="Grid view"
               onClick={() => setViewMode("grid")}
               className={cn(
-                "px-2 py-1 text-xs transition-colors",
+                "flex h-8 w-8 items-center justify-center text-xs transition-colors pointer-coarse:h-11 pointer-coarse:w-11",
                 viewMode === "grid"
                   ? "bg-selection text-selection-foreground"
                   : "hover:bg-muted text-muted-foreground",
@@ -715,7 +715,7 @@ export function CardSearch({
               title="List view"
               onClick={() => setViewMode("list")}
               className={cn(
-                "px-2 py-1 text-xs transition-colors border-l",
+                "flex h-8 w-8 items-center justify-center border-l text-xs transition-colors pointer-coarse:h-11 pointer-coarse:w-11",
                 viewMode === "list"
                   ? "bg-selection text-selection-foreground"
                   : "hover:bg-muted text-muted-foreground",

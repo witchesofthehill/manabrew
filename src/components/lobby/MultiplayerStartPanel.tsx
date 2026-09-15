@@ -1,6 +1,7 @@
 import { Armchair, Plus } from "lucide-react";
 import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
 import { Button } from "@/components/ui/button";
+import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 
 interface MultiplayerStartPanelProps {
   disabled: boolean;
@@ -8,6 +9,29 @@ interface MultiplayerStartPanelProps {
 }
 
 export function MultiplayerStartPanel({ disabled, onSetUp }: MultiplayerStartPanelProps) {
+  const shortScreen = useIsShortScreen();
+  const isTouch = useIsTouch();
+  const compact = shortScreen && isTouch;
+
+  if (compact) {
+    return (
+      <section className="flex min-h-24 items-center justify-between gap-4 rounded-xl border border-border/70 bg-card/80 p-3 shadow-md backdrop-blur-md">
+        <div className="min-w-0">
+          <h2 className="font-serif text-2xl font-light leading-tight">Pull up a chair.</h2>
+          <p className="mt-1 text-xs text-muted-foreground">Create a table for your group.</p>
+        </div>
+        <Button
+          variant="primary"
+          size="lg"
+          className="shrink-0 px-4"
+          onClick={onSetUp}
+          disabled={disabled}
+        >
+          <Plus /> Set up
+        </Button>
+      </section>
+    );
+  }
   return (
     <OpenTableSeats
       players={[]}

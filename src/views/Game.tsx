@@ -62,6 +62,7 @@ import { GameBoard } from "@/components/game/GameBoard";
 import { buildCombatRows } from "@/components/game/combatRows";
 import { readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
+import { boardBackgroundDarken, boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { useLimitedStore } from "@/stores/useLimitedStore";
@@ -90,7 +91,7 @@ import { Card } from "@/components/game/Card";
 import { cn } from "@/lib/utils";
 import { applyManualTabletopAction, getSelectedGameRuntime } from "@/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
+import { deriveCardRailState, parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
 import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
@@ -299,6 +300,11 @@ export default function Game({ exitTo }: GameProps = {}) {
   const zonePanelOrder = usePreferencesStore((s) => s.zonePanelOrder);
   const inGameCardPreviewStyle = usePreferencesStore((s) => s.inGameCardPreviewStyle);
   const cardPreviewMode = usePreferencesStore((s) => s.cardPreviewMode);
+  const roomTableStyle = useServerStore((s) => s.currentRoom?.table_style);
+  const boardBackgroundId = usePreferencesStore((s) => s.boardBackgroundId);
+  const backgroundId = roomTableStyle ?? boardBackgroundId;
+  const backgroundUrl = boardBackgroundUrl(backgroundId);
+  const backgroundDarken = boardBackgroundDarken(backgroundId);
   const vScale = useHandScale();
   const themeColors = useTheme().gameTheme;
   const location = useLocation();
@@ -679,6 +685,16 @@ export default function Game({ exitTo }: GameProps = {}) {
       source: card,
     });
   };
+  const handleHandCardInspect = (card: CardDto, e: { clientX: number; clientY: number }) => {
+    preview.showSticky(card, e.clientX, e.clientY);
+  };
+  const handleHandCardTap = (card: CardDto, e: { clientX: number; clientY: number }) => {
+    if (playableIds.has(card.id)) {
+      handleHandCardAction(card, e);
+      return;
+    }
+    handleHandCardInspect(card, e);
+  };
 
   const handleHandCardDragStart = (card: CardDto, e: HandDragStart) => {
     const actions = getHandActionOptions(card);
@@ -1047,7 +1063,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       battlefieldContainerRef,
       handDropExclusionPx: Math.round(HAND_CARD_BASE.containerH * vScale * 0.35),
       getHandBounds: () => boardSceneRef.current?.getHandBounds() ?? null,
-      onClickCard: handleHandCardAction,
+      onClickCard: handleHandCardTap,
       onCastSpell: handleCastSpell,
       onBattlefieldDrop: (card, position) => {
         if (
@@ -1058,7 +1074,8 @@ export default function Game({ exitTo }: GameProps = {}) {
         }
       },
       dismissHover: preview.dismiss,
-      onLongPress: (card, pos) => preview.showSticky(card, pos.x, pos.y),
+      onLongPress: (card, pos) =>
+        preview.showSticky(card, pos.x, pos.y, undefined, { allowOverModal: true }),
     });
 
   const draggingIsPermanent = draggingHandCard ? isPermanentSpellCard(draggingHandCard) : false;
@@ -1974,7 +1991,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     !viewingZone &&
     !abilityPickerState &&
     commandZonePreview.phase !== "hidden";
-  const previewSuppressed = !!promptType && !HOVER_ALLOWED_PROMPTS.has(promptType);
+  const previewSuppressed =
+    !preview.isSticky && !!promptType && !HOVER_ALLOWED_PROMPTS.has(promptType);
   const externalPreviewActive =
     !previewSuppressed &&
     ((showInGamePreview && preview.phase === "open") ||
@@ -2159,11 +2177,14 @@ export default function Game({ exitTo }: GameProps = {}) {
       ? {
           card: livePreviewCard,
           phase: preview.phase === "closing" ? "closing" : "open",
+          placement: preview.placement,
           sticky: preview.isSticky,
           showBackFace: previewShowBackFace,
           suppressed: previewSuppressed,
           skipEnterAnimation: skipPreviewEnterAnimation,
           actions: hoveredCardActions,
+          reserveSidePanel:
+            hoveredCardActions.length > 0 || deriveCardRailState(livePreviewCard) != null,
           mousePos: preview.mousePos,
           anchorRect: preview.anchorRect,
           slotRect: null,
@@ -2300,7 +2321,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   return (
     <div
       ref={containerRef}
-      className="font-game game-touch-surface relative flex flex-col h-full min-h-0 overflow-hidden select-none pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)] pt-[var(--safe-area-inset-top)]"
+      className="font-game game-touch-surface relative isolate flex flex-col h-full min-h-0 overflow-hidden select-none bg-canvas-background pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)] pt-[var(--safe-area-inset-top)]"
       style={
         {
           "--flash-duration": `${flashDurationMs}ms`,
@@ -2319,6 +2340,16 @@ export default function Game({ exitTo }: GameProps = {}) {
         } as React.CSSProperties
       }
     >
+      {backgroundUrl && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url(${backgroundUrl})`,
+            filter: `brightness(${1 - backgroundDarken})`,
+          }}
+        />
+      )}
       <LandscapeGate />
       <DevViewportFrame>
         <GameBoard
@@ -2404,7 +2435,9 @@ export default function Game({ exitTo }: GameProps = {}) {
           onLongPressCard={(card, rect) => {
             setCommandPreviewSource(null);
             commandZonePreview.dismiss();
-            preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2, rect);
+            preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2, rect, {
+              allowOverModal: true,
+            });
           }}
           onHandHoverChange={setHandCardLifted}
           getHandActions={getHandActionOptions}
@@ -2652,6 +2685,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           suppressed={previewSuppressed}
           skipEnterAnimation={skipPreviewEnterAnimation}
           onToggleView={togglePreviewView}
+          viewportRight={boardViewportRight}
         />
       )}
 

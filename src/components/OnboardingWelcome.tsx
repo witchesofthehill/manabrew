@@ -113,7 +113,7 @@ export function OnboardingWelcome({ onComplete }: { onComplete: () => void }) {
             Already have an account?{" "}
             <button
               type="button"
-              className="font-medium text-primary underline-offset-2 hover:underline"
+              className="inline-flex min-h-11 items-center px-2 font-medium text-primary underline-offset-2 hover:underline"
               onClick={() => setStep("signin")}
             >
               Sign in

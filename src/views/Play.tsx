@@ -183,9 +183,7 @@ export default function Play() {
 
   if (pathname === ROUTES.PLAY_OFFLINE_LIMITED) {
     return (
-      <OfflinePlayShell>
-        <Limited />
-      </OfflinePlayShell>
+      <OfflinePlayShell>{(modeToggle) => <Limited leadingControl={modeToggle} />}</OfflinePlayShell>
     );
   }
 
@@ -195,13 +193,16 @@ export default function Play() {
 
   return (
     <OfflinePlayShell>
-      <OfflinePlaySetup
-        preSelectedDeckId={preSelectedDeckId}
-        preSelectedHubDeckId={preSelectedHubDeckId}
-        onStart={(playerDeck, opponentDecks, formatId, commanderName) =>
-          startGame(playerDeck, formatId, commanderName, opponentDecks, resolveOfflineEngine())
-        }
-      />
+      {(modeToggle) => (
+        <OfflinePlaySetup
+          leadingControl={modeToggle}
+          preSelectedDeckId={preSelectedDeckId}
+          preSelectedHubDeckId={preSelectedHubDeckId}
+          onStart={(playerDeck, opponentDecks, formatId, commanderName) =>
+            startGame(playerDeck, formatId, commanderName, opponentDecks, resolveOfflineEngine())
+          }
+        />
+      )}
     </OfflinePlayShell>
   );
 }

@@ -150,7 +150,11 @@ export interface PreferencesState {
   lastRoomSetup: LastRoomSetup | null;
   setLastRoomSetup: (setup: LastRoomSetup) => void;
   tableBackground: BoardBackgroundId;
+  mobileHandedness: "right" | "left";
   setTableBackground: (background: BoardBackgroundId) => void;
+  hapticFeedback: boolean;
+  setHapticFeedback: (enabled: boolean) => void;
+  setMobileHandedness: (handedness: "right" | "left") => void;
 }
 
 const PERSISTED_PREFERENCE_KEYS = [
@@ -173,6 +177,8 @@ const PERSISTED_PREFERENCE_KEYS = [
   "battlefieldCardStyle",
   "boardBackgroundId",
   "inGameAnimations",
+  "mobileHandedness",
+  "hapticFeedback",
   "chooseOrderOnMultipleTriggers",
   "ironsmithRuntimeEnabled",
   "directTransport",
@@ -330,6 +336,12 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           opponentLayout: "focused",
           setOpponentLayout: (opponentLayout) => set({ opponentLayout }),
+
+          hapticFeedback: true,
+          setHapticFeedback: (hapticFeedback) => set({ hapticFeedback }),
+
+          mobileHandedness: "right",
+          setMobileHandedness: (mobileHandedness) => set({ mobileHandedness }),
 
           cardHoverDelayMs: 350,
           setCardHoverDelayMs: (ms) => set({ cardHoverDelayMs: ms }),

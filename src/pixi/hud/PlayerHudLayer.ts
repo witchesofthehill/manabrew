@@ -9,8 +9,10 @@ export const SELF_PLAYER_HUD_HEIGHT_PX = 58;
 export const OPPONENT_PLAYER_HUD_HEIGHT_PX = 58;
 export const SELF_PLAYER_HUD_MAX_WIDTH_PX = 400;
 export const SELF_PLAYER_HUD_MIN_WIDTH_PX = 272;
+export const MOBILE_PLAYER_HUD_MAX_WIDTH_PX = 96;
+export const MOBILE_PLAYER_HUD_MIN_WIDTH_PX = 88;
 export const PLAYER_HUD_HAND_GAP_PX = 8;
-export const PLAYER_HUD_COMPACT_HEIGHT_PX = 176;
+export const MOBILE_PLAYER_HUD_HEIGHT_PX = 40;
 
 // Above this y a capsule is a top-anchored opponent, so its tooltip drops below
 // the badge instead of rising above it (off the top edge).

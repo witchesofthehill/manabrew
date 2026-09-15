@@ -21,6 +21,7 @@ import { useStatusBanner } from "@/hooks/useStatusBanner";
 import { useDesktopUpdater } from "@/hooks/useDesktopUpdater";
 import { useEngineHostCloseGuard } from "@/hooks/useEngineHostCloseGuard";
 import { useLocalDeckAccountSync } from "@/hooks/useLocalDeckAccountSync";
+import { useSoundPreferencesRuntime } from "@/hooks/useSoundPreferencesRuntime";
 import { ROUTES } from "@/lib/constants";
 import { flushPublishedDeckPlayReports } from "@/lib/deckPlayEvidence";
 import { flushEngineStatsReports } from "@/lib/engineStatsReport";
@@ -109,6 +110,7 @@ export function AppShell() {
   useDesktopUpdater();
   useEngineHostCloseGuard();
   useLocalDeckAccountSync();
+  useSoundPreferencesRuntime();
 
   function goToAdjacentPage(delta: number) {
     if (hideNavChrome || activeTopBarOverride?.navigationDisabled) return;

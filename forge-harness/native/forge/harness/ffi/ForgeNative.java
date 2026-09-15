@@ -58,6 +58,27 @@ public final class ForgeNative {
             return err(t);
         }
     }
+    @CEntryPoint(name = "forge_get_display_events")
+    static CCharPointer getDisplayEvents(
+            IsolateThread thread, CCharPointer sessionId, int playerIndex) {
+        try {
+            return ok(ADAPTER.getDisplayEvents(str(sessionId), playerIndex));
+        } catch (Throwable t) {
+            return err(t);
+        }
+    }
+    @CEntryPoint(name = "forge_publish_action_rejected")
+    static CCharPointer publishActionRejected(
+            IsolateThread thread, CCharPointer sessionId, int playerIndex, long promptId) {
+        try {
+            ADAPTER.publishActionRejected(str(sessionId), playerIndex, promptId);
+            return ok("");
+        } catch (Throwable t) {
+            return err(t);
+        }
+    }
+
+
 
     @CEntryPoint(name = "forge_get_snapshot")
     static CCharPointer getSnapshot(IsolateThread thread, CCharPointer sessionId, int viewer) {

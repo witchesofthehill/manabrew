@@ -351,6 +351,18 @@ public final class Main {
                                 requireString(request, "sessionId"),
                                 request.get("playerIndex").getAsInt()));
                             break;
+                        case "getDisplayEvents":
+                            sendOk(adapter.getDisplayEvents(
+                                requireString(request, "sessionId"),
+                                request.get("playerIndex").getAsInt()));
+                            break;
+                        case "publishActionRejected":
+                            adapter.publishActionRejected(
+                                requireString(request, "sessionId"),
+                                request.get("playerIndex").getAsInt(),
+                                request.get("promptId").getAsLong());
+                            sendOk("");
+                            break;
                         case "getSnapshot":
                             sendOk(adapter.getSnapshot(
                                 requireString(request, "sessionId"),

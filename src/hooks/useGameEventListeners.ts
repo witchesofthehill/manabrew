@@ -18,6 +18,7 @@ import { SELF_RECONNECT_WINDOW_S } from "@/hooks/useMultiplayerInterruption";
 import { clearActiveGameSession, peekActiveGameSession } from "@/lib/activeGameSession";
 import { FORETELL_LOG_PREFIX, normalizeGameLogPayload, type GameLogEntry } from "@/types/gameLog";
 import { normalizeSnapshotPayload } from "@/types/gameSnapshot";
+import { resetDisplayEventSession } from "@/lib/displayEvents";
 import {
   applyDisplay,
   applyPrompt,
@@ -236,6 +237,7 @@ export function useGameEventListeners() {
   }, []);
 
   useEffect(() => {
+    resetDisplayEventSession();
     const platform = getPlatform();
     const runtime = getSelectedGameRuntime();
     const unsubscribers: (() => void)[] = [];
@@ -266,7 +268,7 @@ export function useGameEventListeners() {
 
       unsubscribers.push(
         platform.events.on<DisplayEvent>("game:display", (payload) => {
-          if (!payload?.kind) return;
+          if (!payload?.eventType) return;
           applyDisplay(payload, "Event", setState, getState);
         }),
       );
@@ -363,10 +365,14 @@ export function useGameEventListeners() {
       );
 
       unsubscribers.push(
-        platform.events.on<{ event: DisplayEvent }>("game:remote_display", (payload) => {
-          if (!payload.event?.kind) return;
-          applyDisplay(payload.event, "Remote", setState, getState);
-        }),
+        platform.events.on<{ forPlayer?: string; event: DisplayEvent }>(
+          "game:remote_display",
+          (payload) => {
+            if (payload.forPlayer && payload.forPlayer !== getState().myPlayerSlot) return;
+            if (!payload.event?.eventType) return;
+            applyDisplay(payload.event, "Remote", setState, getState);
+          },
+        ),
       );
 
       unsubscribers.push(
@@ -483,6 +489,7 @@ export function useGameEventListeners() {
 
     return () => {
       unsubscribers.forEach((fn) => fn());
+      resetDisplayEventSession();
     };
   }, []);
 }

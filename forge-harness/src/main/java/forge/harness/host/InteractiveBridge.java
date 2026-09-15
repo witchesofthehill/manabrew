@@ -22,4 +22,13 @@ public interface InteractiveBridge {
     default String exchange(int playerIndex, String promptJson) {
         return exchange(promptJson);
     }
+
+    /**
+     * Publishes one transient display event to a seat without waiting for a response.
+     *
+     * <p>Threaded hosts drain display events through {@code ManaBrewEngineAdapter};
+     * single-threaded hosts override this hook because the game is blocked inside
+     * {@link #exchange(int, String)}.
+     */
+    void publishDisplay(int playerIndex, String displayEventJson);
 }

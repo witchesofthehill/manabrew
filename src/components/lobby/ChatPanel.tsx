@@ -33,6 +33,7 @@ export function ChatPanel({
   const unread = useChatStore((s) => s.unread);
   const send = useChatStore((s) => s.send);
   const markRead = useChatStore((s) => s.markRead);
+  const setActiveScope = useChatStore((s) => s.setActiveScope);
   const players = useServerStore((s) => s.players);
   const signedIn = useAuthStore((s) => s.status === "signedIn");
   const showSignIn = useSignInDialog((s) => s.show);
@@ -51,6 +52,11 @@ export function ChatPanel({
 
   const entries: ChatEntry[] = scope === "Room" ? room : lobby;
   const locked = scope === "Lobby" && !signedIn;
+
+  useEffect(() => {
+    setActiveScope(scope);
+    return () => setActiveScope(null);
+  }, [scope, setActiveScope]);
 
   useEffect(() => {
     markRead(scope);

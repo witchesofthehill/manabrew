@@ -188,9 +188,12 @@ export function AppInitGate({ children }: { children: ReactNode }) {
 
         <div className="absolute inset-0 z-10 overflow-y-auto">
           <div className="flex min-h-full w-full flex-col items-center justify-center gap-10 px-8 py-10">
+            {/* No `filter` here: Firefox (ESR 140 and older, bug 2011747) drops
+                any descendant that uses `backdrop-filter`, which hid the
+                onboarding card. The card carries its own `shadow-2xl`. */}
             <div
               className={cn(
-                "flex w-full flex-col items-center gap-10 drop-shadow-2xl",
+                "flex w-full flex-col items-center gap-10",
                 showOnboarding ? "max-w-5xl" : "max-w-2xl",
               )}
             >

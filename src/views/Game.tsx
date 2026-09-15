@@ -1163,6 +1163,18 @@ export default function Game({ exitTo }: GameProps = {}) {
     if (navigationBlocker.state === "blocked") navigationBlocker.reset();
     void endGame();
   }, [navigationBlocker, endGame]);
+  // The engine owner cannot walk away from a live game: the engine goes with
+  // them. With one opponent left there is still a proper way out: concede,
+  // and the engine declares the winner before it stops, which is what a
+  // node-hosted game does when a player quits. Only a table that would carry
+  // on without them has no result to reach.
+  const leaveEndsWithConcede = ownsEngine && !gameContinuesWithoutMe;
+  const handleLeaveConcede = useCallback(() => {
+    setLeaveGameModalOpen(false);
+    if (navigationBlocker.state === "blocked") navigationBlocker.reset();
+    eliminatedModalShownRef.current = true;
+    void concede();
+  }, [navigationBlocker, concede]);
   useEffect(() => {
     if (gameOverNow || manualApi || !gameContinuesWithoutMe) return;
     if (myStatus && myStatus !== "playing" && !eliminatedModalShownRef.current) {
@@ -2290,7 +2302,13 @@ export default function Game({ exitTo }: GameProps = {}) {
         />
       )}
       {leaveGameModalOpen && (
-        <LeaveGameModal mode={leaveGameMode} onStay={handleStay} onLeave={handleLeaveConfirm} />
+        <LeaveGameModal
+          mode={leaveGameMode}
+          endsWithConcede={leaveEndsWithConcede}
+          onStay={handleStay}
+          onConcede={handleLeaveConcede}
+          onLeave={handleLeaveConfirm}
+        />
       )}
       {concedeModalOpen && (
         <ConcedeGameModal

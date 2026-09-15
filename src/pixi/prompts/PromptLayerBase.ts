@@ -89,8 +89,6 @@ export const REORDER_PREVIEW_SECONDS = 0.14;
 export const FILTER_CARET_PERIOD_MS = 1000;
 export const SCRY_LAYOUT_SETTLE_SECONDS = 0.2;
 export const MODAL_SCROLL_LINE_HEIGHT = 16;
-export const MODAL_SCROLL_SCALE = 0.35;
-export const MODAL_SCROLL_MAX_STEP = 56;
 
 interface DragState {
   item: Container;
@@ -495,6 +493,7 @@ export abstract class PromptLayerBase {
   protected scryItems: Record<string, string[]> = {};
   protected scrySelectedId: string | null = null;
   protected scryPoolScrollOffset = 0;
+  protected scryPoolScrollTarget = 0;
   protected scryPoolScrollMax = 0;
   protected scryPoolScrollToEnd = false;
   protected scryPoolSlotX = new Map<string, number>();
@@ -568,6 +567,7 @@ export abstract class PromptLayerBase {
     y: number;
   } | null = null;
   protected modalScrollOffset = 0;
+  protected modalScrollTarget = 0;
   protected modalScrollMax = 0;
   protected modalBody: {
     panel: Container;

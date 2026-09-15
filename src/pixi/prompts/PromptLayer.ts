@@ -238,8 +238,10 @@ export class PromptLayer extends PromptModalLayer {
     this.rollSettled = false;
     this.rollElapsedMs = 0;
     this.modalScrollOffset = 0;
+    this.modalScrollTarget = 0;
     this.modalScrollMax = 0;
     this.scryPoolScrollOffset = 0;
+    this.scryPoolScrollTarget = 0;
     this.scryPoolScrollMax = 0;
     this.scryPoolScrollToEnd = false;
     const input = spec?.currentPrompt?.input;
@@ -2132,6 +2134,7 @@ export class PromptLayer extends PromptModalLayer {
     const elapsed = performance.now();
     const motionEnabled = animationsEnabled();
     this.updateDragMotion(deltaMs);
+    this.updateScrollMotion(deltaMs);
     this.syncActionFeedback(elapsed);
     if (this.selectionFilterView) {
       this.selectionFilterView.caret.visible =

@@ -46,8 +46,6 @@ import {
   MODAL_BODY_BOTTOM_PADDING,
   MODAL_MIN_HEIGHT,
   MODAL_SCROLL_LINE_HEIGHT,
-  MODAL_SCROLL_MAX_STEP,
-  MODAL_SCROLL_SCALE,
   PANEL_PADDING,
   REORDER_CARD_INSET,
   REORDER_LAYOUT_SETTLE_SECONDS,
@@ -68,6 +66,8 @@ const CHOICE_MODAL_WIDTH = 560;
 const CARD_PROMPT_MIN_WIDTH = 360;
 const SCRY_DESTINATION_VERTICAL_PADDING = 48;
 const SCRY_POOL_DRAG_SCALE = 0.5;
+const MODAL_SCROLL_HALF_LIFE_MS = 28;
+const MODAL_SCROLL_SNAP_PIXELS = 0.5;
 
 export abstract class PromptModalLayer extends PromptLayerBase {
   protected renderModal(): void {
@@ -426,21 +426,41 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     if (!state || this.modalScrollMax <= 0) return;
     event.preventDefault();
     event.stopPropagation();
-    const rawDelta =
+    const delta =
       event.deltaMode === 1
         ? event.deltaY * MODAL_SCROLL_LINE_HEIGHT
         : event.deltaMode === 2
           ? event.deltaY * state.viewportHeight
           : event.deltaY;
-    const delta = Math.max(
-      -MODAL_SCROLL_MAX_STEP,
-      Math.min(MODAL_SCROLL_MAX_STEP, rawDelta * MODAL_SCROLL_SCALE),
-    );
-    this.modalScrollOffset = Math.max(
+    this.modalScrollTarget = Math.max(
       0,
-      Math.min(this.modalScrollMax, this.modalScrollOffset + delta),
+      Math.min(this.modalScrollMax, this.modalScrollTarget + delta),
     );
-    this.syncModalScrollPosition();
+    if (!animationsEnabled()) {
+      this.modalScrollOffset = this.modalScrollTarget;
+      this.syncModalScrollPosition();
+    }
+    this.callbacks.onRenderRequested?.();
+  }
+
+  protected updateScrollMotion(deltaMs: number): void {
+    const blend = 1 - Math.pow(0.5, Math.min(deltaMs, 50) / MODAL_SCROLL_HALF_LIFE_MS);
+    if (this.modalScrollOffset !== this.modalScrollTarget) {
+      const gap = this.modalScrollTarget - this.modalScrollOffset;
+      this.modalScrollOffset =
+        Math.abs(gap) < MODAL_SCROLL_SNAP_PIXELS
+          ? this.modalScrollTarget
+          : this.modalScrollOffset + gap * blend;
+      this.syncModalScrollPosition();
+    }
+    if (this.scryPoolScrollOffset !== this.scryPoolScrollTarget) {
+      const gap = this.scryPoolScrollTarget - this.scryPoolScrollOffset;
+      this.setScryPoolScrollOffset(
+        Math.abs(gap) < MODAL_SCROLL_SNAP_PIXELS
+          ? this.scryPoolScrollTarget
+          : this.scryPoolScrollOffset + gap * blend,
+      );
+    }
   }
 
   protected finalizeModalScroll(): void {
@@ -462,6 +482,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const overflow = contentHeight - state.viewportHeight;
     this.modalScrollMax = overflow > 1 ? overflow : 0;
     this.modalScrollOffset = Math.min(this.modalScrollOffset, this.modalScrollMax);
+    this.modalScrollTarget = Math.min(this.modalScrollTarget, this.modalScrollMax);
     const scrollable = this.modalScrollMax > 0 && state.viewportHeight > 0;
     state.scrollTrack.visible = scrollable;
     state.scrollThumb.visible = scrollable;
@@ -1839,9 +1860,11 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     this.scryPoolScrollMax = Math.max(0, poolContentWidth - poolWidth);
     if (this.scryPoolScrollToEnd) {
       this.scryPoolScrollOffset = this.scryPoolScrollMax;
+      this.scryPoolScrollTarget = this.scryPoolScrollMax;
       this.scryPoolScrollToEnd = false;
     }
     this.scryPoolScrollOffset = Math.min(this.scryPoolScrollOffset, this.scryPoolScrollMax);
+    this.scryPoolScrollTarget = Math.min(this.scryPoolScrollTarget, this.scryPoolScrollMax);
     const poolLayer = new Container();
     poolLayer.eventMode = "static";
     poolLayer.sortableChildren = true;
@@ -2059,12 +2082,13 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     event.preventDefault();
     event.stopPropagation();
     const dominant = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
-    const rawDelta = event.deltaMode === 1 ? dominant * MODAL_SCROLL_LINE_HEIGHT : dominant;
-    const delta = Math.max(
-      -MODAL_SCROLL_MAX_STEP,
-      Math.min(MODAL_SCROLL_MAX_STEP, rawDelta * MODAL_SCROLL_SCALE),
+    const delta = event.deltaMode === 1 ? dominant * MODAL_SCROLL_LINE_HEIGHT : dominant;
+    this.scryPoolScrollTarget = Math.max(
+      0,
+      Math.min(this.scryPoolScrollMax, this.scryPoolScrollTarget + delta),
     );
-    this.setScryPoolScrollOffset(this.scryPoolScrollOffset + delta);
+    if (!animationsEnabled()) this.setScryPoolScrollOffset(this.scryPoolScrollTarget);
+    this.callbacks.onRenderRequested?.();
   }
 
   protected setScryPoolScrollOffset(offset: number): void {

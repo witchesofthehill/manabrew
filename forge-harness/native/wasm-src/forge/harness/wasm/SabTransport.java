@@ -232,8 +232,22 @@ public final class SabTransport implements InteractiveBridge {
      * show the result instead of "waiting for the opponent".
      */
     public void publishGameOver() {
+        publishGameOver(null);
+    }
+
+    /**
+     * @param engineError the crash that ended the game, or null when the
+     *        engine finished it. Sent as an {@code error} envelope with code
+     *        {@code engineCrash} ahead of the final board, so the client can
+     *        show and report a crash instead of a draw.
+     */
+    public void publishGameOver(final String engineError) {
         final int seats = Math.max(1, seatCount());
         for (int seat = 0; seat < seats; seat++) {
+            if (engineError != null && !engineError.isEmpty()) {
+                sendTagged(seat, "error", "error", "{\"code\":\"engineCrash\",\"message\":"
+                        + new com.google.gson.JsonPrimitive(engineError) + "}");
+            }
             final String view = snapshots == null ? null : snapshots.apply(seat);
             if (view != null && !view.isEmpty()) {
                 sendTagged(seat, "state", "state", "{\"checkpointId\":" + (++checkpoint)

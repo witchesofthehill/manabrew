@@ -167,6 +167,7 @@ async function initializeGame({
     set({
       isGameActive: true,
       fatalError: null,
+      engineCrash: null,
       gameView: null,
       currentPrompt: null,
       gameLog: [],
@@ -256,6 +257,7 @@ async function initializeGame({
   set({
     isGameActive: true,
     fatalError: null,
+    engineCrash: null,
     ironsmithDeckError: null,
     gameView: null,
     currentPrompt: null,
@@ -334,6 +336,7 @@ export const useGameStore = create<GameState>()(
       isGameActive: false,
       debugInfo: "",
       fatalError: null,
+      engineCrash: null,
       ironsmithDeckError: null,
       isPrefetchingCards: false,
       deferredQueue: [],
@@ -682,7 +685,7 @@ export const useGameStore = create<GameState>()(
           multiplayer: wasMultiplayer,
           seats: Object.keys(get().gameDecks).length || 2,
           format: get().gameConfig?.formatId ?? null,
-          endReason: get().gameView?.gameOver ? "gameOver" : "left",
+          endReason: get().engineCrash ? "error" : get().gameView?.gameOver ? "gameOver" : "left",
           gameId: engineReportGameId(
             wasMultiplayer,
             useServerStore.getState().gameId,
@@ -706,6 +709,7 @@ export const useGameStore = create<GameState>()(
           seatAddressedStates: false,
           relinquishedPriority: false,
           selfConceded: false,
+          engineCrash: null,
           isMultiplayer: false,
           isHost: false,
           myPlayerSlot: null,

@@ -251,6 +251,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const snapshots = useGameStore((s) => s.snapshots);
   const debugInfo = useGameStore((s) => s.debugInfo);
   const fatalError = useGameStore((s) => s.fatalError);
+  const engineCrash = useGameStore((s) => s.engineCrash);
   const isMultiplayer = useGameStore((s) => s.isMultiplayer);
   const isHost = useGameStore((s) => s.isHost);
   const selfConceded = useGameStore((s) => s.selfConceded);
@@ -1861,6 +1862,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         opponents={opponents}
         turn={gameView.turn}
         onEndGame={endGame}
+        engineCrash={engineCrash}
       />
     );
   }

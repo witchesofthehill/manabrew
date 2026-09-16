@@ -46,6 +46,7 @@ export function buildPlaygroundSpecs(
         cards: battlefield.filter((card) => regionOf(card) === player.id),
         combatRowAttackerIds: row?.attackerIds,
         combatRowBlocks: row?.blocks,
+        combatRowTargets: row?.targets,
       },
     };
   });

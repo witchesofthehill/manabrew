@@ -1442,8 +1442,17 @@ export default function Game({ exitTo }: GameProps = {}) {
     () =>
       (gameView?.battlefield ?? [])
         .filter((c) => c.isAttacking && c.attackingPlayerId)
-        .map((c) => ({ attackerId: c.id, defenderId: c.attackingPlayerId! })),
-    [gameView?.battlefield],
+        .map((c) => {
+          const targetId = c.attackTargetId ?? c.attackingPlayerId!;
+          return {
+            attackerId: c.id,
+            targetId,
+            targetKind: gameView?.players.some((player) => player.id === targetId)
+              ? ("player" as const)
+              : ("card" as const),
+          };
+        }),
+    [gameView?.battlefield, gameView?.players],
   );
 
   const combatPairings = useMemo<CombatPairing[]>(() => {
@@ -1478,37 +1487,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     return map;
   }, [gameView?.players]);
 
-  const attackTargetKindById = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const t of chooseAttackersInput?.attackTargets ?? []) m.set(t.id, t.kind);
-    return m;
-  }, [chooseAttackersInput]);
   const attackArrows = useMemo(
-    () => [
-      ...activeAttackers
-        .filter((a) => !oppCombatAttackerIds.has(a.attackerId))
-        .map((a) => ({
-          attackerId: a.attackerId,
-          targetId: a.defenderId,
-          targetKind: "player" as const,
-        })),
-      // Player attacks read from the attack-row staging; only planeswalker /
-      // battle attacks draw an arrow, pointing at the specific permanent. This
-      // only covers the pre-commit declaration — a committed planeswalker/battle
-      // arrow would need the engine to populate CardDto.attackTargetId (always
-      // None today), so it's intentionally not attempted here.
-      ...attackAssignments
-        .filter((a) => {
-          const kind = attackTargetKindById.get(a.targetId);
-          return kind === "planeswalker" || kind === "battle";
-        })
-        .map((a) => ({
-          attackerId: a.attackerId,
-          targetId: a.targetId,
-          targetKind: "card" as const,
-        })),
-    ],
-    [activeAttackers, attackAssignments, oppCombatAttackerIds, attackTargetKindById],
+    () => activeAttackers.filter((attacker) => !oppCombatAttackerIds.has(attacker.attackerId)),
+    [activeAttackers, oppCombatAttackerIds],
   );
   const arrowBlocks = useMemo(
     () => combatAssignments.filter((a) => !oppCombatAttackerIds.has(a.attackerId)),

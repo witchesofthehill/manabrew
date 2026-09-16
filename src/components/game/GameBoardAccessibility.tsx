@@ -52,9 +52,10 @@ interface GameBoardAccessibilityProps {
 }
 const UNCONFIGURABLE_PHASE_ID = "untap";
 
-const cardLabel = (card: CardDto, owner: string): string => {
+const cardLabel = (card: CardDto, owner: string, attackTarget?: string): string => {
   const name = card.isFaceDown ? "Face-down card" : card.identity.name;
   const parts = [name, owner];
+  if (attackTarget) parts.push(`attacking ${attackTarget}`);
   if (card.tapped) parts.push("tapped");
   if (card.types.length > 0) parts.push(card.types.join(" "));
   if (card.power != null && card.toughness != null) parts.push(`${card.power}/${card.toughness}`);
@@ -106,6 +107,12 @@ export function GameBoardAccessibility({
   const playerNames = new Map(
     players.map((player) => [player.id, player.isSelf ? "you" : player.name]),
   );
+  const cardNames = new Map(battlefield.map((card) => [card.id, card.identity.name]));
+  const attackTargetOf = (card: CardDto): string | undefined => {
+    if (!card.isAttacking) return undefined;
+    const targetId = card.attackTargetId ?? card.attackingPlayerId;
+    return targetId ? (playerNames.get(targetId) ?? cardNames.get(targetId)) : undefined;
+  };
   const selectable = new Set(selectableBattlefieldCardIds ?? []);
   const tappable = new Set(tappableCardIds ?? []);
   const untappable = new Set(untappableCardIds ?? []);
@@ -216,7 +223,7 @@ export function GameBoardAccessibility({
                 <button
                   type="button"
                   className={controlClass}
-                  aria-label={`${cardLabel(card, `controlled by ${playerNames.get(card.controllerId) ?? "a player"}`)}${actionable ? ", available action" : ""}`}
+                  aria-label={`${cardLabel(card, `controlled by ${playerNames.get(card.controllerId) ?? "a player"}`, attackTargetOf(card))}${actionable ? ", available action" : ""}`}
                   onFocus={(event) =>
                     onFocusCard(card, event.currentTarget.getBoundingClientRect())
                   }

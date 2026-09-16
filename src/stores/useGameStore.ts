@@ -46,6 +46,7 @@ import { withForgeStartTimeout } from "@/game/forgeWasmValidation";
 import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
 import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
+import { isTauriForgeRoomAvailable } from "./useForgeRoomAvailabilityStore";
 import type { ClientCardDto, ClientGameView, GameState } from "./gameStore.types";
 import type { Prompt, PromptOutput } from "@/protocol";
 import type { Deck, DeckCard } from "@/protocol/deck";
@@ -156,14 +157,12 @@ async function initializeGame({
   const startingLife = format?.deckRules.startingLife ?? DEFAULT_STARTING_LIFE;
 
   const platformType = getPlatform().type;
-  const useHostedBrowserForge =
-    platformType === "web" && !isForgeWasmSupported() && isHostedEngineAvailable();
-  if (
-    engine === "Forge" &&
-    opponentDecks?.length &&
-    (platformType === "tauri" || useHostedBrowserForge)
-  ) {
-    const launchForge = platformType === "tauri" ? startTauriForgeAiGame : startHostedAiGame;
+  const tauriForgeRoomAvailable = platformType === "tauri" && isTauriForgeRoomAvailable();
+  const useHostedForge =
+    (platformType === "tauri" && !tauriForgeRoomAvailable) ||
+    (platformType === "web" && !isForgeWasmSupported() && isHostedEngineAvailable());
+  if (engine === "Forge" && opponentDecks?.length && (tauriForgeRoomAvailable || useHostedForge)) {
+    const launchForge = tauriForgeRoomAvailable ? startTauriForgeAiGame : startHostedAiGame;
     set({
       isGameActive: true,
       fatalError: null,
@@ -219,7 +218,7 @@ async function initializeGame({
       // Forge runs on the node, or in the desktop app's own host — never in
       // this tab, and never under a "forge" runtime, so the launch is the only
       // place that can name it.
-      beginGame(forgeHostLabel(platformType === "tauri"));
+      beginGame(forgeHostLabel(tauriForgeRoomAvailable));
       await hostedRuntime.api.startMultiplayerGame({
         playerNames: hostedLaunch.playerOrder,
         decks: hostedLaunch.decks,

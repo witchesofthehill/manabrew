@@ -7,6 +7,7 @@ import {
   Text,
   TextStyle,
   FillGradient,
+  Rectangle,
   ColorMatrixFilter,
   type DestroyOptions,
 } from "pixi.js";
@@ -33,9 +34,13 @@ import { isFacelessCard } from "@/lib/gameCard";
 import { loadCardBack } from "./cardBackTexture";
 import { DEBUG_KEYWORD_CARD_ID, useGameDevStore } from "@/stores/useGameDevStore";
 import { applyIcon } from "./panelIcons";
+import { isCoarsePointer } from "@/lib/responsive";
 import { type OneShot, oneShot, oneShotProgress, pulse } from "./effects/animation";
+
 import { gsap } from "./effects/gsap";
 import { bump } from "./effects/easing";
+
+const STACK_BADGE_TOUCH_PAD = 14;
 import { animationsEnabled } from "./effects/enabled";
 import {
   CARD_SHADOW,
@@ -416,6 +421,7 @@ export class CardSprite extends Container {
   private _imageLoaded = false;
   private _imageSettled = false;
   private readonly isBattlefield: boolean;
+  private compactSquare = false;
   private readonly showsBattlefieldRail: boolean;
   private cw: number;
   private ch: number;
@@ -437,9 +443,9 @@ export class CardSprite extends Container {
     this.kind = kind;
     this.isBattlefield = kind !== "hand";
     this.showsBattlefieldRail = kind === "battlefield";
-    const horizontal = this.isHorizontal();
-    this.cw = horizontal ? CARD_H : CARD_W;
-    this.ch = horizontal ? CARD_W : CARD_H;
+    const { width, height } = this.displayDimensions();
+    this.cw = width;
+    this.ch = height;
     this.eventMode = "static";
     this.cursor = "pointer";
 
@@ -611,6 +617,14 @@ export class CardSprite extends Container {
     this.stackCountContainer.addChild(this.stackCountBg);
     this.stackCountContainer.addChild(this.stackCountText);
     this.stackCountContainer.visible = false;
+    this.stackCountContainer.on("pointerdown", (e) => {
+      if (this.stackBadgeTap) e.stopPropagation();
+    });
+    this.stackCountContainer.on("pointertap", (e) => {
+      if (!this.stackBadgeTap) return;
+      e.stopPropagation();
+      this.stackBadgeTap();
+    });
     this.addChild(this.stackCountContainer);
 
     this.orderBadgeContainer = new Container();
@@ -673,6 +687,15 @@ export class CardSprite extends Container {
     return asGameDeckCard(useGameStore.getState().gameDecks, this.card);
   }
 
+  private displayDimensions(): { width: number; height: number } {
+    if (this.compactSquare && this.kind === "battlefield") {
+      return { width: CARD_W, height: CARD_W };
+    }
+    return this.isHorizontal()
+      ? { width: CARD_H, height: CARD_W }
+      : { width: CARD_W, height: CARD_H };
+  }
+
   // Scryfall serves horizontal-frame cards as upright 5:7 PNGs — rotate
   // the sprite 90° so the printed art reads in landscape inside the slot.
   private isHorizontal(): boolean {
@@ -683,11 +706,32 @@ export class CardSprite extends Container {
   get horizontalFrame(): boolean {
     return this.cw > this.ch;
   }
+  setCompactSquare(active: boolean): void {
+    const compactSquare = active && this.kind === "battlefield";
+    if (compactSquare === this.compactSquare) return;
+    this.compactSquare = compactSquare;
+    if (!this.reapplyOrientation()) return;
+    if (this._imageLoaded) {
+      if (activeStyle === "realistic") this.fitImageToSlot();
+      else this.fitArtCover();
+    }
+    if (this.mustAttackActive) {
+      this.mustAttackActive = false;
+      this.setMustAttack(true);
+    }
+    if (this.doomedGfx.visible) {
+      this.doomedGfx.visible = false;
+      this.setDoomed(true);
+    }
+    this.rebuildDecorations(true);
+    this.refreshCardRadiusChrome();
+    this.redrawHoverDebug();
+    if (this.promptReferenceColor != null) this.setPromptReference(this.promptReferenceColor);
+    this.onVisualChange?.();
+  }
 
   private reapplyOrientation(): boolean {
-    const horizontal = this.isHorizontal();
-    const cw = horizontal ? CARD_H : CARD_W;
-    const ch = horizontal ? CARD_W : CARD_H;
+    const { width: cw, height: ch } = this.displayDimensions();
     if (cw === this.cw && ch === this.ch) return false;
     this.cw = cw;
     this.ch = ch;
@@ -720,6 +764,10 @@ export class CardSprite extends Container {
   }
 
   private fitImageToSlot(): void {
+    if (this.compactSquare) {
+      this.fitPrintedSquare();
+      return;
+    }
     if (this.isHorizontal()) {
       this.imageSpr.anchor.set(0.5, 0.5);
       this.imageSpr.x = this.cw / 2;
@@ -733,6 +781,22 @@ export class CardSprite extends Container {
       this.imageSpr.y = 0;
       this.imageSpr.setSize(this.cw, this.ch);
     }
+  }
+  private fitPrintedSquare(): void {
+    const texture = this.imageSpr.texture;
+    if (texture.width === 0 || texture.height === 0) return;
+    const horizontal = this.isHorizontal();
+    const sourceW = horizontal ? texture.height : texture.width;
+    const sourceH = horizontal ? texture.width : texture.height;
+    const scale = Math.max(this.cw / sourceW, this.ch / sourceH);
+    const visualW = sourceW * scale;
+    const visualH = sourceH * scale;
+    this.imageSpr.anchor.set(0.5, 0.5);
+    this.imageSpr.rotation = horizontal ? Math.PI / 2 : 0;
+    this.imageSpr.x = this.cw / 2;
+    this.imageSpr.y = this.ch / 2 + (horizontal ? 0 : Math.max(0, visualH - this.ch) / 2);
+    if (horizontal) this.imageSpr.setSize(visualH, visualW);
+    else this.imageSpr.setSize(visualW, visualH);
   }
 
   private async loadImage(): Promise<void> {
@@ -1378,6 +1442,15 @@ export class CardSprite extends Container {
     });
   }
 
+  private stackBadgeTap: (() => void) | null = null;
+
+  setStackBadgeInteractive(onTap: (() => void) | null): void {
+    this.stackBadgeTap = onTap;
+    this.stackCountContainer.eventMode = onTap ? "static" : "passive";
+    this.stackCountContainer.cursor = onTap ? "pointer" : "default";
+    if (!onTap) this.stackCountContainer.hitArea = null;
+  }
+
   setStackCount(count: number): void {
     if (count <= 1) {
       this.stackCountContainer.visible = false;
@@ -1397,6 +1470,10 @@ export class CardSprite extends Container {
     this.stackCountText.y = 1;
     this.stackCountContainer.x = 3;
     this.stackCountContainer.y = 2;
+    if (this.stackBadgeTap) {
+      const pad = isCoarsePointer() ? STACK_BADGE_TOUCH_PAD : 4;
+      this.stackCountContainer.hitArea = new Rectangle(-pad, -pad, tw + pad * 2, th + pad * 2);
+    }
   }
 
   setOrderBadge(n: number | null): void {

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
 import type { Update } from "@tauri-apps/plugin-updater";
-import { getPlatformType } from "@/platform";
+import { getClientPlatform } from "@/platform";
 import { useDesktopUpdateStore } from "@/stores/useDesktopUpdateStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
@@ -60,6 +60,7 @@ export async function installDesktopUpdate() {
 }
 
 export async function checkForDesktopUpdate(): Promise<boolean> {
+  if (getClientPlatform() !== "desktop") return false;
   if (pendingUpdate) return true;
   const updater = await import("@tauri-apps/plugin-updater");
   const update = await updater.check();
@@ -73,7 +74,7 @@ export async function checkForDesktopUpdate(): Promise<boolean> {
 
 export function useDesktopUpdater() {
   useEffect(() => {
-    if (getPlatformType() !== "tauri") return;
+    if (getClientPlatform() !== "desktop") return;
 
     const check = () =>
       checkForDesktopUpdate().catch((err) => console.warn("[Updater] check failed", err));

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { SetTile } from "@/components/limited/SetTile";
 import { SET_TYPE_LABELS } from "@/components/limited/setFilters";
 import { cn } from "@/lib/utils";
+import { useIsTouch } from "@/hooks/useBreakpoints";
 import type { ScryfallSet } from "@/types/scryfall";
 
 interface SetPickerProps {
@@ -23,6 +24,7 @@ export function SetPicker({
   onSelect,
   variant = "inline",
 }: SetPickerProps) {
+  const isTouch = useIsTouch();
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [changing, setChanging] = useState(false);
@@ -61,7 +63,7 @@ export function SetPicker({
           type="button"
           size="sm"
           variant="outline"
-          className="h-8 shrink-0 text-xs"
+          className="h-8 shrink-0 text-xs pointer-coarse:h-11"
           onClick={() => setChanging(true)}
         >
           Change set
@@ -89,7 +91,11 @@ export function SetPicker({
             Pick a set
           </h2>
           <div
-            className={cn("relative flex items-center", variant === "column" && "min-w-0 flex-1")}
+            className={cn(
+              "relative flex items-center",
+              variant === "column" && "min-w-0 flex-1",
+              isTouch && "basis-full",
+            )}
           >
             <Search className="absolute left-2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
@@ -97,33 +103,55 @@ export function SetPicker({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={`Search ${sets.length} sets…`}
-              className={cn("h-8 pl-7 text-xs", variant === "column" ? "w-full" : "w-64")}
+              className={cn(
+                "h-8 pl-7 text-xs pointer-coarse:h-11 pointer-coarse:text-base",
+                variant === "column" || isTouch ? "w-full" : "w-64",
+              )}
             />
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-1">
-          {SET_TYPE_LABELS.map(({ key, label }) => {
-            const count = counts[key] ?? 0;
-            if (key !== "all" && count === 0) return null;
-            const active = typeFilter === key;
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setTypeFilter(key)}
-                className={cn(
-                  "rounded-full border px-2.5 py-0.5 text-[11px] transition",
-                  active
-                    ? "border-selection bg-selection/15 text-foreground"
-                    : "border-border/50 text-muted-foreground hover:border-border hover:text-foreground/90",
-                )}
-              >
-                {label} <span className="text-muted-foreground/70">{count}</span>
-              </button>
-            );
-          })}
-        </div>
+        {isTouch ? (
+          <select
+            value={typeFilter}
+            onChange={(event) => setTypeFilter(event.target.value)}
+            aria-label="Set type"
+            className="h-11 w-full rounded-md border border-input bg-background px-3 text-base"
+          >
+            {SET_TYPE_LABELS.map(({ key, label }) => {
+              const count = counts[key] ?? 0;
+              if (key !== "all" && count === 0) return null;
+              return (
+                <option key={key} value={key}>
+                  {label} ({count})
+                </option>
+              );
+            })}
+          </select>
+        ) : (
+          <div className="flex flex-wrap gap-1">
+            {SET_TYPE_LABELS.map(({ key, label }) => {
+              const count = counts[key] ?? 0;
+              if (key !== "all" && count === 0) return null;
+              const active = typeFilter === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setTypeFilter(key)}
+                  className={cn(
+                    "rounded-full border px-2.5 py-0.5 text-[11px] transition",
+                    active
+                      ? "border-selection bg-selection/15 text-foreground"
+                      : "border-border/50 text-muted-foreground hover:border-border hover:text-foreground/90",
+                  )}
+                >
+                  {label} <span className="text-muted-foreground/70">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div
@@ -137,7 +165,9 @@ export function SetPicker({
             <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               Latest
             </h3>
-            <div className="flex flex-wrap gap-1.5">
+            <div
+              className={cn("flex flex-wrap gap-1.5", isTouch && "grid grid-cols-2 sm:grid-cols-4")}
+            >
               {recents.map((s) => (
                 <SetTile
                   key={`recent-${s.code}`}

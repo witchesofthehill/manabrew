@@ -1,5 +1,14 @@
 import { useMemo, useState } from "react";
-import { Download, LayoutGrid, LibraryBig, List, Search, Trash2, Upload } from "lucide-react";
+import {
+  Download,
+  LayoutGrid,
+  LibraryBig,
+  List,
+  MoreHorizontal,
+  Search,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { CollectionCard } from "@/components/collection/CollectionCard";
@@ -7,11 +16,18 @@ import { CollectionDeleteDialog } from "@/components/collection/CollectionDelete
 import { CollectionQuickAdd } from "@/components/collection/CollectionQuickAdd";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { CollectionImportDialog } from "@/components/collection/CollectionImportDialog";
 import { CardPreviewDetails } from "@/components/game/CardPreviewDetails";
 import { CardPreviewRail } from "@/components/game/CardPreviewRail";
 import { useCardCollection } from "@/hooks/useCardCollection";
 import { useCardPreview } from "@/hooks/useCardPreview";
+import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { ROUTES } from "@/lib/constants";
 import {
   collectionCardKey,
@@ -25,6 +41,9 @@ import { useCollectionStore } from "@/stores/useCollectionStore";
 
 export default function MyCollection() {
   useCardCollection();
+  const shortScreen = useIsShortScreen();
+  const isTouch = useIsTouch();
+  const shortTouch = shortScreen && isTouch;
   const authStatus = useAuthStore((state) => state.status);
   const quantities = useCollectionStore((state) => state.quantities);
   const setQuantity = useCollectionStore((state) => state.setQuantity);
@@ -94,7 +113,12 @@ export default function MyCollection() {
 
   return (
     <div className="flex h-full min-h-0 w-full">
-      <div className="min-w-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8">
+      <div
+        className={cn(
+          "min-w-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8",
+          shortTouch && "py-4 sm:py-4",
+        )}
+      >
         <div className="w-full">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -114,29 +138,61 @@ export default function MyCollection() {
                 </p>
               )}
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" disabled={loading} onClick={() => setImportOpen(true)}>
-                <Upload className="mr-1.5 h-4 w-4" /> Import
-              </Button>
-              <Button
-                variant="outline"
-                disabled={Object.keys(quantities).length === 0}
-                onClick={exportCollection}
-              >
-                <Download className="mr-1.5 h-4 w-4" /> Export CSV
-              </Button>
-              <Button
-                variant="destructive-quiet"
-                disabled={loading || collectionRows.length === 0}
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 className="mr-1.5 h-4 w-4" /> Delete collection
-              </Button>
-            </div>
+            {isTouch ? (
+              <div className="flex gap-2">
+                <Button variant="primary" disabled={loading} onClick={() => setImportOpen(true)}>
+                  <Upload className="h-4 w-4" /> Import
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                      <MoreHorizontal className="h-4 w-4" /> Actions
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      disabled={collectionRows.length === 0}
+                      onSelect={exportCollection}
+                    >
+                      <Download className="h-4 w-4" /> Export CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={loading || collectionRows.length === 0}
+                      onSelect={() => setDeleteOpen(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" /> Delete collection
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Button variant="outline" disabled={loading} onClick={() => setImportOpen(true)}>
+                  <Upload className="mr-1.5 h-4 w-4" /> Import
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={Object.keys(quantities).length === 0}
+                  onClick={exportCollection}
+                >
+                  <Download className="mr-1.5 h-4 w-4" /> Export CSV
+                </Button>
+                <Button
+                  variant="destructive-quiet"
+                  disabled={loading || collectionRows.length === 0}
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 className="mr-1.5 h-4 w-4" /> Delete collection
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="mt-6 flex flex-wrap items-center gap-2">
-            <div className="relative min-w-0 max-w-md flex-1">
+            <div
+              className={cn("relative min-w-0 max-w-md flex-1", isTouch && "basis-full max-w-none")}
+            >
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="pl-9"
@@ -173,7 +229,7 @@ export default function MyCollection() {
                   setVisibleRowCount(100);
                 }}
                 className={cn(
-                  "px-2.5 py-2 transition-colors",
+                  "h-9 w-9 p-0 transition-colors pointer-coarse:h-11 pointer-coarse:w-11",
                   view === "grid"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-muted",
@@ -191,7 +247,7 @@ export default function MyCollection() {
                   setVisibleRowCount(100);
                 }}
                 className={cn(
-                  "border-l px-2.5 py-2 transition-colors",
+                  "h-9 w-9 border-l p-0 transition-colors pointer-coarse:h-11 pointer-coarse:w-11",
                   view === "text"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-muted",

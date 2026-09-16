@@ -127,6 +127,7 @@ export function buildZoneBadges(tiles: ZoneTileSpec[], fallbackColor: string): P
             label: badge.label,
             count: t.count,
             onTap: t.onOpen,
+            actionable: t.highlightColor != null,
             zone: true,
           },
         ]

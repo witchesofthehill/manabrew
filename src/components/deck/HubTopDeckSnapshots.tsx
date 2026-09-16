@@ -10,6 +10,7 @@ import { useHubStore } from "@/stores/useHubStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { isFeatureEnabled } from "@/featureFlags";
 import { cn } from "@/lib/utils";
+import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import type { TopDeckSnapshotEntry } from "@/api/hubTypes";
 
 const DEFAULT_BUCKET = "trending";
@@ -34,6 +35,9 @@ function snapshotCaption(key: string, scope: string, snapshotDate: string): stri
 }
 
 export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
+  const shortScreen = useIsShortScreen();
+  const isTouch = useIsTouch();
+  const shortTouch = shortScreen && isTouch;
   const accountsEnabled = isFeatureEnabled("accounts");
   const viewerAccountId = useAuthStore((state) =>
     accountsEnabled && state.status === "signedIn" ? (state.account?.id ?? null) : null,
@@ -118,7 +122,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
       <div className="flex shrink-0 items-center border-b px-4 py-2 sm:px-6 lg:px-8">
         <div
           className={cn(
-            "no-scrollbar flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border bg-muted/40 p-1",
+            "no-scrollbar touch-scroll-fade flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border bg-muted/40 p-1 pr-8",
             bucketsLoaded && visibleBuckets.length === 0 && "hidden",
           )}
         >
@@ -142,7 +146,12 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:px-6 lg:px-8">
+      <div
+        className={cn(
+          "min-h-0 flex-1 overflow-y-auto p-4 sm:px-6 lg:px-8",
+          shortTouch && "p-2 sm:px-4",
+        )}
+      >
         {error ? (
           <div className="rounded-lg border border-dashed p-8 text-center">
             <p className="text-sm font-medium">This ranking is unavailable</p>
@@ -157,7 +166,12 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
             </Button>
           </div>
         ) : snapshot === null ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div
+            className={cn(
+              "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3",
+              shortTouch && "grid-cols-3 gap-2 sm:grid-cols-3",
+            )}
+          >
             {Array.from({ length: 6 }, (_, index) => (
               <div key={index} className="aspect-[4/3] animate-pulse rounded-lg bg-muted" />
             ))}
@@ -172,34 +186,49 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-12 gap-4 md:aspect-[12/5] md:grid-cols-[repeat(24,minmax(0,1fr))] md:grid-rows-6">
-              {stageEntries.map((ranked, index) => (
-                <div
-                  key={ranked.entry.id}
-                  className={cn(
-                    index === 0 && "col-span-12 md:col-span-10 md:row-span-6",
-                    index === 1 &&
-                      "col-span-7 row-start-2 md:col-span-8 md:col-start-11 md:row-span-4 md:row-start-1",
-                    index === 2 &&
-                      "col-span-5 col-start-1 row-start-3 md:col-span-8 md:col-start-11 md:row-span-2 md:row-start-5",
-                    index === 3 &&
-                      "col-span-6 row-start-4 md:col-span-6 md:col-start-[19] md:row-span-2 md:row-start-1",
-                    index === 4 &&
-                      "col-span-6 col-start-7 row-start-4 md:col-span-6 md:col-start-[19] md:row-span-2 md:row-start-3",
-                    index === 5 &&
-                      "col-span-6 row-start-5 md:col-span-6 md:col-start-[19] md:row-span-2 md:row-start-5",
-                  )}
-                >
-                  {rankedDeck(ranked, "stage")}
-                </div>
-              ))}
-            </div>
-            {remainingEntries.length > 0 && (
-              <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
-                {remainingEntries.map((ranked) => (
+            {isTouch ? (
+              <div
+                className={cn(
+                  "grid grid-cols-1 gap-3 sm:grid-cols-2",
+                  shortTouch && "grid-cols-3 gap-2 sm:grid-cols-3",
+                )}
+              >
+                {displayedEntries.map((ranked) => (
                   <div key={ranked.entry.id}>{rankedDeck(ranked)}</div>
                 ))}
               </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-12 gap-4 md:aspect-[12/5] md:grid-cols-[repeat(24,minmax(0,1fr))] md:grid-rows-6">
+                  {stageEntries.map((ranked, index) => (
+                    <div
+                      key={ranked.entry.id}
+                      className={cn(
+                        index === 0 && "col-span-12 md:col-span-10 md:row-span-6",
+                        index === 1 &&
+                          "col-span-7 row-start-2 md:col-span-8 md:col-start-11 md:row-span-4 md:row-start-1",
+                        index === 2 &&
+                          "col-span-5 col-start-1 row-start-3 md:col-span-8 md:col-start-11 md:row-span-2 md:row-start-5",
+                        index === 3 &&
+                          "col-span-6 row-start-4 md:col-span-6 md:col-start-[19] md:row-span-2 md:row-start-1",
+                        index === 4 &&
+                          "col-span-6 col-start-7 row-start-4 md:col-span-6 md:col-start-[19] md:row-span-2 md:row-start-3",
+                        index === 5 &&
+                          "col-span-6 row-start-5 md:col-span-6 md:col-start-[19] md:row-span-2 md:row-start-5",
+                      )}
+                    >
+                      {rankedDeck(ranked, "stage")}
+                    </div>
+                  ))}
+                </div>
+                {remainingEntries.length > 0 && (
+                  <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
+                    {remainingEntries.map((ranked) => (
+                      <div key={ranked.entry.id}>{rankedDeck(ranked)}</div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
             {!showAll && snapshot.entries.length > INITIAL_RANK_COUNT && (
               <div className="mt-4 flex justify-center">
@@ -212,7 +241,12 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
         )}
       </div>
 
-      <p className="shrink-0 border-t px-4 py-2 text-[11px] text-muted-foreground sm:px-6 lg:px-8">
+      <p
+        className={cn(
+          "shrink-0 border-t px-4 py-2 text-[11px] text-muted-foreground sm:px-6 lg:px-8",
+          shortTouch && "truncate px-4 py-1.5",
+        )}
+      >
         {snapshot?.snapshotDate
           ? snapshotCaption(snapshot.bucket.key, snapshot.bucket.scope, snapshot.snapshotDate)
           : " "}

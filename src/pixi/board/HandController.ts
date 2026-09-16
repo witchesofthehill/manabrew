@@ -7,17 +7,21 @@ import { CardSprite } from "../CardSprite";
 import { getTheme } from "@/hooks/useTheme";
 import type { HandState, ScreenBounds, ScreenPos } from "../types";
 import { hexToNum } from "../colorUtils";
-import { computeBaseLayout, computeHandLayout, HAND_FAN_PARAMS } from "../HandLayout";
+import {
+  COMPACT_HAND_FAN_PARAMS,
+  computeBaseLayout,
+  computeHandLayout,
+  HAND_FAN_PARAMS,
+} from "../HandLayout";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { HandReorderIndicator } from "../HandReorderIndicator";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import {
-  CAST_DRAG_CARD_DROP_PX,
-  CAST_DRAG_HAND_SINK_PX,
   CAST_DRAG_SCALE,
   GAP,
   HAND_BOTTOM_SINK_FRAC,
   HAND_BOTTOM_SINK_FRAC_COMPACT,
+  HAND_BOTTOM_SINK_FRAC_SHEET,
   HAND_HOVER_HOLD_MS,
   HAND_LERP,
   HAND_REORDER_LERP,
@@ -48,8 +52,8 @@ export class HandController {
   private lastState: HandState | null = null;
   private vScale = 1;
   private compact = false;
+  private sheetOpen = false;
   private rulesViewDefault = false;
-  private dropActive = false;
   private reorderIndex: number | null = null;
   private hoverDebugGfx: Graphics;
   private reorderIndicator: HandReorderIndicator;
@@ -112,17 +116,21 @@ export class HandController {
     this.compact = compact;
     if (this.lastState) this.updateHand(this.lastState);
   }
+  setSheetOpen(open: boolean): void {
+    if (this.sheetOpen === open) return;
+    this.sheetOpen = open;
+    this.relayout();
+  }
+
+  private bottomSinkFrac(): number {
+    if (this.sheetOpen) return HAND_BOTTOM_SINK_FRAC_SHEET;
+    return this.compact ? HAND_BOTTOM_SINK_FRAC_COMPACT : HAND_BOTTOM_SINK_FRAC;
+  }
 
   setRulesViewDefault(active: boolean): void {
     if (this.rulesViewDefault === active) return;
     this.rulesViewDefault = active;
     for (const sprite of this.sprites.values()) sprite.setHandRulesView(active);
-  }
-
-  setDropActive(active: boolean): void {
-    if (this.dropActive === active) return;
-    this.dropActive = active;
-    this.relayout();
   }
 
   isDraggingPermanent(): boolean {
@@ -184,12 +192,6 @@ export class HandController {
     const hitZones: HandHitZone[] = [];
     let reorderIndicatorShown = false;
 
-    // The fan only reshapes for a drag that originates from the hand. A card
-    // dragged from the command zone sets `draggingCardId` too, but must not sink
-    // the hand out of the way.
-    const draggingInHand =
-      state.draggingCardId != null && state.cards.some((c) => c.id === state.draggingCardId);
-
     for (let i = 0; i < cards.length; i++) {
       const card = cards[i]!;
       const l = layout[i]!;
@@ -213,12 +215,6 @@ export class HandController {
       const isReordering = !selectionMode && card.id === state.reorderingCardId;
       const isCastingPermanent = isCastDrag && !isReordering && state.draggingIsPermanent === true;
       const isCastingSpell = isCastDrag && !isReordering && state.draggingIsPermanent !== true;
-      const reshapeFan = !selectionMode && !isReordering && draggingInHand && this.dropActive;
-      const castOffset = reshapeFan
-        ? Math.round(
-            (isCastingPermanent ? CAST_DRAG_CARD_DROP_PX : CAST_DRAG_HAND_SINK_PX) * this.vScale,
-          )
-        : 0;
       const castScale = isCastingPermanent ? CAST_DRAG_SCALE : 1;
 
       const isHidden =
@@ -242,7 +238,7 @@ export class HandController {
       }
       this.targets.set(card.id, {
         x: centerX + l.x,
-        y: bottomY + l.y - l.scaleH / 2 + selectedDrop + castOffset,
+        y: bottomY + l.y - l.scaleH / 2 + selectedDrop,
         rot,
         scaleX: (l.scaleW / CARD_W) * castScale,
         scaleY: (l.scaleH / CARD_H) * castScale,
@@ -254,7 +250,7 @@ export class HandController {
               index: i,
               card,
               x: centerX + l.x,
-              y: bottomY + l.y - l.scaleH / 2 + selectedDrop + castOffset,
+              y: bottomY + l.y - l.scaleH / 2 + selectedDrop,
               width: l.scaleW,
               height: l.scaleH,
             }
@@ -488,7 +484,7 @@ export class HandController {
   getBottomY(): number {
     const zone = this.host.getPlayZone();
     const dims = this.getDimensions();
-    const sink = this.compact ? HAND_BOTTOM_SINK_FRAC_COMPACT : HAND_BOTTOM_SINK_FRAC;
+    const sink = this.bottomSinkFrac();
     return zone.y + zone.height + dims.cardH * sink;
   }
 
@@ -508,11 +504,11 @@ export class HandController {
 
   getDimensions() {
     const base = HAND_CARD_BASE;
-    const params = HAND_FAN_PARAMS;
+    const params = this.sheetOpen ? COMPACT_HAND_FAN_PARAMS : HAND_FAN_PARAMS;
     const scale = this.vScale;
     const cardW = Math.round(base.cardW * scale);
     const cardH = Math.round(base.cardH * scale);
-    const sink = this.compact ? HAND_BOTTOM_SINK_FRAC_COMPACT : HAND_BOTTOM_SINK_FRAC;
+    const sink = this.bottomSinkFrac();
     const available = Math.max(cardW, this.host.getPlayZone().width - cardW);
     return {
       cardW,

@@ -125,7 +125,7 @@ export function CollectionQuickAdd({
         ) : value ? (
           <button
             type="button"
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            className="absolute right-0 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center text-muted-foreground hover:text-foreground pointer-coarse:h-11 pointer-coarse:w-11"
             title="Clear card search"
             onClick={() => updateSearch("")}
           >
@@ -215,7 +215,7 @@ export function CollectionQuickAdd({
                 </button>
                 <button
                   type="button"
-                  className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground"
+                  className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground pointer-coarse:h-11 pointer-coarse:w-11"
                   title={`Add multiple ${card.name}`}
                   onClick={() => {
                     setQuantity(1);

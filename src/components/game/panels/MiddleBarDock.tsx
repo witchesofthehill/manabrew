@@ -85,7 +85,11 @@ export function MiddleBarDock({
       <DropdownMenuTrigger asChild>
         <span aria-hidden className="pointer-events-none absolute bottom-14 right-6 h-0 w-0" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" side="top">
+      <DropdownMenuContent
+        align="end"
+        side="top"
+        className="[&_[role=menuitem]]:pointer-coarse:min-h-12"
+      >
         {isWeb && (
           <DropdownMenuItem onSelect={() => toggleFullscreen()}>
             <FullscreenIcon className="mr-2 h-4 w-4" />

@@ -4414,6 +4414,7 @@ dependencies = [
  "memmap2",
  "rand 0.8.6",
  "reqwest 0.12.28",
+ "rustls 0.23.37",
  "self-hosted-node",
  "serde",
  "serde_json",

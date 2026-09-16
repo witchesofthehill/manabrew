@@ -137,6 +137,13 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
             onChange={prefs.setChooseOrderOnMultipleTriggers}
             hint="When off, simultaneous triggers are ordered automatically."
           />
+          <Choice
+            label="Touch feedback"
+            value={prefs.hapticFeedback}
+            options={ON_OFF}
+            onChange={prefs.setHapticFeedback}
+            hint="Short vibrations on long-press recognition, placements, and rejected drops. Only takes effect on devices that support it."
+          />
         </Section>
         <Section title="Board appearance">
           <div className="space-y-2">
@@ -178,6 +185,16 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
               { value: "overview", label: "Overview" },
             ]}
             onChange={prefs.setOpponentLayout}
+          />
+          <Choice
+            label="Preferred hand"
+            value={prefs.mobileHandedness}
+            options={[
+              { value: "right", label: "Right" },
+              { value: "left", label: "Left" },
+            ]}
+            onChange={prefs.setMobileHandedness}
+            hint="Pins compact touch controls to the chosen bottom corner. Desktop layout is unaffected."
           />
           <div className="space-y-2">
             <p className="text-sm font-medium">Table background</p>

@@ -5,6 +5,10 @@ import { GAME_CARD_DEFAULTS, isFacelessCard } from "@/lib/gameCard";
 import { BoardCanvas } from "@/pixi/BoardCanvas";
 import { BoardOverlayCanvas, type BoardOverlayPreviewSpec } from "@/pixi/BoardOverlayCanvas";
 import type { BoardScene } from "@/pixi/board/BoardScene";
+import {
+  DESKTOP_BATTLEFIELD_LAYOUT,
+  MOBILE_BATTLEFIELD_LAYOUT,
+} from "@/pixi/board/battlefieldLayoutPolicy";
 import type { PhaseStripState } from "@/pixi/PhaseStripLayer";
 import type { PlayerHudSpec } from "@/pixi/hud/playerHud.types";
 import type { GameCanvasCallbacks } from "@/pixi/types";
@@ -18,9 +22,10 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { PlayerSheetModal } from "@/components/game/panels/PlayerSheetModal";
+import { MobileHandControl } from "@/components/game/panels/MobileHandControl";
 import { BoardPlaygroundControls } from "@/components/dev/BoardPlaygroundControls";
 import { buildPlaygroundSpecs } from "@/components/dev/boardPlayground.specs";
-import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
+import { deriveCardRailState, parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
 import { resolveCardFaces } from "@/lib/cardFaces";
 import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -77,6 +82,8 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
   const triggerEtbGlow = useGameDevStore((state) => state.triggerEtbGlow);
   const preview = useCardPreview([], { useTriggerPreference: true });
   const compact = useIsMobileGame();
+  const [mobileHandOpen, setMobileHandOpen] = useState(false);
+  const [mobileHandControlBounds, setMobileHandControlBounds] = useState<DOMRect | null>(null);
   const theme = useTheme().gameTheme;
   const previewStyle = usePreferencesStore((state) => state.inGameCardPreviewStyle);
   const setPreviewStyle = usePreferencesStore((state) => state.setInGameCardPreviewStyle);
@@ -84,14 +91,20 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
   const viewport = PREVIEW_VIEWPORTS[viewportIndex]!;
   const showSticky = preview.showSticky;
   const inspect = useCallback(
-    (card: CardDto, bounds?: { x: number; y: number; width: number; height: number }) => {
+    (
+      card: CardDto,
+      bounds?: { x: number; y: number; width: number; height: number },
+      allowOverModal = false,
+    ) => {
       if (isFacelessCard(card)) return;
       setSelectedId(card.id);
       if (bounds) {
         const rect = new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height);
-        showSticky(card, bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, rect);
+        showSticky(card, bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, rect, {
+          allowOverModal,
+        });
       } else {
-        showSticky(card);
+        showSticky(card, undefined, undefined, undefined, { allowOverModal });
       }
     },
     [showSticky],
@@ -340,12 +353,14 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
           card: previewCard,
           phase: preview.phase === "closing" ? "closing" : "open",
           sticky: preview.isSticky,
+          placement: preview.placement,
           showBackFace: preview.showBackFace,
           suppressed: false,
           skipEnterAnimation: skipPreviewEnterAnimation,
           actions: previewActions,
           mousePos: preview.mousePos,
           anchorRect: preview.anchorRect,
+          reserveSidePanel: previewActions.length > 0 || deriveCardRailState(previewCard) != null,
         }
       : null;
   const externalPreviewActive = previewCard !== null && preview.phase === "open";
@@ -749,7 +764,9 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
                 return next;
               }),
           }}
-          compact={compact}
+          layoutPolicy={compact ? MOBILE_BATTLEFIELD_LAYOUT : DESKTOP_BATTLEFIELD_LAYOUT}
+          mobileHandOpen={compact && mobileHandOpen}
+          mobileHandControlBounds={mobileHandControlBounds}
           opponentLayout={overview ? "overview" : "focused"}
           focusedOpponentId={focusedPlayerId}
           manualFocusId={focusedPlayerId}
@@ -763,7 +780,7 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
             onTargetPlayer: gameplay.setSelectedTarget,
             onHoverCard: hover,
             onHoverHandCard: hover,
-            onLongPressCard: (card, bounds) => inspect(card, bounds),
+            onLongPressCard: (card, bounds) => inspect(card, bounds, true),
             onRightClickCard:
               previewMode === "right-click"
                 ? (card, bounds) => {
@@ -778,8 +795,10 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
                 : undefined,
             onShowPlayerSheet: (playerId) => {
               preview.dismiss();
+              setMobileHandOpen(false);
               setSheetPlayerId(playerId);
             },
+            onMobileHandOpenChange: setMobileHandOpen,
             onFlipCard: preview.flipCard,
             onDismissHoverPreview: preview.dismiss,
           }}
@@ -800,7 +819,18 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
             onDismissPreview={preview.dismiss}
             onFlipPreview={preview.flipCard}
             onTogglePreviewView={togglePreviewView}
+            onLongPressCard={(card, anchor) => inspect(card, anchor, true)}
           />
+          {compact && (
+            <MobileHandControl
+              count={hand.length}
+              open={mobileHandOpen}
+              locked={false}
+              actionable={false}
+              onToggle={() => setMobileHandOpen((open) => !open)}
+              onBoundsChange={setMobileHandControlBounds}
+            />
+          )}
         </div>
       </div>
       {visibleZone && (

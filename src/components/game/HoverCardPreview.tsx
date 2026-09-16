@@ -10,6 +10,7 @@ interface HoverCardPreviewProps {
   skipEnterAnimation?: boolean;
   pinned?: boolean;
   onToggleView?: () => void;
+  viewportRight?: number;
   slot?: HTMLElement | null;
   imageSize?: "normal" | "large";
 }
@@ -22,6 +23,7 @@ export function HoverCardPreview({
   skipEnterAnimation,
   pinned,
   onToggleView,
+  viewportRight,
   slot,
   imageSize,
 }: HoverCardPreviewProps) {
@@ -35,6 +37,7 @@ export function HoverCardPreview({
       mouseY={preview.mousePos.y}
       anchorRect={preview.anchorRect}
       placement={pinned ? "pinned" : preview.placement}
+      viewportRight={viewportRight}
       phase={preview.phase === "closing" ? "closing" : "open"}
       suppressed={suppressed}
       skipEnterAnimation={skipEnterAnimation}

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ArrowDownToLine, CircleCheck, Loader2, RefreshCw, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { APP_VERSION } from "@/lib/constants";
-import { getPlatformType } from "@/platform";
+import { getClientPlatform } from "@/platform";
 import { checkForDesktopUpdate, installDesktopUpdate } from "@/hooks/useDesktopUpdater";
 import { useDesktopUpdateStore } from "@/stores/useDesktopUpdateStore";
 
@@ -39,7 +39,7 @@ export function VersionInfo() {
         </div>
       </div>
 
-      {getPlatformType() === "tauri" &&
+      {getClientPlatform() === "desktop" &&
         (phase !== "idle" && version ? (
           <Button
             variant="secondary"

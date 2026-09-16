@@ -41,6 +41,7 @@ export const ZONE_BADGES: Record<string, { icon: string; label: string }> = {
   [ZONE_TILE_KEY.library]: { icon: "deck", label: "Library" },
   [ZONE_TILE_KEY.graveyard]: { icon: "graveyard", label: "Graveyard" },
   [ZONE_TILE_KEY.exile]: { icon: "exile", label: "Exile" },
+  [ZONE_TILE_KEY.command]: { icon: "overlord-helm", label: "Command zone" },
 };
 
 /** Standard MTG card back image, served by Scryfall's canonical backs CDN.

@@ -7,6 +7,7 @@ import { PlayHomeLinks } from "@/components/play/PlayHomeLinks";
 import { RejoinMatchCard } from "@/components/play/RejoinMatchCard";
 import { isFeatureEnabled } from "@/featureFlags";
 import { useQuickPlay } from "@/hooks/useQuickPlay";
+import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { peekActiveGameSession } from "@/lib/activeGameSession";
 import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,9 @@ const MODES = [
 export function PlayHome() {
   const { quickPlay, quickPlayPreset, quickPlayCommunity, pendingDeckId, playersDialog } =
     useQuickPlay();
+  const shortScreen = useIsShortScreen();
+  const isTouch = useIsTouch();
+  const shortTouch = shortScreen && isTouch;
   const [resumeSession, setResumeSession] = useState(peekActiveGameSession);
   const resumePending = resumeSession !== null;
   const connected = useServerStore((state) => state.connected);
@@ -91,12 +95,27 @@ export function PlayHome() {
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
       <div className="relative z-10 h-full overflow-y-auto">
-        <div className="flex min-h-full w-full flex-col gap-6 px-4 py-6 sm:gap-7 sm:px-6 sm:py-9 lg:px-8">
-          <header className="max-w-xl sm:pt-2">
-            <h1 className="font-serif text-3xl font-light tracking-[0.02em] text-foreground sm:text-4xl">
+        <div
+          className={cn(
+            "flex min-h-full w-full flex-col gap-6 px-4 py-6 sm:gap-7 sm:px-6 sm:py-9 lg:px-8",
+            shortTouch && "gap-3 py-3 sm:gap-3 sm:py-3",
+          )}
+        >
+          <header className={cn("max-w-xl sm:pt-2", shortTouch && "sm:pt-0")}>
+            <h1
+              className={cn(
+                "font-serif text-3xl font-light tracking-[0.02em] text-foreground sm:text-4xl",
+                shortTouch && "text-2xl sm:text-2xl",
+              )}
+            >
               Ready to play?
             </h1>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
+            <p
+              className={cn(
+                "mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base",
+                shortTouch && "mt-1 text-sm sm:text-sm",
+              )}
+            >
               Start a match your way, or open a deck from your collection.
             </p>
           </header>
@@ -123,6 +142,7 @@ export function PlayHome() {
                   icon={icon}
                   tone={tone}
                   size="lg"
+                  compact={shortTouch}
                   footer={
                     to === ROUTES.LOBBY && lobbyTeaser ? (
                       <span className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-primary">

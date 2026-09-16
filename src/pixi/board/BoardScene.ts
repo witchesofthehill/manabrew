@@ -3,14 +3,10 @@ import {
   Container,
   FillGradient,
   Graphics,
-  ImageSource,
   Point,
-  Sprite,
   Text,
-  Texture,
   type FederatedPointerEvent,
 } from "pixi.js";
-import { boardBackgroundDarken, boardBackgroundUrl } from "./boardBackgrounds";
 import { withAlpha } from "@/themes/gameTheme";
 import type { CardDto, PlaymatSettings } from "@/protocol/game";
 import type { AttackTargetDto, TargetRef } from "@/protocol/prompts/common";
@@ -33,26 +29,29 @@ import {
   type PhaseStripState,
 } from "../PhaseStripLayer";
 import { DragHandler } from "../DragHandler";
-import { cellFromPoint, type GridCell } from "../GridLayout";
+import { dropCellFromPoint, type GridCell } from "../GridLayout";
 import { prewarmManaSymbols } from "../manaSymbolCache";
-import { CARD_H } from "@/components/game/game.constants";
+import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import { lerp, setFrameRatio } from "./pixiHelpers";
 import { animationsEnabled } from "../effects/enabled";
 import { gsap } from "../effects/gsap";
 import { LongPressGesture } from "../LongPressGesture";
 import { PREVIEW_TIMING, type PreviewPointerInput } from "@/lib/cardPreview";
 import { topModal } from "@/lib/modalStack";
+import { TOUCH_MOVE_SLOP_PX } from "@/lib/responsive";
+import { haptic } from "@/lib/haptics";
 import { intentIsHostile } from "@/types/promptType";
 import {
+  GAP,
   FLOATER_FONT_SIZE,
   FLOATER_LIFETIME_FRAMES,
   FLOATER_RISE_PER_FRAME,
   FPS_SAMPLE_INTERVAL_MS,
   STACK_SEED_TTL_MS,
   Z_STAGED_REGION,
+  Z_HAND_CONTAINER,
   Z_COMBAT_GUEST,
   HAND_RESERVE_TRIM,
-  HAND_RESERVE_TRIM_COMPACT,
 } from "../constants";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import type {
@@ -62,6 +61,7 @@ import type {
   GameCanvasCallbacks,
   HandState,
   PlayZoneRect,
+  ScreenBounds,
   ScreenPos,
 } from "../types";
 import type { StackAnchorProvider } from "../stack/stack.types";
@@ -73,8 +73,10 @@ import {
   OPPONENT_PLAYER_HUD_HEIGHT_PX,
   SELF_PLAYER_HUD_MAX_WIDTH_PX,
   SELF_PLAYER_HUD_MIN_WIDTH_PX,
+  MOBILE_PLAYER_HUD_MAX_WIDTH_PX,
+  MOBILE_PLAYER_HUD_MIN_WIDTH_PX,
   PLAYER_HUD_HAND_GAP_PX,
-  PLAYER_HUD_COMPACT_HEIGHT_PX,
+  MOBILE_PLAYER_HUD_HEIGHT_PX,
 } from "@/pixi/hud/PlayerHudLayer";
 import type { PlayerHudSpec as PlayerBarSpec } from "@/pixi/hud/playerHud.types";
 import { isAttackerTap } from "./combatRouting";
@@ -193,33 +195,20 @@ interface FogParticleGroup {
   container: Container;
   particles: FogParticle[];
 }
-const boardBackgroundTextures = new Map<string, Promise<Texture>>();
-
-function loadBoardBackground(url: string): Promise<Texture> {
-  const cached = boardBackgroundTextures.get(url);
-  if (cached) return cached;
-  const promise = new Promise<Texture>((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(new Texture({ source: new ImageSource({ resource: img }) }));
-    img.onerror = reject;
-    img.src = url;
-  });
-  boardBackgroundTextures.set(url, promise);
-  return promise;
-}
 
 export class BoardScene {
   private app: Application;
   private callbacks: GameCanvasCallbacks;
   private theme: Theme;
   private root: Container;
-  private baseBg: Graphics;
-  private baseImage: Sprite;
-  private baseImageUrl: string | null = null;
-  private baseImageDarken = 0;
   private collapseVeil: Graphics;
   private canvasW = 0;
   private canvasH = 0;
+  private canvasDomRect: DOMRect | null = null;
+  private canvasDomRectFrame = -1;
+  private domRectTick = 0;
+  private boardWidth = 0;
+  private topHeight = 0;
   private destroyed = false;
   private perfFrames = 0;
   private perfTotalDelta = 0;
@@ -229,6 +218,7 @@ export class BoardScene {
 
   private regions = new Map<string, RegionRecord>();
   private localPlayerId: string | null = null;
+  private opponentIds: string[] = [];
   private cardScale = 1;
   private promptReference: TargetRef | null = null;
 
@@ -246,6 +236,12 @@ export class BoardScene {
   private attackDragCandidate: string | null = null;
   private activeGesturePointerId: number | null = null;
   private longPress = new LongPressGesture();
+  private cardPressSelection: {
+    pointerId: number;
+    cardId: string;
+    selected: Set<string>;
+    restoreOnRelease: boolean;
+  } | null = null;
   private pinchPointers = new Map<number, { x: number; y: number }>();
   private pinchStart: {
     dist: number;
@@ -268,6 +264,8 @@ export class BoardScene {
   private tapSuppressedPointers = new Set<number>();
 
   private hand: HandController | null = null;
+  private mobileHandBackdrop: Container;
+  private mobileHandOpen = false;
   private handRulesViewDefault = false;
   private selection: SelectionController | null = null;
   private overlay: BattlefieldOverlay | null = null;
@@ -288,6 +286,7 @@ export class BoardScene {
   private overlayHitTest: ((x: number, y: number) => boolean) | null = null;
 
   private hoveredCell: GridCell | null = null;
+  private invalidDropPoint: ScreenPos | null = null;
   private stackTargetId: string | null = null;
   private dropActive = false;
 
@@ -297,6 +296,7 @@ export class BoardScene {
 
   private handInsetLeft = 0;
   private handInsetRight = 0;
+  private mobileHandControlBlocker: BlockingRect | null = null;
   private lastCapsuleRects = new Map<string, string>();
   private autoSort = false;
   private zoneTilesLocked = false;
@@ -304,10 +304,6 @@ export class BoardScene {
   private attackRowDebug = false;
 
   // Delimiters (opponent clip bands). Owned and eased here, not in React.
-  // `delimCurrent`/`delimTarget` are `count - 1` ascending fractions of width.
-  private boardWidth = 0;
-  private topHeight = 0;
-  private opponentIds: string[] = [];
   private delimCurrent: number[] = [];
   private delimTarget: number[] = [];
   private focusPlayerId: string | null = null;
@@ -332,6 +328,9 @@ export class BoardScene {
   private canvasLeaveListener: () => void;
   private onStageMove = (e: FederatedPointerEvent): void => this.onGlobalMove(e);
   private onStageUp = (e: FederatedPointerEvent): void => this.onGlobalUp(e);
+  private onStageTapCapture = (e: FederatedPointerEvent): void => {
+    if (this.tapSuppressedPointers.has(e.pointerId)) e.stopImmediatePropagation();
+  };
 
   constructor(app: Application, callbacks: GameCanvasCallbacks) {
     this.app = app;
@@ -354,20 +353,22 @@ export class BoardScene {
           !this.overlayHitTest?.(x, y)),
     };
 
-    this.baseBg = new Graphics();
-    this.baseBg.eventMode = "none";
-    this.baseBg.zIndex = -1000;
-    this.root.addChild(this.baseBg);
-
-    this.baseImage = new Sprite();
-    this.baseImage.eventMode = "none";
-    this.baseImage.zIndex = -999;
-    this.baseImage.anchor.set(0.5);
-    this.baseImage.visible = false;
-    this.root.addChild(this.baseImage);
-    this.setBackground(boardBackgroundUrl(undefined), boardBackgroundDarken(undefined));
-
     this.dragHandler = new DragHandler();
+    this.mobileHandBackdrop = new Container();
+    this.mobileHandBackdrop.visible = false;
+    this.mobileHandBackdrop.eventMode = "none";
+    this.mobileHandBackdrop.cursor = "pointer";
+    this.mobileHandBackdrop.zIndex = Z_HAND_CONTAINER - 1;
+    this.mobileHandBackdrop.hitArea = {
+      contains: (x, y) => x >= 0 && x <= this.canvasW && y >= 0 && y <= this.canvasH,
+    };
+    this.mobileHandBackdrop.on("pointerdown", (event: FederatedPointerEvent) => {
+      event.stopPropagation();
+    });
+    this.mobileHandBackdrop.on("pointertap", () => {
+      this.callbacks.onMobileHandOpenChange?.(false);
+    });
+    this.root.addChild(this.mobileHandBackdrop);
 
     this.collapseVeil = new Graphics();
     this.collapseVeil.eventMode = "none";
@@ -419,6 +420,7 @@ export class BoardScene {
     app.stage.on("pointermove", this.onStageMove);
     app.stage.on("pointerup", this.onStageUp);
     app.stage.on("pointerupoutside", this.onStageUp);
+    app.stage.on("pointertapcapture", this.onStageTapCapture);
 
     this.cursorListener = (e: MouseEvent) => {
       if (topModal()) {
@@ -428,7 +430,7 @@ export class BoardScene {
       }
       this.cursorViewportX = e.clientX;
       this.cursorViewportY = e.clientY;
-      const rect = this.app.canvas.getBoundingClientRect();
+      const rect = this.canvasRect();
       const canvasX = e.clientX - rect.left;
       const canvasY = e.clientY - rect.top;
       if (
@@ -457,14 +459,14 @@ export class BoardScene {
 
     this.pinchDownListener = (e: PointerEvent) => {
       if (e.pointerType !== "touch") return;
-      const rect = this.app.canvas.getBoundingClientRect();
+      const rect = this.canvasRect();
       this.pinchPointers.set(e.pointerId, { x: e.clientX - rect.left, y: e.clientY - rect.top });
       if (this.pinchStart) this.tapSuppressedPointers.add(e.pointerId);
       else if (this.pinchPointers.size === 2) this.beginPinch();
     };
     this.pinchMoveListener = (e: PointerEvent) => {
       if (!this.pinchPointers.has(e.pointerId)) return;
-      const rect = this.app.canvas.getBoundingClientRect();
+      const rect = this.canvasRect();
       this.pinchPointers.set(e.pointerId, { x: e.clientX - rect.left, y: e.clientY - rect.top });
       if (this.pinchStart) this.updatePinch();
     };
@@ -482,7 +484,7 @@ export class BoardScene {
     window.addEventListener("pointercancel", this.gestureCancelListener);
     this.stripOutsideListener = (e: PointerEvent) => {
       if (!this.phaseStrip.isCompactExpanded()) return;
-      const rect = this.app.canvas.getBoundingClientRect();
+      const rect = this.canvasRect();
       const p = this.phaseStrip.container.toLocal(
         new Point(e.clientX - rect.left, e.clientY - rect.top),
       );
@@ -510,6 +512,7 @@ export class BoardScene {
     players: BoardPlayerSpec[],
     layout: BoardLayout,
     scales: { self: number; opponent: number },
+    combatRowReserved = true,
   ): void {
     if (this.destroyed) return;
     this.cardScale = scales.self;
@@ -530,6 +533,7 @@ export class BoardScene {
         existing.zone = zone;
         existing.region.container.zIndex = zIndex;
         existing.region.setOverviewMode(this.overview && !spec.isLocal);
+        existing.region.setCombatRowReserved(combatRowReserved);
         existing.region.setZone(zone, orientation);
         existing.region.setCardScale(regionScale);
         existing.region.setPlaymatSettings(spec.playmatSettings);
@@ -541,14 +545,14 @@ export class BoardScene {
         this.root,
         zone,
         regionScale,
-        { orientation },
+        { orientation, combatRowReserved },
       );
       region.setPlaymatSettings(spec.playmatSettings);
       region.setOverviewMode(this.overview && !spec.isLocal);
       region.setPlaymat(spec.playmat);
       region.container.zIndex = zIndex;
       region.setAutoSort(this.autoSort);
-      region.setCompactZones(this.compactMode);
+      region.setCompactMode(this.compactMode);
       region.setZoneTilesLocked(this.zoneTilesLocked);
       region.setSkeletonDebug(this.gridSkeletonDebug);
       region.setAttackRowDebug(this.attackRowDebug);
@@ -580,10 +584,9 @@ export class BoardScene {
     }
 
     this.positionPhaseStrip(layout);
-    const selfZone = this.localZone();
     this.dragHandler.setCardScale(scales.self);
     this.dragHandler.setContainerSize(this.app.renderer.width, this.app.renderer.height);
-    if (selfZone && this.hand) this.dragHandler.setHandExclusion(this.hand.getBlockerRect());
+    this.syncMobileHandPresentation();
     // Regions laid out above sampled capsule bounds from before this pass's
     // applyDelimiters/layoutSelfBar moved them (resize/rotation) — reconcile.
     this.refreshCapsuleBlockers();
@@ -683,7 +686,7 @@ export class BoardScene {
     const W = this.boardWidth;
     if (n <= 0 || W <= 0) return;
     const playerHudHeight = this.compactMode
-      ? PLAYER_HUD_COMPACT_HEIGHT_PX
+      ? MOBILE_PLAYER_HUD_HEIGHT_PX
       : OPPONENT_PLAYER_HUD_HEIGHT_PX;
     this.collapseVeil.clear();
     if (this.overview) {
@@ -698,11 +701,14 @@ export class BoardScene {
           const field = rec.region.getPlaymatRect();
           const availableWidth = Math.max(1, field.width);
           const availableHeight = Math.max(1, field.height);
+          const maxWidth = this.compactMode
+            ? MOBILE_PLAYER_HUD_MAX_WIDTH_PX
+            : SELF_PLAYER_HUD_MAX_WIDTH_PX;
           this.playerBars.setRect(
             id,
             field.x,
             field.y,
-            Math.min(SELF_PLAYER_HUD_MAX_WIDTH_PX, availableWidth),
+            Math.min(maxWidth, availableWidth),
             Math.min(playerHudHeight, availableHeight),
             false,
           );
@@ -729,12 +735,13 @@ export class BoardScene {
           this.collapseVeil.fill({ color: veilColor, alpha: frac });
         }
         const field = rec.region.getPlaymatRect();
-        const column = field.width < 228;
+        const column = !this.compactMode && field.width < 228;
         const availableWidth = Math.max(1, field.width);
         const availableHeight = Math.max(1, field.height);
-        const barW = column
-          ? availableWidth
-          : Math.min(SELF_PLAYER_HUD_MAX_WIDTH_PX, availableWidth);
+        const maxWidth = this.compactMode
+          ? MOBILE_PLAYER_HUD_MAX_WIDTH_PX
+          : SELF_PLAYER_HUD_MAX_WIDTH_PX;
+        const barW = column ? availableWidth : Math.min(maxWidth, availableWidth);
         const barH = column ? availableHeight : Math.min(playerHudHeight, availableHeight);
         this.playerBars.setRect(this.opponentIds[i]!, field.x, field.y, barW, barH, column);
       }
@@ -747,7 +754,7 @@ export class BoardScene {
   }
 
   private preferredPlayerHudHeight(): number {
-    return this.compactMode ? PLAYER_HUD_COMPACT_HEIGHT_PX : SELF_PLAYER_BAR_HEIGHT_PX;
+    return this.compactMode ? MOBILE_PLAYER_HUD_HEIGHT_PX : SELF_PLAYER_BAR_HEIGHT_PX;
   }
 
   private layoutSelfBar(): void {
@@ -755,11 +762,14 @@ export class BoardScene {
     const record = this.regions.get(this.localPlayerId);
     if (!record) return;
     const field = record.region.getPlaymatRect();
-    const hand = this.hand?.getBlockerRect();
+    const hand = this.compactMode ? null : this.hand?.getBlockerRect();
     const preferredHeight = this.preferredPlayerHudHeight();
     const x = field.x;
     const availableWidth = Math.max(1, field.width);
-    const desiredWidth = Math.min(availableWidth, SELF_PLAYER_HUD_MAX_WIDTH_PX);
+    const maxWidth = this.compactMode
+      ? MOBILE_PLAYER_HUD_MAX_WIDTH_PX
+      : SELF_PLAYER_HUD_MAX_WIDTH_PX;
+    const desiredWidth = Math.min(availableWidth, maxWidth);
     let width = desiredWidth;
     let bottom = field.y + field.height;
     const overlapsHand =
@@ -770,7 +780,10 @@ export class BoardScene {
       hand.y + hand.height > bottom - preferredHeight;
     if (overlapsHand) {
       const clearWidth = hand.x - PLAYER_HUD_HAND_GAP_PX - x;
-      if (clearWidth >= Math.min(availableWidth, SELF_PLAYER_HUD_MIN_WIDTH_PX)) {
+      const minWidth = this.compactMode
+        ? MOBILE_PLAYER_HUD_MIN_WIDTH_PX
+        : SELF_PLAYER_HUD_MIN_WIDTH_PX;
+      if (clearWidth >= Math.min(availableWidth, minWidth)) {
         width = Math.min(width, clearWidth);
       } else {
         bottom = Math.min(bottom, hand.y - PLAYER_HUD_HAND_GAP_PX);
@@ -1023,6 +1036,10 @@ export class BoardScene {
     return !!b && x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height;
   }
 
+  private collapseStackPeeks(): void {
+    for (const rec of this.regions.values()) rec.region.collapseStackPeek();
+  }
+
   private beginPinch(): void {
     const pts = [...this.pinchPointers.values()];
     const a = pts[0]!;
@@ -1078,7 +1095,17 @@ export class BoardScene {
     if (this.dragHandler.isDragging) {
       this.dragHandler.end();
       local?.hideGridSkeleton();
+    } else {
+      this.dragHandler.cancel();
     }
+    this.hoveredCell = null;
+    this.stackTargetId = null;
+    this.invalidDropPoint = null;
+    if (this.cardPressSelection && this.selection) {
+      this.selection.setSelected(new Set(this.cardPressSelection.selected));
+      this.selection.refresh();
+    }
+    this.cardPressSelection = null;
     if (this.selection?.isMarqueeActive() && local) {
       this.selection.endMarquee(local.snapshotCurrentPositions());
     }
@@ -1093,6 +1120,7 @@ export class BoardScene {
     this.setAttackDragId(null);
     this.attackDragCandidate = null;
     this.activeGesturePointerId = null;
+    this.collapseStackPeeks();
     this.longPress.reset();
     const state = local?.getLastState();
     if (local && state) local.updateBattlefield(state);
@@ -1142,6 +1170,16 @@ export class BoardScene {
     this.selection = new SelectionController(this.makeSelectionHost(region), this.root);
     this.overlay = new BattlefieldOverlay(this.makeOverlayHost(region));
     region.enableFeltMarquee((e) => this.onFeltDown(e));
+    this.syncMobileHandPresentation();
+  }
+  private syncMobileHandPresentation(): void {
+    const open = this.compactMode && this.mobileHandOpen;
+    this.hand?.setSheetOpen(open);
+    if (this.hand) this.hand.container.visible = !this.compactMode || open;
+    this.mobileHandBackdrop.visible = open;
+    this.mobileHandBackdrop.eventMode = open ? "static" : "none";
+    const handRect = this.hand?.getBlockerRect() ?? null;
+    this.dragHandler.setHandExclusion(this.compactMode && !open ? null : handRect);
   }
 
   private onFeltDown(e: FederatedPointerEvent): void {
@@ -1200,10 +1238,12 @@ export class BoardScene {
 
   updateHand(state: HandState): void {
     this.hand?.updateHand(state);
+    this.syncMobileHandPresentation();
     this.layoutSelfBar();
     this.refreshCapsuleBlockers();
   }
   getHandBounds(): BlockingRect | null {
+    if (this.compactMode && !this.mobileHandOpen) return null;
     return this.hand?.getBlockerRect() ?? null;
   }
 
@@ -1266,7 +1306,7 @@ export class BoardScene {
 
   applyCombatBlocks(blocks: { blockerId: string; attackerId: string }[]): void {
     if (this.destroyed) return;
-    const canvasLeft = this.app.canvas.getBoundingClientRect().left;
+    const canvasLeft = this.canvasRect().left;
     const regionOf = (cardId: string): BoardRegion | null => {
       for (const rec of this.regions.values()) {
         if (rec.region.getCardPosition(cardId)) return rec.region;
@@ -1422,21 +1462,37 @@ export class BoardScene {
   setPhaseStripCallbacks(cb: PhaseStripCallbacks): void {
     this.phaseStrip.setCallbacks(cb);
   }
+  setPhaseDividerVisible(visible: boolean): void {
+    this.phaseStrip.setDividerVisible(visible);
+  }
 
   setCompactMode(compact: boolean): void {
     if (this.compactMode === compact) return;
     this.compactMode = compact;
+    if (!compact) this.mobileHandOpen = false;
     this.phaseStrip.setCompact(compact);
+    this.phaseStrip.container.visible = !compact;
     this.hand?.setCompact(compact);
     this.playerBars.setCompact(compact);
+    this.syncMobileHandPresentation();
     this.applyDelimiters();
-    for (const rec of this.regions.values()) rec.region.setCompactZones(compact);
+    for (const rec of this.regions.values()) rec.region.setCompactMode(compact);
+  }
+
+  setMobileHandOpen(open: boolean): void {
+    if (this.mobileHandOpen === open) return;
+    this.mobileHandOpen = open;
+    if (!open) this.hand?.resetHover();
+    this.syncMobileHandPresentation();
   }
 
   setZoneTilesLocked(locked: boolean): void {
     if (this.zoneTilesLocked === locked) return;
     this.zoneTilesLocked = locked;
-    for (const rec of this.regions.values()) rec.region.setZoneTilesLocked(locked);
+  }
+
+  getLocalCapsuleBounds(): ScreenBounds | null {
+    return this.localPlayerId ? this.playerBars.getCapsuleBounds(this.localPlayerId) : null;
   }
 
   setStackAnchorProvider(provider: StackAnchorProvider | null): void {
@@ -1455,16 +1511,39 @@ export class BoardScene {
     this.tapSuppressedPointers.add(pointerId);
   }
 
+  setMobileHandControlBlocker(blocker: BlockingRect | null): void {
+    const pad = GAP / 2;
+    const next = blocker
+      ? {
+          x: blocker.x - pad,
+          y: blocker.y - pad,
+          width: blocker.width + pad * 2,
+          height: blocker.height + pad * 2,
+        }
+      : null;
+    const current = this.mobileHandControlBlocker;
+    if (
+      current?.x === next?.x &&
+      current?.y === next?.y &&
+      current?.width === next?.width &&
+      current?.height === next?.height
+    ) {
+      return;
+    }
+    this.mobileHandControlBlocker = next;
+    const local = this.localRegion();
+    const state = local?.getLastState();
+    if (local && state) local.updateBattlefield(state);
+  }
   setDropActive(active: boolean): void {
     this.dropActive = active;
     this.localRegion()?.setDropActive(active);
-    this.hand?.setDropActive(active);
   }
 
   commitPendingDrop(cardId: string, clientX: number, clientY: number): boolean {
     const region = this.localRegion();
     if (!region) return false;
-    const canvasRect = this.app.canvas.getBoundingClientRect();
+    const canvasRect = this.canvasRect();
     region.drawDropGrid(clientX - canvasRect.left, clientY - canvasRect.top);
     return region.commitPendingDrop(cardId);
   }
@@ -1486,24 +1565,6 @@ export class BoardScene {
     if (this.destroyed) return;
     setCardSpriteStyle(style);
     for (const rec of this.regions.values()) rec.region.restyleCards();
-  }
-
-  setBackground(url: string | null, darken = 0): void {
-    if (this.destroyed || (url === this.baseImageUrl && darken === this.baseImageDarken)) return;
-    this.baseImageUrl = url;
-    this.baseImageDarken = darken;
-    const channel = Math.round(255 * (1 - darken));
-    this.baseImage.tint = (channel << 16) | (channel << 8) | channel;
-    if (!url) {
-      this.baseImage.visible = false;
-      return;
-    }
-    void loadBoardBackground(url).then((texture) => {
-      if (this.destroyed || this.baseImageUrl !== url) return;
-      this.baseImage.texture = texture;
-      this.baseImage.visible = true;
-      this.drawBaseBg();
-    });
   }
 
   setHoverDebug(on: boolean): void {
@@ -1540,22 +1601,30 @@ export class BoardScene {
     this.hand?.restyle();
     this.phaseStrip.setTheme(theme);
     this.playerBars.setTheme(theme);
-    this.drawBaseBg();
     for (const rec of this.regions.values()) rec.region.redrawTheme();
     this.applyDelimiters(); // repaint the collapse veil in the new theme colour
     if (this.promptReference) this.setPromptReference(this.promptReference);
+    this.syncMobileHandPresentation();
+  }
+
+  private canvasRect(): DOMRect {
+    const frame = this.domRectTick;
+    if (this.canvasDomRectFrame !== frame || !this.canvasDomRect) {
+      this.canvasDomRect = this.app.canvas.getBoundingClientRect();
+      this.canvasDomRectFrame = frame;
+    }
+    return this.canvasDomRect;
   }
 
   resize(width: number, height: number): void {
     if (this.destroyed) return;
     this.app.renderer.resize(width, height);
     this.dragHandler.setContainerSize(width, height);
-    this.playerBars.setViewport(width, height);
     this.canvasW = width;
     this.canvasH = height;
     this.pinchPointers.clear();
     this.resetBoardZoom();
-    this.drawBaseBg();
+    this.syncMobileHandPresentation();
   }
 
   setPromptReference(target: TargetRef | null): void {
@@ -1584,17 +1653,6 @@ export class BoardScene {
     return null;
   }
 
-  private drawBaseBg(): void {
-    this.baseBg.clear();
-    if (this.canvasW <= 0 || this.canvasH <= 0) return;
-    this.baseBg.rect(0, 0, this.canvasW, this.canvasH);
-    this.baseBg.fill({ color: hexToNum(this.theme.gameTheme.canvas.background), alpha: 1 });
-    if (!this.baseImage.visible) return;
-    const texture = this.baseImage.texture;
-    this.baseImage.scale.set(Math.max(this.canvasW / texture.width, this.canvasH / texture.height));
-    this.baseImage.position.set(this.canvasW / 2, this.canvasH / 2);
-  }
-
   private makeRegionHost(playerId: string, isLocal: boolean): RegionHost {
     return {
       getTheme: () => this.theme,
@@ -1611,12 +1669,9 @@ export class BoardScene {
         if (isLocal) this.overlay?.rebuild(entry, state);
       },
       wireSprite: (sprite) => this.wireSprite(sprite, playerId, isLocal),
-      screenXToLocalX: (screenX) => screenX - this.app.canvas.getBoundingClientRect().left,
+      screenXToLocalX: (screenX) => screenX - this.canvasRect().left,
       getHandReserveBottom: () =>
-        isLocal
-          ? this.handReserveBottom() *
-            (this.compactMode ? HAND_RESERVE_TRIM_COMPACT : HAND_RESERVE_TRIM)
-          : 0,
+        isLocal && !this.compactMode ? this.handReserveBottom() * HAND_RESERVE_TRIM : 0,
       spawnFloatingText: (x, y, content, color) => this.spawnFloatingText(x, y, content, color),
       previewCard: (card, bounds) => {
         if (!card) {
@@ -1682,6 +1737,7 @@ export class BoardScene {
   }
 
   private handReserveBottom(): number {
+    if (this.compactMode) return 0;
     const rect = this.hand?.getBlockerRect();
     const zone = this.localZone();
     if (!rect || !zone) return 0;
@@ -1695,11 +1751,14 @@ export class BoardScene {
   }
 
   private localBlockers(): BlockingRect[] {
+    if (this.compactMode) {
+      return this.mobileHandControlBlocker ? [this.mobileHandControlBlocker] : [];
+    }
     const handRect = this.hand?.getBlockerRect();
     if (!handRect) return [];
     const zone = this.localZone();
     const bottom = zone ? zone.y + zone.height : handRect.y + handRect.height;
-    const trim = this.compactMode ? HAND_RESERVE_TRIM_COMPACT : HAND_RESERVE_TRIM;
+    const trim = HAND_RESERVE_TRIM;
     const top = bottom - Math.max(0, bottom - handRect.y) * trim;
     const tl = this.root.toGlobal(RECT_SCRATCH_A.set(handRect.x, top), RECT_SCRATCH_A);
     const br = this.root.toGlobal(
@@ -1722,9 +1781,12 @@ export class BoardScene {
     const collapsedWidth = collapsedOpponentWidth(this.boardWidth, this.opponentIds.length);
     const right = this.boardWidth - (this.opponentIds.length - index - 1) * collapsedWidth;
     const x = record.zone.x;
-    const width = Math.min(SELF_PLAYER_HUD_MAX_WIDTH_PX, Math.max(1, right - x));
+    const maxWidth = this.compactMode
+      ? MOBILE_PLAYER_HUD_MAX_WIDTH_PX
+      : SELF_PLAYER_HUD_MAX_WIDTH_PX;
+    const width = Math.min(maxWidth, Math.max(1, right - x));
     const preferredHeight = this.compactMode
-      ? PLAYER_HUD_COMPACT_HEIGHT_PX
+      ? MOBILE_PLAYER_HUD_HEIGHT_PX
       : OPPONENT_PLAYER_HUD_HEIGHT_PX;
     const height = Math.min(preferredHeight, Math.max(1, record.zone.height));
     const tl = this.root.toGlobal(RECT_SCRATCH_A.set(x, record.zone.y), RECT_SCRATCH_A);
@@ -1771,7 +1833,7 @@ export class BoardScene {
     if (!zone) return { x: 0, y: 0, scaleX: scale, scaleY: scale };
     const point = this.root.toGlobal({
       x: zone.x + zone.width / 2,
-      y: zone.y + (CARD_H * scale) / 2,
+      y: zone.y + ((this.compactMode ? CARD_W : CARD_H) * scale) / 2,
     });
     return {
       x: point.x,
@@ -1802,7 +1864,7 @@ export class BoardScene {
       showsHand: () => true,
       isDestroyed: () => this.destroyed,
       setHandExclusion: (rect) => {
-        this.dragHandler.setHandExclusion(rect);
+        this.dragHandler.setHandExclusion(this.compactMode && !this.mobileHandOpen ? null : rect);
         this.localRegion()?.redrawBackground();
       },
     };
@@ -1827,9 +1889,9 @@ export class BoardScene {
       getSelectedCardIds: () => this.selection?.getSelected() ?? new Set<string>(),
       getLastState: () => region.getLastState(),
       getEntries: () => region.getEntries(),
-      isJustDragged: (id) =>
+      consumeCardTap: (id) =>
         this.dragHandler.justDraggedCardIds.has(id) || this.longPress.consumeTap(id),
-      startCardDrag: (sprite, e) => this.onBattlefieldCardDown(sprite, e),
+      startCardPress: (sprite, e) => this.beginBattlefieldCardPress(region, sprite, e),
       cancelHoverClear: () => this.cancelHoverClear(),
       setCardHovered: (sprite, force = false, trigger) =>
         this.setBattlefieldCardHovered(region, sprite, force, trigger),
@@ -1850,18 +1912,20 @@ export class BoardScene {
     if (isLocal && sprite.card.controllerId === playerId) {
       sprite.on("pointerdown", (e: FederatedPointerEvent) => {
         e.stopPropagation();
-        if (e.button !== 0) return;
-        if (region) {
-          this.longPress.start(e, sprite.card.id, () => this.fireLongPressPreview(region, sprite));
-        }
-        this.onBattlefieldCardDown(sprite, e);
+        if (e.button !== 0 || !region) return;
+        this.beginBattlefieldCardPress(region, sprite, e);
       });
       sprite.on("pointertap", (e: FederatedPointerEvent) => {
         if (e.button !== 0) return;
-        if (this.tapSuppressedPointers.has(e.pointerId)) return;
         if (this.dragHandler.justDraggedCardIds.has(sprite.card.id)) return;
         if (this.longPress.consumeTap(sprite.card.id)) return;
-        this.overlay?.handleCardTap(sprite.card);
+        const state = region?.getLastState();
+        if (state?.selectableCardIds?.includes(sprite.card.id)) {
+          this.callbacks.onClickCard?.(sprite.card);
+          return;
+        }
+        this.restoreCardPressSelection(sprite.card.id, e.pointerId);
+        this.fireTapPreview(sprite);
       });
     } else {
       sprite.on("pointerdown", (e: FederatedPointerEvent) => {
@@ -1880,12 +1944,14 @@ export class BoardScene {
       });
       sprite.on("pointertap", (e: FederatedPointerEvent) => {
         if (e.button !== 0) return;
-        if (this.tapSuppressedPointers.has(e.pointerId)) return;
         if (this.longPress.consumeTap(sprite.card.id)) return;
-        if (isAttackerTap(region?.getLastState() ?? null, sprite.card.id)) {
+        const state = region?.getLastState() ?? null;
+        if (isAttackerTap(state, sprite.card.id)) {
           this.callbacks.onAttackerClick?.(sprite.card);
-        } else {
+        } else if (state?.selectableCardIds?.includes(sprite.card.id)) {
           this.callbacks.onClickCard?.(sprite.card);
+        } else {
+          this.fireTapPreview(sprite);
         }
       });
       sprite.on("pointerup", () => {
@@ -1899,10 +1965,14 @@ export class BoardScene {
       });
     }
     sprite.on("pointerenter", (e: FederatedPointerEvent) => {
-      if (region) this.setBattlefieldCardHovered(region, sprite, false, e);
+      if (e.pointerType !== "touch" && region) {
+        this.setBattlefieldCardHovered(region, sprite, false, e);
+      }
     });
     sprite.on("pointermove", (e: FederatedPointerEvent) => {
-      if (region) this.setBattlefieldCardHovered(region, sprite, true, e);
+      if (e.pointerType !== "touch" && region) {
+        this.setBattlefieldCardHovered(region, sprite, true, e);
+      }
     });
     sprite.on("pointerleave", () => this.scheduleHoverClear(sprite.card.id));
     sprite.on("rightclick", (e: FederatedPointerEvent) => {
@@ -1920,7 +1990,7 @@ export class BoardScene {
     width: number;
     height: number;
   } {
-    const canvasRect = this.app.canvas.getBoundingClientRect();
+    const canvasRect = this.canvasRect();
     return {
       x: bounds.x + canvasRect.left,
       y: bounds.y + canvasRect.top,
@@ -1932,11 +2002,25 @@ export class BoardScene {
   private fireRightClickPreview(sprite: CardSprite): void {
     this.callbacks.onRightClickCard?.(sprite.card, this.toViewportBounds(sprite.getBounds()));
   }
+  private fireTapPreview(sprite: CardSprite): void {
+    this.callbacks.onClickAnyCard?.(sprite.card, this.toViewportBounds(sprite.getBounds()));
+  }
 
-  private fireLongPressPreview(region: BoardRegion, sprite: CardSprite): void {
-    // A fired long-press is preview-only: drop the drag armed by the same
-    // pointerdown, or hold jitter / release wobble past the drag threshold
-    // reaches onGlobalMove's dismiss and closes the sticky preview.
+  private restoreCardPressSelection(cardId: string, pointerId: number): void {
+    const press = this.cardPressSelection;
+    if (!press || press.cardId !== cardId || press.pointerId !== pointerId) return;
+    this.cardPressSelection = null;
+    if (!this.selection) return;
+    this.selection.setSelected(new Set(press.selected));
+    this.selection.refresh();
+  }
+
+  private fireLongPressPreview(
+    region: BoardRegion,
+    sprite: CardSprite,
+    selectionBeforePress: ReadonlySet<string> | null = null,
+  ): void {
+    haptic("select");
     if (this.dragHandler.isDragging) {
       const state = region.getLastState();
       if (state) region.updateBattlefield(state);
@@ -1950,15 +2034,9 @@ export class BoardScene {
       const state = ud.region.getLastState();
       if (state) ud.region.updateBattlefield(state);
     }
-    const selection = this.selection;
-    if (selection) {
-      const selected = selection.getSelected();
-      // Undo only the selection this press created; keep a wider marquee/shift
-      // selection the card was already part of.
-      if (selected.size === 1 && selected.has(sprite.card.id)) {
-        selection.setSelected(new Set());
-        selection.refresh();
-      }
+    if (selectionBeforePress && this.selection) {
+      this.selection.setSelected(new Set(selectionBeforePress));
+      this.selection.refresh();
     }
     if (this.callbacks.onLongPressCard) {
       this.callbacks.onLongPressCard(sprite.card, this.toViewportBounds(sprite.getBounds()));
@@ -2009,7 +2087,29 @@ export class BoardScene {
     }
   }
 
+  private beginBattlefieldCardPress(
+    region: BoardRegion,
+    sprite: CardSprite,
+    e: FederatedPointerEvent,
+  ): void {
+    if (this.destroyed || this.pinchStart) return;
+    const selectionBeforePress = new Set(this.selection?.getSelected() ?? []);
+    this.cardPressSelection = {
+      pointerId: e.pointerId,
+      cardId: sprite.card.id,
+      selected: selectionBeforePress,
+      restoreOnRelease: !(
+        region.getLastState()?.selectableCardIds?.includes(sprite.card.id) ?? false
+      ),
+    };
+    this.longPress.start(e, sprite.card.id, () => {
+      this.cardPressSelection = null;
+      this.fireLongPressPreview(region, sprite, selectionBeforePress);
+    });
+    this.onBattlefieldCardDown(sprite, e);
+  }
   private onBattlefieldCardDown(sprite: CardSprite, e: FederatedPointerEvent): void {
+    this.collapseStackPeeks();
     if (this.destroyed) return;
     if (this.pinchStart) return;
     const local = this.localRegion();
@@ -2032,6 +2132,7 @@ export class BoardScene {
         selection.getSelected(),
         local.snapshotCurrentPositions(),
         e.shiftKey,
+        e.pointerType === "touch" ? TOUCH_MOVE_SLOP_PX : undefined,
       ),
     );
     this.activeGesturePointerId = e.pointerId;
@@ -2055,7 +2156,7 @@ export class BoardScene {
     }
     this.longPress.move(e.global.x, e.global.y);
     const pos = this.root.toLocal(e.global);
-    this.updateHoveredOpponent(e.global.x, e.global.y);
+    if (e.pointerType !== "touch") this.updateHoveredOpponent(e.global.x, e.global.y);
     if (this.unassignDrag) {
       const ud = this.unassignDrag;
       const entry = ud.region.getEntries().get(ud.cardId);
@@ -2082,8 +2183,8 @@ export class BoardScene {
 
     const draggingFromHand = hand.isDraggingFromHand();
     if (draggingFromHand) hand.updateReorderAt(pos.x, pos.y);
-    const dragging = this.dragHandler.draggingCardIds.size > 0 || draggingFromHand;
-    if (!dragging) {
+    const dragging = this.dragHandler.hasDrag || draggingFromHand;
+    if (!dragging && e.pointerType !== "touch") {
       hand.updateHoverAt(pos.x, pos.y, e);
     } else if (hand.hasActiveHover()) {
       hand.resetHover();
@@ -2091,6 +2192,7 @@ export class BoardScene {
 
     const newPositions = this.dragHandler.move(pos.x, pos.y);
     if (!newPositions) return;
+    this.cardPressSelection = null;
     this.callbacks.onDismissHoverPreview?.();
     const primaryId = this.dragHandler.primaryDraggingCardId;
     let primaryPos: ScreenPos | null = null;
@@ -2114,20 +2216,23 @@ export class BoardScene {
       this.hoveredCell = null;
       this.stackTargetId = null;
       local.hideGridSkeleton();
+      this.invalidDropPoint = null;
       return;
     }
 
     const grid = local.getGridInfo();
-    if (primaryPos && grid) {
-      this.hoveredCell = cellFromPoint(grid, primaryPos.x, primaryPos.y);
-      this.stackTargetId = this.hoveredCell
-        ? local.findStackTargetAt(this.hoveredCell, draggingIds)
-        : null;
-    } else {
-      this.hoveredCell = null;
-      this.stackTargetId = null;
-    }
-    local.drawGridSkeleton(draggingIds, this.hoveredCell, this.stackTargetId);
+    this.hoveredCell =
+      primaryPos && grid ? dropCellFromPoint(grid, primaryPos.x, primaryPos.y) : null;
+    this.stackTargetId = this.hoveredCell
+      ? local.findStackTargetAt(this.hoveredCell, draggingIds)
+      : null;
+    this.invalidDropPoint = primaryPos && !this.hoveredCell ? primaryPos : null;
+    local.drawGridSkeleton(
+      draggingIds,
+      this.hoveredCell,
+      this.stackTargetId,
+      this.invalidDropPoint,
+    );
   }
 
   private onGlobalUp(e?: FederatedPointerEvent): void {
@@ -2140,6 +2245,21 @@ export class BoardScene {
     ) {
       return;
     }
+    const releasedPointerId = e?.pointerId;
+    if (
+      releasedPointerId !== undefined &&
+      this.cardPressSelection?.pointerId === releasedPointerId
+    ) {
+      const press = this.cardPressSelection;
+      window.setTimeout(() => {
+        if (this.cardPressSelection !== press) return;
+        if (press.restoreOnRelease && this.selection) {
+          this.selection.setSelected(new Set(press.selected));
+          this.selection.refresh();
+        }
+        this.cardPressSelection = null;
+      }, 0);
+    }
     this.activeGesturePointerId = null;
     this.attackDragCandidate = null;
     this.longPress.cancel();
@@ -2148,6 +2268,7 @@ export class BoardScene {
       const ud = this.unassignDrag;
       this.unassignDrag = null;
       if (ud.overOwn) {
+        haptic("confirm");
         this.callbacks.onUnassignAttacker?.(ud.cardId);
       } else {
         const state = ud.region.getLastState();
@@ -2156,6 +2277,7 @@ export class BoardScene {
       return;
     }
     if (this.blockDragBlockerId) {
+      haptic("confirm");
       this.callbacks.onUnassignBlock?.(this.blockDragBlockerId);
       this.setBlockDragId(null);
       return;
@@ -2180,15 +2302,18 @@ export class BoardScene {
       this.setAttackDragId(null);
       local.hideGridSkeleton();
       if (result?.wasDrag) {
+        let assigned = false;
         for (const id of draggedIds) {
           const opt = this.attackerOptions.find((a) => a.attackerId === id);
           if (!opt) continue;
           if (targetId && opt.validTargetIds.includes(targetId)) {
+            assigned = true;
             this.callbacks.onAssignAttacker?.(id, targetId);
           } else {
             this.callbacks.onUnassignAttacker?.(id);
           }
         }
+        if (assigned) haptic("confirm");
       }
       const state = local.getLastState();
       if (state) local.updateBattlefield(state);
@@ -2207,6 +2332,7 @@ export class BoardScene {
     const hoveredCell = this.hoveredCell;
     this.stackTargetId = null;
     this.hoveredCell = null;
+    this.invalidDropPoint = null;
     local.hideGridSkeleton();
 
     if (!result?.wasDrag) return;
@@ -2215,6 +2341,7 @@ export class BoardScene {
     } else if (hoveredCell) {
       local.commitCellDrop(draggedIds, hoveredCell, primaryId);
     }
+    haptic(stackTargetId || hoveredCell ? "confirm" : "warn");
     const state = local.getLastState();
     if (state) local.updateBattlefield(state);
   }
@@ -2236,6 +2363,7 @@ export class BoardScene {
       lerp(this.phaseStrip.getDimAlpha(), this.phaseStripAlphaTarget, 0.2, 0.01),
     );
     this.animateFloaters(frameRatio);
+    this.domRectTick++;
     this.captureStackSeeds();
     const handReserve = this.handReserveBottom();
     if (this.handReserveCb && handReserve !== this.lastEmittedHandReserve) {
@@ -2245,7 +2373,7 @@ export class BoardScene {
     if (this.dropActive) {
       const local = this.localRegion();
       if (this.hand?.isDraggingPermanent()) {
-        const canvasRect = this.app.canvas.getBoundingClientRect();
+        const canvasRect = this.canvasRect();
         local?.drawDropGrid(
           this.cursorViewportX - canvasRect.left,
           this.cursorViewportY - canvasRect.top,
@@ -2304,7 +2432,7 @@ export class BoardScene {
     // player loses targeting feedback exactly when combat opens the fields.
     if (this.delimitersSettling() && !interacting) return [];
     if (this.arrowSpecs.length === 0 && !interacting) return [];
-    const canvasRect = this.app.canvas.getBoundingClientRect();
+    const canvasRect = this.canvasRect();
     const resolved: ArrowDef[] = [];
     const attackTargetCounts = new Map<string, number>();
     for (const s of this.arrowSpecs) {
@@ -2536,6 +2664,7 @@ export class BoardScene {
     this.app.stage.off("pointermove", this.onStageMove);
     this.app.stage.off("pointerup", this.onStageUp);
     this.app.stage.off("pointerupoutside", this.onStageUp);
+    this.app.stage.off("pointertapcapture", this.onStageTapCapture);
     try {
       this.dragHandler.destroy();
       this.phaseStrip.destroy();

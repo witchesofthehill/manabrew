@@ -93,8 +93,8 @@ export interface OverlayHost {
   getSelectedCardIds(): ReadonlySet<string>;
   getLastState(): BattlefieldState | null;
   getEntries(): ReadonlyMap<string, SpriteEntry>;
-  isJustDragged(cardId: string): boolean;
-  startCardDrag(sprite: CardSprite, e: FederatedPointerEvent): void;
+  consumeCardTap(cardId: string): boolean;
+  startCardPress(sprite: CardSprite, e: FederatedPointerEvent): void;
   cancelHoverClear(): void;
   setCardHovered(sprite: CardSprite, force?: boolean, trigger?: PreviewPointerInput): void;
   rightClickCard(sprite: CardSprite): void;

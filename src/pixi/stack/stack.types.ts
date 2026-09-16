@@ -31,6 +31,7 @@ export interface StackCallbacks {
   onHover: (stackObjectId: string | null) => void;
   onToggleCollapsed: () => void;
   onRenderRequested?: () => void;
+  onLongPressCard?: (card: CardDto, bounds: ScreenBounds) => void;
 }
 
 export interface StackAnchorProvider {

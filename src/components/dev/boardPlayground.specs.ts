@@ -86,6 +86,11 @@ export function buildPlaygroundSpecs(
         topCard,
         back: zone === "library",
         commander: zone === "command" ? colors[seat] : undefined,
+        highlightColor:
+          zone === "graveyard" &&
+          cards.some((card) => table.actionableGraveyardIds.includes(card.id))
+            ? theme.cardRing
+            : undefined,
         commanderTax:
           zone === "command"
             ? table.scenario === "crowded" || table.scenario === "combat"

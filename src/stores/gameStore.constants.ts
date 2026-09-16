@@ -11,6 +11,7 @@ import type { DisplayEvent } from "@/protocol/display";
 import type { GameViewDto, ZoneDto, ZoneKind } from "@/protocol/game";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 import { GAME_CARD_DEFAULTS, hiddenZoneCard } from "@/lib/gameCard";
+import { hasVisualDisplayPresentation, presentDisplayEvent } from "@/lib/displayEvents";
 
 function visibleCardsOf(zone: ZoneDto): ClientCardDto[] {
   return zone.cards.flatMap((card) =>
@@ -144,6 +145,8 @@ export function applyDisplay(
   set: (partial: Partial<GameState>) => void,
   get: () => GameState,
 ) {
+  if (!presentDisplayEvent(event) || !hasVisualDisplayPresentation(event)) return;
+
   route({ displayEvents: [event], gameView: null, prompt: null }, `${source}: display`, set, get);
 }
 

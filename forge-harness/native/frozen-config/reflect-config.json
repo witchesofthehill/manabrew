@@ -1399,6 +1399,19 @@
     "queryAllDeclaredConstructors": true
   },
   {
+    "name": "forge.harness.host.SoundCueProjector",
+    "queryAllDeclaredMethods": true,
+    "methods": [{ "name": "receive", "parameterTypes": ["forge.game.event.GameEvent"] }]
+  },
+  {
+    "name": "forge.harness.host.SoundCueProjector$Cue",
+    "allDeclaredFields": true
+  },
+  {
+    "name": "forge.harness.host.SoundCueProjector$Origin",
+    "allDeclaredFields": true
+  },
+  {
     "name": "forge.harness.Main$2",
     "queryAllDeclaredMethods": true,
     "methods": [

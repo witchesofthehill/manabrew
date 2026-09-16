@@ -1791,7 +1791,6 @@ export function GameBoard({
           hand={pixiHand}
           opponentLayout={opponentLayout}
           focusLocked={
-            isTargetingPrompt ||
             !!sheetPlayerId ||
             promptType === "chooseAttackers" ||
             promptType === "chooseBlockers" ||

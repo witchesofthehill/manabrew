@@ -210,16 +210,12 @@ export function PublishDeckDialog({
           <p className="text-sm text-destructive">{capabilitiesError}</p>
         )}
         <DialogFooter className="gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={busy}
-            onClick={() => handleOpenChange(false)}
-          >
+          <Button variant="ghost" size="sm" disabled={busy} onClick={() => handleOpenChange(false)}>
             <Trans>Cancel</Trans>
           </Button>
           {signedIn ? (
             <Button
+              variant="primary"
               size="sm"
               disabled={busy || deck.cards.length === 0 || title.trim().length === 0}
               onClick={handlePublish}
@@ -227,7 +223,7 @@ export function PublishDeckDialog({
               {busy ? i18n._(msg`Publishing\u2026`) : i18n._(msg`Publish`)}
             </Button>
           ) : (
-            <Button size="sm" onClick={handleSignIn}>
+            <Button variant="primary" size="sm" onClick={handleSignIn}>
               <Trans>Sign in</Trans>
             </Button>
           )}

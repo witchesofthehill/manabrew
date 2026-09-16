@@ -2,10 +2,11 @@ package forge.harness.wasm;
 
 import org.graalvm.webimage.api.JS;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Base64;
 
 import forge.harness.host.ManaBrewInteractiveSession;
 
@@ -14,110 +15,58 @@ import forge.harness.host.ManaBrewInteractiveSession;
  */
 public final class WasmMain {
 
-    private static final int TAR_BLOCK = 512;
-
     private WasmMain() {
     }
 
-    @JS.Coerce
-    @JS("const fs = require('fs'); const zlib = require('zlib');"
-        + "return zlib.gunzipSync(fs.readFileSync(path)).toString('base64');")
-    static native String hostReadGunzippedBase64(String path);
-
-    /**
-     * Assets as one NUL-framed "path\0body\0..." string.
-     */
-    @JS.Coerce
-    @JS(// The browser host builds the bundle from cardset.rkyv and leaves it
-        // here, so nothing is packed or shipped a second time.
-        "if (typeof self !== 'undefined' && self.__forgeAssets) return self.__forgeAssets;"
-        + "if (typeof require === 'function') {"
-        + "  const fs = require('fs'); const zlib = require('zlib');"
-        + "  return zlib.gunzipSync(fs.readFileSync(path)).toString('utf8');"
-        + "}"
-        // Workers allow synchronous XHR, which is the only way an @JS snippet
-        // can hand bytes back: fetch is async and this must return a value.
-        // The wire stays compressed because the server sets Content-Encoding.
-        + "const url = new URL(path.replace(/\\.gz$/, ''), self.location.href).href;"
-        + "const xhr = new XMLHttpRequest();"
-        + "xhr.open('GET', url, false);"
-        + "xhr.send(null);"
-        + "if (xhr.status !== 200 && xhr.status !== 0) throw new Error('asset fetch failed: ' + xhr.status);"
-        + "return xhr.responseText;")
-    static native String hostReadAssets(String path);
-
-    private static void writeFramed(String framed, Path root) throws Exception {
-        int files = 0;
-        int i = 0;
-        while (i < framed.length()) {
-            int sep = framed.indexOf('\0', i);
-            if (sep < 0) {
-                break;
-            }
-            String name = framed.substring(i, sep);
-            int end = framed.indexOf('\0', sep + 1);
-            if (end < 0) {
-                end = framed.length();
-            }
-            Path target = root.resolve(name);
-            Files.createDirectories(target.getParent());
-            Files.writeString(target, framed.substring(sep + 1, end));
-            files++;
-            i = end + 1;
-        }
-        System.out.println("[wasm] wrote " + files + " files into the VFS");
-    }
-
-    /** Minimal ustar reader. Only the fields Forge's asset tree actually uses. */
-    private static void untar(byte[] tar, Path root) throws Exception {
-        int offset = 0;
+    private static void writeFramed(InputStream raw, Path root) throws Exception {
+        ByteArrayOutputStream segment = new ByteArrayOutputStream(1 << 16);
+        byte[] chunk = new byte[1 << 16];
         int files = 0;
         long bytes = 0;
-        while (offset + TAR_BLOCK <= tar.length) {
-            // Two consecutive zero blocks terminate the archive.
-            if (tar[offset] == 0) {
-                break;
+        String name = null;
+        int read;
+        while ((read = raw.read(chunk)) != -1) {
+            int start = 0;
+            for (int i = 0; i < read; i++) {
+                if (chunk[i] != 0) {
+                    continue;
+                }
+                segment.write(chunk, start, i - start);
+                start = i + 1;
+                if (name == null) {
+                    name = segment.toString(StandardCharsets.UTF_8);
+                } else {
+                    Path target = root.resolve(name);
+                    Files.createDirectories(target.getParent());
+                    Files.write(target, segment.toByteArray());
+                    files++;
+                    bytes += segment.size();
+                    name = null;
+                }
+                segment.reset();
             }
-            String name = cstr(tar, offset, 100);
-            long size = octal(tar, offset + 124, 12);
-            char type = (char) tar[offset + 156];
-            offset += TAR_BLOCK;
-
-            Path target = root.resolve(name);
-            if (type == '5') {
-                Files.createDirectories(target);
-            } else if (type == '0' || type == 0) {
-                Files.createDirectories(target.getParent());
-                byte[] content = new byte[(int) size];
-                System.arraycopy(tar, offset, content, 0, (int) size);
-                Files.write(target, content);
-                files++;
-                bytes += size;
-            }
-            // Payloads are padded up to the next 512-byte boundary.
-            offset += (int) ((size + TAR_BLOCK - 1) / TAR_BLOCK) * TAR_BLOCK;
+            segment.write(chunk, start, read - start);
         }
-        System.out.println("[wasm] unpacked " + files + " files, " + (bytes / 1024) + " KiB into the VFS");
+        System.out.println("[wasm] streamed " + files + " files, " + (bytes / 1024) + " KiB into the VFS");
     }
 
-    private static String cstr(byte[] b, int off, int max) {
-        int end = off;
-        while (end < off + max && b[end] != 0) {
-            end++;
-        }
-        return new String(b, off, end - off, StandardCharsets.UTF_8);
-    }
-
-    private static long octal(byte[] b, int off, int len) {
-        long value = 0;
-        for (int i = off; i < off + len; i++) {
-            int c = b[i];
-            if (c < '0' || c > '7') {
-                continue;
+    /**
+     * Assets embedded in the module at build time
+     * ({@code FORGE_ASSETS} + {@code -H:IncludeResources}), read back with
+     * no JS crossing at all. The build fails without them, so a module that
+     * reaches this method without the resource is a broken build, not a
+     * degraded mode to run in.
+     */
+    private static void loadEmbeddedAssets(long t0) throws Exception {
+        try (InputStream embedded = WasmMain.class.getResourceAsStream("/assets-framed.txt")) {
+            if (embedded == null) {
+                throw new IllegalStateException("assets-framed.txt missing from the module — rebuild with FORGE_ASSETS");
             }
-            value = value * 8 + (c - '0');
+            Path root = Path.of("/forge-gui");
+            Files.createDirectories(root);
+            writeFramed(embedded, root);
+            System.out.println("[wasm] embedded assets: total boot " + (System.currentTimeMillis() - t0) + "ms");
         }
-        return value;
     }
 
     @JS(args = {"fn"}, value = "globalThis.__forgeStartGame = fn;")
@@ -222,29 +171,7 @@ public final class WasmMain {
         long t0 = System.currentTimeMillis();
         System.out.println("[wasm] availableProcessors=" + Runtime.getRuntime().availableProcessors());
 
-        if (Boolean.getBoolean("wasm.assets.base64")) {
-            String b64 = hostReadGunzippedBase64("assets.tar.gz");
-            long tFetch = System.currentTimeMillis();
-            System.out.println("[wasm] base64 path: JS produced " + (b64.length() / 1024) + " KiB in " + (tFetch - t0) + "ms");
-            byte[] tar = Base64.getDecoder().decode(b64);
-            long tDecode = System.currentTimeMillis();
-            System.out.println("[wasm] base64 path: decoded " + (tar.length / 1024) + " KiB in " + (tDecode - tFetch) + "ms");
-            Path root = Path.of("/forge-gui");
-            Files.createDirectories(root);
-            untar(tar, root);
-            System.out.println("[wasm] base64 path: total boot " + (System.currentTimeMillis() - t0) + "ms");
-        } else {
-            // Measured: one call beats slicing. 11 MB takes ~0.6s on Node and
-            // ~40s in Chrome, and 44 chunked crossings made Chrome worse (~68s),
-            // so the cost is per-crossing overhead rather than payload size.
-            String framed = hostReadAssets("assets.txt.gz");
-            long tFetch = System.currentTimeMillis();
-            System.out.println("[wasm] pulled " + (framed.length() / 1024) + " KiB across the JS boundary in " + (tFetch - t0) + "ms");
-            Path root = Path.of("/forge-gui");
-            Files.createDirectories(root);
-            writeFramed(framed, root);
-            System.out.println("[wasm] total boot " + (System.currentTimeMillis() - t0) + "ms");
-        }
+        loadEmbeddedAssets(t0);
 
         if (args.length > 0 && "--serve".equals(args[0])) {
             serve();

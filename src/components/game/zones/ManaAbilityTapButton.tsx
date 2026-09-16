@@ -29,7 +29,8 @@ export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
   const themeColors = useTheme().gameTheme;
   const bgColor = letter
     ? withAlpha(themeColors.mana[letter], MANA_BUTTON_ALPHA)
-    : withAlpha(themeColors.promptAction.cancel, MANA_BUTTON_FALLBACK_ALPHA);
+    : withAlpha(themeColors.mana.C, MANA_BUTTON_FALLBACK_ALPHA);
+
   const [hintRect, setHintRect] = useState<DOMRect | null>(null);
   const longPress = useLongPressPreview<string>({
     resolve: (e) => ({ item: description, anchor: e.currentTarget as HTMLElement }),

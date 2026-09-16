@@ -199,22 +199,13 @@ export function DeckCollectionPanel({
             </span>
           )}
           {(missing.length > 0 || otherPrintingCount > 0) && onOptimizeOwnedPrintings && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 text-xs"
-              onClick={onOptimizeOwnedPrintings}
-            >
-              <Trans>
-                <Sparkles className="h-3.5 w-3.5" /> Use owned printings
-              </Trans>
+            <Button size="xs" variant="ghost" onClick={onOptimizeOwnedPrintings}>
+              <Sparkles className="h-3.5 w-3.5" /> <Trans>Use owned printings</Trans>
             </Button>
           )}
           {missing.length > 0 && (
-            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={exportMissing}>
-              <Trans>
-                <Download className="h-3.5 w-3.5" /> Missing CSV
-              </Trans>
+            <Button size="xs" variant="ghost" onClick={exportMissing}>
+              <Download className="h-3.5 w-3.5" /> <Trans>Missing CSV</Trans>
             </Button>
           )}
           <div className="flex overflow-hidden rounded-md border">
@@ -279,9 +270,8 @@ export function DeckCollectionPanel({
                 />
                 <Button
                   type="button"
-                  size="icon"
-                  variant={acquisition[key] === "ordered" ? "secondary" : "ghost"}
-                  className="h-7 w-7"
+                  size="icon-sm"
+                  variant={acquisition[key] === "ordered" ? "selected" : "ghost"}
                   title={i18n._(msg`Mark as ordered`)}
                   aria-pressed={acquisition[key] === "ordered"}
                   onClick={() =>
@@ -295,9 +285,8 @@ export function DeckCollectionPanel({
                 </Button>
                 <Button
                   type="button"
-                  size="icon"
-                  variant={acquisition[key] === "proxy" ? "secondary" : "ghost"}
-                  className="h-7 w-7"
+                  size="icon-sm"
+                  variant={acquisition[key] === "proxy" ? "selected" : "ghost"}
                   title={i18n._(msg`Mark as proxied`)}
                   aria-pressed={acquisition[key] === "proxy"}
                   onClick={() =>
@@ -328,19 +317,17 @@ function ViewButton({
   children: ReactNode;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      size="icon-sm"
+      variant={active ? "selected" : "ghost"}
       title={label}
       aria-label={label}
       aria-pressed={active}
-      className={cn(
-        "p-1.5 transition-colors",
-        bordered && "border-l",
-        active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted",
-      )}
+      className={cn("rounded-none shadow-none", bordered && "border-l")}
       onClick={onClick}
     >
       {children}
-    </button>
+    </Button>
   );
 }

@@ -356,7 +356,9 @@ impl BotAgent for SimpleAi {
             // Display-only acknowledgements: the engine `await`s these so
             // every transport must produce an ack — keeps the engine's
             // broadcast loop polymorphic (no `if is_human` branching).
-            PromptInput::DiceRolled(manabrew_protocol::prompts::dice_rolled::DiceRolledInput { .. }) => Some(PromptOutput::DiceRolled(DiceRolledOutput::DiceRolledAcknowledged)),
+            PromptInput::DiceRolled(_) => Some(PromptOutput::DiceRolled(
+                DiceRolledOutput::DiceRolledAcknowledged,
+            )),
         }
     }
 }

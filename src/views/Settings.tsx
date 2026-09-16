@@ -28,12 +28,19 @@ import { MyAssetsSection } from "@/components/settings/MyAssetsSection";
 import { CardArtDownloadSection } from "@/components/settings/CardArtDownloadSection";
 import { PreferenceCard } from "@/components/settings/PreferenceCard";
 import { LanguagePreferenceCard } from "@/components/settings/LanguagePreferenceCard";
-import { toPickerHexColor } from "@/themes/gameTheme";
-import type { GameThemeColors } from "@/themes/gameTheme";
+import { toPickerHexColor, parseThemeColor, formatThemeColor } from "@/themes/gameTheme";
+import type { GameThemeColorKey } from "@/themes/gameTheme";
+import {
+  APP_THEME_COLOR_DESCRIPTIONS,
+  APP_THEME_COLOR_LABELS,
+  APP_THEME_GROUPS,
+  GAME_THEME_COLOR_DESCRIPTIONS,
+  GAME_THEME_GROUPS,
+} from "@/themes/themeMetadata";
 import { getDefaultGameThemeColorMap } from "@/hooks/useTheme";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Button as BaseButton, type ButtonProps } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -50,291 +57,6 @@ import { cn } from "@/lib/utils";
 import { Trans } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/i18n/i18n";
-/**
- * Canonical key unions. These drive the typed colour-description maps
- * below so a typo in a description key fails at compile time and adding
- * a new token to the schema shows up as a missing-description TS error
- * (via the `Record<…>` form used on the descriptions themselves — not
- * `Partial<Record<…>>` — so exhaustiveness is enforced).
- */
-type AppThemeKey = keyof ThemeColors;
-/**
- * Dot-notation string keys for every leaf in `GameThemeColors`.
- * Produces `"pointer.hostile" | "mana.W" | "textOnTinted" | …` at the
- * TS level; `Partial<Record<GameThemePath, string>>` on the description
- * map catches typos without forcing every leaf to be documented at
- * once. Add new tokens to the schema first — the description keys are
- * then type-checked against the live shape.
- */
-type GameThemePath = {
-  [K in keyof GameThemeColors & string]: GameThemeColors[K] extends string
-    ? K
-    : GameThemeColors[K] extends Record<string, string>
-      ? `${K}.${keyof GameThemeColors[K] & string}`
-      : never;
-}[keyof GameThemeColors & string];
-const APP_THEME_COLOR_DESCRIPTIONS: Record<AppThemeKey, string> = {
-  get background() {
-    return i18n._(msg`Page / window background fill.`);
-  },
-  get foreground() {
-    return i18n._(msg`Default body text colour.`);
-  },
-  get card() {
-    return i18n._(msg`Surface colour for cards, panels, and solid containers.`);
-  },
-  get "card-foreground"() {
-    return i18n._(msg`Text colour placed on \`card\` surfaces.`);
-  },
-  get popover() {
-    return i18n._(msg`Background of popovers, menus, and floating panels.`);
-  },
-  get "popover-foreground"() {
-    return i18n._(msg`Text colour inside popovers.`);
-  },
-  get primary() {
-    return i18n._(
-      msg`Primary action colour \u2014 main call-to-action buttons, links, active chip fills.`,
-    );
-  },
-  get "primary-foreground"() {
-    return i18n._(msg`Text / icons placed on a \`primary\` background.`);
-  },
-  get secondary() {
-    return i18n._(msg`Secondary / subtle button background.`);
-  },
-  get "secondary-foreground"() {
-    return i18n._(msg`Text on secondary-style buttons.`);
-  },
-  get muted() {
-    return i18n._(msg`Muted surface for low-priority regions.`);
-  },
-  get "muted-foreground"() {
-    return i18n._(msg`Captions, hints, and secondary text colour.`);
-  },
-  get accent() {
-    return i18n._(msg`Hover / active highlight surface.`);
-  },
-  get "accent-foreground"() {
-    return i18n._(msg`Text on accent surfaces.`);
-  },
-  get destructive() {
-    return i18n._(msg`Destructive actions, errors, and deny states.`);
-  },
-  get "destructive-foreground"() {
-    return i18n._(msg`Text placed on \`destructive\` buttons.`);
-  },
-  get border() {
-    return i18n._(msg`Default border and divider lines.`);
-  },
-  get input() {
-    return i18n._(msg`Form input borders and backgrounds.`);
-  },
-  get ring() {
-    return i18n._(msg`Focus ring around interactive elements.`);
-  },
-  get selection() {
-    return i18n._(msg`Background of selected text.`);
-  },
-  get "selection-foreground"() {
-    return i18n._(msg`Colour of selected text itself.`);
-  },
-  get commander() {
-    return i18n._(msg`Commander indicator (crown icon, commander panel accent).`);
-  },
-  get warning() {
-    return i18n._(msg`Warning states and soft cautions.`);
-  },
-  get overlay() {
-    return i18n._(msg`Modal / dialog backdrop dim.`);
-  },
-};
-const GAME_THEME_COLOR_DESCRIPTIONS: Partial<Record<GameThemePath, string>> = {
-  get "activeAction.priority"() {
-    return i18n._(msg`Highlight surrounding the player who currently has priority.`);
-  },
-  get "activeAction.active"() {
-    return i18n._(msg`Active-turn ring, turn-text colour, and general 'your turn' cue.`);
-  },
-  get "promptAction.passAction"() {
-    return i18n._(msg`Pass priority / pass turn button fill.`);
-  },
-  get "promptAction.attackAction"() {
-    return i18n._(msg`Declare-attackers button fill.`);
-  },
-  get "promptAction.defenseAction"() {
-    return i18n._(msg`Defense / declare-blockers button fill.`);
-  },
-  get "promptAction.cancel"() {
-    return i18n._(msg`Cancel / decline button fill.`);
-  },
-  get "arrow.attack"() {
-    return i18n._(msg`Attacker arrow from attacker to defender.`);
-  },
-  get "arrow.block"() {
-    return i18n._(msg`Blocker arrow from blocker to attacker.`);
-  },
-  get "arrow.hostileTarget"() {
-    return i18n._(msg`Legacy hostile-target arrow (Pixi fallback).`);
-  },
-  get "arrow.friendlyTarget"() {
-    return i18n._(msg`Legacy friendly-target arrow (Pixi fallback).`);
-  },
-  get "pointer.hostile"() {
-    return i18n._(
-      msg`Glow around the cursor for hostile targeting \u2014 damage, destroy, sacrifice, exile, counter, etc. Also used for the mulligan-reject ring.`,
-    );
-  },
-  get "pointer.friendly"() {
-    return i18n._(
-      msg`Glow around the cursor for friendly / supportive targeting \u2014 buff, heal, draw, reveal, untap, attach, copy.`,
-    );
-  },
-  get "mana.W"() {
-    return i18n._(msg`White mana pip and dual-land tap-button tint.`);
-  },
-  get "mana.U"() {
-    return i18n._(msg`Blue mana pip and dual-land tap-button tint.`);
-  },
-  get "mana.B"() {
-    return i18n._(msg`Black mana pip and dual-land tap-button tint.`);
-  },
-  get "mana.R"() {
-    return i18n._(msg`Red mana pip and dual-land tap-button tint.`);
-  },
-  get "mana.G"() {
-    return i18n._(msg`Green mana pip and dual-land tap-button tint.`);
-  },
-  get "mana.C"() {
-    return i18n._(msg`Colorless mana pip and tap-button tint.`);
-  },
-  get "cardStatus.exerted"() {
-    return i18n._(msg`Badge colour for exerted creatures (won't untap).`);
-  },
-  get "cardStatus.morph"() {
-    return i18n._(msg`Badge for face-down / morph creatures.`);
-  },
-  get "cardStatus.bestow"() {
-    return i18n._(msg`Badge for bestowed auras.`);
-  },
-  get "cardStatus.token"() {
-    return i18n._(msg`Badge for token creatures.`);
-  },
-  get "cardStatus.transformed"() {
-    return i18n._(msg`Badge for transformed double-faced cards.`);
-  },
-  get "cardStatus.plotted"() {
-    return i18n._(msg`Badge for plotted cards in exile.`);
-  },
-  get "cardStatus.madness"() {
-    return i18n._(msg`Badge for madness-exiled cards.`);
-  },
-  get "cardStatus.warped"() {
-    return i18n._(msg`Badge for warp-exiled cards.`);
-  },
-  get "cardStatus.copy"() {
-    return i18n._(msg`Badge for permanents that are copies of another card.`);
-  },
-  get "counter.default"() {
-    return i18n._(msg`Fallback chip colour for unknown counter types.`);
-  },
-  get "counter.p1p1"() {
-    return i18n._(msg`+1/+1 counter chip.`);
-  },
-  get "counter.m1m1"() {
-    return i18n._(msg`-1/-1 counter chip.`);
-  },
-  get "counter.loyalty"() {
-    return i18n._(msg`Loyalty counter chip (planeswalkers).`);
-  },
-  get "counter.charge"() {
-    return i18n._(msg`Charge counter chip.`);
-  },
-  get "counter.quest"() {
-    return i18n._(msg`Quest counter chip.`);
-  },
-  get "counter.study"() {
-    return i18n._(msg`Study counter chip.`);
-  },
-  get "counter.lore"() {
-    return i18n._(msg`Lore counter chip (sagas).`);
-  },
-  get "counter.age"() {
-    return i18n._(msg`Age counter chip.`);
-  },
-  get "counter.time"() {
-    return i18n._(msg`Time counter chip (suspend, etc.).`);
-  },
-  get "counter.fade"() {
-    return i18n._(msg`Fade counter chip.`);
-  },
-  get "counter.level"() {
-    return i18n._(msg`Level counter chip (level-up creatures).`);
-  },
-  get "counter.storage"() {
-    return i18n._(msg`Storage counter chip.`);
-  },
-  get "counter.mining"() {
-    return i18n._(msg`Mining counter chip.`);
-  },
-  get "counter.brick"() {
-    return i18n._(msg`Brick counter chip.`);
-  },
-  get "counter.depletion"() {
-    return i18n._(msg`Depletion counter chip.`);
-  },
-  get "counter.page"() {
-    return i18n._(msg`Page counter chip (book rooms).`);
-  },
-  get "pt.neutral"() {
-    return i18n._(msg`P/T badge when stats match the printed base.`);
-  },
-  get "pt.lethal"() {
-    return i18n._(msg`P/T badge when incoming damage would be lethal.`);
-  },
-  get "pt.buffed"() {
-    return i18n._(msg`P/T badge when stats are above the printed base.`);
-  },
-  get "pt.debuffed"() {
-    return i18n._(msg`P/T badge when stats are below the printed base.`);
-  },
-  get success() {
-    return i18n._(msg`Positive states \u2014 connected, saved, victory banner, good FPS.`);
-  },
-  get poison() {
-    return i18n._(msg`Poison counter / skull icon \u2014 MTG infect-green.`);
-  },
-  get life() {
-    return i18n._(msg`Life total / heart icon.`);
-  },
-  get "canvas.background"() {
-    return i18n._(msg`Pixi canvas table background fill.`);
-  },
-  get "canvas.shadow"() {
-    return i18n._(msg`Drop-shadow ink (almost always black).`);
-  },
-  get "canvas.neutral"() {
-    return i18n._(msg`High-contrast stroke / outline colour for arrows and icons.`);
-  },
-  get "cardPlaceholder.fill"() {
-    return i18n._(msg`Loading-state card sprite fill.`);
-  },
-  get "cardPlaceholder.stroke"() {
-    return i18n._(msg`Loading-state card sprite border.`);
-  },
-  get textOnTinted() {
-    return i18n._(msg`Text colour placed on tinted chips and badges.`);
-  },
-  get textMuted() {
-    return i18n._(msg`Subdued label colour on empty-zone placeholders.`);
-  },
-  get textGhost() {
-    return i18n._(msg`Ghost card-name colour shown while art loads.`);
-  },
-  get cardRing() {
-    return i18n._(msg`Default card selection / focus ring.`);
-  },
-};
 /**
  * Small `?` hover-help icon shown next to a picker label. Renders a
  * custom CSS tooltip below the icon on hover / focus — native `title`
@@ -368,286 +90,19 @@ function HelpMark({ description }: { description: string | undefined }) {
     </span>
   );
 }
-const APP_THEME_COLOR_LABELS: Record<AppThemeKey, string> = {
-  get background() {
-    return i18n._(msg`Background`);
-  },
-  get foreground() {
-    return i18n._(msg`Text`);
-  },
-  get card() {
-    return i18n._(msg`Card Surface`);
-  },
-  get "card-foreground"() {
-    return i18n._(msg`Card Text`);
-  },
-  get popover() {
-    return i18n._(msg`Popover Surface`);
-  },
-  get "popover-foreground"() {
-    return i18n._(msg`Popover Text`);
-  },
-  get primary() {
-    return i18n._(msg`Primary`);
-  },
-  get "primary-foreground"() {
-    return i18n._(msg`Primary Text`);
-  },
-  get secondary() {
-    return i18n._(msg`Secondary`);
-  },
-  get "secondary-foreground"() {
-    return i18n._(msg`Secondary Text`);
-  },
-  get muted() {
-    return i18n._(msg`Muted Surface`);
-  },
-  get "muted-foreground"() {
-    return i18n._(msg`Muted Text`);
-  },
-  get accent() {
-    return i18n._(msg`Accent`);
-  },
-  get "accent-foreground"() {
-    return i18n._(msg`Accent Text`);
-  },
-  get destructive() {
-    return i18n._(msg`Destructive`);
-  },
-  get "destructive-foreground"() {
-    return i18n._(msg`Destructive Text`);
-  },
-  get border() {
-    return i18n._(msg`Border`);
-  },
-  get input() {
-    return i18n._(msg`Input`);
-  },
-  get ring() {
-    return i18n._(msg`Focus Ring`);
-  },
-  get selection() {
-    return i18n._(msg`Selection`);
-  },
-  get "selection-foreground"() {
-    return i18n._(msg`Selection Text`);
-  },
-  get commander() {
-    return i18n._(msg`Commander`);
-  },
-  get warning() {
-    return i18n._(msg`Warning`);
-  },
-  get overlay() {
-    return i18n._(msg`Overlay`);
-  },
-};
-const APP_THEME_GROUPS: {
-  heading: string;
-  description: string;
-  keys: AppThemeKey[];
-}[] = [
-  {
-    get heading() {
-      return i18n._(msg`Surfaces & Foregrounds`);
-    },
-    get description() {
-      return i18n._(
-        msg`Neutral page, card, and popover backgrounds plus their paired text colours.`,
-      );
-    },
-    keys: ["background", "foreground", "card", "card-foreground", "popover", "popover-foreground"],
-  },
-  {
-    get heading() {
-      return i18n._(msg`Brand & Accent`);
-    },
-    get description() {
-      return i18n._(msg`Primary action colour and the softer accent / secondary tints.`);
-    },
-    keys: [
-      "primary",
-      "primary-foreground",
-      "secondary",
-      "secondary-foreground",
-      "accent",
-      "accent-foreground",
-    ],
-  },
-  {
-    get heading() {
-      return i18n._(msg`State Signals`);
-    },
-    get description() {
-      return i18n._(msg`Destructive, warning, commander, and selection highlights.`);
-    },
-    keys: [
-      "destructive",
-      "destructive-foreground",
-      "warning",
-      "commander",
-      "selection",
-      "selection-foreground",
-    ],
-  },
-  {
-    get heading() {
-      return i18n._(msg`Muted & Structure`);
-    },
-    get description() {
-      return i18n._(msg`Subdued surfaces, borders, input fields, focus ring, and overlay dim.`);
-    },
-    keys: ["muted", "muted-foreground", "border", "input", "ring", "overlay"],
-  },
-];
-const GAME_THEME_GROUPS: {
-  heading: string;
-  description: string;
-  prefixes?: string[];
-  exactKeys?: string[];
-}[] = [
-  {
-    get heading() {
-      return i18n._(msg`Active Action`);
-    },
-    get description() {
-      return i18n._(msg`Priority ring, turn glow, and related active-state cues.`);
-    },
-    prefixes: ["activeAction."],
-  },
-  {
-    get heading() {
-      return i18n._(msg`Prompt Buttons`);
-    },
-    get description() {
-      return i18n._(msg`Pass, attack, defense, cancel, and related prompt action buttons.`);
-    },
-    prefixes: ["promptAction."],
-  },
-  {
-    get heading() {
-      return i18n._(msg`Combat & Placement Arrows`);
-    },
-    get description() {
-      return i18n._(msg`Curved arrows for attack / block declarations and the placement ghost.`);
-    },
-    prefixes: ["arrow."],
-  },
-  {
-    get heading() {
-      return i18n._(msg`Targeting Pointers`);
-    },
-    get description() {
-      return i18n._(
-        msg`Per-intent pointer icon glow (sacrifice, destroy, exile, bounce, tap \u2026).`,
-      );
-    },
-    prefixes: ["pointer."],
-  },
-  {
-    get heading() {
-      return i18n._(msg`Mana Symbols`);
-    },
-    get description() {
-      return i18n._(msg`W / U / B / R / G / C pip and tap-button tints.`);
-    },
-    prefixes: ["mana."],
-  },
-  {
-    get heading() {
-      return i18n._(msg`Card Status Badges`);
-    },
-    get description() {
-      return i18n._(msg`Exerted, morph, bestow, token, transformed, plotted, madness, warped.`);
-    },
-    prefixes: ["cardStatus."],
-  },
-  {
-    get heading() {
-      return i18n._(msg`Counters`);
-    },
-    get description() {
-      return i18n._(msg`Per-counter-type chip colour (P1P1, M1M1, Loyalty, Charge \u2026).`);
-    },
-    prefixes: ["counter."],
-  },
-  {
-    get heading() {
-      return i18n._(msg`P / T Badge`);
-    },
-    get description() {
-      return i18n._(msg`Neutral / lethal / buffed / debuffed stat-badge backgrounds.`);
-    },
-    prefixes: ["pt."],
-  },
-  {
-    get heading() {
-      return i18n._(msg`Status Signals`);
-    },
-    get description() {
-      return i18n._(
-        msg`Generic UI states: success (connected / win), poison counter, life / heart.`,
-      );
-    },
-    exactKeys: ["success", "poison", "life"],
-  },
-  {
-    get heading() {
-      return i18n._(msg`Canvas`);
-    },
-    get description() {
-      return i18n._(msg`Pixi table background, shadow ink, and high-contrast neutral.`);
-    },
-    prefixes: ["canvas."],
-  },
-  {
-    get heading() {
-      return i18n._(msg`Card Placeholder`);
-    },
-    get description() {
-      return i18n._(msg`Sprite fill / stroke used while a card's image is loading.`);
-    },
-    prefixes: ["cardPlaceholder."],
-  },
-  {
-    get heading() {
-      return i18n._(msg`Text Roles`);
-    },
-    get description() {
-      return i18n._(
-        msg`Generic text colours on tinted chips, empty zones, and ghost placeholders.`,
-      );
-    },
-    exactKeys: ["textOnTinted", "textMuted", "textGhost"],
-  },
-  {
-    get heading() {
-      return i18n._(msg`Player Colours`);
-    },
-    get description() {
-      return i18n._(msg`Per-seat colours for phase strip indicators and turn tint.`);
-    },
-    prefixes: ["playerColors."],
-  },
-  {
-    get heading() {
-      return i18n._(msg`Badges`);
-    },
-    get description() {
-      return i18n._(msg`Status chip icon colours rendered next to the mana pool.`);
-    },
-    prefixes: ["badges."],
-  },
-  {
-    get heading() {
-      return i18n._(msg`Card Ring`);
-    },
-    get description() {
-      return i18n._(msg`Fallback ring / selection halo colour.`);
-    },
-    exactKeys: ["cardRing"],
-  },
-];
+
+function Button({ variant, className, ...props }: ButtonProps) {
+  const selected = variant === "selected";
+  return (
+    <BaseButton
+      {...props}
+      variant={selected ? "outline" : variant}
+      aria-pressed={selected ? true : props["aria-pressed"]}
+      className={cn(selected && "border-accent", className)}
+    />
+  );
+}
+
 const FLASH_MIN = 200;
 const FLASH_MAX = 2000;
 const FLASH_STEP = 100;
@@ -710,7 +165,21 @@ export default function Settings() {
   }
   function commitThemeColorEdit(path: string, fallbackValue: string) {
     const next = editingThemeColorValue.trim() || fallbackValue;
-    prefs.setGameThemeColorOverride(path, next);
+    const parsed = parseThemeColor(next);
+    if (!parsed) {
+      toast.error("Use a valid hex or rgb/rgba color.");
+      return;
+    }
+    const color = formatThemeColor(parsed.hex, parsed.alpha);
+    if (path.startsWith("app.")) {
+      prefs.setAppThemeColorOverride(
+        resolvedTheme === "light" ? "light" : "dark",
+        path.slice(4) as keyof ThemeColors,
+        color,
+      );
+    } else {
+      prefs.setGameThemeColorOverride(path, color);
+    }
     setEditingThemeColorPath(null);
     setEditingThemeColorValue("");
   }
@@ -960,7 +429,7 @@ export default function Settings() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={handleSave} disabled={!hasChanges && !server.error}>
+            <Button variant="primary" onClick={handleSave} disabled={!hasChanges && !server.error}>
               <Trans>Save & Reconnect</Trans>
             </Button>
             <DropdownMenu>
@@ -1061,7 +530,12 @@ export default function Settings() {
                 placeholder={i18n._(msg`Name this server`)}
                 className="max-w-xs"
               />
-              <Button size="sm" onClick={saveCurrentServer} disabled={!newServerName.trim()}>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={saveCurrentServer}
+                disabled={!newServerName.trim()}
+              >
                 <Trans>Save</Trans>
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setSavingServer(false)}>
@@ -1250,7 +724,7 @@ export default function Settings() {
                 {HAND_ORDER_OPTIONS.map((option) => (
                   <Button
                     key={option.value}
-                    variant={prefs.handOrderMode === option.value ? "default" : "outline"}
+                    variant={prefs.handOrderMode === option.value ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setHandOrderMode(option.value)}
                   >
@@ -1268,14 +742,14 @@ export default function Settings() {
             >
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant={!prefs.battlefieldAutoSort ? "default" : "outline"}
+                  variant={!prefs.battlefieldAutoSort ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setBattlefieldAutoSort(false)}
                 >
                   <Trans>Free placement</Trans>
                 </Button>
                 <Button
-                  variant={prefs.battlefieldAutoSort ? "default" : "outline"}
+                  variant={prefs.battlefieldAutoSort ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setBattlefieldAutoSort(true)}
                 >
@@ -1292,14 +766,14 @@ export default function Settings() {
             >
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant={!prefs.lockZoneTiles ? "default" : "outline"}
+                  variant={!prefs.lockZoneTiles ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setLockZoneTiles(false)}
                 >
                   <Trans>Movable</Trans>
                 </Button>
                 <Button
-                  variant={prefs.lockZoneTiles ? "default" : "outline"}
+                  variant={prefs.lockZoneTiles ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setLockZoneTiles(true)}
                 >
@@ -1317,21 +791,21 @@ export default function Settings() {
               <div className="flex items-start gap-4">
                 <div className="flex-1 flex flex-wrap content-start gap-2">
                   <Button
-                    variant={prefs.battlefieldCardStyle === "realistic" ? "default" : "outline"}
+                    variant={prefs.battlefieldCardStyle === "realistic" ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setBattlefieldCardStyle("realistic")}
                   >
                     <Trans>Realistic</Trans>
                   </Button>
                   <Button
-                    variant={prefs.battlefieldCardStyle === "art" ? "default" : "outline"}
+                    variant={prefs.battlefieldCardStyle === "art" ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setBattlefieldCardStyle("art")}
                   >
                     <Trans>Art-forward</Trans>
                   </Button>
                   <Button
-                    variant={prefs.battlefieldCardStyle === "frame" ? "default" : "outline"}
+                    variant={prefs.battlefieldCardStyle === "frame" ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setBattlefieldCardStyle("frame")}
                   >
@@ -1350,14 +824,14 @@ export default function Settings() {
             >
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant={prefs.inGameAnimations ? "default" : "outline"}
+                  variant={prefs.inGameAnimations ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setInGameAnimations(true)}
                 >
                   <Trans>On</Trans>
                 </Button>
                 <Button
-                  variant={!prefs.inGameAnimations ? "default" : "outline"}
+                  variant={!prefs.inGameAnimations ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setInGameAnimations(false)}
                 >
@@ -1375,14 +849,14 @@ export default function Settings() {
               >
                 <div className="flex flex-wrap gap-2">
                   <Button
-                    variant={prefs.ironsmithRuntimeEnabled ? "default" : "outline"}
+                    variant={prefs.ironsmithRuntimeEnabled ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setIronsmithRuntimeEnabled(true)}
                   >
                     <Trans>On</Trans>
                   </Button>
                   <Button
-                    variant={!prefs.ironsmithRuntimeEnabled ? "default" : "outline"}
+                    variant={!prefs.ironsmithRuntimeEnabled ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setIronsmithRuntimeEnabled(false)}
                   >
@@ -1393,6 +867,30 @@ export default function Settings() {
             )}
 
             <PreferenceCard
+              title={i18n._(msg`Opponent layout`)}
+              description={i18n._(
+                msg`Focus on one opponent, or keep every opponent field equally visible.`,
+              )}
+            >
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={prefs.opponentLayout === "focused" ? "selected" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setOpponentLayout("focused")}
+                >
+                  <Trans>Focused</Trans>
+                </Button>
+                <Button
+                  variant={prefs.opponentLayout === "overview" ? "selected" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setOpponentLayout("overview")}
+                >
+                  <Trans>Overview</Trans>
+                </Button>
+              </div>
+            </PreferenceCard>
+
+            <PreferenceCard
               title={i18n._(msg`Peer to Peer`)}
               description={i18n._(
                 msg`Skip manabrew servers and connect directly to the other players at the table. This shares your IP address with the people you play with, and only activates if every player in the game has it enabled.`,
@@ -1400,14 +898,14 @@ export default function Settings() {
             >
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant={prefs.directTransport ? "default" : "outline"}
+                  variant={prefs.directTransport ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setDirectTransport(true)}
                 >
                   <Trans>On</Trans>
                 </Button>
                 <Button
-                  variant={!prefs.directTransport ? "default" : "outline"}
+                  variant={!prefs.directTransport ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setDirectTransport(false)}
                 >
@@ -1426,7 +924,7 @@ export default function Settings() {
                 {INLINE_CARD_STYLE_OPTIONS.map((option) => (
                   <Button
                     key={option.value}
-                    variant={prefs.handCardStyle === option.value ? "default" : "outline"}
+                    variant={prefs.handCardStyle === option.value ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setHandCardStyle(option.value)}
                   >
@@ -1446,7 +944,7 @@ export default function Settings() {
                 {INLINE_CARD_STYLE_OPTIONS.map((option) => (
                   <Button
                     key={option.value}
-                    variant={prefs.stackCardStyle === option.value ? "default" : "outline"}
+                    variant={prefs.stackCardStyle === option.value ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setStackCardStyle(option.value)}
                   >
@@ -1466,7 +964,7 @@ export default function Settings() {
                 {IN_GAME_CARD_PREVIEW_STYLE_OPTIONS.map((option) => (
                   <Button
                     key={option.value}
-                    variant={prefs.inGameCardPreviewStyle === option.value ? "default" : "outline"}
+                    variant={prefs.inGameCardPreviewStyle === option.value ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setInGameCardPreviewStyle(option.value)}
                   >
@@ -1519,21 +1017,21 @@ export default function Settings() {
               </Label>
               <div className="flex items-center gap-2">
                 <Button
-                  variant={theme === "light" ? "default" : "outline"}
+                  variant={theme === "light" ? "selected" : "outline"}
                   size="sm"
                   onClick={() => setTheme("light")}
                 >
                   <Trans>Light</Trans>
                 </Button>
                 <Button
-                  variant={theme === "dark" ? "default" : "outline"}
+                  variant={theme === "dark" ? "selected" : "outline"}
                   size="sm"
                   onClick={() => setTheme("dark")}
                 >
                   <Trans>Dark</Trans>
                 </Button>
                 <Button
-                  variant={theme === "system" ? "default" : "outline"}
+                  variant={theme === "system" ? "selected" : "outline"}
                   size="sm"
                   onClick={() => setTheme("system")}
                 >
@@ -1662,8 +1160,14 @@ export default function Settings() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={prefs.resetAppThemeColorOverrides}
-                disabled={Object.keys(prefs.appThemeColorOverrides).length === 0}
+                onClick={() =>
+                  prefs.resetAppThemeColorOverrides(resolvedTheme === "light" ? "light" : "dark")
+                }
+                disabled={
+                  Object.keys(
+                    prefs.appThemeColorOverrides[resolvedTheme === "light" ? "light" : "dark"],
+                  ).length === 0
+                }
               >
                 <Trans>Reset Colors</Trans>
               </Button>
@@ -1695,7 +1199,7 @@ export default function Settings() {
                     <div className="space-y-1">
                       {filteredKeys.map((key) => {
                         const presetValue = activePreset?.[mode]?.[key as keyof ThemeColors] ?? "";
-                        const activeValue = prefs.appThemeColorOverrides[key] ?? presetValue;
+                        const activeValue = prefs.appThemeColorOverrides[mode][key] ?? presetValue;
                         return (
                           <div
                             key={key}
@@ -1708,20 +1212,48 @@ export default function Settings() {
                             <div className="flex items-center gap-2 min-w-0">
                               <input
                                 type="color"
-                                value={activeValue}
+                                aria-label={APP_THEME_COLOR_LABELS[key]}
+                                value={toPickerHexColor(activeValue)}
                                 onChange={(e) =>
-                                  prefs.setAppThemeColorOverride(key, e.target.value)
+                                  prefs.setAppThemeColorOverride(
+                                    mode,
+                                    key,
+                                    formatThemeColor(
+                                      e.target.value,
+                                      parseThemeColor(activeValue)!.alpha,
+                                    ),
+                                  )
                                 }
                                 className="h-8 w-10 shrink-0 rounded border border-input bg-transparent p-0.5"
                               />
-                              <button
-                                type="button"
-                                className="flex-1 min-w-0 text-right text-[11px] font-mono text-muted-foreground hover:text-foreground underline-offset-2 hover:underline truncate"
-                                onClick={() => beginThemeColorEdit(`app.${key}`, activeValue)}
-                                title={i18n._(msg`Click to edit color value`)}
-                              >
-                                {activeValue}
-                              </button>
+                              {editingThemeColorPath === `app.${key}` ? (
+                                <input
+                                  autoFocus
+                                  aria-label={`${APP_THEME_COLOR_LABELS[key]} value`}
+                                  value={editingThemeColorValue}
+                                  onChange={(e) => setEditingThemeColorValue(e.target.value)}
+                                  onBlur={() => commitThemeColorEdit(`app.${key}`, presetValue)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter")
+                                      commitThemeColorEdit(`app.${key}`, presetValue);
+                                    if (e.key === "Escape") {
+                                      setEditingThemeColorPath(null);
+                                      setEditingThemeColorValue("");
+                                    }
+                                  }}
+                                  className="flex-1 min-w-0 h-7 rounded border border-input bg-background px-1.5 text-right text-[11px] font-mono"
+                                  spellCheck={false}
+                                />
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="flex-1 min-w-0 text-right text-[11px] font-mono text-muted-foreground hover:text-foreground underline-offset-2 hover:underline truncate"
+                                  onClick={() => beginThemeColorEdit(`app.${key}`, activeValue)}
+                                  title={i18n._(msg`Click to edit color value`)}
+                                >
+                                  {activeValue}
+                                </button>
+                              )}
                             </div>
                           </div>
                         );
@@ -1820,7 +1352,9 @@ export default function Settings() {
                               >
                                 <span>{path}</span>
                                 <HelpMark
-                                  description={GAME_THEME_COLOR_DESCRIPTIONS[path as GameThemePath]}
+                                  description={
+                                    GAME_THEME_COLOR_DESCRIPTIONS[path as GameThemeColorKey]
+                                  }
                                 />
                               </Label>
                               <div className="flex items-center gap-2 min-w-0">
@@ -1829,7 +1363,13 @@ export default function Settings() {
                                   type="color"
                                   value={toPickerHexColor(activeColor)}
                                   onChange={(e) =>
-                                    prefs.setGameThemeColorOverride(path, e.target.value)
+                                    prefs.setGameThemeColorOverride(
+                                      path,
+                                      formatThemeColor(
+                                        e.target.value,
+                                        parseThemeColor(activeColor)!.alpha,
+                                      ),
+                                    )
                                   }
                                   className="h-8 w-10 shrink-0 rounded border border-input bg-transparent p-0.5"
                                 />

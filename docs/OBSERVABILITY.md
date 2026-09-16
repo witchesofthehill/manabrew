@@ -27,6 +27,22 @@ The default product entry point. It is organized around four questions: current 
 | Can we trust it?    | relay-event freshness, sanitized Hub-export freshness, dropped analytics/evidence        |
 | Previous period     | player/game percentage change and completion percentage-point change                     |
 
+### Activity (`activity.json`)
+
+Active-user size, growth and retention. Every panel counts distinct handles over a rolling window, so no series on this dashboard is cumulative and none of them change meaning when the time picker moves.
+
+| Section                     | Main signals                                                                                            |
+| --------------------------- | ------------------------------------------------------------------------------------------------------- |
+| How many people are active? | DAU, WAU, MAU, DAU/MAU stickiness, WAU/MAU, new handles in range                                        |
+| Is the active base growing? | rolling 1/7/28-day actives per day, stickiness trend, new/returning/resurrected, days active per player |
+| Do they come back?          | weekly cohort retention grid, share returning within N days of first activity                           |
+
+The `Counts as active` variable picks what activity means: `played` is a game started, relay or offline; `connected` is a relay authentication, which is relay only but catches a session that never reached a game; `any` is either. `played` is the default because it matches the Active players stat on Executive Health.
+
+A player is one relay handle. Guest handles carry a `@NNNN` tag that disambiguates two people choosing the same name, so the whole handle is the identity and stripping the tag would merge them. A handle is not an account: the same person appears twice if they play signed out and signed in, and a guest who reinstalls gets a new tag. Both push the counts the same way — players over-counted, retention under-counted — so read retention as a floor.
+
+The rolling windows are computed against all history, not just the selected range, so the left edge of the DAU/WAU/MAU chart is a true 28-day window rather than a partial one. DAU on the last day of the range is partial whenever the range ends at now. Cohort cells are blank, never zero, until their window has fully elapsed. Bot seats are excluded by handle: a bot reaches `client_connections` like any other client, and only `game_players.is_bot` records which handles are bots.
+
 ### Engagement & Gameplay (`engagement.json`)
 
 Filtered diagnosis for player behavior and game friction. Global variables apply format, engine, hosted, and official-game filters consistently to the selected-period panels.
@@ -37,6 +53,7 @@ Filtered diagnosis for player behavior and game friction. Global variables apply
 | Behavior over time | games/players, completion, seven-day return cohorts, anonymous player frequency |
 | Where is friction? | duration distribution, human participation, non-game-over ending reasons        |
 | Platform usage     | distinct users and daily users across web, PWA, desktop, and mobile             |
+| Tables             | table background mix — `table_style` on `game_started`, relay games only        |
 
 The retention panel uses first relay appearance as the cohort date. Recent cohorts have not had a full seven-day observation window and are explicitly labelled incomplete.
 
@@ -111,6 +128,8 @@ Everything about how fast an engine answers, in one place. The hosted half was t
 Turnaround is measured on the client: the answer leaving to the next prompt landing. It includes the network for a hosted engine and nothing but the engine for a local one, which is what makes the engines comparable at all. Per-game percentiles are aggregated as medians across games, never as an average of averages. A game reports once, when it ends, and only if it had at least five decisions in it.
 
 **`engine_*` is not per-decision time, and the unsplit number is dominated by seat count.** A think sample is the window from the player's answer landing to the next prompt being ready, so in a game against the AI it contains the opponents' whole turns. On 2026-08-31, two-seat forge-wasm games averaged a 77ms median against 997ms for four-seat ones: 13x for 3x the opponents. The node side already accounts for this, which is why `manabrew_node_forge_decision_stage_seconds` is split by seat count. **Cut by `seats` before comparing anything**, and prefer the split columns: `engine_same_*` is the engine resolving what the player just did, `engine_cross_*` is the opponents playing. `think_hidden` counts windows dropped for being measured across a backgrounded tab, where the wall clock keeps running and the worker does not.
+
+**`turnaround_*` is cut at the first reply frame reaching the client.** `reply_wait_*` is answer sent to first frame arrived: the server, the hop, the player's link and the transfer of the reply. `client_work_*` is first frame to prompt handled: parsing, applying the state, rendering. The two sum to `turnaround_*` per decision. This exists because on 2026-09-10 a per-seat join of relay captures against client reports put everything outside the client at ~300ms p50 for a hosted 2-seat game while the client reported ~550ms on web and 1.5-2s on two desktop machines, and nothing measured could say whether the rest was the link or the machine. Null from clients that predate the cut and from engines with no frame boundary; for the browser Forge engine the "frame" is the seat read, so `reply_wait_*` there is engine time plus the seat drain, not a wire.
 
 `engine` names what ran, not what the room asked for: `forge-hosted` (a node), `forge-desktop` (the desktop build hosting its own room), `forge-wasm` (the browser build in this tab), `forge-remote` (Forge in another player's client), `manabrew`, `ironsmith`. The label is fixed when the game starts, because a hosted game is driven through the Manabrew runtime like any other and cannot be recognised afterwards.
 
@@ -246,6 +265,8 @@ Migrations 7 and 8 establish the Hub evidence schema, migration 9 adds the expan
 Automated snapshots cover 30-day Most Played, seven-day Rising, confidence-adjusted Highest Win Rate, Commander Most Played, Most Favorited, and New & Notable. Highest Win Rate requires 20 completed managed-relay matches and uses the 95% Wilson lower bound. Staff Picks remains an editorial snapshot.
 
 Staging additionally applies `ops/staging-migrations/001_top_deck_filler.sql` after Hub is healthy. That environment-only data migration inserts current-dated evidence for five preset publications and records `staging-top-deck-filler-v1` in `data_migrations`; production Compose never mounts or executes it.
+
+Known gap: "Player growth" is cumulative, so it only ever rises, and it is the one panel that keys players on the handle with its `@NNNN` tag stripped, which merges two players who picked the same name. Activity above supersedes it.
 
 Known gap: `game_players.commander` and `decks.commander` hold a single name, so the second partner commander never reaches "Top commanders".
 

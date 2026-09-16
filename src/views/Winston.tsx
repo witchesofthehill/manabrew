@@ -164,10 +164,11 @@ export default function Winston() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmDrawOpen(false)}>
+            <Button variant="ghost" onClick={() => setConfirmDrawOpen(false)}>
               <Trans>Cancel</Trans>
             </Button>
             <Button
+              variant="primary"
               onClick={async () => {
                 setConfirmDrawOpen(false);
                 await submitPass();
@@ -217,7 +218,7 @@ function DraftingView({
         </div>
         {activeWinston.awaitingHuman && (
           <div className="flex gap-2">
-            <Button onClick={onTake} disabled={activePileEmpty} size="sm">
+            <Button variant="primary" onClick={onTake} disabled={activePileEmpty} size="sm">
               <Trans>Take pile</Trans>
             </Button>
             <Button variant="outline" onClick={onPass} size="sm">

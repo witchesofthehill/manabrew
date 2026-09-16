@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { CardPreview } from "@/components/game/CardPreview";
-import { FLASH_CARD_SIZE } from "@/components/game/game.styles";
+import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import type { useCardPreview } from "@/hooks/useCardPreview";
 import { Trans } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
@@ -15,8 +15,13 @@ export function LimitedHoverPreviewPane({ preview, className }: Props) {
   const supportsFlip = !!card?.isDoubleFaced;
   return (
     <div
-      style={{ width: FLASH_CARD_SIZE.w, height: FLASH_CARD_SIZE.h }}
-      className={`relative shrink-0 self-start rounded-md border border-border/40 bg-card/20 ${className ?? ""}`}
+      style={{
+        width: GAME_CARD_SIZES.preview.width,
+        height: GAME_CARD_SIZES.preview.height,
+      }}
+      className={`relative shrink-0 self-start rounded-md border border-border/40 bg-card/20 ${
+        className ?? ""
+      }`}
     >
       <div ref={setSlot} className="absolute inset-0 overflow-hidden rounded-md" />
       {card && slot ? (

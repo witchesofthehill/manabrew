@@ -5,8 +5,7 @@
 // UI rather than merely booting.
 //
 // Prerequisites: a vite dev server started with VITE_FORGE_WASM=1, and the
-// engine plus packed assets staged in public/forge/ (see
-// forge-harness/build-wasm.sh).
+// engine staged in packages/forge-wasm/ (see scripts/build-forge-wasm.sh).
 //
 //   VITE_FORGE_WASM=1 npx vite --port 5199 --strictPort
 //   BASE=http://localhost:5199 node tests/e2e-ui/forge-wasm-offline.mjs

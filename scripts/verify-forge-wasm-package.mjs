@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageDir = join(root, "target", "npm", "forge-wasm");
@@ -34,18 +34,13 @@ const required = [
   "node.js",
   "node-worker.cjs",
   "stamp.js",
-  "deckCards.js",
-  "deckCards.d.ts",
   "seat.js",
   "seat.d.ts",
   "vite.js",
   "vite.d.ts",
-  "forge-assets.js",
-  "forge-assets_bg.wasm",
   "forge-engine.worker.js",
   "forgeharness.js",
   "forgeharness.js.wasm",
-  "cardset.rkyv",
   "README.md",
   "LICENSE",
 ];
@@ -57,47 +52,12 @@ const stubEngine = existsSync(join(packageDir, ".stub-engine"));
 if (stubEngine) {
   console.log("Engine stubbed: skipping the engine size and launcher-pin checks.");
 } else {
-  if (statSync(join(packageDir, "forgeharness.js.wasm")).size < 30_000_000) {
-    throw new Error("Forge engine WASM is unexpectedly small.");
+  if (statSync(join(packageDir, "forgeharness.js.wasm")).size < 60_000_000) {
+    throw new Error("Forge engine WASM has no embedded cardset.");
   }
   if (!readFileSync(join(packageDir, "forgeharness.js"), "utf8").includes("__forgeWasmUrl")) {
     throw new Error("Forge launcher does not honour the package WASM URL.");
   }
-}
-if (statSync(join(packageDir, "cardset.rkyv")).size < 30_000_000) {
-  throw new Error("Forge cardset is unexpectedly small.");
-}
-
-const assetModule = await import(pathToFileURL(join(packageDir, "forge-assets.js")));
-await assetModule.default({
-  module_or_path: readFileSync(join(packageDir, "forge-assets_bg.wasm")),
-});
-const cardset = readFileSync(join(packageDir, "cardset.rkyv"));
-
-function cardScriptPaths(wanted) {
-  const assets = assetModule.forge_asset_bundle(cardset, wanted).split("\0");
-  return new Set(assets.filter((value, index) => index % 2 === 0));
-}
-
-const garthScripts = cardScriptPaths(["Garth One-Eye"]);
-for (const path of [
-  "res/cardsfolder/g/garth_one_eye.txt",
-  "res/cardsfolder/d/disenchant.txt",
-  "res/cardsfolder/b/braingeyser.txt",
-  "res/cardsfolder/t/terror.txt",
-  "res/cardsfolder/s/shivan_dragon.txt",
-  "res/cardsfolder/r/regrowth.txt",
-  "res/cardsfolder/b/black_lotus.txt",
-]) {
-  if (!garthScripts.has(path)) throw new Error(`Garth's asset bundle is missing ${path}.`);
-}
-if (garthScripts.has("res/cardsfolder/l/lightning_bolt.txt")) {
-  throw new Error("Garth's asset bundle includes an unrelated card script.");
-}
-
-const heronScripts = cardScriptPaths(["The Heron Moon"]);
-if (!heronScripts.has("res/cardsfolder/e/emrakul_the_promised_end.txt")) {
-  throw new Error("ChooseFromList does not restore commas escaped as semicolons.");
 }
 
 // A mismatch means the stamp did not run, and consumers would read stale
@@ -109,16 +69,6 @@ const manifestVersion = JSON.parse(readFileSync(join(packageDir, "package.json")
 if (stampOf("VERSION") !== manifestVersion) {
   throw new Error(
     `stamp.js exports VERSION ${stampOf("VERSION")}, manifest says ${manifestVersion}.`,
-  );
-}
-
-const cardsetArchiveVersion = readFileSync(
-  join(root, "manabrew-rs", "crates", "forge-cardset-archive", "Cargo.toml"),
-  "utf8",
-).match(/^version\s*=\s*"(.+)"$/m)?.[1];
-if (stampOf("CARDSET_ARCHIVE_VERSION") !== cardsetArchiveVersion) {
-  throw new Error(
-    `stamp.js exports CARDSET_ARCHIVE_VERSION ${stampOf("CARDSET_ARCHIVE_VERSION")}, the crate is ${cardsetArchiveVersion}.`,
   );
 }
 if (!/^[0-9a-f]{40}$/.test(stampOf("BUILD_COMMIT") ?? "")) {
@@ -164,18 +114,16 @@ writeFileSync(
 writeFileSync(
   join(consumer, "usage.ts"),
   [
-    'import { ForgeEngine, VERSION, CARDSET_ARCHIVE_VERSION, BUILD_COMMIT } from "@manabrew/forge-wasm";',
+    'import { ForgeEngine, VERSION, BUILD_COMMIT } from "@manabrew/forge-wasm";',
     'import type { ForgeDeck } from "@manabrew/forge-wasm";',
-    'import { deckCardNames } from "@manabrew/forge-wasm/deckCards";',
     'import { createSeat, SAB_SIZE } from "@manabrew/forge-wasm/seat";',
     'import type { Deck, GameViewDto, Prompt } from "@manabrew/protocol";',
-    "const build: string[] = [VERSION, CARDSET_ARCHIVE_VERSION, BUILD_COMMIT];",
+    "const build: string[] = [VERSION, BUILD_COMMIT];",
     "void build;",
     // A deck with every zone filled has to satisfy ForgeDeck: dropping a zone
     // from the type would silently narrow every bundle.
     'const deck = { cards: [{ identity: { name: "Lightning Bolt" } }], sideboard: [], attractions: [],',
     "  contraptions: [], schemes: [], planes: [], commanders: [], companion: undefined };",
-    "void deckCardNames([deck]);",
     "void createSeat(new SharedArrayBuffer(SAB_SIZE));",
     // A protocol Deck has to be usable as a ForgeDeck, or a caller holding one
     // from the relay would have to rebuild it to start a game.
@@ -184,7 +132,6 @@ writeFileSync(
     // The callbacks must hand back protocol types, not opaque blobs: these
     // annotations do not compile if the package types them as unknown.
     "const engine = new ForgeEngine({",
-    '  assets: "",',
     "  onState: (state) => { const view: GameViewDto = state.gameView; void view; },",
     "  onPrompt: (prompt) => { const p: Prompt = prompt; void p; },",
     '  onDisplay: (event) => { void (event.kind === "cardPlayed" ? event.cardName : ""); },',
@@ -222,7 +169,7 @@ run(
 );
 
 const assets = readdirSync(join(consumer, "dist", "assets"));
-for (const expected of ["forge-engine.worker", "forgeharness", "cardset", "forge-assets_bg"]) {
+for (const expected of ["forge-engine.worker", "forgeharness"]) {
   if (!assets.some((file) => file.includes(expected))) {
     throw new Error(`Vite did not emit the ${expected} package asset: ${assets.join(", ")}`);
   }

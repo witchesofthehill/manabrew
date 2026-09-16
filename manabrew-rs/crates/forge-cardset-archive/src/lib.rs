@@ -4,7 +4,7 @@ pub use rkyv::AlignedVec;
 use rkyv::{Archive, Deserialize, Serialize};
 
 mod forge_assets;
-pub use forge_assets::forge_asset_bundle;
+pub use forge_assets::{forge_asset_bundle, forge_asset_bundle_indexed};
 
 pub fn align_bytes(bytes: &[u8]) -> AlignedVec {
     let mut buf = AlignedVec::with_capacity(bytes.len());

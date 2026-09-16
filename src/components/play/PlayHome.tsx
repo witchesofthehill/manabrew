@@ -34,7 +34,7 @@ const MODES = [
     },
     desc: "Join an open table or create a room for your group.",
     icon: Users,
-    tone: "sky",
+    tone: "secondary",
   },
 ];
 export function PlayHome() {

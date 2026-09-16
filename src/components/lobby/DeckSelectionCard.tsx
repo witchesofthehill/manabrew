@@ -13,6 +13,8 @@ import {
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/hooks/useTheme";
+import { readableTextColor } from "@/themes/gameTheme";
 import type { DeckCard, DeckLabel } from "@/protocol/deck";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { Trans } from "@lingui/react/macro";
@@ -85,6 +87,15 @@ export function DeckSelectionCard({
   onSelect,
   onActivate,
 }: DeckSelectionCardProps) {
+  const theme = useTheme().gameTheme;
+  const selfPlayerChipStyle: React.CSSProperties = {
+    backgroundColor: theme.playerColors.self,
+    color: readableTextColor(theme.playerColors.self, theme.canvas.shadow, theme.textOnTinted),
+  };
+  const opponentPlayerChipStyle: React.CSSProperties = {
+    backgroundColor: theme.playerColors.opponent1,
+    color: readableTextColor(theme.playerColors.opponent1, theme.canvas.shadow, theme.textOnTinted),
+  };
   const colorCost = isHub
     ? (color ?? "")
         .split("")
@@ -142,7 +153,7 @@ export function DeckSelectionCard({
       className={cn(
         dense && "h-24 aspect-auto",
         !dense && "sm:min-h-[172px]",
-        !hasVsSide && isSelected && "border-primary bg-primary/5 ring-1 ring-primary",
+        !hasVsSide && isSelected && "border-selection bg-selection/10 ring-1 ring-selection",
         !hasVsSide && !isSelected && !isLegal && "border-warning/50",
       )}
       style={sideStyle}
@@ -164,16 +175,16 @@ export function DeckSelectionCard({
         <div className="pointer-events-none flex items-center gap-1">
           {isPlayerDeck && (
             <span
-              className="flex h-5 w-5 items-center justify-center rounded-full text-text-on-tinted"
-              style={{ backgroundColor: "var(--player-colors-self)" }}
+              className="flex h-5 w-5 items-center justify-center rounded-full"
+              style={selfPlayerChipStyle}
             >
               <User aria-hidden="true" className="h-3 w-3" />
             </span>
           )}
           {isOpponentDeck && (
             <span
-              className="flex h-5 w-5 items-center justify-center rounded-full text-text-on-tinted"
-              style={{ backgroundColor: "var(--player-colors-opponent1)" }}
+              className="flex h-5 w-5 items-center justify-center rounded-full"
+              style={opponentPlayerChipStyle}
             >
               <Bot aria-hidden="true" className="h-3 w-3" />
             </span>

@@ -477,9 +477,10 @@ impl Storage {
                  turnaround_p90, turnaround_max, engine_p50, engine_p90, engine_max, by_type,
                  engine_same_p50, engine_same_p90, engine_same_max,
                  engine_cross_p50, engine_cross_p90, engine_cross_max, think_hidden,
-                 game_id)
+                 game_id, reply_wait_p50, reply_wait_p90, reply_wait_max,
+                 client_work_p50, client_work_p90, client_work_max)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
-                     ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)",
+                     ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32)",
             params![
                 report.report_id,
                 reported_at,
@@ -507,6 +508,12 @@ impl Storage {
                 report.engine_think_cross_turn.as_ref().map(|t| t.max),
                 report.think_samples_hidden,
                 report.linked_game_id(),
+                report.reply_wait.as_ref().map(|t| t.p50),
+                report.reply_wait.as_ref().map(|t| t.p90),
+                report.reply_wait.as_ref().map(|t| t.max),
+                report.client_work.as_ref().map(|t| t.p50),
+                report.client_work.as_ref().map(|t| t.p90),
+                report.client_work.as_ref().map(|t| t.max),
             ],
         )?;
         Ok(inserted > 0)
@@ -4015,6 +4022,18 @@ mod tests {
                 p90: 18,
                 max: 96,
             }),
+            reply_wait: Some(manabrew_protocol::telemetry::EngineTurnaround {
+                n: 180,
+                p50: 30,
+                p90: 60,
+                max: 250,
+            }),
+            client_work: Some(manabrew_protocol::telemetry::EngineTurnaround {
+                n: 180,
+                p50: 16,
+                p90: 40,
+                max: 120,
+            }),
             engine_think_same_turn: None,
             engine_think_cross_turn: None,
             think_samples_hidden: 0,
@@ -4053,6 +4072,38 @@ mod tests {
         assert_eq!(p50, 46);
         assert_eq!(think, Some(8));
         assert!(by_type.contains("chooseAction"));
+    }
+
+    /// The turnaround split lands beside the whole, and a client that does
+    /// not send it leaves the columns null rather than zero: zero would read
+    /// as "no time at all" in every percentile drawn from the table.
+    #[test]
+    fn engine_play_stats_keep_the_turnaround_split_when_sent() {
+        let storage = Storage::open_memory().unwrap();
+        storage
+            .record_engine_play_stats(
+                &engine_report("11111111-2222-3333-4444-555555555555"),
+                "2026-09-11T00:00:00Z",
+            )
+            .unwrap();
+        let mut unsplit = engine_report("22222222-3333-4444-5555-666666666666");
+        unsplit.reply_wait = None;
+        unsplit.client_work = None;
+        storage
+            .record_engine_play_stats(&unsplit, "2026-09-11T00:00:01Z")
+            .unwrap();
+
+        let rows: Vec<(Option<i64>, Option<i64>)> = storage
+            .conn
+            .prepare(
+                "SELECT reply_wait_p50, client_work_p90 FROM engine_play_stats ORDER BY reported_at",
+            )
+            .unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        assert_eq!(rows, vec![(Some(30), Some(40)), (None, None)]);
     }
 
     /// The whole point of the column: a report the hub receives has to name the

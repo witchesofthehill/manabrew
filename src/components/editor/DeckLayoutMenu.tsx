@@ -141,8 +141,8 @@ export function DeckLayoutMenu({
         <DropdownMenuTrigger asChild>
           <Button
             variant="outline"
-            size="sm"
-            className="h-7 gap-1 text-xs"
+            size="xs"
+            className="gap-1"
             title={compact ? i18n._(msg`Saved views`) : undefined}
           >
             <LayoutTemplate className="h-3.5 w-3.5" />
@@ -226,10 +226,10 @@ export function DeckLayoutMenu({
             }}
           />
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+            <Button variant="ghost" onClick={() => setCreateOpen(false)}>
               <Trans>Cancel</Trans>
             </Button>
-            <Button disabled={!name.trim()} onClick={saveLayout}>
+            <Button variant="primary" disabled={!name.trim()} onClick={saveLayout}>
               <Trans>Save view</Trans>
             </Button>
           </div>

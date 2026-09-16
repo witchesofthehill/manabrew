@@ -11,7 +11,7 @@ The engine is incomplete. Most day-to-day work is **finding parity bugs** with `
 
 ## Local full stack
 
-`./dev start` builds and starts the web app, relay, Hub API, and relay-event ingester through `compose.dev.yaml`. The Hub runs its embedded SQLite migrations before listening and stores the host-visible database at `ops/hub-data/dev/hub.db`; ingested relay analytics live at `ops/hub-data/dev/events/events.db`. `./dev stop` preserves both databases and `./dev clean` deletes them together with the development cache volumes. Keep the Hub events bind writable because SQLite read-only connections still need WAL sidecars. Host tools such as DBeaver must use read-only connections while the stack runs; stop the stack before host-side writes because Docker Desktop does not safely coordinate SQLite write locks across the bind mount. Use `./dev logs` to follow all services. `start`, `stop`, and `logs` take optional service names (`./dev stop relay`, `./dev start relay`); a per-service stop pauses the container without removing it.
+`./dev start` builds and starts the web app, relay, Hub API, and relay-event ingester through `compose.dev.yaml`. The Hub runs its embedded SQLite migrations before listening and stores the host-visible database at `ops/hub-data/dev/hub.db`; ingested relay analytics live at `ops/hub-data/dev/events/events.db`. `./dev stop` preserves both databases and `./dev clean` deletes them together with the development cache volumes. Keep the Hub events bind writable because SQLite read-only connections still need WAL sidecars. Host tools such as DBeaver must use read-only connections while the stack runs; stop the stack before host-side writes because Docker Desktop does not safely coordinate SQLite write locks across the bind mount. Use `./dev logs` to follow all services. The web container runs `yarn vite` straight from the bind mount, so it serves whatever `src/wasm/` was last built on the host; run `yarn ensure:wasm` on the host after any Rust change or the browser keeps the old engine. Browser-hosted Forge games run the Web Image staged in `packages/forge-wasm/`, a separate artifact from the harness jar that `yarn build:harness` does not refresh; run `yarn build:forge-wasm` after any harness change. `start`, `stop`, and `logs` take optional service names (`./dev stop relay`, `./dev start relay`); a per-service stop pauses the container without removing it.
 
 Hub migrations are immutable once any environment has applied them. Extend the schema with the next numbered migration so existing and fresh databases converge through the same sequence.
 
@@ -75,15 +75,13 @@ The `forge/` submodule has no local `AGENTS.md`; treat it as read-only and use i
 
 ## Before every commit
 
-Run these three checks **for every commit**, no exceptions. They apply regardless of which part of the codebase you touched.
+The pre-commit hook runs staged-file formatting and linting for every commit. Full-repository TypeScript and Rust gates run in `build-checks.yml`, where Rust checks are scoped to Rust-affecting changes.
 
-### 1. Lint, format, and typecheck
+### 1. Lint and format staged files
 
-```bash
-yarn lint:all      # eslint + prettier --check + tsc + cargo fmt --check + cargo clippy -D warnings
-```
+The hook runs `npx lint-staged` automatically. Do not run `yarn lint:all` solely because you are about to commit; it remains available for an explicit full local check.
 
-If lint fails, do **not** bypass it. Fix the underlying issue, or run:
+If the staged checks fail, do not bypass them. Fix the underlying issue or use the applicable formatter:
 
 ```bash
 yarn fix:all       # eslint --fix + prettier --write + cargo fmt + tsc

@@ -61,9 +61,8 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
         <span className="flex-1 truncate text-sm">{tag}</span>
       )}
       <Button
-        size="icon"
+        size="icon-sm"
         variant="ghost"
-        className="h-7 w-7"
         disabled={first}
         title={i18n._(msg`Move ${tag} up`)}
         onClick={() =>
@@ -73,9 +72,8 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
         <ArrowUp className="h-3.5 w-3.5" />
       </Button>
       <Button
-        size="icon"
+        size="icon-sm"
         variant="ghost"
-        className="h-7 w-7"
         disabled={last}
         title={i18n._(msg`Move ${tag} down`)}
         onClick={() =>
@@ -85,9 +83,8 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
         <ArrowDown className="h-3.5 w-3.5" />
       </Button>
       <Button
-        size="icon"
+        size="icon-sm"
         variant="ghost"
-        className="h-7 w-7"
         title={editing ? i18n._(msg`Finish renaming`) : i18n._(msg`Rename ${tag}`)}
         onClick={() => (editing ? finishRename() : setEditing(true))}
       >

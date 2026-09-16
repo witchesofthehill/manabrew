@@ -543,9 +543,8 @@ export function CardDetailModal({
               <div className="flex items-center gap-1">
                 <div className="flex items-center rounded-md border bg-muted/30 p-0.5">
                   <Button
-                    size="icon"
+                    size="icon-sm"
                     variant="ghost"
-                    className="h-7 w-7"
                     title={i18n._(msg`Remove one copy`)}
                     onClick={() => {
                       deckEditorActions.onRemoveOne(deckCardName);
@@ -558,9 +557,8 @@ export function CardDetailModal({
                     {currentDeck.cards.filter((c) => c.identity.name === deckCardName).length}
                   </span>
                   <Button
-                    size="icon"
+                    size="icon-sm"
                     variant="ghost"
-                    className="h-7 w-7"
                     title={i18n._(msg`Add one copy`)}
                     onClick={() => {
                       deckEditorActions.onAddOne(deckCardName);
@@ -573,9 +571,8 @@ export function CardDetailModal({
 
                 <div className="flex items-center rounded-md border bg-muted/30 p-0.5">
                   <Button
-                    size="icon"
+                    size="icon-sm"
                     variant="ghost"
-                    className="h-7 w-7"
                     title={i18n._(msg`Change printing`)}
                     onClick={() => setShowPrints(true)}
                   >
@@ -583,9 +580,8 @@ export function CardDetailModal({
                   </Button>
                   {isDoubleFaced && (
                     <Button
-                      size="icon"
+                      size="icon-sm"
                       variant="ghost"
-                      className="h-7 w-7"
                       title={
                         faceIndex === 0
                           ? i18n._(msg`Flip to back: ${card.card_faces![1].name}`)
@@ -712,12 +708,15 @@ export function CardDetailModal({
               </div>
             ) : !readOnly ? (
               <div className="relative">
-                <Button size="sm" className="gap-1" onClick={() => setShowDeckPicker((v) => !v)}>
-                  <Trans>
-                    <Plus className="h-3.5 w-3.5" />
-                    Add to Deck
-                    <ChevronDown className="h-3 w-3 ml-1" />
-                  </Trans>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => setShowDeckPicker((v) => !v)}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <Trans>Add to Deck</Trans>
+                  <ChevronDown className="h-3 w-3 ml-1" />
                 </Button>
 
                 {showDeckPicker && (

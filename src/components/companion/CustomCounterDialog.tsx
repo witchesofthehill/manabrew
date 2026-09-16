@@ -96,8 +96,8 @@ function CustomCounterForm({
                 className={cn(
                   "grid size-9 place-items-center rounded-md border",
                   key === iconKey
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border hover:bg-accent",
+                    ? "border-selection bg-selection/15 text-selection"
+                    : "border-border hover:bg-muted",
                 )}
                 aria-label={key}
               >
@@ -112,6 +112,7 @@ function CustomCounterForm({
           <Trans>Cancel</Trans>
         </Button>
         <Button
+          variant="primary"
           disabled={!label.trim()}
           onClick={() => onConfirm({ label: label.trim(), iconKey, value })}
         >

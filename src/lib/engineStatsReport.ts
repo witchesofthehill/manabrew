@@ -76,6 +76,25 @@ export function roomEngineLabel(
   return localEngineLabel();
 }
 
+/**
+ * Which game a report belongs to, from the two ids a client may hold.
+ *
+ * The relay's id lives in the server store, which keeps `""` rather than null
+ * between rooms, and stays set after a relay game ends. Read with `??` that
+ * empty string won, every solo report went out with `gameId: ""`, the hub's
+ * uuid filter threw it away, and a stale relay id could even land on an
+ * offline game. So the room decides: a relay game is filed under the relay's
+ * id, anything else under the offline record's, and never one for the other.
+ */
+export function engineReportGameId(
+  multiplayer: boolean,
+  relayGameId: string | null | undefined,
+  offlineGameId: string | null,
+): string | null {
+  if (multiplayer) return relayGameId || null;
+  return offlineGameId;
+}
+
 function loadPending(): PendingReport[] {
   if (typeof window === "undefined") return [];
   try {

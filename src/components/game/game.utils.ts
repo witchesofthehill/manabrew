@@ -4,9 +4,17 @@ import type { AvailableAction, PaymentAction } from "@/protocol/prompts/common";
 import type { ClientCardDto } from "@/stores/gameStore.types";
 import type { ManaAbilityActionInfo } from "@/components/game/manaUtils";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
-import { PROMPT_LABELS } from "./game.constants";
+import {
+  CARD_H,
+  CARD_W,
+  GAME_CARD_SIZES,
+  PROMPT_LABELS,
+  PROMPT_MODAL_VIEWPORT_MARGIN,
+} from "./game.constants";
+import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/i18n/i18n";
+
 const MANA_COLOR_LABEL: Record<ManaColor, string> = {
   get W() {
     return i18n._(msg`White`);
@@ -27,6 +35,47 @@ const MANA_COLOR_LABEL: Record<ManaColor, string> = {
     return i18n._(msg`Colorless`);
   },
 };
+
+export function fitPromptCardDimensions(
+  availableWidth: number,
+  viewportHeight: number,
+  maxHeight = Number.POSITIVE_INFINITY,
+  maxWidth: number = GAME_CARD_SIZES.preview.width,
+): { width: number; height: number } {
+  const availableCardHeight = Math.max(112, viewportHeight - PROMPT_MODAL_VIEWPORT_MARGIN);
+  const width = Math.min(
+    maxWidth,
+    (availableCardHeight * CARD_W) / CARD_H,
+    (maxHeight * CARD_W) / CARD_H,
+    Math.max(80, availableWidth),
+  );
+  return { width, height: (width * CARD_H) / CARD_W };
+}
+
+export function centeredCardRowOffset(
+  availableWidth: number,
+  cardCount: number,
+  cardWidth: number,
+  gap: number,
+): number {
+  const rowWidth = cardCount * cardWidth + Math.max(0, cardCount - 1) * gap;
+  return Math.max(0, (availableWidth - rowWidth) / 2);
+}
+
+export function promptCardDisplayDimensions(
+  card: CardDto,
+  portraitWidth: number,
+  face: 0 | 1,
+  rotated: boolean,
+): { width: number; height: number } {
+  const horizontal = isHorizontalGameCard(card, undefined, face);
+  const landscape = horizontal && (card.isDoubleFaced || !rotated);
+  const scale = portraitWidth / CARD_W;
+  return landscape
+    ? { width: CARD_H * scale, height: CARD_W * scale }
+    : { width: CARD_W * scale, height: CARD_H * scale };
+}
+
 export function isPermanentSpellCard(card: Pick<CardDto, "types">): boolean {
   return !card.types.includes("Instant") && !card.types.includes("Sorcery");
 }

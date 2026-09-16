@@ -33,6 +33,8 @@ ap.add_argument("--sysprop", action="append", default=[])
 ap.add_argument("--out", default="jvm-4seat.jsonl")
 ap.add_argument("--timeout", type=int, default=1800)
 ap.add_argument("--seed", type=int, default=42)
+ap.add_argument("--policy", default="pass", choices=["pass", "greedy"],
+                help="greedy plays a land, casts what auto-pay covers and attacks, as the wasm driver does")
 args = ap.parse_args()
 
 
@@ -60,7 +62,7 @@ players = []
 for i in range(args.seats):
     cards, commander = load_deck(deck_names[i % len(deck_names)])
     players.append({
-        "name": "You" if i == 0 else f"Forge AI {i}",
+        "name": "You" if i == 0 else ("Forge AI" if i == 1 else f"Forge AI {i}"),
         "ai": i != 0,
         "deck": cards,
         "commanderNames": [commander],
@@ -137,6 +139,76 @@ REPLIES = {
     "payManaCost": lambda p: {"type": "cancel"},
 }
 
+class Greedy:
+    """Mirror of the wasm driver's greedy seat, so a seed replays the same game here."""
+
+    def __init__(self):
+        self.turn = None
+        self.land_played_on = -1
+        self.tried = set()
+        self.paying = None
+
+    def reset(self, turn):
+        if turn != self.turn:
+            self.turn = turn
+            self.tried.clear()
+            self.paying = None
+
+    def chooseAction(self, p, turn):
+        self.reset(turn)
+        casts = [a for a in p["input"].get("actions", []) if a["type"] == "cast" and a["cardId"] not in self.tried]
+        land = next((a for a in casts if (a.get("label") or a.get("modeLabel") or "").startswith("Play ")), None)
+        pick = land if (self.land_played_on != turn and land) else next((a for a in casts if a is not land), None)
+        if pick is None:
+            return {"type": "pass"}
+        self.tried.add(pick["cardId"])
+        if pick is land:
+            self.land_played_on = turn
+        self.paying = None
+        return {"type": "act", "actionId": pick["id"]}
+
+    def payManaCost(self, p, turn):
+        if p["input"].get("canConfirmFromPool"):
+            return {"type": "pay", "auto": False}
+        if self.paying == p["input"].get("cardId"):
+            self.paying = None
+            return {"type": "cancel"}
+        self.paying = p["input"].get("cardId")
+        return {"type": "pay", "auto": True}
+
+    def chooseAttackers(self, p, turn):
+        return {"type": "declareAttackers", "assignments": [
+            {"attackerId": a["attackerId"], "targetId": a["validTargetIds"][0]}
+            for a in p["input"].get("attackers", []) if a.get("validTargetIds")]}
+
+
+greedy = Greedy()
+LOOP_AFTER = 60
+loop = {"turn": -1, "counts": {}, "flipped": False}
+FLIPPED = {
+    "chooseBoolean": lambda p: {"type": "decision", "value": True},
+    "chooseCards": lambda p: {"type": "chooseCardsDecision",
+                              "chosenCardIds": [c["id"] for c in p["input"].get("cards", [])][: p["input"].get("max")]},
+}
+
+
+def answer(kind, prompt, turn):
+    if loop["turn"] != turn:
+        loop.update(turn=turn, counts={}, flipped=False)
+    seen = loop["counts"][kind] = loop["counts"].get(kind, 0) + 1
+    if seen == LOOP_AFTER and not loop["flipped"]:
+        loop["flipped"] = True
+        note({"ev": "loop", "type": kind, "turn": turn})
+    if seen >= 2 * LOOP_AFTER:
+        return None
+    if loop["flipped"] and kind in FLIPPED:
+        return FLIPPED[kind](prompt)
+    if args.policy == "greedy" and hasattr(greedy, kind):
+        return getattr(greedy, kind)(prompt, turn)
+    reply = REPLIES.get(kind)
+    return reply(prompt) if reply else None
+
+
 started = time.time()
 out = open(args.out, "w")
 
@@ -173,17 +245,17 @@ while time.time() - started < args.timeout:
         note({"ev": "decision", "type": kind, "ms": ms, "turn": turn})
         if ms > 5000:
             print(f"  stall {ms}ms {kind} @turn {turn}", flush=True)
-    reply = REPLIES.get(kind)
-    if reply is None:
-        note({"ev": "unhandled", "type": kind})
-        break
-    if decisions % 25 == 0:
+    if args.policy == "greedy" or decisions % 25 == 0:
         snap = json.loads(call({"command": "getSnapshot", "sessionId": session, "viewer": 0}) or "{}")
         turn = snap.get("gameView", snap).get("turn", turn)
+    output = answer(kind, prompt, turn)
+    if output is None:
+        note({"ev": "unhandled", "type": kind})
+        break
     last_id = pid
     answered_at = time.time()
     call({"command": "submitAction", "sessionId": session,
-          "payload": json.dumps({"type": kind, "output": reply(prompt)})})
+          "payload": json.dumps({"type": kind, "output": output})})
 
 note({"ev": "end", "decisions": decisions, "turn": turn})
 print(f"\ndone: {decisions} decisions over {int(time.time() - started)}s, turn {turn}")

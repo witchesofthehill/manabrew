@@ -282,17 +282,11 @@ export const RADIUS_TOKENS: {
   { token: "--radius-lg", value: "0.5rem", cls: "rounded-lg" },
   { token: "--radius (base)", value: "0.5rem", cls: "rounded-[--radius]" },
 ];
-export const CARD_SIZES: {
-  token: string;
-  dims: string;
-  where: string;
-}[] = [
-  { token: "Battlefield (DOM)", dims: "70 × 98", where: "BATTLEFIELD_CARD" },
-  { token: "Battlefield (Pixi grid)", dims: "72 × 100", where: "CARD_W × CARD_H" },
-  { token: "Hand", dims: "80 × 112", where: "HAND_CARD" },
-  { token: "Modal", dims: "100 × 140", where: "MODAL_CARD_SIZE" },
-  { token: "Mulligan", dims: "160 × 222", where: "MULLIGAN_CARD_SIZE" },
-  { token: "Thumbnail", dims: "60 × 84", where: "MODAL_CARD_THUMBNAIL" },
+
+export const CARD_SIZES: { token: string; dims: string; where: string }[] = [
+  { token: "Battlefield", dims: "70 × 98", where: "GAME_CARD_SIZES.battlefield" },
+  { token: "Hand", dims: "130 × 182", where: "GAME_CARD_SIZES.hand" },
+  { token: "Preview", dims: "300 × 420", where: "GAME_CARD_SIZES.preview" },
 ];
 export const ASSETS: {
   file: string;

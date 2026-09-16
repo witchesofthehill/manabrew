@@ -125,12 +125,14 @@ export function PlayDeckShelf({
           <Trans>My Decks</Trans>
         </h2>
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" onClick={() => setChoiceOpen(true)}>
-            <Trans>
-              <Plus className="h-4 w-4" />
-              Build / Import
-            </Trans>
-          </Button>
+          {ownedDecks.length > 0 && (
+            <Button variant="outline" size="sm" onClick={() => setChoiceOpen(true)}>
+              <Trans>
+                <Plus className="h-4 w-4" />
+                Build / Import
+              </Trans>
+            </Button>
+          )}
           <Button variant="ghost" size="sm" onClick={() => navigate(ROUTES.DECK_EDITOR)}>
             <Trans>View All</Trans>
           </Button>

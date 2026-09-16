@@ -175,6 +175,7 @@ export function ChatPanel({
           )}
         </div>
         <Button
+          variant="primary"
           type="submit"
           size="icon"
           className="h-9 w-9 shrink-0"

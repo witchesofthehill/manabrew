@@ -10,7 +10,7 @@ import { KeywordChips } from "@/components/game/CardKeywords";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { isCreature, isLethalDamage, type ScryfallImageSize } from "./game.utils";
-import { CARD_BADGES, CARD_BACK_IMAGE_URL } from "./game.constants";
+import { CARD_BADGES, CARD_BACK_IMAGE_URL, GAME_CARD_SIZES } from "./game.constants";
 import { isFacelessCard } from "@/lib/gameCard";
 import { CARD_BANNER_CONTAINER, CARD_BANNER_TEXT } from "./game.styles";
 import { deriveCardRailState } from "@/components/game/cardRailState";
@@ -124,18 +124,24 @@ function CardComponent({
     <div
       className={cn(
         "relative @container rounded-lg border bg-card text-card-foreground shadow-sm cursor-pointer group overflow-hidden",
-        horizontal ? "w-[210px] aspect-[7/5]" : "w-[150px] aspect-[5/7]",
+        horizontal ? "aspect-[7/5]" : "aspect-[5/7]",
         isTapped && "rotate-90",
         creature &&
           card.summoningSick &&
           onBattlefield &&
-          "outline-2 outline-dashed outline-prompt-action-cancel -outline-offset-2",
+          "outline-2 outline-dashed outline-card-status-summoning-sick -outline-offset-2",
         card.phasedOut && "opacity-30 grayscale",
         card.foil && "draft-tile-foil",
         className,
       )}
       onClick={onClick}
-      style={{ ["--card-rail-width" as string]: CARD_RAIL_WIDTH, ...style } as CSSProperties}
+      style={
+        {
+          ["--card-rail-width" as string]: CARD_RAIL_WIDTH,
+          width: horizontal ? GAME_CARD_SIZES.hand.height : GAME_CARD_SIZES.hand.width,
+          ...style,
+        } as CSSProperties
+      }
     >
       {imageUrl && !hasError ? (
         <>

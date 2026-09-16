@@ -208,8 +208,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                 <Button
                   type="button"
                   variant="outline"
-                  size="icon"
-                  className="h-6 w-6"
+                  size="icon-xs"
                   onClick={() =>
                     void applyAction({
                       type: "adjustLife",
@@ -223,8 +222,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                 <Button
                   type="button"
                   variant="outline"
-                  size="icon"
-                  className="h-6 w-6"
+                  size="icon-xs"
                   onClick={() =>
                     void applyAction({
                       type: "adjustLife",
@@ -244,8 +242,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                 <Button
                   type="button"
                   variant="outline"
-                  size="icon"
-                  className="h-6 w-6"
+                  size="icon-xs"
                   onClick={() =>
                     void applyAction({
                       type: "setPoison",
@@ -259,8 +256,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                 <Button
                   type="button"
                   variant="outline"
-                  size="icon"
-                  className="h-6 w-6"
+                  size="icon-xs"
                   onClick={() =>
                     void applyAction({
                       type: "setPoison",
@@ -379,6 +375,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
             </Trans>
           </Button>
           <Button
+            variant="outline"
             type="button"
             size="sm"
             className="gap-1"
@@ -410,10 +407,9 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                   <Button
                     type="button"
                     variant={card.tapped ? "secondary" : "outline"}
-                    size="icon"
-                    className="h-6 w-6"
-                    title={card.tapped ? i18n._(msg`Untap`) : i18n._(msg`Tap`)}
-                    aria-label={card.tapped ? i18n._(msg`Untap`) : i18n._(msg`Tap`)}
+                    size="icon-xs"
+                    title={card.tapped ? "Untap" : "Tap"}
+                    aria-label={card.tapped ? "Untap" : "Tap"}
                     onClick={() =>
                       void applyAction({
                         type: "tapCard",
@@ -427,10 +423,9 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                   <Button
                     type="button"
                     variant="outline"
-                    size="icon"
-                    className="h-6 w-6"
-                    title={i18n._(msg`Move to hand`)}
-                    aria-label={i18n._(msg`Move to hand`)}
+                    size="icon-xs"
+                    title="Move to hand"
+                    aria-label="Move to hand"
                     onClick={() => void moveCard(card, "hand")}
                   >
                     <Hand className="h-3 w-3" />
@@ -438,10 +433,9 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                   <Button
                     type="button"
                     variant="outline"
-                    size="icon"
-                    className="h-6 w-6"
-                    title={i18n._(msg`Move to exile`)}
-                    aria-label={i18n._(msg`Move to exile`)}
+                    size="icon-xs"
+                    title="Move to exile"
+                    aria-label="Move to exile"
                     onClick={() =>
                       void moveCard(
                         card,
@@ -454,10 +448,9 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                   <Button
                     type="button"
                     variant="outline"
-                    size="icon"
-                    className="h-6 w-6"
-                    title={i18n._(msg`Move to graveyard`)}
-                    aria-label={i18n._(msg`Move to graveyard`)}
+                    size="icon-xs"
+                    title="Move to graveyard"
+                    aria-label="Move to graveyard"
                     onClick={() =>
                       void moveCard(
                         card,

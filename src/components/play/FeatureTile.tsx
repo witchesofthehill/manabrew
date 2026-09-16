@@ -7,7 +7,6 @@ interface TileAccent {
   chip: string;
   hoverBorder: string;
   watermark: string;
-  surface?: string;
 }
 const TILE_ACCENTS: Record<string, TileAccent> = {
   primary: {
@@ -15,10 +14,10 @@ const TILE_ACCENTS: Record<string, TileAccent> = {
     hoverBorder: "hover:border-primary/70",
     watermark: "text-primary opacity-[0.07]",
   },
-  sky: {
-    chip: "border-format-badge-sky/40 bg-format-badge-sky/15 text-format-badge-sky",
-    hoverBorder: "hover:border-format-badge-sky/60",
-    watermark: "text-format-badge-sky opacity-[0.07]",
+  secondary: {
+    chip: "border-secondary/40 bg-secondary/15 text-secondary",
+    hoverBorder: "hover:border-secondary",
+    watermark: "text-secondary opacity-[0.07]",
   },
   blue: {
     chip: "border-format-badge-blue/40 bg-format-badge-blue/15 text-format-badge-blue",
@@ -39,8 +38,6 @@ const TILE_ACCENTS: Record<string, TileAccent> = {
     chip: "border-community-accent/45 bg-community-accent/15 text-community-accent",
     hoverBorder: "hover:border-community-accent/70",
     watermark: "text-community-accent opacity-[0.09]",
-    surface:
-      "border-community-accent/35 bg-community-accent/[0.08] hover:bg-community-accent/[0.12]",
   },
 };
 const TILE_SIZES = {
@@ -96,7 +93,6 @@ export function FeatureTile({
         "group relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl border border-border/70 bg-card/85 backdrop-blur-md motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         sizing.tile,
         accent.hoverBorder,
-        accent.surface,
         className,
       )}
     >

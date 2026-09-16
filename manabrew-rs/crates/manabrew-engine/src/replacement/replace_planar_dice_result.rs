@@ -23,10 +23,15 @@ pub fn can_replace(
     if effect.event != ReplacementType::PlanarDiceResult {
         return false;
     }
-    let player = match event {
-        ReplacementEvent::PlanarDiceResult { player } => *player,
+    let (player, result) = match event {
+        ReplacementEvent::PlanarDiceResult { player, result } => (*player, *result),
         _ => return false,
     };
+    if let Some(valid) = effect.ir.valid_roll_text.as_deref() {
+        if crate::agent::notification::PlanarDieFace::parse(valid) != Some(result) {
+            return false;
+        }
+    }
     if let Some(valid) = effect.ir.valid_player_selector.as_ref() {
         if !effect.matches_compiled_valid_player(valid, player, source_card) {
             return false;
@@ -38,12 +43,25 @@ pub fn can_replace(
 /// Mirrors Java `ReplacementHandler.executeReplacement()` for PlanarDiceResult.
 pub fn execute(
     effect: &ReplacementEffect,
-    _event: &mut ReplacementEvent,
-    _game: &GameState,
-    _source_card_id: CardId,
+    event: &mut ReplacementEvent,
+    game: &GameState,
+    source_card_id: CardId,
 ) -> ReplacementResult {
     if effect.prevents() || effect.has_skip() {
         return ReplacementResult::Skipped;
+    }
+    if let Some(chain) =
+        super::replacement_effect::resolve_replace_with_chain(effect, game.card(source_card_id))
+    {
+        if let Some(result) = super::replacement_handler::execute_replace_effect_ir(
+            &chain,
+            event,
+            game,
+            source_card_id,
+            Some("Result"),
+        ) {
+            return result;
+        }
     }
     ReplacementResult::Replaced
 }

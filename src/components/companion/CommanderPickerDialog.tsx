@@ -103,15 +103,13 @@ function CommanderPickerForm({
           onPick={(pick) => updateSlot(0, { pick })}
         />
         <label className="flex cursor-pointer items-center gap-2 text-sm">
-          <Trans>
-            <input
-              type="checkbox"
-              checked={partnerEnabled}
-              onChange={(e) => setPartnerEnabled(e.target.checked)}
-              className="size-4 accent-primary"
-            />
-            {partnerLabel} slot
-          </Trans>
+          <input
+            type="checkbox"
+            checked={partnerEnabled}
+            onChange={(e) => setPartnerEnabled(e.target.checked)}
+            className="size-4 accent-selection"
+          />
+          {partnerLabel} slot
         </label>
         {partnerEnabled && (
           <CommanderSlot
@@ -127,8 +125,12 @@ function CommanderPickerForm({
         <Button variant="ghost" onClick={clearAll}>
           <Trans>Clear</Trans>
         </Button>
-        <Button onClick={confirm} disabled={!slots[0].pick && !(partnerEnabled && slots[1].pick)}>
-          <Trans>Save</Trans>
+        <Button
+          variant="primary"
+          onClick={confirm}
+          disabled={!slots[0].pick && !(partnerEnabled && slots[1].pick)}
+        >
+          Save
         </Button>
       </DialogFooter>
     </>

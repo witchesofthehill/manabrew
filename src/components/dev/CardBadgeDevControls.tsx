@@ -9,6 +9,9 @@ import { DEV_SECTION, DEV_SECTION_HEADING } from "./devPanel.styles";
 import { Trans } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/i18n/i18n";
+import { DevPanelSearchProvider, DevSearchable } from "./DevPanelSearch";
+import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
+
 type BoolKey = {
   [K in keyof DevCardOverrides]: DevCardOverrides[K] extends boolean ? K : never;
 }[keyof DevCardOverrides];
@@ -226,61 +229,78 @@ export function CardBadgeDevControls() {
   const setOverride = useGameDevStore((s) => s.setCardOverride);
   const reset = useGameDevStore((s) => s.resetCardOverrides);
   const dirty = hasActiveCardOverride(overrides);
+  const query = useDevPanelSearch();
+  const sectionMatch = matchesDevPanelSearch(
+    query,
+    "Card appearance",
+    "Force states and counters",
+    "Reset card",
+  );
+  const hasMatchingControl = [...STATUS_ROWS, ...COUNTER_ROWS].some((row) =>
+    matchesDevPanelSearch(query, row.label),
+  );
+
+  if (!sectionMatch && !hasMatchingControl) return null;
+
   const toggleBool = (key: BoolKey) => setOverride(key, !overrides[key]);
   const bumpNum = (key: NumKey, delta: number) => {
     const curr = overrides[key] ?? 0;
     setOverride(key, Math.max(0, curr + delta));
   };
   return (
-    <section className={DEV_SECTION}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className={DEV_SECTION_HEADING}>
-            <Trans>Card appearance</Trans>
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            <Trans>Force states and counters on the staged card.</Trans>
-          </p>
+    <DevPanelSearchProvider query={sectionMatch ? "" : query}>
+      <section className={DEV_SECTION}>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className={DEV_SECTION_HEADING}>
+              <Trans>Card appearance</Trans>
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              <Trans>Force states and counters on the staged card.</Trans>
+            </p>
+          </div>
+          <DevSearchable terms={["Reset card"]}>
+            {dirty ? (
+              <button
+                type="button"
+                className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground hover:text-destructive"
+                onClick={reset}
+              >
+                <Trans>Reset card</Trans>
+              </button>
+            ) : null}
+          </DevSearchable>
         </div>
-        {dirty ? (
-          <button
-            type="button"
-            className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground hover:text-destructive"
-            onClick={reset}
-          >
-            <Trans>Reset card</Trans>
-          </button>
-        ) : null}
-      </div>
 
-      <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        <Trans>States</Trans>
-      </p>
-      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-        {STATUS_ROWS.map((row) => (
-          <DevToggleButton
-            key={row.key}
-            label={row.label}
-            active={overrides[row.key]}
-            onClick={() => toggleBool(row.key)}
-          />
-        ))}
-      </div>
+        <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <Trans>States</Trans>
+        </p>
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+          {STATUS_ROWS.map((row) => (
+            <DevToggleButton
+              key={row.key}
+              label={row.label}
+              active={overrides[row.key]}
+              onClick={() => toggleBool(row.key)}
+            />
+          ))}
+        </div>
 
-      <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        <Trans>Counters</Trans>
-      </p>
-      <div className="grid gap-1.5 sm:grid-cols-2">
-        {COUNTER_ROWS.map((row) => (
-          <DevCounterControl
-            key={row.key}
-            label={row.label}
-            value={overrides[row.key]}
-            onClear={() => setOverride(row.key, null)}
-            onBump={(delta) => bumpNum(row.key, delta)}
-          />
-        ))}
-      </div>
-    </section>
+        <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <Trans>Counters</Trans>
+        </p>
+        <div className="grid gap-1.5 sm:grid-cols-2">
+          {COUNTER_ROWS.map((row) => (
+            <DevCounterControl
+              key={row.key}
+              label={row.label}
+              value={overrides[row.key]}
+              onClear={() => setOverride(row.key, null)}
+              onBump={(delta) => bumpNum(row.key, delta)}
+            />
+          ))}
+        </div>
+      </section>
+    </DevPanelSearchProvider>
   );
 }

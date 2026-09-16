@@ -57,13 +57,23 @@ echo "    registered $(grep -c '"name"' "$GEN/reflect-config.json") classes for 
 echo "==> native-image --tool:svm-wasm"
 rm -rf "$OUT"; mkdir -p "$OUT"
 cd "$OUT"
+
+CP="$JAR:$WASM_CLASSES:$LANGS"
+[ -n "${FORGE_ASSETS:-}" ] || { echo "FORGE_ASSETS must point at the framed asset bundle (scripts/build-forge-wasm.sh generates it)"; exit 1; }
+[ -f "$FORGE_ASSETS" ] || { echo "FORGE_ASSETS=$FORGE_ASSETS is not a file"; exit 1; }
+mkdir -p resources
+cp "$FORGE_ASSETS" resources/assets-framed.txt
+CP="$CP:$PWD/resources"
+echo "    embedding assets: $(du -k resources/assets-framed.txt | cut -f1) KiB"
+
 # --tool:svm-wasm must come first, and every Wasm-backend option after it.
 "$NATIVE_IMAGE" \
   --tool:svm-wasm \
   -H:WasmComments=NONE \
   -H:Name=forgeharness \
-  -cp "$JAR:$WASM_CLASSES:$LANGS" \
+  -cp "$CP" \
   -H:IncludeResourceBundles=en-US \
+  -H:IncludeResources='assets-framed\.txt' \
   --no-fallback \
   --report-unsupported-elements-at-runtime \
   -H:+ReportExceptionStackTraces \

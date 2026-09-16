@@ -230,6 +230,8 @@ pub enum ClientMessage {
         password: Option<String>,
         #[serde(default)]
         reconnect_timeout_s: Option<u32>,
+        #[serde(default)]
+        table_style: Option<String>,
     },
 
     JoinRoom {
@@ -523,6 +525,9 @@ pub struct ResumeRoomRequest {
     pub reconnect_timeout_s: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub table_style: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub draft_config: Option<DraftConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -556,6 +561,8 @@ pub struct RoomInfo {
     pub engine: EngineKind,
     #[serde(default = "default_reconnect_timeout_s")]
     pub reconnect_timeout_s: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub table_style: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub draft_config: Option<DraftConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

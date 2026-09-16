@@ -55,8 +55,6 @@ export interface HandHitZone {
   height: number;
 }
 
-/** A single battlefield card's sprite plus its animation targets and the
- *  lazily-created action overlay (tap/untap/mana buttons). */
 export interface SpriteEntry {
   sprite: CardSprite;
   targetX: number;
@@ -68,6 +66,8 @@ export interface SpriteEntry {
    *  sprite's live scale so the entrance squash multiplier can compose with it. */
   scaleBase: number;
   shakeFrames: number;
+  pose: { y: number; rotation: number; scale: number };
+  exitDirection: number;
   /** A freshly-entered card awaiting its landing stomp — fired once it lerps
    *  onto its battlefield slot (not at spawn, while it's still sliding in). */
   pendingEntrance: boolean;
@@ -80,8 +80,6 @@ export interface SpriteEntry {
    *  update that transiently drops the card's actions (prompt round-trips)
    *  must not blink the overlay. */
   overlayActive?: boolean;
-  /** Spec signature of the current overlay children; unchanged specs skip the
-   *  rebuild so buttons aren't destroyed under the cursor on every state. */
   overlaySig?: string;
 }
 
@@ -133,17 +131,16 @@ export interface RegionHost {
     seed: { x: number; y: number; scaleX: number; scaleY: number },
   ): void;
   isSelected(cardId: string): boolean;
+  getDragTilt(cardId: string): number | null;
   rebuildOverlay(entry: SpriteEntry, state: BattlefieldState): void;
   wireSprite(sprite: CardSprite): void;
   screenXToLocalX(screenX: number): number;
   /** Px to trim off the bottom of this region's felt so it clears the hand
    *  fan (local player only; 0 for opponents). */
   getHandReserveBottom(): number;
-  /** Px to trim off the top of this region's grid so the first card row clears
-   *  the Pixi player bar (opponents when the bar is on; 0 otherwise). */
-  getTopReserve(): number;
   spawnFloatingText(canvasX: number, canvasY: number, content: string, color: number): void;
   previewCard(card: CardDto | null, bounds?: ScreenBounds): void;
+  previewCards(cards: CardDto[] | null, bounds?: ScreenBounds): void;
   isPointerTapSuppressed(pointerId: number): boolean;
   isDestroyed(): boolean;
 }

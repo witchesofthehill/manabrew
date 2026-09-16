@@ -319,6 +319,7 @@ export function PrintingOptimizerDialog({
               </p>
             </div>
             <Button
+              variant="primary"
               className="shrink-0 gap-2"
               disabled={allCards.length === 0}
               onClick={() => void buildProposal(selectedPolicy)}
@@ -408,10 +409,8 @@ export function PrintingOptimizerDialog({
               <p className="text-xs text-muted-foreground">
                 <Trans>Review the exact before and after printing.</Trans>
               </p>
-              <Button className="gap-1" onClick={applyProposal}>
-                <Trans>
-                  <Check className="h-3.5 w-3.5" /> Apply {changes.length} changes
-                </Trans>
+              <Button variant="primary" className="gap-1" onClick={applyProposal}>
+                <Check className="h-3.5 w-3.5" /> <Trans>Apply {changes.length} changes</Trans>
               </Button>
             </div>
           </div>
@@ -472,7 +471,7 @@ function PolicyButton({
       variant="outline"
       className={cn(
         "h-auto min-h-24 items-start justify-start gap-3 whitespace-normal p-4 text-left",
-        selected && "border-primary bg-primary/5 ring-1 ring-primary",
+        selected && "border-selection bg-selection/10 ring-1 ring-selection",
       )}
       disabled={disabled}
       onClick={onClick}

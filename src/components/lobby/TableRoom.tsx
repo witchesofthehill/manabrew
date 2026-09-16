@@ -1,3 +1,4 @@
+import { boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
 import { Shield, Swords } from "lucide-react";
 import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
 import { TableRoomSidebar } from "@/components/lobby/TableRoomSidebar";
@@ -98,7 +99,7 @@ export function TableRoom({
     }
     if (needsDeck) {
       return (
-        <Button size="lg" onClick={onOpenDeckDialog} className="w-full sm:w-auto">
+        <Button variant="primary" size="lg" onClick={onOpenDeckDialog} className="w-full sm:w-auto">
           <Trans>
             <Shield /> Choose a deck
           </Trans>
@@ -107,7 +108,12 @@ export function TableRoom({
     }
     if (!isController && myPlayer && !myPlayer.ready) {
       return (
-        <Button size="lg" onClick={() => onSetReady(true)} className="w-full sm:w-auto">
+        <Button
+          variant="primary"
+          size="lg"
+          onClick={() => onSetReady(true)}
+          className="w-full sm:w-auto"
+        >
           <Trans>Ready up</Trans>
         </Button>
       );
@@ -128,6 +134,7 @@ export function TableRoom({
       if (room.draft_config && onStartDraft) {
         return (
           <Button
+            variant="primary"
             size="lg"
             onClick={onStartDraft}
             disabled={startingLimited}
@@ -140,6 +147,7 @@ export function TableRoom({
       if (room.sealed_config && onStartSealed) {
         return (
           <Button
+            variant="primary"
             size="lg"
             onClick={onStartSealed}
             disabled={startingLimited}
@@ -151,6 +159,7 @@ export function TableRoom({
       }
       return (
         <Button
+          variant="primary"
           size="lg"
           onClick={onStartGame}
           disabled={startingGame}
@@ -190,6 +199,7 @@ export function TableRoom({
               onRemoveBot={onRemoveBot}
               size="room"
               className="max-w-3xl"
+              backgroundUrl={boardBackgroundUrl(room.table_style)}
               centerContent={
                 <span className="flex flex-col items-center gap-1">
                   <span className="font-serif text-lg font-light text-foreground/90 sm:text-2xl">

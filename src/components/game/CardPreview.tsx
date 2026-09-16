@@ -1,3 +1,4 @@
+import { topModal } from "@/lib/modalStack";
 import { createPortal } from "react-dom";
 import { Loader2, RotateCw } from "lucide-react";
 import type { CardDto } from "@/protocol/game";
@@ -29,7 +30,7 @@ import { ScryfallImg } from "@/components/ScryfallImg";
 import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { deriveCardRailEffects, deriveCardRailState } from "@/components/game/cardRailState";
-import { cardTypeLine } from "@/components/game/cardPresentation";
+import { cardTypeLine, replaceCardName } from "@/components/game/cardPresentation";
 import { Trans } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/i18n/i18n";
@@ -271,6 +272,7 @@ export function CardPreview({
   useEffect(() => {
     if (!onDismiss) return;
     function handleKey(e: KeyboardEvent) {
+      if (topModal() || e.defaultPrevented || e.isComposing) return;
       if (e.key === "Escape") {
         onDismiss!();
         return;
@@ -505,7 +507,7 @@ export function CardPreview({
                       ? i18n._(msg`Back face: ${doubleFacedData!.backName}`)
                       : hasDoubleFace && !showBackFace
                         ? i18n._(msg`Front face: ${doubleFacedData!.frontName}`)
-                        : card.text}
+                        : replaceCardName(card.text, card.identity.name)}
                   </div>
                   {fallbackCounters && <CounterDisplay counters={fallbackCounters} size="md" />}
                   {card.power && card.toughness && (

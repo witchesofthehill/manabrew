@@ -4,6 +4,7 @@ import { DECK_SHELF_CARD_CLASS, DeckShelfRow } from "@/components/play/DeckShelf
 import { Button } from "@/components/ui/button";
 import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
 import { availableEngines } from "@/lib/engines";
+import { cn } from "@/lib/utils";
 import { Trans } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/i18n/i18n";
@@ -59,11 +60,21 @@ export function CommunityDeckShelf({
             </div>
           ))}
         </DeckShelfRow>
+      ) : loading ? (
+        <DeckShelfRow label="Community decks">
+          {Array.from({ length: 10 }, (_, index) => (
+            <div
+              key={index}
+              className={cn(
+                DECK_SHELF_CARD_CLASS,
+                "aspect-[4/3] animate-pulse rounded-lg bg-muted",
+              )}
+            />
+          ))}
+        </DeckShelfRow>
       ) : (
         <p className="px-2 text-xs italic text-muted-foreground">
-          {loading
-            ? i18n._(msg`Loading Community decks\u2026`)
-            : i18n._(msg`No Community decks are available.`)}
+          <Trans>No Community decks are available.</Trans>
         </p>
       )}
     </CollapsibleDeckShelf>

@@ -193,7 +193,7 @@ export default function Gauntlet() {
                 </Trans>
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button onClick={handlePlayMatch} disabled={launchingMatch}>
+                <Button variant="primary" onClick={handlePlayMatch} disabled={launchingMatch}>
                   {launchingMatch ? i18n._(msg`Launching\u2026`) : i18n._(msg`Play Match`)}
                 </Button>
                 <Button variant="outline" onClick={() => handleManualOutcome(true)}>
@@ -224,7 +224,7 @@ export default function Gauntlet() {
                   <Button onClick={handleOpenSideboard} variant="outline">
                     <Trans>Sideboard before next round</Trans>
                   </Button>
-                  <Button onClick={handleAdvance}>
+                  <Button variant="primary" onClick={handleAdvance}>
                     <Trans>Next Round</Trans>
                   </Button>
                 </div>
@@ -338,7 +338,7 @@ export default function Gauntlet() {
             </p>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSideboardOpen(false)}>
+            <Button variant="ghost" onClick={() => setSideboardOpen(false)}>
               <Trans>Cancel</Trans>
             </Button>
           </DialogFooter>

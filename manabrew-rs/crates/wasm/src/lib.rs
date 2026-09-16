@@ -19,7 +19,6 @@
 
 mod bot_api;
 mod card_loader;
-mod forge_assets;
 mod limited_api;
 mod limited_bootstrap;
 mod wasm_api;

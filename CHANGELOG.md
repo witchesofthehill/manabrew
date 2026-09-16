@@ -1,5 +1,91 @@
 # Changelog
 
+## [3.44.1](https://github.com/witchesofthehill/manabrew/compare/v3.44.0...v3.44.1) (2026-09-15)
+
+### Fixes
+
+* better scroll ([#933](https://github.com/witchesofthehill/manabrew/issues/933)) ([bf7c66b](https://github.com/witchesofthehill/manabrew/commit/bf7c66bb33a3921747be206b877d86e6686c92a5))
+
+## [3.44.0](https://github.com/witchesofthehill/manabrew/compare/v3.43.2...v3.44.0) (2026-09-15)
+
+### Features
+
+* **ui:** major battlefield improvements ([#873](https://github.com/witchesofthehill/manabrew/issues/873)) ([4ae76d4](https://github.com/witchesofthehill/manabrew/commit/4ae76d45a1875b77ec0cc911231c24c91ee1c94c))
+
+## [3.43.2](https://github.com/witchesofthehill/manabrew/compare/v3.43.1...v3.43.2) (2026-09-15)
+
+### Fixes
+
+* **ui:** show the onboarding card on Firefox ESR ([#930](https://github.com/witchesofthehill/manabrew/issues/930)) ([f3a6f10](https://github.com/witchesofthehill/manabrew/commit/f3a6f105e0ad813ec99ceead1f17331a64e6966b))
+
+## [3.43.1](https://github.com/witchesofthehill/manabrew/compare/v3.43.0...v3.43.1) (2026-09-14)
+
+## [3.43.0](https://github.com/witchesofthehill/manabrew/compare/v3.42.7...v3.43.0) (2026-09-14)
+
+### Features
+
+* **bench:** stress the wasm engine across a matrix of games ([#924](https://github.com/witchesofthehill/manabrew/issues/924)) ([f0c236b](https://github.com/witchesofthehill/manabrew/commit/f0c236bb2a25734010ad0b6686abcef262d4c724))
+
+## [3.42.7](https://github.com/witchesofthehill/manabrew/compare/v3.42.6...v3.42.7) (2026-09-13)
+
+### Fixes
+
+* claim username ([#922](https://github.com/witchesofthehill/manabrew/issues/922)) ([b2bcb6e](https://github.com/witchesofthehill/manabrew/commit/b2bcb6e107d8ca099d7d8dac7d524e340dbb8760))
+
+## [3.42.6](https://github.com/witchesofthehill/manabrew/compare/v3.42.5...v3.42.6) (2026-09-13)
+
+### Fixes
+
+* affinity bug on action psace ([#920](https://github.com/witchesofthehill/manabrew/issues/920)) ([feffed0](https://github.com/witchesofthehill/manabrew/commit/feffed0407016ad257a1def10508cf464b326cc7))
+
+## [3.42.5](https://github.com/witchesofthehill/manabrew/compare/v3.42.4...v3.42.5) (2026-09-13)
+
+### Fixes
+
+* **telemetry:** file offline games under the player's relay name ([#919](https://github.com/witchesofthehill/manabrew/issues/919)) ([5089cbe](https://github.com/witchesofthehill/manabrew/commit/5089cbed4e98f3b5fa2430c6ffbc4afe4462c227))
+
+## [3.42.4](https://github.com/witchesofthehill/manabrew/compare/v3.42.3...v3.42.4) (2026-09-12)
+
+### Fixes
+
+* update submodule ([#915](https://github.com/witchesofthehill/manabrew/issues/915)) ([39f940b](https://github.com/witchesofthehill/manabrew/commit/39f940b2da972e32374e359e690d5a62c92c2850))
+
+## [3.42.3](https://github.com/witchesofthehill/manabrew/compare/v3.42.2...v3.42.3) (2026-09-12)
+
+### Fixes
+
+* safari-wasm and stop proxying images ([#912](https://github.com/witchesofthehill/manabrew/issues/912)) ([b8bf68c](https://github.com/witchesofthehill/manabrew/commit/b8bf68cbb2497a18880b57609946378a4f8880cd))
+
+## [3.42.2](https://github.com/witchesofthehill/manabrew/compare/v3.42.1...v3.42.2) (2026-09-12)
+
+### Fixes
+
+* initialise complete archive for forge-wasm ([#910](https://github.com/witchesofthehill/manabrew/issues/910)) ([69511cb](https://github.com/witchesofthehill/manabrew/commit/69511cba2e84a5dddd65c3debdc01135ab223a20))
+
+## [3.42.1](https://github.com/witchesofthehill/manabrew/compare/v3.42.0...v3.42.1) (2026-09-11)
+
+### Fixes
+
+* **play:** hold the back button during a live game ([#900](https://github.com/witchesofthehill/manabrew/issues/900)) ([feeb1cf](https://github.com/witchesofthehill/manabrew/commit/feeb1cfad985a5c2d32c90a30baa940abdf45bd3))
+
+## [3.42.0](https://github.com/witchesofthehill/manabrew/compare/v3.41.1...v3.42.0) (2026-09-11)
+
+### Features
+
+* **telemetry:** cut the client turnaround at the first reply frame ([#907](https://github.com/witchesofthehill/manabrew/issues/907)) ([e381e2f](https://github.com/witchesofthehill/manabrew/commit/e381e2f7518386e5695f28a268b6f1196cf26b35))
+
+## [3.41.1](https://github.com/witchesofthehill/manabrew/compare/v3.41.0...v3.41.1) (2026-09-11)
+
+### Fixes
+
+* **telemetry:** file solo engine reports under the offline game ([#905](https://github.com/witchesofthehill/manabrew/issues/905)) ([400031b](https://github.com/witchesofthehill/manabrew/commit/400031bccc40d88868a5430253b5db9b167695dd))
+
+## [3.41.0](https://github.com/witchesofthehill/manabrew/compare/v3.40.1...v3.41.0) (2026-09-10)
+
+### Features
+
+* backgrounds ([#903](https://github.com/witchesofthehill/manabrew/issues/903)) ([067eab1](https://github.com/witchesofthehill/manabrew/commit/067eab1deec20b1b50a899b8aaf2ed377ad28c49))
+
 ## [3.40.1](https://github.com/witchesofthehill/manabrew/compare/v3.40.0...v3.40.1) (2026-09-09)
 
 ### Fixes

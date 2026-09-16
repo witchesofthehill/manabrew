@@ -949,10 +949,15 @@ export default function DeckEditor() {
               autoFocus
             />
             <DialogFooter className="gap-2">
-              <Button variant="outline" size="sm" onClick={() => setRenamingId(null)}>
+              <Button variant="ghost" size="sm" onClick={() => setRenamingId(null)}>
                 <Trans>Cancel</Trans>
               </Button>
-              <Button size="sm" onClick={confirmRename} disabled={!renameInput.trim()}>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={confirmRename}
+                disabled={!renameInput.trim()}
+              >
                 <Trans>Rename</Trans>
               </Button>
             </DialogFooter>
@@ -1133,10 +1138,10 @@ export default function DeckEditor() {
             }}
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setNewTagDropOpen(false)}>
+            <Button variant="ghost" onClick={() => setNewTagDropOpen(false)}>
               <Trans>Cancel</Trans>
             </Button>
-            <Button disabled={!newTagName.trim()} onClick={createDroppedTag}>
+            <Button variant="primary" disabled={!newTagName.trim()} onClick={createDroppedTag}>
               <Trans>Create tag</Trans>
             </Button>
           </DialogFooter>

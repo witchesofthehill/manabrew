@@ -48,6 +48,7 @@ pub struct Room {
     pub draft_config: Option<DraftConfig>,
     pub sealed_config: Option<SealedConfig>,
     pub reconnect_timeout_s: u32,
+    pub table_style: Option<String>,
     pub replay: Option<GameReplayCache>,
     pub resume_token: String,
     pub humanless_since: Option<Instant>,
@@ -73,6 +74,7 @@ impl Room {
         official: bool,
         password: Option<String>,
         reconnect_timeout_s: u32,
+        table_style: Option<String>,
     ) -> Self {
         let max_players = max_players.clamp(2, 8);
         let (players, observers) = if host_plays {
@@ -118,6 +120,7 @@ impl Room {
             draft_config,
             sealed_config,
             reconnect_timeout_s,
+            table_style,
             replay: None,
             resume_token: String::new(),
             humanless_since: None,
@@ -401,6 +404,7 @@ impl Room {
             format: self.format.clone(),
             engine: self.engine,
             reconnect_timeout_s: self.reconnect_timeout_s,
+            table_style: self.table_style.clone(),
             status: self.status.clone(),
             draft_config: self.draft_config.clone(),
             sealed_config: self.sealed_config.clone(),
@@ -504,6 +508,7 @@ mod tests {
             false,
             None,
             60,
+            None,
         )
     }
 

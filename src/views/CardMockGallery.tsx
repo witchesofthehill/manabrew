@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { CardDto } from "@/protocol/game";
 import { useCard } from "@/stores/useScryfallStore";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import {
@@ -10,9 +10,11 @@ import {
 } from "@/components/game/BattlefieldCardFace";
 import { BoardPlayground } from "@/components/dev/BoardPlayground";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { ThemeEditorWorkspace } from "@/components/dev/themeEditor/ThemeEditorWorkspace";
 import { Trans } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/i18n/i18n";
+
 type GalleryVariant = BattlefieldCardFaceVariant | "realistic";
 const VARIANT_LABELS: Record<GalleryVariant, string> = {
   get realistic() {
@@ -182,27 +184,25 @@ function GalleryRow({
     </div>
   );
 }
-export default function CardMockGallery() {
-  // Bound to the real preference so the one toggle drives both the DOM previews
-  // and the live Pixi board playground below (which reads the same pref).
+
+function CardSpecimens() {
   const variant = usePreferencesStore((s) => s.battlefieldCardStyle) as GalleryVariant;
   const setVariant = usePreferencesStore((s) => s.setBattlefieldCardStyle);
   const [showReal, setShowReal] = useState(false);
   return (
-    <div className="h-full space-y-6 overflow-auto px-4 py-6 sm:px-6 lg:px-8">
+    <div className="space-y-4">
       <header className="flex items-center gap-4 flex-wrap">
         <div className="inline-flex rounded-md border border-border overflow-hidden">
           {(["realistic", "art", "frame"] as GalleryVariant[]).map((v) => (
-            <button
+            <Button
               key={v}
               onClick={() => setVariant(v)}
-              className={cn(
-                "px-3 py-1.5 text-sm",
-                variant === v ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted",
-              )}
+              size="sm"
+              variant={variant === v ? "selected" : "ghost"}
+              aria-pressed={variant === v}
             >
               {VARIANT_LABELS[v]}
-            </button>
+            </Button>
           ))}
         </div>
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -218,16 +218,7 @@ export default function CardMockGallery() {
       </header>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-muted-foreground">
-          <Trans>Pixi board playground — spawn cards + poke them to test in-game effects</Trans>
-        </h2>
-        <BoardPlayground />
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-muted-foreground">
-          <Trans>Battlefield size (70×98)</Trans>
-        </h2>
+        <h2 className="text-sm font-semibold text-muted-foreground">Battlefield size (70×98)</h2>
         <div className="flex flex-wrap gap-4">
           {SPECS.map((spec, i) => (
             <div
@@ -262,5 +253,13 @@ export default function CardMockGallery() {
         </div>
       </section>
     </div>
+  );
+}
+
+export default function CardMockGallery() {
+  return (
+    <ThemeEditorWorkspace specimens={<CardSpecimens />}>
+      <BoardPlayground themeEditor />
+    </ThemeEditorWorkspace>
   );
 }

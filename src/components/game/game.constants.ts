@@ -1,6 +1,7 @@
 import type { StepKind } from "@/protocol";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/i18n/i18n";
+import { scryfallAssetUrl } from "@/lib/scryfallAssets";
 /** The single UI-side list of turn steps, ordered to match the engine's turn
  *  structure. Ids are protocol `StepKind` values — never restate them elsewhere. */
 export const PHASES: readonly {
@@ -145,8 +146,10 @@ export const ZONE_BADGES: Record<
 /** Standard MTG card back image, served by Scryfall's canonical backs CDN.
  *  UUID `0aeebaf5-8c7d-4636-9e82-8c27447861f7` is the default `card_back_id`
  *  every single-faced card references. */
-export const CARD_BACK_IMAGE_URL =
-  "https://backs.scryfall.io/large/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg";
+export const CARD_BACK_IMAGE_URL = scryfallAssetUrl(
+  "https://backs.scryfall.io/large/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg",
+);
+
 export const PROMPT_LABELS: Record<string, string> = {
   get ["mulligan"]() {
     return i18n._(msg`Keep this hand?`);
@@ -260,9 +263,31 @@ export const CARD_BADGES = {
   },
 } as const;
 export const ACTION_DRAWER_BUMP_EVENT = "actiondrawer:bump";
-export const CARD_W = 72;
-export const CARD_H = 100;
+
+const PREVIEW_CARD_SIZE = { width: 300, height: 420 } as const;
+const PROMPT_CARD_LINEAR_SCALE = Math.sqrt(0.7);
+
+export const GAME_CARD_SIZES = {
+  battlefield: { width: 70, height: 98 },
+  hand: { width: 130, height: 182 },
+  prompt: {
+    width: PREVIEW_CARD_SIZE.width * PROMPT_CARD_LINEAR_SCALE,
+    height: PREVIEW_CARD_SIZE.height * PROMPT_CARD_LINEAR_SCALE,
+  },
+  preview: PREVIEW_CARD_SIZE,
+} as const;
+export const CARD_W = GAME_CARD_SIZES.battlefield.width;
+export const CARD_H = GAME_CARD_SIZES.battlefield.height;
 export const CARD_GAP = 8;
+export const PROMPT_CARD_GAP = 10;
+export const PROMPT_CARD_ROW_GAP = 12;
+export const PASSIVE_CARD_HOVER_SCALE = 1.025;
+export const CARD_HOVER_TRANSITION_SECONDS = 0.1;
+export const PROMPT_CARD_MODAL_MAX_WIDTH = 964;
+export const PROMPT_CARD_MODAL_MAX_WIDTH_CLASS = "max-w-[964px]";
+export const PROMPT_MODAL_VIEWPORT_MARGIN = 16;
+export const PROMPT_MODAL_MAX_HEIGHT_CLASS = "max-h-[calc(100dvh-16px)]";
+export const PROMPT_MODAL_HEIGHT_CLASS = "h-[calc(100dvh-16px)]";
 /** Corner radius at CARD_W scale — renderers drawing at other sizes must scale
  *  it proportionally (radius = size * CARD_RADIUS / CARD_W) to match the
  *  printed card corner. */

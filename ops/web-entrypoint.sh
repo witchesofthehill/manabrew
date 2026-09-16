@@ -41,11 +41,11 @@ set -e
 	# Image step (see docker-images.yml / staging-deploy.yml).
 	case "$(printf '%s' "${FORGE_WASM:-}" | tr '[:upper:]' '[:lower:]')" in
 	1 | true | yes | on)
-		if [ -f /srv/manabrew/forge/forgeharness.js.wasm ]; then
+		if ls /srv/manabrew/assets/forgeharness*.wasm >/dev/null 2>&1; then
 			flags="${flags} forgeWasm: true,"
 		else
 			echo "[entrypoint] FORGE_WASM is set but this image has no engine at" \
-				"/srv/manabrew/forge/forgeharness.js.wasm; leaving the toggle hidden." >&2
+				"/srv/manabrew/assets/forgeharness*.wasm; leaving the toggle hidden." >&2
 		fi
 		;;
 	esac

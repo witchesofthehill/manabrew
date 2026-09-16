@@ -51,6 +51,7 @@ function PlayerNotesForm({ player, onClose }: { player: CompanionPlayer; onClose
           <Trans>Cancel</Trans>
         </Button>
         <Button
+          variant="primary"
           onClick={() => {
             setPlayerNotes(player.id, draft);
             onClose();

@@ -31,6 +31,7 @@ pub struct Config {
     pub bot_username: String,
     pub forge_ai: bool,
     pub reconnect_timeout_s: Option<u32>,
+    pub table_style: Option<String>,
     pub host_deck: DeckSelection,
     pub bot_deck: DeckSelection,
 }
@@ -137,6 +138,7 @@ impl Config {
             forge_ai: env_bool("SELF_HOSTED_NODE_FORGE_AI", "FORGE_ROOM_FORGE_AI", false),
             reconnect_timeout_s: env_first("SELF_HOSTED_NODE_RECONNECT_TIMEOUT_S", "")
                 .and_then(|value| value.parse().ok()),
+            table_style: None,
             host_deck: load_deck_selection(&host_deck_id, host_commander),
             bot_deck: load_deck_selection(&bot_deck_id, bot_commander),
         }
@@ -146,6 +148,7 @@ impl Config {
     /// reuse the caller's relay connection, host the engine without taking a
     /// seat, no bot. Deck fields are placeholders — unused when `host_plays` and
     /// `bot_enabled` are false.
+    #[allow(clippy::too_many_arguments)]
     pub fn for_hosted_room(
         relay_url: String,
         password: String,
@@ -154,6 +157,7 @@ impl Config {
         max_players: u8,
         room_password: Option<String>,
         reconnect_timeout_s: Option<u32>,
+        table_style: Option<String>,
     ) -> Self {
         let username = format!("forge-host-{}", uuid::Uuid::new_v4());
         let bot_username = format!("{username}-bot");
@@ -177,6 +181,7 @@ impl Config {
             bot_username,
             forge_ai: false,
             reconnect_timeout_s,
+            table_style,
             host_deck: synthetic_deck("forge-host", None),
             bot_deck: synthetic_deck("forge-bot", None),
         }

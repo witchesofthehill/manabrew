@@ -161,8 +161,13 @@ export function CollectionQuickAdd({
             >
               <Plus className="h-3.5 w-3.5" />
             </Button>
-            <Button size="sm" className="ml-auto" onClick={() => add(quantityCard, quantity)}>
-              <Trans>Add {quantity}</Trans>
+            <Button
+              variant="primary"
+              size="sm"
+              className="ml-auto"
+              onClick={() => add(quantityCard, quantity)}
+            >
+              Add {quantity}
             </Button>
           </div>
         </div>

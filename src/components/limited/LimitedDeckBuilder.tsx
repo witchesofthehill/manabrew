@@ -607,14 +607,11 @@ export default function LimitedDeckBuilder({
             )}
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setSaveDialogOpen(false)}
-              disabled={savingDeck}
-            >
+            <Button variant="ghost" onClick={() => setSaveDialogOpen(false)} disabled={savingDeck}>
               <Trans>Cancel</Trans>
             </Button>
             <Button
+              variant="primary"
               onClick={handleSaveToMyDecks}
               disabled={savingDeck || (requireCompleteToSave && main.length < targetMainSize)}
             >
@@ -743,10 +740,9 @@ function Toolbar({
         ))}
         {onFixManaBase && (
           <Button
-            size="sm"
+            size="xs"
             variant="ghost"
             onClick={onFixManaBase}
-            className="h-7 px-2 text-xs"
             title={i18n._(msg`Auto-fill basics proportional to your colour pips`)}
           >
             <Trans>Fix mana base</Trans>
@@ -768,10 +764,9 @@ function Toolbar({
         </span>
         {onReset && (
           <Button
-            size="sm"
+            size="xs"
             variant="ghost"
             onClick={onReset}
-            className="h-7 px-2 text-xs"
             title={i18n._(msg`Reset main + sideboard to the suggested deck`)}
           >
             <Trans>Reset</Trans>
@@ -779,10 +774,9 @@ function Toolbar({
         )}
         {onCompare && (
           <Button
-            size="sm"
+            size="xs"
             variant="ghost"
             onClick={onCompare}
-            className="h-7 px-2 text-xs"
             title={i18n._(msg`Compare with a saved deck`)}
           >
             <Trans>Compare</Trans>
@@ -795,7 +789,7 @@ function Toolbar({
           <Trans>Copy decklist</Trans>
         </Button>
         {onConfirm && (
-          <Button onClick={onConfirm} disabled={mainCount < targetMainSize}>
+          <Button variant="primary" onClick={onConfirm} disabled={mainCount < targetMainSize}>
             {confirmLabel}
           </Button>
         )}

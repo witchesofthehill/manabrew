@@ -181,10 +181,13 @@ export function DeckSelectionTray({
           </Trans>
         </Button>
         <div className="flex-1" />
-        <Button size="sm" variant="destructive" className="h-10 shrink-0 sm:h-8" onClick={onRemove}>
-          <Trans>
-            <X className="mr-1 h-3 w-3" /> Remove
-          </Trans>
+        <Button
+          size="sm"
+          variant="destructive-quiet"
+          className="h-10 shrink-0 sm:h-8"
+          onClick={onRemove}
+        >
+          <X className="mr-1 h-3 w-3" /> <Trans>Remove</Trans>
         </Button>
         <Button size="sm" variant="ghost" className="hidden sm:inline-flex" onClick={onClear}>
           <Trans>Clear</Trans>

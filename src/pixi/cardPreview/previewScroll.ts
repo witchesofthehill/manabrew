@@ -1,16 +1,18 @@
 export function bindPreviewScroll(
-  target: Window,
+  target: Window | HTMLCanvasElement,
   hitTest: (x: number, y: number) => boolean,
   scroll: (delta: number, mode: number, clientX: number, clientY: number) => void,
 ): () => void {
   let touchId: number | null = null;
-  const onWheel = (event: WheelEvent) => {
+  const onWheel = (event: Event) => {
+    if (!(event instanceof WheelEvent)) return;
     if (event.ctrlKey || !hitTest(event.clientX, event.clientY)) return;
     event.preventDefault();
     event.stopPropagation();
     scroll(event.deltaY, event.deltaMode, event.clientX, event.clientY);
   };
-  const onTouchStart = (event: TouchEvent) => {
+  const onTouchStart = (event: Event) => {
+    if (!(event instanceof TouchEvent)) return;
     if (touchId !== null) return;
     for (const touch of event.changedTouches) {
       if (!hitTest(touch.clientX, touch.clientY)) continue;
@@ -19,7 +21,8 @@ export function bindPreviewScroll(
       break;
     }
   };
-  const onTouchMove = (event: TouchEvent) => {
+  const onTouchMove = (event: Event) => {
+    if (!(event instanceof TouchEvent)) return;
     if (touchId === null) return;
     for (const touch of event.touches) {
       if (touch.identifier === touchId) {
@@ -28,7 +31,8 @@ export function bindPreviewScroll(
       }
     }
   };
-  const onTouchEnd = (event: TouchEvent) => {
+  const onTouchEnd = (event: Event) => {
+    if (!(event instanceof TouchEvent)) return;
     for (const touch of event.changedTouches) {
       if (touch.identifier === touchId) touchId = null;
     }

@@ -338,11 +338,9 @@ export function HubDeckPreviewDialog({
               <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button size="sm" disabled={!detail} className="col-span-2">
-                      <Trans>
-                        Play
-                        <ChevronDown className="h-3.5 w-3.5" />
-                      </Trans>
+                    <Button variant="primary" size="sm" disabled={!detail} className="col-span-2">
+                      Play
+                      <ChevronDown className="h-3.5 w-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">

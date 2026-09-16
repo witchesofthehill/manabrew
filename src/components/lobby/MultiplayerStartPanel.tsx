@@ -12,15 +12,16 @@ export function MultiplayerStartPanel({ disabled, onSetUp }: MultiplayerStartPan
       players={[]}
       maxPlayers={4}
       size="room"
+      ornamental
       className="mx-auto w-full max-w-xl aspect-[4/3] sm:max-w-4xl sm:aspect-[35/16]"
       centerContent={
         <div className="flex flex-col items-center gap-4 sm:mr-4 sm:flex-row sm:gap-4">
-          <Armchair className="hidden text-primary sm:mt-2 sm:block sm:h-24 sm:w-24" />
+          <Armchair className="hidden text-foreground sm:mt-2 sm:block sm:h-24 sm:w-24" />
           <div className="flex flex-col items-center gap-3 sm:ml-4 sm:items-start">
             <h2 className="font-serif text-xl font-light leading-tight sm:text-4xl">
               <Trans>Pull up a chair.</Trans>
             </h2>
-            <Button size="lg" onClick={onSetUp} disabled={disabled}>
+            <Button variant="primary" size="lg" onClick={onSetUp} disabled={disabled}>
               <Trans>
                 <Plus /> Set up a table
               </Trans>

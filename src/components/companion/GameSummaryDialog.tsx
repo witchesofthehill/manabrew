@@ -94,7 +94,7 @@ function SummaryBody({
             <Copy className="mr-2 size-4" /> Copy to clipboard
           </Trans>
         </Button>
-        <Button onClick={() => useCompanionStore.getState().dismissSummary()}>
+        <Button variant="primary" onClick={() => useCompanionStore.getState().dismissSummary()}>
           <Trans>Close</Trans>
         </Button>
       </DialogFooter>

@@ -4,12 +4,14 @@ import {
   FlaskConical,
   Gauge,
   LayoutGrid,
+  Search,
   MessageSquareText,
   RotateCcw,
   UserRound,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { BattlefieldKeywordDevControls } from "./BattlefieldKeywordDevControls";
@@ -22,9 +24,11 @@ import { DevSizingControls } from "./DevSizingControls";
 import { DevStressPresets } from "./DevStressPresets";
 import { PlayerBadgeDevControls } from "./PlayerBadgeDevControls";
 import { PromptDevControls } from "./PromptDevControls";
+import { DevPanelSearchProvider } from "./DevPanelSearch";
 import { Trans } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/i18n/i18n";
+
 type DevWorkspace = "card" | "player" | "board" | "prompt" | "stress";
 interface WorkspaceTab {
   id: DevWorkspace;
@@ -68,18 +72,35 @@ const WORKSPACES: WorkspaceTab[] = [
     icon: Gauge,
   },
 ];
+
+const EMPTY_SEARCH_QUERIES: Record<DevWorkspace, string> = {
+  card: "",
+  player: "",
+  board: "",
+  prompt: "",
+  stress: "",
+};
+
 function activeValueCount(values: object): number {
   let count = 0;
   for (const key in values) {
     const value = (values as Record<string, unknown>)[key];
-    if (value === true || typeof value === "number") count += 1;
+    if (
+      value === true ||
+      typeof value === "number" ||
+      (typeof value === "string" && value !== "none")
+    )
+      count += 1;
   }
   return count;
 }
 export function GameDevPanel() {
   const [workspace, setWorkspace] = useState<DevWorkspace>("card");
+  const [searchQueries, setSearchQueries] =
+    useState<Record<DevWorkspace, string>>(EMPTY_SEARCH_QUERIES);
   const cardOverrides = useGameDevStore((s) => s.cardOverrides);
   const playerOverrides = useGameDevStore((s) => s.playerOverrides);
+  const gameStateOverrides = useGameDevStore((s) => s.gameStateOverrides);
   const keywordCount = useGameDevStore((s) => s.debugBattlefieldKeywords.length);
   const choiceCount = useGameDevStore((s) => s.debugCardChoices.length);
   const debugCardEnabled = useGameDevStore((s) => s.debugCardEnabled);
@@ -87,6 +108,7 @@ export function GameDevPanel() {
   const promptActionOverride = useGameDevStore((s) => s.promptActionOverride);
   const debugViewportPreset = useGameDevStore((s) => s.debugViewportPreset);
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
+  const showPlayerPanelBounds = useGameDevStore((s) => s.showPlayerPanelBounds);
   const showGridSkeleton = useGameDevStore((s) => s.showGridSkeleton);
   const showAttackRows = useGameDevStore((s) => s.showAttackRows);
   const devToolsEnabled = useGameDevStore((s) => s.devToolsEnabled);
@@ -100,7 +122,9 @@ export function GameDevPanel() {
       Number(debugCardRailEnabled),
     player: activeValueCount(playerOverrides),
     board:
+      activeValueCount(gameStateOverrides) +
       Number(showHoverAreas) +
+      Number(showPlayerPanelBounds) +
       Number(showGridSkeleton) +
       Number(showAttackRows) +
       Number(devToolsEnabled) +
@@ -109,6 +133,9 @@ export function GameDevPanel() {
     stress: 0,
   };
   const activeCount = counts.card + counts.player + counts.board + counts.prompt + counts.stress;
+
+  const searchQuery = searchQueries[workspace];
+  const workspaceLabel = WORKSPACES.find(({ id }) => id === workspace)?.label ?? "dev";
   return (
     <div className="flex min-h-0 flex-col gap-3">
       <div className="rounded-xl border border-border/70 bg-muted/20 p-3 shadow-sm">
@@ -170,28 +197,43 @@ export function GameDevPanel() {
             </button>
           ))}
         </div>
+        <div className="relative mt-3">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            value={searchQuery}
+            onChange={(event) =>
+              setSearchQueries((current) => ({ ...current, [workspace]: event.target.value }))
+            }
+            placeholder={`Search ${workspaceLabel.toLocaleLowerCase()} controls`}
+            aria-label={`Search ${workspaceLabel} controls`}
+            className="pl-9"
+          />
+        </div>
       </div>
 
-      <div role="tabpanel" className="flex flex-col gap-3">
-        {workspace === "card" ? (
-          <>
-            <BattlefieldStyleDevControls />
-            <BattlefieldKeywordDevControls />
-            <DevCardLayoutControls />
-            <CardBadgeDevControls />
-            {import.meta.env.DEV ? <CardRailDevControls /> : null}
-          </>
-        ) : null}
-        {workspace === "player" ? <PlayerBadgeDevControls /> : null}
-        {workspace === "board" ? (
-          <>
-            <DevSizingControls />
-            <BoardDevControls />
-          </>
-        ) : null}
-        {workspace === "prompt" ? <PromptDevControls /> : null}
-        {workspace === "stress" ? <DevStressPresets /> : null}
-      </div>
+      <DevPanelSearchProvider query={searchQuery}>
+        <div role="tabpanel" className="flex flex-col gap-3">
+          {workspace === "card" ? (
+            <>
+              <BattlefieldStyleDevControls />
+              <BattlefieldKeywordDevControls />
+              <DevCardLayoutControls />
+              <CardBadgeDevControls />
+              {import.meta.env.DEV ? <CardRailDevControls /> : null}
+            </>
+          ) : null}
+          {workspace === "player" ? <PlayerBadgeDevControls /> : null}
+          {workspace === "board" ? (
+            <>
+              <DevSizingControls />
+              <BoardDevControls />
+            </>
+          ) : null}
+          {workspace === "prompt" ? <PromptDevControls /> : null}
+          {workspace === "stress" ? <DevStressPresets /> : null}
+        </div>
+      </DevPanelSearchProvider>
     </div>
   );
 }

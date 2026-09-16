@@ -787,7 +787,7 @@ pub fn prompt_etb_tapped_replacement_with_agents(
     agents: &mut [Box<dyn PlayerAgent>],
 ) {
     let applicable = applicable_etb_tapped_replacement_sources(game, entering_card);
-    if applicable.is_empty() {
+    if applicable.len() <= 1 {
         return;
     }
 

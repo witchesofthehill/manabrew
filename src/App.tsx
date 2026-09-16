@@ -7,13 +7,15 @@ import { Toaster } from "@/components/ui/sonner";
 import { DebugLogOverlay } from "@/components/dev/DebugLogOverlay";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppInitGate } from "@/components/AppInitGate";
-import { useTheme } from "@/hooks/useTheme";
+import { SignInDialog } from "@/components/auth/SignInDialog";
+import { useApplyTheme, useThemePreviewMode } from "@/hooks/useTheme";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { lazy, Suspense, useEffect } from "react";
 import { toast } from "sonner";
 import { getPlatformType } from "@/platform";
 import { initApp } from "@/lib/appInit";
+import { isFeatureEnabled } from "@/featureFlags";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { i18n } from "@/i18n/i18n";
 // Importing the store wires the `app:init` event subscription before App mounts,
@@ -25,7 +27,7 @@ const DevToolsPanel = import.meta.env.DEV
   : () => null;
 
 function ThemeApplicator({ children }: { children: React.ReactNode }) {
-  useTheme();
+  useApplyTheme();
   return <>{children}</>;
 }
 
@@ -88,15 +90,17 @@ function PlatformRuntimeChecks() {
 }
 function LocalizedApplication({ devToolsEnabled }: { devToolsEnabled: boolean }) {
   useLingui();
+  const previewMode = useThemePreviewMode();
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem forcedTheme={previewMode}>
       <ThemeApplicator>
         <TooltipProvider delayDuration={120} skipDelayDuration={300}>
           <PlatformRuntimeChecks />
           <AppInitGate>
             <RouterProvider router={router} />
           </AppInitGate>
+          {isFeatureEnabled("accounts") && <SignInDialog />}
           <Toaster />
           {import.meta.env.VITE_STAGING_TOOLS === "1" && <DebugLogOverlay />}
           {import.meta.env.DEV && devToolsEnabled && (

@@ -133,7 +133,7 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
             </Trans>
           </p>
           <DialogFooter>
-            <Button onClick={close}>
+            <Button variant="ghost" onClick={close}>
               <Trans>Done</Trans>
             </Button>
           </DialogFooter>
@@ -171,7 +171,7 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
                 value={option.value}
                 checked={reason === option.value}
                 onChange={() => setReason(option.value)}
-                className="accent-primary"
+                className="accent-selection"
               />
               {option.label}
             </label>
@@ -194,12 +194,8 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
           <Button variant="ghost" onClick={close}>
             <Trans>Cancel</Trans>
           </Button>
-          <Button
-            variant="destructive"
-            disabled={!reason || submitting}
-            onClick={() => void submit()}
-          >
-            {submitting ? i18n._(msg`Sending\u2026`) : i18n._(msg`Send report`)}
+          <Button variant="primary" disabled={!reason || submitting} onClick={() => void submit()}>
+            {submitting ? i18n._(msg`Sending…`) : i18n._(msg`Send report`)}
           </Button>
         </DialogFooter>
       </DialogContent>

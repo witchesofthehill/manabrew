@@ -227,10 +227,15 @@ export function ImportDeckTextDialog({
               </p>
             </div>
             <div className="flex items-center justify-end gap-2 border-t pt-2">
-              <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
                 <Trans>Cancel</Trans>
               </Button>
-              <Button size="sm" className="gap-1" onClick={() => void handleImportClick()}>
+              <Button
+                variant="primary"
+                size="sm"
+                className="gap-1"
+                onClick={() => void handleImportClick()}
+              >
                 <Download className="h-3.5 w-3.5" />
                 {mode === "add" ? i18n._(msg`Confirm addition`) : i18n._(msg`Confirm import`)}
               </Button>
@@ -358,10 +363,11 @@ export function ImportDeckTextDialog({
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t">
-              <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
                 <Trans>Cancel</Trans>
               </Button>
               <Button
+                variant="primary"
                 size="sm"
                 onClick={() => setReviewing(true)}
                 disabled={!valid}

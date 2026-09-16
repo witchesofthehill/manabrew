@@ -10,6 +10,8 @@ interface RichToken {
 
 export interface PixiRichTextOptions {
   parentheticalStyle?: TextStyle;
+  align?: "left" | "center";
+  maxLines?: number;
 }
 
 const TOKEN_PATTERN = /\{([^}]+)\}|\n|[()]|[^\s\n{}()]+|[ \t]+|[{}]/g;
@@ -31,11 +33,18 @@ export class PixiRichText extends Container {
 
     const rawTokens = content.match(TOKEN_PATTERN) ?? [];
     const lines: RichToken[][] = [[]];
+    const maxLines =
+      options.maxLines == null ? Number.POSITIVE_INFINITY : Math.max(1, options.maxLines);
     let lineWidth = 0;
     let parentheticalDepth = 0;
+    let truncated = false;
 
     for (const raw of rawTokens) {
       if (raw === "\n") {
+        if (lines.length >= maxLines) {
+          truncated = true;
+          break;
+        }
         lines.push([]);
         lineWidth = 0;
         continue;
@@ -61,7 +70,17 @@ export class PixiRichText extends Container {
       const isSpace = token.kind === "text" && /^\s+$/.test(token.value);
       const currentLine = lines[lines.length - 1]!;
 
-      if (!isSpace && currentLine.length > 0 && lineWidth + token.width > width) {
+      if (isSpace && (currentLine.length === 0 || lineWidth + token.width > width)) continue;
+      if (!isSpace && lineWidth + token.width > width) {
+        if (currentLine.length === 0) {
+          currentLine.push(token);
+          lineWidth = token.width;
+          if (lines.length >= maxLines) {
+            truncated = true;
+            break;
+          }
+          continue;
+        }
         while (
           currentLine.length > 0 &&
           currentLine[currentLine.length - 1]!.kind === "text" &&
@@ -69,21 +88,42 @@ export class PixiRichText extends Container {
         ) {
           currentLine.pop();
         }
+        if (lines.length >= maxLines) {
+          truncated = true;
+          break;
+        }
         lines.push([token]);
         lineWidth = token.width;
         continue;
       }
 
-      if (isSpace && currentLine.length === 0) continue;
       currentLine.push(token);
       lineWidth += token.width;
+    }
+
+    if (truncated) {
+      const line = lines[lines.length - 1]!;
+      while (
+        line.length > 0 &&
+        line[line.length - 1]!.kind === "text" &&
+        /^\s+$/.test(line[line.length - 1]!.value)
+      ) {
+        line.pop();
+      }
+      const ellipsisWidth = CanvasTextMetrics.measureText("…", style, undefined, false).width;
+      let visibleWidth = line.reduce((sum, token) => sum + token.width, 0);
+      while (line.length > 0 && visibleWidth + ellipsisWidth > width) {
+        visibleWidth -= line.pop()!.width;
+      }
+      line.push({ kind: "text", value: "…", width: ellipsisWidth, style });
     }
 
     const fontSize = typeof style.fontSize === "number" ? style.fontSize : Number(style.fontSize);
     const lineHeight = Math.max(Number(style.lineHeight) || fontSize * 1.3, symbolSize);
 
     lines.forEach((line, lineIndex) => {
-      let x = 0;
+      const renderedWidth = line.reduce((sum, token) => sum + token.width, 0);
+      let x = options.align === "center" ? Math.max(0, (width - renderedWidth) / 2) : 0;
       let textRun = "";
       let textRunX = 0;
       let textRunStyle = style;

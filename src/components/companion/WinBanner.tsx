@@ -41,7 +41,7 @@ function WinBannerInner({ winner }: { winner: CompanionPlayer }) {
           <Button variant="outline" onClick={() => setDismissed(true)}>
             <Trans>Keep playing</Trans>
           </Button>
-          <Button onClick={() => endSession(winner.id)}>
+          <Button variant="primary" onClick={() => endSession(winner.id)}>
             <Trans>Archive game</Trans>
           </Button>
         </div>

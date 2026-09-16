@@ -2,7 +2,7 @@
 
 Forge compiled to WebAssembly with GraalVM Web Image. The package runs Forge on a worker and exposes its state, display and prompt messages on the main thread.
 
-It runs in a browser and on Node. The entry point differs, the API does not. It includes the Forge launcher, the WebAssembly engine and a static `cardset.rkyv` archive. Card scripts for the decks in play and cards named by those scripts are selected from the archive before Forge boots, so the Java boundary only receives the files needed by that game.
+It runs in a browser and on Node. The entry point differs, the API does not. It includes the Forge launcher and the WebAssembly engine, with Forge's whole asset tree — every card script, token script and edition — embedded inside the engine module at build time. Boot unpacks it into the engine's in-memory filesystem with no JavaScript boundary crossing, and the lazy card index Forge builds from it is complete, so any card can come up in a game.
 
 ## Install
 
@@ -25,7 +25,7 @@ Cross-Origin-Embedder-Policy: require-corp
 
 ## Browser: Vite setup
 
-The package's Vite plugin keeps the large engine and cardset out of dependency pre-bundling and emits them as static assets:
+The package's Vite plugin keeps the large engine module out of dependency pre-bundling and emits it as a static asset:
 
 ```js
 // vite.config.js
@@ -85,7 +85,7 @@ const deck = {
 };
 ```
 
-Pass whole decks, not just the maindeck. Every zone above is read when the card scripts are chosen, and a card left out arrives at the table as an unsupported placeholder rather than an error: the game plays on around it.
+Pass whole decks, not just the maindeck. Every zone above is read when the game is set up, so a commander or companion left out never reaches the table it belongs to.
 
 Call `dispose()` to terminate the worker. A running Forge game is synchronous inside the worker, so terminating the worker is the only immediate cancellation mechanism.
 
@@ -117,41 +117,24 @@ await engine.startMultiplayerGame({
 engine.respond(promptId, action, "player-1");
 ```
 
-## Cardset and asset overrides
+## Asset overrides
 
-The default cardset is exported as `@manabrew/forge-wasm/cardset.rkyv`. To serve the same immutable archive from a CDN or another static-file pipeline, pass its URL:
-
-```js
-await createForgeEngine({
-  cardsetUrl: "https://static.example/cardset.rkyv",
-});
-```
-
-A host which already has the Manabrew cardset pipeline can avoid loading the packaged archive by supplying a framed asset string. The framing is `path\0body\0…` and paths are relative to Forge's resource root.
-
-```js
-await createForgeEngine({
-  assets: async (decks) => buildExistingForgeAssetBundle(decks),
-});
-```
-
-The launcher, worker, engine WASM, asset-selector WASM and cardset URLs can all be overridden. Their defaults are module-relative URLs that Vite and other modern bundlers emit as static assets. On Node they default to the installed files, and an override may be a path or a `file:` URL.
+The launcher, worker and engine WASM URLs can all be overridden. Their defaults are module-relative URLs that Vite and other modern bundlers emit as static assets. On Node they default to the installed files, and an override may be a path or a `file:` URL.
 
 ## Which build is this
 
-The package exports three strings, stamped in when it is built:
+The package exports two strings, stamped in when it is built:
 
 ```js
-import { VERSION, CARDSET_ARCHIVE_VERSION, BUILD_COMMIT } from "@manabrew/forge-wasm";
+import { VERSION, BUILD_COMMIT } from "@manabrew/forge-wasm";
 ```
 
-`CARDSET_ARCHIVE_VERSION` is the `forge-cardset-archive` release whose card-script selector is compiled in. It releases on its own cadence, so it names a crate a Rust consumer can install to get the same selection rules, and it is the last released version rather than the exact source. `BUILD_COMMIT` names the tree. Quote all three in a bug report.
+`BUILD_COMMIT` names the tree. Quote both in a bug report.
 
 ## Subpath exports
 
-Two internals are exported because a host that overrides `assets` still needs them, and because Manabrew's own client imports them rather than keeping a second copy:
+One internal is exported because Manabrew's own client imports it rather than keeping a second copy:
 
-- `@manabrew/forge-wasm/deckCards` — `deckCardNames(decks)`, the names to ask the archive selector for.
 - `@manabrew/forge-wasm/seat` — the SharedArrayBuffer seat protocol: `createSeat`, `pollSeat`, `writeSeatMessage`, `deliverSeatDirective` and the signal constants.
 
 ## Licence

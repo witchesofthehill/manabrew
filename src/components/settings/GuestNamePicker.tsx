@@ -53,7 +53,7 @@ export function GuestNamePicker() {
           }}
           placeholder={i18n._(msg`Player1`)}
         />
-        <Button size="sm" disabled={busy || !dirty} onClick={() => void save()}>
+        <Button variant="primary" size="sm" disabled={busy || !dirty} onClick={() => void save()}>
           {busy ? i18n._(msg`Saving\u2026`) : i18n._(msg`Save`)}
         </Button>
       </div>

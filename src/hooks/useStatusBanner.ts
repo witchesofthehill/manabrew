@@ -4,6 +4,7 @@ import { getStatusBannerUrl } from "@/config/webRuntimeConfig";
 import { useStatusBannerStore, type StatusNotification } from "@/stores/useStatusBannerStore";
 
 const POLL_INTERVAL_MS = 60 * 1000;
+const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 function parseNotification(data: unknown): StatusNotification | null {
   if (!data || typeof data !== "object") return null;
@@ -13,6 +14,8 @@ function parseNotification(data: unknown): StatusNotification | null {
   if (raw.severity !== "info" && raw.severity !== "warning" && raw.severity !== "critical") {
     return null;
   }
+  const timestamp = typeof raw.timestamp === "string" ? Date.parse(raw.timestamp) : NaN;
+  if (!Number.isFinite(timestamp) || Date.now() - timestamp > MAX_AGE_MS) return null;
 
   const link = raw.link as Record<string, unknown> | undefined;
   const hasLink = link && typeof link.label === "string" && typeof link.url === "string";

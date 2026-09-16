@@ -23,7 +23,7 @@ pub fn can_replace(
         return false;
     }
     let player = match event {
-        ReplacementEvent::RollPlanarDice { player } => *player,
+        ReplacementEvent::RollPlanarDice { player, .. } => *player,
         _ => return false,
     };
     if let Some(valid) = effect.ir.valid_player_selector.as_ref() {
@@ -37,12 +37,30 @@ pub fn can_replace(
 /// Mirrors Java `ReplacementHandler.executeReplacement()` for RollPlanarDice.
 pub fn execute(
     effect: &ReplacementEffect,
-    _event: &mut ReplacementEvent,
-    _game: &GameState,
-    _source_card_id: CardId,
+    event: &mut ReplacementEvent,
+    game: &GameState,
+    source_card_id: CardId,
 ) -> ReplacementResult {
     if effect.prevents() || effect.has_skip() {
         return ReplacementResult::Skipped;
+    }
+    if let Some(result) = super::replacement_handler::execute_replace_with_numeric_update(
+        effect,
+        event,
+        game,
+        source_card_id,
+        "Number",
+    ) {
+        return result;
+    }
+    if let Some(result) = super::replacement_handler::execute_replace_with_numeric_update(
+        effect,
+        event,
+        game,
+        source_card_id,
+        "Ignore",
+    ) {
+        return result;
     }
     ReplacementResult::Replaced
 }

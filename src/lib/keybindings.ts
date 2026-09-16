@@ -15,7 +15,13 @@ export interface KeybindingDef {
   defaultCombo: KeyCombo;
   allowInEditable?: boolean;
 }
-export const KEYBINDINGS: KeybindingDef[] = [
+function defineKeybindings<const T extends readonly KeybindingDef[]>(
+  definitions: T,
+): readonly (T[number] & KeybindingDef)[] {
+  return definitions;
+}
+
+export const KEYBINDINGS = defineKeybindings([
   {
     id: "nav-prev-page",
     get label() {
@@ -228,7 +234,7 @@ export const KEYBINDINGS: KeybindingDef[] = [
   {
     id: "open-settings",
     get label() {
-      return i18n._(msg`Open preferences`);
+      return i18n._(msg`Open preferences / board settings`);
     },
     category: "Navigation",
     defaultCombo: { key: ",", mod: true },
@@ -322,6 +328,24 @@ export const KEYBINDINGS: KeybindingDef[] = [
     defaultCombo: { key: "s", mod: true },
   },
   {
+    id: "open-graveyard",
+    label: "Open your graveyard",
+    category: "Battlefield",
+    defaultCombo: { key: "g" },
+  },
+  {
+    id: "open-exile",
+    label: "Open your exile",
+    category: "Battlefield",
+    defaultCombo: { key: "x" },
+  },
+  {
+    id: "toggle-combat-breakdown",
+    label: "Toggle combat breakdown",
+    category: "Battlefield",
+    defaultCombo: { key: "c" },
+  },
+  {
     id: "toggle-priority-mode",
     get label() {
       return i18n._(msg`Toggle autopass / full control`);
@@ -353,14 +377,19 @@ export const KEYBINDINGS: KeybindingDef[] = [
     category: "Battlefield",
     defaultCombo: { key: "[" },
   },
-  {
-    id: "open-dev-panel",
-    get label() {
-      return i18n._(msg`Open the dev panel`);
-    },
-    category: "Battlefield",
-    defaultCombo: { key: "d", mod: true, shift: true },
-  },
+  ...(import.meta.env.DEV
+    ? [
+        {
+          id: "toggle-dev-panel",
+          get label() {
+            return i18n._(msg`Toggle the dev panel`);
+          },
+          category: "Battlefield",
+          defaultCombo: { key: "d", mod: true, shift: true },
+          allowInEditable: true,
+        } satisfies KeybindingDef,
+      ]
+    : []),
   {
     id: "toggle-fullscreen",
     get label() {
@@ -369,7 +398,10 @@ export const KEYBINDINGS: KeybindingDef[] = [
     category: "Battlefield",
     defaultCombo: { key: "f", mod: true },
   },
-];
+]);
+
+export type KeybindingId = (typeof KEYBINDINGS)[number]["id"];
+
 export const IS_APPLE =
   typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform);
 export function normalizeCombo(c: KeyCombo): KeyCombo {

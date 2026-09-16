@@ -130,13 +130,7 @@ export function PlayHomeLinks() {
             <Trans>Manabrew v{APP_VERSION}</Trans>
           </span>
           <div className="flex items-center gap-1">
-            <Button
-              asChild
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              title={i18n._(msg`Discord`)}
-            >
+            <Button asChild variant="ghost" size="icon-sm" title={i18n._(msg`Discord`)}>
               <a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer">
                 <DiscordIcon className="h-4 w-4" />
                 <span className="sr-only">
@@ -144,13 +138,7 @@ export function PlayHomeLinks() {
                 </span>
               </a>
             </Button>
-            <Button
-              asChild
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              title={i18n._(msg`GitHub`)}
-            >
+            <Button asChild variant="ghost" size="icon-sm" title={i18n._(msg`GitHub`)}>
               <a href={GITHUB_REPO_URL} target="_blank" rel="noreferrer">
                 <Github className="h-4 w-4" />
                 <span className="sr-only">
@@ -158,13 +146,7 @@ export function PlayHomeLinks() {
                 </span>
               </a>
             </Button>
-            <Button
-              asChild
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              title={i18n._(msg`Website`)}
-            >
+            <Button asChild variant="ghost" size="icon-sm" title={i18n._(msg`Website`)}>
               <a href={WEBSITE_URL} target="_blank" rel="noreferrer">
                 <Globe className="h-4 w-4" />
                 <span className="sr-only">

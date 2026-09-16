@@ -9,13 +9,13 @@ export const IN_GAME_CARD_PREVIEW_STYLE_OPTIONS: ReadonlyArray<{
   {
     value: "printed",
     get label() {
-      return i18n._(msg`Printed card`);
+      return i18n._(msg`Realistic`);
     },
   },
   {
     value: "rules",
     get label() {
-      return i18n._(msg`Dynamic view`);
+      return i18n._(msg`Rules`);
     },
   },
 ];
@@ -26,13 +26,13 @@ export const INLINE_CARD_STYLE_OPTIONS: ReadonlyArray<{
   {
     value: "printed",
     get label() {
-      return i18n._(msg`Printed card`);
+      return i18n._(msg`Realistic`);
     },
   },
   {
     value: "rules",
     get label() {
-      return i18n._(msg`Dynamic view`);
+      return i18n._(msg`Rules`);
     },
   },
 ];

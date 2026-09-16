@@ -125,18 +125,14 @@ export function DeckHealthPanel({
         checks.some((check) => !check.healthy)) && (
         <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border/50 pt-3">
           {unsupportedNames.size > 0 && (
-            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={onShowUnsupported}>
-              <Trans>
-                <AlertTriangle className="mr-1.5 h-3.5 w-3.5 text-warning" />
-                Show {unsupportedNames.size} unsupported
-              </Trans>
+            <Button size="xs" variant="outline" onClick={onShowUnsupported}>
+              <AlertTriangle className="mr-1.5 h-3.5 w-3.5 text-warning" />
+              <Trans>Show {unsupportedNames.size} unsupported</Trans>
             </Button>
           )}
           {checks.some((check) => !check.healthy) && onOpenSearch && (
-            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={onOpenSearch}>
-              <Trans>
-                <Search className="mr-1.5 h-3.5 w-3.5" /> Add missing pieces
-              </Trans>
+            <Button size="xs" variant="outline" onClick={onOpenSearch}>
+              <Search className="mr-1.5 h-3.5 w-3.5" /> <Trans>Add missing pieces</Trans>
             </Button>
           )}
           {validationErrors[0] && (

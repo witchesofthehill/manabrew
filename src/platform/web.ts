@@ -6,7 +6,7 @@
  */
 
 import type { EngineGameStats } from "@/lib/engineTelemetry";
-import { noteEngineThinkTime } from "@/lib/engineTelemetry";
+import { noteEngineThinkTime, noteReplyFrameArrived } from "@/lib/engineTelemetry";
 import type {
   IPlatformApi,
   IGameApi,
@@ -66,9 +66,13 @@ import {
 } from "@/game/webrtcPlane";
 import { ForgeHostBridge } from "@/game/forgeHostBridge";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { isForgeWasmHostingEnabled, setForgeWasmActive } from "@/lib/forgeWasm";
-import { buildForgeAssetBundle } from "@/lib/forgeAssets";
-import type { Deck } from "@/protocol/deck";
+import {
+  FORGE_LAUNCHER_URL,
+  FORGE_WASM_URL,
+  isForgeWasmHostingEnabled,
+  setForgeWasmActive,
+} from "@/lib/forgeWasm";
+import forgeWorkerUrl from "@forge-wasm/forge-engine.worker.js?url";
 // The seat protocol lives with @manabrew/forge-wasm, which drives the same
 // worker, so there is one implementation rather than one per consumer.
 import {
@@ -226,6 +230,11 @@ class WorkerBridge {
   }
 
   private dispatchEngineMessage(msg: EngineMessage): void {
+    // The seat reader has already parsed, so a hair of client work lands on
+    // the far side of the cut here; there is no wire on this path anyway.
+    if (msg?.kind === "state" || msg?.kind === "prompt" || msg?.kind === "display") {
+      noteReplyFrameArrived();
+    }
     logComms("engine", msg);
     if (this.workerIsForgeWasm) {
       const w = window as unknown as { __forgeFrames?: string[] };
@@ -362,7 +371,7 @@ class WorkerBridge {
         this.workerIsForgeWasm = forgeWasm;
         setForgeWasmActive(forgeWasm);
         this.worker = this.workerIsForgeWasm
-          ? new Worker("/forge/forge-engine.worker.js")
+          ? new Worker(forgeWorkerUrl)
           : new Worker(new URL("../workers/game-engine.worker.ts", import.meta.url), {
               type: "module",
             });
@@ -405,7 +414,10 @@ class WorkerBridge {
         this.worker.onmessage = this.handleMessage.bind(this);
         this.worker.onerror = (e) => {
           console.error("[WorkerBridge] Worker error:", e);
-          reject(new Error(`Worker error: ${e.message}`));
+          const error = new Error(`Worker error: ${e.message}`);
+          reject(error);
+          for (const pending of this.pendingRequests.values()) pending.reject(error);
+          this.pendingRequests.clear();
         };
 
         const unsubscribe = this.eventBus.on<{ stage?: string; message?: string }>(
@@ -470,11 +482,7 @@ class WorkerBridge {
     await this.init(forgeWasm);
 
     if (startsGame && this.workerIsForgeWasm) {
-      const decks =
-        command === "start_game"
-          ? [args?.deck as Deck | undefined, ...((args?.opponentDecks as Deck[] | undefined) ?? [])]
-          : ((args?.decks as Deck[] | undefined) ?? []);
-      args = { ...args, forgeAssets: await buildForgeAssetBundle(decks) };
+      args = { ...args, forgeLauncherUrl: FORGE_LAUNCHER_URL, forgeWasmUrl: FORGE_WASM_URL };
     }
 
     if (!this.worker) {
@@ -896,9 +904,12 @@ class WebServerApi implements IServerApi {
         if (this.ws !== socket) return;
         this.lastInboundAt = Date.now();
         if (typeof e.data !== "string") return;
+        // Before the parse: a state frame is tens of kilobytes, and parsing
+        // it is this machine's work, not the wire's.
+        const frameAt = performance.now();
         try {
           const msg = JSON.parse(e.data);
-          this.handleServerMessage(msg);
+          this.handleServerMessage(msg, frameAt);
         } catch {
           // Ignore malformed messages
         }
@@ -1095,6 +1106,7 @@ class WebServerApi implements IServerApi {
       sealed_config: params.sealedConfig ?? null,
       reconnect_timeout_s: params.reconnectTimeoutS ?? null,
       password: params.password ?? null,
+      table_style: params.tableStyle ?? null,
     });
     return null;
   }
@@ -1416,11 +1428,14 @@ class WebServerApi implements IServerApi {
         username: this.authedUsername!,
         signal: (to, payload) => this.send({ type: "SignalPeer", to, payload }),
         deliver: (envelope, fromPlayer) =>
-          this.handleServerMessage({
-            type: "StateUpdate",
-            from_player: fromPlayer,
-            state: envelope,
-          }),
+          this.handleServerMessage(
+            {
+              type: "StateUpdate",
+              from_player: fromPlayer,
+              state: envelope,
+            },
+            performance.now(),
+          ),
         onMeasurement: (m) => this.onPlaneMeasurement(m),
       });
     }
@@ -1467,7 +1482,12 @@ class WebServerApi implements IServerApi {
     this.ws.send(JSON.stringify(msg));
   }
 
-  private handleServerMessage(msg: Record<string, unknown>): void {
+  /**
+   * @param frameAt when the frame carrying `msg` reached this client, for the
+   *   turnaround split. Omitted for synthesised messages, which are not a
+   *   reply arriving.
+   */
+  private handleServerMessage(msg: Record<string, unknown>, frameAt?: number): void {
     const type = msg.type as string;
     // The heartbeat would evict real traffic from the bug-report ring buffer.
     if (type === "Pong") {
@@ -1545,6 +1565,15 @@ class WebServerApi implements IServerApi {
     if (type === "StateUpdate" && msg.state) {
       const envelope = msg.state as StateEnvelope;
       const forPlayer = (envelope as { forPlayer?: string }).forPlayer;
+      if (
+        frameAt !== undefined &&
+        (envelope.kind === "state" ||
+          envelope.kind === "stateDelta" ||
+          envelope.kind === "prompt" ||
+          envelope.kind === "display")
+      ) {
+        noteReplyFrameArrived(frameAt);
+      }
       const promptType =
         envelope.kind === "prompt"
           ? ((envelope as { prompt?: { input?: { type?: string } } }).prompt?.input?.type ?? "?")

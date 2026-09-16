@@ -30,11 +30,19 @@
  *   node --trace-gc scripts/engine-bench/forge-wasm-game.mjs --seats 4 > game.log
  *
  * Then: python3 scripts/engine-bench/summarise.py 'game*.jsonl'
+ *
+ * `--policy greedy` plays the human seat instead of passing: a land a turn, the
+ * first castable spell, every creature attacks. It is not a player, it is a way
+ * to put the human's permanents on the board so the AI has more to look at.
+ * `--engine <dir>` loads the package from a directory holding a local
+ * `build:forge-wasm` output instead of the installed npm package. `--games N`
+ * plays N games in one engine, which is how a browser tab behaves, and samples
+ * the host heap between games. `--seed` pins the shuffle. `stress.mjs` drives
+ * all of this across a matrix.
  */
-import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { createForgeEngine, BUILD_COMMIT, VERSION } from "@manabrew/forge-wasm";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const PRESETS = join(root, "public", "preset_decks");
@@ -47,10 +55,29 @@ function option(name, fallback) {
 const seats = Number(option("seats", 4));
 const timeoutS = Number(option("timeout", 1800));
 const out = option("out", `forge-wasm-${seats}seat.jsonl`);
+const policy = option("policy", "pass");
+const games = Number(option("games", 1));
+const seedOption = option("seed", null);
+const engineSource = option("engine", "npm");
 const deckNames = option(
   "decks",
   "kaalia_regression_commander,starter_deck_animar,real_teval_commander,neheb_minotaur_commander",
 ).split(",");
+
+/**
+ * The npm package, or a checkout's `packages/forge-wasm` (or any directory
+ * holding the same files) when a build under test has not been released.
+ */
+async function loadPackage(source) {
+  if (source === "npm") return import("@manabrew/forge-wasm");
+  const dir = resolve(source);
+  if (!existsSync(join(dir, "forgeharness.js.wasm"))) {
+    throw new Error(`${dir} has no forgeharness.js.wasm; run yarn build:forge-wasm first`);
+  }
+  return import(pathToFileURL(join(dir, "node.js")).href);
+}
+
+const { createForgeEngine, BUILD_COMMIT, VERSION } = await loadPackage(engineSource);
 
 /**
  * A preset as a `ForgeDeck`. The commander has to move out of the 99 and into
@@ -60,7 +87,8 @@ const deckNames = option(
  * command zone.
  */
 function loadDeck(basename) {
-  const raw = JSON.parse(readFileSync(join(PRESETS, `${basename}.json`), "utf8"));
+  const path = basename.endsWith(".json") ? resolve(basename) : join(PRESETS, `${basename}.json`);
+  const raw = JSON.parse(readFileSync(path, "utf8"));
   const card = (c) => ({
     name: c.name,
     setCode: c.set,
@@ -142,6 +170,96 @@ const REPLIES = {
   payManaCost: () => ({ type: "cancel" }),
 };
 
+/**
+ * A seat that plays. One land a turn, then the first spell the engine offers
+ * whose payment auto-tap can cover; every creature attacks the first legal
+ * target. Auto-pay is tried once per card per turn: a second `payManaCost` for
+ * the same card means the tap could not cover it, so the cast is cancelled and
+ * the card is left alone until the next turn. The pass policy's answers cover
+ * every other prompt.
+ */
+const greedy = {
+  landPlayedOn: -1,
+  tried: new Set(),
+  paying: null,
+  reset(atTurn) {
+    if (atTurn !== this.turn) {
+      this.turn = atTurn;
+      this.tried.clear();
+      this.paying = null;
+    }
+  },
+  chooseAction(p, atTurn) {
+    this.reset(atTurn);
+    const casts = (p.input.actions || []).filter(
+      (a) => a.type === "cast" && !this.tried.has(a.cardId),
+    );
+    const land = casts.find((a) => /^Play /.test(a.label || a.modeLabel || ""));
+    const pick = this.landPlayedOn !== atTurn && land ? land : casts.find((a) => a !== land);
+    if (!pick) return { type: "pass" };
+    this.tried.add(pick.cardId);
+    if (pick === land) this.landPlayedOn = atTurn;
+    this.paying = null;
+    return { type: "act", actionId: pick.id };
+  },
+  payManaCost(p) {
+    if (p.input.canConfirmFromPool) return { type: "pay", auto: false };
+    if (this.paying === p.input.cardId) {
+      this.paying = null;
+      return { type: "cancel" };
+    }
+    this.paying = p.input.cardId;
+    return { type: "pay", auto: true };
+  },
+  chooseAttackers(p) {
+    const assignments = (p.input.attackers || []).flatMap((a) =>
+      a.validTargetIds?.length ? [{ attackerId: a.attackerId, targetId: a.validTargetIds[0] }] : [],
+    );
+    return { type: "declareAttackers", assignments };
+  },
+};
+
+/**
+ * An optional effect answered with "no" can come straight back: some cards
+ * re-ask until the player takes them up. Sixty answers to the same prompt type
+ * inside one turn is not a game, so flip to "yes, everything" for that turn,
+ * and if that does not move it either, give the game up as a loop.
+ */
+const LOOP_AFTER = 60;
+const loop = { turn: -1, counts: new Map(), flipped: false, dumped: false };
+function loopGuard(type, prompt, atTurn) {
+  if (loop.turn !== atTurn) {
+    loop.turn = atTurn;
+    loop.counts.clear();
+    loop.flipped = false;
+  }
+  const seen = (loop.counts.get(type) ?? 0) + 1;
+  loop.counts.set(type, seen);
+  if (seen === LOOP_AFTER && !loop.flipped) {
+    loop.flipped = true;
+    note({ ev: "loop", type, turn: atTurn, prompt: JSON.stringify(prompt).slice(0, 600) });
+  }
+  return seen >= 2 * LOOP_AFTER ? "concede" : loop.flipped ? "flip" : null;
+}
+
+const FLIPPED = {
+  chooseBoolean: () => ({ type: "decision", value: true }),
+  chooseCards: (p) => ({
+    type: "chooseCardsDecision",
+    chosenCardIds: (p.input.cards || []).map((c) => c.id).slice(0, p.input.max ?? undefined),
+  }),
+};
+
+function answer(type, prompt, atTurn) {
+  const guard = loopGuard(type, prompt, atTurn);
+  if (guard === "concede") return null;
+  if (guard === "flip" && FLIPPED[type]) return FLIPPED[type](prompt);
+  if (policy === "greedy" && typeof greedy[type] === "function")
+    return greedy[type](prompt, atTurn);
+  const reply = REPLIES[type];
+  return reply ? reply(prompt) : null;
+}
+
 const decks = Array.from({ length: seats }, (_, i) => loadDeck(deckNames[i % deckNames.length]));
 const startedAt = Date.now();
 const rows = [];
@@ -151,25 +269,40 @@ const note = (row) => {
   const line = JSON.stringify({
     t: Date.now() - startedAt,
     up: Math.round(process.uptime() * 1000),
+    game,
     ...row,
   });
   rows.push(row);
   appendFileSync(out, `${line}\n`);
 };
 
+const memory = () => {
+  const m = process.memoryUsage();
+  return { rss: m.rss, heap: m.heapUsed, external: m.external, arrayBuffers: m.arrayBuffers };
+};
+
+let game = 0;
 writeFileSync(out, "");
 note({
   ev: "start",
   version: VERSION,
   commit: BUILD_COMMIT,
   seats,
+  policy,
+  games,
+  engine: engineSource,
   decks: deckNames.slice(0, seats),
 });
 
 let answeredAt = null;
 let prompts = 0;
 let turn = 0;
+let gameStartedAt = Date.now();
+let finishGame = null;
 const logs = [];
+const STALL_MS = Number(option("stall", 5000));
+let lastPrompt = null;
+let logLines = 0;
 
 function summarise() {
   const decisions = rows.filter((r) => r.ev === "decision");
@@ -196,17 +329,24 @@ function summarise() {
   }
 }
 
-function finish(why) {
-  note({ ev: "end", why, prompts, turn, tail: logs.slice(-30) });
-  console.log(
-    `\n${why}: ${prompts} prompts over ${((Date.now() - startedAt) / 1000).toFixed(0)}s, turn ${turn}`,
-  );
-  if (why !== "game:over") console.log(`forge log tail:\n  ${logs.slice(-25).join("\n  ")}`);
+function exit(why) {
+  console.log(`\n${why}: ${games} games over ${((Date.now() - startedAt) / 1000).toFixed(0)}s`);
+  if (why !== "game:over") {
+    console.log(
+      `forge log tail:\n  ${logs
+        .slice(-25)
+        .map((l) => l.text)
+        .join("\n  ")}`,
+    );
+  }
   summarise();
   process.exit(why === "game:over" ? 0 : 1);
 }
 
-setTimeout(() => finish("timeout"), timeoutS * 1000).unref();
+setTimeout(() => {
+  note({ ev: "end", why: "timeout", prompts, turn, tail: logs.slice(-30).map((l) => l.text) });
+  exit("timeout");
+}, timeoutS * 1000).unref();
 
 const engine = await createForgeEngine({
   onState: (state) => {
@@ -220,34 +360,87 @@ const engine = await createForgeEngine({
       note({ ev: "turnaround", type, ms: Date.now() - answeredAt, turn });
       answeredAt = null;
     }
-    const reply = REPLIES[type];
-    if (!reply) {
-      note({ ev: "unhandled", type, prompt: JSON.stringify(prompt).slice(0, 400) });
+    lastPrompt = {
+      type,
+      actions: prompt.input?.actions?.length ?? null,
+      casts: prompt.input?.actions?.filter((a) => a.type === "cast").length ?? null,
+    };
+    const output = answer(type, prompt, turn);
+    if (output?.type === "act" || output?.type === "cancel" || output?.type === "pay") {
+      note({ ev: "play", type, output: output.type, card: prompt.input.cardId ?? null, turn });
+    }
+    if (!output) {
+      note({ ev: "unhandled", type, prompt: JSON.stringify(prompt).slice(0, 600) });
       engine.directive({ type: "concede" });
       return;
     }
     answeredAt = Date.now();
-    engine.respond(prompt.promptId, { type, output: reply(prompt) });
+    engine.respond(prompt.promptId, { type, output });
   },
   onError: (error) => note({ ev: "error", error: JSON.stringify(error).slice(0, 300) }),
   onEvent: (event, payload) => {
     if (event === "forge:decision") {
-      note({ ev: "decision", ...payload, turn });
-      if (payload.ms > 5000) {
+      note({ ev: "decision", ...payload, turn, offered: lastPrompt?.actions ?? null });
+      if (payload.ms > STALL_MS) {
         console.log(`  stall ${payload.ms}ms ${payload.type} turns=${payload.turns} @turn ${turn}`);
+        const since = Date.now() - payload.ms - 50;
+        note({
+          ev: "stall",
+          ...payload,
+          turn,
+          prompt: lastPrompt,
+          log: logs.filter((l) => l.at >= since).map((l) => `${l.at - since}ms ${l.text}`),
+        });
       }
       return;
     }
-    if (event === "forge:log") logs.push(payload.text);
-    if (event === "game:forced_end") finish("game:forced_end");
-    if (event === "game:over") finish("game:over");
+    if (event === "forge:log") {
+      logLines += 1;
+      logs.push({ at: Date.now(), text: payload.text.slice(0, 300) });
+      if (logs.length > 2000) logs.splice(0, 1000);
+    }
+    if (event === "game:forced_end") finishGame?.("game:forced_end");
+    if (event === "game:over") finishGame?.("game:over");
   },
 });
 
-note({ ev: "booted" });
-await engine.startGame({
-  deck: decks[0],
-  opponentDecks: decks.slice(1),
-  commanderName: decks[0].commanders[0].name,
-});
-note({ ev: "started" });
+note({ ev: "booted", memory: memory() });
+
+for (game = 1; game <= games; game += 1) {
+  const seed = seedOption === null ? null : Number(seedOption) + game - 1;
+  prompts = 0;
+  turn = 0;
+  answeredAt = null;
+  greedy.landPlayedOn = -1;
+  greedy.turn = undefined;
+  gameStartedAt = Date.now();
+  const ended = new Promise((resolve) => {
+    finishGame = resolve;
+  });
+  await engine.startGame({
+    deck: decks[0],
+    opponentDecks: decks.slice(1),
+    commanderName: decks[0].commanders[0].name,
+    ...(seed === null ? {} : { seed }),
+  });
+  note({ ev: "started", seed });
+  const why = await ended;
+  finishGame = null;
+  note({
+    ev: "end",
+    why,
+    prompts,
+    turn,
+    duration_ms: Date.now() - gameStartedAt,
+    logLines,
+    memory: memory(),
+    tail: why === "game:over" ? [] : logs.slice(-30).map((l) => l.text),
+  });
+  console.log(
+    `game ${game}/${games} ${why}: ${prompts} prompts over ${((Date.now() - gameStartedAt) / 1000).toFixed(0)}s, turn ${turn}`,
+  );
+  if (why !== "game:over") exit(why);
+  logs.length = 0;
+}
+
+exit("game:over");

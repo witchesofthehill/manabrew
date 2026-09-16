@@ -133,7 +133,7 @@ export default function MyCollection() {
                 </Trans>
               </Button>
               <Button
-                variant="destructive"
+                variant="destructive-quiet"
                 disabled={loading || collectionRows.length === 0}
                 onClick={() => setDeleteOpen(true)}
               >

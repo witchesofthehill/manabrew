@@ -51,8 +51,8 @@ export function CollectionDeleteDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" disabled={deleting} onClick={() => onOpenChange(false)}>
-            <Trans>Cancel</Trans>
+          <Button variant="ghost" disabled={deleting} onClick={() => onOpenChange(false)}>
+            Cancel
           </Button>
           <Button variant="destructive" disabled={deleting} onClick={() => void handleDelete()}>
             {deleting ? <LoaderCircle className="animate-spin" /> : <Trash2 className="h-4 w-4" />}

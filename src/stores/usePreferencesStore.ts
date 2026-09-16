@@ -9,6 +9,9 @@ import type { PlaymatSettings } from "@/protocol/game";
 import type { GameFormat } from "@/types/server";
 import type { HandOrderMode } from "@/lib/handOrder";
 import { APP_LOCALES, type AppLanguagePreference } from "@/i18n/locales";
+import { DEFAULT_BOARD_BACKGROUND_ID, type BoardBackgroundId } from "@/pixi/board/boardBackgrounds";
+import type { ThemeColors } from "@/themes/appTheme";
+import type { ThemeMode } from "@/themes/themeDocument";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
 export type CardPreviewMode = "hover" | "right-click";
@@ -30,9 +33,10 @@ export const CARD_SIZE_MULTIPLIER_MIN = 0.75;
 // (the old 300% top was one: everything saturated around 150%).
 export const CARD_SIZE_MULTIPLIER_MAX = 1.5;
 
-interface PreferencesState {
+export interface PreferencesState {
   appThemePreset: string;
   setAppThemePreset: (id: string) => void;
+  personalThemeName: string | null;
   appLanguage: AppLanguagePreference;
   setAppLanguage: (language: AppLanguagePreference) => void;
 
@@ -64,6 +68,8 @@ interface PreferencesState {
   setBattlefieldAutoSort: (value: boolean) => void;
   handOrderMode: HandOrderMode;
   setHandOrderMode: (mode: HandOrderMode) => void;
+  opponentLayout: "focused" | "overview";
+  setOpponentLayout: (layout: "focused" | "overview") => void;
 
   // One knob for card size: battlefield cards on ALL fields plus the hand
   // fan. 1 = the classic 3-row board; 1.5 = the 2-row fill that is the
@@ -84,6 +90,9 @@ interface PreferencesState {
   // the image.
   battlefieldCardStyle: BattlefieldCardStyle;
   setBattlefieldCardStyle: (style: BattlefieldCardStyle) => void;
+
+  boardBackgroundId: BoardBackgroundId;
+  setBoardBackgroundId: (id: BoardBackgroundId) => void;
 
   // Perf escape hatch for weaker hardware; the board still functions when off
   // (cards move, state indicators stay).
@@ -118,12 +127,14 @@ interface PreferencesState {
   setHandCardStyle: (style: InlineCardStyle) => void;
   stackCardStyle: InlineCardStyle;
   setStackCardStyle: (style: InlineCardStyle) => void;
+  promptCardStyle: InlineCardStyle;
+  setPromptCardStyle: (style: InlineCardStyle) => void;
   collapsedRulesPreviewSections: RulesPreviewSectionId[];
   setRulesPreviewSectionCollapsed: (section: RulesPreviewSectionId, collapsed: boolean) => void;
 
-  appThemeColorOverrides: Record<string, string>;
-  setAppThemeColorOverride: (key: string, hsl: string) => void;
-  resetAppThemeColorOverrides: () => void;
+  appThemeColorOverrides: Record<ThemeMode, Partial<ThemeColors>>;
+  setAppThemeColorOverride: (mode: ThemeMode, key: keyof ThemeColors, color: string) => void;
+  resetAppThemeColorOverrides: (mode: ThemeMode) => void;
 
   gameThemeColorOverrides: Record<string, string>;
   setGameThemeColorOverride: (path: string, color: string) => void;
@@ -141,10 +152,13 @@ interface PreferencesState {
 
   lastRoomSetup: LastRoomSetup | null;
   setLastRoomSetup: (setup: LastRoomSetup) => void;
+  tableBackground: BoardBackgroundId;
+  setTableBackground: (background: BoardBackgroundId) => void;
 }
 
 const PERSISTED_PREFERENCE_KEYS = [
   "appThemePreset",
+  "personalThemeName",
   "appLanguage",
   "flashDurationMs",
   "serverHost",
@@ -157,9 +171,11 @@ const PERSISTED_PREFERENCE_KEYS = [
   "zonePanelOrder",
   "battlefieldAutoSort",
   "handOrderMode",
+  "opponentLayout",
   "cardSizeMultiplier",
   "lockZoneTiles",
   "battlefieldCardStyle",
+  "boardBackgroundId",
   "inGameAnimations",
   "chooseOrderOnMultipleTriggers",
   "ironsmithRuntimeEnabled",
@@ -170,6 +186,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "inGameCardPreviewStyle",
   "handCardStyle",
   "stackCardStyle",
+  "promptCardStyle",
   "collapsedRulesPreviewSections",
   "appThemeColorOverrides",
   "gameThemeColorOverrides",
@@ -178,6 +195,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "lastOfflineFormatId",
   "lastAiOpponent",
   "lastRoomSetup",
+  "tableBackground",
 ] as const satisfies readonly (keyof PreferencesState)[];
 
 function pickPersistedPreferences(persistedState: unknown): Partial<PreferencesState> {
@@ -187,10 +205,25 @@ function pickPersistedPreferences(persistedState: unknown): Partial<PreferencesS
   for (const key of PERSISTED_PREFERENCE_KEYS) {
     if (key in persisted) next[key] = persisted[key];
   }
+  const appOverrides = next.appThemeColorOverrides;
+  if (appOverrides && typeof appOverrides === "object" && !Array.isArray(appOverrides)) {
+    const overrides = appOverrides as Record<string, unknown>;
+    if (!("light" in overrides) && !("dark" in overrides)) {
+      next.appThemeColorOverrides = { light: { ...overrides }, dark: { ...overrides } };
+    } else {
+      next.appThemeColorOverrides = {
+        light: overrides.light ?? {},
+        dark: overrides.dark ?? {},
+      };
+    }
+  } else {
+    delete next.appThemeColorOverrides;
+  }
   // Treat a persisted empty username as "unset" so the auto-generated default
   // wins on rehydrate. Without this, users who once had the empty default
   // saved would never get a generated name.
   if (next.serverUsername === "") delete next.serverUsername;
+  if (next.cardPreviewMode === "click") delete next.cardPreviewMode;
   // Values saved while the slider still went to 300% clamp to the new max.
   if (typeof next.cardSizeMultiplier === "number") {
     next.cardSizeMultiplier = Math.max(
@@ -222,7 +255,13 @@ export const usePreferencesStore = create<PreferencesState>()(
         return {
           appThemePreset: "default",
           setAppThemePreset: (appThemePreset) =>
-            set({ appThemePreset, appThemeColorOverrides: {}, gameThemeColorOverrides: {} }),
+            set({
+              appThemePreset,
+              personalThemeName: null,
+              appThemeColorOverrides: { light: {}, dark: {} },
+              gameThemeColorOverrides: {},
+            }),
+          personalThemeName: null,
           appLanguage: "system",
           setAppLanguage: (appLanguage) => set({ appLanguage }),
 
@@ -279,6 +318,9 @@ export const usePreferencesStore = create<PreferencesState>()(
           battlefieldCardStyle: "realistic",
           setBattlefieldCardStyle: (battlefieldCardStyle) => set({ battlefieldCardStyle }),
 
+          boardBackgroundId: DEFAULT_BOARD_BACKGROUND_ID,
+          setBoardBackgroundId: (boardBackgroundId) => set({ boardBackgroundId }),
+
           inGameAnimations: true,
           setInGameAnimations: (inGameAnimations) => set({ inGameAnimations }),
 
@@ -298,6 +340,9 @@ export const usePreferencesStore = create<PreferencesState>()(
           cardPreviewMode: "hover",
           setCardPreviewMode: (cardPreviewMode) => set({ cardPreviewMode }),
 
+          opponentLayout: "focused",
+          setOpponentLayout: (opponentLayout) => set({ opponentLayout }),
+
           cardHoverDelayMs: 350,
           setCardHoverDelayMs: (ms) => set({ cardHoverDelayMs: ms }),
           inGameCardPreviewStyle: "printed",
@@ -306,6 +351,8 @@ export const usePreferencesStore = create<PreferencesState>()(
           setHandCardStyle: (handCardStyle) => set({ handCardStyle }),
           stackCardStyle: "printed",
           setStackCardStyle: (stackCardStyle) => set({ stackCardStyle }),
+          promptCardStyle: "printed",
+          setPromptCardStyle: (promptCardStyle) => set({ promptCardStyle }),
           collapsedRulesPreviewSections: [],
           setRulesPreviewSectionCollapsed: (section, collapsed) =>
             set((state) => ({
@@ -316,12 +363,18 @@ export const usePreferencesStore = create<PreferencesState>()(
                 : state.collapsedRulesPreviewSections.filter((id) => id !== section),
             })),
 
-          appThemeColorOverrides: {},
-          setAppThemeColorOverride: (key, hsl) =>
+          appThemeColorOverrides: { light: {}, dark: {} },
+          setAppThemeColorOverride: (mode, key, color) =>
             set((state) => ({
-              appThemeColorOverrides: { ...state.appThemeColorOverrides, [key]: hsl },
+              appThemeColorOverrides: {
+                ...state.appThemeColorOverrides,
+                [mode]: { ...state.appThemeColorOverrides[mode], [key]: color },
+              },
             })),
-          resetAppThemeColorOverrides: () => set({ appThemeColorOverrides: {} }),
+          resetAppThemeColorOverrides: (mode) =>
+            set((state) => ({
+              appThemeColorOverrides: { ...state.appThemeColorOverrides, [mode]: {} },
+            })),
 
           gameThemeColorOverrides: {},
           setGameThemeColorOverride: (path, color) =>
@@ -351,6 +404,8 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           lastRoomSetup: null,
           setLastRoomSetup: (lastRoomSetup) => set({ lastRoomSetup }),
+          tableBackground: DEFAULT_BOARD_BACKGROUND_ID,
+          setTableBackground: (tableBackground) => set({ tableBackground }),
         };
       },
       {

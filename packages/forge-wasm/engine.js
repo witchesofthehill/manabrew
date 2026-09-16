@@ -1,10 +1,6 @@
-import initAssetBuilder, { forge_asset_bundle } from "./forge-assets.js";
-import { deckCardNames } from "./deckCards.js";
 import { createSeat, deliverSeatDirective, pollSeat, writeSeatMessage } from "./seat.js";
 
 const LOCAL_SEAT = "local";
-
-let assetBuilderPromise;
 
 /**
  * The engine, less the four things a runtime decides: where its files are, how
@@ -21,7 +17,6 @@ export class ForgeEngine {
     this.requestId = 0;
     this.pending = new Map();
     this.seats = new Map();
-    this.cardsetBytes = null;
   }
 
   async init() {
@@ -55,38 +50,19 @@ export class ForgeEngine {
     return this.ready;
   }
 
-  async buildAssets(decks) {
-    if (typeof this.options.assets === "string") return this.options.assets;
-    if (typeof this.options.assets === "function") return this.options.assets(decks);
-    if (!assetBuilderPromise) {
-      assetBuilderPromise = this.platform
-        .assetModule(this.locations.assetWasm)
-        .then((module_or_path) => initAssetBuilder({ module_or_path }));
-    }
-    await assetBuilderPromise;
-    if (!this.cardsetBytes) {
-      this.cardsetBytes = await this.platform.readCardset(this.locations.cardset);
-    }
-    return forge_asset_bundle(this.cardsetBytes, deckCardNames(decks));
-  }
-
   async startGame(args) {
     await this.init();
-    const decks = [args.deck, ...(args.opponentDecks?.length ? args.opponentDecks : [args.deck])];
-    const forgeAssets = args.forgeAssets || (await this.buildAssets(decks));
-    return this.command("start_game", this.runtimeArgs(args, forgeAssets));
+    return this.command("start_game", this.runtimeArgs(args));
   }
 
   async startMultiplayerGame(args) {
     await this.init();
-    const forgeAssets = args.forgeAssets || (await this.buildAssets(args.decks));
-    return this.command("start_multiplayer_game", this.runtimeArgs(args, forgeAssets));
+    return this.command("start_multiplayer_game", this.runtimeArgs(args));
   }
 
-  runtimeArgs(args, forgeAssets) {
+  runtimeArgs(args) {
     return {
       ...args,
-      forgeAssets,
       forgeLauncherUrl: this.locations.launcher,
       forgeWasmUrl: this.locations.wasm,
     };

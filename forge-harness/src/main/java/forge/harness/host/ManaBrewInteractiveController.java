@@ -2509,12 +2509,11 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     public void revealAISkipCards(final String message, final Map<Player, Map<DeckSection, List<? extends PaperCard>>> deckCards) {
         for (final Player p : deckCards.keySet()) {
             final Map<DeckSection, List<? extends PaperCard>> removedUnplayableCards = deckCards.get(p);
-            final StringBuilder labels = new StringBuilder();
-            for (final DeckSection s : new TreeSet<>(removedUnplayableCards.keySet())) {
-                labels.append(" === ").append(s).append(" === ");
-                labels.append(paperCardNames(removedUnplayableCards.get(s)));
+            final List<PaperCard> cards = new ArrayList<>();
+            for (final DeckSection section : new TreeSet<>(removedUnplayableCards.keySet())) {
+                cards.addAll(removedUnplayableCards.get(section));
             }
-            session.awaitNotifyAcknowledgement(me(), fromPlayerDeckMessage(message, p) + ":" + labels);
+            session.awaitRevealPaperCards(me(), cards, p, fromPlayerDeckMessage(message, p));
         }
     }
 

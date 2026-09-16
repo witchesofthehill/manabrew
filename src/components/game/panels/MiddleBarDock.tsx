@@ -8,6 +8,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Settings2,
+  Swords,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -28,10 +29,10 @@ import { Trans } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/i18n/i18n";
 interface MiddleBarDockProps {
-  /** Controlled open state — the trigger is the Pixi gear in the self panel. */
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onOpenSettings: () => void;
+  onOpenCombat?: () => void;
   onConcede: () => void;
   eliminated: boolean;
   onLeave: () => void;
@@ -47,13 +48,12 @@ interface MiddleBarDockProps {
     textColor: string;
   }[];
 }
-/** Board menu opened by the self panel's Pixi gear — fullscreen, the dev/side
- *  panel toggle, and concede. Controlled; the trigger is just a positioning
- *  anchor near the gear. */
+
 export function MiddleBarDock({
   open,
   onOpenChange,
   onOpenSettings,
+  onOpenCombat,
   onConcede,
   eliminated,
   onLeave,
@@ -84,12 +84,10 @@ export function MiddleBarDock({
   const PanelIcon = sidePanelCollapsed ? PanelRightOpen : PanelRightClose;
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
-      {/* The visible trigger is the Pixi gear in the self panel; this is just a
-            zero-size anchor near it for the menu to position against. */}
       <DropdownMenuTrigger asChild>
-        <span aria-hidden className="pointer-events-none absolute bottom-14 left-6 h-0 w-0" />
+        <span aria-hidden className="pointer-events-none absolute bottom-14 right-6 h-0 w-0" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side="top">
+      <DropdownMenuContent align="end" side="top">
         {isWeb && (
           <DropdownMenuItem onSelect={() => toggleFullscreen()}>
             <FullscreenIcon className="mr-2 h-4 w-4" />
@@ -106,6 +104,12 @@ export function MiddleBarDock({
             Board settings
           </Trans>
         </DropdownMenuItem>
+        {onOpenCombat && (
+          <DropdownMenuItem onSelect={onOpenCombat}>
+            <Swords className="mr-2 h-4 w-4" />
+            Combat breakdown
+          </DropdownMenuItem>
+        )}
         {players.length > 0 && (
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>

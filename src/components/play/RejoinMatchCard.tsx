@@ -127,6 +127,7 @@ export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) 
             </Trans>
           </Button>
           <Button
+            variant="primary"
             size="sm"
             className="gap-1.5"
             disabled={abandoning}

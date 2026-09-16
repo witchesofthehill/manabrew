@@ -53,7 +53,7 @@ export default function Companion() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setNewOpen(true)}>
+          <Button variant="primary" onClick={() => setNewOpen(true)}>
             <Trans>Start a game</Trans>
           </Button>
           <StatsDialog />

@@ -1,25 +1,11 @@
-import { ZoneViewer, SpellStackModal, AbilityPickerModal } from "@/components/game/modals";
-import type { CardDto, StackObjectDto } from "@/protocol/game";
+import { ZoneViewer, AbilityPickerModal } from "@/components/game/modals";
 import type { AbilityPickerState, HandActionOption } from "@/stores/useGameUIStore";
+import type { ZoneViewerProps } from "@/components/game/modals/ZoneViewer";
+import { useGameStore } from "@/stores/useGameStore";
 
 interface GameOverlaysProps {
-  viewingZone: {
-    title: string;
-    cards: CardDto[];
-    onClickCard?: (cardId: string) => void;
-    clickableCardIds?: string[];
-    selectedCardIds?: string[];
-    clickLabel?: string;
-    selectedLabel?: string;
-    targetHostile?: boolean;
-  } | null;
+  viewingZone: Omit<ZoneViewerProps, "onClose"> | null;
   onCloseZone: () => void;
-  spellStackModalOpen: boolean;
-  stack: StackObjectDto[];
-  validSpellIds: string[];
-  onTargetSpell: (spellId: string) => void;
-  onCloseStack: () => void;
-  playerColorMap?: Map<string, string>;
   abilityPickerState: AbilityPickerState | null;
   onSelectAbility: (ability: HandActionOption) => void;
   onCancelAbilityPicker: () => void;
@@ -28,45 +14,24 @@ interface GameOverlaysProps {
 export function GameOverlays({
   viewingZone,
   onCloseZone,
-  spellStackModalOpen,
-  stack,
-  validSpellIds,
-  onTargetSpell,
-  onCloseStack,
-  playerColorMap,
   abilityPickerState,
   onSelectAbility,
   onCancelAbilityPicker,
 }: GameOverlaysProps) {
+  const pending = useGameStore((s) => s.isWaitingForResponse);
+  const error = useGameStore((s) =>
+    s.debugInfo.startsWith("Respond error:") ? s.debugInfo : undefined,
+  );
   return (
     <>
-      {viewingZone && (
-        <ZoneViewer
-          title={viewingZone.title}
-          cards={viewingZone.cards}
-          onClose={onCloseZone}
-          onClickCard={viewingZone.onClickCard}
-          clickableCardIds={viewingZone.clickableCardIds}
-          selectedCardIds={viewingZone.selectedCardIds}
-          clickLabel={viewingZone.clickLabel}
-          selectedLabel={viewingZone.selectedLabel}
-          targetHostile={viewingZone.targetHostile}
-        />
-      )}
-
-      {spellStackModalOpen && stack.length > 0 && (
-        <SpellStackModal
-          stack={stack}
-          validSpellIds={validSpellIds}
-          onTarget={onTargetSpell}
-          onCancel={onCloseStack}
-          playerColorMap={playerColorMap}
-        />
-      )}
+      {viewingZone && <ZoneViewer {...viewingZone} onClose={onCloseZone} />}
 
       {abilityPickerState?.card && (
         <AbilityPickerModal
           sourceCard={abilityPickerState.card}
+          liveCard={abilityPickerState.source}
+          pending={pending}
+          error={error}
           abilities={abilityPickerState.abilities}
           onSelect={onSelectAbility}
           onCancel={onCancelAbilityPicker}

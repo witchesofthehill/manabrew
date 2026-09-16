@@ -68,6 +68,8 @@ pub enum AnalyticsEvent {
         engine: EngineKind,
         hosted: bool,
         official: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        table_style: Option<String>,
         starting_life: i32,
         players: Vec<SeatInfo>,
     },
@@ -160,6 +162,21 @@ pub enum AnalyticsEvent {
         #[serde(skip_serializing_if = "Option::is_none")]
         engine_cross_max: Option<u32>,
         think_hidden: u32,
+        /// `turnaround` cut at the first reply frame reaching the client:
+        /// server, wire and transfer on one side, parse, apply and render on
+        /// the other. Absent from clients that predate the cut.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        reply_wait_p50: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        reply_wait_p90: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        reply_wait_max: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        client_work_p50: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        client_work_p90: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        client_work_max: Option<u32>,
     },
 
     DeckSelected {

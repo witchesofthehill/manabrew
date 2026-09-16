@@ -17,8 +17,8 @@ export function DraftPoolPanel({ cards, preview, onBuild }: DraftPoolPanelProps)
           <Trans>Picks ({cards.length})</Trans>
         </h2>
         {onBuild && cards.length > 0 && (
-          <Button size="sm" variant="outline" onClick={onBuild} className="h-7 text-xs">
-            <Trans>Build</Trans>
+          <Button size="xs" variant="outline" onClick={onBuild}>
+            Build
           </Button>
         )}
       </div>

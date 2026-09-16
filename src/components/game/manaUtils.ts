@@ -1,6 +1,10 @@
 import type { ActivatableAbilityInfo } from "@/protocol/prompts/common";
+import type { ManaLetter } from "@/themes/gameTheme";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/i18n/i18n";
+
+export const ANY_COLOR_LETTERS = ["W", "U", "B", "R", "G"] as const satisfies readonly ManaLetter[];
+
 export interface ManaAbilityActionInfo extends ActivatableAbilityInfo {
   actionId?: string;
 }

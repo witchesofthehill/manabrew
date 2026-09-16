@@ -69,9 +69,8 @@ export function DeckQuickAddOptions({
         </div>
         <Button
           type="button"
-          size="icon"
+          size="icon-sm"
           variant="ghost"
-          className="h-7 w-7"
           title={i18n._(msg`Close options`)}
           onClick={onClose}
         >
@@ -147,11 +146,15 @@ export function DeckQuickAddOptions({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button type="button" size="sm" className="h-7 shrink-0 gap-1 px-2" onClick={onAdd}>
-          <Trans>
-            <Plus className="h-3 w-3" />
-            Add {quantity}
-          </Trans>
+        <Button
+          variant="primary"
+          type="button"
+          size="sm"
+          className="h-7 shrink-0 gap-1 px-2"
+          onClick={onAdd}
+        >
+          <Plus className="h-3 w-3" />
+          <Trans>Add {quantity}</Trans>
         </Button>
       </div>
     </div>

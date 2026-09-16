@@ -4,6 +4,7 @@ import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { Button } from "@/components/ui/button";
 import { EngineMark } from "@/components/lobby/EngineMark";
 import { PlaytestPlayersDialog } from "@/components/lobby/PlaytestPlayersDialog";
+import { TablePickerDialog } from "@/components/lobby/TablePickerDialog";
 import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { cn, pickRandom, pickRandomDistinct } from "@/lib/utils";
@@ -85,6 +86,8 @@ export function DeckVsSelector({
       : null;
   const lastOfflineFormatId = usePreferencesStore((state) => state.lastOfflineFormatId);
   const lastAiOpponent = usePreferencesStore((state) => state.lastAiOpponent);
+  const boardBackground = usePreferencesStore((state) => state.boardBackgroundId);
+  const setBoardBackground = usePreferencesStore((state) => state.setBoardBackgroundId);
   const rememberedFormatId =
     !preSelectedDeckEntry && lastOfflineFormatId && getFormat(lastOfflineFormatId)
       ? lastOfflineFormatId
@@ -101,6 +104,7 @@ export function DeckVsSelector({
   const [deckSearch, setDeckSearch] = useState("");
   const [starting, setStarting] = useState(false);
   const [playersDialogOpen, setPlayersDialogOpen] = useState(false);
+  const [tableDialogOpen, setTableDialogOpen] = useState(false);
   const [loadingHubDeckId, setLoadingHubDeckId] = useState<string | null>(null);
   const selectedFormatRef = useRef(selectedFormat);
   selectedFormatRef.current = selectedFormat;
@@ -374,7 +378,12 @@ export function DeckVsSelector({
   }
   function handleFight() {
     if (!playerDeck || !opponentDeck || starting) return;
-    if (playerDeck.formatId === "commander") {
+    setTableDialogOpen(true);
+  }
+
+  function handleTableChosen() {
+    setTableDialogOpen(false);
+    if (playerDeck?.formatId === "commander") {
       setPlayersDialogOpen(true);
       return;
     }
@@ -604,9 +613,24 @@ export function DeckVsSelector({
                   </Button>
                 </div>
               ) : hubDecks.loading && hubDeckEntries.length === 0 ? (
-                <p className="py-2 text-xs italic text-muted-foreground">
-                  <Trans>Loading Community decks…</Trans>
-                </p>
+                <div
+                  className={cn(
+                    "grid gap-3 pt-1",
+                    denseDecks
+                      ? "grid-cols-2 md:grid-cols-3"
+                      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
+                  )}
+                >
+                  {Array.from({ length: 10 }, (_, index) => (
+                    <div
+                      key={index}
+                      className={cn(
+                        "animate-pulse rounded-lg bg-muted",
+                        denseDecks ? "h-24" : "aspect-[4/3] sm:min-h-[172px]",
+                      )}
+                    />
+                  ))}
+                </div>
               ) : hubDeckEntries.length === 0 ? (
                 <p className="py-2 text-xs italic text-muted-foreground">
                   <Trans>No Community decks match this format and search.</Trans>
@@ -770,6 +794,7 @@ export function DeckVsSelector({
             </Trans>
           </div>
           <Button
+            variant="primary"
             size="sm"
             onClick={handleFight}
             disabled={!isReady || starting}
@@ -792,6 +817,20 @@ export function DeckVsSelector({
           void startFight(opponentCount);
         }}
         onCancel={() => setPlayersDialogOpen(false)}
+      />
+      <TablePickerDialog
+        open={tableDialogOpen}
+        background={boardBackground}
+        onBackgroundChange={setBoardBackground}
+        onStart={handleTableChosen}
+        onCancel={() => setTableDialogOpen(false)}
+        centerContent={
+          selectedFormat ? (
+            <span className="font-serif text-lg font-light text-foreground/90">
+              {getFormat(selectedFormat)?.name ?? selectedFormat}
+            </span>
+          ) : undefined
+        }
       />
     </div>
   );

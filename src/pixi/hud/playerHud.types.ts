@@ -1,3 +1,6 @@
+import type { CardDto } from "@/protocol/game";
+import type { TargetingIntent } from "@/types/promptType";
+
 export interface PlayerHudTooltipContent {
   title: string;
   lines?: { text: string; active: boolean }[];
@@ -11,9 +14,17 @@ export interface PlayerHudBadge {
   count?: number;
   lethal?: boolean;
   onTap?: () => void;
+  referenceCard?: CardDto;
   /** Compact-mode zone pill (library/graveyard/exile): renders in a vertical
    *  column anchored to the avatar instead of the badge rows. */
   zone?: boolean;
+}
+
+export interface PlayerHudFact {
+  id: string;
+  label: string;
+  value: string;
+  emphasized?: boolean;
 }
 
 export interface PlayerHudSpec {
@@ -28,6 +39,7 @@ export interface PlayerHudSpec {
   isPriorityPlayer: boolean;
   isTargetable: boolean;
   isSelectedTarget: boolean;
+  targetingIntent?: TargetingIntent;
   isFlashing: boolean;
   isEliminated: boolean;
   isDisconnected: boolean;
@@ -35,4 +47,5 @@ export interface PlayerHudSpec {
   combatLethal: boolean;
   manaPool: Record<string, number>;
   badges: PlayerHudBadge[];
+  ruleFacts: PlayerHudFact[];
 }

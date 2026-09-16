@@ -1,4 +1,5 @@
-import { Texture, ImageSource } from "pixi.js";
+import { Texture } from "pixi.js";
+import { rasterizeSvgTexture } from "./assets/rasterizeSvgTexture";
 import { resolveIconBody } from "./panelIcons";
 
 /** Rasterized icons (via `panelIcons.resolveIconBody` — hand-picked registry
@@ -17,36 +18,20 @@ function svgFor(name: string): string | null {
 
 export function gameIconTexture(name: string): Promise<Texture> {
   const cached = textures.get(name);
-  if (cached) return Promise.resolve(cached);
+  if (cached && !cached.destroyed) return Promise.resolve(cached);
+  if (cached) textures.delete(name);
   const inFlight = loading.get(name);
   if (inFlight) return inFlight;
 
   const svg = svgFor(name);
   if (!svg) return Promise.reject(new Error(`unknown game-icon: ${name}`));
 
-  const promise = new Promise<Texture>((resolve, reject) => {
-    const blobUrl = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
-    const image = new Image();
-    image.width = RASTER_SIZE;
-    image.height = RASTER_SIZE;
-    image.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = RASTER_SIZE;
-      canvas.height = RASTER_SIZE;
-      const ctx = canvas.getContext("2d");
-      URL.revokeObjectURL(blobUrl);
-      if (!ctx) return reject(new Error("2d context unavailable"));
-      ctx.drawImage(image, 0, 0, RASTER_SIZE, RASTER_SIZE);
-      const texture = new Texture({ source: new ImageSource({ resource: canvas }) });
+  const promise = rasterizeSvgTexture(svg, RASTER_SIZE)
+    .then((texture) => {
       textures.set(name, texture);
-      resolve(texture);
-    };
-    image.onerror = () => {
-      URL.revokeObjectURL(blobUrl);
-      reject(new Error(`svg decode failed: ${name}`));
-    };
-    image.src = blobUrl;
-  });
+      return texture;
+    })
+    .finally(() => loading.delete(name));
   loading.set(name, promise);
   return promise;
 }

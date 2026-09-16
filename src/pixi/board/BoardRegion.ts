@@ -144,6 +144,7 @@ export class BoardRegion {
   private combatRowAttackerIds = new Set<string>();
   private combatRowBlocks: CombatAssignmentDto[] = [];
   private combatRowTargets = new Map<string, CombatRowTarget>();
+  private combatRowTargetCardIds = new Set<string>();
   private combatRowBlockerIds = new Set<string>();
   private skeletonDebug = false;
   private attackRowDebug = false;
@@ -492,7 +493,8 @@ export class BoardRegion {
       card.isAttacking ||
       this.entries.get(id)?.sprite.card.isAttacking ||
       this.combatRowAttackerIds.has(id) ||
-      this.combatRowBlockerIds.has(id)
+      this.combatRowBlockerIds.has(id) ||
+      this.combatRowTargetCardIds.has(id)
     )
       return true;
     const s = this.combatStaging;
@@ -787,6 +789,11 @@ export class BoardRegion {
     this.combatRowBlockerIds = new Set(this.combatRowBlocks.map((b) => b.blockerId));
     this.combatRowTargets = new Map(
       (state.combatRowTargets ?? []).map((target) => [target.attackerId, target]),
+    );
+    this.combatRowTargetCardIds = new Set(
+      (state.combatRowTargets ?? [])
+        .filter((target) => target.targetKind === "card")
+        .map((target) => target.targetId),
     );
     const cardMap = new Map<string, CardDto>(state.cards.map((c) => [c.id, c]));
     this.cardById = cardMap;
@@ -1531,6 +1538,10 @@ export class BoardRegion {
       const color = hexToNum(theme.gameTheme.targeting.hostile);
       if (this.attackTargetRingPulsing) sprite.setPlayableRing(color);
       else sprite.setRing(color);
+      return;
+    }
+    if (this.combatRowTargetCardIds.has(card.id)) {
+      sprite.setPlayableRing(hexToNum(theme.gameTheme.targeting.hostile));
       return;
     }
     if (this.isDeclaredBlocker(card.id)) {

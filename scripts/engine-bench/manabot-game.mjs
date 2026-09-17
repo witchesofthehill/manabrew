@@ -38,6 +38,9 @@ function loadDeck(name) {
 
 const engineDir = resolve(option("engine", join(root, "packages", "forge-wasm")));
 const wasmDir = resolve(option("wasm", join(root, "src", "wasm")));
+const wasmOptions = option("wasms", wasmDir)
+  .split(",")
+  .map((path) => resolve(path));
 const deckNames = option(
   "decks",
   "kaalia_regression_commander,starter_deck_animar,real_teval_commander,neheb_minotaur_commander",
@@ -49,16 +52,26 @@ const output = option("out", null);
 if (!existsSync(join(engineDir, "forgeharness.js.wasm"))) {
   throw new Error(`${engineDir} has no Forge WASM engine`);
 }
-if (!existsSync(join(wasmDir, "wasm_bg.wasm"))) {
-  throw new Error(`${wasmDir} has no Manabrew WASM build; run yarn ensure:wasm`);
+for (const path of wasmOptions) {
+  if (!existsSync(join(path, "wasm_bg.wasm"))) {
+    throw new Error(`${path} has no Manabrew WASM build; run yarn ensure:wasm`);
+  }
 }
 
 const { createForgeEngine } = await import(pathToFileURL(join(engineDir, "node.js")).href);
-const manabrew = await import(pathToFileURL(join(wasmDir, "wasm.js")).href);
-await manabrew.default({ module_or_path: readFileSync(join(wasmDir, "wasm_bg.wasm")) });
+const modules = new Map();
+for (const path of new Set(wasmOptions)) {
+  const module = await import(pathToFileURL(join(path, "wasm.js")).href);
+  await module.default({ module_or_path: readFileSync(join(path, "wasm_bg.wasm")) });
+  modules.set(path, module);
+}
 
 const decks = deckNames.map(loadDeck);
-const bots = decks.map(() => new manabrew.WasmManabot());
+const botSources = wasmOptions.length === 1 ? decks.map(() => wasmOptions[0]) : wasmOptions;
+if (botSources.length !== decks.length) {
+  throw new Error(`--wasms must contain one path or one path per seat`);
+}
+const bots = botSources.map((path) => new (modules.get(path).WasmManabot)());
 const seats = bots.map(() => ({
   prompts: 0,
   acts: 0,
@@ -83,7 +96,7 @@ const ended = new Promise((resolve) => {
 const engine = await createForgeEngine({
   onState: (state, slot) => {
     const seat = slot ? Number(slot.slice("player-".length)) : 0;
-    bots[seat].observe_state(JSON.stringify(state));
+    bots[seat].observe_state?.(JSON.stringify(state));
     if (!slot) finalView = state?.gameView ?? finalView;
     if (typeof state?.gameView?.turn === "number") turn = state.gameView.turn;
   },
@@ -146,6 +159,7 @@ const percentile = (value) =>
 const summary = {
   seed,
   decks: deckNames,
+  agents: botSources,
   outcome,
   durationMs: Math.round(performance.now() - startedAt),
   turn,

@@ -203,6 +203,75 @@ impl SimpleAi {
         }
     }
 
+    fn has_keyword(card: &CardDto, keyword: &str) -> bool {
+        card.keywords
+            .iter()
+            .any(|value| value.eq_ignore_ascii_case(keyword))
+    }
+
+    fn should_attack(&self, attacker_id: &str, target_id: &str) -> bool {
+        let Some(attacker) = self.card(attacker_id) else {
+            return true;
+        };
+        let power = attacker
+            .power
+            .as_deref()
+            .and_then(|value| value.parse::<i32>().ok())
+            .unwrap_or(0);
+        if power <= 0 && !attacker.text.to_ascii_lowercase().contains("attacks") {
+            return false;
+        }
+        let Some(view) = &self.view else {
+            return true;
+        };
+        let attacker_flying = Self::has_keyword(attacker, "Flying");
+        let blockers = view
+            .zones
+            .iter()
+            .filter(|zone| zone.zone == ZoneKind::Battlefield && zone.owner_id == target_id)
+            .flat_map(|zone| &zone.cards)
+            .filter_map(|card| match card {
+                CardView::Visible(card)
+                    if card.types.iter().any(|card_type| card_type == "Creature")
+                        && !card.tapped
+                        && (!attacker_flying
+                            || Self::has_keyword(card, "Flying")
+                            || Self::has_keyword(card, "Reach")) =>
+                {
+                    Some(card)
+                }
+                _ => None,
+            });
+        if Self::has_keyword(attacker, "Indestructible")
+            || Self::has_keyword(attacker, "Deathtouch")
+            || Self::has_keyword(attacker, "Trample")
+        {
+            return true;
+        }
+        !blockers.into_iter().any(|blocker| {
+            let blocker_power = blocker
+                .power
+                .as_deref()
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(0);
+            let blocker_toughness = blocker
+                .toughness
+                .as_deref()
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(0);
+            let attacker_toughness = attacker
+                .toughness
+                .as_deref()
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(0);
+            let attacker_dies =
+                blocker_power >= attacker_toughness || Self::has_keyword(blocker, "Deathtouch");
+            let blocker_survives =
+                power < blocker_toughness && !Self::has_keyword(attacker, "Double strike");
+            attacker_dies && blocker_survives
+        })
+    }
+
     fn target_score(&self, target: &TargetRef, player_id: &str) -> i32 {
         let hostile = matches!(
             target.intent,
@@ -413,10 +482,12 @@ impl BotAgent for SimpleAi {
                             None if a.valid_target_ids.is_empty() => default_target.clone(),
                             None => continue,
                         };
-                        assignments.push(AttackAssignment {
-                            attacker_id: a.attacker_id.clone(),
-                            target_id,
-                        });
+                        if a.must_attack || self.should_attack(&a.attacker_id, &target_id) {
+                            assignments.push(AttackAssignment {
+                                attacker_id: a.attacker_id.clone(),
+                                target_id,
+                            });
+                        }
                     }
                 }
                 self.last_attack_declaration = assignments

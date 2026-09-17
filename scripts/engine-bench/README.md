@@ -23,6 +23,19 @@ permanents on the board. `--engine <dir>` loads a checkout's
 package. `--games N` plays N games in one engine and samples the host heap
 between them. `--seed` pins the shuffle.
 
+For the external controller path, build Manabrew WASM and run all Forge seats
+through local Manabot instances:
+
+```sh
+yarn ensure:wasm
+yarn bench:manabot --engine packages/forge-wasm --seed 7015 --out manabot-7015.json
+```
+
+This reports per-seat casts, land plays, abilities, passes, attackers, blocks,
+mulligans and the final outcome alongside response-to-next-prompt latency.
+Use `--decks`, `--timeout`, `--engine`, and `--wasm` to override its inputs.
+It is a policy-quality smoke test, not a causal comparison with Forge AI.
+
 ## A run, not a game
 
 ```sh

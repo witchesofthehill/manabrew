@@ -46,6 +46,7 @@ const deckNames = option(
   "kaalia_regression_commander,starter_deck_animar,real_teval_commander,neheb_minotaur_commander",
 ).split(",");
 const seed = Number(option("seed", 7015));
+const forgeAiSeats = option("forge-ai-seats", "").split(",").filter(Boolean).map(Number);
 const timeoutS = Number(option("timeout", 300));
 const output = option("out", null);
 
@@ -72,6 +73,8 @@ if (botSources.length !== decks.length) {
   throw new Error(`--wasms must contain one path or one path per seat`);
 }
 const bots = botSources.map((path) => new (modules.get(path).WasmManabot)());
+const enginePlayerIndex = decks.findIndex((_, index) => !forgeAiSeats.includes(index));
+if (enginePlayerIndex < 0) throw new Error("at least one external Manabot seat is required");
 const seats = bots.map(() => ({
   prompts: 0,
   acts: 0,
@@ -87,6 +90,7 @@ const seats = bots.map(() => ({
   booleanChoices: {},
   boardTargetChoices: {},
   cardSelections: {},
+  selectionChoices: {},
   paymentAutoAttempts: 0,
   paymentConfirms: 0,
   paymentCancels: 0,
@@ -111,14 +115,14 @@ const ended = new Promise((resolve) => {
 
 const engine = await createForgeEngine({
   onState: (state, slot) => {
-    const seat = slot ? Number(slot.slice("player-".length)) : 0;
+    const seat = slot ? Number(slot.slice("player-".length)) : enginePlayerIndex;
     bots[seat].observe_state?.(JSON.stringify(state));
     latestViews[seat] = state?.gameView ?? latestViews[seat];
     if (!slot) finalView = state?.gameView ?? finalView;
     if (typeof state?.gameView?.turn === "number") turn = state.gameView.turn;
   },
   onPrompt: (prompt, slot) => {
-    const seat = slot ? Number(slot.slice("player-".length)) : 0;
+    const seat = slot ? Number(slot.slice("player-".length)) : enginePlayerIndex;
     const now = performance.now();
     if (lastResponseAt !== null) intervals.push(now - lastResponseAt);
     seats[seat].prompts += 1;
@@ -166,6 +170,13 @@ const engine = await createForgeEngine({
       const title = prompt.input.presentation?.title ?? "untitled";
       increment(seats[seat].booleanChoices, `${title}: ${decision.value}`);
     }
+    if (decision?.type === "selectionDecision") {
+      const title = prompt.input.presentation?.title ?? "untitled";
+      const labels = (decision.chosenIndices ?? []).map(
+        (index) => prompt.input.options?.[index]?.label ?? `option ${index}`,
+      );
+      increment(seats[seat].selectionChoices, `${title}: ${labels.join(" | ") || "none"}`);
+    }
     if (decision?.type === "chooseCardsDecision") {
       const title = prompt.input.presentation?.title ?? "untitled";
       const count = decision.chosenCardIds?.length ?? 0;
@@ -206,7 +217,8 @@ await engine.startMultiplayerGame({
   decks,
   playerNames: decks.map((_, index) => `Manabot ${index + 1}`),
   commanderNames: decks.map((deck) => deck.commanders[0].name),
-  enginePlayerIndex: 0,
+  enginePlayerIndex,
+  forgeAiSeats,
   startingLife: 40,
   seed,
 });
@@ -221,7 +233,7 @@ const percentile = (value) =>
 const summary = {
   seed,
   decks: deckNames,
-  agents: botSources,
+  agents: botSources.map((source, index) => (forgeAiSeats.includes(index) ? "forge-ai" : source)),
   outcome,
   durationMs: Math.round(performance.now() - startedAt),
   turn,

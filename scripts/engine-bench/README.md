@@ -37,7 +37,9 @@ card selections and target intent/ownership, plus the final outcome and
 response-to-next-prompt latency.
 Use `--decks`, `--timeout`, `--engine`, and `--wasm` to override its inputs.
 `--wasms` accepts one WASM directory per seat for direct policy A/B games.
-It is a policy-quality smoke test, not a causal comparison with Forge AI.
+`--forge-ai-seats 1,3` assigns those seats to Forge's internal AI, enabling a
+direct Forge-versus-Manabot benchmark when the selected engine facade supports
+mixed seats. Rotate the assignment between games to remove deck and seat bias.
 
 ## A run, not a game
 

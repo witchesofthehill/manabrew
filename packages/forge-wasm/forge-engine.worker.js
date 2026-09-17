@@ -167,6 +167,7 @@ async function startMultiplayerGame(requestId, args) {
   const playerNames = (args && args.playerNames) || [];
   const commanders = (args && args.commanderNames) || [];
   const localPlayerIndex = (args && args.enginePlayerIndex) | 0;
+  const forgeAiSeats = new Set((args && args.forgeAiSeats) || []);
   if (decks.length < 2) {
     return postError(requestId, "start_multiplayer_game requires at least two decks");
   }
@@ -206,7 +207,7 @@ async function startMultiplayerGame(requestId, args) {
     seed: gameSeed(args),
     players: decks.map((deck, index) => ({
       name: playerNames[index] || `Player ${index + 1}`,
-      ai: false,
+      ai: forgeAiSeats.has(index),
       deck: flatten(deck),
       commanderNames: commanderGame ? commanderNames(deck, commanders[index] ?? null) : [],
     })),

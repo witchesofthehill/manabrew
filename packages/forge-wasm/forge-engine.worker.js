@@ -108,11 +108,15 @@ async function startGame(requestId, args) {
     return postError(requestId, `forge engine failed to load: ${e && e.message ? e.message : e}`);
   }
 
-  const sab = new SharedArrayBuffer(SAB_SIZE);
-  self.__forgeSab = sab;
+  const seatBuffers = [humanDeck, ...aiDecks].map(() => new SharedArrayBuffer(SAB_SIZE));
+  self.__forgeSeatSabs = seatBuffers;
+  self.__forgeSab = seatBuffers[0];
   gameRunning = true;
 
-  postEvent("game:sab", { buffer: sab });
+  postEvent("game:sab", { buffer: seatBuffers[0] });
+  seatBuffers.slice(1).forEach((buffer, index) => {
+    postEvent("game:remote_sab", { buffer, playerSlot: `player-${index + 1}` });
+  });
   postResponse(requestId, "game-started");
 
   const variant = forgeVariant(humanDeck);
@@ -130,8 +134,8 @@ async function startGame(requestId, args) {
         commanderNames: commanderGame ? commanderNames(humanDeck, args && args.commanderName) : [],
       },
       ...aiDecks.map((deck, i) => ({
-        name: i > 0 ? `Forge AI ${i + 1}` : "Forge AI",
-        ai: true,
+        name: i > 0 ? `Manabot ${i + 1}` : "Manabot",
+        ai: false,
         deck: flatten(deck),
         commanderNames: commanderGame ? commanderNames(deck, null) : [],
       })),

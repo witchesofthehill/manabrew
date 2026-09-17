@@ -692,7 +692,7 @@ impl BotAgent for SimpleAi {
                 presentation,
                 mut cards,
                 min,
-                ..
+                max,
             }) => {
                 let title = presentation.title.to_ascii_lowercase();
                 let prefer_low = title.contains("sacrifice")
@@ -703,8 +703,9 @@ impl BotAgent for SimpleAi {
                     let value = Self::card_value(card);
                     if prefer_low { value } else { -value }
                 });
+                let count = if prefer_low { min } else { max };
                 Some(PromptOutput::ChooseCards(ChooseCardsOutput::ChooseCardsDecision {
-                    chosen_card_ids: cards.iter().take(min).map(|card| card.id.clone()).collect(),
+                    chosen_card_ids: cards.iter().take(count).map(|card| card.id.clone()).collect(),
                 }))
             }
             PromptInput::Reorder(manabrew_protocol::prompts::reorder::ReorderInput { items, .. }) => {

@@ -86,6 +86,7 @@ const seats = bots.map(() => ({
   actionLabels: {},
   booleanChoices: {},
   boardTargetChoices: {},
+  cardSelections: {},
 }));
 const latestViews = decks.map(() => null);
 
@@ -146,6 +147,14 @@ const engine = await createForgeEngine({
     if (decision?.type === "decision" && typeof decision.value === "boolean") {
       const title = prompt.input.presentation?.title ?? "untitled";
       increment(seats[seat].booleanChoices, `${title}: ${decision.value}`);
+    }
+    if (decision?.type === "chooseCardsDecision") {
+      const title = prompt.input.presentation?.title ?? "untitled";
+      const count = decision.chosenCardIds?.length ?? 0;
+      increment(
+        seats[seat].cardSelections,
+        `${title}: ${count}/${prompt.input.min ?? 0}-${prompt.input.max ?? 0}`,
+      );
     }
     if (decision?.type === "boardTargets") {
       for (const chosen of decision.chosen ?? []) {

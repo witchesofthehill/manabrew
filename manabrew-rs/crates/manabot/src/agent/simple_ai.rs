@@ -85,6 +85,15 @@ impl SimpleAi {
         }
     }
 
+    fn card_zone(&self, id: &str) -> Option<ZoneKind> {
+        let (zone_index, _) = *self.card_locations.get(id)?;
+        self.view
+            .as_ref()?
+            .zones
+            .get(zone_index)
+            .map(|zone| zone.zone)
+    }
+
     fn card(&self, id: &str) -> Option<&CardDto> {
         let (zone_index, card_index) = *self.card_locations.get(id)?;
         match self
@@ -137,6 +146,23 @@ impl SimpleAi {
         }
     }
 
+    fn prefers_creatures(&self, player_id: &str) -> bool {
+        self.view.as_ref().is_some_and(|view| {
+            view.zones
+                .iter()
+                .filter(|zone| matches!(zone.zone, ZoneKind::Command | ZoneKind::Battlefield))
+                .flat_map(|zone| &zone.cards)
+                .any(|card| {
+                    matches!(
+                        card,
+                        CardView::Visible(card)
+                            if card.owner_id == player_id
+                                && card.text.to_ascii_lowercase().contains("creature spells")
+                    )
+                })
+        })
+    }
+
     fn action_score(&self, action: &AvailableAction, player_id: &str) -> i32 {
         match &action.kind {
             AvailableActionKind::Cast { card_id, label, .. } => {
@@ -173,6 +199,14 @@ impl SimpleAi {
                     250
                 };
                 score += Self::card_value(card) - card.cmc * 8;
+                if self.card_zone(card_id) == Some(ZoneKind::Command) {
+                    score += 160;
+                }
+                if self.prefers_creatures(player_id)
+                    && card.types.iter().any(|card_type| card_type == "Creature")
+                {
+                    score += (120 - card.cmc * 12).max(0);
+                }
                 let text = card.text.to_ascii_lowercase();
                 if text.contains("draw a card") || text.contains("draw two") {
                     score += 35;
@@ -218,7 +252,12 @@ impl SimpleAi {
             .as_deref()
             .and_then(|value| value.parse::<i32>().ok())
             .unwrap_or(0);
-        if power <= 0 && !attacker.text.to_ascii_lowercase().contains("attacks") {
+        let attack_trigger = attacker.text.to_ascii_lowercase().contains("whenever")
+            && attacker.text.to_ascii_lowercase().contains(" attacks");
+        if attack_trigger {
+            return true;
+        }
+        if power <= 0 {
             return false;
         }
         let Some(view) = &self.view else {

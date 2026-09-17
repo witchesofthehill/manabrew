@@ -8,7 +8,7 @@
 // client that just joins uses the command below and none of these.
 #[allow(unused_imports)]
 pub use manabrew_lan_discovery::{
-    advertise, Advertisement, LanEndpoint, LanRole, LAN_RELAY_KEY, SERVICE_TYPE,
+    advertise, lan_address, Advertisement, LanEndpoint, LanRole, LAN_RELAY_KEY, SERVICE_TYPE,
 };
 
 #[tauri::command]

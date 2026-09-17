@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.44.4](https://github.com/witchesofthehill/manabrew/compare/v3.44.3...v3.44.4) (2026-09-17)
+
+### Fixes
+
+* **telemetry:** count only frame handling as client work ([#944](https://github.com/witchesofthehill/manabrew/issues/944)) ([f54dc4b](https://github.com/witchesofthehill/manabrew/commit/f54dc4b31e560c27c1bdb2fd2e292089b1f78ef4))
+
 ## [3.44.3](https://github.com/witchesofthehill/manabrew/compare/v3.44.2...v3.44.3) (2026-09-16)
 
 ### Fixes

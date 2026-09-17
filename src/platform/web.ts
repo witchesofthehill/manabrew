@@ -164,6 +164,7 @@ type RelayMessage = {
 };
 
 type LocalBotAgent = {
+  observe_state(stateJson: string): void;
   decide(promptJson: string): string | undefined;
   free(): void;
 };
@@ -201,6 +202,7 @@ class WorkerBridge {
   private remoteSeats = new Map<string, ForgeSeat>();
   private remotePlayerSlots = new Map<string, string>();
   private localBotAgents = new Map<string, LocalBotAgent>();
+  private localBotStates = new Map<string, unknown>();
 
   get gameBuffer(): SharedArrayBuffer | null {
     return this.localSeat?.buffer ?? null;
@@ -238,8 +240,14 @@ class WorkerBridge {
             console.log(`[transport←sab/seat ${playerSlot}] engine emitted:`, json);
           const agent = this.localBotAgents.get(playerSlot);
           if (agent) {
-            if (msg.kind !== "prompt") return;
             try {
+              if (msg.kind === "state") {
+                this.localBotStates.set(playerSlot, msg.state);
+                return;
+              }
+              if (msg.kind !== "prompt") return;
+              const state = this.localBotStates.get(playerSlot);
+              if (state) agent.observe_state(JSON.stringify(state));
               const actionJson = agent.decide(JSON.stringify(msg.prompt));
               if (!actionJson) return;
               const action = JSON.parse(actionJson) as PromptOutput;
@@ -311,6 +319,7 @@ class WorkerBridge {
 
   setLocalBotAgents(agents: Map<string, LocalBotAgent>): void {
     for (const agent of this.localBotAgents.values()) agent.free();
+    this.localBotStates.clear();
     this.localBotAgents = agents;
   }
 
@@ -589,6 +598,7 @@ class WorkerBridge {
     this.remotePlayerSlots.clear();
     for (const agent of this.localBotAgents.values()) agent.free();
     this.localBotAgents.clear();
+    this.localBotStates.clear();
     // Response listener stays installed — terminate() is per-game, and a
     // second game on this (singleton) bridge still needs it.
     this.pendingRequests.clear();

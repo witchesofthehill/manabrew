@@ -1,4 +1,5 @@
 use manabot::{BotAgent, BotConfig, BotState, SimpleAi};
+use manabrew_agent_interface::game_view_dto::GameViewDto;
 use manabrew_agent_interface::prompt::AgentPrompt;
 use manabrew_agent_interface::protocol::ServerMessage;
 use wasm_bindgen::prelude::*;
@@ -24,6 +25,20 @@ impl WasmManabot {
         WasmManabot {
             agent: SimpleAi::new(),
         }
+    }
+
+    pub fn observe_state(&mut self, state_json: &str) -> Result<(), JsValue> {
+        let state: serde_json::Value = serde_json::from_str(state_json)
+            .map_err(|e| JsValue::from_str(&format!("invalid game state: {e}")))?;
+        let view: GameViewDto = serde_json::from_value(
+            state
+                .get("gameView")
+                .cloned()
+                .ok_or_else(|| JsValue::from_str("game state has no gameView"))?,
+        )
+        .map_err(|e| JsValue::from_str(&format!("invalid game view: {e}")))?;
+        self.agent.observe(view);
+        Ok(())
     }
 
     pub fn decide(&mut self, prompt_json: &str) -> Result<Option<String>, JsValue> {

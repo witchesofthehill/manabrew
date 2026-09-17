@@ -1,3 +1,4 @@
+use manabrew_agent_interface::game_view_dto::GameViewDto;
 use manabrew_agent_interface::ids_codec::player_slot;
 use manabrew_agent_interface::prompt::AgentPrompt;
 use manabrew_agent_interface::protocol::{
@@ -226,6 +227,19 @@ impl BotState {
                 ));
                 return Vec::new();
             }
+        };
+        let envelope = match envelope {
+            StateEnvelope::State { state, .. } => {
+                if let Some(view) = state
+                    .get("gameView")
+                    .cloned()
+                    .and_then(|view| serde_json::from_value::<GameViewDto>(view).ok())
+                {
+                    self.agent.observe(view);
+                }
+                return Vec::new();
+            }
+            envelope => envelope,
         };
         let StateEnvelope::Prompt {
             for_player, prompt, ..

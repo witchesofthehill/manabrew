@@ -6,7 +6,11 @@
  */
 
 import type { EngineGameStats } from "@/lib/engineTelemetry";
-import { noteEngineThinkTime, noteReplyFrameArrived } from "@/lib/engineTelemetry";
+import {
+  noteEngineThinkTime,
+  noteReplyFrameArrived,
+  noteReplyFrameHandled,
+} from "@/lib/engineTelemetry";
 import type {
   IPlatformApi,
   IGameApi,
@@ -235,6 +239,14 @@ class WorkerBridge {
     if (msg?.kind === "state" || msg?.kind === "prompt" || msg?.kind === "display") {
       noteReplyFrameArrived();
     }
+    try {
+      this.applyEngineMessage(msg);
+    } finally {
+      noteReplyFrameHandled();
+    }
+  }
+
+  private applyEngineMessage(msg: EngineMessage): void {
     logComms("engine", msg);
     if (this.workerIsForgeWasm) {
       const w = window as unknown as { __forgeFrames?: string[] };
@@ -912,6 +924,9 @@ class WebServerApi implements IServerApi {
           this.handleServerMessage(msg, frameAt);
         } catch {
           // Ignore malformed messages
+        } finally {
+          // Store updates run inside the emit, so the frame's work ends here.
+          noteReplyFrameHandled();
         }
       };
     });

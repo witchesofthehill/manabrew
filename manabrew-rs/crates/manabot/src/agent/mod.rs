@@ -6,6 +6,7 @@
 //! picks which agent to spawn via the `agent` field of the bot config.
 
 use manabrew_agent_interface::agent_impl::Responder;
+use manabrew_agent_interface::game_view_dto::GameViewDto;
 use manabrew_agent_interface::prompt::{
     AgentPrompt, ChooseActionOutput, ClientToServerMessage, PromptOutput,
 };
@@ -15,6 +16,7 @@ pub mod simple_ai;
 pub use simple_ai::SimpleAi;
 
 pub trait BotAgent: Send {
+    fn observe(&mut self, _view: GameViewDto) {}
     fn decide(&mut self, prompt: AgentPrompt) -> Option<PromptOutput>;
 }
 

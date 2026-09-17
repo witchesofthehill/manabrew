@@ -89,6 +89,19 @@ import {
 
 const DEBUG_TRANSPORT = false;
 
+let wasmReady: Promise<typeof import("@/wasm/wasm")> | null = null;
+
+async function loadWasm(): Promise<typeof import("@/wasm/wasm")> {
+  if (!wasmReady) {
+    wasmReady = (async () => {
+      const wasm = await import("@/wasm/wasm");
+      await wasm.default();
+      return wasm;
+    })();
+  }
+  return wasmReady;
+}
+
 const dlog = (...args: unknown[]) => {
   if (isPromptLoggingEnabled()) console.log(...args);
 };
@@ -154,6 +167,12 @@ type RelayMessage = {
   msg: EngineMessage & { kind: string };
 };
 
+type LocalBotAgent = {
+  observe_state(stateJson: string): void;
+  decide(promptJson: string): string | undefined;
+  free(): void;
+};
+
 /**
  * Bridge for communicating with the game engine worker.
  */
@@ -186,6 +205,8 @@ class WorkerBridge {
 
   private remoteSeats = new Map<string, ForgeSeat>();
   private remotePlayerSlots = new Map<string, string>();
+  private localBotAgents = new Map<string, LocalBotAgent>();
+  private localBotStates = new Map<string, unknown>();
 
   get gameBuffer(): SharedArrayBuffer | null {
     return this.localSeat?.buffer ?? null;
@@ -221,6 +242,29 @@ class WorkerBridge {
         (msg, json) => {
           if (DEBUG_TRANSPORT)
             console.log(`[transport←sab/seat ${playerSlot}] engine emitted:`, json);
+          const agent = this.localBotAgents.get(playerSlot);
+          if (agent) {
+            try {
+              if (msg.kind === "state") {
+                this.localBotStates.set(playerSlot, msg.state);
+                return;
+              }
+              if (msg.kind !== "prompt") return;
+              const state = this.localBotStates.get(playerSlot);
+              if (state) agent.observe_state(JSON.stringify(state));
+              const actionJson = agent.decide(JSON.stringify(msg.prompt));
+              if (!actionJson) return;
+              const action = JSON.parse(actionJson) as PromptOutput;
+              writeSeatMessage(seat, {
+                kind: "response",
+                promptId: Number((msg.prompt as Prompt).promptId ?? 0),
+                action,
+              });
+            } catch (error) {
+              console.error(`[Manabot] Failed to answer ${playerSlot}:`, error);
+            }
+            return;
+          }
           this.eventBus.emit("game:relay_message", { forPlayer: playerSlot, msg });
         },
         (error) =>
@@ -283,6 +327,12 @@ class WorkerBridge {
         break;
       }
     }
+  }
+
+  setLocalBotAgents(agents: Map<string, LocalBotAgent>): void {
+    for (const agent of this.localBotAgents.values()) agent.free();
+    this.localBotStates.clear();
+    this.localBotAgents = agents;
   }
 
   setEnginePlayerNames(playerNames: string[]): void {
@@ -558,6 +608,9 @@ class WorkerBridge {
     for (const seat of this.remoteSeats.values()) seat.cancelled = true;
     this.remoteSeats.clear();
     this.remotePlayerSlots.clear();
+    for (const agent of this.localBotAgents.values()) agent.free();
+    this.localBotAgents.clear();
+    this.localBotStates.clear();
     // Response listener stays installed — terminate() is per-game, and a
     // second game on this (singleton) bridge still needs it.
     this.pendingRequests.clear();
@@ -586,6 +639,19 @@ class WebGameApi implements IGameApi {
   }
 
   async startGame(params: StartGameParams): Promise<string> {
+    if (params.engine === "Forge") {
+      const wasm = await loadWasm();
+      this.bridge.setLocalBotAgents(
+        new Map(
+          (params.opponentDecks?.length ? params.opponentDecks : [params.deck]).map((_, index) => [
+            `player-${index + 1}`,
+            new wasm.WasmManabot(),
+          ]),
+        ),
+      );
+    } else {
+      this.bridge.setLocalBotAgents(new Map());
+    }
     return this.bridge.invoke<string>("start_game", {
       deck: params.deck,
       startingLife: params.startingLife,
@@ -766,7 +832,6 @@ class WebServerApi implements IServerApi {
   private sessionIdentity: RelayIdentity | null = null;
   private sessionTokenRejected = false;
   private bots = new Map<string, BotEntry>();
-  private wasmReady: Promise<typeof import("@/wasm/wasm")> | null = null;
   private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
   private lastInboundAt = 0;
   private lastKeepaliveTickAt = 0;
@@ -1227,7 +1292,7 @@ class WebServerApi implements IServerApi {
     if (this.bots.has(params.username)) {
       throw new Error(`Bot '${params.username}' is already running.`);
     }
-    const wasm = await this.loadWasm();
+    const wasm = await loadWasm();
     const config = JSON.stringify({
       username: params.username,
       password: this.serverPassword,
@@ -1333,17 +1398,6 @@ class WebServerApi implements IServerApi {
     for (const username of [...this.bots.keys()]) {
       void this.removeAiBot(username);
     }
-  }
-
-  private async loadWasm(): Promise<typeof import("@/wasm/wasm")> {
-    if (!this.wasmReady) {
-      this.wasmReady = (async () => {
-        const wasm = await import("@/wasm/wasm");
-        await wasm.default();
-        return wasm;
-      })();
-    }
-    return this.wasmReady;
   }
 
   /** The host's advertised kinds decide the room's plane. */

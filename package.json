@@ -42,6 +42,7 @@
     "preview": "vite preview",
     "build:harness": "node scripts/harness.mjs build",
     "bench:stress": "node scripts/engine-bench/stress.mjs",
+    "bench:manabot": "node scripts/engine-bench/manabot-game.mjs",
     "bench:pool": "python3 scripts/engine-bench/pool.py",
     "parity": "node scripts/parity.mjs",
     "parity:gui": "cargo run -p parity-debugger",

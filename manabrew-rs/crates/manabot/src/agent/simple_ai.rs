@@ -1,5 +1,8 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, HashSet, VecDeque};
 
+use manabrew_agent_interface::game_view_dto::{
+    CardDto, CardView, GameViewDto, StepKind, TargetingIntent, ZoneKind,
+};
 use manabrew_agent_interface::prompt::*;
 
 use super::BotAgent;
@@ -9,9 +12,16 @@ const LOOP_WINDOW: usize = 6;
 
 fn bot_warn(msg: &str) {
     #[cfg(target_arch = "wasm32")]
-    web_sys::console::warn_1(&format!("[wasm-bot] {msg}").into());
+    if web_sys::window()
+        .and_then(|window| window.local_storage().ok().flatten())
+        .and_then(|storage| storage.get_item("manabrew.debugPrompts").ok().flatten())
+        .as_deref()
+        == Some("1")
+    {
+        web_sys::console::warn_1(&format!("[wasm-bot] {msg}").into());
+    }
     #[cfg(not(target_arch = "wasm32"))]
-    tracing::warn!(target: "wasm-bot", "{msg}");
+    tracing::debug!(target: "wasm-bot", "{msg}");
 }
 
 /// Baseline AI: casts spells when possible, otherwise passes priority, with a
@@ -21,7 +31,12 @@ fn bot_warn(msg: &str) {
 pub struct SimpleAi {
     recent_prompts: VecDeque<String>,
     last_attack_declaration: Vec<(String, String)>,
-    failed_attack_targets: std::collections::HashSet<String>,
+    failed_attack_targets: HashSet<String>,
+    view: Option<GameViewDto>,
+    card_locations: HashMap<String, (usize, usize)>,
+    turn: Option<u32>,
+    attempted_actions: HashSet<String>,
+    payment_attempt: Option<String>,
 }
 
 impl SimpleAi {
@@ -69,44 +84,361 @@ impl SimpleAi {
             self.failed_attack_targets.insert(target_id.clone());
         }
     }
+
+    fn card(&self, id: &str) -> Option<&CardDto> {
+        let (zone_index, card_index) = *self.card_locations.get(id)?;
+        match self
+            .view
+            .as_ref()?
+            .zones
+            .get(zone_index)?
+            .cards
+            .get(card_index)?
+        {
+            CardView::Visible(card) => Some(card),
+            CardView::Hidden { .. } => None,
+        }
+    }
+
+    fn card_value(card: &CardDto) -> i32 {
+        let power = card
+            .power
+            .as_deref()
+            .and_then(|value| value.parse::<i32>().ok())
+            .unwrap_or(0);
+        let toughness = card
+            .toughness
+            .as_deref()
+            .and_then(|value| value.parse::<i32>().ok())
+            .unwrap_or(0);
+        let keyword_value = card
+            .keywords
+            .iter()
+            .map(|keyword| match keyword.to_ascii_lowercase().as_str() {
+                "flying" => power * 2,
+                "double strike" => power * 3,
+                "first strike" | "lifelink" | "trample" => power,
+                "deathtouch" => 4,
+                "hexproof" | "indestructible" => 3,
+                "vigilance" | "menace" => 2,
+                _ => 0,
+            })
+            .sum::<i32>();
+        power * 3 + toughness * 2 + card.cmc + keyword_value
+    }
+
+    fn action_key(action: &AvailableAction) -> String {
+        match &action.kind {
+            AvailableActionKind::Cast { card_id, mode, .. } => format!("cast:{card_id}:{mode:?}"),
+            AvailableActionKind::ActivateAbility(info) => {
+                format!("ability:{}:{}", info.card_id, info.description)
+            }
+            AvailableActionKind::UndoMana { card_id } => format!("undo:{card_id}"),
+        }
+    }
+
+    fn action_score(&self, action: &AvailableAction, player_id: &str) -> i32 {
+        match &action.kind {
+            AvailableActionKind::Cast { card_id, label, .. } => {
+                let Some(card) = self.card(card_id) else {
+                    return if label.starts_with("Play ") { 900 } else { 300 };
+                };
+                if card.types.iter().any(|card_type| card_type == "Land") {
+                    return 1_000;
+                }
+                let own_turn = self
+                    .view
+                    .as_ref()
+                    .is_some_and(|view| view.active_player_id == player_id);
+                let main_phase = self
+                    .view
+                    .as_ref()
+                    .is_some_and(|view| matches!(view.step, StepKind::Main1 | StepKind::Main2));
+                let permanent = card.types.iter().any(|card_type| {
+                    matches!(
+                        card_type.as_str(),
+                        "Creature" | "Artifact" | "Enchantment" | "Planeswalker" | "Battle"
+                    )
+                });
+                let instant = card.types.iter().any(|card_type| card_type == "Instant");
+                let mut score = if own_turn && main_phase {
+                    if permanent {
+                        500
+                    } else {
+                        420
+                    }
+                } else if instant {
+                    430
+                } else {
+                    250
+                };
+                score += Self::card_value(card) - card.cmc * 8;
+                let text = card.text.to_ascii_lowercase();
+                if text.contains("draw a card") || text.contains("draw two") {
+                    score += 35;
+                }
+                if text.contains("destroy target") || text.contains("exile target") {
+                    score += 30;
+                }
+                if text.contains("create a") || text.contains("search your library") {
+                    score += 20;
+                }
+                score
+            }
+            AvailableActionKind::ActivateAbility(info) if !info.is_mana_ability => {
+                let text = info.description.to_ascii_lowercase();
+                if text.contains("search your library") {
+                    240
+                } else if text.contains("draw") || text.contains("create") {
+                    210
+                } else if text.contains("destroy") || text.contains("exile") {
+                    200
+                } else if text.contains("sacrifice") || text.contains("pay ") {
+                    80
+                } else {
+                    120
+                }
+            }
+            _ => 0,
+        }
+    }
+
+    fn has_keyword(card: &CardDto, keyword: &str) -> bool {
+        card.keywords
+            .iter()
+            .any(|value| value.eq_ignore_ascii_case(keyword))
+    }
+
+    fn should_attack(&self, attacker_id: &str, target_id: &str) -> bool {
+        let Some(attacker) = self.card(attacker_id) else {
+            return true;
+        };
+        let power = attacker
+            .power
+            .as_deref()
+            .and_then(|value| value.parse::<i32>().ok())
+            .unwrap_or(0);
+        if power <= 0 && !attacker.text.to_ascii_lowercase().contains("attacks") {
+            return false;
+        }
+        let Some(view) = &self.view else {
+            return true;
+        };
+        let attacker_flying = Self::has_keyword(attacker, "Flying");
+        let blockers = view
+            .zones
+            .iter()
+            .filter(|zone| zone.zone == ZoneKind::Battlefield && zone.owner_id == target_id)
+            .flat_map(|zone| &zone.cards)
+            .filter_map(|card| match card {
+                CardView::Visible(card)
+                    if card.types.iter().any(|card_type| card_type == "Creature")
+                        && !card.tapped
+                        && (!attacker_flying
+                            || Self::has_keyword(card, "Flying")
+                            || Self::has_keyword(card, "Reach")) =>
+                {
+                    Some(card)
+                }
+                _ => None,
+            });
+        if Self::has_keyword(attacker, "Indestructible")
+            || Self::has_keyword(attacker, "Deathtouch")
+            || Self::has_keyword(attacker, "Trample")
+        {
+            return true;
+        }
+        !blockers.into_iter().any(|blocker| {
+            let blocker_power = blocker
+                .power
+                .as_deref()
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(0);
+            let blocker_toughness = blocker
+                .toughness
+                .as_deref()
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(0);
+            let attacker_toughness = attacker
+                .toughness
+                .as_deref()
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(0);
+            let attacker_dies =
+                blocker_power >= attacker_toughness || Self::has_keyword(blocker, "Deathtouch");
+            let blocker_survives =
+                power < blocker_toughness && !Self::has_keyword(attacker, "Double strike");
+            attacker_dies && blocker_survives
+        })
+    }
+
+    fn target_score(&self, target: &TargetRef, player_id: &str, prompt_hostile: bool) -> i32 {
+        let hostile = prompt_hostile
+            || matches!(
+                target.intent,
+                Some(
+                    TargetingIntent::Damage
+                        | TargetingIntent::Destroy
+                        | TargetingIntent::Sacrifice
+                        | TargetingIntent::Exile
+                        | TargetingIntent::Bounce
+                        | TargetingIntent::Mill
+                        | TargetingIntent::Discard
+                        | TargetingIntent::Counter
+                        | TargetingIntent::Tap
+                        | TargetingIntent::Debuff
+                        | TargetingIntent::LoseLife
+                        | TargetingIntent::GainControl
+                        | TargetingIntent::Fight
+                        | TargetingIntent::Hostile
+                )
+            );
+        match target.kind {
+            TargetKind::Player => {
+                let value = self.attack_target_score(&target.id);
+                let own = target.id == player_id;
+                if hostile == own {
+                    -value
+                } else {
+                    value + 1_000
+                }
+            }
+            TargetKind::Card => {
+                let Some(card) = self.card(&target.id) else {
+                    return 0;
+                };
+                let value = Self::card_value(card);
+                let own = card.controller_id == player_id;
+                if hostile == own {
+                    -value
+                } else {
+                    value + 1_000
+                }
+            }
+            TargetKind::Spell => self
+                .view
+                .as_ref()
+                .and_then(|view| view.stack.iter().find(|item| item.id == target.id))
+                .map_or(0, |item| {
+                    if item.controller_id == player_id {
+                        -1_000
+                    } else {
+                        1_000
+                    }
+                }),
+        }
+    }
+
+    fn attack_target_score(&self, id: &str) -> i32 {
+        let Some(view) = &self.view else {
+            return 0;
+        };
+        let life = view
+            .players
+            .iter()
+            .find(|player| player.id == id)
+            .map_or(0, |player| player.life.max(0));
+        let board = view
+            .zones
+            .iter()
+            .filter(|zone| zone.zone == ZoneKind::Battlefield && zone.owner_id == id)
+            .flat_map(|zone| &zone.cards)
+            .filter_map(|card| match card {
+                CardView::Visible(card) if card.types.iter().any(|ty| ty == "Creature") => {
+                    Some(Self::card_value(card))
+                }
+                _ => None,
+            })
+            .sum::<i32>();
+        let life_deficit = (20 - life).max(0);
+        board * 2 + life_deficit * life_deficit
+    }
 }
 
 impl BotAgent for SimpleAi {
+    fn observe(&mut self, view: GameViewDto) {
+        if self.turn != Some(view.turn) {
+            self.turn = Some(view.turn);
+            self.attempted_actions.clear();
+            self.payment_attempt = None;
+            self.recent_prompts.clear();
+            self.failed_attack_targets.clear();
+        }
+        self.card_locations.clear();
+        for (zone_index, zone) in view.zones.iter().enumerate() {
+            for (card_index, card) in zone.cards.iter().enumerate() {
+                if let CardView::Visible(card) = card {
+                    self.card_locations
+                        .insert(card.id.clone(), (zone_index, card_index));
+                }
+            }
+        }
+        self.view = Some(view);
+    }
+
     fn decide(&mut self, prompt: AgentPrompt) -> Option<PromptOutput> {
+        let deciding_player_id = prompt.deciding_player_id.clone();
         match prompt.input {
-        PromptInput::Mulligan(manabrew_protocol::prompts::mulligan::MulliganInput { .. }) => {
-                Some(PromptOutput::Mulligan(MulliganOutput::MulliganDecision { keep: true }))
+        PromptInput::Mulligan(manabrew_protocol::prompts::mulligan::MulliganInput {
+                hand_card_ids,
+                mulligan_count,
+            }) => {
+                let lands = hand_card_ids
+                    .iter()
+                    .filter_map(|card_id| self.card(card_id))
+                    .filter(|card| card.types.iter().any(|card_type| card_type == "Land"))
+                    .count();
+                let keep = mulligan_count >= 2 || (2..=5).contains(&lands);
+                Some(PromptOutput::Mulligan(MulliganOutput::MulliganDecision { keep }))
             }
             PromptInput::MulliganPutBack(manabrew_protocol::prompts::mulligan_put_back::MulliganPutBackInput {
-                hand_card_ids,
+                mut hand_card_ids,
                 count,
                 ..
-            }) => Some(PromptOutput::MulliganPutBack(MulliganPutBackOutput::MulliganPutBackDecision {
-                card_ids: hand_card_ids.into_iter().take(count).collect(),
-            })),
+            }) => {
+                let lands = hand_card_ids
+                    .iter()
+                    .filter_map(|card_id| self.card(card_id))
+                    .filter(|card| card.types.iter().any(|card_type| card_type == "Land"))
+                    .count();
+                hand_card_ids.sort_by_key(|card_id| {
+                    let Some(card) = self.card(card_id) else {
+                        return 0;
+                    };
+                    if lands > 3 && card.types.iter().any(|card_type| card_type == "Land") {
+                        -1
+                    } else {
+                        Self::card_value(card)
+                    }
+                });
+                Some(PromptOutput::MulliganPutBack(MulliganPutBackOutput::MulliganPutBackDecision {
+                    card_ids: hand_card_ids.into_iter().take(count).collect(),
+                }))
+            }
             PromptInput::ChooseAction(manabrew_protocol::prompts::choose_action::ChooseActionInput { actions }) => {
-                let useful = |a: &&AvailableAction| {
-                    !matches!(&a.kind, AvailableActionKind::UndoMana { .. })
-                        && !matches!(
-                            &a.kind,
-                            AvailableActionKind::ActivateAbility(info) if info.is_mana_ability
-                        )
-                };
-                let pick = if self.looping_on(format!("{actions:?}")) {
-                    None
-                } else {
-                    actions
-                        .iter()
-                        .filter(useful)
-                        .find(|a| matches!(a.kind, AvailableActionKind::Cast { .. }))
-                        .or_else(|| actions.iter().find(useful))
-                        .map(|a| a.id.clone())
-                };
+                let pick = actions
+                    .iter()
+                    .filter(|action| {
+                        !matches!(&action.kind, AvailableActionKind::UndoMana { .. })
+                            && !matches!(
+                                &action.kind,
+                                AvailableActionKind::ActivateAbility(info) if info.is_mana_ability
+                            )
+                            && !self.attempted_actions.contains(&Self::action_key(action))
+                    })
+                    .max_by_key(|action| self.action_score(action, &deciding_player_id));
+                let pick = pick.map(|action| {
+                    (action.id.clone(), Self::action_key(action))
+                });
+                self.payment_attempt = None;
+                if let Some((_, key)) = &pick {
+                    self.attempted_actions.insert(key.clone());
+                }
                 Some(PromptOutput::ChooseAction(match pick {
-                    Some(action_id) => ChooseActionOutput::Act { action_id },
+                    Some((action_id, _)) => ChooseActionOutput::Act { action_id },
                     None => ChooseActionOutput::Pass {
                         until: Some(PassUntil {
-                            player_id: prompt.deciding_player_id.clone(),
+                            player_id: deciding_player_id.clone(),
                             phase: manabrew_protocol::game::StepKind::Main1,
                             through_combat: false,
                         }),
@@ -120,9 +452,22 @@ impl BotAgent for SimpleAi {
                 ..
             }) => {
                 let default_target = attack_targets
-                    .first()
-                    .map(|t| t.id.clone())
+                    .iter()
+                    .max_by_key(|target| self.attack_target_score(&target.id))
+                    .map(|target| target.id.clone())
                     .unwrap_or_else(|| "player-1".to_string());
+                let attack_power = attackers
+                    .iter()
+                    .filter_map(|attacker| self.card(&attacker.attacker_id))
+                    .filter_map(|card| card.power.as_deref())
+                    .filter_map(|power| power.parse::<i32>().ok())
+                    .sum::<i32>();
+                let lethal_target = self.view.as_ref().is_some_and(|view| {
+                    view.players
+                        .iter()
+                        .find(|player| player.id == default_target)
+                        .is_some_and(|player| player.life > 0 && attack_power >= player.life)
+                });
                 let signature = format!(
                     "attack:{}|{}",
                     attackers
@@ -143,16 +488,22 @@ impl BotAgent for SimpleAi {
                         let target_id = match a
                             .valid_target_ids
                             .iter()
-                            .find(|t| !self.failed_attack_targets.contains(*t))
+                            .filter(|target| !self.failed_attack_targets.contains(*target))
+                            .max_by_key(|target| self.attack_target_score(target))
                         {
                             Some(t) => t.clone(),
                             None if a.valid_target_ids.is_empty() => default_target.clone(),
                             None => continue,
                         };
-                        assignments.push(AttackAssignment {
-                            attacker_id: a.attacker_id.clone(),
-                            target_id,
-                        });
+                        if a.must_attack
+                            || (lethal_target && target_id == default_target)
+                            || self.should_attack(&a.attacker_id, &target_id)
+                        {
+                            assignments.push(AttackAssignment {
+                                attacker_id: a.attacker_id.clone(),
+                                target_id,
+                            });
+                        }
                     }
                 }
                 self.last_attack_declaration = assignments
@@ -170,39 +521,72 @@ impl BotAgent for SimpleAi {
             }) => {
                 let mut remaining = available_blocker_ids.clone();
                 let mut assignments = Vec::new();
-                for attacker in &attackers {
+                let mut ordered_attackers = attackers.iter().collect::<Vec<_>>();
+                ordered_attackers.sort_by_key(|attacker| {
+                    std::cmp::Reverse(
+                        self.card(&attacker.attacker_id)
+                            .map_or(0, Self::card_value),
+                    )
+                });
+                for attacker in ordered_attackers {
                     let need = attacker.min_blockers.max(1) as usize;
-                    let usable: Vec<String> = remaining
+                    let attacker_card = self.card(&attacker.attacker_id);
+                    let attacker_power = attacker_card
+                        .and_then(|card| card.power.as_deref())
+                        .and_then(|value| value.parse::<i32>().ok())
+                        .unwrap_or(0);
+                    let attacker_toughness = attacker_card
+                        .and_then(|card| card.toughness.as_deref())
+                        .and_then(|value| value.parse::<i32>().ok())
+                        .unwrap_or(0);
+                    let mut usable = remaining
                         .iter()
-                        .filter(|b| attacker.valid_blocker_ids.contains(b))
-                        .take(need)
-                        .cloned()
-                        .collect();
+                        .filter(|blocker| attacker.valid_blocker_ids.contains(blocker))
+                        .filter_map(|blocker| {
+                            let card = self.card(blocker)?;
+                            let power = card
+                                .power
+                                .as_deref()
+                                .and_then(|value| value.parse::<i32>().ok())
+                                .unwrap_or(0);
+                            let toughness = card
+                                .toughness
+                                .as_deref()
+                                .and_then(|value| value.parse::<i32>().ok())
+                                .unwrap_or(0);
+                            let profitable = toughness > attacker_power
+                                || power >= attacker_toughness
+                                || card
+                                    .keywords
+                                    .iter()
+                                    .any(|keyword| keyword.eq_ignore_ascii_case("deathtouch"));
+                            (profitable || attacker.must_be_blocked)
+                                .then_some((blocker.clone(), Self::card_value(card)))
+                        })
+                        .collect::<Vec<_>>();
+                    usable.sort_by_key(|(_, value)| *value);
                     if usable.len() < need {
                         continue;
                     }
-                    for blocker_id in usable {
-                        remaining.retain(|b| b != &blocker_id);
+                    for (blocker_id, _) in usable.into_iter().take(need) {
+                        remaining.retain(|blocker| blocker != &blocker_id);
                         assignments.push(BlockAssignment {
                             blocker_id,
                             attacker_id: attacker.attacker_id.clone(),
                         });
                     }
-                    break;
                 }
                 Some(PromptOutput::ChooseBlockers(ChooseBlockersOutput::DeclareBlockers { assignments }))
             }
             PromptInput::ChooseBoardTargets(manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
-                candidates, min_targets, max_targets, chosen_targets, ..
+                candidates, hostile, min_targets, max_targets, chosen_targets, ..
             }) => {
-                let signature = format!("targets:{min_targets}|{max_targets}|{}", candidates.len());
-                let take = if self.looping_on(signature) {
-                    (max_targets - chosen_targets).max(0) as usize
-                } else if chosen_targets < min_targets {
-                    1
-                } else {
-                    0
-                };
+                let take = (max_targets - chosen_targets).max(min_targets - chosen_targets).max(0)
+                    as usize;
+                let mut candidates = candidates;
+                candidates.sort_by_key(|target| {
+                    std::cmp::Reverse(self.target_score(target, &deciding_player_id, hostile))
+                });
                 Some(PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets {
                     chosen: candidates.into_iter().take(take).collect(),
                 }))
@@ -222,7 +606,18 @@ impl BotAgent for SimpleAi {
                 deny_label,
             }) => {
                 let signature = format!("bool:{}|{confirm_label}|{deny_label}", presentation.title);
-                let value = self.looping_on(signature);
+                let repeated = self.looping_on(signature);
+                let title = presentation.title.to_ascii_lowercase();
+                let always_accept = title.contains("cancel search")
+                    || (title.contains("commander")
+                        && title.contains("put it into the command zone"));
+                let accept_once = title.contains("search your library?")
+                    || title.contains("sacrifice evolving wilds")
+                    || title.contains("sacrifice bountiful landscape")
+                    || title.contains("sacrifice strip mine")
+                    || title.contains("exile simian spirit guide")
+                    || title.starts_with("use triggered ability");
+                let value = always_accept || (accept_once && !repeated);
                 Some(PromptOutput::ChooseBoolean(ChooseBooleanOutput::Decision { value }))
             }
             PromptInput::ChooseFromSelection(manabrew_protocol::prompts::choose_from_selection::ChooseFromSelectionInput {
@@ -233,7 +628,12 @@ impl BotAgent for SimpleAi {
             }) => {
                 let signature =
                     format!("select:{}|{min_total}|{max_total}|{}", presentation.title, options.len());
-                let target = if self.looping_on(signature) { max_total } else { min_total };
+                let search = presentation.title.to_ascii_lowercase().contains("search");
+                let target = if search || self.looping_on(signature) {
+                    max_total
+                } else {
+                    min_total
+                };
                 let mut chosen_indices = Vec::new();
                 let mut total = 0;
                 while total < target {
@@ -274,25 +674,58 @@ impl BotAgent for SimpleAi {
                     chosen_colors: chosen,
                 }))
             }
-            PromptInput::ChooseNumber(manabrew_protocol::prompts::choose_number::ChooseNumberInput { min, .. }) => Some(PromptOutput::ChooseNumber(ChooseNumberOutput::NumberDecision {
-                chosen_number: Some(min),
+            PromptInput::ChooseNumber(manabrew_protocol::prompts::choose_number::ChooseNumberInput { min, max, .. }) => Some(PromptOutput::ChooseNumber(ChooseNumberOutput::NumberDecision {
+                chosen_number: Some(min.max(1).min(max)),
             })),
-            PromptInput::ChooseDamageAssignmentOrder(manabrew_protocol::prompts::choose_damage_assignment_order::ChooseDamageAssignmentOrderInput { blocker_ids, .. }) => {
+            PromptInput::ChooseDamageAssignmentOrder(manabrew_protocol::prompts::choose_damage_assignment_order::ChooseDamageAssignmentOrderInput { mut blocker_ids, .. }) => {
+                blocker_ids.sort_by_key(|blocker_id| {
+                    self.card(blocker_id)
+                        .and_then(|card| card.toughness.as_deref())
+                        .and_then(|value| value.parse::<i32>().ok())
+                        .unwrap_or(i32::MAX)
+                });
                 Some(PromptOutput::ChooseDamageAssignmentOrder(ChooseDamageAssignmentOrderOutput::DamageAssignmentOrderDecision {
                     ordered_blocker_ids: blocker_ids,
                 }))
             }
             PromptInput::ChooseCombatDamageAssignment(manabrew_protocol::prompts::choose_combat_damage_assignment::ChooseCombatDamageAssignmentInput {
                 blocker_ids,
+                defender_id,
                 total_damage,
+                attacker_has_deathtouch,
                 ..
             }) => {
+                let mut remaining = total_damage.max(0);
                 let mut assignments = Vec::new();
-                if let Some(first) = blocker_ids.first() {
+                for blocker_id in &blocker_ids {
+                    if remaining == 0 {
+                        break;
+                    }
+                    let lethal = if attacker_has_deathtouch {
+                        1
+                    } else {
+                        self.card(blocker_id)
+                            .and_then(|card| card.toughness.as_deref().map(|value| (value, card.damage)))
+                            .and_then(|(value, damage)| value.parse::<i32>().ok().map(|toughness| toughness - damage))
+                            .unwrap_or(remaining)
+                            .max(1)
+                    };
+                    let damage = remaining.min(lethal);
+                    remaining -= damage;
                     assignments.push(CombatDamageAssignmentEntry {
-                        assignee_id: first.clone(),
-                        damage: total_damage.max(0),
+                        assignee_id: blocker_id.clone(),
+                        damage,
                     });
+                }
+                if remaining > 0 {
+                    if let Some(defender_id) = defender_id {
+                        assignments.push(CombatDamageAssignmentEntry {
+                            assignee_id: defender_id,
+                            damage: remaining,
+                        });
+                    } else if let Some(last) = assignments.last_mut() {
+                        last.damage += remaining;
+                    }
                 }
                 Some(PromptOutput::ChooseCombatDamageAssignment(ChooseCombatDamageAssignmentOutput::CombatDamageAssignmentDecision { assignments }))
             }
@@ -315,21 +748,14 @@ impl BotAgent for SimpleAi {
                         action_id: action.id.clone(),
                     }
                 } else {
-                    let signature = format!(
-                        "pay:{}|{}|{}",
-                        input.card_id,
-                        input.mana_cost,
-                        input
-                            .actions
-                            .iter()
-                            .map(|action| action.id.as_str())
-                            .collect::<Vec<_>>()
-                            .join(",")
-                    );
-                    if input.actions.is_empty() || self.looping_on(signature) {
+                    if input.actions.is_empty()
+                        || self.payment_attempt.as_deref() == Some(input.card_id.as_str())
+                    {
                         self.fail_attack_target(&input.card_id);
+                        self.payment_attempt = None;
                         PayManaCostOutput::Cancel
                     } else {
+                        self.payment_attempt = Some(input.card_id.clone());
                         PayManaCostOutput::Pay { auto: true }
                     }
                 };
@@ -337,14 +763,22 @@ impl BotAgent for SimpleAi {
             }
             PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
                 presentation,
-                cards,
+                mut cards,
                 min,
                 max,
             }) => {
-                let signature = format!("cards:{}|{min}|{max}|{}", presentation.title, cards.len());
-                let take = if self.looping_on(signature) { max } else { min };
+                let title = presentation.title.to_ascii_lowercase();
+                let prefer_low = title.contains("sacrifice")
+                    || title.contains("discard")
+                    || title.contains("graveyard")
+                    || title.contains("bottom");
+                cards.sort_by_key(|card| {
+                    let value = Self::card_value(card);
+                    if prefer_low { value } else { -value }
+                });
+                let count = if prefer_low { min } else { max };
                 Some(PromptOutput::ChooseCards(ChooseCardsOutput::ChooseCardsDecision {
-                    chosen_card_ids: cards.iter().take(take).map(|c| c.id.clone()).collect(),
+                    chosen_card_ids: cards.iter().take(count).map(|card| card.id.clone()).collect(),
                 }))
             }
             PromptInput::Reorder(manabrew_protocol::prompts::reorder::ReorderInput { items, .. }) => {

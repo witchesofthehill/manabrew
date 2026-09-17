@@ -66,7 +66,7 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { useLimitedStore } from "@/stores/useLimitedStore";
 import { peek as peekGauntletMatch, tryConsumeGauntletMatch } from "@/lib/gauntletReturn";
-import { intentPrefersArrow } from "@/types/promptType";
+import { intentIsHostile, intentPrefersArrow } from "@/types/promptType";
 import type { PromptType } from "@/protocol";
 import { declareAttackersOutput } from "@/components/prompts/internal/playerActions";
 import { TargetingCursor } from "@/components/game/TargetingCursor";
@@ -1284,6 +1284,29 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
   }, [currentPrompt, viewingZone, closeZoneViewer]);
 
+  const hoveredStackObjectIdForSpecs = useStackUIStore((s) => s.hoveredStackObjectId);
+  const highlightedStackTargetColors = useMemo(() => {
+    const stack = gameView?.stack ?? [];
+    const active =
+      (hoveredStackObjectIdForSpecs
+        ? stack.find((object) => object.id === hoveredStackObjectIdForSpecs)
+        : undefined) ?? stack[stack.length - 1];
+    const colors: Record<string, string> = {};
+    for (const target of active?.targets ?? []) {
+      if (target.kind !== "card") continue;
+      colors[target.id] =
+        target.intent != null && intentIsHostile(target.intent)
+          ? themeColors.targeting.hostile
+          : themeColors.targeting.friendly;
+    }
+    return colors;
+  }, [
+    gameView?.stack,
+    hoveredStackObjectIdForSpecs,
+    themeColors.targeting.hostile,
+    themeColors.targeting.friendly,
+  ]);
+
   const liveZoneCards =
     viewingZone?.source && gameView
       ? visibleZoneCards(viewingZone.source, gameView)
@@ -1305,6 +1328,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         clickableCardIds: liveZoneCandidates,
         selectedCardIds: viewingZone.mode === "cost" ? delvedCardIds : viewingZone.selectedCardIds,
         pending: isWaitingForResponse,
+        highlightedCardColors: highlightedStackTargetColors,
         totalCount:
           viewingZone.source?.zone === "library"
             ? gameView?.players.find((player) => player.id === viewingZone.source!.playerId)
@@ -1434,7 +1458,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     [combatRows],
   );
 
-  const hoveredStackObjectIdForSpecs = useStackUIStore((s) => s.hoveredStackObjectId);
   const setHoveredStackObjectId = useStackUIStore((s) => s.setHoveredStackObjectId);
   const stackCollapsed = useStackUIStore((s) => s.collapsed);
   const toggleStackCollapsed = useStackUIStore((s) => s.toggleCollapsed);

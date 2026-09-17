@@ -24,6 +24,7 @@ export interface ZoneViewerProps {
   clickLabel?: string;
   selectedLabel?: string;
   targetHostile?: boolean;
+  highlightedCardColors?: Record<string, string>;
 }
 const ACTION_LABELS: Record<ZoneViewMode, string> = {
   browse: "Choose action",
@@ -47,6 +48,7 @@ export function ZoneViewer({
   clickLabel,
   selectedLabel,
   targetHostile,
+  highlightedCardColors,
 }: ZoneViewerProps) {
   const theme = useTheme().gameTheme;
   const key = zoneLocationKey(source, title);
@@ -58,9 +60,10 @@ export function ZoneViewer({
       id: card.id,
       card,
       selected: selected.has(card.id),
+      highlightColor: highlightedCardColors?.[card.id],
       legal: !!onClickCard && (mode === "manual" || legal.has(card.id) || selected.has(card.id)),
     }));
-  }, [cards, mode, onClickCard, clickableCardIds, selectedCardIds]);
+  }, [cards, mode, onClickCard, clickableCardIds, selectedCardIds, highlightedCardColors]);
   const color =
     targetHostile === undefined
       ? theme.cardRing

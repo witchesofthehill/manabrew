@@ -87,8 +87,13 @@ const seats = bots.map(() => ({
   booleanChoices: {},
   boardTargetChoices: {},
   cardSelections: {},
+  paymentAutoAttempts: 0,
+  paymentConfirms: 0,
+  paymentCancels: 0,
+  failedCastLabels: {},
 }));
 const latestViews = decks.map(() => null);
+const pendingCastLabels = decks.map(() => null);
 
 function increment(counts, key) {
   counts[key] = (counts[key] ?? 0) + 1;
@@ -131,12 +136,25 @@ const engine = await createForgeEngine({
       if (chosen?.label) increment(seats[seat].actionLabels, chosen.label);
       if (chosen?.type === "cast") {
         seats[seat].casts += 1;
+        pendingCastLabels[seat] = chosen.label ?? chosen.cardId ?? "unknown cast";
         if ((chosen.label ?? "").startsWith("Play ")) seats[seat].landPlays += 1;
       } else {
         seats[seat].abilities += 1;
       }
     }
     if (decision?.type === "pass") seats[seat].passes += 1;
+    if (prompt.input?.type === "payManaCost" && decision?.type === "pay" && decision.auto) {
+      seats[seat].paymentAutoAttempts += 1;
+    }
+    if (prompt.input?.type === "payManaCost" && decision?.type === "pay" && !decision.auto) {
+      seats[seat].paymentConfirms += 1;
+      pendingCastLabels[seat] = null;
+    }
+    if (prompt.input?.type === "payManaCost" && decision?.type === "cancel") {
+      seats[seat].paymentCancels += 1;
+      increment(seats[seat].failedCastLabels, pendingCastLabels[seat] ?? "unknown payment");
+      pendingCastLabels[seat] = null;
+    }
     if (decision?.type === "declareAttackers") {
       seats[seat].attackers += decision.assignments?.length ?? 0;
     }

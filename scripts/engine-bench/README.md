@@ -32,7 +32,8 @@ yarn bench:manabot --engine packages/forge-wasm --seed 7015 --out manabot-7015.j
 ```
 
 This reports per-seat casts, land plays, abilities, passes, attackers, blocks,
-mulligans and the final outcome alongside response-to-next-prompt latency.
+mulligans, prompt/action counts, optional choices and target intent/ownership,
+plus the final outcome and response-to-next-prompt latency.
 Use `--decks`, `--timeout`, `--engine`, and `--wasm` to override its inputs.
 `--wasms` accepts one WASM directory per seat for direct policy A/B games.
 It is a policy-quality smoke test, not a causal comparison with Forge AI.

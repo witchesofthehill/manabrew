@@ -82,11 +82,21 @@ const seats = bots.map(() => ({
   attackers: 0,
   blocks: 0,
   mulligans: 0,
+  promptTypes: {},
+  actionLabels: {},
+  booleanChoices: {},
+  boardTargetChoices: {},
 }));
+const latestViews = decks.map(() => null);
+
+function increment(counts, key) {
+  counts[key] = (counts[key] ?? 0) + 1;
+}
 const intervals = [];
 let turn = 0;
 let finalView = null;
 let lastResponseAt = null;
+const terminalPrompts = [];
 let finish;
 const startedAt = performance.now();
 const ended = new Promise((resolve) => {
@@ -97,6 +107,7 @@ const engine = await createForgeEngine({
   onState: (state, slot) => {
     const seat = slot ? Number(slot.slice("player-".length)) : 0;
     bots[seat].observe_state?.(JSON.stringify(state));
+    latestViews[seat] = state?.gameView ?? latestViews[seat];
     if (!slot) finalView = state?.gameView ?? finalView;
     if (typeof state?.gameView?.turn === "number") turn = state.gameView.turn;
   },
@@ -105,6 +116,8 @@ const engine = await createForgeEngine({
     const now = performance.now();
     if (lastResponseAt !== null) intervals.push(now - lastResponseAt);
     seats[seat].prompts += 1;
+    increment(seats[seat].promptTypes, prompt.input?.type ?? prompt.type ?? "unknown");
+    if (prompt.input?.type === "gameOver") terminalPrompts.push({ seat, input: prompt.input });
     const raw = bots[seat].decide(JSON.stringify(prompt));
     if (!raw) return;
     const action = JSON.parse(raw);
@@ -114,6 +127,7 @@ const engine = await createForgeEngine({
       const chosen = (prompt.input.actions ?? []).find(
         (candidate) => candidate.id === decision.actionId,
       );
+      if (chosen?.label) increment(seats[seat].actionLabels, chosen.label);
       if (chosen?.type === "cast") {
         seats[seat].casts += 1;
         if ((chosen.label ?? "").startsWith("Play ")) seats[seat].landPlays += 1;
@@ -129,6 +143,27 @@ const engine = await createForgeEngine({
       seats[seat].blocks += decision.assignments?.length ?? 0;
     }
     if (decision?.type === "mulliganDecision" && !decision.keep) seats[seat].mulligans += 1;
+    if (decision?.type === "decision" && typeof decision.value === "boolean") {
+      const title = prompt.input.presentation?.title ?? "untitled";
+      increment(seats[seat].booleanChoices, `${title}: ${decision.value}`);
+    }
+    if (decision?.type === "boardTargets") {
+      for (const chosen of decision.chosen ?? []) {
+        const target = (prompt.input.candidates ?? []).find((value) => value.id === chosen.id);
+        let side = "unknown";
+        if (target?.kind === "player") side = target.id === `player-${seat}` ? "own" : "opponent";
+        if (target?.kind === "card") {
+          const card = (latestViews[seat]?.zones ?? [])
+            .flatMap((zone) => zone.cards ?? [])
+            .find((value) => value.id === target.id);
+          if (card?.controllerId)
+            side = card.controllerId === `player-${seat}` ? "own" : "opponent";
+        }
+        const intent =
+          target?.intent ?? prompt.input.intent ?? (prompt.input.hostile ? "hostile" : "none");
+        increment(seats[seat].boardTargetChoices, `${intent}:${side}`);
+      }
+    }
     lastResponseAt = performance.now();
     engine.respond(prompt.promptId, action, slot || undefined);
   },
@@ -165,6 +200,7 @@ const summary = {
   turn,
   winnerId: finalView?.winnerId ?? null,
   players: finalView?.players ?? [],
+  terminalPrompts,
   seats,
   latency: {
     samples: sorted.length,

@@ -40,6 +40,18 @@ pub struct SimpleAi {
     has_command_cards: bool,
 }
 
+struct Combatant {
+    id: String,
+    power: i32,
+    lethal: i32,
+    value: i32,
+    deathtouch: bool,
+    first_strike: bool,
+    double_strike: bool,
+    indestructible: bool,
+    trample: bool,
+}
+
 impl SimpleAi {
     pub fn new() -> Self {
         Self::default()
@@ -258,6 +270,65 @@ impl SimpleAi {
                 .is_some_and(|view| view.players.len() == 2)
     }
 
+    fn blockers_to_keep(&self, player_id: &str, attackers: &[String]) -> HashSet<String> {
+        let mut keep = HashSet::new();
+        let Some(view) = &self.view else {
+            return keep;
+        };
+        let life = view
+            .players
+            .iter()
+            .find(|player| player.id == player_id)
+            .map_or(20, |player| player.life);
+        let mut threats = view
+            .players
+            .iter()
+            .filter(|player| player.id != player_id)
+            .map(|player| {
+                let mut powers = view
+                    .zones
+                    .iter()
+                    .filter(|zone| zone.zone == ZoneKind::Battlefield && zone.owner_id == player.id)
+                    .flat_map(|zone| &zone.cards)
+                    .filter_map(|card| match card {
+                        CardView::Visible(card) if card.types.iter().any(|ty| ty == "Creature") => {
+                            Some(Self::stat(card.power.as_deref()).max(0))
+                        }
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+                powers.sort_unstable_by(|left, right| right.cmp(left));
+                powers
+            })
+            .max_by_key(|powers| powers.iter().sum::<i32>())
+            .unwrap_or_default();
+        let mut incoming = threats.iter().sum::<i32>();
+        if !Self::life_in_danger(life, incoming, false) {
+            return keep;
+        }
+        let mut candidates = attackers
+            .iter()
+            .filter_map(|id| self.combatant(id))
+            .filter(|creature| {
+                !self
+                    .card(&creature.id)
+                    .is_some_and(|card| Self::has_keyword(card, "Vigilance"))
+            })
+            .collect::<Vec<_>>();
+        candidates.sort_by_key(|creature| std::cmp::Reverse((creature.lethal, creature.power)));
+        for creature in candidates {
+            if !Self::life_in_danger(life, incoming, false) {
+                break;
+            }
+            if threats.is_empty() {
+                break;
+            }
+            incoming -= threats.remove(0);
+            keep.insert(creature.id);
+        }
+        keep
+    }
+
     fn should_attack(&self, attacker_id: &str, target_id: &str) -> bool {
         let Some(attacker) = self.card(attacker_id) else {
             return true;
@@ -326,6 +397,219 @@ impl SimpleAi {
         })
     }
 
+    fn stat(value: Option<&str>) -> i32 {
+        value
+            .and_then(|value| value.parse::<i32>().ok())
+            .unwrap_or(0)
+    }
+
+    fn combatant(&self, id: &str) -> Option<Combatant> {
+        let card = self.card(id)?;
+        Some(Combatant {
+            id: id.to_string(),
+            power: Self::stat(card.power.as_deref()).max(0),
+            lethal: (Self::stat(card.toughness.as_deref()) - card.damage).max(1),
+            value: Self::card_value(card),
+            deathtouch: Self::has_keyword(card, "Deathtouch"),
+            first_strike: Self::has_keyword(card, "First strike")
+                || Self::has_keyword(card, "Double strike"),
+            double_strike: Self::has_keyword(card, "Double strike"),
+            indestructible: Self::has_keyword(card, "Indestructible"),
+            trample: Self::has_keyword(card, "Trample"),
+        })
+    }
+
+    fn can_destroy(striker: &Combatant, target: &Combatant) -> bool {
+        if target.indestructible || striker.power <= 0 {
+            return false;
+        }
+        let damage = if striker.double_strike {
+            striker.power * 2
+        } else {
+            striker.power
+        };
+        let kills = striker.deathtouch || damage >= target.lethal;
+        let struck_first = target.first_strike
+            && !striker.first_strike
+            && (target.deathtouch || target.power >= striker.lethal);
+        kills && !struck_first
+    }
+
+    fn life_in_danger(life: i32, unblocked: i32, serious: bool) -> bool {
+        let threshold = if serious { 1 } else { 4.min(life) };
+        life - unblocked < threshold
+    }
+
+    fn declare_blockers(
+        &self,
+        attackers: &[manabrew_protocol::prompts::choose_blockers::BlockableAttackerDto],
+        available_blocker_ids: &[String],
+        player_id: &str,
+    ) -> Vec<BlockAssignment> {
+        let life = self.view.as_ref().map_or(20, |view| {
+            view.players
+                .iter()
+                .find(|player| player.id == player_id)
+                .map_or(20, |player| player.life)
+        });
+        let mut attackers = attackers
+            .iter()
+            .filter_map(|attacker| {
+                let combatant = self.combatant(&attacker.attacker_id)?;
+                let at_me = self
+                    .card(&attacker.attacker_id)
+                    .is_some_and(|card| card.attacking_player_id.as_deref() == Some(player_id));
+                Some((attacker, combatant, at_me))
+            })
+            .collect::<Vec<_>>();
+        attackers
+            .sort_by_key(|(_, combatant, _)| std::cmp::Reverse((combatant.power, combatant.value)));
+        let mut blockers = available_blocker_ids
+            .iter()
+            .filter_map(|id| self.combatant(id))
+            .collect::<Vec<_>>();
+        blockers.sort_by_key(|blocker| (blocker.power, blocker.value));
+
+        let mut assignments: Vec<BlockAssignment> = Vec::new();
+        let mut blocked: HashSet<String> = HashSet::new();
+        let mut used: HashSet<String> = HashSet::new();
+        let unblocked_damage = |blocked: &HashSet<String>| {
+            attackers
+                .iter()
+                .filter(|(attacker, _, at_me)| *at_me && !blocked.contains(&attacker.attacker_id))
+                .map(|(_, combatant, _)| combatant.power)
+                .sum::<i32>()
+        };
+        let candidates =
+            |attacker: &manabrew_protocol::prompts::choose_blockers::BlockableAttackerDto,
+             used: &HashSet<String>| {
+                blockers
+                    .iter()
+                    .filter(|blocker| {
+                        !used.contains(&blocker.id)
+                            && attacker.valid_blocker_ids.contains(&blocker.id)
+                    })
+                    .collect::<Vec<_>>()
+            };
+        let assign = |attacker_id: &str,
+                      blocker: &Combatant,
+                      assignments: &mut Vec<BlockAssignment>,
+                      blocked: &mut HashSet<String>,
+                      used: &mut HashSet<String>| {
+            assignments.push(BlockAssignment {
+                blocker_id: blocker.id.clone(),
+                attacker_id: attacker_id.to_string(),
+            });
+            blocked.insert(attacker_id.to_string());
+            used.insert(blocker.id.clone());
+        };
+
+        let good_blocks = |assignments: &mut Vec<BlockAssignment>,
+                           blocked: &mut HashSet<String>,
+                           used: &mut HashSet<String>| {
+            for (attacker, combatant, _) in &attackers {
+                if attacker.min_blockers > 1 || blocked.contains(&attacker.attacker_id) {
+                    continue;
+                }
+                let options = candidates(attacker, used);
+                let safe = options
+                    .iter()
+                    .filter(|blocker| !Self::can_destroy(combatant, blocker))
+                    .copied()
+                    .collect::<Vec<_>>();
+                let pick = safe
+                    .iter()
+                    .find(|blocker| Self::can_destroy(blocker, combatant))
+                    .or_else(|| safe.iter().find(|_| !combatant.trample))
+                    .copied();
+                if let Some(blocker) = pick {
+                    assign(&attacker.attacker_id, blocker, assignments, blocked, used);
+                }
+            }
+        };
+        let trade_blocks = |danger: bool,
+                            assignments: &mut Vec<BlockAssignment>,
+                            blocked: &mut HashSet<String>,
+                            used: &mut HashSet<String>| {
+            for (attacker, combatant, _) in &attackers {
+                if attacker.min_blockers > 1 || blocked.contains(&attacker.attacker_id) {
+                    continue;
+                }
+                let pick = candidates(attacker, used).into_iter().find(|blocker| {
+                    Self::can_destroy(blocker, combatant)
+                        && (danger || blocker.value <= combatant.value)
+                });
+                if let Some(blocker) = pick {
+                    assign(&attacker.attacker_id, blocker, assignments, blocked, used);
+                }
+            }
+        };
+        let chump_blocks = |serious: bool,
+                            assignments: &mut Vec<BlockAssignment>,
+                            blocked: &mut HashSet<String>,
+                            used: &mut HashSet<String>| {
+            for (attacker, combatant, at_me) in &attackers {
+                if !at_me
+                    || blocked.contains(&attacker.attacker_id)
+                    || !Self::life_in_danger(life, unblocked_damage(blocked), serious)
+                {
+                    continue;
+                }
+                let need = attacker.min_blockers.max(1) as usize;
+                let options = candidates(attacker, used);
+                let picks = options
+                    .iter()
+                    .filter(|blocker| !combatant.trample || blocker.lethal >= combatant.power)
+                    .take(need)
+                    .copied()
+                    .collect::<Vec<_>>();
+                if picks.len() < need {
+                    continue;
+                }
+                for blocker in picks {
+                    assign(&attacker.attacker_id, blocker, assignments, blocked, used);
+                }
+            }
+        };
+
+        good_blocks(&mut assignments, &mut blocked, &mut used);
+        let danger = Self::life_in_danger(life, unblocked_damage(&blocked), false);
+        trade_blocks(danger, &mut assignments, &mut blocked, &mut used);
+        if danger {
+            chump_blocks(false, &mut assignments, &mut blocked, &mut used);
+        }
+        if Self::life_in_danger(life, unblocked_damage(&blocked), true) {
+            assignments.clear();
+            blocked.clear();
+            used.clear();
+            chump_blocks(true, &mut assignments, &mut blocked, &mut used);
+            trade_blocks(true, &mut assignments, &mut blocked, &mut used);
+            good_blocks(&mut assignments, &mut blocked, &mut used);
+        }
+        for (attacker, _, _) in &attackers {
+            if !attacker.must_be_blocked || blocked.contains(&attacker.attacker_id) {
+                continue;
+            }
+            let need = attacker.min_blockers.max(1) as usize;
+            let picks = candidates(attacker, &used)
+                .into_iter()
+                .take(need)
+                .collect::<Vec<_>>();
+            if picks.len() == need {
+                for blocker in picks {
+                    assign(
+                        &attacker.attacker_id,
+                        blocker,
+                        &mut assignments,
+                        &mut blocked,
+                        &mut used,
+                    );
+                }
+            }
+        }
+        assignments
+    }
+
     fn target_score(&self, target: &TargetRef, player_id: &str, prompt_hostile: bool) -> i32 {
         let hostile = prompt_hostile
             || matches!(
@@ -387,11 +671,10 @@ impl SimpleAi {
         let Some(view) = &self.view else {
             return 0;
         };
-        let life = view
-            .players
-            .iter()
-            .find(|player| player.id == id)
-            .map_or(0, |player| player.life.max(0));
+        let Some(player) = view.players.iter().find(|player| player.id == id) else {
+            return self.card(id).map_or(0, Self::card_value);
+        };
+        let life = player.life.max(0);
         let board = view
             .zones
             .iter()
@@ -549,9 +832,20 @@ impl BotAgent for SimpleAi {
                         .join(",")
                 );
                 let reprompted = self.looping_on_consecutive(signature);
+                let keep = if lethal_target {
+                    HashSet::new()
+                } else {
+                    self.blockers_to_keep(
+                        &deciding_player_id,
+                        &attackers.iter().map(|a| a.attacker_id.clone()).collect::<Vec<_>>(),
+                    )
+                };
                 let mut assignments = Vec::new();
                 if !reprompted {
                     for a in &attackers {
+                        if keep.contains(&a.attacker_id) && !a.must_attack {
+                            continue;
+                        }
                         let target_id = match a
                             .valid_target_ids
                             .iter()
@@ -586,63 +880,8 @@ impl BotAgent for SimpleAi {
                 available_blocker_ids,
                 ..
             }) => {
-                let mut remaining = available_blocker_ids.clone();
-                let mut assignments = Vec::new();
-                let mut ordered_attackers = attackers.iter().collect::<Vec<_>>();
-                ordered_attackers.sort_by_key(|attacker| {
-                    std::cmp::Reverse(
-                        self.card(&attacker.attacker_id)
-                            .map_or(0, Self::card_value),
-                    )
-                });
-                for attacker in ordered_attackers {
-                    let need = attacker.min_blockers.max(1) as usize;
-                    let attacker_card = self.card(&attacker.attacker_id);
-                    let attacker_power = attacker_card
-                        .and_then(|card| card.power.as_deref())
-                        .and_then(|value| value.parse::<i32>().ok())
-                        .unwrap_or(0);
-                    let attacker_toughness = attacker_card
-                        .and_then(|card| card.toughness.as_deref())
-                        .and_then(|value| value.parse::<i32>().ok())
-                        .unwrap_or(0);
-                    let mut usable = remaining
-                        .iter()
-                        .filter(|blocker| attacker.valid_blocker_ids.contains(blocker))
-                        .filter_map(|blocker| {
-                            let card = self.card(blocker)?;
-                            let power = card
-                                .power
-                                .as_deref()
-                                .and_then(|value| value.parse::<i32>().ok())
-                                .unwrap_or(0);
-                            let toughness = card
-                                .toughness
-                                .as_deref()
-                                .and_then(|value| value.parse::<i32>().ok())
-                                .unwrap_or(0);
-                            let profitable = toughness > attacker_power
-                                || power >= attacker_toughness
-                                || card
-                                    .keywords
-                                    .iter()
-                                    .any(|keyword| keyword.eq_ignore_ascii_case("deathtouch"));
-                            (profitable || attacker.must_be_blocked)
-                                .then_some((blocker.clone(), Self::card_value(card)))
-                        })
-                        .collect::<Vec<_>>();
-                    usable.sort_by_key(|(_, value)| *value);
-                    if usable.len() < need {
-                        continue;
-                    }
-                    for (blocker_id, _) in usable.into_iter().take(need) {
-                        remaining.retain(|blocker| blocker != &blocker_id);
-                        assignments.push(BlockAssignment {
-                            blocker_id,
-                            attacker_id: attacker.attacker_id.clone(),
-                        });
-                    }
-                }
+                let assignments =
+                    self.declare_blockers(&attackers, &available_blocker_ids, &deciding_player_id);
                 Some(PromptOutput::ChooseBlockers(ChooseBlockersOutput::DeclareBlockers { assignments }))
             }
             PromptInput::ChooseBoardTargets(manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {

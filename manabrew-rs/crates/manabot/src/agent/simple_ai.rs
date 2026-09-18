@@ -37,6 +37,7 @@ pub struct SimpleAi {
     turn: Option<u32>,
     attempted_actions: HashSet<String>,
     payment_attempt: Option<String>,
+    has_command_cards: bool,
 }
 
 impl SimpleAi {
@@ -83,6 +84,15 @@ impl SimpleAi {
         {
             self.failed_attack_targets.insert(target_id.clone());
         }
+    }
+
+    fn card_zone(&self, id: &str) -> Option<ZoneKind> {
+        let (zone_index, _) = *self.card_locations.get(id)?;
+        self.view
+            .as_ref()?
+            .zones
+            .get(zone_index)
+            .map(|zone| zone.zone)
     }
 
     fn card(&self, id: &str) -> Option<&CardDto> {
@@ -137,6 +147,23 @@ impl SimpleAi {
         }
     }
 
+    fn prefers_creatures(&self, player_id: &str) -> bool {
+        self.view.as_ref().is_some_and(|view| {
+            view.zones
+                .iter()
+                .filter(|zone| matches!(zone.zone, ZoneKind::Command | ZoneKind::Battlefield))
+                .flat_map(|zone| &zone.cards)
+                .any(|card| {
+                    matches!(
+                        card,
+                        CardView::Visible(card)
+                            if card.owner_id == player_id
+                                && card.text.to_ascii_lowercase().contains("creature spells")
+                    )
+                })
+        })
+    }
+
     fn action_score(&self, action: &AvailableAction, player_id: &str) -> i32 {
         match &action.kind {
             AvailableActionKind::Cast { card_id, label, .. } => {
@@ -173,9 +200,23 @@ impl SimpleAi {
                     250
                 };
                 score += Self::card_value(card) - card.cmc * 8;
+                if self.card_zone(card_id) == Some(ZoneKind::Command) {
+                    score += 160;
+                }
+                if self.prefers_creatures(player_id)
+                    && card.types.iter().any(|card_type| card_type == "Creature")
+                {
+                    score += (120 - card.cmc * 12).max(0);
+                }
                 let text = card.text.to_ascii_lowercase();
                 if text.contains("draw a card") || text.contains("draw two") {
                     score += 35;
+                }
+                if text.contains("whenever you cast")
+                    && text.contains("creature spell")
+                    && text.contains("draw")
+                {
+                    score += 180;
                 }
                 if text.contains("destroy target") || text.contains("exile target") {
                     score += 30;
@@ -209,6 +250,14 @@ impl SimpleAi {
             .any(|value| value.eq_ignore_ascii_case(keyword))
     }
 
+    fn is_constructed_duel(&self) -> bool {
+        !self.has_command_cards
+            && self
+                .view
+                .as_ref()
+                .is_some_and(|view| view.players.len() == 2)
+    }
+
     fn should_attack(&self, attacker_id: &str, target_id: &str) -> bool {
         let Some(attacker) = self.card(attacker_id) else {
             return true;
@@ -218,7 +267,12 @@ impl SimpleAi {
             .as_deref()
             .and_then(|value| value.parse::<i32>().ok())
             .unwrap_or(0);
-        if power <= 0 && !attacker.text.to_ascii_lowercase().contains("attacks") {
+        let attack_trigger = attacker.text.to_ascii_lowercase().contains("whenever")
+            && attacker.text.to_ascii_lowercase().contains(" attacks");
+        if attack_trigger {
+            return true;
+        }
+        if power <= 0 {
             return false;
         }
         let Some(view) = &self.view else {
@@ -357,6 +411,10 @@ impl SimpleAi {
 
 impl BotAgent for SimpleAi {
     fn observe(&mut self, view: GameViewDto) {
+        self.has_command_cards |= view
+            .zones
+            .iter()
+            .any(|zone| zone.zone == ZoneKind::Command && zone.count > 0);
         if self.turn != Some(view.turn) {
             self.turn = Some(view.turn);
             self.attempted_actions.clear();
@@ -378,6 +436,15 @@ impl BotAgent for SimpleAi {
 
     fn decide(&mut self, prompt: AgentPrompt) -> Option<PromptOutput> {
         let deciding_player_id = prompt.deciding_player_id.clone();
+        let prompt_source_id = prompt
+            .source_card
+            .as_ref()
+            .map_or_else(|| "none".to_string(), |card| card.id.clone());
+        let prompt_source_text = prompt
+            .source_ability_text
+            .as_deref()
+            .unwrap_or_default()
+            .to_ascii_lowercase();
         match prompt.input {
         PromptInput::Mulligan(manabrew_protocol::prompts::mulligan::MulliganInput {
                 hand_card_ids,
@@ -605,13 +672,23 @@ impl BotAgent for SimpleAi {
                 confirm_label,
                 deny_label,
             }) => {
-                let signature = format!("bool:{}|{confirm_label}|{deny_label}", presentation.title);
+                let signature = format!(
+                    "bool:{prompt_source_id}|{}|{confirm_label}|{deny_label}",
+                    presentation.title
+                );
                 let repeated = self.looping_on(signature);
                 let title = presentation.title.to_ascii_lowercase();
                 let always_accept = title.contains("cancel search")
                     || (title.contains("commander")
                         && title.contains("put it into the command zone"));
+                let constructed_duel = self.is_constructed_duel();
+                let duel_cost = title.starts_with("pay 1 life")
+                    || title.starts_with("pay 2 life")
+                    || title.starts_with("pay {e}")
+                    || title.starts_with("pay return an artifact")
+                    || title.starts_with("sacrifice ");
                 let accept_once = title.contains("search your library?")
+                    || (constructed_duel && duel_cost)
                     || title.contains("sacrifice evolving wilds")
                     || title.contains("sacrifice bountiful landscape")
                     || title.contains("sacrifice strip mine")
@@ -768,15 +845,27 @@ impl BotAgent for SimpleAi {
                 max,
             }) => {
                 let title = presentation.title.to_ascii_lowercase();
+                let discard = title.contains("discard");
+                let hand_reorder = prompt_source_text.contains("from your hand on top")
+                    || prompt_source_text.contains("from your hand on the bottom");
                 let prefer_low = title.contains("sacrifice")
-                    || title.contains("discard")
+                    || discard
                     || title.contains("graveyard")
-                    || title.contains("bottom");
+                    || title.contains("bottom")
+                    || title.contains("kor skyfisher")
+                    || title.contains("glint hawk")
+                    || hand_reorder;
                 cards.sort_by_key(|card| {
                     let value = Self::card_value(card);
                     if prefer_low { value } else { -value }
                 });
-                let count = if prefer_low { min } else { max };
+                let count = if (discard || hand_reorder) && min == 0 {
+                    max
+                } else if prefer_low {
+                    min
+                } else {
+                    max
+                };
                 Some(PromptOutput::ChooseCards(ChooseCardsOutput::ChooseCardsDecision {
                     chosen_card_ids: cards.iter().take(count).map(|card| card.id.clone()).collect(),
                 }))

@@ -1,5 +1,5 @@
 {
-  "version": 201,
+  "version": 202,
   "packages": {
     "forge-card-script": "0.1.1",
     "forge-card-script-lsp": "0.1.1",
@@ -7,9 +7,9 @@
     "forge-cardset-archive": "0.4.2",
     "forge-foundation": "0.3.3",
     "forge-limited": "0.3.0",
-    "loadgen": "0.2.24",
-    "manabot": "0.13.0",
-    "manabrew": "3.45.1",
+    "loadgen": "0.2.25",
+    "manabot": "0.13.1",
+    "manabrew": "3.45.2",
     "manabrew-agent-interface": "0.13.0",
     "manabrew-art-cache": "0.2.0",
     "manabrew-engine": "0.10.0",
@@ -22,8 +22,8 @@
     "manabrew_game_runtime": "0.3.52",
     "parity": "0.6.3",
     "parity-debugger": "0.3.7",
-    "self-hosted-node": "0.33.2",
+    "self-hosted-node": "0.33.3",
     "tree-sitter-forge-card-script": "0.2.0",
-    "wasm": "0.10.1"
+    "wasm": "0.10.2"
   }
 }

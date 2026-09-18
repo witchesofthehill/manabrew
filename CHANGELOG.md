@@ -1,5 +1,7 @@
 # Changelog
 
+## [3.45.2](https://github.com/witchesofthehill/manabrew/compare/v3.45.1...v3.45.2) (2026-09-18)
+
 ## [3.45.1](https://github.com/witchesofthehill/manabrew/compare/v3.45.0...v3.45.1) (2026-09-18)
 
 ### Performance

@@ -36,6 +36,9 @@ mulligans, prompt/action counts, payment attempts/cancellations, optional choice
 card selections and target intent/ownership, plus the final outcome and
 response-to-next-prompt latency.
 Use `--decks`, `--timeout`, `--engine`, and `--wasm` to override its inputs.
+Commander, Brawl, Oathbreaker, and 60-card constructed presets are supported;
+all selected decks must share a format. Starting life follows the format and can
+be overridden with `--starting-life`.
 `--wasms` accepts one WASM directory per seat for direct policy A/B games.
 `--forge-ai-seats 1,3` assigns those seats to Forge's internal AI, enabling a
 direct Forge-versus-Manabot benchmark when the selected engine facade supports

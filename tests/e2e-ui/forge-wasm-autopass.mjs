@@ -14,6 +14,7 @@
 // Env: BASE, DECK, AI_DECK, ENGINE=forge|rust, HEADED=1.
 import { chromium } from "playwright";
 import { launchOpts, onboard, uniqueName } from "../e2e-ironsmith/lib.mjs";
+import { startSoloGame, waitForFirstPrompt } from "./forgeSolo.mjs";
 
 const BASE = process.env.BASE || "http://localhost:5199";
 const DECK = process.env.DECK || "Izzet Lessons";
@@ -46,16 +47,8 @@ await onboard(page, uniqueName("Auto"));
 await page.goto(`${BASE}/play/offline/constructed`, { waitUntil: "networkidle" });
 if (!(await page.evaluate(() => Boolean(window.__gameStore))))
   await fail("window.__gameStore is dev-only, so this test needs a dev server");
-await page.getByRole("button", { name: "Standard", exact: true }).click();
-await page.waitForTimeout(600);
-for (const deck of [DECK, AI_DECK]) {
-  const card = page.getByRole("button", { name: new RegExp(`^${deck}`) }).first();
-  if (!(await card.count())) await fail(`deck "${deck}" is not on the Standard tab`);
-  await card.click();
-  await page.waitForTimeout(500);
-}
-await page.getByRole("button", { name: /^Fight!$/ }).click();
-await page.waitForTimeout(15000);
+await startSoloGame(page, { format: "Standard", decks: [DECK, AI_DECK], fail });
+await waitForFirstPrompt(page).catch(() => fail("the game never produced a prompt"));
 
 // Record every window the engine opens, and what the client did with it.
 await page.evaluate(() => {

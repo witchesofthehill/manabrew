@@ -697,6 +697,10 @@ class WebGameApi implements IGameApi {
 
     if (params.localIsHost) {
       this.serverApi?.setEnginePlayerNames(params.playerNames);
+      // Every seat here is a person or a Forge AI; a Manabot slot left over
+      // from a solo game (the engine validation plays one) would take a
+      // guest's seat.
+      this.bridge.setLocalBotSlots([]);
       // Host runs the engine; the worker posts back one SAB per remote
       // seat (see the game:remote_sab handler in WorkerBridge).
       await this.bridge.invoke("start_multiplayer_game", {

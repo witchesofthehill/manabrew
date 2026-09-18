@@ -7,7 +7,15 @@
 // Usage: node tests/e2e-ironsmith/other-engines-smoke.mjs           # Manabrew
 //        ENGINE=Ironsmith node tests/e2e-ironsmith/other-engines-smoke.mjs
 import { chromium } from "playwright";
-import { uniqueName, onboard, connectLocal, createRoom, pickPreset, controls } from "./lib.mjs";
+import {
+  uniqueName,
+  onboard,
+  connectLocal,
+  createRoom,
+  pickPreset,
+  controls,
+  deckButton,
+} from "./lib.mjs";
 
 const SHOT = process.env.SHOT || null;
 const engine = process.env.ENGINE || "Manabrew";
@@ -27,11 +35,11 @@ const NM = uniqueName();
 await onboard(page, NM);
 await connectLocal(page, NM);
 await createRoom(page, { name: engine + "Smoke", engine, format: FORMAT });
-await pickPreset(page, () => page.getByRole("button", { name: /^Select Deck$/ }).click(), DECK);
-await page.getByRole("button", { name: /Add Bot/i }).click();
+await pickPreset(page, () => deckButton(page).click(), DECK);
+await page.getByRole("button", { name: /Add (a )?bot/i }).click();
 await page.waitForTimeout(900);
 if (await page.locator("[role=dialog]").count()) await pickPreset(page, async () => {}, DECK);
-await page.getByRole("button", { name: /Start Game/i }).click();
+await page.getByRole("button", { name: /Start (Game|Table)/i }).click();
 await page.waitForTimeout(10000);
 
 const url = page.url();
@@ -39,7 +47,9 @@ const canvas = await page.locator("canvas").count();
 const prompt = (await controls(page)).filter((c) => /Keep|Mulligan|Pass|Play/i.test(c)).length;
 if (SHOT) await page.screenshot({ path: `${SHOT}/engine-${engine}.png`, fullPage: true });
 const onBoard = /\/play|\/game/.test(url) && canvas > 0 && prompt > 0;
-console.log(`ENGINE=${engine} deck=${DECK} url=${url} canvas=${canvas} prompt=${prompt} -> ${onBoard ? "PLAYS ✓" : "FAILED ✗"}`);
+console.log(
+  `ENGINE=${engine} deck=${DECK} url=${url} canvas=${canvas} prompt=${prompt} -> ${onBoard ? "PLAYS ✓" : "FAILED ✗"}`,
+);
 if (!onBoard) console.log("  err:", err ?? "(none)");
 await browser.close();
 process.exitCode = onBoard ? 0 : 1;

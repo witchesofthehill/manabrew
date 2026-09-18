@@ -10,7 +10,15 @@
 //        DECK="Mono Red Prison" FORMAT=Vintage SHOT=/tmp/shots node .../ironsmith-two-clients.mjs
 
 import { chromium } from "playwright";
-import { launchOpts, uniqueName, onboard, connectLocal, createRoom, pickPreset } from "./lib.mjs";
+import {
+  launchOpts,
+  uniqueName,
+  onboard,
+  connectLocal,
+  createRoom,
+  pickPreset,
+  deckButton,
+} from "./lib.mjs";
 
 const DECK = process.env.DECK || "Mono Red Prison";
 const FORMAT = process.env.FORMAT || "Vintage";
@@ -34,18 +42,23 @@ try {
   await onboard(host, hostName);
   await connectLocal(host, hostName);
   await createRoom(host, { name: ROOM, engine: "Ironsmith", format: FORMAT });
-  await pickPreset(host, () => host.getByRole("button", { name: /^Select Deck$/ }).click(), DECK);
+  await pickPreset(host, () => deckButton(host).click(), DECK);
 
   // Guest joins the room from the lobby.
   await onboard(guest, guestName);
   await connectLocal(guest, guestName);
-  await guest.goto((process.env.BASE || "http://localhost:1420") + "/lobby", { waitUntil: "networkidle" });
+  await guest.goto((process.env.BASE || "http://localhost:1420") + "/lobby", {
+    waitUntil: "networkidle",
+  });
   await guest.waitForTimeout(1500);
   const row = guest.locator(`text=${ROOM}`).first();
   await row.waitFor({ timeout: 10000 });
-  await guest.getByRole("button", { name: /^Join$/ }).first().click();
+  await guest
+    .getByRole("button", { name: /^Join$/ })
+    .first()
+    .click();
   await guest.waitForTimeout(2000);
-  await pickPreset(guest, () => guest.getByRole("button", { name: /^Select Deck$/ }).click(), DECK);
+  await pickPreset(guest, () => deckButton(guest).click(), DECK);
 
   // Guest marks ready — the host's Start button is gated on it.
   const ready = guest.getByRole("button", { name: /^Ready$/ });
@@ -54,7 +67,7 @@ try {
 
   // Host starts once both seats are decked and the guest is ready.
   await host.waitForTimeout(1000);
-  await host.getByRole("button", { name: /Start Game/i }).click();
+  await host.getByRole("button", { name: /Start (Game|Table)/i }).click();
   await host.waitForTimeout(10000);
   await guest.waitForTimeout(4000);
 
@@ -66,7 +79,9 @@ try {
   const hostOk = await onBoard(host);
   const guestOk = await onBoard(guest);
   if (hostOk && guestOk) {
-    console.log("PASS: both host and guest reached a live Ironsmith board (encrypted relay path OK)");
+    console.log(
+      "PASS: both host and guest reached a live Ironsmith board (encrypted relay path OK)",
+    );
   } else {
     console.error(`FAIL: host board=${hostOk} guest board=${guestOk} (guest url=${guest.url()})`);
     process.exitCode = 1;

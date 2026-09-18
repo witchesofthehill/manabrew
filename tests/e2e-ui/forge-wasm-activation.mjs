@@ -21,6 +21,7 @@
 // Env: BASE, FORMAT, DECK, AI_DECK, ENGINE=forge|rust, LABEL, BUDGET_MS, HEADED=1.
 import { chromium } from "playwright";
 import { launchOpts, onboard, uniqueName } from "../e2e-ironsmith/lib.mjs";
+import { startSoloGame, waitForFirstPrompt } from "./forgeSolo.mjs";
 
 const BASE = process.env.BASE || "http://localhost:5199";
 const FORMAT = process.env.FORMAT || "Standard";
@@ -56,25 +57,8 @@ await page.addInitScript((wanted) => {
 
 await onboard(page, uniqueName("Act"));
 await page.goto(`${BASE}/play/offline/constructed`, { waitUntil: "networkidle" });
-await page.getByRole("button", { name: FORMAT, exact: true }).click();
-await page.waitForTimeout(600);
-for (const deck of [DECK, AI_DECK]) {
-  const card = page.getByRole("button", { name: new RegExp(`^${deck}`) }).first();
-  if (!(await card.count())) await fail(`deck "${deck}" is not on the ${FORMAT} tab`);
-  await card.click();
-  await page.waitForTimeout(500);
-}
-await page.waitForFunction(
-  () => {
-    const b = [...document.querySelectorAll("button")].find((x) =>
-      /^Fight!$/.test(x.textContent || ""),
-    );
-    return b && !b.disabled;
-  },
-  { timeout: 15000 },
-);
-await page.getByRole("button", { name: /^Fight!$/ }).click();
-await page.waitForTimeout(18000);
+await startSoloGame(page, { format: FORMAT, decks: [DECK, AI_DECK], fail });
+await waitForFirstPrompt(page).catch(() => fail("the game never produced a prompt"));
 
 // Which engine actually started. `__engineDecisions` is installed by the worker
 // bridge only on the Forge path, so its presence is the engine's own answer

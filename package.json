@@ -1,7 +1,7 @@
 {
   "name": "manabrew",
   "private": true,
-  "version": "3.44.1",
+  "version": "3.45.0",
   "type": "module",
   "license": "AGPL-3.0-or-later",
   "engines": {
@@ -47,6 +47,7 @@
     "preview": "vite preview",
     "build:harness": "node scripts/harness.mjs build",
     "bench:stress": "node scripts/engine-bench/stress.mjs",
+    "bench:manabot": "node scripts/engine-bench/manabot-game.mjs",
     "bench:pool": "python3 scripts/engine-bench/pool.py",
     "parity": "node scripts/parity.mjs",
     "parity:gui": "cargo run -p parity-debugger",

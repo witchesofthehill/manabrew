@@ -199,7 +199,7 @@ export class DialogCardPickerScene {
       const displayWidth = cardWidth * scale;
       const displayHeight = cardHeight * scale;
       const feedbackColor = hexToNum(
-        selected ? getTheme().gameTheme.cardSelection : props.ringColor,
+        selected ? getTheme().gameTheme.cardSelection : (item.highlightColor ?? props.ringColor),
       );
       entry.feedback
         .clear()
@@ -383,19 +383,30 @@ export class DialogCardPickerScene {
     const clickableIds = new Set(
       this.props.items.filter((item) => this.canActivateItem(item)).map((item) => item.id),
     );
+    const ringColor = hexToNum(this.props.ringColor);
+    const actionableColors = new Map(
+      this.props.items.flatMap((item) =>
+        item.highlightColor
+          ? [[item.id, hexToNum(item.highlightColor)] as const]
+          : clickableIds.has(item.id)
+            ? [[item.id, ringColor] as const]
+            : [],
+      ),
+    );
     const motionEnabled = animationsEnabled();
     const motionChanged = motionEnabled !== this.motionEnabled;
     this.motionEnabled = motionEnabled;
-    const ringColor = hexToNum(this.props.ringColor);
     for (const [id, entry] of this.entries) {
       const clickable = clickableIds.has(id);
+      const actionColor = actionableColors.get(id);
+      const highlighted = actionColor !== undefined && !clickable;
       const hovered = !this.props.pending && this.hoveredId === id;
       const active = !this.props.pending && this.props.state.activeId === id;
       const selected = selectedIds.has(id);
       const focused = hovered || active;
-      const emphasized = selected || (clickable && focused);
-      const zoomed = focused && !clickable && !selected;
-      entry.sprite.setPlayableRing(clickable && !emphasized ? ringColor : null);
+      const emphasized = selected || ((clickable || highlighted) && focused);
+      const zoomed = focused && !clickable && !selected && !highlighted;
+      entry.sprite.setPlayableRing(actionColor !== undefined && !emphasized ? actionColor : null);
       const targetScale = entry.baseScale * (zoomed ? PASSIVE_CARD_HOVER_SCALE : 1);
       if (motionChanged || entry.targetScale !== targetScale) {
         entry.targetScale = targetScale;

@@ -387,8 +387,13 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public void declareBlockers(final Player defender, final Combat combat) {
-        final List<Card> attackers = ChoiceSpace.sortNative(
-                new ArrayList<Card>(combat.getAttackersOf(defender)), ParityOrder.cardComparator());
+        final List<Card> attackers = new ArrayList<>();
+        for (final Card attacker : combat.getAttackers()) {
+            if (combat.getDefendingPlayerRelatedTo(attacker) == defender) {
+                attackers.add(attacker);
+            }
+        }
+        ChoiceSpace.sortNative(attackers, ParityOrder.cardComparator());
         final List<Card> blockers = ChoiceSpace.sortNative(
                 CombatChoiceSpace.legalBlockers(defender, combat), ParityOrder.cardComparator());
         final Map<Card, List<Card>> validByAttacker =

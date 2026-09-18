@@ -54,6 +54,8 @@ export interface ForgeStartMultiplayerGameOptions {
   decks: ForgeDeck[];
   playerNames: string[];
   enginePlayerIndex: number;
+  /** Seats controlled by Forge's internal AI instead of external SAB clients. */
+  forgeAiSeats?: number[];
   commanderNames?: Array<string | null>;
   startingLife?: number;
   /** Pins the shuffle. Omitted, the engine seeds from the clock. */

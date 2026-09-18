@@ -1518,6 +1518,7 @@ export function GameBoard({
     const rowFields = (combatRow?: CombatRow): Partial<BattlefieldState> => ({
       combatRowAttackerIds: combatRow?.attackerIds,
       combatRowBlocks: combatRow?.blocks,
+      combatRowTargets: combatRow?.targets,
     });
     const oppState = (cards: CardDto[], combatRow?: CombatRow): BattlefieldState => ({
       cards,
@@ -1787,7 +1788,6 @@ export function GameBoard({
           hand={pixiHand}
           opponentLayout={opponentLayout}
           focusLocked={
-            isTargetingPrompt ||
             !!sheetPlayerId ||
             promptType === "chooseAttackers" ||
             promptType === "chooseBlockers" ||

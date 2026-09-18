@@ -2,7 +2,7 @@ import { Container, Graphics, Point as PixiPoint, type FederatedPointerEvent } f
 import type { CardDto, CombatAssignmentDto, PlaymatSettings } from "@/protocol/game";
 import { CardSprite } from "../CardSprite";
 import { BoardZoneTiles, type ZoneTileSpec } from "./BoardZoneTiles";
-import type { BattlefieldState, PlayZoneRect, ScreenPos } from "../types";
+import type { BattlefieldState, CombatRowTarget, PlayZoneRect, ScreenPos } from "../types";
 import {
   cellAt,
   cellFromPoint,
@@ -138,10 +138,13 @@ export class BoardRegion {
   private nameGroupChildren = new Set<string>();
   private combatStaging: SceneCombatStaging | null = null;
   private attackTargetRingId: string | null = null;
+  private attackTargetRingPulsing = false;
   private promptReferenceCardId: string | null = null;
   private promptReferenceColor: number | null = null;
   private combatRowAttackerIds = new Set<string>();
   private combatRowBlocks: CombatAssignmentDto[] = [];
+  private combatRowTargets = new Map<string, CombatRowTarget>();
+  private combatRowTargetCardIds = new Set<string>();
   private combatRowBlockerIds = new Set<string>();
   private skeletonDebug = false;
   private attackRowDebug = false;
@@ -490,7 +493,8 @@ export class BoardRegion {
       card.isAttacking ||
       this.entries.get(id)?.sprite.card.isAttacking ||
       this.combatRowAttackerIds.has(id) ||
-      this.combatRowBlockerIds.has(id)
+      this.combatRowBlockerIds.has(id) ||
+      this.combatRowTargetCardIds.has(id)
     )
       return true;
     const s = this.combatStaging;
@@ -527,21 +531,30 @@ export class BoardRegion {
     return entry ? this.localToCanvas(entry.targetX, entry.targetY) : null;
   }
 
+  getCombatTarget(cardId: string): CombatRowTarget | null {
+    return this.combatRowTargets.get(cardId) ?? null;
+  }
+
   /** Draw the hostile "under attack" ring on `cardId` (a planeswalker/battle the
    *  local player is dragging an attacker onto), or clear it. A card not in this
    *  region is treated as null so the scene can broadcast to every region. */
-  setAttackTargetRing(cardId: string | null): void {
+  setAttackTargetRing(cardId: string | null, pulsing = false): void {
     const mine = cardId && this.entries.has(cardId) ? cardId : null;
-    if (this.attackTargetRingId === mine) return;
+    if (this.attackTargetRingId === mine && this.attackTargetRingPulsing === pulsing) return;
     const prev = this.attackTargetRingId;
     this.attackTargetRingId = mine;
+    this.attackTargetRingPulsing = pulsing;
     if (prev && this.lastState) {
       const e = this.entries.get(prev);
       if (e) this.applyBattlefieldRing(e.sprite, this.lastState);
     }
     if (mine) {
       const e = this.entries.get(mine);
-      if (e) e.sprite.setRing(hexToNum(this.host.getTheme().gameTheme.targeting.hostile));
+      if (e) {
+        const color = hexToNum(this.host.getTheme().gameTheme.targeting.hostile);
+        if (pulsing) e.sprite.setPlayableRing(color);
+        else e.sprite.setRing(color);
+      }
     }
   }
 
@@ -774,6 +787,14 @@ export class BoardRegion {
     this.combatRowAttackerIds = new Set(state.combatRowAttackerIds ?? []);
     this.combatRowBlocks = state.combatRowBlocks ?? [];
     this.combatRowBlockerIds = new Set(this.combatRowBlocks.map((b) => b.blockerId));
+    this.combatRowTargets = new Map(
+      (state.combatRowTargets ?? []).map((target) => [target.attackerId, target]),
+    );
+    this.combatRowTargetCardIds = new Set(
+      (state.combatRowTargets ?? [])
+        .filter((target) => target.targetKind === "card")
+        .map((target) => target.targetId),
+    );
     const cardMap = new Map<string, CardDto>(state.cards.map((c) => [c.id, c]));
     this.cardById = cardMap;
     const currentIds = new Set(state.cards.map((c) => c.id));
@@ -1514,7 +1535,13 @@ export class BoardRegion {
     const card = sprite.card;
     sprite.setDoomed(card.wouldDieInCombat ?? false);
     if (this.attackTargetRingId === card.id) {
-      sprite.setRing(hexToNum(theme.gameTheme.targeting.hostile));
+      const color = hexToNum(theme.gameTheme.targeting.hostile);
+      if (this.attackTargetRingPulsing) sprite.setPlayableRing(color);
+      else sprite.setRing(color);
+      return;
+    }
+    if (this.combatRowTargetCardIds.has(card.id)) {
+      sprite.setPlayableRing(hexToNum(theme.gameTheme.targeting.hostile));
       return;
     }
     if (this.isDeclaredBlocker(card.id)) {

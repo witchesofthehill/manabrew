@@ -1,5 +1,35 @@
 # Changelog
 
+## [3.45.0](https://github.com/witchesofthehill/manabrew/compare/v3.44.5...v3.45.0) (2026-09-17)
+
+### Features
+
+* **ai:** run local manabot over forge sab seats ([#943](https://github.com/witchesofthehill/manabrew/issues/943)) ([#946](https://github.com/witchesofthehill/manabrew/issues/946)) ([63d46d9](https://github.com/witchesofthehill/manabrew/commit/63d46d9e430a9aa268d87b90d4123f8f5462a935))
+
+## [3.44.5](https://github.com/witchesofthehill/manabrew/compare/v3.44.4...v3.44.5) (2026-09-17)
+
+### Fixes
+
+* **ui:** highlight hidden-zone stack targets ([#942](https://github.com/witchesofthehill/manabrew/issues/942)) ([002f194](https://github.com/witchesofthehill/manabrew/commit/002f19405404edfca044f77d0ebfff8e33b2b1e5))
+
+## [3.44.4](https://github.com/witchesofthehill/manabrew/compare/v3.44.3...v3.44.4) (2026-09-17)
+
+### Fixes
+
+* **telemetry:** count only frame handling as client work ([#944](https://github.com/witchesofthehill/manabrew/issues/944)) ([f54dc4b](https://github.com/witchesofthehill/manabrew/commit/f54dc4b31e560c27c1bdb2fd2e292089b1f78ef4))
+
+## [3.44.3](https://github.com/witchesofthehill/manabrew/compare/v3.44.2...v3.44.3) (2026-09-16)
+
+### Fixes
+
+* **ui:** allow opponent expansion while targeting ([#941](https://github.com/witchesofthehill/manabrew/issues/941)) ([010df66](https://github.com/witchesofthehill/manabrew/commit/010df66480161228eff9a67443a98a3b57b43785))
+
+## [3.44.2](https://github.com/witchesofthehill/manabrew/compare/v3.44.1...v3.44.2) (2026-09-16)
+
+### Fixes
+
+* planeswalkers blocking ([#939](https://github.com/witchesofthehill/manabrew/issues/939)) ([9e4bc0b](https://github.com/witchesofthehill/manabrew/commit/9e4bc0b6f7b352402e5b684acb3e6b94a087e2a9))
+
 ## [3.44.1](https://github.com/witchesofthehill/manabrew/compare/v3.44.0...v3.44.1) (2026-09-15)
 
 ### Fixes

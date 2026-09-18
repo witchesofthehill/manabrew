@@ -294,6 +294,20 @@ export function createPlaygroundTable(scenario: PlaygroundScenarioId): Playgroun
       ),
     );
     cards[cards.length - 1]!.counters = { DEFENSE: 3 };
+    if (scenario === "combat") {
+      const planeswalker = makePlaygroundCard(
+        {
+          name: "Karn, Scion of Urza",
+          types: ["Planeswalker"],
+          subtypes: ["Karn"],
+          manaCost: "{4}",
+        },
+        `${player.id}-planeswalker`,
+        player.id,
+      );
+      planeswalker.counters = { LOYALTY: 5 };
+      cards.push(planeswalker);
+    }
     const parent = cards.find((card) => card.id === `${player.id}-creature-0`)!;
     ATTACHMENTS.forEach((spec, i) => {
       const attachment = makePlaygroundCard(spec, `${player.id}-attachment-${i}`, player.id);
@@ -339,9 +353,15 @@ export function createPlaygroundTable(scenario: PlaygroundScenarioId): Playgroun
     for (let i = 0; i < 6; i++) {
       const attacker = cards.find((card) => card.id === `${LOCAL_PLAYER_ID}-creature-${i}`)!;
       const defender = players[1 + (i % 3)]!;
+      const targetId =
+        i % 3 === 1
+          ? `${defender.id}-planeswalker`
+          : i % 3 === 2
+            ? `${defender.id}-battle`
+            : defender.id;
       attacker.isAttacking = true;
       attacker.attackingPlayerId = defender.id;
-      attacker.attackTargetId = defender.id;
+      attacker.attackTargetId = targetId;
       attacker.tapped = !attacker.keywords.includes("Vigilance");
       if (i < 3) blocks.push({ attackerId: attacker.id, blockerId: `${defender.id}-creature-1` });
     }

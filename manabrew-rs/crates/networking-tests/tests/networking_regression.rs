@@ -562,8 +562,8 @@ async fn old_clients_get_whole_boards_without_costing_the_current_ones_theirs() 
         .await
         .unwrap();
     let mut bob = Client::connect(&sim.relay_url, "bob").await.unwrap();
-    alice.join(&sim.room_id, false).await.unwrap();
-    bob.join(&sim.room_id, false).await.unwrap();
+    alice.join_retry(&sim.room_id).await.unwrap();
+    bob.join_retry(&sim.room_id).await.unwrap();
     alice.spawn_node_bot(&sim.room_id).await.unwrap();
     alice.select_deck_and_ready().await.unwrap();
     bob.select_deck_and_ready().await.unwrap();

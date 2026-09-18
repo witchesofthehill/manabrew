@@ -1063,7 +1063,7 @@
       "id": 244,
       "type": "table",
       "title": "Turnaround, split at the first reply frame",
-      "description": "reply_wait is answer sent to first reply frame: the server, the hop, the player's link and the transfer of the reply. client_work is first frame to prompt handled: parsing, applying the state, rendering. A high client_work with a normal reply_wait is the player's machine; the reverse is their link. For forge-wasm the frame is the seat read, so reply_wait there is engine time plus the seat drain, not a wire.",
+      "description": "client_work is the time the client spent parsing and applying the frames between its answer and the next prompt. reply_wait is the rest: the server, the hop, the player's link, the transfer, and what the engine and the other seats did between frames. A high client_work with a normal reply_wait is the player's machine; the reverse is their link or their table. Rows from clients older than the 2026-09-17 fix cut at the first frame instead, so in rooms they carry the opponents' turns as client_work. For forge-wasm the frame is the seat read, so reply_wait there is engine time plus the seat drain, not a wire.",
       "datasource": {
         "type": "frser-sqlite-datasource",
         "uid": "events-sqlite"
@@ -1098,7 +1098,7 @@
       "id": 245,
       "type": "timeseries",
       "title": "forge-hosted: reply wait against client work (daily median)",
-      "description": "The two halves of a hosted game's turnaround, one point per day. Reply wait moves with the fleet and the network; client work moves with the players' machines and the board. Multi-human games are in here too, and the other human's think lands in reply wait, so cut by seats before reading a spike.",
+      "description": "The two halves of a hosted game's turnaround, one point per day. Reply wait moves with the fleet, the network and the other seats; client work moves with the players' machines and the board. Clients older than the 2026-09-17 fix cut at the first frame, so the client work line carries the opponents' turns until those clients age out.",
       "datasource": {
         "type": "frser-sqlite-datasource",
         "uid": "events-sqlite"
@@ -1135,7 +1135,7 @@
       "id": 246,
       "type": "table",
       "title": "forge-hosted: client work by platform and seats",
-      "description": "Where a slow hosted game is spent on the player's own machine. games_over_500ms counts games whose median client work exceeded half a second; on 2026-09-10 two desktop players sat at 1.1 to 1.7 s per decision with a normal reply wait.",
+      "description": "Where a slow hosted game is spent on the player's own machine. games_over_500ms counts games whose median client work exceeded half a second. Filter to clients newer than the 2026-09-17 fix: earlier ones cut at the first frame, and their client work is mostly the other seats' turns (2-seat 1s, 4-seat 1.5-3s medians).",
       "datasource": {
         "type": "frser-sqlite-datasource",
         "uid": "events-sqlite"

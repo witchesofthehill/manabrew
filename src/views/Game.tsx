@@ -65,7 +65,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useLimitedStore } from "@/stores/useLimitedStore";
 import { peek as peekGauntletMatch, tryConsumeGauntletMatch } from "@/lib/gauntletReturn";
-import { intentPrefersArrow } from "@/types/promptType";
+import { intentIsHostile, intentPrefersArrow } from "@/types/promptType";
 import type { PromptType } from "@/protocol";
 import { declareAttackersOutput } from "@/components/prompts/internal/playerActions";
 import { TargetingCursor } from "@/components/game/TargetingCursor";
@@ -1261,6 +1261,29 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
   }, [currentPrompt, viewingZone, closeZoneViewer]);
 
+  const hoveredStackObjectIdForSpecs = useStackUIStore((s) => s.hoveredStackObjectId);
+  const highlightedStackTargetColors = useMemo(() => {
+    const stack = gameView?.stack ?? [];
+    const active =
+      (hoveredStackObjectIdForSpecs
+        ? stack.find((object) => object.id === hoveredStackObjectIdForSpecs)
+        : undefined) ?? stack[stack.length - 1];
+    const colors: Record<string, string> = {};
+    for (const target of active?.targets ?? []) {
+      if (target.kind !== "card") continue;
+      colors[target.id] =
+        target.intent != null && intentIsHostile(target.intent)
+          ? themeColors.targeting.hostile
+          : themeColors.targeting.friendly;
+    }
+    return colors;
+  }, [
+    gameView?.stack,
+    hoveredStackObjectIdForSpecs,
+    themeColors.targeting.hostile,
+    themeColors.targeting.friendly,
+  ]);
+
   const liveZoneCards =
     viewingZone?.source && gameView
       ? visibleZoneCards(viewingZone.source, gameView)
@@ -1282,6 +1305,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         clickableCardIds: liveZoneCandidates,
         selectedCardIds: viewingZone.mode === "cost" ? delvedCardIds : viewingZone.selectedCardIds,
         pending: isWaitingForResponse,
+        highlightedCardColors: highlightedStackTargetColors,
         totalCount:
           viewingZone.source?.zone === "library"
             ? gameView?.players.find((player) => player.id === viewingZone.source!.playerId)
@@ -1408,7 +1432,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     () => new Set(combatRows.flatMap((r) => r.attackerIds)),
     [combatRows],
   );
-  const hoveredStackObjectIdForSpecs = useStackUIStore((s) => s.hoveredStackObjectId);
+
   const setHoveredStackObjectId = useStackUIStore((s) => s.setHoveredStackObjectId);
   const stackCollapsed = useStackUIStore((s) => s.collapsed);
   const toggleStackCollapsed = useStackUIStore((s) => s.toggleCollapsed);
@@ -1416,8 +1440,17 @@ export default function Game({ exitTo }: GameProps = {}) {
     () =>
       (gameView?.battlefield ?? [])
         .filter((c) => c.isAttacking && c.attackingPlayerId)
-        .map((c) => ({ attackerId: c.id, defenderId: c.attackingPlayerId! })),
-    [gameView?.battlefield],
+        .map((c) => {
+          const targetId = c.attackTargetId ?? c.attackingPlayerId!;
+          return {
+            attackerId: c.id,
+            targetId,
+            targetKind: gameView?.players.some((player) => player.id === targetId)
+              ? ("player" as const)
+              : ("card" as const),
+          };
+        }),
+    [gameView?.battlefield, gameView?.players],
   );
   const combatPairings = useMemo<CombatPairing[]>(() => {
     const nameOf = (id: string) =>
@@ -1455,37 +1488,10 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     return map;
   }, [gameView?.players]);
-  const attackTargetKindById = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const t of chooseAttackersInput?.attackTargets ?? []) m.set(t.id, t.kind);
-    return m;
-  }, [chooseAttackersInput]);
+
   const attackArrows = useMemo(
-    () => [
-      ...activeAttackers
-        .filter((a) => !oppCombatAttackerIds.has(a.attackerId))
-        .map((a) => ({
-          attackerId: a.attackerId,
-          targetId: a.defenderId,
-          targetKind: "player" as const,
-        })),
-      // Player attacks read from the attack-row staging; only planeswalker /
-      // battle attacks draw an arrow, pointing at the specific permanent. This
-      // only covers the pre-commit declaration — a committed planeswalker/battle
-      // arrow would need the engine to populate CardDto.attackTargetId (always
-      // None today), so it's intentionally not attempted here.
-      ...attackAssignments
-        .filter((a) => {
-          const kind = attackTargetKindById.get(a.targetId);
-          return kind === "planeswalker" || kind === "battle";
-        })
-        .map((a) => ({
-          attackerId: a.attackerId,
-          targetId: a.targetId,
-          targetKind: "card" as const,
-        })),
-    ],
-    [activeAttackers, attackAssignments, oppCombatAttackerIds, attackTargetKindById],
+    () => activeAttackers.filter((attacker) => !oppCombatAttackerIds.has(attacker.attackerId)),
+    [activeAttackers, oppCombatAttackerIds],
   );
   const arrowBlocks = useMemo(
     () => combatAssignments.filter((a) => !oppCombatAttackerIds.has(a.attackerId)),

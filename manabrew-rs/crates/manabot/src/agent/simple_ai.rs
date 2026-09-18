@@ -668,12 +668,7 @@ impl BotAgent for SimpleAi {
                     || title.starts_with("pay 2 life")
                     || title.starts_with("pay {e}")
                     || title.starts_with("pay return an artifact")
-                    || title.starts_with("sacrifice this token")
-                    || title.starts_with("sacrifice lembas")
-                    || title.starts_with("sacrifice experimental synthesizer")
-                    || title.starts_with("sacrifice wasteland")
-                    || title.starts_with("sacrifice black lotus")
-                    || title.starts_with("sacrifice vexing bauble");
+                    || title.starts_with("sacrifice ");
                 let accept_once = title.contains("search your library?")
                     || (constructed_duel && duel_cost)
                     || title.contains("sacrifice evolving wilds")

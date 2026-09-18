@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.45.1](https://github.com/witchesofthehill/manabrew/compare/v3.45.0...v3.45.1) (2026-09-18)
+
+### Performance
+
+* **ai:** read Forge seats in workers ([#949](https://github.com/witchesofthehill/manabrew/issues/949)) ([926f4a7](https://github.com/witchesofthehill/manabrew/commit/926f4a7d51f8a6b40db9916fa118cba04eb937df))
+
 ## [3.45.0](https://github.com/witchesofthehill/manabrew/compare/v3.44.5...v3.45.0) (2026-09-17)
 
 ### Features

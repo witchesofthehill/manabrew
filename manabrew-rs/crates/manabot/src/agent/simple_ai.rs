@@ -430,6 +430,10 @@ impl BotAgent for SimpleAi {
 
     fn decide(&mut self, prompt: AgentPrompt) -> Option<PromptOutput> {
         let deciding_player_id = prompt.deciding_player_id.clone();
+        let prompt_source_id = prompt
+            .source_card
+            .as_ref()
+            .map_or_else(|| "none".to_string(), |card| card.id.clone());
         match prompt.input {
         PromptInput::Mulligan(manabrew_protocol::prompts::mulligan::MulliganInput {
                 hand_card_ids,
@@ -657,7 +661,10 @@ impl BotAgent for SimpleAi {
                 confirm_label,
                 deny_label,
             }) => {
-                let signature = format!("bool:{}|{confirm_label}|{deny_label}", presentation.title);
+                let signature = format!(
+                    "bool:{prompt_source_id}|{}|{confirm_label}|{deny_label}",
+                    presentation.title
+                );
                 let repeated = self.looping_on(signature);
                 let title = presentation.title.to_ascii_lowercase();
                 let always_accept = title.contains("cancel search")

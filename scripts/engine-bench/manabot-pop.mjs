@@ -81,6 +81,7 @@ function runOne(game) {
       err += chunk;
     });
     child.on("close", (code) => {
+      if (err) writeFileSync(game.file.replace(/\.json$/, ".stderr"), err.slice(-20000));
       if (!existsSync(game.file)) {
         writeFileSync(
           game.file,

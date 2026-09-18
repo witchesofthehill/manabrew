@@ -53,6 +53,7 @@ const seed = Number(option("seed", 7015));
 const forgeAiSeats = option("forge-ai-seats", "").split(",").filter(Boolean).map(Number);
 const timeoutS = Number(option("timeout", 300));
 const output = option("out", null);
+const trace = new Set(option("trace", "").split(",").filter(Boolean));
 
 if (!existsSync(join(engineDir, "forgeharness.js.wasm"))) {
   throw new Error(`${engineDir} has no Forge WASM engine`);
@@ -97,6 +98,7 @@ const seats = bots.map(() => ({
   blocks: 0,
   mulligans: 0,
   promptTypes: {},
+  actionCandidates: {},
   actionLabels: {},
   booleanChoices: {},
   boardTargetChoices: {},
@@ -118,9 +120,13 @@ const intervals = [];
 const botMs = [];
 let observeMs = 0;
 let turn = 0;
+const lifeByTurn = [];
 let finalView = null;
 let lastResponseAt = null;
 const terminalPrompts = [];
+const engineLog = [];
+const engineWarnings = [];
+let engineError = null;
 let finish;
 const startedAt = performance.now();
 const ended = new Promise((resolve) => {
@@ -135,7 +141,10 @@ const engine = await createForgeEngine({
     observeMs += performance.now() - observeStart;
     latestViews[seat] = state?.gameView ?? latestViews[seat];
     if (!slot) finalView = state?.gameView ?? finalView;
-    if (typeof state?.gameView?.turn === "number") turn = state.gameView.turn;
+    if (typeof state?.gameView?.turn === "number" && state.gameView.turn !== turn) {
+      turn = state.gameView.turn;
+      lifeByTurn.push([turn, ...state.gameView.players.map((player) => player.life)]);
+    }
   },
   onPrompt: (prompt, slot) => {
     const seat = slot ? Number(slot.slice("player-".length)) : enginePlayerIndex;
@@ -143,6 +152,12 @@ const engine = await createForgeEngine({
     if (lastResponseAt !== null) intervals.push(now - lastResponseAt);
     seats[seat].prompts += 1;
     increment(seats[seat].promptTypes, prompt.input?.type ?? prompt.type ?? "unknown");
+    if (prompt.input?.type === "chooseAction") {
+      const candidates = (prompt.input.actions ?? []).filter(
+        (action) => action.type !== "undoMana" && !action.isManaAbility,
+      ).length;
+      increment(seats[seat].actionCandidates, Math.min(candidates, 3));
+    }
     if (prompt.input?.type === "gameOver") terminalPrompts.push({ seat, input: prompt.input });
     const decideStart = performance.now();
     const raw = bots[seat].decide(JSON.stringify(prompt));
@@ -150,6 +165,21 @@ const engine = await createForgeEngine({
     if (!raw) return;
     const action = JSON.parse(raw);
     const decision = action.output;
+    if (trace.has(prompt.input?.type)) {
+      const view = latestViews[seat];
+      const cards = Object.fromEntries(
+        (view?.zones ?? [])
+          .flatMap((zone) => zone.cards ?? [])
+          .filter((card) => card.id)
+          .map((card) => [
+            card.id,
+            `${card.identity?.name ?? "?"} ${card.power ?? ""}/${card.toughness ?? ""}${card.tapped ? " T" : ""} ${card.controllerId}${card.attackingPlayerId ? " ->" + card.attackingPlayerId : ""}`,
+          ]),
+      );
+      process.stderr.write(
+        `${JSON.stringify({ seat, turn, life: view?.players?.map((p) => p.life), prompt, decision, cards, view })}\n`,
+      );
+    }
     if (decision?.type === "act") {
       seats[seat].acts += 1;
       const chosen = (prompt.input.actions ?? []).find(
@@ -233,6 +263,13 @@ const engine = await createForgeEngine({
   },
   onError: (error, slot) => finish({ reason: "error", error: String(error), slot }),
   onEvent: (event, payload) => {
+    if (event === "forge:log") {
+      const line = `${payload.level} ${String(payload.text).slice(0, 400)}`;
+      engineLog.push(line);
+      if (engineLog.length > 400) engineLog.splice(0, 200);
+      if (payload.level !== "log") engineWarnings.push(line);
+      if (line.includes("interactive game error")) engineError = line;
+    }
     if (event === "game:over" || event === "game:forced_end") {
       finish({ reason: event, payload });
     }
@@ -258,6 +295,10 @@ const sortedBot = botMs.toSorted((left, right) => left - right);
 const percentileOf = (values, value) =>
   values.length === 0 ? 0 : values[Math.min(values.length - 1, Math.floor(values.length * value))];
 const percentile = (value) => percentileOf(sorted, value);
+if (engineError && outcome.reason === "game:over") {
+  outcome.reason = "engine_error";
+  outcome.error = engineError;
+}
 const summary = {
   seed,
   format,
@@ -270,6 +311,9 @@ const summary = {
   winnerId: finalView?.winnerId ?? null,
   players: finalView?.players ?? [],
   terminalPrompts,
+  lifeByTurn,
+  engineWarnings: engineWarnings.slice(-50),
+  engineLogTail: finalView?.winnerId ? [] : engineLog.slice(-40),
   seats,
   latency: {
     samples: sorted.length,

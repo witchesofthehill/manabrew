@@ -48,8 +48,6 @@ import {
 import { HandRulesCardFace } from "./cardPreview/HandRulesCardFace";
 import { rulesCardRadius } from "./cardPreview/rulesPreviewFrame";
 import { HandCardControls, type HandCardControlsSpec } from "./HandCardControls";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 let activeTheme: Theme = getTheme();
 const TINTED_TEXT_STYLES: TextStyle[] = [];
 const SHADOW_CONTEXTS: { width: number; height: number; context: GraphicsContext }[] = [];
@@ -265,65 +263,47 @@ interface BadgeRule {
 }
 const BADGE_RULES: BadgeRule[] = [
   {
-    get label() {
-      return i18n._(msg`MORPH`);
-    },
+    label: `MORPH`,
     test: (c) => !!c.isFaceDown,
     colorKey: "morph",
   },
   {
-    get label() {
-      return i18n._(msg`EXERTED`);
-    },
+    label: `EXERTED`,
     test: (c) => !!c.exerted,
     colorKey: "exerted",
   },
   {
-    get label() {
-      return i18n._(msg`BESTOW`);
-    },
+    label: `BESTOW`,
     test: (c) => !!c.isBestowed,
     colorKey: "bestow",
   },
   {
-    get label() {
-      return i18n._(msg`TRANSFORMED`);
-    },
+    label: `TRANSFORMED`,
     test: (c) => !!c.isTransformed,
     colorKey: "transformed",
   },
   {
-    get label() {
-      return i18n._(msg`PLOTTED`);
-    },
+    label: `PLOTTED`,
     test: (c) => !!c.isPlotted,
     colorKey: "plotted",
   },
   {
-    get label() {
-      return i18n._(msg`MADNESS`);
-    },
+    label: `MADNESS`,
     test: (c) => !!c.isMadnessExiled,
     colorKey: "madness",
   },
   {
-    get label() {
-      return i18n._(msg`WARPED`);
-    },
+    label: `WARPED`,
     test: (c) => !!c.isWarpExiled,
     colorKey: "warped",
   },
   {
-    get label() {
-      return i18n._(msg`COPY`);
-    },
+    label: `COPY`,
     test: (c) => !!c.isCopy,
     colorKey: "copy",
   },
   {
-    get label() {
-      return i18n._(msg`TOKEN`);
-    },
+    label: `TOKEN`,
     test: (c) => !!c.identity.isToken,
     colorKey: "token",
   },

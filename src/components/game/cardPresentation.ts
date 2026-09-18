@@ -11,8 +11,6 @@ import {
   isCreature,
   isLethalDamage,
 } from "@/components/game/game.utils";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 
 export type CardStatusTone =
   | keyof GameThemeColors["cardStatus"]
@@ -172,25 +170,19 @@ function deriveCosts(card: CardDto): CardCostPresentation[] {
   if (card.flashbackCost)
     costs.push({
       id: "flashback",
-      get label() {
-        return i18n._(msg`Flashback`);
-      },
+      label: `Flashback`,
       cost: card.flashbackCost,
     });
   if (card.kickerCost)
     costs.push({
       id: "kicker",
-      get label() {
-        return i18n._(msg`Kicker`);
-      },
+      label: `Kicker`,
       cost: card.kickerCost,
     });
   if (card.madnessCost)
     costs.push({
       id: "madness",
-      get label() {
-        return i18n._(msg`Madness`);
-      },
+      label: `Madness`,
       cost: card.madnessCost,
     });
   return costs;

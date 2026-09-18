@@ -5,9 +5,6 @@ import { Button } from "@/components/ui/button";
 import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
 import { availableEngines } from "@/lib/engines";
 import { cn } from "@/lib/utils";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface CommunityDeckShelfProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -33,7 +30,7 @@ export function CommunityDeckShelf({
   );
   return (
     <CollapsibleDeckShelf
-      title={i18n._(msg`Community decks`)}
+      title={`Community decks`}
       count={loading ? "Loading…" : decks.length}
       open={open}
       onOpenChange={onOpenChange}
@@ -42,11 +39,11 @@ export function CommunityDeckShelf({
         <div className="flex items-center gap-2 px-2 text-xs text-destructive">
           <span className="min-w-0 flex-1">{error}</span>
           <Button variant="outline" size="sm" onClick={retry}>
-            <Trans>Retry</Trans>
+            Retry
           </Button>
         </div>
       ) : decks.length > 0 ? (
-        <DeckShelfRow label={i18n._(msg`Community decks`)}>
+        <DeckShelfRow label={`Community decks`}>
           {decks.map((entry) => (
             <div key={entry.id} className={DECK_SHELF_CARD_CLASS}>
               <DeckHubEntryCard
@@ -74,7 +71,7 @@ export function CommunityDeckShelf({
         </DeckShelfRow>
       ) : (
         <p className="px-2 text-xs italic text-muted-foreground">
-          <Trans>No Community decks are available.</Trans>
+          No Community decks are available.
         </p>
       )}
     </CollapsibleDeckShelf>

@@ -54,9 +54,6 @@ import { Navigate, useLocation } from "react-router-dom";
 import { HelpCircle, Minus, Pencil, Plus, Server, Trash2 } from "lucide-react";
 import { KNOWN_RELAYS, type KnownRelay } from "@/config/knownRelays";
 import { cn } from "@/lib/utils";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 /**
  * Small `?` hover-help icon shown next to a picker label. Renders a
  * custom CSS tooltip below the icon on hover / focus — native `title`
@@ -211,13 +208,13 @@ export default function Settings() {
     const name = newServerName.trim();
     if (!name) return;
     if (KNOWN_RELAYS.some((r) => r.name === name)) {
-      toast.error(i18n._(msg`That name is reserved for a built-in server`));
+      toast.error(`That name is reserved for a built-in server`);
       return;
     }
     prefs.addSavedServer({ name, host, port: Number(port), password });
     setNewServerName("");
     setSavingServer(false);
-    toast.success(i18n._(msg`Saved "${name}"`));
+    toast.success(`Saved "${name}"`);
   }
   async function handleClearImageCache() {
     setClearingCache(true);
@@ -227,11 +224,11 @@ export default function Settings() {
         const keys = await caches.keys();
         await Promise.all(keys.map((k) => caches.delete(k)));
       }
-      toast.success(i18n._(msg`Image cache cleared \u2014 reloading\u2026`));
+      toast.success(`Image cache cleared \u2014 reloading\u2026`);
       window.location.reload();
     } catch {
       setClearingCache(false);
-      toast.error(i18n._(msg`Couldn't clear the image cache`));
+      toast.error(`Couldn't clear the image cache`);
     }
   }
   if (isGameActive) {
@@ -252,7 +249,7 @@ export default function Settings() {
                   : "border-transparent text-muted-foreground hover:text-foreground")
               }
             >
-              <Trans>Account</Trans>
+              Account
             </button>
           )}
           {assetsTabAvailable && (
@@ -266,7 +263,7 @@ export default function Settings() {
                   : "border-transparent text-muted-foreground hover:text-foreground")
               }
             >
-              <Trans>My assets</Trans>
+              My assets
             </button>
           )}
           <button
@@ -279,7 +276,7 @@ export default function Settings() {
                 : "border-transparent text-muted-foreground hover:text-foreground")
             }
           >
-            <Trans>Preferences</Trans>
+            Preferences
           </button>
           <button
             type="button"
@@ -291,7 +288,7 @@ export default function Settings() {
                 : "border-transparent text-muted-foreground hover:text-foreground")
             }
           >
-            <Trans>Theme</Trans>
+            Theme
           </button>
           <button
             type="button"
@@ -303,7 +300,7 @@ export default function Settings() {
                 : "border-transparent text-muted-foreground hover:text-foreground")
             }
           >
-            <Trans>Prompts</Trans>
+            Prompts
           </button>
           <button
             type="button"
@@ -315,7 +312,7 @@ export default function Settings() {
                 : "border-transparent text-muted-foreground hover:text-foreground")
             }
           >
-            <Trans>Shortcuts</Trans>
+            Shortcuts
           </button>
           <button
             type="button"
@@ -327,7 +324,7 @@ export default function Settings() {
                 : "border-transparent text-muted-foreground hover:text-foreground")
             }
           >
-            <Trans>Server</Trans>
+            Server
           </button>
           <button
             type="button"
@@ -339,7 +336,7 @@ export default function Settings() {
                 : "border-transparent text-muted-foreground hover:text-foreground")
             }
           >
-            <Trans>Cache</Trans>
+            Cache
           </button>
         </div>
       </section>
@@ -354,30 +351,22 @@ export default function Settings() {
 
       {activeTab === "cache" && (
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold">
-            <Trans>Cache</Trans>
-          </h2>
+          <h2 className="text-lg font-semibold">Cache</h2>
           <div className="rounded-lg border bg-card/40 p-4 space-y-3 max-w-xl">
-            <Label>
-              <Trans>Card Image Cache</Trans>
-            </Label>
+            <Label>Card Image Cache</Label>
             <p className="text-xs text-muted-foreground">
-              <Trans>
-                Drops Manabrew&apos;s in-memory card textures and image object URLs, clears the
-                CacheStorage API, then reloads so every card image is fetched fresh. Use this if
-                battlefield card art fails to appear. For a full browser HTTP cache wipe, use the
-                browser&apos;s &quot;Empty Cache and Hard Reload&quot; (DevTools open → right-click
-                reload).
-              </Trans>
+              Drops Manabrew&apos;s in-memory card textures and image object URLs, clears the
+              CacheStorage API, then reloads so every card image is fetched fresh. Use this if
+              battlefield card art fails to appear. For a full browser HTTP cache wipe, use the
+              browser&apos;s &quot;Empty Cache and Hard Reload&quot; (DevTools open → right-click
+              reload).
             </p>
             <Button
               variant="destructive"
               onClick={() => void handleClearImageCache()}
               disabled={clearingCache}
             >
-              {clearingCache
-                ? i18n._(msg`Clearing\u2026`)
-                : i18n._(msg`Clear image cache & reload`)}
+              {clearingCache ? `Clearing\u2026` : `Clear image cache & reload`}
             </Button>
           </div>
         </section>
@@ -387,26 +376,20 @@ export default function Settings() {
 
       {activeTab === "server" && (
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold">
-            <Trans>Server</Trans>
-          </h2>
+          <h2 className="text-lg font-semibold">Server</h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <Label htmlFor="server-host">
-                <Trans>Host</Trans>
-              </Label>
+              <Label htmlFor="server-host">Host</Label>
               <Input
                 id="server-host"
                 value={host}
                 onChange={(e) => setHost(e.target.value)}
-                placeholder={i18n._(msg`localhost`)}
+                placeholder={`localhost`}
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="server-port">
-                <Trans>Port</Trans>
-              </Label>
+              <Label htmlFor="server-port">Port</Label>
               <Input
                 id="server-port"
                 type="number"
@@ -416,35 +399,29 @@ export default function Settings() {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="server-password">
-                <Trans>Password</Trans>
-              </Label>
+              <Label htmlFor="server-password">Password</Label>
               <Input
                 id="server-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder={i18n._(msg`forge`)}
+                placeholder={`forge`}
               />
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Button variant="primary" onClick={handleSave} disabled={!hasChanges && !server.error}>
-              <Trans>Save & Reconnect</Trans>
+              Save & Reconnect
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">
-                  <Trans>
-                    <Server className="h-4 w-4" />
-                    Saved servers
-                  </Trans>
+                  <Server className="h-4 w-4" />
+                  Saved servers
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="min-w-56">
-                <DropdownMenuLabel>
-                  <Trans>Built-in</Trans>
-                </DropdownMenuLabel>
+                <DropdownMenuLabel>Built-in</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {KNOWN_RELAYS.map((relay) => (
                   <DropdownMenuItem key={relay.name} onSelect={() => void applyKnownRelay(relay)}>
@@ -458,9 +435,7 @@ export default function Settings() {
                 ))}
                 {prefs.savedServers.length > 0 && (
                   <>
-                    <DropdownMenuLabel>
-                      <Trans>Your servers</Trans>
-                    </DropdownMenuLabel>
+                    <DropdownMenuLabel>Your servers</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {prefs.savedServers.map((relay) => (
                       <DropdownMenuItem
@@ -476,7 +451,7 @@ export default function Settings() {
                         </div>
                         <button
                           type="button"
-                          aria-label={i18n._(msg`Remove ${relay.name}`)}
+                          aria-label={`Remove ${relay.name}`}
                           className="shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                           onPointerDown={(e) => e.stopPropagation()}
                           onClick={(e) => {
@@ -500,20 +475,16 @@ export default function Settings() {
                 setSavingServer((v) => !v);
               }}
             >
-              <Trans>Save current server…</Trans>
+              Save current server…
             </Button>
             {server.connected && (
               <span className="text-xs text-success flex items-center gap-1">
-                <Trans>
-                  <span className="h-2 w-2 rounded-full bg-success" />
-                  Connected as {server.username}
-                </Trans>
+                <span className="h-2 w-2 rounded-full bg-success" />
+                Connected as {server.username}
               </span>
             )}
             {server.connecting && (
-              <span className="text-xs text-muted-foreground">
-                <Trans>Connecting...</Trans>
-              </span>
+              <span className="text-xs text-muted-foreground">Connecting...</span>
             )}
             {server.error && <span className="text-xs text-destructive">{server.error}</span>}
           </div>
@@ -527,7 +498,7 @@ export default function Settings() {
                   if (e.key === "Enter") saveCurrentServer();
                   if (e.key === "Escape") setSavingServer(false);
                 }}
-                placeholder={i18n._(msg`Name this server`)}
+                placeholder={`Name this server`}
                 className="max-w-xs"
               />
               <Button
@@ -536,23 +507,19 @@ export default function Settings() {
                 onClick={saveCurrentServer}
                 disabled={!newServerName.trim()}
               >
-                <Trans>Save</Trans>
+                Save
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setSavingServer(false)}>
-                <Trans>Cancel</Trans>
+                Cancel
               </Button>
               <span className="text-xs text-muted-foreground">
-                <Trans>
-                  Saves the current host, port, and password so you can switch back later.
-                </Trans>
+                Saves the current host, port, and password so you can switch back later.
               </span>
             </div>
           )}
           <p className="text-xs text-muted-foreground">
-            <Trans>
-              Server connection settings. Saving will disconnect and reconnect with the new
-              credentials.
-            </Trans>
+            Server connection settings. Saving will disconnect and reconnect with the new
+            credentials.
           </p>
         </section>
       )}
@@ -563,18 +530,14 @@ export default function Settings() {
             <LanguagePreferenceCard />
 
             <PreferenceCard
-              title={i18n._(msg`Default Playmat`)}
-              description={i18n._(
-                msg`Used in games when the deck you're playing has no custom playmat of its own.`,
-              )}
+              title={`Default Playmat`}
+              description={`Used in games when the deck you're playing has no custom playmat of its own.`}
             >
               <div className="group relative">
                 <button
                   type="button"
                   onClick={() => setPlaymatEditorOpen(true)}
-                  title={
-                    hasDefaultPlaymat ? i18n._(msg`Customize playmat`) : i18n._(msg`Set playmat`)
-                  }
+                  title={hasDefaultPlaymat ? `Customize playmat` : `Set playmat`}
                   className={cn(
                     "flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg border bg-muted",
                     "motion-safe:transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm",
@@ -585,7 +548,7 @@ export default function Settings() {
                   {defaultPlaymat ? (
                     <img
                       src={defaultPlaymat}
-                      alt={i18n._(msg`Your default playmat`)}
+                      alt={`Your default playmat`}
                       crossOrigin="anonymous"
                       className="size-full object-cover"
                     />
@@ -609,7 +572,7 @@ export default function Settings() {
                 {hasDefaultPlaymat && (
                   <button
                     type="button"
-                    title={i18n._(msg`Remove playmat`)}
+                    title={`Remove playmat`}
                     onClick={() => {
                       void useAssetStore.getState().remove(prefs.defaultPlaymatAssetId);
                       prefs.setDefaultPlaymatAssetId(undefined);
@@ -624,10 +587,8 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title={i18n._(msg`Battlefield Zone Column Order`)}
-              description={i18n._(
-                msg`Controls placement of Library / Graveyard / Exile in the in-field zone column.`,
-              )}
+              title={`Battlefield Zone Column Order`}
+              description={`Controls placement of Library / Graveyard / Exile in the in-field zone column.`}
             >
               <div className="grid grid-cols-3 gap-2">
                 {(["Top", "Middle", "Bottom"] as const).map((slot, index) => (
@@ -644,15 +605,9 @@ export default function Settings() {
                       onChange={(e) => setZoneSlot(index, e.target.value as ZonePanelItem)}
                       className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
                     >
-                      <option value="library">
-                        <Trans>Library</Trans>
-                      </option>
-                      <option value="graveyard">
-                        <Trans>Graveyard</Trans>
-                      </option>
-                      <option value="exile">
-                        <Trans>Exile</Trans>
-                      </option>
+                      <option value="library">Library</option>
+                      <option value="graveyard">Graveyard</option>
+                      <option value="exile">Exile</option>
                     </select>
                   </div>
                 ))}
@@ -660,11 +615,9 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title={i18n._(msg`Card Size`)}
+              title={`Card Size`}
               value={`${Math.round(prefs.cardSizeMultiplier * 100)}%`}
-              description={i18n._(
-                msg`Scales cards on every battlefield and your hand fan. 100% is the classic 3-row board; battlefield cards cap at a 2-row fill so the board stays playable, while the hand keeps growing past them.`,
-              )}
+              description={`Scales cards on every battlefield and your hand fan. 100% is the classic 3-row board; battlefield cards cap at a 2-row fill so the board stays playable, while the hand keeps growing past them.`}
             >
               <div className="flex items-start gap-4">
                 <div className="flex-1 space-y-3">
@@ -715,10 +668,8 @@ export default function Settings() {
               </div>
             </PreferenceCard>
             <PreferenceCard
-              title={i18n._(msg`Hand Ordering`)}
-              description={i18n._(
-                msg`Drag cards sideways for a custom order, or keep every hand sorted automatically by color or mana value.`,
-              )}
+              title={`Hand Ordering`}
+              description={`Drag cards sideways for a custom order, or keep every hand sorted automatically by color or mana value.`}
             >
               <div className="flex flex-wrap gap-2">
                 {HAND_ORDER_OPTIONS.map((option) => (
@@ -735,10 +686,8 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title={i18n._(msg`Battlefield Layout`)}
-              description={i18n._(
-                msg`"Free placement" lets you drag cards anywhere. "Auto-arrange" keeps the battlefield tidy in rows (creatures, then others, then lands) and ignores manual placement.`,
-              )}
+              title={`Battlefield Layout`}
+              description={`"Free placement" lets you drag cards anywhere. "Auto-arrange" keeps the battlefield tidy in rows (creatures, then others, then lands) and ignores manual placement.`}
             >
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -746,23 +695,21 @@ export default function Settings() {
                   size="sm"
                   onClick={() => prefs.setBattlefieldAutoSort(false)}
                 >
-                  <Trans>Free placement</Trans>
+                  Free placement
                 </Button>
                 <Button
                   variant={prefs.battlefieldAutoSort ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setBattlefieldAutoSort(true)}
                 >
-                  <Trans>Auto-arrange</Trans>
+                  Auto-arrange
                 </Button>
               </div>
             </PreferenceCard>
 
             <PreferenceCard
-              title={i18n._(msg`Zone Piles`)}
-              description={i18n._(
-                msg`"Locked" keeps the deck, graveyard, exile, and command piles fixed on the battlefield so a drag can't move them. Tapping to open still works.`,
-              )}
+              title={`Zone Piles`}
+              description={`"Locked" keeps the deck, graveyard, exile, and command piles fixed on the battlefield so a drag can't move them. Tapping to open still works.`}
             >
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -770,23 +717,21 @@ export default function Settings() {
                   size="sm"
                   onClick={() => prefs.setLockZoneTiles(false)}
                 >
-                  <Trans>Movable</Trans>
+                  Movable
                 </Button>
                 <Button
                   variant={prefs.lockZoneTiles ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setLockZoneTiles(true)}
                 >
-                  <Trans>Locked</Trans>
+                  Locked
                 </Button>
               </div>
             </PreferenceCard>
 
             <PreferenceCard
-              title={i18n._(msg`Battlefield Card Style`)}
-              description={i18n._(
-                msg`"Realistic" uses the full printed card image. "Art-forward" shows the art with a crisp name/type overlay. "Mini-frame" frames the art with name and type bars. This setting only affects battlefield cards.`,
-              )}
+              title={`Battlefield Card Style`}
+              description={`"Realistic" uses the full printed card image. "Art-forward" shows the art with a crisp name/type overlay. "Mini-frame" frames the art with name and type bars. This setting only affects battlefield cards.`}
             >
               <div className="flex items-start gap-4">
                 <div className="flex-1 flex flex-wrap content-start gap-2">
@@ -795,21 +740,21 @@ export default function Settings() {
                     size="sm"
                     onClick={() => prefs.setBattlefieldCardStyle("realistic")}
                   >
-                    <Trans>Realistic</Trans>
+                    Realistic
                   </Button>
                   <Button
                     variant={prefs.battlefieldCardStyle === "art" ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setBattlefieldCardStyle("art")}
                   >
-                    <Trans>Art-forward</Trans>
+                    Art-forward
                   </Button>
                   <Button
                     variant={prefs.battlefieldCardStyle === "frame" ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setBattlefieldCardStyle("frame")}
                   >
-                    <Trans>Mini-frame</Trans>
+                    Mini-frame
                   </Button>
                 </div>
                 <BattlefieldStylePreview style={prefs.battlefieldCardStyle} />
@@ -817,10 +762,8 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title={i18n._(msg`In-game Animations`)}
-              description={i18n._(
-                msg`Decorative board effects \u2014 creature entrance stomp + dust, stat and damage pops, glow pulses. Turn these off to save performance on weaker hardware; the board still works (cards move, state indicators and damage numbers stay).`,
-              )}
+              title={`In-game Animations`}
+              description={`Decorative board effects \u2014 creature entrance stomp + dust, stat and damage pops, glow pulses. Turn these off to save performance on weaker hardware; the board still works (cards move, state indicators and damage numbers stay).`}
             >
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -828,24 +771,22 @@ export default function Settings() {
                   size="sm"
                   onClick={() => prefs.setInGameAnimations(true)}
                 >
-                  <Trans>On</Trans>
+                  On
                 </Button>
                 <Button
                   variant={!prefs.inGameAnimations ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setInGameAnimations(false)}
                 >
-                  <Trans>Off</Trans>
+                  Off
                 </Button>
               </div>
             </PreferenceCard>
 
             {isFeatureEnabled("ironsmithRuntime") && IRONSMITH_WASM_AVAILABLE && (
               <PreferenceCard
-                title={i18n._(msg`Ironsmith engine (experimental)`)}
-                description={i18n._(
-                  msg`Adds the experimental Ironsmith trusted engine as a Create Room option. Card support is partial and games may be rough \u2014 off by default. Leave this off unless you're testing Ironsmith.`,
-                )}
+                title={`Ironsmith engine (experimental)`}
+                description={`Adds the experimental Ironsmith trusted engine as a Create Room option. Card support is partial and games may be rough \u2014 off by default. Leave this off unless you're testing Ironsmith.`}
               >
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -853,24 +794,22 @@ export default function Settings() {
                     size="sm"
                     onClick={() => prefs.setIronsmithRuntimeEnabled(true)}
                   >
-                    <Trans>On</Trans>
+                    On
                   </Button>
                   <Button
                     variant={!prefs.ironsmithRuntimeEnabled ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setIronsmithRuntimeEnabled(false)}
                   >
-                    <Trans>Off</Trans>
+                    Off
                   </Button>
                 </div>
               </PreferenceCard>
             )}
 
             <PreferenceCard
-              title={i18n._(msg`Opponent layout`)}
-              description={i18n._(
-                msg`Focus on one opponent, or keep every opponent field equally visible.`,
-              )}
+              title={`Opponent layout`}
+              description={`Focus on one opponent, or keep every opponent field equally visible.`}
             >
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -878,23 +817,21 @@ export default function Settings() {
                   size="sm"
                   onClick={() => prefs.setOpponentLayout("focused")}
                 >
-                  <Trans>Focused</Trans>
+                  Focused
                 </Button>
                 <Button
                   variant={prefs.opponentLayout === "overview" ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setOpponentLayout("overview")}
                 >
-                  <Trans>Overview</Trans>
+                  Overview
                 </Button>
               </div>
             </PreferenceCard>
 
             <PreferenceCard
-              title={i18n._(msg`Peer to Peer`)}
-              description={i18n._(
-                msg`Skip manabrew servers and connect directly to the other players at the table. This shares your IP address with the people you play with, and only activates if every player in the game has it enabled.`,
-              )}
+              title={`Peer to Peer`}
+              description={`Skip manabrew servers and connect directly to the other players at the table. This shares your IP address with the people you play with, and only activates if every player in the game has it enabled.`}
             >
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -902,23 +839,21 @@ export default function Settings() {
                   size="sm"
                   onClick={() => prefs.setDirectTransport(true)}
                 >
-                  <Trans>On</Trans>
+                  On
                 </Button>
                 <Button
                   variant={!prefs.directTransport ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setDirectTransport(false)}
                 >
-                  <Trans>Off</Trans>
+                  Off
                 </Button>
               </div>
             </PreferenceCard>
 
             <PreferenceCard
-              title={i18n._(msg`Hand Card Style`)}
-              description={i18n._(
-                msg`Printed card shows the card image. Dynamic view uses the card's current rules and game state; each card can still be switched.`,
-              )}
+              title={`Hand Card Style`}
+              description={`Printed card shows the card image. Dynamic view uses the card's current rules and game state; each card can still be switched.`}
             >
               <div className="flex flex-wrap gap-2">
                 {INLINE_CARD_STYLE_OPTIONS.map((option) => (
@@ -935,10 +870,8 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title={i18n._(msg`Default Stack Card View`)}
-              description={i18n._(
-                msg`Choose which face stack cards show when they appear. You can still switch individual cards.`,
-              )}
+              title={`Default Stack Card View`}
+              description={`Choose which face stack cards show when they appear. You can still switch individual cards.`}
             >
               <div className="flex flex-wrap gap-2">
                 {INLINE_CARD_STYLE_OPTIONS.map((option) => (
@@ -955,10 +888,8 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title={i18n._(msg`Card Preview Style`)}
-              description={i18n._(
-                msg`Printed card shows the full card image. Dynamic view prioritizes current rules, actions, costs, counters, and other game state.`,
-              )}
+              title={`Card Preview Style`}
+              description={`Printed card shows the full card image. Dynamic view prioritizes current rules, actions, costs, counters, and other game state.`}
             >
               <div className="flex flex-wrap gap-2">
                 {IN_GAME_CARD_PREVIEW_STYLE_OPTIONS.map((option) => (
@@ -975,9 +906,9 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title={i18n._(msg`Flash duration`)}
+              title={`Flash duration`}
               value={`${flashDurationMs}ms`}
-              description={i18n._(msg`Card-play and turn-start flash duration.`)}
+              description={`Card-play and turn-start flash duration.`}
             >
               <input
                 type="range"
@@ -993,7 +924,7 @@ export default function Settings() {
           {playmatEditorOpen && (
             <PlaymatEditorModal
               onClose={() => setPlaymatEditorOpen(false)}
-              title={i18n._(msg`Default Playmat`)}
+              title={`Default Playmat`}
               playmat={defaultPlaymat}
               storedSettings={prefs.defaultPlaymatSettings}
               playmatAssetId={prefs.defaultPlaymatAssetId}
@@ -1006,47 +937,39 @@ export default function Settings() {
 
       {activeTab === "theme" && (
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold">
-            <Trans>Theme</Trans>
-          </h2>
+          <h2 className="text-lg font-semibold">Theme</h2>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <Label>
-                <Trans>App Theme</Trans>
-              </Label>
+              <Label>App Theme</Label>
               <div className="flex items-center gap-2">
                 <Button
                   variant={theme === "light" ? "selected" : "outline"}
                   size="sm"
                   onClick={() => setTheme("light")}
                 >
-                  <Trans>Light</Trans>
+                  Light
                 </Button>
                 <Button
                   variant={theme === "dark" ? "selected" : "outline"}
                   size="sm"
                   onClick={() => setTheme("dark")}
                 >
-                  <Trans>Dark</Trans>
+                  Dark
                 </Button>
                 <Button
                   variant={theme === "system" ? "selected" : "outline"}
                   size="sm"
                   onClick={() => setTheme("system")}
                 >
-                  <Trans>System</Trans>
+                  System
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                <Trans>Controls app theme preference.</Trans>
-              </p>
+              <p className="text-xs text-muted-foreground">Controls app theme preference.</p>
             </div>
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <Label>
-                <Trans>Color Preset</Trans>
-              </Label>
+              <Label>Color Preset</Label>
               {(() => {
                 const active = THEME_PRESETS.find((p) => p.id === prefs.appThemePreset);
                 const mode = resolvedTheme === "dark" ? "dark" : "light";
@@ -1127,7 +1050,7 @@ export default function Settings() {
                             </div>
                             {prefs.appThemePreset === preset.id && (
                               <div className="text-[10px] text-primary font-medium shrink-0">
-                                <Trans>Active</Trans>
+                                Active
                               </div>
                             )}
                           </button>
@@ -1138,14 +1061,14 @@ export default function Settings() {
                 );
               })()}
               <p className="text-xs text-muted-foreground">
-                <Trans>Choose a color preset. Works with both light and dark modes.</Trans>
+                Choose a color preset. Works with both light and dark modes.
               </p>
             </div>
           </div>
 
           <div className="pt-2">
             <Input
-              placeholder={i18n._(msg`Filter colors... (e.g. primary, counter, arrow)`)}
+              placeholder={`Filter colors... (e.g. primary, counter, arrow)`}
               value={themeColorFilter}
               onChange={(e) => setThemeColorFilter(e.target.value)}
               className="max-w-sm"
@@ -1154,9 +1077,7 @@ export default function Settings() {
 
           <div className="space-y-3 pt-2">
             <div className="flex items-center justify-between gap-2">
-              <Label>
-                <Trans>App Theme Colors</Trans>
-              </Label>
+              <Label>App Theme Colors</Label>
               <Button
                 size="sm"
                 variant="outline"
@@ -1169,7 +1090,7 @@ export default function Settings() {
                   ).length === 0
                 }
               >
-                <Trans>Reset Colors</Trans>
+                Reset Colors
               </Button>
             </div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -1249,7 +1170,7 @@ export default function Settings() {
                                   type="button"
                                   className="flex-1 min-w-0 text-right text-[11px] font-mono text-muted-foreground hover:text-foreground underline-offset-2 hover:underline truncate"
                                   onClick={() => beginThemeColorEdit(`app.${key}`, activeValue)}
-                                  title={i18n._(msg`Click to edit color value`)}
+                                  title={`Click to edit color value`}
                                 >
                                   {activeValue}
                                 </button>
@@ -1264,17 +1185,15 @@ export default function Settings() {
               })}
             </div>
             <p className="text-xs text-muted-foreground">
-              <Trans>Override individual colors from the active preset.</Trans>
+              Override individual colors from the active preset.
             </p>
           </div>
 
           <div className="space-y-3 pt-2">
             <div className="flex items-center justify-between gap-2">
-              <Label>
-                <Trans>Game Theme Colors</Trans>
-              </Label>
+              <Label>Game Theme Colors</Label>
               <Button size="sm" variant="outline" onClick={prefs.resetGameThemeColorOverrides}>
-                <Trans>Reset Colors</Trans>
+                Reset Colors
               </Button>
             </div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -1306,9 +1225,9 @@ export default function Settings() {
                 const miscKeys = allPaths.filter((p) => !grouped.has(p));
                 if (miscKeys.length > 0) {
                   groups.push({
-                    heading: i18n._(msg`Other`),
+                    heading: `Other`,
                     get description() {
-                      return i18n._(msg`Tokens not covered by the groups above.`);
+                      return `Tokens not covered by the groups above.`;
                     },
                     keys: miscKeys,
                   });
@@ -1399,7 +1318,7 @@ export default function Settings() {
                                     type="button"
                                     className="flex-1 min-w-0 text-right text-[11px] font-mono text-muted-foreground hover:text-foreground underline-offset-2 hover:underline truncate"
                                     onClick={() => beginThemeColorEdit(path, activeColor)}
-                                    title={i18n._(msg`Click to edit color value`)}
+                                    title={`Click to edit color value`}
                                   >
                                     {activeColor}
                                   </button>
@@ -1414,7 +1333,7 @@ export default function Settings() {
               })()}
             </div>
             <p className="text-xs text-muted-foreground">
-              <Trans>Generated from game theme keys. Defaults come from the active preset.</Trans>
+              Generated from game theme keys. Defaults come from the active preset.
             </p>
           </div>
         </section>

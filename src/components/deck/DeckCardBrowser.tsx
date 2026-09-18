@@ -36,9 +36,6 @@ import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { CardDto } from "@/protocol/game";
 import type { Deck, DeckCard } from "@/protocol/deck";
 import type { ScryfallCard } from "@/types/scryfall";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 function matchesManaValue(card: DeckCard, filter: BrowserManaValueFilter): boolean {
   if (filter === "all") return true;
   if (filter === "7+") return card.cmc >= 7;
@@ -106,8 +103,8 @@ function BrowserVisualCard({
       type="button"
       aria-label={
         group.count === 1
-          ? i18n._(msg`${group.card.identity.name}, one copy`)
-          : i18n._(msg`${group.card.identity.name}, ${group.count} copies`)
+          ? `${group.card.identity.name}, one copy`
+          : `${group.card.identity.name}, ${group.count} copies`
       }
       data-card-name={group.card.identity.name}
       className="group relative shrink-0 rounded-lg text-left transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:hover:translate-y-0"
@@ -158,8 +155,8 @@ function BrowserStackColumn({
             type="button"
             aria-label={
               group.count === 1
-                ? i18n._(msg`${group.card.identity.name}, one copy`)
-                : i18n._(msg`${group.card.identity.name}, ${group.count} copies`)
+                ? `${group.card.identity.name}, one copy`
+                : `${group.card.identity.name}, ${group.count} copies`
             }
             data-card-name={group.card.identity.name}
             className="absolute left-0 rounded-lg text-left transition-[top,transform] duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
@@ -312,25 +309,19 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
   const zoneOptions = [
     {
       value: "all" as const,
-      get label() {
-        return i18n._(msg`All`);
-      },
+      label: `All`,
       count: totalCount,
     },
     {
       value: "main" as const,
-      get label() {
-        return i18n._(msg`Main`);
-      },
+      label: `Main`,
       count: mainZoneCount,
     },
     ...(sideboardZoneCount > 0
       ? [
           {
             value: "side" as const,
-            get label() {
-              return i18n._(msg`Sideboard`);
-            },
+            label: `Sideboard`,
             count: sideboardZoneCount,
           },
         ]
@@ -339,9 +330,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
       ? [
           {
             value: "maybe" as const,
-            get label() {
-              return i18n._(msg`Maybe`);
-            },
+            label: `Maybe`,
             count: maybeboardZoneCount,
           },
         ]
@@ -391,27 +380,19 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
     const filteredSpecialSections = showMain
       ? [
           {
-            get label() {
-              return i18n._(msg`Attractions`);
-            },
+            label: `Attractions`,
             cards: deck.attractions ?? [],
           },
           {
-            get label() {
-              return i18n._(msg`Contraptions`);
-            },
+            label: `Contraptions`,
             cards: deck.contraptions ?? [],
           },
           {
-            get label() {
-              return i18n._(msg`Schemes`);
-            },
+            label: `Schemes`,
             cards: deck.schemes ?? [],
           },
           {
-            get label() {
-              return i18n._(msg`Planes`);
-            },
+            label: `Planes`,
             cards: deck.planes ?? [],
           },
         ]
@@ -429,9 +410,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
               ? [
                   {
                     id: "other",
-                    get label() {
-                      return i18n._(msg`Other`);
-                    },
+                    label: `Other`,
                     groups: otherGroups,
                     filter: () => false,
                   },
@@ -490,9 +469,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
       setDetailCard(entry.info);
     } catch (error) {
       if (cardDetailRequestIdRef.current !== requestId) return;
-      toast.error(
-        error instanceof Error ? error.message : i18n._(msg`Card details are unavailable`),
-      );
+      toast.error(error instanceof Error ? error.message : `Card details are unavailable`);
     } finally {
       if (cardDetailRequestIdRef.current === requestId) setLoadingCardName(null);
     }
@@ -506,14 +483,14 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              aria-label={i18n._(msg`Search card names, types, and rules text`)}
-              placeholder={i18n._(msg`Search cards\u2026`)}
+              aria-label={`Search card names, types, and rules text`}
+              placeholder={`Search cards\u2026`}
               className="h-8 pl-8 pr-8 text-xs pointer-coarse:h-10 pointer-coarse:text-base"
             />
             {search && (
               <button
                 type="button"
-                aria-label={i18n._(msg`Clear card search`)}
+                aria-label={`Clear card search`}
                 className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground pointer-coarse:p-2"
                 onClick={() => setSearch("")}
               >
@@ -522,9 +499,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
             )}
           </div>
           <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-            <Trans>
-              {shownCount === totalCount ? totalCount : `${shownCount} / ${totalCount}`} cards
-            </Trans>
+            {shownCount === totalCount ? totalCount : `${shownCount} / ${totalCount}`} cards
           </span>
         </div>
 
@@ -554,11 +529,9 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
           {shownCount === 0 ? (
             <div className="grid min-h-48 place-items-center text-center">
               <div>
-                <p className="text-sm font-medium">
-                  <Trans>No cards match these filters</Trans>
-                </p>
+                <p className="text-sm font-medium">No cards match these filters</p>
                 <Button variant="ghost" size="sm" className="mt-2" onClick={clearFilters}>
-                  <Trans>Clear filters</Trans>
+                  Clear filters
                 </Button>
               </div>
             </div>
@@ -566,7 +539,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
             <div className="flex flex-wrap items-start gap-5">
               {commanders.length > 0 && (
                 <BrowserStackColumn
-                  label={commanders.length > 1 ? i18n._(msg`Commanders`) : i18n._(msg`Commander`)}
+                  label={commanders.length > 1 ? `Commanders` : `Commander`}
                   groups={groupCards(commanders)}
                   width={cardWidth}
                   onOpen={(card) => void openCard(card)}
@@ -576,7 +549,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
               )}
               {companion.length > 0 && (
                 <BrowserStackColumn
-                  label={i18n._(msg`Companion`)}
+                  label={`Companion`}
                   groups={groupCards(companion)}
                   width={cardWidth}
                   onOpen={(card) => void openCard(card)}
@@ -598,7 +571,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
               ))}
               {sideboard.length > 0 && (
                 <BrowserStackColumn
-                  label={i18n._(msg`Sideboard`)}
+                  label={`Sideboard`}
                   groups={groupCards(sideboard)}
                   width={cardWidth}
                   onOpen={(card) => void openCard(card)}
@@ -608,7 +581,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
               )}
               {maybeboard.length > 0 && (
                 <BrowserStackColumn
-                  label={i18n._(msg`Maybeboard`)}
+                  label={`Maybeboard`}
                   groups={groupCards(maybeboard)}
                   width={cardWidth}
                   onOpen={(card) => void openCard(card)}
@@ -636,7 +609,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
             >
               {commanders.length > 0 && (
                 <BrowserSection
-                  label={commanders.length > 1 ? i18n._(msg`Commanders`) : i18n._(msg`Commander`)}
+                  label={commanders.length > 1 ? `Commanders` : `Commander`}
                   groups={groupCards(commanders)}
                   viewMode={viewMode}
                   cardWidth={cardWidth}
@@ -647,7 +620,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
               )}
               {companion.length > 0 && (
                 <BrowserSection
-                  label={i18n._(msg`Companion`)}
+                  label={`Companion`}
                   groups={groupCards(companion)}
                   viewMode={viewMode}
                   cardWidth={cardWidth}
@@ -670,7 +643,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
               ))}
               {sideboard.length > 0 && (
                 <BrowserSection
-                  label={i18n._(msg`Sideboard`)}
+                  label={`Sideboard`}
                   groups={groupCards(sideboard)}
                   viewMode={viewMode}
                   cardWidth={cardWidth}
@@ -681,7 +654,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
               )}
               {maybeboard.length > 0 && (
                 <BrowserSection
-                  label={i18n._(msg`Maybeboard`)}
+                  label={`Maybeboard`}
                   groups={groupCards(maybeboard)}
                   viewMode={viewMode}
                   cardWidth={cardWidth}
@@ -708,7 +681,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
         <div className="hidden min-h-0 lg:contents">
           <CardPreviewRail
             preview={preview}
-            title={i18n._(msg`Card preview`)}
+            title={`Card preview`}
             renderDetails={(card) => <CardPreviewDetails card={card} />}
           />
         </div>
@@ -717,10 +690,8 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
       {loadingCardName && (
         <div className="pointer-events-none absolute inset-x-0 bottom-20 z-40 flex justify-center">
           <span className="flex items-center gap-2 rounded-full border bg-background/95 px-3 py-1.5 text-xs shadow-lg">
-            <Trans>
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Loading {loadingCardName}…
-            </Trans>
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Loading {loadingCardName}…
           </span>
         </div>
       )}

@@ -1,6 +1,4 @@
 import type { CardDto } from "@/protocol/game";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export type HandOrderMode = "manual" | "color" | "mana-value";
 export const HAND_ORDER_OPTIONS: readonly {
   value: HandOrderMode;
@@ -8,21 +6,15 @@ export const HAND_ORDER_OPTIONS: readonly {
 }[] = [
   {
     value: "manual",
-    get label() {
-      return i18n._(msg`Manual`);
-    },
+    label: `Manual`,
   },
   {
     value: "color",
-    get label() {
-      return i18n._(msg`Color`);
-    },
+    label: `Color`,
   },
   {
     value: "mana-value",
-    get label() {
-      return i18n._(msg`Mana value`);
-    },
+    label: `Mana value`,
   },
 ];
 const COLOR_ORDER = "WUBRG";

@@ -4,9 +4,6 @@ import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
 import { TableRoomSidebar } from "@/components/lobby/TableRoomSidebar";
 import { Button } from "@/components/ui/button";
 import type { GameFormat, RoomInfo } from "@/types/server";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface TableRoomProps {
   room: RoomInfo;
   roomPassword?: string | null;
@@ -68,41 +65,31 @@ export function TableRoom({
   const openSeats = room.max_players - room.players.length;
   const requiredPlayers = Math.max(0, minReady - room.players.length);
   const modeLabel = room.draft_config
-    ? (room.draft_config.cube_name ?? room.draft_config.set_code ?? i18n._(msg`Draft`))
+    ? (room.draft_config.cube_name ?? room.draft_config.set_code ?? `Draft`)
     : room.sealed_config
-      ? (room.sealed_config.cube_name ?? room.sealed_config.set_code ?? i18n._(msg`Sealed`))
+      ? (room.sealed_config.cube_name ?? room.sealed_config.set_code ?? `Sealed`)
       : room.format;
   function renderPrimaryAction() {
     if (room.status !== "Lobby") {
       return (
         <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-center sm:text-right">
-          <p className="text-sm font-medium text-primary">
-            <Trans>Game in progress</Trans>
-          </p>
-          <p className="text-xs text-muted-foreground">
-            <Trans>Opening the game table...</Trans>
-          </p>
+          <p className="text-sm font-medium text-primary">Game in progress</p>
+          <p className="text-xs text-muted-foreground">Opening the game table...</p>
         </div>
       );
     }
     if (needsFormat) {
       return (
         <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5 text-center sm:text-right">
-          <p className="text-sm font-medium">
-            <Trans>Choose a format</Trans>
-          </p>
-          <p className="text-xs text-muted-foreground">
-            <Trans>Select one in Table settings to continue.</Trans>
-          </p>
+          <p className="text-sm font-medium">Choose a format</p>
+          <p className="text-xs text-muted-foreground">Select one in Table settings to continue.</p>
         </div>
       );
     }
     if (needsDeck) {
       return (
         <Button variant="primary" size="lg" onClick={onOpenDeckDialog} className="w-full sm:w-auto">
-          <Trans>
-            <Shield /> Choose a deck
-          </Trans>
+          <Shield /> Choose a deck
         </Button>
       );
     }
@@ -114,19 +101,15 @@ export function TableRoom({
           onClick={() => onSetReady(true)}
           className="w-full sm:w-auto"
         >
-          <Trans>Ready up</Trans>
+          Ready up
         </Button>
       );
     }
     if (!isController && myPlayer?.ready) {
       return (
         <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-center sm:text-right">
-          <p className="text-sm font-medium text-primary">
-            <Trans>You're ready</Trans>
-          </p>
-          <p className="text-xs text-muted-foreground">
-            <Trans>Waiting for the host to start.</Trans>
-          </p>
+          <p className="text-sm font-medium text-primary">You're ready</p>
+          <p className="text-xs text-muted-foreground">Waiting for the host to start.</p>
         </div>
       );
     }
@@ -140,7 +123,7 @@ export function TableRoom({
             disabled={startingLimited}
             className="w-full sm:w-auto"
           >
-            <Swords /> {startingLimited ? i18n._(msg`Starting...`) : i18n._(msg`Start draft`)}
+            <Swords /> {startingLimited ? `Starting...` : `Start draft`}
           </Button>
         );
       }
@@ -153,7 +136,7 @@ export function TableRoom({
             disabled={startingLimited}
             className="w-full sm:w-auto"
           >
-            <Swords /> {startingLimited ? i18n._(msg`Starting...`) : i18n._(msg`Start sealed`)}
+            <Swords /> {startingLimited ? `Starting...` : `Start sealed`}
           </Button>
         );
       }
@@ -165,21 +148,19 @@ export function TableRoom({
           disabled={startingGame}
           className="w-full sm:w-auto"
         >
-          <Swords /> {startingGame ? i18n._(msg`Starting...`) : i18n._(msg`Start game`)}
+          <Swords /> {startingGame ? `Starting...` : `Start game`}
         </Button>
       );
     }
     return (
       <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5 text-center sm:text-right">
         <p className="text-sm font-medium">
-          {requiredPlayers > 0
-            ? i18n._(msg`Waiting for ${requiredPlayers} more`)
-            : i18n._(msg`Waiting for players`)}
+          {requiredPlayers > 0 ? `Waiting for ${requiredPlayers} more` : `Waiting for players`}
         </p>
         <p className="text-xs text-muted-foreground">
           {requiredPlayers > 0
-            ? i18n._(msg`Your table is open for others to join.`)
-            : i18n._(msg`Everyone at the table needs to be ready.`)}
+            ? `Your table is open for others to join.`
+            : `Everyone at the table needs to be ready.`}
         </p>
       </div>
     );
@@ -206,9 +187,7 @@ export function TableRoom({
                     {modeLabel}
                   </span>
                   <span className="text-xs font-medium text-muted-foreground sm:text-sm">
-                    <Trans>
-                      {readyCount}/{room.players.length} ready
-                    </Trans>
+                    {readyCount}/{room.players.length} ready
                   </span>
                 </span>
               }
@@ -217,17 +196,16 @@ export function TableRoom({
           <div className="flex flex-col gap-4 border-t border-border/60 bg-background/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
             <div className="min-w-0">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                <Trans>Your seat</Trans>
+                Your seat
               </p>
               <p className="mt-1 truncate text-sm font-medium">
                 {isController
-                  ? i18n._(msg`You control when the game begins`)
+                  ? `You control when the game begins`
                   : isOpenFormat
                     ? myPlayer?.ready
-                      ? i18n._(msg`Ready to play`)
-                      : i18n._(msg`Confirm when you're ready`)
-                    : (myPlayer?.selected_deck_name ??
-                      i18n._(msg`Choose the deck you want to play`))}
+                      ? `Ready to play`
+                      : `Confirm when you're ready`
+                    : (myPlayer?.selected_deck_name ?? `Choose the deck you want to play`)}
               </p>
             </div>
             {renderPrimaryAction()}

@@ -22,9 +22,6 @@ import { cn } from "@/lib/utils";
 import { deckCardToPreviewDto, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useCollectionStore } from "@/stores/useCollectionStore";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export default function MyCollection() {
   useCardCollection();
   const authStatus = useAuthStore((state) => state.status);
@@ -76,18 +73,16 @@ export default function MyCollection() {
   }
   function updateQuantity(cardKey: string, quantity: number) {
     void setQuantity(cardKey, quantity).catch(() => {
-      toast.error(i18n._(msg`Account sync failed. This change is preserved locally.`));
+      toast.error(`Account sync failed. This change is preserved locally.`);
     });
   }
   async function deleteCollection() {
     try {
       await replaceQuantities({});
       setQuery("");
-      toast.success(i18n._(msg`Collection deleted`));
+      toast.success(`Collection deleted`);
     } catch (error) {
-      toast.error(
-        i18n._(msg`Account sync failed. The deletion is preserved locally and will retry.`),
-      );
+      toast.error(`Account sync failed. The deletion is preserved locally and will retry.`);
       throw error;
     }
   }
@@ -99,47 +94,37 @@ export default function MyCollection() {
             <div>
               <div className="flex items-center gap-2">
                 <LibraryBig className="h-5 w-5 text-primary" />
-                <h1 className="text-2xl font-semibold">
-                  <Trans>My Collection</Trans>
-                </h1>
+                <h1 className="text-2xl font-semibold">My Collection</h1>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
                 {loading
-                  ? i18n._(msg`Syncing with your account\u2026`)
-                  : i18n._(msg`${Object.keys(quantities).length} collection entries`)}
+                  ? `Syncing with your account\u2026`
+                  : `${Object.keys(quantities).length} collection entries`}
               </p>
               {syncError && (
                 <p className="mt-1 text-sm text-destructive">
-                  <Trans>
-                    Account sync failed. Changes are preserved locally and will retry on the next
-                    edit.
-                  </Trans>
+                  Account sync failed. Changes are preserved locally and will retry on the next
+                  edit.
                 </p>
               )}
             </div>
             <div className="flex gap-2">
               <Button variant="outline" disabled={loading} onClick={() => setImportOpen(true)}>
-                <Trans>
-                  <Upload className="mr-1.5 h-4 w-4" /> Import
-                </Trans>
+                <Upload className="mr-1.5 h-4 w-4" /> Import
               </Button>
               <Button
                 variant="outline"
                 disabled={Object.keys(quantities).length === 0}
                 onClick={exportCollection}
               >
-                <Trans>
-                  <Download className="mr-1.5 h-4 w-4" /> Export CSV
-                </Trans>
+                <Download className="mr-1.5 h-4 w-4" /> Export CSV
               </Button>
               <Button
                 variant="destructive-quiet"
                 disabled={loading || collectionRows.length === 0}
                 onClick={() => setDeleteOpen(true)}
               >
-                <Trans>
-                  <Trash2 className="mr-1.5 h-4 w-4" /> Delete collection
-                </Trans>
+                <Trash2 className="mr-1.5 h-4 w-4" /> Delete collection
               </Button>
             </div>
           </div>
@@ -150,7 +135,7 @@ export default function MyCollection() {
               <Input
                 className="pl-9"
                 value={query}
-                placeholder={i18n._(msg`Search your collection`)}
+                placeholder={`Search your collection`}
                 onChange={(event) => {
                   setQuery(event.target.value);
                   setVisibleRowCount(100);
@@ -174,8 +159,8 @@ export default function MyCollection() {
             <div className="flex shrink-0 overflow-hidden rounded-md border">
               <button
                 type="button"
-                title={i18n._(msg`Grid view`)}
-                aria-label={i18n._(msg`Grid view`)}
+                title={`Grid view`}
+                aria-label={`Grid view`}
                 aria-pressed={view === "grid"}
                 onClick={() => {
                   setView("grid");
@@ -192,8 +177,8 @@ export default function MyCollection() {
               </button>
               <button
                 type="button"
-                title={i18n._(msg`Text view`)}
-                aria-label={i18n._(msg`Text view`)}
+                title={`Text view`}
+                aria-label={`Text view`}
                 aria-pressed={view === "text"}
                 onClick={() => {
                   setView("text");
@@ -245,15 +230,15 @@ export default function MyCollection() {
                 )}
               >
                 {query
-                  ? i18n._(msg`No cards match your search.`)
-                  : i18n._(msg`Import a CSV or text list to start your collection.`)}
+                  ? `No cards match your search.`
+                  : `Import a CSV or text list to start your collection.`}
               </div>
             )}
           </div>
           {visibleRows.length < rows.length && (
             <div className="mt-6 flex justify-center">
               <Button variant="outline" onClick={() => setVisibleRowCount((count) => count + 100)}>
-                <Trans>Show 100 more · {rows.length - visibleRows.length} remaining</Trans>
+                Show 100 more · {rows.length - visibleRows.length} remaining
               </Button>
             </div>
           )}

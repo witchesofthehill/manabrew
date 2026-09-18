@@ -11,8 +11,6 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
 import type { DeckCard, DeckFormat } from "@/protocol/deck";
 import { executeDeckEdit } from "./deckEditor.history";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export interface ResolvedDeckTextImport {
   cards: DeckCard[];
   sideboard: DeckCard[];
@@ -160,17 +158,15 @@ export function useDeckTextImport() {
       if (notFound.length > 0) {
         const shown = notFound.slice(0, 3).join(", ");
         const extra = notFound.length > 3 ? ` +${notFound.length - 3} more` : "";
-        toast.warning(i18n._(msg`Imported "${deckName}" — couldn't find: ${shown}${extra}`));
+        toast.warning(`Imported "${deckName}" — couldn't find: ${shown}${extra}`);
       } else if (substitutedPrintings.length > 0) {
         toast.warning(
           substitutedPrintings.length === 1
-            ? i18n._(msg`Imported "${deckName}" with one default printing substitution`)
-            : i18n._(
-                msg`Imported "${deckName}" with ${substitutedPrintings.length} default printing substitutions`,
-              ),
+            ? `Imported "${deckName}" with one default printing substitution`
+            : `Imported "${deckName}" with ${substitutedPrintings.length} default printing substitutions`,
         );
       } else {
-        toast.success(i18n._(msg`Imported "${deckName}"`));
+        toast.success(`Imported "${deckName}"`);
       }
       return id;
     },
@@ -190,7 +186,7 @@ export function useDeckTextImportIntoCurrent() {
       if (useDeckStore.getState().editorSessionId !== startingSessionId) {
         return false;
       }
-      executeDeckEdit(i18n._(msg`Import card list`), () =>
+      executeDeckEdit(`Import card list`, () =>
         useDeckStore.getState().mergeIntoCurrentDeck(result),
       );
       onProgress(1);
@@ -202,17 +198,15 @@ export function useDeckTextImportIntoCurrent() {
       if (result.notFound.length > 0) {
         const shown = result.notFound.slice(0, 3).join(", ");
         const extra = result.notFound.length > 3 ? ` +${result.notFound.length - 3} more` : "";
-        toast.warning(i18n._(msg`Added ${count} cards — couldn't find: ${shown}${extra}`));
+        toast.warning(`Added ${count} cards — couldn't find: ${shown}${extra}`);
       } else if (result.substitutedPrintings.length > 0) {
         toast.warning(
           result.substitutedPrintings.length === 1
-            ? i18n._(msg`Added ${count} cards with one default printing substitution`)
-            : i18n._(
-                msg`Added ${count} cards with ${result.substitutedPrintings.length} default printing substitutions`,
-              ),
+            ? `Added ${count} cards with one default printing substitution`
+            : `Added ${count} cards with ${result.substitutedPrintings.length} default printing substitutions`,
         );
       } else {
-        toast.success(i18n._(msg`Added ${count} cards to this deck`));
+        toast.success(`Added ${count} cards to this deck`);
       }
       return true;
     },

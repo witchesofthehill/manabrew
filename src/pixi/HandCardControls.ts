@@ -12,8 +12,6 @@ import type { Theme } from "@/hooks/useTheme";
 import { isCoarsePointer } from "@/lib/responsive";
 import { applyIcon } from "./panelIcons";
 import { hexToNum } from "./colorUtils";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 
 const CONTROL_SIZE = 20;
 const CONTROL_GAP = 4;
@@ -80,7 +78,7 @@ export class HandCardControls extends Container {
     const controls = [
       {
         icon: spec.rulesView ? "card-play" : "spell-book",
-        tooltip: spec.rulesView ? i18n._(msg`Show card`) : i18n._(msg`Show rules`),
+        tooltip: spec.rulesView ? `Show card` : `Show rules`,
         activate: spec.onToggleRules,
       },
       ...(spec.showFaceControl
@@ -89,11 +87,11 @@ export class HandCardControls extends Container {
               icon: "cycle",
               tooltip: spec.horizontal
                 ? spec.alternateFace
-                  ? i18n._(msg`Return upright`)
-                  : i18n._(msg`Rotate to read`)
+                  ? `Return upright`
+                  : `Rotate to read`
                 : spec.alternateFace
-                  ? i18n._(msg`Show front face`)
-                  : i18n._(msg`Show back face`),
+                  ? `Show front face`
+                  : `Show back face`,
               activate: spec.onToggleFace,
             },
           ]

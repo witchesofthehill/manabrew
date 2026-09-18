@@ -11,7 +11,6 @@ import { PhaseStrip } from "@/components/companion/PhaseStrip";
 import { StatsDialog } from "@/components/companion/StatsDialog";
 import { WinBanner } from "@/components/companion/WinBanner";
 import { useCompanionStore } from "@/stores/useCompanionStore";
-import { Trans } from "@lingui/react/macro";
 export default function Companion() {
   const session = useCompanionStore((s) => s.session);
   const newSession = useCompanionStore((s) => s.newSession);
@@ -42,26 +41,22 @@ export default function Companion() {
       <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
         <GameIcon icon="healing" className="size-14 text-muted-foreground" />
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold">
-            <Trans>Start tracking</Trans>
-          </h2>
+          <h2 className="text-xl font-semibold">Start tracking</h2>
           <p className="max-w-sm text-sm text-muted-foreground">
-            <Trans>
-              Track life, counters, commander damage and table layout for paper play. One device
-              passes around the table.
-            </Trans>
+            Track life, counters, commander damage and table layout for paper play. One device
+            passes around the table.
           </p>
         </div>
         <div className="flex gap-2">
           <Button variant="primary" onClick={() => setNewOpen(true)}>
-            <Trans>Start a game</Trans>
+            Start a game
           </Button>
           <StatsDialog />
         </div>
         {archive.length > 0 && (
           <div className="mt-4 w-full max-w-sm space-y-1 text-left">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <Trans>Recent games</Trans>
+              Recent games
             </p>
             <ul className="divide-y divide-border rounded-md border border-border">
               {archive.slice(0, 5).map((archived) => (
@@ -69,9 +64,7 @@ export default function Companion() {
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm">{archived.tag || "Untitled game"}</div>
                     <div className="text-[10px] text-muted-foreground">
-                      <Trans>
-                        {new Date(archived.createdAt).toLocaleString()} · {archived.players.length}p
-                      </Trans>
+                      {new Date(archived.createdAt).toLocaleString()} · {archived.players.length}p
                     </div>
                   </div>
                   <Button
@@ -79,7 +72,7 @@ export default function Companion() {
                     variant="outline"
                     onClick={() => restoreFromArchive(archived.id)}
                   >
-                    <Trans>Resume</Trans>
+                    Resume
                   </Button>
                 </li>
               ))}

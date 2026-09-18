@@ -20,9 +20,6 @@ import {
 } from "@/api/cardArtCache";
 import { useOwnedDecks } from "@/hooks/useOwnedDecks";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   const units = ["KB", "MB", "GB"];
@@ -64,23 +61,19 @@ export function CardArtDownloadSection() {
     try {
       const urls = [...new Set(decks.flatMap((saved) => deckArtUrls(saved.deck, variants)))];
       if (urls.length === 0) {
-        toast.info(i18n._(msg`No decks to download art for yet.`));
+        toast.info(`No decks to download art for yet.`);
         return;
       }
       const result = await preseedCardArt(urls);
       const downloaded = result.fetched + result.alreadyCached;
       const summary =
-        downloaded === 1
-          ? i18n._(msg`Art ready for one image`)
-          : i18n._(msg`Art ready for ${downloaded} images`);
+        downloaded === 1 ? `Art ready for one image` : `Art ready for ${downloaded} images`;
       toast.success(
-        result.failed > 0
-          ? i18n._(msg`${summary}, ${result.failed} could not be fetched`)
-          : summary,
+        result.failed > 0 ? `${summary}, ${result.failed} could not be fetched` : summary,
       );
       refresh();
     } catch (error) {
-      toast.error(i18n._(msg`Could not download art: ${String(error)}`));
+      toast.error(`Could not download art: ${String(error)}`);
     } finally {
       setBusy(null);
     }
@@ -90,13 +83,11 @@ export function CardArtDownloadSection() {
     setProgress(null);
     try {
       const result = await downloadAllCardArt(variants);
-      const summary = i18n._(
-        msg`Downloaded ${result.fetched}, already had ${result.alreadyCached}`,
-      );
-      toast.success(result.failed > 0 ? i18n._(msg`${summary}, ${result.failed} failed`) : summary);
+      const summary = `Downloaded ${result.fetched}, already had ${result.alreadyCached}`;
+      toast.success(result.failed > 0 ? `${summary}, ${result.failed} failed` : summary);
       refresh();
     } catch (error) {
-      toast.error(i18n._(msg`Could not download every card: ${String(error)}`));
+      toast.error(`Could not download every card: ${String(error)}`);
     } finally {
       setBusy(null);
       setProgress(null);
@@ -108,7 +99,7 @@ export function CardArtDownloadSection() {
       await clearCardArtCache(includeDownloaded);
       refresh();
     } catch (error) {
-      toast.error(i18n._(msg`Could not clear the art cache: ${String(error)}`));
+      toast.error(`Could not clear the art cache: ${String(error)}`);
     } finally {
       setBusy(null);
     }
@@ -116,57 +107,43 @@ export function CardArtDownloadSection() {
   const deckCards = new Set(decks.flatMap((saved) => saved.deck.cards.map((c) => c.identity.name)));
   return (
     <div className="rounded-lg border bg-card/40 p-4 space-y-3 max-w-xl">
-      <Label>
-        <Trans>Card Art On This Machine</Trans>
-      </Label>
+      <Label>Card Art On This Machine</Label>
       <p className="text-xs text-muted-foreground">
-        <Trans>
-          Art is kept on disk once drawn, so a board does not fetch it twice. Downloading ahead of
-          time is what lets you play with no internet at all, and a deliberate download is never
-          dropped when the cache is trimmed for space.
-        </Trans>
+        Art is kept on disk once drawn, so a board does not fetch it twice. Downloading ahead of
+        time is what lets you play with no internet at all, and a deliberate download is never
+        dropped when the cache is trimmed for space.
       </p>
       <p className="text-xs text-muted-foreground">
-        <Trans>
-          Downloading for the <strong>{style}</strong> battlefield style. That style draws{" "}
-          {variants.join(", ")}, so art downloaded for one style does not cover another.
-        </Trans>
+        Downloading for the <strong>{style}</strong> battlefield style. That style draws{" "}
+        {variants.join(", ")}, so art downloaded for one style does not cover another.
       </p>
       <label className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Trans>
-          <input
-            type="checkbox"
-            checked={everyStyle}
-            onChange={(event) => setEveryStyle(event.target.checked)}
-          />
-          Cover every battlefield style (larger download)
-        </Trans>
+        <input
+          type="checkbox"
+          checked={everyStyle}
+          onChange={(event) => setEveryStyle(event.target.checked)}
+        />
+        Cover every battlefield style (larger download)
       </label>
       <p className="text-xs text-muted-foreground">
         {stats
-          ? i18n._(
-              msg`On disk: ${stats.files} image${stats.files === 1 ? "" : "s"}, ${formatBytes(stats.bytes)} — ${stats.pinnedFiles} of them downloaded on purpose (${formatBytes(stats.pinnedBytes)}).`,
-            )
-          : i18n._(msg`Reading the cache\u2026`)}
+          ? `On disk: ${stats.files} image${stats.files === 1 ? "" : "s"}, ${formatBytes(stats.bytes)} — ${stats.pinnedFiles} of them downloaded on purpose (${formatBytes(stats.pinnedBytes)}).`
+          : `Reading the cache\u2026`}
       </p>
       {progress && (
         <p className="text-xs text-muted-foreground">
-          <Trans>
-            {progress.done} of {progress.total} — {formatBytes(progress.bytes)} downloaded.
-          </Trans>
+          {progress.done} of {progress.total} — {formatBytes(progress.bytes)} downloaded.
         </p>
       )}
       <div className="flex flex-wrap gap-2">
         <Button variant="primary" onClick={() => void downloadDecks()} disabled={busy !== null}>
           {busy === "decks"
-            ? i18n._(msg`Downloading\u2026`)
-            : i18n._(
-                msg`My decks (${decks.length}) · ~${formatBytes(estimateBytes(variants, deckCards.size))}`,
-              )}
+            ? `Downloading\u2026`
+            : `My decks (${decks.length}) · ~${formatBytes(estimateBytes(variants, deckCards.size))}`}
         </Button>
         {busy === "all" ? (
           <Button variant="outline" onClick={() => void cancelCardArtDownload()}>
-            <Trans>Stop</Trans>
+            Stop
           </Button>
         ) : (
           <Button
@@ -174,18 +151,18 @@ export function CardArtDownloadSection() {
             onClick={() => void downloadEverything()}
             disabled={busy !== null}
           >
-            {i18n._(msg`Every card · ~${formatBytes(estimateBytes(variants, ALL_CARDS_ESTIMATE))}`)}
+            {`Every card · ~${formatBytes(estimateBytes(variants, ALL_CARDS_ESTIMATE))}`}
           </Button>
         )}
         <Button variant="outline" onClick={() => void clear(false)} disabled={busy !== null}>
-          <Trans>Trim unused</Trans>
+          Trim unused
         </Button>
         <Button
           variant="destructive-quiet"
           onClick={() => void clear(true)}
           disabled={busy !== null}
         >
-          <Trans>Delete all</Trans>
+          Delete all
         </Button>
       </div>
     </div>

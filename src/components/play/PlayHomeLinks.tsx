@@ -23,9 +23,6 @@ import {
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const TOOL_GRID_BY_COUNT: Record<number, string> = {
   2: "sm:grid-cols-2",
   3: "sm:grid-cols-3",
@@ -36,18 +33,14 @@ const UTILITY_ROW_CLASS =
 const TOOLS = [
   {
     to: ROUTES.SEARCH,
-    get label() {
-      return i18n._(msg`Card Search`);
-    },
+    label: `Card Search`,
     desc: "Every card, printing, and ruling at your fingertips.",
     icon: Search,
     tone: "blue",
   },
   {
     to: ROUTES.COMPANION,
-    get label() {
-      return i18n._(msg`Life Tracker`);
-    },
+    label: `Life Tracker`,
     desc: "Life, poison, and commander damage for paper nights.",
     icon: HeartPulse,
     tone: "rose",
@@ -60,9 +53,7 @@ export function PlayHomeLinks() {
       ? [
           {
             to: ROUTES.MY_COLLECTION,
-            get label() {
-              return i18n._(msg`My Collection`);
-            },
+            label: `My Collection`,
             desc: "Track the cards you own and import or export your collection.",
             icon: PackageOpen,
             tone: "amber",
@@ -72,7 +63,7 @@ export function PlayHomeLinks() {
       : TOOLS;
   return (
     <>
-      <section aria-label={i18n._(msg`More ways to play and tools`)}>
+      <section aria-label={`More ways to play and tools`}>
         <div className={cn("grid gap-4", TOOL_GRID_BY_COUNT[tools.length] ?? "sm:grid-cols-3")}>
           {tools.map(({ to, label, desc, icon, tone }, index) => (
             <FeatureTile
@@ -91,33 +82,27 @@ export function PlayHomeLinks() {
       </section>
 
       <section
-        aria-label={i18n._(msg`Utilities`)}
+        aria-label={`Utilities`}
         className="overflow-hidden rounded-xl border border-border/60 bg-background/60 backdrop-blur-md"
       >
         <ul className="divide-y divide-border/50 pb-1">
           <li>
             <Link to={ROUTES.SETTINGS} className={UTILITY_ROW_CLASS}>
-              <Trans>
-                <Settings className="h-4 w-4 shrink-0 text-muted-foreground" />
-                Preferences
-              </Trans>
+              <Settings className="h-4 w-4 shrink-0 text-muted-foreground" />
+              Preferences
             </Link>
           </li>
           <li>
             <Link to={ROUTES.ABOUT} className={UTILITY_ROW_CLASS}>
-              <Trans>
-                <Info className="h-4 w-4 shrink-0 text-muted-foreground" />
-                About Manabrew
-              </Trans>
+              <Info className="h-4 w-4 shrink-0 text-muted-foreground" />
+              About Manabrew
             </Link>
           </li>
           {DESIGN_SYSTEM_ENABLED && (
             <li>
               <Link to={ROUTES.DESIGN_SYSTEM} className={UTILITY_ROW_CLASS}>
-                <Trans>
-                  <Palette className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  Design System
-                </Trans>
+                <Palette className="h-4 w-4 shrink-0 text-muted-foreground" />
+                Design System
               </Link>
             </li>
           )}
@@ -126,32 +111,24 @@ export function PlayHomeLinks() {
 
       <footer className="flex flex-col gap-3 border-t border-border/50 pt-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground">
-            <Trans>Manabrew v{APP_VERSION}</Trans>
-          </span>
+          <span className="text-xs text-muted-foreground">Manabrew v{APP_VERSION}</span>
           <div className="flex items-center gap-1">
-            <Button asChild variant="ghost" size="icon-sm" title={i18n._(msg`Discord`)}>
+            <Button asChild variant="ghost" size="icon-sm" title={`Discord`}>
               <a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer">
                 <DiscordIcon className="h-4 w-4" />
-                <span className="sr-only">
-                  <Trans>Discord</Trans>
-                </span>
+                <span className="sr-only">Discord</span>
               </a>
             </Button>
-            <Button asChild variant="ghost" size="icon-sm" title={i18n._(msg`GitHub`)}>
+            <Button asChild variant="ghost" size="icon-sm" title={`GitHub`}>
               <a href={GITHUB_REPO_URL} target="_blank" rel="noreferrer">
                 <Github className="h-4 w-4" />
-                <span className="sr-only">
-                  <Trans>GitHub</Trans>
-                </span>
+                <span className="sr-only">GitHub</span>
               </a>
             </Button>
-            <Button asChild variant="ghost" size="icon-sm" title={i18n._(msg`Website`)}>
+            <Button asChild variant="ghost" size="icon-sm" title={`Website`}>
               <a href={WEBSITE_URL} target="_blank" rel="noreferrer">
                 <Globe className="h-4 w-4" />
-                <span className="sr-only">
-                  <Trans>Website</Trans>
-                </span>
+                <span className="sr-only">Website</span>
               </a>
             </Button>
           </div>

@@ -5,8 +5,6 @@ import { IRONSMITH_WASM_AVAILABLE } from "./ironsmithWasmAvailable";
 import { IronsmithTrustedGameApi } from "./ironsmithRuntime";
 import { ManualTabletopGameApi } from "./manualTabletopApi";
 import type { GameRuntime, GameRuntimeCapabilities, GameRuntimeKind } from "./runtime.types";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const manualTabletopApi = new ManualTabletopGameApi();
 const ironsmithApi = new IronsmithTrustedGameApi();
 let selectedRuntimeKind: GameRuntimeKind = "manabrew";
@@ -22,9 +20,7 @@ function getPlatformGameCapabilities(): GameRuntimeCapabilities {
 }
 const manabrewRuntime: GameRuntime = {
   kind: "manabrew",
-  get label() {
-    return i18n._(msg`Rust engine`);
-  },
+  label: `Rust engine`,
   get capabilities() {
     return getPlatformGameCapabilities();
   },
@@ -34,9 +30,7 @@ const manabrewRuntime: GameRuntime = {
 };
 const manualTabletopRuntime: GameRuntime = {
   kind: "manual-tabletop",
-  get label() {
-    return i18n._(msg`Manual tabletop`);
-  },
+  label: `Manual tabletop`,
   capabilities: {
     multiplayer: false,
     snapshots: false,
@@ -48,9 +42,7 @@ const manualTabletopRuntime: GameRuntime = {
 };
 const ironsmithRuntime: GameRuntime = {
   kind: "ironsmith",
-  get label() {
-    return i18n._(msg`Ironsmith trusted`);
-  },
+  label: `Ironsmith trusted`,
   capabilities: {
     multiplayer: true,
     snapshots: false,

@@ -6,9 +6,6 @@ import {
 import { DevCounterControl } from "./DevCounterControl";
 import { DevToggleButton } from "./DevToggleButton";
 import { DEV_SECTION, DEV_SECTION_HEADING } from "./devPanel.styles";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 import { DevPanelSearchProvider, DevSearchable } from "./DevPanelSearch";
 import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
 
@@ -25,105 +22,71 @@ interface BoolRow {
 const STATUS_ROWS: BoolRow[] = [
   {
     key: "forceTapped",
-    get label() {
-      return i18n._(msg`Tapped`);
-    },
+    label: `Tapped`,
   },
   {
     key: "forceSummoningSick",
-    get label() {
-      return i18n._(msg`Summoning sick`);
-    },
+    label: `Summoning sick`,
   },
   {
     key: "forceExerted",
-    get label() {
-      return i18n._(msg`Exerted`);
-    },
+    label: `Exerted`,
   },
   {
     key: "forceFaceDown",
-    get label() {
-      return i18n._(msg`Morph (face down)`);
-    },
+    label: `Morph (face down)`,
   },
   {
     key: "forceBestowed",
-    get label() {
-      return i18n._(msg`Bestowed`);
-    },
+    label: `Bestowed`,
   },
   {
     key: "forceTransformed",
-    get label() {
-      return i18n._(msg`Transformed`);
-    },
+    label: `Transformed`,
   },
   {
     key: "forcePlotted",
-    get label() {
-      return i18n._(msg`Plotted`);
-    },
+    label: `Plotted`,
   },
   {
     key: "forceMadnessExiled",
-    get label() {
-      return i18n._(msg`Madness`);
-    },
+    label: `Madness`,
   },
   {
     key: "forceWarpExiled",
-    get label() {
-      return i18n._(msg`Warped`);
-    },
+    label: `Warped`,
   },
   {
     key: "forceCopy",
-    get label() {
-      return i18n._(msg`Copy`);
-    },
+    label: `Copy`,
   },
   {
     key: "forceToken",
-    get label() {
-      return i18n._(msg`Token`);
-    },
+    label: `Token`,
   },
   {
     key: "forceFoil",
-    get label() {
-      return i18n._(msg`Foil`);
-    },
+    label: `Foil`,
   },
   {
     key: "forcePhasedOut",
-    get label() {
-      return i18n._(msg`Phased out`);
-    },
+    label: `Phased out`,
   },
   {
     key: "forceAttacking",
-    get label() {
-      return i18n._(msg`Attacking`);
-    },
+    label: `Attacking`,
   },
   {
     key: "forcePlayable",
-    get label() {
-      return i18n._(msg`Playable`);
-    },
+    label: `Playable`,
   },
   {
     key: "forceSelected",
-    get label() {
-      return i18n._(msg`Selected`);
-    },
+    label: `Selected`,
   },
   {
     key: "forceDoubleFaced",
-    get label() {
-      return i18n._(msg`Double-faced`);
-    },
+    label: `Double-faced`,
   },
 ];
 interface NumRow {
@@ -135,93 +98,63 @@ const COUNTER_ROWS: NumRow[] = [
   { key: "m1m1", label: "−1/−1" },
   {
     key: "loyalty",
-    get label() {
-      return i18n._(msg`Loyalty`);
-    },
+    label: `Loyalty`,
   },
   {
     key: "charge",
-    get label() {
-      return i18n._(msg`Charge`);
-    },
+    label: `Charge`,
   },
   {
     key: "quest",
-    get label() {
-      return i18n._(msg`Quest`);
-    },
+    label: `Quest`,
   },
   {
     key: "study",
-    get label() {
-      return i18n._(msg`Study`);
-    },
+    label: `Study`,
   },
   {
     key: "lore",
-    get label() {
-      return i18n._(msg`Lore`);
-    },
+    label: `Lore`,
   },
   {
     key: "age",
-    get label() {
-      return i18n._(msg`Age`);
-    },
+    label: `Age`,
   },
   {
     key: "time",
-    get label() {
-      return i18n._(msg`Time`);
-    },
+    label: `Time`,
   },
   {
     key: "fade",
-    get label() {
-      return i18n._(msg`Fade`);
-    },
+    label: `Fade`,
   },
   {
     key: "level",
-    get label() {
-      return i18n._(msg`Level`);
-    },
+    label: `Level`,
   },
   {
     key: "storage",
-    get label() {
-      return i18n._(msg`Storage`);
-    },
+    label: `Storage`,
   },
   {
     key: "mining",
-    get label() {
-      return i18n._(msg`Mining`);
-    },
+    label: `Mining`,
   },
   {
     key: "brick",
-    get label() {
-      return i18n._(msg`Brick`);
-    },
+    label: `Brick`,
   },
   {
     key: "depletion",
-    get label() {
-      return i18n._(msg`Depletion`);
-    },
+    label: `Depletion`,
   },
   {
     key: "page",
-    get label() {
-      return i18n._(msg`Page`);
-    },
+    label: `Page`,
   },
   {
     key: "damage",
-    get label() {
-      return i18n._(msg`Damage`);
-    },
+    label: `Damage`,
   },
 ];
 export function CardBadgeDevControls() {
@@ -252,11 +185,9 @@ export function CardBadgeDevControls() {
       <section className={DEV_SECTION}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className={DEV_SECTION_HEADING}>
-              <Trans>Card appearance</Trans>
-            </p>
+            <p className={DEV_SECTION_HEADING}>Card appearance</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              <Trans>Force states and counters on the staged card.</Trans>
+              Force states and counters on the staged card.
             </p>
           </div>
           <DevSearchable terms={["Reset card"]}>
@@ -266,14 +197,14 @@ export function CardBadgeDevControls() {
                 className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground hover:text-destructive"
                 onClick={reset}
               >
-                <Trans>Reset card</Trans>
+                Reset card
               </button>
             ) : null}
           </DevSearchable>
         </div>
 
         <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          <Trans>States</Trans>
+          States
         </p>
         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
           {STATUS_ROWS.map((row) => (
@@ -287,7 +218,7 @@ export function CardBadgeDevControls() {
         </div>
 
         <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          <Trans>Counters</Trans>
+          Counters
         </p>
         <div className="grid gap-1.5 sm:grid-cols-2">
           {COUNTER_ROWS.map((row) => (

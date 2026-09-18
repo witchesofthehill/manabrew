@@ -12,28 +12,14 @@ import {
   PROMPT_MODAL_VIEWPORT_MARGIN,
 } from "./game.constants";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 
 const MANA_COLOR_LABEL: Record<ManaColor, string> = {
-  get W() {
-    return i18n._(msg`White`);
-  },
-  get U() {
-    return i18n._(msg`Blue`);
-  },
-  get B() {
-    return i18n._(msg`Black`);
-  },
-  get R() {
-    return i18n._(msg`Red`);
-  },
-  get G() {
-    return i18n._(msg`Green`);
-  },
-  get C() {
-    return i18n._(msg`Colorless`);
-  },
+  W: `White`,
+  U: `Blue`,
+  B: `Black`,
+  R: `Red`,
+  G: `Green`,
+  C: `Colorless`,
 };
 
 export function fitPromptCardDimensions(
@@ -108,7 +94,7 @@ export function getInitials(name: string): string {
     .slice(0, 2);
 }
 export function getPromptLabel(promptType?: string): string {
-  if (!promptType) return i18n._(msg`Waiting for your next decision`);
+  if (!promptType) return `Waiting for your next decision`;
   return PROMPT_LABELS[promptType] ?? promptType;
 }
 export function isCreature(card: Pick<CardRulesSummary, "types">): boolean {
@@ -169,7 +155,7 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
           key: `color-${index}`,
           kind: choice.kind,
           label,
-          description: i18n._(msg`Chosen color: ${label}`),
+          description: `Chosen color: ${label}`,
           colors: choice.colors,
         };
       }
@@ -179,7 +165,7 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
           key: `type-${index}`,
           kind: choice.kind,
           label,
-          description: i18n._(msg`Chosen type: ${label}`),
+          description: `Chosen type: ${label}`,
           colors: [],
         };
       }
@@ -189,18 +175,17 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
           key: `named-card-${index}`,
           kind: choice.kind,
           label,
-          description: i18n._(msg`Named card: ${label}`),
+          description: `Named card: ${label}`,
           colors: [],
         };
       }
       case "chosenCard": {
-        const label =
-          choice.count === 1 ? i18n._(msg`one card`) : i18n._(msg`${choice.count} cards`);
+        const label = choice.count === 1 ? `one card` : `${choice.count} cards`;
         return {
           key: `chosen-card-${index}`,
           kind: choice.kind,
           label,
-          description: i18n._(msg`Chosen cards: ${choice.count}`),
+          description: `Chosen cards: ${choice.count}`,
           colors: [],
         };
       }
@@ -209,7 +194,7 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
           key: `number-${index}`,
           kind: choice.kind,
           label: `#${choice.value}`,
-          description: i18n._(msg`Chosen number: ${choice.value}`),
+          description: `Chosen number: ${choice.value}`,
           colors: [],
         };
       case "mode":
@@ -217,7 +202,7 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
           key: `mode-${index}`,
           kind: choice.kind,
           label: choice.value,
-          description: i18n._(msg`Chosen mode: ${choice.value}`),
+          description: `Chosen mode: ${choice.value}`,
           colors: [],
         };
       case "player":
@@ -225,7 +210,7 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
           key: `player-${choice.playerId}`,
           kind: choice.kind,
           label: choice.name,
-          description: i18n._(msg`Chosen player: ${choice.name}`),
+          description: `Chosen player: ${choice.name}`,
           colors: [],
         };
     }

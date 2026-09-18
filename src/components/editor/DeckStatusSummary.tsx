@@ -8,8 +8,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface DeckStatusSummaryProps {
   legalityErrors: number;
   unsupportedCards: number;
@@ -41,33 +39,33 @@ export function DeckStatusSummary({
           ) : (
             <CheckCircle2 className="h-3.5 w-3.5" />
           )}
-          {issueCount > 0 ? i18n._(msg`${issueCount} to review`) : i18n._(msg`Deck healthy`)}
+          {issueCount > 0 ? `${issueCount} to review` : `Deck healthy`}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <StatusItem
           icon={<AlertTriangle className="h-3.5 w-3.5" />}
-          label={i18n._(msg`Format legality`)}
+          label={`Format legality`}
           value={legalityErrors > 0 ? `${legalityErrors} issues` : "Legal"}
           warning={legalityErrors > 0}
           onSelect={() => onNavigate("validation")}
         />
         <StatusItem
           icon={<Wrench className="h-3.5 w-3.5" />}
-          label={i18n._(msg`Engine support`)}
+          label={`Engine support`}
           value={unsupportedCards > 0 ? `${unsupportedCards} unsupported` : "Supported"}
           warning={unsupportedCards > 0}
           onSelect={() => onNavigate("validation")}
         />
         <StatusItem
           icon={<LibraryBig className="h-3.5 w-3.5" />}
-          label={i18n._(msg`Collection`)}
+          label={`Collection`}
           value={collectionGaps > 0 ? `${collectionGaps} gaps` : "Complete"}
           onSelect={() => onNavigate("collection")}
         />
         <StatusItem
           icon={<CircleDollarSign className="h-3.5 w-3.5" />}
-          label={i18n._(msg`Budget`)}
+          label={`Budget`}
           value={budgetTracked ? "Tracked" : "Not set"}
           onSelect={() => onNavigate("budget")}
         />

@@ -2,8 +2,6 @@ import { DeckGridCard } from "@/components/deck/DeckGridCard";
 import { CollapsibleDeckShelf } from "@/components/play/CollapsibleDeckShelf";
 import { DECK_SHELF_CARD_CLASS, DeckShelfRow } from "@/components/play/DeckShelfRow";
 import type { PresetDeck } from "@/lib/presetDecks";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface PresetDeckShelfProps {
   decks: PresetDeck[];
   loaded: boolean;
@@ -24,13 +22,13 @@ export function PresetDeckShelf({
 }: PresetDeckShelfProps) {
   return (
     <CollapsibleDeckShelf
-      title={i18n._(msg`Preset decks`)}
+      title={`Preset decks`}
       count={loaded ? decks.length : "Loading…"}
       open={open}
       onOpenChange={onOpenChange}
     >
       {decks.length > 0 ? (
-        <DeckShelfRow label={i18n._(msg`Preset decks`)}>
+        <DeckShelfRow label={`Preset decks`}>
           {decks.map((preset) => {
             const presetId = preset.id ?? preset.name;
             return (
@@ -51,9 +49,7 @@ export function PresetDeckShelf({
         </DeckShelfRow>
       ) : (
         <p className="px-2 text-xs italic text-muted-foreground">
-          {loaded
-            ? i18n._(msg`No preset decks are available.`)
-            : i18n._(msg`Loading preset decks\u2026`)}
+          {loaded ? `No preset decks are available.` : `Loading preset decks\u2026`}
         </p>
       )}
     </CollapsibleDeckShelf>

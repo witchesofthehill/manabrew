@@ -2,9 +2,6 @@
  * In-app log panel for staging builds. Tees `console.*` into a ring buffer.
  */
 import { useEffect, useRef, useState } from "react";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface LogLine {
   seq: number;
   at: number;
@@ -79,7 +76,7 @@ export function DebugLogOverlay() {
     return (
       <button
         onClick={() => setOpen(true)}
-        title={i18n._(msg`Show logs`)}
+        title={`Show logs`}
         style={{
           position: "fixed",
           right: 12,
@@ -94,7 +91,7 @@ export function DebugLogOverlay() {
           cursor: "pointer",
         }}
       >
-        <Trans>logs {buffer.length ? `· ${buffer.length}` : ""}</Trans>
+        logs {buffer.length ? `· ${buffer.length}` : ""}
       </button>
     );
   }
@@ -129,20 +126,18 @@ export function DebugLogOverlay() {
           borderBottom: "1px solid rgba(128,128,128,0.25)",
         }}
       >
-        <strong style={{ fontWeight: 600 }}>
-          <Trans>logs</Trans>
-        </strong>
+        <strong style={{ fontWeight: 600 }}>logs</strong>
         <button
           onClick={() => setTransportOnly((v) => !v)}
           style={chip(transportOnly)}
-          title={i18n._(msg`Only transport lines`)}
+          title={`Only transport lines`}
         >
-          <Trans>transport</Trans>
+          transport
         </button>
         <input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder={i18n._(msg`filter\u2026`)}
+          placeholder={`filter\u2026`}
           style={{
             flex: 1,
             minWidth: 0,
@@ -161,9 +156,9 @@ export function DebugLogOverlay() {
               .catch(() => {});
           }}
           style={chip(false)}
-          title={i18n._(msg`Copy shown lines`)}
+          title={`Copy shown lines`}
         >
-          <Trans>copy</Trans>
+          copy
         </button>
         <button
           onClick={() => {
@@ -171,19 +166,17 @@ export function DebugLogOverlay() {
             force((n) => n + 1);
           }}
           style={chip(false)}
-          title={i18n._(msg`Clear`)}
+          title={`Clear`}
         >
-          <Trans>clear</Trans>
+          clear
         </button>
-        <button onClick={() => setOpen(false)} style={chip(false)} title={i18n._(msg`Hide`)}>
+        <button onClick={() => setOpen(false)} style={chip(false)} title={`Hide`}>
           ✕
         </button>
       </div>
       <div ref={scroller} style={{ flex: 1, overflow: "auto", padding: "6px 8px" }}>
         {lines.length === 0 ? (
-          <div style={{ opacity: 0.5 }}>
-            <Trans>no lines yet</Trans>
-          </div>
+          <div style={{ opacity: 0.5 }}>no lines yet</div>
         ) : (
           lines.map((l) => (
             <div key={l.seq} style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>

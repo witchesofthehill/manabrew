@@ -51,8 +51,6 @@ import {
 } from "@/pixi/constants";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 import { GameBoardAccessibility } from "@/components/game/GameBoardAccessibility";
 function promptOf<TType extends PromptType>(
   prompt: Prompt | null | undefined,
@@ -866,9 +864,7 @@ export function GameBoard({
                 id: "cmd-dev",
                 icon: "crossed-swords",
                 color: gameTheme.badges.commanderDamage,
-                get label() {
-                  return i18n._(msg`Commander Damage Taken`);
-                },
+                label: `Commander Damage Taken`,
                 count: dev.cmdDamage,
                 lethal: dev.cmdDamage >= 21,
               },
@@ -883,11 +879,9 @@ export function GameBoard({
             id: `cmd-${cardId}`,
             icon: "crossed-swords",
             color: ownerId ? seatColorOf(ownerId) : gameTheme.badges.commanderDamage,
-            label: i18n._(
-              msg`Commander damage from ${cardNames.get(cardId) ?? `commander ${cardId}`}${
-                ownerId ? ` · ${nameOf(ownerId)}` : ""
-              }`,
-            ),
+            label: `Commander damage from ${cardNames.get(cardId) ?? `commander ${cardId}`}${
+              ownerId ? ` · ${nameOf(ownerId)}` : ""
+            }`,
             count: dmg,
             lethal: dmg >= 21,
             referenceCard: referenceCards.get(cardId),
@@ -906,9 +900,7 @@ export function GameBoard({
           id: "incoming-damage",
           icon: "bleeding-wound",
           color: gameTheme.pt.lethal,
-          label: lethal
-            ? i18n._(msg`Lethal combat damage incoming`)
-            : i18n._(msg`Combat damage incoming`),
+          label: lethal ? `Lethal combat damage incoming` : `Combat damage incoming`,
           count: incoming,
           lethal,
         },

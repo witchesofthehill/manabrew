@@ -38,29 +38,21 @@ import { PREVIEW_SCENARIOS } from "./devPreviewScenarios";
 import { BoardGameplayPreviewControls } from "./BoardGameplayPreviewControls";
 import { useBoardGameplayPreview } from "./useBoardGameplayPreview";
 import { BoardPlaygroundZone } from "./BoardPlaygroundZone";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 
 const DEV_MANA_ACTION_ID = "dev-mana";
 const PREVIEW_VIEWPORTS = [
   {
-    get label() {
-      return i18n._(msg`Desktop`);
-    },
+    label: `Desktop`,
     width: undefined,
     height: "85dvh",
   },
   {
-    get label() {
-      return i18n._(msg`Phone portrait`);
-    },
+    label: `Phone portrait`,
     width: 390,
     height: 640,
   },
   {
-    get label() {
-      return i18n._(msg`Phone landscape`);
-    },
+    label: `Phone landscape`,
     width: 740,
     height: 340,
   },
@@ -333,7 +325,7 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
       kind: "ability",
       cardId: previewCard.id,
       actionId: index === 0 ? DEV_MANA_ACTION_ID : `dev-action-${index}`,
-      label: index === 0 ? i18n._(msg`Add {G}.`) : i18n._(msg`Preview test action ${index + 1}.`),
+      label: index === 0 ? `Add {G}.` : `Preview test action ${index + 1}.`,
       cost: index === 0 ? "{T}" : `{${index + 1}}`,
       isManaAbility: index === 0,
       abilityIndex: index,

@@ -3,8 +3,6 @@ import type {
   CompanionCounterKind,
   CompanionLayout,
 } from "./useCompanionStore.types";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export const COMPANION_MIN_PLAYERS = 2;
 export const COMPANION_MAX_PLAYERS = 6;
 export const COMPANION_DEFAULT_PLAYER_COUNT = 2;
@@ -48,49 +46,37 @@ export interface CounterPreset {
 export const COMPANION_COUNTER_PRESETS: CounterPreset[] = [
   {
     kind: "poison",
-    get label() {
-      return i18n._(msg`Poison`);
-    },
+    label: `Poison`,
     iconKey: "skull-crack",
     defaultValue: 0,
   },
   {
     kind: "energy",
-    get label() {
-      return i18n._(msg`Energy`);
-    },
+    label: `Energy`,
     iconKey: "lightning-trio",
     defaultValue: 0,
   },
   {
     kind: "experience",
-    get label() {
-      return i18n._(msg`Experience`);
-    },
+    label: `Experience`,
     iconKey: "star-medal",
     defaultValue: 0,
   },
   {
     kind: "rad",
-    get label() {
-      return i18n._(msg`Radiation`);
-    },
+    label: `Radiation`,
     iconKey: "radioactive",
     defaultValue: 0,
   },
   {
     kind: "tickets",
-    get label() {
-      return i18n._(msg`Tickets`);
-    },
+    label: `Tickets`,
     iconKey: "trophy-cup",
     defaultValue: 0,
   },
   {
     kind: "storm",
-    get label() {
-      return i18n._(msg`Storm`);
-    },
+    label: `Storm`,
     iconKey: "tornado",
     defaultValue: 0,
   },
@@ -133,52 +119,48 @@ export const COMPANION_LAYOUT_OPTIONS: Record<number, CompanionLayout[]> = {
 };
 export const COMPANION_LAYOUT_LABELS: Record<CompanionLayout, string> = {
   get "1v1"() {
-    return i18n._(msg`Head-to-head`);
+    return `Head-to-head`;
   },
   get "two-side"() {
-    return i18n._(msg`Side-by-side`);
+    return `Side-by-side`;
   },
   get "two-across"() {
-    return i18n._(msg`Two across`);
+    return `Two across`;
   },
   get "three-wedge"() {
-    return i18n._(msg`Three wedge`);
+    return `Three wedge`;
   },
   get "three-sides"() {
-    return i18n._(msg`Three sides`);
+    return `Three sides`;
   },
   get "pinwheel-3"() {
-    return i18n._(msg`Three pinwheel`);
+    return `Three pinwheel`;
   },
-  get quad() {
-    return i18n._(msg`Quad (2\u00D72)`);
-  },
+  quad: `Quad (2\u00D72)`,
   get "four-sides"() {
-    return i18n._(msg`Four sides`);
+    return `Four sides`;
   },
   get "five-radial"() {
-    return i18n._(msg`Five radial`);
+    return `Five radial`;
   },
   get "five-rows"() {
-    return i18n._(msg`Five rows`);
+    return `Five rows`;
   },
   get "six-grid"() {
-    return i18n._(msg`Six grid`);
+    return `Six grid`;
   },
   get "six-sides"() {
-    return i18n._(msg`Six sides`);
+    return `Six sides`;
   },
   get "pinwheel-6"() {
-    return i18n._(msg`Six pinwheel`);
+    return `Six pinwheel`;
   },
   get "landscape-row"() {
-    return i18n._(msg`Landscape row`);
+    return `Landscape row`;
   },
   get "vertical-stack"() {
-    return i18n._(msg`Vertical stack`);
+    return `Vertical stack`;
   },
-  get free() {
-    return i18n._(msg`Free position`);
-  },
+  free: `Free position`,
 };
 export const COMPANION_STARTING_LIFE_PRESETS = [20, 25, 30, 40, 60] as const;

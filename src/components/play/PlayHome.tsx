@@ -14,24 +14,17 @@ import { relayUsername } from "@/lib/relayUsername";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useServerStore } from "@/stores/useServerStore";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const MODES = [
   {
     to: ROUTES.PLAY_OFFLINE_CONSTRUCTED,
-    get label() {
-      return i18n._(msg`Play Offline`);
-    },
+    label: `Play Offline`,
     desc: "Choose your decks and play against the AI at your own pace.",
     icon: Swords,
     tone: "primary",
   },
   {
     to: ROUTES.LOBBY,
-    get label() {
-      return i18n._(msg`Multiplayer`);
-    },
+    label: `Multiplayer`,
     desc: "Join an open table or create a room for your group.",
     icon: Users,
     tone: "secondary",
@@ -96,10 +89,10 @@ export function PlayHome() {
         <div className="flex min-h-full w-full flex-col gap-6 px-4 py-6 sm:gap-7 sm:px-6 sm:py-9 lg:px-8">
           <header className="max-w-xl sm:pt-2">
             <h1 className="font-serif text-3xl font-light tracking-[0.02em] text-foreground sm:text-4xl">
-              <Trans>Ready to play?</Trans>
+              Ready to play?
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
-              <Trans>Start a match your way, or open a deck from your collection.</Trans>
+              Start a match your way, or open a deck from your collection.
             </p>
           </header>
 
@@ -115,7 +108,7 @@ export function PlayHome() {
               resumePending && "hidden",
             )}
           >
-            <section aria-label={i18n._(msg`Play modes`)} className="grid gap-4 md:grid-cols-2">
+            <section aria-label={`Play modes`} className="grid gap-4 md:grid-cols-2">
               {MODES.map(({ to, label, desc, icon, tone }) => (
                 <FeatureTile
                   key={to}
@@ -160,7 +153,7 @@ export function PlayHome() {
             >
               <FeatureTile
                 to={ROUTES.HUB}
-                label={i18n._(msg`Explore community decks`)}
+                label={`Explore community decks`}
                 desc="Browse complete decklists, discover popular builds, and save a version to your collection."
                 icon={LibraryBig}
                 tone="community"

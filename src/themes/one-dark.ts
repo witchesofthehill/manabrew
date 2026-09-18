@@ -1,7 +1,5 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const palette: BasePalette = {
   foreground: "#abb2bf",
   labelMuted: "#5c6370",
@@ -38,9 +36,7 @@ const palette: BasePalette = {
 const preset: ThemePreset = {
   id: "one-dark",
   name: "One Dark",
-  get description() {
-    return i18n._(msg`Atom's iconic dark theme, balanced and readable`);
-  },
+  description: `Atom's iconic dark theme, balanced and readable`,
   light: {
     background: "#f1f2f4",
     foreground: "#282c34",

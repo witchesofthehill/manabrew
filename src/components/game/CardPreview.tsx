@@ -31,9 +31,6 @@ import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { deriveCardRailEffects, deriveCardRailState } from "@/components/game/cardRailState";
 import { cardTypeLine, replaceCardName } from "@/components/game/cardPresentation";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 import { localizeRulesPreviewText } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
 interface CardPreviewProps {
   card: CardDto;
@@ -444,8 +441,8 @@ export function CardPreview({
                           "inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/65 text-white shadow hover:bg-black/85 pointer-coarse:h-9 pointer-coarse:w-9",
                           interactive ? "pointer-events-auto" : "pointer-events-none",
                         )}
-                        aria-label={i18n._(msg`Show rules`)}
-                        title={i18n._(msg`Show rules (R)`)}
+                        aria-label={`Show rules`}
+                        title={`Show rules (R)`}
                       >
                         <GameIcon name="spell-book" className="h-3.5 w-3.5" />
                       </button>
@@ -461,12 +458,10 @@ export function CardPreview({
                           "inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:px-3 pointer-coarse:py-2",
                           interactive ? "pointer-events-auto" : "pointer-events-none",
                         )}
-                        title={i18n._(
-                          msg`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`,
-                        )}
+                        title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
                       >
                         <RotateCw className="h-3 w-3" />
-                        {showBackFace ? i18n._(msg`Front`) : i18n._(msg`Back`)}
+                        {showBackFace ? `Front` : `Back`}
                       </button>
                     )}
                   </div>
@@ -504,9 +499,9 @@ export function CardPreview({
                   )}
                   <div className="flex-1 text-xs text-foreground/80 whitespace-pre-wrap">
                     {hasDoubleFace && showBackFace
-                      ? i18n._(msg`Back face: ${doubleFacedData!.backName}`)
+                      ? `Back face: ${doubleFacedData!.backName}`
                       : hasDoubleFace && !showBackFace
-                        ? i18n._(msg`Front face: ${doubleFacedData!.frontName}`)
+                        ? `Front face: ${doubleFacedData!.frontName}`
                         : replaceCardName(card.text, card.identity.name)}
                   </div>
                   {fallbackCounters && <CounterDisplay counters={fallbackCounters} size="md" />}
@@ -574,12 +569,10 @@ export function CardPreview({
               {!hasActions && hasFlippableFaces && (
                 <div className="px-1 text-[10px] text-muted-foreground">
                   <span>
-                    <Trans>
-                      <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
-                        F
-                      </kbd>{" "}
-                      flip
-                    </Trans>
+                    <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+                      F
+                    </kbd>{" "}
+                    flip
                   </span>
                 </div>
               )}

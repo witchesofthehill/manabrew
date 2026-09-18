@@ -1,8 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface TileAccent {
   chip: string;
   hoverBorder: string;
@@ -46,9 +44,7 @@ const TILE_SIZES = {
     chip: "h-12 w-12",
     chipIcon: "h-5 w-5",
     watermark: "-bottom-8 -right-5 h-36 w-36 sm:h-44 sm:w-44",
-    get label() {
-      return i18n._(msg`font-serif text-2xl font-light sm:text-3xl`);
-    },
+    label: `font-serif text-2xl font-light sm:text-3xl`,
     desc: "mt-1 text-sm",
   },
   sm: {
@@ -56,9 +52,7 @@ const TILE_SIZES = {
     chip: "h-9 w-9",
     chipIcon: "h-4 w-4",
     watermark: "-bottom-4 -right-4 h-24 w-24",
-    get label() {
-      return i18n._(msg`text-sm font-medium`);
-    },
+    label: `text-sm font-medium`,
     desc: "mt-0.5 text-xs leading-snug",
   },
 } as const;

@@ -27,9 +27,6 @@ import { useCardCollectionOwnership, useDeckCardOwnership } from "./useCardColle
 import { CommandZoneCardMenu, type CommandZoneCardMenuActions } from "./CommandZoneCardMenu";
 import { useDeckSectionOpen } from "./deckSectionExpansion";
 import { CollectionOwnershipTooltip } from "./CollectionOwnershipTooltip";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 function CommandZoneCard({
   card,
   label,
@@ -87,7 +84,7 @@ function CommandZoneCard({
       {unsupported && (
         <div
           className="absolute bottom-1 right-1 z-30 rounded-full bg-warning/90 p-0.5 text-background shadow"
-          title={i18n._(msg`Unsupported by the Manabrew and Forge engines`)}
+          title={`Unsupported by the Manabrew and Forge engines`}
         >
           <AlertTriangle className="h-3 w-3" />
         </div>
@@ -101,8 +98,8 @@ function CommandZoneCard({
             <button
               type="button"
               className="rounded-full bg-overlay/70 p-0.5 text-muted-foreground shadow transition-colors hover:text-foreground"
-              title={i18n._(msg`Change printing`)}
-              aria-label={i18n._(msg`Change printing for ${card.identity.name}`)}
+              title={`Change printing`}
+              aria-label={`Change printing for ${card.identity.name}`}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation();
@@ -115,7 +112,7 @@ function CommandZoneCard({
           <button
             type="button"
             className="rounded-full bg-overlay/70 p-0.5 text-muted-foreground shadow transition-colors hover:text-destructive"
-            title={i18n._(msg`Remove ${card.identity.name} from the command zone`)}
+            title={`Remove ${card.identity.name} from the command zone`}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
@@ -192,13 +189,13 @@ export function CommanderSlots({
   const emptyLabel =
     format === "oathbreaker"
       ? oathbreakerTarget === "signature"
-        ? i18n._(msg`Choose signature spell`)
+        ? `Choose signature spell`
         : oathbreakerTarget === "partner"
-          ? i18n._(msg`Choose partner`)
-          : i18n._(msg`Choose oathbreaker`)
+          ? `Choose partner`
+          : `Choose oathbreaker`
       : commanders.length > 0
-        ? i18n._(msg`Choose partner`)
-        : i18n._(msg`Choose commander`);
+        ? `Choose partner`
+        : `Choose commander`;
   const cardWidth = CARD_WIDTH_MAP[cardSize] ?? CARD_WIDTH_MAP[DEFAULT_CARD_SIZE];
   return (
     <section
@@ -216,12 +213,8 @@ export function CommanderSlots({
       >
         <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !open && "-rotate-90")} />
         <Crown className="h-3.5 w-3.5 text-primary" />
-        <h3 className="text-xs font-semibold uppercase tracking-wide">
-          <Trans>Command zone</Trans>
-        </h3>
-        <span className="text-xs text-muted-foreground">
-          <Trans>Set your deck identity</Trans>
-        </span>
+        <h3 className="text-xs font-semibold uppercase tracking-wide">Command zone</h3>
+        <span className="text-xs text-muted-foreground">Set your deck identity</span>
       </button>
       {open && (
         <div className="flex flex-wrap items-start gap-2">
@@ -231,7 +224,7 @@ export function CommanderSlots({
               card={card}
               label={
                 commanderSlotBadge(commanders, format, index)?.label ??
-                (format === "oathbreaker" ? i18n._(msg`Oathbreaker`) : i18n._(msg`Commander`))
+                (format === "oathbreaker" ? `Oathbreaker` : `Commander`)
               }
               cardWidth={cardWidth}
               readOnly={readOnly}
@@ -276,7 +269,7 @@ export function CommanderSlots({
                   ))
                 ) : (
                   <div className="px-2 py-3 text-xs text-muted-foreground">
-                    <Trans>Add an eligible card to the deck first.</Trans>
+                    Add an eligible card to the deck first.
                   </div>
                 )}
               </DropdownMenuContent>

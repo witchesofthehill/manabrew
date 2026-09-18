@@ -1,7 +1,5 @@
 import type { ScryfallCard } from "@/types/scryfall";
 import type { GameThemeColors } from "@/themes/gameTheme";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export type UIRarity =
   | "common"
   | "uncommon"
@@ -22,30 +20,14 @@ export const RARITY_ORDER: Record<UIRarity, number> = {
   unknown: 7,
 };
 export const RARITY_LABEL: Record<UIRarity, string> = {
-  get mythic() {
-    return i18n._(msg`Mythic`);
-  },
-  get rare() {
-    return i18n._(msg`Rare`);
-  },
-  get uncommon() {
-    return i18n._(msg`Uncommon`);
-  },
-  get common() {
-    return i18n._(msg`Common`);
-  },
-  get special() {
-    return i18n._(msg`Special`);
-  },
-  get land() {
-    return i18n._(msg`Land`);
-  },
-  get token() {
-    return i18n._(msg`Token`);
-  },
-  get unknown() {
-    return i18n._(msg`Other`);
-  },
+  mythic: `Mythic`,
+  rare: `Rare`,
+  uncommon: `Uncommon`,
+  common: `Common`,
+  special: `Special`,
+  land: `Land`,
+  token: `Token`,
+  unknown: `Other`,
 };
 export type RarityToken = keyof GameThemeColors["rarity"];
 const RARITY_TOKEN: Partial<Record<UIRarity, RarityToken>> = {

@@ -11,9 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { CompanionIcon } from "./icons";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface CustomCounterDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -30,9 +27,7 @@ export function CustomCounterDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            <Trans>Custom counter</Trans>
-          </DialogTitle>
+          <DialogTitle>Custom counter</DialogTitle>
         </DialogHeader>
         {open && (
           <CustomCounterForm
@@ -61,21 +56,17 @@ function CustomCounterForm({
     <>
       <div className="space-y-3">
         <div className="space-y-1">
-          <Label htmlFor="companion-counter-label">
-            <Trans>Label</Trans>
-          </Label>
+          <Label htmlFor="companion-counter-label">Label</Label>
           <Input
             id="companion-counter-label"
             value={label}
             autoFocus
             onChange={(e) => setLabel(e.target.value)}
-            placeholder={i18n._(msg`e.g. Quest, Lore, Shield\u2026`)}
+            placeholder={`e.g. Quest, Lore, Shield\u2026`}
           />
         </div>
         <div className="space-y-1">
-          <Label htmlFor="companion-counter-value">
-            <Trans>Starting value</Trans>
-          </Label>
+          <Label htmlFor="companion-counter-value">Starting value</Label>
           <Input
             id="companion-counter-value"
             type="number"
@@ -84,9 +75,7 @@ function CustomCounterForm({
           />
         </div>
         <div className="space-y-1">
-          <Label>
-            <Trans>Icon</Trans>
-          </Label>
+          <Label>Icon</Label>
           <div className="grid grid-cols-8 gap-1">
             {availableIcons.map((key) => (
               <button
@@ -109,14 +98,14 @@ function CustomCounterForm({
       </div>
       <DialogFooter>
         <Button variant="ghost" onClick={onCancel}>
-          <Trans>Cancel</Trans>
+          Cancel
         </Button>
         <Button
           variant="primary"
           disabled={!label.trim()}
           onClick={() => onConfirm({ label: label.trim(), iconKey, value })}
         >
-          <Trans>Add counter</Trans>
+          Add counter
         </Button>
       </DialogFooter>
     </>

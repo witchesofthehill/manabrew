@@ -1,6 +1,4 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { msg } from "@lingui/core/macro";
-import { useLingui } from "@lingui/react";
 import { Button } from "@/components/ui/button";
 import { getTopBarNav, isNavDestinationActive } from "./navDestinations";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -10,7 +8,6 @@ interface TopBarNavProps {
 }
 
 export function TopBarNav({ disabled = false }: TopBarNavProps) {
-  const { _ } = useLingui();
   const location = useLocation();
   const navigate = useNavigate();
   const signedIn = useAuthStore((state) => state.status === "signedIn");
@@ -21,7 +18,7 @@ export function TopBarNav({ disabled = false }: TopBarNavProps) {
   }
 
   return (
-    <nav aria-label={_(msg`Primary`)} className="hidden items-center gap-0.5 md:flex">
+    <nav aria-label={`Primary`} className="hidden items-center gap-0.5 md:flex">
       {direct.map(({ to, label, icon: Icon }) => (
         <Button
           key={to}

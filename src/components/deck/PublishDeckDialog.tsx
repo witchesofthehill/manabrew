@@ -20,9 +20,6 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import type { EditorDeck } from "@/types/manabrew";
 import { isFeatureEnabled } from "@/featureFlags";
 import { resolveDeckName } from "@/lib/deckName";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface PublishDeckDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -81,27 +78,20 @@ export function PublishDeckDialog({
       if (!useHubStore.getState().capabilitiesLoaded) {
         throw new Error(
           useHubStore.getState().capabilitiesError ??
-            i18n._(msg`Could not determine whether Community publishing is available`),
+            `Could not determine whether Community publishing is available`,
         );
       }
       const localSaved = savedDecks.find((saved) => saved.id === localDeckId);
       let accountDeck;
       if (localSaved?.accountDeckId) {
         if (!localSaved.accountVersionNo) {
-          throw new Error(i18n._(msg`Reload this account deck before publishing it.`));
+          throw new Error(`Reload this account deck before publishing it.`);
         }
         accountDeck = await useAccountDecksStore
           .getState()
-          .save(
-            localSaved.accountDeckId,
-            localSaved.accountVersionNo,
-            deck,
-            i18n._(msg`Published update`),
-          );
+          .save(localSaved.accountDeckId, localSaved.accountVersionNo, deck, `Published update`);
       } else {
-        accountDeck = await useAccountDecksStore
-          .getState()
-          .create(deck, i18n._(msg`Initial version`));
+        accountDeck = await useAccountDecksStore.getState().create(deck, `Initial version`);
       }
       linkSavedDeckToAccount(
         localDeckId,
@@ -124,10 +114,10 @@ export function PublishDeckDialog({
         coverCardName: deck.coverCardName,
       });
       void refresh();
-      toast.success(i18n._(msg`"${title.trim()}" published to Community`));
+      toast.success(`"${title.trim()}" published to Community`);
       handleOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : i18n._(msg`Publishing failed`));
+      toast.error(err instanceof Error ? err.message : `Publishing failed`);
     } finally {
       setBusy(false);
     }
@@ -148,35 +138,27 @@ export function PublishDeckDialog({
     <Dialog open={publishEnabled && open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            <Trans>Publish to Community</Trans>
-          </DialogTitle>
+          <DialogTitle>Publish to Community</DialogTitle>
           <DialogDescription>
             {!capabilitiesLoaded
-              ? i18n._(msg`Checking Community support before publishing "${resolvedDeckName}".`)
-              : i18n._(
-                  msg`Publish the current version of "${resolvedDeckName}" (${cardCount} cards) as a new public entry. You can publish the same deck more than once.`,
-                )}
+              ? `Checking Community support before publishing "${resolvedDeckName}".`
+              : `Publish the current version of "${resolvedDeckName}" (${cardCount} cards) as a new public entry. You can publish the same deck more than once.`}
           </DialogDescription>
         </DialogHeader>
         {signedIn ? (
           <p className="text-sm text-muted-foreground">
-            <Trans>
-              Publishing as <span className="font-medium text-foreground">@{account.handle}</span>
-            </Trans>
+            Publishing as <span className="font-medium text-foreground">@{account.handle}</span>
           </p>
         ) : (
           <p className="text-sm text-muted-foreground">
-            <Trans>
-              Publishing needs a Manabrew account, so the deck stays yours and you can remove it
-              from any device.
-            </Trans>
+            Publishing needs a Manabrew account, so the deck stays yours and you can remove it from
+            any device.
           </p>
         )}
         {signedIn && (
           <div className="space-y-1.5">
             <label htmlFor="deckhub-title" className="text-sm font-medium">
-              <Trans>Title</Trans>
+              Title
             </label>
             <Input
               id="deckhub-title"
@@ -185,25 +167,23 @@ export function PublishDeckDialog({
               maxLength={100}
             />
             <p className="text-xs text-muted-foreground">
-              <Trans>How the deck appears in Community. Defaults to the deck name.</Trans>
+              How the deck appears in Community. Defaults to the deck name.
             </p>
           </div>
         )}
         {capabilities?.tags && signedIn && (
           <div className="space-y-1.5">
             <label htmlFor="deckhub-tags" className="text-sm font-medium">
-              <Trans>Discovery tags</Trans>
+              Discovery tags
             </label>
             <Input
               id="deckhub-tags"
               value={tagInput}
               onChange={(event) => setTagInput(event.target.value)}
-              placeholder={i18n._(msg`control, budget, tokens`)}
+              placeholder={`control, budget, tokens`}
               maxLength={200}
             />
-            <p className="text-xs text-muted-foreground">
-              <Trans>Up to 10 tags, separated by commas.</Trans>
-            </p>
+            <p className="text-xs text-muted-foreground">Up to 10 tags, separated by commas.</p>
           </div>
         )}
         {!capabilitiesLoaded && capabilitiesError && (
@@ -211,7 +191,7 @@ export function PublishDeckDialog({
         )}
         <DialogFooter className="gap-2">
           <Button variant="ghost" size="sm" disabled={busy} onClick={() => handleOpenChange(false)}>
-            <Trans>Cancel</Trans>
+            Cancel
           </Button>
           {signedIn ? (
             <Button
@@ -220,11 +200,11 @@ export function PublishDeckDialog({
               disabled={busy || deck.cards.length === 0 || title.trim().length === 0}
               onClick={handlePublish}
             >
-              {busy ? i18n._(msg`Publishing\u2026`) : i18n._(msg`Publish`)}
+              {busy ? `Publishing\u2026` : `Publish`}
             </Button>
           ) : (
             <Button variant="primary" size="sm" onClick={handleSignIn}>
-              <Trans>Sign in</Trans>
+              Sign in
             </Button>
           )}
         </DialogFooter>

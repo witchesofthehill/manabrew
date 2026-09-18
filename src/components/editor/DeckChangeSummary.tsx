@@ -13,7 +13,6 @@ import type { EditorDeck } from "@/types/manabrew";
 import { cn } from "@/lib/utils";
 import { deckOwnershipByName } from "@/lib/collection";
 import { useCollectionStore } from "@/stores/useCollectionStore";
-import { Trans } from "@lingui/react/macro";
 function coverageShortage(deck: EditorDeck, quantities: Record<string, number>): number {
   return [
     ...deckOwnershipByName(quantities, [
@@ -108,33 +107,27 @@ export function DeckChangeSummary({
     <>
       <Button size="xs" variant="ghost" className="gap-1" onClick={() => setOpen(true)}>
         <GitCompareArrows className="h-3.5 w-3.5" />
-        <Trans>{changeCount} changes</Trans>
+        {changeCount} changes
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              <Trans>Changes since last save</Trans>
-            </DialogTitle>
-            <DialogDescription>
-              <Trans>Card quantity changes across the open deck.</Trans>
-            </DialogDescription>
+            <DialogTitle>Changes since last save</DialogTitle>
+            <DialogDescription>Card quantity changes across the open deck.</DialogDescription>
           </DialogHeader>
           <div className="max-h-80 space-y-1 overflow-y-auto">
             {changes.coverageDelta !== 0 && (
               <div className="mb-2 rounded-md border px-2 py-2 text-sm">
-                <Trans>
-                  Collection shortage
-                  <span
-                    className={cn(
-                      "ml-2 font-mono",
-                      changes.coverageDelta < 0 ? "text-legality-legal" : "text-warning",
-                    )}
-                  >
-                    {changes.coverageDelta > 0 ? "+" : ""}
-                    {changes.coverageDelta}
-                  </span>
-                </Trans>
+                Collection shortage
+                <span
+                  className={cn(
+                    "ml-2 font-mono",
+                    changes.coverageDelta < 0 ? "text-legality-legal" : "text-warning",
+                  )}
+                >
+                  {changes.coverageDelta > 0 ? "+" : ""}
+                  {changes.coverageDelta}
+                </span>
               </div>
             )}
             {changes.moves.map((change) => (
@@ -154,9 +147,7 @@ export function DeckChangeSummary({
                 className="rounded-md px-2 py-1.5 text-sm odd:bg-muted/40"
               >
                 <span className="font-medium">{change.name}</span>
-                <span className="ml-2 text-xs text-muted-foreground">
-                  <Trans>printing changed</Trans>
-                </span>
+                <span className="ml-2 text-xs text-muted-foreground">printing changed</span>
               </div>
             ))}
             {changes.quantityChanges.map((change) => (

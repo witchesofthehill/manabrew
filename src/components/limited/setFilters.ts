@@ -1,5 +1,3 @@
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export const DRAFTABLE_SET_TYPES = new Set([
   "expansion",
   "core",
@@ -13,38 +11,26 @@ export const SET_TYPE_LABELS: Array<{
 }> = [
   {
     key: "all",
-    get label() {
-      return i18n._(msg`All`);
-    },
+    label: `All`,
   },
   {
     key: "expansion",
-    get label() {
-      return i18n._(msg`Expansion`);
-    },
+    label: `Expansion`,
   },
   {
     key: "core",
-    get label() {
-      return i18n._(msg`Core`);
-    },
+    label: `Core`,
   },
   {
     key: "masters",
-    get label() {
-      return i18n._(msg`Masters`);
-    },
+    label: `Masters`,
   },
   {
     key: "draft_innovation",
-    get label() {
-      return i18n._(msg`Draft Innovation`);
-    },
+    label: `Draft Innovation`,
   },
   {
     key: "starter",
-    get label() {
-      return i18n._(msg`Starter`);
-    },
+    label: `Starter`,
   },
 ];

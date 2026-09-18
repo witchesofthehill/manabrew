@@ -11,7 +11,6 @@ import { isLiveEngineGameRouteState } from "@/game/engineGameLaunch";
 import { ROUTES } from "@/lib/constants";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import Limited from "./Limited";
-import { Trans } from "@lingui/react/macro";
 export default function Play() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -150,12 +149,8 @@ export default function Play() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold">
-            <Trans>Starting multiplayer game...</Trans>
-          </h1>
-          <p className="text-muted-foreground">
-            <Trans>Waiting for game synchronization...</Trans>
-          </p>
+          <h1 className="text-2xl font-bold">Starting multiplayer game...</h1>
+          <p className="text-muted-foreground">Waiting for game synchronization...</p>
         </div>
       </div>
     );

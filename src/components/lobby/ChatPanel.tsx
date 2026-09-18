@@ -12,9 +12,6 @@ import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { useHubAvailable } from "@/hooks/useHubAvailable";
 import { CHAT_MESSAGE_MAX_CHARS, type ChatScope, type RoomInfo } from "@/types/server";
 import { cn } from "@/lib/utils";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface ChatPanelProps {
   currentRoom: RoomInfo | null;
   currentUsername: string | null;
@@ -22,12 +19,8 @@ interface ChatPanelProps {
   className?: string;
 }
 const SCOPE_LABEL: Record<ChatScope, string> = {
-  get Room() {
-    return i18n._(msg`Table`);
-  },
-  get Lobby() {
-    return i18n._(msg`General`);
-  },
+  Room: `Table`,
+  Lobby: `General`,
 };
 export function ChatPanel({
   currentRoom,
@@ -101,7 +94,7 @@ export function ChatPanel({
           </>
         ) : (
           <span className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Trans>General</Trans>
+            General
           </span>
         )}
       </div>
@@ -109,9 +102,7 @@ export function ChatPanel({
         <div className="space-y-2">
           {entries.length === 0 && (
             <p className="py-4 text-center text-sm italic text-muted-foreground">
-              {scope === "Room"
-                ? i18n._(msg`Say hello to your table.`)
-                : i18n._(msg`No messages yet.`)}
+              {scope === "Room" ? `Say hello to your table.` : `No messages yet.`}
             </p>
           )}
           {entries.map((entry, index) => {
@@ -148,11 +139,7 @@ export function ChatPanel({
           <Input
             className="h-9 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
             placeholder={
-              locked
-                ? ""
-                : scope === "Room"
-                  ? i18n._(msg`Message your table…`)
-                  : i18n._(msg`Message everyone…`)
+              locked ? "" : scope === "Room" ? `Message your table…` : `Message everyone…`
             }
             value={input}
             maxLength={CHAT_MESSAGE_MAX_CHARS}
@@ -166,11 +153,9 @@ export function ChatPanel({
                 onClick={() => showSignIn()}
                 className="pointer-events-auto font-medium text-primary hover:underline"
               >
-                <Trans>Sign in</Trans>
+                Sign in
               </button>
-              <span className="ml-1">
-                <Trans>to chat in General</Trans>
-              </span>
+              <span className="ml-1">to chat in General</span>
             </span>
           )}
         </div>
@@ -180,7 +165,7 @@ export function ChatPanel({
           size="icon"
           className="h-9 w-9 shrink-0"
           disabled={disabled || locked || !input.trim()}
-          aria-label={i18n._(msg`Send message`)}
+          aria-label={`Send message`}
         >
           <Send className="h-4 w-4" />
         </Button>

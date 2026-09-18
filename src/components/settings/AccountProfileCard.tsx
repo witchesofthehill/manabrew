@@ -4,9 +4,6 @@ import { Button } from "@/components/ui/button";
 import { HandleDialog } from "@/components/auth/HandleDialog";
 import { AvatarPicker } from "@/components/settings/AvatarPicker";
 import type { AuthAccount, AuthIdentity } from "@/api/authTypes";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface AccountProfileCardProps {
   account: AuthAccount;
   identities: AuthIdentity[];
@@ -29,7 +26,7 @@ export function AccountProfileCard({ account, identities }: AccountProfileCardPr
               variant="ghost"
               size="icon"
               className="size-7 shrink-0"
-              title={i18n._(msg`Change handle`)}
+              title={`Change handle`}
               onClick={() => setHandleOpen(true)}
             >
               <Pencil className="h-3.5 w-3.5" />
@@ -37,13 +34,11 @@ export function AccountProfileCard({ account, identities }: AccountProfileCardPr
           </div>
           <div className="space-y-0.5 text-xs text-muted-foreground">
             {email && <p className="truncate">{email}</p>}
-            <p>
-              <Trans>Member since {memberSince}</Trans>
-            </p>
+            <p>Member since {memberSince}</p>
           </div>
           {account.handlePending && (
             <p className="text-xs text-warning">
-              <Trans>This handle was generated for you — pick your own.</Trans>
+              This handle was generated for you — pick your own.
             </p>
           )}
         </div>

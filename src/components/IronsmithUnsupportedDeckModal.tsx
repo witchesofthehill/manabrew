@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { GameIcon } from "@/components/game/GameIcon";
 import { useGameStore } from "@/stores/useGameStore";
 import type { IronsmithDeckIssue } from "@/game";
-import { Trans } from "@lingui/react/macro";
 function groupByPlayer(issues: IronsmithDeckIssue[]): Array<{
   player: string;
   cards: string[];
@@ -30,18 +29,13 @@ export function IronsmithUnsupportedDeckModal() {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Trans>
-              <GameIcon name="anvil" className="h-4 w-4 text-warning" />
-              Ironsmith can&apos;t run this deck yet
-            </Trans>
+            <GameIcon name="anvil" className="h-4 w-4 text-warning" />
+            Ironsmith can&apos;t run this deck yet
           </DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          <Trans>
-            Ironsmith is an experimental engine with partial card support. These cards aren&apos;t
-            implemented yet, so the match can&apos;t start. Swap them out, or pick a different
-            engine.
-          </Trans>
+          Ironsmith is an experimental engine with partial card support. These cards aren&apos;t
+          implemented yet, so the match can&apos;t start. Swap them out, or pick a different engine.
         </p>
         <div className="max-h-[45dvh] space-y-3 overflow-y-auto pr-1">
           {groups.map(({ player, cards }) => (

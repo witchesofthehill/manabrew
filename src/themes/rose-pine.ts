@@ -1,7 +1,5 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 /** Rose Pine palette — muted iris, rose, and pine tones.  The canonical
  *  palette has no dedicated green; a desaturated mint approximation is
  *  used for the buff/p1p1 slot so the whole game stays harmonious. */
@@ -41,9 +39,7 @@ const palette: BasePalette = {
 const preset: ThemePreset = {
   id: "rose-pine",
   name: "Rose Pine",
-  get description() {
-    return i18n._(msg`Warm, muted tones inspired by Rose Pine`);
-  },
+  description: `Warm, muted tones inspired by Rose Pine`,
   light: {
     background: "#faf3eb",
     foreground: "#37344c",

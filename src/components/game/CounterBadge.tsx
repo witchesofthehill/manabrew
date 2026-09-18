@@ -2,9 +2,6 @@ import { cn } from "@/lib/utils";
 import type { GameThemeColors } from "@/themes/gameTheme";
 import { GameIcon, type GameIconName } from "./GameIcon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
-import { Trans } from "@lingui/react/macro";
 type CounterColorKey = keyof GameThemeColors["counter"];
 interface CounterConfig {
   iconName?: GameIconName;
@@ -27,153 +24,93 @@ const COUNTER_CONFIG: Record<string, CounterConfig> = {
   M1M1: { label: "−1/−1", colorKey: "m1m1", title: "−1/−1" },
   Loyalty: {
     iconName: "vibrating-shield",
-    get label() {
-      return i18n._(msg`Loyalty`);
-    },
+    label: `Loyalty`,
     colorKey: "loyalty",
-    get title() {
-      return i18n._(msg`Loyalty`);
-    },
+    title: `Loyalty`,
   },
   Charge: {
     iconName: "lightning-trio",
-    get label() {
-      return i18n._(msg`Charge`);
-    },
+    label: `Charge`,
     colorKey: "charge",
-    get title() {
-      return i18n._(msg`Charge`);
-    },
+    title: `Charge`,
   },
   Quest: {
     iconName: "scroll-quill",
-    get label() {
-      return i18n._(msg`Quest`);
-    },
+    label: `Quest`,
     colorKey: "quest",
-    get title() {
-      return i18n._(msg`Quest`);
-    },
+    title: `Quest`,
   },
   Study: {
     iconName: "book-aura",
-    get label() {
-      return i18n._(msg`Study`);
-    },
+    label: `Study`,
     colorKey: "study",
-    get title() {
-      return i18n._(msg`Study`);
-    },
+    title: `Study`,
   },
   Lore: {
     iconName: "spell-book",
-    get label() {
-      return i18n._(msg`Lore`);
-    },
+    label: `Lore`,
     colorKey: "lore",
-    get title() {
-      return i18n._(msg`Lore`);
-    },
+    title: `Lore`,
   },
   Age: {
     iconName: "hourglass",
-    get label() {
-      return i18n._(msg`Age`);
-    },
+    label: `Age`,
     colorKey: "age",
-    get title() {
-      return i18n._(msg`Age`);
-    },
+    title: `Age`,
   },
   Time: {
     iconName: "stopwatch",
-    get label() {
-      return i18n._(msg`Time`);
-    },
+    label: `Time`,
     colorKey: "time",
-    get title() {
-      return i18n._(msg`Time`);
-    },
+    title: `Time`,
   },
   Fade: {
     iconName: "ghost",
-    get label() {
-      return i18n._(msg`Fade`);
-    },
+    label: `Fade`,
     colorKey: "fade",
-    get title() {
-      return i18n._(msg`Fade`);
-    },
+    title: `Fade`,
   },
   Level: {
     iconName: "rank-3",
-    get label() {
-      return i18n._(msg`Level`);
-    },
+    label: `Level`,
     colorKey: "level",
-    get title() {
-      return i18n._(msg`Level`);
-    },
+    title: `Level`,
   },
   Storage: {
     iconName: "stack",
-    get label() {
-      return i18n._(msg`Storage`);
-    },
+    label: `Storage`,
     colorKey: "storage",
-    get title() {
-      return i18n._(msg`Storage`);
-    },
+    title: `Storage`,
   },
   Mining: {
     iconName: "mining",
-    get label() {
-      return i18n._(msg`Mining`);
-    },
+    label: `Mining`,
     colorKey: "mining",
-    get title() {
-      return i18n._(msg`Mining`);
-    },
+    title: `Mining`,
   },
   Brick: {
     iconName: "brick-wall",
-    get label() {
-      return i18n._(msg`Brick`);
-    },
+    label: `Brick`,
     colorKey: "brick",
-    get title() {
-      return i18n._(msg`Brick`);
-    },
+    title: `Brick`,
   },
   Depletion: {
     iconName: "battery-pack-alt",
-    get label() {
-      return i18n._(msg`Depletion`);
-    },
+    label: `Depletion`,
     colorKey: "depletion",
-    get title() {
-      return i18n._(msg`Depletion`);
-    },
+    title: `Depletion`,
   },
   Page: {
     iconName: "scroll-unfurled",
-    get label() {
-      return i18n._(msg`Page`);
-    },
+    label: `Page`,
     colorKey: "page",
-    get title() {
-      return i18n._(msg`Page`);
-    },
+    title: `Page`,
   },
   Shield: {
     iconName: "round-shield",
-    get label() {
-      return i18n._(msg`Shield`);
-    },
+    label: `Shield`,
     colorKey: "shield",
-    get title() {
-      return i18n._(msg`Shield`);
-    },
+    title: `Shield`,
   },
 };
 function getCounterConfig(type: string): CounterConfig {
@@ -247,10 +184,8 @@ export function CounterBadge({ type, count, size = "sm", className }: CounterBad
   // +1/+1 and -1/-1 counters read as their aggregate stat delta (e.g. three
   // +1/+1 counters → "+3/+3") rather than a "+1/+1 ×3" label-plus-count.
   const ptSign = type === "P1P1" ? "+" : type === "M1M1" ? "−" : null;
-  const aggregateLabel = ptSign ? i18n._(msg`${ptSign}${count}/${ptSign}${count}`) : null;
-  const tooltipText = i18n._(
-    msg`${count} ${cfg.title} counter${count !== 1 ? i18n._(msg`s`) : ""}`,
-  );
+  const aggregateLabel = ptSign ? `${ptSign}${count}/${ptSign}${count}` : null;
+  const tooltipText = `${count} ${cfg.title} counter${count !== 1 ? `s` : ""}`;
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -334,9 +269,7 @@ export function CounterSummary({ counters, className }: CounterSummaryProps) {
               </span>
             </TooltipTrigger>
             <TooltipContent>
-              <Trans>
-                {count} {cfg.title} counter{count !== 1 ? "s" : ""}
-              </Trans>
+              {count} {cfg.title} counter{count !== 1 ? "s" : ""}
             </TooltipContent>
           </Tooltip>
         );

@@ -16,9 +16,6 @@ import {
   useMultiplayerDraftStore,
 } from "@/stores/useMultiplayerDraftStore";
 import type { DraftCard } from "@/types/limited";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export default function MultiplayerDraft() {
   const navigate = useNavigate();
   const mode = useMultiplayerDraftStore((s) => s.mode);
@@ -60,7 +57,7 @@ export default function MultiplayerDraft() {
     navigate(ROUTES.PLAY);
   }
   useTopBarOverride({
-    title: mode === "complete" ? i18n._(msg`Build Draft Deck`) : undefined,
+    title: mode === "complete" ? `Build Draft Deck` : undefined,
     onBack: () => leave(ROUTES.LOBBY),
     onHome: () => void leaveHome(),
     navigationDisabled: true,
@@ -89,10 +86,8 @@ export default function MultiplayerDraft() {
   if (!state) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-        <Trans>
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Waiting for the host to deal the first pack…
-        </Trans>
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Waiting for the host to deal the first pack…
       </div>
     );
   }
@@ -137,21 +132,19 @@ function CompletionView({ pools, myPool, onExit }: CompletionViewProps) {
       <header className="flex items-center justify-between gap-3">
         <div className="max-w-3xl">
           <p className="text-sm text-muted-foreground">
-            <Trans>
-              Drag from your picks into Main / Sideboard. Use "Save to My Decks" when you're happy
-              with the 40 — saved decks open from the Decks view like any other.
-            </Trans>
+            Drag from your picks into Main / Sideboard. Use "Save to My Decks" when you're happy
+            with the 40 — saved decks open from the Decks view like any other.
           </p>
         </div>
         <Button variant="outline" onClick={onExit}>
-          <Trans>Exit</Trans>
+          Exit
         </Button>
       </header>
 
       {myPool.length === 0 ? (
         <section>
           <p className="mb-3 text-sm text-muted-foreground">
-            <Trans>You weren't seated in this draft. Pod final pools:</Trans>
+            You weren't seated in this draft. Pod final pools:
           </p>
           <ul className="grid grid-cols-1 gap-1.5 text-sm sm:grid-cols-2 md:grid-cols-3">
             {pools.map((p) => (
@@ -162,9 +155,7 @@ function CompletionView({ pools, myPool, onExit }: CompletionViewProps) {
                 <span className={p.isHuman ? "font-semibold" : "text-muted-foreground"}>
                   {p.seat}. {p.displayName}
                 </span>
-                <span className="text-xs text-muted-foreground">
-                  <Trans>{p.pool.length} cards</Trans>
-                </span>
+                <span className="text-xs text-muted-foreground">{p.pool.length} cards</span>
               </li>
             ))}
           </ul>

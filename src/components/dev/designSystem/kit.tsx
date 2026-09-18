@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export function Section({
   id,
   title,
@@ -75,9 +73,9 @@ export function CopyChip({ value, className }: { value: string; className?: stri
         "rounded font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground",
         className,
       )}
-      title={i18n._(msg`Copy ${value}`)}
+      title={`Copy ${value}`}
     >
-      {copied ? i18n._(msg`copied`) : value}
+      {copied ? `copied` : value}
     </button>
   );
 }

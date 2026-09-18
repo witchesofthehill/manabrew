@@ -7,9 +7,6 @@ import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { cn } from "@/lib/utils";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
 import { ScryfallImg } from "@/components/ScryfallImg";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface DeckHubEntryCardProps {
   entry: DeckHubEntrySummary;
   onOpen: () => void;
@@ -50,9 +47,7 @@ export function DeckHubEntryCard({
       size="sm"
       variant="secondary"
       className="h-8 gap-1 bg-background/90 px-2 shadow-sm backdrop-blur-sm"
-      aria-label={
-        entry.favorited ? i18n._(msg`Remove from favorites`) : i18n._(msg`Add to favorites`)
-      }
+      aria-label={entry.favorited ? `Remove from favorites` : `Add to favorites`}
       aria-pressed={entry.favorited}
       aria-busy={favoritePending}
       disabled={favoritePending}
@@ -75,11 +70,11 @@ export function DeckHubEntryCard({
       role={rank <= 3 ? "img" : undefined}
       aria-label={
         rank === 1
-          ? i18n._(msg`First place`)
+          ? `First place`
           : rank === 2
-            ? i18n._(msg`Second place`)
+            ? `Second place`
             : rank === 3
-              ? i18n._(msg`Third place`)
+              ? `Third place`
               : undefined
       }
     >
@@ -90,7 +85,7 @@ export function DeckHubEntryCard({
       ) : rank === 3 ? (
         <Award className="h-4 w-4" aria-hidden="true" />
       ) : (
-        i18n._(msg`#${rank}`)
+        `#${rank}`
       )}
     </span>
   ) : null;
@@ -99,7 +94,7 @@ export function DeckHubEntryCard({
       {rankMarker}
       {entry.sourceKind === "preset" && (
         <span className="shrink-0 whitespace-nowrap rounded-full border bg-background/90 px-2 py-1 text-[10px] font-medium backdrop-blur-sm">
-          <Trans>Official preset</Trans>
+          Official preset
         </span>
       )}
       {variant !== "list" && discoveryTags.length > 0 && (
@@ -124,17 +119,17 @@ export function DeckHubEntryCard({
   ) : (
     labels
   );
-  const authorName = author ?? i18n._(msg`Deleted user`);
+  const authorName = author ?? `Deleted user`;
   return (
     <DeckCardSurface
       onOpen={onOpen}
       title={entry.title}
-      subtitle={i18n._(msg`by ${authorName}`)}
+      subtitle={`by ${authorName}`}
       onSubtitleClick={author && onAuthorClick ? () => onAuthorClick(author) : undefined}
-      subtitleAriaLabel={author ? i18n._(msg`Show decks by ${author}`) : undefined}
+      subtitleAriaLabel={author ? `Show decks by ${author}` : undefined}
       description={entry.summary}
       supportingText={reason}
-      ariaLabel={i18n._(msg`Open ${entry.title} by ${authorName}`)}
+      ariaLabel={`Open ${entry.title} by ${authorName}`}
       variant={variant}
       cover={
         entry.coverImageUrl ? (
@@ -169,7 +164,7 @@ export function DeckHubEntryCard({
               key={engine}
               className="rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-[9px] font-medium text-foreground backdrop-blur-sm"
             >
-              <Trans>{engine} engine</Trans>
+              {engine} engine
             </span>
           ))}
           <span
@@ -178,7 +173,7 @@ export function DeckHubEntryCard({
               variant === "list" && "text-muted-foreground",
             )}
           >
-            <Trans>{entry.cardCount} cards</Trans>
+            {entry.cardCount} cards
           </span>
         </>
       }

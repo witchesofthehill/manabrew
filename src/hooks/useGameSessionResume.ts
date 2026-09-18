@@ -15,8 +15,6 @@ import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useServerStore } from "@/stores/useServerStore";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const NO_GAME_FOUND_AFTER_MS = 5000;
 const rlog = (...args: unknown[]) => {
   if (isPromptLoggingEnabled()) console.log("[resume]", ...args);
@@ -58,7 +56,7 @@ export function useGameSessionResume() {
           useServerStore.setState({ hostingForgeRoom: false });
           await useServerStore.getState().leaveRoom();
           if (localRelayRunning && session.relayHost) await stopLocalHostedAiRelay();
-          toast.info(i18n._(msg`Your previous desktop Forge game ended when the app closed.`));
+          toast.info(`Your previous desktop Forge game ended when the app closed.`);
           navigate("/lobby", { replace: true });
           return;
         }
@@ -139,7 +137,7 @@ export function useGameSessionResume() {
       clearActiveGameSession();
       useServerStore.setState({ gameId: session.gameId });
       void useServerStore.getState().endGame();
-      toast.error(i18n._(msg`Your game could not be resumed \u2014 the host left mid-game.`));
+      toast.error(`Your game could not be resumed \u2014 the host left mid-game.`);
       navigate("/lobby", { replace: true });
       return;
     }
@@ -235,7 +233,7 @@ export function useGameSessionResume() {
       settled.current = true;
       clearActiveGameSession();
       void teardownForgeAiSession(session);
-      toast.info(i18n._(msg`Your previous game has ended.`));
+      toast.info(`Your previous game has ended.`);
       navigate("/lobby", { replace: true });
     }, NO_GAME_FOUND_AFTER_MS);
     return () => clearTimeout(timer);

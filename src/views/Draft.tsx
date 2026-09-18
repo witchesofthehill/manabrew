@@ -6,7 +6,6 @@ import { DraftWorkspace } from "@/components/limited/DraftWorkspace";
 import type { LimitedDraftMode } from "@/components/limited/LimitedModeToggle";
 import { useLimitedStore } from "@/stores/useLimitedStore";
 import type { DraftCard } from "@/types/limited";
-import { Trans } from "@lingui/react/macro";
 type DraftMode = LimitedDraftMode;
 export default function Draft() {
   const { draftId } = useParams<{
@@ -43,9 +42,7 @@ export default function Draft() {
         {lastError ? (
           <p className="text-destructive">{lastError}</p>
         ) : (
-          <p className="text-muted-foreground">
-            <Trans>Loading draft…</Trans>
-          </p>
+          <p className="text-muted-foreground">Loading draft…</p>
         )}
       </div>
     );

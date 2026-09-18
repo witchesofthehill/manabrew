@@ -9,9 +9,6 @@ import { LEGALITY_STYLES } from "@/lib/constants";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 import { Section, Subhead, Panel } from "../kit";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const BUTTON_VARIANTS = [
   "primary",
   "secondary",
@@ -40,9 +37,7 @@ export function ComponentsSection() {
       title="Components"
       intro="App controls and game badges rendered with your current theme."
     >
-      <Subhead>
-        <Trans>Button — variants × sizes</Trans>
-      </Subhead>
+      <Subhead>Button — variants × sizes</Subhead>
       <Panel className="space-y-3">
         {BUTTON_VARIANTS.map((variant) => (
           <div key={variant} className="flex flex-wrap items-center gap-2">
@@ -79,37 +74,27 @@ export function ComponentsSection() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Subhead>
-            <Trans>Input</Trans>
-          </Subhead>
+          <Subhead>Input</Subhead>
           <Panel className="space-y-2">
-            <Input placeholder={i18n._(msg`Search cards\u2026`)} />
+            <Input placeholder={`Search cards\u2026`} />
             <Input defaultValue="Filled value" />
-            <Input disabled placeholder={i18n._(msg`Disabled`)} />
+            <Input disabled placeholder={`Disabled`} />
           </Panel>
         </div>
         <div className="space-y-2">
-          <Subhead>
-            <Trans>Checkbox</Trans>
-          </Subhead>
+          <Subhead>Checkbox</Subhead>
           <Panel className="flex items-center gap-4">
             <label className="flex items-center gap-2 text-sm">
-              <Trans>
-                <Checkbox defaultChecked /> Checked
-              </Trans>
+              <Checkbox defaultChecked /> Checked
             </label>
             <label className="flex items-center gap-2 text-sm">
-              <Trans>
-                <Checkbox /> Unchecked
-              </Trans>
+              <Checkbox /> Unchecked
             </label>
           </Panel>
         </div>
       </div>
 
-      <Subhead>
-        <Trans>Format badges</Trans>
-      </Subhead>
+      <Subhead>Format badges</Subhead>
       <Panel className="flex flex-wrap gap-2">
         {GAME_FORMATS.map((f) => (
           <FormatBadge key={f.id} formatId={f.id} />
@@ -118,9 +103,7 @@ export function ComponentsSection() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Subhead>
-            <Trans>Legality</Trans>
-          </Subhead>
+          <Subhead>Legality</Subhead>
           <Panel className="flex flex-wrap gap-2">
             {Object.entries(LEGALITY_STYLES).map(([key, cls]) => (
               <span
@@ -133,9 +116,7 @@ export function ComponentsSection() {
           </Panel>
         </div>
         <div className="space-y-2">
-          <Subhead>
-            <Trans>Rarity</Trans>
-          </Subhead>
+          <Subhead>Rarity</Subhead>
           <Panel className="flex flex-wrap gap-3">
             {RARITIES.map((r) => (
               <span
@@ -157,9 +138,7 @@ export function ComponentsSection() {
         </div>
       </div>
 
-      <Subhead>
-        <Trans>Deck labels</Trans>
-      </Subhead>
+      <Subhead>Deck labels</Subhead>
       <Panel className="flex flex-wrap gap-2">
         {sampleLabels.map((label) => (
           <DeckLabelBadge key={label.name} label={label} size="md" />

@@ -1,7 +1,4 @@
 import { ChevronDown, ChevronUp, Image as ImageIcon } from "lucide-react";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface DraftPreviewPanelProps {
   setSlot: (element: HTMLDivElement | null) => void;
   collapsed: boolean;
@@ -14,12 +11,10 @@ export function DraftPreviewPanel({ setSlot, collapsed, onCollapse }: DraftPrevi
         type="button"
         className="flex h-9 shrink-0 items-center justify-between rounded-md border border-border/70 bg-card/20 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:bg-muted/40"
         onClick={onCollapse}
-        title={i18n._(msg`Show card preview`)}
+        title={`Show card preview`}
       >
-        <Trans>
-          Preview
-          <ChevronUp className="h-3.5 w-3.5" />
-        </Trans>
+        Preview
+        <ChevronUp className="h-3.5 w-3.5" />
       </button>
     );
   }
@@ -27,13 +22,13 @@ export function DraftPreviewPanel({ setSlot, collapsed, onCollapse }: DraftPrevi
     <section className="flex h-[372px] shrink-0 flex-col overflow-hidden rounded-md border border-border/70 bg-card/20">
       <div className="flex h-9 shrink-0 items-center justify-between border-b border-border/40 px-3">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <Trans>Preview</Trans>
+          Preview
         </h2>
         <button
           type="button"
           className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted"
           onClick={onCollapse}
-          title={i18n._(msg`Hide card preview`)}
+          title={`Hide card preview`}
         >
           <ChevronDown className="h-3.5 w-3.5" />
         </button>
@@ -49,9 +44,7 @@ export function DraftPreviewPanel({ setSlot, collapsed, onCollapse }: DraftPrevi
           <div className="flex aspect-[5/7] h-full max-h-[312px] items-center justify-center rounded-xl border-2 border-dashed border-border/60 bg-background/30">
             <ImageIcon className="h-10 w-10 text-muted-foreground/40" />
           </div>
-          <span className="text-xs">
-            <Trans>Hover a card to preview</Trans>
-          </span>
+          <span className="text-xs">Hover a card to preview</span>
         </div>
       </div>
     </section>

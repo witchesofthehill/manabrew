@@ -53,8 +53,6 @@ import type { EngineKind } from "@/types/server";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 import { withResolvedDeckName } from "@/lib/deckName";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export type { GameConfig, GameState, DisplayEvent, DeferredSnapshot } from "./gameStore.types";
 let gameLaunchGeneration = 0;
 let gameLaunchInFlight: number | null = null;
@@ -353,7 +351,7 @@ export const useGameStore = create<GameState>()(
       startGame: async (deck, formatId, commanderName, opponentDecks, engine) => {
         if (get().isGameActive) return false;
         if (gameLaunchInFlight !== null) {
-          toast.info(i18n._(msg`The previous game is still closing. Try again in a moment.`));
+          toast.info(`The previous game is still closing. Try again in a moment.`);
           return false;
         }
         const launchGeneration = ++gameLaunchGeneration;
@@ -377,7 +375,7 @@ export const useGameStore = create<GameState>()(
           if (e instanceof IronsmithUnsupportedDeckError) {
             set({ ironsmithDeckError: e.issues });
           } else {
-            toast.error(e instanceof Error ? e.message : i18n._(msg`Failed to start game`));
+            toast.error(e instanceof Error ? e.message : `Failed to start game`);
           }
           return false;
         } finally {
@@ -577,9 +575,7 @@ export const useGameStore = create<GameState>()(
           if (e instanceof IronsmithUnsupportedDeckError) {
             set({ ironsmithDeckError: e.issues });
           } else {
-            toast.error(
-              e instanceof Error ? e.message : i18n._(msg`Failed to start multiplayer game`),
-            );
+            toast.error(e instanceof Error ? e.message : `Failed to start multiplayer game`);
           }
           return false;
         } finally {

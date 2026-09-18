@@ -1,8 +1,6 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { GameIcon, type GameIconKey } from "@/components/companion/GameIcon";
 import { cn } from "@/lib/utils";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const QUALIFICATION_BADGES: Record<
   string,
   {
@@ -13,9 +11,7 @@ const QUALIFICATION_BADGES: Record<
 > = {
   maintainer: {
     icon: "witch-flight",
-    get label() {
-      return i18n._(msg`Maintainer`);
-    },
+    label: `Maintainer`,
     color: "text-format-badge-amber",
   },
 };

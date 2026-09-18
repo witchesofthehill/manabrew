@@ -23,7 +23,6 @@ import {
 } from "@/stores/useCompanionStore.constants";
 import type { CompanionLayout } from "@/stores/useCompanionStore.types";
 import { LayoutIcon } from "./LayoutIcon";
-import { Trans } from "@lingui/react/macro";
 interface NewSessionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -47,9 +46,7 @@ export function NewSessionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            <Trans>New game</Trans>
-          </DialogTitle>
+          <DialogTitle>New game</DialogTitle>
         </DialogHeader>
         {open && (
           <NewSessionForm
@@ -114,29 +111,25 @@ function NewSessionForm({
     <>
       <div className="space-y-4">
         <div className="space-y-1">
-          <Label>
-            <Trans>Format preset</Trans>
-          </Label>
+          <Label>Format preset</Label>
           <div className="flex flex-wrap gap-1.5">
             <PillButton active={presetMatch === "standard"} onClick={() => applyPreset("standard")}>
-              <Trans>Standard (20)</Trans>
+              Standard (20)
             </PillButton>
             <PillButton
               active={presetMatch === "commander"}
               onClick={() => applyPreset("commander")}
             >
-              <Trans>Commander (40)</Trans>
+              Commander (40)
             </PillButton>
             <PillButton active={presetMatch === "brawl"} onClick={() => applyPreset("brawl")}>
-              <Trans>Brawl (30)</Trans>
+              Brawl (30)
             </PillButton>
           </div>
         </div>
 
         <div className="space-y-1">
-          <Label>
-            <Trans>Players</Trans>
-          </Label>
+          <Label>Players</Label>
           <div className="flex flex-wrap gap-1.5">
             {Array.from(
               { length: COMPANION_MAX_PLAYERS - COMPANION_MIN_PLAYERS + 1 },
@@ -150,9 +143,7 @@ function NewSessionForm({
         </div>
 
         <div className="space-y-1">
-          <Label>
-            <Trans>Starting life</Trans>
-          </Label>
+          <Label>Starting life</Label>
           <div className="flex flex-wrap items-center gap-1.5">
             {COMPANION_STARTING_LIFE_PRESETS.map((value) => (
               <PillButton
@@ -195,9 +186,7 @@ function NewSessionForm({
         </label>
 
         <div className="space-y-1">
-          <Label>
-            <Trans>Layout</Trans>
-          </Label>
+          <Label>Layout</Label>
           <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
             {layoutChoices.map((option) => (
               <LayoutCard
@@ -225,7 +214,7 @@ function NewSessionForm({
       </div>
       <DialogFooter>
         <Button variant="ghost" onClick={onCancel}>
-          <Trans>Cancel</Trans>
+          Cancel
         </Button>
         <Button
           variant="primary"
@@ -240,7 +229,7 @@ function NewSessionForm({
             })
           }
         >
-          <Trans>Start game</Trans>
+          Start game
         </Button>
       </DialogFooter>
     </>

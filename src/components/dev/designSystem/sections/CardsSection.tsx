@@ -9,8 +9,6 @@ import {
 } from "@/components/game/BattlefieldCardFace";
 import { cn } from "@/lib/utils";
 import { Section } from "../kit";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 type Variant = BattlefieldCardFaceVariant | "realistic";
 const VARIANTS: {
   id: Variant;
@@ -18,21 +16,15 @@ const VARIANTS: {
 }[] = [
   {
     id: "realistic",
-    get label() {
-      return i18n._(msg`Realistic`);
-    },
+    label: `Realistic`,
   },
   {
     id: "art",
-    get label() {
-      return i18n._(msg`Art-forward`);
-    },
+    label: `Art-forward`,
   },
   {
     id: "frame",
-    get label() {
-      return i18n._(msg`Mini-frame`);
-    },
+    label: `Mini-frame`,
   },
 ];
 const SPECS: {
@@ -42,55 +34,39 @@ const SPECS: {
 }[] = [
   {
     name: "Serra Angel",
-    get label() {
-      return i18n._(msg`White \u00B7 flyer`);
-    },
+    label: `White \u00B7 flyer`,
   },
   {
     name: "Snapcaster Mage",
-    get label() {
-      return i18n._(msg`Blue`);
-    },
+    label: `Blue`,
   },
   {
     name: "Goblin Guide",
-    get label() {
-      return i18n._(msg`Red \u00B7 attacking`);
-    },
+    label: `Red \u00B7 attacking`,
     overrides: { isAttacking: true, damage: 1 },
   },
   {
     name: "Llanowar Elves",
-    get label() {
-      return i18n._(msg`Green \u00B7 tapped`);
-    },
+    label: `Green \u00B7 tapped`,
     overrides: { tapped: true },
   },
   {
     name: "Dragonlord Atarka",
-    get label() {
-      return i18n._(msg`R/G \u00B7 +1/+1`);
-    },
+    label: `R/G \u00B7 +1/+1`,
     overrides: { counters: { P1P1: 2 }, power: "10", toughness: "10" },
   },
   {
     name: "Wurmcoil Engine",
-    get label() {
-      return i18n._(msg`Colorless artifact`);
-    },
+    label: `Colorless artifact`,
   },
   {
     name: "Liliana of the Veil",
-    get label() {
-      return i18n._(msg`Planeswalker`);
-    },
+    label: `Planeswalker`,
     overrides: { counters: { Loyalty: 6 } },
   },
   {
     name: "Steam Vents",
-    get label() {
-      return i18n._(msg`Land (U/R)`);
-    },
+    label: `Land (U/R)`,
   },
 ];
 function CardTile({
@@ -137,7 +113,7 @@ export function CardsSection() {
   return (
     <Section
       id="cards"
-      title={i18n._(msg`Card faces`)}
+      title={`Card faces`}
       intro="The battlefield card renderer used in-game (DOM path). Three styles — realistic Scryfall image, art-forward, and mini-frame — across representative card types and states."
     >
       <div className="inline-flex overflow-hidden rounded-md border border-border">

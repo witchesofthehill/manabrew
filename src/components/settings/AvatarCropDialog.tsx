@@ -9,9 +9,6 @@ import {
 } from "@/components/ui/dialog";
 import { clampOffset, coverScale, renderCroppedAvatar } from "@/lib/avatarCrop";
 import { cn } from "@/lib/utils";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const VIEWPORT = 280;
 const OUT_PX = 512;
 const MAX_ZOOM = 4;
@@ -96,12 +93,8 @@ export function AvatarCropDialog({ file, onCancel, onConfirm }: AvatarCropDialog
   return (
     <Dialog open={file != null} onOpenChange={(open) => !open && onCancel()}>
       <DialogContent className="max-w-sm">
-        <DialogTitle>
-          <Trans>Crop avatar</Trans>
-        </DialogTitle>
-        <DialogDescription>
-          <Trans>Drag to position, use the slider to zoom.</Trans>
-        </DialogDescription>
+        <DialogTitle>Crop avatar</DialogTitle>
+        <DialogDescription>Drag to position, use the slider to zoom.</DialogDescription>
 
         <div className="flex flex-col items-center gap-4">
           <div
@@ -147,17 +140,17 @@ export function AvatarCropDialog({ file, onCancel, onConfirm }: AvatarCropDialog
             step={0.01}
             value={zoom}
             onChange={(e) => onZoomChange(Number(e.target.value))}
-            aria-label={i18n._(msg`Zoom`)}
+            aria-label={`Zoom`}
             className="w-full accent-primary"
           />
         </div>
 
         <DialogFooter>
           <Button variant="ghost" onClick={onCancel} disabled={saving}>
-            <Trans>Cancel</Trans>
+            Cancel
           </Button>
           <Button variant="primary" onClick={() => void confirm()} disabled={!imageSize || saving}>
-            {saving ? i18n._(msg`Saving…`) : i18n._(msg`Save`)}
+            {saving ? `Saving…` : `Save`}
           </Button>
         </DialogFooter>
       </DialogContent>

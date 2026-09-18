@@ -1,6 +1,4 @@
 import { collectionCardKey } from "@/lib/collection";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 
 export type CollectionImportSource = "manabox" | "moxfield" | "archidekt" | "generic";
 
@@ -175,7 +173,7 @@ export function previewCollectionImport(
         name,
         quantity: 0,
         valid: false,
-        reason: i18n._(msg`No name`),
+        reason: `No name`,
       };
     if (!Number.isFinite(quantity) || quantity <= 0) {
       return {
@@ -183,7 +181,7 @@ export function previewCollectionImport(
         name,
         quantity: 0,
         valid: false,
-        reason: i18n._(msg`Invalid quantity`),
+        reason: `Invalid quantity`,
       };
     }
     if (Boolean(setCode) !== Boolean(collectorNumber)) {
@@ -192,7 +190,7 @@ export function previewCollectionImport(
         name,
         quantity: Math.floor(quantity),
         valid: false,
-        reason: i18n._(msg`Set and collector number must be provided together`),
+        reason: `Set and collector number must be provided together`,
       };
     }
     if (foil !== undefined && !setCode) {
@@ -201,7 +199,7 @@ export function previewCollectionImport(
         name,
         quantity: Math.floor(quantity),
         valid: false,
-        reason: i18n._(msg`Set and collector number are required for card finish`),
+        reason: `Set and collector number are required for card finish`,
       };
     }
     return {

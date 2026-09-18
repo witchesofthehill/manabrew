@@ -5,9 +5,6 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { ScryfallCard } from "@/types/scryfall";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface DevCardSearchProps {
   value: string;
   onSelect: (card: ScryfallCard) => void;
@@ -113,7 +110,7 @@ export function DevCardSearch({ value, onSelect }: DevCardSearchProps) {
               setOpen(false);
             }
           }}
-          placeholder={i18n._(msg`Search Scryfall`)}
+          placeholder={`Search Scryfall`}
           className="pl-9 pr-9"
           spellCheck={false}
         />
@@ -124,7 +121,7 @@ export function DevCardSearch({ value, onSelect }: DevCardSearchProps) {
             type="button"
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             onClick={clear}
-            title={i18n._(msg`Clear card search`)}
+            title={`Clear card search`}
           >
             <X className="h-4 w-4" />
           </button>
@@ -138,7 +135,7 @@ export function DevCardSearch({ value, onSelect }: DevCardSearchProps) {
           className="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg"
         >
           <div className="sticky top-0 z-10 border-b border-border bg-popover px-3 py-1.5 text-[10px] text-muted-foreground">
-            <Trans>Select a card to stage it on the battlefield</Trans>
+            Select a card to stage it on the battlefield
           </div>
           {results.map((card, index) => {
             const thumbnail = card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small;

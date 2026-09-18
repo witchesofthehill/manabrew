@@ -160,9 +160,6 @@ import { DeckSaveConflictDialog } from "./DeckSaveConflictDialog";
 import { DeckStatusSummary } from "./DeckStatusSummary";
 import { PrintingOptimizerDialog } from "./PrintingOptimizerDialog";
 import { PreviewCardInfo } from "./PreviewCardInfo";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 type DeckSyncState = "saved" | "saving" | "local" | "synced" | "failed";
 export function DeckBuilder({
   onToggleSearch,
@@ -592,11 +589,9 @@ export function DeckBuilder({
       await navigator.clipboard.writeText(
         [...counts].map(([name, count]) => `${count} ${name}`).join("\n"),
       );
-      toast.success(
-        i18n._(msg`Copied ${counts.size} selected card${counts.size === 1 ? "" : "s"}`),
-      );
+      toast.success(`Copied ${counts.size} selected card${counts.size === 1 ? "" : "s"}`);
     } catch {
-      toast.error(i18n._(msg`Could not write selected cards to the clipboard`));
+      toast.error(`Could not write selected cards to the clipboard`);
     }
   }
   async function pasteCards() {
@@ -604,12 +599,12 @@ export function DeckBuilder({
     try {
       const entries = parseDeckListText(await navigator.clipboard.readText());
       if (entries.length === 0) {
-        toast.error(i18n._(msg`Clipboard does not contain a recognized card list`));
+        toast.error(`Clipboard does not contain a recognized card list`);
         return;
       }
       await importIntoCurrentDeck(entries, "", undefined, () => undefined);
     } catch {
-      toast.error(i18n._(msg`Could not read cards from the clipboard`));
+      toast.error(`Could not read cards from the clipboard`);
     }
   }
   function addOneEachSelected() {
@@ -620,7 +615,7 @@ export function DeckBuilder({
       ...(currentDeck.maybeboard ?? []),
     ];
     let added = 0;
-    executeDeckEdit(i18n._(msg`Add one copy of selected cards`), () => {
+    executeDeckEdit(`Add one copy of selected cards`, () => {
       for (const name of selectedCards) {
         const card = editableCards.find(
           (candidate) => candidate.identity.name.toLowerCase() === name,
@@ -633,41 +628,41 @@ export function DeckBuilder({
         added += 1;
       }
     });
-    if (added > 0) toast.success(i18n._(msg`Added one copy of ${added} cards`));
+    if (added > 0) toast.success(`Added one copy of ${added} cards`);
     if (added < selectedCards.size) {
-      toast.warning(i18n._(msg`Command-zone and special-section cards were not duplicated`));
+      toast.warning(`Command-zone and special-section cards were not duplicated`);
     }
   }
   function removeOneEachSelected() {
-    executeDeckEdit(i18n._(msg`Removed one copy of ${selectedCards.size} cards`), () => {
+    executeDeckEdit(`Removed one copy of ${selectedCards.size} cards`, () => {
       for (const name of selectedCards) {
         for (const zone of ["main", "side", "maybe", "special"] as const) {
           if (removeCardCopies(name, zone, "one") > 0) break;
         }
       }
     });
-    toast.success(i18n._(msg`Removed one copy of ${selectedCards.size} cards`));
+    toast.success(`Removed one copy of ${selectedCards.size} cards`);
   }
   function toggleSelectedFoil() {
-    bulkAction(i18n._(msg`Toggled foil for ${selectedCards.size} cards`), () => {
+    bulkAction(`Toggled foil for ${selectedCards.size} cards`, () => {
       for (const name of selectedCards) toggleFoil(name);
     });
   }
   const handleTagSelected = (tag: string) =>
-    bulkAction(i18n._(msg`Tagged ${selectedCards.size} cards with "${tag}"`), () => {
+    bulkAction(`Tagged ${selectedCards.size} cards with "${tag}"`, () => {
       for (const name of selectedCards) tagCard(name, tag);
     });
   const handleUntagSelected = (tag: string) =>
-    bulkAction(i18n._(msg`Untagged ${selectedCards.size} cards from "${tag}"`), () => {
+    bulkAction(`Untagged ${selectedCards.size} cards from "${tag}"`, () => {
       for (const name of selectedCards) untagCard(name, tag);
     });
   const handleCreateAndTagSelected = (tag: string) => {
-    executeDeckEdit(i18n._(msg`Create ${tag} and tag ${selectedCards.size} cards`), () => {
+    executeDeckEdit(`Create ${tag} and tag ${selectedCards.size} cards`, () => {
       addCustomTag(tag);
       for (const name of selectedCards) tagCard(name, tag);
     });
     clearSelection();
-    toast.success(i18n._(msg`Tagged cards with "${tag}"`));
+    toast.success(`Tagged cards with "${tag}"`);
   };
   const selectedCardTags = (() => {
     if (selectedCards.size === 0 || !currentDeck.cardTags) return [];
@@ -761,30 +756,22 @@ export function DeckBuilder({
       specialSections: [
         {
           id: "attractions",
-          get label() {
-            return i18n._(msg`Attractions`);
-          },
+          label: `Attractions`,
           groups: groupZone(currentDeck.attractions ?? [], "special"),
         },
         {
           id: "contraptions",
-          get label() {
-            return i18n._(msg`Contraptions`);
-          },
+          label: `Contraptions`,
           groups: groupZone(currentDeck.contraptions ?? [], "special"),
         },
         {
           id: "schemes",
-          get label() {
-            return i18n._(msg`Schemes`);
-          },
+          label: `Schemes`,
           groups: groupZone(currentDeck.schemes ?? [], "special"),
         },
         {
           id: "planes",
-          get label() {
-            return i18n._(msg`Planes`);
-          },
+          label: `Planes`,
           groups: groupZone(currentDeck.planes ?? [], "special"),
         },
       ].filter((section) => section.groups.length > 0),
@@ -818,11 +805,8 @@ export function DeckBuilder({
     [filteredMain, groupBy, sortBy, currentDeck.customTags, currentDeck.cardTags, isCardOwned],
   );
   function removeCopies(cardName: string, source: DeckSourceZone, quantity: "one" | "all") {
-    executeDeckEdit(
-      quantity === "one"
-        ? i18n._(msg`Remove one ${cardName}`)
-        : i18n._(msg`Remove all ${cardName}`),
-      () => removeCardCopies(cardName, source, quantity),
+    executeDeckEdit(quantity === "one" ? `Remove one ${cardName}` : `Remove all ${cardName}`, () =>
+      removeCardCopies(cardName, source, quantity),
     );
   }
   function moveCopies(
@@ -832,12 +816,12 @@ export function DeckBuilder({
     quantity: "one" | "all",
   ) {
     let moved = 0;
-    executeDeckEdit(i18n._(msg`Move ${cardName} to ${destination}`), () => {
+    executeDeckEdit(`Move ${cardName} to ${destination}`, () => {
       moved = moveCardCopies(cardName, source, destination, quantity);
     });
     if (moved > 0) {
-      const label = destination === "main" ? i18n._(msg`main`) : i18n._(msg`${destination}board`);
-      toast.success(i18n._(msg`Moved ${moved} ${cardName} to ${label}`));
+      const label = destination === "main" ? `main` : `${destination}board`;
+      toast.success(`Moved ${moved} ${cardName} to ${label}`);
     }
   }
   function handleRemoveOneFromMain(cardName: string) {
@@ -872,7 +856,7 @@ export function DeckBuilder({
         collectorNumber: deckCard.identity.cardNumber,
       })
       .then((sc) => setDetailCard(sc.info))
-      .catch(() => toast.error(i18n._(msg`Could not fetch info for "${deckCard.identity.name}"`)));
+      .catch(() => toast.error(`Could not fetch info for "${deckCard.identity.name}"`));
   }
   function handleShowTokenInfo(token: DeckCard) {
     useScryfallStore
@@ -886,7 +870,7 @@ export function DeckBuilder({
         setDetailPrinting(null);
         setDetailCard(sc.info);
       })
-      .catch(() => toast.error(i18n._(msg`Could not fetch info for "${token.identity.name}"`)));
+      .catch(() => toast.error(`Could not fetch info for "${token.identity.name}"`));
   }
   function handleRemoveOneFromSide(cardName: string) {
     const source = currentDeck.sideboard.some((card) => card.identity.name === cardName)
@@ -922,19 +906,15 @@ export function DeckBuilder({
     if (currentDeck.format === "oathbreaker") {
       if (!canBeOathbreaker(card) && !canBeSignatureSpell(card)) {
         toast.warning(
-          i18n._(
-            msg`"${card.identity.name}" is not a legal oathbreaker or signature spell — an oathbreaker must be a planeswalker, a signature spell an instant or sorcery`,
-          ),
+          `"${card.identity.name}" is not a legal oathbreaker or signature spell — an oathbreaker must be a planeswalker, a signature spell an instant or sorcery`,
         );
         return;
       }
-      executeDeckEdit(i18n._(msg`Set ${card.identity.name} in the command zone`), () =>
-        setCommander(card),
-      );
+      executeDeckEdit(`Set ${card.identity.name} in the command zone`, () => setCommander(card));
       return;
     }
     if (!isCommanderEligible(card)) {
-      toast.warning(i18n._(msg`"${card.identity.name}" is not a legal commander`));
+      toast.warning(`"${card.identity.name}" is not a legal commander`);
       return;
     }
     const existing = currentDeck.commanders ?? [];
@@ -944,35 +924,25 @@ export function DeckBuilder({
       const newHasPartner = canBePartnerCommander(card);
       if (!existingHasPartner && !newHasPartner) {
         toast.info(
-          i18n._(
-            msg`"${existing[0].identity.name}" replaced — neither commander has a partner ability`,
-          ),
+          `"${existing[0].identity.name}" replaced — neither commander has a partner ability`,
         );
       } else if (!existingHasPartner) {
-        toast.info(
-          i18n._(msg`"${existing[0].identity.name}" replaced — it doesn't have a partner ability`),
-        );
+        toast.info(`"${existing[0].identity.name}" replaced — it doesn't have a partner ability`);
       } else if (!newHasPartner) {
         toast.info(
-          i18n._(
-            msg`"${card.identity.name}" set as sole commander — it doesn't have a partner ability`,
-          ),
+          `"${card.identity.name}" set as sole commander — it doesn't have a partner ability`,
         );
       } else {
         toast.info(
-          i18n._(
-            msg`"${existing[0].identity.name}" replaced — "${card.identity.name}" must partner with a different card`,
-          ),
+          `"${existing[0].identity.name}" replaced — "${card.identity.name}" must partner with a different card`,
         );
       }
     }
-    executeDeckEdit(i18n._(msg`Set ${card.identity.name} as commander`), () => setCommander(card));
+    executeDeckEdit(`Set ${card.identity.name} as commander`, () => setCommander(card));
   }
   function handleRemoveCommander(card?: DeckCard) {
     executeDeckEdit(
-      card
-        ? i18n._(msg`Remove ${card.identity.name} from the command zone`)
-        : i18n._(msg`Remove commander`),
+      card ? `Remove ${card.identity.name} from the command zone` : `Remove commander`,
       () => removeCommander(card),
     );
   }
@@ -989,54 +959,48 @@ export function DeckBuilder({
   function handleAddOneToMain(group: CardGroup) {
     if (isAtCopyLimit(group.card.identity.name)) {
       const format = getFormat(currentDeck.format ?? "standard");
-      const formatName = format?.name ?? currentDeck.format ?? i18n._(msg`this format`);
+      const formatName = format?.name ?? currentDeck.format ?? `this format`;
       toast.error(
-        i18n._(
-          msg`Max ${format?.deckRules.maxCopies ?? 0} copies of "${group.card.identity.name}" allowed in ${formatName}`,
-        ),
+        `Max ${format?.deckRules.maxCopies ?? 0} copies of "${group.card.identity.name}" allowed in ${formatName}`,
       );
       return;
     }
-    executeDeckEdit(i18n._(msg`Add ${group.card.identity.name}`), () =>
+    executeDeckEdit(`Add ${group.card.identity.name}`, () =>
       addToMain({ ...group.card, identity: { ...group.card.identity, id: crypto.randomUUID() } }),
     );
   }
   function handleAddOneToMainByName(cardName: string) {
     if (isAtCopyLimit(cardName)) {
       const format = getFormat(currentDeck.format ?? "standard");
-      const formatName = format?.name ?? currentDeck.format ?? i18n._(msg`this format`);
+      const formatName = format?.name ?? currentDeck.format ?? `this format`;
       toast.error(
-        i18n._(
-          msg`Max ${format?.deckRules.maxCopies ?? 0} copies of "${cardName}" allowed in ${formatName}`,
-        ),
+        `Max ${format?.deckRules.maxCopies ?? 0} copies of "${cardName}" allowed in ${formatName}`,
       );
       return;
     }
     const existing = currentDeck.cards.find((c) => c.identity.name === cardName);
     if (existing) {
-      executeDeckEdit(i18n._(msg`Add ${cardName}`), () =>
+      executeDeckEdit(`Add ${cardName}`, () =>
         addToMain({ ...existing, identity: { ...existing.identity, id: crypto.randomUUID() } }),
       );
     }
   }
   function handleExport() {
     const text = exportToArena(currentDeck);
-    navigator.clipboard
-      .writeText(text)
-      .then(() => toast.success(i18n._(msg`Deck copied to clipboard`)));
+    navigator.clipboard.writeText(text).then(() => toast.success(`Deck copied to clipboard`));
   }
   function handleExactExport() {
     navigator.clipboard
       .writeText(exportWithPrintings(currentDeck))
-      .then(() => toast.success(i18n._(msg`Exact printings copied to clipboard`)))
-      .catch(() => toast.error(i18n._(msg`Could not write to the clipboard`)));
+      .then(() => toast.success(`Exact printings copied to clipboard`))
+      .catch(() => toast.error(`Could not write to the clipboard`));
   }
   async function handleSave(deckOverride?: EditorDeck, quiet = false) {
     if (saveInFlightRef.current) return;
     const sourceDeck = deckOverride ?? currentDeck;
     const normalizedName = sourceDeck.name.trim();
     if (!normalizedName) {
-      toast.error(i18n._(msg`Give this deck a name before saving`));
+      toast.error(`Give this deck a name before saving`);
       return;
     }
     // A full save always clears the draft flag; keeping it here used to leak
@@ -1064,8 +1028,7 @@ export function DeckBuilder({
         if (changedDuringSave) useDeckStore.setState({ currentDeck: latestDeck });
         else rebaseDeckHistory(beforeAccountUpdate, useDeckStore.getState().currentDeck);
         setSyncState("synced");
-        if (!quiet)
-          toast.success(i18n._(msg`Saved version ${detail.currentVersionNo} to your account`));
+        if (!quiet) toast.success(`Saved version ${detail.currentVersionNo} to your account`);
       } else {
         setSyncState("local");
         if (!quiet) showAccountSaveNudge();
@@ -1073,17 +1036,12 @@ export function DeckBuilder({
       if (!quiet && hasUnsupportedCards) {
         toast.warning(
           unsupportedNames.size === 1
-            ? i18n._(
-                msg`Saved "${deckToSave.name}" — one card is unsupported by the Manabrew and Forge engines`,
-              )
-            : i18n._(
-                msg`Saved "${deckToSave.name}" — ${unsupportedNames.size} cards are unsupported by the Manabrew and Forge engines`,
-              ),
+            ? `Saved "${deckToSave.name}" — one card is unsupported by the Manabrew and Forge engines`
+            : `Saved "${deckToSave.name}" — ${unsupportedNames.size} cards are unsupported by the Manabrew and Forge engines`,
         );
       } else if (!quiet && !deckValidation.legal) {
-        const validationError =
-          deckValidation.errors[0] ?? i18n._(msg`deck is not legal in this format`);
-        toast.warning(i18n._(msg`Saved "${deckToSave.name}" — ${validationError}`));
+        const validationError = deckValidation.errors[0] ?? `deck is not legal in this format`;
+        toast.warning(`Saved "${deckToSave.name}" — ${validationError}`);
       }
     } catch (error) {
       if (
@@ -1096,17 +1054,15 @@ export function DeckBuilder({
           setSaveConflict(await fetchAccountDeck(accountSavedDeck.accountDeckId));
         } catch {
           setSyncState("failed");
-          toast.error(
-            i18n._(msg`The account version could not be loaded. Your local copy is still saved.`),
-          );
+          toast.error(`The account version could not be loaded. Your local copy is still saved.`);
         }
       } else {
         setSyncState("failed");
         if (!quiet) {
           toast.error(
             error instanceof Error
-              ? i18n._(msg`${error.message} Your local copy is still saved.`)
-              : i18n._(msg`Account save failed. Your local copy is still saved.`),
+              ? `${error.message} Your local copy is still saved.`
+              : `Account save failed. Your local copy is still saved.`,
           );
         }
       }
@@ -1136,7 +1092,7 @@ export function DeckBuilder({
       } else {
         const copy = await useAccountDecksStore.getState().create({
           ...conflictDeckRef.current,
-          name: i18n._(msg`${conflictDeckRef.current.name} copy`),
+          name: `${conflictDeckRef.current.name} copy`,
         });
         linkSavedDeckToAccount(
           currentDeckId,
@@ -1153,15 +1109,11 @@ export function DeckBuilder({
       setSaveConflict(null);
       conflictDeckRef.current = null;
       toast.success(
-        action === "copy"
-          ? i18n._(msg`Saved as a separate account deck`)
-          : i18n._(msg`Deck conflict resolved`),
+        action === "copy" ? `Saved as a separate account deck` : `Deck conflict resolved`,
       );
     } catch (error) {
       setSyncState("failed");
-      toast.error(
-        error instanceof Error ? error.message : i18n._(msg`Could not resolve the deck conflict`),
-      );
+      toast.error(error instanceof Error ? error.message : `Could not resolve the deck conflict`);
     } finally {
       setIsSaving(false);
     }
@@ -1175,15 +1127,11 @@ export function DeckBuilder({
     if (hasUnsupportedCards) {
       toast.warning(
         unsupportedNames.size === 1
-          ? i18n._(
-              msg`Saved "${currentDeck.name}" as draft — one card is unsupported by the Manabrew and Forge engines`,
-            )
-          : i18n._(
-              msg`Saved "${currentDeck.name}" as draft — ${unsupportedNames.size} cards are unsupported by the Manabrew and Forge engines`,
-            ),
+          ? `Saved "${currentDeck.name}" as draft — one card is unsupported by the Manabrew and Forge engines`
+          : `Saved "${currentDeck.name}" as draft — ${unsupportedNames.size} cards are unsupported by the Manabrew and Forge engines`,
       );
     } else {
-      toast.success(i18n._(msg`Draft "${currentDeck.name}" saved`));
+      toast.success(`Draft "${currentDeck.name}" saved`);
     }
   }
   async function handleDeleteCurrentDeck() {
@@ -1213,10 +1161,10 @@ export function DeckBuilder({
       const snapshot = buildDeckSnapshot(savedDeck);
       setLastSavedDeck(savedDeck);
       setUnsavedState(snapshot, snapshot);
-      toast.success(i18n._(msg`Deck deleted`));
+      toast.success(`Deck deleted`);
       onDeckDeleted?.();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : i18n._(msg`Failed to delete deck`));
+      toast.error(error instanceof Error ? error.message : `Failed to delete deck`);
     } finally {
       setIsDeleting(false);
     }
@@ -1247,14 +1195,12 @@ export function DeckBuilder({
     const importedId = importReadOnlyDeck();
     if (!importedId) return;
     onReadOnlyDeckImported?.(importedId);
-    toast.success(i18n._(msg`Copied "${importedName}" to My Decks`));
+    toast.success(`Copied "${importedName}" to My Decks`);
   }
   const editorCommands: DeckEditorCommand[] = [
     {
       id: "save",
-      get label() {
-        return i18n._(msg`Save deck`);
-      },
+      label: `Save deck`,
       keywords: ["persist", "version"],
       disabled: isReadOnly || isSaving,
       disabledReason: isReadOnly ? "Read only" : isSaving ? "Saving" : undefined,
@@ -1262,9 +1208,7 @@ export function DeckBuilder({
     },
     {
       id: "import",
-      get label() {
-        return i18n._(msg`Import a card list`);
-      },
+      label: `Import a card list`,
       keywords: ["paste", "add cards"],
       disabled: isReadOnly,
       disabledReason: isReadOnly ? "Read only" : undefined,
@@ -1272,163 +1216,119 @@ export function DeckBuilder({
     },
     {
       id: "undo",
-      get label() {
-        return i18n._(msg`Undo last deck edit`);
-      },
+      label: `Undo last deck edit`,
       run: undoDeckEdit,
     },
     {
       id: "redo",
-      get label() {
-        return i18n._(msg`Redo last deck edit`);
-      },
+      label: `Redo last deck edit`,
       run: redoDeckEdit,
     },
     {
       id: "view-list",
-      get label() {
-        return i18n._(msg`Switch to list view`);
-      },
+      label: `Switch to list view`,
       run: () => setViewMode("list"),
     },
     {
       id: "view-grid",
-      get label() {
-        return i18n._(msg`Switch to grid view`);
-      },
+      label: `Switch to grid view`,
       run: () => setViewMode("visual"),
     },
     {
       id: "view-stacks",
-      get label() {
-        return i18n._(msg`Switch to stack view`);
-      },
+      label: `Switch to stack view`,
       run: () => setViewMode("stack"),
     },
     {
       id: "next-editor-section",
-      get label() {
-        return i18n._(msg`Jump to next editor section`);
-      },
+      label: `Jump to next editor section`,
       keywords: ["cycle", "scroll", "navigate"],
       run: () => jumpToNextEditorSection(),
     },
     {
       id: "collapse-sections",
-      get label() {
-        return i18n._(msg`Collapse all deck sections`);
-      },
+      label: `Collapse all deck sections`,
       keywords: ["fold", "close", "hide"],
       run: () => setAllDeckSectionsExpanded(false),
     },
     {
       id: "expand-sections",
-      get label() {
-        return i18n._(msg`Expand all deck sections`);
-      },
+      label: `Expand all deck sections`,
       keywords: ["unfold", "open", "show"],
       run: () => setAllDeckSectionsExpanded(true),
     },
     {
       id: "group-type",
-      get label() {
-        return i18n._(msg`Group cards by type`);
-      },
+      label: `Group cards by type`,
       run: () => setGroupBy("type"),
     },
     {
       id: "group-mana",
-      get label() {
-        return i18n._(msg`Group cards by mana value`);
-      },
+      label: `Group cards by mana value`,
       run: () => setGroupBy("cmc"),
     },
     {
       id: "group-color",
-      get label() {
-        return i18n._(msg`Group cards by color`);
-      },
+      label: `Group cards by color`,
       run: () => setGroupBy("color"),
     },
     {
       id: "group-tags",
-      get label() {
-        return i18n._(msg`Group cards by custom tags`);
-      },
+      label: `Group cards by custom tags`,
       run: () => setGroupBy("custom"),
     },
     {
       id: "sort-name",
-      get label() {
-        return i18n._(msg`Sort cards by name`);
-      },
+      label: `Sort cards by name`,
       run: () => setSortBy("name"),
     },
     {
       id: "sort-mana",
-      get label() {
-        return i18n._(msg`Sort cards by mana value`);
-      },
+      label: `Sort cards by mana value`,
       run: () => setSortBy("mana-value"),
     },
     {
       id: "sort-quantity",
-      get label() {
-        return i18n._(msg`Sort cards by quantity`);
-      },
+      label: `Sort cards by quantity`,
       run: () => setSortBy("quantity"),
     },
     {
       id: "sort-owned",
-      get label() {
-        return i18n._(msg`Sort owned cards first`);
-      },
+      label: `Sort owned cards first`,
       run: () => setSortBy("owned"),
     },
     {
       id: "sort-not-owned",
-      get label() {
-        return i18n._(msg`Sort not owned cards first`);
-      },
+      label: `Sort not owned cards first`,
       run: () => setSortBy("not-owned"),
     },
     {
       id: "view-collection-gaps",
-      get label() {
-        return i18n._(msg`Show collection gaps`);
-      },
+      label: `Show collection gaps`,
       keywords: ["missing", "owned", "filter"],
       run: () => setCollectionFilter("missing"),
     },
     {
       id: "filter-partial-owned",
-      get label() {
-        return i18n._(msg`Show partially owned cards`);
-      },
+      label: `Show partially owned cards`,
       keywords: ["collection", "shortage", "filter"],
       run: () => setCollectionFilter("partial"),
     },
     {
       id: "filter-exact-printings",
-      get label() {
-        return i18n._(msg`Show exact printings owned`);
-      },
+      label: `Show exact printings owned`,
       keywords: ["collection", "printing", "filter"],
       run: () => setCollectionFilter("exact"),
     },
     {
       id: "editor-tour",
-      get label() {
-        return i18n._(msg`Open deck editor guide`);
-      },
+      label: `Open deck editor guide`,
       keywords: ["help", "learn", "what can I do", "onboarding"],
       run: openDeckEditorWelcome,
     },
     {
       id: "clear-filter",
-      get label() {
-        return i18n._(msg`Clear card filters`);
-      },
+      label: `Clear card filters`,
       keywords: ["show all", "reset search"],
       disabled: !deckFilter && cmcFilter === null,
       disabledReason: !deckFilter && cmcFilter === null ? "No active filters" : undefined,
@@ -1439,9 +1339,7 @@ export function DeckBuilder({
     },
     {
       id: "select-all",
-      get label() {
-        return i18n._(msg`Select all cards`);
-      },
+      label: `Select all cards`,
       keywords: ["bulk", "multi select"],
       disabled: allDeckCards().length === 0,
       disabledReason: allDeckCards().length === 0 ? "Deck is empty" : undefined,
@@ -1449,9 +1347,7 @@ export function DeckBuilder({
     },
     {
       id: "select-filtered",
-      get label() {
-        return i18n._(msg`Select cards matching current filters`);
-      },
+      label: `Select cards matching current filters`,
       keywords: ["visible", "search", "bulk"],
       disabled: !deckFilter && cmcFilter === null,
       disabledReason: !deckFilter && cmcFilter === null ? "No active filters" : undefined,
@@ -1465,21 +1361,17 @@ export function DeckBuilder({
     },
     {
       id: "select-unsupported",
-      get label() {
-        return i18n._(msg`Select unsupported cards`);
-      },
+      label: `Select unsupported cards`,
       keywords: ["engine", "warning", "bulk"],
       disabled: editableUnsupportedNames.size === 0,
       disabledReason:
-        editableUnsupportedNames.size === 0
-          ? i18n._(msg`No editable unsupported cards`)
-          : undefined,
+        editableUnsupportedNames.size === 0 ? `No editable unsupported cards` : undefined,
       run: () => selectEditableCards(editableUnsupportedNames),
     },
     ...(currentDeck.customTags ?? []).map(
       (tag): DeckEditorCommand => ({
         id: `select-tag-${tag}`,
-        label: i18n._(msg`Select cards tagged ${tag}`),
+        label: `Select cards tagged ${tag}`,
         keywords: ["group", "role", "bulk"],
         run: () =>
           selectEditableCards(
@@ -1491,43 +1383,33 @@ export function DeckBuilder({
     ),
     {
       id: "toggle-search",
-      get label() {
-        return i18n._(msg`Toggle card search panel`);
-      },
+      label: `Toggle card search panel`,
       keywords: ["find", "scryfall"],
       disabled: !onToggleSearch,
       run: () => onToggleSearch?.(),
     },
     {
       id: "toggle-preview",
-      get label() {
-        return i18n._(msg`Toggle card preview panel`);
-      },
+      label: `Toggle card preview panel`,
       keywords: ["inspector", "details"],
       disabled: !onPreviewCollapsedChange,
       run: () => onPreviewCollapsedChange?.(!(previewCollapsed ?? false)),
     },
     {
       id: "export",
-      get label() {
-        return i18n._(msg`Copy deck list`);
-      },
+      label: `Copy deck list`,
       keywords: ["export", "clipboard"],
       run: handleExport,
     },
     {
       id: "export-printings",
-      get label() {
-        return i18n._(msg`Copy deck with exact printings`);
-      },
+      label: `Copy deck with exact printings`,
       keywords: ["export", "moxfield", "archidekt", "foil", "sets"],
       run: handleExactExport,
     },
     {
       id: "copy-selection",
-      get label() {
-        return i18n._(msg`Copy selected cards`);
-      },
+      label: `Copy selected cards`,
       keywords: ["clipboard", "duplicate"],
       disabled: selectedCards.size === 0,
       disabledReason: selectedCards.size === 0 ? "No selection" : undefined,
@@ -1535,9 +1417,7 @@ export function DeckBuilder({
     },
     {
       id: "paste-cards",
-      get label() {
-        return i18n._(msg`Paste cards into deck`);
-      },
+      label: `Paste cards into deck`,
       keywords: ["clipboard", "import"],
       disabled: isReadOnly,
       disabledReason: isReadOnly ? "Read only" : undefined,
@@ -1545,9 +1425,7 @@ export function DeckBuilder({
     },
     {
       id: "labels",
-      get label() {
-        return i18n._(msg`Manage deck labels`);
-      },
+      label: `Manage deck labels`,
       keywords: ["organize", "collection"],
       disabled: isReadOnly,
       disabledReason: isReadOnly ? "Read only" : undefined,
@@ -1555,18 +1433,14 @@ export function DeckBuilder({
     },
     {
       id: "remove-selection",
-      get label() {
-        return i18n._(msg`Remove selected cards`);
-      },
+      label: `Remove selected cards`,
       disabled: selectedCards.size === 0 || isReadOnly,
       disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
       run: handleRemoveSelected,
     },
     {
       id: "tag-selection",
-      get label() {
-        return i18n._(msg`Tag selected cards`);
-      },
+      label: `Tag selected cards`,
       keywords: ["group", "role", "organize"],
       disabled: selectedCards.size === 0 || isReadOnly,
       disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
@@ -1574,63 +1448,49 @@ export function DeckBuilder({
     },
     {
       id: "move-selection-main",
-      get label() {
-        return i18n._(msg`Move selected cards to main deck`);
-      },
+      label: `Move selected cards to main deck`,
       disabled: selectedCards.size === 0 || isReadOnly,
       disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
       run: handleMoveSelectedToMain,
     },
     {
       id: "move-selection-side",
-      get label() {
-        return i18n._(msg`Move selected cards to sideboard`);
-      },
+      label: `Move selected cards to sideboard`,
       disabled: selectedCards.size === 0 || isReadOnly,
       disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
       run: handleMoveSelectedToSide,
     },
     {
       id: "move-selection-maybe",
-      get label() {
-        return i18n._(msg`Move selected cards to maybeboard`);
-      },
+      label: `Move selected cards to maybeboard`,
       disabled: selectedCards.size === 0 || isReadOnly,
       disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
       run: handleMoveSelectedToMaybe,
     },
     {
       id: "add-selection-copy",
-      get label() {
-        return i18n._(msg`Add one copy of each selected card`);
-      },
+      label: `Add one copy of each selected card`,
       disabled: selectedCards.size === 0 || isReadOnly,
       disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
       run: addOneEachSelected,
     },
     {
       id: "remove-selection-copy",
-      get label() {
-        return i18n._(msg`Remove one copy of each selected card`);
-      },
+      label: `Remove one copy of each selected card`,
       disabled: selectedCards.size === 0 || isReadOnly,
       disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
       run: removeOneEachSelected,
     },
     {
       id: "foil-selection",
-      get label() {
-        return i18n._(msg`Toggle foil for selected cards`);
-      },
+      label: `Toggle foil for selected cards`,
       disabled: selectedCards.size === 0 || isReadOnly,
       disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
       run: toggleSelectedFoil,
     },
     {
       id: "manage-tags",
-      get label() {
-        return i18n._(msg`Manage deck tags`);
-      },
+      label: `Manage deck tags`,
       keywords: ["rename", "reorder", "delete", "groups"],
       disabled: isReadOnly,
       disabledReason: isReadOnly ? "Read only" : undefined,
@@ -1638,9 +1498,7 @@ export function DeckBuilder({
     },
     {
       id: "batch-printings",
-      get label() {
-        return i18n._(msg`Change deck printings`);
-      },
+      label: `Change deck printings`,
       keywords: ["art", "edition", "set"],
       disabled: isReadOnly,
       disabledReason: isReadOnly ? "Read only" : undefined,
@@ -1651,9 +1509,7 @@ export function DeckBuilder({
     },
     {
       id: "optimize-printings",
-      get label() {
-        return i18n._(msg`Optimize deck printings`);
-      },
+      label: `Optimize deck printings`,
       keywords: ["owned", "cheapest", "non-foil", "collection", "price"],
       disabled: isReadOnly,
       disabledReason: isReadOnly ? "Read only" : undefined,
@@ -1664,8 +1520,8 @@ export function DeckBuilder({
     <div className="deck-editor-root flex flex-col h-full w-full relative">
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         {selectedCards.size > 0
-          ? i18n._(msg`${selectedCards.size} card${selectedCards.size === 1 ? "" : "s"} selected`)
-          : i18n._(msg`Selection cleared`)}
+          ? `${selectedCards.size} card${selectedCards.size === 1 ? "" : "s"} selected`
+          : `Selection cleared`}
       </div>
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         <span key={announcement.id}>{announcement.message}</span>
@@ -1674,12 +1530,10 @@ export function DeckBuilder({
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-warning/40 bg-warning/10 px-3 py-2">
           <Bookmark className="h-3.5 w-3.5 text-warning shrink-0" />
           <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-warning">
-            {readOnlySource === "hub"
-              ? i18n._(msg`Hub snapshot — read only`)
-              : i18n._(msg`Starter deck — read only`)}
+            {readOnlySource === "hub" ? `Hub snapshot — read only` : `Starter deck — read only`}
           </span>
           <span className="hidden min-w-0 flex-1 truncate text-xs text-warning/70 sm:block">
-            <Trans>Browse the cards below. Editing is locked.</Trans>
+            Browse the cards below. Editing is locked.
           </span>
           <div className="ml-auto flex shrink-0 items-center gap-2">
             {hubEnabled && readOnlySource === "preset" && currentDeck.id && (
@@ -1694,10 +1548,8 @@ export function DeckBuilder({
                   );
                 }}
               >
-                <Trans>
-                  <LibraryBig className="mr-1 h-3.5 w-3.5" />
-                  View in Community
-                </Trans>
+                <LibraryBig className="mr-1 h-3.5 w-3.5" />
+                View in Community
               </Button>
             )}
             <Button
@@ -1706,10 +1558,8 @@ export function DeckBuilder({
               className="h-7 pointer-coarse:h-10"
               onClick={handleImportReadOnlyDeck}
             >
-              <Trans>
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                Copy and edit
-              </Trans>
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Copy and edit
             </Button>
           </div>
         </div>
@@ -1718,7 +1568,7 @@ export function DeckBuilder({
         <div
           ref={editorScrollRef}
           tabIndex={-1}
-          aria-label={i18n._(msg`Deck editor workspace`)}
+          aria-label={`Deck editor workspace`}
           className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden"
           onScroll={(event) => setShowBackToTop(event.currentTarget.scrollTop > 120)}
         >
@@ -1742,10 +1592,8 @@ export function DeckBuilder({
               <Input
                 ref={filterInputRef}
                 className="h-6 text-xs pl-6 pr-6 pointer-coarse:h-9 pointer-coarse:text-base"
-                placeholder={i18n._(msg`Filter\u2026`)}
-                title={i18n._(
-                  msg`Filter by name or use tag:, type:, color:, section:, mv>=, is:owned, is:missing, is:partial, is:foil, is:combo, and - to negate`,
-                )}
+                placeholder={`Filter\u2026`}
+                title={`Filter by name or use tag:, type:, color:, section:, mv>=, is:owned, is:missing, is:partial, is:foil, is:combo, and - to negate`}
                 value={deckFilter}
                 onChange={(e) => setDeckFilter(e.target.value)}
               />
@@ -1763,26 +1611,22 @@ export function DeckBuilder({
               <button
                 type="button"
                 className="flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/25"
-                title={i18n._(msg`Clear mana value filter`)}
+                title={`Clear mana value filter`}
                 onClick={() => setCmcFilter(null)}
               >
-                <Trans>
-                  {CMC_BUCKET_LABELS[cmcFilter]} mana
-                  <X className="h-3 w-3" />
-                </Trans>
+                {CMC_BUCKET_LABELS[cmcFilter]} mana
+                <X className="h-3 w-3" />
               </button>
             )}
             {collectionFilter !== "all" && (
               <button
                 type="button"
                 className="flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium capitalize text-primary transition-colors hover:bg-primary/25"
-                title={i18n._(msg`Clear collection filter`)}
+                title={`Clear collection filter`}
                 onClick={() => setCollectionFilter("all")}
               >
-                <Trans>
-                  Collection: {collectionFilter.replace("-", " ")}
-                  <X className="h-3 w-3" />
-                </Trans>
+                Collection: {collectionFilter.replace("-", " ")}
+                <X className="h-3 w-3" />
               </button>
             )}
             <DropdownMenu>
@@ -1808,11 +1652,7 @@ export function DeckBuilder({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
-                  <span>
-                    <Trans>
-                      Sort: {SORT_OPTIONS.find((option) => option.value === sortBy)?.label}
-                    </Trans>
-                  </span>
+                  <span>Sort: {SORT_OPTIONS.find((option) => option.value === sortBy)?.label}</span>
                   <ChevronDown className="h-2.5 w-2.5 opacity-60" />
                 </button>
               </DropdownMenuTrigger>
@@ -1885,7 +1725,7 @@ export function DeckBuilder({
                 value={cardSize}
                 onChange={(e) => setCardSize(Number(e.target.value))}
                 className="w-32 h-1 cursor-pointer accent-primary shrink-0"
-                title={i18n._(msg`Card size: ${cardSize}`)}
+                title={`Card size: ${cardSize}`}
               />
             )}
             <div className="flex-1 min-w-40">
@@ -1911,49 +1751,40 @@ export function DeckBuilder({
                     ? Math.min(request.quantity, Math.max(0, copyLimit - existingCount))
                     : request.quantity;
                   if (quantity === 0) {
-                    const formatName =
-                      format?.name ?? currentDeck.format ?? i18n._(msg`this format`);
+                    const formatName = format?.name ?? currentDeck.format ?? `this format`;
                     toast.error(
-                      i18n._(
-                        msg`Max ${copyLimit ?? 0} copies of "${sc.name}" allowed in ${formatName}`,
-                      ),
+                      `Max ${copyLimit ?? 0} copies of "${sc.name}" allowed in ${formatName}`,
                     );
                     return false;
                   }
-                  executeDeckEdit(
-                    i18n._(msg`Add ${quantity} ${sc.name} to ${request.destination}`),
-                    () => {
-                      for (let index = 0; index < quantity; index += 1) {
-                        const copy = {
-                          ...card,
-                          identity: { ...card.identity, id: crypto.randomUUID() },
-                        };
-                        if (request.destination === "side") addToSide(copy);
-                        else if (request.destination === "maybe") addToMaybe(copy);
-                        else addToMain(copy);
-                      }
-                      for (const tag of request.tags) {
-                        addCustomTag(tag);
-                        tagCard(card.identity.name, tag);
-                      }
-                    },
-                  );
+                  executeDeckEdit(`Add ${quantity} ${sc.name} to ${request.destination}`, () => {
+                    for (let index = 0; index < quantity; index += 1) {
+                      const copy = {
+                        ...card,
+                        identity: { ...card.identity, id: crypto.randomUUID() },
+                      };
+                      if (request.destination === "side") addToSide(copy);
+                      else if (request.destination === "maybe") addToMaybe(copy);
+                      else addToMain(copy);
+                    }
+                    for (const tag of request.tags) {
+                      addCustomTag(tag);
+                      tagCard(card.identity.name, tag);
+                    }
+                  });
                   if (quantity < request.quantity) {
-                    const formatName =
-                      format?.name ?? currentDeck.format ?? i18n._(msg`this format`);
+                    const formatName = format?.name ?? currentDeck.format ?? `this format`;
                     toast.warning(
-                      i18n._(
-                        msg`Added ${quantity} of ${request.quantity} ${sc.name}; ${formatName} allows ${copyLimit ?? 0}`,
-                      ),
+                      `Added ${quantity} of ${request.quantity} ${sc.name}; ${formatName} allows ${copyLimit ?? 0}`,
                     );
                   } else {
                     const destination =
                       request.destination === "side"
-                        ? i18n._(msg`sideboard`)
+                        ? `sideboard`
                         : request.destination === "maybe"
-                          ? i18n._(msg`maybeboard`)
-                          : i18n._(msg`main deck`);
-                    toast.success(i18n._(msg`Added ${quantity} ${sc.name} to ${destination}`));
+                          ? `maybeboard`
+                          : `main deck`;
+                    toast.success(`Added ${quantity} ${sc.name} to ${destination}`);
                   }
                   return true;
                 }}
@@ -1962,16 +1793,16 @@ export function DeckBuilder({
             {!isReadOnly && (
               <span className="shrink-0 text-[11px] text-muted-foreground" aria-live="polite">
                 {isSaving || syncState === "saving"
-                  ? i18n._(msg`Saving\u2026`)
+                  ? `Saving\u2026`
                   : hasUnsavedChanges
-                    ? i18n._(msg`Unsaved`)
+                    ? `Unsaved`
                     : syncState === "local"
-                      ? i18n._(msg`Saved locally`)
+                      ? `Saved locally`
                       : syncState === "synced"
-                        ? i18n._(msg`Synced`)
+                        ? `Synced`
                         : syncState === "failed"
-                          ? i18n._(msg`Sync failed`)
-                          : i18n._(msg`Saved`)}
+                          ? `Sync failed`
+                          : `Saved`}
               </span>
             )}
 
@@ -1985,12 +1816,10 @@ export function DeckBuilder({
                 variant="ghost"
                 disabled
                 className="h-7 shrink-0 gap-1 text-xs text-muted-foreground/60"
-                title={i18n._(msg`Make an editable copy to enable saving`)}
+                title={`Make an editable copy to enable saving`}
               >
-                <Trans>
-                  <Save className="h-3.5 w-3.5" />
-                  Save
-                </Trans>
+                <Save className="h-3.5 w-3.5" />
+                Save
               </Button>
             ) : (
               <Button
@@ -2010,19 +1839,15 @@ export function DeckBuilder({
                 title={
                   hasUnsupportedCards
                     ? unsupportedNames.size === 1
-                      ? i18n._(msg`One card is unsupported by the Manabrew and Forge engines`)
-                      : i18n._(
-                          msg`${unsupportedNames.size} cards are unsupported by the Manabrew and Forge engines`,
-                        )
+                      ? `One card is unsupported by the Manabrew and Forge engines`
+                      : `${unsupportedNames.size} cards are unsupported by the Manabrew and Forge engines`
                     : !isDeckLegal
-                      ? i18n._(
-                          msg`${deckValidation.errors[0] ?? i18n._(msg`Deck is not legal in this format`)} — saves with a warning`,
-                        )
+                      ? `${deckValidation.errors[0] ?? `Deck is not legal in this format`} — saves with a warning`
                       : hasUnsavedChanges
-                        ? i18n._(msg`Save deck (unsaved changes)`)
+                        ? `Save deck (unsaved changes)`
                         : currentDeck.draft
-                          ? i18n._(msg`Save draft as a full deck`)
-                          : i18n._(msg`Deck saved`)
+                          ? `Save draft as a full deck`
+                          : `Deck saved`
                 }
                 onClick={() => void handleSave()}
               >
@@ -2031,7 +1856,7 @@ export function DeckBuilder({
                 ) : (
                   <Save className="h-3.5 w-3.5" />
                 )}
-                {isSaving ? i18n._(msg`Saving`) : i18n._(msg`Save`)}
+                {isSaving ? `Saving` : `Save`}
               </Button>
             )}
 
@@ -2042,57 +1867,41 @@ export function DeckBuilder({
                   variant="ghost"
                   className="h-7 w-7 shrink-0"
                   disabled={isReadOnly}
-                  aria-label={i18n._(msg`Deck actions`)}
+                  aria-label={`Deck actions`}
                 >
                   <EllipsisVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem onSelect={() => setCommandPaletteOpen(true)}>
-                  <Trans>
-                    <CommandIcon className="mr-2 h-3.5 w-3.5" /> Command palette
-                  </Trans>
+                  <CommandIcon className="mr-2 h-3.5 w-3.5" /> Command palette
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={openDeckEditorWelcome}>
-                  <Trans>
-                    <BookOpen className="mr-2 h-3.5 w-3.5" /> Deck editor guide
-                  </Trans>
+                  <BookOpen className="mr-2 h-3.5 w-3.5" /> Deck editor guide
                 </DropdownMenuItem>
                 {onToggleSearch && (
                   <DropdownMenuItem onSelect={onToggleSearch}>
-                    <Trans>
-                      <Search className="mr-2 h-3.5 w-3.5" /> Card search
-                    </Trans>
+                    <Search className="mr-2 h-3.5 w-3.5" /> Card search
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem onSelect={() => setAllDeckSectionsExpanded(false)}>
-                  <Trans>
-                    <FoldVertical className="mr-2 h-3.5 w-3.5" /> Collapse all sections
-                  </Trans>
+                  <FoldVertical className="mr-2 h-3.5 w-3.5" /> Collapse all sections
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setAllDeckSectionsExpanded(true)}>
-                  <Trans>
-                    <UnfoldVertical className="mr-2 h-3.5 w-3.5" /> Expand all sections
-                  </Trans>
+                  <UnfoldVertical className="mr-2 h-3.5 w-3.5" /> Expand all sections
                 </DropdownMenuItem>
                 <div className="my-1 border-t" />
                 <DropdownMenuItem onSelect={() => setImportOpen(true)}>
-                  <Trans>
-                    <ListPlus className="mr-2 h-3.5 w-3.5" /> Import list
-                  </Trans>
+                  <ListPlus className="mr-2 h-3.5 w-3.5" /> Import list
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={handleExport}
                   disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
                 >
-                  <Trans>
-                    <ClipboardCopy className="h-3.5 w-3.5 mr-2" /> Export to clipboard
-                  </Trans>
+                  <ClipboardCopy className="h-3.5 w-3.5 mr-2" /> Export to clipboard
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={handleExactExport}>
-                  <Trans>
-                    <Images className="mr-2 h-3.5 w-3.5" /> Export exact printings
-                  </Trans>
+                  <Images className="mr-2 h-3.5 w-3.5" /> Export exact printings
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => {
@@ -2100,69 +1909,51 @@ export function DeckBuilder({
                     setBatchPrintingOpen(true);
                   }}
                 >
-                  <Trans>
-                    <Images className="mr-2 h-3.5 w-3.5" /> Change deck printings
-                  </Trans>
+                  <Images className="mr-2 h-3.5 w-3.5" /> Change deck printings
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setPrintingOptimizerOpen(true)}>
-                  <Trans>
-                    <Sparkles className="mr-2 h-3.5 w-3.5" /> Optimize deck printings
-                  </Trans>
+                  <Sparkles className="mr-2 h-3.5 w-3.5" /> Optimize deck printings
                 </DropdownMenuItem>
                 {publishEnabled && (
                   <DropdownMenuItem
                     onSelect={() => setPublishOpen(true)}
                     disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
                   >
-                    <Trans>
-                      <Share2 className="h-3.5 w-3.5 mr-2" /> Publish to Community
-                    </Trans>
+                    <Share2 className="h-3.5 w-3.5 mr-2" /> Publish to Community
                   </DropdownMenuItem>
                 )}
                 {accountsEnabled &&
                   accountSavedDeck?.accountDeckId &&
                   accountSavedDeck.accountVersionNo && (
                     <DropdownMenuItem onSelect={() => setHistoryOpen(true)}>
-                      <Trans>
-                        <History className="mr-2 h-3.5 w-3.5" /> Version history
-                      </Trans>
+                      <History className="mr-2 h-3.5 w-3.5" /> Version history
                     </DropdownMenuItem>
                   )}
                 <DropdownMenuItem onSelect={handleSaveDraft}>
-                  <Trans>
-                    <FileBox className="h-3.5 w-3.5 mr-2" /> Save as draft
-                  </Trans>
+                  <FileBox className="h-3.5 w-3.5 mr-2" /> Save as draft
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setCheckpointsOpen(true)}>
-                  <Trans>
-                    <History className="mr-2 h-3.5 w-3.5" /> Local checkpoints
-                  </Trans>
+                  <History className="mr-2 h-3.5 w-3.5" /> Local checkpoints
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setSideboardPlansOpen(true)}>
-                  <Trans>
-                    <ListPlus className="mr-2 h-3.5 w-3.5" /> Sideboard plans
-                  </Trans>
+                  <ListPlus className="mr-2 h-3.5 w-3.5" /> Sideboard plans
                 </DropdownMenuItem>
                 <div className="border-t my-1" />
                 <DropdownMenuItem onSelect={() => setLabelsOpen(true)}>
-                  <Trans>
-                    <Palette className="h-3.5 w-3.5 mr-2" /> Deck labels
-                    {(currentDeck.labels?.length ?? 0) > 0 && (
-                      <span className="ml-auto text-[10px] text-muted-foreground">
-                        {currentDeck.labels!.length}
-                      </span>
-                    )}
-                  </Trans>
+                  <Palette className="h-3.5 w-3.5 mr-2" /> Deck labels
+                  {(currentDeck.labels?.length ?? 0) > 0 && (
+                    <span className="ml-auto text-[10px] text-muted-foreground">
+                      {currentDeck.labels!.length}
+                    </span>
+                  )}
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                  <Trans>
-                    <Bookmark className="h-3.5 w-3.5 mr-2" /> Tags
-                    {(currentDeck.customTags?.length ?? 0) > 0 && (
-                      <span className="ml-auto text-[10px] text-muted-foreground">
-                        {currentDeck.customTags!.length}
-                      </span>
-                    )}
-                  </Trans>
+                  <Bookmark className="h-3.5 w-3.5 mr-2" /> Tags
+                  {(currentDeck.customTags?.length ?? 0) > 0 && (
+                    <span className="ml-auto text-[10px] text-muted-foreground">
+                      {currentDeck.customTags!.length}
+                    </span>
+                  )}
                 </DropdownMenuItem>
                 {(currentDeck.customTags ?? []).length > 0 && (
                   <>
@@ -2178,10 +1969,8 @@ export function DeckBuilder({
                           variant="ghost"
                           className="h-5 w-5 text-destructive shrink-0"
                           onClick={() => {
-                            executeDeckEdit(i18n._(msg`Remove ${tag} tag`), () =>
-                              removeCustomTag(tag),
-                            );
-                            toast.success(i18n._(msg`Tag "${tag}" removed`));
+                            executeDeckEdit(`Remove ${tag} tag`, () => removeCustomTag(tag));
+                            toast.success(`Tag "${tag}" removed`);
                           }}
                         >
                           <X className="h-3 w-3" />
@@ -2193,16 +1982,16 @@ export function DeckBuilder({
                 <div className="px-2 py-1.5">
                   <Input
                     className="h-7 text-xs"
-                    placeholder={i18n._(msg`New tag\u2026`)}
+                    placeholder={`New tag\u2026`}
                     value={newTagInput}
                     onChange={(e) => setNewTagInput(e.target.value)}
                     onKeyDown={(e) => {
                       e.stopPropagation();
                       if (e.key === "Enter" && newTagInput.trim()) {
-                        executeDeckEdit(i18n._(msg`Create ${newTagInput.trim()} tag`), () =>
+                        executeDeckEdit(`Create ${newTagInput.trim()} tag`, () =>
                           addCustomTag(newTagInput.trim()),
                         );
-                        toast.success(i18n._(msg`Tag "${newTagInput.trim()}" added`));
+                        toast.success(`Tag "${newTagInput.trim()}" added`);
                         setNewTagInput("");
                       }
                     }}
@@ -2214,9 +2003,7 @@ export function DeckBuilder({
                   className="text-destructive"
                   onSelect={() => setConfirmClear(true)}
                 >
-                  <Trans>
-                    <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete deck
-                  </Trans>
+                  <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete deck
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -2264,33 +2051,28 @@ export function DeckBuilder({
                       onRemoveCommander: () => handleRemoveCommander(card),
                       onPickPrint: () => setPrintPickerCard(card),
                       onToggleFoil: () =>
-                        executeDeckEdit(i18n._(msg`Toggle foil for ${name}`), () =>
-                          toggleFoil(name),
-                        ),
+                        executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name)),
                       onSetCover: () => {
-                        executeDeckEdit(i18n._(msg`Change deck cover`), () =>
+                        executeDeckEdit(`Change deck cover`, () =>
                           setCoverCard(isCover ? undefined : name, 0),
                         );
                         if (!isCover) useScryfallStore.getState().invalidateCard(name);
                       },
                       onSetCoverBack: () => {
-                        executeDeckEdit(i18n._(msg`Change deck cover`), () =>
+                        executeDeckEdit(`Change deck cover`, () =>
                           setCoverCard(isCoverBack ? undefined : name, 1),
                         );
                         if (!isCoverBack) useScryfallStore.getState().invalidateCard(name);
                       },
                       onApplyTag: (tag) => {
                         const isApplied = currentDeck.cardTags?.[name.toLowerCase()]?.includes(tag);
-                        executeDeckEdit(
-                          isApplied ? i18n._(msg`Remove ${tag}`) : i18n._(msg`Apply ${tag}`),
-                          () => {
-                            if (isApplied) untagCard(name, tag);
-                            else tagCard(name, tag);
-                          },
-                        );
+                        executeDeckEdit(isApplied ? `Remove ${tag}` : `Apply ${tag}`, () => {
+                          if (isApplied) untagCard(name, tag);
+                          else tagCard(name, tag);
+                        });
                       },
                       onCreateTag: (tag) =>
-                        executeDeckEdit(i18n._(msg`Create ${tag} tag`), () => {
+                        executeDeckEdit(`Create ${tag} tag`, () => {
                           addCustomTag(tag);
                           tagCard(name, tag);
                         }),
@@ -2336,20 +2118,20 @@ export function DeckBuilder({
                     onMoveAllFromMaybeToSide={handleMoveAllFromMaybeToSide}
                     onPickPrint={setPrintPickerCard}
                     onToggleFoil={(name) =>
-                      executeDeckEdit(i18n._(msg`Toggle foil for ${name}`), () => toggleFoil(name))
+                      executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name))
                     }
                     onHover={(card, e) =>
                       preview.handleMouseEnter(deckCardToPreviewDto(card), e, { useDelay: true })
                     }
                     onLeave={preview.handleMouseLeave}
                     onAddToSide={(card) =>
-                      executeDeckEdit(i18n._(msg`Add ${card.identity.name} to sideboard`), () =>
+                      executeDeckEdit(`Add ${card.identity.name} to sideboard`, () =>
                         addToSide(card),
                       )
                     }
                     onRemoveFromSide={handleRemoveOneFromSide}
                     onAddToMaybe={(card) =>
-                      executeDeckEdit(i18n._(msg`Add ${card.identity.name} to maybeboard`), () =>
+                      executeDeckEdit(`Add ${card.identity.name} to maybeboard`, () =>
                         addToMaybe(card),
                       )
                     }
@@ -2359,20 +2141,16 @@ export function DeckBuilder({
                     cardTags={currentDeck.cardTags}
                     allMainCards={currentDeck.cards}
                     onUntagCard={(name, tag) =>
-                      executeDeckEdit(i18n._(msg`Remove ${tag} from ${name}`), () =>
-                        untagCard(name, tag),
-                      )
+                      executeDeckEdit(`Remove ${tag} from ${name}`, () => untagCard(name, tag))
                     }
                     onTagCard={(name, tag) =>
-                      executeDeckEdit(i18n._(msg`Tag ${name} with ${tag}`), () =>
-                        tagCard(name, tag),
-                      )
+                      executeDeckEdit(`Tag ${name} with ${tag}`, () => tagCard(name, tag))
                     }
                     onAddCustomTag={(tag) =>
-                      executeDeckEdit(i18n._(msg`Create ${tag} tag`), () => addCustomTag(tag))
+                      executeDeckEdit(`Create ${tag} tag`, () => addCustomTag(tag))
                     }
                     onRemoveTag={(tag) =>
-                      executeDeckEdit(i18n._(msg`Remove ${tag} tag`), () => removeCustomTag(tag))
+                      executeDeckEdit(`Remove ${tag} tag`, () => removeCustomTag(tag))
                     }
                     selectedCards={selectedCards}
                     onSelectCard={handleSelectCard}
@@ -2420,7 +2198,7 @@ export function DeckBuilder({
                     )}
                   />
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    <Trans>Deck Analysis</Trans>
+                    Deck Analysis
                   </span>
                   <div className="h-px flex-1 bg-border/60" />
                 </button>
@@ -2484,7 +2262,7 @@ export function DeckBuilder({
               useDeckStore.setState({ currentDeck: deck }),
             );
             setCheckpointsOpen(false);
-            toast.success(i18n._(msg`Restored "${checkpointName}"`));
+            toast.success(`Restored "${checkpointName}"`);
           }}
         />
         <SideboardPlansDialog open={sideboardPlansOpen} onOpenChange={setSideboardPlansOpen} />
@@ -2510,8 +2288,8 @@ export function DeckBuilder({
             "absolute bottom-4 right-4 z-50 h-10 w-10 rounded-full border shadow-lg",
             selectedCards.size > 0 && "bottom-20",
           )}
-          title={i18n._(msg`Back to top`)}
-          aria-label={i18n._(msg`Back to top`)}
+          title={`Back to top`}
+          aria-label={`Back to top`}
           onClick={() => editorScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
         >
           <ArrowUp className="h-4 w-4" />
@@ -2692,7 +2470,7 @@ export function DeckBuilder({
               onRestore={(deck, versionNo) => {
                 useDeckStore.getState().loadDeck(deck);
                 resetDeckHistory();
-                toast.info(i18n._(msg`Version ${versionNo} loaded. Save to create a new version.`));
+                toast.info(`Version ${versionNo} loaded. Save to create a new version.`);
               }}
             />
           )}
@@ -2712,14 +2490,10 @@ export function DeckBuilder({
         {confirmClear && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay/50 backdrop-blur-sm">
             <div className="bg-card border rounded-xl shadow-xl p-6 max-w-sm space-y-4">
-              <h3 className="text-lg font-semibold">
-                <Trans>Clear Deck</Trans>
-              </h3>
+              <h3 className="text-lg font-semibold">Clear Deck</h3>
               <p className="text-sm text-muted-foreground">
-                <Trans>
-                  Are you sure you want to clear &quot;{currentDeck.name}&quot;? This will remove
-                  all cards and delete the saved deck.
-                </Trans>
+                Are you sure you want to clear &quot;{currentDeck.name}&quot;? This will remove all
+                cards and delete the saved deck.
               </p>
               <div className="flex justify-end gap-2">
                 <Button
@@ -2728,7 +2502,7 @@ export function DeckBuilder({
                   disabled={isDeleting}
                   onClick={() => setConfirmClear(false)}
                 >
-                  <Trans>Cancel</Trans>
+                  Cancel
                 </Button>
                 <Button
                   variant="destructive"
@@ -2736,7 +2510,7 @@ export function DeckBuilder({
                   disabled={isDeleting}
                   onClick={() => void handleDeleteCurrentDeck()}
                 >
-                  {isDeleting ? i18n._(msg`Deleting\u2026`) : i18n._(msg`Delete`)}
+                  {isDeleting ? `Deleting\u2026` : `Delete`}
                 </Button>
               </div>
             </div>

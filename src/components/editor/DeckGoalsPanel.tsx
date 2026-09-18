@@ -8,15 +8,12 @@ import type { DeckEditorGoals } from "@/types/manabrew";
 import { cn } from "@/lib/utils";
 import { EDITOR_PANEL_CLASS, EDITOR_SUBTLE_BLOCK_CLASS } from "./deckEditor.styles";
 import { useDeckEditTransaction } from "./useDeckEditTransaction";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export function DeckGoalsPanel() {
   const deck = useDeckStore((state) => state.currentDeck);
   const setEditorMetadata = useDeckStore((state) => state.setEditorMetadata);
   const quantities = useCollectionStore((state) => state.quantities);
   const goals = deck.editor?.goals ?? {};
-  const goalEdit = useDeckEditTransaction(i18n._(msg`Update deck goals`));
+  const goalEdit = useDeckEditTransaction(`Update deck goals`);
   const lands = deck.cards.filter((card) => isLand(card.types)).length;
   const nonlands = deck.cards.filter((card) => !isLand(card.types));
   const averageManaValue = nonlands.length
@@ -54,33 +51,25 @@ export function DeckGoalsPanel() {
   const rows = [
     {
       key: "minLands" as const,
-      get label() {
-        return i18n._(msg`Minimum lands`);
-      },
+      label: `Minimum lands`,
       current: lands,
       met: lands >= (goals.minLands ?? 0),
     },
     {
       key: "maxLands" as const,
-      get label() {
-        return i18n._(msg`Maximum lands`);
-      },
+      label: `Maximum lands`,
       current: lands,
       met: lands <= (goals.maxLands ?? Infinity),
     },
     {
       key: "maxMissingCards" as const,
-      get label() {
-        return i18n._(msg`Maximum missing cards`);
-      },
+      label: `Maximum missing cards`,
       current: missing,
       met: missing <= (goals.maxMissingCards ?? Infinity),
     },
     {
       key: "maxAverageManaValue" as const,
-      get label() {
-        return i18n._(msg`Maximum average mana value`);
-      },
+      label: `Maximum average mana value`,
       current: averageManaValue.toFixed(2),
       met: averageManaValue <= (goals.maxAverageManaValue ?? Infinity),
       step: "0.1",
@@ -91,11 +80,9 @@ export function DeckGoalsPanel() {
       <div className="mb-3 flex items-center gap-2">
         <Target className="h-4 w-4 text-primary" />
         <div>
-          <h3 className="text-sm font-semibold">
-            <Trans>Deck goals</Trans>
-          </h3>
+          <h3 className="text-sm font-semibold">Deck goals</h3>
           <p className="text-[10px] text-muted-foreground">
-            <Trans>Optional targets, separate from legality.</Trans>
+            Optional targets, separate from legality.
           </p>
         </div>
       </div>
@@ -117,7 +104,7 @@ export function DeckGoalsPanel() {
               onFocus={goalEdit.begin}
               onChange={(event) => update(row.key, event.target.value)}
               onBlur={goalEdit.commit}
-              placeholder={i18n._(msg`Any`)}
+              placeholder={`Any`}
             />
           </label>
         ))}
@@ -131,9 +118,7 @@ export function DeckGoalsPanel() {
             const target = goals.tagTargets?.[tag];
             return (
               <label key={tag} className={cn("flex items-center gap-2", EDITOR_SUBTLE_BLOCK_CLASS)}>
-                <span className="min-w-0 flex-1 truncate text-xs">
-                  <Trans>{tag} target</Trans>
-                </span>
+                <span className="min-w-0 flex-1 truncate text-xs">{tag} target</span>
                 <span
                   className={cn(
                     "text-xs font-mono",
@@ -152,7 +137,7 @@ export function DeckGoalsPanel() {
                   onFocus={goalEdit.begin}
                   onChange={(event) => updateTagTarget(tag, event.target.value)}
                   onBlur={goalEdit.commit}
-                  placeholder={i18n._(msg`Any`)}
+                  placeholder={`Any`}
                 />
               </label>
             );

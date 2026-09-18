@@ -12,9 +12,6 @@ import {
 import { cn } from "@/lib/utils";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import { GameIcon } from "./GameIcon";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export function TurnTimer({ className }: { className?: string }) {
   const session = useCompanionStore((s) => s.session);
   const startTimer = useCompanionStore((s) => s.startTimer);
@@ -64,8 +61,8 @@ export function TurnTimer({ className }: { className?: string }) {
         variant="ghost"
         className={cn("size-8 rounded-md bg-muted/60", className)}
         onClick={() => startTimer()}
-        aria-label={i18n._(msg`Start timer`)}
-        title={i18n._(msg`Start timer`)}
+        aria-label={`Start timer`}
+        title={`Start timer`}
       >
         <GameIcon icon="sands-of-time" className="size-3.5 text-muted-foreground" />
       </Button>
@@ -85,33 +82,27 @@ export function TurnTimer({ className }: { className?: string }) {
             variant="ghost"
             className="size-6"
             aria-label={
-              session.timerMode === "chess"
-                ? i18n._(msg`Timer mode: chess clock`)
-                : i18n._(msg`Timer mode: shared`)
+              session.timerMode === "chess" ? `Timer mode: chess clock` : `Timer mode: shared`
             }
-            title={
-              session.timerMode === "chess" ? i18n._(msg`Chess clock`) : i18n._(msg`Shared clock`)
-            }
+            title={session.timerMode === "chess" ? `Chess clock` : `Shared clock`}
           >
             <GameIcon icon="sands-of-time" className="size-3.5 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          <DropdownMenuLabel>
-            <Trans>Timer mode</Trans>
-          </DropdownMenuLabel>
+          <DropdownMenuLabel>Timer mode</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onSelect={() => setTimerMode("shared")}
             className={cn(session.timerMode === "shared" && "bg-accent")}
           >
-            <Trans>Shared game clock</Trans>
+            Shared game clock
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => setTimerMode("chess")}
             className={cn(session.timerMode === "chess" && "bg-accent")}
           >
-            <Trans>Per-player chess clock</Trans>
+            Per-player chess clock
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -123,7 +114,7 @@ export function TurnTimer({ className }: { className?: string }) {
         variant="ghost"
         className="size-6"
         onClick={() => (running ? pauseTimer() : startTimer())}
-        aria-label={running ? i18n._(msg`Pause timer`) : i18n._(msg`Resume timer`)}
+        aria-label={running ? `Pause timer` : `Resume timer`}
       >
         {running ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
       </Button>
@@ -132,7 +123,7 @@ export function TurnTimer({ className }: { className?: string }) {
         variant="ghost"
         className="size-6"
         onClick={resetTimer}
-        aria-label={i18n._(msg`Reset timer`)}
+        aria-label={`Reset timer`}
       >
         <RotateCcw className="size-3.5" />
       </Button>

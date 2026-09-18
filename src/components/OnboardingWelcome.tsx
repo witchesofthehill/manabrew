@@ -7,9 +7,6 @@ import { isFeatureEnabled } from "@/featureFlags";
 import { isNameClaimedError, reserveGuestName } from "@/lib/guestName";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 
 type Step = "nickname" | "signin" | "hurray";
 
@@ -76,17 +73,17 @@ export function OnboardingWelcome({ onComplete }: { onComplete: () => void }) {
           htmlFor="onboarding-nickname"
           className="block text-center text-sm font-semibold text-foreground"
         >
-          <Trans>Choose your nickname</Trans>
+          Choose your nickname
         </label>
         <p className="text-center text-xs text-muted-foreground">
-          <Trans>Other players will see this name when you connect to a server.</Trans>
+          Other players will see this name when you connect to a server.
         </p>
         <Input
           id="onboarding-nickname"
           autoFocus
           value={nickname}
           maxLength={NICKNAME_MAX_LENGTH}
-          placeholder={i18n._(msg`e.g. StormCrow`)}
+          placeholder={`e.g. StormCrow`}
           onChange={(event) => {
             setNickname(event.target.value);
             if (error) setError(null);

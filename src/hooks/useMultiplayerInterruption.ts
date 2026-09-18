@@ -4,8 +4,6 @@ import { getPlatform } from "@/platform";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { DEFAULT_RECONNECT_TIMEOUT_S } from "@/types/server";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 // When it's our own connection that dropped (relay restart/deploy included),
 // give the full 120s the engine allows before auto-passing prompts, instead of
 // the room's opponent-facing reconnect window. The post-restart rejoin loop
@@ -53,7 +51,7 @@ export function useMultiplayerInterruption(): MultiplayerInterruption {
       }
       concededSlots.current.add(gp.id);
       void platform.game.sendDirective({ playerSlot: gp.id, directive: { type: "concede" } });
-      toast.info(i18n._(msg`${gp.name}'s seat was forfeited — conceded.`));
+      toast.info(`${gp.name}'s seat was forfeited — conceded.`);
     }
   }, [isEngineHost, isMultiplayer, isGameActive, gameOver, roomSeats, gamePlayers]);
   const selfDisconnected = reconnectPhase === "reconnecting";
@@ -86,7 +84,7 @@ export function useMultiplayerInterruption(): MultiplayerInterruption {
         expiredRef.current = true;
         if (selfDisconnected) {
           // Our own socket never came back — nothing left to wait for.
-          toast.error(i18n._(msg`Game aborted \u2014 connection could not be restored.`));
+          toast.error(`Game aborted \u2014 connection could not be restored.`);
           void useGameStore.getState().endGame();
           return;
         }
@@ -97,7 +95,7 @@ export function useMultiplayerInterruption(): MultiplayerInterruption {
         );
         if (room && gone.some((p) => p.username === room.host)) {
           // The engine host itself is gone: the game cannot continue.
-          toast.error(i18n._(msg`Game aborted \u2014 the host did not reconnect in time.`));
+          toast.error(`Game aborted \u2014 the host did not reconnect in time.`);
           void useGameStore.getState().endGame();
         }
       }

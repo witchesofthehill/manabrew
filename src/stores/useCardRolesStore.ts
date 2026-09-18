@@ -1,45 +1,23 @@
 import { create } from "zustand";
 import { getPlatform } from "@/platform";
 import type { DeckCard } from "@/protocol/deck";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export const CARD_ROLE_LABELS: Record<string, string> = {
   get "card-draw"() {
-    return i18n._(msg`Card draw`);
+    return `Card draw`;
   },
-  get counterspell() {
-    return i18n._(msg`Counterspell`);
-  },
-  get counters() {
-    return i18n._(msg`Counters`);
-  },
-  get discard() {
-    return i18n._(msg`Discard`);
-  },
-  get interaction() {
-    return i18n._(msg`Interaction`);
-  },
-  get lifegain() {
-    return i18n._(msg`Lifegain`);
-  },
-  get protection() {
-    return i18n._(msg`Protection`);
-  },
-  get ramp() {
-    return i18n._(msg`Ramp`);
-  },
-  get recursion() {
-    return i18n._(msg`Recursion`);
-  },
-  get removal() {
-    return i18n._(msg`Removal`);
-  },
+  counterspell: `Counterspell`,
+  counters: `Counters`,
+  discard: `Discard`,
+  interaction: `Interaction`,
+  lifegain: `Lifegain`,
+  protection: `Protection`,
+  ramp: `Ramp`,
+  recursion: `Recursion`,
+  removal: `Removal`,
   get "token-maker"() {
-    return i18n._(msg`Token maker`);
+    return `Token maker`;
   },
-  get tutor() {
-    return i18n._(msg`Tutor`);
-  },
+  tutor: `Tutor`,
 };
 interface CardRolesState {
   roles: Record<string, string[]>;

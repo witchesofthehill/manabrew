@@ -1,6 +1,4 @@
 import { cn } from "@/lib/utils";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface DieShapeProps {
   sides: number;
   value: number;
@@ -53,7 +51,7 @@ export function DieShape({
   // flat-top for even-vertex shapes (square, hexagon, octagon).
   const rotation = vertexCount % 2 === 1 ? -90 : -90 + 180 / vertexCount;
   const points = polygonPath(vertexCount, rotation);
-  const label = sides === 100 ? i18n._(msg`${value}%`) : i18n._(msg`${value}`);
+  const label = sides === 100 ? `${value}%` : `${value}`;
   const stroke = accentColor ?? "var(--primary)";
   return (
     <div

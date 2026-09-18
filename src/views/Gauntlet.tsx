@@ -20,9 +20,6 @@ import { arm as armGauntletReturn, clear as clearGauntletReturn } from "@/lib/ga
 import type { DraftCard, GauntletMatchDecks } from "@/types/limited";
 import { resolveDeckCards } from "@/lib/limited.utils";
 import type { Deck, DeckFormat } from "@/protocol/deck";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 async function buildGauntletDeck(
   name: string,
   main: DraftCard[],
@@ -73,9 +70,7 @@ export default function Gauntlet() {
         {lastError ? (
           <p className="text-destructive">{lastError}</p>
         ) : (
-          <p className="text-muted-foreground">
-            <Trans>Loading gauntlet…</Trans>
-          </p>
+          <p className="text-muted-foreground">Loading gauntlet…</p>
         )}
       </div>
     );
@@ -122,7 +117,7 @@ export default function Gauntlet() {
       }
       navigate(ROUTES.PLAY);
     } catch (err) {
-      toast.error(i18n._(msg`Failed to launch match: ${String(err)}`));
+      toast.error(`Failed to launch match: ${String(err)}`);
     } finally {
       setLaunchingMatch(false);
     }
@@ -134,17 +129,17 @@ export default function Gauntlet() {
       setMatchDecks(decks);
       setSideboardOpen(true);
     } catch (err) {
-      toast.error(i18n._(msg`Failed to load decks: ${String(err)}`));
+      toast.error(`Failed to load decks: ${String(err)}`);
     }
   };
   const handleSaveSideboard = async (deck: { main: DraftCard[]; sideboard: DraftCard[] }) => {
     if (!gauntletId) return;
     try {
       await updateHumanDeck(gauntletId, deck.main, deck.sideboard);
-      toast.success(i18n._(msg`Sideboard updated.`));
+      toast.success(`Sideboard updated.`);
       setSideboardOpen(false);
     } catch (err) {
-      toast.error(i18n._(msg`Failed to save sideboard: ${String(err)}`));
+      toast.error(`Failed to save sideboard: ${String(err)}`);
     }
   };
   return (
@@ -152,22 +147,18 @@ export default function Gauntlet() {
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm">
           <p className="font-semibold text-foreground">
-            {activeGauntlet.kind === "sealed"
-              ? i18n._(msg`Sealed gauntlet`)
-              : i18n._(msg`Draft gauntlet`)}
+            {activeGauntlet.kind === "sealed" ? `Sealed gauntlet` : `Draft gauntlet`}
           </p>
           <p className="text-muted-foreground">
-            <Trans>
-              Round {activeGauntlet.currentRound} / {activeGauntlet.rounds} · Wins{" "}
-              {activeGauntlet.wins} · Losses {activeGauntlet.losses}
-            </Trans>
-            {activeGauntlet.completed ? i18n._(msg` · Complete`) : null}
+            Round {activeGauntlet.currentRound} / {activeGauntlet.rounds} · Wins{" "}
+            {activeGauntlet.wins} · Losses {activeGauntlet.losses}
+            {activeGauntlet.completed ? ` · Complete` : null}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {!activeGauntlet.completed && (
             <Button variant="outline" onClick={handleOpenSideboard}>
-              <Trans>Sideboard</Trans>
+              Sideboard
             </Button>
           )}
         </div>
@@ -176,44 +167,36 @@ export default function Gauntlet() {
       <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-[1fr_320px]">
         <section className="overflow-y-auto rounded-md border border-border/70 p-4">
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            <Trans>Current Opponent</Trans>
+            Current Opponent
           </h2>
           {activeGauntlet.currentOpponent ? (
             <div className="space-y-2 text-sm">
               <p className="font-semibold">
-                <Trans>
-                  Round {activeGauntlet.currentOpponent.round} —{" "}
-                  {activeGauntlet.currentOpponent.deckName}
-                </Trans>
+                Round {activeGauntlet.currentOpponent.round} —{" "}
+                {activeGauntlet.currentOpponent.deckName}
               </p>
               <p className="text-muted-foreground">
-                <Trans>
-                  {activeGauntlet.currentOpponent.mainCount} main /{" "}
-                  {activeGauntlet.currentOpponent.sideboardCount} sideboard
-                </Trans>
+                {activeGauntlet.currentOpponent.mainCount} main /{" "}
+                {activeGauntlet.currentOpponent.sideboardCount} sideboard
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button variant="primary" onClick={handlePlayMatch} disabled={launchingMatch}>
-                  {launchingMatch ? i18n._(msg`Launching\u2026`) : i18n._(msg`Play Match`)}
+                  {launchingMatch ? `Launching\u2026` : `Play Match`}
                 </Button>
                 <Button variant="outline" onClick={() => handleManualOutcome(true)}>
-                  <Trans>Mark Win</Trans>
+                  Mark Win
                 </Button>
                 <Button variant="outline" onClick={() => handleManualOutcome(false)}>
-                  <Trans>Mark Loss</Trans>
+                  Mark Loss
                 </Button>
               </div>
               <p className="mt-3 text-xs text-muted-foreground">
-                <Trans>
-                  "Play Match" launches the in-app game board with the current decks. Report the
-                  outcome here once the match completes.
-                </Trans>
+                "Play Match" launches the in-app game board with the current decks. Report the
+                outcome here once the match completes.
               </p>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              <Trans>No opponent — gauntlet finished.</Trans>
-            </p>
+            <p className="text-sm text-muted-foreground">No opponent — gauntlet finished.</p>
           )}
 
           {pendingMessage && (
@@ -222,10 +205,10 @@ export default function Gauntlet() {
               {!activeGauntlet.completed && (
                 <div className="mt-2 flex gap-2">
                   <Button onClick={handleOpenSideboard} variant="outline">
-                    <Trans>Sideboard before next round</Trans>
+                    Sideboard before next round
                   </Button>
                   <Button variant="primary" onClick={handleAdvance}>
-                    <Trans>Next Round</Trans>
+                    Next Round
                   </Button>
                 </div>
               )}
@@ -237,14 +220,14 @@ export default function Gauntlet() {
           <section className="rounded-md border border-border/70 p-4">
             <div className="mb-2 flex items-baseline justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                <Trans>Bracket</Trans>
+                Bracket
               </h2>
               <div className="flex items-center gap-1.5 text-[11px]">
                 <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-300">
-                  <Trans>{activeGauntlet.wins}W</Trans>
+                  {activeGauntlet.wins}W
                 </span>
                 <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-destructive">
-                  <Trans>{activeGauntlet.losses}L</Trans>
+                  {activeGauntlet.losses}L
                 </span>
               </div>
             </div>
@@ -309,14 +292,10 @@ export default function Gauntlet() {
       <Dialog open={sideboardOpen} onOpenChange={setSideboardOpen}>
         <DialogContent className="max-w-[min(95vw,1400px)] sm:rounded-lg">
           <DialogHeader>
-            <DialogTitle>
-              <Trans>Sideboard for round {activeGauntlet.currentRound}</Trans>
-            </DialogTitle>
+            <DialogTitle>Sideboard for round {activeGauntlet.currentRound}</DialogTitle>
             <DialogDescription>
-              <Trans>
-                Swap cards between your main deck and sideboard. Saved changes apply to subsequent
-                gauntlet matches.
-              </Trans>
+              Swap cards between your main deck and sideboard. Saved changes apply to subsequent
+              gauntlet matches.
             </DialogDescription>
           </DialogHeader>
           {matchDecks ? (
@@ -328,18 +307,16 @@ export default function Gauntlet() {
                 defaultDeckName={matchDecks.humanDeckName}
                 format={activeGauntlet.kind === "sealed" ? "sealed" : "draft"}
                 requireCompleteToSave
-                confirmLabel={i18n._(msg`Save sideboard`)}
+                confirmLabel={`Save sideboard`}
                 onConfirm={handleSaveSideboard}
               />
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              <Trans>Loading decks…</Trans>
-            </p>
+            <p className="text-sm text-muted-foreground">Loading decks…</p>
           )}
           <DialogFooter>
             <Button variant="ghost" onClick={() => setSideboardOpen(false)}>
-              <Trans>Cancel</Trans>
+              Cancel
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -350,13 +327,13 @@ export default function Gauntlet() {
 function outcomeMessage(kind: string, nextRound: number | null): string {
   switch (kind) {
     case "matchInProgress":
-      return i18n._(msg`Match still in progress \u2014 record the next game.`);
+      return `Match still in progress \u2014 record the next game.`;
     case "advanceNextRound":
-      return i18n._(msg`Match won! Advance to round ${nextRound!}.`);
+      return `Match won! Advance to round ${nextRound!}.`;
     case "wonTournament":
-      return i18n._(msg`Tournament won \u2014 congrats.`);
+      return `Tournament won \u2014 congrats.`;
     case "lostRound":
-      return i18n._(msg`Match lost \u2014 gauntlet over.`);
+      return `Match lost \u2014 gauntlet over.`;
     default:
       return kind;
   }

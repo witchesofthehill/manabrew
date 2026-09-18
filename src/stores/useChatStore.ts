@@ -12,8 +12,6 @@ import type {
   ServerErrorCode,
   ServerErrorPayload,
 } from "@/types/server";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export interface ChatEntry {
   id: number;
   from: string;
@@ -65,7 +63,7 @@ export const useChatStore = create<ChatState>()(
         const server = getPlatform().server;
         if (!server) return;
         if (!useServerStore.getState().hasRelayFeature(RELAY_FEATURE.Chat)) {
-          toast.error(i18n._(msg`This relay doesn't support chat`));
+          toast.error(`This relay doesn't support chat`);
           return;
         }
         set({ lastSentScope: scope });

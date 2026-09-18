@@ -29,131 +29,84 @@ import { ScryfallImg } from "@/components/ScryfallImg";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import type { ManaCode } from "@/types/scryfall";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const COLOR_FILTERS = [
   {
     id: "W",
-    get label() {
-      return i18n._(msg`W`);
-    },
+    label: `W`,
     scryfall: "c:w",
-    get title() {
-      return i18n._(msg`White`);
-    },
+    title: `White`,
   },
   {
     id: "U",
-    get label() {
-      return i18n._(msg`U`);
-    },
+    label: `U`,
     scryfall: "c:u",
-    get title() {
-      return i18n._(msg`Blue`);
-    },
+    title: `Blue`,
   },
   {
     id: "B",
-    get label() {
-      return i18n._(msg`B`);
-    },
+    label: `B`,
     scryfall: "c:b",
-    get title() {
-      return i18n._(msg`Black`);
-    },
+    title: `Black`,
   },
   {
     id: "R",
-    get label() {
-      return i18n._(msg`R`);
-    },
+    label: `R`,
     scryfall: "c:r",
-    get title() {
-      return i18n._(msg`Red`);
-    },
+    title: `Red`,
   },
   {
     id: "G",
-    get label() {
-      return i18n._(msg`G`);
-    },
+    label: `G`,
     scryfall: "c:g",
-    get title() {
-      return i18n._(msg`Green`);
-    },
+    title: `Green`,
   },
   {
     id: "C",
-    get label() {
-      return i18n._(msg`C`);
-    },
+    label: `C`,
     scryfall: "c:c",
-    get title() {
-      return i18n._(msg`Colorless`);
-    },
+    title: `Colorless`,
   },
   {
     id: "M",
-    get label() {
-      return i18n._(msg`M`);
-    },
+    label: `M`,
     scryfall: "c:m",
-    get title() {
-      return i18n._(msg`Multicolor`);
-    },
+    title: `Multicolor`,
   },
 ] as const;
 const TYPE_FILTERS = [
   {
     id: "Creature",
-    get label() {
-      return i18n._(msg`Creature`);
-    },
+    label: `Creature`,
   },
   {
     id: "Land",
-    get label() {
-      return i18n._(msg`Land`);
-    },
+    label: `Land`,
   },
   {
     id: "Instant",
-    get label() {
-      return i18n._(msg`Instant`);
-    },
+    label: `Instant`,
   },
   {
     id: "Sorcery",
-    get label() {
-      return i18n._(msg`Sorcery`);
-    },
+    label: `Sorcery`,
   },
   {
     id: "Enchantment",
-    get label() {
-      return i18n._(msg`Enchant.`);
-    },
+    label: `Enchant.`,
   },
   {
     id: "Artifact",
-    get label() {
-      return i18n._(msg`Artifact`);
-    },
+    label: `Artifact`,
   },
   {
     id: "Planeswalker",
-    get label() {
-      return i18n._(msg`PW`);
-    },
+    label: `PW`,
   },
 ] as const;
 const CMC_FILTERS = [
   {
     id: "any",
-    get label() {
-      return i18n._(msg`Any`);
-    },
+    label: `Any`,
   },
   { id: "0", label: "0" },
   { id: "1", label: "1" },
@@ -166,373 +119,241 @@ const CMC_FILTERS = [
 const RARITY_FILTERS = [
   {
     id: "common",
-    get label() {
-      return i18n._(msg`C`);
-    },
-    get title() {
-      return i18n._(msg`Common`);
-    },
+    label: `C`,
+    title: `Common`,
   },
   {
     id: "uncommon",
-    get label() {
-      return i18n._(msg`U`);
-    },
-    get title() {
-      return i18n._(msg`Uncommon`);
-    },
+    label: `U`,
+    title: `Uncommon`,
   },
   {
     id: "rare",
-    get label() {
-      return i18n._(msg`R`);
-    },
-    get title() {
-      return i18n._(msg`Rare`);
-    },
+    label: `R`,
+    title: `Rare`,
   },
   {
     id: "mythic",
-    get label() {
-      return i18n._(msg`M`);
-    },
-    get title() {
-      return i18n._(msg`Mythic`);
-    },
+    label: `M`,
+    title: `Mythic`,
   },
 ] as const;
 const FORMAT_FILTERS = [
   {
     id: "standard",
-    get label() {
-      return i18n._(msg`Standard`);
-    },
+    label: `Standard`,
   },
   {
     id: "pioneer",
-    get label() {
-      return i18n._(msg`Pioneer`);
-    },
+    label: `Pioneer`,
   },
   {
     id: "modern",
-    get label() {
-      return i18n._(msg`Modern`);
-    },
+    label: `Modern`,
   },
   {
     id: "legacy",
-    get label() {
-      return i18n._(msg`Legacy`);
-    },
+    label: `Legacy`,
   },
   {
     id: "vintage",
-    get label() {
-      return i18n._(msg`Vintage`);
-    },
+    label: `Vintage`,
   },
   {
     id: "commander",
-    get label() {
-      return i18n._(msg`Commander`);
-    },
+    label: `Commander`,
   },
   {
     id: "pauper",
-    get label() {
-      return i18n._(msg`Pauper`);
-    },
+    label: `Pauper`,
   },
   {
     id: "premodern",
-    get label() {
-      return i18n._(msg`Premodern`);
-    },
+    label: `Premodern`,
   },
   {
     id: "historic",
-    get label() {
-      return i18n._(msg`Historic`);
-    },
+    label: `Historic`,
   },
   {
     id: "brawl",
-    get label() {
-      return i18n._(msg`Brawl`);
-    },
+    label: `Brawl`,
   },
   {
     id: "alchemy",
-    get label() {
-      return i18n._(msg`Alchemy`);
-    },
+    label: `Alchemy`,
   },
   {
     id: "explorer",
-    get label() {
-      return i18n._(msg`Explorer`);
-    },
+    label: `Explorer`,
   },
   {
     id: "penny",
-    get label() {
-      return i18n._(msg`Penny`);
-    },
+    label: `Penny`,
   },
   {
     id: "oathbreaker",
-    get label() {
-      return i18n._(msg`Oathbreaker`);
-    },
+    label: `Oathbreaker`,
   },
 ] as const;
 const COLOR_IDENTITY_FILTERS = [
   {
     id: "W",
-    get label() {
-      return i18n._(msg`W`);
-    },
+    label: `W`,
     scryfall: "id:w",
-    get title() {
-      return i18n._(msg`White`);
-    },
+    title: `White`,
   },
   {
     id: "U",
-    get label() {
-      return i18n._(msg`U`);
-    },
+    label: `U`,
     scryfall: "id:u",
-    get title() {
-      return i18n._(msg`Blue`);
-    },
+    title: `Blue`,
   },
   {
     id: "B",
-    get label() {
-      return i18n._(msg`B`);
-    },
+    label: `B`,
     scryfall: "id:b",
-    get title() {
-      return i18n._(msg`Black`);
-    },
+    title: `Black`,
   },
   {
     id: "R",
-    get label() {
-      return i18n._(msg`R`);
-    },
+    label: `R`,
     scryfall: "id:r",
-    get title() {
-      return i18n._(msg`Red`);
-    },
+    title: `Red`,
   },
   {
     id: "G",
-    get label() {
-      return i18n._(msg`G`);
-    },
+    label: `G`,
     scryfall: "id:g",
-    get title() {
-      return i18n._(msg`Green`);
-    },
+    title: `Green`,
   },
 ] as const;
 const PRODUCES_FILTERS = [
   {
     id: "W",
-    get label() {
-      return i18n._(msg`W`);
-    },
-    get title() {
-      return i18n._(msg`White`);
-    },
+    label: `W`,
+    title: `White`,
   },
   {
     id: "U",
-    get label() {
-      return i18n._(msg`U`);
-    },
-    get title() {
-      return i18n._(msg`Blue`);
-    },
+    label: `U`,
+    title: `Blue`,
   },
   {
     id: "B",
-    get label() {
-      return i18n._(msg`B`);
-    },
-    get title() {
-      return i18n._(msg`Black`);
-    },
+    label: `B`,
+    title: `Black`,
   },
   {
     id: "R",
-    get label() {
-      return i18n._(msg`R`);
-    },
-    get title() {
-      return i18n._(msg`Red`);
-    },
+    label: `R`,
+    title: `Red`,
   },
   {
     id: "G",
-    get label() {
-      return i18n._(msg`G`);
-    },
-    get title() {
-      return i18n._(msg`Green`);
-    },
+    label: `G`,
+    title: `Green`,
   },
   {
     id: "C",
-    get label() {
-      return i18n._(msg`C`);
-    },
-    get title() {
-      return i18n._(msg`Colorless`);
-    },
+    label: `C`,
+    title: `Colorless`,
   },
 ] as const;
 const FRAME_FILTERS = [
   {
     id: "old",
-    get label() {
-      return i18n._(msg`Old`);
-    },
+    label: `Old`,
   },
   {
     id: "modern",
-    get label() {
-      return i18n._(msg`Modern`);
-    },
+    label: `Modern`,
   },
   {
     id: "future",
-    get label() {
-      return i18n._(msg`Future`);
-    },
+    label: `Future`,
   },
 ] as const;
 const BORDER_FILTERS = [
   {
     id: "black",
-    get label() {
-      return i18n._(msg`Black`);
-    },
+    label: `Black`,
   },
   {
     id: "white",
-    get label() {
-      return i18n._(msg`White`);
-    },
+    label: `White`,
   },
   {
     id: "borderless",
-    get label() {
-      return i18n._(msg`Borderless`);
-    },
+    label: `Borderless`,
   },
   {
     id: "gold",
-    get label() {
-      return i18n._(msg`Gold`);
-    },
+    label: `Gold`,
   },
 ] as const;
 const GAME_FILTERS = [
   {
     id: "paper",
-    get label() {
-      return i18n._(msg`Paper`);
-    },
+    label: `Paper`,
   },
   {
     id: "arena",
-    get label() {
-      return i18n._(msg`Arena`);
-    },
+    label: `Arena`,
   },
   {
     id: "mtgo",
-    get label() {
-      return i18n._(msg`MTGO`);
-    },
+    label: `MTGO`,
   },
 ] as const;
 const SORT_OPTIONS = [
   {
     id: "cmc",
-    get label() {
-      return i18n._(msg`Mana Value`);
-    },
+    label: `Mana Value`,
   },
   {
     id: "name",
-    get label() {
-      return i18n._(msg`Name`);
-    },
+    label: `Name`,
   },
   {
     id: "set",
-    get label() {
-      return i18n._(msg`Set`);
-    },
+    label: `Set`,
   },
   {
     id: "released",
-    get label() {
-      return i18n._(msg`Release Date`);
-    },
+    label: `Release Date`,
   },
   {
     id: "rarity",
-    get label() {
-      return i18n._(msg`Rarity`);
-    },
+    label: `Rarity`,
   },
   {
     id: "color",
-    get label() {
-      return i18n._(msg`Color`);
-    },
+    label: `Color`,
   },
   {
     id: "power",
-    get label() {
-      return i18n._(msg`Power`);
-    },
+    label: `Power`,
   },
   {
     id: "toughness",
-    get label() {
-      return i18n._(msg`Toughness`);
-    },
+    label: `Toughness`,
   },
   {
     id: "edhrec",
-    get label() {
-      return i18n._(msg`EDHREC Rank`);
-    },
+    label: `EDHREC Rank`,
   },
   {
     id: "usd",
-    get label() {
-      return i18n._(msg`Price (USD)`);
-    },
+    label: `Price (USD)`,
   },
   {
     id: "eur",
-    get label() {
-      return i18n._(msg`Price (EUR)`);
-    },
+    label: `Price (EUR)`,
   },
   {
     id: "artist",
-    get label() {
-      return i18n._(msg`Artist`);
-    },
+    label: `Artist`,
   },
 ] as const;
 type CmcId = (typeof CMC_FILTERS)[number]["id"];
@@ -591,171 +412,115 @@ const INITIAL_ADVANCED: AdvancedFilters = {
 const IS_FILTERS = [
   {
     id: "transform",
-    get label() {
-      return i18n._(msg`Transform`);
-    },
+    label: `Transform`,
   },
   {
     id: "modal",
-    get label() {
-      return i18n._(msg`Modal DFC`);
-    },
+    label: `Modal DFC`,
   },
   {
     id: "split",
-    get label() {
-      return i18n._(msg`Split`);
-    },
+    label: `Split`,
   },
   {
     id: "flip",
-    get label() {
-      return i18n._(msg`Flip`);
-    },
+    label: `Flip`,
   },
   {
     id: "adventure",
-    get label() {
-      return i18n._(msg`Adventure`);
-    },
+    label: `Adventure`,
   },
   {
     id: "meld",
-    get label() {
-      return i18n._(msg`Meld`);
-    },
+    label: `Meld`,
   },
   {
     id: "saga",
-    get label() {
-      return i18n._(msg`Saga`);
-    },
+    label: `Saga`,
   },
   {
     id: "leveler",
-    get label() {
-      return i18n._(msg`Level Up`);
-    },
+    label: `Level Up`,
   },
   {
     id: "vanilla",
-    get label() {
-      return i18n._(msg`Vanilla`);
-    },
+    label: `Vanilla`,
   },
   {
     id: "token",
-    get label() {
-      return i18n._(msg`Token`);
-    },
+    label: `Token`,
   },
   {
     id: "spell",
-    get label() {
-      return i18n._(msg`Spell`);
-    },
+    label: `Spell`,
   },
   {
     id: "permanent",
-    get label() {
-      return i18n._(msg`Permanent`);
-    },
+    label: `Permanent`,
   },
   {
     id: "foil",
-    get label() {
-      return i18n._(msg`Foil`);
-    },
+    label: `Foil`,
   },
   {
     id: "nonfoil",
-    get label() {
-      return i18n._(msg`Non-Foil`);
-    },
+    label: `Non-Foil`,
   },
   {
     id: "promo",
-    get label() {
-      return i18n._(msg`Promo`);
-    },
+    label: `Promo`,
   },
   {
     id: "digital",
-    get label() {
-      return i18n._(msg`Digital Only`);
-    },
+    label: `Digital Only`,
   },
   {
     id: "textless",
-    get label() {
-      return i18n._(msg`Textless`);
-    },
+    label: `Textless`,
   },
   {
     id: "fullart",
-    get label() {
-      return i18n._(msg`Full Art`);
-    },
+    label: `Full Art`,
   },
   {
     id: "funny",
-    get label() {
-      return i18n._(msg`Un-cards`);
-    },
+    label: `Un-cards`,
   },
   {
     id: "booster",
-    get label() {
-      return i18n._(msg`In Boosters`);
-    },
+    label: `In Boosters`,
   },
   {
     id: "commander",
-    get label() {
-      return i18n._(msg`Commander`);
-    },
+    label: `Commander`,
   },
   {
     id: "reserved",
-    get label() {
-      return i18n._(msg`Reserved List`);
-    },
+    label: `Reserved List`,
   },
   {
     id: "reprint",
-    get label() {
-      return i18n._(msg`Reprint`);
-    },
+    label: `Reprint`,
   },
   {
     id: "firstprint",
-    get label() {
-      return i18n._(msg`First Print`);
-    },
+    label: `First Print`,
   },
   {
     id: "unique",
-    get label() {
-      return i18n._(msg`Unique Art`);
-    },
+    label: `Unique Art`,
   },
   {
     id: "fetchland",
-    get label() {
-      return i18n._(msg`Fetchland`);
-    },
+    label: `Fetchland`,
   },
   {
     id: "dualland",
-    get label() {
-      return i18n._(msg`Dual Land`);
-    },
+    label: `Dual Land`,
   },
   {
     id: "shockland",
-    get label() {
-      return i18n._(msg`Shockland`);
-    },
+    label: `Shockland`,
   },
 ] as const;
 const COMPARISON_OPS = ["=", ">", "<", ">=", "<="] as const;
@@ -953,10 +718,8 @@ function DraggableCardGrid({
               onAdd();
             }}
           >
-            <Trans>
-              <Plus className="h-3 w-3" />
-              Add
-            </Trans>
+            <Plus className="h-3 w-3" />
+            Add
           </Button>
         )}
         <Button
@@ -968,10 +731,8 @@ function DraggableCardGrid({
             onMoreInfo();
           }}
         >
-          <Trans>
-            <Info className="h-3 w-3" />
-            More Info
-          </Trans>
+          <Info className="h-3 w-3" />
+          More Info
         </Button>
       </div>
     </div>
@@ -1038,10 +799,8 @@ function DraggableCardRow({
             onAdd();
           }}
         >
-          <Trans>
-            <Plus className="h-3 w-3" />
-            Add
-          </Trans>
+          <Plus className="h-3 w-3" />
+          Add
         </Button>
       )}
       <Button
@@ -1053,10 +812,8 @@ function DraggableCardRow({
           onMoreInfo();
         }}
       >
-        <Trans>
-          <Info className="h-3 w-3" />
-          Info
-        </Trans>
+        <Info className="h-3 w-3" />
+        Info
       </Button>
     </div>
   );
@@ -1083,7 +840,7 @@ export function CardSearch({
   const addToMain = useDeckStore((s) => s.addToMain);
   const addCard = (card: DeckCard) => {
     addToMain({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
-    toast.success(i18n._(msg`Added ${card.identity.name}`));
+    toast.success(`Added ${card.identity.name}`);
   };
   const [text, setText] = useState("");
   const [debouncedText, setDebouncedText] = useState("");
@@ -1183,7 +940,7 @@ export function CardSearch({
               size="icon"
               variant="ghost"
               className="h-8 w-8 shrink-0"
-              title={i18n._(msg`Close search panel`)}
+              title={`Close search panel`}
               onClick={onClose}
             >
               <PanelRightClose className="h-4 w-4" />
@@ -1191,7 +948,7 @@ export function CardSearch({
           )}
           <Input
             ref={searchInputRef}
-            placeholder={i18n._(msg`Search cards\u2026`)}
+            placeholder={`Search cards\u2026`}
             value={text}
             onChange={(e) => setText(e.target.value)}
             className="flex-1"
@@ -1206,9 +963,7 @@ export function CardSearch({
             onClick={() => setShowFilters((v) => !v)}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
-            <span className="text-xs">
-              <Trans>Filters</Trans>
-            </span>
+            <span className="text-xs">Filters</span>
             {hasActiveFilters && (
               <span className="bg-selection text-selection-foreground text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
                 {basicCount + advCount}
@@ -1218,7 +973,7 @@ export function CardSearch({
           <div className="flex border rounded-md overflow-hidden shrink-0">
             <button
               type="button"
-              title={i18n._(msg`Grid view`)}
+              title={`Grid view`}
               onClick={() => setViewMode("grid")}
               className={cn(
                 "px-2 py-1 text-xs transition-colors",
@@ -1231,7 +986,7 @@ export function CardSearch({
             </button>
             <button
               type="button"
-              title={i18n._(msg`List view`)}
+              title={`List view`}
               onClick={() => setViewMode("list")}
               className={cn(
                 "px-2 py-1 text-xs transition-colors border-l",
@@ -1247,12 +1002,10 @@ export function CardSearch({
 
         {showFilters && (
           <div className="space-y-1 pt-1">
-            <FilterSeparator label={i18n._(msg`Colors & Mana`)} />
+            <FilterSeparator label={`Colors & Mana`} />
 
             <FilterRow>
-              <FilterLabel>
-                <Trans>Color</Trans>
-              </FilterLabel>
+              <FilterLabel>Color</FilterLabel>
               <div className="flex items-center gap-0.5">
                 {COLOR_FILTERS.map((f) =>
                   f.id === "M" ? (
@@ -1262,7 +1015,7 @@ export function CardSearch({
                       onClick={() => toggleColor(f.id)}
                       title={f.title}
                     >
-                      <Trans>M</Trans>
+                      M
                     </FilterBtn>
                   ) : (
                     <ManaFilterBtn
@@ -1278,9 +1031,7 @@ export function CardSearch({
             </FilterRow>
 
             <FilterRow>
-              <FilterLabel>
-                <Trans>Identity</Trans>
-              </FilterLabel>
+              <FilterLabel>Identity</FilterLabel>
               <div className="flex items-center gap-0.5">
                 {COLOR_IDENTITY_FILTERS.map((f) => (
                   <ManaFilterBtn
@@ -1288,16 +1039,14 @@ export function CardSearch({
                     symbol={f.id}
                     active={advanced.colorIdentity.has(f.id)}
                     onClick={() => toggleAdvSet("colorIdentity", f.id)}
-                    title={i18n._(msg`Color Identity: ${f.title}`)}
+                    title={`Color Identity: ${f.title}`}
                   />
                 ))}
               </div>
             </FilterRow>
 
             <FilterRow>
-              <FilterLabel>
-                <Trans>Produces</Trans>
-              </FilterLabel>
+              <FilterLabel>Produces</FilterLabel>
               <div className="flex items-center gap-0.5">
                 {PRODUCES_FILTERS.map((f) => (
                   <ManaFilterBtn
@@ -1305,30 +1054,26 @@ export function CardSearch({
                     symbol={f.id}
                     active={advanced.produces.has(f.id)}
                     onClick={() => toggleAdvSet("produces", f.id)}
-                    title={i18n._(msg`Produces ${f.title} mana`)}
+                    title={`Produces ${f.title} mana`}
                   />
                 ))}
               </div>
             </FilterRow>
 
             <FilterRow>
-              <FilterLabel>
-                <Trans>Mana</Trans>
-              </FilterLabel>
+              <FilterLabel>Mana</FilterLabel>
               <Input
                 className="h-7 text-xs w-40"
-                placeholder={i18n._(msg`e.g. {2}{W}{W}`)}
+                placeholder={`e.g. {2}{W}{W}`}
                 value={advanced.manaCost}
                 onChange={(e) => setAdv("manaCost", e.target.value)}
               />
             </FilterRow>
 
-            <FilterSeparator label={i18n._(msg`Card Properties`)} />
+            <FilterSeparator label={`Card Properties`} />
 
             <FilterRow className="flex-wrap">
-              <FilterLabel>
-                <Trans>Type</Trans>
-              </FilterLabel>
+              <FilterLabel>Type</FilterLabel>
               {TYPE_FILTERS.map((f) => (
                 <FilterBtn
                   key={f.id}
@@ -1341,9 +1086,7 @@ export function CardSearch({
             </FilterRow>
 
             <FilterRow className="flex-wrap">
-              <FilterLabel>
-                <Trans>CMC</Trans>
-              </FilterLabel>
+              <FilterLabel>CMC</FilterLabel>
               {CMC_FILTERS.map((f) => (
                 <FilterBtn
                   key={f.id}
@@ -1356,9 +1099,7 @@ export function CardSearch({
             </FilterRow>
 
             <FilterRow className="flex-wrap">
-              <FilterLabel>
-                <Trans>Rarity</Trans>
-              </FilterLabel>
+              <FilterLabel>Rarity</FilterLabel>
               {RARITY_FILTERS.map((f) => (
                 <FilterBtn
                   key={f.id}
@@ -1372,13 +1113,9 @@ export function CardSearch({
             </FilterRow>
 
             <FilterRow className="flex-wrap">
-              <FilterLabel>
-                <Trans>Stats</Trans>
-              </FilterLabel>
+              <FilterLabel>Stats</FilterLabel>
               <div className="flex items-center gap-1">
-                <span className="text-[10px] text-muted-foreground/60 uppercase">
-                  <Trans>pow</Trans>
-                </span>
+                <span className="text-[10px] text-muted-foreground/60 uppercase">pow</span>
                 <select
                   className="h-6 text-xs pointer-coarse:h-9 pointer-coarse:text-base bg-background border rounded px-1"
                   value={advanced.powerOp}
@@ -1398,9 +1135,7 @@ export function CardSearch({
                 />
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-[10px] text-muted-foreground/60 uppercase">
-                  <Trans>tou</Trans>
-                </span>
+                <span className="text-[10px] text-muted-foreground/60 uppercase">tou</span>
                 <select
                   className="h-6 text-xs pointer-coarse:h-9 pointer-coarse:text-base bg-background border rounded px-1"
                   value={advanced.toughnessOp}
@@ -1420,9 +1155,7 @@ export function CardSearch({
                 />
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-[10px] text-muted-foreground/60 uppercase">
-                  <Trans>loy</Trans>
-                </span>
+                <span className="text-[10px] text-muted-foreground/60 uppercase">loy</span>
                 <select
                   className="h-6 text-xs pointer-coarse:h-9 pointer-coarse:text-base bg-background border rounded px-1"
                   value={advanced.loyaltyOp}
@@ -1443,50 +1176,42 @@ export function CardSearch({
               </div>
             </FilterRow>
 
-            <FilterSeparator label={i18n._(msg`Text Search`)} />
+            <FilterSeparator label={`Text Search`} />
 
             <FilterRow>
-              <FilterLabel>
-                <Trans>Oracle</Trans>
-              </FilterLabel>
+              <FilterLabel>Oracle</FilterLabel>
               <Input
                 className="h-7 text-xs flex-1"
-                placeholder={i18n._(msg`Card text contains\u2026`)}
+                placeholder={`Card text contains\u2026`}
                 value={advanced.oracleText}
                 onChange={(e) => setAdv("oracleText", e.target.value)}
               />
             </FilterRow>
 
             <FilterRow>
-              <FilterLabel>
-                <Trans>Flavor</Trans>
-              </FilterLabel>
+              <FilterLabel>Flavor</FilterLabel>
               <Input
                 className="h-7 text-xs flex-1"
-                placeholder={i18n._(msg`Flavor text contains\u2026`)}
+                placeholder={`Flavor text contains\u2026`}
                 value={advanced.flavorText}
                 onChange={(e) => setAdv("flavorText", e.target.value)}
               />
             </FilterRow>
 
             <FilterRow>
-              <FilterLabel>
-                <Trans>Keyword</Trans>
-              </FilterLabel>
+              <FilterLabel>Keyword</FilterLabel>
               <Input
                 className="h-7 text-xs flex-1"
-                placeholder={i18n._(msg`e.g. flying, haste, deathtouch`)}
+                placeholder={`e.g. flying, haste, deathtouch`}
                 value={advanced.keyword}
                 onChange={(e) => setAdv("keyword", e.target.value)}
               />
             </FilterRow>
 
-            <FilterSeparator label={i18n._(msg`Format & Legality`)} />
+            <FilterSeparator label={`Format & Legality`} />
 
             <FilterRow className="flex-wrap">
-              <FilterLabel>
-                <Trans>Format</Trans>
-              </FilterLabel>
+              <FilterLabel>Format</FilterLabel>
               {FORMAT_FILTERS.map((f) => (
                 <FilterBtn
                   key={f.id}
@@ -1498,25 +1223,19 @@ export function CardSearch({
               ))}
             </FilterRow>
 
-            <FilterSeparator label={i18n._(msg`Printing & Availability`)} />
+            <FilterSeparator label={`Printing & Availability`} />
 
             <FilterRow className="flex-wrap">
-              <FilterLabel>
-                <Trans>Set</Trans>
-              </FilterLabel>
+              <FilterLabel>Set</FilterLabel>
               <SetSelect value={advanced.set} onChange={(v) => setAdv("set", v)} className="w-48" />
-              <FilterLabel>
-                <Trans>Artist</Trans>
-              </FilterLabel>
+              <FilterLabel>Artist</FilterLabel>
               <Input
                 className="h-7 text-xs flex-1"
-                placeholder={i18n._(msg`Artist name\u2026`)}
+                placeholder={`Artist name\u2026`}
                 value={advanced.artist}
                 onChange={(e) => setAdv("artist", e.target.value)}
               />
-              <FilterLabel>
-                <Trans>Year</Trans>
-              </FilterLabel>
+              <FilterLabel>Year</FilterLabel>
               <Input
                 className="h-7 text-xs w-16"
                 placeholder="2024"
@@ -1528,7 +1247,7 @@ export function CardSearch({
             <FilterRow className="flex-wrap gap-3">
               <div className="flex items-center gap-1">
                 <span className="text-[10px] text-muted-foreground/60 uppercase shrink-0">
-                  <Trans>Frame</Trans>
+                  Frame
                 </span>
                 {FRAME_FILTERS.map((f) => (
                   <FilterBtn
@@ -1542,7 +1261,7 @@ export function CardSearch({
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-[10px] text-muted-foreground/60 uppercase shrink-0">
-                  <Trans>Border</Trans>
+                  Border
                 </span>
                 {BORDER_FILTERS.map((f) => (
                   <FilterBtn
@@ -1556,7 +1275,7 @@ export function CardSearch({
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-[10px] text-muted-foreground/60 uppercase shrink-0">
-                  <Trans>Game</Trans>
+                  Game
                 </span>
                 {GAME_FILTERS.map((f) => (
                   <FilterBtn
@@ -1570,23 +1289,21 @@ export function CardSearch({
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-[10px] text-muted-foreground/60 uppercase shrink-0">
-                  <Trans>Lang</Trans>
+                  Lang
                 </span>
                 <Input
                   className="h-6 text-xs w-14"
-                  placeholder={i18n._(msg`en`)}
+                  placeholder={`en`}
                   value={advanced.language}
                   onChange={(e) => setAdv("language", e.target.value)}
                 />
               </div>
             </FilterRow>
 
-            <FilterSeparator label={i18n._(msg`Card Modifiers`)} />
+            <FilterSeparator label={`Card Modifiers`} />
 
             <FilterRow className="flex-wrap">
-              <FilterLabel>
-                <Trans>Is</Trans>
-              </FilterLabel>
+              <FilterLabel>Is</FilterLabel>
               {IS_FILTERS.map((f) => (
                 <FilterBtn
                   key={f.id}
@@ -1598,20 +1315,16 @@ export function CardSearch({
               ))}
             </FilterRow>
 
-            <FilterSeparator label={i18n._(msg`Sort & Order`)} />
+            <FilterSeparator label={`Sort & Order`} />
 
             <FilterRow>
-              <FilterLabel>
-                <Trans>Sort by</Trans>
-              </FilterLabel>
+              <FilterLabel>Sort by</FilterLabel>
               <select
                 className="h-7 text-xs pointer-coarse:h-9 pointer-coarse:text-base bg-background border rounded px-2"
                 value={advanced.sort}
                 onChange={(e) => setAdv("sort", e.target.value)}
               >
-                <option value="">
-                  <Trans>Default (CMC)</Trans>
-                </option>
+                <option value="">Default (CMC)</option>
                 {SORT_OPTIONS.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.label}
@@ -1623,15 +1336,9 @@ export function CardSearch({
                 value={advanced.sortDir}
                 onChange={(e) => setAdv("sortDir", e.target.value)}
               >
-                <option value="auto">
-                  <Trans>Auto</Trans>
-                </option>
-                <option value="asc">
-                  <Trans>Ascending</Trans>
-                </option>
-                <option value="desc">
-                  <Trans>Descending</Trans>
-                </option>
+                <option value="auto">Auto</option>
+                <option value="asc">Ascending</option>
+                <option value="desc">Descending</option>
               </select>
             </FilterRow>
           </div>
@@ -1647,12 +1354,12 @@ export function CardSearch({
           )}
           {status === "error" && (
             <div className="text-center p-8 text-destructive">
-              <Trans>Error fetching cards. Please try again.</Trans>
+              Error fetching cards. Please try again.
             </div>
           )}
           {!effectiveQuery && (
             <p className="text-center text-sm text-muted-foreground py-12">
-              <Trans>Enter a card name or select filters to search.</Trans>
+              Enter a card name or select filters to search.
             </p>
           )}
 

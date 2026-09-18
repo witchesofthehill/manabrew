@@ -6,8 +6,6 @@ import { useDesktopUpdateStore } from "@/stores/useDesktopUpdateStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { useMultiplayerSealedStore } from "@/stores/useMultiplayerSealedStore";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const CHECK_INTERVAL_MS = 60 * 60 * 1000;
 let pendingUpdate: Update | null = null;
 let installInFlight = false;
@@ -50,7 +48,7 @@ export async function installDesktopUpdate() {
     await relaunch();
   } catch (err) {
     console.error("[Updater] install failed", err);
-    toast.error(i18n._(msg`Update failed to install. You can retry from the home page.`));
+    toast.error(`Update failed to install. You can retry from the home page.`);
     setFailed();
   } finally {
     installInFlight = false;

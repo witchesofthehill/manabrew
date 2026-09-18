@@ -8,9 +8,6 @@ import { OnboardingWelcome, ONBOARDING_GUIDE_VERSION } from "@/components/Onboar
 import { OnboardingGuide } from "@/components/OnboardingGuide";
 import { BreweryBackdrop } from "@/components/BreweryBackdrop";
 import { TERMS_AND_CONDITIONS } from "@/lib/termsContent";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/useAuthStore";
 const TERMS_STORAGE_KEY = "manabrew.termsAcceptance";
@@ -33,18 +30,10 @@ const STAGE_PROGRESS: Record<string, number> = {
   ready: 100,
 };
 const STAGE_TITLE: Record<string, string> = {
-  get idle() {
-    return i18n._(msg`Starting`);
-  },
-  get assets() {
-    return i18n._(msg`Loading card data`);
-  },
-  get decks() {
-    return i18n._(msg`Loading decks`);
-  },
-  get ready() {
-    return i18n._(msg`Ready`);
-  },
+  idle: `Starting`,
+  assets: `Loading card data`,
+  decks: `Loading decks`,
+  ready: `Ready`,
 };
 const TERMS_LINK = /((?:github\.com|docs\.manabrew\.app|scryfall\.com)(?:[^\s,)]*[^\s,).])?)/g;
 function linkifyTerms(body: string) {
@@ -130,7 +119,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
   ) {
     return <>{children}</>;
   }
-  const title = STAGE_TITLE[stage] ?? i18n._(msg`Loading`);
+  const title = STAGE_TITLE[stage] ?? `Loading`;
   const pct = Math.round(target);
   const showTerms = stage === "ready" && !termsAccepted;
   const showOnboarding = stage === "ready" && termsAccepted && !onboardingSatisfied;
@@ -138,10 +127,10 @@ export function AppInitGate({ children }: { children: ReactNode }) {
   const welcomeHeader = (
     <div className="flex flex-col items-center gap-2 text-center">
       <p className="font-mono text-[0.65rem] uppercase tracking-[0.55em] text-muted-foreground">
-        <Trans>Welcome to</Trans>
+        Welcome to
       </p>
       <h1 className="font-serif text-5xl font-light tracking-[0.08em] text-foreground md:text-6xl">
-        <Trans>Manabrew</Trans>
+        Manabrew
       </h1>
       <div
         aria-hidden
@@ -228,9 +217,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                         onCheckedChange={(value) => setConsent(value === true)}
                         className="mt-0.5"
                       />
-                      <span className="text-foreground">
-                        <Trans>I have read and agree to these terms</Trans>
-                      </span>
+                      <span className="text-foreground">I have read and agree to these terms</span>
                     </label>
 
                     <div className="flex flex-col items-center gap-3">
@@ -240,13 +227,11 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                         onClick={acceptTerms}
                         className="min-w-[200px]"
                       >
-                        <Trans>Accept and continue</Trans>
+                        Accept and continue
                       </Button>
                       <p className="font-mono text-[0.55rem] uppercase tracking-[0.4em] text-muted-foreground/70">
-                        <Trans>
-                          Version {TERMS_AND_CONDITIONS.version} · Updated{" "}
-                          {TERMS_AND_CONDITIONS.lastUpdated}
-                        </Trans>
+                        Version {TERMS_AND_CONDITIONS.version} · Updated{" "}
+                        {TERMS_AND_CONDITIONS.lastUpdated}
                       </p>
                     </div>
                   </div>
@@ -257,7 +242,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                     {welcomeHeader}
                     <div className="space-y-1 text-center">
                       <p className="font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
-                        <Trans>Getting started</Trans>
+                        Getting started
                       </p>
                     </div>
                     <OnboardingGuide />
@@ -296,7 +281,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                     </div>
 
                     <p className="text-center font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
-                      <Trans>Connecting</Trans>
+                      Connecting
                     </p>
                   </div>
                 </>

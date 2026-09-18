@@ -15,9 +15,6 @@ import {
   DEV_SECTION_HEADING,
 } from "./devPanel.styles";
 import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 
 export function DevCardLayoutControls() {
   const definition = useGameDevStore((s) => s.debugCardDefinition);
@@ -73,7 +70,7 @@ export function DevCardLayoutControls() {
       setCardOverride("forceFaceDown", !scenario.name);
       setDebugCardEnabled(true);
     } catch {
-      setError(i18n._(msg`Could not load ${scenario.label}.`));
+      setError(`Could not load ${scenario.label}.`);
     } finally {
       setLoadingId(null);
     }
@@ -82,14 +79,10 @@ export function DevCardLayoutControls() {
     <section className={DEV_SECTION}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className={DEV_SECTION_HEADING}>
-            <Trans>Card layouts and previews</Trans>
-          </p>
+          <p className={DEV_SECTION_HEADING}>Card layouts and previews</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            <Trans>
-              Stage a scenario, then hover the staged card. Use its flip and rotate buttons to
-              inspect each face.
-            </Trans>
+            Stage a scenario, then hover the staged card. Use its flip and rotate buttons to inspect
+            each face.
           </p>
         </div>
         {definition?.layout ? (
@@ -163,7 +156,7 @@ export function DevCardLayoutControls() {
             )}
             onClick={() => setCardOverride("forceTransformed", false)}
           >
-            <Trans>Front: {definition.identity.name}</Trans>
+            Front: {definition.identity.name}
           </button>
           <button
             type="button"
@@ -173,7 +166,7 @@ export function DevCardLayoutControls() {
             )}
             onClick={() => setCardOverride("forceTransformed", true)}
           >
-            <Trans>Back: {definition.backFace.name}</Trans>
+            Back: {definition.backFace.name}
           </button>
         </div>
       ) : null}

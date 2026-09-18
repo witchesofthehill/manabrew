@@ -1,7 +1,5 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export function PartnerBadge({ label, className }: { label: string | null; className?: string }) {
   return (
     <Badge
@@ -11,9 +9,9 @@ export function PartnerBadge({ label, className }: { label: string | null; class
         label ? "border-commander/50 text-commander" : "border-warning/50 text-warning",
         className,
       )}
-      title={label ?? i18n._(msg`Not partners`)}
+      title={label ?? `Not partners`}
     >
-      {label ?? i18n._(msg`Not partners`)}
+      {label ?? `Not partners`}
     </Badge>
   );
 }

@@ -16,9 +16,6 @@ import { executeDeckEdit } from "./deckEditor.history";
 import { collectionQuantityForName } from "@/lib/collection";
 import { useCollectionStore } from "@/stores/useCollectionStore";
 import { EDITOR_PANEL_CLASS } from "./deckEditor.styles";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export function ReplacementSuggestionsPanel({
   cardSize,
   onHover,
@@ -96,9 +93,7 @@ export function ReplacementSuggestionsPanel({
       void useCardRolesStore.getState().ensureAnalyzed(nextSuggestions.map(scryfallToDeckCard));
     } catch (error) {
       if (requestId === requestIdRef.current) {
-        toast.error(
-          error instanceof Error ? error.message : i18n._(msg`Could not find replacements`),
-        );
+        toast.error(error instanceof Error ? error.message : `Could not find replacements`);
       }
     } finally {
       if (requestId === requestIdRef.current) setLoading(false);
@@ -111,33 +106,29 @@ export function ReplacementSuggestionsPanel({
         <div className="flex items-center gap-2">
           <ArrowRightLeft className="h-4 w-4 text-primary" />
           <div>
-            <h3 className="text-sm font-semibold">
-              <Trans>Explainable replacements</Trans>
-            </h3>
+            <h3 className="text-sm font-semibold">Explainable replacements</h3>
             <p className="text-[10px] text-muted-foreground">
-              <Trans>Same colour identity, mana value, and primary card type.</Trans>
+              Same colour identity, mana value, and primary card type.
             </p>
           </div>
         </div>
         <div className="flex gap-2">
           <label className="flex h-8 items-center gap-1.5 rounded-md border px-2 text-xs text-muted-foreground">
-            <Trans>
-              <input
-                type="checkbox"
-                checked={ownedOnly}
-                onChange={(event) => {
-                  setOwnedOnly(event.target.checked);
-                  setSuggestions([]);
-                }}
-              />
-              Owned only
-            </Trans>
+            <input
+              type="checkbox"
+              checked={ownedOnly}
+              onChange={(event) => {
+                setOwnedOnly(event.target.checked);
+                setSuggestions([]);
+              }}
+            />
+            Owned only
           </label>
           <div className="relative">
             <input
               type="text"
               role="combobox"
-              aria-label={i18n._(msg`Card to replace`)}
+              aria-label={`Card to replace`}
               aria-autocomplete="list"
               aria-expanded={targetMenuOpen}
               aria-controls="replacement-target-suggestions"
@@ -186,7 +177,7 @@ export function ReplacementSuggestionsPanel({
                 className="absolute left-0 top-full z-30 mt-1 max-h-80 min-w-[300px] overflow-y-auto rounded-md border bg-popover shadow-lg"
               >
                 <div className="sticky top-0 z-10 border-b bg-popover px-2 py-1 text-[10px] text-muted-foreground">
-                  <Trans>Choose a card from your deck to replace</Trans>
+                  Choose a card from your deck to replace
                 </div>
                 {filteredCandidates.map((card, index) => (
                   <button
@@ -222,13 +213,13 @@ export function ReplacementSuggestionsPanel({
                       {card.identity.name}
                     </span>
                     <span className="shrink-0 text-[10px] text-muted-foreground">
-                      <Trans>MV {card.cmc}</Trans>
+                      MV {card.cmc}
                     </span>
                   </button>
                 ))}
                 {filteredCandidates.length === 0 && (
                   <p className="px-2 py-3 text-xs text-muted-foreground">
-                    <Trans>No cards in this deck match your search.</Trans>
+                    No cards in this deck match your search.
                   </p>
                 )}
               </div>
@@ -241,10 +232,8 @@ export function ReplacementSuggestionsPanel({
             disabled={loading}
             onClick={() => void findSuggestions()}
           >
-            <Trans>
-              {loading && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-              Find swaps
-            </Trans>
+            {loading && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+            Find swaps
           </Button>
         </div>
       </div>
@@ -268,33 +257,22 @@ export function ReplacementSuggestionsPanel({
               />
               <div className="mt-1 text-[10px] text-muted-foreground">
                 {collectionQuantityForName(quantities, suggestion.name) > 0
-                  ? i18n._(
-                      msg`Same ${target.types[0]?.toLowerCase() ?? i18n._(msg`card type`)} · MV ${suggestion.cmc} · ${collectionQuantityForName(quantities, suggestion.name)} owned`,
-                    )
-                  : i18n._(
-                      msg`Same ${target.types[0]?.toLowerCase() ?? i18n._(msg`card type`)} · MV ${suggestion.cmc} · not owned`,
-                    )}
+                  ? `Same ${target.types[0]?.toLowerCase() ?? `card type`} · MV ${suggestion.cmc} · ${collectionQuantityForName(quantities, suggestion.name)} owned`
+                  : `Same ${target.types[0]?.toLowerCase() ?? `card type`} · MV ${suggestion.cmc} · not owned`}
               </div>
               <button
                 type="button"
                 className="absolute right-1 top-1 z-20 rounded-full bg-overlay/80 p-1 text-foreground opacity-0 shadow transition-opacity hover:bg-primary hover:text-primary-foreground group-hover:opacity-100 pointer-coarse:opacity-100"
-                title={i18n._(msg`Replace one ${target.identity.name} with ${suggestion.name}`)}
-                aria-label={i18n._(
-                  msg`Replace one ${target.identity.name} with ${suggestion.name}`,
-                )}
+                title={`Replace one ${target.identity.name} with ${suggestion.name}`}
+                aria-label={`Replace one ${target.identity.name} with ${suggestion.name}`}
                 onClick={() => {
                   const tags = deck.cardTags?.[target.identity.name.toLowerCase()] ?? [];
-                  executeDeckEdit(
-                    i18n._(msg`Replace ${target.identity.name} with ${suggestion.name}`),
-                    () => {
-                      removeFromMain(target.identity.id);
-                      addToMain(card);
-                      for (const tag of tags) tagCard(card.identity.name, tag);
-                    },
-                  );
-                  toast.success(
-                    i18n._(msg`Replaced ${target.identity.name} with ${suggestion.name}`),
-                  );
+                  executeDeckEdit(`Replace ${target.identity.name} with ${suggestion.name}`, () => {
+                    removeFromMain(target.identity.id);
+                    addToMain(card);
+                    for (const tag of tags) tagCard(card.identity.name, tag);
+                  });
+                  toast.success(`Replaced ${target.identity.name} with ${suggestion.name}`);
                 }}
               >
                 <ArrowRightLeft className="h-3.5 w-3.5" />

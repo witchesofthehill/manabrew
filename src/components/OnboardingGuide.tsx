@@ -1,42 +1,22 @@
 import { Github, Layers, Swords } from "lucide-react";
 import { GITHUB_REPO_URL } from "@/lib/constants";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const GUIDE_SECTIONS = [
   {
-    get heading() {
-      return i18n._(msg`Play with friends`);
-    },
+    heading: `Play with friends`,
     icon: Swords,
-    get body() {
-      return i18n._(
-        msg`Connect to a server from the Lobby, then join a room — or create your own — to battle other players in real time.`,
-      );
-    },
+    body: `Connect to a server from the Lobby, then join a room — or create your own — to battle other players in real time.`,
   },
   {
-    get heading() {
-      return i18n._(msg`Customize your deck`);
-    },
+    heading: `Customize your deck`,
     icon: Layers,
-    get body() {
-      return i18n._(
-        msg`Open the Deck Editor to build decks from scratch, import existing lists, and fine-tune every card before you sit down at the table.`,
-      );
-    },
+    body: `Open the Deck Editor to build decks from scratch, import existing lists, and fine-tune every card before you sit down at the table.`,
   },
   {
-    get heading() {
-      return i18n._(msg`Host your own Manabrew rooms`);
-    },
+    heading: `Host your own Manabrew rooms`,
     icon: Github,
-    get body() {
-      return i18n._(msg`Want to run a private server for your playgroup?`);
-    },
+    body: `Want to run a private server for your playgroup?`,
     link: {
-      get label() {
-        return i18n._(msg`Find out how on GitHub`);
-      },
+      label: `Find out how on GitHub`,
       href: GITHUB_REPO_URL,
     },
   },

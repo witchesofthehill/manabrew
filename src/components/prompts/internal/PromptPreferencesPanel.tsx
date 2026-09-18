@@ -3,9 +3,6 @@ import { Label } from "@/components/ui/label";
 import type { PromptType } from "@/protocol";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { isPromptLoggingEnabled, setPromptLoggingEnabled } from "@/lib/debugPrompts";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface OptionalCostRow {
   promptType: PromptType;
   label: string;
@@ -14,14 +11,8 @@ interface OptionalCostRow {
 const OPTIONAL_COST_ROWS: OptionalCostRow[] = [
   {
     promptType: "chooseBoolean",
-    get label() {
-      return i18n._(msg`Optional yes/no costs`);
-    },
-    get description() {
-      return i18n._(
-        msg`Skip yes/no cost prompts (kicker, buyback, Phyrexian) \u2014 never pay the extra cost.`,
-      );
-    },
+    label: `Optional yes/no costs`,
+    description: `Skip yes/no cost prompts (kicker, buyback, Phyrexian) \u2014 never pay the extra cost.`,
   },
 ];
 export function PromptPreferencesPanel() {
@@ -38,22 +29,16 @@ export function PromptPreferencesPanel() {
   return (
     <section className="space-y-6">
       <header className="space-y-1">
-        <h2 className="text-lg font-semibold">
-          <Trans>Prompts</Trans>
-        </h2>
+        <h2 className="text-lg font-semibold">Prompts</h2>
         <p className="text-xs text-muted-foreground max-w-prose">
-          <Trans>
-            The auto-resolver answers prompts that have a single legal answer (target, mode, …) and
-            informational acks (RevealCards, dice rolls). Those are always automatic — no toggle.
-            The list below covers optional costs you may prefer to never be asked about.
-          </Trans>
+          The auto-resolver answers prompts that have a single legal answer (target, mode, …) and
+          informational acks (RevealCards, dice rolls). Those are always automatic — no toggle. The
+          list below covers optional costs you may prefer to never be asked about.
         </p>
       </header>
 
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold">
-          <Trans>Priority</Trans>
-        </h3>
+        <h3 className="text-sm font-semibold">Priority</h3>
         <div className="rounded-lg border bg-card/40 p-3 flex items-start gap-3">
           <input
             id="prompt-full-control"
@@ -63,23 +48,17 @@ export function PromptPreferencesPanel() {
             className="mt-1 accent-selection h-4 w-4"
           />
           <div className="space-y-1">
-            <Label htmlFor="prompt-full-control">
-              <Trans>Full control</Trans>
-            </Label>
+            <Label htmlFor="prompt-full-control">Full control</Label>
             <p className="text-xs text-muted-foreground">
-              <Trans>
-                Stop at every priority window, even when you have no possible response. When off,
-                windows where you can only tap for mana pass automatically after a short delay.
-              </Trans>
+              Stop at every priority window, even when you have no possible response. When off,
+              windows where you can only tap for mana pass automatically after a short delay.
             </p>
           </div>
         </div>
       </div>
 
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold">
-          <Trans>Auto-skip optional costs</Trans>
-        </h3>
+        <h3 className="text-sm font-semibold">Auto-skip optional costs</h3>
         <div className="grid gap-3 md:grid-cols-2">
           {OPTIONAL_COST_ROWS.map((row) => {
             const skipped = showOverrides[row.promptType] === false;
@@ -107,9 +86,7 @@ export function PromptPreferencesPanel() {
       </div>
 
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold">
-          <Trans>Debug</Trans>
-        </h3>
+        <h3 className="text-sm font-semibold">Debug</h3>
         <div className="rounded-lg border bg-card/40 p-3 flex items-start gap-3">
           <input
             id="prompt-debug-log"
@@ -122,14 +99,10 @@ export function PromptPreferencesPanel() {
             className="mt-1 accent-selection h-4 w-4"
           />
           <div className="space-y-1">
-            <Label htmlFor="prompt-debug-log">
-              <Trans>Log prompts to console</Trans>
-            </Label>
+            <Label htmlFor="prompt-debug-log">Log prompts to console</Label>
             <p className="text-xs text-muted-foreground">
-              <Trans>
-                Print every prompt the UI receives (not state updates) to the dev console, including
-                the full JSON. Useful for reporting prompt issues.
-              </Trans>
+              Print every prompt the UI receives (not state updates) to the dev console, including
+              the full JSON. Useful for reporting prompt issues.
             </p>
           </div>
         </div>

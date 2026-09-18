@@ -12,9 +12,6 @@ import type { LocalGameKind, PlayerInfo, RoomInfo, ServerErrorCode } from "@/typ
 import { cn } from "@/lib/utils";
 import { stripUsernameTag } from "@/lib/username";
 import { toast } from "sonner";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export type ConnectionState = "connected" | "connecting" | "disconnected";
 interface UserListProps {
   players: PlayerInfo[];
@@ -40,32 +37,24 @@ const CONNECTION_STATUS: Record<
   connected: {
     dot: "bg-success",
     text: "text-success",
-    get label() {
-      return i18n._(msg`Connected`);
-    },
+    label: `Connected`,
     Icon: Wifi,
   },
   connecting: {
     dot: "bg-format-badge-amber",
     text: "text-muted-foreground",
-    get label() {
-      return i18n._(msg`Connecting\u2026`);
-    },
+    label: `Connecting\u2026`,
     Icon: Loader2,
   },
   disconnected: {
     dot: "bg-destructive",
     text: "text-destructive",
-    get label() {
-      return i18n._(msg`Disconnected`);
-    },
+    label: `Disconnected`,
     Icon: WifiOff,
   },
 };
 const LOCAL_GAME_LABEL: Record<LocalGameKind, string> = {
-  get Singleplayer() {
-    return i18n._(msg`Playing solo`);
-  },
+  Singleplayer: `Playing solo`,
 };
 function playerStatus(room: RoomInfo | undefined, localGame?: LocalGameKind): string {
   if (!room) return localGame ? LOCAL_GAME_LABEL[localGame] : "Available";
@@ -141,7 +130,7 @@ export function UserList({
       if (password) throw error;
       const code = error instanceof Error ? error.message : "";
       const message = USER_FACING_ERROR_MESSAGES[code as ServerErrorCode];
-      toast.error(message ?? i18n._(msg`Couldn't join the table.`));
+      toast.error(message ?? `Couldn't join the table.`);
     } finally {
       setJoiningRoomId(null);
     }
@@ -187,9 +176,9 @@ export function UserList({
         className={PLAYER_ROW_ACTION_CLASS}
         disabled={joiningRoomId === room.room_id}
         onClick={() => requestJoin(room)}
-        title={i18n._(msg`Join ${room.room_name}`)}
+        title={`Join ${room.room_name}`}
       >
-        {joiningRoomId === room.room_id ? i18n._(msg`Joining\u2026`) : i18n._(msg`Join`)}
+        {joiningRoomId === room.room_id ? `Joining\u2026` : `Join`}
       </Button>
     ) : invitable ? (
       <Button
@@ -198,10 +187,10 @@ export function UserList({
         className={PLAYER_ROW_ACTION_CLASS}
         disabled={invited.has(player.username)}
         onClick={() => void sendInvite(player.username)}
-        title={i18n._(msg`Invite to your table`)}
+        title={`Invite to your table`}
       >
         <UserPlus className="h-3 w-3" />
-        {invited.has(player.username) ? i18n._(msg`Invited`) : i18n._(msg`Invite`)}
+        {invited.has(player.username) ? `Invited` : `Invite`}
       </Button>
     ) : null;
     return (
@@ -245,9 +234,7 @@ export function UserList({
           </TooltipTrigger>
           <TooltipContent>{status.label}</TooltipContent>
         </Tooltip>
-        <h3 className="font-semibold text-sm">
-          <Trans>Players</Trans>
-        </h3>
+        <h3 className="font-semibold text-sm">Players</h3>
         <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
           {uniquePlayers.length}
         </span>
@@ -258,7 +245,7 @@ export function UserList({
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={i18n._(msg`Search players\u2026`)}
+            placeholder={`Search players\u2026`}
             className="h-8 pl-8 text-sm"
           />
         </div>
@@ -280,12 +267,12 @@ export function UserList({
 
           {!myUsername && others.length === 0 && (
             <p className="text-xs text-muted-foreground italic text-center py-6">
-              <Trans>No players online</Trans>
+              No players online
             </p>
           )}
           {myUsername && filteredOthers.length === 0 && normalizedSearch !== "" && (
             <p className="text-xs text-muted-foreground italic text-center py-6">
-              <Trans>No players match “{search.trim()}”</Trans>
+              No players match “{search.trim()}”
             </p>
           )}
         </div>

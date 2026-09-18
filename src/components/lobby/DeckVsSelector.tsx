@@ -27,9 +27,6 @@ import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
 import { useHubStore } from "@/stores/useHubStore";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface SelectedDeck {
   id: string;
   sourceId: string;
@@ -162,17 +159,12 @@ export function DeckVsSelector({
       .catch((err) => {
         if (hubSelectionRequestIdRef.current !== requestId) return;
         restoredHubDeckRef.current = null;
-        toast.error(
-          err instanceof Error ? err.message : i18n._(msg`Failed to load Community deck`),
-          {
-            action: {
-              get label() {
-                return i18n._(msg`Retry`);
-              },
-              onClick: () => setHubRestoreAttempt((attempt) => attempt + 1),
-            },
+        toast.error(err instanceof Error ? err.message : `Failed to load Community deck`, {
+          action: {
+            label: `Retry`,
+            onClick: () => setHubRestoreAttempt((attempt) => attempt + 1),
           },
-        );
+        });
       })
       .finally(() => {
         if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
@@ -324,9 +316,7 @@ export function DeckVsSelector({
       const currentFormat = selectedFormatRef.current;
       if (currentFormat && formatId !== currentFormat) {
         toast.error(
-          i18n._(
-            msg`"${detail.title}" is not a ${getFormat(currentFormat)?.name ?? currentFormat} deck`,
-          ),
+          `"${detail.title}" is not a ${getFormat(currentFormat)?.name ?? currentFormat} deck`,
         );
         return;
       }
@@ -345,7 +335,7 @@ export function DeckVsSelector({
       );
     } catch (err) {
       if (hubSelectionRequestIdRef.current !== requestId) return;
-      toast.error(err instanceof Error ? err.message : i18n._(msg`Failed to load Community deck`));
+      toast.error(err instanceof Error ? err.message : `Failed to load Community deck`);
     } finally {
       if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
     }
@@ -395,7 +385,7 @@ export function DeckVsSelector({
       (d) => d.sourceDeck.cards.length === 0 && (d.sourceDeck.commanders?.length ?? 0) === 0,
     );
     if (empty) {
-      toast.error(i18n._(msg`"${empty.name}" has no cards`));
+      toast.error(`"${empty.name}" has no cards`);
       return;
     }
     for (const selected of [playerDeck, opponentDeck]) {
@@ -407,7 +397,7 @@ export function DeckVsSelector({
         format,
       );
       if (!validation.legal) {
-        toast.warning(validation.errors[0] ?? i18n._(msg`"${selected.name}" is not legal`));
+        toast.warning(validation.errors[0] ?? `"${selected.name}" is not legal`);
         return;
       }
     }
@@ -424,9 +414,7 @@ export function DeckVsSelector({
       opponentCount - 1,
     );
     if (additionalOpponents.length !== opponentCount - 1) {
-      toast.error(
-        i18n._(msg`Not enough distinct Commander decks are available for a 4-player game.`),
-      );
+      toast.error(`Not enough distinct Commander decks are available for a 4-player game.`);
       return;
     }
     setStarting(true);
@@ -479,7 +467,7 @@ export function DeckVsSelector({
       <div className="flex flex-shrink-0 items-center gap-3 border-b bg-muted/5 px-4 py-2 sm:px-6 lg:px-8">
         <div
           role="group"
-          aria-label={i18n._(msg`Filter decks by format`)}
+          aria-label={`Filter decks by format`}
           className="-mx-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto px-1 py-1 no-scrollbar"
         >
           {[{ id: null, name: "All" }, ...GAME_FORMATS].map((format) => (
@@ -505,13 +493,13 @@ export function DeckVsSelector({
         >
           {pickingSide === "player"
             ? isReady
-              ? i18n._(msg`Choose your deck or fight`)
-              : i18n._(msg`Choose your deck`)
+              ? `Choose your deck or fight`
+              : `Choose your deck`
             : pickingSide === "opponent"
               ? isReady
-                ? i18n._(msg`Choose the AI deck or fight`)
-                : i18n._(msg`Choose the AI deck`)
-              : i18n._(msg`Matchup ready`)}
+                ? `Choose the AI deck or fight`
+                : `Choose the AI deck`
+              : `Matchup ready`}
         </p>
       </div>
 
@@ -520,8 +508,8 @@ export function DeckVsSelector({
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <input
             type="text"
-            aria-label={i18n._(msg`Filter decks`)}
-            placeholder={i18n._(msg`Filter decks...`)}
+            aria-label={`Filter decks`}
+            placeholder={`Filter decks...`}
             value={deckSearch}
             onChange={(e) => setDeckSearch(e.target.value)}
             className="w-full pl-8 pr-3 py-1.5 rounded-md border bg-background text-sm pointer-coarse:h-10 pointer-coarse:text-base focus:outline-none focus:ring-1 focus:ring-primary"
@@ -536,20 +524,18 @@ export function DeckVsSelector({
       <div className="flex-1 space-y-6 overflow-y-auto px-4 pb-4 sm:px-6 lg:px-8">
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold pt-2 pb-1">
-            <Trans>Your Decks</Trans>
+            Your Decks
           </p>
           {filteredUserDecks.length === 0 ? (
             <p className="text-xs text-muted-foreground italic py-2">
-              <Trans>
-                No decks yet — build one in{" "}
-                <Link
-                  to={ROUTES.DECK_EDITOR}
-                  className="text-primary underline-offset-2 hover:underline not-italic"
-                >
-                  My Decks
-                </Link>
-                .
-              </Trans>
+              No decks yet — build one in{" "}
+              <Link
+                to={ROUTES.DECK_EDITOR}
+                className="text-primary underline-offset-2 hover:underline not-italic"
+              >
+                My Decks
+              </Link>
+              .
             </p>
           ) : (
             <div
@@ -603,13 +589,13 @@ export function DeckVsSelector({
             hubDeckEntries.length > 0) && (
             <div>
               <p className="pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <Trans>Community</Trans>
+                Community
               </p>
               {hubDecks.error ? (
                 <div className="flex flex-wrap items-center gap-2 py-2 text-xs text-destructive">
                   <span className="min-w-0 break-words">{hubDecks.error}</span>
                   <Button variant="outline" size="sm" onClick={hubDecks.retry}>
-                    <Trans>Retry</Trans>
+                    Retry
                   </Button>
                 </div>
               ) : hubDecks.loading && hubDeckEntries.length === 0 ? (
@@ -633,7 +619,7 @@ export function DeckVsSelector({
                 </div>
               ) : hubDeckEntries.length === 0 ? (
                 <p className="py-2 text-xs italic text-muted-foreground">
-                  <Trans>No Community decks match this format and search.</Trans>
+                  No Community decks match this format and search.
                 </p>
               ) : (
                 <div
@@ -689,11 +675,11 @@ export function DeckVsSelector({
 
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold pb-1">
-            <Trans>Starter Decks</Trans>
+            Starter Decks
           </p>
           {filteredDecks.length === 0 ? (
             <p className="text-xs text-muted-foreground italic py-2">
-              <Trans>No starter decks for this format.</Trans>
+              No starter decks for this format.
             </p>
           ) : (
             <div
@@ -731,7 +717,7 @@ export function DeckVsSelector({
       <div className="grid flex-shrink-0 gap-2 border-t bg-muted/10 px-4 py-2 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:px-6 sm:py-3 lg:px-8">
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:flex sm:gap-2">
           <DeckSlot
-            label={i18n._(msg`YOU`)}
+            label={`YOU`}
             icon={<User className="h-3 w-3" />}
             deck={playerDeck}
             sideColor="var(--player-colors-self)"
@@ -747,11 +733,9 @@ export function DeckVsSelector({
               setPickingSide("player");
             }}
           />
-          <span className="text-xs font-bold tracking-wider text-muted-foreground/60">
-            <Trans>VS</Trans>
-          </span>
+          <span className="text-xs font-bold tracking-wider text-muted-foreground/60">VS</span>
           <DeckSlot
-            label={i18n._(msg`AI`)}
+            label={`AI`}
             icon={<Bot className="h-3 w-3" />}
             deck={opponentDeck}
             sideColor="var(--player-colors-opponent1)"
@@ -778,7 +762,7 @@ export function DeckVsSelector({
                     handleRandomOpponent();
                   }}
                   className="inline-flex w-8 shrink-0 items-center justify-center gap-0.5 rounded-r-md text-[10px] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground pointer-coarse:w-10"
-                  title={i18n._(msg`Random AI deck`)}
+                  title={`Random AI deck`}
                 >
                   <Shuffle className="h-3 w-3" />
                 </button>
@@ -788,10 +772,8 @@ export function DeckVsSelector({
         </div>
         <div className="grid grid-flow-col auto-cols-fr gap-2 sm:flex sm:flex-shrink-0 sm:items-center">
           <div className="flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm sm:w-auto">
-            <Trans>
-              <EngineMark engine="Forge" className="h-3.5 w-3.5" />
-              Forge
-            </Trans>
+            <EngineMark engine="Forge" className="h-3.5 w-3.5" />
+            Forge
           </div>
           <Button
             variant="primary"
@@ -806,7 +788,7 @@ export function DeckVsSelector({
             ) : (
               <Swords className="h-3.5 w-3.5" />
             )}
-            {starting ? i18n._(msg`Starting\u2026`) : i18n._(msg`Fight!`)}
+            {starting ? `Starting\u2026` : `Fight!`}
           </Button>
         </div>
       </div>
@@ -888,18 +870,18 @@ function DeckSlot({
             deck ? "font-medium text-foreground/90" : "italic text-muted-foreground",
           )}
         >
-          {deck?.name ?? i18n._(msg`pick a deck`)}
+          {deck?.name ?? `pick a deck`}
         </span>
         {isActive ? (
           <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-primary">
-            <Trans>Selecting</Trans>
+            Selecting
           </span>
         ) : isConfirmed ? (
           <Check className="h-3 w-3 shrink-0 text-primary" />
         ) : (
           deck && (
             <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-              <Trans>Suggested</Trans>
+              Suggested
             </span>
           )
         )}
@@ -909,7 +891,7 @@ function DeckSlot({
           type="button"
           onClick={onClear}
           className="inline-flex w-8 shrink-0 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-destructive pointer-coarse:w-10"
-          title={i18n._(msg`Clear`)}
+          title={`Clear`}
         >
           <X className="h-2.5 w-2.5" />
         </button>

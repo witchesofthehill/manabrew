@@ -22,9 +22,6 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { CardThumbnail } from "./deckEditor.primitives";
 import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE } from "./deckBuilder.utils";
 import { executeDeckEdit } from "./deckEditor.history";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export function DeckCollectionPanel({
   cardSize,
   onHover,
@@ -129,7 +126,7 @@ export function DeckCollectionPanel({
     const currentTotal = collectionQuantityForName(quantities, name);
     const printingTotal = currentTotal - (quantities[key] ?? 0);
     void setQuantity(key, Math.max(0, quantity - printingTotal)).catch(() => {
-      toast.error(i18n._(msg`Account sync failed. This change is preserved locally.`));
+      toast.error(`Account sync failed. This change is preserved locally.`);
     });
   }
   function exportMissing() {
@@ -151,7 +148,7 @@ export function DeckCollectionPanel({
     const next = { ...acquisition };
     if (status) next[key] = status;
     else delete next[key];
-    executeDeckEdit(i18n._(msg`Mark ${key} as ${status ?? i18n._(msg`needed`)}`), () =>
+    executeDeckEdit(`Mark ${key} as ${status ?? `needed`}`, () =>
       setEditorMetadata({
         ...deck.editor,
         version: 1,
@@ -167,11 +164,9 @@ export function DeckCollectionPanel({
         <div className="flex items-center gap-2">
           <LibraryBig className="h-4 w-4 text-primary" />
           <div>
-            <h3 className="text-sm font-semibold">
-              <Trans>Collection coverage</Trans>
-            </h3>
+            <h3 className="text-sm font-semibold">Collection coverage</h3>
             <p className="text-[10px] text-muted-foreground">
-              {accountId ? i18n._(msg`Synced to your account`) : i18n._(msg`Saved on this device`)}
+              {accountId ? `Synced to your account` : `Saved on this device`}
             </p>
           </div>
         </div>
@@ -180,44 +175,42 @@ export function DeckCollectionPanel({
             className={cn("text-xs", missing.length > 0 ? "text-warning" : "text-legality-legal")}
           >
             {loading
-              ? i18n._(msg`Syncing\u2026`)
+              ? `Syncing\u2026`
               : missing.length === 0
                 ? otherPrintingCount > 0
                   ? otherPrintingCount === 1
-                    ? i18n._(msg`Complete · one other printing`)
-                    : i18n._(msg`Complete · ${otherPrintingCount} other printings`)
-                  : i18n._(msg`Deck complete`)
-                : i18n._(msg`${missing.length} cards missing`)}
+                    ? `Complete · one other printing`
+                    : `Complete · ${otherPrintingCount} other printings`
+                  : `Deck complete`
+                : `${missing.length} cards missing`}
           </span>
           {missing.length > 0 && estimatedTotal > 0 && (
             <span className="text-xs font-mono text-muted-foreground">
-              <Trans>
-                est. {provider === "cardmarket" ? "€" : provider === "cardhoarder" ? "" : "$"}
-                {estimatedTotal.toFixed(2)}
-              </Trans>
+              est. {provider === "cardmarket" ? "€" : provider === "cardhoarder" ? "" : "$"}
+              {estimatedTotal.toFixed(2)}
               {provider === "cardhoarder" ? " tix" : ""}
             </span>
           )}
           {(missing.length > 0 || otherPrintingCount > 0) && onOptimizeOwnedPrintings && (
             <Button size="xs" variant="ghost" onClick={onOptimizeOwnedPrintings}>
-              <Sparkles className="h-3.5 w-3.5" /> <Trans>Use owned printings</Trans>
+              <Sparkles className="h-3.5 w-3.5" /> Use owned printings
             </Button>
           )}
           {missing.length > 0 && (
             <Button size="xs" variant="ghost" onClick={exportMissing}>
-              <Download className="h-3.5 w-3.5" /> <Trans>Missing CSV</Trans>
+              <Download className="h-3.5 w-3.5" /> Missing CSV
             </Button>
           )}
           <div className="flex overflow-hidden rounded-md border">
             <ViewButton
-              label={i18n._(msg`Grid view`)}
+              label={`Grid view`}
               active={view === "grid"}
               onClick={() => setView("grid")}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
             </ViewButton>
             <ViewButton
-              label={i18n._(msg`Text view`)}
+              label={`Text view`}
               active={view === "text"}
               onClick={() => setView("text")}
               bordered
@@ -251,18 +244,14 @@ export function DeckCollectionPanel({
                 <span className="min-w-0 flex-1 truncate text-xs">{entry.name}</span>
                 <span className="text-[10px] text-muted-foreground">
                   {ownership.get(key)?.status === "partial"
-                    ? i18n._(
-                        msg`partially owned · need ${ownership.get(key)?.shortage ?? entry.quantity}`,
-                      )
-                    : i18n._(
-                        msg`not owned · need ${ownership.get(key)?.shortage ?? entry.quantity}`,
-                      )}
+                    ? `partially owned · need ${ownership.get(key)?.shortage ?? entry.quantity}`
+                    : `not owned · need ${ownership.get(key)?.shortage ?? entry.quantity}`}
                 </span>
                 <Input
                   type="number"
                   min="0"
                   className="h-7 w-16 text-right font-mono text-xs"
-                  aria-label={i18n._(msg`Owned copies of ${entry.name}`)}
+                  aria-label={`Owned copies of ${entry.name}`}
                   value={collectionQuantityForName(quantities, entry.name)}
                   onChange={(event) =>
                     setOwnedQuantity(key, entry.name, Number(event.target.value))
@@ -272,7 +261,7 @@ export function DeckCollectionPanel({
                   type="button"
                   size="icon-sm"
                   variant={acquisition[key] === "ordered" ? "selected" : "ghost"}
-                  title={i18n._(msg`Mark as ordered`)}
+                  title={`Mark as ordered`}
                   aria-pressed={acquisition[key] === "ordered"}
                   onClick={() =>
                     setAcquisitionStatus(
@@ -287,7 +276,7 @@ export function DeckCollectionPanel({
                   type="button"
                   size="icon-sm"
                   variant={acquisition[key] === "proxy" ? "selected" : "ghost"}
-                  title={i18n._(msg`Mark as proxied`)}
+                  title={`Mark as proxied`}
                   aria-pressed={acquisition[key] === "proxy"}
                   onClick={() =>
                     setAcquisitionStatus(key, acquisition[key] === "proxy" ? undefined : "proxy")

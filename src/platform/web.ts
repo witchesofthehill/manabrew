@@ -1552,7 +1552,7 @@ class WebServerApi implements IServerApi {
   }
 
   /**
-   * @param frameAt when the frame carrying `msg` reached this client, for the
+   * @param frameAt when the frame carrying `` reached this client, for the
    *   turnaround split. Omitted for synthesised messages, which are not a
    *   reply arriving.
    */

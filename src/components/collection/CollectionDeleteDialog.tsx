@@ -9,9 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface CollectionDeleteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -40,14 +37,10 @@ export function CollectionDeleteDialog({
     <Dialog open={open} onOpenChange={(nextOpen) => !deleting && onOpenChange(nextOpen)}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            <Trans>Delete entire collection?</Trans>
-          </DialogTitle>
+          <DialogTitle>Delete entire collection?</DialogTitle>
           <DialogDescription>
-            <Trans>
-              This will permanently remove all {entryCount} collection entries from your account.
-              This action cannot be undone.
-            </Trans>
+            This will permanently remove all {entryCount} collection entries from your account. This
+            action cannot be undone.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -56,7 +49,7 @@ export function CollectionDeleteDialog({
           </Button>
           <Button variant="destructive" disabled={deleting} onClick={() => void handleDelete()}>
             {deleting ? <LoaderCircle className="animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            {deleting ? i18n._(msg`Deleting\u2026`) : i18n._(msg`Delete collection`)}
+            {deleting ? `Deleting\u2026` : `Delete collection`}
           </Button>
         </DialogFooter>
       </DialogContent>

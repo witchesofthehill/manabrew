@@ -16,8 +16,6 @@ import { PlayerMenu } from "./PlayerMenu";
 import { StatusChips } from "./StatusChips";
 import { TapFlash } from "./TapFlash";
 import { usePressHold } from "./usePressHold";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface PlayerTileProps {
   player: CompanionPlayer;
   opponents: CompanionPlayer[];
@@ -116,13 +114,13 @@ export function PlayerTile({
           <>
             <button
               type="button"
-              aria-label={i18n._(msg`Decrease life`)}
+              aria-label={`Decrease life`}
               className="absolute inset-y-0 left-0 z-10 w-1/2 touch-none select-none"
               {...decBindings}
             />
             <button
               type="button"
-              aria-label={i18n._(msg`Increase life`)}
+              aria-label={`Increase life`}
               className="absolute inset-y-0 right-0 z-10 w-1/2 touch-none select-none"
               {...incBindings}
             />
@@ -136,7 +134,7 @@ export function PlayerTile({
               type="button"
               className="grid size-8 place-items-center overflow-hidden rounded-full bg-black/40 ring-1 ring-white/20 @xs:size-9 @md:size-11"
               onClick={() => setPickerOpen(true)}
-              aria-label={i18n._(msg`Choose commander`)}
+              aria-label={`Choose commander`}
             >
               {player.commanders[0]?.imageUrl ? (
                 <CommanderArt refs={player.commanders} variant="avatar" className="size-full" />
@@ -165,7 +163,7 @@ export function PlayerTile({
                   type="button"
                   className="hidden self-start truncate text-left text-xs font-semibold tracking-wide drop-shadow @xs:block @md:text-sm"
                   onClick={() => setRenaming(true)}
-                  title={i18n._(msg`Rename`)}
+                  title={`Rename`}
                 >
                   {player.name}
                 </button>
@@ -190,7 +188,7 @@ export function PlayerTile({
                   pendingAmount > 0 ? "bg-emerald-500/90" : "bg-rose-600/90",
                 )}
               >
-                {pendingAmount > 0 ? i18n._(msg`+${pendingAmount}`) : pendingAmount}
+                {pendingAmount > 0 ? `+${pendingAmount}` : pendingAmount}
               </div>
             )}
             {lifeEditing ? (
@@ -214,7 +212,7 @@ export function PlayerTile({
                 type="button"
                 className="pointer-events-auto select-none text-[clamp(2rem,22cqi,8rem)] font-black leading-none tabular-nums drop-shadow-md"
                 onClick={() => setLifeEditing(true)}
-                aria-label={i18n._(msg`Edit life total`)}
+                aria-label={`Edit life total`}
               >
                 {player.life}
               </button>

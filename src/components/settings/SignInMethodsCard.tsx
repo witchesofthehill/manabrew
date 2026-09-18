@@ -9,19 +9,10 @@ import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
 import { getPlatformType } from "@/platform";
 import { openExternal } from "@/lib/openExternal";
 import type { AuthIdentity } from "@/api/authTypes";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const PROVIDER_LABELS: Record<string, string> = {
-  get github() {
-    return i18n._(msg`GitHub`);
-  },
-  get discord() {
-    return i18n._(msg`Discord`);
-  },
-  get email() {
-    return i18n._(msg`Email`);
-  },
+  github: `GitHub`,
+  discord: `Discord`,
+  email: `Email`,
 };
 function providerIcon(provider: string) {
   if (provider === "github") return <Github className="h-4 w-4" />;
@@ -56,7 +47,7 @@ export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
         window.location.assign(url);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : i18n._(msg`Linking failed`));
+      toast.error(err instanceof Error ? err.message : `Linking failed`);
     } finally {
       setBusy(false);
     }
@@ -68,12 +59,12 @@ export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
     try {
       await unlinkIdentity(token, provider);
       await refresh();
-      toast.success(i18n._(msg`${PROVIDER_LABELS[provider] ?? provider} unlinked`));
+      toast.success(`${PROVIDER_LABELS[provider] ?? provider} unlinked`);
     } catch (err) {
       if (err instanceof AuthRequestError && err.status === 409) {
-        toast.error(i18n._(msg`You can't unlink your only sign-in method`));
+        toast.error(`You can't unlink your only sign-in method`);
       } else {
-        toast.error(err instanceof Error ? err.message : i18n._(msg`Unlinking failed`));
+        toast.error(err instanceof Error ? err.message : `Unlinking failed`);
       }
     } finally {
       setBusy(false);
@@ -81,9 +72,7 @@ export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
   }
   return (
     <section className="rounded-lg border bg-card/40 p-4 sm:p-5 space-y-3">
-      <Label>
-        <Trans>Sign-in methods</Trans>
-      </Label>
+      <Label>Sign-in methods</Label>
       <div className="space-y-2">
         {identities.map((identity) => {
           const label = PROVIDER_LABELS[identity.provider] ?? identity.provider;
@@ -105,7 +94,7 @@ export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
                 variant="ghost"
                 size="icon"
                 className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
-                title={i18n._(msg`Unlink ${label}`)}
+                title={`Unlink ${label}`}
                 disabled={busy || identities.length <= 1}
                 onClick={() => void handleUnlink(identity.provider)}
               >
@@ -125,10 +114,8 @@ export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
               disabled={busy}
               onClick={() => void handleLink(provider)}
             >
-              <Trans>
-                {providerIcon(provider)}
-                Link {PROVIDER_LABELS[provider]}
-              </Trans>
+              {providerIcon(provider)}
+              Link {PROVIDER_LABELS[provider]}
             </Button>
           ))}
         </div>

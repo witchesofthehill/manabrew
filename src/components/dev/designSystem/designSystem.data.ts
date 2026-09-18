@@ -1,6 +1,4 @@
 import type { GameIconName } from "@/components/game/GameIcon";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export interface NavEntry {
   id: string;
   label: string;
@@ -8,51 +6,35 @@ export interface NavEntry {
 export const SECTIONS: NavEntry[] = [
   {
     id: "brand",
-    get label() {
-      return i18n._(msg`Brand`);
-    },
+    label: `Brand`,
   },
   {
     id: "color",
-    get label() {
-      return i18n._(msg`Color`);
-    },
+    label: `Color`,
   },
   {
     id: "typography",
-    get label() {
-      return i18n._(msg`Typography`);
-    },
+    label: `Typography`,
   },
   {
     id: "icons",
-    get label() {
-      return i18n._(msg`Iconography`);
-    },
+    label: `Iconography`,
   },
   {
     id: "components",
-    get label() {
-      return i18n._(msg`Components`);
-    },
+    label: `Components`,
   },
   {
     id: "cards",
-    get label() {
-      return i18n._(msg`Card faces`);
-    },
+    label: `Card faces`,
   },
   {
     id: "spacing",
-    get label() {
-      return i18n._(msg`Spacing & radius`);
-    },
+    label: `Spacing & radius`,
   },
   {
     id: "assets",
-    get label() {
-      return i18n._(msg`Assets`);
-    },
+    label: `Assets`,
   },
 ];
 // Curated from an app-wide `lucide-react` import audit, grouped by where the
@@ -201,33 +183,23 @@ export const MANA_COSTS: {
   cost: string;
 }[] = [
   {
-    get label() {
-      return i18n._(msg`Mono`);
-    },
+    label: `Mono`,
     cost: "{W}{U}{B}{R}{G}{C}",
   },
   {
-    get label() {
-      return i18n._(msg`Generic`);
-    },
+    label: `Generic`,
     cost: "{X}{2}{1}{0}",
   },
   {
-    get label() {
-      return i18n._(msg`Hybrid`);
-    },
+    label: `Hybrid`,
     cost: "{W/U}{B/R}{2/W}",
   },
   {
-    get label() {
-      return i18n._(msg`Phyrexian`);
-    },
+    label: `Phyrexian`,
     cost: "{W/P}{U/P}{G/P}",
   },
   {
-    get label() {
-      return i18n._(msg`Typical spell`);
-    },
+    label: `Typical spell`,
     cost: "{3}{W}{W}",
   },
 ];

@@ -1,7 +1,5 @@
 import type { DeckCard } from "@/protocol/deck";
 import { computeCmc, isLand } from "@/lib/mana";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export { scryfallToDeckCard } from "@/lib/scryfall.utils";
 export interface CardGroup {
   key: string;
@@ -21,27 +19,19 @@ export const GROUP_BY_OPTIONS: {
 }[] = [
   {
     value: "type",
-    get label() {
-      return i18n._(msg`Type`);
-    },
+    label: `Type`,
   },
   {
     value: "cmc",
-    get label() {
-      return i18n._(msg`Mana Value`);
-    },
+    label: `Mana Value`,
   },
   {
     value: "color",
-    get label() {
-      return i18n._(msg`Color`);
-    },
+    label: `Color`,
   },
   {
     value: "custom",
-    get label() {
-      return i18n._(msg`Custom Tags`);
-    },
+    label: `Custom Tags`,
   },
 ];
 export const SORT_OPTIONS: {
@@ -50,33 +40,23 @@ export const SORT_OPTIONS: {
 }[] = [
   {
     value: "name",
-    get label() {
-      return i18n._(msg`Name`);
-    },
+    label: `Name`,
   },
   {
     value: "mana-value",
-    get label() {
-      return i18n._(msg`Mana Value`);
-    },
+    label: `Mana Value`,
   },
   {
     value: "quantity",
-    get label() {
-      return i18n._(msg`Quantity`);
-    },
+    label: `Quantity`,
   },
   {
     value: "owned",
-    get label() {
-      return i18n._(msg`Owned First`);
-    },
+    label: `Owned First`,
   },
   {
     value: "not-owned",
-    get label() {
-      return i18n._(msg`Not Owned First`);
-    },
+    label: `Not Owned First`,
   },
 ];
 export interface SectionDefinition {
@@ -101,51 +81,37 @@ export function parseFilterTerms(filter: string): string[] {
 const TYPE_SECTIONS: Record<string, SectionDefinition> = {
   creatures: {
     id: "creatures",
-    get label() {
-      return i18n._(msg`Creatures`);
-    },
+    label: `Creatures`,
     filter: (t) => t.includes("Creature"),
   },
   planeswalkers: {
     id: "planeswalkers",
-    get label() {
-      return i18n._(msg`Planeswalkers`);
-    },
+    label: `Planeswalkers`,
     filter: (t) => t.includes("Planeswalker") && !t.includes("Creature"),
   },
   instants: {
     id: "instants",
-    get label() {
-      return i18n._(msg`Instants`);
-    },
+    label: `Instants`,
     filter: (t) => t.includes("Instant"),
   },
   sorceries: {
     id: "sorceries",
-    get label() {
-      return i18n._(msg`Sorceries`);
-    },
+    label: `Sorceries`,
     filter: (t) => t.includes("Sorcery"),
   },
   enchantments: {
     id: "enchantments",
-    get label() {
-      return i18n._(msg`Enchantments`);
-    },
+    label: `Enchantments`,
     filter: (t) => t.includes("Enchantment") && !t.includes("Creature"),
   },
   artifacts: {
     id: "artifacts",
-    get label() {
-      return i18n._(msg`Artifacts`);
-    },
+    label: `Artifacts`,
     filter: (t) => t.includes("Artifact") && !t.includes("Creature"),
   },
   lands: {
     id: "lands",
-    get label() {
-      return i18n._(msg`Lands`);
-    },
+    label: `Lands`,
     filter: (t) => t.includes("Land"),
   },
 };
@@ -279,9 +245,7 @@ export function computeStackColumns(
   if (otherGroups.length > 0)
     cols.push({
       id: "other",
-      get label() {
-        return i18n._(msg`Other`);
-      },
+      label: `Other`,
       filter: () => false,
       groups: otherGroups,
     });
@@ -381,9 +345,7 @@ function groupByCustomTags(
   if (untagged.length > 0) {
     result.push({
       id: "untagged",
-      get label() {
-        return i18n._(msg`Untagged`);
-      },
+      label: `Untagged`,
       filter: (() => false) as SectionDefinition["filter"],
       groups: untagged,
     });

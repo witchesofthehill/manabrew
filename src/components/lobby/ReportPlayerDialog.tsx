@@ -16,9 +16,6 @@ import { useChatStore, type ChatEntry } from "@/stores/useChatStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { stripUsernameTag } from "@/lib/username";
 import { cn } from "@/lib/utils";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export interface ReportTarget {
   username: string;
   seal?: string;
@@ -33,33 +30,23 @@ const REASONS: Array<{
 }> = [
   {
     value: "harassment",
-    get label() {
-      return i18n._(msg`Harassment or bullying`);
-    },
+    label: `Harassment or bullying`,
   },
   {
     value: "hate",
-    get label() {
-      return i18n._(msg`Hate speech`);
-    },
+    label: `Hate speech`,
   },
   {
     value: "inappropriate_content",
-    get label() {
-      return i18n._(msg`Inappropriate name or content`);
-    },
+    label: `Inappropriate name or content`,
   },
   {
     value: "spam",
-    get label() {
-      return i18n._(msg`Spam`);
-    },
+    label: `Spam`,
   },
   {
     value: "other",
-    get label() {
-      return i18n._(msg`Something else`);
-    },
+    label: `Something else`,
   },
 ];
 const DETAILS_MAX_CHARS = 500;
@@ -105,7 +92,7 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
       setSent(true);
     } catch (error) {
       setSubmitting(false);
-      toast.error(error instanceof Error ? error.message : i18n._(msg`Couldn't send the report.`));
+      toast.error(error instanceof Error ? error.message : `Couldn't send the report.`);
     }
   }
   if (sent) {
@@ -113,28 +100,20 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
       <Dialog open={player != null} onOpenChange={(open) => !open && close()}>
         <DialogContent className="max-w-sm">
           <DialogTitle className="flex items-center gap-2">
-            <Trans>
-              <ShieldCheck className="h-4 w-4 text-success" />
-              Thank you
-            </Trans>
+            <ShieldCheck className="h-4 w-4 text-success" />
+            Thank you
           </DialogTitle>
-          <DialogDescription>
-            <Trans>Your report has been sent.</Trans>
-          </DialogDescription>
+          <DialogDescription>Your report has been sent.</DialogDescription>
           <p className="text-sm text-foreground/90">
-            <Trans>
-              Your help is valuable in keeping Manabrew safe for everyone. A maintainer will look at
-              this promptly and take action where it is warranted.
-            </Trans>
+            Your help is valuable in keeping Manabrew safe for everyone. A maintainer will look at
+            this promptly and take action where it is warranted.
           </p>
           <p className="text-sm text-muted-foreground">
-            <Trans>
-              You won&apos;t hear back about the outcome, but every report is read by a person.
-            </Trans>
+            You won&apos;t hear back about the outcome, but every report is read by a person.
           </p>
           <DialogFooter>
             <Button variant="ghost" onClick={close}>
-              <Trans>Done</Trans>
+              Done
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -145,16 +124,12 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
     <Dialog open={player != null} onOpenChange={(open) => !open && close()}>
       <DialogContent className="max-w-sm">
         <DialogTitle className="flex items-center gap-2">
-          <Trans>
-            <Flag className="h-4 w-4" />
-            Report {player ? stripUsernameTag(player.username) : ""}
-          </Trans>
+          <Flag className="h-4 w-4" />
+          Report {player ? stripUsernameTag(player.username) : ""}
         </DialogTitle>
         <DialogDescription>
-          <Trans>
-            We take reports extremely seriously. Please do not proceed unless there is a clear
-            violation of Terms of Service.
-          </Trans>
+          We take reports extremely seriously. Please do not proceed unless there is a clear
+          violation of Terms of Service.
         </DialogDescription>
         <div className="space-y-1">
           {REASONS.map((option) => (
@@ -179,7 +154,7 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="report-details" className="text-xs text-muted-foreground">
-            <Trans>Anything else? (optional)</Trans>
+            Anything else? (optional)
           </Label>
           <textarea
             id="report-details"
@@ -192,10 +167,10 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={close}>
-            <Trans>Cancel</Trans>
+            Cancel
           </Button>
           <Button variant="primary" disabled={!reason || submitting} onClick={() => void submit()}>
-            {submitting ? i18n._(msg`Sending…`) : i18n._(msg`Send report`)}
+            {submitting ? `Sending…` : `Send report`}
           </Button>
         </DialogFooter>
       </DialogContent>

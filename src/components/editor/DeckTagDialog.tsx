@@ -9,9 +9,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface DeckTagDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -56,14 +53,10 @@ export function DeckTagDialog({
     >
       <DialogContent className="max-w-sm gap-3">
         <DialogHeader>
-          <DialogTitle>
-            <Trans>Tag selected cards</Trans>
-          </DialogTitle>
+          <DialogTitle>Tag selected cards</DialogTitle>
           <DialogDescription>
-            <Trans>
-              Apply a role or custom group to {selectedCount} selected card
-              {selectedCount === 1 ? "" : "s"}.
-            </Trans>
+            Apply a role or custom group to {selectedCount} selected card
+            {selectedCount === 1 ? "" : "s"}.
           </DialogDescription>
         </DialogHeader>
         <div className="relative">
@@ -72,7 +65,7 @@ export function DeckTagDialog({
             autoFocus
             value={query}
             className="pl-9"
-            placeholder={i18n._(msg`Ramp, removal, combo\u2026`)}
+            placeholder={`Ramp, removal, combo\u2026`}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
               if (event.key !== "Enter") return;
@@ -95,9 +88,7 @@ export function DeckTagDialog({
           ))}
           {query.trim() && !exactMatch && (
             <Button variant="ghost" className="w-full justify-start" onClick={createAndApply}>
-              <Trans>
-                <Plus className="mr-2 h-3.5 w-3.5" /> Create “{query.trim()}”
-              </Trans>
+              <Plus className="mr-2 h-3.5 w-3.5" /> Create “{query.trim()}”
             </Button>
           )}
         </div>

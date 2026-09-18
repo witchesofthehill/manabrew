@@ -7,7 +7,6 @@ import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 import { HubTopDeckSnapshots } from "@/components/deck/HubTopDeckSnapshots";
 import { useHubStore } from "@/stores/useHubStore";
 import { ROUTES } from "@/lib/constants";
-import { Trans } from "@lingui/react/macro";
 export default function DeckHub() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -50,9 +49,7 @@ export default function DeckHub() {
       {!capabilitiesLoaded && capabilitiesError ? (
         <div className="grid min-h-0 flex-1 place-items-center px-6 text-center">
           <div className="max-w-md">
-            <p className="font-medium">
-              <Trans>Community could not be reached</Trans>
-            </p>
+            <p className="font-medium">Community could not be reached</p>
             <p className="mt-1 text-sm text-muted-foreground">{capabilitiesError}</p>
             <Button
               variant="outline"
@@ -60,16 +57,14 @@ export default function DeckHub() {
               className="mt-4"
               onClick={() => void loadCapabilities()}
             >
-              <Trans>
-                <RefreshCw className="mr-1 h-4 w-4" />
-                Try again
-              </Trans>
+              <RefreshCw className="mr-1 h-4 w-4" />
+              Try again
             </Button>
           </div>
         </div>
       ) : !capabilitiesLoaded ? (
         <div className="grid min-h-0 flex-1 place-items-center text-sm text-muted-foreground">
-          <Trans>Loading Community…</Trans>
+          Loading Community…
         </div>
       ) : topDecks ? (
         <HubTopDeckSnapshots onOpenDeck={openPreview} />

@@ -10,9 +10,6 @@ import {
   useCardCollectionPrintings,
   useDeckCardOwnership,
 } from "./useCardCollectionOwnership";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export function CollectionOwnershipTooltip({
   card,
   surface,
@@ -57,8 +54,8 @@ export function CollectionOwnershipTooltip({
           )}
           aria-label={
             ownership === "exact"
-              ? i18n._(msg`Exact printing of ${card.identity.name} owned`)
-              : i18n._(msg`Another printing of ${card.identity.name} owned`)
+              ? `Exact printing of ${card.identity.name} owned`
+              : `Another printing of ${card.identity.name} owned`
           }
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => event.stopPropagation()}
@@ -82,13 +79,9 @@ export function CollectionOwnershipTooltip({
             <Layers3 className="h-4 w-4 text-primary" />
           )}
           <div className="min-w-0">
-            <p className="font-semibold">
-              <Trans>Collection tracker</Trans>
-            </p>
+            <p className="font-semibold">Collection tracker</p>
             <p className="text-[11px] text-muted-foreground">
-              {ownership === "exact"
-                ? i18n._(msg`Exact printing owned`)
-                : i18n._(msg`Owned in another printing`)}
+              {ownership === "exact" ? `Exact printing owned` : `Owned in another printing`}
             </p>
           </div>
           <span className="ml-auto font-mono text-xs tabular-nums">
@@ -98,14 +91,14 @@ export function CollectionOwnershipTooltip({
 
         <div className="space-y-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            <Trans>Needed for deck</Trans>
+            Needed for deck
           </p>
           <PrintingRow quantity={summary.required} label={requiredPrinting} exact />
         </div>
 
         <div className="space-y-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            <Trans>Found in collection</Trans>
+            Found in collection
           </p>
           {printings.map((printing, index) => {
             const key = collectionCardKey(
@@ -130,9 +123,7 @@ export function CollectionOwnershipTooltip({
           className="flex items-center justify-center gap-1.5 rounded-md bg-muted/60 px-2 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           onClick={(event) => event.stopPropagation()}
         >
-          <Trans>
-            View in My Collection <ExternalLink className="h-3 w-3" />
-          </Trans>
+          View in My Collection <ExternalLink className="h-3 w-3" />
         </Link>
       </TooltipContent>
     </Tooltip>
@@ -152,14 +143,12 @@ function PrintingRow({
       <span className="w-5 shrink-0 text-right font-mono text-xs tabular-nums">{quantity}</span>
       <span className="min-w-0 flex-1 truncate text-xs">{label}</span>
       <span className={cn("text-[10px]", exact ? "text-legality-legal" : "text-muted-foreground")}>
-        {exact ? i18n._(msg`exact`) : i18n._(msg`other`)}
+        {exact ? `exact` : `other`}
       </span>
     </div>
   );
 }
 function printingLabel(setCode?: string, collectorNumber?: string, foil?: boolean): string {
-  if (!setCode || !collectorNumber) return i18n._(msg`Unspecified printing`);
-  return i18n._(
-    msg`${setCode.toUpperCase()} #${collectorNumber} · ${foil ? i18n._(msg`foil`) : i18n._(msg`nonfoil`)}`,
-  );
+  if (!setCode || !collectorNumber) return `Unspecified printing`;
+  return `${setCode.toUpperCase()} #${collectorNumber} · ${foil ? `foil` : `nonfoil`}`;
 }

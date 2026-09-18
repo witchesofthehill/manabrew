@@ -17,9 +17,6 @@ import { stripUsernameTag } from "@/lib/username";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const NAME_MIN_LENGTH = 2;
 // A guest's name is not reserved, so an account can claim it while the guest is
 // away. On return, the Hub refuses to vouch the stale name; this forces a
@@ -87,14 +84,12 @@ export function GuestNameConflictModal() {
             <GiEvilEyes aria-hidden className="size-9" />
           </div>
           <DialogTitle className="text-xl leading-tight">
-            <Trans>Someone stole “{stolen}” from you. Ouch!</Trans>
+            Someone stole “{stolen}” from you. Ouch!
           </DialogTitle>
           <DialogDescription className="text-sm leading-relaxed">
-            <Trans>
-              They claimed it as a permanent account handle. Track them down in the{" "}
-              <span className="font-medium text-foreground">Multiplayer</span> tab and challenge
-              them to a duel to reclaim your honor! Or don't - just grab another good name for now.
-            </Trans>
+            They claimed it as a permanent account handle. Track them down in the{" "}
+            <span className="font-medium text-foreground">Multiplayer</span> tab and challenge them
+            to a duel to reclaim your honor! Or don't - just grab another good name for now.
           </DialogDescription>
         </DialogHeader>
 
@@ -103,7 +98,7 @@ export function GuestNameConflictModal() {
             autoFocus
             value={name}
             maxLength={24}
-            placeholder={i18n._(msg`Your new name`)}
+            placeholder={`Your new name`}
             className="text-center"
             onChange={(e) => {
               setName(e.target.value);
@@ -123,20 +118,18 @@ export function GuestNameConflictModal() {
             disabled={busy || base.length < NAME_MIN_LENGTH}
             onClick={() => void save()}
           >
-            {busy ? i18n._(msg`Claiming\u2026`) : i18n._(msg`Take this name`)}
+            {busy ? `Claiming\u2026` : `Take this name`}
           </Button>
           <p className="text-center text-xs text-muted-foreground">
-            <Trans>
-              Tip:{" "}
-              <button
-                type="button"
-                className="font-medium text-primary underline-offset-2 hover:underline"
-                onClick={() => showSignIn()}
-              >
-                create an account
-              </button>{" "}
-              to claim a username for keeps - then no one can steal it!
-            </Trans>
+            Tip:{" "}
+            <button
+              type="button"
+              className="font-medium text-primary underline-offset-2 hover:underline"
+              onClick={() => showSignIn()}
+            >
+              create an account
+            </button>{" "}
+            to claim a username for keeps - then no one can steal it!
           </p>
         </DialogFooter>
       </DialogContent>

@@ -4,7 +4,6 @@ import { useCompanionStore } from "@/stores/useCompanionStore";
 import { COMPANION_ACCENT_COLORS } from "@/stores/useCompanionStore.constants";
 import type { CompanionPlayer, CompanionSession } from "@/stores/useCompanionStore.types";
 import { GameIcon } from "./GameIcon";
-import { Trans } from "@lingui/react/macro";
 interface WinBannerProps {
   session: CompanionSession;
 }
@@ -32,17 +31,15 @@ function WinBannerInner({ winner }: { winner: CompanionPlayer }) {
           <GameIcon icon="trophy-cup" className="size-8" />
         </div>
         <div>
-          <p className="text-sm uppercase tracking-wide text-muted-foreground">
-            <Trans>Last standing</Trans>
-          </p>
+          <p className="text-sm uppercase tracking-wide text-muted-foreground">Last standing</p>
           <h2 className="text-2xl font-bold">{winner.name}</h2>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setDismissed(true)}>
-            <Trans>Keep playing</Trans>
+            Keep playing
           </Button>
           <Button variant="primary" onClick={() => endSession(winner.id)}>
-            <Trans>Archive game</Trans>
+            Archive game
           </Button>
         </div>
       </div>

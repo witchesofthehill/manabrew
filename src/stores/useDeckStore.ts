@@ -21,8 +21,6 @@ import { chooseImageUrisForCard, tokenIdentityKey } from "@/stores/useScryfallSt
 import { collectProducedTokenKeys } from "@/lib/decks";
 import { resolveDeckName } from "@/lib/deckName";
 import { mergeDeckImportIntoDeck } from "@/lib/deckImport";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 /** Migrate legacy "constructed" format id to "standard". */
 function migrateFormatId(id: string): DeckFormat {
   if (id === "constructed") return "standard";
@@ -270,9 +268,7 @@ const deckStorage = createJSONStorage(() => ({
       localStorage.setItem(name, value);
     } catch {
       toast.error(
-        i18n._(
-          msg`Seems like you reached the limit of your browser storage \u2014 contact us on Discord for more info.`,
-        ),
+        `Seems like you reached the limit of your browser storage \u2014 contact us on Discord for more info.`,
         { id: "deck-storage-full" },
       );
     }

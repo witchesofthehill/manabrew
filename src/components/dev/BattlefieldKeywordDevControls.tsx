@@ -15,8 +15,6 @@ import {
   DEV_SECTION_HEADING,
 } from "./devPanel.styles";
 import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 
 const DEV_BATTLEFIELD_KEYWORDS: string[] = [
   "Flying",
@@ -129,7 +127,7 @@ export function BattlefieldKeywordDevControls() {
       setDebugCard(scryfallToDeckCard(card.info));
       setDebugCardEnabled(true);
     } catch {
-      setCardError(i18n._(msg`Could not load ${requestedName} from Scryfall.`));
+      setCardError(`Could not load ${requestedName} from Scryfall.`);
     } finally {
       setLoadingCard(false);
     }

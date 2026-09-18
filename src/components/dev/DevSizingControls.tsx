@@ -10,7 +10,6 @@ import {
 } from "./devPanel.styles";
 import { DEV_VIEWPORT_OPTIONS } from "./devViewportPresets";
 import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
-import { Trans } from "@lingui/react/macro";
 
 const CARD_SIZE_PRESETS = [0.75, 1, 1.25, 1.5] as const;
 export function DevSizingControls() {
@@ -41,11 +40,9 @@ export function DevSizingControls() {
 
   return (
     <section className={DEV_SECTION}>
-      <p className={DEV_SECTION_HEADING}>
-        <Trans>Size and viewport</Trans>
-      </p>
+      <p className={DEV_SECTION_HEADING}>Size and viewport</p>
       <p className="mt-1 text-xs text-muted-foreground">
-        <Trans>Reflow the real Pixi board at fixed dimensions without opening browser tools.</Trans>
+        Reflow the real Pixi board at fixed dimensions without opening browser tools.
       </p>
 
       {visibleCardSizes.length > 0 ? (

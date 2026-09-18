@@ -8,7 +8,6 @@ import {
   DEV_SECTION,
   DEV_SECTION_HEADING,
 } from "./devPanel.styles";
-import { Trans } from "@lingui/react/macro";
 import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
 
 export function BattlefieldStyleDevControls() {
@@ -30,13 +29,9 @@ export function BattlefieldStyleDevControls() {
 
   return (
     <section className={DEV_SECTION}>
-      <p className={DEV_SECTION_HEADING}>
-        <Trans>Battlefield card style</Trans>
-      </p>
+      <p className={DEV_SECTION_HEADING}>Battlefield card style</p>
       <p className="mt-1 text-xs text-muted-foreground">
-        <Trans>
-          Switch every battlefield card live. This also updates the saved app preference.
-        </Trans>
+        Switch every battlefield card live. This also updates the saved app preference.
       </p>
       <div className="mt-3 grid grid-cols-3 gap-1.5">
         {visibleOptions.map((option) => (

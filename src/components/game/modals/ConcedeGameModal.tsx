@@ -1,9 +1,6 @@
 import { useRef, useState } from "react";
 import { Modal } from "./Modal";
 import { Button } from "@/components/ui/button";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface ConcedeGameModalProps {
   onConfirm: () => void | Promise<void>;
   onCancel: () => void;
@@ -30,39 +27,33 @@ export function ConcedeGameModal({ onConfirm, onCancel, hosting = false }: Conce
   return (
     <Modal maxWidth="max-w-md" onClose={pending ? undefined : onCancel}>
       <Modal.Header>
-        <h2 className="text-base font-semibold">
-          <Trans>Concede the game?</Trans>
-        </h2>
+        <h2 className="text-base font-semibold">Concede the game?</h2>
       </Modal.Header>
       <Modal.Body className="space-y-3 text-sm">
-        <p>
-          <Trans>You forfeit the game. This cannot be undone.</Trans>
-        </p>
+        <p>You forfeit the game. This cannot be undone.</p>
         {hosting && (
           <p className="text-muted-foreground">
-            <Trans>
-              This app hosts the table. After conceding, stay connected so the remaining players can
-              finish. Leaving later will end their game.
-            </Trans>
+            This app hosts the table. After conceding, stay connected so the remaining players can
+            finish. Leaving later will end their game.
           </p>
         )}
         {error && (
           <p role="alert" className="rounded-lg border border-destructive p-3 text-destructive">
-            <Trans>Concession could not be delivered: {error}. You can retry or cancel.</Trans>
+            Concession could not be delivered: {error}. You can retry or cancel.
           </p>
         )}
         {pending && (
           <p role="status" className="text-muted-foreground">
-            <Trans>Sending concession…</Trans>
+            Sending concession…
           </p>
         )}
       </Modal.Body>
       <Modal.Footer className="justify-between">
         <Modal.Close data-autofocus variant="ghost" disabled={pending} onClose={onCancel}>
-          <Trans>Cancel</Trans>
+          Cancel
         </Modal.Close>
         <Button variant="destructive" disabled={pending} onClick={() => void confirm()}>
-          {pending ? i18n._(msg`Conceding…`) : i18n._(msg`Concede`)}
+          {pending ? `Conceding…` : `Concede`}
         </Button>
       </Modal.Footer>
     </Modal>

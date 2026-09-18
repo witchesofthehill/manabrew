@@ -1,19 +1,14 @@
 import { Section, Subhead, Panel } from "../kit";
 import { RADIUS_TOKENS, CARD_SIZES } from "../designSystem.data";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const SPACING = [1, 2, 3, 4, 6, 8, 12] as const;
 export function SpacingSection() {
   return (
     <Section
       id="spacing"
-      title={i18n._(msg`Spacing & radius`)}
+      title={`Spacing & radius`}
       intro="Tailwind's default spacing scale (rem-based, so it scales on large displays). Radius derives from a single --radius base. Card sizing is fixed px."
     >
-      <Subhead>
-        <Trans>Radius</Trans>
-      </Subhead>
+      <Subhead>Radius</Subhead>
       <Panel className="flex flex-wrap gap-4">
         {RADIUS_TOKENS.map((r) => (
           <div key={r.token} className="flex flex-col items-center gap-2">
@@ -29,40 +24,26 @@ export function SpacingSection() {
         ))}
       </Panel>
 
-      <Subhead>
-        <Trans>Spacing scale</Trans>
-      </Subhead>
+      <Subhead>Spacing scale</Subhead>
       <Panel className="space-y-2">
         {SPACING.map((n) => (
           <div key={n} className="flex items-center gap-3">
-            <span className="w-16 shrink-0 font-mono text-[11px] text-muted-foreground">
-              <Trans>p-{n}</Trans>
-            </span>
+            <span className="w-16 shrink-0 font-mono text-[11px] text-muted-foreground">p-{n}</span>
             <div className="h-4 bg-primary" style={{ width: `${n * 0.25}rem` }} />
-            <span className="font-mono text-[10px] text-muted-foreground">
-              <Trans>{n * 0.25}rem</Trans>
-            </span>
+            <span className="font-mono text-[10px] text-muted-foreground">{n * 0.25}rem</span>
           </div>
         ))}
       </Panel>
 
-      <Subhead>
-        <Trans>Card sizes (px)</Trans>
-      </Subhead>
+      <Subhead>Card sizes (px)</Subhead>
       <Panel>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[420px] text-left text-sm">
             <thead className="text-[11px] uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="pb-2 pr-4 font-semibold">
-                  <Trans>Surface</Trans>
-                </th>
-                <th className="pb-2 pr-4 font-semibold">
-                  <Trans>Dimensions</Trans>
-                </th>
-                <th className="pb-2 font-semibold">
-                  <Trans>Constant</Trans>
-                </th>
+                <th className="pb-2 pr-4 font-semibold">Surface</th>
+                <th className="pb-2 pr-4 font-semibold">Dimensions</th>
+                <th className="pb-2 font-semibold">Constant</th>
               </tr>
             </thead>
             <tbody>

@@ -14,9 +14,6 @@ import { Label } from "@/components/ui/label";
 import { updateHandle, AuthRequestError } from "@/api/auth";
 import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
 import { resyncRelayIdentity } from "@/lib/resyncRelayIdentity";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface HandleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -44,12 +41,12 @@ export function HandleDialog({ open, onOpenChange }: HandleDialogProps) {
       const updated = await updateHandle(token, handle.trim());
       if (useAuthStore.getState().refreshToken !== refreshToken) return;
       setAccount(updated);
-      toast.success(i18n._(msg`Handle updated to @${updated.handle}`));
+      toast.success(`Handle updated to @${updated.handle}`);
       onOpenChange(false);
       void resyncRelayIdentity();
     } catch (err) {
       if (err instanceof AuthRequestError && err.status === 409) {
-        setError(i18n._(msg`That handle is already taken`));
+        setError(`That handle is already taken`);
       } else {
         setError(err instanceof Error ? err.message : "Something went wrong");
       }
@@ -61,20 +58,14 @@ export function HandleDialog({ open, onOpenChange }: HandleDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>
-            <Trans>Change handle</Trans>
-          </DialogTitle>
+          <DialogTitle>Change handle</DialogTitle>
           <DialogDescription>
-            <Trans>
-              Your handle is the public name other players see in Community. 3-24 characters:
-              letters, digits, _ and -.
-            </Trans>
+            Your handle is the public name other players see in Community. 3-24 characters: letters,
+            digits, _ and -.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
-          <Label htmlFor="account-handle">
-            <Trans>Handle</Trans>
-          </Label>
+          <Label htmlFor="account-handle">Handle</Label>
           <Input
             id="account-handle"
             value={handle}
@@ -96,7 +87,7 @@ export function HandleDialog({ open, onOpenChange }: HandleDialogProps) {
             disabled={busy || handle.trim().length < 3 || handle.trim() === account?.handle}
             onClick={() => void handleSave()}
           >
-            {busy ? i18n._(msg`Saving\u2026`) : i18n._(msg`Save`)}
+            {busy ? `Saving\u2026` : `Save`}
           </Button>
         </DialogFooter>
       </DialogContent>

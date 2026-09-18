@@ -52,8 +52,6 @@ import type {
 } from "@/types/server";
 import type { Deck } from "@/protocol/deck";
 import { resendLocalGame } from "@/lib/localGamePresence";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export const DEFAULT_STARTING_LIFE = 20;
 export interface ReconnectState {
   phase: "idle" | "reconnecting" | "failed";
@@ -158,9 +156,7 @@ async function handleDuplicateRejection() {
   if (!username) return;
   if ((await probeTabSession(username)) === "held") {
     await stopReconnectAsDuplicate(
-      i18n._(
-        msg`You are signed in in another tab of this browser. Close it, or connect here to take over.`,
-      ),
+      `You are signed in in another tab of this browser. Close it, or connect here to take over.`,
     );
     return;
   }
@@ -214,7 +210,7 @@ export const useServerStore = create<ServerState>()(
         if (claim.outcome === "refused") {
           set({
             connecting: false,
-            error: i18n._(msg`You are hosting a game in another tab. Finish or close it first.`),
+            error: `You are hosting a game in another tab. Finish or close it first.`,
           });
         }
         try {
@@ -227,7 +223,7 @@ export const useServerStore = create<ServerState>()(
               // handle first so disconnect() doesn't close that channel mid-handover.
               tabSession = null;
               await get().disconnect();
-              toast.info(i18n._(msg`Signed in from another tab \u2014 this tab was disconnected.`));
+              toast.info(`Signed in from another tab \u2014 this tab was disconnected.`);
             },
           });
         } catch (e) {
@@ -432,7 +428,7 @@ export const useServerStore = create<ServerState>()(
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.inviteToRoom({ username });
-        toast.success(i18n._(msg`Invited ${stripUsernameTag(username)} to your table`));
+        toast.success(`Invited ${stripUsernameTag(username)} to your table`);
       },
       hasRelayFeature(feature) {
         return get().relayFeatures.includes(feature);
@@ -585,7 +581,7 @@ export const useServerStore = create<ServerState>()(
               return;
             }
             const message = USER_FACING_ERROR_MESSAGES[payload.code as ServerErrorCode];
-            toast.error(message ?? i18n._(msg`Server error: ${payload.code}`));
+            toast.error(message ?? `Server error: ${payload.code}`);
           }),
         );
         unsubscribers.push(

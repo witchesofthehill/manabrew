@@ -12,9 +12,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { STORAGE_KEYS } from "@/lib/constants";
 import type { EditorDeck } from "@/types/manabrew";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface DeckCheckpoint {
   id: string;
   deckKey: string;
@@ -72,12 +69,12 @@ export function DeckCheckpointsDialog({
     const next = [checkpoint, ...checkpoints];
     const persisted = writeCheckpoints(next);
     if (!persisted?.some((candidate) => candidate.id === checkpoint.id)) {
-      toast.error(i18n._(msg`This checkpoint is too large to save on this device`));
+      toast.error(`This checkpoint is too large to save on this device`);
       return;
     }
     setCheckpoints(persisted);
     if (persisted.length < next.length) {
-      toast.warning(i18n._(msg`Older checkpoints were removed to free device storage`));
+      toast.warning(`Older checkpoints were removed to free device storage`);
     }
     setName("");
   }
@@ -85,7 +82,7 @@ export function DeckCheckpointsDialog({
     const next = checkpoints.filter((checkpoint) => checkpoint.id !== id);
     const persisted = writeCheckpoints(next);
     if (!persisted) {
-      toast.error(i18n._(msg`Could not update checkpoints on this device`));
+      toast.error(`Could not update checkpoints on this device`);
       return;
     }
     setCheckpoints(persisted);
@@ -94,26 +91,22 @@ export function DeckCheckpointsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>
-            <Trans>Local checkpoints</Trans>
-          </DialogTitle>
+          <DialogTitle>Local checkpoints</DialogTitle>
           <DialogDescription>
-            <Trans>
-              Capture an experiment before changing direction. Checkpoints stay on this device.
-            </Trans>
+            Capture an experiment before changing direction. Checkpoints stay on this device.
           </DialogDescription>
         </DialogHeader>
         <div className="flex gap-2">
           <Input
             value={name}
-            placeholder={i18n._(msg`Before changing the mana base`)}
+            placeholder={`Before changing the mana base`}
             onChange={(event) => setName(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") saveCheckpoint();
             }}
           />
           <Button variant="outline" onClick={saveCheckpoint}>
-            <Plus className="mr-1.5 h-4 w-4" /> <Trans>Capture</Trans>
+            <Plus className="mr-1.5 h-4 w-4" /> Capture
           </Button>
         </div>
         <div className="max-h-80 space-y-2 overflow-y-auto">
@@ -123,10 +116,8 @@ export function DeckCheckpointsDialog({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{checkpoint.name}</p>
                 <p className="text-[10px] text-muted-foreground">
-                  <Trans>
-                    {new Date(checkpoint.createdAt).toLocaleString()} ·{" "}
-                    {checkpoint.deck.cards.length} main · {checkpoint.deck.sideboard.length} side
-                  </Trans>
+                  {new Date(checkpoint.createdAt).toLocaleString()} · {checkpoint.deck.cards.length}{" "}
+                  main · {checkpoint.deck.sideboard.length} side
                 </p>
               </div>
               <Button
@@ -143,15 +134,13 @@ export function DeckCheckpointsDialog({
                   )
                 }
               >
-                <Trans>
-                  <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Restore
-                </Trans>
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Restore
               </Button>
               <Button
                 size="icon"
                 variant="ghost"
                 className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                aria-label={i18n._(msg`Delete ${checkpoint.name}`)}
+                aria-label={`Delete ${checkpoint.name}`}
                 onClick={() => removeCheckpoint(checkpoint.id)}
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -160,7 +149,7 @@ export function DeckCheckpointsDialog({
           ))}
           {deckCheckpoints.length === 0 && (
             <p className="py-8 text-center text-xs text-muted-foreground">
-              <Trans>No checkpoints for this deck yet.</Trans>
+              No checkpoints for this deck yet.
             </p>
           )}
         </div>

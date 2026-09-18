@@ -5,9 +5,6 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { KEYBINDINGS, comboFromEvent, formatCombo } from "@/lib/keybindings";
 import { useKeybindingsStore, resolveCombo } from "@/stores/useKeybindingsStore";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export function KeybindingsPanel() {
   const overrides = useKeybindingsStore((s) => s.overrides);
   const setBinding = useKeybindingsStore((s) => s.setBinding);
@@ -51,15 +48,13 @@ export function KeybindingsPanel() {
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">
-            <Trans>Keyboard shortcuts</Trans>
-          </h2>
+          <h2 className="text-lg font-semibold">Keyboard shortcuts</h2>
           <p className="text-xs text-muted-foreground">
-            <Trans>Click a shortcut, then press the key combination you want.</Trans>
+            Click a shortcut, then press the key combination you want.
           </p>
         </div>
         <Button size="sm" variant="ghost" onClick={resetAll}>
-          <Trans>Reset all</Trans>
+          Reset all
         </Button>
       </div>
 
@@ -68,15 +63,13 @@ export function KeybindingsPanel() {
         <Input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder={i18n._(msg`Filter shortcuts\u2026`)}
+          placeholder={`Filter shortcuts\u2026`}
           className="pl-8"
         />
       </div>
 
       {categories.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          <Trans>No shortcuts match “{filter}”.</Trans>
-        </p>
+        <p className="text-sm text-muted-foreground">No shortcuts match “{filter}”.</p>
       )}
 
       {categories.map((category) => (
@@ -102,17 +95,13 @@ export function KeybindingsPanel() {
                         style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}
                         onClick={() => setCapturingId(isCapturing ? null : b.id)}
                       >
-                        {isCapturing
-                          ? i18n._(msg`Press keys…`)
-                          : combo
-                            ? formatCombo(combo)
-                            : i18n._(msg`Unbound`)}
+                        {isCapturing ? `Press keys…` : combo ? formatCombo(combo) : `Unbound`}
                       </Button>
                       {isCustom && (
                         <Button
                           size="icon-sm"
                           variant="ghost"
-                          title={i18n._(msg`Reset to default`)}
+                          title={`Reset to default`}
                           onClick={() => resetBinding(b.id)}
                         >
                           <RotateCcw className="h-3.5 w-3.5" />

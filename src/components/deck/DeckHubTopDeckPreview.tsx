@@ -5,7 +5,6 @@ import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
 import { DeckHubPodiumFrame } from "@/components/deck/DeckHubPodiumFrame";
 import { ROUTES } from "@/lib/constants";
 import { useHubStore } from "@/stores/useHubStore";
-import { Trans } from "@lingui/react/macro";
 interface DeckHubTopDeckPreviewProps {
   onOpen: (id: string) => void;
   onAuthor: (author: string) => void;
@@ -34,18 +33,14 @@ export function DeckHubTopDeckPreview({ onOpen, onAuthor }: DeckHubTopDeckPrevie
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-primary" />
-          <h2 className="font-serif text-xl font-semibold">
-            <Trans>Top decks right now</Trans>
-          </h2>
+          <h2 className="font-serif text-xl font-semibold">Top decks right now</h2>
         </div>
         <Link
           to={ROUTES.HUB_TOP}
           className="flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline"
         >
-          <Trans>
-            See rankings
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Trans>
+          See rankings
+          <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>
       {entries.length > 0 ? (

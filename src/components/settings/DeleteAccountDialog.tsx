@@ -13,9 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { deleteAccount } from "@/api/auth";
 import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface DeleteAccountDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -44,7 +41,7 @@ export function DeleteAccountDialog({ open, onOpenChange }: DeleteAccountDialogP
       await deleteAccount(token);
       await useAuthStore.getState().signOut();
       onOpenChange(false);
-      toast.success(i18n._(msg`Your account has been deleted`));
+      toast.success(`Your account has been deleted`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setBusy(false);
@@ -54,21 +51,15 @@ export function DeleteAccountDialog({ open, onOpenChange }: DeleteAccountDialogP
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>
-            <Trans>Delete account</Trans>
-          </DialogTitle>
+          <DialogTitle>Delete account</DialogTitle>
           <DialogDescription>
-            <Trans>
-              This erases your account, sign-in methods, saved decks and version history. Decks you
-              published to Community stay up without your name on them. This cannot be undone —
-              export your data first if you want a copy.
-            </Trans>
+            This erases your account, sign-in methods, saved decks and version history. Decks you
+            published to Community stay up without your name on them. This cannot be undone — export
+            your data first if you want a copy.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
-          <Label htmlFor="delete-account-confirm">
-            <Trans>Type {handle} to confirm</Trans>
-          </Label>
+          <Label htmlFor="delete-account-confirm">Type {handle} to confirm</Label>
           <Input
             id="delete-account-confirm"
             value={confirmation}
@@ -87,7 +78,7 @@ export function DeleteAccountDialog({ open, onOpenChange }: DeleteAccountDialogP
             disabled={busy}
             onClick={() => handleOpenChange(false)}
           >
-            <Trans>Cancel</Trans>
+            Cancel
           </Button>
           <Button
             variant="destructive"
@@ -95,7 +86,7 @@ export function DeleteAccountDialog({ open, onOpenChange }: DeleteAccountDialogP
             disabled={busy || !confirmed}
             onClick={() => void handleDelete()}
           >
-            {busy ? i18n._(msg`Deleting\u2026`) : i18n._(msg`Delete account`)}
+            {busy ? `Deleting\u2026` : `Delete account`}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,7 +1,6 @@
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { cn } from "@/lib/utils";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import { Trans } from "@lingui/react/macro";
 export interface IndexedPreviewAction {
   action: HandActionOption;
   index: number;
@@ -59,33 +58,23 @@ export function CardPreviewActions({
       {showHelp && (
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 px-1 text-[10px] text-muted-foreground">
           <span>
-            <Trans>
-              <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
-                1
-              </kbd>
-              -
-              <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
-                9
-              </kbd>{" "}
-              select
-            </Trans>
+            <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">1</kbd>
+            -
+            <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">9</kbd>{" "}
+            select
           </span>
           <span>
-            <Trans>
-              <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
-                Esc
-              </kbd>{" "}
-              close
-            </Trans>
+            <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+              Esc
+            </kbd>{" "}
+            close
           </span>
           {hasFlippableFaces && (
             <span>
-              <Trans>
-                <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
-                  F
-                </kbd>{" "}
-                flip
-              </Trans>
+              <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+                F
+              </kbd>{" "}
+              flip
             </span>
           )}
         </div>

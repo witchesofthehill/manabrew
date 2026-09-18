@@ -18,7 +18,6 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import type { SavedDeck } from "@/stores/useDeckStore";
-import { Trans } from "@lingui/react/macro";
 interface PlayDeckShelfProps {
   onPlay: (savedDeckId: string) => void;
   onPlayPreset: (preset: PresetDeck) => void;
@@ -121,20 +120,16 @@ export function PlayDeckShelf({
   return (
     <section className="min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-background/80 p-5 shadow-xl backdrop-blur-md sm:p-6">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <h2 className="font-serif text-2xl font-light tracking-tight sm:text-3xl">
-          <Trans>My Decks</Trans>
-        </h2>
+        <h2 className="font-serif text-2xl font-light tracking-tight sm:text-3xl">My Decks</h2>
         <div className="flex flex-wrap items-center gap-2">
           {ownedDecks.length > 0 && (
             <Button variant="outline" size="sm" onClick={() => setChoiceOpen(true)}>
-              <Trans>
-                <Plus className="h-4 w-4" />
-                Build / Import
-              </Trans>
+              <Plus className="h-4 w-4" />
+              Build / Import
             </Button>
           )}
           <Button variant="ghost" size="sm" onClick={() => navigate(ROUTES.DECK_EDITOR)}>
-            <Trans>View All</Trans>
+            View All
           </Button>
         </div>
       </div>
@@ -143,7 +138,7 @@ export function PlayDeckShelf({
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
           <span className="min-w-0 flex-1">{accountDecksError}</span>
           <Button variant="outline" size="sm" onClick={() => void refreshAccountDecks()}>
-            <Trans>Retry</Trans>
+            Retry
           </Button>
         </div>
       )}

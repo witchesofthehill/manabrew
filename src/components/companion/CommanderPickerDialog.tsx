@@ -17,9 +17,6 @@ import type { ScryfallCard } from "@/types/scryfall";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { CompanionCommanderRef } from "@/stores/useCompanionStore.types";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface CommanderPickerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -41,9 +38,7 @@ export function CommanderPickerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>
-            <Trans>Choose commander</Trans>
-          </DialogTitle>
+          <DialogTitle>Choose commander</DialogTitle>
         </DialogHeader>
         {open && (
           <CommanderPickerForm
@@ -67,9 +62,7 @@ function CommanderPickerForm({
 }) {
   const setCommander = useCompanionStore((s) => s.setCommander);
   const oathbreaker = useCompanionStore((s) => s.session?.oathbreaker ?? false);
-  const partnerLabel = oathbreaker
-    ? i18n._(msg`Signature spell`)
-    : i18n._(msg`Partner / Background`);
+  const partnerLabel = oathbreaker ? `Signature spell` : `Partner / Background`;
   const [partnerEnabled, setPartnerEnabled] = useState(Boolean(initial[1]));
   const [slots, setSlots] = useState<[SlotState, SlotState]>([
     { query: initial[0]?.name ?? "", pick: initial[0] },
@@ -123,7 +116,7 @@ function CommanderPickerForm({
       </div>
       <DialogFooter className="gap-2">
         <Button variant="ghost" onClick={clearAll}>
-          <Trans>Clear</Trans>
+          Clear
         </Button>
         <Button
           variant="primary"
@@ -196,7 +189,7 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
               onPick(null);
               onQueryChange("");
             }}
-            aria-label={i18n._(msg`Clear`)}
+            aria-label={`Clear`}
           >
             <X className="size-4" />
           </Button>
@@ -213,7 +206,7 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
         <Input
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
-          placeholder={i18n._(msg`Search Scryfall\u2026`)}
+          placeholder={`Search Scryfall\u2026`}
           className="pl-8"
         />
         {loading && (

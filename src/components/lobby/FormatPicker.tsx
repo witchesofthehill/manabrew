@@ -1,6 +1,5 @@
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { GAME_FORMATS, type GameFormat } from "@/lib/formats";
-import { Trans } from "@lingui/react/macro";
 interface FormatPickerProps {
   formats?: GameFormat[];
   onSelect: (formatId: string) => void;
@@ -10,11 +9,9 @@ export function FormatPicker({ formats = GAME_FORMATS, onSelect }: FormatPickerP
     <div className="flex h-full flex-col overflow-y-auto px-4 py-10 sm:px-6 lg:px-8">
       <div className="flex w-full flex-col">
         <header className="mb-10 text-center">
-          <h2 className="font-serif text-4xl font-light tracking-wide">
-            <Trans>Choose a format</Trans>
-          </h2>
+          <h2 className="font-serif text-4xl font-light tracking-wide">Choose a format</h2>
           <p className="mt-3 text-sm text-muted-foreground">
-            <Trans>Decide the rules of engagement before picking decks.</Trans>
+            Decide the rules of engagement before picking decks.
           </p>
           <div
             aria-hidden

@@ -1,7 +1,5 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const palette: BasePalette = {
   foreground: "#d3c6aa",
   labelMuted: "#859289",
@@ -38,9 +36,7 @@ const palette: BasePalette = {
 const preset: ThemePreset = {
   id: "everforest",
   name: "Everforest",
-  get description() {
-    return i18n._(msg`Soft green nature-inspired, easy on the eyes`);
-  },
+  description: `Soft green nature-inspired, easy on the eyes`,
   light: {
     background: "#f4f2eb",
     foreground: "#36453b",

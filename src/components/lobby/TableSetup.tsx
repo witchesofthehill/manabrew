@@ -41,9 +41,6 @@ import type {
   SealedConfig,
 } from "@/types/server";
 import type { CubeImportResult } from "@/types/limited";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface TableSetupProps {
   username: string | null;
   onClose: () => void;
@@ -140,12 +137,12 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
   const matchPlayers = matchPlayersOverride ?? defaultMatchPlayers(format);
   const maxPlayers = kind === "limited" ? limitedPlayers : matchPlayers;
   const handleMaxPlayersChange = kind === "limited" ? setLimitedPlayers : setMatchPlayersOverride;
-  const defaultName = i18n._(msg`${username ?? i18n._(msg`Player`)}'s Table`);
+  const defaultName = `${username ?? `Player`}'s Table`;
   const submittedEngine: EngineKind =
     kind === "match" && (engine !== "Forge" || canHostForge) ? engine : "Manabrew";
   const modeLabel =
     kind === "limited"
-      ? (LIMITED_KINDS.find((k) => k.value === limitedKind)?.label ?? i18n._(msg`Limited`))
+      ? (LIMITED_KINDS.find((k) => k.value === limitedKind)?.label ?? `Limited`)
       : format;
   const poolLabel = isBoosterDraft
     ? draftSet
@@ -170,16 +167,12 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
             ? "Pick a set for sealed below."
             : null;
   const onNode = submittedEngine === "Forge" && hostedNode;
-  const splashLabel = onNode
-    ? i18n._(msg`Finding you a table\u2026`)
-    : i18n._(msg`Setting the table\u2026`);
+  const splashLabel = onNode ? `Finding you a table\u2026` : `Setting the table\u2026`;
   const openTableHint = onNode
-    ? i18n._(
-        msg`A Manabrew node hosts this table, under its own name. Anyone in the lobby can take a seat.`,
-      )
+    ? `A Manabrew node hosts this table, under its own name. Anyone in the lobby can take a seat.`
     : roomPassword.trim()
-      ? i18n._(msg`People with the password can join.`)
-      : i18n._(msg`Anyone in the lobby can take a seat.`);
+      ? `People with the password can join.`
+      : `Anyone in the lobby can take a seat.`;
   const hostUsername = username ?? "You";
   const hostPlayer: RoomPlayerInfo = { username: hostUsername, ready: true, connected: true };
   async function handleCreate() {
@@ -245,7 +238,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
       await new Promise((resolve) => setTimeout(resolve, splashUntil - Date.now()));
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : i18n._(msg`Couldn't create the table.`));
+      toast.error(error instanceof Error ? error.message : `Couldn't create the table.`);
     } finally {
       setCreating(false);
       showSplash(null);
@@ -263,7 +256,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
             <div className={cn("border-b border-border/60 px-5 py-4", onNode && "hidden")}>
               <input
                 id="table-name"
-                aria-label={i18n._(msg`Table name`)}
+                aria-label={`Table name`}
                 value={roomName}
                 onChange={(e) => setRoomName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
@@ -275,17 +268,17 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
               <div className="mt-3 flex max-w-64 items-center gap-1.5">
                 {roomPassword.trim() && (
                   <LockKeyhole
-                    aria-label={i18n._(msg`Password protected`)}
+                    aria-label={`Password protected`}
                     className="h-3 w-3 shrink-0 text-muted-foreground"
                   />
                 )}
                 <input
-                  aria-label={i18n._(msg`Password (optional)`)}
+                  aria-label={`Password (optional)`}
                   type="text"
                   value={roomPassword}
                   onChange={(e) => setRoomPassword(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-                  placeholder={i18n._(msg`Password (optional)`)}
+                  placeholder={`Password (optional)`}
                   autoComplete="off"
                   className="w-full bg-transparent text-xs text-foreground/80 outline-none placeholder:text-foreground/80"
                 />
@@ -322,7 +315,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
               </p>
               <div className="flex shrink-0 gap-2">
                 <Button variant="ghost" onClick={onClose}>
-                  <Trans>Cancel</Trans>
+                  Cancel
                 </Button>
                 <Button
                   variant="primary"
@@ -336,7 +329,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
                   ) : (
                     <Swords className="h-4 w-4" />
                   )}
-                  {creating ? i18n._(msg`Creating\u2026`) : i18n._(msg`Create table`)}
+                  {creating ? `Creating\u2026` : `Create table`}
                 </Button>
               </div>
             </div>
@@ -392,9 +385,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
           <div className="space-y-2">
             {draftableSets.length === 0 ? (
               <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Trans>
-                  <Loader2 className="h-3 w-3 animate-spin" /> Loading sets from Scryfall…
-                </Trans>
+                <Loader2 className="h-3 w-3 animate-spin" /> Loading sets from Scryfall…
               </p>
             ) : (
               <SetPicker
@@ -407,10 +398,8 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
             )}
             {!!pickerSet && pickerUnsupported === pickerSet && (
               <p className="text-[11px] text-destructive">
-                <Trans>
-                  Your game data doesn't include {pickerSet.toUpperCase()}. Update the app to use
-                  this set.
-                </Trans>
+                Your game data doesn't include {pickerSet.toUpperCase()}. Update the app to use this
+                set.
               </p>
             )}
           </div>

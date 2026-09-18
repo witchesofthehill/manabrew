@@ -1,7 +1,6 @@
 import { Armchair, Plus } from "lucide-react";
 import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
 import { Button } from "@/components/ui/button";
-import { Trans } from "@lingui/react/macro";
 interface MultiplayerStartPanelProps {
   disabled: boolean;
   onSetUp: () => void;
@@ -19,12 +18,10 @@ export function MultiplayerStartPanel({ disabled, onSetUp }: MultiplayerStartPan
           <Armchair className="hidden text-foreground sm:mt-2 sm:block sm:h-24 sm:w-24" />
           <div className="flex flex-col items-center gap-3 sm:ml-4 sm:items-start">
             <h2 className="font-serif text-xl font-light leading-tight sm:text-4xl">
-              <Trans>Pull up a chair.</Trans>
+              Pull up a chair.
             </h2>
             <Button variant="primary" size="lg" onClick={onSetUp} disabled={disabled}>
-              <Trans>
-                <Plus /> Set up a table
-              </Trans>
+              <Plus /> Set up a table
             </Button>
           </div>
         </div>

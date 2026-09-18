@@ -3,8 +3,6 @@ import { withAlpha } from "@/themes/gameTheme";
 import { CARD_BACK_IMAGE_URL, GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { useTheme } from "@/hooks/useTheme";
 import { ScryfallImg } from "@/components/ScryfallImg";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface LibraryZoneTileProps {
   count: number;
   onClick?: () => void;
@@ -32,7 +30,7 @@ export function LibraryZoneTile({ count, onClick, label = "Lib" }: LibraryZoneTi
         }}
         onClick={onClick}
         disabled={!onClick}
-        title={i18n._(msg`Library`)}
+        title={`Library`}
       >
         {!empty && (
           <ScryfallImg

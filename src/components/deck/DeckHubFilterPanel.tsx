@@ -8,9 +8,6 @@ import type { DeckHubFacets } from "@/api/hubTypes";
 import { FORMAT_DISPLAY } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { MANA_LETTERS } from "@/themes/gameTheme";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const DEFAULT_FORMATS = [
   "commander",
   "standard",
@@ -89,14 +86,14 @@ export function DeckHubFilterPanel({
         <Input
           value={filters.search}
           onChange={(event) => onChange({ search: event.target.value })}
-          aria-label={i18n._(msg`Search Community`)}
-          placeholder={i18n._(msg`Search decks or authors`)}
+          aria-label={`Search Community`}
+          placeholder={`Search decks or authors`}
           className="h-10 pl-9 pr-9 pointer-coarse:text-base"
         />
         {filters.search && (
           <button
             type="button"
-            aria-label={i18n._(msg`Clear search`)}
+            aria-label={`Clear search`}
             className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-2 text-muted-foreground hover:text-foreground"
             onClick={() => onChange({ search: "" })}
           >
@@ -108,52 +105,34 @@ export function DeckHubFilterPanel({
       <div className="grid grid-cols-2 gap-2">
         <select
           value={filters.sort}
-          aria-label={i18n._(msg`Sort Community decks`)}
+          aria-label={`Sort Community decks`}
           className="h-9 min-w-0 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
           onChange={(event) =>
             onChange({ sort: event.target.value as DeckHubDiscoveryFilters["sort"] })
           }
         >
-          <option value="newest">
-            <Trans>Newest</Trans>
-          </option>
-          <option value="name">
-            <Trans>Name</Trans>
-          </option>
-          <option value="favorites">
-            <Trans>Favorites</Trans>
-          </option>
+          <option value="newest">Newest</option>
+          <option value="name">Name</option>
+          <option value="favorites">Favorites</option>
         </select>
         <select
           value={filters.group}
-          aria-label={i18n._(msg`Group Community results`)}
+          aria-label={`Group Community results`}
           className="h-9 min-w-0 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
           onChange={(event) =>
             onChange({ group: event.target.value as DeckHubDiscoveryFilters["group"] })
           }
         >
-          <option value="none">
-            <Trans>No groups</Trans>
-          </option>
-          <option value="source">
-            <Trans>By source</Trans>
-          </option>
-          <option value="format">
-            <Trans>By format</Trans>
-          </option>
-          <option value="color">
-            <Trans>By color</Trans>
-          </option>
-          <option value="tag">
-            <Trans>By tag</Trans>
-          </option>
+          <option value="none">No groups</option>
+          <option value="source">By source</option>
+          <option value="format">By format</option>
+          <option value="color">By color</option>
+          <option value="tag">By tag</option>
         </select>
       </div>
 
       <div className="space-y-2">
-        <span className="text-sm font-medium">
-          <Trans>Source</Trans>
-        </span>
+        <span className="text-sm font-medium">Source</span>
         <div className="grid grid-cols-3 gap-2">
           {(["all", "community", "presets"] as const).map((source) => (
             <Button
@@ -164,20 +143,14 @@ export function DeckHubFilterPanel({
               aria-pressed={filters.source === source}
               onClick={() => onChange({ source })}
             >
-              {source === "all"
-                ? i18n._(msg`All`)
-                : source === "community"
-                  ? i18n._(msg`Community`)
-                  : i18n._(msg`Presets`)}
+              {source === "all" ? `All` : source === "community" ? `Community` : `Presets`}
             </Button>
           ))}
         </div>
       </div>
 
       <div className="space-y-2">
-        <span className="text-sm font-medium">
-          <Trans>Formats</Trans>
-        </span>
+        <span className="text-sm font-medium">Formats</span>
         <div className="flex flex-wrap gap-1.5">
           {formats.map((format) => (
             <Button
@@ -195,9 +168,7 @@ export function DeckHubFilterPanel({
       </div>
 
       <div className="space-y-2">
-        <span className="text-sm font-medium">
-          <Trans>Color identity</Trans>
-        </span>
+        <span className="text-sm font-medium">Color identity</span>
         <div className="flex flex-wrap gap-2">
           {MANA_LETTERS.map((color) => (
             <Button
@@ -214,41 +185,35 @@ export function DeckHubFilterPanel({
         </div>
         <select
           value={filters.colorMatch}
-          aria-label={i18n._(msg`Color identity match`)}
+          aria-label={`Color identity match`}
           className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
           onChange={(event) =>
             onChange({ colorMatch: event.target.value as DeckHubDiscoveryFilters["colorMatch"] })
           }
         >
-          <option value="exact">
-            <Trans>Exact colors</Trans>
-          </option>
-          <option value="includes">
-            <Trans>Includes colors</Trans>
-          </option>
+          <option value="exact">Exact colors</option>
+          <option value="includes">Includes colors</option>
         </select>
       </div>
 
       <div className="grid gap-3">
         <Input
           value={commander}
-          aria-label={i18n._(msg`Commander`)}
-          placeholder={i18n._(msg`Commander`)}
+          aria-label={`Commander`}
+          placeholder={`Commander`}
           onChange={(event) => setCommander(event.target.value)}
         />
         <Input
           value={card}
-          aria-label={i18n._(msg`Contains card`)}
-          placeholder={i18n._(msg`Contains card`)}
+          aria-label={`Contains card`}
+          placeholder={`Contains card`}
           onChange={(event) => setCard(event.target.value)}
         />
       </div>
 
       {userTags && userTags.length > 0 && (
         <div className="space-y-2">
-          <span className="text-sm font-medium">
-            <Trans>Tags</Trans>
-          </span>
+          <span className="text-sm font-medium">Tags</span>
           <div className="flex flex-wrap gap-1.5">
             {userTags.map((tag) => (
               <Button
@@ -274,10 +239,8 @@ export function DeckHubFilterPanel({
           aria-pressed={filters.favorites}
           onClick={() => onChange({ favorites: !filters.favorites })}
         >
-          <Trans>
-            <Heart className={cn("h-4 w-4", filters.favorites && "fill-current")} />
-            My favorites
-          </Trans>
+          <Heart className={cn("h-4 w-4", filters.favorites && "fill-current")} />
+          My favorites
         </Button>
       )}
       <Button
@@ -286,7 +249,7 @@ export function DeckHubFilterPanel({
         onClick={onClear}
         disabled={activeFilterCount === 0}
       >
-        <Trans>Clear all filters</Trans>
+        Clear all filters
       </Button>
     </div>
   );

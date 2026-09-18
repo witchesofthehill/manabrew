@@ -7,9 +7,6 @@ import { cn } from "@/lib/utils";
 import { scryfallDisplayName } from "@/lib/scryfall.utils";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { ScryfallCard } from "@/types/scryfall";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface CollectionQuickAddProps {
   disabled?: boolean;
   getCount: (name: string) => number;
@@ -98,7 +95,7 @@ export function CollectionQuickAdd({
         <Input
           value={value}
           className="pl-9 pr-8"
-          placeholder={i18n._(msg`Quick add card\u2026`)}
+          placeholder={`Quick add card\u2026`}
           disabled={disabled}
           onChange={(event) => updateSearch(event.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
@@ -123,7 +120,7 @@ export function CollectionQuickAdd({
           <button
             type="button"
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            title={i18n._(msg`Clear card search`)}
+            title={`Clear card search`}
             onClick={() => updateSearch("")}
           >
             <X className="h-4 w-4" />
@@ -135,7 +132,7 @@ export function CollectionQuickAdd({
         <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-md border bg-popover p-3 shadow-lg">
           <p className="truncate text-sm font-medium">{quantityCard.name}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            <Trans>{getCount(quantityCard.name)} currently owned</Trans>
+            {getCount(quantityCard.name)} currently owned
           </p>
           <div className="mt-3 flex items-center gap-2">
             <Button
@@ -174,7 +171,7 @@ export function CollectionQuickAdd({
       ) : open && results.length > 0 ? (
         <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 min-w-72 overflow-y-auto rounded-md border bg-popover shadow-lg">
           <div className="sticky top-0 z-10 border-b bg-popover px-2 py-1 text-[10px] text-muted-foreground">
-            <Trans>Click or press Enter to add one to your collection</Trans>
+            Click or press Enter to add one to your collection
           </div>
           {results.map((card, index) => {
             const thumbnail = card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small;
@@ -195,7 +192,7 @@ export function CollectionQuickAdd({
                 <button
                   type="button"
                   className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left"
-                  title={i18n._(msg`Add one ${displayName}`)}
+                  title={`Add one ${displayName}`}
                   onClick={() => add(card)}
                 >
                   {thumbnail && (
@@ -207,23 +204,21 @@ export function CollectionQuickAdd({
                   )}
                   <span className="min-w-0 flex-1 truncate text-xs font-medium">{displayName}</span>
                   <span className="shrink-0 text-[10px] text-muted-foreground">
-                    <Trans>{getCount(card.name)} owned</Trans>
+                    {getCount(card.name)} owned
                   </span>
                   <Plus className="h-3.5 w-3.5 shrink-0 text-primary" />
                 </button>
                 <button
                   type="button"
                   className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground"
-                  title={i18n._(msg`Add multiple ${displayName}`)}
+                  title={`Add multiple ${displayName}`}
                   onClick={() => {
                     setQuantity(1);
                     setQuantityCard(card);
                     setOpen(false);
                   }}
                 >
-                  <span className="text-xs font-semibold">
-                    <Trans>×N</Trans>
-                  </span>
+                  <span className="text-xs font-semibold">×N</span>
                 </button>
               </div>
             );

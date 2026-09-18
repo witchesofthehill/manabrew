@@ -9,8 +9,6 @@ import { FoilBadge } from "@/components/limited/FoilBadge";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import type { OverlayAction } from "./deckEditor.utils";
 import type { DeckCard } from "@/protocol/deck";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export type { OverlayAction } from "./deckEditor.utils";
 export function CardCountBadge({ count, className }: { count: number; className?: string }) {
   if (count <= 1) return null;
@@ -63,7 +61,7 @@ export function CardAnalysisBadges({
       {isGameChanger && (
         <div
           className="rounded-full bg-pt-lethal/90 text-white p-0.5 shadow"
-          title={i18n._(msg`Game Changer \u2014 restricted to bracket 3+`)}
+          title={`Game Changer \u2014 restricted to bracket 3+`}
         >
           <Gem className="h-3 w-3" />
         </div>
@@ -71,7 +69,7 @@ export function CardAnalysisBadges({
       {isCombo && (
         <div
           className="rounded-full bg-counter-charge/90 text-white p-0.5 shadow"
-          title={i18n._(msg`Part of a combo in this deck`)}
+          title={`Part of a combo in this deck`}
         >
           <Sparkles className="h-3 w-3" />
         </div>

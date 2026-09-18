@@ -8,8 +8,6 @@ import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import type { Deck } from "@/protocol/deck";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export function useQuickPlaytest(): {
   quickPlaytest: (deck: Deck) => void;
   playtestDialog: ReactNode;
@@ -40,7 +38,7 @@ export function useQuickPlaytest(): {
   }
   function quickPlaytest(deck: Deck) {
     if (deck.cards.length === 0 && (deck.commanders?.length ?? 0) === 0) {
-      toast.error(i18n._(msg`"${deck.name}" has no cards`));
+      toast.error(`"${deck.name}" has no cards`);
       return;
     }
     if ((deck.format ?? "standard") === "commander") {

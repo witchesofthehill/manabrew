@@ -3,8 +3,6 @@ import { TableSeatChip } from "@/components/lobby/TableSeatChip";
 import { stripUsernameTag } from "@/lib/username";
 import type { RoomPlayerInfo } from "@/types/server";
 import { cn } from "@/lib/utils";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const SEAT_CENTER_PERCENT = 50;
 const SEAT_X_RADIUS_PERCENT = 40;
 const SEAT_Y_RADIUS_PERCENT = 34;
@@ -52,7 +50,7 @@ export function OpenTableSeats({
   return (
     <div
       role="group"
-      aria-label={i18n._(msg`Table seats: ${players.length} of ${maxPlayers} occupied`)}
+      aria-label={`Table seats: ${players.length} of ${maxPlayers} occupied`}
       className={cn("relative mx-auto aspect-[8/5] w-full max-w-64", className)}
     >
       <div
@@ -80,14 +78,14 @@ export function OpenTableSeats({
         const statusLabel =
           showSeatLabels && player
             ? isControllerSeat
-              ? i18n._(msg`Host`)
+              ? `Host`
               : openFormat
                 ? player.ready
-                  ? i18n._(msg`Ready`)
-                  : i18n._(msg`Waiting`)
+                  ? `Ready`
+                  : `Waiting`
                 : player.ready
-                  ? i18n._(msg`Ready`)
-                  : (player.selected_deck_name ?? i18n._(msg`No deck`))
+                  ? `Ready`
+                  : (player.selected_deck_name ?? `No deck`)
             : undefined;
         return (
           <TableSeatChip

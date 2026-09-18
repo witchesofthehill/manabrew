@@ -12,9 +12,6 @@ import { fetchEditionInfo, fetchSetPool, type EditionInfo } from "@/api/limitedE
 import { cn } from "@/lib/utils";
 import type { DraftCard } from "@/types/limited";
 import type { ScryfallSet } from "@/types/scryfall";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export default function Limited() {
   const navigate = useNavigate();
   const startSealed = useLimitedStore((s) => s.startSealed);
@@ -185,14 +182,10 @@ export default function Limited() {
     <div className="flex h-full flex-col gap-6 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex items-end justify-between gap-4">
         <p className="max-w-2xl text-sm text-muted-foreground">
-          <Trans>
-            Open packs, build a deck on the fly, then play a quick gauntlet against AI opponents.
-          </Trans>
+          Open packs, build a deck on the fly, then play a quick gauntlet against AI opponents.
         </p>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>
-            <Trans>{draftableSets.length} sets available</Trans>
-          </span>
+          <span>{draftableSets.length} sets available</span>
         </div>
       </header>
 
@@ -235,25 +228,20 @@ export default function Limited() {
 
       <section>
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <Trans>Choose a mode</Trans>
+          Choose a mode
         </h2>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           <ModeCard
             icon={<Boxes className="h-5 w-5" />}
-            title={i18n._(msg`Sealed`)}
-            description={i18n._(msg`Open packs, build a 40-card deck, run an AI gauntlet.`)}
-            ctaLabel={ctaLabel(
-              fetchingPool,
-              isStarting,
-              i18n._(msg`Open packs`),
-              i18n._(msg`Start Sealed`),
-            )}
+            title={`Sealed`}
+            description={`Open packs, build a 40-card deck, run an AI gauntlet.`}
+            ctaLabel={ctaLabel(fetchingPool, isStarting, `Open packs`, `Start Sealed`)}
             disabled={startBlocked}
             onStart={handleStartSealed}
           >
             <NumberField
               id="numBoosters"
-              label={i18n._(msg`Packs`)}
+              label={`Packs`}
               value={numBoosters}
               min={3}
               max={12}
@@ -263,20 +251,15 @@ export default function Limited() {
 
           <ModeCard
             icon={<Swords className="h-5 w-5" />}
-            title={i18n._(msg`Booster Draft`)}
-            description={i18n._(msg`Pod draft against AI seats \u2014 3 packs each.`)}
-            ctaLabel={ctaLabel(
-              fetchingPool,
-              isStarting,
-              i18n._(msg`Open packs`),
-              i18n._(msg`Start Draft`),
-            )}
+            title={`Booster Draft`}
+            description={`Pod draft against AI seats \u2014 3 packs each.`}
+            ctaLabel={ctaLabel(fetchingPool, isStarting, `Open packs`, `Start Draft`)}
             disabled={startBlocked}
             onStart={handleStartDraft}
           >
             <NumberField
               id="podSize"
-              label={i18n._(msg`Pod size`)}
+              label={`Pod size`}
               value={podSize}
               min={2}
               max={8}
@@ -286,20 +269,15 @@ export default function Limited() {
 
           <ModeCard
             icon={<Layers className="h-5 w-5" />}
-            title={i18n._(msg`Winston Draft`)}
-            description={i18n._(msg`2-player pile draft against the AI.`)}
-            ctaLabel={ctaLabel(
-              fetchingPool,
-              isStarting,
-              i18n._(msg`Shuffle`),
-              i18n._(msg`Start Winston`),
-            )}
+            title={`Winston Draft`}
+            description={`2-player pile draft against the AI.`}
+            ctaLabel={ctaLabel(fetchingPool, isStarting, `Shuffle`, `Start Winston`)}
             disabled={startBlocked}
             onStart={handleStartWinston}
           >
             <NumberField
               id="winstonPacks"
-              label={i18n._(msg`Packs`)}
+              label={`Packs`}
               value={winstonPacks}
               min={2}
               max={12}
@@ -309,20 +287,18 @@ export default function Limited() {
 
           <ModeCard
             icon={<Wand2 className="h-5 w-5" />}
-            title={i18n._(msg`CubeCobra Import`)}
-            description={i18n._(msg`Paste a cube id or url, or load a saved pool .json file.`)}
-            ctaLabel={isStarting ? i18n._(msg`Importing…`) : i18n._(msg`Import Cube`)}
+            title={`CubeCobra Import`}
+            description={`Paste a cube id or url, or load a saved pool .json file.`}
+            ctaLabel={isStarting ? `Importing…` : `Import Cube`}
             disabled={isStarting || !cubeInput.trim()}
             onStart={handleImportCube}
             footnote={
               lastImportedCube ? (
                 <>
-                  <Trans>
-                    Loaded: <span className="text-foreground/90">{lastImportedCube.name}</span> —{" "}
-                    {lastImportedCube.cardCount} cards
-                  </Trans>
+                  Loaded: <span className="text-foreground/90">{lastImportedCube.name}</span> —{" "}
+                  {lastImportedCube.cardCount} cards
                   {lastImportedCube.rejectedCardCount > 0 &&
-                    i18n._(msg` · ${lastImportedCube.rejectedCardCount} without local engine data`)}
+                    ` · ${lastImportedCube.rejectedCardCount} without local engine data`}
                 </>
               ) : null
             }
@@ -331,7 +307,7 @@ export default function Limited() {
               type="text"
               value={cubeInput}
               onChange={(e) => setCubeInput(e.target.value)}
-              placeholder={i18n._(msg`cubeid or cubecobra.com/\u2026`)}
+              placeholder={`cubeid or cubecobra.com/\u2026`}
               className="h-8 text-xs"
             />
             <label className="flex cursor-pointer items-center gap-2 rounded border border-dashed border-border/60 px-2 py-1 text-[11px] text-muted-foreground hover:border-primary/60 hover:text-foreground/90">
@@ -345,9 +321,7 @@ export default function Limited() {
                   e.target.value = ""; // allow re-upload of same file
                 }}
               />
-              <span>
-                <Trans>or load saved pool…</Trans>
-              </span>
+              <span>or load saved pool…</span>
             </label>
           </ModeCard>
         </div>
@@ -414,7 +388,7 @@ export default function Limited() {
 
       <CollapsibleSection
         icon={<Hourglass className="h-4 w-4" />}
-        title={i18n._(msg`Sealed templates`)}
+        title={`Sealed templates`}
         count={sealedTemplates.length}
       >
         <ul className="grid gap-1.5 text-sm md:grid-cols-2">
@@ -432,14 +406,12 @@ export default function Limited() {
 
       <CollapsibleSection
         icon={<Shuffle className="h-4 w-4" />}
-        title={i18n._(msg`Themed Chaos Draft`)}
+        title={`Themed Chaos Draft`}
         count={chaosThemes.length}
       >
         <p className="mb-2 text-xs text-muted-foreground">
-          <Trans>
-            Pick a theme. We'll merge pools from the most recent draftable sets that match its
-            rotation window and start a normal pod draft against AI seats.
-          </Trans>
+          Pick a theme. We'll merge pools from the most recent draftable sets that match its
+          rotation window and start a normal pod draft against AI seats.
         </p>
         <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
           {chaosThemes.map((t) => {
@@ -473,21 +445,17 @@ export default function Limited() {
                   className="group flex w-full items-center justify-between gap-2 rounded border border-border/40 bg-card/30 px-3 py-2 text-left transition hover:border-primary/50 hover:bg-card/60 disabled:cursor-not-allowed disabled:opacity-60"
                   title={
                     matched.length === 0
-                      ? i18n._(msg`No matching sets in the Scryfall list yet`)
-                      : i18n._(
-                          msg`${matched.length} sets · ${matched
-                            .slice(0, 6)
-                            .map((s) => s.code.toUpperCase())
-                            .join(", ")}${matched.length > 6 ? "…" : ""}`,
-                        )
+                      ? `No matching sets in the Scryfall list yet`
+                      : `${matched.length} sets · ${matched
+                          .slice(0, 6)
+                          .map((s) => s.code.toUpperCase())
+                          .join(", ")}${matched.length > 6 ? "…" : ""}`
                   }
                 >
                   <div className="min-w-0">
                     <div className="text-sm font-medium">{t.label}</div>
                     <div className="text-[10px] text-muted-foreground">
-                      <Trans>
-                        {matched.length} set{matched.length === 1 ? "" : "s"} · pod {podSize}
-                      </Trans>
+                      {matched.length} set{matched.length === 1 ? "" : "s"} · pod {podSize}
                     </div>
                   </div>
                   <Shuffle className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary" />
@@ -530,44 +498,36 @@ function SelectedSetSummary({
           <div className="min-w-0 flex-1">
             <h3 className="break-words text-lg font-semibold leading-tight">{set.name}</h3>
             <p className="mt-0.5 break-words text-xs text-muted-foreground">
-              <Trans>
-                <span className="font-mono">{set.code.toUpperCase()}</span>
-                {info?.alias && (
-                  <span className="ml-1 font-mono text-muted-foreground/70">/{info.alias}</span>
-                )}{" "}
-                · {set.set_type} · {set.released_at ?? "—"} · {set.card_count} cards
-                {info?.boosterCovers && info.boosterCovers > 1 && (
-                  <span className="ml-1">· {info.boosterCovers} cover arts</span>
-                )}
-                {prefetching && <span className="ml-2 text-primary">· prefetching images…</span>}
-              </Trans>
+              <span className="font-mono">{set.code.toUpperCase()}</span>
+              {info?.alias && (
+                <span className="ml-1 font-mono text-muted-foreground/70">/{info.alias}</span>
+              )}{" "}
+              · {set.set_type} · {set.released_at ?? "—"} · {set.card_count} cards
+              {info?.boosterCovers && info.boosterCovers > 1 && (
+                <span className="ml-1">· {info.boosterCovers} cover arts</span>
+              )}
+              {prefetching && <span className="ml-2 text-primary">· prefetching images…</span>}
             </p>
             {info?.prerelease && (
               <p className="mt-0.5 break-words text-[11px] text-muted-foreground">
-                <Trans>
-                  Prerelease: <span className="text-foreground/80">{info.prerelease}</span>
-                </Trans>
+                Prerelease: <span className="text-foreground/80">{info.prerelease}</span>
               </p>
             )}
           </div>
         </div>
 
         <Button size="sm" variant="ghost" onClick={onClear} className="h-7 shrink-0 px-2 text-xs">
-          <Trans>
-            <X className="mr-1 h-3 w-3" /> Clear
-          </Trans>
+          <X className="mr-1 h-3 w-3" /> Clear
         </Button>
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr]">
         <div className="min-w-0 rounded-md border border-border/50 bg-card/40 p-3 md:col-span-2 lg:col-span-1">
           <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            <Trans>Booster recipe</Trans>
+            Booster recipe
           </div>
           {loading ? (
-            <div className="text-xs text-muted-foreground">
-              <Trans>Loading…</Trans>
-            </div>
+            <div className="text-xs text-muted-foreground">Loading…</div>
           ) : info ? (
             <div className="flex flex-wrap items-center gap-1">
               {info.slots.map((slot, i) => (
@@ -581,7 +541,7 @@ function SelectedSetSummary({
               ))}
               {totalSlots !== null && (
                 <span className="ml-auto whitespace-nowrap text-[10px] text-muted-foreground">
-                  <Trans>{totalSlots} cards / pack</Trans>
+                  {totalSlots} cards / pack
                 </span>
               )}
             </div>
@@ -589,9 +549,7 @@ function SelectedSetSummary({
             <div className="flex items-start gap-2 text-xs text-yellow-100">
               <span aria-hidden>⚠</span>
               <span className="min-w-0 break-words">
-                <Trans>
-                  No Forge booster recipe for this set — using generic 10C / 3U / 1RM / 1 Land.
-                </Trans>
+                No Forge booster recipe for this set — using generic 10C / 3U / 1RM / 1 Land.
               </span>
             </div>
           )}
@@ -599,7 +557,7 @@ function SelectedSetSummary({
 
         <div className="min-w-0 rounded-md border border-border/50 bg-card/40 p-3">
           <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            <Trans>Foil</Trans>
+            Foil
           </div>
           {info ? (
             foilPct !== null && info.foilType !== "NotSupported" ? (
@@ -618,9 +576,7 @@ function SelectedSetSummary({
                 </div>
               </div>
             ) : (
-              <div className="text-xs text-muted-foreground">
-                <Trans>Not supported</Trans>
-              </div>
+              <div className="text-xs text-muted-foreground">Not supported</div>
             )
           ) : (
             <div className="text-xs text-muted-foreground">—</div>
@@ -629,7 +585,7 @@ function SelectedSetSummary({
 
         <div className="min-w-0 rounded-md border border-border/50 bg-card/40 p-3">
           <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            <Trans>Booster variant</Trans>
+            Booster variant
           </div>
           {info && info.variants.length > 0 ? (
             <select
@@ -637,9 +593,7 @@ function SelectedSetSummary({
               onChange={(e) => onVariantChange(e.target.value)}
               className="w-full rounded border border-border/70 bg-background px-2 py-1 text-xs pointer-coarse:text-base"
             >
-              <option value="">
-                <Trans>Default</Trans>
-              </option>
+              <option value="">Default</option>
               {info.variants.map((v) => (
                 <option key={v} value={v}>
                   {v}
@@ -647,16 +601,12 @@ function SelectedSetSummary({
               ))}
             </select>
           ) : (
-            <div className="text-xs text-muted-foreground">
-              <Trans>Single recipe</Trans>
-            </div>
+            <div className="text-xs text-muted-foreground">Single recipe</div>
           )}
           {info?.hasReplacementHooks && (
             <div className="mt-2 inline-flex max-w-full items-center gap-1 rounded bg-yellow-500/10 px-1.5 py-0.5 text-[10px] text-yellow-200">
               <Crown className="h-3 w-3 shrink-0" />
-              <span className="truncate">
-                <Trans>guaranteed slot active</Trans>
-              </span>
+              <span className="truncate">guaranteed slot active</span>
             </div>
           )}
         </div>
@@ -690,34 +640,30 @@ function AdvancedToggle({
     >
       <summary className="flex cursor-pointer flex-wrap items-center gap-2 text-muted-foreground">
         <Dice5 className="h-3.5 w-3.5" />
-        <span>
-          <Trans>Advanced</Trans>
-        </span>
+        <span>Advanced</span>
         {seed.trim() && (
           <span className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-[10px] text-primary">
-            <Trans>seed = {seed.trim()}</Trans>
+            seed = {seed.trim()}
           </span>
         )}
         {picksPerPass > 1 && (
           <span className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-[10px] text-primary">
-            <Trans>{picksPerPass}× pick</Trans>
+            {picksPerPass}× pick
           </span>
         )}
       </summary>
       <div className="mt-3 flex flex-wrap items-start gap-x-6 gap-y-3">
         <div className="flex flex-col gap-1">
           <label className="flex items-center gap-2">
-            <span>
-              <Trans>RNG seed</Trans>
-            </span>
+            <span>RNG seed</span>
             <Input
               type="text"
               inputMode="numeric"
               value={seed}
               onChange={(e) => onSeedChange(e.target.value)}
-              placeholder={i18n._(msg`random`)}
+              placeholder={`random`}
               className="h-7 w-32 font-mono text-xs"
-              title={i18n._(msg`Optional integer for reproducible opens. Leave blank for random.`)}
+              title={`Optional integer for reproducible opens. Leave blank for random.`}
             />
             {seed && (
               <button
@@ -725,19 +671,17 @@ function AdvancedToggle({
                 onClick={() => onSeedChange("")}
                 className="text-[10px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
               >
-                <Trans>clear</Trans>
+                clear
               </button>
             )}
           </label>
           <span className="text-[10px] text-muted-foreground">
-            <Trans>Same seed + same pool → identical packs every open.</Trans>
+            Same seed + same pool → identical packs every open.
           </span>
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor="picksPerPass" className="flex items-center gap-2">
-            <span>
-              <Trans>Picks per pass</Trans>
-            </span>
+            <span>Picks per pass</span>
             <Input
               id="picksPerPass"
               type="number"
@@ -748,15 +692,11 @@ function AdvancedToggle({
                 onPicksPerPassChange(Math.max(1, Math.min(4, Number(e.target.value) || 1)))
               }
               className="h-7 w-16 text-xs"
-              title={i18n._(
-                msg`Booster Draft only. 1 = vanilla MTG. 2+ = each seat picks N cards before passing.`,
-              )}
+              title={`Booster Draft only. 1 = vanilla MTG. 2+ = each seat picks N cards before passing.`}
             />
           </label>
           <span className="text-[10px] text-muted-foreground">
-            <Trans>
-              Booster Draft only. With 4-player pods, raise to 2 so each seat ends with ~30 picks.
-            </Trans>
+            Booster Draft only. With 4-player pods, raise to 2 so each seat ends with ~30 picks.
           </span>
         </div>
       </div>
@@ -929,45 +869,35 @@ function CubeStartActions({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="flex items-center gap-2 text-sm font-semibold">
-            <Trans>
-              <Wand2 className="h-4 w-4 text-primary" />
-              Start from imported cube
-            </Trans>
+            <Wand2 className="h-4 w-4 text-primary" />
+            Start from imported cube
           </h3>
           <p className="text-xs text-muted-foreground">
-            <Trans>
-              <span className="font-medium text-foreground/90">{cube.name}</span> · {cube.cardCount}{" "}
-              cards · {cube.numPacks} packs/player{" "}
-              {cube.singleton && <span className="text-muted-foreground">· singleton</span>}
-              {cube.rejectedCardCount > 0 && (
-                <span className="ml-2 text-muted-foreground">
-                  {cube.playableCardCount} locally recognized · {cube.rejectedCardCount} name-only
-                </span>
-              )}
-              {seed !== undefined && (
-                <span className="ml-2 font-mono text-[10px] text-primary">seed {seed}</span>
-              )}
-            </Trans>
+            <span className="font-medium text-foreground/90">{cube.name}</span> · {cube.cardCount}{" "}
+            cards · {cube.numPacks} packs/player{" "}
+            {cube.singleton && <span className="text-muted-foreground">· singleton</span>}
+            {cube.rejectedCardCount > 0 && (
+              <span className="ml-2 text-muted-foreground">
+                {cube.playableCardCount} locally recognized · {cube.rejectedCardCount} name-only
+              </span>
+            )}
+            {seed !== undefined && (
+              <span className="ml-2 font-mono text-[10px] text-primary">seed {seed}</span>
+            )}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="primary" size="sm" disabled={isStarting} onClick={onStartSealed}>
-            <Trans>
-              <Boxes className="mr-1.5 h-4 w-4" />
-              Sealed ({numBoosters} packs)
-            </Trans>
+            <Boxes className="mr-1.5 h-4 w-4" />
+            Sealed ({numBoosters} packs)
           </Button>
           <Button size="sm" variant="outline" disabled={isStarting} onClick={onStartDraft}>
-            <Trans>
-              <Swords className="mr-1.5 h-4 w-4" />
-              Draft (pod {podSize})
-            </Trans>
+            <Swords className="mr-1.5 h-4 w-4" />
+            Draft (pod {podSize})
           </Button>
           <Button size="sm" variant="outline" disabled={isStarting} onClick={onStartWinston}>
-            <Trans>
-              <Layers className="mr-1.5 h-4 w-4" />
-              Winston ({winstonPacks} packs)
-            </Trans>
+            <Layers className="mr-1.5 h-4 w-4" />
+            Winston ({winstonPacks} packs)
           </Button>
         </div>
       </div>

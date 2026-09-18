@@ -29,8 +29,6 @@ import type { DisplayEvent } from "@/protocol/display";
 import type { GameViewDto } from "@/protocol/game";
 import { RELAY_FEATURE, SERVER_ERROR_CODE } from "@/types/server";
 import type { AuthResultPayload, GameAbortedPayload, RoomMessagePayload } from "@/types/server";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 type SelfHostedNodeRoomPayload = {
   type?: unknown;
   gameId?: unknown;
@@ -100,7 +98,7 @@ async function rejoinAfterRelayRestart() {
           getState().isGameActive
         ) {
           setReconnectPhase("idle");
-          toast.error(i18n._(msg`Your seat was forfeited while you were disconnected.`));
+          toast.error(`Your seat was forfeited while you were disconnected.`);
           void useGameStore.getState().endGame();
           return;
         }
@@ -109,7 +107,7 @@ async function rejoinAfterRelayRestart() {
     }
     setReconnectPhase("idle");
     if (getState().isGameActive) {
-      toast.error(i18n._(msg`Game could not be resumed \u2014 the room did not come back.`));
+      toast.error(`Game could not be resumed \u2014 the room did not come back.`);
       void useGameStore.getState().endGame();
     }
   } finally {
@@ -126,7 +124,7 @@ function toastOpponentPublicAction(entry: GameLogEntry) {
   if (!me || entry.playerId === me.id) return;
   const actor = players.find((p) => p.id === entry.playerId)?.name ?? "Opponent";
   if (entry.message.startsWith(FORETELL_LOG_PREFIX)) {
-    toast.info(i18n._(msg`${actor} foretold a card`));
+    toast.info(`${actor} foretold a card`);
   }
 }
 function isOver(state: Pick<GameState, "gameView" | "currentPrompt">): boolean {
@@ -283,7 +281,7 @@ export function useGameEventListeners() {
       const handleProtocolError = (error: ProtocolError | undefined, source: string) => {
         if (!error?.code) return;
         applyProtocolError(error, source, setState);
-        toast.error(i18n._(msg`Action rejected (${error.code}) — try again`));
+        toast.error(`Action rejected (${error.code}) — try again`);
       };
       unsubscribers.push(
         platform.events.on<ProtocolError>("game:error", (payload) => {
@@ -417,7 +415,7 @@ export function useGameEventListeners() {
             peekActiveGameSession()?.roomId ?? useServerStore.getState().currentRoom?.room_id;
           if (roomId && payload.room_id !== roomId) return;
           if (state.gameView?.gameOver || isGameOverPrompt(state.currentPrompt)) return;
-          toast.error(i18n._(msg`Game aborted \u2014 a player did not reconnect.`));
+          toast.error(`Game aborted \u2014 a player did not reconnect.`);
           void useGameStore.getState().endGame();
         }),
       );
@@ -426,7 +424,7 @@ export function useGameEventListeners() {
           reason: string;
           message: string;
         }>("game:forced_end", (payload) => {
-          const message = payload?.message ?? i18n._(msg`Forced game exit`);
+          const message = payload?.message ?? `Forced game exit`;
           const { isMultiplayer, isHost } = getState();
           const activeSession = peekActiveGameSession();
           clearActiveGameSession();
@@ -446,9 +444,7 @@ export function useGameEventListeners() {
           // Without EndGame the relay room stays InGame and every rematch
           // action bounces off "Game has already started".
           if (isMultiplayer && isHost) {
-            toast.error(
-              i18n._(msg`Game ended unexpectedly \u2014 returning the room to the lobby.`),
-            );
+            toast.error(`Game ended unexpectedly \u2014 returning the room to the lobby.`);
             void useServerStore.getState().endGame();
           } else if (activeSession?.ownsForgeHost || activeSession?.relayHost) {
             void teardownForgeAiSession(activeSession);

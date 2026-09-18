@@ -1,6 +1,4 @@
 import { useMemo } from "react";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 
 import type { DraftCard } from "@/types/limited";
 import type { Deck, DeckCard } from "@/protocol/deck";
@@ -196,7 +194,7 @@ export function validateLimitedDeck(
   if (main.length < targetMainSize) {
     issues.push({
       kind: "main_too_small",
-      message: i18n._(msg`Main deck has ${main.length} cards, needs ${targetMainSize}.`),
+      message: `Main deck has ${main.length} cards, needs ${targetMainSize}.`,
     });
   }
   return issues;

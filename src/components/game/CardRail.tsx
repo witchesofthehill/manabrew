@@ -4,8 +4,6 @@ import type { CardRailState } from "./cardRailState";
 import { getCardRailNotchAttributes, getCardRailRootAttributes } from "./cardRailState";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { cn } from "@/lib/utils";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export const CARD_RAIL_WIDTH = "clamp(14px, 7cqw, 22px)";
 const RAIL_TRANSITION =
   "transition-transform duration-[300ms] ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none";
@@ -62,13 +60,9 @@ export function CardRail({ state, className }: CardRailProps) {
   const accessibleLabel =
     state.kind === "saga"
       ? state.current > 0
-        ? i18n._(
-            msg`${state.current} lore counters. Current chapter ${currentNotch?.label ?? state.current} of ${finalNotch.label}.`,
-          )
-        : i18n._(
-            msg`No lore counters. Awaiting chapter ${firstNotch.label} of ${finalNotch.label}.`,
-          )
-      : i18n._(msg`Class level ${state.current} of ${state.max}.`);
+        ? `${state.current} lore counters. Current chapter ${currentNotch?.label ?? state.current} of ${finalNotch.label}.`
+        : `No lore counters. Awaiting chapter ${firstNotch.label} of ${finalNotch.label}.`
+      : `Class level ${state.current} of ${state.max}.`;
   return (
     <div
       {...getCardRailRootAttributes(state, railInstanceId)}

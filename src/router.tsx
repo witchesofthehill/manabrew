@@ -1,5 +1,4 @@
 import { lazy, Suspense } from "react";
-import { Trans } from "@lingui/react/macro";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -34,14 +33,10 @@ export const router = createBrowserRouter([
     errorElement: (
       <div className="flex items-center justify-center h-[100dvh] text-destructive">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">
-            <Trans>Page Not Found</Trans>
-          </h1>
-          <p className="mt-2 text-muted-foreground">
-            <Trans>The page you're looking for doesn't exist.</Trans>
-          </p>
+          <h1 className="text-2xl font-bold">Page Not Found</h1>
+          <p className="mt-2 text-muted-foreground">The page you're looking for doesn't exist.</p>
           <a href="/" className="mt-4 inline-block text-primary hover:underline">
-            <Trans>Go Home</Trans>
+            Go Home
           </a>
         </div>
       </div>

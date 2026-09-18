@@ -5,9 +5,6 @@ import { useTheme } from "@/hooks/useTheme";
 import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import type { LogCardPreviewOptions } from "@/components/game/game.types";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface ActionLogProps {
   gameLog: GameLogEntry[];
   resolveCardName: (cardId: string) => string;
@@ -61,24 +58,12 @@ export function ActionLog({
   const priorityColor = appTheme.primary;
   const infoColor = themeColors.promptAction.defenseAction;
   const typeLabel: Record<GameLogEntryType, string> = {
-    get info() {
-      return i18n._(msg`INFO`);
-    },
-    get action() {
-      return i18n._(msg`ACTION`);
-    },
-    get stack() {
-      return i18n._(msg`STACK`);
-    },
-    get priority() {
-      return i18n._(msg`PRIO`);
-    },
-    get rule() {
-      return i18n._(msg`RULE`);
-    },
-    get warning() {
-      return i18n._(msg`WARN`);
-    },
+    info: `INFO`,
+    action: `ACTION`,
+    stack: `STACK`,
+    priority: `PRIO`,
+    rule: `RULE`,
+    warning: `WARN`,
   };
   const getStyleForType = (
     type: GameLogEntryType,
@@ -121,20 +106,14 @@ export function ActionLog({
   if (visibleLog.length === 0) {
     return (
       <div className="rounded-lg p-2.5 min-h-0 flex-1 flex flex-col bg-muted/20">
-        <p className="text-xs font-semibold text-muted-foreground mb-2">
-          <Trans>Game Log</Trans>
-        </p>
-        <p className="text-xs text-muted-foreground italic">
-          <Trans>No log entries yet.</Trans>
-        </p>
+        <p className="text-xs font-semibold text-muted-foreground mb-2">Game Log</p>
+        <p className="text-xs text-muted-foreground italic">No log entries yet.</p>
       </div>
     );
   }
   return (
     <div className="rounded-lg p-2.5 min-h-0 flex-1 flex flex-col bg-muted/20">
-      <p className="text-xs font-semibold text-muted-foreground mb-2">
-        <Trans>Game Log</Trans>
-      </p>
+      <p className="text-xs font-semibold text-muted-foreground mb-2">Game Log</p>
       <div
         className="min-h-0 flex-1 overflow-y-auto text-xs text-muted-foreground flex flex-col-reverse pr-1"
         {...longPress}
@@ -168,9 +147,9 @@ export function ActionLog({
                     style={{ backgroundColor: style.bg, color: style.fg }}
                   >
                     {entry.entryType === "stack" && /\bresolved?\b/i.test(entry.message)
-                      ? i18n._(msg`RESOLVE`)
+                      ? `RESOLVE`
                       : /^TURN\b/i.test(entry.message)
-                        ? i18n._(msg`TURN`)
+                        ? `TURN`
                         : typeLabel[entry.entryType]}
                   </span>
                   <span className="text-[10px] text-muted-foreground/80">

@@ -15,9 +15,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useDeckStore } from "@/stores/useDeckStore";
 import type { ScryfallSet } from "@/types/scryfall";
 import { executeDeckEdit } from "./deckEditor.history";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export function BatchPrintingDialog({
   open,
   onOpenChange,
@@ -39,7 +36,7 @@ export function BatchPrintingDialog({
       .getState()
       .fetchSets()
       .then(setSets)
-      .catch(() => toast.error(i18n._(msg`Could not load Magic sets`)))
+      .catch(() => toast.error(`Could not load Magic sets`))
       .finally(() => setLoadingSets(false));
   }, [open, sets.length]);
   const filteredSets = useMemo(() => {
@@ -102,22 +99,22 @@ export function BatchPrintingDialog({
             print: (typeof prints)[number];
           } => !!match.print,
         );
-      executeDeckEdit(i18n._(msg`Use ${set.name} printings`), () => {
+      executeDeckEdit(`Use ${set.name} printings`, () => {
         for (const match of matches) {
           useDeckStore.getState().updatePrint(match.name, match.print);
         }
       });
       toast.success(
         matches.length === 0
-          ? i18n._(msg`No cards in this deck have a ${set.name} printing`)
+          ? `No cards in this deck have a ${set.name} printing`
           : matches.length === 1
-            ? i18n._(msg`Changed one card printing to ${set.name}`)
-            : i18n._(msg`Changed ${matches.length} card printings to ${set.name}`),
+            ? `Changed one card printing to ${set.name}`
+            : `Changed ${matches.length} card printings to ${set.name}`,
       );
       onOpenChange(false);
     } catch {
       if (operation === operationRef.current) {
-        toast.error(i18n._(msg`Could not load printings from ${set.name}`));
+        toast.error(`Could not load printings from ${set.name}`);
       }
     } finally {
       if (operation === operationRef.current) setApplyingSet(null);
@@ -134,15 +131,11 @@ export function BatchPrintingDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {cardNames
-              ? i18n._(msg`Change selected printings`)
-              : i18n._(msg`Change deck printings`)}
+            {cardNames ? `Change selected printings` : `Change deck printings`}
           </DialogTitle>
           <DialogDescription>
-            <Trans>
-              Choose a set to update every matching card. Cards without a printing in that set stay
-              unchanged.
-            </Trans>
+            Choose a set to update every matching card. Cards without a printing in that set stay
+            unchanged.
           </DialogDescription>
         </DialogHeader>
         <div className="relative">
@@ -151,7 +144,7 @@ export function BatchPrintingDialog({
             autoFocus
             value={query}
             className="pl-9"
-            placeholder={i18n._(msg`Search by set name or code\u2026`)}
+            placeholder={`Search by set name or code\u2026`}
             onChange={(event) => setQuery(event.target.value)}
           />
         </div>

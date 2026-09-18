@@ -10,9 +10,6 @@ import {
 } from "@/components/ui/dialog";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import type { CompanionSession } from "@/stores/useCompanionStore.types";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface DerivedStats {
   totalGames: number;
   totalDurationMs: number;
@@ -55,36 +52,30 @@ export function StatsDialog() {
     <Dialog>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
-          <Trans>
-            <Trophy className="mr-2 size-4" /> Stats ({stats.totalGames})
-          </Trans>
+          <Trophy className="mr-2 size-4" /> Stats ({stats.totalGames})
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            <Trans>Play stats</Trans>
-          </DialogTitle>
+          <DialogTitle>Play stats</DialogTitle>
         </DialogHeader>
         {stats.totalGames === 0 ? (
           <p className="text-sm text-muted-foreground">
-            <Trans>No archived games yet. End a game to start collecting stats.</Trans>
+            No archived games yet. End a game to start collecting stats.
           </p>
         ) : (
           <div className="space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-3 text-xs">
-              <Stat label={i18n._(msg`Games`)} value={stats.totalGames.toString()} />
-              <Stat label={i18n._(msg`Avg length`)} value={formatDuration(stats.avgDurationMs)} />
-              <Stat label={i18n._(msg`Avg turns`)} value={stats.avgTurns.toFixed(1)} />
-              <Stat label={i18n._(msg`Total time`)} value={formatDuration(stats.totalDurationMs)} />
+              <Stat label={`Games`} value={stats.totalGames.toString()} />
+              <Stat label={`Avg length`} value={formatDuration(stats.avgDurationMs)} />
+              <Stat label={`Avg turns`} value={stats.avgTurns.toFixed(1)} />
+              <Stat label={`Total time`} value={formatDuration(stats.totalDurationMs)} />
             </div>
             <div>
-              <div className="mb-1 font-medium">
-                <Trans>Wins by player</Trans>
-              </div>
+              <div className="mb-1 font-medium">Wins by player</div>
               {stats.winsByName.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  <Trans>No clean wins recorded (last-standing only).</Trans>
+                  No clean wins recorded (last-standing only).
                 </p>
               ) : (
                 <ul className="space-y-0.5 text-muted-foreground">

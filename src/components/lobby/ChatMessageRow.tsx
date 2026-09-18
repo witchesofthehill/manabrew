@@ -7,8 +7,6 @@ import type { ChatEntry } from "@/stores/useChatStore";
 import type { PlayerInfo } from "@/types/server";
 import { cn } from "@/lib/utils";
 import { stripUsernameTag } from "@/lib/username";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface ChatMessageRowProps {
   entry: ChatEntry;
   mine: boolean;
@@ -51,11 +49,7 @@ export function ChatMessageRow({ entry, mine, player, continued, onReport }: Cha
           player={player}
           status={
             <span>
-              {player.room_id
-                ? i18n._(msg`At a table`)
-                : player.local_game
-                  ? i18n._(msg`Playing solo`)
-                  : i18n._(msg`Available`)}
+              {player.room_id ? `At a table` : player.local_game ? `Playing solo` : `Available`}
             </span>
           }
           side="left"
@@ -94,8 +88,8 @@ export function ChatMessageRow({ entry, mine, player, continued, onReport }: Cha
           variant="ghost"
           className="h-6 w-6 shrink-0 self-center text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
           onClick={() => onReport(entry)}
-          aria-label={i18n._(msg`Report ${name}`)}
-          title={i18n._(msg`Report this message`)}
+          aria-label={`Report ${name}`}
+          title={`Report this message`}
         >
           <Flag className="h-3 w-3" />
         </Button>

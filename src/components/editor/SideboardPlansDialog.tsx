@@ -13,9 +13,6 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import type { DeckSideboardPlan } from "@/types/manabrew";
 import { executeDeckEdit } from "./deckEditor.history";
 import { useDeckEditTransaction } from "./useDeckEditTransaction";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export function SideboardPlansDialog({
   open,
   onOpenChange,
@@ -27,7 +24,7 @@ export function SideboardPlansDialog({
   const setEditorMetadata = useDeckStore((state) => state.setEditorMetadata);
   const [matchup, setMatchup] = useState("");
   const plans = metadata?.sideboardPlans ?? [];
-  const planEdit = useDeckEditTransaction(i18n._(msg`Edit sideboard plan`));
+  const planEdit = useDeckEditTransaction(`Edit sideboard plan`);
   function updatePlans(next: DeckSideboardPlan[]) {
     setEditorMetadata({
       ...metadata,
@@ -40,7 +37,7 @@ export function SideboardPlansDialog({
   function addPlan() {
     const name = matchup.trim();
     if (!name) return;
-    executeDeckEdit(i18n._(msg`Add sideboard plan`), () =>
+    executeDeckEdit(`Add sideboard plan`, () =>
       updatePlans([
         ...plans,
         { id: crypto.randomUUID(), matchup: name, bringIn: "", takeOut: "", notes: "" },
@@ -61,24 +58,22 @@ export function SideboardPlansDialog({
     >
       <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            <Trans>Sideboard plans</Trans>
-          </DialogTitle>
+          <DialogTitle>Sideboard plans</DialogTitle>
           <DialogDescription>
-            <Trans>Keep the exact swaps and play-pattern notes you need for each matchup.</Trans>
+            Keep the exact swaps and play-pattern notes you need for each matchup.
           </DialogDescription>
         </DialogHeader>
         <div className="flex gap-2">
           <Input
             value={matchup}
-            placeholder={i18n._(msg`Azorius Control`)}
+            placeholder={`Azorius Control`}
             onChange={(event) => setMatchup(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") addPlan();
             }}
           />
           <Button variant="outline" disabled={!matchup.trim()} onClick={addPlan}>
-            <Plus className="mr-1.5 h-4 w-4" /> <Trans>Matchup</Trans>
+            <Plus className="mr-1.5 h-4 w-4" /> Matchup
           </Button>
         </div>
         <div className="space-y-3">
@@ -96,9 +91,9 @@ export function SideboardPlansDialog({
                   size="icon"
                   variant="ghost"
                   className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                  aria-label={i18n._(msg`Delete ${plan.matchup}`)}
+                  aria-label={`Delete ${plan.matchup}`}
                   onClick={() =>
-                    executeDeckEdit(i18n._(msg`Delete sideboard plan`), () =>
+                    executeDeckEdit(`Delete sideboard plan`, () =>
                       updatePlans(plans.filter((candidate) => candidate.id !== plan.id)),
                     )
                   }
@@ -108,50 +103,44 @@ export function SideboardPlansDialog({
               </div>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <label className="text-xs font-medium">
-                  <Trans>
-                    Bring in
-                    <textarea
-                      className="mt-1 min-h-24 w-full resize-y rounded-md border bg-background px-3 py-2 text-xs"
-                      value={plan.bringIn}
-                      placeholder="2 Negate\n1 Rest in Peace"
-                      onFocus={planEdit.begin}
-                      onChange={(event) => updatePlan(plan.id, { bringIn: event.target.value })}
-                      onBlur={planEdit.commit}
-                    />
-                  </Trans>
+                  Bring in
+                  <textarea
+                    className="mt-1 min-h-24 w-full resize-y rounded-md border bg-background px-3 py-2 text-xs"
+                    value={plan.bringIn}
+                    placeholder="2 Negate\n1 Rest in Peace"
+                    onFocus={planEdit.begin}
+                    onChange={(event) => updatePlan(plan.id, { bringIn: event.target.value })}
+                    onBlur={planEdit.commit}
+                  />
                 </label>
                 <label className="text-xs font-medium">
-                  <Trans>
-                    Take out
-                    <textarea
-                      className="mt-1 min-h-24 w-full resize-y rounded-md border bg-background px-3 py-2 text-xs"
-                      value={plan.takeOut}
-                      placeholder={i18n._(msg`2 slow removal\n1 top-end threat`)}
-                      onFocus={planEdit.begin}
-                      onChange={(event) => updatePlan(plan.id, { takeOut: event.target.value })}
-                      onBlur={planEdit.commit}
-                    />
-                  </Trans>
+                  Take out
+                  <textarea
+                    className="mt-1 min-h-24 w-full resize-y rounded-md border bg-background px-3 py-2 text-xs"
+                    value={plan.takeOut}
+                    placeholder={`2 slow removal\n1 top-end threat`}
+                    onFocus={planEdit.begin}
+                    onChange={(event) => updatePlan(plan.id, { takeOut: event.target.value })}
+                    onBlur={planEdit.commit}
+                  />
                 </label>
               </div>
               <label className="mt-3 block text-xs font-medium">
-                <Trans>
-                  Matchup notes
-                  <textarea
-                    className="mt-1 min-h-16 w-full resize-y rounded-md border bg-background px-3 py-2 text-xs"
-                    value={plan.notes}
-                    placeholder={i18n._(msg`What matters after boarding?`)}
-                    onFocus={planEdit.begin}
-                    onChange={(event) => updatePlan(plan.id, { notes: event.target.value })}
-                    onBlur={planEdit.commit}
-                  />
-                </Trans>
+                Matchup notes
+                <textarea
+                  className="mt-1 min-h-16 w-full resize-y rounded-md border bg-background px-3 py-2 text-xs"
+                  value={plan.notes}
+                  placeholder={`What matters after boarding?`}
+                  onFocus={planEdit.begin}
+                  onChange={(event) => updatePlan(plan.id, { notes: event.target.value })}
+                  onBlur={planEdit.commit}
+                />
               </label>
             </section>
           ))}
           {plans.length === 0 && (
             <p className="py-8 text-center text-xs text-muted-foreground">
-              <Trans>Add a matchup to start a sideboard guide.</Trans>
+              Add a matchup to start a sideboard guide.
             </p>
           )}
         </div>

@@ -1,7 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export type LimitedWorkspaceTab = "pack" | "picks" | "preview";
 interface LimitedWorkspaceTabsProps {
   value: LimitedWorkspaceTab;
@@ -20,15 +18,11 @@ export function LimitedWorkspaceTabs({
     { value: "pack", label: packLabel },
     {
       value: "picks",
-      get label() {
-        return i18n._(msg`Picks`);
-      },
+      label: `Picks`,
     },
     {
       value: "preview",
-      get label() {
-        return i18n._(msg`Preview`);
-      },
+      label: `Preview`,
     },
   ];
   return (

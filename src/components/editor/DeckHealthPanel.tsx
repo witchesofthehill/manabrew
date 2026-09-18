@@ -6,9 +6,6 @@ import { cn } from "@/lib/utils";
 import type { EditorDeck } from "@/types/manabrew";
 import { CARD_ROLE_LABELS, useCardRolesStore } from "@/stores/useCardRolesStore";
 import { EDITOR_PANEL_CLASS, EDITOR_SUBTLE_BLOCK_CLASS } from "./deckEditor.styles";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface DeckHealthPanelProps {
   deck: EditorDeck;
   unsupportedNames: Set<string>;
@@ -44,9 +41,7 @@ export function DeckHealthPanel({
   }
   const checks = [
     {
-      get label() {
-        return i18n._(msg`Lands`);
-      },
+      label: `Lands`,
       value: landCount,
       target: landTarget,
       healthy: landCount >= landTarget - 2,
@@ -64,9 +59,7 @@ export function DeckHealthPanel({
         <div>
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">
-              <Trans>Deck health</Trans>
-            </h3>
+            <h3 className="text-sm font-semibold">Deck health</h3>
             <span
               className={cn(
                 "rounded-full px-2 py-0.5 text-[10px] font-semibold",
@@ -75,18 +68,18 @@ export function DeckHealthPanel({
                   : "bg-warning/15 text-warning",
               )}
             >
-              {issueCount === 0 ? i18n._(msg`Balanced`) : i18n._(msg`${issueCount} to review`)}
+              {issueCount === 0 ? `Balanced` : `${issueCount} to review`}
             </span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             {commanderDeck
-              ? i18n._(msg`Engine-derived roles compared with a practical Commander baseline.`)
-              : i18n._(msg`Engine-derived roles compared with a practical 60-card baseline.`)}
+              ? `Engine-derived roles compared with a practical Commander baseline.`
+              : `Engine-derived roles compared with a practical 60-card baseline.`}
           </p>
         </div>
         {pending.size > 0 && (
           <span className="text-[10px] text-muted-foreground" aria-live="polite">
-            <Trans>Analyzing {Math.min(pending.size, analyzedCount)} cards…</Trans>
+            Analyzing {Math.min(pending.size, analyzedCount)} cards…
           </span>
         )}
       </div>
@@ -113,7 +106,7 @@ export function DeckHealthPanel({
             <p className="mt-1 font-mono text-lg font-semibold tabular-nums">
               {check.value}
               <span className="ml-1 text-[10px] font-normal text-muted-foreground">
-                <Trans>/ {check.target} target</Trans>
+                / {check.target} target
               </span>
             </p>
           </div>
@@ -127,12 +120,12 @@ export function DeckHealthPanel({
           {unsupportedNames.size > 0 && (
             <Button size="xs" variant="outline" onClick={onShowUnsupported}>
               <AlertTriangle className="mr-1.5 h-3.5 w-3.5 text-warning" />
-              <Trans>Show {unsupportedNames.size} unsupported</Trans>
+              Show {unsupportedNames.size} unsupported
             </Button>
           )}
           {checks.some((check) => !check.healthy) && onOpenSearch && (
             <Button size="xs" variant="outline" onClick={onOpenSearch}>
-              <Search className="mr-1.5 h-3.5 w-3.5" /> <Trans>Add missing pieces</Trans>
+              <Search className="mr-1.5 h-3.5 w-3.5" /> Add missing pieces
             </Button>
           )}
           {validationErrors[0] && (

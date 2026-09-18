@@ -5,9 +5,6 @@ import { Input } from "@/components/ui/input";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import type { DeckCard } from "@/protocol/deck";
 import { useCard } from "@/stores/useScryfallStore";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface CollectionCardProps {
   name: string;
   setCode?: string;
@@ -42,7 +39,7 @@ export function CollectionCard({
       min="0"
       className="h-8 w-20 text-right font-mono"
       value={quantity}
-      aria-label={i18n._(msg`Owned copies of ${displayName}`)}
+      aria-label={`Owned copies of ${displayName}`}
       onChange={(event) => onQuantityChange(Number(event.target.value))}
     />
   );
@@ -61,12 +58,10 @@ export function CollectionCard({
         )}
         {foil !== undefined && (
           <span className="text-[10px] font-medium text-muted-foreground">
-            {foil ? i18n._(msg`Foil`) : i18n._(msg`Non-foil`)}
+            {foil ? `Foil` : `Non-foil`}
           </span>
         )}
-        <span className="text-xs text-muted-foreground">
-          <Trans>Owned</Trans>
-        </span>
+        <span className="text-xs text-muted-foreground">Owned</span>
         {quantityInput}
       </div>
     );
@@ -83,9 +78,7 @@ export function CollectionCard({
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 p-3 text-center text-muted-foreground">
             <ImageIcon className="h-8 w-8 opacity-40" />
-            <span className="text-xs">
-              <Trans>Loading {name}…</Trans>
-            </span>
+            <span className="text-xs">Loading {name}…</span>
           </div>
         )}
       </div>
@@ -99,7 +92,7 @@ export function CollectionCard({
           )}
           {foil !== undefined && (
             <span className="block text-[10px] text-muted-foreground">
-              {foil ? i18n._(msg`Foil`) : i18n._(msg`Non-foil`)}
+              {foil ? `Foil` : `Non-foil`}
             </span>
           )}
         </span>

@@ -1,7 +1,5 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 
 const primary = "#D4632E";
 const secondary = "#713A98";
@@ -51,9 +49,7 @@ const palette: BasePalette = {
 const preset: ThemePreset = {
   id: "default",
   name: "Manabrew",
-  get description() {
-    return i18n._(msg`Manabrew default theme`);
-  },
+  description: `Manabrew default theme`,
   light: {
     background: accent,
     foreground: charcoal,

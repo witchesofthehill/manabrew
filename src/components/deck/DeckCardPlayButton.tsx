@@ -1,7 +1,5 @@
 import { Loader2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface DeckCardPlayButtonProps {
   playing?: boolean;
   disabled?: boolean;
@@ -25,7 +23,7 @@ export function DeckCardPlayButton({
       ) : (
         <Play className="h-3.5 w-3.5" />
       )}
-      {playing ? i18n._(msg`Starting\u2026`) : i18n._(msg`Play`)}
+      {playing ? `Starting\u2026` : `Play`}
     </Button>
   );
 }

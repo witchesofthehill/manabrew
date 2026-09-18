@@ -2,9 +2,6 @@ import { useEffect, useState } from "react";
 import { Eye, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface FocusExitButtonProps {
   onExit: () => void;
   onShowChrome: () => void;
@@ -49,8 +46,8 @@ export function FocusExitButton({ onExit, onShowChrome }: FocusExitButtonProps) 
         variant="ghost"
         onClick={onShowChrome}
         className="h-9 gap-1 rounded-full px-3 text-xs font-semibold"
-        aria-label={i18n._(msg`Show controls`)}
-        title={i18n._(msg`Peek bar and phase strip`)}
+        aria-label={`Show controls`}
+        title={`Peek bar and phase strip`}
       >
         <Eye className="size-4" />
       </Button>
@@ -59,13 +56,11 @@ export function FocusExitButton({ onExit, onShowChrome }: FocusExitButtonProps) 
         variant="ghost"
         onClick={handleExit}
         className="h-9 gap-1 rounded-full px-3 text-xs font-semibold"
-        aria-label={i18n._(msg`Exit focus mode`)}
-        title={i18n._(msg`Exit focus mode`)}
+        aria-label={`Exit focus mode`}
+        title={`Exit focus mode`}
       >
         <Minimize2 className="size-4" />
-        <span>
-          <Trans>Exit</Trans>
-        </span>
+        <span>Exit</span>
       </Button>
     </div>
   );

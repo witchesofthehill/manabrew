@@ -4,8 +4,6 @@ import type React from "react";
 import type { GameIconName } from "@/components/game/GameIcon";
 import type { DeckCard } from "@/protocol/deck";
 import { canBeSignatureSpell } from "@/lib/formats";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export interface CommanderSlot {
   noun: string;
   icon: GameIconName;
@@ -32,9 +30,7 @@ export function buildCardActions(
 ): OverlayAction[] {
   const actions: OverlayAction[] = [
     {
-      get label() {
-        return i18n._(msg`Add`);
-      },
+      label: `Add`,
       icon: Plus,
       onClick: onAddOne,
       variant: "primary",
@@ -42,17 +38,13 @@ export function buildCardActions(
   ];
   if (onUntag) {
     actions.push({
-      get label() {
-        return i18n._(msg`Untag`);
-      },
+      label: `Untag`,
       icon: Tag,
       onClick: onUntag,
     });
   } else {
     actions.push({
-      get label() {
-        return i18n._(msg`Remove`);
-      },
+      label: `Remove`,
       icon: Minus,
       onClick: onRemoveOne,
     });

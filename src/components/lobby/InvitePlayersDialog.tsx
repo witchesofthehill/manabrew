@@ -9,9 +9,6 @@ import { useServerStore } from "@/stores/useServerStore";
 import { useInviteStore } from "@/stores/useInviteStore";
 import { stripUsernameTag } from "@/lib/username";
 import type { PlayerInfo } from "@/types/server";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface InvitePlayersDialogProps {
   open: boolean;
   onClose: () => void;
@@ -42,20 +39,16 @@ export function InvitePlayersDialog({ open, onClose }: InvitePlayersDialogProps)
     <Dialog open={open} onOpenChange={(next) => !next && close()}>
       <DialogContent className="max-w-sm">
         <DialogTitle className="flex items-center gap-2">
-          <Trans>
-            <UserPlus className="h-4 w-4" />
-            Invite players
-          </Trans>
+          <UserPlus className="h-4 w-4" />
+          Invite players
         </DialogTitle>
-        <DialogDescription>
-          <Trans>Players in the lobby who aren't at a table.</Trans>
-        </DialogDescription>
+        <DialogDescription>Players in the lobby who aren't at a table.</DialogDescription>
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={i18n._(msg`Search players\u2026`)}
+            placeholder={`Search players\u2026`}
             className="h-8 pl-8 text-sm"
             autoFocus
           />
@@ -64,9 +57,7 @@ export function InvitePlayersDialog({ open, onClose }: InvitePlayersDialogProps)
           <div className="space-y-0.5 pr-2">
             {candidates.length === 0 && (
               <p className="py-6 text-center text-xs italic text-muted-foreground">
-                {query
-                  ? i18n._(msg`No players match “${search.trim()}”`)
-                  : i18n._(msg`Nobody is free right now`)}
+                {query ? `No players match “${search.trim()}”` : `Nobody is free right now`}
               </p>
             )}
             {candidates.map((player) => {
@@ -76,11 +67,7 @@ export function InvitePlayersDialog({ open, onClose }: InvitePlayersDialogProps)
                   key={player.player_id}
                   player={player}
                   presenceDotClass="bg-success"
-                  status={
-                    <span className="text-[10px] text-muted-foreground">
-                      <Trans>Available</Trans>
-                    </span>
-                  }
+                  status={<span className="text-[10px] text-muted-foreground">Available</span>}
                   action={
                     <Button
                       size="sm"
@@ -88,10 +75,10 @@ export function InvitePlayersDialog({ open, onClose }: InvitePlayersDialogProps)
                       className={PLAYER_ROW_ACTION_CLASS}
                       disabled={sent}
                       onClick={() => void invite(player.username)}
-                      title={i18n._(msg`Invite to your table`)}
+                      title={`Invite to your table`}
                     >
                       <UserPlus className="h-3 w-3" />
-                      {sent ? i18n._(msg`Invited`) : i18n._(msg`Invite`)}
+                      {sent ? `Invited` : `Invite`}
                     </Button>
                   }
                 />

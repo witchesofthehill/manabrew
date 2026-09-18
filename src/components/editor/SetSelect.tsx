@@ -6,9 +6,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { MAIN_SET_TYPES } from "@/lib/constants";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { ScryfallImg } from "@/components/ScryfallImg";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const SET_ICON_CLASS = "brightness-0 dark:invert";
 interface SetSelectProps {
   value: string;
@@ -108,7 +105,7 @@ export function SetSelect({
             <Input
               ref={inputRef}
               className="h-6 text-xs"
-              placeholder={i18n._(msg`Search sets\u2026`)}
+              placeholder={`Search sets\u2026`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -117,7 +114,7 @@ export function SetSelect({
             <div className="py-1">
               {filtered.length === 0 && (
                 <div className="px-3 py-2 text-xs text-muted-foreground text-center">
-                  <Trans>No sets found</Trans>
+                  No sets found
                 </div>
               )}
               {filtered.map((s) => (

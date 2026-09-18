@@ -1,8 +1,6 @@
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useServerStore } from "@/stores/useServerStore";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface ReconnectBannerProps {
   className?: string;
 }
@@ -11,8 +9,8 @@ export function ReconnectBanner({ className }: ReconnectBannerProps) {
   if (reconnect.phase === "idle") return null;
   const message =
     reconnect.reason === "server-shutdown"
-      ? i18n._(msg`Server updating, reconnecting\u2026`)
-      : i18n._(msg`Reconnecting… (attempt ${reconnect.attempt})`);
+      ? `Server updating, reconnecting\u2026`
+      : `Reconnecting… (attempt ${reconnect.attempt})`;
   return (
     <div
       role="status"

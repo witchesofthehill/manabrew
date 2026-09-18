@@ -3,8 +3,6 @@ import { Camera, CircleUserRound, X } from "lucide-react";
 import { useAssetsAvailable, useAssetStore } from "@/stores/useAssetStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { AvatarCropDialog } from "@/components/settings/AvatarCropDialog";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export function AvatarPicker() {
   const avatarSrc = useAuthStore((s) => s.account?.avatarUrl);
   const uploadAvatar = useAssetStore((s) => s.uploadAvatar);
@@ -28,14 +26,14 @@ export function AvatarPicker() {
         type="button"
         disabled={busy || !available}
         onClick={() => inputRef.current?.click()}
-        title={avatarSrc ? i18n._(msg`Replace avatar`) : i18n._(msg`Upload avatar`)}
+        title={avatarSrc ? `Replace avatar` : `Upload avatar`}
         className="relative flex size-20 shrink-0 items-center justify-center rounded-full border bg-muted motion-safe:transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {avatarSrc ? (
           <img
             src={avatarSrc}
             crossOrigin="anonymous"
-            alt={i18n._(msg`Your avatar`)}
+            alt={`Your avatar`}
             className="size-full rounded-full object-cover"
           />
         ) : (
@@ -48,7 +46,7 @@ export function AvatarPicker() {
       {avatarSrc && (
         <button
           type="button"
-          title={i18n._(msg`Remove avatar`)}
+          title={`Remove avatar`}
           disabled={busy}
           onClick={() => void clearAvatar()}
           className="absolute -top-0.5 -right-0.5 flex size-6 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm motion-safe:transition-opacity opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto hover:border-destructive hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring before:absolute before:-inset-2.5 before:content-['']"

@@ -4,9 +4,6 @@ import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { countManaPips } from "@/lib/limited.utils";
 import { cn } from "@/lib/utils";
 import type { DraftCard } from "@/types/limited";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface Props {
   cards: DraftCard[];
   className?: string;
@@ -72,20 +69,18 @@ export function LimitedDeckStats({ cards, className, compact = false }: Props) {
     >
       <section>
         <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          <Trans>Composition ({stats.total})</Trans>
+          Composition ({stats.total})
         </h3>
         <ul className="space-y-0.5">
-          <StatRow label={i18n._(msg`Creatures`)} value={stats.creatures} total={stats.total} />
-          <StatRow label={i18n._(msg`Spells`)} value={stats.spells} total={stats.total} />
-          <StatRow label={i18n._(msg`Lands`)} value={stats.lands} total={stats.total} />
+          <StatRow label={`Creatures`} value={stats.creatures} total={stats.total} />
+          <StatRow label={`Spells`} value={stats.spells} total={stats.total} />
+          <StatRow label={`Lands`} value={stats.lands} total={stats.total} />
         </ul>
       </section>
 
       <section>
         <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          <Trans>
-            Mana curve {stats.curveSampleSize ? `(${stats.curveSampleSize} non-land)` : ""}
-          </Trans>
+          Mana curve {stats.curveSampleSize ? `(${stats.curveSampleSize} non-land)` : ""}
         </h3>
         <div className="flex h-16 items-end gap-1">
           {stats.curve.map((count, i) => {
@@ -106,7 +101,7 @@ export function LimitedDeckStats({ cards, className, compact = false }: Props) {
 
       <section>
         <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          <Trans>Colour pips {colorTotal ? `(${colorTotal})` : ""}</Trans>
+          Colour pips {colorTotal ? `(${colorTotal})` : ""}
         </h3>
         <ul className="space-y-0.5">
           {COLOR_KEYS.map((k) => (

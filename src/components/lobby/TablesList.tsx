@@ -14,9 +14,6 @@ import { USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type { ServerErrorCode } from "@/types/server";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const HIDDEN_ROOM_NAMES = new Set(["free room", "free pod"]);
 interface TablesListProps {
   rooms: RoomInfo[];
@@ -83,7 +80,7 @@ export function TablesList({
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
       const message = USER_FACING_ERROR_MESSAGES[code as ServerErrorCode];
-      toast.error(message ?? i18n._(msg`Couldn't join the table.`));
+      toast.error(message ?? `Couldn't join the table.`);
     } finally {
       setJoiningRoomId(null);
     }
@@ -164,10 +161,10 @@ export function TablesList({
           <section className="space-y-3">
             <div>
               <h2 className="font-serif text-3xl font-light sm:text-4xl">
-                <Trans>Tables from other players</Trans>
+                Tables from other players
               </h2>
               <p className="ml-2 mt-2 text-xs text-muted-foreground">
-                <Trans>Join a table that is already waiting for players.</Trans>
+                Join a table that is already waiting for players.
               </p>
             </div>
 
@@ -177,8 +174,8 @@ export function TablesList({
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  aria-label={i18n._(msg`Search tables`)}
-                  placeholder={i18n._(msg`Search tables\u2026`)}
+                  aria-label={`Search tables`}
+                  placeholder={`Search tables\u2026`}
                   className="h-8 pl-8 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
                 />
               </div>
@@ -186,7 +183,7 @@ export function TablesList({
                 variant="outline"
                 onClick={onRefresh}
                 disabled={refreshDisabled || refreshing}
-                title={i18n._(msg`Refresh tables`)}
+                title={`Refresh tables`}
                 className="h-8 w-8 shrink-0 pointer-coarse:h-10 pointer-coarse:w-10"
               >
                 <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
@@ -194,8 +191,7 @@ export function TablesList({
             </div>
 
             <p className="ml-2 text-xs text-muted-foreground">
-              {visibleRooms.length}{" "}
-              {visibleRooms.length === 1 ? i18n._(msg`table`) : i18n._(msg`tables`)}
+              {visibleRooms.length} {visibleRooms.length === 1 ? `table` : `tables`}
             </p>
 
             {visibleRooms.length > 0 ? (
@@ -213,8 +209,8 @@ export function TablesList({
             ) : (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 {hasTables
-                  ? i18n._(msg`No tables match your search.`)
-                  : i18n._(msg`No player tables waiting. Set one up above.`)}
+                  ? `No tables match your search.`
+                  : `No player tables waiting. Set one up above.`}
               </p>
             )}
           </section>

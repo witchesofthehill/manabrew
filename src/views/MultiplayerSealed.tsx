@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/constants";
 import { useMultiplayerSealedStore } from "@/stores/useMultiplayerSealedStore";
 import { useServerStore } from "@/stores/useServerStore";
-import { Trans } from "@lingui/react/macro";
 export default function MultiplayerSealed() {
   const navigate = useNavigate();
   const mode = useMultiplayerSealedStore((s) => s.mode);
@@ -55,11 +54,9 @@ export default function MultiplayerSealed() {
   if (mode === "building" && pool.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-        <Trans>
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Generating your sealed pool…
-          {lastError && <p className="mt-2 text-destructive">{lastError}</p>}
-        </Trans>
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Generating your sealed pool…
+        {lastError && <p className="mt-2 text-destructive">{lastError}</p>}
       </div>
     );
   }
@@ -67,18 +64,14 @@ export default function MultiplayerSealed() {
     <div className="flex h-full flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="max-w-3xl">
-          <p className="font-semibold text-foreground">
-            <Trans>{setCode.toUpperCase()} sealed pool</Trans>
-          </p>
+          <p className="font-semibold text-foreground">{setCode.toUpperCase()} sealed pool</p>
           <p className="text-sm text-muted-foreground">
-            <Trans>
-              Build a 40-card deck from your pool. Use "Save to My Decks" when you're happy — your
-              saved deck is then selectable in any Match room.
-            </Trans>
+            Build a 40-card deck from your pool. Use "Save to My Decks" when you're happy — your
+            saved deck is then selectable in any Match room.
           </p>
         </div>
         <Button variant="outline" onClick={() => exitTo(ROUTES.LOBBY)}>
-          <Trans>Exit</Trans>
+          Exit
         </Button>
       </header>
 

@@ -17,8 +17,6 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { prefetchPresetDecks, usePresetDecksStore } from "@/stores/usePresetDecksStore";
 import type { Deck } from "@/protocol/deck";
 import type { EngineKind } from "@/protocol";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 type PendingPod =
   | {
       kind: "saved";
@@ -88,7 +86,7 @@ export function useQuickPlay() {
         const formatId = deck.format ?? "standard";
         const format = getFormat(formatId);
         if (!format) {
-          toast.error(i18n._(msg`This deck uses an unsupported format.`));
+          toast.error(`This deck uses an unsupported format.`);
           navigate(`${ROUTES.DECK_EDITOR}?deck=${encodeURIComponent(savedDeckId)}`, {
             state: { deckEditorFromList: true },
           });
@@ -98,7 +96,7 @@ export function useQuickPlay() {
         const opponents = await resolveOpponents(engine, formatId, opponentCount);
         if (!mountedRef.current) return;
         if (opponents.decks.length === 0) {
-          toast.error(i18n._(msg`No AI deck available for this format \u2014 pick one yourself.`));
+          toast.error(`No AI deck available for this format \u2014 pick one yourself.`);
           navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, {
             state: { preSelectedDeckId: savedDeckId },
           });
@@ -136,7 +134,7 @@ export function useQuickPlay() {
       const opponents = await resolveOpponents(engine, formatId, opponentCount);
       if (!mountedRef.current) return;
       if (opponents.decks.length === 0) {
-        toast.error(i18n._(msg`No AI deck available for this format \u2014 pick one yourself.`));
+        toast.error(`No AI deck available for this format \u2014 pick one yourself.`);
         return;
       }
       const started = await useGameStore
@@ -175,7 +173,7 @@ export function useQuickPlay() {
       const opponents = await resolveOpponents(engine, formatId, opponentCount);
       if (!mountedRef.current) return;
       if (opponents.decks.length === 0) {
-        toast.error(i18n._(msg`No AI deck available for this format \u2014 pick one yourself.`));
+        toast.error(`No AI deck available for this format \u2014 pick one yourself.`);
         return;
       }
       const started = await useGameStore
@@ -215,14 +213,12 @@ export function useQuickPlay() {
       if (pendingRef.current) return;
       const formatId = preset.format ?? "standard";
       if (formatId === "oathbreaker" || getFormat(formatId) === undefined) {
-        toast.error(i18n._(msg`This starter deck uses an unsupported format.`));
+        toast.error(`This starter deck uses an unsupported format.`);
         return;
       }
       if (!presetSupportsEngine(preset, resolveOfflineEngine())) {
         toast.error(
-          i18n._(
-            msg`This deck is built for the ${preset.engines?.[0] ?? "Ironsmith"} engine — start a table with that engine from Multiplayer.`,
-          ),
+          `This deck is built for the ${preset.engines?.[0] ?? "Ironsmith"} engine — start a table with that engine from Multiplayer.`,
         );
         return;
       }
@@ -243,15 +239,13 @@ export function useQuickPlay() {
         const entry = await useHubStore.getState().loadEntry(entryId);
         const formatId = entry.deck.format ?? entry.format ?? "standard";
         if (getFormat(formatId) === undefined) {
-          toast.error(i18n._(msg`This Community deck uses an unsupported format.`));
+          toast.error(`This Community deck uses an unsupported format.`);
           return;
         }
         const engine = resolveOfflineEngine();
         if (entry.engines?.length && !entry.engines.includes(engine)) {
           toast.error(
-            i18n._(
-              msg`This deck is built for the ${entry.engines[0]} engine — start a table with that engine from Multiplayer.`,
-            ),
+            `This deck is built for the ${entry.engines[0]} engine — start a table with that engine from Multiplayer.`,
           );
           return;
         }

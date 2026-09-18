@@ -6,9 +6,6 @@ import { SetTile } from "@/components/limited/SetTile";
 import { SET_TYPE_LABELS } from "@/components/limited/setFilters";
 import { cn } from "@/lib/utils";
 import type { ScryfallSet } from "@/types/scryfall";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface SetPickerProps {
   sets: ScryfallSet[];
   selectedCode: string;
@@ -58,7 +55,7 @@ export function SetPicker({
           className="h-8 shrink-0 text-xs"
           onClick={() => setChanging(true)}
         >
-          <Trans>Change set</Trans>
+          Change set
         </Button>
       </section>
     );
@@ -79,7 +76,7 @@ export function SetPicker({
       >
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <h2 className="mr-auto text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Trans>Pick a set</Trans>
+            Pick a set
           </h2>
           <div
             className={cn("relative flex items-center", variant === "column" && "min-w-0 flex-1")}
@@ -89,7 +86,7 @@ export function SetPicker({
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={i18n._(msg`Search ${sets.length} sets…`)}
+              placeholder={`Search ${sets.length} sets…`}
               className={cn("h-8 pl-7 text-xs", variant === "column" ? "w-full" : "w-64")}
             />
           </div>
@@ -128,7 +125,7 @@ export function SetPicker({
         {!query && typeFilter === "all" && (
           <div className="mb-3">
             <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              <Trans>Latest</Trans>
+              Latest
             </h3>
             <div className="flex flex-wrap gap-1.5">
               {recents.map((s) => (
@@ -148,9 +145,7 @@ export function SetPicker({
         <div className="grid grid-cols-1 gap-1.5 @lg:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4">
           {filtered.length === 0 ? (
             <div className="col-span-full py-6 text-center text-sm text-muted-foreground">
-              {query
-                ? i18n._(msg`No sets match "${query}".`)
-                : i18n._(msg`No sets match the current filter.`)}
+              {query ? `No sets match "${query}".` : `No sets match the current filter.`}
             </div>
           ) : (
             filtered

@@ -4,9 +4,6 @@ import { GameIcon } from "@/components/game/GameIcon";
 import type { CardRailEffect, CardRailState } from "./cardRailState";
 import { getCardRailNotchAttributes, getCardRailRootAttributes } from "./cardRailState";
 import { cn } from "@/lib/utils";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
-import { Trans } from "@lingui/react/macro";
 const RAIL_KIND_CLASSES: Record<CardRailState["kind"], string> = {
   saga: "border-counter-lore/70",
   class: "border-counter-level/70",
@@ -51,7 +48,7 @@ export function CardRailPreview({
   const interactionByPosition = new Map(
     interactions.map((interaction) => [interaction.position, interaction]),
   );
-  const title = state.kind === "saga" ? i18n._(msg`Lore chapters`) : i18n._(msg`Class levels`);
+  const title = state.kind === "saga" ? `Lore chapters` : `Class levels`;
   return (
     <section
       {...getCardRailRootAttributes(state, railInstanceId)}
@@ -79,11 +76,11 @@ export function CardRailPreview({
           <span className="block text-xs font-semibold">
             {state.kind === "saga"
               ? state.current > 0
-                ? i18n._(msg`Chapter ${state.current} of ${state.max}`)
-                : i18n._(msg`Awaiting first chapter`)
+                ? `Chapter ${state.current} of ${state.max}`
+                : `Awaiting first chapter`
               : state.current > 0
-                ? i18n._(msg`Level ${state.current} of ${state.max}`)
-                : i18n._(msg`Awaiting first level`)}
+                ? `Level ${state.current} of ${state.max}`
+                : `Awaiting first level`}
           </span>
         </span>
       </header>
@@ -96,7 +93,7 @@ export function CardRailPreview({
             ? {
                 type: "button" as const,
                 onClick: interaction.onActivate,
-                "aria-label": i18n._(msg`${interaction.label} (${interaction.shortcut})`),
+                "aria-label": `${interaction.label} (${interaction.shortcut})`,
                 "aria-keyshortcuts": String(interaction.shortcut),
               }
             : {};
@@ -189,9 +186,7 @@ export function CardRailPreview({
                   {effect?.text ? (
                     <DynamicTextRender text={effect.text} />
                   ) : (
-                    <span>
-                      <Trans>Effect text unavailable</Trans>
-                    </span>
+                    <span>Effect text unavailable</span>
                   )}
                 </div>
               </div>

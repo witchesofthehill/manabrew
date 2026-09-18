@@ -11,8 +11,6 @@ import { DeckIntentPanel } from "./DeckIntentPanel";
 import { DeckStats } from "./DeckStats";
 import { ManaProbabilityPanel } from "./ManaProbabilityPanel";
 import { ReplacementSuggestionsPanel } from "./ReplacementSuggestionsPanel";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 type InsightSection = "overview" | "mana" | "collection" | "budget" | "replacements";
 const SECTIONS: {
   id: InsightSection;
@@ -20,33 +18,23 @@ const SECTIONS: {
 }[] = [
   {
     id: "overview",
-    get label() {
-      return i18n._(msg`Overview`);
-    },
+    label: `Overview`,
   },
   {
     id: "mana",
-    get label() {
-      return i18n._(msg`Mana`);
-    },
+    label: `Mana`,
   },
   {
     id: "collection",
-    get label() {
-      return i18n._(msg`Collection`);
-    },
+    label: `Collection`,
   },
   {
     id: "budget",
-    get label() {
-      return i18n._(msg`Budget`);
-    },
+    label: `Budget`,
   },
   {
     id: "replacements",
-    get label() {
-      return i18n._(msg`Replacements`);
-    },
+    label: `Replacements`,
   },
 ];
 export function DeckInsightsPanel({
@@ -88,7 +76,7 @@ export function DeckInsightsPanel({
   }
   return (
     <section
-      aria-label={i18n._(msg`Deck insights`)}
+      aria-label={`Deck insights`}
       className="min-w-0 overflow-hidden rounded-2xl bg-muted/10 px-4 sm:px-5"
     >
       {SECTIONS.filter(({ id }) =>

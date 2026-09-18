@@ -5,17 +5,14 @@ import { formatCommsLog } from "@/lib/commsLog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { GameLoadingTip } from "./GameLoadingTip";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 
 const STUCK_HINT_AFTER_MS = 10_000;
 const STEP_MIN_MS = 200;
 const STEPS = [
-  msg`Start the game engine`,
-  msg`Load card images`,
-  msg`Take your seat`,
-  msg`Receive the first game state`,
+  `Start the game engine`,
+  `Load card images`,
+  `Take your seat`,
+  `Receive the first game state`,
 ];
 interface GameLoadingScreenProps {
   debugInfo: string;
@@ -63,15 +60,11 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
   return (
     <div className="flex h-full flex-col items-center justify-center gap-6 px-6 py-6">
       <div className="space-y-1.5 text-center">
-        <p className="text-2xl font-semibold">
-          <Trans>Game starting…</Trans>
-        </p>
+        <p className="text-2xl font-semibold">Game starting…</p>
         <p className="text-base text-muted-foreground">
           {slow
-            ? i18n._(
-                msg`This is taking longer than expected. You can keep waiting, or leave and return to the lobby.`,
-              )
-            : i18n._(msg`Setting the table \u2014 this usually takes a few seconds.`)}
+            ? `This is taking longer than expected. You can keep waiting, or leave and return to the lobby.`
+            : `Setting the table \u2014 this usually takes a few seconds.`}
         </p>
       </div>
 
@@ -93,7 +86,7 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
           </div>
           <ul className="space-y-3">
             {STEPS.map((step, index) => {
-              const label = i18n._(step);
+              const label = step;
               const done = index < stage;
               const active = index === stage;
               return (
@@ -129,7 +122,7 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
       </div>
 
       <Button variant="outline" onClick={() => void endGame()}>
-        <Trans>Leave game</Trans>
+        Leave game
       </Button>
     </div>
   );

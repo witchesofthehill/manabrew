@@ -1,6 +1,4 @@
 import type { StepKind } from "@/protocol";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 import { scryfallAssetUrl } from "@/lib/scryfallAssets";
 /** The single UI-side list of turn steps, ordered to match the engine's turn
  *  structure. Ids are protocol `StepKind` values — never restate them elsewhere. */
@@ -12,99 +10,73 @@ export const PHASES: readonly {
 }[] = [
   {
     id: "untap",
-    get label() {
-      return i18n._(msg`Untap`);
-    },
+    label: `Untap`,
     short: "UNT",
   },
   {
     id: "upkeep",
-    get label() {
-      return i18n._(msg`Upkeep`);
-    },
+    label: `Upkeep`,
     short: "UP",
   },
   {
     id: "draw",
-    get label() {
-      return i18n._(msg`Draw`);
-    },
+    label: `Draw`,
     short: "DR",
   },
   {
     id: "main1",
-    get label() {
-      return i18n._(msg`Main 1`);
-    },
+    label: `Main 1`,
     short: "M1",
   },
   {
     id: "combatBegin",
-    get label() {
-      return i18n._(msg`Begin Combat`);
-    },
+    label: `Begin Combat`,
     short: "BC",
     combat: true,
   },
   {
     id: "combatDeclareAttackers",
-    get label() {
-      return i18n._(msg`Attackers`);
-    },
+    label: `Attackers`,
     short: "ATK",
     combat: true,
   },
   {
     id: "combatDeclareBlockers",
-    get label() {
-      return i18n._(msg`Blockers`);
-    },
+    label: `Blockers`,
     short: "BLK",
     combat: true,
   },
   {
     id: "combatFirstStrikeDamage",
-    get label() {
-      return i18n._(msg`1st Strike`);
-    },
+    label: `1st Strike`,
     short: "1ST",
     combat: true,
   },
   {
     id: "combatDamage",
-    get label() {
-      return i18n._(msg`Damage`);
-    },
+    label: `Damage`,
     short: "DMG",
     combat: true,
   },
   {
     id: "combatEnd",
-    get label() {
-      return i18n._(msg`End Combat`);
-    },
+    label: `End Combat`,
     short: "EC",
     combat: true,
   },
   {
     id: "main2",
-    get label() {
-      return i18n._(msg`Main 2`);
-    },
+    label: `Main 2`,
     short: "M2",
   },
   {
     id: "endOfTurn",
-    get label() {
-      return i18n._(msg`End`);
-    },
+    label: `End`,
     short: "END",
   },
   {
     id: "cleanup",
-    get label() {
-      return i18n._(msg`Cleanup`);
-    },
+    label: `Cleanup`,
     short: "CL",
   },
 ];
@@ -126,21 +98,15 @@ export const ZONE_BADGES: Record<
 > = {
   [ZONE_TILE_KEY.library]: {
     icon: "deck",
-    get label() {
-      return i18n._(msg`Library`);
-    },
+    label: `Library`,
   },
   [ZONE_TILE_KEY.graveyard]: {
     icon: "graveyard",
-    get label() {
-      return i18n._(msg`Graveyard`);
-    },
+    label: `Graveyard`,
   },
   [ZONE_TILE_KEY.exile]: {
     icon: "exile",
-    get label() {
-      return i18n._(msg`Exile`);
-    },
+    label: `Exile`,
   },
 };
 /** Standard MTG card back image, served by Scryfall's canonical backs CDN.
@@ -152,113 +118,95 @@ export const CARD_BACK_IMAGE_URL = scryfallAssetUrl(
 
 export const PROMPT_LABELS: Record<string, string> = {
   get ["mulligan"]() {
-    return i18n._(msg`Keep this hand?`);
+    return `Keep this hand?`;
   },
   get ["mulliganPutBack"]() {
-    return i18n._(msg`Choose cards to put on bottom`);
+    return `Choose cards to put on bottom`;
   },
   get ["chooseAction"]() {
-    return i18n._(msg`Play a card or pass priority`);
+    return `Play a card or pass priority`;
   },
   get ["chooseAttackers"]() {
-    return i18n._(msg`Declare attackers`);
+    return `Declare attackers`;
   },
   get ["chooseBlockers"]() {
-    return i18n._(msg`Declare blockers`);
+    return `Declare blockers`;
   },
   get ["chooseBoardTargets"]() {
-    return i18n._(msg`Choose a target`);
+    return `Choose a target`;
   },
   get ["revealCards"]() {
-    return i18n._(msg`Look at cards`);
+    return `Look at cards`;
   },
   get ["chooseBoolean"]() {
-    return i18n._(msg`Make a choice`);
+    return `Make a choice`;
   },
   get ["chooseFromSelection"]() {
-    return i18n._(msg`Choose from options`);
+    return `Choose from options`;
   },
   get ["scry"]() {
-    return i18n._(msg`Scry: choose cards to put on the bottom`);
+    return `Scry: choose cards to put on the bottom`;
   },
   get ["chooseCards"]() {
-    return i18n._(msg`Choose cards`);
+    return `Choose cards`;
   },
   get ["payManaCost"]() {
-    return i18n._(msg`Pay mana cost`);
+    return `Pay mana cost`;
   },
   get ["chooseColor"]() {
-    return i18n._(msg`Choose a color`);
+    return `Choose a color`;
   },
   get ["chooseNumber"]() {
-    return i18n._(msg`Choose a number`);
+    return `Choose a number`;
   },
   get ["chooseDamageAssignmentOrder"]() {
-    return i18n._(msg`Order blockers for damage assignment`);
+    return `Order blockers for damage assignment`;
   },
   get ["chooseCombatDamageAssignment"]() {
-    return i18n._(msg`Assign combat damage`);
+    return `Assign combat damage`;
   },
   get ["reorder"]() {
-    return i18n._(msg`Reorder the cards`);
+    return `Reorder the cards`;
   },
   get ["gameOver"]() {
-    return i18n._(msg`Game Over`);
+    return `Game Over`;
   },
 };
 export const CARD_BADGES = {
   exerted: {
-    get label() {
-      return i18n._(msg`EXERTED`);
-    },
+    label: `EXERTED`,
     style: "bg-card-status-exerted/90 text-text-on-tinted",
   },
   morph: {
-    get label() {
-      return i18n._(msg`MORPH`);
-    },
+    label: `MORPH`,
     style: "bg-card-status-morph/90 text-text-on-tinted",
   },
   bestow: {
-    get label() {
-      return i18n._(msg`BESTOW`);
-    },
+    label: `BESTOW`,
     style: "bg-card-status-bestow/90 text-text-on-tinted",
   },
   token: {
-    get label() {
-      return i18n._(msg`TOKEN`);
-    },
+    label: `TOKEN`,
     style: "bg-card-status-token/90 text-text-on-tinted",
   },
   transformed: {
-    get label() {
-      return i18n._(msg`TRANSFORMED`);
-    },
+    label: `TRANSFORMED`,
     style: "bg-card-status-transformed/90 text-text-on-tinted",
   },
   plotted: {
-    get label() {
-      return i18n._(msg`PLOTTED`);
-    },
+    label: `PLOTTED`,
     style: "bg-card-status-plotted/90 text-text-on-tinted",
   },
   madnessExiled: {
-    get label() {
-      return i18n._(msg`MADNESS`);
-    },
+    label: `MADNESS`,
     style: "bg-card-status-madness/90 text-text-on-tinted",
   },
   warpExiled: {
-    get label() {
-      return i18n._(msg`WARPED`);
-    },
+    label: `WARPED`,
     style: "bg-card-status-warped/90 text-text-on-tinted",
   },
   copy: {
-    get label() {
-      return i18n._(msg`COPY`);
-    },
+    label: `COPY`,
     style: "bg-card-status-copy/90 text-text-on-tinted",
   },
 } as const;

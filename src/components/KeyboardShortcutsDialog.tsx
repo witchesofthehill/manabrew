@@ -5,9 +5,6 @@ import { Modal } from "@/components/game/modals/Modal";
 import { Input } from "@/components/ui/input";
 import { KEYBINDINGS, formatCombo } from "@/lib/keybindings";
 import { useKeybindingsStore, resolveCombo } from "@/stores/useKeybindingsStore";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export function KeyboardShortcutsDialog({
   open,
   onOpenChange,
@@ -35,9 +32,7 @@ export function KeyboardShortcutsDialog({
   return (
     <Modal onClose={close} maxWidth="max-w-lg">
       <Modal.Header onClose={close}>
-        <h2 className="text-base font-semibold">
-          <Trans>Keyboard shortcuts</Trans>
-        </h2>
+        <h2 className="text-base font-semibold">Keyboard shortcuts</h2>
       </Modal.Header>
       <Modal.Body className="space-y-4">
         <div className="relative">
@@ -47,7 +42,7 @@ export function KeyboardShortcutsDialog({
             data-autofocus
             value={query}
             className="pl-9"
-            placeholder={i18n._(msg`Search shortcuts\u2026`)}
+            placeholder={`Search shortcuts\u2026`}
             onChange={(event) => setQuery(event.target.value)}
           />
         </div>
@@ -79,17 +74,17 @@ export function KeyboardShortcutsDialog({
           ))}
           {filtered.length === 0 && (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              <Trans>No shortcuts match “{query}”.</Trans>
+              No shortcuts match “{query}”.
             </p>
           )}
         </div>
       </Modal.Body>
       <Modal.Footer>
         <p className="mr-auto text-xs text-muted-foreground">
-          <Trans>Customize these in Preferences → Shortcuts.</Trans>
+          Customize these in Preferences → Shortcuts.
         </p>
         <Modal.Close onClose={close} variant="ghost">
-          <Trans>Close</Trans>
+          Close
         </Modal.Close>
       </Modal.Footer>
     </Modal>

@@ -7,9 +7,6 @@ import { DeleteAccountDialog } from "@/components/settings/DeleteAccountDialog";
 import { exportAccount } from "@/api/auth";
 import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
 import { DOCS_URL } from "@/lib/constants";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface ActionRowProps {
   title: string;
   description: string;
@@ -45,7 +42,7 @@ export function AccountActionsCard() {
       link.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : i18n._(msg`Export failed`));
+      toast.error(err instanceof Error ? err.message : `Export failed`);
     } finally {
       setBusy(false);
     }
@@ -53,13 +50,11 @@ export function AccountActionsCard() {
   return (
     <>
       <section className="rounded-lg border bg-card/40 p-4 sm:p-5 space-y-1">
-        <Label>
-          <Trans>Data &amp; session</Trans>
-        </Label>
+        <Label>Data &amp; session</Label>
         <div className="divide-y divide-border/70">
           <ActionRow
-            title={i18n._(msg`Export my data`)}
-            description={i18n._(msg`Download your account, decks, and history as JSON.`)}
+            title={`Export my data`}
+            description={`Download your account, decks, and history as JSON.`}
             action={
               <Button
                 variant="outline"
@@ -68,16 +63,14 @@ export function AccountActionsCard() {
                 disabled={busy}
                 onClick={() => void handleExport()}
               >
-                <Trans>
-                  <Download />
-                  Export
-                </Trans>
+                <Download />
+                Export
               </Button>
             }
           />
           <ActionRow
-            title={i18n._(msg`Sign out`)}
-            description={i18n._(msg`Sign out of Manabrew on this device.`)}
+            title={`Sign out`}
+            description={`Sign out of Manabrew on this device.`}
             action={
               <Button
                 variant="outline"
@@ -86,10 +79,8 @@ export function AccountActionsCard() {
                 disabled={busy}
                 onClick={() => void signOut()}
               >
-                <Trans>
-                  <LogOut />
-                  Sign out
-                </Trans>
+                <LogOut />
+                Sign out
               </Button>
             }
           />
@@ -101,7 +92,7 @@ export function AccountActionsCard() {
             target="_blank"
             rel="noreferrer"
           >
-            <Trans>Terms</Trans>
+            Terms
           </a>
           {" · "}
           <a
@@ -110,19 +101,15 @@ export function AccountActionsCard() {
             target="_blank"
             rel="noreferrer"
           >
-            <Trans>Privacy &amp; data</Trans>
+            Privacy &amp; data
           </a>
         </p>
       </section>
       <section className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 sm:p-5 space-y-1">
-        <Label className="text-destructive">
-          <Trans>Danger zone</Trans>
-        </Label>
+        <Label className="text-destructive">Danger zone</Label>
         <ActionRow
-          title={i18n._(msg`Delete account`)}
-          description={i18n._(
-            msg`Erases your account, sign-in methods, decks, and history. Community publications stay up without your name.`,
-          )}
+          title={`Delete account`}
+          description={`Erases your account, sign-in methods, decks, and history. Community publications stay up without your name.`}
           action={
             <Button
               variant="destructive"
@@ -131,10 +118,8 @@ export function AccountActionsCard() {
               disabled={busy}
               onClick={() => setDeleteOpen(true)}
             >
-              <Trans>
-                <Trash2 />
-                Delete account
-              </Trans>
+              <Trash2 />
+              Delete account
             </Button>
           }
         />

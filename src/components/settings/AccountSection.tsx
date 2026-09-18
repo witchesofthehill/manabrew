@@ -6,7 +6,6 @@ import { SignInMethodsCard } from "@/components/settings/SignInMethodsCard";
 import { AccountActionsCard } from "@/components/settings/AccountActionsCard";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { Trans } from "@lingui/react/macro";
 export function AccountSection() {
   const account = useAuthStore((s) => s.account);
   const identities = useAuthStore((s) => s.identities);
@@ -25,14 +24,10 @@ export function AccountSection() {
           <div className="mt-5 border-t border-border/70 pt-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
-                <p className="text-sm font-medium">
-                  <Trans>Sync your decks on every device</Trans>
-                </p>
+                <p className="text-sm font-medium">Sync your decks on every device</p>
                 <p className="text-sm text-muted-foreground">
-                  <Trans>
-                    An account keeps your decks and Community publications yours wherever you play.
-                    Playing never requires one.
-                  </Trans>
+                  An account keeps your decks and Community publications yours wherever you play.
+                  Playing never requires one.
                 </p>
               </div>
               <Button
@@ -40,7 +35,7 @@ export function AccountSection() {
                 className="shrink-0 self-start sm:self-center"
                 onClick={() => showSignIn()}
               >
-                <Trans>Sign in</Trans>
+                Sign in
               </Button>
             </div>
           </div>

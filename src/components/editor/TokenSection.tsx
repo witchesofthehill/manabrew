@@ -7,9 +7,6 @@ import { tokenIdentityKey } from "@/stores/useScryfallStore";
 import { cn } from "@/lib/utils";
 import { useDeckSectionOpen } from "./deckSectionExpansion";
 import { EDITOR_PANEL_CLASS } from "./deckEditor.styles";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export interface TokenSectionProps {
   tokens: DeckCard[];
   customizedTokens?: DeckCard[];
@@ -42,13 +39,9 @@ export function TokenSection({
         onClick={() => setOpen((value) => !value)}
       >
         <ChevronDown className={cn("h-4 w-4 transition-transform", !open && "-rotate-90")} />
-        <h3 className="text-base font-semibold">
-          <Trans>Tokens</Trans>
-        </h3>
+        <h3 className="text-base font-semibold">Tokens</h3>
         <span className="text-xs text-muted-foreground/70">
-          <Trans>
-            {tokens.length} token{tokens.length !== 1 ? "s" : ""} produced by this deck
-          </Trans>
+          {tokens.length} token{tokens.length !== 1 ? "s" : ""} produced by this deck
         </span>
       </button>
       {open && (
@@ -114,7 +107,7 @@ function TokenGridCard({
           <button
             type="button"
             className="rounded-full p-0.5 shadow bg-overlay/70 text-muted-foreground hover:text-foreground transition-colors"
-            title={i18n._(msg`Change printing`)}
+            title={`Change printing`}
             onClick={(e) => {
               e.stopPropagation();
               onPickPrint(token);
@@ -127,7 +120,7 @@ function TokenGridCard({
           <button
             type="button"
             className="rounded-full p-0.5 shadow bg-overlay/70 text-muted-foreground hover:text-destructive transition-colors"
-            title={i18n._(msg`Reset printing`)}
+            title={`Reset printing`}
             onClick={(e) => {
               e.stopPropagation();
               onReset(token);

@@ -72,9 +72,6 @@ import { useIsUnsupported } from "@/stores/useCardSupportStore";
 import { useIsComboCard, useIsGameChangerCard } from "@/stores/useDeckAnalysisStore";
 import { useCardCollectionOwnership, useDeckCardOwnership } from "./useCardCollectionOwnership";
 import { CollectionOwnershipTooltip } from "./CollectionOwnershipTooltip";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 function ownershipHighlight(ownership: "exact" | "other" | "none", surface: "stack" | "grid") {
   return cn(
     ownership === "exact" && "outline outline-2 outline-legality-legal/60",
@@ -105,8 +102,8 @@ function CardMenuButton({ className }: { className?: string }) {
         "flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-muted hover:text-foreground group-hover:opacity-100 pointer-coarse:opacity-100",
         className,
       )}
-      title={i18n._(msg`Card actions`)}
-      aria-label={i18n._(msg`Card actions`)}
+      title={`Card actions`}
+      aria-label={`Card actions`}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={openCardContextMenu}
     >
@@ -119,8 +116,8 @@ function CardPrintingButton({ onPickPrint }: { onPickPrint: () => void }) {
     <button
       type="button"
       className="absolute right-1 top-1 z-40 rounded-full bg-overlay/70 p-0.5 text-muted-foreground opacity-0 shadow transition-colors hover:text-foreground group-hover:opacity-100 pointer-coarse:opacity-100"
-      title={i18n._(msg`Change printing`)}
-      aria-label={i18n._(msg`Change printing`)}
+      title={`Change printing`}
+      aria-label={`Change printing`}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => {
         event.stopPropagation();
@@ -148,7 +145,7 @@ function CardSelectionButton({
         "absolute bottom-1 left-1 z-40 flex h-7 w-7 items-center justify-center rounded-full border bg-background/90 opacity-0 shadow transition-opacity group-hover:opacity-100 pointer-coarse:h-9 pointer-coarse:w-9 pointer-coarse:opacity-100",
         selected && "border-selection bg-selection text-white opacity-100",
       )}
-      aria-label={selected ? i18n._(msg`Deselect ${name}`) : i18n._(msg`Select ${name}`)}
+      aria-label={selected ? `Deselect ${name}` : `Select ${name}`}
       aria-pressed={selected}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => {
@@ -201,11 +198,7 @@ function CardCornerActions({
               ? "bg-commander/90 text-white"
               : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
           )}
-          title={
-            isCommander
-              ? i18n._(msg`Remove ${commanderSlot.noun}`)
-              : i18n._(msg`Set as ${commanderSlot.noun}`)
-          }
+          title={isCommander ? `Remove ${commanderSlot.noun}` : `Set as ${commanderSlot.noun}`}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation();
@@ -224,9 +217,7 @@ function CardCornerActions({
               ? "bg-selection/90 text-selection-foreground"
               : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
           )}
-          title={
-            isCover ? i18n._(msg`Remove as deck art cover`) : i18n._(msg`Set as deck art cover`)
-          }
+          title={isCover ? `Remove as deck art cover` : `Set as deck art cover`}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation();
@@ -246,9 +237,7 @@ function CardCornerActions({
               : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
           )}
           title={
-            isCoverBack
-              ? i18n._(msg`Remove back face as deck art cover`)
-              : i18n._(msg`Set back face as deck art cover`)
+            isCoverBack ? `Remove back face as deck art cover` : `Set back face as deck art cover`
           }
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
@@ -330,14 +319,8 @@ function MoveDestination({
         <Icon className="mr-2 h-3.5 w-3.5" /> {label}
       </ContextMenuSubTrigger>
       <ContextMenuSubContent className="w-36">
-        {onMoveOne && (
-          <ContextMenuItem onSelect={onMoveOne}>
-            <Trans>Move 1</Trans>
-          </ContextMenuItem>
-        )}
-        <ContextMenuItem onSelect={onMoveAll}>
-          <Trans>Move all ({count})</Trans>
-        </ContextMenuItem>
+        {onMoveOne && <ContextMenuItem onSelect={onMoveOne}>Move 1</ContextMenuItem>}
+        <ContextMenuItem onSelect={onMoveAll}>Move all ({count})</ContextMenuItem>
       </ContextMenuSubContent>
     </ContextMenuSub>
   );
@@ -359,12 +342,10 @@ function TagsSubmenu({
   return (
     <ContextMenuSub>
       <ContextMenuSubTrigger>
-        <Trans>
-          <Bookmark className="mr-2 h-3.5 w-3.5" /> Tags
-          {appliedTags && appliedTags.length > 0 && (
-            <span className="ml-auto text-[10px] text-muted-foreground">{appliedTags.length}</span>
-          )}
-        </Trans>
+        <Bookmark className="mr-2 h-3.5 w-3.5" /> Tags
+        {appliedTags && appliedTags.length > 0 && (
+          <span className="ml-auto text-[10px] text-muted-foreground">{appliedTags.length}</span>
+        )}
       </ContextMenuSubTrigger>
       <ContextMenuSubContent className="w-56">
         {customTags && customTags.length > 0 ? (
@@ -385,7 +366,7 @@ function TagsSubmenu({
                   <button
                     type="button"
                     className="ml-2 rounded p-0.5 text-destructive hover:bg-muted shrink-0"
-                    title={i18n._(msg`Remove "${tag}" from deck`)}
+                    title={`Remove "${tag}" from deck`}
                     onClick={(e) => {
                       e.stopPropagation();
                       onRemoveCustomTag(tag);
@@ -398,9 +379,7 @@ function TagsSubmenu({
             );
           })
         ) : (
-          <div className="px-2 py-1.5 text-xs text-muted-foreground">
-            <Trans>No tags yet</Trans>
-          </div>
+          <div className="px-2 py-1.5 text-xs text-muted-foreground">No tags yet</div>
         )}
         {onCreateTag && (
           <>
@@ -415,7 +394,7 @@ function TagsSubmenu({
               <div>
                 <Input
                   className="h-7 text-xs"
-                  placeholder={i18n._(msg`New tag\u2026`)}
+                  placeholder={`New tag\u2026`}
                   value={newTagInput}
                   onChange={(e) => setNewTagInput(e.target.value)}
                   onKeyDown={(e) => {
@@ -482,9 +461,7 @@ export function CardContextMenu({
         {onShowInfo && (
           <>
             <ContextMenuItem onSelect={onShowInfo}>
-              <Trans>
-                <Info className="mr-2 h-3.5 w-3.5" /> Card info
-              </Trans>
+              <Info className="mr-2 h-3.5 w-3.5" /> Card info
             </ContextMenuItem>
             <ContextMenuSeparator />
           </>
@@ -496,9 +473,7 @@ export function CardContextMenu({
               onAddOne();
             }}
           >
-            <Trans>
-              <Plus className="mr-2 h-3.5 w-3.5" /> Add 1
-            </Trans>
+            <Plus className="mr-2 h-3.5 w-3.5" /> Add 1
           </ContextMenuItem>
         )}
         {onRemoveOne && (
@@ -508,22 +483,18 @@ export function CardContextMenu({
               onRemoveOne();
             }}
           >
-            <Trans>
-              <Minus className="mr-2 h-3.5 w-3.5" /> Remove 1
-            </Trans>
+            <Minus className="mr-2 h-3.5 w-3.5" /> Remove 1
           </ContextMenuItem>
         )}
         {onRemoveAll && showAll && (
           <ContextMenuItem onSelect={onRemoveAll} className="text-destructive">
-            <Trans>
-              <Trash2 className="mr-2 h-3.5 w-3.5" /> Remove all ({count})
-            </Trans>
+            <Trash2 className="mr-2 h-3.5 w-3.5" /> Remove all ({count})
           </ContextMenuItem>
         )}
         {hasMoveActions && <ContextMenuSeparator />}
         {location !== "main" && (
           <MoveDestination
-            label={i18n._(msg`Move to main`)}
+            label={`Move to main`}
             icon={ArrowUpToLine}
             count={count}
             onMoveOne={onMoveOneToMain}
@@ -532,7 +503,7 @@ export function CardContextMenu({
         )}
         {location !== "side" && (
           <MoveDestination
-            label={i18n._(msg`Move to sideboard`)}
+            label={`Move to sideboard`}
             icon={ArrowDownToLine}
             count={count}
             onMoveOne={onMoveOneToSide}
@@ -541,7 +512,7 @@ export function CardContextMenu({
         )}
         {location !== "maybe" && (
           <MoveDestination
-            label={i18n._(msg`Move to maybeboard`)}
+            label={`Move to maybeboard`}
             icon={HelpCircle}
             count={count}
             onMoveOne={onMoveOneToMaybe}
@@ -552,15 +523,13 @@ export function CardContextMenu({
         {commanderHandler && (
           <ContextMenuItem onSelect={commanderHandler}>
             <GameIcon name={commanderSlot.icon} className="mr-2 h-3.5 w-3.5" />
-            {isCommander
-              ? i18n._(msg`Remove ${commanderSlot.noun}`)
-              : i18n._(msg`Set as ${commanderSlot.noun}`)}
+            {isCommander ? `Remove ${commanderSlot.noun}` : `Set as ${commanderSlot.noun}`}
           </ContextMenuItem>
         )}
         {onSetCover && (
           <ContextMenuItem onSelect={onSetCover}>
             <GameIcon name="book-cover" className="mr-2 h-3.5 w-3.5" />
-            {isCover ? i18n._(msg`Remove deck cover`) : i18n._(msg`Set as deck cover`)}
+            {isCover ? `Remove deck cover` : `Set as deck cover`}
           </ContextMenuItem>
         )}
         {onSetCoverBack && (
@@ -570,9 +539,7 @@ export function CardContextMenu({
               className="mr-2 h-3.5 w-3.5"
               style={{ transform: "scaleX(-1)" }}
             />
-            {isCoverBack
-              ? i18n._(msg`Remove back face cover`)
-              : i18n._(msg`Set back face as cover`)}
+            {isCoverBack ? `Remove back face cover` : `Set back face as cover`}
           </ContextMenuItem>
         )}
         {showTagSubmenu && (
@@ -591,9 +558,7 @@ export function CardContextMenu({
           <>
             <ContextMenuSeparator />
             <ContextMenuItem onSelect={onPickPrint}>
-              <Trans>
-                <ImageIcon className="mr-2 h-3.5 w-3.5" /> Choose printing…
-              </Trans>
+              <ImageIcon className="mr-2 h-3.5 w-3.5" /> Choose printing…
             </ContextMenuItem>
           </>
         )}
@@ -605,7 +570,7 @@ export function CardContextMenu({
                 isFoil ? "text-yellow-300" : "text-muted-foreground",
               )}
             />
-            {isFoil ? i18n._(msg`Remove foil`) : i18n._(msg`Make foil`)}
+            {isFoil ? `Remove foil` : `Make foil`}
           </ContextMenuItem>
         )}
       </ContextMenuContent>
@@ -678,11 +643,7 @@ function DraggableStackCard({
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
       data-card-ownership={ownership}
-      aria-label={
-        group.count === 1
-          ? i18n._(msg`${name}, one copy`)
-          : i18n._(msg`${name}, ${group.count} copies`)
-      }
+      aria-label={group.count === 1 ? `${name}, one copy` : `${name}, ${group.count} copies`}
       aria-pressed={isSelected}
       onMouseEnter={() => onCardHover(index)}
       onMouseLeave={onCardLeave}
@@ -714,7 +675,7 @@ function DraggableStackCard({
       {unsupported && (
         <div
           className="absolute top-1 right-1 z-30 rounded-full bg-warning/90 p-0.5 text-background shadow"
-          title={i18n._(msg`Unsupported by the Manabrew and Forge engines`)}
+          title={`Unsupported by the Manabrew and Forge engines`}
         >
           <AlertTriangle className="h-3 w-3" />
         </div>
@@ -766,9 +727,7 @@ function EmptyStackBoard({
         </span>
       </div>
       <div className="border-2 border-dashed border-border/40 rounded-lg py-4 flex items-center justify-center">
-        <p className="text-[10px] text-muted-foreground/40">
-          <Trans>Drop here</Trans>
-        </p>
+        <p className="text-[10px] text-muted-foreground/40">Drop here</p>
       </div>
     </div>
   );
@@ -959,11 +918,7 @@ function CardVisual({
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
       data-card-ownership={ownership}
-      aria-label={
-        group.count === 1
-          ? i18n._(msg`${name}, one copy`)
-          : i18n._(msg`${name}, ${group.count} copies`)
-      }
+      aria-label={group.count === 1 ? `${name}, one copy` : `${name}, ${group.count} copies`}
       aria-pressed={isSelected}
       onClick={(e) => handleCardClick(e, name, onSelect, onShowInfo)}
       onKeyDown={(event) => {
@@ -993,7 +948,7 @@ function CardVisual({
       {unsupported && (
         <div
           className="absolute top-1 right-1 z-30 rounded-full bg-warning/90 p-0.5 text-background shadow"
-          title={i18n._(msg`Unsupported by the Manabrew and Forge engines`)}
+          title={`Unsupported by the Manabrew and Forge engines`}
         >
           <AlertTriangle className="h-3 w-3" />
         </div>
@@ -1095,11 +1050,7 @@ function CardRow({
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
       data-card-ownership={ownership}
-      aria-label={
-        group.count === 1
-          ? i18n._(msg`${name}, one copy`)
-          : i18n._(msg`${name}, ${group.count} copies`)
-      }
+      aria-label={group.count === 1 ? `${name}, one copy` : `${name}, ${group.count} copies`}
       aria-pressed={isSelected}
       onClick={(e) => {
         e.stopPropagation();
@@ -1139,24 +1090,22 @@ function CardRow({
       {unsupported && (
         <AlertTriangle
           className="h-3 w-3 text-warning shrink-0"
-          aria-label={i18n._(msg`Card unsupported by the Manabrew and Forge engines`)}
+          aria-label={`Card unsupported by the Manabrew and Forge engines`}
         />
       )}
       <span
         className={cn("text-sm flex-1 truncate", unsupported && "text-warning")}
-        title={
-          unsupported ? i18n._(msg`${name} - unsupported by the Manabrew and Forge engines`) : name
-        }
+        title={unsupported ? `${name} - unsupported by the Manabrew and Forge engines` : name}
       >
         {name}
       </span>
       {isGameChanger && (
-        <Gem className="h-3 w-3 text-pt-lethal shrink-0" aria-label={i18n._(msg`Game Changer`)} />
+        <Gem className="h-3 w-3 text-pt-lethal shrink-0" aria-label={`Game Changer`} />
       )}
       {isCombo && (
         <Sparkles
           className="h-3 w-3 text-counter-charge shrink-0"
-          aria-label={i18n._(msg`Part of a combo in this deck`)}
+          aria-label={`Part of a combo in this deck`}
         />
       )}
       {group.card.manaCost && (
@@ -1300,7 +1249,7 @@ function CardSection({
         size="icon"
         variant="ghost"
         className="h-5 w-5 text-destructive opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity shrink-0"
-        title={i18n._(msg`Remove "${tag}" tag`)}
+        title={`Remove "${tag}" tag`}
         onClick={onRemoveTag}
       >
         <X className="h-3 w-3" />
@@ -1324,7 +1273,7 @@ function CardSection({
       />
 
       {!open ? null : groups.length === 0 ? (
-        <EmptyDropZone message={i18n._(msg`Drag cards here`)} />
+        <EmptyDropZone message={`Drag cards here`} />
       ) : viewMode === "list" ? (
         <div className="space-y-0.5">
           {groups.map((g) => {
@@ -1350,7 +1299,7 @@ function CardSection({
                     size="icon"
                     variant="ghost"
                     className="h-5 w-5 text-muted-foreground/40 opacity-0 group-hover/tag:opacity-100 pointer-coarse:opacity-100 transition-opacity shrink-0"
-                    title={i18n._(msg`Remove from this tag`)}
+                    title={`Remove from this tag`}
                     onClick={() => onUntagCard(name)}
                   >
                     <Tag className="h-3 w-3" />
@@ -1482,9 +1431,7 @@ function DroppableStackTag({
             </Button>
           </div>
           <div className="border-2 border-dashed border-border/40 rounded-lg flex-1 flex items-center justify-center">
-            <p className="text-[10px] text-muted-foreground/40 text-center">
-              <Trans>Drop cards here</Trans>
-            </p>
+            <p className="text-[10px] text-muted-foreground/40 text-center">Drop cards here</p>
           </div>
         </div>
       )}
@@ -1839,7 +1786,7 @@ export function DeckListView({
     (selectedCards?.size ?? 0) > 0 ? (
       <div className="absolute top-1 right-1 z-40">
         <span className="text-[10px] px-1.5 py-0.5 rounded bg-card/90 border text-selection">
-          <Trans>{selectedCards!.size} selected</Trans>
+          {selectedCards!.size} selected
         </span>
       </div>
     ) : null;
@@ -2014,7 +1961,7 @@ export function DeckListView({
         >
           {sideboardGroups.length > 0 ? (
             <StackColumn
-              label={i18n._(msg`Sideboard`)}
+              label={`Sideboard`}
               sectionId="sideboard"
               groups={sideboardGroups}
               cardWidth={cardWidth}
@@ -2054,11 +2001,7 @@ export function DeckListView({
               })}
             />
           ) : (
-            <EmptyStackBoard
-              label={i18n._(msg`Sideboard`)}
-              cardWidth={cardWidth}
-              dragHandleProps={dhProps}
-            />
+            <EmptyStackBoard label={`Sideboard`} cardWidth={cardWidth} dragHandleProps={dhProps} />
           )}
         </div>
       );
@@ -2079,7 +2022,7 @@ export function DeckListView({
         >
           {maybeboardGroups.length > 0 ? (
             <StackColumn
-              label={i18n._(msg`Maybeboard`)}
+              label={`Maybeboard`}
               sectionId="maybeboard"
               groups={maybeboardGroups}
               cardWidth={cardWidth}
@@ -2119,11 +2062,7 @@ export function DeckListView({
               })}
             />
           ) : (
-            <EmptyStackBoard
-              label={i18n._(msg`Maybeboard`)}
-              cardWidth={cardWidth}
-              dragHandleProps={dhProps}
-            />
+            <EmptyStackBoard label={`Maybeboard`} cardWidth={cardWidth} dragHandleProps={dhProps} />
           )}
         </div>
       );
@@ -2228,7 +2167,7 @@ export function DeckListView({
                 boxShadow: "0 4px 16px color-mix(in srgb, var(--selection) 40%, transparent)",
               }}
             >
-              <Trans>Moving…</Trans>
+              Moving…
             </div>
           )}
         </div>
@@ -2260,12 +2199,8 @@ export function DeckListView({
         {totalCards === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="text-4xl mb-3 opacity-20">🃏</div>
-            <p className="text-sm text-muted-foreground">
-              <Trans>Drag cards here from the search panel</Trans>
-            </p>
-            <p className="text-xs text-muted-foreground/60 mt-1">
-              <Trans>or use the + buttons on hover</Trans>
-            </p>
+            <p className="text-sm text-muted-foreground">Drag cards here from the search panel</p>
+            <p className="text-xs text-muted-foreground/60 mt-1">or use the + buttons on hover</p>
           </div>
         )}
 
@@ -2288,7 +2223,7 @@ export function DeckListView({
               {otherGroups.length > 0 && (
                 <div className="break-inside-avoid">
                   <CardSection
-                    label={i18n._(msg`Other`)}
+                    label={`Other`}
                     groups={otherGroups}
                     sectionId="other"
                     {...sharedSectionProps}
@@ -2335,7 +2270,7 @@ export function DeckListView({
 
             {otherGroups.length > 0 && (
               <CardSection
-                label={i18n._(msg`Other`)}
+                label={`Other`}
                 groups={otherGroups}
                 sectionId="other"
                 {...sharedSectionProps}
@@ -2374,16 +2309,14 @@ export function DeckListView({
         >
           <div className="px-2 pt-2 pb-1">
             <SectionHeader
-              label={i18n._(msg`Sideboard`)}
+              label={`Sideboard`}
               count={sideboardCount}
               open={sideboardOpen}
               onToggle={() => setSideboardOpen((value) => !value)}
             />
             {!sideboardOpen ? null : sideboardGroups.length === 0 ? (
               <div className="py-3 text-center">
-                <p className="text-xs text-muted-foreground/40">
-                  <Trans>Drop cards here</Trans>
-                </p>
+                <p className="text-xs text-muted-foreground/40">Drop cards here</p>
               </div>
             ) : viewMode === "list" ? (
               <div className="space-y-0.5 pb-1">
@@ -2489,21 +2422,17 @@ export function DeckListView({
         >
           <div className="px-2 pt-2 pb-1">
             <SectionHeader
-              label={i18n._(msg`Maybeboard`)}
+              label={`Maybeboard`}
               count={maybeboardCount}
               open={maybeboardOpen}
               onToggle={() => setMaybeboardOpen((value) => !value)}
               extraContent={
-                <span className="text-xs italic text-muted-foreground/40">
-                  <Trans>not in deck</Trans>
-                </span>
+                <span className="text-xs italic text-muted-foreground/40">not in deck</span>
               }
             />
             {!maybeboardOpen ? null : maybeboardGroups.length === 0 ? (
               <div className="py-3 text-center">
-                <p className="text-xs text-muted-foreground/40">
-                  <Trans>Cards you&apos;re considering</Trans>
-                </p>
+                <p className="text-xs text-muted-foreground/40">Cards you&apos;re considering</p>
               </div>
             ) : viewMode === "list" ? (
               <div className="space-y-0.5 pb-1">
@@ -2644,7 +2573,7 @@ export function DeckListView({
                           size="icon"
                           variant="ghost"
                           className="h-5 w-5 text-destructive shrink-0"
-                          title={i18n._(msg`Remove`)}
+                          title={`Remove`}
                           onClick={() => onRemoveFromSide(g.card.identity.name)}
                         >
                           <X className="h-3 w-3" />

@@ -9,20 +9,11 @@ import {
   DEV_SECTION_HEADING,
 } from "./devPanel.styles";
 import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 
 const MODE_LABELS: Record<DevCardRailMode, string> = {
-  get page() {
-    return i18n._(msg`Page`);
-  },
-  get saga() {
-    return i18n._(msg`Saga`);
-  },
-  get class() {
-    return i18n._(msg`Class`);
-  },
+  page: `Page`,
+  saga: `Saga`,
+  class: `Class`,
 };
 const CURRENT_MAX_PRESETS: Array<{
   current: number;
@@ -144,11 +135,9 @@ export function CardRailDevControls() {
     <section className={DEV_SECTION}>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className={DEV_SECTION_HEADING}>
-            <Trans>Progress rails</Trans>
-          </p>
+          <p className={DEV_SECTION_HEADING}>Progress rails</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            <Trans>Check page, saga, and class milestones on the staged card.</Trans>
+            Check page, saga, and class milestones on the staged card.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -161,7 +150,7 @@ export function CardRailDevControls() {
                 reset();
               }}
             >
-              <Trans>Reset rail</Trans>
+              Reset rail
             </button>
           ) : null}
           {showEnabledSwitch ? (
@@ -301,7 +290,7 @@ export function CardRailDevControls() {
         </>
       ) : (
         <p className="mt-3 rounded-lg border border-dashed border-border/70 px-3 py-2 text-xs text-muted-foreground">
-          <Trans>Enable rails to add page, saga, or class progress to the staged card.</Trans>
+          Enable rails to add page, saga, or class progress to the staged card.
         </p>
       )}
     </section>

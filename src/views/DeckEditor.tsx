@@ -70,9 +70,6 @@ import {
   moveSelectedCards,
   type DeckSourceZone,
 } from "@/components/editor/deckEditor.actions";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const DRAG_TRAY_MAIN = "drag-tray-main";
 const DRAG_TRAY_SIDE = "drag-tray-side";
 const DRAG_TRAY_MAYBE = "drag-tray-maybe";
@@ -387,12 +384,10 @@ export default function DeckEditor() {
     try {
       await useAccountDecksStore.getState().remove(saved.accountDeckId);
       deleteSavedDeck(saved.id);
-      toast.success(i18n._(msg`"${saved.deck.name}" removed from your account`));
+      toast.success(`"${saved.deck.name}" removed from your account`);
       setDeletingAccountDeck(null);
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : i18n._(msg`Failed to remove account deck`),
-      );
+      toast.error(error instanceof Error ? error.message : `Failed to remove account deck`);
     } finally {
       setDeletingAccountBusy(false);
     }
@@ -486,7 +481,7 @@ export default function DeckEditor() {
   });
   function handleDelete(id: string) {
     deleteSavedDeck(id);
-    toast.success(i18n._(msg`Deck deleted`));
+    toast.success(`Deck deleted`);
   }
   function startRename(id: string, name: string) {
     setRenamingId(id);
@@ -505,7 +500,7 @@ export default function DeckEditor() {
           : state.currentDeck,
     }));
     setRenamingId(null);
-    toast.success(i18n._(msg`Deck renamed`));
+    toast.success(`Deck renamed`);
   }
   function handleDragStart(event: DragStartEvent) {
     const data = event.active.data.current;
@@ -554,19 +549,17 @@ export default function DeckEditor() {
           ? canBeOathbreaker(card) || canBeSignatureSpell(card)
           : isCommanderEligible(card);
       if (!eligible) {
-        toast.error(i18n._(msg`${card.identity.name} is not eligible for the command zone`));
+        toast.error(`${card.identity.name} is not eligible for the command zone`);
         return;
       }
-      executeDeckEdit(i18n._(msg`Set ${card.identity.name} in the command zone`), () => {
+      executeDeckEdit(`Set ${card.identity.name} in the command zone`, () => {
         setCommander(card);
         if (activeId.startsWith("deck-sideboard-")) removeFromSide(card.identity.id);
         else if (activeId.startsWith("deck-maybeboard-")) removeFromMaybe(card.identity.id);
       });
-      toast.success(i18n._(msg`Set ${card.identity.name} in the command zone`), {
+      toast.success(`Set ${card.identity.name} in the command zone`, {
         action: {
-          get label() {
-            return i18n._(msg`Undo`);
-          },
+          label: `Undo`,
           onClick: undoDeckEdit,
         },
       });
@@ -583,7 +576,7 @@ export default function DeckEditor() {
       : null;
     if (overId.startsWith(DROP_ZONE.TAG_PREFIX) || trayTag) {
       const destTag = trayTag ?? overId.slice(DROP_ZONE.TAG_PREFIX.length);
-      executeDeckEdit(i18n._(msg`Tag ${draggedNames.length} cards with ${destTag}`), () => {
+      executeDeckEdit(`Tag ${draggedNames.length} cards with ${destTag}`, () => {
         for (const name of draggedNames) {
           if (sourceTag && sourceTag !== destTag) {
             untagCard(name, sourceTag);
@@ -591,11 +584,9 @@ export default function DeckEditor() {
           tagCard(name, destTag);
         }
       });
-      toast.success(i18n._(msg`Tagged ${draggedNames.length} cards with ${destTag}`), {
+      toast.success(`Tagged ${draggedNames.length} cards with ${destTag}`, {
         action: {
-          get label() {
-            return i18n._(msg`Undo`);
-          },
+          label: `Undo`,
           onClick: undoDeckEdit,
         },
       });
@@ -628,38 +619,32 @@ export default function DeckEditor() {
       if (draggedNames.length === 1 && sourceZone === dest) return;
       if (source === "commander") {
         if (dest === "main") {
-          executeDeckEdit(i18n._(msg`Return ${card.identity.name} to main deck`), () =>
-            removeCommander(card),
-          );
+          executeDeckEdit(`Return ${card.identity.name} to main deck`, () => removeCommander(card));
         }
         return;
       }
       if (draggedNames.length > 1) {
-        executeDeckEdit(i18n._(msg`Move ${draggedNames.length} cards to ${dest}`), () => {
+        executeDeckEdit(`Move ${draggedNames.length} cards to ${dest}`, () => {
           if (sourceTag) {
             for (const name of draggedNames) untagCard(name, sourceTag);
           }
           moveSelectedCards(draggedNames, dest);
         });
-        toast.success(i18n._(msg`Moved ${draggedNames.length} cards to ${dest}`), {
+        toast.success(`Moved ${draggedNames.length} cards to ${dest}`, {
           action: {
-            get label() {
-              return i18n._(msg`Undo`);
-            },
+            label: `Undo`,
             onClick: undoDeckEdit,
           },
         });
         return;
       }
-      executeDeckEdit(i18n._(msg`Move ${cardName} to ${dest}`), () => {
+      executeDeckEdit(`Move ${cardName} to ${dest}`, () => {
         if (sourceTag) untagCard(cardName, sourceTag);
         moveCardCopies(cardName, source as DeckSourceZone, dest, "one");
       });
-      toast.success(i18n._(msg`Moved ${cardName} to ${dest}`), {
+      toast.success(`Moved ${cardName} to ${dest}`, {
         action: {
-          get label() {
-            return i18n._(msg`Undo`);
-          },
+          label: `Undo`,
           onClick: undoDeckEdit,
         },
       });
@@ -668,7 +653,7 @@ export default function DeckEditor() {
   function createDroppedTag() {
     const tag = newTagName.trim();
     if (!tag) return;
-    executeDeckEdit(i18n._(msg`Create ${tag} and tag ${pendingTagCards.length} cards`), () => {
+    executeDeckEdit(`Create ${tag} and tag ${pendingTagCards.length} cards`, () => {
       addCustomTag(tag);
       for (const name of pendingTagCards) tagCard(name, tag);
     });
@@ -694,7 +679,7 @@ export default function DeckEditor() {
             <div className="p-4 sm:px-6 lg:px-8">
               <div className="mb-3 flex items-center gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  <Trans>My decks</Trans>
+                  My decks
                 </span>
                 <span className="text-[10px] text-muted-foreground">
                   ({collectionDecks.length})
@@ -707,7 +692,7 @@ export default function DeckEditor() {
                     disabled={accountDecksLoading}
                     onClick={() => void refreshAccountDecks()}
                   >
-                    <Trans>Refresh</Trans>
+                    Refresh
                   </Button>
                 )}
               </div>
@@ -721,7 +706,7 @@ export default function DeckEditor() {
                   collectionDecks.length === 0)) && (
                 <div
                   className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-                  aria-label={i18n._(msg`Loading your decks`)}
+                  aria-label={`Loading your decks`}
                   aria-busy="true"
                 >
                   {Array.from({ length: 5 }, (_, index) => (
@@ -746,9 +731,7 @@ export default function DeckEditor() {
                       )}
                     >
                       <Plus className="h-6 w-6" />
-                      <span className="text-xs font-medium">
-                        <Trans>Add deck</Trans>
-                      </span>
+                      <span className="text-xs font-medium">Add deck</span>
                     </button>
                   </div>
 
@@ -760,7 +743,7 @@ export default function DeckEditor() {
                 <div className={cn("mt-4", filteredCollectionDecks.length > 0 && "border-t pt-4")}>
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      <Trans>Drafts</Trans>
+                      Drafts
                     </span>
                     <span className="text-[10px] text-muted-foreground">
                       ({filteredCollectionDrafts.length})
@@ -776,7 +759,7 @@ export default function DeckEditor() {
                 <div className="mt-4 border-t pt-4">
                   <div className="mb-3 flex items-center gap-2">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      <Trans>Published in Community</Trans>
+                      Published in Community
                     </span>
                     {!publishedDecksLoading && (
                       <span className="text-[10px] text-muted-foreground">
@@ -792,22 +775,18 @@ export default function DeckEditor() {
                         size="sm"
                         onClick={() => void refreshPublishedDecks()}
                       >
-                        <Trans>Retry</Trans>
+                        Retry
                       </Button>
                     </div>
                   ) : publishedDecksLoading && publishedDecks.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      <Trans>Loading published decks…</Trans>
-                    </p>
+                    <p className="text-sm text-muted-foreground">Loading published decks…</p>
                   ) : publishedDecks.length === 0 ? (
                     <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                       <span>
-                        <Trans>
-                          You haven’t published a deck yet. Use the share action on any deck.
-                        </Trans>
+                        You haven’t published a deck yet. Use the share action on any deck.
                       </span>
                       <Button variant="outline" size="sm" onClick={() => navigate(ROUTES.HUB)}>
-                        <Trans>Browse Community</Trans>
+                        Browse Community
                       </Button>
                     </div>
                   ) : filteredPublishedDecks.length > 0 ? (
@@ -822,7 +801,7 @@ export default function DeckEditor() {
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      <Trans>No published decks match your filters.</Trans>
+                      No published decks match your filters.
                     </p>
                   )}
                 </div>
@@ -838,7 +817,7 @@ export default function DeckEditor() {
                 >
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      <Trans>Starter Decks</Trans>
+                      Starter Decks
                     </span>
                     <span className="text-[10px] text-muted-foreground">
                       ({presetSavedDecks.length})
@@ -875,7 +854,7 @@ export default function DeckEditor() {
                 presetSavedDecks.length === 0 &&
                 collectionDecks.length > 0 && (
                   <p className="col-span-5 pt-6 text-center text-sm text-muted-foreground">
-                    <Trans>No decks match your filters.</Trans>
+                    No decks match your filters.
                   </p>
                 )}
             </div>
@@ -935,9 +914,7 @@ export default function DeckEditor() {
         >
           <DialogContent className="max-w-sm">
             <DialogHeader>
-              <DialogTitle>
-                <Trans>Rename Deck</Trans>
-              </DialogTitle>
+              <DialogTitle>Rename Deck</DialogTitle>
             </DialogHeader>
             <Input
               value={renameInput}
@@ -945,12 +922,12 @@ export default function DeckEditor() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") confirmRename();
               }}
-              placeholder={i18n._(msg`Deck name`)}
+              placeholder={`Deck name`}
               autoFocus
             />
             <DialogFooter className="gap-2">
               <Button variant="ghost" size="sm" onClick={() => setRenamingId(null)}>
-                <Trans>Cancel</Trans>
+                Cancel
               </Button>
               <Button
                 variant="primary"
@@ -958,7 +935,7 @@ export default function DeckEditor() {
                 onClick={confirmRename}
                 disabled={!renameInput.trim()}
               >
-                <Trans>Rename</Trans>
+                Rename
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -972,15 +949,10 @@ export default function DeckEditor() {
         >
           <DialogContent className="max-w-sm">
             <DialogHeader>
-              <DialogTitle>
-                <Trans>Remove account deck</Trans>
-              </DialogTitle>
+              <DialogTitle>Remove account deck</DialogTitle>
               <DialogDescription>
-                <Trans>
-                  “{deletingAccountDeck?.deck.name}” and all its versions will be permanently
-                  removed from your account on every device. Publications of it in Community stay
-                  online.
-                </Trans>
+                “{deletingAccountDeck?.deck.name}” and all its versions will be permanently removed
+                from your account on every device. Publications of it in Community stay online.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="gap-2">
@@ -990,7 +962,7 @@ export default function DeckEditor() {
                 disabled={deletingAccountBusy}
                 onClick={() => setDeletingAccountDeck(null)}
               >
-                <Trans>Keep deck</Trans>
+                Keep deck
               </Button>
               <Button
                 variant="destructive"
@@ -998,7 +970,7 @@ export default function DeckEditor() {
                 disabled={deletingAccountBusy}
                 onClick={() => void confirmDeleteAccountDeck()}
               >
-                {deletingAccountBusy ? i18n._(msg`Removing\u2026`) : i18n._(msg`Remove deck`)}
+                {deletingAccountBusy ? `Removing\u2026` : `Remove deck`}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1063,13 +1035,9 @@ export default function DeckEditor() {
         {draggedCards.length > 0 && (
           <div className="pointer-events-none fixed inset-x-0 top-[calc(var(--safe-area-inset-top)+4rem)] z-[80] flex justify-center px-4">
             <div className="pointer-events-auto flex max-w-5xl flex-wrap gap-2 rounded-xl border bg-popover/95 p-3 shadow-2xl backdrop-blur-md">
-              <DragTrayTarget id={DRAG_TRAY_MAIN} label={i18n._(msg`Main deck`)} icon={Layers} />
-              <DragTrayTarget id={DRAG_TRAY_SIDE} label={i18n._(msg`Sideboard`)} icon={Layers} />
-              <DragTrayTarget
-                id={DRAG_TRAY_MAYBE}
-                label={i18n._(msg`Maybeboard`)}
-                icon={HelpCircle}
-              />
+              <DragTrayTarget id={DRAG_TRAY_MAIN} label={`Main deck`} icon={Layers} />
+              <DragTrayTarget id={DRAG_TRAY_SIDE} label={`Sideboard`} icon={Layers} />
+              <DragTrayTarget id={DRAG_TRAY_MAYBE} label={`Maybeboard`} icon={HelpCircle} />
               {(currentDeck.customTags ?? []).map((tag) => (
                 <DragTrayTarget
                   key={tag}
@@ -1078,7 +1046,7 @@ export default function DeckEditor() {
                   icon={Bookmark}
                 />
               ))}
-              <DragTrayTarget id={DRAG_TRAY_NEW_TAG} label={i18n._(msg`New tag`)} icon={Plus} />
+              <DragTrayTarget id={DRAG_TRAY_NEW_TAG} label={`New tag`} icon={Plus} />
             </div>
           </div>
         )}
@@ -1108,9 +1076,7 @@ export default function DeckEditor() {
                 </div>
               )}
               <div className="absolute -bottom-2 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full border bg-popover/95 px-2 py-1 text-[10px] font-medium shadow">
-                <Trans>
-                  Moving {draggedCards.length} card{draggedCards.length === 1 ? "" : "s"}
-                </Trans>
+                Moving {draggedCards.length} card{draggedCards.length === 1 ? "" : "s"}
               </div>
             </div>
           )}
@@ -1120,17 +1086,15 @@ export default function DeckEditor() {
       <Dialog open={newTagDropOpen} onOpenChange={setNewTagDropOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>
-              <Trans>Create tag</Trans>
-            </DialogTitle>
+            <DialogTitle>Create tag</DialogTitle>
             <DialogDescription>
-              <Trans>Create a reusable tag and add the dropped cards to it.</Trans>
+              Create a reusable tag and add the dropped cards to it.
             </DialogDescription>
           </DialogHeader>
           <Input
             autoFocus
             value={newTagName}
-            placeholder={i18n._(msg`Ramp, removal, combo\u2026`)}
+            placeholder={`Ramp, removal, combo\u2026`}
             onChange={(event) => setNewTagName(event.target.value)}
             onKeyDown={(event) => {
               if (event.key !== "Enter" || !newTagName.trim()) return;
@@ -1139,10 +1103,10 @@ export default function DeckEditor() {
           />
           <DialogFooter>
             <Button variant="ghost" onClick={() => setNewTagDropOpen(false)}>
-              <Trans>Cancel</Trans>
+              Cancel
             </Button>
             <Button variant="primary" disabled={!newTagName.trim()} onClick={createDroppedTag}>
-              <Trans>Create tag</Trans>
+              Create tag
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1151,17 +1115,13 @@ export default function DeckEditor() {
       {showBackConfirm && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay/50 backdrop-blur-sm">
           <div className="bg-card border rounded-xl shadow-xl p-6 max-w-sm space-y-4">
-            <h3 className="text-lg font-semibold">
-              <Trans>Unsaved Changes</Trans>
-            </h3>
+            <h3 className="text-lg font-semibold">Unsaved Changes</h3>
             <p className="text-sm text-muted-foreground">
-              <Trans>
-                You have unsaved changes to your deck. Do you want to go back without saving?
-              </Trans>
+              You have unsaved changes to your deck. Do you want to go back without saving?
             </p>
             <div className="flex justify-end gap-2">
               <Button variant="outline" size="sm" onClick={() => setShowBackConfirm(false)}>
-                <Trans>Stay</Trans>
+                Stay
               </Button>
               <Button
                 variant="destructive"
@@ -1172,7 +1132,7 @@ export default function DeckEditor() {
                   returnToDeckList();
                 }}
               >
-                <Trans>Leave Without Saving</Trans>
+                Leave Without Saving
               </Button>
             </div>
           </div>
@@ -1182,17 +1142,13 @@ export default function DeckEditor() {
       {blocker.state === "blocked" && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay/50 backdrop-blur-sm">
           <div className="bg-card border rounded-xl shadow-xl p-6 max-w-sm space-y-4">
-            <h3 className="text-lg font-semibold">
-              <Trans>Unsaved Changes</Trans>
-            </h3>
+            <h3 className="text-lg font-semibold">Unsaved Changes</h3>
             <p className="text-sm text-muted-foreground">
-              <Trans>
-                You have unsaved changes to your deck. Do you want to leave without saving?
-              </Trans>
+              You have unsaved changes to your deck. Do you want to leave without saving?
             </p>
             <div className="flex justify-end gap-2">
               <Button variant="outline" size="sm" onClick={() => blocker.reset()}>
-                <Trans>Stay</Trans>
+                Stay
               </Button>
               <Button
                 variant="destructive"
@@ -1202,7 +1158,7 @@ export default function DeckEditor() {
                   blocker.proceed();
                 }}
               >
-                <Trans>Leave Without Saving</Trans>
+                Leave Without Saving
               </Button>
             </div>
           </div>

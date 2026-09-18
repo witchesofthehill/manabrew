@@ -1,8 +1,6 @@
 // Mirrors Forge's DeckFormat (structural rules) + GameFormat (card legality).
 // For our limited card pool, we combine both into a single GameFormat interface.
 import type { Deck, DeckCard, DeckFormat } from "@/protocol/deck";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export interface GameFormat {
   id: DeckFormat;
   name: string;
@@ -67,9 +65,7 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "standard",
     name: "Standard",
     shortName: "STD",
-    get description() {
-      return i18n._(msg`60+ cards, max 4 copies, 20 life, rotating sets`);
-    },
+    description: `60+ cards, max 4 copies, 20 life, rotating sets`,
     badgeColor: "blue",
     deckRules: {
       minDeckSize: 60,
@@ -85,9 +81,7 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "pioneer",
     name: "Pioneer",
     shortName: "PIO",
-    get description() {
-      return i18n._(msg`60+ cards, max 4 copies, 20 life, Return to Ravnica forward`);
-    },
+    description: `60+ cards, max 4 copies, 20 life, Return to Ravnica forward`,
     badgeColor: "amber",
     deckRules: {
       minDeckSize: 60,
@@ -103,9 +97,7 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "modern",
     name: "Modern",
     shortName: "MOD",
-    get description() {
-      return i18n._(msg`60+ cards, max 4 copies, 20 life, 8th Edition forward`);
-    },
+    description: `60+ cards, max 4 copies, 20 life, 8th Edition forward`,
     badgeColor: "emerald",
     deckRules: {
       minDeckSize: 60,
@@ -121,9 +113,7 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "legacy",
     name: "Legacy",
     shortName: "LEG",
-    get description() {
-      return i18n._(msg`60+ cards, max 4 copies, 20 life, all sets, banned list`);
-    },
+    description: `60+ cards, max 4 copies, 20 life, all sets, banned list`,
     badgeColor: "rose",
     deckRules: {
       minDeckSize: 60,
@@ -139,9 +129,7 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "vintage",
     name: "Vintage",
     shortName: "VIN",
-    get description() {
-      return i18n._(msg`60+ cards, max 4 copies, 20 life, all sets, restricted list`);
-    },
+    description: `60+ cards, max 4 copies, 20 life, all sets, restricted list`,
     badgeColor: "slate",
     deckRules: {
       minDeckSize: 60,
@@ -157,9 +145,7 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "pauper",
     name: "Pauper",
     shortName: "PAU",
-    get description() {
-      return i18n._(msg`60+ cards, max 4 copies, 20 life, commons only`);
-    },
+    description: `60+ cards, max 4 copies, 20 life, commons only`,
     badgeColor: "zinc",
     deckRules: {
       minDeckSize: 60,
@@ -175,9 +161,7 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "premodern",
     name: "Premodern",
     shortName: "PRE",
-    get description() {
-      return i18n._(msg`60+ cards, max 4 copies, Fourth Edition through Scourge`);
-    },
+    description: `60+ cards, max 4 copies, Fourth Edition through Scourge`,
     badgeColor: "amber",
     deckRules: {
       minDeckSize: 60,
@@ -226,9 +210,7 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "commander",
     name: "Commander",
     shortName: "CMD",
-    get description() {
-      return i18n._(msg`100 cards, singleton, 40 life, requires commander`);
-    },
+    description: `100 cards, singleton, 40 life, requires commander`,
     badgeColor: "purple",
     deckRules: {
       minDeckSize: 100,
@@ -244,9 +226,7 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "brawl",
     name: "Brawl",
     shortName: "BRL",
-    get description() {
-      return i18n._(msg`60 cards, singleton, 25 life, Standard-legal commander`);
-    },
+    description: `60 cards, singleton, 25 life, Standard-legal commander`,
     badgeColor: "teal",
     deckRules: {
       minDeckSize: 60,
@@ -262,9 +242,7 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "oathbreaker",
     name: "Oathbreaker",
     shortName: "OAT",
-    get description() {
-      return i18n._(msg`60 cards, singleton, 20 life, planeswalker + signature spell`);
-    },
+    description: `60 cards, singleton, 20 life, planeswalker + signature spell`,
     badgeColor: "orange",
     deckRules: {
       minDeckSize: 60,
@@ -280,9 +258,7 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "draft",
     name: "Draft",
     shortName: "DFT",
-    get description() {
-      return i18n._(msg`40+ cards, no copy limit, 20 life`);
-    },
+    description: `40+ cards, no copy limit, 20 life`,
     badgeColor: "sky",
     deckRules: {
       minDeckSize: 40,
@@ -298,9 +274,7 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "sealed",
     name: "Sealed",
     shortName: "SLD",
-    get description() {
-      return i18n._(msg`40+ cards, no copy limit, 20 life`);
-    },
+    description: `40+ cards, no copy limit, 20 life`,
     badgeColor: "indigo",
     deckRules: {
       minDeckSize: 40,
@@ -343,12 +317,10 @@ export function validateDeck(
   const errors: string[] = [];
   const { minDeckSize, maxDeckSize, maxCopies } = format.deckRules;
   if (cardNames.length < minDeckSize) {
-    errors.push(
-      i18n._(msg`Deck must have at least ${minDeckSize} cards (has ${cardNames.length})`),
-    );
+    errors.push(`Deck must have at least ${minDeckSize} cards (has ${cardNames.length})`);
   }
   if (maxDeckSize !== null && cardNames.length > maxDeckSize) {
-    errors.push(i18n._(msg`Deck must have at most ${maxDeckSize} cards (has ${cardNames.length})`));
+    errors.push(`Deck must have at most ${maxDeckSize} cards (has ${cardNames.length})`);
   }
   const counts = new Map<string, number>();
   for (const name of cardNames) {
@@ -358,13 +330,13 @@ export function validateDeck(
     if (BASIC_LAND_NAMES.has(name)) continue;
     const limit = copyLimits?.get(name) ?? maxCopies;
     if (count > limit) {
-      errors.push(i18n._(msg`Too many copies of "${name}": ${count} (max ${limit})`));
+      errors.push(`Too many copies of "${name}": ${count} (max ${limit})`);
     }
   }
   const seenBanned = new Set<string>();
   for (const name of cardNames) {
     if (format.bannedCards.includes(name) && !seenBanned.has(name)) {
-      errors.push(i18n._(msg`"${name}" is banned in ${format.name}`));
+      errors.push(`"${name}" is banned in ${format.name}`);
       seenBanned.add(name);
     }
   }
@@ -564,18 +536,14 @@ export function validateDeckSections(
   errors.push(...baseValidation.errors);
   if (sideboard.length > format.deckRules.sideboardMax) {
     errors.push(
-      i18n._(
-        msg`Sideboard must have at most ${format.deckRules.sideboardMax} cards (has ${sideboard.length})`,
-      ),
+      `Sideboard must have at most ${format.deckRules.sideboardMax} cards (has ${sideboard.length})`,
     );
   }
   if (format.deckRules.requiresCommander) {
     const expectedMainSize = format.deckRules.minDeckSize - commanders.length;
     if (mainDeck.length !== expectedMainSize) {
       errors.push(
-        i18n._(
-          msg`${format.name} deck must have exactly ${expectedMainSize} non-commander cards (has ${mainDeck.length})`,
-        ),
+        `${format.name} deck must have exactly ${expectedMainSize} non-commander cards (has ${mainDeck.length})`,
       );
     }
     let identitySource = commanders;
@@ -584,46 +552,38 @@ export function validateDeckSections(
       const spells = commanders.filter((c) => canBeSignatureSpell(c));
       for (const cmd of commanders) {
         if (!canBeOathbreaker(cmd) && !canBeSignatureSpell(cmd)) {
-          errors.push(
-            i18n._(msg`"${cmd.identity.name}" is not a legal oathbreaker or signature spell`),
-          );
+          errors.push(`"${cmd.identity.name}" is not a legal oathbreaker or signature spell`);
         }
       }
-      if (oathbreakers.length === 0) errors.push(i18n._(msg`Deck is missing an oathbreaker`));
-      if (spells.length === 0) errors.push(i18n._(msg`Deck is missing a signature spell`));
+      if (oathbreakers.length === 0) errors.push(`Deck is missing an oathbreaker`);
+      if (spells.length === 0) errors.push(`Deck is missing a signature spell`);
       if (oathbreakers.length > 2) {
-        errors.push(i18n._(msg`Deck can have at most 2 oathbreakers (has ${oathbreakers.length})`));
+        errors.push(`Deck can have at most 2 oathbreakers (has ${oathbreakers.length})`);
       } else if (oathbreakers.length === 2 && !canBePartners(oathbreakers[0], oathbreakers[1])) {
         errors.push(
-          i18n._(
-            msg`"${oathbreakers[0].identity.name}" and "${oathbreakers[1].identity.name}" cannot be paired — two oathbreakers must have a compatible partner ability`,
-          ),
+          `"${oathbreakers[0].identity.name}" and "${oathbreakers[1].identity.name}" cannot be paired — two oathbreakers must have a compatible partner ability`,
         );
       }
       if (spells.length > Math.max(1, oathbreakers.length)) {
         errors.push(
-          i18n._(
-            msg`Deck can have one signature spell per oathbreaker (has ${spells.length} for ${oathbreakers.length})`,
-          ),
+          `Deck can have one signature spell per oathbreaker (has ${spells.length} for ${oathbreakers.length})`,
         );
       }
       identitySource = oathbreakers;
     } else {
       if (commanders.length === 0) {
-        errors.push(i18n._(msg`Deck must have at least 1 commander`));
+        errors.push(`Deck must have at least 1 commander`);
       } else if (commanders.length > 2) {
-        errors.push(i18n._(msg`Deck can have at most 2 commanders (has ${commanders.length})`));
+        errors.push(`Deck can have at most 2 commanders (has ${commanders.length})`);
       }
       for (const cmd of commanders) {
         if (!isCommanderEligible(cmd)) {
-          errors.push(i18n._(msg`"${cmd.identity.name}" is not a legal commander`));
+          errors.push(`"${cmd.identity.name}" is not a legal commander`);
         }
       }
       if (commanders.length === 2 && !canBePartners(commanders[0], commanders[1])) {
         errors.push(
-          i18n._(
-            msg`"${commanders[0].identity.name}" and "${commanders[1].identity.name}" cannot be paired — both commanders must have a compatible partner ability`,
-          ),
+          `"${commanders[0].identity.name}" and "${commanders[1].identity.name}" cannot be paired — both commanders must have a compatible partner ability`,
         );
       }
     }
@@ -634,9 +594,7 @@ export function validateDeckSections(
       );
       if (invalid) {
         errors.push(
-          i18n._(
-            msg`Deck contains cards outside commander color identity: ${invalid.identity.name}`,
-          ),
+          `Deck contains cards outside commander color identity: ${invalid.identity.name}`,
         );
       }
     }

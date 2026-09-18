@@ -34,9 +34,6 @@ import { getDeckFingerprint } from "@/lib/decks";
 import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
 import { useHubStore } from "@/stores/useHubStore";
 import type { DeckHubEntryDetail, DeckHubEntrySummary } from "@/api/hubTypes";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface CreateGameDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -133,7 +130,7 @@ export function CreateGameDialog({
         const formatId = detail.deck.format ?? detail.format ?? "standard";
         if (formatId !== selectedFormat.id) {
           restoredHubDeckRef.current = null;
-          toast.error(i18n._(msg`"${detail.title}" is not a ${selectedFormat.name} deck`));
+          toast.error(`"${detail.title}" is not a ${selectedFormat.name} deck`);
           return;
         }
         setLoadedHubDecks((current) => ({ ...current, [detail.id]: detail }));
@@ -142,9 +139,7 @@ export function CreateGameDialog({
       .catch((err) => {
         if (hubSelectionRequestIdRef.current !== requestId) return;
         restoredHubDeckRef.current = null;
-        toast.error(
-          err instanceof Error ? err.message : i18n._(msg`Failed to load Community deck`),
-        );
+        toast.error(err instanceof Error ? err.message : `Failed to load Community deck`);
       })
       .finally(() => {
         if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
@@ -325,14 +320,14 @@ export function CreateGameDialog({
       };
       const currentFormat = selectedFormatRef.current;
       if (entry.formatId !== currentFormat.id) {
-        toast.error(i18n._(msg`"${detail.title}" is not a ${currentFormat.name} deck`));
+        toast.error(`"${detail.title}" is not a ${currentFormat.name} deck`);
         return;
       }
       setSelectedDeck(entry.id);
       if (activate) handleCreate(entry, entry.commanderName);
     } catch (err) {
       if (hubSelectionRequestIdRef.current !== requestId) return;
-      toast.error(err instanceof Error ? err.message : i18n._(msg`Failed to load Community deck`));
+      toast.error(err instanceof Error ? err.message : `Failed to load Community deck`);
     } finally {
       if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
     }
@@ -345,15 +340,15 @@ export function CreateGameDialog({
   ) {
     if (starting) return;
     if (!entry) {
-      toast.error(i18n._(msg`Please select a deck`));
+      toast.error(`Please select a deck`);
       return;
     }
     if (entry.formatId !== selectedFormat.id) {
-      toast.error(i18n._(msg`Please select a deck for this format`));
+      toast.error(`Please select a deck for this format`);
       return;
     }
     if (entry.sourceDeck.cards.length === 0 && (entry.sourceDeck.commanders?.length ?? 0) === 0) {
-      toast.error(i18n._(msg`"${entry.name}" has no cards`));
+      toast.error(`"${entry.name}" has no cards`);
       return;
     }
     const commander =
@@ -365,11 +360,11 @@ export function CreateGameDialog({
           selectedFormat,
         );
     if (!validation.legal && !allowIllegalDecks) {
-      toast.warning(validation.errors[0] ?? i18n._(msg`Deck is not legal in this format`));
+      toast.warning(validation.errors[0] ?? `Deck is not legal in this format`);
       return;
     }
     if (needsCommander && !(commander || entry.commanderName)) {
-      toast.error(i18n._(msg`Please select a commander`));
+      toast.error(`Please select a commander`);
       return;
     }
     setStarting(true);
@@ -420,18 +415,14 @@ export function CreateGameDialog({
       >
         <div className="px-6 py-4 border-b">
           <DialogTitle className="text-lg font-semibold">
-            {target === "bot"
-              ? i18n._(msg`Choose Bot Deck`)
-              : isLobbyMode
-                ? i18n._(msg`Choose Deck`)
-                : i18n._(msg`New Game`)}
+            {target === "bot" ? `Choose Bot Deck` : isLobbyMode ? `Choose Deck` : `New Game`}
           </DialogTitle>
           <p className="text-sm text-muted-foreground mt-0.5">
             {target === "bot"
-              ? i18n._(msg`Select the deck the AI will play in this lobby.`)
+              ? `Select the deck the AI will play in this lobby.`
               : isLobbyMode
-                ? i18n._(msg`Select the deck you will play in this lobby.`)
-                : i18n._(msg`Pick a deck and battle a random AI opponent`)}
+                ? `Select the deck you will play in this lobby.`
+                : `Pick a deck and battle a random AI opponent`}
           </p>
         </div>
 
@@ -439,9 +430,7 @@ export function CreateGameDialog({
           {!isLobbyMode && (
             <div className="w-48 border-r flex-shrink-0 p-4 space-y-5 overflow-y-auto bg-muted/20">
               <div>
-                <SectionLabel>
-                  <Trans>Format</Trans>
-                </SectionLabel>
+                <SectionLabel>Format</SectionLabel>
                 <div className="mt-2 space-y-2">
                   {GAME_FORMATS.map((format) => (
                     <button
@@ -471,12 +460,10 @@ export function CreateGameDialog({
               </div>
 
               <div>
-                <SectionLabel>
-                  <Trans>Rules</Trans>
-                </SectionLabel>
+                <SectionLabel>Rules</SectionLabel>
                 <div className="mt-2 space-y-1.5">
                   <RulePill
-                    label={i18n._(msg`Deck`)}
+                    label={`Deck`}
                     value={
                       selectedFormat.deckRules.minDeckSize +
                       (selectedFormat.deckRules.maxDeckSize
@@ -486,25 +473,20 @@ export function CreateGameDialog({
                     }
                   />
                   <RulePill
-                    label={i18n._(msg`Copies`)}
+                    label={`Copies`}
                     value={
                       selectedFormat.deckRules.maxCopies === 1
                         ? "Singleton"
                         : `Max ${selectedFormat.deckRules.maxCopies}`
                     }
                   />
-                  <RulePill
-                    label={i18n._(msg`Life`)}
-                    value={`${selectedFormat.deckRules.startingLife}`}
-                  />
+                  <RulePill label={`Life`} value={`${selectedFormat.deckRules.startingLife}`} />
                 </div>
               </div>
 
               {needsCommander && (
                 <div>
-                  <SectionLabel>
-                    <Trans>Commander</Trans>
-                  </SectionLabel>
+                  <SectionLabel>Commander</SectionLabel>
                   <div className="mt-2 space-y-1.5">
                     {selectedPartnerLabel ? (
                       <div className="flex flex-wrap items-center gap-1.5 rounded border border-border bg-background px-2 py-1.5 text-xs">
@@ -517,7 +499,7 @@ export function CreateGameDialog({
                       <>
                         {legendaryCreatures.length === 0 && (
                           <p className="text-[10px] text-muted-foreground italic">
-                            <Trans>No legendaries in deck — type a name below.</Trans>
+                            No legendaries in deck — type a name below.
                           </p>
                         )}
                         {legendaryCreatures.length > 0 ? (
@@ -526,9 +508,7 @@ export function CreateGameDialog({
                             value={selectedCommander}
                             onChange={(event) => setSelectedCommander(event.target.value)}
                           >
-                            <option value="">
-                              <Trans>— Choose —</Trans>
-                            </option>
+                            <option value="">— Choose —</option>
                             {legendaryCreatures.map((name) => (
                               <option key={name} value={name}>
                                 {name}
@@ -538,7 +518,7 @@ export function CreateGameDialog({
                         ) : (
                           <input
                             className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
-                            placeholder={i18n._(msg`Card name`)}
+                            placeholder={`Card name`}
                             value={selectedCommander}
                             onChange={(event) => setSelectedCommander(event.target.value)}
                             autoComplete="off"
@@ -555,12 +535,10 @@ export function CreateGameDialog({
 
               <div>
                 <SectionLabel>
-                  <Trans>
-                    Opponents
-                    <span className="ml-1 text-[9px] font-mono text-warning bg-warning/10 px-1 rounded">
-                      DEV
-                    </span>
-                  </Trans>
+                  Opponents
+                  <span className="ml-1 text-[9px] font-mono text-warning bg-warning/10 px-1 rounded">
+                    DEV
+                  </span>
                 </SectionLabel>
                 <div className="mt-2 flex gap-1">
                   {[2, 3, 4].map((count) => (
@@ -575,7 +553,7 @@ export function CreateGameDialog({
                           : "border-border hover:bg-muted/60",
                       )}
                     >
-                      <Trans>{count - 1}v1</Trans>
+                      {count - 1}v1
                     </button>
                   ))}
                 </div>
@@ -589,8 +567,8 @@ export function CreateGameDialog({
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 <input
                   type="text"
-                  aria-label={i18n._(msg`Filter decks`)}
-                  placeholder={i18n._(msg`Filter decks...`)}
+                  aria-label={`Filter decks`}
+                  placeholder={`Filter decks...`}
                   value={deckSearch}
                   onChange={(e) => setDeckSearch(e.target.value)}
                   className="w-full pl-8 pr-3 py-1.5 rounded-md border bg-background text-sm pointer-coarse:h-10 pointer-coarse:text-base focus:outline-none focus:ring-1 focus:ring-primary"
@@ -604,17 +582,15 @@ export function CreateGameDialog({
 
             <div className="flex-1 overflow-y-auto">
               <div className="p-4 pt-2">
-                <SectionLabel>
-                  <Trans>Your Decks</Trans>
-                </SectionLabel>
+                <SectionLabel>Your Decks</SectionLabel>
                 <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
-                  <Trans>Decks you've built in the editor.</Trans>
+                  Decks you've built in the editor.
                 </p>
                 {filteredUserDecks.length === 0 ? (
                   <p className="text-xs text-muted-foreground italic">
                     {searchLower
-                      ? i18n._(msg`No saved decks match your search.`)
-                      : i18n._(msg`No saved decks. Build one in the Deck Editor.`)}
+                      ? `No saved decks match your search.`
+                      : `No saved decks. Build one in the Deck Editor.`}
                   </p>
                 ) : (
                   <div
@@ -668,17 +644,15 @@ export function CreateGameDialog({
                   hubDecks.error !== null ||
                   hubSearchResults.length > 0) && (
                   <div className="p-4">
-                    <SectionLabel>
-                      <Trans>Community</Trans>
-                    </SectionLabel>
+                    <SectionLabel>Community</SectionLabel>
                     <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
-                      <Trans>Community decks are downloaded when selected.</Trans>
+                      Community decks are downloaded when selected.
                     </p>
                     {hubDecks.error ? (
                       <div className="flex flex-wrap items-center gap-2 text-xs text-destructive">
                         <span className="min-w-0 break-words">{hubDecks.error}</span>
                         <Button variant="outline" size="sm" onClick={hubDecks.retry}>
-                          <Trans>Retry</Trans>
+                          Retry
                         </Button>
                       </div>
                     ) : hubDecks.loading && hubSearchResults.length === 0 ? (
@@ -702,7 +676,7 @@ export function CreateGameDialog({
                       </div>
                     ) : hubSearchResults.length === 0 ? (
                       <p className="text-xs text-muted-foreground italic">
-                        <Trans>No Community decks match your search.</Trans>
+                        No Community decks match your search.
                       </p>
                     ) : (
                       <div
@@ -762,15 +736,13 @@ export function CreateGameDialog({
               <div className="mx-4 border-t" />
 
               <div className="p-4">
-                <SectionLabel>
-                  <Trans>Starter Decks</Trans>
-                </SectionLabel>
+                <SectionLabel>Starter Decks</SectionLabel>
                 <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
-                  <Trans>Pre-built themed decks — always legal, great for testing mechanics.</Trans>
+                  Pre-built themed decks — always legal, great for testing mechanics.
                 </p>
                 {filteredPresetEntries.length === 0 ? (
                   <p className="text-xs text-muted-foreground italic">
-                    <Trans>No preset decks match your search.</Trans>
+                    No preset decks match your search.
                   </p>
                 ) : (
                   <div
@@ -809,39 +781,29 @@ export function CreateGameDialog({
           <div className="flex items-center gap-2 text-sm min-w-0">
             {!isLobbyMode && selectedDeckEntry ? (
               <>
-                <span className="text-muted-foreground shrink-0">
-                  <Trans>Playing</Trans>
-                </span>
+                <span className="text-muted-foreground shrink-0">Playing</span>
                 <span className="font-medium truncate">{selectedDeckEntry.name}</span>
-                <span className="text-muted-foreground shrink-0">
-                  <Trans>vs</Trans>
-                </span>
+                <span className="text-muted-foreground shrink-0">vs</span>
                 <span className="inline-flex items-center gap-1 text-muted-foreground shrink-0">
-                  <Trans>
-                    <Shuffle className="h-3 w-3" />
-                    Random AI
-                  </Trans>
+                  <Shuffle className="h-3 w-3" />
+                  Random AI
                 </span>
               </>
             ) : selectedDeckEntry ? (
               <div className="min-w-0">
                 <span className="block truncate text-sm text-muted-foreground">
-                  <Trans>
-                    Selected:{" "}
-                    <span className="font-medium text-foreground">{selectedDeckEntry.name}</span>
-                  </Trans>
+                  Selected:{" "}
+                  <span className="font-medium text-foreground">{selectedDeckEntry.name}</span>
                 </span>
                 {!selectedDeckValidation.legal && (
                   <span className="block truncate text-xs text-warning">
                     {selectedDeckValidation.errors[0] ??
-                      i18n._(msg`This deck is not legal in the room format.`)}
+                      `This deck is not legal in the room format.`}
                   </span>
                 )}
               </div>
             ) : (
-              <span className="text-muted-foreground italic text-xs">
-                <Trans>No deck selected</Trans>
-              </span>
+              <span className="text-muted-foreground italic text-xs">No deck selected</span>
             )}
           </div>
           <div className="flex gap-2 shrink-0">
@@ -861,12 +823,12 @@ export function CreateGameDialog({
                 !isLobbyMode && <Swords className="h-3.5 w-3.5" />
               )}
               {starting
-                ? i18n._(msg`Selecting\u2026`)
+                ? `Selecting\u2026`
                 : target === "bot"
-                  ? i18n._(msg`Add Bot`)
+                  ? `Add Bot`
                   : isLobbyMode
-                    ? i18n._(msg`Select Deck`)
-                    : i18n._(msg`Play`)}
+                    ? `Select Deck`
+                    : `Play`}
             </Button>
           </div>
         </div>

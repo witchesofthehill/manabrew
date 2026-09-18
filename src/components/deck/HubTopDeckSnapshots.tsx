@@ -11,28 +11,23 @@ import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { isFeatureEnabled } from "@/featureFlags";
 import { cn } from "@/lib/utils";
 import type { TopDeckSnapshotEntry } from "@/api/hubTypes";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const DEFAULT_BUCKET = "trending";
 const INITIAL_RANK_COUNT = 10;
 interface HubTopDeckSnapshotsProps {
   onOpenDeck: (id: string) => void;
 }
 function snapshotCaption(key: string, scope: string, snapshotDate: string): string {
-  if (scope === "editorial") return i18n._(msg`Curated snapshot dated ${snapshotDate}.`);
+  if (scope === "editorial") return `Curated snapshot dated ${snapshotDate}.`;
   if (key === "rising") {
-    return i18n._(
-      msg`Compared with the previous week using online and offline play through ${snapshotDate}.`,
-    );
+    return `Compared with the previous week using online and offline play through ${snapshotDate}.`;
   }
   if (scope === "online") {
-    return i18n._(msg`Based on completed online matches from the 30 days ending ${snapshotDate}.`);
+    return `Based on completed online matches from the 30 days ending ${snapshotDate}.`;
   }
   if (scope === "community") {
-    return i18n._(msg`Based on recent Community activity through ${snapshotDate}.`);
+    return `Based on recent Community activity through ${snapshotDate}.`;
   }
-  return i18n._(msg`Based on online and offline play from the 30 days ending ${snapshotDate}.`);
+  return `Based on online and offline play from the 30 days ending ${snapshotDate}.`;
 }
 export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
   const accountsEnabled = isFeatureEnabled("accounts");
@@ -83,7 +78,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
       return;
     }
     void setFavorite(ranked.entry.id, !ranked.entry.favorited).catch((error) =>
-      toast.error(error instanceof Error ? error.message : i18n._(msg`Failed to update favorite`)),
+      toast.error(error instanceof Error ? error.message : `Failed to update favorite`),
     );
   }
   function rankedDeck(ranked: TopDeckSnapshotEntry, variant: "card" | "hero" | "stage" = "card") {
@@ -139,9 +134,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
       <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:px-6 lg:px-8">
         {error ? (
           <div className="rounded-lg border border-dashed p-8 text-center">
-            <p className="text-sm font-medium">
-              <Trans>This ranking is unavailable</Trans>
-            </p>
+            <p className="text-sm font-medium">This ranking is unavailable</p>
             <p className="mt-1 text-xs text-muted-foreground">{error}</p>
             <Button
               variant="outline"
@@ -149,7 +142,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
               className="mt-4"
               onClick={() => void fetchSnapshot(activeBucket)}
             >
-              <Trans>Retry</Trans>
+              Retry
             </Button>
           </div>
         ) : snapshot === null ? (
@@ -161,13 +154,9 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
         ) : snapshot.entries.length === 0 ? (
           <div className="rounded-lg border border-dashed p-8 text-center">
             <Trophy className="mx-auto h-8 w-8 text-muted-foreground/50" />
-            <p className="mt-3 text-sm font-medium">
-              <Trans>No snapshot published yet</Trans>
-            </p>
+            <p className="mt-3 text-sm font-medium">No snapshot published yet</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              <Trans>
-                This ranking appears after its first evidence-backed snapshot is available.
-              </Trans>
+              This ranking appears after its first evidence-backed snapshot is available.
             </p>
           </div>
         ) : (
@@ -204,7 +193,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
             {!showAll && snapshot.entries.length > INITIAL_RANK_COUNT && (
               <div className="mt-4 flex justify-center">
                 <Button variant="outline" size="sm" onClick={() => setShowAllBucket(activeBucket)}>
-                  <Trans>Show all {snapshot.entries.length} ranked decks</Trans>
+                  Show all {snapshot.entries.length} ranked decks
                 </Button>
               </div>
             )}

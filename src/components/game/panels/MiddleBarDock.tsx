@@ -25,9 +25,6 @@ import {
 import { useGameStore } from "@/stores/useGameStore";
 import { getPlatformType } from "@/platform";
 import { useKeybindings } from "@/hooks/useKeybindings";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface MiddleBarDockProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -91,18 +88,16 @@ export function MiddleBarDock({
         {isWeb && (
           <DropdownMenuItem onSelect={() => toggleFullscreen()}>
             <FullscreenIcon className="mr-2 h-4 w-4" />
-            {isFullscreen ? i18n._(msg`Exit full screen`) : i18n._(msg`Full screen`)}
+            {isFullscreen ? `Exit full screen` : `Full screen`}
           </DropdownMenuItem>
         )}
         <DropdownMenuItem onSelect={() => onToggleSidePanel()}>
           <PanelIcon className="mr-2 h-4 w-4" />
-          {sidePanelCollapsed ? i18n._(msg`Show side panel`) : i18n._(msg`Hide side panel`)}
+          {sidePanelCollapsed ? `Show side panel` : `Hide side panel`}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onOpenSettings()}>
-          <Trans>
-            <Settings2 className="mr-2 h-4 w-4" />
-            Board settings
-          </Trans>
+          <Settings2 className="mr-2 h-4 w-4" />
+          Board settings
         </DropdownMenuItem>
         {onOpenCombat && (
           <DropdownMenuItem onSelect={onOpenCombat}>
@@ -113,15 +108,11 @@ export function MiddleBarDock({
         {players.length > 0 && (
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
-              <Trans>
-                <ImageIcon className="mr-2 h-4 w-4" />
-                Playmats
-              </Trans>
+              <ImageIcon className="mr-2 h-4 w-4" />
+              Playmats
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
-              <DropdownMenuLabel>
-                <Trans>Hide playmat</Trans>
-              </DropdownMenuLabel>
+              <DropdownMenuLabel>Hide playmat</DropdownMenuLabel>
               {players.map((p) => (
                 <DropdownMenuCheckboxItem
                   key={p.id}
@@ -146,7 +137,7 @@ export function MiddleBarDock({
           }}
         >
           {eliminated ? <LogOut className="mr-2 h-4 w-4" /> : <Flag className="mr-2 h-4 w-4" />}
-          {eliminated ? i18n._(msg`Leave`) : i18n._(msg`Concede`)}
+          {eliminated ? `Leave` : `Concede`}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

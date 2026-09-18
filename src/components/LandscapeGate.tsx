@@ -4,7 +4,6 @@ import { RotateCw } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useIsTouch } from "@/hooks/useBreakpoints";
 import { LANDSCAPE_GATE_MAX_WIDTH_QUERY, PORTRAIT_QUERY } from "@/lib/responsive";
-import { Trans } from "@lingui/react/macro";
 export function LandscapeGate() {
   const coarse = useIsTouch();
   const portrait = useMediaQuery(PORTRAIT_QUERY);
@@ -24,12 +23,8 @@ export function LandscapeGate() {
   return createPortal(
     <div className="fixed inset-0 z-[10002] flex flex-col items-center justify-center gap-3 bg-background/95 p-6 text-center">
       <RotateCw className="h-10 w-10 animate-pulse text-muted-foreground" />
-      <p className="text-lg font-semibold">
-        <Trans>Rotate your device</Trans>
-      </p>
-      <p className="text-sm text-muted-foreground">
-        <Trans>This screen is designed for landscape play.</Trans>
-      </p>
+      <p className="text-lg font-semibold">Rotate your device</p>
+      <p className="text-sm text-muted-foreground">This screen is designed for landscape play.</p>
     </div>,
     document.body,
   );

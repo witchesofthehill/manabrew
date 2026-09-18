@@ -2,8 +2,6 @@ import { SetSymbol } from "@/components/limited/SetSymbol";
 import { cn } from "@/lib/utils";
 import type { ScryfallSet } from "@/types/scryfall";
 import { SET_TYPE_LABELS } from "@/components/limited/setFilters";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 
 interface SetTileProps {
   set: ScryfallSet;
@@ -21,9 +19,7 @@ export function SetTile({ set, active, prefetching, onClick, size = "md" }: SetT
     <button
       type="button"
       onClick={onClick}
-      title={i18n._(
-        msg`${set.name} (${set.code.toUpperCase()}) · ${setType} · ${set.released_at ?? "—"} · ${set.card_count} cards`,
-      )}
+      title={`${set.name} (${set.code.toUpperCase()}) · ${setType} · ${set.released_at ?? "—"} · ${set.card_count} cards`}
       className={cn(
         "group relative flex items-center gap-2 rounded-lg border px-3 text-left transition",
         compact ? "py-1.5" : "py-2",

@@ -5,9 +5,6 @@ import { APP_VERSION } from "@/lib/constants";
 import { getPlatformType } from "@/platform";
 import { checkForDesktopUpdate, installDesktopUpdate } from "@/hooks/useDesktopUpdater";
 import { useDesktopUpdateStore } from "@/stores/useDesktopUpdateStore";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 type CheckState = "idle" | "checking" | "latest" | "error";
 export function VersionInfo() {
   const phase = useDesktopUpdateStore((s) => s.phase);
@@ -24,8 +21,7 @@ export function VersionInfo() {
     }
   }
   const downloading = phase === "downloading";
-  const downloadLabel =
-    progress == null ? i18n._(msg`Downloading\u2026`) : i18n._(msg`Downloading… ${progress}%`);
+  const downloadLabel = progress == null ? `Downloading\u2026` : `Downloading… ${progress}%`;
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card/40 px-4 py-3">
       <div className="flex items-center gap-3">
@@ -33,12 +29,8 @@ export function VersionInfo() {
           <Tag className="size-4" />
         </span>
         <div className="leading-tight">
-          <span className="block text-sm font-semibold text-foreground">
-            <Trans>Manabrew</Trans>
-          </span>
-          <span className="block text-xs text-muted-foreground">
-            <Trans>Version {APP_VERSION}</Trans>
-          </span>
+          <span className="block text-sm font-semibold text-foreground">Manabrew</span>
+          <span className="block text-xs text-muted-foreground">Version {APP_VERSION}</span>
         </div>
       </div>
 
@@ -56,20 +48,18 @@ export function VersionInfo() {
             ) : (
               <ArrowDownToLine className="mr-2 size-4" />
             )}
-            {downloading ? downloadLabel : i18n._(msg`Update to ${version}`)}
+            {downloading ? downloadLabel : `Update to ${version}`}
           </Button>
         ) : check === "latest" ? (
           <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-            <Trans>
-              <CircleCheck className="size-4 text-primary" />
-              You&apos;re on latest
-            </Trans>
+            <CircleCheck className="size-4 text-primary" />
+            You&apos;re on latest
           </span>
         ) : (
           <div className="flex items-center gap-2">
             {check === "error" && (
               <span className="text-xs text-muted-foreground">
-                <Trans>Couldn&apos;t reach the update server</Trans>
+                Couldn&apos;t reach the update server
               </span>
             )}
             <Button
@@ -83,7 +73,7 @@ export function VersionInfo() {
               ) : (
                 <RefreshCw className="mr-2 size-4" />
               )}
-              {check === "checking" ? i18n._(msg`Checking\u2026`) : i18n._(msg`Check for updates`)}
+              {check === "checking" ? `Checking\u2026` : `Check for updates`}
             </Button>
           </div>
         ))}

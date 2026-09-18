@@ -15,9 +15,6 @@ import { HorizontalCardImage } from "@/components/game/HorizontalCardImage";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { cn } from "@/lib/utils";
 import type { DeckCard } from "@/protocol/deck";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface PrintPickerModalProps {
   cardName: string | null;
   onClose: () => void;
@@ -51,7 +48,7 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
         if (mounted) setPrints(prints.get(cardKey({ name })) ?? []);
       } catch {
         if (mounted) {
-          setError(i18n._(msg`Failed to fetch printings.`));
+          setError(`Failed to fetch printings.`);
         }
       } finally {
         if (mounted) {
@@ -73,9 +70,7 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
       backdropClassName="z-[9100]"
     >
       <Modal.Header onClose={onClose}>
-        <h2 className="text-lg font-bold">
-          <Trans>Select Printing: {resolvedName}</Trans>
-        </h2>
+        <h2 className="text-lg font-bold">Select Printing: {resolvedName}</h2>
       </Modal.Header>
 
       <Modal.Body>
@@ -127,22 +122,20 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
                         isHorizontalCard({ layout: p.layout, typeLine: p.type_line }) ? (
                           <HorizontalCardImage
                             src={imageUrl}
-                            alt={i18n._(msg`${p.set_name} printing`)}
+                            alt={`${p.set_name} printing`}
                             className="absolute inset-0"
                             loading="lazy"
                           />
                         ) : (
                           <ScryfallImg
                             src={imageUrl}
-                            alt={i18n._(msg`${p.set_name} printing`)}
+                            alt={`${p.set_name} printing`}
                             className="w-full h-full object-contain"
                             loading="lazy"
                           />
                         )
                       ) : (
-                        <span className="text-xs text-muted-foreground text-center">
-                          <Trans>No Image</Trans>
-                        </span>
+                        <span className="text-xs text-muted-foreground text-center">No Image</span>
                       )}
                     </div>
                     <div className="text-center w-full">

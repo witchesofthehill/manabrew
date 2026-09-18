@@ -19,9 +19,6 @@ import { cn } from "@/lib/utils";
 import { useDeckStore } from "@/stores/useDeckStore";
 import type { GroupByMode, SortMode, ViewMode } from "./deckBuilder.utils";
 import type { DeckOwnershipStatus } from "@/lib/collection";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface DeckLayoutMenuProps {
   compact?: boolean;
   groupBy: GroupByMode;
@@ -143,16 +140,14 @@ export function DeckLayoutMenu({
             variant="outline"
             size="xs"
             className="gap-1"
-            title={compact ? i18n._(msg`Saved views`) : undefined}
+            title={compact ? `Saved views` : undefined}
           >
             <LayoutTemplate className="h-3.5 w-3.5" />
             {compact ? (
-              <span className="sr-only">
-                <Trans>Saved views</Trans>
-              </span>
+              <span className="sr-only">Saved views</span>
             ) : (
               <>
-                {activeLayout?.name ?? i18n._(msg`View`)}
+                {activeLayout?.name ?? `View`}
                 <ChevronDown className="h-3 w-3 opacity-60" />
               </>
             )}
@@ -162,17 +157,17 @@ export function DeckLayoutMenu({
           <DropdownMenuItem
             onSelect={() => onApply("type", "not-owned", cardSize, "", viewMode, "missing")}
           >
-            <Trans>Collection gaps</Trans>
+            Collection gaps
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => onApply("custom", "name", cardSize, "", viewMode, "all")}
           >
-            <Trans>Tags workspace</Trans>
+            Tags workspace
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => onApply("cmc", "mana-value", cardSize, "", "stack", "all")}
           >
-            <Trans>Mana review</Trans>
+            Mana review
           </DropdownMenuItem>
           {layouts.map((layout) => (
             <DropdownMenuItem
@@ -187,7 +182,7 @@ export function DeckLayoutMenu({
               <button
                 type="button"
                 className="rounded p-1 text-muted-foreground hover:text-destructive"
-                title={i18n._(msg`Delete ${layout.name}`)}
+                title={`Delete ${layout.name}`}
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
@@ -199,9 +194,7 @@ export function DeckLayoutMenu({
             </DropdownMenuItem>
           ))}
           <DropdownMenuItem onSelect={() => setCreateOpen(true)}>
-            <Trans>
-              <Plus className="mr-2 h-3.5 w-3.5" /> Save current view
-            </Trans>
+            <Plus className="mr-2 h-3.5 w-3.5" /> Save current view
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -209,17 +202,15 @@ export function DeckLayoutMenu({
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>
-              <Trans>Save deck view</Trans>
-            </DialogTitle>
+            <DialogTitle>Save deck view</DialogTitle>
             <DialogDescription>
-              <Trans>Keep the current grouping, sorting, and card size.</Trans>
+              Keep the current grouping, sorting, and card size.
             </DialogDescription>
           </DialogHeader>
           <Input
             autoFocus
             value={name}
-            placeholder={i18n._(msg`Combo layout`)}
+            placeholder={`Combo layout`}
             onChange={(event) => setName(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") saveLayout();
@@ -227,10 +218,10 @@ export function DeckLayoutMenu({
           />
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>
-              <Trans>Cancel</Trans>
+              Cancel
             </Button>
             <Button variant="primary" disabled={!name.trim()} onClick={saveLayout}>
-              <Trans>Save view</Trans>
+              Save view
             </Button>
           </div>
         </DialogContent>

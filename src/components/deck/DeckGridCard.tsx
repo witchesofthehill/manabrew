@@ -19,9 +19,6 @@ import {
 } from "@/components/ui/dialog";
 import type { EngineKind } from "@/protocol";
 import type { SavedDeck } from "@/stores/useDeckStore";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface DeckGridCardProps {
   deck: SavedDeck;
   onOpen: () => void;
@@ -92,8 +89,8 @@ export function DeckGridCard({
                   size="icon"
                   variant="secondary"
                   className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
-                  aria-label={i18n._(msg`View in Community`)}
-                  title={i18n._(msg`View in Community`)}
+                  aria-label={`View in Community`}
+                  title={`View in Community`}
                   onClick={onViewInHub}
                 >
                   <LibraryBig className="h-3 w-3" />
@@ -104,8 +101,8 @@ export function DeckGridCard({
                   size="icon"
                   variant="secondary"
                   className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
-                  aria-label={i18n._(msg`Publish to Community`)}
-                  title={i18n._(msg`Publish to Community`)}
+                  aria-label={`Publish to Community`}
+                  title={`Publish to Community`}
                   onClick={onPublish}
                 >
                   <Share2 className="h-3 w-3" />
@@ -116,8 +113,8 @@ export function DeckGridCard({
                   size="icon"
                   variant="secondary"
                   className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
-                  aria-label={i18n._(msg`Save to account`)}
-                  title={i18n._(msg`Save to account`)}
+                  aria-label={`Save to account`}
+                  title={`Save to account`}
                   onClick={onSaveToAccount}
                 >
                   <CloudUpload className="h-3 w-3" />
@@ -128,8 +125,8 @@ export function DeckGridCard({
                   size="icon"
                   variant="secondary"
                   className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
-                  aria-label={i18n._(msg`Rename`)}
-                  title={i18n._(msg`Rename`)}
+                  aria-label={`Rename`}
+                  title={`Rename`}
                   onClick={onRename}
                 >
                   <Pencil className="h-3 w-3" />
@@ -140,8 +137,8 @@ export function DeckGridCard({
                   size="icon"
                   variant="secondary"
                   className="h-6 w-6 bg-background/80 text-destructive backdrop-blur-sm hover:bg-background hover:text-destructive"
-                  aria-label={i18n._(msg`Delete`)}
-                  title={i18n._(msg`Delete`)}
+                  aria-label={`Delete`}
+                  title={`Delete`}
                   onClick={() => setConfirmDelete(true)}
                 >
                   <Trash2 className="h-3 w-3" />
@@ -167,11 +164,11 @@ export function DeckGridCard({
                 key={engine}
                 className="rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-[9px] font-medium text-foreground backdrop-blur-sm"
               >
-                <Trans>{engine} engine</Trans>
+                {engine} engine
               </span>
             ))}
             <span className="ml-auto text-[10px] text-text-on-tinted/85">
-              <Trans>{displayCards.length} cards</Trans>
+              {displayCards.length} cards
             </span>
           </>
         }
@@ -180,14 +177,10 @@ export function DeckGridCard({
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>
-              <Trans>Delete Deck</Trans>
-            </DialogTitle>
+            <DialogTitle>Delete Deck</DialogTitle>
             <DialogDescription>
-              <Trans>
-                Are you sure you want to delete &ldquo;{deck.deck.name}&rdquo;? This action cannot
-                be undone.
-              </Trans>
+              Are you sure you want to delete &ldquo;{deck.deck.name}&rdquo;? This action cannot be
+              undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -202,7 +195,7 @@ export function DeckGridCard({
                 onDelete?.();
               }}
             >
-              <Trans>Delete</Trans>
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>

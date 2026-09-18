@@ -6,9 +6,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import { COMPANION_ACCENT_COLORS } from "@/stores/useCompanionStore.constants";
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 function useActiveAccent(): string | null {
   return useCompanionStore((s) => {
     const session = s.session;
@@ -55,10 +52,9 @@ export function DiceRoller(props: DiceRollerProps) {
   );
 }
 function describeTitle(props: DiceRollerProps): string {
-  if (!("mode" in props) || props.mode === "first-player")
-    return i18n._(msg`Randomising first player\u2026`);
-  if (props.mode === "die") return i18n._(msg`Rolling a d${props.sides}…`);
-  return i18n._(msg`Flipping a coin\u2026`);
+  if (!("mode" in props) || props.mode === "first-player") return `Randomising first player\u2026`;
+  if (props.mode === "die") return `Rolling a d${props.sides}…`;
+  return `Flipping a coin\u2026`;
 }
 function RollBody(props: DiceRollerProps) {
   if (!("mode" in props) || props.mode === "first-player") {
@@ -118,12 +114,10 @@ function FirstPlayerAnimation({
       </div>
       {settled && highlight && (
         <p className="text-center text-sm text-muted-foreground">
-          <Trans>
-            <span className="font-semibold text-foreground">
-              {players.find((p) => p.id === highlight)?.name}
-            </span>{" "}
-            goes first.
-          </Trans>
+          <span className="font-semibold text-foreground">
+            {players.find((p) => p.id === highlight)?.name}
+          </span>{" "}
+          goes first.
         </p>
       )}
     </>
@@ -157,13 +151,11 @@ function NumericRoll({ sides }: { sides: number }) {
       <p className="text-sm text-muted-foreground">
         {settled ? (
           <>
-            <span className="font-semibold text-foreground">
-              <Trans>d{sides}</Trans>
-            </span>{" "}
-            → <span className="font-semibold text-foreground">{value}</span>
+            <span className="font-semibold text-foreground">d{sides}</span> →{" "}
+            <span className="font-semibold text-foreground">{value}</span>
           </>
         ) : (
-          i18n._(msg`d${sides}`)
+          `d${sides}`
         )}
       </p>
     </div>
@@ -210,19 +202,17 @@ function CoinFlip() {
               settled ? "bg-card/70 text-foreground" : "text-muted-foreground",
             )}
           >
-            {value === "Heads" ? i18n._(msg`H`) : i18n._(msg`T`)}
+            {value === "Heads" ? `H` : `T`}
           </span>
         </div>
       </div>
       <p className="text-sm text-muted-foreground">
         {settled ? (
           <>
-            <Trans>
-              Coin → <span className="font-semibold text-foreground">{value}</span>
-            </Trans>
+            Coin → <span className="font-semibold text-foreground">{value}</span>
           </>
         ) : (
-          i18n._(msg`Coin`)
+          `Coin`
         )}
       </p>
     </div>

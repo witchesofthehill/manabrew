@@ -8,8 +8,6 @@ import { DevToggleButton } from "./DevToggleButton";
 import { DEV_SECTION, DEV_SECTION_HEADING } from "./devPanel.styles";
 import { DevPanelSearchProvider, DevSearchable } from "./DevPanelSearch";
 import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 
 type BoolOverrideKey = {
   [K in keyof DevPlayerOverrides]: DevPlayerOverrides[K] extends boolean ? K : never;
@@ -32,27 +30,19 @@ const PLAYER_IDENTITY_ROWS: ToggleRow[] = [
 const PLAYER_BADGE_ROWS: ToggleRow[] = [
   {
     key: "forceMonarch",
-    get label() {
-      return i18n._(msg`Monarch`);
-    },
+    label: `Monarch`,
   },
   {
     key: "forceInitiative",
-    get label() {
-      return i18n._(msg`Initiative`);
-    },
+    label: `Initiative`,
   },
   {
     key: "forceCityBlessing",
-    get label() {
-      return i18n._(msg`City's Blessing`);
-    },
+    label: `City's Blessing`,
   },
   {
     key: "forceEnduringStory",
-    get label() {
-      return i18n._(msg`Enduring Story`);
-    },
+    label: `Enduring Story`,
   },
 ];
 const PLAYER_STATE_ROWS: ToggleRow[] = [

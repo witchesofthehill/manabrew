@@ -6,7 +6,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Swords, Users } from "lucide-react";
-import { Trans } from "@lingui/react/macro";
 interface PlaytestPlayersDialogProps {
   open: boolean;
   onChoose: (opponentCount: number) => void;
@@ -22,12 +21,8 @@ export function PlaytestPlayersDialog({ open, onChoose, onCancel }: PlaytestPlay
     >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>
-            <Trans>Playtest</Trans>
-          </DialogTitle>
-          <DialogDescription>
-            <Trans>How many players?</Trans>
-          </DialogDescription>
+          <DialogTitle>Playtest</DialogTitle>
+          <DialogDescription>How many players?</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           <button
@@ -36,12 +31,10 @@ export function PlaytestPlayersDialog({ open, onChoose, onCancel }: PlaytestPlay
           >
             <div className="flex items-center gap-2 mb-1.5">
               <Users className="h-4 w-4 text-primary" />
-              <span className="font-semibold text-sm">
-                <Trans>4-player pod</Trans>
-              </span>
+              <span className="font-semibold text-sm">4-player pod</span>
             </div>
             <p className="text-xs text-muted-foreground leading-snug">
-              <Trans>You and three AI opponents. The real thing.</Trans>
+              You and three AI opponents. The real thing.
             </p>
           </button>
           <button
@@ -50,12 +43,10 @@ export function PlaytestPlayersDialog({ open, onChoose, onCancel }: PlaytestPlay
           >
             <div className="flex items-center gap-2 mb-1.5">
               <Swords className="h-4 w-4 text-primary" />
-              <span className="font-semibold text-sm">
-                <Trans>1v1</Trans>
-              </span>
+              <span className="font-semibold text-sm">1v1</span>
             </div>
             <p className="text-xs text-muted-foreground leading-snug">
-              <Trans>You and one AI opponent. Faster turns, quicker goldfishing.</Trans>
+              You and one AI opponent. Faster turns, quicker goldfishing.
             </p>
           </button>
         </div>

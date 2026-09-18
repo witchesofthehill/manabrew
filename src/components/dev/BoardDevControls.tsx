@@ -4,9 +4,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { DEV_SECTION, DEV_SECTION_HEADING } from "./devPanel.styles";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 import { DevSearchable } from "./DevPanelSearch";
 import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
 
@@ -91,61 +88,55 @@ export function BoardDevControls() {
         <section className={DEV_SECTION}>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className={DEV_SECTION_HEADING}>
-                <Trans>Renderer</Trans>
-              </p>
+              <p className={DEV_SECTION_HEADING}>Renderer</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                <Trans>Live Pixi performance for the current battlefield.</Trans>
+                Live Pixi performance for the current battlefield.
               </p>
             </div>
             <div className="text-right">
               <p className={cn("font-mono text-2xl font-semibold tabular-nums", fpsColor)}>{fps}</p>
-              <p className="font-mono text-[10px] text-muted-foreground">
-                <Trans>FPS</Trans>
-              </p>
+              <p className="font-mono text-[10px] text-muted-foreground">FPS</p>
             </div>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <Metric label={i18n._(msg`Frame`)} value={`${frameMs} ms`} />
-            <Metric label={i18n._(msg`Observed range`)} value={range} />
+            <Metric label={`Frame`} value={`${frameMs} ms`} />
+            <Metric label={`Observed range`} value={range} />
           </div>
         </section>
       ) : null}
 
       {showBoardGuides ? (
         <section className={DEV_SECTION}>
-          <p className={DEV_SECTION_HEADING}>
-            <Trans>Board guides</Trans>
-          </p>
+          <p className={DEV_SECTION_HEADING}>Board guides</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <GuideToggle
               icon={MousePointer2}
-              label={i18n._(msg`Hover targets`)}
-              description={i18n._(msg`Hand, battlefield, and preview hit areas`)}
+              label={`Hover targets`}
+              description={`Hand, battlefield, and preview hit areas`}
               searchTerms={["Board guides"]}
               checked={showHoverAreas}
               onChange={setShowHoverAreas}
             />
             <GuideToggle
               icon={PanelTop}
-              label={i18n._(msg`Player panel bounds`)}
-              description={i18n._(msg`Layout bounds for every player HUD`)}
+              label={`Player panel bounds`}
+              description={`Layout bounds for every player HUD`}
               searchTerms={["Board guides"]}
               checked={showPlayerPanelBounds}
               onChange={setShowPlayerPanelBounds}
             />
             <GuideToggle
               icon={Grid3X3}
-              label={i18n._(msg`Layout skeleton`)}
-              description={i18n._(msg`Rows and card slots for every player`)}
+              label={`Layout skeleton`}
+              description={`Rows and card slots for every player`}
               searchTerms={["Board guides"]}
               checked={showGridSkeleton}
               onChange={setShowGridSkeleton}
             />
             <GuideToggle
               icon={Eye}
-              label={i18n._(msg`Attack rows`)}
-              description={i18n._(msg`Combat drop areas for every player`)}
+              label={`Attack rows`}
+              description={`Combat drop areas for every player`}
               searchTerms={["Board guides"]}
               checked={showAttackRows}
               onChange={setShowAttackRows}
@@ -156,20 +147,18 @@ export function BoardDevControls() {
 
       {showGameState ? (
         <section className={DEV_SECTION}>
-          <p className={DEV_SECTION_HEADING}>
-            <Trans>Game state</Trans>
-          </p>
+          <p className={DEV_SECTION_HEADING}>Game state</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <GuideToggle
-              label={i18n._(msg`Log activity`)}
-              description={i18n._(msg`Unread action-log indicator`)}
+              label={`Log activity`}
+              description={`Unread action-log indicator`}
               searchTerms={["Game state"]}
               checked={gameStateOverrides.forceLogActivity}
               onChange={(checked) => setGameStateOverride("forceLogActivity", checked)}
             />
             <GuideToggle
-              label={i18n._(msg`Combat summary`)}
-              description={i18n._(msg`Attacker, blocker, and incoming-damage totals`)}
+              label={`Combat summary`}
+              description={`Attacker, blocker, and incoming-damage totals`}
               searchTerms={["Game state"]}
               checked={gameStateOverrides.forceCombatSummary}
               onChange={(checked) => setGameStateOverride("forceCombatSummary", checked)}
@@ -180,9 +169,7 @@ export function BoardDevControls() {
 
       {showGlobalMechanics ? (
         <section className={DEV_SECTION}>
-          <p className={DEV_SECTION_HEADING}>
-            <Trans>Global mechanics</Trans>
-          </p>
+          <p className={DEV_SECTION_HEADING}>Global mechanics</p>
           <div className="mt-3 grid grid-cols-3 gap-2">
             {(["none", "day", "night"] as const)
               .filter((value) =>
@@ -196,35 +183,35 @@ export function BoardDevControls() {
                   variant={gameStateOverrides.dayNight === value ? "selected" : "outline"}
                   onClick={() => setGameStateOverride("dayNight", value)}
                 >
-                  {value === "none" ? i18n._(msg`Live`) : value}
+                  {value === "none" ? `Live` : value}
                 </Button>
               ))}
           </div>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             <GuideToggle
-              label={i18n._(msg`Dungeon`)}
-              description={i18n._(msg`Current dungeon room`)}
+              label={`Dungeon`}
+              description={`Current dungeon room`}
               searchTerms={["Global mechanics"]}
               checked={gameStateOverrides.forceDungeon}
               onChange={(checked) => setGameStateOverride("forceDungeon", checked)}
             />
             <GuideToggle
-              label={i18n._(msg`Plane`)}
-              description={i18n._(msg`Current plane`)}
+              label={`Plane`}
+              description={`Current plane`}
               searchTerms={["Global mechanics"]}
               checked={gameStateOverrides.forcePlane}
               onChange={(checked) => setGameStateOverride("forcePlane", checked)}
             />
             <GuideToggle
-              label={i18n._(msg`Scheme`)}
-              description={i18n._(msg`Active scheme`)}
+              label={`Scheme`}
+              description={`Active scheme`}
               searchTerms={["Global mechanics"]}
               checked={gameStateOverrides.forceScheme}
               onChange={(checked) => setGameStateOverride("forceScheme", checked)}
             />
             <GuideToggle
-              label={i18n._(msg`Team`)}
-              description={i18n._(msg`Shared-team designation`)}
+              label={`Team`}
+              description={`Shared-team designation`}
               searchTerms={["Global mechanics"]}
               checked={gameStateOverrides.forceTeam}
               onChange={(checked) => setGameStateOverride("forceTeam", checked)}
@@ -235,9 +222,7 @@ export function BoardDevControls() {
 
       {showTools ? (
         <section className={DEV_SECTION}>
-          <p className={DEV_SECTION_HEADING}>
-            <Trans>Tools</Trans>
-          </p>
+          <p className={DEV_SECTION_HEADING}>Tools</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <DevSearchable terms={["Replay ETB glow", "Tools"]}>
               <Button
@@ -247,20 +232,20 @@ export function BoardDevControls() {
                 onClick={triggerEtbGlow}
               >
                 <Sparkles />
-                <Trans>Replay ETB glow</Trans>
+                Replay ETB glow
               </Button>
             </DevSearchable>
             <GuideToggle
               icon={Layers3}
-              label={i18n._(msg`Debug stack card`)}
-              description={i18n._(msg`Add the staged card to the live stack`)}
+              label={`Debug stack card`}
+              description={`Add the staged card to the live stack`}
               searchTerms={["Tools"]}
               checked={debugStackCardEnabled}
               onChange={setDebugStackCardEnabled}
             />
             <GuideToggle
-              label={i18n._(msg`Zustand DevTools`)}
-              description={i18n._(msg`Mount the state inspector`)}
+              label={`Zustand DevTools`}
+              description={`Mount the state inspector`}
               searchTerms={["Tools"]}
               checked={devToolsEnabled}
               onChange={setDevToolsEnabled}

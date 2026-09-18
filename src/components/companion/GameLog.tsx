@@ -4,9 +4,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import type { CompanionEvent, CompanionSession } from "@/stores/useCompanionStore.types";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface GameLogProps {
   session: CompanionSession;
   open: boolean;
@@ -26,15 +23,11 @@ export function GameLog({ session, open, onOpenChange }: GameLogProps) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-80 overflow-y-auto p-0">
         <SheetHeader className="px-4 py-3">
-          <SheetTitle>
-            <Trans>Game log</Trans>
-          </SheetTitle>
+          <SheetTitle>Game log</SheetTitle>
         </SheetHeader>
         <ol className="divide-y divide-border">
           {history.length === 0 && (
-            <li className="px-4 py-6 text-center text-sm text-muted-foreground">
-              <Trans>No events yet.</Trans>
-            </li>
+            <li className="px-4 py-6 text-center text-sm text-muted-foreground">No events yet.</li>
           )}
           {history
             .map((event, index) => ({ event, index }))
@@ -56,8 +49,8 @@ export function GameLog({ session, open, onOpenChange }: GameLogProps) {
                   variant="ghost"
                   className="size-7"
                   onClick={() => undoTo(index)}
-                  title={i18n._(msg`Rewind to this point`)}
-                  aria-label={i18n._(msg`Rewind to this point`)}
+                  title={`Rewind to this point`}
+                  aria-label={`Rewind to this point`}
                 >
                   <Undo2 className="size-3.5" />
                 </Button>
@@ -76,35 +69,25 @@ function describeEvent(event: CompanionEvent, session: CompanionSession): string
     case "life": {
       const delta = event.next - event.prev;
       const sign = delta > 0 ? "+" : "";
-      return i18n._(
-        msg`${nameFor(event.playerId, session)} life ${sign}${delta} (→ ${event.next})`,
-      );
+      return `${nameFor(event.playerId, session)} life ${sign}${delta} (→ ${event.next})`;
     }
     case "counter": {
       const delta = event.next - event.prev;
       const sign = delta > 0 ? "+" : "";
-      return i18n._(
-        msg`${nameFor(event.playerId, session)} counter ${sign}${delta} (→ ${event.next})`,
-      );
+      return `${nameFor(event.playerId, session)} counter ${sign}${delta} (→ ${event.next})`;
     }
     case "counterAdd":
-      return i18n._(msg`${nameFor(event.playerId, session)} added ${event.counter.label}`);
+      return `${nameFor(event.playerId, session)} added ${event.counter.label}`;
     case "counterRemove":
-      return i18n._(msg`${nameFor(event.playerId, session)} removed ${event.counter.label}`);
+      return `${nameFor(event.playerId, session)} removed ${event.counter.label}`;
     case "commander":
-      return i18n._(
-        msg`${nameFor(event.playerId, session)} set commander slot ${event.slot + 1} → ${event.next?.name ?? "(empty)"}`,
-      );
+      return `${nameFor(event.playerId, session)} set commander slot ${event.slot + 1} → ${event.next?.name ?? "(empty)"}`;
     case "dead":
-      return i18n._(
-        msg`${nameFor(event.playerId, session)} ${event.next ? i18n._(msg`eliminated`) : i18n._(msg`revived`)}`,
-      );
+      return `${nameFor(event.playerId, session)} ${event.next ? `eliminated` : `revived`}`;
     case "cmdDmg": {
       const delta = event.next - event.prev;
       const sign = delta > 0 ? "+" : "";
-      return i18n._(
-        msg`${nameFor(event.targetId, session)} took ${sign}${delta} cmd dmg from ${nameFor(event.sourceId, session)}`,
-      );
+      return `${nameFor(event.targetId, session)} took ${sign}${delta} cmd dmg from ${nameFor(event.sourceId, session)}`;
     }
   }
 }

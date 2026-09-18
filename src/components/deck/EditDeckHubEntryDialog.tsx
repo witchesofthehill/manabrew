@@ -12,9 +12,6 @@ import {
 } from "@/components/ui/dialog";
 import { useHubStore } from "@/stores/useHubStore";
 import type { DeckHubEntryDetail } from "@/api/hubTypes";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface EditDeckHubEntryDialogProps {
   entry: DeckHubEntryDetail;
   open: boolean;
@@ -80,11 +77,9 @@ export function EditDeckHubEntryDialog({
       });
       onSaved(updated);
       onOpenChange(false);
-      toast.success(i18n._(msg`Publication details updated`));
+      toast.success(`Publication details updated`);
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : i18n._(msg`Failed to update publication`),
-      );
+      toast.error(error instanceof Error ? error.message : `Failed to update publication`);
     } finally {
       setBusy(false);
     }
@@ -93,19 +88,15 @@ export function EditDeckHubEntryDialog({
     <Dialog open={open} onOpenChange={(nextOpen) => !busy && onOpenChange(nextOpen)}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>
-            <Trans>Edit publication</Trans>
-          </DialogTitle>
+          <DialogTitle>Edit publication</DialogTitle>
           <DialogDescription>
-            <Trans>
-              Update how this exact deck version appears in Community discovery and Top Decks.
-            </Trans>
+            Update how this exact deck version appears in Community discovery and Top Decks.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
             <label htmlFor="deckhub-entry-title" className="text-sm font-medium">
-              <Trans>Title</Trans>
+              Title
             </label>
             <Input
               id="deckhub-entry-title"
@@ -117,7 +108,7 @@ export function EditDeckHubEntryDialog({
           </div>
           <div className="space-y-1.5">
             <label htmlFor="deckhub-entry-summary" className="text-sm font-medium">
-              <Trans>Summary</Trans>
+              Summary
             </label>
             <textarea
               id="deckhub-entry-summary"
@@ -131,22 +122,22 @@ export function EditDeckHubEntryDialog({
           </div>
           <div className="space-y-1.5">
             <label htmlFor="deckhub-entry-tags" className="text-sm font-medium">
-              <Trans>Discovery tags</Trans>
+              Discovery tags
             </label>
             <Input
               id="deckhub-entry-tags"
               value={tagInput}
               maxLength={329}
-              placeholder={i18n._(msg`control, budget, tokens`)}
+              placeholder={`control, budget, tokens`}
               onChange={(event) => setTagInput(event.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              <Trans>{tags.length}/10 tags. Each tag can contain up to 32 characters.</Trans>
+              {tags.length}/10 tags. Each tag can contain up to 32 characters.
             </p>
           </div>
           <div className="space-y-1.5">
             <label htmlFor="deckhub-entry-cover" className="text-sm font-medium">
-              <Trans>Cover card</Trans>
+              Cover card
             </label>
             <select
               id="deckhub-entry-cover"
@@ -154,9 +145,7 @@ export function EditDeckHubEntryDialog({
               className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm pointer-coarse:text-base"
               onChange={(event) => setCoverCardName(event.target.value)}
             >
-              <option value="">
-                <Trans>Automatic cover</Trans>
-              </option>
+              <option value="">Automatic cover</option>
               {coverCards.map((card) => (
                 <option key={card.identity.name} value={card.identity.name}>
                   {card.identity.name}

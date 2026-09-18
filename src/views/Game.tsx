@@ -93,9 +93,6 @@ import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
 import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const HOVER_ALLOWED_PROMPTS = new Set<PromptType>([
   "chooseAction",
   "chooseAttackers",
@@ -527,20 +524,20 @@ export default function Game({ exitTo }: GameProps = {}) {
           {
             kind: "manual-tap",
             cardId: card.id,
-            label: card.tapped ? i18n._(msg`Untap`) : i18n._(msg`Tap`),
+            label: card.tapped ? `Untap` : `Tap`,
             tapped: !card.tapped,
           },
-          move(i18n._(msg`Move to Hand`), "hand"),
-          move(i18n._(msg`Move to Graveyard`), graveyardZone),
-          move(i18n._(msg`Move to Exile`), exileZone),
-          move(i18n._(msg`Move to Command`), commandZone),
+          move(`Move to Hand`, "hand"),
+          move(`Move to Graveyard`, graveyardZone),
+          move(`Move to Exile`, exileZone),
+          move(`Move to Command`, commandZone),
         ];
       }
       return [
-        move(i18n._(msg`Put onto Battlefield`), "battlefield"),
-        move(i18n._(msg`Move to Graveyard`), graveyardZone),
-        move(i18n._(msg`Move to Exile`), exileZone),
-        move(i18n._(msg`Move to Command`), commandZone),
+        move(`Put onto Battlefield`, "battlefield"),
+        move(`Move to Graveyard`, graveyardZone),
+        move(`Move to Exile`, exileZone),
+        move(`Move to Command`, commandZone),
       ];
     },
     [manualApi, gameView?.players],
@@ -570,9 +567,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           options.push({
             kind: "ability",
             cardId: card.id,
-            get label() {
-              return i18n._(msg`Waterbend (pays {1})`);
-            },
+            label: `Waterbend (pays {1})`,
             actionId: waterbend,
           });
         }
@@ -726,43 +721,36 @@ export default function Game({ exitTo }: GameProps = {}) {
     if (!blockRequirement) return null;
     const name =
       gameView?.battlefield.find((c) => c.id === blockRequirement.attackerId)?.identity.name ??
-      i18n._(msg`This attacker`);
-    const creatures = (count: number) =>
-      count === 1 ? i18n._(msg`one creature`) : i18n._(msg`${count} creatures`);
+      `This attacker`;
+    const creatures = (count: number) => (count === 1 ? `one creature` : `${count} creatures`);
     return blockRequirement.kind === "min"
-      ? i18n._(
-          msg`${name} must be blocked by ${creatures(blockRequirement.count)} (${blockRequirement.assigned} assigned).`,
-        )
-      : i18n._(
-          msg`${name} can be blocked by at most ${creatures(blockRequirement.count)} (${blockRequirement.assigned} assigned).`,
-        );
+      ? `${name} must be blocked by ${creatures(blockRequirement.count)} (${blockRequirement.assigned} assigned).`
+      : `${name} can be blocked by at most ${creatures(blockRequirement.count)} (${blockRequirement.assigned} assigned).`;
   }, [blockRequirement, gameView?.battlefield]);
   const mustAttackHint = useMemo<string | null>(() => {
     const must = chooseAttackersInput?.attackers.filter((a) => a.mustAttack) ?? [];
     if (must.length === 0) return null;
     const nameOf = (id: string) =>
-      gameView?.battlefield.find((c) => c.id === id)?.identity.name ?? i18n._(msg`A creature`);
-    return i18n._(msg`Must attack if able — ${must.map((a) => nameOf(a.attackerId)).join(", ")}`);
+      gameView?.battlefield.find((c) => c.id === id)?.identity.name ?? `A creature`;
+    return `Must attack if able — ${must.map((a) => nameOf(a.attackerId)).join(", ")}`;
   }, [chooseAttackersInput, gameView?.battlefield]);
   const blockRestrictionHint = useMemo<string | null>(() => {
     const attackers = chooseBlockersInput?.attackers ?? [];
     const nameOf = (id: string) =>
-      gameView?.battlefield.find((c) => c.id === id)?.identity.name ?? i18n._(msg`An attacker`);
+      gameView?.battlefield.find((c) => c.id === id)?.identity.name ?? `An attacker`;
     const parts: string[] = [];
     const menace = attackers.filter(
       (a) => a.minBlockers > 1 && a.validBlockerIds.length >= a.minBlockers,
     );
     if (menace.length > 0) {
       const requirements = menace
-        .map((a) => i18n._(msg`${nameOf(a.attackerId)} (needs ${a.minBlockers})`))
+        .map((a) => `${nameOf(a.attackerId)} (needs ${a.minBlockers})`)
         .join(", ");
-      parts.push(i18n._(msg`Requires multiple blockers — ${requirements}`));
+      parts.push(`Requires multiple blockers — ${requirements}`);
     }
     const mustBlock = attackers.filter((a) => a.mustBeBlocked && a.validBlockerIds.length > 0);
     if (mustBlock.length > 0) {
-      parts.push(
-        i18n._(msg`Must be blocked — ${mustBlock.map((a) => nameOf(a.attackerId)).join(", ")}`),
-      );
+      parts.push(`Must be blocked — ${mustBlock.map((a) => nameOf(a.attackerId)).join(", ")}`);
     }
     return parts.length > 0 ? parts.join(" · ") : null;
   }, [chooseBlockersInput, gameView?.battlefield]);
@@ -773,9 +761,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     if (input.chosenTargets < input.minTargets) {
       return input.cancellable
         ? {
-            get label() {
-              return i18n._(msg`Cancel`);
-            },
+            label: `Cancel`,
             kind: "cancel" as const,
             onComplete: cancelTargeting,
           }
@@ -785,7 +771,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       return null;
     }
     return {
-      label: input.chosenTargets === 0 ? i18n._(msg`Skip`) : i18n._(msg`Done`),
+      label: input.chosenTargets === 0 ? `Skip` : `Done`,
       kind: "done" as const,
       onComplete: declineTargets,
     };
@@ -1236,9 +1222,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
   const openDelveZone = useCallback(() => {
     openZoneViewer({
-      get title() {
-        return i18n._(msg`Delve \u2014 Your Graveyard`);
-      },
+      title: `Delve \u2014 Your Graveyard`,
       cards: me?.graveyard ?? [],
       mode: "cost",
       source: me ? { playerId: me.id, zone: "graveyard" } : undefined,
@@ -1455,8 +1439,8 @@ export default function Game({ exitTo }: GameProps = {}) {
   const combatPairings = useMemo<CombatPairing[]>(() => {
     const nameOf = (id: string) =>
       id === myPlayerSlot
-        ? i18n._(msg`You`)
-        : (gameView?.players?.find((p) => p.id === id)?.name ?? i18n._(msg`A player`));
+        ? `You`
+        : (gameView?.players?.find((p) => p.id === id)?.name ?? `A player`);
     const pairs = new Map<string, CombatPairing>();
     for (const c of gameView?.battlefield ?? []) {
       if (!c.isAttacking || !c.attackingPlayerId) continue;
@@ -2508,11 +2492,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       )}
       {eliminatedModalOpen && (
         <EliminatedModal
-          heading={
-            selfConceded || me?.status === "conceded"
-              ? i18n._(msg`You conceded`)
-              : i18n._(msg`You lost`)
-          }
+          heading={selfConceded || me?.status === "conceded" ? `You conceded` : `You lost`}
           hosting={ownsEngine}
           onObserve={() => setEliminatedModalOpen(false)}
           onLeave={() => {
@@ -2535,11 +2515,9 @@ export default function Game({ exitTo }: GameProps = {}) {
       {gameView.step === "combatFirstStrikeDamage" && (
         <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
           <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
-            <span className="text-sm font-semibold tracking-wide">
-              <Trans>First Strike Damage</Trans>
-            </span>
+            <span className="text-sm font-semibold tracking-wide">First Strike Damage</span>
             <span className="text-xs text-muted-foreground">
-              <Trans>only first &amp; double strikers deal damage now</Trans>
+              only first &amp; double strikers deal damage now
             </span>
           </div>
         </div>

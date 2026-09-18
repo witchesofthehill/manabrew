@@ -1,6 +1,4 @@
 import { cn } from "@/lib/utils";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
 
 interface DevCounterControlProps {
@@ -33,7 +31,7 @@ export function DevCounterControl({ label, value, onClear, onBump }: DevCounterC
         )}
         onClick={onClear}
         disabled={value == null}
-        title={value == null ? undefined : i18n._(msg`Clear ${label}`)}
+        title={value == null ? undefined : `Clear ${label}`}
       >
         {value ?? "—"}
       </button>

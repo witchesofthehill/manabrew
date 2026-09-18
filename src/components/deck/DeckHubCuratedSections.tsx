@@ -5,8 +5,6 @@ import { DeckHubTopDeckPreview } from "@/components/deck/DeckHubTopDeckPreview";
 import { fetchDeckHubEntries } from "@/api/hub";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
 import { availableEngines } from "@/lib/engines";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface DeckHubCuratedSectionsProps {
   onOpen: (id: string) => void;
   onAuthor: (author: string) => void;
@@ -44,7 +42,7 @@ export function DeckHubCuratedSections({ onOpen, onAuthor }: DeckHubCuratedSecti
 
       {popular.length > 0 && (
         <section className="rounded-2xl border border-border/70 bg-muted/20 p-3 sm:p-4">
-          <SectionHeading title={i18n._(msg`Most favorited`)} />
+          <SectionHeading title={`Most favorited`} />
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {popular.map((entry, index) => (
               <div key={entry.id} className={index === 0 ? "col-span-2 row-span-2" : ""}>
@@ -61,7 +59,7 @@ export function DeckHubCuratedSections({ onOpen, onAuthor }: DeckHubCuratedSecti
 
       {newest.length > 0 && (
         <section>
-          <SectionHeading title={i18n._(msg`Fresh brews`)} />
+          <SectionHeading title={`Fresh brews`} />
           <div className="grid gap-3 xl:grid-cols-2">
             {newest.map((entry) => (
               <DeckHubEntryCard
@@ -80,7 +78,7 @@ export function DeckHubCuratedSections({ onOpen, onAuthor }: DeckHubCuratedSecti
         <section className="relative overflow-hidden rounded-2xl border border-border/70 bg-primary/5 py-4">
           <Flame className="pointer-events-none absolute -right-5 -top-8 h-32 w-32 rotate-12 text-primary/5" />
           <div className="px-4">
-            <SectionHeading title={i18n._(msg`Pick up & play`)} />
+            <SectionHeading title={`Pick up & play`} />
           </div>
           <div className="flex snap-x gap-3 overflow-x-auto px-4 pb-1 no-scrollbar">
             {presets.map((entry, index) => (

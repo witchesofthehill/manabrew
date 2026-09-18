@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Trans } from "@lingui/react/macro";
 export type LimitedDraftMode = "drafting" | "building";
 interface Props {
   mode: LimitedDraftMode;
@@ -16,7 +15,7 @@ export function LimitedModeToggle({ mode, onChange, disableDrafting }: Props) {
         disabled={disableDrafting}
         className="h-7 px-3"
       >
-        <Trans>Drafting</Trans>
+        Drafting
       </Button>
       <Button
         size="sm"
@@ -24,7 +23,7 @@ export function LimitedModeToggle({ mode, onChange, disableDrafting }: Props) {
         onClick={() => onChange("building")}
         className="h-7 px-3"
       >
-        <Trans>Build Deck</Trans>
+        Build Deck
       </Button>
     </div>
   );

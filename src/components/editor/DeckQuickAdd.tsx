@@ -7,8 +7,6 @@ import type { ScryfallCard } from "@/types/scryfall";
 import { DeckQuickAddOptions } from "./DeckQuickAddOptions";
 import { DeckQuickAddResults } from "./DeckQuickAddResults";
 import { parseDeckQuickAdd, type DeckQuickAddRequest } from "./deckQuickAdd.parser";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface DeckQuickAddProps {
   customTags: string[];
   onAdd: (card: ScryfallCard, request: DeckQuickAddRequest) => boolean;
@@ -130,7 +128,7 @@ export function DeckQuickAdd({ customTags, onAdd, getCount }: DeckQuickAddProps)
         <Input
           ref={inputRef}
           className="h-7 pl-6 pr-6 text-xs pointer-coarse:h-9 pointer-coarse:text-base"
-          placeholder={i18n._(msg`Search card\u2026`)}
+          placeholder={`Search card\u2026`}
           value={value}
           onChange={(event) => handleChange(event.target.value)}
           onFocus={() => results.length > 0 && setIsOpen(true)}
@@ -157,7 +155,7 @@ export function DeckQuickAdd({ customTags, onAdd, getCount }: DeckQuickAddProps)
               type="button"
               className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               onClick={clearSearch}
-              title={i18n._(msg`Clear card search`)}
+              title={`Clear card search`}
             >
               <X className="h-3 w-3" />
             </button>

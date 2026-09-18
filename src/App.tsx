@@ -1,5 +1,4 @@
 import { RouterProvider } from "react-router-dom";
-import { msg } from "@lingui/core/macro";
 import { ThemeProvider } from "next-themes";
 import { I18nProvider, useLingui } from "@lingui/react";
 import { router } from "@/router";
@@ -48,40 +47,32 @@ function PlatformRuntimeChecks() {
       };
       if (hostedFallback) {
         console.warn(
-          i18n._(msg`In-browser engines are unavailable. Forge games will use a hosted engine.`),
+          `In-browser engines are unavailable. Forge games will use a hosted engine.`,
           details,
         );
         return;
       }
       console.error(
-        i18n._(
-          msg`Deployment is missing cross-origin isolation. SharedArrayBuffer game flow will fail.`,
-        ),
+        `Deployment is missing cross-origin isolation. SharedArrayBuffer game flow will fail.`,
         details,
       );
       toast.error(
         platform === "tauri"
-          ? i18n._(
-              msg`This desktop build is missing required isolation headers (COOP/COEP). The game engine cannot start.`,
-            )
-          : i18n._(
-              msg`Web deployment is missing required isolation headers. Ask infra to enable COOP/COEP through the Twingate/SSO path.`,
-            ),
+          ? `This desktop build is missing required isolation headers (COOP/COEP). The game engine cannot start.`
+          : `Web deployment is missing required isolation headers. Ask infra to enable COOP/COEP through the Twingate/SSO path.`,
         { duration: 12000 },
       );
       return;
     }
 
-    console.info(i18n._(msg`Cross-origin isolation is enabled.`));
+    console.info(`Cross-origin isolation is enabled.`);
   }, []);
 
   const deckMigrationError = useDeckStore((s) => s.migrationError);
   useEffect(() => {
     if (!deckMigrationError) return;
     toast.error(
-      i18n._(
-        msg`Couldn't load your saved decks — they're left untouched on disk. Please contact the developer.`,
-      ),
+      `Couldn't load your saved decks — they're left untouched on disk. Please contact the developer.`,
       { duration: Infinity },
     );
   }, [deckMigrationError]);

@@ -11,8 +11,6 @@ import type {
   StateUpdate,
 } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export type { DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, SealedConfig } from "@/protocol";
 /** Which pile a card lives in inside a `Deck`. Used by the deck
  *  builder's section validators (`lib/formats.ts`) — NOT a wire field.
@@ -283,43 +281,43 @@ export const CHAT_ERROR_CODES: ReadonlySet<ServerErrorCode> = new Set([
 ]);
 export const USER_FACING_ERROR_MESSAGES: Partial<Record<ServerErrorCode, string>> = {
   get [SERVER_ERROR_CODE.DeckNotSelected]() {
-    return i18n._(msg`Select a deck before getting ready`);
+    return `Select a deck before getting ready`;
   },
   get [SERVER_ERROR_CODE.PlayersNotReady]() {
-    return i18n._(msg`Not all players are ready`);
+    return `Not all players are ready`;
   },
   get [SERVER_ERROR_CODE.NotHost]() {
-    return i18n._(msg`Only the host can do that`);
+    return `Only the host can do that`;
   },
   get [SERVER_ERROR_CODE.RoomFull]() {
-    return i18n._(msg`Room is full`);
+    return `Room is full`;
   },
   get [SERVER_ERROR_CODE.IncorrectPassword]() {
-    return i18n._(msg`Incorrect room password`);
+    return `Incorrect room password`;
   },
   get [SERVER_ERROR_CODE.AlreadyInRoom]() {
-    return i18n._(msg`You're already in a room`);
+    return `You're already in a room`;
   },
   get [SERVER_ERROR_CODE.FormatNotChosen]() {
-    return i18n._(msg`Choose a format before starting`);
+    return `Choose a format before starting`;
   },
   get [SERVER_ERROR_CODE.InvalidDraftConfig]() {
-    return i18n._(msg`Draft config is invalid`);
+    return `Draft config is invalid`;
   },
   get [SERVER_ERROR_CODE.PlayerNotFound]() {
-    return i18n._(msg`That player is no longer online`);
+    return `That player is no longer online`;
   },
   get [SERVER_ERROR_CODE.PlayerInGame]() {
-    return i18n._(msg`That player is in a game`);
+    return `That player is in a game`;
   },
   get [SERVER_ERROR_CODE.InvalidChatMessage]() {
-    return i18n._(msg`That message can't be sent`);
+    return `That message can't be sent`;
   },
   get [SERVER_ERROR_CODE.ChatRateLimited]() {
-    return i18n._(msg`You're sending too many messages`);
+    return `You're sending too many messages`;
   },
   get [SERVER_ERROR_CODE.AccountRequired]() {
-    return i18n._(msg`Sign in to chat in General`);
+    return `Sign in to chat in General`;
   },
 };
 export interface ServerErrorPayload {

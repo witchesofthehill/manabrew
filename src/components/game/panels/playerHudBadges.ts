@@ -2,8 +2,6 @@ import type { GameThemeColors } from "@/themes/gameTheme";
 import type { PlayerHudBadge } from "@/pixi/hud/playerHud.types";
 import type { ZoneTileSpec } from "@/pixi/board/BoardZoneTiles";
 import { ZONE_BADGES, zoneBadgeId } from "@/components/game/game.constants";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export interface PlayerHudBadgeFlags {
   isMonarch: boolean;
   hasInitiative: boolean;
@@ -30,9 +28,7 @@ export function buildPlayerHudBadges(
     id: "hand",
     icon: "card-pickup",
     color: badges.hand,
-    get label() {
-      return i18n._(msg`Cards in Hand`);
-    },
+    label: `Cards in Hand`,
     count: f.handCount,
   });
   if (f.isMonarch)
@@ -40,27 +36,21 @@ export function buildPlayerHudBadges(
       id: "monarch",
       icon: "crown",
       color: badges.monarch,
-      get label() {
-        return i18n._(msg`Monarch`);
-      },
+      label: `Monarch`,
     });
   if (f.hasInitiative)
     out.push({
       id: "initiative",
       icon: "rolled-cloth",
       color: badges.initiative,
-      get label() {
-        return i18n._(msg`Initiative`);
-      },
+      label: `Initiative`,
     });
   if (f.poison > 0)
     out.push({
       id: "poison",
       icon: "poison-bottle",
       color: badges.poison,
-      get label() {
-        return i18n._(msg`Poison Counters`);
-      },
+      label: `Poison Counters`,
       count: f.poison,
     });
   if (f.energy > 0)
@@ -68,9 +58,7 @@ export function buildPlayerHudBadges(
       id: "energy",
       icon: "lightning-trio",
       color: badges.energy,
-      get label() {
-        return i18n._(msg`Energy Counters`);
-      },
+      label: `Energy Counters`,
       count: f.energy,
     });
   if (f.radiation > 0)
@@ -78,9 +66,7 @@ export function buildPlayerHudBadges(
       id: "radiation",
       icon: "radioactive",
       color: badges.radiation,
-      get label() {
-        return i18n._(msg`Radiation Counters`);
-      },
+      label: `Radiation Counters`,
       count: f.radiation,
     });
   if (f.experience > 0)
@@ -88,9 +74,7 @@ export function buildPlayerHudBadges(
       id: "experience",
       icon: "star-medal",
       color: badges.experience,
-      get label() {
-        return i18n._(msg`Experience Counters`);
-      },
+      label: `Experience Counters`,
       count: f.experience,
     });
   if (f.ticket > 0)
@@ -98,9 +82,7 @@ export function buildPlayerHudBadges(
       id: "ticket",
       icon: "ticket",
       color: badges.ticket,
-      get label() {
-        return i18n._(msg`Ticket Counters`);
-      },
+      label: `Ticket Counters`,
       count: f.ticket,
     });
   if (f.cityBlessing)
@@ -108,27 +90,21 @@ export function buildPlayerHudBadges(
       id: "city-blessing",
       icon: "stone-tower",
       color: badges.cityBlessing,
-      get label() {
-        return i18n._(msg`City's Blessing`);
-      },
+      label: `City's Blessing`,
     });
   if (f.enduringStory)
     out.push({
       id: "enduring-story",
       icon: "scroll-unfurled",
       color: badges.enduringStory,
-      get label() {
-        return i18n._(msg`An Enduring Story`);
-      },
+      label: `An Enduring Story`,
     });
   if (f.ringLevel > 0)
     out.push({
       id: "ring",
       icon: "ring",
       color: badges.ring,
-      get label() {
-        return i18n._(msg`The Ring tempts you`);
-      },
+      label: `The Ring tempts you`,
       count: f.ringLevel,
     });
   if (f.speed > 0)
@@ -136,9 +112,7 @@ export function buildPlayerHudBadges(
       id: "speed",
       icon: "speedometer",
       color: badges.speed,
-      get label() {
-        return i18n._(msg`Speed`);
-      },
+      label: `Speed`,
       count: f.speed,
     });
   return out;

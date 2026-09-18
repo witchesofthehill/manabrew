@@ -3,7 +3,6 @@ import type { ThemePreset, ThemeColors } from "@/themes";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { APP_THEME_COLOR_LABELS } from "@/themes/themeMetadata";
 import { Section, Subhead, Swatch, SwatchGrid } from "../kit";
-import { Trans } from "@lingui/react/macro";
 function groupGameColors(preset: ThemePreset): {
   name: string;
   entries: [string, string][];
@@ -30,30 +29,28 @@ function AppChrome({ colors, mode }: { colors: ThemeColors; mode: string }) {
           className="flex flex-col gap-2 rounded-lg border p-3"
           style={{ background: g("card"), borderColor: g("border"), color: g("card-foreground") }}
         >
-          <div className="text-sm font-semibold">
-            <Trans>Card surface</Trans>
-          </div>
+          <div className="text-sm font-semibold">Card surface</div>
           <div className="text-xs" style={{ color: g("muted-foreground") }}>
-            <Trans>Muted secondary text</Trans>
+            Muted secondary text
           </div>
           <div className="flex flex-wrap gap-1.5">
             <span
               className="rounded px-2 py-1 text-[11px] font-semibold"
               style={{ background: g("primary"), color: g("primary-foreground") }}
             >
-              <Trans>Primary</Trans>
+              Primary
             </span>
             <span
               className="rounded px-2 py-1 text-[11px] font-semibold"
               style={{ background: g("secondary"), color: g("secondary-foreground") }}
             >
-              <Trans>Secondary</Trans>
+              Secondary
             </span>
             <span
               className="rounded px-2 py-1 text-[11px] font-semibold"
               style={{ background: g("destructive"), color: g("destructive-foreground") }}
             >
-              <Trans>Delete</Trans>
+              Delete
             </span>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -61,19 +58,19 @@ function AppChrome({ colors, mode }: { colors: ThemeColors; mode: string }) {
               className="rounded-full border px-2 py-0.5 text-[10px]"
               style={{ borderColor: g("commander"), color: g("commander") }}
             >
-              <Trans>Commander</Trans>
+              Commander
             </span>
             <span
               className="rounded-full border px-2 py-0.5 text-[10px]"
               style={{ borderColor: g("warning"), color: g("warning") }}
             >
-              <Trans>Warning</Trans>
+              Warning
             </span>
             <span
               className="rounded-full px-2 py-0.5 text-[10px]"
               style={{ background: g("selection"), color: g("selection-foreground") }}
             >
-              <Trans>Selected</Trans>
+              Selected
             </span>
           </div>
         </div>
@@ -103,9 +100,7 @@ function PresetCard({ preset }: { preset: ThemePreset }) {
       </div>
       <p className="text-xs text-muted-foreground">{preset.description}</p>
 
-      <Subhead>
-        <Trans>App chrome</Trans>
-      </Subhead>
+      <Subhead>App chrome</Subhead>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <AppChrome colors={preset.light} mode="Light" />
         <AppChrome colors={preset.dark} mode="Dark" />

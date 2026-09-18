@@ -25,9 +25,6 @@ import { DevStressPresets } from "./DevStressPresets";
 import { PlayerBadgeDevControls } from "./PlayerBadgeDevControls";
 import { PromptDevControls } from "./PromptDevControls";
 import { DevPanelSearchProvider } from "./DevPanelSearch";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 
 type DevWorkspace = "card" | "player" | "board" | "prompt" | "stress";
 interface WorkspaceTab {
@@ -38,37 +35,27 @@ interface WorkspaceTab {
 const WORKSPACES: WorkspaceTab[] = [
   {
     id: "card",
-    get label() {
-      return i18n._(msg`Card`);
-    },
+    label: `Card`,
     icon: CreditCard,
   },
   {
     id: "player",
-    get label() {
-      return i18n._(msg`Player`);
-    },
+    label: `Player`,
     icon: UserRound,
   },
   {
     id: "board",
-    get label() {
-      return i18n._(msg`Board`);
-    },
+    label: `Board`,
     icon: LayoutGrid,
   },
   {
     id: "prompt",
-    get label() {
-      return i18n._(msg`Prompt`);
-    },
+    label: `Prompt`,
     icon: MessageSquareText,
   },
   {
     id: "stress",
-    get label() {
-      return i18n._(msg`Stress`);
-    },
+    label: `Stress`,
     icon: Gauge,
   },
 ];
@@ -143,19 +130,15 @@ export function GameDevPanel() {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <FlaskConical className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-semibold">
-                <Trans>Battlefield lab</Trans>
-              </h2>
+              <h2 className="text-sm font-semibold">Battlefield lab</h2>
               {activeCount > 0 ? (
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-primary">
-                  <Trans>{activeCount} active</Trans>
+                  {activeCount} active
                 </span>
               ) : null}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              <Trans>
-                Stage card, player, board, and prompt visuals without changing the game.
-              </Trans>
+              Stage card, player, board, and prompt visuals without changing the game.
             </p>
           </div>
           <Button
@@ -165,10 +148,8 @@ export function GameDevPanel() {
             className="shrink-0 text-muted-foreground"
             onClick={resetDevSettings}
           >
-            <Trans>
-              <RotateCcw />
-              Reset lab
-            </Trans>
+            <RotateCcw />
+            Reset lab
           </Button>
         </div>
 

@@ -9,9 +9,6 @@ import { TAB_BUTTON_BASE, TAB_ACTIVE, TAB_INACTIVE } from "../game.styles";
 import { ActionLog } from "./ActionLog";
 import { SnapshotsPanel } from "./SnapshotsPanel";
 import { GameDevPanel } from "@/components/dev/GameDevPanel";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export function RightActionPanel({
   collapsed,
   onToggleCollapse: rawToggle,
@@ -92,7 +89,7 @@ export function RightActionPanel({
               className={cn(TAB_BUTTON_BASE, activeTab === "snapshots" ? TAB_ACTIVE : TAB_INACTIVE)}
               onClick={() => setActiveTab("snapshots")}
             >
-              <Trans>Snapshots ({snapshots.length})</Trans>
+              Snapshots ({snapshots.length})
             </button>
             {import.meta.env.DEV ? (
               <button
@@ -108,7 +105,7 @@ export function RightActionPanel({
             variant="ghost"
             className="h-7 w-7 pointer-coarse:h-10 pointer-coarse:w-10 text-muted-foreground hover:text-foreground"
             onClick={rawToggle}
-            title={i18n._(msg`Close right panel`)}
+            title={`Close right panel`}
           >
             <PanelRightClose className="h-3.5 w-3.5" />
           </Button>

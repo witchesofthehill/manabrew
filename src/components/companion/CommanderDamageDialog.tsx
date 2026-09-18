@@ -10,9 +10,6 @@ import {
   COMPANION_LETHAL_COMMANDER_DAMAGE,
 } from "@/stores/useCompanionStore.constants";
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface CommanderDamageDialogProps {
   target: CompanionPlayer;
   source: CompanionPlayer;
@@ -32,9 +29,7 @@ export function CommanderDamageDialog({
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Trans>
-              <GameIcon icon="crossed-swords" className="size-5" /> Commander damage
-            </Trans>
+            <GameIcon icon="crossed-swords" className="size-5" /> Commander damage
           </DialogTitle>
         </DialogHeader>
         <div className="flex items-center justify-center gap-2.5 text-sm">
@@ -116,7 +111,7 @@ function DamageStepper({
   const adjust = useCompanionStore((s) => s.adjustCommanderDamage);
   const damage = (target.commanderDamage[source.id] ?? [0, 0])[slot];
   const commander = source.commanders[slot];
-  const label = commander?.name ?? (slot === 0 ? i18n._(msg`Commander`) : i18n._(msg`Partner`));
+  const label = commander?.name ?? (slot === 0 ? `Commander` : `Partner`);
   const lethal = damage >= COMPANION_LETHAL_COMMANDER_DAMAGE;
   const dec = useHoldStep(
     useCallback(() => adjust(target.id, source.id, slot, -1), [adjust, target.id, source.id, slot]),
@@ -138,7 +133,7 @@ function DamageStepper({
         </span>
         {lethal && (
           <span className="rounded-full bg-destructive px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-destructive-foreground">
-            <Trans>Lethal</Trans>
+            Lethal
           </span>
         )}
       </div>
@@ -146,7 +141,7 @@ function DamageStepper({
         <button
           type="button"
           className="grid size-14 touch-none select-none place-items-center rounded-full bg-muted text-3xl font-light text-foreground transition active:scale-95 active:bg-muted/70"
-          aria-label={i18n._(msg`Decrease commander damage`)}
+          aria-label={`Decrease commander damage`}
           {...dec}
         >
           −
@@ -162,7 +157,7 @@ function DamageStepper({
         <button
           type="button"
           className="grid size-14 touch-none select-none place-items-center rounded-full bg-muted text-3xl font-light text-foreground transition active:scale-95 active:bg-muted/70"
-          aria-label={i18n._(msg`Increase commander damage`)}
+          aria-label={`Increase commander damage`}
           {...inc}
         >
           +

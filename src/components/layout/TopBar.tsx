@@ -1,6 +1,4 @@
 import { ArrowDownToLine, ArrowLeft, Loader2 } from "lucide-react";
-import { msg } from "@lingui/core/macro";
-import { useLingui } from "@lingui/react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { installDesktopUpdate } from "@/hooks/useDesktopUpdater";
@@ -11,7 +9,6 @@ import { ManaBrewLogo } from "./ManaBrewLogo";
 import { NavSheet } from "./NavSheet";
 import { TopBarNav } from "./TopBarNav";
 import type { TopBarOverride } from "./TopBarOverride";
-import { i18n } from "@/i18n/i18n";
 interface RouteChrome {
   title: string | null;
   fallback: string;
@@ -23,69 +20,67 @@ function getRouteChrome(pathname: string, search: string): RouteChrome {
   pathname = normalizePathname(pathname);
   if (pathname === ROUTES.PLAY) return { title: null, fallback: ROUTES.PLAY };
   if (pathname === ROUTES.PLAY_OFFLINE_CONSTRUCTED) {
-    return { title: i18n._(msg`Play Offline`), fallback: ROUTES.PLAY };
+    return { title: `Play Offline`, fallback: ROUTES.PLAY };
   }
   if (pathname === ROUTES.PLAY_OFFLINE_LIMITED) {
-    return { title: i18n._(msg`Play Offline`), fallback: ROUTES.PLAY };
+    return { title: `Play Offline`, fallback: ROUTES.PLAY };
   }
   if (pathname.startsWith(`${ROUTES.PLAY_DECK}/`)) {
-    return { title: i18n._(msg`Play Deck`), fallback: ROUTES.PLAY };
+    return { title: `Play Deck`, fallback: ROUTES.PLAY };
   }
   if (pathname === ROUTES.LOBBY) {
-    return { title: i18n._(msg`Multiplayer`), fallback: ROUTES.PLAY };
+    return { title: `Multiplayer`, fallback: ROUTES.PLAY };
   }
   if (pathname === ROUTES.SEARCH) {
-    return { title: i18n._(msg`Card Search`), fallback: ROUTES.PLAY };
+    return { title: `Card Search`, fallback: ROUTES.PLAY };
   }
   if (pathname === ROUTES.DECK_EDITOR) {
     return {
-      title: new URLSearchParams(search).has("deck")
-        ? i18n._(msg`Deck Editor`)
-        : i18n._(msg`My Decks`),
+      title: new URLSearchParams(search).has("deck") ? `Deck Editor` : `My Decks`,
       fallback: ROUTES.PLAY,
     };
   }
   if (pathname === ROUTES.MY_COLLECTION) {
-    return { title: i18n._(msg`My Collection`), fallback: ROUTES.PLAY };
+    return { title: `My Collection`, fallback: ROUTES.PLAY };
   }
   if (pathname === ROUTES.HUB_TOP) {
-    return { title: i18n._(msg`Top Decks`), fallback: ROUTES.HUB };
+    return { title: `Top Decks`, fallback: ROUTES.HUB };
   }
   if (pathname === ROUTES.HUB) {
-    return { title: i18n._(msg`Community`), fallback: ROUTES.PLAY };
+    return { title: `Community`, fallback: ROUTES.PLAY };
   }
   if (pathname === `${ROUTES.DRAFT}/multiplayer`) {
-    return { title: i18n._(msg`Multiplayer Draft`), fallback: ROUTES.LOBBY };
+    return { title: `Multiplayer Draft`, fallback: ROUTES.LOBBY };
   }
   if (pathname.startsWith(`${ROUTES.DRAFT}/`)) {
-    return { title: i18n._(msg`Booster Draft`), fallback: ROUTES.PLAY_OFFLINE_LIMITED };
+    return { title: `Booster Draft`, fallback: ROUTES.PLAY_OFFLINE_LIMITED };
   }
   if (pathname === `${ROUTES.SEALED}/multiplayer`) {
-    return { title: i18n._(msg`Sealed Deck Build`), fallback: ROUTES.LOBBY };
+    return { title: `Sealed Deck Build`, fallback: ROUTES.LOBBY };
   }
   if (pathname.startsWith(`${ROUTES.SEALED}/`)) {
-    return { title: i18n._(msg`Sealed`), fallback: ROUTES.PLAY_OFFLINE_LIMITED };
+    return { title: `Sealed`, fallback: ROUTES.PLAY_OFFLINE_LIMITED };
   }
   if (pathname.startsWith(`${ROUTES.WINSTON}/`)) {
-    return { title: i18n._(msg`Winston Draft`), fallback: ROUTES.PLAY_OFFLINE_LIMITED };
+    return { title: `Winston Draft`, fallback: ROUTES.PLAY_OFFLINE_LIMITED };
   }
   if (pathname.startsWith(`${ROUTES.GAUNTLET}/`)) {
-    return { title: i18n._(msg`Gauntlet`), fallback: ROUTES.PLAY_OFFLINE_LIMITED };
+    return { title: `Gauntlet`, fallback: ROUTES.PLAY_OFFLINE_LIMITED };
   }
   if (pathname === ROUTES.COMPANION) {
-    return { title: i18n._(msg`Life Tracker`), fallback: ROUTES.PLAY };
+    return { title: `Life Tracker`, fallback: ROUTES.PLAY };
   }
   if (pathname === ROUTES.SETTINGS) {
-    return { title: i18n._(msg`Preferences`), fallback: ROUTES.PLAY };
+    return { title: `Preferences`, fallback: ROUTES.PLAY };
   }
   if (pathname === ROUTES.ABOUT) {
-    return { title: i18n._(msg`About Manabrew`), fallback: ROUTES.PLAY };
+    return { title: `About Manabrew`, fallback: ROUTES.PLAY };
   }
   if (pathname === ROUTES.DESIGN_SYSTEM) {
-    return { title: i18n._(msg`Design System`), fallback: ROUTES.PLAY };
+    return { title: `Design System`, fallback: ROUTES.PLAY };
   }
   if (pathname === "/card-mock") {
-    return { title: i18n._(msg`Card Face Gallery`), fallback: ROUTES.PLAY };
+    return { title: `Card Face Gallery`, fallback: ROUTES.PLAY };
   }
   if (pathname === "/card-mock") return { title: "Theme Editor", fallback: ROUTES.PLAY };
   return { title: null, fallback: ROUTES.PLAY };
@@ -94,7 +89,6 @@ interface TopBarProps {
   override?: TopBarOverride;
 }
 export function TopBar({ override }: TopBarProps) {
-  const { _ } = useLingui();
   const navigate = useNavigate();
   const location = useLocation();
   const phase = useDesktopUpdateStore((s) => s.phase);
@@ -110,10 +104,10 @@ export function TopBar({ override }: TopBarProps) {
   const downloading = phase === "downloading";
   const updateLabel = downloading
     ? progress == null
-      ? _(msg`Downloading…`)
-      : _(msg`Downloading… ${progress}%`)
+      ? `Downloading…`
+      : `Downloading… ${progress}%`
     : version
-      ? _(msg`Update to ${version}`)
+      ? `Update to ${version}`
       : "";
   function goBack() {
     if (override?.onBack) {
@@ -152,16 +146,16 @@ export function TopBar({ override }: TopBarProps) {
           variant="ghost"
           className="group h-8 w-8 shrink-0 border border-transparent motion-safe:transition-[background-color,border-color,color,box-shadow] hover:border-primary/30 hover:bg-primary/10 hover:text-primary hover:shadow-sm"
           onClick={goBack}
-          title={_(msg`Back`)}
+          title={`Back`}
         >
           <ArrowLeft className="h-5 w-5 motion-safe:transition-transform motion-safe:group-hover:-translate-x-0.5" />
-          <span className="sr-only">{_(msg`Back`)}</span>
+          <span className="sr-only">{`Back`}</span>
         </Button>
       )}
       <button
         type="button"
         onClick={goHome}
-        aria-label={_(msg`Manabrew Home`)}
+        aria-label={`Manabrew Home`}
         className="group relative flex shrink-0 items-center gap-2 rounded-xl border border-transparent p-0.5 motion-safe:transition-[background-color,border-color,box-shadow] hover:border-primary/30 hover:bg-primary/10 hover:shadow-sm focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-['']"
       >
         <ManaBrewLogo
@@ -201,7 +195,7 @@ export function TopBar({ override }: TopBarProps) {
             )}
             <span className="hidden min-[400px]:inline">{updateLabel}</span>
             <span className="min-[400px]:hidden">
-              {downloading && progress != null ? i18n._(msg`${progress}%`) : i18n._(msg`Update`)}
+              {downloading && progress != null ? `${progress}%` : `Update`}
             </span>
           </Button>
         )}

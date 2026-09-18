@@ -3,8 +3,6 @@ import { toast } from "sonner";
 import { useServerStore } from "@/stores/useServerStore";
 import { USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type { RoomInvitePayload, ServerErrorCode } from "@/types/server";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 
 export const INVITE_TTL_MS = 30_000;
 
@@ -54,8 +52,7 @@ export const useInviteStore = create<InviteState>()((set, get) => ({
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
       toast.error(
-        USER_FACING_ERROR_MESSAGES[code as ServerErrorCode] ??
-          i18n._(msg`Couldn't join the table.`),
+        USER_FACING_ERROR_MESSAGES[code as ServerErrorCode] ?? `Couldn't join the table.`,
       );
       return false;
     }
@@ -70,7 +67,7 @@ export const useInviteStore = create<InviteState>()((set, get) => ({
       const sent = new Set(get().sent);
       sent.delete(username);
       set({ sent });
-      toast.error(error instanceof Error ? error.message : i18n._(msg`Couldn't send the invite.`));
+      toast.error(error instanceof Error ? error.message : `Couldn't send the invite.`);
     }
   },
 }));

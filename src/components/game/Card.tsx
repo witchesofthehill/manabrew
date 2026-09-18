@@ -17,30 +17,28 @@ import { deriveCardRailState } from "@/components/game/cardRailState";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const TOKEN_LABELS: Record<string, string> = {
   get "Blood Token"() {
-    return i18n._(msg`BLOOD`);
+    return `BLOOD`;
   },
   get "Treasure Token"() {
-    return i18n._(msg`TREASURE`);
+    return `TREASURE`;
   },
   get "Food Token"() {
-    return i18n._(msg`FOOD`);
+    return `FOOD`;
   },
   get "Clue Token"() {
-    return i18n._(msg`CLUE`);
+    return `CLUE`;
   },
   get "Map Token"() {
-    return i18n._(msg`MAP`);
+    return `MAP`;
   },
   get "Powerstone Token"() {
-    return i18n._(msg`PWRSTONE`);
+    return `PWRSTONE`;
   },
 };
 function getTokenLabel(name: string): string {
-  return TOKEN_LABELS[name] ?? i18n._(msg`TOKEN`);
+  return TOKEN_LABELS[name] ?? `TOKEN`;
 }
 function CardBadge({ label, style }: { label: string; style: string }) {
   return (

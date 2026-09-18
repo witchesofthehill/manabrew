@@ -1,22 +1,16 @@
 import type { CSSProperties } from "react";
 import type { InlineCardStyle, InGameCardPreviewStyle } from "@/stores/usePreferencesStore";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export const IN_GAME_CARD_PREVIEW_STYLE_OPTIONS: ReadonlyArray<{
   value: InGameCardPreviewStyle;
   label: string;
 }> = [
   {
     value: "printed",
-    get label() {
-      return i18n._(msg`Realistic`);
-    },
+    label: `Realistic`,
   },
   {
     value: "rules",
-    get label() {
-      return i18n._(msg`Rules`);
-    },
+    label: `Rules`,
   },
 ];
 export const INLINE_CARD_STYLE_OPTIONS: ReadonlyArray<{
@@ -25,15 +19,11 @@ export const INLINE_CARD_STYLE_OPTIONS: ReadonlyArray<{
 }> = [
   {
     value: "printed",
-    get label() {
-      return i18n._(msg`Realistic`);
-    },
+    label: `Realistic`,
   },
   {
     value: "rules",
-    get label() {
-      return i18n._(msg`Rules`);
-    },
+    label: `Rules`,
   },
 ];
 export const ACTIONABLE_CARD_GLOW_CLASS = "ring-2 transition-shadow duration-200" as const;

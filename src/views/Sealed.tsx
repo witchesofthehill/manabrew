@@ -4,9 +4,6 @@ import { Button } from "@/components/ui/button";
 import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
 import { useLimitedStore } from "@/stores/useLimitedStore";
 import type { DraftCard } from "@/types/limited";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export default function Sealed() {
   const { id } = useParams<{
     id: string;
@@ -46,9 +43,7 @@ export default function Sealed() {
         {lastError ? (
           <p className="text-destructive">{lastError}</p>
         ) : (
-          <p className="text-muted-foreground">
-            <Trans>Loading sealed pool…</Trans>
-          </p>
+          <p className="text-muted-foreground">Loading sealed pool…</p>
         )}
       </div>
     );
@@ -60,13 +55,11 @@ export default function Sealed() {
           <p className="font-semibold text-foreground">{activeSealed.deckName}</p>
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>
-              <Trans>
-                {activeSealed.cards.length} cards opened · {activeSealed.aiDecks.length} AI decks
-                ready
-              </Trans>
+              {activeSealed.cards.length} cards opened · {activeSealed.aiDecks.length} AI decks
+              ready
             </span>
             <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
-              <Trans>Pool ready</Trans>
+              Pool ready
             </span>
           </p>
         </div>
@@ -77,8 +70,8 @@ export default function Sealed() {
             title={
               mainShortBy > 0
                 ? mainShortBy === 1
-                  ? i18n._(msg`Main deck needs one more card to start`)
-                  : i18n._(msg`Main deck needs ${mainShortBy} more cards to start`)
+                  ? `Main deck needs one more card to start`
+                  : `Main deck needs ${mainShortBy} more cards to start`
                 : undefined
             }
             onClick={async () => {
@@ -97,10 +90,10 @@ export default function Sealed() {
             }}
           >
             {isStarting
-              ? i18n._(msg`Setting up\u2026`)
+              ? `Setting up\u2026`
               : mainShortBy > 0
-                ? i18n._(msg`Need ${mainShortBy} more card${mainShortBy === 1 ? "" : "s"}`)
-                : i18n._(msg`Start Gauntlet`)}
+                ? `Need ${mainShortBy} more card${mainShortBy === 1 ? "" : "s"}`
+                : `Start Gauntlet`}
           </Button>
         </div>
       </header>

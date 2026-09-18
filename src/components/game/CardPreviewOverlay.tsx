@@ -13,8 +13,6 @@ import { isCreature, isLethalDamage } from "./game.utils";
 import { cn } from "@/lib/utils";
 import type { CardRailState } from "@/components/game/cardRailState";
 import { isVisibleBattlefieldKeyword } from "@/lib/battlefieldKeywords";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 const MAX_PREVIEW_KEYWORDS = 8;
 export function CardPreviewOverlay({
   card,
@@ -220,7 +218,7 @@ export function CardPreviewOverlay({
             // @ts-expect-error CSS var
             "--tw-ring-color": themeColors.badges.ring,
           }}
-          title={i18n._(msg`Ring-bearer`)}
+          title={`Ring-bearer`}
         >
           <GameIcon name="ring" className="h-6 w-6" />
         </div>

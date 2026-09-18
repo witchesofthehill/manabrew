@@ -14,8 +14,6 @@ import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { useServerStore } from "@/stores/useServerStore";
 import type { DraftCard, DraftState } from "@/types/limited";
 import type { RoomRelayEnvelope } from "@/types/server";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export interface DraftHostParticipant {
   playerSlot: string;
   displayName: string;
@@ -234,7 +232,7 @@ async function applyPick(
       cardNumber: card.cardNumber,
     });
   } catch (err) {
-    useMultiplayerDraftStore.getState().setError(i18n._(msg`pick failed: ${String(err)}`));
+    useMultiplayerDraftStore.getState().setError(`pick failed: ${String(err)}`);
     if (seat === session.mySeat) useMultiplayerDraftStore.getState().setPickPending(false);
     await broadcastPerSeatStates(
       session.seats,

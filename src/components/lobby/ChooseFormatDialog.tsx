@@ -2,7 +2,6 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { FormatPicker } from "@/components/lobby/FormatPicker";
 import { GAME_FORMATS } from "@/lib/formats";
 import type { GameFormat, RoomInfo } from "@/types/server";
-import { Trans } from "@lingui/react/macro";
 const SELECTABLE_FORMATS: GameFormat[] = [
   "Standard",
   "Pioneer",
@@ -36,9 +35,7 @@ export function ChooseFormatDialog({ room, onClose, onSelect }: ChooseFormatDial
   return (
     <Dialog open={room != null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl p-0 overflow-hidden">
-        <DialogTitle className="sr-only">
-          <Trans>Choose a format</Trans>
-        </DialogTitle>
+        <DialogTitle className="sr-only">Choose a format</DialogTitle>
         <div className="h-[min(42rem,85dvh)]">
           <FormatPicker formats={PICKER_FORMATS} onSelect={handleSelect} />
         </div>

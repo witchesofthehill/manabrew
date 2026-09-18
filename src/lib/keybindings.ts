@@ -1,5 +1,3 @@
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export interface KeyCombo {
   key: string;
   mod?: boolean;
@@ -24,306 +22,230 @@ function defineKeybindings<const T extends readonly KeybindingDef[]>(
 export const KEYBINDINGS = defineKeybindings([
   {
     id: "nav-prev-page",
-    get label() {
-      return i18n._(msg`Previous page`);
-    },
+    label: `Previous page`,
     category: "Navigation",
     defaultCombo: { key: "arrowup", alt: true },
   },
   {
     id: "nav-next-page",
-    get label() {
-      return i18n._(msg`Next page`);
-    },
+    label: `Next page`,
     category: "Navigation",
     defaultCombo: { key: "arrowdown", alt: true },
   },
   {
     id: "go-back",
-    get label() {
-      return i18n._(msg`Go back`);
-    },
+    label: `Go back`,
     category: "Navigation",
     defaultCombo: { key: "arrowleft", alt: true },
   },
   {
     id: "deck-editor-focus-filter",
-    get label() {
-      return i18n._(msg`Focus the card filter`);
-    },
+    label: `Focus the card filter`,
     category: "Deck editor",
     defaultCombo: { key: "f", mod: true },
   },
   {
     id: "deck-editor-focus-quick-add",
-    get label() {
-      return i18n._(msg`Focus quick-add card`);
-    },
+    label: `Focus quick-add card`,
     category: "Deck editor",
     defaultCombo: { key: "a", alt: true },
   },
   {
     id: "deck-editor-toggle-search",
-    get label() {
-      return i18n._(msg`Toggle card search`);
-    },
+    label: `Toggle card search`,
     category: "Deck editor",
     defaultCombo: { key: "s", alt: true },
   },
   {
     id: "deck-editor-toggle-preview",
-    get label() {
-      return i18n._(msg`Toggle preview panel`);
-    },
+    label: `Toggle preview panel`,
     category: "Deck editor",
     defaultCombo: { key: "p", alt: true },
   },
   {
     id: "deck-editor-save",
-    get label() {
-      return i18n._(msg`Save deck`);
-    },
+    label: `Save deck`,
     category: "Deck editor",
     defaultCombo: { key: "s", mod: true },
   },
   {
     id: "deck-editor-export",
-    get label() {
-      return i18n._(msg`Export deck`);
-    },
+    label: `Export deck`,
     category: "Deck editor",
     defaultCombo: { key: "e", mod: true },
   },
   {
     id: "deck-editor-undo",
-    get label() {
-      return i18n._(msg`Undo deck edit`);
-    },
+    label: `Undo deck edit`,
     category: "Deck editor",
     defaultCombo: { key: "z", mod: true },
   },
   {
     id: "deck-editor-redo",
-    get label() {
-      return i18n._(msg`Redo deck edit`);
-    },
+    label: `Redo deck edit`,
     category: "Deck editor",
     defaultCombo: { key: "z", mod: true, shift: true },
   },
   {
     id: "deck-editor-command-palette",
-    get label() {
-      return i18n._(msg`Open deck command palette`);
-    },
+    label: `Open deck command palette`,
     category: "Deck editor",
     defaultCombo: { key: "p", mod: true, shift: true },
     allowInEditable: true,
   },
   {
     id: "deck-editor-collapse-sections",
-    get label() {
-      return i18n._(msg`Collapse all deck sections`);
-    },
+    label: `Collapse all deck sections`,
     category: "Deck editor",
     defaultCombo: { key: "-", alt: true, shift: true },
   },
   {
     id: "deck-editor-expand-sections",
-    get label() {
-      return i18n._(msg`Expand all deck sections`);
-    },
+    label: `Expand all deck sections`,
     category: "Deck editor",
     defaultCombo: { key: "=", alt: true, shift: true },
   },
   {
     id: "deck-editor-next-section",
-    get label() {
-      return i18n._(msg`Jump to next editor section`);
-    },
+    label: `Jump to next editor section`,
     category: "Deck editor",
     defaultCombo: { key: "3", alt: true },
   },
   {
     id: "deck-editor-tag-selection",
-    get label() {
-      return i18n._(msg`Tag selected cards`);
-    },
+    label: `Tag selected cards`,
     category: "Deck editor",
     defaultCombo: { key: "t" },
   },
   {
     id: "deck-editor-select-all",
-    get label() {
-      return i18n._(msg`Select all deck cards`);
-    },
+    label: `Select all deck cards`,
     category: "Deck editor",
     defaultCombo: { key: "a", mod: true },
   },
   {
     id: "deck-editor-copy-selection",
-    get label() {
-      return i18n._(msg`Copy selected cards`);
-    },
+    label: `Copy selected cards`,
     category: "Deck editor",
     defaultCombo: { key: "c", mod: true },
   },
   {
     id: "deck-editor-paste-cards",
-    get label() {
-      return i18n._(msg`Paste cards into deck`);
-    },
+    label: `Paste cards into deck`,
     category: "Deck editor",
     defaultCombo: { key: "v", mod: true },
   },
   {
     id: "deck-editor-remove-selection",
-    get label() {
-      return i18n._(msg`Remove selected cards`);
-    },
+    label: `Remove selected cards`,
     category: "Deck editor",
     defaultCombo: { key: "delete" },
   },
   {
     id: "deck-editor-move-main",
-    get label() {
-      return i18n._(msg`Move selected cards to main deck`);
-    },
+    label: `Move selected cards to main deck`,
     category: "Deck editor",
     defaultCombo: { key: "m" },
   },
   {
     id: "deck-editor-move-side",
-    get label() {
-      return i18n._(msg`Move selected cards to sideboard`);
-    },
+    label: `Move selected cards to sideboard`,
     category: "Deck editor",
     defaultCombo: { key: "s" },
   },
   {
     id: "deck-editor-move-maybe",
-    get label() {
-      return i18n._(msg`Move selected cards to maybeboard`);
-    },
+    label: `Move selected cards to maybeboard`,
     category: "Deck editor",
     defaultCombo: { key: "b" },
   },
   {
     id: "deck-editor-toggle-foil-selection",
-    get label() {
-      return i18n._(msg`Toggle foil for selected cards`);
-    },
+    label: `Toggle foil for selected cards`,
     category: "Deck editor",
     defaultCombo: { key: "f" },
   },
   {
     id: "deck-editor-remove-one-selection",
-    get label() {
-      return i18n._(msg`Remove one copy of selected cards`);
-    },
+    label: `Remove one copy of selected cards`,
     category: "Deck editor",
     defaultCombo: { key: "-" },
   },
   {
     id: "deck-editor-add-one-selection",
-    get label() {
-      return i18n._(msg`Add one copy of selected cards`);
-    },
+    label: `Add one copy of selected cards`,
     category: "Deck editor",
     defaultCombo: { key: "=" },
   },
   {
     id: "open-settings",
-    get label() {
-      return i18n._(msg`Open preferences / board settings`);
-    },
+    label: `Open preferences / board settings`,
     category: "Navigation",
     defaultCombo: { key: ",", mod: true },
   },
   {
     id: "show-shortcuts",
-    get label() {
-      return i18n._(msg`Show keyboard shortcuts`);
-    },
+    label: `Show keyboard shortcuts`,
     category: "Help",
     defaultCombo: { key: "?", shift: true },
   },
   {
     id: "card-search-focus",
-    get label() {
-      return i18n._(msg`Focus search`);
-    },
+    label: `Focus search`,
     category: "Card search",
     defaultCombo: { key: "/" },
   },
   {
     id: "flip-card",
-    get label() {
-      return i18n._(msg`Flip double-faced card (preview / hand)`);
-    },
+    label: `Flip double-faced card (preview / hand)`,
     category: "Game",
     defaultCombo: { key: "f" },
   },
   {
     id: "toggle-card-view",
-    get label() {
-      return i18n._(msg`Toggle card rules / printed view`);
-    },
+    label: `Toggle card rules / printed view`,
     category: "Game",
     defaultCombo: { key: "r" },
   },
   {
     id: "preview-prev-action",
-    get label() {
-      return i18n._(msg`Previous preview action`);
-    },
+    label: `Previous preview action`,
     category: "Game",
     defaultCombo: { key: "arrowup" },
   },
   {
     id: "preview-next-action",
-    get label() {
-      return i18n._(msg`Next preview action`);
-    },
+    label: `Next preview action`,
     category: "Game",
     defaultCombo: { key: "arrowdown" },
   },
   {
     id: "preview-activate-action",
-    get label() {
-      return i18n._(msg`Activate focused preview action`);
-    },
+    label: `Activate focused preview action`,
     category: "Game",
     defaultCombo: { key: "enter" },
   },
   {
     id: "preview-dismiss",
-    get label() {
-      return i18n._(msg`Close card preview`);
-    },
+    label: `Close card preview`,
     category: "Game",
     defaultCombo: { key: "escape" },
   },
   {
     id: "pass-priority",
-    get label() {
-      return i18n._(msg`Pass priority / confirm`);
-    },
+    label: `Pass priority / confirm`,
     category: "Battlefield",
     defaultCombo: { key: " " },
   },
   {
     id: "pass-end-of-turn",
-    get label() {
-      return i18n._(msg`Pass until end of turn / resolve stack`);
-    },
+    label: `Pass until end of turn / resolve stack`,
     category: "Battlefield",
     defaultCombo: { key: " ", shift: true },
   },
   {
     id: "toggle-stack",
-    get label() {
-      return i18n._(msg`Collapse / expand the stack`);
-    },
+    label: `Collapse / expand the stack`,
     category: "Battlefield",
     defaultCombo: { key: "s", mod: true },
   },
@@ -347,33 +269,25 @@ export const KEYBINDINGS = defineKeybindings([
   },
   {
     id: "toggle-priority-mode",
-    get label() {
-      return i18n._(msg`Toggle autopass / full control`);
-    },
+    label: `Toggle autopass / full control`,
     category: "Battlefield",
     defaultCombo: { key: "tab" },
   },
   {
     id: "cycle-hand-order",
-    get label() {
-      return i18n._(msg`Cycle hand order`);
-    },
+    label: `Cycle hand order`,
     category: "Battlefield",
     defaultCombo: { key: "h", shift: true },
   },
   {
     id: "focus-next-field",
-    get label() {
-      return i18n._(msg`Focus next opponent field`);
-    },
+    label: `Focus next opponent field`,
     category: "Battlefield",
     defaultCombo: { key: "]" },
   },
   {
     id: "focus-prev-field",
-    get label() {
-      return i18n._(msg`Focus previous opponent field`);
-    },
+    label: `Focus previous opponent field`,
     category: "Battlefield",
     defaultCombo: { key: "[" },
   },
@@ -381,9 +295,7 @@ export const KEYBINDINGS = defineKeybindings([
     ? [
         {
           id: "toggle-dev-panel",
-          get label() {
-            return i18n._(msg`Toggle the dev panel`);
-          },
+          label: `Toggle the dev panel`,
           category: "Battlefield",
           defaultCombo: { key: "d", mod: true, shift: true },
           allowInEditable: true,
@@ -392,9 +304,7 @@ export const KEYBINDINGS = defineKeybindings([
     : []),
   {
     id: "toggle-fullscreen",
-    get label() {
-      return i18n._(msg`Toggle fullscreen`);
-    },
+    label: `Toggle fullscreen`,
     category: "Battlefield",
     defaultCombo: { key: "f", mod: true },
   },
@@ -439,11 +349,9 @@ const KEY_LABELS: Record<string, string> = {
   arrowleft: "←",
   arrowright: "→",
   get " "() {
-    return i18n._(msg`Space`);
+    return `Space`;
   },
-  get escape() {
-    return i18n._(msg`Esc`);
-  },
+  escape: `Esc`,
   enter: "↵",
 };
 function keyLabel(key: string): string {

@@ -23,9 +23,6 @@ import {
   Sword,
   Trash2,
 } from "lucide-react";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 interface ManualTabletopControlsProps {
   gameView: ClientGameView;
   api: ManualTabletopApi;
@@ -164,21 +161,19 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
     <div className="absolute right-[calc(0.5rem+var(--safe-area-inset-right))] bottom-[calc(0.5rem+var(--safe-area-inset-bottom))] z-30 w-[320px] max-h-[60%] overflow-y-auto rounded-md border bg-background/95 shadow-sm backdrop-blur">
       <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
         <Badge variant="outline" className="gap-1.5">
-          <Trans>
-            <Sparkles className="h-3 w-3" />
-            Tabletop
-          </Trans>
+          <Sparkles className="h-3 w-3" />
+          Tabletop
         </Badge>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground">
-            <Trans>{gameView.battlefield.length} permanents</Trans>
+            {gameView.battlefield.length} permanents
           </span>
           <Button
             type="button"
             variant="ghost"
             size="icon"
             className="h-6 w-6 text-destructive hover:text-destructive"
-            title={i18n._(msg`Exit tabletop`)}
+            title={`Exit tabletop`}
             onClick={() => void useGameStore.getState().endGame()}
           >
             <LogOut className="h-3.5 w-3.5" />
@@ -275,7 +270,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                   size="sm"
                   className="h-7 gap-1 px-1.5 text-[10px]"
                   disabled={player.libraryCount <= 0}
-                  title={i18n._(msg`Draw a card`)}
+                  title={`Draw a card`}
                   onClick={() =>
                     void applyAction({
                       type: "drawLibraryCard",
@@ -292,7 +287,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                   size="icon"
                   className="h-7 w-full"
                   disabled={player.libraryCount <= 0}
-                  title={i18n._(msg`Put top library card onto battlefield`)}
+                  title={`Put top library card onto battlefield`}
                   onClick={() =>
                     void applyAction({
                       type: "putLibraryCardOntoBattlefield",
@@ -308,7 +303,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                   size="icon"
                   className="h-7 w-full"
                   disabled={player.libraryCount < 2}
-                  title={i18n._(msg`Shuffle library`)}
+                  title={`Shuffle library`}
                   onClick={() =>
                     void applyAction({
                       type: "shuffleLibrary",
@@ -330,19 +325,15 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
               value={cardName}
               onChange={(event) => handleCardNameChange(event.target.value)}
               onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
-              placeholder={i18n._(msg`Search Scryfall`)}
+              placeholder={`Search Scryfall`}
               className="h-8 pl-7 text-xs"
             />
             {searchOpen && (
               <div className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-50 max-h-56 overflow-y-auto rounded-md border bg-popover p-1 shadow-lg">
                 {searching && searchResults.length === 0 ? (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                    <Trans>Searching...</Trans>
-                  </div>
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">Searching...</div>
                 ) : searchResults.length === 0 ? (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                    <Trans>No cards found</Trans>
-                  </div>
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No cards found</div>
                 ) : (
                   searchResults.map((card) => (
                     <button
@@ -369,10 +360,8 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
             disabled={!cardName.trim() || !selectedPlayer}
             onClick={() => void addPermanent(false)}
           >
-            <Trans>
-              <Plus className="h-3.5 w-3.5" />
-              CardDto
-            </Trans>
+            <Plus className="h-3.5 w-3.5" />
+            CardDto
           </Button>
           <Button
             variant="outline"
@@ -382,19 +371,15 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
             disabled={!cardName.trim() || !selectedPlayer}
             onClick={() => void addPermanent(true)}
           >
-            <Trans>
-              <Plus className="h-3.5 w-3.5" />
-              Token
-            </Trans>
+            <Plus className="h-3.5 w-3.5" />
+            Token
           </Button>
         </div>
 
         {permanents.length > 0 && (
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-muted-foreground">
-              <span>
-                <Trans>Battlefield</Trans>
-              </span>
+              <span>Battlefield</span>
               <span>{permanents.length}</span>
             </div>
             <div className="max-h-48 space-y-1 overflow-y-auto pr-1">

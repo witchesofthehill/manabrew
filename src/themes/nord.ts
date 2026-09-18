@@ -1,7 +1,5 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 /** Nord aurora + frost + polar night hues, mapped to the shared game token
  *  schema. Dark-theme values — light mode currently piggy-backs on these
  *  for the game surface since the game is always rendered against the
@@ -42,9 +40,7 @@ const palette: BasePalette = {
 const preset: ThemePreset = {
   id: "nord",
   name: "Nord",
-  get description() {
-    return i18n._(msg`Arctic, cool blue-grey palette`);
-  },
+  description: `Arctic, cool blue-grey palette`,
   light: {
     background: "#f3f4f6",
     foreground: "#2f3541",

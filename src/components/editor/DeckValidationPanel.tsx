@@ -1,9 +1,6 @@
 import { AlertTriangle } from "lucide-react";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { getFormat, validateDeckSections } from "@/lib/formats";
-import { Trans } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export function DeckValidationPanel({ unsupportedNames }: { unsupportedNames?: Set<string> }) {
   const { currentDeck } = useDeckStore();
   const format = getFormat(currentDeck.format ?? "standard");
@@ -33,18 +30,14 @@ export function DeckValidationPanel({ unsupportedNames }: { unsupportedNames?: S
       <div className="flex items-center gap-2">
         <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
         <span className="text-sm font-semibold text-destructive">
-          {count} {count === 1 ? i18n._(msg`issue`) : i18n._(msg`issues`)}
+          {count} {count === 1 ? `issue` : `issues`}
         </span>
-        <span className="text-xs text-destructive/60">
-          <Trans>for {format.name}</Trans>
-        </span>
+        <span className="text-xs text-destructive/60">for {format.name}</span>
       </div>
       <ul className="mt-1.5 space-y-0.5 pl-6">
         {errors.map((err, i) => (
           <li key={i} className="text-xs text-destructive/80 flex items-start gap-1.5">
-            <span className="shrink-0 mt-0.5">
-              <Trans>&#x2022;</Trans>
-            </span>
+            <span className="shrink-0 mt-0.5">&#x2022;</span>
             <span>{err}</span>
           </li>
         ))}

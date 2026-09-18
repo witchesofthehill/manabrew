@@ -22,8 +22,6 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useHubStore } from "@/stores/useHubStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/i18n/i18n";
 export interface AssetRef {
   assetId: string;
   url: string;
@@ -68,7 +66,7 @@ export const useAssetStore = create<AssetState>()(
       replace: async (kind, source, replaces) => {
         const limits = useHubStore.getState().capabilities?.assets;
         if (!limits) {
-          toast.error(i18n._(msg`Image uploads aren't available on this server`));
+          toast.error(`Image uploads aren't available on this server`);
           return undefined;
         }
         set({ busy: true });
@@ -160,21 +158,19 @@ async function discard(assetId: string | undefined): Promise<void> {
   try {
     await deleteAsset(assetId);
   } catch {
-    toast.error(i18n._(msg`Couldn't remove the previous image from your storage`));
+    toast.error(`Couldn't remove the previous image from your storage`);
   }
 }
 function reportUploadFailure(error: unknown): void {
   const quota = assetQuotaFromError(error);
   if (quota) {
     toast.error(
-      i18n._(
-        msg`You've used ${formatBytes(quota.usedBytes)} of your ${formatBytes(quota.quotaBytes)} of image storage. Remove an image to free space.`,
-      ),
+      `You've used ${formatBytes(quota.usedBytes)} of your ${formatBytes(quota.quotaBytes)} of image storage. Remove an image to free space.`,
     );
   } else if (error instanceof ImageTooLargeError) {
     toast.error(error.message);
   } else {
-    toast.error(i18n._(msg`Couldn't upload that image`));
+    toast.error(`Couldn't upload that image`);
   }
 }
 export function formatBytes(bytes: number): string {

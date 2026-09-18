@@ -109,7 +109,7 @@ try {
   // setup page.
   await host.locator("#room-format").click();
   await host
-    .getByRole("menuitem", { name: new RegExp(`^${FORMAT}$`) })
+    .getByRole("menuitem", { name: new RegExp(`${FORMAT}$`) })
     .first()
     .click();
   const seatButton = host.getByRole("button", { name: new RegExp(`^${SEATS}$`) }).first();

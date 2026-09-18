@@ -107,8 +107,9 @@ export async function createRoom(page, { name, engine = "Ironsmith", format } = 
   await page.waitForTimeout(300);
   if (format) {
     await page.locator("#room-format").click();
+    // The item's accessible name starts with its format badge ("STDStandard").
     await page
-      .getByRole("menuitem", { name: new RegExp(`^${format}$`) })
+      .getByRole("menuitem", { name: new RegExp(`${format}$`) })
       .first()
       .click();
     await page.waitForTimeout(300);

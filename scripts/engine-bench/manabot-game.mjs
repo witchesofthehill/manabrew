@@ -103,6 +103,7 @@ const seats = bots.map(() => ({
   boardTargetChoices: {},
   cardSelections: {},
   selectionChoices: {},
+  numberChoices: {},
   paymentAutoAttempts: 0,
   paymentConfirms: 0,
   paymentCancels: 0,
@@ -188,6 +189,13 @@ const engine = await createForgeEngine({
         (index) => prompt.input.options?.[index]?.label ?? `option ${index}`,
       );
       increment(seats[seat].selectionChoices, `${title}: ${labels.join(" | ") || "none"}`);
+    }
+    if (decision?.type === "numberDecision") {
+      const title = prompt.input.presentation?.title ?? "untitled";
+      increment(
+        seats[seat].numberChoices,
+        `${title}: ${decision.chosenNumber ?? "none"}/${prompt.input.min}-${prompt.input.max}`,
+      );
     }
     if (decision?.type === "chooseCardsDecision") {
       const title = prompt.input.presentation?.title ?? "untitled";

@@ -16,52 +16,52 @@ msgstr ""
 #. placeholder {0}: stats.damage
 #: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1136
 msgid "{0} damage"
-msgstr ""
+msgstr "피해 {0}"
 
 #: src/pixi/cardPreview/RulesCardPreviewLayer.ts:702
 msgid "↑↓ select · Enter activate · 1–9"
-msgstr ""
+msgstr "↑↓ 선택 · Enter 발동 · 1–9"
 
 #. placeholder {0}: indexedActions.length
 #: src/pixi/cardPreview/RulesCardPreviewLayer.ts:715
 msgid "Available actions · {0}"
-msgstr ""
+msgstr "사용 가능한 동작 · {0}"
 
 #. placeholder {0}: indexedActions.length
 #: src/pixi/cardPreview/RulesCardPreviewLayer.ts:714
 msgid "Available on current face · {0}"
-msgstr ""
+msgstr "현재 면에서 사용 가능 · {0}"
 
 #: src/pixi/cardPreview/PixiCardRailPreview.ts:90
 msgid "Awaiting first chapter"
-msgstr ""
+msgstr "첫 장 대기 중"
 
 #: src/pixi/cardPreview/PixiCardRailPreview.ts:93
 msgid "Awaiting first level"
-msgstr ""
+msgstr "첫 레벨 대기 중"
 
 #: src/pixi/cardPreview/RulesCardPreviewLayer.ts:780
 msgid "Card identity and rules are hidden."
-msgstr ""
+msgstr "카드의 정체와 규칙이 숨겨져 있습니다."
 
 #. placeholder {0}: notch.label
 #: src/pixi/cardPreview/PixiCardRailPreview.ts:117
 msgid "CHAPTER {0}"
-msgstr ""
+msgstr "제 {0}장"
 
 #. placeholder {0}: state.current
 #. placeholder {1}: state.max
 #: src/pixi/cardPreview/PixiCardRailPreview.ts:89
 msgid "Chapter {0} of {1}"
-msgstr ""
+msgstr "{1}장 중 {0}장"
 
 #: src/pixi/cardPreview/PixiCardRailPreview.ts:80
 msgid "CLASS LEVELS"
-msgstr ""
+msgstr "클래스 레벨"
 
 #: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1133
 msgid "Defense"
-msgstr ""
+msgstr "방어"
 
 #: src/pixi/cardPreview/PixiCardRailPreview.ts:151
 msgid "Effect text unavailable"
@@ -69,42 +69,42 @@ msgstr "효과 텍스트를 사용할 수 없음"
 
 #: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:307
 msgid "Face-down card"
-msgstr ""
+msgstr "뒷면인 카드"
 
 #: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:309
 msgid "Face-down permanent"
-msgstr ""
+msgstr "뒷면인 영구물"
 
 #: src/pixi/cardPreview/RulesCardPreviewLayer.ts:807
 msgid "Flavor text"
-msgstr ""
+msgstr "배경 이야기"
 
 #: src/pixi/cardPreview/RulesCardPreviewLayer.ts:836
 msgid "Flip back · F"
-msgstr ""
+msgstr "뒷면으로 뒤집기 · F"
 
 #: src/pixi/cardPreview/RulesCardPreviewLayer.ts:836
 msgid "Flip front · F"
-msgstr ""
+msgstr "앞면으로 뒤집기 · F"
 
 #: src/pixi/cardPreview/RulesCardPreviewLayer.ts:733
 msgid "Keywords, costs & counters"
-msgstr ""
+msgstr "키워드, 비용, 카운터"
 
 #. placeholder {0}: notch.label
 #: src/pixi/cardPreview/PixiCardRailPreview.ts:118
 msgid "LEVEL {0}"
-msgstr ""
+msgstr "레벨 {0}"
 
 #. placeholder {0}: state.current
 #. placeholder {1}: state.max
 #: src/pixi/cardPreview/PixiCardRailPreview.ts:92
 msgid "Level {0} of {1}"
-msgstr ""
+msgstr "레벨 {0} / {1}"
 
 #: src/pixi/cardPreview/PixiCardRailPreview.ts:80
 msgid "LORE CHAPTERS"
-msgstr ""
+msgstr "서사시 챕터"
 
 #: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1132
 msgid "Loyalty"
@@ -112,8 +112,8 @@ msgstr "충성도"
 
 #: src/pixi/cardPreview/RulesCardPreviewLayer.ts:756
 msgid "Progression"
-msgstr ""
+msgstr "진행"
 
 #: src/pixi/cardPreview/RulesCardPreviewLayer.ts:782
 msgid "Rules text"
-msgstr ""
+msgstr "규칙 텍스트"

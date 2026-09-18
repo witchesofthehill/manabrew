@@ -394,72 +394,149 @@ impl SimpleAi {
             .count()
     }
 
-    fn should_attack(&self, attacker_id: &str, target_id: &str) -> bool {
+    fn can_block(blocker: &CardDto, attacker: &CardDto) -> bool {
+        if blocker.tapped || !blocker.types.iter().any(|ty| ty == "Creature") {
+            return false;
+        }
+        if Self::has_keyword(attacker, "Flying")
+            && !Self::has_keyword(blocker, "Flying")
+            && !Self::has_keyword(blocker, "Reach")
+        {
+            return false;
+        }
+        if Self::has_keyword(attacker, "Menace") {
+            return false;
+        }
+        !(Self::has_keyword(attacker, "Fear")
+            || Self::has_keyword(attacker, "Intimidate")
+            || Self::has_keyword(attacker, "Shadow"))
+    }
+
+    fn aggression(&self, player_id: &str, defender_id: &str, attacker_ids: &[String]) -> i32 {
+        let Some(view) = &self.view else {
+            return 3;
+        };
+        let life = |id: &str| {
+            view.players
+                .iter()
+                .find(|player| player.id == id)
+                .map_or(20, |player| player.life)
+        };
+        let forces = |id: &str| {
+            self.battlefield(id)
+                .filter(|card| card.types.iter().any(|ty| ty == "Creature"))
+                .filter_map(|card| {
+                    let power = Self::stat(card.power.as_deref());
+                    (power > 0).then_some(power)
+                })
+                .collect::<Vec<_>>()
+        };
+        let mine = forces(player_id);
+        let theirs = forces(defender_id);
+        let their_blockers = self
+            .battlefield(defender_id)
+            .filter(|card| card.types.iter().any(|ty| ty == "Creature") && !card.tapped)
+            .count();
+        let counter_damage = theirs.iter().sum::<i32>();
+        let my_damage = mine.iter().sum::<i32>();
+        let ai_ratio = if counter_damage > 0 {
+            life(player_id) as f64 / counter_damage as f64
+        } else {
+            1_000_000.0
+        } - their_blockers as f64;
+        let human_ratio = if my_damage > 0 {
+            life(defender_id) as f64 / my_damage as f64
+        } else {
+            1_000_000.0
+        };
+        let out_number = mine.len() as i32 - theirs.len() as i32;
+        let ratio_diff = ai_ratio - human_ratio;
+
+        let mut attackers = attacker_ids
+            .iter()
+            .filter_map(|id| self.card(id))
+            .map(|card| Self::stat(card.power.as_deref()).max(0))
+            .collect::<Vec<_>>();
+        attackers.sort_unstable();
+        let mut attritional = attackers
+            .iter()
+            .take(attackers.len().saturating_sub(theirs.len()))
+            .copied()
+            .collect::<Vec<_>>();
+        let mut their_life = life(defender_id);
+        let mut rounds = 0;
+        while !attritional.is_empty() && their_life > 0 && rounds < 99 {
+            their_life -= attritional.iter().sum::<i32>();
+            for _ in 0..their_blockers {
+                attritional.pop();
+            }
+            rounds += 1;
+        }
+        let attritional_win = !attackers.is_empty() && their_life <= 0;
+
+        if ratio_diff > 0.0 && attritional_win {
+            5
+        } else if ratio_diff >= 1.0 && attackers.len() > 1 && (human_ratio < 2.0 || out_number > 0)
+        {
+            4
+        } else if ratio_diff >= 0.0 && attackers.len() > 1 {
+            3
+        } else if ratio_diff + out_number as f64 >= -1.0 || ai_ratio > 1.0 {
+            2
+        } else {
+            1
+        }
+    }
+
+    fn should_attack(&self, attacker_id: &str, target_id: &str, aggression: i32) -> bool {
         let Some(attacker) = self.card(attacker_id) else {
             return true;
         };
-        let power = attacker
-            .power
-            .as_deref()
-            .and_then(|value| value.parse::<i32>().ok())
-            .unwrap_or(0);
-        let attack_trigger = attacker.text.to_ascii_lowercase().contains("whenever")
-            && attacker.text.to_ascii_lowercase().contains(" attacks");
-        if attack_trigger {
-            return true;
-        }
-        if power <= 0 {
-            return false;
-        }
-        let Some(view) = &self.view else {
+        let Some(me) = self.combatant(attacker_id) else {
             return true;
         };
-        let attacker_flying = Self::has_keyword(attacker, "Flying");
-        let blockers = view
-            .zones
-            .iter()
-            .filter(|zone| zone.zone == ZoneKind::Battlefield && zone.owner_id == target_id)
-            .flat_map(|zone| &zone.cards)
-            .filter_map(|card| match card {
-                CardView::Visible(card)
-                    if card.types.iter().any(|card_type| card_type == "Creature")
-                        && !card.tapped
-                        && (!attacker_flying
-                            || Self::has_keyword(card, "Flying")
-                            || Self::has_keyword(card, "Reach")) =>
-                {
-                    Some(card)
-                }
-                _ => None,
-            });
-        if Self::has_keyword(attacker, "Indestructible")
-            || Self::has_keyword(attacker, "Deathtouch")
-            || Self::has_keyword(attacker, "Trample")
-        {
-            return true;
+        let text = attacker.text.to_ascii_lowercase();
+        let attack_effect = text.contains("whenever") && text.contains(" attacks");
+        if me.power <= 0 && !attack_effect {
+            return false;
         }
-        !blockers.into_iter().any(|blocker| {
-            let blocker_power = blocker
-                .power
-                .as_deref()
-                .and_then(|value| value.parse::<i32>().ok())
-                .unwrap_or(0);
-            let blocker_toughness = blocker
-                .toughness
-                .as_deref()
-                .and_then(|value| value.parse::<i32>().ok())
-                .unwrap_or(0);
-            let attacker_toughness = attacker
-                .toughness
-                .as_deref()
-                .and_then(|value| value.parse::<i32>().ok())
-                .unwrap_or(0);
-            let attacker_dies =
-                blocker_power >= attacker_toughness || Self::has_keyword(blocker, "Deathtouch");
-            let blocker_survives =
-                power < blocker_toughness && !Self::has_keyword(attacker, "Double strike");
-            attacker_dies && blocker_survives
-        })
+        let blockers = self
+            .battlefield(target_id)
+            .filter(|card| Self::can_block(card, attacker))
+            .filter_map(|card| self.combatant(&card.id))
+            .collect::<Vec<_>>();
+        let can_be_blocked = !blockers.is_empty();
+        let can_kill_all = blockers
+            .iter()
+            .all(|blocker| Self::can_destroy(&me, blocker));
+        let can_be_killed_by_one = blockers
+            .iter()
+            .any(|blocker| Self::can_destroy(blocker, &me));
+        let can_be_killed = can_be_killed_by_one
+            || blockers.iter().map(|blocker| blocker.power).sum::<i32>() >= me.lethal;
+        let worth_less_than_killers = blockers
+            .iter()
+            .filter(|blocker| Self::can_destroy(blocker, &me))
+            .all(|blocker| me.value <= blocker.value);
+        let def_power = self
+            .battlefield(target_id)
+            .filter(|card| card.types.iter().any(|ty| ty == "Creature"))
+            .map(|card| Self::stat(card.power.as_deref()).max(0))
+            .sum::<i32>();
+        match aggression {
+            5 => true,
+            4 => can_kill_all || !can_be_blocked || def_power == 0,
+            3 => {
+                (can_kill_all && worth_less_than_killers)
+                    || (attack_effect && !can_be_killed_by_one)
+                    || !can_be_blocked
+            }
+            2 => {
+                !can_be_blocked
+                    || ((can_kill_all || attack_effect) && !can_be_killed_by_one && !can_be_killed)
+            }
+            _ => !can_be_blocked,
+        }
     }
 
     fn stat(value: Option<&str>) -> i32 {
@@ -527,8 +604,9 @@ impl SimpleAi {
                 Some((attacker, combatant, at_me))
             })
             .collect::<Vec<_>>();
-        attackers
-            .sort_by_key(|(_, combatant, _)| std::cmp::Reverse((combatant.power, combatant.value)));
+        attackers.sort_by_key(|(_, combatant, _)| {
+            std::cmp::Reverse((!combatant.trample, combatant.power, combatant.value))
+        });
         let mut blockers = available_blocker_ids
             .iter()
             .filter_map(|id| self.combatant(id))
@@ -592,6 +670,37 @@ impl SimpleAi {
                 }
             }
         };
+        let gang_blocks = |assignments: &mut Vec<BlockAssignment>,
+                           blocked: &mut HashSet<String>,
+                           used: &mut HashSet<String>| {
+            for (attacker, combatant, _) in &attackers {
+                if blocked.contains(&attacker.attacker_id)
+                    || attacker.max_blockers.is_some_and(|max| max < 2)
+                {
+                    continue;
+                }
+                let options = candidates(attacker, used);
+                let pair = options.iter().enumerate().find_map(|(index, first)| {
+                    options[index + 1..].iter().find_map(|second| {
+                        let kills = first.power + second.power >= combatant.lethal
+                            && !combatant.indestructible;
+                        let loses = [first, second]
+                            .into_iter()
+                            .filter(|blocker| Self::can_destroy(combatant, blocker))
+                            .map(|blocker| blocker.value)
+                            .max()
+                            .unwrap_or(0);
+                        let both_die = combatant.power >= first.lethal + second.lethal
+                            || (combatant.deathtouch && combatant.power >= 2);
+                        (kills && !both_die && loses <= combatant.value).then_some((first, second))
+                    })
+                });
+                if let Some((first, second)) = pair {
+                    assign(&attacker.attacker_id, first, assignments, blocked, used);
+                    assign(&attacker.attacker_id, second, assignments, blocked, used);
+                }
+            }
+        };
         let trade_blocks = |danger: bool,
                             assignments: &mut Vec<BlockAssignment>,
                             blocked: &mut HashSet<String>,
@@ -613,7 +722,7 @@ impl SimpleAi {
                             assignments: &mut Vec<BlockAssignment>,
                             blocked: &mut HashSet<String>,
                             used: &mut HashSet<String>| {
-            for (attacker, combatant, at_me) in &attackers {
+            for (attacker, _, at_me) in &attackers {
                 if !at_me
                     || blocked.contains(&attacker.attacker_id)
                     || !Self::life_in_danger(life, unblocked_damage(blocked), serious)
@@ -621,12 +730,9 @@ impl SimpleAi {
                     continue;
                 }
                 let need = attacker.min_blockers.max(1) as usize;
-                let options = candidates(attacker, used);
-                let picks = options
-                    .iter()
-                    .filter(|blocker| !combatant.trample || blocker.lethal >= combatant.power)
+                let picks = candidates(attacker, used)
+                    .into_iter()
                     .take(need)
-                    .copied()
                     .collect::<Vec<_>>();
                 if picks.len() < need {
                     continue;
@@ -638,6 +744,7 @@ impl SimpleAi {
         };
 
         good_blocks(&mut assignments, &mut blocked, &mut used);
+        gang_blocks(&mut assignments, &mut blocked, &mut used);
         let danger = Self::life_in_danger(life, unblocked_damage(&blocked), false);
         trade_blocks(danger, &mut assignments, &mut blocked, &mut used);
         if danger {
@@ -650,6 +757,7 @@ impl SimpleAi {
             chump_blocks(true, &mut assignments, &mut blocked, &mut used);
             trade_blocks(true, &mut assignments, &mut blocked, &mut used);
             good_blocks(&mut assignments, &mut blocked, &mut used);
+            gang_blocks(&mut assignments, &mut blocked, &mut used);
         }
         for (attacker, _, _) in &attackers {
             if !attacker.must_be_blocked || blocked.contains(&attacker.attacker_id) {
@@ -909,6 +1017,12 @@ impl BotAgent for SimpleAi {
                         &attackers.iter().map(|a| a.attacker_id.clone()).collect::<Vec<_>>(),
                     )
                 };
+                let free = attackers
+                    .iter()
+                    .filter(|a| !keep.contains(&a.attacker_id))
+                    .map(|a| a.attacker_id.clone())
+                    .collect::<Vec<_>>();
+                let aggression = self.aggression(&deciding_player_id, &default_target, &free);
                 let mut assignments = Vec::new();
                 if !reprompted {
                     for a in &attackers {
@@ -927,7 +1041,7 @@ impl BotAgent for SimpleAi {
                         };
                         if a.must_attack
                             || (lethal_target && target_id == default_target)
-                            || self.should_attack(&a.attacker_id, &target_id)
+                            || self.should_attack(&a.attacker_id, &target_id, aggression)
                         {
                             assignments.push(AttackAssignment {
                                 attacker_id: a.attacker_id.clone(),

@@ -835,7 +835,9 @@ impl BotAgent for SimpleAi {
                 let prefer_low = title.contains("sacrifice")
                     || title.contains("discard")
                     || title.contains("graveyard")
-                    || title.contains("bottom");
+                    || title.contains("bottom")
+                    || title.contains("kor skyfisher")
+                    || title.contains("glint hawk");
                 cards.sort_by_key(|card| {
                     let value = Self::card_value(card);
                     if prefer_low { value } else { -value }

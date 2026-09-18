@@ -150,7 +150,8 @@ const engine = await createForgeEngine({
       const chosen = (prompt.input.actions ?? []).find(
         (candidate) => candidate.id === decision.actionId,
       );
-      if (chosen?.label) increment(seats[seat].actionLabels, chosen.label);
+      const actionLabel = chosen?.label ?? chosen?.description;
+      if (actionLabel) increment(seats[seat].actionLabels, actionLabel);
       if (chosen?.type === "cast") {
         seats[seat].casts += 1;
         pendingCastLabels[seat] = chosen.label ?? chosen.cardId ?? "unknown cast";

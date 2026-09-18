@@ -434,6 +434,11 @@ impl BotAgent for SimpleAi {
             .source_card
             .as_ref()
             .map_or_else(|| "none".to_string(), |card| card.id.clone());
+        let prompt_source_text = prompt
+            .source_ability_text
+            .as_deref()
+            .unwrap_or_default()
+            .to_ascii_lowercase();
         match prompt.input {
         PromptInput::Mulligan(manabrew_protocol::prompts::mulligan::MulliganInput {
                 hand_card_ids,
@@ -834,17 +839,27 @@ impl BotAgent for SimpleAi {
                 max,
             }) => {
                 let title = presentation.title.to_ascii_lowercase();
+                let discard = title.contains("discard");
+                let hand_reorder = prompt_source_text.contains("from your hand on top")
+                    || prompt_source_text.contains("from your hand on the bottom");
                 let prefer_low = title.contains("sacrifice")
-                    || title.contains("discard")
+                    || discard
                     || title.contains("graveyard")
                     || title.contains("bottom")
                     || title.contains("kor skyfisher")
-                    || title.contains("glint hawk");
+                    || title.contains("glint hawk")
+                    || hand_reorder;
                 cards.sort_by_key(|card| {
                     let value = Self::card_value(card);
                     if prefer_low { value } else { -value }
                 });
-                let count = if prefer_low { min } else { max };
+                let count = if (discard || hand_reorder) && min == 0 {
+                    max
+                } else if prefer_low {
+                    min
+                } else {
+                    max
+                };
                 Some(PromptOutput::ChooseCards(ChooseCardsOutput::ChooseCardsDecision {
                     chosen_card_ids: cards.iter().take(count).map(|card| card.id.clone()).collect(),
                 }))

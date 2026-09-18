@@ -44,6 +44,20 @@ be overridden with `--starting-life`.
 direct Forge-versus-Manabot benchmark when the selected engine facade supports
 mixed seats. Rotate the assignment between games to remove deck and seat bias.
 
+```sh
+yarn bench:manabot-pop --engine target/engines/prod --games 40 --out /tmp/pop-main
+yarn bench:manabot-pop --engine target/engines/prod --wasms src/wasm,/tmp/wasm-main --games 24 --out /tmp/ab
+yarn bench:manabot-pop --summarise /tmp/pop-main
+```
+
+`manabot-pop.mjs` plays that game `--games` times from `--seed-base`, `--jobs`
+at a time, rotating side A through four seat pairs so every deck is played by
+both sides. Without `--wasms` side B is Forge's AI; with two builds it is the
+second one on the same seeds. The summary counts wins per side, deck and seat
+with a sign test, play counts per seat-game, response latency and the bot's own
+`decide`/`observe` time. A finished game is never replayed, so a stopped run
+resumes.
+
 ## A run, not a game
 
 ```sh

@@ -77,8 +77,7 @@ if (formats.size !== 1) {
   throw new Error(`all decks must use the same format, got ${[...formats]}`);
 }
 const format = decks[0].format;
-const defaultStartingLife =
-  format === "commander" ? 40 : format === "historicBrawl" ? 25 : 20;
+const defaultStartingLife = format === "commander" ? 40 : format === "historicBrawl" ? 25 : 20;
 const startingLife = Number(option("starting-life", defaultStartingLife));
 const botSources = wasmOptions.length === 1 ? decks.map(() => wasmOptions[0]) : wasmOptions;
 if (botSources.length !== decks.length) {
@@ -116,6 +115,8 @@ function increment(counts, key) {
   counts[key] = (counts[key] ?? 0) + 1;
 }
 const intervals = [];
+const botMs = [];
+let observeMs = 0;
 let turn = 0;
 let finalView = null;
 let lastResponseAt = null;
@@ -129,7 +130,9 @@ const ended = new Promise((resolve) => {
 const engine = await createForgeEngine({
   onState: (state, slot) => {
     const seat = slot ? Number(slot.slice("player-".length)) : enginePlayerIndex;
+    const observeStart = performance.now();
     bots[seat].observe_state?.(JSON.stringify(state));
+    observeMs += performance.now() - observeStart;
     latestViews[seat] = state?.gameView ?? latestViews[seat];
     if (!slot) finalView = state?.gameView ?? finalView;
     if (typeof state?.gameView?.turn === "number") turn = state.gameView.turn;
@@ -141,7 +144,9 @@ const engine = await createForgeEngine({
     seats[seat].prompts += 1;
     increment(seats[seat].promptTypes, prompt.input?.type ?? prompt.type ?? "unknown");
     if (prompt.input?.type === "gameOver") terminalPrompts.push({ seat, input: prompt.input });
+    const decideStart = performance.now();
     const raw = bots[seat].decide(JSON.stringify(prompt));
+    botMs.push(performance.now() - decideStart);
     if (!raw) return;
     const action = JSON.parse(raw);
     const decision = action.output;
@@ -249,8 +254,10 @@ const outcome = await Promise.race([
   new Promise((resolve) => setTimeout(() => resolve({ reason: "timeout" }), timeoutS * 1000)),
 ]);
 const sorted = intervals.toSorted((left, right) => left - right);
-const percentile = (value) =>
-  sorted.length === 0 ? 0 : sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * value))];
+const sortedBot = botMs.toSorted((left, right) => left - right);
+const percentileOf = (values, value) =>
+  values.length === 0 ? 0 : values[Math.min(values.length - 1, Math.floor(values.length * value))];
+const percentile = (value) => percentileOf(sorted, value);
 const summary = {
   seed,
   format,
@@ -271,6 +278,15 @@ const summary = {
     p99: Math.round(percentile(0.99)),
     max: Math.round(sorted.at(-1) ?? 0),
     over1s: sorted.filter((value) => value > 1000).length,
+  },
+  bot: {
+    samples: sortedBot.length,
+    totalMs: Math.round(botMs.reduce((sum, value) => sum + value, 0)),
+    observeMs: Math.round(observeMs),
+    p50: Number(percentileOf(sortedBot, 0.5).toFixed(2)),
+    p90: Number(percentileOf(sortedBot, 0.9).toFixed(2)),
+    p99: Number(percentileOf(sortedBot, 0.99).toFixed(2)),
+    max: Number((sortedBot.at(-1) ?? 0).toFixed(2)),
   },
 };
 

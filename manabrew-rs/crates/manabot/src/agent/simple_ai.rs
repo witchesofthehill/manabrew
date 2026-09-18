@@ -37,6 +37,7 @@ pub struct SimpleAi {
     turn: Option<u32>,
     attempted_actions: HashSet<String>,
     payment_attempt: Option<String>,
+    has_command_cards: bool,
 }
 
 impl SimpleAi {
@@ -243,6 +244,14 @@ impl SimpleAi {
             .any(|value| value.eq_ignore_ascii_case(keyword))
     }
 
+    fn is_constructed_duel(&self) -> bool {
+        !self.has_command_cards
+            && self
+                .view
+                .as_ref()
+                .is_some_and(|view| view.players.len() == 2)
+    }
+
     fn should_attack(&self, attacker_id: &str, target_id: &str) -> bool {
         let Some(attacker) = self.card(attacker_id) else {
             return true;
@@ -396,6 +405,10 @@ impl SimpleAi {
 
 impl BotAgent for SimpleAi {
     fn observe(&mut self, view: GameViewDto) {
+        self.has_command_cards |= view
+            .zones
+            .iter()
+            .any(|zone| zone.zone == ZoneKind::Command && zone.count > 0);
         if self.turn != Some(view.turn) {
             self.turn = Some(view.turn);
             self.attempted_actions.clear();
@@ -650,7 +663,19 @@ impl BotAgent for SimpleAi {
                 let always_accept = title.contains("cancel search")
                     || (title.contains("commander")
                         && title.contains("put it into the command zone"));
+                let constructed_duel = self.is_constructed_duel();
+                let duel_cost = title.starts_with("pay 1 life")
+                    || title.starts_with("pay 2 life")
+                    || title.starts_with("pay {e}")
+                    || title.starts_with("pay return an artifact")
+                    || title.starts_with("sacrifice this token")
+                    || title.starts_with("sacrifice lembas")
+                    || title.starts_with("sacrifice experimental synthesizer")
+                    || title.starts_with("sacrifice wasteland")
+                    || title.starts_with("sacrifice black lotus")
+                    || title.starts_with("sacrifice vexing bauble");
                 let accept_once = title.contains("search your library?")
+                    || (constructed_duel && duel_cost)
                     || title.contains("sacrifice evolving wilds")
                     || title.contains("sacrifice bountiful landscape")
                     || title.contains("sacrifice strip mine")

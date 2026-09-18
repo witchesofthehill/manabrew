@@ -20,14 +20,18 @@ function loadDeck(name) {
     cardNumber: entry.cardNumber,
     count: entry.count ?? 1,
   });
-  const commander = raw.cards.find((entry) => entry.name === raw.commander);
-  if (!commander) throw new Error(`${name}: commander ${raw.commander} is missing`);
+  const commandNames = [raw.commander, raw.signatureSpell].filter(Boolean);
+  const commandCards = commandNames.map((commandName) => {
+    const entry = raw.cards.find((candidate) => candidate.name === commandName);
+    if (!entry) throw new Error(`${name}: command-zone card ${commandName} is missing`);
+    return entry;
+  });
   return {
     name: raw.label,
     format: raw.format,
-    commanders: [{ ...card(commander), count: 1 }],
+    commanders: commandCards.map((entry) => ({ ...card(entry), count: 1 })),
     cards: raw.cards.flatMap((entry) =>
-      entry.name === raw.commander
+      commandNames.includes(entry.name)
         ? entry.count > 1
           ? [{ ...card(entry), count: entry.count - 1 }]
           : []
@@ -68,6 +72,14 @@ for (const path of new Set(wasmOptions)) {
 }
 
 const decks = deckNames.map(loadDeck);
+const formats = new Set(decks.map((deck) => deck.format));
+if (formats.size !== 1) {
+  throw new Error(`all decks must use the same format, got ${[...formats]}`);
+}
+const format = decks[0].format;
+const defaultStartingLife =
+  format === "commander" ? 40 : format === "historicBrawl" ? 25 : 20;
+const startingLife = Number(option("starting-life", defaultStartingLife));
 const botSources = wasmOptions.length === 1 ? decks.map(() => wasmOptions[0]) : wasmOptions;
 if (botSources.length !== decks.length) {
   throw new Error(`--wasms must contain one path or one path per seat`);
@@ -216,10 +228,10 @@ const engine = await createForgeEngine({
 await engine.startMultiplayerGame({
   decks,
   playerNames: decks.map((_, index) => `Manabot ${index + 1}`),
-  commanderNames: decks.map((deck) => deck.commanders[0].name),
+  commanderNames: decks.map((deck) => deck.commanders[0]?.name ?? null),
   enginePlayerIndex,
   forgeAiSeats,
-  startingLife: 40,
+  startingLife,
   seed,
 });
 
@@ -232,6 +244,8 @@ const percentile = (value) =>
   sorted.length === 0 ? 0 : sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * value))];
 const summary = {
   seed,
+  format,
+  startingLife,
   decks: deckNames,
   agents: botSources.map((source, index) => (forgeAiSeats.includes(index) ? "forge-ai" : source)),
   outcome,

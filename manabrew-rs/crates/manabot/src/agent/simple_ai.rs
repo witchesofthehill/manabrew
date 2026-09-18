@@ -33,6 +33,7 @@ pub struct SimpleAi {
     last_attack_declaration: Vec<(String, String)>,
     failed_attack_targets: HashSet<String>,
     view: Option<GameViewDto>,
+    pending_view: Option<String>,
     card_locations: HashMap<String, (usize, usize)>,
     turn: Option<u32>,
     attempted_actions: HashSet<String>,
@@ -55,6 +56,40 @@ struct Combatant {
 impl SimpleAi {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn observe_lazy(&mut self, view_json: String) {
+        self.pending_view = Some(view_json);
+    }
+
+    fn ensure_view(&mut self) {
+        if let Some(json) = self.pending_view.take() {
+            match serde_json::from_str::<GameViewDto>(&json) {
+                Ok(view) => self.observe(view),
+                Err(error) => bot_warn(&format!("invalid game view: {error}")),
+            }
+        }
+    }
+
+    fn needs_view(prompt: &PromptInput) -> bool {
+        match prompt {
+            PromptInput::ChooseAction(input) => input.actions.iter().any(|action| {
+                !matches!(
+                    &action.kind,
+                    AvailableActionKind::UndoMana { .. }
+                        | AvailableActionKind::ActivateAbility(ActivatableAbilityInfo {
+                            is_mana_ability: true,
+                            ..
+                        })
+                )
+            }),
+            PromptInput::PayManaCost(_)
+            | PromptInput::RevealCards(_)
+            | PromptInput::DiceRolled(_)
+            | PromptInput::Reorder(_)
+            | PromptInput::GameOver(_) => false,
+            _ => true,
+        }
     }
 
     /// Detects infinite response loops from the bot
@@ -724,6 +759,7 @@ impl SimpleAi {
 
 impl BotAgent for SimpleAi {
     fn observe(&mut self, view: GameViewDto) {
+        self.pending_view = None;
         self.has_command_cards |= view
             .zones
             .iter()
@@ -748,6 +784,9 @@ impl BotAgent for SimpleAi {
     }
 
     fn decide(&mut self, prompt: AgentPrompt) -> Option<PromptOutput> {
+        if Self::needs_view(&prompt.input) {
+            self.ensure_view();
+        }
         let deciding_player_id = prompt.deciding_player_id.clone();
         let prompt_source_id = prompt
             .source_card

@@ -1,5 +1,4 @@
 use manabot::{BotAgent, BotConfig, BotState, SimpleAi};
-use manabrew_agent_interface::game_view_dto::GameViewDto;
 use manabrew_agent_interface::prompt::{AgentPrompt, ClientToServerMessage};
 use manabrew_agent_interface::protocol::ServerMessage;
 use serde::Deserialize;
@@ -15,7 +14,7 @@ struct StateFrame {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct StateBody {
-    game_view: GameViewDto,
+    game_view: Box<serde_json::value::RawValue>,
 }
 
 /// A `{"kind":"prompt","prompt":{...}}` frame from the same buffer.
@@ -48,16 +47,9 @@ impl WasmManabot {
     }
 
     pub fn observe_state(&mut self, state_json: &str) -> Result<(), JsValue> {
-        let state: serde_json::Value = serde_json::from_str(state_json)
+        let state: StateBody = serde_json::from_str(state_json)
             .map_err(|e| JsValue::from_str(&format!("invalid game state: {e}")))?;
-        let view: GameViewDto = serde_json::from_value(
-            state
-                .get("gameView")
-                .cloned()
-                .ok_or_else(|| JsValue::from_str("game state has no gameView"))?,
-        )
-        .map_err(|e| JsValue::from_str(&format!("invalid game view: {e}")))?;
-        self.agent.observe(view);
+        self.agent.observe_lazy(state.game_view.get().to_string());
         Ok(())
     }
 
@@ -77,7 +69,8 @@ impl WasmManabot {
     pub fn observe_frame(&mut self, frame_json: &str) -> Result<(), JsValue> {
         let frame: StateFrame = serde_json::from_str(frame_json)
             .map_err(|e| JsValue::from_str(&format!("invalid state frame: {e}")))?;
-        self.agent.observe(frame.state.game_view);
+        self.agent
+            .observe_lazy(frame.state.game_view.get().to_string());
         Ok(())
     }
 

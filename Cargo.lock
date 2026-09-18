@@ -4396,7 +4396,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew"
-version = "3.45.0"
+version = "3.45.1"
 dependencies = [
  "flate2",
  "forge-carddb",
@@ -9263,7 +9263,7 @@ dependencies = [
 
 [[package]]
 name = "wasm"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "console_error_panic_hook",
  "forge-carddb",

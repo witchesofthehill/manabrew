@@ -24,6 +24,7 @@ import {
   connectLocal,
   createRoom,
   pickPreset,
+  deckButton,
 } from "./lib.mjs";
 
 const DECK = process.env.DECK || "Mono Red Prison";
@@ -41,7 +42,9 @@ const page = await (await browser.newContext({ viewport: { width: 1400, height: 
 let startError = null;
 page.on("console", (m) => {
   const t = m.text();
-  if (/Failed to start multiplayer|did not return|rejected match config|Ironsmith .*fatal/i.test(t)) {
+  if (
+    /Failed to start multiplayer|did not return|rejected match config|Ironsmith .*fatal/i.test(t)
+  ) {
     startError = t;
   }
 });
@@ -52,20 +55,18 @@ try {
   await connectLocal(page, host);
   await createRoom(page, { name: "IronsmithE2E", engine: "Ironsmith", format: FORMAT });
 
-  await pickPreset(page, () => page.getByRole("button", { name: /^Select Deck$/ }).click(), DECK);
-  await page.getByRole("button", { name: /Add Bot/i }).click();
+  await pickPreset(page, () => deckButton(page).click(), DECK);
+  await page.getByRole("button", { name: /Add (a )?bot/i }).click();
   await page.waitForTimeout(900);
   if (await page.locator("[role=dialog]").count()) {
     await pickPreset(page, async () => {}, DECK);
   }
 
-  await page.getByRole("button", { name: /Start Game/i }).click();
+  await page.getByRole("button", { name: /Start (Game|Table)/i }).click();
   await page.waitForTimeout(9000);
 
   const onBoard = /\/play|\/game/.test(page.url()) && (await page.locator("canvas").count()) > 0;
-  const hasPrompt = await page
-    .getByRole("button", { name: /^(Keep|Mulligan|Pass)$/ })
-    .count();
+  const hasPrompt = await page.getByRole("button", { name: /^(Keep|Mulligan|Pass)$/ }).count();
 
   if (SHOT) await page.screenshot({ path: `${SHOT}/ironsmith-board.png`, fullPage: true });
 

@@ -109,19 +109,23 @@ try {
   // setup page.
   await host.locator("#room-format").click();
   await host
-    .getByRole("menuitem", { name: new RegExp(`^${FORMAT}$`) })
+    .getByRole("menuitem", { name: new RegExp(`${FORMAT}$`) })
     .first()
     .click();
   const seatButton = host.getByRole("button", { name: new RegExp(`^${SEATS}$`) }).first();
-  if (!(await seatButton.count()))
-    throw new Error(`the setup page offers no ${SEATS}-seat option`);
+  if (!(await seatButton.count())) throw new Error(`the setup page offers no ${SEATS}-seat option`);
   await seatButton.click();
   await host.waitForTimeout(400);
   await host
     .getByRole("button", { name: /^Create table$/i })
     .last()
     .click();
-  await host.waitForTimeout(3000);
+  // The first Forge table on a fresh origin boots the engine to validate it
+  // before the room opens, which is most of a minute on a dev server.
+  await host
+    .getByRole("button", { name: /^(Choose a deck|Change deck|Select Deck)$/i })
+    .first()
+    .waitFor({ timeout: 120000 });
   step("table created");
 
   await pickDeck(host, "host");
@@ -192,12 +196,32 @@ try {
   await host.waitForTimeout(15000);
 
   // Forge asks one seat at a time, so somebody has to actually play for the
-  // table to move. Keep the opening hand wherever it is asked, in rounds: with
-  // four seats the engine works around the table, and a seat only hears from
-  // it when its turn to decide comes.
+  // table to move. Acknowledge the dice roll and keep the opening hand
+  // wherever it is asked, in rounds: with four seats the engine works around
+  // the table, and a seat only hears from it when its turn to decide comes.
+  // Prompts are drawn on the canvas, so the answer goes through the store; a
+  // production build strips it, and there the DOM buttons are the fallback.
   const decide = async (page) => {
     let answered = 0;
     for (let round = 0; round < 8; round += 1) {
+      const viaStore = await page
+        .evaluate(() => {
+          const state = window.__gameStore?.getState?.();
+          if (!state) return null;
+          const type = state.currentPrompt?.input?.type;
+          if (!type || state.waitingForResponse) return false;
+          if (type === "diceRolled") state.respond({ type: "diceRolledAcknowledged" });
+          else if (type === "mulligan") state.respond({ type: "mulliganDecision", keep: true });
+          else return false;
+          return true;
+        })
+        .catch(() => null);
+      if (viaStore === true) {
+        answered += 1;
+        await page.waitForTimeout(2000);
+        continue;
+      }
+      if (viaStore === false) break;
       const button = page.getByRole("button", { name: /^(Keep|Continue|OK|Done)$/i }).first();
       if (!(await button.count())) break;
       // A prompt can be replaced while the click is in flight, which is not a
@@ -235,6 +259,10 @@ try {
         .evaluate(() => (window.__forgeLog || []).slice(-8))
         .catch(() => []);
       for (const line of log) console.log(`   ${who} log:`, String(line).slice(0, 150));
+      const text = await seats[index]
+        .evaluate(() => document.body.innerText.replace(/\s+/g, " ").slice(0, 300))
+        .catch(() => "");
+      console.log(`   ${who} sees:`, text);
       fail(`${who} never reached a board (${seats[index].url()})`);
     }
   }

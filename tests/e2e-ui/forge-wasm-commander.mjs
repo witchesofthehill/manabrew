@@ -10,6 +10,7 @@
 // Env: BASE, DECK, AI_DECK, HEADED=1.
 import { chromium } from "playwright";
 import { launchOpts, onboard, uniqueName } from "../e2e-ironsmith/lib.mjs";
+import { startSoloGame } from "./forgeSolo.mjs";
 
 const BASE = process.env.BASE || "http://localhost:5199";
 const DECK = process.env.DECK || "Ashling, the Limitless";
@@ -43,24 +44,7 @@ await page.addInitScript(() => {
 
 await onboard(page, uniqueName("Cmd"));
 await page.goto(`${BASE}/play/offline/constructed`, { waitUntil: "networkidle" });
-await page.getByRole("button", { name: "Commander", exact: true }).click();
-await page.waitForTimeout(600);
-for (const deck of [DECK, AI_DECK]) {
-  const card = page.getByRole("button", { name: new RegExp(`^${deck}`) }).first();
-  if (!(await card.count())) await fail(`deck "${deck}" is not on the Commander tab`);
-  await card.click();
-  await page.waitForTimeout(500);
-}
-await page.waitForFunction(
-  () => {
-    const b = [...document.querySelectorAll("button")].find((x) =>
-      /^Fight!$/.test(x.textContent || ""),
-    );
-    return b && !b.disabled;
-  },
-  { timeout: 15000 },
-);
-await page.getByRole("button", { name: /^Fight!$/ }).click();
+await startSoloGame(page, { format: "Commander", decks: [DECK, AI_DECK], fail });
 
 if (!(await page.evaluate(() => Array.isArray(window.__engineDecisions)).catch(() => false))) {
   await fail("the Rust engine started — the Settings opt-in did not take");

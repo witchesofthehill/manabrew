@@ -9,6 +9,7 @@
 // Env: BASE, DECK, AI_DECK, HEADED=1.
 import { chromium } from "playwright";
 import { launchOpts, onboard, uniqueName } from "../e2e-ironsmith/lib.mjs";
+import { startSoloGame } from "./forgeSolo.mjs";
 
 const BASE = process.env.BASE || "http://localhost:5199";
 const DECK = process.env.DECK || "Izzet Lessons";
@@ -42,15 +43,7 @@ await onboard(page, uniqueName("Again"));
 
 async function startGame(attempt) {
   await page.goto(`${BASE}/play/offline/constructed`, { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Standard", exact: true }).click();
-  await page.waitForTimeout(600);
-  for (const deck of [DECK, AI_DECK]) {
-    const card = page.getByRole("button", { name: new RegExp(`^${deck}`) }).first();
-    if (!(await card.count())) await fail(`deck "${deck}" is not on the Standard tab`);
-    await card.click();
-    await page.waitForTimeout(500);
-  }
-  await page.getByRole("button", { name: /^Fight!$/ }).click();
+  await startSoloGame(page, { format: "Standard", decks: [DECK, AI_DECK], fail });
   const framed = await page
     .waitForFunction(() => (window.__forgeFrames || []).some((f) => f.startsWith("prompt")), {
       timeout: 120000,

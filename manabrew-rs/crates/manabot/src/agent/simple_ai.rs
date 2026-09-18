@@ -329,6 +329,36 @@ impl SimpleAi {
         keep
     }
 
+    fn battlefield<'a>(&'a self, player_id: &'a str) -> impl Iterator<Item = &'a CardDto> + 'a {
+        self.view
+            .iter()
+            .flat_map(|view| &view.zones)
+            .filter(move |zone| zone.zone == ZoneKind::Battlefield && zone.owner_id == player_id)
+            .flat_map(|zone| &zone.cards)
+            .filter_map(|card| match card {
+                CardView::Visible(card) => Some(card),
+                CardView::Hidden { .. } => None,
+            })
+    }
+
+    fn is_mana_source(card: &CardDto) -> bool {
+        card.types.iter().any(|ty| ty == "Land")
+            || (!card.types.iter().any(|ty| ty == "Creature")
+                && card.text.to_ascii_lowercase().contains("{t}: add"))
+    }
+
+    fn available_mana(&self, player_id: &str) -> i32 {
+        self.battlefield(player_id)
+            .filter(|card| !card.tapped && Self::is_mana_source(card))
+            .count() as i32
+    }
+
+    fn lands_in_play(&self, player_id: &str) -> usize {
+        self.battlefield(player_id)
+            .filter(|card| card.types.iter().any(|ty| ty == "Land"))
+            .count()
+    }
+
     fn should_attack(&self, attacker_id: &str, target_id: &str) -> bool {
         let Some(attacker) = self.card(attacker_id) else {
             return true;
@@ -898,10 +928,20 @@ impl BotAgent for SimpleAi {
                 }))
             }
             PromptInput::Scry(manabrew_protocol::prompts::scry::ScryInput { cards, zones, .. }) => {
-                // Keep everything on top (zone 0), nothing elsewhere.
                 let mut zone_card_ids = vec![Vec::new(); zones.len()];
-                if let Some(first) = zone_card_ids.first_mut() {
-                    *first = cards.iter().map(|c| c.id.clone()).collect();
+                let away = zones.iter().position(|zone| {
+                    matches!(
+                        zone,
+                        manabrew_protocol::prompts::scry::ScryDestination::LibraryBottom
+                            | manabrew_protocol::prompts::scry::ScryDestination::Graveyard
+                    )
+                });
+                let lands = self.lands_in_play(&deciding_player_id);
+                for card in &cards {
+                    let land = card.types.iter().any(|ty| ty == "Land");
+                    let keep = if land { lands < 7 } else { card.cmc as usize <= lands + 2 };
+                    let zone = if keep { 0 } else { away.unwrap_or(0) };
+                    zone_card_ids[zone].push(card.id.clone());
                 }
                 Some(PromptOutput::Scry(ScryOutput::ScryDecision { zone_card_ids }))
             }
@@ -926,8 +966,14 @@ impl BotAgent for SimpleAi {
                     || title.starts_with("pay {e}")
                     || title.starts_with("pay return an artifact")
                     || title.starts_with("sacrifice ");
+                let own_activation_cost = (title.starts_with("pay ") || title.starts_with("sacrifice "))
+                    && self
+                        .attempted_actions
+                        .iter()
+                        .any(|key| key.starts_with(&format!("ability:{prompt_source_id}:")));
                 let accept_once = title.contains("search your library?")
                     || (constructed_duel && duel_cost)
+                    || own_activation_cost
                     || title.contains("sacrifice evolving wilds")
                     || title.contains("sacrifice bountiful landscape")
                     || title.contains("sacrifice strip mine")
@@ -990,9 +1036,18 @@ impl BotAgent for SimpleAi {
                     chosen_colors: chosen,
                 }))
             }
-            PromptInput::ChooseNumber(manabrew_protocol::prompts::choose_number::ChooseNumberInput { min, max, .. }) => Some(PromptOutput::ChooseNumber(ChooseNumberOutput::NumberDecision {
-                chosen_number: Some(min.max(1).min(max)),
-            })),
+            PromptInput::ChooseNumber(manabrew_protocol::prompts::choose_number::ChooseNumberInput { presentation, min, max }) => {
+                let x_cost = presentation.title.to_ascii_lowercase().ends_with("for x");
+                let chosen = if x_cost {
+                    let fixed = prompt.source_card.as_ref().map_or(0, |card| card.cmc);
+                    (self.available_mana(&deciding_player_id) - fixed).clamp(min.max(1), max)
+                } else {
+                    min.max(1).min(max)
+                };
+                Some(PromptOutput::ChooseNumber(ChooseNumberOutput::NumberDecision {
+                    chosen_number: Some(chosen),
+                }))
+            }
             PromptInput::ChooseDamageAssignmentOrder(manabrew_protocol::prompts::choose_damage_assignment_order::ChooseDamageAssignmentOrderInput { mut blocker_ids, .. }) => {
                 blocker_ids.sort_by_key(|blocker_id| {
                     self.card(blocker_id)

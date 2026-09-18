@@ -212,6 +212,12 @@ impl SimpleAi {
                 if text.contains("draw a card") || text.contains("draw two") {
                     score += 35;
                 }
+                if text.contains("whenever you cast")
+                    && text.contains("creature spell")
+                    && text.contains("draw")
+                {
+                    score += 180;
+                }
                 if text.contains("destroy target") || text.contains("exile target") {
                     score += 30;
                 }

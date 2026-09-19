@@ -136,6 +136,9 @@ async function startGame(requestId, args) {
       ...aiDecks.map((deck, i) => ({
         name: i > 0 ? `Manabot ${i + 1}` : "Manabot",
         ai: false,
+        // A bot reads the board only when prompted, so the engine describes
+        // it to this seat only then.
+        bot: true,
         deck: flatten(deck),
         commanderNames: commanderGame ? commanderNames(deck, null) : [],
       })),

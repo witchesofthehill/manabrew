@@ -349,6 +349,22 @@ impl SimpleAi {
         }
     }
 
+    fn wasted_activation(&self, info: &ActivatableAbilityInfo) -> bool {
+        let text = info.description.to_ascii_lowercase();
+        if text.contains("any player may activate")
+            || (text.contains(" loses ") && !text.contains("life"))
+        {
+            return true;
+        }
+        let main_phase = self
+            .view
+            .as_ref()
+            .is_some_and(|view| matches!(view.step, StepKind::Main1 | StepKind::Main2));
+        main_phase
+            && text.contains("until end of turn")
+            && (text.contains("gets +") || text.contains("get +") || text.contains("gains "))
+    }
+
     fn has_keyword(card: &CardDto, keyword: &str) -> bool {
         card.keywords
             .iter()
@@ -984,6 +1000,10 @@ impl BotAgent for SimpleAi {
                                 AvailableActionKind::ActivateAbility(info) if info.is_mana_ability
                             )
                             && !self.attempted_actions.contains(&Self::action_key(action))
+                            && !matches!(
+                                &action.kind,
+                                AvailableActionKind::ActivateAbility(info) if self.wasted_activation(info)
+                            )
                             && (counterable
                                 || !matches!(
                                     &action.kind,

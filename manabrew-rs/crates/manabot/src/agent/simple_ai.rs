@@ -1333,8 +1333,19 @@ impl BotAgent for SimpleAi {
                     || title.contains("kor skyfisher")
                     || title.contains("glint hawk")
                     || hand_reorder;
+                let lands = self.lands_in_play(&deciding_player_id);
+                let missing = self.missing_colors(&deciding_player_id);
                 cards.sort_by_key(|card| {
-                    let value = Self::card_value(card);
+                    let land = card.types.iter().any(|ty| ty == "Land");
+                    let value = if land {
+                        let fixes = Self::land_colors(card)
+                            .iter()
+                            .filter(|color| missing.contains(color))
+                            .count() as i32;
+                        if lands < 6 { 40 + fixes * 10 } else { fixes * 10 }
+                    } else {
+                        Self::card_value(card)
+                    };
                     if prefer_low { value } else { -value }
                 });
                 let count = if (discard || hand_reorder) && min == 0 {

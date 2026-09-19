@@ -43,22 +43,27 @@ const wasms = option("wasms", "").split(",").filter(Boolean);
 const decks = option("decks", null);
 const timeout = option("timeout", "420");
 const extra = option("extra", "").split(" ").filter(Boolean);
+const seatCount = Number(option("seats", decks ? decks.split(",").length : 4));
 
-const PAIRS = [
-  [0, 2],
-  [1, 3],
-  [0, 3],
-  [1, 2],
-];
+const PAIRS =
+  seatCount === 2
+    ? [[0], [1]]
+    : [
+        [0, 2],
+        [1, 3],
+        [0, 3],
+        [1, 2],
+      ];
+const SEATS = Array.from({ length: seatCount }, (_, seat) => seat);
 
 function plan(index) {
   const seed = seedBase + index;
   const a = PAIRS[index % PAIRS.length];
-  const b = [0, 1, 2, 3].filter((seat) => !a.includes(seat));
+  const b = SEATS.filter((seat) => !a.includes(seat));
   const args = ["--engine", engine, "--seed", String(seed), "--timeout", timeout, ...extra];
   if (decks) args.push("--decks", decks);
   if (wasms.length === 2) {
-    const perSeat = [0, 1, 2, 3].map((seat) => (a.includes(seat) ? wasms[0] : wasms[1]));
+    const perSeat = SEATS.map((seat) => (a.includes(seat) ? wasms[0] : wasms[1]));
     args.push("--wasms", perSeat.join(","));
   } else {
     if (wasms.length === 1) args.push("--wasm", wasms[0]);
@@ -141,7 +146,7 @@ function summarise() {
   const results = files.map((name) => JSON.parse(readFileSync(join(out, name), "utf8")));
   const sides = { A: { wins: 0, seats: [] }, B: { wins: 0, seats: [] } };
   const byDeck = {};
-  const bySeat = [0, 1, 2, 3].map(() => ({ A: 0, B: 0 }));
+  const bySeat = SEATS.map(() => ({ A: 0, B: 0 }));
   let nonResults = 0;
   const latency = { p50: [], p90: [], p99: [], over1s: 0 };
   const bot = { p50: [], p99: [], totalMs: [], observeMs: [] };

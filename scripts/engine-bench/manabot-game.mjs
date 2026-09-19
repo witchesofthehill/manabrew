@@ -121,6 +121,7 @@ const botMs = [];
 let observeMs = 0;
 let turn = 0;
 const lifeByTurn = [];
+const boardByTurn = [];
 let finalView = null;
 let lastResponseAt = null;
 const terminalPrompts = [];
@@ -144,6 +145,21 @@ const engine = await createForgeEngine({
     if (typeof state?.gameView?.turn === "number" && state.gameView.turn !== turn) {
       turn = state.gameView.turn;
       lifeByTurn.push([turn, ...state.gameView.players.map((player) => player.life)]);
+      boardByTurn.push([
+        turn,
+        ...state.gameView.players.map((player) => {
+          const creatures = state.gameView.zones
+            .filter((zone) => zone.zone === "battlefield" && zone.ownerId === player.id)
+            .flatMap((zone) => zone.cards ?? [])
+            .filter((card) => card.types?.includes("Creature"));
+          const lands = state.gameView.zones
+            .filter((zone) => zone.zone === "battlefield" && zone.ownerId === player.id)
+            .flatMap((zone) => zone.cards ?? [])
+            .filter((card) => card.types?.includes("Land")).length;
+          const power = creatures.reduce((sum, card) => sum + (Number(card.power) || 0), 0);
+          return `${lands}L ${creatures.length}c ${power}p`;
+        }),
+      ]);
     }
   },
   onPrompt: (prompt, slot) => {
@@ -312,6 +328,7 @@ const summary = {
   players: finalView?.players ?? [],
   terminalPrompts,
   lifeByTurn,
+  boardByTurn,
   engineWarnings: engineWarnings.slice(-50),
   engineLogTail: finalView?.winnerId ? [] : engineLog.slice(-40),
   seats,

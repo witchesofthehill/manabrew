@@ -32,6 +32,7 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
   const [search, setSearch] = useState(querySearch);
   const [debouncedSearch, setDebouncedSearch] = useState(querySearch);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [facetsLoading, setFacetsLoading] = useState(true);
   const formatsValue = searchParams.get("formats") ?? searchParams.get("format") ?? "";
   const tagsValue = searchParams.get("tags") ?? searchParams.get("tag") ?? "";
   const formats = useMemo(() => csv(formatsValue), [formatsValue]);
@@ -99,7 +100,14 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
   }, [debouncedSearch, querySearch, searchParams, setSearchParams]);
 
   useEffect(() => {
-    void fetchFacets();
+    let active = true;
+    setFacetsLoading(true);
+    void fetchFacets().finally(() => {
+      if (active) setFacetsLoading(false);
+    });
+    return () => {
+      active = false;
+    };
   }, [fetchFacets]);
 
   const entryParams = useMemo<DeckHubEntryListParams>(
@@ -230,6 +238,7 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
       <DeckHubFilters
         filters={filters}
         facets={facets}
+        facetsLoading={facetsLoading}
         activeFilterCount={activeFilterCount}
         favoritesEnabled={accountsEnabled}
         onChange={changeFilters}

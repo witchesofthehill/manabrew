@@ -727,6 +727,18 @@ export function GameBoard({
     return [...ids];
   }, [combatRows, me.id]);
 
+  const targetingFocusIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (promptType !== "chooseBoardTargets") return [...ids];
+    const targets = new Set(boardTargets?.battlefieldCardIds ?? []);
+    for (const op of opponents) {
+      if (!(opponentPermanentsByPlayer.get(op.id) ?? []).some((card) => targets.has(card.id)))
+        continue;
+      ids.add(op.id);
+    }
+    return [...ids];
+  }, [promptType, boardTargets, opponents, opponentPermanentsByPlayer]);
+
   const cycleField = (dir: 1 | -1) => {
     if (opponents.length === 0 || document.querySelector('[role="dialog"]')) return;
     const ids = opponents.map((o) => o.id);
@@ -1808,6 +1820,7 @@ export function GameBoard({
           compact={compactBoard}
           focusedOpponentId={focusedOpponentId}
           combatFocusIds={combatFocusIds}
+          targetingFocusIds={targetingFocusIds}
           manualFocusId={manualFocusId}
           playerBars={hudBarSpecs}
           showPlayerBars

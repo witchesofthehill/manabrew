@@ -23,6 +23,7 @@ const FILTER_DEBOUNCE_MS = 300;
 interface DeckHubFilterPanelProps {
   filters: DeckHubDiscoveryFilters;
   facets: DeckHubFacets | null;
+  facetsLoading: boolean;
   activeFilterCount: number;
   favoritesEnabled: boolean;
   onChange: (patch: Partial<DeckHubDiscoveryFilters>) => void;
@@ -32,6 +33,7 @@ interface DeckHubFilterPanelProps {
 export function DeckHubFilterPanel({
   filters,
   facets,
+  facetsLoading,
   activeFilterCount,
   favoritesEnabled,
   onChange,
@@ -219,24 +221,37 @@ export function DeckHubFilterPanel({
         />
       </div>
 
-      {userTags && userTags.length > 0 && (
+      {facetsLoading ? (
         <div className="space-y-2">
-          <span className="text-sm font-medium">Tags</span>
+          <div className="h-4 w-12 animate-pulse rounded bg-muted" />
           <div className="flex flex-wrap gap-1.5">
-            {userTags.map((tag) => (
-              <Button
-                key={tag.key}
-                type="button"
-                variant={filters.tags.includes(tag.key) ? "secondary" : "outline"}
-                size="sm"
-                aria-pressed={filters.tags.includes(tag.key)}
-                onClick={() => toggleTag(tag.key)}
-              >
-                {tag.label}
-              </Button>
-            ))}
+            <div className="h-8 w-16 animate-pulse rounded-md bg-muted" />
+            <div className="h-8 w-24 animate-pulse rounded-md bg-muted" />
+            <div className="h-8 w-20 animate-pulse rounded-md bg-muted" />
+            <div className="h-8 w-28 animate-pulse rounded-md bg-muted" />
           </div>
         </div>
+      ) : (
+        userTags &&
+        userTags.length > 0 && (
+          <div className="space-y-2">
+            <span className="text-sm font-medium">Tags</span>
+            <div className="flex flex-wrap gap-1.5">
+              {userTags.map((tag) => (
+                <Button
+                  key={tag.key}
+                  type="button"
+                  variant={filters.tags.includes(tag.key) ? "secondary" : "outline"}
+                  size="sm"
+                  aria-pressed={filters.tags.includes(tag.key)}
+                  onClick={() => toggleTag(tag.key)}
+                >
+                  {tag.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )
       )}
 
       {favoritesEnabled && (

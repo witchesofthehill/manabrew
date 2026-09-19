@@ -5,6 +5,7 @@ import { DeckHubTopDeckPreview } from "@/components/deck/DeckHubTopDeckPreview";
 import { fetchDeckHubEntries } from "@/api/hub";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
 import { availableEngines } from "@/lib/engines";
+import { cn } from "@/lib/utils";
 
 interface DeckHubCuratedSectionsProps {
   onOpen: (id: string) => void;
@@ -19,6 +20,7 @@ export function DeckHubCuratedSections({ onOpen, onAuthor }: DeckHubCuratedSecti
   const [presets, setPresets] = useState<DeckHubEntrySummary[]>([]);
   const [popular, setPopular] = useState<DeckHubEntrySummary[]>([]);
   const [newest, setNewest] = useState<DeckHubEntrySummary[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -33,12 +35,59 @@ export function DeckHubCuratedSections({ onOpen, onAuthor }: DeckHubCuratedSecti
         setPresets(presetResult.entries);
         setPopular(popularResult.entries);
         setNewest(newestResult.entries);
+        setLoaded(true);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (active) setLoaded(true);
+      });
     return () => {
       active = false;
     };
   }, []);
+
+  if (!loaded) {
+    return (
+      <div className="space-y-10 pb-10">
+        <DeckHubTopDeckPreview onOpen={onOpen} onAuthor={onAuthor} />
+
+        <section className="rounded-2xl border border-border/70 bg-muted/20 p-3 sm:p-4">
+          <div className="mb-3 h-7 w-40 animate-pulse rounded bg-muted" />
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {Array.from({ length: 4 }, (_, index) => (
+              <div
+                key={index}
+                className={cn(
+                  "aspect-[4/3] animate-pulse rounded-lg bg-muted",
+                  index === 0 && "col-span-2 row-span-2",
+                )}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <div className="mb-3 h-7 w-32 animate-pulse rounded bg-muted" />
+          <div className="grid gap-3 xl:grid-cols-2">
+            {Array.from({ length: 4 }, (_, index) => (
+              <div key={index} className="aspect-[4/3] animate-pulse rounded-lg bg-muted" />
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-border/70 bg-primary/5 py-4">
+          <div className="mb-3 ml-4 h-7 w-36 animate-pulse rounded bg-muted" />
+          <div className="flex gap-3 overflow-hidden px-4 pb-1">
+            {Array.from({ length: 4 }, (_, index) => (
+              <div
+                key={index}
+                className="aspect-[4/3] w-64 shrink-0 animate-pulse rounded-lg bg-muted sm:w-72"
+              />
+            ))}
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   if (presets.length === 0 && popular.length === 0 && newest.length === 0) return null;
 

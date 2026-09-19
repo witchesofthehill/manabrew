@@ -15,6 +15,7 @@ import type { DeckHubFacets } from "@/api/hubTypes";
 interface DeckHubFilterSheetProps {
   filters: DeckHubDiscoveryFilters;
   facets: DeckHubFacets | null;
+  facetsLoading: boolean;
   activeFilterCount: number;
   favoritesEnabled: boolean;
   onChange: (patch: Partial<DeckHubDiscoveryFilters>) => void;

@@ -100,90 +100,98 @@ export function DeckHubResults({
                 Retry
               </Button>
             </div>
-          ) : !loaded ? (
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {Array.from({ length: 10 }, (_, index) => (
-                <div key={index} className="aspect-[4/3] animate-pulse rounded-lg bg-muted" />
-              ))}
-            </div>
-          ) : entries.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <Layers className="h-9 w-9 text-muted-foreground/50" />
-              <p className="mt-3 text-lg font-semibold">
-                {hasFilters ? "No publications match" : "No decks here yet"}
-              </p>
-              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                {hasFilters
-                  ? "Try broadening the filters or searching for another card or commander."
-                  : "Publish a version from My Decks to make its exact card snapshot discoverable."}
-              </p>
-              {hasFilters ? (
-                <Button variant="outline" size="sm" className="mt-4" onClick={onClear}>
-                  Clear filters
-                </Button>
-              ) : (
-                <Button variant="primary" asChild size="sm" className="mt-4">
-                  <Link to={ROUTES.DECK_EDITOR}>Open My Decks</Link>
-                </Button>
-              )}
-            </div>
           ) : (
-            <div className="space-y-6">
-              {!hasFilters && <DeckHubCuratedSections onOpen={onOpen} onAuthor={onAuthor} />}
-              {!hasFilters && (
-                <h2 className="font-serif text-xl font-semibold">Explore all decks</h2>
+            <>
+              {!hasFilters && (!loaded || entries.length > 0) && (
+                <DeckHubCuratedSections onOpen={onOpen} onAuthor={onAuthor} />
               )}
-              {[...groups.entries()].map(([label, groupedEntries]) => (
-                <section key={label}>
-                  {group !== "none" && (
-                    <div className="mb-2 flex items-baseline gap-2">
-                      <h2 className="font-serif text-lg font-semibold">
-                        {group === "color" && label !== "Unknown" ? (
-                          <>
-                            <span className="sr-only">
-                              {label === "C" ? "Colorless" : `${label} color identity`}
-                            </span>
-                            <span aria-hidden="true">
-                              <ManaSymbols
-                                cost={label
-                                  .split("")
-                                  .map((color) => `{${color}}`)
-                                  .join("")}
-                                size="lg"
-                                className="m-0"
-                              />
-                            </span>
-                          </>
-                        ) : (
-                          label
-                        )}
-                      </h2>
-                      <span className="text-xs text-muted-foreground">{groupedEntries.length}</span>
-                    </div>
+              {!loaded ? (
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                  {Array.from({ length: 10 }, (_, index) => (
+                    <div key={index} className="aspect-[4/3] animate-pulse rounded-lg bg-muted" />
+                  ))}
+                </div>
+              ) : entries.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <Layers className="h-9 w-9 text-muted-foreground/50" />
+                  <p className="mt-3 text-lg font-semibold">
+                    {hasFilters ? "No publications match" : "No decks here yet"}
+                  </p>
+                  <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                    {hasFilters
+                      ? "Try broadening the filters or searching for another card or commander."
+                      : "Publish a version from My Decks to make its exact card snapshot discoverable."}
+                  </p>
+                  {hasFilters ? (
+                    <Button variant="outline" size="sm" className="mt-4" onClick={onClear}>
+                      Clear filters
+                    </Button>
+                  ) : (
+                    <Button variant="primary" asChild size="sm" className="mt-4">
+                      <Link to={ROUTES.DECK_EDITOR}>Open My Decks</Link>
+                    </Button>
                   )}
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-                    {groupedEntries.map((entry) => (
-                      <DeckHubEntryCard
-                        key={entry.id}
-                        entry={entry}
-                        onOpen={() => onOpen(entry.id)}
-                        onAuthorClick={onAuthor}
-                        onFavorite={onFavorite ? () => onFavorite(entry) : undefined}
-                        favoritePending={Boolean(favoritePending[entry.id])}
-                      />
-                    ))}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {!hasFilters && (
+                    <h2 className="font-serif text-xl font-semibold">Explore all decks</h2>
+                  )}
+                  {[...groups.entries()].map(([label, groupedEntries]) => (
+                    <section key={label}>
+                      {group !== "none" && (
+                        <div className="mb-2 flex items-baseline gap-2">
+                          <h2 className="font-serif text-lg font-semibold">
+                            {group === "color" && label !== "Unknown" ? (
+                              <>
+                                <span className="sr-only">
+                                  {label === "C" ? "Colorless" : `${label} color identity`}
+                                </span>
+                                <span aria-hidden="true">
+                                  <ManaSymbols
+                                    cost={label
+                                      .split("")
+                                      .map((color) => `{${color}}`)
+                                      .join("")}
+                                    size="lg"
+                                    className="m-0"
+                                  />
+                                </span>
+                              </>
+                            ) : (
+                              label
+                            )}
+                          </h2>
+                          <span className="text-xs text-muted-foreground">
+                            {groupedEntries.length}
+                          </span>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                        {groupedEntries.map((entry) => (
+                          <DeckHubEntryCard
+                            key={entry.id}
+                            entry={entry}
+                            onOpen={() => onOpen(entry.id)}
+                            onAuthorClick={onAuthor}
+                            onFavorite={onFavorite ? () => onFavorite(entry) : undefined}
+                            favoritePending={Boolean(favoritePending[entry.id])}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                  <div ref={loadMoreRef} className="flex h-14 items-center justify-center">
+                    {loading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+                    {!hasMore && entries.length > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        You’ve reached the end of Community.
+                      </span>
+                    )}
                   </div>
-                </section>
-              ))}
-              <div ref={loadMoreRef} className="flex h-14 items-center justify-center">
-                {loading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
-                {!hasMore && entries.length > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    You’ve reached the end of Community.
-                  </span>
-                )}
-              </div>
-            </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

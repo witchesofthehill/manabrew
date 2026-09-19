@@ -313,6 +313,7 @@ export class BoardScene {
   private delimTarget: number[] = [];
   private focusPlayerId: string | null = null;
   private combatFocusIds: string[] = [];
+  private targetingFocusIds: string[] = [];
   private manualFocusId: string | null = null;
   private hoveredOpponentId: string | null = null;
   private fogGfx: Graphics;
@@ -607,6 +608,17 @@ export class BoardScene {
     this.recomputeDelimTarget();
   }
 
+  setTargetingFocus(playerIds: string[]): void {
+    if (
+      this.targetingFocusIds.length === playerIds.length &&
+      this.targetingFocusIds.every((id, i) => id === playerIds[i])
+    ) {
+      return;
+    }
+    this.targetingFocusIds = playerIds;
+    this.recomputeDelimTarget();
+  }
+
   setManualFocus(playerId: string | null): void {
     if (this.manualFocusId === playerId) return;
     this.manualFocusId = playerId;
@@ -620,6 +632,11 @@ export class BoardScene {
   }
 
   private focusedOpponentIds(): string[] {
+    if (this.targetingFocusIds.length > 0) {
+      const ids = new Set(this.targetingFocusIds);
+      for (const id of this.combatFocusIds) ids.add(id);
+      return [...ids];
+    }
     return this.combatFocusIds.length > 0
       ? this.combatFocusIds
       : this.manualFocusId

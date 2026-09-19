@@ -12,6 +12,8 @@
 // --hints asks the harness for Forge's own pick on every chooseAction prompt
 // (aiScore, bench-only) and counts how often the bot agrees; --disagreements
 // writes each prompt where it did not, with the bot's view, for rule mining.
+// --decisions writes every hinted prompt as feature rows for `manabot-train`;
+// --model plays with a trained weight file instead of the hand-written scorer.
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -40,10 +42,14 @@ const seed = Number(option("seed", 7015));
 const forgeAiSeats = option("forge-ai-seats", "").split(",").filter(Boolean).map(Number);
 const hints = process.argv.includes("--hints");
 const disagreements = option("disagreements", null);
+const decisions = option("decisions", null);
+const modelFile = option("model", null);
 const trace = process.argv.includes("--trace");
 const timeoutS = Number(option("timeout", 900));
 const output = option("out", null);
-const sysprops = process.argv.flatMap((arg, i) => (arg === "--sysprop" ? [`-D${process.argv[i + 1]}`] : []));
+const sysprops = process.argv.flatMap((arg, i) =>
+  arg === "--sysprop" ? [`-D${process.argv[i + 1]}`] : [],
+);
 
 const frontFace = (name) => (name.includes(" // ") ? name.slice(0, name.indexOf(" // ")) : name);
 
@@ -58,7 +64,9 @@ function loadDeck(name) {
   return { cards, commander: raw.commander ? frontFace(raw.commander) : null, format: raw.format };
 }
 
-const decks = Array.from({ length: seatCount }, (_, i) => loadDeck(deckNames[i % deckNames.length]));
+const decks = Array.from({ length: seatCount }, (_, i) =>
+  loadDeck(deckNames[i % deckNames.length]),
+);
 const commanderGame = decks[0].format === "commander";
 const botSeats = decks.map((_, i) => i).filter((i) => !forgeAiSeats.includes(i));
 if (botSeats.length === 0) throw new Error("at least one Manabot seat is required");
@@ -66,16 +74,32 @@ if (botSeats.length === 0) throw new Error("at least one Manabot seat is require
 const wasm = await import(pathToFileURL(join(wasmDir, "wasm.js")).href);
 await wasm.default({ module_or_path: readFileSync(join(wasmDir, "wasm_bg.wasm")) });
 const bots = new Map(botSeats.map((seat) => [seat, new wasm.WasmManabot()]));
+if (modelFile) {
+  const model = readFileSync(modelFile, "utf8");
+  for (const bot of bots.values()) bot.set_model(model);
+}
 
-const jvm = spawn(java, [...sysprops, "-jar", jar, "--interactive-server", "--forge-home", join(root, "forge", "forge-gui")], {
-  stdio: ["pipe", "pipe", "pipe"],
-});
+const jvm = spawn(
+  java,
+  [
+    ...sysprops,
+    "-jar",
+    jar,
+    "--interactive-server",
+    "--forge-home",
+    join(root, "forge", "forge-gui"),
+  ],
+  {
+    stdio: ["pipe", "pipe", "pipe"],
+  },
+);
 const stderr = [];
 const stderrFile = option("stderr", null);
 jvm.stderr.on("data", (chunk) => {
   if (stderrFile) appendFileSync(stderrFile, chunk);
   for (const line of String(chunk).split("\n")) {
-    if (line.includes("[mana-brew]") || line.includes("Exception") || line.includes("[harness]")) stderr.push(line);
+    if (line.includes("[mana-brew]") || line.includes("Exception") || line.includes("[harness]"))
+      stderr.push(line);
   }
 });
 const lines = createInterface({ input: jvm.stdout });
@@ -85,7 +109,9 @@ lines.on("line", (line) => {
 });
 const call = (body) =>
   new Promise((resolveReply, reject) => {
-    pending.push((reply) => (reply.ok ? resolveReply(reply.result) : reject(new Error(reply.error))));
+    pending.push((reply) =>
+      reply.ok ? resolveReply(reply.result) : reject(new Error(reply.error)),
+    );
     jvm.stdin.write(`${JSON.stringify(body)}\n`);
   });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -104,7 +130,9 @@ const request = {
   })),
 };
 
-const session = JSON.parse(await call({ command: "startGame", payload: JSON.stringify(request) })).sessionId;
+const session = JSON.parse(
+  await call({ command: "startGame", payload: JSON.stringify(request) }),
+).sessionId;
 const startedAt = Date.now();
 const seats = Object.fromEntries(
   botSeats.map((seat) => [
@@ -152,7 +180,8 @@ while (true) {
   }
   if (prompt.input?.type === "chooseAction") {
     const actions = prompt.input.actions ?? [];
-    const chosen = action.output?.type === "act" ? actions.find((a) => a.id === action.output.actionId) : null;
+    const chosen =
+      action.output?.type === "act" ? actions.find((a) => a.id === action.output.actionId) : null;
     if (chosen) stats.acts += 1;
     else stats.passes += 1;
     const ranked = actions.filter((a) => a.aiScore != null);
@@ -162,6 +191,19 @@ while (true) {
       const forgePick = actions.find((a) => a.aiScore > 0) ?? null;
       const name = (a) => (a ? (a.label ?? a.description ?? a.id) : null);
       const agreed = name(chosen) === name(forgePick) || (chosen && chosen.aiScore == null);
+      if (decisions) {
+        const rows = JSON.parse(bot.features(JSON.stringify(prompt)));
+        const label = rows.findIndex((row) =>
+          forgePick ? row.id === forgePick.id : row.id === null,
+        );
+        const botIndex = rows.findIndex((row) => (chosen ? row.id === chosen.id : row.id === null));
+        if (label !== -1) {
+          appendFileSync(
+            decisions,
+            `${JSON.stringify({ seed, seat, turn, step: parsedView?.step, label, bot: botIndex === -1 ? null : botIndex, names: rows.map((row) => name(actions.find((a) => a.id === row.id)) ?? "pass"), cands: rows.map((row) => row.feats) })}\n`,
+          );
+        }
+      }
       if (agreed) stats.hintAgreed += 1;
       else {
         stats.hintDisagreed += 1;
@@ -177,7 +219,9 @@ while (true) {
   await call({ command: "submitAction", sessionId: session, payload: JSON.stringify(action) });
 }
 
-const finalView = JSON.parse((await call({ command: "getSnapshot", sessionId: session, viewer: 0 })) || "{}");
+const finalView = JSON.parse(
+  (await call({ command: "getSnapshot", sessionId: session, viewer: 0 })) || "{}",
+);
 jvm.stdin.write('{"command":"quit"}\n');
 for (const bot of bots.values()) bot.free();
 const life = (finalView?.players ?? []).map((p) => p.life);

@@ -9,6 +9,9 @@ use manabrew_protocol::prompts::choose_from_selection::SelectionKind;
 
 use super::BotAgent;
 
+mod model;
+pub use model::LinearModel;
+
 /// How many recent prompts to remember when detecting a stuck loop.
 const LOOP_WINDOW: usize = 6;
 
@@ -41,6 +44,7 @@ pub struct SimpleAi {
     attempted_actions: HashSet<String>,
     payment_attempt: Option<String>,
     has_command_cards: bool,
+    model: Option<LinearModel>,
 }
 
 struct Combatant {
@@ -1016,6 +1020,30 @@ impl BotAgent for SimpleAi {
                                 ))
                     })
                     .max_by_key(|action| self.action_score(action, &deciding_player_id));
+                let pick = match &self.model {
+                    Some(model) => {
+                        let candidates: Vec<&AvailableAction> = actions
+                            .iter()
+                            .filter(|action| Self::scoreable(action))
+                            .filter(|action| !self.attempted_actions.contains(&Self::action_key(action)))
+                            .filter(|action| !matches!(
+                                &action.kind,
+                                AvailableActionKind::ActivateAbility(info) if self.wasted_activation(info)
+                            ))
+                            .collect();
+                        let ctx = self.prompt_context(&deciding_player_id, candidates.len());
+                        let pass_score = model.score(&self.candidate_features(None, &ctx));
+                        candidates
+                            .iter()
+                            .map(|action| {
+                                (*action, model.score(&self.candidate_features(Some(action), &ctx)))
+                            })
+                            .filter(|(_, score)| *score > pass_score)
+                            .max_by(|a, b| a.1.total_cmp(&b.1))
+                            .map(|(action, _)| action)
+                    }
+                    None => pick,
+                };
                 let pick = pick.map(|action| {
                     (action.id.clone(), Self::action_key(action))
                 });

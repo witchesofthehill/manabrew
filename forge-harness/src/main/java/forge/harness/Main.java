@@ -359,6 +359,17 @@ public final class Main {
                         case "getGameOver":
                             sendOk(adapter.getGameOver(requireString(request, "sessionId")));
                             break;
+                        // #817 measurement scaffolding, inert without
+                        // -Dforge.engineCounters=true. See scripts/engine-bench.
+                        case "getCounters":
+                            sendOk(engineCounters("snapshotJson"));
+                            break;
+                        case "getCounterProperties":
+                            sendOk(engineCounters("propertiesJson"));
+                            break;
+                        case "getCounterCallers":
+                            sendOk(engineCounters("callersJson"));
+                            break;
                         case "endGame":
                             sendOk(adapter.endGameJson(requireString(request, "sessionId")));
                             break;
@@ -380,6 +391,20 @@ public final class Main {
         }
 
         System.err.println("[harness] interactive server exiting.");
+    }
+
+    /**
+     * The engine counters live on the fork's measurement branch, not on the pin
+     * this builds against, so reach them reflectively. Without them the
+     * commands answer empty rather than failing the build.
+     */
+    private static String engineCounters(final String method) {
+        try {
+            return (String) Class.forName("forge.game.EngineCounters")
+                    .getMethod(method).invoke(null);
+        } catch (ReflectiveOperationException | LinkageError e) {
+            return "{}";
+        }
     }
 
     private static String requireString(JsonObject request, String key) {

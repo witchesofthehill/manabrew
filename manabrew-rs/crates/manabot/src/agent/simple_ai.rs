@@ -764,6 +764,52 @@ impl SimpleAi {
         assignments
     }
 
+    fn damage_amount(text: &str) -> Option<i32> {
+        let lower = text.to_ascii_lowercase();
+        let at = lower.find("deals ")?;
+        let rest = &lower[at + "deals ".len()..];
+        let number = rest.split(' ').next()?;
+        if !rest.contains("damage") {
+            return None;
+        }
+        number.parse().ok()
+    }
+
+    fn damage_target_score(&self, target: &TargetRef, player_id: &str, damage: i32) -> i32 {
+        match target.kind {
+            TargetKind::Player => {
+                if target.id == player_id {
+                    return -1_000;
+                }
+                let life = self
+                    .view
+                    .as_ref()
+                    .and_then(|view| view.players.iter().find(|player| player.id == target.id))
+                    .map_or(20, |player| player.life);
+                if damage >= life {
+                    10_000
+                } else {
+                    1_000 + self.attack_target_score(&target.id) / 8
+                }
+            }
+            TargetKind::Card => {
+                let Some(card) = self.card(&target.id) else {
+                    return 0;
+                };
+                if card.controller_id == player_id {
+                    return -Self::card_value(card);
+                }
+                let lethal = (Self::stat(card.toughness.as_deref()) - card.damage).max(1);
+                if card.types.iter().any(|ty| ty == "Creature") && lethal > damage {
+                    Self::card_value(card) / 4
+                } else {
+                    1_000 + Self::card_value(card) * 4
+                }
+            }
+            TargetKind::Spell => 0,
+        }
+    }
+
     fn target_score(&self, target: &TargetRef, player_id: &str, prompt_hostile: bool) -> i32 {
         let hostile = prompt_hostile
             || matches!(
@@ -1060,9 +1106,19 @@ impl BotAgent for SimpleAi {
             }) => {
                 let take = (max_targets - chosen_targets).max(min_targets - chosen_targets).max(0)
                     as usize;
+                let damage = prompt
+                    .source_ability_text
+                    .as_deref()
+                    .and_then(Self::damage_amount)
+                    .or_else(|| prompt.source_card.as_ref().and_then(|card| Self::damage_amount(&card.text)));
                 let mut candidates = candidates;
                 candidates.sort_by_key(|target| {
-                    std::cmp::Reverse(self.target_score(target, &deciding_player_id, hostile))
+                    std::cmp::Reverse(match damage {
+                        Some(damage) if hostile => {
+                            self.damage_target_score(target, &deciding_player_id, damage)
+                        }
+                        _ => self.target_score(target, &deciding_player_id, hostile),
+                    })
                 });
                 Some(PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets {
                     chosen: candidates.into_iter().take(take).collect(),
@@ -1343,6 +1399,8 @@ impl BotAgent for SimpleAi {
                             .filter(|color| missing.contains(color))
                             .count() as i32;
                         if lands < 6 { 40 + fixes * 10 } else { fixes * 10 }
+                    } else if prefer_low {
+                        Self::card_value(card) - (card.cmc - lands as i32 - 3).max(0) * 10
                     } else {
                         Self::card_value(card)
                     };

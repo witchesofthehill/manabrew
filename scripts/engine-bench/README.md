@@ -60,6 +60,14 @@ resumes. `--seats 2 --decks a,b` plays duels, side A alternating seats.
 `manabot-game.mjs --trace chooseBlockers,chooseAttackers` writes each such
 prompt with the seat's view and the decision as one JSON line on stderr; a
 game the engine ends with an exception reports `outcome.reason` `engine_error`.
+`manabot-jvm-game.mjs` plays the same game against the harness jar with the
+`src/wasm` Manabot in-process: a four-seat game takes a minute instead of four
+and needs no Web Image, so a harness change reads against the real bot before a
+preview build exists (not a latency reading). `--hints` asks the harness for
+Forge's own pick on each `chooseAction` (`aiScore`, a bench-only request flag)
+and counts agreement; `--disagreements` writes every prompt where the bot
+chose differently, with its view, for rule mining. `forge-jvm-game.py --policy
+hint` plays seat 0 on that pick alone, the check for the harness half.
 
 ## A run, not a game
 

@@ -584,6 +584,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             let key = Self::play_mode_key(&play.mode);
             actions.push(AvailableAction {
                 id: format!("cast:{card_id}:{key}"),
+                ai_score: None,
                 kind: AvailableActionKind::Cast {
                     card_id: card_id.clone(),
                     mode,
@@ -610,12 +611,14 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     .into_iter()
                     .map(|(id, info)| AvailableAction {
                         id,
+                        ai_score: None,
                         kind: AvailableActionKind::ActivateAbility(info),
                     }),
                 );
             } else {
                 actions.push(AvailableAction {
                     id: format!("ability:{card_id}:{}", a.ability_index),
+                    ai_score: None,
                     kind: AvailableActionKind::ActivateAbility(ActivatableAbilityInfo {
                         card_id,
                         ability_index: a.ability_index,
@@ -631,6 +634,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         for card_id in &untappable_land_ids {
             actions.push(AvailableAction {
                 id: format!("untap:{card_id}"),
+                ai_score: None,
                 kind: AvailableActionKind::UndoMana {
                     card_id: card_id.clone(),
                 },

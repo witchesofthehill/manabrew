@@ -33,8 +33,9 @@ ap.add_argument("--sysprop", action="append", default=[])
 ap.add_argument("--out", default="jvm-4seat.jsonl")
 ap.add_argument("--timeout", type=int, default=1800)
 ap.add_argument("--seed", type=int, default=42)
-ap.add_argument("--policy", default="pass", choices=["pass", "greedy"],
-                help="greedy plays a land, casts what auto-pay covers and attacks, as the wasm driver does")
+ap.add_argument("--policy", default="pass", choices=["pass", "greedy", "hint"],
+                help="greedy plays a land, casts what auto-pay covers and attacks, as the wasm driver does; "
+                     "hint marks seat 0 as a bot and acts on the aiScore the harness attaches")
 args = ap.parse_args()
 
 
@@ -64,6 +65,7 @@ for i in range(args.seats):
     players.append({
         "name": "You" if i == 0 else ("Forge AI" if i == 1 else f"Forge AI {i}"),
         "ai": i != 0,
+        "hints": i == 0 and args.policy == "hint",
         "deck": cards,
         "commanderNames": [commander],
     })
@@ -182,7 +184,34 @@ class Greedy:
             for a in p["input"].get("attackers", []) if a.get("validTargetIds")]}
 
 
-greedy = Greedy()
+class Hinted(Greedy):
+    """Follows the harness's aiScore: acts on Forge's pick, passes one priority when Forge would."""
+
+    def __init__(self):
+        super().__init__()
+        self.stats = {"prompts": 0, "hinted": 0, "acted": 0, "passed": 0, "unhinted": 0}
+
+    def chooseAction(self, p, turn):
+        self.reset(turn)
+        self.stats["prompts"] += 1
+        actions = p["input"].get("actions", [])
+        scored = [a for a in actions if a.get("aiScore") is not None]
+        if not scored:
+            self.stats["unhinted"] += 1
+            return {"type": "pass"}
+        self.stats["hinted"] += 1
+        pick = max(scored, key=lambda a: a["aiScore"])
+        note({"ev": "hint", "turn": turn, "pick": pick.get("label") or pick.get("description") if pick["aiScore"] > 0 else None,
+              "offered": [(a.get("label") or a.get("description") or a["type"], a.get("aiScore")) for a in actions]})
+        if pick["aiScore"] <= 0:
+            self.stats["passed"] += 1
+            return {"type": "pass"}
+        self.stats["acted"] += 1
+        self.paying = None
+        return {"type": "act", "actionId": pick["id"]}
+
+
+greedy = Hinted() if args.policy == "hint" else Greedy()
 LOOP_AFTER = 60
 loop = {"turn": -1, "counts": {}, "flipped": False}
 FLIPPED = {
@@ -203,7 +232,7 @@ def answer(kind, prompt, turn):
         return None
     if loop["flipped"] and kind in FLIPPED:
         return FLIPPED[kind](prompt)
-    if args.policy == "greedy" and hasattr(greedy, kind):
+    if args.policy in ("greedy", "hint") and hasattr(greedy, kind):
         return getattr(greedy, kind)(prompt, turn)
     reply = REPLIES.get(kind)
     return reply(prompt) if reply else None
@@ -245,7 +274,7 @@ while time.time() - started < args.timeout:
         note({"ev": "decision", "type": kind, "ms": ms, "turn": turn})
         if ms > 5000:
             print(f"  stall {ms}ms {kind} @turn {turn}", flush=True)
-    if args.policy == "greedy" or decisions % 25 == 0:
+    if args.policy in ("greedy", "hint") or decisions % 25 == 0:
         snap = json.loads(call({"command": "getSnapshot", "sessionId": session, "viewer": 0}) or "{}")
         turn = snap.get("gameView", snap).get("turn", turn)
     output = answer(kind, prompt, turn)
@@ -257,8 +286,13 @@ while time.time() - started < args.timeout:
     call({"command": "submitAction", "sessionId": session,
           "payload": json.dumps({"type": kind, "output": output})})
 
-note({"ev": "end", "decisions": decisions, "turn": turn})
+snap = json.loads(call({"command": "getSnapshot", "sessionId": session, "viewer": 0}) or "{}")
+note({"ev": "end", "decisions": decisions, "turn": turn,
+      "life": [p.get("life") for p in snap.get("gameView", snap).get("players", [])]})
 print(f"\ndone: {decisions} decisions over {int(time.time() - started)}s, turn {turn}")
+if args.policy == "hint":
+    note({"ev": "hints", **greedy.stats})
+    print(f"hints: {greedy.stats}")
 # quit closes stdout before replying, so do not wait for an envelope.
 proc.stdin.write('{"command":"quit"}\n')
 proc.stdin.flush()

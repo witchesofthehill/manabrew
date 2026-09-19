@@ -16,6 +16,11 @@ available actions directly on the board**.
 
 <ProtocolType slug="choose-action" />
 
+`aiScore` appears only when the host asked the engine for its own AI's opinion
+on a seat (a diagnostic; no shipped client requests it): the action the engine's
+AI would take now scores above zero, every other action it weighed scores zero,
+and cards it never plays carry no score. Absent everywhere otherwise.
+
 ## Rendering
 
 There's no dialog - while you hold priority, each entry in `actions` is

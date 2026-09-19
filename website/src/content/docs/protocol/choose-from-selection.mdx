@@ -21,6 +21,13 @@ chosen more than once.
 
 <ProtocolType slug="choose-from-selection" />
 
+`kind` says what the list is (spell modes, optional costs such as kicker, a
+number, a counter type, a pile, ...), so an agent can apply a rule without
+parsing the title. On `optionalCost` prompts each option also carries the
+`cost` it adds and whether the deciding player can `afford` the base cost plus
+that one right now. All three are optional; an engine that does not know
+leaves them out.
+
 ## Rendering
 
 The control depends on how many options may be chosen.

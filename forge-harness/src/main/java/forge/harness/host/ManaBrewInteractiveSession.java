@@ -57,6 +57,8 @@ public final class ManaBrewInteractiveSession {
     private volatile Thread gameThread;
     private static volatile InteractiveBridge bridge;
     private volatile SpellAbility castingAbility;
+    private final Set<Integer> hintSeats = new HashSet<>();
+    private final AiHints aiHints = new AiHints();
     private final InteractiveSnapshotExtractor.SecretChoiceVisibility secretChoiceVisibility =
             new InteractiveSnapshotExtractor.SecretChoiceVisibility();
 
@@ -71,6 +73,11 @@ public final class ManaBrewInteractiveSession {
 
     public String getSessionId() {
         return sessionId;
+    }
+
+    void setHintSeats(final Set<Integer> seats) {
+        hintSeats.clear();
+        hintSeats.addAll(seats);
     }
 
     public static void setBridge(final InteractiveBridge value) {
@@ -1092,12 +1099,36 @@ public final class ManaBrewInteractiveSession {
 
     List<Integer> awaitModeChoice(
             final int playerId,
+            final List<String> options,
+            final int min,
+            final int max,
+            final String sourceName,
+            final SelectionKind kind
+    ) {
+        return awaitModeChoice(playerId, unweightedOptions(options), min, max, sourceName, null, null, kind);
+    }
+
+    List<Integer> awaitModeChoice(
+            final int playerId,
             final List<SelectionOption> options,
             final int min,
             final int max,
             final String sourceName,
             final String description,
             final String sourceCardId
+    ) {
+        return awaitModeChoice(playerId, options, min, max, sourceName, description, sourceCardId, null);
+    }
+
+    List<Integer> awaitModeChoice(
+            final int playerId,
+            final List<SelectionOption> options,
+            final int min,
+            final int max,
+            final String sourceName,
+            final String description,
+            final String sourceCardId,
+            final SelectionKind kind
     ) {
         requireAttached();
         if (options.isEmpty() && min > 0) {
@@ -1111,7 +1142,7 @@ public final class ManaBrewInteractiveSession {
         final PromptPresentation presentation =
                 new PromptPresentation(title, description, null, java.util.List.of());
         publishAgentPrompt("player-" + playerId, sourceCardId,
-                new ChooseFromSelectionInput(presentation, options, clampedMin, clampedMax));
+                new ChooseFromSelectionInput(presentation, options, clampedMin, clampedMax, kind));
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
@@ -1143,7 +1174,7 @@ public final class ManaBrewInteractiveSession {
     private static List<SelectionOption> unweightedOptions(final List<String> labels, final boolean canRepeat) {
         final List<SelectionOption> options = new ArrayList<>();
         for (final String label : labels) {
-            options.add(new SelectionOption(label, 1, canRepeat));
+            options.add(new SelectionOption(label, 1, canRepeat, null, null));
         }
         return options;
     }
@@ -1911,6 +1942,9 @@ public final class ManaBrewInteractiveSession {
             final List<Card> untappableCards
     ) {
         final List<String> labels = ActionSpace.buildMainActionLabels(actionsForPrompt);
+        final Integer[] aiScores = hintSeats.contains(playerId)
+                ? aiHints.rankActions(game.getRegisteredPlayers().get(playerId), actionsForPrompt)
+                : null;
         final List<AvailableAction> actionsArray = new java.util.ArrayList<>();
         for (int i = 0; i < actionsForPrompt.size(); i++) {
             final SpellAbility sa = actionsForPrompt.get(i);
@@ -1924,8 +1958,9 @@ public final class ManaBrewInteractiveSession {
             }
             final String cardId = SnapshotExtractor.javaCardId(host);
             final String id = "prompt-action-" + i;
+            final Integer aiScore = aiScores == null ? null : aiScores[i];
             if (sa.isLandAbility() || sa.isSpell()) {
-                actionsArray.add(new AvailableAction_cast(id, cardId, playCardMode(sa), label));
+                actionsArray.add(new AvailableAction_cast(id, aiScore, cardId, playCardMode(sa), label));
             } else if (sa.isManaAbility()) {
                 final String description = abilityDescription(sa, label);
                 final String produced = resolveProducedMana(sa);
@@ -1935,17 +1970,17 @@ public final class ManaBrewInteractiveSession {
                             ? "tap:" + cardId + ":" + i + ":" + choice.color
                             : "tap:" + cardId + ":" + i;
                     actionsArray.add(new AvailableAction_activateAbility(
-                            actionId, cardId, i, description, true, false, cost, choice.producedMana));
+                            actionId, aiScore, cardId, i, description, true, false, cost, choice.producedMana));
                 }
             } else {
                 actionsArray.add(new AvailableAction_activateAbility(
-                        id, cardId, i, abilityDescription(sa, label), false,
+                        id, aiScore, cardId, i, abilityDescription(sa, label), false,
                         sa.getApi() == ApiType.ClassLevelUp, simpleCostText(sa), null));
             }
         }
         for (final Card card : untappableCards) {
             final String cardId = SnapshotExtractor.javaCardId(card);
-            actionsArray.add(new AvailableAction_undoMana("untap:" + cardId, cardId));
+            actionsArray.add(new AvailableAction_undoMana("untap:" + cardId, aiScores == null ? null : 0, cardId));
         }
         publishAgentPrompt("player-" + playerId, null, new ChooseActionInput(actionsArray));
     }
@@ -2078,7 +2113,8 @@ public final class ManaBrewInteractiveSession {
                 new PromptPresentation(title, null, null, java.util.List.of());
         publishAgentPrompt(
                 "player-" + playerId, sourceCardId,
-                new ChooseFromSelectionInput(presentation, unweightedOptions(options), min, max));
+                new ChooseFromSelectionInput(presentation, unweightedOptions(options), min, max,
+                        "choose_type".equals(kind) ? SelectionKind.TYPE : null));
     }
 
     private void publishBooleanPrompt(
@@ -2130,7 +2166,28 @@ public final class ManaBrewInteractiveSession {
         }
         final PromptPresentation presentation = new PromptPresentation(title, bodyText, text, targets);
         publishAgentPrompt("player-" + playerId, sourceCardId,
-                new ChooseBooleanInput(presentation, confirmLabel, denyLabel));
+                new ChooseBooleanInput(presentation, confirmLabel, denyLabel, booleanKind(promptKind), mode, api));
+    }
+
+    private static BooleanChoiceKind booleanKind(final String promptKind) {
+        if (promptKind == null) {
+            return null;
+        }
+        switch (promptKind) {
+            case "optional_trigger": return BooleanChoiceKind.OPTIONAL_TRIGGER;
+            case "replacement_effect": return BooleanChoiceKind.REPLACEMENT_EFFECT;
+            case "static_application": return BooleanChoiceKind.STATIC_APPLICATION;
+            case "confirm_action": return BooleanChoiceKind.CONFIRM_ACTION;
+            case "confirm_payment": return BooleanChoiceKind.CONFIRM_PAYMENT;
+            case "pay_cost_to_prevent_effect": return BooleanChoiceKind.PAY_COST_TO_PREVENT_EFFECT;
+            case "pay_cost_during_roll": return BooleanChoiceKind.PAY_COST_DURING_ROLL;
+            case "binary": return BooleanChoiceKind.BINARY;
+            case "flip_coin": return BooleanChoiceKind.FLIP_COIN;
+            case "put_on_top": return BooleanChoiceKind.PUT_ON_TOP;
+            case "confirm_bid": return BooleanChoiceKind.BID;
+            case "confirm_mulligan_scry": return BooleanChoiceKind.MULLIGAN_SCRY;
+            default: return null;
+        }
     }
 
     private void publishRevealCardsPrompt(

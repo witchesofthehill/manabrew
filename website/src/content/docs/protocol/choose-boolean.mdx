@@ -14,6 +14,12 @@ whether to pay an optional cost such as buyback when casting a spell.
 
 <ProtocolType slug="choose-boolean" />
 
+`kind` says what the question is: an optional trigger, a replacement effect
+(dredge, miracle), a static effect, a payment to confirm, a cost to pay to stop
+an effect, a coin flip, and so on. `detail` and `api` carry the engine's own
+tags for the question and the effect behind it (on Forge, its confirm mode or
+cost part, and the ability's `ApiType`). All three are optional.
+
 ## Rendering
 
 <figure class="prompt-figure">

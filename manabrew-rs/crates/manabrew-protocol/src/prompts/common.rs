@@ -113,12 +113,19 @@ pub enum AvailableActionKind {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/common.ts")]
 pub struct AvailableAction {
     pub id: String,
     #[serde(flatten)]
     #[ts(flatten)]
     pub kind: AvailableActionKind,
+    // Diagnostic, only when the host asked the engine for its own AI's opinion
+    // on the seat: the action Forge's AI would take now scores above zero,
+    // every other action it weighed zero, cards it never plays carry none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub ai_score: Option<i32>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

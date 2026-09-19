@@ -47,6 +47,7 @@ fn main() {
             actions: vec![
                 AvailableAction {
                     id: "0".into(),
+                    ai_score: None,
                     kind: AvailableActionKind::Cast {
                         card_id: "card-1".into(),
                         mode: PlayCardMode::Normal,
@@ -55,6 +56,7 @@ fn main() {
                 },
                 AvailableAction {
                     id: "1".into(),
+                    ai_score: None,
                     kind: AvailableActionKind::Cast {
                         card_id: "card-2".into(),
                         mode: PlayCardMode::Normal,
@@ -63,6 +65,7 @@ fn main() {
                 },
                 AvailableAction {
                     id: "2".into(),
+                    ai_score: None,
                     kind: AvailableActionKind::ActivateAbility(common::ActivatableAbilityInfo {
                         card_id: "card-3".into(),
                         ability_index: 0,
@@ -78,6 +81,7 @@ fn main() {
                 },
                 AvailableAction {
                     id: "3".into(),
+                    ai_score: None,
                     kind: AvailableActionKind::UndoMana {
                         card_id: "card-3".into(),
                     },
@@ -199,6 +203,9 @@ fn main() {
             },
             confirm_label: "Pay Buyback".to_string(),
             deny_label: "No".to_string(),
+            kind: Some(choose_boolean::BooleanChoiceKind::ConfirmPayment),
+            detail: None,
+            api: None,
         }),
         ChooseFromSelection(choose_from_selection::ChooseFromSelectionInput {
             presentation: common::PromptPresentation {
@@ -212,15 +219,20 @@ fn main() {
                     label: "Destroy target artifact".to_string(),
                     weight: 1,
                     can_repeat: false,
+                    cost: None,
+                    affordable: None,
                 },
                 choose_from_selection::SelectionOption {
                     label: "Destroy target enchantment".to_string(),
                     weight: 1,
                     can_repeat: false,
+                    cost: None,
+                    affordable: None,
                 },
             ],
             min_total: 1,
             max_total: 2,
+            kind: Some(choose_from_selection::SelectionKind::Mode),
         }),
         DiceRolled(dice_rolled::DiceRolledInput {
             presentation: common::PromptPresentation {

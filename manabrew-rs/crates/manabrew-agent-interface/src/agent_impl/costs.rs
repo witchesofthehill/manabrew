@@ -20,6 +20,9 @@ fn choose_boolean<T: Responder>(
             presentation,
             confirm_label: confirm_label.to_string(),
             deny_label: deny_label.to_string(),
+            kind: Some(choose_boolean::BooleanChoiceKind::ConfirmPayment),
+            detail: None,
+            api: None,
         }),
         source,
     );

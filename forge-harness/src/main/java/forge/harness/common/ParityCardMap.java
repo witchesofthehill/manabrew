@@ -26,12 +26,18 @@ public final class ParityCardMap {
     private static final Map<Integer, Integer> CARD_TO_PARITY = new HashMap<>();
     private static int nextParityId = 1;
     private static boolean initialized = false;
+    // parityId syncs on every call and a snapshot asks once per card; the sort
+    // only changes when the game's state does
+    private static Game syncedGame;
+    private static long syncedVersion = -1;
 
     private ParityCardMap() {}
 
     public static synchronized void reset() {
         CARD_TO_PARITY.clear();
         nextParityId = 1;
+        syncedGame = null;
+        syncedVersion = -1;
         initialized = false;
     }
 
@@ -63,6 +69,11 @@ public final class ParityCardMap {
         if (game == null) {
             return;
         }
+        if (game == syncedGame && game.getStateVersion() == syncedVersion) {
+            return;
+        }
+        syncedGame = game;
+        syncedVersion = game.getStateVersion();
         final List<Player> players = new ArrayList<>(game.getRegisteredPlayers());
         players.sort(Comparator.comparingInt(Player::getId));
 

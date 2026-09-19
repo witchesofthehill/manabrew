@@ -211,14 +211,67 @@ impl SimpleAi {
         })
     }
 
+    fn land_colors(card: &CardDto) -> HashSet<char> {
+        let mut colors = HashSet::new();
+        for subtype in &card.subtypes {
+            match subtype.as_str() {
+                "Plains" => colors.insert('W'),
+                "Island" => colors.insert('U'),
+                "Swamp" => colors.insert('B'),
+                "Mountain" => colors.insert('R'),
+                "Forest" => colors.insert('G'),
+                _ => false,
+            };
+        }
+        for segment in card.text.split("Add ").skip(1) {
+            for symbol in segment.split(['.', '\n']).next().unwrap_or("").chars() {
+                if "WUBRG".contains(symbol) {
+                    colors.insert(symbol);
+                }
+            }
+        }
+        colors
+    }
+
+    fn missing_colors(&self, player_id: &str) -> HashSet<char> {
+        let have = self
+            .battlefield(player_id)
+            .filter(|card| card.types.iter().any(|ty| ty == "Land"))
+            .flat_map(Self::land_colors)
+            .collect::<HashSet<_>>();
+        self.view
+            .iter()
+            .flat_map(|view| &view.zones)
+            .filter(|zone| {
+                matches!(zone.zone, ZoneKind::Hand | ZoneKind::Command)
+                    && zone.owner_id == player_id
+            })
+            .flat_map(|zone| &zone.cards)
+            .filter_map(|card| match card {
+                CardView::Visible(card) => Some(card),
+                CardView::Hidden { .. } => None,
+            })
+            .flat_map(|card| card.mana_cost.chars().filter(|c| "WUBRG".contains(*c)))
+            .filter(|color| !have.contains(color))
+            .collect()
+    }
+
     fn action_score(&self, action: &AvailableAction, player_id: &str) -> i32 {
         match &action.kind {
             AvailableActionKind::Cast { card_id, label, .. } => {
                 let Some(card) = self.card(card_id) else {
                     return if label.starts_with("Play ") { 900 } else { 300 };
                 };
-                if card.types.iter().any(|card_type| card_type == "Land") {
-                    return 1_000;
+                if label.starts_with("Play ")
+                    || card.types.iter().any(|card_type| card_type == "Land")
+                {
+                    let missing = self.missing_colors(player_id);
+                    let fixes = Self::land_colors(card)
+                        .iter()
+                        .filter(|color| missing.contains(color))
+                        .count() as i32;
+                    let enters_tapped = card.text.contains("enters tapped");
+                    return 1_000 + fixes * 20 - i32::from(enters_tapped) * 5;
                 }
                 let own_turn = self
                     .view
@@ -256,6 +309,11 @@ impl SimpleAi {
                     score += (120 - card.cmc * 12).max(0);
                 }
                 let text = card.text.to_ascii_lowercase();
+                let ramp = Self::is_mana_source(card)
+                    || (text.contains("search your library for") && text.contains("land card"));
+                if ramp && self.lands_in_play(player_id) < 6 {
+                    score += 60;
+                }
                 if text.contains("draw a card") || text.contains("draw two") {
                     score += 35;
                 }
@@ -394,149 +452,72 @@ impl SimpleAi {
             .count()
     }
 
-    fn can_block(blocker: &CardDto, attacker: &CardDto) -> bool {
-        if blocker.tapped || !blocker.types.iter().any(|ty| ty == "Creature") {
-            return false;
-        }
-        if Self::has_keyword(attacker, "Flying")
-            && !Self::has_keyword(blocker, "Flying")
-            && !Self::has_keyword(blocker, "Reach")
-        {
-            return false;
-        }
-        if Self::has_keyword(attacker, "Menace") {
-            return false;
-        }
-        !(Self::has_keyword(attacker, "Fear")
-            || Self::has_keyword(attacker, "Intimidate")
-            || Self::has_keyword(attacker, "Shadow"))
-    }
-
-    fn aggression(&self, player_id: &str, defender_id: &str, attacker_ids: &[String]) -> i32 {
-        let Some(view) = &self.view else {
-            return 3;
-        };
-        let life = |id: &str| {
-            view.players
-                .iter()
-                .find(|player| player.id == id)
-                .map_or(20, |player| player.life)
-        };
-        let forces = |id: &str| {
-            self.battlefield(id)
-                .filter(|card| card.types.iter().any(|ty| ty == "Creature"))
-                .filter_map(|card| {
-                    let power = Self::stat(card.power.as_deref());
-                    (power > 0).then_some(power)
-                })
-                .collect::<Vec<_>>()
-        };
-        let mine = forces(player_id);
-        let theirs = forces(defender_id);
-        let their_blockers = self
-            .battlefield(defender_id)
-            .filter(|card| card.types.iter().any(|ty| ty == "Creature") && !card.tapped)
-            .count();
-        let counter_damage = theirs.iter().sum::<i32>();
-        let my_damage = mine.iter().sum::<i32>();
-        let ai_ratio = if counter_damage > 0 {
-            life(player_id) as f64 / counter_damage as f64
-        } else {
-            1_000_000.0
-        } - their_blockers as f64;
-        let human_ratio = if my_damage > 0 {
-            life(defender_id) as f64 / my_damage as f64
-        } else {
-            1_000_000.0
-        };
-        let out_number = mine.len() as i32 - theirs.len() as i32;
-        let ratio_diff = ai_ratio - human_ratio;
-
-        let mut attackers = attacker_ids
-            .iter()
-            .filter_map(|id| self.card(id))
-            .map(|card| Self::stat(card.power.as_deref()).max(0))
-            .collect::<Vec<_>>();
-        attackers.sort_unstable();
-        let mut attritional = attackers
-            .iter()
-            .take(attackers.len().saturating_sub(theirs.len()))
-            .copied()
-            .collect::<Vec<_>>();
-        let mut their_life = life(defender_id);
-        let mut rounds = 0;
-        while !attritional.is_empty() && their_life > 0 && rounds < 99 {
-            their_life -= attritional.iter().sum::<i32>();
-            for _ in 0..their_blockers {
-                attritional.pop();
-            }
-            rounds += 1;
-        }
-        let attritional_win = !attackers.is_empty() && their_life <= 0;
-
-        if ratio_diff > 0.0 && attritional_win {
-            5
-        } else if ratio_diff >= 1.0 && attackers.len() > 1 && (human_ratio < 2.0 || out_number > 0)
-        {
-            4
-        } else if ratio_diff >= 0.0 && attackers.len() > 1 {
-            3
-        } else if ratio_diff + out_number as f64 >= -1.0 || ai_ratio > 1.0 {
-            2
-        } else {
-            1
-        }
-    }
-
-    fn should_attack(&self, attacker_id: &str, target_id: &str, aggression: i32) -> bool {
+    fn should_attack(&self, attacker_id: &str, target_id: &str) -> bool {
         let Some(attacker) = self.card(attacker_id) else {
             return true;
         };
-        let Some(me) = self.combatant(attacker_id) else {
+        let power = attacker
+            .power
+            .as_deref()
+            .and_then(|value| value.parse::<i32>().ok())
+            .unwrap_or(0);
+        let attack_trigger = attacker.text.to_ascii_lowercase().contains("whenever")
+            && attacker.text.to_ascii_lowercase().contains(" attacks");
+        if attack_trigger {
             return true;
-        };
-        let text = attacker.text.to_ascii_lowercase();
-        let attack_effect = text.contains("whenever") && text.contains(" attacks");
-        if me.power <= 0 && !attack_effect {
+        }
+        if power <= 0 {
             return false;
         }
-        let blockers = self
-            .battlefield(target_id)
-            .filter(|card| Self::can_block(card, attacker))
-            .filter_map(|card| self.combatant(&card.id))
-            .collect::<Vec<_>>();
-        let can_be_blocked = !blockers.is_empty();
-        let can_kill_all = blockers
+        let Some(view) = &self.view else {
+            return true;
+        };
+        let attacker_flying = Self::has_keyword(attacker, "Flying");
+        let blockers = view
+            .zones
             .iter()
-            .all(|blocker| Self::can_destroy(&me, blocker));
-        let can_be_killed_by_one = blockers
-            .iter()
-            .any(|blocker| Self::can_destroy(blocker, &me));
-        let can_be_killed = can_be_killed_by_one
-            || blockers.iter().map(|blocker| blocker.power).sum::<i32>() >= me.lethal;
-        let worth_less_than_killers = blockers
-            .iter()
-            .filter(|blocker| Self::can_destroy(blocker, &me))
-            .all(|blocker| me.value <= blocker.value);
-        let def_power = self
-            .battlefield(target_id)
-            .filter(|card| card.types.iter().any(|ty| ty == "Creature"))
-            .map(|card| Self::stat(card.power.as_deref()).max(0))
-            .sum::<i32>();
-        match aggression {
-            5 => true,
-            4 => can_kill_all || !can_be_blocked || def_power == 0,
-            3 => {
-                (can_kill_all && worth_less_than_killers)
-                    || (attack_effect && !can_be_killed_by_one)
-                    || !can_be_blocked
-            }
-            2 => {
-                !can_be_blocked
-                    || ((can_kill_all || attack_effect) && !can_be_killed_by_one && !can_be_killed)
-            }
-            _ => !can_be_blocked,
+            .filter(|zone| zone.zone == ZoneKind::Battlefield && zone.owner_id == target_id)
+            .flat_map(|zone| &zone.cards)
+            .filter_map(|card| match card {
+                CardView::Visible(card)
+                    if card.types.iter().any(|card_type| card_type == "Creature")
+                        && !card.tapped
+                        && (!attacker_flying
+                            || Self::has_keyword(card, "Flying")
+                            || Self::has_keyword(card, "Reach")) =>
+                {
+                    Some(card)
+                }
+                _ => None,
+            });
+        if Self::has_keyword(attacker, "Indestructible")
+            || Self::has_keyword(attacker, "Deathtouch")
+            || Self::has_keyword(attacker, "Trample")
+        {
+            return true;
         }
+        !blockers.into_iter().any(|blocker| {
+            let blocker_power = blocker
+                .power
+                .as_deref()
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(0);
+            let blocker_toughness = blocker
+                .toughness
+                .as_deref()
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(0);
+            let attacker_toughness = attacker
+                .toughness
+                .as_deref()
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(0);
+            let attacker_dies =
+                blocker_power >= attacker_toughness || Self::has_keyword(blocker, "Deathtouch");
+            let blocker_survives =
+                power < blocker_toughness && !Self::has_keyword(attacker, "Double strike");
+            attacker_dies && blocker_survives
+        })
     }
 
     fn stat(value: Option<&str>) -> i32 {
@@ -943,6 +924,11 @@ impl BotAgent for SimpleAi {
                 }))
             }
             PromptInput::ChooseAction(manabrew_protocol::prompts::choose_action::ChooseActionInput { actions }) => {
+                let counterable = self.view.as_ref().is_some_and(|view| {
+                    view.stack
+                        .iter()
+                        .any(|item| item.controller_id != deciding_player_id)
+                });
                 let pick = actions
                     .iter()
                     .filter(|action| {
@@ -952,6 +938,14 @@ impl BotAgent for SimpleAi {
                                 AvailableActionKind::ActivateAbility(info) if info.is_mana_ability
                             )
                             && !self.attempted_actions.contains(&Self::action_key(action))
+                            && (counterable
+                                || !matches!(
+                                    &action.kind,
+                                    AvailableActionKind::Cast { card_id, .. }
+                                        if self.card(card_id).is_some_and(|card| {
+                                            card.text.to_ascii_lowercase().starts_with("counter target")
+                                        })
+                                ))
                     })
                     .max_by_key(|action| self.action_score(action, &deciding_player_id));
                 let pick = pick.map(|action| {
@@ -1017,12 +1011,6 @@ impl BotAgent for SimpleAi {
                         &attackers.iter().map(|a| a.attacker_id.clone()).collect::<Vec<_>>(),
                     )
                 };
-                let free = attackers
-                    .iter()
-                    .filter(|a| !keep.contains(&a.attacker_id))
-                    .map(|a| a.attacker_id.clone())
-                    .collect::<Vec<_>>();
-                let aggression = self.aggression(&deciding_player_id, &default_target, &free);
                 let mut assignments = Vec::new();
                 if !reprompted {
                     for a in &attackers {
@@ -1041,7 +1029,7 @@ impl BotAgent for SimpleAi {
                         };
                         if a.must_attack
                             || (lethal_target && target_id == default_target)
-                            || self.should_attack(&a.attacker_id, &target_id, aggression)
+                            || self.should_attack(&a.attacker_id, &target_id)
                         {
                             assignments.push(AttackAssignment {
                                 attacker_id: a.attacker_id.clone(),
@@ -1111,6 +1099,7 @@ impl BotAgent for SimpleAi {
                 let repeated = self.looping_on(signature);
                 let title = presentation.title.to_ascii_lowercase();
                 let always_accept = title.contains("cancel search")
+                    || title.starts_with("do you want to draw")
                     || (title.contains("commander")
                         && title.contains("put it into the command zone"));
                 let constructed_duel = self.is_constructed_duel();
@@ -1120,13 +1109,27 @@ impl BotAgent for SimpleAi {
                     || title.starts_with("pay return an artifact")
                     || title.starts_with("sacrifice ");
                 let own_activation_cost = (title.starts_with("pay ") || title.starts_with("sacrifice "))
-                    && self
+                    && (self
                         .attempted_actions
                         .iter()
-                        .any(|key| key.starts_with(&format!("ability:{prompt_source_id}:")));
+                        .any(|key| key.starts_with(&format!("ability:{prompt_source_id}:")))
+                        || (title.starts_with("sacrifice ") && self.payment_attempt.is_some()));
+                let life = self.view.as_ref().and_then(|view| {
+                    view.players
+                        .iter()
+                        .find(|player| player.id == deciding_player_id)
+                        .map(|player| player.life)
+                });
+                let untapped_land = presentation
+                    .text
+                    .as_deref()
+                    .is_some_and(|text| text.contains("enters tapped"))
+                    && title.starts_with("pay ")
+                    && life.is_some_and(|life| life >= 20);
                 let accept_once = title.contains("search your library?")
                     || (constructed_duel && duel_cost)
                     || own_activation_cost
+                    || untapped_land
                     || title.contains("sacrifice evolving wilds")
                     || title.contains("sacrifice bountiful landscape")
                     || title.contains("sacrifice strip mine")
@@ -1144,16 +1147,44 @@ impl BotAgent for SimpleAi {
                 let signature =
                     format!("select:{}|{min_total}|{max_total}|{}", presentation.title, options.len());
                 let search = presentation.title.to_ascii_lowercase().contains("search");
+                let own_activation = self
+                    .attempted_actions
+                    .iter()
+                    .any(|key| key.starts_with(&format!("ability:{prompt_source_id}:")));
                 let target = if search || self.looping_on(signature) {
                     max_total
+                } else if own_activation {
+                    min_total.max(1).min(max_total)
                 } else {
                     min_total
                 };
+                let counterable = self.view.as_ref().is_some_and(|view| {
+                    view.stack
+                        .iter()
+                        .any(|item| item.controller_id != deciding_player_id)
+                });
+                let mut order = (0..options.len())
+                    .filter(|index| {
+                        counterable
+                            || !options[*index]
+                                .label
+                                .to_ascii_lowercase()
+                                .contains("counter target")
+                    })
+                    .collect::<Vec<_>>();
+                order.sort_by_key(|index| {
+                    options[*index]
+                        .label
+                        .split(':')
+                        .next()
+                        .map_or(0, |cost| cost.matches('{').count())
+                });
                 let mut chosen_indices = Vec::new();
                 let mut total = 0;
                 while total < target {
                     let before = total;
-                    for (index, option) in options.iter().enumerate() {
+                    for index in order.iter().copied() {
+                        let option = &options[index];
                         if total + option.weight > target {
                             continue;
                         }

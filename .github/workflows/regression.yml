@@ -38,6 +38,10 @@ jobs:
           clean: true
           submodules: recursive
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
       - name: Run manabrew-engine unit tests
         run: yarn test:manabrew-engine
 

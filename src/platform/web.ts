@@ -135,6 +135,15 @@ const dlog = (...args: unknown[]) => {
   if (isPromptLoggingEnabled()) console.log(...args);
 };
 
+// The window-level arrays the e2e scripts and benches read live for the tab,
+// across every game it plays, so they are rings: the newest DEBUG_RING entries
+// stay and the rest go. A long session otherwise grows them without bound.
+const DEBUG_RING = 4000;
+function ringPush<T>(ring: T[], item: T): void {
+  ring.push(item);
+  if (ring.length > DEBUG_RING * 2) ring.splice(0, ring.length - DEBUG_RING);
+}
+
 function describeBotFrame(raw: string): string {
   try {
     const p = JSON.parse(raw) as {
@@ -318,7 +327,8 @@ class WorkerBridge {
     if (this.workerIsForgeWasm) {
       const w = window as unknown as { __forgeFrames?: string[] };
       w.__forgeFrames = w.__forgeFrames ?? [];
-      w.__forgeFrames.push(
+      ringPush(
+        w.__forgeFrames,
         `${msg?.kind}:${msg?.kind === "state" ? Object.keys((msg.state ?? {}) as object).join("|") : ""}`,
       );
     }
@@ -339,7 +349,7 @@ class WorkerBridge {
         };
         if (w.__respondedAt != null) {
           w.__promptTimings = w.__promptTimings ?? [];
-          w.__promptTimings.push({
+          ringPush(w.__promptTimings, {
             ms: performance.now() - w.__respondedAt,
             type: (msg.prompt as { input?: { type?: string } })?.input?.type,
           });
@@ -483,7 +493,7 @@ class WorkerBridge {
           dec.__engineDecisions = dec.__engineDecisions ?? [];
           this.eventBus.on<Decision>("forge:decision", (p) => {
             if (!p) return;
-            dec.__engineDecisions?.push(p);
+            if (dec.__engineDecisions) ringPush(dec.__engineDecisions, p);
             // The engine's own measure of itself, which no other engine
             // reports: the interval from the answer landing to the next
             // prompt being ready, with no client polling in it.
@@ -496,7 +506,7 @@ class WorkerBridge {
           let frames = 0;
           this.eventBus.on<{ level?: string; text?: string }>("forge:log", (p) => {
             const text = p?.text ?? "";
-            w.__forgeLog?.push(text);
+            if (w.__forgeLog) ringPush(w.__forgeLog, text);
             if (/^\s*(at\s|@)/.test(text)) {
               frames += 1;
               return;
@@ -1018,7 +1028,7 @@ class WebServerApi implements IServerApi {
         const frameAt = performance.now();
         try {
           const msg = JSON.parse(e.data);
-          this.handleServerMessage(msg, frameAt);
+          this.handleServerMessage(msg, frameAt, e.data);
         } catch {
           // Ignore malformed messages
         } finally {
@@ -1579,16 +1589,19 @@ class WebServerApi implements IServerApi {
       console.error("[WebServerApi] Not connected");
       return;
     }
-    if (msg.type !== "Ping") logComms("send", msg);
-    this.ws.send(JSON.stringify(msg));
+    const raw = JSON.stringify(msg);
+    if (msg.type !== "Ping") logComms("send", raw);
+    this.ws.send(raw);
   }
 
   /**
    * @param frameAt when the frame carrying `` reached this client, for the
    *   turnaround split. Omitted for synthesised messages, which are not a
    *   reply arriving.
+   * @param raw the wire text when there is one, so the bug-report log costs a
+   *   slice of it and not a second serialisation of the parsed message.
    */
-  private handleServerMessage(msg: Record<string, unknown>, frameAt?: number): void {
+  private handleServerMessage(msg: Record<string, unknown>, frameAt?: number, raw?: string): void {
     const type = msg.type as string;
     // The heartbeat would evict real traffic from the bug-report ring buffer.
     if (type === "Pong") {
@@ -1598,7 +1611,7 @@ class WebServerApi implements IServerApi {
       }
       return;
     }
-    logComms("recv", msg);
+    logComms("recv", raw ?? msg);
     if (type === "AuthResult" && msg.success) {
       this.peerSignalling =
         Array.isArray(msg.features) && (msg.features as string[]).includes("peer_signal");

@@ -7,6 +7,9 @@ use manabrew_agent_interface::prompt::*;
 
 use super::BotAgent;
 
+mod roles;
+use roles::Roles;
+
 /// How many recent prompts to remember when detecting a stuck loop.
 const LOOP_WINDOW: usize = 6;
 
@@ -256,6 +259,237 @@ impl SimpleAi {
             .collect()
     }
 
+    fn is_land_play(&self, action: &AvailableAction) -> bool {
+        match &action.kind {
+            AvailableActionKind::Cast { card_id, label, .. } => {
+                label.starts_with("Play ")
+                    || self
+                        .card(card_id)
+                        .is_some_and(|card| card.types.iter().any(|ty| ty == "Land"))
+            }
+            _ => false,
+        }
+    }
+
+    fn opponent_creatures(&self, player_id: &str) -> Vec<&CardDto> {
+        self.view
+            .iter()
+            .flat_map(|view| &view.zones)
+            .filter(|zone| zone.zone == ZoneKind::Battlefield && zone.owner_id != player_id)
+            .flat_map(|zone| &zone.cards)
+            .filter_map(|card| match card {
+                CardView::Visible(card) if card.types.iter().any(|ty| ty == "Creature") => {
+                    Some(card)
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn mana_sources(&self, player_id: &str) -> ([i32; 5], i32) {
+        let mut colors = [0i32; 5];
+        let mut total = 0;
+        for card in self
+            .battlefield(player_id)
+            .filter(|card| !card.tapped && Self::is_mana_source(card))
+        {
+            total += 1;
+            for color in Self::land_colors(card) {
+                if let Some(i) = "WUBRG".find(color) {
+                    colors[i] += 1;
+                }
+            }
+        }
+        (colors, total)
+    }
+
+    fn affordable(&self, card: &CardDto, player_id: &str) -> bool {
+        let cost = card
+            .effective_mana_cost
+            .as_deref()
+            .unwrap_or(card.mana_cost.as_str());
+        if cost.contains('X') || cost.contains('/') || card.cmc == 0 && cost.is_empty() {
+            return true;
+        }
+        let (colors, total) = self.mana_sources(player_id);
+        let tax = card.commander_tax.unwrap_or(0);
+        if card.cmc + tax > total {
+            return false;
+        }
+        let mut pips = [0i32; 5];
+        for symbol in cost.chars() {
+            if let Some(i) = "WUBRG".find(symbol) {
+                pips[i] += 1;
+            }
+        }
+        (0..5).all(|i| pips[i] <= colors[i])
+    }
+
+    fn roles(card: &CardDto) -> Roles {
+        roles::lookup(&card.identity.name)
+    }
+
+    fn opponent_permanents(&self, player_id: &str) -> usize {
+        self.view
+            .iter()
+            .flat_map(|view| &view.zones)
+            .filter(|zone| zone.zone == ZoneKind::Battlefield && zone.owner_id != player_id)
+            .flat_map(|zone| &zone.cards)
+            .filter(|card| match card {
+                CardView::Visible(card) => !card.types.iter().any(|ty| ty == "Land"),
+                CardView::Hidden { .. } => false,
+            })
+            .count()
+    }
+
+    fn sane(&self, action: &AvailableAction, player_id: &str) -> bool {
+        let AvailableActionKind::Cast { card_id, .. } = &action.kind else {
+            return true;
+        };
+        if self.is_land_play(action) {
+            return true;
+        }
+        let Some(card) = self.card(card_id) else {
+            return true;
+        };
+        if !self.affordable(card, player_id) {
+            return false;
+        }
+        let Some(view) = self.view.as_ref() else {
+            return true;
+        };
+        let text = card.text.to_ascii_lowercase();
+        let own_turn = view.active_player_id == player_id;
+        let stack_empty = view.stack.is_empty();
+        let foreign_stack = view
+            .stack
+            .iter()
+            .any(|item| item.controller_id != player_id);
+        let opponents = self.opponent_creatures(player_id);
+        let roles = Self::roles(card);
+        let creature_removal = text.contains("destroy target creature")
+            || text.contains("exile target creature")
+            || (text.contains("damage to target creature") && !text.contains("player"));
+        if creature_removal && opponents.is_empty() {
+            return false;
+        }
+        if roles.contains(Roles::REMOVAL)
+            && !roles.contains(Roles::BURN)
+            && self.opponent_permanents(player_id) == 0
+        {
+            return false;
+        }
+        if (roles.contains(Roles::COUNTERSPELL) || text.starts_with("counter target"))
+            && !foreign_stack
+        {
+            return false;
+        }
+        if roles.contains(Roles::COMBAT_PUMP)
+            && stack_empty
+            && !card.types.iter().any(|ty| ty == "Creature")
+            && !matches!(
+                view.step,
+                StepKind::CombatDeclareAttackers
+                    | StepKind::CombatDeclareBlockers
+                    | StepKind::CombatFirstStrikeDamage
+            )
+        {
+            return false;
+        }
+        let wipe = roles.contains(Roles::SWEEPER)
+            || text.contains("destroy all creatures")
+            || text.contains("exile all creatures")
+            || text.contains("each creature")
+                && (text.contains("destroy") || text.contains("-x/-x"));
+        if wipe {
+            let mine: i32 = self
+                .battlefield(player_id)
+                .filter(|c| c.types.iter().any(|ty| ty == "Creature"))
+                .map(Self::card_value)
+                .sum();
+            let theirs: i32 = opponents.iter().map(|c| Self::card_value(c)).sum();
+            if mine >= theirs {
+                return false;
+            }
+        }
+        let instant = card.types.iter().any(|ty| ty == "Instant")
+            || (card
+                .keywords
+                .iter()
+                .any(|k| k.eq_ignore_ascii_case("flash"))
+                && !card.types.iter().any(|ty| ty == "Creature"));
+        if instant && stack_empty {
+            let step = view.step;
+            let quiet_own = own_turn && matches!(step, StepKind::Upkeep | StepKind::Draw);
+            let quiet_theirs = !own_turn
+                && matches!(
+                    step,
+                    StepKind::Untap
+                        | StepKind::Upkeep
+                        | StepKind::Draw
+                        | StepKind::Main1
+                        | StepKind::Main2
+                        | StepKind::CombatBegin
+                );
+            if quiet_own || quiet_theirs {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn land_choice_score(&self, card: &CardDto, player_id: &str, alternatives: &[&CardDto]) -> i32 {
+        let mut supply = [0i32; 5];
+        let lands = self.lands_in_play(player_id) as i32;
+        for land in self
+            .battlefield(player_id)
+            .filter(|c| c.types.iter().any(|ty| ty == "Land"))
+        {
+            for color in Self::land_colors(land) {
+                if let Some(i) = "WUBRG".find(color) {
+                    supply[i] += 1;
+                }
+            }
+        }
+        let mut demand = [0i32; 5];
+        for hand_card in self
+            .view
+            .iter()
+            .flat_map(|view| &view.zones)
+            .filter(|zone| {
+                matches!(zone.zone, ZoneKind::Hand | ZoneKind::Command)
+                    && zone.owner_id == player_id
+            })
+            .flat_map(|zone| &zone.cards)
+            .filter_map(|card| match card {
+                CardView::Visible(card) => Some(card),
+                CardView::Hidden { .. } => None,
+            })
+            .filter(|c| !c.types.iter().any(|ty| ty == "Land") && c.cmc <= lands + 1)
+        {
+            let mut pips = [0i32; 5];
+            for symbol in hand_card.mana_cost.chars() {
+                if let Some(i) = "WUBRG".find(symbol) {
+                    pips[i] += 1;
+                }
+            }
+            for i in 0..5 {
+                demand[i] = demand[i].max(pips[i]);
+            }
+        }
+        let fixes = Self::land_colors(card)
+            .into_iter()
+            .filter_map(|color| "WUBRG".find(color))
+            .filter(|&i| demand[i] > supply[i])
+            .count()
+            .min(2) as i32;
+        let enters_tapped = card.text.contains("enters tapped");
+        let untapped_alternative = alternatives
+            .iter()
+            .any(|other| other.id != card.id && !other.text.contains("enters tapped"));
+        fixes * 20 - i32::from(enters_tapped && untapped_alternative) * 5
+    }
+
     fn action_score(&self, action: &AvailableAction, player_id: &str) -> i32 {
         match &action.kind {
             AvailableActionKind::Cast { card_id, label, .. } => {
@@ -265,13 +499,7 @@ impl SimpleAi {
                 if label.starts_with("Play ")
                     || card.types.iter().any(|card_type| card_type == "Land")
                 {
-                    let missing = self.missing_colors(player_id);
-                    let fixes = Self::land_colors(card)
-                        .iter()
-                        .filter(|color| missing.contains(color))
-                        .count() as i32;
-                    let enters_tapped = card.text.contains("enters tapped");
-                    return 1_000 + fixes * 20 - i32::from(enters_tapped) * 5;
+                    return 1_000 + self.land_choice_score(card, player_id, &[]);
                 }
                 let own_turn = self
                     .view
@@ -309,13 +537,24 @@ impl SimpleAi {
                     score += (120 - card.cmc * 12).max(0);
                 }
                 let text = card.text.to_ascii_lowercase();
+                let roles = Self::roles(card);
                 let ramp = Self::is_mana_source(card)
+                    || roles.intersects(Roles::RAMP | Roles::MANA_DORK | Roles::LAND_FETCH)
                     || (text.contains("search your library for") && text.contains("land card"));
                 if ramp && self.lands_in_play(player_id) < 6 {
                     score += 60;
                 }
-                if text.contains("draw a card") || text.contains("draw two") {
+                if roles.contains(Roles::DRAW)
+                    || text.contains("draw a card")
+                    || text.contains("draw two")
+                {
                     score += 35;
+                }
+                if roles.contains(Roles::REMOVAL) {
+                    score += 30;
+                }
+                if roles.contains(Roles::TOKENS) {
+                    score += 20;
                 }
                 if text.contains("whenever you cast")
                     && text.contains("creature spell")
@@ -469,27 +708,19 @@ impl SimpleAi {
     }
 
     fn should_attack(&self, attacker_id: &str, target_id: &str) -> bool {
-        let Some(attacker) = self.card(attacker_id) else {
+        let (Some(attacker), Some(me)) = (self.card(attacker_id), self.combatant(attacker_id))
+        else {
             return true;
         };
-        let power = attacker
-            .power
-            .as_deref()
-            .and_then(|value| value.parse::<i32>().ok())
-            .unwrap_or(0);
-        let attack_trigger = attacker.text.to_ascii_lowercase().contains("whenever")
-            && attacker.text.to_ascii_lowercase().contains(" attacks");
-        if attack_trigger {
-            return true;
-        }
-        if power <= 0 {
+        if me.power <= 0 {
             return false;
         }
         let Some(view) = &self.view else {
             return true;
         };
-        let attacker_flying = Self::has_keyword(attacker, "Flying");
-        let blockers = view
+        let flying = Self::has_keyword(attacker, "Flying");
+        let menace = Self::has_keyword(attacker, "Menace");
+        let blockers: Vec<Combatant> = view
             .zones
             .iter()
             .filter(|zone| zone.zone == ZoneKind::Battlefield && zone.owner_id == target_id)
@@ -498,42 +729,23 @@ impl SimpleAi {
                 CardView::Visible(card)
                     if card.types.iter().any(|card_type| card_type == "Creature")
                         && !card.tapped
-                        && (!attacker_flying
+                        && (!flying
                             || Self::has_keyword(card, "Flying")
                             || Self::has_keyword(card, "Reach")) =>
                 {
-                    Some(card)
+                    self.combatant(&card.id)
                 }
                 _ => None,
-            });
-        if Self::has_keyword(attacker, "Indestructible")
-            || Self::has_keyword(attacker, "Deathtouch")
-            || Self::has_keyword(attacker, "Trample")
-        {
-            return true;
+            })
+            .collect();
+        let losing = |blocker: &Combatant| {
+            Self::can_destroy(blocker, &me) && !Self::can_destroy(&me, blocker)
+        };
+        if menace {
+            let killers = blockers.iter().filter(|b| losing(b)).count();
+            return killers < 2;
         }
-        !blockers.into_iter().any(|blocker| {
-            let blocker_power = blocker
-                .power
-                .as_deref()
-                .and_then(|value| value.parse::<i32>().ok())
-                .unwrap_or(0);
-            let blocker_toughness = blocker
-                .toughness
-                .as_deref()
-                .and_then(|value| value.parse::<i32>().ok())
-                .unwrap_or(0);
-            let attacker_toughness = attacker
-                .toughness
-                .as_deref()
-                .and_then(|value| value.parse::<i32>().ok())
-                .unwrap_or(0);
-            let attacker_dies =
-                blocker_power >= attacker_toughness || Self::has_keyword(blocker, "Deathtouch");
-            let blocker_survives =
-                power < blocker_toughness && !Self::has_keyword(attacker, "Double strike");
-            attacker_dies && blocker_survives
-        })
+        !blockers.iter().any(losing)
     }
 
     fn stat(value: Option<&str>) -> i32 {
@@ -986,11 +1198,6 @@ impl BotAgent for SimpleAi {
                 }))
             }
             PromptInput::ChooseAction(manabrew_protocol::prompts::choose_action::ChooseActionInput { actions }) => {
-                let counterable = self.view.as_ref().is_some_and(|view| {
-                    view.stack
-                        .iter()
-                        .any(|item| item.controller_id != deciding_player_id)
-                });
                 let pick = actions
                     .iter()
                     .filter(|action| {
@@ -1004,14 +1211,7 @@ impl BotAgent for SimpleAi {
                                 &action.kind,
                                 AvailableActionKind::ActivateAbility(info) if self.wasted_activation(info)
                             )
-                            && (counterable
-                                || !matches!(
-                                    &action.kind,
-                                    AvailableActionKind::Cast { card_id, .. }
-                                        if self.card(card_id).is_some_and(|card| {
-                                            card.text.to_ascii_lowercase().starts_with("counter target")
-                                        })
-                                ))
+                            && self.sane(action, &deciding_player_id)
                     })
                     .max_by_key(|action| self.action_score(action, &deciding_player_id));
                 let pick = pick.map(|action| {

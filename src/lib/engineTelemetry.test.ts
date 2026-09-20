@@ -54,10 +54,15 @@ describe("engine telemetry", () => {
       notePromptArrived("chooseAction");
     }
     noteEngineThinkTime(4);
+    // A window the engine tagged: 30 of its 100ms went to bot prompts.
+    noteEngineThinkTime(100, 0, 30);
     const stats = summariseGame(meta);
     expect(stats).not.toBeNull();
     expect(stats?.turnaround.n).toBe(6);
-    expect(stats?.engineThink?.n).toBe(1);
+    expect(stats?.engineThink?.n).toBe(2);
+    // Only the tagged window splits; the untagged one says nothing about who owned it.
+    expect(stats?.engineThinkBot).toMatchObject({ n: 1, max: 30 });
+    expect(stats?.engineThinkRules).toMatchObject({ n: 1, max: 70 });
     expect(stats?.byType[0]?.type).toBe("chooseAction");
     expect(stats?.clientVersion).toBe("test");
     expect(stats?.engine).toBe("forge-wasm");

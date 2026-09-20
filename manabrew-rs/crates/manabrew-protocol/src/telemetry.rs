@@ -76,6 +76,16 @@ pub struct EnginePlayStats {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub engine_think_cross_turn: Option<EngineTurnaround>,
+    /// `engine_think` split by who owned the time: the part of each window
+    /// spent on bot prompts, and the rest, which is the rules engine resolving
+    /// what the table did. Absent from an engine that does not tag its
+    /// windows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub engine_think_bot: Option<EngineTurnaround>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub engine_think_rules: Option<EngineTurnaround>,
     /// Windows dropped because the tab was backgrounded for part of them: the
     /// engine times itself in wall clock, which keeps running while the worker
     /// is descheduled.
@@ -286,6 +296,8 @@ mod tests {
             engine_think: None,
             engine_think_same_turn: None,
             engine_think_cross_turn: None,
+            engine_think_bot: None,
+            engine_think_rules: None,
             think_samples_hidden: 0,
             by_type: vec![],
         }

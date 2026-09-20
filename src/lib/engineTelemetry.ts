@@ -58,6 +58,16 @@ export interface EngineGameStats {
    */
   engineThinkSameTurn: Turnaround | null;
   engineThinkCrossTurn: Turnaround | null;
+  /**
+   * `engineThink` split by who owned the time. `engineThinkBot` is the part
+   * of each window spent on bot prompts: their snapshot, their think, their
+   * reply. `engineThinkRules` is the rest, the rules engine resolving what
+   * the table did. A long wait belongs to one side or the other, and the
+   * whole-window figure cannot say which. Null from an engine that does not
+   * tag its windows.
+   */
+  engineThinkBot: Turnaround | null;
+  engineThinkRules: Turnaround | null;
   /** Windows dropped for being measured across a backgrounded tab. */
   thinkSamplesHidden: number;
   /** Turnaround per prompt type, biggest first, capped so a report stays small. */
@@ -82,6 +92,9 @@ let engineThink: number[] = [];
 let engineThinkSameTurn: number[] = [];
 /** Think samples whose window contained at least one opponent turn. */
 let engineThinkCrossTurn: number[] = [];
+/** Bot prompt time per window, and the window with that taken out. */
+let engineThinkBot: number[] = [];
+let engineThinkRules: number[] = [];
 /** Samples thrown away because the tab was backgrounded for part of the window. */
 let engineThinkHidden = 0;
 let hiddenSinceLastSample = false;
@@ -152,6 +165,8 @@ export function beginGame(engine: string): void {
   engineThink = [];
   engineThinkSameTurn = [];
   engineThinkCrossTurn = [];
+  engineThinkBot = [];
+  engineThinkRules = [];
   engineThinkHidden = 0;
   hiddenSinceLastSample = false;
   answeredAt = null;
@@ -216,8 +231,10 @@ export function notePromptArrived(promptType: string): void {
 /**
  * @param turns how many turns passed inside the window. Above zero means the
  *   opponents played inside it, which is most of what a large reading is.
+ * @param botMs how much of the window went to bot prompts. Undefined from an
+ *   engine that does not tag its windows, which leaves the split unreported.
  */
-export function noteEngineThinkTime(ms: number, turns = 0): void {
+export function noteEngineThinkTime(ms: number, turns = 0, botMs?: number): void {
   const wasHidden =
     hiddenSinceLastSample ||
     (typeof document !== "undefined" && document.visibilityState === "hidden");
@@ -229,6 +246,11 @@ export function noteEngineThinkTime(ms: number, turns = 0): void {
   if (engineThink.length >= MAX_SAMPLES) return;
   engineThink.push(ms);
   (turns > 0 ? engineThinkCrossTurn : engineThinkSameTurn).push(ms);
+  if (botMs !== undefined) {
+    const bot = Math.min(Math.max(0, botMs), ms);
+    engineThinkBot.push(bot);
+    engineThinkRules.push(ms - bot);
+  }
 }
 
 export function summariseGame(meta: {
@@ -260,6 +282,8 @@ export function summariseGame(meta: {
     engineThink: engineThink.length ? summarise(engineThink) : null,
     engineThinkSameTurn: engineThinkSameTurn.length ? summarise(engineThinkSameTurn) : null,
     engineThinkCrossTurn: engineThinkCrossTurn.length ? summarise(engineThinkCrossTurn) : null,
+    engineThinkBot: engineThinkBot.length ? summarise(engineThinkBot) : null,
+    engineThinkRules: engineThinkRules.length ? summarise(engineThinkRules) : null,
     thinkSamplesHidden: engineThinkHidden,
     byType: byPromptType(samples),
   };

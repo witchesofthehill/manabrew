@@ -56,6 +56,12 @@ export interface ForgeStartMultiplayerGameOptions {
   enginePlayerIndex: number;
   /** Seats controlled by Forge's internal AI instead of external SAB clients. */
   forgeAiSeats?: number[];
+  /**
+   * SAB seats a Manabot plays rather than a person. The engine describes the
+   * board to such a seat only when it is prompted, and books the time its
+   * prompts take separately in `forge:decision`.
+   */
+  botSeats?: number[];
   commanderNames?: Array<string | null>;
   startingLife?: number;
   /** Pins the shuffle. Omitted, the engine seeds from the clock. */

@@ -118,6 +118,14 @@ function increment(counts, key) {
 }
 const intervals = [];
 const botMs = [];
+/**
+ * The engine's own windows for the engine seat, answer-landed to
+ * next-prompt-ready, each tagged with how much of it the other seats' prompts
+ * took. Seat 0 stands in for the person at a pod: what is left of a window
+ * once the bots' share is out is the rules engine resolving the table.
+ */
+const windows = [];
+const STALL_MS = Number(option("stall-ms", 3000));
 let observeMs = 0;
 let turn = 0;
 const lifeByTurn = [];
@@ -279,6 +287,16 @@ const engine = await createForgeEngine({
   },
   onError: (error, slot) => finish({ reason: "error", error: String(error), slot }),
   onEvent: (event, payload) => {
+    if (event === "forge:decision") {
+      windows.push({ ...payload, turn });
+      if (payload.ms > STALL_MS) {
+        const who =
+          payload.bot === undefined ? "?" : payload.bot >= payload.ms / 2 ? "bots" : "rules";
+        process.stderr.write(
+          `  stall ${payload.ms}ms bot=${payload.bot ?? "?"} (${who}) ${payload.type} turns=${payload.turns} @turn ${turn}\n`,
+        );
+      }
+    }
     if (event === "forge:log") {
       const line = `${payload.level} ${String(payload.text).slice(0, 400)}`;
       engineLog.push(line);
@@ -298,6 +316,10 @@ await engine.startMultiplayerGame({
   commanderNames: decks.map((deck) => deck.commanders[0]?.name ?? null),
   enginePlayerIndex,
   forgeAiSeats,
+  // Every other SAB seat is a bot, as at a solo pod in the browser.
+  botSeats: decks
+    .map((_, index) => index)
+    .filter((index) => index !== enginePlayerIndex && !forgeAiSeats.includes(index)),
   startingLife,
   seed,
 });
@@ -339,6 +361,27 @@ const summary = {
     p99: Math.round(percentile(0.99)),
     max: Math.round(sorted.at(-1) ?? 0),
     over1s: sorted.filter((value) => value > 1000).length,
+  },
+  engine: {
+    windows: windows.length,
+    p50: Math.round(
+      percentileOf(
+        windows.map((w) => w.ms).toSorted((a, b) => a - b),
+        0.5,
+      ),
+    ),
+    max: Math.round(Math.max(0, ...windows.map((w) => w.ms))),
+    botP50: Math.round(
+      percentileOf(
+        windows.map((w) => w.bot ?? 0).toSorted((a, b) => a - b),
+        0.5,
+      ),
+    ),
+    botMax: Math.round(Math.max(0, ...windows.map((w) => w.bot ?? 0))),
+    rulesMax: Math.round(Math.max(0, ...windows.map((w) => w.ms - (w.bot ?? 0)))),
+    stalls: windows
+      .filter((w) => w.ms > STALL_MS)
+      .map((w) => ({ ms: w.ms, bot: w.bot ?? null, turns: w.turns, type: w.type, turn: w.turn })),
   },
   bot: {
     samples: sortedBot.length,

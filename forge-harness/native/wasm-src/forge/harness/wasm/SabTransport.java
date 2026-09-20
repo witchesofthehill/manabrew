@@ -103,6 +103,13 @@ public final class SabTransport implements InteractiveBridge {
     private long checkpoint;
     /** When a person's answer last landed; bot answers do not move it. */
     private long lastRecvAt;
+    /**
+     * Wall time spent inside bot prompts since that answer: the bot's own
+     * snapshot, its wait on the worker and the transfer of its reply. What a
+     * person's window contains besides this is the rules engine resolving
+     * their action, so the two halves name who owns a long wait.
+     */
+    private long botMsSinceRecv;
     private int turnNow;
     private int turnAtLastPrompt = -1;
     /** Kept clear of the in-game sequence, which the session owns. */
@@ -143,6 +150,7 @@ public final class SabTransport implements InteractiveBridge {
         // prompt belongs to. A bot's prompt updates the bot alone: the people
         // at the table see the board on their own next prompt, as they did
         // when Forge's AI held these seats.
+        final long botStartedAt = bot ? System.currentTimeMillis() : 0;
         if (bot) {
             sendState(seat);
         } else {
@@ -157,10 +165,12 @@ public final class SabTransport implements InteractiveBridge {
         // `turns` is how many turns passed inside that window. Anything above
         // zero means the opponents took their turns in it, which is most of
         // what a large reading is: this is not one decision being slow.
+        // `bot` is the part of the window spent on bot prompts.
         if (!bot) {
             if (lastRecvAt > 0) {
                 final int turns = turnAtLastPrompt < 0 ? 0 : Math.max(0, turnNow - turnAtLastPrompt);
                 post("forge:decision", "{\"ms\":" + (System.currentTimeMillis() - lastRecvAt)
+                        + ",\"bot\":" + botMsSinceRecv
                         + ",\"turns\":" + turns
                         + ",\"type\":\"" + type + "\"}");
             }
@@ -172,8 +182,11 @@ public final class SabTransport implements InteractiveBridge {
         sendTagged(seat, "prompt", "prompt", promptJson);
 
         final JsonObject message = JsonParser.parseString(recv(seat)).getAsJsonObject();
-        if (!bot) {
+        if (bot) {
+            botMsSinceRecv += System.currentTimeMillis() - botStartedAt;
+        } else {
             lastRecvAt = System.currentTimeMillis();
+            botMsSinceRecv = 0;
         }
         return decodeMessage(seat, message);
     }
@@ -193,6 +206,7 @@ public final class SabTransport implements InteractiveBridge {
             }
         }
         lastRecvAt = System.currentTimeMillis();
+        botMsSinceRecv = 0;
         return result;
     }
 

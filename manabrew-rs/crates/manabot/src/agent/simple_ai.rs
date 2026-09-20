@@ -286,21 +286,67 @@ impl SimpleAi {
             .collect()
     }
 
-    fn mana_sources(&self, player_id: &str) -> ([i32; 5], i32) {
+    fn mana_output(card: &CardDto) -> Option<([i32; 5], i32, i32)> {
         let mut colors = [0i32; 5];
-        let mut total = 0;
-        for card in self
-            .battlefield(player_id)
-            .filter(|card| !card.tapped && Self::is_mana_source(card))
-        {
-            total += 1;
-            for color in Self::land_colors(card) {
-                if let Some(i) = "WUBRG".find(color) {
+        let mut any = 0;
+        let mut amount = 0;
+        for subtype in &card.subtypes {
+            if let Some(i) = ["Plains", "Island", "Swamp", "Mountain", "Forest"]
+                .iter()
+                .position(|basic| basic == subtype)
+            {
+                colors[i] += 1;
+                amount = amount.max(1);
+            }
+        }
+        for segment in card.text.split("Add ").skip(1) {
+            let clause = segment.split(['.', '\n']).next().unwrap_or("");
+            let lower = clause.to_ascii_lowercase();
+            let symbols = clause.matches('{').count() as i32;
+            let mut produced = 0;
+            for symbol in clause.chars() {
+                if let Some(i) = "WUBRG".find(symbol) {
                     colors[i] += 1;
+                    produced = produced.max(1);
+                }
+            }
+            if lower.contains("any color")
+                || lower.contains("any type")
+                || lower.contains("any one color")
+            {
+                let count = if lower.starts_with("two") {
+                    2
+                } else if lower.starts_with("three") {
+                    3
+                } else {
+                    1
+                };
+                any += count;
+                produced = produced.max(count);
+            }
+            amount = amount.max(produced.max(symbols));
+        }
+        (amount > 0).then_some((colors, any, amount))
+    }
+
+    fn mana_sources(&self, player_id: &str) -> ([i32; 5], i32, i32) {
+        let mut colors = [0i32; 5];
+        let mut any = 0;
+        let mut total = 0;
+        for card in self.battlefield(player_id).filter(|card| !card.tapped) {
+            let creature = card.types.iter().any(|ty| ty == "Creature");
+            if creature && (card.summoning_sick || !card.text.contains("{T}: Add")) {
+                continue;
+            }
+            if let Some((produced, wild, amount)) = Self::mana_output(card) {
+                total += amount;
+                any += wild;
+                for i in 0..5 {
+                    colors[i] += produced[i];
                 }
             }
         }
-        (colors, total)
+        (colors, any, total)
     }
 
     fn affordable(&self, card: &CardDto, player_id: &str) -> bool {
@@ -308,10 +354,10 @@ impl SimpleAi {
             .effective_mana_cost
             .as_deref()
             .unwrap_or(card.mana_cost.as_str());
-        if cost.contains('X') || cost.contains('/') || card.cmc == 0 && cost.is_empty() {
+        if cost.contains('X') || cost.contains('/') || cost.is_empty() {
             return true;
         }
-        let (colors, total) = self.mana_sources(player_id);
+        let (colors, any, total) = self.mana_sources(player_id);
         let tax = card.commander_tax.unwrap_or(0);
         if card.cmc + tax > total {
             return false;
@@ -322,7 +368,8 @@ impl SimpleAi {
                 pips[i] += 1;
             }
         }
-        (0..5).all(|i| pips[i] <= colors[i])
+        let short: i32 = (0..5).map(|i| (pips[i] - colors[i]).max(0)).sum();
+        short <= any
     }
 
     fn roles(card: &CardDto) -> Roles {

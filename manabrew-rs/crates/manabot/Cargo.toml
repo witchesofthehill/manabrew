@@ -13,6 +13,7 @@ native = ["dep:tokio", "dep:tokio-tungstenite", "dep:futures-util"]
 manabrew-agent-interface = { path = "../manabrew-agent-interface", version = "0.13.1" }
 manabrew-engine = { path = "../manabrew-engine", version = "0.10.0" }
 manabrew-protocol = { path = "../manabrew-protocol", version = "5.11.0" }
+manabrew-relay-protocol = { path = "../manabrew-relay-protocol", version = "5.14.1" }
 bitflags = "2"
 serde = { workspace = true }
 serde_json = { workspace = true }

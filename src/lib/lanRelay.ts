@@ -20,6 +20,8 @@ interface LanEndpoint {
    *  `Authenticate` is the real handshake, and a room password is what makes a
    *  room private. */
   key: string;
+  /** Where that host serves its card art, when it has some. */
+  artPort?: number;
 }
 
 interface LocalRelayInfo {
@@ -36,6 +38,7 @@ export interface LanTarget {
   /** True when this machine is the one serving the session. */
   hosting: boolean;
   name?: string;
+  artPort?: number;
 }
 
 /** Paid in full only when nothing answers, on every launch. */
@@ -63,6 +66,7 @@ function target(found: LanEndpoint): LanTarget {
     password: found.key,
     hosting: false,
     name: found.name,
+    artPort: found.artPort,
   };
 }
 

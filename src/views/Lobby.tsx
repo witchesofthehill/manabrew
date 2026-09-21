@@ -210,7 +210,7 @@ export default function Lobby() {
     void findOrHostLanRelay().then(async (target) => {
       if (!target) return;
       await connect(target.host, target.port, name, target.password, true);
-      if (!useServerStore.getState().error) useServerStore.setState({ lanTarget: target });
+      if (!useServerStore.getState().error) useServerStore.getState().adoptLanTarget(target);
     });
   }, [connected, connecting, error, connect]);
 

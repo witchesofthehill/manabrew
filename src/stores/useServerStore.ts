@@ -4,6 +4,7 @@ import { devtools } from "zustand/middleware";
 import { toast } from "sonner";
 import { getPlatform } from "@/platform";
 import { findLanRelay, type LanTarget } from "@/lib/lanRelay";
+import { setLanArtHost } from "@/lib/lanArtHost";
 import { attachDraftPeer, detachDraftPeer } from "@/game/draftPeer";
 import { teardownHost as teardownDraftHost } from "@/game/draftHost";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
@@ -92,6 +93,8 @@ interface ServerState {
   /** The configured relay, unless one is answering on this network: that is
    *  the network's lobby and wins. */
   connectPreferred(username: string): Promise<void>;
+  /** Record that the session is on `target`, and read card art from it. */
+  adoptLanTarget(target: LanTarget | null): void;
   disconnect(): Promise<void>;
   listRooms(): Promise<void>;
   listPlayers(): Promise<void>;
@@ -212,7 +215,8 @@ export const useServerStore = create<ServerState>()(
           set({ connecting: false, error: "Multiplayer not supported on this platform" });
           return;
         }
-        set({ username, connecting: true, error: null, lanTarget: null });
+        set({ username, connecting: true, error: null });
+        get().adoptLanTarget(null);
         duplicateRejectionSince = null;
         releaseTabSession();
         const claim = await claimTabSession(username);
@@ -250,10 +254,17 @@ export const useServerStore = create<ServerState>()(
         const prefs = usePreferencesStore.getState();
         if (found) {
           await get().connect(found.host, found.port, username, found.password, true);
-          if (!get().error) set({ lanTarget: found });
+          if (!get().error) get().adoptLanTarget(found);
         } else {
           await get().connect(prefs.serverHost, prefs.serverPort, username, prefs.serverPassword);
         }
+      },
+
+      adoptLanTarget(target) {
+        set({ lanTarget: target });
+        // A host reads its own cache; only a guest has somewhere better to ask.
+        const guestOf = target && !target.hosting ? target : null;
+        setLanArtHost(guestOf?.host ?? null, guestOf?.artPort);
       },
 
       async disconnect() {
@@ -262,6 +273,7 @@ export const useServerStore = create<ServerState>()(
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.disconnect();
+        get().adoptLanTarget(null);
         set({
           connected: false,
           connecting: false,
@@ -269,7 +281,6 @@ export const useServerStore = create<ServerState>()(
           playerId: null,
           username: null,
           reconnect: { phase: "idle", attempt: 0 },
-          lanTarget: null,
           currentRoom: null,
           roomPassword: null,
           hostingForgeRoom: false,

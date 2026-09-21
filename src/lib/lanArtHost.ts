@@ -1,7 +1,7 @@
 /**
  * Where this machine reads card art somebody else downloaded: set when joining a
- * LAN room whose host advertises an art port (`LocalRelayInfo.artPort`, or the
- * `art` mDNS property), cleared when leaving.
+ * LAN room whose host advertises an art port (the `art` mDNS property, carried
+ * as `LanTarget.artPort`), cleared when leaving.
  *
  * Desktop only. The listener is plain http, which an https page cannot fetch.
  */

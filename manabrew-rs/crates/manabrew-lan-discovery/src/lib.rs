@@ -107,6 +107,14 @@ pub fn advertise(
 
 /// Time-boxed rather than continuous: a player opens the list and picks.
 pub fn discover(timeout: std::time::Duration) -> Result<Vec<LanEndpoint>, String> {
+    discover_until(timeout, None)
+}
+
+/// Returns at the first record of `stop_at`; only silence waits out the timeout.
+pub fn discover_until(
+    timeout: std::time::Duration,
+    stop_at: Option<LanRole>,
+) -> Result<Vec<LanEndpoint>, String> {
     let daemon = mdns_sd::ServiceDaemon::new().map_err(|e| format!("mdns daemon: {e}"))?;
     let receiver = daemon
         .browse(SERVICE_TYPE)
@@ -126,6 +134,7 @@ pub fn discover(timeout: std::time::Duration) -> Result<Vec<LanEndpoint>, String
                 if found.iter().any(|e| e.host == host && e.port == port) {
                     continue;
                 }
+                let role = LanRole::parse(info.get_property_val_str("role"));
                 found.push(LanEndpoint {
                     name: info
                         .get_property_val_str("name")
@@ -133,12 +142,15 @@ pub fn discover(timeout: std::time::Duration) -> Result<Vec<LanEndpoint>, String
                         .to_string(),
                     host,
                     port,
-                    role: LanRole::parse(info.get_property_val_str("role")),
+                    role,
                     art_port: info
                         .get_property_val_str("art")
                         .and_then(|value| value.parse().ok()),
                     key: LAN_RELAY_KEY.to_string(),
                 });
+                if stop_at == Some(role) {
+                    break;
+                }
             }
             Ok(_) => {}
             Err(_) => break,

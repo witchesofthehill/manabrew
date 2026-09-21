@@ -38,7 +38,8 @@ export interface LanTarget {
   name?: string;
 }
 
-const DISCOVER_TIMEOUT_MS = 2000;
+/** Paid in full only when nothing answers, on every launch. */
+const DISCOVER_TIMEOUT_MS = 1000;
 
 /** Whether a connection failure was "nobody answered", as opposed to the relay
  *  answering and turning us away. Only the first is worth a local fallback. */
@@ -46,11 +47,12 @@ export function isUnreachable(error: string | null): boolean {
   return !!error && /failed to connect/i.test(error);
 }
 
-async function discover(): Promise<LanEndpoint[]> {
+/** With `stopAt`, returns at the first record of that role. */
+async function discover(stopAt?: "relay" | "room"): Promise<LanEndpoint[]> {
   const platform = getPlatform();
   if (platform.type !== "tauri") return [];
   return platform
-    .invoke<LanEndpoint[]>("discover_lan_rooms", { timeoutMs: DISCOVER_TIMEOUT_MS })
+    .invoke<LanEndpoint[]>("discover_lan_rooms", { timeoutMs: DISCOVER_TIMEOUT_MS, stopAt })
     .catch(() => []);
 }
 
@@ -74,7 +76,7 @@ function target(found: LanEndpoint): LanTarget {
  * trusting what that host says.
  */
 export async function findLanRelay(): Promise<LanTarget | null> {
-  const relay = (await discover()).find((entry) => entry.role === "relay");
+  const relay = (await discover("relay")).find((entry) => entry.role === "relay");
   return relay ? target(relay) : null;
 }
 

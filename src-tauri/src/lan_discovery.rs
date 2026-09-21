@@ -12,11 +12,14 @@ pub use manabrew_lan_discovery::{
 };
 
 #[tauri::command]
-pub async fn discover_lan_rooms(timeout_ms: Option<u64>) -> Result<Vec<LanEndpoint>, String> {
+pub async fn discover_lan_rooms(
+    timeout_ms: Option<u64>,
+    stop_at: Option<LanRole>,
+) -> Result<Vec<LanEndpoint>, String> {
     let timeout = std::time::Duration::from_millis(timeout_ms.unwrap_or(1500).clamp(200, 8000));
     // mdns browsing parks a thread on a socket, so it does not belong on the
     // runtime a command is answered from.
-    tokio::task::spawn_blocking(move || manabrew_lan_discovery::discover(timeout))
+    tokio::task::spawn_blocking(move || manabrew_lan_discovery::discover_until(timeout, stop_at))
         .await
         .map_err(|e| e.to_string())?
 }

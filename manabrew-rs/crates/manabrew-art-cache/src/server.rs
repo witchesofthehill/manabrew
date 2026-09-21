@@ -8,6 +8,7 @@
 
 use std::sync::Arc;
 
+use crate::cards::{name_from_request_path, CardIndex};
 use crate::{key_from_request_path, mime_for, ImageCache};
 
 pub struct ArtServer {
@@ -39,11 +40,14 @@ impl ArtServer {
         let server = Arc::new(tiny_http::Server::http((bind_ip, port)).ok()?);
         let port = server.server_addr().to_ip()?.port();
         let accept = server.clone();
+        // The data sits beside the pictures, so holding the cache is holding
+        // both and the two can never be paired wrong.
+        let index = CardIndex::new(cache.root().to_path_buf());
 
         std::thread::spawn(move || {
             // `unblock` ends this iterator, closing the listener.
             for request in accept.incoming_requests() {
-                serve(request, &cache);
+                serve(request, &cache, &index);
             }
         });
 
@@ -51,8 +55,12 @@ impl ArtServer {
     }
 }
 
-fn serve(request: tiny_http::Request, cache: &ImageCache) {
+fn serve(request: tiny_http::Request, cache: &ImageCache, index: &CardIndex) {
     let raw = request.url().to_string();
+    if let Some(name) = name_from_request_path(&raw) {
+        serve_card(request, index, &name);
+        return;
+    }
     let Some(key) = key_from_request_path(&raw) else {
         let _ = request.respond(tiny_http::Response::empty(404));
         return;
@@ -70,6 +78,30 @@ fn serve(request: tiny_http::Request, cache: &ImageCache) {
         ("Cache-Control", "public, max-age=31536000, immutable"),
     ] {
         if let Ok(header) = tiny_http::Header::from_bytes(name.as_bytes(), value.as_bytes()) {
+            response.add_header(header);
+        }
+    }
+    let _ = request.respond(response);
+}
+
+/// One card, so a seat with no internet can still learn what it is holding and
+/// where its picture lives. Named rather than keyed by url, because a name is
+/// all a client that never reached the api has.
+fn serve_card(request: tiny_http::Request, index: &CardIndex, name: &str) {
+    let Some(bytes) = index.read(name) else {
+        let _ = request.respond(tiny_http::Response::empty(404));
+        return;
+    };
+    let mut response = tiny_http::Response::from_data(bytes);
+    for (header, value) in [
+        ("Content-Type", "application/json"),
+        ("Access-Control-Allow-Origin", "*"),
+        ("Cross-Origin-Resource-Policy", "cross-origin"),
+        // Cards are renamed and reprinted, so this is not immutable the way a
+        // picture at a hashed path is.
+        ("Cache-Control", "public, max-age=86400"),
+    ] {
+        if let Ok(header) = tiny_http::Header::from_bytes(header.as_bytes(), value.as_bytes()) {
             response.add_header(header);
         }
     }
@@ -107,6 +139,26 @@ mod tests {
         assert!(get(server.port, "/scryfall-img/front/missing.jpg").contains("404"));
         // And nothing outside the cache.
         assert!(get(server.port, "/scryfall-img/../../etc/passwd").contains("404"));
+    }
+
+    /// The picture is useless to a seat that cannot learn its url.
+    #[test]
+    fn a_cached_card_record_is_served_to_the_network() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let line = r#"{"name":"Lightning Bolt","image_uris":{"normal":"https://cards.scryfall.io/normal/front/a/b/bolt.jpg"}}"#;
+        let mut writer = crate::cards::CardIndexWriter::create(dir.path()).expect("writer");
+        writer
+            .push(line, &serde_json::from_str(line).expect("json"))
+            .expect("push");
+        writer.finish().expect("finish");
+
+        let cache = Arc::new(ImageCache::new(dir.path().to_path_buf()));
+        let server = ArtServer::spawn(Ipv4Addr::LOCALHOST.into(), cache).expect("spawn");
+
+        let body = get(server.port, "/scryfall-card/Lightning%20Bolt");
+        assert!(body.contains("200 OK"), "{body}");
+        assert!(body.ends_with(line), "{body}");
+        assert!(get(server.port, "/scryfall-card/Black%20Lotus").contains("404"));
     }
 
     fn get(port: u16, path: &str) -> String {

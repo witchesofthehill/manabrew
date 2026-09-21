@@ -98,6 +98,12 @@ export function cardArtCacheStats(): Promise<CardArtCacheStats> {
   return getPlatform().invoke<CardArtCacheStats>("card_art_cache_stats", {});
 }
 
+/** How many cards this machine can describe with no internet: written by the
+ *  every-card download out of the same bulk file its urls came from. */
+export function cardDataCached(): Promise<number> {
+  return getPlatform().invoke<number>("card_data_cached", {});
+}
+
 export function clearCardArtCache(includeDownloaded: boolean): Promise<void> {
   return getPlatform().invoke<void>("clear_card_art_cache", { includeDownloaded });
 }

@@ -4,7 +4,7 @@ import { devtools } from "zustand/middleware";
 import { toast } from "sonner";
 import { getPlatform } from "@/platform";
 import { findLanRelay, type LanTarget } from "@/lib/lanRelay";
-import { setLanArtHost, setRelayArtBase } from "@/lib/lanArtHost";
+import { setLanCacheHost, setRelayCacheBase } from "@/lib/lanCache";
 import { attachDraftPeer, detachDraftPeer } from "@/game/draftPeer";
 import { teardownHost as teardownDraftHost } from "@/game/draftHost";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
@@ -93,7 +93,7 @@ interface ServerState {
   /** The configured relay, unless one is answering on this network: that is
    *  the network's lobby and wins. */
   connectPreferred(username: string): Promise<void>;
-  /** Record that the session is on `target`, and read card art from it. */
+  /** Record that the session is on `target`, and read its cache from it. */
   adoptLanTarget(target: LanTarget | null): void;
   disconnect(): Promise<void>;
   listRooms(): Promise<void>;
@@ -264,7 +264,7 @@ export const useServerStore = create<ServerState>()(
         set({ lanTarget: target });
         // A host reads its own cache; only a guest has somewhere better to ask.
         const guestOf = target && !target.hosting ? target : null;
-        setLanArtHost(guestOf?.host ?? null, guestOf?.artPort);
+        setLanCacheHost(guestOf?.host ?? null, guestOf?.artPort);
       },
 
       async disconnect() {
@@ -274,7 +274,7 @@ export const useServerStore = create<ServerState>()(
         if (!platform.server) return;
         await platform.server.disconnect();
         get().adoptLanTarget(null);
-        setRelayArtBase(null);
+        setRelayCacheBase(null);
         set({
           connected: false,
           connecting: false,
@@ -481,7 +481,7 @@ export const useServerStore = create<ServerState>()(
         unsubscribers.push(
           platform.events.on<AuthResultPayload>("server:auth_result", (payload) => {
             set({ relayFeatures: payload.features ?? [] });
-            setRelayArtBase(payload.success ? (payload.art_base_url ?? null) : null);
+            setRelayCacheBase(payload.success ? (payload.art_base_url ?? null) : null);
             if (payload.success) {
               duplicateRejectionSince = null;
               set({

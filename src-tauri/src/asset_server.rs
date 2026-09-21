@@ -55,6 +55,17 @@ fn start_asset_server(app: &tauri::AppHandle) -> Option<u16> {
             }
 
             let raw = request.url().to_string();
+            // The picture is worth nothing to a client that cannot learn its
+            // url, so the data downloaded beside it answers here too.
+            if let Some(name) = crate::image_cache::name_from_request_path(&raw) {
+                match crate::image_cache::cards().and_then(|cards| cards.read(&name)) {
+                    Some(bytes) => respond_card_data(request, bytes),
+                    None => {
+                        let _ = request.respond(tiny_http::Response::empty(404));
+                    }
+                }
+                continue;
+            }
             if let Some(key) = crate::image_cache::key_from_request_path(&raw) {
                 // A hit answers here, because reading a file is not worth a
                 // task. A miss is a CDN round trip, and this is the only thread
@@ -115,6 +126,22 @@ fn start_asset_server(app: &tauri::AppHandle) -> Option<u16> {
     });
 
     Some(ASSET_SERVER_PORT)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn respond_card_data(request: tiny_http::Request, bytes: Vec<u8>) {
+    let mut response = tiny_http::Response::from_data(bytes);
+    for (name, value) in [
+        ("Content-Type", "application/json"),
+        ("Cross-Origin-Resource-Policy", "same-origin"),
+        // Cards are renamed and reprinted, unlike a picture at a hashed path.
+        ("Cache-Control", "public, max-age=86400"),
+    ] {
+        if let Ok(header) = tiny_http::Header::from_bytes(name.as_bytes(), value.as_bytes()) {
+            response.add_header(header);
+        }
+    }
+    let _ = request.respond(response);
 }
 
 #[cfg(not(target_os = "windows"))]

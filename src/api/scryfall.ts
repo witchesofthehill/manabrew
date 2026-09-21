@@ -10,6 +10,7 @@ import {
 import { platformFetch } from "@/lib/platformFetch";
 import { getPlatformType } from "@/platform";
 import { loadScryfallImage } from "@/lib/scryfallImageSource";
+import { localCardRecords } from "@/lib/localCardRecords";
 import { scryfallAssetUrl, scryfallAssetsMirrored } from "@/lib/scryfallAssets";
 import {
   enqueueCardLookup,
@@ -221,6 +222,7 @@ export async function fetchCardCollection(
           ? { name: c.name, set: c.setCode.toLowerCase() }
           : { name: c.name },
     );
+    let fromCache = false;
     const data = await scryfallFetch<{ data: ScryfallCard[] }>(
       `${SCRYFALL_API}/cards/collection`,
       "Failed to fetch card collection from Scryfall",
@@ -230,9 +232,21 @@ export async function fetchCardCollection(
         body: JSON.stringify({ identifiers: ids.map(normalizeIdentifierForRequest) }),
         signal,
       },
-    );
+    ).catch(async (error) => {
+      const cached = await localCardRecords(batch.map((c) => c.name));
+      if (cached.size === 0) throw error;
+      fromCache = true;
+      return { data: [...cached.values()] };
+    });
     batch.forEach((c, idx) => {
-      const card = data.data.find((found) => matchesIdentifier(found, ids[idx]));
+      // A cache holds one printing per card, so an exact-printing identifier
+      // has nothing to match there and the name is all it can be asked for.
+      // Online that stays a miss, where a wrong printing would be a wrong card.
+      const card =
+        data.data.find((found) => matchesIdentifier(found, ids[idx])) ??
+        (fromCache
+          ? data.data.find((found) => matchesIdentifier(found, { name: c.name }))
+          : undefined);
       // A set+number identifier carries no name, so a mistyped number would
       // silently resolve to a different card in that set — reject it instead.
       if (!card || !matchesIdentifier(card, { name: c.name })) return;

@@ -2,8 +2,10 @@
 //! path maps straight to a file. That is what lets one machine serve its cache
 //! to another.
 
+pub mod cards;
 pub mod server;
 
+pub use cards::CardIndex;
 pub use server::ArtServer;
 
 use std::collections::HashSet;
@@ -101,6 +103,12 @@ impl ImageCache {
 
     pub fn contains(&self, key: &str) -> bool {
         self.path_for(key).map(|p| p.is_file()).unwrap_or(false)
+    }
+
+    /// So the card data can be found beside the pictures without a second
+    /// caller having to be told the same directory twice.
+    pub fn root(&self) -> &Path {
+        &self.root
     }
 
     fn store(&self, key: &str, bytes: &[u8], pin: bool) -> Result<(), String> {
@@ -381,7 +389,13 @@ impl ImageCache {
                     stack.push(path);
                     continue;
                 }
-                if path.file_name().is_some_and(|n| n == PINNED_FILE) {
+                // Not art, and not evictable: trimming for space must not
+                // delete the card data, which is the largest unpinned thing in
+                // here and the only copy of what a card is. A half-written
+                // `.part` of either still gets swept below.
+                if path.file_name().is_some_and(|n| {
+                    n == PINNED_FILE || n == cards::CARDS_FILE || n == cards::OFFSETS_FILE
+                }) {
                     continue;
                 }
                 let partial = path.extension().is_some_and(|e| e == "part");
@@ -507,7 +521,8 @@ impl ImageCache {
 
     /// Every distinct card Scryfall knows, at the variants asked for. One
     /// printing each (`oracle_cards`), which is the set a name-keyed engine
-    /// draws from.
+    /// draws from. The records go to [`cards::CardIndexWriter`] on the way
+    /// past: without them a full cache still cannot say where a picture lives.
     async fn bulk_urls(&self, variants: &[String]) -> Result<Vec<String>, String> {
         #[derive(serde::Deserialize)]
         struct Index {
@@ -533,11 +548,15 @@ impl ImageCache {
 
         let reader = std::io::BufReader::new(flate2::read::GzDecoder::new(&body[..]));
         let mut urls = Vec::new();
+        let mut index = cards::CardIndexWriter::create(&self.root).ok();
         for line in std::io::BufRead::lines(reader) {
             let Ok(line) = line else { break };
             let Ok(card) = serde_json::from_str::<serde_json::Value>(&line) else {
                 continue;
             };
+            if let Some(writer) = index.as_mut() {
+                let _ = writer.push(&line, &card);
+            }
             // A double-faced card carries its art per face rather than at the
             // top level, and both faces get drawn.
             let faces = card
@@ -552,6 +571,11 @@ impl ImageCache {
                     }
                 }
             }
+        }
+        // Both halves of the pair are renamed into place here, so a reader
+        // never sees a table pointing into a file that stops halfway.
+        if let Some(writer) = index {
+            let _ = writer.finish();
         }
         Ok(urls)
     }
@@ -702,6 +726,27 @@ mod tests {
         let stats = cache.stats();
         assert_eq!(stats.files, 1, "and must never be counted as cached art");
         assert_eq!(stats.bytes, 4);
+    }
+
+    /// It is unpinned and the biggest file in here, so a trim would take it
+    /// first, and a machine would lose the only copy of what its cards are.
+    #[test]
+    fn trimming_for_space_leaves_the_card_data_alone() {
+        let (cache, dir) = cache();
+        cache.store("drop.jpg", b"12", false).unwrap();
+        let line = r#"{"name":"Lightning Bolt"}"#;
+        let mut writer = cards::CardIndexWriter::create(dir.path()).unwrap();
+        writer
+            .push(line, &serde_json::from_str(line).unwrap())
+            .unwrap();
+        writer.finish().unwrap();
+
+        cache.reconcile();
+        assert_eq!(cache.stats().files, 1, "card data is not cached art");
+
+        cache.clear(false).unwrap();
+        let index = cards::CardIndex::new(dir.path().to_path_buf());
+        assert!(index.read("Lightning Bolt").is_some());
     }
 
     #[test]

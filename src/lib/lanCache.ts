@@ -1,5 +1,6 @@
 /**
- * Where this machine reads card art somebody else downloaded, cleared when the
+ * The machine on this network that already downloaded the cards: its art at
+ * `/scryfall-img/` and its card records at `/scryfall-card/`. Cleared when the
  * session ends.
  *
  * Two sources, because the two say different things. `AuthResult.art_base_url`
@@ -13,15 +14,24 @@
 let advertised: string | null = null;
 let discovered: string | null = null;
 
-export function setRelayArtBase(url: string | null): void {
+export function setRelayCacheBase(url: string | null): void {
   advertised = url ? url.replace(/\/+$/, "") : null;
 }
 
-export function setLanArtHost(address: string | null, port?: number | null): void {
+export function setLanCacheHost(address: string | null, port?: number | null): void {
   discovered = address && port ? `http://${address}:${port}` : null;
 }
 
+function base(): string | null {
+  return advertised ?? discovered;
+}
+
 export function lanArtUrl(key: string): string | null {
-  const base = advertised ?? discovered;
-  return base ? `${base}/scryfall-img/${key}` : null;
+  const host = base();
+  return host ? `${host}/scryfall-img/${key}` : null;
+}
+
+export function lanCardUrl(name: string): string | null {
+  const host = base();
+  return host ? `${host}/scryfall-card/${encodeURIComponent(name)}` : null;
 }

@@ -4,12 +4,14 @@
 
 use std::sync::{Arc, OnceLock};
 
+pub use manabrew_art_cache::cards::name_from_request_path;
 pub use manabrew_art_cache::{
-    cancel_download, key_from_request_path, key_from_url, mime_for, CacheStats, ImageCache,
-    PreseedResult, CACHE_DIR,
+    cancel_download, key_from_request_path, key_from_url, mime_for, CacheStats, CardIndex,
+    ImageCache, PreseedResult, CACHE_DIR,
 };
 
 static CACHE: OnceLock<Arc<ImageCache>> = OnceLock::new();
+static CARDS: OnceLock<Arc<CardIndex>> = OnceLock::new();
 
 pub fn init(app: &tauri::AppHandle) {
     use tauri::Manager;
@@ -17,6 +19,7 @@ pub fn init(app: &tauri::AppHandle) {
         return;
     };
     let cache = Arc::new(ImageCache::new(dir.join(CACHE_DIR)));
+    let _ = CARDS.set(Arc::new(CardIndex::new(dir.join(CACHE_DIR))));
     // One walk, off the startup path: it also sweeps `.part` leftovers and is
     // what makes `stats` a read of two numbers rather than a tree walk.
     let counted = cache.clone();
@@ -26,6 +29,17 @@ pub fn init(app: &tauri::AppHandle) {
 
 pub fn cache() -> Option<Arc<ImageCache>> {
     CACHE.get().cloned()
+}
+
+pub fn cards() -> Option<Arc<CardIndex>> {
+    CARDS.get().cloned()
+}
+
+/// How many cards this machine can describe with no internet. Zero means the
+/// client must not spend a request on the local route before the CDN.
+#[tauri::command]
+pub fn card_data_cached() -> usize {
+    cards().map(|cards| cards.len()).unwrap_or(0)
 }
 
 #[tauri::command]

@@ -109,8 +109,10 @@ async function startGame(requestId, args) {
   }
 
   const forgeAi = args && args.forgeAi === true;
-  const seatBuffers = [humanDeck, ...aiDecks].map(() => new SharedArrayBuffer(SAB_SIZE));
-  self.__forgeSeatSabs = seatBuffers;
+  const seatBuffers = (forgeAi ? [humanDeck] : [humanDeck, ...aiDecks]).map(
+    () => new SharedArrayBuffer(SAB_SIZE),
+  );
+  self.__forgeSeatSabs = forgeAi ? null : seatBuffers;
   self.__forgeSab = seatBuffers[0];
   gameRunning = true;
 

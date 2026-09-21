@@ -23,9 +23,10 @@ sudo -u manabrew MANABREW_ART_DIR=/var/lib/manabrew \
 ```
 
 That run also keeps what each card _is_, from the same bulk file the picture
-urls come out of, and serves it at `/scryfall-card/`. Pictures alone are not
-enough: a desktop learns a card's image url from a Scryfall record, so with no
-internet and no records a full cache has nothing to ask for.
+urls come out of, plus the set list, and serves them at `/scryfall-card/<name>`
+and `/scryfall-sets`. Pictures alone are not enough: a desktop learns a card's
+image url from a Scryfall record, so with no internet and no records a full
+cache has nothing to ask for.
 
 The desktops need no configuration: they find this machine over mDNS and use it
 as their lobby, their card art and their card data.
@@ -34,7 +35,7 @@ Statically linked, so it runs on any x86_64 Linux regardless of glibc.
 
 | Variable                 | Default   |                                                                                                                   |
 | ------------------------ | --------- | ----------------------------------------------------------------------------------------------------------------- |
-| `MANABREW_ART_DIR`       | unset     | Hold card art and card data here and serve `/scryfall-img/` and `/scryfall-card/`.                                |
+| `MANABREW_ART_DIR`       | unset     | Hold card art and card data here and serve `/scryfall-img/`, `/scryfall-card/` and `/scryfall-sets`.              |
 | `MANABREW_SERVER_KEY`    | see note  | What a desktop presents to log in. `manabrew-lan` while advertising, the key the desktops use; `forge` otherwise. |
 | `FORGE_HOST`             | `0.0.0.0` | Bind here. The mDNS record carries the address the network reaches, whichever interface that is.                  |
 | `MANABREW_ART_PORT`      | `9528`    | Carried in the mDNS record, so clients need not be told.                                                          |

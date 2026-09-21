@@ -58,12 +58,17 @@ fn start_asset_server(app: &tauri::AppHandle) -> Option<u16> {
             // The picture is worth nothing to a client that cannot learn its
             // url, so the data downloaded beside it answers here too.
             if let Some(name) = crate::image_cache::name_from_request_path(&raw) {
-                match crate::image_cache::cards().and_then(|cards| cards.read(&name)) {
-                    Some(bytes) => respond_card_data(request, bytes),
-                    None => {
-                        let _ = request.respond(tiny_http::Response::empty(404));
-                    }
-                }
+                respond_card_data(
+                    request,
+                    crate::image_cache::cards().and_then(|cards| cards.read(&name)),
+                );
+                continue;
+            }
+            if crate::image_cache::is_sets_request(&raw) {
+                respond_card_data(
+                    request,
+                    crate::image_cache::cache().and_then(|cache| cache.read_sets()),
+                );
                 continue;
             }
             if let Some(key) = crate::image_cache::key_from_request_path(&raw) {
@@ -129,7 +134,11 @@ fn start_asset_server(app: &tauri::AppHandle) -> Option<u16> {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn respond_card_data(request: tiny_http::Request, bytes: Vec<u8>) {
+fn respond_card_data(request: tiny_http::Request, body: Option<Vec<u8>>) {
+    let Some(bytes) = body else {
+        let _ = request.respond(tiny_http::Response::empty(404));
+        return;
+    };
     let mut response = tiny_http::Response::from_data(bytes);
     for (name, value) in [
         ("Content-Type", "application/json"),

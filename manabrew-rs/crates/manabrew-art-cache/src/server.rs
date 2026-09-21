@@ -8,7 +8,7 @@
 
 use std::sync::Arc;
 
-use crate::cards::{name_from_request_path, CardIndex};
+use crate::cards::{is_sets_request, name_from_request_path, CardStore};
 use crate::{key_from_request_path, mime_for, ImageCache};
 
 pub struct ArtServer {
@@ -42,12 +42,12 @@ impl ArtServer {
         let accept = server.clone();
         // The data sits beside the pictures, so holding the cache is holding
         // both and the two can never be paired wrong.
-        let index = CardIndex::new(cache.root().to_path_buf());
+        let cards = CardStore::new(cache.root());
 
         std::thread::spawn(move || {
             // `unblock` ends this iterator, closing the listener.
             for request in accept.incoming_requests() {
-                serve(request, &cache, &index);
+                serve(request, &cache, &cards);
             }
         });
 
@@ -55,10 +55,14 @@ impl ArtServer {
     }
 }
 
-fn serve(request: tiny_http::Request, cache: &ImageCache, index: &CardIndex) {
+fn serve(request: tiny_http::Request, cache: &ImageCache, cards: &CardStore) {
     let raw = request.url().to_string();
     if let Some(name) = name_from_request_path(&raw) {
-        serve_card(request, index, &name);
+        serve_json(request, cards.read(&name));
+        return;
+    }
+    if is_sets_request(&raw) {
+        serve_json(request, cache.read_sets());
         return;
     }
     let Some(key) = key_from_request_path(&raw) else {
@@ -84,11 +88,11 @@ fn serve(request: tiny_http::Request, cache: &ImageCache, index: &CardIndex) {
     let _ = request.respond(response);
 }
 
-/// One card, so a seat with no internet can still learn what it is holding and
-/// where its picture lives. Named rather than keyed by url, because a name is
-/// all a client that never reached the api has.
-fn serve_card(request: tiny_http::Request, index: &CardIndex, name: &str) {
-    let Some(bytes) = index.read(name) else {
+/// A card or the set list, so a seat with no internet can still learn what it
+/// is holding and where its picture lives. Named rather than keyed by url,
+/// because a name is all a client that never reached the api has.
+fn serve_json(request: tiny_http::Request, body: Option<Vec<u8>>) {
+    let Some(bytes) = body else {
         let _ = request.respond(tiny_http::Response::empty(404));
         return;
     };
@@ -145,20 +149,23 @@ mod tests {
     #[test]
     fn a_cached_card_record_is_served_to_the_network() {
         let dir = tempfile::tempdir().expect("temp dir");
-        let line = r#"{"name":"Lightning Bolt","image_uris":{"normal":"https://cards.scryfall.io/normal/front/a/b/bolt.jpg"}}"#;
-        let mut writer = crate::cards::CardIndexWriter::create(dir.path()).expect("writer");
-        writer
-            .push(line, &serde_json::from_str(line).expect("json"))
-            .expect("push");
-        writer.finish().expect("finish");
-
+        let record = serde_json::json!({
+            "name": "Lightning Bolt",
+            "image_uris": { "normal": "https://cards.scryfall.io/normal/front/a/b/bolt.jpg" },
+        });
         let cache = Arc::new(ImageCache::new(dir.path().to_path_buf()));
+        assert_eq!(cache.store_records(std::slice::from_ref(&record)), 1);
+
         let server = ArtServer::spawn(Ipv4Addr::LOCALHOST.into(), cache).expect("spawn");
 
         let body = get(server.port, "/scryfall-card/Lightning%20Bolt");
         assert!(body.contains("200 OK"), "{body}");
-        assert!(body.ends_with(line), "{body}");
+        assert!(
+            body.ends_with(&serde_json::to_string(&record).expect("json")),
+            "{body}"
+        );
         assert!(get(server.port, "/scryfall-card/Black%20Lotus").contains("404"));
+        assert!(get(server.port, "/scryfall-sets").contains("404"));
     }
 
     fn get(port: u16, path: &str) -> String {

@@ -35,3 +35,8 @@ export function lanCardUrl(name: string): string | null {
   const host = base();
   return host ? `${host}/scryfall-card/${encodeURIComponent(name)}` : null;
 }
+
+export function lanSetsUrl(): string | null {
+  const host = base();
+  return host ? `${host}/scryfall-sets` : null;
+}

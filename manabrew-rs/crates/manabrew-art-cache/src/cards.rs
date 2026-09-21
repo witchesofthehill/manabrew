@@ -1,19 +1,23 @@
-//! The card data beside the art, keyed by name.
+//! The card data beside the art: one Scryfall record per file, keyed by name.
 //!
 //! A cache of pictures is not enough to play offline: the client learns a
 //! card's image url from `api.scryfall.com`, so with no internet it cannot name
-//! the file it already has. The bulk file the art download already streams
-//! carries every record, so this keeps them: one line per card in `cards.jsonl`
-//! and a name to (offset, length) table beside it, which is what lets a lookup
-//! seek instead of holding 38k cards in memory.
+//! the file it already has. The bulk file the every-card download streams
+//! carries every record, and a deck download carries the ones that deck needs,
+//! so both write here and neither has to rewrite the other's work.
+//!
+//! One file per record for the same reason the art is one file per key: a
+//! request maps straight to a file, and a second writer is an added file rather
+//! than a rebuilt table.
 
-use std::collections::HashMap;
-use std::io::{BufWriter, Read, Seek, SeekFrom, Write};
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 
-pub const CARDS_FILE: &str = "cards.jsonl";
-pub const OFFSETS_FILE: &str = "cards.idx";
+pub const CARDS_DIR: &str = "card-data";
+pub const SETS_FILE: &str = "sets.json";
+
+/// Long enough for every real card name, short enough for every filesystem.
+const MAX_KEY_BYTES: usize = 180;
 
 /// Names arrive from decks, the engine and other people's keyboards. Case and
 /// the spacing around a double-faced card's `//` are the differences worth
@@ -28,137 +32,119 @@ pub fn lookup_key(name: &str) -> String {
         .join(" // ")
 }
 
-pub struct CardIndex {
-    root: PathBuf,
-    offsets: OnceLock<HashMap<String, (u64, u32)>>,
+/// Reversible, so two different cards can never land on one file. A name that
+/// encodes past what a filesystem accepts keeps a prefix and a hash of the
+/// whole, which is still one file per name.
+pub fn file_key(name: &str) -> String {
+    let normalized = lookup_key(name);
+    let mut key = String::with_capacity(normalized.len());
+    for byte in normalized.bytes() {
+        match byte {
+            b'a'..=b'z' | b'0'..=b'9' | b'.' | b'-' => key.push(byte as char),
+            b' ' => key.push('_'),
+            _ => key.push_str(&format!("%{byte:02x}")),
+        }
+    }
+    if key.len() > MAX_KEY_BYTES {
+        // Ascii by construction, so this cannot split a character.
+        key.truncate(MAX_KEY_BYTES - 17);
+        key.push_str(&format!("-{:016x}", fnv1a(normalized.as_bytes())));
+    }
+    key
 }
 
-impl CardIndex {
-    pub fn new(root: PathBuf) -> Self {
+fn fnv1a(bytes: &[u8]) -> u64 {
+    let mut hash = 0xcbf2_9ce4_8422_2325u64;
+    for byte in bytes {
+        hash ^= *byte as u64;
+        hash = hash.wrapping_mul(0x100_0000_01b3);
+    }
+    hash
+}
+
+pub struct CardStore {
+    dir: PathBuf,
+}
+
+impl CardStore {
+    /// `root` is the art cache's directory: the data belongs beside the
+    /// pictures, so one address serves both and neither can be found without
+    /// the other.
+    pub fn new(root: &Path) -> Self {
         Self {
-            root,
-            offsets: OnceLock::new(),
+            dir: root.join(CARDS_DIR),
         }
     }
 
-    /// The raw Scryfall record, exactly as the bulk file had it, so no field
-    /// the client reads can be lost in a translation here.
+    /// The record exactly as Scryfall wrote it, so no field the client reads
+    /// can be lost in a translation here.
     pub fn read(&self, name: &str) -> Option<Vec<u8>> {
-        let &(offset, len) = self.offsets().get(&lookup_key(name))?;
-        let mut file = std::fs::File::open(self.root.join(CARDS_FILE)).ok()?;
-        file.seek(SeekFrom::Start(offset)).ok()?;
-        let mut bytes = vec![0u8; len as usize];
-        file.read_exact(&mut bytes).ok()?;
+        let mut file = std::fs::File::open(self.path_for(name)).ok()?;
+        let mut bytes = Vec::new();
+        file.read_to_end(&mut bytes).ok()?;
         Some(bytes)
     }
 
-    pub fn len(&self) -> usize {
-        self.offsets().len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    /// Read once. An absent or half-written table is an empty one, which reads
-    /// as "no card data here" rather than an error every caller must handle.
-    fn offsets(&self) -> &HashMap<String, (u64, u32)> {
-        self.offsets.get_or_init(|| {
-            let mut offsets = HashMap::new();
-            let Ok(raw) = std::fs::read_to_string(self.root.join(OFFSETS_FILE)) else {
-                return offsets;
-            };
-            for line in raw.lines() {
-                let mut fields = line.rsplitn(3, '\t');
-                let Some(len) = fields.next().and_then(|f| f.parse::<u32>().ok()) else {
-                    continue;
-                };
-                let Some(offset) = fields.next().and_then(|f| f.parse::<u64>().ok()) else {
-                    continue;
-                };
-                let Some(key) = fields.next() else { continue };
-                offsets.insert(key.to_string(), (offset, len));
-            }
-            offsets
-        })
-    }
-}
-
-/// Written to temporaries and renamed into place together, so a cancelled or
-/// crashed download leaves the previous pair whole rather than a table pointing
-/// into a file that stops halfway.
-pub struct CardIndexWriter {
-    root: PathBuf,
-    cards: BufWriter<std::fs::File>,
-    offsets: BufWriter<std::fs::File>,
-    at: u64,
-    written: usize,
-}
-
-impl CardIndexWriter {
-    pub fn create(root: &Path) -> std::io::Result<Self> {
-        std::fs::create_dir_all(root)?;
-        Ok(Self {
-            root: root.to_path_buf(),
-            cards: BufWriter::new(std::fs::File::create(temp(root, CARDS_FILE))?),
-            offsets: BufWriter::new(std::fs::File::create(temp(root, OFFSETS_FILE))?),
-            at: 0,
-            written: 0,
-        })
-    }
-
-    /// Indexed under the full name and under each face's own name, because a
-    /// double-faced card is asked for both ways.
-    pub fn push(&mut self, line: &str, card: &serde_json::Value) -> std::io::Result<()> {
+    /// Written under the card's own name and under each face's, because a
+    /// double-faced card is asked for both ways. Renamed into place, so a
+    /// half-written record is never served.
+    pub fn store(&self, record: &str, card: &serde_json::Value) -> std::io::Result<()> {
         let Some(name) = card.get("name").and_then(|n| n.as_str()) else {
             return Ok(());
         };
-        let len = line.len() as u32;
-        self.cards.write_all(line.as_bytes())?;
-        self.cards.write_all(b"\n")?;
-
-        let faces = card
-            .get("card_faces")
-            .and_then(|f| f.as_array())
-            .map(|faces| {
-                faces
-                    .iter()
-                    .filter_map(|face| face.get("name").and_then(|n| n.as_str()))
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-        let mut keys = vec![lookup_key(name)];
-        for face in faces {
-            let key = lookup_key(face);
-            if !keys.contains(&key) {
-                keys.push(key);
-            }
+        std::fs::create_dir_all(&self.dir)?;
+        for key in keys_for(name, card) {
+            let path = self.dir.join(format!("{key}.json"));
+            let temp = path.with_extension("part");
+            std::fs::write(&temp, record.as_bytes())?;
+            std::fs::rename(&temp, &path)?;
         }
-        for key in keys {
-            writeln!(self.offsets, "{key}\t{at}\t{len}", at = self.at)?;
-        }
-        self.at += len as u64 + 1;
-        self.written += 1;
         Ok(())
     }
 
-    pub fn finish(mut self) -> std::io::Result<usize> {
-        self.cards.flush()?;
-        self.offsets.flush()?;
-        for file in [CARDS_FILE, OFFSETS_FILE] {
-            std::fs::rename(temp(&self.root, file), self.root.join(file))?;
-        }
-        Ok(self.written)
+    /// How many cards this machine can describe with no internet. Faces are
+    /// files of their own, so this counts a little high on double-faced cards
+    /// and is only ever shown as a rough size.
+    pub fn count(&self) -> usize {
+        std::fs::read_dir(&self.dir)
+            .map(|entries| {
+                entries
+                    .flatten()
+                    .filter(|entry| entry.path().extension().is_some_and(|e| e == "json"))
+                    .count()
+            })
+            .unwrap_or(0)
+    }
+
+    fn path_for(&self, name: &str) -> PathBuf {
+        self.dir.join(format!("{}.json", file_key(name)))
     }
 }
 
-fn temp(root: &Path, file: &str) -> PathBuf {
-    root.join(format!("{file}.part"))
+fn keys_for(name: &str, card: &serde_json::Value) -> Vec<String> {
+    let faces = card
+        .get("card_faces")
+        .and_then(|f| f.as_array())
+        .map(|faces| {
+            faces
+                .iter()
+                .filter_map(|face| face.get("name").and_then(|n| n.as_str()))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let mut keys = vec![file_key(name)];
+    for face in faces {
+        let key = file_key(face);
+        if !keys.contains(&key) {
+            keys.push(key);
+        }
+    }
+    keys
 }
 
 /// The name a `/scryfall-card/` request is asking for, percent-decoded. No path
-/// is built from it — the lookup is a table — so the only shaping needed is
-/// dropping the query and refusing something absurdly long.
+/// is built from what arrives — `file_key` builds one from scratch — so the
+/// only shaping needed is dropping the query and refusing something absurd.
 pub fn name_from_request_path(path: &str) -> Option<String> {
     let raw = path
         .trim_start_matches('/')
@@ -170,6 +156,13 @@ pub fn name_from_request_path(path: &str) -> Option<String> {
         return None;
     }
     Some(percent_decode(raw))
+}
+
+/// Set lists are one request that the deck editor, the filters and every set
+/// symbol wait on, so the cache keeps the answer whole.
+pub fn is_sets_request(path: &str) -> bool {
+    let path = path.trim_start_matches('/');
+    path == "scryfall-sets" || path.starts_with("scryfall-sets?")
 }
 
 fn percent_decode(raw: &str) -> String {
@@ -203,65 +196,72 @@ fn percent_decode(raw: &str) -> String {
 mod tests {
     use super::*;
 
-    fn write(root: &Path, lines: &[&str]) -> usize {
-        let mut writer = CardIndexWriter::create(root).expect("writer");
-        for line in lines {
-            let card = serde_json::from_str(line).expect("card json");
-            writer.push(line, &card).expect("push");
+    fn store(root: &Path, records: &[&str]) -> CardStore {
+        let store = CardStore::new(root);
+        for record in records {
+            let card = serde_json::from_str(record).expect("card json");
+            store.store(record, &card).expect("store");
         }
-        writer.finish().expect("finish")
+        store
     }
 
     #[test]
-    fn a_name_reads_back_the_line_it_was_written_from() {
+    fn a_name_reads_back_the_record_it_was_written_from() {
         let dir = tempfile::tempdir().expect("temp dir");
-        let lines = [
+        let records = [
             r#"{"name":"Llanowar Elves","image_uris":{"normal":"a.jpg"}}"#,
             r#"{"name":"Lightning Bolt","image_uris":{"normal":"b.jpg"}}"#,
         ];
-        assert_eq!(write(dir.path(), &lines), 2);
+        let store = store(dir.path(), &records);
 
-        let index = CardIndex::new(dir.path().to_path_buf());
-        assert_eq!(index.len(), 2);
-        let bolt = index.read("lightning BOLT").expect("bolt");
-        assert_eq!(String::from_utf8_lossy(&bolt), lines[1]);
-        assert!(index.read("Black Lotus").is_none());
+        assert_eq!(store.count(), 2);
+        let bolt = store.read("lightning BOLT").expect("bolt");
+        assert_eq!(String::from_utf8_lossy(&bolt), records[1]);
+        assert!(store.read("Black Lotus").is_none());
+    }
+
+    /// A deck download writes what that deck needs, long after the every-card
+    /// download wrote everything, and must not disturb it.
+    #[test]
+    fn a_second_writer_adds_to_what_the_first_left() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        store(dir.path(), &[r#"{"name":"Llanowar Elves"}"#]);
+        let store = store(dir.path(), &[r#"{"name":"Lightning Bolt"}"#]);
+
+        assert!(store.read("Llanowar Elves").is_some());
+        assert!(store.read("Lightning Bolt").is_some());
     }
 
     #[test]
     fn a_double_faced_card_answers_to_either_face() {
         let dir = tempfile::tempdir().expect("temp dir");
-        let line = r#"{"name":"Fable of the Mirror-Breaker // Reflection of Kiki-Jiki","card_faces":[{"name":"Fable of the Mirror-Breaker"},{"name":"Reflection of Kiki-Jiki"}]}"#;
-        write(dir.path(), &[line]);
+        let record = r#"{"name":"Fable of the Mirror-Breaker // Reflection of Kiki-Jiki","card_faces":[{"name":"Fable of the Mirror-Breaker"},{"name":"Reflection of Kiki-Jiki"}]}"#;
+        let store = store(dir.path(), &[record]);
 
-        let index = CardIndex::new(dir.path().to_path_buf());
         for name in [
             "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
             "Fable of the Mirror-Breaker/Reflection of Kiki-Jiki",
             "Fable of the Mirror-Breaker",
             "reflection of kiki-jiki",
         ] {
-            assert!(index.read(name).is_some(), "{name}");
+            assert!(store.read(name).is_some(), "{name}");
         }
     }
 
-    /// The table and the file it points into must never be replaced apart: a
-    /// reader between the two renames would seek into the wrong card.
+    /// Two cards sharing a file would serve one under the other's name.
     #[test]
-    fn an_unfinished_write_leaves_the_previous_pair_whole() {
-        let dir = tempfile::tempdir().expect("temp dir");
-        write(dir.path(), &[r#"{"name":"Llanowar Elves"}"#]);
+    fn a_key_is_reversible_and_fits_a_filesystem() {
+        assert_ne!(file_key("Aether Vial"), file_key("Æther Vial"));
+        assert_ne!(
+            file_key("Jace, the Mind Sculptor"),
+            file_key("Jace the Mind")
+        );
+        assert_eq!(file_key("Sword of Fire and Ice"), "sword_of_fire_and_ice");
 
-        let mut writer = CardIndexWriter::create(dir.path()).expect("writer");
-        let line = r#"{"name":"Lightning Bolt"}"#;
-        writer
-            .push(line, &serde_json::from_str(line).expect("json"))
-            .expect("push");
-        drop(writer);
-
-        let index = CardIndex::new(dir.path().to_path_buf());
-        assert!(index.read("Llanowar Elves").is_some());
-        assert!(index.read("Lightning Bolt").is_none());
+        let long = "Our Market Research Shows That Players Like Really Long Card Names So We Made this Card to Have the Absolute Longest Card Name Ever Elemental";
+        let key = file_key(long);
+        assert!(key.len() <= MAX_KEY_BYTES, "{}", key.len());
+        assert_ne!(key, file_key(&format!("{long} II")));
     }
 
     #[test]
@@ -276,5 +276,19 @@ mod tests {
         );
         assert_eq!(name_from_request_path("/scryfall-card/"), None);
         assert_eq!(name_from_request_path("/scryfall-img/a/b.jpg"), None);
+        assert!(is_sets_request("/scryfall-sets"));
+        assert!(!is_sets_request("/scryfall-card/Lightning%20Bolt"));
+    }
+
+    /// A traversal cannot get out of the directory, because nothing from the
+    /// request is used to build the path.
+    #[test]
+    fn a_request_cannot_leave_the_card_directory() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let store = store(dir.path(), &[r#"{"name":"Llanowar Elves"}"#]);
+        for name in ["../../etc/passwd", "..", "/etc/passwd"] {
+            assert!(store.read(name).is_none(), "{name}");
+        }
+        assert!(!dir.path().join("etc").exists());
     }
 }

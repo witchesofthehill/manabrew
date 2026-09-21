@@ -11,9 +11,9 @@
  * Only ever a fallback: Scryfall is authoritative and fresher, and while it
  * answers nothing here is consulted.
  */
-import type { ScryfallCard } from "@/types/scryfall";
+import type { ScryfallCard, ScryfallSet } from "@/types/scryfall";
 import { cardDataCached } from "@/api/cardArtCache";
-import { lanCardUrl } from "@/lib/lanCache";
+import { lanCardUrl, lanSetsUrl } from "@/lib/lanCache";
 import { localCardArtRouteAvailable } from "@/lib/scryfallImageSource";
 import { getPlatformType } from "@/platform";
 
@@ -25,23 +25,38 @@ function localCardCount(): Promise<number> {
   return cachedCount;
 }
 
-async function localCardRoute(name: string): Promise<string | null> {
+/** Whether this machine holds records of its own to read. */
+async function localRoute(path: string): Promise<string | null> {
   if (!(await localCardArtRouteAvailable()) || (await localCardCount()) === 0) return null;
-  return `/scryfall-card/${encodeURIComponent(name)}`;
+  return path;
 }
 
-/** The record for one exact name, from the nearest machine that has it. */
-export async function localCardRecord(name: string): Promise<ScryfallCard | null> {
-  for (const url of [await localCardRoute(name), lanCardUrl(name)]) {
+async function readNearest<T>(local: string | null, lan: string | null): Promise<T | null> {
+  for (const url of [local, lan]) {
     if (!url) continue;
     try {
       const response = await fetch(url);
-      if (response.ok) return (await response.json()) as ScryfallCard;
+      if (response.ok) return (await response.json()) as T;
     } catch {
       // No such host, or nothing cached: the next source gets a turn.
     }
   }
   return null;
+}
+
+/** The record for one exact name, from the nearest machine that has it. */
+export async function localCardRecord(name: string): Promise<ScryfallCard | null> {
+  const path = `/scryfall-card/${encodeURIComponent(name)}`;
+  return readNearest<ScryfallCard>(await localRoute(path), lanCardUrl(name));
+}
+
+/** The set list, which no card record carries and every set symbol waits on. */
+export async function localSets(): Promise<ScryfallSet[] | null> {
+  const list = await readNearest<{ data: ScryfallSet[] }>(
+    await localRoute("/scryfall-sets"),
+    lanSetsUrl(),
+  );
+  return list?.data ?? null;
 }
 
 export async function localCardRecords(names: string[]): Promise<Map<string, ScryfallCard>> {

@@ -5,7 +5,7 @@
 pub mod cards;
 pub mod server;
 
-pub use cards::CardIndex;
+pub use cards::CardStore;
 pub use server::ArtServer;
 
 use std::collections::HashSet;
@@ -386,16 +386,19 @@ impl ImageCache {
                 let path = entry.path();
                 let Ok(meta) = entry.metadata() else { continue };
                 if meta.is_dir() {
+                    // Not art, and not evictable: trimming for space must not
+                    // delete what the cards are, which is what a machine with
+                    // no internet needs to draw the art at all.
+                    if path.file_name().is_some_and(|n| n == cards::CARDS_DIR) {
+                        continue;
+                    }
                     stack.push(path);
                     continue;
                 }
-                // Not art, and not evictable: trimming for space must not
-                // delete the card data, which is the largest unpinned thing in
-                // here and the only copy of what a card is. A half-written
-                // `.part` of either still gets swept below.
-                if path.file_name().is_some_and(|n| {
-                    n == PINNED_FILE || n == cards::CARDS_FILE || n == cards::OFFSETS_FILE
-                }) {
+                if path
+                    .file_name()
+                    .is_some_and(|n| n == PINNED_FILE || n == cards::SETS_FILE)
+                {
                     continue;
                 }
                 let partial = path.extension().is_some_and(|e| e == "part");
@@ -496,6 +499,7 @@ pub fn mime_for(key: &str) -> &'static str {
 }
 
 const BULK_INDEX_URL: &str = "https://api.scryfall.com/bulk-data/oracle-cards";
+const SETS_URL: &str = "https://api.scryfall.com/sets";
 
 /// Downloading every card is a long job somebody can change their mind about.
 static CANCEL_BULK: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -548,15 +552,13 @@ impl ImageCache {
 
         let reader = std::io::BufReader::new(flate2::read::GzDecoder::new(&body[..]));
         let mut urls = Vec::new();
-        let mut index = cards::CardIndexWriter::create(&self.root).ok();
+        let store = cards::CardStore::new(&self.root);
         for line in std::io::BufRead::lines(reader) {
             let Ok(line) = line else { break };
             let Ok(card) = serde_json::from_str::<serde_json::Value>(&line) else {
                 continue;
             };
-            if let Some(writer) = index.as_mut() {
-                let _ = writer.push(&line, &card);
-            }
+            let _ = store.store(&line, &card);
             // A double-faced card carries its art per face rather than at the
             // top level, and both faces get drawn.
             let faces = card
@@ -572,12 +574,48 @@ impl ImageCache {
                 }
             }
         }
-        // Both halves of the pair are renamed into place here, so a reader
-        // never sees a table pointing into a file that stops halfway.
-        if let Some(writer) = index {
-            let _ = writer.finish();
-        }
         Ok(urls)
+    }
+
+    /// The set list, which the editor, the filters and every set symbol wait
+    /// on, and which no card record carries.
+    pub async fn store_sets(&self) -> Result<(), String> {
+        let body = self
+            .api_request(SETS_URL)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?
+            .bytes()
+            .await
+            .map_err(|e| e.to_string())?;
+        serde_json::from_slice::<serde_json::Value>(&body).map_err(|e| e.to_string())?;
+        std::fs::create_dir_all(&self.root).map_err(|e| e.to_string())?;
+        let path = self.root.join(cards::SETS_FILE);
+        let temp = path.with_extension("part");
+        std::fs::write(&temp, &body).map_err(|e| e.to_string())?;
+        std::fs::rename(&temp, &path).map_err(|e| e.to_string())
+    }
+
+    pub fn read_sets(&self) -> Option<Vec<u8>> {
+        std::fs::read(self.root.join(cards::SETS_FILE)).ok()
+    }
+
+    /// What a deck download keeps: the records for the cards in it, which the
+    /// client already holds, so a deck is playable offline without the 11 GB.
+    pub fn store_records(&self, records: &[serde_json::Value]) -> usize {
+        let store = cards::CardStore::new(&self.root);
+        records
+            .iter()
+            .filter(|record| {
+                serde_json::to_string(record)
+                    .ok()
+                    .is_some_and(|line| store.store(&line, record).is_ok())
+            })
+            .count()
+    }
+
+    pub fn cards_cached(&self) -> usize {
+        cards::CardStore::new(&self.root).count()
     }
 }
 
@@ -734,19 +772,17 @@ mod tests {
     fn trimming_for_space_leaves_the_card_data_alone() {
         let (cache, dir) = cache();
         cache.store("drop.jpg", b"12", false).unwrap();
-        let line = r#"{"name":"Lightning Bolt"}"#;
-        let mut writer = cards::CardIndexWriter::create(dir.path()).unwrap();
-        writer
-            .push(line, &serde_json::from_str(line).unwrap())
-            .unwrap();
-        writer.finish().unwrap();
+        let record = serde_json::json!({ "name": "Lightning Bolt" });
+        assert_eq!(cache.store_records(std::slice::from_ref(&record)), 1);
+        assert_eq!(cache.cards_cached(), 1);
 
         cache.reconcile();
         assert_eq!(cache.stats().files, 1, "card data is not cached art");
 
         cache.clear(false).unwrap();
-        let index = cards::CardIndex::new(dir.path().to_path_buf());
-        assert!(index.read("Lightning Bolt").is_some());
+        assert!(cards::CardStore::new(dir.path())
+            .read("Lightning Bolt")
+            .is_some());
     }
 
     #[test]

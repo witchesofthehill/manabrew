@@ -110,14 +110,32 @@ pub async fn start_local_relay(
                 .collect()
         };
 
-        let state = Arc::new(manabrew_server::state::ServerState::new(
-            password.clone(),
-            4,
-            None,
-            manabrew_server::analytics::AnalyticsHandle::disabled(),
-            None,
-            None,
-        ));
+        // Only while sharing: art is world-readable to the subnet, which is a
+        // different trust decision from the password-gated relay.
+        let art = lan_host
+            .as_ref()
+            .and_then(|_| crate::image_cache::cache())
+            .and_then(|cache| manabrew_art_cache::ArtServer::spawn(bind_ip, cache));
+
+        let state = Arc::new(
+            manabrew_server::state::ServerState::new(
+                password.clone(),
+                4,
+                None,
+                manabrew_server::analytics::AnalyticsHandle::disabled(),
+                None,
+                None,
+            )
+            // Said on the socket as well as over mDNS, so a guest who typed
+            // this machine's address rather than discovering it reads the cache
+            // too.
+            .with_art_base_url(
+                lan_host
+                    .as_ref()
+                    .zip(art.as_ref())
+                    .map(|(host, art)| format!("http://{host}:{}", art.port)),
+            ),
+        );
         let shutdown = Arc::new(tokio::sync::Notify::new());
         let health_addr = std::net::SocketAddr::from(([127, 0, 0, 1], 0));
         let handle = tauri::async_runtime::spawn(manabrew_server::server::serve(
@@ -128,12 +146,6 @@ pub async fn start_local_relay(
             shutdown.clone(),
         ));
 
-        // Only while sharing: art is world-readable to the subnet, which is a
-        // different trust decision from the password-gated relay.
-        let art = lan_host
-            .as_ref()
-            .and_then(|_| crate::image_cache::cache())
-            .and_then(|cache| manabrew_art_cache::ArtServer::spawn(bind_ip, cache));
         let info = LocalRelayInfo {
             host: lan_host.clone().unwrap_or_else(|| "127.0.0.1".to_string()),
             port,

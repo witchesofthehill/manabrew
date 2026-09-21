@@ -10,7 +10,7 @@ import {
 import { platformFetch } from "@/lib/platformFetch";
 import { getPlatformType } from "@/platform";
 import { loadScryfallImage } from "@/lib/scryfallImageSource";
-import { localCardRecords } from "@/lib/localCardRecords";
+import { localCardRecord, localCardRecords, localSets } from "@/lib/localCardRecords";
 import { scryfallAssetUrl, scryfallAssetsMirrored } from "@/lib/scryfallAssets";
 import {
   enqueueCardLookup,
@@ -176,10 +176,19 @@ export async function getCardByName(name: string, setCode?: string): Promise<Scr
   return enqueueCardLookup(setCode ? { name, set: setCode.toLowerCase() } : { name });
 }
 export async function fetchCardByFuzzyName(name: string): Promise<ScryfallCard> {
-  return scryfallFetch<ScryfallCard>(
-    `${SCRYFALL_API}/cards/named?fuzzy=${encodeURIComponent(name)}`,
-    `No card matches "${name}"`,
-  );
+  try {
+    return await scryfallFetch<ScryfallCard>(
+      `${SCRYFALL_API}/cards/named?fuzzy=${encodeURIComponent(name)}`,
+      `No card matches "${name}"`,
+    );
+  } catch (error) {
+    // A cache is keyed by name and cannot be searched, so what it answers is
+    // the spelling that was asked for. Better than nothing offline, and never
+    // consulted while Scryfall is the one that can be fuzzy.
+    const cached = await localCardRecord(name);
+    if (cached) return cached;
+    throw error;
+  }
 }
 export async function getCardById(id: string): Promise<ScryfallCard> {
   return enqueueCardLookup({ id });
@@ -269,7 +278,11 @@ export async function fetchSets(): Promise<ScryfallSet[]> {
   const data = await scryfallFetch<{ data: ScryfallSet[] }>(
     `${SCRYFALL_API}/sets`,
     "Failed to fetch sets from Scryfall",
-  );
+  ).catch(async (error) => {
+    const cached = await localSets();
+    if (!cached) throw error;
+    return { data: cached };
+  });
   return data.data.map((set) => ({ ...set, icon_svg_uri: scryfallAssetUrl(set.icon_svg_uri) }));
 }
 

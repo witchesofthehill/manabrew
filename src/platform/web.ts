@@ -684,7 +684,7 @@ class WebGameApi implements IGameApi {
 
   async startGame(params: StartGameParams): Promise<string> {
     this.bridge.setLocalBotSlots(
-      params.engine === "Forge"
+      params.engine === "Forge" && params.aiController !== "forge"
         ? (params.opponentDecks?.length ? params.opponentDecks : [params.deck]).map(
             (_, index) => `player-${index + 1}`,
           )
@@ -696,6 +696,7 @@ class WebGameApi implements IGameApi {
       commanderName: params.commanderName,
       opponentDecks: params.opponentDecks,
       engine: params.engine,
+      forgeAi: params.aiController === "forge",
     });
   }
 

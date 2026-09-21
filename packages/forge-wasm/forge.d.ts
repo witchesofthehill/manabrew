@@ -46,6 +46,8 @@ export interface ForgeStartGameOptions {
   opponentDecks?: ForgeDeck[];
   startingLife?: number;
   commanderName?: string;
+  /** Uses Forge's internal AI for opponent seats instead of external SAB clients. */
+  forgeAi?: boolean;
   /** Pins the shuffle. Omitted, the engine seeds from the clock. */
   seed?: number;
 }

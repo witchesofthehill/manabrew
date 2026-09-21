@@ -46,6 +46,7 @@ import { withForgeStartTimeout } from "@/game/forgeWasmValidation";
 import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
 import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
+import { usePreferencesStore } from "./usePreferencesStore";
 import type { ClientCardDto, ClientGameView, GameState } from "./gameStore.types";
 import type { Prompt, PromptOutput } from "@/protocol";
 import type { Deck, DeckCard } from "@/protocol/deck";
@@ -181,6 +182,7 @@ async function initializeGame({
         opponentDecks,
         formatId: selectedFormatId,
         commanderName: commanderName ?? null,
+        aiController: usePreferencesStore.getState().aiController,
       });
       hosted = hostedLaunch;
       if (!isLaunchCurrent()) {
@@ -284,6 +286,7 @@ async function initializeGame({
       commanderName: commanderName ?? null,
       opponentDecks: opponentDecks ?? null,
       engine,
+      aiController: usePreferencesStore.getState().aiController,
     });
     const result = await (firstForgeStart ? withForgeStartTimeout(start) : start);
     if (!isLaunchCurrent()) {

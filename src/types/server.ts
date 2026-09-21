@@ -12,6 +12,9 @@ import type {
 } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 export type { DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, SealedConfig } from "@/protocol";
+
+export type AiController = "manabot" | "forge";
+
 /** Which pile a card lives in inside a `Deck`. Used by the deck
  *  builder's section validators (`lib/formats.ts`) — NOT a wire field.
  *  On the wire, each section is its own array on `Deck`. */

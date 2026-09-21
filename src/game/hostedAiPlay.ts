@@ -6,7 +6,7 @@ import { createRoomRelayEnvelope, SELF_HOSTED_NODE_RELAY_PROTOCOL } from "@/game
 import { relayUsername } from "@/lib/relayUsername";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useServerStore } from "@/stores/useServerStore";
-import type { GameFormat, GameStartedPayload, RoomInfo } from "@/types/server";
+import type { AiController, GameFormat, GameStartedPayload, RoomInfo } from "@/types/server";
 import type { RoomListPayload } from "@/types/server";
 import type {} from "@/protocol/game";
 import type { Deck } from "@/protocol/deck";
@@ -18,6 +18,7 @@ interface HostedAiGameRequest {
   opponentDecks: Deck[];
   formatId: string;
   commanderName: string | null;
+  aiController?: AiController;
 }
 
 export interface HostedAiGameLaunch {
@@ -153,6 +154,7 @@ async function joinHostedRoomAndPlay(
           type: "spawnBot",
           deck: botDecks[0],
           decks: botDecks,
+          forgeAi: request.aiController === "forge",
         },
       }),
     );

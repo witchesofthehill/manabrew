@@ -637,7 +637,11 @@ impl SimpleAi {
 
     fn wasted_activation(&self, info: &ActivatableAbilityInfo) -> bool {
         let text = info.description.to_ascii_lowercase();
-        if text.contains("any player may activate")
+        if info
+            .cost
+            .as_deref()
+            .is_some_and(|cost| cost.to_ascii_lowercase().contains("sac"))
+            || text.contains("any player may activate")
             || (text.contains(" loses ") && !text.contains("life"))
         {
             return true;
@@ -1608,8 +1612,16 @@ impl BotAgent for SimpleAi {
                 Some(PromptOutput::ChooseCombatDamageAssignment(ChooseCombatDamageAssignmentOutput::CombatDamageAssignmentDecision { assignments }))
             }
             PromptInput::PayManaCost(input) => {
-                let waterbend = input.actions.iter().find(|action| {
+                let manual_action = input.actions.iter().find(|action| {
                     matches!(
+                        &action.kind,
+                        manabrew_protocol::prompts::common::PaymentActionKind::ActivateManaAbility(
+                            info
+                        ) if info
+                            .cost
+                            .as_deref()
+                            .is_some_and(|cost| cost.chars().any(|c| c.is_ascii_digit()))
+                    ) || matches!(
                         &action.kind,
                         manabrew_protocol::prompts::common::PaymentActionKind::UseResource {
                             resource:
@@ -1621,7 +1633,7 @@ impl BotAgent for SimpleAi {
                 let payment = if input.can_confirm_from_pool {
                     self.failed_attack_targets.clear();
                     PayManaCostOutput::Pay { auto: false }
-                } else if let Some(action) = waterbend {
+                } else if let Some(action) = manual_action {
                     PayManaCostOutput::Act {
                         action_id: action.id.clone(),
                     }

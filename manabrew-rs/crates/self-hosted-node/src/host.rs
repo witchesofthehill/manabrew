@@ -1148,6 +1148,7 @@ async fn run_client_loop(
     let mut drain_tick = time::interval(Duration::from_secs(5));
     drain_tick.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
     let mut bot_usernames: HashSet<String> = HashSet::new();
+    let mut forge_ai = config.forge_ai;
 
     loop {
         tokio::select! {
@@ -1235,6 +1236,7 @@ async fn run_client_loop(
                     bot_state,
                     outbound_tx,
                     &mut bot_usernames,
+                    &mut forge_ai,
                     bridge,
                     message,
                 ).await {
@@ -1255,6 +1257,7 @@ async fn handle_server_message(
     bot_state: &SharedBotState,
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
     bot_usernames: &mut HashSet<String>,
+    forge_ai: &mut bool,
     bridge: Option<&Arc<ShellBridge>>,
     message: ServerMessage,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -1288,6 +1291,7 @@ async fn handle_server_message(
                 engine_session,
                 snapshot,
                 bot_state,
+                forge_ai,
                 from_player,
                 state,
             )
@@ -1366,6 +1370,7 @@ async fn handle_server_message(
                 player_decks,
                 starting_life,
                 bot_usernames,
+                *forge_ai,
             );
         }
         ServerMessage::RoomTransport { members, .. } => {
@@ -1395,6 +1400,7 @@ async fn handle_state_update(
     engine_session: &SharedEngineSession,
     snapshot: &SharedHostSnapshot,
     bot_state: &SharedBotState,
+    forge_ai: &mut bool,
     from_player: String,
     state: Value,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -1434,7 +1440,12 @@ async fn handle_state_update(
                 Some("spawnBot") => {
                     let effective_room_id = requested_room_id.as_deref().unwrap_or(room_id);
                     if effective_room_id == room_id {
-                        info!(observer = %client.username, room_id, "received spawnBot request");
+                        let requested_forge_ai = payload
+                            .get("forgeAi")
+                            .and_then(Value::as_bool)
+                            .unwrap_or(false);
+                        *forge_ai = config.forge_ai || requested_forge_ai;
+                        info!(observer = %client.username, room_id, forge_ai = *forge_ai, "received spawnBot request");
                         let bot_decks = bot_decks_from_payload(config, &payload);
                         spawn_bots(config, &bot_decks, room_id, bot_state);
                     } else {
@@ -1590,6 +1601,7 @@ fn maybe_start_hosted_engine(
     player_decks: Vec<PlayerDeckInfo>,
     starting_life: i32,
     bot_usernames: &HashSet<String>,
+    forge_ai: bool,
 ) {
     if !config.engine_enabled {
         debug!("hosted engine disabled for this node");
@@ -1667,7 +1679,7 @@ fn maybe_start_hosted_engine(
             warn!(username, "missing deck for player; not starting engine");
             return;
         };
-        if config.forge_ai && bot_usernames.contains(username) {
+        if forge_ai && bot_usernames.contains(username) {
             ai_player_indices.push(index);
         }
         ordered_decks.push(deck.deck);

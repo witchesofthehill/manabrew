@@ -808,6 +808,28 @@ export default function Settings() {
             )}
 
             <PreferenceCard
+              title={`AI opponent`}
+              description={`Choose who pilots computer opponents in Forge-engine games. ManaBot is fast. Forge bot makes stronger decisions, but can take 10+ seconds per bot on large Commander boards. The Manabrew engine always uses ManaBot.`}
+            >
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={prefs.aiController === "manabot" ? "selected" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setAiController("manabot")}
+                >
+                  ManaBot
+                </Button>
+                <Button
+                  variant={prefs.aiController === "forge" ? "selected" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setAiController("forge")}
+                >
+                  Forge bot
+                </Button>
+              </div>
+            </PreferenceCard>
+
+            <PreferenceCard
               title={`Opponent layout`}
               description={`Focus on one opponent, or keep every opponent field equally visible.`}
             >

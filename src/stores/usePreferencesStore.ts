@@ -6,7 +6,7 @@ import { ensureUsernameTag, hasUsernameTag } from "@/lib/username";
 import type { AiOpponentRef } from "@/lib/aiOpponent";
 import type { KnownRelay } from "@/config/knownRelays";
 import type { PlaymatSettings } from "@/protocol/game";
-import type { GameFormat } from "@/types/server";
+import type { AiController, GameFormat } from "@/types/server";
 import type { HandOrderMode } from "@/lib/handOrder";
 import { APP_LOCALES, type AppLanguagePreference } from "@/i18n/locales";
 import { DEFAULT_BOARD_BACKGROUND_ID, type BoardBackgroundId } from "@/pixi/board/boardBackgrounds";
@@ -113,6 +113,9 @@ export interface PreferencesState {
   directTransport: boolean;
   setDirectTransport: (value: boolean) => void;
 
+  aiController: AiController;
+  setAiController: (controller: AiController) => void;
+
   hideAccountSaveNudge: boolean;
   setHideAccountSaveNudge: (value: boolean) => void;
 
@@ -180,6 +183,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "chooseOrderOnMultipleTriggers",
   "ironsmithRuntimeEnabled",
   "directTransport",
+  "aiController",
   "hideAccountSaveNudge",
   "cardPreviewMode",
   "cardHoverDelayMs",
@@ -333,6 +337,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           directTransport: false,
           setDirectTransport: (directTransport) => set({ directTransport }),
+
+          aiController: "manabot",
+          setAiController: (aiController) => set({ aiController }),
 
           hideAccountSaveNudge: false,
           setHideAccountSaveNudge: (hideAccountSaveNudge) => set({ hideAccountSaveNudge }),

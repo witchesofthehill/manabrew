@@ -115,11 +115,9 @@ async function startGame(requestId, args) {
   gameRunning = true;
 
   postEvent("game:sab", { buffer: seatBuffers[0] });
-  if (!forgeAi) {
-    seatBuffers.slice(1).forEach((buffer, index) => {
-      postEvent("game:remote_sab", { buffer, playerSlot: `player-${index + 1}` });
-    });
-  }
+  seatBuffers.slice(1).forEach((buffer, index) => {
+    postEvent("game:remote_sab", { buffer, playerSlot: `player-${index + 1}` });
+  });
   postResponse(requestId, "game-started");
 
   const variant = forgeVariant(humanDeck);

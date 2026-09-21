@@ -49,13 +49,13 @@ async function fail(msg) {
 }
 
 // The engine is behind a deployment flag plus a Settings opt-in. Set the opt-in
-// from an init script so it survives every navigation the run makes.
+// and select Forge's internal AI so this run covers its seat-buffer handshake.
 // The flag itself is already on against a dev server; only the opt-in is needed.
 await page.addInitScript(() => {
   try {
     const raw = localStorage.getItem("manabrew-preferences");
     const doc = raw ? JSON.parse(raw) : { state: {}, version: 0 };
-    doc.state = { ...(doc.state || {}), forgeWasmEnabled: true };
+    doc.state = { ...(doc.state || {}), forgeWasmEnabled: true, aiController: "forge" };
     localStorage.setItem("manabrew-preferences", JSON.stringify(doc));
   } catch {
     // First load on a fresh origin; the store writes its own defaults.

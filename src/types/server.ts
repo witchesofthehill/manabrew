@@ -70,6 +70,8 @@ export interface AuthResultPayload {
   username: string | null;
   /** Wire features the relay understands. Absent from relays predating the list. */
   features?: string[];
+  /** Where this relay serves card art, when it serves any. */
+  art_base_url?: string | null;
 }
 export interface RoomListPayload {
   rooms: RoomInfo[];

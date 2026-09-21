@@ -1856,6 +1856,7 @@ class WebServerApi implements IServerApi {
           error: msg.error,
           username: this.authedUsername,
           features: msg.features,
+          art_base_url: msg.art_base_url,
         },
       ],
       RoomList: ["server:room_list", { rooms: msg.rooms }],

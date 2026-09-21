@@ -4,7 +4,7 @@ import { devtools } from "zustand/middleware";
 import { toast } from "sonner";
 import { getPlatform } from "@/platform";
 import { findLanRelay, type LanTarget } from "@/lib/lanRelay";
-import { setLanArtHost } from "@/lib/lanArtHost";
+import { setLanArtHost, setRelayArtBase } from "@/lib/lanArtHost";
 import { attachDraftPeer, detachDraftPeer } from "@/game/draftPeer";
 import { teardownHost as teardownDraftHost } from "@/game/draftHost";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
@@ -274,6 +274,7 @@ export const useServerStore = create<ServerState>()(
         if (!platform.server) return;
         await platform.server.disconnect();
         get().adoptLanTarget(null);
+        setRelayArtBase(null);
         set({
           connected: false,
           connecting: false,
@@ -480,6 +481,7 @@ export const useServerStore = create<ServerState>()(
         unsubscribers.push(
           platform.events.on<AuthResultPayload>("server:auth_result", (payload) => {
             set({ relayFeatures: payload.features ?? [] });
+            setRelayArtBase(payload.success ? (payload.art_base_url ?? null) : null);
             if (payload.success) {
               duplicateRejectionSince = null;
               set({

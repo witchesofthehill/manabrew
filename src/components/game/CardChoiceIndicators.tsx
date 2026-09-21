@@ -46,7 +46,7 @@ export function CardChoiceIndicators({
           {expanded && (
             <span className="whitespace-nowrap">
               {indicator.kind === "color"
-                ? "Chosen color"
+                ? `Chosen color`
                 : indicator.description.slice(0, indicator.description.indexOf(":"))}
             </span>
           )}

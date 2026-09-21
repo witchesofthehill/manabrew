@@ -10,14 +10,12 @@ import {
   COMPANION_LETHAL_COMMANDER_DAMAGE,
 } from "@/stores/useCompanionStore.constants";
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
-
 interface CommanderDamageDialogProps {
   target: CompanionPlayer;
   source: CompanionPlayer;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
 export function CommanderDamageDialog({
   target,
   source,
@@ -26,7 +24,6 @@ export function CommanderDamageDialog({
 }: CommanderDamageDialogProps) {
   const sourceAccent = COMPANION_ACCENT_COLORS[source.accentKey];
   const targetAccent = COMPANION_ACCENT_COLORS[target.accentKey];
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
@@ -58,7 +55,6 @@ export function CommanderDamageDialog({
     </Dialog>
   );
 }
-
 /** Tap-to-step plus press-and-hold to repeat, using `onClick` for the tap so it
  *  works reliably inside a modal Dialog (pointer-capture gestures fight Radix's
  *  focus/dismissable layer). A hold suppresses the trailing click. */
@@ -66,7 +62,6 @@ function useHoldStep(step: () => void) {
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tickTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const held = useRef(false);
-
   const clear = useCallback(() => {
     if (holdTimer.current) {
       clearTimeout(holdTimer.current);
@@ -77,9 +72,7 @@ function useHoldStep(step: () => void) {
       tickTimer.current = null;
     }
   }, []);
-
   useEffect(() => clear, [clear]);
-
   const onPointerDown = useCallback(() => {
     held.current = false;
     clear();
@@ -89,7 +82,6 @@ function useHoldStep(step: () => void) {
       tickTimer.current = setInterval(step, 110);
     }, 320);
   }, [clear, step]);
-
   const onClick = useCallback(() => {
     if (held.current) {
       held.current = false;
@@ -97,7 +89,6 @@ function useHoldStep(step: () => void) {
     }
     step();
   }, [step]);
-
   return {
     onPointerDown,
     onPointerUp: clear,
@@ -106,7 +97,6 @@ function useHoldStep(step: () => void) {
     onClick,
   };
 }
-
 function DamageStepper({
   target,
   source,
@@ -121,16 +111,14 @@ function DamageStepper({
   const adjust = useCompanionStore((s) => s.adjustCommanderDamage);
   const damage = (target.commanderDamage[source.id] ?? [0, 0])[slot];
   const commander = source.commanders[slot];
-  const label = commander?.name ?? (slot === 0 ? "Commander" : "Partner");
+  const label = commander?.name ?? (slot === 0 ? `Commander` : `Partner`);
   const lethal = damage >= COMPANION_LETHAL_COMMANDER_DAMAGE;
-
   const dec = useHoldStep(
     useCallback(() => adjust(target.id, source.id, slot, -1), [adjust, target.id, source.id, slot]),
   );
   const inc = useHoldStep(
     useCallback(() => adjust(target.id, source.id, slot, 1), [adjust, target.id, source.id, slot]),
   );
-
   return (
     <div className="rounded-xl border border-border bg-card/40 p-3">
       <div className="mb-2.5 flex items-center gap-2">
@@ -153,7 +141,7 @@ function DamageStepper({
         <button
           type="button"
           className="grid size-14 touch-none select-none place-items-center rounded-full bg-muted text-3xl font-light text-foreground transition active:scale-95 active:bg-muted/70"
-          aria-label="Decrease commander damage"
+          aria-label={`Decrease commander damage`}
           {...dec}
         >
           −
@@ -169,7 +157,7 @@ function DamageStepper({
         <button
           type="button"
           className="grid size-14 touch-none select-none place-items-center rounded-full bg-muted text-3xl font-light text-foreground transition active:scale-95 active:bg-muted/70"
-          aria-label="Increase commander damage"
+          aria-label={`Increase commander damage`}
           {...inc}
         >
           +

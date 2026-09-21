@@ -13,7 +13,7 @@ export function DeckHistoryControls() {
         variant="ghost"
         className="h-7 w-7 rounded-none border-r"
         disabled={!history.undoLabel}
-        title={history.undoLabel ? `Undo ${history.undoLabel}` : "Nothing to undo"}
+        title={history.undoLabel ? `Undo ${history.undoLabel}` : `Nothing to undo`}
         onClick={undoDeckEdit}
       >
         <Undo2 className="h-3.5 w-3.5" />
@@ -23,7 +23,7 @@ export function DeckHistoryControls() {
         variant="ghost"
         className="h-7 w-7 rounded-none"
         disabled={!history.redoLabel}
-        title={history.redoLabel ? `Redo ${history.redoLabel}` : "Nothing to redo"}
+        title={history.redoLabel ? `Redo ${history.redoLabel}` : `Nothing to redo`}
         onClick={redoDeckEdit}
       >
         <Redo2 className="h-3.5 w-3.5" />

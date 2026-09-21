@@ -28,12 +28,13 @@ import { usePlaymatPreview } from "./usePlaymatPreview";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { PlaymatSettings } from "@/protocol/game";
-
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
-
 /** Built-in playmat presets — any image dropped in `images/playmats/` shows up
  *  here automatically (resolved from the Vite project root). */
-const PLAYMAT_PRESETS: { url: string; name: string }[] = Object.entries(
+const PLAYMAT_PRESETS: {
+  url: string;
+  name: string;
+}[] = Object.entries(
   import.meta.glob<string>("/images/playmats/*.{png,jpg,jpeg,webp}", {
     eager: true,
     query: "?url",
@@ -48,7 +49,6 @@ const PLAYMAT_PRESETS: { url: string; name: string }[] = Object.entries(
   const name = file.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   return { url, name };
 });
-
 interface PlaymatEditorModalProps {
   onClose: () => void;
   title?: string;
@@ -58,7 +58,6 @@ interface PlaymatEditorModalProps {
   setPlaymat: (url: string | undefined, assetId: string | undefined) => void;
   setPlaymatSettings: (settings: PlaymatSettings | undefined) => void;
 }
-
 export function PlaymatEditorModal({
   onClose,
   title = "Customize Playmat",
@@ -93,7 +92,6 @@ export function PlaymatEditorModal({
   const [fetching, setFetching] = useState(false);
   const busy = uploading || fetching;
   const [dragActive, setDragActive] = useState(false);
-
   function update(patch: Partial<PlaymatSettings>) {
     setSettings((prev) => {
       const next = { ...prev, ...patch };
@@ -101,16 +99,13 @@ export function PlaymatEditorModal({
       return next;
     });
   }
-
   const isDefaultSettings = (
     Object.keys(DEFAULT_PLAYMAT_SETTINGS) as (keyof PlaymatSettings)[]
   ).every((k) => settings[k] === DEFAULT_PLAYMAT_SETTINGS[k]);
-
   function resetSettings() {
     setSettings({ ...DEFAULT_PLAYMAT_SETTINGS });
     setPlaymatSettings(undefined);
   }
-
   const { canvasRef, previewRef, previewWidth, previewHeight } = usePlaymatPreview({
     playmat,
     settings,
@@ -118,25 +113,21 @@ export function PlaymatEditorModal({
     onZoomChange: (zoom) => update({ zoom }),
     showSampleCards,
   });
-
   async function setPlaymatFromBlob(blob: Blob) {
     const uploaded = await replaceAsset("playmat", blob, playmatAssetId);
     if (uploaded) setPlaymat(uploaded.url, uploaded.assetId);
   }
-
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (file) void setPlaymatFromBlob(file);
   }
-
   function onDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragActive(false);
     const file = [...e.dataTransfer.files].find((f) => f.type.startsWith("image/"));
     if (file) void setPlaymatFromBlob(file);
   }
-
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
       const item = [...(e.clipboardData?.items ?? [])].find((i) => i.type.startsWith("image/"));
@@ -150,7 +141,6 @@ export function PlaymatEditorModal({
     return () => document.removeEventListener("paste", onPaste);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
   async function applyPreset(url: string) {
     setFetching(true);
     try {
@@ -161,12 +151,11 @@ export function PlaymatEditorModal({
       setPlaymat(uploaded.url, uploaded.assetId);
       update({ fit: "cover" });
     } catch {
-      toast.error("Couldn't load that preset.");
+      toast.error(`Couldn't load that preset.`);
     } finally {
       setFetching(false);
     }
   }
-
   return (
     <Modal onClose={onClose} maxWidth="max-w-6xl">
       <Modal.Header>{title}</Modal.Header>
@@ -235,7 +224,7 @@ export function PlaymatEditorModal({
                 onClick={() => fileInputRef.current?.click()}
               >
                 <ImagePlus className="h-4 w-4" />
-                {playmat ? "Replace image" : "Upload image"}
+                {playmat ? `Replace image` : `Upload image`}
               </Button>
               {PLAYMAT_PRESETS.length > 0 && (
                 <div className="flex gap-2 overflow-x-auto pb-1">
@@ -271,7 +260,7 @@ export function PlaymatEditorModal({
                     <button
                       type="button"
                       className="text-muted-foreground transition-colors hover:text-foreground"
-                      aria-label="Playmat image tips"
+                      aria-label={`Playmat image tips`}
                     >
                       <Info className="size-3.5" />
                     </button>
@@ -295,7 +284,7 @@ export function PlaymatEditorModal({
                       className={cn(
                         "flex-1 rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors",
                         settings.fit === mode
-                          ? "bg-primary text-primary-foreground shadow-sm"
+                          ? "bg-selection text-selection-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
@@ -326,7 +315,7 @@ export function PlaymatEditorModal({
                         className={cn(
                           "flex flex-1 items-center justify-center rounded-md px-3 py-1.5 transition-colors",
                           Math.abs(settings.offsetY - oy) < 0.001
-                            ? "bg-primary text-primary-foreground shadow-sm"
+                            ? "bg-selection text-selection-foreground shadow-sm"
                             : "text-muted-foreground hover:text-foreground",
                         )}
                       >
@@ -339,7 +328,7 @@ export function PlaymatEditorModal({
               <div className="grid gap-3 sm:grid-cols-2">
                 {settings.fit === "cover" && (
                   <SliderControl
-                    label="Zoom"
+                    label={`Zoom`}
                     value={`${Math.round(settings.zoom * 100)}%`}
                     min={100}
                     max={Math.round(PLAYMAT_ZOOM_MAX * 100)}
@@ -348,7 +337,7 @@ export function PlaymatEditorModal({
                   />
                 )}
                 <SliderControl
-                  label="Opacity"
+                  label={`Opacity`}
                   value={`${Math.round(settings.opacity * 100)}%`}
                   min={10}
                   max={100}
@@ -356,7 +345,7 @@ export function PlaymatEditorModal({
                   onChange={(v) => update({ opacity: v / 100 })}
                 />
                 <SliderControl
-                  label="Blur"
+                  label={`Blur`}
                   value={`${Math.round(settings.blur)}px`}
                   min={0}
                   max={PLAYMAT_BLUR_MAX}
@@ -364,7 +353,7 @@ export function PlaymatEditorModal({
                   onChange={(v) => update({ blur: v })}
                 />
                 <SliderControl
-                  label="Brightness"
+                  label={`Brightness`}
                   value={`${Math.round(settings.brightness * 100)}%`}
                   min={Math.round(PLAYMAT_BRIGHTNESS_MIN * 100)}
                   max={Math.round(PLAYMAT_BRIGHTNESS_MAX * 100)}
@@ -381,7 +370,7 @@ export function PlaymatEditorModal({
             </Label>
             <div className="grid gap-3 sm:grid-cols-2">
               <SliderControl
-                label="Cloth texture"
+                label={`Cloth texture`}
                 value={`${Math.round(settings.texture * 100)}%`}
                 min={0}
                 max={100}
@@ -399,7 +388,7 @@ export function PlaymatEditorModal({
                   />
                   <input
                     value={bgHex}
-                    placeholder="none"
+                    placeholder={`none`}
                     onChange={(e) => {
                       setBgHex(e.target.value);
                       if (HEX_RE.test(e.target.value))
@@ -431,7 +420,7 @@ export function PlaymatEditorModal({
             </Label>
             <div className="grid gap-3 sm:grid-cols-2">
               <SliderControl
-                label="Width"
+                label={`Width`}
                 value={`${settings.borderWidth}px`}
                 min={0}
                 max={40}
@@ -471,7 +460,7 @@ export function PlaymatEditorModal({
           size="sm"
           onClick={resetSettings}
           disabled={isDefaultSettings}
-          title="Reset all adjustments to their defaults"
+          title={`Reset all adjustments to their defaults`}
         >
           <RotateCcw className="h-4 w-4" />
           Reset
@@ -491,14 +480,13 @@ export function PlaymatEditorModal({
             Remove playmat
           </Button>
         )}
-        <Button size="sm" className="ml-auto" onClick={onClose}>
+        <Button variant="ghost" size="sm" className="ml-auto" onClick={onClose}>
           Done
         </Button>
       </Modal.Footer>
     </Modal>
   );
 }
-
 function SliderControl({
   label,
   value,

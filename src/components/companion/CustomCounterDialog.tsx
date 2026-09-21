@@ -11,14 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { CompanionIcon } from "./icons";
-
 interface CustomCounterDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   availableIcons: string[];
   onConfirm: (input: { label: string; iconKey: string; value: number }) => void;
 }
-
 export function CustomCounterDialog({
   open,
   onOpenChange,
@@ -42,7 +40,6 @@ export function CustomCounterDialog({
     </Dialog>
   );
 }
-
 function CustomCounterForm({
   availableIcons,
   onCancel,
@@ -55,7 +52,6 @@ function CustomCounterForm({
   const [label, setLabel] = useState("");
   const [value, setValue] = useState(0);
   const [iconKey, setIconKey] = useState<string>(availableIcons[0] ?? "Star");
-
   return (
     <>
       <div className="space-y-3">
@@ -66,7 +62,7 @@ function CustomCounterForm({
             value={label}
             autoFocus
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="e.g. Quest, Lore, Shield…"
+            placeholder={`e.g. Quest, Lore, Shield\u2026`}
           />
         </div>
         <div className="space-y-1">
@@ -89,8 +85,8 @@ function CustomCounterForm({
                 className={cn(
                   "grid size-9 place-items-center rounded-md border",
                   key === iconKey
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border hover:bg-accent",
+                    ? "border-selection bg-selection/15 text-selection"
+                    : "border-border hover:bg-muted",
                 )}
                 aria-label={key}
               >
@@ -105,6 +101,7 @@ function CustomCounterForm({
           Cancel
         </Button>
         <Button
+          variant="primary"
           disabled={!label.trim()}
           onClick={() => onConfirm({ label: label.trim(), iconKey, value })}
         >

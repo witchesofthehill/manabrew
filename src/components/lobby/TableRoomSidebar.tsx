@@ -12,7 +12,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { GameFormat, RoomInfo } from "@/types/server";
-
 const HOST_SELECTABLE_FORMATS: GameFormat[] = [
   "Standard",
   "Pioneer",
@@ -27,11 +26,8 @@ const HOST_SELECTABLE_FORMATS: GameFormat[] = [
   "Draft",
   "Sealed",
 ];
-
 const PLAYER_COUNT_OPTIONS = [2, 3, 4];
-
 const MULTIPLAYER_FORMATS: GameFormat[] = ["Commander", "Brawl", "Oathbreaker"];
-
 interface TableRoomSidebarProps {
   room: RoomInfo;
   roomPassword?: string | null;
@@ -49,7 +45,6 @@ interface TableRoomSidebarProps {
   onOpenDeckDialog: () => void;
   onAddBot?: () => void;
 }
-
 export function TableRoomSidebar({
   room,
   roomPassword,
@@ -72,19 +67,17 @@ export function TableRoomSidebar({
   const invitesEnabled = useServerStore((s) => s.relayFeatures.includes(RELAY_FEATURE.RoomInvites));
   const inLobby = room.status === "Lobby";
   const allowsMultiplayer = MULTIPLAYER_FORMATS.includes(room.format);
-
   async function copyPassword() {
     if (!roomPassword) return;
     try {
       await navigator.clipboard.writeText(roomPassword);
       setCopiedPassword(true);
       setTimeout(() => setCopiedPassword(false), 1500);
-      toast.success("Password copied to clipboard");
+      toast.success(`Password copied to clipboard`);
     } catch {
-      toast.error("Couldn't copy the password");
+      toast.error(`Couldn't copy the password`);
     }
   }
-
   return (
     <aside className="grid content-start gap-4 sm:grid-cols-2 xl:grid-cols-1">
       <section className="rounded-xl border bg-card/85 p-4 backdrop-blur-md">
@@ -168,8 +161,8 @@ export function TableRoomSidebar({
                       variant="ghost"
                       size="icon"
                       onClick={copyPassword}
-                      title="Copy password"
-                      aria-label="Copy password"
+                      title={`Copy password`}
+                      aria-label={`Copy password`}
                       className="-my-1 h-7 w-7"
                     >
                       {copiedPassword ? <Check /> : <Copy />}
@@ -177,7 +170,7 @@ export function TableRoomSidebar({
                   )}
                 </>
               ) : (
-                "Open table"
+                `Open table`
               )}
             </dd>
           </div>
@@ -194,7 +187,7 @@ export function TableRoomSidebar({
               <div className="flex items-center justify-between gap-3">
                 <dt className="text-muted-foreground">Empty seats</dt>
                 <dd className="text-right font-medium">
-                  {room.draft_config.fill_with_bots ? "Fill with bots" : "Humans only"}
+                  {room.draft_config.fill_with_bots ? `Fill with bots` : `Humans only`}
                 </dd>
               </div>
             </>

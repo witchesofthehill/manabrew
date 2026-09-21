@@ -5,12 +5,10 @@ import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
 import { DeckHubPodiumFrame } from "@/components/deck/DeckHubPodiumFrame";
 import { ROUTES } from "@/lib/constants";
 import { useHubStore } from "@/stores/useHubStore";
-
 interface DeckHubTopDeckPreviewProps {
   onOpen: (id: string) => void;
   onAuthor: (author: string) => void;
 }
-
 export function DeckHubTopDeckPreview({ onOpen, onAuthor }: DeckHubTopDeckPreviewProps) {
   const buckets = useHubStore((state) => state.topBuckets);
   const bucketsLoaded = useHubStore((state) => state.topBucketsLoaded);
@@ -20,20 +18,16 @@ export function DeckHubTopDeckPreview({ onOpen, onAuthor }: DeckHubTopDeckPrevie
   const previewBucket =
     buckets.find((bucket) => bucket.key === "trending" && bucket.entryCount > 0) ??
     buckets.find((bucket) => bucket.entryCount > 0);
-
   useEffect(() => {
     void fetchBuckets();
   }, [fetchBuckets]);
-
   useEffect(() => {
     if (!bucketsLoaded || !previewBucket || snapshot?.bucket.key === previewBucket.key) return;
     void fetchSnapshot(previewBucket.key);
   }, [bucketsLoaded, fetchSnapshot, previewBucket, snapshot?.bucket.key]);
-
   const entries =
     snapshot && snapshot.bucket.key === previewBucket?.key ? snapshot.entries.slice(0, 3) : [];
   if (bucketsLoaded && !previewBucket) return null;
-
   return (
     <section className="overflow-hidden rounded-2xl border border-primary/20 bg-primary/5 p-3 sm:p-4">
       <div className="mb-3 flex items-center justify-between gap-3">

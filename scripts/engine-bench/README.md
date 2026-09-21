@@ -23,6 +23,44 @@ permanents on the board. `--engine <dir>` loads a checkout's
 package. `--games N` plays N games in one engine and samples the host heap
 between them. `--seed` pins the shuffle.
 
+For the external controller path, build Manabrew WASM and run all Forge seats
+through local Manabot instances:
+
+```sh
+yarn ensure:wasm
+yarn bench:manabot --engine packages/forge-wasm --seed 7015 --out manabot-7015.json
+```
+
+This reports per-seat casts, land plays, abilities, passes, attackers, blocks,
+mulligans, prompt/action counts, payment attempts/cancellations, optional choices,
+card selections and target intent/ownership, plus the final outcome and
+response-to-next-prompt latency.
+Use `--decks`, `--timeout`, `--engine`, and `--wasm` to override its inputs.
+Commander, Brawl, Oathbreaker, and 60-card constructed presets are supported;
+all selected decks must share a format. Starting life follows the format and can
+be overridden with `--starting-life`.
+`--wasms` accepts one WASM directory per seat for direct policy A/B games.
+`--forge-ai-seats 1,3` assigns those seats to Forge's internal AI, enabling a
+direct Forge-versus-Manabot benchmark when the selected engine facade supports
+mixed seats. Rotate the assignment between games to remove deck and seat bias.
+
+```sh
+yarn bench:manabot-pop --engine target/engines/prod --games 40 --out /tmp/pop-main
+yarn bench:manabot-pop --engine target/engines/prod --wasms src/wasm,/tmp/wasm-main --games 24 --out /tmp/ab
+yarn bench:manabot-pop --summarise /tmp/pop-main
+```
+
+`manabot-pop.mjs` plays that game `--games` times from `--seed-base`, `--jobs`
+at a time, rotating side A through four seat pairs so every deck is played by
+both sides. Without `--wasms` side B is Forge's AI; with two builds it is the
+second one on the same seeds. The summary counts wins per side, deck and seat
+with a sign test, play counts per seat-game, response latency and the bot's own
+`decide`/`observe` time. A finished game is never replayed, so a stopped run
+resumes. `--seats 2 --decks a,b` plays duels, side A alternating seats.
+`manabot-game.mjs --trace chooseBlockers,chooseAttackers` writes each such
+prompt with the seat's view and the decision as one JSON line on stderr; a
+game the engine ends with an exception reports `outcome.reason` `engine_error`.
+
 ## A run, not a game
 
 ```sh

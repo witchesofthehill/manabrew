@@ -78,6 +78,7 @@ export function OnboardingHurray({ onComplete }: { onComplete: () => void }) {
       </div>
 
       <Button
+        variant="primary"
         disabled={busy || trimmed.length < HANDLE_MIN_LENGTH}
         onClick={() => void start()}
         className="w-full max-w-xs"

@@ -1,14 +1,12 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-
 import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
 import { useTopBarOverride } from "@/components/layout/TopBarOverride";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/constants";
 import { useMultiplayerSealedStore } from "@/stores/useMultiplayerSealedStore";
 import { useServerStore } from "@/stores/useServerStore";
-
 export default function MultiplayerSealed() {
   const navigate = useNavigate();
   const mode = useMultiplayerSealedStore((s) => s.mode);
@@ -17,7 +15,6 @@ export default function MultiplayerSealed() {
   const lastError = useMultiplayerSealedStore((s) => s.lastError);
   const cleanupStarted = useRef(false);
   const leavingHome = useRef(false);
-
   function cleanup() {
     if (cleanupStarted.current) return;
     cleanupStarted.current = true;
@@ -32,35 +29,28 @@ export default function MultiplayerSealed() {
     }
     sealed.clear();
   }
-
   const exitTo = (destination: string) => {
     cleanup();
     navigate(destination);
   };
-
   const exitHome = async () => {
     leavingHome.current = true;
     cleanup();
     await useServerStore.getState().leaveRoom();
     navigate(ROUTES.PLAY);
   };
-
   useTopBarOverride({
     onBack: () => exitTo(ROUTES.LOBBY),
     onHome: () => void exitHome(),
     navigationDisabled: true,
   });
-
   useEffect(() => {
     if (mode === "idle" && !leavingHome.current) navigate(ROUTES.LOBBY, { replace: true });
   }, [mode, navigate]);
-
   useEffect(() => {
     return cleanup;
   }, []);
-
   if (mode === "idle") return null;
-
   if (mode === "building" && pool.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -70,7 +60,6 @@ export default function MultiplayerSealed() {
       </div>
     );
   }
-
   return (
     <div className="flex h-full flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex flex-wrap items-center justify-between gap-3">

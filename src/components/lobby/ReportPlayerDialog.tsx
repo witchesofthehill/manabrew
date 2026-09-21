@@ -16,27 +16,40 @@ import { useChatStore, type ChatEntry } from "@/stores/useChatStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { stripUsernameTag } from "@/lib/username";
 import { cn } from "@/lib/utils";
-
 export interface ReportTarget {
   username: string;
   seal?: string;
 }
-
 interface ReportPlayerDialogProps {
   player: ReportTarget | null;
   onClose: () => void;
 }
-
-const REASONS: Array<{ value: ChatReportReason; label: string }> = [
-  { value: "harassment", label: "Harassment or bullying" },
-  { value: "hate", label: "Hate speech" },
-  { value: "inappropriate_content", label: "Inappropriate name or content" },
-  { value: "spam", label: "Spam" },
-  { value: "other", label: "Something else" },
+const REASONS: Array<{
+  value: ChatReportReason;
+  label: string;
+}> = [
+  {
+    value: "harassment",
+    label: `Harassment or bullying`,
+  },
+  {
+    value: "hate",
+    label: `Hate speech`,
+  },
+  {
+    value: "inappropriate_content",
+    label: `Inappropriate name or content`,
+  },
+  {
+    value: "spam",
+    label: `Spam`,
+  },
+  {
+    value: "other",
+    label: `Something else`,
+  },
 ];
-
 const DETAILS_MAX_CHARS = 500;
-
 function toReportMessage(entry: ChatEntry, roomId: string | undefined): ChatReportMessage {
   return {
     from: entry.from,
@@ -46,13 +59,11 @@ function toReportMessage(entry: ChatEntry, roomId: string | undefined): ChatRepo
     seal: entry.seal,
   };
 }
-
 export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps) {
   const [reason, setReason] = useState<ChatReportReason | null>(null);
   const [details, setDetails] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
-
   function close() {
     setReason(null);
     setDetails("");
@@ -60,7 +71,6 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
     setSent(false);
     onClose();
   }
-
   async function submit() {
     if (!player || !reason || submitting) return;
     setSubmitting(true);
@@ -82,10 +92,9 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
       setSent(true);
     } catch (error) {
       setSubmitting(false);
-      toast.error(error instanceof Error ? error.message : "Couldn't send the report.");
+      toast.error(error instanceof Error ? error.message : `Couldn't send the report.`);
     }
   }
-
   if (sent) {
     return (
       <Dialog open={player != null} onOpenChange={(open) => !open && close()}>
@@ -103,13 +112,14 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
             You won&apos;t hear back about the outcome, but every report is read by a person.
           </p>
           <DialogFooter>
-            <Button onClick={close}>Done</Button>
+            <Button variant="ghost" onClick={close}>
+              Done
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     );
   }
-
   return (
     <Dialog open={player != null} onOpenChange={(open) => !open && close()}>
       <DialogContent className="max-w-sm">
@@ -136,7 +146,7 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
                 value={option.value}
                 checked={reason === option.value}
                 onChange={() => setReason(option.value)}
-                className="accent-primary"
+                className="accent-selection"
               />
               {option.label}
             </label>
@@ -159,12 +169,8 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
           <Button variant="ghost" onClick={close}>
             Cancel
           </Button>
-          <Button
-            variant="destructive"
-            disabled={!reason || submitting}
-            onClick={() => void submit()}
-          >
-            {submitting ? "Sending…" : "Send report"}
+          <Button variant="primary" disabled={!reason || submitting} onClick={() => void submit()}>
+            {submitting ? `Sending…` : `Send report`}
           </Button>
         </DialogFooter>
       </DialogContent>

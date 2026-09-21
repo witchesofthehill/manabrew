@@ -2,8 +2,10 @@
 //! path maps straight to a file. That is what lets one machine serve its cache
 //! to another.
 
+pub mod cards;
 pub mod server;
 
+pub use cards::CardStore;
 pub use server::ArtServer;
 
 use std::collections::HashSet;
@@ -101,6 +103,12 @@ impl ImageCache {
 
     pub fn contains(&self, key: &str) -> bool {
         self.path_for(key).map(|p| p.is_file()).unwrap_or(false)
+    }
+
+    /// So the card data can be found beside the pictures without a second
+    /// caller having to be told the same directory twice.
+    pub fn root(&self) -> &Path {
+        &self.root
     }
 
     fn store(&self, key: &str, bytes: &[u8], pin: bool) -> Result<(), String> {
@@ -378,10 +386,18 @@ impl ImageCache {
                 let path = entry.path();
                 let Ok(meta) = entry.metadata() else { continue };
                 if meta.is_dir() {
+                    // Not art, and not evictable: trimming for space must not
+                    // delete what the cards are, which is what a machine with
+                    // no internet needs to draw the art at all.
+                    if path.file_name().is_some_and(|n| n == cards::CARDS_DIR) {
+                        continue;
+                    }
                     stack.push(path);
                     continue;
                 }
-                if path.file_name().is_some_and(|n| n == PINNED_FILE) {
+                if path.file_name().is_some_and(|name| {
+                    name == PINNED_FILE || cards::NON_ART_FILES.iter().any(|f| name == *f)
+                }) {
                     continue;
                 }
                 let partial = path.extension().is_some_and(|e| e == "part");
@@ -482,6 +498,8 @@ pub fn mime_for(key: &str) -> &'static str {
 }
 
 const BULK_INDEX_URL: &str = "https://api.scryfall.com/bulk-data/oracle-cards";
+const SETS_URL: &str = "https://api.scryfall.com/sets";
+const RULINGS_INDEX_URL: &str = "https://api.scryfall.com/bulk-data/rulings";
 
 /// Downloading every card is a long job somebody can change their mind about.
 static CANCEL_BULK: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -507,7 +525,8 @@ impl ImageCache {
 
     /// Every distinct card Scryfall knows, at the variants asked for. One
     /// printing each (`oracle_cards`), which is the set a name-keyed engine
-    /// draws from.
+    /// draws from. The records go to [`cards::CardIndexWriter`] on the way
+    /// past: without them a full cache still cannot say where a picture lives.
     async fn bulk_urls(&self, variants: &[String]) -> Result<Vec<String>, String> {
         #[derive(serde::Deserialize)]
         struct Index {
@@ -533,11 +552,17 @@ impl ImageCache {
 
         let reader = std::io::BufReader::new(flate2::read::GzDecoder::new(&body[..]));
         let mut urls = Vec::new();
+        let mut names = Vec::new();
+        let store = cards::CardStore::new(&self.root);
         for line in std::io::BufRead::lines(reader) {
             let Ok(line) = line else { break };
             let Ok(card) = serde_json::from_str::<serde_json::Value>(&line) else {
                 continue;
             };
+            let _ = store.store(&line, &card);
+            if let Some(name) = card.get("name").and_then(|n| n.as_str()) {
+                names.push(name.to_string());
+            }
             // A double-faced card carries its art per face rather than at the
             // top level, and both faces get drawn.
             let faces = card
@@ -553,7 +578,116 @@ impl ImageCache {
                 }
             }
         }
+        // A name-keyed cache cannot be searched, so the list of names is what
+        // lets a client offline match a misspelling or a partial title itself.
+        let _ = self.store_names(&names);
         Ok(urls)
+    }
+
+    fn store_names(&self, names: &[String]) -> Result<(), String> {
+        let body = serde_json::to_vec(names).map_err(|e| e.to_string())?;
+        self.store_beside(cards::NAMES_FILE, &body)
+    }
+
+    pub fn read_names(&self) -> Option<Vec<u8>> {
+        std::fs::read(self.root.join(cards::NAMES_FILE)).ok()
+    }
+
+    fn store_beside(&self, file: &str, body: &[u8]) -> Result<(), String> {
+        std::fs::create_dir_all(&self.root).map_err(|e| e.to_string())?;
+        let path = self.root.join(file);
+        let temp = path.with_extension("part");
+        std::fs::write(&temp, body).map_err(|e| e.to_string())?;
+        std::fs::rename(&temp, &path).map_err(|e| e.to_string())
+    }
+
+    /// Every ruling Scryfall has, grouped the way a card asks for them. Its own
+    /// bulk file: no card record carries its rulings.
+    pub async fn download_rulings(&self) -> Result<usize, String> {
+        #[derive(serde::Deserialize)]
+        struct Index {
+            download_uri: String,
+        }
+        let index: Index = self
+            .api_request(RULINGS_INDEX_URL)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?
+            .json()
+            .await
+            .map_err(|e| e.to_string())?;
+        let rulings: Vec<serde_json::Value> = self
+            .api_request(&index.download_uri)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?
+            .json()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let mut by_oracle: std::collections::HashMap<String, Vec<serde_json::Value>> =
+            std::collections::HashMap::new();
+        for ruling in rulings {
+            let Some(oracle_id) = ruling.get("oracle_id").and_then(|id| id.as_str()) else {
+                continue;
+            };
+            by_oracle
+                .entry(oracle_id.to_string())
+                .or_default()
+                .push(ruling);
+        }
+
+        let store = cards::CardStore::new(&self.root);
+        let mut written = 0;
+        for (oracle_id, data) in by_oracle {
+            // Shaped like the api's answer, so the client parses one thing.
+            let body = serde_json::json!({ "object": "list", "has_more": false, "data": data });
+            if store
+                .store_rulings(&oracle_id, &body.to_string())
+                .map(|()| true)
+                .unwrap_or(false)
+            {
+                written += 1;
+            }
+        }
+        Ok(written)
+    }
+
+    /// The set list, which the editor, the filters and every set symbol wait
+    /// on, and which no card record carries.
+    pub async fn store_sets(&self) -> Result<(), String> {
+        let body = self
+            .api_request(SETS_URL)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?
+            .bytes()
+            .await
+            .map_err(|e| e.to_string())?;
+        serde_json::from_slice::<serde_json::Value>(&body).map_err(|e| e.to_string())?;
+        self.store_beside(cards::SETS_FILE, &body)
+    }
+
+    pub fn read_sets(&self) -> Option<Vec<u8>> {
+        std::fs::read(self.root.join(cards::SETS_FILE)).ok()
+    }
+
+    /// What a deck download keeps: the records for the cards in it, which the
+    /// client already holds, so a deck is playable offline without the 11 GB.
+    pub fn store_records(&self, records: &[serde_json::Value]) -> usize {
+        let store = cards::CardStore::new(&self.root);
+        records
+            .iter()
+            .filter(|record| {
+                serde_json::to_string(record)
+                    .ok()
+                    .is_some_and(|line| store.store(&line, record).is_ok())
+            })
+            .count()
+    }
+
+    pub fn cards_cached(&self) -> usize {
+        cards::CardStore::new(&self.root).count()
     }
 }
 
@@ -702,6 +836,25 @@ mod tests {
         let stats = cache.stats();
         assert_eq!(stats.files, 1, "and must never be counted as cached art");
         assert_eq!(stats.bytes, 4);
+    }
+
+    /// It is unpinned and the biggest file in here, so a trim would take it
+    /// first, and a machine would lose the only copy of what its cards are.
+    #[test]
+    fn trimming_for_space_leaves_the_card_data_alone() {
+        let (cache, dir) = cache();
+        cache.store("drop.jpg", b"12", false).unwrap();
+        let record = serde_json::json!({ "name": "Lightning Bolt" });
+        assert_eq!(cache.store_records(std::slice::from_ref(&record)), 1);
+        assert_eq!(cache.cards_cached(), 1);
+
+        cache.reconcile();
+        assert_eq!(cache.stats().files, 1, "card data is not cached art");
+
+        cache.clear(false).unwrap();
+        assert!(cards::CardStore::new(dir.path())
+            .read("Lightning Bolt")
+            .is_some());
     }
 
     #[test]

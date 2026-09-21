@@ -6,36 +6,36 @@ import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { GAME_FORMATS } from "@/lib/formats";
 import { LEGALITY_STYLES } from "@/lib/constants";
-import { resolveGameThemeColors } from "@/themes/gameTheme";
+import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 import { Section, Subhead, Panel } from "../kit";
-
 const BUTTON_VARIANTS = [
-  "default",
+  "primary",
   "secondary",
   "outline",
   "ghost",
+  "destructive-quiet",
   "destructive",
+  "selected",
   "link",
 ] as const;
-const BUTTON_SIZES = ["sm", "default", "lg", "icon"] as const;
+const BUTTON_SIZES = ["xs", "sm", "default", "lg", "icon-xs", "icon-sm", "icon"] as const;
 const BADGE_VARIANTS = ["default", "secondary", "destructive", "outline"] as const;
 const RARITIES = ["common", "uncommon", "rare", "mythic", "special", "land"] as const;
 
-export function ComponentsSection({ presetId }: { presetId: string }) {
-  const g = resolveGameThemeColors({}, presetId);
+export function ComponentsSection() {
+  const g = useTheme().gameTheme;
   const sampleLabels = [
     { name: "Aggro", color: g.formatBadge.rose },
     { name: "Control", color: g.formatBadge.blue },
     { name: "Ramp", color: g.formatBadge.emerald },
     { name: "Combo", color: g.formatBadge.purple },
   ];
-
   return (
     <Section
       id="components"
       title="Components"
-      intro="Live shadcn primitives and domain badges, rendered under the selected preset. Change the preset in the header to re-skin everything below."
+      intro="App controls and game badges rendered with your current theme."
     >
       <Subhead>Button — variants × sizes</Subhead>
       <Panel className="space-y-3">
@@ -46,11 +46,21 @@ export function ComponentsSection({ presetId }: { presetId: string }) {
             </span>
             {BUTTON_SIZES.map((size) => (
               <Button key={size} variant={variant} size={size}>
-                {size === "icon" ? "★" : size}
+                {size.startsWith("icon") ? "★" : size}
               </Button>
             ))}
           </div>
         ))}
+      </Panel>
+
+      <Subhead>Button states</Subhead>
+      <Panel className="flex flex-wrap gap-2">
+        <Button variant="selected" aria-pressed>
+          Pressed
+        </Button>
+        <Button variant="primary" disabled>
+          Disabled
+        </Button>
       </Panel>
 
       <Subhead>Badge — variants</Subhead>
@@ -66,9 +76,9 @@ export function ComponentsSection({ presetId }: { presetId: string }) {
         <div className="space-y-2">
           <Subhead>Input</Subhead>
           <Panel className="space-y-2">
-            <Input placeholder="Search cards…" />
+            <Input placeholder={`Search cards\u2026`} />
             <Input defaultValue="Filled value" />
-            <Input disabled placeholder="Disabled" />
+            <Input disabled placeholder={`Disabled`} />
           </Panel>
         </div>
         <div className="space-y-2">

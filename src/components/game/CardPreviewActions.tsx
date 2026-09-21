@@ -1,13 +1,12 @@
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { cn } from "@/lib/utils";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-
 export interface IndexedPreviewAction {
   action: HandActionOption;
   index: number;
   shortcut: number;
+  displayLabel: string;
 }
-
 export function CardPreviewActions({
   actions,
   onSelect,
@@ -24,7 +23,7 @@ export function CardPreviewActions({
   return (
     <>
       <div className="flex flex-col gap-1.5">
-        {actions.map(({ action, index, shortcut }) => (
+        {actions.map(({ action, index, shortcut, displayLabel }) => (
           <button
             key={index}
             onClick={() => onSelect(action)}
@@ -51,7 +50,7 @@ export function CardPreviewActions({
               )}
             </span>
             <span className="text-[13px] font-semibold leading-snug">
-              <DynamicTextRender text={action.label} />
+              <DynamicTextRender text={displayLabel} />
             </span>
           </button>
         ))}

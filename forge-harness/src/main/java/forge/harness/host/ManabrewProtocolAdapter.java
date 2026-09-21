@@ -17,6 +17,7 @@ final class ManabrewProtocolAdapter {
             final long promptId,
             final String decidingPlayerId,
             final CardDto sourceCard,
+            final String sourceAbilityText,
             final JsonObject input
     ) {
         final JsonObject prompt = new JsonObject();
@@ -26,6 +27,9 @@ final class ManabrewProtocolAdapter {
         }
         if (sourceCard != null) {
             prompt.add("sourceCard", GSON.toJsonTree(sourceCard));
+        }
+        if (sourceAbilityText != null && !sourceAbilityText.isBlank()) {
+            prompt.addProperty("sourceAbilityText", sourceAbilityText);
         }
         prompt.add("input", input);
         return prompt.toString();

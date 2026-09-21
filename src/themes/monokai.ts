@@ -1,6 +1,5 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
-
 const palette: BasePalette = {
   foreground: "#f8f8f2",
   labelMuted: "#75715e", // comment
@@ -26,7 +25,6 @@ const palette: BasePalette = {
   brown: "#fd971f",
   paper: "#f8f8f2",
   poison: "#8bb82a", // deeper olive version of monokai neon green
-  promptPass: "#a6e22e", // green
   promptDefense: "#66d9ef", // cyan
   manaW: "#f8f8f2",
   manaU: "#66d9ef",
@@ -35,11 +33,10 @@ const palette: BasePalette = {
   manaG: "#a6e22e",
   manaC: "#75715e",
 };
-
 const preset: ThemePreset = {
   id: "monokai",
   name: "Monokai",
-  description: "Classic high-contrast with vivid highlights",
+  description: `Classic high-contrast with vivid highlights`,
   light: {
     background: "#f3f3f1",
     foreground: "#2f2f2d",
@@ -94,5 +91,4 @@ const preset: ThemePreset = {
   },
   gameColors: buildGameColors(palette),
 };
-
 export default preset;

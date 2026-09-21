@@ -63,7 +63,6 @@ export interface GameState {
    *  start). The game view shows this instead of hanging on the loading
    *  screen. Cleared when a new game starts. */
   fatalError: string | null;
-  /** The engine crashed out of the game: the harness's one-line description of the exception. */
   engineCrash: string | null;
   /** Set when an Ironsmith match can't start because the deck contains cards the
    *  runtime doesn't implement yet. Drives the unsupported-deck modal, shown
@@ -89,8 +88,8 @@ export interface GameState {
   isHost: boolean;
   myPlayerSlot: string | null;
   /** Active game's decks keyed by player slot id ("player-0", "player-1", ...).
-   *  Used by `asDeckCard(deck, gameCard)` callers to resolve the deck side of
-   *  a game card without scanning unrelated decks. */
+   *  Card renderers resolve the owner deck first, then recover source stubs
+   *  from the other active decks when the producer omitted the owner slot. */
   gameDecks: Record<string, Deck>;
   /** Local view-only set of player slots whose playmat the viewer has hidden.
    *  Never synced — it only affects this client's board. Cleared on game end. */

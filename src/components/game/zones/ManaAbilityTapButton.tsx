@@ -8,10 +8,8 @@ import { useTheme } from "@/hooks/useTheme";
 import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import { manaSymbolUrl } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
-
 const MANA_BUTTON_ALPHA = 0.45;
 const MANA_BUTTON_FALLBACK_ALPHA = 0.4;
-
 export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
   description,
   onClick,
@@ -28,7 +26,7 @@ export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
   const themeColors = useTheme().gameTheme;
   const bgColor = letter
     ? withAlpha(themeColors.mana[letter], MANA_BUTTON_ALPHA)
-    : withAlpha(themeColors.promptAction.cancel, MANA_BUTTON_FALLBACK_ALPHA);
+    : withAlpha(themeColors.mana.C, MANA_BUTTON_FALLBACK_ALPHA);
 
   const [hintRect, setHintRect] = useState<DOMRect | null>(null);
   const longPress = useLongPressPreview<string>({
@@ -36,7 +34,6 @@ export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
     show: (_item, anchorRect) => setHintRect(anchorRect),
     hide: () => setHintRect(null),
   });
-
   return (
     <button
       className={cn(

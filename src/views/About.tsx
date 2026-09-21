@@ -1,6 +1,5 @@
 import { AboutContent } from "@/components/AboutContent";
 import { VersionInfo } from "@/components/VersionInfo";
-
 export default function About() {
   return (
     <div className="relative h-full overflow-hidden">

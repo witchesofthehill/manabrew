@@ -1,3 +1,5 @@
+import { GAME_CARD_SIZES } from "./game.constants";
+
 /**
  * Shared Tailwind class constants for game components.
  *
@@ -14,26 +16,11 @@ export const CARD_RING = {
   selected: "ring-2",
 } as const;
 
-export const BATTLEFIELD_CARD = "w-[70px] h-[98px] shrink-0" as const;
-export const HAND_CARD = "w-[80px] h-[112px]" as const;
-
-export const HAND_CARD_BASE = { cardW: 130, cardH: 182, containerH: 220 } as const;
-export const MODAL_CARD_SIZE = "w-[100px] h-[140px]" as const;
-export const FLASH_CARD_SIZE = { w: 360, h: 504 } as const;
-export const MULLIGAN_CARD_SIZE = "w-[160px] h-[222px]" as const;
-export const CHOOSE_CARD_TILE_SIZE = "w-[94px] sm:w-[150px]" as const;
-export const PROMPT_SOURCE_CARD_SIZE = {
-  vertical: "w-[200px]",
-  verticalCompact: "w-[110px]",
-  horizontal: "w-[220px]",
-  horizontalCompact: "w-[120px]",
+export const HAND_CARD_BASE = {
+  cardW: GAME_CARD_SIZES.hand.width,
+  cardH: GAME_CARD_SIZES.hand.height,
+  containerH: 220,
 } as const;
-
-export const MODAL_CARD_THUMBNAIL =
-  "w-[60px] h-[84px] rounded-md object-cover shrink-0 shadow-md" as const;
-
-export const MODAL_CARD_IMAGE =
-  "w-[120px] h-[168px] rounded-lg object-cover shrink-0 shadow-md" as const;
 
 export const MODAL_INPUT =
   "w-full px-3 py-1.5 rounded-md border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary" as const;

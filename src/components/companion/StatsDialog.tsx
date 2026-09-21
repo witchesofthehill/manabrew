@@ -10,15 +10,16 @@ import {
 } from "@/components/ui/dialog";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import type { CompanionSession } from "@/stores/useCompanionStore.types";
-
 interface DerivedStats {
   totalGames: number;
   totalDurationMs: number;
   avgDurationMs: number;
   avgTurns: number;
-  winsByName: { name: string; wins: number }[];
+  winsByName: {
+    name: string;
+    wins: number;
+  }[];
 }
-
 function deriveStats(archive: CompanionSession[]): DerivedStats {
   const winsByName = new Map<string, number>();
   let totalDurationMs = 0;
@@ -44,7 +45,6 @@ function deriveStats(archive: CompanionSession[]): DerivedStats {
       .sort((a, b) => b.wins - a.wins),
   };
 }
-
 export function StatsDialog() {
   const archive = useCompanionStore((s) => s.archive);
   const stats = useMemo(() => deriveStats(archive), [archive]);
@@ -66,10 +66,10 @@ export function StatsDialog() {
         ) : (
           <div className="space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-3 text-xs">
-              <Stat label="Games" value={stats.totalGames.toString()} />
-              <Stat label="Avg length" value={formatDuration(stats.avgDurationMs)} />
-              <Stat label="Avg turns" value={stats.avgTurns.toFixed(1)} />
-              <Stat label="Total time" value={formatDuration(stats.totalDurationMs)} />
+              <Stat label={`Games`} value={stats.totalGames.toString()} />
+              <Stat label={`Avg length`} value={formatDuration(stats.avgDurationMs)} />
+              <Stat label={`Avg turns`} value={stats.avgTurns.toFixed(1)} />
+              <Stat label={`Total time`} value={formatDuration(stats.totalDurationMs)} />
             </div>
             <div>
               <div className="mb-1 font-medium">Wins by player</div>
@@ -94,7 +94,6 @@ export function StatsDialog() {
     </Dialog>
   );
 }
-
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border border-border p-2">
@@ -103,7 +102,6 @@ function Stat({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
 function formatDuration(ms: number): string {
   const total = Math.floor(ms / 1000);
   const minutes = Math.floor(total / 60);

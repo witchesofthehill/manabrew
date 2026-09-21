@@ -6,7 +6,6 @@ import { getFormat } from "@/lib/formats";
 import { stripUsernameTag } from "@/lib/username";
 import { cn } from "@/lib/utils";
 import type { RoomInfo } from "@/types/server";
-
 interface RoomInviteCardProps {
   from: string;
   fromAvatarUrl?: string;
@@ -15,7 +14,6 @@ interface RoomInviteCardProps {
   onIgnore: () => void;
   className?: string;
 }
-
 function modeSentence(room: RoomInfo): string {
   if (room.draft_config) {
     const pool = room.draft_config.cube_name ?? room.draft_config.set_code;
@@ -29,7 +27,6 @@ function modeSentence(room: RoomInfo): string {
   const format = getFormat(room.format.toLowerCase());
   return `a ${format?.name ?? room.format} game`;
 }
-
 export function RoomInviteCard({
   from,
   fromAvatarUrl,
@@ -62,7 +59,7 @@ export function RoomInviteCard({
             <span className="truncate font-medium text-foreground/80">{room.room_name}</span>
             {room.password_protected && (
               <LockKeyhole
-                aria-label="Password-protected table"
+                aria-label={`Password-protected table`}
                 className="h-3 w-3 shrink-0 text-format-badge-amber"
               />
             )}
@@ -81,7 +78,7 @@ export function RoomInviteCard({
         <Button size="sm" variant="ghost" onClick={onIgnore}>
           Ignore
         </Button>
-        <Button size="sm" onClick={onJoin}>
+        <Button variant="primary" size="sm" onClick={onJoin}>
           Join table
         </Button>
       </div>

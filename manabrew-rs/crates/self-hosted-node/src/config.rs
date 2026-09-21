@@ -30,6 +30,8 @@ pub struct Config {
     pub bot_enabled: bool,
     pub bot_username: String,
     pub forge_ai: bool,
+    /// Answer this node's bot seats in-process instead of over the relay.
+    pub bot_local_answers: bool,
     pub reconnect_timeout_s: Option<u32>,
     pub table_style: Option<String>,
     pub host_deck: DeckSelection,
@@ -136,6 +138,7 @@ impl Config {
             ),
             bot_username,
             forge_ai: env_bool("SELF_HOSTED_NODE_FORGE_AI", "FORGE_ROOM_FORGE_AI", false),
+            bot_local_answers: env_bool("SELF_HOSTED_NODE_BOT_LOCAL_ANSWERS", "", true),
             reconnect_timeout_s: env_first("SELF_HOSTED_NODE_RECONNECT_TIMEOUT_S", "")
                 .and_then(|value| value.parse().ok()),
             table_style: None,
@@ -180,6 +183,7 @@ impl Config {
             bot_enabled: false,
             bot_username,
             forge_ai: false,
+            bot_local_answers: true,
             reconnect_timeout_s,
             table_style,
             host_deck: synthetic_deck("forge-host", None),

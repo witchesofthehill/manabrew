@@ -1,5 +1,6 @@
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import type { ScreenPos } from "./types";
+import { dragTiltForMovement, dragTransformBlend } from "./dragMotion";
 
 const MOVE_THRESHOLD = 5;
 const JUST_DRAGGED_CLEAR_MS = 300;
@@ -14,6 +15,8 @@ interface DragState {
   startMouseX: number;
   startMouseY: number;
   hasMoved: boolean;
+  lastMouseX: number;
+  targetTilt: number;
 }
 
 interface HandExclusion {
@@ -101,6 +104,8 @@ export class DragHandler {
       startMouseX: mouseX,
       startMouseY: mouseY,
       hasMoved: false,
+      lastMouseX: mouseX,
+      targetTilt: 0,
     };
 
     return selection;
@@ -110,6 +115,16 @@ export class DragHandler {
    *  drag is in progress. Used to anchor multi-card snap-to-grid. */
   get primaryDraggingCardId(): string | null {
     return this.drag?.primaryCardId ?? null;
+  }
+  getDragTilt(cardId: string): number | null {
+    const drag = this.drag;
+    if (!drag?.hasMoved || !drag.cardIds.includes(cardId)) return null;
+    return drag.targetTilt;
+  }
+
+  dampenTilt(deltaMs: number): void {
+    if (!this.drag?.hasMoved) return;
+    this.drag.targetTilt *= 1 - dragTransformBlend(deltaMs);
   }
 
   move(mouseX: number, mouseY: number): Map<string, ScreenPos> | null {
@@ -124,6 +139,9 @@ export class DragHandler {
       }
       this.drag.hasMoved = true;
     }
+    const movementX = mouseX - this.drag.lastMouseX;
+    this.drag.lastMouseX = mouseX;
+    this.drag.targetTilt = dragTiltForMovement(movementX);
 
     const halfW = (CARD_W * this.cardScale) / 2;
     const halfH = (CARD_H * this.cardScale) / 2;

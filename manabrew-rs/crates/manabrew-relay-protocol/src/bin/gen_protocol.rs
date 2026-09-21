@@ -112,6 +112,7 @@ export interface PromptRequestEnvelope {
   promptId?: string;
   decidingPlayerId?: string;
   sourceCard?: CardDto;
+  sourceAbilityText?: string;
 }
 
 export type PromptRequest<TInput extends { type: string }> = PromptRequestEnvelope & {

@@ -10,11 +10,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DiceRoller } from "./DiceRoller";
 import { GameIcon } from "./GameIcon";
-
 const DICE = [4, 6, 8, 10, 12, 20, 100] as const;
-
-type Roll = { kind: "die"; sides: number } | { kind: "coin" };
-
+type Roll =
+  | {
+      kind: "die";
+      sides: number;
+    }
+  | {
+      kind: "coin";
+    };
 export function DiceTray() {
   const [roll, setRoll] = useState<Roll | null>(null);
   return (
@@ -25,8 +29,8 @@ export function DiceTray() {
             size="icon"
             variant="outline"
             className="size-8 sm:size-9"
-            aria-label="Dice tray"
-            title="Dice & coin"
+            aria-label={`Dice tray`}
+            title={`Dice & coin`}
           >
             <GameIcon icon="d20" className="size-4 sm:size-5" />
           </Button>

@@ -6,13 +6,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Swords, Users } from "lucide-react";
-
 interface PlaytestPlayersDialogProps {
   open: boolean;
   onChoose: (opponentCount: number) => void;
   onCancel: () => void;
 }
-
 export function PlaytestPlayersDialog({ open, onChoose, onCancel }: PlaytestPlayersDialogProps) {
   return (
     <Dialog

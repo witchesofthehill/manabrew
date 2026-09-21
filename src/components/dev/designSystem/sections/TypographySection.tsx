@@ -1,22 +1,44 @@
 import { cn } from "@/lib/utils";
 import { Section, Subhead, Panel } from "../kit";
 import { FONTS, GAME_FONT_SIZES } from "../designSystem.data";
-
-const SCALE: { cls: string; label: string }[] = [
-  { cls: "text-5xl font-light tracking-[0.08em] font-serif", label: "Display / hero" },
-  { cls: "text-3xl font-light tracking-tight font-serif", label: "Section heading" },
-  { cls: "text-xl font-semibold", label: "Panel title" },
-  { cls: "text-base font-semibold", label: "Modal title" },
-  { cls: "text-sm", label: "Body" },
-  { cls: "text-xs text-muted-foreground", label: "Caption / subtitle" },
-  { cls: "text-[10px] uppercase tracking-[0.08em] text-muted-foreground", label: "Label" },
+const SCALE: {
+  cls: string;
+  label: string;
+}[] = [
+  {
+    cls: "text-5xl font-light tracking-[0.08em] font-serif",
+    label: `Display / hero`,
+  },
+  {
+    cls: "text-3xl font-light tracking-tight font-serif",
+    label: `Section heading`,
+  },
+  {
+    cls: "text-xl font-semibold",
+    label: `Panel title`,
+  },
+  {
+    cls: "text-base font-semibold",
+    label: `Modal title`,
+  },
+  {
+    cls: "text-sm",
+    label: `Body`,
+  },
+  {
+    cls: "text-xs text-muted-foreground",
+    label: `Caption / subtitle`,
+  },
+  {
+    cls: "text-[10px] uppercase tracking-[0.08em] text-muted-foreground",
+    label: `Label`,
+  },
 ];
-
 export function TypographySection() {
   return (
     <Section
       id="typography"
-      title="Typography"
+      title={`Typography`}
       intro="Three self-hosted families (@fontsource). rem drives chrome so text scales up on ≥2000px displays; px is reserved for card art."
     >
       <div className="grid gap-3 md:grid-cols-3">

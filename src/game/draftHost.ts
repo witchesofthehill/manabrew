@@ -14,16 +14,20 @@ import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { useServerStore } from "@/stores/useServerStore";
 import type { DraftCard, DraftState } from "@/types/limited";
 import type { RoomRelayEnvelope } from "@/types/server";
-
 export interface DraftHostParticipant {
   playerSlot: string;
   displayName: string;
 }
-
 export type DraftHostStartResult =
-  | { ok: true; sessionId: string; seats: MpDraftSeatAssignment[] }
-  | { ok: false; error: string };
-
+  | {
+      ok: true;
+      sessionId: string;
+      seats: MpDraftSeatAssignment[];
+    }
+  | {
+      ok: false;
+      error: string;
+    };
 interface ActiveHost {
   sessionId: string;
   roomId: string;
@@ -33,9 +37,7 @@ interface ActiveHost {
   unsubscribe: () => void;
   pendingChain: Promise<void>;
 }
-
 let active: ActiveHost | null = null;
-
 function buildSeatAssignments(
   hostSlot: string,
   hostName: string,
@@ -46,7 +48,6 @@ function buildSeatAssignments(
   const totalHumans = 1 + others.length;
   if (totalHumans > config.podSize) return null;
   if (totalHumans < config.podSize && !config.fillWithBots) return null;
-
   const seats: MpDraftSeatAssignment[] = [];
   seats.push({ seat: 0, playerSlot: hostSlot, displayName: hostName, isHuman: true });
   others.forEach((p, i) => {
@@ -62,7 +63,6 @@ function buildSeatAssignments(
   }
   return seats;
 }
-
 export async function startDraftAsHost(args: {
   roomId: string;
   hostSlot: string;
@@ -81,9 +81,7 @@ export async function startDraftAsHost(args: {
   if (!seats) {
     return {
       ok: false,
-      error: `pod needs ${config.podSize} seats but only ${
-        1 + participants.length
-      } humans are ready`,
+      error: `pod needs ${config.podSize} seats but only ${1 + participants.length} humans are ready`,
     };
   }
   const platform = getPlatform();
@@ -126,7 +124,6 @@ export async function startDraftAsHost(args: {
   } catch (err) {
     return { ok: false, error: `engine refused start: ${String(err)}` };
   }
-
   useMultiplayerDraftStore.getState().enterAsHost({
     sessionId: initialState.sessionId,
     roomId,
@@ -135,7 +132,6 @@ export async function startDraftAsHost(args: {
     mySeat: 0,
     state: initialState,
   });
-
   const startMsg: DraftStartMessage = {
     type: "start",
     sessionId: initialState.sessionId,
@@ -144,14 +140,12 @@ export async function startDraftAsHost(args: {
   };
   await server.sendRoomMessage(makeDraftRelay(startMsg, { fromPlayer: hostSlot, roomId }));
   await broadcastPerSeatStates(seats, initialState.sessionId, hostSlot, roomId);
-
   const unsubscribe = platform.events.on<{
     from_player: string;
     state: RoomRelayEnvelope;
   }>("server:room_message", (payload) => {
     void onRelay(payload);
   });
-
   active = {
     sessionId: initialState.sessionId,
     roomId,
@@ -161,10 +155,8 @@ export async function startDraftAsHost(args: {
     unsubscribe,
     pendingChain: Promise.resolve(),
   };
-
   return { ok: true, sessionId: initialState.sessionId, seats };
 }
-
 function enqueuePick(
   seat: number,
   card: DraftCard,
@@ -180,7 +172,6 @@ function enqueuePick(
   active.pendingChain = next;
   return next;
 }
-
 export async function submitHostPick(card: DraftCard): Promise<void> {
   if (!active) return;
   const store = useMultiplayerDraftStore.getState();
@@ -188,7 +179,6 @@ export async function submitHostPick(card: DraftCard): Promise<void> {
   store.setPickPending(true);
   await enqueuePick(active.mySeat, card, store.state?.round, store.state?.pickNumber);
 }
-
 async function onRelay(payload: { from_player: string; state: RoomRelayEnvelope }): Promise<void> {
   if (!active) return;
   if (!isDraftRelay(payload.state)) return;
@@ -213,7 +203,6 @@ async function onRelay(payload: { from_player: string; state: RoomRelayEnvelope 
     pick.pickNumber,
   );
 }
-
 async function applyPick(
   seat: number,
   card: DraftCard,
@@ -253,21 +242,17 @@ async function applyPick(
     );
     return;
   }
-
   if (seat === session.mySeat) {
     useMultiplayerDraftStore.getState().setLocalState(nextState);
   } else {
     const hostState = await fetchSeatState(session.sessionId, session.mySeat);
     if (hostState) useMultiplayerDraftStore.getState().setLocalState(hostState);
   }
-
   await broadcastPerSeatStates(session.seats, session.sessionId, session.hostSlot, session.roomId);
-
   if (nextState.isComplete) {
     await finishDraft();
   }
 }
-
 async function broadcastPerSeatStates(
   seats: MpDraftSeatAssignment[],
   sessionId: string,
@@ -299,7 +284,6 @@ async function broadcastPerSeatStates(
     }),
   );
 }
-
 async function fetchSeatState(sessionId: string, seat: number): Promise<DraftState | null> {
   try {
     return await getPlatform().invoke<DraftState>("limited_get_seat_state", {
@@ -311,7 +295,6 @@ async function fetchSeatState(sessionId: string, seat: number): Promise<DraftSta
     return null;
   }
 }
-
 async function finishDraft(): Promise<void> {
   if (!active) return;
   const session = active;
@@ -349,7 +332,6 @@ async function finishDraft(): Promise<void> {
   }
   teardownHost();
 }
-
 export function teardownHost(signalEnd = false): void {
   if (!active) return;
   active.unsubscribe();

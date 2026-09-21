@@ -1,5 +1,4 @@
 import { Target } from "lucide-react";
-
 import { Input } from "@/components/ui/input";
 import { deckOwnershipByName } from "@/lib/collection";
 import { isLand } from "@/lib/mana";
@@ -9,13 +8,12 @@ import type { DeckEditorGoals } from "@/types/manabrew";
 import { cn } from "@/lib/utils";
 import { EDITOR_PANEL_CLASS, EDITOR_SUBTLE_BLOCK_CLASS } from "./deckEditor.styles";
 import { useDeckEditTransaction } from "./useDeckEditTransaction";
-
 export function DeckGoalsPanel() {
   const deck = useDeckStore((state) => state.currentDeck);
   const setEditorMetadata = useDeckStore((state) => state.setEditorMetadata);
   const quantities = useCollectionStore((state) => state.quantities);
   const goals = deck.editor?.goals ?? {};
-  const goalEdit = useDeckEditTransaction("Update deck goals");
+  const goalEdit = useDeckEditTransaction(`Update deck goals`);
   const lands = deck.cards.filter((card) => isLand(card.types)).length;
   const nonlands = deck.cards.filter((card) => !isLand(card.types));
   const averageManaValue = nonlands.length
@@ -28,7 +26,6 @@ export function DeckGoalsPanel() {
       ...deck.sideboard,
     ]).values(),
   ].reduce((sum, ownership) => sum + ownership.shortage, 0);
-
   function update(key: keyof DeckEditorGoals, value: string) {
     const number = value === "" ? undefined : Math.max(0, Number(value));
     setEditorMetadata({
@@ -39,7 +36,6 @@ export function DeckGoalsPanel() {
       goals: { ...goals, [key]: number },
     });
   }
-
   function updateTagTarget(tag: string, value: string) {
     const tagTargets = { ...goals.tagTargets };
     if (value === "") delete tagTargets[tag];
@@ -52,35 +48,33 @@ export function DeckGoalsPanel() {
       goals: { ...goals, tagTargets },
     });
   }
-
   const rows = [
     {
       key: "minLands" as const,
-      label: "Minimum lands",
+      label: `Minimum lands`,
       current: lands,
       met: lands >= (goals.minLands ?? 0),
     },
     {
       key: "maxLands" as const,
-      label: "Maximum lands",
+      label: `Maximum lands`,
       current: lands,
       met: lands <= (goals.maxLands ?? Infinity),
     },
     {
       key: "maxMissingCards" as const,
-      label: "Maximum missing cards",
+      label: `Maximum missing cards`,
       current: missing,
       met: missing <= (goals.maxMissingCards ?? Infinity),
     },
     {
       key: "maxAverageManaValue" as const,
-      label: "Maximum average mana value",
+      label: `Maximum average mana value`,
       current: averageManaValue.toFixed(2),
       met: averageManaValue <= (goals.maxAverageManaValue ?? Infinity),
       step: "0.1",
     },
   ];
-
   return (
     <section className={EDITOR_PANEL_CLASS}>
       <div className="mb-3 flex items-center gap-2">
@@ -110,7 +104,7 @@ export function DeckGoalsPanel() {
               onFocus={goalEdit.begin}
               onChange={(event) => update(row.key, event.target.value)}
               onBlur={goalEdit.commit}
-              placeholder="Any"
+              placeholder={`Any`}
             />
           </label>
         ))}
@@ -143,7 +137,7 @@ export function DeckGoalsPanel() {
                   onFocus={goalEdit.begin}
                   onChange={(event) => updateTagTarget(tag, event.target.value)}
                   onBlur={goalEdit.commit}
-                  placeholder="Any"
+                  placeholder={`Any`}
                 />
               </label>
             );

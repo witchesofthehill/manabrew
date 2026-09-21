@@ -249,6 +249,7 @@ export function SignInFlow({ prefill, deferHandleStep = false, onComplete }: Sig
                       }}
                     />
                     <Button
+                      variant="primary"
                       className="w-full"
                       disabled={busy || !isValidEmail(email)}
                       onClick={handleSendCode}
@@ -282,6 +283,7 @@ export function SignInFlow({ prefill, deferHandleStep = false, onComplete }: Sig
             }}
           />
           <Button
+            variant="primary"
             className="w-full"
             disabled={busy || code.trim().length < 8}
             onClick={handleVerifyEmail}
@@ -317,6 +319,7 @@ export function SignInFlow({ prefill, deferHandleStep = false, onComplete }: Sig
             }}
           />
           <Button
+            variant="primary"
             className="w-full"
             disabled={busy || code.trim().length < 8}
             onClick={handleExchange}
@@ -385,6 +388,7 @@ export function SignInFlow({ prefill, deferHandleStep = false, onComplete }: Sig
 
           <div className="flex gap-2">
             <Button
+              variant="primary"
               className="flex-1"
               disabled={busy || !termsAgreed || handle.trim().length < 3}
               onClick={handleClaimHandle}

@@ -1,13 +1,10 @@
 import { Button } from "@/components/ui/button";
-
 export type LimitedDraftMode = "drafting" | "building";
-
 interface Props {
   mode: LimitedDraftMode;
   onChange: (m: LimitedDraftMode) => void;
   disableDrafting: boolean;
 }
-
 export function LimitedModeToggle({ mode, onChange, disableDrafting }: Props) {
   return (
     <div className="inline-flex rounded-md border border-border/70 bg-card/40 p-0.5 text-xs">

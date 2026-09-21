@@ -11,9 +11,10 @@ import {
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/hooks/useTheme";
+import { readableTextColor } from "@/themes/gameTheme";
 import type { DeckCard, DeckLabel } from "@/protocol/deck";
 import { ScryfallImg } from "@/components/ScryfallImg";
-
 interface DeckSelectionCardProps {
   name: string;
   desc?: string;
@@ -41,8 +42,11 @@ interface DeckSelectionCardProps {
   onSelect: () => void;
   onActivate?: () => void;
 }
-
-function getDeckTypeBreakdown(cards: { types?: string[] }[]): string {
+function getDeckTypeBreakdown(
+  cards: {
+    types?: string[];
+  }[],
+): string {
   if (cards.length === 0) return "Empty deck";
   const creatures = cards.filter((card) => card.types?.includes("Creature")).length;
   const lands = cards.filter((card) => card.types?.includes("Land")).length;
@@ -53,7 +57,6 @@ function getDeckTypeBreakdown(cards: { types?: string[] }[]): string {
   if (lands > 0) parts.push(`${lands} land${lands === 1 ? "" : "s"}`);
   return parts.join(" · ");
 }
-
 export function DeckSelectionCard({
   name,
   desc,
@@ -81,6 +84,15 @@ export function DeckSelectionCard({
   onSelect,
   onActivate,
 }: DeckSelectionCardProps) {
+  const theme = useTheme().gameTheme;
+  const selfPlayerChipStyle: React.CSSProperties = {
+    backgroundColor: theme.playerColors.self,
+    color: readableTextColor(theme.playerColors.self, theme.canvas.shadow, theme.textOnTinted),
+  };
+  const opponentPlayerChipStyle: React.CSSProperties = {
+    backgroundColor: theme.playerColors.opponent1,
+    color: readableTextColor(theme.playerColors.opponent1, theme.canvas.shadow, theme.textOnTinted),
+  };
   const colorCost = isHub
     ? (color ?? "")
         .split("")
@@ -108,7 +120,6 @@ export function DeckSelectionCard({
           : isSelected
             ? ", selected"
             : "";
-
   // Derive side-specific inline styles from theme CSS vars
   const sideStyle: React.CSSProperties | undefined = hasVsSide
     ? (() => {
@@ -124,7 +135,6 @@ export function DeckSelectionCard({
         };
       })()
     : undefined;
-
   return (
     <DeckCardSurface
       title={name}
@@ -140,7 +150,7 @@ export function DeckSelectionCard({
       className={cn(
         dense && "h-24 aspect-auto",
         !dense && "sm:min-h-[172px]",
-        !hasVsSide && isSelected && "border-primary bg-primary/5 ring-1 ring-primary",
+        !hasVsSide && isSelected && "border-selection bg-selection/10 ring-1 ring-selection",
         !hasVsSide && !isSelected && !isLegal && "border-warning/50",
       )}
       style={sideStyle}
@@ -162,16 +172,16 @@ export function DeckSelectionCard({
         <div className="pointer-events-none flex items-center gap-1">
           {isPlayerDeck && (
             <span
-              className="flex h-5 w-5 items-center justify-center rounded-full text-text-on-tinted"
-              style={{ backgroundColor: "var(--player-colors-self)" }}
+              className="flex h-5 w-5 items-center justify-center rounded-full"
+              style={selfPlayerChipStyle}
             >
               <User aria-hidden="true" className="h-3 w-3" />
             </span>
           )}
           {isOpponentDeck && (
             <span
-              className="flex h-5 w-5 items-center justify-center rounded-full text-text-on-tinted"
-              style={{ backgroundColor: "var(--player-colors-opponent1)" }}
+              className="flex h-5 w-5 items-center justify-center rounded-full"
+              style={opponentPlayerChipStyle}
             >
               <Bot aria-hidden="true" className="h-3 w-3" />
             </span>
@@ -225,7 +235,7 @@ export function DeckSelectionCard({
               {isHub
                 ? `Community · ${cardCount ?? cards.length} cards`
                 : isPreset
-                  ? "Preset deck"
+                  ? `Preset deck`
                   : `${cards.length} cards`}
             </span>
           )}

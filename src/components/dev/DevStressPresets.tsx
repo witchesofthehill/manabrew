@@ -1,5 +1,4 @@
 import { RotateCcw } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   DEFAULT_DEV_CARD_OVERRIDES,
@@ -8,8 +7,9 @@ import {
   type DevCardOverrides,
   type DevPlayerOverrides,
 } from "@/stores/useGameDevStore";
-
 import { DEV_SECTION, DEV_SECTION_HEADING } from "./devPanel.styles";
+import { DevPanelSearchProvider, DevSearchable } from "./DevPanelSearch";
+import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
 
 const LONG_KEYWORDS = [
   "Flying",
@@ -33,7 +33,6 @@ const LONG_KEYWORDS = [
   "Kicker:{R}",
   "Flashback:{2}{R}",
 ] as const;
-
 const BADGE_OVERFLOW: DevCardOverrides = {
   ...DEFAULT_DEV_CARD_OVERRIDES,
   forceExerted: true,
@@ -48,7 +47,6 @@ const BADGE_OVERFLOW: DevCardOverrides = {
   charge: 9,
   damage: 5,
 };
-
 const COUNTER_OVERFLOW: DevCardOverrides = {
   ...DEFAULT_DEV_CARD_OVERRIDES,
   p1p1: 999,
@@ -69,7 +67,6 @@ const COUNTER_OVERFLOW: DevCardOverrides = {
   page: 999,
   damage: 999,
 };
-
 const COMBAT_STATE: DevCardOverrides = {
   ...DEFAULT_DEV_CARD_OVERRIDES,
   forceTapped: true,
@@ -80,19 +77,22 @@ const COMBAT_STATE: DevCardOverrides = {
   p1p1: 3,
   damage: 4,
 };
-
 const PLAYER_HUD_OVERFLOW: DevPlayerOverrides = {
   ...DEFAULT_DEV_PLAYER_OVERRIDES,
   forceMonarch: true,
   forceInitiative: true,
   forceCityBlessing: true,
   forceEnduringStory: true,
+  forceBot: true,
+  forceNoAvatar: true,
   forceActiveTurn: true,
   forcePriority: true,
   forceTargetable: true,
   forceSelectedTarget: true,
   forceFlashing: true,
   forceDisconnected: true,
+  forceInCombat: true,
+  forceCombatLethal: true,
   poison: 99,
   energy: 99,
   radiation: 99,
@@ -101,10 +101,16 @@ const PLAYER_HUD_OVERFLOW: DevPlayerOverrides = {
   ringLevel: 4,
   speed: 4,
   cmdDamage: 99,
+  incomingDamage: 99,
+  manaWhite: 1,
+  manaBlue: 2,
+  manaBlack: 3,
+  manaRed: 4,
+  manaGreen: 5,
+  manaColorless: 6,
   life: 123,
   handCount: 27,
 };
-
 export function DevStressPresets() {
   const applyCardPreset = (cardOverrides: DevCardOverrides, keywords: readonly string[] = []) =>
     useGameDevStore.setState({
@@ -112,65 +118,90 @@ export function DevStressPresets() {
       cardOverrides,
       debugBattlefieldKeywords: [...keywords],
     });
+  const query = useDevPanelSearch();
+  const sectionMatch = matchesDevPanelSearch(
+    query,
+    "Stress scenarios",
+    "high-pressure states",
+    "Clear",
+  );
+  const hasMatchingPreset = matchesDevPanelSearch(
+    query,
+    "All badges",
+    "Foil status interaction rings counters damage",
+    "Long keyword stack",
+    "Twenty keyword chips mana reminder labels",
+    "Counter overflow",
+    "Every supported counter three digits",
+    "Combat state",
+    "Tapped attacking selected playable damaged pumped",
+    "Player HUD overflow",
+    "Every game badge numeric player value",
+  );
+
+  if (!sectionMatch && !hasMatchingPreset) return null;
 
   return (
-    <section className={DEV_SECTION}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className={DEV_SECTION_HEADING}>Stress scenarios</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Deterministic high-pressure states for the current staged card and player HUD.
-          </p>
+    <DevPanelSearchProvider query={sectionMatch ? "" : query}>
+      <section className={DEV_SECTION}>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className={DEV_SECTION_HEADING}>Stress scenarios</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Deterministic high-pressure states for the current staged card and player HUD.
+            </p>
+          </div>
+          <DevSearchable terms={["Clear", "Stress scenarios"]}>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="shrink-0"
+              onClick={() =>
+                useGameDevStore.setState({
+                  cardOverrides: DEFAULT_DEV_CARD_OVERRIDES,
+                  playerOverrides: DEFAULT_DEV_PLAYER_OVERRIDES,
+                  debugBattlefieldKeywords: [],
+                })
+              }
+            >
+              <RotateCcw />
+              Clear
+            </Button>
+          </DevSearchable>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="shrink-0"
-          onClick={() =>
-            useGameDevStore.setState({
-              cardOverrides: DEFAULT_DEV_CARD_OVERRIDES,
-              playerOverrides: DEFAULT_DEV_PLAYER_OVERRIDES,
-              debugBattlefieldKeywords: [],
-            })
-          }
-        >
-          <RotateCcw />
-          Clear
-        </Button>
-      </div>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <PresetButton
-          label="All badges"
-          description="Foil, status, interaction rings, counters, and damage"
-          onClick={() => applyCardPreset(BADGE_OVERFLOW)}
-        />
-        <PresetButton
-          label="Long keyword stack"
-          description="Twenty keyword chips with mana-bearing reminder labels"
-          onClick={() => applyCardPreset(DEFAULT_DEV_CARD_OVERRIDES, LONG_KEYWORDS)}
-        />
-        <PresetButton
-          label="Counter overflow"
-          description="Every supported counter at three digits"
-          onClick={() => applyCardPreset(COUNTER_OVERFLOW)}
-        />
-        <PresetButton
-          label="Combat state"
-          description="Tapped, attacking, selected, playable, damaged, and pumped"
-          onClick={() => applyCardPreset(COMBAT_STATE)}
-        />
-        <PresetButton
-          label="Player HUD overflow"
-          description="Every game badge and numeric player value"
-          onClick={() => useGameDevStore.setState({ playerOverrides: PLAYER_HUD_OVERFLOW })}
-        />
-      </div>
-    </section>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <PresetButton
+            label={`All badges`}
+            description={`Foil, status, interaction rings, counters, and damage`}
+            onClick={() => applyCardPreset(BADGE_OVERFLOW)}
+          />
+          <PresetButton
+            label={`Long keyword stack`}
+            description={`Twenty keyword chips with mana-bearing reminder labels`}
+            onClick={() => applyCardPreset(DEFAULT_DEV_CARD_OVERRIDES, LONG_KEYWORDS)}
+          />
+          <PresetButton
+            label={`Counter overflow`}
+            description={`Every supported counter at three digits`}
+            onClick={() => applyCardPreset(COUNTER_OVERFLOW)}
+          />
+          <PresetButton
+            label={`Combat state`}
+            description={`Tapped, attacking, selected, playable, damaged, and pumped`}
+            onClick={() => applyCardPreset(COMBAT_STATE)}
+          />
+          <PresetButton
+            label={`Player HUD overflow`}
+            description={`Every game badge and numeric player value`}
+            onClick={() => useGameDevStore.setState({ playerOverrides: PLAYER_HUD_OVERFLOW })}
+          />
+        </div>
+      </section>
+    </DevPanelSearchProvider>
   );
 }
-
 function PresetButton({
   label,
   description,
@@ -180,6 +211,8 @@ function PresetButton({
   description: string;
   onClick: () => void;
 }) {
+  const query = useDevPanelSearch();
+  if (!matchesDevPanelSearch(query, label, description)) return null;
   return (
     <button
       type="button"

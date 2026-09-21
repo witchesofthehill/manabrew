@@ -11,14 +11,11 @@ import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { isFeatureEnabled } from "@/featureFlags";
 import { cn } from "@/lib/utils";
 import type { TopDeckSnapshotEntry } from "@/api/hubTypes";
-
 const DEFAULT_BUCKET = "trending";
 const INITIAL_RANK_COUNT = 10;
-
 interface HubTopDeckSnapshotsProps {
   onOpenDeck: (id: string) => void;
 }
-
 function snapshotCaption(key: string, scope: string, snapshotDate: string): string {
   if (scope === "editorial") return `Curated snapshot dated ${snapshotDate}.`;
   if (key === "rising") {
@@ -32,7 +29,6 @@ function snapshotCaption(key: string, scope: string, snapshotDate: string): stri
   }
   return `Based on online and offline play from the 30 days ending ${snapshotDate}.`;
 }
-
 export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
   const accountsEnabled = isFeatureEnabled("accounts");
   const viewerAccountId = useAuthStore((state) =>
@@ -57,22 +53,18 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
       ? visibleBuckets[0].key
       : bucket;
   const showAll = showAllBucket === activeBucket;
-
   useEffect(() => {
     void fetchBuckets();
   }, [fetchBuckets]);
-
   useEffect(() => {
     if (bucketsLoaded) void fetchSnapshot(activeBucket);
   }, [bucketsLoaded, activeBucket, fetchSnapshot, viewerAccountId]);
-
   function selectBucket(key: string) {
     const next = new URLSearchParams(searchParams);
     if (key === DEFAULT_BUCKET) next.delete("bucket");
     else next.set("bucket", key);
     if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true });
   }
-
   const displayedEntries = snapshot
     ? showAll
       ? snapshot.entries
@@ -80,17 +72,15 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
     : [];
   const stageEntries = displayedEntries.slice(0, 6);
   const remainingEntries = displayedEntries.slice(6);
-
   function favorite(ranked: TopDeckSnapshotEntry) {
     if (!signedIn) {
       showSignIn();
       return;
     }
     void setFavorite(ranked.entry.id, !ranked.entry.favorited).catch((error) =>
-      toast.error(error instanceof Error ? error.message : "Failed to update favorite"),
+      toast.error(error instanceof Error ? error.message : `Failed to update favorite`),
     );
   }
-
   function rankedDeck(ranked: TopDeckSnapshotEntry, variant: "card" | "hero" | "stage" = "card") {
     const staged = variant === "stage";
     return (
@@ -112,7 +102,6 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
       </div>
     );
   }
-
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 items-center border-b px-4 py-2 sm:px-6 lg:px-8">
@@ -127,7 +116,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
                 <Button
                   key={item.key}
                   type="button"
-                  variant={activeBucket === item.key ? "secondary" : "ghost"}
+                  variant={activeBucket === item.key ? "selected" : "ghost"}
                   size="sm"
                   className="shrink-0"
                   aria-pressed={activeBucket === item.key}

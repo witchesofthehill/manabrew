@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { CircleDollarSign } from "lucide-react";
-
 import { Input } from "@/components/ui/input";
 import { scryfallCardKey } from "@/api/scryfall";
 import { useDeckStore } from "@/stores/useDeckStore";
@@ -9,10 +8,8 @@ import { executeDeckEdit } from "./deckEditor.history";
 import { useDeckEditTransaction } from "./useDeckEditTransaction";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { ScryfallCard } from "@/types/scryfall";
-
 type PriceProvider = "tcgplayer" | "cardmarket" | "cardhoarder";
 type CardPrices = ScryfallCard["prices"];
-
 const PRICE_PROVIDERS: Record<
   PriceProvider,
   {
@@ -23,29 +20,28 @@ const PRICE_PROVIDERS: Record<
   }
 > = {
   tcgplayer: {
-    label: "TCGplayer",
+    label: `TCGplayer`,
     unit: "$",
     getPrice: (prices, foil) => (foil ? prices.usd_foil : prices.usd),
   },
   cardmarket: {
-    label: "Cardmarket",
+    label: `Cardmarket`,
     unit: "€",
     getPrice: (prices, foil) => (foil ? prices.eur_foil : prices.eur),
   },
   cardhoarder: {
-    label: "Cardhoarder",
+    label: `Cardhoarder`,
     unit: "",
     suffix: " tix",
     getPrice: (prices) => prices.tix,
   },
 };
-
 export function DeckBudgetPanel() {
   const deck = useDeckStore((state) => state.currentDeck);
   const setEditorMetadata = useDeckStore((state) => state.setEditorMetadata);
   const [prices, setPrices] = useState<Record<string, CardPrices>>({});
   const provider: PriceProvider = deck.editor?.priceProvider ?? "tcgplayer";
-  const budgetEdit = useDeckEditTransaction("Update deck budget");
+  const budgetEdit = useDeckEditTransaction(`Update deck budget`);
   const providerConfig = PRICE_PROVIDERS[provider];
   const printings = useMemo(
     () =>
@@ -57,7 +53,6 @@ export function DeckBudgetPanel() {
       })),
     [deck.cards, deck.commanders, deck.sideboard],
   );
-
   useEffect(() => {
     if (printings.length === 0) return;
     let active = true;
@@ -80,7 +75,6 @@ export function DeckBudgetPanel() {
       active = false;
     };
   }, [printings]);
-
   const { total, unavailable } = printings.reduce(
     (result, card) => {
       const cardPrices = prices[scryfallCardKey(card.name, card.setCode, card.collectorNumber)];
@@ -95,7 +89,6 @@ export function DeckBudgetPanel() {
   const overBudget = budget !== undefined && total > budget;
   const formatPrice = (value: number) =>
     `${providerConfig.unit}${value.toFixed(2)}${providerConfig.suffix ?? ""}`;
-
   function updateEditorMetadata(updates: { budgetAmount?: number; priceProvider?: PriceProvider }) {
     setEditorMetadata({
       ...deck.editor,
@@ -105,7 +98,6 @@ export function DeckBudgetPanel() {
       ...updates,
     });
   }
-
   return (
     <section className={EDITOR_PANEL_CLASS}>
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -125,7 +117,7 @@ export function DeckBudgetPanel() {
               value={provider}
               className="h-8 rounded-md border bg-background px-2 text-xs"
               onChange={(event) =>
-                executeDeckEdit("Change price provider", () =>
+                executeDeckEdit(`Change price provider`, () =>
                   updateEditorMetadata({ priceProvider: event.target.value as PriceProvider }),
                 )
               }
@@ -145,7 +137,7 @@ export function DeckBudgetPanel() {
               step="5"
               className="h-8 w-24 text-right font-mono"
               value={budget ?? ""}
-              placeholder="None"
+              placeholder={`None`}
               onFocus={budgetEdit.begin}
               onChange={(event) => {
                 const value = event.target.value ? Number(event.target.value) : undefined;
@@ -167,7 +159,7 @@ export function DeckBudgetPanel() {
             )}
             {unavailable > 0 && (
               <p className="text-[10px] text-muted-foreground">
-                {unavailable} {unavailable === 1 ? "card" : "cards"} unavailable
+                {unavailable === 1 ? `One card unavailable` : `${unavailable} cards unavailable`}
               </p>
             )}
           </div>

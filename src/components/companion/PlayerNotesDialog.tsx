@@ -9,13 +9,11 @@ import {
 } from "@/components/ui/dialog";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
-
 interface PlayerNotesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   player: CompanionPlayer;
 }
-
 export function PlayerNotesDialog({ open, onOpenChange, player }: PlayerNotesDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -28,7 +26,6 @@ export function PlayerNotesDialog({ open, onOpenChange, player }: PlayerNotesDia
     </Dialog>
   );
 }
-
 function PlayerNotesForm({ player, onClose }: { player: CompanionPlayer; onClose: () => void }) {
   const setPlayerNotes = useCompanionStore((s) => s.setPlayerNotes);
   const [draft, setDraft] = useState(player.notes ?? "");
@@ -39,7 +36,7 @@ function PlayerNotesForm({ player, onClose }: { player: CompanionPlayer; onClose
         onChange={(e) => setDraft(e.target.value)}
         rows={6}
         autoFocus
-        placeholder="e.g. needs 1 mountain · holding a Counterspell · planeswalker at 4"
+        placeholder={`e.g. needs 1 mountain \u00B7 holding a Counterspell \u00B7 planeswalker at 4`}
         className="w-full resize-y rounded-md border border-input bg-transparent p-2 text-sm pointer-coarse:text-base focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
       />
       <DialogFooter>
@@ -47,6 +44,7 @@ function PlayerNotesForm({ player, onClose }: { player: CompanionPlayer; onClose
           Cancel
         </Button>
         <Button
+          variant="primary"
           onClick={() => {
             setPlayerNotes(player.id, draft);
             onClose();

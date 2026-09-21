@@ -1,12 +1,10 @@
 import { Button } from "@/components/ui/button";
 import type { GameSnapshotEntry } from "@/types/gameSnapshot";
-
 interface SnapshotsPanelProps {
   snapshots: GameSnapshotEntry[];
   canRestoreSnapshots: boolean;
   onRestoreSnapshot: (checkpointId: number) => void;
 }
-
 export function SnapshotsPanel({
   snapshots,
   canRestoreSnapshots,
@@ -18,7 +16,6 @@ export function SnapshotsPanel({
       minute: "2-digit",
       second: "2-digit",
     });
-
   if (snapshots.length === 0) {
     return (
       <div className="rounded-lg p-2.5 min-h-0 flex-1 flex flex-col bg-muted/20">
@@ -27,7 +24,6 @@ export function SnapshotsPanel({
       </div>
     );
   }
-
   return (
     <div className="rounded-lg p-2.5 min-h-0 flex-1 flex flex-col bg-muted/20">
       <p className="text-xs font-semibold text-muted-foreground mb-2">Snapshots</p>

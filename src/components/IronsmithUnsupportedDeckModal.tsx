@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { GameIcon } from "@/components/game/GameIcon";
 import { useGameStore } from "@/stores/useGameStore";
 import type { IronsmithDeckIssue } from "@/game";
-
-function groupByPlayer(issues: IronsmithDeckIssue[]): Array<{ player: string; cards: string[] }> {
+function groupByPlayer(issues: IronsmithDeckIssue[]): Array<{
+  player: string;
+  cards: string[];
+}> {
   const order: string[] = [];
   const byPlayer = new Map<string, string[]>();
   for (const issue of issues) {
@@ -17,14 +19,11 @@ function groupByPlayer(issues: IronsmithDeckIssue[]): Array<{ player: string; ca
   }
   return order.map((player) => ({ player, cards: byPlayer.get(player)! }));
 }
-
 export function IronsmithUnsupportedDeckModal() {
   const issues = useGameStore((s) => s.ironsmithDeckError);
   const dismiss = useGameStore((s) => s.dismissIronsmithDeckError);
-
   const groups = issues ? groupByPlayer(issues) : [];
   const multiPlayer = groups.length > 1;
-
   return (
     <Dialog open={issues !== null} onOpenChange={(open) => !open && dismiss()}>
       <DialogContent className="max-w-md">
@@ -57,7 +56,7 @@ export function IronsmithUnsupportedDeckModal() {
           ))}
         </div>
         <div className="flex justify-end">
-          <Button variant="outline" size="sm" onClick={dismiss}>
+          <Button variant="ghost" size="sm" onClick={dismiss}>
             Got it
           </Button>
         </div>

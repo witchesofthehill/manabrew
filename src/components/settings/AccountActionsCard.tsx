@@ -7,13 +7,11 @@ import { DeleteAccountDialog } from "@/components/settings/DeleteAccountDialog";
 import { exportAccount } from "@/api/auth";
 import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
 import { DOCS_URL } from "@/lib/constants";
-
 interface ActionRowProps {
   title: string;
   description: string;
   action: ReactNode;
 }
-
 function ActionRow({ title, description, action }: ActionRowProps) {
   return (
     <div className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
@@ -25,12 +23,10 @@ function ActionRow({ title, description, action }: ActionRowProps) {
     </div>
   );
 }
-
 export function AccountActionsCard() {
   const signOut = useAuthStore((s) => s.signOut);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-
   async function handleExport() {
     const token = await getAccessToken();
     if (!token) return;
@@ -46,20 +42,19 @@ export function AccountActionsCard() {
       link.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Export failed");
+      toast.error(err instanceof Error ? err.message : `Export failed`);
     } finally {
       setBusy(false);
     }
   }
-
   return (
     <>
       <section className="rounded-lg border bg-card/40 p-4 sm:p-5 space-y-1">
         <Label>Data &amp; session</Label>
         <div className="divide-y divide-border/70">
           <ActionRow
-            title="Export my data"
-            description="Download your account, decks, and history as JSON."
+            title={`Export my data`}
+            description={`Download your account, decks, and history as JSON.`}
             action={
               <Button
                 variant="outline"
@@ -74,8 +69,8 @@ export function AccountActionsCard() {
             }
           />
           <ActionRow
-            title="Sign out"
-            description="Sign out of Manabrew on this device."
+            title={`Sign out`}
+            description={`Sign out of Manabrew on this device.`}
             action={
               <Button
                 variant="outline"
@@ -113,8 +108,8 @@ export function AccountActionsCard() {
       <section className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 sm:p-5 space-y-1">
         <Label className="text-destructive">Danger zone</Label>
         <ActionRow
-          title="Delete account"
-          description="Erases your account, sign-in methods, decks, and history. Community publications stay up without your name."
+          title={`Delete account`}
+          description={`Erases your account, sign-in methods, decks, and history. Community publications stay up without your name.`}
           action={
             <Button
               variant="destructive"

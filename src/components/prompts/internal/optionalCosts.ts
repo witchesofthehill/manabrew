@@ -5,6 +5,6 @@ export const skipBoolean: PromptResolver<"chooseBoolean"> = (_prompt, ctx) => {
   return {
     kind: "auto",
     respond: { type: "decision", value: false },
-    reason: "boolean prompt toggled off; defaulting to decline",
+    reason: `boolean prompt toggled off; defaulting to decline`,
   };
 };

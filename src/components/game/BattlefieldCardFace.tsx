@@ -160,8 +160,8 @@ export function BattlefieldCardFace({
         <div
           className="absolute inset-0 rounded-[inherit] pointer-events-none animate-pulse"
           style={{
-            boxShadow: `inset 0 0 0 ${Math.max(1, u)}px ${withAlpha(theme.textOnTinted, 0.85)}, inset 0 0 ${10 * u}px ${withAlpha(theme.textOnTinted, 0.55)}, inset 0 0 ${5 * u}px ${withAlpha(theme.promptAction.cancel, 0.65)}`,
-            background: `radial-gradient(circle at 50% 50%, transparent 55%, ${withAlpha(theme.textOnTinted, 0.18)} 100%)`,
+            boxShadow: `inset 0 0 0 ${Math.max(1, u)}px ${withAlpha(theme.cardStatus.summoningSick, 0.85)}, inset 0 0 ${10 * u}px ${withAlpha(theme.cardStatus.summoningSick, 0.55)}, inset 0 0 ${5 * u}px ${withAlpha(theme.cardStatus.summoningSick, 0.65)}`,
+            background: `radial-gradient(circle at 50% 50%, transparent 55%, ${withAlpha(theme.cardStatus.summoningSick, 0.18)} 100%)`,
           }}
         />
       )}

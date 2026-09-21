@@ -11,7 +11,6 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -19,7 +18,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
 interface DeckSelectionTrayProps {
   count: number;
   tags: string[];
@@ -37,7 +35,6 @@ interface DeckSelectionTrayProps {
   onRemove: () => void;
   onClear: () => void;
 }
-
 export function DeckSelectionTray({
   count,
   tags,
@@ -58,7 +55,7 @@ export function DeckSelectionTray({
   return (
     <section
       className="absolute bottom-0 left-0 right-0 z-50 border-t border-selection/30 bg-background/95 px-3 pb-[calc(var(--safe-area-inset-bottom)+0.75rem)] pt-2 shadow-lg backdrop-blur sm:px-4 sm:pb-2"
-      aria-label="Actions for selected cards"
+      aria-label={`Actions for selected cards`}
     >
       <div className="mb-2 flex items-center sm:hidden">
         <div className="min-w-0 flex-1 text-sm font-medium text-selection">
@@ -151,7 +148,12 @@ export function DeckSelectionTray({
           <ClipboardCopy className="mr-1 h-3 w-3" /> Copy
         </Button>
         <div className="flex-1" />
-        <Button size="sm" variant="destructive" className="h-10 shrink-0 sm:h-8" onClick={onRemove}>
+        <Button
+          size="sm"
+          variant="destructive-quiet"
+          className="h-10 shrink-0 sm:h-8"
+          onClick={onRemove}
+        >
           <X className="mr-1 h-3 w-3" /> Remove
         </Button>
         <Button size="sm" variant="ghost" className="hidden sm:inline-flex" onClick={onClear}>

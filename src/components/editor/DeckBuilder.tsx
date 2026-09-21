@@ -105,7 +105,6 @@ import {
 import { exportToArena, exportWithPrintings } from "./deckExport";
 import { TokenSection } from "./TokenSection";
 import { useDerivedTokens, mergeDerivedAndCustomized } from "@/hooks/useDerivedTokens";
-
 import {
   buildDeckSnapshot,
   setUnsavedState,
@@ -161,9 +160,7 @@ import { DeckSaveConflictDialog } from "./DeckSaveConflictDialog";
 import { DeckStatusSummary } from "./DeckStatusSummary";
 import { PrintingOptimizerDialog } from "./PrintingOptimizerDialog";
 import { PreviewCardInfo } from "./PreviewCardInfo";
-
 type DeckSyncState = "saved" | "saving" | "local" | "synced" | "failed";
-
 export function DeckBuilder({
   onToggleSearch,
   setPreviewSlot,
@@ -180,7 +177,10 @@ export function DeckBuilder({
   setPreviewSlot?: (el: HTMLDivElement | null) => void;
   previewCollapsed?: boolean;
   onPreviewCollapsedChange?: (collapsed: boolean) => void;
-  resumedPublication?: { deck: EditorDeck; localDeckId: string | null } | null;
+  resumedPublication?: {
+    deck: EditorDeck;
+    localDeckId: string | null;
+  } | null;
   onResumedPublicationClose?: () => void;
   onSelectionChange?: (selectedCards: ReadonlySet<string>) => void;
   onReadOnlyDeckImported?: (deckId: string) => void;
@@ -252,24 +252,20 @@ export function DeckBuilder({
   const importIntoCurrentDeck = useDeckTextImportIntoCurrent();
   const { selectedCards, toggleCard, rangeSelect, clearSelection, selectCards } =
     useDeckSelection();
-
   useEffect(() => {
     onSelectionChange?.(selectedCards);
   }, [onSelectionChange, selectedCards]);
-
   const derivedTokens = useDerivedTokens(currentDeck);
   const mergedTokens = useMemo(
     () => mergeDerivedAndCustomized(derivedTokens, currentDeck.tokens),
     [derivedTokens, currentDeck.tokens],
   );
-
   const [deckFilter, setDeckFilter] = useState("");
   const deferredDeckFilter = useDeferredValue(deckFilter);
   const [cmcFilter, setCmcFilter] = useState<number | null>(null);
   const [newTagInput, setNewTagInput] = useState("");
   const [announcement, setAnnouncement] = useState({ id: 0, message: "" });
   const [showBackToTop, setShowBackToTop] = useState(false);
-
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [cardSize, setCardSize] = useState(DEFAULT_CARD_SIZE);
   const [analysisOpen, setAnalysisOpen] = useDeckSectionOpen();
@@ -286,7 +282,6 @@ export function DeckBuilder({
   const enrichedCardsRef = useRef(new Set<string>());
   const skipPresentationSaveRef = useRef(true);
   const presentationKey = currentDeckId ?? currentDeck.name.toLowerCase();
-
   useEffect(() => {
     skipPresentationSaveRef.current = true;
     try {
@@ -320,7 +315,6 @@ export function DeckBuilder({
       setAnalysisOpen(true);
     }
   }, [editorSessionId, presentationKey, setAnalysisOpen]);
-
   useEffect(() => {
     if (skipPresentationSaveRef.current) {
       skipPresentationSaveRef.current = false;
@@ -339,7 +333,6 @@ export function DeckBuilder({
     };
     localStorage.setItem(STORAGE_KEYS.DECK_EDITOR_PRESENTATION, JSON.stringify(all));
   }, [analysisOpen, cardSize, collectionFilter, groupBy, presentationKey, sortBy, viewMode]);
-
   useKeybindings({
     "deck-editor-focus-filter": () => {
       filterInputRef.current?.focus();
@@ -384,7 +377,6 @@ export function DeckBuilder({
       if (selectedCards.size > 0 && !isReadOnly) addOneEachSelected();
     },
   });
-
   function jumpToNextEditorSection() {
     const sections =
       editorScrollRef.current?.querySelectorAll<HTMLElement>("[data-editor-section]");
@@ -393,7 +385,6 @@ export function DeckBuilder({
     const next = [...sections].find((section) => section.getBoundingClientRect().top > top + 48);
     (next ?? sections[0]).scrollIntoView({ behavior: "smooth", block: "start" });
   }
-
   function navigateToDeckStatus(target: "validation" | "collection" | "budget") {
     if (target !== "validation") setAnalysisOpen(true);
     window.setTimeout(() => {
@@ -406,7 +397,6 @@ export function DeckBuilder({
         ?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }
-
   const supplementaryCards = useMemo(
     () => [
       ...(currentDeck.commanders ?? []),
@@ -433,12 +423,10 @@ export function DeckBuilder({
   // Read-only presets can't be edited; background Scryfall enrichment mutates the
   // deck after the baseline snapshot, so never treat a preset as dirty.
   const hasUnsavedChanges = !isReadOnly && currentSnapshot !== lastSavedSnapshot;
-
   useEffect(() => {
     setLastSavedDeckRef(lastSavedDeck);
     setUnsavedState(lastSavedSnapshot, isReadOnly ? lastSavedSnapshot : currentSnapshot);
   }, [lastSavedDeck, lastSavedSnapshot, currentSnapshot, isReadOnly]);
-
   useEffect(() => {
     const savedDeck = useDeckStore.getState().currentDeck;
     const snapshot = buildDeckSnapshot(savedDeck);
@@ -451,7 +439,6 @@ export function DeckBuilder({
     resetDeckHistory();
     return resetDeckHistory;
   }, [editorSessionId, setAnalysisOpen]);
-
   // Warn on navigation/tab close with unsaved changes
   useEffect(() => {
     if (!hasUnsavedChanges) return;
@@ -461,10 +448,8 @@ export function DeckBuilder({
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [hasUnsavedChanges]);
-
   const internalPreview = useCardPreview([], { subscribe: false });
   const preview = previewController ?? internalPreview;
-
   useDeckAnalysis();
   useDeckRoles();
   useCardCollection();
@@ -491,13 +476,11 @@ export function DeckBuilder({
     (card: DeckCard) => collectionQuantityForName(collectionQuantities, card.identity.name) > 0,
     [collectionQuantities],
   );
-
   const { setNodeRef: setMainDropRef, isOver: isOverMain } = useDroppable({ id: DROP_ZONE.MAIN });
   const { setNodeRef: setSideDropRef, isOver: isOverSide } = useDroppable({ id: DROP_ZONE.SIDE });
   const { setNodeRef: setMaybeDropRef, isOver: isOverMaybe } = useDroppable({
     id: DROP_ZONE.MAYBE,
   });
-
   // Auto-enrich cards missing CMC/mana data, or missing the allParts / backFace
   // contract (legacy saved decks predate these fields).
   useEffect(() => {
@@ -543,7 +526,6 @@ export function DeckBuilder({
         console.warn("[DeckBuilder] Failed to enrich card images:", err);
       });
   }, [currentDeck.cards, supplementaryCards, enrichDeckCards]);
-
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") clearSelection();
@@ -551,7 +533,6 @@ export function DeckBuilder({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [clearSelection]);
-
   function bulkAction(message: string, edit: () => void) {
     executeDeckEdit(message, edit);
     clearSelection();
@@ -559,7 +540,6 @@ export function DeckBuilder({
     setAnnouncement((current) => ({ id: current.id + 1, message }));
     toast.success(message);
   }
-
   const handleRemoveSelected = () =>
     bulkAction(`Removed ${selectedCards.size} cards`, () => removeSelectedCards(selectedCards));
   const handleMoveSelectedToSide = () =>
@@ -574,7 +554,6 @@ export function DeckBuilder({
     bulkAction(`Moved ${selectedCards.size} cards to maybeboard`, () =>
       moveSelectedCards(selectedCards, "maybe"),
     );
-
   function allDeckCards() {
     return [
       ...currentDeck.cards,
@@ -586,14 +565,12 @@ export function DeckBuilder({
       ...(currentDeck.planes ?? []),
     ];
   }
-
   function selectAllDeckCards() {
     selectCards(
       allDeckCards().map((card) => card.identity.name),
       true,
     );
   }
-
   function selectEditableCards(cardNames: Iterable<string>) {
     const editableNames = new Set(allDeckCards().map((card) => card.identity.name.toLowerCase()));
     selectCards(
@@ -601,7 +578,6 @@ export function DeckBuilder({
       true,
     );
   }
-
   async function copySelectedCards() {
     if (selectedCards.size === 0) return;
     const counts = new Map<string, number>();
@@ -615,24 +591,22 @@ export function DeckBuilder({
       );
       toast.success(`Copied ${counts.size} selected card${counts.size === 1 ? "" : "s"}`);
     } catch {
-      toast.error("Could not write selected cards to the clipboard");
+      toast.error(`Could not write selected cards to the clipboard`);
     }
   }
-
   async function pasteCards() {
     if (isReadOnly) return;
     try {
       const entries = parseDeckListText(await navigator.clipboard.readText());
       if (entries.length === 0) {
-        toast.error("Clipboard does not contain a recognized card list");
+        toast.error(`Clipboard does not contain a recognized card list`);
         return;
       }
       await importIntoCurrentDeck(entries, "", undefined, () => undefined);
     } catch {
-      toast.error("Could not read cards from the clipboard");
+      toast.error(`Could not read cards from the clipboard`);
     }
   }
-
   function addOneEachSelected() {
     const store = useDeckStore.getState();
     const editableCards = [
@@ -656,10 +630,9 @@ export function DeckBuilder({
     });
     if (added > 0) toast.success(`Added one copy of ${added} cards`);
     if (added < selectedCards.size) {
-      toast.warning("Command-zone and special-section cards were not duplicated");
+      toast.warning(`Command-zone and special-section cards were not duplicated`);
     }
   }
-
   function removeOneEachSelected() {
     executeDeckEdit(`Removed one copy of ${selectedCards.size} cards`, () => {
       for (const name of selectedCards) {
@@ -670,7 +643,6 @@ export function DeckBuilder({
     });
     toast.success(`Removed one copy of ${selectedCards.size} cards`);
   }
-
   function toggleSelectedFoil() {
     bulkAction(`Toggled foil for ${selectedCards.size} cards`, () => {
       for (const name of selectedCards) toggleFoil(name);
@@ -692,7 +664,6 @@ export function DeckBuilder({
     clearSelection();
     toast.success(`Tagged cards with "${tag}"`);
   };
-
   const selectedCardTags = (() => {
     if (selectedCards.size === 0 || !currentDeck.cardTags) return [];
     const tags = new Set<string>();
@@ -702,7 +673,6 @@ export function DeckBuilder({
     }
     return [...tags];
   })();
-
   const unsupportedNames = useUnsupportedCards(currentDeck);
   const editableUnsupportedNames = new Set(
     [...unsupportedNames].filter((name) =>
@@ -710,7 +680,6 @@ export function DeckBuilder({
     ),
   );
   const hasUnsupportedCards = unsupportedNames.size > 0;
-
   const deckFormat = getFormat(currentDeck.format ?? "standard");
   const deckValidation = useMemo(
     () =>
@@ -726,7 +695,6 @@ export function DeckBuilder({
     [currentDeck, deckFormat],
   );
   const isDeckLegal = deckValidation.legal;
-
   const matchesFilters = useCallback(
     (c: DeckCard, section: "main" | "sideboard" | "maybeboard" | "special" = "main") => {
       const tags = currentDeck.cardTags?.[c.identity.name.toLowerCase()] ?? [];
@@ -788,22 +756,22 @@ export function DeckBuilder({
       specialSections: [
         {
           id: "attractions",
-          label: "Attractions",
+          label: `Attractions`,
           groups: groupZone(currentDeck.attractions ?? [], "special"),
         },
         {
           id: "contraptions",
-          label: "Contraptions",
+          label: `Contraptions`,
           groups: groupZone(currentDeck.contraptions ?? [], "special"),
         },
         {
           id: "schemes",
-          label: "Schemes",
+          label: `Schemes`,
           groups: groupZone(currentDeck.schemes ?? [], "special"),
         },
         {
           id: "planes",
-          label: "Planes",
+          label: `Planes`,
           groups: groupZone(currentDeck.planes ?? [], "special"),
         },
       ].filter((section) => section.groups.length > 0),
@@ -836,13 +804,11 @@ export function DeckBuilder({
       })),
     [filteredMain, groupBy, sortBy, currentDeck.customTags, currentDeck.cardTags, isCardOwned],
   );
-
   function removeCopies(cardName: string, source: DeckSourceZone, quantity: "one" | "all") {
-    executeDeckEdit(`Remove ${quantity === "one" ? "1" : "all"} ${cardName}`, () =>
+    executeDeckEdit(quantity === "one" ? `Remove one ${cardName}` : `Remove all ${cardName}`, () =>
       removeCardCopies(cardName, source, quantity),
     );
   }
-
   function moveCopies(
     cardName: string,
     source: EditableDeckZone,
@@ -854,39 +820,31 @@ export function DeckBuilder({
       moved = moveCardCopies(cardName, source, destination, quantity);
     });
     if (moved > 0) {
-      const label = destination === "main" ? "main" : `${destination}board`;
+      const label = destination === "main" ? `main` : `${destination}board`;
       toast.success(`Moved ${moved} ${cardName} to ${label}`);
     }
   }
-
   function handleRemoveOneFromMain(cardName: string) {
     removeCopies(cardName, "main", "one");
   }
-
   function handleRemoveAllFromMain(cardName: string) {
     removeCopies(cardName, "main", "all");
   }
-
   function handleMoveOneToSide(cardName: string) {
     moveCopies(cardName, "main", "side", "one");
   }
-
   function handleMoveAllToSide(cardName: string) {
     moveCopies(cardName, "main", "side", "all");
   }
-
   function handleMoveOneToMaybe(cardName: string) {
     moveCopies(cardName, "main", "maybe", "one");
   }
-
   function handleMoveAllToMaybe(cardName: string) {
     moveCopies(cardName, "main", "maybe", "all");
   }
-
   function handleRemoveOneFromMaybe(cardName: string) {
     removeCopies(cardName, "maybe", "one");
   }
-
   function handleShowInfo(deckCard: DeckCard) {
     setDetailToken(null);
     setDetailPrinting(deckCard.identity);
@@ -900,7 +858,6 @@ export function DeckBuilder({
       .then((sc) => setDetailCard(sc.info))
       .catch(() => toast.error(`Could not fetch info for "${deckCard.identity.name}"`));
   }
-
   function handleShowTokenInfo(token: DeckCard) {
     useScryfallStore
       .getState()
@@ -915,46 +872,36 @@ export function DeckBuilder({
       })
       .catch(() => toast.error(`Could not fetch info for "${token.identity.name}"`));
   }
-
   function handleRemoveOneFromSide(cardName: string) {
     const source = currentDeck.sideboard.some((card) => card.identity.name === cardName)
       ? "side"
       : "special";
     removeCopies(cardName, source, "one");
   }
-
   function handleMoveOneFromSideToMain(cardName: string) {
     moveCopies(cardName, "side", "main", "one");
   }
-
   function handleMoveAllFromSideToMain(cardName: string) {
     moveCopies(cardName, "side", "main", "all");
   }
-
   function handleMoveOneFromSideToMaybe(cardName: string) {
     moveCopies(cardName, "side", "maybe", "one");
   }
-
   function handleMoveAllFromSideToMaybe(cardName: string) {
     moveCopies(cardName, "side", "maybe", "all");
   }
-
   function handleMoveOneFromMaybeToMain(cardName: string) {
     moveCopies(cardName, "maybe", "main", "one");
   }
-
   function handleMoveAllFromMaybeToMain(cardName: string) {
     moveCopies(cardName, "maybe", "main", "all");
   }
-
   function handleMoveOneFromMaybeToSide(cardName: string) {
     moveCopies(cardName, "maybe", "side", "one");
   }
-
   function handleMoveAllFromMaybeToSide(cardName: string) {
     moveCopies(cardName, "maybe", "side", "all");
   }
-
   function handleSetCommander(card: DeckCard) {
     if (currentDeck.format === "oathbreaker") {
       if (!canBeOathbreaker(card) && !canBeSignatureSpell(card)) {
@@ -966,18 +913,15 @@ export function DeckBuilder({
       executeDeckEdit(`Set ${card.identity.name} in the command zone`, () => setCommander(card));
       return;
     }
-
     if (!isCommanderEligible(card)) {
       toast.warning(`"${card.identity.name}" is not a legal commander`);
       return;
     }
-
     const existing = currentDeck.commanders ?? [];
     if (existing.length >= 1 && !canBePartners(existing[0], card)) {
       // Incompatible pairing — explain why before the store silently replaces
       const existingHasPartner = canBePartnerCommander(existing[0]);
       const newHasPartner = canBePartnerCommander(card);
-
       if (!existingHasPartner && !newHasPartner) {
         toast.info(
           `"${existing[0].identity.name}" replaced — neither commander has a partner ability`,
@@ -994,17 +938,14 @@ export function DeckBuilder({
         );
       }
     }
-
     executeDeckEdit(`Set ${card.identity.name} as commander`, () => setCommander(card));
   }
-
   function handleRemoveCommander(card?: DeckCard) {
     executeDeckEdit(
-      card ? `Remove ${card.identity.name} from the command zone` : "Remove commander",
+      card ? `Remove ${card.identity.name} from the command zone` : `Remove commander`,
       () => removeCommander(card),
     );
   }
-
   function isAtCopyLimit(cardName: string): boolean {
     if (allowIllegalDecks) return false;
     const format = getFormat(currentDeck.format ?? "standard");
@@ -1015,12 +956,12 @@ export function DeckBuilder({
     const limit = copyLimitFromText(copies[0].text) ?? format.deckRules.maxCopies;
     return copies.length >= limit;
   }
-
   function handleAddOneToMain(group: CardGroup) {
     if (isAtCopyLimit(group.card.identity.name)) {
       const format = getFormat(currentDeck.format ?? "standard");
+      const formatName = format?.name ?? currentDeck.format ?? `this format`;
       toast.error(
-        `Max ${format?.deckRules.maxCopies} copies of "${group.card.identity.name}" allowed in ${format?.name}`,
+        `Max ${format?.deckRules.maxCopies ?? 0} copies of "${group.card.identity.name}" allowed in ${formatName}`,
       );
       return;
     }
@@ -1028,12 +969,12 @@ export function DeckBuilder({
       addToMain({ ...group.card, identity: { ...group.card.identity, id: crypto.randomUUID() } }),
     );
   }
-
   function handleAddOneToMainByName(cardName: string) {
     if (isAtCopyLimit(cardName)) {
       const format = getFormat(currentDeck.format ?? "standard");
+      const formatName = format?.name ?? currentDeck.format ?? `this format`;
       toast.error(
-        `Max ${format?.deckRules.maxCopies} copies of "${cardName}" allowed in ${format?.name}`,
+        `Max ${format?.deckRules.maxCopies ?? 0} copies of "${cardName}" allowed in ${formatName}`,
       );
       return;
     }
@@ -1044,25 +985,22 @@ export function DeckBuilder({
       );
     }
   }
-
   function handleExport() {
     const text = exportToArena(currentDeck);
-    navigator.clipboard.writeText(text).then(() => toast.success("Deck copied to clipboard"));
+    navigator.clipboard.writeText(text).then(() => toast.success(`Deck copied to clipboard`));
   }
-
   function handleExactExport() {
     navigator.clipboard
       .writeText(exportWithPrintings(currentDeck))
-      .then(() => toast.success("Exact printings copied to clipboard"))
-      .catch(() => toast.error("Could not write to the clipboard"));
+      .then(() => toast.success(`Exact printings copied to clipboard`))
+      .catch(() => toast.error(`Could not write to the clipboard`));
   }
-
   async function handleSave(deckOverride?: EditorDeck, quiet = false) {
     if (saveInFlightRef.current) return;
     const sourceDeck = deckOverride ?? currentDeck;
     const normalizedName = sourceDeck.name.trim();
     if (!normalizedName) {
-      toast.error("Give this deck a name before saving");
+      toast.error(`Give this deck a name before saving`);
       return;
     }
     // A full save always clears the draft flag; keeping it here used to leak
@@ -1097,12 +1035,13 @@ export function DeckBuilder({
       }
       if (!quiet && hasUnsupportedCards) {
         toast.warning(
-          `Saved "${deckToSave.name}" — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} unsupported by the Manabrew and Forge engines`,
+          unsupportedNames.size === 1
+            ? `Saved "${deckToSave.name}" — one card is unsupported by the Manabrew and Forge engines`
+            : `Saved "${deckToSave.name}" — ${unsupportedNames.size} cards are unsupported by the Manabrew and Forge engines`,
         );
       } else if (!quiet && !deckValidation.legal) {
-        toast.warning(
-          `Saved "${deckToSave.name}" — ${deckValidation.errors[0] ?? "deck is not legal in this format"}`,
-        );
+        const validationError = deckValidation.errors[0] ?? `deck is not legal in this format`;
+        toast.warning(`Saved "${deckToSave.name}" — ${validationError}`);
       }
     } catch (error) {
       if (
@@ -1115,7 +1054,7 @@ export function DeckBuilder({
           setSaveConflict(await fetchAccountDeck(accountSavedDeck.accountDeckId));
         } catch {
           setSyncState("failed");
-          toast.error("The account version could not be loaded. Your local copy is still saved.");
+          toast.error(`The account version could not be loaded. Your local copy is still saved.`);
         }
       } else {
         setSyncState("failed");
@@ -1123,7 +1062,7 @@ export function DeckBuilder({
           toast.error(
             error instanceof Error
               ? `${error.message} Your local copy is still saved.`
-              : "Account save failed. Your local copy is still saved.",
+              : `Account save failed. Your local copy is still saved.`,
           );
         }
       }
@@ -1170,16 +1109,15 @@ export function DeckBuilder({
       setSaveConflict(null);
       conflictDeckRef.current = null;
       toast.success(
-        action === "copy" ? "Saved as a separate account deck" : "Deck conflict resolved",
+        action === "copy" ? `Saved as a separate account deck` : `Deck conflict resolved`,
       );
     } catch (error) {
       setSyncState("failed");
-      toast.error(error instanceof Error ? error.message : "Could not resolve the deck conflict");
+      toast.error(error instanceof Error ? error.message : `Could not resolve the deck conflict`);
     } finally {
       setIsSaving(false);
     }
   }
-
   function handleSaveDraft() {
     saveDraft();
     const savedDeck = { ...currentDeck, draft: true };
@@ -1188,13 +1126,14 @@ export function DeckBuilder({
     setUnsavedState(snapshot, snapshot);
     if (hasUnsupportedCards) {
       toast.warning(
-        `Saved "${currentDeck.name}" as draft — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} unsupported by the Manabrew and Forge engines`,
+        unsupportedNames.size === 1
+          ? `Saved "${currentDeck.name}" as draft — one card is unsupported by the Manabrew and Forge engines`
+          : `Saved "${currentDeck.name}" as draft — ${unsupportedNames.size} cards are unsupported by the Manabrew and Forge engines`,
       );
     } else {
       toast.success(`Draft "${currentDeck.name}" saved`);
     }
   }
-
   async function handleDeleteCurrentDeck() {
     if (isDeleting) return;
     const deckId = useDeckStore.getState().currentDeckId;
@@ -1222,15 +1161,14 @@ export function DeckBuilder({
       const snapshot = buildDeckSnapshot(savedDeck);
       setLastSavedDeck(savedDeck);
       setUnsavedState(snapshot, snapshot);
-      toast.success("Deck deleted");
+      toast.success(`Deck deleted`);
       onDeckDeleted?.();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete deck");
+      toast.error(error instanceof Error ? error.message : `Failed to delete deck`);
     } finally {
       setIsDeleting(false);
     }
   }
-
   /**
    * Unified card-selection handler passed down to DeckListView.
    * Plain click → toggle individual card (others stay selected).
@@ -1252,7 +1190,6 @@ export function DeckBuilder({
       toggleCard(cardName);
     }
   }
-
   function handleImportReadOnlyDeck() {
     const importedName = currentDeck.name;
     const importedId = importReadOnlyDeck();
@@ -1260,11 +1197,10 @@ export function DeckBuilder({
     onReadOnlyDeckImported?.(importedId);
     toast.success(`Copied "${importedName}" to My Decks`);
   }
-
   const editorCommands: DeckEditorCommand[] = [
     {
       id: "save",
-      label: "Save deck",
+      label: `Save deck`,
       keywords: ["persist", "version"],
       disabled: isReadOnly || isSaving,
       disabledReason: isReadOnly ? "Read only" : isSaving ? "Saving" : undefined,
@@ -1272,75 +1208,127 @@ export function DeckBuilder({
     },
     {
       id: "import",
-      label: "Import a card list",
+      label: `Import a card list`,
       keywords: ["paste", "add cards"],
       disabled: isReadOnly,
       disabledReason: isReadOnly ? "Read only" : undefined,
       run: () => setImportOpen(true),
     },
-    { id: "undo", label: "Undo last deck edit", run: undoDeckEdit },
-    { id: "redo", label: "Redo last deck edit", run: redoDeckEdit },
-    { id: "view-list", label: "Switch to list view", run: () => setViewMode("list") },
-    { id: "view-grid", label: "Switch to grid view", run: () => setViewMode("visual") },
-    { id: "view-stacks", label: "Switch to stack view", run: () => setViewMode("stack") },
+    {
+      id: "undo",
+      label: `Undo last deck edit`,
+      run: undoDeckEdit,
+    },
+    {
+      id: "redo",
+      label: `Redo last deck edit`,
+      run: redoDeckEdit,
+    },
+    {
+      id: "view-list",
+      label: `Switch to list view`,
+      run: () => setViewMode("list"),
+    },
+    {
+      id: "view-grid",
+      label: `Switch to grid view`,
+      run: () => setViewMode("visual"),
+    },
+    {
+      id: "view-stacks",
+      label: `Switch to stack view`,
+      run: () => setViewMode("stack"),
+    },
     {
       id: "next-editor-section",
-      label: "Jump to next editor section",
+      label: `Jump to next editor section`,
       keywords: ["cycle", "scroll", "navigate"],
       run: () => jumpToNextEditorSection(),
     },
     {
       id: "collapse-sections",
-      label: "Collapse all deck sections",
+      label: `Collapse all deck sections`,
       keywords: ["fold", "close", "hide"],
       run: () => setAllDeckSectionsExpanded(false),
     },
     {
       id: "expand-sections",
-      label: "Expand all deck sections",
+      label: `Expand all deck sections`,
       keywords: ["unfold", "open", "show"],
       run: () => setAllDeckSectionsExpanded(true),
     },
-    { id: "group-type", label: "Group cards by type", run: () => setGroupBy("type") },
-    { id: "group-mana", label: "Group cards by mana value", run: () => setGroupBy("cmc") },
-    { id: "group-color", label: "Group cards by color", run: () => setGroupBy("color") },
-    { id: "group-tags", label: "Group cards by custom tags", run: () => setGroupBy("custom") },
-    { id: "sort-name", label: "Sort cards by name", run: () => setSortBy("name") },
-    { id: "sort-mana", label: "Sort cards by mana value", run: () => setSortBy("mana-value") },
-    { id: "sort-quantity", label: "Sort cards by quantity", run: () => setSortBy("quantity") },
-    { id: "sort-owned", label: "Sort owned cards first", run: () => setSortBy("owned") },
+    {
+      id: "group-type",
+      label: `Group cards by type`,
+      run: () => setGroupBy("type"),
+    },
+    {
+      id: "group-mana",
+      label: `Group cards by mana value`,
+      run: () => setGroupBy("cmc"),
+    },
+    {
+      id: "group-color",
+      label: `Group cards by color`,
+      run: () => setGroupBy("color"),
+    },
+    {
+      id: "group-tags",
+      label: `Group cards by custom tags`,
+      run: () => setGroupBy("custom"),
+    },
+    {
+      id: "sort-name",
+      label: `Sort cards by name`,
+      run: () => setSortBy("name"),
+    },
+    {
+      id: "sort-mana",
+      label: `Sort cards by mana value`,
+      run: () => setSortBy("mana-value"),
+    },
+    {
+      id: "sort-quantity",
+      label: `Sort cards by quantity`,
+      run: () => setSortBy("quantity"),
+    },
+    {
+      id: "sort-owned",
+      label: `Sort owned cards first`,
+      run: () => setSortBy("owned"),
+    },
     {
       id: "sort-not-owned",
-      label: "Sort not owned cards first",
+      label: `Sort not owned cards first`,
       run: () => setSortBy("not-owned"),
     },
     {
       id: "view-collection-gaps",
-      label: "Show collection gaps",
+      label: `Show collection gaps`,
       keywords: ["missing", "owned", "filter"],
       run: () => setCollectionFilter("missing"),
     },
     {
       id: "filter-partial-owned",
-      label: "Show partially owned cards",
+      label: `Show partially owned cards`,
       keywords: ["collection", "shortage", "filter"],
       run: () => setCollectionFilter("partial"),
     },
     {
       id: "filter-exact-printings",
-      label: "Show exact printings owned",
+      label: `Show exact printings owned`,
       keywords: ["collection", "printing", "filter"],
       run: () => setCollectionFilter("exact"),
     },
     {
       id: "editor-tour",
-      label: "Open deck editor guide",
+      label: `Open deck editor guide`,
       keywords: ["help", "learn", "what can I do", "onboarding"],
       run: openDeckEditorWelcome,
     },
     {
       id: "clear-filter",
-      label: "Clear card filters",
+      label: `Clear card filters`,
       keywords: ["show all", "reset search"],
       disabled: !deckFilter && cmcFilter === null,
       disabledReason: !deckFilter && cmcFilter === null ? "No active filters" : undefined,
@@ -1351,7 +1339,7 @@ export function DeckBuilder({
     },
     {
       id: "select-all",
-      label: "Select all cards",
+      label: `Select all cards`,
       keywords: ["bulk", "multi select"],
       disabled: allDeckCards().length === 0,
       disabledReason: allDeckCards().length === 0 ? "Deck is empty" : undefined,
@@ -1359,7 +1347,7 @@ export function DeckBuilder({
     },
     {
       id: "select-filtered",
-      label: "Select cards matching current filters",
+      label: `Select cards matching current filters`,
       keywords: ["visible", "search", "bulk"],
       disabled: !deckFilter && cmcFilter === null,
       disabledReason: !deckFilter && cmcFilter === null ? "No active filters" : undefined,
@@ -1373,11 +1361,11 @@ export function DeckBuilder({
     },
     {
       id: "select-unsupported",
-      label: "Select unsupported cards",
+      label: `Select unsupported cards`,
       keywords: ["engine", "warning", "bulk"],
       disabled: editableUnsupportedNames.size === 0,
       disabledReason:
-        editableUnsupportedNames.size === 0 ? "No editable unsupported cards" : undefined,
+        editableUnsupportedNames.size === 0 ? `No editable unsupported cards` : undefined,
       run: () => selectEditableCards(editableUnsupportedNames),
     },
     ...(currentDeck.customTags ?? []).map(
@@ -1395,28 +1383,33 @@ export function DeckBuilder({
     ),
     {
       id: "toggle-search",
-      label: "Toggle card search panel",
+      label: `Toggle card search panel`,
       keywords: ["find", "scryfall"],
       disabled: !onToggleSearch,
       run: () => onToggleSearch?.(),
     },
     {
       id: "toggle-preview",
-      label: "Toggle card preview panel",
+      label: `Toggle card preview panel`,
       keywords: ["inspector", "details"],
       disabled: !onPreviewCollapsedChange,
       run: () => onPreviewCollapsedChange?.(!(previewCollapsed ?? false)),
     },
-    { id: "export", label: "Copy deck list", keywords: ["export", "clipboard"], run: handleExport },
+    {
+      id: "export",
+      label: `Copy deck list`,
+      keywords: ["export", "clipboard"],
+      run: handleExport,
+    },
     {
       id: "export-printings",
-      label: "Copy deck with exact printings",
+      label: `Copy deck with exact printings`,
       keywords: ["export", "moxfield", "archidekt", "foil", "sets"],
       run: handleExactExport,
     },
     {
       id: "copy-selection",
-      label: "Copy selected cards",
+      label: `Copy selected cards`,
       keywords: ["clipboard", "duplicate"],
       disabled: selectedCards.size === 0,
       disabledReason: selectedCards.size === 0 ? "No selection" : undefined,
@@ -1424,7 +1417,7 @@ export function DeckBuilder({
     },
     {
       id: "paste-cards",
-      label: "Paste cards into deck",
+      label: `Paste cards into deck`,
       keywords: ["clipboard", "import"],
       disabled: isReadOnly,
       disabledReason: isReadOnly ? "Read only" : undefined,
@@ -1432,7 +1425,7 @@ export function DeckBuilder({
     },
     {
       id: "labels",
-      label: "Manage deck labels",
+      label: `Manage deck labels`,
       keywords: ["organize", "collection"],
       disabled: isReadOnly,
       disabledReason: isReadOnly ? "Read only" : undefined,
@@ -1440,14 +1433,14 @@ export function DeckBuilder({
     },
     {
       id: "remove-selection",
-      label: "Remove selected cards",
+      label: `Remove selected cards`,
       disabled: selectedCards.size === 0 || isReadOnly,
       disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
       run: handleRemoveSelected,
     },
     {
       id: "tag-selection",
-      label: "Tag selected cards",
+      label: `Tag selected cards`,
       keywords: ["group", "role", "organize"],
       disabled: selectedCards.size === 0 || isReadOnly,
       disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
@@ -1455,49 +1448,49 @@ export function DeckBuilder({
     },
     {
       id: "move-selection-main",
-      label: "Move selected cards to main deck",
+      label: `Move selected cards to main deck`,
       disabled: selectedCards.size === 0 || isReadOnly,
       disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
       run: handleMoveSelectedToMain,
     },
     {
       id: "move-selection-side",
-      label: "Move selected cards to sideboard",
+      label: `Move selected cards to sideboard`,
       disabled: selectedCards.size === 0 || isReadOnly,
       disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
       run: handleMoveSelectedToSide,
     },
     {
       id: "move-selection-maybe",
-      label: "Move selected cards to maybeboard",
+      label: `Move selected cards to maybeboard`,
       disabled: selectedCards.size === 0 || isReadOnly,
       disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
       run: handleMoveSelectedToMaybe,
     },
     {
       id: "add-selection-copy",
-      label: "Add one copy of each selected card",
+      label: `Add one copy of each selected card`,
       disabled: selectedCards.size === 0 || isReadOnly,
       disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
       run: addOneEachSelected,
     },
     {
       id: "remove-selection-copy",
-      label: "Remove one copy of each selected card",
+      label: `Remove one copy of each selected card`,
       disabled: selectedCards.size === 0 || isReadOnly,
       disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
       run: removeOneEachSelected,
     },
     {
       id: "foil-selection",
-      label: "Toggle foil for selected cards",
+      label: `Toggle foil for selected cards`,
       disabled: selectedCards.size === 0 || isReadOnly,
       disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
       run: toggleSelectedFoil,
     },
     {
       id: "manage-tags",
-      label: "Manage deck tags",
+      label: `Manage deck tags`,
       keywords: ["rename", "reorder", "delete", "groups"],
       disabled: isReadOnly,
       disabledReason: isReadOnly ? "Read only" : undefined,
@@ -1505,7 +1498,7 @@ export function DeckBuilder({
     },
     {
       id: "batch-printings",
-      label: "Change deck printings",
+      label: `Change deck printings`,
       keywords: ["art", "edition", "set"],
       disabled: isReadOnly,
       disabledReason: isReadOnly ? "Read only" : undefined,
@@ -1516,20 +1509,19 @@ export function DeckBuilder({
     },
     {
       id: "optimize-printings",
-      label: "Optimize deck printings",
+      label: `Optimize deck printings`,
       keywords: ["owned", "cheapest", "non-foil", "collection", "price"],
       disabled: isReadOnly,
       disabledReason: isReadOnly ? "Read only" : undefined,
       run: () => setPrintingOptimizerOpen(true),
     },
   ];
-
   return (
     <div className="deck-editor-root flex flex-col h-full w-full relative">
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         {selectedCards.size > 0
           ? `${selectedCards.size} card${selectedCards.size === 1 ? "" : "s"} selected`
-          : "Selection cleared"}
+          : `Selection cleared`}
       </div>
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         <span key={announcement.id}>{announcement.message}</span>
@@ -1538,7 +1530,7 @@ export function DeckBuilder({
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-warning/40 bg-warning/10 px-3 py-2">
           <Bookmark className="h-3.5 w-3.5 text-warning shrink-0" />
           <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-warning">
-            {readOnlySource === "hub" ? "Hub snapshot" : "Starter deck"} — read only
+            {readOnlySource === "hub" ? `Hub snapshot — read only` : `Starter deck — read only`}
           </span>
           <span className="hidden min-w-0 flex-1 truncate text-xs text-warning/70 sm:block">
             Browse the cards below. Editing is locked.
@@ -1561,6 +1553,7 @@ export function DeckBuilder({
               </Button>
             )}
             <Button
+              variant="primary"
               size="sm"
               className="h-7 pointer-coarse:h-10"
               onClick={handleImportReadOnlyDeck}
@@ -1575,7 +1568,7 @@ export function DeckBuilder({
         <div
           ref={editorScrollRef}
           tabIndex={-1}
-          aria-label="Deck editor workspace"
+          aria-label={`Deck editor workspace`}
           className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden"
           onScroll={(event) => setShowBackToTop(event.currentTarget.scrollTop > 120)}
         >
@@ -1599,8 +1592,8 @@ export function DeckBuilder({
               <Input
                 ref={filterInputRef}
                 className="h-6 text-xs pl-6 pr-6 pointer-coarse:h-9 pointer-coarse:text-base"
-                placeholder="Filter…"
-                title="Filter by name or use tag:, type:, color:, section:, mv>=, is:owned, is:missing, is:partial, is:foil, is:combo, and - to negate"
+                placeholder={`Filter\u2026`}
+                title={`Filter by name or use tag:, type:, color:, section:, mv>=, is:owned, is:missing, is:partial, is:foil, is:combo, and - to negate`}
                 value={deckFilter}
                 onChange={(e) => setDeckFilter(e.target.value)}
               />
@@ -1618,7 +1611,7 @@ export function DeckBuilder({
               <button
                 type="button"
                 className="flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/25"
-                title="Clear mana value filter"
+                title={`Clear mana value filter`}
                 onClick={() => setCmcFilter(null)}
               >
                 {CMC_BUCKET_LABELS[cmcFilter]} mana
@@ -1629,7 +1622,7 @@ export function DeckBuilder({
               <button
                 type="button"
                 className="flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium capitalize text-primary transition-colors hover:bg-primary/25"
-                title="Clear collection filter"
+                title={`Clear collection filter`}
                 onClick={() => setCollectionFilter("all")}
               >
                 Collection: {collectionFilter.replace("-", " ")}
@@ -1715,7 +1708,7 @@ export function DeckBuilder({
                   className={cn(
                     "p-1 transition-colors border-r last:border-r-0",
                     viewMode === mode
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-selection text-selection-foreground"
                       : "hover:bg-muted text-muted-foreground",
                   )}
                 >
@@ -1758,8 +1751,9 @@ export function DeckBuilder({
                     ? Math.min(request.quantity, Math.max(0, copyLimit - existingCount))
                     : request.quantity;
                   if (quantity === 0) {
+                    const formatName = format?.name ?? currentDeck.format ?? `this format`;
                     toast.error(
-                      `Max ${copyLimit} copies of "${sc.name}" allowed in ${format?.name}`,
+                      `Max ${copyLimit ?? 0} copies of "${sc.name}" allowed in ${formatName}`,
                     );
                     return false;
                   }
@@ -1779,19 +1773,18 @@ export function DeckBuilder({
                     }
                   });
                   if (quantity < request.quantity) {
+                    const formatName = format?.name ?? currentDeck.format ?? `this format`;
                     toast.warning(
-                      `Added ${quantity} of ${request.quantity} ${sc.name}; ${format?.name} allows ${copyLimit}`,
+                      `Added ${quantity} of ${request.quantity} ${sc.name}; ${formatName} allows ${copyLimit ?? 0}`,
                     );
                   } else {
-                    toast.success(
-                      `Added ${quantity} ${sc.name} to ${
-                        request.destination === "side"
-                          ? "sideboard"
-                          : request.destination === "maybe"
-                            ? "maybeboard"
-                            : "main deck"
-                      }`,
-                    );
+                    const destination =
+                      request.destination === "side"
+                        ? `sideboard`
+                        : request.destination === "maybe"
+                          ? `maybeboard`
+                          : `main deck`;
+                    toast.success(`Added ${quantity} ${sc.name} to ${destination}`);
                   }
                   return true;
                 }}
@@ -1800,16 +1793,16 @@ export function DeckBuilder({
             {!isReadOnly && (
               <span className="shrink-0 text-[11px] text-muted-foreground" aria-live="polite">
                 {isSaving || syncState === "saving"
-                  ? "Saving…"
+                  ? `Saving\u2026`
                   : hasUnsavedChanges
-                    ? "Unsaved"
+                    ? `Unsaved`
                     : syncState === "local"
-                      ? "Saved locally"
+                      ? `Saved locally`
                       : syncState === "synced"
-                        ? "Synced"
+                        ? `Synced`
                         : syncState === "failed"
-                          ? "Sync failed"
-                          : "Saved"}
+                          ? `Sync failed`
+                          : `Saved`}
               </span>
             )}
 
@@ -1823,7 +1816,7 @@ export function DeckBuilder({
                 variant="ghost"
                 disabled
                 className="h-7 shrink-0 gap-1 text-xs text-muted-foreground/60"
-                title="Make an editable copy to enable saving"
+                title={`Make an editable copy to enable saving`}
               >
                 <Save className="h-3.5 w-3.5" />
                 Save
@@ -1834,7 +1827,7 @@ export function DeckBuilder({
                 variant={
                   isDeckLegal
                     ? hasUnsavedChanges || currentDeck.draft
-                      ? "default"
+                      ? "primary"
                       : "secondary"
                     : "outline"
                 }
@@ -1845,14 +1838,16 @@ export function DeckBuilder({
                 )}
                 title={
                   hasUnsupportedCards
-                    ? `${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} unsupported by the Manabrew and Forge engines`
+                    ? unsupportedNames.size === 1
+                      ? `One card is unsupported by the Manabrew and Forge engines`
+                      : `${unsupportedNames.size} cards are unsupported by the Manabrew and Forge engines`
                     : !isDeckLegal
-                      ? `${deckValidation.errors[0] ?? "Deck is not legal in this format"} — saves with a warning`
+                      ? `${deckValidation.errors[0] ?? `Deck is not legal in this format`} — saves with a warning`
                       : hasUnsavedChanges
-                        ? "Save deck (unsaved changes)"
+                        ? `Save deck (unsaved changes)`
                         : currentDeck.draft
-                          ? "Save draft as a full deck"
-                          : "Deck saved"
+                          ? `Save draft as a full deck`
+                          : `Deck saved`
                 }
                 onClick={() => void handleSave()}
               >
@@ -1861,7 +1856,7 @@ export function DeckBuilder({
                 ) : (
                   <Save className="h-3.5 w-3.5" />
                 )}
-                {isSaving ? "Saving" : "Save"}
+                {isSaving ? `Saving` : `Save`}
               </Button>
             )}
 
@@ -1872,7 +1867,7 @@ export function DeckBuilder({
                   variant="ghost"
                   className="h-7 w-7 shrink-0"
                   disabled={isReadOnly}
-                  aria-label="Deck actions"
+                  aria-label={`Deck actions`}
                 >
                   <EllipsisVertical className="h-4 w-4" />
                 </Button>
@@ -1987,7 +1982,7 @@ export function DeckBuilder({
                 <div className="px-2 py-1.5">
                   <Input
                     className="h-7 text-xs"
-                    placeholder="New tag…"
+                    placeholder={`New tag\u2026`}
                     value={newTagInput}
                     onChange={(e) => setNewTagInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -2071,7 +2066,7 @@ export function DeckBuilder({
                       },
                       onApplyTag: (tag) => {
                         const isApplied = currentDeck.cardTags?.[name.toLowerCase()]?.includes(tag);
-                        executeDeckEdit(`${isApplied ? "Remove" : "Apply"} ${tag}`, () => {
+                        executeDeckEdit(isApplied ? `Remove ${tag}` : `Apply ${tag}`, () => {
                           if (isApplied) untagCard(name, tag);
                           else tagCard(name, tag);
                         });
@@ -2293,8 +2288,8 @@ export function DeckBuilder({
             "absolute bottom-4 right-4 z-50 h-10 w-10 rounded-full border shadow-lg",
             selectedCards.size > 0 && "bottom-20",
           )}
-          title="Back to top"
-          aria-label="Back to top"
+          title={`Back to top`}
+          aria-label={`Back to top`}
           onClick={() => editorScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
         >
           <ArrowUp className="h-4 w-4" />
@@ -2515,7 +2510,7 @@ export function DeckBuilder({
                   disabled={isDeleting}
                   onClick={() => void handleDeleteCurrentDeck()}
                 >
-                  {isDeleting ? "Deleting…" : "Delete"}
+                  {isDeleting ? `Deleting\u2026` : `Delete`}
                 </Button>
               </div>
             </div>

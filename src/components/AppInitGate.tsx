@@ -10,17 +10,14 @@ import { BreweryBackdrop } from "@/components/BreweryBackdrop";
 import { TERMS_AND_CONDITIONS } from "@/lib/termsContent";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/useAuthStore";
-
 const TERMS_STORAGE_KEY = "manabrew.termsAcceptance";
 const ONBOARDING_STORAGE_KEY = "manabrew.onboarding";
-
 const BAR_FILL_MS = 200;
 // Minimum dwell at the initial `idle` stage. Without it, a cache hit can
 // flash through every milestone in a single frame; a brief hold gives the
 // progress bar a chance to *start* at a recognizable position before the
 // first real stage event yanks it forward.
 const INITIAL_HOLD_MS = 300;
-
 /**
  * Each stage maps to a milestone on the progress bar so the fill keeps
  * moving forward visibly even on a warm load, where the app flashes through
@@ -32,16 +29,13 @@ const STAGE_PROGRESS: Record<string, number> = {
   decks: 80,
   ready: 100,
 };
-
 const STAGE_TITLE: Record<string, string> = {
-  idle: "Starting",
-  assets: "Loading card data",
-  decks: "Loading decks",
-  ready: "Ready",
+  idle: `Starting`,
+  assets: `Loading card data`,
+  decks: `Loading decks`,
+  ready: `Ready`,
 };
-
 const TERMS_LINK = /((?:github\.com|docs\.manabrew\.app|scryfall\.com)(?:[^\s,)]*[^\s,).])?)/g;
-
 function linkifyTerms(body: string) {
   return body.split(TERMS_LINK).map((part, index) =>
     index % 2 === 1 ? (
@@ -59,10 +53,8 @@ function linkifyTerms(body: string) {
     ),
   );
 }
-
 // Prevents reanimating on re-mount
 let hasReleasedOnce = false;
-
 export function AppInitGate({ children }: { children: ReactNode }) {
   const rawStage = useAppInitStore((s) => s.stage);
   const { accepted: termsAccepted, accept: acceptTerms } = useAcknowledgement(
@@ -89,11 +81,8 @@ export function AppInitGate({ children }: { children: ReactNode }) {
     const t = window.setTimeout(() => setMinHoldPassed(true), INITIAL_HOLD_MS);
     return () => window.clearTimeout(t);
   }, [minHoldPassed]);
-
   const stage = minHoldPassed ? rawStage : "idle";
-
   const target = useMemo(() => STAGE_PROGRESS[stage] ?? 0, [stage]);
-
   type Phase = "gating" | "releasing" | "done";
   const [phase, setPhase] = useState<Phase>(() => (hasReleasedOnce ? "done" : "gating"));
   const HOLD_MS = 300;
@@ -130,8 +119,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
   ) {
     return <>{children}</>;
   }
-
-  const title = STAGE_TITLE[stage] ?? "Loading";
+  const title = STAGE_TITLE[stage] ?? `Loading`;
   const pct = Math.round(target);
   const showTerms = stage === "ready" && !termsAccepted;
   const showOnboarding = stage === "ready" && termsAccepted && !onboardingSatisfied;
@@ -167,9 +155,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
       {showChildren ? children : null}
     </div>
   );
-
   if (phase === "done") return childWrapper;
-
   return (
     <>
       {childWrapper}
@@ -188,9 +174,12 @@ export function AppInitGate({ children }: { children: ReactNode }) {
 
         <div className="absolute inset-0 z-10 overflow-y-auto">
           <div className="flex min-h-full w-full flex-col items-center justify-center gap-10 px-8 py-10">
+            {/* No `filter` here: Firefox (ESR 140 and older, bug 2011747) drops
+                any descendant that uses `backdrop-filter`, which hid the
+                onboarding card. The card carries its own `shadow-2xl`. */}
             <div
               className={cn(
-                "flex w-full flex-col items-center gap-10 drop-shadow-2xl",
+                "flex w-full flex-col items-center gap-10",
                 showOnboarding ? "max-w-5xl" : "max-w-2xl",
               )}
             >
@@ -232,7 +221,12 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                     </label>
 
                     <div className="flex flex-col items-center gap-3">
-                      <Button disabled={!consent} onClick={acceptTerms} className="min-w-[200px]">
+                      <Button
+                        variant="primary"
+                        disabled={!consent}
+                        onClick={acceptTerms}
+                        className="min-w-[200px]"
+                      >
                         Accept and continue
                       </Button>
                       <p className="font-mono text-[0.55rem] uppercase tracking-[0.4em] text-muted-foreground/70">

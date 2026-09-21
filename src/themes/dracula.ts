@@ -1,6 +1,5 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
-
 /** Dracula canonical palette. `comment` (#6272a4) doubles as the muted
  *  label / slate; dracula has no distinct teal so cyan covers both. */
 const palette: BasePalette = {
@@ -28,7 +27,6 @@ const palette: BasePalette = {
   brown: "#ffb86c",
   paper: "#f8f8f2",
   poison: "#3fc562", // deeper / less neon than dracula green
-  promptPass: "#bd93f9", // purple
   promptDefense: "#8be9fd", // cyan
   manaW: "#f8f8f2",
   manaU: "#bd93f9",
@@ -37,11 +35,10 @@ const palette: BasePalette = {
   manaG: "#50fa7b",
   manaC: "#6272a4",
 };
-
 const preset: ThemePreset = {
   id: "dracula",
   name: "Dracula",
-  description: "Dark theme with vibrant pastel accents",
+  description: `Dark theme with vibrant pastel accents`,
   light: {
     background: "#f0f1f4",
     foreground: "#272935",
@@ -96,5 +93,4 @@ const preset: ThemePreset = {
   },
   gameColors: buildGameColors(palette),
 };
-
 export default preset;

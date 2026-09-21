@@ -23,7 +23,6 @@ import {
 } from "@/stores/useCompanionStore.constants";
 import type { CompanionLayout } from "@/stores/useCompanionStore.types";
 import { LayoutIcon } from "./LayoutIcon";
-
 interface NewSessionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -37,7 +36,6 @@ interface NewSessionDialogProps {
     oathbreaker?: boolean;
   }) => void;
 }
-
 export function NewSessionDialog({
   open,
   onOpenChange,
@@ -61,7 +59,6 @@ export function NewSessionDialog({
     </Dialog>
   );
 }
-
 function NewSessionForm({
   hasExistingSession,
   onCancel,
@@ -79,21 +76,17 @@ function NewSessionForm({
   );
   const [carryRoster, setCarryRoster] = useState(hasExistingSession);
   const [oathbreaker, setOathbreaker] = useState(false);
-
   const updatePlayerCount = (n: number) => {
     setPlayerCount(n);
     setLayout(COMPANION_DEFAULT_LAYOUT_BY_COUNT[n] ?? "free");
   };
-
   const updateCommanderRules = (enabled: boolean) => {
     setCommanderRules(enabled);
     if (enabled && startingLife < COMPANION_COMMANDER_STARTING_LIFE) {
       setStartingLife(COMPANION_COMMANDER_STARTING_LIFE);
     }
   };
-
   const layoutChoices = COMPANION_LAYOUT_OPTIONS[playerCount] ?? ["free"];
-
   const applyPreset = (preset: "standard" | "commander" | "brawl") => {
     if (preset === "standard") {
       setStartingLife(20);
@@ -114,7 +107,6 @@ function NewSessionForm({
         : commanderRules && startingLife === 30
           ? "brawl"
           : null;
-
   return (
     <>
       <div className="space-y-4">
@@ -178,7 +170,7 @@ function NewSessionForm({
             type="checkbox"
             checked={commanderRules}
             onChange={(e) => updateCommanderRules(e.target.checked)}
-            className="size-4 accent-primary"
+            className="size-4 accent-selection"
           />
           Commander rules (40 life, 21 cmd damage lethal)
         </label>
@@ -188,7 +180,7 @@ function NewSessionForm({
             type="checkbox"
             checked={oathbreaker}
             onChange={(e) => setOathbreaker(e.target.checked)}
-            className="size-4 accent-primary"
+            className="size-4 accent-selection"
           />
           Oathbreaker (partner slot becomes Signature Spell)
         </label>
@@ -214,7 +206,7 @@ function NewSessionForm({
               type="checkbox"
               checked={carryRoster}
               onChange={(e) => setCarryRoster(e.target.checked)}
-              className="size-4 accent-primary"
+              className="size-4 accent-selection"
             />
             Keep names, colors and commanders from current game
           </label>
@@ -225,6 +217,7 @@ function NewSessionForm({
           Cancel
         </Button>
         <Button
+          variant="primary"
           onClick={() =>
             onCreate({
               playerCount,
@@ -242,7 +235,6 @@ function NewSessionForm({
     </>
   );
 }
-
 function LayoutCard({
   active,
   onClick,
@@ -261,8 +253,8 @@ function LayoutCard({
       className={cn(
         "flex flex-col items-center gap-1.5 rounded-md border p-2 text-center text-[11px] font-medium transition",
         active
-          ? "border-primary bg-primary/10 text-foreground"
-          : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
+          ? "border-selection bg-selection/15 text-foreground"
+          : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
       aria-pressed={active}
       aria-label={label}
@@ -273,7 +265,6 @@ function LayoutCard({
     </button>
   );
 }
-
 function PillButton({
   active,
   onClick,
@@ -290,8 +281,8 @@ function PillButton({
       className={cn(
         "rounded-full border px-3 py-1 text-xs font-medium transition",
         active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border bg-background text-foreground hover:bg-accent",
+          ? "border-selection bg-selection/15 text-foreground"
+          : "border-border bg-background text-foreground hover:bg-muted",
       )}
     >
       {children}

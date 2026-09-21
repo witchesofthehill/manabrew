@@ -33,7 +33,7 @@ export function TableSetupTableCard({
             className={cn(
               "aspect-[16/9] w-full overflow-hidden rounded-md border text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
               selected
-                ? "border-primary ring-1 ring-primary"
+                ? "border-selection ring-1 ring-selection"
                 : "border-border/70 hover:border-primary/50",
             )}
           >

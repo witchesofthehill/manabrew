@@ -7,24 +7,20 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { takeAuthReturnIntent } from "@/lib/authReturn";
 import { isFeatureEnabled } from "@/featureFlags";
-
 const ERROR_MESSAGES: Record<string, string> = {
-  state_expired: "The sign-in attempt expired. Try again.",
-  oauth_denied: "Sign-in was cancelled.",
-  oauth_failed: "Sign-in failed. Try again.",
-  identity_taken: "That account is already linked to a different Manabrew account.",
-  link_expired: "The sign-in link expired. Request a new code.",
+  state_expired: `The sign-in attempt expired. Try again.`,
+  oauth_denied: `Sign-in was cancelled.`,
+  oauth_failed: `Sign-in failed. Try again.`,
+  identity_taken: `That account is already linked to a different Manabrew account.`,
+  link_expired: `The sign-in link expired. Request a new code.`,
 };
-
 const PROVIDER_LABELS: Record<string, string> = {
-  github: "GitHub",
-  discord: "Discord",
+  github: `GitHub`,
+  discord: `Discord`,
 };
-
 export default function AuthCallback() {
   const navigate = useNavigate();
   const ranRef = useRef(false);
-
   useEffect(() => {
     if (ranRef.current) return;
     ranRef.current = true;
@@ -44,9 +40,8 @@ export default function AuthCallback() {
             resumeCurrentPublish: returnIntent.resumeCurrentPublish,
           }
         : undefined;
-
     if (error) {
-      toast.error(ERROR_MESSAGES[error] ?? "Sign-in failed. Try again.");
+      toast.error(ERROR_MESSAGES[error] ?? `Sign-in failed. Try again.`);
       navigate(returnIntent.returnTo, { replace: true });
       return;
     }
@@ -80,14 +75,13 @@ export default function AuthCallback() {
           navigate(returnIntent.returnTo, { replace: true, state: returnState });
         })
         .catch(() => {
-          toast.error("Sign-in failed. Try again.");
+          toast.error(`Sign-in failed. Try again.`);
           navigate(returnIntent.returnTo, { replace: true });
         });
       return;
     }
     navigate(returnIntent.returnTo, { replace: true });
   }, [navigate]);
-
   return (
     <div className="flex h-full items-center justify-center">
       <p className="text-sm text-muted-foreground">Completing sign-in…</p>

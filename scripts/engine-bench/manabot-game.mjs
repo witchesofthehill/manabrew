@@ -1,0 +1,402 @@
+#!/usr/bin/env node
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const presets = join(root, "public", "preset_decks");
+
+function option(name, fallback) {
+  const at = process.argv.indexOf(`--${name}`);
+  return at === -1 ? fallback : process.argv[at + 1];
+}
+
+function loadDeck(name) {
+  const path = name.endsWith(".json") ? resolve(name) : join(presets, `${name}.json`);
+  const raw = JSON.parse(readFileSync(path, "utf8"));
+  const card = (entry) => ({
+    name: entry.name,
+    setCode: entry.set,
+    cardNumber: entry.cardNumber,
+    count: entry.count ?? 1,
+  });
+  const commandNames = [raw.commander, raw.signatureSpell].filter(Boolean);
+  const commandCards = commandNames.map((commandName) => {
+    const entry = raw.cards.find((candidate) => candidate.name === commandName);
+    if (!entry) throw new Error(`${name}: command-zone card ${commandName} is missing`);
+    return entry;
+  });
+  return {
+    name: raw.label,
+    format: raw.format,
+    commanders: commandCards.map((entry) => ({ ...card(entry), count: 1 })),
+    cards: raw.cards.flatMap((entry) =>
+      commandNames.includes(entry.name)
+        ? entry.count > 1
+          ? [{ ...card(entry), count: entry.count - 1 }]
+          : []
+        : [card(entry)],
+    ),
+  };
+}
+
+const engineDir = resolve(option("engine", join(root, "packages", "forge-wasm")));
+const wasmDir = resolve(option("wasm", join(root, "src", "wasm")));
+const wasmOptions = option("wasms", wasmDir)
+  .split(",")
+  .map((path) => resolve(path));
+const deckNames = option(
+  "decks",
+  "kaalia_regression_commander,starter_deck_animar,real_teval_commander,neheb_minotaur_commander",
+).split(",");
+const seed = Number(option("seed", 7015));
+const forgeAiSeats = option("forge-ai-seats", "").split(",").filter(Boolean).map(Number);
+const timeoutS = Number(option("timeout", 300));
+const output = option("out", null);
+const trace = new Set(option("trace", "").split(",").filter(Boolean));
+
+if (!existsSync(join(engineDir, "forgeharness.js.wasm"))) {
+  throw new Error(`${engineDir} has no Forge WASM engine`);
+}
+for (const path of wasmOptions) {
+  if (!existsSync(join(path, "wasm_bg.wasm"))) {
+    throw new Error(`${path} has no Manabrew WASM build; run yarn ensure:wasm`);
+  }
+}
+
+const { createForgeEngine } = await import(pathToFileURL(join(engineDir, "node.js")).href);
+const modules = new Map();
+for (const path of new Set(wasmOptions)) {
+  const module = await import(pathToFileURL(join(path, "wasm.js")).href);
+  await module.default({ module_or_path: readFileSync(join(path, "wasm_bg.wasm")) });
+  modules.set(path, module);
+}
+
+const decks = deckNames.map(loadDeck);
+const formats = new Set(decks.map((deck) => deck.format));
+if (formats.size !== 1) {
+  throw new Error(`all decks must use the same format, got ${[...formats]}`);
+}
+const format = decks[0].format;
+const defaultStartingLife = format === "commander" ? 40 : format === "historicBrawl" ? 25 : 20;
+const startingLife = Number(option("starting-life", defaultStartingLife));
+const botSources = wasmOptions.length === 1 ? decks.map(() => wasmOptions[0]) : wasmOptions;
+if (botSources.length !== decks.length) {
+  throw new Error(`--wasms must contain one path or one path per seat`);
+}
+const bots = botSources.map((path) => new (modules.get(path).WasmManabot)());
+const enginePlayerIndex = decks.findIndex((_, index) => !forgeAiSeats.includes(index));
+if (enginePlayerIndex < 0) throw new Error("at least one external Manabot seat is required");
+const seats = bots.map(() => ({
+  prompts: 0,
+  acts: 0,
+  casts: 0,
+  landPlays: 0,
+  abilities: 0,
+  passes: 0,
+  attackers: 0,
+  blocks: 0,
+  mulligans: 0,
+  promptTypes: {},
+  actionCandidates: {},
+  actionLabels: {},
+  booleanChoices: {},
+  boardTargetChoices: {},
+  cardSelections: {},
+  selectionChoices: {},
+  numberChoices: {},
+  paymentAutoAttempts: 0,
+  paymentConfirms: 0,
+  paymentCancels: 0,
+  failedCastLabels: {},
+}));
+const latestViews = decks.map(() => null);
+const pendingCastLabels = decks.map(() => null);
+
+function increment(counts, key) {
+  counts[key] = (counts[key] ?? 0) + 1;
+}
+const intervals = [];
+const botMs = [];
+/**
+ * The engine's own windows for the engine seat, answer-landed to
+ * next-prompt-ready, each tagged with how much of it the other seats' prompts
+ * took. Seat 0 stands in for the person at a pod: what is left of a window
+ * once the bots' share is out is the rules engine resolving the table.
+ */
+const windows = [];
+const STALL_MS = Number(option("stall-ms", 3000));
+let observeMs = 0;
+let turn = 0;
+const lifeByTurn = [];
+const boardByTurn = [];
+let finalView = null;
+let lastResponseAt = null;
+const terminalPrompts = [];
+const engineLog = [];
+const engineWarnings = [];
+let engineError = null;
+let finish;
+const startedAt = performance.now();
+const ended = new Promise((resolve) => {
+  finish = resolve;
+});
+
+const engine = await createForgeEngine({
+  onState: (state, slot) => {
+    const seat = slot ? Number(slot.slice("player-".length)) : enginePlayerIndex;
+    const observeStart = performance.now();
+    bots[seat].observe_state?.(JSON.stringify(state));
+    observeMs += performance.now() - observeStart;
+    latestViews[seat] = state?.gameView ?? latestViews[seat];
+    if (!slot) finalView = state?.gameView ?? finalView;
+    if (typeof state?.gameView?.turn === "number" && state.gameView.turn !== turn) {
+      turn = state.gameView.turn;
+      lifeByTurn.push([turn, ...state.gameView.players.map((player) => player.life)]);
+      boardByTurn.push([
+        turn,
+        ...state.gameView.players.map((player) => {
+          const creatures = state.gameView.zones
+            .filter((zone) => zone.zone === "battlefield" && zone.ownerId === player.id)
+            .flatMap((zone) => zone.cards ?? [])
+            .filter((card) => card.types?.includes("Creature"));
+          const lands = state.gameView.zones
+            .filter((zone) => zone.zone === "battlefield" && zone.ownerId === player.id)
+            .flatMap((zone) => zone.cards ?? [])
+            .filter((card) => card.types?.includes("Land")).length;
+          const power = creatures.reduce((sum, card) => sum + (Number(card.power) || 0), 0);
+          return `${lands}L ${creatures.length}c ${power}p`;
+        }),
+      ]);
+    }
+  },
+  onPrompt: (prompt, slot) => {
+    const seat = slot ? Number(slot.slice("player-".length)) : enginePlayerIndex;
+    const now = performance.now();
+    if (lastResponseAt !== null) intervals.push(now - lastResponseAt);
+    seats[seat].prompts += 1;
+    increment(seats[seat].promptTypes, prompt.input?.type ?? prompt.type ?? "unknown");
+    if (prompt.input?.type === "chooseAction") {
+      const candidates = (prompt.input.actions ?? []).filter(
+        (action) => action.type !== "undoMana" && !action.isManaAbility,
+      ).length;
+      increment(seats[seat].actionCandidates, Math.min(candidates, 3));
+    }
+    if (prompt.input?.type === "gameOver") terminalPrompts.push({ seat, input: prompt.input });
+    const decideStart = performance.now();
+    const raw = bots[seat].decide(JSON.stringify(prompt));
+    botMs.push(performance.now() - decideStart);
+    if (!raw) return;
+    const action = JSON.parse(raw);
+    const decision = action.output;
+    if (trace.has(prompt.input?.type)) {
+      const view = latestViews[seat];
+      const cards = Object.fromEntries(
+        (view?.zones ?? [])
+          .flatMap((zone) => zone.cards ?? [])
+          .filter((card) => card.id)
+          .map((card) => [
+            card.id,
+            `${card.identity?.name ?? "?"} ${card.power ?? ""}/${card.toughness ?? ""}${card.tapped ? " T" : ""} ${card.controllerId}${card.attackingPlayerId ? " ->" + card.attackingPlayerId : ""}`,
+          ]),
+      );
+      process.stderr.write(
+        `${JSON.stringify({ seat, turn, life: view?.players?.map((p) => p.life), prompt, decision, cards, view })}\n`,
+      );
+    }
+    if (decision?.type === "act") {
+      seats[seat].acts += 1;
+      const chosen = (prompt.input.actions ?? []).find(
+        (candidate) => candidate.id === decision.actionId,
+      );
+      const actionLabel = chosen?.label ?? chosen?.description;
+      if (actionLabel) increment(seats[seat].actionLabels, actionLabel);
+      if (chosen?.type === "cast") {
+        seats[seat].casts += 1;
+        pendingCastLabels[seat] = chosen.label ?? chosen.cardId ?? "unknown cast";
+        if ((chosen.label ?? "").startsWith("Play ")) seats[seat].landPlays += 1;
+      } else {
+        seats[seat].abilities += 1;
+      }
+    }
+    if (decision?.type === "pass") seats[seat].passes += 1;
+    if (prompt.input?.type === "payManaCost" && decision?.type === "pay" && decision.auto) {
+      seats[seat].paymentAutoAttempts += 1;
+    }
+    if (prompt.input?.type === "payManaCost" && decision?.type === "pay" && !decision.auto) {
+      seats[seat].paymentConfirms += 1;
+      pendingCastLabels[seat] = null;
+    }
+    if (prompt.input?.type === "payManaCost" && decision?.type === "cancel") {
+      seats[seat].paymentCancels += 1;
+      increment(seats[seat].failedCastLabels, pendingCastLabels[seat] ?? "unknown payment");
+      pendingCastLabels[seat] = null;
+    }
+    if (decision?.type === "declareAttackers") {
+      seats[seat].attackers += decision.assignments?.length ?? 0;
+    }
+    if (decision?.type === "declareBlockers") {
+      seats[seat].blocks += decision.assignments?.length ?? 0;
+    }
+    if (decision?.type === "mulliganDecision" && !decision.keep) seats[seat].mulligans += 1;
+    if (decision?.type === "decision" && typeof decision.value === "boolean") {
+      const title = prompt.input.presentation?.title ?? "untitled";
+      increment(seats[seat].booleanChoices, `${title}: ${decision.value}`);
+    }
+    if (decision?.type === "selectionDecision") {
+      const title = prompt.input.presentation?.title ?? "untitled";
+      const labels = (decision.chosenIndices ?? []).map(
+        (index) => prompt.input.options?.[index]?.label ?? `option ${index}`,
+      );
+      increment(seats[seat].selectionChoices, `${title}: ${labels.join(" | ") || "none"}`);
+    }
+    if (decision?.type === "numberDecision") {
+      const title = prompt.input.presentation?.title ?? "untitled";
+      increment(
+        seats[seat].numberChoices,
+        `${title}: ${decision.chosenNumber ?? "none"}/${prompt.input.min}-${prompt.input.max}`,
+      );
+    }
+    if (decision?.type === "chooseCardsDecision") {
+      const title = prompt.input.presentation?.title ?? "untitled";
+      const count = decision.chosenCardIds?.length ?? 0;
+      increment(
+        seats[seat].cardSelections,
+        `${title}: ${count}/${prompt.input.min ?? 0}-${prompt.input.max ?? 0}`,
+      );
+    }
+    if (decision?.type === "boardTargets") {
+      for (const chosen of decision.chosen ?? []) {
+        const target = (prompt.input.candidates ?? []).find((value) => value.id === chosen.id);
+        let side = "unknown";
+        if (target?.kind === "player") side = target.id === `player-${seat}` ? "own" : "opponent";
+        if (target?.kind === "card") {
+          const card = (latestViews[seat]?.zones ?? [])
+            .flatMap((zone) => zone.cards ?? [])
+            .find((value) => value.id === target.id);
+          if (card?.controllerId)
+            side = card.controllerId === `player-${seat}` ? "own" : "opponent";
+        }
+        const intent =
+          target?.intent ?? prompt.input.intent ?? (prompt.input.hostile ? "hostile" : "none");
+        increment(seats[seat].boardTargetChoices, `${intent}:${side}`);
+      }
+    }
+    lastResponseAt = performance.now();
+    engine.respond(prompt.promptId, action, slot || undefined);
+  },
+  onError: (error, slot) => finish({ reason: "error", error: String(error), slot }),
+  onEvent: (event, payload) => {
+    if (event === "forge:decision") {
+      windows.push({ ...payload, turn });
+      if (payload.ms > STALL_MS) {
+        const who =
+          payload.bot === undefined ? "?" : payload.bot >= payload.ms / 2 ? "bots" : "rules";
+        process.stderr.write(
+          `  stall ${payload.ms}ms bot=${payload.bot ?? "?"} (${who}) ${payload.type} turns=${payload.turns} @turn ${turn}\n`,
+        );
+      }
+    }
+    if (event === "forge:log") {
+      const line = `${payload.level} ${String(payload.text).slice(0, 400)}`;
+      engineLog.push(line);
+      if (engineLog.length > 400) engineLog.splice(0, 200);
+      if (payload.level !== "log") engineWarnings.push(line);
+      if (line.includes("interactive game error")) engineError = line;
+    }
+    if (event === "game:over" || event === "game:forced_end") {
+      finish({ reason: event, payload });
+    }
+  },
+});
+
+await engine.startMultiplayerGame({
+  decks,
+  playerNames: decks.map((_, index) => `Manabot ${index + 1}`),
+  commanderNames: decks.map((deck) => deck.commanders[0]?.name ?? null),
+  enginePlayerIndex,
+  forgeAiSeats,
+  // Every other SAB seat is a bot, as at a solo pod in the browser.
+  botSeats: decks
+    .map((_, index) => index)
+    .filter((index) => index !== enginePlayerIndex && !forgeAiSeats.includes(index)),
+  startingLife,
+  seed,
+});
+
+const outcome = await Promise.race([
+  ended,
+  new Promise((resolve) => setTimeout(() => resolve({ reason: "timeout" }), timeoutS * 1000)),
+]);
+const sorted = intervals.toSorted((left, right) => left - right);
+const sortedBot = botMs.toSorted((left, right) => left - right);
+const percentileOf = (values, value) =>
+  values.length === 0 ? 0 : values[Math.min(values.length - 1, Math.floor(values.length * value))];
+const percentile = (value) => percentileOf(sorted, value);
+if (engineError && outcome.reason === "game:over") {
+  outcome.reason = "engine_error";
+  outcome.error = engineError;
+}
+const summary = {
+  seed,
+  format,
+  startingLife,
+  decks: deckNames,
+  agents: botSources.map((source, index) => (forgeAiSeats.includes(index) ? "forge-ai" : source)),
+  outcome,
+  durationMs: Math.round(performance.now() - startedAt),
+  turn,
+  winnerId: finalView?.winnerId ?? null,
+  players: finalView?.players ?? [],
+  terminalPrompts,
+  lifeByTurn,
+  boardByTurn,
+  engineWarnings: engineWarnings.slice(-50),
+  engineLogTail: finalView?.winnerId ? [] : engineLog.slice(-40),
+  seats,
+  latency: {
+    samples: sorted.length,
+    p50: Math.round(percentile(0.5)),
+    p90: Math.round(percentile(0.9)),
+    p99: Math.round(percentile(0.99)),
+    max: Math.round(sorted.at(-1) ?? 0),
+    over1s: sorted.filter((value) => value > 1000).length,
+  },
+  engine: {
+    windows: windows.length,
+    p50: Math.round(
+      percentileOf(
+        windows.map((w) => w.ms).toSorted((a, b) => a - b),
+        0.5,
+      ),
+    ),
+    max: Math.round(Math.max(0, ...windows.map((w) => w.ms))),
+    botP50: Math.round(
+      percentileOf(
+        windows.map((w) => w.bot ?? 0).toSorted((a, b) => a - b),
+        0.5,
+      ),
+    ),
+    botMax: Math.round(Math.max(0, ...windows.map((w) => w.bot ?? 0))),
+    rulesMax: Math.round(Math.max(0, ...windows.map((w) => w.ms - (w.bot ?? 0)))),
+    stalls: windows
+      .filter((w) => w.ms > STALL_MS)
+      .map((w) => ({ ms: w.ms, bot: w.bot ?? null, turns: w.turns, type: w.type, turn: w.turn })),
+  },
+  bot: {
+    samples: sortedBot.length,
+    totalMs: Math.round(botMs.reduce((sum, value) => sum + value, 0)),
+    observeMs: Math.round(observeMs),
+    p50: Number(percentileOf(sortedBot, 0.5).toFixed(2)),
+    p90: Number(percentileOf(sortedBot, 0.9).toFixed(2)),
+    p99: Number(percentileOf(sortedBot, 0.99).toFixed(2)),
+    max: Number((sortedBot.at(-1) ?? 0).toFixed(2)),
+  },
+};
+
+const text = `${JSON.stringify(summary, null, 2)}\n`;
+if (output) writeFileSync(output, text);
+process.stdout.write(text);
+engine.dispose();
+for (const bot of bots) bot.free();
+process.exit(outcome.reason === "game:over" ? 0 : 1);

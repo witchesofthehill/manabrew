@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import { CheckCircle2, ExternalLink, Layers3 } from "lucide-react";
-
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ROUTES } from "@/lib/constants";
 import { collectionCardKey } from "@/lib/collection";
@@ -11,7 +10,6 @@ import {
   useCardCollectionPrintings,
   useDeckCardOwnership,
 } from "./useCardCollectionOwnership";
-
 export function CollectionOwnershipTooltip({
   card,
   surface,
@@ -25,7 +23,6 @@ export function CollectionOwnershipTooltip({
   const summary = useDeckCardOwnership(card);
   const printings = useCardCollectionPrintings(card);
   if (ownership === "none" || !summary) return null;
-
   const requiredPrinting = printingLabel(
     card.identity.setCode,
     card.identity.cardNumber,
@@ -42,7 +39,6 @@ export function CollectionOwnershipTooltip({
       ? [collectionCardKey(card.identity.name, card.identity.setCode, card.identity.cardNumber)]
       : []),
   ]);
-
   return (
     <Tooltip delayDuration={180}>
       <TooltipTrigger asChild>
@@ -85,7 +81,7 @@ export function CollectionOwnershipTooltip({
           <div className="min-w-0">
             <p className="font-semibold">Collection tracker</p>
             <p className="text-[11px] text-muted-foreground">
-              {ownership === "exact" ? "Exact printing owned" : "Owned in another printing"}
+              {ownership === "exact" ? `Exact printing owned` : `Owned in another printing`}
             </p>
           </div>
           <span className="ml-auto font-mono text-xs tabular-nums">
@@ -133,7 +129,6 @@ export function CollectionOwnershipTooltip({
     </Tooltip>
   );
 }
-
 function PrintingRow({
   quantity,
   label,
@@ -148,13 +143,12 @@ function PrintingRow({
       <span className="w-5 shrink-0 text-right font-mono text-xs tabular-nums">{quantity}</span>
       <span className="min-w-0 flex-1 truncate text-xs">{label}</span>
       <span className={cn("text-[10px]", exact ? "text-legality-legal" : "text-muted-foreground")}>
-        {exact ? "exact" : "other"}
+        {exact ? `exact` : `other`}
       </span>
     </div>
   );
 }
-
 function printingLabel(setCode?: string, collectorNumber?: string, foil?: boolean): string {
-  if (!setCode || !collectorNumber) return "Unspecified printing";
-  return `${setCode.toUpperCase()} #${collectorNumber} · ${foil ? "foil" : "nonfoil"}`;
+  if (!setCode || !collectorNumber) return `Unspecified printing`;
+  return `${setCode.toUpperCase()} #${collectorNumber} · ${foil ? `foil` : `nonfoil`}`;
 }

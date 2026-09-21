@@ -1,7 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import { DiscordIcon } from "@/components/icons/DiscordIcon";
 import { DISCORD_INVITE_URL } from "@/lib/constants";
-
 export function DiscordCallout() {
   return (
     <a

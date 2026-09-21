@@ -11,10 +11,8 @@ import { useSignInDialog } from "@/stores/useSignInDialogStore";
 type Step = "nickname" | "signin" | "hurray";
 
 export const ONBOARDING_GUIDE_VERSION = "1.0";
-
 const NICKNAME_MIN_LENGTH = 2;
 const NICKNAME_MAX_LENGTH = 24;
-
 export function OnboardingWelcome({ onComplete }: { onComplete: () => void }) {
   const [step, setStep] = useState<Step>(() =>
     useAuthStore.getState().account?.handlePending ? "hurray" : "nickname",
@@ -28,7 +26,6 @@ export function OnboardingWelcome({ onComplete }: { onComplete: () => void }) {
   }, [step]);
   const trimmed = nickname.trim();
   const canConfirm = trimmed.length >= NICKNAME_MIN_LENGTH && !busy;
-
   const confirm = async () => {
     if (!canConfirm) return;
     setBusy(true);
@@ -86,7 +83,7 @@ export function OnboardingWelcome({ onComplete }: { onComplete: () => void }) {
           autoFocus
           value={nickname}
           maxLength={NICKNAME_MAX_LENGTH}
-          placeholder="e.g. StormCrow"
+          placeholder={`e.g. StormCrow`}
           onChange={(event) => {
             setNickname(event.target.value);
             if (error) setError(null);
@@ -100,7 +97,12 @@ export function OnboardingWelcome({ onComplete }: { onComplete: () => void }) {
       </div>
 
       <div className="flex flex-col items-center gap-3">
-        <Button disabled={!canConfirm} onClick={() => void confirm()} className="w-full max-w-xs">
+        <Button
+          variant="primary"
+          disabled={!canConfirm}
+          onClick={() => void confirm()}
+          className="w-full max-w-xs"
+        >
           {busy ? "Checking…" : "Let's brew"}
         </Button>
         {isFeatureEnabled("accounts") && (

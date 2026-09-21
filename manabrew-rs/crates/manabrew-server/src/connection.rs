@@ -1675,6 +1675,12 @@ fn handle_client_message(
                 client_work_p50: stats.client_work.as_ref().map(|t| t.p50),
                 client_work_p90: stats.client_work.as_ref().map(|t| t.p90),
                 client_work_max: stats.client_work.as_ref().map(|t| t.max),
+                engine_bot_p50: stats.engine_think_bot.as_ref().map(|t| t.p50),
+                engine_bot_p90: stats.engine_think_bot.as_ref().map(|t| t.p90),
+                engine_bot_max: stats.engine_think_bot.as_ref().map(|t| t.max),
+                engine_rules_p50: stats.engine_think_rules.as_ref().map(|t| t.p50),
+                engine_rules_p90: stats.engine_think_rules.as_ref().map(|t| t.p90),
+                engine_rules_max: stats.engine_think_rules.as_ref().map(|t| t.max),
             });
         }
 

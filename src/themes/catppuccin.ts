@@ -1,6 +1,5 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
-
 const palette: BasePalette = {
   foreground: "#cdd6f4", // text
   labelMuted: "#6c7086", // overlay0
@@ -26,7 +25,6 @@ const palette: BasePalette = {
   brown: "#fab387",
   paper: "#bac2de", // subtext1
   poison: "#8cc58a", // muted sibling of Catppuccin green
-  promptPass: "#cba6f7", // mauve
   promptDefense: "#89b4fa", // blue
   manaW: "#f5e0dc", // rosewater
   manaU: "#89b4fa",
@@ -35,11 +33,10 @@ const palette: BasePalette = {
   manaG: "#a6e3a1",
   manaC: "#bac2de",
 };
-
 const preset: ThemePreset = {
   id: "catppuccin",
   name: "Catppuccin",
-  description: "Pastel, soothing warm tones",
+  description: `Pastel, soothing warm tones`,
   light: {
     background: "#eff1f5",
     foreground: "#404359",
@@ -94,5 +91,4 @@ const preset: ThemePreset = {
   },
   gameColors: buildGameColors(palette),
 };
-
 export default preset;

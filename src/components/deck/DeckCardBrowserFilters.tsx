@@ -17,7 +17,6 @@ import {
 } from "@/components/editor/deckBuilder.utils";
 import { cn } from "@/lib/utils";
 import { MANA_LETTERS } from "@/themes/gameTheme";
-
 export type BrowserZoneFilter = "all" | "main" | "side" | "maybe";
 export type BrowserManaValueFilter = "all" | "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7+";
 export type BrowserCardTypeFilter =
@@ -29,13 +28,11 @@ export type BrowserCardTypeFilter =
   | "artifact"
   | "enchantment"
   | "planeswalker";
-
 interface ZoneOption {
   value: BrowserZoneFilter;
   label: string;
   count: number;
 }
-
 interface DeckCardBrowserFiltersProps {
   zone: BrowserZoneFilter;
   zoneOptions: ZoneOption[];
@@ -55,13 +52,27 @@ interface DeckCardBrowserFiltersProps {
   hasFilters: boolean;
   onClear: () => void;
 }
-
-const VIEW_OPTIONS: Array<{ value: ViewMode; label: string; icon: typeof List }> = [
-  { value: "list", label: "List", icon: List },
-  { value: "visual", label: "Visual", icon: Grid3X3 },
-  { value: "stack", label: "Stack", icon: Layers3 },
+const VIEW_OPTIONS: Array<{
+  value: ViewMode;
+  label: string;
+  icon: typeof List;
+}> = [
+  {
+    value: "list",
+    label: `List`,
+    icon: List,
+  },
+  {
+    value: "visual",
+    label: `Visual`,
+    icon: Grid3X3,
+  },
+  {
+    value: "stack",
+    label: `Stack`,
+    icon: Layers3,
+  },
 ];
-
 const MANA_VALUE_OPTIONS: BrowserManaValueFilter[] = [
   "all",
   "0",
@@ -73,27 +84,51 @@ const MANA_VALUE_OPTIONS: BrowserManaValueFilter[] = [
   "6",
   "7+",
 ];
-
-const CARD_TYPE_OPTIONS: Array<{ value: BrowserCardTypeFilter; label: string }> = [
-  { value: "all", label: "Any type" },
-  { value: "creature", label: "Creature" },
-  { value: "land", label: "Land" },
-  { value: "instant", label: "Instant" },
-  { value: "sorcery", label: "Sorcery" },
-  { value: "artifact", label: "Artifact" },
-  { value: "enchantment", label: "Enchantment" },
-  { value: "planeswalker", label: "Planeswalker" },
+const CARD_TYPE_OPTIONS: Array<{
+  value: BrowserCardTypeFilter;
+  label: string;
+}> = [
+  {
+    value: "all",
+    label: `Any type`,
+  },
+  {
+    value: "creature",
+    label: `Creature`,
+  },
+  {
+    value: "land",
+    label: `Land`,
+  },
+  {
+    value: "instant",
+    label: `Instant`,
+  },
+  {
+    value: "sorcery",
+    label: `Sorcery`,
+  },
+  {
+    value: "artifact",
+    label: `Artifact`,
+  },
+  {
+    value: "enchantment",
+    label: `Enchantment`,
+  },
+  {
+    value: "planeswalker",
+    label: `Planeswalker`,
+  },
 ];
-
 const COLOR_LABELS: Record<string, string> = {
-  W: "White",
-  U: "Blue",
-  B: "Black",
-  R: "Red",
-  G: "Green",
-  C: "Colorless",
+  W: `White`,
+  U: `Blue`,
+  B: `Black`,
+  R: `Red`,
+  G: `Green`,
+  C: `Colorless`,
 };
-
 function ViewControl({
   value,
   onChange,
@@ -114,7 +149,7 @@ function ViewControl({
             aria-pressed={value === option.value}
             className={cn(
               "flex h-8 w-8 items-center justify-center border-r text-muted-foreground transition-colors last:border-r-0 pointer-coarse:h-10 pointer-coarse:w-10",
-              value === option.value ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+              value === option.value ? "bg-selection text-selection-foreground" : "hover:bg-muted",
             )}
             onClick={() => onChange(option.value)}
           >
@@ -125,7 +160,6 @@ function ViewControl({
     </div>
   );
 }
-
 function ColorControl({
   colors,
   onToggle,
@@ -144,7 +178,7 @@ function ColorControl({
           aria-pressed={colors.includes(color)}
           className={cn(
             "flex h-8 w-8 items-center justify-center rounded opacity-45 transition-opacity hover:opacity-80 pointer-coarse:h-10 pointer-coarse:w-10",
-            colors.includes(color) && "bg-primary/15 opacity-100 ring-1 ring-primary",
+            colors.includes(color) && "bg-selection/15 opacity-100 ring-1 ring-selection",
           )}
           onClick={() => onToggle(color)}
         >
@@ -154,7 +188,6 @@ function ColorControl({
     </div>
   );
 }
-
 export function DeckCardBrowserFilters({
   zone,
   zoneOptions,
@@ -179,14 +212,13 @@ export function DeckCardBrowserFilters({
     Number(cardType !== "all") +
     Number(manaValue !== "all") +
     colors.length;
-
   const zoneControl = (
     <div className="flex flex-wrap items-center gap-1">
       {zoneOptions.map((option) => (
         <Button
           key={option.value}
           type="button"
-          variant={zone === option.value ? "secondary" : "ghost"}
+          variant={zone === option.value ? "selected" : "ghost"}
           size="sm"
           aria-pressed={zone === option.value}
           onClick={() => onZoneChange(option.value)}
@@ -197,11 +229,10 @@ export function DeckCardBrowserFilters({
       ))}
     </div>
   );
-
   const groupControl = (
     <select
       value={groupBy}
-      aria-label="Group cards by"
+      aria-label={`Group cards by`}
       className="h-9 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
       onChange={(event) => onGroupByChange(event.target.value as GroupByMode)}
     >
@@ -212,11 +243,10 @@ export function DeckCardBrowserFilters({
       ))}
     </select>
   );
-
   const typeControl = (
     <select
       value={cardType}
-      aria-label="Filter by card type"
+      aria-label={`Filter by card type`}
       className="h-9 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
       onChange={(event) => onCardTypeChange(event.target.value as BrowserCardTypeFilter)}
     >
@@ -227,22 +257,20 @@ export function DeckCardBrowserFilters({
       ))}
     </select>
   );
-
   const manaControl = (
     <select
       value={manaValue}
-      aria-label="Filter by mana value"
+      aria-label={`Filter by mana value`}
       className="h-9 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
       onChange={(event) => onManaValueChange(event.target.value as BrowserManaValueFilter)}
     >
       {MANA_VALUE_OPTIONS.map((value) => (
         <option key={value} value={value}>
-          {value === "all" ? "Any mana value" : `Mana value: ${value}`}
+          {value === "all" ? `Any mana value` : `Mana value: ${value}`}
         </option>
       ))}
     </select>
   );
-
   return (
     <>
       <div className="flex items-center justify-between gap-2 sm:hidden">
@@ -300,7 +328,7 @@ export function DeckCardBrowserFilters({
                 Clear filters
               </Button>
               <SheetClose asChild>
-                <Button>Show cards</Button>
+                <Button variant="primary">Show cards</Button>
               </SheetClose>
             </div>
           </SheetContent>
@@ -323,7 +351,7 @@ export function DeckCardBrowserFilters({
             max={6}
             step={1}
             value={cardSize}
-            aria-label="Card size"
+            aria-label={`Card size`}
             className="h-1 w-24 shrink-0 cursor-pointer accent-primary sm:w-32"
             onChange={(event) => onCardSizeChange(Number(event.target.value))}
           />

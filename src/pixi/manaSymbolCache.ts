@@ -1,13 +1,14 @@
-import { Texture, ImageSource } from "pixi.js";
+import { Texture } from "pixi.js";
 import { platformFetch } from "@/lib/platformFetch";
 import { manaSymbolUrl, normalizeManaCode } from "@/api/scryfall";
-
+import { rasterizeSvgTexture } from "./assets/rasterizeSvgTexture";
 // Rasterize SVGs into a fixed-size canvas so Pixi gets a concrete texture
 // (SVGs decoded into HTMLImageElement can have zero intrinsic dimensions).
 const SYMBOL_RASTER_SIZE = 96;
 
 const textures = new Map<string, Texture>();
 const loading = new Map<string, Promise<Texture>>();
+let cacheGeneration = 0;
 
 async function fetchSvgText(symbol: string): Promise<string> {
   const code = normalizeManaCode(symbol);
@@ -18,39 +19,9 @@ async function fetchSvgText(symbol: string): Promise<string> {
   return await response.text();
 }
 
-async function rasterizeSvg(svgText: string): Promise<HTMLCanvasElement> {
-  const blob = new Blob([svgText], { type: "image/svg+xml" });
-  const blobUrl = URL.createObjectURL(blob);
-  try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const image = new Image();
-      image.width = SYMBOL_RASTER_SIZE;
-      image.height = SYMBOL_RASTER_SIZE;
-      image.onload = () => resolve(image);
-      image.onerror = () => reject(new Error("svg decode failed"));
-      image.src = blobUrl;
-    });
-
-    const canvas = document.createElement("canvas");
-    canvas.width = SYMBOL_RASTER_SIZE;
-    canvas.height = SYMBOL_RASTER_SIZE;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("2d context unavailable");
-    ctx.clearRect(0, 0, SYMBOL_RASTER_SIZE, SYMBOL_RASTER_SIZE);
-    ctx.drawImage(img, 0, 0, SYMBOL_RASTER_SIZE, SYMBOL_RASTER_SIZE);
-    return canvas;
-  } finally {
-    URL.revokeObjectURL(blobUrl);
-  }
-}
-
 async function loadSymbolTexture(symbol: string): Promise<Texture> {
   const svgText = await fetchSvgText(symbol);
-  const canvas = await rasterizeSvg(svgText);
-  const source = new ImageSource({ resource: canvas });
-  const tex = new Texture({ source });
-  textures.set(symbol, tex);
-  return tex;
+  return await rasterizeSvgTexture(svgText, SYMBOL_RASTER_SIZE);
 }
 
 export function getManaSymbolTextureSync(symbol: string): Texture | null {
@@ -63,9 +34,18 @@ export function loadManaSymbolTexture(symbol: string): Promise<Texture> {
   if (cached) return Promise.resolve(cached);
   const pending = loading.get(symbol);
   if (pending) return pending;
-  const p = loadSymbolTexture(symbol).finally(() => loading.delete(symbol));
-  loading.set(symbol, p);
-  return p;
+
+  const generation = cacheGeneration;
+  const promise = loadSymbolTexture(symbol)
+    .then((texture) => {
+      if (generation === cacheGeneration) textures.set(symbol, texture);
+      return texture;
+    })
+    .finally(() => {
+      if (loading.get(symbol) === promise) loading.delete(symbol);
+    });
+  loading.set(symbol, promise);
+  return promise;
 }
 
 /** Pre-warm the five colors, colorless, plus tap/untap so first hover
@@ -80,6 +60,7 @@ export function prewarmManaSymbols(): void {
 }
 
 export function clearManaSymbolCache(): void {
+  cacheGeneration += 1;
   for (const tex of textures.values()) tex.destroy(true);
   textures.clear();
   loading.clear();

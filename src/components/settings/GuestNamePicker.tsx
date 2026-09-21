@@ -6,23 +6,20 @@ import { Label } from "@/components/ui/label";
 import { isNameClaimedError, reserveGuestName } from "@/lib/guestName";
 import { stripUsernameTag } from "@/lib/username";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-
 export function GuestNamePicker() {
   const serverUsername = usePreferencesStore((s) => s.serverUsername);
   const [name, setName] = useState(stripUsernameTag(serverUsername));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const base = name.trim();
   const dirty = base.length > 0 && base !== stripUsernameTag(serverUsername);
-
   async function save() {
     if (!base) return;
     setBusy(true);
     setError(null);
     try {
       await reserveGuestName(base);
-      toast.success("Username updated");
+      toast.success(`Username updated`);
     } catch (err) {
       setError(
         isNameClaimedError(err)
@@ -35,7 +32,6 @@ export function GuestNamePicker() {
       setBusy(false);
     }
   }
-
   return (
     <div className="space-y-2">
       <Label htmlFor="guest-username">Username</Label>
@@ -50,10 +46,10 @@ export function GuestNamePicker() {
           onKeyDown={(e) => {
             if (e.key === "Enter" && dirty) void save();
           }}
-          placeholder="Player1"
+          placeholder={`Player1`}
         />
-        <Button size="sm" disabled={busy || !dirty} onClick={() => void save()}>
-          {busy ? "Saving…" : "Save"}
+        <Button variant="primary" size="sm" disabled={busy || !dirty} onClick={() => void save()}>
+          {busy ? `Saving\u2026` : `Save`}
         </Button>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}

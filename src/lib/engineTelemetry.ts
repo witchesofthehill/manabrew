@@ -37,11 +37,15 @@ export interface EngineGameStats {
   /** Client-side turnaround: answer sent to next prompt. */
   turnaround: Turnaround;
   /**
-   * `turnaround` cut at the first reply frame reaching this client. The first
-   * half is everything outside this machine: the server, the wire, and the
-   * transfer of the reply itself. The second is everything on it: parsing,
-   * applying the state, rendering, until the prompt is handled. Null when no
-   * frame was stamped, which is how an engine with no frame boundary reports.
+   * `turnaround` split by where the time went. `clientWork` is the time this
+   * machine spent handling the frames that arrived inside the window: parsing
+   * and applying each one, the prompt's own included, up to the prompt being
+   * handled. `replyWait` is the rest: the server, the wire, the transfer, and
+   * whatever the engine and the other seats did between frames. Summing the
+   * frames, rather than cutting at the first one, is what keeps an opponent's
+   * turn out of the client half: in a room the first frame after an answer is
+   * the echo of one's own action, and the prompt can be seats away. Null when
+   * no frame was stamped, which is how an engine with no frame boundary reports.
    */
   replyWait: Turnaround | null;
   clientWork: Turnaround | null;
@@ -54,6 +58,16 @@ export interface EngineGameStats {
    */
   engineThinkSameTurn: Turnaround | null;
   engineThinkCrossTurn: Turnaround | null;
+  /**
+   * `engineThink` split by who owned the time. `engineThinkBot` is the part
+   * of each window spent on bot prompts: their snapshot, their think, their
+   * reply. `engineThinkRules` is the rest, the rules engine resolving what
+   * the table did. A long wait belongs to one side or the other, and the
+   * whole-window figure cannot say which. Null from an engine that does not
+   * tag its windows.
+   */
+  engineThinkBot: Turnaround | null;
+  engineThinkRules: Turnaround | null;
   /** Windows dropped for being measured across a backgrounded tab. */
   thinkSamplesHidden: number;
   /** Turnaround per prompt type, biggest first, capped so a report stays small. */
@@ -78,12 +92,19 @@ let engineThink: number[] = [];
 let engineThinkSameTurn: number[] = [];
 /** Think samples whose window contained at least one opponent turn. */
 let engineThinkCrossTurn: number[] = [];
+/** Bot prompt time per window, and the window with that taken out. */
+let engineThinkBot: number[] = [];
+let engineThinkRules: number[] = [];
 /** Samples thrown away because the tab was backgrounded for part of the window. */
 let engineThinkHidden = 0;
 let hiddenSinceLastSample = false;
 let answeredAt: number | null = null;
-/** When the first reply frame after `answeredAt` reached this client. */
-let replyFrameAt: number | null = null;
+/** When the frame this client is handling right now arrived, while a window is open. */
+let frameArrivedAt: number | null = null;
+/** Time spent handling frames since `answeredAt`, the open frame excluded. */
+let frameWorkMs = 0;
+/** Whether any frame was stamped inside the open window; no stamp means no split. */
+let frameSeen = false;
 let startedAtMs: number | null = null;
 let engineLabel = "unknown";
 
@@ -144,30 +165,45 @@ export function beginGame(engine: string): void {
   engineThink = [];
   engineThinkSameTurn = [];
   engineThinkCrossTurn = [];
+  engineThinkBot = [];
+  engineThinkRules = [];
   engineThinkHidden = 0;
   hiddenSinceLastSample = false;
   answeredAt = null;
-  replyFrameAt = null;
+  frameArrivedAt = null;
+  frameWorkMs = 0;
+  frameSeen = false;
   startedAtMs = Date.now();
   engineLabel = engine;
 }
 
 export function noteAnswerSent(): void {
   answeredAt = performance.now();
-  replyFrameAt = null;
+  frameArrivedAt = null;
+  frameWorkMs = 0;
+  frameSeen = false;
 }
 
 /**
- * A game frame reached this client. Only the first one after an answer is
- * kept: it is the earliest evidence the reply is here, and everything from it
- * to the prompt being handled is this machine's own work.
+ * A game frame reached this client. Its handling is timed until
+ * `noteReplyFrameHandled` (or the prompt inside it), and the spans add up to
+ * the window's client work. Frames outside a window are not a reply to
+ * anything and are ignored.
  *
  * @param at when the frame arrived, taken before parsing where the transport
  *   allows it, so that parsing lands on the client side of the cut.
  */
 export function noteReplyFrameArrived(at: number = performance.now()): void {
-  if (answeredAt === null || replyFrameAt !== null) return;
-  replyFrameAt = at;
+  if (answeredAt === null) return;
+  frameArrivedAt = at;
+  frameSeen = true;
+}
+
+/** The frame stamped by `noteReplyFrameArrived` has been applied. */
+export function noteReplyFrameHandled(): void {
+  if (frameArrivedAt === null) return;
+  frameWorkMs += performance.now() - frameArrivedAt;
+  frameArrivedAt = null;
 }
 
 export function notePromptArrived(promptType: string): void {
@@ -176,22 +212,29 @@ export function notePromptArrived(promptType: string): void {
   if (answeredAt === null) return;
   const now = performance.now();
   const ms = now - answeredAt;
+  // The prompt's own frame is still being handled; count it up to here.
+  if (frameArrivedAt !== null) frameWorkMs += now - frameArrivedAt;
   if (samples.length < MAX_SAMPLES) {
     samples.push({ ms, type: promptType });
-    if (replyFrameAt !== null) {
-      replyWait.push(replyFrameAt - answeredAt);
-      clientWork.push(now - replyFrameAt);
+    if (frameSeen) {
+      const work = Math.min(frameWorkMs, ms);
+      clientWork.push(work);
+      replyWait.push(ms - work);
     }
   }
   answeredAt = null;
-  replyFrameAt = null;
+  frameArrivedAt = null;
+  frameWorkMs = 0;
+  frameSeen = false;
 }
 
 /**
  * @param turns how many turns passed inside the window. Above zero means the
  *   opponents played inside it, which is most of what a large reading is.
+ * @param botMs how much of the window went to bot prompts. Undefined from an
+ *   engine that does not tag its windows, which leaves the split unreported.
  */
-export function noteEngineThinkTime(ms: number, turns = 0): void {
+export function noteEngineThinkTime(ms: number, turns = 0, botMs?: number): void {
   const wasHidden =
     hiddenSinceLastSample ||
     (typeof document !== "undefined" && document.visibilityState === "hidden");
@@ -203,6 +246,11 @@ export function noteEngineThinkTime(ms: number, turns = 0): void {
   if (engineThink.length >= MAX_SAMPLES) return;
   engineThink.push(ms);
   (turns > 0 ? engineThinkCrossTurn : engineThinkSameTurn).push(ms);
+  if (botMs !== undefined) {
+    const bot = Math.min(Math.max(0, botMs), ms);
+    engineThinkBot.push(bot);
+    engineThinkRules.push(ms - bot);
+  }
 }
 
 export function summariseGame(meta: {
@@ -234,6 +282,8 @@ export function summariseGame(meta: {
     engineThink: engineThink.length ? summarise(engineThink) : null,
     engineThinkSameTurn: engineThinkSameTurn.length ? summarise(engineThinkSameTurn) : null,
     engineThinkCrossTurn: engineThinkCrossTurn.length ? summarise(engineThinkCrossTurn) : null,
+    engineThinkBot: engineThinkBot.length ? summarise(engineThinkBot) : null,
+    engineThinkRules: engineThinkRules.length ? summarise(engineThinkRules) : null,
     thinkSamplesHidden: engineThinkHidden,
     byType: byPromptType(samples),
   };

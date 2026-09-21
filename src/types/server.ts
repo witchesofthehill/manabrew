@@ -11,9 +11,7 @@ import type {
   StateUpdate,
 } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
-
 export type { DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, SealedConfig } from "@/protocol";
-
 /** Which pile a card lives in inside a `Deck`. Used by the deck
  *  builder's section validators (`lib/formats.ts`) — NOT a wire field.
  *  On the wire, each section is its own array on `Deck`. */
@@ -25,9 +23,7 @@ export type DeckSection =
   | "contraptions"
   | "schemes"
   | "planes";
-
 export const DEFAULT_RECONNECT_TIMEOUT_S = 60;
-
 export interface RoomInfo {
   room_id: string;
   room_name: string;
@@ -46,7 +42,6 @@ export interface RoomInfo {
   draft_config?: DraftConfig;
   sealed_config?: SealedConfig;
 }
-
 export interface RoomPlayerInfo {
   username: string;
   ready: boolean;
@@ -54,10 +49,8 @@ export interface RoomPlayerInfo {
   is_bot?: boolean;
   selected_deck_name?: string;
 }
-
 /** A game on the player's own machine, which the relay never sees. */
 export type LocalGameKind = "Singleplayer";
-
 export interface PlayerInfo {
   username: string;
   player_id: string;
@@ -69,7 +62,6 @@ export interface PlayerInfo {
   local_game?: LocalGameKind;
   seal?: string;
 }
-
 export interface AuthResultPayload {
   success: boolean;
   player_id: string | null;
@@ -78,45 +70,38 @@ export interface AuthResultPayload {
   username: string | null;
   /** Wire features the relay understands. Absent from relays predating the list. */
   features?: string[];
+  /** Where this relay serves card art, when it serves any. */
+  art_base_url?: string | null;
 }
-
 export interface RoomListPayload {
   rooms: RoomInfo[];
 }
-
 export interface PlayerListPayload {
   players: PlayerInfo[];
 }
-
 export interface RoomCreatedPayload {
   room_id: string;
   room_name: string;
   room: RoomInfo;
 }
-
 export interface RoomUpdatePayload {
   room: RoomInfo;
 }
-
 export interface PlayerJoinedPayload {
   room_id: string;
   username: string;
 }
-
 export interface PlayerLeftPayload {
   room_id: string;
   username: string;
 }
-
 export interface PlayerConnectionPayload {
   username: string;
 }
-
 export interface ReadyChangedPayload {
   username: string;
   ready: boolean;
 }
-
 export interface GameStartedPayload {
   room_id: string;
   game_id: string;
@@ -124,18 +109,14 @@ export interface GameStartedPayload {
   player_decks: PlayerDeckInfo[];
   starting_life: number;
 }
-
 export interface StateUpdatePayload {
   from_player: string;
   state: StateEnvelope;
 }
-
 export interface GameAbortedPayload {
   room_id: string;
 }
-
 export const ROOM_RELAY_KIND = "roomRelay" as const;
-
 export interface RoomRelayEnvelope<TPayload = unknown> {
   kind: typeof ROOM_RELAY_KIND;
   protocol: string;
@@ -146,9 +127,13 @@ export interface RoomRelayEnvelope<TPayload = unknown> {
   roomId?: string;
   payload: TPayload;
 }
-
 export type StateEnvelope =
-  | { kind: "state"; forPlayer?: string; state: StateUpdate; fingerprint?: string }
+  | {
+      kind: "state";
+      forPlayer?: string;
+      state: StateUpdate;
+      fingerprint?: string;
+    }
   | {
       kind: "stateDelta";
       forPlayer?: string;
@@ -156,21 +141,50 @@ export type StateEnvelope =
       fingerprint: string;
       patch: unknown;
     }
-  | { kind: "display"; event: DisplayEvent }
-  | { kind: "prompt"; forPlayer: string; prompt: Prompt }
-  | { kind: "error"; forPlayer: string; error: ProtocolError }
-  | { kind: "response"; fromPlayer: string; promptId: number; action: PromptOutput }
-  | { kind: "directive"; fromPlayer: string; directive: DirectiveInput }
-  | { kind: "log"; fromPlayer: string; entry: unknown }
-  | { kind: "snapshot"; fromPlayer: string; entry: unknown }
-  | { kind: "fatal"; message: string }
+  | {
+      kind: "display";
+      event: DisplayEvent;
+    }
+  | {
+      kind: "prompt";
+      forPlayer: string;
+      prompt: Prompt;
+    }
+  | {
+      kind: "error";
+      forPlayer: string;
+      error: ProtocolError;
+    }
+  | {
+      kind: "response";
+      fromPlayer: string;
+      promptId: number;
+      action: PromptOutput;
+    }
+  | {
+      kind: "directive";
+      fromPlayer: string;
+      directive: DirectiveInput;
+    }
+  | {
+      kind: "log";
+      fromPlayer: string;
+      entry: unknown;
+    }
+  | {
+      kind: "snapshot";
+      fromPlayer: string;
+      entry: unknown;
+    }
+  | {
+      kind: "fatal";
+      message: string;
+    }
   | RoomRelayEnvelope;
-
 export interface RoomMessagePayload<TPayload = unknown> {
   from_player: string;
   state: RoomRelayEnvelope<TPayload>;
 }
-
 export function isRoomRelayEnvelope(value: unknown): value is RoomRelayEnvelope {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<RoomRelayEnvelope>;
@@ -182,7 +196,6 @@ export function isRoomRelayEnvelope(value: unknown): value is RoomRelayEnvelope 
     "payload" in candidate
   );
 }
-
 /** Wire features a relay lists in `AuthResult.features`. */
 export const RELAY_FEATURE = {
   LocalGame: "local_game",
@@ -190,9 +203,7 @@ export const RELAY_FEATURE = {
   RoomInvites: "room_invites",
   GameOutcome: "game_outcome",
 } as const;
-
 export type RelayFeature = (typeof RELAY_FEATURE)[keyof typeof RELAY_FEATURE];
-
 /** Engine slots, not names: the relay maps them to seats itself. */
 export interface GameOutcomeReport {
   game_over: boolean;
@@ -201,11 +212,8 @@ export interface GameOutcomeReport {
   fatal_message?: string;
   turns?: number;
 }
-
 export type ChatScope = "Lobby" | "Room";
-
 export const CHAT_MESSAGE_MAX_CHARS = 500;
-
 export interface ChatMessagePayload {
   scope: ChatScope;
   room_id?: string;
@@ -216,25 +224,21 @@ export interface ChatMessagePayload {
   sent_at_ms: number;
   seal?: string;
 }
-
 export interface ChatHistoryPayload {
   scope: ChatScope;
   room_id?: string;
   messages: ChatMessagePayload[];
 }
-
 export interface RoomInvitePayload {
   from: string;
   room: RoomInfo;
   password?: string;
 }
-
 export interface TurnChangedPayload {
   from_player: string;
   new_active_player: string;
   turn_number: number;
 }
-
 export const SERVER_ERROR_CODE = {
   AuthFailed: "auth_failed",
   AuthTimeout: "auth_timeout",
@@ -259,12 +263,9 @@ export const SERVER_ERROR_CODE = {
   WebSocket: "websocket_error",
   Parse: "parse_error",
 } as const;
-
 export type ServerErrorCode = (typeof SERVER_ERROR_CODE)[keyof typeof SERVER_ERROR_CODE];
-
 export const DUPLICATE_USERNAME_ERROR_FRAGMENT = "already taken";
 export const TOKEN_EXPIRED_ERROR_FRAGMENT = "token expired";
-
 export const START_GAME_FAILURE_CODES: ReadonlySet<ServerErrorCode> = new Set([
   SERVER_ERROR_CODE.FormatNotChosen,
   SERVER_ERROR_CODE.DeckNotSelected,
@@ -274,49 +275,68 @@ export const START_GAME_FAILURE_CODES: ReadonlySet<ServerErrorCode> = new Set([
   SERVER_ERROR_CODE.RoomNotFound,
   SERVER_ERROR_CODE.NotInRoom,
 ]);
-
 /** Answered inside the chat pane, never as a toast. */
 export const CHAT_ERROR_CODES: ReadonlySet<ServerErrorCode> = new Set([
   SERVER_ERROR_CODE.InvalidChatMessage,
   SERVER_ERROR_CODE.ChatRateLimited,
   SERVER_ERROR_CODE.AccountRequired,
 ]);
-
 export const USER_FACING_ERROR_MESSAGES: Partial<Record<ServerErrorCode, string>> = {
-  [SERVER_ERROR_CODE.DeckNotSelected]: "Select a deck before getting ready",
-  [SERVER_ERROR_CODE.PlayersNotReady]: "Not all players are ready",
-  [SERVER_ERROR_CODE.NotHost]: "Only the host can do that",
-  [SERVER_ERROR_CODE.RoomFull]: "Room is full",
-  [SERVER_ERROR_CODE.IncorrectPassword]: "Incorrect room password",
-  [SERVER_ERROR_CODE.AlreadyInRoom]: "You're already in a room",
-  [SERVER_ERROR_CODE.FormatNotChosen]: "Choose a format before starting",
-  [SERVER_ERROR_CODE.InvalidDraftConfig]: "Draft config is invalid",
-  [SERVER_ERROR_CODE.PlayerNotFound]: "That player is no longer online",
-  [SERVER_ERROR_CODE.PlayerInGame]: "That player is in a game",
-  [SERVER_ERROR_CODE.InvalidChatMessage]: "That message can't be sent",
-  [SERVER_ERROR_CODE.ChatRateLimited]: "You're sending too many messages",
-  [SERVER_ERROR_CODE.AccountRequired]: "Sign in to chat in General",
+  get [SERVER_ERROR_CODE.DeckNotSelected]() {
+    return `Select a deck before getting ready`;
+  },
+  get [SERVER_ERROR_CODE.PlayersNotReady]() {
+    return `Not all players are ready`;
+  },
+  get [SERVER_ERROR_CODE.NotHost]() {
+    return `Only the host can do that`;
+  },
+  get [SERVER_ERROR_CODE.RoomFull]() {
+    return `Room is full`;
+  },
+  get [SERVER_ERROR_CODE.IncorrectPassword]() {
+    return `Incorrect room password`;
+  },
+  get [SERVER_ERROR_CODE.AlreadyInRoom]() {
+    return `You're already in a room`;
+  },
+  get [SERVER_ERROR_CODE.FormatNotChosen]() {
+    return `Choose a format before starting`;
+  },
+  get [SERVER_ERROR_CODE.InvalidDraftConfig]() {
+    return `Draft config is invalid`;
+  },
+  get [SERVER_ERROR_CODE.PlayerNotFound]() {
+    return `That player is no longer online`;
+  },
+  get [SERVER_ERROR_CODE.PlayerInGame]() {
+    return `That player is in a game`;
+  },
+  get [SERVER_ERROR_CODE.InvalidChatMessage]() {
+    return `That message can't be sent`;
+  },
+  get [SERVER_ERROR_CODE.ChatRateLimited]() {
+    return `You're sending too many messages`;
+  },
+  get [SERVER_ERROR_CODE.AccountRequired]() {
+    return `Sign in to chat in General`;
+  },
 };
-
 export interface ServerErrorPayload {
   code: ServerErrorCode | string;
   message: string;
 }
-
 export interface BotFailedPayload {
   username: string;
   reason: string;
 }
-
 export type ReconnectPhase = "idle" | "reconnecting" | "failed";
-
 export interface ReconnectingPayload {
   phase: ReconnectPhase;
   attempt: number;
   delayMs?: number;
   reason?: "network" | "server-shutdown";
 }
-
 export interface DisconnectedPayload {
   terminal?: boolean;
 }

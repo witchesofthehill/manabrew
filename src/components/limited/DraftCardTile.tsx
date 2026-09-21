@@ -1,5 +1,4 @@
 import { memo } from "react";
-
 import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
 import { FoilBadge } from "@/components/limited/FoilBadge";
 import type { useCardPreview } from "@/hooks/useCardPreview";
@@ -9,7 +8,6 @@ import { cn } from "@/lib/utils";
 import type { DraftCard } from "@/types/limited";
 import type { DeckCard } from "@/protocol/deck";
 import type { CardDto } from "@/protocol/game";
-
 interface DraftCardTileProps {
   card: DraftCard;
   index: number;
@@ -20,7 +18,6 @@ interface DraftCardTileProps {
   selected?: boolean;
   pickPending?: boolean;
 }
-
 function DraftCardTileImpl({
   card,
   index,
@@ -50,7 +47,7 @@ function DraftCardTileImpl({
         disabled={disabled}
         className={cn(
           "relative aspect-[5/7] w-full rounded-lg border border-border/70 bg-card p-2 text-left text-xs font-medium shadow-sm disabled:cursor-not-allowed disabled:opacity-60",
-          selected && "ring-2 ring-primary",
+          selected && "ring-2 ring-selection",
           selected && pickPending && "animate-draft-card-pick",
         )}
       >
@@ -77,7 +74,7 @@ function DraftCardTileImpl({
       className={cn(
         "group relative w-full text-left transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/60 disabled:cursor-not-allowed disabled:opacity-60",
         card.foil && "draft-tile-foil",
-        selected && "z-10 ring-2 ring-primary",
+        selected && "z-10 ring-2 ring-selection",
         selected && pickPending && "animate-draft-card-pick",
       )}
     >
@@ -92,5 +89,4 @@ function DraftCardTileImpl({
     </button>
   );
 }
-
 export const DraftCardTile = memo(DraftCardTileImpl);

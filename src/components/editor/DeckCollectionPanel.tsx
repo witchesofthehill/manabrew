@@ -9,7 +9,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
-
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -23,7 +22,6 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { CardThumbnail } from "./deckEditor.primitives";
 import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE } from "./deckBuilder.utils";
 import { executeDeckEdit } from "./deckEditor.history";
-
 export function DeckCollectionPanel({
   cardSize,
   onHover,
@@ -48,7 +46,14 @@ export function DeckCollectionPanel({
     [deck.cards, deck.commanders, deck.sideboard],
   );
   const rows = useMemo(() => {
-    const required = new Map<string, { name: string; quantity: number; card: DeckCard }>();
+    const required = new Map<
+      string,
+      {
+        name: string;
+        quantity: number;
+        card: DeckCard;
+      }
+    >();
     for (const card of allCards) {
       const key = card.identity.name.toLowerCase();
       const entry = required.get(key) ?? { name: card.identity.name, quantity: 0, card };
@@ -76,7 +81,6 @@ export function DeckCollectionPanel({
   const cardWidth = CARD_WIDTH_MAP[cardSize] ?? CARD_WIDTH_MAP[DEFAULT_CARD_SIZE];
   const provider = deck.editor?.priceProvider ?? "tcgplayer";
   const acquisition = deck.editor?.acquisition ?? {};
-
   const missingPrintings = useMemo(
     () =>
       missing.map(([, entry]) => ({
@@ -86,7 +90,6 @@ export function DeckCollectionPanel({
       })),
     [missing],
   );
-
   useEffect(() => {
     if (missingPrintings.length === 0) return;
     let active = true;
@@ -115,20 +118,17 @@ export function DeckCollectionPanel({
       active = false;
     };
   }, [missingPrintings, provider]);
-
   const estimatedTotal = missing.reduce((total, [key]) => {
     const shortage = ownership.get(key)?.shortage ?? 0;
     return total + (prices[key] ?? 0) * shortage;
   }, 0);
-
   function setOwnedQuantity(key: string, name: string, quantity: number) {
     const currentTotal = collectionQuantityForName(quantities, name);
     const printingTotal = currentTotal - (quantities[key] ?? 0);
     void setQuantity(key, Math.max(0, quantity - printingTotal)).catch(() => {
-      toast.error("Account sync failed. This change is preserved locally.");
+      toast.error(`Account sync failed. This change is preserved locally.`);
     });
   }
-
   function exportMissing() {
     const csv = [
       "Quantity,Card Name,Set,Collector Number,Finish,Status,Estimated Unit Price",
@@ -144,12 +144,11 @@ export function DeckCollectionPanel({
     anchor.click();
     URL.revokeObjectURL(url);
   }
-
   function setAcquisitionStatus(key: string, status?: "ordered" | "proxy") {
     const next = { ...acquisition };
     if (status) next[key] = status;
     else delete next[key];
-    executeDeckEdit(`Mark ${key} as ${status ?? "needed"}`, () =>
+    executeDeckEdit(`Mark ${key} as ${status ?? `needed`}`, () =>
       setEditorMetadata({
         ...deck.editor,
         version: 1,
@@ -159,7 +158,6 @@ export function DeckCollectionPanel({
       }),
     );
   }
-
   return (
     <section className={EDITOR_PANEL_CLASS}>
       <div className="flex items-center justify-between gap-3">
@@ -168,7 +166,7 @@ export function DeckCollectionPanel({
           <div>
             <h3 className="text-sm font-semibold">Collection coverage</h3>
             <p className="text-[10px] text-muted-foreground">
-              {accountId ? "Synced to your account" : "Saved on this device"}
+              {accountId ? `Synced to your account` : `Saved on this device`}
             </p>
           </div>
         </div>
@@ -177,11 +175,13 @@ export function DeckCollectionPanel({
             className={cn("text-xs", missing.length > 0 ? "text-warning" : "text-legality-legal")}
           >
             {loading
-              ? "Syncing…"
+              ? `Syncing\u2026`
               : missing.length === 0
                 ? otherPrintingCount > 0
-                  ? `Complete · ${otherPrintingCount} other ${otherPrintingCount === 1 ? "printing" : "printings"}`
-                  : "Deck complete"
+                  ? otherPrintingCount === 1
+                    ? `Complete · one other printing`
+                    : `Complete · ${otherPrintingCount} other printings`
+                  : `Deck complete`
                 : `${missing.length} cards missing`}
           </span>
           {missing.length > 0 && estimatedTotal > 0 && (
@@ -192,26 +192,25 @@ export function DeckCollectionPanel({
             </span>
           )}
           {(missing.length > 0 || otherPrintingCount > 0) && onOptimizeOwnedPrintings && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 text-xs"
-              onClick={onOptimizeOwnedPrintings}
-            >
+            <Button size="xs" variant="ghost" onClick={onOptimizeOwnedPrintings}>
               <Sparkles className="h-3.5 w-3.5" /> Use owned printings
             </Button>
           )}
           {missing.length > 0 && (
-            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={exportMissing}>
+            <Button size="xs" variant="ghost" onClick={exportMissing}>
               <Download className="h-3.5 w-3.5" /> Missing CSV
             </Button>
           )}
           <div className="flex overflow-hidden rounded-md border">
-            <ViewButton label="Grid view" active={view === "grid"} onClick={() => setView("grid")}>
+            <ViewButton
+              label={`Grid view`}
+              active={view === "grid"}
+              onClick={() => setView("grid")}
+            >
               <LayoutGrid className="h-3.5 w-3.5" />
             </ViewButton>
             <ViewButton
-              label="Text view"
+              label={`Text view`}
               active={view === "text"}
               onClick={() => setView("text")}
               bordered
@@ -244,8 +243,9 @@ export function DeckCollectionPanel({
               <span className={cn("flex flex-wrap items-center gap-2", view === "grid" && "mt-2")}>
                 <span className="min-w-0 flex-1 truncate text-xs">{entry.name}</span>
                 <span className="text-[10px] text-muted-foreground">
-                  {ownership.get(key)?.status === "partial" ? "partially owned" : "not owned"} ·
-                  need {ownership.get(key)?.shortage ?? entry.quantity}
+                  {ownership.get(key)?.status === "partial"
+                    ? `partially owned · need ${ownership.get(key)?.shortage ?? entry.quantity}`
+                    : `not owned · need ${ownership.get(key)?.shortage ?? entry.quantity}`}
                 </span>
                 <Input
                   type="number"
@@ -259,10 +259,9 @@ export function DeckCollectionPanel({
                 />
                 <Button
                   type="button"
-                  size="icon"
-                  variant={acquisition[key] === "ordered" ? "secondary" : "ghost"}
-                  className="h-7 w-7"
-                  title="Mark as ordered"
+                  size="icon-sm"
+                  variant={acquisition[key] === "ordered" ? "selected" : "ghost"}
+                  title={`Mark as ordered`}
                   aria-pressed={acquisition[key] === "ordered"}
                   onClick={() =>
                     setAcquisitionStatus(
@@ -275,10 +274,9 @@ export function DeckCollectionPanel({
                 </Button>
                 <Button
                   type="button"
-                  size="icon"
-                  variant={acquisition[key] === "proxy" ? "secondary" : "ghost"}
-                  className="h-7 w-7"
-                  title="Mark as proxied"
+                  size="icon-sm"
+                  variant={acquisition[key] === "proxy" ? "selected" : "ghost"}
+                  title={`Mark as proxied`}
                   aria-pressed={acquisition[key] === "proxy"}
                   onClick={() =>
                     setAcquisitionStatus(key, acquisition[key] === "proxy" ? undefined : "proxy")
@@ -294,7 +292,6 @@ export function DeckCollectionPanel({
     </section>
   );
 }
-
 function ViewButton({
   label,
   active,
@@ -309,19 +306,17 @@ function ViewButton({
   children: ReactNode;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      size="icon-sm"
+      variant={active ? "selected" : "ghost"}
       title={label}
       aria-label={label}
       aria-pressed={active}
-      className={cn(
-        "p-1.5 transition-colors",
-        bordered && "border-l",
-        active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted",
-      )}
+      className={cn("rounded-none shadow-none", bordered && "border-l")}
       onClick={onClick}
     >
       {children}
-    </button>
+    </Button>
   );
 }

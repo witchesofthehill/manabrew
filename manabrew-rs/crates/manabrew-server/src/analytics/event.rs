@@ -46,6 +46,10 @@ pub struct CardEntry {
     pub count: u32,
 }
 
+// An event is built, serialised to one JSONL line and dropped; nothing holds
+// a collection of them, so the size of the widest variant (EngineStats, a
+// column per timing) costs nothing worth boxing for.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Serialize)]
 #[serde(tag = "event", rename_all = "snake_case")]
 pub enum AnalyticsEvent {
@@ -177,6 +181,21 @@ pub enum AnalyticsEvent {
         client_work_p90: Option<u32>,
         #[serde(skip_serializing_if = "Option::is_none")]
         client_work_max: Option<u32>,
+        /// `engine_*` split by who owned the time: bot prompts on one side,
+        /// the rules engine on the other. Absent from an engine that does not
+        /// tag its windows.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_bot_p50: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_bot_p90: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_bot_max: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_rules_p50: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_rules_p90: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_rules_max: Option<u32>,
     },
 
     DeckSelected {

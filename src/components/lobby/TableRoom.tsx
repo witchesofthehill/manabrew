@@ -4,7 +4,6 @@ import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
 import { TableRoomSidebar } from "@/components/lobby/TableRoomSidebar";
 import { Button } from "@/components/ui/button";
 import type { GameFormat, RoomInfo } from "@/types/server";
-
 interface TableRoomProps {
   room: RoomInfo;
   roomPassword?: string | null;
@@ -23,7 +22,6 @@ interface TableRoomProps {
   onRemoveBot?: (username: string) => void;
   mySpawnedBots?: string[];
 }
-
 export function TableRoom({
   room,
   roomPassword,
@@ -67,11 +65,10 @@ export function TableRoom({
   const openSeats = room.max_players - room.players.length;
   const requiredPlayers = Math.max(0, minReady - room.players.length);
   const modeLabel = room.draft_config
-    ? (room.draft_config.cube_name ?? room.draft_config.set_code ?? "Draft")
+    ? (room.draft_config.cube_name ?? room.draft_config.set_code ?? `Draft`)
     : room.sealed_config
-      ? (room.sealed_config.cube_name ?? room.sealed_config.set_code ?? "Sealed")
+      ? (room.sealed_config.cube_name ?? room.sealed_config.set_code ?? `Sealed`)
       : room.format;
-
   function renderPrimaryAction() {
     if (room.status !== "Lobby") {
       return (
@@ -91,14 +88,19 @@ export function TableRoom({
     }
     if (needsDeck) {
       return (
-        <Button size="lg" onClick={onOpenDeckDialog} className="w-full sm:w-auto">
+        <Button variant="primary" size="lg" onClick={onOpenDeckDialog} className="w-full sm:w-auto">
           <Shield /> Choose a deck
         </Button>
       );
     }
     if (!isController && myPlayer && !myPlayer.ready) {
       return (
-        <Button size="lg" onClick={() => onSetReady(true)} className="w-full sm:w-auto">
+        <Button
+          variant="primary"
+          size="lg"
+          onClick={() => onSetReady(true)}
+          className="w-full sm:w-auto"
+        >
           Ready up
         </Button>
       );
@@ -115,52 +117,54 @@ export function TableRoom({
       if (room.draft_config && onStartDraft) {
         return (
           <Button
+            variant="primary"
             size="lg"
             onClick={onStartDraft}
             disabled={startingLimited}
             className="w-full sm:w-auto"
           >
-            <Swords /> {startingLimited ? "Starting..." : "Start draft"}
+            <Swords /> {startingLimited ? `Starting...` : `Start draft`}
           </Button>
         );
       }
       if (room.sealed_config && onStartSealed) {
         return (
           <Button
+            variant="primary"
             size="lg"
             onClick={onStartSealed}
             disabled={startingLimited}
             className="w-full sm:w-auto"
           >
-            <Swords /> {startingLimited ? "Starting..." : "Start sealed"}
+            <Swords /> {startingLimited ? `Starting...` : `Start sealed`}
           </Button>
         );
       }
       return (
         <Button
+          variant="primary"
           size="lg"
           onClick={onStartGame}
           disabled={startingGame}
           className="w-full sm:w-auto"
         >
-          <Swords /> {startingGame ? "Starting..." : "Start game"}
+          <Swords /> {startingGame ? `Starting...` : `Start game`}
         </Button>
       );
     }
     return (
       <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5 text-center sm:text-right">
         <p className="text-sm font-medium">
-          {requiredPlayers > 0 ? `Waiting for ${requiredPlayers} more` : "Waiting for players"}
+          {requiredPlayers > 0 ? `Waiting for ${requiredPlayers} more` : `Waiting for players`}
         </p>
         <p className="text-xs text-muted-foreground">
           {requiredPlayers > 0
-            ? "Your table is open for others to join."
-            : "Everyone at the table needs to be ready."}
+            ? `Your table is open for others to join.`
+            : `Everyone at the table needs to be ready.`}
         </p>
       </div>
     );
   }
-
   return (
     <div className="h-full overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
       <div className="grid min-h-full gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
@@ -196,12 +200,12 @@ export function TableRoom({
               </p>
               <p className="mt-1 truncate text-sm font-medium">
                 {isController
-                  ? "You control when the game begins"
+                  ? `You control when the game begins`
                   : isOpenFormat
                     ? myPlayer?.ready
-                      ? "Ready to play"
-                      : "Confirm when you're ready"
-                    : (myPlayer?.selected_deck_name ?? "Choose the deck you want to play")}
+                      ? `Ready to play`
+                      : `Confirm when you're ready`
+                    : (myPlayer?.selected_deck_name ?? `Choose the deck you want to play`)}
               </p>
             </div>
             {renderPrimaryAction()}

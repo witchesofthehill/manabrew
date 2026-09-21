@@ -12,6 +12,7 @@
 // Env: BASE, DECK, AI_DECK, FORMAT, ENGINE=forge|rust, BUDGET_MS, HEADED=1.
 import { chromium } from "playwright";
 import { launchOpts, onboard, uniqueName } from "../e2e-ironsmith/lib.mjs";
+import { answerPrompt, startSoloGame, waitForFirstPrompt } from "./forgeSolo.mjs";
 
 const BASE = process.env.BASE || "http://localhost:5199";
 const FORMAT = process.env.FORMAT || "Pioneer";
@@ -50,16 +51,9 @@ await page.goto(`${BASE}/play/offline/constructed`, { waitUntil: "networkidle" }
 // played through the board, which is slower but is the only way to check the
 // thing where it actually broke.
 const hasStore = await page.evaluate(() => Boolean(window.__gameStore));
-await page.getByRole("button", { name: FORMAT, exact: true }).click();
-await page.waitForTimeout(700);
-for (const deck of [DECK, AI_DECK]) {
-  const card = page.getByRole("button", { name: new RegExp(`^${deck}`) }).first();
-  if (!(await card.count())) await fail(`deck "${deck}" is not on the ${FORMAT} tab`);
-  await card.click();
-  await page.waitForTimeout(500);
-}
-await page.getByRole("button", { name: /^Fight!$/ }).click();
-await page.waitForTimeout(15000);
+await startSoloGame(page, { format: FORMAT, decks: [DECK, AI_DECK], fail });
+if (hasStore) await waitForFirstPrompt(page).catch(() => fail("the game never produced a prompt"));
+else await page.waitForTimeout(15000);
 
 // Take no actions beyond what a prompt demands: the point is to lose fast.
 const over = hasStore ? await storeDrivenEnding() : await boardDrivenEnding();
@@ -115,70 +109,13 @@ async function boardDrivenEnding() {
 }
 
 async function storeDrivenEnding() {
-  return page
-    .waitForFunction(
-      // Synchronous on purpose: an async predicate returns a Promise, which
-      // Playwright reads as truthy, and the wait ends before the game does.
-      () => {
-        const store = window.__gameStore;
-        const state = store.getState();
-        if (state.gameView?.gameOver || state.currentPrompt?.input?.type === "gameOver")
-          return true;
-        if (!state.currentPrompt || state.isWaitingForResponse) return false;
-        const input = state.currentPrompt.input;
-        const ids = (list) => (list || []).map((c) => c && (c.id || c.cardId)).filter(Boolean);
-        const answers = {
-          chooseAction: { type: "pass", exhaustStack: false },
-          mulligan: { type: "mulliganDecision", keep: true },
-          mulliganPutBack: {
-            type: "mulliganPutBackDecision",
-            cardIds: ids(input.cards).slice(0, input.count || 0),
-          },
-          revealCards: { type: "revealCardsAcknowledged" },
-          diceRolled: { type: "diceRolledAcknowledged" },
-          chooseBoolean: { type: "decision", value: false },
-          chooseAttackers: { type: "declareAttackers", assignments: [] },
-          chooseBlockers: { type: "declareBlockers", assignments: [] },
-          payManaCost: { type: "cancel" },
-          chooseCards: {
-            type: "chooseCardsDecision",
-            chosenCardIds: ids(input.cards).slice(0, input.min || 0),
-          },
-          chooseFromSelection: {
-            type: "selectionDecision",
-            chosenIndices: Array.from({ length: Math.max(0, input.minTotal || 0) }, (_, i) => i),
-          },
-          chooseNumber: { type: "numberDecision", chosenNumber: input.min ?? 0 },
-          chooseColor: {
-            type: "colorDecision",
-            chosenColors: (input.validColors || [])[0]
-              ? { [(input.validColors || [])[0]]: input.amount || 1 }
-              : {},
-          },
-          scry: {
-            type: "scryDecision",
-            zoneCardIds: (input.zones || []).map((_, index) =>
-              index === 0 ? ids(input.cards) : [],
-            ),
-          },
-          reorder: {
-            type: "reorderDecision",
-            orderedIds: (input.items || []).map((i) => i && (i.id || i.cardId)).filter(Boolean),
-          },
-          chooseBoardTargets: { type: "cancel" },
-          chooseDamageAssignmentOrder: {
-            type: "damageAssignmentOrderDecision",
-            orderedBlockerIds: ids(input.blockers),
-          },
-        };
-        const answer = answers[input.type];
-        if (answer) void state.respond(answer);
-        return false;
-      },
-      { timeout: BUDGET_MS, polling: 400 },
-    )
-    .then(() => true)
-    .catch(() => false);
+  const deadline = Date.now() + BUDGET_MS;
+  while (Date.now() < deadline) {
+    const type = await answerPrompt(page);
+    if (type === "gameOver") return true;
+    await page.waitForTimeout(type ? 40 : 400);
+  }
+  return false;
 }
 
 const state = await page.evaluate(() => {

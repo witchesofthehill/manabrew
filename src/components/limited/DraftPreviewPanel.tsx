@@ -1,11 +1,9 @@
 import { ChevronDown, ChevronUp, Image as ImageIcon } from "lucide-react";
-
 interface DraftPreviewPanelProps {
   setSlot: (element: HTMLDivElement | null) => void;
   collapsed: boolean;
   onCollapse: () => void;
 }
-
 export function DraftPreviewPanel({ setSlot, collapsed, onCollapse }: DraftPreviewPanelProps) {
   if (collapsed) {
     return (
@@ -13,14 +11,13 @@ export function DraftPreviewPanel({ setSlot, collapsed, onCollapse }: DraftPrevi
         type="button"
         className="flex h-9 shrink-0 items-center justify-between rounded-md border border-border/70 bg-card/20 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:bg-muted/40"
         onClick={onCollapse}
-        title="Show card preview"
+        title={`Show card preview`}
       >
         Preview
         <ChevronUp className="h-3.5 w-3.5" />
       </button>
     );
   }
-
   return (
     <section className="flex h-[372px] shrink-0 flex-col overflow-hidden rounded-md border border-border/70 bg-card/20">
       <div className="flex h-9 shrink-0 items-center justify-between border-b border-border/40 px-3">
@@ -31,7 +28,7 @@ export function DraftPreviewPanel({ setSlot, collapsed, onCollapse }: DraftPrevi
           type="button"
           className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted"
           onClick={onCollapse}
-          title="Hide card preview"
+          title={`Hide card preview`}
         >
           <ChevronDown className="h-3.5 w-3.5" />
         </button>

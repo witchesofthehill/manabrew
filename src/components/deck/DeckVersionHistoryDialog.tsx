@@ -13,9 +13,7 @@ import { fetchDeckVersion } from "@/api/hub";
 import type { DeckVersionSummary } from "@/api/hubTypes";
 import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
 import type { EditorDeck } from "@/types/manabrew";
-
 const EMPTY_VERSIONS: DeckVersionSummary[] = [];
-
 interface DeckVersionHistoryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -24,7 +22,6 @@ interface DeckVersionHistoryDialogProps {
   hasUnsavedChanges?: boolean;
   onRestore: (deck: EditorDeck, versionNo: number) => void;
 }
-
 export function DeckVersionHistoryDialog({
   open,
   onOpenChange,
@@ -38,16 +35,14 @@ export function DeckVersionHistoryDialog({
   const [loadingVersion, setLoadingVersion] = useState<number | null>(null);
   const [confirmingVersion, setConfirmingVersion] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-
   useEffect(() => {
     if (!open) return;
     setLoadError(null);
     setConfirmingVersion(null);
     void loadVersions(deckId).catch((error) => {
-      setLoadError(error instanceof Error ? error.message : "Failed to load version history");
+      setLoadError(error instanceof Error ? error.message : `Failed to load version history`);
     });
   }, [deckId, loadVersions, open]);
-
   async function restore(versionNo: number) {
     setLoadingVersion(versionNo);
     try {
@@ -55,13 +50,12 @@ export function DeckVersionHistoryDialog({
       onRestore(version.deck as EditorDeck, versionNo);
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to load this deck version");
+      toast.error(error instanceof Error ? error.message : `Failed to load this deck version`);
     } finally {
       setLoadingVersion(null);
       setConfirmingVersion(null);
     }
   }
-
   function requestRestore(versionNo: number) {
     if (hasUnsavedChanges && confirmingVersion !== versionNo) {
       setConfirmingVersion(versionNo);
@@ -69,7 +63,6 @@ export function DeckVersionHistoryDialog({
     }
     void restore(versionNo);
   }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
@@ -115,11 +108,11 @@ export function DeckVersionHistoryDialog({
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">
                     Version {version.versionNo}
-                    {version.versionNo === currentVersionNo ? " · Current" : ""}
+                    {version.versionNo === currentVersionNo ? ` · Current` : ""}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
                     {version.notes || new Date(version.createdAt).toLocaleString()}
-                    {version.published ? " · Published" : ""}
+                    {version.published ? ` · Published` : ""}
                   </p>
                 </div>
                 {version.versionNo !== currentVersionNo &&
@@ -140,7 +133,7 @@ export function DeckVersionHistoryDialog({
                         disabled={loadingVersion !== null}
                         onClick={() => void restore(version.versionNo)}
                       >
-                        {loadingVersion === version.versionNo ? "Loading…" : "Restore"}
+                        {loadingVersion === version.versionNo ? `Loading…` : `Restore`}
                       </Button>
                     </span>
                   ) : (
@@ -150,7 +143,7 @@ export function DeckVersionHistoryDialog({
                       disabled={loadingVersion !== null}
                       onClick={() => requestRestore(version.versionNo)}
                     >
-                      {loadingVersion === version.versionNo ? "Loading…" : "Restore"}
+                      {loadingVersion === version.versionNo ? `Loading…` : `Restore`}
                     </Button>
                   ))}
               </div>

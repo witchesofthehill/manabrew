@@ -22,7 +22,6 @@ import {
 import { cn } from "@/lib/utils";
 import type { CubeImportResult } from "@/types/limited";
 import type { GameFormat } from "@/types/server";
-
 interface TableSetupGameCardProps {
   kind: RoomKind;
   onKindChange: (kind: RoomKind) => void;
@@ -53,7 +52,6 @@ interface TableSetupGameCardProps {
   importedCube: CubeImportResult | null;
   onCubeImported: (cube: CubeImportResult | null) => void;
 }
-
 export function TableSetupGameCard({
   kind,
   onKindChange,
@@ -87,7 +85,6 @@ export function TableSetupGameCard({
   const [cubeInput, setCubeInput] = useState("");
   const [importingCube, setImportingCube] = useState(false);
   const [cubeImportError, setCubeImportError] = useState<string | null>(null);
-
   async function handleImportCube() {
     if (!cubeInput.trim()) return;
     setImportingCube(true);
@@ -104,7 +101,6 @@ export function TableSetupGameCard({
       setImportingCube(false);
     }
   }
-
   return (
     <section className="rounded-xl border bg-card/85 p-4 backdrop-blur-md">
       <h2 className="text-sm font-semibold">The game</h2>
@@ -143,7 +139,7 @@ export function TableSetupGameCard({
                 <button
                   type="button"
                   id="room-format"
-                  title="Change format"
+                  title={`Change format`}
                   className="inline-flex w-full cursor-pointer items-center gap-1.5 rounded-full border bg-background/60 px-2 py-1 text-xs backdrop-blur-sm transition-colors hover:bg-background/80"
                 >
                   <FormatBadge formatId={format.toLowerCase()} />
@@ -165,7 +161,9 @@ export function TableSetupGameCard({
                   >
                     <FormatBadge formatId={option.value.toLowerCase()} />
                     <span className="text-xs">{option.label}</span>
-                    {format === option.value && <Check className="ml-auto h-3 w-3 text-primary" />}
+                    {format === option.value && (
+                      <Check className="ml-auto h-3 w-3 text-selection" />
+                    )}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -178,7 +176,7 @@ export function TableSetupGameCard({
 
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">
-            {kind === "limited" ? "Pod size" : "Players"}
+            {kind === "limited" ? `Pod size` : `Players`}
           </Label>
           <div className="flex items-center gap-2">
             {playerOptions.map((n) => (
@@ -242,7 +240,7 @@ export function TableSetupGameCard({
                   inputMode="numeric"
                   value={sealedSeed}
                   onChange={(e) => onSealedSeedChange(e.target.value)}
-                  placeholder="random"
+                  placeholder={`random`}
                 />
               </div>
             </div>
@@ -264,7 +262,7 @@ export function TableSetupGameCard({
                 type="text"
                 value={cubeInput}
                 onChange={(e) => setCubeInput(e.target.value)}
-                placeholder="cubeid or cubecobra.com/…"
+                placeholder={`cubeid or cubecobra.com/\u2026`}
                 className="h-9 flex-1 text-sm pointer-coarse:text-base"
                 disabled={importingCube}
               />
@@ -281,7 +279,7 @@ export function TableSetupGameCard({
                 ) : (
                   <Wand2 className="h-3.5 w-3.5" />
                 )}
-                {importingCube ? "Importing…" : "Import"}
+                {importingCube ? `Importing\u2026` : `Import`}
               </Button>
             </div>
             {importedCube && (
@@ -341,7 +339,7 @@ export function TableSetupGameCard({
                   inputMode="numeric"
                   value={draftSeed}
                   onChange={(e) => onDraftSeedChange(e.target.value)}
-                  placeholder="random"
+                  placeholder={`random`}
                 />
               </div>
             </div>
@@ -360,7 +358,6 @@ export function TableSetupGameCard({
     </section>
   );
 }
-
 function ModeButton({
   active,
   bordered = false,
@@ -373,21 +370,18 @@ function ModeButton({
   children: React.ReactNode;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      size="sm"
+      variant={active ? "selected" : "ghost"}
       aria-pressed={active}
-      className={cn(
-        "flex flex-1 items-center justify-center gap-1.5 p-2 text-xs font-medium transition-colors pointer-coarse:p-3",
-        bordered && "border-l",
-        active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted",
-      )}
+      className={cn("flex-1 rounded-none shadow-none", bordered && "border-l")}
       onClick={onClick}
     >
       {children}
-    </button>
+    </Button>
   );
 }
-
 function LimitedKindCard({
   meta,
   selected,
@@ -406,8 +400,8 @@ function LimitedKindCard({
       className={cn(
         "flex flex-col items-start gap-0.5 rounded-lg border p-3 text-left transition-colors",
         selected && meta.enabled
-          ? "border-primary bg-primary/5"
-          : "border-border enabled:hover:border-primary/30 enabled:hover:bg-muted/30",
+          ? "border-selection bg-selection/10"
+          : "border-border enabled:hover:border-selection/30 enabled:hover:bg-muted/30",
         !meta.enabled && "cursor-not-allowed opacity-50",
       )}
     >
@@ -415,7 +409,7 @@ function LimitedKindCard({
         <Icon
           className={cn(
             "h-4 w-4",
-            selected && meta.enabled ? "text-primary" : "text-muted-foreground",
+            selected && meta.enabled ? "text-selection" : "text-muted-foreground",
           )}
         />
         <span className="text-sm font-medium">{meta.label}</span>

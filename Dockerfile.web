@@ -10,18 +10,18 @@
 # --- Base: Rust + Node toolchain shared by the planner and builder stages ---
 FROM rust:1.88-slim AS base
 
-# Install Node.js 20 and build tools. The NodeSource script is downloaded to a
+# Install Node.js 24 and build tools. The NodeSource script is downloaded to a
 # file, not piped: a piped curl failure exits 0 (no pipefail in /bin/sh), apt
 # then falls back to Debian's node 18 — which has no corepack — and the broken
 # layer caches. The version/corepack check makes that failure mode impossible.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         curl ca-certificates build-essential pkg-config libssl-dev && \
-    curl -fsSL -o /tmp/nodesource-setup.sh https://deb.nodesource.com/setup_20.x && \
+    curl -fsSL -o /tmp/nodesource-setup.sh https://deb.nodesource.com/setup_24.x && \
     bash /tmp/nodesource-setup.sh && \
     rm /tmp/nodesource-setup.sh && \
     apt-get install -y --no-install-recommends nodejs && \
-    node --version | grep -q '^v20\.' && command -v corepack && \
+    node --version | grep -q '^v24\.' && command -v corepack && \
     rm -rf /var/lib/apt/lists/*
 
 # Install wasm32 target and wasm-pack (pinned; newer versions track latest rustc)
@@ -75,7 +75,7 @@ COPY src/ ./src/
 COPY packages/ ./packages/
 COPY public/ ./public/
 # ops/manifest.json is read by vite.config.ts to stamp the app version.
-COPY index.html tsconfig*.json vite.config.ts ./
+COPY index.html tsconfig*.json vite.config.ts lingui.config.ts ./
 COPY ops/manifest.json ./ops/manifest.json
 # These five sources feed the rkyv cardset archive build — keep in sync with the
 # source list in `scripts/build-wasm.mjs`. Omitting `editions`/`blockdata` is
@@ -127,7 +127,7 @@ RUN yarn build:web
 
 # --- Website: landing page (manabrew.app) + docs (docs.manabrew.app),
 # Astro + Starlight, two builds out of one package ---
-FROM node:20-slim AS website
+FROM node:24-slim AS website
 
 # The site imports assets and theme data via relative paths that escape
 # website/ (../images, ../public, ../src) — keep the same directory layout here.

@@ -122,7 +122,10 @@ export function AppShell() {
     "nav-prev-page": () => goToAdjacentPage(-1),
     "nav-next-page": () => goToAdjacentPage(1),
     "open-settings": () => {
-      if (!hideNavChrome && !activeTopBarOverride?.navigationDisabled) navigate(ROUTES.SETTINGS);
+      // Where the chrome is hidden (the board), leave the shortcut to the
+      // view, which opens its own settings.
+      if (hideNavChrome || activeTopBarOverride?.navigationDisabled) return false;
+      navigate(ROUTES.SETTINGS);
     },
     "show-shortcuts": () => setShortcutsOpen((v) => !v),
   });

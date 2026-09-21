@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { GitCompareArrows } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,7 +13,6 @@ import type { EditorDeck } from "@/types/manabrew";
 import { cn } from "@/lib/utils";
 import { deckOwnershipByName } from "@/lib/collection";
 import { useCollectionStore } from "@/stores/useCollectionStore";
-
 function coverageShortage(deck: EditorDeck, quantities: Record<string, number>): number {
   return [
     ...deckOwnershipByName(quantities, [
@@ -24,7 +22,6 @@ function coverageShortage(deck: EditorDeck, quantities: Record<string, number>):
     ]).values(),
   ].reduce((total, ownership) => total + ownership.shortage, 0);
 }
-
 function cardCounts(deck: EditorDeck): Map<string, number> {
   const counts = new Map<string, number>();
   const cards: DeckCard[] = [
@@ -42,7 +39,6 @@ function cardCounts(deck: EditorDeck): Map<string, number> {
   }
   return counts;
 }
-
 function cardLocations(deck: EditorDeck): Map<string, string> {
   const locations = new Map<string, string>();
   for (const [zone, cards] of [
@@ -55,7 +51,6 @@ function cardLocations(deck: EditorDeck): Map<string, string> {
   }
   return locations;
 }
-
 function printingKeys(deck: EditorDeck): Map<string, string> {
   return new Map(
     [...deck.cards, ...deck.sideboard, ...(deck.maybeboard ?? []), ...(deck.commanders ?? [])].map(
@@ -66,7 +61,6 @@ function printingKeys(deck: EditorDeck): Map<string, string> {
     ),
   );
 }
-
 export function DeckChangeSummary({
   currentDeck,
   savedDeck,
@@ -108,12 +102,10 @@ export function DeckChangeSummary({
     changes.moves.length +
     changes.printings.length +
     Number(changes.coverageDelta !== 0);
-
   if (changeCount === 0) return null;
-
   return (
     <>
-      <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setOpen(true)}>
+      <Button size="xs" variant="ghost" className="gap-1" onClick={() => setOpen(true)}>
         <GitCompareArrows className="h-3.5 w-3.5" />
         {changeCount} changes
       </Button>

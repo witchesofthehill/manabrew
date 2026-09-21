@@ -87,7 +87,10 @@ interface ScryfallState {
   updatePrinting: (card: ScryfallCard) => CardEntry;
   invalidateCard: (name: string) => void;
   clearImageCaches: () => void;
-  getRulings: (card: { rulings_uri: string }) => Promise<ScryfallRulingsResponse>;
+  getRulings: (card: {
+    rulings_uri: string;
+    oracle_id?: string;
+  }) => Promise<ScryfallRulingsResponse>;
   getPrintings: (
     lookups: ScryfallCardLookup[],
     onProgress?: (completed: number, total: number) => void,
@@ -630,10 +633,7 @@ export const useScryfallStore = create<ScryfallState>()(
         void promise.then(clearPending, clearPending);
         return promise;
       },
-      getRulings: async (c) => {
-        const rulingsUri = c.rulings_uri;
-        return getRulings(rulingsUri);
-      },
+      getRulings: async (c) => getRulings(c.rulings_uri, c.oracle_id),
       getPrintings: async (lookups, onProgress, signal) => {
         const locale = get().locale;
         const cards = await Promise.all(lookups.map((lookup) => get().getCard(lookup)));
@@ -826,14 +826,15 @@ export const useCard = (lookup: ScryfallCardLookup | null | undefined) => {
   }, [getCard, id, name, setCode, collectorNumber, cached, key, hasLookup]);
   return cached;
 };
-export const useCardRulings = (card: { rulings_uri?: string }) => {
+export const useCardRulings = (card: { rulings_uri?: string; oracle_id?: string }) => {
   const getRulings = useScryfallStore((s) => s.getRulings);
   const rulingsUri = card.rulings_uri;
+  const oracleId = card.oracle_id;
   const [out, setOut] = useState<ScryfallRulingsResponse | null>(null);
   useEffect(() => {
     if (!rulingsUri) return;
     let active = true;
-    void getRulings({ rulings_uri: rulingsUri }).then(
+    void getRulings({ rulings_uri: rulingsUri, oracle_id: oracleId }).then(
       (rulings) => {
         if (active) setOut(rulings);
       },
@@ -842,7 +843,7 @@ export const useCardRulings = (card: { rulings_uri?: string }) => {
     return () => {
       active = false;
     };
-  }, [getRulings, rulingsUri]);
+  }, [getRulings, rulingsUri, oracleId]);
   if (!rulingsUri) return EMPTY_RULINGS;
   return out;
 };

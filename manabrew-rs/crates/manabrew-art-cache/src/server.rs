@@ -8,7 +8,7 @@
 
 use std::sync::Arc;
 
-use crate::cards::{is_sets_request, name_from_request_path, CardStore};
+use crate::cards::{parse_request, CacheRequest, CardStore};
 use crate::{key_from_request_path, mime_for, ImageCache};
 
 pub struct ArtServer {
@@ -57,12 +57,17 @@ impl ArtServer {
 
 fn serve(request: tiny_http::Request, cache: &ImageCache, cards: &CardStore) {
     let raw = request.url().to_string();
-    if let Some(name) = name_from_request_path(&raw) {
-        serve_json(request, cards.read(&name));
-        return;
-    }
-    if is_sets_request(&raw) {
-        serve_json(request, cache.read_sets());
+    if let Some(asked) = parse_request(&raw) {
+        serve_json(
+            request,
+            match asked {
+                CacheRequest::Card(name) => cards.read(&name),
+                CacheRequest::Printing(set, number) => cards.read_printing(&set, &number),
+                CacheRequest::Sets => cache.read_sets(),
+                CacheRequest::Names => cache.read_names(),
+                CacheRequest::Rulings(oracle_id) => cards.read_rulings(&oracle_id),
+            },
+        );
         return;
     }
     let Some(key) = key_from_request_path(&raw) else {
@@ -88,9 +93,9 @@ fn serve(request: tiny_http::Request, cache: &ImageCache, cards: &CardStore) {
     let _ = request.respond(response);
 }
 
-/// A card or the set list, so a seat with no internet can still learn what it
-/// is holding and where its picture lives. Named rather than keyed by url,
-/// because a name is all a client that never reached the api has.
+/// Whatever the cache was asked for, so a seat with no internet can still learn
+/// what it is holding and where its picture lives. Named rather than keyed by
+/// url, because a name is all a client that never reached the api has.
 fn serve_json(request: tiny_http::Request, body: Option<Vec<u8>>) {
     let Some(bytes) = body else {
         let _ = request.respond(tiny_http::Response::empty(404));

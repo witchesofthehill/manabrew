@@ -14,7 +14,13 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 pub const CARDS_DIR: &str = "card-data";
+const PRINTINGS_DIR: &str = "printings";
+const RULINGS_DIR: &str = "rulings";
 pub const SETS_FILE: &str = "sets.json";
+pub const NAMES_FILE: &str = "card-names.json";
+
+/// Beside the art but not art: the eviction sweep must skip them.
+pub const NON_ART_FILES: [&str; 2] = [SETS_FILE, NAMES_FILE];
 
 /// Long enough for every real card name, short enough for every filesystem.
 const MAX_KEY_BYTES: usize = 180;
@@ -79,27 +85,64 @@ impl CardStore {
     /// The record exactly as Scryfall wrote it, so no field the client reads
     /// can be lost in a translation here.
     pub fn read(&self, name: &str) -> Option<Vec<u8>> {
-        let mut file = std::fs::File::open(self.path_for(name)).ok()?;
-        let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes).ok()?;
-        Some(bytes)
+        read_file(&self.path_for(name))
     }
 
-    /// Written under the card's own name and under each face's, because a
-    /// double-faced card is asked for both ways. Renamed into place, so a
-    /// half-written record is never served.
+    /// The exact printing a deck names, when the record that was stored is that
+    /// printing. The every-card download stores one printing per card, so this
+    /// answers for a deck whose art was downloaded and misses otherwise, which
+    /// is a miss the caller already handles.
+    pub fn read_printing(&self, set: &str, collector_number: &str) -> Option<Vec<u8>> {
+        read_file(
+            &self
+                .dir
+                .join(PRINTINGS_DIR)
+                .join(format!("{}.json", printing_key(set, collector_number))),
+        )
+    }
+
+    pub fn read_rulings(&self, oracle_id: &str) -> Option<Vec<u8>> {
+        read_file(
+            &self
+                .dir
+                .join(RULINGS_DIR)
+                .join(format!("{}.json", file_key(oracle_id))),
+        )
+    }
+
+    /// Written under the card's own name, under each face's, because a
+    /// double-faced card is asked for both ways, and under its printing.
+    /// Renamed into place, so a half-written record is never served.
     pub fn store(&self, record: &str, card: &serde_json::Value) -> std::io::Result<()> {
         let Some(name) = card.get("name").and_then(|n| n.as_str()) else {
             return Ok(());
         };
         std::fs::create_dir_all(&self.dir)?;
         for key in keys_for(name, card) {
-            let path = self.dir.join(format!("{key}.json"));
-            let temp = path.with_extension("part");
-            std::fs::write(&temp, record.as_bytes())?;
-            std::fs::rename(&temp, &path)?;
+            write_file(&self.dir.join(format!("{key}.json")), record.as_bytes())?;
+        }
+        let printing = card
+            .get("set")
+            .and_then(|s| s.as_str())
+            .zip(card.get("collector_number").and_then(|n| n.as_str()));
+        if let Some((set, number)) = printing {
+            let dir = self.dir.join(PRINTINGS_DIR);
+            std::fs::create_dir_all(&dir)?;
+            write_file(
+                &dir.join(format!("{}.json", printing_key(set, number))),
+                record.as_bytes(),
+            )?;
         }
         Ok(())
+    }
+
+    pub fn store_rulings(&self, oracle_id: &str, rulings: &str) -> std::io::Result<()> {
+        let dir = self.dir.join(RULINGS_DIR);
+        std::fs::create_dir_all(&dir)?;
+        write_file(
+            &dir.join(format!("{}.json", file_key(oracle_id))),
+            rulings.as_bytes(),
+        )
     }
 
     /// How many cards this machine can describe with no internet. Faces are
@@ -119,6 +162,23 @@ impl CardStore {
     fn path_for(&self, name: &str) -> PathBuf {
         self.dir.join(format!("{}.json", file_key(name)))
     }
+}
+
+fn read_file(path: &Path) -> Option<Vec<u8>> {
+    let mut file = std::fs::File::open(path).ok()?;
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes).ok()?;
+    Some(bytes)
+}
+
+fn write_file(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    let temp = path.with_extension("part");
+    std::fs::write(&temp, bytes)?;
+    std::fs::rename(&temp, path)
+}
+
+fn printing_key(set: &str, collector_number: &str) -> String {
+    file_key(&format!("{set}-{collector_number}"))
 }
 
 fn keys_for(name: &str, card: &serde_json::Value) -> Vec<String> {
@@ -142,27 +202,48 @@ fn keys_for(name: &str, card: &serde_json::Value) -> Vec<String> {
     keys
 }
 
-/// The name a `/scryfall-card/` request is asking for, percent-decoded. No path
-/// is built from what arrives — `file_key` builds one from scratch — so the
-/// only shaping needed is dropping the query and refusing something absurd.
-pub fn name_from_request_path(path: &str) -> Option<String> {
-    let raw = path
-        .trim_start_matches('/')
-        .strip_prefix("scryfall-card/")?
-        .split(['?', '#'])
-        .next()
-        .unwrap_or("");
-    if raw.is_empty() || raw.len() > 512 {
-        return None;
-    }
-    Some(percent_decode(raw))
+/// Everything this cache can be asked for. Nothing from a request is used to
+/// build a path — the store builds one from scratch — so the shaping here is
+/// dropping the query, refusing something absurd, and nothing else.
+#[derive(Debug, PartialEq, Eq)]
+pub enum CacheRequest {
+    Card(String),
+    /// A set and a collector number: the exact printing a deck asked for.
+    Printing(String, String),
+    Sets,
+    /// Every name, which is all a name-keyed cache can offer a search.
+    Names,
+    Rulings(String),
 }
 
-/// Set lists are one request that the deck editor, the filters and every set
-/// symbol wait on, so the cache keeps the answer whole.
-pub fn is_sets_request(path: &str) -> bool {
+pub fn parse_request(path: &str) -> Option<CacheRequest> {
     let path = path.trim_start_matches('/');
-    path == "scryfall-sets" || path.starts_with("scryfall-sets?")
+    let path = path.split(['?', '#']).next().unwrap_or("");
+    if path.len() > 512 {
+        return None;
+    }
+    if path == "scryfall-sets" {
+        return Some(CacheRequest::Sets);
+    }
+    if path == "scryfall-names" {
+        return Some(CacheRequest::Names);
+    }
+    if let Some(id) = path.strip_prefix("scryfall-rulings/") {
+        return (!id.is_empty()).then(|| CacheRequest::Rulings(percent_decode(id)));
+    }
+    let card = path.strip_prefix("scryfall-card/")?;
+    if card.is_empty() {
+        return None;
+    }
+    // A name is percent-encoded by the client, so a bare slash can only be the
+    // set and collector number form.
+    match card.split_once('/') {
+        Some((set, number)) if !set.is_empty() && !number.is_empty() => Some(
+            CacheRequest::Printing(percent_decode(set), percent_decode(number)),
+        ),
+        Some(_) => None,
+        None => Some(CacheRequest::Card(percent_decode(card))),
+    }
 }
 
 fn percent_decode(raw: &str) -> String {
@@ -265,19 +346,65 @@ mod tests {
     }
 
     #[test]
-    fn a_request_path_names_a_card() {
+    fn a_request_path_says_what_is_being_asked_for() {
+        use CacheRequest::*;
         assert_eq!(
-            name_from_request_path("/scryfall-card/Lightning%20Bolt").as_deref(),
-            Some("Lightning Bolt")
+            parse_request("/scryfall-card/Lightning%20Bolt"),
+            Some(Card("Lightning Bolt".into()))
         );
         assert_eq!(
-            name_from_request_path("/scryfall-card/Fable%20of%20the%20Mirror-Breaker%20%2F%2F%20Reflection%20of%20Kiki-Jiki?x=1").as_deref(),
-            Some("Fable of the Mirror-Breaker // Reflection of Kiki-Jiki")
+            parse_request("/scryfall-card/Fable%20of%20the%20Mirror-Breaker%20%2F%2F%20Reflection%20of%20Kiki-Jiki?x=1"),
+            Some(Card("Fable of the Mirror-Breaker // Reflection of Kiki-Jiki".into()))
         );
-        assert_eq!(name_from_request_path("/scryfall-card/"), None);
-        assert_eq!(name_from_request_path("/scryfall-img/a/b.jpg"), None);
-        assert!(is_sets_request("/scryfall-sets"));
-        assert!(!is_sets_request("/scryfall-card/Lightning%20Bolt"));
+        assert_eq!(
+            parse_request("/scryfall-card/mh2/123"),
+            Some(Printing("mh2".into(), "123".into()))
+        );
+        assert_eq!(parse_request("/scryfall-sets"), Some(Sets));
+        assert_eq!(parse_request("/scryfall-names"), Some(Names));
+        assert_eq!(
+            parse_request("/scryfall-rulings/4c0a1b4d"),
+            Some(Rulings("4c0a1b4d".into()))
+        );
+        assert_eq!(parse_request("/scryfall-card/"), None);
+        assert_eq!(parse_request("/scryfall-img/a/b.jpg"), None);
+    }
+
+    /// The printing a deck asks for, when the record that was kept is it.
+    #[test]
+    fn a_set_and_number_read_back_the_printing_they_were_written_from() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let record =
+            r#"{"name":"Lightning Bolt","set":"MH2","collector_number":"123","lang":"en"}"#;
+        let store = store(dir.path(), &[record]);
+
+        assert_eq!(
+            String::from_utf8_lossy(&store.read_printing("mh2", "123").expect("printing")),
+            record
+        );
+        assert!(store.read_printing("MH2", "123").is_some(), "case folded");
+        assert!(store.read_printing("mh2", "124").is_none());
+        assert_eq!(store.count(), 1, "a printing is not a second card");
+    }
+
+    #[test]
+    fn rulings_read_back_under_the_oracle_id_they_were_written_for() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let store = CardStore::new(dir.path());
+        let body = r#"{"object":"list","has_more":false,"data":[]}"#;
+        store
+            .store_rulings("4c0a1b4d-1e0a-4e0a-9e0a-1b4d4c0a1b4d", body)
+            .expect("store");
+
+        assert_eq!(
+            String::from_utf8_lossy(
+                &store
+                    .read_rulings("4C0A1B4D-1E0A-4E0A-9E0A-1B4D4C0A1B4D")
+                    .expect("rulings")
+            ),
+            body
+        );
+        assert!(store.read_rulings("nothing-like-it").is_none());
     }
 
     /// A traversal cannot get out of the directory, because nothing from the

@@ -10,7 +10,14 @@ import {
 import { platformFetch } from "@/lib/platformFetch";
 import { getPlatformType } from "@/platform";
 import { loadScryfallImage } from "@/lib/scryfallImageSource";
-import { localCardRecord, localCardRecords, localSets } from "@/lib/localCardRecords";
+import {
+  localCardNames,
+  localCardRecord,
+  localCardRecords,
+  localRulings,
+  localSets,
+} from "@/lib/localCardRecords";
+import { bestCachedName, cachedNameMatches } from "@/lib/localCardSearch";
 import { scryfallAssetUrl, scryfallAssetsMirrored } from "@/lib/scryfallAssets";
 import {
   enqueueCardLookup,
@@ -119,13 +126,59 @@ export async function searchCards(
 ): Promise<ScryfallListResponse> {
   const orderParam = order || "cmc";
   const dirParam = dir && dir !== "auto" ? `&dir=${dir}` : "";
-  return scryfallFetch(
-    `${SCRYFALL_API}/cards/search?q=${encodeURIComponent(query)}&page=${page}&order=${orderParam}&unique=cards${dirParam}`,
-    "Failed to fetch cards from Scryfall",
-  );
+  try {
+    return await scryfallFetch<ScryfallListResponse>(
+      `${SCRYFALL_API}/cards/search?q=${encodeURIComponent(query)}&page=${page}&order=${orderParam}&unique=cards${dirParam}`,
+      "Failed to fetch cards from Scryfall",
+    );
+  } catch (error) {
+    // A cache is keyed by name, so the only query it can answer is words in a
+    // title. Scryfall's operators (`t:`, `c:`, `cmc>=`) have no offline
+    // equivalent and the search stays failed rather than answering something
+    // narrower than what was asked.
+    const cached = await searchCachedNames(query, page);
+    if (cached) return cached;
+    throw error;
+  }
 }
-export async function getRulings(rulingsUri: string): Promise<ScryfallRulingsResponse> {
-  return scryfallFetch(rulingsUri, "Failed to fetch rulings from Scryfall");
+
+const CACHED_SEARCH_PAGE_SIZE = 175;
+
+async function searchCachedNames(
+  query: string,
+  page: number,
+): Promise<ScryfallListResponse | null> {
+  const names = await localCardNames();
+  if (!names) return null;
+  const matches = cachedNameMatches(query, names);
+  if (!matches) return null;
+  const start = (Math.max(page, 1) - 1) * CACHED_SEARCH_PAGE_SIZE;
+  const wanted = matches.slice(start, start + CACHED_SEARCH_PAGE_SIZE);
+  const found = await localCardRecords(wanted);
+  return {
+    object: "list",
+    total_cards: matches.length,
+    has_more: start + CACHED_SEARCH_PAGE_SIZE < matches.length,
+    data: wanted.map((name) => found.get(name)).filter((card) => card !== undefined),
+  };
+}
+export async function getRulings(
+  rulingsUri: string,
+  oracleId?: string,
+): Promise<ScryfallRulingsResponse> {
+  try {
+    return await scryfallFetch<ScryfallRulingsResponse>(
+      rulingsUri,
+      "Failed to fetch rulings from Scryfall",
+    );
+  } catch (error) {
+    // Scryfall's bulk rulings are grouped by oracle id, while `rulings_uri`
+    // names the printing, so the cache can only answer when the caller has the
+    // card in hand — which every caller does.
+    const cached = oracleId ? await localRulings(oracleId) : null;
+    if (cached) return cached;
+    throw error;
+  }
 }
 export async function getCardPrints(printsSearchUri: string): Promise<ScryfallListResponse> {
   return scryfallFetch(printsSearchUri, "Failed to fetch card prints from Scryfall");
@@ -182,11 +235,16 @@ export async function fetchCardByFuzzyName(name: string): Promise<ScryfallCard> 
       `No card matches "${name}"`,
     );
   } catch (error) {
-    // A cache is keyed by name and cannot be searched, so what it answers is
-    // the spelling that was asked for. Better than nothing offline, and never
-    // consulted while Scryfall is the one that can be fuzzy.
+    // Scryfall does the fuzzing online. Offline the cache's own name list is
+    // what a misspelling can be matched against, which is what makes pasting a
+    // decklist work with no internet.
     const cached = await localCardRecord(name);
     if (cached) return cached;
+    const guess = await localCardNames().then((names) =>
+      names ? bestCachedName(name, names) : null,
+    );
+    const matched = guess ? await localCardRecord(guess) : null;
+    if (matched) return matched;
     throw error;
   }
 }

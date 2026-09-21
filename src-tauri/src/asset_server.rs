@@ -57,17 +57,23 @@ fn start_asset_server(app: &tauri::AppHandle) -> Option<u16> {
             let raw = request.url().to_string();
             // The picture is worth nothing to a client that cannot learn its
             // url, so the data downloaded beside it answers here too.
-            if let Some(name) = crate::image_cache::name_from_request_path(&raw) {
+            if let Some(asked) = crate::image_cache::parse_request(&raw) {
+                use crate::image_cache::CacheRequest;
+                let cards = crate::image_cache::cards();
+                let cache = crate::image_cache::cache();
                 respond_card_data(
                     request,
-                    crate::image_cache::cards().and_then(|cards| cards.read(&name)),
-                );
-                continue;
-            }
-            if crate::image_cache::is_sets_request(&raw) {
-                respond_card_data(
-                    request,
-                    crate::image_cache::cache().and_then(|cache| cache.read_sets()),
+                    match asked {
+                        CacheRequest::Card(name) => cards.and_then(|cards| cards.read(&name)),
+                        CacheRequest::Printing(set, number) => {
+                            cards.and_then(|cards| cards.read_printing(&set, &number))
+                        }
+                        CacheRequest::Sets => cache.and_then(|cache| cache.read_sets()),
+                        CacheRequest::Names => cache.and_then(|cache| cache.read_names()),
+                        CacheRequest::Rulings(oracle_id) => {
+                            cards.and_then(|cards| cards.read_rulings(&oracle_id))
+                        }
+                    },
                 );
                 continue;
             }

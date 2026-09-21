@@ -133,7 +133,8 @@ export function CardArtDownloadSection() {
         Art is kept on disk once drawn, so a board does not fetch it twice, and a deliberate
         download is never dropped when the cache is trimmed for space. Either download also keeps
         what each card <em>is</em>, which is what a board with no internet needs to know which
-        picture to draw — pictures alone are not enough.
+        picture to draw — pictures alone are not enough. Every card additionally keeps every card
+        name, the set list and every ruling, so searching and pasting a decklist work offline too.
       </p>
       <p className="text-xs text-muted-foreground">
         Downloading for the <strong>{style}</strong> battlefield style. That style draws{" "}

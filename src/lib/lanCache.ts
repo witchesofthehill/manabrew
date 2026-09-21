@@ -31,12 +31,9 @@ export function lanArtUrl(key: string): string | null {
   return host ? `${host}/scryfall-img/${key}` : null;
 }
 
-export function lanCardUrl(name: string): string | null {
+/** `path` is the same route this machine serves on itself, so a caller writes
+ *  one path and both sources answer it. */
+export function lanCacheUrl(path: string): string | null {
   const host = base();
-  return host ? `${host}/scryfall-card/${encodeURIComponent(name)}` : null;
-}
-
-export function lanSetsUrl(): string | null {
-  const host = base();
-  return host ? `${host}/scryfall-sets` : null;
+  return host ? `${host}${path}` : null;
 }

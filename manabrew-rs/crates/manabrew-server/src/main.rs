@@ -47,6 +47,10 @@ async fn download_art(config: &config::ServerConfig) -> Result<(), String> {
     if let Err(error) = cache.store_sets().await {
         tracing::warn!("[art] no set list: {error}");
     }
+    match cache.download_rulings().await {
+        Ok(cards) => tracing::info!(cards, "[art] rulings"),
+        Err(error) => tracing::warn!("[art] no rulings: {error}"),
+    }
     tracing::info!(cards = cache.cards_cached(), "[art] card data");
     Ok(())
 }

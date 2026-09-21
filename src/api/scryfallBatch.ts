@@ -1,5 +1,5 @@
 import type { ScryfallCard } from "@/types/scryfall";
-import { localCardRecords } from "@/lib/localCardRecords";
+import { localCardRecord, localPrintingRecord } from "@/lib/localCardRecords";
 import { COLLECTION_BATCH_SIZE, SCRYFALL_API, scryfallFetch } from "./scryfall";
 
 const SCRYFALL_BATCH_DEBOUNCE_MS = 100;
@@ -79,27 +79,34 @@ export function normalizeIdentifierForRequest(id: CardIdentifier): CardIdentifie
   return id;
 }
 
-function identifierName(id: CardIdentifier): string | null {
-  return "name" in id ? id.name : null;
+/**
+ * What a cache can answer once Scryfall cannot be reached: a name, or a set and
+ * collector number when the record it kept is that printing. An identifier that
+ * is only an id has nothing a cache is keyed by and stays rejected.
+ */
+function cachedCard(id: CardIdentifier): Promise<ScryfallCard | null> {
+  if ("collector_number" in id) return localPrintingRecord(id.set, id.collector_number);
+  if ("name" in id) return localCardRecord(id.name);
+  return Promise.resolve(null);
 }
 
-/**
- * What a cache can answer once Scryfall cannot be reached. Only a name is
- * lookable: a cache holds one printing per card, so an identifier that names a
- * set or a collector number has nothing to match against and stays rejected.
- */
+/** The identifier with its printing dropped, which is all a cached record can
+ *  be held to: a cache keeps one printing per card. A set-and-number identifier
+ *  carries no name and is trusted as the printing it was filed under. */
+function nameOnly(id: CardIdentifier): CardIdentifier {
+  return "name" in id ? { name: id.name } : id;
+}
+
 async function resolveFromCache(items: PendingBatchItem[], error?: unknown): Promise<void> {
-  const names = items.map((item) => identifierName(item.identifier)).filter((n) => n !== null);
-  const cached = names.length > 0 ? await localCardRecords(names) : new Map<string, ScryfallCard>();
-  for (const item of items) {
-    const name = identifierName(item.identifier);
-    const card = name === null ? undefined : cached.get(name);
-    if (card) item.resolve(card);
+  const cached = await Promise.all(items.map((item) => cachedCard(item.identifier)));
+  items.forEach((item, index) => {
+    const card = cached[index];
+    if (card && matchesIdentifier(card, nameOnly(item.identifier))) item.resolve(card);
     else
       item.reject(
         error ?? new Error(`Card not found in collection: ${identifierKey(item.identifier)}`),
       );
-  }
+  });
 }
 
 async function flushScryfallBatch(): Promise<void> {

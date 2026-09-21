@@ -4,7 +4,7 @@
 
 use std::sync::{Arc, OnceLock};
 
-pub use manabrew_art_cache::cards::{is_sets_request, name_from_request_path};
+pub use manabrew_art_cache::cards::{parse_request, CacheRequest};
 pub use manabrew_art_cache::{
     cancel_download, key_from_request_path, key_from_url, mime_for, CacheStats, CardStore,
     ImageCache, PreseedResult, CACHE_DIR,
@@ -69,9 +69,10 @@ pub async fn download_all_card_art(
             let _ = app.emit("card-art:progress", progress);
         })
         .await;
-    // No card carries the set list, and every set symbol and editor filter
-    // waits on it. Best effort: the art is the long job and the reason to wait.
+    // No card record carries either of these, and the art is the long job and
+    // the reason to wait, so both are best effort at the end of it.
     let _ = cache.store_sets().await;
+    let _ = cache.download_rulings().await;
     result
 }
 

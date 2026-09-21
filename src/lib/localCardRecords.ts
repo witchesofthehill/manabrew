@@ -1,7 +1,7 @@
 /**
- * Card records read from a cache instead of `api.scryfall.com`: this machine's
- * own `/scryfall-card/`, then the host on this network that already downloaded
- * them.
+ * What a cache can answer once `api.scryfall.com` cannot be reached: this
+ * machine's own `/scryfall-card/`, then the host on this network that already
+ * downloaded the cards.
  *
  * A cache of pictures alone cannot be drawn. Every image url the app knows
  * comes out of a Scryfall record, so with no internet a full cache still has
@@ -11,9 +11,9 @@
  * Only ever a fallback: Scryfall is authoritative and fresher, and while it
  * answers nothing here is consulted.
  */
-import type { ScryfallCard, ScryfallSet } from "@/types/scryfall";
+import type { ScryfallCard, ScryfallRulingsResponse, ScryfallSet } from "@/types/scryfall";
 import { cardDataCached } from "@/api/cardArtCache";
-import { lanCardUrl, lanSetsUrl } from "@/lib/lanCache";
+import { lanCacheUrl } from "@/lib/lanCache";
 import { localCardArtRouteAvailable } from "@/lib/scryfallImageSource";
 import { getPlatformType } from "@/platform";
 
@@ -31,8 +31,8 @@ async function localRoute(path: string): Promise<string | null> {
   return path;
 }
 
-async function readNearest<T>(local: string | null, lan: string | null): Promise<T | null> {
-  for (const url of [local, lan]) {
+async function readNearest<T>(path: string): Promise<T | null> {
+  for (const url of [await localRoute(path), lanCacheUrl(path)]) {
     if (!url) continue;
     try {
       const response = await fetch(url);
@@ -45,18 +45,46 @@ async function readNearest<T>(local: string | null, lan: string | null): Promise
 }
 
 /** The record for one exact name, from the nearest machine that has it. */
-export async function localCardRecord(name: string): Promise<ScryfallCard | null> {
-  const path = `/scryfall-card/${encodeURIComponent(name)}`;
-  return readNearest<ScryfallCard>(await localRoute(path), lanCardUrl(name));
+export function localCardRecord(name: string): Promise<ScryfallCard | null> {
+  return readNearest<ScryfallCard>(`/scryfall-card/${encodeURIComponent(name)}`);
+}
+
+/**
+ * One exact printing. A cache keeps the printing it was given — the one the
+ * every-card download chose, or the one a deck carried — so this answers for a
+ * deck whose art was downloaded and misses otherwise.
+ */
+export function localPrintingRecord(
+  set: string,
+  collectorNumber: string,
+): Promise<ScryfallCard | null> {
+  return readNearest<ScryfallCard>(
+    `/scryfall-card/${encodeURIComponent(set)}/${encodeURIComponent(collectorNumber)}`,
+  );
 }
 
 /** The set list, which no card record carries and every set symbol waits on. */
 export async function localSets(): Promise<ScryfallSet[] | null> {
-  const list = await readNearest<{ data: ScryfallSet[] }>(
-    await localRoute("/scryfall-sets"),
-    lanSetsUrl(),
-  );
+  const list = await readNearest<{ data: ScryfallSet[] }>("/scryfall-sets");
   return list?.data ?? null;
+}
+
+export function localRulings(oracleId: string): Promise<ScryfallRulingsResponse | null> {
+  return readNearest<ScryfallRulingsResponse>(`/scryfall-rulings/${encodeURIComponent(oracleId)}`);
+}
+
+let names: Promise<string[] | null> | null = null;
+
+/**
+ * Every name the cache holds. A name-keyed cache cannot be searched, so this is
+ * what lets a client match a misspelling or a partial title itself. Read once
+ * and kept: it is one list of 38k strings and every miss would refetch it.
+ */
+export function localCardNames(): Promise<string[] | null> {
+  names ??= readNearest<string[]>("/scryfall-names").then((list) =>
+    Array.isArray(list) && list.length > 0 ? list : null,
+  );
+  return names;
 }
 
 export async function localCardRecords(names: string[]): Promise<Map<string, ScryfallCard>> {

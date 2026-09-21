@@ -395,10 +395,9 @@ impl ImageCache {
                     stack.push(path);
                     continue;
                 }
-                if path
-                    .file_name()
-                    .is_some_and(|n| n == PINNED_FILE || n == cards::SETS_FILE)
-                {
+                if path.file_name().is_some_and(|name| {
+                    name == PINNED_FILE || cards::NON_ART_FILES.iter().any(|f| name == *f)
+                }) {
                     continue;
                 }
                 let partial = path.extension().is_some_and(|e| e == "part");
@@ -500,6 +499,7 @@ pub fn mime_for(key: &str) -> &'static str {
 
 const BULK_INDEX_URL: &str = "https://api.scryfall.com/bulk-data/oracle-cards";
 const SETS_URL: &str = "https://api.scryfall.com/sets";
+const RULINGS_INDEX_URL: &str = "https://api.scryfall.com/bulk-data/rulings";
 
 /// Downloading every card is a long job somebody can change their mind about.
 static CANCEL_BULK: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -552,6 +552,7 @@ impl ImageCache {
 
         let reader = std::io::BufReader::new(flate2::read::GzDecoder::new(&body[..]));
         let mut urls = Vec::new();
+        let mut names = Vec::new();
         let store = cards::CardStore::new(&self.root);
         for line in std::io::BufRead::lines(reader) {
             let Ok(line) = line else { break };
@@ -559,6 +560,9 @@ impl ImageCache {
                 continue;
             };
             let _ = store.store(&line, &card);
+            if let Some(name) = card.get("name").and_then(|n| n.as_str()) {
+                names.push(name.to_string());
+            }
             // A double-faced card carries its art per face rather than at the
             // top level, and both faces get drawn.
             let faces = card
@@ -574,7 +578,79 @@ impl ImageCache {
                 }
             }
         }
+        // A name-keyed cache cannot be searched, so the list of names is what
+        // lets a client offline match a misspelling or a partial title itself.
+        let _ = self.store_names(&names);
         Ok(urls)
+    }
+
+    fn store_names(&self, names: &[String]) -> Result<(), String> {
+        let body = serde_json::to_vec(names).map_err(|e| e.to_string())?;
+        self.store_beside(cards::NAMES_FILE, &body)
+    }
+
+    pub fn read_names(&self) -> Option<Vec<u8>> {
+        std::fs::read(self.root.join(cards::NAMES_FILE)).ok()
+    }
+
+    fn store_beside(&self, file: &str, body: &[u8]) -> Result<(), String> {
+        std::fs::create_dir_all(&self.root).map_err(|e| e.to_string())?;
+        let path = self.root.join(file);
+        let temp = path.with_extension("part");
+        std::fs::write(&temp, body).map_err(|e| e.to_string())?;
+        std::fs::rename(&temp, &path).map_err(|e| e.to_string())
+    }
+
+    /// Every ruling Scryfall has, grouped the way a card asks for them. Its own
+    /// bulk file: no card record carries its rulings.
+    pub async fn download_rulings(&self) -> Result<usize, String> {
+        #[derive(serde::Deserialize)]
+        struct Index {
+            download_uri: String,
+        }
+        let index: Index = self
+            .api_request(RULINGS_INDEX_URL)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?
+            .json()
+            .await
+            .map_err(|e| e.to_string())?;
+        let rulings: Vec<serde_json::Value> = self
+            .api_request(&index.download_uri)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?
+            .json()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let mut by_oracle: std::collections::HashMap<String, Vec<serde_json::Value>> =
+            std::collections::HashMap::new();
+        for ruling in rulings {
+            let Some(oracle_id) = ruling.get("oracle_id").and_then(|id| id.as_str()) else {
+                continue;
+            };
+            by_oracle
+                .entry(oracle_id.to_string())
+                .or_default()
+                .push(ruling);
+        }
+
+        let store = cards::CardStore::new(&self.root);
+        let mut written = 0;
+        for (oracle_id, data) in by_oracle {
+            // Shaped like the api's answer, so the client parses one thing.
+            let body = serde_json::json!({ "object": "list", "has_more": false, "data": data });
+            if store
+                .store_rulings(&oracle_id, &body.to_string())
+                .map(|()| true)
+                .unwrap_or(false)
+            {
+                written += 1;
+            }
+        }
+        Ok(written)
     }
 
     /// The set list, which the editor, the filters and every set symbol wait
@@ -589,11 +665,7 @@ impl ImageCache {
             .await
             .map_err(|e| e.to_string())?;
         serde_json::from_slice::<serde_json::Value>(&body).map_err(|e| e.to_string())?;
-        std::fs::create_dir_all(&self.root).map_err(|e| e.to_string())?;
-        let path = self.root.join(cards::SETS_FILE);
-        let temp = path.with_extension("part");
-        std::fs::write(&temp, &body).map_err(|e| e.to_string())?;
-        std::fs::rename(&temp, &path).map_err(|e| e.to_string())
+        self.store_beside(cards::SETS_FILE, &body)
     }
 
     pub fn read_sets(&self) -> Option<Vec<u8>> {

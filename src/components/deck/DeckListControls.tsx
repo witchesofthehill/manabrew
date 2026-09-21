@@ -13,27 +13,34 @@ import type { SortBy } from "@/views/myDecks.utils";
 import { MANA_LETTERS, type ManaLetter } from "@/themes/gameTheme";
 import { manaSymbolUrl } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
-
 type Color = ManaLetter;
-
 const COLOR_LABEL: Record<Color, string> = {
-  W: "White",
-  U: "Blue",
-  B: "Black",
-  R: "Red",
-  G: "Green",
-  C: "Colorless",
+  W: `White`,
+  U: `Blue`,
+  B: `Black`,
+  R: `Red`,
+  G: `Green`,
+  C: `Colorless`,
 };
-
-const SORT_OPTIONS: { value: SortBy; label: string }[] = [
-  { value: "name", label: "A→Z" },
-  { value: "color", label: "Color" },
-  { value: "updated", label: "Date" },
+const SORT_OPTIONS: {
+  value: SortBy;
+  label: string;
+}[] = [
+  {
+    value: "name",
+    label: `A\u2192Z`,
+  },
+  {
+    value: "color",
+    label: `Color`,
+  },
+  {
+    value: "updated",
+    label: `Date`,
+  },
 ];
-
 const SELECT_CLS =
   "h-6 text-xs pointer-coarse:h-9 pointer-coarse:text-base rounded border bg-background px-1 cursor-pointer flex-1 min-w-0";
-
 interface DeckListControlsProps {
   search: string;
   onSearchChange: (v: string) => void;
@@ -44,7 +51,6 @@ interface DeckListControlsProps {
   sortBy: SortBy;
   onSortChange: (v: SortBy) => void;
 }
-
 export function DeckListControls({
   search,
   onSearchChange,
@@ -56,20 +62,18 @@ export function DeckListControls({
   onSortChange,
 }: DeckListControlsProps) {
   const hasActiveFilters = search || formatFilter || colorFilter.length > 0;
-
   function clearAll() {
     onSearchChange("");
     onFormatChange("");
     colorFilter.forEach(onColorToggle);
   }
-
   return (
     <div className="mt-2 flex shrink-0 items-center gap-1 px-4 py-1.5 sm:px-6 lg:px-8">
       <div className="relative flex-[2] min-w-0">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
         <Input
-          aria-label="Search decks"
-          placeholder="Search…"
+          aria-label={`Search decks`}
+          placeholder={`Search\u2026`}
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           className="h-6 pl-6 pr-5 text-xs"
@@ -77,7 +81,7 @@ export function DeckListControls({
         {search && (
           <button
             type="button"
-            aria-label="Clear deck search"
+            aria-label={`Clear deck search`}
             className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             onClick={() => onSearchChange("")}
           >
@@ -91,8 +95,8 @@ export function DeckListControls({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              aria-label="Filter by format"
-              title="Filter by format"
+              aria-label={`Filter by format`}
+              title={`Filter by format`}
               className={cn(
                 SELECT_CLS,
                 "flex items-center gap-1 justify-between hover:bg-muted/40",
@@ -123,9 +127,9 @@ export function DeckListControls({
 
         <select
           value={sortBy}
-          aria-label="Sort decks"
+          aria-label={`Sort decks`}
           onChange={(e) => onSortChange(e.target.value as SortBy)}
-          title="Sort order"
+          title={`Sort order`}
           className={SELECT_CLS}
         >
           {SORT_OPTIONS.map((o) => (
@@ -147,7 +151,7 @@ export function DeckListControls({
               className={cn(
                 "h-4 w-4 rounded-full border-2 transition-all overflow-hidden shrink-0 focus:outline-none pointer-coarse:h-6 pointer-coarse:w-6",
                 active
-                  ? "border-primary scale-110"
+                  ? "border-selection scale-110"
                   : "border-transparent opacity-40 hover:opacity-70",
               )}
             >
@@ -159,8 +163,8 @@ export function DeckListControls({
         {hasActiveFilters && (
           <button
             type="button"
-            aria-label="Clear all filters"
-            title="Clear all filters"
+            aria-label={`Clear all filters`}
+            title={`Clear all filters`}
             onClick={clearAll}
             className="shrink-0 text-muted-foreground hover:text-foreground"
           >

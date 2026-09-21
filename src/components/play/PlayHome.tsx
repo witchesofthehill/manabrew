@@ -14,24 +14,22 @@ import { relayUsername } from "@/lib/relayUsername";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useServerStore } from "@/stores/useServerStore";
-
 const MODES = [
   {
     to: ROUTES.PLAY_OFFLINE_CONSTRUCTED,
-    label: "Play Offline",
+    label: `Play Offline`,
     desc: "Choose your decks and play against the AI at your own pace.",
     icon: Swords,
     tone: "primary",
   },
   {
     to: ROUTES.LOBBY,
-    label: "Multiplayer",
+    label: `Multiplayer`,
     desc: "Join an open table or create a room for your group.",
     icon: Users,
-    tone: "sky",
+    tone: "secondary",
   },
 ];
-
 export function PlayHome() {
   const { quickPlay, quickPlayPreset, quickPlayCommunity, pendingDeckId, playersDialog } =
     useQuickPlay();
@@ -42,13 +40,10 @@ export function PlayHome() {
   const connectionError = useServerStore((state) => state.error);
   const rooms = useServerStore((state) => state.rooms);
   const players = useServerStore((state) => state.players);
-  const connect = useServerStore((state) => state.connect);
+  const connectPreferred = useServerStore((state) => state.connectPreferred);
   const listRooms = useServerStore((state) => state.listRooms);
   const listPlayers = useServerStore((state) => state.listPlayers);
-  const serverHost = usePreferencesStore((state) => state.serverHost);
-  const serverPort = usePreferencesStore((state) => state.serverPort);
   const serverUsername = usePreferencesStore((state) => state.serverUsername);
-  const serverPassword = usePreferencesStore((state) => state.serverPassword);
   const accountHandle = useAuthStore((s) =>
     s.status === "signedIn" ? (s.account?.handle ?? null) : null,
   );
@@ -58,25 +53,20 @@ export function PlayHome() {
       ? `${openTables} ${openTables === 1 ? "table" : "tables"} open · ${players.length} online`
       : null;
   const communityEnabled = isFeatureEnabled("deckHub");
-
   useEffect(() => {
     const name = relayUsername();
     if (!resumePending && !connected && !connecting && !connectionError && name) {
-      connect(serverHost, serverPort, name, serverPassword);
+      void connectPreferred(name);
     }
   }, [
-    connect,
+    connectPreferred,
     connected,
     connecting,
     connectionError,
     resumePending,
-    serverHost,
-    serverPort,
     serverUsername,
-    serverPassword,
     accountHandle,
   ]);
-
   useEffect(() => {
     if (!connected || resumePending) return;
     listRooms();
@@ -87,7 +77,6 @@ export function PlayHome() {
     }, 5000);
     return () => clearInterval(id);
   }, [connected, listPlayers, listRooms, resumePending]);
-
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
       <div className="relative z-10 h-full overflow-y-auto">
@@ -113,7 +102,7 @@ export function PlayHome() {
               resumePending && "hidden",
             )}
           >
-            <section aria-label="Play modes" className="grid gap-4 md:grid-cols-2">
+            <section aria-label={`Play modes`} className="grid gap-4 md:grid-cols-2">
               {MODES.map(({ to, label, desc, icon, tone }) => (
                 <FeatureTile
                   key={to}
@@ -158,7 +147,7 @@ export function PlayHome() {
             >
               <FeatureTile
                 to={ROUTES.HUB}
-                label="Explore community decks"
+                label={`Explore community decks`}
                 desc="Browse complete decklists, discover popular builds, and save a version to your collection."
                 icon={LibraryBig}
                 tone="community"

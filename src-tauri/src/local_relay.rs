@@ -83,7 +83,11 @@ pub async fn start_local_relay(
         // Bound to the one interface the neighbours are on rather than every
         // interface this machine has, so sharing a room on a home network does
         // not also open a lobby on whatever else the machine is attached to.
-        let lan_host = if share_on_lan { lan_address() } else { None };
+        let lan_host = if share_on_lan {
+            crate::lan_discovery::lan_address().map(|ip| ip.to_string())
+        } else {
+            None
+        };
         let bind_ip = match &lan_host {
             Some(host) => host.parse().unwrap_or(std::net::IpAddr::from([0, 0, 0, 0])),
             None => std::net::IpAddr::from([127, 0, 0, 1]),
@@ -106,14 +110,32 @@ pub async fn start_local_relay(
                 .collect()
         };
 
-        let state = Arc::new(manabrew_server::state::ServerState::new(
-            password.clone(),
-            4,
-            None,
-            manabrew_server::analytics::AnalyticsHandle::disabled(),
-            None,
-            None,
-        ));
+        // Only while sharing: art is world-readable to the subnet, which is a
+        // different trust decision from the password-gated relay.
+        let art = lan_host
+            .as_ref()
+            .and_then(|_| crate::image_cache::cache())
+            .and_then(|cache| manabrew_art_cache::ArtServer::spawn(bind_ip, cache));
+
+        let state = Arc::new(
+            manabrew_server::state::ServerState::new(
+                password.clone(),
+                4,
+                None,
+                manabrew_server::analytics::AnalyticsHandle::disabled(),
+                None,
+                None,
+            )
+            // Said on the socket as well as over mDNS, so a guest who typed
+            // this machine's address rather than discovering it reads the cache
+            // too.
+            .with_art_base_url(
+                lan_host
+                    .as_ref()
+                    .zip(art.as_ref())
+                    .map(|(host, art)| format!("http://{host}:{}", art.port)),
+            ),
+        );
         let shutdown = Arc::new(tokio::sync::Notify::new());
         let health_addr = std::net::SocketAddr::from(([127, 0, 0, 1], 0));
         let handle = tauri::async_runtime::spawn(manabrew_server::server::serve(
@@ -124,12 +146,6 @@ pub async fn start_local_relay(
             shutdown.clone(),
         ));
 
-        // Only while sharing: art is world-readable to the subnet, which is a
-        // different trust decision from the password-gated relay.
-        let art = lan_host
-            .as_ref()
-            .and_then(|_| crate::image_cache::cache())
-            .and_then(|cache| manabrew_art_cache::ArtServer::spawn(bind_ip, cache));
         let info = LocalRelayInfo {
             host: lan_host.clone().unwrap_or_else(|| "127.0.0.1".to_string()),
             port,
@@ -166,18 +182,6 @@ pub async fn start_local_relay(
         });
         Ok(info)
     }
-}
-
-/// This machine's address on the local network. Opening a UDP socket toward a
-/// routable address picks the interface the kernel would use without sending
-/// anything, which is the only portable way to answer "which of my addresses do
-/// my neighbours see".
-#[cfg(feature = "forge-room")]
-fn lan_address() -> Option<String> {
-    let socket = std::net::UdpSocket::bind(("0.0.0.0", 0)).ok()?;
-    socket.connect(("192.168.1.1", 80)).ok()?;
-    let addr = socket.local_addr().ok()?.ip();
-    (!addr.is_loopback() && !addr.is_unspecified()).then(|| addr.to_string())
 }
 
 #[tauri::command]

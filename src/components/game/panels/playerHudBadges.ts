@@ -2,7 +2,6 @@ import type { GameThemeColors } from "@/themes/gameTheme";
 import type { PlayerHudBadge } from "@/pixi/hud/playerHud.types";
 import type { ZoneTileSpec } from "@/pixi/board/BoardZoneTiles";
 import { ZONE_BADGES, zoneBadgeId } from "@/components/game/game.constants";
-
 export interface PlayerHudBadgeFlags {
   isMonarch: boolean;
   hasInitiative: boolean;
@@ -17,7 +16,6 @@ export interface PlayerHudBadgeFlags {
   speed: number;
   handCount: number;
 }
-
 /** Mirrors the legacy React `PlayerPanel` badge list: which player/game badges
  *  surface, in what order, with which theme colour. Pure — no React, no theme
  *  hook — so the Pixi HUD and any preview share one source of truth. */
@@ -30,24 +28,29 @@ export function buildPlayerHudBadges(
     id: "hand",
     icon: "card-pickup",
     color: badges.hand,
-    label: "Cards in Hand",
+    label: `Cards in Hand`,
     count: f.handCount,
   });
   if (f.isMonarch)
-    out.push({ id: "monarch", icon: "crown", color: badges.monarch, label: "Monarch" });
+    out.push({
+      id: "monarch",
+      icon: "crown",
+      color: badges.monarch,
+      label: `Monarch`,
+    });
   if (f.hasInitiative)
     out.push({
       id: "initiative",
       icon: "rolled-cloth",
       color: badges.initiative,
-      label: "Initiative",
+      label: `Initiative`,
     });
   if (f.poison > 0)
     out.push({
       id: "poison",
       icon: "poison-bottle",
       color: badges.poison,
-      label: "Poison Counters",
+      label: `Poison Counters`,
       count: f.poison,
     });
   if (f.energy > 0)
@@ -55,7 +58,7 @@ export function buildPlayerHudBadges(
       id: "energy",
       icon: "lightning-trio",
       color: badges.energy,
-      label: "Energy Counters",
+      label: `Energy Counters`,
       count: f.energy,
     });
   if (f.radiation > 0)
@@ -63,7 +66,7 @@ export function buildPlayerHudBadges(
       id: "radiation",
       icon: "radioactive",
       color: badges.radiation,
-      label: "Radiation Counters",
+      label: `Radiation Counters`,
       count: f.radiation,
     });
   if (f.experience > 0)
@@ -71,7 +74,7 @@ export function buildPlayerHudBadges(
       id: "experience",
       icon: "star-medal",
       color: badges.experience,
-      label: "Experience Counters",
+      label: `Experience Counters`,
       count: f.experience,
     });
   if (f.ticket > 0)
@@ -79,7 +82,7 @@ export function buildPlayerHudBadges(
       id: "ticket",
       icon: "ticket",
       color: badges.ticket,
-      label: "Ticket Counters",
+      label: `Ticket Counters`,
       count: f.ticket,
     });
   if (f.cityBlessing)
@@ -87,21 +90,21 @@ export function buildPlayerHudBadges(
       id: "city-blessing",
       icon: "stone-tower",
       color: badges.cityBlessing,
-      label: "City's Blessing",
+      label: `City's Blessing`,
     });
   if (f.enduringStory)
     out.push({
       id: "enduring-story",
       icon: "scroll-unfurled",
       color: badges.enduringStory,
-      label: "An Enduring Story",
+      label: `An Enduring Story`,
     });
   if (f.ringLevel > 0)
     out.push({
       id: "ring",
       icon: "ring",
       color: badges.ring,
-      label: "The Ring tempts you",
+      label: `The Ring tempts you`,
       count: f.ringLevel,
     });
   if (f.speed > 0)
@@ -109,12 +112,11 @@ export function buildPlayerHudBadges(
       id: "speed",
       icon: "speedometer",
       color: badges.speed,
-      label: "Speed",
+      label: `Speed`,
       count: f.speed,
     });
   return out;
 }
-
 export function buildZoneBadges(tiles: ZoneTileSpec[], fallbackColor: string): PlayerHudBadge[] {
   return tiles.flatMap((t) => {
     const badge = ZONE_BADGES[t.key];

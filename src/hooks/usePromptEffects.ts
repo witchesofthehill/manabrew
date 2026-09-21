@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { usePhaseStopStore, getNextStop, getEndTurnStop } from "@/stores/usePhaseStopStore";
 import type { Prompt, PromptOutput, PassUntil } from "@/protocol";
 import { passOutput } from "@/components/prompts/internal/playerActions";
@@ -67,12 +67,8 @@ export function usePromptEffects({
     pass(target ? { ...target, throughCombat: true } : null);
   }, [currentPrompt, gameView, isWaitingForResponse, pass, myPlayerId]);
 
-  const [spellStackModalOpen, setSpellStackModalOpen] = useState(false);
-
   return {
     unifiedPass,
     unifiedPassEndTurn,
-    spellStackModalOpen,
-    setSpellStackModalOpen,
   };
 }

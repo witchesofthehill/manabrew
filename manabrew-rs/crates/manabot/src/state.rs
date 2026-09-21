@@ -1,3 +1,4 @@
+use manabrew_agent_interface::game_view_dto::GameViewDto;
 use manabrew_agent_interface::ids_codec::player_slot;
 use manabrew_agent_interface::prompt::AgentPrompt;
 use manabrew_agent_interface::protocol::{
@@ -5,8 +6,9 @@ use manabrew_agent_interface::protocol::{
     StateEnvelope,
 };
 use manabrew_protocol::deck_dto::Deck;
+use manabrew_relay_protocol::state_delta;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 use tracing::{debug, warn};
 
 use crate::agent::{AgentKind, BotAgent};
@@ -58,11 +60,21 @@ enum Phase {
     Failed,
 }
 
+/// Last full state, the base for the next `stateDelta`.
+struct Board {
+    state: Value,
+    fingerprint: Option<String>,
+    /// `forPlayer` was our slot, not the observer broadcast.
+    addressed: bool,
+}
+
 pub struct BotState {
     config: BotConfig,
     agent: Box<dyn BotAgent + Send>,
     phase: Phase,
     failure: Option<String>,
+    board: Option<Board>,
+    resync_pending: bool,
 }
 
 fn unix_now() -> i64 {
@@ -97,11 +109,18 @@ impl BotState {
 
     pub fn new(config: BotConfig) -> Self {
         let agent = config.agent.build();
+        Self::with_agent(config, agent)
+    }
+
+    /// Custom agent; `config.agent` is ignored.
+    pub fn with_agent(config: BotConfig, agent: Box<dyn BotAgent + Send>) -> Self {
         Self {
             config,
             agent,
             phase: Phase::PendingOpen,
             failure: None,
+            board: None,
+            resync_pending: false,
         }
     }
 
@@ -213,6 +232,60 @@ impl BotState {
         Vec::new()
     }
 
+    /// `Some(addressed)` if this state is ours to keep. The observer broadcast
+    /// (no `forPlayer`, all hands hidden) only counts until an addressed state
+    /// arrives (#959).
+    fn accepts_board(&self, player_slot: &str, for_player: Option<&str>) -> Option<bool> {
+        match for_player {
+            Some(slot) if slot == player_slot => Some(true),
+            Some(other) => {
+                bot_log(&format!("ignore: state for other slot ({other})"));
+                None
+            }
+            None if self.board.as_ref().is_some_and(|board| board.addressed) => {
+                bot_log("ignore: observer state, seat already has its own view");
+                None
+            }
+            None => Some(false),
+        }
+    }
+
+    fn observe_board(&mut self, state: Value, fingerprint: Option<String>, addressed: bool) {
+        if let Some(view) = state
+            .get("gameView")
+            .cloned()
+            .and_then(|view| serde_json::from_value::<GameViewDto>(view).ok())
+        {
+            self.agent.observe(view);
+        }
+        self.board = Some(Board {
+            state,
+            fingerprint,
+            addressed,
+        });
+    }
+
+    /// Patch base does not match what we hold: ask for a full state, once.
+    fn request_resync(&mut self, base: &str) -> Vec<ClientMessage> {
+        let held = self
+            .board
+            .as_ref()
+            .and_then(|board| board.fingerprint.as_deref())
+            .unwrap_or("none");
+        if self.resync_pending {
+            bot_log(&format!(
+                "DROP: patch base {base} != held {held}; resync pending"
+            ));
+            return Vec::new();
+        }
+        warn!(
+            base,
+            held, "state patch does not apply to the board held; requesting resync"
+        );
+        self.resync_pending = true;
+        vec![ClientMessage::RequestResync]
+    }
+
     fn handle_envelope(
         &mut self,
         player_slot: &str,
@@ -226,6 +299,41 @@ impl BotState {
                 ));
                 return Vec::new();
             }
+        };
+        let envelope = match envelope {
+            StateEnvelope::State {
+                for_player,
+                state,
+                fingerprint,
+                ..
+            } => {
+                let Some(addressed) = self.accepts_board(player_slot, for_player.as_deref()) else {
+                    return Vec::new();
+                };
+                self.resync_pending = false;
+                self.observe_board(state, fingerprint, addressed);
+                return Vec::new();
+            }
+            StateEnvelope::StateDelta {
+                for_player,
+                base,
+                fingerprint,
+                patch,
+                ..
+            } => {
+                let Some(addressed) = self.accepts_board(player_slot, for_player.as_deref()) else {
+                    return Vec::new();
+                };
+                let next = match &self.board {
+                    Some(board) if board.fingerprint.as_deref() == Some(base.as_str()) => {
+                        state_delta::apply(&board.state, &patch)
+                    }
+                    _ => return self.request_resync(&base),
+                };
+                self.observe_board(next, Some(fingerprint), addressed);
+                return Vec::new();
+            }
+            envelope => envelope,
         };
         let StateEnvelope::Prompt {
             for_player, prompt, ..
@@ -300,5 +408,155 @@ impl BotState {
                 Vec::new()
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use manabrew_agent_interface::prompt::PromptOutput;
+    use manabrew_protocol::game::{CardDto, CardView, ZoneDto, ZoneKind};
+    use std::sync::{Arc, Mutex};
+
+    /// (turn, cards in our hand) per observed board.
+    type Seen = Arc<Mutex<Vec<(u32, usize)>>>;
+
+    #[derive(Default)]
+    struct Recorder(Seen);
+
+    impl BotAgent for Recorder {
+        fn observe(&mut self, view: GameViewDto) {
+            let hand = view
+                .zones
+                .iter()
+                .find(|zone| zone.zone == ZoneKind::Hand && zone.owner_id == "player-0")
+                .map_or(0, |zone| zone.cards.len());
+            self.0.lock().unwrap().push((view.turn, hand));
+        }
+        fn decide(&mut self, _prompt: AgentPrompt) -> Option<PromptOutput> {
+            None
+        }
+    }
+
+    fn bot() -> (BotState, Seen) {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let config: BotConfig = serde_json::from_value(json!({
+            "username": "bot", "password": "", "roomId": "room",
+            "deckName": "deck", "deck": { "name": "deck", "cards": [] },
+        }))
+        .expect("a bot config");
+        let mut state = BotState::with_agent(config, Box::new(Recorder(seen.clone())));
+        state.phase = Phase::Playing {
+            player_slot: "player-0".into(),
+        };
+        (state, seen)
+    }
+
+    /// Seven cards in hand, listed or hidden.
+    fn board(turn: u32, hand_visible: bool) -> Value {
+        let cards = if hand_visible {
+            (0..7)
+                .map(|i| {
+                    CardView::Visible(CardDto {
+                        id: format!("card-{i}"),
+                        ..CardDto::default()
+                    })
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let view = GameViewDto {
+            turn,
+            zones: vec![ZoneDto {
+                zone: ZoneKind::Hand,
+                owner_id: "player-0".into(),
+                cards,
+                count: 7,
+            }],
+            ..GameViewDto::default()
+        };
+        json!({ "gameView": view })
+    }
+
+    fn full(for_player: Option<&str>, state: Value) -> Value {
+        json!({
+            "kind": "state",
+            "forPlayer": for_player,
+            "fingerprint": state_delta::fingerprint(&state),
+            "state": state,
+        })
+    }
+
+    fn patch(for_player: Option<&str>, previous: &Value, next: &Value) -> Value {
+        json!({
+            "kind": "stateDelta",
+            "forPlayer": for_player,
+            "base": state_delta::fingerprint(previous),
+            "fingerprint": state_delta::fingerprint(next),
+            "patch": state_delta::diff(previous, next).expect("the boards differ"),
+        })
+    }
+
+    fn recv(state: &mut BotState, envelope: Value) -> Vec<ClientMessage> {
+        state.on_server_message(&ServerMessage::StateUpdate {
+            from_player: "host".into(),
+            state: envelope,
+        })
+    }
+
+    #[test]
+    fn keeps_its_own_view_over_the_observer_broadcast() {
+        let (mut bot, seen) = bot();
+        recv(&mut bot, full(Some("player-0"), board(1, true)));
+        recv(&mut bot, full(None, board(1, false)));
+        assert_eq!(*seen.lock().unwrap(), vec![(1, 7)]);
+    }
+
+    #[test]
+    fn takes_the_observer_broadcast_until_addressed() {
+        let (mut bot, seen) = bot();
+        recv(&mut bot, full(None, board(1, false)));
+        recv(&mut bot, full(Some("player-0"), board(1, true)));
+        recv(&mut bot, full(None, board(2, false)));
+        assert_eq!(*seen.lock().unwrap(), vec![(1, 0), (1, 7)]);
+    }
+
+    #[test]
+    fn applies_a_patch_to_the_board_it_holds() {
+        let (mut bot, seen) = bot();
+        let (turn1, turn2) = (board(1, true), board(2, true));
+        recv(&mut bot, full(Some("player-0"), turn1.clone()));
+        let out = recv(&mut bot, patch(Some("player-0"), &turn1, &turn2));
+        assert!(out.is_empty());
+        assert_eq!(*seen.lock().unwrap(), vec![(1, 7), (2, 7)]);
+        assert_eq!(bot.board.as_ref().unwrap().state, turn2);
+    }
+
+    #[test]
+    fn asks_for_a_resync_once_when_a_patch_does_not_apply() {
+        let (mut bot, seen) = bot();
+        let (turn1, turn2, turn3) = (board(1, true), board(2, true), board(3, true));
+        recv(&mut bot, full(Some("player-0"), turn1.clone()));
+        let out = recv(&mut bot, patch(Some("player-0"), &turn2, &turn3));
+        assert!(matches!(out.as_slice(), [ClientMessage::RequestResync]));
+        let out = recv(&mut bot, patch(Some("player-0"), &turn2, &turn3));
+        assert!(out.is_empty());
+        assert_eq!(*seen.lock().unwrap(), vec![(1, 7)]);
+        recv(&mut bot, full(Some("player-0"), turn3.clone()));
+        let turn4 = board(4, true);
+        let out = recv(&mut bot, patch(Some("player-0"), &turn3, &turn4));
+        assert!(out.is_empty());
+        assert_eq!(*seen.lock().unwrap(), vec![(1, 7), (3, 7), (4, 7)]);
+    }
+
+    #[test]
+    fn ignores_observer_patches_once_addressed() {
+        let (mut bot, seen) = bot();
+        let (obs1, obs2) = (board(1, false), board(2, false));
+        recv(&mut bot, full(Some("player-0"), board(1, true)));
+        let out = recv(&mut bot, patch(None, &obs1, &obs2));
+        assert!(out.is_empty());
+        assert_eq!(*seen.lock().unwrap(), vec![(1, 7)]);
     }
 }

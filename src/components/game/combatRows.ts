@@ -1,10 +1,12 @@
 import type { CardDto, CombatAssignmentDto } from "@/protocol/game";
+import type { CombatRowTarget } from "@/pixi/types";
 
 export interface CombatRow {
   defenderId: string;
   attackerIds: string[];
   groups: { controllerId: string; attackerIds: string[] }[];
   blocks: CombatAssignmentDto[];
+  targets: CombatRowTarget[];
 }
 
 export interface CombatRowInput {
@@ -20,17 +22,21 @@ export interface CombatRowInput {
 export function buildCombatRows(input: CombatRowInput): CombatRow[] {
   const { battlefield, combatAssignments, playerIds, pendingAttacks } = input;
   const players = new Set(playerIds);
-  const controllerById = new Map<string, string>();
-  for (const c of battlefield) controllerById.set(c.id, c.controllerId);
+  const controllerById = new Map(battlefield.map((card) => [card.id, card.controllerId]));
 
   const defenderOf = (targetId: string): string | undefined =>
     players.has(targetId) ? targetId : controllerById.get(targetId);
+  const targetOf = (attackerId: string, targetId: string): CombatRowTarget => ({
+    attackerId,
+    targetId,
+    targetKind: players.has(targetId) ? "player" : "card",
+  });
 
   const rows = new Map<string, CombatRow>();
   const rowFor = (defenderId: string): CombatRow => {
     let r = rows.get(defenderId);
     if (!r) {
-      r = { defenderId, attackerIds: [], groups: [], blocks: [] };
+      r = { defenderId, attackerIds: [], groups: [], blocks: [], targets: [] };
       rows.set(defenderId, r);
     }
     return r;
@@ -42,7 +48,9 @@ export function buildCombatRows(input: CombatRowInput): CombatRow[] {
     const defenderId = defenderOf(c.attackingPlayerId);
     if (!defenderId) continue;
     attackerDefender.set(c.id, defenderId);
-    rowFor(defenderId).attackerIds.push(c.id);
+    const row = rowFor(defenderId);
+    row.attackerIds.push(c.id);
+    row.targets.push(targetOf(c.id, c.attackTargetId ?? c.attackingPlayerId));
   }
 
   for (const { attackerId, targetId } of pendingAttacks ?? []) {
@@ -50,7 +58,9 @@ export function buildCombatRows(input: CombatRowInput): CombatRow[] {
     const defenderId = defenderOf(targetId);
     if (!defenderId) continue;
     attackerDefender.set(attackerId, defenderId);
-    rowFor(defenderId).attackerIds.push(attackerId);
+    const row = rowFor(defenderId);
+    row.attackerIds.push(attackerId);
+    row.targets.push(targetOf(attackerId, targetId));
   }
 
   for (const a of combatAssignments) {

@@ -21,12 +21,10 @@ import {
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
 import { MANA_COLORS } from "@/stores/useCompanionStore.types";
 import { GameIcon } from "./GameIcon";
-
 interface PlayerMenuProps {
   player: CompanionPlayer;
   onPickCommander: () => void;
 }
-
 export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
   const toggleMonarch = useCompanionStore((s) => s.toggleMonarch);
   const toggleInitiative = useCompanionStore((s) => s.toggleInitiative);
@@ -60,7 +58,6 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
     setPendingConcede(false);
     markDead(player.id, true);
   };
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -68,7 +65,7 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
           variant="ghost"
           size="icon"
           className="size-7 rounded-full bg-black/40 text-white hover:bg-black/55 hover:text-white @md:size-8"
-          aria-label="Player menu"
+          aria-label={`Player menu`}
         >
           <MoreVertical className="size-4 @md:size-5" />
         </Button>
@@ -79,19 +76,19 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => setFirstPlayer(player.id)} disabled={isFirstPlayer}>
           <PlayCircle className="mr-2 size-4" />{" "}
-          {isFirstPlayer ? "Goes first" : "Set as first player"}
+          {isFirstPlayer ? `Goes first` : `Set as first player`}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => toggleMonarch(player.id)}>
           <GameIcon icon="crown" className="mr-2 size-4" />{" "}
-          {player.isMonarch ? "Remove monarch" : "Mark monarch"}
+          {player.isMonarch ? `Remove monarch` : `Mark monarch`}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => toggleInitiative(player.id)}>
           <GameIcon icon="checkered-flag" className="mr-2 size-4" />{" "}
-          {player.hasInitiative ? "Remove initiative" : "Take initiative"}
+          {player.hasInitiative ? `Remove initiative` : `Take initiative`}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => toggleCityBlessing(player.id)}>
           <GameIcon icon="fairy-wand" className="mr-2 size-4" />{" "}
-          {player.hasCityBlessing ? "Lose city's blessing" : "Gain city's blessing"}
+          {player.hasCityBlessing ? `Lose city's blessing` : `Gain city's blessing`}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => cycleRing(player.id)}>
           <GameIcon icon="magic-portal" className="mr-2 size-4" /> The Ring tempts you (
@@ -151,7 +148,7 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
               onSelect={handleConcede}
               className={pendingConcede ? "text-destructive" : undefined}
             >
-              <Flag className="mr-2 size-4" /> {pendingConcede ? "Tap again to concede" : "Concede"}
+              <Flag className="mr-2 size-4" /> {pendingConcede ? `Tap again to concede` : `Concede`}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => markDead(player.id, true)}>
               <UserMinus className="mr-2 size-4" /> Eliminate

@@ -98,6 +98,8 @@ pub fn run() {
             image_cache::download_all_card_art,
             image_cache::cancel_card_art_download,
             image_cache::card_art_cache_stats,
+            image_cache::card_data_cached,
+            image_cache::cache_card_records,
             image_cache::clear_card_art_cache,
             image_cache::forget_downloaded_card_art,
             limited_commands::limited_start_sealed,

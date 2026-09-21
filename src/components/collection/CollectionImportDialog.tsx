@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, ClipboardPaste, FileUp, Loader2, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
-
 import { verifyCardPrintings } from "@/api/hub";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,20 +18,17 @@ import {
   previewCollectionImport,
   type CollectionImportMapping,
 } from "@/lib/collectionImport";
-
 interface CollectionImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImport: (quantities: Record<string, number>, mode: "merge" | "replace") => Promise<void>;
 }
-
 const SOURCE_LABELS = {
-  manabox: "ManaBox",
-  moxfield: "Moxfield",
-  archidekt: "Archidekt",
-  generic: "Custom CSV",
+  manabox: `ManaBox`,
+  moxfield: `Moxfield`,
+  archidekt: `Archidekt`,
+  generic: `Custom CSV`,
 };
-
 function printingValidationKey(
   name: string,
   setCode: string,
@@ -41,7 +37,6 @@ function printingValidationKey(
 ): string {
   return collectionCardKey(name, setCode, collectorNumber, foil);
 }
-
 export function CollectionImportDialog({
   open,
   onOpenChange,
@@ -91,7 +86,6 @@ export function CollectionImportDialog({
       ),
     [exactRows],
   );
-
   useEffect(() => {
     let active = true;
     if (uniqueExactRows.length === 0) {
@@ -151,7 +145,6 @@ export function CollectionImportDialog({
       active = false;
     };
   }, [printingValidationAttempt, uniqueExactRows]);
-
   const validatedPreview = useMemo(
     () =>
       preview.map((row) => {
@@ -185,7 +178,6 @@ export function CollectionImportDialog({
     () => collectionQuantitiesFromPreview(validatedPreview),
     [validatedPreview],
   );
-
   function loadText(nextText: string, nextFileName = "Pasted data") {
     const nextParsed = parseCollectionFile(nextText);
     setText(nextText);
@@ -193,16 +185,14 @@ export function CollectionImportDialog({
     setMapping(nextParsed.mapping);
     setPreviewFilter("all");
   }
-
   async function pasteFromClipboard() {
     try {
       const clipboard = await navigator.clipboard.readText();
       if (clipboard.trim()) loadText(clipboard);
     } catch {
-      toast.error("Couldn't read the clipboard — paste into a file instead");
+      toast.error(`Couldn't read the clipboard \u2014 paste into a file instead`);
     }
   }
-
   async function applyImport() {
     if (Object.keys(imported).length === 0 || saving) return;
     setSaving(true);
@@ -211,12 +201,11 @@ export function CollectionImportDialog({
       toast.success(`Imported ${Object.keys(imported).length} collection entries`);
       resetAndClose();
     } catch {
-      toast.error("Collection import failed");
+      toast.error(`Collection import failed`);
     } finally {
       setSaving(false);
     }
   }
-
   function resetAndClose() {
     setText("");
     setFileName("");
@@ -231,11 +220,9 @@ export function CollectionImportDialog({
     setPreviewFilter("all");
     onOpenChange(false);
   }
-
   function closeDialog() {
     if (!saving) resetAndClose();
   }
-
   return (
     <Dialog
       open={open}
@@ -302,20 +289,20 @@ export function CollectionImportDialog({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <ColumnPicker
-                label="Card name"
+                label={`Card name`}
                 required
                 headers={parsed.headers}
                 value={mapping.nameColumn}
                 onChange={(nameColumn) => setMapping((current) => ({ ...current, nameColumn }))}
               />
               <ColumnPicker
-                label="Set code"
+                label={`Set code`}
                 headers={parsed.headers}
                 value={mapping.setColumn}
                 onChange={(setColumn) => setMapping((current) => ({ ...current, setColumn }))}
               />
               <ColumnPicker
-                label="Collector number"
+                label={`Collector number`}
                 headers={parsed.headers}
                 value={mapping.collectorNumberColumn}
                 onChange={(collectorNumberColumn) =>
@@ -323,16 +310,16 @@ export function CollectionImportDialog({
                 }
               />
               <ColumnPicker
-                label="Foil"
+                label={`Foil`}
                 headers={parsed.headers}
                 value={mapping.foilColumn}
                 onChange={(foilColumn) => setMapping((current) => ({ ...current, foilColumn }))}
               />
               <ColumnPicker
-                label="Quantity"
+                label={`Quantity`}
                 headers={parsed.headers}
                 value={mapping.quantityColumn}
-                noneLabel="Use 1 for every row"
+                noneLabel={`Use 1 for every row`}
                 onChange={(quantityColumn) =>
                   setMapping((current) => ({ ...current, quantityColumn }))
                 }
@@ -372,11 +359,11 @@ export function CollectionImportDialog({
                     : ""}
                 </p>
               )}
-              <div className="flex flex-wrap gap-1" aria-label="Filter import preview">
+              <div className="flex flex-wrap gap-1" aria-label={`Filter import preview`}>
                 <Button
-                  size="sm"
+                  size="xs"
                   variant={previewFilter === "all" ? "secondary" : "ghost"}
-                  className="h-7 px-2.5 text-xs"
+                  className="px-2.5"
                   onClick={() => setPreviewFilter("all")}
                 >
                   All {validatedPreview.length}
@@ -418,10 +405,10 @@ export function CollectionImportDialog({
                         <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
                           {row.setCode && row.collectorNumber
                             ? `${row.setCode.toUpperCase()} #${row.collectorNumber}`
-                            : "Any printing"}
+                            : `Any printing`}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
-                          {row.foil === true ? "Foil" : row.foil === false ? "Non-foil" : "—"}
+                          {row.foil === true ? `Foil` : row.foil === false ? `Non-foil` : "—"}
                         </td>
                         <td className="px-3 py-2 text-right font-mono">
                           {row.valid ? row.quantity : "—"}
@@ -433,14 +420,18 @@ export function CollectionImportDialog({
                               : "px-3 py-2 text-destructive"
                           }
                         >
-                          {row.valid ? "Ready" : row.reason}
+                          {row.valid ? `Ready` : row.reason}
                         </td>
                       </tr>
                     ))}
                     {filteredPreview.length === 0 && (
                       <tr>
                         <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
-                          No {previewFilter === "all" ? "" : `${previewFilter} `}rows to show.
+                          {previewFilter === "all"
+                            ? `No rows to show.`
+                            : previewFilter === "ready"
+                              ? `No ready rows to show.`
+                              : `No skipped rows to show.`}
                         </td>
                       </tr>
                     )}
@@ -460,14 +451,14 @@ export function CollectionImportDialog({
               <div className="grid gap-2 sm:grid-cols-2">
                 <ImportMode
                   checked={mode === "merge"}
-                  title="Add to collection"
-                  description="Add imported quantities to cards you already own."
+                  title={`Add to collection`}
+                  description={`Add imported quantities to cards you already own.`}
                   onChange={() => setMode("merge")}
                 />
                 <ImportMode
                   checked={mode === "replace"}
-                  title="Replace collection"
-                  description="Remove current entries and use only this import."
+                  title={`Replace collection`}
+                  description={`Remove current entries and use only this import.`}
                   onChange={() => setMode("replace")}
                 />
               </div>
@@ -481,6 +472,7 @@ export function CollectionImportDialog({
           </Button>
           {parsed && (
             <Button
+              variant="primary"
               onClick={() => void applyImport()}
               disabled={
                 saving ||
@@ -491,9 +483,9 @@ export function CollectionImportDialog({
             >
               {(saving || validatingPrintings) && <Loader2 className="h-4 w-4 animate-spin" />}
               {saving
-                ? "Importing…"
+                ? `Importing\u2026`
                 : validatingPrintings
-                  ? "Checking printings…"
+                  ? `Checking printings\u2026`
                   : `Import ${Object.keys(imported).length} entries`}
             </Button>
           )}
@@ -502,7 +494,6 @@ export function CollectionImportDialog({
     </Dialog>
   );
 }
-
 function ColumnPicker({
   label,
   required = false,
@@ -538,7 +529,6 @@ function ColumnPicker({
     </label>
   );
 }
-
 function ImportMode({
   checked,
   title,
@@ -551,7 +541,7 @@ function ImportMode({
   onChange: () => void;
 }) {
   return (
-    <label className="flex cursor-pointer gap-3 rounded-lg border p-3 has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+    <label className="flex cursor-pointer gap-3 rounded-lg border p-3 has-[:checked]:border-selection has-[:checked]:bg-selection/10">
       <input type="radio" name="collection-import-mode" checked={checked} onChange={onChange} />
       <span>
         <span className="block text-sm font-medium">{title}</span>

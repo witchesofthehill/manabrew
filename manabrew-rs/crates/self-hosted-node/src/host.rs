@@ -11,7 +11,8 @@ use crate::shell_bridge::{ShellBridge, ShellCommand};
 use crate::updater::{run_stale_monitor, StaleConfig};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
-use manabot::{run_bot, AgentKind, BotConfig};
+use manabot::{run_bot, AgentKind, BotConfig, BotResponder};
+use manabrew_agent_interface::agent_impl::Responder;
 use manabrew_agent_interface::ids_codec::{parse_player_slot, player_slot};
 use manabrew_agent_interface::prompt::{AgentMessage, ClientToServerMessage, PromptOutput};
 use manabrew_agent_interface::protocol::{
@@ -48,17 +49,23 @@ struct RelayClient {
     writer: JoinHandle<()>,
 }
 
+/// Highest prompt id each local bot seat answered; the relay's later copy
+/// of that answer is dropped against it.
+type LocalBotAnswers = Arc<Mutex<HashMap<usize, u32>>>;
+
 enum EngineSession {
     Manabrew {
         game_id: String,
         remote_response_txs: HashMap<usize, std_mpsc::Sender<ClientToServerMessage>>,
         engine_clock: EngineClock,
+        local_bot_answers: LocalBotAnswers,
     },
     Forge {
         game_id: String,
         remote_response_txs: HashMap<usize, std_mpsc::Sender<ClientToServerMessage>>,
         cancel: Arc<AtomicBool>,
         engine_clock: EngineClock,
+        local_bot_answers: LocalBotAnswers,
     },
 }
 
@@ -76,6 +83,41 @@ impl EngineSession {
             EngineSession::Manabrew { engine_clock, .. }
             | EngineSession::Forge { engine_clock, .. } => engine_clock,
         }
+    }
+
+    fn response_tx(&self, player_index: usize) -> Option<&std_mpsc::Sender<ClientToServerMessage>> {
+        match self {
+            EngineSession::Manabrew {
+                remote_response_txs,
+                ..
+            }
+            | EngineSession::Forge {
+                remote_response_txs,
+                ..
+            } => remote_response_txs.get(&player_index),
+        }
+    }
+
+    fn local_bot_answers(&self) -> &LocalBotAnswers {
+        match self {
+            EngineSession::Manabrew {
+                local_bot_answers, ..
+            }
+            | EngineSession::Forge {
+                local_bot_answers, ..
+            } => local_bot_answers,
+        }
+    }
+
+    /// The relay's copy of an answer already given in-process.
+    fn is_local_bot_duplicate(&self, player_index: usize, prompt_id: u32) -> bool {
+        prompt_id != 0
+            && self
+                .local_bot_answers()
+                .lock()
+                .ok()
+                .and_then(|answers| answers.get(&player_index).copied())
+                .is_some_and(|answered| answered >= prompt_id)
     }
 }
 
@@ -1659,6 +1701,7 @@ fn maybe_start_hosted_engine(
                 game_id: game_id.clone(),
                 remote_response_txs,
                 engine_clock: engine_clock.clone(),
+                local_bot_answers: LocalBotAnswers::default(),
             });
             drop(guard);
 
@@ -1671,6 +1714,7 @@ fn maybe_start_hosted_engine(
                 Some(player_names.clone()),
                 config.state_delta,
                 engine_clock,
+                local_bot_seats(config, &player_names, bot_usernames),
             );
             let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(
@@ -1736,6 +1780,7 @@ fn maybe_start_hosted_engine(
                 remote_response_txs,
                 cancel: cancel.clone(),
                 engine_clock: engine_clock.clone(),
+                local_bot_answers: LocalBotAnswers::default(),
             });
             drop(guard);
 
@@ -1748,6 +1793,7 @@ fn maybe_start_hosted_engine(
                 Some(player_names.clone()),
                 config.state_delta,
                 engine_clock,
+                local_bot_seats(config, &player_names, bot_usernames),
             );
             let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(
@@ -2054,6 +2100,13 @@ fn route_remote_response(
         debug!(from_player, "no engine session for relay response");
         return;
     };
+    if session.is_local_bot_duplicate(player_index, prompt_id) {
+        debug!(
+            from_player,
+            prompt_id, "relay response already answered locally"
+        );
+        return;
+    }
     let tx = match session {
         EngineSession::Manabrew {
             remote_response_txs,
@@ -2234,6 +2287,61 @@ fn patch_against_last(
     .ok()
 }
 
+/// This node's own bot seats, answered in-process with the same agent their
+/// relay connection runs. Saves two relay hops per bot decision.
+fn local_bot_seats(
+    config: &Config,
+    player_names: &[String],
+    bot_usernames: &HashSet<String>,
+) -> HashMap<usize, BotResponder> {
+    if !config.bot_enabled || !config.bot_local_answers || config.forge_ai {
+        return HashMap::new();
+    }
+    player_names
+        .iter()
+        .enumerate()
+        .filter(|(_, name)| bot_usernames.contains(*name))
+        .map(|(index, _)| (index, BotResponder::new(AgentKind::Simple.build())))
+        .collect()
+}
+
+/// Answer a bot seat's prompt in-process. State and prompt still go to the
+/// relay; its copy of the answer is dropped on arrival.
+fn answer_bot_locally(
+    session: &EngineSession,
+    snapshot: &SharedHostSnapshot,
+    player_index: usize,
+    bot: &mut BotResponder,
+    message: &AgentMessage,
+) {
+    match message {
+        AgentMessage::State(update) => bot.observe(update.game_view.clone()),
+        AgentMessage::Prompt(prompt) => {
+            let response = bot.respond(prompt.clone());
+            let ClientToServerMessage::Response { prompt_id, .. } = &response else {
+                return;
+            };
+            if let Ok(mut answers) = session.local_bot_answers().lock() {
+                answers.insert(player_index, *prompt_id);
+            }
+            let Some(tx) = session.response_tx(player_index) else {
+                debug!(player_index, "no response channel for local bot");
+                return;
+            };
+            session.engine_clock().mark_response();
+            if let Err(error) = tx.send(response) {
+                warn!(player_index, %error, "failed to route local bot response");
+                return;
+            }
+            if let Ok(mut snap) = snapshot.lock() {
+                snap.pending_prompts.remove(&player_slot(player_index));
+            }
+        }
+        _ => {}
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn spawn_remote_prompt_forwarder(
     outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
     snapshot: SharedHostSnapshot,
@@ -2243,6 +2351,7 @@ fn spawn_remote_prompt_forwarder(
     seat_usernames: Option<Vec<String>>,
     state_delta: bool,
     engine_clock: EngineClock,
+    mut local_bots: HashMap<usize, BotResponder>,
 ) {
     thread::spawn(move || {
         let mut last_state_by_seat: HashMap<usize, Value> = HashMap::new();
@@ -2253,12 +2362,12 @@ fn spawn_remote_prompt_forwarder(
             let Ok(session) = engine_session.lock() else {
                 break;
             };
-            if session
+            let Some(current) = session
                 .as_ref()
-                .is_none_or(|session| session.game_id() != game_id)
-            {
+                .filter(|session| session.game_id() == game_id)
+            else {
                 break;
-            }
+            };
             let per_seat = seat_usernames.is_some() && player_index != OBSERVER_SEAT;
             let slot = player_slot(player_index);
             let engine_ms = engine_clock.elapsed_ms();
@@ -2307,6 +2416,9 @@ fn spawn_remote_prompt_forwarder(
                     }
                     AgentMessage::Display(_) | AgentMessage::Error(_) => {}
                 }
+            }
+            if let Some(bot) = local_bots.get_mut(&player_index) {
+                answer_bot_locally(current, &snapshot, player_index, bot, &message);
             }
             let state = match &message {
                 AgentMessage::State(_) if state_delta => patch_against_last(
@@ -2675,4 +2787,178 @@ fn log_room_update(observer: &str, room: &RoomInfo) {
         players,
         "room update"
     );
+}
+
+#[cfg(test)]
+mod local_bot_tests {
+    use super::*;
+    use manabrew_protocol::prompts::choose_action::ChooseActionInput;
+    use manabrew_protocol::prompts::PromptInput;
+    use manabrew_protocol::transport::AgentPrompt;
+    use std::time::Duration;
+
+    const HUMAN: &str = "alice";
+    const BOT: &str = "forge-bot";
+
+    fn config(bot_enabled: bool, local: bool, forge_ai: bool) -> Config {
+        let mut config = Config::for_hosted_room(
+            "ws://127.0.0.1:1".to_string(),
+            String::new(),
+            "t".to_string(),
+            GameFormat::Any,
+            2,
+            None,
+            None,
+            None,
+        );
+        config.bot_enabled = bot_enabled;
+        config.bot_local_answers = local;
+        config.forge_ai = forge_ai;
+        config
+    }
+
+    fn prompt(seat: usize, prompt_id: u32) -> AgentPrompt {
+        AgentPrompt {
+            prompt_id,
+            deciding_player_id: player_slot(seat),
+            source_card: None,
+            source_ability_text: None,
+            input: PromptInput::ChooseAction(ChooseActionInput {
+                actions: Vec::new(),
+            }),
+        }
+    }
+
+    /// A hosted 2-seat game: seat 0 human, seat 1 this node's bot.
+    struct Rig {
+        engine_session: SharedEngineSession,
+        snapshot: SharedHostSnapshot,
+        outbound_rx: tokio_mpsc::UnboundedReceiver<ClientMessage>,
+        prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
+        bot_rx: std_mpsc::Receiver<ClientToServerMessage>,
+    }
+
+    fn rig(config: &Config) -> Rig {
+        let names = vec![HUMAN.to_string(), BOT.to_string()];
+        let bots: HashSet<String> = [BOT.to_string()].into_iter().collect();
+        let (outbound_tx, outbound_rx) = tokio_mpsc::unbounded_channel();
+        let (prompt_tx, prompt_rx) = std_mpsc::channel();
+        let (bot_tx, bot_rx) = std_mpsc::channel();
+        let (human_tx, _human_rx) = std_mpsc::channel();
+        let mut txs = HashMap::new();
+        txs.insert(0, human_tx);
+        txs.insert(1, bot_tx);
+        let engine_clock = EngineClock::default();
+        let engine_session: SharedEngineSession =
+            Arc::new(Mutex::new(Some(EngineSession::Forge {
+                game_id: "g1".to_string(),
+                remote_response_txs: txs,
+                cancel: Arc::new(AtomicBool::new(false)),
+                engine_clock: engine_clock.clone(),
+                local_bot_answers: LocalBotAnswers::default(),
+            })));
+        let snapshot: SharedHostSnapshot = Arc::new(Mutex::new(HostSnapshot {
+            game: Some(GameStart {
+                game_id: "g1".to_string(),
+                player_order: names.clone(),
+                player_decks: Vec::new(),
+                starting_life: 20,
+            }),
+            ..HostSnapshot::default()
+        }));
+        spawn_remote_prompt_forwarder(
+            outbound_tx,
+            snapshot.clone(),
+            engine_session.clone(),
+            "g1".to_string(),
+            prompt_rx,
+            Some(names.clone()),
+            false,
+            engine_clock,
+            local_bot_seats(config, &names, &bots),
+        );
+        Rig {
+            engine_session,
+            snapshot,
+            outbound_rx,
+            prompt_tx,
+            bot_rx,
+        }
+    }
+
+    fn relay_response(rig: &Rig, prompt_id: u32) {
+        let state = serde_json::to_value(StateEnvelope::Response {
+            from_player: player_slot(1),
+            prompt_id,
+            action: json!({ "type": "chooseAction", "output": { "type": "pass" } }),
+        })
+        .unwrap();
+        route_remote_response(&rig.engine_session, &rig.snapshot, BOT, &state);
+    }
+
+    #[test]
+    fn local_bot_answers_its_prompt_and_the_relay_copy_is_dropped() {
+        let rig = rig(&config(true, true, false));
+        rig.prompt_tx
+            .send((1, AgentMessage::Prompt(prompt(1, 7))))
+            .unwrap();
+
+        let answer = rig
+            .bot_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("bot seat answered in-process");
+        assert!(matches!(
+            answer,
+            ClientToServerMessage::Response { prompt_id: 7, .. }
+        ));
+
+        // The prompt still went out to the relay, unchanged. The local answer
+        // lands first, so give the forwarder a moment to send.
+        let mut rig = rig;
+        let sent = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async {
+                tokio::time::timeout(Duration::from_secs(5), rig.outbound_rx.recv()).await
+            })
+            .expect("prompt forwarded to relay")
+            .expect("outbound channel open");
+        let ClientMessage::BroadcastState { target_player, .. } = sent else {
+            panic!("expected a broadcast, got {sent:?}");
+        };
+        assert_eq!(target_player.as_deref(), Some(BOT));
+
+        // The bot's own relay connection answers the same prompt later: dropped.
+        relay_response(&rig, 7);
+        assert!(
+            rig.bot_rx.try_recv().is_err(),
+            "relay duplicate reached the engine"
+        );
+
+        // A newer prompt the node did not answer still routes.
+        relay_response(&rig, 8);
+        assert!(matches!(
+            rig.bot_rx.try_recv(),
+            Ok(ClientToServerMessage::Response { prompt_id: 8, .. })
+        ));
+    }
+
+    #[test]
+    fn local_answers_are_off_without_bots_or_when_forge_plays_them() {
+        for config in [
+            config(false, true, false),
+            config(true, false, false),
+            config(true, true, true),
+        ] {
+            let rig = rig(&config);
+            rig.prompt_tx
+                .send((1, AgentMessage::Prompt(prompt(1, 7))))
+                .unwrap();
+            assert!(
+                rig.bot_rx.recv_timeout(Duration::from_millis(200)).is_err(),
+                "bot seat was answered in-process"
+            );
+            relay_response(&rig, 7);
+            assert!(rig.bot_rx.try_recv().is_ok(), "relay answer did not route");
+        }
+    }
 }

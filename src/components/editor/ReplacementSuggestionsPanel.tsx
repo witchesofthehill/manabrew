@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState, type MouseEvent } from "react";
 import { ArrowRightLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { Button } from "@/components/ui/button";
 import { useScryfallStore } from "@/stores/useScryfallStore";
@@ -17,7 +16,6 @@ import { executeDeckEdit } from "./deckEditor.history";
 import { collectionQuantityForName } from "@/lib/collection";
 import { useCollectionStore } from "@/stores/useCollectionStore";
 import { EDITOR_PANEL_CLASS } from "./deckEditor.styles";
-
 export function ReplacementSuggestionsPanel({
   cardSize,
   onHover,
@@ -65,7 +63,6 @@ export function ReplacementSuggestionsPanel({
     [suggestions],
   );
   const cardWidth = CARD_WIDTH_MAP[cardSize] ?? CARD_WIDTH_MAP[DEFAULT_CARD_SIZE];
-
   async function findSuggestions() {
     if (!target) return;
     const requestId = ++requestIdRef.current;
@@ -96,15 +93,13 @@ export function ReplacementSuggestionsPanel({
       void useCardRolesStore.getState().ensureAnalyzed(nextSuggestions.map(scryfallToDeckCard));
     } catch (error) {
       if (requestId === requestIdRef.current) {
-        toast.error(error instanceof Error ? error.message : "Could not find replacements");
+        toast.error(error instanceof Error ? error.message : `Could not find replacements`);
       }
     } finally {
       if (requestId === requestIdRef.current) setLoading(false);
     }
   }
-
   if (!target) return null;
-
   return (
     <section className={EDITOR_PANEL_CLASS}>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -133,7 +128,7 @@ export function ReplacementSuggestionsPanel({
             <input
               type="text"
               role="combobox"
-              aria-label="Card to replace"
+              aria-label={`Card to replace`}
               aria-autocomplete="list"
               aria-expanded={targetMenuOpen}
               aria-controls="replacement-target-suggestions"
@@ -261,10 +256,9 @@ export function ReplacementSuggestionsPanel({
                 draggable={false}
               />
               <div className="mt-1 text-[10px] text-muted-foreground">
-                Same {target.types[0]?.toLowerCase() ?? "card type"} · MV {suggestion.cmc}
                 {collectionQuantityForName(quantities, suggestion.name) > 0
-                  ? ` · ${collectionQuantityForName(quantities, suggestion.name)} owned`
-                  : " · not owned"}
+                  ? `Same ${target.types[0]?.toLowerCase() ?? `card type`} · MV ${suggestion.cmc} · ${collectionQuantityForName(quantities, suggestion.name)} owned`
+                  : `Same ${target.types[0]?.toLowerCase() ?? `card type`} · MV ${suggestion.cmc} · not owned`}
               </div>
               <button
                 type="button"

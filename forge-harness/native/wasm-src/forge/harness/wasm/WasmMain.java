@@ -104,10 +104,11 @@ public final class WasmMain {
                 } else {
                     SabTransport.bind();
                 }
-                String gameId = com.google.gson.JsonParser.parseString(requestJson)
-                        .getAsJsonObject().get("gameId").getAsString();
-                final SabTransport transport =
-                        new SabTransport(viewer -> adapter.getSnapshot(gameId, viewer));
+                final com.google.gson.JsonObject start = com.google.gson.JsonParser
+                        .parseString(requestJson).getAsJsonObject();
+                final String gameId = start.get("gameId").getAsString();
+                final SabTransport transport = new SabTransport(
+                        viewer -> adapter.getSnapshot(gameId, viewer), botSeats(start));
                 ManaBrewInteractiveSession.setBridge(transport);
                 final String result = adapter.startGameJson(requestJson);
                 // startGameJson blocks for the whole game, so reaching this
@@ -123,6 +124,26 @@ public final class WasmMain {
             }
         });
         announceReady();
+    }
+
+    /** Seats the host marks `bot`: a Manabot on a buffer, not a person. */
+    private static java.util.Set<Integer> botSeats(final com.google.gson.JsonObject request) {
+        final java.util.Set<Integer> seats = new java.util.HashSet<>();
+        final com.google.gson.JsonElement players = request.get("players");
+        if (players == null || !players.isJsonArray()) {
+            return seats;
+        }
+        int index = 0;
+        for (com.google.gson.JsonElement player : players.getAsJsonArray()) {
+            final com.google.gson.JsonElement bot = player.isJsonObject()
+                    ? player.getAsJsonObject().get("bot") : null;
+            if (bot != null && bot.isJsonPrimitive() && bot.getAsJsonPrimitive().isBoolean()
+                    && bot.getAsBoolean()) {
+                seats.add(index);
+            }
+            index++;
+        }
+        return seats;
     }
 
     private static final String FORGE_HOME = "/forge-home";

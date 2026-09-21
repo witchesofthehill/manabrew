@@ -44,6 +44,7 @@ export class SelectionController {
   }
 
   startMarquee(x: number, y: number, additive: boolean): void {
+    this.marquee.setColor(hexToNum(this.host.getTheme().gameTheme.cardSelection));
     this.marquee.start(x, y, additive);
   }
 
@@ -82,7 +83,7 @@ export class SelectionController {
     if (!this.host.canRefreshRings()) return;
     for (const entry of this.host.getEntries().values()) {
       if (this.selected.has(entry.sprite.card.id)) {
-        entry.sprite.setRing(hexToNum(this.host.getTheme().gameTheme.cardRing));
+        entry.sprite.setRing(hexToNum(this.host.getTheme().gameTheme.cardSelection));
       } else {
         this.host.applyRing(entry.sprite);
       }

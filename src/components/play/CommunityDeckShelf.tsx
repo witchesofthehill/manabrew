@@ -4,7 +4,7 @@ import { DECK_SHELF_CARD_CLASS, DeckShelfRow } from "@/components/play/DeckShelf
 import { Button } from "@/components/ui/button";
 import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
 import { availableEngines } from "@/lib/engines";
-
+import { cn } from "@/lib/utils";
 interface CommunityDeckShelfProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -13,7 +13,6 @@ interface CommunityDeckShelfProps {
   onPlayDeck: (id: string) => void;
   pendingDeckId: string | null;
 }
-
 export function CommunityDeckShelf({
   open,
   onOpenChange,
@@ -29,10 +28,9 @@ export function CommunityDeckShelf({
     availableEngines(),
     "community",
   );
-
   return (
     <CollapsibleDeckShelf
-      title="Community decks"
+      title={`Community decks`}
       count={loading ? "Loading…" : decks.length}
       open={open}
       onOpenChange={onOpenChange}
@@ -45,7 +43,7 @@ export function CommunityDeckShelf({
           </Button>
         </div>
       ) : decks.length > 0 ? (
-        <DeckShelfRow label="Community decks">
+        <DeckShelfRow label={`Community decks`}>
           {decks.map((entry) => (
             <div key={entry.id} className={DECK_SHELF_CARD_CLASS}>
               <DeckHubEntryCard
@@ -59,9 +57,21 @@ export function CommunityDeckShelf({
             </div>
           ))}
         </DeckShelfRow>
+      ) : loading ? (
+        <DeckShelfRow label="Community decks">
+          {Array.from({ length: 10 }, (_, index) => (
+            <div
+              key={index}
+              className={cn(
+                DECK_SHELF_CARD_CLASS,
+                "aspect-[4/3] animate-pulse rounded-lg bg-muted",
+              )}
+            />
+          ))}
+        </DeckShelfRow>
       ) : (
         <p className="px-2 text-xs italic text-muted-foreground">
-          {loading ? "Loading Community decks…" : "No Community decks are available."}
+          No Community decks are available.
         </p>
       )}
     </CollapsibleDeckShelf>

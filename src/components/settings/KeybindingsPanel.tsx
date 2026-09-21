@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { KEYBINDINGS, comboFromEvent, formatCombo } from "@/lib/keybindings";
 import { useKeybindingsStore, resolveCombo } from "@/stores/useKeybindingsStore";
-
 export function KeybindingsPanel() {
   const overrides = useKeybindingsStore((s) => s.overrides);
   const setBinding = useKeybindingsStore((s) => s.setBinding);
@@ -13,7 +12,6 @@ export function KeybindingsPanel() {
   const resetAll = useKeybindingsStore((s) => s.resetAll);
   const [capturingId, setCapturingId] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
-
   useEffect(() => {
     if (!capturingId) return;
     const id = capturingId;
@@ -32,7 +30,6 @@ export function KeybindingsPanel() {
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [capturingId, setBinding]);
-
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
     if (!q) return KEYBINDINGS;
@@ -46,9 +43,7 @@ export function KeybindingsPanel() {
       );
     });
   }, [filter, overrides]);
-
   const categories = [...new Set(filtered.map((b) => b.category))];
-
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
@@ -68,7 +63,7 @@ export function KeybindingsPanel() {
         <Input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Filter shortcuts…"
+          placeholder={`Filter shortcuts\u2026`}
           className="pl-8"
         />
       </div>
@@ -95,19 +90,18 @@ export function KeybindingsPanel() {
                     <div className="flex items-center gap-1.5">
                       <Button
                         size="sm"
-                        variant={isCapturing ? "secondary" : "outline"}
+                        variant={isCapturing ? "selected" : "outline"}
                         className={cn("h-7 min-w-24 text-xs", isCapturing && "animate-pulse")}
                         style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}
                         onClick={() => setCapturingId(isCapturing ? null : b.id)}
                       >
-                        {isCapturing ? "Press keys…" : combo ? formatCombo(combo) : "Unbound"}
+                        {isCapturing ? `Press keys…` : combo ? formatCombo(combo) : `Unbound`}
                       </Button>
                       {isCustom && (
                         <Button
-                          size="icon"
+                          size="icon-sm"
                           variant="ghost"
-                          className="h-7 w-7"
-                          title="Reset to default"
+                          title={`Reset to default`}
                           onClick={() => resetBinding(b.id)}
                         >
                           <RotateCcw className="h-3.5 w-3.5" />

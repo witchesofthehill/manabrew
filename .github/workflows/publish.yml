@@ -61,7 +61,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Set up Rust toolchain
@@ -226,7 +226,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Set up Rust toolchain
@@ -396,7 +396,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Set up Rust toolchain
@@ -479,7 +479,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Set up JDK 17
@@ -599,7 +599,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - run: yarn --frozen-lockfile
@@ -965,7 +965,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Download iOS IPA
         uses: actions/download-artifact@v4

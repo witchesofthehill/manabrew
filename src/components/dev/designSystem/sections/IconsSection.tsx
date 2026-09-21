@@ -7,14 +7,12 @@ import { DiscordIcon } from "@/components/icons/DiscordIcon";
 import { VortexCircleIcon } from "@/components/icons/VortexCircleIcon";
 import { Section, Subhead, Panel, Tile, TileGrid } from "../kit";
 import { LUCIDE_GROUPS, GAME_ICONS, COUNTER_TYPES, MANA_COSTS } from "../designSystem.data";
-
 const lucideByName = LucideIcons as unknown as Record<string, LucideIcon>;
-
 export function IconsSection() {
   return (
     <Section
       id="icons"
-      title="Iconography"
+      title={`Iconography`}
       intro="Chrome uses lucide-react (h-4 w-4, currentColor). Domain glyphs come from the game-icons pack via GameIcon, two hand-rolled brand SVGs, Scryfall mana symbols, and themed counter chips."
     >
       <div className="space-y-4">
@@ -47,10 +45,10 @@ export function IconsSection() {
 
       <Subhead>Hand-rolled brand SVGs</Subhead>
       <TileGrid>
-        <Tile label="DiscordIcon">
+        <Tile label={`DiscordIcon`}>
           <DiscordIcon className="h-6 w-6" />
         </Tile>
-        <Tile label="VortexCircleIcon (exile)">
+        <Tile label={`VortexCircleIcon (exile)`}>
           <VortexCircleIcon className="h-6 w-6" />
         </Tile>
       </TileGrid>

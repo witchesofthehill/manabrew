@@ -81,19 +81,19 @@ export function NavSheet({ disabled = false }: NavSheetProps) {
         className="h-8 w-8 md:hidden"
         disabled={disabled}
         onClick={() => setOpen(true)}
-        title="Menu"
+        title={`Menu`}
       >
         <Menu className="h-5 w-5" />
-        <span className="sr-only">Menu</span>
+        <span className="sr-only">{`Menu`}</span>
       </Button>
       <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto rounded-t-2xl px-3 pb-6">
-        <SheetTitle className="sr-only">Menu</SheetTitle>
+        <SheetTitle className="sr-only">{`Menu`}</SheetTitle>
         <div className="pt-2">
-          {renderRow({ to: ROUTES.PLAY, label: "Play", icon: Swords })}
+          {renderRow({ to: ROUTES.PLAY, label: `Play`, icon: Swords })}
           {direct.map(renderRow)}
           <div className="pt-3">
             <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              More
+              {`More`}
             </p>
             {more.map(renderRow)}
           </div>

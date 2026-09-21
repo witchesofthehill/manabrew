@@ -1,7 +1,6 @@
 import { AlertTriangle, ChevronDown, Crown, Palette, Plus, X } from "lucide-react";
 import { type PointerEvent as ReactPointerEvent } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
-
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -28,7 +27,6 @@ import { useCardCollectionOwnership, useDeckCardOwnership } from "./useCardColle
 import { CommandZoneCardMenu, type CommandZoneCardMenuActions } from "./CommandZoneCardMenu";
 import { useDeckSectionOpen } from "./deckSectionExpansion";
 import { CollectionOwnershipTooltip } from "./CollectionOwnershipTooltip";
-
 function CommandZoneCard({
   card,
   label,
@@ -58,7 +56,6 @@ function CommandZoneCard({
     data: { type: "deck-card", card, name: card.identity.name },
     disabled: readOnly,
   });
-
   const content = (
     <div
       ref={setNodeRef}
@@ -86,8 +83,8 @@ function CommandZoneCard({
       <CollectionOwnershipTooltip card={card} surface="visual" className="left-1 top-7" />
       {unsupported && (
         <div
-          className="absolute bottom-1 right-1 z-30 rounded-full bg-warning/90 p-0.5 text-white shadow"
-          title="Unsupported by the Manabrew and Forge engines"
+          className="absolute bottom-1 right-1 z-30 rounded-full bg-warning/90 p-0.5 text-background shadow"
+          title={`Unsupported by the Manabrew and Forge engines`}
         >
           <AlertTriangle className="h-3 w-3" />
         </div>
@@ -101,7 +98,7 @@ function CommandZoneCard({
             <button
               type="button"
               className="rounded-full bg-overlay/70 p-0.5 text-muted-foreground shadow transition-colors hover:text-foreground"
-              title="Change printing"
+              title={`Change printing`}
               aria-label={`Change printing for ${card.identity.name}`}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
@@ -134,7 +131,6 @@ function CommandZoneCard({
     content
   );
 }
-
 interface CommanderSlotsProps {
   cards: DeckCard[];
   commanders: DeckCard[];
@@ -148,7 +144,6 @@ interface CommanderSlotsProps {
   onPickPrint?: (card: DeckCard) => void;
   contextMenuFor?: (card: DeckCard, label: string) => CommandZoneCardMenuActions;
 }
-
 export function CommanderSlots({
   cards,
   commanders,
@@ -168,7 +163,6 @@ export function CommanderSlots({
     disabled: readOnly || !formatRequiresCommander(format),
   });
   if (!formatRequiresCommander(format)) return null;
-
   const oathbreakers = commanders.filter((card) => canBeOathbreaker(card));
   const signatureSpells = commanders.filter((card) => canBeSignatureSpell(card));
   const oathbreakerTarget =
@@ -195,15 +189,14 @@ export function CommanderSlots({
   const emptyLabel =
     format === "oathbreaker"
       ? oathbreakerTarget === "signature"
-        ? "Choose signature spell"
+        ? `Choose signature spell`
         : oathbreakerTarget === "partner"
-          ? "Choose partner"
-          : "Choose oathbreaker"
+          ? `Choose partner`
+          : `Choose oathbreaker`
       : commanders.length > 0
-        ? "Choose partner"
-        : "Choose commander";
+        ? `Choose partner`
+        : `Choose commander`;
   const cardWidth = CARD_WIDTH_MAP[cardSize] ?? CARD_WIDTH_MAP[DEFAULT_CARD_SIZE];
-
   return (
     <section
       ref={setNodeRef}
@@ -231,7 +224,7 @@ export function CommanderSlots({
               card={card}
               label={
                 commanderSlotBadge(commanders, format, index)?.label ??
-                (format === "oathbreaker" ? "Oathbreaker" : "Commander")
+                (format === "oathbreaker" ? `Oathbreaker` : `Commander`)
               }
               cardWidth={cardWidth}
               readOnly={readOnly}

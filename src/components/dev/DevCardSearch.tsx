@@ -1,17 +1,14 @@
 import { Loader2, Search, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { ScryfallCard } from "@/types/scryfall";
-
 interface DevCardSearchProps {
   value: string;
   onSelect: (card: ScryfallCard) => void;
 }
-
 export function DevCardSearch({ value, onSelect }: DevCardSearchProps) {
   const [query, setQuery] = useState(value);
   const [results, setResults] = useState<ScryfallCard[]>([]);
@@ -21,7 +18,6 @@ export function DevCardSearch({ value, onSelect }: DevCardSearchProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<number | undefined>(undefined);
   const searchIdRef = useRef(0);
-
   const search = useCallback((nextQuery: string) => {
     const trimmed = nextQuery.trim();
     const searchId = ++searchIdRef.current;
@@ -31,7 +27,6 @@ export function DevCardSearch({ value, onSelect }: DevCardSearchProps) {
       setLoading(false);
       return;
     }
-
     setLoading(true);
     useScryfallStore
       .getState()
@@ -51,7 +46,6 @@ export function DevCardSearch({ value, onSelect }: DevCardSearchProps) {
         if (searchId === searchIdRef.current) setLoading(false);
       });
   }, []);
-
   useEffect(() => {
     const dismiss = (event: PointerEvent) => {
       if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
@@ -63,13 +57,11 @@ export function DevCardSearch({ value, onSelect }: DevCardSearchProps) {
       searchIdRef.current += 1;
     };
   }, []);
-
   const updateQuery = (nextQuery: string) => {
     setQuery(nextQuery);
     window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(() => search(nextQuery), 350);
   };
-
   const selectCard = (card: ScryfallCard) => {
     window.clearTimeout(timerRef.current);
     searchIdRef.current += 1;
@@ -78,7 +70,6 @@ export function DevCardSearch({ value, onSelect }: DevCardSearchProps) {
     setOpen(false);
     onSelect(card);
   };
-
   const clear = () => {
     window.clearTimeout(timerRef.current);
     searchIdRef.current += 1;
@@ -86,7 +77,6 @@ export function DevCardSearch({ value, onSelect }: DevCardSearchProps) {
     setResults([]);
     setOpen(false);
   };
-
   return (
     <div ref={containerRef} className="relative">
       <div className="relative">
@@ -120,7 +110,7 @@ export function DevCardSearch({ value, onSelect }: DevCardSearchProps) {
               setOpen(false);
             }
           }}
-          placeholder="Search Scryfall"
+          placeholder={`Search Scryfall`}
           className="pl-9 pr-9"
           spellCheck={false}
         />
@@ -131,7 +121,7 @@ export function DevCardSearch({ value, onSelect }: DevCardSearchProps) {
             type="button"
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             onClick={clear}
-            title="Clear card search"
+            title={`Clear card search`}
           >
             <X className="h-4 w-4" />
           </button>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import type { CardDto } from "@/protocol/game";
 import { CardPreviewMachine, type PreviewPointerInput } from "@/lib/cardPreview";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { MODAL_OPEN_EVENT, topModal } from "@/lib/modalStack";
 
 const ignorePreviewUpdates = () => () => undefined;
 
@@ -36,6 +37,7 @@ export function useCardPreview(
 
   const handleMouseEnter = useCallback(
     (card: CardDto, e?: React.MouseEvent, options: HoverOptions = {}) => {
+      if (hookOptions.useTriggerPreference && topModal()) return;
       const trigger = options.trigger ?? e;
       if (trigger && trigger.buttons !== 0) {
         machine.dismiss();
@@ -69,14 +71,20 @@ export function useCardPreview(
 
   const showSticky = useCallback(
     (card: CardDto, x?: number, y?: number, anchor?: HTMLElement | DOMRect) => {
+      if (hookOptions.useTriggerPreference && topModal()) return;
       machine.stick(card, {
         pointer: x != null && y != null ? { x, y } : undefined,
         anchorRect:
           anchor instanceof HTMLElement ? anchor.getBoundingClientRect() : (anchor ?? null),
       });
     },
-    [machine],
+    [hookOptions.useTriggerPreference, machine],
   );
+
+  useEffect(() => {
+    window.addEventListener(MODAL_OPEN_EVENT, dismiss);
+    return () => window.removeEventListener(MODAL_OPEN_EVENT, dismiss);
+  }, [dismiss]);
 
   const lastDepsRef = useRef(dismissDeps);
   useEffect(() => {

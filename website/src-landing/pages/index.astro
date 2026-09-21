@@ -244,6 +244,7 @@ const mana = preset.gameColors;
     accent: t.accent,
     border: t.border,
     foreground: t.foreground,
+    muted: t.muted,
     "muted-foreground": t["muted-foreground"],
     primary: t.primary,
     "primary-foreground": t["primary-foreground"],
@@ -479,7 +480,7 @@ const mana = preset.gameColors;
   }
 
   .features article {
-    background: linear-gradient(160deg, var(--card), var(--accent));
+    background: linear-gradient(160deg, var(--card), var(--muted));
     border: 1px solid var(--border);
     border-radius: 6px;
     padding: 1.4rem 1.4rem 1.2rem;

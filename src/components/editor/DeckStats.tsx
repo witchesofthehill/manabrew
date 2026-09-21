@@ -5,7 +5,6 @@ import { isLand } from "@/lib/mana";
 import type { DeckCard } from "@/protocol/deck";
 import { CMC_BUCKET_LABELS, cmcBucketIndex } from "./deckBuilder.utils";
 import { EDITOR_PANEL_CLASS } from "./deckEditor.styles";
-
 // CMC 1–7+ bucket bars — cool→warm progression using theme counter / signal
 // tokens so the curve retones with the active preset.
 const BUCKET_BARS = [
@@ -17,24 +16,22 @@ const BUCKET_BARS = [
   "bg-counter-level", // orange
   "bg-pt-lethal", // red
 ];
-
 const BAR_MAX_PX = 140;
 const TOOLTIP_MAX_NAMES = 10;
-
 interface DeckStatsProps {
   activeBucket?: number | null;
   onBucketClick?: (bucket: number | null) => void;
 }
-
 export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps) {
   const { currentDeck } = useDeckStore();
   const cards = currentDeck.cards;
   const [hoveredBucket, setHoveredBucket] = useState<number | null>(null);
-
   const lands: DeckCard[] = [];
   const unknown: DeckCard[] = [];
-  const spells: { card: DeckCard; bucket: number }[] = [];
-
+  const spells: {
+    card: DeckCard;
+    bucket: number;
+  }[] = [];
   for (const card of cards) {
     if (isLand(card.types)) {
       lands.push(card);
@@ -44,7 +41,6 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
     if (bucket === null) unknown.push(card);
     else spells.push({ card, bucket });
   }
-
   const bucketCards: Map<string, number>[] = Array.from({ length: 7 }, () => new Map());
   for (const { card, bucket } of spells) {
     bucketCards[bucket].set(
@@ -53,10 +49,8 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
     );
   }
   const counts = bucketCards.map((m) => [...m.values()].reduce((a, b) => a + b, 0));
-
   const max = Math.max(...counts, 1);
   const hasAnything = spells.length > 0;
-
   return (
     <section className={EDITOR_PANEL_CLASS}>
       <div className="mb-5 flex items-baseline gap-2.5">
@@ -65,7 +59,7 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
           {spells.length} spells &middot; {lands.length} lands
         </span>
         {unknown.length > 0 && (
-          <span className="text-xs text-warning" title="CMC unknown">
+          <span className="text-xs text-warning" title={`CMC unknown`}>
             {unknown.length} ?
           </span>
         )}
@@ -120,7 +114,7 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
                       count === 0 && "opacity-15",
                       isDimmed && "opacity-40",
                       hoveredBucket === i && "brightness-110",
-                      isActive && "ring-2 ring-primary ring-offset-2 ring-offset-card",
+                      isActive && "ring-2 ring-selection ring-offset-2 ring-offset-card",
                     )}
                     style={{
                       height: count > 0 ? `${Math.max((count / max) * BAR_MAX_PX, 4)}px` : "4px",
@@ -151,7 +145,7 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
                       </ul>
                       {onBucketClick && (
                         <p className="mt-1.5 border-t border-border/40 pt-1.5 text-[10px] text-muted-foreground/60">
-                          {isActive ? "Click to clear the filter" : "Click to filter the deck"}
+                          {isActive ? `Click to clear the filter` : `Click to filter the deck`}
                         </p>
                       )}
                     </div>
@@ -180,7 +174,7 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
         </>
       ) : (
         <p className="text-xs text-muted-foreground italic text-center py-6">
-          {cards.length === 0 ? "No cards in deck." : "Add non-land cards to see the curve."}
+          {cards.length === 0 ? `No cards in deck.` : `Add non-land cards to see the curve.`}
         </p>
       )}
     </section>

@@ -8,6 +8,7 @@
 
 use std::sync::Arc;
 
+use crate::cards::{parse_request, CacheRequest, CardStore};
 use crate::{key_from_request_path, mime_for, ImageCache};
 
 pub struct ArtServer {
@@ -39,11 +40,14 @@ impl ArtServer {
         let server = Arc::new(tiny_http::Server::http((bind_ip, port)).ok()?);
         let port = server.server_addr().to_ip()?.port();
         let accept = server.clone();
+        // The data sits beside the pictures, so holding the cache is holding
+        // both and the two can never be paired wrong.
+        let cards = CardStore::new(cache.root());
 
         std::thread::spawn(move || {
             // `unblock` ends this iterator, closing the listener.
             for request in accept.incoming_requests() {
-                serve(request, &cache);
+                serve(request, &cache, &cards);
             }
         });
 
@@ -51,8 +55,21 @@ impl ArtServer {
     }
 }
 
-fn serve(request: tiny_http::Request, cache: &ImageCache) {
+fn serve(request: tiny_http::Request, cache: &ImageCache, cards: &CardStore) {
     let raw = request.url().to_string();
+    if let Some(asked) = parse_request(&raw) {
+        serve_json(
+            request,
+            match asked {
+                CacheRequest::Card(name) => cards.read(&name),
+                CacheRequest::Printing(set, number) => cards.read_printing(&set, &number),
+                CacheRequest::Sets => cache.read_sets(),
+                CacheRequest::Names => cache.read_names(),
+                CacheRequest::Rulings(oracle_id) => cards.read_rulings(&oracle_id),
+            },
+        );
+        return;
+    }
     let Some(key) = key_from_request_path(&raw) else {
         let _ = request.respond(tiny_http::Response::empty(404));
         return;
@@ -70,6 +87,30 @@ fn serve(request: tiny_http::Request, cache: &ImageCache) {
         ("Cache-Control", "public, max-age=31536000, immutable"),
     ] {
         if let Ok(header) = tiny_http::Header::from_bytes(name.as_bytes(), value.as_bytes()) {
+            response.add_header(header);
+        }
+    }
+    let _ = request.respond(response);
+}
+
+/// Whatever the cache was asked for, so a seat with no internet can still learn
+/// what it is holding and where its picture lives. Named rather than keyed by
+/// url, because a name is all a client that never reached the api has.
+fn serve_json(request: tiny_http::Request, body: Option<Vec<u8>>) {
+    let Some(bytes) = body else {
+        let _ = request.respond(tiny_http::Response::empty(404));
+        return;
+    };
+    let mut response = tiny_http::Response::from_data(bytes);
+    for (header, value) in [
+        ("Content-Type", "application/json"),
+        ("Access-Control-Allow-Origin", "*"),
+        ("Cross-Origin-Resource-Policy", "cross-origin"),
+        // Cards are renamed and reprinted, so this is not immutable the way a
+        // picture at a hashed path is.
+        ("Cache-Control", "public, max-age=86400"),
+    ] {
+        if let Ok(header) = tiny_http::Header::from_bytes(header.as_bytes(), value.as_bytes()) {
             response.add_header(header);
         }
     }
@@ -107,6 +148,29 @@ mod tests {
         assert!(get(server.port, "/scryfall-img/front/missing.jpg").contains("404"));
         // And nothing outside the cache.
         assert!(get(server.port, "/scryfall-img/../../etc/passwd").contains("404"));
+    }
+
+    /// The picture is useless to a seat that cannot learn its url.
+    #[test]
+    fn a_cached_card_record_is_served_to_the_network() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let record = serde_json::json!({
+            "name": "Lightning Bolt",
+            "image_uris": { "normal": "https://cards.scryfall.io/normal/front/a/b/bolt.jpg" },
+        });
+        let cache = Arc::new(ImageCache::new(dir.path().to_path_buf()));
+        assert_eq!(cache.store_records(std::slice::from_ref(&record)), 1);
+
+        let server = ArtServer::spawn(Ipv4Addr::LOCALHOST.into(), cache).expect("spawn");
+
+        let body = get(server.port, "/scryfall-card/Lightning%20Bolt");
+        assert!(body.contains("200 OK"), "{body}");
+        assert!(
+            body.ends_with(&serde_json::to_string(&record).expect("json")),
+            "{body}"
+        );
+        assert!(get(server.port, "/scryfall-card/Black%20Lotus").contains("404"));
+        assert!(get(server.port, "/scryfall-sets").contains("404"));
     }
 
     fn get(port: u16, path: &str) -> String {

@@ -298,7 +298,7 @@ export class BattlefieldOverlay {
     } else if (kind.isUntappable) {
       label = isWaterbent ? OVERLAY_LABEL_UNWATERBEND : OVERLAY_LABEL_UNTAP;
       symbol = isWaterbent ? null : SYMBOL_UNTAP;
-      color = hexToNum(this.host.getTheme().gameTheme.promptAction.cancel);
+      color = hexToNum(this.host.getTheme().gameTheme.interaction.untap);
       idleAlpha = ACTION_BUTTON_ALPHA;
       hoverAlpha = ACTION_BUTTON_HOVER_ALPHA;
     }

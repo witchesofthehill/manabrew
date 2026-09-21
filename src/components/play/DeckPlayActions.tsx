@@ -8,23 +8,19 @@ import { ROUTES } from "@/lib/constants";
 import { getFormat } from "@/lib/formats";
 import { useOwnedDecks } from "@/hooks/useOwnedDecks";
 import { useAccountDecks } from "@/hooks/useAccountDecks";
-
 interface DeckPlayActionsProps {
   savedDeckId: string;
 }
-
 export function DeckPlayActions({ savedDeckId }: DeckPlayActionsProps) {
   const savedDeck = useOwnedDecks().find((entry) => entry.id === savedDeckId);
   const { resolved: accountDecksResolved } = useAccountDecks();
-
   if (!savedDeck && !accountDecksResolved) {
     return (
-      <div className="flex h-full items-center justify-center" aria-label="Loading deck">
+      <div className="flex h-full items-center justify-center" aria-label={`Loading deck`}>
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
-
   if (!savedDeck) {
     return (
       <div className="relative h-full min-h-0 overflow-hidden">
@@ -45,13 +41,11 @@ export function DeckPlayActions({ savedDeckId }: DeckPlayActionsProps) {
       </div>
     );
   }
-
   const deck = savedDeck.deck;
   const formatId = deck.format ?? "standard";
   const format = getFormat(formatId);
   const cover = resolveCoverCard(deck);
   const cardCount = deck.cards.length + (deck.commanders?.length ?? 0);
-
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
       <div className="relative z-10 h-full overflow-y-auto">
@@ -79,7 +73,7 @@ export function DeckPlayActions({ savedDeckId }: DeckPlayActionsProps) {
               </p>
 
               <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                <Button size="lg" asChild className="w-full justify-start">
+                <Button variant="primary" size="lg" asChild className="w-full justify-start">
                   <Link
                     to={ROUTES.PLAY_OFFLINE_CONSTRUCTED}
                     state={{ preSelectedDeckId: savedDeck.id }}

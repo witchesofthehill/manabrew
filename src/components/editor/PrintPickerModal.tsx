@@ -15,14 +15,12 @@ import { HorizontalCardImage } from "@/components/game/HorizontalCardImage";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { cn } from "@/lib/utils";
 import type { DeckCard } from "@/protocol/deck";
-
 interface PrintPickerModalProps {
   cardName: string | null;
   onClose: () => void;
   onSelect?: (print: ScryfallCard) => void;
   token?: DeckCard;
 }
-
 export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPickerModalProps) {
   const [prints, setPrints] = useState<ScryfallCard[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -30,16 +28,13 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
   const updatePrint = useDeckStore((s) => s.updatePrint);
   const setLookup = useSetLookup();
   const resolvedName = token?.identity.name ?? cardName;
-
   useEffect(() => {
     if (!resolvedName) {
       setPrints([]);
       return;
     }
     const name = resolvedName;
-
     let mounted = true;
-
     async function fetchPrints() {
       setIsLoading(true);
       setError(null);
@@ -53,7 +48,7 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
         if (mounted) setPrints(prints.get(cardKey({ name })) ?? []);
       } catch {
         if (mounted) {
-          setError("Failed to fetch printings.");
+          setError(`Failed to fetch printings.`);
         }
       } finally {
         if (mounted) {
@@ -61,15 +56,12 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
         }
       }
     }
-
     fetchPrints();
     return () => {
       mounted = false;
     };
   }, [resolvedName, token]);
-
   if (!resolvedName) return null;
-
   return (
     <Modal
       onClose={onClose}
@@ -104,7 +96,6 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
                   face?.image_uris?.large ||
                   p.image_uris?.normal ||
                   p.image_uris?.large;
-
                 return (
                   <div
                     key={p.id}

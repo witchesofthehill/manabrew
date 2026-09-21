@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ArrowLeft, CheckCircle2, ClipboardPaste, Download } from "lucide-react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,7 +20,6 @@ import {
   type ParsedDeckEntry,
 } from "@/lib/deckImport";
 import type { DeckFormat } from "@/protocol/deck";
-
 interface ImportDeckTextDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -33,15 +31,12 @@ interface ImportDeckTextDialogProps {
     onProgress: (fraction: number) => void,
   ) => Promise<boolean | void>;
 }
-
 const GUIDE_STEPS = [
-  "Open your deck on Moxfield.",
-  "Click the ••• menu, then Export.",
-  'Choose "Copy Plain Text" and copy it to your clipboard.',
+  `Open your deck on Moxfield.`,
+  `Click the ••• menu, then Export.`,
+  `Choose "Copy Plain Text" and copy it to your clipboard.`,
 ];
-
 const IMPORT_FORMATS = GAME_FORMATS.filter((format) => format.id !== "oathbreaker");
-
 export function ImportDeckTextDialog({
   open,
   onOpenChange,
@@ -54,19 +49,15 @@ export function ImportDeckTextDialog({
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [reviewing, setReviewing] = useState(false);
-
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (open) return;
+  const close = useCallback(() => {
     setText("");
     setCustomName(null);
     setFormatId("");
     setImporting(false);
     setProgress(0);
     setReviewing(false);
-  }, [open]);
-  /* eslint-enable react-hooks/set-state-in-effect */
-
+    onOpenChange(false);
+  }, [onOpenChange]);
   const entries = useMemo(() => parseDeckListText(text), [text]);
   const name = customName ?? suggestedDeckName(entries);
   const mainCount = entries.reduce(
@@ -92,49 +83,50 @@ export function ImportDeckTextDialog({
       .filter((line) => /^\d+x?\s+/i.test(line))
       .filter((line) => ![...parsedNames].some((name) => line.toLowerCase().includes(name)));
   }, [entries, text]);
-
   const pasteFromClipboard = useCallback(async () => {
     try {
       const clip = await navigator.clipboard.readText();
       if (clip.trim()) setText(clip);
     } catch {
-      toast.error("Couldn't read the clipboard — paste manually instead");
+      toast.error(`Couldn't read the clipboard \u2014 paste manually instead`);
     }
   }, []);
-
   const handleImportClick = useCallback(async () => {
     if (!valid || importing) return;
     setImporting(true);
     setProgress(0);
     try {
       const applied = await onImport(entries, name, formatId || undefined, setProgress);
-      if (applied !== false) onOpenChange(false);
+      if (applied !== false) close();
       else setImporting(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Import failed");
+      toast.error(e instanceof Error ? e.message : `Import failed`);
       setImporting(false);
     }
-  }, [valid, importing, entries, name, formatId, onImport, onOpenChange]);
-
+  }, [valid, importing, entries, name, formatId, onImport, close]);
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next && importing) return;
+        if (!next) {
+          if (importing) return;
+          close();
+          return;
+        }
         onOpenChange(next);
       }}
     >
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{mode === "add" ? "Add cards from a list" : "Import a deck"}</DialogTitle>
+          <DialogTitle>{mode === "add" ? `Add cards from a list` : `Import a deck`}</DialogTitle>
           <DialogDescription>
             {importing
               ? mode === "add"
-                ? "Adding cards to this deck…"
+                ? `Adding cards to this deck\u2026`
                 : `Building "${name.trim() || DEFAULT_IMPORT_NAME}"…`
               : mode === "add"
-                ? "Paste a deck list to merge its cards into this deck."
-                : "Copy your deck as text from Moxfield, then paste it below."}
+                ? `Paste a deck list to merge its cards into this deck.`
+                : `Copy your deck as text from Moxfield, then paste it below.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -186,19 +178,19 @@ export function ImportDeckTextDialog({
                         <td className="px-3 py-2 font-medium">{entry.name}</td>
                         <td className="px-3 py-2 text-muted-foreground">
                           {isDetectedCommander(entry)
-                            ? "Command zone"
+                            ? `Command zone`
                             : entry.side
-                              ? "Sideboard"
+                              ? `Sideboard`
                               : entry.maybe
-                                ? "Maybeboard"
-                                : "Main deck"}
+                                ? `Maybeboard`
+                                : `Main deck`}
                         </td>
                         <td className="px-3 py-2 text-muted-foreground">
                           {entry.setCode
-                            ? `${entry.setCode.toUpperCase()}${entry.collectorNumber ? ` #${entry.collectorNumber}` : ""}${entry.foil ? " · foil" : ""}`
+                            ? `${entry.setCode.toUpperCase()}${entry.collectorNumber ? ` #${entry.collectorNumber}` : ""}${entry.foil ? ` · foil` : ""}`
                             : entry.foil
-                              ? "Foil · default printing"
-                              : "Default printing"}
+                              ? `Foil · default printing`
+                              : `Default printing`}
                         </td>
                       </tr>
                     ))}
@@ -207,9 +199,9 @@ export function ImportDeckTextDialog({
               </div>
               {unrecognizedLines.length > 0 && (
                 <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-                  {unrecognizedLines.length} card line
-                  {unrecognizedLines.length === 1 ? " was" : "s were"} not recognized and will be
-                  skipped.
+                  {unrecognizedLines.length === 1
+                    ? `One card line was not recognized and will be skipped.`
+                    : `${unrecognizedLines.length} card lines were not recognized and will be skipped.`}
                 </div>
               )}
               <p className="text-xs text-muted-foreground">
@@ -218,12 +210,17 @@ export function ImportDeckTextDialog({
               </p>
             </div>
             <div className="flex items-center justify-end gap-2 border-t pt-2">
-              <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+              <Button variant="ghost" size="sm" onClick={close}>
                 Cancel
               </Button>
-              <Button size="sm" className="gap-1" onClick={() => void handleImportClick()}>
+              <Button
+                variant="primary"
+                size="sm"
+                className="gap-1"
+                onClick={() => void handleImportClick()}
+              >
                 <Download className="h-3.5 w-3.5" />
-                Confirm {mode === "add" ? "addition" : "import"}
+                {mode === "add" ? `Confirm addition` : `Confirm import`}
               </Button>
             </div>
           </>
@@ -328,17 +325,18 @@ export function ImportDeckTextDialog({
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t">
-              <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+              <Button variant="ghost" size="sm" onClick={close}>
                 Cancel
               </Button>
               <Button
+                variant="primary"
                 size="sm"
                 onClick={() => setReviewing(true)}
                 disabled={!valid}
                 className={cn("gap-1 transition-all", valid && "ring-2 ring-primary/40")}
               >
                 <Download className="h-3.5 w-3.5" />
-                Review {mode === "add" ? "addition" : "import"}
+                {mode === "add" ? `Review addition` : `Review import`}
                 {valid ? ` ${mainCount + sideCount + maybeCount + commanderCount} cards` : ""}
               </Button>
             </div>

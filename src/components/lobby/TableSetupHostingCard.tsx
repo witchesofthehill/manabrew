@@ -6,7 +6,6 @@ import { EngineMark } from "@/components/lobby/EngineMark";
 import { RECONNECT_TIMEOUT_OPTIONS, type RoomKind } from "@/components/lobby/tableSetup.constants";
 import { cn } from "@/lib/utils";
 import type { EngineKind } from "@/types/server";
-
 interface TableSetupHostingCardProps {
   kind: RoomKind;
   engine: EngineKind;
@@ -19,7 +18,6 @@ interface TableSetupHostingCardProps {
   reconnectTimeoutS: number;
   onReconnectTimeoutSChange: (seconds: number) => void;
 }
-
 export function TableSetupHostingCard({
   kind,
   engine,
@@ -34,13 +32,12 @@ export function TableSetupHostingCard({
 }: TableSetupHostingCardProps) {
   const warningText =
     kind !== "match"
-      ? "Limited runs on the Manabrew engine only — a work in progress that may have bugs or missing cards. Forge nodes host constructed matches, not drafts."
+      ? `Limited runs on the Manabrew engine only \u2014 a work in progress that may have bugs or missing cards. Forge nodes host constructed matches, not drafts.`
       : engine === "Ironsmith"
-        ? "Ironsmith is experimental with partial card support — some decks won't run yet. Tables use Trusted mode: the host browser is authoritative, and hidden information is redacted per player."
+        ? `Ironsmith is experimental with partial card support \u2014 some decks won't run yet. Tables use Trusted mode: the host browser is authoritative, and hidden information is redacted per player.`
         : isTauri && !forgeRoomAvailable
-          ? "This build does not include native Forge hosting. Manabrew remains available."
-          : "The Manabrew engine is a work in progress and may have bugs or missing cards. For the most stable experience, play on the Forge engine.";
-
+          ? `This build does not include native Forge hosting. Manabrew remains available.`
+          : `The Manabrew engine is a work in progress and may have bugs or missing cards. For the most stable experience, play on the Forge engine.`;
   return (
     <section className="rounded-xl border bg-card/85 p-4 backdrop-blur-md">
       <h2 className="text-sm font-semibold">Hosting</h2>
@@ -69,18 +66,18 @@ export function TableSetupHostingCard({
                       )}
                     />
                   }
-                  label="Forge"
+                  label={`Forge`}
                   badge={
                     <Badge variant="outline" className="text-[9px]">
-                      {isTauri ? "on this device" : hostedNode ? "on a node" : "in this browser"}
+                      {isTauri ? `on this device` : hostedNode ? `on a node` : `in this browser`}
                     </Badge>
                   }
                   description={
                     isTauri
-                      ? "Full card support, hosted in-app on this device. Others join from the lobby."
+                      ? `Full card support, hosted in-app on this device. Others join from the lobby.`
                       : hostedNode
-                        ? "Full card support, hosted on a Manabrew node. Others join from the lobby."
-                        : "Full card support, hosted in this browser tab. Others join from the lobby."
+                        ? `Full card support, hosted on a Manabrew node. Others join from the lobby.`
+                        : `Full card support, hosted in this browser tab. Others join from the lobby.`
                   }
                 />
               )}
@@ -96,13 +93,13 @@ export function TableSetupHostingCard({
                     )}
                   />
                 }
-                label="Manabrew"
+                label={`Manabrew`}
                 badge={
                   <Badge variant="outline" className="text-[9px]">
                     in-browser
                   </Badge>
                 }
-                description="Manabrew's own engine, hosted by the table creator."
+                description={`Manabrew's own engine, hosted by the table creator.`}
               />
               {ironsmithEnabled && (
                 <EngineOption
@@ -117,7 +114,7 @@ export function TableSetupHostingCard({
                       )}
                     />
                   }
-                  label="Ironsmith"
+                  label={`Ironsmith`}
                   badge={
                     <>
                       <Badge variant="outline" className="text-[9px]">
@@ -131,7 +128,7 @@ export function TableSetupHostingCard({
                       </Badge>
                     </>
                   }
-                  description="Ironsmith WASM hosted by the table creator. Partial card support."
+                  description={`Ironsmith WASM hosted by the table creator. Partial card support.`}
                 />
               )}
             </div>
@@ -180,7 +177,6 @@ export function TableSetupHostingCard({
     </section>
   );
 }
-
 function EngineOption({
   selected,
   onClick,
@@ -202,7 +198,7 @@ function EngineOption({
       onClick={onClick}
       className={cn(
         "flex flex-col items-start gap-0.5 rounded-lg p-2.5 text-left transition-colors",
-        selected ? "bg-primary/10" : "hover:bg-muted/50",
+        selected ? "bg-selection/15" : "hover:bg-muted/50",
       )}
     >
       <span className="flex flex-wrap items-center gap-1.5">

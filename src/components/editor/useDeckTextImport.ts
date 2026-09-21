@@ -11,7 +11,6 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
 import type { DeckCard, DeckFormat } from "@/protocol/deck";
 import { executeDeckEdit } from "./deckEditor.history";
-
 export interface ResolvedDeckTextImport {
   cards: DeckCard[];
   sideboard: DeckCard[];
@@ -20,7 +19,6 @@ export interface ResolvedDeckTextImport {
   notFound: string[];
   substitutedPrintings: string[];
 }
-
 export async function resolveDeckTextImport(
   entries: ParsedDeckEntry[],
   onProgress: (fraction: number) => void,
@@ -120,7 +118,6 @@ export async function resolveDeckTextImport(
   }
   return { cards, sideboard, maybeboard, commanders, notFound, substitutedPrintings };
 }
-
 export function useDeckTextImport() {
   return useCallback(
     async (
@@ -164,7 +161,9 @@ export function useDeckTextImport() {
         toast.warning(`Imported "${deckName}" — couldn't find: ${shown}${extra}`);
       } else if (substitutedPrintings.length > 0) {
         toast.warning(
-          `Imported "${deckName}" with ${substitutedPrintings.length} default printing ${substitutedPrintings.length === 1 ? "substitution" : "substitutions"}`,
+          substitutedPrintings.length === 1
+            ? `Imported "${deckName}" with one default printing substitution`
+            : `Imported "${deckName}" with ${substitutedPrintings.length} default printing substitutions`,
         );
       } else {
         toast.success(`Imported "${deckName}"`);
@@ -174,7 +173,6 @@ export function useDeckTextImport() {
     [],
   );
 }
-
 export function useDeckTextImportIntoCurrent() {
   return useCallback(
     async (
@@ -188,7 +186,7 @@ export function useDeckTextImportIntoCurrent() {
       if (useDeckStore.getState().editorSessionId !== startingSessionId) {
         return false;
       }
-      executeDeckEdit("Import card list", () =>
+      executeDeckEdit(`Import card list`, () =>
         useDeckStore.getState().mergeIntoCurrentDeck(result),
       );
       onProgress(1);
@@ -203,7 +201,9 @@ export function useDeckTextImportIntoCurrent() {
         toast.warning(`Added ${count} cards — couldn't find: ${shown}${extra}`);
       } else if (result.substitutedPrintings.length > 0) {
         toast.warning(
-          `Added ${count} cards with ${result.substitutedPrintings.length} default printing ${result.substitutedPrintings.length === 1 ? "substitution" : "substitutions"}`,
+          result.substitutedPrintings.length === 1
+            ? `Added ${count} cards with one default printing substitution`
+            : `Added ${count} cards with ${result.substitutedPrintings.length} default printing substitutions`,
         );
       } else {
         toast.success(`Added ${count} cards to this deck`);

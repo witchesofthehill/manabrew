@@ -1,0 +1,119 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-09-10 12:38+0100\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: ja\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#. placeholder {0}: stats.damage
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1136
+msgid "{0} damage"
+msgstr "{0} ダメージ"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:702
+msgid "↑↓ select · Enter activate · 1–9"
+msgstr "↑↓ 選択 · Enter で発動 · 1–9"
+
+#. placeholder {0}: indexedActions.length
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:715
+msgid "Available actions · {0}"
+msgstr "利用可能なアクション · {0}"
+
+#. placeholder {0}: indexedActions.length
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:714
+msgid "Available on current face · {0}"
+msgstr "現在の面で利用可能 · {0}"
+
+#: src/pixi/cardPreview/PixiCardRailPreview.ts:90
+msgid "Awaiting first chapter"
+msgstr "最初の章を待機中"
+
+#: src/pixi/cardPreview/PixiCardRailPreview.ts:93
+msgid "Awaiting first level"
+msgstr "最初のレベルを待機中"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:780
+msgid "Card identity and rules are hidden."
+msgstr "カードの正体とルールテキストは非表示です。"
+
+#. placeholder {0}: notch.label
+#: src/pixi/cardPreview/PixiCardRailPreview.ts:117
+msgid "CHAPTER {0}"
+msgstr "第 {0} 章"
+
+#. placeholder {0}: state.current
+#. placeholder {1}: state.max
+#: src/pixi/cardPreview/PixiCardRailPreview.ts:89
+msgid "Chapter {0} of {1}"
+msgstr "章 {0} / {1}"
+
+#: src/pixi/cardPreview/PixiCardRailPreview.ts:80
+msgid "CLASS LEVELS"
+msgstr "クラスのレベル"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1133
+msgid "Defense"
+msgstr "防衛"
+
+#: src/pixi/cardPreview/PixiCardRailPreview.ts:151
+msgid "Effect text unavailable"
+msgstr "効果テキストを利用できません"
+
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:307
+msgid "Face-down card"
+msgstr "裏向きのカード"
+
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:309
+msgid "Face-down permanent"
+msgstr "裏向きのパーマネント"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:807
+msgid "Flavor text"
+msgstr "フレーバーテキスト"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:836
+msgid "Flip back · F"
+msgstr "裏面に切替 · F"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:836
+msgid "Flip front · F"
+msgstr "表面に切替 · F"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:733
+msgid "Keywords, costs & counters"
+msgstr "キーワード・コスト・カウンター"
+
+#. placeholder {0}: notch.label
+#: src/pixi/cardPreview/PixiCardRailPreview.ts:118
+msgid "LEVEL {0}"
+msgstr "レベル {0}"
+
+#. placeholder {0}: state.current
+#. placeholder {1}: state.max
+#: src/pixi/cardPreview/PixiCardRailPreview.ts:92
+msgid "Level {0} of {1}"
+msgstr "レベル {0} / {1}"
+
+#: src/pixi/cardPreview/PixiCardRailPreview.ts:80
+msgid "LORE CHAPTERS"
+msgstr "サーガの章"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1132
+msgid "Loyalty"
+msgstr "忠誠度"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:756
+msgid "Progression"
+msgstr "進行"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:782
+msgid "Rules text"
+msgstr "ルールテキスト"

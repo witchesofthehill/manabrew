@@ -446,10 +446,9 @@ impl GameLoop {
             return;
         }
 
-        // Run the tiebreak loop silently; only the final, decisive round
-        // is broadcast to the UI.
         let mut contenders: Vec<PlayerId> = players.clone();
-        let (final_rolls, winner) = loop {
+        let mut rounds = Vec::new();
+        let winner = loop {
             let rolls: Vec<(PlayerId, i32)> = contenders
                 .iter()
                 .map(|&pid| (pid, rng.gen_range(1..=SIDES)))
@@ -470,8 +469,9 @@ impl GameLoop {
                 .filter(|(_, v)| *v == highest)
                 .map(|(p, _)| *p)
                 .collect();
+            rounds.push(rolls);
             if top.len() == 1 {
-                break (rolls, top[0]);
+                break top[0];
             }
             self.game_log.log(
                 GameLogEntryType::Info,
@@ -495,7 +495,7 @@ impl GameLoop {
             agents,
             crate::agent::notification::GameNotification::FirstPlayerRoll {
                 sides: SIDES,
-                rolls: final_rolls,
+                rounds,
                 winner,
             },
         );

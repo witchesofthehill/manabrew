@@ -1,6 +1,5 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
-
 const palette: BasePalette = {
   foreground: "#ebdbb2", // fg0
   labelMuted: "#928374", // gray
@@ -26,7 +25,6 @@ const palette: BasePalette = {
   brown: "#bdae93",
   paper: "#ebdbb2",
   poison: "#98971a", // gruvbox dark-yellow — classic infect olive
-  promptPass: "#83a598", // blue
   promptDefense: "#8ec07c", // teal
   manaW: "#ebdbb2",
   manaU: "#83a598",
@@ -35,11 +33,10 @@ const palette: BasePalette = {
   manaG: "#b8bb26",
   manaC: "#928374",
 };
-
 const preset: ThemePreset = {
   id: "gruvbox",
   name: "Gruvbox",
-  description: "Retro warm earthy tones",
+  description: `Retro warm earthy tones`,
   light: {
     background: "#fbf3e0",
     foreground: "#292929",
@@ -94,5 +91,4 @@ const preset: ThemePreset = {
   },
   gameColors: buildGameColors(palette),
 };
-
 export default preset;

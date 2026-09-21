@@ -53,24 +53,18 @@ import type { EngineKind } from "@/types/server";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 import { withResolvedDeckName } from "@/lib/deckName";
-
 export type { GameConfig, GameState, DisplayEvent, DeferredSnapshot } from "./gameStore.types";
-
 let gameLaunchGeneration = 0;
 let gameLaunchInFlight: number | null = null;
-
 export function cancelPendingGameLaunch(): void {
   if (gameLaunchInFlight !== null) void useGameStore.getState().endGame();
 }
-
 class GameLaunchCancelledError extends Error {}
-
-function isManualTabletopApi(
-  runtime: GameRuntime,
-): runtime is GameRuntime & { api: ManualTabletopApi } {
+function isManualTabletopApi(runtime: GameRuntime): runtime is GameRuntime & {
+  api: ManualTabletopApi;
+} {
   return runtime.capabilities.manualTabletop && "applyManualAction" in runtime.api;
 }
-
 function manualZoneCard(card: DeckCard, playerId: string, zoneId: string): ClientCardDto {
   const { identity, ...rest } = card;
   return {
@@ -94,11 +88,13 @@ function manualZoneCard(card: DeckCard, playerId: string, zoneId: string): Clien
     isDoubleFaced: card.isDoubleFaced ?? false,
   };
 }
-
 function seedManualDeck(
   gameView: ClientGameView,
   deck: Deck,
-): { gameView: ClientGameView; libraries: Record<string, ClientCardDto[]> } {
+): {
+  gameView: ClientGameView;
+  libraries: Record<string, ClientCardDto[]>;
+} {
   const playerId = gameView.players[0]?.id ?? "player-0";
   const openingHandSize = Math.min(7, deck.cards.length);
   const hand = deck.cards
@@ -110,7 +106,6 @@ function seedManualDeck(
   const commandZone = (deck.commanders ?? []).map((card) =>
     manualZoneCard(card, playerId, "command"),
   );
-
   return {
     gameView: {
       ...gameView,
@@ -130,7 +125,6 @@ function seedManualDeck(
     },
   };
 }
-
 async function initializeGame({
   deck,
   opponentDecks,
@@ -154,7 +148,6 @@ async function initializeGame({
   const selectedFormatId = formatId ?? deck.format ?? "standard";
   const format = getFormat(selectedFormatId);
   const startingLife = format?.deckRules.startingLife ?? DEFAULT_STARTING_LIFE;
-
   const platformType = getPlatform().type;
   const useHostedBrowserForge =
     platformType === "web" && !isForgeWasmSupported() && isHostedEngineAvailable();
@@ -246,13 +239,11 @@ async function initializeGame({
       throw error;
     }
   }
-
   const gameDecks: Record<string, Deck> = { "player-0": deck };
   (opponentDecks ?? []).forEach((opponentDeck, index) => {
     gameDecks[`player-${index + 1}`] = opponentDeck;
   });
   const runtime = getSelectedGameRuntime();
-
   set({
     isGameActive: true,
     fatalError: null,
@@ -266,13 +257,13 @@ async function initializeGame({
     isWaitingForResponse: false,
     seatAddressedStates: false,
     relinquishedPriority: false,
+    myPlayerSlot: "player-0",
     selfConceded: false,
     gameConfig: { formatId: selectedFormatId, startingLife },
     gameDecks,
     isPrefetchingCards: true,
     debugInfo: "Starting engine...",
   });
-
   const engineLabel = engine === "Forge" ? "forge-wasm" : localEngineLabel();
   beginGame(engineLabel);
   announceLocalGame("Singleplayer");
@@ -323,7 +314,6 @@ async function initializeGame({
     throw error;
   }
 }
-
 export const useGameStore = create<GameState>()(
   devtools(
     (set, get) => ({
@@ -348,7 +338,6 @@ export const useGameStore = create<GameState>()(
       myPlayerSlot: null,
       gameDecks: {},
       hiddenPlaymats: new Set<string>(),
-
       togglePlaymatHidden: (playerId) =>
         set((state) => {
           const next = new Set(state.hiddenPlaymats);
@@ -356,17 +345,13 @@ export const useGameStore = create<GameState>()(
           else next.add(playerId);
           return { hiddenPlaymats: next };
         }),
-
       updateGameView: (view) => set({ gameView: view }),
-
       setGameConfig: (config) => set({ gameConfig: config }),
-
       dismissIronsmithDeckError: () => set({ ironsmithDeckError: null }),
-
       startGame: async (deck, formatId, commanderName, opponentDecks, engine) => {
         if (get().isGameActive) return false;
         if (gameLaunchInFlight !== null) {
-          toast.info("The previous game is still closing. Try again in a moment.");
+          toast.info(`The previous game is still closing. Try again in a moment.`);
           return false;
         }
         const launchGeneration = ++gameLaunchGeneration;
@@ -390,14 +375,13 @@ export const useGameStore = create<GameState>()(
           if (e instanceof IronsmithUnsupportedDeckError) {
             set({ ironsmithDeckError: e.issues });
           } else {
-            toast.error(e instanceof Error ? e.message : "Failed to start game");
+            toast.error(e instanceof Error ? e.message : `Failed to start game`);
           }
           return false;
         } finally {
           if (gameLaunchInFlight === launchGeneration) gameLaunchInFlight = null;
         }
       },
-
       startManualTabletopGame: async (deck, formatId, commanderName) => {
         selectGameRuntime("manual-tabletop");
         const started = await get().startGame(
@@ -406,12 +390,10 @@ export const useGameStore = create<GameState>()(
           commanderName,
         );
         if (!started) return;
-
         const runtime = getSelectedGameRuntime();
         if (!isManualTabletopApi(runtime)) return;
         const gameView = runtime.api.getGameView();
         if (!gameView) return;
-
         await runtime.api.applyManualAction({
           type: "replaceState",
           ...seedManualDeck(gameView, deck),
@@ -421,7 +403,6 @@ export const useGameStore = create<GameState>()(
           applyPrompt(prompt as Prompt, "Manual", set, get);
         }
       },
-
       startManualRoomHost: async (localPlayerSlot: string) => {
         const runtime = getSelectedGameRuntime();
         if (!isManualTabletopApi(runtime)) {
@@ -450,7 +431,6 @@ export const useGameStore = create<GameState>()(
           debugInfo: "Manual room host started.",
         });
       },
-
       startManualRoomClient: async (localPlayerSlot: string, initialGameView?: ClientGameView) => {
         selectGameRuntime("manual-tabletop");
         const runtime = getSelectedGameRuntime();
@@ -487,11 +467,9 @@ export const useGameStore = create<GameState>()(
           debugInfo: "Manual room client connected. Waiting for table state...",
         });
       },
-
       stopManualRoomSync: () => {
         stopActiveManualRoomSync();
       },
-
       startMultiplayerGame: async (
         playerNames,
         decks,
@@ -597,14 +575,13 @@ export const useGameStore = create<GameState>()(
           if (e instanceof IronsmithUnsupportedDeckError) {
             set({ ironsmithDeckError: e.issues });
           } else {
-            toast.error(e instanceof Error ? e.message : "Failed to start multiplayer game");
+            toast.error(e instanceof Error ? e.message : `Failed to start multiplayer game`);
           }
           return false;
         } finally {
           if (gameLaunchInFlight === launchGeneration) gameLaunchInFlight = null;
         }
       },
-
       respond: async (output) => {
         const promptType = get().currentPrompt?.input.type;
         if (!promptType) {
@@ -649,26 +626,25 @@ export const useGameStore = create<GameState>()(
           console.error("Failed to respond:", e);
         }
       },
-
       concede: async () => {
         const runtime = getSelectedGameRuntime();
         if (runtime.capabilities.concedeBehavior === "end-session") {
-          void get().endGame();
+          await get().endGame();
           return;
         }
         const { myPlayerSlot } = get();
-        set({ selfConceded: true, currentPrompt: null, isWaitingForResponse: false });
-        if (!myPlayerSlot) return;
+        if (!myPlayerSlot) throw new Error("No local player is available to concede.");
         try {
           await runtime.api.sendDirective({
             playerSlot: myPlayerSlot,
             directive: { type: "concede" },
           });
+          set({ selfConceded: true, currentPrompt: null, isWaitingForResponse: false });
         } catch (e) {
           console.warn("[store] concede directive failed:", e);
+          throw e;
         }
       },
-
       endGame: async () => {
         gameLaunchGeneration += 1;
         const activeSession = peekActiveGameSession();
@@ -714,16 +690,17 @@ export const useGameStore = create<GameState>()(
         });
         stopActiveManualRoomSync();
         resetSelectedGameRuntime();
-        const withTimeout = <T>(p: Promise<T>, label: string) =>
-          Promise.race([
-            p,
-            new Promise<void>((resolve) =>
-              setTimeout(() => {
-                console.warn(`${label} timed out after 2s`);
-                resolve();
-              }, 2000),
-            ),
-          ]);
+        const withTimeout = <T>(promise: Promise<T>, label: string): Promise<T | void> => {
+          let clearTimer: () => void = () => undefined;
+          const timeout = new Promise<void>((resolve) => {
+            const timer = setTimeout(() => {
+              console.warn(`${label} timed out after 2s`);
+              resolve();
+            }, 2000);
+            clearTimer = () => clearTimeout(timer);
+          });
+          return Promise.race([promise, timeout]).finally(clearTimer);
+        };
         if (wasMultiplayer) {
           try {
             await withTimeout(useServerStore.getState().leaveRoom(), "leaveRoom()");
@@ -744,11 +721,9 @@ export const useGameStore = create<GameState>()(
           }
         }
       },
-
       setMultiplayerState: (isMultiplayer, isHost, myPlayerSlot) => {
         set({ isMultiplayer, isHost, myPlayerSlot });
       },
-
       restoreSnapshot: async (checkpointId) => {
         const { isMultiplayer, isHost } = get();
         if (isMultiplayer && !isHost) return;
@@ -776,11 +751,14 @@ export const useGameStore = create<GameState>()(
     { name: "game", enabled: import.meta.env.DEV },
   ),
 );
-
 // Dev-only seam for the UI e2e suite (tests/e2e-ui): the tests need the LIVE
 // store instance, and a dynamic `import("/src/stores/useGameStore.ts")` from
 // the page context duplicates the module once vite's HMR stamps the module
 // graph with `?t=` query params. Never present in production builds.
 if (import.meta.env.DEV && typeof window !== "undefined") {
-  (window as unknown as { __gameStore?: typeof useGameStore }).__gameStore = useGameStore;
+  (
+    window as unknown as {
+      __gameStore?: typeof useGameStore;
+    }
+  ).__gameStore = useGameStore;
 }

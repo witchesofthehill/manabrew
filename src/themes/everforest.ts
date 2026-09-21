@@ -1,6 +1,5 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
-
 const palette: BasePalette = {
   foreground: "#d3c6aa",
   labelMuted: "#859289",
@@ -26,7 +25,6 @@ const palette: BasePalette = {
   brown: "#e69875",
   paper: "#d3c6aa",
   poison: "#85a06a", // mossy sibling of everforest green
-  promptPass: "#a7c080", // green
   promptDefense: "#7fbbb3", // blue
   manaW: "#d3c6aa",
   manaU: "#7fbbb3",
@@ -35,11 +33,10 @@ const palette: BasePalette = {
   manaG: "#a7c080",
   manaC: "#859289",
 };
-
 const preset: ThemePreset = {
   id: "everforest",
   name: "Everforest",
-  description: "Soft green nature-inspired, easy on the eyes",
+  description: `Soft green nature-inspired, easy on the eyes`,
   light: {
     background: "#f4f2eb",
     foreground: "#36453b",
@@ -94,5 +91,4 @@ const preset: ThemePreset = {
   },
   gameColors: buildGameColors(palette),
 };
-
 export default preset;

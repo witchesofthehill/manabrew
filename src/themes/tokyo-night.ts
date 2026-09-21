@@ -1,6 +1,5 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
-
 const palette: BasePalette = {
   foreground: "#c0caf5",
   labelMuted: "#565f89",
@@ -26,7 +25,6 @@ const palette: BasePalette = {
   brown: "#ff9e64",
   paper: "#c0caf5",
   poison: "#7fb055", // deeper olive version of tokyo-night green
-  promptPass: "#7aa2f7", // blue
   promptDefense: "#7dcfff", // sky
   manaW: "#c0caf5",
   manaU: "#7aa2f7",
@@ -35,11 +33,10 @@ const palette: BasePalette = {
   manaG: "#9ece6a",
   manaC: "#a9b1d6",
 };
-
 const preset: ThemePreset = {
   id: "tokyo-night",
   name: "Tokyo Night",
-  description: "Neon-tinged dark cityscape palette",
+  description: `Neon-tinged dark cityscape palette`,
   light: {
     background: "#f3f4f7",
     foreground: "#353846",
@@ -94,5 +91,4 @@ const preset: ThemePreset = {
   },
   gameColors: buildGameColors(palette),
 };
-
 export default preset;

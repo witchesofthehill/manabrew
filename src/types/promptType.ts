@@ -56,8 +56,8 @@ export function intentPrefersArrow(intent: TargetingIntent): boolean {
 
 /**
  * Classify a `TargetingIntent` as hostile (acting against the target) or
- * friendly (supporting / informing). The pointer palette has only two
- * colours (`pointer.hostile` / `pointer.friendly`) — the icon glyph
+ * friendly (supporting / informing). The targeting palette has only two
+ * colours (`targeting.hostile` / `targeting.friendly`) — the icon glyph
  * carries the specific semantic; colour only signals the valence.
  *
  * Mirrors `TargetingIntent::is_hostile` in

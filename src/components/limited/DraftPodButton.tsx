@@ -1,5 +1,4 @@
 import { Users } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -8,11 +7,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { DraftSeat } from "@/types/limited";
-
 interface DraftPodButtonProps {
   seats: DraftSeat[];
 }
-
 export function DraftPodButton({ seats }: DraftPodButtonProps) {
   return (
     <DropdownMenu>
@@ -38,10 +35,10 @@ export function DraftPodButton({ seats }: DraftPodButtonProps) {
               <span className="shrink-0 text-right text-[11px] text-muted-foreground">
                 <span className="block">
                   {s.currentPackSize ?? 0} cards
-                  {(s.packsWaiting ?? 0) > 0 ? ` · ${s.packsWaiting} waiting` : ""}
+                  {(s.packsWaiting ?? 0) > 0 ? ` · ${s.packsWaiting ?? 0} waiting` : ""}
                 </span>
                 <span className="block">
-                  {s.awaitingPick ? "Picking" : `${s.picksMade} picked`}
+                  {s.awaitingPick ? `Picking` : `${s.picksMade} picked`}
                 </span>
               </span>
             </li>

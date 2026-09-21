@@ -1,13 +1,12 @@
 import { ManaBrewLogo } from "@/components/layout/ManaBrewLogo";
 import { THEME_PRESETS } from "@/themes";
-
 export function BrandSection() {
   return (
     <section id="brand" className="scroll-mt-24 space-y-6">
       <div className="relative overflow-hidden rounded-2xl border border-border">
         <img
           src="/manabrew_brewery_1.png"
-          alt="Manabrew brand art"
+          alt={`Manabrew brand art`}
           className="absolute inset-0 h-full w-full object-cover opacity-30"
         />
         <div className="relative flex flex-col gap-4 bg-gradient-to-r from-background/90 to-background/40 p-6 sm:flex-row sm:items-center sm:gap-6 sm:p-8">

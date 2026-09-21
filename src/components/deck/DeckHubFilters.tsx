@@ -5,7 +5,6 @@ import { DeckHubFilterSheet } from "@/components/deck/DeckHubFilterSheet";
 import type { DeckHubDiscoveryFilters } from "@/components/deck/deckHub.types";
 import type { DeckHubFacets } from "@/api/hubTypes";
 import { cn } from "@/lib/utils";
-
 interface DeckHubFiltersProps {
   filters: DeckHubDiscoveryFilters;
   facets: DeckHubFacets | null;
@@ -14,19 +13,16 @@ interface DeckHubFiltersProps {
   onChange: (patch: Partial<DeckHubDiscoveryFilters>) => void;
   onClear: () => void;
 }
-
 export function DeckHubFilters(props: DeckHubFiltersProps) {
   const [expanded, setExpanded] = useState(
     () => sessionStorage.getItem("manabrew:community-filters-expanded") !== "false",
   );
-
   function toggleExpanded() {
     setExpanded((current) => {
       sessionStorage.setItem("manabrew:community-filters-expanded", String(!current));
       return !current;
     });
   }
-
   return (
     <div
       className={cn(
@@ -37,7 +33,10 @@ export function DeckHubFilters(props: DeckHubFiltersProps) {
       <div className="flex justify-end border-b px-4 py-3 sm:px-6 lg:hidden">
         <DeckHubFilterSheet {...props} />
       </div>
-      <aside className="hidden h-full overflow-y-auto p-5 lg:block" aria-label="Community filters">
+      <aside
+        className="hidden h-full overflow-y-auto p-5 lg:block"
+        aria-label={`Community filters`}
+      >
         <div
           className={cn(
             "flex items-start",
@@ -53,7 +52,7 @@ export function DeckHubFilters(props: DeckHubFiltersProps) {
           <button
             type="button"
             className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label={expanded ? "Collapse filters" : "Expand filters"}
+            aria-label={expanded ? `Collapse filters` : `Expand filters`}
             onClick={toggleExpanded}
           >
             {expanded ? (

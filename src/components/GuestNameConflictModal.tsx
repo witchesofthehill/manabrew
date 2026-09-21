@@ -17,9 +17,7 @@ import { stripUsernameTag } from "@/lib/username";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
-
 const NAME_MIN_LENGTH = 2;
-
 // A guest's name is not reserved, so an account can claim it while the guest is
 // away. On return, the Hub refuses to vouch the stale name; this forces a
 // rename before the guest can do anything, since the relay won't accept them
@@ -32,7 +30,6 @@ export function GuestNameConflictModal() {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     if (status !== "signedOut" || !serverUsername) {
       setConflict(false);
@@ -52,9 +49,7 @@ export function GuestNameConflictModal() {
       cancelled = true;
     };
   }, [status, serverUsername]);
-
   const base = name.trim();
-
   async function save() {
     if (base.length < NAME_MIN_LENGTH) return;
     setBusy(true);
@@ -75,11 +70,8 @@ export function GuestNameConflictModal() {
       setBusy(false);
     }
   }
-
   if (!conflict) return null;
-
   const stolen = stripUsernameTag(serverUsername);
-
   return (
     <Dialog open onOpenChange={() => {}}>
       <DialogContent
@@ -106,7 +98,7 @@ export function GuestNameConflictModal() {
             autoFocus
             value={name}
             maxLength={24}
-            placeholder="Your new name"
+            placeholder={`Your new name`}
             className="text-center"
             onChange={(e) => {
               setName(e.target.value);
@@ -121,11 +113,12 @@ export function GuestNameConflictModal() {
 
         <DialogFooter className="flex-col gap-3 sm:flex-col sm:space-x-0">
           <Button
+            variant="primary"
             className="w-full"
             disabled={busy || base.length < NAME_MIN_LENGTH}
             onClick={() => void save()}
           >
-            {busy ? "Claiming…" : "Take this name"}
+            {busy ? `Claiming\u2026` : `Take this name`}
           </Button>
           <p className="text-center text-xs text-muted-foreground">
             Tip:{" "}

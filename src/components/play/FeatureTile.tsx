@@ -1,24 +1,21 @@
 import type { ComponentType, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
-
 interface TileAccent {
   chip: string;
   hoverBorder: string;
   watermark: string;
-  surface?: string;
 }
-
 const TILE_ACCENTS: Record<string, TileAccent> = {
   primary: {
     chip: "border-primary/40 bg-primary/15 text-primary",
     hoverBorder: "hover:border-primary/70",
     watermark: "text-primary opacity-[0.07]",
   },
-  sky: {
-    chip: "border-format-badge-sky/40 bg-format-badge-sky/15 text-format-badge-sky",
-    hoverBorder: "hover:border-format-badge-sky/60",
-    watermark: "text-format-badge-sky opacity-[0.07]",
+  secondary: {
+    chip: "border-secondary/40 bg-secondary/15 text-secondary",
+    hoverBorder: "hover:border-secondary",
+    watermark: "text-secondary opacity-[0.07]",
   },
   blue: {
     chip: "border-format-badge-blue/40 bg-format-badge-blue/15 text-format-badge-blue",
@@ -39,18 +36,15 @@ const TILE_ACCENTS: Record<string, TileAccent> = {
     chip: "border-community-accent/45 bg-community-accent/15 text-community-accent",
     hoverBorder: "hover:border-community-accent/70",
     watermark: "text-community-accent opacity-[0.09]",
-    surface:
-      "border-community-accent/35 bg-community-accent/[0.08] hover:bg-community-accent/[0.12]",
   },
 };
-
 const TILE_SIZES = {
   lg: {
     tile: "min-h-44 gap-6 p-5 text-left shadow-xl hover:shadow-2xl motion-safe:transition-[transform,border-color,box-shadow] motion-safe:hover:-translate-y-0.5 sm:min-h-52 sm:p-7 lg:min-h-60",
     chip: "h-12 w-12",
     chipIcon: "h-5 w-5",
     watermark: "-bottom-8 -right-5 h-36 w-36 sm:h-44 sm:w-44",
-    label: "font-serif text-2xl font-light sm:text-3xl",
+    label: `font-serif text-2xl font-light sm:text-3xl`,
     desc: "mt-1 text-sm",
   },
   sm: {
@@ -58,22 +52,22 @@ const TILE_SIZES = {
     chip: "h-9 w-9",
     chipIcon: "h-4 w-4",
     watermark: "-bottom-4 -right-4 h-24 w-24",
-    label: "text-sm font-medium",
+    label: `text-sm font-medium`,
     desc: "mt-0.5 text-xs leading-snug",
   },
 } as const;
-
 interface FeatureTileProps {
   to: string;
   label: string;
   desc: string;
-  icon: ComponentType<{ className?: string }>;
+  icon: ComponentType<{
+    className?: string;
+  }>;
   tone: string;
   size?: keyof typeof TILE_SIZES;
   footer?: ReactNode;
   className?: string;
 }
-
 export function FeatureTile({
   to,
   label,
@@ -93,7 +87,6 @@ export function FeatureTile({
         "group relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl border border-border/70 bg-card/85 backdrop-blur-md motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         sizing.tile,
         accent.hoverBorder,
-        accent.surface,
         className,
       )}
     >

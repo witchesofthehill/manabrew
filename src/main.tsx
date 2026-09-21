@@ -14,12 +14,14 @@ import "./index.css";
 import App from "./App.tsx";
 import { registerConsoleHooks } from "./lib/consoleHooks";
 import { initAndroidSafeArea } from "./platform/androidSafeArea";
+import { initializeLocalization } from "./i18n/runtime";
 
-initAndroidSafeArea();
-registerConsoleHooks();
+async function start(): Promise<void> {
+  initAndroidSafeArea();
+  registerConsoleHooks();
+  await initializeLocalization();
 
-createRoot(document.getElementById("root")!).render(
-  // <StrictMode>
-  <App />,
-  // </StrictMode>,
-);
+  createRoot(document.getElementById("root")!).render(<App />);
+}
+
+void start();

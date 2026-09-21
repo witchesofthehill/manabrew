@@ -1060,10 +1060,10 @@
       "options": {}
     },
     {
-      "id": 244,
+      "id": 247,
       "type": "table",
-      "title": "Turnaround, split at the first reply frame",
-      "description": "reply_wait is answer sent to first reply frame: the server, the hop, the player's link and the transfer of the reply. client_work is first frame to prompt handled: parsing, applying the state, rendering. A high client_work with a normal reply_wait is the player's machine; the reverse is their link. For forge-wasm the frame is the seat read, so reply_wait there is engine time plus the seat drain, not a wire.",
+      "title": "Engine think, owner",
+      "description": "At a solo pod the board repaints only when the player is prompted, so every window is a frozen board. The engine tags each window with the time its bot prompts took: engine_bot_* is that, engine_rules_* is the rules engine resolving the table. Games whose worst window sat on a bot versus on the rules, per seat count. Null before clients of 2026-09-20.",
       "datasource": {
         "type": "frser-sqlite-datasource",
         "uid": "events-sqlite"
@@ -1071,6 +1071,41 @@
       "gridPos": {
         "x": 0,
         "y": 86,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT engine, seats, count(*) AS games, round(avg(engine_bot_p50)) AS bot_p50, round(avg(engine_rules_p50)) AS rules_p50, max(engine_bot_max) AS worst_bot_ms, max(engine_rules_max) AS worst_rules_ms, sum(engine_bot_max > 10000) AS bot_stalls_10s, sum(engine_rules_max > 10000) AS rules_stalls_10s FROM engine_stats WHERE engine_bot_p50 IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY engine, seats ORDER BY engine, seats",
+          "rawQueryText": "SELECT engine, seats, count(*) AS games, round(avg(engine_bot_p50)) AS bot_p50, round(avg(engine_rules_p50)) AS rules_p50, max(engine_bot_max) AS worst_bot_ms, max(engine_rules_max) AS worst_rules_ms, sum(engine_bot_max > 10000) AS bot_stalls_10s, sum(engine_rules_max > 10000) AS rules_stalls_10s FROM engine_stats WHERE engine_bot_p50 IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY engine, seats ORDER BY engine, seats",
+          "rawQuerySql": "SELECT engine, seats, count(*) AS games, round(avg(engine_bot_p50)) AS bot_p50, round(avg(engine_rules_p50)) AS rules_p50, max(engine_bot_max) AS worst_bot_ms, max(engine_rules_max) AS worst_rules_ms, sum(engine_bot_max > 10000) AS bot_stalls_10s, sum(engine_rules_max > 10000) AS rules_stalls_10s FROM engine_stats WHERE engine_bot_p50 IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY engine, seats ORDER BY engine, seats",
+          "queryType": "table",
+          "timeColumns": [],
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 244,
+      "type": "table",
+      "title": "Turnaround, split at the first reply frame",
+      "description": "client_work is the time the client spent parsing and applying the frames between its answer and the next prompt. reply_wait is the rest: the server, the hop, the player's link, the transfer, and what the engine and the other seats did between frames. A high client_work with a normal reply_wait is the player's machine; the reverse is their link or their table. Rows from clients older than the 2026-09-17 fix cut at the first frame instead, so in rooms they carry the opponents' turns as client_work. For forge-wasm the frame is the seat read, so reply_wait there is engine time plus the seat drain, not a wire.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 94,
         "w": 24,
         "h": 8
       },
@@ -1098,14 +1133,14 @@
       "id": 245,
       "type": "timeseries",
       "title": "forge-hosted: reply wait against client work (daily median)",
-      "description": "The two halves of a hosted game's turnaround, one point per day. Reply wait moves with the fleet and the network; client work moves with the players' machines and the board. Multi-human games are in here too, and the other human's think lands in reply wait, so cut by seats before reading a spike.",
+      "description": "The two halves of a hosted game's turnaround, one point per day. Reply wait moves with the fleet, the network and the other seats; client work moves with the players' machines and the board. Clients older than the 2026-09-17 fix cut at the first frame, so the client work line carries the opponents' turns until those clients age out.",
       "datasource": {
         "type": "frser-sqlite-datasource",
         "uid": "events-sqlite"
       },
       "gridPos": {
         "x": 0,
-        "y": 94,
+        "y": 102,
         "w": 12,
         "h": 8
       },
@@ -1135,14 +1170,14 @@
       "id": 246,
       "type": "table",
       "title": "forge-hosted: client work by platform and seats",
-      "description": "Where a slow hosted game is spent on the player's own machine. games_over_500ms counts games whose median client work exceeded half a second; on 2026-09-10 two desktop players sat at 1.1 to 1.7 s per decision with a normal reply wait.",
+      "description": "Where a slow hosted game is spent on the player's own machine. games_over_500ms counts games whose median client work exceeded half a second. Filter to clients newer than the 2026-09-17 fix: earlier ones cut at the first frame, and their client work is mostly the other seats' turns (2-seat 1s, 4-seat 1.5-3s medians).",
       "datasource": {
         "type": "frser-sqlite-datasource",
         "uid": "events-sqlite"
       },
       "gridPos": {
         "x": 12,
-        "y": 94,
+        "y": 102,
         "w": 12,
         "h": 8
       },

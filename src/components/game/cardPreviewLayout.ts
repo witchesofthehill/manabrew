@@ -1,7 +1,7 @@
-import { FLASH_CARD_SIZE } from "./game.styles";
+import { GAME_CARD_SIZES } from "./game.constants";
 import { getSafeAreaInsets } from "@/lib/safeArea";
 
-const { w: CARD_W, h: CARD_H } = FLASH_CARD_SIZE;
+const { width: CARD_W, height: CARD_H } = GAME_CARD_SIZES.preview;
 const ACTIONS_PANEL_W = 220;
 export const CARD_PREVIEW_ANCHOR_GAP = 12;
 export const CARD_PREVIEW_EDGE_PAD = 8;

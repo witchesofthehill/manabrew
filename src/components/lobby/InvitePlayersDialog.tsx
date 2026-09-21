@@ -9,23 +9,19 @@ import { useServerStore } from "@/stores/useServerStore";
 import { useInviteStore } from "@/stores/useInviteStore";
 import { stripUsernameTag } from "@/lib/username";
 import type { PlayerInfo } from "@/types/server";
-
 interface InvitePlayersDialogProps {
   open: boolean;
   onClose: () => void;
 }
-
 function invitable(player: PlayerInfo, me: string | null): boolean {
   return player.connected && !player.room_id && !player.local_game && player.username !== me;
 }
-
 export function InvitePlayersDialog({ open, onClose }: InvitePlayersDialogProps) {
   const players = useServerStore((s) => s.players);
   const username = useServerStore((s) => s.username);
   const invited = useInviteStore((s) => s.sent);
   const invite = useInviteStore((s) => s.send);
   const [search, setSearch] = useState("");
-
   const query = search.trim().toLowerCase();
   const candidates = players
     .filter((p) => invitable(p, username))
@@ -35,12 +31,10 @@ export function InvitePlayersDialog({ open, onClose }: InvitePlayersDialogProps)
         .toLowerCase()
         .localeCompare(stripUsernameTag(b.username).toLowerCase()),
     );
-
   function close() {
     setSearch("");
     onClose();
   }
-
   return (
     <Dialog open={open} onOpenChange={(next) => !next && close()}>
       <DialogContent className="max-w-sm">
@@ -54,7 +48,7 @@ export function InvitePlayersDialog({ open, onClose }: InvitePlayersDialogProps)
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search players…"
+            placeholder={`Search players\u2026`}
             className="h-8 pl-8 text-sm"
             autoFocus
           />
@@ -63,7 +57,7 @@ export function InvitePlayersDialog({ open, onClose }: InvitePlayersDialogProps)
           <div className="space-y-0.5 pr-2">
             {candidates.length === 0 && (
               <p className="py-6 text-center text-xs italic text-muted-foreground">
-                {query ? `No players match “${search.trim()}”` : "Nobody is free right now"}
+                {query ? `No players match “${search.trim()}”` : `Nobody is free right now`}
               </p>
             )}
             {candidates.map((player) => {
@@ -81,10 +75,10 @@ export function InvitePlayersDialog({ open, onClose }: InvitePlayersDialogProps)
                       className={PLAYER_ROW_ACTION_CLASS}
                       disabled={sent}
                       onClick={() => void invite(player.username)}
-                      title="Invite to your table"
+                      title={`Invite to your table`}
                     >
                       <UserPlus className="h-3 w-3" />
-                      {sent ? "Invited" : "Invite"}
+                      {sent ? `Invited` : `Invite`}
                     </Button>
                   }
                 />

@@ -1,6 +1,5 @@
 import type { ScryfallCard } from "@/types/scryfall";
 import type { GameThemeColors } from "@/themes/gameTheme";
-
 export type UIRarity =
   | "common"
   | "uncommon"
@@ -10,7 +9,6 @@ export type UIRarity =
   | "land"
   | "token"
   | "unknown";
-
 export const RARITY_ORDER: Record<UIRarity, number> = {
   mythic: 0,
   rare: 1,
@@ -21,20 +19,17 @@ export const RARITY_ORDER: Record<UIRarity, number> = {
   token: 6,
   unknown: 7,
 };
-
 export const RARITY_LABEL: Record<UIRarity, string> = {
-  mythic: "Mythic",
-  rare: "Rare",
-  uncommon: "Uncommon",
-  common: "Common",
-  special: "Special",
-  land: "Land",
-  token: "Token",
-  unknown: "Other",
+  mythic: `Mythic`,
+  rare: `Rare`,
+  uncommon: `Uncommon`,
+  common: `Common`,
+  special: `Special`,
+  land: `Land`,
+  token: `Token`,
+  unknown: `Other`,
 };
-
 export type RarityToken = keyof GameThemeColors["rarity"];
-
 const RARITY_TOKEN: Partial<Record<UIRarity, RarityToken>> = {
   common: "common",
   uncommon: "uncommon",
@@ -43,11 +38,9 @@ const RARITY_TOKEN: Partial<Record<UIRarity, RarityToken>> = {
   special: "special",
   land: "land",
 };
-
 export function rarityToken(rarity: UIRarity): RarityToken | null {
   return RARITY_TOKEN[rarity] ?? null;
 }
-
 export function effectiveRarity(card: ScryfallCard | null | undefined): UIRarity {
   if (!card) return "unknown";
   const typeLine = card.type_line ?? "";

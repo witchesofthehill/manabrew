@@ -25,7 +25,7 @@ export function HoverCardPreview({
   slot,
   imageSize,
 }: HoverCardPreviewProps) {
-  if (!preview.hoveredCard) return null;
+  if (!preview.hoveredCard || (pinned && preview.phase === "closing")) return null;
   if (pinned && !slot) return null;
 
   return (

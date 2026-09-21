@@ -63,6 +63,7 @@ export interface GameCanvasCallbacks {
       trigger?: PreviewPointerInput;
     },
   ) => void;
+  onHoverZoneCards?: (cards: CardDto[] | null, screenBounds?: ScreenBounds) => void;
   onRightClickCard?: (card: CardDto, screenBounds: ScreenBounds) => void;
   onFlipCard?: () => void;
   onStartDrag?: (
@@ -75,9 +76,7 @@ export interface GameCanvasCallbacks {
   onHoverHandCard?: (card: CardDto | null, screenBounds?: ScreenBounds) => void;
   onTargetPlayer?: (playerId: string) => void;
   onShowPlayerSheet?: (playerId: string) => void;
-  onFocusOpponentField?: (playerId: string) => void;
   onLongPressCard?: (card: CardDto, screenBounds: ScreenBounds) => void;
-  onShowBoardMenu?: () => void;
   onHoverOpponent?: (playerId: string | null) => void;
   onTapLand?: (card: CardDto) => void;
   onTapLands?: (cardIds: string[]) => void;
@@ -103,6 +102,12 @@ export interface GameCanvasCallbacks {
   onDismissHoverPreview?: () => void;
 }
 
+export interface CombatRowTarget {
+  attackerId: string;
+  targetId: string;
+  targetKind: "player" | "card";
+}
+
 export interface BattlefieldState {
   cards: CardDto[];
   pendingCardIds?: string[];
@@ -124,12 +129,7 @@ export interface BattlefieldState {
   ownerRingByCard?: Record<string, string>;
   combatRowAttackerIds?: string[];
   combatRowBlocks?: CombatAssignmentDto[];
-  combatRowGroups?: {
-    color: string;
-    label: string;
-    avatarUrl?: string;
-    attackerIds: string[];
-  }[];
+  combatRowTargets?: CombatRowTarget[];
 }
 
 export interface HandState {

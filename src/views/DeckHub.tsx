@@ -7,7 +7,6 @@ import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 import { HubTopDeckSnapshots } from "@/components/deck/HubTopDeckSnapshots";
 import { useHubStore } from "@/stores/useHubStore";
 import { ROUTES } from "@/lib/constants";
-
 export default function DeckHub() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -18,11 +17,9 @@ export default function DeckHub() {
   const loadCapabilities = useHubStore((state) => state.loadCapabilities);
   const topDecks = location.pathname === ROUTES.HUB_TOP;
   const deckId = searchParams.get("deck");
-
   useEffect(() => {
     void loadCapabilities();
   }, [loadCapabilities]);
-
   useEffect(() => {
     if (topDecks || searchParams.get("tab") !== "top") return;
     const next = new URLSearchParams(searchParams);
@@ -30,14 +27,12 @@ export default function DeckHub() {
     next.delete("page");
     navigate({ pathname: ROUTES.HUB_TOP, search: next.toString() }, { replace: true });
   }, [navigate, searchParams, topDecks]);
-
   function openPreview(id: string) {
     openedPreviewId.current = id;
     const next = new URLSearchParams(searchParams);
     next.set("deck", id);
     setSearchParams(next);
   }
-
   function closePreview() {
     if (!deckId) return;
     if (openedPreviewId.current === deckId) {
@@ -49,7 +44,6 @@ export default function DeckHub() {
     next.delete("deck");
     setSearchParams(next, { replace: true });
   }
-
   return (
     <div className="flex h-full flex-col">
       {!capabilitiesLoaded && capabilitiesError ? (

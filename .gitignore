@@ -21,6 +21,9 @@ dist-ssr
 /manabrew-rs/crates/manabrew-hub/bindings/
 /manabrew-rs/crates/manabrew-relay-protocol/bindings/
 
+# Compiled Lingui catalogs
+/src/i18n/locales/*/messages.js
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

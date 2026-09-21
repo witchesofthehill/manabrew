@@ -100,22 +100,34 @@ export async function createRoom(page, { name, engine = "Ironsmith", format } = 
   const engineSummary = page.locator("summary", { hasText: /engine/i }).first();
   if (await engineSummary.count()) await engineSummary.click();
   await page.waitForTimeout(300);
+  // Inside the picker only: the header's home button is named after the app.
   await page
+    .locator("details")
+    .filter({ hasText: /engine/i })
     .getByRole("button", { name: new RegExp(engine, "i") })
     .first()
     .click();
   await page.waitForTimeout(300);
   if (format) {
     await page.locator("#room-format").click();
+    // The item's accessible name starts with its format badge ("STDStandard").
     await page
-      .getByRole("menuitem", { name: new RegExp(`^${format}$`) })
+      .getByRole("menuitem", { name: new RegExp(`${format}$`) })
       .first()
       .click();
     await page.waitForTimeout(300);
   }
   if (name) await page.locator("#table-name").fill(name);
   await page.getByRole("button", { name: /^Create table$/i }).click();
-  await page.waitForTimeout(2500);
+  // The first Forge table on a fresh origin boots the engine to validate it
+  // before the room opens, which is most of a minute on a dev server.
+  await deckButton(page).waitFor({ timeout: 120000 });
+  await page.waitForTimeout(500);
+}
+
+/** The room's deck picker button, whatever it is labelled at the time. */
+export function deckButton(page) {
+  return page.getByRole("button", { name: /^(Choose a deck|Change deck|Select Deck)$/i }).first();
 }
 
 /** Open the deck dialog opened by `opener` and pick a preset by (partial) name. */
@@ -123,18 +135,23 @@ export async function pickPreset(page, opener, preset) {
   await opener();
   const dlg = page.locator("[role=dialog]");
   await dlg.waitFor({ timeout: 5000 });
-  await page.waitForTimeout(400);
+  // The tiles load after the dialog opens.
   const tile = dlg.getByRole("button", { name: new RegExp(preset, "i") }).first();
-  if (!(await tile.count())) throw new Error(`preset not found in dialog: ${preset}`);
+  await tile.waitFor({ timeout: 15000 }).catch(() => {
+    throw new Error(`preset not found in dialog: ${preset}`);
+  });
   await tile.click();
-  await page.waitForTimeout(300);
-  await dlg.getByRole("button", { name: /^Select Deck$/ }).click();
+  // "Select Deck" for a seat, "Add Bot" for a bot's deck.
+  const select = dlg.getByRole("button", { name: /^(Select Deck|Add Bot)$/ });
+  await select.waitFor({ timeout: 5000 });
+  for (let i = 0; i < 20 && !(await select.isEnabled()); i += 1) await page.waitForTimeout(250);
+  await select.click();
   await page.waitForTimeout(900);
 }
 
 /** List the preset decks the picker currently offers (format-filtered). */
 export async function listPresets(page) {
-  await page.getByRole("button", { name: /^Select Deck$/ }).click();
+  await deckButton(page).click();
   const dlg = page.locator("[role=dialog]");
   await dlg.waitFor();
   const names = (

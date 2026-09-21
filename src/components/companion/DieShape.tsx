@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-
 interface DieShapeProps {
   sides: number;
   value: number;
@@ -10,11 +9,9 @@ interface DieShapeProps {
   accentColor?: string;
   className?: string;
 }
-
 const VIEW_BOX = 100;
 const CENTER = VIEW_BOX / 2;
 const RADIUS = 46;
-
 /**
  * Visual silhouette per die type. Vertex count follows physical-die
  * conventions: d4 triangle, d6 square, d8 hexagon (octahedron projection),
@@ -30,7 +27,6 @@ const VERTICES_FOR: Record<number, number> = {
   20: 8,
   100: 12,
 };
-
 function polygonPath(vertexCount: number, rotationDeg: number): string {
   const points: string[] = [];
   const angleOffset = (rotationDeg * Math.PI) / 180;
@@ -42,7 +38,6 @@ function polygonPath(vertexCount: number, rotationDeg: number): string {
   }
   return points.join(" ");
 }
-
 export function DieShape({
   sides,
   value,

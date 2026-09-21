@@ -13,19 +13,24 @@ import { useCompanionStore } from "@/stores/useCompanionStore";
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
 import { DiceRoller } from "./DiceRoller";
 import { GameIcon } from "./GameIcon";
-
 const DICE = [4, 6, 8, 10, 12, 20, 100] as const;
-
-type Roll = { kind: "die"; sides: number } | { kind: "coin" } | { kind: "first" };
-
+type Roll =
+  | {
+      kind: "die";
+      sides: number;
+    }
+  | {
+      kind: "coin";
+    }
+  | {
+      kind: "first";
+    };
 interface DiceMenuProps {
   players: CompanionPlayer[];
 }
-
 export function DiceMenu({ players }: DiceMenuProps) {
   const pickRandom = useCompanionStore((s) => s.pickRandomFirstPlayer);
   const [roll, setRoll] = useState<Roll | null>(null);
-
   return (
     <>
       <DropdownMenu>
@@ -34,8 +39,8 @@ export function DiceMenu({ players }: DiceMenuProps) {
             size="icon"
             variant="outline"
             className="size-8 sm:size-9"
-            aria-label="Dice and randomizers"
-            title="Dice, coin, random first player"
+            aria-label={`Dice and randomizers`}
+            title={`Dice, coin, random first player`}
           >
             <GameIcon icon="d20" className="size-4 sm:size-5" />
           </Button>

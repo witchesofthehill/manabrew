@@ -3,6 +3,7 @@ import type { CardDto } from "@/protocol/game";
 import type { ScryfallCard } from "@/types/scryfall";
 import { getScryfallManaCost } from "@/api/scryfall";
 import { chooseImageUrisForCard } from "@/stores/useScryfallStore";
+import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 
 export const MTG_SUPERTYPES = new Set(["Basic", "Legendary", "Snow", "World", "Ongoing"]);
 
@@ -29,6 +30,14 @@ export function parseTypeLine(typeLine: string): ParsedTypeLine {
 export function frontFaceName(name: string): string {
   const i = name.indexOf(" // ");
   return i >= 0 ? name.slice(0, i) : name;
+}
+
+export function scryfallDisplayName(card: ScryfallCard): string {
+  return card.printed_name ?? card.name;
+}
+
+export function scryfallDisplayTypeLine(card: ScryfallCard): string {
+  return card.printed_type_line ?? card.type_line;
 }
 
 function getFrontTypeLine(sc: ScryfallCard): string {
@@ -112,7 +121,30 @@ const previewDtoByDeckCard = new WeakMap<DeckCard, CardDto>();
 export function deckCardToPreviewDto(card: DeckCard): CardDto {
   const cached = previewDtoByDeckCard.get(card);
   if (cached) return cached;
-  const preview = { ...card, foil: card.identity.foil ?? false } as unknown as CardDto;
+  const preview: CardDto = {
+    ...GAME_CARD_DEFAULTS,
+    ...card,
+    id: card.identity.id,
+    identity: {
+      ...GAME_CARD_DEFAULTS.identity,
+      ...card.identity,
+      isToken: card.identity.tokenScript != null,
+    },
+    color: card.color ?? "",
+    manaCost: card.manaCost ?? "",
+    cmc: card.cmc ?? 0,
+    types: card.types ?? [],
+    subtypes: card.subtypes ?? [],
+    supertypes: card.supertypes ?? [],
+    power: card.power ?? null,
+    toughness: card.toughness ?? null,
+    classLevels: [],
+    sagaChapters: [],
+    text: card.text ?? "",
+    choices: [],
+    keywords: card.keywords ?? [],
+    foil: card.identity.foil ?? false,
+  };
   previewDtoByDeckCard.set(card, preview);
   return preview;
 }

@@ -34,12 +34,12 @@ If the same Tailwind string appears in **2+ files**, extract it to `game.styles.
 
 ```ts
 // game.styles.ts
-export const BATTLEFIELD_CARD = "w-[70px] h-[98px] shrink-0" as const;
+export const ZONE_LABEL =
+  "text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1" as const;
 ```
 
 ```tsx
-// BattlefieldZone.tsx
-<Card className={cn(BATTLEFIELD_CARD, "hover:z-10")} />
+<span className={cn(ZONE_LABEL, "text-center")} />
 ```
 
 ### Always use `cn()` for conditional classes
@@ -69,16 +69,16 @@ className={`ring-${color}-400`}
 
 ### Card sizing constants
 
-Use the standard size constants — don't invent new pixel values:
+Use `GAME_CARD_SIZES` from `game.constants.ts`. These are the only base card dimensions:
 
-| Constant           | Value                 | Usage                         |
-| ------------------ | --------------------- | ----------------------------- |
-| `BATTLEFIELD_CARD` | `w-[70px] h-[98px]`   | Cards on the battlefield      |
-| `HAND_CARD`        | `w-[80px] h-[112px]`  | Cards in hand / zone viewer   |
-| `MODAL_CARD_SIZE`  | `w-[100px] h-[140px]` | Cards inside modal grids      |
-| `FLASH_CARD_SIZE`  | `w-[240px] h-[336px]` | Flash overlay / large preview |
+| Size          | Value                               | Usage                                                                 |
+| ------------- | ----------------------------------- | --------------------------------------------------------------------- |
+| `battlefield` | `70 × 98`                           | Battlefield cards and zone tiles                                      |
+| `hand`        | `130 × 182`                         | Hand cards and non-actionable zone browser cards                      |
+| `prompt`      | `300√0.7 × 420√0.7` (`≈251 × ≈351`) | Choice cards rendered inside prompts; exactly 70% of the preview area |
+| `preview`     | `300 × 420`                         | Source cards, actionable zones, stack, command zone, hover previews   |
 
----
+Responsive layout may scale a base size to fit available space. Do not add a context-specific card size without a distinct semantic role.
 
 ## 3. Component Patterns
 
@@ -101,6 +101,23 @@ All game modals should use the `Modal` compound component:
 - Use `MODAL_CARD_IMAGE` for larger card images in bodies.
 - Use `MODAL_FOOTER_BETWEEN` for footers with left info + right buttons.
 
+### Button hierarchy
+
+Every `Button` must declare a `variant`. High emphasis is never an implicit default.
+
+- `primary`: the single action that advances or completes the current decision. Use at most one per visible action group.
+- `secondary`: a visible but deliberately less-preferred alternative to the primary action.
+- `outline`: ordinary utilities and equivalent alternatives such as import, export, copy, edit, and retry.
+- `ghost`: dismissal, back navigation, clearing, and compact toolbar actions.
+- `destructive-quiet`: an entry point to a destructive flow. Reserve solid red for the confirmation step.
+- `destructive`: the final irreversible confirmation, such as delete, concede, or leave.
+- `selected`: persistent selection or toggle state. Selection is state, not action priority.
+- `link`: inline text navigation only.
+
+Filled buttons answer “what should I do now?” Neutral outlines answer “what else can I do?” Multiple equal choices use outline or selected treatments rather than several primary buttons.
+
+Modal footers use ghost for Cancel, Close, Back, and auto-applied Done actions; primary for a commit action; destructive for the final irreversible confirmation.
+
 ### Card image in modal headers
 
 When showing a source card thumbnail alongside a modal title:
@@ -121,11 +138,11 @@ When showing a source card thumbnail alongside a modal title:
 
 ### Mana text rendering
 
-Use the shared `TextWithMana` component for any text that may contain `{W}`, `{2}{R}`, etc.:
+Use `DynamicTextRender` for React text that may contain `{W}`, `{2}{R}`, etc. Pixi text uses `PixiRichText`, which shares the mana-symbol texture cache.
 
 ```tsx
-import { TextWithMana } from "@/components/game/TextWithMana";
-<TextWithMana text={description} manaSize="sm" />;
+import { DynamicTextRender } from "@/components/game/DynamicTextRender";
+<DynamicTextRender text={description} />;
 ```
 
 ---
@@ -222,13 +239,13 @@ BasePalette (~30 raw hues per preset)
     → resolveGameThemeColors():  default preset → active preset → user overrides
       → flatToGameTheme():       nested GameThemeColors object
         → flattenGameThemeToCssVars():  --kebab-case CSS vars on :root
-          → Tailwind @theme block:       bg-pointer-hostile, text-mana-w, …
+          → Tailwind @theme block:       bg-targeting-hostile, text-mana-w, …
 ```
 
-| Surface                   | Source of truth                             | Accessor                                                       |
-| ------------------------- | ------------------------------------------- | -------------------------------------------------------------- |
-| App chrome (Radix/shadcn) | `ThemePreset.light` / `.dark` HSL maps      | `useTheme()`                                                   |
-| Game board / Pixi canvas  | `ThemePreset.gameColors: GameThemeColorMap` | `useTheme().gameTheme` (React) / `getTheme().gameTheme` (Pixi) |
+| Surface                   | Source of truth                                          | Accessor                                                       |
+| ------------------------- | -------------------------------------------------------- | -------------------------------------------------------------- |
+| App chrome (Radix/shadcn) | `ThemePreset.light` / `.dark` with mode-scoped overrides | `useTheme()`                                                   |
+| Game board / Pixi canvas  | `ThemePreset.gameColors: GameThemeColorMap`              | `useTheme().gameTheme` (React) / `getTheme().gameTheme` (Pixi) |
 
 ### Where colours live
 
@@ -239,8 +256,11 @@ BasePalette (~30 raw hues per preset)
 | `src/themes/default.ts`         | Default palette + preset (fallback for every token)                                                                                               |
 | `src/themes/<name>.ts`          | Per-preset palette overrides (nord, dracula, catppuccin, …)                                                                                       |
 | `src/themes/presets.ts`         | `ThemePreset` interface, preset registry                                                                                                          |
-| `src/hooks/useTheme.ts`         | React hook `useTheme()`, imperative `getTheme()`, CSS var injection                                                                               |
+| `src/hooks/useTheme.ts`         | Shared resolved snapshot for React/CSS/Pixi; root-only CSS application and transient editor preview                                               |
 | `src/index.css`                 | `@theme` block mapping CSS vars to Tailwind utilities (auto-generated)                                                                            |
+| `src/themes/themeColor.ts`      | Shared parsing, compositing, and contrast math, without preset dependencies                                                                       |
+| `src/themes/themeDocument.ts`   | Version 1 theme documents, mode-scoped app overrides, and validated imports                                                                       |
+| `src/themes/themeMetadata.ts`   | Semantic labels and groups shared by Settings and the `/card-mock` editor                                                                         |
 
 ### Type safety
 
@@ -258,14 +278,14 @@ This means:
 1. **No `#RRGGBB`, `rgba(…)`, `hsl(…)`, or `0xRRGGBB` literals in
    source files.** Pull every colour from the theme.
 2. **No Tailwind palette classes** (e.g. `ring-red-500`, `bg-blue-400`).
-   Use theme-token utilities instead: `bg-pointer-hostile`,
+   Use theme-token utilities instead: `bg-targeting-hostile`,
    `text-counter-p1p1`, `ring-card-ring`, `bg-pt-buffed`,
    `text-format-badge-blue`, `text-legality-legal`, etc. Every key in
    `GameThemeColors` has matching `bg-*` / `text-*` / `ring-*` /
    `border-*` utilities via the `@theme` block in `src/index.css`.
 3. **No colour fallbacks in components or Pixi layers.** The resolution
    chain guarantees every token is a non-empty string. Never write
-   `theme.pointer.hostile ?? "#ff0000"` or `safeColor(raw, fallback)`.
+   `theme.targeting.hostile ?? "#ff0000"` or `safeColor(raw, fallback)`.
 4. **Pixi code reads theme directly** via `getTheme().gameTheme.*` or
    the `theme` field set by `setTheme()`. No optional chaining needed.
 5. **The one narrow exception**: pure `rgba(0, 0, 0, X)` shadow idioms
@@ -282,7 +302,7 @@ This means:
    `@theme` CSS block in `src/index.css`.
 4. The new token is immediately available as a Tailwind utility
    (e.g. `bg-my-new-token`) and via `useTheme().gameTheme.myNewToken`.
-   All 12 presets automatically get a value via `buildGameColors`.
+   All 16 presets automatically get a value via `buildGameColors`.
 
 If you find yourself about to type a hex literal in a component, stop
 and add a semantic theme key instead.
@@ -303,7 +323,7 @@ and add a semantic theme key instead.
 | Component files     | PascalCase              | `PlayerPanel.tsx`     |
 | Shared module files | camelCase               | `game.styles.ts`      |
 | Hook files          | camelCase, `use` prefix | `useCardSelection.ts` |
-| Style constants     | UPPER_SNAKE_CASE        | `BATTLEFIELD_CARD`    |
+| Style constants     | UPPER_SNAKE_CASE        | `ZONE_LABEL`          |
 | Type/Interface      | PascalCase              | `CombatAssignment`    |
 | Utility functions   | camelCase               | `getPromptLabel`      |
 
@@ -319,7 +339,7 @@ The app targets smartphones/tablets (touch, small landscape screens) through hug
 - **Hover handlers on card tiles use `onPointerEnter`/`onPointerLeave` with an `e.pointerType === "touch"` early-return** — plain `onMouseEnter` fires on tap and strands the preview (no mouseleave ever comes on touch).
 - **Tap targets**: interactive elements get ≥40px on coarse pointers — either `pointer-coarse:h-10`-style bumps or an invisible hit expander (`relative … before:absolute before:-inset-2.5 before:content-['']`). The `Button` primitive already bumps its sizes under `pointer-coarse:`.
 - **Native `<select>`/`<input>` need ≥16px font on touch** (`pointer-coarse:text-base`) or iOS zooms the page on focus. The `Input` primitive handles this; raw elements must add it.
-- **rem for chrome, px for card art.** Panels/text/spacing use rem-based Tailwind tokens so the `:root` font-size steps at 2000px/3000px (in `index.css`) scale them on big monitors. Card-size constants (`BATTLEFIELD_CARD`, `CARD_WIDTH_MAP`, …) stay px — card art has a native resolution and scaling is handled per-surface (`useHandScale`, battlefield fill scale, size tiers).
+- **rem for chrome, px for card art.** Panels, text, and spacing use rem-based Tailwind tokens so the `:root` font-size steps at 2000px and 3000px in `index.css` scale them on large monitors. `GAME_CARD_SIZES` stays in pixels; `useHandScale`, battlefield grid fitting, and preview viewport fitting apply runtime scale.
 - **Drag gestures use pointer events, never mouse events** (`pointermove`/`pointerup`/`pointercancel`), filtered by `pointerId` so a second finger can't hijack, with `pointercancel` treated as abort.
 
 ---

@@ -18,7 +18,7 @@ export function TopBarNav({ disabled = false }: TopBarNavProps) {
   }
 
   return (
-    <nav aria-label="Primary" className="hidden items-center gap-0.5 md:flex">
+    <nav aria-label={`Primary`} className="hidden items-center gap-0.5 md:flex">
       {direct.map(({ to, label, icon: Icon }) => (
         <Button
           key={to}

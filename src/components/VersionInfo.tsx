@@ -5,15 +5,12 @@ import { APP_VERSION } from "@/lib/constants";
 import { getPlatformType } from "@/platform";
 import { checkForDesktopUpdate, installDesktopUpdate } from "@/hooks/useDesktopUpdater";
 import { useDesktopUpdateStore } from "@/stores/useDesktopUpdateStore";
-
 type CheckState = "idle" | "checking" | "latest" | "error";
-
 export function VersionInfo() {
   const phase = useDesktopUpdateStore((s) => s.phase);
   const version = useDesktopUpdateStore((s) => s.version);
   const progress = useDesktopUpdateStore((s) => s.progress);
   const [check, setCheck] = useState<CheckState>("idle");
-
   async function runCheck() {
     setCheck("checking");
     try {
@@ -23,10 +20,8 @@ export function VersionInfo() {
       setCheck("error");
     }
   }
-
   const downloading = phase === "downloading";
-  const downloadLabel = progress == null ? "Downloading…" : `Downloading… ${progress}%`;
-
+  const downloadLabel = progress == null ? `Downloading\u2026` : `Downloading… ${progress}%`;
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card/40 px-4 py-3">
       <div className="flex items-center gap-3">
@@ -42,6 +37,7 @@ export function VersionInfo() {
       {getPlatformType() === "tauri" &&
         (phase !== "idle" && version ? (
           <Button
+            variant="secondary"
             size="sm"
             disabled={downloading}
             onClick={() => void installDesktopUpdate()}
@@ -77,7 +73,7 @@ export function VersionInfo() {
               ) : (
                 <RefreshCw className="mr-2 size-4" />
               )}
-              {check === "checking" ? "Checking…" : "Check for updates"}
+              {check === "checking" ? `Checking\u2026` : `Check for updates`}
             </Button>
           </div>
         ))}

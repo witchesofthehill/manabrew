@@ -9,6 +9,7 @@ import {
   noteEngineThinkTime,
   notePromptArrived,
   noteReplyFrameArrived,
+  noteReplyFrameHandled,
   summarise,
   summariseGame,
 } from "@/lib/engineTelemetry";
@@ -53,10 +54,15 @@ describe("engine telemetry", () => {
       notePromptArrived("chooseAction");
     }
     noteEngineThinkTime(4);
+    // A window the engine tagged: 30 of its 100ms went to bot prompts.
+    noteEngineThinkTime(100, 0, 30);
     const stats = summariseGame(meta);
     expect(stats).not.toBeNull();
     expect(stats?.turnaround.n).toBe(6);
-    expect(stats?.engineThink?.n).toBe(1);
+    expect(stats?.engineThink?.n).toBe(2);
+    // Only the tagged window splits; the untagged one says nothing about who owned it.
+    expect(stats?.engineThinkBot).toMatchObject({ n: 1, max: 30 });
+    expect(stats?.engineThinkRules).toMatchObject({ n: 1, max: 70 });
     expect(stats?.byType[0]?.type).toBe("chooseAction");
     expect(stats?.clientVersion).toBe("test");
     expect(stats?.engine).toBe("forge-wasm");
@@ -64,27 +70,55 @@ describe("engine telemetry", () => {
     expect(stats?.gameId).toBe("66666666-7777-8888-9999-aaaaaaaaaaaa");
   });
 
-  it("cuts the turnaround at the first reply frame, and only the first", () => {
+  it("counts only the frames' own handling as client work", () => {
     const now = vi.spyOn(performance, "now");
     beginGame("forge-hosted");
     // A frame before any answer is not a reply to anything.
     noteReplyFrameArrived(5);
+    now.mockReturnValue(20);
+    noteReplyFrameHandled();
     for (let i = 0; i < 6; i += 1) {
-      now.mockReturnValue(1000 * i);
+      const t = 1000 * i;
+      now.mockReturnValue(t);
       noteAnswerSent();
-      // The state frame lands, then a broadcast frame, then the prompt frame.
-      // Everything up to the first is outside this machine; everything after
-      // it, including the later frames, is this machine catching up.
-      noteReplyFrameArrived(1000 * i + 300);
-      noteReplyFrameArrived(1000 * i + 900);
-      now.mockReturnValue(1000 * i + 550);
+      // The echo of our own action lands and takes 50ms to apply.
+      noteReplyFrameArrived(t + 100);
+      now.mockReturnValue(t + 150);
+      noteReplyFrameHandled();
+      // The opponents play for most of a second: not this machine's time.
+      noteReplyFrameArrived(t + 900);
+      now.mockReturnValue(t + 1000 + 40);
+      noteReplyFrameHandled();
+      // The prompt frame arrives and is handled up to the prompt itself.
+      noteReplyFrameArrived(t + 1100);
+      now.mockReturnValue(t + 1110);
+      notePromptArrived("chooseAction");
+      // The trailing handled stamp for the prompt frame is outside any window.
+      now.mockReturnValue(t + 1200);
+      noteReplyFrameHandled();
+    }
+    const stats = summariseGame(meta);
+    now.mockRestore();
+    expect(stats?.turnaround).toMatchObject({ n: 6, p50: 1110, max: 1110 });
+    expect(stats?.clientWork).toMatchObject({ n: 6, p50: 200, max: 200 });
+    expect(stats?.replyWait).toMatchObject({ n: 6, p50: 910, max: 910 });
+  });
+
+  it("puts a single frame's handling on the client side and the rest on the wire", () => {
+    const now = vi.spyOn(performance, "now");
+    beginGame("forge-wasm");
+    for (let i = 0; i < 6; i += 1) {
+      const t = 1000 * i;
+      now.mockReturnValue(t);
+      noteAnswerSent();
+      noteReplyFrameArrived(t + 300);
+      now.mockReturnValue(t + 320);
       notePromptArrived("chooseAction");
     }
     const stats = summariseGame(meta);
     now.mockRestore();
-    expect(stats?.turnaround).toMatchObject({ n: 6, p50: 550, max: 550 });
     expect(stats?.replyWait).toMatchObject({ n: 6, p50: 300, max: 300 });
-    expect(stats?.clientWork).toMatchObject({ n: 6, p50: 250, max: 250 });
+    expect(stats?.clientWork).toMatchObject({ n: 6, p50: 20, max: 20 });
   });
 
   it("reports no split for an engine that stamps no frames", () => {

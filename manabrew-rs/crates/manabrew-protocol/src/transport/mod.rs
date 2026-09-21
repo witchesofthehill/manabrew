@@ -78,5 +78,8 @@ pub struct AgentPrompt {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub source_card: Option<CardDto>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub source_ability_text: Option<String>,
     pub input: PromptInput,
 }

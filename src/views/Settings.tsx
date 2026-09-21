@@ -27,12 +27,20 @@ import { AccountSection } from "@/components/settings/AccountSection";
 import { MyAssetsSection } from "@/components/settings/MyAssetsSection";
 import { CardArtDownloadSection } from "@/components/settings/CardArtDownloadSection";
 import { PreferenceCard } from "@/components/settings/PreferenceCard";
-import { toPickerHexColor } from "@/themes/gameTheme";
-import type { GameThemeColors } from "@/themes/gameTheme";
+import { LanguagePreferenceCard } from "@/components/settings/LanguagePreferenceCard";
+import { toPickerHexColor, parseThemeColor, formatThemeColor } from "@/themes/gameTheme";
+import type { GameThemeColorKey } from "@/themes/gameTheme";
+import {
+  APP_THEME_COLOR_DESCRIPTIONS,
+  APP_THEME_COLOR_LABELS,
+  APP_THEME_GROUPS,
+  GAME_THEME_COLOR_DESCRIPTIONS,
+  GAME_THEME_GROUPS,
+} from "@/themes/themeMetadata";
 import { getDefaultGameThemeColorMap } from "@/hooks/useTheme";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Button as BaseButton, type ButtonProps } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -46,124 +54,6 @@ import { Navigate, useLocation } from "react-router-dom";
 import { HelpCircle, Minus, Pencil, Plus, Server, Trash2 } from "lucide-react";
 import { KNOWN_RELAYS, type KnownRelay } from "@/config/knownRelays";
 import { cn } from "@/lib/utils";
-
-/**
- * Canonical key unions. These drive the typed colour-description maps
- * below so a typo in a description key fails at compile time and adding
- * a new token to the schema shows up as a missing-description TS error
- * (via the `Record<…>` form used on the descriptions themselves — not
- * `Partial<Record<…>>` — so exhaustiveness is enforced).
- */
-type AppThemeKey = keyof ThemeColors;
-
-/**
- * Dot-notation string keys for every leaf in `GameThemeColors`.
- * Produces `"pointer.hostile" | "mana.W" | "textOnTinted" | …` at the
- * TS level; `Partial<Record<GameThemePath, string>>` on the description
- * map catches typos without forcing every leaf to be documented at
- * once. Add new tokens to the schema first — the description keys are
- * then type-checked against the live shape.
- */
-type GameThemePath = {
-  [K in keyof GameThemeColors & string]: GameThemeColors[K] extends string
-    ? K
-    : GameThemeColors[K] extends Record<string, string>
-      ? `${K}.${keyof GameThemeColors[K] & string}`
-      : never;
-}[keyof GameThemeColors & string];
-
-const APP_THEME_COLOR_DESCRIPTIONS: Record<AppThemeKey, string> = {
-  background: "Page / window background fill.",
-  foreground: "Default body text colour.",
-  card: "Surface colour for cards, panels, and solid containers.",
-  "card-foreground": "Text colour placed on `card` surfaces.",
-  popover: "Background of popovers, menus, and floating panels.",
-  "popover-foreground": "Text colour inside popovers.",
-  primary: "Primary action colour — main call-to-action buttons, links, active chip fills.",
-  "primary-foreground": "Text / icons placed on a `primary` background.",
-  secondary: "Secondary / subtle button background.",
-  "secondary-foreground": "Text on secondary-style buttons.",
-  muted: "Muted surface for low-priority regions.",
-  "muted-foreground": "Captions, hints, and secondary text colour.",
-  accent: "Hover / active highlight surface.",
-  "accent-foreground": "Text on accent surfaces.",
-  destructive: "Destructive actions, errors, and deny states.",
-  "destructive-foreground": "Text placed on `destructive` buttons.",
-  border: "Default border and divider lines.",
-  input: "Form input borders and backgrounds.",
-  ring: "Focus ring around interactive elements.",
-  selection: "Background of selected text.",
-  "selection-foreground": "Colour of selected text itself.",
-  commander: "Commander indicator (crown icon, commander panel accent).",
-  warning: "Warning states and soft cautions.",
-  overlay: "Modal / dialog backdrop dim.",
-};
-
-const GAME_THEME_COLOR_DESCRIPTIONS: Partial<Record<GameThemePath, string>> = {
-  "activeAction.priority": "Highlight surrounding the player who currently has priority.",
-  "activeAction.active": "Active-turn ring, turn-text colour, and general 'your turn' cue.",
-  "promptAction.passAction": "Pass priority / pass turn button fill.",
-  "promptAction.attackAction": "Declare-attackers button fill.",
-  "promptAction.defenseAction": "Defense / declare-blockers button fill.",
-  "promptAction.cancel": "Cancel / decline button fill.",
-  "arrow.attack": "Attacker arrow from attacker to defender.",
-  "arrow.block": "Blocker arrow from blocker to attacker.",
-  "arrow.hostileTarget": "Legacy hostile-target arrow (Pixi fallback).",
-  "arrow.friendlyTarget": "Legacy friendly-target arrow (Pixi fallback).",
-  "pointer.hostile":
-    "Glow around the cursor for hostile targeting — damage, destroy, sacrifice, exile, counter, etc. Also used for the mulligan-reject ring.",
-  "pointer.friendly":
-    "Glow around the cursor for friendly / supportive targeting — buff, heal, draw, reveal, untap, attach, copy.",
-  "mana.W": "White mana pip and dual-land tap-button tint.",
-  "mana.U": "Blue mana pip and dual-land tap-button tint.",
-  "mana.B": "Black mana pip and dual-land tap-button tint.",
-  "mana.R": "Red mana pip and dual-land tap-button tint.",
-  "mana.G": "Green mana pip and dual-land tap-button tint.",
-  "mana.C": "Colorless mana pip and tap-button tint.",
-  "cardStatus.exerted": "Badge colour for exerted creatures (won't untap).",
-  "cardStatus.morph": "Badge for face-down / morph creatures.",
-  "cardStatus.bestow": "Badge for bestowed auras.",
-  "cardStatus.token": "Badge for token creatures.",
-  "cardStatus.transformed": "Badge for transformed double-faced cards.",
-  "cardStatus.plotted": "Badge for plotted cards in exile.",
-  "cardStatus.madness": "Badge for madness-exiled cards.",
-  "cardStatus.warped": "Badge for warp-exiled cards.",
-  "cardStatus.copy": "Badge for permanents that are copies of another card.",
-  "counter.default": "Fallback chip colour for unknown counter types.",
-  "counter.p1p1": "+1/+1 counter chip.",
-  "counter.m1m1": "-1/-1 counter chip.",
-  "counter.loyalty": "Loyalty counter chip (planeswalkers).",
-  "counter.charge": "Charge counter chip.",
-  "counter.quest": "Quest counter chip.",
-  "counter.study": "Study counter chip.",
-  "counter.lore": "Lore counter chip (sagas).",
-  "counter.age": "Age counter chip.",
-  "counter.time": "Time counter chip (suspend, etc.).",
-  "counter.fade": "Fade counter chip.",
-  "counter.level": "Level counter chip (level-up creatures).",
-  "counter.storage": "Storage counter chip.",
-  "counter.mining": "Mining counter chip.",
-  "counter.brick": "Brick counter chip.",
-  "counter.depletion": "Depletion counter chip.",
-  "counter.page": "Page counter chip (book rooms).",
-  "pt.neutral": "P/T badge when stats match the printed base.",
-  "pt.lethal": "P/T badge when incoming damage would be lethal.",
-  "pt.buffed": "P/T badge when stats are above the printed base.",
-  "pt.debuffed": "P/T badge when stats are below the printed base.",
-  success: "Positive states — connected, saved, victory banner, good FPS.",
-  poison: "Poison counter / skull icon — MTG infect-green.",
-  life: "Life total / heart icon.",
-  "canvas.background": "Pixi canvas table background fill.",
-  "canvas.shadow": "Drop-shadow ink (almost always black).",
-  "canvas.neutral": "High-contrast stroke / outline colour for arrows and icons.",
-  "cardPlaceholder.fill": "Loading-state card sprite fill.",
-  "cardPlaceholder.stroke": "Loading-state card sprite border.",
-  textOnTinted: "Text colour placed on tinted chips and badges.",
-  textMuted: "Subdued label colour on empty-zone placeholders.",
-  textGhost: "Ghost card-name colour shown while art loads.",
-  cardRing: "Default card selection / focus ring.",
-};
-
 /**
  * Small `?` hover-help icon shown next to a picker label. Renders a
  * custom CSS tooltip below the icon on hover / focus — native `title`
@@ -198,152 +88,17 @@ function HelpMark({ description }: { description: string | undefined }) {
   );
 }
 
-const APP_THEME_COLOR_LABELS: Record<AppThemeKey, string> = {
-  background: "Background",
-  foreground: "Text",
-  card: "Card Surface",
-  "card-foreground": "Card Text",
-  popover: "Popover Surface",
-  "popover-foreground": "Popover Text",
-  primary: "Primary",
-  "primary-foreground": "Primary Text",
-  secondary: "Secondary",
-  "secondary-foreground": "Secondary Text",
-  muted: "Muted Surface",
-  "muted-foreground": "Muted Text",
-  accent: "Accent",
-  "accent-foreground": "Accent Text",
-  destructive: "Destructive",
-  "destructive-foreground": "Destructive Text",
-  border: "Border",
-  input: "Input",
-  ring: "Focus Ring",
-  selection: "Selection",
-  "selection-foreground": "Selection Text",
-  commander: "Commander",
-  warning: "Warning",
-  overlay: "Overlay",
-};
-
-const APP_THEME_GROUPS: { heading: string; description: string; keys: AppThemeKey[] }[] = [
-  {
-    heading: "Surfaces & Foregrounds",
-    description: "Neutral page, card, and popover backgrounds plus their paired text colours.",
-    keys: ["background", "foreground", "card", "card-foreground", "popover", "popover-foreground"],
-  },
-  {
-    heading: "Brand & Accent",
-    description: "Primary action colour and the softer accent / secondary tints.",
-    keys: [
-      "primary",
-      "primary-foreground",
-      "secondary",
-      "secondary-foreground",
-      "accent",
-      "accent-foreground",
-    ],
-  },
-  {
-    heading: "State Signals",
-    description: "Destructive, warning, commander, and selection highlights.",
-    keys: [
-      "destructive",
-      "destructive-foreground",
-      "warning",
-      "commander",
-      "selection",
-      "selection-foreground",
-    ],
-  },
-  {
-    heading: "Muted & Structure",
-    description: "Subdued surfaces, borders, input fields, focus ring, and overlay dim.",
-    keys: ["muted", "muted-foreground", "border", "input", "ring", "overlay"],
-  },
-];
-
-const GAME_THEME_GROUPS: {
-  heading: string;
-  description: string;
-  prefixes?: string[];
-  exactKeys?: string[];
-}[] = [
-  {
-    heading: "Active Action",
-    description: "Priority ring, turn glow, and related active-state cues.",
-    prefixes: ["activeAction."],
-  },
-  {
-    heading: "Prompt Buttons",
-    description: "Pass, attack, defense, cancel, and related prompt action buttons.",
-    prefixes: ["promptAction."],
-  },
-  {
-    heading: "Combat & Placement Arrows",
-    description: "Curved arrows for attack / block declarations and the placement ghost.",
-    prefixes: ["arrow."],
-  },
-  {
-    heading: "Targeting Pointers",
-    description: "Per-intent pointer icon glow (sacrifice, destroy, exile, bounce, tap …).",
-    prefixes: ["pointer."],
-  },
-  {
-    heading: "Mana Symbols",
-    description: "W / U / B / R / G / C pip and tap-button tints.",
-    prefixes: ["mana."],
-  },
-  {
-    heading: "Card Status Badges",
-    description: "Exerted, morph, bestow, token, transformed, plotted, madness, warped.",
-    prefixes: ["cardStatus."],
-  },
-  {
-    heading: "Counters",
-    description: "Per-counter-type chip colour (P1P1, M1M1, Loyalty, Charge …).",
-    prefixes: ["counter."],
-  },
-  {
-    heading: "P / T Badge",
-    description: "Neutral / lethal / buffed / debuffed stat-badge backgrounds.",
-    prefixes: ["pt."],
-  },
-  {
-    heading: "Status Signals",
-    description: "Generic UI states: success (connected / win), poison counter, life / heart.",
-    exactKeys: ["success", "poison", "life"],
-  },
-  {
-    heading: "Canvas",
-    description: "Pixi table background, shadow ink, and high-contrast neutral.",
-    prefixes: ["canvas."],
-  },
-  {
-    heading: "Card Placeholder",
-    description: "Sprite fill / stroke used while a card's image is loading.",
-    prefixes: ["cardPlaceholder."],
-  },
-  {
-    heading: "Text Roles",
-    description: "Generic text colours on tinted chips, empty zones, and ghost placeholders.",
-    exactKeys: ["textOnTinted", "textMuted", "textGhost"],
-  },
-  {
-    heading: "Player Colours",
-    description: "Per-seat colours for phase strip indicators and turn tint.",
-    prefixes: ["playerColors."],
-  },
-  {
-    heading: "Badges",
-    description: "Status chip icon colours rendered next to the mana pool.",
-    prefixes: ["badges."],
-  },
-  {
-    heading: "Card Ring",
-    description: "Fallback ring / selection halo colour.",
-    exactKeys: ["cardRing"],
-  },
-];
+function Button({ variant, className, ...props }: ButtonProps) {
+  const selected = variant === "selected";
+  return (
+    <BaseButton
+      {...props}
+      variant={selected ? "outline" : variant}
+      aria-pressed={selected ? true : props["aria-pressed"]}
+      className={cn(selected && "border-accent", className)}
+    />
+  );
+}
 
 const FLASH_MIN = 200;
 const FLASH_MAX = 2000;
@@ -376,12 +131,10 @@ export default function Settings() {
   const [editingThemeColorValue, setEditingThemeColorValue] = useState("");
   const [themeColorFilter, setThemeColorFilter] = useState("");
   const DEFAULT_GAME_THEME_COLOR_MAP = getDefaultGameThemeColorMap();
-
   const zoneOrder = prefs.zonePanelOrder;
   const [playmatEditorOpen, setPlaymatEditorOpen] = useState(false);
   const defaultPlaymat = useAssetUrl(prefs.defaultPlaymatAssetId);
   const hasDefaultPlaymat = !!defaultPlaymat || !!prefs.defaultPlaymatSettings?.color;
-
   function setZoneSlot(index: number, value: ZonePanelItem) {
     const next = [...zoneOrder] as ZonePanelItem[];
     const existingIndex = next.indexOf(value);
@@ -394,44 +147,50 @@ export default function Settings() {
     }
     prefs.setZonePanelOrder(next);
   }
-
   const [host, setHost] = useState(prefs.serverHost);
   const [port, setPort] = useState(String(prefs.serverPort));
   const [password, setPassword] = useState(prefs.serverPassword);
   const [savingServer, setSavingServer] = useState(false);
   const [newServerName, setNewServerName] = useState("");
-
   const hasChanges =
     host !== prefs.serverHost ||
     port !== String(prefs.serverPort) ||
     password !== prefs.serverPassword;
-
   function beginThemeColorEdit(path: string, value: string) {
     setEditingThemeColorPath(path);
     setEditingThemeColorValue(value);
   }
-
   function commitThemeColorEdit(path: string, fallbackValue: string) {
     const next = editingThemeColorValue.trim() || fallbackValue;
-    prefs.setGameThemeColorOverride(path, next);
+    const parsed = parseThemeColor(next);
+    if (!parsed) {
+      toast.error("Use a valid hex or rgb/rgba color.");
+      return;
+    }
+    const color = formatThemeColor(parsed.hex, parsed.alpha);
+    if (path.startsWith("app.")) {
+      prefs.setAppThemeColorOverride(
+        resolvedTheme === "light" ? "light" : "dark",
+        path.slice(4) as keyof ThemeColors,
+        color,
+      );
+    } else {
+      prefs.setGameThemeColorOverride(path, color);
+    }
     setEditingThemeColorPath(null);
     setEditingThemeColorValue("");
   }
-
   async function handleSave() {
     prefs.setServerHost(host);
     prefs.setServerPort(Number(port));
     prefs.setServerPassword(password);
-
     // Always disconnect first (kills any existing WS connection)
     await server.disconnect();
-
     const name = relayUsername();
     if (name) {
       await server.connect(host, Number(port), name, password);
     }
   }
-
   async function applyKnownRelay(relay: KnownRelay) {
     setHost(relay.host);
     setPort(String(relay.port));
@@ -439,19 +198,17 @@ export default function Settings() {
     prefs.setServerHost(relay.host);
     prefs.setServerPort(relay.port);
     prefs.setServerPassword(relay.password);
-
     await server.disconnect();
     const name = relayUsername();
     if (name) {
       await server.connect(relay.host, relay.port, name, relay.password);
     }
   }
-
   function saveCurrentServer() {
     const name = newServerName.trim();
     if (!name) return;
     if (KNOWN_RELAYS.some((r) => r.name === name)) {
-      toast.error("That name is reserved for a built-in server");
+      toast.error(`That name is reserved for a built-in server`);
       return;
     }
     prefs.addSavedServer({ name, host, port: Number(port), password });
@@ -459,7 +216,6 @@ export default function Settings() {
     setSavingServer(false);
     toast.success(`Saved "${name}"`);
   }
-
   async function handleClearImageCache() {
     setClearingCache(true);
     try {
@@ -468,18 +224,16 @@ export default function Settings() {
         const keys = await caches.keys();
         await Promise.all(keys.map((k) => caches.delete(k)));
       }
-      toast.success("Image cache cleared — reloading…");
+      toast.success(`Image cache cleared \u2014 reloading\u2026`);
       window.location.reload();
     } catch {
       setClearingCache(false);
-      toast.error("Couldn't clear the image cache");
+      toast.error(`Couldn't clear the image cache`);
     }
   }
-
   if (isGameActive) {
     return <Navigate to="/play" replace />;
   }
-
   return (
     <div className="h-full space-y-8 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8">
       <section className="space-y-4">
@@ -612,7 +366,7 @@ export default function Settings() {
               onClick={() => void handleClearImageCache()}
               disabled={clearingCache}
             >
-              {clearingCache ? "Clearing…" : "Clear image cache & reload"}
+              {clearingCache ? `Clearing\u2026` : `Clear image cache & reload`}
             </Button>
           </div>
         </section>
@@ -631,7 +385,7 @@ export default function Settings() {
                 id="server-host"
                 value={host}
                 onChange={(e) => setHost(e.target.value)}
-                placeholder="localhost"
+                placeholder={`localhost`}
               />
             </div>
             <div className="space-y-1">
@@ -651,12 +405,12 @@ export default function Settings() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="forge"
+                placeholder={`forge`}
               />
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={handleSave} disabled={!hasChanges && !server.error}>
+            <Button variant="primary" onClick={handleSave} disabled={!hasChanges && !server.error}>
               Save & Reconnect
             </Button>
             <DropdownMenu>
@@ -744,10 +498,15 @@ export default function Settings() {
                   if (e.key === "Enter") saveCurrentServer();
                   if (e.key === "Escape") setSavingServer(false);
                 }}
-                placeholder="Name this server"
+                placeholder={`Name this server`}
                 className="max-w-xs"
               />
-              <Button size="sm" onClick={saveCurrentServer} disabled={!newServerName.trim()}>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={saveCurrentServer}
+                disabled={!newServerName.trim()}
+              >
                 Save
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setSavingServer(false)}>
@@ -768,15 +527,17 @@ export default function Settings() {
       {activeTab === "preferences" && (
         <section>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <LanguagePreferenceCard />
+
             <PreferenceCard
-              title="Default Playmat"
-              description="Used in games when the deck you're playing has no custom playmat of its own."
+              title={`Default Playmat`}
+              description={`Used in games when the deck you're playing has no custom playmat of its own.`}
             >
               <div className="group relative">
                 <button
                   type="button"
                   onClick={() => setPlaymatEditorOpen(true)}
-                  title={hasDefaultPlaymat ? "Customize playmat" : "Set playmat"}
+                  title={hasDefaultPlaymat ? `Customize playmat` : `Set playmat`}
                   className={cn(
                     "flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg border bg-muted",
                     "motion-safe:transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm",
@@ -787,7 +548,7 @@ export default function Settings() {
                   {defaultPlaymat ? (
                     <img
                       src={defaultPlaymat}
-                      alt="Your default playmat"
+                      alt={`Your default playmat`}
                       crossOrigin="anonymous"
                       className="size-full object-cover"
                     />
@@ -811,7 +572,7 @@ export default function Settings() {
                 {hasDefaultPlaymat && (
                   <button
                     type="button"
-                    title="Remove playmat"
+                    title={`Remove playmat`}
                     onClick={() => {
                       void useAssetStore.getState().remove(prefs.defaultPlaymatAssetId);
                       prefs.setDefaultPlaymatAssetId(undefined);
@@ -826,8 +587,8 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title="Battlefield Zone Column Order"
-              description="Controls placement of Library / Graveyard / Exile in the in-field zone column."
+              title={`Battlefield Zone Column Order`}
+              description={`Controls placement of Library / Graveyard / Exile in the in-field zone column.`}
             >
               <div className="grid grid-cols-3 gap-2">
                 {(["Top", "Middle", "Bottom"] as const).map((slot, index) => (
@@ -854,9 +615,9 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title="Card Size"
+              title={`Card Size`}
               value={`${Math.round(prefs.cardSizeMultiplier * 100)}%`}
-              description="Scales cards on every battlefield and your hand fan. 100% is the classic 3-row board; battlefield cards cap at a 2-row fill so the board stays playable, while the hand keeps growing past them."
+              description={`Scales cards on every battlefield and your hand fan. 100% is the classic 3-row board; battlefield cards cap at a 2-row fill so the board stays playable, while the hand keeps growing past them.`}
             >
               <div className="flex items-start gap-4">
                 <div className="flex-1 space-y-3">
@@ -907,14 +668,14 @@ export default function Settings() {
               </div>
             </PreferenceCard>
             <PreferenceCard
-              title="Hand Ordering"
-              description="Drag cards sideways for a custom order, or keep every hand sorted automatically by color or mana value."
+              title={`Hand Ordering`}
+              description={`Drag cards sideways for a custom order, or keep every hand sorted automatically by color or mana value.`}
             >
               <div className="flex flex-wrap gap-2">
                 {HAND_ORDER_OPTIONS.map((option) => (
                   <Button
                     key={option.value}
-                    variant={prefs.handOrderMode === option.value ? "default" : "outline"}
+                    variant={prefs.handOrderMode === option.value ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setHandOrderMode(option.value)}
                   >
@@ -925,21 +686,19 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title="Battlefield Layout"
-              description={
-                '"Free placement" lets you drag cards anywhere. "Auto-arrange" keeps the battlefield tidy in rows (creatures, then others, then lands) and ignores manual placement.'
-              }
+              title={`Battlefield Layout`}
+              description={`"Free placement" lets you drag cards anywhere. "Auto-arrange" keeps the battlefield tidy in rows (creatures, then others, then lands) and ignores manual placement.`}
             >
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant={!prefs.battlefieldAutoSort ? "default" : "outline"}
+                  variant={!prefs.battlefieldAutoSort ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setBattlefieldAutoSort(false)}
                 >
                   Free placement
                 </Button>
                 <Button
-                  variant={prefs.battlefieldAutoSort ? "default" : "outline"}
+                  variant={prefs.battlefieldAutoSort ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setBattlefieldAutoSort(true)}
                 >
@@ -949,21 +708,19 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title="Zone Piles"
-              description={
-                '"Locked" keeps the deck, graveyard, exile, and command piles fixed on the battlefield so a drag can\'t move them. Tapping to open still works.'
-              }
+              title={`Zone Piles`}
+              description={`"Locked" keeps the deck, graveyard, exile, and command piles fixed on the battlefield so a drag can't move them. Tapping to open still works.`}
             >
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant={!prefs.lockZoneTiles ? "default" : "outline"}
+                  variant={!prefs.lockZoneTiles ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setLockZoneTiles(false)}
                 >
                   Movable
                 </Button>
                 <Button
-                  variant={prefs.lockZoneTiles ? "default" : "outline"}
+                  variant={prefs.lockZoneTiles ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setLockZoneTiles(true)}
                 >
@@ -973,29 +730,27 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title="Battlefield Card Style"
-              description={
-                '"Realistic" uses the full printed card image. "Art-forward" shows the art with a crisp name/type overlay. "Mini-frame" frames the art with name and type bars. This setting only affects battlefield cards.'
-              }
+              title={`Battlefield Card Style`}
+              description={`"Realistic" uses the full printed card image. "Art-forward" shows the art with a crisp name/type overlay. "Mini-frame" frames the art with name and type bars. This setting only affects battlefield cards.`}
             >
               <div className="flex items-start gap-4">
                 <div className="flex-1 flex flex-wrap content-start gap-2">
                   <Button
-                    variant={prefs.battlefieldCardStyle === "realistic" ? "default" : "outline"}
+                    variant={prefs.battlefieldCardStyle === "realistic" ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setBattlefieldCardStyle("realistic")}
                   >
                     Realistic
                   </Button>
                   <Button
-                    variant={prefs.battlefieldCardStyle === "art" ? "default" : "outline"}
+                    variant={prefs.battlefieldCardStyle === "art" ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setBattlefieldCardStyle("art")}
                   >
                     Art-forward
                   </Button>
                   <Button
-                    variant={prefs.battlefieldCardStyle === "frame" ? "default" : "outline"}
+                    variant={prefs.battlefieldCardStyle === "frame" ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setBattlefieldCardStyle("frame")}
                   >
@@ -1007,19 +762,19 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title="In-game Animations"
-              description="Decorative board effects — creature entrance stomp + dust, stat and damage pops, glow pulses. Turn these off to save performance on weaker hardware; the board still works (cards move, state indicators and damage numbers stay)."
+              title={`In-game Animations`}
+              description={`Decorative board effects \u2014 creature entrance stomp + dust, stat and damage pops, glow pulses. Turn these off to save performance on weaker hardware; the board still works (cards move, state indicators and damage numbers stay).`}
             >
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant={prefs.inGameAnimations ? "default" : "outline"}
+                  variant={prefs.inGameAnimations ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setInGameAnimations(true)}
                 >
                   On
                 </Button>
                 <Button
-                  variant={!prefs.inGameAnimations ? "default" : "outline"}
+                  variant={!prefs.inGameAnimations ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setInGameAnimations(false)}
                 >
@@ -1030,19 +785,19 @@ export default function Settings() {
 
             {isFeatureEnabled("ironsmithRuntime") && IRONSMITH_WASM_AVAILABLE && (
               <PreferenceCard
-                title="Ironsmith engine (experimental)"
-                description="Adds the experimental Ironsmith trusted engine as a Create Room option. Card support is partial and games may be rough — off by default. Leave this off unless you're testing Ironsmith."
+                title={`Ironsmith engine (experimental)`}
+                description={`Adds the experimental Ironsmith trusted engine as a Create Room option. Card support is partial and games may be rough \u2014 off by default. Leave this off unless you're testing Ironsmith.`}
               >
                 <div className="flex flex-wrap gap-2">
                   <Button
-                    variant={prefs.ironsmithRuntimeEnabled ? "default" : "outline"}
+                    variant={prefs.ironsmithRuntimeEnabled ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setIronsmithRuntimeEnabled(true)}
                   >
                     On
                   </Button>
                   <Button
-                    variant={!prefs.ironsmithRuntimeEnabled ? "default" : "outline"}
+                    variant={!prefs.ironsmithRuntimeEnabled ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setIronsmithRuntimeEnabled(false)}
                   >
@@ -1053,19 +808,41 @@ export default function Settings() {
             )}
 
             <PreferenceCard
-              title="Peer to Peer"
-              description="Skip manabrew servers and connect directly to the other players at the table. This shares your IP address with the people you play with, and only activates if every player in the game has it enabled."
+              title={`Opponent layout`}
+              description={`Focus on one opponent, or keep every opponent field equally visible.`}
             >
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant={prefs.directTransport ? "default" : "outline"}
+                  variant={prefs.opponentLayout === "focused" ? "selected" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setOpponentLayout("focused")}
+                >
+                  Focused
+                </Button>
+                <Button
+                  variant={prefs.opponentLayout === "overview" ? "selected" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setOpponentLayout("overview")}
+                >
+                  Overview
+                </Button>
+              </div>
+            </PreferenceCard>
+
+            <PreferenceCard
+              title={`Peer to Peer`}
+              description={`Skip manabrew servers and connect directly to the other players at the table. This shares your IP address with the people you play with, and only activates if every player in the game has it enabled.`}
+            >
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={prefs.directTransport ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setDirectTransport(true)}
                 >
                   On
                 </Button>
                 <Button
-                  variant={!prefs.directTransport ? "default" : "outline"}
+                  variant={!prefs.directTransport ? "selected" : "outline"}
                   size="sm"
                   onClick={() => prefs.setDirectTransport(false)}
                 >
@@ -1075,14 +852,14 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title="Hand Card Style"
-              description="Printed card shows the card image. Dynamic view uses the card's current rules and game state; each card can still be switched."
+              title={`Hand Card Style`}
+              description={`Printed card shows the card image. Dynamic view uses the card's current rules and game state; each card can still be switched.`}
             >
               <div className="flex flex-wrap gap-2">
                 {INLINE_CARD_STYLE_OPTIONS.map((option) => (
                   <Button
                     key={option.value}
-                    variant={prefs.handCardStyle === option.value ? "default" : "outline"}
+                    variant={prefs.handCardStyle === option.value ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setHandCardStyle(option.value)}
                   >
@@ -1093,14 +870,14 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title="Default Stack Card View"
-              description="Choose which face stack cards show when they appear. You can still switch individual cards."
+              title={`Default Stack Card View`}
+              description={`Choose which face stack cards show when they appear. You can still switch individual cards.`}
             >
               <div className="flex flex-wrap gap-2">
                 {INLINE_CARD_STYLE_OPTIONS.map((option) => (
                   <Button
                     key={option.value}
-                    variant={prefs.stackCardStyle === option.value ? "default" : "outline"}
+                    variant={prefs.stackCardStyle === option.value ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setStackCardStyle(option.value)}
                   >
@@ -1111,14 +888,14 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title="Card Preview Style"
-              description="Printed card shows the full card image. Dynamic view prioritizes current rules, actions, costs, counters, and other game state."
+              title={`Card Preview Style`}
+              description={`Printed card shows the full card image. Dynamic view prioritizes current rules, actions, costs, counters, and other game state.`}
             >
               <div className="flex flex-wrap gap-2">
                 {IN_GAME_CARD_PREVIEW_STYLE_OPTIONS.map((option) => (
                   <Button
                     key={option.value}
-                    variant={prefs.inGameCardPreviewStyle === option.value ? "default" : "outline"}
+                    variant={prefs.inGameCardPreviewStyle === option.value ? "selected" : "outline"}
                     size="sm"
                     onClick={() => prefs.setInGameCardPreviewStyle(option.value)}
                   >
@@ -1129,9 +906,9 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
-              title="Flash duration"
+              title={`Flash duration`}
               value={`${flashDurationMs}ms`}
-              description="Card-play and turn-start flash duration."
+              description={`Card-play and turn-start flash duration.`}
             >
               <input
                 type="range"
@@ -1147,7 +924,7 @@ export default function Settings() {
           {playmatEditorOpen && (
             <PlaymatEditorModal
               onClose={() => setPlaymatEditorOpen(false)}
-              title="Default Playmat"
+              title={`Default Playmat`}
               playmat={defaultPlaymat}
               storedSettings={prefs.defaultPlaymatSettings}
               playmatAssetId={prefs.defaultPlaymatAssetId}
@@ -1167,21 +944,21 @@ export default function Settings() {
               <Label>App Theme</Label>
               <div className="flex items-center gap-2">
                 <Button
-                  variant={theme === "light" ? "default" : "outline"}
+                  variant={theme === "light" ? "selected" : "outline"}
                   size="sm"
                   onClick={() => setTheme("light")}
                 >
                   Light
                 </Button>
                 <Button
-                  variant={theme === "dark" ? "default" : "outline"}
+                  variant={theme === "dark" ? "selected" : "outline"}
                   size="sm"
                   onClick={() => setTheme("dark")}
                 >
                   Dark
                 </Button>
                 <Button
-                  variant={theme === "system" ? "default" : "outline"}
+                  variant={theme === "system" ? "selected" : "outline"}
                   size="sm"
                   onClick={() => setTheme("system")}
                 >
@@ -1291,7 +1068,7 @@ export default function Settings() {
 
           <div className="pt-2">
             <Input
-              placeholder="Filter colors... (e.g. primary, counter, arrow)"
+              placeholder={`Filter colors... (e.g. primary, counter, arrow)`}
               value={themeColorFilter}
               onChange={(e) => setThemeColorFilter(e.target.value)}
               className="max-w-sm"
@@ -1304,8 +1081,14 @@ export default function Settings() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={prefs.resetAppThemeColorOverrides}
-                disabled={Object.keys(prefs.appThemeColorOverrides).length === 0}
+                onClick={() =>
+                  prefs.resetAppThemeColorOverrides(resolvedTheme === "light" ? "light" : "dark")
+                }
+                disabled={
+                  Object.keys(
+                    prefs.appThemeColorOverrides[resolvedTheme === "light" ? "light" : "dark"],
+                  ).length === 0
+                }
               >
                 Reset Colors
               </Button>
@@ -1337,7 +1120,7 @@ export default function Settings() {
                     <div className="space-y-1">
                       {filteredKeys.map((key) => {
                         const presetValue = activePreset?.[mode]?.[key as keyof ThemeColors] ?? "";
-                        const activeValue = prefs.appThemeColorOverrides[key] ?? presetValue;
+                        const activeValue = prefs.appThemeColorOverrides[mode][key] ?? presetValue;
                         return (
                           <div
                             key={key}
@@ -1350,20 +1133,48 @@ export default function Settings() {
                             <div className="flex items-center gap-2 min-w-0">
                               <input
                                 type="color"
-                                value={activeValue}
+                                aria-label={APP_THEME_COLOR_LABELS[key]}
+                                value={toPickerHexColor(activeValue)}
                                 onChange={(e) =>
-                                  prefs.setAppThemeColorOverride(key, e.target.value)
+                                  prefs.setAppThemeColorOverride(
+                                    mode,
+                                    key,
+                                    formatThemeColor(
+                                      e.target.value,
+                                      parseThemeColor(activeValue)!.alpha,
+                                    ),
+                                  )
                                 }
                                 className="h-8 w-10 shrink-0 rounded border border-input bg-transparent p-0.5"
                               />
-                              <button
-                                type="button"
-                                className="flex-1 min-w-0 text-right text-[11px] font-mono text-muted-foreground hover:text-foreground underline-offset-2 hover:underline truncate"
-                                onClick={() => beginThemeColorEdit(`app.${key}`, activeValue)}
-                                title="Click to edit color value"
-                              >
-                                {activeValue}
-                              </button>
+                              {editingThemeColorPath === `app.${key}` ? (
+                                <input
+                                  autoFocus
+                                  aria-label={`${APP_THEME_COLOR_LABELS[key]} value`}
+                                  value={editingThemeColorValue}
+                                  onChange={(e) => setEditingThemeColorValue(e.target.value)}
+                                  onBlur={() => commitThemeColorEdit(`app.${key}`, presetValue)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter")
+                                      commitThemeColorEdit(`app.${key}`, presetValue);
+                                    if (e.key === "Escape") {
+                                      setEditingThemeColorPath(null);
+                                      setEditingThemeColorValue("");
+                                    }
+                                  }}
+                                  className="flex-1 min-w-0 h-7 rounded border border-input bg-background px-1.5 text-right text-[11px] font-mono"
+                                  spellCheck={false}
+                                />
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="flex-1 min-w-0 text-right text-[11px] font-mono text-muted-foreground hover:text-foreground underline-offset-2 hover:underline truncate"
+                                  onClick={() => beginThemeColorEdit(`app.${key}`, activeValue)}
+                                  title={`Click to edit color value`}
+                                >
+                                  {activeValue}
+                                </button>
+                              )}
                             </div>
                           </div>
                         );
@@ -1414,8 +1225,10 @@ export default function Settings() {
                 const miscKeys = allPaths.filter((p) => !grouped.has(p));
                 if (miscKeys.length > 0) {
                   groups.push({
-                    heading: "Other",
-                    description: "Tokens not covered by the groups above.",
+                    heading: `Other`,
+                    get description() {
+                      return `Tokens not covered by the groups above.`;
+                    },
                     keys: miscKeys,
                   });
                 }
@@ -1458,7 +1271,9 @@ export default function Settings() {
                               >
                                 <span>{path}</span>
                                 <HelpMark
-                                  description={GAME_THEME_COLOR_DESCRIPTIONS[path as GameThemePath]}
+                                  description={
+                                    GAME_THEME_COLOR_DESCRIPTIONS[path as GameThemeColorKey]
+                                  }
                                 />
                               </Label>
                               <div className="flex items-center gap-2 min-w-0">
@@ -1467,7 +1282,13 @@ export default function Settings() {
                                   type="color"
                                   value={toPickerHexColor(activeColor)}
                                   onChange={(e) =>
-                                    prefs.setGameThemeColorOverride(path, e.target.value)
+                                    prefs.setGameThemeColorOverride(
+                                      path,
+                                      formatThemeColor(
+                                        e.target.value,
+                                        parseThemeColor(activeColor)!.alpha,
+                                      ),
+                                    )
                                   }
                                   className="h-8 w-10 shrink-0 rounded border border-input bg-transparent p-0.5"
                                 />
@@ -1497,7 +1318,7 @@ export default function Settings() {
                                     type="button"
                                     className="flex-1 min-w-0 text-right text-[11px] font-mono text-muted-foreground hover:text-foreground underline-offset-2 hover:underline truncate"
                                     onClick={() => beginThemeColorEdit(path, activeColor)}
-                                    title="Click to edit color value"
+                                    title={`Click to edit color value`}
                                   >
                                     {activeColor}
                                   </button>

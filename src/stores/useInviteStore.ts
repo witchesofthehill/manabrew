@@ -52,7 +52,7 @@ export const useInviteStore = create<InviteState>()((set, get) => ({
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
       toast.error(
-        USER_FACING_ERROR_MESSAGES[code as ServerErrorCode] ?? "Couldn't join the table.",
+        USER_FACING_ERROR_MESSAGES[code as ServerErrorCode] ?? `Couldn't join the table.`,
       );
       return false;
     }
@@ -67,7 +67,7 @@ export const useInviteStore = create<InviteState>()((set, get) => ({
       const sent = new Set(get().sent);
       sent.delete(username);
       set({ sent });
-      toast.error(error instanceof Error ? error.message : "Couldn't send the invite.");
+      toast.error(error instanceof Error ? error.message : `Couldn't send the invite.`);
     }
   },
 }));

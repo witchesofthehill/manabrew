@@ -13,9 +13,7 @@ import { isCreature, isLethalDamage } from "./game.utils";
 import { cn } from "@/lib/utils";
 import type { CardRailState } from "@/components/game/cardRailState";
 import { isVisibleBattlefieldKeyword } from "@/lib/battlefieldKeywords";
-
 const MAX_PREVIEW_KEYWORDS = 8;
-
 export function CardPreviewOverlay({
   card,
   horizontal,
@@ -30,9 +28,12 @@ export function CardPreviewOverlay({
   const themeColors = useTheme().gameTheme;
   const creature = isCreature(card);
   const lethal = isLethalDamage(card);
-
   const statusBadges = useMemo(() => {
-    const out: { key: string; label: string; style: string }[] = [];
+    const out: {
+      key: string;
+      label: string;
+      style: string;
+    }[] = [];
     if (card.exerted) out.push({ key: "exerted", ...CARD_BADGES.exerted });
     if (card.isFaceDown) out.push({ key: "morph", ...CARD_BADGES.morph });
     if (card.isBestowed) out.push({ key: "bestow", ...CARD_BADGES.bestow });
@@ -54,13 +55,10 @@ export function CardPreviewOverlay({
     card.isCopy,
     card.identity.isToken,
   ]);
-
   const keywords = (card.keywords ?? []).filter(isVisibleBattlefieldKeyword);
   const visibleKeywords = keywords.slice(0, MAX_PREVIEW_KEYWORDS);
   const hiddenKeywordCount = keywords.length - visibleKeywords.length;
-
   const damage = card.damage ?? 0;
-
   const ptState = useMemo(() => {
     if (lethal) return "lethal" as const;
     if (card.basePower == null || card.power == null) return "unknown" as const;
@@ -70,7 +68,6 @@ export function CardPreviewOverlay({
     if (curP < card.basePower || curT < (card.baseToughness ?? 0)) return "debuffed" as const;
     return "neutral" as const;
   }, [lethal, card.basePower, card.baseToughness, card.power, card.toughness]);
-
   const ptStyle: CSSProperties = {
     color: themeColors.textOnTinted,
     backgroundColor:
@@ -87,7 +84,6 @@ export function CardPreviewOverlay({
     const tint = withAlpha(themeColors.pt.lethal, Math.min(0.85, damage / ptToughness));
     ptStyle.backgroundImage = `linear-gradient(${tint}, ${tint})`;
   }
-
   const isPlaneswalker = card.types?.some((t) => t.toLowerCase() === "planeswalker") ?? false;
   const loyalty = card.counters?.Loyalty;
   const showLoyalty = isPlaneswalker && loyalty != null && !horizontal;
@@ -98,7 +94,6 @@ export function CardPreviewOverlay({
   const showTopStrip =
     statusBadges.length > 0 || (card.choices?.length ?? 0) > 0 || keywords.length > 0;
   const showPT = creature && !horizontal && !!card.power && !!card.toughness;
-
   const overlayCounters = useMemo(() => {
     if (!card.counters) return null;
     const entries = Object.entries(card.counters).filter(
@@ -109,7 +104,6 @@ export function CardPreviewOverlay({
     );
     return entries.length ? Object.fromEntries(entries) : null;
   }, [card.counters, showLoyalty, rail]);
-
   return (
     <>
       {damage > 0 && (
@@ -224,7 +218,7 @@ export function CardPreviewOverlay({
             // @ts-expect-error CSS var
             "--tw-ring-color": themeColors.badges.ring,
           }}
-          title="Ring-bearer"
+          title={`Ring-bearer`}
         >
           <GameIcon name="ring" className="h-6 w-6" />
         </div>

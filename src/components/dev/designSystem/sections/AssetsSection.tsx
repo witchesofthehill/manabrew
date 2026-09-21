@@ -1,12 +1,11 @@
 import { ManaBrewLogo } from "@/components/layout/ManaBrewLogo";
 import { Section, Subhead, Panel } from "../kit";
 import { ASSETS, DATA_ASSETS } from "../designSystem.data";
-
 export function AssetsSection() {
   return (
     <Section
       id="assets"
-      title="Assets"
+      title={`Assets`}
       intro="Brand imagery, favicons/PWA icons, and the static data files the app ships. Image assets live in public/ (URL-served) except the logo, which is a bundled src/assets import."
     >
       <Subhead>Brand mark</Subhead>

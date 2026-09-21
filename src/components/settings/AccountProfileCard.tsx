@@ -4,12 +4,10 @@ import { Button } from "@/components/ui/button";
 import { HandleDialog } from "@/components/auth/HandleDialog";
 import { AvatarPicker } from "@/components/settings/AvatarPicker";
 import type { AuthAccount, AuthIdentity } from "@/api/authTypes";
-
 interface AccountProfileCardProps {
   account: AuthAccount;
   identities: AuthIdentity[];
 }
-
 export function AccountProfileCard({ account, identities }: AccountProfileCardProps) {
   const [handleOpen, setHandleOpen] = useState(false);
   const email = identities.find((identity) => identity.email)?.email;
@@ -17,7 +15,6 @@ export function AccountProfileCard({ account, identities }: AccountProfileCardPr
     month: "long",
     year: "numeric",
   });
-
   return (
     <section className="rounded-lg border bg-card/40 p-4 sm:p-5">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
@@ -29,7 +26,7 @@ export function AccountProfileCard({ account, identities }: AccountProfileCardPr
               variant="ghost"
               size="icon"
               className="size-7 shrink-0"
-              title="Change handle"
+              title={`Change handle`}
               onClick={() => setHandleOpen(true)}
             >
               <Pencil className="h-3.5 w-3.5" />

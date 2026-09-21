@@ -210,7 +210,7 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
         if (filters.favorites) setRefreshKey((value) => value + 1);
       })
       .catch((error) =>
-        toast.error(error instanceof Error ? error.message : "Failed to update favorite"),
+        toast.error(error instanceof Error ? error.message : `Failed to update favorite`),
       );
   }
 

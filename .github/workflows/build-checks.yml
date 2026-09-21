@@ -92,6 +92,7 @@ jobs:
               'tree-sitter-forge-card-script/',
               'xtask/',
               'public/preset_decks/',
+              'scripts/clippy.mjs',
               '.github/workflows/build-checks.yml',
             ];
 
@@ -182,7 +183,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -231,7 +232,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
           cache-dependency-path: website/yarn.lock
 
@@ -263,7 +264,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Install Yarn
@@ -310,8 +311,18 @@ jobs:
         if: steps.wasm-cache.outputs.cache-hit != 'true'
         run: yarn build:wasm
 
+      - name: Check translation catalogs
+        run: |
+          yarn i18n:extract
+          git diff --exit-code -- src/i18n/locales
+          test -z "$(git status --porcelain --untracked-files=all -- src/i18n/locales)"
+          yarn i18n:compile
+
       - name: Type-check
         run: yarn typecheck
+
+      - name: Check generated type drift
+        run: git diff --exit-code -- src/protocol src/api/hubTypes.ts src/api/authTypes.ts
 
       - name: Share wasm with web-build
         uses: actions/upload-artifact@v4
@@ -322,6 +333,54 @@ jobs:
             public/wasm
           if-no-files-found: error
           retention-days: 1
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.run_rust == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          clean: true
+
+      # Workspace clippy includes the tauri shell, which links GTK/WebKit on
+      # Linux — the other Linux cargo jobs build explicit crates and never do.
+      - name: Install Tauri Linux dependencies
+        run: >
+          sudo apt-get update
+          && sudo apt-get install -y
+          libwebkit2gtk-4.1-dev
+          libgtk-3-dev
+          libayatana-appindicator3-dev
+          librsvg2-dev
+          libxdo-dev
+          libssl-dev
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Set up mold linker
+        uses: rui314/setup-mold@v1
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: clippy
+
+      - name: Check Rust formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy
+        run: node scripts/clippy.mjs
 
   # ── Rust workspace (engine, CLI, agent-interface) ──────────────────
   rust-engine:
@@ -460,7 +519,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Install Yarn
@@ -496,7 +555,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       # A command missing from the permission manifest fails silently in release builds.
       - name: Tauri commands match their permission manifest
@@ -534,7 +593,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Install Yarn
@@ -601,7 +660,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Install Yarn
@@ -677,7 +736,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -718,7 +777,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Install Yarn
@@ -812,7 +871,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Install Yarn
@@ -889,7 +948,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Install Yarn
@@ -980,7 +1039,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Install commitlint

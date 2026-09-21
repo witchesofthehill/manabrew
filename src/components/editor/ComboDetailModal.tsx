@@ -5,21 +5,18 @@ import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { ExternalLink, Sparkles } from "lucide-react";
 import type { SpellbookCombo } from "@/api/commanderSpellbook";
-
 function steps(combo: SpellbookCombo): string[] {
   return combo.description
     .split("\n")
     .map((s) => s.trim())
     .filter(Boolean);
 }
-
 function prerequisites(combo: SpellbookCombo): string[] {
   return [combo.notablePrerequisites, combo.easyPrerequisites]
     .flatMap((block) => block.split("\n"))
     .map((s) => s.trim())
     .filter(Boolean);
 }
-
 export function ComboDetailModal({
   combo,
   onClose,
@@ -29,13 +26,12 @@ export function ComboDetailModal({
 }) {
   const produces = combo.produces.map((p) => p.feature.name);
   const prereqs = prerequisites(combo);
-
   return (
     <Modal onClose={onClose} maxWidth="max-w-3xl" maxHeight="max-h-[90dvh]">
       <Modal.Header onClose={onClose}>
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-counter-charge shrink-0" />
-          <h2 className="text-lg font-bold truncate">{produces.join(", ") || "Combo"}</h2>
+          <h2 className="text-lg font-bold truncate">{produces.join(", ") || `Combo`}</h2>
         </div>
       </Modal.Header>
 

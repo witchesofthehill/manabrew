@@ -163,16 +163,7 @@ pub fn schedule_host_resume_abort(
     });
 }
 
-/// The engine host of a peer-hosted room holds a seat, so its disconnect used
-/// to be handled as an ordinary seat forfeit: the seat went, the room stayed
-/// in-game, and the engine that ran in that player's tab was gone. Guests then
-/// waited out their own timeout, left, and the room aged out as `abandoned` —
-/// a game recorded as if nobody had been there, when in fact the host left.
-///
-/// Give it the vanished-host treatment instead: the same reconnect grace, then
-/// end the game as `HostLost` and hand the room back to its lobby so the
-/// survivors can start another one.
-pub fn schedule_engine_host_abort(state: Arc<ServerState>, room_id: String, player_id: String) {
+pub fn schedule_peer_host_loss(state: Arc<ServerState>, room_id: String, player_id: String) {
     let Some(timeout_s) = state
         .rooms
         .get(&room_id)
@@ -185,8 +176,6 @@ pub fn schedule_engine_host_abort(state: Arc<ServerState>, room_id: String, play
     tokio::spawn(async move {
         tokio::time::sleep(timeout + RECONNECT_ABORT_MARGIN).await;
 
-        // Session reclaim flips the player back to connected, and a rejoin
-        // re-keys the seat; either one disarms this.
         let still_hosting = state
             .rooms
             .get(&room_id)
@@ -361,10 +350,7 @@ fn mark_disconnected_inner(state: &Arc<ServerState>, player_id: &str, our_genera
                     return;
                 }
 
-                // A peer-hosted room keeps its engine in a seat. Losing that
-                // seat is losing the game, not losing a player, so it is not a
-                // forfeit and the room must not be left running without it.
-                let engine_seat_lost = state
+                let peer_host_lost = state
                     .rooms
                     .get(rid)
                     .map(|room| !room.hosted && room.is_host(player_id) && room.host_is_player())
@@ -379,7 +365,7 @@ fn mark_disconnected_inner(state: &Arc<ServerState>, player_id: &str, our_genera
                     }
                 };
 
-                if engine_seat_lost {
+                if peer_host_lost {
                     info!(
                         "[disconnect] in-game room {} lost the seat holding its engine -- awaiting resume",
                         &rid[..8]
@@ -391,7 +377,7 @@ fn mark_disconnected_inner(state: &Arc<ServerState>, player_id: &str, our_genera
                             username: username.clone(),
                         },
                     );
-                    schedule_engine_host_abort(state.clone(), rid.clone(), player_id.to_string());
+                    schedule_peer_host_loss(state.clone(), rid.clone(), player_id.to_string());
                     return;
                 }
 

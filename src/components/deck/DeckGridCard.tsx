@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/dialog";
 import type { EngineKind } from "@/protocol";
 import type { SavedDeck } from "@/stores/useDeckStore";
-
 interface DeckGridCardProps {
   deck: SavedDeck;
   onOpen: () => void;
@@ -36,7 +35,6 @@ interface DeckGridCardProps {
   playDisabled?: boolean;
   readOnly?: boolean;
 }
-
 export function DeckGridCard({
   deck,
   onOpen,
@@ -59,7 +57,6 @@ export function DeckGridCard({
   const titleColorClass = getDeckNameColorClass(displayCards);
   const cover = resolveCoverCard(deck.deck);
   const actionsVisible = onPlaytest || onViewInHub || !readOnly;
-
   return (
     <>
       <DeckCardSurface
@@ -78,8 +75,8 @@ export function DeckGridCard({
             <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100">
               {onPlaytest && (
                 <Button
-                  size="icon"
-                  className="h-6 w-6"
+                  variant="secondary"
+                  size="icon-xs"
                   aria-label="Playtest vs AI"
                   title="Playtest vs AI"
                   onClick={onPlaytest}
@@ -92,8 +89,8 @@ export function DeckGridCard({
                   size="icon"
                   variant="secondary"
                   className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
-                  aria-label="View in Community"
-                  title="View in Community"
+                  aria-label={`View in Community`}
+                  title={`View in Community`}
                   onClick={onViewInHub}
                 >
                   <LibraryBig className="h-3 w-3" />
@@ -104,8 +101,8 @@ export function DeckGridCard({
                   size="icon"
                   variant="secondary"
                   className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
-                  aria-label="Publish to Community"
-                  title="Publish to Community"
+                  aria-label={`Publish to Community`}
+                  title={`Publish to Community`}
                   onClick={onPublish}
                 >
                   <Share2 className="h-3 w-3" />
@@ -116,8 +113,8 @@ export function DeckGridCard({
                   size="icon"
                   variant="secondary"
                   className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
-                  aria-label="Save to account"
-                  title="Save to account"
+                  aria-label={`Save to account`}
+                  title={`Save to account`}
                   onClick={onSaveToAccount}
                 >
                   <CloudUpload className="h-3 w-3" />
@@ -128,8 +125,8 @@ export function DeckGridCard({
                   size="icon"
                   variant="secondary"
                   className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
-                  aria-label="Rename"
-                  title="Rename"
+                  aria-label={`Rename`}
+                  title={`Rename`}
                   onClick={onRename}
                 >
                   <Pencil className="h-3 w-3" />
@@ -140,8 +137,8 @@ export function DeckGridCard({
                   size="icon"
                   variant="secondary"
                   className="h-6 w-6 bg-background/80 text-destructive backdrop-blur-sm hover:bg-background hover:text-destructive"
-                  aria-label="Delete"
-                  title="Delete"
+                  aria-label={`Delete`}
+                  title={`Delete`}
                   onClick={() => setConfirmDelete(true)}
                 >
                   <Trash2 className="h-3 w-3" />
@@ -187,7 +184,7 @@ export function DeckGridCard({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)}>
+            <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>
               Cancel
             </Button>
             <Button

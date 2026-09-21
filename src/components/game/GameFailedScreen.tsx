@@ -1,11 +1,9 @@
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
 interface GameFailedScreenProps {
   message: string;
   onLeave: () => void;
 }
-
 export function GameFailedScreen({ message, onLeave }: GameFailedScreenProps) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">

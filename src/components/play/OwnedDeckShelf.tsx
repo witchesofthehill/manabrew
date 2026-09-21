@@ -4,7 +4,6 @@ import { DECK_SHELF_CARD_CLASS, DeckShelfRow } from "@/components/play/DeckShelf
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { SavedDeck } from "@/stores/useDeckStore";
-
 interface OwnedDeckShelfProps {
   decks: SavedDeck[];
   lastPlayedDeckId: string | null;
@@ -15,7 +14,6 @@ interface OwnedDeckShelfProps {
   onPlayDeck: (deck: SavedDeck) => void;
   onViewPreset: (presetKey: string) => void;
 }
-
 export function OwnedDeckShelf({
   decks,
   lastPlayedDeckId,
@@ -29,21 +27,20 @@ export function OwnedDeckShelf({
   if (decks.length === 0) {
     return (
       <div className="flex min-h-36 flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-muted/30 px-6 py-8 text-center">
-        <LibraryBig className="mb-3 h-7 w-7 text-primary" />
+        <LibraryBig className="mb-3 h-7 w-7 text-secondary" />
         <p className="font-medium">Your first deck is waiting to be brewed.</p>
         <p className="mt-1 text-sm text-muted-foreground">
           Build from scratch, import a decklist, or start with a preset below.
         </p>
-        <Button size="sm" className="mt-4" onClick={onAddDeck}>
+        <Button size="sm" variant="primary" className="mt-4" onClick={onAddDeck}>
           <Plus className="h-4 w-4" />
           Build / Import
         </Button>
       </div>
     );
   }
-
   return (
-    <DeckShelfRow label="My decks">
+    <DeckShelfRow label={`My decks`}>
       {decks.map((deck) => {
         const presetKey = presetKeyByDeckId[deck.id];
         return (

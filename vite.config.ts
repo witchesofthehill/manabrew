@@ -3,6 +3,7 @@ import { readFileSync } from "fs";
 import { defineConfig } from "vite";
 import type { Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { lingui } from "@lingui/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import Icons from "unplugin-icons/vite";
 
@@ -37,7 +38,12 @@ function crossOriginIsolation(): Plugin {
 
 export default defineConfig({
   plugins: [
-    react(),
+    react({
+      babel: {
+        plugins: ["@lingui/babel-plugin-lingui-macro"],
+      },
+    }),
+    lingui(),
     tailwindcss(),
     Icons({
       compiler: "raw",

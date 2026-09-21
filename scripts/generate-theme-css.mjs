@@ -1,39 +1,32 @@
 #!/usr/bin/env node
-/**
- * Auto-generate the game-theme `@theme` CSS block for Tailwind v4.
- *
- * Reads the default preset's gameColors keys (the canonical token set),
- * converts each dot-notation path to the kebab-case CSS variable name
- * that `flattenGameThemeToCssVars()` emits, and outputs the `@theme`
- * entries. The output replaces the hand-maintained game-token section
- * in `src/index.css`.
- *
- * Usage:
- *   node scripts/generate-theme-css.mjs          # print to stdout
- *   node scripts/generate-theme-css.mjs --write   # update index.css in place
- */
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import ts from "typescript";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 
-// ---------------------------------------------------------------------------
-// 1. Extract dot-notation keys from buildGameColors.ts via regex
-//    (avoids needing tsx/ts-node to import TypeScript at script time)
-// ---------------------------------------------------------------------------
-
 const buildSrc = readFileSync(resolve(ROOT, "src/themes/buildGameColors.ts"), "utf-8");
 
-// Match all string keys in the return object: "activeAction.priority", "mana.W", etc.
-const keyRegex = /^\s*"([a-zA-Z]+(?:\.[a-zA-Z0-9]+)*)"\s*:/gm;
-const keys = [];
-let match;
-while ((match = keyRegex.exec(buildSrc)) !== null) {
-  keys.push(match[1]);
+const source = ts.createSourceFile("buildGameColors.ts", buildSrc, ts.ScriptTarget.Latest, true);
+const builder = source.statements.find(
+  (statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === "buildGameColors",
+);
+const returned = builder?.body?.statements.find(ts.isReturnStatement)?.expression;
+if (!returned || !ts.isObjectLiteralExpression(returned)) {
+  throw new Error("buildGameColors must return a flat token object.");
 }
+const keys = returned.properties.map((property) => {
+  if (
+    !ts.isPropertyAssignment(property) ||
+    (!ts.isStringLiteral(property.name) && !ts.isIdentifier(property.name))
+  ) {
+    throw new Error("Game theme tokens must have literal property names.");
+  }
+  return property.name.text;
+});
 
 if (keys.length === 0) {
   console.error("ERROR: No game-theme keys found in buildGameColors.ts");

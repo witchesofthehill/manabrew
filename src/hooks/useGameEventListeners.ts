@@ -29,18 +29,14 @@ import type { DisplayEvent } from "@/protocol/display";
 import type { GameViewDto } from "@/protocol/game";
 import { RELAY_FEATURE, SERVER_ERROR_CODE } from "@/types/server";
 import type { AuthResultPayload, GameAbortedPayload, RoomMessagePayload } from "@/types/server";
-
 type SelfHostedNodeRoomPayload = {
   type?: unknown;
   gameId?: unknown;
 };
-
 const GAME_OVER_PROMPT = { input: { type: "gameOver" } } as Prompt;
-
 function isGameOverPrompt(prompt: Prompt | null): boolean {
   return prompt?.input.type === "gameOver";
 }
-
 function isSelfHostedNodeGameOverPayload(payload: unknown, gameId: string | null): boolean {
   return (
     typeof payload === "object" &&
@@ -49,18 +45,14 @@ function isSelfHostedNodeGameOverPayload(payload: unknown, gameId: string | null
     (payload as SelfHostedNodeRoomPayload).gameId === gameId
   );
 }
-
 function normalizeEnginePrompt(prompt: unknown): Prompt | null {
   return typeof prompt === "object" && prompt !== null && "input" in prompt
     ? (prompt as Prompt)
     : null;
 }
-
 const { setState, getState } = useGameStore;
-
 const REJOIN_RETRY_DELAY_MS = 2000;
 let rejoinInFlight = false;
-
 function setReconnectPhase(phase: "reconnecting" | "idle") {
   useServerStore.setState({
     reconnect:
@@ -69,7 +61,6 @@ function setReconnectPhase(phase: "reconnecting" | "idle") {
         : { phase: "idle", attempt: 0 },
   });
 }
-
 async function rejoinAfterRelayRestart() {
   // Hold the interruption overlay up until the seat is re-established — the
   // socket being open again is not enough, and answering a stale prompt while
@@ -107,7 +98,7 @@ async function rejoinAfterRelayRestart() {
           getState().isGameActive
         ) {
           setReconnectPhase("idle");
-          toast.error("Your seat was forfeited while you were disconnected.");
+          toast.error(`Your seat was forfeited while you were disconnected.`);
           void useGameStore.getState().endGame();
           return;
         }
@@ -116,14 +107,13 @@ async function rejoinAfterRelayRestart() {
     }
     setReconnectPhase("idle");
     if (getState().isGameActive) {
-      toast.error("Game could not be resumed — the room did not come back.");
+      toast.error(`Game could not be resumed \u2014 the room did not come back.`);
       void useGameStore.getState().endGame();
     }
   } finally {
     rejoinInFlight = false;
   }
 }
-
 function toastOpponentPublicAction(entry: GameLogEntry) {
   if (!entry.playerId) return;
   const players = getState().gameView?.players ?? [];
@@ -137,13 +127,11 @@ function toastOpponentPublicAction(entry: GameLogEntry) {
     toast.info(`${actor} foretold a card`);
   }
 }
-
 function isOver(state: Pick<GameState, "gameView" | "currentPrompt">): boolean {
   return (state.gameView?.gameOver ?? false) || isGameOverPrompt(state.currentPrompt);
 }
 
 let outcomeFiledFor: string | null = null;
-
 /**
  * The host is the only seat the relay takes an outcome from, and since the
  * state stream may bypass the relay it is the only way the relay learns how a
@@ -172,7 +160,6 @@ function reportHostOutcome(state: GameState): void {
     })
     .catch(() => undefined);
 }
-
 /** Close the book on the current game. Safe to call more than once. */
 function reportEngineGame(): void {
   const state = useGameStore.getState();
@@ -210,7 +197,6 @@ function reportEngineGame(): void {
       : undefined,
   });
 }
-
 /**
  * Sets up platform event listeners for the four engine→UI message families:
  * `state` (game view), `display` (animations), `prompt` (decisions) and
@@ -234,12 +220,10 @@ export function useGameEventListeners() {
       reportEngineGame();
     };
   }, []);
-
   useEffect(() => {
     const platform = getPlatform();
     const runtime = getSelectedGameRuntime();
     const unsubscribers: (() => void)[] = [];
-
     const fetchInitialState = async () => {
       try {
         const prompt = normalizeEnginePrompt(await runtime.api.getPrompt());
@@ -251,11 +235,9 @@ export function useGameEventListeners() {
       }
     };
     fetchInitialState();
-
     if (getState().isMultiplayer && !getState().isHost) {
       void platform.server?.requestResync();
     }
-
     try {
       unsubscribers.push(
         platform.events.on<StateUpdate>("game:state", (payload) => {
@@ -263,52 +245,49 @@ export function useGameEventListeners() {
           applyState(payload.gameView as GameViewDto, "Event", setState, getState);
         }),
       );
-
       unsubscribers.push(
         platform.events.on<DisplayEvent>("game:display", (payload) => {
           if (!payload?.kind) return;
           applyDisplay(payload, "Event", setState, getState);
         }),
       );
-
       unsubscribers.push(
-        platform.events.on<{ message: string }>("game:fatal", (payload) => {
+        platform.events.on<{
+          message: string;
+        }>("game:fatal", (payload) => {
           setState({
             fatalError: payload?.message || "The game failed to start.",
             isPrefetchingCards: false,
           });
         }),
       );
-
       // The card archive downloads on the first Manabrew-engine game, behind
       // the loading screen. Without this the screen sits on "Start the game
       // engine" with nothing to show for a 29 MB fetch.
       unsubscribers.push(
-        platform.events.on<{ stage: string; loaded?: number; total?: number }>(
-          "engine:cards",
-          (payload) => {
-            if (payload?.stage === "downloading" && payload.total) {
-              const pct = Math.round(((payload.loaded ?? 0) / payload.total) * 100);
-              setState({ debugInfo: `Downloading card data ${pct}%` });
-            } else if (payload?.stage === "parsing") {
-              setState({ debugInfo: "Parsing card data..." });
-            }
-          },
-        ),
+        platform.events.on<{
+          stage: string;
+          loaded?: number;
+          total?: number;
+        }>("engine:cards", (payload) => {
+          if (payload?.stage === "downloading" && payload.total) {
+            const pct = Math.round(((payload.loaded ?? 0) / payload.total) * 100);
+            setState({ debugInfo: `Downloading card data ${pct}%` });
+          } else if (payload?.stage === "parsing") {
+            setState({ debugInfo: "Parsing card data..." });
+          }
+        }),
       );
-
       const handleProtocolError = (error: ProtocolError | undefined, source: string) => {
         if (!error?.code) return;
         applyProtocolError(error, source, setState);
         toast.error(`Action rejected (${error.code}) — try again`);
       };
-
       unsubscribers.push(
         platform.events.on<ProtocolError>("game:error", (payload) => {
           handleProtocolError(payload, "Event");
         }),
       );
-
       unsubscribers.push(
         platform.events.on<Prompt>("game:prompt", (payload) => {
           const prompt = normalizeEnginePrompt(payload);
@@ -318,7 +297,6 @@ export function useGameEventListeners() {
           applyPrompt(prompt, "Event", setState, getState);
         }),
       );
-
       unsubscribers.push(
         platform.events.on<unknown>("game:log", (payload) => {
           const entry = normalizeGameLogPayload(payload);
@@ -328,7 +306,6 @@ export function useGameEventListeners() {
           toastOpponentPublicAction(entry);
         }),
       );
-
       unsubscribers.push(
         platform.events.on<unknown>("game:snapshot", (payload) => {
           const snapshot = normalizeSnapshotPayload(payload);
@@ -343,55 +320,52 @@ export function useGameEventListeners() {
           }));
         }),
       );
-
       // Relay (non-host) seats receive state/display/prompt addressed per player.
       unsubscribers.push(
-        platform.events.on<{ forPlayer?: string; state: StateUpdate }>(
-          "game:remote_state",
-          (payload) => {
-            if (!payload.state?.gameView) return;
-            if (payload.forPlayer) {
-              if (payload.forPlayer !== getState().myPlayerSlot) return;
-              if (!getState().seatAddressedStates) setState({ seatAddressedStates: true });
-            } else if (getState().seatAddressedStates) {
-              // Public (spectator) broadcast; this seat gets addressed views.
-              return;
-            }
-            applyState(payload.state.gameView as GameViewDto, "Remote", setState, getState);
-          },
-        ),
+        platform.events.on<{
+          forPlayer?: string;
+          state: StateUpdate;
+        }>("game:remote_state", (payload) => {
+          if (!payload.state?.gameView) return;
+          if (payload.forPlayer) {
+            if (payload.forPlayer !== getState().myPlayerSlot) return;
+            if (!getState().seatAddressedStates) setState({ seatAddressedStates: true });
+          } else if (getState().seatAddressedStates) {
+            // Public (spectator) broadcast; this seat gets addressed views.
+            return;
+          }
+          applyState(payload.state.gameView as GameViewDto, "Remote", setState, getState);
+        }),
       );
-
       unsubscribers.push(
-        platform.events.on<{ event: DisplayEvent }>("game:remote_display", (payload) => {
+        platform.events.on<{
+          event: DisplayEvent;
+        }>("game:remote_display", (payload) => {
           if (!payload.event?.kind) return;
           applyDisplay(payload.event, "Remote", setState, getState);
         }),
       );
-
       unsubscribers.push(
-        platform.events.on<{ forPlayer: string; prompt: Prompt }>(
-          "game:remote_prompt",
-          (payload) => {
-            if (payload.forPlayer !== getState().myPlayerSlot) return;
-            const prompt = normalizeEnginePrompt(payload.prompt);
-            if (!prompt) return;
-            if (getState().selfConceded) return;
-            applyPrompt(prompt, "Remote", setState, getState);
-          },
-        ),
+        platform.events.on<{
+          forPlayer: string;
+          prompt: Prompt;
+        }>("game:remote_prompt", (payload) => {
+          if (payload.forPlayer !== getState().myPlayerSlot) return;
+          const prompt = normalizeEnginePrompt(payload.prompt);
+          if (!prompt) return;
+          if (getState().selfConceded) return;
+          applyPrompt(prompt, "Remote", setState, getState);
+        }),
       );
-
       unsubscribers.push(
-        platform.events.on<{ forPlayer: string; error: ProtocolError }>(
-          "game:remote_error",
-          (payload) => {
-            if (payload.forPlayer !== getState().myPlayerSlot) return;
-            handleProtocolError(payload.error, "Remote");
-          },
-        ),
+        platform.events.on<{
+          forPlayer: string;
+          error: ProtocolError;
+        }>("game:remote_error", (payload) => {
+          if (payload.forPlayer !== getState().myPlayerSlot) return;
+          handleProtocolError(payload.error, "Remote");
+        }),
       );
-
       unsubscribers.push(
         platform.events.on<AuthResultPayload>("server:auth_result", (payload) => {
           const state = getState();
@@ -407,7 +381,6 @@ export function useGameEventListeners() {
           }
         }),
       );
-
       unsubscribers.push(
         platform.events.on<RoomMessagePayload<SelfHostedNodeRoomPayload>>(
           "server:room_message",
@@ -434,7 +407,6 @@ export function useGameEventListeners() {
           },
         ),
       );
-
       unsubscribers.push(
         platform.events.on<GameAbortedPayload>("server:game_aborted", (payload) => {
           const state = getState();
@@ -443,14 +415,16 @@ export function useGameEventListeners() {
             peekActiveGameSession()?.roomId ?? useServerStore.getState().currentRoom?.room_id;
           if (roomId && payload.room_id !== roomId) return;
           if (state.gameView?.gameOver || isGameOverPrompt(state.currentPrompt)) return;
-          toast.error("Game aborted — a player did not reconnect.");
+          toast.error(`Game aborted \u2014 a player did not reconnect.`);
           void useGameStore.getState().endGame();
         }),
       );
-
       unsubscribers.push(
-        platform.events.on<{ reason: string; message: string }>("game:forced_end", (payload) => {
-          const message = payload?.message ?? "Forced game exit";
+        platform.events.on<{
+          reason: string;
+          message: string;
+        }>("game:forced_end", (payload) => {
+          const message = payload?.message ?? `Forced game exit`;
           const { isMultiplayer, isHost } = getState();
           const activeSession = peekActiveGameSession();
           clearActiveGameSession();
@@ -470,7 +444,7 @@ export function useGameEventListeners() {
           // Without EndGame the relay room stays InGame and every rematch
           // action bounces off "Game has already started".
           if (isMultiplayer && isHost) {
-            toast.error("Game ended unexpectedly — returning the room to the lobby.");
+            toast.error(`Game ended unexpectedly \u2014 returning the room to the lobby.`);
             void useServerStore.getState().endGame();
           } else if (activeSession?.ownsForgeHost || activeSession?.relayHost) {
             void teardownForgeAiSession(activeSession);
@@ -480,7 +454,6 @@ export function useGameEventListeners() {
     } catch (e) {
       console.error("[hook] Failed to setup listeners:", e);
     }
-
     return () => {
       unsubscribers.forEach((fn) => fn());
     };

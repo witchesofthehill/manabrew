@@ -11,13 +11,11 @@ import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { JOIN_REJECTED_INCORRECT_PASSWORD } from "@/stores/useServerStore";
 import type { RoomInfo } from "@/types/server";
-
 interface JoinPasswordDialogProps {
   room: RoomInfo | null;
   onClose: () => void;
   onJoin: (room: RoomInfo, password: string) => Promise<void>;
 }
-
 export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialogProps) {
   const [password, setPassword] = useState("");
   const [focused, setFocused] = useState(false);
@@ -25,11 +23,9 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
   const [error, setError] = useState<string | null>(null);
   const [selection, setSelection] = useState({ start: 0, end: 0 });
   const inputRef = useRef<HTMLInputElement>(null);
-
   function syncSelection(el: HTMLInputElement) {
     setSelection({ start: el.selectionStart ?? 0, end: el.selectionEnd ?? 0 });
   }
-
   function close() {
     setPassword("");
     setError(null);
@@ -37,7 +33,6 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
     setSelection({ start: 0, end: 0 });
     onClose();
   }
-
   async function submit() {
     if (!room || password.length === 0 || submitting) return;
     setError(null);
@@ -57,7 +52,6 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
       setSubmitting(false);
     }
   }
-
   return (
     <Dialog open={room != null} onOpenChange={(open) => !open && close()}>
       <DialogContent className="max-w-sm">
@@ -91,7 +85,7 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
               onKeyDown={(e) => {
                 if (e.key === "Enter") void submit();
               }}
-              aria-label="Password"
+              aria-label={`Password`}
               className="absolute inset-0 h-full w-full cursor-text opacity-0"
             />
             {password.length === 0 && !focused && (
@@ -104,7 +98,7 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
                   key={i}
                   className={cn(
                     "shrink-0 translate-y-[0.5em] select-none rounded px-0.5 leading-none",
-                    isSelected && "bg-primary/30",
+                    isSelected && "bg-selection/30",
                   )}
                 >
                   <span className="animate-password-pip inline-block text-3xl font-black text-primary">
@@ -124,8 +118,12 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
           <Button variant="ghost" onClick={close} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={() => void submit()} disabled={password.length === 0 || submitting}>
-            {submitting ? "Joining…" : "Join"}
+          <Button
+            variant="primary"
+            onClick={() => void submit()}
+            disabled={password.length === 0 || submitting}
+          >
+            {submitting ? `Joining…` : `Join`}
           </Button>
         </DialogFooter>
       </DialogContent>

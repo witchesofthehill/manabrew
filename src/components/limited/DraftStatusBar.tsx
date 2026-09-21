@@ -1,10 +1,8 @@
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { DraftPodButton } from "@/components/limited/DraftPodButton";
 import { LimitedModeToggle, type LimitedDraftMode } from "@/components/limited/LimitedModeToggle";
 import type { DraftState } from "@/types/limited";
-
 interface DraftStatusBarProps {
   draft: DraftState;
   mode?: LimitedDraftMode;
@@ -16,7 +14,6 @@ interface DraftStatusBarProps {
   waitingLabel?: string;
   viewerSeat?: number;
 }
-
 export function DraftStatusBar({
   draft,
   mode,
@@ -31,7 +28,6 @@ export function DraftStatusBar({
   const PassIcon = draft.passDirection === "right" ? ArrowRight : ArrowLeft;
   const packsWaiting =
     draft.seatSummaries.find((seat) => seat.seat === viewerSeat)?.packsWaiting ?? 0;
-
   return (
     <header className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-md border border-border/70 bg-background/95 px-3 py-2 shadow-sm backdrop-blur">
       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -65,7 +61,7 @@ export function DraftStatusBar({
           <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
             {draft.picksPerPass > 1 && draft.picksRemainingInPack > 0
               ? `Your pick · ${draft.picksRemainingInPack} remaining`
-              : "Your pick"}
+              : `Your pick`}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 rounded bg-muted/60 px-1.5 py-0.5 text-[11px] font-medium">

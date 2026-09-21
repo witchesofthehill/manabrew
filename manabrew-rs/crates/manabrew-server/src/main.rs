@@ -42,6 +42,16 @@ async fn download_art(config: &config::ServerConfig) -> Result<(), String> {
         result.already_cached,
         result.failed
     );
+    // Written from the same bulk file the art urls came out of, and the reason
+    // a seat with no internet can name the picture it wants.
+    if let Err(error) = cache.store_sets().await {
+        tracing::warn!("[art] no set list: {error}");
+    }
+    match cache.download_rulings().await {
+        Ok(cards) => tracing::info!(cards, "[art] rulings"),
+        Err(error) => tracing::warn!("[art] no rulings: {error}"),
+    }
+    tracing::info!(cards = cache.cards_cached(), "[art] card data");
     Ok(())
 }
 
@@ -102,9 +112,12 @@ async fn main() {
             .host
             .parse()
             .unwrap_or(std::net::IpAddr::from([0, 0, 0, 0]));
+        let cards = cache.cards_cached();
         let server = manabrew_art_cache::ArtServer::spawn_on(bind, config.art_port, cache);
         match &server {
-            Some(server) => tracing::info!(port = server.port, dir, "[art] serving card art"),
+            Some(server) => {
+                tracing::info!(port = server.port, dir, cards, "[art] serving card art")
+            }
             None => tracing::error!(
                 port = config.art_port,
                 "[art] could not bind the art listener"

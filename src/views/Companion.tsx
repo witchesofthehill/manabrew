@@ -11,7 +11,6 @@ import { PhaseStrip } from "@/components/companion/PhaseStrip";
 import { StatsDialog } from "@/components/companion/StatsDialog";
 import { WinBanner } from "@/components/companion/WinBanner";
 import { useCompanionStore } from "@/stores/useCompanionStore";
-
 export default function Companion() {
   const session = useCompanionStore((s) => s.session);
   const newSession = useCompanionStore((s) => s.newSession);
@@ -20,7 +19,6 @@ export default function Companion() {
   const [newOpen, setNewOpen] = useState(false);
   const [focus, setFocus] = useState(false);
   const [chromeInFocus, setChromeInFocus] = useState(false);
-
   // Wrap the focus setter so leaving focus mode also clears the peek flag,
   // without needing an effect that calls setState (which the React-hooks
   // lint rules don't allow).
@@ -28,7 +26,6 @@ export default function Companion() {
     setFocus(next);
     if (!next) setChromeInFocus(false);
   };
-
   // Keep focus state in sync with the browser's fullscreen state so Esc /
   // the system gesture drops us back into the chrome'd view automatically.
   useEffect(() => {
@@ -39,7 +36,6 @@ export default function Companion() {
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, [focus]);
-
   if (!session) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
@@ -52,7 +48,9 @@ export default function Companion() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setNewOpen(true)}>Start a game</Button>
+          <Button variant="primary" onClick={() => setNewOpen(true)}>
+            Start a game
+          </Button>
           <StatsDialog />
         </div>
         {archive.length > 0 && (
@@ -94,9 +92,7 @@ export default function Companion() {
       </div>
     );
   }
-
   const showChrome = !focus || chromeInFocus;
-
   return (
     <div
       className={cn(

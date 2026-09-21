@@ -3,25 +3,26 @@ import { cn } from "@/lib/utils";
 import { useDeckAnalysisStore } from "@/stores/useDeckAnalysisStore";
 import { BRACKET_INFO, bracketAdvice, type Bracket } from "@/lib/brackets";
 import { EDITOR_PANEL_CLASS, EDITOR_SUBTLE_BLOCK_CLASS } from "./deckEditor.styles";
-
-const BRACKET_STYLE: Record<Bracket, { badge: string; text: string }> = {
+const BRACKET_STYLE: Record<
+  Bracket,
+  {
+    badge: string;
+    text: string;
+  }
+> = {
   1: { badge: "bg-muted text-muted-foreground", text: "text-muted-foreground" },
   2: { badge: "bg-primary/15 text-primary", text: "text-primary" },
   3: { badge: "bg-warning/15 text-warning", text: "text-warning" },
   4: { badge: "bg-pt-lethal/15 text-pt-lethal", text: "text-pt-lethal" },
   5: { badge: "bg-destructive/15 text-destructive", text: "text-destructive" },
 };
-
 export function DeckBracketPanel() {
   const bracket = useDeckAnalysisStore((s) => s.bracket);
   const loading = useDeckAnalysisStore((s) => s.loading);
-
   if (!bracket && !loading) return null;
-
   const info = bracket ? BRACKET_INFO[bracket.bracket] : null;
   const style = bracket ? BRACKET_STYLE[bracket.bracket] : null;
   const advice = bracket ? bracketAdvice(bracket) : null;
-
   return (
     <section className={EDITOR_PANEL_CLASS}>
       <div className="mb-4 flex items-center gap-2.5">

@@ -40,7 +40,6 @@ import type { DeckCard, DeckCardIdentity } from "@/protocol/deck";
 import { useCollectionStore } from "@/stores/useCollectionStore";
 import { collectionOwnership, collectionQuantityForName } from "@/lib/collection";
 import { useIsUnsupported } from "@/stores/useCardSupportStore";
-
 interface DeckEditorActions {
   onAddOne: (cardName: string) => void;
   onRemoveOne: (cardName: string) => void;
@@ -59,14 +58,12 @@ interface DeckEditorActions {
   printing?: DeckCardIdentity;
   onUpdateTokenPrint?: (tokenName: string, print: ScryfallCard) => void;
 }
-
 interface CardDetailModalProps {
   card: ScryfallCard;
   onClose: () => void;
   deckEditorActions?: DeckEditorActions;
   readOnly?: boolean;
 }
-
 export function CardDetailModal({
   card: initialCard,
   onClose,
@@ -92,7 +89,6 @@ export function CardDetailModal({
     updatePrintingVariant,
   } = useDeckStore();
   const collectionQuantities = useCollectionStore((state) => state.quantities);
-
   const cardId = initialCard?.id;
   const [prevCardId, setPrevCardId] = useState(cardId);
   if (prevCardId !== cardId) {
@@ -102,7 +98,6 @@ export function CardDetailModal({
     setShowDeckPicker(false);
     setFaceIndex(0);
   }
-
   const card = selectedPrint ?? initialCard;
   const deckCardName = frontFaceName(card.name);
   const deckCards = [
@@ -143,35 +138,45 @@ export function CardDetailModal({
     collectorNumber: card.collector_number,
   });
   const isDoubleFaced = !!(card.card_faces && card.card_faces.length >= 2);
-
   const activeFace = isDoubleFaced ? card.card_faces![faceIndex] : null;
   const faceUris = cardFaceImageUris(card, storeCard?.uris, faceIndex);
   const imageUrl = faceUris?.large ?? faceUris?.normal;
   const manaCost = activeFace?.mana_cost ?? getScryfallManaCost(card);
-  const displayName = activeFace?.name ?? card.name;
-  const typeLine = activeFace?.type_line ?? card.type_line;
-  const oracleText = activeFace?.oracle_text ?? card.oracle_text;
-  const power = (activeFace as { power?: string } | null)?.power ?? card.power;
-  const toughness = (activeFace as { toughness?: string } | null)?.toughness ?? card.toughness;
-
+  const displayName = activeFace
+    ? (activeFace.printed_name ?? activeFace.name)
+    : (card.printed_name ?? card.name);
+  const typeLine = activeFace
+    ? (activeFace.printed_type_line ?? activeFace.type_line)
+    : (card.printed_type_line ?? card.type_line);
+  const oracleText = activeFace
+    ? (activeFace.printed_text ?? activeFace.oracle_text)
+    : (card.printed_text ?? card.oracle_text);
+  const power =
+    (
+      activeFace as {
+        power?: string;
+      } | null
+    )?.power ?? card.power;
+  const toughness =
+    (
+      activeFace as {
+        toughness?: string;
+      } | null
+    )?.toughness ?? card.toughness;
   const rulings = rulingsData?.data ?? [];
-
   const isHorizontalActiveFace = activeFace
     ? isHorizontalCard({ typeLine: activeFace.type_line })
     : isHorizontalCard({ layout: card.layout, typeLine: card.type_line });
-
   function handleAddToCurrentDeck() {
     addToMain(scryfallToDeckCard(card));
     setShowDeckPicker(false);
     toast.success(`Added to ${currentDeck.name}`);
   }
-
   function handleAddToSavedDeck(deckId: string, deckName: string) {
     addCardToSavedDeck(deckId, scryfallToDeckCard(card));
     setShowDeckPicker(false);
     toast.success(`Added to ${deckName}`);
   }
-
   function handleAddNewTag() {
     if (!newTagInput.trim() || !deckEditorActions?.onTagCard) return;
     deckEditorActions.onAddTag?.(newTagInput.trim());
@@ -180,7 +185,6 @@ export function CardDetailModal({
     setNewTagInput("");
     setShowDeckPicker(false);
   }
-
   function handleSelectPrint(print: ScryfallCard) {
     setSelectedPrint(print);
     setFaceIndex(0);
@@ -198,7 +202,6 @@ export function CardDetailModal({
       updatePrint(deckCardName, print);
     }
   }
-
   return (
     <>
       <Modal
@@ -212,7 +215,7 @@ export function CardDetailModal({
             <h2 className="text-lg font-bold truncate">{displayName}</h2>
             {isDoubleFaced && (
               <span className="text-xs text-muted-foreground shrink-0">
-                {faceIndex === 0 ? "Front" : "Back"} face
+                {faceIndex === 0 ? `Front face` : `Back face`}
               </span>
             )}
             {manaCost && <ManaSymbols cost={manaCost} size="sm" className="shrink-0" />}
@@ -304,7 +307,7 @@ export function CardDetailModal({
                           <Badge variant="outline">Command {zoneCounts.command}</Badge>
                         )}
                         <Badge variant="outline">
-                          {matchingDeckCard.identity.foil ? "Foil" : "Non-foil"}
+                          {matchingDeckCard.identity.foil ? `Foil` : `Non-foil`}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-2 text-xs">
@@ -314,7 +317,7 @@ export function CardDetailModal({
                             ? `Exact printing owned · ${owned} total`
                             : exactOwnership === "other"
                               ? `Owned in another printing · ${owned} total`
-                              : "Not in collection"}
+                              : `Not in collection`}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-xs">
@@ -325,8 +328,8 @@ export function CardDetailModal({
                         )}
                         <span>
                           {unsupported
-                            ? "Unsupported by the Manabrew and Forge engines"
-                            : "Supported by the Manabrew and Forge engines"}
+                            ? `Unsupported by the Manabrew and Forge engines`
+                            : `Supported by the Manabrew and Forge engines`}
                         </span>
                       </div>
                       {!readOnly && appliedTags.length > 0 && (
@@ -361,13 +364,13 @@ export function CardDetailModal({
                   {power && toughness && (
                     <div className="flex gap-4">
                       <div>
-                        <span className="text-sm font-semibold text-muted-foreground">P/T: </span>
+                        <span className="text-sm font-semibold text-muted-foreground">P/T:</span>
                         <span className="text-sm font-bold">
                           {power}/{toughness}
                         </span>
                       </div>
                       <div>
-                        <span className="text-sm font-semibold text-muted-foreground">CMC: </span>
+                        <span className="text-sm font-semibold text-muted-foreground">CMC:</span>
                         <span className="text-sm">{card.cmc}</span>
                       </div>
                     </div>
@@ -375,7 +378,7 @@ export function CardDetailModal({
 
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
                     <div className="flex items-center gap-1">
-                      <span className="font-semibold text-muted-foreground">Set: </span>
+                      <span className="font-semibold text-muted-foreground">Set:</span>
                       {setLookup.get(card.set)?.icon_svg_uri && (
                         <ScryfallImg
                           src={setLookup.get(card.set)!.icon_svg_uri}
@@ -388,7 +391,7 @@ export function CardDetailModal({
                       </span>
                     </div>
                     <div>
-                      <span className="font-semibold text-muted-foreground">Rarity: </span>
+                      <span className="font-semibold text-muted-foreground">Rarity:</span>
                       <span className="capitalize">{card.rarity}</span>
                     </div>
                     <div>
@@ -398,13 +401,13 @@ export function CardDetailModal({
                   </div>
 
                   <div className="text-sm">
-                    <span className="font-semibold text-muted-foreground">Artist: </span>
+                    <span className="font-semibold text-muted-foreground">Artist:</span>
                     <span>{card.artist}</span>
                   </div>
 
                   {card.edhrec_rank && (
                     <div className="text-sm">
-                      <span className="font-semibold text-muted-foreground">EDHREC Rank: </span>
+                      <span className="font-semibold text-muted-foreground">EDHREC Rank:</span>
                       <span>#{card.edhrec_rank.toLocaleString()}</span>
                     </div>
                   )}
@@ -481,10 +484,9 @@ export function CardDetailModal({
               <div className="flex items-center gap-1">
                 <div className="flex items-center rounded-md border bg-muted/30 p-0.5">
                   <Button
-                    size="icon"
+                    size="icon-sm"
                     variant="ghost"
-                    className="h-7 w-7"
-                    title="Remove one copy"
+                    title={`Remove one copy`}
                     onClick={() => {
                       deckEditorActions.onRemoveOne(deckCardName);
                       toast.success(`Removed one ${deckCardName}`);
@@ -496,10 +498,9 @@ export function CardDetailModal({
                     {currentDeck.cards.filter((c) => c.identity.name === deckCardName).length}
                   </span>
                   <Button
-                    size="icon"
+                    size="icon-sm"
                     variant="ghost"
-                    className="h-7 w-7"
-                    title="Add one copy"
+                    title={`Add one copy`}
                     onClick={() => {
                       deckEditorActions.onAddOne(deckCardName);
                       toast.success(`Added ${deckCardName}`);
@@ -511,19 +512,17 @@ export function CardDetailModal({
 
                 <div className="flex items-center rounded-md border bg-muted/30 p-0.5">
                   <Button
-                    size="icon"
+                    size="icon-sm"
                     variant="ghost"
-                    className="h-7 w-7"
-                    title="Change printing"
+                    title={`Change printing`}
                     onClick={() => setShowPrints(true)}
                   >
                     <ImageIcon className="h-3.5 w-3.5" />
                   </Button>
                   {isDoubleFaced && (
                     <Button
-                      size="icon"
+                      size="icon-sm"
                       variant="ghost"
-                      className="h-7 w-7"
                       title={
                         faceIndex === 0
                           ? `Flip to back: ${card.card_faces![1].name}`
@@ -561,7 +560,7 @@ export function CardDetailModal({
                       size="icon"
                       variant="ghost"
                       className={cn("h-7 w-7", matchingDeckCard?.identity.foil && "text-warning")}
-                      title={matchingDeckCard?.identity.foil ? "Remove foil" : "Make foil"}
+                      title={matchingDeckCard?.identity.foil ? `Remove foil` : `Make foil`}
                       onClick={() => deckEditorActions.onToggleFoil?.(deckCardName)}
                     >
                       <Sparkles className="h-3.5 w-3.5" />
@@ -577,8 +576,8 @@ export function CardDetailModal({
                       )}
                       title={
                         currentDeck.coverCardName === deckCardName
-                          ? "Remove deck cover"
-                          : "Set as deck cover"
+                          ? `Remove deck cover`
+                          : `Set as deck cover`
                       }
                       onClick={() => deckEditorActions.onSetCover?.(deckCardName, faceIndex)}
                     >
@@ -621,7 +620,7 @@ export function CardDetailModal({
                         <div className="px-2 py-1 flex items-center gap-1">
                           <Input
                             className="h-7 text-xs flex-1"
-                            placeholder="New tag…"
+                            placeholder={`New tag\u2026`}
                             value={newTagInput}
                             onChange={(e) => setNewTagInput(e.target.value)}
                             onKeyDown={(e) => {
@@ -646,7 +645,12 @@ export function CardDetailModal({
               </div>
             ) : !readOnly ? (
               <div className="relative">
-                <Button size="sm" className="gap-1" onClick={() => setShowDeckPicker((v) => !v)}>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => setShowDeckPicker((v) => !v)}
+                >
                   <Plus className="h-3.5 w-3.5" />
                   Add to Deck
                   <ChevronDown className="h-3 w-3 ml-1" />

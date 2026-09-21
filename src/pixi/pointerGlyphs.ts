@@ -33,7 +33,7 @@ import arrowCursorUrl from "~icons/game-icons/arrow-cursor";
 // prompt and exile zone) rather than the raw square glyph — see `VortexCircleIcon`.
 const exileUrl = `<svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 512 512"><clipPath id="mb-exile-cursor-clip"><circle cx="256" cy="256" r="256"/></clipPath><path fill="currentColor" clip-path="url(#mb-exile-cursor-clip)" d="${VORTEX_PATH}"/></svg>`;
 
-/** Raw SVG source for hostile intents (coloured with `pointer.hostile`).
+/** Raw SVG source for hostile intents (coloured with `targeting.hostile`).
  *  Keep in sync with `intentIsHostile` in `src/types/promptType.ts`. */
 export const HOSTILE_INTENT_GLYPHS: Partial<Record<TargetingIntent, string>> = {
   damage: damageUrl,

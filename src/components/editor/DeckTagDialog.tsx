@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Check, Plus, Tag } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,7 +9,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-
 interface DeckTagDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -19,7 +17,6 @@ interface DeckTagDialogProps {
   onApply: (tag: string) => void;
   onCreateAndApply: (tag: string) => void;
 }
-
 export function DeckTagDialog({
   open,
   onOpenChange,
@@ -34,13 +31,11 @@ export function DeckTagDialog({
     [query, tags],
   );
   const exactMatch = tags.some((tag) => tag.toLowerCase() === query.trim().toLowerCase());
-
   function apply(tag: string) {
     onApply(tag);
     setQuery("");
     onOpenChange(false);
   }
-
   function createAndApply() {
     const tag = query.trim();
     if (!tag) return;
@@ -48,7 +43,6 @@ export function DeckTagDialog({
     setQuery("");
     onOpenChange(false);
   }
-
   return (
     <Dialog
       open={open}
@@ -71,7 +65,7 @@ export function DeckTagDialog({
             autoFocus
             value={query}
             className="pl-9"
-            placeholder="Ramp, removal, combo…"
+            placeholder={`Ramp, removal, combo\u2026`}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
               if (event.key !== "Enter") return;

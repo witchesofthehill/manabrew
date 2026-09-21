@@ -8,7 +8,6 @@ import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import type { Deck } from "@/protocol/deck";
-
 export function useQuickPlaytest(): {
   quickPlaytest: (deck: Deck) => void;
   playtestDialog: ReactNode;
@@ -18,7 +17,6 @@ export function useQuickPlaytest(): {
   const aiEngine = resolveOfflineEngine();
   const presetDecks = usePresetDecks(aiEngine);
   const [pendingDeck, setPendingDeck] = useState<Deck | null>(null);
-
   function start(deck: Deck, opponentCount: number) {
     const formatId = deck.format ?? "standard";
     const opponents = pickRandomDistinct(
@@ -38,7 +36,6 @@ export function useQuickPlaytest(): {
     });
     navigate("/play");
   }
-
   function quickPlaytest(deck: Deck) {
     if (deck.cards.length === 0 && (deck.commanders?.length ?? 0) === 0) {
       toast.error(`"${deck.name}" has no cards`);
@@ -50,7 +47,6 @@ export function useQuickPlaytest(): {
     }
     start(deck, 1);
   }
-
   const playtestDialog = pendingDeck ? (
     <PlaytestPlayersDialog
       open
@@ -62,6 +58,5 @@ export function useQuickPlaytest(): {
       onCancel={() => setPendingDeck(null)}
     />
   ) : null;
-
   return { quickPlaytest, playtestDialog };
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { CardDto } from "@/protocol/game";
 import { useCard } from "@/stores/useScryfallStore";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import {
@@ -10,59 +10,88 @@ import {
 } from "@/components/game/BattlefieldCardFace";
 import { BoardPlayground } from "@/components/dev/BoardPlayground";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { ThemeEditorWorkspace } from "@/components/dev/themeEditor/ThemeEditorWorkspace";
 
 type GalleryVariant = BattlefieldCardFaceVariant | "realistic";
-
 const VARIANT_LABELS: Record<GalleryVariant, string> = {
-  realistic: "Realistic",
-  art: "Art-forward",
-  frame: "Mini-frame",
+  realistic: `Realistic`,
+  art: `Art-forward`,
+  frame: `Mini-frame`,
 };
-
 interface Spec {
   name: string;
   label: string;
   overrides?: Partial<CardDto>;
 }
-
 const SPECS: Spec[] = [
-  { name: "Serra Angel", label: "White · flyer" },
-  { name: "Snapcaster Mage", label: "Blue" },
-  { name: "Gravecrawler", label: "Black" },
-  { name: "Goblin Guide", label: "Red · haste" },
-  { name: "Llanowar Elves", label: "Green · tapped", overrides: { tapped: true } },
-  { name: "Tarmogoyf", label: "Green · summoning sick", overrides: { summoningSick: true } },
+  {
+    name: "Serra Angel",
+    label: `White \u00B7 flyer`,
+  },
+  {
+    name: "Snapcaster Mage",
+    label: `Blue`,
+  },
+  {
+    name: "Gravecrawler",
+    label: `Black`,
+  },
+  {
+    name: "Goblin Guide",
+    label: `Red \u00B7 haste`,
+  },
+  {
+    name: "Llanowar Elves",
+    label: `Green \u00B7 tapped`,
+    overrides: { tapped: true },
+  },
+  {
+    name: "Tarmogoyf",
+    label: `Green \u00B7 summoning sick`,
+    overrides: { summoningSick: true },
+  },
   {
     name: "Dragonlord Atarka",
-    label: "Multicolor (R/G)",
+    label: `Multicolor (R/G)`,
     overrides: { counters: { P1P1: 2 }, power: "10", toughness: "10" },
   },
-  { name: "Kitchen Finks", label: "Hybrid (G/W)" },
-  { name: "Wurmcoil Engine", label: "Colorless · artifact" },
-  { name: "Thought-Knot Seer", label: "Colorless · Eldrazi" },
+  {
+    name: "Kitchen Finks",
+    label: `Hybrid (G/W)`,
+  },
+  {
+    name: "Wurmcoil Engine",
+    label: `Colorless \u00B7 artifact`,
+  },
+  {
+    name: "Thought-Knot Seer",
+    label: `Colorless \u00B7 Eldrazi`,
+  },
   {
     name: "Liliana of the Veil",
-    label: "Planeswalker · loyalty",
+    label: `Planeswalker \u00B7 loyalty`,
     overrides: { counters: { Loyalty: 6 } },
   },
   {
     name: "Goblin Guide",
-    label: "Attacking · damaged",
+    label: `Attacking \u00B7 damaged`,
     overrides: { isAttacking: true, damage: 1 },
   },
-  { name: "Steam Vents", label: "Land (U/R)" },
+  {
+    name: "Steam Vents",
+    label: `Land (U/R)`,
+  },
   {
     name: "Temple of the Dragon Queen",
-    label: "Chosen color",
+    label: `Chosen color`,
     overrides: { choices: [{ kind: "color", colors: ["U"] }] },
   },
   {
     name: "Roaming Throne",
-    label: "Chosen type",
+    label: `Chosen type`,
     overrides: { choices: [{ kind: "type", values: ["Dragon"] }] },
   },
 ];
-
 function GalleryRow({
   spec,
   variant,
@@ -117,28 +146,24 @@ function GalleryRow({
   );
 }
 
-export default function CardMockGallery() {
-  // Bound to the real preference so the one toggle drives both the DOM previews
-  // and the live Pixi board playground below (which reads the same pref).
+function CardSpecimens() {
   const variant = usePreferencesStore((s) => s.battlefieldCardStyle) as GalleryVariant;
   const setVariant = usePreferencesStore((s) => s.setBattlefieldCardStyle);
   const [showReal, setShowReal] = useState(false);
-
   return (
-    <div className="h-full space-y-6 overflow-auto px-4 py-6 sm:px-6 lg:px-8">
+    <div className="space-y-4">
       <header className="flex items-center gap-4 flex-wrap">
         <div className="inline-flex rounded-md border border-border overflow-hidden">
           {(["realistic", "art", "frame"] as GalleryVariant[]).map((v) => (
-            <button
+            <Button
               key={v}
               onClick={() => setVariant(v)}
-              className={cn(
-                "px-3 py-1.5 text-sm",
-                variant === v ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted",
-              )}
+              size="sm"
+              variant={variant === v ? "selected" : "ghost"}
+              aria-pressed={variant === v}
             >
               {VARIANT_LABELS[v]}
-            </button>
+            </Button>
           ))}
         </div>
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -150,13 +175,6 @@ export default function CardMockGallery() {
           show real Scryfall card beside
         </label>
       </header>
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-muted-foreground">
-          Pixi board playground — spawn cards + poke them to test in-game effects
-        </h2>
-        <BoardPlayground />
-      </section>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground">Battlefield size (70×98)</h2>
@@ -194,5 +212,13 @@ export default function CardMockGallery() {
         </div>
       </section>
     </div>
+  );
+}
+
+export default function CardMockGallery() {
+  return (
+    <ThemeEditorWorkspace specimens={<CardSpecimens />}>
+      <BoardPlayground themeEditor />
+    </ThemeEditorWorkspace>
   );
 }

@@ -1,5 +1,120 @@
 # Changelog
 
+## [3.48.0](https://github.com/witchesofthehill/manabrew/compare/v3.47.6...v3.48.0) (2026-09-21)
+
+### Features
+
+* **lan:** read card art from the machine hosting the room ([#972](https://github.com/witchesofthehill/manabrew/issues/972)) ([cddd366](https://github.com/witchesofthehill/manabrew/commit/cddd366559ef1ee005b755b0f65038c7df901010))
+
+## [3.47.6](https://github.com/witchesofthehill/manabrew/compare/v3.47.5...v3.47.6) (2026-09-21)
+
+### Fixes
+
+* **relay:** a self-hosted relay that desktops can find and log into ([#878](https://github.com/witchesofthehill/manabrew/issues/878)) ([73986fe](https://github.com/witchesofthehill/manabrew/commit/73986fe8ded8e3de32c8c82572c208c52fc30c2f))
+
+## [3.47.5](https://github.com/witchesofthehill/manabrew/compare/v3.47.4...v3.47.5) (2026-09-21)
+
+## [3.47.4](https://github.com/witchesofthehill/manabrew/compare/v3.47.3...v3.47.4) (2026-09-21)
+
+## [3.47.3](https://github.com/witchesofthehill/manabrew/compare/v3.47.2...v3.47.3) (2026-09-20)
+
+## [3.47.2](https://github.com/witchesofthehill/manabrew/compare/v3.47.1...v3.47.2) (2026-09-20)
+
+## [3.47.1](https://github.com/witchesofthehill/manabrew/compare/v3.47.0...v3.47.1) (2026-09-20)
+
+### Performance
+
+* **client:** stop serialising every game state for the bug-report log ([#962](https://github.com/witchesofthehill/manabrew/issues/962)) ([b3dd1e6](https://github.com/witchesofthehill/manabrew/commit/b3dd1e6288d8533bbd4fe89a49bcf8f1cedfa96f))
+* **harness:** sync the parity card map once per snapshot ([#963](https://github.com/witchesofthehill/manabrew/issues/963)) ([5f34876](https://github.com/witchesofthehill/manabrew/commit/5f348763bd031a4d22f578940b8afb25a6ca9f66))
+
+## [3.47.0](https://github.com/witchesofthehill/manabrew/compare/v3.46.1...v3.47.0) (2026-09-20)
+
+### Features
+
+* **telemetry:** split engine think by who owned the wait ([#961](https://github.com/witchesofthehill/manabrew/issues/961)) ([a77fece](https://github.com/witchesofthehill/manabrew/commit/a77fece1cf9553c3f6dd58f553e408d0f0076487))
+
+## [3.46.1](https://github.com/witchesofthehill/manabrew/compare/v3.46.0...v3.46.1) (2026-09-19)
+
+### Performance
+
+* **ai:** manabot plays to beat forge ai ([#954](https://github.com/witchesofthehill/manabrew/issues/954)) ([d637ef2](https://github.com/witchesofthehill/manabrew/commit/d637ef2b73d7e1b997af0b90c995054a963727a9))
+
+## [3.46.0](https://github.com/witchesofthehill/manabrew/compare/v3.45.4...v3.46.0) (2026-09-19)
+
+### Features
+
+* **i18n:** add ingame localization and Scryfall locales ([#901](https://github.com/witchesofthehill/manabrew/issues/901)) ([48d16ea](https://github.com/witchesofthehill/manabrew/commit/48d16eaaca724f732a090d9a738852fce2c00339))
+
+## [3.45.4](https://github.com/witchesofthehill/manabrew/compare/v3.45.3...v3.45.4) (2026-09-18)
+
+### Fixes
+
+* **website:** restore dark feature card gradient ([#955](https://github.com/witchesofthehill/manabrew/issues/955)) ([b2931d9](https://github.com/witchesofthehill/manabrew/commit/b2931d91724b0afb820ae5147a86ecb66f493c39))
+
+## [3.45.3](https://github.com/witchesofthehill/manabrew/compare/v3.45.2...v3.45.3) (2026-09-18)
+
+### Performance
+
+* **forge-wasm:** describe the board to a bot seat only when it is prompted ([#953](https://github.com/witchesofthehill/manabrew/issues/953)) ([1d98d70](https://github.com/witchesofthehill/manabrew/commit/1d98d7074c9d036200b8d42af33ea3168786f007))
+
+## [3.45.2](https://github.com/witchesofthehill/manabrew/compare/v3.45.1...v3.45.2) (2026-09-18)
+
+## [3.45.1](https://github.com/witchesofthehill/manabrew/compare/v3.45.0...v3.45.1) (2026-09-18)
+
+### Performance
+
+* **ai:** read Forge seats in workers ([#949](https://github.com/witchesofthehill/manabrew/issues/949)) ([926f4a7](https://github.com/witchesofthehill/manabrew/commit/926f4a7d51f8a6b40db9916fa118cba04eb937df))
+
+## [3.45.0](https://github.com/witchesofthehill/manabrew/compare/v3.44.5...v3.45.0) (2026-09-17)
+
+### Features
+
+* **ai:** run local manabot over forge sab seats ([#943](https://github.com/witchesofthehill/manabrew/issues/943)) ([#946](https://github.com/witchesofthehill/manabrew/issues/946)) ([63d46d9](https://github.com/witchesofthehill/manabrew/commit/63d46d9e430a9aa268d87b90d4123f8f5462a935))
+
+## [3.44.5](https://github.com/witchesofthehill/manabrew/compare/v3.44.4...v3.44.5) (2026-09-17)
+
+### Fixes
+
+* **ui:** highlight hidden-zone stack targets ([#942](https://github.com/witchesofthehill/manabrew/issues/942)) ([002f194](https://github.com/witchesofthehill/manabrew/commit/002f19405404edfca044f77d0ebfff8e33b2b1e5))
+
+## [3.44.4](https://github.com/witchesofthehill/manabrew/compare/v3.44.3...v3.44.4) (2026-09-17)
+
+### Fixes
+
+* **telemetry:** count only frame handling as client work ([#944](https://github.com/witchesofthehill/manabrew/issues/944)) ([f54dc4b](https://github.com/witchesofthehill/manabrew/commit/f54dc4b31e560c27c1bdb2fd2e292089b1f78ef4))
+
+## [3.44.3](https://github.com/witchesofthehill/manabrew/compare/v3.44.2...v3.44.3) (2026-09-16)
+
+### Fixes
+
+* **ui:** allow opponent expansion while targeting ([#941](https://github.com/witchesofthehill/manabrew/issues/941)) ([010df66](https://github.com/witchesofthehill/manabrew/commit/010df66480161228eff9a67443a98a3b57b43785))
+
+## [3.44.2](https://github.com/witchesofthehill/manabrew/compare/v3.44.1...v3.44.2) (2026-09-16)
+
+### Fixes
+
+* planeswalkers blocking ([#939](https://github.com/witchesofthehill/manabrew/issues/939)) ([9e4bc0b](https://github.com/witchesofthehill/manabrew/commit/9e4bc0b6f7b352402e5b684acb3e6b94a087e2a9))
+
+## [3.44.1](https://github.com/witchesofthehill/manabrew/compare/v3.44.0...v3.44.1) (2026-09-15)
+
+### Fixes
+
+* better scroll ([#933](https://github.com/witchesofthehill/manabrew/issues/933)) ([bf7c66b](https://github.com/witchesofthehill/manabrew/commit/bf7c66bb33a3921747be206b877d86e6686c92a5))
+
+## [3.44.0](https://github.com/witchesofthehill/manabrew/compare/v3.43.2...v3.44.0) (2026-09-15)
+
+### Features
+
+* **ui:** major battlefield improvements ([#873](https://github.com/witchesofthehill/manabrew/issues/873)) ([4ae76d4](https://github.com/witchesofthehill/manabrew/commit/4ae76d45a1875b77ec0cc911231c24c91ee1c94c))
+
+## [3.43.2](https://github.com/witchesofthehill/manabrew/compare/v3.43.1...v3.43.2) (2026-09-15)
+
+### Fixes
+
+* **ui:** show the onboarding card on Firefox ESR ([#930](https://github.com/witchesofthehill/manabrew/issues/930)) ([f3a6f10](https://github.com/witchesofthehill/manabrew/commit/f3a6f105e0ad813ec99ceead1f17331a64e6966b))
+
+## [3.43.1](https://github.com/witchesofthehill/manabrew/compare/v3.43.0...v3.43.1) (2026-09-14)
+
 ## [3.43.0](https://github.com/witchesofthehill/manabrew/compare/v3.42.7...v3.43.0) (2026-09-14)
 
 ### Features

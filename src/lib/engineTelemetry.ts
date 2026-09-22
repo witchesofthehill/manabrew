@@ -40,12 +40,23 @@ export interface EngineGameStats {
    * `turnaround` split by where the time went. `clientWork` is the time this
    * machine spent handling the frames that arrived inside the window: parsing
    * and applying each one, the prompt's own included, up to the prompt being
-   * handled. `replyWait` is the rest: the server, the wire, the transfer, and
-   * whatever the engine and the other seats did between frames. Summing the
-   * frames, rather than cutting at the first one, is what keeps an opponent's
-   * turn out of the client half: in a room the first frame after an answer is
-   * the echo of one's own action, and the prompt can be seats away. Null when
-   * no frame was stamped, which is how an engine with no frame boundary reports.
+   * handled. `replyWait` is the rest. Summing the frames, rather than cutting
+   * at the first one, is what keeps an opponent's turn out of the client half:
+   * in a room the first frame after an answer is the echo of one's own action,
+   * and the prompt can be seats away. Null when no frame was stamped, which is
+   * how an engine with no frame boundary reports.
+   *
+   * `replyWait` is a residual, not a network measurement, and what it contains
+   * depends on where the engine runs. On a hosted or remote game it is the
+   * server, the hop, the link and the other seats. On the browser engine there
+   * is no wire at all: it is the engine's own think plus the seat drain, which
+   * is why it tracks `engineThink` there rather than anything about the
+   * player's connection. Do not read it as latency without cutting by engine.
+   *
+   * Render is in neither half. The window closes in `notePromptArrived`, which
+   * `applyPrompt` calls before it routes the prompt into the store, so the
+   * paint that shows the prompt happens after the window and is not measured
+   * here at all.
    */
   replyWait: Turnaround | null;
   clientWork: Turnaround | null;
@@ -190,8 +201,11 @@ export function noteAnswerSent(): void {
  * the window's client work. Frames outside a window are not a reply to
  * anything and are ignored.
  *
- * @param at when the frame arrived, taken before parsing where the transport
- *   allows it, so that parsing lands on the client side of the cut.
+ * @param at when the frame arrived, taken before the parse on every transport:
+ *   the socket's `onmessage` for a relay game, the seat reader's for the
+ *   browser engine. A state frame is tens of kilobytes and parsing it is this
+ *   machine's work, so the cut has to sit in front of it or the cost lands in
+ *   `replyWait`, where it reads as someone else's.
  */
 export function noteReplyFrameArrived(at: number = performance.now()): void {
   if (answeredAt === null) return;

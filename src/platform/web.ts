@@ -110,7 +110,7 @@ async function loadWasm(): Promise<typeof import("@/wasm/wasm")> {
  */
 function readSeat<T>(
   seat: ForgeSeat,
-  onMessage: (message: T, json: string) => void,
+  onMessage: (message: T, json: string, arrivedAt: number) => void,
   onError: (error: unknown, json: string) => void,
 ): Worker {
   const worker = new Worker(new URL("../workers/seat-reader.worker.ts", import.meta.url), {
@@ -119,10 +119,14 @@ function readSeat<T>(
   worker.onmessage = (event: MessageEvent<string>) => {
     if (seat.cancelled) return;
     const json = event.data;
+    // Before the parse, as on the relay socket: a state frame is tens of
+    // kilobytes and parsing it is this machine's work. Stamping after the
+    // parse put it in `replyWait`, which on this path has no wire in it.
+    const arrivedAt = performance.now();
     try {
       const message = JSON.parse(json) as T;
       noteSeatMessage(seat, message);
-      onMessage(message, json);
+      onMessage(message, json, arrivedAt);
     } catch (error) {
       onError(error, json);
     }
@@ -259,7 +263,7 @@ class WorkerBridge {
         seat,
         readSeat<EngineMessage>(
           seat,
-          (msg) => this.dispatchEngineMessage(msg),
+          (msg, _json, arrivedAt) => this.dispatchEngineMessage(msg, arrivedAt),
           (error) => console.error("[WorkerBridge] Failed to read SAB message:", error),
         ),
       );
@@ -309,11 +313,12 @@ class WorkerBridge {
     this.installRemoteResponseListener();
   }
 
-  private dispatchEngineMessage(msg: EngineMessage): void {
-    // The seat reader has already parsed, so a hair of client work lands on
-    // the far side of the cut here; there is no wire on this path anyway.
+  private dispatchEngineMessage(msg: EngineMessage, arrivedAt: number): void {
+    // `arrivedAt` is stamped in the seat reader before the parse, so parsing a
+    // state frame counts as this machine's work, the same cut the relay socket
+    // makes.
     if (msg?.kind === "state" || msg?.kind === "prompt" || msg?.kind === "display") {
-      noteReplyFrameArrived();
+      noteReplyFrameArrived(arrivedAt);
     }
     try {
       this.applyEngineMessage(msg);

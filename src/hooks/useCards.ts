@@ -51,17 +51,20 @@ export function useCardSearch(query: string, order?: string, dir?: string) {
 
   const fetchNextPage = useCallback(async () => {
     if (query.length === 0 || isFetchingNextPage) return;
+    const requestId = requestIdRef.current;
     const nextPage = pages.length + 1;
     setIsFetchingNextPage(true);
     try {
       const page = await useScryfallStore.getState().searchCards(query, nextPage, order, dir);
+      if (requestId !== requestIdRef.current) return;
       setPages((current) => [...current, page]);
       setStatus("success");
     } catch (caught) {
+      if (requestId !== requestIdRef.current) return;
       setError(caught instanceof Error ? caught : new Error("Failed to fetch cards"));
       setStatus("error");
     } finally {
-      setIsFetchingNextPage(false);
+      if (requestId === requestIdRef.current) setIsFetchingNextPage(false);
     }
   }, [dir, isFetchingNextPage, order, pages.length, query]);
 

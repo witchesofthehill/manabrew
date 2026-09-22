@@ -132,6 +132,9 @@ export async function searchCards(
       "Failed to fetch cards from Scryfall",
     );
   } catch (error) {
+    if (error instanceof Error && error.message.endsWith("(HTTP 404)")) {
+      return { object: "list", total_cards: 0, has_more: false, data: [] };
+    }
     // A cache is keyed by name, so the only query it can answer is words in a
     // title. Scryfall's operators (`t:`, `c:`, `cmc>=`) have no offline
     // equivalent and the search stays failed rather than answering something

@@ -34,7 +34,7 @@ const TOOLS = [
   {
     to: ROUTES.SEARCH,
     label: `Card Search`,
-    desc: "Every card, printing, and ruling at your fingertips.",
+    desc: "Study a set for draft or prerelease. Explore cards, printings, and rulings.",
     icon: Search,
     tone: "blue",
   },

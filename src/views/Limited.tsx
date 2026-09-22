@@ -217,6 +217,16 @@ export default function Limited() {
         />
       )}
 
+      {selectedSet && (
+        <Button
+          variant="outline"
+          className="self-start"
+          onClick={() => navigate(`/search?set=${encodeURIComponent(selectedSet.code)}`)}
+        >
+          Study this set
+        </Button>
+      )}
+
       <AdvancedToggle
         open={advancedOpen}
         onToggle={() => setAdvancedOpen((v) => !v)}

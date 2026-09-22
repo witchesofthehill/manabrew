@@ -28,12 +28,12 @@ export function fitPromptCardDimensions(
   maxHeight = Number.POSITIVE_INFINITY,
   maxWidth: number = GAME_CARD_SIZES.preview.width,
 ): { width: number; height: number } {
-  const availableCardHeight = Math.max(112, viewportHeight - PROMPT_MODAL_VIEWPORT_MARGIN);
+  const availableCardHeight = Math.max(1, viewportHeight - PROMPT_MODAL_VIEWPORT_MARGIN);
   const width = Math.min(
     maxWidth,
     (availableCardHeight * CARD_W) / CARD_H,
-    (maxHeight * CARD_W) / CARD_H,
-    Math.max(80, availableWidth),
+    (Math.max(1, maxHeight) * CARD_W) / CARD_H,
+    Math.max(1, availableWidth),
   );
   return { width, height: (width * CARD_H) / CARD_W };
 }

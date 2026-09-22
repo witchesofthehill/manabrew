@@ -42,11 +42,11 @@ export class MobilePromptLayerPresentation implements PromptLayerPresentation {
   }
 
   cardMaxHeight(viewportHeight: number): number {
-    return Math.max(96, viewportHeight - 180);
+    return Math.max(1, viewportHeight - 180);
   }
 
   reorderCardMaxHeight(viewportHeight: number, verticalReserve: number): number {
-    return Math.max(96, viewportHeight - verticalReserve);
+    return Math.max(1, viewportHeight - verticalReserve);
   }
 
   colorChoiceLayout(
@@ -80,7 +80,7 @@ export class MobilePromptLayerPresentation implements PromptLayerPresentation {
     return {
       stackDepth: Math.min(16, Math.max(0, cardCount - 1) * 16),
       footerHeight: 52,
-      cardMaxHeight: Math.max(72, viewportHeight - 280),
+      cardMaxHeight: Math.max(1, viewportHeight - 280),
       destinationPortraitWidth: Math.min(42, battlefieldCardWidth),
       cardHints: false,
       overlapPoolCards: true,

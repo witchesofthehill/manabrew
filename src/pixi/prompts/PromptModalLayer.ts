@@ -939,7 +939,10 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       Math.min(PROMPT_CARD_MODAL_MAX_WIDTH, Math.max(CARD_PROMPT_MIN_WIDTH, preferredRowWidth)),
     );
     const cardAreaWidth = width - PANEL_PADDING * 2 - CARD_TILE_EDGE_INSET * 2;
-    const portraitCardWidth = Math.min(preferredCardWidth, cardAreaWidth / maxCardWidthRatio);
+    const portraitCardWidth = Math.max(
+      1,
+      Math.min(preferredCardWidth, cardAreaWidth / maxCardWidthRatio),
+    );
     const cardSizes = cards.map((card) =>
       this.promptCardDisplayDimensions(card, portraitCardWidth),
     );
@@ -1649,9 +1652,9 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const maxCardWidthRatio = Math.max(
       ...items.map((item) => this.promptCardDisplayDimensions(item.card, CARD_W).width / CARD_W),
     );
-    const portraitCardWidth = Math.min(
-      preferredCardWidth,
-      (zoneWidth - REORDER_CARD_INSET * 2) / maxCardWidthRatio,
+    const portraitCardWidth = Math.max(
+      1,
+      Math.min(preferredCardWidth, (zoneWidth - REORDER_CARD_INSET * 2) / maxCardWidthRatio),
     );
     const cardSizes = new Map(
       items.map((item) => [
@@ -2033,9 +2036,9 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       1,
       ...cards.map((card) => this.promptCardDisplayDimensions(card, CARD_W).width / CARD_W),
     );
-    const portraitCardWidth = Math.min(
-      preferredCardWidth,
-      (poolWidth - CARD_TILE_EDGE_INSET * 2) / maxCardWidthRatio,
+    const portraitCardWidth = Math.max(
+      1,
+      Math.min(preferredCardWidth, (poolWidth - CARD_TILE_EDGE_INSET * 2) / maxCardWidthRatio),
     );
     const cardSizes = new Map(
       cards.map((card) => [card.id, this.promptCardDisplayDimensions(card, portraitCardWidth)]),

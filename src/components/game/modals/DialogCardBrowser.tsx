@@ -193,7 +193,6 @@ export function DialogCardBrowser({
         {picker ? (
           <DialogCardPickerGrid
             items={visible}
-            fitToContainer={compact}
             state={state}
             defaultRules={defaultView === "rules"}
             actionable={!!onActivate}

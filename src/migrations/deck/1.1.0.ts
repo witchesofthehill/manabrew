@@ -36,7 +36,7 @@ export async function backfill(api: DeckEnrichmentApi): Promise<void> {
   const targets = [
     ...api.savedDecks.map((s) => ({ id: s.id as string | null, cards: sweepableCards(s.deck) })),
     { id: null, cards: sweepableCards(api.currentDeck) },
-  ].map((t) => ({ ...t, stale: t.cards.filter(needsScryfallEnrichment) }));
+  ].map((t) => ({ ...t, stale: t.cards.filter((card) => needsScryfallEnrichment(card)) }));
   const toFetch = new Map<string, { name: string; setCode?: string }>();
   for (const t of targets) {
     for (const c of t.stale) {

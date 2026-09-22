@@ -133,6 +133,9 @@ pub struct DeckCard {
     pub uris: CardImageUris,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub image_language: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub all_parts: Option<Vec<CardPart>>,
 }
 
@@ -155,6 +158,8 @@ struct DeckCardWire {
     #[serde(default)]
     uris: Option<CardImageUris>,
     #[serde(default)]
+    image_language: Option<String>,
+    #[serde(default)]
     all_parts: Option<Vec<CardPart>>,
 }
 
@@ -172,6 +177,7 @@ impl<'de> Deserialize<'de> for DeckCard {
             identity,
             rules: wire.rules,
             uris: wire.uris.unwrap_or_default(),
+            image_language: wire.image_language,
             all_parts: wire.all_parts,
         })
     }

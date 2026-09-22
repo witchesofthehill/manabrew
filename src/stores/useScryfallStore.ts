@@ -28,7 +28,7 @@ import type { DeckCard } from "@/protocol/deck";
 import { Texture, ImageSource } from "pixi.js";
 import { useEffect, useState } from "react";
 import { frontFaceName } from "@/lib/scryfall.utils";
-import { cardFaceImageUris } from "@/lib/cardImage";
+import { cardFaceImageUris, localizedDeckCardImageUris } from "@/lib/cardImage";
 import { DEFAULT_SCRYFALL_LANGUAGE, type ScryfallLanguage } from "@/i18n/locales";
 
 export interface ScryfallCardLookup {
@@ -595,12 +595,15 @@ export const useScryfallStore = create<ScryfallState>()(
       getCardTexture: async (deckCard, variant = "full", faceIndex = 0) => {
         const pick = (u: ScryfallImageUris | undefined) =>
           variant === "art" ? u?.art_crop : u?.border_crop;
-        const entry = await get().getCard({
-          name: deckCard.identity.name,
-          setCode: deckCard.identity.setCode || undefined,
-          collectorNumber: deckCard.identity.cardNumber || undefined,
-        });
-        const url = pick(cardFaceImageUris(entry.info, entry.uris, faceIndex));
+        let url = pick(localizedDeckCardImageUris(deckCard, get().locale, faceIndex));
+        if (!url) {
+          const entry = await get().getCard({
+            name: deckCard.identity.name,
+            setCode: deckCard.identity.setCode || undefined,
+            collectorNumber: deckCard.identity.cardNumber || undefined,
+          });
+          url = pick(cardFaceImageUris(entry.info, entry.uris, faceIndex));
+        }
         if (!url) return Texture.EMPTY;
 
         const cached = getCachedTexture(url);

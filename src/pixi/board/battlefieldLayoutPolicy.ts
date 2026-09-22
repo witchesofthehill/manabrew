@@ -1,32 +1,32 @@
-export interface BattlefieldLayoutPolicy {
-  compact: boolean;
-  selfBattlefieldRows: number;
-  opponentBattlefieldRows: number;
-  selfFieldShare: number;
-  opponentCardScaleRatio: number;
-  reserveHandSpace: boolean;
-  handPresentation: "inline" | "sheet";
-  showPhaseDivider: boolean;
+import type { BoardLayout } from "./boardLayout";
+import type { PlayZoneRect } from "../types";
+
+export interface BattlefieldLayoutInput {
+  width: number;
+  height: number;
+  opponentCount: number;
+  requestedBottomReserve: number;
+  opponentLayout: "focused" | "overview";
+  observedHandReserve: number;
+  cardSizeMultiplier: number;
+  handViewportScale: number;
 }
 
-export const DESKTOP_BATTLEFIELD_LAYOUT = {
-  compact: false,
-  selfBattlefieldRows: 3,
-  opponentBattlefieldRows: 3,
-  selfFieldShare: 0.5,
-  opponentCardScaleRatio: 1,
-  reserveHandSpace: true,
-  handPresentation: "inline",
-  showPhaseDivider: true,
-} as const satisfies BattlefieldLayoutPolicy;
+export interface BattlefieldLayoutResult {
+  layout: BoardLayout;
+  scales: { self: number; opponent: number };
+  combatRowReserved: boolean;
+  handScale: number;
+  selfClusterMaxHeight: number;
+}
 
-export const MOBILE_BATTLEFIELD_LAYOUT = {
-  compact: true,
-  selfBattlefieldRows: 2,
-  opponentBattlefieldRows: 1,
-  selfFieldShare: 0.6,
-  opponentCardScaleRatio: 1,
-  reserveHandSpace: false,
-  handPresentation: "sheet",
-  showPhaseDivider: false,
-} as const satisfies BattlefieldLayoutPolicy;
+export interface BattlefieldLayoutPolicy {
+  compute(input: BattlefieldLayoutInput): BattlefieldLayoutResult;
+  effectiveBottomReserve(requestedBottomReserve: number): number;
+  clusterHeight(
+    self: PlayZoneRect | null,
+    observedHandReserve: number,
+    requestedBottomReserve: number,
+  ): number;
+  showPhaseDivider: boolean;
+}

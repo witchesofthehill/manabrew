@@ -100,7 +100,8 @@ export interface OverlayHost {
   rightClickCard(sprite: CardSprite): void;
   scheduleHoverClear(cardId: string): void;
   getCardScale(): number;
-  isCompact(): boolean;
+  getCardHeight(): number;
+  usesManaGrid(): boolean;
 }
 
 /** Narrow seam a `BoardRegion` uses to reach orchestrator-level services
@@ -153,7 +154,7 @@ export interface SelectionHost {
   getEntries(): ReadonlyMap<string, SpriteEntry>;
   applyRing(sprite: CardSprite): void;
   canRefreshRings(): boolean;
-  isCompact(): boolean;
+  getBadgeX(badgeWidth: number): number;
 }
 
 /** Narrow seam the `HandController` uses to read scene geometry/state and

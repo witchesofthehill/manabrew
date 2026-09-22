@@ -35,6 +35,7 @@ import { PromptGlow } from "./PromptGlow";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
 import type { PromptLayerCallbacks, PromptOverlaySpec } from "./prompt.types";
+import type { PromptLayerPresentation } from "./PromptLayerPresentation";
 import {
   type ActionViewLayout,
   FILTER_CARET_PERIOD_MS,
@@ -81,10 +82,10 @@ export class PromptLayer extends PromptModalLayer {
 
   protected constructor(
     app: Application,
-    compactAction: boolean,
+    presentation: PromptLayerPresentation,
     callbacks: PromptLayerCallbacks = {},
   ) {
-    super(app, compactAction, callbacks);
+    super(app, presentation, callbacks);
     this.app.stage.on("globalpointermove", this.onStageMove);
     this.app.stage.on("pointerup", this.onStageUp);
     this.app.stage.on("pointerupoutside", this.onStageUp);
@@ -358,8 +359,8 @@ export class PromptLayer extends PromptModalLayer {
     const spec = this.spec!;
     const action = spec.action;
     const shortScreen = this.viewportHeight <= 520;
-    const touch = this.compactAction;
-    const minimal = this.compactAction;
+    const minimal = this.layerPresentation.actionStyle === "minimal";
+    const touch = minimal;
     if (
       action.promptType === "gameOver" ||
       !action.selfClusterMaxHeight ||

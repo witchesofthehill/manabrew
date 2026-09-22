@@ -9,15 +9,10 @@ import { destroyPixiApp, installPixiPatches } from "./pixiPatches";
 installPixiPatches();
 
 import { BoardScene, type BoardPlayerSpec } from "./board/BoardScene";
-import { computeBoardLayout, type RegionOrientation } from "./board/boardLayout";
+import type { RegionOrientation } from "./board/boardLayout";
 import type { BattlefieldLayoutPolicy } from "./board/battlefieldLayoutPolicy";
 import type { PlayerHudSpec as PlayerBarSpec } from "./hud/playerHud.types";
 import type { ZoneTileSpec } from "./board/BoardZoneTiles";
-import {
-  battlefieldScaleForMultiplier,
-  maxScaleForRows,
-  scaleForRowsWithCombatRow,
-} from "./GridLayout";
 import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme, subscribeTheme } from "@/hooks/useTheme";
 import { useHandScale } from "@/hooks/useHandScale";
@@ -26,8 +21,6 @@ import { useGameStore } from "@/stores/useGameStore";
 import { isCoarsePointer } from "@/lib/responsive";
 import { registerPixiApp } from "./visibility";
 import {
-  BATTLEFIELD_MIN_ROWS_LARGEST,
-  FIELD_INNER_EDGE_PAD_PX,
   HAND_ACTIONS_CLEAR_DELAY_MS,
   HAND_ACTIONS_GAP_PX,
   PIXI_MAX_FPS,
@@ -97,10 +90,7 @@ export interface BoardCanvasProps {
   attackerOptions?: { attackerId: string; validTargetIds: string[] }[];
   phaseStrip: PhaseStripState;
   phaseStripCallbacks?: PhaseStripCallbacks;
-  layoutPolicy: BattlefieldLayoutPolicy;
-  mobileHandOpen?: boolean;
-  mobileHandPeek?: boolean;
-  mobileHandControlBounds?: DOMRect | null;
+
   opponentLayout?: "focused" | "overview";
   focusLocked?: boolean;
   focusedOpponentId?: string | null;
@@ -131,6 +121,8 @@ type BoardSceneFactory = (app: Application, callbacks: GameCanvasCallbacks) => B
 
 interface BoardCanvasSurfaceProps extends BoardCanvasProps {
   createScene: BoardSceneFactory;
+  layoutPolicy: BattlefieldLayoutPolicy;
+  syncScenePresentation?: (scene: BoardScene, canvas: HTMLCanvasElement) => void;
 }
 
 interface HandHoverState {
@@ -151,9 +143,7 @@ export function BoardCanvasSurface({
   phaseStrip,
   phaseStripCallbacks,
   layoutPolicy,
-  mobileHandOpen = false,
-  mobileHandPeek = false,
-  mobileHandControlBounds,
+  syncScenePresentation,
   opponentLayout = "focused",
   focusLocked = false,
   focusedOpponentId,
@@ -177,8 +167,7 @@ export function BoardCanvasSurface({
   showBackground = true,
   createScene,
 }: BoardCanvasSurfaceProps) {
-  const compact = layoutPolicy.compact;
-  const effectiveBottomReserve = layoutPolicy.reserveHandSpace ? (selfBottomReserve ?? 0) : 0;
+  const effectiveBottomReserve = layoutPolicy.effectiveBottomReserve(selfBottomReserve ?? 0);
   const { i18n } = useLingui();
   const locale = i18n.locale;
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -190,7 +179,7 @@ export function BoardCanvasSurface({
   const reserveRef = useRef(0);
   const latestLayoutRef = useRef<BoardCanvasLayout | null>(null);
   const selfBottomReserveRef = useRef(effectiveBottomReserve);
-  const reserveHandSpaceRef = useRef(layoutPolicy.reserveHandSpace);
+  const layoutPolicyRef = useRef(layoutPolicy);
 
   const cardSizeMultiplier = usePreferencesStore((s) => s.cardSizeMultiplier);
   const cardStyle = usePreferencesStore((s) => s.battlefieldCardStyle);
@@ -350,9 +339,11 @@ export function BoardCanvasSurface({
           if (!base) return;
           const updated = {
             ...base,
-            selfClusterMaxHeight: reserveHandSpaceRef.current
-              ? Math.max(px, selfBottomReserveRef.current)
-              : Math.max(1, base.self?.height ?? 1),
+            selfClusterMaxHeight: layoutPolicyRef.current.clusterHeight(
+              base.self,
+              px,
+              selfBottomReserveRef.current,
+            ),
           };
           latestLayoutRef.current = updated;
           onLayoutRef.current?.(updated);
@@ -403,67 +394,25 @@ export function BoardCanvasSurface({
     const app = appRef.current;
     const s = sceneRef.current;
     if (!app?.renderer || !s) return;
-    const w = app.renderer.width;
-    const h = app.renderer.height;
-    const opponentCount = opponentIds.length;
-    const layout = computeBoardLayout(
-      w,
-      h,
-      opponentCount,
-      effectiveBottomReserve,
-      compact,
-      layoutPolicy.selfFieldShare,
+    const result = layoutPolicy.compute({
+      width: app.renderer.width,
+      height: app.renderer.height,
+      opponentCount: opponentIds.length,
+      requestedBottomReserve: effectiveBottomReserve,
       opponentLayout,
-    );
+      observedHandReserve: reserveRef.current,
+      cardSizeMultiplier,
+      handViewportScale,
+    });
+    const { layout } = result;
     s.setPhaseDividerVisible(layoutPolicy.showPhaseDivider);
     s.setFocusLocked(focusLocked);
-    const playmatTrim = (usable: number) => Math.max(1, usable - FIELD_INNER_EDGE_PAD_PX);
-    const combatRowReserved = !compact;
-    const selfUsable = playmatTrim(Math.max(1, layout.self.height - effectiveBottomReserve));
-    const selfScale = Math.max(
-      Number.EPSILON,
-      compact
-        ? maxScaleForRows(selfUsable, layoutPolicy.selfBattlefieldRows)
-        : Math.min(
-            battlefieldScaleForMultiplier(selfUsable, cardSizeMultiplier),
-            scaleForRowsWithCombatRow(selfUsable, BATTLEFIELD_MIN_ROWS_LARGEST),
-          ),
-    );
-    const oppUsables = layout.opponents.map((o) => playmatTrim(Math.max(1, o.rect.height)));
-    const oppUsable = oppUsables.length ? Math.min(...oppUsables) : selfUsable;
-    const uncappedOppScale = Math.max(
-      Number.EPSILON,
-      layout.opponentLayout === "overview"
-        ? compact
-          ? maxScaleForRows(oppUsable, 1)
-          : scaleForRowsWithCombatRow(oppUsable, 1)
-        : compact
-          ? maxScaleForRows(oppUsable, layoutPolicy.opponentBattlefieldRows)
-          : Math.min(
-              battlefieldScaleForMultiplier(oppUsable, cardSizeMultiplier),
-              scaleForRowsWithCombatRow(oppUsable, BATTLEFIELD_MIN_ROWS_LARGEST),
-            ),
-    );
-    const opponentScaleRatio = layoutPolicy.opponentCardScaleRatio;
-    const oppScale = compact
-      ? Math.min(uncappedOppScale, selfScale * opponentScaleRatio)
-      : uncappedOppScale;
-    const compactSharedScale = Math.min(selfScale, oppScale);
-    s.configure(
-      players,
-      layout,
-      compact
-        ? { self: compactSharedScale, opponent: compactSharedScale }
-        : { self: selfScale, opponent: oppScale },
-      combatRowReserved,
-    );
-    s.setHandScale(compact ? 1 : handViewportScale);
+    s.configure(players, layout, result.scales, result.combatRowReserved);
+    s.setHandScale(result.handScale);
     const next: BoardCanvasLayout = {
       self: layout.self,
       dividerY: layout.dividerY,
-      selfClusterMaxHeight: layoutPolicy.reserveHandSpace
-        ? Math.max(reserveRef.current, effectiveBottomReserve)
-        : Math.max(1, layout.self.height),
+      selfClusterMaxHeight: result.selfClusterMaxHeight,
       opponents: opponentIds.map((id, i) => ({
         playerId: id,
         rect: layout.opponents[i]?.rect ?? layout.self,
@@ -477,7 +426,7 @@ export function BoardCanvasSurface({
     playersKey,
     cardSizeMultiplier,
     handViewportScale,
-    compact,
+
     layoutPolicy,
     opponentLayout,
     focusLocked,
@@ -486,35 +435,18 @@ export function BoardCanvasSurface({
   ]);
 
   useEffect(() => {
-    reserveHandSpaceRef.current = layoutPolicy.reserveHandSpace;
+    layoutPolicyRef.current = layoutPolicy;
     selfBottomReserveRef.current = effectiveBottomReserve;
-  }, [layoutPolicy.reserveHandSpace, effectiveBottomReserve]);
+  }, [layoutPolicy, effectiveBottomReserve]);
 
   useEffect(() => {
     reconfigure();
   }, [reconfigure, scene]);
   useEffect(() => {
-    scene?.setMobileHandOpen(layoutPolicy.handPresentation === "sheet" && mobileHandOpen);
-  }, [scene, layoutPolicy.handPresentation, mobileHandOpen]);
-
-  useEffect(() => {
-    scene?.setHandPeek(layoutPolicy.handPresentation === "sheet" && mobileHandPeek);
-  }, [scene, layoutPolicy.handPresentation, mobileHandPeek]);
-  useEffect(() => {
     const canvas = canvasRef.current;
     if (!scene || !canvas) return;
-    const canvasBounds = canvas.getBoundingClientRect();
-    scene.setMobileHandControlBlocker(
-      layoutPolicy.compact && !mobileHandOpen && mobileHandControlBounds
-        ? {
-            x: mobileHandControlBounds.left - canvasBounds.left,
-            y: mobileHandControlBounds.top - canvasBounds.top,
-            width: mobileHandControlBounds.width,
-            height: mobileHandControlBounds.height,
-          }
-        : null,
-    );
-  }, [scene, layoutPolicy.compact, mobileHandOpen, mobileHandControlBounds]);
+    syncScenePresentation?.(scene, canvas);
+  }, [scene, syncScenePresentation]);
 
   useEffect(() => {
     const parent = canvasRef.current?.parentElement;

@@ -50,6 +50,7 @@ import {
   dragTransformBlend,
 } from "@/pixi/dragMotion";
 import type { PromptLayerCallbacks, PromptOverlaySpec } from "./prompt.types";
+import type { PromptLayerPresentation } from "./PromptLayerPresentation";
 import { type RollTokenVisual } from "./dice/DiceGeometry";
 import { type RollTrajectory } from "./dice/DiceAnimation";
 
@@ -494,7 +495,7 @@ export abstract class PromptLayerBase {
       : Math.min(this.viewportWidth, this.viewportRight);
   }
 
-  readonly compactAction: boolean;
+  protected readonly layerPresentation: PromptLayerPresentation;
 
   protected actionBounds: Rectangle | null = null;
   protected modalOpen = false;
@@ -607,11 +608,11 @@ export abstract class PromptLayerBase {
 
   protected constructor(
     app: Application,
-    compactAction: boolean,
+    presentation: PromptLayerPresentation,
     callbacks: PromptLayerCallbacks = {},
   ) {
     this.app = app;
-    this.compactAction = compactAction;
+    this.layerPresentation = presentation;
     this.callbacks = callbacks;
     this.theme = getTheme();
     this.container.sortableChildren = true;
@@ -775,17 +776,13 @@ export abstract class PromptLayerBase {
   protected modalPromptWidth(maxWidth: number): number {
     const viewportWidth = this.layoutWidth - 24;
     const sourceCard = this.promptSourceCard();
-    if (this.compactAction) {
-      if (!sourceCard) return viewportWidth;
-      return Math.max(
-        0,
-        viewportWidth - this.promptSourceCardDisplayDimensions().width - SOURCE_CARD_GAP,
-      );
-    }
-    if (!sourceCard) return Math.min(maxWidth, viewportWidth);
-    const widthWithSourceCard =
-      viewportWidth - this.promptSourceCardDisplayDimensions().width - SOURCE_CARD_GAP;
-    return Math.min(maxWidth, Math.max(0, widthWithSourceCard));
+    return this.layerPresentation.modalPromptWidth(
+      viewportWidth,
+      maxWidth,
+      sourceCard ? this.promptSourceCardDisplayDimensions().width : 0,
+      SOURCE_CARD_GAP,
+      !!sourceCard,
+    );
   }
 
   protected promptCardState(card: CardDto): PromptCardDisplayState {

@@ -65,14 +65,7 @@ import {
 
 const CHOICE_MODAL_WIDTH = 560;
 const CARD_PROMPT_MIN_WIDTH = 360;
-const SCRY_DESTINATION_VERTICAL_PADDING = 48;
 const SCRY_POOL_DRAG_SCALE = 0.5;
-const COMPACT_SCRY_DESTINATION_PORTRAIT_WIDTH = 42;
-const COMPACT_SCRY_DESTINATION_VERTICAL_PADDING = 10;
-const COMPACT_SCRY_FOOTER_HEIGHT = 52;
-const COMPACT_SCRY_STACK_DEPTH = 16;
-const COMPACT_SCRY_VERTICAL_RESERVE = 280;
-const COMPACT_SCRY_ZONE_GAP = 28;
 const MODAL_SCROLL_HALF_LIFE_MS = 28;
 const MODAL_SCROLL_SNAP_PIXELS = 0.5;
 type PromptModalHeaderLayout = "stacked" | "inline-guidance";
@@ -149,8 +142,12 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     footerHintWidth: number;
   } {
     const sourceCard = this.promptSourceCard();
-    const compactModal = this.compactAction;
-    const modalHeight = compactModal ? this.viewportHeight - PROMPT_MODAL_VIEWPORT_MARGIN : height;
+    const modalHeight = this.layerPresentation.modalHeight(
+      this.viewportHeight,
+      height,
+      PROMPT_MODAL_VIEWPORT_MARGIN,
+    );
+    const scaleModal = this.layerPresentation.modalBodyFit === "scale";
     const sourceSize = this.promptSourceCardDisplayDimensions();
     const clusterWidth = width + SOURCE_CARD_GAP + sourceSize.width;
     const externalSource =
@@ -214,7 +211,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       panel.addChild(sourceSprite);
     }
     const inlineSource = !!sourceSprite && !externalSource;
-    const inlineGuidance = compactModal && headerLayout === "inline-guidance" && !inlineSource;
+    const inlineGuidance = scaleModal && headerLayout === "inline-guidance" && !inlineSource;
     const titleX = PANEL_PADDING;
     const titleWidth = inlineSource
       ? Math.max(120, width - PANEL_PADDING * 2 - sourceWidth - 16)
@@ -232,7 +229,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     if (sourceSprite && placeSourceSprite) {
       if (externalSource) {
         sourceX = sourceLeft;
-        sourceY = compactModal ? (modalHeight - sourceHeight) / 2 : 0;
+        sourceY = scaleModal ? (modalHeight - sourceHeight) / 2 : 0;
         panel.hitArea = new Rectangle(
           0,
           0,
@@ -476,7 +473,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const requiredHeight = Math.ceil(
       state.bodyTop + contentHeight + state.footerHeight + MODAL_BODY_BOTTOM_PADDING,
     );
-    if (this.compactAction) {
+    if (this.layerPresentation.modalBodyFit === "scale") {
       const compactHeight = Math.min(
         this.viewportHeight - PROMPT_MODAL_VIEWPORT_MARGIN,
         Math.max(state.height, requiredHeight),
@@ -717,12 +714,13 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       y += 66;
     }
 
-    const selectionColumns =
-      this.compactAction && visibleOptions.every(({ option }) => !option.canRepeat) ? 2 : 1;
+    const selectionColumns = this.layerPresentation.selectionColumns(
+      visibleOptions.every(({ option }) => !option.canRepeat),
+    );
     const selectionGap = selectionColumns > 1 ? 8 : 0;
     const optionWidth = (availableWidth - selectionGap * (selectionColumns - 1)) / selectionColumns;
-    const optionRowHeight = this.compactAction ? 50 : 56;
-    const optionRowPitch = this.compactAction ? 58 : 66;
+    const optionRowHeight = this.layerPresentation.selectionRowHeight;
+    const optionRowPitch = this.layerPresentation.selectionRowPitch;
     let optionPosition = 0;
     for (const { option, index } of visibleOptions) {
       const count = this.counts.get(index) ?? 0;
@@ -924,9 +922,9 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     max: number,
     reveal: boolean,
   ): void {
-    const compactLayout = this.compactAction;
+    const horizontalScroll = this.layerPresentation.cardLayout === "horizontal-scroll";
     const { width: preferredCardWidth } = this.promptCardDimensions(
-      compactLayout ? Math.max(96, this.viewportHeight - 180) : Number.POSITIVE_INFINITY,
+      this.layerPresentation.cardMaxHeight(this.viewportHeight),
     );
     const maxCardWidthRatio = Math.max(
       1,
@@ -947,7 +945,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     );
     const cardWidth = Math.max(0, ...cardSizes.map((size) => size.width));
     const cardHeight = Math.max(0, ...cardSizes.map((size) => size.height));
-    const columns = compactLayout
+    const columns = horizontalScroll
       ? Math.max(1, cards.length)
       : Math.max(
           1,
@@ -956,8 +954,8 @@ export abstract class PromptModalLayer extends PromptLayerBase {
             Math.floor((cardAreaWidth + PROMPT_CARD_GAP) / (cardWidth + PROMPT_CARD_GAP)),
           ),
         );
-    const rows = compactLayout ? Math.min(1, cards.length) : Math.ceil(cards.length / columns);
-    const compactScrollRow = compactLayout;
+    const rows = horizontalScroll ? Math.min(1, cards.length) : Math.ceil(cards.length / columns);
+    const compactScrollRow = horizontalScroll;
     const compactCardSpacing =
       cards.length <= 1
         ? 0
@@ -1019,16 +1017,16 @@ export abstract class PromptModalLayer extends PromptLayerBase {
               this.rebuild();
             },
       );
-      const row = compactLayout ? 0 : Math.floor(index / columns);
-      const column = compactLayout ? index : index % columns;
+      const row = horizontalScroll ? 0 : Math.floor(index / columns);
+      const column = horizontalScroll ? index : index % columns;
       const cardsInRow = Math.min(columns, cards.length - row * columns);
-      const rowWidth = compactLayout
+      const rowWidth = horizontalScroll
         ? cardWidth + compactCardSpacing * Math.max(0, cards.length - 1)
         : cardsInRow * cardWidth + Math.max(0, cardsInRow - 1) * PROMPT_CARD_GAP;
       const rowX = CARD_TILE_EDGE_INSET + Math.max(0, (cardAreaWidth - rowWidth) / 2);
       tile.position.set(
         rowX +
-          column * (compactLayout ? compactCardSpacing : cardWidth + PROMPT_CARD_GAP) +
+          column * (horizontalScroll ? compactCardSpacing : cardWidth + PROMPT_CARD_GAP) +
           (cardWidth - cardSize.width) / 2,
         startY + row * (cardHeight + PROMPT_CARD_ROW_GAP) + (cardHeight - cardSize.height) / 2,
       );
@@ -1317,12 +1315,13 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       C: this.theme.gameTheme.mana.C,
     };
     if (amount <= 1) {
-      const columns = this.compactAction ? Math.min(3, validColors.length) : validColors.length;
+      const colorLayout = this.layerPresentation.colorChoiceLayout(
+        validColors.length,
+        availableWidth,
+        ROW_GAP,
+      );
+      const { columns, buttonWidth, buttonHeight } = colorLayout;
       const gap = columns > 1 ? ROW_GAP : 0;
-      const buttonWidth = this.compactAction
-        ? (availableWidth - gap * (columns - 1)) / Math.max(1, columns)
-        : 72;
-      const buttonHeight = this.compactAction ? 52 : 64;
       const buttons = validColors.map((color) =>
         this.makeButton(
           "",
@@ -1343,7 +1342,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           },
         ),
       );
-      if (this.compactAction) {
+      if (colorLayout.grid) {
         buttons.forEach((button, index) => {
           button.position.set(
             (index % columns) * (buttonWidth + gap),
@@ -1523,11 +1522,12 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       this.numberBuffer = String(this.numberValue);
       this.rebuild();
     };
-    const controlGap = this.compactAction ? 6 : 8;
-    const edgeWidth = this.compactAction ? 44 : 58;
-    const stepWidth = this.compactAction ? 40 : 46;
+    const numberLayout = this.layerPresentation.numberControlLayout(availableWidth);
+    const controlGap = numberLayout.gap;
+    const edgeWidth = numberLayout.edgeWidth;
+    const stepWidth = numberLayout.stepWidth;
     const valueWidth = Math.max(
-      this.compactAction ? 52 : 104,
+      numberLayout.minimumValueWidth,
       availableWidth - edgeWidth * 2 - stepWidth * 2 - controlGap * 4,
     );
     let x = 0;
@@ -1641,9 +1641,10 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const contentWidth = width - PANEL_PADDING * 2;
     const zoneWidth = contentWidth - CARD_TILE_EDGE_INSET * 2;
     const { width: preferredCardWidth } = this.promptCardDimensions(
-      this.compactAction
-        ? Math.max(96, this.viewportHeight - REORDER_MODAL_VERTICAL_RESERVE)
-        : Number.POSITIVE_INFINITY,
+      this.layerPresentation.reorderCardMaxHeight(
+        this.viewportHeight,
+        REORDER_MODAL_VERTICAL_RESERVE,
+      ),
     );
     const maxCardWidthRatio = Math.max(
       ...items.map((item) => this.promptCardDisplayDimensions(item.card, CARD_W).width / CARD_W),
@@ -2009,12 +2010,14 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const poolWidth = width - PANEL_PADDING * 2;
     const zoneGap = 12;
     const zoneWidth = (poolWidth - zoneGap * (zones.length - 1)) / Math.max(1, zones.length);
-    const stackDepth = Math.min(
-      this.compactAction ? COMPACT_SCRY_STACK_DEPTH : 64,
-      Math.max(0, cards.length - 1) * 16,
+    const scryLayout = this.layerPresentation.scryLayout(
+      this.viewportHeight,
+      cards.length,
+      GAME_CARD_SIZES.battlefield.width,
     );
+    const stackDepth = scryLayout.stackDepth;
     const height = this.viewportHeight - 24;
-    const footerHeight = this.compactAction ? COMPACT_SCRY_FOOTER_HEIGHT : 64;
+    const footerHeight = scryLayout.footerHeight;
     const { body, footer } = this.createModalShell(
       width,
       height,
@@ -2022,14 +2025,10 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       true,
       footerHeight,
       36,
-      !this.compactAction,
+      scryLayout.cardHints,
       "inline-guidance",
     );
-    const { width: preferredCardWidth } = this.promptCardDimensions(
-      this.compactAction
-        ? Math.max(72, this.viewportHeight - COMPACT_SCRY_VERTICAL_RESERVE)
-        : Number.POSITIVE_INFINITY,
-    );
+    const { width: preferredCardWidth } = this.promptCardDimensions(scryLayout.cardMaxHeight);
     const maxCardWidthRatio = Math.max(
       1,
       ...cards.map((card) => this.promptCardDisplayDimensions(card, CARD_W).width / CARD_W),
@@ -2043,9 +2042,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     );
     const cardWidth = Math.max(...[...cardSizes.values()].map((size) => size.width));
     const cardHeight = Math.max(...[...cardSizes.values()].map((size) => size.height));
-    const destinationPortraitWidth = this.compactAction
-      ? Math.min(COMPACT_SCRY_DESTINATION_PORTRAIT_WIDTH, GAME_CARD_SIZES.battlefield.width)
-      : GAME_CARD_SIZES.battlefield.width;
+    const destinationPortraitWidth = scryLayout.destinationPortraitWidth;
     const destinationCardSizes = new Map(
       cards.map((card) => [
         card.id,
@@ -2085,7 +2082,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const pool = new Rectangle(0, 24, poolWidth, poolHeight);
     const poolIds = this.scryItems.pool ?? [];
     const poolSpacing =
-      this.compactAction && poolIds.length > 1
+      scryLayout.overlapPoolCards && poolIds.length > 1
         ? Math.min(
             cardWidth + PROMPT_CARD_GAP,
             Math.max(0, (poolWidth - CARD_TILE_EDGE_INSET * 2 - cardWidth) / (poolIds.length - 1)),
@@ -2093,7 +2090,9 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         : cardWidth + PROMPT_CARD_GAP;
     const poolContentWidth =
       CARD_TILE_EDGE_INSET * 2 + Math.max(0, poolIds.length - 1) * poolSpacing + cardWidth;
-    this.scryPoolScrollMax = this.compactAction ? 0 : Math.max(0, poolContentWidth - poolWidth);
+    this.scryPoolScrollMax = scryLayout.overlapPoolCards
+      ? 0
+      : Math.max(0, poolContentWidth - poolWidth);
     if (this.scryPoolScrollToEnd) {
       this.scryPoolScrollOffset = this.scryPoolScrollMax;
       this.scryPoolScrollToEnd = false;
@@ -2191,13 +2190,8 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       );
     });
 
-    const zoneY = pool.y + pool.height + (this.compactAction ? COMPACT_SCRY_ZONE_GAP : 38);
-    const zoneHeight =
-      destinationCardHeight +
-      (this.compactAction
-        ? COMPACT_SCRY_DESTINATION_VERTICAL_PADDING
-        : SCRY_DESTINATION_VERTICAL_PADDING) +
-      stackDepth;
+    const zoneY = pool.y + pool.height + scryLayout.zoneGap;
+    const zoneHeight = destinationCardHeight + scryLayout.destinationVerticalPadding + stackDepth;
     zones.forEach((destination, index) => {
       const key = `zone-${index}`;
       const ids = this.scryItems[key] ?? [];
@@ -2237,7 +2231,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           : this.theme.appTheme["muted-foreground"],
         { weight: "700", width: zoneWidth - 8, truncate: true },
       );
-      label.position.set(rect.x + 4, rect.y - (this.compactAction ? 20 : 22));
+      label.position.set(rect.x + 4, rect.y - scryLayout.labelOffset);
       body.addChild(label);
       const dropX = rect.x + (rect.width - destinationCardWidth) / 2;
       const dropY = rect.y + (rect.height - destinationCardHeight) / 2;
@@ -2512,14 +2506,14 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     destination: ScryDestination,
     rect: Rectangle,
   ): void {
-    const compact = this.compactAction;
+    const hintStyle = this.layerPresentation.scryHint;
     const color = this.theme.appTheme["muted-foreground"];
     const centerX = rect.x + rect.width / 2;
-    const centerY = rect.y + rect.height / 2 - (compact ? 4 : 8);
+    const centerY = rect.y + rect.height / 2 - hintStyle.centerOffsetY;
     if (destination === "libraryTop" || destination === "libraryBottom") {
       if (destination === "libraryTop") {
-        const deck = this.makeIcon("deck", compact ? 32 : 42, color);
-        deck.position.set(centerX + (compact ? 3 : 4), centerY);
+        const deck = this.makeIcon("deck", hintStyle.deckSize, color);
+        deck.position.set(centerX + hintStyle.deckOffsetX, centerY);
         body.addChild(deck);
       } else {
         const card = new Graphics();
@@ -2532,24 +2526,24 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           card.moveTo(24, y).lineTo(24, Math.min(y + 6, 18));
         }
         card.stroke({ color: hexToNum(color), width: 2, alpha: 0.7 });
-        if (compact) card.scale.set(0.72);
-        card.position.set(centerX + (compact ? 3 : 4), centerY);
+        card.scale.set(hintStyle.cardScale);
+        card.position.set(centerX + hintStyle.deckOffsetX, centerY);
         body.addChild(card);
       }
-      const arrow = this.makeIcon("arrow-dunk", compact ? 20 : 26, color);
-      arrow.position.set(centerX - (compact ? 13 : 17), centerY - (compact ? 18 : 24));
+      const arrow = this.makeIcon("arrow-dunk", hintStyle.arrowSize, color);
+      arrow.position.set(centerX - hintStyle.arrowOffsetX, centerY - hintStyle.arrowOffsetY);
       body.addChild(arrow);
     } else {
-      const icon = this.makeIcon(destination, compact ? 32 : 44, color);
+      const icon = this.makeIcon(destination, hintStyle.iconSize, color);
       icon.position.set(centerX, centerY);
       body.addChild(icon);
     }
-    const hint = promptText(this.scryDestinationHint(destination), compact ? 10 : 11, color, {
+    const hint = promptText(this.scryDestinationHint(destination), hintStyle.fontSize, color, {
       weight: "600",
       align: "center",
     });
     hint.anchor.set(0.5, 0);
-    hint.position.set(centerX, centerY + (compact ? 22 : 32));
+    hint.position.set(centerX, centerY + hintStyle.textOffsetY);
     body.addChild(hint);
   }
 

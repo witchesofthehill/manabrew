@@ -1,30 +1,24 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ComponentProps,
-  type RefObject,
-} from "react";
+import { useCallback, useMemo, useState, type ComponentProps, type RefObject } from "react";
 
 import { DialogCardBrowser } from "@/components/game/modals/DialogCardBrowser";
 import { Modal } from "@/components/game/modals/Modal";
 import { MobileHandControl } from "@/components/game/panels/MobileHandControl";
 import { MobilePhaseStops, PHASE_CONTROLS } from "@/components/game/panels/MobilePhaseStops";
+import { buildZoneBadges } from "@/components/game/panels/playerHudBadges";
 import {
   PROMPT_CARD_MODAL_MAX_WIDTH_CLASS,
   PROMPT_MODAL_HEIGHT_CLASS,
 } from "@/components/game/game.constants";
 import { Button } from "@/components/ui/button";
 import type { CardDto } from "@/protocol/game";
-import type { PromptType } from "@/protocol";
+import type { Prompt, PromptType } from "@/protocol";
 import type { BoardOverlayCanvasProps } from "@/pixi/BoardOverlayCanvas";
 import { MobileBoardCanvas, type MobileBoardCanvasProps } from "@/pixi/MobileBoardCanvas";
 import { MobileBoardOverlayCanvas } from "@/pixi/MobileBoardOverlayCanvas";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { PromptOverlaySpec } from "@/pixi/prompts/prompt.types";
 import { GAP } from "@/pixi/constants";
-import { useGameStore } from "@/stores/useGameStore";
+import { useTheme } from "@/hooks/useTheme";
 
 interface MobileGameSceneProps {
   battlefieldContainerRef?: RefObject<HTMLDivElement | null>;
@@ -41,9 +35,10 @@ interface MobileGameSceneProps {
   overlay: Omit<BoardOverlayCanvasProps, "scene" | "promptSpec">;
   promptSpec: PromptOverlaySpec | null;
   promptType?: PromptType;
-  handCount: number;
+  promptId: Prompt["promptId"] | null;
+  gameOver: boolean;
   handSelectionMode: boolean;
-  handActionable: boolean;
+  handCount: number;
   onDismissHoverPreview?: () => void;
   onClosePlayerSheet: () => void;
   phaseStops: Omit<ComponentProps<typeof MobilePhaseStops>, "open" | "onClose">;
@@ -57,24 +52,56 @@ export function MobileGameScene({
   overlay,
   promptSpec,
   promptType,
+  promptId,
+  gameOver,
   handCount,
   handSelectionMode,
-  handActionable,
   onDismissHoverPreview,
   onClosePlayerSheet,
   phaseStops,
 }: MobileGameSceneProps) {
   const [scene, setScene] = useState<BoardScene | null>(null);
   const [mobilePanel, setMobilePanel] = useState<MobileBoardPanel | null>(null);
-  const [mobileHandOpenState, setMobileHandOpenState] = useState(false);
+  const [mobileHandState, setMobileHandState] = useState(() => ({
+    promptId,
+    open: promptType === "mulligan",
+  }));
   const [mobileHandPeek, setMobileHandPeek] = useState(false);
+  const { gameTheme } = useTheme();
+  const handActionable =
+    promptType === "chooseAction" &&
+    board.hand.cards.some((card) => board.hand.playableIds?.has(card.id));
+  const mobilePlayerBars = useMemo(
+    () =>
+      board.playerBars?.map((spec) => {
+        const zones = buildZoneBadges(board.zoneTiles?.[spec.playerId] ?? [], gameTheme.textMuted);
+        if (zones.length === 0) return spec;
+        const badges = [...spec.badges];
+        const handIndex = badges.findIndex((badge) => badge.id === "hand");
+        badges.splice(handIndex + 1, 0, ...zones);
+        return { ...spec, badges };
+      }),
+    [board.playerBars, board.zoneTiles, gameTheme.textMuted],
+  );
+  const mobileZoneTiles = useMemo(
+    () =>
+      board.zoneTiles
+        ? Object.fromEntries(Object.keys(board.zoneTiles).map((playerId) => [playerId, []]))
+        : undefined,
+    [board.zoneTiles],
+  );
   const [mobileHandControlBounds, setMobileHandControlBounds] = useState<DOMRect | null>(null);
   const [revealBrowseCards, setRevealBrowseCards] = useState<CardDto[] | null>(null);
-  const mobileHandOpen = handSelectionMode || mobileHandOpenState;
+  const mobileHandOpenState =
+    mobileHandState.promptId === promptId ? mobileHandState.open : promptType === "mulligan";
+  const mobileHandOpen = !gameOver && (handSelectionMode || mobileHandOpenState);
 
-  const setMobileHandOpen = useCallback((open: boolean) => {
-    setMobileHandOpenState(open);
-  }, []);
+  const setMobileHandOpen = useCallback(
+    (open: boolean) => {
+      setMobileHandState({ promptId, open });
+    },
+    [promptId],
+  );
   const closeMobileChrome = useCallback(() => {
     setMobilePanel(null);
     setMobileHandOpen(false);
@@ -99,20 +126,6 @@ export function MobileGameScene({
     setMobilePanel({ kind: "phases" });
   }, [onClosePlayerSheet, onDismissHoverPreview, setMobileHandOpen]);
 
-  useEffect(() => {
-    let activePromptId = useGameStore.getState().currentPrompt?.promptId;
-    return useGameStore.subscribe((state) => {
-      const nextPromptId = state.currentPrompt?.promptId;
-      if (nextPromptId !== activePromptId) {
-        activePromptId = nextPromptId;
-        if (state.currentPrompt?.input.type === "mulligan") setMobileHandOpen(true);
-        else if (!handSelectionMode) setMobileHandOpen(false);
-      }
-      if (!state.gameView?.gameOver) return;
-      onClosePlayerSheet();
-      closeMobileChrome();
-    });
-  }, [closeMobileChrome, handSelectionMode, onClosePlayerSheet, setMobileHandOpen]);
   const boardCallbacksBase = board.callbacks;
 
   const boardCallbacks = useMemo(
@@ -202,9 +215,11 @@ export function MobileGameScene({
           mobileHandOpen={mobileHandOpen}
           mobileHandPeek={mobileHandPeek}
           mobileHandControlBounds={mobileHandControlBounds}
+          playerBars={mobilePlayerBars}
+          zoneTiles={mobileZoneTiles}
           onSceneChange={setScene}
         />
-        {(!mobilePanel || mobileHandOpen) && (
+        {(!mobilePanel || mobileHandOpen) && !gameOver && (
           <MobileHandControl
             count={handCount}
             open={mobileHandOpen}
@@ -254,7 +269,7 @@ export function MobileGameScene({
         <MobileBoardOverlayCanvas {...overlay} scene={scene} promptSpec={mobilePromptSpec} />
         <MobilePhaseStops
           {...phaseStops}
-          open={!mobileHandOpen && mobilePanel?.kind === "phases"}
+          open={!gameOver && !mobileHandOpen && mobilePanel?.kind === "phases"}
           onClose={() => setMobilePanel(null)}
         />
       </div>

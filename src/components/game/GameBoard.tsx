@@ -327,6 +327,7 @@ export function GameBoard({
   const [dragBlockerId, setDragBlockerId] = useState<string | null>(null);
   const [dragAttackerId, setDragAttackerId] = useState<string | null>(null);
   const [sheetPlayerId, setSheetPlayerId] = useState<string | null>(null);
+  const closePlayerSheet = useCallback(() => setSheetPlayerId(null), [setSheetPlayerId]);
   const gameOver = useGameStore((state) => state.gameView?.gameOver);
 
   // On our turn, one opponent field stays expanded (sticky) instead of an even
@@ -558,8 +559,6 @@ export function GameBoard({
       handSelectedIds,
     ],
   );
-  const mobileHandActionable =
-    promptType === "chooseAction" && orderedHand.some((card) => playableIds.has(card.id));
   const pixiCallbacks = useMemo(
     (): GameCanvasCallbacks => ({
       onClickCard:
@@ -1493,21 +1492,6 @@ export function GameBoard({
     openExile,
     openLibrary,
   ]);
-  const boardZoneTiles = useMemo<Record<string, ZoneTileSpec[]>>(() => {
-    if (!compactBoard) return zoneTilesByPlayer;
-    return Object.fromEntries(Object.keys(zoneTilesByPlayer).map((playerId) => [playerId, []]));
-  }, [zoneTilesByPlayer, compactBoard]);
-  const hudBarSpecs = useMemo<PlayerHudSpec[]>(() => {
-    if (!compactBoard) return playerBarSpecs;
-    return playerBarSpecs.map((spec) => {
-      const zones = buildZoneBadges(zoneTilesByPlayer[spec.playerId] ?? [], gameTheme.textMuted);
-      if (zones.length === 0) return spec;
-      const badges = [...spec.badges];
-      const handIdx = badges.findIndex((badge) => badge.id === "hand");
-      badges.splice(handIdx + 1, 0, ...zones);
-      return { ...spec, badges };
-    });
-  }, [compactBoard, playerBarSpecs, zoneTilesByPlayer, gameTheme.textMuted]);
   const unifiedRegions = useMemo((): BoardCanvasRegion[] => {
     const rowFields = (combatRow?: CombatRow): Partial<BattlefieldState> => ({
       combatRowAttackerIds: combatRow?.attackerIds,
@@ -1610,7 +1594,7 @@ export function GameBoard({
   const sheetPlayer = [me, ...opponents].find((player) => player.id === sheetPlayerId);
   const baseSheetSpec =
     sheetPlayerId && !gameOver
-      ? (hudBarSpecs.find((spec) => spec.playerId === sheetPlayerId) ?? null)
+      ? (playerBarSpecs.find((spec) => spec.playerId === sheetPlayerId) ?? null)
       : null;
   const sheetHandActionable =
     promptType === "chooseAction" && !!sheetPlayer?.hand.some((card) => playableIds.has(card.id));
@@ -1707,9 +1691,9 @@ export function GameBoard({
     focusedOpponentId,
     combatFocusIds,
     manualFocusId,
-    playerBars: hudBarSpecs,
+    playerBars: playerBarSpecs,
     showPlayerBars: true,
-    zoneTiles: boardZoneTiles,
+    zoneTiles: zoneTilesByPlayer,
     callbacks: pixiCallbacks,
     isDropActive: isOverBattlefield,
     autoSort: battlefieldAutoSort,
@@ -1847,11 +1831,12 @@ export function GameBoard({
           overlay={overlaySceneProps}
           promptSpec={promptOverlaySpec ?? null}
           promptType={promptType}
+          promptId={currentPrompt?.promptId ?? null}
+          gameOver={!!gameOver}
           handCount={orderedHand.length}
           handSelectionMode={!!handSelectionMode}
-          handActionable={mobileHandActionable}
           onDismissHoverPreview={onDismissHoverPreview}
-          onClosePlayerSheet={() => setSheetPlayerId(null)}
+          onClosePlayerSheet={closePlayerSheet}
           phaseStops={{
             currentStep: step,
             selfStops,
@@ -1874,7 +1859,7 @@ export function GameBoard({
           overlay={{ ...overlaySceneProps, promptSpec: promptOverlaySpec ?? null }}
         />
       )}
-      {sheetSpec && <PlayerSheetModal spec={sheetSpec} onClose={() => setSheetPlayerId(null)} />}
+      {sheetSpec && <PlayerSheetModal spec={sheetSpec} onClose={closePlayerSheet} />}
     </div>
   );
 }

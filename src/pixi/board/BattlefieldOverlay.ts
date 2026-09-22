@@ -38,7 +38,7 @@ import {
   SYMBOL_TAP,
   SYMBOL_UNTAP,
 } from "../constants";
-import { CARD_W, CARD_H } from "@/components/game/game.constants";
+import { CARD_H, CARD_W } from "@/components/game/game.constants";
 import type { OverlayHost, SpriteEntry } from "./types";
 
 interface ActionKind {
@@ -56,7 +56,7 @@ export class BattlefieldOverlay {
     this.host = host;
   }
   private cardHeight(): number {
-    return this.host.isCompact() ? CARD_W : CARD_H;
+    return this.host.getCardHeight();
   }
 
   rebuild(entry: SpriteEntry, state: BattlefieldState): void {
@@ -87,7 +87,7 @@ export class BattlefieldOverlay {
       kind.isSelectable,
       state.waterbendSourceIds?.includes(card.id) ?? false,
       state.waterbentCardIds?.includes(card.id) ?? false,
-      this.host.isCompact(),
+      this.host.usesManaGrid(),
       expandedMana.map((ab) => [
         ab.actionId,
         ab.description,
@@ -102,7 +102,7 @@ export class BattlefieldOverlay {
     overlay.pivot.set(CARD_W / 2, this.cardHeight() / 2);
     overlay.removeChildren().forEach((c) => c.destroy({ children: true }));
 
-    if (kind.isTappable && expandedMana.length > 0 && !this.host.isCompact()) {
+    if (kind.isTappable && expandedMana.length > 0 && this.host.usesManaGrid()) {
       this.drawManaGrid(overlay, card, state, expandedMana);
     } else {
       this.drawSingleButton(overlay, card, state, kind);

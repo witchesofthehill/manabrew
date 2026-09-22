@@ -2,6 +2,7 @@ import { Container, Graphics, Point as PixiPoint, type FederatedPointerEvent } f
 import type { CardDto, CombatAssignmentDto, PlaymatSettings } from "@/protocol/game";
 import { CardSprite } from "../CardSprite";
 import { BoardZoneTiles, type ZoneTileSpec } from "./BoardZoneTiles";
+import type { BoardRegionPresentation } from "./BoardRegionPresentation";
 import type { BattlefieldState, CombatRowTarget, PlayZoneRect, ScreenPos } from "../types";
 import {
   cellAt,
@@ -38,8 +39,6 @@ import {
   CARD_RADIUS,
   COMBAT_DIM_ALPHA,
   COMBAT_DIM_TINT_LEVEL,
-  COMPACT_LAND_OVERLAP_MIN,
-  COMPACT_LAND_STEP_FRAC,
   DAMAGE_SHAKE_AMP_PX,
   DAMAGE_SHAKE_FRAMES,
   EXIT_FADE_LERP,
@@ -51,12 +50,9 @@ import {
   FIELD_INNER_EDGE_PAD_PX,
   COMBAT_STAGE_FAN_FRAC,
   GRID_SKELETON_FILL_ALPHA,
-  GRID_SKELETON_FILL_ALPHA_COMPACT,
-  GRID_SKELETON_STROKE_ALPHA_COMPACT,
   GRID_SKELETON_HOVER_ALPHA,
   GRID_SKELETON_STACK_ALPHA,
   GRID_SKELETON_STACK_FILL_ALPHA,
-  GRID_SKELETON_STROKE_ALPHA,
   HOVER_SCALE,
   HOVER_SCALE_LERP,
   MAX_GRID_SLOTS,
@@ -100,7 +96,7 @@ const OVERFLOW_PRIORITY: Record<BattlefieldCardCategory, number> = {
 interface BoardRegionOptions {
   orientation: RegionOrientation;
   combatRowReserved: boolean;
-  compact: boolean;
+  presentation: BoardRegionPresentation;
 }
 
 const ENTRANCE_LAND_PX = 8;
@@ -143,7 +139,7 @@ export class BoardRegion {
   private gridSkeletonGfx: Graphics;
   private zoneTiles: BoardZoneTiles;
   private zoneTileKeys: string[] = [];
-  private readonly compactMode: boolean;
+  private readonly presentation: BoardRegionPresentation;
   private zoneTilesLocked = false;
   private zoneSlots = new Map<string, { col: number; row: number }>();
 
@@ -192,7 +188,7 @@ export class BoardRegion {
     this.seatColor = host.getTheme().gameTheme.canvas.neutral;
     this.cardScale = cardScale;
     this.combatRowReserved = options.combatRowReserved;
-    this.compactMode = options.compact;
+    this.presentation = options.presentation;
     this.mirrored = options.orientation !== "bottom";
 
     this.container = new Container();
@@ -260,7 +256,9 @@ export class BoardRegion {
   }
 
   private applyZoneTileDraggable(): void {
-    this.zoneTiles.setDraggable(!this.mirrored && !this.compactMode && !this.zoneTilesLocked);
+    this.zoneTiles.setDraggable(
+      this.presentation.zoneTilesDraggable(this.mirrored, this.zoneTilesLocked),
+    );
   }
 
   cancelZoneTileDrag(): void {
@@ -272,7 +270,7 @@ export class BoardRegion {
   }
 
   private cardHeight(): number {
-    return this.compactMode ? CARD_W : CARD_H;
+    return this.presentation.cardHeight;
   }
 
   private freshGrid(): GridLayoutInfo {
@@ -283,7 +281,7 @@ export class BoardRegion {
       this.cardScale,
       this.zoneTileKeys.length > 0,
       this.cardHeight(),
-      this.compactMode && !this.mirrored,
+      this.presentation.gridBottomAnchored(this.mirrored),
     );
   }
 
@@ -297,7 +295,7 @@ export class BoardRegion {
   private placeZoneTiles(grid: GridLayoutInfo, occupied: Set<string>): void {
     const placements = new Map<string, { x: number; y: number }>();
     const taken = new Set<string>();
-    const ignoreBlockers = this.compactMode && !this.mirrored;
+    const ignoreBlockers = this.presentation.ignoreZoneTileBlockers(this.mirrored);
     const isFree = (cell: GridCell | null, ignoreBlocked = ignoreBlockers): cell is GridCell =>
       !!cell &&
       !taken.has(cellKey(cell.col, cell.row)) &&
@@ -314,10 +312,7 @@ export class BoardRegion {
       return { col, row, x, y, cx: x + grid.cardW / 2, cy, blocked: false };
     };
 
-    const gridRows =
-      this.mirrored || this.compactMode
-        ? Array.from({ length: grid.rows }, (_, r) => r)
-        : Array.from({ length: grid.rows }, (_, r) => grid.rows - 1 - r);
+    const gridRows = this.presentation.gridRows(grid.rows, this.mirrored);
     const rowOrder = this.mirrored ? [...gridRows, attackBandRow] : gridRows;
     const nextDefaultCell = (ignoreBlocked = ignoreBlockers): GridCell | null => {
       for (let col = 0; col < grid.cols; col++) {
@@ -330,7 +325,7 @@ export class BoardRegion {
     };
 
     for (const key of this.zoneTileKeys) {
-      const slot = this.compactMode ? undefined : this.zoneSlots.get(key);
+      const slot = this.presentation.storedZoneSlot(key, this.zoneSlots);
       let cell = slot ? resolveCell(slot.col, slot.row) : null;
       if (!isFree(cell)) cell = nextDefaultCell();
       // A giant-card grid (few cells, partly covered by the hand fan and
@@ -338,7 +333,7 @@ export class BoardRegion {
       // blocker rather than stranding the tile at its stale geometry.
       if (!cell) cell = nextDefaultCell(true);
       if (!cell) continue;
-      if (!this.compactMode) this.zoneSlots.set(key, { col: cell.col, row: cell.row });
+      this.presentation.rememberZoneSlot(key, { col: cell.col, row: cell.row }, this.zoneSlots);
       taken.add(cellKey(cell.col, cell.row));
       occupied.add(cellKey(cell.col, cell.row));
       placements.set(key, { x: cell.x, y: cell.y });
@@ -450,12 +445,12 @@ export class BoardRegion {
   }
 
   private collectLocalBlockers(): BlockingRect[] {
-    if (this.compactMode && !this.mirrored) return [];
-    return this.host.collectBlockers().map((r) => {
+    const blockers = this.host.collectBlockers().map((r) => {
       const p1 = this.canvasToLocal(r.x, r.y);
       const p2 = this.canvasToLocal(r.x + r.width, r.y + r.height);
       return { x: p1.x, y: p1.y, width: p2.x - p1.x, height: p2.y - p1.y };
     });
+    return this.presentation.localBlockers(this.mirrored, blockers);
   }
 
   setCardScale(scale: number): void {
@@ -1128,15 +1123,13 @@ export class BoardRegion {
   }
 
   private frontEdgeY(): number {
-    const zone = this.usableZone();
-    if (this.compactMode) return this.mirrored ? zone.y + zone.height : zone.y;
-    const halfCard = (this.cardHeight() * this.cardScale) / 2;
-    if (this.mirrored) {
-      return zone.y + zone.height - COMBAT_ROW_PAD_Y - halfCard;
-    }
-    return zone.y + COMBAT_ROW_PAD_Y + halfCard;
+    return this.presentation.frontEdgeY(
+      this.usableZone(),
+      this.mirrored,
+      this.cardScale,
+      COMBAT_ROW_PAD_Y,
+    );
   }
-
   private applyNameGrouping(topLevel: CardDto[]): void {
     this.stackCounts.clear();
     if (topLevel.length < 2) return;
@@ -1255,22 +1248,14 @@ export class BoardRegion {
       }
     }
   }
-  private compressCompactLands(cards: CardDto[], positions: Map<string, Point>, cardWidth: number) {
-    if (!this.compactMode) return;
-    const lands = cards
-      .filter((card) => battlefieldCardCategory(card) === "land" && positions.has(card.id))
-      .sort((a, b) => positions.get(a.id)!.x - positions.get(b.id)!.x);
-    if (
-      lands.length < COMPACT_LAND_OVERLAP_MIN ||
-      lands.some((card) => this.userPlacedCards.has(card.id))
-    ) {
-      return;
-    }
-    const step = cardWidth * COMPACT_LAND_STEP_FRAC;
-    const startX = this.zoneCenterX() - (step * (lands.length - 1)) / 2;
-    for (let index = 0; index < lands.length; index++) {
-      positions.get(lands[index]!.id)!.x = startX + step * index;
-    }
+  private compressLands(cards: CardDto[], positions: Map<string, Point>, cardWidth: number) {
+    this.presentation.compressLands(
+      cards,
+      positions,
+      cardWidth,
+      this.zoneCenterX(),
+      this.userPlacedCards,
+    );
   }
 
   private computeBattlefieldGrid(cards: CardDto[]): Map<string, Point> {
@@ -1421,7 +1406,7 @@ export class BoardRegion {
         positions.set(c.id, { x: centerX, y: anchorY });
       }
     }
-    this.compressCompactLands(cards, positions, grid.cardW);
+    this.compressLands(cards, positions, grid.cardW);
 
     return positions;
   }
@@ -1572,7 +1557,7 @@ export class BoardRegion {
   private ensureBattlefieldEntry(card: CardDto): void {
     if (this.entries.has(card.id)) return;
     const sprite = new CardSprite(card);
-    sprite.setCompactSquare(this.compactMode);
+    this.presentation.configureSprite(sprite);
     this.host.wireSprite(sprite);
     this.applyTouchChrome(sprite);
     this.container.addChild(sprite);
@@ -1684,7 +1669,7 @@ export class BoardRegion {
   }
 
   private playArea(): PlayZoneRect {
-    const zone = this.compactMode && !this.mirrored ? this.zone : this.usableZone();
+    const zone = this.presentation.playAreaZone(this.zone, this.usableZone(), this.mirrored);
     const reserve = this.combatRowReserved
       ? combatRowReserve(this.cardScale, this.cardHeight())
       : 0;
@@ -2074,12 +2059,7 @@ export class BoardRegion {
       const isStack = key === stackKey;
       const isHover = key === hoveredKey && !isStack;
       const isOccupied = occupied.has(key) && !isStack;
-      const baseStroke = this.compactMode
-        ? GRID_SKELETON_STROKE_ALPHA_COMPACT
-        : GRID_SKELETON_STROKE_ALPHA;
-      const baseFill = this.compactMode
-        ? GRID_SKELETON_FILL_ALPHA_COMPACT
-        : GRID_SKELETON_FILL_ALPHA;
+      const { stroke: baseStroke, fill: baseFill } = this.presentation.gridSkeletonAlpha();
       const strokeAlpha = isStack
         ? GRID_SKELETON_STACK_ALPHA
         : isHover
@@ -2143,23 +2123,16 @@ export class BoardRegion {
       if (cell.blocked) continue;
       const key = cellKey(cell.col, cell.row);
       const isHover = key === hoveredKey;
+      const { stroke: baseStroke, fill: baseFill } = this.presentation.gridSkeletonAlpha();
       gfx.roundRect(cell.x, cell.y, grid.cardW, grid.cardH, CARD_RADIUS);
       gfx.fill({
         color,
-        alpha: isHover
-          ? GRID_SKELETON_FILL_ALPHA * 5
-          : this.compactMode
-            ? GRID_SKELETON_FILL_ALPHA_COMPACT
-            : GRID_SKELETON_FILL_ALPHA,
+        alpha: isHover ? GRID_SKELETON_FILL_ALPHA * 5 : baseFill,
       });
       gfx.stroke({
         color,
         width: isHover ? 2 : 1,
-        alpha: isHover
-          ? GRID_SKELETON_HOVER_ALPHA
-          : this.compactMode
-            ? GRID_SKELETON_STROKE_ALPHA_COMPACT
-            : GRID_SKELETON_STROKE_ALPHA,
+        alpha: isHover ? GRID_SKELETON_HOVER_ALPHA : baseStroke,
       });
     }
     if (!hoveredCell) {

@@ -57,7 +57,7 @@ The legacy per-player canvases (`PixiGameCanvas` / `PixiGameScene` / `PixiArrows
 
 ## Game loading
 
-`GameLoadingScreen` keeps setup progress centered and presents `GameLoadingTip` as the progress card's attached footer so setup status and rotating guidance read as one surface. Configure copy, audience, keybinding IDs, cadence, and transition duration in `gameLoadingTips.ts`; keybinding tips render the player's persisted shortcuts, while touch loading screens exclude desktop-only entries.
+`GameLoadingScreen` keeps setup progress centered on desktop and portrait screens. Compact touch landscapes use a two-column layout with the status and exit action beside the progress card so the attached `GameLoadingTip` remains visible at short viewport heights. Configure copy, audience, keybinding IDs, cadence, and transition duration in `gameLoadingTips.ts`; keybinding tips render the player's persisted shortcuts, while touch loading screens exclude desktop-only entries.
 
 `useGamePrefetch` blocks board reveal only on immediately visible printed-card textures. It warms the complete deck pool's printed textures in the background, then lazily warms the same pool's `art_crop` textures without extending the loading screen.
 

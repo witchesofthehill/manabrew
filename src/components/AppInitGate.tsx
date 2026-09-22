@@ -194,7 +194,8 @@ export function AppInitGate({ children }: { children: ReactNode }) {
             className={cn(
               "flex min-h-full w-full flex-col items-center justify-center gap-10 px-8 py-10",
               isTouch && "gap-6 px-4 py-6",
-              shortTouch && "h-full min-h-0 gap-3 py-2",
+              shortTouch &&
+                "h-full min-h-0 gap-3 py-2 [padding-bottom:max(0.5rem,var(--safe-area-inset-bottom))] [padding-left:max(1rem,var(--safe-area-inset-left))] [padding-right:max(1rem,var(--safe-area-inset-right))] [padding-top:max(0.5rem,var(--safe-area-inset-top))]",
             )}
           >
             {/* No `filter` here: Firefox (ESR 140 and older, bug 2011747) drops
@@ -203,9 +204,10 @@ export function AppInitGate({ children }: { children: ReactNode }) {
             <div
               className={cn(
                 "flex w-full flex-col items-center gap-10",
-                showOnboarding ? "max-w-5xl" : "max-w-2xl",
+                showOnboarding || (showTerms && shortTouch) ? "max-w-5xl" : "max-w-2xl",
                 isTouch && "gap-6",
-                shortTouch && "h-full min-h-0 max-w-5xl gap-3",
+                shortTouch && "h-full min-h-0 gap-3",
+                shortTouch && !showTerms && !showOnboarding && "max-w-xl justify-center",
               )}
             >
               {showTerms ? (
@@ -340,13 +342,23 @@ export function AppInitGate({ children }: { children: ReactNode }) {
               ) : (
                 <>
                   {welcomeHeader}
-                  <div className="w-full space-y-5">
-                    <div className="flex items-baseline justify-between font-mono text-[0.65rem] uppercase tracking-[0.4em] text-muted-foreground">
+                  <div className={cn("w-full space-y-5", shortTouch && "space-y-2.5")}>
+                    <div
+                      className={cn(
+                        "flex items-baseline justify-between font-mono text-[0.65rem] uppercase tracking-[0.4em] text-muted-foreground",
+                        shortTouch && "text-[0.6rem] tracking-[0.3em]",
+                      )}
+                    >
                       <span className="truncate text-foreground/80">{title}</span>
                       <span className="tabular-nums">{pct.toString().padStart(3, "0")}%</span>
                     </div>
 
-                    <div className="relative h-3.5 w-full overflow-hidden rounded-full border border-border/80 bg-muted/40">
+                    <div
+                      className={cn(
+                        "relative h-3.5 w-full overflow-hidden rounded-full border border-border/80 bg-muted/40",
+                        shortTouch && "h-3",
+                      )}
+                    >
                       <div
                         className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-primary/70 via-primary to-primary/70 shadow-[inset_0_0_8px] shadow-primary/40 transition-[width] duration-200 ease-out"
                         style={{ width: `${target}%` }}
@@ -364,7 +376,12 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                       />
                     </div>
 
-                    <p className="text-center font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
+                    <p
+                      className={cn(
+                        "text-center font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80",
+                        shortTouch && "text-[0.55rem] tracking-[0.35em]",
+                      )}
+                    >
                       Connecting
                     </p>
                   </div>

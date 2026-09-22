@@ -39,7 +39,7 @@ const SHALLOW_RESOURCE_IDENTITY_OVERLAP = 30;
 const SHALLOW_RESOURCE_RIGHT_INSET = 16;
 const SHALLOW_STATE_BLOCK_HEIGHT = 48;
 const STATE_ROW_HEIGHT = 24;
-const STATE_TOUCH_ROW_HEIGHT = 40;
+const STATE_TOUCH_ROW_HEIGHT = 44;
 const TRAY_HORIZONTAL_PADDING = 6;
 const TRAY_VERTICAL_PADDING = 2;
 const TRAY_RADIUS = 6;
@@ -151,6 +151,7 @@ export class PlayerHudCapsule {
   private manaLayer = new Container();
   private badgeLayer = new Container();
   private sparkles = new Container();
+  private resourceFloatLayer = new Container();
   private pips: ManaPip[] = [];
   private chips: BadgeChip[] = [];
   private greyscale = new ColorMatrixFilter();
@@ -163,6 +164,10 @@ export class PlayerHudCapsule {
   private boundsDebug = false;
   private avatarUrl: string | null = null;
   private renderedLife: number | null = null;
+  private renderedBadgeCounts = new Map<string, number>();
+  private renderedManaCounts = new Map<string, number>();
+  private resourcesInitialized = false;
+  private resourceFloaters = new Set<Text>();
   private targetRingMode: "off" | "pulse" | "solid" = "off";
   private targetTween: gsap.core.Tween | null = null;
   private flashTween: gsap.core.Tween | null = null;
@@ -228,6 +233,7 @@ export class PlayerHudCapsule {
     this.boundsOutline.eventMode = "none";
     this.stateTray.eventMode = "none";
     this.sparkles.eventMode = "none";
+    this.resourceFloatLayer.eventMode = "none";
 
     this.avatarHit.eventMode = "static";
     this.avatarHit.cursor = "pointer";
@@ -302,6 +308,7 @@ export class PlayerHudCapsule {
       this.manaLayer,
       this.badgeLayer,
       this.sparkles,
+      this.resourceFloatLayer,
       this.lifeFloat,
     );
   }
@@ -638,6 +645,7 @@ export class PlayerHudCapsule {
     if (this.column) this.renderColumn(w, h);
     else this.renderCapsule(w, h);
     this.applyLifeAnim();
+    this.applyResourceAnimations();
     this.applyCombatGlow();
     this.applyTargetable();
     this.applyFlash();
@@ -1294,6 +1302,84 @@ export class PlayerHudCapsule {
     this.renderedLife = next;
   }
 
+  private applyResourceAnimations(): void {
+    const badgeCounts = new Map(
+      this.spec.badges
+        .filter((badge) => badge.count !== undefined)
+        .map((badge) => [badge.id, badge.count ?? 0]),
+    );
+    const manaCounts = new Map(
+      MANA_LETTERS.map((letter) => [letter, this.spec.manaPool[letter] ?? 0]),
+    );
+    if (this.resourcesInitialized) {
+      this.spec.badges.forEach((badge, index) => {
+        if (badge.count === undefined) return;
+        const previous = this.renderedBadgeCounts.get(badge.id) ?? 0;
+        const delta = badge.count - previous;
+        const chip = this.chips[index];
+        if (delta !== 0 && chip) {
+          this.animateResourceCount(
+            chip.count,
+            delta,
+            chip.count.visible ? chip.count.x : this.avatarCx,
+            chip.count.visible ? chip.count.y : this.avatarCy,
+          );
+        }
+      });
+      MANA_LETTERS.forEach((letter, index) => {
+        const next = manaCounts.get(letter) ?? 0;
+        const delta = next - (this.renderedManaCounts.get(letter) ?? 0);
+        const pip = this.pips[index];
+        if (delta !== 0 && pip) {
+          this.animateResourceCount(
+            pip.count,
+            delta,
+            pip.count.visible ? pip.count.x : this.avatarCx,
+            pip.count.visible ? pip.count.y : this.avatarCy,
+          );
+        }
+      });
+    }
+    this.renderedBadgeCounts = badgeCounts;
+    this.renderedManaCounts = manaCounts;
+    this.resourcesInitialized = true;
+  }
+
+  private animateResourceCount(count: Text, delta: number, x: number, y: number): void {
+    const color = delta > 0 ? this.theme.gameTheme.pt.buffed : this.theme.gameTheme.pt.lethal;
+    if (this.motionEnabled && count.visible) {
+      gsap.killTweensOf(count.scale);
+      gsap.fromTo(
+        count.scale,
+        { x: 1.3, y: 1.3 },
+        { x: 1, y: 1, duration: 0.35, ease: "back.out(2)" },
+      );
+    }
+    const floater = new Text({
+      text: delta > 0 ? `+${delta}` : String(delta),
+      style: this.styled(13, "900", color),
+    });
+    floater.anchor.set(0.5);
+    floater.position.set(x, y);
+    this.resourceFloatLayer.addChild(floater);
+    this.resourceFloaters.add(floater);
+    const finish = () => {
+      this.resourceFloaters.delete(floater);
+      if (!floater.destroyed) floater.destroy();
+    };
+    if (!this.motionEnabled) {
+      gsap.delayedCall(0.7, finish);
+      return;
+    }
+    gsap.to(floater, {
+      alpha: 0,
+      y: y - 22,
+      duration: 0.8,
+      ease: "power1.out",
+      onComplete: finish,
+    });
+  }
+
   private washDamage(): void {
     const gt = this.theme.gameTheme;
     const r = this.avatarDia / 2;
@@ -1532,6 +1618,11 @@ export class PlayerHudCapsule {
     gsap.killTweensOf(this.damageWash);
     for (const chip of this.chips) gsap.killTweensOf(chip.sprite);
     for (const dot of this.sparkles.children) gsap.killTweensOf(dot);
+    for (const floater of this.resourceFloaters) {
+      gsap.killTweensOf(floater);
+      floater.destroy();
+    }
+    this.resourceFloaters.clear();
     this.onHover(null);
     this.container.destroy({ children: true });
   }

@@ -32,6 +32,8 @@ export interface PreviewSnapshot {
   card: PreviewCard | null;
   sticky: boolean;
   showBackFace: boolean;
+  canNavigatePrevious: boolean;
+  canNavigateNext: boolean;
   mousePos: { x: number; y: number };
   anchorRect: DOMRect | null;
   placement: PreviewPlacement;
@@ -42,6 +44,8 @@ const HIDDEN: PreviewSnapshot = {
   card: null,
   sticky: false,
   showBackFace: false,
+  canNavigatePrevious: false,
+  canNavigateNext: false,
   mousePos: { x: 0, y: 0 },
   anchorRect: null,
   placement: "auto",
@@ -55,6 +59,7 @@ export class CardPreviewMachine {
   private exitTimer: ReturnType<typeof setTimeout> | null = null;
   private pointerOnPreview = false;
   private lastVisibleAt = 0;
+  private sequence: PreviewCard[] = [];
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
@@ -125,6 +130,40 @@ export class CardPreviewMachine {
     this.emit({ ...this.snapshot, showBackFace: !this.snapshot.showBackFace });
   }
 
+  setSequence(cards: readonly PreviewCard[]): void {
+    const seen = new Set<string>();
+    this.sequence = cards.filter((card) => {
+      if (seen.has(card.id)) return false;
+      seen.add(card.id);
+      return true;
+    });
+    if (!this.snapshot.card) return;
+    const navigation = this.navigationState(this.snapshot.card.id);
+    if (
+      navigation.canNavigatePrevious === this.snapshot.canNavigatePrevious &&
+      navigation.canNavigateNext === this.snapshot.canNavigateNext
+    ) {
+      return;
+    }
+    this.emit({ ...this.snapshot, ...navigation });
+  }
+
+  navigate(offset: -1 | 1): void {
+    if (!this.snapshot.sticky || !this.snapshot.card) return;
+    const index = this.sequence.findIndex((card) => card.id === this.snapshot.card?.id);
+    const card = this.sequence[index + offset];
+    if (!card) return;
+    this.open(
+      card,
+      {
+        pointer: this.snapshot.mousePos,
+        anchorRect: this.snapshot.anchorRect,
+        placement: this.snapshot.placement,
+      },
+      true,
+    );
+  }
+
   dismiss(): void {
     this.clearShowTimer();
     this.clearGraceTimer();
@@ -152,6 +191,7 @@ export class CardPreviewMachine {
       mousePos: options.pointer ?? this.snapshot.mousePos,
       anchorRect: options.anchorRect ?? null,
       placement: options.placement ?? "auto",
+      ...this.navigationState(card.id),
     });
   }
 
@@ -170,6 +210,16 @@ export class CardPreviewMachine {
     if (snapshot === this.snapshot) return;
     this.snapshot = snapshot;
     for (const listener of this.listeners) listener();
+  }
+
+  private navigationState(
+    cardId: string,
+  ): Pick<PreviewSnapshot, "canNavigatePrevious" | "canNavigateNext"> {
+    const index = this.sequence.findIndex((card) => card.id === cardId);
+    return {
+      canNavigatePrevious: index > 0,
+      canNavigateNext: index >= 0 && index < this.sequence.length - 1,
+    };
   }
 
   private clearShowTimer(): void {

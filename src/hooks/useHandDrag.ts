@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { CardDto } from "@/protocol/game";
 import { LONG_PRESS_CANCEL_DIST_SQ } from "@/lib/responsive";
 import { LongPressTimer } from "@/lib/longPress";
+import { haptic } from "@/lib/haptics";
+import { playGameAudioCue } from "@/lib/gameAudio";
 
 export interface HandDragStart {
   clientX: number;
@@ -39,12 +41,30 @@ export function useHandDrag({
   const [ghostPos, setGhostPos] = useState({ x: 0, y: 0 });
   const [isOverBattlefield, setIsOverBattlefield] = useState(false);
   const [isOverHand, setIsOverHand] = useState(false);
+  const [dragFeedback, setDragFeedback] = useState<string | null>(null);
+  const [rejectionFeedback, setRejectionFeedback] = useState<{
+    x: number;
+    y: number;
+    message: string;
+  } | null>(null);
   const teardownRef = useRef<(() => void) | null>(null);
+  const rejectionTimer = useRef<number | null>(null);
 
-  useEffect(() => () => teardownRef.current?.(), []);
+  useEffect(
+    () => () => {
+      teardownRef.current?.();
+      if (rejectionTimer.current !== null) window.clearTimeout(rejectionTimer.current);
+    },
+    [],
+  );
 
   function startHandCardDrag(card: CardDto, start: HandDragStart, intent: HandDragIntent) {
     dismissHover();
+    setRejectionFeedback(null);
+    if (rejectionTimer.current !== null) {
+      window.clearTimeout(rejectionTimer.current);
+      rejectionTimer.current = null;
+    }
     teardownRef.current?.();
 
     const isTouch = start.pointerType === "touch";
@@ -56,6 +76,7 @@ export function useHandDrag({
       setDraggingHandCard(null);
       setIsOverBattlefield(false);
       setIsOverHand(false);
+      setDragFeedback(null);
     };
 
     const teardown = () => {
@@ -103,6 +124,7 @@ export function useHandDrag({
         moved = true;
         longPress.cancel();
         setDraggingHandCard(card);
+        haptic("select");
       }
 
       dismissHover();
@@ -113,6 +135,9 @@ export function useHandDrag({
       });
       setIsOverBattlefield(overBattlefield);
       setIsOverHand(overHand);
+      setDragFeedback(
+        intent.canCast && !overBattlefield && !overHand ? "Drop on your battlefield to cast" : null,
+      );
     };
 
     const handlePointerUp = (event: PointerEvent) => {
@@ -121,10 +146,28 @@ export function useHandDrag({
       if (!moved) {
         onClickCard(card, { clientX: event.clientX, clientY: event.clientY });
       } else {
-        const { overBattlefield } = classifyPosition(event.clientX, event.clientY);
+        const { overBattlefield, overHand } = classifyPosition(event.clientX, event.clientY);
         if (overBattlefield) {
+          haptic("confirm");
+          playGameAudioCue("confirm");
           onBattlefieldDrop?.(card, { clientX: event.clientX, clientY: event.clientY });
           onCastSpell(card.id);
+        } else if (overHand) {
+          haptic("confirm");
+          playGameAudioCue("confirm");
+        } else if (intent.canCast) {
+          haptic("warn");
+          playGameAudioCue("reject");
+          setRejectionFeedback({
+            x: event.clientX,
+            y: event.clientY,
+            message: "Drop on your battlefield to cast this card",
+          });
+          if (rejectionTimer.current !== null) window.clearTimeout(rejectionTimer.current);
+          rejectionTimer.current = window.setTimeout(() => {
+            rejectionTimer.current = null;
+            setRejectionFeedback(null);
+          }, 1200);
         }
       }
       reset();
@@ -159,6 +202,8 @@ export function useHandDrag({
     ghostPos,
     isOverBattlefield,
     isOverHand,
+    dragFeedback,
+    rejectionFeedback,
     startHandCardDrag,
   };
 }

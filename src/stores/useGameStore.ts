@@ -164,6 +164,7 @@ async function initializeGame({
       gameView: null,
       currentPrompt: null,
       gameLog: [],
+      protocolError: null,
       snapshots: [],
       deferredQueue: [],
       isFlashing: false,
@@ -254,6 +255,7 @@ async function initializeGame({
     gameView: null,
     currentPrompt: null,
     gameLog: [],
+    protocolError: null,
     snapshots: [],
     deferredQueue: [],
     isFlashing: false,
@@ -324,6 +326,7 @@ export const useGameStore = create<GameState>()(
       gameView: null,
       currentPrompt: null,
       gameLog: [],
+      protocolError: null,
       snapshots: [],
       isGameActive: false,
       debugInfo: "",
@@ -524,6 +527,7 @@ export const useGameStore = create<GameState>()(
             gameView: null,
             currentPrompt: null,
             gameLog: [],
+            protocolError: null,
             snapshots: [],
             deferredQueue: [],
             isFlashing: false,
@@ -588,6 +592,10 @@ export const useGameStore = create<GameState>()(
         }
       },
       respond: async (output) => {
+        if (get().isMultiplayer && useServerStore.getState().reconnect.phase !== "idle") {
+          console.warn(`[store] respond(${output.type}) ignored — reconnecting`);
+          return;
+        }
         const promptType = get().currentPrompt?.input.type;
         if (!promptType) {
           console.warn("[store] respond() called with no active prompt");
@@ -614,6 +622,7 @@ export const useGameStore = create<GameState>()(
         try {
           noteAnswerSent();
           set({
+            protocolError: null,
             isWaitingForResponse: true,
             relinquishedPriority,
             debugInfo: `Responding: ${output.type}`,
@@ -680,6 +689,7 @@ export const useGameStore = create<GameState>()(
           gameView: null,
           currentPrompt: null,
           gameLog: [],
+          protocolError: null,
           snapshots: [],
           deferredQueue: [],
           isFlashing: false,

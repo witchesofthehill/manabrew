@@ -1,7 +1,31 @@
-import { Github, Layers, Swords } from "lucide-react";
+import { Eye, Github, Layers, Move, Swords, type LucideIcon } from "lucide-react";
 import { GITHUB_REPO_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-const GUIDE_SECTIONS = [
+import { useIsTouch } from "@/hooks/useBreakpoints";
+interface GuideSection {
+  heading: string;
+  icon: LucideIcon;
+  body: string;
+  link?: {
+    label: string;
+    href: string;
+  };
+}
+
+const MOBILE_GUIDE_SECTIONS: GuideSection[] = [
+  {
+    heading: `Inspect cards with touch`,
+    icon: Eye,
+    body: `Tap a card to pin its preview. Swipe sideways for adjacent cards, swipe up to flip or rotate, and swipe down or tap outside to close.`,
+  },
+  {
+    heading: `Move cards with confidence`,
+    icon: Move,
+    body: `Drag a playable card toward the highlighted battlefield. The action pill shows priority, Autopass, and Full control before you pass.`,
+  },
+];
+
+const GUIDE_SECTIONS: GuideSection[] = [
   {
     heading: `Play with friends`,
     icon: Swords,
@@ -24,9 +48,11 @@ const GUIDE_SECTIONS = [
 ];
 
 export function OnboardingGuide({ compact = false }: { compact?: boolean }) {
+  const isTouch = useIsTouch();
+  const sections = isTouch ? [...MOBILE_GUIDE_SECTIONS, ...GUIDE_SECTIONS] : GUIDE_SECTIONS;
   return (
     <div className={cn("space-y-3", compact && "space-y-2")}>
-      {GUIDE_SECTIONS.map((section) => (
+      {sections.map((section) => (
         <section
           key={section.heading}
           className={cn(

@@ -32,6 +32,7 @@ export const CARD_SIZE_MULTIPLIER_MIN = 0.75;
 // the classic 3-row size on ANY display — a knob past 150% would be a lie
 // (the old 300% top was one: everything saturated around 150%).
 export const CARD_SIZE_MULTIPLIER_MAX = 1.5;
+const clampVolume = (value: number) => Math.max(0, Math.min(1, value));
 
 export interface PreferencesState {
   appThemePreset: string;
@@ -160,6 +161,12 @@ export interface PreferencesState {
   setTableBackground: (background: BoardBackgroundId) => void;
   hapticFeedback: boolean;
   setHapticFeedback: (enabled: boolean) => void;
+  musicVolume: number;
+  effectsVolume: number;
+  interfaceVolume: number;
+  setMusicVolume: (volume: number) => void;
+  setEffectsVolume: (volume: number) => void;
+  setInterfaceVolume: (volume: number) => void;
   setMobileHandedness: (handedness: "right" | "left") => void;
 }
 
@@ -186,6 +193,9 @@ const PERSISTED_PREFERENCE_KEYS = [
   "inGameAnimations",
   "mobileHandedness",
   "hapticFeedback",
+  "musicVolume",
+  "effectsVolume",
+  "interfaceVolume",
   "chooseOrderOnMultipleTriggers",
   "ironsmithRuntimeEnabled",
   "directTransport",
@@ -358,6 +368,13 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           hapticFeedback: true,
           setHapticFeedback: (hapticFeedback) => set({ hapticFeedback }),
+          musicVolume: 0,
+          effectsVolume: 0.45,
+          interfaceVolume: 0.35,
+          setMusicVolume: (musicVolume) => set({ musicVolume: clampVolume(musicVolume) }),
+          setEffectsVolume: (effectsVolume) => set({ effectsVolume: clampVolume(effectsVolume) }),
+          setInterfaceVolume: (interfaceVolume) =>
+            set({ interfaceVolume: clampVolume(interfaceVolume) }),
 
           mobileHandedness: "right",
           setMobileHandedness: (mobileHandedness) => set({ mobileHandedness }),

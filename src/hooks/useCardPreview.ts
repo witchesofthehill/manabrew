@@ -71,6 +71,12 @@ export function useCardPreview(
   const onMouseLeavePreview = useCallback(() => machine.pointerLeavePreview(), [machine]);
   const dismiss = useCallback(() => machine.dismiss(), [machine]);
   const flipCard = useCallback(() => machine.flip(), [machine]);
+  const setSequence = useCallback(
+    (cards: readonly CardDto[]) => machine.setSequence(cards),
+    [machine],
+  );
+  const navigatePrevious = useCallback(() => machine.navigate(-1), [machine]);
+  const navigateNext = useCallback(() => machine.navigate(1), [machine]);
 
   const showSticky = useCallback(
     (
@@ -118,8 +124,13 @@ export function useCardPreview(
     placement: snapshot.placement,
     showBackFace: snapshot.showBackFace,
     isSticky: snapshot.sticky,
+    canNavigatePrevious: snapshot.canNavigatePrevious,
+    canNavigateNext: snapshot.canNavigateNext,
     dismiss,
     flipCard,
+    setSequence,
+    navigatePrevious,
+    navigateNext,
     handleMouseEnter,
     handleMouseLeave,
     onMouseEnterPreview,

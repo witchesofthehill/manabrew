@@ -43,6 +43,8 @@ import { LongPressGesture } from "@/pixi/LongPressGesture";
 import type { ScreenBounds } from "@/pixi/types";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
+import { haptic } from "@/lib/haptics";
+import { playGameAudioCue } from "@/lib/gameAudio";
 import {
   DRAG_LIFT_SCALE,
   dragPositionBlend,
@@ -1093,6 +1095,7 @@ export abstract class PromptLayerBase {
 
   protected startDragFeedback(drag: DragState): void {
     drag.hasMoved = true;
+    haptic("select");
     drag.item.cursor = "grabbing";
     drag.item.alpha = 1;
     if (drag.dragScale !== DRAG_LIFT_SCALE) {
@@ -1175,6 +1178,8 @@ export abstract class PromptLayerBase {
     }
     this.suppressedTapItems.add(drag.item);
     const dropPosition = drag.resolveDropPosition?.(event.global.x, event.global.y);
+    haptic(drag.resolveDropPosition && dropPosition === null ? "warn" : "confirm");
+    playGameAudioCue(drag.resolveDropPosition && dropPosition === null ? "reject" : "confirm");
     const preserveScale = drag.preserveScaleOnDrop && dropPosition !== null;
     gsap.killTweensOf(drag.item.scale);
     const destination = drag.resolveDropPosition

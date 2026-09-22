@@ -40,6 +40,7 @@ export class StackLayer implements StackAnchorProvider {
     showPreStackFlash: false,
     collapsed: false,
   };
+  private retiringSprites = new Set<StackCardSprite>();
   private hoveredId: string | null = null;
   private viewW = 0;
   private viewH = 0;
@@ -212,10 +213,26 @@ export class StackLayer implements StackAnchorProvider {
     }
     for (const [id, sprite] of [...this.sprites]) {
       if (seen.has(id)) continue;
-      sprite.destroy();
       this.sprites.delete(id);
       this.faceOverrides.delete(id);
       this.rulesViewOverrides.delete(id);
+      if (!animationsEnabled()) {
+        sprite.destroy();
+        continue;
+      }
+      this.retiringSprites.add(sprite);
+      sprite.container.eventMode = "none";
+      gsap.to(sprite.container, {
+        alpha: 0,
+        y: sprite.container.y - 22,
+        duration: 0.24,
+        ease: "power2.in",
+        onComplete: () => {
+          this.retiringSprites.delete(sprite);
+          sprite.destroy();
+          this.callbacks.onRenderRequested?.();
+        },
+      });
     }
     const nextHoveredId = reconcileStackHover(this.hoveredId, incoming, replacements);
     if (nextHoveredId !== this.hoveredId) {
@@ -239,6 +256,11 @@ export class StackLayer implements StackAnchorProvider {
     gsap.killTweensOf(this.btnGlow.scale);
     gsap.killTweensOf(this.btn.scale);
     for (const sprite of this.sprites.values()) sprite.destroy();
+    for (const sprite of this.retiringSprites) {
+      gsap.killTweensOf(sprite.container);
+      sprite.destroy();
+    }
+    this.retiringSprites.clear();
     this.sprites.clear();
     this.flashSprite?.destroy();
     this.container.destroy({ children: true });
@@ -342,6 +364,7 @@ export class StackLayer implements StackAnchorProvider {
     ) {
       return true;
     }
+    if (this.retiringSprites.size > 0) return true;
     if (
       this.flashSprite &&
       (!this.flashSprite.imageSettled ||

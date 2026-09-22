@@ -32,6 +32,9 @@ export function BoardDevControls() {
     "FPS",
     "Frame",
     "Observed range",
+    "Session average",
+    "Jank",
+    "Thermal",
   );
   const showBoardGuides = matchesDevPanelSearch(
     query,
@@ -74,6 +77,9 @@ export function BoardDevControls() {
   const fps = stats?.fps.toFixed(1) ?? "—";
   const frameMs = stats?.deltaMs.toFixed(1) ?? "—";
   const range = stats ? `${stats.minFps.toFixed(0)}–${stats.maxFps.toFixed(0)}` : "—";
+  const sessionFps = stats?.sessionFps.toFixed(1) ?? "—";
+  const jank = stats ? `${stats.jankPercent.toFixed(1)}%` : "—";
+  const sessionMinutes = stats?.sessionMinutes.toFixed(1) ?? "—";
   const fpsColor =
     stats == null
       ? "text-muted-foreground"
@@ -99,8 +105,10 @@ export function BoardDevControls() {
             </div>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <Metric label={`Frame`} value={`${frameMs} ms`} />
-            <Metric label={`Observed range`} value={range} />
+            <Metric label="Frame" value={`${frameMs} ms`} />
+            <Metric label="Observed range" value={range} />
+            <Metric label="Session average" value={`${sessionFps} FPS`} />
+            <Metric label={`Jank · ${sessionMinutes} min`} value={jank} />
           </div>
         </section>
       ) : null}

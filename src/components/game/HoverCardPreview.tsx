@@ -47,6 +47,8 @@ export function HoverCardPreview({
       onSelectAction={onSelectAction}
       onDismiss={preview.dismiss}
       onFlip={preview.flipCard}
+      onNavigatePrevious={preview.canNavigatePrevious ? preview.navigatePrevious : undefined}
+      onNavigateNext={preview.canNavigateNext ? preview.navigateNext : undefined}
       onToggleView={onToggleView}
       onMouseEnter={preview.onMouseEnterPreview}
       onMouseLeave={preview.onMouseLeavePreview}

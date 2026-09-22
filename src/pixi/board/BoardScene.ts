@@ -203,6 +203,10 @@ export class BoardScene {
   private perfMinFps = Infinity;
   private perfMaxFps = 0;
   private perfLastFlush = 0;
+  private perfSessionFrames = 0;
+  private perfSessionDelta = 0;
+  private perfJankFrames = 0;
+  private perfSessionStarted = performance.now();
 
   private regions = new Map<string, RegionRecord>();
   private localPlayerId: string | null = null;
@@ -2348,6 +2352,11 @@ export class BoardScene {
     const ticker = this.app.ticker;
     this.perfFrames += 1;
     this.perfTotalDelta += ticker.deltaMS;
+    if (ticker.deltaMS < 250) {
+      this.perfSessionFrames += 1;
+      this.perfSessionDelta += ticker.deltaMS;
+      if (ticker.deltaMS > 1000 / 45) this.perfJankFrames += 1;
+    }
     const fps = ticker.FPS;
     if (fps < this.perfMinFps) this.perfMinFps = fps;
     if (fps > this.perfMaxFps) this.perfMaxFps = fps;
@@ -2359,6 +2368,9 @@ export class BoardScene {
       minFps: this.perfMinFps === Infinity ? 0 : this.perfMinFps,
       maxFps: this.perfMaxFps,
       deltaMs: this.perfTotalDelta / Math.max(1, this.perfFrames),
+      sessionFps: this.perfSessionFrames / Math.max(0.001, this.perfSessionDelta / 1000),
+      sessionMinutes: (now - this.perfSessionStarted) / 60_000,
+      jankPercent: (this.perfJankFrames / Math.max(1, this.perfSessionFrames)) * 100,
     });
     this.perfFrames = 0;
     this.perfTotalDelta = 0;

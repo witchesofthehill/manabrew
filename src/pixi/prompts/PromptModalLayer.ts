@@ -2180,7 +2180,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         tile,
         (x, y) => this.dropScryCard(id, x, y),
         (x, y) => this.scryDropPosition(id, x, y),
-        undefined,
+        (dragX, dragY) => this.autoScrollScryPool(dragX, dragY),
         SCRY_POOL_DRAG_SCALE,
         true,
       );
@@ -2281,6 +2281,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
             tile,
             (x, y) => this.dropScryCard(id, x, y),
             (x, y) => this.scryDropPosition(id, x, y),
+            (dragX, dragY) => this.autoScrollScryPool(dragX, dragY),
           );
         }
         this.placeScryCardTile(body, tile, id, tileX, tileY);
@@ -2311,6 +2312,24 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     );
     confirm.position.set(poolWidth - confirm.buttonWidth, 0);
     footer.addChild(confirm);
+  }
+
+  protected autoScrollScryPool(x: number, y: number): void {
+    if (this.scryPoolScrollMax <= 0) return;
+    const zone = this.dropZones.find((candidate) => candidate.id === "pool");
+    if (!zone) return;
+    const point = zone.container.toLocal({ x, y });
+    const edge = Math.min(48, zone.rect.width / 4);
+    if (point.y < zone.rect.top - edge || point.y > zone.rect.bottom + edge) return;
+    const direction =
+      point.x < zone.rect.left + edge ? -1 : point.x > zone.rect.right - edge ? 1 : 0;
+    if (direction === 0) return;
+    this.scryPoolScrollTarget = Math.max(
+      0,
+      Math.min(this.scryPoolScrollMax, this.scryPoolScrollTarget + direction * 24),
+    );
+    this.setScryPoolScrollOffset(this.scryPoolScrollTarget);
+    this.callbacks.onRenderRequested?.();
   }
 
   protected scrollScryPool(event: FederatedWheelEvent): void {

@@ -1,6 +1,6 @@
 import { topModal } from "@/lib/modalStack";
 import { createPortal } from "react-dom";
-import { Loader2, RotateCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, RotateCw } from "lucide-react";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import { CounterDisplay } from "@/components/game/CounterBadge";
@@ -48,6 +48,8 @@ interface CardPreviewProps {
   onDismiss?: () => void;
   onFlip?: () => void;
   onToggleView?: () => void;
+  onNavigatePrevious?: () => void;
+  onNavigateNext?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   isSticky?: boolean;
@@ -133,6 +135,8 @@ export function CardPreview({
   onDismiss,
   onFlip,
   onToggleView,
+  onNavigatePrevious,
+  onNavigateNext,
   onMouseEnter,
   onMouseLeave,
   isSticky = false,
@@ -200,6 +204,7 @@ export function CardPreview({
   const previewFaceIndex = showBackFace ? 1 : 0;
   const railEffects = rail ? deriveCardRailEffects(card, rail) : [];
   const panelRef = useRef<HTMLDivElement>(null);
+  const swipeRef = useRef<{ pointerId: number; x: number; y: number } | null>(null);
   const [panelHeight, setPanelHeight] = useState(0);
   const [, setLayoutVersion] = useState(0);
   // The hero zoom travels across the hovered card; an interactive preview
@@ -353,7 +358,36 @@ export function CardPreview({
           : doubleFacedData.frontImageUrlLow
         : resolveImageUrl(0, "normal");
   const cardLookupPending = !isDebugCard && cardFaces.faces.length === 0;
-  const hasPreviewControls = Boolean(onToggleView || (hasDoubleFace && onFlip));
+  const hasPreviewControls = Boolean(onToggleView || (hasDoubleFace && onFlip) || isSticky);
+  const handlePreviewPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isSticky || event.pointerType !== "touch") return;
+    swipeRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const handlePreviewPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    const start = swipeRef.current;
+    swipeRef.current = null;
+    if (!start || start.pointerId !== event.pointerId) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    const horizontal = Math.abs(dx) > Math.abs(dy);
+    if (horizontal && Math.abs(dx) >= 48) {
+      if (dx > 0) onNavigatePrevious?.();
+      else onNavigateNext?.();
+      event.preventDefault();
+      return;
+    }
+    if (!horizontal && dy >= 64) {
+      onDismiss?.();
+      event.preventDefault();
+      return;
+    }
+    if (!horizontal && dy <= -64) {
+      if (hasDoubleFace && onFlip) onFlip();
+      else onToggleView?.();
+      event.preventDefault();
+    }
+  };
   return createPortal(
     <>
       {hasActions && isSticky && !suppressed && (
@@ -376,7 +410,14 @@ export function CardPreview({
                   : "pointer-events-none",
               ),
         )}
-        style={slot ? undefined : { left: cardLeft, top }}
+        style={
+          slot ? undefined : { left: cardLeft, top, touchAction: isSticky ? "none" : undefined }
+        }
+        onPointerDown={handlePreviewPointerDown}
+        onPointerUp={handlePreviewPointerUp}
+        onPointerCancel={() => {
+          swipeRef.current = null;
+        }}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
       >
@@ -441,7 +482,7 @@ export function CardPreview({
                           onToggleView();
                         }}
                         className={cn(
-                          "inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/65 text-white shadow hover:bg-black/85 pointer-coarse:h-9 pointer-coarse:w-9",
+                          "inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white shadow hover:bg-black/85 pointer-coarse:h-11 pointer-coarse:w-11",
                           interactive ? "pointer-events-auto" : "pointer-events-none",
                         )}
                         aria-label={`Show rules`}
@@ -458,7 +499,7 @@ export function CardPreview({
                           onFlip();
                         }}
                         className={cn(
-                          "inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:px-3 pointer-coarse:py-2",
+                          "inline-flex min-h-8 items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:min-h-11 pointer-coarse:px-3",
                           interactive ? "pointer-events-auto" : "pointer-events-none",
                         )}
                         title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
@@ -467,6 +508,34 @@ export function CardPreview({
                         {showBackFace ? `Front` : `Back`}
                       </button>
                     )}
+                  </div>
+                )}
+                {isSticky && (onNavigatePrevious || onNavigateNext) && (
+                  <div className="absolute inset-x-2 bottom-2 z-20 flex items-center justify-between">
+                    <button
+                      type="button"
+                      aria-label="Previous card"
+                      disabled={!onNavigatePrevious}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onNavigatePrevious?.();
+                      }}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/65 text-white shadow disabled:opacity-30"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Next card"
+                      disabled={!onNavigateNext}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onNavigateNext?.();
+                      }}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/65 text-white shadow disabled:opacity-30"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
                   </div>
                 )}
               </>

@@ -229,8 +229,8 @@ export function useGameEventListeners() {
     const fetchInitialState = async () => {
       try {
         const prompt = normalizeEnginePrompt(await runtime.api.getPrompt());
-        if (prompt && !getState().currentPrompt) {
-          applyPrompt(prompt, "Initial", setState, getState);
+        if (prompt && prompt.promptId !== getState().currentPrompt?.promptId) {
+          applyPrompt(prompt, "Resume", setState, getState);
         }
       } catch (e) {
         console.debug("[useGameEventListeners] Could not fetch initial state:", e);
@@ -240,6 +240,13 @@ export function useGameEventListeners() {
     if (getState().isMultiplayer && !getState().isHost) {
       void platform.server?.requestResync();
     }
+    const handleVisibilityChange = () => {
+      if (document.hidden) return;
+      void fetchInitialState();
+      const state = getState();
+      if (state.isMultiplayer && !state.isHost) void platform.server?.requestResync();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     try {
       unsubscribers.push(
         platform.events.on<StateUpdate>("game:state", (payload) => {
@@ -461,6 +468,7 @@ export function useGameEventListeners() {
       console.error("[hook] Failed to setup listeners:", e);
     }
     return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       unsubscribers.forEach((fn) => fn());
     };
   }, []);

@@ -2663,6 +2663,13 @@ export default function Game({ exitTo }: GameProps = {}) {
         abilityPickerState={liveAbilityPicker}
         onSelectAbility={respondHandAction}
         onCancelAbilityPicker={closeAbilityPicker}
+        onLongPressCard={(card, rect) => {
+          setCommandPreviewSource(null);
+          commandZonePreview.dismiss();
+          preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2, rect, {
+            allowOverModal: true,
+          });
+        }}
       />
 
       {playModePicker && (

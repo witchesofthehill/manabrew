@@ -32,6 +32,7 @@ interface DialogCardPickerGridProps {
   onHover: (id: string | null) => void;
   onScroll: (top: number) => void;
   onChange: (item: CardBrowserItem, state: CardInspectionState) => void;
+  onLongPressCard?: (card: CardBrowserItem["card"], anchor: DOMRect) => void;
 }
 
 export function DialogCardPickerGrid({
@@ -46,6 +47,7 @@ export function DialogCardPickerGrid({
   onHover,
   onScroll,
   onChange,
+  onLongPressCard,
 }: DialogCardPickerGridProps) {
   const host = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState(() => ({
@@ -234,6 +236,7 @@ export function DialogCardPickerGrid({
           onActivate={onActivate}
           onHover={onHover}
           onChange={onChange}
+          onLongPressCard={onLongPressCard}
         />
         {visible.map((item, offset) => {
           const index = start + offset;

@@ -1,4 +1,4 @@
-import { Application, Graphics } from "pixi.js";
+import { Application, Graphics, type FederatedPointerEvent } from "pixi.js";
 import type { CardDto } from "@/protocol/game";
 import {
   CARD_H,
@@ -16,6 +16,7 @@ import { animationsEnabled } from "@/pixi/effects/enabled";
 import { OverlayRenderScheduler, overlayResolution } from "@/pixi/overlay/overlayRuntime";
 import { gsap } from "@/pixi/effects/gsap";
 import { destroyPixiApp } from "@/pixi/pixiPatches";
+import { LongPressGesture } from "@/pixi/LongPressGesture";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { isFacelessCard } from "@/lib/gameCard";
 import { getTheme } from "@/hooks/useTheme";
@@ -48,6 +49,7 @@ export interface DialogCardPickerSceneProps {
   onActivate?: (item: CardBrowserItem) => void;
   onHover: (id: string | null) => void;
   onChange: (item: CardBrowserItem, state: CardInspectionState) => void;
+  onLongPressCard?: (card: CardDto, anchor: DOMRect) => void;
 }
 
 interface CardEntry {
@@ -73,6 +75,9 @@ export class DialogCardPickerScene {
   private unsubscribe: (() => void) | null = null;
   private unbindPreviewScroll: (() => void) | null = null;
   private activeUntil = 0;
+  private readonly longPress = new LongPressGesture();
+  private longPressPointerId: number | null = null;
+  private longPressCardId: string | null = null;
 
   private hoveredId: string | null = null;
   constructor(
@@ -146,6 +151,7 @@ export class DialogCardPickerScene {
     const visibleIds = new Set(props.items.map((item) => item.id));
     for (const [id, entry] of this.entries) {
       if (visibleIds.has(id)) continue;
+      if (this.longPressCardId === id) this.resetLongPress();
       if (this.hoveredId === id) {
         this.hoveredId = null;
         this.props.onHover(null);
@@ -232,6 +238,7 @@ export class DialogCardPickerScene {
 
   destroy(): void {
     this.disposed = true;
+    this.resetLongPress();
     this.unsubscribe?.();
     this.unbindPreviewScroll?.();
     this.unbindPreviewScroll = null;
@@ -288,7 +295,25 @@ export class DialogCardPickerScene {
         event.stopPropagation();
         this.activate(item.id);
       });
-      sprite.on("pointerdown", (event) => event.stopPropagation());
+      sprite.on("pointerdown", (event: FederatedPointerEvent) => {
+        event.stopPropagation();
+        if (event.pointerType !== "touch" || !this.props.onLongPressCard) return;
+        this.longPress.reset();
+        this.longPressPointerId = event.pointerId;
+        this.longPressCardId = item.id;
+        this.longPress.start(event, item.id, () => this.inspectLongPress(item.id, sprite));
+      });
+      sprite.on("globalpointermove", (event: FederatedPointerEvent) => {
+        if (event.pointerId === this.longPressPointerId) {
+          this.longPress.move(event.global.x, event.global.y);
+        }
+      });
+      sprite.on("pointerup", this.finishLongPress);
+      sprite.on("pointerupoutside", this.finishLongPress);
+      sprite.on("pointercancel", this.finishLongPress);
+      sprite.on("pointertapcapture", (event: FederatedPointerEvent) => {
+        if (this.longPress.consumeTap(item.id)) event.stopImmediatePropagation();
+      });
       sprite.on("pointerenter", () => this.setHovered(item.id, true));
       sprite.on("pointerleave", () => this.setHovered(item.id, false));
       sprite.on("pointerdowncapture", () => this.setHovered(item.id, true));
@@ -310,6 +335,38 @@ export class DialogCardPickerScene {
       entry.viewKey = "";
     }
     return entry;
+  }
+
+  private readonly finishLongPress = (event: FederatedPointerEvent) => {
+    if (event.pointerId !== this.longPressPointerId) return;
+    this.longPressPointerId = null;
+    this.longPressCardId = null;
+    this.longPress.cancel();
+    this.longPress.releaseFired();
+  };
+
+  private resetLongPress(): void {
+    this.longPress.reset();
+    this.longPressPointerId = null;
+    this.longPressCardId = null;
+  }
+
+  private inspectLongPress(id: string, sprite: CardSprite): void {
+    const item = this.props.items.find((candidate) => candidate.id === id);
+    if (!item) return;
+    const bounds = sprite.getBounds();
+    const canvasBounds = this.canvas.getBoundingClientRect();
+    const scaleX = canvasBounds.width / this.app.screen.width;
+    const scaleY = canvasBounds.height / this.app.screen.height;
+    this.props.onLongPressCard?.(
+      item.card,
+      new DOMRect(
+        canvasBounds.left + bounds.x * scaleX,
+        canvasBounds.top + bounds.y * scaleY,
+        bounds.width * scaleX,
+        bounds.height * scaleY,
+      ),
+    );
   }
 
   private inspectionFor(item: CardBrowserItem): CardInspectionState {

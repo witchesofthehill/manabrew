@@ -260,6 +260,14 @@ export function MobileGameScene({
             <DialogCardBrowser
               items={revealBrowseCards.map((card) => ({ id: card.id, card }))}
               picker
+              onLongPressCard={(card, rect) =>
+                boardCallbacks.onLongPressCard?.(card, {
+                  x: rect.x,
+                  y: rect.y,
+                  width: rect.width,
+                  height: rect.height,
+                })
+              }
             />
           </Modal>
         )}

@@ -595,20 +595,12 @@ export const useScryfallStore = create<ScryfallState>()(
       getCardTexture: async (deckCard, variant = "full", faceIndex = 0) => {
         const pick = (u: ScryfallImageUris | undefined) =>
           variant === "art" ? u?.art_crop : u?.border_crop;
-        const useStoredUris = get().locale === DEFAULT_SCRYFALL_LANGUAGE;
-        let url = useStoredUris
-          ? faceIndex === 0
-            ? pick(deckCard.uris)
-            : pick(deckCard.backFace?.uris)
-          : undefined;
-        if (!url) {
-          const entry = await get().getCard({
-            name: deckCard.identity.name,
-            setCode: deckCard.identity.setCode || undefined,
-            collectorNumber: deckCard.identity.cardNumber || undefined,
-          });
-          url = pick(cardFaceImageUris(entry.info, entry.uris, faceIndex));
-        }
+        const entry = await get().getCard({
+          name: deckCard.identity.name,
+          setCode: deckCard.identity.setCode || undefined,
+          collectorNumber: deckCard.identity.cardNumber || undefined,
+        });
+        const url = pick(cardFaceImageUris(entry.info, entry.uris, faceIndex));
         if (!url) return Texture.EMPTY;
 
         const cached = getCachedTexture(url);

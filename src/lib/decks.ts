@@ -48,7 +48,6 @@ function resolveDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard | 
             card.identity.cardNumber.toLowerCase() === cardNumber.toLowerCase(),
         )
       : undefined;
-  if (exact) return exact;
   if (isToken) {
     const exactToken = gameCard.isCopy ? null : peekArchivedToken({ setCode, cardNumber });
     const semanticToken = tokenScript ? peekArchivedToken({ tokenScript }) : exactToken;
@@ -59,6 +58,7 @@ function resolveDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard | 
     }
     if (tokenScript && semanticToken) return semanticToken;
     if (exactToken) return exactToken;
+    if (exact && normalizeTokenName(exact.identity.name) === normalizeTokenName(name)) return exact;
     const target = normalizeTokenName(name);
     const byName = pool.find(
       (c) => c.identity.name === name || normalizeTokenName(c.identity.name) === target,
@@ -67,6 +67,7 @@ function resolveDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard | 
     const token = peekArchivedToken({ name });
     if (token) return token;
   }
+  if (exact && !isToken) return exact;
   // Mirrors the engine's `get_by_card_name`, which splits on " // ".
   const matchesName = (deckName: string) =>
     deckName === name || deckName.split(" // ").includes(name);

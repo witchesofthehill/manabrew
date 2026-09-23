@@ -686,6 +686,7 @@ export const useDeckStore = create<DeckState>()(
                 oracleId: scryfallCard.oracle_id,
               },
               uris,
+              imageLanguage: scryfallCard.lang,
             });
             return {
               currentDeck: patchDeckCards(state.currentDeck, updates),
@@ -704,6 +705,7 @@ export const useDeckStore = create<DeckState>()(
                   ...(foil === undefined ? {} : { foil }),
                 },
                 uris,
+                imageLanguage: scryfallCard.lang,
               }),
             };
           }),
@@ -720,6 +722,7 @@ export const useDeckStore = create<DeckState>()(
                   foil: availablePrintingFoil(printing, scryfallCard),
                 },
                 uris,
+                imageLanguage: scryfallCard.lang,
               }),
             };
           }),
@@ -742,6 +745,7 @@ export const useDeckStore = create<DeckState>()(
                 oracleId: scryfallCard.oracle_id,
               },
               uris,
+              imageLanguage: scryfallCard.lang,
             };
             const existing = state.currentDeck.tokens ?? [];
             const replaced = existing.some((candidate) => tokenIdentityKey(candidate) === key);

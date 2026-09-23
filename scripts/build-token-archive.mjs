@@ -5,7 +5,7 @@ import path from "path";
 
 const SCRYFALL_API = "https://api.scryfall.com";
 const DEFAULT_OUT = "public/token_archive.json";
-const TOKEN_SEARCH_QUERY = "include:extras type:token";
+const TOKEN_SEARCH_QUERY = "include:extras type:token lang:any";
 const FORGE_CARDS_DIR = "forge/forge-gui/res/cardsfolder";
 const FORGE_EDITIONS_DIR = "forge/forge-gui/res/editions";
 
@@ -120,6 +120,21 @@ function imageUris(card) {
   };
 }
 
+function backFace(card) {
+  const face = card.card_faces?.[1];
+  if (!face?.image_uris) return undefined;
+  const { small, normal, large, png, art_crop, border_crop } = face.image_uris;
+  return {
+    name: face.name,
+    manaCost: face.mana_cost ?? "",
+    typeLine: face.type_line ?? "",
+    oracleText: face.oracle_text ?? "",
+    power: face.power,
+    toughness: face.toughness,
+    uris: { small, normal, large, png, art_crop, border_crop },
+  };
+}
+
 function deckCardFromScryfallToken(card) {
   const face = frontFace(card);
   const uris = imageUris(card);
@@ -149,6 +164,8 @@ function deckCardFromScryfallToken(card) {
     toughness: face.toughness ?? card.toughness,
     text: face.oracle_text ?? card.oracle_text ?? "",
     uris,
+    imageLanguage: card.lang,
+    backFace: backFace(card),
     isDoubleFaced: card.layout === "double_faced_token" || undefined,
     layout: card.layout || undefined,
   };
@@ -231,13 +248,16 @@ function buildArchive(cards) {
     if (nameCmp !== 0) return nameCmp;
     const setCmp = String(a.identity.setCode).localeCompare(String(b.identity.setCode));
     if (setCmp !== 0) return setCmp;
-    return String(a.identity.cardNumber).localeCompare(String(b.identity.cardNumber), undefined, {
-      numeric: true,
-    });
+    const numberCmp = String(a.identity.cardNumber).localeCompare(
+      String(b.identity.cardNumber),
+      undefined,
+      { numeric: true },
+    );
+    return numberCmp || a.imageLanguage.localeCompare(b.imageLanguage);
   });
 
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     generatedAt: new Date().toISOString(),
     source: {
       type: "scryfall-search",

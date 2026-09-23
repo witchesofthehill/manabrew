@@ -9,6 +9,8 @@ use manabrew_protocol::deck_dto::{
 use manabrew_protocol::game::EngineKind;
 use serde::Deserialize;
 
+const PRESET_IMAGE_LANGUAGE: &str = "en";
+
 pub struct PresetDeck {
     pub key: String,
     pub deck: Deck,
@@ -127,6 +129,7 @@ fn expand_preset_deck(key: &str, preset: PresetDeckFile) -> io::Result<Deck> {
                     back_face: entry.back_face.clone(),
                 },
                 uris: entry.uris.clone(),
+                image_language: Some(PRESET_IMAGE_LANGUAGE.to_string()),
                 all_parts: entry.all_parts.clone(),
             };
             index += 1;

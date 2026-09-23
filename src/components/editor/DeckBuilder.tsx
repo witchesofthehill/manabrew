@@ -49,6 +49,7 @@ import { toast } from "sonner";
 import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
 import type { DeckCard, DeckCardIdentity } from "@/protocol/deck";
 import type { ScryfallCard } from "@/types/scryfall";
+import type { ScryfallLanguage } from "@/i18n/locales";
 import type { EditorDeck } from "@/types/manabrew";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import {
@@ -160,6 +161,15 @@ import { DeckSaveConflictDialog } from "./DeckSaveConflictDialog";
 import { DeckStatusSummary } from "./DeckStatusSummary";
 import { PrintingOptimizerDialog } from "./PrintingOptimizerDialog";
 import { PreviewCardInfo } from "./PreviewCardInfo";
+function enrichmentKey(
+  locale: ScryfallLanguage,
+  name: string,
+  setCode: string,
+  cardNumber: string,
+): string {
+  return `${locale}::${name.toLowerCase()}::${setCode.toLowerCase()}::${cardNumber.toLowerCase()}`;
+}
+
 type DeckSyncState = "saved" | "saving" | "local" | "synced" | "failed";
 export function DeckBuilder({
   onToggleSearch,
@@ -454,6 +464,7 @@ export function DeckBuilder({
   useDeckRoles();
   useCardCollection();
   const collectionQuantities = useCollectionStore((state) => state.quantities);
+  const scryfallLocale = useScryfallStore((state) => state.locale);
   const comboCardNames = useDeckAnalysisStore((state) => state.comboCardNames);
   const gameChangerNames = useDeckAnalysisStore((state) => state.gameChangerNames);
   const ownershipByName = useMemo(
@@ -481,14 +492,17 @@ export function DeckBuilder({
   const { setNodeRef: setMaybeDropRef, isOver: isOverMaybe } = useDroppable({
     id: DROP_ZONE.MAYBE,
   });
-  // Auto-enrich cards missing CMC/mana data, or missing the allParts / backFace
-  // contract (legacy saved decks predate these fields).
   useEffect(() => {
     const allCards = [...currentDeck.cards, ...supplementaryCards];
     const toFetch = allCards
       .filter((card) => {
-        const key = `${card.identity.name.toLowerCase()}::${card.identity.setCode.toLowerCase()}::${card.identity.cardNumber.toLowerCase()}`;
-        return !enrichedCardsRef.current.has(key) && needsScryfallEnrichment(card);
+        const key = enrichmentKey(
+          scryfallLocale,
+          card.identity.name,
+          card.identity.setCode,
+          card.identity.cardNumber,
+        );
+        return !enrichedCardsRef.current.has(key) && needsScryfallEnrichment(card, scryfallLocale);
       })
       .map((card) => ({
         name: card.identity.name,
@@ -504,11 +518,10 @@ export function DeckBuilder({
         ]),
       ).values(),
     ];
-    uniqueCards.forEach((card) =>
-      enrichedCardsRef.current.add(
-        `${card.name.toLowerCase()}::${card.setCode.toLowerCase()}::${card.collectorNumber.toLowerCase()}`,
-      ),
-    );
+    uniqueCards.forEach((card) => {
+      const key = enrichmentKey(scryfallLocale, card.name, card.setCode, card.collectorNumber);
+      enrichedCardsRef.current.add(key);
+    });
     useScryfallStore
       .getState()
       .fetchCardCollection(uniqueCards)
@@ -525,7 +538,7 @@ export function DeckBuilder({
       .catch((err) => {
         console.warn("[DeckBuilder] Failed to enrich card images:", err);
       });
-  }, [currentDeck.cards, supplementaryCards, enrichDeckCards]);
+  }, [currentDeck.cards, supplementaryCards, enrichDeckCards, scryfallLocale]);
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") clearSelection();

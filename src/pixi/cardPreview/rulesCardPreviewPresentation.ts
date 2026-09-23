@@ -65,7 +65,7 @@ interface LocalizedFaceText {
 
 interface TranslationLine {
   canonical: string;
-  localized: string;
+  localized: string | null;
 }
 
 const translationLinesByCard = new WeakMap<ScryfallCard, Map<number, TranslationLine[]>>();
@@ -129,6 +129,19 @@ function editDistanceWithin(left: string, right: string, threshold: number): num
   return distance <= threshold ? distance : null;
 }
 
+function abilityCost(text: string): string | null {
+  return (
+    text
+      .trim()
+      .match(/^((?:\{[^{}]+\}[,\s、，]*)+)[:：]/)?.[1]
+      ?.replace(/[,\s、，]/g, "") ?? null
+  );
+}
+
+function withoutAbilityCost(text: string): string {
+  return text.replace(/^(?:\{[^{}]+\}[,\s、，]*)+[:：]\s*/, "");
+}
+
 function translationLines(info: ScryfallCard, faceIndex: number): TranslationLine[] {
   let cardEntries = translationLinesByCard.get(info);
   if (!cardEntries) {
@@ -140,10 +153,52 @@ function translationLines(info: ScryfallCard, faceIndex: number): TranslationLin
   const face = localizedFaceText(info, faceIndex);
   const canonicalLines = face?.canonicalRulesText.split("\n") ?? [];
   const localizedLines = face?.displayRulesText.split("\n") ?? [];
-  const entries = canonicalLines.slice(0, localizedLines.length).map((canonical, index) => ({
+  const entries: TranslationLine[] = canonicalLines.map((canonical) => ({
     canonical: translationComparisonText(canonical),
-    localized: localizedLines[index]!.trim(),
+    localized: null,
   }));
+  if (canonicalLines.length === localizedLines.length) {
+    entries.forEach((entry, index) => {
+      entry.localized = localizedLines[index]!.trim();
+    });
+  } else {
+    const canonicalByCost = new Map<string, number[]>();
+    const localizedByCost = new Map<string, number[]>();
+    canonicalLines.forEach((line, index) => {
+      const cost = abilityCost(line);
+      if (cost) {
+        const indices = canonicalByCost.get(cost);
+        if (indices) indices.push(index);
+        else canonicalByCost.set(cost, [index]);
+      }
+    });
+    localizedLines.forEach((line, index) => {
+      const cost = abilityCost(line);
+      if (cost) {
+        const indices = localizedByCost.get(cost);
+        if (indices) indices.push(index);
+        else localizedByCost.set(cost, [index]);
+      }
+    });
+    const pairs: [number, number][] = [];
+    for (const [cost, canonicalIndices] of canonicalByCost) {
+      const localizedIndices = localizedByCost.get(cost);
+      if (localizedIndices?.length !== canonicalIndices.length) continue;
+      canonicalIndices.forEach((canonicalIndex, index) => {
+        pairs.push([canonicalIndex, localizedIndices[index]!]);
+      });
+    }
+    pairs.sort(([left], [right]) => left - right);
+    if (
+      pairs.every(
+        ([, localizedIndex], index) => index === 0 || localizedIndex > pairs[index - 1]![1],
+      )
+    ) {
+      for (const [canonicalIndex, localizedIndex] of pairs) {
+        entries[canonicalIndex]!.localized = localizedLines[localizedIndex]!.trim();
+      }
+    }
+  }
   cardEntries.set(faceIndex, entries);
   return entries;
 }
@@ -163,17 +218,28 @@ export function localizeRulesPreviewText(
     .map((line) => {
       const comparison = translationComparisonText(line);
       if (!comparison) return line;
+      const hasCost = abilityCost(comparison) !== null;
       let match: TranslationLine | null = null;
       let minimumDistance = comparison.length;
+      let ambiguous = false;
       for (const candidate of mappings) {
-        const threshold = Math.floor(Math.min(candidate.canonical.length, comparison.length) / 3);
-        const distance = editDistanceWithin(candidate.canonical, comparison, threshold);
+        const canonical = hasCost ? candidate.canonical : withoutAbilityCost(candidate.canonical);
+        const threshold = Math.floor(Math.min(canonical.length, comparison.length) / 3);
+        const distance = editDistanceWithin(canonical, comparison, threshold);
         if (distance !== null && distance < minimumDistance) {
           minimumDistance = distance;
           match = candidate;
+          ambiguous = false;
+        } else if (
+          distance !== null &&
+          distance === minimumDistance &&
+          candidate.localized !== match?.localized
+        ) {
+          ambiguous = true;
         }
       }
-      return match?.localized ?? line;
+      if (ambiguous || !match?.localized) return line;
+      return hasCost ? match.localized : withoutAbilityCost(match.localized);
     })
     .join("\n");
 }

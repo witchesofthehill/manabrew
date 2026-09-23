@@ -1,7 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { isFacelessCard } from "@/lib/gameCard";
+import { asGameDeckCard } from "@/lib/decks";
+import { useGameStore } from "@/stores/useGameStore";
 import type { CardBrowserItem } from "./cardBrowser";
+
+function cardLookup(card: CardBrowserItem["card"]) {
+  const identity = card.identity.isToken
+    ? asGameDeckCard(useGameStore.getState().gameDecks, card).identity
+    : card.identity;
+  return {
+    name: identity.name,
+    setCode: identity.setCode || undefined,
+    cardNumber: identity.cardNumber || undefined,
+  };
+}
 
 export function useBrowserSearchItems(items: CardBrowserItem[]) {
   const bucket = useScryfallStore((s) => s.cards);
@@ -17,12 +30,7 @@ export function useBrowserSearchItems(items: CardBrowserItem[]) {
       ).values(),
     ];
     const missing = unique.filter(
-      (card) =>
-        !peekCard(useScryfallStore.getState().cards, {
-          name: card.identity.name,
-          setCode: card.identity.setCode || undefined,
-          cardNumber: card.identity.cardNumber || undefined,
-        }),
+      (card) => !peekCard(useScryfallStore.getState().cards, cardLookup(card)),
     );
     void (async () => {
       setLoading(missing.length > 0);
@@ -30,11 +38,7 @@ export function useBrowserSearchItems(items: CardBrowserItem[]) {
       for (const card of missing) {
         if (!active) break;
         try {
-          await useScryfallStore.getState().getCard({
-            name: card.identity.name,
-            setCode: card.identity.setCode || undefined,
-            cardNumber: card.identity.cardNumber || undefined,
-          });
+          await useScryfallStore.getState().getCard(cardLookup(card));
         } catch {
           if (active) setIncomplete(true);
         }
@@ -49,11 +53,7 @@ export function useBrowserSearchItems(items: CardBrowserItem[]) {
     () =>
       items.map((item) => {
         if (isFacelessCard(item.card)) return item;
-        const info = peekCard(bucket, {
-          name: item.card.identity.name,
-          setCode: item.card.identity.setCode || undefined,
-          cardNumber: item.card.identity.cardNumber || undefined,
-        });
+        const info = peekCard(bucket, cardLookup(item.card));
         return {
           ...item,
           searchText: [

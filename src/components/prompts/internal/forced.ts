@@ -75,7 +75,7 @@ export const forcedCardChoice: PromptResolver<"chooseCards"> = (prompt) => {
     return {
       kind: "auto",
       respond: { type: "chooseCardsDecision", chosenCardIds: [] },
-      reason: "no cards to choose",
+      reason: `no cards to choose`,
     };
   }
   if (min >= ids.length) {
@@ -120,7 +120,7 @@ export const emptyScry: PromptResolver<"scry"> = (prompt) => {
   return {
     kind: "auto",
     respond: { type: "scryDecision", zoneCardIds: prompt.input.zones.map(() => []) },
-    reason: "scry with 0 revealed cards",
+    reason: `scry with 0 revealed cards`,
   };
 };
 
@@ -138,7 +138,7 @@ export const singleCardOrder: PromptResolver<"reorder"> = (prompt) => {
     return {
       kind: "auto",
       respond: { type: "reorderDecision", orderedIds: shuffled(ids) },
-      reason: "trigger ordering disabled — random order",
+      reason: `trigger ordering disabled — random order`,
     };
   }
   return { kind: "force-show" };

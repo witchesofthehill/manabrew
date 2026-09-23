@@ -26,8 +26,33 @@ public final class ParityCardMap {
     private static final Map<Integer, Integer> CARD_TO_PARITY = new HashMap<>();
     private static int nextParityId = 1;
     private static boolean initialized = false;
+    /**
+     * Set while a snapshot is being taken. {@link #parityId} syncs the whole
+     * map with the game before every lookup, and a snapshot looks up every
+     * card on the board, so on a wide board the sync ran hundreds of times per
+     * prompt and was most of the snapshot's cost. Nothing changes the game
+     * while its snapshot is taken, so one sync at the start is the same map.
+     */
+    private static final ThreadLocal<Boolean> SNAPSHOT_SYNCED =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
 
     private ParityCardMap() {}
+
+    /**
+     * Syncs once for a snapshot and holds the map still until {@link #endSnapshot}.
+     * Nesting is not expected; an inner begin is a no-op and the outer end wins.
+     */
+    public static void beginSnapshot(final Game game) {
+        if (SNAPSHOT_SYNCED.get()) {
+            return;
+        }
+        syncWithGame(game);
+        SNAPSHOT_SYNCED.set(Boolean.TRUE);
+    }
+
+    public static void endSnapshot() {
+        SNAPSHOT_SYNCED.set(Boolean.FALSE);
+    }
 
     public static synchronized void reset() {
         CARD_TO_PARITY.clear();
@@ -85,7 +110,9 @@ public final class ParityCardMap {
         if (c == null) {
             return Integer.MAX_VALUE;
         }
-        syncWithGame(c.getGame());
+        if (!SNAPSHOT_SYNCED.get()) {
+            syncWithGame(c.getGame());
+        }
 
         final Integer existing = CARD_TO_PARITY.get(c.getId());
         if (existing != null) {

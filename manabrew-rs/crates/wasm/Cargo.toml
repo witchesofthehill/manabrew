@@ -1,6 +1,6 @@
 [package]
 name = "wasm"
-version = "0.10.0"
+version = "0.10.10"
 edition = "2021"
 publish = false
 description = "WASM bindings for the manabrew-engine MTG rules engine"
@@ -33,7 +33,7 @@ web-sys = { version = "0.3", features = [
 
 # Serialization
 serde = { workspace = true }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["raw_value"] }
 
 # RNG for WASM (enables crypto.getRandomValues in browser)
 getrandom = { version = "0.2", features = ["js"] }

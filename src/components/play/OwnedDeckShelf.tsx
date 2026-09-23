@@ -4,7 +4,6 @@ import { DECK_SHELF_CARD_CLASS, DeckShelfRow } from "@/components/play/DeckShelf
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { SavedDeck } from "@/stores/useDeckStore";
-
 interface OwnedDeckShelfProps {
   decks: SavedDeck[];
   lastPlayedDeckId: string | null;
@@ -15,7 +14,6 @@ interface OwnedDeckShelfProps {
   onPlayDeck: (deck: SavedDeck) => void;
   onViewPreset: (presetKey: string) => void;
 }
-
 export function OwnedDeckShelf({
   decks,
   lastPlayedDeckId,
@@ -41,9 +39,8 @@ export function OwnedDeckShelf({
       </div>
     );
   }
-
   return (
-    <DeckShelfRow label="My decks">
+    <DeckShelfRow label={`My decks`}>
       {decks.map((deck) => {
         const presetKey = presetKeyByDeckId[deck.id];
         return (

@@ -9,7 +9,6 @@ import {
   WalletCards,
 } from "lucide-react";
 import { toast } from "sonner";
-
 import { scryfallCardKey } from "@/api/scryfall";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,9 +29,7 @@ import {
   cheapestCompatiblePrinting,
   supportsPrintingFinish,
 } from "./printingOptimizer";
-
 type OptimizerPolicy = "owned" | "cheapest" | "nonfoil";
-
 interface PrintingChange {
   cardId: string;
   name: string;
@@ -41,14 +38,12 @@ interface PrintingChange {
   print?: ScryfallCard;
   targetFoil?: boolean;
 }
-
 interface PrintingSkip {
   cardId: string;
   name: string;
   printing: string;
   reason: string;
 }
-
 export function PrintingOptimizerDialog({
   open,
   onOpenChange,
@@ -65,7 +60,6 @@ export function PrintingOptimizerDialog({
   const abortControllerRef = useRef<AbortController | null>(null);
   const deck = useDeckStore((state) => state.currentDeck);
   const quantities = useCollectionStore((state) => state.quantities);
-
   const allCards = [
     ...deck.cards,
     ...deck.sideboard,
@@ -85,7 +79,6 @@ export function PrintingOptimizerDialog({
       ]),
     ).values(),
   ];
-
   async function buildProposal(policy: OptimizerPolicy) {
     const sessionId = useDeckStore.getState().editorSessionId;
     setProposalSessionId(sessionId);
@@ -119,14 +112,14 @@ export function PrintingOptimizerDialog({
               cardId: card.identity.id,
               name: card.identity.name,
               printing,
-              reason: "Printing could not be resolved",
+              reason: `Printing could not be resolved`,
             });
           } else if (!supportsPrintingFinish(print, false)) {
             unresolved.push({
               cardId: card.identity.id,
               name: card.identity.name,
               printing,
-              reason: "This printing is foil-only",
+              reason: `This printing is foil-only`,
             });
           } else {
             proposal.push({
@@ -211,16 +204,16 @@ export function PrintingOptimizerDialog({
         }
       }
       if (useDeckStore.getState().editorSessionId !== sessionId) {
-        throw new Error("The open deck changed while printings were being checked");
+        throw new Error(`The open deck changed while printings were being checked`);
       }
       setChanges(proposal);
       setSkipped(unresolved);
       if (proposal.length === 0 && unresolved.length === 0) {
-        toast.info("The selected policy would not change this deck");
+        toast.info(`The selected policy would not change this deck`);
       }
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
-        toast.error(error instanceof Error ? error.message : "Could not optimize deck printings");
+        toast.error(error instanceof Error ? error.message : `Could not optimize deck printings`);
       }
     } finally {
       if (abortControllerRef.current === abortController) {
@@ -230,10 +223,9 @@ export function PrintingOptimizerDialog({
       }
     }
   }
-
   function applyProposal() {
     if (proposalSessionId !== useDeckStore.getState().editorSessionId) {
-      toast.error("The open deck changed. Build the printing proposal again.");
+      toast.error(`The open deck changed. Build the printing proposal again.`);
       setChanges([]);
       setSkipped([]);
       return;
@@ -248,13 +240,14 @@ export function PrintingOptimizerDialog({
       }
     });
     toast.success(
-      `Updated ${changes.length} card ${changes.length === 1 ? "printing" : "printings"}`,
+      changes.length === 1
+        ? `Updated one card printing`
+        : `Updated ${changes.length} card printings`,
     );
     setChanges([]);
     setSkipped([]);
     onOpenChange(false);
   }
-
   return (
     <Dialog
       open={open}
@@ -280,7 +273,7 @@ export function PrintingOptimizerDialog({
         <div className="grid gap-3 sm:grid-cols-3">
           <PolicyButton
             icon={WalletCards}
-            label="Owned printings"
+            label={`Owned printings`}
             detail="Match the exact copies and finishes you own"
             selected={selectedPolicy === "owned"}
             busy={loading === "owned"}
@@ -289,7 +282,7 @@ export function PrintingOptimizerDialog({
           />
           <PolicyButton
             icon={BadgeDollarSign}
-            label="Cheapest printings"
+            label={`Cheapest printings`}
             detail="Minimize the deck price using your chosen provider"
             selected={selectedPolicy === "cheapest"}
             busy={loading === "cheapest"}
@@ -298,7 +291,7 @@ export function PrintingOptimizerDialog({
           />
           <PolicyButton
             icon={Layers3}
-            label="All non-foil"
+            label={`All non-foil`}
             detail="Keep every printing and normalize the finish"
             selected={selectedPolicy === "nonfoil"}
             busy={loading === "nonfoil"}
@@ -364,8 +357,9 @@ export function PrintingOptimizerDialog({
               <div>
                 <p className="font-medium">Proposal ready</p>
                 <p className="text-xs text-muted-foreground">
-                  {changes.length} {changes.length === 1 ? "copy" : "copies"} will change · one
-                  undoable edit
+                  {changes.length === 1
+                    ? `One copy will change · one undoable edit`
+                    : `${changes.length} copies will change · one undoable edit`}
                 </p>
               </div>
               <Button
@@ -406,8 +400,10 @@ export function PrintingOptimizerDialog({
           <div className="space-y-2 rounded-lg border border-warning/40 bg-warning/5 p-3">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm font-medium text-warning">
-                <TriangleAlert className="h-4 w-4" /> Could not convert {skipped.length}{" "}
-                {skipped.length === 1 ? "copy" : "copies"}
+                <TriangleAlert className="h-4 w-4" />
+                {skipped.length === 1
+                  ? `Could not convert one copy`
+                  : `Could not convert ${skipped.length} copies`}
               </div>
               {changes.length === 0 && (
                 <Button variant="ghost" size="sm" onClick={() => setSkipped([])}>
@@ -434,7 +430,6 @@ export function PrintingOptimizerDialog({
     </Dialog>
   );
 }
-
 function PolicyButton({
   icon: Icon,
   label,

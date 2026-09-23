@@ -1,6 +1,5 @@
 import { Modal } from "./Modal";
 import { Button } from "@/components/ui/button";
-
 interface EliminatedModalProps {
   heading: string;
   hosting: boolean;
@@ -16,8 +15,8 @@ export function EliminatedModal({ heading, hosting, onObserve, onLeave }: Elimin
       <Modal.Body className="text-sm">
         <p>
           {hosting
-            ? "Your seat is out, but this app still hosts the table. Stay connected so the other players can finish. You can leave through the game menu, which will warn you before ending their game."
-            : "Your seat is out. Keep watching the table, or explicitly leave when you are ready."}
+            ? `Your seat is out, but this app still hosts the table. Stay connected so the other players can finish. You can leave through the game menu, which will warn you before ending their game.`
+            : `Your seat is out. Keep watching the table, or explicitly leave when you are ready.`}
         </p>
       </Modal.Body>
       <Modal.Footer>

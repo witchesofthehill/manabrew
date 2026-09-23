@@ -15,13 +15,10 @@ import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useServerStore } from "@/stores/useServerStore";
-
 const NO_GAME_FOUND_AFTER_MS = 5000;
-
 const rlog = (...args: unknown[]) => {
   if (isPromptLoggingEnabled()) console.log("[resume]", ...args);
 };
-
 export function useGameSessionResume() {
   const navigate = useNavigate();
   const connected = useServerStore((s) => s.connected);
@@ -34,11 +31,9 @@ export function useGameSessionResume() {
   const resyncRequested = useRef(false);
   const respawnedBots = useRef(new Set<string>());
   const cancellationHandled = useRef(false);
-
   useEffect(() => {
     rlog("mount: session marker =", session);
   }, [session]);
-
   useEffect(() => {
     if (!session || !isActiveGameSessionAtPageLoadCurrent()) return;
     let cancelled = false;
@@ -61,12 +56,11 @@ export function useGameSessionResume() {
           useServerStore.setState({ hostingForgeRoom: false });
           await useServerStore.getState().leaveRoom();
           if (localRelayRunning && session.relayHost) await stopLocalHostedAiRelay();
-          toast.info("Your previous desktop Forge game ended when the app closed.");
+          toast.info(`Your previous desktop Forge game ended when the app closed.`);
           navigate("/lobby", { replace: true });
           return;
         }
       }
-
       if (cancelled) return;
       const server = useServerStore.getState();
       if (session.ownsForgeHost) {
@@ -100,7 +94,6 @@ export function useGameSessionResume() {
       cancelled = true;
     };
   }, [session, navigate]);
-
   useEffect(() => {
     if (!session) return;
     rlog(
@@ -108,7 +101,6 @@ export function useGameSessionResume() {
         ` room=${currentRoom ? `{id:'${currentRoom.room_id}', status:'${currentRoom.status}', host:'${currentRoom.host}', players:[${currentRoom.players.map((p) => `${p.username}${p.is_bot ? "(bot)" : ""}:${p.connected ? "on" : "off"}`).join(", ")}]}` : "null"}`,
     );
   }, [session, connected, currentRoom, username]);
-
   useEffect(() => {
     if (!session || isActiveGameSessionAtPageLoadCurrent()) return;
     if (!cancellationHandled.current && !settled.current) {
@@ -122,7 +114,6 @@ export function useGameSessionResume() {
       useServerStore.setState({ gameStarted: false });
     }
   }, [session, connected, currentRoom, gameStarted]);
-
   useEffect(() => {
     if (!session || settled.current || !connected || !currentRoom) return;
     if (isActiveGameSessionAbandonmentPending()) return;
@@ -146,7 +137,7 @@ export function useGameSessionResume() {
       clearActiveGameSession();
       useServerStore.setState({ gameId: session.gameId });
       void useServerStore.getState().endGame();
-      toast.error("Your game could not be resumed — the host left mid-game.");
+      toast.error(`Your game could not be resumed \u2014 the host left mid-game.`);
       navigate("/lobby", { replace: true });
       return;
     }
@@ -155,7 +146,6 @@ export function useGameSessionResume() {
     resyncRequested.current = true;
     void getPlatform().server?.requestResync();
   }, [session, connected, currentRoom, username, navigate]);
-
   useEffect(() => {
     if (!session || session.isHost) return;
     if (isActiveGameSessionAbandonmentPending()) return;
@@ -182,7 +172,6 @@ export function useGameSessionResume() {
       });
     }
   }, [session, connected, currentRoom]);
-
   useEffect(() => {
     if (!session || settled.current || !gameStarted) return;
     if (isActiveGameSessionAbandonmentPending()) return;
@@ -216,7 +205,6 @@ export function useGameSessionResume() {
     rlog("gameStarted-effect: navigating to /play");
     navigate("/play", { state: launch.state });
   }, [session, gameStarted, gameRoomId, currentRoom, navigate]);
-
   useEffect(() => {
     if (!session || settled.current || !connected) return;
     if (isActiveGameSessionAbandonmentPending()) return;
@@ -245,7 +233,7 @@ export function useGameSessionResume() {
       settled.current = true;
       clearActiveGameSession();
       void teardownForgeAiSession(session);
-      toast.info("Your previous game has ended.");
+      toast.info(`Your previous game has ended.`);
       navigate("/lobby", { replace: true });
     }, NO_GAME_FOUND_AFTER_MS);
     return () => clearTimeout(timer);

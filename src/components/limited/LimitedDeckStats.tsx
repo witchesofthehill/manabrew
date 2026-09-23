@@ -1,23 +1,18 @@
 import { useMemo } from "react";
-
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { countManaPips } from "@/lib/limited.utils";
 import { cn } from "@/lib/utils";
 import type { DraftCard } from "@/types/limited";
-
 interface Props {
   cards: DraftCard[];
   className?: string;
   compact?: boolean;
 }
-
 const COLOR_KEYS = ["W", "U", "B", "R", "G"] as const;
 type ColorKey = (typeof COLOR_KEYS)[number];
-
 export function LimitedDeckStats({ cards, className, compact = false }: Props) {
   const cacheBucket = useScryfallStore((s) => s.cards);
-
   const stats = useMemo(() => {
     const colors: Record<ColorKey, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
     const curve = [0, 0, 0, 0, 0, 0, 0];
@@ -26,7 +21,6 @@ export function LimitedDeckStats({ cards, className, compact = false }: Props) {
     let spells = 0;
     let nonland = 0;
     let curveSampleSize = 0;
-
     for (const card of cards) {
       const cached = peekCard(cacheBucket, {
         name: card.name,
@@ -40,13 +34,11 @@ export function LimitedDeckStats({ cards, className, compact = false }: Props) {
       if (isLand) lands += 1;
       else if (isCreature) creatures += 1;
       else spells += 1;
-
       if (!isLand) {
         nonland += 1;
         const cmc = Math.max(0, Math.min(6, Math.round(cached.cmc ?? 0)));
         curve[cmc] += 1;
         curveSampleSize += 1;
-
         const cost = cached.mana_cost ?? "";
         for (const key of COLOR_KEYS) {
           colors[key] += countManaPips(cost, key);
@@ -66,9 +58,7 @@ export function LimitedDeckStats({ cards, className, compact = false }: Props) {
       total: cards.length,
     };
   }, [cards, cacheBucket]);
-
   const colorTotal = COLOR_KEYS.reduce((acc, k) => acc + stats.colors[k], 0);
-
   return (
     <div
       className={cn(
@@ -82,9 +72,9 @@ export function LimitedDeckStats({ cards, className, compact = false }: Props) {
           Composition ({stats.total})
         </h3>
         <ul className="space-y-0.5">
-          <StatRow label="Creatures" value={stats.creatures} total={stats.total} />
-          <StatRow label="Spells" value={stats.spells} total={stats.total} />
-          <StatRow label="Lands" value={stats.lands} total={stats.total} />
+          <StatRow label={`Creatures`} value={stats.creatures} total={stats.total} />
+          <StatRow label={`Spells`} value={stats.spells} total={stats.total} />
+          <StatRow label={`Lands`} value={stats.lands} total={stats.total} />
         </ul>
       </section>
 
@@ -133,7 +123,6 @@ export function LimitedDeckStats({ cards, className, compact = false }: Props) {
     </div>
   );
 }
-
 function StatRow({ label, value, total }: { label: string; value: number; total: number }) {
   const pct = total ? Math.round((value / total) * 100) : 0;
   return (

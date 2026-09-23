@@ -14,9 +14,10 @@ import type { AccountAsset, AssetKind } from "@/api/hubTypes";
 import { formatBytes, useAssetStore, useAssetsAvailable } from "@/stores/useAssetStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { cn } from "@/lib/utils";
-
-const KIND_LABELS: Record<AssetKind, string> = { avatar: "Avatar", playmat: "Playmat" };
-
+const KIND_LABELS: Record<AssetKind, string> = {
+  avatar: `Avatar`,
+  playmat: `Playmat`,
+};
 export function MyAssetsSection() {
   const assets = useAssetStore((s) => s.assets);
   const usedBytes = useAssetStore((s) => s.usedBytes);
@@ -29,7 +30,6 @@ export function MyAssetsSection() {
   const [editing, setEditing] = useState<AccountAsset | null>(null);
   const [deleting, setDeleting] = useState<AccountAsset | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     if (!available || !accountId) return;
     let cancelled = false;
@@ -46,16 +46,12 @@ export function MyAssetsSection() {
       cancelled = true;
     };
   }, [available, accountId]);
-
   if (!available) return null;
-
   const usedPercent = quotaBytes > 0 ? Math.round(Math.min(1, usedBytes / quotaBytes) * 100) : 0;
-
   function beginReplace(asset: AccountAsset) {
     setEditing(asset);
     inputRef.current?.click();
   }
-
   async function onReplacePicked(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -68,7 +64,6 @@ export function MyAssetsSection() {
     }
     await useAssetStore.getState().replace(target.kind, file, target.id);
   }
-
   async function handleDelete() {
     const target = deleting;
     setDeleting(null);
@@ -79,7 +74,6 @@ export function MyAssetsSection() {
     }
     await useAssetStore.getState().remove(target.id);
   }
-
   return (
     <section className="space-y-4">
       <h2 className="text-lg font-semibold">Manage uploaded assets here</h2>
@@ -96,7 +90,7 @@ export function MyAssetsSection() {
           {loaded && (
             <div
               role="progressbar"
-              aria-label="Image storage used"
+              aria-label={`Image storage used`}
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={usedPercent}
@@ -176,7 +170,7 @@ export function MyAssetsSection() {
               disabled={busy}
               onClick={() => void handleDelete()}
             >
-              {busy ? "Deleting…" : "Delete"}
+              {busy ? `Deleting\u2026` : `Delete`}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -184,7 +178,6 @@ export function MyAssetsSection() {
     </section>
   );
 }
-
 function AssetTile({
   asset,
   busy,
@@ -218,7 +211,7 @@ function AssetTile({
           variant="ghost"
           size="icon"
           className="h-7 w-7 shrink-0"
-          title="Replace image"
+          title={`Replace image`}
           disabled={busy}
           onClick={onReplace}
         >
@@ -228,7 +221,7 @@ function AssetTile({
           variant="ghost"
           size="icon"
           className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
-          title="Delete image"
+          title={`Delete image`}
           disabled={busy}
           onClick={onDelete}
         >

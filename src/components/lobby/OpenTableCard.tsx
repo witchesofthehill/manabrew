@@ -8,14 +8,12 @@ import { stripUsernameTag } from "@/lib/username";
 import { cn } from "@/lib/utils";
 import { PROTOCOL_VERSION } from "@/protocol";
 import type { RoomInfo } from "@/types/server";
-
 interface OpenTableCardProps {
   room: RoomInfo;
   currentRoomId: string | null;
   joining: boolean;
   onJoin: (room: RoomInfo) => void;
 }
-
 export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTableCardProps) {
   const isMyRoom = room.room_id === currentRoomId;
   const isCompatible = room.protocol_version === PROTOCOL_VERSION;
@@ -29,7 +27,6 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
       ? room.sealed_config.set_code
       : null;
   const showHost = !room.official && !room.hosted;
-
   return (
     <article
       className={cn(
@@ -46,8 +43,8 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
         {room.official && (
           <span
             role="img"
-            aria-label="Official table"
-            title="Official table"
+            aria-label={`Official table`}
+            title={`Official table`}
             className="inline-flex shrink-0"
           >
             <BadgeCheck aria-hidden="true" className="h-4 w-4 text-primary" />
@@ -56,8 +53,8 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
         {room.password_protected && (
           <span
             role="img"
-            aria-label="Password-protected table"
-            title="Password-protected table"
+            aria-label={`Password-protected table`}
+            title={`Password-protected table`}
             className="inline-flex shrink-0"
           >
             <LockKeyhole aria-hidden="true" className="h-3.5 w-3.5 text-format-badge-amber" />
@@ -110,7 +107,7 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
             onClick={() => onJoin(room)}
           >
             <UserRoundPlus aria-hidden="true" className="h-3.5 w-3.5" />
-            {joining ? "Joining…" : "Join table"}
+            {joining ? `Joining\u2026` : `Join table`}
           </Button>
         ) : room.status === "InGame" ? (
           <span className="text-xs text-muted-foreground">Playing</span>

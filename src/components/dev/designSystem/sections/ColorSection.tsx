@@ -3,8 +3,10 @@ import type { ThemePreset, ThemeColors } from "@/themes";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { APP_THEME_COLOR_LABELS } from "@/themes/themeMetadata";
 import { Section, Subhead, Swatch, SwatchGrid } from "../kit";
-
-function groupGameColors(preset: ThemePreset): { name: string; entries: [string, string][] }[] {
+function groupGameColors(preset: ThemePreset): {
+  name: string;
+  entries: [string, string][];
+}[] {
   const groups = new Map<string, [string, string][]>();
   for (const [key, value] of Object.entries(preset.gameColors)) {
     const dot = key.indexOf(".");
@@ -15,7 +17,6 @@ function groupGameColors(preset: ThemePreset): { name: string; entries: [string,
   }
   return [...groups.entries()].map(([name, entries]) => ({ name, entries }));
 }
-
 function AppChrome({ colors, mode }: { colors: ThemeColors; mode: string }) {
   const g = (k: keyof ThemeColors) => colors[k];
   return (
@@ -127,7 +128,6 @@ function PresetCard({ preset }: { preset: ThemePreset }) {
     </div>
   );
 }
-
 export function ColorSection({ presetId }: { presetId: string }) {
   const preset = THEME_PRESETS.find((p) => p.id === presetId) ?? THEME_PRESETS[0]!;
   const appOverrides = usePreferencesStore((state) => state.appThemeColorOverrides);

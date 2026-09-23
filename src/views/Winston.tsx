@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,29 +24,25 @@ import { useCardPreview } from "@/hooks/useCardPreview";
 import { cn } from "@/lib/utils";
 import { useLimitedStore } from "@/stores/useLimitedStore";
 import { ScryfallImg } from "@/components/ScryfallImg";
-
 type WinstonMode = LimitedDraftMode;
-
 export default function Winston() {
-  const { winstonId } = useParams<{ winstonId: string }>();
+  const { winstonId } = useParams<{
+    winstonId: string;
+  }>();
   const activeWinston = useLimitedStore((s) => s.activeWinston);
   const refresh = useLimitedStore((s) => s.refreshWinstonState);
   const take = useLimitedStore((s) => s.winstonTake);
   const pass = useLimitedStore((s) => s.winstonPass);
   const lastError = useLimitedStore((s) => s.lastError);
-
   const [userMode, setUserMode] = useState<WinstonMode>("drafting");
   const [confirmDrawOpen, setConfirmDrawOpen] = useState(false);
-
   useEffect(() => {
     if (!winstonId) return;
     if (!activeWinston || activeWinston.sessionId !== winstonId) {
       refresh(winstonId);
     }
   }, [winstonId, activeWinston, refresh]);
-
   const mode: WinstonMode = activeWinston?.isComplete ? "building" : userMode;
-
   if (!activeWinston) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -59,7 +54,6 @@ export default function Winston() {
       </div>
     );
   }
-
   const handleTake = async () => {
     if (!winstonId || !activeWinston.awaitingHuman) return;
     try {
@@ -68,7 +62,6 @@ export default function Winston() {
       /* surfaced via lastError */
     }
   };
-
   const submitPass = async () => {
     if (!winstonId || !activeWinston.awaitingHuman) return;
     try {
@@ -77,13 +70,11 @@ export default function Winston() {
       /* surfaced via lastError */
     }
   };
-
   const pileCount = activeWinston.piles.length;
   const activeIdx =
     pileCount > 0 ? Math.min(Math.max(activeWinston.currentPile, 0), pileCount - 1) : 0;
   const canBuild = activeWinston.pickedPile.length >= 1;
   const passWillForceDraw = pileCount > 0 && activeIdx === pileCount - 1;
-
   const handlePass = async () => {
     if (passWillForceDraw) {
       setConfirmDrawOpen(true);
@@ -91,7 +82,6 @@ export default function Winston() {
     }
     await submitPass();
   };
-
   return (
     <div className="flex h-full flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
       <header className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-md border border-border/70 bg-background/95 px-3 py-2 shadow-sm backdrop-blur">
@@ -179,7 +169,6 @@ export default function Winston() {
     </div>
   );
 }
-
 interface DraftingViewProps {
   activeWinston: NonNullable<ReturnType<typeof useLimitedStore.getState>["activeWinston"]>;
   activeIdx: number;
@@ -188,7 +177,6 @@ interface DraftingViewProps {
   onPass: () => void;
   onJumpToBuild: () => void;
 }
-
 function DraftingView({
   activeWinston,
   activeIdx,
@@ -202,7 +190,6 @@ function DraftingView({
   const activePileEmpty =
     activeWinston.piles.length === 0 || activeWinston.piles[activeIdx].length === 0;
   const activePile = activeWinston.piles[activeIdx] ?? [];
-
   const activePilePanel = (
     <section className="flex min-h-0 flex-1 flex-col rounded-md border border-primary/50 bg-primary/5 motion-safe:animate-draft-pack-arrive">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 px-3 py-2">
@@ -245,7 +232,6 @@ function DraftingView({
       </div>
     </section>
   );
-
   const inactivePiles = (
     <section className="flex min-h-0 flex-col rounded-md border border-border/70 bg-card/20 p-3">
       <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -265,7 +251,6 @@ function DraftingView({
       </div>
     </section>
   );
-
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
       <LimitedWorkspaceTabs value={mobileTab} onChange={setMobileTab} packLabel="Piles" />
@@ -302,7 +287,6 @@ function DraftingView({
     </div>
   );
 }
-
 function FaceDownStack({ count, compact = false }: { count: number; compact?: boolean }) {
   if (count === 0) {
     return <p className="text-xs text-muted-foreground">(empty)</p>;
@@ -311,7 +295,7 @@ function FaceDownStack({ count, compact = false }: { count: number; compact?: bo
     <div className={cn("relative aspect-[5/7] w-full", compact && "mx-auto max-w-24")}>
       <ScryfallImg
         src={CARD_BACK_IMAGE_URL}
-        alt={`Face-down pile of ${count} card${count === 1 ? "" : "s"}`}
+        alt={count === 1 ? `Face-down pile of one card` : `Face-down pile of ${count} cards`}
         loading="lazy"
         className="absolute inset-0 h-full w-full rounded-md border border-border/40 object-cover shadow-sm"
       />

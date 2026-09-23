@@ -1,6 +1,5 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
-
 /** Nord aurora + frost + polar night hues, mapped to the shared game token
  *  schema. Dark-theme values — light mode currently piggy-backs on these
  *  for the game surface since the game is always rendered against the
@@ -38,11 +37,10 @@ const palette: BasePalette = {
   manaG: "#a3be8c",
   manaC: "#d8dee9",
 };
-
 const preset: ThemePreset = {
   id: "nord",
   name: "Nord",
-  description: "Arctic, cool blue-grey palette",
+  description: `Arctic, cool blue-grey palette`,
   light: {
     background: "#f3f4f6",
     foreground: "#2f3541",
@@ -97,5 +95,4 @@ const preset: ThemePreset = {
   },
   gameColors: buildGameColors(palette),
 };
-
 export default preset;

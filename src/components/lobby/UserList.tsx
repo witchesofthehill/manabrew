@@ -12,9 +12,7 @@ import type { LocalGameKind, PlayerInfo, RoomInfo, ServerErrorCode } from "@/typ
 import { cn } from "@/lib/utils";
 import { stripUsernameTag } from "@/lib/username";
 import { toast } from "sonner";
-
 export type ConnectionState = "connected" | "connecting" | "disconnected";
-
 interface UserListProps {
   players: PlayerInfo[];
   rooms: RoomInfo[];
@@ -27,35 +25,41 @@ interface UserListProps {
   onJoinRoom: (roomId: string, password?: string) => Promise<void>;
   invitesEnabled?: boolean;
 }
-
 const CONNECTION_STATUS: Record<
   ConnectionState,
-  { dot: string; text: string; label: string; Icon: typeof Wifi }
+  {
+    dot: string;
+    text: string;
+    label: string;
+    Icon: typeof Wifi;
+  }
 > = {
-  connected: { dot: "bg-success", text: "text-success", label: "Connected", Icon: Wifi },
+  connected: {
+    dot: "bg-success",
+    text: "text-success",
+    label: `Connected`,
+    Icon: Wifi,
+  },
   connecting: {
     dot: "bg-format-badge-amber",
     text: "text-muted-foreground",
-    label: "Connecting…",
+    label: `Connecting\u2026`,
     Icon: Loader2,
   },
   disconnected: {
     dot: "bg-destructive",
     text: "text-destructive",
-    label: "Disconnected",
+    label: `Disconnected`,
     Icon: WifiOff,
   },
 };
-
 const LOCAL_GAME_LABEL: Record<LocalGameKind, string> = {
-  Singleplayer: "Playing solo",
+  Singleplayer: `Playing solo`,
 };
-
 function playerStatus(room: RoomInfo | undefined, localGame?: LocalGameKind): string {
   if (!room) return localGame ? LOCAL_GAME_LABEL[localGame] : "Available";
   return room.status === "InGame" ? "In game" : "At a table";
 }
-
 // The relay should never surface one username twice, but a stale disconnected
 // session can briefly linger alongside a live reconnect; collapse them here,
 // keeping the connected entry.
@@ -69,7 +73,6 @@ function dedupePlayers(players: PlayerInfo[]): PlayerInfo[] {
   }
   return [...byUsername.values()];
 }
-
 export function UserList({
   players,
   rooms,
@@ -86,7 +89,6 @@ export function UserList({
   const sendInvite = useInviteStore((s) => s.send);
   const [passwordRoom, setPasswordRoom] = useState<RoomInfo | null>(null);
   const [search, setSearch] = useState("");
-
   const uniquePlayers = dedupePlayers(players);
   const myEntry = uniquePlayers.find(
     (p) =>
@@ -100,13 +102,11 @@ export function UserList({
   );
   const myUsername = myEntry?.username ?? currentUsername;
   const status = CONNECTION_STATUS[connectionState];
-
   const normalizedSearch = search.trim().toLowerCase();
   const filteredOthers =
     normalizedSearch === ""
       ? others
       : others.filter((p) => stripUsernameTag(p.username).toLowerCase().includes(normalizedSearch));
-
   const bucketOf = (p: PlayerInfo): "playing" | "atTable" | "available" => {
     const room = rooms.find((r) => r.room_id === p.room_id);
     // A game on the player's own machine has no room behind it, so the relay
@@ -121,7 +121,6 @@ export function UserList({
   const playing = filteredOthers.filter((p) => bucketOf(p) === "playing").sort(byName);
   const atTable = filteredOthers.filter((p) => bucketOf(p) === "atTable").sort(byName);
   const available = filteredOthers.filter((p) => bucketOf(p) === "available").sort(byName);
-
   async function handleJoinRoom(roomId: string, password?: string) {
     if (joiningRoomId) return;
     setJoiningRoomId(roomId);
@@ -131,12 +130,11 @@ export function UserList({
       if (password) throw error;
       const code = error instanceof Error ? error.message : "";
       const message = USER_FACING_ERROR_MESSAGES[code as ServerErrorCode];
-      toast.error(message ?? "Couldn't join the table.");
+      toast.error(message ?? `Couldn't join the table.`);
     } finally {
       setJoiningRoomId(null);
     }
   }
-
   function requestJoin(room: RoomInfo) {
     if (room.password_protected) {
       setPasswordRoom(room);
@@ -144,13 +142,11 @@ export function UserList({
       void handleJoinRoom(room.room_id);
     }
   }
-
   const canInvite =
     invitesEnabled &&
     currentRoom != null &&
     currentRoom.status === "Lobby" &&
     currentRoom.players.length < currentRoom.max_players;
-
   function renderPlayer(player: PlayerInfo, isCurrentPlayer = false) {
     const room = rooms.find((r) => r.room_id === player.room_id);
     const joinable =
@@ -182,7 +178,7 @@ export function UserList({
         onClick={() => requestJoin(room)}
         title={`Join ${room.room_name}`}
       >
-        {joiningRoomId === room.room_id ? "Joining…" : "Join"}
+        {joiningRoomId === room.room_id ? `Joining\u2026` : `Join`}
       </Button>
     ) : invitable ? (
       <Button
@@ -191,10 +187,10 @@ export function UserList({
         className={PLAYER_ROW_ACTION_CLASS}
         disabled={invited.has(player.username)}
         onClick={() => void sendInvite(player.username)}
-        title="Invite to your table"
+        title={`Invite to your table`}
       >
         <UserPlus className="h-3 w-3" />
-        {invited.has(player.username) ? "Invited" : "Invite"}
+        {invited.has(player.username) ? `Invited` : `Invite`}
       </Button>
     ) : null;
     return (
@@ -210,7 +206,6 @@ export function UserList({
       />
     );
   }
-
   function renderSection(label: string, count: number, rows: PlayerInfo[]) {
     if (rows.length === 0) return null;
     return (
@@ -225,7 +220,6 @@ export function UserList({
       </div>
     );
   }
-
   return (
     <div className="flex flex-col h-full">
       <div className="px-4 h-14 shrink-0 flex items-center gap-2">
@@ -251,7 +245,7 @@ export function UserList({
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search players…"
+            placeholder={`Search players\u2026`}
             className="h-8 pl-8 text-sm"
           />
         </div>

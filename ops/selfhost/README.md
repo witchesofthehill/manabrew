@@ -22,18 +22,28 @@ sudo -u manabrew MANABREW_ART_DIR=/var/lib/manabrew \
   /usr/local/bin/manabrew-server --download-art
 ```
 
+That run also keeps what each card _is_ — the records from the same bulk file
+the picture urls come out of, every card name, the set list and every ruling —
+and serves them at `/scryfall-card/<name>`, `/scryfall-card/<set>/<number>`,
+`/scryfall-names`, `/scryfall-sets` and `/scryfall-rulings/<oracle-id>`.
+Pictures alone are not enough: a desktop learns a card's image url from a
+Scryfall record, so with no internet and no records a full cache has nothing to
+ask for.
+
 The desktops need no configuration: they find this machine over mDNS and use it
-as their lobby and their card art.
+as their lobby, their card art and their card data.
 
 Statically linked, so it runs on any x86_64 Linux regardless of glibc.
 
-| Variable                 | Default |                                                                         |
-| ------------------------ | ------- | ----------------------------------------------------------------------- |
-| `MANABREW_ART_DIR`       | unset   | Hold card art here and serve `/scryfall-img/`.                          |
-| `MANABREW_ART_PORT`      | `9528`  | Carried in the mDNS record, so clients need not be told.                |
-| `MANABREW_LAN_ADVERTISE` | off     | Answer mDNS as this network's relay.                                    |
-| `MANABREW_ART_BASE_URL`  | unset   | Only behind a proxy, where the bound port is not the one clients reach. |
-| `FORGE_PORT`             | `9443`  | The lobby socket.                                                       |
+| Variable                 | Default   |                                                                                                                                               |
+| ------------------------ | --------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MANABREW_ART_DIR`       | unset     | Hold card art and card data here and serve `/scryfall-img/`, `/scryfall-card/`, `/scryfall-names`, `/scryfall-sets` and `/scryfall-rulings/`. |
+| `MANABREW_SERVER_KEY`    | see note  | What a desktop presents to log in. `manabrew-lan` while advertising, the key the desktops use; `forge` otherwise.                             |
+| `FORGE_HOST`             | `0.0.0.0` | Bind here. The mDNS record carries the address the network reaches, whichever interface that is.                                              |
+| `MANABREW_ART_PORT`      | `9528`    | Carried in the mDNS record, so clients need not be told.                                                                                      |
+| `MANABREW_LAN_ADVERTISE` | off       | Answer mDNS as this network's relay.                                                                                                          |
+| `MANABREW_ART_BASE_URL`  | unset     | Only behind a proxy, where the bound port is not the one clients reach.                                                                       |
+| `FORGE_PORT`             | `9443`    | The lobby socket.                                                                                                                             |
 
 Anything on your network can answer mDNS and offer to be the lobby. Being wrong
 means landing in a lobby you did not expect, never that anyone can read your

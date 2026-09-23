@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-
 import { cn } from "@/lib/utils";
 import { type DevCardRailMode, useGameDevStore } from "@/stores/useGameDevStore";
-
 import {
   DEV_CONTROL_ACTIVE,
   DEV_CONTROL_BUTTON,
@@ -13,12 +11,14 @@ import {
 import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
 
 const MODE_LABELS: Record<DevCardRailMode, string> = {
-  page: "Page",
-  saga: "Saga",
-  class: "Class",
+  page: `Page`,
+  saga: `Saga`,
+  class: `Class`,
 };
-
-const CURRENT_MAX_PRESETS: Array<{ current: number; final: number }> = [
+const CURRENT_MAX_PRESETS: Array<{
+  current: number;
+  final: number;
+}> = [
   { current: 1, final: 1 },
   { current: 1, final: 2 },
   { current: 2, final: 2 },
@@ -28,15 +28,15 @@ const CURRENT_MAX_PRESETS: Array<{ current: number; final: number }> = [
   { current: 1, final: 4 },
   { current: 4, final: 4 },
 ];
-
-const CLASS_PRESETS: Array<{ current: number; final: number }> = [
+const CLASS_PRESETS: Array<{
+  current: number;
+  final: number;
+}> = [
   { current: 1, final: 3 },
   { current: 2, final: 3 },
   { current: 3, final: 3 },
 ];
-
 const REPLAY_STEP_MS = 180;
-
 export function CardRailDevControls() {
   const enabled = useGameDevStore((s) => s.debugCardRailEnabled);
   const mode = useGameDevStore((s) => s.debugCardMode);
@@ -47,7 +47,6 @@ export function CardRailDevControls() {
   const setRail = useGameDevStore((s) => s.setDebugCardRail);
   const setCurrent = useGameDevStore((s) => s.setDebugCardCurrent);
   const reset = useGameDevStore((s) => s.resetDebugCardRail);
-
   const [isReplaying, setIsReplaying] = useState(false);
   const timerRef = useRef<number | null>(null);
   const replayTokenRef = useRef(0);
@@ -60,12 +59,10 @@ export function CardRailDevControls() {
       timerRef.current = null;
     }
   }, []);
-
   const stopReplay = useCallback(() => {
     cancelReplayTimers();
     setIsReplaying(false);
   }, [cancelReplayTimers]);
-
   function stepReplay(token: number): void {
     const state = useGameDevStore.getState();
     if (replayTokenRef.current !== token) return;
@@ -86,7 +83,6 @@ export function CardRailDevControls() {
       stepReplay(token);
     }, REPLAY_STEP_MS);
   }
-
   const startReplay = () => {
     stopReplay();
     const token = replayTokenRef.current;
@@ -94,14 +90,12 @@ export function CardRailDevControls() {
     setIsReplaying(true);
     stepReplay(token);
   };
-
   useEffect(() => () => stopReplay(), [stopReplay]);
   useEffect(() => {
     if (mode === "class" && (current < 1 || current > 3 || final !== 3)) {
       setRail(Math.max(1, Math.min(3, current)), 3);
     }
   }, [current, final, mode, setRail]);
-
   const dirty = isReplaying || enabled || mode !== "page" || current !== 1 || final !== 3;
   const presets = mode === "class" ? CLASS_PRESETS : CURRENT_MAX_PRESETS;
   const minimumCurrent = mode === "class" ? 1 : 0;

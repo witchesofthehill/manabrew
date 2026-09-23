@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useCallback, useMemo, useState } from "react";
 import { Application } from "pixi.js";
+import { useLingui } from "@lingui/react";
 import { destroyPixiApp, installPixiPatches } from "./pixiPatches";
 
 // Runtime workarounds for Pixi v8 bugs — must run before any `Application`.
@@ -159,6 +160,8 @@ export function BoardCanvas({
   onLayout,
   className,
 }: BoardCanvasProps) {
+  const { i18n } = useLingui();
+  const locale = i18n.locale;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const appRef = useRef<Application | null>(null);
   const [scene, setScene] = useState<BoardScene | null>(null);
@@ -508,7 +511,7 @@ export function BoardCanvas({
 
   useEffect(() => {
     scene?.updateHand(hand);
-  }, [scene, hand]);
+  }, [scene, hand, locale]);
 
   useEffect(() => {
     scene?.setArrowSpecs(arrowSpecs);
@@ -748,7 +751,11 @@ export function BoardCanvas({
             onMouseEnter={holdHandActionHover}
             onMouseLeave={releaseHandActionHover}
           >
-            <HandCardActions actions={handActions} onSelectAction={selectHandAction} />
+            <HandCardActions
+              card={handHover.card}
+              actions={handActions}
+              onSelectAction={selectHandAction}
+            />
           </div>
         </>
       )}

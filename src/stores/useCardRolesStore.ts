@@ -1,35 +1,33 @@
 import { create } from "zustand";
-
 import { getPlatform } from "@/platform";
 import type { DeckCard } from "@/protocol/deck";
-
 export const CARD_ROLE_LABELS: Record<string, string> = {
-  "card-draw": "Card draw",
-  counterspell: "Counterspell",
-  counters: "Counters",
-  discard: "Discard",
-  interaction: "Interaction",
-  lifegain: "Lifegain",
-  protection: "Protection",
-  ramp: "Ramp",
-  recursion: "Recursion",
-  removal: "Removal",
-  "token-maker": "Token maker",
-  tutor: "Tutor",
+  get "card-draw"() {
+    return `Card draw`;
+  },
+  counterspell: `Counterspell`,
+  counters: `Counters`,
+  discard: `Discard`,
+  interaction: `Interaction`,
+  lifegain: `Lifegain`,
+  protection: `Protection`,
+  ramp: `Ramp`,
+  recursion: `Recursion`,
+  removal: `Removal`,
+  get "token-maker"() {
+    return `Token maker`;
+  },
+  tutor: `Tutor`,
 };
-
 interface CardRolesState {
   roles: Record<string, string[]>;
   pending: Set<string>;
   ensureAnalyzed: (cards: DeckCard[]) => Promise<void>;
 }
-
 const EMPTY_ROLES: string[] = [];
-
 function normalize(name: string): string {
   return name.toLowerCase();
 }
-
 export const useCardRolesStore = create<CardRolesState>((set, get) => ({
   roles: {},
   pending: new Set(),
@@ -39,7 +37,6 @@ export const useCardRolesStore = create<CardRolesState>((set, get) => ({
       ([key]) => get().roles[key] === undefined && !get().pending.has(key),
     );
     if (missing.length === 0) return;
-
     set((state) => ({ pending: new Set([...state.pending, ...missing.map(([key]) => key)]) }));
     const platform = getPlatform();
     const results = await Promise.all(
@@ -65,7 +62,6 @@ export const useCardRolesStore = create<CardRolesState>((set, get) => ({
     });
   },
 }));
-
 export function useCardRoles(name: string): string[] {
   return useCardRolesStore((state) => state.roles[normalize(name)] ?? EMPTY_ROLES);
 }

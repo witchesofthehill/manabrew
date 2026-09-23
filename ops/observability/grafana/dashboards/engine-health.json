@@ -1060,6 +1060,41 @@
       "options": {}
     },
     {
+      "id": 247,
+      "type": "table",
+      "title": "Engine think, owner",
+      "description": "At a solo pod the board repaints only when the player is prompted, so every window is a frozen board. The engine tags each window with the time its bot prompts took: engine_bot_* is that, engine_rules_* is the rules engine resolving the table. Games whose worst window sat on a bot versus on the rules, per seat count. Null before clients of 2026-09-20.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 86,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT engine, seats, count(*) AS games, round(avg(engine_bot_p50)) AS bot_p50, round(avg(engine_rules_p50)) AS rules_p50, max(engine_bot_max) AS worst_bot_ms, max(engine_rules_max) AS worst_rules_ms, sum(engine_bot_max > 10000) AS bot_stalls_10s, sum(engine_rules_max > 10000) AS rules_stalls_10s FROM engine_stats WHERE engine_bot_p50 IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY engine, seats ORDER BY engine, seats",
+          "rawQueryText": "SELECT engine, seats, count(*) AS games, round(avg(engine_bot_p50)) AS bot_p50, round(avg(engine_rules_p50)) AS rules_p50, max(engine_bot_max) AS worst_bot_ms, max(engine_rules_max) AS worst_rules_ms, sum(engine_bot_max > 10000) AS bot_stalls_10s, sum(engine_rules_max > 10000) AS rules_stalls_10s FROM engine_stats WHERE engine_bot_p50 IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY engine, seats ORDER BY engine, seats",
+          "rawQuerySql": "SELECT engine, seats, count(*) AS games, round(avg(engine_bot_p50)) AS bot_p50, round(avg(engine_rules_p50)) AS rules_p50, max(engine_bot_max) AS worst_bot_ms, max(engine_rules_max) AS worst_rules_ms, sum(engine_bot_max > 10000) AS bot_stalls_10s, sum(engine_rules_max > 10000) AS rules_stalls_10s FROM engine_stats WHERE engine_bot_p50 IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY engine, seats ORDER BY engine, seats",
+          "queryType": "table",
+          "timeColumns": [],
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
       "id": 244,
       "type": "table",
       "title": "Turnaround, split at the first reply frame",
@@ -1070,7 +1105,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 86,
+        "y": 94,
         "w": 24,
         "h": 8
       },
@@ -1105,7 +1140,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 94,
+        "y": 102,
         "w": 12,
         "h": 8
       },
@@ -1142,7 +1177,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 94,
+        "y": 102,
         "w": 12,
         "h": 8
       },

@@ -9,7 +9,6 @@ import type { DeckHubGroup } from "@/components/deck/deckHub.types";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
 import { FORMAT_DISPLAY, ROUTES } from "@/lib/constants";
 import { useHubStore } from "@/stores/useHubStore";
-
 interface DeckHubResultsProps {
   entries: DeckHubEntrySummary[];
   loading: boolean;
@@ -26,15 +25,13 @@ interface DeckHubResultsProps {
   onClear: () => void;
   onRetry: () => void;
 }
-
 function groupLabel(entry: DeckHubEntrySummary, group: DeckHubGroup) {
-  if (group === "source") return entry.sourceKind === "preset" ? "Official presets" : "Community";
-  if (group === "format") return FORMAT_DISPLAY[entry.format ?? ""] ?? entry.format ?? "Other";
-  if (group === "color") return entry.colors || "Unknown";
-  if (group === "tag") return entry.tags[0]?.name ?? "Untagged";
-  return "Published decks";
+  if (group === "source") return entry.sourceKind === "preset" ? `Official presets` : `Community`;
+  if (group === "format") return FORMAT_DISPLAY[entry.format ?? ""] ?? entry.format ?? `Other`;
+  if (group === "color") return entry.colors || `Unknown`;
+  if (group === "tag") return entry.tags[0]?.name ?? `Untagged`;
+  return `Published decks`;
 }
-
 export function DeckHubResults({
   entries,
   loading,
@@ -56,16 +53,13 @@ export function DeckHubResults({
     const label = groupLabel(entry, group);
     groups.set(label, [...(groups.get(label) ?? []), entry]);
   }
-
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const favoritePending = useHubStore((state) => state.favoritePending);
   const hasMore = entries.length < total;
-
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [resetKey]);
-
   useEffect(() => {
     const target = loadMoreRef.current;
     const root = scrollRef.current;
@@ -79,7 +73,6 @@ export function DeckHubResults({
     observer.observe(target);
     return () => observer.disconnect();
   }, [hasMore, loaded, loading, onLoadMore]);
-
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:order-1">
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
@@ -88,7 +81,7 @@ export function DeckHubResults({
             <p className="text-xs text-muted-foreground">
               {loaded
                 ? `${total.toLocaleString()} ${total === 1 ? "publication" : "publications"}`
-                : "Loading publications…"}
+                : `Loading publications\u2026`}
             </p>
             {loading && loaded && <p className="text-xs text-muted-foreground">Updating…</p>}
           </div>

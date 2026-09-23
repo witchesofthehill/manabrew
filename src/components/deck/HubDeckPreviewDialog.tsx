@@ -33,14 +33,12 @@ import type { EditorDeck } from "@/types/manabrew";
 import { ROUTES } from "@/lib/constants";
 import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { isFeatureEnabled } from "@/featureFlags";
-
 interface HubDeckPreviewDialogProps {
   deckId: string | null;
   onClose: () => void;
   onUnpublished?: () => void;
   onViewSnapshot?: () => void;
 }
-
 interface PreviewDeckDetail {
   id: string;
   name: string;
@@ -50,7 +48,6 @@ interface PreviewDeckDetail {
   colors: string;
   deck: EditorDeck;
 }
-
 export function HubDeckPreviewDialog({
   deckId,
   onClose,
@@ -80,7 +77,6 @@ export function HubDeckPreviewDialog({
   const [editingPublication, setEditingPublication] = useState(false);
   const routeLaunchRef = useRef(false);
   const { details: accountDeckDetails } = useAccountDecks();
-
   useEffect(() => {
     setDetail(null);
     setEntryDetail(null);
@@ -116,7 +112,6 @@ export function HubDeckPreviewDialog({
       cancelled = true;
     };
   }, [deckId, hubEnabled, loadAttempt, loadEntry]);
-
   const mine =
     entryDetail?.ownedByViewer === true || myEntries.some((entry) => entry.id === deckId);
   const linkedAccountDeck = entryDetail
@@ -142,7 +137,6 @@ export function HubDeckPreviewDialog({
     .split("")
     .map((color) => `{${color}}`)
     .join("");
-
   async function handleSave() {
     if (!detail) return;
     if (entryDetail?.presetKey && signedIn) {
@@ -152,7 +146,7 @@ export function HubDeckPreviewDialog({
         toast.success(`"${detail.name}" added to your account decks`);
         onClose();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to save preset");
+        toast.error(error instanceof Error ? error.message : `Failed to save preset`);
       } finally {
         setBusy(false);
       }
@@ -162,7 +156,6 @@ export function HubDeckPreviewDialog({
     toast.success(`"${detail.name}" saved to My Decks`);
     onClose();
   }
-
   function handleOpen() {
     if (!detail) return;
     loadHubDeck(detail.deck as EditorDeck);
@@ -173,7 +166,6 @@ export function HubDeckPreviewDialog({
       navigate(ROUTES.DECK_EDITOR, { state: { directToEditor: true } });
     }
   }
-
   function handleOpenAccountDeck() {
     if (!linkedAccountDeck) {
       handleOpen();
@@ -190,33 +182,29 @@ export function HubDeckPreviewDialog({
       { state: { deckEditorFromList: true } },
     );
   }
-
   async function handleCopyLink() {
     if (!deckId) return;
     const entryRef = entryDetail?.slug ?? deckId;
     const url = `${window.location.origin}/hub?deck=${encodeURIComponent(entryRef)}`;
     try {
       await navigator.clipboard.writeText(url);
-      toast.success("Share link copied — anyone can open and play this deck");
+      toast.success(`Share link copied \u2014 anyone can open and play this deck`);
     } catch {
-      toast.error("Couldn’t copy the share link");
+      toast.error(`Couldn\u2019t copy the share link`);
     }
   }
-
   function handlePlayOffline() {
     if (!deckId) return;
     savePresetToAccountOnUse(entryDetail?.presetKey);
     routeLaunchRef.current = true;
     navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, { state: { preSelectedHubDeckId: deckId } });
   }
-
   function handleMultiplayer() {
     if (!deckId) return;
     savePresetToAccountOnUse(entryDetail?.presetKey);
     routeLaunchRef.current = true;
     navigate(ROUTES.LOBBY, { state: { preferredHubDeckId: deckId } });
   }
-
   async function handleUnpublish() {
     if (!deckId || !mine) return;
     setBusy(true);
@@ -225,16 +213,16 @@ export function HubDeckPreviewDialog({
       setConfirmingUnpublish(false);
       removeEntry(deckId);
       void refresh();
-      toast.success(`"${detail?.name ?? "Deck"}" removed from Community`);
+      const deckName = detail?.name ?? `Deck`;
+      toast.success(`"${deckName}" removed from Community`);
       onClose();
       onUnpublished?.();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Removing failed");
+      toast.error(err instanceof Error ? err.message : `Removing failed`);
     } finally {
       setBusy(false);
     }
   }
-
   return (
     <>
       <Dialog
@@ -244,12 +232,12 @@ export function HubDeckPreviewDialog({
         <DialogContent className="flex h-[calc(100dvh-1rem-var(--safe-area-inset-top)-var(--safe-area-inset-bottom))] w-[calc(100vw-1rem)] max-w-7xl flex-col gap-0 overflow-hidden p-0 sm:h-[90dvh] sm:w-[94vw]">
           <DialogHeader className="shrink-0 border-b px-4 py-3 pr-12 text-left sm:px-5">
             <DialogTitle className="truncate">
-              {detail?.name ?? (error ? "Deck unavailable" : "Loading…")}
+              {detail?.name ?? (error ? `Deck unavailable` : `Loading\u2026`)}
             </DialogTitle>
             <DialogDescription className="line-clamp-2">
               {detail
                 ? `by ${detail.author ?? "Deleted user"}${detail.description ? ` — ${detail.description}` : ""}`
-                : (error ?? "Fetching deck from Community…")}
+                : (error ?? `Fetching deck from Community\u2026`)}
             </DialogDescription>
             {detail && (
               <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs text-muted-foreground">
@@ -260,7 +248,7 @@ export function HubDeckPreviewDialog({
                 <span>
                   {entryDetail
                     ? `${entryDetail.presetKey ? "Official preset · " : ""}Published version ${entryDetail.publishedVersionNo}`
-                    : "Public snapshot"}
+                    : `Public snapshot`}
                 </span>
                 {entryDetail?.tags
                   .filter((tag) => tag.slug !== "official" && tag.slug !== "preset")
@@ -328,7 +316,7 @@ export function HubDeckPreviewDialog({
                   disabled={busy || !detail}
                   onClick={handleUnpublish}
                 >
-                  {busy ? "Unpublishing…" : "Confirm unpublish"}
+                  {busy ? `Unpublishing\u2026` : `Confirm unpublish`}
                 </Button>
               </div>
             ) : (
@@ -360,10 +348,10 @@ export function HubDeckPreviewDialog({
                   }
                 >
                   {linkedAccountDeck && !mine
-                    ? "Open My Copy"
+                    ? `Open My Copy`
                     : mine
-                      ? "Open in Deck Editor"
-                      : "Save to My Decks"}
+                      ? `Open in Deck Editor`
+                      : `Save to My Decks`}
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

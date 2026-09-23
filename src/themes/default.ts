@@ -46,11 +46,10 @@ const palette: BasePalette = {
   manaG: "#a3c095",
   manaC: "#cac5c0",
 };
-
 const preset: ThemePreset = {
   id: "default",
   name: "Manabrew",
-  description: "Manabrew default theme",
+  description: `Manabrew default theme`,
   light: {
     background: accent,
     foreground: charcoal,
@@ -122,5 +121,4 @@ const preset: ThemePreset = {
     avatarInitials: "16px",
   },
 };
-
 export default preset;

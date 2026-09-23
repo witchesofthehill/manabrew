@@ -151,8 +151,16 @@ public final class Main {
                 FModel.initialize(null, prefs -> {
                     prefs.setPref(ForgePreferences.FPref.LOAD_CARD_SCRIPTS_LAZILY, true);
                     prefs.setPref(ForgePreferences.FPref.DECKGEN_CARDBASED, false);
+                    // Skips the tap/untap/mana replacement scan of zones other
+                    // than battlefield and command (Card-Forge/forge#11160).
+                    prefs.setPref(ForgePreferences.FPref.PERFORMANCE_MODE, true);
                     return null;
                 });
+                // The patch 24 runaway caps default to 25k per turn, sized for the heap. A
+                // turn that creates 800 tokens and fires 8k triggers already takes longer
+                // than a session; these end it as a Draw while the tab is still alive.
+                forge.game.Game.setRunawayCardsPerTurnCap(1000);
+                forge.game.Game.setRunawayTriggersPerTurnCap(5000);
             } else {
                 FModel.initialize(null, null);
             }

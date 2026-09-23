@@ -1,4 +1,5 @@
 import type { ScryfallCard } from "@/types/scryfall";
+import { localCardRecord, localPrintingRecord } from "@/lib/localCardRecords";
 import { COLLECTION_BATCH_SIZE, SCRYFALL_API, scryfallFetch } from "./scryfall";
 
 const SCRYFALL_BATCH_DEBOUNCE_MS = 100;
@@ -78,6 +79,36 @@ export function normalizeIdentifierForRequest(id: CardIdentifier): CardIdentifie
   return id;
 }
 
+/**
+ * What a cache can answer once Scryfall cannot be reached: a name, or a set and
+ * collector number when the record it kept is that printing. An identifier that
+ * is only an id has nothing a cache is keyed by and stays rejected.
+ */
+function cachedCard(id: CardIdentifier): Promise<ScryfallCard | null> {
+  if ("collector_number" in id) return localPrintingRecord(id.set, id.collector_number);
+  if ("name" in id) return localCardRecord(id.name);
+  return Promise.resolve(null);
+}
+
+/** The identifier with its printing dropped, which is all a cached record can
+ *  be held to: a cache keeps one printing per card. A set-and-number identifier
+ *  carries no name and is trusted as the printing it was filed under. */
+function nameOnly(id: CardIdentifier): CardIdentifier {
+  return "name" in id ? { name: id.name } : id;
+}
+
+async function resolveFromCache(items: PendingBatchItem[], error?: unknown): Promise<void> {
+  const cached = await Promise.all(items.map((item) => cachedCard(item.identifier)));
+  items.forEach((item, index) => {
+    const card = cached[index];
+    if (card && matchesIdentifier(card, nameOnly(item.identifier))) item.resolve(card);
+    else
+      item.reject(
+        error ?? new Error(`Card not found in collection: ${identifierKey(item.identifier)}`),
+      );
+  });
+}
+
 async function flushScryfallBatch(): Promise<void> {
   batchFlushTimer = null;
   const items = Array.from(pendingBatch.values());
@@ -95,14 +126,15 @@ async function flushScryfallBatch(): Promise<void> {
           body: JSON.stringify({ identifiers }),
         },
       );
+      const missed: PendingBatchItem[] = [];
       for (const item of slice) {
         const found = data.data.find((c) => matchesIdentifier(c, item.identifier));
         if (found) item.resolve(found);
-        else
-          item.reject(new Error(`Card not found in collection: ${identifierKey(item.identifier)}`));
+        else missed.push(item);
       }
+      if (missed.length > 0) await resolveFromCache(missed);
     } catch (err) {
-      for (const item of slice) item.reject(err);
+      await resolveFromCache(slice, err);
     }
   }
 }

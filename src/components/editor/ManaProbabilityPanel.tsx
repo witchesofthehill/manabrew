@@ -1,22 +1,17 @@
 import { Gauge } from "lucide-react";
-
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { isLand } from "@/lib/mana";
 import { probabilityAtLeast, probabilityAtLeastOne } from "@/lib/deckProbability";
 import type { EditorDeck } from "@/types/manabrew";
 import { EDITOR_PANEL_CLASS, EDITOR_SUBTLE_BLOCK_CLASS } from "./deckEditor.styles";
 import { MANA_BG_CLASS } from "@/themes/gameTheme";
-
 const COLORS = ["W", "U", "B", "R", "G"] as const;
-
 function percentage(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
-
 export function ManaProbabilityPanel({ deck }: { deck: EditorDeck }) {
   const population = deck.cards.length;
   if (population === 0) return null;
-
   const lands = deck.cards.filter((card) => isLand(card.types));
   const openingTwoLands = probabilityAtLeast(population, lands.length, 7, 2);
   const colorRows = COLORS.flatMap((color) => {
@@ -41,7 +36,6 @@ export function ManaProbabilityPanel({ deck }: { deck: EditorDeck }) {
       },
     ];
   });
-
   return (
     <section className={EDITOR_PANEL_CLASS}>
       <div className="flex items-center gap-2">

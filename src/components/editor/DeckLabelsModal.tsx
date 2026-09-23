@@ -8,31 +8,28 @@ import { X, Plus } from "lucide-react";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useTheme } from "@/hooks/useTheme";
 import { toast } from "sonner";
-
 const SUGGESTED_LABELS = [
-  "Aggro",
-  "Midrange",
-  "Control",
-  "Combo",
-  "Tempo",
-  "Ramp",
-  "Tokens",
-  "Tribal",
-  "Mill",
-  "Burn",
-  "Voltron",
-  "Stax",
-  "Budget",
-  "Competitive",
-  "Casual",
-  "Jank",
+  { value: "Aggro", label: `Aggro` },
+  { value: "Midrange", label: `Midrange` },
+  { value: "Control", label: `Control` },
+  { value: "Combo", label: `Combo` },
+  { value: "Tempo", label: `Tempo` },
+  { value: "Ramp", label: `Ramp` },
+  { value: "Tokens", label: `Tokens` },
+  { value: "Tribal", label: `Tribal` },
+  { value: "Mill", label: `Mill` },
+  { value: "Burn", label: `Burn` },
+  { value: "Voltron", label: `Voltron` },
+  { value: "Stax", label: `Stax` },
+  { value: "Budget", label: `Budget` },
+  { value: "Competitive", label: `Competitive` },
+  { value: "Casual", label: `Casual` },
+  { value: "Jank", label: `Jank` },
 ];
-
 interface DeckLabelsModalProps {
   open: boolean;
   onClose: () => void;
 }
-
 export function DeckLabelsModal({ open, onClose }: DeckLabelsModalProps) {
   const [newLabel, setNewLabel] = useState("");
   const [newLabelColor, setNewLabelColor] = useState("");
@@ -41,9 +38,7 @@ export function DeckLabelsModal({ open, onClose }: DeckLabelsModalProps) {
   const themeColors = useTheme().gameTheme;
   const defaultLabelColor = themeColors.promptAction.cancel;
   const labels = currentDeck.labels ?? [];
-
   if (!open) return null;
-
   function handleAdd(label: string, color?: string) {
     const trimmed = label.trim();
     if (!trimmed) return;
@@ -53,11 +48,9 @@ export function DeckLabelsModal({ open, onClose }: DeckLabelsModalProps) {
     setNewLabelColor("");
     toast.success(`Label "${trimmed}" added`);
   }
-
   const unusedSuggestions = SUGGESTED_LABELS.filter(
-    (s) => !labels.some((l) => l.name.toLowerCase() === s.toLowerCase()),
+    ({ value }) => !labels.some((label) => label.name.toLowerCase() === value.toLowerCase()),
   );
-
   return (
     <Modal onClose={onClose} maxWidth="max-w-md" maxHeight="max-h-[70dvh]">
       <Modal.Header onClose={onClose}>
@@ -83,7 +76,7 @@ export function DeckLabelsModal({ open, onClose }: DeckLabelsModalProps) {
                         saveCurrentDeck();
                       }}
                       className="h-6 w-8 rounded border border-input bg-transparent p-0.5 cursor-pointer"
-                      title="Pick color"
+                      title={`Pick color`}
                     />
                     <button
                       type="button"
@@ -107,7 +100,7 @@ export function DeckLabelsModal({ open, onClose }: DeckLabelsModalProps) {
             <div className="flex items-center gap-2">
               <Input
                 className="h-8 text-sm flex-1"
-                placeholder="Type a label…"
+                placeholder={`Type a label\u2026`}
                 value={newLabel}
                 onChange={(e) => setNewLabel(e.target.value)}
                 onKeyDown={(e) => {
@@ -119,7 +112,7 @@ export function DeckLabelsModal({ open, onClose }: DeckLabelsModalProps) {
                 value={newLabelColor || defaultLabelColor}
                 onChange={(e) => setNewLabelColor(e.target.value)}
                 className="h-8 w-10 rounded border border-input bg-transparent p-0.5 cursor-pointer"
-                title="Pick color"
+                title={`Pick color`}
               />
               <Button
                 variant="outline"
@@ -138,15 +131,15 @@ export function DeckLabelsModal({ open, onClose }: DeckLabelsModalProps) {
             <div>
               <div className="text-sm font-medium text-muted-foreground mb-2">Suggestions</div>
               <div className="flex flex-wrap gap-1.5">
-                {unusedSuggestions.map((s) => (
+                {unusedSuggestions.map(({ value, label }) => (
                   <Badge
-                    key={s}
+                    key={value}
                     variant="outline"
                     className="cursor-pointer hover:bg-muted transition-colors"
-                    onClick={() => handleAdd(s)}
+                    onClick={() => handleAdd(value)}
                   >
                     <Plus className="h-2.5 w-2.5 mr-0.5" />
-                    {s}
+                    {label}
                   </Badge>
                 ))}
               </div>

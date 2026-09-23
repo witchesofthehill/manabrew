@@ -9,23 +9,19 @@ import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
 import { getPlatformType } from "@/platform";
 import { openExternal } from "@/lib/openExternal";
 import type { AuthIdentity } from "@/api/authTypes";
-
 const PROVIDER_LABELS: Record<string, string> = {
-  github: "GitHub",
-  discord: "Discord",
-  email: "Email",
+  github: `GitHub`,
+  discord: `Discord`,
+  email: `Email`,
 };
-
 function providerIcon(provider: string) {
   if (provider === "github") return <Github className="h-4 w-4" />;
   if (provider === "discord") return <DiscordIcon className="h-4 w-4" />;
   return <Mail className="h-4 w-4" />;
 }
-
 interface SignInMethodsCardProps {
   identities: AuthIdentity[];
 }
-
 export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
   const refresh = useAuthStore((s) => s.refresh);
   const [busy, setBusy] = useState(false);
@@ -33,7 +29,6 @@ export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
   const linkableProviders = (["github", "discord"] as const).filter(
     (provider) => !linkedProviders.has(provider),
   );
-
   async function handleLink(provider: OAuthProvider) {
     const token = await getAccessToken();
     if (!token) return;
@@ -52,12 +47,11 @@ export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
         window.location.assign(url);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Linking failed");
+      toast.error(err instanceof Error ? err.message : `Linking failed`);
     } finally {
       setBusy(false);
     }
   }
-
   async function handleUnlink(provider: string) {
     const token = await getAccessToken();
     if (!token) return;
@@ -68,15 +62,14 @@ export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
       toast.success(`${PROVIDER_LABELS[provider] ?? provider} unlinked`);
     } catch (err) {
       if (err instanceof AuthRequestError && err.status === 409) {
-        toast.error("You can't unlink your only sign-in method");
+        toast.error(`You can't unlink your only sign-in method`);
       } else {
-        toast.error(err instanceof Error ? err.message : "Unlinking failed");
+        toast.error(err instanceof Error ? err.message : `Unlinking failed`);
       }
     } finally {
       setBusy(false);
     }
   }
-
   return (
     <section className="rounded-lg border bg-card/40 p-4 sm:p-5 space-y-3">
       <Label>Sign-in methods</Label>

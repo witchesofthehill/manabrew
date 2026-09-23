@@ -8,10 +8,8 @@ import { useTheme } from "@/hooks/useTheme";
 import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import { manaSymbolUrl } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
-
 const MANA_BUTTON_ALPHA = 0.45;
 const MANA_BUTTON_FALLBACK_ALPHA = 0.4;
-
 export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
   description,
   onClick,
@@ -36,7 +34,6 @@ export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
     show: (_item, anchorRect) => setHintRect(anchorRect),
     hide: () => setHintRect(null),
   });
-
   return (
     <button
       className={cn(

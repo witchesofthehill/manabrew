@@ -21,6 +21,7 @@ export interface GameOverPromptSpec {
   me: PlayerDto;
   opponents: PlayerDto[];
   turn: number;
+  engineCrash: string | null;
   onEndGame: () => void;
 }
 

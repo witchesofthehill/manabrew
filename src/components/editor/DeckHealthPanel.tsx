@@ -1,5 +1,4 @@
 import { AlertTriangle, CheckCircle2, Search, Sparkles } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { getFormat } from "@/lib/formats";
 import { isLand } from "@/lib/mana";
@@ -7,7 +6,6 @@ import { cn } from "@/lib/utils";
 import type { EditorDeck } from "@/types/manabrew";
 import { CARD_ROLE_LABELS, useCardRolesStore } from "@/stores/useCardRolesStore";
 import { EDITOR_PANEL_CLASS, EDITOR_SUBTLE_BLOCK_CLASS } from "./deckEditor.styles";
-
 interface DeckHealthPanelProps {
   deck: EditorDeck;
   unsupportedNames: Set<string>;
@@ -15,13 +13,11 @@ interface DeckHealthPanelProps {
   onShowUnsupported: () => void;
   onOpenSearch?: () => void;
 }
-
 const ROLE_TARGETS = [
   { role: "ramp", commander: 10, constructed: 4 },
   { role: "card-draw", commander: 10, constructed: 6 },
   { role: "interaction", commander: 10, constructed: 8 },
 ];
-
 export function DeckHealthPanel({
   deck,
   unsupportedNames,
@@ -37,17 +33,15 @@ export function DeckHealthPanel({
   const landTarget = commanderDeck ? 36 : Math.max(24, Math.round(deck.cards.length * 0.4));
   const analyzedCount = new Set(deck.cards.map((card) => card.identity.name.toLowerCase())).size;
   const roleCounts = new Map<string, number>();
-
   for (const card of deck.cards) {
     if (isLand(card.types)) continue;
     for (const role of roles[card.identity.name.toLowerCase()] ?? []) {
       roleCounts.set(role, (roleCounts.get(role) ?? 0) + 1);
     }
   }
-
   const checks = [
     {
-      label: "Lands",
+      label: `Lands`,
       value: landCount,
       target: landTarget,
       healthy: landCount >= landTarget - 2,
@@ -59,7 +53,6 @@ export function DeckHealthPanel({
     }),
   ];
   const issueCount = checks.filter((check) => !check.healthy).length + validationErrors.length;
-
   return (
     <section className={EDITOR_PANEL_CLASS}>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -75,12 +68,13 @@ export function DeckHealthPanel({
                   : "bg-warning/15 text-warning",
               )}
             >
-              {issueCount === 0 ? "Balanced" : `${issueCount} to review`}
+              {issueCount === 0 ? `Balanced` : `${issueCount} to review`}
             </span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Engine-derived roles compared with a practical {commanderDeck ? "Commander" : "60-card"}{" "}
-            baseline.
+            {commanderDeck
+              ? `Engine-derived roles compared with a practical Commander baseline.`
+              : `Engine-derived roles compared with a practical 60-card baseline.`}
           </p>
         </div>
         {pending.size > 0 && (

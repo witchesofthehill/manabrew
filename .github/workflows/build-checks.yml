@@ -183,7 +183,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -232,7 +232,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
           cache-dependency-path: website/yarn.lock
 
@@ -264,7 +264,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Install Yarn
@@ -311,6 +311,13 @@ jobs:
         if: steps.wasm-cache.outputs.cache-hit != 'true'
         run: yarn build:wasm
 
+      - name: Check translation catalogs
+        run: |
+          yarn i18n:extract
+          git diff --exit-code -- src/i18n/locales
+          test -z "$(git status --porcelain --untracked-files=all -- src/i18n/locales)"
+          yarn i18n:compile
+
       - name: Type-check
         run: yarn typecheck
 
@@ -354,7 +361,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -512,7 +519,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Install Yarn
@@ -548,7 +555,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       # A command missing from the permission manifest fails silently in release builds.
       - name: Tauri commands match their permission manifest
@@ -586,7 +593,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Install Yarn
@@ -653,7 +660,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Install Yarn
@@ -729,7 +736,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -770,7 +777,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Install Yarn
@@ -864,7 +871,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Install Yarn
@@ -941,7 +948,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Install Yarn
@@ -1032,7 +1039,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: yarn
 
       - name: Install commitlint

@@ -1,39 +1,31 @@
 import { useState } from "react";
-
 import { Label } from "@/components/ui/label";
 import type { PromptType } from "@/protocol";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { isPromptLoggingEnabled, setPromptLoggingEnabled } from "@/lib/debugPrompts";
-
 interface OptionalCostRow {
   promptType: PromptType;
   label: string;
   description: string;
 }
-
 const OPTIONAL_COST_ROWS: OptionalCostRow[] = [
   {
     promptType: "chooseBoolean",
-    label: "Optional yes/no costs",
-    description:
-      "Skip yes/no cost prompts (kicker, buyback, Phyrexian) — never pay the extra cost.",
+    label: `Optional yes/no costs`,
+    description: `Skip yes/no cost prompts (kicker, buyback, Phyrexian) \u2014 never pay the extra cost.`,
   },
 ];
-
 export function PromptPreferencesPanel() {
   const showOverrides = usePromptPreferencesStore((s) => s.show);
   const setShow = usePromptPreferencesStore((s) => s.setShow);
   const clearShow = usePromptPreferencesStore((s) => s.clearShow);
   const fullControl = usePromptPreferencesStore((s) => s.fullControl);
   const setFullControl = usePromptPreferencesStore((s) => s.setFullControl);
-
   const [logPrompts, setLogPrompts] = useState(isPromptLoggingEnabled);
-
   function setOptionalCostSkip(promptType: PromptType, skip: boolean) {
     if (skip) setShow(promptType, false);
     else clearShow(promptType);
   }
-
   return (
     <section className="space-y-6">
       <header className="space-y-1">

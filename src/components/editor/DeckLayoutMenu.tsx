@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronDown, LayoutTemplate, Plus, Trash2 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,7 +19,6 @@ import { cn } from "@/lib/utils";
 import { useDeckStore } from "@/stores/useDeckStore";
 import type { GroupByMode, SortMode, ViewMode } from "./deckBuilder.utils";
 import type { DeckOwnershipStatus } from "@/lib/collection";
-
 interface DeckLayoutMenuProps {
   compact?: boolean;
   groupBy: GroupByMode;
@@ -38,7 +36,6 @@ interface DeckLayoutMenuProps {
     collectionFilter: "all" | DeckOwnershipStatus,
   ) => void;
 }
-
 export function DeckLayoutMenu({
   compact = false,
   groupBy,
@@ -63,7 +60,6 @@ export function DeckLayoutMenu({
     (activeLayout.viewMode ?? viewMode) === viewMode;
   const activeCollectionFilterMatches =
     (activeLayout?.collectionFilter ?? "all") === collectionFilter;
-
   useEffect(() => {
     if (!activeLayout || (activeLayoutMatches && activeCollectionFilterMatches)) return;
     setEditorMetadata({
@@ -81,7 +77,6 @@ export function DeckLayoutMenu({
     metadata,
     setEditorMetadata,
   ]);
-
   function saveLayout() {
     const layoutName = name.trim();
     if (!layoutName) return;
@@ -109,7 +104,6 @@ export function DeckLayoutMenu({
     setName("");
     setCreateOpen(false);
   }
-
   function selectLayout(id: string) {
     const layout = layouts.find((candidate) => candidate.id === id);
     if (!layout) return;
@@ -129,7 +123,6 @@ export function DeckLayoutMenu({
       layout.collectionFilter ?? "all",
     );
   }
-
   function removeLayout(id: string) {
     setEditorMetadata({
       ...metadata,
@@ -139,7 +132,6 @@ export function DeckLayoutMenu({
       activeLayoutId: metadata?.activeLayoutId === id ? undefined : metadata?.activeLayoutId,
     });
   }
-
   return (
     <>
       <DropdownMenu>
@@ -148,14 +140,14 @@ export function DeckLayoutMenu({
             variant="outline"
             size="xs"
             className="gap-1"
-            title={compact ? "Saved views" : undefined}
+            title={compact ? `Saved views` : undefined}
           >
             <LayoutTemplate className="h-3.5 w-3.5" />
             {compact ? (
               <span className="sr-only">Saved views</span>
             ) : (
               <>
-                {activeLayout?.name ?? "View"}
+                {activeLayout?.name ?? `View`}
                 <ChevronDown className="h-3 w-3 opacity-60" />
               </>
             )}
@@ -218,7 +210,7 @@ export function DeckLayoutMenu({
           <Input
             autoFocus
             value={name}
-            placeholder="Combo layout"
+            placeholder={`Combo layout`}
             onChange={(event) => setName(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") saveLayout();

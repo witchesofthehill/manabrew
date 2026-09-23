@@ -1,12 +1,10 @@
 import { Armchair, Plus } from "lucide-react";
 import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
 import { Button } from "@/components/ui/button";
-
 interface MultiplayerStartPanelProps {
   disabled: boolean;
   onSetUp: () => void;
 }
-
 export function MultiplayerStartPanel({ disabled, onSetUp }: MultiplayerStartPanelProps) {
   return (
     <OpenTableSeats

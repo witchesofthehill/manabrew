@@ -5,7 +5,6 @@ import { Modal } from "@/components/game/modals/Modal";
 import { Input } from "@/components/ui/input";
 import { KEYBINDINGS, formatCombo } from "@/lib/keybindings";
 import { useKeybindingsStore, resolveCombo } from "@/stores/useKeybindingsStore";
-
 export function KeyboardShortcutsDialog({
   open,
   onOpenChange,
@@ -43,7 +42,7 @@ export function KeyboardShortcutsDialog({
             data-autofocus
             value={query}
             className="pl-9"
-            placeholder="Search shortcuts…"
+            placeholder={`Search shortcuts\u2026`}
             onChange={(event) => setQuery(event.target.value)}
           />
         </div>

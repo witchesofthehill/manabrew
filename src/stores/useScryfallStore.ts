@@ -11,6 +11,7 @@ import {
   getCardById,
   getCardByName,
   getCardBySetAndNumber,
+  getLocalizedCardPrinting,
   getRulings,
   searchCards,
 } from "@/api/scryfall";
@@ -28,6 +29,7 @@ import { Texture, ImageSource } from "pixi.js";
 import { useEffect, useState } from "react";
 import { frontFaceName } from "@/lib/scryfall.utils";
 import { cardFaceImageUris } from "@/lib/cardImage";
+import { DEFAULT_SCRYFALL_LANGUAGE, type ScryfallLanguage } from "@/i18n/locales";
 
 export interface ScryfallCardLookup {
   id?: string;
@@ -70,6 +72,8 @@ export interface ScryfallEntry {
 }
 
 interface ScryfallState {
+  locale: ScryfallLanguage;
+  setLocale: (locale: ScryfallLanguage) => void;
   _fetchCardLookup: (lookup: ScryfallCardLookup) => Promise<CardEntry>;
   cards: Record<string, ScryfallEntry>;
   sets: ScryfallSet[];
@@ -83,7 +87,10 @@ interface ScryfallState {
   updatePrinting: (card: ScryfallCard) => CardEntry;
   invalidateCard: (name: string) => void;
   clearImageCaches: () => void;
-  getRulings: (card: { rulings_uri: string }) => Promise<ScryfallRulingsResponse>;
+  getRulings: (card: {
+    rulings_uri: string;
+    oracle_id?: string;
+  }) => Promise<ScryfallRulingsResponse>;
   getPrintings: (
     lookups: ScryfallCardLookup[],
     onProgress?: (completed: number, total: number) => void,
@@ -143,25 +150,94 @@ export function peekCard(
   }
 }
 
-async function fetchScryfallCard(lookup: ScryfallCardLookup): Promise<ScryfallCard> {
+type LocalizedPrintingFallback = "same-printing" | "any-printing";
+
+async function localizeScryfallCard(
+  card: ScryfallCard,
+  language: ScryfallLanguage,
+  fallback: LocalizedPrintingFallback,
+): Promise<ScryfallCard> {
+  const matchingPrinting = await getLocalizedCardPrinting(card, language);
+  if (
+    matchingPrinting.lang === language ||
+    language === DEFAULT_SCRYFALL_LANGUAGE ||
+    fallback === "same-printing"
+  ) {
+    return matchingPrinting;
+  }
+
+  try {
+    const localized = await fetchPrintsByOracleIds(
+      [card.oracle_id],
+      undefined,
+      undefined,
+      language,
+    );
+    return localized.get(card.oracle_id)?.[0] ?? card;
+  } catch {
+    return card;
+  }
+}
+
+async function fetchScryfallCard(
+  lookup: ScryfallCardLookup,
+  language: ScryfallLanguage,
+): Promise<ScryfallCard> {
+  let card: ScryfallCard;
+  let fallback: LocalizedPrintingFallback = "any-printing";
   if (lookup.id) {
-    return getCardById(lookup.id);
-  }
-  const cn = lookup.collectorNumber ?? lookup.cardNumber;
-  if (lookup.setCode && cn) {
-    return getCardBySetAndNumber(lookup.setCode, cn);
-  }
-  if (!lookup.name) {
-    throw new Error("Scryfall lookup requires a name or id");
-  }
-  if (lookup.setCode) {
-    try {
-      return await getCardByName(lookup.name, lookup.setCode);
-    } catch {
-      return getCardByName(lookup.name);
+    card = await getCardById(lookup.id);
+    fallback = "same-printing";
+  } else {
+    const cn = lookup.collectorNumber ?? lookup.cardNumber;
+    if (lookup.setCode && cn) {
+      card = await getCardBySetAndNumber(lookup.setCode, cn);
+      fallback = "same-printing";
+    } else {
+      if (!lookup.name) {
+        throw new Error("Scryfall lookup requires a name or id");
+      }
+      if (lookup.setCode) {
+        try {
+          card = await getCardByName(lookup.name, lookup.setCode);
+          fallback = "same-printing";
+        } catch {
+          card = await getCardByName(lookup.name);
+        }
+      } else {
+        card = await getCardByName(lookup.name);
+      }
     }
   }
-  return getCardByName(lookup.name);
+
+  return localizeScryfallCard(card, language, fallback);
+}
+
+async function localizeScryfallCards(
+  cards: ScryfallCard[],
+  language: ScryfallLanguage,
+  preservePrinting: (card: ScryfallCard) => boolean,
+  signal?: AbortSignal,
+): Promise<ScryfallCard[]> {
+  if (language === DEFAULT_SCRYFALL_LANGUAGE || cards.length === 0) return cards;
+  try {
+    const localized = await fetchPrintsByOracleIds(
+      cards.map((card) => card.oracle_id),
+      undefined,
+      signal,
+      language,
+    );
+    return cards.map((card) => {
+      const candidates = localized.get(card.oracle_id) ?? [];
+      const matchingPrinting = candidates.find(
+        (candidate) =>
+          candidate.set === card.set && candidate.collector_number === card.collector_number,
+      );
+      return matchingPrinting ?? (preservePrinting(card) ? card : candidates[0]) ?? card;
+    });
+  } catch {
+    return cards;
+  }
 }
 
 function normalizeTokenId(id: string): string {
@@ -456,15 +532,27 @@ const cacheTexture = (url: string, texture: Texture): void => {
 export const useScryfallStore = create<ScryfallState>()(
   devtools(
     immer((set, get) => ({
+      locale: DEFAULT_SCRYFALL_LANGUAGE,
+      setLocale: (locale) => {
+        if (get().locale === locale) return;
+        printingsByOracleId.clear();
+        set((state) => {
+          state.locale = locale;
+          state.cards = {};
+          state.hydratedSets = {};
+        });
+      },
       cards: {},
       sets: [],
       hydratedSets: {},
       _fetchCardLookup: async (lookup) => {
         const key = cardKey(lookup);
+        const locale = get().locale;
         const archivedToken = await lookupArchivedToken(lookup);
         const card = archivedToken
           ? tokenToScryfallCard(archivedToken)
-          : await fetchScryfallCard(lookup);
+          : await fetchScryfallCard(lookup, locale);
+        if (get().locale !== locale) return get()._fetchCardLookup(lookup);
 
         const uris = chooseImageUrisForCard(card, { frontOnly: true });
         if (!uris) {
@@ -507,15 +595,12 @@ export const useScryfallStore = create<ScryfallState>()(
       getCardTexture: async (deckCard, variant = "full", faceIndex = 0) => {
         const pick = (u: ScryfallImageUris | undefined) =>
           variant === "art" ? u?.art_crop : u?.border_crop;
-        let url = faceIndex === 0 ? pick(deckCard.uris) : pick(deckCard.backFace?.uris);
-        if (!url) {
-          const entry = await get().getCard({
-            name: deckCard.identity.name,
-            setCode: deckCard.identity.setCode || undefined,
-            collectorNumber: deckCard.identity.cardNumber || undefined,
-          });
-          url = pick(cardFaceImageUris(entry.info, entry.uris, faceIndex));
-        }
+        const entry = await get().getCard({
+          name: deckCard.identity.name,
+          setCode: deckCard.identity.setCode || undefined,
+          collectorNumber: deckCard.identity.cardNumber || undefined,
+        });
+        const url = pick(cardFaceImageUris(entry.info, entry.uris, faceIndex));
         if (!url) return Texture.EMPTY;
 
         const cached = getCachedTexture(url);
@@ -540,33 +625,90 @@ export const useScryfallStore = create<ScryfallState>()(
         void promise.then(clearPending, clearPending);
         return promise;
       },
-      getRulings: async (c) => {
-        const rulingsUri = c.rulings_uri;
-        return getRulings(rulingsUri);
-      },
+      getRulings: async (c) => getRulings(c.rulings_uri, c.oracle_id),
       getPrintings: async (lookups, onProgress, signal) => {
+        const locale = get().locale;
         const cards = await Promise.all(lookups.map((lookup) => get().getCard(lookup)));
         const oracleIds = [...new Set(cards.map((entry) => entry.info.oracle_id))];
-        const missing = oracleIds.filter((id) => !printingsByOracleId.has(id));
+        const cacheKey = (oracleId: string) => `${locale}:${oracleId}`;
+        const missing = oracleIds.filter((id) => !printingsByOracleId.has(cacheKey(id)));
         if (missing.length > 0) {
-          const fetched = await fetchPrintsByOracleIds(missing, onProgress, signal);
-          for (const [oracleId, printings] of fetched) {
-            printingsByOracleId.set(oracleId, printings);
+          let localized = new Map<string, ScryfallCard[]>();
+          try {
+            localized = await fetchPrintsByOracleIds(missing, onProgress, signal, locale);
+          } catch (error) {
+            if (locale === DEFAULT_SCRYFALL_LANGUAGE) throw error;
+          }
+          const withoutLocalizedPrints = missing.filter((id) => !localized.has(id));
+          const english =
+            locale !== DEFAULT_SCRYFALL_LANGUAGE && withoutLocalizedPrints.length > 0
+              ? await fetchPrintsByOracleIds(
+                  withoutLocalizedPrints,
+                  undefined,
+                  signal,
+                  DEFAULT_SCRYFALL_LANGUAGE,
+                )
+              : new Map<string, ScryfallCard[]>();
+          for (const oracleId of missing) {
+            printingsByOracleId.set(
+              cacheKey(oracleId),
+              localized.get(oracleId) ?? english.get(oracleId) ?? [],
+            );
           }
         } else {
           onProgress?.(1, 1);
         }
+        if (get().locale !== locale) return get().getPrintings(lookups, onProgress, signal);
         return new Map(
           cards.map((entry, index) => [
             cardKey(lookups[index]),
-            printingsByOracleId.get(entry.info.oracle_id) ?? [],
+            printingsByOracleId.get(cacheKey(entry.info.oracle_id)) ?? [],
           ]),
         );
       },
-      fetchCardCollection,
-      fetchCardByFuzzyName,
-      searchCards,
-      fetchCardsBySet,
+      fetchCardCollection: async (cards, signal) => {
+        const locale = get().locale;
+        const fetched = await fetchCardCollection(cards, signal);
+        const entries = [...fetched.entries()];
+        const requestedPrintingKeys = new Set(
+          cards.flatMap((lookup) =>
+            lookup.setCode && lookup.collectorNumber
+              ? [`${lookup.setCode.toLowerCase()}:${lookup.collectorNumber.toLowerCase()}`]
+              : [],
+          ),
+        );
+        const localized = await localizeScryfallCards(
+          entries.map(([, card]) => card),
+          locale,
+          (card) =>
+            requestedPrintingKeys.has(
+              `${card.set.toLowerCase()}:${card.collector_number.toLowerCase()}`,
+            ),
+          signal,
+        );
+        if (get().locale !== locale) return get().fetchCardCollection(cards, signal);
+        return new Map(entries.map(([key], index) => [key, localized[index]]));
+      },
+      fetchCardByFuzzyName: async (name) => {
+        const locale = get().locale;
+        const card = await fetchCardByFuzzyName(name);
+        const localized = await localizeScryfallCard(card, locale, "any-printing");
+        return get().locale === locale ? localized : get().fetchCardByFuzzyName(name);
+      },
+      searchCards: async (query, page, order, dir) => {
+        const locale = get().locale;
+        const response = await searchCards(query, page, order, dir);
+        if (/(?:^|\s)lang:/i.test(query)) return response;
+        const localized = await localizeScryfallCards(response.data, locale, () => false);
+        if (get().locale !== locale) return get().searchCards(query, page, order, dir);
+        return { ...response, data: localized };
+      },
+      fetchCardsBySet: async (setCode) => {
+        const locale = get().locale;
+        const cards = await fetchCardsBySet(setCode);
+        const localized = await localizeScryfallCards(cards, locale, () => true);
+        return get().locale === locale ? localized : get().fetchCardsBySet(setCode);
+      },
       fetchSets,
       prefetchSet: async (setCode) => {
         const code = setCode.toLowerCase();
@@ -576,7 +718,7 @@ export const useScryfallStore = create<ScryfallState>()(
           // Scryfall outage) sticks for the rest of the session and
           // every subsequent caller silently sees an empty set —
           // which propagates to "supplied 0 cards" in WASM.
-          const cards = await fetchCardsBySet(code);
+          const cards = await get().fetchCardsBySet(code);
           set((state) => {
             state.hydratedSets[code] = true;
           });
@@ -676,14 +818,15 @@ export const useCard = (lookup: ScryfallCardLookup | null | undefined) => {
   }, [getCard, id, name, setCode, collectorNumber, cached, key, hasLookup]);
   return cached;
 };
-export const useCardRulings = (card: { rulings_uri?: string }) => {
+export const useCardRulings = (card: { rulings_uri?: string; oracle_id?: string }) => {
   const getRulings = useScryfallStore((s) => s.getRulings);
   const rulingsUri = card.rulings_uri;
+  const oracleId = card.oracle_id;
   const [out, setOut] = useState<ScryfallRulingsResponse | null>(null);
   useEffect(() => {
     if (!rulingsUri) return;
     let active = true;
-    void getRulings({ rulings_uri: rulingsUri }).then(
+    void getRulings({ rulings_uri: rulingsUri, oracle_id: oracleId }).then(
       (rulings) => {
         if (active) setOut(rulings);
       },
@@ -692,7 +835,7 @@ export const useCardRulings = (card: { rulings_uri?: string }) => {
     return () => {
       active = false;
     };
-  }, [getRulings, rulingsUri]);
+  }, [getRulings, rulingsUri, oracleId]);
   if (!rulingsUri) return EMPTY_RULINGS;
   return out;
 };

@@ -1,5 +1,6 @@
 package forge.harness.host;
 
+import forge.harness.common.ParityCardMap;
 import forge.harness.common.SnapshotExtractor;
 import forge.harness.protocol.CardChoiceDto;
 import forge.harness.protocol.CardChoiceDto_chosenCard;
@@ -103,8 +104,13 @@ public final class InteractiveSnapshotExtractor {
             final int viewer,
             final SecretChoiceVisibility secretChoiceVisibility
     ) {
-        return GSON.toJson(
-                buildGameView(game, castingAbility, gameId, viewer, secretChoiceVisibility));
+        ParityCardMap.beginSnapshot(game);
+        try {
+            return GSON.toJson(
+                    buildGameView(game, castingAbility, gameId, viewer, secretChoiceVisibility));
+        } finally {
+            ParityCardMap.endSnapshot();
+        }
     }
 
     private static Map<String, Object> buildGameView(

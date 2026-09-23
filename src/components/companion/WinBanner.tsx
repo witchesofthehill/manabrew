@@ -4,11 +4,9 @@ import { useCompanionStore } from "@/stores/useCompanionStore";
 import { COMPANION_ACCENT_COLORS } from "@/stores/useCompanionStore.constants";
 import type { CompanionPlayer, CompanionSession } from "@/stores/useCompanionStore.types";
 import { GameIcon } from "./GameIcon";
-
 interface WinBannerProps {
   session: CompanionSession;
 }
-
 export function WinBanner({ session }: WinBannerProps) {
   const living = session.players.filter((p) => !p.isDead);
   const winner = session.players.length > 1 && living.length === 1 ? living[0]! : null;
@@ -18,7 +16,6 @@ export function WinBanner({ session }: WinBannerProps) {
   // even when the same player wins both times in a single session.
   return <WinBannerInner key={`${winner.id}-${session.history.length}`} winner={winner} />;
 }
-
 function WinBannerInner({ winner }: { winner: CompanionPlayer }) {
   const endSession = useCompanionStore((s) => s.endSession);
   const [dismissed, setDismissed] = useState(false);

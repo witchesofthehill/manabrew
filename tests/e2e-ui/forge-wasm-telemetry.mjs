@@ -8,6 +8,7 @@
 // Env: BASE, DECK, AI_DECK, ENGINE=forge|rust, HEADED=1.
 import { chromium } from "playwright";
 import { launchOpts, onboard, uniqueName } from "../e2e-ironsmith/lib.mjs";
+import { drive, startSoloGame, waitForFirstPrompt } from "./forgeSolo.mjs";
 
 const BASE = process.env.BASE || "http://localhost:5199";
 const DECK = process.env.DECK || "Izzet Lessons";
@@ -50,57 +51,16 @@ await page.addInitScript((on) => {
 
 await onboard(page, uniqueName("Tele"));
 await page.goto(`${BASE}/play/offline/constructed`, { waitUntil: "networkidle" });
-await page.getByRole("button", { name: "Standard", exact: true }).click();
-await page.waitForTimeout(600);
-for (const deck of [DECK, AI_DECK]) {
-  const card = page.getByRole("button", { name: new RegExp(`^${deck}`) }).first();
-  if (!(await card.count())) await fail(`deck "${deck}" is not on the Standard tab`);
-  await card.click();
-  await page.waitForTimeout(500);
-}
-await page.getByRole("button", { name: /^Fight!$/ }).click();
-await page.waitForTimeout(15000);
+await startSoloGame(page, { format: "Standard", decks: [DECK, AI_DECK], fail });
+const hasStore = await page.evaluate(() => Boolean(window.__gameStore)).catch(() => false);
+if (hasStore) await waitForFirstPrompt(page).catch(() => fail("the game never produced a prompt"));
+else await page.waitForTimeout(15000);
 
 // Play enough decisions that the report is worth sending: a game nobody
 // played is deliberately not reported, so a handful of clicks is not enough.
-const hasStore = await page.evaluate(() => Boolean(window.__gameStore)).catch(() => false);
 if (hasStore) {
   // Through the store, which is the same path the UI takes, and quicker.
-  await page.evaluate(async () => {
-    const store = window.__gameStore;
-    const answerFor = (input) => {
-      switch (input?.type) {
-        case "chooseAction":
-          return { type: "pass", exhaustStack: false };
-        case "mulligan":
-          return { type: "mulliganDecision", keep: true };
-        case "revealCards":
-          return { type: "revealCardsAcknowledged" };
-        case "diceRolled":
-          return { type: "diceRolledAcknowledged" };
-        case "chooseBoolean":
-          return { type: "decision", value: false };
-        case "chooseAttackers":
-          return { type: "declareAttackers", assignments: [] };
-        case "chooseBlockers":
-          return { type: "declareBlockers", assignments: [] };
-        case "payManaCost":
-          return { type: "cancel" };
-        default:
-          return null;
-      }
-    };
-    for (let step = 0; step < 60; step += 1) {
-      const state = store.getState();
-      if (!state.isGameActive) break;
-      const answer =
-        state.currentPrompt && !state.isWaitingForResponse
-          ? answerFor(state.currentPrompt.input)
-          : null;
-      if (answer) await state.respond(answer);
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    }
-  });
+  await drive(page, { budgetMs: 60000, done: async (_type, answered) => answered >= 40 });
 } else {
   // A production build has no store seam, so play it the way a person does.
   // The same control set the offline test drives with: the board's answer is

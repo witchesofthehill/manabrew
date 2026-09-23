@@ -34,7 +34,6 @@ export class HandRulesCardFace extends Container {
     this.addChild(this.preview.container);
     this.sync();
   }
-
   get artworkTop(): number {
     return this.preview.artworkTop;
   }
@@ -48,7 +47,6 @@ export class HandRulesCardFace extends Container {
     this.slotHeight = height;
     this.sync();
   }
-
   setTheme(theme: Theme): void {
     this.preview.setTheme(theme);
   }
@@ -61,7 +59,6 @@ export class HandRulesCardFace extends Container {
     this.onSelectAction = onSelectAction;
     this.sync();
   }
-
   setHighlightedEffect(text: string): void {
     if (this.highlightedEffect === text) return;
     this.highlightedEffect = text;
@@ -88,7 +85,6 @@ export class HandRulesCardFace extends Container {
       highlightedEffect: this.highlightedEffect,
     });
   }
-
   override destroy(options?: DestroyOptions): void {
     this.removeChild(this.preview.container);
     this.preview.destroy();

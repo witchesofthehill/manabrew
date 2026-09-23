@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/dialog";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import type { CompanionPlayer, CompanionSession } from "@/stores/useCompanionStore.types";
-
 export function GameSummaryDialog() {
   const summary = useCompanionStore((s) => s.summarySession);
   const dismissSummary = useCompanionStore((s) => s.dismissSummary);
@@ -24,7 +23,6 @@ export function GameSummaryDialog() {
     </Dialog>
   );
 }
-
 function SummaryBody({
   session,
   winnerId,
@@ -45,7 +43,7 @@ function SummaryBody({
               <li key={p.id} className="flex justify-between gap-2">
                 <span className="truncate">
                   {p.name}
-                  {p.isDead ? " (eliminated)" : ""}
+                  {p.isDead ? ` (eliminated)` : ""}
                 </span>
                 <span className="tabular-nums">{p.life}</span>
               </li>
@@ -75,27 +73,25 @@ function SummaryBody({
         <Button variant="outline" onClick={() => copySummary(session, winner)}>
           <Copy className="mr-2 size-4" /> Copy to clipboard
         </Button>
-        <Button variant="ghost" onClick={() => useCompanionStore.getState().dismissSummary()}>
+        <Button variant="primary" onClick={() => useCompanionStore.getState().dismissSummary()}>
           Close
         </Button>
       </DialogFooter>
     </>
   );
 }
-
 function copySummary(session: CompanionSession, winner: CompanionPlayer | null) {
   const lines = [
-    "Manabrew game summary",
-    winner ? `Winner: ${winner.name}` : "Winner: none",
+    `Manabrew game summary`,
+    winner ? `Winner: ${winner.name}` : `Winner: none`,
     `Length: ${formatDuration(session.timer.accumulatedMs)}`,
     `Turns: ${session.turn || 0}`,
     "",
-    "Final scores:",
+    `Final scores:`,
     ...session.players.map((p) => `  ${p.name}: ${p.life}${p.isDead ? " (eliminated)" : ""}`),
   ];
   void navigator.clipboard.writeText(lines.join("\n"));
 }
-
 function formatDuration(ms: number): string {
   const total = Math.floor(ms / 1000);
   const minutes = Math.floor(total / 60);

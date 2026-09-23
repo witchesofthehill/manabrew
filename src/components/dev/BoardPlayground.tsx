@@ -41,9 +41,21 @@ import { BoardPlaygroundZone } from "./BoardPlaygroundZone";
 
 const DEV_MANA_ACTION_ID = "dev-mana";
 const PREVIEW_VIEWPORTS = [
-  { label: "Desktop", width: undefined, height: "85dvh" },
-  { label: "Phone portrait", width: 390, height: 640 },
-  { label: "Phone landscape", width: 740, height: 340 },
+  {
+    label: `Desktop`,
+    width: undefined,
+    height: "85dvh",
+  },
+  {
+    label: `Phone portrait`,
+    width: 390,
+    height: 640,
+  },
+  {
+    label: `Phone landscape`,
+    width: 740,
+    height: 340,
+  },
 ] as const;
 
 let previewCardSequence = 0;
@@ -313,7 +325,7 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
       kind: "ability",
       cardId: previewCard.id,
       actionId: index === 0 ? DEV_MANA_ACTION_ID : `dev-action-${index}`,
-      label: index === 0 ? "Add {G}." : `Preview test action ${index + 1}.`,
+      label: index === 0 ? `Add {G}.` : `Preview test action ${index + 1}.`,
       cost: index === 0 ? "{T}" : `{${index + 1}}`,
       isManaAbility: index === 0,
       abilityIndex: index,

@@ -1,6 +1,5 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
-
 const palette: BasePalette = {
   foreground: "#dcd7ba", // fujiWhite
   labelMuted: "#727169", // fujiGray
@@ -34,11 +33,10 @@ const palette: BasePalette = {
   manaG: "#76946a",
   manaC: "#9e9b93",
 };
-
 const preset: ThemePreset = {
   id: "kanagawa",
   name: "Kanagawa",
-  description: "Japanese ink-wash inspired, deep indigo and warm accents",
+  description: `Japanese ink-wash inspired, deep indigo and warm accents`,
   light: {
     background: "#f0f1f5",
     foreground: "#292d3d",
@@ -93,5 +91,4 @@ const preset: ThemePreset = {
   },
   gameColors: buildGameColors(palette),
 };
-
 export default preset;

@@ -5,7 +5,7 @@ export const ackReveal: PromptResolver<"revealCards"> = (_prompt, ctx) => {
   return {
     kind: "auto",
     respond: { type: "revealCardsAcknowledged" },
-    reason: "RevealCards toggled off; auto-ack",
+    reason: `RevealCards toggled off; auto-ack`,
   };
 };
 
@@ -14,6 +14,6 @@ export const ackDiceRolled: PromptResolver<"diceRolled"> = (_prompt, ctx) => {
   return {
     kind: "auto",
     respond: { type: "diceRolledAcknowledged" },
-    reason: "DiceRolled toggled off; auto-ack",
+    reason: `DiceRolled toggled off; auto-ack`,
   };
 };

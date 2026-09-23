@@ -9,71 +9,85 @@ import { ManaBrewLogo } from "./ManaBrewLogo";
 import { NavSheet } from "./NavSheet";
 import { TopBarNav } from "./TopBarNav";
 import type { TopBarOverride } from "./TopBarOverride";
-
 interface RouteChrome {
   title: string | null;
   fallback: string;
 }
-
 function normalizePathname(pathname: string) {
   return pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
 }
-
 function getRouteChrome(pathname: string, search: string): RouteChrome {
   pathname = normalizePathname(pathname);
   if (pathname === ROUTES.PLAY) return { title: null, fallback: ROUTES.PLAY };
   if (pathname === ROUTES.PLAY_OFFLINE_CONSTRUCTED) {
-    return { title: "Play Offline", fallback: ROUTES.PLAY };
+    return { title: `Play Offline`, fallback: ROUTES.PLAY };
   }
   if (pathname === ROUTES.PLAY_OFFLINE_LIMITED) {
-    return { title: "Play Offline", fallback: ROUTES.PLAY };
+    return { title: `Play Offline`, fallback: ROUTES.PLAY };
   }
   if (pathname.startsWith(`${ROUTES.PLAY_DECK}/`)) {
-    return { title: "Play Deck", fallback: ROUTES.PLAY };
+    return { title: `Play Deck`, fallback: ROUTES.PLAY };
   }
-  if (pathname === ROUTES.LOBBY) return { title: "Multiplayer", fallback: ROUTES.PLAY };
-  if (pathname === ROUTES.SEARCH) return { title: "Card Search", fallback: ROUTES.PLAY };
+  if (pathname === ROUTES.LOBBY) {
+    return { title: `Multiplayer`, fallback: ROUTES.PLAY };
+  }
+  if (pathname === ROUTES.SEARCH) {
+    return { title: `Card Search`, fallback: ROUTES.PLAY };
+  }
   if (pathname === ROUTES.DECK_EDITOR) {
     return {
-      title: new URLSearchParams(search).has("deck") ? "Deck Editor" : "My Decks",
+      title: new URLSearchParams(search).has("deck") ? `Deck Editor` : `My Decks`,
       fallback: ROUTES.PLAY,
     };
   }
-  if (pathname === ROUTES.MY_COLLECTION) return { title: "My Collection", fallback: ROUTES.PLAY };
-  if (pathname === ROUTES.HUB_TOP) return { title: "Top Decks", fallback: ROUTES.HUB };
-  if (pathname === ROUTES.HUB) return { title: "Community", fallback: ROUTES.PLAY };
+  if (pathname === ROUTES.MY_COLLECTION) {
+    return { title: `My Collection`, fallback: ROUTES.PLAY };
+  }
+  if (pathname === ROUTES.HUB_TOP) {
+    return { title: `Top Decks`, fallback: ROUTES.HUB };
+  }
+  if (pathname === ROUTES.HUB) {
+    return { title: `Community`, fallback: ROUTES.PLAY };
+  }
   if (pathname === `${ROUTES.DRAFT}/multiplayer`) {
-    return { title: "Multiplayer Draft", fallback: ROUTES.LOBBY };
+    return { title: `Multiplayer Draft`, fallback: ROUTES.LOBBY };
   }
   if (pathname.startsWith(`${ROUTES.DRAFT}/`)) {
-    return { title: "Booster Draft", fallback: ROUTES.PLAY_OFFLINE_LIMITED };
+    return { title: `Booster Draft`, fallback: ROUTES.PLAY_OFFLINE_LIMITED };
   }
   if (pathname === `${ROUTES.SEALED}/multiplayer`) {
-    return { title: "Sealed Deck Build", fallback: ROUTES.LOBBY };
+    return { title: `Sealed Deck Build`, fallback: ROUTES.LOBBY };
   }
   if (pathname.startsWith(`${ROUTES.SEALED}/`)) {
-    return { title: "Sealed", fallback: ROUTES.PLAY_OFFLINE_LIMITED };
+    return { title: `Sealed`, fallback: ROUTES.PLAY_OFFLINE_LIMITED };
   }
   if (pathname.startsWith(`${ROUTES.WINSTON}/`)) {
-    return { title: "Winston Draft", fallback: ROUTES.PLAY_OFFLINE_LIMITED };
+    return { title: `Winston Draft`, fallback: ROUTES.PLAY_OFFLINE_LIMITED };
   }
   if (pathname.startsWith(`${ROUTES.GAUNTLET}/`)) {
-    return { title: "Gauntlet", fallback: ROUTES.PLAY_OFFLINE_LIMITED };
+    return { title: `Gauntlet`, fallback: ROUTES.PLAY_OFFLINE_LIMITED };
   }
-  if (pathname === ROUTES.COMPANION) return { title: "Life Tracker", fallback: ROUTES.PLAY };
-  if (pathname === ROUTES.SETTINGS) return { title: "Preferences", fallback: ROUTES.PLAY };
-  if (pathname === ROUTES.ABOUT) return { title: "About Manabrew", fallback: ROUTES.PLAY };
+  if (pathname === ROUTES.COMPANION) {
+    return { title: `Life Tracker`, fallback: ROUTES.PLAY };
+  }
+  if (pathname === ROUTES.SETTINGS) {
+    return { title: `Preferences`, fallback: ROUTES.PLAY };
+  }
+  if (pathname === ROUTES.ABOUT) {
+    return { title: `About Manabrew`, fallback: ROUTES.PLAY };
+  }
   if (pathname === ROUTES.DESIGN_SYSTEM) {
-    return { title: "Design System", fallback: ROUTES.PLAY };
+    return { title: `Design System`, fallback: ROUTES.PLAY };
+  }
+  if (pathname === "/card-mock") {
+    return { title: `Card Face Gallery`, fallback: ROUTES.PLAY };
   }
   if (pathname === "/card-mock") return { title: "Theme Editor", fallback: ROUTES.PLAY };
   return { title: null, fallback: ROUTES.PLAY };
 }
-
 interface TopBarProps {
   override?: TopBarOverride;
 }
-
 export function TopBar({ override }: TopBarProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -90,10 +104,11 @@ export function TopBar({ override }: TopBarProps) {
   const downloading = phase === "downloading";
   const updateLabel = downloading
     ? progress == null
-      ? "Downloading…"
+      ? `Downloading…`
       : `Downloading… ${progress}%`
-    : `Update to ${version}`;
-
+    : version
+      ? `Update to ${version}`
+      : "";
   function goBack() {
     if (override?.onBack) {
       override.onBack();
@@ -116,7 +131,6 @@ export function TopBar({ override }: TopBarProps) {
       navigate(routeChrome.fallback);
     }
   }
-
   function goHome() {
     if (override?.onHome) {
       override.onHome();
@@ -124,7 +138,6 @@ export function TopBar({ override }: TopBarProps) {
       navigate(ROUTES.PLAY);
     }
   }
-
   return (
     <header className="flex min-w-0 items-center gap-2 border-b border-border/70 bg-background/80 py-2 pl-[calc(var(--safe-area-inset-left)+1rem)] pr-[calc(var(--safe-area-inset-right)+1rem)] pt-[calc(var(--safe-area-inset-top)+0.5rem)] backdrop-blur-md sm:pl-[calc(var(--safe-area-inset-left)+1.5rem)] sm:pr-[calc(var(--safe-area-inset-right)+1.5rem)] lg:pl-[calc(var(--safe-area-inset-left)+2rem)] lg:pr-[calc(var(--safe-area-inset-right)+2rem)]">
       {!isPlayHome && (
@@ -133,16 +146,16 @@ export function TopBar({ override }: TopBarProps) {
           variant="ghost"
           className="group h-8 w-8 shrink-0 border border-transparent motion-safe:transition-[background-color,border-color,color,box-shadow] hover:border-primary/30 hover:bg-primary/10 hover:text-primary hover:shadow-sm"
           onClick={goBack}
-          title="Back"
+          title={`Back`}
         >
           <ArrowLeft className="h-5 w-5 motion-safe:transition-transform motion-safe:group-hover:-translate-x-0.5" />
-          <span className="sr-only">Back</span>
+          <span className="sr-only">{`Back`}</span>
         </Button>
       )}
       <button
         type="button"
         onClick={goHome}
-        aria-label="Manabrew Home"
+        aria-label={`Manabrew Home`}
         className="group relative flex shrink-0 items-center gap-2 rounded-xl border border-transparent p-0.5 motion-safe:transition-[background-color,border-color,box-shadow] hover:border-primary/30 hover:bg-primary/10 hover:shadow-sm focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-['']"
       >
         <ManaBrewLogo
@@ -182,7 +195,7 @@ export function TopBar({ override }: TopBarProps) {
             )}
             <span className="hidden min-[400px]:inline">{updateLabel}</span>
             <span className="min-[400px]:hidden">
-              {downloading && progress != null ? `${progress}%` : "Update"}
+              {downloading && progress != null ? `${progress}%` : `Update`}
             </span>
           </Button>
         )}

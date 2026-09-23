@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
-
 import {
   Dialog,
   DialogContent,
@@ -11,13 +10,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { DeckEditorCommand } from "./deckEditor.commands";
-
 interface DeckCommandPaletteProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   commands: DeckEditorCommand[];
 }
-
 export function DeckCommandPalette({ open, onOpenChange, commands }: DeckCommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -29,14 +26,12 @@ export function DeckCommandPalette({ open, onOpenChange, commands }: DeckCommand
       return terms.every((term) => haystack.includes(term));
     });
   }, [commands, query]);
-
   function run(command: DeckEditorCommand) {
     if (command.disabled) return;
     command.run();
     setQuery("");
     onOpenChange(false);
   }
-
   return (
     <Dialog
       open={open}
@@ -66,7 +61,7 @@ export function DeckCommandPalette({ open, onOpenChange, commands }: DeckCommand
             }
             value={query}
             className="h-11 pl-9"
-            placeholder="Type a deck command…"
+            placeholder={`Type a deck command\u2026`}
             onChange={(event) => {
               setQuery(event.target.value);
               setActiveIndex(0);

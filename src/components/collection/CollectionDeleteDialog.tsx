@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { LoaderCircle, Trash2 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,14 +9,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
 interface CollectionDeleteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   entryCount: number;
   onDelete: () => Promise<void>;
 }
-
 export function CollectionDeleteDialog({
   open,
   onOpenChange,
@@ -25,7 +22,6 @@ export function CollectionDeleteDialog({
   onDelete,
 }: CollectionDeleteDialogProps) {
   const [deleting, setDeleting] = useState(false);
-
   async function handleDelete() {
     setDeleting(true);
     try {
@@ -37,7 +33,6 @@ export function CollectionDeleteDialog({
     setDeleting(false);
     onOpenChange(false);
   }
-
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !deleting && onOpenChange(nextOpen)}>
       <DialogContent className="max-w-md">
@@ -54,7 +49,7 @@ export function CollectionDeleteDialog({
           </Button>
           <Button variant="destructive" disabled={deleting} onClick={() => void handleDelete()}>
             {deleting ? <LoaderCircle className="animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            {deleting ? "Deleting…" : "Delete collection"}
+            {deleting ? `Deleting\u2026` : `Delete collection`}
           </Button>
         </DialogFooter>
       </DialogContent>

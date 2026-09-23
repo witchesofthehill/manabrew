@@ -12,7 +12,6 @@ import {
 import { cn } from "@/lib/utils";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import { GameIcon } from "./GameIcon";
-
 export function TurnTimer({ className }: { className?: string }) {
   const session = useCompanionStore((s) => s.session);
   const startTimer = useCompanionStore((s) => s.startTimer);
@@ -20,12 +19,10 @@ export function TurnTimer({ className }: { className?: string }) {
   const resetTimer = useCompanionStore((s) => s.resetTimer);
   const setTimerMode = useCompanionStore((s) => s.setTimerMode);
   const [now, setNow] = useState(0);
-
   const timer = session?.timer;
   const running = Boolean(timer?.startedAt);
   const chessActive =
     session?.timerMode === "chess" && session.chessClockStartedAt != null && session.activePlayerId;
-
   useEffect(() => {
     if (!running && !chessActive) return;
     const tick = () => setNow(Date.now());
@@ -39,9 +36,7 @@ export function TurnTimer({ className }: { className?: string }) {
       clearInterval(interval);
     };
   }, [running, chessActive]);
-
   if (!session) return null;
-
   // `now === 0` means the interval hasn't sampled the clock yet (initial
   // render or just-paused). Treat the live delta as zero so the readout
   // doesn't show -45 million minutes during the first frame after Play.
@@ -54,9 +49,7 @@ export function TurnTimer({ className }: { className?: string }) {
     (session.timerMode === "chess" && session.chessClockStartedAt != null && activePlayer
       ? liveDelta(session.chessClockStartedAt)
       : 0);
-
   const shownMs = session.timerMode === "chess" && activePlayer ? chessElapsed : sharedElapsed;
-
   const isIdle = !running && shownMs === 0;
   // When the timer hasn't started yet, collapse to a single Play button.
   // Once it's running (or has accumulated time on pause), expand to show
@@ -68,14 +61,13 @@ export function TurnTimer({ className }: { className?: string }) {
         variant="ghost"
         className={cn("size-8 rounded-md bg-muted/60", className)}
         onClick={() => startTimer()}
-        aria-label="Start timer"
-        title="Start timer"
+        aria-label={`Start timer`}
+        title={`Start timer`}
       >
         <GameIcon icon="sands-of-time" className="size-3.5 text-muted-foreground" />
       </Button>
     );
   }
-
   return (
     <div
       className={cn(
@@ -89,8 +81,10 @@ export function TurnTimer({ className }: { className?: string }) {
             size="icon"
             variant="ghost"
             className="size-6"
-            aria-label={`Timer mode: ${session.timerMode === "chess" ? "chess clock" : "shared"}`}
-            title={session.timerMode === "chess" ? "Chess clock" : "Shared clock"}
+            aria-label={
+              session.timerMode === "chess" ? `Timer mode: chess clock` : `Timer mode: shared`
+            }
+            title={session.timerMode === "chess" ? `Chess clock` : `Shared clock`}
           >
             <GameIcon icon="sands-of-time" className="size-3.5 text-muted-foreground" />
           </Button>
@@ -120,7 +114,7 @@ export function TurnTimer({ className }: { className?: string }) {
         variant="ghost"
         className="size-6"
         onClick={() => (running ? pauseTimer() : startTimer())}
-        aria-label={running ? "Pause timer" : "Resume timer"}
+        aria-label={running ? `Pause timer` : `Resume timer`}
       >
         {running ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
       </Button>
@@ -129,14 +123,13 @@ export function TurnTimer({ className }: { className?: string }) {
         variant="ghost"
         className="size-6"
         onClick={resetTimer}
-        aria-label="Reset timer"
+        aria-label={`Reset timer`}
       >
         <RotateCcw className="size-3.5" />
       </Button>
     </div>
   );
 }
-
 function formatElapsed(ms: number): string {
   const total = Math.floor(ms / 1000);
   const minutes = Math.floor(total / 60);

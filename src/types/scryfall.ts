@@ -16,6 +16,7 @@ export interface ScryfallCard {
   tcgplayer_id?: number;
   cardmarket_id?: number;
   name: string;
+  printed_name?: string;
   lang: string;
   released_at: string;
   uri: string;
@@ -34,6 +35,9 @@ export interface ScryfallCard {
   card_faces?: Array<{
     name: string;
     type_line?: string;
+    printed_name?: string;
+    printed_type_line?: string;
+    printed_text?: string;
     oracle_text?: string;
     mana_cost?: string;
     flavor_text?: string;
@@ -53,6 +57,8 @@ export interface ScryfallCard {
   mana_cost?: string;
   cmc: number;
   type_line: string;
+  printed_type_line?: string;
+  printed_text?: string;
   oracle_text?: string;
   flavor_text?: string;
   loyalty?: string;

@@ -55,6 +55,28 @@ fn start_asset_server(app: &tauri::AppHandle) -> Option<u16> {
             }
 
             let raw = request.url().to_string();
+            // The picture is worth nothing to a client that cannot learn its
+            // url, so the data downloaded beside it answers here too.
+            if let Some(asked) = crate::image_cache::parse_request(&raw) {
+                use crate::image_cache::CacheRequest;
+                let cards = crate::image_cache::cards();
+                let cache = crate::image_cache::cache();
+                respond_card_data(
+                    request,
+                    match asked {
+                        CacheRequest::Card(name) => cards.and_then(|cards| cards.read(&name)),
+                        CacheRequest::Printing(set, number) => {
+                            cards.and_then(|cards| cards.read_printing(&set, &number))
+                        }
+                        CacheRequest::Sets => cache.and_then(|cache| cache.read_sets()),
+                        CacheRequest::Names => cache.and_then(|cache| cache.read_names()),
+                        CacheRequest::Rulings(oracle_id) => {
+                            cards.and_then(|cards| cards.read_rulings(&oracle_id))
+                        }
+                    },
+                );
+                continue;
+            }
             if let Some(key) = crate::image_cache::key_from_request_path(&raw) {
                 // A hit answers here, because reading a file is not worth a
                 // task. A miss is a CDN round trip, and this is the only thread
@@ -115,6 +137,26 @@ fn start_asset_server(app: &tauri::AppHandle) -> Option<u16> {
     });
 
     Some(ASSET_SERVER_PORT)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn respond_card_data(request: tiny_http::Request, body: Option<Vec<u8>>) {
+    let Some(bytes) = body else {
+        let _ = request.respond(tiny_http::Response::empty(404));
+        return;
+    };
+    let mut response = tiny_http::Response::from_data(bytes);
+    for (name, value) in [
+        ("Content-Type", "application/json"),
+        ("Cross-Origin-Resource-Policy", "same-origin"),
+        // Cards are renamed and reprinted, unlike a picture at a hashed path.
+        ("Cache-Control", "public, max-age=86400"),
+    ] {
+        if let Ok(header) = tiny_http::Header::from_bytes(name.as_bytes(), value.as_bytes()) {
+            response.add_header(header);
+        }
+    }
+    let _ = request.respond(response);
 }
 
 #[cfg(not(target_os = "windows"))]

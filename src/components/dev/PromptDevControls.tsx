@@ -4,7 +4,6 @@ import {
   type DevPromptActionOverride,
   useGameDevStore,
 } from "@/stores/useGameDevStore";
-
 import {
   DEV_CONTROL_ACTIVE,
   DEV_CONTROL_BUTTON,
@@ -29,7 +28,6 @@ const PROMPT_LABELS: Record<DevPromptActionOverride, { label: string; descriptio
   mulliganPutBack: { label: "Mulligan bottom", description: "Bottom-card selection state" },
   noAction: { label: "No action", description: "No available action state" },
 };
-
 export function PromptDevControls() {
   const override = useGameDevStore((s) => s.promptActionOverride);
   const setOverride = useGameDevStore((s) => s.setPromptActionOverride);

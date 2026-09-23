@@ -1,6 +1,5 @@
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
-
 import { cn } from "@/lib/utils";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
@@ -8,7 +7,6 @@ import { useScryfallStore } from "@/stores/useScryfallStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { PREVIEW_SCENARIOS } from "./devPreviewScenarios";
 import { Button } from "@/components/ui/button";
-
 import {
   DEV_CONTROL_ACTIVE,
   DEV_CONTROL_BUTTON,
@@ -77,7 +75,6 @@ export function DevCardLayoutControls() {
       setLoadingId(null);
     }
   };
-
   return (
     <section className={DEV_SECTION}>
       <div className="flex items-start justify-between gap-3">

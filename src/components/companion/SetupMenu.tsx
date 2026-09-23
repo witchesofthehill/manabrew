@@ -18,12 +18,10 @@ import {
 } from "@/stores/useCompanionStore.constants";
 import type { CompanionSession } from "@/stores/useCompanionStore.types";
 import { GameIcon } from "./GameIcon";
-
 interface SetupMenuProps {
   session: CompanionSession;
   onOpenLog: () => void;
 }
-
 export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
   const setPlayerCount = useCompanionStore((s) => s.setPlayerCount);
   const setStartingLife = useCompanionStore((s) => s.setStartingLife);
@@ -34,7 +32,6 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
   const resetCounters = useCompanionStore((s) => s.resetCounters);
   const resetGame = useCompanionStore((s) => s.resetGame);
   const endSession = useCompanionStore((s) => s.endSession);
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -42,8 +39,8 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
           size="icon"
           variant="outline"
           className="size-8 sm:size-9"
-          aria-label="Game setup"
-          title="Game setup"
+          aria-label={`Game setup`}
+          title={`Game setup`}
         >
           <Settings className="size-4" />
         </Button>
@@ -57,7 +54,7 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
             className="size-7"
             onClick={() => setPlayerCount(session.players.length - 1)}
             disabled={session.players.length <= COMPANION_MIN_PLAYERS}
-            aria-label="Fewer players"
+            aria-label={`Fewer players`}
           >
             <Minus className="size-3.5" />
           </Button>
@@ -68,7 +65,7 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
             className="size-7"
             onClick={() => setPlayerCount(session.players.length + 1)}
             disabled={session.players.length >= COMPANION_MAX_PLAYERS}
-            aria-label="More players"
+            aria-label={`More players`}
           >
             <Plus className="size-3.5" />
           </Button>
@@ -143,7 +140,7 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
             onKeyDown={(e) => {
               if (e.key === "Enter") (e.target as HTMLInputElement).blur();
             }}
-            placeholder="Untitled game"
+            placeholder={`Untitled game`}
             className="h-8 text-xs"
           />
         </div>

@@ -9,7 +9,7 @@ It runs in a browser and on Node. The entry point differs, the API does not. It 
 Pin an exact version while the API is pre-1.0:
 
 ```sh
-npm install --save-exact @manabrew/forge-wasm@0.1.0
+npm install --save-exact @manabrew/forge-wasm@0.3.0
 ```
 
 ## Browser: server headers

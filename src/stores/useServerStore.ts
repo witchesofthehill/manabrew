@@ -3,6 +3,8 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { toast } from "sonner";
 import { getPlatform } from "@/platform";
+import { findLanRelay, type LanTarget } from "@/lib/lanRelay";
+import { setLanCacheHost, setRelayCacheBase } from "@/lib/lanCache";
 import { attachDraftPeer, detachDraftPeer } from "@/game/draftPeer";
 import { teardownHost as teardownDraftHost } from "@/game/draftHost";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
@@ -52,15 +54,12 @@ import type {
 } from "@/types/server";
 import type { Deck } from "@/protocol/deck";
 import { resendLocalGame } from "@/lib/localGamePresence";
-
 export const DEFAULT_STARTING_LIFE = 20;
-
 export interface ReconnectState {
   phase: "idle" | "reconnecting" | "failed";
   attempt: number;
   reason?: "network" | "server-shutdown";
 }
-
 interface ServerState {
   connected: boolean;
   connecting: boolean;
@@ -69,20 +68,21 @@ interface ServerState {
   username: string | null;
   reconnect: ReconnectState;
   relayFeatures: string[];
+  /** Set when the session is on a relay or room found on this network rather
+   *  than the configured one, for the lobby to say so. */
+  lanTarget: LanTarget | null;
 
   rooms: RoomInfo[];
   currentRoom: RoomInfo | null;
   roomPassword: string | null;
   hostingForgeRoom: boolean;
   players: PlayerInfo[];
-
   gameStarted: boolean;
   gameRoomId: string;
   gameId: string;
   playerOrder: string[];
   playerDecks: PlayerDeckInfo[];
   startingLife: number;
-
   connect(
     host: string,
     port: number,
@@ -90,6 +90,11 @@ interface ServerState {
     password: string,
     lan?: boolean,
   ): Promise<void>;
+  /** The configured relay, unless one is answering on this network: that is
+   *  the network's lobby and wins. */
+  connectPreferred(username: string): Promise<void>;
+  /** Record that the session is on `target`, and read its cache from it. */
+  adoptLanTarget(target: LanTarget | null): void;
   disconnect(): Promise<void>;
   listRooms(): Promise<void>;
   listPlayers(): Promise<void>;
@@ -120,12 +125,9 @@ interface ServerState {
   endGame(): Promise<void>;
   inviteToRoom(username: string): Promise<void>;
   hasRelayFeature(feature: RelayFeature): boolean;
-
   setupListeners(): () => void;
 }
-
 export const JOIN_REJECTED_INCORRECT_PASSWORD = SERVER_ERROR_CODE.IncorrectPassword;
-
 const JOIN_CONFIRM_TIMEOUT_MS = 7000;
 const JOIN_FAILURE_CODES: ReadonlySet<ServerErrorCode> = new Set([
   SERVER_ERROR_CODE.RoomNotFound,
@@ -137,42 +139,35 @@ const JOIN_FAILURE_CODES: ReadonlySet<ServerErrorCode> = new Set([
   SERVER_ERROR_CODE.AuthTimeout,
   SERVER_ERROR_CODE.WebSocket,
 ]);
-
 interface PendingJoin {
   roomId: string;
   settle: (error: Error | null) => void;
   timer: ReturnType<typeof setTimeout>;
 }
-
 let pendingJoin: PendingJoin | null = null;
-
 let tabSession: TabSessionHolder | null = null;
-
 function releaseTabSession() {
   tabSession?.release();
   tabSession = null;
 }
-
 // The duplicate backoff in platform/web.ts only helps when the holder is a
 // dead session the relay will reap. When the holder is alive (another tab of
 // this browser, or another device), the retry loop can never win — stop it
 // and tell the player instead.
-const DUPLICATE_GIVE_UP_MS = 120_000;
+const DUPLICATE_GIVE_UP_MS = 120000;
 let duplicateRejectionSince: number | null = null;
-
 async function stopReconnectAsDuplicate(error: string) {
   duplicateRejectionSince = null;
   await getPlatform().server?.disconnect();
   useServerStore.setState({ connected: false, connecting: false, error });
   toast.info(error);
 }
-
 async function handleDuplicateRejection() {
   const username = useServerStore.getState().username;
   if (!username) return;
   if ((await probeTabSession(username)) === "held") {
     await stopReconnectAsDuplicate(
-      "You are signed in in another tab of this browser. Close it, or connect here to take over.",
+      `You are signed in in another tab of this browser. Close it, or connect here to take over.`,
     );
     return;
   }
@@ -183,7 +178,6 @@ async function handleDuplicateRejection() {
     );
   }
 }
-
 function settlePendingJoin(error: Error | null, roomId?: string) {
   if (!pendingJoin) return false;
   if (roomId && pendingJoin.roomId !== roomId) return false;
@@ -193,7 +187,6 @@ function settlePendingJoin(error: Error | null, roomId?: string) {
   settle(error);
   return true;
 }
-
 export const useServerStore = create<ServerState>()(
   devtools(
     (set, get) => ({
@@ -204,6 +197,7 @@ export const useServerStore = create<ServerState>()(
       username: null,
       reconnect: { phase: "idle", attempt: 0 },
       relayFeatures: [],
+      lanTarget: null,
       rooms: [],
       currentRoom: null,
       roomPassword: null,
@@ -215,7 +209,6 @@ export const useServerStore = create<ServerState>()(
       playerOrder: [],
       playerDecks: [],
       startingLife: DEFAULT_STARTING_LIFE,
-
       async connect(host, port, username, password, lan) {
         const platform = getPlatform();
         if (!platform.server) {
@@ -223,15 +216,15 @@ export const useServerStore = create<ServerState>()(
           return;
         }
         set({ username, connecting: true, error: null });
+        get().adoptLanTarget(null);
         duplicateRejectionSince = null;
         releaseTabSession();
         const claim = await claimTabSession(username);
         if (claim.outcome === "refused") {
           set({
             connecting: false,
-            error: "You are hosting a game in another tab. Finish or close it first.",
+            error: `You are hosting a game in another tab. Finish or close it first.`,
           });
-          return;
         }
         try {
           await platform.server.connect({ host, port, username, password, lan });
@@ -243,12 +236,35 @@ export const useServerStore = create<ServerState>()(
               // handle first so disconnect() doesn't close that channel mid-handover.
               tabSession = null;
               await get().disconnect();
-              toast.info("Signed in from another tab — this tab was disconnected.");
+              toast.info(`Signed in from another tab \u2014 this tab was disconnected.`);
             },
           });
         } catch (e) {
           set({ connecting: false, error: String(e) });
         }
+      },
+
+      // Decided where the first connection is made. The home screen connects
+      // as soon as it opens, and a lookup that lived only in the lobby ran
+      // after that, when there was nothing left to decide.
+      async connectPreferred(username) {
+        if (get().connected || get().connecting) return;
+        set({ connecting: true, error: null });
+        const found = await findLanRelay();
+        const prefs = usePreferencesStore.getState();
+        if (found) {
+          await get().connect(found.host, found.port, username, found.password, true);
+          if (!get().error) get().adoptLanTarget(found);
+        } else {
+          await get().connect(prefs.serverHost, prefs.serverPort, username, prefs.serverPassword);
+        }
+      },
+
+      adoptLanTarget(target) {
+        set({ lanTarget: target });
+        // A host reads its own cache; only a guest has somewhere better to ask.
+        const guestOf = target && !target.hosting ? target : null;
+        setLanCacheHost(guestOf?.host ?? null, guestOf?.artPort);
       },
 
       async disconnect() {
@@ -257,6 +273,8 @@ export const useServerStore = create<ServerState>()(
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.disconnect();
+        get().adoptLanTarget(null);
+        setRelayCacheBase(null);
         set({
           connected: false,
           connecting: false,
@@ -277,19 +295,16 @@ export const useServerStore = create<ServerState>()(
           players: [],
         });
       },
-
       async listRooms() {
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.listRooms();
       },
-
       async listPlayers() {
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.listPlayers();
       },
-
       async createRoom(
         roomName,
         maxPlayers,
@@ -320,7 +335,6 @@ export const useServerStore = create<ServerState>()(
           await get().joinRoom(roomId, password);
         }
       },
-
       async joinRoom(roomId, password) {
         const platform = getPlatform();
         if (!platform.server) return;
@@ -339,7 +353,6 @@ export const useServerStore = create<ServerState>()(
           };
         });
       },
-
       async resumeRoomAfterRestart() {
         const platform = getPlatform();
         const { currentRoom, gameId, playerOrder, playerDecks, startingLife, roomPassword } = get();
@@ -364,14 +377,12 @@ export const useServerStore = create<ServerState>()(
           game_id: gameId,
         });
       },
-
       async leaveRoom(requireServerLeave = false) {
         const platform = getPlatform();
         if (requireServerLeave) {
           if (!platform.server) throw new Error("Multiplayer server is unavailable.");
           await platform.server.leaveRoom();
         }
-
         teardownDraftHost();
         useMultiplayerDraftStore.getState().clear();
         set({
@@ -404,13 +415,11 @@ export const useServerStore = create<ServerState>()(
           console.warn("listRooms() after leaveRoom failed:", e);
         }
       },
-
       async setReady(ready) {
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.setReady({ ready });
       },
-
       async setDeckSelection(deckName, deck, commanderName, publishedDeckId) {
         const platform = getPlatform();
         if (!platform.server) return;
@@ -434,53 +443,45 @@ export const useServerStore = create<ServerState>()(
           avatarUrl: useAuthStore.getState().account?.avatarUrl,
         });
       },
-
       async setFormat(format) {
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.setFormat({ format });
       },
-
       async setMaxPlayers(maxPlayers) {
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.setMaxPlayers({ maxPlayers });
       },
-
       async startGame(format) {
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.startGame(format ? { format } : undefined);
       },
-
       async endGame() {
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.endGame(get().gameId);
       },
-
       async inviteToRoom(username) {
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.inviteToRoom({ username });
         toast.success(`Invited ${stripUsernameTag(username)} to your table`);
       },
-
       hasRelayFeature(feature) {
         return get().relayFeatures.includes(feature);
       },
-
       setupListeners() {
         const platform = getPlatform();
         if (!platform.server) {
           return () => {}; // No-op cleanup for platforms without server support
         }
-
         const unsubscribers: (() => void)[] = [];
-
         unsubscribers.push(
           platform.events.on<AuthResultPayload>("server:auth_result", (payload) => {
             set({ relayFeatures: payload.features ?? [] });
+            setRelayCacheBase(payload.success ? (payload.art_base_url ?? null) : null);
             if (payload.success) {
               duplicateRejectionSince = null;
               set({
@@ -505,7 +506,6 @@ export const useServerStore = create<ServerState>()(
             }
           }),
         );
-
         unsubscribers.push(
           platform.events.on("server:session_taken_over", () => {
             void stopReconnectAsDuplicate(
@@ -513,7 +513,6 @@ export const useServerStore = create<ServerState>()(
             );
           }),
         );
-
         unsubscribers.push(
           platform.events.on<ReconnectingPayload>("server:reconnecting", (payload) => {
             set({
@@ -526,26 +525,22 @@ export const useServerStore = create<ServerState>()(
             });
           }),
         );
-
         unsubscribers.push(
           platform.events.on<RoomListPayload>("server:room_list", (payload) => {
             set({ rooms: payload.rooms });
           }),
         );
-
         unsubscribers.push(
           platform.events.on<PlayerListPayload>("server:player_list", (payload) => {
             set({ players: payload.players });
           }),
         );
-
         unsubscribers.push(
           platform.events.on<RoomCreatedPayload>("server:room_created", (payload) => {
             set({ currentRoom: payload.room });
             get().listRooms();
           }),
         );
-
         unsubscribers.push(
           platform.events.on<RoomUpdatePayload>("server:room_update", (payload) => {
             // Only rooms we are in or joining: an update broadcast while our
@@ -561,39 +556,33 @@ export const useServerStore = create<ServerState>()(
             settlePendingJoin(null, payload.room.room_id);
           }),
         );
-
         unsubscribers.push(
           platform.events.on<PlayerJoinedPayload>("server:player_joined", () => {
             get().listRooms();
             get().listPlayers();
           }),
         );
-
         unsubscribers.push(
           platform.events.on<PlayerLeftPayload>("server:player_left", () => {
             get().listRooms();
             get().listPlayers();
           }),
         );
-
         unsubscribers.push(
           platform.events.on<PlayerConnectionPayload>("server:player_connected", () => {
             get().listPlayers();
           }),
         );
-
         unsubscribers.push(
           platform.events.on<PlayerConnectionPayload>("server:player_disconnected", () => {
             get().listPlayers();
           }),
         );
-
         unsubscribers.push(
           platform.events.on<ReadyChangedPayload>("server:ready_changed", () => {
             // Room update will come separately with full state
           }),
         );
-
         unsubscribers.push(
           platform.events.on<GameStartedPayload>("server:game_started", (payload) => {
             const roomId = get().currentRoom?.room_id;
@@ -608,7 +597,6 @@ export const useServerStore = create<ServerState>()(
             });
           }),
         );
-
         unsubscribers.push(
           platform.events.on<ServerErrorPayload>("server:error", (payload) => {
             console.error("[server] error:", payload.code, payload.message);
@@ -633,10 +621,9 @@ export const useServerStore = create<ServerState>()(
               return;
             }
             const message = USER_FACING_ERROR_MESSAGES[payload.code as ServerErrorCode];
-            toast.error(message ?? payload.message ?? `Server error: ${payload.code}`);
+            toast.error(message ?? `Server error: ${payload.code}`);
           }),
         );
-
         unsubscribers.push(
           platform.events.on<DisconnectedPayload>("server:disconnected", (payload) => {
             if (payload?.terminal) {
@@ -663,11 +650,8 @@ export const useServerStore = create<ServerState>()(
             }
           }),
         );
-
         unsubscribers.push(platform.events.on("server:state_update", () => {}));
-
         unsubscribers.push(platform.events.on("server:turn_changed", () => {}));
-
         return () => {
           unsubscribers.forEach((fn) => fn());
         };

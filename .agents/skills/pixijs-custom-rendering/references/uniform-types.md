@@ -92,4 +92,3 @@ When using `{ ubo: true }` on a UniformGroup:
 - Samplers and textures cannot be placed in UBOs
 - Field names and order must exactly match the shader's uniform block declaration
 - The resource key in the shader must match the UBO block name
-

@@ -163,6 +163,54 @@ pub fn schedule_host_resume_abort(
     });
 }
 
+pub fn schedule_peer_host_loss(state: Arc<ServerState>, room_id: String, player_id: String) {
+    let Some(timeout_s) = state
+        .rooms
+        .get(&room_id)
+        .map(|room| room.reconnect_timeout_s)
+    else {
+        return;
+    };
+    let timeout = Duration::from_secs(timeout_s as u64);
+
+    tokio::spawn(async move {
+        tokio::time::sleep(timeout + RECONNECT_ABORT_MARGIN).await;
+
+        let still_hosting = state
+            .rooms
+            .get(&room_id)
+            .map(|room| room.status == RoomStatus::InGame && room.host_player_id == player_id)
+            .unwrap_or(false);
+        let still_gone = state
+            .players
+            .get(&player_id)
+            .map(|player| !player.connected)
+            .unwrap_or(true);
+        if !still_hosting || !still_gone {
+            return;
+        }
+
+        let Some((info, notify)) =
+            lobby::reset_room_to_lobby(&state, &room_id, GameEndReason::HostLost)
+        else {
+            return;
+        };
+        info!(
+            "[cleanup] room {} lost the seat holding its engine -- game ended, room reset to lobby",
+            &room_id[..8.min(room_id.len())]
+        );
+        broadcast_to_room(&state, &room_id, &ServerMessage::RoomUpdate { room: info });
+        let aborted = ServerMessage::GameAborted {
+            room_id: room_id.clone(),
+        };
+        if let Ok(json) = serde_json::to_string(&aborted) {
+            for pid in &notify {
+                emit_to(&state, pid, &aborted, &json);
+            }
+        }
+    });
+}
+
 pub fn schedule_seat_forfeit(state: Arc<ServerState>, room_id: String, player_id: String) {
     let Some(timeout_s) = state
         .rooms
@@ -302,6 +350,12 @@ fn mark_disconnected_inner(state: &Arc<ServerState>, player_id: &str, our_genera
                     return;
                 }
 
+                let peer_host_lost = state
+                    .rooms
+                    .get(rid)
+                    .map(|room| !room.hosted && room.is_host(player_id) && room.host_is_player())
+                    .unwrap_or(false);
+
                 let holds_seat = {
                     if let Some(mut room) = state.rooms.get_mut(rid) {
                         room.set_connected(player_id, false);
@@ -310,6 +364,22 @@ fn mark_disconnected_inner(state: &Arc<ServerState>, player_id: &str, our_genera
                         return;
                     }
                 };
+
+                if peer_host_lost {
+                    info!(
+                        "[disconnect] in-game room {} lost the seat holding its engine -- awaiting resume",
+                        &rid[..8]
+                    );
+                    broadcast_to_room(
+                        state,
+                        rid,
+                        &ServerMessage::PlayerDisconnected {
+                            username: username.clone(),
+                        },
+                    );
+                    schedule_peer_host_loss(state.clone(), rid.clone(), player_id.to_string());
+                    return;
+                }
 
                 info!(
                     "[disconnect] '{}' marked disconnected in in-game room {} (session preserved)",

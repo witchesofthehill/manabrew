@@ -15,7 +15,6 @@ import { useTheme } from "@/hooks/useTheme";
 import { readableTextColor } from "@/themes/gameTheme";
 import type { DeckCard, DeckLabel } from "@/protocol/deck";
 import { ScryfallImg } from "@/components/ScryfallImg";
-
 interface DeckSelectionCardProps {
   name: string;
   desc?: string;
@@ -43,8 +42,11 @@ interface DeckSelectionCardProps {
   onSelect: () => void;
   onActivate?: () => void;
 }
-
-function getDeckTypeBreakdown(cards: { types?: string[] }[]): string {
+function getDeckTypeBreakdown(
+  cards: {
+    types?: string[];
+  }[],
+): string {
   if (cards.length === 0) return "Empty deck";
   const creatures = cards.filter((card) => card.types?.includes("Creature")).length;
   const lands = cards.filter((card) => card.types?.includes("Land")).length;
@@ -55,7 +57,6 @@ function getDeckTypeBreakdown(cards: { types?: string[] }[]): string {
   if (lands > 0) parts.push(`${lands} land${lands === 1 ? "" : "s"}`);
   return parts.join(" · ");
 }
-
 export function DeckSelectionCard({
   name,
   desc,
@@ -119,7 +120,6 @@ export function DeckSelectionCard({
           : isSelected
             ? ", selected"
             : "";
-
   // Derive side-specific inline styles from theme CSS vars
   const sideStyle: React.CSSProperties | undefined = hasVsSide
     ? (() => {
@@ -135,7 +135,6 @@ export function DeckSelectionCard({
         };
       })()
     : undefined;
-
   return (
     <DeckCardSurface
       title={name}
@@ -236,7 +235,7 @@ export function DeckSelectionCard({
               {isHub
                 ? `Community · ${cardCount ?? cards.length} cards`
                 : isPreset
-                  ? "Preset deck"
+                  ? `Preset deck`
                   : `${cards.length} cards`}
             </span>
           )}

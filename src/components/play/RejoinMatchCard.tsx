@@ -21,21 +21,17 @@ import {
 import { ROUTES } from "@/lib/constants";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useServerStore } from "@/stores/useServerStore";
-
 interface RejoinMatchCardProps {
   session: ActiveGameSession;
   onAbandoned: () => void;
 }
-
 const ABANDON_CONNECT_TIMEOUT_MS = 7000;
-
 export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) {
   const navigate = useNavigate();
   const currentRoom = useServerStore((state) => state.currentRoom);
   const [confirmAbandon, setConfirmAbandon] = useState(false);
   const [abandoning, setAbandoning] = useState(false);
   const [abandonFailed, setAbandonFailed] = useState(false);
-
   function forgetMatch() {
     clearActiveGameSession();
     endActiveGameSessionAbandonment();
@@ -47,7 +43,6 @@ export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) 
       });
     }
   }
-
   async function abandon() {
     if (abandoning) return;
     setAbandoning(true);
@@ -93,10 +88,9 @@ export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) 
       endActiveGameSessionAbandonment();
       setAbandoning(false);
       setAbandonFailed(true);
-      toast.error("Couldn't reach the previous match relay.");
+      toast.error(`Couldn't reach the previous match relay.`);
     }
   }
-
   return (
     <>
       <section className="flex min-w-0 flex-wrap items-center gap-3 rounded-2xl border border-primary/40 bg-primary/10 p-4 shadow-xl backdrop-blur-md sm:gap-4 sm:p-5">
@@ -108,7 +102,7 @@ export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) 
           <p className="truncate text-sm text-muted-foreground">
             {currentRoom?.room_id === session.roomId
               ? `You're still seated at ${currentRoom.room_name}.`
-              : "You're still seated in an online match."}
+              : `You're still seated in an online match.`}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -149,8 +143,8 @@ export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) 
             <DialogTitle>Abandon match?</DialogTitle>
             <DialogDescription>
               {abandonFailed
-                ? "The relay could not be reached. You can remove this match from this device, but your seat may remain until the relay times it out."
-                : "You will leave your seat and will not be able to rejoin this match."}
+                ? `The relay could not be reached. You can remove this match from this device, but your seat may remain until the relay times it out.`
+                : `You will leave your seat and will not be able to rejoin this match.`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -173,10 +167,10 @@ export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) 
             >
               {abandoning && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {abandoning
-                ? "Abandoning…"
+                ? `Abandoning\u2026`
                 : abandonFailed
-                  ? "Remove from this device"
-                  : "Abandon match"}
+                  ? `Remove from this device`
+                  : `Abandon match`}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ArrowDown, ArrowUp, Check, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,16 +12,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { executeDeckEdit } from "./deckEditor.history";
-
 const EMPTY_TAGS: string[] = [];
-
 function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boolean }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(tag);
   const renameCustomTag = useDeckStore((state) => state.renameCustomTag);
   const reorderCustomTag = useDeckStore((state) => state.reorderCustomTag);
   const removeCustomTag = useDeckStore((state) => state.removeCustomTag);
-
   function finishRename() {
     const nextName = name.trim();
     const duplicate = (useDeckStore.getState().currentDeck.customTags ?? []).some(
@@ -39,7 +35,6 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
     }
     setEditing(false);
   }
-
   return (
     <div className="flex min-h-10 items-center gap-1 rounded-md border px-2">
       {editing ? (
@@ -81,7 +76,7 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
       <Button
         size="icon-sm"
         variant="ghost"
-        title={editing ? "Finish renaming" : `Rename ${tag}`}
+        title={editing ? `Finish renaming` : `Rename ${tag}`}
         onClick={() => (editing ? finishRename() : setEditing(true))}
       >
         {editing ? <Check className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
@@ -98,7 +93,6 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
     </div>
   );
 }
-
 export function DeckTagManagerDialog({
   open,
   onOpenChange,
@@ -108,7 +102,6 @@ export function DeckTagManagerDialog({
 }) {
   const storedTags = useDeckStore((state) => state.currentDeck.customTags);
   const tags = storedTags ?? EMPTY_TAGS;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">

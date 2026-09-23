@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,7 +13,6 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import type { DeckSideboardPlan } from "@/types/manabrew";
 import { executeDeckEdit } from "./deckEditor.history";
 import { useDeckEditTransaction } from "./useDeckEditTransaction";
-
 export function SideboardPlansDialog({
   open,
   onOpenChange,
@@ -26,8 +24,7 @@ export function SideboardPlansDialog({
   const setEditorMetadata = useDeckStore((state) => state.setEditorMetadata);
   const [matchup, setMatchup] = useState("");
   const plans = metadata?.sideboardPlans ?? [];
-  const planEdit = useDeckEditTransaction("Edit sideboard plan");
-
+  const planEdit = useDeckEditTransaction(`Edit sideboard plan`);
   function updatePlans(next: DeckSideboardPlan[]) {
     setEditorMetadata({
       ...metadata,
@@ -37,11 +34,10 @@ export function SideboardPlansDialog({
       sideboardPlans: next,
     });
   }
-
   function addPlan() {
     const name = matchup.trim();
     if (!name) return;
-    executeDeckEdit("Add sideboard plan", () =>
+    executeDeckEdit(`Add sideboard plan`, () =>
       updatePlans([
         ...plans,
         { id: crypto.randomUUID(), matchup: name, bringIn: "", takeOut: "", notes: "" },
@@ -49,11 +45,9 @@ export function SideboardPlansDialog({
     );
     setMatchup("");
   }
-
   function updatePlan(id: string, patch: Partial<DeckSideboardPlan>) {
     updatePlans(plans.map((plan) => (plan.id === id ? { ...plan, ...patch } : plan)));
   }
-
   return (
     <Dialog
       open={open}
@@ -72,7 +66,7 @@ export function SideboardPlansDialog({
         <div className="flex gap-2">
           <Input
             value={matchup}
-            placeholder="Azorius Control"
+            placeholder={`Azorius Control`}
             onChange={(event) => setMatchup(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") addPlan();
@@ -99,7 +93,7 @@ export function SideboardPlansDialog({
                   className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
                   aria-label={`Delete ${plan.matchup}`}
                   onClick={() =>
-                    executeDeckEdit("Delete sideboard plan", () =>
+                    executeDeckEdit(`Delete sideboard plan`, () =>
                       updatePlans(plans.filter((candidate) => candidate.id !== plan.id)),
                     )
                   }
@@ -124,7 +118,7 @@ export function SideboardPlansDialog({
                   <textarea
                     className="mt-1 min-h-24 w-full resize-y rounded-md border bg-background px-3 py-2 text-xs"
                     value={plan.takeOut}
-                    placeholder="2 slow removal\n1 top-end threat"
+                    placeholder={`2 slow removal\n1 top-end threat`}
                     onFocus={planEdit.begin}
                     onChange={(event) => updatePlan(plan.id, { takeOut: event.target.value })}
                     onBlur={planEdit.commit}
@@ -136,7 +130,7 @@ export function SideboardPlansDialog({
                 <textarea
                   className="mt-1 min-h-16 w-full resize-y rounded-md border bg-background px-3 py-2 text-xs"
                   value={plan.notes}
-                  placeholder="What matters after boarding?"
+                  placeholder={`What matters after boarding?`}
                   onFocus={planEdit.begin}
                   onChange={(event) => updatePlan(plan.id, { notes: event.target.value })}
                   onBlur={planEdit.commit}

@@ -8,19 +8,16 @@ import { GameLoadingTip } from "./GameLoadingTip";
 
 const STUCK_HINT_AFTER_MS = 10_000;
 const STEP_MIN_MS = 200;
-
 const STEPS = [
-  "Start the game engine",
-  "Load card images",
-  "Take your seat",
-  "Receive the first game state",
+  `Start the game engine`,
+  `Load card images`,
+  `Take your seat`,
+  `Receive the first game state`,
 ];
-
 interface GameLoadingScreenProps {
   debugInfo: string;
   onComplete?: () => void;
 }
-
 export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenProps) {
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
   const hasGameView = useGameStore((s) => s.gameView !== null);
@@ -30,22 +27,18 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
   const [stage, setStage] = useState(0);
   const [slow, setSlow] = useState(false);
   const [copied, setCopied] = useState(false);
-
   let target = 0;
   if (/started/i.test(debugInfo)) target = STEPS.length - 1;
   if (hasGameView && !isPrefetchingCards && seated) target = STEPS.length;
-
   useEffect(() => {
     lastAdvanceAt.current = Date.now();
     const timer = setTimeout(() => setSlow(true), STUCK_HINT_AFTER_MS);
     return () => clearTimeout(timer);
   }, []);
-
   useEffect(() => {
     if (stage !== STEPS.length) return;
     onComplete?.();
   }, [stage, onComplete]);
-
   useEffect(() => {
     if (stage >= target) return;
     const wait = Math.max(0, STEP_MIN_MS - (Date.now() - lastAdvanceAt.current));
@@ -55,7 +48,6 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
     }, wait);
     return () => clearTimeout(timer);
   }, [stage, target]);
-
   const copyLogs = async () => {
     try {
       await navigator.clipboard.writeText(formatCommsLog());
@@ -65,15 +57,14 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
       console.warn("Failed to copy logs:", e);
     }
   };
-
   return (
     <div className="flex h-full flex-col items-center justify-center gap-6 px-6 py-6">
       <div className="space-y-1.5 text-center">
         <p className="text-2xl font-semibold">Game starting…</p>
         <p className="text-base text-muted-foreground">
           {slow
-            ? "This is taking longer than expected. You can keep waiting, or leave and return to the lobby."
-            : "Setting the table — this usually takes a few seconds."}
+            ? `This is taking longer than expected. You can keep waiting, or leave and return to the lobby.`
+            : `Setting the table \u2014 this usually takes a few seconds.`}
         </p>
       </div>
 
@@ -94,7 +85,8 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
             </Button>
           </div>
           <ul className="space-y-3">
-            {STEPS.map((label, index) => {
+            {STEPS.map((step, index) => {
+              const label = step;
               const done = index < stage;
               const active = index === stage;
               return (

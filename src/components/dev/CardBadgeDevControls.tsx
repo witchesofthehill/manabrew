@@ -3,7 +3,6 @@ import {
   useGameDevStore,
   type DevCardOverrides,
 } from "@/stores/useGameDevStore";
-
 import { DevCounterControl } from "./DevCounterControl";
 import { DevToggleButton } from "./DevToggleButton";
 import { DEV_SECTION, DEV_SECTION_HEADING } from "./devPanel.styles";
@@ -13,61 +12,151 @@ import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContex
 type BoolKey = {
   [K in keyof DevCardOverrides]: DevCardOverrides[K] extends boolean ? K : never;
 }[keyof DevCardOverrides];
-
 type NumKey = {
   [K in keyof DevCardOverrides]: DevCardOverrides[K] extends number | null ? K : never;
 }[keyof DevCardOverrides];
-
 interface BoolRow {
   key: BoolKey;
   label: string;
 }
-
 const STATUS_ROWS: BoolRow[] = [
-  { key: "forceTapped", label: "Tapped" },
-  { key: "forceSummoningSick", label: "Summoning sick" },
-  { key: "forceExerted", label: "Exerted" },
-  { key: "forceFaceDown", label: "Morph (face down)" },
-  { key: "forceBestowed", label: "Bestowed" },
-  { key: "forceTransformed", label: "Transformed" },
-  { key: "forcePlotted", label: "Plotted" },
-  { key: "forceMadnessExiled", label: "Madness" },
-  { key: "forceWarpExiled", label: "Warped" },
-  { key: "forceCopy", label: "Copy" },
-  { key: "forceToken", label: "Token" },
-  { key: "forceFoil", label: "Foil" },
-  { key: "forcePhasedOut", label: "Phased out" },
-  { key: "forceAttacking", label: "Attacking" },
-  { key: "forcePlayable", label: "Playable" },
-  { key: "forceSelected", label: "Selected" },
-  { key: "forceDoubleFaced", label: "Double-faced" },
+  {
+    key: "forceTapped",
+    label: `Tapped`,
+  },
+  {
+    key: "forceSummoningSick",
+    label: `Summoning sick`,
+  },
+  {
+    key: "forceExerted",
+    label: `Exerted`,
+  },
+  {
+    key: "forceFaceDown",
+    label: `Morph (face down)`,
+  },
+  {
+    key: "forceBestowed",
+    label: `Bestowed`,
+  },
+  {
+    key: "forceTransformed",
+    label: `Transformed`,
+  },
+  {
+    key: "forcePlotted",
+    label: `Plotted`,
+  },
+  {
+    key: "forceMadnessExiled",
+    label: `Madness`,
+  },
+  {
+    key: "forceWarpExiled",
+    label: `Warped`,
+  },
+  {
+    key: "forceCopy",
+    label: `Copy`,
+  },
+  {
+    key: "forceToken",
+    label: `Token`,
+  },
+  {
+    key: "forceFoil",
+    label: `Foil`,
+  },
+  {
+    key: "forcePhasedOut",
+    label: `Phased out`,
+  },
+  {
+    key: "forceAttacking",
+    label: `Attacking`,
+  },
+  {
+    key: "forcePlayable",
+    label: `Playable`,
+  },
+  {
+    key: "forceSelected",
+    label: `Selected`,
+  },
+  {
+    key: "forceDoubleFaced",
+    label: `Double-faced`,
+  },
 ];
-
 interface NumRow {
   key: NumKey;
   label: string;
 }
-
 const COUNTER_ROWS: NumRow[] = [
   { key: "p1p1", label: "+1/+1" },
   { key: "m1m1", label: "−1/−1" },
-  { key: "loyalty", label: "Loyalty" },
-  { key: "charge", label: "Charge" },
-  { key: "quest", label: "Quest" },
-  { key: "study", label: "Study" },
-  { key: "lore", label: "Lore" },
-  { key: "age", label: "Age" },
-  { key: "time", label: "Time" },
-  { key: "fade", label: "Fade" },
-  { key: "level", label: "Level" },
-  { key: "storage", label: "Storage" },
-  { key: "mining", label: "Mining" },
-  { key: "brick", label: "Brick" },
-  { key: "depletion", label: "Depletion" },
-  { key: "page", label: "Page" },
-  { key: "damage", label: "Damage" },
+  {
+    key: "loyalty",
+    label: `Loyalty`,
+  },
+  {
+    key: "charge",
+    label: `Charge`,
+  },
+  {
+    key: "quest",
+    label: `Quest`,
+  },
+  {
+    key: "study",
+    label: `Study`,
+  },
+  {
+    key: "lore",
+    label: `Lore`,
+  },
+  {
+    key: "age",
+    label: `Age`,
+  },
+  {
+    key: "time",
+    label: `Time`,
+  },
+  {
+    key: "fade",
+    label: `Fade`,
+  },
+  {
+    key: "level",
+    label: `Level`,
+  },
+  {
+    key: "storage",
+    label: `Storage`,
+  },
+  {
+    key: "mining",
+    label: `Mining`,
+  },
+  {
+    key: "brick",
+    label: `Brick`,
+  },
+  {
+    key: "depletion",
+    label: `Depletion`,
+  },
+  {
+    key: "page",
+    label: `Page`,
+  },
+  {
+    key: "damage",
+    label: `Damage`,
+  },
 ];
-
 export function CardBadgeDevControls() {
   const overrides = useGameDevStore((s) => s.cardOverrides);
   const setOverride = useGameDevStore((s) => s.setCardOverride);
@@ -91,7 +180,6 @@ export function CardBadgeDevControls() {
     const curr = overrides[key] ?? 0;
     setOverride(key, Math.max(0, curr + delta));
   };
-
   return (
     <DevPanelSearchProvider query={sectionMatch ? "" : query}>
       <section className={DEV_SECTION}>

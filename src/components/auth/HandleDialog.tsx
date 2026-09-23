@@ -14,19 +14,16 @@ import { Label } from "@/components/ui/label";
 import { updateHandle, AuthRequestError } from "@/api/auth";
 import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
 import { resyncRelayIdentity } from "@/lib/resyncRelayIdentity";
-
 interface HandleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
 export function HandleDialog({ open, onOpenChange }: HandleDialogProps) {
   const account = useAuthStore((s) => s.account);
   const setAccount = useAuthStore((s) => s.setAccount);
   const [handle, setHandle] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     if (open) {
       setHandle(account?.handle ?? "");
@@ -34,7 +31,6 @@ export function HandleDialog({ open, onOpenChange }: HandleDialogProps) {
       setBusy(false);
     }
   }, [open, account]);
-
   async function handleSave() {
     const refreshToken = useAuthStore.getState().refreshToken;
     const token = await getAccessToken();
@@ -50,7 +46,7 @@ export function HandleDialog({ open, onOpenChange }: HandleDialogProps) {
       void resyncRelayIdentity();
     } catch (err) {
       if (err instanceof AuthRequestError && err.status === 409) {
-        setError("That handle is already taken");
+        setError(`That handle is already taken`);
       } else {
         setError(err instanceof Error ? err.message : "Something went wrong");
       }
@@ -58,7 +54,6 @@ export function HandleDialog({ open, onOpenChange }: HandleDialogProps) {
       setBusy(false);
     }
   }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
@@ -92,7 +87,7 @@ export function HandleDialog({ open, onOpenChange }: HandleDialogProps) {
             disabled={busy || handle.trim().length < 3 || handle.trim() === account?.handle}
             onClick={() => void handleSave()}
           >
-            {busy ? "Saving…" : "Save"}
+            {busy ? `Saving\u2026` : `Save`}
           </Button>
         </DialogFooter>
       </DialogContent>

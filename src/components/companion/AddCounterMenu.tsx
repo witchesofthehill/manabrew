@@ -17,15 +17,12 @@ import {
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
 import { CompanionIcon } from "./icons";
 import { CustomCounterDialog } from "./CustomCounterDialog";
-
 interface AddCounterMenuProps {
   player: CompanionPlayer;
 }
-
 export function AddCounterMenu({ player }: AddCounterMenuProps) {
   const addCounter = useCompanionStore((s) => s.addCounter);
   const [customOpen, setCustomOpen] = useState(false);
-
   return (
     <>
       <DropdownMenu>
@@ -34,7 +31,7 @@ export function AddCounterMenu({ player }: AddCounterMenuProps) {
             size="icon"
             variant="ghost"
             className="size-7 rounded-full bg-black/40 text-white hover:bg-black/55 hover:text-white @md:size-8"
-            aria-label="Add counter"
+            aria-label={`Add counter`}
           >
             <Plus className="size-4 @md:size-5" />
           </Button>

@@ -10,13 +10,20 @@
 //   VITE_FORGE_WASM=1 npx vite --port 5199 --strictPort
 //   BASE=http://localhost:5199 LABEL=forge-wasm node tests/e2e-ui/forge-wasm-latency.mjs
 //
-// Env: BASE, DECK, AI_DECK, LABEL, SAMPLES, HEADED=1.
+// A four-seat Commander pod is the shape that hurts, and a different one:
+//   FORMAT=Commander POD=1 DECK="Ashling, the Limitless" AI_DECK=Kasla LABEL=pod \
+//     node tests/e2e-ui/forge-wasm-latency.mjs
+//
+// Env: BASE, FORMAT, DECK, AI_DECK, POD=1, LABEL, SAMPLES, HEADED=1.
 import { chromium } from "playwright";
 import { launchOpts, onboard, uniqueName } from "../e2e-ironsmith/lib.mjs";
+import { drive, startSoloGame, waitForFirstPrompt } from "./forgeSolo.mjs";
 
 const BASE = process.env.BASE || "http://localhost:5199";
-const DECK = process.env.DECK || "Izzet Lessons";
-const AI_DECK = process.env.AI_DECK || "Esper Pixie";
+const FORMAT = process.env.FORMAT || "Standard";
+const POD = process.env.POD === "1";
+const DECK = process.env.DECK || (POD ? "Ashling, the Limitless" : "Izzet Lessons");
+const AI_DECK = process.env.AI_DECK || (POD ? "Kasla" : "Esper Pixie");
 const LABEL = process.env.LABEL || "engine";
 const SAMPLES = Number(process.env.SAMPLES || 60);
 
@@ -33,65 +40,22 @@ async function fail(msg) {
 
 await onboard(page, uniqueName("Lat"));
 await page.goto(`${BASE}/play/offline/constructed`, { waitUntil: "networkidle" });
-await page.getByRole("button", { name: "Standard", exact: true }).click();
-await page.waitForTimeout(600);
+await startSoloGame(page, {
+  format: POD ? "Commander" : FORMAT,
+  decks: [DECK, AI_DECK],
+  pod: POD,
+  fail,
+});
+await waitForFirstPrompt(page).catch(() => fail("the game never produced a prompt"));
 
-for (const deck of [DECK, AI_DECK]) {
-  const card = page.getByRole("button", { name: new RegExp(`^${deck}`) }).first();
-  if (!(await card.count())) await fail(`deck "${deck}" is not on the Standard tab`);
-  await card.click();
-  await page.waitForTimeout(500);
-}
-await page.waitForFunction(
-  () => {
-    const b = [...document.querySelectorAll("button")].find((x) =>
-      /^Fight!$/.test(x.textContent || ""),
-    );
-    return b && !b.disabled;
-  },
-  { timeout: 15000 },
-);
-await page.getByRole("button", { name: /^Fight!$/ }).click();
-await page.waitForTimeout(20000);
-
+// Lands get played so the game has a board to think about; everything else
+// is the least committal answer.
 const count = () => page.evaluate(() => (window.__promptTimings || []).length);
-const CLICKS = [
-  /^Keep$/i,
-  /^Continue$/i,
-  /^OK$/i,
-  /^Done$/i,
-  /^No Blocks$/i,
-  /^Pass$/i,
-  /End Turn/i,
-];
-
-for (let i = 0; i < 900 && (await count()) < SAMPLES; i++) {
-  let clicked = false;
-  const confirm = page.getByRole("button", { name: /^Confirm$/i }).first();
-  if (await confirm.count().catch(() => 0)) {
-    if (await confirm.isEnabled().catch(() => false)) {
-      await confirm.click({ timeout: 1500 }).catch(() => {});
-      clicked = true;
-    } else {
-      const card = page.locator("[role=dialog] img, [role=dialog] [data-card-id]").first();
-      if (await card.count().catch(() => 0)) {
-        await card.click({ timeout: 1500 }).catch(() => {});
-        clicked = true;
-      }
-    }
-  }
-  if (!clicked) {
-    for (const rx of CLICKS) {
-      const b = page.getByRole("button", { name: rx }).first();
-      if (!(await b.count().catch(() => 0))) continue;
-      if (!(await b.isEnabled().catch(() => false))) continue;
-      await b.click({ timeout: 1500 }).catch(() => {});
-      clicked = true;
-      break;
-    }
-  }
-  if (!clicked) await page.waitForTimeout(200);
-}
+await drive(page, {
+  budgetMs: 600000,
+  overrides: { playLands: true },
+  done: async () => (await count()) >= SAMPLES,
+});
 
 const timings = await page.evaluate(() => window.__promptTimings || []);
 if (timings.length < 5) await fail(`only ${timings.length} samples; the loop did not turn over`);

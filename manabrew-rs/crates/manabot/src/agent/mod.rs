@@ -52,6 +52,13 @@ impl Default for BotResponder {
     }
 }
 
+impl BotResponder {
+    /// Feed the seat's latest view to the agent, as a state envelope would.
+    pub fn observe(&mut self, view: GameViewDto) {
+        self.agent.observe(view);
+    }
+}
+
 impl Responder for BotResponder {
     fn respond(&mut self, prompt: AgentPrompt) -> ClientToServerMessage {
         let prompt_id = prompt.prompt_id;

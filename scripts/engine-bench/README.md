@@ -36,10 +36,30 @@ mulligans, prompt/action counts, payment attempts/cancellations, optional choice
 card selections and target intent/ownership, plus the final outcome and
 response-to-next-prompt latency.
 Use `--decks`, `--timeout`, `--engine`, and `--wasm` to override its inputs.
+Commander, Brawl, Oathbreaker, and 60-card constructed presets are supported;
+all selected decks must share a format. Starting life follows the format and can
+be overridden with `--starting-life`.
 `--wasms` accepts one WASM directory per seat for direct policy A/B games.
 `--forge-ai-seats 1,3` assigns those seats to Forge's internal AI, enabling a
 direct Forge-versus-Manabot benchmark when the selected engine facade supports
 mixed seats. Rotate the assignment between games to remove deck and seat bias.
+
+```sh
+yarn bench:manabot-pop --engine target/engines/prod --games 40 --out /tmp/pop-main
+yarn bench:manabot-pop --engine target/engines/prod --wasms src/wasm,/tmp/wasm-main --games 24 --out /tmp/ab
+yarn bench:manabot-pop --summarise /tmp/pop-main
+```
+
+`manabot-pop.mjs` plays that game `--games` times from `--seed-base`, `--jobs`
+at a time, rotating side A through four seat pairs so every deck is played by
+both sides. Without `--wasms` side B is Forge's AI; with two builds it is the
+second one on the same seeds. The summary counts wins per side, deck and seat
+with a sign test, play counts per seat-game, response latency and the bot's own
+`decide`/`observe` time. A finished game is never replayed, so a stopped run
+resumes. `--seats 2 --decks a,b` plays duels, side A alternating seats.
+`manabot-game.mjs --trace chooseBlockers,chooseAttackers` writes each such
+prompt with the seat's view and the decision as one JSON line on stderr; a
+game the engine ends with an exception reports `outcome.reason` `engine_error`.
 
 ## A run, not a game
 
@@ -91,6 +111,20 @@ only when the whole p50 interval sits above the threshold.
 Read the same-turn half. The cross-turn half contains whole opponent turns.
 `docs/agents/LATENCY_ANALYSIS.md` has the rest of the traps.
 
+A local arm does not need a release either. The Web Image build takes about
+100 seconds, not the hour the module size suggests, and `--engine
+packages/forge-wasm` runs its output:
+
+```sh
+export WEBIMAGE_GRAALVM_HOME=~/.local/graalvm/graalvm-25.3.4.1-dev+0.1/Contents/Home
+./scripts/build-forge-wasm.sh
+```
+
+The build also leaves a `forgeharness.js.wat` next to the module, about 750MB,
+which is the only way to put names on a wasm profile. It only matches the
+`.wasm` from the same build. Wasm has no system properties, so the AI's deadline
+cannot be pinned there; see the JVM driver below for a controlled pair.
+
 ## What it is for
 
 The browser tests measure the client. This measures the engine: same Forge, same
@@ -121,6 +155,78 @@ identical game (same decision count, same turn count) rather than on a
 population. That is how the alternative-cost and `canGainKeyword` reorders in
 witchesofthehill/forge#13 were found and checked.
 
-Do not A/B whole games. They diverge run to run even at a fixed seed, so game
-length swamps the change under test. Compare profiles, or pool decisions across
-several games and read the percentiles.
+`jfr-top.py` ranks the frames in a recording by self and inclusive samples, and
+splits the samples by thread so the AI's search can be told from the rules
+engine.
+
+```sh
+python3 scripts/engine-bench/jfr-top.py g4.jfr
+python3 scripts/engine-bench/jfr-top.py g4.jfr --thread 'Game AI Eval'
+```
+
+Do not A/B whole games without pinning the AI's deadline first. See below.
+
+## The AI spends whatever you save
+
+`AiController.chooseSpellAbilityToPlayFromList` bounds its own evaluation
+against a wall clock, both with a timed `future.get` and with a cooperative
+deadline checked between candidate abilities. Both read `game.getAITimeout()`,
+five seconds by default.
+
+So the AI does not do a fixed amount of work per decision. It does as much as
+fits in the budget. Make the engine faster and it evaluates more candidates in
+the same five seconds: it plays differently, the game diverges, and the wall
+clock barely moves. An engine change can remove half the work and look like it
+did nothing.
+
+`--ai-timeout 600` pins the deadline high enough that it never binds. That alone
+is not enough: with it, four A/B pairs still diverged and gave 30%, 69%, 76% and
+5% for the same change. Add `-Dforge.synchronous=true`, which the fork already
+has for Web Image and which runs the AI evaluation on the calling thread, and
+the games replay exactly, same decisions and same priorities in every board
+bucket.
+
+```sh
+python3 scripts/engine-bench/forge-jvm-game.py --seats 4 --counters \
+    --ai-timeout 600 --sysprop forge.synchronous=true --out arm-a.jsonl
+```
+
+Use both for any engine A/B. Without them a fixed seed is not a control, and the
+same change can measure anywhere between 5% and 76%.
+
+## Counting instead of timing
+
+`--counters` records what the engine did for each decision rather than only how
+long it took: static-ability passes, calls to `getValidCards`, cards examined by
+them, `Card.isValid` and `CardProperty.cardHasProperty` entries, and how many
+times an AI seat took priority. A count is deterministic where a duration is
+not, so it survives the divergence that makes whole-game A/B useless.
+
+It needs the engine counters, which live on the fork's `khaliostr/decision-counters`
+branch and are not in a release build. Check that branch out in `forge/`, rebuild,
+and pass the flag:
+
+```sh
+git -C forge fetch origin khaliostr/decision-counters && git -C forge checkout khaliostr/decision-counters
+node scripts/harness.mjs build
+python3 scripts/engine-bench/forge-jvm-game.py --seats 4 --counters --out c4.jsonl
+python3 scripts/engine-bench/counters.py --type chooseAction 'c4*.jsonl'
+python3 scripts/engine-bench/property-chain.py 'c4*.jsonl'
+```
+
+`counters.py` bins by battlefield size rather than by turn, and reports per AI
+priority as well as per decision. Both matter. A decision here is the gap
+between two prompts to the human seat, and at four seats that gap holds three
+AI seats taking priority where two seats holds one, so per-decision counts are
+not comparable across seat counts. It also reports the share of each decision
+spent inside `isValid` and `cardHasProperty`, measured with nanoTime and
+corrected for what nanoTime itself costs, which is a number the profile does
+not give you.
+
+`property-chain.py` joins the property histogram to `CardProperty`'s if/else
+chain and says how many string comparisons the engine walked to answer them.
+
+Everything is behind `-Dforge.engineCounters=true`, a static final read at class
+init, so it folds away when it is off. An earlier round of this used atomics and
+two `nanoTime` calls on every `checkStaticAbilities` and had to be reverted
+(forge `9d14d1511bf`).

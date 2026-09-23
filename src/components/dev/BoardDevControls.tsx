@@ -3,7 +3,6 @@ import { Eye, Grid3X3, Layers3, MousePointer2, PanelTop, Sparkles } from "lucide
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
-
 import { DEV_SECTION, DEV_SECTION_HEADING } from "./devPanel.styles";
 import { DevSearchable } from "./DevPanelSearch";
 import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
@@ -83,7 +82,6 @@ export function BoardDevControls() {
         : stats.fps >= 40
           ? "text-warning"
           : "text-destructive";
-
   return (
     <>
       {showRenderer ? (
@@ -101,8 +99,8 @@ export function BoardDevControls() {
             </div>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <Metric label="Frame" value={`${frameMs} ms`} />
-            <Metric label="Observed range" value={range} />
+            <Metric label={`Frame`} value={`${frameMs} ms`} />
+            <Metric label={`Observed range`} value={range} />
           </div>
         </section>
       ) : null}
@@ -113,32 +111,32 @@ export function BoardDevControls() {
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <GuideToggle
               icon={MousePointer2}
-              label="Hover targets"
-              description="Hand, battlefield, and preview hit areas"
+              label={`Hover targets`}
+              description={`Hand, battlefield, and preview hit areas`}
               searchTerms={["Board guides"]}
               checked={showHoverAreas}
               onChange={setShowHoverAreas}
             />
             <GuideToggle
               icon={PanelTop}
-              label="Player panel bounds"
-              description="Layout bounds for every player HUD"
+              label={`Player panel bounds`}
+              description={`Layout bounds for every player HUD`}
               searchTerms={["Board guides"]}
               checked={showPlayerPanelBounds}
               onChange={setShowPlayerPanelBounds}
             />
             <GuideToggle
               icon={Grid3X3}
-              label="Layout skeleton"
-              description="Rows and card slots for every player"
+              label={`Layout skeleton`}
+              description={`Rows and card slots for every player`}
               searchTerms={["Board guides"]}
               checked={showGridSkeleton}
               onChange={setShowGridSkeleton}
             />
             <GuideToggle
               icon={Eye}
-              label="Attack rows"
-              description="Combat drop areas for every player"
+              label={`Attack rows`}
+              description={`Combat drop areas for every player`}
               searchTerms={["Board guides"]}
               checked={showAttackRows}
               onChange={setShowAttackRows}
@@ -152,15 +150,15 @@ export function BoardDevControls() {
           <p className={DEV_SECTION_HEADING}>Game state</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <GuideToggle
-              label="Log activity"
-              description="Unread action-log indicator"
+              label={`Log activity`}
+              description={`Unread action-log indicator`}
               searchTerms={["Game state"]}
               checked={gameStateOverrides.forceLogActivity}
               onChange={(checked) => setGameStateOverride("forceLogActivity", checked)}
             />
             <GuideToggle
-              label="Combat summary"
-              description="Attacker, blocker, and incoming-damage totals"
+              label={`Combat summary`}
+              description={`Attacker, blocker, and incoming-damage totals`}
               searchTerms={["Game state"]}
               checked={gameStateOverrides.forceCombatSummary}
               onChange={(checked) => setGameStateOverride("forceCombatSummary", checked)}
@@ -185,35 +183,35 @@ export function BoardDevControls() {
                   variant={gameStateOverrides.dayNight === value ? "selected" : "outline"}
                   onClick={() => setGameStateOverride("dayNight", value)}
                 >
-                  {value === "none" ? "Live" : value}
+                  {value === "none" ? `Live` : value}
                 </Button>
               ))}
           </div>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             <GuideToggle
-              label="Dungeon"
-              description="Current dungeon room"
+              label={`Dungeon`}
+              description={`Current dungeon room`}
               searchTerms={["Global mechanics"]}
               checked={gameStateOverrides.forceDungeon}
               onChange={(checked) => setGameStateOverride("forceDungeon", checked)}
             />
             <GuideToggle
-              label="Plane"
-              description="Current plane"
+              label={`Plane`}
+              description={`Current plane`}
               searchTerms={["Global mechanics"]}
               checked={gameStateOverrides.forcePlane}
               onChange={(checked) => setGameStateOverride("forcePlane", checked)}
             />
             <GuideToggle
-              label="Scheme"
-              description="Active scheme"
+              label={`Scheme`}
+              description={`Active scheme`}
               searchTerms={["Global mechanics"]}
               checked={gameStateOverrides.forceScheme}
               onChange={(checked) => setGameStateOverride("forceScheme", checked)}
             />
             <GuideToggle
-              label="Team"
-              description="Shared-team designation"
+              label={`Team`}
+              description={`Shared-team designation`}
               searchTerms={["Global mechanics"]}
               checked={gameStateOverrides.forceTeam}
               onChange={(checked) => setGameStateOverride("forceTeam", checked)}
@@ -239,15 +237,15 @@ export function BoardDevControls() {
             </DevSearchable>
             <GuideToggle
               icon={Layers3}
-              label="Debug stack card"
-              description="Add the staged card to the live stack"
+              label={`Debug stack card`}
+              description={`Add the staged card to the live stack`}
               searchTerms={["Tools"]}
               checked={debugStackCardEnabled}
               onChange={setDebugStackCardEnabled}
             />
             <GuideToggle
-              label="Zustand DevTools"
-              description="Mount the state inspector"
+              label={`Zustand DevTools`}
+              description={`Mount the state inspector`}
               searchTerms={["Tools"]}
               checked={devToolsEnabled}
               onChange={setDevToolsEnabled}
@@ -258,7 +256,6 @@ export function BoardDevControls() {
     </>
   );
 }
-
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border/60 bg-background/50 px-3 py-2">
@@ -267,7 +264,6 @@ function Metric({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
 function GuideToggle({
   icon: Icon,
   label,

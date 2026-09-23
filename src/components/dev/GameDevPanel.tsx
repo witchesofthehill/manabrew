@@ -10,12 +10,10 @@ import {
   UserRound,
   type LucideIcon,
 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
-
 import { BattlefieldKeywordDevControls } from "./BattlefieldKeywordDevControls";
 import { BattlefieldStyleDevControls } from "./BattlefieldStyleDevControls";
 import { DevCardLayoutControls } from "./DevCardLayoutControls";
@@ -29,19 +27,37 @@ import { PromptDevControls } from "./PromptDevControls";
 import { DevPanelSearchProvider } from "./DevPanelSearch";
 
 type DevWorkspace = "card" | "player" | "board" | "prompt" | "stress";
-
 interface WorkspaceTab {
   id: DevWorkspace;
   label: string;
   icon: LucideIcon;
 }
-
 const WORKSPACES: WorkspaceTab[] = [
-  { id: "card", label: "Card", icon: CreditCard },
-  { id: "player", label: "Player", icon: UserRound },
-  { id: "board", label: "Board", icon: LayoutGrid },
-  { id: "prompt", label: "Prompt", icon: MessageSquareText },
-  { id: "stress", label: "Stress", icon: Gauge },
+  {
+    id: "card",
+    label: `Card`,
+    icon: CreditCard,
+  },
+  {
+    id: "player",
+    label: `Player`,
+    icon: UserRound,
+  },
+  {
+    id: "board",
+    label: `Board`,
+    icon: LayoutGrid,
+  },
+  {
+    id: "prompt",
+    label: `Prompt`,
+    icon: MessageSquareText,
+  },
+  {
+    id: "stress",
+    label: `Stress`,
+    icon: Gauge,
+  },
 ];
 
 const EMPTY_SEARCH_QUERIES: Record<DevWorkspace, string> = {
@@ -65,7 +81,6 @@ function activeValueCount(values: object): number {
   }
   return count;
 }
-
 export function GameDevPanel() {
   const [workspace, setWorkspace] = useState<DevWorkspace>("card");
   const [searchQueries, setSearchQueries] =
@@ -85,7 +100,6 @@ export function GameDevPanel() {
   const showAttackRows = useGameDevStore((s) => s.showAttackRows);
   const devToolsEnabled = useGameDevStore((s) => s.devToolsEnabled);
   const resetDevSettings = useGameDevStore((s) => s.resetDevSettings);
-
   const counts: Record<DevWorkspace, number> = {
     card:
       activeValueCount(cardOverrides) +

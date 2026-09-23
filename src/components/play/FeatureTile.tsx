@@ -1,13 +1,11 @@
 import type { ComponentType, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
-
 interface TileAccent {
   chip: string;
   hoverBorder: string;
   watermark: string;
 }
-
 const TILE_ACCENTS: Record<string, TileAccent> = {
   primary: {
     chip: "border-primary/40 bg-primary/15 text-primary",
@@ -40,14 +38,13 @@ const TILE_ACCENTS: Record<string, TileAccent> = {
     watermark: "text-community-accent opacity-[0.09]",
   },
 };
-
 const TILE_SIZES = {
   lg: {
     tile: "min-h-44 gap-6 p-5 text-left shadow-xl hover:shadow-2xl motion-safe:transition-[transform,border-color,box-shadow] motion-safe:hover:-translate-y-0.5 sm:min-h-52 sm:p-7 lg:min-h-60",
     chip: "h-12 w-12",
     chipIcon: "h-5 w-5",
     watermark: "-bottom-8 -right-5 h-36 w-36 sm:h-44 sm:w-44",
-    label: "font-serif text-2xl font-light sm:text-3xl",
+    label: `font-serif text-2xl font-light sm:text-3xl`,
     desc: "mt-1 text-sm",
   },
   sm: {
@@ -55,22 +52,22 @@ const TILE_SIZES = {
     chip: "h-9 w-9",
     chipIcon: "h-4 w-4",
     watermark: "-bottom-4 -right-4 h-24 w-24",
-    label: "text-sm font-medium",
+    label: `text-sm font-medium`,
     desc: "mt-0.5 text-xs leading-snug",
   },
 } as const;
-
 interface FeatureTileProps {
   to: string;
   label: string;
   desc: string;
-  icon: ComponentType<{ className?: string }>;
+  icon: ComponentType<{
+    className?: string;
+  }>;
   tone: string;
   size?: keyof typeof TILE_SIZES;
   footer?: ReactNode;
   className?: string;
 }
-
 export function FeatureTile({
   to,
   label,

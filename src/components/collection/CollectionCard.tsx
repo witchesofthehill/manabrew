@@ -1,12 +1,10 @@
 import type { MouseEvent } from "react";
 import { ImageIcon } from "lucide-react";
-
 import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
 import { Input } from "@/components/ui/input";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import type { DeckCard } from "@/protocol/deck";
 import { useCard } from "@/stores/useScryfallStore";
-
 interface CollectionCardProps {
   name: string;
   setCode?: string;
@@ -18,7 +16,6 @@ interface CollectionCardProps {
   onHover: (card: DeckCard, event: MouseEvent) => void;
   onLeave: () => void;
 }
-
 export function CollectionCard({
   name,
   setCode,
@@ -46,7 +43,6 @@ export function CollectionCard({
       onChange={(event) => onQuantityChange(Number(event.target.value))}
     />
   );
-
   if (view === "text") {
     return (
       <div
@@ -62,7 +58,7 @@ export function CollectionCard({
         )}
         {foil !== undefined && (
           <span className="text-[10px] font-medium text-muted-foreground">
-            {foil ? "Foil" : "Non-foil"}
+            {foil ? `Foil` : `Non-foil`}
           </span>
         )}
         <span className="text-xs text-muted-foreground">Owned</span>
@@ -70,7 +66,6 @@ export function CollectionCard({
       </div>
     );
   }
-
   return (
     <article
       className="group min-w-0"
@@ -97,7 +92,7 @@ export function CollectionCard({
           )}
           {foil !== undefined && (
             <span className="block text-[10px] text-muted-foreground">
-              {foil ? "Foil" : "Non-foil"}
+              {foil ? `Foil` : `Non-foil`}
             </span>
           )}
         </span>

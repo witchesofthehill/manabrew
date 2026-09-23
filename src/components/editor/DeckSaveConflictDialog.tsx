@@ -1,5 +1,4 @@
 import { Copy, Download, Upload } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,7 +8,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { AccountDeckDetail } from "@/api/hubTypes";
-
 interface DeckSaveConflictDialogProps {
   conflict: AccountDeckDetail | null;
   busy: boolean;
@@ -18,7 +16,6 @@ interface DeckSaveConflictDialogProps {
   onSaveCopy: () => void;
   onCancel: () => void;
 }
-
 export function DeckSaveConflictDialog({
   conflict,
   busy,

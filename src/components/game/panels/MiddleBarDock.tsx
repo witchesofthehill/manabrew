@@ -25,7 +25,6 @@ import {
 import { useGameStore } from "@/stores/useGameStore";
 import { getPlatformType } from "@/platform";
 import { useKeybindings } from "@/hooks/useKeybindings";
-
 interface MiddleBarDockProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -39,7 +38,12 @@ interface MiddleBarDockProps {
   /** Every seat, for the per-player playmat show/hide toggles. `color` is the
    *  player's seat colour (full opacity, matching their Pixi avatar ring) used as
    *  the row's hover background; `textColor` is the readable text over it. */
-  players: { id: string; name: string; color: string; textColor: string }[];
+  players: {
+    id: string;
+    name: string;
+    color: string;
+    textColor: string;
+  }[];
 }
 
 export function MiddleBarDock({
@@ -60,13 +64,11 @@ export function MiddleBarDock({
   const [isFullscreen, setIsFullscreen] = useState(
     typeof document !== "undefined" && document.fullscreenElement !== null,
   );
-
   useEffect(() => {
     const sync = () => setIsFullscreen(document.fullscreenElement !== null);
     document.addEventListener("fullscreenchange", sync);
     return () => document.removeEventListener("fullscreenchange", sync);
   }, []);
-
   const toggleFullscreen = useCallback(() => {
     if (document.fullscreenElement) {
       void document.exitFullscreen().catch(() => undefined);
@@ -74,12 +76,9 @@ export function MiddleBarDock({
       void document.documentElement.requestFullscreen().catch(() => undefined);
     }
   }, []);
-
   useKeybindings({ "toggle-fullscreen": toggleFullscreen });
-
   const FullscreenIcon = isFullscreen ? Minimize2 : Maximize2;
   const PanelIcon = sidePanelCollapsed ? PanelRightOpen : PanelRightClose;
-
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
@@ -89,12 +88,12 @@ export function MiddleBarDock({
         {isWeb && (
           <DropdownMenuItem onSelect={() => toggleFullscreen()}>
             <FullscreenIcon className="mr-2 h-4 w-4" />
-            {isFullscreen ? "Exit full screen" : "Full screen"}
+            {isFullscreen ? `Exit full screen` : `Full screen`}
           </DropdownMenuItem>
         )}
         <DropdownMenuItem onSelect={() => onToggleSidePanel()}>
           <PanelIcon className="mr-2 h-4 w-4" />
-          {sidePanelCollapsed ? "Show side panel" : "Hide side panel"}
+          {sidePanelCollapsed ? `Show side panel` : `Hide side panel`}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onOpenSettings()}>
           <Settings2 className="mr-2 h-4 w-4" />
@@ -138,7 +137,7 @@ export function MiddleBarDock({
           }}
         >
           {eliminated ? <LogOut className="mr-2 h-4 w-4" /> : <Flag className="mr-2 h-4 w-4" />}
-          {eliminated ? "Leave" : "Concede"}
+          {eliminated ? `Leave` : `Concede`}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

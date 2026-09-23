@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,30 +11,24 @@ import { LimitedDeckStats } from "@/components/limited/LimitedDeckStats";
 import { useDeckStore, type SavedDeck } from "@/stores/useDeckStore";
 import type { DraftCard } from "@/types/limited";
 import { deckMainAsDraftCards } from "@/lib/limited.utils";
-
 interface Props {
   current: DraftCard[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
 const LIMITED_FORMATS = new Set(["draft", "sealed"]);
-
 export function LimitedCompareDialog({ current, open, onOpenChange }: Props) {
   const savedDecks = useDeckStore((s) => s.savedDecks);
   const [selectedId, setSelectedId] = useState<string>("");
-
   const limitedDecks = useMemo(
     () => savedDecks.filter((d) => LIMITED_FORMATS.has(d.deck.format ?? "draft")).reverse(),
     [savedDecks],
   );
-
   const selected: SavedDeck | undefined = limitedDecks.find((d) => d.id === selectedId);
   const otherCards: DraftCard[] = useMemo(
     () => (selected ? deckMainAsDraftCards(selected.deck) : []),
     [selected],
   );
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
@@ -72,7 +65,7 @@ export function LimitedCompareDialog({ current, open, onOpenChange }: Props) {
             </label>
 
             <div className="grid gap-3 md:grid-cols-2">
-              <CompareColumn title="Current build" cards={current} />
+              <CompareColumn title={`Current build`} cards={current} />
               <CompareColumn
                 title={selected ? selected.deck.name : "—"}
                 cards={otherCards}
@@ -91,7 +84,6 @@ export function LimitedCompareDialog({ current, open, onOpenChange }: Props) {
     </Dialog>
   );
 }
-
 function CompareColumn({
   title,
   cards,

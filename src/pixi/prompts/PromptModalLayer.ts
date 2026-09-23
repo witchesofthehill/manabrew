@@ -3212,7 +3212,10 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const anyConceded = players.some((player) => player.status === "conceded");
     let heading = "Draw";
     let color = this.theme.appTheme["muted-foreground"];
-    if (gameOver.me.status === "conceded") {
+    if (gameOver.engineCrash) {
+      heading = "Engine Crashed";
+      color = this.theme.appTheme.destructive;
+    } else if (gameOver.me.status === "conceded") {
       heading = "You Conceded";
       color = this.theme.appTheme.destructive;
     } else if (gameOver.winnerId === gameOver.me.id) {
@@ -3228,16 +3231,24 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       if (names.length) heading = `${names.join(" and ")} Conceded`;
     }
     const winner = players.find((player) => player.id === gameOver.winnerId);
-    const summary = winner
-      ? `${winner.name} won on turn ${gameOver.turn}`
-      : `Game ended in a draw on turn ${gameOver.turn}`;
+    const summary = gameOver.engineCrash
+      ? gameOver.engineCrash.split("\n")[0]
+      : winner
+        ? `${winner.name} won on turn ${gameOver.turn}`
+        : `Game ended in a draw on turn ${gameOver.turn}`;
     const backdrop = new Graphics()
       .rect(0, 0, this.viewportWidth, this.viewportHeight)
       .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.72 });
     backdrop.eventMode = "static";
     this.container.addChild(backdrop);
     const panelWidth = Math.min(520, this.layoutWidth - 24);
-    const panelHeight = Math.min(this.viewportHeight - 24, 206 + players.length * 36);
+    const summaryText = promptText(summary, 12, this.theme.appTheme["muted-foreground"], {
+      align: "center",
+      width: panelWidth - 40,
+      weight: "600",
+    });
+    const rowY = 90 + summaryText.height;
+    const panelHeight = Math.min(this.viewportHeight - 24, rowY + players.length * 36 + 64);
     const group = this.panel(panelWidth, panelHeight, 0, 0, 12);
     group.accessible = true;
     group.accessibleTitle = `Game over: ${heading}. ${summary}`;
@@ -3250,16 +3261,11 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     title.anchor.set(0.5);
     title.position.set(panelWidth / 2, 48);
     group.addChild(title);
-    const summaryText = promptText(summary, 12, this.theme.appTheme["muted-foreground"], {
-      align: "center",
-      width: panelWidth - 40,
-      weight: "600",
-    });
     summaryText.anchor.set(0.5, 0);
     summaryText.position.set(panelWidth / 2, 76);
     group.addChild(summaryText);
 
-    let rowY = 106;
+    let playerY = rowY;
     for (const player of players) {
       const isWinner = player.id === gameOver.winnerId;
       const rowColor = isWinner
@@ -3268,7 +3274,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           ? this.theme.appTheme.destructive
           : this.theme.appTheme.border;
       const row = new Graphics()
-        .roundRect(20, rowY, panelWidth - 40, 30, 7)
+        .roundRect(20, playerY, panelWidth - 40, 30, 7)
         .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.5 })
         .stroke({ color: hexToNum(rowColor), width: isWinner ? 2 : 1, alpha: 0.65 });
       const name = promptText(
@@ -3277,12 +3283,12 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         this.theme.appTheme.foreground,
         { weight: "600", width: panelWidth - 210, truncate: true },
       );
-      name.position.set(30, rowY + 8);
+      name.position.set(30, playerY + 8);
       const life = promptText(`${player.life} life`, 11, this.theme.appTheme["muted-foreground"], {
         weight: "600",
       });
       life.anchor.set(1, 0.5);
-      life.position.set(panelWidth - 116, rowY + 15);
+      life.position.set(panelWidth - 116, playerY + 15);
       const statusLabel = isWinner
         ? "WINNER"
         : player.status === "conceded"
@@ -3297,9 +3303,9 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         { weight: "700", letterSpacing: 0.7 },
       );
       status.anchor.set(1, 0.5);
-      status.position.set(panelWidth - 30, rowY + 15);
+      status.position.set(panelWidth - 30, playerY + 15);
       group.addChild(row, name, life, status);
-      rowY += 36;
+      playerY += 36;
     }
 
     const button = this.makeButton("RETURN TO MENU", gameOver.onEndGame, {

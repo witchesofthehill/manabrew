@@ -78,7 +78,7 @@ export class HandCardControls extends Container {
     const controls = [
       {
         icon: spec.rulesView ? "card-play" : "spell-book",
-        tooltip: spec.rulesView ? "Show card" : "Show rules",
+        tooltip: spec.rulesView ? `Show card` : `Show rules`,
         activate: spec.onToggleRules,
       },
       ...(spec.showFaceControl
@@ -87,11 +87,11 @@ export class HandCardControls extends Container {
               icon: "cycle",
               tooltip: spec.horizontal
                 ? spec.alternateFace
-                  ? "Return upright"
-                  : "Rotate to read"
+                  ? `Return upright`
+                  : `Rotate to read`
                 : spec.alternateFace
-                  ? "Show front face"
-                  : "Show back face",
+                  ? `Show front face`
+                  : `Show back face`,
               activate: spec.onToggleFace,
             },
           ]

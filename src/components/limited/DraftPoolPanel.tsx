@@ -3,13 +3,11 @@ import { DraftCardTile } from "@/components/limited/DraftCardTile";
 import { LimitedDeckStats } from "@/components/limited/LimitedDeckStats";
 import type { useCardPreview } from "@/hooks/useCardPreview";
 import type { DraftCard } from "@/types/limited";
-
 interface DraftPoolPanelProps {
   cards: DraftCard[];
   preview: ReturnType<typeof useCardPreview>;
   onBuild?: () => void;
 }
-
 export function DraftPoolPanel({ cards, preview, onBuild }: DraftPoolPanelProps) {
   return (
     <section className="flex min-h-0 flex-1 flex-col rounded-md border border-border/70 bg-card/20">

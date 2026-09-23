@@ -10,20 +10,15 @@ import { scryfallToDeckCard, frontFaceName } from "@/lib/scryfall.utils";
 import { ComboDetailModal } from "./ComboDetailModal";
 import type { SpellbookCombo } from "@/api/commanderSpellbook";
 import { EDITOR_PANEL_CLASS } from "./deckEditor.styles";
-
 const SUGGESTION_LIMIT = 12;
-
 const WIN_PATTERN =
   /win the game|wins the game|lose the game|loses the game|each opponent loses|infinite damage/i;
-
 function isWinCombo(combo: SpellbookCombo): boolean {
   return combo.produces.some((p) => WIN_PATTERN.test(p.feature.name));
 }
-
 function producesLabel(combo: SpellbookCombo): string {
-  return combo.produces.map((p) => p.feature.name).join(", ") || "combo";
+  return combo.produces.map((p) => p.feature.name).join(", ") || `combo`;
 }
-
 function ComboRow({
   combo,
   onOpen,
@@ -84,7 +79,6 @@ function ComboRow({
     </div>
   );
 }
-
 export function CombosPanel() {
   const [openCombo, setOpenCombo] = useState<SpellbookCombo | null>(null);
   const currentDeck = useDeckStore((s) => s.currentDeck);
@@ -92,17 +86,14 @@ export function CombosPanel() {
   const included = useDeckAnalysisStore((s) => s.included);
   const almostIncluded = useDeckAnalysisStore((s) => s.almostIncluded);
   const loading = useDeckAnalysisStore((s) => s.loading);
-
   const winCombos = useMemo(() => included.filter(isWinCombo), [included]);
   const otherCombos = useMemo(() => included.filter((c) => !isWinCombo(c)), [included]);
-
   const deckNames = useMemo(() => {
     const set = new Set<string>();
     for (const c of currentDeck.cards) set.add(normalizeCardName(c.identity.name));
     for (const c of currentDeck.commanders ?? []) set.add(normalizeCardName(c.identity.name));
     return set;
   }, [currentDeck.cards, currentDeck.commanders]);
-
   const suggestions = useMemo(() => {
     return almostIncluded
       .map((combo) => ({
@@ -115,7 +106,6 @@ export function CombosPanel() {
       .sort((a, b) => (b.combo.popularity ?? 0) - (a.combo.popularity ?? 0))
       .slice(0, SUGGESTION_LIMIT);
   }, [almostIncluded, deckNames]);
-
   async function handleAdd(name: string) {
     try {
       const sc = await useScryfallStore.getState().getCard({ name: frontFaceName(name) });
@@ -126,9 +116,7 @@ export function CombosPanel() {
       toast.error(`Couldn't add ${name}`);
     }
   }
-
   if (!loading && included.length === 0 && suggestions.length === 0) return null;
-
   return (
     <>
       <section className={EDITOR_PANEL_CLASS}>

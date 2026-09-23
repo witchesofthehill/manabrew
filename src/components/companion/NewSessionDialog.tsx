@@ -23,7 +23,6 @@ import {
 } from "@/stores/useCompanionStore.constants";
 import type { CompanionLayout } from "@/stores/useCompanionStore.types";
 import { LayoutIcon } from "./LayoutIcon";
-
 interface NewSessionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -37,7 +36,6 @@ interface NewSessionDialogProps {
     oathbreaker?: boolean;
   }) => void;
 }
-
 export function NewSessionDialog({
   open,
   onOpenChange,
@@ -61,7 +59,6 @@ export function NewSessionDialog({
     </Dialog>
   );
 }
-
 function NewSessionForm({
   hasExistingSession,
   onCancel,
@@ -79,21 +76,17 @@ function NewSessionForm({
   );
   const [carryRoster, setCarryRoster] = useState(hasExistingSession);
   const [oathbreaker, setOathbreaker] = useState(false);
-
   const updatePlayerCount = (n: number) => {
     setPlayerCount(n);
     setLayout(COMPANION_DEFAULT_LAYOUT_BY_COUNT[n] ?? "free");
   };
-
   const updateCommanderRules = (enabled: boolean) => {
     setCommanderRules(enabled);
     if (enabled && startingLife < COMPANION_COMMANDER_STARTING_LIFE) {
       setStartingLife(COMPANION_COMMANDER_STARTING_LIFE);
     }
   };
-
   const layoutChoices = COMPANION_LAYOUT_OPTIONS[playerCount] ?? ["free"];
-
   const applyPreset = (preset: "standard" | "commander" | "brawl") => {
     if (preset === "standard") {
       setStartingLife(20);
@@ -114,7 +107,6 @@ function NewSessionForm({
         : commanderRules && startingLife === 30
           ? "brawl"
           : null;
-
   return (
     <>
       <div className="space-y-4">
@@ -243,7 +235,6 @@ function NewSessionForm({
     </>
   );
 }
-
 function LayoutCard({
   active,
   onClick,
@@ -274,7 +265,6 @@ function LayoutCard({
     </button>
   );
 }
-
 function PillButton({
   active,
   onClick,

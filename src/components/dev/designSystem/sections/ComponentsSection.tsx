@@ -9,7 +9,6 @@ import { LEGALITY_STYLES } from "@/lib/constants";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 import { Section, Subhead, Panel } from "../kit";
-
 const BUTTON_VARIANTS = [
   "primary",
   "secondary",
@@ -32,7 +31,6 @@ export function ComponentsSection() {
     { name: "Ramp", color: g.formatBadge.emerald },
     { name: "Combo", color: g.formatBadge.purple },
   ];
-
   return (
     <Section
       id="components"
@@ -78,9 +76,9 @@ export function ComponentsSection() {
         <div className="space-y-2">
           <Subhead>Input</Subhead>
           <Panel className="space-y-2">
-            <Input placeholder="Search cards…" />
+            <Input placeholder={`Search cards\u2026`} />
             <Input defaultValue="Filled value" />
-            <Input disabled placeholder="Disabled" />
+            <Input disabled placeholder={`Disabled`} />
           </Panel>
         </div>
         <div className="space-y-2">

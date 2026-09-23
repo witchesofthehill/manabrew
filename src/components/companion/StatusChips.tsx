@@ -1,11 +1,9 @@
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
 import { GameIcon } from "./GameIcon";
-
 interface StatusChipsProps {
   player: CompanionPlayer;
 }
-
 export function StatusChips({ player }: StatusChipsProps) {
   const isFirstPlayer = useCompanionStore((s) => s.session?.lastFirstPlayerId === player.id);
   return (

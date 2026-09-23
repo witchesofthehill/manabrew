@@ -1,13 +1,11 @@
 import { Section, Subhead, Panel } from "../kit";
 import { RADIUS_TOKENS, CARD_SIZES } from "../designSystem.data";
-
 const SPACING = [1, 2, 3, 4, 6, 8, 12] as const;
-
 export function SpacingSection() {
   return (
     <Section
       id="spacing"
-      title="Spacing & radius"
+      title={`Spacing & radius`}
       intro="Tailwind's default spacing scale (rem-based, so it scales on large displays). Radius derives from a single --radius base. Card sizing is fixed px."
     >
       <Subhead>Radius</Subhead>

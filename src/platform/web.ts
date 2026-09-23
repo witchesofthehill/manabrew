@@ -82,7 +82,7 @@ import forgeWorkerUrl from "@forge-wasm/forge-engine.worker.js?url";
 import {
   createSeat,
   deliverSeatDirective,
-  pollSeat,
+  noteSeatMessage,
   writeSeatMessage,
   type ForgeSeat,
 } from "@forge-wasm/seat.js";
@@ -102,9 +102,51 @@ async function loadWasm(): Promise<typeof import("@/wasm/wasm")> {
   return wasmReady;
 }
 
+/**
+ * A seat the main thread answers, read by a worker so the engine never waits
+ * on an animation frame for an acknowledgement. Frames arrive in order; the
+ * seat's own bookkeeping (awaiting a response, a held directive) stays here,
+ * where the answers are written.
+ */
+function readSeat<T>(
+  seat: ForgeSeat,
+  onMessage: (message: T, json: string, arrivedAt: number) => void,
+  onError: (error: unknown, json: string) => void,
+): Worker {
+  const worker = new Worker(new URL("../workers/seat-reader.worker.ts", import.meta.url), {
+    type: "module",
+  });
+  worker.onmessage = (event: MessageEvent<string>) => {
+    if (seat.cancelled) return;
+    const json = event.data;
+    // Before the parse, as on the relay socket: a state frame is tens of
+    // kilobytes and parsing it is this machine's work. Stamping after the
+    // parse put it in `replyWait`, which on this path has no wire in it.
+    const arrivedAt = performance.now();
+    try {
+      const message = JSON.parse(json) as T;
+      noteSeatMessage(seat, message);
+      onMessage(message, json, arrivedAt);
+    } catch (error) {
+      onError(error, json);
+    }
+  };
+  worker.postMessage({ buffer: seat.buffer });
+  return worker;
+}
+
 const dlog = (...args: unknown[]) => {
   if (isPromptLoggingEnabled()) console.log(...args);
 };
+
+// The window-level arrays the e2e scripts and benches read live for the tab,
+// across every game it plays, so they are rings: the newest DEBUG_RING entries
+// stay and the rest go. A long session otherwise grows them without bound.
+const DEBUG_RING = 4000;
+function ringPush<T>(ring: T[], item: T): void {
+  ring.push(item);
+  if (ring.length > DEBUG_RING * 2) ring.splice(0, ring.length - DEBUG_RING);
+}
 
 function describeBotFrame(raw: string): string {
   try {
@@ -167,12 +209,6 @@ type RelayMessage = {
   msg: EngineMessage & { kind: string };
 };
 
-type LocalBotAgent = {
-  observe_state(stateJson: string): void;
-  decide(promptJson: string): string | undefined;
-  free(): void;
-};
-
 /**
  * Bridge for communicating with the game engine worker.
  */
@@ -202,11 +238,14 @@ class WorkerBridge {
   workerIsForgeWasm = false;
   private fallbackWorker: Worker | null = null;
   private localSeat: ForgeSeat | null = null;
+  private seatReaders = new Map<ForgeSeat, Worker>();
 
   private remoteSeats = new Map<string, ForgeSeat>();
   private remotePlayerSlots = new Map<string, string>();
-  private localBotAgents = new Map<string, LocalBotAgent>();
-  private localBotStates = new Map<string, unknown>();
+  // Seats a Manabot plays, each in its own worker; the bridge never reads
+  // their buffers.
+  private localBotSlots = new Set<string>();
+  private localBotWorkers = new Map<string, Worker>();
 
   get gameBuffer(): SharedArrayBuffer | null {
     return this.localSeat?.buffer ?? null;
@@ -217,13 +256,16 @@ class WorkerBridge {
 
     eventBus.on<{ buffer: SharedArrayBuffer }>("game:sab", (payload) => {
       const seat = createSeat(payload.buffer);
-      if (this.localSeat) this.localSeat.cancelled = true;
+      if (this.localSeat) this.dropSeat(this.localSeat);
       this.localSeat = seat;
-      if (DEBUG_TRANSPORT) console.log("[WorkerBridge] Received local SAB, starting prompt poll");
-      pollSeat<EngineMessage>(
+      if (DEBUG_TRANSPORT) console.log("[WorkerBridge] Received local SAB, starting reader");
+      this.seatReaders.set(
         seat,
-        (msg) => this.dispatchEngineMessage(msg),
-        (error) => console.error("[WorkerBridge] Failed to read SAB message:", error),
+        readSeat<EngineMessage>(
+          seat,
+          (msg, _json, arrivedAt) => this.dispatchEngineMessage(msg, arrivedAt),
+          (error) => console.error("[WorkerBridge] Failed to read SAB message:", error),
+        ),
       );
     });
 
@@ -231,57 +273,52 @@ class WorkerBridge {
     // loop each, plus the shared response listener installed below.
     eventBus.on<{ buffer: SharedArrayBuffer; playerSlot: string }>("game:remote_sab", (payload) => {
       const { playerSlot } = payload;
+      if (this.localBotSlots.has(playerSlot)) {
+        this.localBotWorkers.get(playerSlot)?.terminate();
+        const worker = new Worker(new URL("../workers/manabot.worker.ts", import.meta.url), {
+          type: "module",
+        });
+        worker.postMessage({ buffer: payload.buffer, playerSlot });
+        this.localBotWorkers.set(playerSlot, worker);
+        return;
+      }
       const seat = createSeat(payload.buffer);
       const previous = this.remoteSeats.get(playerSlot);
-      if (previous) previous.cancelled = true;
+      if (previous) this.dropSeat(previous);
       this.remoteSeats.set(playerSlot, seat);
       if (DEBUG_TRANSPORT)
-        console.log(`[WorkerBridge] Received remote SAB for ${playerSlot}, starting relay poll`);
-      pollSeat<RelayMessage["msg"]>(
+        console.log(`[WorkerBridge] Received remote SAB for ${playerSlot}, starting reader`);
+      this.seatReaders.set(
         seat,
-        (msg, json) => {
-          if (DEBUG_TRANSPORT)
-            console.log(`[transport←sab/seat ${playerSlot}] engine emitted:`, json);
-          const agent = this.localBotAgents.get(playerSlot);
-          if (agent) {
-            try {
-              if (msg.kind === "state") {
-                this.localBotStates.set(playerSlot, msg.state);
-                return;
-              }
-              if (msg.kind !== "prompt") return;
-              const state = this.localBotStates.get(playerSlot);
-              if (state) agent.observe_state(JSON.stringify(state));
-              const actionJson = agent.decide(JSON.stringify(msg.prompt));
-              if (!actionJson) return;
-              const action = JSON.parse(actionJson) as PromptOutput;
-              writeSeatMessage(seat, {
-                kind: "response",
-                promptId: Number((msg.prompt as Prompt).promptId ?? 0),
-                action,
-              });
-            } catch (error) {
-              console.error(`[Manabot] Failed to answer ${playerSlot}:`, error);
-            }
-            return;
-          }
-          this.eventBus.emit("game:relay_message", { forPlayer: playerSlot, msg });
-        },
-        (error) =>
-          console.error(`[WorkerBridge] Failed to read SAB message for ${playerSlot}:`, error),
+        readSeat<RelayMessage["msg"]>(
+          seat,
+          (msg, json) => {
+            if (DEBUG_TRANSPORT)
+              console.log(`[transport←sab/seat ${playerSlot}] engine emitted:`, json);
+            this.eventBus.emit("game:relay_message", { forPlayer: playerSlot, msg });
+          },
+          (error) =>
+            console.error(`[WorkerBridge] Failed to read SAB message for ${playerSlot}:`, error),
+        ),
       );
     });
+
+    // The engine has nothing more to say once the game is over, so the bots
+    // parked on their seats can go.
+    eventBus.on("game:over", () => this.stopLocalBots());
+    eventBus.on("game:forced_end", () => this.stopLocalBots());
 
     // Eager so a response can't arrive before the listener exists; it
     // no-ops while remoteSeats is empty.
     this.installRemoteResponseListener();
   }
 
-  private dispatchEngineMessage(msg: EngineMessage): void {
-    // The seat reader has already parsed, so a hair of client work lands on
-    // the far side of the cut here; there is no wire on this path anyway.
+  private dispatchEngineMessage(msg: EngineMessage, arrivedAt: number): void {
+    // `arrivedAt` is stamped in the seat reader before the parse, so parsing a
+    // state frame counts as this machine's work, the same cut the relay socket
+    // makes.
     if (msg?.kind === "state" || msg?.kind === "prompt" || msg?.kind === "display") {
-      noteReplyFrameArrived();
+      noteReplyFrameArrived(arrivedAt);
     }
     try {
       this.applyEngineMessage(msg);
@@ -295,7 +332,8 @@ class WorkerBridge {
     if (this.workerIsForgeWasm) {
       const w = window as unknown as { __forgeFrames?: string[] };
       w.__forgeFrames = w.__forgeFrames ?? [];
-      w.__forgeFrames.push(
+      ringPush(
+        w.__forgeFrames,
         `${msg?.kind}:${msg?.kind === "state" ? Object.keys((msg.state ?? {}) as object).join("|") : ""}`,
       );
     }
@@ -316,7 +354,7 @@ class WorkerBridge {
         };
         if (w.__respondedAt != null) {
           w.__promptTimings = w.__promptTimings ?? [];
-          w.__promptTimings.push({
+          ringPush(w.__promptTimings, {
             ms: performance.now() - w.__respondedAt,
             type: (msg.prompt as { input?: { type?: string } })?.input?.type,
           });
@@ -329,10 +367,24 @@ class WorkerBridge {
     }
   }
 
-  setLocalBotAgents(agents: Map<string, LocalBotAgent>): void {
-    for (const agent of this.localBotAgents.values()) agent.free();
-    this.localBotStates.clear();
-    this.localBotAgents = agents;
+  /**
+   * Which seats Manabots take at the next table. Set before the engine
+   * starts, and kept across the worker swap `invoke` may do on the way there.
+   */
+  setLocalBotSlots(slots: Iterable<string>): void {
+    this.stopLocalBots();
+    this.localBotSlots = new Set(slots);
+  }
+
+  private dropSeat(seat: ForgeSeat): void {
+    seat.cancelled = true;
+    this.seatReaders.get(seat)?.terminate();
+    this.seatReaders.delete(seat);
+  }
+
+  private stopLocalBots(): void {
+    for (const worker of this.localBotWorkers.values()) worker.terminate();
+    this.localBotWorkers.clear();
   }
 
   setEnginePlayerNames(playerNames: string[]): void {
@@ -441,17 +493,16 @@ class WorkerBridge {
         if (forgeWasm) {
           const w = window as unknown as { __forgeLog?: string[] };
           w.__forgeLog = w.__forgeLog ?? [];
-          const dec = window as unknown as {
-            __engineDecisions?: Array<{ ms: number; type: string; turns?: number }>;
-          };
+          type Decision = { ms: number; type: string; turns?: number; bot?: number };
+          const dec = window as unknown as { __engineDecisions?: Decision[] };
           dec.__engineDecisions = dec.__engineDecisions ?? [];
-          this.eventBus.on<{ ms: number; type: string; turns?: number }>("forge:decision", (p) => {
+          this.eventBus.on<Decision>("forge:decision", (p) => {
             if (!p) return;
-            dec.__engineDecisions?.push(p);
+            if (dec.__engineDecisions) ringPush(dec.__engineDecisions, p);
             // The engine's own measure of itself, which no other engine
             // reports: the interval from the answer landing to the next
             // prompt being ready, with no client polling in it.
-            noteEngineThinkTime(p.ms, p.turns ?? 0);
+            noteEngineThinkTime(p.ms, p.turns ?? 0, p.bot);
           });
           // Forge prints Java stack traces a line at a time, which is hundreds
           // of console entries for one message. Every line is kept for the
@@ -460,7 +511,7 @@ class WorkerBridge {
           let frames = 0;
           this.eventBus.on<{ level?: string; text?: string }>("forge:log", (p) => {
             const text = p?.text ?? "";
-            w.__forgeLog?.push(text);
+            if (w.__forgeLog) ringPush(w.__forgeLog, text);
             if (/^\s*(at\s|@)/.test(text)) {
               frames += 1;
               return;
@@ -603,14 +654,12 @@ class WorkerBridge {
       this.worker.terminate();
       this.worker = null;
     }
-    if (this.localSeat) this.localSeat.cancelled = true;
+    if (this.localSeat) this.dropSeat(this.localSeat);
     this.localSeat = null;
-    for (const seat of this.remoteSeats.values()) seat.cancelled = true;
+    for (const seat of this.remoteSeats.values()) this.dropSeat(seat);
     this.remoteSeats.clear();
     this.remotePlayerSlots.clear();
-    for (const agent of this.localBotAgents.values()) agent.free();
-    this.localBotAgents.clear();
-    this.localBotStates.clear();
+    this.stopLocalBots();
     // Response listener stays installed — terminate() is per-game, and a
     // second game on this (singleton) bridge still needs it.
     this.pendingRequests.clear();
@@ -639,25 +688,20 @@ class WebGameApi implements IGameApi {
   }
 
   async startGame(params: StartGameParams): Promise<string> {
-    if (params.engine === "Forge") {
-      const wasm = await loadWasm();
-      this.bridge.setLocalBotAgents(
-        new Map(
-          (params.opponentDecks?.length ? params.opponentDecks : [params.deck]).map((_, index) => [
-            `player-${index + 1}`,
-            new wasm.WasmManabot(),
-          ]),
-        ),
-      );
-    } else {
-      this.bridge.setLocalBotAgents(new Map());
-    }
+    this.bridge.setLocalBotSlots(
+      params.engine === "Forge" && params.aiController !== "forge"
+        ? (params.opponentDecks?.length ? params.opponentDecks : [params.deck]).map(
+            (_, index) => `player-${index + 1}`,
+          )
+        : [],
+    );
     return this.bridge.invoke<string>("start_game", {
       deck: params.deck,
       startingLife: params.startingLife,
       commanderName: params.commanderName,
       opponentDecks: params.opponentDecks,
       engine: params.engine,
+      forgeAi: params.aiController === "forge",
     });
   }
 
@@ -668,6 +712,10 @@ class WebGameApi implements IGameApi {
 
     if (params.localIsHost) {
       this.serverApi?.setEnginePlayerNames(params.playerNames);
+      // Every seat here is a person or a Forge AI; a Manabot slot left over
+      // from a solo game (the engine validation plays one) would take a
+      // guest's seat.
+      this.bridge.setLocalBotSlots([]);
       // Host runs the engine; the worker posts back one SAB per remote
       // seat (see the game:remote_sab handler in WorkerBridge).
       await this.bridge.invoke("start_multiplayer_game", {
@@ -986,7 +1034,7 @@ class WebServerApi implements IServerApi {
         const frameAt = performance.now();
         try {
           const msg = JSON.parse(e.data);
-          this.handleServerMessage(msg, frameAt);
+          this.handleServerMessage(msg, frameAt, e.data);
         } catch {
           // Ignore malformed messages
         } finally {
@@ -1547,16 +1595,19 @@ class WebServerApi implements IServerApi {
       console.error("[WebServerApi] Not connected");
       return;
     }
-    if (msg.type !== "Ping") logComms("send", msg);
-    this.ws.send(JSON.stringify(msg));
+    const raw = JSON.stringify(msg);
+    if (msg.type !== "Ping") logComms("send", raw);
+    this.ws.send(raw);
   }
 
   /**
-   * @param frameAt when the frame carrying `msg` reached this client, for the
+   * @param frameAt when the frame carrying `` reached this client, for the
    *   turnaround split. Omitted for synthesised messages, which are not a
    *   reply arriving.
+   * @param raw the wire text when there is one, so the bug-report log costs a
+   *   slice of it and not a second serialisation of the parsed message.
    */
-  private handleServerMessage(msg: Record<string, unknown>, frameAt?: number): void {
+  private handleServerMessage(msg: Record<string, unknown>, frameAt?: number, raw?: string): void {
     const type = msg.type as string;
     // The heartbeat would evict real traffic from the bug-report ring buffer.
     if (type === "Pong") {
@@ -1566,7 +1617,7 @@ class WebServerApi implements IServerApi {
       }
       return;
     }
-    logComms("recv", msg);
+    logComms("recv", raw ?? msg);
     if (type === "AuthResult" && msg.success) {
       this.peerSignalling =
         Array.isArray(msg.features) && (msg.features as string[]).includes("peer_signal");
@@ -1811,6 +1862,7 @@ class WebServerApi implements IServerApi {
           error: msg.error,
           username: this.authedUsername,
           features: msg.features,
+          art_base_url: msg.art_base_url,
         },
       ],
       RoomList: ["server:room_list", { rooms: msg.rooms }],

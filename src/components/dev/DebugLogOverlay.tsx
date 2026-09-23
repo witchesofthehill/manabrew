@@ -2,22 +2,18 @@
  * In-app log panel for staging builds. Tees `console.*` into a ring buffer.
  */
 import { useEffect, useRef, useState } from "react";
-
 interface LogLine {
   seq: number;
   at: number;
   level: "log" | "info" | "warn" | "error";
   text: string;
 }
-
 const RING = 400;
 const TRANSPORT = /\[(direct|webrtc|forge-host|transport)/i;
-
 const buffer: LogLine[] = [];
 const listeners = new Set<() => void>();
 let seq = 0;
 let patched = false;
-
 function push(level: LogLine["level"], args: unknown[]): void {
   const text = args
     .map((a) => {
@@ -33,7 +29,6 @@ function push(level: LogLine["level"], args: unknown[]): void {
   if (buffer.length > RING) buffer.splice(0, buffer.length - RING);
   listeners.forEach((fn) => fn());
 }
-
 function patchConsole(): void {
   if (patched) return;
   patched = true;
@@ -45,14 +40,12 @@ function patchConsole(): void {
     };
   });
 }
-
 const COLOR: Record<LogLine["level"], string> = {
   log: "var(--dbg-fg)",
   info: "#5eb0ef",
   warn: "#e0a03a",
   error: "#e0603a",
 };
-
 export function DebugLogOverlay() {
   patchConsole();
   const [open, setOpen] = useState(false);
@@ -60,7 +53,6 @@ export function DebugLogOverlay() {
   const [filter, setFilter] = useState("");
   const [tick, force] = useState(0);
   const scroller = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     const fn = () => force((n) => n + 1);
     listeners.add(fn);
@@ -68,7 +60,6 @@ export function DebugLogOverlay() {
       listeners.delete(fn);
     };
   }, []);
-
   // `tick` forces a render on each new line.
   void tick;
   const needle = filter.trim().toLowerCase();
@@ -77,17 +68,15 @@ export function DebugLogOverlay() {
     if (needle && !l.text.toLowerCase().includes(needle)) return false;
     return true;
   });
-
   useEffect(() => {
     const el = scroller.current;
     if (open && el) el.scrollTop = el.scrollHeight;
   }, [open, lines.length]);
-
   if (!open) {
     return (
       <button
         onClick={() => setOpen(true)}
-        title="Show logs"
+        title={`Show logs`}
         style={{
           position: "fixed",
           right: 12,
@@ -106,7 +95,6 @@ export function DebugLogOverlay() {
       </button>
     );
   }
-
   return (
     <div
       style={
@@ -142,14 +130,14 @@ export function DebugLogOverlay() {
         <button
           onClick={() => setTransportOnly((v) => !v)}
           style={chip(transportOnly)}
-          title="Only transport lines"
+          title={`Only transport lines`}
         >
           transport
         </button>
         <input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="filter…"
+          placeholder={`filter\u2026`}
           style={{
             flex: 1,
             minWidth: 0,
@@ -168,7 +156,7 @@ export function DebugLogOverlay() {
               .catch(() => {});
           }}
           style={chip(false)}
-          title="Copy shown lines"
+          title={`Copy shown lines`}
         >
           copy
         </button>
@@ -178,11 +166,11 @@ export function DebugLogOverlay() {
             force((n) => n + 1);
           }}
           style={chip(false)}
-          title="Clear"
+          title={`Clear`}
         >
           clear
         </button>
-        <button onClick={() => setOpen(false)} style={chip(false)} title="Hide">
+        <button onClick={() => setOpen(false)} style={chip(false)} title={`Hide`}>
           ✕
         </button>
       </div>
@@ -201,7 +189,6 @@ export function DebugLogOverlay() {
     </div>
   );
 }
-
 function chip(active: boolean): React.CSSProperties {
   return {
     padding: "3px 7px",
@@ -213,7 +200,6 @@ function chip(active: boolean): React.CSSProperties {
     cursor: "pointer",
   };
 }
-
 function stamp(at: number): string {
   const d = new Date(at);
   return (

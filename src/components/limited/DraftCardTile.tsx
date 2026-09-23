@@ -1,5 +1,4 @@
 import { memo } from "react";
-
 import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
 import { FoilBadge } from "@/components/limited/FoilBadge";
 import type { useCardPreview } from "@/hooks/useCardPreview";
@@ -9,7 +8,6 @@ import { cn } from "@/lib/utils";
 import type { DraftCard } from "@/types/limited";
 import type { DeckCard } from "@/protocol/deck";
 import type { CardDto } from "@/protocol/game";
-
 interface DraftCardTileProps {
   card: DraftCard;
   index: number;
@@ -20,7 +18,6 @@ interface DraftCardTileProps {
   selected?: boolean;
   pickPending?: boolean;
 }
-
 function DraftCardTileImpl({
   card,
   index,
@@ -92,5 +89,4 @@ function DraftCardTileImpl({
     </button>
   );
 }
-
 export const DraftCardTile = memo(DraftCardTileImpl);

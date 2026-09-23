@@ -135,11 +135,6 @@ public final class ActionSpace {
 
         final List<SpellAbility> actions = new ArrayList<>();
         final Map<Card, Card> spellHosts = new IdentityHashMap<>();
-        // GameActionUtil.getAlternativeCosts runs the whole CR 613 layer pass twice for
-        // every ability with an alternate host (MDFC, adventure, split, bestow), and an
-        // enumeration hits that once per candidate. Game state cannot change while we
-        // enumerate, so hold the pass and restore once at the end.
-        game.getAction().setHoldCheckingStaticAbilities(true);
         boolean stackStatics = false;
         try {
         final List<SpellAbility> possible = new ArrayList<>();

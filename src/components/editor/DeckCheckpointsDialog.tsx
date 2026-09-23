@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Clock3, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,7 +12,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { STORAGE_KEYS } from "@/lib/constants";
 import type { EditorDeck } from "@/types/manabrew";
-
 interface DeckCheckpoint {
   id: string;
   deckKey: string;
@@ -21,7 +19,6 @@ interface DeckCheckpoint {
   createdAt: number;
   deck: EditorDeck;
 }
-
 function readCheckpoints(): DeckCheckpoint[] {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEYS.DECK_CHECKPOINTS) ?? "[]");
@@ -30,7 +27,6 @@ function readCheckpoints(): DeckCheckpoint[] {
     return [];
   }
 }
-
 function writeCheckpoints(checkpoints: DeckCheckpoint[]): DeckCheckpoint[] | null {
   const persisted = checkpoints.slice(0, 50);
   while (true) {
@@ -43,7 +39,6 @@ function writeCheckpoints(checkpoints: DeckCheckpoint[]): DeckCheckpoint[] | nul
     }
   }
 }
-
 export function DeckCheckpointsDialog({
   open,
   onOpenChange,
@@ -63,7 +58,6 @@ export function DeckCheckpointsDialog({
     () => checkpoints.filter((checkpoint) => checkpoint.deckKey === deckKey),
     [checkpoints, deckKey],
   );
-
   function saveCheckpoint() {
     const checkpoint: DeckCheckpoint = {
       id: crypto.randomUUID(),
@@ -75,26 +69,24 @@ export function DeckCheckpointsDialog({
     const next = [checkpoint, ...checkpoints];
     const persisted = writeCheckpoints(next);
     if (!persisted?.some((candidate) => candidate.id === checkpoint.id)) {
-      toast.error("This checkpoint is too large to save on this device");
+      toast.error(`This checkpoint is too large to save on this device`);
       return;
     }
     setCheckpoints(persisted);
     if (persisted.length < next.length) {
-      toast.warning("Older checkpoints were removed to free device storage");
+      toast.warning(`Older checkpoints were removed to free device storage`);
     }
     setName("");
   }
-
   function removeCheckpoint(id: string) {
     const next = checkpoints.filter((checkpoint) => checkpoint.id !== id);
     const persisted = writeCheckpoints(next);
     if (!persisted) {
-      toast.error("Could not update checkpoints on this device");
+      toast.error(`Could not update checkpoints on this device`);
       return;
     }
     setCheckpoints(persisted);
   }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
@@ -107,7 +99,7 @@ export function DeckCheckpointsDialog({
         <div className="flex gap-2">
           <Input
             value={name}
-            placeholder="Before changing the mana base"
+            placeholder={`Before changing the mana base`}
             onChange={(event) => setName(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") saveCheckpoint();

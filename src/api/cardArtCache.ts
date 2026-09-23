@@ -1,6 +1,7 @@
 import { getPlatform } from "@/platform";
 import { cacheKeyForImage, localCardArtRouteAvailable } from "@/lib/scryfallImageSource";
 import type { Deck } from "@/protocol";
+import type { ScryfallCard } from "@/types/scryfall";
 import type { BattlefieldCardStyle } from "@/stores/usePreferencesStore";
 
 /**
@@ -54,14 +55,23 @@ export function cardArtCacheAvailable(): Promise<boolean> {
   return localCardArtRouteAvailable();
 }
 
-export function deckArtUrls(deck: Deck, variants: ArtVariant[]): string[] {
-  const urls = new Set<string>();
-  const cards = [
+function everyCardIn(deck: Deck) {
+  return [
     ...deck.cards,
     ...(deck.commanders ?? []),
     ...(deck.sideboard ?? []),
     ...(deck.maybeboard ?? []),
   ];
+}
+
+/** The names whose records a deck download keeps, matching the art it fetches. */
+export function deckCardNames(deck: Deck): string[] {
+  return everyCardIn(deck).map((card) => card.identity.name);
+}
+
+export function deckArtUrls(deck: Deck, variants: ArtVariant[]): string[] {
+  const urls = new Set<string>();
+  const cards = everyCardIn(deck);
   for (const card of cards) {
     for (const variant of variants) {
       const uri = card.uris?.[variant];
@@ -73,6 +83,13 @@ export function deckArtUrls(deck: Deck, variants: ArtVariant[]): string[] {
 
 export function preseedCardArt(urls: string[]): Promise<PreseedResult> {
   return getPlatform().invoke<PreseedResult>("preseed_card_art", { urls });
+}
+
+/** Keeps the records for cards whose art was just downloaded. The picture is
+ *  worth nothing to a machine that cannot learn its url, and these are already
+ *  in hand: the download only happens while online. */
+export function cacheCardRecords(records: ScryfallCard[]): Promise<number> {
+  return getPlatform().invoke<number>("cache_card_records", { records });
 }
 
 /** The estimate travels with the request so the shell can refuse a download
@@ -96,6 +113,12 @@ export interface BulkProgress {
 
 export function cardArtCacheStats(): Promise<CardArtCacheStats> {
   return getPlatform().invoke<CardArtCacheStats>("card_art_cache_stats", {});
+}
+
+/** How many cards this machine can describe with no internet: written by the
+ *  every-card download out of the same bulk file its urls came from. */
+export function cardDataCached(): Promise<number> {
+  return getPlatform().invoke<number>("card_data_cached", {});
 }
 
 export function clearCardArtCache(includeDownloaded: boolean): Promise<void> {

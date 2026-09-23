@@ -16,7 +16,6 @@ import { PlayerMenu } from "./PlayerMenu";
 import { StatusChips } from "./StatusChips";
 import { TapFlash } from "./TapFlash";
 import { usePressHold } from "./usePressHold";
-
 interface PlayerTileProps {
   player: CompanionPlayer;
   opponents: CompanionPlayer[];
@@ -32,7 +31,6 @@ interface PlayerTileProps {
   externalDecTick?: number;
   externalIncTick?: number;
 }
-
 export function PlayerTile({
   player,
   opponents,
@@ -49,13 +47,11 @@ export function PlayerTile({
   const renamePlayer = useCompanionStore((s) => s.renamePlayer);
   const pendingAmount = useCompanionStore((s) => s.pendingDeltas[player.id]?.amount ?? 0);
   const accent = COMPANION_ACCENT_COLORS[player.accentKey];
-
   const [renaming, setRenaming] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [lifeEditing, setLifeEditing] = useState(false);
   const [decTick, setDecTick] = useState(0);
   const [incTick, setIncTick] = useState(0);
-
   const decBindings = usePressHold({
     onTap: () => {
       adjustLife(player.id, -1);
@@ -76,7 +72,6 @@ export function PlayerTile({
       setIncTick((t) => t + 1);
     },
   });
-
   const isPerpendicular = Math.abs(rotation) === 90;
   const flashDec = externalLifeInput ? externalDecTick : decTick;
   const flashInc = externalLifeInput ? externalIncTick : incTick;
@@ -96,7 +91,6 @@ export function PlayerTile({
     : isActive
       ? `0 0 0 2px white, 0 0 0 1px rgba(255,255,255,0.05)`
       : undefined;
-
   return (
     <div className={cn("relative size-full", className)} style={{ containerType: "size" }}>
       <div
@@ -120,13 +114,13 @@ export function PlayerTile({
           <>
             <button
               type="button"
-              aria-label="Decrease life"
+              aria-label={`Decrease life`}
               className="absolute inset-y-0 left-0 z-10 w-1/2 touch-none select-none"
               {...decBindings}
             />
             <button
               type="button"
-              aria-label="Increase life"
+              aria-label={`Increase life`}
               className="absolute inset-y-0 right-0 z-10 w-1/2 touch-none select-none"
               {...incBindings}
             />
@@ -140,7 +134,7 @@ export function PlayerTile({
               type="button"
               className="grid size-8 place-items-center overflow-hidden rounded-full bg-black/40 ring-1 ring-white/20 @xs:size-9 @md:size-11"
               onClick={() => setPickerOpen(true)}
-              aria-label="Choose commander"
+              aria-label={`Choose commander`}
             >
               {player.commanders[0]?.imageUrl ? (
                 <CommanderArt refs={player.commanders} variant="avatar" className="size-full" />
@@ -169,7 +163,7 @@ export function PlayerTile({
                   type="button"
                   className="hidden self-start truncate text-left text-xs font-semibold tracking-wide drop-shadow @xs:block @md:text-sm"
                   onClick={() => setRenaming(true)}
-                  title="Rename"
+                  title={`Rename`}
                 >
                   {player.name}
                 </button>
@@ -218,7 +212,7 @@ export function PlayerTile({
                 type="button"
                 className="pointer-events-auto select-none text-[clamp(2rem,22cqi,8rem)] font-black leading-none tabular-nums drop-shadow-md"
                 onClick={() => setLifeEditing(true)}
-                aria-label="Edit life total"
+                aria-label={`Edit life total`}
               >
                 {player.life}
               </button>
@@ -251,7 +245,6 @@ export function PlayerTile({
     </div>
   );
 }
-
 function hasCommanderArt(players: CompanionPlayer[]): boolean {
   return players.some((p) => p.commanders[0]?.imageUrl);
 }

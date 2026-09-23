@@ -2,14 +2,11 @@ import { useRef, useState } from "react";
 import { Modal } from "./Modal";
 import { Button } from "@/components/ui/button";
 
-/** Who is leaving decides what leaving costs. */
 export type LeaveGameMode = "engineOwner" | "seat" | "solo";
 
 interface LeaveGameModalProps {
-  /** `engineOwner` (default): this app carries the engine, so leaving ends the
-   *  game for everyone. `seat`: a guest seat at someone else's table. `solo`: a
-   *  local game with nobody else in it. */
   mode?: LeaveGameMode;
+  endsWithConcede?: boolean;
   onStay: () => void;
   onLeave: () => void | Promise<void>;
 }
@@ -19,7 +16,7 @@ const COPY: Record<LeaveGameMode, { heading: string; body: string; leave: string
     heading: "End the game for everyone?",
     body:
       "This app is hosting the game engine. Leaving shuts it down and ends the game for every " +
-      "player still in it.",
+      "player still in it, with no result for anyone.",
     leave: "Leave and end game",
   },
   seat: {
@@ -34,8 +31,22 @@ const COPY: Record<LeaveGameMode, { heading: string; body: string; leave: string
   },
 };
 
-export function LeaveGameModal({ mode = "engineOwner", onStay, onLeave }: LeaveGameModalProps) {
-  const copy = COPY[mode];
+const CONCEDE_COPY = {
+  heading: "Concede the game?",
+  body:
+    "This app is hosting the game engine, so it has to stay until the game ends. Conceding " +
+    "ends it now: your opponent wins and everyone sees the result.",
+  leave: "Concede",
+};
+
+export function LeaveGameModal({
+  mode = "engineOwner",
+  endsWithConcede = false,
+  onStay,
+  onLeave,
+}: LeaveGameModalProps) {
+  const concedes = mode === "engineOwner" && endsWithConcede;
+  const copy = concedes ? CONCEDE_COPY : COPY[mode];
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const submitting = useRef(false);
@@ -61,10 +72,10 @@ export function LeaveGameModal({ mode = "engineOwner", onStay, onLeave }: LeaveG
       <Modal.Instructions>{copy.body}</Modal.Instructions>
       {(pending || error) && (
         <Modal.Body className="space-y-3 text-sm">
-          {pending && <p role="status">Leaving…</p>}
+          {pending && <p role="status">{concedes ? "Conceding…" : "Leaving…"}</p>}
           {error && (
             <p role="alert" className="text-destructive">
-              Could not leave: {error}
+              {concedes ? "Could not concede" : "Could not leave"}: {error}
             </p>
           )}
         </Modal.Body>

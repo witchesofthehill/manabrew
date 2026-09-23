@@ -3,7 +3,6 @@ import {
   useGameDevStore,
   type DevPlayerOverrides,
 } from "@/stores/useGameDevStore";
-
 import { DevCounterControl } from "./DevCounterControl";
 import { DevToggleButton } from "./DevToggleButton";
 import { DEV_SECTION, DEV_SECTION_HEADING } from "./devPanel.styles";
@@ -13,14 +12,11 @@ import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContex
 type BoolOverrideKey = {
   [K in keyof DevPlayerOverrides]: DevPlayerOverrides[K] extends boolean ? K : never;
 }[keyof DevPlayerOverrides];
-
 type NumericOverrideKey = {
   [K in keyof DevPlayerOverrides]: DevPlayerOverrides[K] extends number | null ? K : never;
 }[keyof DevPlayerOverrides];
-
 const LIFE_BUMP_BASE = 20;
 const NUMERIC_BUMP_BASE = 0;
-
 interface ToggleRow {
   key: BoolOverrideKey;
   label: string;
@@ -32,12 +28,23 @@ const PLAYER_IDENTITY_ROWS: ToggleRow[] = [
 ];
 
 const PLAYER_BADGE_ROWS: ToggleRow[] = [
-  { key: "forceMonarch", label: "Monarch" },
-  { key: "forceInitiative", label: "Initiative" },
-  { key: "forceCityBlessing", label: "City's Blessing" },
-  { key: "forceEnduringStory", label: "Enduring Story" },
+  {
+    key: "forceMonarch",
+    label: `Monarch`,
+  },
+  {
+    key: "forceInitiative",
+    label: `Initiative`,
+  },
+  {
+    key: "forceCityBlessing",
+    label: `City's Blessing`,
+  },
+  {
+    key: "forceEnduringStory",
+    label: `Enduring Story`,
+  },
 ];
-
 const PLAYER_STATE_ROWS: ToggleRow[] = [
   { key: "forceActiveTurn", label: "Active turn" },
   { key: "forcePriority", label: "Priority" },
@@ -115,16 +122,13 @@ export function PlayerBadgeDevControls() {
 
   if (!sectionMatch && !hasMatchingControl) return null;
   const toggleBool = (key: BoolOverrideKey) => setOverride(key, !overrides[key]);
-
   const bumpNumeric = (key: NumericOverrideKey, base: number, delta: number) => {
     const curr = overrides[key] ?? base;
     setOverride(key, Math.max(0, curr + delta));
   };
-
   const dirty = (Object.keys(DEFAULT_DEV_PLAYER_OVERRIDES) as (keyof DevPlayerOverrides)[]).some(
     (key) => overrides[key] !== DEFAULT_DEV_PLAYER_OVERRIDES[key],
   );
-
   return (
     <DevPanelSearchProvider query={sectionMatch ? "" : query}>
       <section className={DEV_SECTION}>

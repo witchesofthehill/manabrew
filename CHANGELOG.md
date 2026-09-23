@@ -1,5 +1,107 @@
 # Changelog
 
+## [3.49.3](https://github.com/witchesofthehill/manabrew/compare/v3.49.2...v3.49.3) (2026-09-22)
+
+### Fixes
+
+* **harness:** discover statically granted alternative costs ([#977](https://github.com/witchesofthehill/manabrew/issues/977)) ([7774117](https://github.com/witchesofthehill/manabrew/commit/7774117c71388cf6beaa18c2628033c3a5e34e82))
+
+## [3.49.2](https://github.com/witchesofthehill/manabrew/compare/v3.49.1...v3.49.2) (2026-09-22)
+
+### Fixes
+
+* **ui:** localize multiplayer card textures per client ([#975](https://github.com/witchesofthehill/manabrew/issues/975)) ([617183c](https://github.com/witchesofthehill/manabrew/commit/617183cffa4e7868917b215266d70451351febab))
+
+## [3.49.1](https://github.com/witchesofthehill/manabrew/compare/v3.49.0...v3.49.1) (2026-09-22)
+
+### Fixes
+
+* **telemetry:** stamp the browser engine's frames before the parse ([#976](https://github.com/witchesofthehill/manabrew/issues/976)) ([aafab42](https://github.com/witchesofthehill/manabrew/commit/aafab42324916d4f39c1c6cbea73dd12b11a9719))
+
+## [3.49.0](https://github.com/witchesofthehill/manabrew/compare/v3.48.2...v3.49.0) (2026-09-22)
+
+### Features
+
+* **play:** add Forge bot preference ([#973](https://github.com/witchesofthehill/manabrew/issues/973)) ([ef44cac](https://github.com/witchesofthehill/manabrew/commit/ef44cac1a4f430c2cdaca316b7316f16eca60043))
+
+## [3.48.2](https://github.com/witchesofthehill/manabrew/compare/v3.48.1...v3.48.2) (2026-09-21)
+
+### Performance
+
+* **engine:** forge perf branch (fork #13), harness performance mode, forge-wasm 0.3.0 ([#925](https://github.com/witchesofthehill/manabrew/issues/925)) ([492de6d](https://github.com/witchesofthehill/manabrew/commit/492de6d2c6716eea64d870183d233a97e0018243))
+
+## [3.48.1](https://github.com/witchesofthehill/manabrew/compare/v3.48.0...v3.48.1) (2026-09-21)
+
+### Fixes
+
+* **play:** let a browser host concede instead of destroying the table ([#866](https://github.com/witchesofthehill/manabrew/issues/866)) ([279ddd2](https://github.com/witchesofthehill/manabrew/commit/279ddd243130f19c2a48c5ff9b7714a6abdab995))
+* **engine:** report engine crashes instead of calling the game a draw ([#887](https://github.com/witchesofthehill/manabrew/issues/887)) ([ee81330](https://github.com/witchesofthehill/manabrew/commit/ee813302b584aa04950dc9c58c4624bff7e2b1cc))
+
+## [3.48.0](https://github.com/witchesofthehill/manabrew/compare/v3.47.6...v3.48.0) (2026-09-21)
+
+### Features
+
+* **lan:** read card art from the machine hosting the room ([#972](https://github.com/witchesofthehill/manabrew/issues/972)) ([cddd366](https://github.com/witchesofthehill/manabrew/commit/cddd366559ef1ee005b755b0f65038c7df901010))
+
+## [3.47.6](https://github.com/witchesofthehill/manabrew/compare/v3.47.5...v3.47.6) (2026-09-21)
+
+### Fixes
+
+* **relay:** a self-hosted relay that desktops can find and log into ([#878](https://github.com/witchesofthehill/manabrew/issues/878)) ([73986fe](https://github.com/witchesofthehill/manabrew/commit/73986fe8ded8e3de32c8c82572c208c52fc30c2f))
+
+## [3.47.5](https://github.com/witchesofthehill/manabrew/compare/v3.47.4...v3.47.5) (2026-09-21)
+
+## [3.47.4](https://github.com/witchesofthehill/manabrew/compare/v3.47.3...v3.47.4) (2026-09-21)
+
+## [3.47.3](https://github.com/witchesofthehill/manabrew/compare/v3.47.2...v3.47.3) (2026-09-20)
+
+## [3.47.2](https://github.com/witchesofthehill/manabrew/compare/v3.47.1...v3.47.2) (2026-09-20)
+
+## [3.47.1](https://github.com/witchesofthehill/manabrew/compare/v3.47.0...v3.47.1) (2026-09-20)
+
+### Performance
+
+* **client:** stop serialising every game state for the bug-report log ([#962](https://github.com/witchesofthehill/manabrew/issues/962)) ([b3dd1e6](https://github.com/witchesofthehill/manabrew/commit/b3dd1e6288d8533bbd4fe89a49bcf8f1cedfa96f))
+* **harness:** sync the parity card map once per snapshot ([#963](https://github.com/witchesofthehill/manabrew/issues/963)) ([5f34876](https://github.com/witchesofthehill/manabrew/commit/5f348763bd031a4d22f578940b8afb25a6ca9f66))
+
+## [3.47.0](https://github.com/witchesofthehill/manabrew/compare/v3.46.1...v3.47.0) (2026-09-20)
+
+### Features
+
+* **telemetry:** split engine think by who owned the wait ([#961](https://github.com/witchesofthehill/manabrew/issues/961)) ([a77fece](https://github.com/witchesofthehill/manabrew/commit/a77fece1cf9553c3f6dd58f553e408d0f0076487))
+
+## [3.46.1](https://github.com/witchesofthehill/manabrew/compare/v3.46.0...v3.46.1) (2026-09-19)
+
+### Performance
+
+* **ai:** manabot plays to beat forge ai ([#954](https://github.com/witchesofthehill/manabrew/issues/954)) ([d637ef2](https://github.com/witchesofthehill/manabrew/commit/d637ef2b73d7e1b997af0b90c995054a963727a9))
+
+## [3.46.0](https://github.com/witchesofthehill/manabrew/compare/v3.45.4...v3.46.0) (2026-09-19)
+
+### Features
+
+* **i18n:** add ingame localization and Scryfall locales ([#901](https://github.com/witchesofthehill/manabrew/issues/901)) ([48d16ea](https://github.com/witchesofthehill/manabrew/commit/48d16eaaca724f732a090d9a738852fce2c00339))
+
+## [3.45.4](https://github.com/witchesofthehill/manabrew/compare/v3.45.3...v3.45.4) (2026-09-18)
+
+### Fixes
+
+* **website:** restore dark feature card gradient ([#955](https://github.com/witchesofthehill/manabrew/issues/955)) ([b2931d9](https://github.com/witchesofthehill/manabrew/commit/b2931d91724b0afb820ae5147a86ecb66f493c39))
+
+## [3.45.3](https://github.com/witchesofthehill/manabrew/compare/v3.45.2...v3.45.3) (2026-09-18)
+
+### Performance
+
+* **forge-wasm:** describe the board to a bot seat only when it is prompted ([#953](https://github.com/witchesofthehill/manabrew/issues/953)) ([1d98d70](https://github.com/witchesofthehill/manabrew/commit/1d98d7074c9d036200b8d42af33ea3168786f007))
+
+## [3.45.2](https://github.com/witchesofthehill/manabrew/compare/v3.45.1...v3.45.2) (2026-09-18)
+
+## [3.45.1](https://github.com/witchesofthehill/manabrew/compare/v3.45.0...v3.45.1) (2026-09-18)
+
+### Performance
+
+* **ai:** read Forge seats in workers ([#949](https://github.com/witchesofthehill/manabrew/issues/949)) ([926f4a7](https://github.com/witchesofthehill/manabrew/commit/926f4a7d51f8a6b40db9916fa118cba04eb937df))
+
 ## [3.45.0](https://github.com/witchesofthehill/manabrew/compare/v3.44.5...v3.45.0) (2026-09-17)
 
 ### Features

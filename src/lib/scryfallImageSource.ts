@@ -1,5 +1,5 @@
 import { platformFetch } from "@/lib/platformFetch";
-import { lanArtUrl } from "@/lib/lanArtHost";
+import { lanArtUrl } from "@/lib/lanCache";
 import { getPlatform, getPlatformType } from "@/platform";
 
 const SCRYFALL_IMAGE_CDN_ORIGIN = "https://cards.scryfall.io/";

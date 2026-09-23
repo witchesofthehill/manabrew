@@ -1,11 +1,9 @@
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { GAME_FORMATS, type GameFormat } from "@/lib/formats";
-
 interface FormatPickerProps {
   formats?: GameFormat[];
   onSelect: (formatId: string) => void;
 }
-
 export function FormatPicker({ formats = GAME_FORMATS, onSelect }: FormatPickerProps) {
   return (
     <div className="flex h-full flex-col overflow-y-auto px-4 py-10 sm:px-6 lg:px-8">
@@ -30,7 +28,6 @@ export function FormatPicker({ formats = GAME_FORMATS, onSelect }: FormatPickerP
     </div>
   );
 }
-
 function FormatTile({ format, onClick }: { format: GameFormat; onClick: () => void }) {
   return (
     <button

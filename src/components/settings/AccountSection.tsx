@@ -6,13 +6,11 @@ import { SignInMethodsCard } from "@/components/settings/SignInMethodsCard";
 import { AccountActionsCard } from "@/components/settings/AccountActionsCard";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { useAuthStore } from "@/stores/useAuthStore";
-
 export function AccountSection() {
   const account = useAuthStore((s) => s.account);
   const identities = useAuthStore((s) => s.identities);
   const status = useAuthStore((s) => s.status);
   const showSignIn = useSignInDialog((s) => s.show);
-
   if (status !== "signedIn" || !account) {
     return (
       <section className="mx-auto w-full max-w-2xl space-y-4">
@@ -45,7 +43,6 @@ export function AccountSection() {
       </section>
     );
   }
-
   return (
     <section className="mx-auto w-full max-w-2xl space-y-4">
       <AccountProfileCard account={account} identities={identities} />

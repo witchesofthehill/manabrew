@@ -1,6 +1,5 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-
 export function PartnerBadge({ label, className }: { label: string | null; className?: string }) {
   return (
     <Badge
@@ -10,9 +9,9 @@ export function PartnerBadge({ label, className }: { label: string | null; class
         label ? "border-commander/50 text-commander" : "border-warning/50 text-warning",
         className,
       )}
-      title={label ?? "Not partners"}
+      title={label ?? `Not partners`}
     >
-      {label ?? "Not partners"}
+      {label ?? `Not partners`}
     </Badge>
   );
 }

@@ -3,12 +3,10 @@ import { TableSeatChip } from "@/components/lobby/TableSeatChip";
 import { stripUsernameTag } from "@/lib/username";
 import type { RoomPlayerInfo } from "@/types/server";
 import { cn } from "@/lib/utils";
-
 const SEAT_CENTER_PERCENT = 50;
 const SEAT_X_RADIUS_PERCENT = 40;
 const SEAT_Y_RADIUS_PERCENT = 34;
 const SEAT_START_ANGLE = Math.PI / 2;
-
 function seatStyle(index: number, total: number): CSSProperties {
   const angle = SEAT_START_ANGLE + (index * 2 * Math.PI) / total;
   return {
@@ -16,7 +14,6 @@ function seatStyle(index: number, total: number): CSSProperties {
     top: `${SEAT_CENTER_PERCENT + SEAT_Y_RADIUS_PERCENT * Math.sin(angle)}%`,
   };
 }
-
 interface OpenTableSeatsProps {
   players: readonly RoomPlayerInfo[];
   maxPlayers: number;
@@ -33,7 +30,6 @@ interface OpenTableSeatsProps {
   className?: string;
   backgroundUrl?: string | null;
 }
-
 export function OpenTableSeats({
   players,
   maxPlayers,
@@ -51,7 +47,6 @@ export function OpenTableSeats({
   backgroundUrl,
 }: OpenTableSeatsProps) {
   const controllerName = players.find((player) => !player.is_bot)?.username ?? players[0]?.username;
-
   return (
     <div
       role="group"
@@ -83,14 +78,14 @@ export function OpenTableSeats({
         const statusLabel =
           showSeatLabels && player
             ? isControllerSeat
-              ? "Host"
+              ? `Host`
               : openFormat
                 ? player.ready
-                  ? "Ready"
-                  : "Waiting"
+                  ? `Ready`
+                  : `Waiting`
                 : player.ready
-                  ? "Ready"
-                  : (player.selected_deck_name ?? "No deck")
+                  ? `Ready`
+                  : (player.selected_deck_name ?? `No deck`)
             : undefined;
         return (
           <TableSeatChip

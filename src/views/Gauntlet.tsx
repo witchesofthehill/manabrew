@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import { useTopBarOverride } from "@/components/layout/TopBarOverride";
 import {
@@ -21,7 +20,6 @@ import { arm as armGauntletReturn, clear as clearGauntletReturn } from "@/lib/ga
 import type { DraftCard, GauntletMatchDecks } from "@/types/limited";
 import { resolveDeckCards } from "@/lib/limited.utils";
 import type { Deck, DeckFormat } from "@/protocol/deck";
-
 async function buildGauntletDeck(
   name: string,
   main: DraftCard[],
@@ -39,9 +37,10 @@ async function buildGauntletDeck(
     sideboard: resolvedSide,
   };
 }
-
 export default function Gauntlet() {
-  const { gauntletId } = useParams<{ gauntletId: string }>();
+  const { gauntletId } = useParams<{
+    gauntletId: string;
+  }>();
   const navigate = useNavigate();
   const activeGauntlet = useLimitedStore((s) => s.activeGauntlet);
   const refresh = useLimitedStore((s) => s.refreshGauntletState);
@@ -51,24 +50,20 @@ export default function Gauntlet() {
   const updateHumanDeck = useLimitedStore((s) => s.updateGauntletHumanDeck);
   const lastError = useLimitedStore((s) => s.lastError);
   const startGame = useGameStore((s) => s.startGame);
-
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [launchingMatch, setLaunchingMatch] = useState(false);
   const [sideboardOpen, setSideboardOpen] = useState(false);
   const [matchDecks, setMatchDecks] = useState<GauntletMatchDecks | null>(null);
-
   useTopBarOverride({
     onBack: () => navigate(ROUTES.PLAY_OFFLINE_LIMITED),
     onHome: () => navigate(ROUTES.PLAY),
   });
-
   useEffect(() => {
     if (!gauntletId) return;
     if (!activeGauntlet || activeGauntlet.gauntletId !== gauntletId) {
       refresh(gauntletId);
     }
   }, [gauntletId, activeGauntlet, refresh]);
-
   if (!activeGauntlet) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -80,7 +75,6 @@ export default function Gauntlet() {
       </div>
     );
   }
-
   const handleManualOutcome = async (won: boolean) => {
     if (!gauntletId) return;
     try {
@@ -90,7 +84,6 @@ export default function Gauntlet() {
       /* surfaced via lastError */
     }
   };
-
   const handleAdvance = async () => {
     if (!gauntletId) return;
     try {
@@ -100,7 +93,6 @@ export default function Gauntlet() {
       /* surfaced via lastError */
     }
   };
-
   const handlePlayMatch = async () => {
     if (!gauntletId || launchingMatch) return;
     setLaunchingMatch(true);
@@ -125,12 +117,11 @@ export default function Gauntlet() {
       }
       navigate(ROUTES.PLAY);
     } catch (err) {
-      toast.error(`Failed to launch match: ${err}`);
+      toast.error(`Failed to launch match: ${String(err)}`);
     } finally {
       setLaunchingMatch(false);
     }
   };
-
   const handleOpenSideboard = async () => {
     if (!gauntletId) return;
     try {
@@ -138,32 +129,30 @@ export default function Gauntlet() {
       setMatchDecks(decks);
       setSideboardOpen(true);
     } catch (err) {
-      toast.error(`Failed to load decks: ${err}`);
+      toast.error(`Failed to load decks: ${String(err)}`);
     }
   };
-
   const handleSaveSideboard = async (deck: { main: DraftCard[]; sideboard: DraftCard[] }) => {
     if (!gauntletId) return;
     try {
       await updateHumanDeck(gauntletId, deck.main, deck.sideboard);
-      toast.success("Sideboard updated.");
+      toast.success(`Sideboard updated.`);
       setSideboardOpen(false);
     } catch (err) {
-      toast.error(`Failed to save sideboard: ${err}`);
+      toast.error(`Failed to save sideboard: ${String(err)}`);
     }
   };
-
   return (
     <div className="flex h-full flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm">
           <p className="font-semibold text-foreground">
-            {activeGauntlet.kind === "sealed" ? "Sealed" : "Draft"} gauntlet
+            {activeGauntlet.kind === "sealed" ? `Sealed gauntlet` : `Draft gauntlet`}
           </p>
           <p className="text-muted-foreground">
             Round {activeGauntlet.currentRound} / {activeGauntlet.rounds} · Wins{" "}
-            {activeGauntlet.wins} · Losses {activeGauntlet.losses}{" "}
-            {activeGauntlet.completed ? "· Complete" : ""}
+            {activeGauntlet.wins} · Losses {activeGauntlet.losses}
+            {activeGauntlet.completed ? ` · Complete` : null}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -192,7 +181,7 @@ export default function Gauntlet() {
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button variant="primary" onClick={handlePlayMatch} disabled={launchingMatch}>
-                  {launchingMatch ? "Launching…" : "Play Match"}
+                  {launchingMatch ? `Launching\u2026` : `Play Match`}
                 </Button>
                 <Button variant="outline" onClick={() => handleManualOutcome(true)}>
                   Mark Win
@@ -318,7 +307,7 @@ export default function Gauntlet() {
                 defaultDeckName={matchDecks.humanDeckName}
                 format={activeGauntlet.kind === "sealed" ? "sealed" : "draft"}
                 requireCompleteToSave
-                confirmLabel="Save sideboard"
+                confirmLabel={`Save sideboard`}
                 onConfirm={handleSaveSideboard}
               />
             </div>
@@ -335,17 +324,16 @@ export default function Gauntlet() {
     </div>
   );
 }
-
 function outcomeMessage(kind: string, nextRound: number | null): string {
   switch (kind) {
     case "matchInProgress":
-      return "Match still in progress — record the next game.";
+      return `Match still in progress \u2014 record the next game.`;
     case "advanceNextRound":
-      return `Match won! Advance to round ${nextRound}.`;
+      return `Match won! Advance to round ${nextRound!}.`;
     case "wonTournament":
-      return "Tournament won — congrats.";
+      return `Tournament won \u2014 congrats.`;
     case "lostRound":
-      return "Match lost — gauntlet over.";
+      return `Match lost \u2014 gauntlet over.`;
     default:
       return kind;
   }

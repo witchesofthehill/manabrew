@@ -2,7 +2,6 @@
  * Shared primitive components for the deck editor views.
  * Extracted to eliminate duplication across DeckListView card components.
  */
-
 import { Button } from "@/components/ui/button";
 import { ChevronDown, Gem, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -11,7 +10,6 @@ import { ScryfallImg } from "@/components/ScryfallImg";
 import type { OverlayAction } from "./deckEditor.utils";
 import type { DeckCard } from "@/protocol/deck";
 export type { OverlayAction } from "./deckEditor.utils";
-
 export function CardCountBadge({ count, className }: { count: number; className?: string }) {
   if (count <= 1) return null;
   return (
@@ -26,7 +24,6 @@ export function CardCountBadge({ count, className }: { count: number; className?
     </div>
   );
 }
-
 export function CardThumbnail({
   card,
   imageSize = "normal",
@@ -51,7 +48,6 @@ export function CardThumbnail({
     </div>
   );
 }
-
 export function CardAnalysisBadges({
   isCombo,
   isGameChanger,
@@ -65,7 +61,7 @@ export function CardAnalysisBadges({
       {isGameChanger && (
         <div
           className="rounded-full bg-pt-lethal/90 text-white p-0.5 shadow"
-          title="Game Changer — restricted to bracket 3+"
+          title={`Game Changer \u2014 restricted to bracket 3+`}
         >
           <Gem className="h-3 w-3" />
         </div>
@@ -73,7 +69,7 @@ export function CardAnalysisBadges({
       {isCombo && (
         <div
           className="rounded-full bg-counter-charge/90 text-white p-0.5 shadow"
-          title="Part of a combo in this deck"
+          title={`Part of a combo in this deck`}
         >
           <Sparkles className="h-3 w-3" />
         </div>
@@ -81,7 +77,6 @@ export function CardAnalysisBadges({
     </div>
   );
 }
-
 export function CardHoverOverlay({
   actions,
   rounded = "rounded-lg",
@@ -125,7 +120,6 @@ export function CardHoverOverlay({
     </div>
   );
 }
-
 export function SectionHeader({
   label,
   count,
@@ -162,7 +156,6 @@ export function SectionHeader({
     </div>
   );
 }
-
 export function EmptyDropZone({ message = "Drop cards here" }: { message?: string }) {
   return (
     <div className="border border-dashed border-border/40 rounded py-3 text-center">

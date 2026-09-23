@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import { Modal } from "./Modal";
 import { Button } from "@/components/ui/button";
-
 interface ConcedeGameModalProps {
   onConfirm: () => void | Promise<void>;
   onCancel: () => void;
@@ -54,7 +53,7 @@ export function ConcedeGameModal({ onConfirm, onCancel, hosting = false }: Conce
           Cancel
         </Modal.Close>
         <Button variant="destructive" disabled={pending} onClick={() => void confirm()}>
-          {pending ? "Conceding…" : "Concede"}
+          {pending ? `Conceding…` : `Concede`}
         </Button>
       </Modal.Footer>
     </Modal>

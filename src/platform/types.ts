@@ -1,5 +1,6 @@
 import type { EngineGameStats } from "@/lib/engineTelemetry";
 import type {
+  AiController,
   ChatScope,
   DraftConfig,
   EngineKind,
@@ -18,6 +19,7 @@ export interface StartGameParams {
   commanderName: string | null;
   opponentDecks: Deck[] | null;
   engine?: EngineKind;
+  aiController?: AiController;
 }
 
 export interface StartMultiplayerGameParams {

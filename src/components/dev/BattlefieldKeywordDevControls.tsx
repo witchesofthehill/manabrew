@@ -4,11 +4,9 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
-
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { BattlefieldChoiceDevControls } from "./BattlefieldChoiceDevControls";
 import { DevCardSearch } from "./DevCardSearch";
-
 import {
   DEV_CONTROL_ACTIVE,
   DEV_CONTROL_BUTTON,
@@ -68,7 +66,6 @@ const DEV_BATTLEFIELD_KEYWORDS: string[] = [
   "Bushido",
   "Exalted",
 ];
-
 export function BattlefieldKeywordDevControls() {
   const selected = useGameDevStore((s) => s.debugBattlefieldKeywords);
   const toggle = useGameDevStore((s) => s.toggleDebugBattlefieldKeyword);
@@ -120,7 +117,6 @@ export function BattlefieldKeywordDevControls() {
       setDebugCardEnabled(true);
       return;
     }
-
     const requestedName = debugCardName;
     setLoadingCard(true);
     setCardError(null);
@@ -136,7 +132,6 @@ export function BattlefieldKeywordDevControls() {
       setLoadingCard(false);
     }
   };
-
   return (
     <section className={DEV_SECTION}>
       {showCardControls ? (

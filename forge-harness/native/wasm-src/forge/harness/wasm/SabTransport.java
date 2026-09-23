@@ -92,8 +92,24 @@ public final class SabTransport implements InteractiveBridge {
     static native int seatCount();
 
     private final java.util.function.IntFunction<String> snapshots;
+    /**
+     * Seats a Manabot plays. A bot reads one board, the one it is prompted
+     * on, so it gets a state only then; a person watches the whole game and
+     * gets one on every prompt. Without this every prompt of any seat cost a
+     * snapshot per bound seat, four times the work at a pod, most of it
+     * discarded unread.
+     */
+    private final java.util.Set<Integer> botSeats;
     private long checkpoint;
+    /** When a person's answer last landed; bot answers do not move it. */
     private long lastRecvAt;
+    /**
+     * Wall time spent inside bot prompts since that answer: the bot's own
+     * snapshot, its wait on the worker and the transfer of its reply. What a
+     * person's window contains besides this is the rules engine resolving
+     * their action, so the two halves name who owns a long wait.
+     */
+    private long botMsSinceRecv;
     private int turnNow;
     private int turnAtLastPrompt = -1;
     /** Kept clear of the in-game sequence, which the session owns. */
@@ -110,7 +126,13 @@ public final class SabTransport implements InteractiveBridge {
     }
 
     public SabTransport(final java.util.function.IntFunction<String> snapshots) {
+        this(snapshots, java.util.Collections.emptySet());
+    }
+
+    public SabTransport(final java.util.function.IntFunction<String> snapshots,
+            final java.util.Set<Integer> botSeats) {
         this.snapshots = snapshots;
+        this.botSeats = botSeats;
     }
 
     @Override
@@ -121,31 +143,51 @@ public final class SabTransport implements InteractiveBridge {
     @Override
     public String exchange(final int playerIndex, final String promptJson) {
         final int seat = playerIndex < 0 ? 0 : playerIndex;
+        final String type = inputType(promptJson);
+        final boolean dice = "diceRolled".equals(type);
+        final boolean bot = !dice && botSeats.contains(seat);
         // Broadcast before the telemetry post so `turnNow` is the turn this
-        // prompt belongs to.
-        broadcastState();
-        // Engine think time: from the client's answer landing to the next
-        // prompt being ready. This is the analogue of the hosted node-side
-        // figure, and unlike a client-side measurement it is not quantised by
-        // the reader's requestAnimationFrame loop.
+        // prompt belongs to. A bot's prompt updates the bot alone: the people
+        // at the table see the board on their own next prompt, as they did
+        // when Forge's AI held these seats.
+        final long botStartedAt = bot ? System.currentTimeMillis() : 0;
+        if (bot) {
+            sendState(seat);
+        } else {
+            broadcastState(dice);
+        }
+        // Engine think time: from a person's answer landing to that person's
+        // next prompt being ready, bot prompts in between included. This is
+        // the analogue of the hosted node-side figure, and unlike a
+        // client-side measurement it is not quantised by the reader's
+        // requestAnimationFrame loop.
         //
         // `turns` is how many turns passed inside that window. Anything above
         // zero means the opponents took their turns in it, which is most of
         // what a large reading is: this is not one decision being slow.
-        if (lastRecvAt > 0) {
-            final int turns = turnAtLastPrompt < 0 ? 0 : Math.max(0, turnNow - turnAtLastPrompt);
-            post("forge:decision", "{\"ms\":" + (System.currentTimeMillis() - lastRecvAt)
-                    + ",\"turns\":" + turns
-                    + ",\"type\":\"" + inputType(promptJson) + "\"}");
+        // `bot` is the part of the window spent on bot prompts.
+        if (!bot) {
+            if (lastRecvAt > 0) {
+                final int turns = turnAtLastPrompt < 0 ? 0 : Math.max(0, turnNow - turnAtLastPrompt);
+                post("forge:decision", "{\"ms\":" + (System.currentTimeMillis() - lastRecvAt)
+                        + ",\"bot\":" + botMsSinceRecv
+                        + ",\"turns\":" + turns
+                        + ",\"type\":\"" + type + "\"}");
+            }
+            turnAtLastPrompt = turnNow;
         }
-        turnAtLastPrompt = turnNow;
-        if ("diceRolled".equals(inputType(promptJson))) {
+        if (dice) {
             return exchangeWithAllSeats(promptJson);
         }
         sendTagged(seat, "prompt", "prompt", promptJson);
 
         final JsonObject message = JsonParser.parseString(recv(seat)).getAsJsonObject();
-        lastRecvAt = System.currentTimeMillis();
+        if (bot) {
+            botMsSinceRecv += System.currentTimeMillis() - botStartedAt;
+        } else {
+            lastRecvAt = System.currentTimeMillis();
+            botMsSinceRecv = 0;
+        }
         return decodeMessage(seat, message);
     }
 
@@ -164,6 +206,7 @@ public final class SabTransport implements InteractiveBridge {
             }
         }
         lastRecvAt = System.currentTimeMillis();
+        botMsSinceRecv = 0;
         return result;
     }
 
@@ -201,39 +244,39 @@ public final class SabTransport implements InteractiveBridge {
         return any ? turn : -1;
     }
 
-    private void broadcastState() {
+    /** Every person's seat; `bots` too, which only the dice roll needs. */
+    private void broadcastState(final boolean bots) {
         final int seats = Math.max(1, seatCount());
         for (int viewer = 0; viewer < seats; viewer++) {
-            final String view = snapshots == null ? null : snapshots.apply(viewer);
-            if (view == null || view.isEmpty()) {
-                continue;
+            if (bots || !botSeats.contains(viewer)) {
+                sendState(viewer);
             }
-            final int turn = turnOf(view);
-            if (turn >= 0) {
-                turnNow = turn;
-            }
-            // The client reads state.gameView, matching GameSnapshotEventDto on
-            // the Rust side; a bare game view leaves the board unmounted.
-            sendTagged(viewer, "state", "state", "{\"checkpointId\":" + (++checkpoint)
-                    + ",\"label\":\"forge\",\"gameView\":" + view
-                    + ",\"timestampMs\":" + System.currentTimeMillis() + "}");
         }
     }
 
-    /**
-     * The last thing a game says.
-     *
-     * <p>The engine runs the whole game inside one blocking call, so when that
-     * call returns there is nobody left to answer anything: a client still
-     * waiting on its last answer waits forever, and a concede written into the
-     * buffer is never read. Publishing the final board — which carries
-     * gameOver and the winner — and a gameOver prompt to every seat is what
-     * the Rust engine does at the same point, and it is what lets the client
-     * show the result instead of "waiting for the opponent".
-     */
-    public void publishGameOver() {
+    private void sendState(final int viewer) {
+        final String view = snapshots == null ? null : snapshots.apply(viewer);
+        if (view == null || view.isEmpty()) {
+            return;
+        }
+        final int turn = turnOf(view);
+        if (turn >= 0) {
+            turnNow = turn;
+        }
+        // The client reads state.gameView, matching GameSnapshotEventDto on
+        // the Rust side; a bare game view leaves the board unmounted.
+        sendTagged(viewer, "state", "state", "{\"checkpointId\":" + (++checkpoint)
+                + ",\"label\":\"forge\",\"gameView\":" + view
+                + ",\"timestampMs\":" + System.currentTimeMillis() + "}");
+    }
+
+    public void publishGameOver(final String engineError) {
         final int seats = Math.max(1, seatCount());
         for (int seat = 0; seat < seats; seat++) {
+            if (engineError != null && !engineError.isEmpty()) {
+                sendTagged(seat, "error", "error", "{\"code\":\"engineCrash\",\"message\":"
+                        + new com.google.gson.JsonPrimitive(engineError) + "}");
+            }
             final String view = snapshots == null ? null : snapshots.apply(seat);
             if (view != null && !view.isEmpty()) {
                 sendTagged(seat, "state", "state", "{\"checkpointId\":" + (++checkpoint)

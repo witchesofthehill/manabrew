@@ -1,34 +1,34 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-
 import { Button } from "@/components/ui/button";
 import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
 import { useLimitedStore } from "@/stores/useLimitedStore";
 import type { DraftCard } from "@/types/limited";
-
 export default function Sealed() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams<{
+    id: string;
+  }>();
   const navigate = useNavigate();
   const activeSealed = useLimitedStore((s) => s.activeSealed);
   const refresh = useLimitedStore((s) => s.refreshSealedPool);
   const startGauntlet = useLimitedStore((s) => s.startGauntletFromSealed);
   const isStarting = useLimitedStore((s) => s.isStarting);
   const lastError = useLimitedStore((s) => s.lastError);
-
-  const [builtDeck, setBuiltDeck] = useState<{ main: DraftCard[]; sideboard: DraftCard[] }>({
+  const [builtDeck, setBuiltDeck] = useState<{
+    main: DraftCard[];
+    sideboard: DraftCard[];
+  }>({
     main: [],
     sideboard: [],
   });
   const TARGET_MAIN_SIZE = 40;
   const mainShortBy = Math.max(0, TARGET_MAIN_SIZE - builtDeck.main.length);
-
   useEffect(() => {
     if (!id) return;
     if (!activeSealed || activeSealed.sessionId !== id) {
       refresh(id);
     }
   }, [id, activeSealed, refresh]);
-
   const initialMain = useMemo(
     () => activeSealed?.suggestedDeck?.main ?? [],
     [activeSealed?.suggestedDeck],
@@ -37,7 +37,6 @@ export default function Sealed() {
     () => activeSealed?.suggestedDeck?.sideboard ?? [],
     [activeSealed?.suggestedDeck],
   );
-
   if (!activeSealed) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -49,7 +48,6 @@ export default function Sealed() {
       </div>
     );
   }
-
   return (
     <div className="flex h-full flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex flex-wrap items-center justify-between gap-2">
@@ -71,7 +69,9 @@ export default function Sealed() {
             disabled={isStarting || !id || activeSealed.aiDecks.length === 0 || mainShortBy > 0}
             title={
               mainShortBy > 0
-                ? `Main deck needs ${mainShortBy} more card${mainShortBy === 1 ? "" : "s"} to start`
+                ? mainShortBy === 1
+                  ? `Main deck needs one more card to start`
+                  : `Main deck needs ${mainShortBy} more cards to start`
                 : undefined
             }
             onClick={async () => {
@@ -90,10 +90,10 @@ export default function Sealed() {
             }}
           >
             {isStarting
-              ? "Setting up…"
+              ? `Setting up\u2026`
               : mainShortBy > 0
                 ? `Need ${mainShortBy} more card${mainShortBy === 1 ? "" : "s"}`
-                : "Start Gauntlet"}
+                : `Start Gauntlet`}
           </Button>
         </div>
       </header>

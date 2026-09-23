@@ -14,9 +14,9 @@ import { useHubAvailable } from "@/hooks/useHubAvailable";
 import { cn } from "@/lib/utils";
 import { stripUsernameTag } from "@/lib/username";
 import type { PlayerInfo } from "@/types/server";
-
-const QUALIFICATION_LABEL: Record<string, string> = { maintainer: "Maintainer" };
-
+const QUALIFICATION_LABEL: Record<string, string> = {
+  maintainer: `Maintainer`,
+};
 interface PlayerCardProps {
   player: PlayerInfo;
   status: ReactNode;
@@ -24,7 +24,6 @@ interface PlayerCardProps {
   side?: "left" | "right" | "top" | "bottom";
   children: ReactNode;
 }
-
 export function PlayerCard({ player, status, action, side = "left", children }: PlayerCardProps) {
   const name = stripUsernameTag(player.username);
   const tag = player.username.slice(name.length);

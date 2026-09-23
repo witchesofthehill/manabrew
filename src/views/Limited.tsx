@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Boxes, Crown, Dice5, Hourglass, Layers, Shuffle, Swords, Wand2, X } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SetPicker } from "@/components/limited/SetPicker";
@@ -13,7 +12,6 @@ import { fetchEditionInfo, fetchSetPool, type EditionInfo } from "@/api/limitedE
 import { cn } from "@/lib/utils";
 import type { DraftCard } from "@/types/limited";
 import type { ScryfallSet } from "@/types/scryfall";
-
 export default function Limited() {
   const navigate = useNavigate();
   const startSealed = useLimitedStore((s) => s.startSealed);
@@ -27,10 +25,8 @@ export default function Limited() {
   const sealedTemplates = useLimitedStore((s) => s.sealedTemplates);
   const chaosThemes = useLimitedStore((s) => s.chaosThemes);
   const lastImportedCube = useLimitedStore((s) => s.lastImportedCube);
-
   const allSets = useScryfallStore((s) => s.sets);
   const prefetchSet = useScryfallStore((s) => s.prefetchSet);
-
   const draftableSets = useMemo(
     () =>
       [...(allSets ?? [])]
@@ -38,7 +34,6 @@ export default function Limited() {
         .sort((a, b) => (b.released_at ?? "").localeCompare(a.released_at ?? "")),
     [allSets],
   );
-
   const [numBoosters, setNumBoosters] = useState(6);
   const [podSize, setPodSize] = useState(8);
   const [winstonPacks, setWinstonPacks] = useState(6);
@@ -52,14 +47,12 @@ export default function Limited() {
   const [seedInput, setSeedInput] = useState("");
   const [picksPerPass, setPicksPerPass] = useState(1);
   const [advancedOpen, setAdvancedOpen] = useState(false);
-
   const seedOpt = useMemo(() => {
     const trimmed = seedInput.trim();
     if (!trimmed) return undefined;
     const parsed = Number(trimmed);
     return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : undefined;
   }, [seedInput]);
-
   useEffect(() => {
     if (!selectedSetCode) {
       setEditionInfo(null);
@@ -81,12 +74,10 @@ export default function Limited() {
       cancelled = true;
     };
   }, [selectedSetCode]);
-
   useEffect(() => {
     fetchSealedTemplates();
     fetchChaosThemes();
   }, [fetchSealedTemplates, fetchChaosThemes]);
-
   const fetchPool = async (): Promise<DraftCard[]> => {
     if (!selectedSetCode) {
       throw new Error("Pick a set to draft first.");
@@ -98,9 +89,7 @@ export default function Limited() {
       setFetchingPool(false);
     }
   };
-
   const variantOpt = selectedVariant || undefined;
-
   const handleStartSealed = async () => {
     try {
       const pool = await fetchPool();
@@ -116,7 +105,6 @@ export default function Limited() {
       /* surfaced via lastError */
     }
   };
-
   const handleStartDraft = async () => {
     try {
       const pool = await fetchPool();
@@ -133,7 +121,6 @@ export default function Limited() {
       /* surfaced via lastError */
     }
   };
-
   const handleStartWinston = async () => {
     try {
       const pool = await fetchPool();
@@ -148,7 +135,6 @@ export default function Limited() {
       /* surfaced via lastError */
     }
   };
-
   const handleImportCube = async () => {
     if (!cubeInput.trim()) return;
     try {
@@ -158,11 +144,15 @@ export default function Limited() {
       /* surfaced via lastError */
     }
   };
-
   const handleLoadPoolFile = async (file: File) => {
     try {
       const text = await file.text();
-      const parsed = JSON.parse(text) as { name?: string; pool?: DraftCard[] } | DraftCard[];
+      const parsed = JSON.parse(text) as
+        | {
+            name?: string;
+            pool?: DraftCard[];
+          }
+        | DraftCard[];
       const pool = Array.isArray(parsed) ? parsed : (parsed.pool ?? []);
       if (!Array.isArray(pool) || pool.length === 0) {
         throw new Error("Pool file must contain a non-empty `pool` array of DraftCards.");
@@ -186,10 +176,8 @@ export default function Limited() {
       useLimitedStore.setState({ lastError: `Failed to load pool: ${err}` });
     }
   };
-
   const startBlocked = isStarting || fetchingPool || !selectedSetCode || prefetchingSet !== null;
   const selectedSet = draftableSets.find((s) => s.code === selectedSetCode) ?? null;
-
   return (
     <div className="flex h-full flex-col gap-6 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex items-end justify-between gap-4">
@@ -245,15 +233,15 @@ export default function Limited() {
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           <ModeCard
             icon={<Boxes className="h-5 w-5" />}
-            title="Sealed"
-            description="Open packs, build a 40-card deck, run an AI gauntlet."
-            ctaLabel={ctaLabel(fetchingPool, isStarting, "Open packs", "Start Sealed")}
+            title={`Sealed`}
+            description={`Open packs, build a 40-card deck, run an AI gauntlet.`}
+            ctaLabel={ctaLabel(fetchingPool, isStarting, `Open packs`, `Start Sealed`)}
             disabled={startBlocked}
             onStart={handleStartSealed}
           >
             <NumberField
               id="numBoosters"
-              label="Packs"
+              label={`Packs`}
               value={numBoosters}
               min={3}
               max={12}
@@ -263,15 +251,15 @@ export default function Limited() {
 
           <ModeCard
             icon={<Swords className="h-5 w-5" />}
-            title="Booster Draft"
-            description="Pod draft against AI seats — 3 packs each."
-            ctaLabel={ctaLabel(fetchingPool, isStarting, "Open packs", "Start Draft")}
+            title={`Booster Draft`}
+            description={`Pod draft against AI seats \u2014 3 packs each.`}
+            ctaLabel={ctaLabel(fetchingPool, isStarting, `Open packs`, `Start Draft`)}
             disabled={startBlocked}
             onStart={handleStartDraft}
           >
             <NumberField
               id="podSize"
-              label="Pod size"
+              label={`Pod size`}
               value={podSize}
               min={2}
               max={8}
@@ -281,15 +269,15 @@ export default function Limited() {
 
           <ModeCard
             icon={<Layers className="h-5 w-5" />}
-            title="Winston Draft"
-            description="2-player pile draft against the AI."
-            ctaLabel={ctaLabel(fetchingPool, isStarting, "Shuffle", "Start Winston")}
+            title={`Winston Draft`}
+            description={`2-player pile draft against the AI.`}
+            ctaLabel={ctaLabel(fetchingPool, isStarting, `Shuffle`, `Start Winston`)}
             disabled={startBlocked}
             onStart={handleStartWinston}
           >
             <NumberField
               id="winstonPacks"
-              label="Packs"
+              label={`Packs`}
               value={winstonPacks}
               min={2}
               max={12}
@@ -299,9 +287,9 @@ export default function Limited() {
 
           <ModeCard
             icon={<Wand2 className="h-5 w-5" />}
-            title="CubeCobra Import"
-            description="Paste a cube id or url, or load a saved pool .json file."
-            ctaLabel={isStarting ? "Importing…" : "Import Cube"}
+            title={`CubeCobra Import`}
+            description={`Paste a cube id or url, or load a saved pool .json file.`}
+            ctaLabel={isStarting ? `Importing…` : `Import Cube`}
             disabled={isStarting || !cubeInput.trim()}
             onStart={handleImportCube}
             footnote={
@@ -319,7 +307,7 @@ export default function Limited() {
               type="text"
               value={cubeInput}
               onChange={(e) => setCubeInput(e.target.value)}
-              placeholder="cubeid or cubecobra.com/…"
+              placeholder={`cubeid or cubecobra.com/\u2026`}
               className="h-8 text-xs"
             />
             <label className="flex cursor-pointer items-center gap-2 rounded border border-dashed border-border/60 px-2 py-1 text-[11px] text-muted-foreground hover:border-primary/60 hover:text-foreground/90">
@@ -400,7 +388,7 @@ export default function Limited() {
 
       <CollapsibleSection
         icon={<Hourglass className="h-4 w-4" />}
-        title="Sealed templates"
+        title={`Sealed templates`}
         count={sealedTemplates.length}
       >
         <ul className="grid gap-1.5 text-sm md:grid-cols-2">
@@ -418,7 +406,7 @@ export default function Limited() {
 
       <CollapsibleSection
         icon={<Shuffle className="h-4 w-4" />}
-        title="Themed Chaos Draft"
+        title={`Themed Chaos Draft`}
         count={chaosThemes.length}
       >
         <p className="mb-2 text-xs text-muted-foreground">
@@ -457,7 +445,7 @@ export default function Limited() {
                   className="group flex w-full items-center justify-between gap-2 rounded border border-border/40 bg-card/30 px-3 py-2 text-left transition hover:border-primary/50 hover:bg-card/60 disabled:cursor-not-allowed disabled:opacity-60"
                   title={
                     matched.length === 0
-                      ? "No matching sets in the Scryfall list yet"
+                      ? `No matching sets in the Scryfall list yet`
                       : `${matched.length} sets · ${matched
                           .slice(0, 6)
                           .map((s) => s.code.toUpperCase())
@@ -480,7 +468,6 @@ export default function Limited() {
     </div>
   );
 }
-
 interface SelectedSetSummaryProps {
   set: ScryfallSet;
   info: EditionInfo | null;
@@ -490,7 +477,6 @@ interface SelectedSetSummaryProps {
   onVariantChange: (v: string) => void;
   onClear: () => void;
 }
-
 function SelectedSetSummary({
   set,
   info,
@@ -502,7 +488,6 @@ function SelectedSetSummary({
 }: SelectedSetSummaryProps) {
   const foilPct = info ? Math.round(info.foilChance * 100) : null;
   const totalSlots = info ? info.slots.reduce((acc, s) => acc + s.count, 0) : null;
-
   return (
     <section className="rounded-lg border border-primary/40 bg-gradient-to-br from-primary/5 via-card/30 to-card/40 p-4">
       <div className="flex flex-wrap items-start gap-3">
@@ -629,7 +614,6 @@ function SelectedSetSummary({
     </section>
   );
 }
-
 interface AdvancedToggleProps {
   open: boolean;
   onToggle: () => void;
@@ -638,7 +622,6 @@ interface AdvancedToggleProps {
   picksPerPass: number;
   onPicksPerPassChange: (n: number) => void;
 }
-
 function AdvancedToggle({
   open,
   onToggle,
@@ -678,9 +661,9 @@ function AdvancedToggle({
               inputMode="numeric"
               value={seed}
               onChange={(e) => onSeedChange(e.target.value)}
-              placeholder="random"
+              placeholder={`random`}
               className="h-7 w-32 font-mono text-xs"
-              title="Optional integer for reproducible opens. Leave blank for random."
+              title={`Optional integer for reproducible opens. Leave blank for random.`}
             />
             {seed && (
               <button
@@ -709,7 +692,7 @@ function AdvancedToggle({
                 onPicksPerPassChange(Math.max(1, Math.min(4, Number(e.target.value) || 1)))
               }
               className="h-7 w-16 text-xs"
-              title="Booster Draft only. 1 = vanilla MTG. 2+ = each seat picks N cards before passing."
+              title={`Booster Draft only. 1 = vanilla MTG. 2+ = each seat picks N cards before passing.`}
             />
           </label>
           <span className="text-[10px] text-muted-foreground">
@@ -720,7 +703,6 @@ function AdvancedToggle({
     </details>
   );
 }
-
 interface ModeCardProps {
   icon: React.ReactNode;
   title: string;
@@ -731,7 +713,6 @@ interface ModeCardProps {
   children?: React.ReactNode;
   footnote?: React.ReactNode;
 }
-
 function ModeCard({
   icon,
   title,
@@ -773,7 +754,6 @@ function ModeCard({
     </div>
   );
 }
-
 interface NumberFieldProps {
   id: string;
   label: string;
@@ -782,7 +762,6 @@ interface NumberFieldProps {
   max: number;
   onChange: (n: number) => void;
 }
-
 function NumberField({ id, label, value, min, max, onChange }: NumberFieldProps) {
   return (
     <label htmlFor={id} className="flex items-center justify-between gap-2 text-xs">
@@ -799,7 +778,6 @@ function NumberField({ id, label, value, min, max, onChange }: NumberFieldProps)
     </label>
   );
 }
-
 function ctaLabel(
   fetching: boolean,
   starting: boolean,
@@ -810,14 +788,12 @@ function ctaLabel(
   if (starting) return `${busyLabel}…`;
   return defaultLabel;
 }
-
 interface CollapsibleSectionProps {
   icon: React.ReactNode;
   title: string;
   count: number;
   children: React.ReactNode;
 }
-
 function CollapsibleSection({ icon, title, count, children }: CollapsibleSectionProps) {
   if (count === 0) return null;
   return (
@@ -831,7 +807,6 @@ function CollapsibleSection({ icon, title, count, children }: CollapsibleSection
     </details>
   );
 }
-
 function matchSetsForTheme(tag: string, sets: ScryfallSet[]): ScryfallSet[] {
   const sorted = [...sets].sort((a, b) => (b.released_at ?? "").localeCompare(a.released_at ?? ""));
   switch (tag.toUpperCase()) {
@@ -860,7 +835,6 @@ function matchSetsForTheme(tag: string, sets: ScryfallSet[]): ScryfallSet[] {
       return sorted.slice(0, 6);
   }
 }
-
 interface CubeStartActionsProps {
   cube: {
     name: string;
@@ -879,7 +853,6 @@ interface CubeStartActionsProps {
   onStartDraft: () => void | Promise<void>;
   onStartWinston: () => void | Promise<void>;
 }
-
 function CubeStartActions({
   cube,
   numBoosters,

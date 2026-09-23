@@ -478,9 +478,12 @@ impl Storage {
                  engine_same_p50, engine_same_p90, engine_same_max,
                  engine_cross_p50, engine_cross_p90, engine_cross_max, think_hidden,
                  game_id, reply_wait_p50, reply_wait_p90, reply_wait_max,
-                 client_work_p50, client_work_p90, client_work_max)
+                 client_work_p50, client_work_p90, client_work_max,
+                 engine_bot_p50, engine_bot_p90, engine_bot_max,
+                 engine_rules_p50, engine_rules_p90, engine_rules_max)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
-                     ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32)",
+                     ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32,
+                     ?33, ?34, ?35, ?36, ?37, ?38)",
             params![
                 report.report_id,
                 reported_at,
@@ -514,6 +517,12 @@ impl Storage {
                 report.client_work.as_ref().map(|t| t.p50),
                 report.client_work.as_ref().map(|t| t.p90),
                 report.client_work.as_ref().map(|t| t.max),
+                report.engine_think_bot.as_ref().map(|t| t.p50),
+                report.engine_think_bot.as_ref().map(|t| t.p90),
+                report.engine_think_bot.as_ref().map(|t| t.max),
+                report.engine_think_rules.as_ref().map(|t| t.p50),
+                report.engine_think_rules.as_ref().map(|t| t.p90),
+                report.engine_think_rules.as_ref().map(|t| t.max),
             ],
         )?;
         Ok(inserted > 0)
@@ -596,8 +605,8 @@ impl Storage {
             "INSERT OR IGNORE INTO offline_play_games
                 (id, reported_at, started_at, ended_at, duration_s, format, engine,
                  starting_life, end_reason, game_over, winner, conceded,
-                 client_version, platform, seats)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+                 client_version, platform, seats, engine_error)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
             params![
                 game.report_id,
                 reported_at,
@@ -614,6 +623,7 @@ impl Storage {
                 game.client_version,
                 game.platform,
                 game.players.len() as i64,
+                game.engine_error,
             ],
         )?;
         if inserted == 0 {
@@ -3998,6 +4008,45 @@ mod tests {
         );
     }
 
+    #[test]
+    fn offline_play_record_keeps_the_engine_crash() {
+        let storage = accounts();
+        let game = manabrew_protocol::telemetry::OfflinePlayGame {
+            report_id: "crash-1".to_string(),
+            started_at: "2026-09-08T14:07:10Z".to_string(),
+            ended_at: "2026-09-08T14:40:00Z".to_string(),
+            duration_s: 1970,
+            format: Some("commander".to_string()),
+            engine: "forge-wasm".to_string(),
+            starting_life: 40,
+            end_reason: "engine_error".to_string(),
+            game_over: false,
+            engine_error: Some(
+                "java.lang.NullPointerException: zone\n  at CardProperty".to_string(),
+            ),
+            winner: None,
+            conceded: vec![],
+            client_version: "3.38.1".to_string(),
+            platform: "web".to_string(),
+            players: vec![],
+        };
+        assert!(storage
+            .record_offline_play_game(&game, "2026-09-08T14:40:01Z")
+            .unwrap());
+        let (end_reason, engine_error): (String, Option<String>) = storage
+            .conn
+            .query_row(
+                "SELECT end_reason, engine_error FROM offline_play_games WHERE id = 'crash-1'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(end_reason, "engine_error");
+        assert!(engine_error
+            .unwrap()
+            .starts_with("java.lang.NullPointerException"));
+    }
+
     fn engine_report(id: &str) -> manabrew_protocol::telemetry::EnginePlayStats {
         manabrew_protocol::telemetry::EnginePlayStats {
             report_id: id.to_string(),
@@ -4035,6 +4084,8 @@ mod tests {
                 max: 120,
             }),
             engine_think_same_turn: None,
+            engine_think_bot: None,
+            engine_think_rules: None,
             engine_think_cross_turn: None,
             think_samples_hidden: 0,
             by_type: vec![manabrew_protocol::telemetry::EngineTypeTurnaround {

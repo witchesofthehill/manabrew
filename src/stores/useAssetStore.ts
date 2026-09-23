@@ -22,14 +22,11 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useHubStore } from "@/stores/useHubStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-
 export interface AssetRef {
   assetId: string;
   url: string;
 }
-
 const BUDGETS = { avatar: AVATAR_IMAGE_BUDGET, playmat: PLAYMAT_IMAGE_BUDGET } as const;
-
 interface AssetState {
   assets: AccountAsset[];
   usedBytes: number;
@@ -49,7 +46,6 @@ interface AssetState {
   uploadAvatar: (source: Blob) => Promise<void>;
   clearAvatar: () => Promise<void>;
 }
-
 export const useAssetStore = create<AssetState>()(
   devtools(
     (set, get) => ({
@@ -58,7 +54,6 @@ export const useAssetStore = create<AssetState>()(
       quotaBytes: 0,
       loaded: false,
       busy: false,
-
       refresh: async () => {
         const list = await fetchAccountAssets();
         set({
@@ -68,11 +63,10 @@ export const useAssetStore = create<AssetState>()(
           loaded: true,
         });
       },
-
       replace: async (kind, source, replaces) => {
         const limits = useHubStore.getState().capabilities?.assets;
         if (!limits) {
-          toast.error("Image uploads aren't available on this server");
+          toast.error(`Image uploads aren't available on this server`);
           return undefined;
         }
         set({ busy: true });
@@ -91,7 +85,6 @@ export const useAssetStore = create<AssetState>()(
           set({ busy: false });
         }
       },
-
       uploadAvatar: async (source) => {
         const previous = useAuthStore.getState().account?.avatarAssetId;
         const uploaded = await get().replace("avatar", source, previous);
@@ -101,7 +94,6 @@ export const useAssetStore = create<AssetState>()(
         await useAuthStore.getState().refresh();
         void resyncRelayIdentity();
       },
-
       clearAvatar: async () => {
         const previous = useAuthStore.getState().account?.avatarAssetId;
         await setAccountAvatar(undefined);
@@ -109,7 +101,6 @@ export const useAssetStore = create<AssetState>()(
         await get().remove(previous);
         void resyncRelayIdentity();
       },
-
       remove: async (assetId) => {
         if (!assetId) return;
         const kind = get().assets.find((asset) => asset.id === assetId)?.kind;
@@ -126,13 +117,11 @@ export const useAssetStore = create<AssetState>()(
     { name: "assets" },
   ),
 );
-
 export function useAssetsAvailable(): boolean {
   const configured = useHubStore((s) => !!s.capabilities?.assets);
   const signedIn = useAuthStore((s) => s.status === "signedIn");
   return configured && signedIn;
 }
-
 export function useAssetUrl(assetId: string | undefined): string | undefined {
   const signedIn = useAuthStore((s) => s.status === "signedIn");
   const url = useAssetStore((s) => s.assets.find((a) => a.id === assetId)?.url);
@@ -146,7 +135,6 @@ export function useAssetUrl(assetId: string | undefined): string | undefined {
   }, [assetId, signedIn, loaded]);
   return signedIn ? url : undefined;
 }
-
 export async function assetUrlById(assetId: string | undefined): Promise<string | undefined> {
   if (!assetId || useAuthStore.getState().status !== "signedIn") return undefined;
   const hit = useAssetStore.getState().assets.find((a) => a.id === assetId)?.url;
@@ -156,7 +144,6 @@ export async function assetUrlById(assetId: string | undefined): Promise<string 
   await state.refresh().catch(() => {});
   return useAssetStore.getState().assets.find((a) => a.id === assetId)?.url;
 }
-
 function retargetPlaymatReferences(previousAssetId: string, next: AssetRef | undefined): void {
   const prefs = usePreferencesStore.getState();
   if (prefs.defaultPlaymatAssetId === previousAssetId) {
@@ -166,16 +153,14 @@ function retargetPlaymatReferences(previousAssetId: string, next: AssetRef | und
   useDeckStore.getState().replacePlaymatAsset(previousAssetId, next);
   void useAccountDecksStore.getState().replacePlaymatAsset(previousAssetId, next);
 }
-
 async function discard(assetId: string | undefined): Promise<void> {
   if (!assetId) return;
   try {
     await deleteAsset(assetId);
   } catch {
-    toast.error("Couldn't remove the previous image from your storage");
+    toast.error(`Couldn't remove the previous image from your storage`);
   }
 }
-
 function reportUploadFailure(error: unknown): void {
   const quota = assetQuotaFromError(error);
   if (quota) {
@@ -185,10 +170,9 @@ function reportUploadFailure(error: unknown): void {
   } else if (error instanceof ImageTooLargeError) {
     toast.error(error.message);
   } else {
-    toast.error("Couldn't upload that image");
+    toast.error(`Couldn't upload that image`);
   }
 }
-
 export function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   const megabytes = bytes / (1024 * 1024);

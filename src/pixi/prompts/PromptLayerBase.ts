@@ -434,7 +434,8 @@ export function sameGameOverPresentation(
     left.winnerId === right.winnerId &&
     left.me === right.me &&
     sameArray(left.opponents, right.opponents) &&
-    left.turn === right.turn
+    left.turn === right.turn &&
+    left.engineCrash === right.engineCrash
   );
 }
 

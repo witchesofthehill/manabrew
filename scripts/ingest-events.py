@@ -132,7 +132,13 @@ CREATE TABLE IF NOT EXISTS engine_stats (
   reply_wait_max INTEGER,
   client_work_p50 INTEGER,
   client_work_p90 INTEGER,
-  client_work_max INTEGER
+  client_work_max INTEGER,
+  engine_bot_p50 INTEGER,
+  engine_bot_p90 INTEGER,
+  engine_bot_max INTEGER,
+  engine_rules_p50 INTEGER,
+  engine_rules_p90 INTEGER,
+  engine_rules_max INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_engine_stats_ts ON engine_stats(ts);
 CREATE INDEX IF NOT EXISTS idx_engine_stats_engine ON engine_stats(engine, ts);
@@ -205,6 +211,17 @@ def open_db(path: Path) -> sqlite3.Connection:
         "client_work_p50",
         "client_work_p90",
         "client_work_max",
+    ):
+        ensure_column(db, "engine_stats", column, "INTEGER")
+    # The engine window split by owner: bot prompts on one side, the rules
+    # engine on the other.
+    for column in (
+        "engine_bot_p50",
+        "engine_bot_p90",
+        "engine_bot_max",
+        "engine_rules_p50",
+        "engine_rules_p90",
+        "engine_rules_max",
     ):
         ensure_column(db, "engine_stats", column, "INTEGER")
     ensure_column(db, "games", "source", "TEXT")
@@ -380,14 +397,16 @@ ENGINE_STATS_COLUMNS = (
     "engine_same_p50, engine_same_p90, engine_same_max, "
     "engine_cross_p50, engine_cross_p90, engine_cross_max, think_hidden, "
     "reply_wait_p50, reply_wait_p90, reply_wait_max, "
-    "client_work_p50, client_work_p90, client_work_max"
+    "client_work_p50, client_work_p90, client_work_max, "
+    "engine_bot_p50, engine_bot_p90, engine_bot_max, "
+    "engine_rules_p50, engine_rules_p90, engine_rules_max"
 )
 
 
 def ingest_engine_stats(db, ev):
     db.execute(
         f"""INSERT OR IGNORE INTO engine_stats ({ENGINE_STATS_COLUMNS})
-           VALUES ({", ".join("?" * 32)})""",
+           VALUES ({", ".join("?" * 38)})""",
         (
             # A relay from before the report id was forwarded still identifies a
             # report well enough to keep re-ingestion idempotent. The room is
@@ -425,6 +444,12 @@ def ingest_engine_stats(db, ev):
             ev.get("client_work_p50"),
             ev.get("client_work_p90"),
             ev.get("client_work_max"),
+            ev.get("engine_bot_p50"),
+            ev.get("engine_bot_p90"),
+            ev.get("engine_bot_max"),
+            ev.get("engine_rules_p50"),
+            ev.get("engine_rules_p90"),
+            ev.get("engine_rules_max"),
         ),
     )
 
@@ -771,7 +796,9 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
                       engine_cross_p50, engine_cross_p90, engine_cross_max,
                       coalesce(think_hidden, 0),
                       reply_wait_p50, reply_wait_p90, reply_wait_max,
-                      client_work_p50, client_work_p90, client_work_max
+                      client_work_p50, client_work_p90, client_work_max,
+                      engine_bot_p50, engine_bot_p90, engine_bot_max,
+                      engine_rules_p50, engine_rules_p90, engine_rules_max
                FROM engine_play_stats
                WHERE reported_at > ?""",
             (mirrored_through,),
@@ -816,7 +843,7 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
         )
         db.executemany(
             f"""INSERT OR IGNORE INTO engine_stats ({ENGINE_STATS_COLUMNS})
-                VALUES (?, ?, 'hub', {", ".join("?" * 29)})""",
+                VALUES (?, ?, 'hub', {", ".join("?" * 35)})""",
             engine_reports,
         )
         db.execute("DELETE FROM hub_collection_cards")

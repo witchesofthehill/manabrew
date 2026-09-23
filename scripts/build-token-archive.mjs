@@ -129,6 +129,8 @@ function backFace(card) {
     manaCost: face.mana_cost ?? "",
     typeLine: face.type_line ?? "",
     oracleText: face.oracle_text ?? "",
+    power: face.power,
+    toughness: face.toughness,
     uris: { small, normal, large, png, art_crop, border_crop },
   };
 }

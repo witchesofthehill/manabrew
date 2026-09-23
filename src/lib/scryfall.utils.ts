@@ -66,6 +66,8 @@ function buildBackFaceSummary(sc: ScryfallCard): CardBackFaceSummary | undefined
     manaCost: back.mana_cost ?? "",
     typeLine: back.type_line ?? "",
     oracleText: back.oracle_text ?? "",
+    power: back.power,
+    toughness: back.toughness,
     uris: {
       small: img.small,
       normal: img.normal,

@@ -91,6 +91,8 @@ Use this when a parity report points at a specific failure mode:
 
 ## Build & test
 
+The Cargo workspace manifest is at the repository root, not `manabrew-rs/Cargo.toml`; run these commands from the root.
+
 ```bash
 cargo build --workspace
 cargo test --workspace

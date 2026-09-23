@@ -416,16 +416,16 @@ export function getCardTokenScripts(cardName: string): string[] {
 }
 
 async function lookupArchivedToken(lookup: ScryfallCardLookup): Promise<DeckCard | null> {
-  if (lookup.id) {
-    const archive = await loadTokenArchive();
-    return archive.byId.get(lookup.id) ?? null;
+  if (!lookup.id && !(lookup.setCode && lookup.collectorNumber)) return null;
+  let archive: TokenArchiveIndex;
+  try {
+    archive = await loadTokenArchive();
+  } catch {
+    return null;
   }
-  if (lookup.setCode && lookup.collectorNumber) {
-    const archive = await loadTokenArchive();
-    return archive.byExactSetAndNumber.get(cardKey(lookup)) ?? null;
-  }
-
-  return null;
+  return lookup.id
+    ? (archive.byId.get(lookup.id) ?? null)
+    : (archive.byExactSetAndNumber.get(cardKey(lookup)) ?? null);
 }
 
 function localizedArchivedToken(token: DeckCard, locale: ScryfallLanguage): DeckCard {
@@ -467,6 +467,8 @@ function tokenToScryfallCard(token: DeckCard): ScryfallCard {
             type_line: `${typeLine}${subtypeLine}`,
             oracle_text: token.text,
             mana_cost: token.manaCost,
+            power: token.power,
+            toughness: token.toughness,
             image_uris: token.uris,
           },
           {
@@ -474,6 +476,8 @@ function tokenToScryfallCard(token: DeckCard): ScryfallCard {
             type_line: token.backFace.typeLine,
             oracle_text: token.backFace.oracleText,
             mana_cost: token.backFace.manaCost,
+            power: token.backFace.power,
+            toughness: token.backFace.toughness,
             image_uris: token.backFace.uris,
           },
         ]
@@ -594,13 +598,11 @@ async function imagePrintingFor(card: ScryfallCard): Promise<ScryfallCard | unde
   const key = `${card.set}:${card.collector_number}`;
   const existing = pendingImagePrintings.get(key);
   if (existing) return existing;
-  const pending = getCardBySetAndNumber(card.set, card.collector_number)
-    .then((printing) =>
-      printing.lang === DEFAULT_SCRYFALL_LANGUAGE && printing.oracle_id === card.oracle_id
-        ? printing
-        : undefined,
-    )
-    .catch(() => undefined);
+  const pending = getCardBySetAndNumber(card.set, card.collector_number).then((printing) =>
+    printing.lang === DEFAULT_SCRYFALL_LANGUAGE && printing.oracle_id === card.oracle_id
+      ? printing
+      : undefined,
+  );
   pendingImagePrintings.set(key, pending);
   try {
     return await pending;
@@ -633,8 +635,16 @@ export const useScryfallStore = create<ScryfallState>()(
           : await fetchScryfallCard(lookup, locale);
         if (get().locale !== locale) return get()._fetchCardLookup(lookup);
 
-        const imageInfo =
-          card.image_status === "placeholder" ? await imagePrintingFor(card) : undefined;
+        let imageInfo: ScryfallCard | undefined;
+        let imageResolved = card.image_status !== "placeholder";
+        if (!imageResolved) {
+          try {
+            imageInfo = await imagePrintingFor(card);
+            imageResolved = true;
+          } catch {
+            imageResolved = false;
+          }
+        }
         if (get().locale !== locale) return get()._fetchCardLookup(lookup);
         const uris =
           (imageInfo && imageInfo.image_status !== "placeholder"
@@ -648,7 +658,7 @@ export const useScryfallStore = create<ScryfallState>()(
           card: {
             info: card,
             imageInfo,
-            imageResolved: true,
+            imageResolved,
             texture: Texture.EMPTY,
             uris,
           },
@@ -670,7 +680,13 @@ export const useScryfallStore = create<ScryfallState>()(
           const card = existing.card;
           if (card.info.image_status !== "placeholder" || card.imageResolved) return card;
           const locale = get().locale;
-          const imageInfo = await imagePrintingFor(card.info);
+          let imageInfo: ScryfallCard | undefined;
+          try {
+            imageInfo = await imagePrintingFor(card.info);
+          } catch {
+            if (get().locale !== locale) return get().getCard(lookup);
+            return card;
+          }
           if (get().locale !== locale) return get().getCard(lookup);
           set((state) => {
             for (const entry of Object.values(state.cards)) {

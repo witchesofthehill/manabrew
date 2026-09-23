@@ -82,6 +82,12 @@ pub struct CardBackFaceSummary {
     pub type_line: String,
     #[serde(default)]
     pub oracle_text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub power: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub toughness: Option<String>,
     #[serde(default)]
     pub uris: CardImageUris,
 }

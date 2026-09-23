@@ -26,6 +26,7 @@ export function localizedDeckCardImageUris(
   artwork?: ScryfallCard,
 ): ScryfallImageUris | undefined {
   if (info?.image_status === "placeholder") {
+    if (card.imageLanguage !== locale) return undefined;
     const uris = faceIndex === 0 ? card.uris : faceIndex === 1 ? card.backFace?.uris : undefined;
     return uris?.normal &&
       !uris.normal.includes(info.id) &&

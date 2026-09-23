@@ -126,8 +126,8 @@
       "refs": []
     },
     "CardBackFaceSummary": {
-      "ts": "interface CardBackFaceSummary {\n  name: string;\n  manaCost: string;\n  typeLine: string;\n  oracleText: string;\n  uris: CardImageUris;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct CardBackFaceSummary {\n    pub name: String,\n    #[serde(default)]\n    pub mana_cost: String,\n    #[serde(default)]\n    pub type_line: String,\n    #[serde(default)]\n    pub oracle_text: String,\n    #[serde(default)]\n    pub uris: CardImageUris,\n}",
+      "ts": "interface CardBackFaceSummary {\n  name: string;\n  manaCost: string;\n  typeLine: string;\n  oracleText: string;\n  power?: string;\n  toughness?: string;\n  uris: CardImageUris;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct CardBackFaceSummary {\n    pub name: String,\n    #[serde(default)]\n    pub mana_cost: String,\n    #[serde(default)]\n    pub type_line: String,\n    #[serde(default)]\n    pub oracle_text: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub power: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub toughness: Option<String>,\n    #[serde(default)]\n    pub uris: CardImageUris,\n}",
       "refs": ["CardImageUris"]
     },
     "CardChoiceDto": {

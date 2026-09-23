@@ -97,7 +97,7 @@ The active app locale maps to Scryfall's language code in `i18n/locales.ts`. Exa
 Scryfall can supply translated metadata with `image_status: "placeholder"` instead of art, as with Italian Freed from the Real. Keep `printed_name` and `printed_text`, but load a real stored scan or English printing for the image. On web, image bytes still come directly from the CDN.
 
 Render localized Scryfall labels through `scryfallDisplayName` and `scryfallDisplayTypeLine`. Keep `card.name` as the canonical engine, deck, collection, and cache identity.
-Scryfall's `printed_text` can omit an Oracle keyword line: Italian Freed from the Real omits "Enchant creature" but keeps both activated abilities. Match preview action descriptions to their individual printed abilities, not to raw newline positions; Forge ability descriptions omit the cost that the action UI renders separately.
+Scryfall's `printed_text` can omit an Oracle keyword line: Italian Freed from the Real omits "Enchant creature" but keeps both activated abilities. Match preview action descriptions to their individual printed abilities, not to raw newline positions; Forge ability descriptions omit the cost that the action UI renders separately. Japanese and Chinese printings use fullwidth punctuation in activated-ability costs, so cost matching and stripping must recognize it.
 
 Pixi mana symbols are fetched as SVG text and rasterized in `pixi/manaSymbolCache.ts`. Browser builds must use the same-origin `/scryfall-symbols/` Vite/Caddy proxy because `svgs.scryfall.io` is not CORS-readable; Tauri may fetch the upstream URL through `platformFetch`.
 App initialization continues when set metadata cannot load. Keep `useScryfallStore.sets` initialized to an empty array; card previews must render before or without that download.
@@ -119,9 +119,9 @@ Use these store APIs rather than importing card-data fetchers from `api/scryfall
 
 Deck-editor card groups use name, set code, collector number, and foil finish as their identity. Keep per-tile printing actions on `DeckCardIdentity`; name-only updates are reserved for explicit bulk operations.
 
-Lookup keys are normalized internally (`id:` / `set:…::cn:…` / `name:…[::set:…]`); always pass structured args, never assemble keys yourself. Token cards resolve through the same store from `public/token_archive.json`; do not add per-component token fetch/discovery hooks.
+Lookup keys are normalized internally (`id:` / `set:…::cn:…` / `name:…[::set:…]`); always pass structured args, never assemble keys yourself. Token cards resolve through the same store from `public/token_archive.json`; do not add per-component token fetch/discovery hooks. A failed archive download must not prevent ordinary exact-printing card lookups from reaching Scryfall.
 
-The token archive includes English and available localized printings (`lang:any`) with image-language provenance and both faces. The store picks a matching-locale token by Oracle ID before falling back to its original printing, so preserve the selected printing's language whenever a deck image URL changes. Older archives without `imageLanguage` are treated as English.
+The token archive includes English and available localized printings (`lang:any`) with image-language provenance and both faces. Preserve each face's printed power and toughness when archiving or synthesizing double-faced token metadata; the rules preview reads stats from the selected face. The store picks a matching-locale token by Oracle ID before falling back to its original printing, so preserve the selected printing's language whenever a deck image URL changes. Older archives without `imageLanguage` are treated as English.
 Forge token editions reuse their parent set code and collector numbers in game snapshots. `FRA/11` is Guiding Hydra, while token `TFRA/11` is Heartwood. Resolve an engine token through its script or archived token printing before looking up metadata or art; a raw parent-set lookup can return a different card.
 
 ## Deck analysis — combos & bracket

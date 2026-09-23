@@ -1,6 +1,6 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-09-23T09:49:40.653Z",
+  "generatedAt": "2026-09-23T14:28:14.109Z",
   "source": {
     "type": "scryfall-search",
     "query": "include:extras type:token lang:any",
@@ -9792,6 +9792,8 @@
         "manaCost": "",
         "typeLine": "Token Creature — Demon",
         "oracleText": "Flying",
+        "power": "5",
+        "toughness": "5",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/4/a/4ac2b852-92b2-4daf-9d1f-f71d3b27c241.jpg?1783940748",
           "normal": "https://cards.scryfall.io/normal/back/4/a/4ac2b852-92b2-4daf-9d1f-f71d3b27c241.jpg?1783940748",
@@ -19970,6 +19972,8 @@
         "manaCost": "",
         "typeLine": "Token Creature — Elemental",
         "oracleText": "At the beginning of your upkeep, sacrifice this creature and return target card named Rekindling Phoenix from your graveyard to the battlefield. It gains haste until end of turn.",
+        "power": "0",
+        "toughness": "1",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/6/0/60ca146d-4e88-4e87-a775-9cfbc9e6b9f2.jpg?1783935352",
           "normal": "https://cards.scryfall.io/normal/back/6/0/60ca146d-4e88-4e87-a775-9cfbc9e6b9f2.jpg?1783935352",
@@ -22894,6 +22898,8 @@
         "manaCost": "",
         "typeLine": "Token Creature — Octopus Performer",
         "oracleText": "At the beginning of your upkeep, you may fold this token in half.",
+        "power": "2",
+        "toughness": "2",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/d/d/dd308e57-6ded-4131-bc52-6c04025b8e60.jpg?1783920633",
           "normal": "https://cards.scryfall.io/normal/back/d/d/dd308e57-6ded-4131-bc52-6c04025b8e60.jpg?1783920633",
@@ -24029,6 +24035,8 @@
         "manaCost": "",
         "typeLine": "Token Creature — Horror",
         "oracleText": "Flying",
+        "power": "1",
+        "toughness": "1",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/a/0/a020dc47-3747-4123-9954-f0e87a858b8c.jpg?1783934010",
           "normal": "https://cards.scryfall.io/normal/back/a/0/a020dc47-3747-4123-9954-f0e87a858b8c.jpg?1783934010",
@@ -33987,6 +33995,8 @@
         "manaCost": "",
         "typeLine": "Token Creature — Centaur",
         "oracleText": "",
+        "power": "3",
+        "toughness": "3",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/d/2/d2d19d33-407b-42fc-84de-d8a0642723c1.jpg?1783934009",
           "normal": "https://cards.scryfall.io/normal/back/d/2/d2d19d33-407b-42fc-84de-d8a0642723c1.jpg?1783934009",
@@ -37774,6 +37784,8 @@
         "manaCost": "",
         "typeLine": "Token Creature — Kraken",
         "oracleText": "",
+        "power": "9",
+        "toughness": "9",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/8/c/8ce300b8-ab50-4c96-ba05-30701a249230.jpg?1783935214",
           "normal": "https://cards.scryfall.io/normal/back/8/c/8ce300b8-ab50-4c96-ba05-30701a249230.jpg?1783935214",
@@ -43762,6 +43774,8 @@
         "manaCost": "",
         "typeLine": "Token Creature — Soldier",
         "oracleText": "Lifelink",
+        "power": "1",
+        "toughness": "1",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/6/4/64f4dc68-060b-4c63-8f43-00f53c52a251.jpg?1783934008",
           "normal": "https://cards.scryfall.io/normal/back/6/4/64f4dc68-060b-4c63-8f43-00f53c52a251.jpg?1783934008",
@@ -48244,6 +48258,8 @@
         "manaCost": "",
         "typeLine": "Token Creature — Wolf",
         "oracleText": "",
+        "power": "2",
+        "toughness": "2",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/3/a/3a98c51f-c55c-4bd9-853b-65b8bad5a29f.jpg?1783940873",
           "normal": "https://cards.scryfall.io/normal/back/3/a/3a98c51f-c55c-4bd9-853b-65b8bad5a29f.jpg?1783940873",
@@ -50503,6 +50519,8 @@
         "manaCost": "",
         "typeLine": "Token Creature — Saproling",
         "oracleText": "",
+        "power": "1",
+        "toughness": "1",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/5/c/5cf70d25-9de9-4c3a-a52f-be17831e5695.jpg?1783935353",
           "normal": "https://cards.scryfall.io/normal/back/5/c/5cf70d25-9de9-4c3a-a52f-be17831e5695.jpg?1783935353",
@@ -50606,6 +50624,8 @@
         "manaCost": "",
         "typeLine": "Token Artifact Creature — Phyrexian",
         "oracleText": "",
+        "power": "0",
+        "toughness": "0",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/c/5/c5229eb0-9356-43a6-9b1b-6366f3c1e405.jpg?1783905793",
           "normal": "https://cards.scryfall.io/normal/back/c/5/c5229eb0-9356-43a6-9b1b-6366f3c1e405.jpg?1783905793",
@@ -50649,6 +50669,8 @@
         "manaCost": "",
         "typeLine": "Token Artifact Creature — Phyrexian",
         "oracleText": "",
+        "power": "0",
+        "toughness": "0",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/7/b/7b7f2e3a-ec43-4408-affd-a09338566ce3.jpg?1789599993",
           "normal": "https://cards.scryfall.io/normal/back/7/b/7b7f2e3a-ec43-4408-affd-a09338566ce3.jpg?1789599993",
@@ -50692,6 +50714,8 @@
         "manaCost": "",
         "typeLine": "Token Artifact Creature — Phyrexian",
         "oracleText": "",
+        "power": "0",
+        "toughness": "0",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/c/c/cca1decc-90fd-4df8-997e-52f8789032f8.jpg?1783916674",
           "normal": "https://cards.scryfall.io/normal/back/c/c/cca1decc-90fd-4df8-997e-52f8789032f8.jpg?1783916674",
@@ -50735,6 +50759,8 @@
         "manaCost": "",
         "typeLine": "Token Artifact Creature — Phyrexian",
         "oracleText": "",
+        "power": "0",
+        "toughness": "0",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/d/0/d0f953c3-09b9-42c7-816d-59fb0f8b541c.jpg?1783916677",
           "normal": "https://cards.scryfall.io/normal/back/d/0/d0f953c3-09b9-42c7-816d-59fb0f8b541c.jpg?1783916677",
@@ -50778,6 +50804,8 @@
         "manaCost": "",
         "typeLine": "Token Artifact Creature — Phyrexian",
         "oracleText": "",
+        "power": "0",
+        "toughness": "0",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/2/c/2c5ed737-657b-43bf-b222-941da7579a4a.jpg?1783916676",
           "normal": "https://cards.scryfall.io/normal/back/2/c/2c5ed737-657b-43bf-b222-941da7579a4a.jpg?1783916676",
@@ -55742,6 +55770,8 @@
         "manaCost": "",
         "typeLine": "Token Legendary Artifact Creature — Construct",
         "oracleText": "Mechtitan is all colors.\nFlying, vigilance, trample, lifelink, haste",
+        "power": "10",
+        "toughness": "10",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/5/d/5d02dee4-2071-448f-9fd3-58d63635d712.jpg?1783907927",
           "normal": "https://cards.scryfall.io/normal/back/5/d/5d02dee4-2071-448f-9fd3-58d63635d712.jpg?1783907927",
@@ -56905,6 +56935,8 @@
         "manaCost": "",
         "typeLine": "Token Legendary Creature — Dog",
         "oracleText": "",
+        "power": "3",
+        "toughness": "3",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/b/1/b10441dd-9029-4f95-9566-d3771ebd36bd.jpg?1783934643",
           "normal": "https://cards.scryfall.io/normal/back/b/1/b10441dd-9029-4f95-9566-d3771ebd36bd.jpg?1783934643",
@@ -66875,6 +66907,8 @@
         "manaCost": "",
         "typeLine": "Token Creature — Elf Knight",
         "oracleText": "Vigilance",
+        "power": "2",
+        "toughness": "2",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/c/c/cc77373d-34d1-475b-ade9-f49bb64bff9c.jpg?1783934008",
           "normal": "https://cards.scryfall.io/normal/back/c/c/cc77373d-34d1-475b-ade9-f49bb64bff9c.jpg?1783934008",
@@ -66920,6 +66954,8 @@
         "manaCost": "",
         "typeLine": "Token Creature — Insect",
         "oracleText": "",
+        "power": "1",
+        "toughness": "1",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/c/0/c06bcc5b-4ccd-452d-8579-beee6c5cbe98.jpg?1783934008",
           "normal": "https://cards.scryfall.io/normal/back/c/0/c06bcc5b-4ccd-452d-8579-beee6c5cbe98.jpg?1783934008",
@@ -67788,6 +67824,8 @@
         "manaCost": "",
         "typeLine": "Token Artifact Creature — Thopter",
         "oracleText": "Flying",
+        "power": "1",
+        "toughness": "1",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/4/e/4e3690fa-627e-4b3b-b517-e2cd1b4bbdd0.jpg?1783937940",
           "normal": "https://cards.scryfall.io/normal/back/4/e/4e3690fa-627e-4b3b-b517-e2cd1b4bbdd0.jpg?1783937940",
@@ -70345,6 +70383,8 @@
         "manaCost": "",
         "typeLine": "Token Creature — Zombie",
         "oracleText": "",
+        "power": "2",
+        "toughness": "2",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/1/3/13e4832d-8530-4b85-b738-51d0c18f28ec.jpg?1783924139",
           "normal": "https://cards.scryfall.io/normal/back/1/3/13e4832d-8530-4b85-b738-51d0c18f28ec.jpg?1783924139",
@@ -73300,6 +73340,8 @@
         "manaCost": "",
         "typeLine": "Token Creature — Goblin",
         "oracleText": "",
+        "power": "1",
+        "toughness": "1",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/f/7/f78c0976-83c4-4694-a93f-13046902cdd9.jpg?1783934009",
           "normal": "https://cards.scryfall.io/normal/back/f/7/f78c0976-83c4-4694-a93f-13046902cdd9.jpg?1783934009",
@@ -73345,6 +73387,8 @@
         "manaCost": "",
         "typeLine": "Token Creature — Soldier",
         "oracleText": "",
+        "power": "1",
+        "toughness": "1",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/8/8/887efa4e-f713-4165-a7e1-b0f00ac81784.jpg?1783934011",
           "normal": "https://cards.scryfall.io/normal/back/8/8/887efa4e-f713-4165-a7e1-b0f00ac81784.jpg?1783934011",
@@ -86136,6 +86180,8 @@
         "manaCost": "",
         "typeLine": "Token Creature — Saproling",
         "oracleText": "",
+        "power": "1",
+        "toughness": "1",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/2/8/2879010f-b752-4808-8531-d24e612de0d9.jpg?1783934008",
           "normal": "https://cards.scryfall.io/normal/back/2/8/2879010f-b752-4808-8531-d24e612de0d9.jpg?1783934008",
@@ -87407,6 +87453,8 @@
         "manaCost": "",
         "typeLine": "Token Creature — Goblin",
         "oracleText": "",
+        "power": "1",
+        "toughness": "1",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/1/d/1d34ff67-24e1-4cf5-b032-8be6b83e0819.jpg?1783934009",
           "normal": "https://cards.scryfall.io/normal/back/1/d/1d34ff67-24e1-4cf5-b032-8be6b83e0819.jpg?1783934009",
@@ -90058,6 +90106,8 @@
         "manaCost": "",
         "typeLine": "Token Creature — Saproling",
         "oracleText": "",
+        "power": "1",
+        "toughness": "1",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/d/0/d0c052ed-c761-4f1d-816b-092cdd6cb0fa.jpg?1783934008",
           "normal": "https://cards.scryfall.io/normal/back/d/0/d0c052ed-c761-4f1d-816b-092cdd6cb0fa.jpg?1783934008",
@@ -93073,6 +93123,8 @@
         "manaCost": "",
         "typeLine": "Token Creature — Zombie",
         "oracleText": "",
+        "power": "2",
+        "toughness": "2",
         "uris": {
           "small": "https://cards.scryfall.io/small/back/4/f/4f153ca0-0e55-4f3c-9780-570708844fd3.jpg?1783937415",
           "normal": "https://cards.scryfall.io/normal/back/4/f/4f153ca0-0e55-4f3c-9780-570708844fd3.jpg?1783937415",

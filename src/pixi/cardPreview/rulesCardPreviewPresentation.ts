@@ -133,13 +133,13 @@ function abilityCost(text: string): string | null {
   return (
     text
       .trim()
-      .match(/^((?:\{[^{}]+\}[,\s]*)+):/)?.[1]
-      ?.replace(/[,\s]/g, "") ?? null
+      .match(/^((?:\{[^{}]+\}[,\s、，]*)+)[:：]/)?.[1]
+      ?.replace(/[,\s、，]/g, "") ?? null
   );
 }
 
 function withoutAbilityCost(text: string): string {
-  return text.replace(/^(?:\{[^{}]+\}[,\s]*)+:\s*/, "");
+  return text.replace(/^(?:\{[^{}]+\}[,\s、，]*)+[:：]\s*/, "");
 }
 
 function translationLines(info: ScryfallCard, faceIndex: number): TranslationLine[] {

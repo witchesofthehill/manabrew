@@ -396,7 +396,20 @@ export class BoardScene {
     this.playerBars = new PlayerHudLayer(
       this.theme,
       (id) => this.callbacks.onTargetPlayer?.(id),
-      (id) => this.callbacks.onShowPlayerSheet?.(id),
+      (id) => {
+        const region = this.regions.get(id)?.region;
+        const band = region?.getPlaymatRect();
+        if (
+          !this.overview &&
+          this.opponentIds.includes(id) &&
+          band &&
+          band.width <= collapsedOpponentWidth(this.boardWidth, this.opponentIds.length) + 4
+        ) {
+          this.callbacks.onFocusOpponentField?.(id);
+          return;
+        }
+        this.callbacks.onShowPlayerSheet?.(id);
+      },
     );
     this.playerBars.container.zIndex = 5600;
     this.playerBars.container.visible = false;
@@ -620,10 +633,10 @@ export class BoardScene {
   }
 
   private focusedOpponentIds(): string[] {
-    return this.combatFocusIds.length > 0
-      ? this.combatFocusIds
-      : this.manualFocusId
-        ? [this.manualFocusId]
+    return this.manualFocusId
+      ? [this.manualFocusId]
+      : this.combatFocusIds.length > 0
+        ? this.combatFocusIds
         : !this.focusLocked && this.hoveredOpponentId
           ? [this.hoveredOpponentId]
           : this.focusPlayerId
@@ -695,6 +708,7 @@ export class BoardScene {
         if (!rec) continue;
         const zone = rec.zone;
         rec.region.setClip(zone.x, zone.width);
+        rec.region.setBattlefieldBand(zone.x, zone.width);
         if (this.barsEnabled) {
           const field = rec.region.getPlaymatRect();
           const availableWidth = Math.max(1, field.width);
@@ -713,6 +727,7 @@ export class BoardScene {
     }
     const collapsedWidth = collapsedOpponentWidth(W, n);
     const veilStart = collapsedWidth * 2;
+    const settled = !this.delimitersSettling();
     const veilColor = hexToNum(this.theme.gameTheme.canvas.background);
     for (let i = 0; i < n; i++) {
       const rec = this.regions.get(this.opponentIds[i]!);
@@ -721,6 +736,9 @@ export class BoardScene {
       const right = Math.round((i === n - 1 ? 1 : this.delimCurrent[i]!) * W);
       const bandW = Math.max(0, right - left);
       rec.region.setClip(left, bandW);
+      if (settled && bandW > collapsedWidth + 4) {
+        rec.region.setBattlefieldBand(left, bandW);
+      }
       if (this.barsEnabled) {
         // Solid veil opacity ramps 0→1 as the band narrows from `veilStart` down
         // to its collapsed width — fully in sync with the ease, no separate tween.

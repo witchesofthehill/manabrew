@@ -113,6 +113,7 @@ export class BoardRegion {
   private zone!: PlayZoneRect;
   private clipX: number | null = null;
   private clipWidth: number | null = null;
+  private battlefieldBand: { x: number; width: number } | null = null;
   private cardScale: number;
   private overview = false;
   private seatColor: string;
@@ -363,9 +364,6 @@ export class BoardRegion {
     this.applyOrientation(zone);
     this.updateClip();
     this.drawBackground();
-    // Card positions depend only on the FIXED zone + scale + blockers — never on
-    // the clip. A zone-only change relayouts (which re-places the tiles); the
-    // clip is set separately.
     if (zoneChanged && this.lastState) this.updateBattlefield(this.lastState);
   }
 
@@ -392,6 +390,12 @@ export class BoardRegion {
     this.playmat.layout(this.bandZone(), { dropActive: this.dropActive });
     if (this.combatRowAttackerIds.size > 0) this.applyCombatRow();
     if (this.attackRowDebug || this.skeletonDebug) this.drawAttackRowDebug();
+  }
+
+  setBattlefieldBand(x: number, width: number): void {
+    if (this.battlefieldBand?.x === x && this.battlefieldBand.width === width) return;
+    this.battlefieldBand = { x, width };
+    if (this.lastState) this.updateBattlefield(this.lastState);
   }
 
   private updateClip(): void {
@@ -1609,7 +1613,8 @@ export class BoardRegion {
   }
 
   private playArea(): PlayZoneRect {
-    const z = this.usableZone();
+    const usable = this.usableZone();
+    const z = this.battlefieldBand ? { ...usable, ...this.battlefieldBand } : usable;
     const reserve = combatRowReserve(this.cardScale);
     return {
       x: z.x,

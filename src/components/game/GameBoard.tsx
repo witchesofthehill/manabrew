@@ -630,6 +630,7 @@ export function GameBoard({
         if (playerId && isSelfTurn) setStickyOpponentId(playerId);
       },
       onTargetPlayer,
+      onFocusOpponentField: setManualFocusId,
       onShowPlayerSheet: setSheetPlayerId,
       onHoverHandCard: onHandHoverChange ? (card) => onHandHoverChange(!!card) : undefined,
       onLongPressCard: onLongPressCard
@@ -663,6 +664,7 @@ export function GameBoard({
       setDragBlockerId,
       setDragAttackerId,
       setSheetPlayerId,
+      setManualFocusId,
       setStickyOpponentId,
       isSelfTurn,
       onLongPressCard,

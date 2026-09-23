@@ -295,6 +295,7 @@ export function BoardCanvas({
           onUnassignAttacker: (...a) => callbacksRef.current.onUnassignAttacker?.(...a),
           onAttackDragChange: (...a) => callbacksRef.current.onAttackDragChange?.(...a),
           onTargetPlayer: (...a) => callbacksRef.current.onTargetPlayer?.(...a),
+          onFocusOpponentField: (...a) => callbacksRef.current.onFocusOpponentField?.(...a),
           onShowPlayerSheet: (...a) => callbacksRef.current.onShowPlayerSheet?.(...a),
           onHoverOpponent: (...a) => callbacksRef.current.onHoverOpponent?.(...a),
           onStartDrag: (...a) => callbacksRef.current.onStartDrag?.(...a),

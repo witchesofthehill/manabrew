@@ -98,7 +98,7 @@ interface BoardCanvasProps {
   focusLocked?: boolean;
   focusedOpponentId?: string | null;
   combatFocusIds?: string[];
-  targetingFocusIds?: string[];
+  targetingFocusIds?: string[] | null;
   manualFocusId?: string | null;
   playerBars?: PlayerBarSpec[];
   showPlayerBars?: boolean;
@@ -494,7 +494,7 @@ export function BoardCanvas({
   }, [scene, combatFocusIds]);
 
   useEffect(() => {
-    scene?.setTargetingFocus(targetingFocusIds ?? []);
+    scene?.setTargetingFocus(targetingFocusIds ?? null);
   }, [scene, targetingFocusIds]);
 
   useEffect(() => {

@@ -350,6 +350,11 @@ export function GameBoard({
   const isSelfTurn = !opponents.some((op) => op.id === activePlayerId);
   const [stickyOpponentId, setStickyOpponentId] = useState<string | null>(null);
   const [manualFocusId, setManualFocusId] = useState<string | null>(null);
+  const [prevTargetingPrompt, setPrevTargetingPrompt] = useState(isTargetingPrompt);
+  if (isTargetingPrompt !== prevTargetingPrompt) {
+    setPrevTargetingPrompt(isTargetingPrompt);
+    if (isTargetingPrompt) setManualFocusId(null);
+  }
   const [prevActivePlayerId, setPrevActivePlayerId] = useState(activePlayerId);
   if (activePlayerId !== prevActivePlayerId) {
     setPrevActivePlayerId(activePlayerId);
@@ -628,6 +633,7 @@ export function GameBoard({
       onHoverOpponent: (playerId) => {
         hoveredOpponentRef.current = playerId;
         if (playerId && isSelfTurn) setStickyOpponentId(playerId);
+        if (playerId && isTargetingPrompt) setManualFocusId(null);
       },
       onTargetPlayer,
       onShowPlayerSheet: setSheetPlayerId,
@@ -665,6 +671,8 @@ export function GameBoard({
       setSheetPlayerId,
       setStickyOpponentId,
       isSelfTurn,
+      isTargetingPrompt,
+      setManualFocusId,
       onLongPressCard,
       onHandHoverChange,
     ],
@@ -731,8 +739,8 @@ export function GameBoard({
   }, [combatRows, me.id]);
 
   const targetingFocusIds = useMemo(() => {
+    if (!isTargetingPrompt) return null;
     const ids = new Set<string>();
-    if (promptType !== "chooseBoardTargets") return [...ids];
     const targets = new Set(boardTargets?.battlefieldCardIds ?? []);
     for (const op of opponents) {
       if (!(opponentPermanentsByPlayer.get(op.id) ?? []).some((card) => targets.has(card.id)))
@@ -740,7 +748,7 @@ export function GameBoard({
       ids.add(op.id);
     }
     return [...ids];
-  }, [promptType, boardTargets, opponents, opponentPermanentsByPlayer]);
+  }, [isTargetingPrompt, boardTargets, opponents, opponentPermanentsByPlayer]);
   const cycleField = (dir: 1 | -1) => {
     if (opponents.length === 0 || document.querySelector('[role="dialog"]')) return;
     const ids = opponents.map((o) => o.id);

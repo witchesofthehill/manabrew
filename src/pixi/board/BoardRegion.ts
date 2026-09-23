@@ -113,6 +113,8 @@ export class BoardRegion {
   private zone!: PlayZoneRect;
   private clipX: number | null = null;
   private clipWidth: number | null = null;
+  private gridBandX: number | null = null;
+  private gridBandWidth = 0;
   private cardScale: number;
   private overview = false;
   private seatColor: string;
@@ -392,6 +394,13 @@ export class BoardRegion {
     this.playmat.layout(this.bandZone(), { dropActive: this.dropActive });
     if (this.combatRowAttackerIds.size > 0) this.applyCombatRow();
     if (this.attackRowDebug || this.skeletonDebug) this.drawAttackRowDebug();
+  }
+
+  setGridBand(x: number | null, width: number): void {
+    if (this.gridBandX === x && this.gridBandWidth === width) return;
+    this.gridBandX = x;
+    this.gridBandWidth = width;
+    if (this.lastState) this.updateBattlefield(this.lastState);
   }
 
   private updateClip(): void {
@@ -1612,9 +1621,9 @@ export class BoardRegion {
     const z = this.usableZone();
     const reserve = combatRowReserve(this.cardScale);
     return {
-      x: z.x,
+      x: this.gridBandX ?? z.x,
       y: z.y + (this.mirrored ? 0 : FIELD_INNER_EDGE_PAD_PX + reserve),
-      width: Math.max(1, z.width),
+      width: Math.max(1, this.gridBandX === null ? z.width : this.gridBandWidth),
       height: Math.max(1, z.height - FIELD_INNER_EDGE_PAD_PX - reserve),
     };
   }

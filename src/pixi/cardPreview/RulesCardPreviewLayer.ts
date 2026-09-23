@@ -358,10 +358,13 @@ export class RulesCardPreviewLayer {
       this.displayedBackFace = spec.showBackFace;
       this.artwork.texture = Texture.EMPTY;
       this.cardInfoGeneration += 1;
+      const identity = spec.card.identity.isToken
+        ? asGameDeckCard(useGameStore.getState().gameDecks, spec.card).identity
+        : spec.card.identity;
       const lookup = {
-        name: spec.card.identity.name,
-        setCode: spec.card.identity.setCode || undefined,
-        collectorNumber: spec.card.identity.cardNumber || undefined,
+        name: identity.name,
+        setCode: identity.setCode || undefined,
+        collectorNumber: identity.cardNumber || undefined,
       };
       const cards = useScryfallStore.getState().cards;
       this.scryfallInfo = isFacelessCard(spec.card)
@@ -1384,10 +1387,13 @@ export class RulesCardPreviewLayer {
       return;
     }
     try {
+      const identity = spec.card.identity.isToken
+        ? asGameDeckCard(useGameStore.getState().gameDecks, spec.card).identity
+        : spec.card.identity;
       const lookup = {
-        name: spec.card.identity.name,
-        setCode: spec.card.identity.setCode || undefined,
-        collectorNumber: spec.card.identity.cardNumber || undefined,
+        name: identity.name,
+        setCode: identity.setCode || undefined,
+        collectorNumber: identity.cardNumber || undefined,
       };
       const getCard = useScryfallStore.getState().getCard;
       const entry = await getCard(lookup).catch((error: unknown) => {

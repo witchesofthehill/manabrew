@@ -4,7 +4,7 @@ import type { HandActionOption } from "@/stores/useGameUIStore";
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { useTheme } from "@/hooks/useTheme";
 import { useEffect } from "react";
-import { useCard } from "@/stores/useScryfallStore";
+import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
 import { localizeRulesPreviewText } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
 
 interface HandCardActionsProps {
@@ -16,11 +16,7 @@ interface HandCardActionsProps {
 export function HandCardActions({ card, actions, onSelectAction }: HandCardActionsProps) {
   const themeColors = useTheme().gameTheme;
   const ringColor = themeColors.cardRing;
-  const info = useCard({
-    name: card.identity.name,
-    setCode: card.identity.setCode,
-    cardNumber: card.identity.cardNumber,
-  })?.info;
+  const info = useResolvedGameCard(card).info;
 
   useEffect(() => {
     if (!actions || actions.length === 0) return;

@@ -14,21 +14,21 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1136
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1139
 msgid "{0} damage"
 msgstr "{0} Schaden"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:702
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:705
 msgid "↑↓ select · Enter activate · 1–9"
 msgstr "↑↓ auswählen · Eingabe aktivieren · 1–9"
 
 #. placeholder {0}: indexedActions.length
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:715
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:718
 msgid "Available actions · {0}"
 msgstr "Verfügbare Aktionen · {0}"
 
 #. placeholder {0}: indexedActions.length
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:714
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:717
 msgid "Available on current face · {0}"
 msgstr "Auf der aktuellen Seite verfügbar · {0}"
 
@@ -40,7 +40,7 @@ msgstr "Wartet auf das erste Kapitel"
 msgid "Awaiting first level"
 msgstr "Wartet auf die erste Stufe"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:780
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:783
 msgid "Card identity and rules are hidden."
 msgstr "Kartenidentität und Regeltext sind verborgen."
 
@@ -59,7 +59,7 @@ msgstr "Kapitel {0} von {1}"
 msgid "CLASS LEVELS"
 msgstr "KLASSEN-STUFEN"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1133
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1136
 msgid "Defense"
 msgstr "Verteidigung"
 
@@ -67,27 +67,27 @@ msgstr "Verteidigung"
 msgid "Effect text unavailable"
 msgstr "Effekttext nicht verfügbar"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:307
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:373
 msgid "Face-down card"
 msgstr "Verdeckte Karte"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:309
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:375
 msgid "Face-down permanent"
 msgstr "Verdeckter Permanent"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:807
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:810
 msgid "Flavor text"
 msgstr "Flavortext"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:836
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:839
 msgid "Flip back · F"
 msgstr "Rückseite zeigen · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:836
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:839
 msgid "Flip front · F"
 msgstr "Vorderseite zeigen · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:733
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:736
 msgid "Keywords, costs & counters"
 msgstr "Schlüsselfähigkeiten, Kosten und Marken"
 
@@ -106,14 +106,14 @@ msgstr "Stufe {0} von {1}"
 msgid "LORE CHAPTERS"
 msgstr "SAGEN-KAPITEL"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1132
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1135
 msgid "Loyalty"
 msgstr "Loyalität"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:756
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:759
 msgid "Progression"
 msgstr "Fortschritt"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:782
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:785
 msgid "Rules text"
 msgstr "Regeltext"

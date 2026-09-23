@@ -14,21 +14,21 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1136
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1139
 msgid "{0} damage"
 msgstr "{0} 点伤害"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:702
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:705
 msgid "↑↓ select · Enter activate · 1–9"
 msgstr "↑↓ 选择 · Enter 激活 · 1–9"
 
 #. placeholder {0}: indexedActions.length
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:715
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:718
 msgid "Available actions · {0}"
 msgstr "可用操作 · {0}"
 
 #. placeholder {0}: indexedActions.length
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:714
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:717
 msgid "Available on current face · {0}"
 msgstr "当前牌面可用 · {0}"
 
@@ -40,7 +40,7 @@ msgstr "等待第一章"
 msgid "Awaiting first level"
 msgstr "等待第一级"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:780
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:783
 msgid "Card identity and rules are hidden."
 msgstr "牌张信息与规则文字已隐藏。"
 
@@ -59,7 +59,7 @@ msgstr "第 {0} 章，共 {1} 章"
 msgid "CLASS LEVELS"
 msgstr "职业等级"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1133
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1136
 msgid "Defense"
 msgstr "防御"
 
@@ -67,27 +67,27 @@ msgstr "防御"
 msgid "Effect text unavailable"
 msgstr "无法获取效应文本"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:307
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:373
 msgid "Face-down card"
 msgstr "牌面朝下的牌"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:309
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:375
 msgid "Face-down permanent"
 msgstr "牌面朝下的永久物"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:807
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:810
 msgid "Flavor text"
 msgstr "背景叙述"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:836
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:839
 msgid "Flip back · F"
 msgstr "翻到背面 · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:836
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:839
 msgid "Flip front · F"
 msgstr "翻到正面 · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:733
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:736
 msgid "Keywords, costs & counters"
 msgstr "关键字、费用与指示物"
 
@@ -106,14 +106,14 @@ msgstr "第 {0} 级，共 {1} 级"
 msgid "LORE CHAPTERS"
 msgstr "传世章节"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1132
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1135
 msgid "Loyalty"
 msgstr "忠诚"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:756
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:759
 msgid "Progression"
 msgstr "进程"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:782
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:785
 msgid "Rules text"
 msgstr "规则文字"

@@ -21,6 +21,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
@@ -33,6 +42,7 @@ import { LimitedHoverPreviewPane } from "@/components/limited/LimitedHoverPrevie
 import { RaritySetSymbol } from "@/components/limited/RaritySetSymbol";
 import { peekCard, useCard, useScryfallStore, type ScryfallEntry } from "@/stores/useScryfallStore";
 import { useCardPreview } from "@/hooks/useCardPreview";
+import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { useDeckStore } from "@/stores/useDeckStore";
 import {
   BASIC_LAND_MANA,
@@ -164,6 +174,10 @@ export default function LimitedDeckBuilder({
   );
   const [groupMode, setGroupMode] = useState<GroupMode>("rarity");
   const [poolColorFilter, setPoolColorFilter] = useState<PoolColorFilter>(() => new Set());
+  const shortScreen = useIsShortScreen();
+  const isTouch = useIsTouch();
+  const shortTouch = shortScreen && isTouch;
+  const [mobileZone, setMobileZone] = useState<LimitedZone>("pool");
   const togglePoolColor = useCallback((key: PoolColorChip) => {
     setPoolColorFilter((prev) => {
       const next = new Set(prev);
@@ -452,6 +466,9 @@ export default function LimitedDeckBuilder({
     >
       <div className="flex h-full flex-col gap-3 overflow-hidden">
         <Toolbar
+          compact={shortTouch}
+          mobileZone={mobileZone}
+          onMobileZoneChange={setMobileZone}
           groupMode={groupMode}
           onGroupModeChange={setGroupMode}
           colorFilter={poolColorFilter}
@@ -471,9 +488,18 @@ export default function LimitedDeckBuilder({
           onExport={handleExport}
         />
 
-        <div className="grid flex-1 grid-cols-1 gap-3 overflow-hidden md:grid-cols-2 md:grid-rows-2 lg:grid-cols-[1.4fr_1fr_0.7fr_minmax(0,326px)] lg:grid-rows-1">
+        <div
+          className={cn(
+            "grid flex-1 grid-cols-1 gap-3 overflow-hidden md:grid-cols-2 md:grid-rows-2 lg:grid-cols-[1.4fr_1fr_0.7fr_minmax(0,326px)] lg:grid-rows-1",
+            shortTouch && "block",
+          )}
+        >
           <Zone
-            className="md:row-span-2 lg:row-span-1"
+            className={cn(
+              "md:row-span-2 lg:row-span-1",
+              shortTouch && "h-full",
+              shortTouch && mobileZone !== "pool" && "hidden",
+            )}
             title={`Pool (${unused.length})`}
             entries={pickEntries(entries, unused).filter((e) =>
               passesColorFilter(e.card, poolColorFilter, scryfallCache),
@@ -489,6 +515,7 @@ export default function LimitedDeckBuilder({
             preview={preview}
           />
           <Zone
+            className={cn(shortTouch && "h-full", shortTouch && mobileZone !== "main" && "hidden")}
             title={`Main (${main.length}/${targetMainSize})`}
             entries={pickEntries(entries, main)}
             groupMode={groupMode}
@@ -501,6 +528,10 @@ export default function LimitedDeckBuilder({
           />
           <Zone
             title={`Sideboard (${sideboard.length})`}
+            className={cn(
+              shortTouch && "h-full",
+              shortTouch && mobileZone !== "sideboard" && "hidden",
+            )}
             entries={pickEntries(entries, sideboard)}
             groupMode={groupMode}
             zone="sideboard"
@@ -616,6 +647,9 @@ interface ToolbarProps {
   onConfirm?: () => void;
   onSaveToMyDecks: () => void;
   onExport: () => void;
+  compact: boolean;
+  mobileZone: LimitedZone;
+  onMobileZoneChange: (zone: LimitedZone) => void;
 }
 function Toolbar({
   groupMode,
@@ -635,9 +669,125 @@ function Toolbar({
   onConfirm,
   onSaveToMyDecks,
   onExport,
+  compact,
+  mobileZone,
+  onMobileZoneChange,
 }: ToolbarProps) {
   const mainShortBy = targetMainSize - mainCount;
   const filterActive = colorFilter.size > 0;
+  if (compact) {
+    return (
+      <div className="flex shrink-0 items-center gap-2 overflow-x-auto rounded-md border border-border/70 bg-card/40 p-1.5 text-sm no-scrollbar touch-scroll-fade">
+        {(
+          [
+            ["pool", `Pool ${unusedCount}`],
+            ["main", `Main ${mainCount}`],
+            ["sideboard", `Sideboard ${sideboardCount}`],
+          ] as const
+        ).map(([zone, label]) => (
+          <Button
+            key={zone}
+            size="sm"
+            variant={mobileZone === zone ? "selected" : "ghost"}
+            onClick={() => onMobileZoneChange(zone)}
+            className="shrink-0 px-2 text-xs"
+          >
+            {label}
+          </Button>
+        ))}
+
+        <select
+          value={groupMode}
+          onChange={(event) => onGroupModeChange(event.target.value as GroupMode)}
+          aria-label="Group pool cards"
+          className="h-11 shrink-0 rounded-md border border-input bg-background px-2 text-base capitalize"
+        >
+          {(["rarity", "name", "cmc", "color"] as GroupMode[]).map((mode) => (
+            <option key={mode} value={mode}>
+              {mode}
+            </option>
+          ))}
+        </select>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              Colors{filterActive ? ` (${colorFilter.size})` : ""}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuLabel>Pool colors</DropdownMenuLabel>
+            {POOL_COLOR_CHIPS.map((chip) => (
+              <DropdownMenuCheckboxItem
+                key={chip.key}
+                checked={colorFilter.has(chip.key)}
+                onCheckedChange={() => onColorFilterToggle(chip.key)}
+                onSelect={(event) => event.preventDefault()}
+              >
+                {chip.label}
+              </DropdownMenuCheckboxItem>
+            ))}
+            {filterActive && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={onColorFilterReset}>Clear colors</DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              Lands
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuLabel>Add a basic land</DropdownMenuLabel>
+            {BASIC_LAND_NAMES.map((name) => (
+              <DropdownMenuItem key={name} onSelect={() => onAddBasic(name)}>
+                {name}
+              </DropdownMenuItem>
+            ))}
+            {onFixManaBase && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={onFixManaBase}>Fix mana base</DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              Actions
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {onReset && <DropdownMenuItem onSelect={onReset}>Reset suggestion</DropdownMenuItem>}
+            {onCompare && (
+              <DropdownMenuItem onSelect={onCompare}>Compare with saved deck</DropdownMenuItem>
+            )}
+            <DropdownMenuItem onSelect={onSaveToMyDecks}>Save to My Decks</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onExport}>Copy decklist</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {onConfirm && (
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={onConfirm}
+            disabled={mainCount < targetMainSize}
+          >
+            {confirmLabel}
+          </Button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-md border border-border/70 bg-card/40 p-3 text-sm">
       <div className="flex items-center gap-2">

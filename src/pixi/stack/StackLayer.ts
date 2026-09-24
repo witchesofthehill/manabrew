@@ -5,6 +5,7 @@ import { CARD_H, CARD_W, GAME_CARD_SIZES } from "@/components/game/game.constant
 import type { Theme } from "@/hooks/useTheme";
 import { CardSprite } from "../CardSprite";
 import { hexToNum } from "../colorUtils";
+import { animationsEnabled } from "../effects/enabled";
 import type { ScreenBounds, ScreenPos } from "../types";
 import { HOVER_SCALE, StackCardSprite } from "./StackCardSprite";
 import { computeStackLayout, reconcileStackHover } from "./stackLayout";
@@ -39,6 +40,7 @@ export class StackLayer implements StackAnchorProvider {
     showPreStackFlash: false,
     collapsed: false,
   };
+  private retiringSprites = new Set<StackCardSprite>();
   private hoveredId: string | null = null;
   private viewW = 0;
   private viewH = 0;
@@ -53,6 +55,8 @@ export class StackLayer implements StackAnchorProvider {
   private btnGfx = new Graphics();
   private btnPulsing = false;
   private btnTween: gsap.core.Tween | null = null;
+  private btnPressed = false;
+  private btnHovered = false;
   private btnVisible = false;
   private btnTargetX = 0;
   private prevHoveredIndex = -1;
@@ -99,8 +103,15 @@ export class StackLayer implements StackAnchorProvider {
       BTN_H + btnHitPad * 2,
     );
     this.btn.on("pointertap", () => this.callbacks.onToggleCollapsed());
-    this.btn.on("pointerover", () => this.setBtnHover(true));
-    this.btn.on("pointerout", () => this.setBtnHover(false));
+    this.btn.on("pointerdown", () => this.setBtnState("press", true));
+    this.btn.on("pointerup", () => this.setBtnState("press", false));
+    this.btn.on("pointerupoutside", () => this.setBtnState("press", false));
+    this.btn.on("pointercancel", () => this.setBtnState("press", false));
+    this.btn.on("pointerover", () => this.setBtnState("hover", true));
+    this.btn.on("pointerout", () => {
+      this.setBtnState("hover", false);
+      this.setBtnState("press", false);
+    });
 
     this.container.addChild(this.btn);
   }
@@ -187,6 +198,7 @@ export class StackLayer implements StackAnchorProvider {
           (id) => this.setHovered(id),
           (id) => this.toggleRulesView(id),
           (id) => this.toggleFace(id),
+          (card, bounds) => this.callbacks.onLongPressCard?.(card, bounds),
         );
         this.container.addChild(sprite.container);
         this.sprites.set(card.id, sprite);
@@ -201,10 +213,26 @@ export class StackLayer implements StackAnchorProvider {
     }
     for (const [id, sprite] of [...this.sprites]) {
       if (seen.has(id)) continue;
-      sprite.destroy();
       this.sprites.delete(id);
       this.faceOverrides.delete(id);
       this.rulesViewOverrides.delete(id);
+      if (!animationsEnabled()) {
+        sprite.destroy();
+        continue;
+      }
+      this.retiringSprites.add(sprite);
+      sprite.container.eventMode = "none";
+      gsap.to(sprite.container, {
+        alpha: 0,
+        y: sprite.container.y - 22,
+        duration: 0.24,
+        ease: "power2.in",
+        onComplete: () => {
+          this.retiringSprites.delete(sprite);
+          sprite.destroy();
+          this.callbacks.onRenderRequested?.();
+        },
+      });
     }
     const nextHoveredId = reconcileStackHover(this.hoveredId, incoming, replacements);
     if (nextHoveredId !== this.hoveredId) {
@@ -228,6 +256,11 @@ export class StackLayer implements StackAnchorProvider {
     gsap.killTweensOf(this.btnGlow.scale);
     gsap.killTweensOf(this.btn.scale);
     for (const sprite of this.sprites.values()) sprite.destroy();
+    for (const sprite of this.retiringSprites) {
+      gsap.killTweensOf(sprite.container);
+      sprite.destroy();
+    }
+    this.retiringSprites.clear();
     this.sprites.clear();
     this.flashSprite?.destroy();
     this.container.destroy({ children: true });
@@ -331,6 +364,7 @@ export class StackLayer implements StackAnchorProvider {
     ) {
       return true;
     }
+    if (this.retiringSprites.size > 0) return true;
     if (
       this.flashSprite &&
       (!this.flashSprite.imageSettled ||
@@ -389,9 +423,26 @@ export class StackLayer implements StackAnchorProvider {
     this.layout();
   }
 
-  private setBtnHover(hovered: boolean): void {
-    const s = hovered ? BTN_HOVER_SCALE : 1;
-    gsap.to(this.btn.scale, { x: s, y: s, duration: 0.15, ease: "power2.out" });
+  private setBtnState(kind: "hover" | "press", active: boolean): void {
+    if (kind === "press") {
+      if (this.btnPressed === active) return;
+      this.btnPressed = active;
+    } else {
+      if (this.btnHovered === active) return;
+      this.btnHovered = active;
+    }
+    gsap.killTweensOf(this.btn.scale);
+    const scale = this.btnPressed ? 0.94 : this.btnHovered ? BTN_HOVER_SCALE : 1;
+    if (!animationsEnabled()) {
+      this.btn.scale.set(scale);
+      return;
+    }
+    gsap.to(this.btn.scale, {
+      x: scale,
+      y: scale,
+      duration: this.btnPressed ? 0.06 : 0.14,
+      ease: this.btnPressed ? "power2.out" : "power3.out",
+    });
   }
 
   private layout(): void {

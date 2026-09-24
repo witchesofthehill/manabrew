@@ -9,6 +9,7 @@ interface GameOverlaysProps {
   abilityPickerState: AbilityPickerState | null;
   onSelectAbility: (ability: HandActionOption) => void;
   onCancelAbilityPicker: () => void;
+  onLongPressCard: NonNullable<ZoneViewerProps["onLongPressCard"]>;
 }
 
 export function GameOverlays({
@@ -17,6 +18,7 @@ export function GameOverlays({
   abilityPickerState,
   onSelectAbility,
   onCancelAbilityPicker,
+  onLongPressCard,
 }: GameOverlaysProps) {
   const pending = useGameStore((s) => s.isWaitingForResponse);
   const error = useGameStore((s) =>
@@ -24,7 +26,9 @@ export function GameOverlays({
   );
   return (
     <>
-      {viewingZone && <ZoneViewer {...viewingZone} onClose={onCloseZone} />}
+      {viewingZone && (
+        <ZoneViewer {...viewingZone} onClose={onCloseZone} onLongPressCard={onLongPressCard} />
+      )}
 
       {abilityPickerState?.card && (
         <AbilityPickerModal

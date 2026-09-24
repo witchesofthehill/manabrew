@@ -5,6 +5,7 @@ import { DeckHubTopDeckPreview } from "@/components/deck/DeckHubTopDeckPreview";
 import { fetchDeckHubEntries } from "@/api/hub";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
 import { availableEngines } from "@/lib/engines";
+import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 interface DeckHubCuratedSectionsProps {
   onOpen: (id: string) => void;
   onAuthor: (author: string) => void;
@@ -16,6 +17,9 @@ export function DeckHubCuratedSections({ onOpen, onAuthor }: DeckHubCuratedSecti
   const [presets, setPresets] = useState<DeckHubEntrySummary[]>([]);
   const [popular, setPopular] = useState<DeckHubEntrySummary[]>([]);
   const [newest, setNewest] = useState<DeckHubEntrySummary[]>([]);
+  const shortScreen = useIsShortScreen();
+  const isTouch = useIsTouch();
+  const shortTouch = shortScreen && isTouch;
   useEffect(() => {
     let active = true;
     const engines = availableEngines();
@@ -35,6 +39,14 @@ export function DeckHubCuratedSections({ onOpen, onAuthor }: DeckHubCuratedSecti
       active = false;
     };
   }, []);
+  if (shortTouch) return null;
+  if (isTouch) {
+    return (
+      <div className="pb-4">
+        <DeckHubTopDeckPreview onOpen={onOpen} onAuthor={onAuthor} />
+      </div>
+    );
+  }
   if (presets.length === 0 && popular.length === 0 && newest.length === 0) return null;
   return (
     <div className="space-y-10 pb-10">
@@ -80,7 +92,7 @@ export function DeckHubCuratedSections({ onOpen, onAuthor }: DeckHubCuratedSecti
           <div className="px-4">
             <SectionHeading title={`Pick up & play`} />
           </div>
-          <div className="flex snap-x gap-3 overflow-x-auto px-4 pb-1 no-scrollbar">
+          <div className="flex snap-x gap-3 overflow-x-auto px-4 pb-1 pr-8 no-scrollbar touch-scroll-fade">
             {presets.map((entry, index) => (
               <div
                 key={entry.id}

@@ -62,6 +62,7 @@ import { GameBoard } from "@/components/game/GameBoard";
 import { buildCombatRows } from "@/components/game/combatRows";
 import { readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
+import { boardBackgroundDarken, boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useLimitedStore } from "@/stores/useLimitedStore";
 import { peek as peekGauntletMatch, tryConsumeGauntletMatch } from "@/lib/gauntletReturn";
@@ -89,9 +90,11 @@ import { Card } from "@/components/game/Card";
 import { cn } from "@/lib/utils";
 import { applyManualTabletopAction, getSelectedGameRuntime } from "@/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
+import { deriveCardRailState, parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
 import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
+import { installGameAudioUnlock, playGameAudioCue } from "@/lib/gameAudio";
+import { haptic } from "@/lib/haptics";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 const HOVER_ALLOWED_PROMPTS = new Set<PromptType>([
   "chooseAction",
@@ -241,6 +244,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const rawGameView = useGameStore((s) => s.gameView);
   const myPlayerSlot = useGameStore((s) => s.myPlayerSlot);
   const currentPrompt = useGameStore((s) => s.currentPrompt);
+  const protocolError = useGameStore((s) => s.protocolError);
   const isGameActive = useGameStore((s) => s.isGameActive);
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
   const isWaitingForResponse = useGameStore((s) => s.isWaitingForResponse);
@@ -291,6 +295,11 @@ export default function Game({ exitTo }: GameProps = {}) {
   const zonePanelOrder = usePreferencesStore((s) => s.zonePanelOrder);
   const inGameCardPreviewStyle = usePreferencesStore((s) => s.inGameCardPreviewStyle);
   const cardPreviewMode = usePreferencesStore((s) => s.cardPreviewMode);
+  const roomTableStyle = useServerStore((s) => s.currentRoom?.table_style);
+  const boardBackgroundId = usePreferencesStore((s) => s.boardBackgroundId);
+  const backgroundId = roomTableStyle ?? boardBackgroundId;
+  const backgroundUrl = boardBackgroundUrl(backgroundId);
+  const backgroundDarken = boardBackgroundDarken(backgroundId);
   const vScale = useHandScale();
   const themeColors = useTheme().gameTheme;
   const location = useLocation();
@@ -667,6 +676,16 @@ export default function Game({ exitTo }: GameProps = {}) {
       source: card,
     });
   };
+  const handleHandCardInspect = (card: CardDto, e: { clientX: number; clientY: number }) => {
+    preview.showSticky(card, e.clientX, e.clientY);
+  };
+  const handleHandCardTap = (card: CardDto, e: { clientX: number; clientY: number }) => {
+    if (playableIds.has(card.id)) {
+      handleHandCardAction(card, e);
+      return;
+    }
+    handleHandCardInspect(card, e);
+  };
   const handleHandCardDragStart = (card: CardDto, e: HandDragStart) => {
     const actions = getHandActionOptions(card);
     const canCast =
@@ -1007,6 +1026,8 @@ export default function Game({ exitTo }: GameProps = {}) {
   const commandZonePreview = useCardPreview([viewingZone, abilityPickerState], {
     useTriggerPreference: true,
   });
+  const setPreviewSequence = preview.setSequence;
+  const setCommandPreviewSequence = commandZonePreview.setSequence;
   const previewViewSwitchCardIdRef = useRef<string | null>(null);
   const [commandPreviewSource, setCommandPreviewSource] = useState<{
     cardIds: string[];
@@ -1017,24 +1038,32 @@ export default function Game({ exitTo }: GameProps = {}) {
   }, [commandZonePreview.phase]);
 
   const battlefieldContainerRef = useRef<HTMLDivElement>(null);
-  const { draggingHandCard, ghostPos, isOverBattlefield, isOverHand, startHandCardDrag } =
-    useHandDrag({
-      battlefieldContainerRef,
-      handDropExclusionPx: Math.round(HAND_CARD_BASE.containerH * vScale * 0.35),
-      getHandBounds: () => boardSceneRef.current?.getHandBounds() ?? null,
-      onClickCard: handleHandCardAction,
-      onCastSpell: handleCastSpell,
-      onBattlefieldDrop: (card, position) => {
-        if (
-          isPermanentSpellCard(card) &&
-          boardSceneRef.current?.commitPendingDrop(card.id, position.clientX, position.clientY)
-        ) {
-          placementIntentRef.current = { cardId: card.id, castStarted: false };
-        }
-      },
-      dismissHover: preview.dismiss,
-      onLongPress: (card, pos) => preview.showSticky(card, pos.x, pos.y),
-    });
+  const {
+    draggingHandCard,
+    ghostPos,
+    isOverBattlefield,
+    isOverHand,
+    dragFeedback,
+    rejectionFeedback,
+    startHandCardDrag,
+  } = useHandDrag({
+    battlefieldContainerRef,
+    handDropExclusionPx: Math.round(HAND_CARD_BASE.containerH * vScale * 0.35),
+    getHandBounds: () => boardSceneRef.current?.getHandBounds() ?? null,
+    onClickCard: handleHandCardTap,
+    onCastSpell: handleCastSpell,
+    onBattlefieldDrop: (card, position) => {
+      if (
+        isPermanentSpellCard(card) &&
+        boardSceneRef.current?.commitPendingDrop(card.id, position.clientX, position.clientY)
+      ) {
+        placementIntentRef.current = { cardId: card.id, castStarted: false };
+      }
+    },
+    dismissHover: preview.dismiss,
+    onLongPress: (card, pos) =>
+      preview.showSticky(card, pos.x, pos.y, undefined, { allowOverModal: true }),
+  });
   const draggingIsPermanent = draggingHandCard ? isPermanentSpellCard(draggingHandCard) : false;
   const ghostCardW = Math.round(HAND_CARD_BASE.cardW * vScale);
   const ghostCardH = Math.round(HAND_CARD_BASE.cardH * vScale);
@@ -1113,6 +1142,68 @@ export default function Game({ exitTo }: GameProps = {}) {
     gameView?.players?.find((p) => p.id === myPlayerSlot) ??
     gameView?.players?.find((p) => p.isHuman) ??
     gameView?.players?.[0];
+  useEffect(() => installGameAudioUnlock(), []);
+  const previousTurnRef = useRef<number | null>(null);
+  useEffect(() => {
+    const turn = gameView?.turn ?? null;
+    if (turn === null) return;
+    if (previousTurnRef.current !== null && turn !== previousTurnRef.current) {
+      playGameAudioCue("turn");
+      if (gameView?.activePlayerId === me?.id) haptic("confirm");
+    }
+    previousTurnRef.current = turn;
+  }, [gameView?.activePlayerId, gameView?.turn, me?.id]);
+  const previousPromptRef = useRef(currentPrompt?.promptId);
+  useEffect(() => {
+    const promptId = currentPrompt?.promptId;
+    if (
+      promptId !== undefined &&
+      previousPromptRef.current !== undefined &&
+      promptId !== previousPromptRef.current &&
+      gameView?.priorityPlayerId === me?.id
+    ) {
+      playGameAudioCue("priority");
+      haptic("select");
+    }
+    previousPromptRef.current = promptId;
+  }, [currentPrompt?.promptId, gameView?.priorityPlayerId, me?.id]);
+  const meLife = me?.life ?? null;
+  const previousLifeRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (meLife === null) return;
+    if (previousLifeRef.current !== null && meLife < previousLifeRef.current) {
+      playGameAudioCue("damage");
+    }
+    previousLifeRef.current = meLife;
+  }, [meLife]);
+  const previousFlashRef = useRef<string | null>(null);
+  useEffect(() => {
+    const key =
+      activeFlash?.kind === "card"
+        ? `${activeFlash.cardId}:${activeFlash.cardName}:${activeFlash.setCode}`
+        : null;
+    if (key && key !== previousFlashRef.current) playGameAudioCue("card");
+    previousFlashRef.current = key;
+  }, [activeFlash]);
+  const previousAudioLogRef = useRef<number | null>(null);
+  useEffect(() => {
+    const entry = gameLog.at(-1);
+    if (!entry) return;
+    if (
+      previousAudioLogRef.current !== null &&
+      entry.timestampMs !== previousAudioLogRef.current &&
+      entry.entryType === "stack" &&
+      /\bresolved?\b/i.test(entry.message)
+    ) {
+      playGameAudioCue("resolve");
+    }
+    previousAudioLogRef.current = entry.timestampMs;
+  }, [gameLog]);
+  useEffect(() => {
+    if (!protocolError) return;
+    playGameAudioCue("reject");
+    haptic("warn");
+  }, [protocolError]);
   useEffect(() => {
     const intent = placementIntentRef.current;
     if (!intent || !gameView || !me) return;
@@ -1697,12 +1788,25 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     return byId;
   }, [gameView?.stack]);
+  const previewSequence = useMemo(() => {
+    const cards = [...visibleCardsById.values()];
+    const seen = new Set(cards.map((card) => card.id));
+    for (const card of stackCardsBySourceId.values()) {
+      if (!seen.has(card.id)) cards.push(card);
+    }
+    return cards;
+  }, [stackCardsBySourceId, visibleCardsById]);
+  useEffect(() => setPreviewSequence(previewSequence), [previewSequence, setPreviewSequence]);
   const commandPreviewCards = useMemo(
     () =>
       commandPreviewSource?.cardIds
         .map((cardId) => visibleCardsById.get(cardId))
         .filter((card): card is ClientCardDto => card !== undefined) ?? [],
     [commandPreviewSource?.cardIds, visibleCardsById],
+  );
+  useEffect(
+    () => setCommandPreviewSequence(commandPreviewCards),
+    [commandPreviewCards, setCommandPreviewSequence],
   );
 
   const previewCardId = preview.hoveredCard?.id ?? null;
@@ -1930,7 +2034,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     !viewingZone &&
     !abilityPickerState &&
     commandZonePreview.phase !== "hidden";
-  const previewSuppressed = !!promptType && !HOVER_ALLOWED_PROMPTS.has(promptType);
+  const previewSuppressed =
+    !preview.isSticky && !!promptType && !HOVER_ALLOWED_PROMPTS.has(promptType);
   const externalPreviewActive =
     !previewSuppressed &&
     ((showInGamePreview && preview.phase === "open") ||
@@ -2106,11 +2211,14 @@ export default function Game({ exitTo }: GameProps = {}) {
       ? {
           card: livePreviewCard,
           phase: preview.phase === "closing" ? "closing" : "open",
+          placement: preview.placement,
           sticky: preview.isSticky,
           showBackFace: previewShowBackFace,
           suppressed: previewSuppressed,
           skipEnterAnimation: skipPreviewEnterAnimation,
           actions: hoveredCardActions,
+          reserveSidePanel:
+            hoveredCardActions.length > 0 || deriveCardRailState(livePreviewCard) != null,
           mousePos: preview.mousePos,
           anchorRect: preview.anchorRect,
           slotRect: null,
@@ -2248,7 +2356,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   return (
     <div
       ref={containerRef}
-      className="font-game game-touch-surface relative flex flex-col h-full min-h-0 overflow-hidden select-none pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)] pt-[var(--safe-area-inset-top)]"
+      className="font-game game-touch-surface relative isolate flex flex-col h-full min-h-0 overflow-hidden select-none bg-canvas-background pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)] pt-[var(--safe-area-inset-top)]"
       style={
         {
           "--flash-duration": `${flashDurationMs}ms`,
@@ -2267,6 +2375,16 @@ export default function Game({ exitTo }: GameProps = {}) {
         } as React.CSSProperties
       }
     >
+      {backgroundUrl && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url(${backgroundUrl})`,
+            filter: `brightness(${1 - backgroundDarken})`,
+          }}
+        />
+      )}
       <LandscapeGate />
       <DevViewportFrame>
         <GameBoard
@@ -2352,7 +2470,9 @@ export default function Game({ exitTo }: GameProps = {}) {
           onLongPressCard={(card, rect) => {
             setCommandPreviewSource(null);
             commandZonePreview.dismiss();
-            preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2, rect);
+            preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2, rect, {
+              allowOverModal: true,
+            });
           }}
           onHandHoverChange={setHandCardLifted}
           getHandActions={getHandActionOptions}
@@ -2543,6 +2663,13 @@ export default function Game({ exitTo }: GameProps = {}) {
         abilityPickerState={liveAbilityPicker}
         onSelectAbility={respondHandAction}
         onCancelAbilityPicker={closeAbilityPicker}
+        onLongPressCard={(card, rect) => {
+          setCommandPreviewSource(null);
+          commandZonePreview.dismiss();
+          preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2, rect, {
+            allowOverModal: true,
+          });
+        }}
       />
 
       {playModePicker && (
@@ -2569,6 +2696,14 @@ export default function Game({ exitTo }: GameProps = {}) {
           onCancel={closePlayModePicker}
         />
       )}
+      {protocolError && (
+        <div
+          role="alert"
+          className="pointer-events-none absolute bottom-[calc(4rem+var(--safe-area-inset-bottom))] left-1/2 z-[9000] max-w-[min(90vw,34rem)] -translate-x-1/2 rounded-lg border border-destructive/50 bg-card/95 px-4 py-2 text-center text-sm font-semibold text-destructive shadow-xl backdrop-blur-sm"
+        >
+          Action rejected: {protocolError.message || protocolError.code}
+        </div>
+      )}
 
       <TargetingCursor
         active={targetingCursorActive}
@@ -2591,6 +2726,29 @@ export default function Game({ exitTo }: GameProps = {}) {
           </div>,
           document.body,
         )}
+      {draggingHandCard &&
+        dragFeedback &&
+        createPortal(
+          <div
+            role="status"
+            className="pointer-events-none fixed z-[10000] max-w-[min(18rem,80vw)] -translate-x-1/2 rounded-full border border-border bg-card/95 px-3 py-2 text-center text-xs font-semibold text-foreground shadow-xl backdrop-blur-sm"
+            style={{ left: ghostPos.x, top: ghostPos.y + ghostCardH / 2 + 12 }}
+          >
+            {dragFeedback}
+          </div>,
+          document.body,
+        )}
+      {rejectionFeedback &&
+        createPortal(
+          <div
+            role="alert"
+            className="pointer-events-none fixed z-[10000] max-w-[min(20rem,84vw)] -translate-x-1/2 -translate-y-full rounded-lg border border-destructive/50 bg-card/95 px-3 py-2 text-center text-xs font-semibold text-foreground shadow-xl backdrop-blur-sm"
+            style={{ left: rejectionFeedback.x, top: rejectionFeedback.y - 16 }}
+          >
+            Invalid drop. {rejectionFeedback.message}
+          </div>,
+          document.body,
+        )}
 
       {!commandPreview && inGameCardPreviewStyle === "printed" && showInGamePreview && (
         <HoverCardPreview
@@ -2605,6 +2763,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           suppressed={previewSuppressed}
           skipEnterAnimation={skipPreviewEnterAnimation}
           onToggleView={togglePreviewView}
+          viewportRight={boardViewportRight}
         />
       )}
 

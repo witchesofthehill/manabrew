@@ -26,6 +26,7 @@ import { useIsUnsupported } from "@/stores/useCardSupportStore";
 import { useCardCollectionOwnership, useDeckCardOwnership } from "./useCardCollectionOwnership";
 import { CommandZoneCardMenu, type CommandZoneCardMenuActions } from "./CommandZoneCardMenu";
 import { useDeckSectionOpen } from "./deckSectionExpansion";
+import { useIsTouch } from "@/hooks/useBreakpoints";
 import { CollectionOwnershipTooltip } from "./CollectionOwnershipTooltip";
 function CommandZoneCard({
   card,
@@ -158,6 +159,7 @@ export function CommanderSlots({
   contextMenuFor,
 }: CommanderSlotsProps) {
   const [open, setOpen] = useDeckSectionOpen();
+  const isTouch = useIsTouch();
   const { setNodeRef, isOver } = useDroppable({
     id: DROP_ZONE.COMMAND,
     disabled: readOnly || !formatRequiresCommander(format),
@@ -194,20 +196,22 @@ export function CommanderSlots({
           ? `Choose partner`
           : `Choose oathbreaker`
       : commanders.length > 0
-        ? `Choose partner`
-        : `Choose commander`;
-  const cardWidth = CARD_WIDTH_MAP[cardSize] ?? CARD_WIDTH_MAP[DEFAULT_CARD_SIZE];
+        ? "Choose partner"
+        : "Choose commander";
+  const baseCardWidth = CARD_WIDTH_MAP[cardSize] ?? CARD_WIDTH_MAP[DEFAULT_CARD_SIZE];
+  const cardWidth = isTouch ? Math.min(baseCardWidth, 88) : baseCardWidth;
   return (
     <section
       ref={setNodeRef}
       className={cn(
         "border-b bg-muted/15 px-3 py-2 transition-colors",
+        isTouch && "py-1.5",
         isOver && "bg-primary/10 ring-2 ring-inset ring-primary/50",
       )}
     >
       <button
         type="button"
-        className="mb-1.5 flex items-center gap-2 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="mb-1.5 flex min-h-8 items-center gap-2 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
@@ -217,7 +221,12 @@ export function CommanderSlots({
         <span className="text-xs text-muted-foreground">Set your deck identity</span>
       </button>
       {open && (
-        <div className="flex flex-wrap items-start gap-2">
+        <div
+          className={cn(
+            "flex flex-wrap items-start gap-2",
+            isTouch && "flex-nowrap overflow-x-auto pr-6 no-scrollbar touch-scroll-fade",
+          )}
+        >
           {commanders.map((card, index) => (
             <CommandZoneCard
               key={card.identity.id}

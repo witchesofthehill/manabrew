@@ -63,6 +63,38 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
     </section>
   );
 }
+function VolumeControl({
+  id,
+  label,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="flex items-center justify-between gap-3 text-sm font-medium">
+        <span>{label}</span>
+        <span className="font-mono text-xs tabular-nums text-muted-foreground">
+          {Math.round(value * 100)}%
+        </span>
+      </label>
+      <input
+        id={id}
+        type="range"
+        min={0}
+        max={100}
+        step={5}
+        value={value * 100}
+        onChange={(event) => onChange(Number(event.target.value) / 100)}
+        className="h-11 w-full accent-primary"
+      />
+    </div>
+  );
+}
 const ON_OFF = [
   { value: true, label: "On" },
   { value: false, label: "Off" },
@@ -137,6 +169,33 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
             onChange={prefs.setChooseOrderOnMultipleTriggers}
             hint="When off, simultaneous triggers are ordered automatically."
           />
+          <Choice
+            label="Touch feedback"
+            value={prefs.hapticFeedback}
+            options={ON_OFF}
+            onChange={prefs.setHapticFeedback}
+            hint="Short vibrations on long-press recognition, placements, and rejected drops. Only takes effect on devices that support it."
+          />
+        </Section>
+        <Section title="Sound">
+          <VolumeControl
+            id={`${id}-music-volume`}
+            label="Music"
+            value={prefs.musicVolume}
+            onChange={prefs.setMusicVolume}
+          />
+          <VolumeControl
+            id={`${id}-effects-volume`}
+            label="Gameplay effects"
+            value={prefs.effectsVolume}
+            onChange={prefs.setEffectsVolume}
+          />
+          <VolumeControl
+            id={`${id}-interface-volume`}
+            label="Interface"
+            value={prefs.interfaceVolume}
+            onChange={prefs.setInterfaceVolume}
+          />
         </Section>
         <Section title="Board appearance">
           <div className="space-y-2">
@@ -178,6 +237,16 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
               { value: "overview", label: "Overview" },
             ]}
             onChange={prefs.setOpponentLayout}
+          />
+          <Choice
+            label="Preferred hand"
+            value={prefs.mobileHandedness}
+            options={[
+              { value: "right", label: "Right" },
+              { value: "left", label: "Left" },
+            ]}
+            onChange={prefs.setMobileHandedness}
+            hint="Pins compact touch controls to the chosen bottom corner. Desktop layout is unaffected."
           />
           <div className="space-y-2">
             <p className="text-sm font-medium">Table background</p>

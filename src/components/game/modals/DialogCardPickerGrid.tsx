@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { isFacelessCard } from "@/lib/gameCard";
-import { cn } from "@/lib/utils";
 import {
   CARD_H,
   CARD_W,
@@ -23,30 +22,32 @@ import {
 import { DialogCardPickerCanvas } from "./DialogCardPickerCanvas";
 interface DialogCardPickerGridProps {
   items: CardBrowserItem[];
-  fitToContainer?: boolean;
   state: CardBrowserState;
   defaultRules: boolean;
   actionable: boolean;
   pending: boolean;
+  ringColor: string;
   onSelect: (id: string) => void;
   onActivate?: (item: CardBrowserItem) => void;
   onHover: (id: string | null) => void;
   onScroll: (top: number) => void;
   onChange: (item: CardBrowserItem, state: CardInspectionState) => void;
+  onLongPressCard?: (card: CardBrowserItem["card"], anchor: DOMRect) => void;
 }
 
 export function DialogCardPickerGrid({
   items,
-  fitToContainer = false,
   state,
   defaultRules,
   actionable,
   pending,
+  ringColor,
   onSelect,
   onActivate,
   onHover,
   onScroll,
   onChange,
+  onLongPressCard,
 }: DialogCardPickerGridProps) {
   const host = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState(() => ({
@@ -109,9 +110,7 @@ export function DialogCardPickerGrid({
     const width = Math.min(
       preferredWidth,
       gridWidth / maxWidthRatio,
-      fitToContainer
-        ? Math.max(1, viewport.height - CARD_BROWSER_VERTICAL_PADDING * 2) / maxHeightRatio
-        : preferredWidth,
+      Math.max(1, viewport.height - CARD_BROWSER_VERTICAL_PADDING * 2) / maxHeightRatio,
     );
     const sizes = new Map(
       states.map(({ item, inspection }) => [
@@ -128,15 +127,7 @@ export function DialogCardPickerGrid({
         ? Math.max(...displaySizes.map((size) => size.height))
         : (width * CARD_H) / CARD_W,
     };
-  }, [
-    defaultRules,
-    fitToContainer,
-    gridWidth,
-    items,
-    state.inspection,
-    viewport.height,
-    viewport.screenHeight,
-  ]);
+  }, [defaultRules, gridWidth, items, state.inspection, viewport.height, viewport.screenHeight]);
   const columns = Math.max(
     1,
     Math.floor((gridWidth + PROMPT_CARD_GAP) / (cellWidth + PROMPT_CARD_GAP)),
@@ -193,10 +184,7 @@ export function DialogCardPickerGrid({
       ref={host}
       role="listbox"
       aria-label="Cards in this view"
-      className={cn(
-        "flex-1 overflow-auto overscroll-contain",
-        fitToContainer ? "min-h-0" : "min-h-56",
-      )}
+      className="min-h-0 flex-1 overflow-auto overscroll-contain"
       onScroll={(event) => onScroll(event.currentTarget.scrollTop)}
       onKeyDown={(event) => {
         if (event.altKey || event.ctrlKey || event.metaKey) return;
@@ -243,10 +231,12 @@ export function DialogCardPickerGrid({
           height={viewport.height}
           actionable={actionable}
           pending={pending}
+          ringColor={ringColor}
           onSelect={onSelect}
           onActivate={onActivate}
           onHover={onHover}
           onChange={onChange}
+          onLongPressCard={onLongPressCard}
         />
         {visible.map((item, offset) => {
           const index = start + offset;

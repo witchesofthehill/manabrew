@@ -5,6 +5,7 @@ import { DeckHubFilterSheet } from "@/components/deck/DeckHubFilterSheet";
 import type { DeckHubDiscoveryFilters } from "@/components/deck/deckHub.types";
 import type { DeckHubFacets } from "@/api/hubTypes";
 import { cn } from "@/lib/utils";
+import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 interface DeckHubFiltersProps {
   filters: DeckHubDiscoveryFilters;
   facets: DeckHubFacets | null;
@@ -12,11 +13,17 @@ interface DeckHubFiltersProps {
   favoritesEnabled: boolean;
   onChange: (patch: Partial<DeckHubDiscoveryFilters>) => void;
   onClear: () => void;
+  total: number;
+  loaded: boolean;
 }
-export function DeckHubFilters(props: DeckHubFiltersProps) {
+
+export function DeckHubFilters({ total, loaded, ...filterProps }: DeckHubFiltersProps) {
   const [expanded, setExpanded] = useState(
     () => sessionStorage.getItem("manabrew:community-filters-expanded") !== "false",
   );
+  const shortScreen = useIsShortScreen();
+  const isTouch = useIsTouch();
+  const shortTouch = shortScreen && isTouch;
   function toggleExpanded() {
     setExpanded((current) => {
       sessionStorage.setItem("manabrew:community-filters-expanded", String(!current));
@@ -30,8 +37,18 @@ export function DeckHubFilters(props: DeckHubFiltersProps) {
         expanded ? "lg:w-72" : "lg:w-14",
       )}
     >
-      <div className="flex justify-end border-b px-4 py-3 sm:px-6 lg:hidden">
-        <DeckHubFilterSheet {...props} />
+      <div
+        className={cn(
+          "flex items-center justify-between border-b px-4 py-3 sm:px-6 lg:hidden",
+          shortTouch && "py-1.5",
+        )}
+      >
+        <p className="text-xs text-muted-foreground" aria-live="polite">
+          {loaded
+            ? `${total.toLocaleString()} ${total === 1 ? "publication" : "publications"}`
+            : "Loading publications…"}
+        </p>
+        <DeckHubFilterSheet {...filterProps} />
       </div>
       <aside
         className="hidden h-full overflow-y-auto p-5 lg:block"
@@ -62,7 +79,7 @@ export function DeckHubFilters(props: DeckHubFiltersProps) {
             )}
           </button>
         </div>
-        {expanded && <DeckHubFilterPanel {...props} />}
+        {expanded && <DeckHubFilterPanel {...filterProps} />}
       </aside>
     </div>
   );

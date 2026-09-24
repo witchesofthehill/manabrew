@@ -1,7 +1,7 @@
 /**
  * Pure helpers for the battlefield grid layout. Cells are sized from the
- * card footprint (CARD_W × CARD_H) scaled by the user's battlefield card
- * scale preference, plus GAP on one side. Blocked cells are any cell whose
+ * configured card footprint scaled by the user's battlefield card scale
+ * preference, plus GAP on one side. Blocked cells are any cell whose
  * footprint intersects an overlay keep-out rect (hand, PASS cluster, etc.).
  */
 
@@ -16,12 +16,11 @@ import {
 } from "./constants";
 import type { PlayZoneRect } from "./types";
 
-/** Vertical band an opponent field reserves at its inner edge for the combat
- *  row, so the grid rows are sized once and never reflow when combat appears.
- *  Single source of truth — `BoardRegion.playArea` carves the same amount, and
- *  `BoardCanvas` subtracts it before picking the scale so 3 grid rows survive. */
-export const combatRowReserve = (cardScale: number): number =>
-  CARD_H * cardScale + COMBAT_ROW_PAD_Y * 2 + COMBAT_STAGE_PADDING_PX;
+/** Vertical band a field reserves at its inner edge while combat presentation
+ *  is active. `BoardRegion.playArea` carves the same height occupied by the
+ *  current battlefield card footprint. */
+export const combatRowReserve = (cardScale: number, cardHeight: number = CARD_H): number =>
+  cardHeight * cardScale + COMBAT_ROW_PAD_Y * 2 + COMBAT_STAGE_PADDING_PX;
 
 export interface GridBlocker {
   x: number;
@@ -101,9 +100,11 @@ export const computeGridLayout = (
   blockers: GridBlocker[],
   cardScale: number,
   leftAlign = false,
+  cardHeight: number = CARD_H,
+  bottomAnchor = false,
 ): GridLayoutInfo => {
   const cardW = CARD_W * cardScale;
-  const cardH = CARD_H * cardScale;
+  const cardH = cardHeight * cardScale;
   const breathingW = cardW * CELL_BREATHING_FRAC;
   const breathingH = cardH * CELL_BREATHING_FRAC;
   const cellW = cardW + GAP + breathingW;
@@ -134,7 +135,8 @@ export const computeGridLayout = (
   const originX = leftAlign
     ? zone.x + leftPad + Math.max(0, (usableW - gridW) / 2)
     : zoneCenterX - midCol * cellW - cardW / 2;
-  const topMargin = Math.max(0, (usableH - gridH) / 2);
+  const freeH = Math.max(0, usableH - gridH);
+  const topMargin = bottomAnchor ? freeH : freeH / 2;
   const originY = zone.y + topMargin;
 
   const cells: GridCell[] = new Array(cols * rows);
@@ -187,6 +189,23 @@ export const cellFromPoint = (info: GridLayoutInfo, px: number, py: number): Gri
   const col = Math.max(0, Math.min(info.cols - 1, rawCol));
   const row = Math.max(0, Math.min(info.rows - 1, rawRow));
   return cellAt(info, col, row);
+};
+
+export const dropCellFromPoint = (
+  info: GridLayoutInfo,
+  px: number,
+  py: number,
+): GridCell | null => {
+  if (
+    px < info.zone.x ||
+    px > info.zone.x + info.zone.width ||
+    py < info.zone.y ||
+    py > info.zone.y + info.zone.height
+  ) {
+    return null;
+  }
+  const cell = cellFromPoint(info, px, py);
+  return cell && !cell.blocked ? cell : null;
 };
 
 /**

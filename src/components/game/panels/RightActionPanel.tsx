@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { useGameUIStore } from "@/stores/useGameUIStore";
+import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { PanelRightClose, ScrollText } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 import type { RightActionPanelProps } from "../game.types";
@@ -21,7 +22,9 @@ export function RightActionPanel({
   onRestoreSnapshot,
   onLeftEdgeChange,
 }: RightActionPanelProps) {
+  const mobile = useIsMobileGame();
   const visibleLog = gameLog.filter((entry) => entry.entryType !== "rule");
+  const latestLog = visibleLog.at(-1);
   const forceLogActivityOverride = useGameDevStore(
     (state) => state.gameStateOverrides.forceLogActivity,
   );
@@ -47,7 +50,24 @@ export function RightActionPanel({
     };
   }, [collapsed, onLeftEdgeChange]);
 
-  if (collapsed)
+  if (collapsed) {
+    if (mobile) {
+      return latestLog ? (
+        <button
+          type="button"
+          className="absolute left-1/2 top-[calc(0.5rem+var(--safe-area-inset-top))] z-50 flex min-h-11 max-w-[min(75vw,30rem)] -translate-x-1/2 items-center gap-2 rounded-full border border-border/80 bg-card/95 px-3 font-game text-xs font-semibold text-foreground shadow-lg backdrop-blur-sm active:scale-[0.98]"
+          title={latestLog.message}
+          aria-label={`Open action log. Last action: ${latestLog.message}`}
+          onClick={() => {
+            setActiveTab("log");
+            rawToggle();
+          }}
+        >
+          <ScrollText className="h-4 w-4 shrink-0 text-primary" />
+          <span className="truncate">{latestLog.message}</span>
+        </button>
+      ) : null;
+    }
     return logActivityCount > 0 ? (
       <button
         type="button"
@@ -65,15 +85,18 @@ export function RightActionPanel({
         </span>
       </button>
     ) : null;
+  }
 
   return (
     <aside
       ref={panelRef}
       className={cn(
         "absolute right-[calc(0.375rem+var(--safe-area-inset-right))] top-[calc(0.375rem+var(--safe-area-inset-top))] bottom-[calc(0.375rem+var(--safe-area-inset-bottom))] z-[9001] rounded-lg bg-card/95 backdrop-blur-sm transition-[width,background-color,border-color] overflow-visible border border-border/70 shadow-[0_20px_60px_rgba(0,0,0,0.45)]",
-        activeTab === "dev"
-          ? "w-[calc(100vw_-_0.75rem_-_var(--safe-area-inset-left)_-_var(--safe-area-inset-right))] sm:w-[38rem]"
-          : "w-72",
+        mobile
+          ? "w-[calc(100vw_-_0.75rem_-_var(--safe-area-inset-left)_-_var(--safe-area-inset-right))]"
+          : activeTab === "dev"
+            ? "w-[calc(100vw_-_0.75rem_-_var(--safe-area-inset-left)_-_var(--safe-area-inset-right))] sm:w-[38rem]"
+            : "w-72",
       )}
     >
       <div className="h-full p-3 flex flex-col gap-3 overflow-y-auto">
@@ -103,7 +126,7 @@ export function RightActionPanel({
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7 pointer-coarse:h-10 pointer-coarse:w-10 text-muted-foreground hover:text-foreground"
+            className="h-7 w-7 pointer-coarse:h-12 pointer-coarse:w-12 text-muted-foreground hover:text-foreground"
             onClick={rawToggle}
             title={`Close right panel`}
           >

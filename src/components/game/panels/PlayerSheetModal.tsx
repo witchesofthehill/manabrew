@@ -1,17 +1,17 @@
 import { useState } from "react";
+import { CardsInHandIcon } from "@/components/game/panels/CardsInHandIcon";
 import { DialogCardInspector } from "@/components/game/modals/DialogCardInspector";
 import { useCardInspection } from "@/components/game/modals/cardInspection";
 import { GameIcon } from "@/components/game/GameIcon";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { Modal } from "@/components/game/modals/Modal";
-import { CARD_BACK_IMAGE_URL, RING_ABILITIES } from "@/components/game/game.constants";
+import { RING_ABILITIES } from "@/components/game/game.constants";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
-import { MANA_LETTERS, readableTextColor } from "@/themes/gameTheme";
+import { MANA_LETTERS, readableTextColor, withAlpha } from "@/themes/gameTheme";
 import type { GameIconName } from "@/components/game/GameIcon";
 import { PlayerRuleFacts } from "@/components/game/panels/PlayerRuleFacts";
 import type { PlayerHudBadge, PlayerHudSpec } from "@/pixi/hud/playerHud.types";
-import { ScryfallImg } from "@/components/ScryfallImg";
 
 interface PlayerSheetModalProps {
   spec: PlayerHudSpec;
@@ -103,7 +103,12 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
           <section aria-label="Cards and zones">
             <h3 className="mb-2 text-xs font-semibold text-muted-foreground">Cards and zones</h3>
             <div className="grid grid-cols-2 gap-2">
-              <HandSummary count={hand?.count ?? 0} onView={hand?.onTap} />
+              <HandSummary
+                count={hand?.count ?? 0}
+                onView={hand?.onTap}
+                actionable={hand?.actionable ?? false}
+                actionColor={hand?.color}
+              />
               {zones.map((badge) => (
                 <ResourceTile key={badge.id} badge={badge} />
               ))}
@@ -165,7 +170,17 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
   );
 }
 
-function HandSummary({ count, onView }: { count: number; onView?: () => void }) {
+function HandSummary({
+  count,
+  onView,
+  actionable,
+  actionColor,
+}: {
+  count: number;
+  onView?: () => void;
+  actionable: boolean;
+  actionColor?: string;
+}) {
   const visibleCards = Math.min(3, count);
   const Element = onView ? "button" : "div";
   return (
@@ -175,25 +190,19 @@ function HandSummary({ count, onView }: { count: number; onView?: () => void }) 
       className={cn(
         "col-span-2 flex min-h-16 items-center gap-3 rounded-md border bg-muted/25 px-3 py-2 text-left",
         onView &&
-          "hover:border-card-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-card-ring",
+          "hover:border-card-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-card-ring motion-safe:transition-[scale,border-color,background-color] active:scale-[0.98]",
       )}
+      style={
+        actionable && actionColor
+          ? {
+              borderColor: actionColor,
+              backgroundColor: withAlpha(actionColor, 0.12),
+              boxShadow: `0 0 14px ${withAlpha(actionColor, 0.45)}`,
+            }
+          : undefined
+      }
     >
-      <div aria-hidden="true" className="relative h-12 w-16 shrink-0">
-        {Array.from({ length: visibleCards }, (_, index) => (
-          <ScryfallImg
-            key={index}
-            src={CARD_BACK_IMAGE_URL}
-            alt=""
-            loading="eager"
-            className="absolute bottom-0 h-11 w-8 rounded-[3px] border border-border/60 object-cover shadow-sm"
-            style={{
-              left: 8 + index * 10,
-              transform: `rotate(${(index - (visibleCards - 1) / 2) * 10}deg)`,
-              transformOrigin: "50% 100%",
-            }}
-          />
-        ))}
-      </div>
+      <CardsInHandIcon count={visibleCards} className="h-12 w-16" />
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground">Cards in hand</p>
         <p className="font-mono text-xl font-bold tabular-nums">{count}</p>
@@ -216,22 +225,32 @@ function ResourceTile({ badge }: { badge: PlayerHudBadge }) {
       {badge.onTap && <span className="text-xs text-muted-foreground">View</span>}
     </>
   );
+  const actionStyle = badge.actionable
+    ? {
+        borderColor: badge.color,
+        backgroundColor: withAlpha(badge.color, 0.12),
+        boxShadow: `0 0 14px ${withAlpha(badge.color, 0.45)}`,
+      }
+    : undefined;
   const className =
-    "flex min-h-11 w-full items-center gap-2 rounded-md border bg-muted/25 px-2.5 py-2 text-left";
+    "flex min-h-11 pointer-coarse:min-h-12 w-full items-center gap-2 rounded-md border bg-muted/25 px-2.5 py-2 text-left";
 
   return badge.onTap ? (
     <button
       type="button"
       className={cn(
         className,
-        "hover:border-card-ring hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-card-ring",
+        "hover:border-card-ring hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-card-ring motion-safe:transition-[scale,border-color,background-color] active:scale-[0.98]",
       )}
+      style={actionStyle}
       onClick={badge.onTap}
     >
       {content}
     </button>
   ) : (
-    <div className={className}>{content}</div>
+    <div className={className} style={actionStyle}>
+      {content}
+    </div>
   );
 }
 
@@ -289,7 +308,7 @@ function BadgeRow({ badge }: { badge: PlayerHudBadge }) {
     </>
   );
   const className = cn(
-    "flex min-h-11 w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm",
+    "flex min-h-11 pointer-coarse:min-h-12 w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm",
     badge.lethal ? "bg-pt-lethal/10" : "bg-muted/20",
   );
 
@@ -298,7 +317,7 @@ function BadgeRow({ badge }: { badge: PlayerHudBadge }) {
       type="button"
       className={cn(
         className,
-        "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-card-ring",
+        "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-card-ring motion-safe:transition-[scale,background-color] active:scale-[0.98]",
       )}
       onClick={badge.onTap}
     >

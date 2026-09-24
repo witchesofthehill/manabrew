@@ -155,7 +155,7 @@ export function applyProtocolError(
   set: (partial: Partial<GameState>) => void,
 ) {
   console.warn(`[protocol-error:${source}]`, error.code, error.promptId, error.message);
-  set({ isWaitingForResponse: false, relinquishedPriority: false });
+  set({ protocolError: error, isWaitingForResponse: false, relinquishedPriority: false });
 }
 
 // A pure call-to-action: it carries no game view (state arrives via applyState).

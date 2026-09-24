@@ -90,6 +90,14 @@ export interface PromptActionSpec {
   onUndoDamageOrder: () => void;
   onDefaultDamageOrder: () => void;
   onToggleBoardMenu: () => void;
+  compactPhaseControl?: {
+    color: string;
+    onOpen: () => void;
+    pulse?: boolean;
+    /** Canvas-local center where the pill should sit; omit to keep it inside
+     *  the compact action cluster. */
+    anchor?: { x: number; y: number };
+  };
   onOpenCombat?: () => void;
   targetCompletionLabel?: string | null;
   targetCompletionKind?: "done" | "cancel" | null;
@@ -124,6 +132,7 @@ export interface PromptActionSpec {
   mulliganPutBackCount?: number;
   mulliganSelectedCount?: number;
   onMulliganPutBackConfirm?: () => void;
+  onBrowseRevealGrid?: () => void;
   selfClusterMaxHeight?: number;
   dividerY?: number;
   dimmed?: boolean;

@@ -18,9 +18,10 @@ import { GHOST_CLICK_ARM_MS } from "@/lib/responsive";
 import type { TargetRef } from "@/protocol/prompts/common";
 import { intentIsHostile } from "@/types/promptType";
 import type { BoardScene } from "./board/BoardScene";
+import type { ScreenBounds } from "./types";
 import { useKeybindings } from "@/hooks/useKeybindings";
-import { PromptLayer } from "./prompts/PromptLayer";
-import type { PromptOverlaySpec } from "./prompts/prompt.types";
+import type { PromptLayer } from "./prompts/PromptLayer";
+import type { PromptLayerCallbacks, PromptOverlaySpec } from "./prompts/prompt.types";
 import {
   RulesCardPreviewLayer,
   type RulesPreviewActionGlowBounds,
@@ -31,6 +32,7 @@ import {
   type CommandZonePreviewLayerSpec,
 } from "./cardPreview/CommandZonePreviewLayer";
 import type { ClientCardDto } from "@/stores/gameStore.types";
+import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { bindPreviewScroll } from "./cardPreview/previewScroll";
 import {
@@ -45,10 +47,12 @@ export interface BoardOverlayPreviewSpec {
   card: ClientCardDto;
   phase: "open" | "closing";
   sticky: boolean;
+  placement: "auto" | "top-center" | "pinned";
   showBackFace: boolean;
   suppressed: boolean;
   skipEnterAnimation: boolean;
   actions: HandActionOption[];
+  reserveSidePanel: boolean;
   mousePos: { x: number; y: number };
   anchorRect: DOMRect | null;
   viewportRight?: number;
@@ -89,7 +93,7 @@ function updateRulesPreviewBackdrop(
   }
 }
 
-interface BoardOverlayCanvasProps {
+export interface BoardOverlayCanvasProps {
   scene: BoardScene | null;
   stackSpec: StackSpec;
   onTargetSpell: (spellId: string) => void;
@@ -109,6 +113,12 @@ interface BoardOverlayCanvasProps {
   onDismissPreview?: () => void;
   onFlipPreview?: () => void;
   onTogglePreviewView?: () => void;
+  onLongPressCard?: (card: CardDto, anchor: DOMRect) => void;
+}
+type PromptLayerFactory = (app: Application, callbacks: PromptLayerCallbacks) => PromptLayer;
+
+interface BoardOverlayCanvasSurfaceProps extends BoardOverlayCanvasProps {
+  createPromptLayer: PromptLayerFactory;
 }
 function syncPromptViewport(
   prompt: PromptLayer,
@@ -131,9 +141,11 @@ function toRulesPreviewSpec(
   return {
     card: spec.card,
     phase: spec.phase,
+    placement: spec.placement,
     sticky: spec.sticky,
     showBackFace: spec.showBackFace,
     suppressed: spec.suppressed,
+    reserveSidePanel: spec.reserveSidePanel,
     skipEnterAnimation: spec.skipEnterAnimation,
     actions: spec.actions,
     anchor: spec.anchorRect
@@ -229,7 +241,7 @@ function syncRulesPreviewActionGlow(
   state.visible = true;
 }
 
-export function BoardOverlayCanvas({
+export function BoardOverlayCanvasSurface({
   scene,
   stackSpec,
   onTargetSpell,
@@ -249,7 +261,9 @@ export function BoardOverlayCanvas({
   onDismissPreview,
   onFlipPreview,
   onTogglePreviewView,
-}: BoardOverlayCanvasProps) {
+  onLongPressCard,
+  createPromptLayer,
+}: BoardOverlayCanvasSurfaceProps) {
   const theme = useTheme();
   const { i18n } = useLingui();
   const locale = i18n.locale;
@@ -286,6 +300,7 @@ export function BoardOverlayCanvas({
     onDismissPreview,
     onFlipPreview,
     onTogglePreviewView,
+    onLongPressCard,
   });
   const promptSpecRef = useRef(promptSpec);
   const promptViewportRightRef = useRef(promptViewportRight);
@@ -301,11 +316,13 @@ export function BoardOverlayCanvas({
       onDismissPreview,
       onFlipPreview,
       onTogglePreviewView,
+      onLongPressCard,
     };
   }, [
     onCastCommandCard,
     onDismissPreview,
     onFlipPreview,
+    onLongPressCard,
     onHoverStack,
     onPreviewPointerEnter,
     onPreviewPointerLeave,
@@ -445,6 +462,19 @@ export function BoardOverlayCanvas({
         arrow.graphics.eventMode = "none";
         arrowRef.current = arrow;
 
+        const showLongPressCard = (card: CardDto, bounds: ScreenBounds) => {
+          const canvasBounds = canvas.getBoundingClientRect();
+          cbRef.current.onLongPressCard?.(
+            card,
+            new DOMRect(
+              canvasBounds.left + bounds.x,
+              canvasBounds.top + bounds.y,
+              bounds.width,
+              bounds.height,
+            ),
+          );
+        };
+
         stack = new StackLayer(themeRef.current, {
           onTargetSpell: (id) => cbRef.current.onTargetSpell(id),
           onHover: (id) => {
@@ -453,13 +483,14 @@ export function BoardOverlayCanvas({
           },
           onToggleCollapsed: () => cbRef.current.onToggleStack(),
           onRenderRequested: () => scheduler?.request(),
+          onLongPressCard: showLongPressCard,
         });
         stackRef.current = stack;
         stack.setViewport(width, height);
         stack.setSpec(stackSpecRef.current);
         stack.setRulesViewDefault(stackCardStyleRef.current === "rules");
 
-        const promptLayer = new PromptLayer(app, {
+        const promptLayer = createPromptLayer(app, {
           onReferenceChange: (target: TargetRef | null) => {
             const sceneTarget = target?.kind === "spell" ? null : target;
             sceneRef.current?.setPromptReference(sceneTarget);
@@ -477,6 +508,7 @@ export function BoardOverlayCanvas({
               ? (stackRef.current?.getAnchor(target.id) ?? null)
               : (sceneRef.current?.getPromptReferenceAnchor(target) ?? null),
           onRenderRequested: () => scheduler?.request(),
+          onLongPressCard: showLongPressCard,
         });
         prompt = promptLayer;
         promptRef.current = promptLayer;
@@ -594,7 +626,7 @@ export function BoardOverlayCanvas({
       if (initialized) teardown();
       else if (appRef.current === app) appRef.current = null;
     };
-  }, []);
+  }, [createPromptLayer]);
 
   useEffect(() => {
     stackSpecRef.current = stackSpec;

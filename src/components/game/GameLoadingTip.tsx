@@ -15,7 +15,7 @@ function nextTipIndex(current: number, count: number): number {
   return (current + 1 + Math.floor(Math.random() * (count - 1))) % count;
 }
 
-export function GameLoadingTip() {
+export function GameLoadingTip({ compact = false }: { compact?: boolean }) {
   const isTouch = useIsTouch();
   const keybindingOverrides = useKeybindingsStore((s) => s.overrides);
   const tips = useMemo(
@@ -56,10 +56,16 @@ export function GameLoadingTip() {
   }, [tips.length]);
 
   return (
-    <div className="min-h-20 overflow-hidden border-t bg-card/70 px-6 py-4 text-left">
+    <div
+      className={cn(
+        "min-h-20 overflow-hidden border-t bg-card/70 px-6 py-4 text-left",
+        compact && "min-h-14 px-4 py-2",
+      )}
+    >
       <div
         className={cn(
           "flex min-h-12 items-center gap-3 transition-[opacity,transform] ease-out motion-reduce:transition-none",
+          compact && "min-h-10 gap-2",
           tipVisible ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0",
         )}
         style={{ transitionDuration: `${GAME_LOADING_TIP_TRANSITION_MS}ms` }}
@@ -69,14 +75,24 @@ export function GameLoadingTip() {
             {shortcuts.map((shortcut) => (
               <kbd
                 key={shortcut.id}
-                className="rounded-md border bg-background/60 px-2.5 py-1 font-mono text-sm font-semibold leading-5 text-foreground shadow-sm"
+                className={cn(
+                  "rounded-md border bg-background/60 px-2.5 py-1 font-mono text-sm font-semibold leading-5 text-foreground shadow-sm",
+                  compact && "px-2 py-0.5 text-xs leading-4",
+                )}
               >
                 {shortcut.label}
               </kbd>
             ))}
           </div>
         )}
-        <p className="min-w-0 flex-1 text-base font-normal leading-6 text-foreground">{tip.text}</p>
+        <p
+          className={cn(
+            "min-w-0 flex-1 text-base font-normal leading-6 text-foreground",
+            compact && "text-sm leading-5",
+          )}
+        >
+          {tip.text}
+        </p>
       </div>
     </div>
   );

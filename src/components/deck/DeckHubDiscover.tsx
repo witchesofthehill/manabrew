@@ -231,6 +231,8 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
         filters={filters}
         facets={facets}
         activeFilterCount={activeFilterCount}
+        total={total}
+        loaded={entries !== null}
         favoritesEnabled={accountsEnabled}
         onChange={changeFilters}
         onClear={clearFilters}

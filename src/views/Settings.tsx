@@ -54,6 +54,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { HelpCircle, Minus, Pencil, Plus, Server, Trash2 } from "lucide-react";
 import { KNOWN_RELAYS, type KnownRelay } from "@/config/knownRelays";
 import { cn } from "@/lib/utils";
+import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 /**
  * Small `?` hover-help icon shown next to a picker label. Renders a
  * custom CSS tooltip below the icon on hover / focus — native `title`
@@ -103,21 +104,42 @@ function Button({ variant, className, ...props }: ButtonProps) {
 const FLASH_MIN = 200;
 const FLASH_MAX = 2000;
 const FLASH_STEP = 100;
+type SettingsTab =
+  | "server"
+  | "preferences"
+  | "theme"
+  | "prompts"
+  | "keybindings"
+  | "cache"
+  | "account"
+  | "assets";
+
 export default function Settings() {
   const isGameActive = useGameStore((s) => s.isGameActive);
   const assetsTabAvailable = useAssetsAvailable();
+  const shortScreen = useIsShortScreen();
+  const isTouch = useIsTouch();
+  const shortTouch = shortScreen && isTouch;
   const prefs = usePreferencesStore();
   const { flashDurationMs, setFlashDurationMs } = prefs;
   const server = useServerStore();
   const { theme, setTheme, resolvedTheme } = useColorMode();
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState<
-    "server" | "preferences" | "theme" | "prompts" | "keybindings" | "cache" | "account" | "assets"
-  >(() =>
+  const [activeTab, setActiveTab] = useState<SettingsTab>(() =>
     location.state?.settingsTab === "account" && isFeatureEnabled("accounts")
       ? "account"
       : "preferences",
   );
+  const settingsTabs: Array<{ value: SettingsTab; label: string }> = [
+    ...(isFeatureEnabled("accounts") ? [{ value: "account" as const, label: "Account" }] : []),
+    ...(assetsTabAvailable ? [{ value: "assets" as const, label: "My assets" }] : []),
+    { value: "preferences", label: "Preferences" },
+    { value: "theme", label: "Theme" },
+    { value: "prompts", label: "Prompts" },
+    { value: "keybindings", label: "Shortcuts" },
+    { value: "server", label: "Server" },
+    { value: "cache", label: "Cache" },
+  ];
   const accountTabRequested =
     location.state?.settingsTab === "account" && isFeatureEnabled("accounts");
   const [accountTabHandled, setAccountTabHandled] = useState(accountTabRequested);
@@ -235,110 +257,50 @@ export default function Settings() {
     return <Navigate to="/play" replace />;
   }
   return (
-    <div className="h-full space-y-8 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8">
-      <section className="space-y-4">
-        <div className="flex items-center gap-6 border-b overflow-x-auto no-scrollbar">
-          {isFeatureEnabled("accounts") && (
-            <button
-              type="button"
-              onClick={() => setActiveTab("account")}
-              className={
-                "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
-                (activeTab === "account"
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground")
-              }
+    <div
+      className={cn(
+        "h-full space-y-8 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8",
+        shortTouch && "space-y-4 py-4 sm:py-4",
+      )}
+    >
+      <section>
+        {isTouch ? (
+          <div>
+            <Label htmlFor="settings-section" className="sr-only">
+              Settings section
+            </Label>
+            <select
+              id="settings-section"
+              value={activeTab}
+              onChange={(event) => setActiveTab(event.target.value as SettingsTab)}
+              className="h-11 w-full rounded-md border border-input bg-background px-3 text-base"
             >
-              Account
-            </button>
-          )}
-          {assetsTabAvailable && (
-            <button
-              type="button"
-              onClick={() => setActiveTab("assets")}
-              className={
-                "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
-                (activeTab === "assets"
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground")
-              }
-            >
-              My assets
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setActiveTab("preferences")}
-            className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
-              (activeTab === "preferences"
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground")
-            }
-          >
-            Preferences
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("theme")}
-            className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
-              (activeTab === "theme"
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground")
-            }
-          >
-            Theme
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("prompts")}
-            className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
-              (activeTab === "prompts"
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground")
-            }
-          >
-            Prompts
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("keybindings")}
-            className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
-              (activeTab === "keybindings"
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground")
-            }
-          >
-            Shortcuts
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("server")}
-            className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
-              (activeTab === "server"
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground")
-            }
-          >
-            Server
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("cache")}
-            className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
-              (activeTab === "cache"
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground")
-            }
-          >
-            Cache
-          </button>
-        </div>
+              {settingsTabs.map((tab) => (
+                <option key={tab.value} value={tab.value}>
+                  {tab.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div className="flex items-center gap-6 overflow-x-auto border-b no-scrollbar touch-scroll-fade">
+            {settingsTabs.map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => setActiveTab(tab.value)}
+                className={cn(
+                  "shrink-0 whitespace-nowrap border-b-2 pb-2 text-sm font-medium transition-colors",
+                  activeTab === tab.value
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       {activeTab === "account" && isFeatureEnabled("accounts") && <AccountSection />}
@@ -526,9 +488,8 @@ export default function Settings() {
 
       {activeTab === "preferences" && (
         <section>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className={cn("grid gap-4 md:grid-cols-2 xl:grid-cols-3", shortTouch && "gap-3")}>
             <LanguagePreferenceCard />
-
             <PreferenceCard
               title={`Default Playmat`}
               description={`Used in games when the deck you're playing has no custom playmat of its own.`}
@@ -543,6 +504,7 @@ export default function Settings() {
                     "motion-safe:transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     !hasDefaultPlaymat && "border-dashed",
+                    isTouch && "h-24 aspect-auto",
                   )}
                 >
                   {defaultPlaymat ? (
@@ -603,7 +565,7 @@ export default function Settings() {
                       id={`zone-order-${index}`}
                       value={zoneOrder[index]}
                       onChange={(e) => setZoneSlot(index, e.target.value as ZonePanelItem)}
-                      className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
+                      className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm pointer-coarse:h-11 pointer-coarse:text-base"
                     >
                       <option value="library">Library</option>
                       <option value="graveyard">Graveyard</option>
@@ -628,25 +590,33 @@ export default function Settings() {
                     step={5}
                     value={Math.round(prefs.cardSizeMultiplier * 100)}
                     onChange={(e) => prefs.setCardSizeMultiplier(Number(e.target.value) / 100)}
-                    className="w-full accent-primary"
+                    className="h-11 w-full accent-primary"
                   />
                   <div className="flex flex-wrap gap-2">
                     <Button
-                      variant="outline"
+                      variant={
+                        prefs.cardSizeMultiplier === CARD_SIZE_MULTIPLIER_MIN
+                          ? "selected"
+                          : "outline"
+                      }
                       size="sm"
                       onClick={() => prefs.setCardSizeMultiplier(CARD_SIZE_MULTIPLIER_MIN)}
                     >
                       75%
                     </Button>
                     <Button
-                      variant="outline"
+                      variant={prefs.cardSizeMultiplier === 1 ? "selected" : "outline"}
                       size="sm"
                       onClick={() => prefs.setCardSizeMultiplier(1)}
                     >
                       100%
                     </Button>
                     <Button
-                      variant="outline"
+                      variant={
+                        prefs.cardSizeMultiplier === CARD_SIZE_MULTIPLIER_MAX
+                          ? "selected"
+                          : "outline"
+                      }
                       size="sm"
                       onClick={() => prefs.setCardSizeMultiplier(CARD_SIZE_MULTIPLIER_MAX)}
                     >
@@ -939,7 +909,7 @@ export default function Settings() {
                 step={FLASH_STEP}
                 value={flashDurationMs}
                 onChange={(e) => setFlashDurationMs(Number(e.target.value))}
-                className="w-full accent-primary"
+                className="h-11 w-full accent-primary"
               />
             </PreferenceCard>
           </div>
@@ -1167,7 +1137,7 @@ export default function Settings() {
                                     ),
                                   )
                                 }
-                                className="h-8 w-10 shrink-0 rounded border border-input bg-transparent p-0.5"
+                                className="h-8 w-10 shrink-0 rounded border border-input bg-transparent p-0.5 pointer-coarse:h-11 pointer-coarse:w-11"
                               />
                               {editingThemeColorPath === `app.${key}` ? (
                                 <input
@@ -1184,7 +1154,7 @@ export default function Settings() {
                                       setEditingThemeColorValue("");
                                     }
                                   }}
-                                  className="flex-1 min-w-0 h-7 rounded border border-input bg-background px-1.5 text-right text-[11px] font-mono"
+                                  className="h-7 min-w-0 flex-1 rounded border border-input bg-background px-1.5 text-right text-[11px] font-mono pointer-coarse:h-11 pointer-coarse:text-base"
                                   spellCheck={false}
                                 />
                               ) : (
@@ -1312,7 +1282,7 @@ export default function Settings() {
                                       ),
                                     )
                                   }
-                                  className="h-8 w-10 shrink-0 rounded border border-input bg-transparent p-0.5"
+                                  className="h-8 w-10 shrink-0 rounded border border-input bg-transparent p-0.5 pointer-coarse:h-11 pointer-coarse:w-11"
                                 />
                                 {editingThemeColorPath === path ? (
                                   <input
@@ -1329,7 +1299,7 @@ export default function Settings() {
                                         setEditingThemeColorValue("");
                                       }
                                     }}
-                                    className="flex-1 min-w-0 h-7 rounded border border-input bg-background px-1.5 text-right text-[11px] font-mono"
+                                    className="h-7 min-w-0 flex-1 rounded border border-input bg-background px-1.5 text-right text-[11px] font-mono pointer-coarse:h-11 pointer-coarse:text-base"
                                     autoComplete="off"
                                     autoCorrect="off"
                                     autoCapitalize="off"

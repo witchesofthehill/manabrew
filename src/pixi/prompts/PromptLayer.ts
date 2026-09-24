@@ -18,13 +18,13 @@ import {
   AUTOPASS_DELAY_MAX_MS,
   AUTOPASS_DELAY_MIN_MS,
   GAME_CARD_SIZES,
+  PHASES,
 } from "@/components/game/game.constants";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
 import { resolveCombo, useKeybindingsStore } from "@/stores/useKeybindingsStore";
 import { comboSymbols, formatCombo, normalizeCombo } from "@/lib/keybindings";
-import { isCoarsePointer } from "@/lib/responsive";
 import {
   ATTACK_DRAG_HINT,
   getPromptContextLines,
@@ -35,6 +35,7 @@ import { PromptGlow } from "./PromptGlow";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
 import type { PromptLayerCallbacks, PromptOverlaySpec } from "./prompt.types";
+import type { PromptLayerPresentation } from "./PromptLayerPresentation";
 import {
   type ActionViewLayout,
   FILTER_CARET_PERIOD_MS,
@@ -53,8 +54,14 @@ import { PromptModalLayer } from "./PromptModalLayer";
 
 const ACTION_CARD_SIZE = GAME_CARD_SIZES.battlefield;
 const ACTION_CARD_GAP = 8;
+const COMPACT_PHASE_PILL_HEIGHT = 22;
+const COMPACT_PHASE_PILL_MIN_WIDTH = 48;
+const COMPACT_PHASE_PILL_PADDING_X = 8;
+const COMPACT_PHASE_TOUCH_HEIGHT = 48;
 
 export class PromptLayer extends PromptModalLayer {
+  private phasePulseFired = false;
+  private phaseBounds: Rectangle | null = null;
   private readonly unsubscribePromptPreferences: () => void;
   private readonly unsubscribePreferences: () => void;
   private readonly unsubscribeKeybindings: () => void;
@@ -73,8 +80,12 @@ export class PromptLayer extends PromptModalLayer {
   private readonly onTick = (ticker: Ticker): void => this.update(ticker.deltaMS);
   private ambientColor: number | null = null;
 
-  constructor(app: Application, callbacks: PromptLayerCallbacks = {}) {
-    super(app, callbacks);
+  protected constructor(
+    app: Application,
+    presentation: PromptLayerPresentation,
+    callbacks: PromptLayerCallbacks = {},
+  ) {
+    super(app, presentation, callbacks);
     this.app.stage.on("globalpointermove", this.onStageMove);
     this.app.stage.on("pointerup", this.onStageUp);
     this.app.stage.on("pointerupoutside", this.onStageUp);
@@ -95,7 +106,12 @@ export class PromptLayer extends PromptModalLayer {
       this.rebuild();
     });
     this.unsubscribePreferences = usePreferencesStore.subscribe((state, previous) => {
-      if (state.promptCardStyle === previous.promptCardStyle) return;
+      if (
+        state.promptCardStyle === previous.promptCardStyle &&
+        state.mobileHandedness === previous.mobileHandedness
+      ) {
+        return;
+      }
       this.promptCardStates.clear();
       this.rebuild();
     });
@@ -170,11 +186,12 @@ export class PromptLayer extends PromptModalLayer {
   hitTest(x: number, y: number): boolean {
     if (!this.container.visible) return false;
     if (this.modalOpen) return true;
+    if (this.phaseBounds?.contains(x, y)) return true;
     return this.actionBounds?.contains(x, y) ?? false;
   }
 
-  get compactAction(): boolean {
-    return this.viewportHeight <= 520 && isCoarsePointer();
+  private get leftHanded(): boolean {
+    return usePreferencesStore.getState().mobileHandedness === "left";
   }
 
   destroy(): void {
@@ -195,6 +212,8 @@ export class PromptLayer extends PromptModalLayer {
     this.app.stage.off("pointercancel", this.onStageCancel);
     this.app.ticker.remove(this.onTick);
     this.actionLongPress.reset();
+    this.promptCardLongPress.reset();
+    this.promptCardPointerId = null;
     this.callbacks.onReferenceChange?.(null);
     this.cancelDrag();
     this.entranceTween?.kill();
@@ -265,6 +284,8 @@ export class PromptLayer extends PromptModalLayer {
     }
   }
   protected rebuild(): void {
+    this.promptCardLongPress.reset();
+    this.promptCardPointerId = null;
     this.stopWaitingAnimation();
     this.activePromptCard = null;
     this.callbacks.onReferenceChange?.(null);
@@ -276,6 +297,7 @@ export class PromptLayer extends PromptModalLayer {
     this.clearScryCardTiles();
     this.clearReorderCardVisuals();
     this.actionBounds = null;
+    this.phaseBounds = null;
     this.autopassFill = null;
     this.priorityButtons = null;
     this.actionGlow = null;
@@ -337,8 +359,8 @@ export class PromptLayer extends PromptModalLayer {
     const spec = this.spec!;
     const action = spec.action;
     const shortScreen = this.viewportHeight <= 520;
-    const touch = isCoarsePointer();
-    const minimal = shortScreen && touch;
+    const minimal = this.layerPresentation.actionStyle === "minimal";
+    const touch = minimal;
     if (
       action.promptType === "gameOver" ||
       !action.selfClusterMaxHeight ||
@@ -361,28 +383,28 @@ export class PromptLayer extends PromptModalLayer {
     if (!showActionContext) this.actionContextOpen = false;
     const fixedWidth = minimal ? null : shortScreen ? 230 : 300;
     const fixedContentWidth = fixedWidth == null ? this.viewportWidth - 24 : fixedWidth - 16;
-    const menu = minimal ? this.makeActionMenuButton(true) : null;
-    const viewAvailableWidth = fixedContentWidth - (menu ? menu.width + 4 : 0);
+    const phaseAnchor = action.compactPhaseControl?.anchor ?? null;
+    const controls = minimal ? this.makeCompactActionControls(phaseAnchor === null) : null;
+    const viewAvailableWidth = fixedContentWidth - (controls ? controls.width + 4 : 0);
     const view = this.buildActionView(viewKey, viewAvailableWidth, minimal, touch, preview);
-    const rowWidth = view.width + (menu ? 4 + menu.width : 0);
+    const rowWidth = view.width + (controls ? 4 + controls.width : 0);
     const contentWidth = fixedWidth == null ? rowWidth : fixedContentWidth;
     const width = fixedWidth ?? Math.min(this.viewportWidth - 12, Math.max(40, contentWidth + 12));
     const headerHeight = minimal ? 0 : 34;
     const sectionPaddingX = minimal ? 6 : 8;
     const sectionPaddingTop = minimal ? 4 : 8;
     const sectionPaddingBottom = minimal ? 4 : 8;
-    const viewHeight = Math.max(view.height, menu?.height ?? 0);
+    const viewHeight = Math.max(view.height, controls?.height ?? 0);
     const bodyHeight = sectionPaddingTop + viewHeight + sectionPaddingBottom;
     const panelHeight = headerHeight + bodyHeight;
-    const x = this.viewportWidth - width - (minimal || shortScreen ? 6 : 12);
-    const unclampedY =
-      minimal && action.dividerY != null
-        ? action.dividerY - panelHeight / 2
-        : minimal
-          ? this.viewportHeight - panelHeight - 80
-          : shortScreen
-            ? this.viewportHeight - panelHeight - 118
-            : this.viewportHeight - panelHeight;
+    const leftHanded = this.leftHanded;
+    const edgeMargin = minimal || shortScreen ? 6 : 12;
+    const x = minimal && leftHanded ? edgeMargin : this.viewportWidth - width - edgeMargin;
+    const unclampedY = minimal
+      ? this.viewportHeight - panelHeight - 6
+      : shortScreen
+        ? this.viewportHeight - panelHeight - 118
+        : this.viewportHeight - panelHeight;
     const y = minimal
       ? Math.max(6, Math.min(this.viewportHeight - panelHeight - 6, unclampedY))
       : unclampedY;
@@ -397,7 +419,7 @@ export class PromptLayer extends PromptModalLayer {
     panel.accessibleTitle = hasAction ? actionTitle(effectivePromptType) : "Waiting";
     panel.tabIndex = -1;
 
-    if (hasAction) {
+    if (hasAction && !minimal) {
       const glowColor =
         effectivePromptType === "chooseAttackers" && action.pendingAttackers.length > 0
           ? this.theme.gameTheme.promptAction.attackAction
@@ -412,10 +434,12 @@ export class PromptLayer extends PromptModalLayer {
       });
     }
 
-    const background = this.makeActionPanelSurface(width, panelHeight, radius, squareBottom);
-    if (this.actionGlow) panel.addChild(this.actionGlow.spill);
-    panel.addChild(background);
-    if (this.actionGlow) panel.addChild(this.actionGlow);
+    if (!minimal) {
+      const background = this.makeActionPanelSurface(width, panelHeight, radius, squareBottom);
+      if (this.actionGlow) panel.addChild(this.actionGlow.spill);
+      panel.addChild(background);
+      if (this.actionGlow) panel.addChild(this.actionGlow);
+    }
 
     if (!minimal) {
       let right = width - 8;
@@ -457,13 +481,13 @@ export class PromptLayer extends PromptModalLayer {
     }
 
     const contentY = headerHeight + sectionPaddingTop;
-    if (menu) {
+    if (controls) {
       view.container.position.set(sectionPaddingX, contentY + (viewHeight - view.height) / 2);
-      menu.container.position.set(
+      controls.container.position.set(
         sectionPaddingX + view.width + 4,
-        contentY + (viewHeight - menu.height) / 2,
+        contentY + (viewHeight - controls.height) / 2,
       );
-      panel.addChild(view.container, menu.container);
+      panel.addChild(view.container, controls.container);
     } else {
       view.container.position.set(
         sectionPaddingX + Math.max(0, (contentWidth - view.width) / 2),
@@ -506,6 +530,19 @@ export class PromptLayer extends PromptModalLayer {
 
     this.container.addChild(panel);
     this.actionBounds = new Rectangle(x, y, width, panelHeight);
+    if (phaseAnchor) {
+      const phase = this.makeCompactPhaseButton();
+      if (phase) {
+        phase.container.position.set(phaseAnchor.x, phaseAnchor.y - COMPACT_PHASE_TOUCH_HEIGHT / 2);
+        this.container.addChild(phase.container);
+        this.phaseBounds = new Rectangle(
+          phaseAnchor.x,
+          phaseAnchor.y - COMPACT_PHASE_TOUCH_HEIGHT / 2,
+          phase.width,
+          COMPACT_PHASE_TOUCH_HEIGHT,
+        );
+      }
+    }
     if (this.actionContextOpen && showActionContext) {
       this.renderActionContextPopover(
         x,
@@ -922,18 +959,20 @@ export class PromptLayer extends PromptModalLayer {
       ...(role === "primary" || role === "secondary" ? { variant: role } : { action: role }),
       flat: true,
       shadow: true,
+      compact: minimal,
       radius: 8,
       disabled,
+      height: minimal || touch ? 48 : undefined,
       labelPlacement: showLabel ? "stacked" : "hidden",
       tooltip: !showLabel,
       title: options.title ?? label,
       badge: options.badge,
       icon,
-      iconSize: 14,
-      fontSize: showLabel ? 8 : 12,
+      iconSize: touch ? 16 : 14,
+      fontSize: minimal ? 9 : touch ? 10 : 12,
       fontWeight: "700",
       letterSpacing: showLabel ? 0.4 : 0,
-      paddingX: 6,
+      paddingX: touch ? 10 : 6,
     });
   }
 
@@ -1104,7 +1143,7 @@ export class PromptLayer extends PromptModalLayer {
   private buildNoActionView(availableWidth: number, minimal: boolean): ActionViewLayout {
     const container = new Container();
     const width = minimal ? 30 : availableWidth;
-    const height = minimal ? 40 : 48;
+    const height = 48;
     const color = this.theme.appTheme["muted-foreground"];
     const hourglassWidth = 21;
     const labelGap = 11;
@@ -1493,15 +1532,119 @@ export class PromptLayer extends PromptModalLayer {
     return container;
   }
 
+  private makeCompactActionControls(includePhase: boolean): ActionViewLayout {
+    const phase = includePhase ? this.makeCompactPhaseButton() : null;
+    const menu = this.makeActionMenuButton(true);
+    const controlViews = this.leftHanded
+      ? phase
+        ? [phase, menu]
+        : [menu]
+      : phase
+        ? [menu, phase]
+        : [menu];
+    const height = controlViews.reduce(
+      (controlHeight, control) => Math.max(controlHeight, control.height),
+      0,
+    );
+    const container = new Container();
+    let width = 0;
+    for (const control of controlViews) {
+      control.container.position.set(width, (height - control.height) / 2);
+      container.addChild(control.container);
+      width += control.width + 4;
+    }
+    return {
+      container,
+      width: Math.max(0, width - 4),
+      height,
+    };
+  }
+
+  private makeCompactPhaseButton(): ActionViewLayout | null {
+    const action = this.spec!.action;
+    const control = action.compactPhaseControl;
+    if (!control) return null;
+    const label = PHASES.find((phase) => phase.id === action.step)?.short ?? action.step;
+    const text = promptText(label, 10, this.theme.gameTheme.textOnTinted, {
+      weight: "800",
+    });
+    const width = Math.max(
+      COMPACT_PHASE_PILL_MIN_WIDTH,
+      Math.ceil(text.width) + COMPACT_PHASE_PILL_PADDING_X * 2,
+    );
+    const pillY = (COMPACT_PHASE_TOUCH_HEIGHT - COMPACT_PHASE_PILL_HEIGHT) / 2;
+    const background = new Graphics()
+      .roundRect(0, pillY, width, COMPACT_PHASE_PILL_HEIGHT, COMPACT_PHASE_PILL_HEIGHT / 2)
+      .fill({ color: hexToNum(this.theme.gameTheme.phaseStrip.background) })
+      .roundRect(0, pillY, width, COMPACT_PHASE_PILL_HEIGHT, COMPACT_PHASE_PILL_HEIGHT / 2)
+      .stroke({ color: hexToNum(control.color), width: 2, alignment: 0.5 });
+    text.anchor.set(0.5);
+    text.position.set(width / 2, COMPACT_PHASE_TOUCH_HEIGHT / 2);
+    const button = new Container();
+    button.addChild(background, text);
+    if (control.pulse && animationsEnabled()) {
+      if (!this.phasePulseFired) {
+        this.phasePulseFired = true;
+        const ring = new Graphics()
+          .roundRect(
+            -4,
+            pillY - 4,
+            width + 8,
+            COMPACT_PHASE_PILL_HEIGHT + 8,
+            (COMPACT_PHASE_PILL_HEIGHT + 8) / 2,
+          )
+          .stroke({ color: hexToNum(control.color), width: 2, alignment: 0.5 });
+        ring.eventMode = "none";
+        button.addChild(ring);
+        gsap.fromTo(
+          ring,
+          { alpha: 0.95 },
+          {
+            alpha: 0,
+            duration: 1.1,
+            ease: "sine.out",
+            onComplete: () => ring.destroy(),
+          },
+        );
+      }
+    } else {
+      this.phasePulseFired = false;
+    }
+    button.eventMode = "static";
+    button.cursor = "pointer";
+    button.hitArea = new Rectangle(0, 0, width, COMPACT_PHASE_TOUCH_HEIGHT);
+    button.accessible = true;
+    button.accessibleTitle = "Open phase stops";
+    button.tabIndex = 0;
+    const setPressed = (pressed: boolean) => {
+      background.alpha = pressed ? 0.82 : 1;
+      text.scale.set(pressed ? 0.96 : 1);
+    };
+    button.on("pointerdown", (event: FederatedPointerEvent) => {
+      event.stopPropagation();
+      setPressed(true);
+    });
+    button.on("pointerup", () => setPressed(false));
+    button.on("pointerupoutside", () => setPressed(false));
+    button.on("pointercancel", () => setPressed(false));
+    button.on("pointerout", () => setPressed(false));
+    button.on("pointertap", control.onOpen);
+    return {
+      container: button,
+      width,
+      height: COMPACT_PHASE_TOUCH_HEIGHT,
+    };
+  }
+
   private makeActionMenuButton(minimal: boolean): ActionViewLayout {
-    const size = minimal ? 22 : 18;
+    const size = minimal ? 48 : 18;
     const button = new Container();
     const icon = this.makeIcon("lucide-settings", 14, this.theme.gameTheme.textOnTinted);
     icon.position.set(size / 2, size / 2);
     button.addChild(icon);
     button.eventMode = "static";
     button.cursor = "pointer";
-    const inset = minimal ? 8 : 10;
+    const inset = minimal ? 0 : 10;
     button.hitArea = new Rectangle(-inset, -inset, size + inset * 2, size + inset * 2);
     button.on("pointerover", () => {
       icon.alpha = 0.75;
@@ -1668,6 +1811,9 @@ export class PromptLayer extends PromptModalLayer {
     sprite.eventMode = "none";
     container.addChild(sprite);
     container.hitArea = new Rectangle(0, 0, ACTION_CARD_SIZE.width, ACTION_CARD_SIZE.height);
+    container.eventMode = "static";
+    container.cursor = "pointer";
+    this.bindPromptCardLongPress(container, card, sprite, true);
     return container;
   }
 

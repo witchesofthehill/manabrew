@@ -32,6 +32,7 @@ export const CARD_SIZE_MULTIPLIER_MIN = 0.75;
 // the classic 3-row size on ANY display — a knob past 150% would be a lie
 // (the old 300% top was one: everything saturated around 150%).
 export const CARD_SIZE_MULTIPLIER_MAX = 1.5;
+const clampVolume = (value: number) => Math.max(0, Math.min(1, value));
 
 export interface PreferencesState {
   appThemePreset: string;
@@ -156,7 +157,17 @@ export interface PreferencesState {
   lastRoomSetup: LastRoomSetup | null;
   setLastRoomSetup: (setup: LastRoomSetup) => void;
   tableBackground: BoardBackgroundId;
+  mobileHandedness: "right" | "left";
   setTableBackground: (background: BoardBackgroundId) => void;
+  hapticFeedback: boolean;
+  setHapticFeedback: (enabled: boolean) => void;
+  musicVolume: number;
+  effectsVolume: number;
+  interfaceVolume: number;
+  setMusicVolume: (volume: number) => void;
+  setEffectsVolume: (volume: number) => void;
+  setInterfaceVolume: (volume: number) => void;
+  setMobileHandedness: (handedness: "right" | "left") => void;
 }
 
 const PERSISTED_PREFERENCE_KEYS = [
@@ -180,6 +191,11 @@ const PERSISTED_PREFERENCE_KEYS = [
   "battlefieldCardStyle",
   "boardBackgroundId",
   "inGameAnimations",
+  "mobileHandedness",
+  "hapticFeedback",
+  "musicVolume",
+  "effectsVolume",
+  "interfaceVolume",
   "chooseOrderOnMultipleTriggers",
   "ironsmithRuntimeEnabled",
   "directTransport",
@@ -319,7 +335,7 @@ export const usePreferencesStore = create<PreferencesState>()(
           lockZoneTiles: false,
           setLockZoneTiles: (lockZoneTiles) => set({ lockZoneTiles }),
 
-          battlefieldCardStyle: "realistic",
+          battlefieldCardStyle: "art",
           setBattlefieldCardStyle: (battlefieldCardStyle) => set({ battlefieldCardStyle }),
 
           boardBackgroundId: DEFAULT_BOARD_BACKGROUND_ID,
@@ -349,6 +365,19 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           opponentLayout: "focused",
           setOpponentLayout: (opponentLayout) => set({ opponentLayout }),
+
+          hapticFeedback: true,
+          setHapticFeedback: (hapticFeedback) => set({ hapticFeedback }),
+          musicVolume: 0,
+          effectsVolume: 0.45,
+          interfaceVolume: 0.35,
+          setMusicVolume: (musicVolume) => set({ musicVolume: clampVolume(musicVolume) }),
+          setEffectsVolume: (effectsVolume) => set({ effectsVolume: clampVolume(effectsVolume) }),
+          setInterfaceVolume: (interfaceVolume) =>
+            set({ interfaceVolume: clampVolume(interfaceVolume) }),
+
+          mobileHandedness: "right",
+          setMobileHandedness: (mobileHandedness) => set({ mobileHandedness }),
 
           cardHoverDelayMs: 350,
           setCardHoverDelayMs: (ms) => set({ cardHoverDelayMs: ms }),
@@ -417,7 +446,15 @@ export const usePreferencesStore = create<PreferencesState>()(
       },
       {
         name: STORAGE_KEYS.PREFERENCES,
-        version: 1,
+        version: 2,
+        migrate: (persistedState, version) => {
+          if (!persistedState || typeof persistedState !== "object") return {};
+          const persisted = persistedState as Record<string, unknown>;
+          if (version < 2 && persisted.battlefieldCardStyle === "realistic") {
+            persisted.battlefieldCardStyle = "art";
+          }
+          return persisted;
+        },
         merge: (persistedState, currentState) => ({
           ...currentState,
           ...pickPersistedPreferences(persistedState),

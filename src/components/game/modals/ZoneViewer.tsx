@@ -25,6 +25,7 @@ export interface ZoneViewerProps {
   selectedLabel?: string;
   targetHostile?: boolean;
   highlightedCardColors?: Record<string, string>;
+  onLongPressCard?: (card: CardDto, anchor: DOMRect) => void;
 }
 const ACTION_LABELS: Record<ZoneViewMode, string> = {
   browse: "Choose action",
@@ -49,6 +50,7 @@ export function ZoneViewer({
   selectedLabel,
   targetHostile,
   highlightedCardColors,
+  onLongPressCard,
 }: ZoneViewerProps) {
   const theme = useTheme().gameTheme;
   const key = zoneLocationKey(source, title);
@@ -106,6 +108,7 @@ export function ZoneViewer({
         actionLabel={(item) =>
           item.selected ? (selectedLabel ?? "Undo selection") : (clickLabel ?? ACTION_LABELS[mode])
         }
+        onLongPressCard={onLongPressCard}
       />
     </Modal>
   );

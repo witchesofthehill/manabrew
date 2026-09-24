@@ -36,6 +36,7 @@ interface Props {
   highlight?: (item: CardBrowserItem) => string;
   initialState?: CardBrowserState;
   onStateChange?: (state: CardBrowserState) => void;
+  onLongPressCard?: (card: CardBrowserItem["card"], anchor: DOMRect) => void;
 }
 
 export function DialogCardBrowser({
@@ -52,6 +53,7 @@ export function DialogCardBrowser({
   highlight,
   initialState,
   onStateChange,
+  onLongPressCard,
 }: Props) {
   const [state, setState] = useState<CardBrowserState>(() =>
     createCardBrowserState(initialState, picker),
@@ -193,16 +195,17 @@ export function DialogCardBrowser({
         {picker ? (
           <DialogCardPickerGrid
             items={visible}
-            fitToContainer={compact}
             state={state}
             defaultRules={defaultView === "rules"}
             actionable={!!onActivate}
+            ringColor={intentColor ?? theme.cardRing}
             pending={pending}
             onSelect={(id) => inspect(id, false)}
             onHover={setHoveredId}
             onActivate={activateOnClick ? onActivate : undefined}
             onScroll={scroll}
             onChange={changeInspection}
+            onLongPressCard={onLongPressCard}
           />
         ) : (
           <>

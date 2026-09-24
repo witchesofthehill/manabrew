@@ -53,7 +53,7 @@ export interface ArrowSpec {
 
 export interface GameCanvasCallbacks {
   onClickCard?: (card: CardDto) => void;
-  onClickAnyCard?: (card: CardDto) => void;
+  onClickAnyCard?: (card: CardDto, screenBounds: ScreenBounds) => void;
   onHoverCard?: (
     card: CardDto | null,
     screenBounds?: ScreenBounds,
@@ -74,6 +74,7 @@ export interface GameCanvasCallbacks {
   onReorderHand?: (cardId: string, toIndex: number) => void;
   onClickCard_Hand?: (card: CardDto, pointer?: { clientX: number; clientY: number }) => void;
   onHoverHandCard?: (card: CardDto | null, screenBounds?: ScreenBounds) => void;
+  onMobileHandOpenChange?: (open: boolean) => void;
   onTargetPlayer?: (playerId: string) => void;
   onShowPlayerSheet?: (playerId: string) => void;
   onLongPressCard?: (card: CardDto, screenBounds: ScreenBounds) => void;

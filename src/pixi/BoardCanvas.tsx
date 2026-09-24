@@ -9,10 +9,10 @@ import { destroyPixiApp, installPixiPatches } from "./pixiPatches";
 installPixiPatches();
 
 import { BoardScene, type BoardPlayerSpec } from "./board/BoardScene";
-import { computeBoardLayout, type RegionOrientation } from "./board/boardLayout";
+import type { RegionOrientation } from "./board/boardLayout";
+import type { BattlefieldLayoutPolicy } from "./board/battlefieldLayoutPolicy";
 import type { PlayerHudSpec as PlayerBarSpec } from "./hud/playerHud.types";
 import type { ZoneTileSpec } from "./board/BoardZoneTiles";
-import { battlefieldScaleForMultiplier, scaleForRowsWithCombatRow } from "./GridLayout";
 import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme, subscribeTheme } from "@/hooks/useTheme";
 import { useHandScale } from "@/hooks/useHandScale";
@@ -21,9 +21,6 @@ import { useGameStore } from "@/stores/useGameStore";
 import { isCoarsePointer } from "@/lib/responsive";
 import { registerPixiApp } from "./visibility";
 import {
-  BATTLEFIELD_MIN_ROWS,
-  BATTLEFIELD_MIN_ROWS_LARGEST,
-  FIELD_INNER_EDGE_PAD_PX,
   HAND_ACTIONS_CLEAR_DELAY_MS,
   HAND_ACTIONS_GAP_PX,
   PIXI_MAX_FPS,
@@ -79,7 +76,7 @@ export interface BoardCanvasLayout {
   }[];
 }
 
-interface BoardCanvasProps {
+export interface BoardCanvasProps {
   regions: BoardCanvasRegion[];
   hand: HandState;
   arrowSpecs: ArrowSpec[];
@@ -93,7 +90,7 @@ interface BoardCanvasProps {
   attackerOptions?: { attackerId: string; validTargetIds: string[] }[];
   phaseStrip: PhaseStripState;
   phaseStripCallbacks?: PhaseStripCallbacks;
-  compact?: boolean;
+
   opponentLayout?: "focused" | "overview";
   focusLocked?: boolean;
   focusedOpponentId?: string | null;
@@ -117,6 +114,15 @@ interface BoardCanvasProps {
   externalPreviewActive?: boolean;
   onLayout?: (layout: BoardCanvasLayout) => void;
   className?: string;
+  showBackground?: boolean;
+}
+
+type BoardSceneFactory = (app: Application, callbacks: GameCanvasCallbacks) => BoardScene;
+
+interface BoardCanvasSurfaceProps extends BoardCanvasProps {
+  createScene: BoardSceneFactory;
+  layoutPolicy: BattlefieldLayoutPolicy;
+  syncScenePresentation?: (scene: BoardScene, canvas: HTMLCanvasElement) => void;
 }
 
 interface HandHoverState {
@@ -124,7 +130,7 @@ interface HandHoverState {
   bounds: ScreenBounds;
 }
 
-export function BoardCanvas({
+export function BoardCanvasSurface({
   regions,
   hand,
   arrowSpecs,
@@ -136,7 +142,8 @@ export function BoardCanvas({
   attackerOptions,
   phaseStrip,
   phaseStripCallbacks,
-  compact,
+  layoutPolicy,
+  syncScenePresentation,
   opponentLayout = "focused",
   focusLocked = false,
   focusedOpponentId,
@@ -157,7 +164,10 @@ export function BoardCanvas({
   externalPreviewActive,
   onLayout,
   className,
-}: BoardCanvasProps) {
+  showBackground = true,
+  createScene,
+}: BoardCanvasSurfaceProps) {
+  const effectiveBottomReserve = layoutPolicy.effectiveBottomReserve(selfBottomReserve ?? 0);
   const { i18n } = useLingui();
   const locale = i18n.locale;
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -168,7 +178,8 @@ export function BoardCanvas({
   const onLayoutRef = useRef(onLayout);
   const reserveRef = useRef(0);
   const latestLayoutRef = useRef<BoardCanvasLayout | null>(null);
-  const selfBottomReserveRef = useRef(selfBottomReserve ?? 0);
+  const selfBottomReserveRef = useRef(effectiveBottomReserve);
+  const layoutPolicyRef = useRef(layoutPolicy);
 
   const cardSizeMultiplier = usePreferencesStore((s) => s.cardSizeMultiplier);
   const cardStyle = usePreferencesStore((s) => s.battlefieldCardStyle);
@@ -274,7 +285,7 @@ export function BoardCanvas({
         app.ticker.maxFPS = PIXI_MAX_FPS;
         unregisterVisibility = registerPixiApp(app);
 
-        const newScene = new BoardScene(app, {
+        const newScene = createScene(app, {
           onClickCard: (...a) => callbacksRef.current.onClickCard?.(...a),
           onHoverCard: (...a) => callbacksRef.current.onHoverCard?.(...a),
           onHoverZoneCards: (...a) => callbacksRef.current.onHoverZoneCards?.(...a),
@@ -302,6 +313,7 @@ export function BoardCanvas({
           onClickCard_Hand: (...a) => callbacksRef.current.onClickCard_Hand?.(...a),
           onCastSpell: (...a) => callbacksRef.current.onCastSpell?.(...a),
           onDismissHoverPreview: () => callbacksRef.current.onDismissHoverPreview?.(),
+          onMobileHandOpenChange: (...a) => callbacksRef.current.onMobileHandOpenChange?.(...a),
           onHoverHandCard: (card, bounds) => {
             callbacksRef.current.onHoverHandCard?.(card, bounds);
             if (card && bounds) {
@@ -327,7 +339,11 @@ export function BoardCanvas({
           if (!base) return;
           const updated = {
             ...base,
-            selfClusterMaxHeight: Math.max(px, selfBottomReserveRef.current),
+            selfClusterMaxHeight: layoutPolicyRef.current.clusterHeight(
+              base.self,
+              px,
+              selfBottomReserveRef.current,
+            ),
           };
           latestLayoutRef.current = updated;
           onLayoutRef.current?.(updated);
@@ -347,7 +363,7 @@ export function BoardCanvas({
       if (appRef.current === app) appRef.current = null;
       if (initSettled) release();
     };
-  }, [cancelHandHoverClear]);
+  }, [cancelHandHoverClear, createScene]);
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !scene) return;
@@ -378,49 +394,25 @@ export function BoardCanvas({
     const app = appRef.current;
     const s = sceneRef.current;
     if (!app?.renderer || !s) return;
-    const w = app.renderer.width;
-    const h = app.renderer.height;
-    const opponentCount = opponentIds.length;
-    const layout = computeBoardLayout(
-      w,
-      h,
-      opponentCount,
-      selfBottomReserve ?? 0,
-      compact ?? false,
+    const result = layoutPolicy.compute({
+      width: app.renderer.width,
+      height: app.renderer.height,
+      opponentCount: opponentIds.length,
+      requestedBottomReserve: effectiveBottomReserve,
       opponentLayout,
-    );
-    s.setCompactMode(compact ?? false);
+      observedHandReserve: reserveRef.current,
+      cardSizeMultiplier,
+      handViewportScale,
+    });
+    const { layout } = result;
+    s.setPhaseDividerVisible(layoutPolicy.showPhaseDivider);
     s.setFocusLocked(focusLocked);
-    const playmatTrim = (usable: number) => Math.max(1, usable - FIELD_INNER_EDGE_PAD_PX);
-    const selfUsable = playmatTrim(Math.max(1, layout.self.height - (selfBottomReserve ?? 0)));
-    const selfScale = Math.max(
-      Number.EPSILON,
-      compact
-        ? scaleForRowsWithCombatRow(selfUsable, BATTLEFIELD_MIN_ROWS)
-        : Math.min(
-            battlefieldScaleForMultiplier(selfUsable, cardSizeMultiplier),
-            scaleForRowsWithCombatRow(selfUsable, BATTLEFIELD_MIN_ROWS_LARGEST),
-          ),
-    );
-    const oppUsables = layout.opponents.map((o) => playmatTrim(Math.max(1, o.rect.height)));
-    const oppUsable = oppUsables.length ? Math.min(...oppUsables) : selfUsable;
-    const oppScale = Math.max(
-      Number.EPSILON,
-      layout.opponentLayout === "overview"
-        ? scaleForRowsWithCombatRow(oppUsable, 1)
-        : compact
-          ? scaleForRowsWithCombatRow(oppUsable, BATTLEFIELD_MIN_ROWS)
-          : Math.min(
-              battlefieldScaleForMultiplier(oppUsable, cardSizeMultiplier),
-              scaleForRowsWithCombatRow(oppUsable, BATTLEFIELD_MIN_ROWS_LARGEST),
-            ),
-    );
-    s.configure(players, layout, { self: selfScale, opponent: oppScale });
-    s.setHandScale(compact ? 1 : handViewportScale);
+    s.configure(players, layout, result.scales, result.combatRowReserved);
+    s.setHandScale(result.handScale);
     const next: BoardCanvasLayout = {
       self: layout.self,
       dividerY: layout.dividerY,
-      selfClusterMaxHeight: Math.max(reserveRef.current, selfBottomReserve ?? 0),
+      selfClusterMaxHeight: result.selfClusterMaxHeight,
       opponents: opponentIds.map((id, i) => ({
         playerId: id,
         rect: layout.opponents[i]?.rect ?? layout.self,
@@ -434,16 +426,27 @@ export function BoardCanvas({
     playersKey,
     cardSizeMultiplier,
     handViewportScale,
-    compact,
+
+    layoutPolicy,
     opponentLayout,
     focusLocked,
-    selfBottomReserve,
+    effectiveBottomReserve,
     showPlayerBars,
   ]);
 
   useEffect(() => {
+    layoutPolicyRef.current = layoutPolicy;
+    selfBottomReserveRef.current = effectiveBottomReserve;
+  }, [layoutPolicy, effectiveBottomReserve]);
+
+  useEffect(() => {
     reconfigure();
   }, [reconfigure, scene]);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!scene || !canvas) return;
+    syncScenePresentation?.(scene, canvas);
+  }, [scene, syncScenePresentation]);
 
   useEffect(() => {
     const parent = canvasRef.current?.parentElement;
@@ -626,11 +629,9 @@ export function BoardCanvas({
 
   const roomTableStyle = useServerStore((s) => s.currentRoom?.table_style);
   const boardBackground = usePreferencesStore((s) => s.boardBackgroundId);
-
-  useEffect(() => {
-    const backgroundId = roomTableStyle ?? boardBackground;
-    scene?.setBackground(boardBackgroundUrl(backgroundId), boardBackgroundDarken(backgroundId));
-  }, [scene, roomTableStyle, boardBackground]);
+  const backgroundId = roomTableStyle ?? boardBackground;
+  const backgroundUrl = boardBackgroundUrl(backgroundId);
+  const backgroundDarken = boardBackgroundDarken(backgroundId);
 
   const inGameAnimations = usePreferencesStore((s) => s.inGameAnimations);
   useEffect(() => {
@@ -702,10 +703,37 @@ export function BoardCanvas({
   });
 
   return (
-    <div className={className} style={{ position: "relative", width: "100%", height: "100%" }}>
+    <div
+      className={className}
+      style={{ isolation: "isolate", position: "relative", width: "100%", height: "100%" }}
+    >
+      {showBackground && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-canvas-background"
+          style={{ zIndex: 0 }}
+        >
+          {backgroundUrl && (
+            <div
+              className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+              style={{
+                backgroundImage: `url(${backgroundUrl})`,
+                filter: `brightness(${1 - backgroundDarken})`,
+              }}
+            />
+          )}
+        </div>
+      )}
       <canvas
         ref={canvasRef}
-        style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }}
+        style={{
+          position: "relative",
+          zIndex: 1,
+          width: "100%",
+          height: "100%",
+          display: "block",
+          touchAction: "none",
+        }}
         onContextMenu={(e) => e.preventDefault()}
       />
       {showActionPanel && !handRulesView && (

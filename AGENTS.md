@@ -79,7 +79,7 @@ The pre-commit hook runs staged-file formatting and linting for every commit. Fu
 
 ### 1. Lint and format staged files
 
-The hook runs `npx lint-staged` automatically. Do not run `yarn lint:all` solely because you are about to commit; it remains available for an explicit full local check.
+- The hook runs `npx lint-staged` automatically. Do not run `yarn lint:all` solely because you are about to commit; it remains available for an explicit full local check. Type-check with `yarn tsc -b`: plain `yarn tsc --noEmit` is a no-op here — the root `tsconfig.json` only declares project references — and exits clean without checking any file.
 
 If the staged checks fail, do not bypass them. Fix the underlying issue or use the applicable formatter:
 

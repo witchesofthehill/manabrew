@@ -46,8 +46,8 @@ export function DeckHubEntryCard({
       type="button"
       size="sm"
       variant="secondary"
-      className="h-8 gap-1 bg-background/90 px-2 shadow-sm backdrop-blur-sm"
-      aria-label={entry.favorited ? `Remove from favorites` : `Add to favorites`}
+      className="h-8 gap-1 bg-background/90 px-2 shadow-sm backdrop-blur-sm pointer-coarse:min-w-11"
+      aria-label={entry.favorited ? "Remove from favorites" : "Add to favorites"}
       aria-pressed={entry.favorited}
       aria-busy={favoritePending}
       disabled={favoritePending}

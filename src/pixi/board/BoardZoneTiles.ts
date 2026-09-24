@@ -191,6 +191,7 @@ export class BoardZoneTiles {
   }
 
   setSpecs(specs: ZoneTileSpec[]): void {
+    const changed: Tile[] = [];
     this.specs = specs;
     const seen = new Set(specs.map((s) => s.key));
     for (const [key, tile] of [...this.tiles]) {
@@ -203,7 +204,9 @@ export class BoardZoneTiles {
       this.tiles.delete(key);
     }
     for (const spec of specs) {
-      const tile = this.tiles.get(spec.key) ?? this.createTile(spec);
+      const existing = this.tiles.get(spec.key);
+      const tile = existing ?? this.createTile(spec);
+      if (existing && existing.spec.count !== spec.count) changed.push(tile);
       this.tiles.set(spec.key, tile);
       tile.spec = spec;
       tile.container.cursor = spec.onOpen ? "pointer" : this.draggable ? "grab" : "default";
@@ -211,8 +214,20 @@ export class BoardZoneTiles {
       this.applyFace(tile);
     }
     this.redraw();
+    for (const tile of changed) this.animateCountChange(tile);
   }
 
+  private animateCountChange(tile: Tile): void {
+    if (!animationsEnabled()) return;
+    gsap.killTweensOf(tile.countText.scale);
+    gsap.killTweensOf(tile.outline);
+    gsap.fromTo(
+      tile.countText.scale,
+      { x: 1.45, y: 1.45 },
+      { x: 1, y: 1, duration: 0.38, ease: "back.out(2)" },
+    );
+    gsap.fromTo(tile.outline, { alpha: 0.45 }, { alpha: 1, duration: 0.45, ease: "power2.out" });
+  }
   getTileCenter(key: string): { x: number; y: number } | null {
     const p = this.placements.get(key);
     if (!p) return null;
@@ -798,6 +813,8 @@ export class BoardZoneTiles {
     for (const tile of this.tiles.values()) {
       gsap.killTweensOf(tile.hoverGlow);
       gsap.killTweensOf(tile.ambient);
+      gsap.killTweensOf(tile.countText.scale);
+      gsap.killTweensOf(tile.outline);
       tile.container.destroy({ children: true });
     }
     this.tiles.clear();

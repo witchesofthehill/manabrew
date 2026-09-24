@@ -131,3 +131,5 @@ The PR body itself must follow `.github/pull_request_template.md`: `Summary`, `W
 ## Hygiene
 
 If something in the project surprises you, flag it to the developer and add a note to the AGENTS.md file most relevant to the surprise so future agents avoid the same trap. Do not leave behind scratch `.md` files; use a repo-local tmp directory if you need scratch space.
+
+Deployment reloads ingress from the freshly synced host Caddyfile on stdin before rolling upstreams. A file bind mount can retain an old inode after rsync replaces a file; reloading `/etc/caddy/Caddyfile` inside the long-lived ingress can silently reload stale configuration.

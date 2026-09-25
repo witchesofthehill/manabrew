@@ -62,6 +62,37 @@ pub enum ClientPlatform {
     Unknown,
 }
 
+/// Why the client is or is not running the engine in its own browser. The
+/// relay never acts on it; it exists so the hosted-node population can be told
+/// apart from the browsers that chose not to use it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "lobby/index.ts")]
+pub enum EngineGate {
+    InBrowser,
+    Ios,
+    Isolation,
+    TrialTimeout,
+    TrialFailed,
+    Disabled,
+    #[default]
+    Unknown,
+}
+
+impl EngineGate {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::InBrowser => "in_browser",
+            Self::Ios => "ios",
+            Self::Isolation => "isolation",
+            Self::TrialTimeout => "trial_timeout",
+            Self::TrialFailed => "trial_failed",
+            Self::Disabled => "disabled",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
 impl ClientPlatform {
     pub const fn as_str(self) -> &'static str {
         match self {
@@ -194,6 +225,8 @@ pub enum ClientMessage {
         /// how the relay decides what wire features that seat can handle.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         client_version: Option<String>,
+        #[serde(default)]
+        engine_gate: EngineGate,
     },
 
     Ping,

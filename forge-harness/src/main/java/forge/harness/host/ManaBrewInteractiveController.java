@@ -17,6 +17,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import forge.LobbyPlayer;
 import forge.ai.AiCostDecision;
+import forge.ai.ComputerUtilCombat;
 import forge.ai.ComputerUtilMana;
 import forge.card.CardRules;
 import forge.card.ColorSet;
@@ -503,7 +504,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 throw new IllegalArgumentException(
                         "combat damage assigned out of damage assignment order to " + blocker);
             }
-            final int lethal = combatDamageToAssign(attacker, blocker);
+            final int lethal = ComputerUtilCombat.getEnoughDamageToKill(blocker, damageDealt, attacker, false, false);
             priorLethal &= assigned >= lethal;
             allBlockersLethal &= assigned >= lethal;
         }
@@ -2802,18 +2803,13 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         return "C";
     }
 
-    private static int combatDamageToAssign(final Card attacker, final Card blocker) {
-        final int lethal = Math.max(0, blocker.getLethalDamage());
-        return attacker.hasKeyword(Keyword.DEATHTOUCH) ? Math.min(lethal, 1) : lethal;
-    }
-
     private Map<Card, Integer> fallbackCombatDamage(
             final Card attacker, final CardCollectionView blockers, final int damageDealt, final GameEntity defender) {
         final Map<Card, Integer> result = new LinkedHashMap<>();
         int damageLeft = damageDealt;
         final boolean canTrampleToDefender = defender != null && attacker != null && attacker.hasKeyword("Trample");
         for (final Card blocker : blockers) {
-            final int lethal = combatDamageToAssign(attacker, blocker);
+            final int lethal = ComputerUtilCombat.getEnoughDamageToKill(blocker, damageLeft, attacker, false, false);
             final int assign = Math.min(lethal, damageLeft);
             result.put(blocker, assign);
             damageLeft -= assign;
